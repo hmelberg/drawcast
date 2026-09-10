@@ -56,9 +56,13 @@ vars: {f: 1, a: 0.5}
 A top-level record of numbers. A var may be read in three places:
 
 1. **`curve.expr`** — `"sin(f*x)"`, `"a*x^2"`. The evaluator's variable
-   set becomes `x, X, q, Q, t, T` plus every var name. A var named like
-   one of those six, or like a function or constant of the evaluator
-   (`sin`, `pi`, `e`), is a validation error.
+   set becomes `x, X, q, Q, t, T` plus every var name. A var named `x`
+   (the curve variable) or like a function or constant of the evaluator
+   (`sin`, `pi`, `e`) is a validation error. `t` and `q` are aliases of
+   `x` in a curve expression only until a var of that name exists: `t` is
+   the name a sweep parameter naturally takes, so a var shadows the alias
+   (found in Task 3: the first draft reserved `t` and the very first
+   example tripped on it).
 2. **`bind`** on any element — see 2.2.
 3. **`{name}` tokens in drawn text** — `text.text`, `label.text`,
    `node.text`: `"f = {f}"`. Formatted by the measure rule

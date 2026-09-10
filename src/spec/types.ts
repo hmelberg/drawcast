@@ -97,7 +97,9 @@ export interface SpecElement {
   x_to?: number;
   // point / angle / relative placement
   /** Where the element goes. point: `{x, y}` or `intersection_of`. Any coordinate-placed element: `{ref, side?, gap?, anchor?, offset?}` — placed relative to another element's box (side: outside it, gap units away; anchor: a named point on it). Never together with x/y. */
-  at?: { x?: number; y?: number; intersection_of?: string[]; ref?: string; anchor?: string; side?: Side; gap?: number; offset?: [number, number] } | [number, number];
+  at?: { x?: number; y?: number; on?: string; intersection_of?: string[]; ref?: string; anchor?: string; side?: Side; gap?: number; offset?: [number, number] } | [number, number];
+  /** `{field: expr}` — numeric fields (or dot paths to numbers, `at.x`) computed from the spec's vars at layout time (design 2026-09-10 §2.2). */
+  bind?: Record<string, string>;
   /** Own landing point when placed with at (default: the side opposite at.side, else center). Same convention as move. */
   anchor?: string;
   guides?: boolean;
@@ -460,6 +462,8 @@ export interface Command {
   duration?: number;
   /** With animate: keep a faded copy of the figure at this boundary (true = every visible id). */
   ghost?: GhostOption;
+  /** With animate: leave the track of `of`'s anchor across the sweep as the element `<of>_trail` (design 2026-09-10 §2.4). */
+  trail?: { of: string; anchor?: string; color?: string; width?: number };
   /** With animate: velocity profile over the whole tween (default: today's
    *  smoothstep — ease in AND out). A long race wants `linear` so the
    *  middle years run at constant speed instead of blurring past. */
@@ -642,6 +646,8 @@ export interface Spec {
    */
   templates?: TemplateDoc[];
   domain?: { x?: [number, number]; y?: [number, number] };
+  /** Top-level numbers (design 2026-09-10): read by curve `expr`, by `bind` expressions, as `{name}` in drawn text, and swept by animate. */
+  vars?: Record<string, number>;
   elements?: SpecElement[];
   commands?: Command[];
 }

@@ -45,6 +45,8 @@ export interface LintIssue {
     | "placement"
     /** a group element whose members resolve to nothing */
     | "group-empty"
+    /** a bind expression that cannot be evaluated: unknown var, non-numeric field, bad expression */
+    | "bind"
     /** a math element whose TeX the engine cannot parse */
     | "math";
   ids: string[];

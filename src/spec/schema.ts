@@ -14,6 +14,7 @@ import { SUB_SUFFIXES } from "../layout/model";
 import { C64_PROGRAMS } from "../code/c64-catalogue";
 import { LANGUAGES, isLanguage } from "../code/languages";
 import { notationBeats } from "./notation";
+import { varNameErrors } from "./vars";
 import { parseABC } from "./abc";
 import { DATA_TOKEN_RE, MALFORMED_TOKEN_RE, scanDataTokens } from "../code/tokens";
 import { validateTemplateDoc } from "../scenes/doc";
@@ -125,6 +126,7 @@ const elementSchema = {
             x: { type: "number" },
             y: { type: "number" },
             intersection_of: { type: "array", items: { type: "string" }, description: "Two curve ids (your own or a scene template's); the point is their intersection." },
+            on: { type: "string", description: "point: the curve id this point sits ON at x — y is read off the curve (with x; not with y or intersection_of)." },
             ref: { type: "string" },
             anchor: { type: "string", description: `A named point ON ref instead of its centre — e.g. {"ref": "tri", "anchor": "vertex_1"}: ${ANCHOR_NAMES}.` },
             side: { type: "string", enum: [...SIDE_VALUES], description: "Place OUTSIDE ref's box on this side, gap units away." },
@@ -136,7 +138,7 @@ const elementSchema = {
         { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
       ],
       description:
-        "Where the element goes. point: x,y or intersection_of. Others: ref + side/gap (outside another element's box) or ref + anchor (a named point on it); optional offset. Never with x/y. " +
+        "Where the element goes. point: x,y, or x + on (a curve id), or intersection_of.Others: ref + side/gap (outside another element's box) or ref + anchor (a named point on it); optional offset. Never with x/y. " +
         "angle: the vertex — [x, y] (domain units when a domain is declared, else logical) or {ref, anchor} for a point on another element, e.g. {\"ref\": \"tri\", \"anchor\": \"vertex_1\"}.",
     },
     guides: { type: "boolean", description: "point: draw dashed guide lines from the point to both axes." },
@@ -368,6 +370,11 @@ const elementSchema = {
     code_result: {
       type: "string",
       description: "code: machine-written execution result (copy VERBATIM if present; never write, edit, or invent it).",
+    },
+    bind: {
+      type: "object",
+      additionalProperties: { type: "string" },
+      description: 'Numeric fields computed from the top-level vars: {"end": "30 + 60*f", "at.x": "t"} — a field name or a dot path to a number; the written value is the start. Same expression language as curve expr.',
     },
     style: styleSchema,
     draw: drawSchema,
@@ -763,6 +770,18 @@ const commandSchema = {
       description: "With animate: velocity profile over the whole tween (default: today's smoothstep). A long race (many seconds) reads better as \"linear\" — constant speed — than the default's ease in/out, which blurs the middle and crawls at the ends.",
     },
     ghost: ghostSchema("With animate: ghost of the figure at this boundary"),
+    trail: {
+      type: "object",
+      properties: {
+        of: { type: "string", description: "The element whose point is traced." },
+        anchor: { type: "string", description: `Its anchor (default center): ${ANCHOR_NAMES}.` },
+        color: { type: "string" },
+        width: { type: "number", exclusiveMinimum: 0 },
+      },
+      required: ["of"],
+      additionalProperties: false,
+      description: "With animate: leave the track of that point across the sweep as the element <of>_trail (a locus — the spectrum a winding frequency traces); erase or fade it by id later.",
+    },
     play: {
       description:
         'Play synthesized notes while the paired speak lands (or on their own). Either ONE notation string — space-separated notes "C4:q E4:q G4:h" (pitch letter + optional #/b + octave 1-7, duration w/h/q/e/s = 4/2/1/½/¼ beats, chords joined with + as in C4+E4+G4:h, R for a rest) — up to four parallel voices [{"notes": "...", "instrument": "piano"}] that start together (melody over bass) — or a whole tune as {"abc": "K:C\\nC D E F|…"} in ABC notation. ONLY for figures genuinely about sound or music.',
@@ -847,6 +866,11 @@ export const specSchema = {
         y: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
       },
       additionalProperties: false,
+    },
+    vars: {
+      type: "object",
+      additionalProperties: { type: "number" },
+      description: 'Named numbers for a freehand figure, e.g. {"f": 1}: curve expr may use them ("sin(f*x)"), bind computes fields from them, drawn text shows them as {f}, and animate sweeps them ({"animate": {"f": 4}}). Names must not be x/t/q or a function name.',
     },
     elements: { type: "array", items: elementSchema, description: "Tier-2/3 elements (also allowed alongside a template, for annotations)." },
     commands: {
@@ -1030,6 +1054,9 @@ function semanticErrors(spec: Spec): string[] {
     const v = validateTemplateDoc(doc);
     if (!v.doc) errors.push(`templates[${i}]: ${v.errors[0] ?? "invalid template document"}`);
   });
+
+  // A var named like a curve variable or a function could never be read.
+  if (spec.vars !== undefined) errors.push(...varNameErrors(spec.vars));
 
   if (!spec.template && !(spec.elements && spec.elements.length > 0)) {
     errors.push("spec has neither a template nor any elements — nothing to draw");
@@ -1335,13 +1362,14 @@ function elementErrors(el: SpecElement): string[] {
       need(!!el.target, "needs target (id of the element it marks)");
       break;
     case "point":
-      need(!!el.at, "needs at ({x,y} or {intersection_of})");
+      need(!!el.at, "needs at ({x,y}, {x, on} or {intersection_of})");
       // at is a shared property (angle reuses it for its vertex — an array
-      // or a {ref, anchor} object) — a point's at stays {x, y} or
+      // or a {ref, anchor} object) — a point's at stays {x, y}, {x, on} or
       // {intersection_of}, so it never silently resolves to nothing.
       if (el.at !== undefined) {
-        const at = el.at as { ref?: string; anchor?: string };
-        need(!Array.isArray(el.at) && at.ref === undefined && at.anchor === undefined, "at must be {x, y} or {intersection_of: [...]} — not [x, y] or {ref, anchor} (that's angle's vertex); write at: {x: ..., y: ...} instead");
+        const at = el.at as { ref?: string; anchor?: string; on?: unknown; x?: unknown };
+        need(!Array.isArray(el.at) && at.ref === undefined && at.anchor === undefined, "at must be {x, y}, {x, on} or {intersection_of: [...]} — not [x, y] or {ref, anchor} (that's angle's vertex); write at: {x: ..., y: ...} instead");
+        if (at.on !== undefined) need(typeof at.on === "string" && typeof at.x === "number", "at.on needs x (the curve id and the x to read it at)");
       }
       break;
     case "arrow":

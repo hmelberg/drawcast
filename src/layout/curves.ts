@@ -60,7 +60,8 @@ export function sampleExpression(expr: string, x0: number, x1: number, vars: Var
   const pts: Pt[] = [];
   for (let i = 0; i <= CURVE_SAMPLES; i++) {
     const x = x0 + ((x1 - x0) * i) / CURVE_SAMPLES;
-    const y = f({ ...vars, x, X: x, q: x, Q: x, t: x, T: x });
+    // vars last: a var named t or q shadows that alias of x (spec/vars.ts).
+    const y = f({ x, X: x, q: x, Q: x, t: x, T: x, ...vars });
     if (Number.isFinite(y)) pts.push([x, y]);
   }
   if (pts.length < 2) throw new Error(`expression "${expr}" produced no finite points over [${x0}, ${x1}]`);

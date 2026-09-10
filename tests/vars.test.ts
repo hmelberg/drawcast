@@ -7,6 +7,7 @@ describe("var names", () => {
   test("plain names pass; reserved, malformed and non-finite fail", () => {
     expect(varNameErrors({ f: 1, a_2: 0.5 })).toEqual([]);
     expect(varNameErrors({ x: 1 })).toEqual(['vars: "x" is reserved (a curve variable, a function or a constant of expressions)']);
+    expect(varNameErrors({ t: 1, q: 2 })).toEqual([]); // t and q are the sweep names a model reaches for; they shadow the x aliases
     expect(varNameErrors({ sin: 1 })[0]).toContain("reserved");
     expect(varNameErrors({ pi: 1 })[0]).toContain("reserved");
     expect(varNameErrors({ "2f": 1 })[0]).toContain("not a name");
@@ -65,5 +66,11 @@ describe("sampleExpression with vars", () => {
     const pts = sampleExpression("sin(f*x)", 0, 3, { f: 2 });
     expect(pts[pts.length - 1][1]).toBeCloseTo(Math.sin(6), 9);
     expect(() => sampleExpression("sin(f*x)", 0, 3)).toThrow(/unknown identifier "f"/);
+  });
+  test("a var named t shadows the t-as-x alias; without the var t is still x", () => {
+    const withVar = sampleExpression("t*x", 0, 2, { t: 3 });
+    expect(withVar[withVar.length - 1][1]).toBeCloseTo(6, 9);
+    const alias = sampleExpression("t*x", 0, 2);
+    expect(alias[alias.length - 1][1]).toBeCloseTo(4, 9);
   });
 });

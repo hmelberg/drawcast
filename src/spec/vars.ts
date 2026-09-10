@@ -9,9 +9,15 @@ export type Vars = Record<string, number>;
 /** The variable names every curve expression already has. */
 export const EXPR_BASE_VARS: readonly string[] = ["x", "X", "q", "Q", "t", "T"];
 
-/** Names an expression resolves before it looks at vars — a var so named could never be read. */
+/**
+ * Names a var can never be read under: `x` (the curve variable) and the
+ * evaluator's functions and constants. `t`, `q` (and `T`, `Q`) are aliases of
+ * `x` in a curve expression ONLY until a var of that name exists — `t` is the
+ * name a sweep parameter naturally takes, so a var shadows the alias
+ * (layout/curves.ts sampleExpression spreads the vars last).
+ */
 const RESERVED = new Set([
-  ...EXPR_BASE_VARS,
+  "x", "X",
   "pi", "e",
   "exp", "ln", "log", "log10", "sqrt", "abs", "min", "max", "pow", "sin", "cos", "tan", "floor", "ceil", "round",
 ]);
