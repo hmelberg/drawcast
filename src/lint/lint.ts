@@ -5,7 +5,8 @@
 import { CANVAS } from "../layout/canvas";
 import { RESERVED_VARS, VAR_RE } from "../spec/answers";
 import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox, type BBox } from "../layout/geometry";
-import { leafDrawables, type Drawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
+import { flattenDrawables, leafDrawables, type Drawable, type GroupDrawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
+import { mathBox } from "../layout/labels";
 import type { MeasureFn } from "../layout/measure";
 import type { Command, Spec } from "../spec/types";
 import { resolveGame } from "../code/c64-catalogue";
@@ -22,6 +23,9 @@ export interface LintIssue {
   rule:
     | "overlap-label-label"
     | "overlap-label-stroke"
+    /** a stroke through a formula's core, or a label on top of it — warns, never blocks (Hans 2026-09-10) */
+    | "overlap-math-stroke"
+    | "overlap-math-label"
     /** a code panel and the template figure beside it drawn on the same ground */
     | "overlap-code-figure"
     | "out-of-canvas"
@@ -360,6 +364,41 @@ export function lintLayoutDetailed(
           rule: "overlap-label-stroke",
           ids: [t.id, s.id],
           message: `label "${t.id}" ("${t.text}") sits on stroke "${s.id}" — move it to a different side`,
+          severity: "warn",
+        });
+      }
+    }
+  }
+
+  // math–stroke and math–label: a formula is words. A stroke through its
+  // core or a label on top of it is the label rules' defect again; both
+  // WARN, never error — a drawing with many elements may have to accept a
+  // collision, and the placement (place.ts pickSide) has already taken the
+  // least-bad side.
+  const maths = flattenDrawables(drawables).filter((d): d is GroupDrawable => d.kind === "group" && d.role === "math");
+  for (const m of maths) {
+    const box = mathBox(m);
+    if (!box) continue;
+    const core = { x: box.x + box.w * 0.2, y: box.y + box.h * 0.25, w: box.w * 0.6, h: box.h * 0.5 };
+    for (const s of strokes) {
+      if (!coexist(m.id, s.id) || composed(m.id, s.id)) continue;
+      if (s.pts.length >= 2 && polylineIntersectsBox(s.pts, core)) {
+        (crossingPair(m, s) ? exempt : issues).push({
+          rule: "overlap-math-stroke",
+          ids: [m.id, s.id],
+          message: `math "${m.id}" sits on stroke "${s.id}" — give it a different at.side or position`,
+          severity: "warn",
+        });
+      }
+    }
+    for (const t of texts) {
+      const tb = bboxOfText(t, measure);
+      if (clippedAway(t, tb) || !coexist(m.id, t.id) || composed(m.id, t.id)) continue;
+      if (boxesOverlap(box, tb, 2)) {
+        (crossingPair(m, t) ? exempt : issues).push({
+          rule: "overlap-math-label",
+          ids: [m.id, t.id],
+          message: `math "${m.id}" and label "${t.id}" ("${t.text}") overlap — choose a different side for one of them`,
           severity: "warn",
         });
       }

@@ -6,7 +6,8 @@ import { boxOfId, unionBBoxForId, unionBoxes } from "./boxes";
 import type { MeasureFn } from "./measure";
 import type { Drawable, Pt } from "./model";
 import type { LintIssue } from "../lint/lint";
-import type { Side, SpecElement } from "../spec/types";
+import { SIDE_VALUES, type Side, type SpecElement } from "../spec/types";
+import type { Obstacle } from "./labels";
 
 /** The object form of `at` — the array form is `angle`'s vertex point. */
 export type RelPlacement = Exclude<NonNullable<SpecElement["at"]>, [number, number]>;
@@ -199,6 +200,80 @@ export function relativeDelta(own: BBox, ref: BBox, refAnchors: Record<string, P
   const from = boxAnchor(own, ownName);
   const [ox, oy] = at.offset ?? [0, 0];
   return [target[0] - from[0] + ox, target[1] - from[1] + oy];
+}
+
+/**
+ * The sides a `math` element tries when its preferred side lands on ink: the
+ * preferred first, then the sides that share a word with it (above-left →
+ * above, left, above-right, below-left), then the rest.
+ */
+export function sideCandidates(side: Side): Side[] {
+  const v = side.startsWith("above") ? "above" : side.startsWith("below") ? "below" : "";
+  const h = side.endsWith("left") ? "left" : side.endsWith("right") ? "right" : "";
+  const shares = (s: Side): boolean => (v !== "" && s.includes(v)) || (h !== "" && s.includes(h));
+  const others = SIDE_VALUES.filter((s) => s !== side);
+  return [side, ...others.filter(shares), ...others.filter((s) => !shares(s))];
+}
+
+/** The least a grazed stroke costs — about a 17 × 17 patch of ink. */
+const SOFT_FLOOR = 300;
+
+export interface SidePick {
+  side: Side;
+  delta: Pt;
+  /** 0 = clean. Otherwise overlapped area, solid ink and off-canvas ink weighted ×4. */
+  penalty: number;
+}
+
+function overlapArea(a: BBox, b: BBox): number {
+  const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  return w > 0 && h > 0 ? w * h : 0;
+}
+
+/** How much of `box` a canvas of `canvas` size cannot show. */
+function offCanvasArea(box: BBox, canvas: { w: number; h: number }): number {
+  return box.w * box.h - overlapArea(box, { x: 0, y: 0, w: canvas.w, h: canvas.h });
+}
+
+/**
+ * Which side of `ref` a `math` element takes (Hans 2026-09-10: formulas sat
+ * on axes and curves "more than necessary"). The preferred side wins when it
+ * lands clean. Otherwise every side is scored against what is already drawn
+ * — text and other math overlapped count four times a grazed stroke, and so
+ * does ink pushed off the canvas — and the least bad wins, the preferred on
+ * a tie. Never absolute: a crowded drawing gets its least-bad spot, not a
+ * refusal, and lint (overlap-math-*) says what it cost.
+ */
+export function pickSide(
+  own: BBox,
+  ref: BBox,
+  refAnchors: Record<string, Pt>,
+  at: RelPlacement,
+  ownAnchor: string | undefined,
+  obstacles: Obstacle[],
+  canvas: { w: number; h: number },
+): SidePick {
+  if (!at.side) return { side: "above", delta: relativeDelta(own, ref, refAnchors, at, ownAnchor), penalty: 0 };
+  let best: SidePick | null = null;
+  for (const side of sideCandidates(at.side)) {
+    const delta = relativeDelta(own, ref, refAnchors, { ...at, side }, ownAnchor);
+    const box = { x: own.x + delta[0], y: own.y + delta[1], w: own.w, h: own.h };
+    let penalty = 4 * offCanvasArea(box, canvas);
+    for (const o of obstacles) {
+      const a = overlapArea(box, o.box);
+      if (a <= 0) continue;
+      // A thin stroke through a formula overlaps almost no area yet ruins it
+      // (the y-axis through "K = K_0(1+r)^n" was the complaint): every soft
+      // box touched costs at least SOFT_FLOOR, so a side that crosses a line
+      // loses to one that does not, whatever the areas say.
+      penalty += o.solid ? 4 * a : Math.max(a, SOFT_FLOOR);
+    }
+    // Floating-point dust from the off-canvas subtraction is not a collision.
+    if (penalty < 1) return { side, delta, penalty: 0 };
+    if (!best || penalty < best.penalty) best = { side, delta, penalty };
+  }
+  return best!;
 }
 
 /** Translate drawables in place (pts, pos, shapeHint, children). */

@@ -10,7 +10,7 @@ import * as M from "./measures";
 import { codeDrawables, type CodeWindow } from "./code";
 import { UNIVERSAL_ANCHORS, boxAnchor, isUniversalAnchor, polygonAnchors, polylineAnchors, ptsBox, sectorAnchors } from "./anchors";
 import { boxOfId } from "./boxes";
-import { fitTransform, ownBBox, placementOrder, refBBox, relAt, relativeDelta, scaleDrawables, shiftDrawables, shiftPoints } from "./place";
+import { fitTransform, ownBBox, pickSide, placementOrder, refBBox, relAt, relativeDelta, scaleDrawables, shiftDrawables, shiftPoints } from "./place";
 import { fitRegion, isFitName } from "./regions";
 import {
   COLORS,
@@ -33,7 +33,7 @@ import { mathDrawables } from "./math";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
 import { catmullRom, catmullRomClosed } from "./smooth";
 import { decodeIcon, decodePhoto, decodeSourceImage, decodeTrace } from "../spec/trace";
-import { wrapText, type LabelRequest } from "./labels";
+import { obstacleBoxes, wrapText, type LabelRequest } from "./labels";
 import { enginesLoaded, getLoadedEngines, type MathJaxEngine } from "../scenes/engines";
 import { linkKindOf } from "../ui/link-model";
 import type { LintIssue } from "../lint/lint";
@@ -431,8 +431,19 @@ export function layoutElements(
             message: `element "${el.id}": at.anchor "${at.anchor}" is not an anchor of "${at.ref}" — using center`,
           });
         }
-        const [dx, dy] = relativeDelta(ownBox, refBox, refAnchors, at, el.anchor);
-        move(dx, dy);
+        if (el.type === "math" && at.side && at.anchor === undefined) {
+          // A formula is words: it tries the neighbouring sides before it
+          // lies down on an axis or a curve (place.ts pickSide). Only what is
+          // already built counts — labels are placed after this pass and
+          // avoid the formula themselves (labels.ts obstacleBoxes).
+          const obstacles = obstacleBoxes([...(opts.seedDrawables ?? []), ...drawables.slice(0, start)], measure);
+          const pick = pickSide(ownBox, refBox, refAnchors, at, el.anchor, obstacles, CANVAS);
+          move(pick.delta[0], pick.delta[1]);
+          if (pick.side !== at.side) ctx.warnings.push(`math "${el.id}": side "${at.side}" of "${at.ref}" lands on other ink — placed ${pick.side} instead`);
+        } else {
+          const [dx, dy] = relativeDelta(ownBox, refBox, refAnchors, at, el.anchor);
+          move(dx, dy);
+        }
       } else if (!refBox) {
         // The element was already built at the origin, so leaving it there
         // would drop it in the bottom-left corner: put it back where it

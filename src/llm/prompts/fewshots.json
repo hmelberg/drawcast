@@ -496,7 +496,7 @@
           "size": 34,
           "at": {
             "ref": "p2",
-            "side": "above-left",
+            "side": "below-right",
             "gap": 30
           }
         }

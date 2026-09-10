@@ -7,14 +7,18 @@
 // nothing fits (lint will flag it).
 
 import { CANVAS } from "./canvas";
-import { bboxOfText, boxesOverlap, type BBox } from "./geometry";
+import { bboxOfPts, bboxOfText, boxesOverlap, expandBox, type BBox } from "./geometry";
 import {
   Z_STROKE,
   Z_TEXT,
   defaultDrawOpts,
   defaultStyle,
   COLORS,
+  flattenDrawables,
+  leafDrawables,
+  type Drawable,
   type DrawResolved,
+  type GroupDrawable,
   type Pt,
   type ResolvedStyle,
   type StrokeDrawable,
@@ -56,6 +60,67 @@ export interface Obstacle {
   solid: boolean;
   /** The drawable this box came from, so a label can ignore its own (see LabelRequest.ignore). */
   id?: string;
+}
+
+/** The ink box of a math group: the union of its glyph rings. Null for empty TeX. */
+export function mathBox(g: GroupDrawable): BBox | null {
+  const pts: Pt[] = [];
+  for (const d of leafDrawables(g.children)) if (d.kind !== "text" && d.kind !== "image") pts.push(...d.pts);
+  return pts.length > 0 ? bboxOfPts(pts) : null;
+}
+
+/** Longest stroke segment kept as a single obstacle box before subdividing. */
+const SEG_MAX = 48;
+
+/**
+ * Everything already on the paper, as boxes a label (or a `math` element
+ * choosing its side) must reckon with. Text is solid; strokes, images and
+ * shapes are soft. A math group counts as SOLID text — its glyphs are words —
+ * and is taken as one box, not as its fifty filled rings.
+ */
+export function obstacleBoxes(drawables: Drawable[], measure: MeasureFn): Obstacle[] {
+  const obstacles: Obstacle[] = [];
+  for (const g of flattenDrawables(drawables)) {
+    if (g.kind === "group" && g.role === "math") {
+      const box = mathBox(g);
+      if (box) obstacles.push({ box: expandBox(box, 2), solid: true, id: g.id });
+    }
+  }
+  for (const d of leafDrawables(drawables)) {
+    if (d.kind === "text") {
+      // Text is solid: overlapping words are unreadable.
+      obstacles.push({ box: expandBox(bboxOfText(d, measure), 2), solid: true, id: d.id });
+    } else if (d.kind === "image") {
+      obstacles.push({ box: { x: d.pos[0] - d.w / 2, y: d.pos[1] - d.h / 2, w: d.w, h: d.h }, solid: false, id: d.id });
+    } else if (d.kind === "stroke") {
+      // Strokes/shapes are soft: a label may graze them (the halo keeps it legible).
+      if (d.shapeHint?.type === "circle") {
+        const { c, r } = d.shapeHint;
+        obstacles.push({ box: { x: c[0] - r, y: c[1] - r, w: 2 * r, h: 2 * r }, solid: false, id: d.id });
+      } else if (d.shapeHint?.type === "rect") {
+        obstacles.push({ box: { x: d.shapeHint.x, y: d.shapeHint.y, w: d.shapeHint.w, h: d.shapeHint.h }, solid: false, id: d.id });
+      } else {
+        // Per-segment boxes: keeps long thin curves from blocking half the
+        // canvas — and LONG segments are subdivided, because one box around a
+        // long diagonal is a lie: it claims the entire wedge the line crosses,
+        // so every spot near that line scores a penalty and the least-bad one
+        // ends up being ON it. Chopped into SEG_MAX pieces the boxes hug the
+        // stroke instead.
+        const pad = d.style.strokeWidth;
+        for (let i = 0; i + 1 < d.pts.length; i++) {
+          const [a, b] = [d.pts[i], d.pts[i + 1]];
+          const steps = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / SEG_MAX));
+          for (let k = 0; k < steps; k++) {
+            const p0: Pt = [a[0] + ((b[0] - a[0]) * k) / steps, a[1] + ((b[1] - a[1]) * k) / steps];
+            const p1: Pt = [a[0] + ((b[0] - a[0]) * (k + 1)) / steps, a[1] + ((b[1] - a[1]) * (k + 1)) / steps];
+            obstacles.push({ box: expandBox(bboxOfPts([p0, p1]), pad), solid: false, id: d.id });
+          }
+        }
+      }
+    }
+    // areas are not obstacles: region labels belong inside their region
+  }
+  return obstacles;
 }
 
 const DIRS: Record<Side, [number, number]> = {

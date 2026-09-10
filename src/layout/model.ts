@@ -133,6 +133,13 @@ export interface GroupDrawable extends BaseDrawable {
    * placed-then-shifted group's nominal box never goes stale.
    */
   box?: { x: number; y: number; w: number; h: number };
+  /**
+   * What the group IS, where layout has to treat it unlike an anonymous
+   * bundle of children. "math": a TeX element's glyph outlines — words in
+   * disguise, so labels avoid it like text (labels.ts obstacleBoxes) and lint
+   * reports a stroke or a label lying across it (overlap-math-*).
+   */
+  role?: "math";
 }
 
 /**

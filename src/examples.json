@@ -16086,7 +16086,7 @@
           "size": 34,
           "at": {
             "ref": "p50",
-            "side": "above-left",
+            "side": "right",
             "gap": 40
           }
         },
@@ -16234,7 +16234,7 @@
           "type": "label",
           "tex": "E = mc^2",
           "attach_to": "rest",
-          "side": "right"
+          "side": "above-right"
         },
         {
           "id": "lab_newton",
@@ -17319,8 +17319,8 @@
           "tex": "K = K_0(1 + r\\,n)",
           "size": 30,
           "at": {
-            "ref": "ps30",
-            "side": "below-left",
+            "ref": "ps10",
+            "side": "below-right",
             "gap": 24
           },
           "style": {
@@ -17334,8 +17334,8 @@
           "size": 34,
           "at": {
             "ref": "pc10",
-            "side": "above-left",
-            "gap": 24
+            "side": "above",
+            "gap": 100
           },
           "style": {
             "color": "#b5482e"

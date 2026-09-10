@@ -81,7 +81,7 @@ export function mathDrawables(
   const box = { x: cx - w / 2, y: cy - h / 2, w, h };
   if (children.length === 0) return { drawables: [], box };
   return {
-    drawables: [{ id: el.id, kind: "group", children, z: Z_AREA + 1, style: ink, drawOpts: resolveDrawOpts(el.draw) }],
+    drawables: [{ id: el.id, kind: "group", role: "math", children, z: Z_AREA + 1, style: ink, drawOpts: resolveDrawOpts(el.draw) }],
     box,
   };
 }
