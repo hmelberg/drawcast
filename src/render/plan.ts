@@ -1393,11 +1393,15 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       }
       // Minted only once the command is known to survive the guard above —
       // a warned-and-skipped morph must not leave a permanent ghost behind.
-      showGhosts(cmd.morph.ghost, ids);
       if (cmd.morph.tex !== undefined) {
         // A copy's TeX is read through its source chain: mathOf only knows
         // the spec's own math elements, not ids `copy` minted at plan time.
         const srcOf = (id: string): string => (copies[id] ? srcOf(copies[id]) : id);
+        // Ghosts are minted only for ids that actually resolve to math TeX —
+        // a target that warns below (not a math element) must not leave a
+        // permanent ghost behind either.
+        const texTargets = ids.filter((id) => (tex[id] ?? opts.mathOf?.(srcOf(id))) !== null && (tex[id] ?? opts.mathOf?.(srcOf(id))) !== undefined);
+        showGhosts(cmd.morph.ghost, texTargets);
         const texItems: TexItem[] = [];
         for (const id of ids) {
           const cur = tex[id] ?? opts.mathOf?.(srcOf(id));
@@ -1415,6 +1419,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         relayoutBoxes();
         continue;
       }
+      showGhosts(cmd.morph.ghost, ids);
       let refRing: { pts: Pt[]; closed: boolean } | null = null;
       if (cmd.morph.to !== undefined && !Array.isArray(cmd.morph.to)) {
         const ref = cmd.morph.to.ref;
@@ -1489,11 +1494,28 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         warnings.push(`copy target "${id}" is not an element — skipped`);
         continue;
       }
+      // A pieces parent draws nothing of its own — a clone of it would be an
+      // un-expandable id sitting in `order` with no geometry (review finding
+      // 9, 2026-09-10): copy the pieces themselves instead.
+      const pieceKids = opts.expandId?.(id);
+      if (pieceKids && pieceKids.length > 0) {
+        warnings.push(`copy target "${id}" is a pieces cut — copy its pieces instead`);
+        continue;
+      }
       let as = cmd.copy.as;
       if (as === undefined) {
-        const n = (copyCount.get(id) ?? 0) + 1;
+        // known.has, not the copyCount counter alone: an explicit `as` from an
+        // earlier copy (or a spec element) can already occupy `<id>_copy`
+        // (review finding 3, 2026-09-10) — silently replacing it would lose
+        // that element, so the loop keeps counting past any name taken.
+        let n = 1;
+        let name = `${id}_copy`;
+        while (known.has(name)) {
+          n++;
+          name = `${id}_copy_${n}`;
+        }
         copyCount.set(id, n);
-        as = n === 1 ? `${id}_copy` : `${id}_copy_${n}`;
+        as = name;
       } else if (!/^[a-z][a-z0-9_]*$/i.test(as)) {
         warnings.push(`copy: "${as}" is not a valid id — skipped`);
         continue;
@@ -1503,6 +1525,13 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       }
       copies[as] = id;
       if (tex[id] !== undefined) tex[as] = tex[id];
+      // Visible where the source now stands (schema.ts's copy description) —
+      // seed the clone's offset/turn/shape from the source's CURRENT pose, not
+      // its declared place, so a later `move` on the clone composes on top
+      // (review finding 2, 2026-09-10).
+      if (offsets[id]) offsets[as] = [...offsets[id]];
+      if (turns[id]) turns[as] = { ...turns[id] };
+      if (shapes[id]) shapes[as] = shapes[id];
       known.add(as);
       mentioned.add(as);
       makeVisible([as]);

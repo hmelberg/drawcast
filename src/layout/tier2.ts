@@ -160,8 +160,18 @@ interface Ctx {
  */
 function withCopies(elements: SpecElement[], copies: Record<string, string> | undefined, warn: (msg: string) => void): SpecElement[] {
   if (!copies || Object.keys(copies).length === 0) return elements;
+  // A copies key naming an id already used by a spec element must not
+  // silently replace it (review finding 3, 2026-09-10) — the planner guards
+  // its own auto-named copies against this, but a layout-level caller can
+  // pass `copies` directly (a test, or a future caller), so the guard
+  // belongs here too.
+  const existingIds = new Set(elements.map((e) => e.id));
   const childrenOf = new Map<string, string[]>();
   for (const [newId, srcId] of Object.entries(copies)) {
+    if (existingIds.has(newId)) {
+      warn(`copy "${newId}": an element with that id exists — skipped`);
+      continue;
+    }
     if (!childrenOf.has(srcId)) childrenOf.set(srcId, []);
     childrenOf.get(srcId)!.push(newId);
   }
@@ -180,7 +190,7 @@ function withCopies(elements: SpecElement[], copies: Record<string, string> | un
     appendCopiesOf(el.id, el);
   }
   for (const [newId, srcId] of Object.entries(copies)) {
-    if (!resolved.has(srcId)) warn(`copy "${newId}": unknown source "${srcId}" — skipped`);
+    if (!existingIds.has(newId) && !resolved.has(srcId)) warn(`copy "${newId}": unknown source "${srcId}" — skipped`);
   }
   return out;
 }
@@ -289,6 +299,13 @@ export function layoutElements(
       ctx.curveSamples.set(el.id, sampleCurveDomain(el, ctx));
     } catch (err) {
       ctx.warnings.push(`curve "${el.id}": ${(err as Error).message} — using a straight line`);
+      // sampleCurveDomain(el, ctx) may have already added el.id to
+      // ctx.parametric (a failed x_expr/y_expr registers it before it
+      // throws) — the fallback below is a plain polyline, so the id must
+      // not be left marked parametric (review finding 6, 2026-09-10): a
+      // later point.at.on/intersection_of/region.between would warn "is
+      // parametric" and skip even though the fallback IS x-monotone.
+      ctx.parametric.delete(el.id);
       ctx.curveSamples.set(
         el.id,
         sampleCurveDomain({ ...el, expr: undefined, x_expr: undefined, y_expr: undefined, direction: el.direction ?? "decreasing" }, ctx),
@@ -777,7 +794,12 @@ function sampleCurveDomain(el: SpecElement, ctx: Ctx): Pt[] {
     if (Object.prototype.hasOwnProperty.call(ctx.vars, "t")) {
       ctx.warnings.push(`curve "${el.id}": a var named t is shadowed by the parameter`);
     }
-    return sampleParametric(el.x_expr, el.y_expr, el.t_from ?? 0, el.t_to ?? 1, ctx.vars);
+    const t0 = el.t_from ?? 0;
+    const t1 = el.t_to ?? 1;
+    if (t0 === t1) {
+      ctx.warnings.push(`curve "${el.id}": t_from equals t_to — the curve is a point`);
+    }
+    return sampleParametric(el.x_expr, el.y_expr, t0, t1, ctx.vars);
   }
   const x0 = el.x_from ?? dx0 + (dx1 - dx0) * 0.02;
   const x1 = el.x_to ?? dx1 - (dx1 - dx0) * 0.02;

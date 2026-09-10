@@ -21,6 +21,11 @@ describe("morph.tex", () => {
     expect(plan.warnings.some((w) => w.includes("exactly one of"))).toBe(true);
     expect(plan.steps.filter((s) => s.kind === "morph")).toHaveLength(0);
   });
+  test("a warned-and-skipped morph.tex on a non-math target mints no ghost (review finding 4, 2026-09-10)", () => {
+    const plan = planCommands([{ draw: ["n"] }, { morph: { target: "n", tex: "x", ghost: true } }], ["eq", "n"], opts);
+    expect(plan.warnings).toContain('morph "n": not a math element — tex needs one');
+    expect(plan.minted).toEqual([]);
+  });
 });
 
 describe("copy", () => {
@@ -60,5 +65,22 @@ describe("copy", () => {
     expect(plan.states[3].copies).toEqual({ eq_copy: "eq", eq_copy_copy: "eq_copy" });
     const last = plan.steps[4] as Extract<PlanStep, { kind: "morph" }>;
     expect(last.texItems).toEqual([{ id: "eq_copy_copy", from: "2x = 8", to: "x = 4" }]);
+  });
+  test("a copy of a source that has already moved is seeded at the source's current offset (review finding 2, 2026-09-10)", () => {
+    const plan = planCommands([{ draw: ["eq"] }, { move: { target: "eq", by: [0, -200] } }, { copy: { target: "eq" } }], ["eq"], opts);
+    expect(plan.warnings).toEqual([]);
+    expect(plan.states[2].offsets.eq_copy).toEqual([0, -200]);
+  });
+  test("an auto-named copy whose default name is already an element counts past it instead of replacing it (review finding 3, 2026-09-10)", () => {
+    const takenOpts = { bboxOf: () => box, mathOf: (id: string) => (id === "eq" ? "2x + 3 = 11" : null), isElement: () => true, bboxesFor: () => () => box };
+    const plan = planCommands([{ draw: ["eq", "eq_copy"] }, { copy: { target: "eq" } }], ["eq", "eq_copy"], takenOpts);
+    expect(plan.warnings).toEqual([]);
+    expect(plan.states[1].copies).toEqual({ eq_copy_2: "eq" });
+  });
+  test("copying a pieces parent is refused — copy the pieces instead (review finding 9, 2026-09-10)", () => {
+    const piecesOpts = { ...opts, isElement: () => true, expandId: (id: string) => (id === "kake" ? ["kake_1", "kake_2"] : null) };
+    const plan = planCommands([{ draw: ["kake"] }, { copy: { target: "kake" } }], ["kake", "kake_1", "kake_2"], piecesOpts);
+    expect(plan.warnings).toContain('copy target "kake" is a pieces cut — copy its pieces instead');
+    expect(plan.states[1].copies).toEqual({});
   });
 });

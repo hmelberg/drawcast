@@ -286,7 +286,11 @@ export class Player {
     this.plan = plan;
     this.holdFrom = heldFrom(plan);
     this.elements = elements;
-    this.planTimeIds = new Set(elements.keys());
+    // A copy's id never appears in the plan-time (mounted) layout, so without
+    // this it always fell through as "minted by a param change" and every
+    // applyScene call unconditionally finish()ed it — undoing an erase/hide/
+    // clear on a copy at the very next commit (review finding 1, 2026-09-10).
+    this.planTimeIds = new Set([...elements.keys(), ...plan.states.flatMap((s) => Object.keys(s.copies ?? {}))]);
     this.sources = new Set(plan.sources ?? []);
     this.speech = speech;
     this.captionEl = captionEl;

@@ -96,6 +96,29 @@ describe("parametric curve (x_expr/y_expr in t)", () => {
     expect(l.warnings.some((w) => w.includes('curve "circle" is parametric') && w.includes("region skipped"))).toBe(true);
   });
 
+  test("a failed x_expr/y_expr falls back to a straight line and no longer reads as parametric afterwards (review finding 6, 2026-09-10)", () => {
+    // sqrt(-1) is NaN for every t, so sampleParametric finds zero finite
+    // points and throws — the id is registered in ctx.parametric BEFORE
+    // that throw (sampleCurveDomain adds it, then calls sampleParametric),
+    // so the catch's fallback (a plain qualitative polyline) must un-register
+    // it or a later point.at.on wrongly warns "is parametric" and skips a
+    // curve that is, in fact, an ordinary x-monotone polyline now.
+    const bad = { id: "bad", type: "curve" as const, x_expr: "sqrt(-1)", y_expr: "sin(t)", t_from: 0, t_to: 1 };
+    const l = layoutSpec({ elements: [bad, { id: "p", type: "point", at: { x: 50, on: "bad" } }], commands: [] });
+    expect(l.warnings.some((w) => w.includes('curve "bad"') && w.includes("using a straight line"))).toBe(true);
+    expect(l.warnings.some((w) => w.includes("is parametric"))).toBe(false);
+    expect(stroke(l, "p")).toBeDefined();
+  });
+
+  test("t_from equals t_to warns that the curve is a point, but still returns samples (review finding 6, 2026-09-10)", () => {
+    const pointCurve = { id: "pointCurve", type: "curve" as const, x_expr: "cos(t)", y_expr: "sin(t)", t_from: 2, t_to: 2 };
+    const l = layoutSpec({ domain, elements: [pointCurve], commands: [] });
+    const s = stroke(l, "pointCurve");
+    expect(s).toBeDefined();
+    expect(s!.pts).toHaveLength(61);
+    expect(l.warnings).toContain('curve "pointCurve": t_from equals t_to — the curve is a point');
+  });
+
   test("validation refuses expr together with x_expr, and x_expr without y_expr", () => {
     const base = { commands: [] as const };
     const both = validateSpec({ ...base, elements: [{ id: "c", type: "curve", expr: "x", x_expr: "cos(t)", y_expr: "sin(t)" }] });

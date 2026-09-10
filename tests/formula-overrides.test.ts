@@ -24,15 +24,21 @@ describe("math override", () => {
 });
 
 describe("copies override", () => {
-  test("a copy is laid out at the source's place under the new id and can carry its own pose", () => {
+  // Renamed (review finding 8, 2026-09-10): the old name claimed "can carry
+  // its own pose" but asserted nothing about position. `poses` is the
+  // RENDERER's runtime override, not something `layoutSpec` itself resolves
+  // for a copy's own anchors (namedAnchors stay raw — see the "pose" test in
+  // "math override" below for what actually moves on screen), so a pose was
+  // dropped from this test rather than asserted on the wrong layer.
+  test("a copy is laid out under its own id and can be tex-morphed independently of the source", () => {
     const base = layoutSpec(spec);
     const withCopy = layoutSpec(spec, undefined, { copies: { eq2: "eq" } });
     expect(withCopy.order).toContain("eq2");
     expect(group(withCopy, "eq2").children.length).toBe(group(base, "eq").children.length);
     expect(withCopy.namedAnchors.eq2.center).toEqual(withCopy.namedAnchors.eq.center);
-    const moved = layoutSpec(spec, undefined, { copies: { eq2: "eq" }, poses: { eq2: { offset: [0, -100] } }, math: { eq2: { tex: "2x = 8" } } });
-    expect(group(moved, "eq2").children.length).not.toBe(group(base, "eq").children.length); // the copy morphed, the source did not
-    expect(group(moved, "eq").children.length).toBe(group(base, "eq").children.length);
+    const morphed = layoutSpec(spec, undefined, { copies: { eq2: "eq" }, math: { eq2: { tex: "2x = 8" } } });
+    expect(group(morphed, "eq2").children.length).not.toBe(group(base, "eq").children.length); // the copy morphed, the source did not
+    expect(group(morphed, "eq").children.length).toBe(group(base, "eq").children.length);
     // the label attached to the source is not copied
     expect(withCopy.drawables.filter((d) => (d as TextDrawable).text === "start")).toHaveLength(1);
   });
@@ -40,5 +46,14 @@ describe("copies override", () => {
     const l = layoutSpec(spec, undefined, { copies: { c1: "nope", eq2: "eq", eq3: "eq2" } });
     expect(l.warnings.some((w) => w.includes('copy "c1"') && w.includes("nope"))).toBe(true);
     expect(l.order).toContain("eq3");
+  });
+  test("a copies key naming an id an element already uses is refused — the element stays, a warning names the clash (review finding 3, 2026-09-10)", () => {
+    const specWithTaken: Spec = {
+      elements: [{ id: "eq", type: "math", tex: "2x + 3 = 11", x: 500, y: 375 }, { id: "eq_copy", type: "text", text: "already here", x: 500, y: 500 }],
+      commands: [],
+    };
+    const l = layoutSpec(specWithTaken, undefined, { copies: { eq_copy: "eq" } });
+    expect(l.warnings.some((w) => w.includes('copy "eq_copy"') && w.includes("an element with that id exists"))).toBe(true);
+    expect((l.drawables.find((d) => d.id === "eq_copy") as TextDrawable).text).toBe("already here");
   });
 });

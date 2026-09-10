@@ -38,7 +38,11 @@ describe("mathMorphDrawables", () => {
     const twoB = b[0];
     expect(Math.abs(centroid(two1.pts)[0] - centroid(twoB.pts)[0])).toBeLessThan(1);
   });
-  test("t = 0.5: a matched glyph's centroid is the midpoint of its old and new place; an unpaired counter appears only from t ≥ 0.5", () => {
+  // Renamed (review finding 8, 2026-09-10): "an unpaired counter appears only
+  // from t ≥ 0.5" overstated what this proves — the unmatched "8" fades in
+  // continuously (opacity == t) rather than appearing only past the midpoint;
+  // the name now says what the test actually exercises.
+  test("t = 0.5: a matched glyph's centroid is the midpoint of its old and new place; an unmatched shape keeps its own counters and fades in", () => {
     const a = kids(mathDrawables(el({ tex: "x = 1" }), mj, 500, 375));
     const b = kids(mathDrawables(el({ tex: "x = 8" }), mj, 500, 375));
     const mid = kids(mathMorphDrawables(el({ tex: "x = 1" }), mj, 500, 375, "x = 1", "x = 8", 0.5));
