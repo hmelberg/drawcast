@@ -26,10 +26,10 @@ relations that hold, never as new coordinate work for the model.
 | ValueTracker: a var swept through a freehand figure | High | Medium | Small (`vars`, `animate`) | **Done, part 1** |
 | A locus traced across a sweep (`trail` on `animate`) | Medium | Small | One key | **Done, part 1** |
 | A number readout following a var (`{f}` in text) | Medium | Small | None | **Done, part 1** |
-| TransformMatchingTex: like terms glide between `equation_steps` lines | High for algebra | Medium–high | None | Part 2 |
-| t2c: per-term colours in formulas | Medium | Small–medium | Trivial | Part 2 |
-| TransformFromCopy: a `copy` verb minting `<id>_copy` | Medium | Small | One verb | Part 3 |
-| Parametric curve (`x_expr`/`y_expr` in t) | Medium | Small | Trivial | Part 3 |
+| TransformMatchingTex: like terms glide between `equation_steps` lines | High for algebra | Medium–high | None | **Done, part 2** |
+| t2c: per-term colours in formulas | Medium | Small–medium | Trivial | **Done, part 2** |
+| TransformFromCopy: a `copy` verb minting `<id>_copy` | Medium | Small | One verb | **Done, part 2** |
+| Parametric curve (`x_expr`/`y_expr` in t) | Medium | Small | Trivial | **Done, part 2** |
 | LaggedStart: `stagger` on `draw` | Low–medium | Small | One key | Later |
 | A camera that follows an element | Low–medium | Small | One key | Later |
 | Indicate/Circumscribe/Flash/Wiggle | Covered by highlight/point/focus/flow/annotation | — | — | No |
@@ -43,8 +43,10 @@ a 15–30 s linear sweep, the spectrum drawn as the frequency rises) is
 writable today as one on-demand template with `animate` on a `freq` param;
 part 1 makes the same thing possible freehand.
 
-Status: part 1 shipped 2026-09-10 (ROADMAP "Vars and dependencies"); parts
-2–3 not scheduled.
+Status: part 1 shipped 2026-09-10 (ROADMAP "Vars and dependencies"); part
+2 shipped 2026-09-10 (ROADMAP "Formula morph, term colours, copy and
+parametric curves"); the `equation_steps`-lines glide is round 2b,
+unscheduled.
 
 ## 2026-09-09 — Sources for how a thing looks (freehand drawing)
 

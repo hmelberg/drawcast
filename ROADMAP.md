@@ -621,6 +621,65 @@ recomputes it too, and the two agree); a fitted group's posed anchors are
 computed before `fit` scales its members (fit + a moved member is an edge
 case left alone).
 
+## Formula morph, term colours, copy and parametric curves (the manim round, part 2) — done 2026-09-10
+
+The rest of the manim assessment (NOTES.md, 2026-09-10): manim's
+TransformMatchingTex — one formula becomes another, terms that survive
+glide to their new place, the rest fades out and in — plus t2c (a term
+keeps its colour wherever it appears), TransformFromCopy (`copy`, for a
+derivation's stacked lines) and a parametric curve. Design
+`docs/superpowers/specs/2026-09-10-formula-morph-design.md`, plan
+`docs/superpowers/plans/2026-09-10-formula-morph.md`, ledger
+`…-ledger.md`, smoke `…-smoke.md`. The mechanism: `LayoutOverrides.math`
+is one more override the relayout path (part 1) understands, keying a
+morph on the element's current TeX plus an optional `from`/`t` for a
+mid-morph frame; the mathjax engine's outlines now carry a glyph index
+and a semantic token (node kind, `data-latex`, ancestor chain), so
+`matchTokens`/`matchShapes` (LCS over token keys) pair two formulas'
+shapes in reading order and `mathMorphDrawables` lerps matched shapes
+and fades unmatched ones in or out, while `colorFor` reads a shape's
+colour from the deepest ancestor in its chain that matches a `colors`
+key — the same matcher basis serves morph and plain colouring alike.
+`copy` mints a full element (`SceneState.copies`, `LayoutOverrides.copies`)
+placed exactly where its source is, so the clone is movable, morphable
+and erasable from its first frame — the idiom for a derivation is copy,
+move the copy down, morph its TeX. Shipped:
+
+1. **Token identity from the engine** — `layoutTeX`'s outlines gain
+   `glyph`/`token` (node, latex, codepoint, ancestor chain) and the walk
+   returns `tokens` in reading order (`engines.ts`).
+2. **`morph.tex`** on a `math` element — a fourth morph mode beside `to`,
+   `stretch`, `reset`; the planner records `tex[id]` in the scene state,
+   the player tweens `t` 0 → 1 through the reprojector and commits once.
+3. **`colors`** on a `math`/`label` element and as an `equation_steps`
+   param — per-term colours (t2c), an unknown key warns.
+4. **`copy`** — `{copy: {target, as}}`; `as` defaults to `<id>_copy`, a
+   taken name or a non-element target warns; a copy of a copy is itself
+   copyable.
+5. **Parametric curve** — `x_expr`/`y_expr` in `t` over `t_from`–`t_to`,
+   exactly one of `expr` or the pair; `bind: {t_to: "s"}` + `animate`
+   draws a curve progressively; `intersection_of`/`at.on`/`region.between`
+   warn and skip on a parametric curve (not x-monotone).
+6. Three bundled examples, every one a question: solving `2x + 3 = 11`
+   by copy-move-morph with `x` coloured; the ICER's cost/effect terms
+   collapsing into `\Delta C`/`\Delta E` with their colours kept; a
+   parametric circle that draws itself as `t` sweeps to `2π`, a point
+   and an arrow following it.
+7. The prompt-size budget was re-pinned three times on the schema
+   (+296, +1,017, +672 chars) and four times on the system prompt
+   (+296, +1,026, +672, +822 chars), ending at 108,068 / 221,961 chars,
+   with notes in `tests/prompt-size.test.ts`. The schema guard itself
+   was tightened mid-round: a re-pin had reset it to a rolling
+   `BASELINE_SCHEMA_CHARS + 5,500` allowance instead of the system
+   prompt's exact ceiling; a review caught it and the allowance was
+   dropped, so both constants are now equal-shape ratchets.
+
+Deliberately not done (design §6): a glide between `equation_steps`
+lines (round 2b — the copy-move-morph idiom covers the derivation case
+meanwhile); manim's `key_map` (author-directed matching); morphing a
+formula whose font changes; `stagger` on `draw`; a camera that follows
+an element; `{f}` in `speak`; sliders for vars in the explore tray.
+
 ## Sound (the play command) — done 2026-08-26
 
 `play` sounds synthesized notes (WebAudio oscillators, five instrument
