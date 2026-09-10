@@ -54,18 +54,57 @@ export function qualitativeShape(
   return pts;
 }
 
-/** Sample an explicit expression y = f(x) over [x0, x1] in domain units; the spec's `vars` are read by name (design 2026-09-10 §2.1). */
+/**
+ * Oscillation budget for expression curves. A polyline with at most this many
+ * turns (local y-extrema) keeps the plain CURVE_SAMPLES grid — 60 samples give
+ * ≥ 12 per half-wave there, and every existing layout stays byte-identical.
+ * Beyond it the curve is resampled at CURVE_TURN_SAMPLES per half-wave.
+ */
+export const CURVE_MAX_PLAIN_TURNS = 4;
+export const CURVE_TURN_SAMPLES = 24;
+export const CURVE_MAX_SAMPLES = 720;
+
+/** Number of local y-extrema (sign changes of consecutive dy, flat steps skipped) along a polyline. */
+export function turnsOf(pts: readonly Pt[]): number {
+  let turns = 0;
+  let prev = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const dy = pts[i][1] - pts[i - 1][1];
+    if (dy === 0) continue;
+    const sign = dy > 0 ? 1 : -1;
+    if (prev !== 0 && sign !== prev) turns++;
+    prev = sign;
+  }
+  return turns;
+}
+
+/**
+ * Sample an explicit expression y = f(x) over [x0, x1] in domain units; the
+ * spec's `vars` are read by name (design 2026-09-10 §2.1). The sample count is
+ * adaptive: a first pass on the CURVE_SAMPLES grid is kept as-is unless the
+ * curve oscillates (more than CURVE_MAX_PLAIN_TURNS turns — sin(4x) over
+ * eight periods looked polygonal at 61 points), in which case it is resampled
+ * with CURVE_TURN_SAMPLES points per half-wave. Deterministic and pure.
+ */
 export function sampleExpression(expr: string, x0: number, x1: number, vars: Vars = {}): Pt[] {
   const f = compileExpression(expr, exprVariables(vars));
-  const pts: Pt[] = [];
-  for (let i = 0; i <= CURVE_SAMPLES; i++) {
-    const x = x0 + ((x1 - x0) * i) / CURVE_SAMPLES;
-    // vars last: a var named t or q shadows that alias of x (spec/vars.ts).
-    const y = f({ x, X: x, q: x, Q: x, t: x, T: x, ...vars });
-    if (Number.isFinite(y)) pts.push([x, y]);
-  }
-  if (pts.length < 2) throw new Error(`expression "${expr}" produced no finite points over [${x0}, ${x1}]`);
-  return pts;
+  const sample = (n: number): Pt[] => {
+    const pts: Pt[] = [];
+    for (let i = 0; i <= n; i++) {
+      const x = x0 + ((x1 - x0) * i) / n;
+      // vars last: a var named t or q shadows that alias of x (spec/vars.ts).
+      const y = f({ x, X: x, q: x, Q: x, t: x, T: x, ...vars });
+      if (Number.isFinite(y)) pts.push([x, y]);
+    }
+    return pts;
+  };
+  const plain = sample(CURVE_SAMPLES);
+  if (plain.length < 2) throw new Error(`expression "${expr}" produced no finite points over [${x0}, ${x1}]`);
+  const turns = turnsOf(plain);
+  if (turns <= CURVE_MAX_PLAIN_TURNS) return plain;
+  const n = Math.min(CURVE_MAX_SAMPLES, Math.max(CURVE_SAMPLES, turns * CURVE_TURN_SAMPLES));
+  const fine = sample(n);
+  return fine.length >= 2 ? fine : plain;
 }
 
 /** Interpolate a polyline (sorted by x) at a given x. */
