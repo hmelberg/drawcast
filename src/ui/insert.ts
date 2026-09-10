@@ -12,6 +12,8 @@
 
 import { resolvePortraits, traceFromBlob } from "../render/portrait";
 import { resolveSources } from "../render/source";
+import { resolveImages } from "../render/image";
+import { resolveIcons } from "../render/icon";
 import type { SpecElement } from "../spec/types";
 import { itemsOf, itemTitle, type Playlist, type PlaylistItem } from "../playlist/playlist";
 import { createModal } from "./modal";
@@ -247,28 +249,34 @@ export function openEmbedDialog(deps: EmbedImagesDeps): void {
 }
 
 /** Every portrait/source element in the document, embedded or not. */
+/** The element types that resolve borrowed artwork into `strokes`. */
+const EMBEDDABLE = ["portrait", "source", "image", "icon"] as const;
+const embeddable = (type: string): boolean => (EMBEDDABLE as readonly string[]).includes(type);
+
 function imageElements(playlist: Playlist): number {
-  return itemsOf(playlist).reduce(
-    (n, it) => n + (it.spec.elements ?? []).filter((e) => e.type === "portrait" || e.type === "source").length,
-    0,
-  );
+  return itemsOf(playlist).reduce((n, it) => n + (it.spec.elements ?? []).filter((e) => embeddable(e.type)).length, 0);
 }
 
 /**
  * How many images would actually change if this playlist were embedded: the
- * portrait/source elements that carry no `strokes` yet. Both resolvers skip an
- * element that already has them, so this — not the total — is the number worth
- * showing, whether the author is embedding into their own document (the dialog
- * below) or into the copy Publish sends (ui/share.ts's "Embed images (N)").
+ * portrait/source/image/icon elements that carry no `strokes` yet. Every
+ * resolver skips an element that already has them, so this — not the total —
+ * is the number worth showing, whether the author is embedding into their own
+ * document (the dialog below) or into the copy Publish sends (ui/share.ts's
+ * "Embed images (N)").
+ *
+ * All FOUR types, not just portrait/source: a freehand figure whose only
+ * borrowed art is a Commons `image` or an Iconify `icon` counted zero, so
+ * Publish's bake gate (`before > 0`) skipped it entirely and the Share panel
+ * said "Embed images (0) — all images are already in the file" about a cast
+ * that would re-fetch both in every viewer's browser.
  *
  * A count, deliberately: an estimate in bytes would have to guess at trace
  * sizes it cannot know before resolving, and the review cut it.
  */
 export function unembeddedImages(playlist: Playlist): number {
   return itemsOf(playlist).reduce(
-    (n, it) =>
-      n +
-      (it.spec.elements ?? []).filter((e) => (e.type === "portrait" || e.type === "source") && !e.strokes).length,
+    (n, it) => n + (it.spec.elements ?? []).filter((e) => embeddable(e.type) && !e.strokes).length,
     0,
   );
 }
@@ -283,7 +291,7 @@ function buildEmbedDialog(): EmbedSession {
   const explanation = h(
     "p",
     { class: "settings-note" },
-    "Every portrait's traced strokes and every source's page image are written into the spec text. The drawcast then renders identically forever — offline, on any machine, and after a link dies or an API is discontinued. The document gets larger.",
+    "Every portrait's traced strokes, every source's page image, every Commons photo and every icon are written into the spec text. The drawcast then renders identically forever — offline, on any machine, and after a link dies or an API is discontinued. The document gets larger.",
   );
   // The distinction that made "Pin" a confusing name (P §3.6): this button
   // rewrites the file the author has open. Publishing does the same job to the
@@ -332,7 +340,12 @@ function buildEmbedDialog(): EmbedSession {
     // job is to change the open document. Publish must not, which is why
     // publish/embed.ts clones first (P §3.4).
     void Promise.all(
-      items.flatMap((it) => [resolvePortraits(it.spec), resolveSources(it.spec, { contactEmail: current.contactEmail() })]),
+      items.flatMap((it) => [
+        resolvePortraits(it.spec),
+        resolveSources(it.spec, { contactEmail: current.contactEmail() }),
+        resolveImages(it.spec),
+        resolveIcons(it.spec),
+      ]),
     )
       .then((all) => {
         const failed = all.flat().filter((r) => !r.ok);
@@ -372,7 +385,7 @@ function buildEmbedDialog(): EmbedSession {
       nothingLine.textContent =
         imageElements(playlist) > 0
           ? "Every image is already in the file."
-          : "No portrait or source elements to embed.";
+          : "No portrait, source, image or icon elements to embed.";
       embedBtn.remove();
       if (count > 0) modal.footer.append(embedBtn);
       modal.open();

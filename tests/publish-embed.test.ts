@@ -141,6 +141,38 @@ describe("unembeddedImages", () => {
   it("is zero for a playlist with no images at all", () => {
     expect(unembeddedImages(parsePlaylistText("elements: []\ncommands: []"))).toBe(0);
   });
+
+  // Post-wave residual: a freehand figure whose only borrowed art is a
+  // Commons photo or an Iconify glyph counted zero, so Publish's bake gate
+  // (`before > 0`) skipped it and the Share panel claimed "all images are
+  // already in the file" about a cast that would re-fetch both in the viewer.
+  it("counts an image and an icon with no strokes, and neither once they have them", () => {
+    const bare = parsePlaylistText(["elements:", "  - {id: photo, type: image, of: Honeycomb}", "  - {id: bee, type: icon, of: bee}", "commands: []"].join("\n"));
+    expect(unembeddedImages(bare)).toBe(2);
+    for (const el of itemsOf(bare)[0].spec.elements ?? []) (el as { strokes?: string }).strokes = "img1:aa:data:,x";
+    expect(unembeddedImages(bare)).toBe(0);
+  });
+
+  it("counts all four types together across every part", () => {
+    const mixed = parsePlaylistText(
+      [
+        "playlist:",
+        "  title: Mixed",
+        "---",
+        "elements:",
+        "  - {id: p1, type: portrait, of: Ricardo}",
+        "  - {id: photo, type: image, of: Honeycomb}",
+        "commands: []",
+        "---",
+        "elements:",
+        "  - {id: s1, type: source, of: Das Kapital}",
+        "  - {id: bee, type: icon, of: bee}",
+        "  - {id: t1, type: text, text: hello}",
+        "commands: []",
+      ].join("\n"),
+    );
+    expect(unembeddedImages(mixed)).toBe(4);
+  });
 });
 
 // ---- the words the author reads (P §3.6, §3.7) ------------------------------
