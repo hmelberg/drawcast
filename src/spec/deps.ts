@@ -24,6 +24,8 @@ export function definitionalRefs(el: SpecElement): string[] {
       break;
     case "region":
       for (const id of el.between ?? []) add(id);
+      add(refOf(el.x_from));
+      add(refOf(el.x_to));
       break;
     case "arrow":
     case "edge":

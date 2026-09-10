@@ -12,7 +12,7 @@ type Ex = {
   request: string;
   spec?: {
     vars?: Record<string, number>;
-    elements?: { type: string; at?: { on?: string }; bind?: unknown }[];
+    elements?: { type: string; at?: { on?: string }; bind?: unknown; x_to?: unknown }[];
     commands?: Record<string, unknown>[];
   };
 };
@@ -37,7 +37,10 @@ describe("the prompt teaches vars and holding definitions (design 2026-09-10)", 
     expect(withVars.length).toBeGreaterThanOrEqual(2);
     expect(withVars.some((e) => e.spec!.elements!.some((x) => x.type === "point" && x.at?.on && x.bind))).toBe(true);
     expect(withVars.some((e) => e.spec!.commands!.some((c) => c.animate))).toBe(true);
-    expect(ex.some((e) => e.request.toLowerCase().includes("demand") && e.spec?.commands?.some((c) => c.move) && e.spec.elements?.some((x) => x.type === "region"))).toBe(true);
+    // The demand shift is a var on the curve's expression, and the surplus
+    // wedge stops at the equilibrium by reference (Hans 2026-09-10: a MOVED
+    // stroke left no curve to shade under, and a numeric edge stayed put).
+    expect(ex.some((e) => e.request.toLowerCase().includes("demand") && e.spec?.commands?.some((c) => c.animate) && e.spec.elements?.some((x) => x.type === "region" && typeof x.x_to === "object"))).toBe(true);
     expect(ex.some((e) => e.spec?.elements?.some((x) => x.type === "angle") && e.spec?.commands?.some((c) => c.move))).toBe(true);
     for (const e of withVars) expect(e.request).toMatch(/\?/);
   });
@@ -68,9 +71,10 @@ describe("the prompt teaches vars and holding definitions (design 2026-09-10)", 
     expect(animates.map((s) => Object.keys(s.targets))).toEqual([["vars.f"], ["vars.t"]]);
     expect(animates[0].starts).toEqual({ "vars.f": 1 });
     const market = plan("Does the equilibrium follow when demand shifts?");
-    const mv = market.steps.find((s) => s.kind === "move") as Extract<PlanStep, { kind: "move" }>;
-    expect(mv.relayout).toBe(true);
-    expect(market.sources).toEqual(["demand", "supply"]);
+    const shift = market.steps.filter((s): s is Extract<PlanStep, { kind: "animate" }> => s.kind === "animate");
+    expect(shift.map((s) => Object.keys(s.targets))).toEqual([["vars.s"]]);
+    expect(shift[0].starts).toEqual({ "vars.s": 0 });
+    expect(market.warnings).toEqual([]);
     const arms = plan("What happens to the angle when one arm turns?");
     const turns = arms.steps.filter((s): s is Extract<PlanStep, { kind: "transform" }> => s.kind === "transform");
     expect(turns).toHaveLength(2);

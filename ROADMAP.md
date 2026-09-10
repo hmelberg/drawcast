@@ -621,6 +621,32 @@ recomputes it too, and the two agree); a fitted group's posed anchors are
 computed before `fit` scales its members (fit + a moved member is an edge
 case left alone).
 
+### Labels blink and jump while things move — noted 2026-09-10
+
+Hans, watching the bundled examples after the vars round: "noen labels
+blinker og oppfører seg hakkete (skifter posisjon) når man beveger på
+objekter" — the frequency sweep ("Why does a higher frequency squeeze the
+wave?") and the moving planets (the space templates' orbits). Two symptoms:
+
+- **Jump**: a label attached to something that moves is re-solved by the
+  greedy placer (layout/labels.ts) on EVERY frame of an animate or relayout
+  tween, with no memory of the side it had. Near a tie between two sides it
+  flips frame to frame, and the settle remount can flip it once more. This
+  is the "label sides pinned during a relayout tween" item deliberately left
+  above, now seen in practice.
+- **Blink**: when the per-frame swap rebuilds a text leaf rather than moving
+  it, the node is fresh each frame — its reveal state and halo restart, and
+  the label flickers.
+
+Direction: pin a label's chosen side (and ring) for the length of a tween —
+hysteresis, so it keeps its side unless that side becomes solidly blocked,
+and only re-solves at the settle; interpolate the label's position between
+the two solved spots rather than re-solving per frame; and move text nodes
+instead of rebuilding them when only their position changes. Same treatment
+for the planets' name labels, which ride a template's own placement. A test:
+sweep the wave's `f` from 1 to 4 in 60 frames and assert every label's side
+changes at most once.
+
 ## Formula morph, term colours, copy and parametric curves (the manim round, part 2) — done 2026-09-10
 
 The rest of the manim assessment (NOTES.md, 2026-09-10): manim's

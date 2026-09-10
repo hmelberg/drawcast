@@ -801,8 +801,8 @@ function sampleCurveDomain(el: SpecElement, ctx: Ctx): Pt[] {
     }
     return sampleParametric(el.x_expr, el.y_expr, t0, t1, ctx.vars);
   }
-  const x0 = el.x_from ?? dx0 + (dx1 - dx0) * 0.02;
-  const x1 = el.x_to ?? dx1 - (dx1 - dx0) * 0.02;
+  const x0 = typeof el.x_from === "number" ? el.x_from : dx0 + (dx1 - dx0) * 0.02;
+  const x1 = typeof el.x_to === "number" ? el.x_to : dx1 - (dx1 - dx0) * 0.02;
   if (el.expr) {
     return sampleExpression(el.expr, x0, x1, ctx.vars).map(([x, y]): Pt => [x, clamp(y, dy0, dy1)]);
   }
@@ -950,8 +950,21 @@ function regionDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
     ctx.warnings.push(`region "${el.id}": between references unknown curves — skipped`);
     return [];
   }
-  const x0 = el.x_from ?? Math.max(Math.min(...a.map((p) => p[0])), Math.min(...b.map((p) => p[0])));
-  const x1 = el.x_to ?? Math.min(Math.max(...a.map((p) => p[0])), Math.max(...b.map((p) => p[0])));
+  // An edge given as {ref}: the x of that element where it STANDS — under a
+  // move, its posed anchor (Hans 2026-09-10: a surplus wedge shaded "up to
+  // the equilibrium" kept its old right edge after demand shifted).
+  const edge = (v: number | { ref: string } | undefined, fallback: number, which: "x_from" | "x_to"): number => {
+    if (typeof v === "number") return v;
+    if (!v) return fallback;
+    const a = ctx.anchors[v.ref];
+    if (!a) {
+      ctx.warnings.push(`region "${el.id}": ${which} refers to "${v.ref}", which has no position — using the curves' extent`);
+      return fallback;
+    }
+    return ctx.ix(a[0]);
+  };
+  const x0 = edge(el.x_from, Math.max(Math.min(...a.map((p) => p[0])), Math.min(...b.map((p) => p[0]))), "x_from");
+  const x1 = edge(el.x_to, Math.min(Math.max(...a.map((p) => p[0])), Math.max(...b.map((p) => p[0]))), "x_to");
   const N = 30;
   const upper: Pt[] = [];
   const lower: Pt[] = [];

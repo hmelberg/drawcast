@@ -39,8 +39,15 @@ import { buildSystemPrompt, wantsCode } from "../src/llm/prompt";
 // sentence — grew the system prompt by +822 chars; nothing here touches the
 // schema (Tasks 3/5/7 already shipped it), so BASELINE_SCHEMA_CHARS is
 // unchanged.
-const BASELINE_SYSTEM_CHARS = 221961;
-const BASELINE_SCHEMA_CHARS = 108068;
+// Re-pinned 2026-09-10 (region edges by reference, then the prompt itself):
+// x_from/x_to grew a type-or-object shape and one clause each, and the
+// prompt gained the expr-curve rule in the move bullet (shift by a var, not
+// by moving the stroke), the region edge in the tier-2 bullet and
+// math_font in Text.
+// Re-pinned 2026-09-10 after merging main (region edges by reference, the
+// expr-curve rule, math_font) into the formula-morph branch: both measured again.
+const BASELINE_SYSTEM_CHARS = 223120;
+const BASELINE_SCHEMA_CHARS = 108516;
 
 const system = (code: boolean) => buildSystemPrompt(promptVariants()[0].source, { schema: apiSchema(), catalog: catalogParts({}).stable, fewshots: fewshotsText(), exemplars: "", code: code ? CODE_PROMPT_SOURCE : "" });
 

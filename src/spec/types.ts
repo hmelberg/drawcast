@@ -93,8 +93,10 @@ export interface SpecElement {
   curvature?: "linear" | "convex" | "concave";
   steepness?: "gentle" | "medium" | "steep";
   expr?: string;
-  x_from?: number;
-  x_to?: number;
+  /** curve: the x interval drawn. region: the x interval shaded — a number, or `{ref}`: that
+   *  element's x (a point, typically an intersection), read where it STANDS, so the region follows it. */
+  x_from?: number | { ref: string };
+  x_to?: number | { ref: string };
   /** curve: parametric x(t), used with y_expr instead of expr (design 2026-09-10 §2.6). */
   x_expr?: string;
   /** curve: parametric y(t), used with x_expr instead of expr. */
