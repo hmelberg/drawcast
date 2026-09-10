@@ -13,9 +13,12 @@ import { buildSystemPrompt, wantsCode } from "../src/llm/prompt";
 // the move bullet, which replaced two older sentences (+1,197). The schema
 // stays under the freehand ceiling. A later round that adds to the prompt
 // re-pins here, on purpose, with a note like this one.
-// Re-pinned 2026-09-10 (region edges by reference): x_from/x_to grew a
-// type-or-object shape and one clause each, +264 schema chars, +448 system.
-const BASELINE_SYSTEM_CHARS = 219593;
+// Re-pinned 2026-09-10 (region edges by reference, then the prompt itself):
+// x_from/x_to grew a type-or-object shape and one clause each, and the
+// prompt gained the expr-curve rule in the move bullet (shift by a var, not
+// by moving the stroke), the region edge in the tier-2 bullet and
+// math_font in Text.
+const BASELINE_SYSTEM_CHARS = 220304;
 const BASELINE_SCHEMA_CHARS = 101031;
 
 const system = (code: boolean) => buildSystemPrompt(promptVariants()[0].source, { schema: apiSchema(), catalog: catalogParts({}).stable, fewshots: fewshotsText(), exemplars: "", code: code ? CODE_PROMPT_SOURCE : "" });
