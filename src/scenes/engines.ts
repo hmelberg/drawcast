@@ -20,6 +20,7 @@
 // entirely inside the lazy chunks their loaders' dynamic imports create.
 import type { Spec } from "../spec/types";
 import type { LiteElement, LiteNode } from "@mathjax/src/js/adaptors/lite/Element.js";
+import { DEFAULT_MATH_FONT, type MathFont } from "../layout/text-style";
 import type { Topology, GeometryCollection } from "topojson-specification";
 import type { FeatureCollection, Geometry, Polygon, MultiPolygon, Position } from "geojson";
 import { sampleSvgPath } from "./svgpath";
@@ -98,6 +99,22 @@ interface SdPreprocessor {
   rings: { members: number[] }[];
 }
 
+/**
+ * The font layoutTeX draws with when its caller names none — set by
+ * layoutSpec from the spec's `text.math_font` (layout/layout.ts) before any
+ * element or template runs. A module-level default rather than a parameter
+ * threaded through tier2's context and every template's `engines` object:
+ * layout is synchronous and single-threaded, and equation_steps (a YAML
+ * template calling engines.mathjax.layoutTeX) has no other way to hear it.
+ */
+let currentMathFont: MathFont = DEFAULT_MATH_FONT;
+export function setMathFont(font: MathFont): void {
+  currentMathFont = font;
+}
+export function currentMathFontName(): MathFont {
+  return currentMathFont;
+}
+
 export interface MathJaxEngine {
   /** TeX → flat drawing-ready geometry. Height-normalized: `h` = 1 for an "x"-height-ish
    *  baseline row; caller scales.
@@ -110,10 +127,14 @@ export interface MathJaxEngine {
    *  classified by containment, so a glyph whose parts are disjoint rather than nested
    *  ("=" — two bars) yields one entry PER PART, each hole-free. Rules (fraction bars,
    *  \sqrt and \overline overbars) come back as 4-pt rectangles with no holes. */
-  layoutTeX(tex: string, opts?: { display?: boolean }): {
+  layoutTeX(tex: string, opts?: { display?: boolean; font?: MathFont }): {
     outlines: { pts: [number, number][]; holes?: [number, number][][] }[];
     w: number; h: number;
   };
+  /** Load a font's package (and its dynamic glyph files) so layoutTeX can use it synchronously. Idempotent. */
+  ensureFont(font: MathFont): Promise<void>;
+  /** The font layoutTeX would actually draw `font` with: itself when loaded, else tex, else whatever is. */
+  fontFor(font: MathFont): MathFont;
 }
 
 /** Crossing-number point-in-ring; rings from a font never self-intersect, so
@@ -228,14 +249,19 @@ function parseTransform(spec: string): Mat {
  * files at all; a font that has them (Fira, STIX, …) must be given a
  * `mathjax.asyncLoad` that resolves to bundled modules before this runs.
  */
+/** Each font is its own lazy chunk: the glyph data is the bulk of it. */
+const MATH_FONT_MODULES: Record<MathFont, () => Promise<{ font: unknown; dynamic: Record<string, unknown> }>> = {
+  fira: () => import("./mathjax-fonts/fira"),
+  tex: () => import("./mathjax-fonts/tex"),
+};
+
 async function loadMathJax(): Promise<MathJaxEngine> {
-  const [{ mathjax }, { TeX }, { SVG }, { liteAdaptor }, { RegisterHTMLHandler }, { MathJaxTexFont }] = await Promise.all([
+  const [{ mathjax }, { TeX }, { SVG }, { liteAdaptor }, { RegisterHTMLHandler }] = await Promise.all([
     import("@mathjax/src/js/mathjax.js"),
     import("@mathjax/src/js/input/tex.js"),
     import("@mathjax/src/js/output/svg.js"),
     import("@mathjax/src/js/adaptors/liteAdaptor.js"),
     import("@mathjax/src/js/handlers/html.js"),
-    import("@mathjax/mathjax-tex-font/js/svg.js"),
     // Side-effect import: it registers the "ams" package (align, matrices, the
     // extra symbols). Naming a package TeX never registered is silently
     // ignored, so without this line \begin{pmatrix} dies as "unknown
@@ -244,19 +270,42 @@ async function loadMathJax(): Promise<MathJaxEngine> {
   ]);
   const adaptor = liteAdaptor();
   RegisterHTMLHandler(adaptor);
-  // fontCache "none" inlines each glyph's <path> where it is used, so there are
-  // no <use>/<defs> indirections to chase — only nested transforms, which the
-  // walk below composes.
-  // linebreaks.inline is ON by default in 4: an inline expression is cut into
-  // pieces — one <svg> each, joined by <mjx-break> — so a browser can wrap it
-  // like text. layoutTeX reads ONE svg with one viewBox, so "a+b" came back
-  // as just "a" (the two missing glyphs were in the second piece).
-  const out = new SVG({ fontCache: "none", fontData: MathJaxTexFont, linebreaks: { inline: false } });
-  const doc = mathjax.document("", { InputJax: new TeX({ packages: ["base", "ams"] }), OutputJax: out });
-  await out.font.loadDynamicFiles();
-  // MathJax lays out in 1000-units-per-em font coordinates; dividing by the
-  // font's x-height puts an "x"-tall baseline row at h ≈ 1.
-  const unitsPerEx = 1000 * out.font.params.x_height;
+
+  // A font's dynamic glyph files: MathJax asks for them by path
+  // ("@mathjax/mathjax-fira-font/js/svg/dynamic/latin.js"); the font module
+  // bundled them and registered them here by basename, so the answer is a
+  // module we already hold — no fetch, and loadDynamicFiles resolves at once.
+  const dynamicModules = new Map<string, unknown>();
+  mathjax.asyncLoad = (name: string) => {
+    const key = name.split("/").pop()!.replace(/\.js$/, "");
+    const mod = dynamicModules.get(key);
+    if (!mod) return Promise.reject(new Error(`mathjax: dynamic font file "${name}" is not bundled`));
+    return Promise.resolve((mod as { default?: unknown }).default ?? mod);
+  };
+
+  /** One document per font: MathJax's output jax is built around one font. */
+  const fonts = new Map<MathFont, { doc: ReturnType<typeof mathjax.document>; unitsPerEx: number }>();
+  const ensureFont = async (font: MathFont): Promise<void> => {
+    if (fonts.has(font)) return;
+    const mod = await MATH_FONT_MODULES[font]();
+    for (const [k, v] of Object.entries(mod.dynamic)) dynamicModules.set(k, v);
+    // fontCache "none" inlines each glyph's <path> where it is used, so there
+    // are no <use>/<defs> indirections to chase — only nested transforms,
+    // which the walk below composes.
+    // linebreaks.inline is ON by default in 4: an inline expression is cut
+    // into pieces — one <svg> each, joined by <mjx-break> — so a browser can
+    // wrap it like text. layoutTeX reads ONE svg with one viewBox, so "a+b"
+    // came back as just "a" (the two missing glyphs were in the second piece).
+    const out = new SVG({ fontCache: "none", fontData: mod.font as never, linebreaks: { inline: false } });
+    const doc = mathjax.document("", { InputJax: new TeX({ packages: ["base", "ams"] }), OutputJax: out });
+    // Every dynamic file now, so convert() below never has to wait for one.
+    await out.font.loadDynamicFiles();
+    // MathJax lays out in 1000-units-per-em font coordinates; dividing by the
+    // font's x-height puts an "x"-tall baseline row at h ≈ 1.
+    fonts.set(font, { doc, unitsPerEx: 1000 * out.font.params.x_height });
+  };
+  await ensureFont(DEFAULT_MATH_FONT);
+  const fontFor = (font: MathFont): MathFont => (fonts.has(font) ? font : fonts.has("tex") ? "tex" : fonts.keys().next().value!);
 
   const isElement = (n: LiteNode): n is LiteElement => adaptor.kind(n) !== "#text";
 
@@ -285,7 +334,10 @@ async function loadMathJax(): Promise<MathJaxEngine> {
   };
 
   return {
+    ensureFont,
+    fontFor,
     layoutTeX(tex, opts = {}) {
+      const { doc, unitsPerEx } = fonts.get(fontFor(opts.font ?? currentMathFont))!;
       const container = doc.convert(tex, { display: !!opts.display }) as LiteElement;
       const svg = adaptor.tags(container, "svg")[0];
       if (!svg) throw new Error("MathJax produced no SVG");
@@ -772,4 +824,11 @@ export async function ensureEnginesForSpecs(specs: Partial<Spec>[]): Promise<voi
   for (const s of specs) registerCastTemplates(s);
   for (const s of specs) if (s.template) await ensureEnginesForTemplate(s.template);
   for (const s of specs) await ensureEngines(enginesForSpec(s));
+  for (const s of specs) if (enginesForSpec(s).includes("mathjax")) await ensureMathFont(s.text?.math_font ?? DEFAULT_MATH_FONT);
+}
+
+/** The mathjax engine with `font` ready for synchronous layout. Loads the engine itself if it is not yet. */
+export async function ensureMathFont(font: MathFont): Promise<void> {
+  await ensureEngines(["mathjax"]);
+  await (cache.get("mathjax") as MathJaxEngine).ensureFont(font);
 }

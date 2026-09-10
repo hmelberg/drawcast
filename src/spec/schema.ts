@@ -910,6 +910,7 @@ const TEXT_FIELDS = {
       font_size: { type: "number", minimum: 16, maximum: 48 },
       font_family: { type: "string", enum: ["cursive", "sans-serif", "monospace"] },
       font_weight: { type: "string", enum: ["normal", "bold"] },
+      math_font: { type: "string", enum: ["fira", "tex"], description: "The font formulas are drawn with: fira (Fira Math, the default) | tex (MathJax's TeX font)." },
     },
     additionalProperties: false,
   },

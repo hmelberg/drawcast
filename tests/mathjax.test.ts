@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { ensureEngines, getLoadedEngines, type MathJaxEngine } from "../src/scenes/engines";
+import { ensureEngines, getLoadedEngines, type MathJaxEngine, setMathFont, ensureMathFont } from "../src/scenes/engines";
 import { sampleSvgPath } from "../src/scenes/svgpath";
 
 type Pt = [number, number];
@@ -94,6 +94,27 @@ describe("mathjax engine (real load — node, no DOM)", () => {
     // second; layoutTeX reads the first and silently drops the rest.
     expect(eng.layoutTeX("a+b").outlines.length).toBe(3);
     expect(eng.layoutTeX("x^2 + 1").outlines.length).toBe(4);
+  });
+
+  test("fonts: Fira is the default, TeX loads on demand, and the two really are different glyphs", async () => {
+    const eng = await mathjax();
+    expect(eng.fontFor("fira")).toBe("fira");
+    await eng.ensureFont("tex");
+    expect(eng.fontFor("tex")).toBe("tex");
+    const fira = eng.layoutTeX("x^2 + 1", { font: "fira" });
+    const tex = eng.layoutTeX("x^2 + 1", { font: "tex" });
+    expect(fira.outlines.length).toBe(4);
+    expect(tex.outlines.length).toBe(4);
+    // Same x-height by construction (h ≈ 1 for an x row), different widths: two fonts, not one twice.
+    expect(Math.abs(fira.w - tex.w)).toBeGreaterThan(0.05);
+    // No font named: the module-level current font (what layoutSpec sets) decides.
+    setMathFont("tex");
+    expect(JSON.stringify(eng.layoutTeX("x^2 + 1"))).toBe(JSON.stringify(tex));
+    setMathFont("fira");
+    expect(JSON.stringify(eng.layoutTeX("x^2 + 1"))).toBe(JSON.stringify(fira));
+    // ensureMathFont from outside the engine is the same thing, and idempotent.
+    await ensureMathFont("tex");
+    expect(eng.fontFor("tex")).toBe("tex");
   });
 
   test("layoutTeX('E = mc^2') covers every glyph", async () => {

@@ -4,6 +4,8 @@
 import { scenes } from "../scenes/registry";
 import { normalizeSpec } from "../spec/schema";
 import { applyTextMap } from "./text-map";
+import { DEFAULT_MATH_FONT } from "./text-style";
+import { setMathFont } from "../scenes/engines";
 import type { Spec } from "../spec/types";
 import { coVisible, lintLayout, type LintIssue } from "../lint/lint";
 import { layoutElements, type PieceGeometry } from "./tier2";
@@ -60,6 +62,11 @@ export interface LayoutResult {
  */
 export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure, overrides?: LayoutOverrides): LayoutResult {
   const spec = normalizeSpec(rawSpec) as Spec;
+  // Formulas are laid out as glyph outlines, so the font is a layout input,
+  // not a render one: every math element and equation_steps step below reads
+  // this (scenes/engines.ts). The viewer's override arrives already folded
+  // into text.math_font (text-style.ts withMathFont).
+  setMathFont(spec.text?.math_font ?? DEFAULT_MATH_FONT);
   // A template and a script on screen each get their own half of the canvas
   // before anything is laid out — the default the two used to lack, so a
   // chart no longer lands on top of the code that computed it.

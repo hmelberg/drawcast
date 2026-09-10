@@ -35,7 +35,7 @@ import { resolveDrawOpts, resolveStyle } from "./resolve";
 import { catmullRom, catmullRomClosed } from "./smooth";
 import { decodeIcon, decodePhoto, decodeSourceImage, decodeTrace } from "../spec/trace";
 import { obstacleBoxes, wrapText, type LabelRequest } from "./labels";
-import { enginesLoaded, getLoadedEngines, type MathJaxEngine } from "../scenes/engines";
+import { currentMathFontName, enginesLoaded, getLoadedEngines, type MathJaxEngine } from "../scenes/engines";
 import { linkKindOf } from "../ui/link-model";
 import type { LintIssue } from "../lint/lint";
 import type { EndRef, PointRef, SpecElement } from "../spec/types";
@@ -377,7 +377,10 @@ export function layoutElements(
         }
         let laid: { drawables: Drawable[]; box: BBox };
         try {
-          laid = mathDrawables(el, getLoadedEngines(["mathjax"]).mathjax as MathJaxEngine, cx, cy);
+          const engine = getLoadedEngines(["mathjax"]).mathjax as MathJaxEngine;
+          const want = currentMathFontName();
+          if (engine.fontFor(want) !== want) ctx.warnings.push(`math "${el.id}": font "${want}" is not loaded — drawn with "${engine.fontFor(want)}"`);
+          laid = mathDrawables(el, engine, cx, cy);
         } catch (err) {
           issues.push({ rule: "math", ids: [el.id], severity: "error", message: `math "${el.id}": ${(err as Error).message}` });
           break;

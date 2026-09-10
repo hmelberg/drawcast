@@ -2,7 +2,7 @@
 // library (Loop 2), a custom compiler-prompt override, and generation logs
 // that feed the exportable improvement packet (Loop 3).
 
-import type { TextFamily } from "./layout/text-style";
+import type { MathFont, TextFamily } from "./layout/text-style";
 import { SPEC_VERSION } from "./spec/schema";
 import type { Spec } from "./spec/types";
 import type { SpecFormat } from "./spec/text";
@@ -80,6 +80,8 @@ export interface Settings {
   textSize: number | null;
   /** Viewer's font in the player — a CSS generic family, or null to follow the drawcast. */
   textFamily: TextFamily | null;
+  /** Viewer's font for formulas — a mathjax engine font, or null to follow the drawcast. */
+  mathFont: MathFont | null;
   /** Prompt variant name, or "custom" for the locally edited prompt. */
   variant: string;
   /** The active style profile (B5) — null means no addendum. */
@@ -181,6 +183,7 @@ export const DEFAULT_SETTINGS: Settings = {
   style: "clean",
   textSize: null,
   textFamily: null,
+  mathFont: null,
   variant: "v1",
   activeStyleId: null,
   cloudVoices: {},
@@ -302,7 +305,7 @@ export function saveSettings(s: Settings): void {
  */
 export const SETTINGS_TABS: { id: string; label: string; fields: string[] }[] = [
   { id: "keys", label: "Keys", fields: ["apiKey", "ttsKey"] },
-  { id: "playback", label: "Playback", fields: ["style", "textSize", "textFamily", "theme", "voice", "rate", "cloudPlayback", "cloudVoice", "skipQuestions", "burnCaptions"] },
+  { id: "playback", label: "Playback", fields: ["style", "textSize", "textFamily", "mathFont", "theme", "voice", "rate", "cloudPlayback", "cloudVoice", "skipQuestions", "burnCaptions"] },
   { id: "publishing", label: "Publishing", fields: ["githubRepo", "githubToken", "account", "coursesDir", "giscus"] },
   { id: "advanced", label: "Advanced", fields: ["contactEmail", "developerMode", "visualRepair", "backup"] },
 ];

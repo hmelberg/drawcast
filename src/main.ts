@@ -5,7 +5,7 @@
 
 import "./styles.css";
 import { type RenderHandle, type RenderStyle } from "./render";
-import type { TextFamily } from "./layout/text-style";
+import type { MathFont, TextFamily } from "./layout/text-style";
 import { canRender, needsRender } from "./render/policy";
 import { generateSpec, improvePrompt, promptVariants, type ImproveCase, type PromptVariant, type RouteInfo } from "./llm/compile";
 import { routeTemplates } from "./llm/router";
@@ -659,6 +659,16 @@ textFamilySel.append(
   h("option", { value: "monospace" }, "Typewriter"),
 );
 textFamilySel.value = settings.textFamily ?? "";
+// The font formulas are drawn with (Hans 2026-09-10): a MathJax 4 font, so
+// every glyph exists and the chunk ships with the app. Fira is the spec
+// default; "Follow the drawcast" is what most viewers should leave it at.
+const mathFontSel = h("select", { title: "Math font" });
+mathFontSel.append(
+  h("option", { value: "" }, "Follow the drawcast"),
+  h("option", { value: "fira" }, "Fira Math"),
+  h("option", { value: "tex" }, "TeX (Computer Modern)"),
+);
+mathFontSel.value = settings.mathFont ?? "";
 
 const themeSel = h("select", { title: "Appearance" });
 themeSel.append(
@@ -1781,6 +1791,7 @@ const settingsBlocks = new Map<string, HTMLElement>([
   ["style", h("div", { class: "settings-field" }, h("label", {}, "Drawing style"), styleSel)],
   ["textSize", h("div", { class: "settings-field" }, h("label", {}, "Text size"), textSizeSel)],
   ["textFamily", h("div", { class: "settings-field" }, h("label", {}, "Font"), textFamilySel)],
+  ["mathFont", h("div", { class: "settings-field" }, h("label", {}, "Math font"), mathFontSel)],
   ["theme", h("div", { class: "settings-field" }, h("label", {}, "Appearance"), themeSel)],
   [
     "apiKey",
@@ -1998,6 +2009,7 @@ function openSettings(): void {
   cloudPlaybackCb.checked = settings.cloudPlayback;
   textSizeSel.value = settings.textSize == null ? "" : String(settings.textSize);
   textFamilySel.value = settings.textFamily ?? "";
+  mathFontSel.value = settings.mathFont ?? "";
   refreshCloudVoiceField();
   skipQuestionsCb.checked = settings.skipQuestions;
   burnCaptionsCb.checked = settings.burnCaptions;
@@ -2665,7 +2677,7 @@ async function present(andPlay = false): Promise<void> {
       // the editor pane and Player mode alike (Hans 2026-09-03: "these changes
       // should apply to both the player in the editor (preview) and the single
       // page player"). Exports never pass it, so they keep the spec's defaults.
-      text: { fontSize: settings.textSize, family: settings.textFamily },
+      text: { fontSize: settings.textSize, family: settings.textFamily, mathFont: settings.mathFont },
       mode: settings.mode,
       speed: settings.speed,
       questions: settings.skipQuestions ? "skip" : "on",
@@ -5297,6 +5309,11 @@ textSizeSel.addEventListener("change", () => {
 });
 textFamilySel.addEventListener("change", () => {
   settings.textFamily = (textFamilySel.value || null) as TextFamily | null;
+  persist();
+  void present();
+});
+mathFontSel.addEventListener("change", () => {
+  settings.mathFont = (mathFontSel.value || null) as MathFont | null;
   persist();
   void present();
 });

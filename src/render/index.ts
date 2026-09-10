@@ -26,8 +26,8 @@ import { resolveIcons } from "./icon";
 import { loadSettings } from "../store";
 import { fontStack, makeBrowserMeasure, rendererFor, type RenderStyle } from "./svg-backend";
 import { registerCastTemplates } from "../scenes/cast-templates";
-import { ensureEnginesForSpecs } from "../scenes/engines";
-import { applyTextStyle, effectiveTextStyle, scaledMeasure, type TextOverride } from "../layout/text-style";
+import { ensureEnginesForSpecs, ensureMathFont } from "../scenes/engines";
+import { applyTextStyle, effectiveTextStyle, scaledMeasure, type TextOverride, withMathFont } from "../layout/text-style";
 
 export type { RenderStyle } from "./svg-backend";
 
@@ -236,6 +236,14 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // — caption band, title — follows through two custom properties on the
   // figure, scoped there so the app chrome's own --sketch-font is untouched.
   const textStyle = effectiveTextStyle(spec, options.text);
+  // The viewer's math font (Settings → Playback) may differ from the spec's:
+  // load it now — layout is synchronous — and fold it into the spec every
+  // layout below reads. A chunk that fails to fetch degrades to the font the
+  // engine has (tier2 warns per formula), never to a blank figure.
+  await ensureMathFont(textStyle.mathFont).catch((err) => {
+    console.warn(`math font load failed: ${(err as Error).message}`);
+  });
+  spec = withMathFont(spec, textStyle.mathFont);
   figure.style.setProperty("--cs-text-scale", String(textStyle.scale));
   figure.style.setProperty("--sketch-font", fontStack(textStyle.family));
   const measure = scaledMeasure(makeBrowserMeasure({ family: fontStack(textStyle.family), weight: textStyle.weight }), textStyle.scale);
