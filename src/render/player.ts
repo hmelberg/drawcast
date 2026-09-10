@@ -450,11 +450,23 @@ export class Player {
     return JSON.stringify([Object.entries(params).sort(([a], [b]) => (a < b ? -1 : 1)), overridesKey(ov)]);
   }
 
-  /** The poses and shapes of the source ids at a scene — the part of the
-   *  scene a layout reads (design 2026-09-10 §2.5); undefined when none is
-   *  posed. Restricted to sources so a move of anything else never changes
-   *  the key (and never forces a remount). */
-  private overridesOf(offsets: Record<string, Pt>, turns: Record<string, Turn>, shapes: Record<string, Record<string, Pt[]>>): LayoutOverrides | undefined {
+  /** The poses and shapes of the source ids at a scene, plus every math
+   *  element's current TeX and every clone `copy` has minted — the part of
+   *  the scene a layout reads (design 2026-09-10 §2.5); undefined when none
+   *  of the four is populated. Poses/shapes stay restricted to sources so a
+   *  move of anything else never changes the key (and never forces a
+   *  remount); tex and copies never are — a TeX override always changes the
+   *  layout, and a copy is what MAKES an id exist at all (mirrors plan.ts's
+   *  currentOverrides, so both sides key the same layout). `frameMath`
+   *  overlays a tween in progress (its `from`/`t`) onto the settled tex. */
+  private overridesOf(
+    offsets: Record<string, Pt>,
+    turns: Record<string, Turn>,
+    shapes: Record<string, Record<string, Pt[]>>,
+    tex: Record<string, string>,
+    copies: Record<string, string>,
+    frameMath?: Record<string, { tex: string; from?: string; t?: number }>,
+  ): LayoutOverrides | undefined {
     const poses: Record<string, { offset: Pt; turn?: Turn }> = {};
     const shp: Record<string, Record<string, Pt[]>> = {};
     for (const id of this.sources) {
@@ -463,7 +475,11 @@ export class Player {
       if ((o && (o[0] !== 0 || o[1] !== 0)) || (t && !isIdentity(t))) poses[id] = { offset: o ?? [0, 0], turn: t };
       if (shapes[id]) shp[id] = shapes[id];
     }
-    return Object.keys(poses).length === 0 && Object.keys(shp).length === 0 ? undefined : { poses, shapes: shp };
+    const math: Record<string, { tex: string; from?: string; t?: number }> = {};
+    for (const [id, t] of Object.entries(tex)) math[id] = { tex: t };
+    Object.assign(math, frameMath);
+    if (Object.keys(poses).length === 0 && Object.keys(shp).length === 0 && Object.keys(math).length === 0 && Object.keys(copies).length === 0) return undefined;
+    return { poses, shapes: shp, math, copies: { ...copies } };
   }
 
   private frameScene(scene: SceneState, visible: ReadonlySet<string> = new Set(scene.visible)): FrameScene {
@@ -505,7 +521,7 @@ export class Player {
     if (!this.reprojector) return;
     this.painted = null; // back to the plan-time geometry
     const merged = this.withVarOverrides(scene.params);
-    const ov = this.overridesOf(scene.offsets, scene.turns, scene.shapes);
+    const ov = this.overridesOf(scene.offsets, scene.turns, scene.shapes, scene.tex, scene.copies);
     const key = Player.keyOf(merged, ov);
     if (!this.geometryDirty && key === this.appliedKey) return;
     this.elements = this.reprojector.commit(merged, ov);
@@ -526,7 +542,7 @@ export class Player {
     this.painted =
       this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...overrides }, this.frameScene(scene), {
         revealNew: opts.revealNew,
-        overrides: this.overridesOf(scene.offsets, scene.turns, scene.shapes),
+        overrides: this.overridesOf(scene.offsets, scene.turns, scene.shapes, scene.tex, scene.copies),
       }) || null;
     this.geometryDirty = true;
   }
@@ -551,7 +567,7 @@ export class Player {
       this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...(patch.params ?? {}) }, this.frameScene(scene, visible), {
         revealNew: true,
         elements: patch.elements,
-        overrides: this.overridesOf(scene.offsets, scene.turns, scene.shapes),
+        overrides: this.overridesOf(scene.offsets, scene.turns, scene.shapes, scene.tex, scene.copies),
       }) || null;
     this.geometryDirty = true;
   }
@@ -1074,7 +1090,7 @@ export class Player {
         // A trail minted by this step is visible from its first frame (the
         // plan makes it visible in the AFTER state); cut to the sweep's progress.
         const visible = new Set([...before.visible, ...(step.trails ?? []).map((tr) => tr.id)]);
-        const overrides = this.overridesOf(before.offsets, before.turns, before.shapes);
+        const overrides = this.overridesOf(before.offsets, before.turns, before.shapes, before.tex, before.copies);
         // Absent easing keeps the historical smoothstep exactly; a long race
         // asks for `linear` so the middle years do not blur past while the
         // ends crawl.
@@ -1157,7 +1173,15 @@ export class Player {
         return;
       }
       case "morph": {
-        if (step.relayout && this.reprojector) return this.relayoutTween(index, step, before, signal, (e) => ({ shapes: morphFrame(step.items, before, e) }));
+        if ((step.relayout || (step.texItems && step.texItems.length > 0)) && this.reprojector)
+          return this.relayoutTween(index, step, before, signal, (e) => ({
+            shapes: morphFrame(step.items, before, e),
+            math: Object.fromEntries((step.texItems ?? []).map((it) => [it.id, { tex: it.to, from: it.from, t: e }])),
+          }));
+        // A tex-only morph (texItems, no shape items) has nothing to tween
+        // through a handle: without a reprojector, just keep the pacing
+        // (mirrors the animate case's no-reprojector branch).
+        if (step.items.length === 0) return this.waitScaled(step.seconds * 1000, signal);
         const ease = EASINGS[step.easing];
         const items = step.items.map((it) => ({ it, el: this.elements.get(it.id) })).filter((x) => x.el?.setPoints);
         await this.progress(step.seconds * 1000, signal, (t) => {
@@ -1176,6 +1200,19 @@ export class Player {
         const after = this.plan.states[index];
         for (const { it, el } of items) el!.setPoints!(after.shapes[it.id] ?? {});
         this.settleMeasures(step, after);
+        return;
+      }
+      case "copy": {
+        // The clone is a fresh element the layout mints from `copies` in the
+        // overrides (design 2026-09-10 §2.5) — nothing to tween, so the step
+        // just commits the boundary key (which now carries the copy) and
+        // shows the id. With no reprojector the id has no handle: applyKey
+        // is a no-op and applyScene finds nothing to show for it — fine.
+        await this.narrationBarrier();
+        if (signal.aborted) return;
+        const after = this.plan.states[index];
+        this.applyKey(after);
+        this.applyScene(after);
         return;
       }
       case "camera": {
@@ -1234,7 +1271,12 @@ export class Player {
     step: { seconds: number; easing: Easing; trails?: TrailProgress[] } & MeasureFollow,
     before: SceneState,
     signal: AbortSignal,
-    frameAt: (e: number) => { offsets?: Record<string, Pt>; turns?: Record<string, Turn>; shapes?: Record<string, Record<string, Pt[]>> },
+    frameAt: (e: number) => {
+      offsets?: Record<string, Pt>;
+      turns?: Record<string, Turn>;
+      shapes?: Record<string, Record<string, Pt[]>>;
+      math?: Record<string, { tex: string; from?: string; t?: number }>;
+    },
   ): Promise<void> {
     const rp = this.reprojector!;
     const ease = EASINGS[step.easing];
@@ -1251,7 +1293,11 @@ export class Player {
       const offsets = { ...before.offsets, ...(f.offsets ?? {}), ...extra.offsets };
       const turns = { ...before.turns, ...(f.turns ?? {}), ...extra.turns };
       const shapes: Record<string, Record<string, Pt[]>> = { ...before.shapes, ...morphFrame(step.extraMorphs ?? [], before, e), ...(f.shapes ?? {}) };
-      rp.frame(params, { visible, offsets, turns, opacities: before.opacities, shapes, texts: before.texts }, { overrides: this.overridesOf(offsets, turns, shapes), trailProgress: Player.trailProgressAt(step.trails, e) });
+      rp.frame(
+        params,
+        { visible, offsets, turns, opacities: before.opacities, shapes, texts: before.texts },
+        { overrides: this.overridesOf(offsets, turns, shapes, before.tex, before.copies, f.math), trailProgress: Player.trailProgressAt(step.trails, e) },
+      );
       this.geometryDirty = true;
     });
     if (signal.aborted) return; // a scrub's renderUpTo owns the state now
