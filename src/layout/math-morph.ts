@@ -19,7 +19,7 @@ export function colorFor(chain: string[], colors: Record<string, string> | undef
 
 export interface TokenMatch { pairs: [number, number][]; unmatchedFrom: number[]; unmatchedTo: number[] }
 
-const keyOf = (t: MathToken): string => `${t.node}:${t.latex}`;
+const keyOf = (t: MathToken): string => `${t.node} ${normalizeTex(t.latex)}`;
 
 /** Longest common subsequence over token keys, in reading order; each token matches at most once. */
 export function matchTokens(from: MathToken[], to: MathToken[]): TokenMatch {

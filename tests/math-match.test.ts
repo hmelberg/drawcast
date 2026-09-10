@@ -31,6 +31,11 @@ describe("matchTokens", () => {
     expect(colorFor(["x"], colors)).toBeNull();
     expect(colorFor(["x"], undefined)).toBeNull();
   });
+  test("compound tokens with whitespace differences in latex normalize and match", () => {
+    const from = [tok("mrow", "\\Delta  C", 0)];
+    const to = [tok("mrow", "\\Delta C", 0)];
+    expect(matchTokens(from, to).pairs).toEqual([[0, 0]]);
+  });
 });
 
 describe("matchShapes on real engine output", () => {
