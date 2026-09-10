@@ -37,7 +37,8 @@ describe("the sidebar after Hans's four rulings", () => {
     expect(main).toMatch(/manageStylesRow[\s\S]{0,200}openStyleModal\(\)/);
     expect(main).not.toMatch(/"sidebar-row" \}, "Style"\)/);
     // The search box filters it like the others.
-    expect(main).toMatch(/sidebarSearch\.addEventListener\("input"[\s\S]{0,300}refreshStyleSection\(\)/);
+    expect(main).toMatch(/function applySidebarFilter\(\)[\s\S]{0,300}refreshStyleSection\(\)/);
+    expect(main).toMatch(/sidebarSearch\.addEventListener\("input", applySidebarFilter\)/);
   });
 
   it("4 · the sidebar stretches to the workbench's height — it ends where the editor ends, or later", async () => {

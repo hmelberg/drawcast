@@ -35,6 +35,7 @@ import { ensureEnginesForSpecs, ensureEnginesForTemplate } from "./scenes/engine
 import { isReadyTemplate } from "./scenes/catalog";
 import { scenes } from "./scenes/registry";
 import { openModel3d, qualifiesFor3d, setModel3dLabels, type AnatomyScene, type Model3dViewer } from "./ui/model3d";
+import { icon } from "./ui/icons";
 import { createModal, createTabs } from "./ui/modal";
 import { createMenu } from "./ui/menu";
 import { openDestinations, saveDestinations, OPEN_LABELS, SAVE_LABELS, type CredentialState } from "./ui/destinations";
@@ -1216,6 +1217,12 @@ const editorWrap = h(
 // ---------- left sidebar: the one menu ----------
 
 const sidebarSearch = h("input", { type: "text", class: "sidebar-search", placeholder: "Search…", "aria-label": "Filter library, courses, examples, templates and styles" }) as HTMLInputElement;
+// A × at the box's right edge (Hans 2026-09-10): a filter is typed to find
+// one thing and then has to go, and select-all-and-delete in a narrow box is
+// the fiddly way out. Hidden while there is nothing to clear; Escape in the
+// box does the same.
+const sidebarSearchClear = h("button", { type: "button", class: "sidebar-search-clear", "aria-label": "Clear search", title: "Clear search", hidden: "" }, icon("close"));
+const sidebarSearchWrap = h("div", { class: "sidebar-search-wrap" }, sidebarSearch, sidebarSearchClear);
 const dataRow = h("button", { class: "sidebar-row" }, "Data");
 // Declared here, ABOVE the sidebar, not near refreshAccountRow(): the IIFE
 // below that assigns it runs during module initialisation, before a `let`
@@ -1225,7 +1232,7 @@ const sidebar = h(
   "aside",
   { class: "sidebar" },
   blankBtn,
-  sidebarSearch,
+  sidebarSearchWrap,
   librarySection.details,
   coursesSection.details,
   examplesSection.details,
@@ -1282,12 +1289,25 @@ sidebarBackdrop.addEventListener("click", () => {
 if (window.innerWidth < 940) settings.sidebarOpen = false;
 applySidebar();
 
-sidebarSearch.addEventListener("input", () => {
+function applySidebarFilter(): void {
   sidebarFilter = sidebarSearch.value.trim().toLowerCase();
+  sidebarSearchClear.hidden = sidebarSearch.value === "";
   refreshLibrary();
   refreshExamples();
   refreshTemplatesSection();
   refreshStyleSection();
+}
+sidebarSearch.addEventListener("input", applySidebarFilter);
+sidebarSearch.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || sidebarSearch.value === "") return;
+  e.preventDefault();
+  sidebarSearch.value = "";
+  applySidebarFilter();
+});
+sidebarSearchClear.addEventListener("click", () => {
+  sidebarSearch.value = "";
+  applySidebarFilter();
+  sidebarSearch.focus();
 });
 
 const main = h("main", {}, sidebar, playerWrap, editorWrap);

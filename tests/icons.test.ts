@@ -5,7 +5,9 @@ import { ICON_PATHS, type IconName } from "../src/ui/icons";
 // currentColor — no emoji-class codepoints whose rendering is font-fallback
 // luck. This drift test guards the inventory the control bar builds from.
 
-const NAMES: IconName[] = ["play", "pause", "replay", "prev", "next", "volume", "muted", "theater", "fullscreen", "more", "share", "check"];
+// `close` is the sidebar search box's clear ×, not a control-bar glyph — it
+// lives in the same inventory so it takes currentColor like the rest.
+const NAMES: IconName[] = ["play", "pause", "replay", "prev", "next", "volume", "muted", "theater", "fullscreen", "more", "share", "check", "close"];
 
 describe("control-bar icon inventory", () => {
   it("carries a non-empty path for every control the bar builds", () => {

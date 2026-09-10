@@ -359,7 +359,28 @@ body.mode-editor.sidebar-open .sidebar { display: flex; flex-direction: column; 
 }
 .sidebar-new:hover { background: color-mix(in srgb, var(--ink) 14%, var(--field)); border-color: var(--ink); }
 
-.sidebar-search { width: 100%; font-size: var(--text-sm); padding: 0.3rem 0.5rem; }
+.sidebar-search-wrap { position: relative; }
+.sidebar-search { width: 100%; font-size: var(--text-sm); padding: 0.3rem 1.7rem 0.3rem 0.5rem; }
+/* The clear × sits inside the box's right edge; the input's right padding
+   keeps typed text from running under it. */
+.sidebar-search-clear {
+  position: absolute;
+  top: 50%;
+  right: 0.25rem;
+  transform: translateY(-50%);
+  width: 1.4rem;
+  height: 1.4rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.sidebar-search-clear:hover { color: var(--ink); background: transparent; }
+.sidebar-search-clear svg { width: 1rem; height: 1rem; fill: currentColor; }
 
 /* Section headings read at the same size as the tool rows below them — one
    menu, one type scale. */
