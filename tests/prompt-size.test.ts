@@ -16,17 +16,21 @@ import { buildSystemPrompt, wantsCode } from "../src/llm/prompt";
 // Re-pinned again 2026-09-10 for the formula-morph round (Task 3): one new
 // element property, `colors` (math: colour per term), one sentence — +296
 // chars on the schema, which is embedded verbatim in the system prompt so
-// the same +296 lands there too. The old +5,500 schema allowance since the
-// freehand ceiling was almost spent by work already on this branch; this
-// resets both anchors to the measured post-change size.
+// the same +296 lands there too. The old +5,500 rolling schema allowance
+// (a leftover slack from the freehand round) was dropped here: both anchors
+// below are now exact ceilings at the measured post-change size, with zero
+// slack, same as the system-prompt ceiling always was — a real ratchet, not
+// a budget that quietly refills itself on every re-pin. A later round that
+// adds to the schema or the prompt re-pins BOTH constants here, on purpose,
+// to its own new measured size, with a note like this one.
 const BASELINE_SYSTEM_CHARS = 219441;
 const BASELINE_SCHEMA_CHARS = 106379;
 
 const system = (code: boolean) => buildSystemPrompt(promptVariants()[0].source, { schema: apiSchema(), catalog: catalogParts({}).stable, fewshots: fewshotsText(), exemplars: "", code: code ? CODE_PROMPT_SOURCE : "" });
 
 describe("prompt budget (spec §6.3)", () => {
-  test("schema grew by at most 5,500 chars", () => {
-    expect(JSON.stringify(apiSchema(), null, 2).length).toBeLessThanOrEqual(BASELINE_SCHEMA_CHARS + 5_500);
+  test("the schema stays within the pinned size", () => {
+    expect(JSON.stringify(apiSchema(), null, 2).length).toBeLessThanOrEqual(BASELINE_SCHEMA_CHARS);
   });
   test("a non-code request gets a system prompt no larger than the pinned size", () => {
     expect(system(false).length).toBeLessThanOrEqual(BASELINE_SYSTEM_CHARS);
