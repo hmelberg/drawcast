@@ -28,3 +28,25 @@ export function lengthFractionAt(table: number[], u: number): number {
   const i = Math.min(n - 1, Math.floor(x));
   return table[i] + (table[i + 1] - table[i]) * (x - i);
 }
+
+/** The leading `fraction` of a polyline by arc length (a trail mid-sweep, design 2026-09-10 §2.4). */
+export function cutTrail(pts: Pt[], fraction: number): Pt[] {
+  if (pts.length < 2 || fraction >= 1) return pts;
+  const f = Math.max(0, fraction);
+  const lens = cumulativeLengthFractions(pts);
+  const out: Pt[] = [pts[0]];
+  for (let i = 1; i < pts.length; i++) {
+    if (lens[i] <= f) {
+      out.push(pts[i]);
+      continue;
+    }
+    const a = pts[i - 1];
+    const b = pts[i];
+    const span = lens[i] - lens[i - 1];
+    const t = span > 0 ? (f - lens[i - 1]) / span : 0;
+    if (t > 0) out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+    break;
+  }
+  if (out.length === 1) out.push(pts[0]);
+  return out;
+}

@@ -294,7 +294,7 @@ describe("animate planning", () => {
   test("no template → warn + no step; missing numeric start → null start + warning", () => {
     const none = planCommands([{ animate: { a: 1 } }], ["axes"], {});
     expect(none.steps.some((s) => s.kind === "animate")).toBe(false);
-    expect(none.warnings.join(" ")).toMatch(/animate requires a scene template/);
+    expect(none.warnings.join(" ")).toMatch(/animate needs a template param or a var/);
     const missing = planCommands([{ animate: { "tax.rate": 5 } }], ["axes"], { animateBase: base });
     const step = missing.steps.find((s) => s.kind === "animate")!;
     expect(step).toMatchObject({ starts: { "tax.rate": null } });
@@ -304,7 +304,7 @@ describe("animate planning", () => {
   test("no template with a paired speak: animate still skipped, but the narration survives as its own speak step", () => {
     const plan = planCommands([{ animate: { a: 1 }, speak: "watch it grow" }], ["axes"], {});
     expect(plan.steps.some((s) => s.kind === "animate")).toBe(false);
-    expect(plan.warnings.join(" ")).toMatch(/animate requires a scene template/);
+    expect(plan.warnings.join(" ")).toMatch(/animate needs a template param or a var/);
     expect(plan.steps).toContainEqual({ kind: "speak", text: "watch it grow", blocking: true });
   });
 

@@ -77,3 +77,14 @@ export function withNewIdsVisible(
   if (fresh.length === 0) return visible;
   return new Set([...visible, ...fresh]);
 }
+
+/** animate keeps a var's value under `vars.<name>` (design 2026-09-10 §2.4); layout wants it in spec.vars. */
+export function splitVarOverrides(params: Record<string, unknown>): { params: Record<string, unknown>; vars: Record<string, number> } {
+  const rest: Record<string, unknown> = {};
+  const vars: Record<string, number> = {};
+  for (const [k, v] of Object.entries(params)) {
+    if (k.startsWith("vars.") && typeof v === "number") vars[k.slice(5)] = v;
+    else rest[k] = v;
+  }
+  return { params: rest, vars };
+}

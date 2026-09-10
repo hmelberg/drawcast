@@ -23,6 +23,7 @@ import { dimensionLine, formatMeasure, heuristicLabelWidth, measureValue, ringCe
 import { pathPosition } from "./effects";
 import { cumulativeLengthFractions } from "./trails";
 import type { GhostSpec, MintedSpec } from "./minted";
+import type { LayoutOverrides, PoseOverride } from "../layout/posed";
 
 export type PlanStep = (
   | { kind: "speak"; text: string; blocking: boolean; speaker?: "a" | "b"; delivery?: Delivery }
@@ -80,10 +81,10 @@ export type PlanStep = (
       untilNarrationEnd?: boolean;
     }
   | { kind: "point"; x: number; y: number; box?: BBox; refId?: string; gesture: PointGesture; seconds: number }
-  | ({ kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing; trails?: TrailProgress[] } & MeasureFollow)
-  | ({ kind: "transform"; items: TransformItem[]; seconds: number; easing: Easing; trails?: TrailProgress[] } & MeasureFollow)
+  | ({ kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing; trails?: TrailProgress[]; relayout?: true } & MeasureFollow)
+  | ({ kind: "transform"; items: TransformItem[]; seconds: number; easing: Easing; trails?: TrailProgress[]; relayout?: true } & MeasureFollow)
   | { kind: "fade"; items: { id: string; from: number; to: number }[]; seconds: number; easing: Easing }
-  | ({ kind: "morph"; items: MorphItem[]; seconds: number; easing: Easing } & MeasureFollow)
+  | ({ kind: "morph"; items: MorphItem[]; seconds: number; easing: Easing; relayout?: true } & MeasureFollow)
   | {
       kind: "flow";
       ids: string[];
@@ -97,7 +98,7 @@ export type PlanStep = (
       untilNarrationEnd?: boolean;
     }
   | { kind: "camera"; box: BBox | null; seconds: number }
-  | { kind: "animate"; targets: Record<string, number>; starts: Record<string, number | null>; seconds: number; easing?: Easing; varTargets?: Record<string, string> }
+  | { kind: "animate"; targets: Record<string, number>; starts: Record<string, number | null>; seconds: number; easing?: Easing; varTargets?: Record<string, string>; trails?: TrailProgress[] }
   | {
       kind: "play";
       voices: PlayVoice[];
@@ -228,6 +229,10 @@ export interface Plan {
   /** Elements minted at plan time — trails (design §2.5) and ghosts (design
    *  §2.1, round 3): render() appends them to every layout it mounts. */
   minted: MintedSpec[];
+  /** The ids something is DEFINED by (spec/deps.ts sourceIds): the player
+   *  keys a boundary's layout on their poses and shapes (design 2026-09-10 §2.5).
+   *  Optional so a hand-built plan in a test needs no empty list. */
+  sources?: string[];
 }
 
 export interface PlanOptions {
@@ -244,10 +249,21 @@ export interface PlanOptions {
   deltaToLogical?: (d: Pt) => Pt;
   /** Ids that ride along with an element's translation: its attached labels and their leaders. */
   attachedTo?: (id: string) => string[];
-  /** The spec's `params` when the spec has a template; null/undefined = no template, animate warns + skips. */
+  /** The spec's `params` when the spec has a template; null/undefined = no template (animate then needs a var). */
   animateBase?: Record<string, unknown> | null;
-  /** After an animate step, the planner switches its bbox source to this so later steps target post-animate geometry. */
-  bboxesFor?: (params: Record<string, number>) => (id: string) => BBox | null;
+  /** The spec's `vars` (design 2026-09-10 §2.4): a bare animate key that is not a template param animates the var of that name, kept in params as `vars.<name>`. */
+  varsBase?: Record<string, number> | null;
+  /** After an animate or a relayout step, the planner switches its bbox source
+   *  to this so later steps target the recomputed geometry: `overrides` carry
+   *  the poses and shapes of the source ids as they then stand. */
+  bboxesFor?: (params: Record<string, number>, overrides?: LayoutOverrides) => (id: string) => BBox | null;
+  /** A layout at a param set: an element's named anchor (ORIGINAL frame), else off its box — what `trail` on animate samples. */
+  anchorsAt?: (params: Record<string, number>, overrides?: LayoutOverrides) => (id: string, name: string) => Pt | null;
+  /** The elements DEFINED in terms of an id (spec/deps.ts dependentsMap): a
+   *  move/arrange/flip/morph of it becomes a relayout step (design 2026-09-10 §2.5). */
+  dependentsOf?: (id: string) => string[];
+  /** Every id something is defined by (spec/deps.ts sourceIds). */
+  sourceIds?: string[];
   /** Piece geometry from the layout (the pieces element), by piece id. */
   pieceOf?: (id: string) => PieceGeometry | null;
   /** A pieces id → its piece ids, so one id can name them all. */
@@ -312,6 +328,28 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const texts: Record<string, Record<string, string>> = {};
   let camera: BBox | null = null;
   let params: Record<string, number> = {};
+  /** Definitions hold (design 2026-09-10 §2.5). */
+  const sourceSet = new Set(opts.sourceIds ?? []);
+  /** The poses and shapes of the SOURCE ids as they stand — what a relayout
+   *  layout reads. Restricted to sources so the planner's boundary layouts
+   *  and the player's commits share one key. */
+  const currentOverrides = (): LayoutOverrides => {
+    const poses: Record<string, PoseOverride> = {};
+    const shp: Record<string, Record<string, Pt[]>> = {};
+    for (const id of sourceSet) {
+      const o = offsets[id];
+      const t = turns[id];
+      if ((o && (o[0] !== 0 || o[1] !== 0)) || !isIdentity(t)) poses[id] = { offset: o ?? [0, 0], turn: t };
+      if (shapes[id]) shp[id] = shapes[id];
+    }
+    return { poses, shapes: shp };
+  };
+  /** The elements defined in terms of any of these ids (never the ids themselves). */
+  const dependentsOf = (ids: string[]): string[] => [...new Set(ids.flatMap((id) => opts.dependentsOf?.(id) ?? []))].filter((d) => !ids.includes(d));
+  /** After a step that changed a source: later steps aim at recomputed geometry. */
+  const relayoutBoxes = () => {
+    if (opts.bboxesFor) bboxOf = opts.bboxesFor(params, currentOverrides());
+  };
   /** Step index at which each id was last drawn/shown — the forgotten-keep check. */
   const lastRevealed = new Map<string, number>();
 
@@ -559,7 +597,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
    *  is); the CURRENT boundary params for a template spec, so a ghost minted
    *  at the base ({} before the first animate) is still routed through
    *  layoutAt and stays frozen there instead of riding a later tween frame. */
-  const ghostParams = (): Record<string, number> | null => (opts.animateBase === undefined || opts.animateBase === null ? null : { ...params });
+  // A spec with vars is read through `layoutAt` too: a var-animate changes the
+  // wrapped layout frame by frame, and a ghost must stay frozen at its own
+  // boundary's values (the same reason a template ghost carries its params).
+  const ghostParams = (): Record<string, number> | null => ((opts.animateBase === undefined || opts.animateBase === null) && !opts.varsBase ? null : { ...params });
   /** Mint a motion verb's ghosts AND give them a step of their own, ahead of
    *  the motion — the same `{kind:"show"}` `keep` pushes. Without it nothing
    *  ever calls `finish()` on the ghost's handle: `mentioned.add(ghostId)`
@@ -1027,7 +1068,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         // the same rule the pose branches use — so a measure of an element
         // that only moved as someone's label still follows it.
         const upd = measureUpdates(moving);
-        pushStep({ kind: "move", ids: moving, path, seconds, easing, trails: stepTrails, ...upd });
+        const relayout = dependentsOf(moving).length > 0;
+        pushStep({ kind: "move", ids: moving, path, seconds, easing, trails: stepTrails, ...(relayout ? { relayout: true as const } : {}), ...upd });
+        if (relayout) relayoutBoxes();
       } else {
         // A pose change: per-id from/to, tweened together.
         // `to` and an explicit pivot name a point in the SCENE, not in each
@@ -1130,7 +1173,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         });
         // items = the targets plus the followers followerItems moved.
         const upd = measureUpdates(items.map((it) => it.id));
-        pushStep({ kind: "transform", items, seconds, easing, trails: stepTrails, ...upd });
+        const relayout = dependentsOf(items.map((it) => it.id)).length > 0;
+        pushStep({ kind: "transform", items, seconds, easing, trails: stepTrails, ...(relayout ? { relayout: true as const } : {}), ...upd });
+        if (relayout) relayoutBoxes();
       }
     } else if (cmd.arrange !== undefined) {
       const ids = resolveIds(cmd.arrange.target, "arrange");
@@ -1291,7 +1336,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       }
       if (items.length === 0) continue;
       const upd = measureUpdates(items.map((it) => it.id));
-      pushStep({ kind: "transform", items, seconds: cmd.flip.duration ?? 1.2, easing: cmd.flip.easing ?? "ease-in-out", ...upd });
+      const relayout = dependentsOf(items.map((it) => it.id)).length > 0;
+      pushStep({ kind: "transform", items, seconds: cmd.flip.duration ?? 1.2, easing: cmd.flip.easing ?? "ease-in-out", ...(relayout ? { relayout: true as const } : {}), ...upd });
+      if (relayout) relayoutBoxes();
     } else if (cmd.morph !== undefined) {
       const ids = resolveIds(cmd.morph.target, "morph");
       if (ids.length === 0) continue;
@@ -1359,7 +1406,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       }
       if (items.length === 0) continue;
       const upd = measureUpdates(items.map((it) => it.id));
-      pushStep({ kind: "morph", items, seconds: cmd.morph.duration ?? 1.5, easing: cmd.morph.easing ?? "ease-in-out", ...upd });
+      const relayout = dependentsOf(items.map((it) => it.id)).length > 0;
+      pushStep({ kind: "morph", items, seconds: cmd.morph.duration ?? 1.5, easing: cmd.morph.easing ?? "ease-in-out", ...(relayout ? { relayout: true as const } : {}), ...upd });
+      if (relayout) relayoutBoxes();
     } else if (cmd.flow !== undefined) {
       const ids = resolveIds(cmd.flow.along, "flow");
       if (ids.length === 0) continue;
@@ -1440,7 +1489,36 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.animate !== undefined) {
       const targets: Record<string, number> = {};
       const varTargets: Record<string, string> = {};
-      for (const [key, v] of Object.entries(cmd.animate)) {
+      const hasTemplate = opts.animateBase !== undefined && opts.animateBase !== null;
+      const varsBase = opts.varsBase ?? null;
+      const isVar = (bare: string) => varsBase !== null && Object.prototype.hasOwnProperty.call(varsBase, bare);
+      /** Params first (a dot path the template knows — or, on a template spec,
+       *  any path: an unknown one still jumps, as before); else a var by bare
+       *  name or as vars.<name>, kept under `vars.<name>`; else null. */
+      const resolveKey = (raw: string): string | null => {
+        const explicitVar = raw.startsWith("vars.");
+        const bare = explicitVar ? raw.slice(5) : raw;
+        const param = hasTemplate && !explicitVar && readParam(opts.animateBase!, raw) !== null;
+        if (param && isVar(bare)) warnings.push(`animate "${raw}" is both a template param and a var — the param is animated`);
+        if (param) return raw;
+        if (isVar(bare)) return `vars.${bare}`;
+        if (hasTemplate && !explicitVar) return raw;
+        return null;
+      };
+      if (!hasTemplate && varsBase === null) {
+        warnings.push("animate needs a template param or a var (skipped)");
+        // No animation surface at all, but a paired narration is still
+        // content the story wanted spoken — keep it rather than silently
+        // dropping the sentence with the animate.
+        if (cmd.speak !== undefined) pushStep({ kind: "speak", text: cmd.speak, blocking: true, speaker: cmd.voice, delivery: cmd.delivery });
+        continue;
+      }
+      for (const [rawKey, v] of Object.entries(cmd.animate)) {
+        const key = resolveKey(rawKey);
+        if (key === null) {
+          warnings.push(`animate "${rawKey}": neither a template param nor a var — skipped`);
+          continue;
+        }
         if (typeof v === "number" && Number.isFinite(v)) {
           targets[key] = v;
         } else if (typeof v === "string" && /^\{[a-z][a-z0-9_]*\}$/i.test(v)) {
@@ -1460,24 +1538,17 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           warnings.push(`animate "${key}" target is not a number (dropped)`);
         }
       }
-      if (opts.animateBase === undefined || opts.animateBase === null) {
-        warnings.push("animate requires a scene template (skipped)");
-        // No template means no animation surface at all, but a paired
-        // narration is still content the story wanted spoken — keep it
-        // rather than silently dropping the sentence with the animate.
-        if (cmd.speak !== undefined) pushStep({ kind: "speak", text: cmd.speak, blocking: true, speaker: cmd.voice, delivery: cmd.delivery });
-        continue;
-      }
       if (Object.keys(targets).length === 0) {
         warnings.push("animate command without numeric targets skipped");
         continue;
       }
       const starts: Record<string, number | null> = {};
       for (const key of Object.keys(targets)) {
-        const start = params[key] ?? readParam(opts.animateBase, key);
+        const start = params[key] ?? (key.startsWith("vars.") ? varsBase![key.slice(5)] : readParam(opts.animateBase ?? {}, key));
         starts[key] = start;
         if (start === null) warnings.push(`animate "${key}" has no numeric start value in params — it will jump straight to the target`);
       }
+      const paramsBefore = { ...params };
       // Ghost the visible figure at THIS boundary — the params BEFORE this
       // animate updates them — excluding minted ids already on screen (a
       // trail or an earlier ghost: mintGhosts would only warn and skip them).
@@ -1487,6 +1558,43 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       );
       if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity, ghostParams());
       params = { ...params, ...targets };
+      // trail on animate (design 2026-09-10 §2.4): the locus of one element's
+      // anchor across the sweep, sampled from 61 layouts at uniform parameter
+      // steps (so it is the true locus whatever the easing) and posed by the
+      // element's own current pose, minted like move.trail.
+      let stepTrails: TrailProgress[] = [];
+      const tr = cmd.trail;
+      if (tr !== undefined) {
+        if (!known.has(tr.of)) warnings.push(`animate.trail.of "${tr.of}" is not an element — no trail`);
+        else if (!opts.anchorsAt) warnings.push("animate.trail: no layout to sample — no trail");
+        else {
+          const pts: Pt[] = [];
+          const ov = currentOverrides();
+          for (let k = 0; k <= 60; k++) {
+            const u = k / 60;
+            const at: Record<string, number> = { ...paramsBefore };
+            for (const key of Object.keys(targets)) {
+              const s = starts[key];
+              at[key] = s === null ? targets[key] : s + (targets[key] - s) * u;
+            }
+            const raw = opts.anchorsAt(at, ov)(tr.of, tr.anchor ?? "center");
+            if (raw) pts.push(poseOf(offsets[tr.of] ?? [0, 0], turns[tr.of])(raw));
+          }
+          if (pts.length < 2) warnings.push(`animate.trail.of "${tr.of}": the point does not resolve — no trail`);
+          else {
+            const n = (trailCount.get(tr.of) ?? 0) + 1;
+            trailCount.set(tr.of, n);
+            const trailId = n === 1 ? `${tr.of}_trail` : `${tr.of}_trail_${n}`;
+            minted.push({ kind: "trail", id: trailId, pts, color: tr.color, width: tr.width ?? 2.5 });
+            const b = ptsBox(pts);
+            if (b) mintedBoxes.set(trailId, b);
+            known.add(trailId);
+            mentioned.add(trailId);
+            makeVisible([trailId]);
+            stepTrails = [{ id: trailId, lengthAt: cumulativeLengthFractions(pts) }];
+          }
+        }
+      }
       pushStep({
         kind: "animate",
         targets,
@@ -1494,8 +1602,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         seconds: cmd.duration ?? 2,
         ...(cmd.easing !== undefined ? { easing: cmd.easing } : {}),
         ...(Object.keys(varTargets).length > 0 ? { varTargets } : {}),
+        ...(stepTrails.length > 0 ? { trails: stepTrails } : {}),
       });
-      if (opts.bboxesFor) bboxOf = opts.bboxesFor(params);
+      relayoutBoxes();
     } else if (cmd.play !== undefined) {
       let raw;
       let abcTempo: number | null = null;
@@ -1572,5 +1681,5 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     pushStep({ kind: "draw", ids: remaining, parallel: false, implicit: true });
   }
 
-  return { steps, states, labels, warnings, minted };
+  return { steps, states, labels, warnings, minted, sources: [...sourceSet] };
 }
