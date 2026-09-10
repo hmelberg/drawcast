@@ -554,6 +554,73 @@ The review's verdict was **"merge with fixes"**; every finding it marked
 - `scaleDrawables`/`shiftDrawables` collapse (already listed above) is the
   review's too, specifically for the `clip` divergence.
 
+## Vars and dependencies (the manim round, part 1) — done 2026-09-10
+
+Hans's question: what does manim (3b1b) have that drawcast should? The
+assessment (NOTES.md, 2026-09-10) found one thing manim *is* and drawcast
+lacked — relations hold while things move (updaters), and a number can be
+swept through a freehand figure with everything that reads it re-drawn
+(ValueTracker) — and one warning: what makes manim code hard for a model to
+write is coordinates and per-frame imperative state, so every addition had
+to be an attribute on a verb that exists or a relation that starts to hold.
+Design `docs/superpowers/specs/2026-09-10-vars-and-dependencies-design.md`,
+plan `docs/superpowers/plans/2026-09-10-vars-and-dependencies.md`, ledger
+`…-ledger.md`, smoke `…-smoke.md`. One mechanism carries both features: the
+`animate` path — a full re-layout per frame handed to `swapGeometry`, settled
+by a remount — generalised from "params" to "params + vars + the poses and
+shapes of the elements something depends on". Shipped:
+
+1. **`vars`** — top-level numbers (`vars: {f: 1}`) read by a curve's `expr`
+   (`"sin(f*x)"`), by **`bind`** on any element (`bind: {end: "30 + 60*f",
+   "at.x": "t"}` — a numeric field or a dot path to one, computed from the
+   vars; the written value is the start; an unevaluable binding is an
+   error-severity `bind` lint), and by drawn text as `{f}` / `{f:2}`
+   (`spec/vars.ts`). `x` is reserved; a var named `t` or `q` shadows that
+   alias of `x` in a curve expression, because `t` is the name a sweep
+   parameter naturally takes.
+2. **`point.at.on`** — `at: {x: 3, on: "wave"}`, the point on a curve at x.
+3. **`animate` on vars** — a bare key that is not a template param animates
+   the var of that name, kept in the scene state as `vars.<name>`
+   (`splitVarOverrides` routes it into `spec.vars` in every layout the
+   reprojector runs); freehand `animate` no longer needs a template.
+   **`trail` on `animate`** (`trail: {of, anchor?}`) samples 61 layouts
+   across the sweep and mints `<of>_trail` like `move.trail`; the player cuts
+   it to the sweep's progress each frame (`cutTrail`, `withMinted`'s
+   `trailProgress`).
+4. **Definitions hold.** A point defined as an intersection or on a curve, a
+   region between curves, an arrow or edge between things, an angle between
+   arms and a line through points (`spec/deps.ts definitionalRefs`) follow
+   what they refer to under `move`, `arrange`, `flip` and `morph`.
+   `layoutSpec(spec, measure, overrides)` takes the poses and morphed shapes
+   of the source ids; tier-2 keeps a **posed lookup view** (`layout/posed.ts`,
+   `ctx.drawablesSoFar`, `posedAnchors`, `posedNamed`, curve samples) that
+   only definitional readers see, while an element's own ink stays in its
+   original frame and placement (`at`, labels) reads the raw anchors. The
+   planner marks such steps `relayout` and switches its bbox source to the
+   posed layout (`bboxesFor(params, overrides)`); the player tweens them
+   through the reprojector (`relayoutTween`, `render/tween.ts` shares the
+   interpolation with the handle path) and keys every boundary's remount on
+   params + the sources' poses (`applyKey`), so scrub and seek stay exact.
+   A step nothing depends on runs the old handle path untouched.
+5. Four bundled examples, every one a question: the frequency sweep, the
+   sliding tangent, the demand shift whose equilibrium and surplus follow,
+   the turning arm whose angle follows. The examples gate now plans with the
+   posed bbox source and checks every var value the storyboard sweeps to.
+6. The prompt-size budget was re-pinned twice (schema +1,521, prompt +1,197
+   chars) with notes in `tests/prompt-size.test.ts`.
+
+Deliberately not done (design §6): formula morph between `equation_steps`
+lines with per-term colours (part 2); a `copy` verb and a parametric `curve`
+(part 3); `stagger` on `draw`; a camera that follows an element; `{f}` in
+`speak`; sliders for vars in the explore tray; `at.on` solving x from y; a
+flip with dependents keeping its turn-over squash; label sides pinned during
+a relayout tween (a label attached to a dependent is re-solved each frame and
+may change side mid-tween, as under `animate` today); `measure` stays on its
+round-3 planner recompute (not a relayout trigger — a relayout layout
+recomputes it too, and the two agree); a fitted group's posed anchors are
+computed before `fit` scales its members (fit + a moved member is an edge
+case left alone).
+
 ## Sound (the play command) — done 2026-08-26
 
 `play` sounds synthesized notes (WebAudio oscillators, five instrument

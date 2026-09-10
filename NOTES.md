@@ -6,6 +6,46 @@ to this file as "notes". Dated entries, newest first. When an item
 graduates into a spec or the roadmap, note that on the entry rather than
 deleting it.
 
+## 2026-09-10 — What manim has that drawcast lacks
+
+Hans asked whether manim (3b1b's engine, github.com/3b1b/manim; the
+Fourier-transform video as the example) has functions drawcast can and
+should implement, weighing usefulness, complexity and — his addition — how
+easy the spec stays for a model to write. Manim is imperative Python:
+everything is coordinates, objects update per frame, scenes render offline
+with ffmpeg, OpenGL and LaTeX; nothing runs in a browser, so no code is
+reusable. Models write manim fluently, and the errors they make (overlaps,
+things off screen, manimgl-vs-community confusion) are exactly what
+drawcast's architecture removes — so the lesson was: borrow the moves, not
+the language; add capability as attributes on verbs that exist and as
+relations that hold, never as new coordinate work for the model.
+
+| Manim move | Value | Cost | Model cost | Ruling |
+|---|---|---|---|---|
+| Updaters: dependents follow what they are defined by | High | Medium–high | None | **Done, part 1** |
+| ValueTracker: a var swept through a freehand figure | High | Medium | Small (`vars`, `animate`) | **Done, part 1** |
+| A locus traced across a sweep (`trail` on `animate`) | Medium | Small | One key | **Done, part 1** |
+| A number readout following a var (`{f}` in text) | Medium | Small | None | **Done, part 1** |
+| TransformMatchingTex: like terms glide between `equation_steps` lines | High for algebra | Medium–high | None | Part 2 |
+| t2c: per-term colours in formulas | Medium | Small–medium | Trivial | Part 2 |
+| TransformFromCopy: a `copy` verb minting `<id>_copy` | Medium | Small | One verb | Part 3 |
+| Parametric curve (`x_expr`/`y_expr` in t) | Medium | Small | Trivial | Part 3 |
+| LaggedStart: `stagger` on `draw` | Low–medium | Small | One key | Later |
+| A camera that follows an element | Low–medium | Small | One key | Later |
+| Indicate/Circumscribe/Flash/Wiggle | Covered by highlight/point/focus/flow/annotation | — | — | No |
+| More rate functions | Low | — | Noise | No |
+| 3D surfaces | Low for our fields | Large | — | No |
+| VectorField / StreamLines | Low | Medium | — | No |
+| ApplyMatrix on a grid | Medium for linear algebra | Fits a template | — | Template on demand |
+
+The Fourier video itself (a signal wound round a circle, a centre of mass,
+a 15–30 s linear sweep, the spectrum drawn as the frequency rises) is
+writable today as one on-demand template with `animate` on a `freq` param;
+part 1 makes the same thing possible freehand.
+
+Status: part 1 shipped 2026-09-10 (ROADMAP "Vars and dependencies"); parts
+2–3 not scheduled.
+
 ## 2026-09-09 — Sources for how a thing looks (freehand drawing)
 
 Context: the freehand-figures round
