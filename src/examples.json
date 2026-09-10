@@ -18871,5 +18871,330 @@
         }
       ]
     }
+  },
+  {
+    "request": "How do you solve 2x + 3 = 11?",
+    "spec": {
+      "title": "Solving 2x + 3 = 11",
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "How do you solve 2x + 3 = 11?",
+          "x": 500,
+          "y": 700,
+          "font_size": 34
+        },
+        {
+          "id": "eq",
+          "type": "math",
+          "tex": "2x + 3 = 11",
+          "x": 500,
+          "y": 560,
+          "colors": {
+            "x": "#2f6b8f"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title",
+            "eq"
+          ],
+          "speak": "How do you solve 2x + 3 = 11 for x?"
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Two things stand between x and being alone: a plus three, and a coefficient of two."
+        },
+        {
+          "copy": {
+            "target": "eq",
+            "as": "eq2"
+          },
+          "speak": "Keep the top line as it was, and work the next step on a copy."
+        },
+        {
+          "move": {
+            "target": "eq2",
+            "by": [
+              0,
+              -160
+            ],
+            "duration": 1
+          }
+        },
+        {
+          "morph": {
+            "target": "eq2",
+            "tex": "2x = 8",
+            "duration": 1.5
+          },
+          "speak": "Subtract three from both sides: the 3 leaves, and 11 drops to 8."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "copy": {
+            "target": "eq2",
+            "as": "eq3"
+          },
+          "speak": "Copy again, and finish it on this new line."
+        },
+        {
+          "move": {
+            "target": "eq3",
+            "by": [
+              0,
+              -160
+            ],
+            "duration": 1
+          }
+        },
+        {
+          "morph": {
+            "target": "eq3",
+            "tex": "x = 4",
+            "duration": 1.5
+          },
+          "speak": "Divide both sides by two: 2x becomes x, 8 becomes 4."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq3"
+            ],
+            "effect": "glow"
+          },
+          "speak": "x equals 4 — and unlike scratch work, every earlier line is still there to check."
+        }
+      ]
+    }
+  },
+  {
+    "request": "What does the ICER compare?",
+    "spec": {
+      "title": "What the ICER compares",
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "What does the ICER compare?",
+          "x": 500,
+          "y": 700,
+          "font_size": 34
+        },
+        {
+          "id": "icer",
+          "type": "math",
+          "tex": "\\frac{C_1 - C_0}{E_1 - E_0}",
+          "x": 500,
+          "y": 430,
+          "colors": {
+            "C": "#b5482e",
+            "E": "#2f6b8f"
+          }
+        },
+        {
+          "id": "example",
+          "type": "text",
+          "text": "$500 more, 0.1 extra years → $5,000 per year",
+          "x": 500,
+          "y": 200,
+          "font_size": 24
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title",
+            "icer"
+          ],
+          "speak": "What does the ICER — the incremental cost-effectiveness ratio — actually compare?"
+        },
+        {
+          "highlight": {
+            "target": [
+              "icer"
+            ],
+            "effect": "glow"
+          },
+          "speak": "C one minus C zero, in red, is the extra cost of the new treatment; E one minus E zero, in blue, is the extra effect it buys."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "morph": {
+            "target": "icer",
+            "tex": "\\frac{\\Delta C}{\\Delta E}",
+            "duration": 1.5
+          },
+          "speak": "Call those differences delta C and delta E: the ratio is just cost per unit of extra benefit."
+        },
+        {
+          "draw": [
+            "example"
+          ],
+          "speak": "Five hundred dollars more, for one tenth of a year of extra life, is five thousand dollars for every year gained."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": [
+              "icer"
+            ],
+            "effect": "glow"
+          },
+          "speak": "That is what the ICER always compares: money against health, boiled into one number."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why do cos and sin draw a circle?",
+    "spec": {
+      "title": "Why cos and sin draw a circle",
+      "vars": {
+        "s": 0.01
+      },
+      "domain": {
+        "x": [
+          -2,
+          2
+        ],
+        "y": [
+          -1.5,
+          1.5
+        ]
+      },
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "Why do cos and sin draw a circle?",
+          "x": 500,
+          "y": 700,
+          "font_size": 34
+        },
+        {
+          "id": "ax",
+          "type": "axes",
+          "x_label": "x",
+          "y_label": "y"
+        },
+        {
+          "id": "circle",
+          "type": "curve",
+          "x_expr": "cos(t)",
+          "y_expr": "sin(t)",
+          "t_from": 0,
+          "t_to": 0.01,
+          "bind": {
+            "t_to": "s"
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "p",
+          "type": "point",
+          "at": {
+            "x": 1,
+            "y": 0
+          },
+          "bind": {
+            "at.x": "cos(s)",
+            "at.y": "sin(s)"
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "rad",
+          "type": "arrow",
+          "from": {
+            "x": 0,
+            "y": 0
+          },
+          "to": {
+            "ref": "p"
+          },
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "lbl",
+          "type": "math",
+          "tex": "(\\cos t, \\sin t)",
+          "x": 800,
+          "y": 650,
+          "style": {
+            "color": "#b5482e"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title",
+            "ax"
+          ],
+          "speak": "A point sits one unit from the center. Nudge its angle around — what shape does it trace?"
+        },
+        {
+          "draw": [
+            "p",
+            "rad"
+          ],
+          "speak": "Start it at angle zero: one unit out along x, none up — cos zero is one, sin zero is zero."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "circle",
+            "lbl"
+          ],
+          "speak": "Every angle t gives a new point, cos t and sin t — the path it leaves behind grows as the angle does."
+        },
+        {
+          "animate": {
+            "s": 6.28
+          },
+          "duration": 5,
+          "easing": "linear",
+          "speak": "Sweep the angle through a full turn and watch the point trace its path, always the same one unit from the center."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "highlight": {
+            "target": [
+              "rad"
+            ],
+            "effect": "glow"
+          },
+          "speak": "The arm's length never changes, only its direction — so the point can only ever land one unit out. That's why cosine and sine draw a circle."
+        }
+      ]
+    }
   }
 ]

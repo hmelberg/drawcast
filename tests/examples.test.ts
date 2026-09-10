@@ -167,6 +167,43 @@ describe("bundled examples stay exemplary", () => {
     }
   });
 
+  // The same promise for a formula morph (design 2026-09-10-formula-morph
+  // §4/Task 8): the boundary a `morph.tex` step settles on — the committed
+  // frame the player's stub reprojector lands on once the tween finishes
+  // (just `math.tex`, no `from`/`t`) — must lay out as cleanly as the rest.
+  // Walked in storyboard order so a `copy` made AFTER an earlier morph
+  // inherits that morph's tex into the accumulated `math` map, exactly as
+  // plan.ts's own `tex` map does (a copy of a copy in the derivation idiom
+  // must show the copy's CURRENT formula, not its original one) — and the
+  // copy's own id follows plan.ts's own default-naming rule: `<target>_copy`,
+  // then `_copy_2`, … per repeated source, or the authored `as`.
+  test.each(cases)("%s — every morph.tex boundary lays out cleanly", (_req, spec) => {
+    const commands = (spec.commands ?? []) as Command[];
+    if (!commands.some((c) => c.morph?.tex !== undefined)) return;
+    const copies: Record<string, string> = {};
+    const math: Record<string, { tex: string }> = {};
+    const copyCount = new Map<string, number>();
+    for (const cmd of commands) {
+      if (cmd.copy !== undefined) {
+        const src = cmd.copy.target;
+        let as = cmd.copy.as;
+        if (as === undefined) {
+          const n = (copyCount.get(src) ?? 0) + 1;
+          copyCount.set(src, n);
+          as = n === 1 ? `${src}_copy` : `${src}_copy_${n}`;
+        }
+        copies[as] = src;
+        if (math[src]) math[as] = math[src];
+      } else if (cmd.morph?.tex !== undefined) {
+        const targets = Array.isArray(cmd.morph.target) ? cmd.morph.target : [cmd.morph.target];
+        for (const target of targets) math[target] = { tex: cmd.morph!.tex! };
+        const at = layoutSpec(spec, undefined, { math: { ...math }, copies: { ...copies } });
+        expect(at.warnings, `after morph ${JSON.stringify(cmd.morph)}`).toEqual([]);
+        expect(at.issues.filter((i) => i.severity === "error"), `after morph ${JSON.stringify(cmd.morph)}`).toEqual([]);
+      }
+    }
+  });
+
   // Hans's race-label ruling, 2026-09-03. He watched the bundled urn race and
   // saw "some of the labels on the lines disappear (B and C) and some
   // reappears (C)" — label_top: 3 re-ranking five urns every stage, so Urn B
