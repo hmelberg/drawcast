@@ -346,6 +346,15 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   };
   /** The elements defined in terms of any of these ids (never the ids themselves). */
   const dependentsOf = (ids: string[]): string[] => [...new Set(ids.flatMap((id) => opts.dependentsOf?.(id) ?? []))].filter((d) => !ids.includes(d));
+  /** A verb's targets without the ones DEFINED by another target: those
+   *  follow by recompute, never by their own offset — moved both ways they
+   *  would land at double the displacement (review finding 1, 2026-09-10). */
+  const withoutDependents = (ids: string[], verb: string): string[] => {
+    const deps = new Set(ids.flatMap((id) => opts.dependentsOf?.(id) ?? []));
+    const own = ids.filter((id) => !deps.has(id));
+    for (const id of ids) if (deps.has(id)) warnings.push(`${verb} target "${id}" is defined by another target and follows it — its own ${verb} is dropped`);
+    return own;
+  };
   /** After a step that changed a source: later steps aim at recomputed geometry. */
   const relayoutBoxes = () => {
     if (opts.bboxesFor) bboxOf = opts.bboxesFor(params, currentOverrides());
@@ -557,7 +566,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
    *  the layout being wrapped), or the boundary params for a template spec
    *  (the ghost reads its OWN boundary through `layoutAt`, never whatever
    *  frame the wrapped layout happens to be — see minted.ts). */
-  const mintGhosts = (ids: string[], opacity: number, params: Record<string, number> | null): string[] => {
+  const mintGhosts = (ids: string[], opacity: number, params: Record<string, number> | null, overrides?: LayoutOverrides): string[] => {
     const out: string[] = [];
     for (const id of ids) {
       // A minted element (a trail, an earlier ghost) is not in the layout
@@ -575,7 +584,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       const n = (ghostCount.get(id) ?? 0) + 1;
       ghostCount.set(id, n);
       const ghostId = n === 1 ? `${id}_ghost` : `${id}_ghost_${n}`;
-      const g: GhostSpec = { kind: "ghost", id: ghostId, sourceId: id, offset: offsets[id] ?? [0, 0], turn: turns[id], shapes: shapes[id], opacity, params };
+      const g: GhostSpec = { kind: "ghost", id: ghostId, sourceId: id, offset: offsets[id] ?? [0, 0], turn: turns[id], shapes: shapes[id], opacity, params, ...(overrides ? { overrides } : {}) };
       minted.push(g);
       mintedBoxes.set(ghostId, box);
       known.add(ghostId);
@@ -597,10 +606,17 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
    *  is); the CURRENT boundary params for a template spec, so a ghost minted
    *  at the base ({} before the first animate) is still routed through
    *  layoutAt and stays frozen there instead of riding a later tween frame. */
-  // A spec with vars is read through `layoutAt` too: a var-animate changes the
-  // wrapped layout frame by frame, and a ghost must stay frozen at its own
-  // boundary's values (the same reason a template ghost carries its params).
-  const ghostParams = (): Record<string, number> | null => ((opts.animateBase === undefined || opts.animateBase === null) && !opts.varsBase ? null : { ...params });
+  // A spec with vars or with sources is read through `layoutAt` too: a
+  // var-animate or a relayout changes the wrapped layout frame by frame, and
+  // a ghost must stay frozen at its own boundary's values and poses (the same
+  // reason a template ghost carries its params). Only a spec none of that
+  // can touch reads the wrapped layout itself (null).
+  const ghostParams = (): Record<string, number> | null => ((opts.animateBase === undefined || opts.animateBase === null) && !opts.varsBase && sourceSet.size === 0 ? null : { ...params });
+  /** The source poses a ghost is read under (review finding 5, 2026-09-10); undefined when nothing is posed. */
+  const ghostOverrides = (): LayoutOverrides | undefined => {
+    const ov = currentOverrides();
+    return Object.keys(ov.poses ?? {}).length === 0 && Object.keys(ov.shapes ?? {}).length === 0 ? undefined : ov;
+  };
   /** Mint a motion verb's ghosts AND give them a step of their own, ahead of
    *  the motion — the same `{kind:"show"}` `keep` pushes. Without it nothing
    *  ever calls `finish()` on the ghost's handle: `mentioned.add(ghostId)`
@@ -613,7 +629,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const showGhosts = (opt: GhostOption | undefined, targets: string[]): void => {
     const ghosts = ghostIdsFor(opt, targets);
     if (!ghosts) return;
-    const ghostIds = mintGhosts(ghosts.ids, ghosts.opacity, ghostParams());
+    const ghostIds = mintGhosts(ghosts.ids, ghosts.opacity, ghostParams(), ghostOverrides());
     if (ghostIds.length === 0) return;
     const saidNarration = currentNarration;
     currentNarration = undefined;
@@ -999,7 +1015,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       }
       pushStep({ kind: "point", x, y, box, refId, gesture: cmd.point.gesture ?? "tap", seconds: cmd.point.duration ?? 2 });
     } else if (cmd.move !== undefined) {
-      const ids = resolveIds(cmd.move.target, "move");
+      const ids = withoutDependents(resolveIds(cmd.move.target, "move"), "move");
       for (const id of ids) {
         if (!visibleSet.has(id)) warnings.push(`move target "${id}" is not visible at that point (still moved)`);
       }
@@ -1178,7 +1194,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         if (relayout) relayoutBoxes();
       }
     } else if (cmd.arrange !== undefined) {
-      const ids = resolveIds(cmd.arrange.target, "arrange");
+      const ids = withoutDependents(resolveIds(cmd.arrange.target, "arrange"), "arrange");
       if (ids.length === 0) continue;
       const inputs: ArrangeInput[] = [];
       for (const id of ids) {
@@ -1272,7 +1288,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(mergedMorphs.length > 0 ? { extraMorphs: mergedMorphs } : {}),
       });
     } else if (cmd.flip !== undefined) {
-      const ids = resolveIds(cmd.flip.target, "flip");
+      const ids = withoutDependents(resolveIds(cmd.flip.target, "flip"), "flip");
       if (ids.length === 0) continue;
       const line = cmd.flip.line ? { from: resolvePoint(cmd.flip.line.from, undefined, "flip"), to: resolvePoint(cmd.flip.line.to, undefined, "flip") } : null;
       // A named line that does not resolve, or that has no length, used to fall
@@ -1340,7 +1356,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       pushStep({ kind: "transform", items, seconds: cmd.flip.duration ?? 1.2, easing: cmd.flip.easing ?? "ease-in-out", ...(relayout ? { relayout: true as const } : {}), ...upd });
       if (relayout) relayoutBoxes();
     } else if (cmd.morph !== undefined) {
-      const ids = resolveIds(cmd.morph.target, "morph");
+      const ids = withoutDependents(resolveIds(cmd.morph.target, "morph"), "morph");
       if (ids.length === 0) continue;
       const modes = [cmd.morph.to !== undefined, cmd.morph.stretch !== undefined, cmd.morph.reset === true].filter(Boolean).length;
       if (modes !== 1) {
@@ -1427,7 +1443,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.keep !== undefined) {
       const ids = resolveIds(cmd.keep.target, "keep");
       if (ids.length === 0) continue;
-      const ghostIds = mintGhosts(ids, cmd.keep.opacity ?? 0.3, ghostParams());
+      const ghostIds = mintGhosts(ids, cmd.keep.opacity ?? 0.3, ghostParams(), ghostOverrides());
       if (ghostIds.length === 0) continue;
       pushStep({ kind: "show", ids: ghostIds });
     } else if (cmd.fade !== undefined) {
@@ -1556,7 +1572,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         cmd.ghost,
         visible.filter((id) => !mintedBoxes.has(id)),
       );
-      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity, ghostParams());
+      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity, ghostParams(), ghostOverrides());
       params = { ...params, ...targets };
       // trail on animate (design 2026-09-10 §2.4): the locus of one element's
       // anchor across the sweep, sampled from 61 layouts at uniform parameter

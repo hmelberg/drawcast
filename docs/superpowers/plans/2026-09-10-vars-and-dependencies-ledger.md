@@ -13,6 +13,7 @@ merged freehand round). Executed inline by Claude in one session,
 |---|---|---|---|
 | Baseline (`2059d06`) | 332 | 6473 | 31.6 s |
 | After Task 8 | 341 | 6808 | 31.7 s |
+| After the review fix wave | 341 | 6812 | 31 s |
 
 `npx tsc --noEmit`, `npm run build` and `npm run build:engine` clean after
 Task 7 and after Task 8.
@@ -61,6 +62,59 @@ Task 7 and after Task 8.
    relayout triggers; under a relayout step the player drops this step's own
    stale measure overrides from the frame so the layout's recompute shows
    mid-tween, and the boundary state restores them (they agree).
+
+## Whole-branch review (one reviewer subagent, read-only, four executable probes)
+
+Eight findings, all fixed in the final fix wave (`tests/relayout-plan.test.ts`,
+`tests/vars-layout.test.ts`, `tests/examples.test.ts` carry the proofs):
+
+1. **CONFIRMED — a dependent moved together with its source landed at
+   double the displacement** (`move: {target: ["d", "eq"]}`: its own offset
+   plus the recompute from the posed curve; probe: +162 for +81). Fix: a
+   verb's targets that are DEFINED by another target leave the moving set
+   with a warning and the step becomes a relayout (`withoutDependents`
+   in plan.ts) — they follow by recompute, never by offset.
+2. **CONFIRMED — a group (or pieces cut) as a source never followed**: the
+   planner moves a group through its members, so `dependentsOf(member)`
+   was empty and the group id never carried a pose. Fix: `planOptionsFor`
+   attaches a source's dependents to every member and adds the members to
+   the sources; tier2's group branch (and a new pieces-parent branch) then
+   computes the posed anchor from the view.
+3. **CONFIRMED — every not-yet-visible minted id was painted during animate
+   frames** (`withNewIdsVisible` measured against the raw plan-time layout,
+   so a later step's ghost or trail counted as "new"; pre-existing for
+   templates, now reachable freehand). Fix: measured against the mounted
+   layout, which already carries every minted id.
+4. **CONFIRMED — a point or region listed before its curve read raw samples**
+   (posed samples were registered when the curve was emitted). Fix: posed
+   samples for every overridden curve computed once after Pass 2 into
+   `posedCurveSamples`, read through `samplesOf`; `curveSamples` stays raw
+   for the curve's own ink.
+5. **PLAUSIBLE — ghosts ignored the boundary's poses** (and a tier-2 ghost
+   with `params: null` read the wrapped layout, which under a relayout is a
+   later frame). Fix: `GhostSpec.overrides`, read through `layoutAt(params,
+   overrides)`; a spec with sources gets `params: {}` instead of null.
+6. **PLAUSIBLE — the relayout tween painted at plan params while the commit
+   used the viewer's `{answer}` overrides.** Fix: `withVarOverrides` on the
+   frame's params in both the relayout tween and the animate tween.
+7. **PLAUSIBLE — a measure of a co-moved non-source lagged for the tween**
+   (the frame dropped this step's measure extras expecting the layout to
+   recompute them, but the layout only poses sources). Fix: the extras ride
+   the frame exactly as on the handle path — dimension line as a shape,
+   label slide as a pose.
+8. **PLAUSIBLE — an edge to a scaled node backed off by the unscaled
+   radius.** Fix: the stand-off is multiplied by the source's pose scale.
+9. Coverage: the examples gate now asserts the post-move / post-sweep
+   layout's warnings and errors are empty (it used to discard them); the
+   noise expression in `tests/vars-layout.test.ts` is gone; text and node
+   unknown tokens are asserted alongside the label's.
+
+Checked and fine by the reviewer: planner/player override keys agree
+(`turn: undefined` serialises identically, empty and undefined both key
+to ""); scrub recommits on key change and an aborted relayout tween leaves
+`geometryDirty`; trail progress flows through `withMinted`'s `cutTrail`;
+`evalBindings` clones each container on the path; `sy`/`iy` are true
+inverses.
 
 ## What the round leaves open
 

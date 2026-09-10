@@ -136,6 +136,11 @@ interface Ctx {
    *  placement (`at`) or labels, which read the raw `anchors`. */
   posedAnchors: Record<string, Pt>;
   posedNamed: Record<string, Record<string, Pt>>;
+  /** Posed curve samples (domain units) of overridden curves — what an
+   *  intersection, a point on a curve and a region read (`samplesOf`);
+   *  `curveSamples` stays raw for the curve's own ink. Computed once after
+   *  Pass 2, so element order does not matter (review finding 4). */
+  posedCurveSamples: Map<string, Pt[]>;
   overrides: LayoutOverrides;
 }
 
@@ -183,6 +188,7 @@ export function layoutElements(
     iy: linearScale([plot.y0, plot.y1], domainY),
     posedAnchors: {},
     posedNamed: {},
+    posedCurveSamples: new Map(),
     overrides: opts.overrides ?? {},
   };
 
@@ -262,11 +268,6 @@ export function layoutElements(
     if (a) ctx.posedAnchors[id] = map(a);
     const named = ctx.namedAnchors[id];
     if (named) ctx.posedNamed[id] = Object.fromEntries(Object.entries(named).map(([k, p]) => [k, map(p)]));
-    const cs = ctx.curveSamples.get(id);
-    if (cs) {
-      const logical = shp?.[id] ?? cs.map((p): Pt => [ctx.sx(p[0]), ctx.sy(p[1])]);
-      ctx.curveSamples.set(id, logical.map(map).map((p): Pt => [ctx.ix(p[0]), ctx.iy(p[1])]));
-    }
   };
   // Template ink and anchors first, so a moved template id reads posed too.
   // Only ids no element declares: a tier-2 element is registered right after
@@ -275,6 +276,18 @@ export function layoutElements(
   view.push(...(opts.seedDrawables ?? []));
   const elementIds = new Set(elements.map((e) => e.id));
   for (const id of overriddenIds) if (!elementIds.has(id)) applyOverride(id, 0);
+  // Every overridden curve's posed samples, seed and tier-2 alike, before any
+  // element reads them — a point listed before its curve reads the same
+  // geometry as one listed after.
+  for (const id of overriddenIds) {
+    const cs = ctx.curveSamples.get(id);
+    if (!cs) continue;
+    const pose = ctx.overrides.poses?.[id];
+    const shp = ctx.overrides.shapes?.[id];
+    const { map } = pose ? poseMapOf(pose) : { map: (p: Pt) => p };
+    const logical = shp?.[id] ?? cs.map((p): Pt => [ctx.sx(p[0]), ctx.sy(p[1])]);
+    ctx.posedCurveSamples.set(id, logical.map(map).map((p): Pt => [ctx.ix(p[0]), ctx.iy(p[1])]));
+  }
   const labels: LabelRequest[] = [];
   for (const raw of emitOrder) {
     const el = bound(raw);
@@ -556,6 +569,15 @@ export function layoutElements(
     view.push(...drawables.slice(start));
     applyOverride(el.id, viewStart);
     for (const kid of ctx.pieceGroups[el.id] ?? []) applyOverride(kid, viewStart);
+    // A pieces parent is moved through its cells: its definitional anchor
+    // follows the cells' posed box (an arrow from the whole cut).
+    if ((ctx.pieceGroups[el.id] ?? []).some((kid) => overriddenIds.has(kid))) {
+      const vbox = boxOfId(view, el.id, measure, ctx.groups, ctx.pieceGroups);
+      if (vbox) {
+        ctx.posedAnchors[el.id] = [vbox.x + vbox.w / 2, vbox.y + vbox.h / 2];
+        ctx.posedNamed[el.id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(vbox, n)]));
+      }
+    }
   }
 
   return {
@@ -701,6 +723,11 @@ function toLogical(pts: Pt[], ctx: Ctx): Pt[] {
   return pts.map(([x, y]): Pt => [ctx.sx(x), ctx.sy(y)]);
 }
 
+/** A curve's samples as a DEFINITIONAL reader sees them: posed when the curve is overridden, raw otherwise. */
+function samplesOf(ctx: Ctx, id: string): Pt[] | undefined {
+  return ctx.posedCurveSamples.get(id) ?? ctx.curveSamples.get(id);
+}
+
 /** `{name}` tokens in drawn text (design 2026-09-10 §2.1); an unknown name stays as written and warns, so a typo shows on the canvas. */
 function withVars(text: string, el: SpecElement, ctx: Ctx): string {
   const r = interpolateVars(text, ctx.vars);
@@ -730,8 +757,8 @@ function resolvePointDomain(el: SpecElement, ctx: Ctx): Pt | null {
     return null;
   }
   if (at.intersection_of && at.intersection_of.length === 2) {
-    const a = ctx.curveSamples.get(at.intersection_of[0]);
-    const b = ctx.curveSamples.get(at.intersection_of[1]);
+    const a = samplesOf(ctx, at.intersection_of[0]);
+    const b = samplesOf(ctx, at.intersection_of[1]);
     if (!a || !b) {
       ctx.warnings.push(`point "${el.id}": intersection_of references unknown curves`);
       return null;
@@ -745,7 +772,7 @@ function resolvePointDomain(el: SpecElement, ctx: Ctx): Pt | null {
   }
   if (typeof at.on === "string") {
     // A point ON a curve at x (design 2026-09-10 §2.3): y read off the samples.
-    const samples = ctx.curveSamples.get(at.on);
+    const samples = samplesOf(ctx, at.on);
     if (!samples) {
       ctx.warnings.push(`point "${el.id}": at.on names unknown curve "${at.on}"`);
       return null;
@@ -807,8 +834,8 @@ function pointDrawables(el: SpecElement, ctx: Ctx, plot: ReturnType<typeof plotA
 
 function regionDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
   const [aId, bId] = el.between ?? [];
-  const a = ctx.curveSamples.get(aId);
-  const b = ctx.curveSamples.get(bId);
+  const a = samplesOf(ctx, aId);
+  const b = samplesOf(ctx, bId);
   if (!a || !b) {
     ctx.warnings.push(`region "${el.id}": between references unknown curves — skipped`);
     return [];
@@ -1035,8 +1062,10 @@ function connectorDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
   // name), backs off toward the target's edge (its node radius, or a guessed
   // bubble); a point that DID resolve through a named/box anchor is already
   // exact, so it lands there with no further shrink.
-  const rFrom = fromRef?.ref && !fromEnd.anchored ? (ctx.nodeRadius.get(fromRef.ref) ?? 10) + 4 : 0;
-  const rTo = toRef?.ref && !toEnd.anchored ? (ctx.nodeRadius.get(toRef.ref) ?? 10) + 4 : 0;
+  // A scaled source node is backed off by its scaled radius (review finding 8).
+  const scaleOf = (ref: string): number => ctx.overrides.poses?.[ref]?.turn?.scale ?? 1;
+  const rFrom = fromRef?.ref && !fromEnd.anchored ? (ctx.nodeRadius.get(fromRef.ref) ?? 10) * scaleOf(fromRef.ref) + 4 : 0;
+  const rTo = toRef?.ref && !toEnd.anchored ? (ctx.nodeRadius.get(toRef.ref) ?? 10) * scaleOf(toRef.ref) + 4 : 0;
   const a: Pt = [from[0] + ux * rFrom, from[1] + uy * rFrom];
   const b: Pt = [to[0] - ux * rTo, to[1] - uy * rTo];
   let pts: Pt[];

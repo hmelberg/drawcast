@@ -5,7 +5,7 @@
 import type { LayoutResult } from "../layout/layout";
 import { Z_STROKE, drawablesForId, leafDrawables, type Drawable, type Pt } from "../layout/model";
 import { resolveDrawOpts, resolveStyle } from "../layout/resolve";
-import { mapLeaf } from "../layout/posed";
+import { mapLeaf, type LayoutOverrides } from "../layout/posed";
 import { poseOf, type Turn } from "./pose";
 import { cutTrail, type TrailSpec } from "./trails";
 
@@ -25,6 +25,10 @@ export interface GhostSpec {
    *  `layoutAt` — never assumed to equal the wrapped layout, which may be a
    *  later animation frame). */
   params: Record<string, number> | null;
+  /** The source poses and shapes the ghost's boundary layout is read under
+   *  (design 2026-09-10 §2.5): a ghost of a dependent sits where the
+   *  dependent stood at that boundary, not where the base layout puts it. */
+  overrides?: LayoutOverrides;
 }
 
 export type MintedSpec = ({ kind: "trail" } & TrailSpec) | GhostSpec;
@@ -78,7 +82,7 @@ function ghostDrawables(sourceLayout: LayoutResult, g: GhostSpec): Drawable[] {
 export function withMinted(
   layout: LayoutResult,
   minted: MintedSpec[],
-  layoutAt: (params: Record<string, number>) => LayoutResult,
+  layoutAt: (params: Record<string, number>, overrides?: LayoutOverrides) => LayoutResult,
   /** A trail mid-sweep (design 2026-09-10 §2.4): id → fraction of its length drawn so far. */
   trailProgress: Record<string, number> = {},
 ): LayoutResult {
@@ -93,7 +97,7 @@ export function withMinted(
       order.push(m.id);
       continue;
     }
-    const sourceLayout = m.params === null ? layout : layoutAt(m.params);
+    const sourceLayout = m.params === null ? layout : layoutAt(m.params, m.overrides);
     const parts = ghostDrawables(sourceLayout, m);
     if (parts.length === 0) continue;
     // Under the source: insert the ghost's drawables before the source's first drawable, and its id before the source's in the order.

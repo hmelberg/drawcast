@@ -32,8 +32,9 @@ describe("layout reads vars", () => {
     const pts = stroke(l, "w").pts;
     const last = pts[pts.length - 1];
     const first = pts[0];
-    // the plot spans the domain 0–10; a curve that stops at x = 3 covers 30% of the width
-    expect((last[0] - first[0]) / (l.drawables.find((d) => d.id === "w") ? 1 : 1)).toBeLessThan(0.4 * 1000);
+    // The plot spans the domain 0–10, so a curve that stops at x = 3 covers under 40% of the width (unbound: about 88%).
+    expect(last[0] - first[0]).toBeLessThan(0.4 * 1000);
+    expect(last[0] - first[0]).toBeGreaterThan(0.2 * 1000);
   });
   test("{f} in text, label and node text is written; an unknown token warns and stays", () => {
     const l = layoutSpec({
@@ -50,6 +51,26 @@ describe("layout reads vars", () => {
     expect(text(l, "n_text").text).toBe("1.57");
     expect(text(l, "lb").text).toBe("k = {k}");
     expect(l.warnings.some((w) => w.includes('label "lb"') && w.includes("{k}"))).toBe(true);
+    const t = layoutSpec({ vars: { f: 1 }, elements: [{ id: "t", type: "text", text: "{g}", x: 500, y: 700 }, { id: "n", type: "node", text: "{h}", x: 200, y: 200 }], commands: [] });
+    expect(text(t, "t").text).toBe("{g}");
+    expect(text(t, "n_text").text).toBe("{h}");
+    expect(t.warnings.filter((w) => w.includes("not one of the vars"))).toHaveLength(2);
+  });
+  test("a point listed BEFORE its curve reads the curve's posed samples all the same (review finding 4)", () => {
+    const spec: Spec = {
+      domain: { x: [0, 100], y: [0, 100] },
+      elements: [
+        { id: "eq", type: "point", at: { intersection_of: ["d", "s"] } },
+        { id: "d", type: "curve", expr: "80 - x" },
+        { id: "s", type: "curve", expr: "20 + x" },
+      ],
+      commands: [],
+    };
+    const base = layoutSpec(spec);
+    const moved = layoutSpec(spec, undefined, { poses: { d: { offset: [60, 0] } } });
+    const c = (l: ReturnType<typeof layoutSpec>) => { const p = stroke(l, "eq"); return p.shapeHint?.type === "circle" ? p.shapeHint.c : p.pts[0]; };
+    expect(c(moved)[0]).toBeGreaterThan(c(base)[0] + 20);
+    expect(stroke(moved, "d").pts).toEqual(stroke(base, "d").pts);
   });
   test("a point ON a curve at x reads its y off the curve", () => {
     const l = layoutSpec({ domain: { x: [0, 10], y: [0, 100] }, elements: [{ id: "w", type: "curve", expr: "x*x" }, { id: "p", type: "point", at: { x: 3, on: "w" } }], commands: [] });

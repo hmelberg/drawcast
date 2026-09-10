@@ -1081,7 +1081,7 @@ export class Player {
         const ease = step.easing ? EASINGS[step.easing] : (t: number) => t * t * (3 - 2 * t);
         await this.progress(step.seconds * 1000, signal, (t) => {
           const e = ease(t);
-          const cur: Record<string, number> = { ...before.params };
+          const cur: Record<string, number> = { ...this.withVarOverrides(before.params) };
           for (const key of Object.keys(targets)) {
             const start = step.starts[key];
             cur[key] = start === null ? targets[key] : start + (targets[key] - start) * e;
@@ -1238,21 +1238,20 @@ export class Player {
   ): Promise<void> {
     const rp = this.reprojector!;
     const ease = EASINGS[step.easing];
-    // This step's own measure extras are recomputed by the layout each frame;
-    // their boundary overrides would pin them to the old geometry mid-tween.
-    const skipShapes = new Set((step.extraMorphs ?? []).map((m) => m.id));
-    const skipTexts = new Set((step.texts ?? []).map((t) => t.id));
+    const params = this.withVarOverrides(before.params);
     const visible = new Set([...before.visible, ...(step.trails ?? []).map((t) => t.id)]);
     await this.progress(step.seconds * 1000, signal, (t) => {
       const e = ease(t);
       const f = frameAt(e);
-      const offsets = { ...before.offsets, ...(f.offsets ?? {}) };
-      const turns = { ...before.turns, ...(f.turns ?? {}) };
-      const shapes: Record<string, Record<string, Pt[]>> = { ...before.shapes, ...(f.shapes ?? {}) };
-      for (const id of skipShapes) if (!(f.shapes && id in f.shapes)) delete shapes[id];
-      const texts = { ...before.texts };
-      for (const id of skipTexts) delete texts[id];
-      rp.frame(before.params, { visible, offsets, turns, opacities: before.opacities, shapes, texts }, { overrides: this.overridesOf(offsets, turns, shapes), trailProgress: Player.trailProgressAt(step.trails, e) });
+      // The step's measure extras ride along exactly as on the handle path
+      // (a measure of a co-moved element that is not a source has nothing
+      // else to move it — review finding 7): its dimension line as a shape,
+      // its label's slide as a pose; the value is written at the boundary.
+      const extra = transformFrame(step.extraTransforms ?? [], e);
+      const offsets = { ...before.offsets, ...(f.offsets ?? {}), ...extra.offsets };
+      const turns = { ...before.turns, ...(f.turns ?? {}), ...extra.turns };
+      const shapes: Record<string, Record<string, Pt[]>> = { ...before.shapes, ...morphFrame(step.extraMorphs ?? [], before, e), ...(f.shapes ?? {}) };
+      rp.frame(params, { visible, offsets, turns, opacities: before.opacities, shapes, texts: before.texts }, { overrides: this.overridesOf(offsets, turns, shapes), trailProgress: Player.trailProgressAt(step.trails, e) });
       this.geometryDirty = true;
     });
     if (signal.aborted) return; // a scrub's renderUpTo owns the state now

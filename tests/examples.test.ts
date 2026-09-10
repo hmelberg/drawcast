@@ -99,7 +99,12 @@ describe("bundled examples stay exemplary", () => {
       // var-animate keeps its value under vars.<name> (design 2026-09-10).
       varsBase: spec.vars ?? null,
       bboxesFor: (params, overrides) => {
-        const b = elementBBoxes(layoutSpec(specAt(spec, params), undefined, overrides));
+        const l = layoutSpec(specAt(spec, params), undefined, overrides);
+        // The layout AFTER the move or the sweep is what the viewer sees:
+        // it must lay out as cleanly as the first frame (review finding 9).
+        expect(l.warnings, `after ${JSON.stringify(params)} ${JSON.stringify(overrides)}`).toEqual([]);
+        expect(l.issues.filter((i) => i.severity === "error"), `after ${JSON.stringify(params)}`).toEqual([]);
+        const b = elementBBoxes(l);
         return (id) => b.get(id) ?? null;
       },
       ...planOptionsFor(spec, layout),

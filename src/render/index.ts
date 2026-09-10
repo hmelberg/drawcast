@@ -105,8 +105,18 @@ export function planOptionsFor(
   spec: Spec,
   layout: LayoutResult,
 ): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds"> {
-  // Definitions hold (design 2026-09-10 §2.5): what is defined in terms of what.
+  // Definitions hold (design 2026-09-10 §2.5): what is defined in terms of
+  // what. A source that is a group or a pieces cut is moved through its
+  // members (the planner expands it), so its dependents are attached to every
+  // member and the members join the sources — a group's own id never carries
+  // a pose (review finding 2).
   const deps = dependentsMap(spec.elements ?? []);
+  const leavesOf = (id: string): string[] => layout.groups[id] ?? layout.pieceGroups[id] ?? [id];
+  const depsByLeaf = new Map<string, string[]>();
+  for (const [src, list] of deps) {
+    for (const leaf of [src, ...leavesOf(src)]) depsByLeaf.set(leaf, [...new Set([...(depsByLeaf.get(leaf) ?? []), ...list])]);
+  }
+  const sources = [...new Set(sourceIds(spec.elements ?? []).flatMap((s) => [s, ...leavesOf(s)]))];
   // Which group each id belongs to: `arrange`/`move` change the resolved
   // CHILDREN of a `pieces` cut, while a measure anchored to the cut names the
   // PARENT — matching ids exactly left that measure stale and unwarned.
@@ -119,8 +129,8 @@ export function planOptionsFor(
     }
   }
   return {
-    dependentsOf: (id) => deps.get(id) ?? [],
-    sourceIds: sourceIds(spec.elements ?? []),
+    dependentsOf: (id) => depsByLeaf.get(id) ?? [],
+    sourceIds: sources,
     pieceOf: (id) => layout.pieces[id] ?? null,
     measureOf: (id) => layout.measures[id] ?? null,
     // Which measures read this element: the one that measures it outright, and
@@ -280,7 +290,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     return l;
   };
   const layoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[], overrides?: LayoutOverrides, trailProgress?: Record<string, number>): LayoutResult =>
-    withMinted(rawLayoutFor(params, cache, elements, overrides), minted, (p) => rawLayoutFor(p, true), trailProgress);
+    withMinted(rawLayoutFor(params, cache, elements, overrides), minted, (p, ov) => rawLayoutFor(p, true, undefined, ov), trailProgress);
 
   const plan = planCommands(spec.commands, layout.order, {
     bboxOf: (id) => bboxes.get(id) ?? null,
@@ -307,7 +317,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     ...planOptionsFor(spec, layout),
   });
   minted = plan.minted;
-  const mountedLayout = withMinted(layout, minted, (p) => rawLayoutFor(p, true));
+  const mountedLayout = withMinted(layout, minted, (p, ov) => rawLayoutFor(p, true, undefined, ov));
 
   const mounted = await renderer.mount(mountedLayout, spec, stage);
 
@@ -330,7 +340,11 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
         // Free-play previews mint element ids the plan never drew (a chess
         // piece moved to a never-visited square) — reveal those, measured
         // against the plan-time layout so honest hidden ids stay hidden.
-        const vis = o.revealNew ? withNewIdsVisible(new Set(layout.order), l.order, scene.visible) : scene.visible;
+        // Measured against the MOUNTED layout, which already carries every
+        // minted trail and ghost of the storyboard: only ids the frame's own
+        // layout mints (a piece a param change adds) are new — a later
+        // step's ghost must not appear ahead of time (review finding 3).
+        const vis = o.revealNew ? withNewIdsVisible(new Set(mountedLayout.order), l.order, scene.visible) : scene.visible;
         mounted.swapGeometry!(l, vis, scene.offsets, scene.turns, scene.opacities, scene.shapes, scene.texts);
         return l; // what is now PAINTED — the player hands it to anything hit-testing
       },
