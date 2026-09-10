@@ -273,3 +273,41 @@ describe("mathjax counters (holes)", () => {
     expect(outlines.filter((o) => (o.holes?.length ?? 0) > 0)).toHaveLength(2);
   });
 });
+
+describe("token identity (formula morph design §2.2)", () => {
+  test("x = \\frac{a+1}{2b}: tokens in reading order, the rule keyed to its fraction, chains up to the root", async () => {
+    const mj = await mathjax();
+    const laid = mj.layoutTeX("x = \\frac{a+1}{2b}", { display: false });
+    const keys = laid.tokens.map((t) => `${t.node}:${t.latex}`);
+    // reading order observed from MathJax's own SVG emission: numerator, then
+    // denominator, then the mfrac's own <rect> rule last.
+    expect(keys).toEqual(["mi:x", "mo:=", "mi:a", "mo:+", "mn:1", "mn:2", "mi:b", "rule:\\frac{a+1}{2b}"]);
+    expect(keys.slice(0, 5)).toEqual(["mi:x", "mo:=", "mi:a", "mo:+", "mn:1"]);
+    expect(keys).toContain("rule:\\frac{a+1}{2b}");
+    expect(keys.filter((k) => k.startsWith("mn:")).sort()).toEqual(["mn:1", "mn:2"]);
+    for (const t of laid.tokens) expect(t.glyphs.length).toBeGreaterThan(0);
+    // every outline names its glyph and token; the rule has no codepoint
+    for (const o of laid.outlines) {
+      expect(typeof o.glyph).toBe("number");
+      expect(laid.tokens[o.token.index].glyphs).toContain(o.glyph);
+      expect(o.token.chain[o.token.chain.length - 1]).toBe("x = \\frac{a+1}{2b}");
+    }
+    const rule = laid.outlines.find((o) => o.token.node === "rule")!;
+    expect(rule.token.c).toBeUndefined();
+    expect(rule.pts).toHaveLength(4);
+    const x = laid.outlines.find((o) => o.token.latex === "x")!;
+    expect(x.token.c).toMatch(/^1D465$/i);
+    expect(x.token.chain[0]).toBe("x");
+  });
+  test("= is one token of one glyph that yields two hole-free outlines; 11 is one token of two glyphs", async () => {
+    const mj = await mathjax();
+    const eq = mj.layoutTeX("=", { display: false });
+    expect(eq.tokens).toHaveLength(1);
+    expect(eq.tokens[0].glyphs).toHaveLength(1);
+    expect(eq.outlines.filter((o) => o.token.index === 0)).toHaveLength(2);
+    const eleven = mj.layoutTeX("11", { display: false });
+    expect(eleven.tokens).toHaveLength(1);
+    expect(eleven.tokens[0].node).toBe("mn");
+    expect(eleven.tokens[0].glyphs).toHaveLength(2);
+  });
+});

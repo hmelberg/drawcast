@@ -115,6 +115,17 @@ export function currentMathFontName(): MathFont {
   return currentMathFont;
 }
 
+/** One MathML token (`mi`/`mo`/`mn`/`mtext`/…, or `"rule"` for a fraction/root bar) in
+ *  reading order — the unit the formula-morph matcher (Task 2) compares across formulas. */
+export interface MathToken { index: number; node: string; latex: string; chain: string[]; glyphs: number[] }
+export interface MathOutline {
+  pts: [number, number][];
+  holes?: [number, number][][];
+  /** Index of the source <path>/<rect> in reading order. */
+  glyph: number;
+  token: { index: number; node: string; latex: string; c?: string; chain: string[] };
+}
+
 export interface MathJaxEngine {
   /** TeX → flat drawing-ready geometry. Height-normalized: `h` = 1 for an "x"-height-ish
    *  baseline row; caller scales.
@@ -126,9 +137,13 @@ export interface MathJaxEngine {
    *  `holes` and they paint solid. Rings are grouped per source glyph `<path>` and
    *  classified by containment, so a glyph whose parts are disjoint rather than nested
    *  ("=" — two bars) yields one entry PER PART, each hole-free. Rules (fraction bars,
-   *  \sqrt and \overline overbars) come back as 4-pt rectangles with no holes. */
+   *  \sqrt and \overline overbars) come back as 4-pt rectangles with no holes. Each
+   *  outline names its source glyph index and its token (MathML node kind, `data-latex`,
+   *  the path's `data-c` codepoint, and the ancestor chain up to the root); `tokens` lists
+   *  every token once, in reading order, with the glyph indices that belong to it. */
   layoutTeX(tex: string, opts?: { display?: boolean; font?: MathFont }): {
-    outlines: { pts: [number, number][]; holes?: [number, number][][] }[];
+    outlines: MathOutline[];
+    tokens: MathToken[];
     w: number; h: number;
   };
   /** Load a font's package (and its dynamic glyph files) so layoutTeX can use it synchronously. Idempotent. */
@@ -309,9 +324,15 @@ async function loadMathJax(): Promise<MathJaxEngine> {
 
   const isElement = (n: LiteNode): n is LiteElement => adaptor.kind(n) !== "#text";
 
-  // One entry per source <path>/<rect> — the grouping that says which rings
-  // belong to the same glyph, and so which of them are that glyph's counters.
-  const collect = (node: LiteElement, parent: Mat, groups: [number, number][][][]): void => {
+  interface Group { rings: [number, number][][]; glyph: number; tokenIndex: number; c?: string }
+  interface Walk { groups: Group[]; tokens: MathToken[]; glyphs: number }
+  interface TokenRef { node: string; latex: string; chain: string[]; index: number }
+
+  // One Group per source <path>/<rect> — the grouping that says which rings
+  // belong to the same glyph, and so which of them are that glyph's counters —
+  // now tagged with the MathML token (node kind, latex, ancestor chain) it
+  // belongs to, materialised in reading order as the walk descends.
+  const collect = (node: LiteElement, parent: Mat, walk: Walk, token: TokenRef | null): void => {
     const err = adaptor.getAttribute(node, "data-mjx-error");
     // MathJax draws parse errors as a giant labelled box rather than throwing —
     // for a figure that is worse than nothing, so surface it like a parse failure.
@@ -319,18 +340,48 @@ async function loadMathJax(): Promise<MathJaxEngine> {
     const tf = adaptor.getAttribute(node, "transform");
     const m = tf ? mulMat(parent, parseTransform(tf)) : parent;
     const at = (x: number, y: number): [number, number] => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
-    if (adaptor.kind(node) === "path") {
+    const mml = adaptor.getAttribute(node, "data-mml-node");
+    if (mml) {
+      const latex = adaptor.getAttribute(node, "data-latex") ?? "";
+      token = { node: mml, latex, chain: [latex, ...(token?.chain ?? [])], index: -1 };
+    }
+    /** The token this glyph belongs to, materialised on first use so tokens are numbered in reading order. */
+    const tokenFor = (kind: string): number => {
+      const t = token ?? { node: kind, latex: "", chain: [], index: -1 };
+      if (t.index < 0) {
+        t.index = walk.tokens.length;
+        walk.tokens.push({ index: t.index, node: kind === "rule" ? "rule" : t.node, latex: t.latex, chain: t.chain, glyphs: [] });
+      }
+      return t.index;
+    };
+    const kind = adaptor.kind(node);
+    if (kind === "path") {
       const rings = sampleSvgPath(adaptor.getAttribute(node, "d") || "").map((ring) => ring.map(([x, y]) => at(x, y)));
-      if (rings.length > 0) groups.push(rings);
-    } else if (adaptor.kind(node) === "rect") {
+      if (rings.length > 0) {
+        const tokenIndex = tokenFor("glyph");
+        const glyph = walk.glyphs++;
+        walk.tokens[tokenIndex].glyphs.push(glyph);
+        walk.groups.push({ rings, glyph, tokenIndex, c: adaptor.getAttribute(node, "data-c") ?? undefined });
+      }
+    } else if (kind === "rect") {
       // Rules (fraction bars, \sqrt and \overline overbars) — 4 corners.
       const n = (a: string) => Number(adaptor.getAttribute(node, a) || 0);
       const x = n("x"), y = n("y"), w = n("width"), h = n("height");
-      if (w > 0 && h > 0) groups.push([[at(x, y), at(x + w, y), at(x + w, y + h), at(x, y + h)]]);
+      if (w > 0 && h > 0) {
+        // A rule belongs to its own token, keyed "rule" on the fraction/root it bars —
+        // a fresh TokenRef so the mfrac's paths (none directly) never share it.
+        const ruleToken: TokenRef = { node: "rule", latex: token?.latex ?? "", chain: token?.chain ?? [], index: -1 };
+        const saved = token; token = ruleToken;
+        const tokenIndex = tokenFor("rule");
+        token = saved;
+        const glyph = walk.glyphs++;
+        walk.tokens[tokenIndex].glyphs.push(glyph);
+        walk.groups.push({ rings: [[at(x, y), at(x + w, y), at(x + w, y + h), at(x, y + h)]], glyph, tokenIndex });
+      }
     }
     // <line> (table/menclose borders) and <text> (unknown-font fallbacks) are
     // strokes and glyphs we cannot sample — skipped rather than faked.
-    for (const child of adaptor.childNodes(node)) if (isElement(child)) collect(child, m, groups);
+    for (const child of adaptor.childNodes(node)) if (isElement(child)) collect(child, m, walk, token);
   };
 
   return {
@@ -342,8 +393,8 @@ async function loadMathJax(): Promise<MathJaxEngine> {
       const svg = adaptor.tags(container, "svg")[0];
       if (!svg) throw new Error("MathJax produced no SVG");
       const [vx, , vw, vh] = (adaptor.getAttribute(svg, "viewBox") || "0 0 0 0").split(/[\s,]+/).map(Number);
-      const groups: [number, number][][][] = [];
-      collect(svg, IDENTITY, groups);
+      const walk: Walk = { groups: [], tokens: [], glyphs: 0 };
+      collect(svg, IDENTITY, walk, null);
       // The walk stays in SVG's y-down user space (the root <g> carries the
       // scale(1,-1) that flips MathJax's y-up layout), so flip back here. The
       // viewBox's left edge becomes x = 0; y = 0 is already the baseline.
@@ -352,8 +403,17 @@ async function loadMathJax(): Promise<MathJaxEngine> {
       // either way, so this is only about not doing it twice).
       const norm = (ring: [number, number][]): [number, number][] =>
         ring.map(([x, y]) => [(x - vx) / unitsPerEx, -y / unitsPerEx] as [number, number]);
+      const outlines: MathOutline[] = walk.groups.flatMap((g) => {
+        const t = walk.tokens[g.tokenIndex];
+        return groupRings(g.rings.map(norm)).map((o) => ({
+          ...o,
+          glyph: g.glyph,
+          token: { index: t.index, node: t.node, latex: t.latex, chain: t.chain, ...(g.c !== undefined ? { c: g.c } : {}) },
+        }));
+      });
       return {
-        outlines: groups.flatMap((rings) => groupRings(rings.map(norm))),
+        outlines,
+        tokens: walk.tokens,
         w: vw / unitsPerEx,
         h: vh / unitsPerEx,
       };
