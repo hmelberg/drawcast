@@ -16,6 +16,10 @@ export interface LayoutOverrides {
   poses?: Record<string, PoseOverride>;
   /** Morphed ORIGINAL-frame leaf points: element id → leaf id → points. */
   shapes?: Record<string, Record<string, Pt[]>>;
+  /** A math element's current TeX (and, mid-morph, where it comes from and how far along). */
+  math?: Record<string, { tex: string; from?: string; t?: number }>;
+  /** Cloned elements: new id → source element id (design §2.5). */
+  copies?: Record<string, string>;
 }
 
 export type LeafDrawable = Exclude<Drawable, GroupDrawable>;
@@ -59,7 +63,13 @@ export function mapDrawable(d: Drawable, map: (p: Pt) => Pt, scale: number, shap
 }
 
 export function isEmptyOverrides(ov?: LayoutOverrides): boolean {
-  return !ov || (Object.keys(ov.poses ?? {}).length === 0 && Object.keys(ov.shapes ?? {}).length === 0);
+  return (
+    !ov ||
+    (Object.keys(ov.poses ?? {}).length === 0 &&
+      Object.keys(ov.shapes ?? {}).length === 0 &&
+      Object.keys(ov.math ?? {}).length === 0 &&
+      Object.keys(ov.copies ?? {}).length === 0)
+  );
 }
 
 /** A stable key for caches and the player's "what is mounted" comparison; "" when nothing is overridden. */
@@ -67,5 +77,7 @@ export function overridesKey(ov?: LayoutOverrides): string {
   if (isEmptyOverrides(ov)) return "";
   const poses = Object.entries(ov!.poses ?? {}).sort(([a], [b]) => (a < b ? -1 : 1));
   const shapes = Object.entries(ov!.shapes ?? {}).sort(([a], [b]) => (a < b ? -1 : 1));
-  return JSON.stringify([poses, shapes]);
+  const math = Object.entries(ov!.math ?? {}).sort(([a], [b]) => (a < b ? -1 : 1));
+  const copies = Object.entries(ov!.copies ?? {}).sort(([a], [b]) => (a < b ? -1 : 1));
+  return JSON.stringify([poses, shapes, math, copies]);
 }

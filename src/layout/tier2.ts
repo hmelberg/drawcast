@@ -30,7 +30,7 @@ import {
   type StrokeDrawable,
   type TextDrawable,
 } from "./model";
-import { mathDrawables } from "./math";
+import { mathDrawables, mathMorphDrawables } from "./math";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
 import { catmullRom, catmullRomClosed } from "./smooth";
 import { decodeIcon, decodePhoto, decodeSourceImage, decodeTrace } from "../spec/trace";
@@ -144,6 +144,43 @@ interface Ctx {
   overrides: LayoutOverrides;
 }
 
+/**
+ * Cloned elements (design §2.5, layout/posed.ts `copies`): for each
+ * `[newId, srcId]`, splice a shallow clone `{ ...source, id: newId }` right
+ * after its source, so placement order and dependency order treat the copy
+ * exactly like the source (`bind`, `at`, `style` shared by reference is
+ * fine — layout never mutates a spec element). Processes `copies` entries in
+ * insertion order so an earlier copy can be a later copy's source (a copy of
+ * a copy). A copy whose source never resolves — not an original element, and
+ * not an earlier copy — is reported through `warn` and skipped.
+ */
+function withCopies(elements: SpecElement[], copies: Record<string, string> | undefined, warn: (msg: string) => void): SpecElement[] {
+  if (!copies || Object.keys(copies).length === 0) return elements;
+  const childrenOf = new Map<string, string[]>();
+  for (const [newId, srcId] of Object.entries(copies)) {
+    if (!childrenOf.has(srcId)) childrenOf.set(srcId, []);
+    childrenOf.get(srcId)!.push(newId);
+  }
+  const resolved = new Set(elements.map((e) => e.id));
+  const out: SpecElement[] = [];
+  const appendCopiesOf = (id: string, source: SpecElement) => {
+    for (const newId of childrenOf.get(id) ?? []) {
+      const clone: SpecElement = { ...source, id: newId };
+      out.push(clone);
+      resolved.add(newId);
+      appendCopiesOf(newId, clone);
+    }
+  };
+  for (const el of elements) {
+    out.push(el);
+    appendCopiesOf(el.id, el);
+  }
+  for (const [newId, srcId] of Object.entries(copies)) {
+    if (!resolved.has(srcId)) warn(`copy "${newId}": unknown source "${srcId}" — skipped`);
+  }
+  return out;
+}
+
 export function layoutElements(
   elements: SpecElement[],
   domain: { x?: [number, number]; y?: [number, number] } | undefined,
@@ -191,6 +228,15 @@ export function layoutElements(
     posedCurveSamples: new Map(),
     overrides: opts.overrides ?? {},
   };
+
+  // Copies (design §2.5): splice a clone of each source element right after
+  // it, BEFORE Pass 1 — a copied node needs a position too, and every later
+  // pass (known ids, placement order, dependency emission) must treat the
+  // copy exactly like any other element. The copies are not in the raw spec,
+  // so they are not command-addressable until minted into extraOrder here.
+  const originalIds = new Set(elements.map((e) => e.id));
+  elements = withCopies(elements, opts.overrides?.copies, (msg) => ctx.warnings.push(msg));
+  ctx.extraOrder.push(...elements.filter((e) => !originalIds.has(e.id)).map((e) => e.id));
 
   // Pass 1: position free nodes deterministically on a circle.
   const freeNodes = elements.filter((e) => e.type === "node" && e.x === undefined);
@@ -380,7 +426,15 @@ export function layoutElements(
           const engine = getLoadedEngines(["mathjax"]).mathjax as MathJaxEngine;
           const want = currentMathFontName();
           if (engine.fontFor(want) !== want) ctx.warnings.push(`math "${el.id}": font "${want}" is not loaded — drawn with "${engine.fontFor(want)}"`);
-          laid = mathDrawables(el, engine, cx, cy);
+          // math override (design §2.5): `tex` is the element's current
+          // formula; with `from` and `t < 1` it is mid-tween — the tex it
+          // came from, how far along. t = 1 (or no from/t) settles on `tex`.
+          const ov = ctx.overrides.math?.[el.id];
+          if (ov?.from !== undefined && ov.t !== undefined && ov.t < 1) {
+            laid = mathMorphDrawables({ ...el, tex: ov.tex }, engine, cx, cy, ov.from, ov.tex, ov.t);
+          } else {
+            laid = mathDrawables({ ...el, tex: ov?.tex ?? el.tex }, engine, cx, cy);
+          }
         } catch (err) {
           issues.push({ rule: "math", ids: [el.id], severity: "error", message: `math "${el.id}": ${(err as Error).message}` });
           break;
