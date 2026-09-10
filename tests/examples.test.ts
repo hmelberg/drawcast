@@ -22,7 +22,7 @@ import { ensureEnabledPacks, PACK_DEFS } from "../src/scenes/packs";
 import { ensureEnginesForSpecs } from "../src/scenes/engines";
 import { isReadyTemplate } from "../src/scenes/catalog";
 import { templateParamErrors } from "../src/scenes/params-check";
-import { withOverrides } from "../src/render/params";
+import { splitVarOverrides, withOverrides } from "../src/render/params";
 import type { Command, Spec } from "../src/spec/types";
 
 interface BundledExample {
@@ -43,6 +43,12 @@ function specsOf(ex: BundledExample): Spec[] {
 }
 
 const cases = examples.flatMap((ex) => specsOf(ex).map((spec, i) => [`${ex.request}${i > 0 ? ` [part ${i + 1}]` : ""}`, spec] as const));
+
+/** The spec at a plan-time param set: template params overlaid, `vars.<name>` keys into vars (the shape render() builds). */
+function specAt(spec: Spec, params: Record<string, number>): Spec {
+  const split = splitVarOverrides(params);
+  return { ...spec, params: withOverrides(spec.params, split.params), ...(Object.keys(split.vars).length > 0 ? { vars: { ...(spec.vars ?? {}), ...split.vars } } : {}) };
+}
 
 beforeAll(async () => {
   // The app enables every bundled pack by default; an example may also name
@@ -88,8 +94,12 @@ describe("bundled examples stay exemplary", () => {
       // step the planner switches its bbox source to the post-animate
       // layout, so later steps (a move to a ref, a flip through a point)
       // target where things actually are, not where they started.
-      bboxesFor: (params) => {
-        const b = elementBBoxes(layoutSpec({ ...spec, params: withOverrides(spec.params, params) }));
+      // … and after a relayout step (a move of something an intersection,
+      // an angle or an arrow is defined by) it reads the posed layout; a
+      // var-animate keeps its value under vars.<name> (design 2026-09-10).
+      varsBase: spec.vars ?? null,
+      bboxesFor: (params, overrides) => {
+        const b = elementBBoxes(layoutSpec(specAt(spec, params), undefined, overrides));
         return (id) => b.get(id) ?? null;
       },
       ...planOptionsFor(spec, layout),
@@ -132,6 +142,23 @@ describe("bundled examples stay exemplary", () => {
       const at = layoutSpec({ ...spec, params: withOverrides(spec.params, { stage }) });
       expect(at.warnings, `stage ${stage}`).toEqual([]);
       expect(at.issues.filter((i) => i.severity === "error"), `stage ${stage}`).toEqual([]);
+    }
+  });
+
+  // The same promise for a var (design 2026-09-10 §2.4): the figure at every
+  // value the storyboard sweeps to — cumulative, as the player reaches them —
+  // lays out with no warning and no error.
+  test.each(cases)("%s — every var value the storyboard animates to lays out as cleanly as the first", (_req, spec) => {
+    if (!spec.vars) return;
+    let vars = { ...spec.vars };
+    for (const cmd of (spec.commands ?? []) as Command[]) {
+      if (!cmd.animate) continue;
+      const next = { ...vars };
+      for (const [k, v] of Object.entries(cmd.animate)) if (typeof v === "number" && k in vars) next[k] = v;
+      vars = next;
+      const at = layoutSpec({ ...spec, vars });
+      expect(at.warnings, JSON.stringify(vars)).toEqual([]);
+      expect(at.issues.filter((i) => i.severity === "error"), JSON.stringify(vars)).toEqual([]);
     }
   });
 

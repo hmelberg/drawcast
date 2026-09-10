@@ -18287,5 +18287,589 @@
         }
       ]
     }
+  },
+  {
+    "request": "Why does a higher frequency squeeze the wave?",
+    "spec": {
+      "title": "Frequency squeezes the wave",
+      "vars": {
+        "f": 1,
+        "t": 2
+      },
+      "domain": {
+        "x": [
+          0,
+          12.6
+        ],
+        "y": [
+          -1.5,
+          1.5
+        ]
+      },
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "Frequency squeezes the wave",
+          "x": 500,
+          "y": 700,
+          "font_size": 34
+        },
+        {
+          "id": "ax",
+          "type": "axes",
+          "x_label": "time",
+          "y_label": ""
+        },
+        {
+          "id": "wave",
+          "type": "curve",
+          "expr": "sin(f*x)",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "dot",
+          "type": "point",
+          "at": {
+            "x": 2,
+            "on": "wave"
+          },
+          "bind": {
+            "at.x": "t"
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "readout",
+          "type": "text",
+          "text": "f = {f}",
+          "x": 840,
+          "y": 640,
+          "font_size": 30,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "lbl",
+          "type": "label",
+          "attach_to": "dot",
+          "side": "above-right",
+          "text": "one point rides the wave",
+          "style": {
+            "color": "#b5482e"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title",
+            "ax"
+          ],
+          "speak": "A sound has a pitch. What does a higher pitch look like on the wave?"
+        },
+        {
+          "draw": [
+            "wave",
+            "readout"
+          ],
+          "speak": "Here is a wave that repeats once per unit of time: frequency one."
+        },
+        {
+          "draw": [
+            "dot",
+            "lbl"
+          ],
+          "speak": "Mark one point on it, so we can watch it."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "animate": {
+            "f": 4
+          },
+          "duration": 6,
+          "easing": "linear",
+          "speak": "Raise the frequency and the same stretch of time holds more and more cycles: the wave is squeezed, and the point rides up and down four times as often."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "readout"
+            },
+            "gesture": "underline"
+          },
+          "speak": "Four cycles per unit of time: that is what a higher pitch is."
+        },
+        {
+          "animate": {
+            "t": 10
+          },
+          "duration": 4,
+          "speak": "Slide the point along the squeezed wave and you feel how fast it now has to move."
+        }
+      ]
+    }
+  },
+  {
+    "request": "What is the tangent at a point, and how does it turn as the point slides?",
+    "spec": {
+      "title": "The tangent turns with the point",
+      "vars": {
+        "t": 1
+      },
+      "domain": {
+        "x": [
+          0,
+          6.3
+        ],
+        "y": [
+          -1.5,
+          1.5
+        ]
+      },
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "The tangent turns with the point",
+          "x": 500,
+          "y": 700,
+          "font_size": 34
+        },
+        {
+          "id": "ax",
+          "type": "axes",
+          "x_label": "x",
+          "y_label": "sin x"
+        },
+        {
+          "id": "curve",
+          "type": "curve",
+          "expr": "sin(x)",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "foot",
+          "type": "point",
+          "at": {
+            "x": 1,
+            "on": "curve"
+          },
+          "bind": {
+            "at.x": "t"
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "tangent",
+          "type": "line",
+          "through": [
+            {
+              "ref": "foot"
+            }
+          ],
+          "slope": 0.54,
+          "bind": {
+            "slope": "cos(t)"
+          },
+          "style": {
+            "color": "#b5482e",
+            "dash": true
+          }
+        },
+        {
+          "id": "readout",
+          "type": "text",
+          "text": "x = {t:1}",
+          "x": 840,
+          "y": 640,
+          "font_size": 28
+        },
+        {
+          "id": "lbl",
+          "type": "label",
+          "attach_to": "foot",
+          "side": "below-right",
+          "text": "the point",
+          "style": {
+            "color": "#b5482e"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title",
+            "ax"
+          ],
+          "speak": "A curve bends. How steep is it at one point?"
+        },
+        {
+          "draw": [
+            "curve"
+          ],
+          "speak": "Take the sine curve."
+        },
+        {
+          "draw": [
+            "foot",
+            "lbl",
+            "readout"
+          ],
+          "speak": "Pick a point on it."
+        },
+        {
+          "draw": [
+            "tangent"
+          ],
+          "speak": "The tangent is the straight line that touches the curve there and leans exactly as the curve leans: its slope is the derivative, cosine of x."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "animate": {
+            "t": 4.7
+          },
+          "duration": 7,
+          "easing": "linear",
+          "speak": "Slide the point along, and the tangent turns with it: flat at the crest, steepest where the curve crosses zero, flat again in the trough."
+        },
+        {
+          "highlight": {
+            "target": [
+              "tangent"
+            ],
+            "effect": "glow"
+          },
+          "speak": "That turning line is the derivative made visible."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Does the equilibrium follow when demand shifts?",
+    "spec": {
+      "title": "Demand shifts, the equilibrium follows",
+      "domain": {
+        "x": [
+          0,
+          100
+        ],
+        "y": [
+          0,
+          100
+        ]
+      },
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "Demand shifts, the equilibrium follows",
+          "x": 500,
+          "y": 700,
+          "font_size": 34
+        },
+        {
+          "id": "ax",
+          "type": "axes",
+          "x_label": "Quantity",
+          "y_label": "Price"
+        },
+        {
+          "id": "demand",
+          "type": "curve",
+          "expr": "80 - x",
+          "x_from": 5,
+          "x_to": 75,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "supply",
+          "type": "curve",
+          "expr": "20 + x",
+          "x_from": 5,
+          "x_to": 75,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "label_D",
+          "type": "label",
+          "attach_to": "demand",
+          "side": "above-right",
+          "text": "D",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "label_S",
+          "type": "label",
+          "attach_to": "supply",
+          "side": "above-left",
+          "text": "S",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "eq",
+          "type": "point",
+          "at": {
+            "intersection_of": [
+              "demand",
+              "supply"
+            ]
+          },
+          "guides": true
+        },
+        {
+          "id": "label_eq",
+          "type": "label",
+          "attach_to": "eq",
+          "side": "below-right",
+          "text": "E"
+        },
+        {
+          "id": "surplus",
+          "type": "region",
+          "between": [
+            "demand",
+            "supply"
+          ],
+          "x_from": 5,
+          "x_to": 30,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title",
+            "ax"
+          ],
+          "speak": "Incomes rise and people want more of everything. Where does the market settle now?"
+        },
+        {
+          "draw": [
+            "demand",
+            "label_D"
+          ],
+          "speak": "Demand slopes down: the higher the price, the less is bought."
+        },
+        {
+          "draw": [
+            "supply",
+            "label_S"
+          ],
+          "speak": "Supply slopes up: the higher the price, the more is offered."
+        },
+        {
+          "draw": [
+            "eq",
+            "label_eq"
+          ],
+          "speak": "Where they cross, the market clears. This point is defined by the two curves."
+        },
+        {
+          "draw": [
+            "surplus"
+          ],
+          "speak": "The wedge between them, up to this quantity, is the gain the first thirty units create."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "move": {
+            "target": "demand",
+            "by": [
+              15,
+              0
+            ],
+            "duration": 3,
+            "ghost": true
+          },
+          "speak": "Now demand shifts right. The crossing point and its guide lines slide up the supply curve, and the wedge deepens. Nothing is redrawn, because they were defined by the curves."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "eq"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Higher price, higher quantity: the new equilibrium."
+        },
+        {
+          "erase": [
+            "demand_ghost"
+          ],
+          "speak": "The old demand curve can go."
+        }
+      ]
+    }
+  },
+  {
+    "request": "What happens to the angle when one arm turns?",
+    "spec": {
+      "title": "An angle is made of its arms",
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "An angle is made of its arms",
+          "x": 500,
+          "y": 700,
+          "font_size": 34
+        },
+        {
+          "id": "arm_a",
+          "type": "arrow",
+          "from": {
+            "x": 400,
+            "y": 300
+          },
+          "to": {
+            "x": 720,
+            "y": 300
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "arm_b",
+          "type": "arrow",
+          "from": {
+            "x": 400,
+            "y": 300
+          },
+          "to": {
+            "x": 690,
+            "y": 420
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "ang",
+          "type": "angle",
+          "at": {
+            "ref": "arm_a",
+            "anchor": "tail"
+          },
+          "from": {
+            "ref": "arm_a",
+            "anchor": "tip"
+          },
+          "to": {
+            "ref": "arm_b",
+            "anchor": "tip"
+          },
+          "radius": 70
+        },
+        {
+          "id": "label_a",
+          "type": "label",
+          "attach_to": "arm_a",
+          "side": "below",
+          "text": "fixed arm",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "label_b",
+          "type": "label",
+          "attach_to": "arm_b",
+          "side": "above",
+          "text": "turning arm",
+          "style": {
+            "color": "#b5482e"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title"
+          ],
+          "speak": "What is an angle, really?"
+        },
+        {
+          "draw": [
+            "arm_a",
+            "label_a"
+          ],
+          "speak": "Two arms from one vertex. This one stays."
+        },
+        {
+          "draw": [
+            "arm_b",
+            "label_b"
+          ],
+          "speak": "This one we will turn."
+        },
+        {
+          "draw": [
+            "ang"
+          ],
+          "speak": "The angle is the opening between them, and it writes its own size."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "move": {
+            "target": "arm_b",
+            "rotate": 50,
+            "pivot": {
+              "anchor": "tail"
+            },
+            "duration": 3
+          },
+          "speak": "Turn the arm about the vertex and the arc widens with it, the number climbing as it goes: the angle is nothing but the two arms."
+        },
+        {
+          "move": {
+            "target": "arm_b",
+            "rotate": -80,
+            "pivot": {
+              "anchor": "tail"
+            },
+            "duration": 3
+          },
+          "speak": "Turn it back past the first arm and the opening shrinks to nothing, then grows the other way round."
+        },
+        {
+          "highlight": {
+            "target": [
+              "ang"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Move an arm, and the angle follows. It was defined by them."
+        }
+      ]
+    }
   }
 ]

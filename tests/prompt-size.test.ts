@@ -7,10 +7,13 @@ import { buildSystemPrompt, wantsCode } from "../src/llm/prompt";
 // schema edits — the size that round must not exceed for an ordinary request.
 // Re-pinned 2026-09-10 for the vars round (vars, bind, point at.on, trail on
 // animate — design 2026-09-10-vars-and-dependencies): the schema's four new
-// descriptions are one sentence each, +1,521 chars on the system prompt; the
-// schema stays under the freehand ceiling. A later round that adds to the
-// prompt re-pins here, on purpose, with a note like this one.
-const BASELINE_SYSTEM_CHARS = 217948;
+// descriptions are one sentence each (+1,521 chars on the system prompt) and
+// the prompt gained three sentences — vars/bind/at.on in the tier-2 bullet,
+// the var sweep and trail in the animate bullet, and the definitions rule in
+// the move bullet, which replaced two older sentences (+1,197). The schema
+// stays under the freehand ceiling. A later round that adds to the prompt
+// re-pins here, on purpose, with a note like this one.
+const BASELINE_SYSTEM_CHARS = 219145;
 const BASELINE_SCHEMA_CHARS = 100767;
 
 const system = (code: boolean) => buildSystemPrompt(promptVariants()[0].source, { schema: apiSchema(), catalog: catalogParts({}).stable, fewshots: fewshotsText(), exemplars: "", code: code ? CODE_PROMPT_SOURCE : "" });
