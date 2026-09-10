@@ -206,6 +206,7 @@ const elementSchema = {
     },
     tex: { type: "string", description: "math: LaTeX, drawn as handwriting. label: LaTeX instead of text." },
     size: { type: "number", description: "math: font size (≥ 18). icon: box size in logical units (default 100)." },
+    colors: { type: "object", additionalProperties: { type: "string" }, description: 'math: colour per term, a TeX snippet → colour ({"x": "#2f6b8f", "\\\\Delta C": "#b5482e"}); every occurrence.' },
     set: { type: "string", description: "icon: icon set prefix (lucide, tabler, ph, heroicons, material-symbols; fa6-solid, twemoji as CC BY)." },
     credit: { type: "string", description: "image/icon: attribution (machine-written; copy VERBATIM if present)." },
     x: { type: "number", description: "text/shape/sector/arc/polygon/pieces/ellipse: logical x (y-up canvas) — the centre, for the shapes that have one." },
@@ -980,7 +981,9 @@ export function normalizeSpec(spec: unknown): unknown {
     // A label written as TeX IS a math element: `attach_to`/`side` are the
     // label's way of saying `at`, and `font_size` its way of saying `size`.
     // Rewritten before validation, so everything downstream — elementErrors
-    // included — only ever sees the one spelling.
+    // included — only ever sees the one spelling. `id`, `style` and `colors`
+    // are already spelled the same on both types, so this mutation carries
+    // them over for free — nothing here deletes or renames them.
     if (el.type === "label" && typeof el.tex === "string") {
       const { attach_to, side, font_size } = el;
       el.type = "math";

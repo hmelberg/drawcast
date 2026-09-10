@@ -1161,6 +1161,16 @@ describe("mathlogic pack", () => {
       expect(points).toBeLessThan(2500);
       expect(areas.length).toBeLessThan(80);
     });
+
+    test("colors: {x: …} picks out every x across every step, and nothing else", async () => {
+      await ensureEngines(["mathjax"]);
+      registerPack("mathlogic", mathlogicYaml);
+      const r = scenes.equation_steps.layout!({ steps: [{ tex: "x = 1" }, { tex: "2x = 2" }], colors: { x: "#2f6b8f" } });
+      const areas = areasOf(r);
+      const blue = areas.filter((a) => a.style.fill === "#2f6b8f");
+      expect(blue).toHaveLength(2); // the "x" of each step, no more
+      expect(areas.filter((a) => a.style.fill !== "#2f6b8f").length).toBe(areas.length - 2);
+    });
   });
 
   test("truth_table: \"(A AND B) OR NOT A\" over A,B yields T,T,F,T in binary row order", () => {

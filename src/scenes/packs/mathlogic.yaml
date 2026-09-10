@@ -945,7 +945,8 @@ description: >-
   Handwritten math: an equation or a short derivation revealed line by line —
   choose for ANY request to show a formula, identity, or algebra steps. Each
   step is typeset via MathJax and drawn as exact filled glyph shapes (counters
-  and all), stacked top to bottom, with an optional short note beside each one.
+  and all), stacked top to bottom, with an optional short note beside each one,
+  and optionally colours picked out per term across every step.
 params:
   type: object
   properties:
@@ -965,6 +966,10 @@ params:
         required: [tex]
     title:
       type: string
+    colors:
+      type: object
+      additionalProperties: { type: string }
+      description: "Colour per term: a TeX snippet → colour, e.g. {\"x\": \"#2f6b8f\"} — every occurrence, in every step."
   required: [steps]
 element_ids:
   step_<i>: steps[i]'s typeset glyphs (one group of filled shapes)
@@ -1090,7 +1095,8 @@ layout: |
     const place = (ring) => simplifyRing(ring.map((p) => [tx(p[0]), ty(p[1])]));
     const children = outlines.map((o, j) => {
       const holes = (o.holes || []).map(place).filter((h) => h.length >= 3);
-      return kit.area("step_" + i + "__g" + j, place(o.pts), C.ink, { holes: holes, precise: true, ms: MS.text });
+      const fill = kit.mathColorFor(o.token.chain, params.colors) ?? C.ink;
+      return kit.area("step_" + i + "__g" + j, place(o.pts), fill, { holes: holes, precise: true, ms: MS.text });
     });
     push(kit.group("step_" + i, children));
     anchors["step_" + i] = [500, (top + bottom) / 2];

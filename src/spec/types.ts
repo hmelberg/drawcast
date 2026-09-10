@@ -137,6 +137,8 @@ export interface SpecElement {
   tex?: string;
   /** math: font size (x-height-based). icon: box size in logical units (default 100). */
   size?: number;
+  /** math: colour per term, a TeX snippet → colour; every occurrence, deepest match wins. */
+  colors?: Record<string, string>;
   /** icon: icon set prefix (lucide, tabler, ph, heroicons, material-symbols; fa6-solid, twemoji as CC BY). */
   set?: string;
   /** image/icon: attribution (machine-written; copy VERBATIM if present). */

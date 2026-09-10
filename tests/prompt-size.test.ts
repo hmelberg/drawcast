@@ -13,8 +13,14 @@ import { buildSystemPrompt, wantsCode } from "../src/llm/prompt";
 // the move bullet, which replaced two older sentences (+1,197). The schema
 // stays under the freehand ceiling. A later round that adds to the prompt
 // re-pins here, on purpose, with a note like this one.
-const BASELINE_SYSTEM_CHARS = 219145;
-const BASELINE_SCHEMA_CHARS = 100767;
+// Re-pinned again 2026-09-10 for the formula-morph round (Task 3): one new
+// element property, `colors` (math: colour per term), one sentence — +296
+// chars on the schema, which is embedded verbatim in the system prompt so
+// the same +296 lands there too. The old +5,500 schema allowance since the
+// freehand ceiling was almost spent by work already on this branch; this
+// resets both anchors to the measured post-change size.
+const BASELINE_SYSTEM_CHARS = 219441;
+const BASELINE_SCHEMA_CHARS = 106379;
 
 const system = (code: boolean) => buildSystemPrompt(promptVariants()[0].source, { schema: apiSchema(), catalog: catalogParts({}).stable, fewshots: fewshotsText(), exemplars: "", code: code ? CODE_PROMPT_SOURCE : "" });
 

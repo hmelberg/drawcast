@@ -19,6 +19,7 @@ import { CANVAS, plotArea, type PlotArea } from "../layout/canvas";
 import { AXIS_OVERHANG, axisLabelPlacement } from "../layout/axes";
 import { heuristicMeasure } from "../layout/measure";
 import { catmullRom, catmullRomClosed } from "../layout/smooth";
+import { colorFor } from "../layout/math-morph";
 import {
   COLORS,
   SKETCH_MS,
@@ -242,6 +243,11 @@ export interface SceneKit {
    * "b", the two in an "8") using fill-rule evenodd, and implies `precise`.
    */
   area(id: string, pts: Pt[], fill: string, o?: { opacity?: number; ms?: number; holes?: Pt[][]; precise?: boolean; roughness?: number }): AreaDrawable;
+  /** The colour formula-morph colours pick for one glyph's token chain: the
+   *  deepest chain entry (own latex first, then its ancestors) equal to a
+   *  `colors` key, normalised — or null when none matches (equation_steps
+   *  can't import math-morph.ts's `colorFor` itself, so it goes through here). */
+  mathColorFor(chain: string[], colors?: Record<string, string>): string | null;
   text(id: string, pos: Pt, s: string, o?: TextOpts): TextDrawable;
   /**
    * The caption for one axis of an L-shaped axes pair, placed by the app's
@@ -591,6 +597,9 @@ export const kit: SceneKit = {
       style: defaultStyle({ fill, opacity: o.opacity ?? (precise ? 1 : 0.35), strokeWidth: 0, ...(o.roughness !== undefined && { roughness: o.roughness }) }),
       drawOpts: defaultDrawOpts("sketch", o.ms ?? SKETCH_MS.region),
     };
+  },
+  mathColorFor(chain, colors) {
+    return colorFor(chain, colors);
   },
   text(id, pos, s, o = {}) {
     return {
