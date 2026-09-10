@@ -18997,7 +18997,7 @@
         {
           "id": "icer",
           "type": "math",
-          "tex": "\\frac{C_1 - C_0}{E_1 - E_0}",
+          "tex": "\\text{ICER} = \\frac{C_1 - C_0}{E_1 - E_0}",
           "x": 500,
           "y": 430,
           "colors": {
@@ -19037,7 +19037,7 @@
         {
           "morph": {
             "target": "icer",
-            "tex": "\\frac{\\Delta C}{\\Delta E}",
+            "tex": "\\text{ICER} = \\frac{\\Delta C}{\\Delta E}",
             "duration": 1.5
           },
           "speak": "Call those differences delta C and delta E: the ratio is just cost per unit of extra benefit."
@@ -19072,8 +19072,8 @@
       },
       "domain": {
         "x": [
-          -2,
-          2
+          -2.1,
+          2.1
         ],
         "y": [
           -1.5,
