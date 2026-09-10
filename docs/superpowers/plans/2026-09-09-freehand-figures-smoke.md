@@ -211,6 +211,12 @@ embedded in each icon's `strokes`), so they must draw with **no network at
 all** — worth checking offline once: an icon that silently fails to
 resolve draws nothing and only warns.
 
+Look at the ink itself while you are here: the examples gate has no
+stroke-versus-stroke overlap rule (it only catches label-on-label and
+label-on-stroke), so a stamp sitting on top of the drawing — the bolt on
+the river, a syringe through an arrow — is a defect only your eyes can
+catch.
+
 ---
 
 Eval-promoted examples (Part C, Hans's 2026-09-09 ruling — up to three of
