@@ -19218,7 +19218,7 @@
   {
     "request": "Why is a life-year gained in thirty years worth so little today?",
     "spec": {
-      "title": "What discounting does to a distant year",
+      "title": "Discounting a distant year",
       "domain": {
         "x": [
           0,
@@ -19373,14 +19373,14 @@
             "title",
             "ax"
           ],
-          "speak": "Vaccinate a child today and you prevent a broken hip in fifty years. Every health-economic guideline says that future year of good health counts for less than one today. How much less — and does it change what we should fund?"
+          "speak": "Vaccinate a child today and you prevent a broken hip in fifty years. Every health-economic guideline says that future year of good health counts for less than one today."
         },
         {
           "draw": [
             "zero",
             "w"
           ],
-          "speak": "Start with no discounting at all. The weight on a year of health is flat at one: a year is a year, whenever it happens to arrive."
+          "speak": "How much less — and does it change what we ought to be funding? Start with no discounting at all. The weight on a year of health is flat at one: a year is a year, whenever it happens to arrive."
         },
         {
           "draw": [
@@ -19703,14 +19703,14 @@
             "title",
             "life1"
           ],
-          "speak": "Screening finds cancers earlier, and patients in screened groups have far better five-year survival. That looks like proof the screening works. Follow one patient along this line of years and see whether it is."
+          "speak": "Screening finds cancers earlier, and patients in screened groups have far better five-year survival. That looks like proof the screening works."
         },
         {
           "draw": [
             "onset1",
             "l_onset1"
           ],
-          "speak": "The tumour begins here, in year two, quietly — years before anyone could feel a thing."
+          "speak": "Follow one patient along this line of years and see whether it is. The tumour begins here, in year two, quietly — years before anyone could feel a thing."
         },
         {
           "draw": [
@@ -19898,14 +19898,14 @@
             "title",
             "ax"
           ],
-          "speak": "Your calculator has no idea what sine means. Its hardware can add, multiply and divide, and that is the whole list. Ask it for the sine of 1.2 and it answers in microseconds anyway. What is it actually computing?"
+          "speak": "Your calculator has no idea what sine means. Its hardware can add, multiply and divide, and that is the whole list. Ask it for the sine of 1.2 and it answers in microseconds anyway."
         },
         {
           "draw": [
             "s",
             "l_s"
           ],
-          "speak": "This is the shape it has to produce out of arithmetic alone."
+          "speak": "What is it actually computing? This is the shape it has to produce out of arithmetic alone."
         },
         {
           "draw": [
@@ -20080,13 +20080,13 @@
             "title",
             "ax"
           ],
-          "speak": "A tuning fork with a small mirror glued to it, a beam of light, and a second fork turned at right angles. That was Jules Lissajous's apparatus in 1855, and an oscilloscope did the same job a century later. Two tones go in; a picture comes out. The question is what the picture tells you."
+          "speak": "A tuning fork with a small mirror glued to it, a beam of light, and a second fork turned at right angles. That was Jules Lissajous's apparatus in 1855, and an oscilloscope did the same job a century later."
         },
         {
           "draw": [
             "beam"
           ],
-          "speak": "One tone pushes the spot of light left and right. The other pushes it up and down. On its own, either one would just draw a line."
+          "speak": "Two tones go in and a picture comes out; the whole question is what the picture tells you. One tone pushes the spot of light left and right. The other pushes it up and down. On its own, either one would just draw a line."
         },
         {
           "draw": [
@@ -20178,7 +20178,7 @@
   {
     "request": "Can a treatment be better for mild cases, better for severe cases, and still lose overall?",
     "spec": {
-      "title": "How A beats B in every group and loses the total",
+      "title": "Better in each group, worse overall",
       "vars": {
         "mA": 50,
         "mB": 50
@@ -20281,14 +20281,14 @@
             "title",
             "ax"
           ],
-          "speak": "A hospital compares two treatments for kidney stones. Treatment A does better on the small stones. Treatment A also does better on the large stones. And when every patient is pooled into one table, treatment B comes out ahead. All three statements are read off the same data, all three are true, and the numbers here are close to a real published comparison of two kidney-stone treatments."
+          "speak": "A hospital compares two treatments for kidney stones. Treatment A does better on the small stones. Treatment A also does better on the large stones. And when every patient is pooled into one table, treatment B comes out ahead."
         },
         {
           "draw": [
             "A",
             "l_A"
           ],
-          "speak": "Here is treatment A's recovery rate, plotted against how severe the cases were: 93 percent when the stones are small, sliding down to 73 percent on the worst ones."
+          "speak": "All three statements are read off the same data, all three are true, and these numbers are close to a real published comparison. Here is treatment A's recovery rate, plotted against how severe the cases were: 93 percent when the stones are small, sliding down to 73 percent on the worst ones."
         },
         {
           "draw": [
