@@ -93,8 +93,10 @@ export interface SpecElement {
   curvature?: "linear" | "convex" | "concave";
   steepness?: "gentle" | "medium" | "steep";
   expr?: string;
-  x_from?: number;
-  x_to?: number;
+  /** curve: the x interval drawn. region: the x interval shaded — a number, or `{ref}`: that
+   *  element's x (a point, typically an intersection), read where it STANDS, so the region follows it. */
+  x_from?: number | { ref: string };
+  x_to?: number | { ref: string };
   // point / angle / relative placement
   /** Where the element goes. point: `{x, y}` or `intersection_of`. Any coordinate-placed element: `{ref, side?, gap?, anchor?, offset?}` — placed relative to another element's box (side: outside it, gap units away; anchor: a named point on it). Never together with x/y. */
   at?: { x?: number; y?: number; on?: string; intersection_of?: string[]; ref?: string; anchor?: string; side?: Side; gap?: number; offset?: [number, number] } | [number, number];

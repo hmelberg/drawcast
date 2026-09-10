@@ -18572,6 +18572,9 @@
           100
         ]
       },
+      "vars": {
+        "s": 0
+      },
       "elements": [
         {
           "id": "title",
@@ -18590,11 +18593,23 @@
         {
           "id": "demand",
           "type": "curve",
-          "expr": "80 - x",
+          "expr": "80 + s - x",
           "x_from": 5,
           "x_to": 75,
           "style": {
             "color": "#b5482e"
+          }
+        },
+        {
+          "id": "demand_old",
+          "type": "curve",
+          "expr": "80 - x",
+          "x_from": 5,
+          "x_to": 75,
+          "style": {
+            "color": "#b5482e",
+            "dash": true,
+            "opacity": 0.5
           }
         },
         {
@@ -18653,7 +18668,9 @@
             "supply"
           ],
           "x_from": 5,
-          "x_to": 30,
+          "x_to": {
+            "ref": "eq"
+          },
           "style": {
             "fill": "#f2c14e"
           }
@@ -18692,22 +18709,23 @@
           "draw": [
             "surplus"
           ],
-          "speak": "The wedge between them, up to this quantity, is the gain the first thirty units create."
+          "speak": "The wedge between them, up to the crossing, is the gain the market creates."
         },
         {
           "pause": 0.4
         },
         {
-          "move": {
-            "target": "demand",
-            "by": [
-              15,
-              0
-            ],
-            "duration": 3,
-            "ghost": true
+          "draw": [
+            "demand_old"
+          ],
+          "speak": "Keep a faint copy of where demand stands today."
+        },
+        {
+          "animate": {
+            "s": 15
           },
-          "speak": "Now demand shifts right. The crossing point and its guide lines slide up the supply curve, and the wedge deepens. Nothing is redrawn, because they were defined by the curves."
+          "duration": 3,
+          "speak": "Now demand shifts right. The crossing point and its guide lines slide up the supply curve, and the wedge grows to the new crossing. Nothing is redrawn by hand, because they were defined by the curves."
         },
         {
           "point": {
@@ -18720,7 +18738,7 @@
         },
         {
           "erase": [
-            "demand_ghost"
+            "demand_old"
           ],
           "speak": "The old demand curve can go."
         }

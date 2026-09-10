@@ -26,6 +26,9 @@ function deps(el: SpecElement): string[] {
   if (ref) out.push(ref);
   if (el.type === "label" && el.attach_to) out.push(el.attach_to);
   if (el.type === "group") out.push(...(el.members ?? []));
+  // A region's edge may stop at a point (`x_to: {ref}`): that point's anchor
+  // must exist — and, under a move, already be posed — when the region samples.
+  if (el.type === "region") for (const end of [el.x_from, el.x_to]) if (end && typeof end === "object" && end.ref) out.push(end.ref);
   // A measure reads the geometry it measures, and a connector reads the boxes
   // it runs between, out of the drawables already emitted — so a shifted
   // endpoint has to move BEFORE it is measured or connected to.
