@@ -2,6 +2,7 @@
 // normalized [0,1]×[0,1] "shape space" and is then mapped by the caller.
 
 import { compileExpression } from "../spec/expression";
+import { exprVariables, type Vars } from "../spec/vars";
 import type { Pt } from "./model";
 
 export const CURVE_SAMPLES = 60;
@@ -53,13 +54,13 @@ export function qualitativeShape(
   return pts;
 }
 
-/** Sample an explicit expression y = f(x) over [x0, x1] in domain units. */
-export function sampleExpression(expr: string, x0: number, x1: number): Pt[] {
-  const f = compileExpression(expr, ["x", "X", "q", "Q", "t", "T"]);
+/** Sample an explicit expression y = f(x) over [x0, x1] in domain units; the spec's `vars` are read by name (design 2026-09-10 §2.1). */
+export function sampleExpression(expr: string, x0: number, x1: number, vars: Vars = {}): Pt[] {
+  const f = compileExpression(expr, exprVariables(vars));
   const pts: Pt[] = [];
   for (let i = 0; i <= CURVE_SAMPLES; i++) {
     const x = x0 + ((x1 - x0) * i) / CURVE_SAMPLES;
-    const y = f({ x, X: x, q: x, Q: x, t: x, T: x });
+    const y = f({ ...vars, x, X: x, q: x, Q: x, t: x, T: x });
     if (Number.isFinite(y)) pts.push([x, y]);
   }
   if (pts.length < 2) throw new Error(`expression "${expr}" produced no finite points over [${x0}, ${x1}]`);
