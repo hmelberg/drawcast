@@ -5,6 +5,7 @@
 
 import { CORE_SCHEMA, dump, load, YAMLException } from "js-yaml";
 import { desmartenJson, extractJson } from "./extract";
+import { specForDump } from "./assets";
 
 export type SpecFormat = "yaml" | "json";
 
@@ -68,6 +69,32 @@ export function parseSpecText(text: string): ParsedSpecText {
 /** Serialize a spec for display/download in the given format. */
 export function formatSpec(spec: unknown, format: SpecFormat): string {
   if (format === "json") return JSON.stringify(spec, null, 2);
-  // lineWidth -1: never wrap narration sentences; noRefs: no YAML anchors.
-  return dump(spec, { lineWidth: -1, noRefs: true });
+  return dumpSpecYaml(spec);
+}
+
+const NUM = String.raw`-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?`;
+/** `- - 10\n  - 20` (a pair nested in a list) → `- [10, 20]`, unless a third item follows. */
+const PAIR_IN_LIST = new RegExp(String.raw`^([ \t]*)- - (${NUM})\n\1  - (${NUM})\n(?!\1  - )`, "gm");
+/** `key:\n  - 10\n  - 20` (a two-number list under a key) → `key: [10, 20]`, unless a third item follows. */
+const PAIR_UNDER_KEY = new RegExp(String.raw`^([ \t]*)([A-Za-z_][\w-]*):\n\1  - (${NUM})\n\1  - (${NUM})\n(?!\1  - )`, "gm");
+
+/**
+ * Two-number lists on one line: js-yaml writes every list as a block, so a
+ * path of forty points ran to eighty lines, a domain to three (Hans
+ * 2026-09-10: "lange path definisjoner gjør det vanskelig å orientere seg").
+ * Only pairs of plain numbers are touched — YAML reads `[10, 20]` and the
+ * block form as the same value, so the round trip is exact.
+ */
+export function compactPointPairs(yaml: string): string {
+  return yaml.replace(PAIR_IN_LIST, "$1- [$2, $3]\n").replace(PAIR_UNDER_KEY, "$1$2: [$3, $4]\n");
+}
+
+/**
+ * A spec as YAML for the editor: `assets` last (spec/assets.ts) and number
+ * pairs on one line. lineWidth -1: never wrap narration sentences (or a
+ * base64 payload); noRefs: no YAML anchors.
+ */
+export function dumpSpecYaml(spec: unknown): string {
+  const ordered = typeof spec === "object" && spec !== null && !Array.isArray(spec) ? specForDump(spec as { assets?: unknown }) : spec;
+  return compactPointPairs(dump(ordered, { lineWidth: -1, noRefs: true }));
 }

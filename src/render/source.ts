@@ -16,6 +16,7 @@
 // never re-asks OpenAlex, and a cache hit still knows the click-through URL.
 
 import type { Spec, SpecElement } from "../spec/types";
+import { inlineStrokes } from "../spec/assets";
 import { decodeSourceImage, encodeSourceImage, type PhotoRect } from "../spec/trace";
 import { cacheGet, cachePut, loadRaster, LOOK_DIM, styledPhotoDataUri } from "./portrait";
 // The one place that decides what a YouTube URL is; duplicating that sniff
@@ -618,7 +619,8 @@ export async function resolveSources(spec: Spec, deps: SourceDeps = {}): Promise
   const results: SourceResolution[] = [];
   for (const el of spec.elements ?? []) {
     if (el.type !== "source") continue;
-    if (el.strokes && decodeSourceImage(el.strokes)) {
+    const have = inlineStrokes(spec, el);
+    if (have && decodeSourceImage(have)) {
       results.push({ id: el.id, ok: true });
       continue;
     }

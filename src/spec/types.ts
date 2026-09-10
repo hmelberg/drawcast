@@ -593,6 +593,12 @@ export interface Spec {
    */
   text?: SpecText;
   /**
+   * Long machine-written payloads by name — an element's `strokes: "@foto"`
+   * points here (spec/assets.ts). Optional: inline strokes remain valid.
+   * Serialized last so the readable part of the spec stays on top.
+   */
+  assets?: Record<string, string>;
+  /**
    * BCP-47 primary tag for the language the text is WRITTEN in ("en", "nb",
    * "fr"). Absent means the old behaviour: the language is sniffed per line,
    * which can only tell English from Norwegian — so a translated drawcast

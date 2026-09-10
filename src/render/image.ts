@@ -8,6 +8,7 @@
 // fetch→trace shape, same never-throw contract.
 
 import type { Spec, SpecElement } from "../spec/types";
+import { inlineStrokes } from "../spec/assets";
 import { decodePhoto, encodePhoto } from "../spec/trace";
 import { cacheGet, cachePut, LOOK_DIM, loadRaster, styledPhotoDataUri, wikiSummaryUrl, type Raster } from "./portrait";
 
@@ -106,7 +107,8 @@ export async function resolveImages(spec: Spec, deps: ImageDeps = defaultDeps())
   const results: ImageResolution[] = [];
   for (const el of spec.elements ?? []) {
     if (el.type !== "image") continue;
-    if (el.strokes && decodePhoto(el.strokes)) {
+    const have = inlineStrokes(spec, el);
+    if (have && decodePhoto(have)) {
       results.push({ id: el.id, ok: true });
       continue;
     }

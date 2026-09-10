@@ -11,6 +11,7 @@
 // network.
 
 import type { Spec, SpecElement } from "../spec/types";
+import { inlineStrokes } from "../spec/assets";
 import type { Pt } from "../layout/model";
 import { sampleSvgPath } from "../scenes/svgpath";
 import { decodeIcon, encodeIcon } from "../spec/trace";
@@ -120,7 +121,8 @@ export async function resolveIcons(spec: Spec, deps: IconDeps = defaultDeps(), o
   const results: IconResolution[] = [];
   for (const el of spec.elements ?? []) {
     if (el.type !== "icon") continue;
-    if (el.strokes && decodeIcon(el.strokes)) {
+    const have = inlineStrokes(spec, el);
+    if (have && decodeIcon(have)) {
       results.push({ id: el.id, ok: true });
       continue;
     }

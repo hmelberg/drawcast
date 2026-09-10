@@ -10,9 +10,14 @@
 
 import { formatPlaylist, itemsOf, parsePlaylistText, type Playlist } from "../playlist/playlist";
 import type { Spec, SpecElement } from "../spec/types";
+import { HOISTED } from "../spec/assets";
 
-/** The sentinel a hoisted strokes field carries through the model round-trip. */
-export const HOISTED = "@pinned";
+export { HOISTED };
+
+/** The key under which item i's `assets` map waits in the blobs, beside the
+ *  per-element strokes. Element ids never contain a colon (they are YAML keys
+ *  the schema spells as identifiers), so the two cannot collide. */
+const assetsKey = (item: number): string => `assets:${item}`;
 
 /** The field per element type that holds encoded machine output, if any. */
 function blobField(el: SpecElement): "strokes" | "code_result" | null {
@@ -33,7 +38,7 @@ export function hoistPortraitStrokes(docText: string): { text: string; blobs: Ma
     return { text: docText, blobs };
   }
   let any = false;
-  for (const item of itemsOf(playlist)) {
+  itemsOf(playlist).forEach((item, i) => {
     for (const el of item.spec.elements ?? []) {
       const field = blobField(el);
       if (field && el[field] && el[field] !== HOISTED) {
@@ -42,14 +47,23 @@ export function hoistPortraitStrokes(docText: string): { text: string; blobs: Ma
         any = true;
       }
     }
-  }
+    // The `assets` map is the same bytes under another key (spec/assets.ts):
+    // it leaves with them and comes back with them.
+    if (item.spec.assets) {
+      blobs.set(assetsKey(i), JSON.stringify(item.spec.assets));
+      delete item.spec.assets;
+      any = true;
+    }
+  });
   return any ? { text: formatPlaylist(playlist, "yaml"), blobs } : { text: docText, blobs };
 }
 
 /** Put hoisted strokes back into the model's revised playlist, by element id. */
 export function restorePortraitStrokes(playlist: Playlist, blobs: Map<string, string>): void {
   if (blobs.size === 0) return;
-  for (const item of itemsOf(playlist)) {
+  itemsOf(playlist).forEach((item, i) => {
+    const assets = blobs.get(assetsKey(i));
+    if (assets) item.spec.assets = JSON.parse(assets) as Record<string, string>;
     for (const el of item.spec.elements ?? []) {
       const field = blobField(el);
       if (field && el[field] === HOISTED) {
@@ -58,15 +72,16 @@ export function restorePortraitStrokes(playlist: Playlist, blobs: Map<string, st
         else delete el[field];
       }
     }
-  }
+  });
 }
 
 /** Exemplar hygiene: a spec copy with every encoded blob omitted entirely. */
 export function stripStrokesForModel(spec: Spec): Spec {
-  if (!spec.elements?.some((e) => { const f = blobField(e); return f && e[f]; })) return spec;
+  if (!spec.assets && !spec.elements?.some((e) => { const f = blobField(e); return f && e[f]; })) return spec;
   return {
     ...spec,
-    elements: spec.elements.map((e): SpecElement => {
+    assets: undefined,
+    elements: (spec.elements ?? []).map((e): SpecElement => {
       const f = blobField(e);
       return f && e[f] ? { ...e, [f]: undefined } : e;
     }),

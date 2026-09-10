@@ -8,7 +8,7 @@
 
 import { CORE_SCHEMA, dump, loadAll } from "js-yaml";
 import { desmartenJson } from "../spec/extract";
-import { formatSpec, parseSpecText, type SpecFormat } from "../spec/text";
+import { dumpSpecYaml, formatSpec, parseSpecText, type SpecFormat } from "../spec/text";
 import type { Spec } from "../spec/types";
 import { narrationLanguage } from "../export/video";
 
@@ -317,7 +317,7 @@ export function formatPlaylist(playlist: Playlist, format: SpecFormat): string {
   if (Object.keys(header).length > 0) parts.push(dump({ playlist: header }, YAML_OPTS));
   for (const e of playlist.entries) {
     if (e.kind === "chapter") parts.push(dump({ chapter: e.title }, YAML_OPTS));
-    else parts.push(dump(e.spec, YAML_OPTS));
+    else parts.push(dumpSpecYaml(e.spec));
   }
   return parts.join("---\n");
 }

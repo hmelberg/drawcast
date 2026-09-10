@@ -7,6 +7,7 @@
 // to the LLM in the repair round.
 
 import AjvModule, { type ValidateFunction } from "ajv";
+import { assetRef, resolveAssetRefs } from "./assets";
 import { SIDE_VALUES, type Command, type Spec, type SpecElement } from "./types";
 import { RESERVED_VARS } from "./answers";
 import { SUB_SUFFIXES } from "../layout/model";
@@ -916,9 +917,20 @@ const TEMPLATE_FIELDS = {
 } as const;
 
 /** The authoring schema plus the fields tooling stamps. What validateSpec checks. */
+/** Long machine-written payloads by name (spec/assets.ts) — the Embed dialog
+ *  and the file insert write them; the model never sees a spec that has them
+ *  (llm/hoist.ts), so they are a document field, not an authoring one. */
+const ASSET_FIELDS = {
+  assets: {
+    type: "object",
+    additionalProperties: { type: "string" },
+    description: 'Machine-written payloads an element\'s strokes refers to as "@name".',
+  },
+} as const;
+
 export const documentSchema = {
   ...specSchema,
-  properties: { ...specSchema.properties, ...TRANSLATION_FIELDS, ...TEXT_FIELDS, ...TEMPLATE_FIELDS },
+  properties: { ...specSchema.properties, ...TRANSLATION_FIELDS, ...TEXT_FIELDS, ...TEMPLATE_FIELDS, ...ASSET_FIELDS },
 } as const;
 
 const ajv = new AjvCtor({ allErrors: true, strict: false });
@@ -930,7 +942,11 @@ let structural: ValidateFunction | null = null;
  */
 export function normalizeSpec(spec: unknown): unknown {
   if (typeof spec !== "object" || spec === null) return spec;
-  const clone = JSON.parse(JSON.stringify(spec)) as { commands?: Command[]; elements?: SpecElement[] };
+  const clone = JSON.parse(JSON.stringify(spec)) as { commands?: Command[]; elements?: SpecElement[]; assets?: unknown };
+  // `strokes: "@name"` becomes its bytes here, so the layout, the lint and
+  // every decoder only ever see inline strokes (spec/assets.ts). A name that
+  // resolves to nothing stays as written for semanticErrors to report.
+  resolveAssetRefs(clone);
   const toList = (v: string[] | string | undefined): string[] | undefined => (typeof v === "string" ? [v] : v);
   // Malformed input flows through here before validation — guard shapes.
   for (const el of Array.isArray(clone.elements) ? clone.elements : []) {
@@ -1017,6 +1033,16 @@ function semanticErrors(spec: Spec): string[] {
 
   if (!spec.template && !(spec.elements && spec.elements.length > 0)) {
     errors.push("spec has neither a template nor any elements — nothing to draw");
+  }
+
+  // A strokes reference that survived normalizeSpec's inlining names an asset
+  // the document does not carry — that element would draw its placeholder
+  // (or refetch) while looking embedded.
+  for (const el of spec.elements ?? []) {
+    const name = assetRef(el.strokes);
+    if (name !== null && typeof spec.assets?.[name] !== "string") {
+      errors.push(`element "${el.id}" (${el.type}): strokes refers to asset "@${name}", which is not in assets`);
+    }
   }
 
   const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "flow", "keep", "camera", "animate", "play"] as const;

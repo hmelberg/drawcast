@@ -13,6 +13,7 @@
 import { resolvePortraits, traceFromBlob } from "../render/portrait";
 import { resolveSources } from "../render/source";
 import { resolveImages } from "../render/image";
+import { hoistStrokes } from "../spec/assets";
 import { resolveIcons } from "../render/icon";
 import type { SpecElement } from "../spec/types";
 import { itemsOf, itemTitle, type Playlist, type PlaylistItem } from "../playlist/playlist";
@@ -147,6 +148,9 @@ function build(): InsertSession {
     const els = itemsOf(result)[part]?.spec.elements ?? [];
     const el = els[els.length - 1];
     if (el) {
+      // The traced bytes go to the bottom of the spec, the element keeps a
+      // one-line `strokes: "@id"` (spec/assets.ts).
+      hoistStrokes(itemsOf(result)[part].spec);
       current.applyPlaylist(result);
       current.setStatus(`Portrait "${el.id}" inserted into "${itemTitle(itemsOf(result)[part])}".`, "ok");
       modal.dialog.close();
@@ -349,6 +353,9 @@ function buildEmbedDialog(): EmbedSession {
     )
       .then((all) => {
         const failed = all.flat().filter((r) => !r.ok);
+        // Every payload just resolved moves under `assets:` at the bottom of
+        // its spec; the elements keep one-line references (spec/assets.ts).
+        for (const it of items) hoistStrokes(it.spec);
         current.applyPlaylist(playlist);
         current.setStatus(
           failed.length > 0

@@ -7,6 +7,7 @@
 // playback never stalls mid-figure and exports resolve before recording.
 
 import type { Spec, SpecElement } from "../spec/types";
+import { inlineStrokes } from "../spec/assets";
 import { decodePhoto, decodeTrace, encodePhoto } from "../spec/trace";
 
 /** Bump when the tracer's output changes — old cache entries stop matching. */
@@ -172,7 +173,8 @@ export async function resolvePortraits(spec: Spec): Promise<PortraitResolution[]
   const results: PortraitResolution[] = [];
   for (const el of spec.elements ?? []) {
     if (el.type !== "portrait") continue;
-    if (el.strokes && (decodeTrace(el.strokes) || decodePhoto(el.strokes))) {
+    const have = inlineStrokes(spec, el);
+    if (have && (decodeTrace(have) || decodePhoto(have))) {
       results.push({ id: el.id, ok: true });
       continue;
     }
