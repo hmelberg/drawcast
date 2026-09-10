@@ -19214,5 +19214,1384 @@
         }
       ]
     }
+  },
+  {
+    "request": "Why is a life-year gained in thirty years worth so little today?",
+    "spec": {
+      "title": "What discounting does to a distant year",
+      "domain": {
+        "x": [
+          0,
+          60
+        ],
+        "y": [
+          0,
+          1.05
+        ]
+      },
+      "vars": {
+        "r": 0
+      },
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "Discounting a distant year",
+          "x": 500,
+          "y": 712,
+          "font_size": 34
+        },
+        {
+          "id": "ax",
+          "type": "axes",
+          "x_label": "Years from now",
+          "y_label": "Weight of a year"
+        },
+        {
+          "id": "zero",
+          "type": "curve",
+          "expr": "0",
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "w",
+          "type": "curve",
+          "expr": "1/(1+r)^x",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "f",
+          "type": "math",
+          "tex": "w(t) = \\frac{1}{(1+r)^t}",
+          "x": 700,
+          "y": 560,
+          "size": 34,
+          "colors": {
+            "r": "#b5482e"
+          }
+        },
+        {
+          "id": "readout",
+          "type": "text",
+          "text": "r = {r:3}",
+          "x": 700,
+          "y": 470,
+          "font_size": 28,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "p20",
+          "type": "point",
+          "at": {
+            "x": 20,
+            "on": "w"
+          },
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "p30",
+          "type": "point",
+          "at": {
+            "x": 30,
+            "on": "w"
+          },
+          "guides": true,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "l_p30",
+          "type": "label",
+          "attach_to": "p30",
+          "side": "above-right",
+          "text": "year 30",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "early",
+          "type": "region",
+          "between": [
+            "w",
+            "zero"
+          ],
+          "x_from": 0,
+          "x_to": {
+            "ref": "p20"
+          },
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "late",
+          "type": "region",
+          "between": [
+            "w",
+            "zero"
+          ],
+          "x_from": 20,
+          "x_to": 60,
+          "style": {
+            "fill": "#87a878"
+          }
+        },
+        {
+          "id": "punch",
+          "type": "text",
+          "text": "first 20 years = everything after them",
+          "x": 700,
+          "y": 320,
+          "font_size": 26,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "mark",
+          "type": "annotation",
+          "target": "punch",
+          "kind": "box",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title",
+            "ax"
+          ],
+          "speak": "Vaccinate a child today and you prevent a broken hip in fifty years. Every health-economic guideline says that future year of good health counts for less than one today. How much less — and does it change what we should fund?"
+        },
+        {
+          "draw": [
+            "zero",
+            "w"
+          ],
+          "speak": "Start with no discounting at all. The weight on a year of health is flat at one: a year is a year, whenever it happens to arrive."
+        },
+        {
+          "draw": [
+            "f"
+          ],
+          "speak": "The rule that bends that line is a single expression — a year t years away counts one over one plus r, raised to the power t."
+        },
+        {
+          "draw": [
+            "readout"
+          ],
+          "speak": "Right now the rate r is zero, so the power does nothing and every year still weighs a full one."
+        },
+        {
+          "animate": {
+            "r": 0.035
+          },
+          "duration": 4,
+          "easing": "linear",
+          "speak": "Turn r up to three and a half percent — the rate most guidelines actually use — and the line sags away from one. Nothing else in the picture was redrawn: the curve is the formula."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "p30",
+            "l_p30"
+          ],
+          "speak": "Read off year thirty, the year that hip fracture would have happened."
+        },
+        {
+          "morph": {
+            "target": "f",
+            "tex": "w(30) = \\frac{1}{(1+r)^{30}} \\approx 0.36",
+            "duration": 1.5
+          },
+          "speak": "Put thirty into the same expression and it says it plainly: that year of health counts as about a third of a year lived today."
+        },
+        {
+          "highlight": {
+            "target": [
+              "p30"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Notice what that is not. It is not a small correction — nearly two thirds of the value has quietly gone."
+        },
+        {
+          "draw": [
+            "p20",
+            "early"
+          ],
+          "speak": "Now add up everything a treatment ever delivers, not just one year. Shade the first twenty years of benefit."
+        },
+        {
+          "draw": [
+            "late"
+          ],
+          "speak": "And shade what comes after: year twenty to year sixty, plus a thin tail that runs off the edge of this chart and never quite stops."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "punch",
+            "mark"
+          ],
+          "speak": "Those two areas are the same size. At three and a half percent, half of everything a treatment could ever deliver — from here to eternity — lands in its first twenty years."
+        },
+        {
+          "highlight": {
+            "target": [
+              "early",
+              "late"
+            ],
+            "effect": "glow"
+          },
+          "speak": "So discounting is not a footnote in the appendix. It is the reason prevention that pays off in fifty years has to fight for money against treatment that pays off tomorrow — and why the choice of r is argued over as hard as the clinical evidence."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Do people live longer if the cancer is found earlier?",
+    "spec": {
+      "title": "Why earlier diagnosis flatters survival",
+      "vars": {
+        "d": 8
+      },
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "Why earlier diagnosis flatters survival",
+          "x": 500,
+          "y": 700,
+          "font_size": 34
+        },
+        {
+          "id": "life1",
+          "type": "arrow",
+          "from": {
+            "x": 180,
+            "y": 500
+          },
+          "to": {
+            "x": 860,
+            "y": 500
+          },
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "onset1",
+          "type": "shape",
+          "shape": "circle",
+          "x": 300,
+          "y": 500,
+          "radius": 9,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "l_onset1",
+          "type": "label",
+          "attach_to": "onset1",
+          "side": "above",
+          "text": "tumour starts, year 2",
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "dx1",
+          "type": "shape",
+          "shape": "circle",
+          "x": 600,
+          "y": 500,
+          "radius": 9,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "l_dx1",
+          "type": "label",
+          "attach_to": "dx1",
+          "side": "above",
+          "text": "symptoms, year 8",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "death1",
+          "type": "shape",
+          "shape": "circle",
+          "x": 750,
+          "y": 500,
+          "radius": 9
+        },
+        {
+          "id": "l_death1",
+          "type": "label",
+          "attach_to": "death1",
+          "side": "above",
+          "text": "death, year 11"
+        },
+        {
+          "id": "m1",
+          "type": "measure",
+          "from": {
+            "ref": "dx1"
+          },
+          "to": {
+            "ref": "death1"
+          },
+          "scale": 50,
+          "decimals": 0,
+          "label": "survived {value} years",
+          "side": "right",
+          "offset": 30,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "life2",
+          "type": "arrow",
+          "from": {
+            "x": 180,
+            "y": 250
+          },
+          "to": {
+            "x": 860,
+            "y": 250
+          },
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "onset2",
+          "type": "shape",
+          "shape": "circle",
+          "x": 300,
+          "y": 250,
+          "radius": 9,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "dx2",
+          "type": "shape",
+          "shape": "circle",
+          "x": 600,
+          "y": 250,
+          "radius": 9,
+          "bind": {
+            "x": "200 + 50*d"
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "l_dx2",
+          "type": "label",
+          "attach_to": "dx2",
+          "side": "below",
+          "text": "the scan finds it",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "death2",
+          "type": "shape",
+          "shape": "circle",
+          "x": 750,
+          "y": 250,
+          "radius": 9
+        },
+        {
+          "id": "m2",
+          "type": "measure",
+          "from": {
+            "ref": "dx2"
+          },
+          "to": {
+            "ref": "death2"
+          },
+          "scale": 50,
+          "decimals": 0,
+          "label": "survived {value} years",
+          "side": "left",
+          "offset": 30,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "ldeath",
+          "type": "path",
+          "points": [
+            [
+              750,
+              540
+            ],
+            [
+              750,
+              210
+            ]
+          ],
+          "style": {
+            "color": "#8a5fa8",
+            "dash": true
+          }
+        },
+        {
+          "id": "readout",
+          "type": "text",
+          "text": "found in year {d:0}",
+          "x": 300,
+          "y": 150,
+          "font_size": 26,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "punch",
+          "type": "text",
+          "text": "same death, longer survival",
+          "x": 700,
+          "y": 150,
+          "font_size": 26,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "mark",
+          "type": "annotation",
+          "target": "punch",
+          "kind": "box",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title",
+            "life1"
+          ],
+          "speak": "Screening finds cancers earlier, and patients in screened groups have far better five-year survival. That looks like proof the screening works. Follow one patient along this line of years and see whether it is."
+        },
+        {
+          "draw": [
+            "onset1",
+            "l_onset1"
+          ],
+          "speak": "The tumour begins here, in year two, quietly — years before anyone could feel a thing."
+        },
+        {
+          "draw": [
+            "dx1",
+            "l_dx1"
+          ],
+          "speak": "In year eight it grows enough to cause symptoms, and that is when the diagnosis gets written down."
+        },
+        {
+          "draw": [
+            "death1",
+            "l_death1"
+          ],
+          "speak": "In year eleven the patient dies of it."
+        },
+        {
+          "draw": [
+            "m1",
+            "label_m1"
+          ],
+          "speak": "Survival is measured from the diagnosis to the death: three years. That is the number that goes into the statistics — and the ruler is drawn from the figure itself, so it can only ever say what the picture says."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "life2",
+            "onset2",
+            "death2"
+          ],
+          "speak": "Now live the same life a second time, in a country that runs a screening programme. Same tumour, starting the same year — and, keep your eye on this, the same day of death."
+        },
+        {
+          "draw": [
+            "ldeath"
+          ],
+          "speak": "One line joins the two deaths. Nothing that happens to the left of it is going to move it."
+        },
+        {
+          "draw": [
+            "dx2",
+            "l_dx2",
+            "readout",
+            "m2",
+            "label_m2"
+          ],
+          "speak": "To begin with, the second patient is also found in year eight, by symptoms, and the second ruler reads the same three years."
+        },
+        {
+          "animate": {
+            "d": 4
+          },
+          "duration": 3,
+          "speak": "Now switch the screening on. The scan picks the tumour up in year four, four years before it would have spoken up. That is the one and only thing that changes in this picture."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "highlight": {
+            "target": [
+              "m2",
+              "label_m2"
+            ],
+            "effect": "glow"
+          },
+          "speak": "And measured survival has more than doubled: seven years instead of three. Nobody was cured. The ruler simply starts further left."
+        },
+        {
+          "draw": [
+            "punch",
+            "mark"
+          ],
+          "speak": "Look at the five-year mark and it gets worse. The first patient is dead within five years of diagnosis; the second is comfortably alive at five. Five-year survival goes from zero to a hundred percent without a single day of life being added."
+        },
+        {
+          "highlight": {
+            "target": [
+              "ldeath"
+            ],
+            "effect": "glow"
+          },
+          "speak": "This is lead-time bias, and it is why a screening programme can never be judged on survival. The one question the flattered ruler cannot answer is the only one that matters: does that death line move to the right?"
+        }
+      ]
+    }
+  },
+  {
+    "request": "How can a calculator work out sin(1.2) with nothing but plus and times?",
+    "spec": {
+      "title": "A polynomial learns the sine curve",
+      "domain": {
+        "x": [
+          -6.3,
+          6.3
+        ],
+        "y": [
+          -2.2,
+          2.2
+        ]
+      },
+      "vars": {
+        "a3": 0,
+        "a5": 0,
+        "a7": 0
+      },
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "A polynomial learns the sine curve",
+          "x": 500,
+          "y": 712,
+          "font_size": 34
+        },
+        {
+          "id": "ax",
+          "type": "axes",
+          "x_label": "x",
+          "y_label": "y"
+        },
+        {
+          "id": "s",
+          "type": "curve",
+          "expr": "sin(x)",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "l_s",
+          "type": "label",
+          "attach_to": "s",
+          "side": "above",
+          "tex": "\\sin x",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "p",
+          "type": "curve",
+          "expr": "x - a3*x^3/6 + a5*x^5/120 - a7*x^7/5040",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "origin",
+          "type": "point",
+          "at": {
+            "x": 0,
+            "on": "s"
+          },
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "l_origin",
+          "type": "label",
+          "attach_to": "origin",
+          "side": "below-right",
+          "text": "everything is measured here",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "f",
+          "type": "math",
+          "tex": "P(x) = x",
+          "x": 500,
+          "y": 120,
+          "size": 32,
+          "colors": {
+            "x": "#b5482e"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title",
+            "ax"
+          ],
+          "speak": "Your calculator has no idea what sine means. Its hardware can add, multiply and divide, and that is the whole list. Ask it for the sine of 1.2 and it answers in microseconds anyway. What is it actually computing?"
+        },
+        {
+          "draw": [
+            "s",
+            "l_s"
+          ],
+          "speak": "This is the shape it has to produce out of arithmetic alone."
+        },
+        {
+          "draw": [
+            "p",
+            "f"
+          ],
+          "speak": "And this is where it starts: the polynomial P of x equals x. A straight line, which is about as far from a wave as you can get."
+        },
+        {
+          "draw": [
+            "origin",
+            "l_origin"
+          ],
+          "speak": "Except right here. Near zero the line and the curve are indistinguishable — the sine of a hundredth really is a hundredth, out to six decimal places."
+        },
+        {
+          "morph": {
+            "target": "f",
+            "tex": "P(x) = x - \\frac{x^3}{6}",
+            "duration": 1.5
+          },
+          "speak": "So add one correction: minus x cubed over six."
+        },
+        {
+          "animate": {
+            "a3": 1
+          },
+          "duration": 2,
+          "speak": "Watch what that buys. The line bends over and now follows the curve out past the first crest — and beyond that it dives away, further off than the straight line ever was."
+        },
+        {
+          "morph": {
+            "target": "f",
+            "tex": "P(x) = x - \\frac{x^3}{6} + \\frac{x^5}{120}",
+            "duration": 1.5
+          },
+          "speak": "Add the next term, plus x to the fifth over a hundred and twenty."
+        },
+        {
+          "animate": {
+            "a5": 1
+          },
+          "duration": 2,
+          "speak": "The agreement pushes outward — and so does the place where it gives up."
+        },
+        {
+          "morph": {
+            "target": "f",
+            "tex": "P(x) = x - \\frac{x^3}{6} + \\frac{x^5}{120} - \\frac{x^7}{5040}",
+            "duration": 1.5
+          },
+          "speak": "One more term."
+        },
+        {
+          "animate": {
+            "a7": 1
+          },
+          "duration": 2,
+          "speak": "Now four terms of pure arithmetic hold the curve through an entire hump before they let go."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "highlight": {
+            "target": [
+              "origin"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Here is the part that should feel strange. Those denominators — six, a hundred and twenty, five thousand and forty — are the factorials that come out of differentiating sine at this one point. Nothing in the recipe ever looked at what sine does out at x equals three."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "p"
+            },
+            "gesture": "underline"
+          },
+          "speak": "The polynomial was told about a single point and it reproduces a whole stretch of the curve. That is what a Taylor series spends: local information, bought at one place, to buy the neighbourhood around it."
+        },
+        {
+          "highlight": {
+            "target": [
+              "p"
+            ],
+            "effect": "glow"
+          },
+          "speak": "And notice what you never get for free. The fit spreads outward from that point; it never improves everywhere at once. Far enough out, the polynomial always loses — and the more terms you add, the more violently it runs away when it finally does."
+        }
+      ]
+    }
+  },
+  {
+    "request": "How could anyone see whether two tones were in tune, a century before electronic tuners?",
+    "spec": {
+      "title": "Reading an interval off a picture",
+      "domain": {
+        "x": [
+          -1.6,
+          1.6
+        ],
+        "y": [
+          -1.6,
+          1.6
+        ]
+      },
+      "vars": {
+        "s": 0.01,
+        "f": 1,
+        "ph": 0
+      },
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "Reading an interval off a picture",
+          "x": 500,
+          "y": 712,
+          "font_size": 34
+        },
+        {
+          "id": "ax",
+          "type": "axes",
+          "x_label": "tone A, sideways",
+          "y_label": "tone B, up"
+        },
+        {
+          "id": "fig",
+          "type": "curve",
+          "x_expr": "cos(t)",
+          "y_expr": "sin(f*t + ph)",
+          "t_from": 0,
+          "t_to": 0.01,
+          "bind": {
+            "t_to": "s"
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "beam",
+          "type": "point",
+          "at": {
+            "x": 1,
+            "y": 0
+          },
+          "bind": {
+            "at.x": "cos(s)",
+            "at.y": "sin(f*s + ph)"
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "readout",
+          "type": "text",
+          "text": "B / A = {f:2}",
+          "x": 830,
+          "y": 165,
+          "font_size": 28,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title",
+            "ax"
+          ],
+          "speak": "A tuning fork with a small mirror glued to it, a beam of light, and a second fork turned at right angles. That was Jules Lissajous's apparatus in 1855, and an oscilloscope did the same job a century later. Two tones go in; a picture comes out. The question is what the picture tells you."
+        },
+        {
+          "draw": [
+            "beam"
+          ],
+          "speak": "One tone pushes the spot of light left and right. The other pushes it up and down. On its own, either one would just draw a line."
+        },
+        {
+          "draw": [
+            "fig",
+            "readout"
+          ],
+          "speak": "Sound both at once, at the same pitch, and the spot has to obey both at the same time."
+        },
+        {
+          "animate": {
+            "s": 6.28
+          },
+          "duration": 4,
+          "easing": "linear",
+          "speak": "It traces a circle. Two tones in perfect unison, a quarter of a cycle apart in phase, and the beam goes round and round the same closed loop forever."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "animate": {
+            "f": 2
+          },
+          "duration": 3,
+          "speak": "Now raise the second fork by an octave — exactly twice the frequency of the first."
+        },
+        {
+          "highlight": {
+            "target": [
+              "fig"
+            ],
+            "effect": "glow"
+          },
+          "speak": "A figure of eight — and it is not decoration, it is a reading. Count where the curve kisses the edge of the box: twice along the top for every once on the right-hand side. Two to one. The picture has counted the ratio for you."
+        },
+        {
+          "animate": {
+            "f": 1.5,
+            "s": 12.57
+          },
+          "duration": 4,
+          "easing": "linear",
+          "speak": "A perfect fifth is three to two, so try that. This one needs the sideways sweep to run twice over before the pattern closes on itself, which is the two in three-to-two showing up as time rather than shape."
+        },
+        {
+          "highlight": {
+            "target": [
+              "fig"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Three touches along the top for every two on the side. You can read the interval straight off the glass without knowing a single frequency in hertz — only their ratio, which is all an interval ever was."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "animate": {
+            "ph": 6.28
+          },
+          "duration": 7,
+          "easing": "linear",
+          "speak": "And here is the part that turned a curiosity into a tuning instrument. Detune that fifth by a whisper — a tenth of a hertz — and the ratio is no longer exactly three to two. A frequency that is slightly wrong is the same thing as a phase that keeps creeping, so the closed figure stops standing still and begins to roll over."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "fig"
+            },
+            "gesture": "circle"
+          },
+          "speak": "The speed of that rolling is the size of your error. It is the same drift you hear as beats when two notes are nearly together — the wobble that gets slower and slower as you close in."
+        },
+        {
+          "highlight": {
+            "target": [
+              "beam"
+            ],
+            "effect": "glow"
+          },
+          "speak": "So nobody read a number off this apparatus. You turned the peg until the picture stopped moving. A figure that holds perfectly still is an exact ratio — and that is a far finer test of tuning than any ear or any dial of the period could manage."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Can a treatment be better for mild cases, better for severe cases, and still lose overall?",
+    "spec": {
+      "title": "How A beats B in every group and loses the total",
+      "vars": {
+        "mA": 50,
+        "mB": 50
+      },
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "Better in each group, worse overall",
+          "x": 500,
+          "y": 712,
+          "font_size": 32
+        },
+        {
+          "id": "ax",
+          "type": "axes",
+          "x_label": "% of this treatment's patients whose case was severe",
+          "y_label": "% recover"
+        },
+        {
+          "id": "A",
+          "type": "curve",
+          "expr": "93 - 0.2*x",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "l_A",
+          "type": "label",
+          "attach_to": "A",
+          "side": "above",
+          "text": "treatment A",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "B",
+          "type": "curve",
+          "expr": "87 - 0.18*x",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "l_B",
+          "type": "label",
+          "attach_to": "B",
+          "side": "below",
+          "text": "treatment B",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "pA",
+          "type": "point",
+          "at": {
+            "x": 50,
+            "on": "A"
+          },
+          "bind": {
+            "at.x": "mA"
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "pB",
+          "type": "point",
+          "at": {
+            "x": 50,
+            "on": "B"
+          },
+          "bind": {
+            "at.x": "mB"
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "cmp",
+          "type": "math",
+          "tex": "A: 93\\% \\quad B: 87\\%",
+          "x": 330,
+          "y": 330,
+          "size": 30,
+          "colors": {
+            "A": "#b5482e",
+            "B": "#2f6b8f"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title",
+            "ax"
+          ],
+          "speak": "A hospital compares two treatments for kidney stones. Treatment A does better on the small stones. Treatment A also does better on the large stones. And when every patient is pooled into one table, treatment B comes out ahead. All three statements are read off the same data, all three are true, and the numbers here are close to a real published comparison of two kidney-stone treatments."
+        },
+        {
+          "draw": [
+            "A",
+            "l_A"
+          ],
+          "speak": "Here is treatment A's recovery rate, plotted against how severe the cases were: 93 percent when the stones are small, sliding down to 73 percent on the worst ones."
+        },
+        {
+          "draw": [
+            "B",
+            "l_B"
+          ],
+          "speak": "And treatment B, the same way: 87 down to 69. B's line sits below A's the whole way across. There is no kind of patient for whom B is the better bet."
+        },
+        {
+          "draw": [
+            "cmp"
+          ],
+          "speak": "So on the mild cases the comparison is 93 against 87. A wins."
+        },
+        {
+          "copy": {
+            "target": "cmp",
+            "as": "cmp2"
+          },
+          "speak": "Keep that line where it is, and work the severe cases on a copy underneath."
+        },
+        {
+          "move": {
+            "target": "cmp2",
+            "by": [
+              0,
+              -58
+            ],
+            "duration": 0.8
+          }
+        },
+        {
+          "morph": {
+            "target": "cmp2",
+            "tex": "A: 73\\% \\quad B: 69\\%",
+            "duration": 1.5
+          },
+          "speak": "Seventy-three against sixty-nine. A wins again, by four points."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "pA",
+            "pB"
+          ],
+          "speak": "Now pool the patients. A treatment's overall rate is not some new number: it is a dot sitting on its own line, at the average severity of the patients that treatment happened to be given."
+        },
+        {
+          "highlight": {
+            "target": [
+              "pA",
+              "pB"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Give both treatments the same mix of patients and the dots sit above one another — A's on top, exactly as the two group comparisons promised."
+        },
+        {
+          "animate": {
+            "mA": 75,
+            "mB": 25
+          },
+          "duration": 4,
+          "speak": "But that is not what happened. The surgeons trusted treatment A, so they gave it the difficult stones and left the easy ones to B. A's dot slides right into the hard cases; B's slides left into the easy ones. Neither line moves — only which part of it each treatment is being judged on."
+        },
+        {
+          "copy": {
+            "target": "cmp2",
+            "as": "cmp3"
+          },
+          "speak": "Add the pooled comparison as a third line."
+        },
+        {
+          "move": {
+            "target": "cmp3",
+            "by": [
+              0,
+              -58
+            ],
+            "duration": 0.8
+          }
+        },
+        {
+          "morph": {
+            "target": "cmp3",
+            "tex": "A: 78\\% \\quad B: 82.5\\%",
+            "duration": 1.5
+          },
+          "speak": "Seventy-eight against eighty-two and a half. The inequality has turned around, and nobody touched a single patient's outcome."
+        },
+        {
+          "highlight": {
+            "target": [
+              "pA",
+              "pB"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Look at what the two dots are now. They are not above one another any more, so they are not answering the same question: one is an average of hard cases, the other an average of easy ones."
+        },
+        {
+          "highlight": {
+            "target": [
+              "cmp3"
+            ],
+            "effect": "glow"
+          },
+          "speak": "That is Simpson's paradox, and the useful way to hold on to it is this: a pooled rate is a weighted average, and whoever decided which patients got which treatment decided the weights. The comparison you can trust is the one where the dots stand on the same vertical line."
+        }
+      ]
+    }
+  },
+  {
+    "request": "The test is 99% accurate and mine came back positive. Am I probably ill?",
+    "spec": {
+      "title": "What a positive test is actually worth",
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "What a positive test is actually worth",
+          "x": 500,
+          "y": 712,
+          "font_size": 34
+        },
+        {
+          "id": "grid",
+          "type": "pieces",
+          "of": "grid",
+          "x": 280,
+          "y": 350,
+          "width": 380,
+          "height": 380,
+          "n": 10,
+          "rows": 10,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "caption",
+          "type": "text",
+          "text": "100 people like you",
+          "x": 280,
+          "y": 120,
+          "font_size": 26,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "mark_sick",
+          "type": "annotation",
+          "target": "grid_1",
+          "kind": "circle",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "mark_fp",
+          "type": "annotation",
+          "target": "grid_57",
+          "kind": "circle",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "bayes",
+          "type": "math",
+          "tex": "P(D \\mid +) = \\frac{P(+ \\mid D)\\,P(D)}{P(+)}",
+          "x": 730,
+          "y": 520,
+          "size": 28,
+          "colors": {
+            "D": "#b5482e"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title",
+            "grid",
+            "caption"
+          ],
+          "speak": "You take a test for a disease. The test is ninety-nine percent accurate, which is a genuinely good test, and it comes back positive. How worried should you be? This is the question that most people — including, in study after study, most doctors — get badly wrong. Here are a hundred people like you."
+        },
+        {
+          "draw": [
+            "mark_sick"
+          ],
+          "speak": "In this population one person in a hundred actually has the disease. Just this one. That is what a one percent base rate looks like when you draw it instead of stating it."
+        },
+        {
+          "draw": [
+            "bayes"
+          ],
+          "speak": "The question you want answered is the reverse of the one the test answers. Not how often the test is right, but this: given that the result came back positive, what are the chances the disease is there? Bayes's rule turns one into the other."
+        },
+        {
+          "highlight": {
+            "target": [
+              "grid_1"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Test all hundred people. The test catches ninety-nine percent of real cases, so the one person who is ill duly tests positive. The test has done exactly what it promises."
+        },
+        {
+          "draw": [
+            "mark_fp"
+          ],
+          "speak": "But being ninety-nine percent accurate also means being wrong about one healthy person in a hundred. There are ninety-nine healthy people in this square, so that is about one more positive result — this person here, who is perfectly well."
+        },
+        {
+          "highlight": {
+            "target": [
+              "grid_1",
+              "grid_57"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Two people in this square get the phone call. Only one of them is ill. And nothing distinguishes them: both were told the same thing by the same reliable test."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "copy": {
+            "target": "bayes",
+            "as": "bayes2"
+          },
+          "speak": "Keep the rule and put the numbers on a copy below it."
+        },
+        {
+          "move": {
+            "target": "bayes2",
+            "by": [
+              0,
+              -110
+            ],
+            "duration": 0.8
+          }
+        },
+        {
+          "morph": {
+            "target": "bayes2",
+            "tex": "P(D \\mid +) = \\frac{0.99 \\times 0.01}{0.0198} = 0.5",
+            "duration": 1.8
+          },
+          "speak": "A half. A coin flip, from a test that is right ninety-nine times out of a hundred. The arithmetic agrees with the square: two positives, one of them real."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "copy": {
+            "target": "bayes2",
+            "as": "bayes3"
+          },
+          "speak": "Now change one number — and it is not a number about the test."
+        },
+        {
+          "move": {
+            "target": "bayes3",
+            "by": [
+              0,
+              -110
+            ],
+            "duration": 0.8
+          }
+        },
+        {
+          "morph": {
+            "target": "bayes3",
+            "tex": "P(D \\mid +) = \\frac{0.99 \\times 0.001}{0.011} \\approx 0.09",
+            "duration": 1.8
+          },
+          "speak": "Screen for something rarer, one case in a thousand, with the very same test on the very same machine, and a positive result now means about nine percent. Nine times out of ten, that letter is a false alarm."
+        },
+        {
+          "highlight": {
+            "target": [
+              "mark_fp"
+            ],
+            "effect": "glow"
+          },
+          "speak": "The reason is visible in the square rather than in the algebra. False positives are drawn from the healthy crowd, so their number grows with how big that crowd is. True positives can only ever come out of the tiny sick minority — and rarity shrinks that minority faster than any plausible test can compensate."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bayes"
+            ],
+            "effect": "glow"
+          },
+          "speak": "So the accuracy printed on the box is not the number you want, and it never was. The same test means one thing for a patient who already has symptoms and something quite different in a mass screening programme — because the thing that changed was not the test, but who you pointed it at."
+        }
+      ]
+    }
   }
 ]

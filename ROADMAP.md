@@ -706,6 +706,49 @@ meanwhile); manim's `key_map` (author-directed matching); morphing a
 formula whose font changes; `stagger` on `draw`; a camera that follows
 an element; `{f}` in `speak`; sliders for vars in the explore tray.
 
+## Six longer worked examples on the manim-round features — done 2026-09-10
+
+The two manim rounds shipped nine bundled examples between them, and every
+one of them is short: it shows a verb working and stops. This round adds
+six that are built the other way round — each carries one non-obvious
+point from the opening hook to the closing sentence, and reaches for the
+new verbs only where the point needs them. 13–16 beats each, English,
+appended to `src/examples.json` (235 → 241); smoke
+`docs/superpowers/plans/2026-09-10-longer-examples-smoke.md`. No spec
+feature, prompt or schema change, so no prompt-size re-pin: bundled
+examples reach the model through the `{{EXEMPLARS}}` slots, not the
+system prompt.
+
+1. **Discounting** — a var inside a curve's `expr`, a `region` whose edge
+   is a `{ref}`, `morph.tex` keeping a coloured `r`. The point: at 3.5 %
+   the first twenty years of a benefit stream are worth as much as
+   everything after them, out to eternity (14.5 against 14.6).
+2. **Lead-time bias** — a `measure` that reads its number off the figure
+   and a `bind` on a marker's `x`, so sliding the diagnosis date left
+   redraws "survived 3 years" as "survived 7 years" while the death mark
+   never moves.
+3. **Taylor series** — three vars inside one `expr` switch the terms on
+   one at a time while `morph.tex` grows the formula to match. The point:
+   the fit spreads outward from a single point, it never improves
+   everywhere at once.
+4. **Lissajous figures** — a parametric curve with `bind` on `t_to`,
+   three vars. The point: a closed figure means a rational ratio, and the
+   speed at which it rolls over IS the mistuning, so you tune until the
+   picture stops moving.
+5. **Simpson's paradox** — `copy` → `move` → `morph.tex` twice for the
+   three comparison lines, points placed by `at.on` + `bind` for the
+   pooled rates. Charig's kidney-stone numbers, drawn as two mix lines
+   that never cross while the dots on them do.
+6. **Base rates** — `pieces of: "grid"` at 10 × 10, `annotation` circles
+   on single cells, the Bayes derivation by copy-move-morph. The point:
+   the same 99 %-accurate test means 50 % in a 1-in-100 population and
+   9 % in a 1-in-1000 one.
+
+Open after this round: an `animate` trail (`"trail": {"of": id}`) still
+has no bundled example — the cycloid (#205) covers the `move` form only.
+It was left out rather than forced: in all six figures the track a point
+would leave is already drawn by the curve it rides.
+
 ## Sound (the play command) — done 2026-08-26
 
 `play` sounds synthesized notes (WebAudio oscillators, five instrument
