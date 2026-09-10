@@ -76,7 +76,9 @@ const NUM = String.raw`-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?`;
 /** `- - 10\n  - 20` (a pair nested in a list) → `- [10, 20]`, unless a third item follows. */
 const PAIR_IN_LIST = new RegExp(String.raw`^([ \t]*)- - (${NUM})\n\1  - (${NUM})\n(?!\1  - )`, "gm");
 /** `key:\n  - 10\n  - 20` (a two-number list under a key) → `key: [10, 20]`, unless a third item follows. */
-const PAIR_UNDER_KEY = new RegExp(String.raw`^([ \t]*)([A-Za-z_][\w-]*):\n\1  - (${NUM})\n\1  - (${NUM})\n(?!\1  - )`, "gm");
+// The key may be quoted: js-yaml writes `'y':` because a bare y is YAML 1.1's
+// boolean — and `domain.y` is exactly the pair this exists for.
+const PAIR_UNDER_KEY = new RegExp(String.raw`^([ \t]*)('?[A-Za-z_][\w-]*'?):\n\1  - (${NUM})\n\1  - (${NUM})\n(?!\1  - )`, "gm");
 
 /**
  * Two-number lists on one line: js-yaml writes every list as a block, so a

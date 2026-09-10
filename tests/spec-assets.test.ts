@@ -21,6 +21,12 @@ describe("compactPointPairs", () => {
     const yaml = ["points:", "  - - 10", "    - 20", "  - - -3.5", "    - 4e2", "domain:", "  x:", "    - 0", "    - 30", ""].join("\n");
     expect(compactPointPairs(yaml)).toBe(["points:", "  - [10, 20]", "  - [-3.5, 4e2]", "domain:", "  x: [0, 30]", ""].join("\n"));
   });
+  test("a quoted key compacts too: js-yaml writes domain's y as 'y' (a bare y is YAML 1.1's boolean)", () => {
+    const yaml = dumpSpecYaml({ domain: { x: [0, 30], y: [0, 85000] }, elements: [], commands: [] });
+    expect(yaml).toContain("x: [0, 30]");
+    expect(yaml).toContain("'y': [0, 85000]");
+    expect(parseSpecText(yaml).value).toEqual({ domain: { x: [0, 30], y: [0, 85000] }, elements: [], commands: [] });
+  });
   test("a triple and a list of words are left alone", () => {
     const yaml = ["rgb:", "  - 1", "  - 2", "  - 3", "draw:", "  - a", "  - b", ""].join("\n");
     expect(compactPointPairs(yaml)).toBe(yaml);
