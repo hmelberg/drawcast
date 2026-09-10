@@ -357,6 +357,8 @@ export interface MorphArgs {
   pivot?: PointRef;
   /** Back to the layout's points. */
   reset?: boolean;
+  /** New TeX for a math element — tweens glyph-by-glyph from its current TeX. */
+  tex?: string;
   /** seconds (default 1.5) */
   duration?: number;
   easing?: Easing;
@@ -410,6 +412,13 @@ export interface KeepArgs {
   opacity?: number;
 }
 
+export interface CopyArgs {
+  /** The element id to clone. */
+  target: string;
+  /** The clone's new id (default `<target>_copy`, then `_copy_2`, …). */
+  as?: string;
+}
+
 export interface Command {
   speak?: string;
   /** With speak: false = start speaking and continue to the next command immediately. */
@@ -450,6 +459,8 @@ export interface Command {
   flip?: FlipArgs;
   /** Tween an outline to new points, another outline, or a stretch. */
   morph?: MorphArgs;
+  /** Clone an element under a new id, visible where the source now stands. */
+  copy?: CopyArgs;
   /** Dots or dashes streaming along strokes while the sentence lands. */
   flow?: FlowArgs;
   /** Keep a faded copy of what is about to be drawn over, in place. */

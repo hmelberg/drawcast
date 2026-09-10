@@ -104,7 +104,7 @@ function contactEmail(): string {
 export function planOptionsFor(
   spec: Spec,
   layout: LayoutResult,
-): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds"> {
+): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds" | "mathOf" | "isElement"> {
   // Definitions hold (design 2026-09-10 §2.5): what is defined in terms of
   // what. A source that is a group or a pieces cut is moved through its
   // members (the planner expands it), so its dependents are attached to every
@@ -131,6 +131,11 @@ export function planOptionsFor(
   return {
     dependentsOf: (id) => depsByLeaf.get(id) ?? [],
     sourceIds: sources,
+    mathOf: (id) => {
+      const el = spec.elements?.find((e) => e.id === id);
+      return el?.type === "math" && typeof el.tex === "string" ? el.tex : null;
+    },
+    isElement: (id) => spec.elements?.some((e) => e.id === id) ?? false,
     pieceOf: (id) => layout.pieces[id] ?? null,
     measureOf: (id) => layout.measures[id] ?? null,
     // Which measures read this element: the one that measures it outright, and

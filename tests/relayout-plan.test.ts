@@ -23,7 +23,7 @@ describe("relayout steps", () => {
     });
     const mv = plan.steps[1] as Extract<PlanStep, { kind: "move" }>;
     expect(mv.relayout).toBe(true);
-    expect(calls).toEqual([{ params: {}, overrides: { poses: { d: { offset: [50, 0], turn: undefined } }, shapes: {} } }]);
+    expect(calls).toEqual([{ params: {}, overrides: { poses: { d: { offset: [50, 0], turn: undefined } }, shapes: {}, math: {}, copies: {} } }]);
     const pt = plan.steps[2] as Extract<PlanStep, { kind: "point" }>;
     expect(pt.x).toBeCloseTo(300, 6); // the post-move intersection box
     expect(plan.sources).toEqual(["d"]);

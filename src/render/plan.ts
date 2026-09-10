@@ -84,7 +84,8 @@ export type PlanStep = (
   | ({ kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing; trails?: TrailProgress[]; relayout?: true } & MeasureFollow)
   | ({ kind: "transform"; items: TransformItem[]; seconds: number; easing: Easing; trails?: TrailProgress[]; relayout?: true } & MeasureFollow)
   | { kind: "fade"; items: { id: string; from: number; to: number }[]; seconds: number; easing: Easing }
-  | ({ kind: "morph"; items: MorphItem[]; seconds: number; easing: Easing; relayout?: true } & MeasureFollow)
+  | ({ kind: "morph"; items: MorphItem[]; texItems?: TexItem[]; seconds: number; easing: Easing; relayout?: true } & MeasureFollow)
+  | { kind: "copy"; ids: string[] }
   | {
       kind: "flow";
       ids: string[];
@@ -135,6 +136,13 @@ export interface MorphItem {
   leaves: { leafId: string; from: Pt[]; to: Pt[] }[];
 }
 
+/** One math element's retypeset within a `morph` step: current TeX to new TeX. */
+export interface TexItem {
+  id: string;
+  from: string;
+  to: string;
+}
+
 /** One text leaf's new content at a step boundary (design §2.3): a measure's
  *  recomputed value, written where the layout's own string was. */
 export interface TextItem {
@@ -180,9 +188,13 @@ export interface SceneState {
   shapes: Record<string, Record<string, Pt[]>>;
   /** Current content of every rewritten text leaf: element id → leaf id → string (absent = the layout's own). A measure's value lives here once the figure it reads has moved (design §2.3). */
   texts: Record<string, Record<string, string>>;
+  /** Current TeX of every math element that has been morphed (absent = the layout's own). */
+  tex: Record<string, string>;
+  /** Cloned elements minted by `copy`: new id → source element id (cumulative). */
+  copies: Record<string, string>;
 }
 
-export const INITIAL_STATE: SceneState = { visible: [], offsets: {}, turns: {}, camera: null, params: {}, opacities: {}, shapes: {}, texts: {} };
+export const INITIAL_STATE: SceneState = { visible: [], offsets: {}, turns: {}, camera: null, params: {}, opacities: {}, shapes: {}, texts: {}, tex: {}, copies: {} };
 
 /** Scene state at a step boundary as PLANNED: after steps[0..n-1]. */
 export function boundaryAt(plan: Plan, n: number): SceneState {
@@ -279,6 +291,10 @@ export interface PlanOptions {
   measureOf?: (id: string) => MeasureSpec | null;
   /** The measure ids that read an element — its `of`, or the ref of its `from`/`to` (design §2.3). */
   measuresDependingOn?: (id: string) => string[];
+  /** A math element's current TeX (spec.elements, before any morph), or null when the id is not a math element. */
+  mathOf?: (id: string) => string | null;
+  /** Whether an id names an element declared in the spec (as opposed to a minted or template id). */
+  isElement?: (id: string) => boolean;
 }
 
 /** A PointRef that names a place in the SCENE (an array, a ref, or x+y) rather than the acting element's own anchor — resolved once per command, never per target. */
@@ -314,6 +330,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const trailCount = new Map<string, number>();
   /** How many ghosts a given target has already left — the `_2`, `_3` … suffix. */
   const ghostCount = new Map<string, number>();
+  /** How many unnamed copies a given source has already minted — the `_2`, `_3` … suffix on `<id>_copy`. */
+  const copyCount = new Map<string, number>();
   /** Ask store → default, in command order — the fallback for "{var}" animate targets. */
   const storeDefaults: Record<string, string> = {};
   /** Ids whose visibility the spec manages explicitly — excluded from the implicit final draw. */
@@ -326,6 +344,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const opacities: Record<string, number> = {};
   const shapes: Record<string, Record<string, Pt[]>> = {};
   const texts: Record<string, Record<string, string>> = {};
+  /** Current TeX of every math element `morph.tex` has retypeset. */
+  const tex: Record<string, string> = {};
+  /** Cloned elements minted by `copy`: new id → source element id. */
+  const copies: Record<string, string> = {};
   let camera: BBox | null = null;
   let params: Record<string, number> = {};
   /** Definitions hold (design 2026-09-10 §2.5). */
@@ -342,7 +364,11 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       if ((o && (o[0] !== 0 || o[1] !== 0)) || !isIdentity(t)) poses[id] = { offset: o ?? [0, 0], turn: t };
       if (shapes[id]) shp[id] = shapes[id];
     }
-    return { poses, shapes: shp };
+    // math and copies: never restricted to sources — a TeX override always
+    // changes the layout, and a copy is what MAKES an id exist at all.
+    const math: Record<string, { tex: string }> = {};
+    for (const [id, t] of Object.entries(tex)) math[id] = { tex: t };
+    return { poses, shapes: shp, math, copies: { ...copies } };
   };
   /** The elements defined in terms of any of these ids (never the ids themselves). */
   const dependentsOf = (ids: string[]): string[] => [...new Set(ids.flatMap((id) => opts.dependentsOf?.(id) ?? []))].filter((d) => !ids.includes(d));
@@ -386,6 +412,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       opacities: { ...opacities },
       shapes: Object.fromEntries(Object.entries(shapes).map(([id, m]) => [id, { ...m }])),
       texts: Object.fromEntries(Object.entries(texts).map(([id, m]) => [id, { ...m }])),
+      tex: { ...tex },
+      copies: { ...copies },
     });
   };
   /** The window's scroll: the highest visible line's bottom sits at the
@@ -615,7 +643,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   /** The source poses a ghost is read under (review finding 5, 2026-09-10); undefined when nothing is posed. */
   const ghostOverrides = (): LayoutOverrides | undefined => {
     const ov = currentOverrides();
-    return Object.keys(ov.poses ?? {}).length === 0 && Object.keys(ov.shapes ?? {}).length === 0 ? undefined : ov;
+    return Object.keys(ov.poses ?? {}).length === 0 && Object.keys(ov.shapes ?? {}).length === 0 && Object.keys(ov.math ?? {}).length === 0 && Object.keys(ov.copies ?? {}).length === 0 ? undefined : ov;
   };
   /** Mint a motion verb's ghosts AND give them a step of their own, ahead of
    *  the motion — the same `{kind:"show"}` `keep` pushes. Without it nothing
@@ -782,7 +810,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     };
   };
 
-  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "flow", "keep", "camera", "animate", "play"] as const;
+  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "copy", "flow", "keep", "camera", "animate", "play"] as const;
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
@@ -1358,14 +1386,35 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.morph !== undefined) {
       const ids = withoutDependents(resolveIds(cmd.morph.target, "morph"), "morph");
       if (ids.length === 0) continue;
-      const modes = [cmd.morph.to !== undefined, cmd.morph.stretch !== undefined, cmd.morph.reset === true].filter(Boolean).length;
+      const modes = [cmd.morph.to !== undefined, cmd.morph.stretch !== undefined, cmd.morph.reset === true, cmd.morph.tex !== undefined].filter(Boolean).length;
       if (modes !== 1) {
-        warnings.push("morph needs exactly one of to, stretch or reset — skipped");
+        warnings.push("morph needs exactly one of to, stretch, reset or tex — skipped");
         continue;
       }
       // Minted only once the command is known to survive the guard above —
       // a warned-and-skipped morph must not leave a permanent ghost behind.
       showGhosts(cmd.morph.ghost, ids);
+      if (cmd.morph.tex !== undefined) {
+        // A copy's TeX is read through its source chain: mathOf only knows
+        // the spec's own math elements, not ids `copy` minted at plan time.
+        const srcOf = (id: string): string => (copies[id] ? srcOf(copies[id]) : id);
+        const texItems: TexItem[] = [];
+        for (const id of ids) {
+          const cur = tex[id] ?? opts.mathOf?.(srcOf(id));
+          if (cur === null || cur === undefined) {
+            warnings.push(`morph "${id}": not a math element — tex needs one`);
+            continue;
+          }
+          texItems.push({ id, from: cur, to: cmd.morph.tex });
+          tex[id] = cmd.morph.tex;
+        }
+        if (texItems.length === 0) continue;
+        // A retypeset always changes the element's geometry — always a relayout.
+        const upd = measureUpdates(texItems.map((it) => it.id));
+        pushStep({ kind: "morph", items: [], texItems, seconds: cmd.morph.duration ?? 1.5, easing: cmd.morph.easing ?? "ease-in-out", relayout: true, ...upd });
+        relayoutBoxes();
+        continue;
+      }
       let refRing: { pts: Pt[]; closed: boolean } | null = null;
       if (cmd.morph.to !== undefined && !Array.isArray(cmd.morph.to)) {
         const ref = cmd.morph.to.ref;
@@ -1425,6 +1474,34 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       const relayout = dependentsOf(items.map((it) => it.id)).length > 0;
       pushStep({ kind: "morph", items, seconds: cmd.morph.duration ?? 1.5, easing: cmd.morph.easing ?? "ease-in-out", ...(relayout ? { relayout: true as const } : {}), ...upd });
       if (relayout) relayoutBoxes();
+    } else if (cmd.copy !== undefined) {
+      // No resolveIds here on purpose: its generic "unknown id" wording would
+      // not distinguish an unknown id from a minted/template one, and the
+      // guards below need to say which.
+      const id = cmd.copy.target;
+      if (!known.has(id) || opts.isElement?.(id) === false || mintedBoxes.has(id)) {
+        warnings.push(`copy target "${id}" is not an element — skipped`);
+        continue;
+      }
+      let as = cmd.copy.as;
+      if (as === undefined) {
+        const n = (copyCount.get(id) ?? 0) + 1;
+        copyCount.set(id, n);
+        as = n === 1 ? `${id}_copy` : `${id}_copy_${n}`;
+      } else if (!/^[a-z][a-z0-9_]*$/i.test(as)) {
+        warnings.push(`copy: "${as}" is not a valid id — skipped`);
+        continue;
+      } else if (known.has(as)) {
+        warnings.push(`copy: "${as}" is already an element — skipped`);
+        continue;
+      }
+      copies[as] = id;
+      if (tex[id] !== undefined) tex[as] = tex[id];
+      known.add(as);
+      mentioned.add(as);
+      makeVisible([as]);
+      pushStep({ kind: "copy", ids: [as] });
+      relayoutBoxes();
     } else if (cmd.flow !== undefined) {
       const ids = resolveIds(cmd.flow.along, "flow");
       if (ids.length === 0) continue;
