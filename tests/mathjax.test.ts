@@ -88,6 +88,14 @@ describe("mathjax engine (real load — node, no DOM)", () => {
     expect(second).toBe(first);
   });
 
+  test("an inline expression is ONE piece: MathJax 4's inline line-breaking is off (a+b would lose +b)", async () => {
+    const eng = await mathjax();
+    // With linebreaks.inline on, 4.x emits "a" in one <svg> and "+b" in a
+    // second; layoutTeX reads the first and silently drops the rest.
+    expect(eng.layoutTeX("a+b").outlines.length).toBe(3);
+    expect(eng.layoutTeX("x^2 + 1").outlines.length).toBe(4);
+  });
+
   test("layoutTeX('E = mc^2') covers every glyph", async () => {
     const eng = await mathjax();
     const { outlines } = eng.layoutTeX("E = mc^2");

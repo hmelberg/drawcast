@@ -19,7 +19,7 @@
 // Type-only imports: erased at compile time, so mathjax-full/topojson stay
 // entirely inside the lazy chunks their loaders' dynamic imports create.
 import type { Spec } from "../spec/types";
-import type { LiteElement, LiteNode } from "mathjax-full/js/adaptors/lite/Element.js";
+import type { LiteElement, LiteNode } from "@mathjax/src/js/adaptors/lite/Element.js";
 import type { Topology, GeometryCollection } from "topojson-specification";
 import type { FeatureCollection, Geometry, Polygon, MultiPolygon, Position } from "geojson";
 import { sampleSvgPath } from "./svgpath";
@@ -219,27 +219,41 @@ function parseTransform(spec: string): Mat {
   return m;
 }
 
-/** Verified against mathjax-full@3.2.2: the liteAdaptor tex2svg pipeline (no DOM). */
+/**
+ * Verified against @mathjax/src 4.1.3 (spike 2026-09-10): the liteAdaptor
+ * tex2svg pipeline (no DOM). MathJax 4 ships its fonts as separate packages
+ * and may split a font's glyph data into files it loads on demand; every such
+ * file is loaded HERE, once, so `layoutTeX` stays synchronous — the layout
+ * calls it inside layoutSpec and cannot await. The TeX font has no dynamic
+ * files at all; a font that has them (Fira, STIX, …) must be given a
+ * `mathjax.asyncLoad` that resolves to bundled modules before this runs.
+ */
 async function loadMathJax(): Promise<MathJaxEngine> {
-  const [{ mathjax }, { TeX }, { SVG }, { liteAdaptor }, { RegisterHTMLHandler }] = await Promise.all([
-    import("mathjax-full/js/mathjax.js"),
-    import("mathjax-full/js/input/tex.js"),
-    import("mathjax-full/js/output/svg.js"),
-    import("mathjax-full/js/adaptors/liteAdaptor.js"),
-    import("mathjax-full/js/handlers/html.js"),
+  const [{ mathjax }, { TeX }, { SVG }, { liteAdaptor }, { RegisterHTMLHandler }, { MathJaxTexFont }] = await Promise.all([
+    import("@mathjax/src/js/mathjax.js"),
+    import("@mathjax/src/js/input/tex.js"),
+    import("@mathjax/src/js/output/svg.js"),
+    import("@mathjax/src/js/adaptors/liteAdaptor.js"),
+    import("@mathjax/src/js/handlers/html.js"),
+    import("@mathjax/mathjax-tex-font/js/svg.js"),
     // Side-effect import: it registers the "ams" package (align, matrices, the
     // extra symbols). Naming a package TeX never registered is silently
     // ignored, so without this line \begin{pmatrix} dies as "unknown
-    // environment". AllPackages is the alternative and drags in mhchem et al.
-    import("mathjax-full/js/input/tex/ams/AmsConfiguration.js"),
+    // environment". AllPackages is gone in 4; this is the one we need.
+    import("@mathjax/src/js/input/tex/ams/AmsConfiguration.js"),
   ]);
   const adaptor = liteAdaptor();
   RegisterHTMLHandler(adaptor);
   // fontCache "none" inlines each glyph's <path> where it is used, so there are
   // no <use>/<defs> indirections to chase — only nested transforms, which the
   // walk below composes.
-  const out = new SVG({ fontCache: "none" });
+  // linebreaks.inline is ON by default in 4: an inline expression is cut into
+  // pieces — one <svg> each, joined by <mjx-break> — so a browser can wrap it
+  // like text. layoutTeX reads ONE svg with one viewBox, so "a+b" came back
+  // as just "a" (the two missing glyphs were in the second piece).
+  const out = new SVG({ fontCache: "none", fontData: MathJaxTexFont, linebreaks: { inline: false } });
   const doc = mathjax.document("", { InputJax: new TeX({ packages: ["base", "ams"] }), OutputJax: out });
+  await out.font.loadDynamicFiles();
   // MathJax lays out in 1000-units-per-em font coordinates; dividing by the
   // font's x-height puts an "x"-tall baseline row at h ≈ 1.
   const unitsPerEx = 1000 * out.font.params.x_height;

@@ -1143,9 +1143,12 @@ describe("mathlogic pack", () => {
         const hx = (Math.min(...hole.map((p) => p[0])) + Math.max(...hole.map((p) => p[0]))) / 2;
         const hy0 = Math.min(...hole.map((p) => p[1])), hy1 = Math.max(...hole.map((p) => p[1]));
         expect(painted([hx, (hy0 + hy1) / 2], glyph), `${tex}: counter`).toBe(false);
-        // ... and the bowl wall above that counter still is ink.
-        const top = Math.max(...glyph.pts.filter((p) => Math.abs(p[0] - hx) < 1).map((p) => p[1]), hy1 + 2);
-        expect(painted([hx, (hy1 + top) / 2], glyph), `${tex}: bowl wall`).toBe(true);
+        // ... and the bowl wall right above that counter still is ink. Just
+        // above the counter's top, not halfway to the glyph's top: on an
+        // italic b the glyph's top at this x is the leaning ascender, with
+        // paper between it and the bowl (MathJax 4's denser sampling put an
+        // outline point there and the old midpoint landed on that paper).
+        expect(painted([hx, hy1 + 0.5], glyph), `${tex}: bowl wall`).toBe(true);
       }
     });
 
