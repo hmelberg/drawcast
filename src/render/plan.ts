@@ -1479,7 +1479,13 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // not distinguish an unknown id from a minted/template one, and the
       // guards below need to say which.
       const id = cmd.copy.target;
-      if (!known.has(id) || opts.isElement?.(id) === false || mintedBoxes.has(id)) {
+      // A copy of a copy is a copyable element too — opts.isElement only
+      // knows the spec's own elements, never a `copy`-minted id, so it must
+      // be checked FIRST: the derivation idiom (copy, move it, morph its
+      // TeX, copy again, …) needs a chain, and the recursive srcOf walk in
+      // the morph.tex branch above exists exactly to read one.
+      const isCopyable = copies[id] !== undefined || (known.has(id) && opts.isElement?.(id) !== false && !mintedBoxes.has(id));
+      if (!isCopyable) {
         warnings.push(`copy target "${id}" is not an element — skipped`);
         continue;
       }

@@ -44,4 +44,21 @@ describe("copy", () => {
     const plan = planCommands([{ draw: ["eq"] }, { copy: { target: "eq" } }, { copy: { target: "eq" } }], ["eq"], opts);
     expect(Object.keys(plan.states[2].copies)).toEqual(["eq_copy", "eq_copy_2"]);
   });
+  test("a copy of a copy is copyable — the derivation chain (copy, morph its tex, copy the copy, morph again)", () => {
+    const plan = planCommands(
+      [
+        { draw: ["eq"] },
+        { copy: { target: "eq" } },
+        { morph: { target: "eq_copy", tex: "2x = 8" } },
+        { copy: { target: "eq_copy" } },
+        { morph: { target: "eq_copy_copy", tex: "x = 4" } },
+      ],
+      ["eq"],
+      opts,
+    );
+    expect(plan.warnings).toEqual([]);
+    expect(plan.states[3].copies).toEqual({ eq_copy: "eq", eq_copy_copy: "eq_copy" });
+    const last = plan.steps[4] as Extract<PlanStep, { kind: "morph" }>;
+    expect(last.texItems).toEqual([{ id: "eq_copy_copy", from: "2x = 8", to: "x = 4" }]);
+  });
 });
