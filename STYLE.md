@@ -21,6 +21,66 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-12 — Be generous by default: things happening, and small asides
+
+Hans: «By default bør vi også være generøse med interaksjoner og ting som
+skjer på skjermen. Det er kjedelig å bare høre. Det er også veldig fint å
+bruke konkrete eksempler og små asides når det er relevant (historiske
+anekdoter, biografiske anekdoter). Som med alt annet. Ikke overdriv, men noe
+er bra.»
+
+**Distillation.** This raises a DEFAULT, and the rules it meets are written
+as floors and ceilings — which is why it does not simply slot in:
+
+1. **Things happening is the default setting, not the minimum.** "Keep the
+   canvas moving" is a floor (never more than two speak-only commands in a
+   row) and it is satisfied by a figure that barely moves. Hans is setting
+   the resting level above the floor: something is happening most of the
+   time, because a viewer who is only listening is watching a podcast with a
+   picture on it.
+2. **Concrete examples and small asides are welcome, not rationed.** A
+   historical or biographical anecdote where it is relevant, carried in a
+   clause or a beat — the enrichment the 2026-08-26 entry already names, but
+   with the emphasis moved from "at most one, or none" toward "some is good".
+3. **The limit holds, as everywhere else.** "Ikke overdriv, men noe er bra."
+   Generosity is a default, not a mandate, and the topic still decides.
+
+**The three ceilings this argues with,** all currently in the prompt, all
+written when the worry was excess rather than flatness:
+
+- **Gestures: "2–4 per figure lands; a gesture on literally every element
+  exhausts."** A cap on the very thing Hans wants more of. The cap is not
+  wrong — a highlight on everything teaches the viewer to ignore highlights
+  (2026-08-26, intelligent viewer) — but 2–4 is a number for a small figure,
+  and a 16-beat drawcast held to four gestures is mostly a voice over a still
+  picture. Likely fix: scale the budget to the length rather than fix it.
+- **Enrichment: "Choose ONE enrichment, or none … never stuff several."**
+  Hans is now saying an aside is *veldig fint* where relevant. One-or-none
+  probably becomes one-or-two-where-they-genuinely-fit; the truth guard and
+  the relevance test are what actually do the work, not the count.
+- **Annotations at 1–2, animate beats at "one or two per figure."** Same
+  shape: fixed small numbers standing in for judgment.
+
+**The open question this raises, for Hans.** "Interaksjoner" is ambiguous
+between two very different things, and the answer changes the prompt:
+
+- *Motion* — gestures, animate, focus, flow, camera. Raising this default is
+  uncontroversial; it is the ceilings above.
+- *Viewer interaction* — `quiz`, `ask`, `explore`, `wait`. These are
+  currently GATED behind an explicit request or tag ("Use ONLY when the
+  request asks for a quiz/test or the #quiz tag is present — most drawcasts
+  need none"). Making them generous by default is a policy reversal, not a
+  loosened number, and it has a real cost: the video export degrades every
+  one of them — a quiz auto-answers itself, an `ask` types its own answer,
+  `wait` auto-resolves, and an `explore` beat is DROPPED ENTIRELY INCLUDING
+  ITS SPEAK. Generous interaction makes the app version richer and the
+  exported film thinner. Worth deciding deliberately rather than inheriting.
+
+**Status.** Not in the prompt. Unlike the other two ungraduated entries this
+one mostly REMOVES or loosens text rather than adding it, which makes it the
+cheapest of the three to graduate — and the one most likely to be undone by
+accident later, since the numbers it relaxes all read as careful restraint.
+
 ### 2026-09-12 — The three passes: announce, explain, conclude — each from a different angle
 
 Hans: «En god metode når man skal forklare, er ofte å si hva man skal
