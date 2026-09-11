@@ -1,12 +1,5 @@
 import { defineConfig } from "vitest/config";
 
-/** See the comment on `test` below: the worker cap, and a line saying so. */
-function capWorkers(): { maxWorkers?: number; minWorkers?: number } {
-  const onCi = !!(process.env.NETLIFY || process.env.CI);
-  console.log(onCi ? "vitest: build container — worker pool capped at 2" : "vitest: local run — full worker pool");
-  return onCi ? { maxWorkers: 2, minWorkers: 1 } : {};
-}
-
 export default defineConfig({
   // Relative base so the build works on GitHub Pages subpaths and any static host.
   base: "./",
@@ -16,21 +9,11 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
-    // Netlify's build container advertises many CPUs and hands out about one.
-    // Vitest sizes its worker pool from the advertised number, so the pool
-    // starves vitest's OWN main thread: a worker's `onTaskUpdate` RPC waits
-    // past its 60-second ceiling, and the run ends "7217 passed, 1 error".
-    // Passing tests plus an unhandled error is exit code 2, so `npm test`
-    // fails and `npm test && npm run build` never reaches the build — two
-    // deploys died that way on 2026-09-11 with nothing wrong in the code.
-    // Two workers keep the main thread scheduled; wall time is unchanged
-    // because the container was serialising the run anyway (112 s wall
-    // against 121 s of summed test time). Local runs keep the full pool.
-    //
-    // NETLIFY, not CI: Netlify's build image does NOT set CI, so the first
-    // attempt at this cap was a no-op and the deploy failed again with the
-    // identical 112 s duration. The line below says which branch it took, so
-    // the build log answers that question instead of the next deploy.
-    ...capWorkers(),
+    // A worker cap for CI stood here for an hour on 2026-09-11 and is gone
+    // again: it was a wrong answer to the `onTaskUpdate` timeout described in
+    // netlify.toml. Measured, capped at 2 — Netlify 114.17s against the
+    // uncapped 112.33s, GitHub Actions 135.88s — and both still ended
+    // "7217 passed, 1 error". Contention is not the cause; do not re-add it
+    // without evidence that it changes something.
   },
 });
