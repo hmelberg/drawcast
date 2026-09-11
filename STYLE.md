@@ -21,6 +21,96 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-12 — The three passes: announce, explain, conclude — each from a different angle
+
+Hans: «En god metode når man skal forklare, er ofte å si hva man skal
+forklare, så forklare det, og til slutt konkludere med hva man har fortalt.
+Alt med litt ulik vinkling slik at det ikke blir ren repetisjon, men det gir
+et mentalt veikart.»
+
+**Distillation.** The classic shape, with the qualifier that is the whole
+point: **the three passes take different angles on the same thing.** Announce
+the destination, walk the road, name where you arrived — and if the three
+could be swapped for one another, the piece has said its content once and
+padded it twice. A workable division of labour:
+
+1. **Announce** — the question, and the stakes. What this decides, prevents
+   or complicates. Not the mechanism, and not the answer.
+2. **Explain** — the mechanism, step by step, in the example's own numbers.
+3. **Conclude** — what the viewer can now SEE that they could not before.
+   The insight in its own words, not the opening sentence again.
+
+The value is navigational: a viewer who knows the destination follows every
+step, and a viewer who knows they have arrived can stop working. It is the
+same instinct as the situate rule (2026-08-26) extended over the whole arc
+rather than the opening beat — situate says *why we are going*, this says
+*the viewer should always know where in the journey they are*.
+
+Two frictions to resolve when this graduates, both real:
+
+- **Against "explain in passing, never by announcement" (2026-08-26).** That
+  ban is on signposting INSIDE the explanation — "Notice that", "It is
+  important to note" — never on the opening pass, which is an announcement by
+  design. The `#long` / `#verylong` briefs already say "Open by saying in one
+  sentence what you will explain", so the two coexist today; whoever writes
+  the prompt sentence must keep them from reading as contradictory.
+- **Against short drawcasts.** Three passes over 3–4 speak lines is mostly
+  frame and little picture. This is a rule for the medium and long forms;
+  `#veryshort` and `#short` should keep overriding it, as they already
+  override length everywhere else.
+
+**Status.** Half-encoded, as two separate rules that were never framed as one
+arc: the opening is covered twice ("Start on the canvas" and "Situate the
+topic"), the close once ("Make it land" — end with a one-line synthesis that
+names what the viewer can now see). What is NOT anywhere: the arc itself as a
+mental roadmap, and the different-angle discipline that keeps the third pass
+from being a restatement. Not yet in the prompt.
+
+### 2026-09-12 — Step by step, and the contract runs both ways
+
+Hans: «Et annet råd er å forklare skritt for skritt. Spesielt i denne typen
+videoer når vi tegner/animerer og snakker. Man skal ikke snakke lenge uten at
+noe skjer på skjermen, og man skal heller ikke plutselig gjøre noe på skjermen
+som ikke er forklart eller motivert.»
+
+**Distillation.** Voice and canvas owe each other something, and we have only
+ever written down one half of the debt:
+
+1. **No talking over a still canvas.** Encoded since 2026-09-01 ("Do not talk
+   to a blank screen"), enforced by two lint rules (slow-start,
+   talky-stretch) — the debt we collect on.
+2. **No ink the narration has not prepared.** NOT written down anywhere, and
+   this is the half Hans is adding. A stroke that appears unannounced makes
+   the viewer stop listening and start decoding: *what is that, and why is it
+   there?* — attention spent on the figure instead of the idea.
+
+The second half has a mechanism working against it. The prompt tells the
+model that "elements you never mention are drawn automatically at the end",
+softened with "but a good storyboard mentions everything in a deliberate
+order" — so anything the model forgets lands on the canvas in one silent
+batch, AFTER the explanation is over. The space round already found the sharp
+edge of this (unnamed elements drawn by an implicit final `draw`, landing
+after the question that was supposed to precede them). The fallback is right
+as a safety net and wrong as a habit.
+
+The exception that keeps the rule honest is already in the prompt and must
+survive: **scaffolding is drawn fast and unnarrated** — axes, grids, boards.
+So the rule is not "every element gets a sentence". It is: *anything that
+carries meaning is motivated before or as it appears; only backdrop may
+arrive unannounced.* Drawing something and explaining it afterwards is the
+failure — the sentence and the stroke start together, which is what narrated
+actions are FOR.
+
+"Step by step" is the same discipline seen from the other side: each beat
+adds one thing, and the viewer is told why that thing is next. A beat that
+adds three things has made two of them unmotivated by construction.
+
+**Status.** Half in the prompt and half absent, as above. The missing half is
+also the only half with no lint — and a deterministic check looks reachable:
+an element that is neither scaffolding nor named by any `speak`, and whose
+`draw` command carries no `speak`, is unmotivated ink. Worth a spike when
+this graduates; the implicit final draw is where it would bite first.
+
 ### 2026-09-09 — A thing is drawn as named parts
 
 Hans's ruling for the freehand round, recorded in its design spec
