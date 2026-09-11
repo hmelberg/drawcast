@@ -44,6 +44,15 @@ none chosen:
 Nothing here is urgent: the 11 fewshots are always in the prompt and carry
 the mechanics, so a missing exemplar costs topical fit, not correctness.
 
+**Graduated 2026-09-12** into the roadmap as **Language-neutral retrieval**,
+after Hans asked whether the answer is instead to translate every request to
+English, generate, and translate back. The ruling recorded there: forward
+yes, backward no — translate what is MATCHED, never what is DELIVERED. The
+three options above are the roadmap section's options table, with the
+router's `topic` field preferred; the case against translating the spec back
+(ids and content in the same JSON, the lint measuring text the viewer never
+sees, translationese, an undiscardable round) is written up there too.
+
 ## 2026-09-10 — What manim has that drawcast lacks
 
 Hans asked whether manim (3b1b's engine, github.com/3b1b/manim; the

@@ -1027,6 +1027,90 @@ Open follow-ups:
   translated; a playlist's **title page and chapter cards** are not translated
   either (item specs are, playlist meta is not).
 
+## Language-neutral retrieval — open (2026-09-12)
+
+Half this app's requests are written in Norwegian, and 33 of the 241 bundled
+examples are. Everything that RETRIEVES matches on the request's own words,
+so it works one language at a time: exemplar picking (`selectExemplars`), the
+template router, and the code-block detector (`wantsCode`, which carries a
+hand-kept list of Norwegian stems for exactly this reason).
+
+Measured 2026-09-11 against `src/examples.json`, before that day's stoplist
+fix (`34e860a`): «Forklar hvorfor renter påvirker inflasjonen» picked three
+exemplars on the single word "hvorfor" — a fraction series, why iron is
+called Fe, and the circle-area proof. The English side had the same disease
+one step further along, because STYLE.md's 2026-09-07 ruling turns every
+request into a question: "How does a vaccine actually work?" picked a
+confidence-interval figure on "does" and "actually".
+
+The fix stopped the wrong matches; it did not create right ones. A Norwegian
+request now matches NOTHING: «Forklar hvordan tilbud og etterspørsel
+bestemmer prisen» gets no exemplar at all, though the file holds a dozen
+supply-and-demand figures in English. That costs topical fit, not
+correctness — the 11 fewshots are always in the prompt and carry the
+mechanics — so this is a quality item, not a bug.
+
+Hans asked (2026-09-11) whether the answer is to translate every request to
+English, generate, and translate back at the best point, instead of keeping
+language-aware word lists in three places.
+
+**The ruling: forward yes, backward no — translate what is MATCHED, never
+what is DELIVERED.** Retrieval and routing become language-neutral;
+generation stays monolingual in the request's own language, as today.
+
+### Forward: the options
+
+Forward is already half-built. The router (`src/llm/router.ts`) runs one
+Haiku call per request, reads the request semantically, and already answers
+partly in English — `subject` is specified as "a two-to-four word noun
+phrase in English" for the icon seed.
+
+| Option | What it gives | Cost | Ruling |
+|---|---|---|---|
+| An English `topic` / `keywords` field on the router's existing structured answer, fed to `selectExemplars` | Crosses the language line by construction; fixes exemplar picking, the router's own Norwegian precision (open since the template round) and eventually `wantsCode` | A schema field and a plumb-through — not a call, not a round-trip | **Preferred** |
+| A bilingual term map (tilbud→supply, etterspørsel→demand, celle→cell) applied to keywords before scoring | Deterministic, testable, no model in the loop | A glossary someone has to keep — the maintenance this item exists to remove, just smaller | Fallback if the router path proves flaky |
+| Embeddings over the 241 requests | Best quality; ranks by meaning within a language too | Needs an embeddings key — the same blocker as `gift`'s dense retriever — plus an index to rebuild when examples change | Later, if ever |
+
+The follow-on win is the real prize: once retrieval is language-neutral,
+`src/examples.json` can quietly become English-only. The 33 Norwegian
+examples exist as a parallel corpus for a matcher that can no longer read
+them, and every future example is then written once instead of twice.
+
+### Backward: why not
+
+1. **Ids and content live in the same JSON.** A spec mixes element ids that
+   commands reference (`draw`, `at.ref`, `attach_to`, `highlight.target`)
+   with user-visible strings (`speak`, labels, `quiz.choices`, `ask.answer`,
+   `math` TeX inside `\text{}`). A translation pass must know exactly which
+   is which and be updated whenever the schema grows — the same maintenance
+   burden, moved from a 20-line stoplist to a schema-aware traversal, with a
+   worse failure mode: a translated id silently breaks every reference to it.
+2. **The lint would measure text the viewer never sees.** Overlap,
+   out-of-canvas and font-too-small are computed from the laid-out text, and
+   Norwegian runs ~10 % longer than English. Translate after the repair loop
+   and the figure ships with a guarantee measured on different strings;
+   translate before it and you have only bought the retrieval fix — which
+   the forward path gives you with no round-trip at all.
+3. **The narration is the product.** STYLE.md is 478 lines about voice.
+   Translated English teaching prose reads as translationese; a model writing
+   directly in Norwegian writes Norwegian. `#pun` and `#fun` do not survive
+   at all.
+4. **An extra full-spec emission cannot be discarded.** The pedagogy pass is
+   safe because `adoptIfNoWorse` can throw its answer away; a translation
+   round cannot — if it fails, a Norwegian viewer is left with an English
+   spec.
+
+And the backward direction already exists where it belongs: the publish-time
+translator in **Languages** (2026-08-29) turns a finished drawcast into a
+translated COPY. Its own measurement is the sharpest argument against doing
+this during generation — 67 of the 114 bundled drawcasts drew text a
+spec-level translator could not see, which is why `text_map` had to be
+invented. A generation-time translator would meet the same wall without the
+publish path's freedom to re-lay-out afterwards.
+
+The one case where translate-back is right stays where it is: publishing one
+drawcast in several languages, re-linted after translation.
+
 ## Phase A — interaction primitives
 
 - `wait` until click (timed pause exists); auto-advance rule for any future
