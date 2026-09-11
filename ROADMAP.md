@@ -613,39 +613,73 @@ Deliberately not done (design §6): formula morph between `equation_steps`
 lines with per-term colours (part 2); a `copy` verb and a parametric `curve`
 (part 3); `stagger` on `draw`; a camera that follows an element; `{f}` in
 `speak`; sliders for vars in the explore tray; `at.on` solving x from y; a
-flip with dependents keeping its turn-over squash; label sides pinned during
+flip with dependents keeping its turn-over squash; ~~label sides pinned during
 a relayout tween (a label attached to a dependent is re-solved each frame and
-may change side mid-tween, as under `animate` today); `measure` stays on its
+may change side mid-tween, as under `animate` today)~~ — DONE 2026-09-11, as
+the label-pin below; `measure` stays on its
 round-3 planner recompute (not a relayout trigger — a relayout layout
 recomputes it too, and the two agree); a fitted group's posed anchors are
 computed before `fit` scales its members (fit + a moved member is an edge
 case left alone).
 
-### Labels blink and jump while things move — noted 2026-09-10
+### Labels blink and jump while things move — noted 2026-09-10, fixed 2026-09-11
 
 Hans, watching the bundled examples after the vars round: "noen labels
 blinker og oppfører seg hakkete (skifter posisjon) når man beveger på
 objekter" — the frequency sweep ("Why does a higher frequency squeeze the
-wave?") and the moving planets (the space templates' orbits). Two symptoms:
+wave?") and the moving planets (the space templates' orbits).
 
-- **Jump**: a label attached to something that moves is re-solved by the
-  greedy placer (layout/labels.ts) on EVERY frame of an animate or relayout
-  tween, with no memory of the side it had. Near a tie between two sides it
-  flips frame to frame, and the settle remount can flip it once more. This
-  is the "label sides pinned during a relayout tween" item deliberately left
-  above, now seen in practice.
-- **Blink**: when the per-frame swap rebuilds a text leaf rather than moving
-  it, the node is fresh each frame — its reveal state and halo restart, and
-  the label flickers.
+**What it actually was.** Not a tie between two sides, and not a rebuilt
+node. Instrumenting the solver on the frequency sweep showed that at ring 0
+EVERY one of the eight sides carries a soft penalty of 1 900–5 800 units²:
+a sine curve's per-segment obstacle boxes blanket the plot area, so the
+`penalty === 0` fast path never fires and placement always falls through to
+`softNear` — **an argmin over sixteen near-equal noisy numbers**. Shift the
+geometry a pixel and a different candidate wins. Every tween frame re-runs
+the whole layout (`Reprojector.frame` → `layoutSpec` → `placeLabels`), so
+the label hopped: **42 moves over 8 units in 60 frames, up to 204 units in a
+single frame**, its x teleporting between the left canvas edge, the centre
+and the far right. That hopping IS what reads as blinking; there was no
+separate blink mechanism (leader lines never toggled in this figure, and
+`layoutSpec` costs 0.32 ms/frame here, so it was not dropped frames either).
+A stateless tolerance was tried first and measured: accepting a graze of up
+to 15 % of the label box on the preferred side left the count at exactly 42.
+Nothing without memory can steady an unstable argmin.
 
-Direction: pin a label's chosen side (and ring) for the length of a tween —
-hysteresis, so it keeps its side unless that side becomes solidly blocked,
-and only re-solves at the settle; interpolate the label's position between
-the two solved spots rather than re-solving per frame; and move text nodes
-instead of rebuilding them when only their position changes. Same treatment
-for the planets' name labels, which ride a template's own placement. A test:
-sweep the wave's `f` from 1 to 4 in 60 frames and assert every label's side
-changes at most once.
+**The fix: pin the placement for the length of a tween.** `placeLabels`
+returns a `LabelPin` per label — the vector from its anchor to its centre,
+plus whether it drew a leader — and `layoutSpec` hands them out as
+`LayoutResult.labelPins` and takes them back as a fourth argument. The
+reprojector keeps the last COMMITTED boundary's pins and passes them to
+every `frame()`; a pinned request skips the search entirely and sits at
+`anchor + pin` (still clamped to the canvas, still registered as an obstacle
+so unpinned labels avoid it). So the label rides its anchor rigidly through
+the tween and the solver runs once, at the settle — at most one flip where
+there were 42. A pinned layout is never cached (`cache && !pins`), so every
+boundary layout is still the honest solve. The explore tray's slider
+previews go through the same `frame()` and stopped jittering for free.
+`tests/label-pin.test.ts`: the sweep asserts the label never moves further
+in one frame than the dot it names, plus a unit test that a pin survives a
+wall of text that pushes an unpinned label elsewhere, plus a source-level
+pin on the reprojector wiring (no jsdom in the repo).
+
+**Open — the planets are a different placer.** `solar_system` does not use
+the shared solver: the pack says so itself (`packs/space.yaml`, "the
+solver's eight sides at two rings cannot aim at a 33-unit gap") and places
+its own names by first-fit over a candidate list, re-run per frame with the
+same instability. Measured over a 365-day sweep, the label-to-body offset —
+which should be near-constant — jumps over 8 units on 60/60 frames for
+Mercury (max 90), 13/60 for Venus, 6/60 for Earth and Mars (~70 each). Out
+of reach of the pin by construction: a layout body is compiled from YAML,
+cannot import and holds no state, so pinning it means feeding the pins in
+through a reserved param. Its own round, and worth weighing against simply
+accepting that fast movers' names step.
+
+Also noticed and left: `nudgeTextsIntoCanvas` runs at mount and remount but
+not in `swapGeometry` (`render/svg-backend.ts`), so a text clamped to a
+canvas edge shifts a few units at the settle. One line to fix, but it costs
+a forced `getBBox` on every text on every frame — not worth it for a
+few units at a boundary.
 
 ## Formula morph, term colours, copy and parametric curves (the manim round, part 2) — done 2026-09-10
 

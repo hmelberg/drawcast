@@ -13,6 +13,7 @@ import { withMinted, type MintedSpec } from "./minted";
 import { dependentsMap, sourceIds } from "../spec/deps";
 import { boxAnchor } from "../layout/anchors";
 import { isEmptyOverrides, overridesKey, type LayoutOverrides } from "../layout/posed";
+import type { LabelPin } from "../layout/labels";
 import { Player, type PlaybackMode, type PlayerCallbacks } from "./player";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { WebAudioTones, type ToneLike } from "./tones";
@@ -283,11 +284,14 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // something is defined by, at the boundary or frame being laid out. A
   // `vars.<name>` key in params is a var's swept value (design §2.4) and goes
   // to spec.vars, not to the template params.
-  const rawLayoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[], overrides?: LayoutOverrides): LayoutResult => {
+  // `pins` (labels.ts, LabelPin) is the boundary's label placements, handed to
+  // the FRAMES between boundaries so the solver is not re-run per rAF tick.
+  // Never cached with one: a cached boundary layout must be the honest solve.
+  const rawLayoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[], overrides?: LayoutOverrides, pins?: Record<string, LabelPin>): LayoutResult => {
     if (Object.keys(params).length === 0 && !elements && isEmptyOverrides(overrides)) return layout;
     // An elements override is the code editor's preview: never cached, its
     // key would be the whole patched script.
-    const key = cache && !elements ? JSON.stringify([Object.entries(params).sort(), overridesKey(overrides)]) : undefined;
+    const key = cache && !elements && !pins ? JSON.stringify([Object.entries(params).sort(), overridesKey(overrides)]) : undefined;
     const hit = key !== undefined ? boundaryLayouts.get(key) : undefined;
     if (hit) return hit;
     const split = splitVarOverrides(params);
@@ -296,14 +300,15 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
         { ...spec, params: withOverrides(spec.params, split.params), ...(Object.keys(split.vars).length > 0 ? { vars: { ...(spec.vars ?? {}), ...split.vars } } : {}), ...(elements ? { elements } : {}) },
         measure,
         overrides,
+        pins,
       ),
       textStyle,
     );
     if (key !== undefined) boundaryLayouts.set(key, l);
     return l;
   };
-  const layoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[], overrides?: LayoutOverrides, trailProgress?: Record<string, number>): LayoutResult =>
-    withMinted(rawLayoutFor(params, cache, elements, overrides), minted, (p, ov) => rawLayoutFor(p, true, undefined, ov), trailProgress);
+  const layoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[], overrides?: LayoutOverrides, trailProgress?: Record<string, number>, pins?: Record<string, LabelPin>): LayoutResult =>
+    withMinted(rawLayoutFor(params, cache, elements, overrides, pins), minted, (p, ov) => rawLayoutFor(p, true, undefined, ov), trailProgress);
 
   const plan = planCommands(spec.commands, layout.order, {
     bboxOf: (id) => bboxes.get(id) ?? null,
@@ -347,9 +352,18 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   player.tones = options.tones ?? liveTones();
 
   if (mounted.swapGeometry && mounted.remount) {
+    // The label placements the last committed boundary solved. A label's spot
+    // is an argmin over eight sides at six rings; where the near candidates
+    // score alike — a curve's obstacle boxes blanketing the plot area — the
+    // winner changes whenever the geometry shifts a pixel, and a frame-by-frame
+    // re-solve made labels hop across the figure several times a second
+    // (measured on the frequency sweep: 42 jumps in 60 frames, up to 204
+    // units). Frames inherit the boundary's choice and ride the anchor; the
+    // solver runs at the boundaries only.
+    let labelPins = mountedLayout.labelPins;
     player.reprojector = {
       frame: (params, scene, o = {}) => {
-        const l = layoutFor(params, false, o.elements, o.overrides, o.trailProgress);
+        const l = layoutFor(params, false, o.elements, o.overrides, o.trailProgress, labelPins);
         // Free-play previews mint element ids the plan never drew (a chess
         // piece moved to a never-visited square) — reveal those, measured
         // against the plan-time layout so honest hidden ids stay hidden.
@@ -361,7 +375,11 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
         mounted.swapGeometry!(l, vis, scene.offsets, scene.turns, scene.opacities, scene.shapes, scene.texts);
         return l; // what is now PAINTED — the player hands it to anything hit-testing
       },
-      commit: (params, overrides) => mounted.remount!(layoutFor(params, true, undefined, overrides)),
+      commit: (params, overrides) => {
+        const l = layoutFor(params, true, undefined, overrides);
+        labelPins = l.labelPins;
+        return mounted.remount!(l);
+      },
     };
   }
 

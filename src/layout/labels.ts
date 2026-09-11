@@ -49,9 +49,31 @@ export interface LabelRequest {
   ignore?: string[];
 }
 
+/**
+ * A placement, as a vector from the anchor to the label's centre — what the
+ * solver decided, in the one form that survives the anchor moving.
+ *
+ * The solve is an argmin over eight sides at six rings, and where the near
+ * candidates score alike (a curve's obstacle boxes blanketing the plot area,
+ * so no side ever scores a clean zero) the winner changes whenever the
+ * geometry shifts a pixel. Harmless at a boundary, ruinous per frame: every
+ * tween frame re-runs the whole layout (render/index.ts, Reprojector.frame),
+ * so a label hopped a hundred units across the figure several times a second.
+ * Hand the boundary's pin to the frames and the label rides its anchor
+ * rigidly instead — one solve per boundary, none in between.
+ */
+export interface LabelPin {
+  /** anchor → label centre. */
+  d: Pt;
+  /** Whether that placement drew a leader, so a pinned frame draws it too. */
+  leader: boolean;
+}
+
 export interface PlacedLabel {
   text: TextDrawable;
   leader?: StrokeDrawable;
+  /** What this placement was, for the next frame to inherit. */
+  pin: LabelPin;
 }
 
 export interface Obstacle {
@@ -195,7 +217,12 @@ function overlapArea(a: BBox, b: BBox): number {
 /** Rings 0..NEAR_RINGS-1 count as "near the anchor" — no leader needed there. */
 const NEAR_RINGS = 2;
 
-export function placeLabels(requests: LabelRequest[], obstacles: Obstacle[], measure: MeasureFn): PlacedLabel[] {
+export function placeLabels(
+  requests: LabelRequest[],
+  obstacles: Obstacle[],
+  measure: MeasureFn,
+  pins?: Record<string, LabelPin>,
+): PlacedLabel[] {
   const blocked: Obstacle[] = [...obstacles];
   const placed: PlacedLabel[] = [];
 
@@ -209,31 +236,40 @@ export function placeLabels(requests: LabelRequest[], obstacles: Obstacle[], mea
     const r0 = 10 + req.fontSize * 0.55;
     const rings = [1, 2.2, 3.6, 6, 9, 13].map((k) => r0 * k);
 
+    // Pinned: the boundary already chose, and this frame only follows the
+    // anchor. No search at all — re-running it is the whole defect.
+    const pin = pins?.[req.id];
+
     let chosen: { box: BBox; ringIndex: number } | null = null;
     let softNear: { box: BBox; ringIndex: number; penalty: number } | null = null;
-    outer: for (const [ringIndex, r] of rings.entries()) {
-      for (const side of sides) {
-        const box = clampToCanvas(candidateBox(req.anchor, side, r, w, h));
-        if (inPlay.some((o) => o.solid && boxesOverlap(box, o.box, 3))) continue; // text-text: never
-        const penalty = inPlay.reduce((sum, o) => (o.solid ? sum : sum + overlapArea(box, o.box)), 0);
-        if (penalty === 0) {
-          chosen = { box, ringIndex };
-          break outer;
+    if (!pin) {
+      outer: for (const [ringIndex, r] of rings.entries()) {
+        for (const side of sides) {
+          const box = clampToCanvas(candidateBox(req.anchor, side, r, w, h));
+          if (inPlay.some((o) => o.solid && boxesOverlap(box, o.box, 3))) continue; // text-text: never
+          const penalty = inPlay.reduce((sum, o) => (o.solid ? sum : sum + overlapArea(box, o.box)), 0);
+          if (penalty === 0) {
+            chosen = { box, ringIndex };
+            break outer;
+          }
+          if (ringIndex < NEAR_RINGS && (softNear === null || penalty < softNear.penalty)) {
+            softNear = { box, ringIndex, penalty };
+          }
         }
-        if (ringIndex < NEAR_RINGS && (softNear === null || penalty < softNear.penalty)) {
-          softNear = { box, ringIndex, penalty };
+        // No clean spot near the anchor: grazing a stroke here beats being
+        // exiled to a distant clean spot with a leader line.
+        if (ringIndex === NEAR_RINGS - 1 && softNear) {
+          chosen = softNear;
+          break;
         }
-      }
-      // No clean spot near the anchor: grazing a stroke here beats being
-      // exiled to a distant clean spot with a leader line.
-      if (ringIndex === NEAR_RINGS - 1 && softNear) {
-        chosen = softNear;
-        break;
       }
     }
 
     // Nothing fits anywhere: keep the preferred spot and let lint report it.
-    const finalBox = chosen?.box ?? clampToCanvas(candidateBox(req.anchor, req.side, rings[0], w, h));
+    const finalBox = pin
+      ? clampToCanvas({ x: req.anchor[0] + pin.d[0] - w / 2, y: req.anchor[1] + pin.d[1] - h / 2, w, h })
+      : (chosen?.box ?? clampToCanvas(candidateBox(req.anchor, req.side, rings[0], w, h)));
+    // Pinned or not, the spot is taken: labels solved after this one avoid it.
     blocked.push({ box: finalBox, solid: true });
 
     const text: TextDrawable = {
@@ -252,7 +288,8 @@ export function placeLabels(requests: LabelRequest[], obstacles: Obstacle[], mea
     void bboxOfText(text, measure);
 
     let leader: StrokeDrawable | undefined;
-    if (chosen && chosen.ringIndex >= 2) {
+    const wantsLeader = pin ? pin.leader : !!chosen && chosen.ringIndex >= 2;
+    if (wantsLeader) {
       // Displaced far: draw a thin leader from the anchor toward the label edge.
       const cx = finalBox.x + finalBox.w / 2;
       const cy = finalBox.y + finalBox.h / 2;
@@ -270,7 +307,11 @@ export function placeLabels(requests: LabelRequest[], obstacles: Obstacle[], mea
       };
     }
 
-    placed.push({ text, leader });
+    placed.push({
+      text,
+      leader,
+      pin: { d: [text.pos[0] - req.anchor[0], text.pos[1] - req.anchor[1]], leader: wantsLeader },
+    });
   }
 
   return placed;

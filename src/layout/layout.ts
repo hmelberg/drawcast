@@ -12,7 +12,7 @@ import { layoutElements, type PieceGeometry } from "./tier2";
 import type { MeasureSpec } from "./measures";
 import type { CodeWindow } from "./code";
 import { annotationDrawables } from "./annotate";
-import { obstacleBoxes, placeLabels, type LabelRequest } from "./labels";
+import { obstacleBoxes, placeLabels, type LabelPin, type LabelRequest } from "./labels";
 import type { BBox } from "./geometry";
 import { boxOfId, unionBBoxForId } from "./boxes";
 import type { LayoutOverrides } from "./posed";
@@ -51,6 +51,10 @@ export interface LayoutResult {
   namedAnchors: Record<string, Record<string, Pt>>;
   /** `measure` element specs (design §2.3), keyed by the measure's own element id. Empty when the spec has no measure elements. */
   measures: Record<string, MeasureSpec>;
+  /** Where the label solver put each label, as a vector from its anchor — the
+   *  `pins` a tween frame hands back so the placement stops being re-solved
+   *  sixty times a second (labels.ts, LabelPin). */
+  labelPins: Record<string, LabelPin>;
 }
 
 /**
@@ -59,8 +63,18 @@ export interface LayoutResult {
  * original frame (the renderer poses it); what depends on them — an
  * intersection, a region between, an arrow's end, an angle's arm, a line's
  * point, a measure — is computed from where they now stand.
+ *
+ * `labelPinsIn` is the continuity hint, not geometry: the label placements a
+ * BOUNDARY solved, handed back so a tween frame follows them instead of
+ * solving again (labels.ts, LabelPin). Absent — every call outside the
+ * reprojector's frame path — and the solver runs exactly as it always has.
  */
-export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure, overrides?: LayoutOverrides): LayoutResult {
+export function layoutSpec(
+  rawSpec: Spec,
+  measure: MeasureFn = heuristicMeasure,
+  overrides?: LayoutOverrides,
+  labelPinsIn?: Record<string, LabelPin>,
+): LayoutResult {
   const spec = normalizeSpec(rawSpec) as Spec;
   // Formulas are laid out as glyph outlines, so the font is a layout input,
   // not a render one: every math element and equation_steps step below reads
@@ -172,10 +186,12 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure,
 
   // Label placement against everything drawn so far.
   const obstacles = obstacleBoxes(drawables, measure);
-  const placed = placeLabels(labelRequests, obstacles, measure);
+  const placed = placeLabels(labelRequests, obstacles, measure, labelPinsIn);
+  const labelPins: Record<string, LabelPin> = {};
   for (const p of placed) {
     if (p.leader) drawables.push(p.leader);
     drawables.push(p.text);
+    labelPins[p.text.id] = p.pin;
   }
   for (const req of labelRequests) {
     if (!order.includes(req.id)) order.push(req.id);
@@ -208,7 +224,7 @@ export function layoutSpec(rawSpec: Spec, measure: MeasureFn = heuristicMeasure,
     Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
   issues.push(...lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], composed));
   if (codeEl) issues.push(...codeFigureOverlap(codeEl.id, templateIds, drawables, measure, spec));
-  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, fitGroups, namedAnchors, measures };
+  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, fitGroups, namedAnchors, measures, labelPins };
 }
 
 function unionOfBoxes(boxes: (BBox | null)[]): BBox | null {
