@@ -20593,5 +20593,119 @@
         }
       ]
     }
+  },
+  {
+    "request": "Why is the production possibilities frontier bowed outward and not a straight line?",
+    "title": "Why the frontier bows",
+    "spec": {
+      "title": "Why the frontier bows",
+      "domain": { "x": [0, 100], "y": [0, 100] },
+      "elements": [
+        { "id": "axes", "type": "axes", "x_label": "Bread", "y_label": "Steel" },
+        { "id": "straight", "type": "curve", "expr": "90 - 0.9*x", "x_from": 0, "x_to": 100, "style": { "color": "#8f887c", "dash": true } },
+        { "id": "flat_point", "type": "point", "at": { "x": 50, "on": "straight" }, "style": { "color": "#8f887c" } },
+        { "id": "lab_straight", "type": "label", "text": "A flat rate?", "attach_to": "flat_point", "side": "below-left" },
+        { "id": "bowed", "type": "curve", "expr": "90 - 0.009*x*x", "x_from": 0, "x_to": 100, "style": { "color": "#b5482e" } },
+        { "id": "first_swap", "type": "point", "at": { "x": 20, "on": "bowed" }, "style": { "color": "#2f6b8f" } },
+        { "id": "lab_bowed", "type": "label", "text": "What it really looks like", "attach_to": "first_swap", "side": "above-right" },
+        { "id": "last_swap", "type": "point", "at": { "x": 90, "on": "bowed" }, "style": { "color": "#2f6b8f" } }
+      ],
+      "commands": [
+        { "draw": ["axes"], "speak": "A country can put its people into bread or into steel, and the shape of the line between them is what tells you what a choice actually costs." },
+        { "draw": ["straight", "flat_point", "lab_straight"], "speak": "The natural guess is a straight line: hand over the same amount of bread for every extra tonne of steel." },
+        { "pause": 0.4 },
+        { "highlight": { "target": ["straight"], "effect": "glow" }, "speak": "It is a sensible guess, and it quietly assumes something that is never true — that one worker is as good as another at both jobs." },
+        { "erase": ["straight", "flat_point", "lab_straight"], "speak": "People are not interchangeable, so the line is not straight." },
+        { "draw": ["bowed", "first_swap", "lab_bowed"], "speak": "It bows outward, and the bulge is the whole story." },
+        { "point": { "at": { "ref": "first_swap" }, "gesture": "tap" }, "speak": "Move the first few people into steel and you pick the ones who were worst at baking — barely any bread is lost." },
+        { "draw": ["last_swap"], "speak": "Move the last few and you are taking your best bakers to a job they are bad at. The same tonne of steel now costs a fortune in bread." },
+        { "pause": 0.5 },
+        { "speak": "So a straight frontier would describe a world where nobody is especially good at anything. The bow IS the fact that people differ." }
+      ]
+    }
+  },
+  {
+    "request": "Why can a heat pump deliver more heat than the electricity it uses?",
+    "title": "Where a heat pump's extra heat comes from",
+    "spec": {
+      "title": "Where a heat pump's extra heat comes from",
+      "elements": [
+        { "id": "outdoor", "type": "node", "shape": "rect", "text": "Outdoor coil", "x": 230, "y": 230 },
+        { "id": "compressor", "type": "node", "shape": "rect", "text": "Compressor", "x": 230, "y": 530 },
+        { "id": "indoor", "type": "node", "shape": "rect", "text": "Indoor coil", "x": 730, "y": 530 },
+        { "id": "valve", "type": "node", "shape": "rect", "text": "Expansion valve", "x": 730, "y": 230 },
+        { "id": "a1", "type": "arrow", "from": { "ref": "outdoor" }, "to": { "ref": "compressor" }, "style": { "color": "#2f6b8f" } },
+        { "id": "a2", "type": "arrow", "from": { "ref": "compressor" }, "to": { "ref": "indoor" }, "style": { "color": "#b5482e" } },
+        { "id": "a3", "type": "arrow", "from": { "ref": "indoor" }, "to": { "ref": "valve" }, "style": { "color": "#b5482e" } },
+        { "id": "a4", "type": "arrow", "from": { "ref": "valve" }, "to": { "ref": "outdoor" }, "style": { "color": "#2f6b8f" } }
+      ],
+      "commands": [
+        { "draw": ["outdoor", "compressor", "indoor", "valve"], "parallel": true, "speak": "A heat pump takes one unit of electricity and puts three or four units of heat into the house. That sounds like something for nothing, so it is worth following where the extra comes from." },
+        { "draw": ["a1", "a2", "a3", "a4"], "speak": "The same refrigerant goes round and round these four parts, and the whole trick is what happens in each one." },
+        { "focus": { "target": ["outdoor"] }, "speak": "Outside in the cold, the refrigerant is colder still — so heat flows into it. Even at minus five, the air has plenty of heat left to give up." },
+        { "focus": { "target": ["compressor"] }, "speak": "The compressor squeezes that gas, and squeezing a gas makes it hot — hotter than the living room. This is the step the electricity pays for." },
+        { "focus": { "target": ["indoor"] }, "speak": "Now the refrigerant is the hottest thing in the room, so heat flows the only way heat ever flows: out of it and into the air you breathe." },
+        { "focus": { "target": ["valve"] }, "speak": "The valve lets it expand and turn cold again, ready to go back outside and collect another load." },
+        { "flow": { "along": ["a1", "a2", "a3", "a4"] }, "speak": "Round it goes, carrying heat inwards every time." },
+        { "pause": 0.5 },
+        { "speak": "So the electricity never became the heat. It paid for the squeezing — the heat was already outside all along, and the pump only carried it in. A fan heater cannot beat one for one, because it has nothing to carry." }
+      ]
+    }
+  },
+  {
+    "request": "Why does a bigger sample make a poll more accurate — and why doesn't the size of the country matter?",
+    "title": "What a poll's margin really depends on",
+    "spec": {
+      "title": "What a poll's margin really depends on",
+      "domain": { "x": [0, 2500], "y": [0, 12] },
+      "elements": [
+        { "id": "axes", "type": "axes", "x_label": "People asked", "y_label": "Margin of error (points)" },
+        { "id": "moe", "type": "curve", "expr": "98/sqrt(x)", "x_from": 100, "x_to": 2500, "style": { "color": "#b5482e" } },
+        { "id": "p100", "type": "point", "at": { "x": 100, "on": "moe" }, "style": { "color": "#2f6b8f" } },
+        { "id": "lab100", "type": "label", "text": "100 asked: ±10", "attach_to": "p100", "side": "right" },
+        { "id": "p400", "type": "point", "at": { "x": 400, "on": "moe" }, "style": { "color": "#2f6b8f" } },
+        { "id": "lab400", "type": "label", "text": "400: ±5", "attach_to": "p400", "side": "above-right" },
+        { "id": "p1600", "type": "point", "at": { "x": 1600, "on": "moe" }, "style": { "color": "#2f6b8f" } },
+        { "id": "lab1600", "type": "label", "text": "1600: ±2.5", "attach_to": "p1600", "side": "above-right" }
+      ],
+      "commands": [
+        { "draw": ["axes"], "speak": "A poll asks a thousand people and then reports a number for five million. Whether you can trust it comes down to one curve." },
+        { "draw": ["moe"], "speak": "This is how far off the poll can be, as the number of people asked grows. It drops steeply, then flattens out." },
+        { "draw": ["p100", "lab100"], "speak": "Ask a hundred people and the answer is give or take ten points — useless for anything close." },
+        { "draw": ["p400", "lab400"], "speak": "Ask four times as many and the error halves, to five points." },
+        { "pause": 0.4 },
+        { "draw": ["p1600", "lab1600"], "speak": "Four times again, and it only halves once more. Every halving costs four times the interviews, which is exactly why nobody polls a hundred thousand people." },
+        { "highlight": { "target": ["moe"], "effect": "glow" }, "speak": "And nothing in that arithmetic ever asked how many people there were to begin with." },
+        { "quiz": { "intro": "One question before we finish.", "question": "A poll of 1,000 Norwegians and a poll of 1,000 Americans. Which has the smaller margin of error?", "choices": ["The Norwegian one — a smaller country to cover", "The American one — more people to draw from", "Neither — they are the same"], "correct": 3, "right": "The same. The margin depends on how many you asked, not on how many you could have asked.", "wrong": "The same. The margin depends on how many you asked, not on how many you could have asked." } },
+        { "speak": "A spoonful tells you how the soup tastes whether the pot is small or enormous — as long as you stirred it first. That stirring is the random sample, and it is the part that actually goes wrong." }
+      ]
+    }
+  },
+  {
+    "request": "Hvorfor blir ventetiden hos legen så mye lengre når kontoret er nesten fullbooket?",
+    "title": "Ventetid og slakk",
+    "spec": {
+      "title": "Ventetid og slakk",
+      "domain": { "x": [0, 100], "y": [0, 100] },
+      "elements": [
+        { "id": "axes", "type": "axes", "x_label": "Hvor fullt dagen er booket (%)", "y_label": "Ventetid" },
+        { "id": "vent", "type": "curve", "expr": "5*x/(100-x)", "x_from": 0, "x_to": 95, "style": { "color": "#b5482e" } },
+        { "id": "p80", "type": "point", "at": { "x": 80, "on": "vent" }, "style": { "color": "#2f6b8f" } },
+        { "id": "lab80", "type": "label", "text": "80 % booket", "attach_to": "p80", "side": "right" },
+        { "id": "p95", "type": "point", "at": { "x": 95, "on": "vent" }, "style": { "color": "#2f6b8f" } },
+        { "id": "lab95", "type": "label", "text": "95 % booket", "attach_to": "p95", "side": "left" }
+      ],
+      "commands": [
+        { "draw": ["axes"], "speak": "Hvor fullt bør et legekontor bookes? Svaret avgjør hvor lenge du sitter på venterommet, og det ligger ikke der de fleste tror." },
+        { "draw": ["vent"], "speak": "Ventetiden vokser ikke jevnt med hvor fullt det er. Den bøyer av oppover, og til slutt nesten rett opp." },
+        { "draw": ["p80", "lab80"], "speak": "Ved åtti prosent booking venter du litt, men dagen henger sammen." },
+        { "pause": 0.4 },
+        { "draw": ["p95", "lab95"], "speak": "Ved nittifem prosent, bare femten prosentpoeng mer, er ventetiden mangedoblet." },
+        { "highlight": { "target": ["vent"], "effect": "glow" }, "speak": "Grunnen er at pasienter ikke kommer jevnt utover dagen. De klumper seg." },
+        { "point": { "at": { "ref": "p95" }, "gesture": "circle" }, "speak": "Er det luft igjen i dagen, spises en forsinkelse opp av den luften. Er det ikke det, arver neste pasient hele forsinkelsen, og pasienten etter der igjen." },
+        { "pause": 0.5 },
+        { "speak": "Så ventetid måler ikke hvor hardt de jobber der inne. Den måler hvor lite slakk de har igjen å ta forsinkelser med." }
+      ]
+    }
   }
 ]
