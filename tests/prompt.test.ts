@@ -183,6 +183,45 @@ describe("selectExemplars", () => {
     const picked = selectExemplars("xylophone quantum zebra", pool, 3);
     expect(picked).toEqual([]);
   });
+
+  // Half this app's requests are written in Norwegian and the stoplist was
+  // English-only, so "hvordan", "hvorfor", "forklar" and "vis" survived as
+  // keywords and a request scored overlap on filler alone. Measured against
+  // src/examples.json before the fix, «Forklar hvorfor renter påvirker
+  // inflasjonen» picked the 1/2+1/4+1/8 series, "Hvorfor heter jern Fe?" and
+  // the circle-area proof — three exemplars, all on the single word "hvorfor".
+  test("a Norwegian request never matches on Norwegian filler words alone", () => {
+    const norwegian = [
+      { prompt: "Hvorfor er arealet av en sirkel πr²?", spec: { commands: [] } },
+      { prompt: "Vis hvordan en vektstang balanserer", spec: { commands: [] } },
+      { prompt: "Forklar hvorfor jern heter Fe", spec: { commands: [] } },
+    ];
+    expect(selectExemplars("Forklar hvordan en vaksine virker", norwegian, 3)).toEqual([]);
+  });
+
+  // The same hole on the English side, and STYLE.md's 2026-09-07 ruling makes
+  // it worse over time: every request is to be phrased as a QUESTION, so the
+  // interrogative openers the stoplist never covered ("how", "what", "why",
+  // "does") are exactly the words every request now shares. Measured before
+  // the fix: "How does a vaccine actually work?" picked a confidence-interval
+  // figure and an atrial-fibrillation figure on "does" and "actually".
+  test("an English question never matches on interrogative openers alone", () => {
+    const questions = [
+      { prompt: "What does 95 percent confidence actually mean?", spec: { commands: [] } },
+      { prompt: "How does a lock and key open a door?", spec: { commands: [] } },
+      { prompt: "Why does the sky turn?", spec: { commands: [] } },
+    ];
+    expect(selectExemplars("How does a vaccine actually work?", questions, 3)).toEqual([]);
+  });
+
+  test("a real topical overlap still selects, in either language", () => {
+    const mixed = [
+      { prompt: "Hvorfor er arealet av en sirkel πr²?", spec: { commands: [] } },
+      { prompt: "Forklar hvordan en vaksine gir flokkimmunitet", spec: { commands: [] } },
+    ];
+    expect(selectExemplars("Forklar hvordan en vaksine virker", mixed, 1)[0].prompt).toMatch(/vaksine/);
+    expect(selectExemplars("How does a vaccine work?", pool, 1)).toEqual([]);
+  });
 });
 
 describe("styleBlock — the author's style is added last, so it wins (B5, S §4)", () => {

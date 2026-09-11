@@ -134,9 +134,40 @@ export interface Exemplar {
   spec: Spec;
 }
 
+/**
+ * Words that carry no topic, so two requests sharing only these are not
+ * similar. Words of 1–2 characters are dropped by length alone (`og`, `en`,
+ * `av`, `of`, `to`), so only 3+ belongs here.
+ *
+ * Three groups, and the last two were the hole: the list started as the
+ * IMPERATIVE request verbs, which is the shape a request had when it was
+ * written ("Draw a demand curve"). It never covered the INTERROGATIVE
+ * openers — and STYLE.md's 2026-09-07 ruling turns every request into a
+ * question, so "how"/"what"/"why"/"does" are now what every request shares.
+ * Nor did it cover Norwegian at all, though half this app's requests are
+ * written in it. Measured before this fix, against src/examples.json:
+ * «Forklar hvorfor renter påvirker inflasjonen» picked three exemplars on
+ * the single word "hvorfor" (a fraction series, why iron is called Fe, and
+ * the circle-area proof), and "How does a vaccine actually work?" picked a
+ * confidence-interval figure on "does" and "actually".
+ *
+ * Under-stop rather than over-stop: a word that might carry topic ("heter",
+ * "happens", "work") stays out, because a weak real match still beats none —
+ * selectExemplars already drops everything that overlaps on nothing.
+ */
 const STOPWORDS = new Set([
-  "draw", "the", "a", "an", "and", "with", "for", "of", "to", "in", "as", "show",
-  "make", "create", "illustrate", "diagram", "figure", "me", "please", "that", "this",
+  // Asking for a drawing — the imperative verbs and the medium's own nouns.
+  "draw", "show", "make", "create", "illustrate", "diagram", "figure",
+  "tegn", "tegne", "vis", "vise", "lag", "lage", "forklar", "forklare",
+  "illustrer", "illustrere", "figur",
+  // Asking a question — the openers a question-shaped request always carries.
+  "how", "what", "why", "when", "where", "which", "who", "does", "did",
+  "hvordan", "hvorfor", "hva", "hvilken", "hvilket", "hvilke", "hvem", "hvor", "når",
+  // Grammar and filler.
+  "the", "a", "an", "and", "with", "for", "of", "to", "in", "as",
+  "me", "please", "that", "this", "actually", "really",
+  "som", "det", "den", "der", "ikke", "med", "har", "kan", "man", "seg", "sin",
+  "til", "fra", "hvis", "eller", "også",
 ]);
 
 function keywords(text: string): Set<string> {

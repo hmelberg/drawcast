@@ -466,13 +466,28 @@ talky-stretch (3+ speak-only lines in a row).
 - [x] ~~Consider whether the *why it matters* half of the hook deserves its
       own sentence in the prompt~~ — graduated 2026-08-26 as the
       "Situate the topic before you explain it" bullet (see ledger entry).
+Both sweeps below now have an enforcement arm, added 2026-09-11:
+`tests/examples-style.test.ts` counts them and pins the count, so a NEW
+example can never push either number up. They are ratchets, not gates —
+each sweep lowers its own pin, and the target for both is 0. The render
+gate (`tests/examples.test.ts`) still checks only geometry and lint; this
+is the first test that looks at what an example TEACHES.
+
 - [ ] **Sweep the bundled examples for un-situated openings**: Hans says
       the lead-time-bias problem — mechanics before motivation — is common
       across src/examples.json. Review every example's first two beats
       against the situate rule; rewrite the openings that fail it.
+      Partly ratcheted: the test pins speak-only openings at **74** of the
+      specs the file carries — the permitted exception (one standalone speak
+      before ink), taken by about a third of the examples, which stops it
+      reading as an exception. Whether the opening SITUATES is still a human
+      read; only its shape is measured.
 - [ ] **Sweep the bundled examples for errand-shaped requests** (2026-09-07):
       a `request` that says "Show me X", "Draw Y" or "Put the Zs in order"
       teaches the model that the app takes orders rather than answers
       questions. Grep `src/examples.json` for imperative openings and rewrite
       each as the question its figure actually answers. The `space` pack's
       two were done at the time; the rest of the file was not.
+      Ratcheted at **75** (`isErrandShaped` — imperative drawing verbs in
+      both languages; "Explain"/"Forklar" passes, since wanting a thing
+      understood is not an errand).

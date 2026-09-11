@@ -6,6 +6,44 @@ to this file as "notes". Dated entries, newest first. When an item
 graduates into a spec or the roadmap, note that on the entry rather than
 deleting it.
 
+## 2026-09-11 — Exemplar selection is lexical, and that is half a problem
+
+`selectExemplars` (`src/llm/prompt.ts`) picks the 3 exemplars for a request
+by keyword overlap against a stoplist. The stoplist was the IMPERATIVE
+request verbs and English only — which is the shape a request had when it
+was written ("Draw a demand curve"), not the shape STYLE.md's 2026-09-07
+ruling asks for. Measured against `src/examples.json`:
+
+| Request | Picked, before | On the word |
+|---|---|---|
+| «Forklar hvorfor renter påvirker inflasjonen» | 1/2+1/4+1/8 = 1; why iron is Fe; circle area | `hvorfor` |
+| "How does a vaccine actually work?" | a confidence interval; a lock and key; atrial fibrillation | `does`, `actually` |
+
+Fixed 2026-09-11: the stoplist gained the interrogative openers in both
+languages and the Norwegian request verbs and grammar words. The English
+side now selects properly ("How does a vaccine actually work?" → the
+herd-immunity vaccine figure, on `vaccine`).
+
+**The open half.** A Norwegian request now matches NOTHING rather than the
+wrong thing — better, but not good: «Forklar hvordan tilbud og etterspørsel
+bestemmer prisen» gets no exemplar at all, though the file holds a dozen
+supply-and-demand figures in English. 33 of 241 bundled examples are
+Norwegian, and a lexical matcher cannot cross the language line. Options,
+none chosen:
+
+- A small bilingual term map (tilbud→supply, etterspørsel→demand, celle→cell)
+  applied to the request's keywords before scoring. Cheap, partial, and it
+  is a glossary someone has to keep.
+- Let the ROUTER pick the exemplars. It already runs a Haiku call per
+  request and already reads the request semantically to shortlist templates;
+  exemplar ids would be nearly free there, and it crosses languages by
+  construction. Costs a schema field, not a call.
+- Embeddings over the 241 requests. Best quality, needs an embeddings key —
+  the same blocker as `gift`'s dense retriever.
+
+Nothing here is urgent: the 11 fewshots are always in the prompt and carry
+the mechanics, so a missing exemplar costs topical fit, not correctness.
+
 ## 2026-09-10 — What manim has that drawcast lacks
 
 Hans asked whether manim (3b1b's engine, github.com/3b1b/manim; the
