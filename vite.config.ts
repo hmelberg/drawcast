@@ -1,5 +1,12 @@
 import { defineConfig } from "vitest/config";
 
+/** See the comment on `test` below: the worker cap, and a line saying so. */
+function capWorkers(): { maxWorkers?: number; minWorkers?: number } {
+  const onCi = !!(process.env.NETLIFY || process.env.CI);
+  console.log(onCi ? "vitest: build container — worker pool capped at 2" : "vitest: local run — full worker pool");
+  return onCi ? { maxWorkers: 2, minWorkers: 1 } : {};
+}
+
 export default defineConfig({
   // Relative base so the build works on GitHub Pages subpaths and any static host.
   base: "./",
@@ -19,6 +26,11 @@ export default defineConfig({
     // Two workers keep the main thread scheduled; wall time is unchanged
     // because the container was serialising the run anyway (112 s wall
     // against 121 s of summed test time). Local runs keep the full pool.
-    ...(process.env.CI ? { maxWorkers: 2, minWorkers: 1 } : {}),
+    //
+    // NETLIFY, not CI: Netlify's build image does NOT set CI, so the first
+    // attempt at this cap was a no-op and the deploy failed again with the
+    // identical 112 s duration. The line below says which branch it took, so
+    // the build log answers that question instead of the next deploy.
+    ...capWorkers(),
   },
 });
