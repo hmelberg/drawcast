@@ -2,6 +2,8 @@ import { describe, expect, test } from "vitest";
 import { apiSchema, fewshotsText, promptVariants, CODE_PROMPT_SOURCE, SOUND_PROMPT_SOURCE } from "../src/llm/compile";
 import { catalogParts } from "../src/scenes/catalog";
 import { buildSystemPrompt, wantsCode, wantsSound } from "../src/llm/prompt";
+import bundledExamples from "../src/examples.json";
+import fewshots from "../src/llm/prompts/fewshots.json";
 
 // Measured on the merged main (4a04eb2) BEFORE the freehand round's prompt and
 // schema edits — the size that round must not exceed for an ordinary request.
@@ -90,6 +92,21 @@ describe("prompt budget (spec §6.3)", () => {
     expect(system(false, true).length - system(false).length).toBeGreaterThan(1_000);
     expect(system(false)).not.toContain("**play** sounds synthesized notes");
     expect(system(false, true)).toContain("**play** sounds synthesized notes");
+  });
+
+  // The gate's real contract, and the one a hand-written word list rots
+  // against: EVERY figure we ship that sounds notes must be reachable from
+  // its own request. A miss here is silent — the model simply never learns
+  // the verb exists and writes the figure mute. Caught one on the first run
+  // ("Play Twinkle Twinkle from ABC notation." — neither "play" nor "ABC"
+  // was in the list), which is why this is data-driven rather than a list of
+  // sentences I thought of.
+  test("every bundled figure that plays is reachable by the gate", () => {
+    const withPlay = [...(bundledExamples as { request: string; spec?: { commands?: Record<string, unknown>[] } }[]), ...(fewshots as { request: string; spec?: { commands?: Record<string, unknown>[] } }[])]
+      .filter((e) => (e.spec?.commands ?? []).some((c) => "play" in c))
+      .map((e) => e.request);
+    expect(withPlay.length, "the examples still ship figures that play").toBeGreaterThan(0);
+    expect(withPlay.filter((r) => !wantsSound(r))).toEqual([]);
   });
 
   test("wantsSound reads the request text — in Norwegian too", () => {

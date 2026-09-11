@@ -113,12 +113,16 @@ export function wantsCode(request: string): boolean {
  * costs the sound — which is the default anyway — and a false positive costs
  * only tokens.
  *
+ * "play" and "abc" are in the list because of a real miss the coverage test
+ * caught: "Play Twinkle Twinkle from ABC notation." names neither the sound
+ * nor the music, only the act and the format.
+ *
  * Norwegian counts, as everywhere here. Deliberately NOT in the list: "wave",
  * "frequency" and "hertz", which belong to physics figures far more often
  * than to music ones, and "string", which is a data type.
  */
 const SOUND_WORDS =
-  /\b(sound|music\w*|musikk\w*|musical|note|notes|chord\w*|akkord\w*|melod\w*|tune|scale\b|skala\w*|octave|oktav\w*|interval|intervall\w*|piano\w*|keyboard|tangent\w*|staff|notesystem|pitch|tonehøyde|tone[rn]?\b|toner\w*|sing\w*|synge|sang\w*|kvint|kvart|ters|harmon\w*|rhythm|rytme|beat\b|hør\w*|lyd\w*)\b/i;
+  /\b(sound|music\w*|musikk\w*|musical|note|notes|chord\w*|akkord\w*|melod\w*|tune|scale\b|skala\w*|octave|oktav\w*|interval|intervall\w*|piano\w*|keyboard|tangent\w*|staff|notesystem|pitch|tonehøyde|tone[rn]?\b|toner\w*|sing\w*|synge|sang\w*|kvint|kvart|ters|harmon\w*|rhythm|rytme|beat\b|hør\w*|lyd\w*|play\w*|spill\w*|song|abc)\b/i;
 export function wantsSound(request: string): boolean {
   return SOUND_WORDS.test(request);
 }
