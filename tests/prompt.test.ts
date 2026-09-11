@@ -3,6 +3,14 @@ import { describe, expect, test } from "vitest";
 import { buildSystemPrompt, missingPlaceholders, selectExemplars, stripFence, styleBlock } from "../src/llm/prompt";
 
 const compilerV1 = readFileSync(new URL("../src/llm/prompts/compiler-v1.md", import.meta.url), "utf8");
+
+/** The `## Verbs` catalogue — where the model looks a verb up, and the only place a verb is defined. */
+export function verbSection(prompt: string): string {
+  const from = prompt.indexOf("\n## Verbs\n");
+  expect(from, "the prompt has a ## Verbs section").toBeGreaterThan(-1);
+  const to = prompt.indexOf("\n## ", from + 1);
+  return prompt.slice(from, to === -1 ? undefined : to);
+}
 const compilerV1Code = readFileSync(new URL("../src/llm/prompts/compiler-v1-code.md", import.meta.url), "utf8");
 
 describe("compiler prompt style rules", () => {
@@ -67,13 +75,14 @@ describe("compiler prompt style rules", () => {
     expect(compilerV1Code).toContain("line_chart");
   });
 
-  test("the action-verb inventory lists flip, morph, flow and keep", () => {
-    const line = compilerV1.split("\n").find((l) => l.includes("Each command sets ONE action verb"));
-    expect(line).toBeDefined();
-    expect(line).toMatch(/`flip`/);
-    expect(line).toMatch(/`morph`/);
-    expect(line).toMatch(/`flow`/);
-    expect(line).toMatch(/`keep`/);
+  // Was: "the enumeration on the ONE-action-verb line names these four". That
+  // enumeration is gone — the verbs live in the `## Verbs` catalogue, which is
+  // where the model looks a verb up, so the entry is what must exist. Stricter
+  // than the old test: a mention in a list is not a usable definition.
+  test("the verb catalogue gives flip, morph, flow and keep their own entries", () => {
+    for (const verb of ["flip", "morph", "flow", "keep"]) {
+      expect(verbSection(compilerV1), verb).toMatch(new RegExp("^- `" + verb + "`", "m"));
+    }
   });
 
   test("teaches anchors and the four motion-round-2 verbs", () => {

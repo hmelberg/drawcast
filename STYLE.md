@@ -61,8 +61,13 @@ written when the worry was excess rather than flatness:
 - **Annotations at 1–2, animate beats at "one or two per figure."** Same
   shape: fixed small numbers standing in for judgment.
 
-**The open question this raises, for Hans.** "Interaksjoner" is ambiguous
-between two very different things, and the answer changes the prompt:
+**Answered the same day** (Hans): «jeg mente mest bevegelser, men du skal
+også ta med seer interaksjoner. Spesielt quiz mot slutten er lurt. Og som alt
+annet. dette er råd og guidelines, ikke absolutte regler. Du avgjør avhengig
+av brukerens prompt og tema hvordan en drawcast børe være.» So: both, with
+motion first and a closing quiz named as the specific move worth having.
+The question it answered — "interaksjoner" is ambiguous between two very
+different things, and the answer changes the prompt:
 
 - *Motion* — gestures, animate, focus, flow, camera. Raising this default is
   uncontroversial; it is the ceilings above.
@@ -76,10 +81,24 @@ between two very different things, and the answer changes the prompt:
   ITS SPEAK. Generous interaction makes the app version richer and the
   exported film thinner. Worth deciding deliberately rather than inheriting.
 
-**Status.** Not in the prompt. Unlike the other two ungraduated entries this
-one mostly REMOVES or loosens text rather than adding it, which makes it the
-cheapest of the three to graduate — and the one most likely to be undone by
-accident later, since the numbers it relaxes all read as careful restraint.
+**Status.** GRADUATED 2026-09-12, in the verb-section round. In the prompt:
+the directing tips now open with "be generous with what HAPPENS … a viewer
+who is only listening is watching a podcast with a picture on it" and scale
+the gesture budget to the figure's length instead of the flat 2–4; the
+`quiz` bullet's gate ("Use ONLY when the request asks for a quiz/test or the
+#quiz tag is present — most drawcasts need none") became "A quiz at the END
+is a good default when the figure has taught something checkable"; `ask`
+stays the deliberate one, since typing is a bigger thing to ask of a viewer
+than picking, and `quiz` is now named as the everyday check. NOT changed:
+the 1–2 annotation and one-or-two-animate numbers, which nobody has
+complained about and which the closing "defaults, not laws" line already
+governs — that line now closes the verb catalogue too, which is where Hans's
+"dette er råd og guidelines, ikke absolutte regler" needed it to sit.
+
+The enrichment cap ("Choose ONE enrichment, or none") was left alone
+deliberately: loosening it and the gesture budget in the same round would
+have made it impossible to tell which one moved the output. It is the first
+candidate if drawcasts still read thin.
 
 ### 2026-09-12 — The three passes: announce, explain, conclude — each from a different angle
 

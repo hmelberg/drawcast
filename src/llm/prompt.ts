@@ -15,6 +15,14 @@ export interface PromptParts {
    * paid for nothing. Absent or "" fills {{CODE}} with nothing; see wantsCode.
    */
   code?: string;
+  /**
+   * The `play` verb (src/llm/prompts/compiler-v1-sound.md), sent ONLY for a
+   * request about sound or music — 1.4k chars of note notation and ABC that
+   * the prompt already gates in prose ("ONLY when the figure is genuinely
+   * about sound or music"), so every other request was paying to be told no.
+   * Absent or "" fills {{SOUND}} with nothing; see wantsSound.
+   */
+  sound?: string;
 }
 
 export function buildSystemPrompt(variantSource: string, parts: PromptParts): string {
@@ -34,7 +42,8 @@ export function buildSystemBlocks(variantSource: string, parts: PromptParts): { 
       .replaceAll("{{SCHEMA}}", JSON.stringify(parts.schema, null, 2))
       .replaceAll("{{CATALOG}}", parts.catalog)
       .replaceAll("{{FEWSHOTS}}", parts.fewshots)
-      .replaceAll("{{CODE}}", parts.code ?? "");
+      .replaceAll("{{CODE}}", parts.code ?? "")
+      .replaceAll("{{SOUND}}", parts.sound ?? "");
   const at = variantSource.indexOf("{{EXEMPLARS}}");
   if (at === -1) return { prefix: fill(variantSource), suffix: "" };
   return {
@@ -70,8 +79,9 @@ export const PROMPT_PLACEHOLDERS = ["{{SCHEMA}}", "{{CATALOG}}", "{{FEWSHOTS}}",
  * never reported by missingPlaceholders — a user's own prompt fork predates
  * them and is not broken for lacking one. {{CODE}} is the conditional code
  * block (wantsCode); a fork without it simply never gets the code element.
+ * {{SOUND}} is the same arrangement for the `play` verb (wantsSound).
  */
-export const OPTIONAL_PROMPT_PLACEHOLDERS = ["{{CODE}}"] as const;
+export const OPTIONAL_PROMPT_PLACEHOLDERS = ["{{CODE}}", "{{SOUND}}"] as const;
 
 /**
  * Does this request want the code block (15k chars of script/runtime rules)?
@@ -93,6 +103,24 @@ const CODE_WORDS =
   /\b(code|script|python|pandas|numpy|matplotlib|plotly|simul(at|er)\w*|tidyverse|ggplot|brython|micropython|microdata|c64|commodore|basic|kode\w*|skript\w*|program\w*|beregn\w*|regn ut)\b|\bR\b/i;
 export function wantsCode(request: string): boolean {
   return CODE_WORDS.test(request);
+}
+
+/**
+ * Does this request want the `play` verb (1.4k chars of note notation, ABC,
+ * instruments and the two ink-to-sound sync lists)? The same arrangement as
+ * wantsCode, and cheaper to get wrong in both directions: the prompt already
+ * says play is ONLY for a figure genuinely about sound or music, so a miss
+ * costs the sound — which is the default anyway — and a false positive costs
+ * only tokens.
+ *
+ * Norwegian counts, as everywhere here. Deliberately NOT in the list: "wave",
+ * "frequency" and "hertz", which belong to physics figures far more often
+ * than to music ones, and "string", which is a data type.
+ */
+const SOUND_WORDS =
+  /\b(sound|music\w*|musikk\w*|musical|note|notes|chord\w*|akkord\w*|melod\w*|tune|scale\b|skala\w*|octave|oktav\w*|interval|intervall\w*|piano\w*|keyboard|tangent\w*|staff|notesystem|pitch|tonehøyde|tone[rn]?\b|toner\w*|sing\w*|synge|sang\w*|kvint|kvart|ters|harmon\w*|rhythm|rytme|beat\b|hør\w*|lyd\w*)\b/i;
+export function wantsSound(request: string): boolean {
+  return SOUND_WORDS.test(request);
 }
 
 /**

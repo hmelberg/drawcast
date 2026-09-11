@@ -5,7 +5,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { makeClient, callForJson, callForText, describeApiError, repairModelFor, type Effort, type JsonCallMeta } from "./client";
 import { buildOutlineMessages, normalizeOutline, OUTLINE_SCHEMA, type Outline } from "./outline";
-import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, styleBlock, systemBlocks, wantsCode, OPTIONAL_PROMPT_PLACEHOLDERS, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
+import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, styleBlock, systemBlocks, wantsCode, wantsSound, OPTIONAL_PROMPT_PLACEHOLDERS, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
 import { pickExemplars } from "./exemplars";
 import { catalogIsTwoLevel, catalogParts, detectNeedTemplate } from "../scenes/catalog";
 import type { RouteResult } from "./router";
@@ -27,6 +27,7 @@ import { isPackTemplateId, packTemplateIds } from "../scenes/packs";
 import { scanDataTokens } from "../code/tokens";
 import fewshots from "./prompts/fewshots.json";
 import codeMd from "./prompts/compiler-v1-code.md?raw";
+import soundMd from "./prompts/compiler-v1-sound.md?raw";
 
 /** Budget for the authoring-time code-execution check (real pyodide WASM in
  *  a hidden run). The underlying run cannot be cancelled once started (no
@@ -62,11 +63,20 @@ const variantModules = import.meta.glob("./prompts/compiler-*.md", { query: "?ra
  */
 export const CODE_PROMPT_SOURCE = codeMd;
 
+/**
+ * The `play` verb, kept in its own file and filled into {{SOUND}} only for a
+ * request about sound or music (prompt.ts's wantsSound): 1.4k chars of note
+ * notation and ABC that the prompt already gated in prose, so every other
+ * request was paying to be told the verb does not apply to it.
+ */
+export const SOUND_PROMPT_SOURCE = soundMd;
+
 export function promptVariants(): PromptVariant[] {
   return Object.entries(variantModules)
-    // compiler-v1-code.md is a FRAGMENT of compiler-v1, not a variant of its
-    // own — the glob above would otherwise offer it in the prompt picker.
-    .filter(([path]) => !path.endsWith("-code.md"))
+    // compiler-v1-code.md and -sound.md are FRAGMENTS of compiler-v1, not
+    // variants of their own — the glob above would otherwise offer them in
+    // the prompt picker. Every conditional block added later goes here too.
+    .filter(([path]) => !/-(code|sound)\.md$/.test(path))
     .map(([path, source]) => ({
       name: path.replace(/^.*compiler-/, "").replace(/\.md$/, ""),
       source,
@@ -378,12 +388,14 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   // The code block rides along only for a request that wants a script; every
   // other request keeps 15k chars out of its (cached) prefix.
   const code = wantsCode(request) ? CODE_PROMPT_SOURCE : "";
+  const sound = wantsSound(request) ? SOUND_PROMPT_SOURCE : "";
   let blocks = buildSystemBlocks(cfg.variant.source, {
     schema: apiSchema(),
     catalog: catalog.stable,
     fewshots: fewshotsText(),
     exemplars: formatExemplars(pickExemplars(request, cfg.exemplars, cfg.bundledExemplars ?? [], 3)),
     code,
+    sound,
   });
   let suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "") + styleBlock(cfg.styleText);
   let system: Anthropic.TextBlockParam[] = systemBlocks(blocks.prefix, suffixText);
@@ -447,6 +459,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
           fewshots: fewshotsText(),
           exemplars: formatExemplars(pickExemplars(request, cfg.exemplars, cfg.bundledExemplars ?? [], 3)),
           code,
+          sound,
         });
         suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "") + styleBlock(cfg.styleText);
         system = systemBlocks(blocks.prefix, suffixText);

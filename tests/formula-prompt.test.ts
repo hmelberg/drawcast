@@ -27,8 +27,10 @@ describe("the prompt teaches morph.tex, copy, colors and the parametric curve (d
     expect(prompt).toContain('`copy`: `{"copy": {"target": "eq", "as": "eq2"}, "speak": "Keep the line and work on a copy."}`');
     expect(prompt).toContain('the derivation idiom is copy the line, move the copy down, morph its TeX');
     expect(prompt).toContain('(`keep` is the choice when the original should fade instead)');
-    // `copy` was already in the verb list (Task 5) — never duplicated.
-    expect(prompt.match(/\/ `copy` \//g)?.length ?? 0).toBe(1);
+    // `copy` was already in the verb list (Task 5) — never duplicated. Counted
+    // against the `## Verbs` catalogue since the restructure: the old count was
+    // of the enumeration line, which no longer exists.
+    expect(prompt.match(/^- `copy`/gm)?.length ?? 0).toBe(1);
     // (d) freehand rule 5 (math) gains the `colors` sentence.
     expect(prompt).toContain('Colour terms by role with `"colors": {"x": "#2f6b8f", "\\\\Delta C": "#b5482e"}`');
     expect(prompt).toContain('a TeX snippet per colour, every occurrence, kept through a morph.');
