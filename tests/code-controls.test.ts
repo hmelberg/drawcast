@@ -71,6 +71,11 @@ describe("parseControls — python shorthand", () => {
     const { controls } = py("b = 1\na = 2", ["a", "b"]);
     expect(controls.map((c) => c.name)).toEqual(["a", "b"]);
   });
+
+  test('a "#" inside a string is not a comment', () => {
+    const c = py('name = "a # b"  # trailing', ["name"]).controls[0];
+    expect(c).toMatchObject({ kind: "text", default: "a # b" });
+  });
 });
 
 describe("parseControls — issues", () => {
@@ -120,5 +125,61 @@ describe("parseControls — issues", () => {
   test("a later longhand call is a second birth, even when its kind is not itself a shape", () => {
     expect(py("log = False\nlog = Toggle(True)", ["log"]).issues[0]).toMatchObject({ name: "log", severity: "error", message: expect.stringContaining("twice") });
     expect(py("x = (1, 50)\nx = 5", ["x"]).issues[0]).toMatchObject({ name: "x", severity: "warn" });
+  });
+});
+
+describe("parseControls — longhand", () => {
+  test("Slider with step, default and label", () => {
+    const c = py('n = Slider(1, 50, default=10, label="Cycles")', ["n"]).controls[0];
+    expect(c).toMatchObject({ kind: "slider", min: 1, max: 50, step: 1, integer: true, default: 10, label: "Cycles" });
+    expect('n = Slider(1, 50, default=10, label="Cycles")'.slice(c.start, c.end)).toBe('Slider(1, 50, default=10, label="Cycles")');
+    expect(py("b = Slider(0.1, 1.0, step=0.05)", ["b"]).controls[0]).toMatchObject({ step: 0.05, integer: false, decimals: 2 });
+  });
+  test("Choice, Toggle, Text, Number, Button", () => {
+    expect(py('m = Choice("SIR", "SEIR", label="Model")', ["m"]).controls[0]).toMatchObject({ kind: "choice", options: ["SIR", "SEIR"], default: "SIR", label: "Model" });
+    expect(py('m = Choice("a", "b", default="b")', ["m"]).controls[0].default).toBe("b");
+    expect(py('t = Toggle(True, label="Log")', ["t"]).controls[0]).toMatchObject({ kind: "toggle", default: true, label: "Log" });
+    expect(py('s = Text("Alice", label="Name")', ["s"]).controls[0]).toMatchObject({ kind: "text", default: "Alice", label: "Name" });
+    expect(py('k = Number(3, label="Seed")', ["k"]).controls[0]).toMatchObject({ kind: "number", default: 3, integer: true, label: "Seed" });
+    expect(py('r = Button("Roll again")', ["r"]).controls[0]).toMatchObject({ kind: "button", default: 0, caption: "Roll again", label: "Roll again" });
+  });
+  test("bad longhand arguments are errors", () => {
+    expect(py("n = Slider(1, 50, default=99)", ["n"]).issues[0]).toMatchObject({ severity: "error", message: expect.stringContaining("outside") });
+    expect(py('m = Choice("a", "b", default="z")', ["m"]).issues[0]).toMatchObject({ severity: "error", message: expect.stringContaining("not one of") });
+    expect(py("n = Slider(5)", ["n"]).issues[0]).toMatchObject({ severity: "error" });
+    expect(py("n = Slider(1, 50, label=Cycles)", ["n"]).issues[0]).toMatchObject({ severity: "error", message: expect.stringContaining("label") });
+  });
+  test("longhand inside a def default", () => {
+    const code = "def sim(beta=Slider(0.1, 1.0, step=0.05), days=(30, 200)):\n    pass";
+    const { controls, issues } = py(code, ["beta", "days"]);
+    expect(issues).toEqual([]);
+    expect(controls[0]).toMatchObject({ kind: "slider", step: 0.05, birthplace: "param" });
+    expect(code.split("\n")[0].slice(controls[0].start, controls[0].end)).toBe("Slider(0.1, 1.0, step=0.05)");
+    expect(controls[1]).toMatchObject({ kind: "slider", min: 30, max: 200, integer: true });
+  });
+});
+
+describe("parseControls — R", () => {
+  const r = (code: string, names: string[]) => parseControls("r", code, names);
+  test("c(a, b) is a range, c(\"a\", \"b\") a choice, TRUE a toggle; <- and = both assign", () => {
+    expect(r("n <- c(1, 50)", ["n"]).controls[0]).toMatchObject({ kind: "slider", min: 1, max: 50, integer: true, default: 25 });
+    expect(r("n = c(0.1, 1.0, 0.05)", ["n"]).controls[0]).toMatchObject({ kind: "slider", step: 0.05, integer: false });
+    expect(r('m <- c("SIR", "SEIR")', ["m"]).controls[0]).toMatchObject({ kind: "choice", options: ["SIR", "SEIR"] });
+    expect(r("lg <- TRUE", ["lg"]).controls[0]).toMatchObject({ kind: "toggle", default: true });
+    expect(r('nm <- "Ann"', ["nm"]).controls[0]).toMatchObject({ kind: "text", default: "Ann" });
+    expect(r("k <- 3", ["k"]).controls[0]).toMatchObject({ kind: "number", integer: true });
+  });
+  test("a function default is a birthplace; the function's own name is not", () => {
+    const code = "sim <- function(n = c(1, 50), beta = 0.3) {\n  n * beta\n}\nsim()";
+    const { controls, issues } = r(code, ["n", "beta"]);
+    expect(issues).toEqual([]);
+    expect(controls[0]).toMatchObject({ name: "n", kind: "slider", birthplace: "param" });
+    expect(code.split("\n")[0].slice(controls[0].start, controls[0].end)).toBe("c(1, 50)");
+    expect(controls[1]).toMatchObject({ name: "beta", kind: "number", integer: false });
+  });
+  test("longhand in R uses the same names", () => {
+    expect(r('n <- Slider(1, 50, default = 10, label = "Cycles")', ["n"]).controls[0]).toMatchObject({ default: 10, label: "Cycles" });
+    expect(r('b <- Button("Resample")', ["b"]).controls[0]).toMatchObject({ kind: "button", caption: "Resample" });
+    expect(r("t <- Toggle(FALSE)", ["t"]).controls[0]).toMatchObject({ kind: "toggle", default: false });
   });
 });
