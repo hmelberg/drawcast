@@ -12,8 +12,13 @@
 // way a code line already updates itself.
 //
 // Ids: `<id>_ctl_<name>` is one row (a group of its label + widget + value —
-// the same group shape `<id>_out` uses), reachable on its own; `<id>_ctls` is
-// a group of every row, reachable as the whole panel at once.
+// the same group shape `<id>_out` uses), a real top-level drawable reachable
+// on its own. `<id>_ctls` is NOT a drawable — it is a GROUP ID (`ctx.groups`,
+// the same map a spec `type: "group"` element populates) that expands to
+// every row id, so `draw: [sim_ctls]` draws the whole panel by drawing each
+// row once, rather than a wrapper drawable that would draw a row's ink AGAIN
+// whenever both it and the wrapper went unmentioned and fell to the
+// implicit final draw (render/plan.ts).
 
 import { formatValue, parseControls, withControlDefaults } from "../code/controls";
 import { COLORS, SKETCH_MS, Z_AREA, Z_STROKE, Z_TEXT, defaultStyle, type Drawable, type GroupDrawable, type Pt } from "./model";
@@ -28,10 +33,14 @@ const PAD = 10;
 const FIELD_H_EM = 1.05;
 
 export interface ControlsPaneLayout {
+  /** Top-level: one `GroupDrawable` per row (`<id>_ctl_<name>`) — `<id>_ctls` is not among them (see `groups`). */
   drawables: Drawable[];
+  /** Row ids, in `el.controls` order — what `ctx.extraOrder` gets. `<id>_ctls` is deliberately absent: a group id is never itself command-addressable (layout.ts skips a spec `type: "group"` the same way). */
   order: string[];
   height: number;
   anchors: Record<string, Pt>;
+  /** `<id>_ctls` → its row ids, merged into `ctx.groups` — the same map a spec `type: "group"` element populates, so `draw: [sim_ctls]` expands to every row (`expandGroup`, render/plan.ts) instead of a wrapper drawable duplicating their ink. */
+  groups: Record<string, string[]>;
 }
 
 /**
@@ -147,7 +156,7 @@ export function controlsPane(
   });
 
   const rows: GroupDrawable[] = [];
-  const order: string[] = [`${id}_ctls`];
+  const order: string[] = [];
   const anchors: Record<string, Pt> = {};
 
   names.forEach((name, i) => {
@@ -223,22 +232,18 @@ export function controlsPane(
   });
 
   const height = controlsPaneHeight(names.length, fontSize);
-  // ONE top-level drawable — the rows live as its children, not also
-  // separately at the top: `flattenDrawables` recurses into every group
-  // (at any depth), so a row that was ALSO a sibling top-level entry here
-  // would flatten twice (its leaves would appear once via its own subtree
-  // and once via `_ctls`'s). `code.ts` re-pushes each row on its own so
-  // `draw: [sim_ctl_beta]` still resolves to a real top-level id there —
-  // this array is just what this function itself hands back as one group.
-  const ctlsGroup: GroupDrawable = {
-    id: `${id}_ctls`,
-    kind: "group",
-    z: Z_STROKE,
-    style: defaultStyle(),
-    drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 0 }),
-    children: rows,
-  };
+  // `<id>_ctls` is NOT a drawable — it is a GROUP ID (the same mechanism a
+  // spec `type: "group"` element registers in `LayoutResult.groups`): it
+  // expands to the row ids at plan time (`expandGroup`, render/plan.ts), so
+  // `draw: [sim_ctls]` draws every row and an UNMENTIONED row is still swept
+  // into the implicit final draw exactly once — nesting the same row
+  // GroupDrawables a second time under a wrapper would have drawn each row's
+  // ink twice whenever both the wrapper and its rows went unmentioned.
+  const groups: Record<string, string[]> = { [`${id}_ctls`]: [...order] };
+  // A group element gets an anchor at its members' union box center
+  // (tier2.ts's own `type: "group"` case) — the panel's box is already known
+  // here, so its center is exact rather than measured.
   anchors[`${id}_ctls`] = [box.x + box.w / 2, box.top - height / 2];
 
-  return { drawables: [ctlsGroup], order, height, anchors };
+  return { drawables: rows, order, height, anchors, groups };
 }

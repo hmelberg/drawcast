@@ -15,7 +15,11 @@ describe("controlsPane (pure)", () => {
   const names = ["n", "model", "log", "name", "roll"];
   test("one row per control, in order, with the panel id and per-control groups", () => {
     const p = controlsPane("sim", "python", code, names, { x: 100, top: 600, w: 400 }, 17, undefined, undefined);
-    expect(p.order).toEqual(["sim_ctls", "sim_ctl_n", "sim_ctl_model", "sim_ctl_log", "sim_ctl_name", "sim_ctl_roll"]);
+    // `sim_ctls` is a GROUP id (p.groups), not itself a row in `order` — a
+    // group is never command-addressable as a drawable of its own (the same
+    // rule a spec `type: "group"` element follows).
+    expect(p.order).toEqual(["sim_ctl_n", "sim_ctl_model", "sim_ctl_log", "sim_ctl_name", "sim_ctl_roll"]);
+    expect(p.groups).toEqual({ sim_ctls: p.order });
     expect(p.height).toBeCloseTo(5 * 17 * CTL_ROW_H, 5);
   });
   test("a slider's knob sits at the default's fraction of the track", () => {
@@ -45,17 +49,32 @@ describe("controlsPane (pure)", () => {
 });
 
 describe("pane: controls in the panel layout", () => {
-  test("mints _ctls and _ctl_<name>, no _line_N, and registers the pane box", () => {
+  test("mints _ctl_<name> rows, no _line_N, registers the pane box, and sim_ctls as a group", () => {
     const s = spec({ controls: ["n", "log"], code: "n = (1, 50)\nlog = False\nprint(n)" });
     const all = ids(s);
-    expect(all).toContain("sim_ctls");
     expect(all).toContain("sim_ctl_n");
     expect(all).toContain("sim_ctl_log");
     expect(all.some((i) => /^sim_line_\d+$/.test(i))).toBe(false);
     expect(all).toContain("sim_out");
-    expect(layoutSpec(s, heuristicMeasure).panes?.sim).toBeDefined();
+    const layout = layoutSpec(s, heuristicMeasure);
+    expect(layout.panes?.sim).toBeDefined();
+    // sim_ctls is a GROUP id (expandGroup, render/plan.ts), not a drawable of
+    // its own — it must not show up in the drawables tree at all.
+    expect(all).not.toContain("sim_ctls");
+    expect(layout.groups?.sim_ctls).toEqual(["sim_ctl_n", "sim_ctl_log"]);
   });
   test("pane: code (or absent) still draws lines", () => {
     expect(ids(spec({ pane: "code", controls: ["n"], code: "n = (1, 50)\nprint(n)" }))).toContain("sim_line_1");
+  });
+  test("commands: [] draws each row's ink exactly once (no double-ink from the implicit final draw)", () => {
+    const s: Spec = {
+      elements: [{ id: "sim", type: "code", language: "python", show: "left", width: 900, pane: "controls", code_result: OK, controls: ["n"], code: "n = (1, 50)\nprint(n)" }],
+      commands: [],
+    } as unknown as Spec;
+    const rowDrawables = flattenDrawables(layoutSpec(s, heuristicMeasure).drawables).filter((d) => d.id.startsWith("sim_ctl_n__"));
+    const counts = new Map<string, number>();
+    for (const d of rowDrawables) counts.set(d.id, (counts.get(d.id) ?? 0) + 1);
+    expect(counts.size).toBeGreaterThan(0);
+    for (const [id, n] of counts) expect(n, `${id} drawn ${n} times`).toBe(1);
   });
 });

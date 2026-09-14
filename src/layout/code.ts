@@ -112,6 +112,12 @@ export interface CodeCtx {
   warnings: string[];
   windows: Record<string, CodeWindow>;
   panes: Record<string, BBox>;
+  /** `group` element id → its flattened leaf member ids (tier2.ts `Ctx.groups`,
+   *  reported as `LayoutResult.groups`) — `pane: controls` registers
+   *  `<id>_ctls` here, the same mechanism a spec `type: "group"` element uses,
+   *  so `expandGroup` (render/plan.ts) draws the whole panel by expanding to
+   *  its rows rather than a wrapper drawable duplicating their ink. */
+  groups: Record<string, string[]>;
 }
 
 /** Wrap one source line at maxChars with a hanging indent that preserves the
@@ -701,16 +707,18 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       el.style,
       el.draw,
     );
-    // Each row is ALSO re-pushed as its own top-level drawable (beside the
-    // `_ctls` group that already nests it) so `draw: [sim_ctl_beta]` finds it
-    // directly — drawablesForId only matches a TOP-LEVEL id, the same reason
-    // `_line_N` are top-level rather than children of the panel group.
-    for (const d of pane.drawables) {
-      if (d.kind === "group") out.push(...d.children);
-      out.push(d);
-    }
+    // Each row is its own top-level drawable (`draw: [sim_ctl_beta]` finds it
+    // directly via drawablesForId, which only matches a top-level id — the
+    // same reason `_line_N` are top-level rather than nested in the panel
+    // group). `<id>_ctls` is registered as a GROUP ID, not a wrapper drawable
+    // — `ctx.groups` (the same map a spec `type: "group"` element populates)
+    // so `draw: [sim_ctls]` expands to every row (expandGroup, render/plan.ts)
+    // instead of a second drawable that would re-draw a row's ink whenever
+    // both it and its row went unmentioned and fell to the implicit final draw.
+    out.push(...pane.drawables);
     ctx.extraOrder.push(...pane.order);
     Object.assign(ctx.anchors, pane.anchors);
+    Object.assign(ctx.groups, pane.groups);
   }
 
   // ---- output pane: one group, always minted -------------------------------
