@@ -2,7 +2,7 @@
 // The control grammar (spec 2026-09-14 §2.2–2.4): names in the spec, shapes
 // in the script. Pure string functions — no DOM, no runtime.
 import { describe, expect, test } from "vitest";
-import { applyControls, grammarFor, parseControls, withControlDefaults } from "../src/code/controls";
+import { grammarFor, parseControls } from "../src/code/controls";
 
 const py = (code: string, names: string[]) => parseControls("python", code, names);
 
