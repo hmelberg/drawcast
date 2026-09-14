@@ -122,9 +122,10 @@ export function mountControlsCard(stage: HTMLElement, opts: ControlsCardOpts): C
 
   reposition();
   // Escape (above) only ever reaches `close()` once the card can receive
-  // keyboard events at all — mirrors `mountCodeEditor`'s `area.focus()`, but
-  // there is no single input to prefer here (a slider, a choice row, a plain
-  // button might be first), so the card itself takes it (`tabindex="-1"`).
+  // keyboard events at all — mountCodeEditor focuses its textarea for the
+  // same reason, but there is no single input to prefer here (a slider, a
+  // choice row, a plain button might be first), so the card itself takes
+  // keyboard focus (`tabindex="-1"`).
   card.focus();
 
   const onResize = (): void => reposition();

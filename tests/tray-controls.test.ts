@@ -50,7 +50,10 @@ describe("tray controls (pins)", () => {
     expect(src).toMatch(/const clearPreview[\s\S]{0,800}?controlsCards/);
   });
   test("the card takes keyboard focus on mount, so Escape (bound on the card) has something to reach", () => {
+    // Anchored on the literal statement, not on any mention of `.focus(`
+    // nearby (a doc comment referencing mountCodeEditor's own focus call
+    // would satisfy a looser pin without the real `card.focus();` present).
     const card = readFileSync("src/ui/controls-card.ts", "utf8");
-    expect(card).toMatch(/reposition\(\)[\s\S]{0,300}?\.focus\(/);
+    expect(card).toMatch(/stage\.appendChild\(card\);[\s\S]{0,2000}?card\.focus\(\);/);
   });
 });
