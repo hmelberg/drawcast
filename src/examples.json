@@ -8476,7 +8476,11 @@
           "language": "python",
           "show": "left",
           "width": 900,
-          "code": "import numpy as np\nimport matplotlib.pyplot as plt\nrng = np.random.default_rng(7)\nx = rng.normal(size=200)\nprint(\"mean:\", round(x.mean(), 3))\n_ = plt.hist(x, bins=20)"
+          "controls": [
+            "n",
+            "seed"
+          ],
+          "code": "import numpy as np\nimport matplotlib.pyplot as plt\nn = Slider(20, 2000, default=200, label=\"Draws\")\nseed = Button(\"Draw again\")\nrng = np.random.default_rng(7 + seed)\nx = rng.normal(size=n)\nprint(\"mean:\", round(x.mean(), 3))\n_ = plt.hist(x, bins=20)"
         }
       ],
       "commands": [
@@ -8494,20 +8498,22 @@
         },
         {
           "draw": [
-            "sim_line_3"
-          ],
-          "speak": "A seeded generator — so this figure shows the same truth every time."
-        },
-        {
-          "draw": [
+            "sim_line_3",
             "sim_line_4"
           ],
-          "speak": "Two hundred draws from a standard normal."
+          "speak": "Two knobs: how many draws, and a button that draws again — you will get them in a moment."
         },
         {
           "draw": [
             "sim_line_5",
             "sim_line_6"
+          ],
+          "speak": "A seeded generator, two hundred draws from a standard normal."
+        },
+        {
+          "draw": [
+            "sim_line_7",
+            "sim_line_8"
           ],
           "speak": "Print the mean, and pile the draws into a histogram."
         },
@@ -8517,6 +8523,12 @@
           ],
           "delivery": "grave",
           "speak": "The mean sits near zero, and the familiar bell is already there — randomness, obeying a law."
+        },
+        {
+          "explore": {
+            "code": "sim"
+          },
+          "speak": "Now slide the draws down to twenty and up to two thousand, and press Draw again a few times. Watch how the center holds still while the bell fills in."
         }
       ]
     }
@@ -20705,6 +20717,142 @@
         { "point": { "at": { "ref": "p95" }, "gesture": "circle" }, "speak": "Er det luft igjen i dagen, spises en forsinkelse opp av den luften. Er det ikke det, arver neste pasient hele forsinkelsen, og pasienten etter der igjen." },
         { "pause": 0.5 },
         { "speak": "Så ventetid måler ikke hvor hardt de jobber der inne. Den måler hvor lite slakk de har igjen å ta forsinkelser med." }
+      ]
+    }
+  },
+  {
+    "request": "Why does an epidemic peak and then fade, even when nobody was immune at the start?",
+    "spec": {
+      "title": "An epidemic peaks because it runs out of people to infect",
+      "elements": [
+        {
+          "id": "sir",
+          "type": "code",
+          "language": "python",
+          "show": "left",
+          "width": 900,
+          "controls": [
+            "beta",
+            "gamma",
+            "days"
+          ],
+          "code": "import matplotlib.pyplot as plt\ndef sir(beta=(0.1, 1.0, 0.05), gamma=(0.05, 0.5, 0.05), days=(30, 200)):\n    s, i, r = 0.99, 0.01, 0.0\n    S, I, R = [s], [i], [r]\n    for _ in range(days):\n        new, rec = beta * s * i, gamma * i\n        s, i, r = s - new, i + new - rec, r + rec\n        S.append(s); I.append(i); R.append(r)\n    plt.plot(S, label=\"susceptible\"); plt.plot(I, label=\"infected\"); plt.plot(R, label=\"recovered\")\n    plt.legend(); print(\"peak infected:\", round(max(I), 3))\nsir()"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "sir",
+            "sir_line_1",
+            "sir_line_2"
+          ],
+          "parallel": true,
+          "speak": "Three groups: the susceptible, the infected, the recovered. Two rates decide everything — how fast it spreads, and how fast people recover."
+        },
+        {
+          "draw": [
+            "sir_line_3",
+            "sir_line_4"
+          ],
+          "speak": "Almost everyone starts susceptible; one in a hundred is infected."
+        },
+        {
+          "draw": [
+            "sir_line_5",
+            "sir_line_6",
+            "sir_line_7",
+            "sir_line_8"
+          ],
+          "speak": "Each day, new infections need a susceptible person AND an infected one to meet — so the fewer susceptibles are left, the fewer new cases, whatever the virus does."
+        },
+        {
+          "draw": [
+            "sir_line_9",
+            "sir_line_10",
+            "sir_line_11"
+          ],
+          "speak": "Plot the three curves."
+        },
+        {
+          "draw": [
+            "sir_out"
+          ],
+          "delivery": "grave",
+          "speak": "The infected curve rises, peaks, and falls — not because anyone became immune at the start, but because the epidemic burns through the people it can reach."
+        },
+        {
+          "explore": {
+            "code": "sir"
+          },
+          "speak": "Try it: lower the spread rate and the peak flattens and moves later. Raise the recovery rate and it shrinks. That is the whole idea behind flattening the curve."
+        }
+      ]
+    }
+  },
+  {
+    "request": "What does a sampling distribution look like if I only have one sample? Bootstrap it in R.",
+    "spec": {
+      "title": "One sample, resampled: the bootstrap",
+      "elements": [
+        {
+          "id": "boot",
+          "type": "code",
+          "language": "r",
+          "show": "left",
+          "width": 900,
+          "controls": [
+            "n",
+            "reps",
+            "resample"
+          ],
+          "code": "library(ggplot2)\nn <- Slider(10, 500, default = 40, label = \"Sample size\")\nreps <- c(100, 2000)\nresample <- Button(\"Resample\")\nset.seed(1 + resample)\nx <- rexp(n, rate = 1/4)\nmeans <- replicate(reps, mean(sample(x, replace = TRUE)))\ncat(\"sample mean:\", round(mean(x), 2), \" boot sd:\", round(sd(means), 2), \"\\n\")\nggplot(data.frame(m = means), aes(m)) + geom_histogram(bins = 25)"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "boot",
+            "boot_line_1",
+            "boot_line_2",
+            "boot_line_3",
+            "boot_line_4"
+          ],
+          "parallel": true,
+          "speak": "One sample of waiting times, and three knobs: its size, how many resamples, and a button for a fresh sample."
+        },
+        {
+          "draw": [
+            "boot_line_5",
+            "boot_line_6"
+          ],
+          "speak": "The sample: forty exponential waiting times, mean about four."
+        },
+        {
+          "draw": [
+            "boot_line_7"
+          ],
+          "speak": "The trick: resample the sample WITH replacement, take the mean, and repeat — the data pretends to be the population."
+        },
+        {
+          "draw": [
+            "boot_line_8",
+            "boot_line_9"
+          ],
+          "speak": "Print the sample mean and the spread of the resampled means, then draw them."
+        },
+        {
+          "draw": [
+            "boot_out"
+          ],
+          "delivery": "grave",
+          "speak": "That histogram is the sampling distribution of the mean, built from one sample. Its width is the standard error — no formula needed."
+        },
+        {
+          "explore": {
+            "code": "boot"
+          },
+          "speak": "Slide the sample size up and watch the histogram narrow. Press Resample: a different sample, the same shape."
+        }
       ]
     }
   }
