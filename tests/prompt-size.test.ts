@@ -73,7 +73,13 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // sentence), system 223804 → 224068 (that +1 plus the prompt's own +263).
 // The author prompt (author-v1.md, on-demand only) grew a section; it is not
 // part of these pins.
-const BASELINE_SYSTEM_CHARS = 224068;
+// Re-pinned 2026-09-14 for the widget-bodies round (Task 7): the widgets
+// pack (three widget-body templates — morse_key, tower_of_hanoi,
+// logic_gates) — with no packs registered (this test's own config) it shows
+// up in the catalog as one more "Pack available but not enabled: Widgets —
+// …" line, +211 chars on the system prompt only; the schema is untouched
+// (109612 stays 109612).
+const BASELINE_SYSTEM_CHARS = 224279;
 const BASELINE_SCHEMA_CHARS = 109612;
 
 const system = (code: boolean, sound = false) =>

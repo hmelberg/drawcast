@@ -23,6 +23,8 @@ import { ensureEnginesForSpecs } from "../src/scenes/engines";
 import { isReadyTemplate } from "../src/scenes/catalog";
 import { templateParamErrors } from "../src/scenes/params-check";
 import { splitVarOverrides, withOverrides } from "../src/render/params";
+import { runWidget } from "../src/scenes/widget-run";
+import { buildWidgetScene } from "../src/scenes/widget-scene";
 import type { Command, Spec } from "../src/spec/types";
 
 interface BundledExample {
@@ -287,5 +289,22 @@ describe("bundled examples stay exemplary", () => {
     const firstDraw = commands.findIndex((c) => c.draw !== undefined);
     const speaksBefore = commands.slice(0, firstDraw).filter((c) => c.speak !== undefined);
     expect(speaksBefore.length).toBeLessThanOrEqual(1);
+  });
+
+  // A template that can be WORKED must survive being worked: one click on
+  // every part at the example's params, no error, no dropped effect.
+  test("every ready template with a widget body runs clean under one click per part", () => {
+    for (const s of Object.values(scenes)) {
+      if (s.manifest.status !== "ready" || !s.widget) continue;
+      for (const ex of s.manifest.examples) {
+        const scene = buildWidgetScene(s, ex.params);
+        expect(scene, s.manifest.name).not.toBeNull();
+        const run = runWidget(s, ex.params, scene!.ids);
+        expect(run.errors, `${s.manifest.name} ${ex.request}`).toEqual([]);
+      }
+    }
+  });
+  test("the widgets pack ships at least three worked widgets", () => {
+    expect(Object.values(scenes).filter((s) => s.manifest.status === "ready" && s.widget).length).toBeGreaterThanOrEqual(3);
   });
 });

@@ -1,0 +1,272 @@
+pack: widgets
+title: Widgets
+description: Figures the viewer can work while paused — a Morse key, the Tower of Hanoi, logic gates — each a template document with a widget body; the models for writing your own.
+---
+template: morse_key
+title: Morse code key
+version: 1
+kit: 10
+status: ready
+description: >-
+  A telegraph key with a dot pad and a dash pad, the sent signal as a strip of
+  dots and dashes, the decoded letters, and a small code chart with one word
+  highlighted. The viewer can tap the pads while paused (each sounds); an ask
+  bound to this template can require a word. Choose this for ANY request about
+  Morse code, telegraphy, SOS, or dots and dashes.
+params:
+  type: object
+  properties:
+    word:
+      type: string
+      description: "Word the chart highlights and the lesson is about, e.g. SOS (default SOS)."
+    chart:
+      type: boolean
+      description: "Show the code chart (default true)."
+    signal:
+      type: string
+      description: "Sent signal so far — the widget sets this; leave empty."
+    decoded:
+      type: string
+      description: "Decoded letters so far — the widget sets this; leave empty."
+element_ids:
+  key_dot: the dot pad (tap to send a dot)
+  key_dash: the dash pad (tap to send a dash)
+  key_gap: the gap pad (tap to end a letter)
+  signal: the strip of sent dots and dashes
+  decoded: the decoded letters
+  chart: the code chart (a group; chart_<letter> per row)
+  title: the title
+examples:
+  - request: "Teach Morse code and let me send SOS."
+    params: { word: "SOS" }
+  - request: "Show the Morse alphabet."
+    params: { word: "HELLO", chart: true }
+layout: |
+  const C = kit.COLORS;
+  const word = (typeof params.word === "string" && params.word.trim() !== "" ? params.word : "SOS").toUpperCase();
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  push(kit.text("title", [500, 700], "Morse code", { fontSize: 30 }));
+  push(kit.pad("key_dot", [300, 150], "·", { r: 42 }));
+  push(kit.pad("key_dash", [430, 150], "−", { r: 42 }));
+  push(kit.pad("key_gap", [580, 150], "gap", { w: 100, h: 64 }));
+  push(kit.text("signal", [500, 260], params.signal ?? "", { fontSize: 44, color: C.demand }));
+  push(kit.text("decoded", [500, 330], params.decoded ?? "", { fontSize: 34 }));
+  if (params.chart !== false) {
+    const letters = Object.keys(kit.MORSE).filter((k) => /[A-Z]/.test(k));
+    const cols = 4, rows = Math.ceil(letters.length / cols);
+    const x0 = 120, y0 = 640, dx = 210, dy = 34;
+    const children = letters.map((L, i) => {
+      const x = x0 + (i % cols) * dx, y = y0 - Math.floor(i / cols) * dy;
+      const hot = word.includes(L);
+      return kit.text("chart_" + L.toLowerCase(), [x, y], L + "  " + kit.MORSE[L], { fontSize: 18, color: hot ? C.demand : C.guide });
+    });
+    push(kit.group("chart", children));
+    anchors.chart = [500, y0 - (rows * dy) / 2];
+  }
+  anchors.key_dot = [300, 150]; anchors.key_dash = [430, 150]; anchors.key_gap = [580, 150];
+  return { drawables, labels, anchors, order };
+widget: |
+  const CODE = kit.MORSE;
+  const decode = (s) => Object.keys(CODE).find((k) => CODE[k] === s) ?? "?";
+  const same = (state) => ({ state, effects: [] });
+  const beep = (sym) => ({ sound: { hz: 700, ms: sym === "." ? 80 : 240 } });
+  const init = () => ({ signal: "", letter: "", text: "" });
+  const on = (ev, st) => {
+    if (ev.type !== "click") return same(st);
+    if (ev.id === "key_dot" || ev.id === "key_dash") {
+      const sym = ev.id === "key_dot" ? "." : "-";
+      const next = { ...st, signal: st.signal + sym, letter: st.letter + sym };
+      return { state: next, effects: [beep(sym), { patch: { signal: next.signal } }] };
+    }
+    if (ev.id === "key_gap") {
+      if (st.letter === "") return same(st);
+      const next = { ...st, letter: "", text: st.text + decode(st.letter), signal: st.signal + " " };
+      return { state: next, effects: [{ patch: { signal: next.signal, decoded: next.text } }, { answer: next.text }] };
+    }
+    return same(st);
+  };
+  const demo = (scene, answer) => [...answer.toUpperCase()].flatMap((ch) =>
+    [...(CODE[ch] ?? "")].map((sym) => ({ pointer: sym === "." ? "key_dot" : "key_dash", ...beep(sym) })).concat([{ pointer: "key_gap" }]));
+  const judge = (given, answer) => given.trim().toUpperCase() === answer.trim().toUpperCase();
+  return { init, on, demo, judge };
+---
+template: tower_of_hanoi
+title: Tower of Hanoi
+version: 1
+kit: 10
+status: ready
+description: >-
+  The Tower of Hanoi puzzle: three pegs and a stack of disks that must move
+  one at a time, never a larger disk onto a smaller one. The viewer can play
+  it while paused (click a peg to pick up its top disk, another to put it
+  down); an ask bound to this template can require the puzzle to be solved.
+  Choose this for ANY request about the Tower of Hanoi, recursion puzzles or
+  the 2^n − 1 moves.
+params:
+  type: object
+  properties:
+    disks:
+      type: integer
+      description: "Number of disks, 3–5 (default 3)."
+    pegs:
+      type: string
+      description: "Peg contents bottom→top, pegs separated by | (e.g. \"321||\") — the widget sets this; leave empty for the start."
+    moves:
+      type: integer
+      description: "Moves made so far — the widget sets this; leave empty."
+element_ids:
+  peg_0: the left peg with its disks (a group)
+  peg_1: the middle peg with its disks (a group)
+  peg_2: the right peg with its disks (a group)
+  counter: the move counter
+  title: the title
+examples:
+  - request: "The Tower of Hanoi puzzle with three disks."
+    params: { disks: 3 }
+  - request: "Show a four-disk Tower of Hanoi."
+    params: { disks: 4 }
+layout: |
+  const C = kit.COLORS;
+  const n = Math.min(5, Math.max(3, Number.isInteger(params.disks) ? params.disks : 3));
+  const start = Array.from({ length: n }, (_, i) => String(n - i)).join("") + "||";
+  const pegs = (typeof params.pegs === "string" && params.pegs.split("|").length === 3 ? params.pegs : start).split("|");
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  push(kit.text("title", [500, 700], "Tower of Hanoi", { fontSize: 30 }));
+  const X = [220, 500, 780], BASE = 180, H = 24, MAXW = 200;
+  pegs.forEach((stack, p) => {
+    const children = [
+      kit.stroke("peg_" + p + "__base", [[X[p] - 120, BASE], [X[p] + 120, BASE]], { strokeWidth: 4 }),
+      kit.stroke("peg_" + p + "__pole", [[X[p], BASE], [X[p], BASE + 200]], { strokeWidth: 4 }),
+    ];
+    [...stack].forEach((d, i) => {
+      const w = MAXW * (Number(d) / n), y = BASE + i * H;
+      children.push(kit.stroke("peg_" + p + "__disk_" + d, kit.rect(X[p] - w / 2, y, w, H - 4), { closed: true, fill: C.series[(Number(d) - 1) % C.series.length], strokeWidth: 2 }));
+    });
+    push(kit.group("peg_" + p, children));
+    anchors["peg_" + p] = [X[p], BASE + 100];
+  });
+  push(kit.text("counter", [500, 120], "moves: " + (Number.isInteger(params.moves) ? params.moves : 0), { fontSize: 22, color: C.guide }));
+  return { drawables, labels, anchors, order };
+widget: |
+  const same = (state) => ({ state, effects: [] });
+  const encode = (pegs) => pegs.map((s) => s.join("")).join("|");
+  const init = (scene) => {
+    const raw = typeof scene.params.pegs === "string" && scene.params.pegs.split("|").length === 3 ? scene.params.pegs : null;
+    const n = Math.min(5, Math.max(3, Number.isInteger(scene.params.disks) ? scene.params.disks : 3));
+    const pegs = raw ? raw.split("|").map((s) => [...s]) : [Array.from({ length: n }, (_, i) => String(n - i)), [], []];
+    return { pegs, selected: null, moves: Number.isInteger(scene.params.moves) ? scene.params.moves : 0, n };
+  };
+  const on = (ev, st) => {
+    const m = /^peg_(\d)$/.exec(ev.id);
+    if (!m) return same(st);
+    const p = Number(m[1]);
+    if (st.selected === null) {
+      if (st.pegs[p].length === 0) return same(st);
+      return { state: { ...st, selected: p }, effects: [{ glow: "peg_" + p }] };
+    }
+    if (st.selected === p) return { state: { ...st, selected: null }, effects: [] };
+    const from = st.pegs[st.selected], to = st.pegs[p];
+    const disk = from[from.length - 1];
+    if (to.length > 0 && Number(to[to.length - 1]) < Number(disk)) {
+      return { state: { ...st, selected: null }, effects: [{ glow: "peg_" + p, color: "#b23a3a" }, { caption: "A larger disk may not go on a smaller one." }] };
+    }
+    const pegs = st.pegs.map((s, i) => (i === st.selected ? s.slice(0, -1) : i === p ? [...s, disk] : s));
+    const moves = st.moves + 1;
+    const solved = pegs[2].length === st.n;
+    const effects = [{ patch: { pegs: encode(pegs), moves } }];
+    if (solved) effects.push({ glow: "peg_2", color: "#4a7c59" }, { caption: "Solved in " + moves + " moves." }, { answer: "solved" });
+    return { state: { ...st, pegs, selected: null, moves }, effects };
+  };
+  const demo = (scene, answer) => {
+    const n = Math.min(5, Math.max(3, Number.isInteger(scene.params.disks) ? scene.params.disks : 3));
+    const taps = [];
+    const hanoi = (k, from, to, via) => { if (k === 0) return; hanoi(k - 1, from, via, to); taps.push({ pointer: "peg_" + from }, { pointer: "peg_" + to }); hanoi(k - 1, via, to, from); };
+    hanoi(n, 0, 2, 1);
+    return taps.slice(0, 14);
+  };
+  const judge = (given, answer) => given === "solved";
+  return { init, on, demo, judge };
+---
+template: logic_gates
+title: Logic gate
+version: 1
+kit: 10
+status: ready
+description: >-
+  One logic gate (AND, OR, XOR or NAND) with two input switches and a bulb:
+  the bulb lights when the gate's output is 1. The viewer can flip the
+  switches while paused and watch the bulb; an ask bound to this template
+  can require an input that lights it. Choose this for ANY request about a
+  single logic gate, a truth table shown on a circuit, or Boolean AND/OR/XOR.
+params:
+  type: object
+  properties:
+    gate:
+      type: string
+      enum: [AND, OR, XOR, NAND]
+      description: "The gate (default AND)."
+    a:
+      type: boolean
+      description: "Input A on/off — the widget sets this; default false."
+    b:
+      type: boolean
+      description: "Input B on/off — the widget sets this; default false."
+element_ids:
+  switch_a: input A's switch pad (tap to flip)
+  switch_b: input B's switch pad (tap to flip)
+  gate: the gate body with its name
+  bulb: the output bulb (lit when the output is 1)
+  wires: the wiring (a group)
+  title: the title
+examples:
+  - request: "How an XOR gate works."
+    params: { gate: "XOR" }
+  - request: "Show an AND gate with two switches and a bulb."
+    params: { gate: "AND" }
+layout: |
+  const C = kit.COLORS;
+  const gate = ["AND", "OR", "XOR", "NAND"].includes(params.gate) ? params.gate : "AND";
+  const a = params.a === true, b = params.b === true;
+  const out = gate === "AND" ? a && b : gate === "OR" ? a || b : gate === "XOR" ? a !== b : !(a && b);
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  push(kit.text("title", [500, 700], gate + " gate", { fontSize: 30 }));
+  push(kit.pad("switch_a", [180, 460], "A = " + (a ? 1 : 0), { w: 150, h: 64 }, { fill: a ? C.series[2] : undefined }));
+  push(kit.pad("switch_b", [180, 300], "B = " + (b ? 1 : 0), { w: 150, h: 64 }, { fill: b ? C.series[2] : undefined }));
+  push(kit.group("wires", [
+    kit.stroke("wires__a", [[255, 460], [400, 460], [400, 410]], { strokeWidth: 3 }),
+    kit.stroke("wires__b", [[255, 300], [400, 300], [400, 350]], { strokeWidth: 3 }),
+    kit.stroke("wires__out", [[600, 380], [700, 380]], { strokeWidth: 3 }),
+  ]));
+  push(kit.group("gate", [
+    kit.stroke("gate__body", kit.rect(400, 320, 200, 120), { closed: true, fill: kit.GROUND, strokeWidth: 3 }),
+    kit.text("gate__name", [500, 380], gate, { fontSize: 32 }),
+  ]));
+  const bulb = kit.stamp("bulb", [780, 380], { scale: 60 });
+  const lit = kit.area("bulb__lit", kit.circle([780, 380], 40), out ? "#f2c94c" : kit.GROUND, { opacity: out ? 0.9 : 0.0, precise: true });
+  push(kit.group("bulb", [lit, ...bulb.drawables]));
+  anchors.bulb = [780, 380]; anchors.switch_a = [180, 460]; anchors.switch_b = [180, 300];
+  return { drawables, labels, anchors, order };
+widget: |
+  const same = (state) => ({ state, effects: [] });
+  const table = (gate, a, b) => gate === "AND" ? a && b : gate === "OR" ? a || b : gate === "XOR" ? a !== b : !(a && b);
+  const init = (scene) => ({ a: scene.params.a === true, b: scene.params.b === true, gate: ["AND", "OR", "XOR", "NAND"].includes(scene.params.gate) ? scene.params.gate : "AND" });
+  const on = (ev, st) => {
+    if (ev.id !== "switch_a" && ev.id !== "switch_b") return same(st);
+    const next = { ...st, [ev.id === "switch_a" ? "a" : "b"]: !(ev.id === "switch_a" ? st.a : st.b) };
+    const out = table(next.gate, next.a, next.b);
+    const effects = [{ sound: { hz: 520, ms: 60 } }, { patch: { a: next.a, b: next.b } }, { caption: "A=" + (next.a ? 1 : 0) + ", B=" + (next.b ? 1 : 0) + " → " + (out ? 1 : 0) }];
+    if (out) effects.push({ glow: "bulb", color: "#4a7c59" }, { answer: "lit" });
+    return { state: next, effects };
+  };
+  const demo = (scene, answer) => {
+    const gate = ["AND", "OR", "XOR", "NAND"].includes(scene.params.gate) ? scene.params.gate : "AND";
+    const taps = [];
+    if (table(gate, true, false)) taps.push({ pointer: "switch_a" });
+    else if (table(gate, true, true)) taps.push({ pointer: "switch_a" }, { pointer: "switch_b" });
+    else taps.push({ pointer: "switch_a" });
+    return taps.concat([{ glow: "bulb", color: "#4a7c59" }]);
+  };
+  return { init, on, demo };
