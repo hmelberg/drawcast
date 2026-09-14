@@ -161,6 +161,8 @@ export interface TrayPlan {
   body: boolean;
   /** The Space section: a solar system's bodies, or a sky map's stars and constellations. */
   space: boolean;
+  /** Code ids whose control groups to show, in written order. */
+  controls: string[];
 }
 
 export function trayPlan(input: {
@@ -168,6 +170,8 @@ export function trayPlan(input: {
   /** Enum param paths — the beat's `params` filter names these the same way. */
   choicePaths?: string[];
   codeIds: string[];
+  /** Code ids that declare controls. */
+  controlIds?: string[];
   /** An authored explore beat holds the run open. */
   gated?: boolean;
   /** The beat's `params` filter. */
@@ -189,6 +193,7 @@ export function trayPlan(input: {
     sliderPaths,
     choicePaths = [],
     codeIds,
+    controlIds = [],
     gated = false,
     params,
     code,
@@ -202,6 +207,7 @@ export function trayPlan(input: {
     // Named code alone means the author asked for the keyboard, not the
     // knobs; naming both asks for both; naming neither is the old slider gate.
     const scripts = code !== undefined && codeIds.includes(code) ? [{ id: code, expanded: true }] : [];
+    const controls = scripts.map((s) => s.id).filter((id) => controlIds.includes(id));
     // A body beat: asked for by name, or an unnamed gate on an anatomy figure
     // (the body IS what there is to explore). Naming params or code instead
     // asks for those. The body keeps its detail slider beside it.
@@ -213,7 +219,7 @@ export function trayPlan(input: {
     // A body or a space section keeps its knobs beside it either way.
     const wantsParams = params !== undefined || scripts.length === 0 || body || space;
     const pick = (paths: string[]): string[] => (!wantsParams ? [] : params ? paths.filter((p) => params.includes(p)) : paths);
-    return { activities: false, sliders: pick(sliderPaths), choices: pick(choicePaths), scripts, body, space };
+    return { activities: false, sliders: pick(sliderPaths), choices: pick(choicePaths), scripts, body, space, controls };
   }
   // A script opens expanded when it IS the tray (no knob — slider or choice —
   // to compete with) or when the viewer reached it by clicking that screen.
@@ -225,5 +231,6 @@ export function trayPlan(input: {
     scripts: codeIds.map((id) => ({ id, expanded: expandAll || open === id })),
     body: bodyTemplate,
     space: spaceTemplate,
+    controls: codeIds.filter((id) => controlIds.includes(id)),
   };
 }

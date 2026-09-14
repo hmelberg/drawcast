@@ -147,3 +147,21 @@ describe("trayPlan — the space section", () => {
     expect(p.body).toBe(false);
   });
 });
+
+describe("trayPlan — controls", () => {
+  test("the viewer's ⊕ shows every control group, in element order", () => {
+    const p = trayPlan({ sliderPaths: [], codeIds: ["a", "b", "c"], controlIds: ["c", "a"] });
+    expect(p.controls).toEqual(["a", "c"]);
+  });
+  test("a gated explore beat naming a script shows that script's controls only", () => {
+    const p = trayPlan({ sliderPaths: ["n"], codeIds: ["a", "b"], controlIds: ["a", "b"], gated: true, code: "b" });
+    expect(p.controls).toEqual(["b"]);
+    expect(p.scripts).toEqual([{ id: "b", expanded: true }]);
+  });
+  test("a gated beat naming only params shows no controls", () => {
+    expect(trayPlan({ sliderPaths: ["n"], codeIds: ["a"], controlIds: ["a"], gated: true, params: ["n"] }).controls).toEqual([]);
+  });
+  test("controlIds is optional (older callers)", () => {
+    expect(trayPlan({ sliderPaths: [], codeIds: ["a"] }).controls).toEqual([]);
+  });
+});
