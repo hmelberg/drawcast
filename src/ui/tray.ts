@@ -1089,9 +1089,21 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     stage.addEventListener(
       "click",
       (e) => {
-        // Playing: the click pauses and opens nothing (§7.3, the sacred
-        // gesture). Tray already open: its own freeze guard owns the stage.
-        if (hd.timeline.state === "playing" || !tray.hidden) return;
+        // Tray already open: its own freeze guard owns the stage.
+        if (!tray.hidden) return; // the tray's own freeze guard owns the stage
+        if (hd.timeline.state === "playing") {
+          // One click from the movie into a script's controls (design
+          // 2026-09-14 §2.6): hit-test on the scene as it is NOW — a click
+          // that lands anywhere else stays the sacred pause and returns —
+          // then pause at the boundary, then open on what is paused.
+          const id = screenAt(e);
+          const el = id === null ? undefined : editable.find((x) => x.id === id);
+          if (!el || !Array.isArray(el.controls) || el.controls.length === 0) return;
+          e.stopPropagation(); // the bar's own click→pause toggle must not resume us
+          hd.timeline.pause();
+          open({ onCode: id! });
+          return;
+        }
         if (e.target instanceof Element && e.target.closest("button, a")) return;
         // The ≡ first: the machine's menu is the ⊕ tray — play, program, pick
         // another. The rest of the screen still opens the editor.

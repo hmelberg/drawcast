@@ -28,4 +28,11 @@ describe("tray controls (pins)", () => {
   test("the player can hold a glow for the tray", () => {
     expect(player).toMatch(/holdGlow\(ids: string\[\]\): \(\) => void/);
   });
+  test("a click during playback on a control-bearing panel pauses first, then opens that script (spec §2.6)", () => {
+    const i = src.indexOf("hd.timeline.state === \"playing\"", src.indexOf("const screenAt"));
+    const region = src.slice(i, i + 1200);
+    expect(region).toContain("hd.timeline.pause()");
+    expect(region).toMatch(/open\(\{ onCode: /);
+    expect(region.indexOf("hd.timeline.pause()")).toBeLessThan(region.indexOf("open({ onCode:"));
+  });
 });
