@@ -74,6 +74,16 @@ function decimalsOf(step: number): number {
   return i < 0 ? 0 : Math.min(6, s.length - i - 1);
 }
 
+/** Decimals straight from a number's SOURCE TEXT — never a number→string
+ *  round trip, which drops trailing zeros (`Number("1.0")` prints `"1"`, so
+ *  `decimalsOf(Number("1.0"))` is 0, not 1). A bare-number control's decimals
+ *  must survive re-parsing its own rewritten line (`n = 1.0`), or a plain
+ *  `Number` field is not idempotent — see withControlDefaults. */
+function decimalsOfText(t: string): number {
+  const i = t.indexOf(".");
+  return i < 0 ? 0 : Math.min(6, t.length - i - 1);
+}
+
 /** Midpoint on the step grid (floor, so (1, 50) gives 25 — Hans' reading of "midpoint"). */
 function midpoint(min: number, max: number, step: number, integer: boolean): number {
   const mid = min + Math.floor((max - min) / 2 / step) * step;
@@ -143,7 +153,7 @@ export function classifyLiteral(grammar: Grammar, lit: string): Classified | { e
   const bools = grammar === "python" ? { t: "True", f: "False" } : { t: "TRUE", f: "FALSE" };
   if (t === bools.t || t === bools.f) return { kind: "toggle", default: t === bools.t };
   if (new RegExp(`^(?:${STR})$`).test(t)) return { kind: "text", default: unquote(t) };
-  if (new RegExp(`^${NUM}$`).test(t)) return { kind: "number", default: Number(t), integer: isIntText(t), decimals: isIntText(t) ? 0 : decimalsOf(Number(t)) };
+  if (new RegExp(`^${NUM}$`).test(t)) return { kind: "number", default: Number(t), integer: isIntText(t), decimals: isIntText(t) ? 0 : decimalsOfText(t) };
   // shorthand range: (a, b[, step]) in python, c(a, b[, step]) in r
   const rangeRe = grammar === "python" ? new RegExp(`^\\(\\s*(${NUM})\\s*,\\s*(${NUM})\\s*(?:,\\s*(${NUM})\\s*)?\\)$`) : new RegExp(`^c\\(\\s*(${NUM})\\s*,\\s*(${NUM})\\s*(?:,\\s*(${NUM})\\s*)?\\)$`);
   const r = rangeRe.exec(t);
@@ -224,7 +234,7 @@ function longhand(grammar: Grammar, ctor: string, args: string[]): Classified | 
       const text = positional[0] ?? kw.default;
       const v = numOf(text);
       if (text === undefined || v === undefined) return { error: "Number takes a number" };
-      return { kind: "number", default: v, integer: isIntText(text), decimals: isIntText(text) ? 0 : decimalsOf(v), label };
+      return { kind: "number", default: v, integer: isIntText(text), decimals: isIntText(text) ? 0 : decimalsOfText(text), label };
     }
     case "Button": {
       const caption = strOf(positional[0] ?? kw.label);
@@ -260,7 +270,9 @@ function candidates(grammar: Grammar, code: string, names: Set<string>): Candida
       for (const arg of splitArgs(inner)) {
         const at = inner.indexOf(arg, pos);
         pos = at + arg.length;
-        const m = /^([A-Za-z_][\w.]*)\s*=\s*(.+)$/s.exec(arg);
+        // An optional type annotation (`n: int = (1, 50)`) sits between the
+        // name and the `=`; a birthplace is the DEFAULT, not the annotation.
+        const m = /^([A-Za-z_][\w.]*)\s*(?::[^=]+?)?=\s*(.+)$/s.exec(arg);
         if (!m || !names.has(m[1])) continue;
         const litStart = innerStart + at + arg.indexOf(m[2], m[1].length);
         out.push({ name: m[1], line: lineNo, start: litStart, end: litStart + m[2].length, birthplace: "param", text: m[2] });

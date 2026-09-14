@@ -67,6 +67,15 @@ describe("parseControls — python shorthand", () => {
     expect(code.split("\n")[0].slice(controls[1].start, controls[1].end)).toBe("(0.1, 1.0)");
   });
 
+  test("a type annotation between the name and the default is not part of the birthplace (Task 4)", () => {
+    const code = "def sim(n: int = (1, 50), beta: float = 0.3):\n    return n * beta\nsim()";
+    const { controls, issues } = py(code, ["n", "beta"]);
+    expect(issues).toEqual([]);
+    expect(controls[0]).toMatchObject({ name: "n", kind: "slider", birthplace: "param" });
+    expect(code.split("\n")[0].slice(controls[0].start, controls[0].end)).toBe("(1, 50)");
+    expect(controls[1]).toMatchObject({ name: "beta", kind: "number", birthplace: "param" });
+  });
+
   test("controls come back in the order of `names`, not the order in the script", () => {
     const { controls } = py("b = 1\na = 2", ["a", "b"]);
     expect(controls.map((c) => c.name)).toEqual(["a", "b"]);
@@ -241,6 +250,12 @@ describe("applyControls / withControlDefaults", () => {
     const { controls } = py(code, ["beta"]);
     expect(applyControls("python", code, controls, { beta: NaN })).toBe("beta = 0.50");
   });
+  test("a float default is idempotent: re-parsing the rewritten line keeps its decimals (Task 6)", () => {
+    const once = withControlDefaults("python", "b = (0.0, 2.0, 0.5)", ["b"]);
+    expect(once).toBe("b = 1.0");
+    expect(withControlDefaults("python", once, ["b"])).toBe(once);
+  });
+
   test('a toggle treats only true or "true" as on; any other string is off', () => {
     const code = "log = False";
     const { controls } = py(code, ["log"]);
