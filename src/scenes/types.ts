@@ -1,5 +1,6 @@
 import type { Drawable, Pt } from "../layout/model";
 import type { LabelRequest } from "../layout/labels";
+import type { WidgetBody } from "./widget-types";
 
 /** What a scene's deterministic layout code produces. */
 export interface SceneLayout {
@@ -42,10 +43,14 @@ export interface SceneManifest {
   accepts_data?: boolean;
   /** The explore-tray section this scene carries: the Body (anatomy engine) or the Space (space engine) panel. */
   explore?: ExploreKind;
+  /** True when the document carries a widget body: the figure is playable while paused. */
+  widget?: true;
 }
 
 /** A registered template: manifest always; layout when ready and compiled. */
 export interface SceneModule {
   manifest: SceneManifest;
   layout?: (params: Record<string, unknown>) => SceneLayout;
+  /** A fresh widget body per mount (the doc's `widget` function body, compiled once). */
+  widget?: () => WidgetBody;
 }
