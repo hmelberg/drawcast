@@ -38,6 +38,20 @@ describe("ask.widget may name the spec's template", () => {
     const plain = planCommands([{ ask: { question: "?", widget: "click", answer: "x" } }], [], { bboxOf: () => null, windows: {}, toLogical: (p) => p, deltaToLogical: (d) => d, animateBase: {} });
     expect((plain.steps[0] as { widgetTemplate?: true }).widgetTemplate).toBeUndefined();
   });
+
+  test("naming a code element still wins: one question, one device", () => {
+    const plan = planCommands([{ ask: { question: "?", code: "panel", widget: "piano_keys", answer: "x" } }], [], {
+      bboxOf: () => null,
+      windows: {},
+      toLogical: (p) => p,
+      deltaToLogical: (d) => d,
+      animateBase: {},
+    });
+    const step = plan.steps.find((s) => s.kind === "ask") as { widget?: string; widgetTemplate?: true; codeId?: string };
+    expect(step.widget).toBe("code");
+    expect(step.codeId).toBe("panel");
+    expect(step.widgetTemplate).toBeUndefined();
+  });
 });
 
 describe("the player's widget-ask branch and the gate — source pins", () => {
@@ -63,5 +77,8 @@ describe("the player's widget-ask branch and the gate — source pins", () => {
     expect(gate).toContain("resolve(ok ? step.answer : given)");
     expect(gate).toContain('class: "cs-figgate"');
     expect(gate).toContain("cs-figgate-skip");
+    // A body that throws on construction must not take the question down with
+    // it: the gate stands, body stays null, and answersMatch judges.
+    expect(gate).toMatch(/try \{[\s\S]*scenes\[template\]!\.widget!\(\)[\s\S]*\} catch/);
   });
 });

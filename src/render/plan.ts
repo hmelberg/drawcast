@@ -923,8 +923,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.ask.code !== undefined ? { widget: "code" as const, codeId: cmd.ask.code } : cmd.ask.widget !== undefined ? { widget: cmd.ask.widget } : {}),
         // A device name the app does not build in is the spec's own template
         // (the schema allows nothing else): its widget body is the answer
-        // device, and its demo is the movie form.
-        ...(cmd.ask.widget !== undefined && !(BUILTIN_WIDGETS as readonly string[]).includes(cmd.ask.widget) ? { widgetTemplate: true as const } : {}),
+        // device, and its demo is the movie form. Naming a code element wins
+        // over it, exactly as it wins over every other widget name above —
+        // one question cannot be answered on two devices.
+        ...(cmd.ask.code === undefined && cmd.ask.widget !== undefined && !(BUILTIN_WIDGETS as readonly string[]).includes(cmd.ask.widget) ? { widgetTemplate: true as const } : {}),
         ...(cmd.ask.code !== undefined && cmd.ask.expect !== undefined ? { expect: cmd.ask.expect } : {}),
         ...(cmd.ask.code !== undefined && currentBox(cmd.ask.code) !== null ? { answerBox: currentBox(cmd.ask.code)! } : {}),
         // The movie demo points at the answer: the element's box (click), the

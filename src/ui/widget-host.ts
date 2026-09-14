@@ -180,8 +180,16 @@ export function widgetGateFor(stage: HTMLElement, hd: RenderHandle, host: Widget
       const gate = h("div", { class: "cs-figgate" }, hint);
       const template = hd.spec.template;
       // A body of this template's own, used for `judge` alone — the host keeps
-      // the one that holds the viewer's state.
-      const body = template && scenes[template]?.widget ? scenes[template]!.widget!() : null;
+      // the one that holds the viewer's state. A body that throws on
+      // construction must not take the question down with it: without one the
+      // gate still stands and answersMatch judges, which is the same contract
+      // every other gate has.
+      let body: WidgetBody | null = null;
+      try {
+        body = template && scenes[template]?.widget ? scenes[template]!.widget!() : null;
+      } catch (err) {
+        console.warn(`[widget ${template}] gate: widget body threw on load: ${(err as Error).message} — judging with answersMatch`);
+      }
       let settled = false;
       // The one place either subscription comes off.
       const detach = (): void => {

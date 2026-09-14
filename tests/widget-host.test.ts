@@ -121,6 +121,15 @@ describe("attachWidgetHost — source pins", () => {
     expect(src).toContain("const prevOnStep = hd.timeline.callbacks.onStep");
     expect(src).toMatch(/if \(s === "playing"\) host\.reset\(\)/);
   });
+  test("controls' own callbacks chain the handlers the add-ons hung on first — a wholesale replacement would kill every reset above it", () => {
+    const at = controls.indexOf("hd.timeline.callbacks = {");
+    expect(at).toBeGreaterThan(-1);
+    const after = controls.slice(at);
+    expect(after).toContain("prev.onState?.(s)");
+    expect(after).toContain("prev.onStep?.(");
+    // ...and the handler it chains to is the object that stood there before.
+    expect(controls.slice(0, at)).toContain("const prev = hd.timeline.callbacks;");
+  });
   test("the cursor class marks parts while paused — the one toggle lives in the info card, and consults the widget host", () => {
     expect(src).not.toContain('stage.classList.toggle("cs-cardable"');
     expect(infocard).toContain('stage.classList.toggle("cs-cardable"');

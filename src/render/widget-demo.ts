@@ -8,16 +8,24 @@ import type { Spec } from "../spec/types";
 import { scenes } from "../scenes/registry";
 import { demoWidget } from "../scenes/widget-run";
 import { buildWidgetScene } from "../scenes/widget-scene";
+import { makeBrowserMeasure } from "./svg-backend";
 
 export function widgetDemoFor(player: Player, spec: Spec, layout: LayoutResult): (signal: AbortSignal, step: Extract<PlanStep, { kind: "ask" }>) => Promise<void> {
   return async (signal, step) => {
     const module = spec.template ? scenes[spec.template] : undefined;
     if (!module?.widget || step.answer === undefined) return;
     const params = { ...(spec.params ?? {}), ...player.getParamOverrides() };
-    const { effects, errors } = demoWidget(module, params, step.answer, { domain: spec.domain, layout });
+    // The demo must read the SAME scene the live host would (ui/widget-host.ts):
+    // the painted geometry, the player's vars and one text measure. Build them
+    // from one place so the laser never taps a box the viewer cannot see.
+    // makeBrowserMeasure falls back to the heuristic when there is no document,
+    // so the exporter and plain-node tests get a measure too.
+    const measure = makeBrowserMeasure();
+    const sceneOpts = () => ({ domain: spec.domain, vars: Object.fromEntries(player.vars), layout: player.paintedLayout() ?? layout, measure });
+    const { effects, errors } = demoWidget(module, params, step.answer, sceneOpts());
     for (const m of errors) console.warn(`[widget ${spec.template}] demo: ${m}`);
     let patches: Record<string, unknown> = {};
-    let scene = buildWidgetScene(module, params, { domain: spec.domain, layout });
+    let scene = buildWidgetScene(module, params, sceneOpts());
     for (const e of effects) {
       if (signal.aborted) return;
       if (e.sound && player.tones) {
@@ -28,7 +36,7 @@ export function widgetDemoFor(player: Player, spec: Spec, layout: LayoutResult):
       if (e.patch) {
         patches = { ...patches, ...e.patch };
         player.previewParams(patches, { revealNew: true });
-        scene = buildWidgetScene(module, { ...params, ...patches }, { domain: spec.domain, layout: player.paintedLayout() ?? layout });
+        scene = buildWidgetScene(module, { ...params, ...patches }, sceneOpts());
       }
       if (e.glow) await player.glow(e.glow, undefined, e.color);
       if (e.pointer) {

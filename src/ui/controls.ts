@@ -1158,8 +1158,16 @@ export function attachPlayerControls(
   });
   progress.addEventListener("pointerleave", () => (seekPreview.hidden = true));
 
+  // CHAIN, never replace. Every add-on above (the widget host, the info cards,
+  // the chess free play) hangs its own reset on hd.timeline.callbacks by
+  // wrapping whatever is there — and the Player reads `this.callbacks` at call
+  // time, so a wholesale assignment here would silently throw all of that away
+  // and their resets would never fire. `total` is hd.plan.steps.length, which
+  // is exactly what the Player passes as onStep's second argument.
+  const prev = hd.timeline.callbacks;
   hd.timeline.callbacks = {
     onState: (s) => {
+      prev.onState?.(s);
       stage.classList.toggle("is-playing", s === "playing");
       stage.classList.toggle("is-paused", s === "paused");
       playing = s === "playing";
@@ -1171,6 +1179,7 @@ export function attachPlayerControls(
       bigPlay.title = s === "done" ? "Replay with narration" : "Play with narration";
     },
     onStep: (done) => {
+      prev.onStep?.(done, total);
       stepInd.textContent = `${done}/${total}`;
       progressFill.style.width = `${total > 0 ? (done / total) * 100 : 0}%`;
     },
