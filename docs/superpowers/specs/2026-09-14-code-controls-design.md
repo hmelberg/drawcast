@@ -109,6 +109,20 @@ place; the call at the bottom stays as written and picks up the new default.
 
 **One birthplace per name** (lint error otherwise, §2.7): the host must know
 which line to rewrite, and a name born twice is the less clear script anyway.
+A birthplace is an assignment or default whose right-hand side IS a control
+literal or longhand. Any other assignment to the name (`x = x * 2`,
+`x = f(x)`) is the script's own business and is not a birthplace. A later
+reassignment to a *plain literal* (`x = 5` after `x = (1, 50)`) is a
+warning: it silently defeats the control (Hans 2026-09-14: "re-running the
+code block would simply make x be 10 again").
+
+**Why rewrite, not skip.** The other convention — skip the declarations at
+the top of the block on re-run and inject the values — was considered and
+rejected. Rewriting keeps the script a pure function of its text (the cache
+key, the baked stamp and reproducibility all depend on that), the panel
+shows the value the run used, plain code and function defaults are one case,
+and the birthplace may sit anywhere because it is found by name and literal,
+not by position.
 
 ### 2.4 The rewrite
 
@@ -158,9 +172,10 @@ plain inputs in the same row style; a button is a `cs-tray-pill`.
   status, busy state, "Continue restores the lesson" all as today. Text and
   number fields commit on Enter/blur. A code element with `autorun: false`
   shows the tray's existing Run ▶ and applies pending values on press.
-- **Linking:** while a control has focus or is being dragged, the script's
-  panel and every template element whose params carry that script's tokens
-  get the pause-reveal glow, so the viewer sees what the control feeds.
+- **Linking (opt-in):** with `glow: true` on the code element (default
+  false), while a control has focus or is being dragged the script's panel
+  and every template element whose params carry that script's tokens get the
+  pause-reveal glow, so the viewer sees what the control feeds.
 - **`explore.code`** already opens the tray on a script; an explore beat
   that names a controlled script shows its controls expanded.
 - **One-click from playback** (agreed 2026-09-14 as the general rule; this
@@ -173,6 +188,25 @@ plain inputs in the same row style; a button is a `cs-tray-pill`.
 Nothing here persists: control values are preview state, discarded on
 Continue like sliders and edited scripts. `ask` with `store`/`default`
 stays the only persistence channel and is untouched by this round.
+
+### 2.6b The tray pops out (may ship in this round or on its own)
+
+Hans 2026-09-14: the tray "feels a bit clunky and detached from the screen".
+Two changes, both presentation:
+
+- **Docked, it looks like the figure.** The tray takes the stage's paper
+  background, its fonts and the sketchy border, with no gap under the bar,
+  so it reads as part of the drawing rather than chrome beneath it. Docked
+  stays the default: it never covers the figure.
+- **Pop-out.** A ⧉ button detaches the tray into a floating palette over the
+  stage: same content, a drag handle in its header (pointer events, clamped
+  to the stage, ~60 lines), `resize: both; overflow: auto` on the container
+  so the browser provides width and height resizing, position and size
+  remembered per session (localStorage, try/catch), Esc or a dock button
+  returns it under the bar. Clicks inside it never reach the stage (the
+  tray's existing rule for its buttons and cards). On the mobile bottom
+  sheet it never detaches. In theater mode the same palette may start
+  docked as a right rail (§7.4 of the principles already allows it).
 
 ### 2.7 Lint (`src/lint/lint.ts`, rule `controls`)
 
@@ -189,6 +223,7 @@ Warnings:
 - a call site passes a controlled name as an explicit keyword
   (`simulate(n=5)`): the slider would be silently defeated. Positional
   overrides are not detected — accepted gap, a parser is not worth it;
+- a later reassignment of a controlled name to a plain literal (§2.3);
 - a step that does not divide the range; two controls with the same label;
 - a controlled script whose pane is `show: none` and whose id no template
   param tokens reference: the control would change nothing visible.
@@ -204,7 +239,7 @@ string or a number, or as `Slider(...)`/`Choice(...)`/`Toggle(...)`/
 the default (midpoint of a range) is what the movie shows; a bare number is a
 field, never a guessed range; prefer controls over an `explore` beat that
 tells the viewer to edit the script. `schema.ts` describes `controls` as
-`string[]` on the code element in one sentence. `tests/prompt-size.test.ts`
+`string[]` and `glow` as a boolean on the code element in one sentence each. `tests/prompt-size.test.ts`
 re-pins both constants in the same round (feedback rule 2026-09-10). The
 schema stays anyOf-free: the spec surface is a list of strings.
 
@@ -268,8 +303,9 @@ Continue restores, movie export shows the default, an R script with
 1. `src/code/controls.ts` + grammar tests (pure).
 2. Lint rule + tests; schema line; prompt paragraph; prompt-size re-pin.
 3. `resolveCode` and `layout/code.ts` apply defaults; stamped-run tests.
-4. Tray group + autorun via `runEdited`; linking glow; explore expansion;
-   mini-DOM test.
+4. Tray group + autorun via `runEdited`; `glow: true` linking; explore
+   expansion; mini-DOM test.
+4b. Tray looks like the figure; pop-out palette (§2.6b) — may be split off.
 5. One-click pause-and-open for control-bearing panels.
 6. Examples 1–3, help.html paragraph, ROADMAP entry, smoke checklist.
 7. `tsc` clean before push (Netlify runs `npm test && npm run build`).
