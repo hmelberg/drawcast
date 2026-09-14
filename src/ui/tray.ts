@@ -183,6 +183,12 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const patches = new Map<string, { code: string; result: string }>();
   /** Control values per script — preview state, dropped with the rest. */
   const controlValues = new Map<string, Record<string, ControlValue>>();
+  /** Release functions for a `glow: true` control's held glow, live while a
+   *  slider is focused/dragged. A blur/pointerup/pointercancel removes its
+   *  own entry; clearPreview releases every one still held — a drag a scrub,
+   *  playback starting, or a cancelled touch interrupts must not leak the
+   *  highlight overlay past Continue. */
+  const heldGlows = new Set<() => void>();
   /** Scripts the viewer took over by editing and running: their controls go quiet until Continue. */
   const takenOver = new Set<string>();
   const runTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -205,6 +211,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     patches.clear();
     drafts.clear();
     controlValues.clear();
+    for (const release of heldGlows) release();
+    heldGlows.clear();
     takenOver.clear();
     for (const t of runTimers.values()) clearTimeout(t);
     runTimers.clear();
@@ -308,8 +316,9 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     if (el.autorun === false && !force) return;
     const go = (): void => {
       const values = controlValues.get(el.id) ?? {};
-      lastControlsCode.set(el.id, applyControls(language, authoredCode, controls, values));
-      void runEdited(el, applyControls(language, authoredCode, controls, values), "controls");
+      const code = applyControls(language, authoredCode, controls, values);
+      lastControlsCode.set(el.id, code);
+      void runEdited(el, code, "controls");
     };
     if (immediate || force) go();
     else runTimers.set(el.id, setTimeout(go, debounceMs(language)));
@@ -881,8 +890,10 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       const glowOn = (): void => {
         if (glowIds.length === 0 || release) return;
         release = hd.timeline.holdGlow(glowIds);
+        heldGlows.add(release);
       };
       const glowOff = (): void => {
+        if (release) heldGlows.delete(release);
         release?.();
         release = null;
       };
@@ -906,6 +917,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
             range.addEventListener("pointerdown", glowOn);
             range.addEventListener("blur", glowOff);
             range.addEventListener("pointerup", glowOff);
+            range.addEventListener("pointercancel", glowOff);
             row.append(label, range, out);
             break;
           }

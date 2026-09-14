@@ -13,10 +13,13 @@ describe("tray controls (pins)", () => {
     expect(src).toMatch(/parseControls\(\s*[^)]*authoredEl\.code/);
   });
   test("a control change runs the rewritten script through runEdited", () => {
-    expect(src).toMatch(/runEdited\([^,]+,\s*applyControls\(/);
+    expect(src).toMatch(/const code = applyControls\([^)]*authoredCode[\s\S]{0,200}?runEdited\(el, code, "controls"\)/);
   });
   test("control values are cleared with the preview", () => {
     expect(src).toMatch(/const clearPreview[\s\S]*?controlValues\.clear\(\)/);
+  });
+  test("a held glow is released with the preview", () => {
+    expect(src).toMatch(/const clearPreview[\s\S]*?heldGlows/);
   });
   test("the group is built from plan.controls", () => {
     expect(src).toContain("plan.controls");
