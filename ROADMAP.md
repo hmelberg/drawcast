@@ -809,7 +809,10 @@ tray row builder — the controls rows duplicate the template slider/choice
 rows (aria-pressed already drifted once); a behavioural tray test on the
 mini-DOM (the round shipped source pins instead of spec §3's mini-DOM test);
 a tuple spanning lines and a control name inside a triple-quoted string get
-a poor lint message.
+a poor lint message; `glow: true` outlines the pre-run figure during a live
+re-run — the backend's effects keep mount-time nodes (`swapGeometry`'s
+throwaway map); fixing it means refreshing the effects' leaf map after a
+swap, in `src/render/svg-backend.ts`.
 
 ## Sound (the play command) — done 2026-08-26
 

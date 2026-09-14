@@ -24,9 +24,6 @@ describe("tray controls (pins)", () => {
   test("a control move never overwrites a script the viewer took over", () => {
     expect(src).toMatch(/takenOver\.add\(el\.id\)[\s\S]{0,200}?cs-tray-controls-quiet/);
   });
-  test("a held glow is re-acquired against fresh geometry after a re-run, not left painting stale clones", () => {
-    expect(src).toMatch(/repaint\(\);[\s\S]{0,600}?heldGlows\.set\(hd\.timeline\.holdGlow\(ids\), ids\)/);
-  });
   test("the group is built from plan.controls", () => {
     expect(src).toContain("plan.controls");
     expect(src).toContain("controlIds:");

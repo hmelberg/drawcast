@@ -47,8 +47,11 @@
      var(--ink) in light mode (the sketchy-box trick, same ink as the
      drawing), which reads as a bright outline once --ink flips to near-
      white — soften it here, alongside the tokens it depends on, since this
-     file allows only one prefers-color-scheme dark block. */
-  .cs-paramtray { border-color: var(--line); }
+     file allows only one prefers-color-scheme dark block. The base rule sets
+     the whole `border` shorthand AFTER this block in source order, so at
+     equal specificity it would win regardless — the same guard the token
+     rule above uses raises this selector's specificity to beat it either way. */
+  :root:not([data-theme="light"]) .cs-paramtray { border-color: var(--line); }
 }
 :root[data-theme="dark"] {
   --paper: #1c1a17;

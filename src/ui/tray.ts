@@ -324,15 +324,6 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       });
       patches.set(el.id, { code, result: JSON.stringify(result) });
       repaint();
-      // previewSpec swaps the layers repaint just drew, but a held glow's
-      // clones live in the overlay, untouched by that swap — so mid-drag the
-      // pre-run figure stays painted over every re-run. Drop every held
-      // clone and re-hold fresh ones against the geometry repaint just
-      // finished (Task 2 fix).
-      const held = [...heldGlows.values()];
-      for (const r of heldGlows.keys()) r();
-      heldGlows.clear();
-      for (const ids of held) heldGlows.set(hd.timeline.holdGlow(ids), ids);
       const msg = result.ok ? "Ran ✓ — Continue restores the lesson" : "The script failed — see the panel";
       announce(el.id, (s) => s.status(msg));
     } catch (err) {
@@ -937,11 +928,9 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       const group = h("div", { class: "cs-tray-controls", role: "group", "aria-label": `Controls for ${id}` });
       if (takenOver.has(id)) group.classList.add("cs-tray-controls-quiet");
       controlGroups.set(id, group);
-      // glow: true holds the panel's own glow always; it reaches beyond the
-      // panel only when the script actually FEEDS the figure — a `{id.path}`
-      // token in some template param (Task 5 fix). Otherwise every other
-      // element in the layout order glowed regardless of whether this
-      // script's numbers touch them at all.
+      // Known limitation: during a live re-run the glow shows the pre-run
+      // figure — the backend's effects keep the mount-time nodes (svg-backend
+      // swapGeometry's throwaway map). A real fix lives in the backend, not here.
       const figureIds = hd.layout.order.filter((o) => !editable.some((e) => o === e.id || o.startsWith(`${e.id}_`)));
       const feeds = (pathsByCodeId(scanDataTokens(hd.authored.params))[id] ?? []).length > 0;
       const glowIds = el.glow ? (feeds ? [id, ...figureIds] : [id]) : [];
