@@ -58,8 +58,14 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // section) with six sentences rewritten, which added back ~670. Net −411 on
 // the measured prompt. The ceiling follows the measurement down, as this
 // file's own rule requires: a ratchet, not a budget that refills itself.
-const BASELINE_SYSTEM_CHARS = 222709;
-const BASELINE_SCHEMA_CHARS = 108516;
+// Re-pinned 2026-09-14 for the code-controls round (Task 4): three new
+// code-element properties — `controls` (one description, the literal grammar
+// in one sentence), `glow`, `autorun` — grew the schema by the measured
+// delta, which lands on the system prompt too (the schema is embedded
+// verbatim). The controls bullet itself lives in compiler-v1-code.md, which
+// only a code request receives, so it costs an ordinary request nothing.
+const BASELINE_SYSTEM_CHARS = 224000;
+const BASELINE_SCHEMA_CHARS = 109807;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

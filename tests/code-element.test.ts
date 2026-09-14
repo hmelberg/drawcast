@@ -39,6 +39,14 @@ describe("code element — schema", () => {
     expect(validateSpec(spec({ language: "python", code: "print(1)", show: "sideways" })).ok).toBe(false);
     expect(validateSpec(spec({ language: "python", code: "print(1)", nonsense: 1 })).ok).toBe(false);
   });
+
+  test("controls, glow and autorun are accepted on a code element; junk shapes are not", () => {
+    expect(validateSpec(spec({ language: "python", code: "n = (1, 5)", controls: ["n"] })).ok).toBe(true);
+    expect(validateSpec(spec({ language: "python", code: "n = (1, 5)", controls: ["n"], glow: true, autorun: false })).ok).toBe(true);
+    expect(validateSpec(spec({ language: "python", code: "n = (1, 5)", controls: "n" })).ok).toBe(false);
+    expect(validateSpec(spec({ language: "python", code: "n = (1, 5)", controls: [1] })).ok).toBe(false);
+    expect(validateSpec(spec({ language: "python", code: "n = (1, 5)", controls: ["not an identifier"] })).ok).toBe(false);
+  });
 });
 
 const OK: CodeRunResult = { ok: true, stdout: "42", stderr: "", figures: [{ href: "data:image/png;base64,AA", w: 640, h: 480 }] };

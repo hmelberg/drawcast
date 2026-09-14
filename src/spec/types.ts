@@ -243,6 +243,17 @@ export interface SpecElement {
   marks?: (string | { text: string; kind?: "mark" | "strike" | "underline" })[];
   /** code: machine-written execution result envelope (JSON — see src/code/run.ts). Never authored. */
   code_result?: string;
+  /** code: names of script variables the viewer may change from the ⊕ tray
+   *  (design 2026-09-14-code-controls). Each is born ONCE in the script as a
+   *  control literal — `(min, max[, step])`, `["a", "b"]`, `True`/`False`, a
+   *  string, a number — or as `Slider(...)`/`Choice(...)`/`Toggle(...)`/
+   *  `Text(...)`/`Number(...)`/`Button(...)`. The literal's default (midpoint of
+   *  a range) is what the baked run and the movie show. */
+  controls?: string[];
+  /** code: while a control is being adjusted, glow the panel and the figure it feeds (default false). */
+  glow?: boolean;
+  /** code: re-run on every control change (default true); false shows a Run button instead. */
+  autorun?: boolean;
   // source (a book cover, a paper's title page, or one page of either)
   /** DOI of a paper — resolved to its open-access PDF via OpenAlex/Unpaywall. */
   doi?: string;

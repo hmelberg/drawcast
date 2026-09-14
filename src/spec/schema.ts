@@ -376,6 +376,20 @@ const elementSchema = {
       type: "string",
       description: "code: machine-written execution result (copy VERBATIM if present; never write, edit, or invent it).",
     },
+    controls: {
+      type: "array",
+      items: { type: "string", pattern: "^[A-Za-z_][A-Za-z0-9_.]*$" },
+      description:
+        "code: names of variables the viewer may change from the ⊕ tray. Each is born ONCE in the script as a control literal — a range tuple (min, max) or (min, max, step) becomes a slider (integers when written without decimal points), a list of strings a choice row, True/False a switch, a string a text field, a bare number a number field (never a guessed range) — or as Slider(1, 50, default=10, label=\"Cycles\") / Choice(\"a\", \"b\") / Toggle(False) / Text(\"x\") / Number(3) / Button(\"Roll again\") when a label or default is wanted. The default (midpoint of a range) is what the movie shows. Prefer controls to an explore beat that tells the viewer to edit the script.",
+    },
+    glow: {
+      type: "boolean",
+      description: "code: while a control is being adjusted, glow the panel and the figure its data feeds (default false).",
+    },
+    autorun: {
+      type: "boolean",
+      description: "code: re-run the script on every control change (default true); false shows a Run button in the tray instead.",
+    },
     bind: {
       type: "object",
       additionalProperties: { type: "string" },
@@ -1490,6 +1504,9 @@ function elementErrors(el: SpecElement): string[] {
       }
       if (el.lines !== undefined) {
         need(Number.isInteger(el.lines) && el.lines >= 3, "lines must be an integer >= 3 (omit it to show the whole script)");
+      }
+      if (el.controls !== undefined) {
+        need(Array.isArray(el.controls) && el.controls.every((n) => typeof n === "string" && /^[A-Za-z_][A-Za-z0-9_.]*$/.test(n)), "controls must be a list of variable names");
       }
       break;
     default:
