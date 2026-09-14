@@ -10,7 +10,8 @@ import { mathBox } from "../layout/labels";
 import type { MeasureFn } from "../layout/measure";
 import type { Command, Spec } from "../spec/types";
 import { resolveGame } from "../code/c64-catalogue";
-import { scanDataTokens } from "../code/tokens";
+import { grammarFor, parseControls } from "../code/controls";
+import { pathsByCodeId, scanDataTokens } from "../code/tokens";
 import { connectKey } from "../render/widgets";
 import { CONNECT_MAX_EDGES } from "../ui/connect-model";
 
@@ -48,7 +49,9 @@ export interface LintIssue {
     /** a bind expression that cannot be evaluated: unknown var, non-numeric field, bad expression */
     | "bind"
     /** a math element whose TeX the engine cannot parse */
-    | "math";
+    | "math"
+    /** code controls: a name with no birthplace, born twice, not a control literal, a bad longhand argument, or a control the viewer could not see change */
+    | "controls";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -588,6 +591,12 @@ function lintCode(spec: Spec): LintIssue[] {
       });
     }
   }
+  // controls on something that is not a script
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "code" && el.controls !== undefined) {
+      issues.push({ rule: "controls", ids: [el.id], message: `"${el.id}" has controls but is not a code element`, severity: "error" });
+    }
+  }
   if (els.length === 0) return issues;
   // A game rides in the emulator page's URL hash, and that page is https: a
   // plain-http program would be blocked as mixed content, and a '#' in the
@@ -597,6 +606,47 @@ function lintCode(spec: Spec): LintIssue[] {
     if (el.game === undefined) continue;
     const r = resolveGame(el.game);
     if (r.reason !== undefined) issues.push({ rule: "code-use", ids: [el.id], message: `code "${el.id}": game — ${r.reason}`, severity: "warn" });
+  }
+  // Code controls (design 2026-09-14): names in the spec, shapes in the script.
+  const fed = pathsByCodeId(scanDataTokens(spec.params));
+  for (const el of els) {
+    if (!el.controls || el.controls.length === 0) continue;
+    const lang = el.language ?? "";
+    if (grammarFor(lang) === null) {
+      issues.push({ rule: "controls", ids: [el.id], message: `code "${el.id}": controls are not available for ${lang || "this"} scripts`, severity: "error" });
+      continue;
+    }
+    const { controls, issues: found } = parseControls(lang, el.code ?? "", el.controls);
+    for (const f of found) issues.push({ rule: "controls", ids: [el.id], message: `code "${el.id}": ${f.message}`, severity: f.severity });
+    // A step that does not land on max.
+    for (const c of controls) {
+      if (c.kind === "slider" && c.min !== undefined && c.max !== undefined && c.step) {
+        const k = (c.max - c.min) / c.step;
+        if (Math.abs(k - Math.round(k)) > 1e-9) issues.push({ rule: "controls", ids: [el.id], message: `code "${el.id}": "${c.name}" — step ${c.step} does not divide the range ${c.min}–${c.max}`, severity: "warn" });
+      }
+    }
+    // Two controls, one label.
+    const byLabel = new Map<string, string[]>();
+    for (const c of controls) byLabel.set(c.label, [...(byLabel.get(c.label) ?? []), c.name]);
+    for (const [label, names] of byLabel) {
+      if (names.length > 1) issues.push({ rule: "controls", ids: [el.id], message: `code "${el.id}": controls ${names.join(" and ")} share the label "${label}"`, severity: "warn" });
+    }
+    // A call site that passes a controlled name as an explicit keyword.
+    for (const c of controls) {
+      if (c.birthplace !== "param") continue;
+      const re = new RegExp(`\\b([A-Za-z_][\\w.]*)\\s*\\([^)]*\\b${c.name}\\s*=`, "g");
+      const lines = (el.code ?? "").split("\n");
+      lines.forEach((line, i) => {
+        if (i === c.line) return;
+        const m = re.exec(line);
+        re.lastIndex = 0;
+        if (m) issues.push({ rule: "controls", ids: [el.id], message: `code "${el.id}": ${m[1]}(${c.name}=…) on line ${i + 1} overrides the "${c.name}" control`, severity: "warn" });
+      });
+    }
+    // A hidden pane that feeds nothing: the control would change nothing visible.
+    if ((el.show ?? "output") === "none" && (fed[el.id] ?? []).length === 0) {
+      issues.push({ rule: "controls", ids: [el.id], message: `code "${el.id}": its pane is hidden and no template param reads {${el.id}.…} — a control would change nothing visible`, severity: "warn" });
+    }
   }
   const referenced = new Set(scanDataTokens(spec.params).map((t) => t.codeId));
   for (const el of els) {
