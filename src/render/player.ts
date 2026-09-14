@@ -1377,16 +1377,6 @@ export class Player {
     });
   }
 
-  /** Hold the answer glow on `ids` until the returned function is called —
-   *  the tray's `glow: true` controls (design 2026-09-14 §2.6). No effects:
-   *  a no-op release. */
-  holdGlow(ids: string[]): () => void {
-    const effects = this.effects;
-    if (!effects || ids.length === 0) return () => {};
-    effects.setHighlight(ids, "glow", 0.5, null);
-    return () => effects.endHighlight(ids);
-  }
-
   /**
    * Runs `work` (a spoken line, typically) while the groups glow — each its
    * own ids in its own colour, all in one loop of full swells of

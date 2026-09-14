@@ -250,8 +250,6 @@ export interface SpecElement {
    *  `Text(...)`/`Number(...)`/`Button(...)`. The literal's default (midpoint of
    *  a range) is what the baked run and the movie show. */
   controls?: string[];
-  /** code: while a control is being adjusted, glow the panel and the figure it feeds (default false). */
-  glow?: boolean;
   /** code: re-run on every control change (default true); false shows a Run button instead. */
   autorun?: boolean;
   // source (a book cover, a paper's title page, or one page of either)

@@ -174,10 +174,7 @@ plain inputs in the same row style; a button is a `cs-tray-pill`.
   status, busy state, "Continue restores the lesson" all as today. Text and
   number fields commit on Enter/blur. A code element with `autorun: false`
   shows the tray's existing Run ▶ and applies pending values on press.
-- **Linking (opt-in):** with `glow: true` on the code element (default
-  false), while a control has focus or is being dragged the script's panel
-  and every template element whose params carry that script's tokens get the
-  pause-reveal glow, so the viewer sees what the control feeds.
+- **Linking: removed 2026-09-14 (Hans) — no glow while a control moves.**
 - **`explore.code`** already opens the tray on a script; an explore beat
   that names a controlled script shows its controls expanded.
 - **One-click from playback** (agreed 2026-09-14 as the general rule; this
@@ -241,7 +238,7 @@ string or a number, or as `Slider(...)`/`Choice(...)`/`Toggle(...)`/
 the default (midpoint of a range) is what the movie shows; a bare number is a
 field, never a guessed range; prefer controls over an `explore` beat that
 tells the viewer to edit the script. `schema.ts` describes `controls` as
-`string[]` and `glow` as a boolean on the code element in one sentence each. `tests/prompt-size.test.ts`
+`string[]` on the code element in one sentence. `tests/prompt-size.test.ts`
 re-pins both constants in the same round (feedback rule 2026-09-10). The
 schema stays anyOf-free: the spec surface is a list of strings.
 

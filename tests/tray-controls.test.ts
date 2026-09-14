@@ -6,7 +6,6 @@ import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 
 const src = readFileSync("src/ui/tray.ts", "utf8");
-const player = readFileSync("src/render/player.ts", "utf8");
 
 describe("tray controls (pins)", () => {
   test("controls parse the authored element, not the resolved clone", () => {
@@ -18,18 +17,12 @@ describe("tray controls (pins)", () => {
   test("control values are cleared with the preview", () => {
     expect(src).toMatch(/const clearPreview[\s\S]*?controlValues\.clear\(\)/);
   });
-  test("a held glow is released with the preview", () => {
-    expect(src).toMatch(/const clearPreview[\s\S]{0,600}?for \(const (?:release|r) of heldGlows(?:\.keys\(\))?\) (?:release|r)\(\)/);
-  });
   test("a control move never overwrites a script the viewer took over", () => {
     expect(src).toMatch(/takenOver\.add\(el\.id\)[\s\S]{0,200}?cs-tray-controls-quiet/);
   });
   test("the group is built from plan.controls", () => {
     expect(src).toContain("plan.controls");
     expect(src).toContain("controlIds:");
-  });
-  test("the player can hold a glow for the tray", () => {
-    expect(player).toMatch(/holdGlow\(ids: string\[\]\): \(\) => void/);
   });
   test("a click during playback on a control-bearing panel pauses first, then opens that script (spec §2.6)", () => {
     const i = src.indexOf("hd.timeline.state === \"playing\"", src.indexOf("const screenAt"));

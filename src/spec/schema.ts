@@ -382,10 +382,6 @@ const elementSchema = {
       description:
         "code: names of variables the viewer may change from the ⊕ tray. Each is born ONCE in the script as a control literal — a range tuple (min, max) or (min, max, step) becomes a slider (integers when written without decimal points), a list of strings a choice row, True/False a switch, a string a text field, a bare number a number field (never a guessed range) — or as Slider(1, 50, default=10, label=\"Cycles\") / Choice(\"a\", \"b\") / Toggle(False) / Text(\"x\") / Number(3) / Button(\"Roll again\") when a label or default is wanted. The default (midpoint of a range) is what the movie shows. Prefer controls to an explore beat that tells the viewer to edit the script.",
     },
-    glow: {
-      type: "boolean",
-      description: "code: while a control is being adjusted, glow the panel and the figure its data feeds (default false).",
-    },
     autorun: {
       type: "boolean",
       description: "code: re-run the script on every control change (default true); false shows a Run button in the tray instead.",

@@ -205,15 +205,6 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
    *  so `takenOver` (below) can reach the live tray, not just the next
    *  rebuild (Task 1 fix; an editor Run never rebuilds the tray). */
   const controlGroups = new Map<string, HTMLElement>();
-  /** Release functions for a `glow: true` control's held glow, live while a
-   *  slider is focused/dragged, mapped to the ids they glow. A blur/pointerup/
-   *  pointercancel removes its own entry; clearPreview releases every one
-   *  still held — a drag a scrub, playback starting, or a cancelled touch
-   *  interrupts must not leak the highlight overlay past Continue. The ids
-   *  ride along so a repaint can drop the stale clones and re-hold fresh ones
-   *  (Task 2 fix: `effects.setHighlight` clones leaf nodes, and `previewSpec`
-   *  replaces the layers under the overlay without touching it). */
-  const heldGlows = new Map<() => void, string[]>();
   /** Scripts the viewer took over by editing and running: their controls go quiet until Continue. */
   const takenOver = new Set<string>();
   const runTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -237,8 +228,6 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     drafts.clear();
     controlValues.clear();
     controlGroups.clear();
-    for (const release of heldGlows.keys()) release();
-    heldGlows.clear();
     takenOver.clear();
     for (const t of runTimers.values()) clearTimeout(t);
     runTimers.clear();
@@ -928,23 +917,6 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       const group = h("div", { class: "cs-tray-controls", role: "group", "aria-label": `Controls for ${id}` });
       if (takenOver.has(id)) group.classList.add("cs-tray-controls-quiet");
       controlGroups.set(id, group);
-      // Known limitation: during a live re-run the glow shows the pre-run
-      // figure — the backend's effects keep the mount-time nodes (svg-backend
-      // swapGeometry's throwaway map). A real fix lives in the backend, not here.
-      const figureIds = hd.layout.order.filter((o) => !editable.some((e) => o === e.id || o.startsWith(`${e.id}_`)));
-      const feeds = (pathsByCodeId(scanDataTokens(hd.authored.params))[id] ?? []).length > 0;
-      const glowIds = el.glow ? (feeds ? [id, ...figureIds] : [id]) : [];
-      let release: (() => void) | null = null;
-      const glowOn = (): void => {
-        if (glowIds.length === 0 || release) return;
-        release = hd.timeline.holdGlow(glowIds);
-        heldGlows.set(release, glowIds);
-      };
-      const glowOff = (): void => {
-        if (release) heldGlows.delete(release);
-        release?.();
-        release = null;
-      };
       const commit = (c: ControlSpec, raw: string | boolean, immediate: boolean): void => {
         if (takenOver.has(id)) return; // the viewer's own script stands until Continue (Task 1 fix)
         controlValues.set(id, nextValues(controlValues.get(id) ?? {}, c, raw));
@@ -962,11 +934,6 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
               out.textContent = readout(c, Number(range.value));
               commit(c, range.value, false);
             });
-            range.addEventListener("focus", glowOn);
-            range.addEventListener("pointerdown", glowOn);
-            range.addEventListener("blur", glowOff);
-            range.addEventListener("pointerup", glowOff);
-            range.addEventListener("pointercancel", glowOff);
             row.append(label, range, out);
             break;
           }
