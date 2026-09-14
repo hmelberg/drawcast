@@ -810,6 +810,50 @@ mini-DOM (the round shipped source pins instead of spec §3's mini-DOM test);
 a tuple spanning lines and a control name inside a triple-quoted string get
 a poor lint message.
 
+## Pane controls and the movie rule — done 2026-09-15
+
+Spec `docs/superpowers/specs/2026-09-14-pane-controls-design.md` (addendum to
+code controls). The movie rule (§2), settled in five lines: one storyboard,
+never written twice for app and export; drawables (a code pane, or a drawn
+control panel at its defaults) export, live HTML controls never do; the
+invitation to interact lives ONLY in an `explore` beat's `speak` — an
+ordinary `speak` never addresses the interactive viewer, because the movie
+says it too; controls come alive at three doors, all in the app — the
+explore beat, a paused click on the panel, and the ⊕ tray — playing stays
+clean, pause is the door; the movie shows only the plot (`show: output`) or,
+new here, the panel drawn at its defaults (`pane: controls`).
+
+`pane: "code" | "controls"` on a code element (with `show` naming a pane
+side): `code` (default) draws the script's lines as before; `controls`
+draws one ROW per control instead — `<id>_ctl_<name>` per row, `<id>_ctls`
+as a group id that expands to every row, no `<id>_line_N`. A paused click on
+the panel, the explore beat, or the tray's group all mount the SAME
+controls-group builder in place over the drawn panel (Task 3's one builder,
+two hosts — the editor card's own trick, reused rather than duplicated).
+
+The lint `explore-invite` (warn): an ordinary `speak` matching a small
+invitation word list — slide, drag, press, click, toggle, try it, turn the
+knob/dial, set the … to, and the Norwegian dra, trykk, klikk, prøv, skyv —
+belongs in an `explore` beat instead. `tests/examples-style.test.ts` pins
+`INVITE_BASELINE` at 0.
+
+Four bundled examples became two-part playlists (theory drawing, then the
+knobs): SIR, the Markov cohort, and discounting draw their panel as
+`pane: controls`; the cost-effectiveness plane's part 2 keeps `pane: code`
+— its script's own `Slider(..., label="Willingness to pay")` overflows the
+drawn panel's fixed label column at any pane width or font size (the column
+cap and the label's own width both scale with `font_size`, so the overflow
+ratio never changes), a real `code-controls-pane.ts` limit, not a wording
+choice; part 1 turns quadrant_labels off for the same single-point layout,
+independently of that.
+
+Open: a performed sweep (the `animate` pairing) as the panel's own movie
+form — out of scope by design (§7), not built; the Norwegian invitation
+words are a short, unreviewed list; the drawn control panel's label column
+has no minimum-width guarantee, so a sufficiently long `label=` overflows
+into the track (seen on the cost-effectiveness plane's `wtp` slider) — a
+wider or content-aware label column is a follow-up, not done here.
+
 ## Sound (the play command) — done 2026-08-26
 
 `play` sounds synthesized notes (WebAudio oscillators, five instrument
