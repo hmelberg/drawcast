@@ -269,8 +269,8 @@ do not combine the two.
   functions); anything else is a doc error like a bad layout.
 - Lint rule `widget` (`src/lint/lint.ts`, in `lintCommands`): `ask.widget`
   names the spec's template but the registered document has no widget body
-  → error. `ask.widget` names the template, the body has no `judge`, and
-  the ask's `answer` is empty → error (nothing to compare).
+  → error. (An empty `answer` needs no rule: the schema already requires
+  `answer` on every non-drag widget ask.)
 - Runtime: effects validated at perform time as in §2.2; a throwing body is
   contained.
 
@@ -332,11 +332,12 @@ Pure modules first (no jsdom in this repo):
 - `tests/tones.test.ts` (extend): `beep` schedules one oscillator for `ms`.
 - Schema test: `ask.widget` accepts the template name, rejects an unknown
   string.
-- `tests/widget-host.test.ts`: source pins on `widget-host.ts` and
-  `controls.ts` (attach order, gate dispatch, the reset hooks), plus a
-  mini-DOM test (`tests/helpers/mini-dom.ts` + the local `El` pattern from
-  `course-door.test.ts`) for one click → one `previewParams` call and one
-  beep — the ghost-round lesson: a behaviour test, not only pins.
+- `tests/widget-host.test.ts`: a behaviour test on the host's DOM-free core
+  (`widgetHostFor(hd)` against a fake handle: one click on a part → one
+  beep, one `previewParams`, one glow, in order; an answer published; reset
+  forgets everything) — the ghost-round lesson: behaviour, not only pins —
+  plus source pins on the stage listener, the attach order in `controls.ts`,
+  the reset hooks and the info card's stand-aside.
 - Examples gate (`tests/examples.test.ts`): the three widget templates lint
   clean with zero warnings; additionally every ready template with a widget
   body runs `runWidget` with one click per part and must report no errors.
