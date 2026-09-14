@@ -43,6 +43,12 @@
     --muted: #a49b8b;
     --line: #79715c;
   }
+  /* .cs-paramtray (explore tray, further down): its border is deliberately
+     var(--ink) in light mode (the sketchy-box trick, same ink as the
+     drawing), which reads as a bright outline once --ink flips to near-
+     white — soften it here, alongside the tokens it depends on, since this
+     file allows only one prefers-color-scheme dark block. */
+  .cs-paramtray { border-color: var(--line); }
 }
 :root[data-theme="dark"] {
   --paper: #1c1a17;
@@ -1852,6 +1858,13 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; /* the sketchy-box trick, same ink as the drawing */
   margin-top: -1px;
 }
+/* Dark mode: the full-ink border reads as a bright outline against the dark
+   paper (--ink is near-white there). Soften it to --line, same as every
+   other real edge in dark mode; the theme paper background is unchanged.
+   The prefers-color-scheme half lives with the file's one allowed dark
+   media block, at the top (tests/palette.test.ts pins exactly one); the
+   explicit-choice half sits here, beside the rule it overrides. */
+:root[data-theme="dark"] .cs-paramtray { border-color: var(--line); }
 .cs-paramtray.cs-popped {
   position: absolute;
   z-index: 30;

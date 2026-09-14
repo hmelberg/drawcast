@@ -201,12 +201,19 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const patches = new Map<string, { code: string; result: string }>();
   /** Control values per script — preview state, dropped with the rest. */
   const controlValues = new Map<string, Record<string, ControlValue>>();
+  /** The controls group DOM node per script id, set when the group is built —
+   *  so `takenOver` (below) can reach the live tray, not just the next
+   *  rebuild (Task 1 fix; an editor Run never rebuilds the tray). */
+  const controlGroups = new Map<string, HTMLElement>();
   /** Release functions for a `glow: true` control's held glow, live while a
-   *  slider is focused/dragged. A blur/pointerup/pointercancel removes its
-   *  own entry; clearPreview releases every one still held — a drag a scrub,
-   *  playback starting, or a cancelled touch interrupts must not leak the
-   *  highlight overlay past Continue. */
-  const heldGlows = new Set<() => void>();
+   *  slider is focused/dragged, mapped to the ids they glow. A blur/pointerup/
+   *  pointercancel removes its own entry; clearPreview releases every one
+   *  still held — a drag a scrub, playback starting, or a cancelled touch
+   *  interrupts must not leak the highlight overlay past Continue. The ids
+   *  ride along so a repaint can drop the stale clones and re-hold fresh ones
+   *  (Task 2 fix: `effects.setHighlight` clones leaf nodes, and `previewSpec`
+   *  replaces the layers under the overlay without touching it). */
+  const heldGlows = new Map<() => void, string[]>();
   /** Scripts the viewer took over by editing and running: their controls go quiet until Continue. */
   const takenOver = new Set<string>();
   const runTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -229,7 +236,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     patches.clear();
     drafts.clear();
     controlValues.clear();
-    for (const release of heldGlows) release();
+    controlGroups.clear();
+    for (const release of heldGlows.keys()) release();
     heldGlows.clear();
     takenOver.clear();
     for (const t of runTimers.values()) clearTimeout(t);
@@ -293,7 +301,13 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     if (!el.language) return;
     // A Run from the editor with text the controls did not produce: the
     // viewer took the script over, and its controls go quiet until Continue.
-    if (source === "editor" && code !== (lastControlsCode.get(el.id) ?? el.code)) takenOver.add(el.id);
+    // The tray may not rebuild before the next slider move (it never does,
+    // on an editor Run) — so quiet the LIVE group too (Task 1 fix), not just
+    // the one the next `open()` would build.
+    if (source === "editor" && code !== (lastControlsCode.get(el.id) ?? el.code)) {
+      takenOver.add(el.id);
+      controlGroups.get(el.id)?.classList.add("cs-tray-controls-quiet");
+    }
     const paths = pathsByCodeId(scanDataTokens(hd.authored.params))[el.id] ?? [];
     setDraft(el.id, code);
     announce(el.id, (s) => {
@@ -310,6 +324,15 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       });
       patches.set(el.id, { code, result: JSON.stringify(result) });
       repaint();
+      // previewSpec swaps the layers repaint just drew, but a held glow's
+      // clones live in the overlay, untouched by that swap — so mid-drag the
+      // pre-run figure stays painted over every re-run. Drop every held
+      // clone and re-hold fresh ones against the geometry repaint just
+      // finished (Task 2 fix).
+      const held = [...heldGlows.values()];
+      for (const r of heldGlows.keys()) r();
+      heldGlows.clear();
+      for (const ids of held) heldGlows.set(hd.timeline.holdGlow(ids), ids);
       const msg = result.ok ? "Ran ✓ — Continue restores the lesson" : "The script failed — see the panel";
       announce(el.id, (s) => s.status(msg));
     } catch (err) {
@@ -548,6 +571,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     trayOwned.clear();
     for (const t of trayTyping) t.detach();
     trayTyping = [];
+    // Depends on the tray never being popped out here: close() docks first,
+    // and every caller is guarded by tray.hidden.
     tray.replaceChildren();
     // What this tray shows: everything the figure offers when the VIEWER
     // opened it, exactly what the beat named when an explore did (the rule
@@ -911,12 +936,20 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       const values = controlValues.get(id) ?? {};
       const group = h("div", { class: "cs-tray-controls", role: "group", "aria-label": `Controls for ${id}` });
       if (takenOver.has(id)) group.classList.add("cs-tray-controls-quiet");
-      const glowIds = el.glow ? [id, ...hd.layout.order.filter((o) => !editable.some((e) => o === e.id || o.startsWith(`${e.id}_`)))] : [];
+      controlGroups.set(id, group);
+      // glow: true holds the panel's own glow always; it reaches beyond the
+      // panel only when the script actually FEEDS the figure — a `{id.path}`
+      // token in some template param (Task 5 fix). Otherwise every other
+      // element in the layout order glowed regardless of whether this
+      // script's numbers touch them at all.
+      const figureIds = hd.layout.order.filter((o) => !editable.some((e) => o === e.id || o.startsWith(`${e.id}_`)));
+      const feeds = (pathsByCodeId(scanDataTokens(hd.authored.params))[id] ?? []).length > 0;
+      const glowIds = el.glow ? (feeds ? [id, ...figureIds] : [id]) : [];
       let release: (() => void) | null = null;
       const glowOn = (): void => {
         if (glowIds.length === 0 || release) return;
         release = hd.timeline.holdGlow(glowIds);
-        heldGlows.add(release);
+        heldGlows.set(release, glowIds);
       };
       const glowOff = (): void => {
         if (release) heldGlows.delete(release);
@@ -924,6 +957,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         release = null;
       };
       const commit = (c: ControlSpec, raw: string | boolean, immediate: boolean): void => {
+        if (takenOver.has(id)) return; // the viewer's own script stands until Continue (Task 1 fix)
         controlValues.set(id, nextValues(controlValues.get(id) ?? {}, c, raw));
         runControls(el, controls, immediate);
       };
@@ -953,10 +987,16 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
             for (const v of c.options ?? []) {
               const b = h("button", { class: "cs-tray-choicebtn", "data-value": v }, v);
               b.addEventListener("click", () => {
-                for (const x of btns) x.classList.toggle("on", x === b);
+                for (const x of btns) {
+                  const on = x === b;
+                  x.classList.toggle("on", on);
+                  x.setAttribute("aria-pressed", String(on));
+                }
                 commit(c, v, true);
               });
-              b.classList.toggle("on", v === current);
+              const on = v === current;
+              b.classList.toggle("on", on);
+              b.setAttribute("aria-pressed", String(on));
               btns.push(b);
               seg.appendChild(b);
             }
@@ -972,7 +1012,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
           }
           case "text":
           case "number": {
-            const input = h("input", { type: c.kind === "number" ? "number" : "text", value: String(current), "aria-label": c.label, ...(c.kind === "number" && c.integer ? { step: "1" } : {}) }) as HTMLInputElement;
+            const input = h("input", { type: c.kind === "number" ? "number" : "text", value: String(current), "aria-label": c.label, ...(c.kind === "number" ? { step: c.integer ? "1" : "any" } : {}) }) as HTMLInputElement;
             input.addEventListener("change", () => commit(c, input.value, true)); // Enter or blur
             row.append(label, input);
             break;
@@ -1116,7 +1156,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       "click",
       (e) => {
         // Tray already open: its own freeze guard owns the stage.
-        if (!tray.hidden) return; // the tray's own freeze guard owns the stage
+        if (!tray.hidden) return;
         if (hd.timeline.state === "playing") {
           // One click from the movie into a script's controls (design
           // 2026-09-14 §2.6): hit-test on the scene as it is NOW — a click

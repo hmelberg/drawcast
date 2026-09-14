@@ -268,6 +268,20 @@ describe("code element — resolver", () => {
     expect(s.elements![0].code_result).toBeUndefined();
     expect(copy.elements![0].code_result).toBeDefined();
   });
+
+  test("B11 holds for controls too: the authored script keeps its tuple, the clone gets the default run (Task 12)", async () => {
+    const s = codeSpec({ code: "n = (1, 50)\nprint(n)", controls: ["n"] });
+    const copy = await resolvedRenderSpec(s, {
+      resolvePortraits: async () => undefined,
+      resolveSources: async () => undefined,
+      resolveCode: async (c) => resolveCode(c, runDeps(OK)),
+      resolveImages: async () => [],
+      resolveIcons: async () => [],
+      contactEmail: "",
+    });
+    expect(s.elements![0].code).toContain("(1, 50)");
+    expect(copy.elements![0].code).toContain("n = 25");
+  });
 });
 
 describe("code element — hoisting", () => {

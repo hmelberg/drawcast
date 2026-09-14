@@ -10,10 +10,10 @@ describe("controls-model", () => {
     expect(rowWidth("text")).toBe("full");
     for (const k of ["toggle", "choice", "number", "button"] as const) expect(rowWidth(k)).toBe("half");
   });
-  test("debounce: pyodide is slower to re-run", () => {
+  test("debounce: pyodide and webR are slower to re-run", () => {
     expect(debounceMs("python")).toBe(400);
+    expect(debounceMs("r")).toBe(400);
     expect(debounceMs("brython")).toBe(250);
-    expect(debounceMs("r")).toBe(250);
   });
   test("readout follows the step's decimals; integers have none", () => {
     expect(readout(c("n = (1, 50)", "n"), 12)).toBe("12");

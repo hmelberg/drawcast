@@ -9,9 +9,9 @@ export function rowWidth(kind: ControlKind): RowWidth {
   return kind === "slider" || kind === "text" ? "full" : "half";
 }
 
-/** Pyodide re-runs slower (a WASM CPython plus matplotlib per run), so it waits a little longer for the slider to settle. */
+/** Pyodide and webR re-run slower (a WASM CPython plus matplotlib, or webR plus ggplot2, per run), so they wait a little longer for the slider to settle. */
 export function debounceMs(language: string): number {
-  return language === "python" ? 400 : 250;
+  return language === "python" || language === "r" ? 400 : 250;
 }
 
 export function readout(control: ControlSpec, value: ControlValue): string {
