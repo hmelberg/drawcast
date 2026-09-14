@@ -343,7 +343,7 @@ export function domainMapping(domain: Spec["domain"]): { toLogical: (p: Pt) => P
 }
 
 /** Logical → spec-domain mapping (inverse of tier-2's scales; default domain 0–100). */
-function inverseDomainMapping(domain: Spec["domain"]): (p: Pt) => Pt {
+export function inverseDomainMapping(domain: Spec["domain"]): (p: Pt) => Pt {
   const plot = plotArea();
   const dx = domain?.x ?? [0, 100];
   const dy = domain?.y ?? [0, 100];

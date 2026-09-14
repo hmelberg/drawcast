@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { kit, KIT_VERSION, shadeColor } from "../src/scenes/kit";
 import { FIGURE_GROUND } from "../src/layout/ink";
+import { elementRings } from "../src/layout/layout";
 import type { Pt } from "../src/layout/model";
 
 describe("kit factories", () => {
@@ -162,8 +163,8 @@ describe("shadeColor", () => {
   });
 });
 
-test("KIT_VERSION is 9 and constants ride on the kit", () => {
-  expect(KIT_VERSION).toBe(9);
+test("KIT_VERSION is 10 and constants ride on the kit", () => {
+  expect(KIT_VERSION).toBe(10);
   expect(kit.COLORS.series).toHaveLength(6);
   for (const c of kit.COLORS.series) expect(Object.values(kit.COLORS)).toContain(c);
   expect(Object.isFrozen(kit.COLORS.series)).toBe(true);
@@ -494,5 +495,45 @@ describe("kit.ball — a shaded disc for 2D figures", () => {
     expect(b.style.strokeWidth).toBe(3);
     expect(b.style.opacity).toBe(0.5);
     expect(b.style.fill).toBe(kit.COLORS.guide);
+  });
+});
+
+describe("kit v10: circle, rect, pad, MORSE", () => {
+  test("circle and rect return closed point rings in y-up logical units", () => {
+    const c = kit.circle([100, 100], 10, 4);
+    expect(c).toHaveLength(4);
+    expect(c[0][0]).toBeCloseTo(110);
+    const r = kit.rect(10, 20, 30, 40);
+    expect(r).toEqual([[10, 20], [40, 20], [40, 60], [10, 60]]);
+  });
+
+  test("pad is a group: a closed paper-filled shape plus a centred label", () => {
+    const p = kit.pad("key_dot", [300, 420], "·", { r: 40 });
+    expect(p.kind).toBe("group");
+    expect(p.id).toBe("key_dot");
+    const [shape, label] = p.children;
+    expect(shape.id).toBe("key_dot__shape");
+    expect(shape.kind).toBe("stroke");
+    expect((shape as { closed?: boolean }).closed).toBe(true);
+    expect(shape.style.fill).toBe(kit.GROUND);
+    expect(label.id).toBe("key_dot__label");
+    expect(label.kind).toBe("text");
+    expect((label as { pos: Pt }).pos).toEqual([300, 420]);
+    const rect = kit.pad("gap", [540, 420], "gap", { w: 90, h: 60 });
+    expect((rect.children[0] as { pts: Pt[] }).pts).toHaveLength(4);
+  });
+
+  test("a pad's outline is what elementRings hit-tests", () => {
+    const p = kit.pad("key_dot", [300, 420], "·", { r: 40 });
+    const rings = elementRings({ drawables: [p], order: ["key_dot"] });
+    expect(rings.get("key_dot")).toHaveLength(1);
+  });
+
+  test("MORSE covers the letters and digits", () => {
+    expect(kit.MORSE.S).toBe("...");
+    expect(kit.MORSE.O).toBe("---");
+    expect(kit.MORSE["1"]).toBe(".----");
+    expect(Object.keys(kit.MORSE)).toHaveLength(36);
+    expect(Object.isFrozen(kit.MORSE)).toBe(true);
   });
 });

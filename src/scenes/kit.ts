@@ -40,7 +40,7 @@ import { FIGURE_GROUND, softAlpha } from "../layout/ink";
 import type { LabelRequest } from "../layout/labels";
 import type { Side } from "../spec/types";
 
-export const KIT_VERSION = 9; // v9: ball() — a shaded 2D disc (space); v8: smoothClosed() + roughness on stroke/area (anatomy); v7: GROUND (the figure's paper); v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
+export const KIT_VERSION = 10; // v10: circle()/rect() point rings, pad() — a tappable labelled shape for widgets, MORSE table (widget bodies); v9: ball() — a shaded 2D disc (space); v8: smoothClosed() + roughness on stroke/area (anatomy); v7: GROUND (the figure's paper); v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
 
 export interface StrokeOpts {
   closed?: boolean;
@@ -275,6 +275,10 @@ export interface SceneKit {
   polygon(c: Pt, r: number, n: number, rot?: number): Pt[];
   arc(c: Pt, r: number, a0: number, a1: number, n?: number): Pt[];
   ellipse(c: Pt, rx: number, ry: number, n?: number): Pt[];
+  /** Closed ring of n points around c at radius r (a circle for a closed stroke or an area). */
+  circle(c: Pt, r: number, n?: number): Pt[];
+  /** The four corners of an axis-aligned rectangle, lower-left at (x, y), counter-clockwise. */
+  rect(x: number, y: number, w: number, h: number): Pt[];
   /** Organic closed blob: ellipse with seeded low-frequency wobble. */
   blob(c: Pt, rx: number, ry: number, wobble?: number, phase?: number, n?: number): Pt[];
   /** Horizontal sine wave starting at `from`, extending `length` to the right. */
@@ -421,6 +425,15 @@ export interface SceneKit {
    * the day the paper moves.
    */
   GROUND: string;
+  /**
+   * A tappable pad for widgets: a group whose first child is a closed,
+   * paper-filled outline (`<id>__shape` — elementRings hit-tests it) and
+   * whose second is the label centred on it (`<id>__label`). Round with
+   * `{r}`, rectangular with `{w, h}`.
+   */
+  pad(id: string, at: Pt, label: string, size: { r: number } | { w: number; h: number }, o?: { fontSize?: number; fill?: string; color?: string }): GroupDrawable;
+  /** International Morse: letters A–Z and digits 0–9 → dots and dashes. Frozen. */
+  MORSE: Readonly<Record<string, string>>;
 }
 
 // ---- STAMPS data (unit box, x/y ∈ [-1,1], y-up) ----
@@ -526,6 +539,14 @@ const STAMPS_DATA: Record<string, StampDef> = {
   },
 };
 export const STAMPS: Record<string, StampDef> = Object.freeze(STAMPS_DATA);
+
+// International Morse: letters A–Z and digits 0–9 → dots and dashes (widgets).
+const MORSE_DATA: Record<string, string> = Object.freeze({
+  A: ".-", B: "-...", C: "-.-.", D: "-..", E: ".", F: "..-.", G: "--.", H: "....", I: "..", J: ".---",
+  K: "-.-", L: ".-..", M: "--", N: "-.", O: "---", P: ".--.", Q: "--.-", R: ".-.", S: "...", T: "-",
+  U: "..-", V: "...-", W: ".--", X: "-..-", Y: "-.--", Z: "--..",
+  "0": "-----", "1": ".----", "2": "..---", "3": "...--", "4": "....-", "5": ".....", "6": "-....", "7": "--...", "8": "---..", "9": "----.",
+});
 
 // A shape trim adds this much clearance beyond the shape's own boundary —
 // enough that a hand-sketched line reads as "just outside" rather than
@@ -665,6 +686,14 @@ export const kit: SceneKit = {
   group(id, children) {
     return { id, kind: "group", z: Z_STROKE, style: defaultStyle(), drawOpts: defaultDrawOpts(), children };
   },
+  pad(id, at, label, size, o = {}) {
+    const pts = "r" in size ? kit.circle(at, size.r) : kit.rect(at[0] - size.w / 2, at[1] - size.h / 2, size.w, size.h);
+    const h = "r" in size ? size.r * 2 : size.h;
+    const shape = kit.stroke(`${id}__shape`, pts, { closed: true, fill: o.fill ?? FIGURE_GROUND, strokeWidth: 3, ms: SKETCH_MS.node });
+    const text = kit.text(`${id}__label`, at, label, { fontSize: o.fontSize ?? Math.max(16, Math.round(h * 0.4)), color: o.color ?? COLORS.ink });
+    return kit.group(id, [shape, text]);
+  },
+  MORSE: MORSE_DATA,
 
   polygon(c, r, n, rot = Math.PI / 2) {
     const pts: Pt[] = [];
@@ -689,6 +718,12 @@ export const kit: SceneKit = {
       pts.push([c[0] + rx * Math.cos(th), c[1] + ry * Math.sin(th)]);
     }
     return pts;
+  },
+  circle(c, r, n = 48) {
+    return kit.ellipse(c, r, r, n);
+  },
+  rect(x, y, w, h) {
+    return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
   },
   blob(c, rx, ry, wobble = 0.05, phase = 0, n = 64) {
     const pts: Pt[] = [];
