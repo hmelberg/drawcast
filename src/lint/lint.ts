@@ -634,12 +634,11 @@ function lintCode(spec: Spec): LintIssue[] {
     // A call site that passes a controlled name as an explicit keyword.
     for (const c of controls) {
       if (c.birthplace !== "param") continue;
-      const re = new RegExp(`\\b([A-Za-z_][\\w.]*)\\s*\\([^)]*\\b${c.name}\\s*=`, "g");
+      const re = new RegExp(`\\b([A-Za-z_][\\w.]*)\\s*\\([^)]*\\b${c.name}\\s*=(?!=)`);
       const lines = (el.code ?? "").split("\n");
       lines.forEach((line, i) => {
         if (i === c.line) return;
         const m = re.exec(line);
-        re.lastIndex = 0;
         if (m) issues.push({ rule: "controls", ids: [el.id], message: `code "${el.id}": ${m[1]}(${c.name}=…) on line ${i + 1} overrides the "${c.name}" control`, severity: "warn" });
       });
     }

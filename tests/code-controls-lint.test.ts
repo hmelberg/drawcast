@@ -43,6 +43,12 @@ describe("controls lint — warnings", () => {
     expect(i.message).toContain("sim(n=");
     expect(rules(spec({ controls: ["n"], code: "def sim(n=(1, 50)):\n    return n\nsim()" }))).toEqual([]);
   });
+  test("a comparison is not a call-site override", () => {
+    expect(rules(spec({ controls: ["n"], code: "def sim(n=(1, 50)):\n    return n\nprint(check(n == 5))" }))).toEqual([]);
+    const [i] = rules(spec({ controls: ["n"], code: "def sim(n=(1, 50)):\n    return n\nsim(n=5)" }));
+    expect(i).toMatchObject({ severity: "warn" });
+    expect(i.message).toContain("sim(n=");
+  });
   test("a later plain-literal reassignment", () => {
     expect(rules(spec({ controls: ["x"], code: "x = (1, 50)\nx = 5" }))[0]).toMatchObject({ severity: "warn" });
   });
