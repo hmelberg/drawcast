@@ -24,6 +24,7 @@
 // pull render/portrait (IndexedDB) in through the execution facade.
 import { stylable } from "../code/chart-style";
 import { withControlDefaults } from "../code/controls";
+import { controlsPane, controlsPaneHeight } from "./code-controls-pane";
 import { c64ScreenDrawables, isC64Screen } from "./c64-screen";
 import { decodeCodeResult, type CodeTable } from "../code/envelope";
 import { FIGURE_GROUND } from "./ink";
@@ -336,11 +337,20 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
 
   // ---- code pane content ---------------------------------------------------
   // The panel shows the run's text: a control literal is drawn as its default value.
+  // `pane: controls` draws one row per control instead — its rows are laid
+  // out further down, once `codeTop` is final (below depends on the code
+  // pane's OWN content height), so only the height is settled here, from the
+  // row count alone (controlsPaneHeight is pure — the actual row positions
+  // never change it).
+  // `show` can never be "none" here — the function returns early for it above
+  // (line ~312) — so only "output" is excluded (the design's own rule: pane:
+  // controls needs a pane side to draw into).
+  const controlsPaneMode = el.pane === "controls" && show !== "output" && (el.controls?.length ?? 0) > 0;
   const sourceLines = withControlDefaults(el.language ?? "", el.code ?? "", el.controls).replace(/\s+$/, "").split("\n");
   const codeMax = Math.max(8, Math.floor((codePaneW - 2 * PAD) / (fontSize * CHAR_W)));
-  const codeStack = showCode ? stackLines(sourceLines.map((l) => wrapCodeLine(l, codeMax)), fontSize) : { blocks: [], height: 0 };
+  const codeStack = showCode && !controlsPaneMode ? stackLines(sourceLines.map((l) => wrapCodeLine(l, codeMax)), fontSize) : { blocks: [], height: 0 };
   const windowH = windowRows > 0 ? windowRows * fontSize * ROW_H + (windowRows - 1) * fontSize * LINE_GAP : codeStack.height;
-  const codeContentH = showCode ? Math.min(codeStack.height, windowH) : 0;
+  const codeContentH = controlsPaneMode ? controlsPaneHeight(el.controls!.length, fontSize) : showCode ? Math.min(codeStack.height, windowH) : 0;
 
   // ---- output pane content -------------------------------------------------
   const outMax = Math.max(8, Math.floor((outPaneW - 2 * PAD) / (fontSize * CHAR_W)));
@@ -576,8 +586,9 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   ];
   ctx.anchors[el.id] = [cx, cy];
 
-  // ---- code lines: one top-level drawable per SOURCE line ------------------
-  if (showCode) {
+  // ---- code lines: one top-level drawable per SOURCE line, or (pane:
+  // controls) one row per control ------------------------------------------
+  if (showCode && !controlsPaneMode) {
     // Every line at its natural row, even past the window: the plan scrolls
     // the whole column by offsetting each line, and the clip (the pane's
     // rectangle, fixed in canvas space) hides what has left the window.
@@ -677,6 +688,29 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       });
     });
     if (windowRows > 0) ctx.windows[el.id] = { ids: lineIds, bottoms, height: windowH, follow: markIds };
+  } else if (controlsPaneMode) {
+    // marks/lines are meaningless over a row of knobs — ignored here (the
+    // controls lint warns when a spec still carries them under pane: controls).
+    const pane = controlsPane(
+      el.id,
+      el.language ?? "",
+      el.code ?? "",
+      el.controls!,
+      { x: codeX + PAD, top: codeTop, w: codePaneW - 2 * PAD },
+      fontSize,
+      el.style,
+      el.draw,
+    );
+    // Each row is ALSO re-pushed as its own top-level drawable (beside the
+    // `_ctls` group that already nests it) so `draw: [sim_ctl_beta]` finds it
+    // directly — drawablesForId only matches a TOP-LEVEL id, the same reason
+    // `_line_N` are top-level rather than children of the panel group.
+    for (const d of pane.drawables) {
+      if (d.kind === "group") out.push(...d.children);
+      out.push(d);
+    }
+    ctx.extraOrder.push(...pane.order);
+    Object.assign(ctx.anchors, pane.anchors);
   }
 
   // ---- output pane: one group, always minted -------------------------------
