@@ -288,6 +288,7 @@ export function parseControls(language: string, code: string, names: string[]): 
   const found = candidates(grammar, code, wanted);
   const controls: ControlSpec[] = [];
   const isShape = (k: Classified): boolean => k.kind === "slider" || k.kind === "choice" || k.kind === "button";
+  const looksLikeLonghand = (text: string): boolean => /^(?:Slider|Choice|Toggle|Text|Number|Button)\s*\(/.test(text.trim());
   for (const name of names) {
     const mine = found.filter((c) => c.name === name);
     const classified = mine.map((c) => ({ c, k: classifyLiteral(grammar, c.text) }));
@@ -300,12 +301,16 @@ export function parseControls(language: string, code: string, names: string[]): 
       continue;
     }
     // The first classifiable candidate is the birthplace. A later SHAPE (a
-    // range, a list, a Button) or any later def default is a second birth —
-    // an error. A later plain value (a number, a string, a bool) in an
-    // assignment is the script overwriting its own control — a warning.
+    // range, a list, a Button), a later longhand call by name (even one whose
+    // kind is not itself a shape, e.g. a later `Toggle(...)`), or any later
+    // def default is a second birth — an error. A later plain value (a
+    // number, a string, a bool) in an assignment is the script overwriting
+    // its own control — a warning; so is a later assignment whose literal
+    // looks like a control attempt but fails to classify (an invalid range,
+    // say) — it too would have overwritten the control's value.
     const first = ok[0];
     const rest = ok.slice(1);
-    const seconds = rest.filter((x) => x.c.birthplace === "param" || isShape(x.k));
+    const seconds = rest.filter((x) => x.c.birthplace === "param" || isShape(x.k) || looksLikeLonghand(x.c.text));
     if (seconds.length > 0) {
       issues.push({ name, message: `"${name}" is born twice (lines ${[first, ...seconds].map((b) => b.c.line + 1).join(" and ")}) — a control has one birthplace`, severity: "error" });
       continue;
@@ -314,6 +319,8 @@ export function parseControls(language: string, code: string, names: string[]): 
     controls.push({ ...spec, name, label: spec.label ?? name, line: first.c.line, start: first.c.start, end: first.c.end, birthplace: first.c.birthplace });
     const later = rest.find((x) => x.c.birthplace === "assign" && x.c.line > first.c.line);
     if (later) issues.push({ name, message: `"${name}" is reassigned to a literal on line ${later.c.line + 1} — the control's value would be overwritten`, severity: "warn" });
+    const laterBad = bad.find((x) => x.c.line > first.c.line);
+    if (laterBad) issues.push({ name, message: `"${name}" is assigned an invalid control literal on line ${laterBad.c.line + 1} (${laterBad.k.error}) — the control's value would be overwritten`, severity: "warn" });
   }
   return { controls, issues };
 }

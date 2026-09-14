@@ -103,4 +103,22 @@ describe("parseControls — issues", () => {
   test("an unsupported language reports every name as an error", () => {
     expect(parseControls("basic", "10 N = 5", ["N"]).issues[0]).toMatchObject({ name: "N", severity: "error", message: expect.stringContaining("basic") });
   });
+
+  test("a later invalid-but-control-shaped literal warns instead of being silently dropped", () => {
+    const { controls, issues } = py("n = (1, 50)\nn = (5, 1)", ["n"]);
+    expect(controls).toHaveLength(1);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ name: "n", severity: "warn" });
+    expect(issues[0].message).toContain("line 2");
+    expect(issues[0].message).toContain("min < max");
+
+    const dict = py("n = (1, 50)\nn = {'a': 1}", ["n"]);
+    expect(dict.controls).toHaveLength(1);
+    expect(dict.issues).toEqual([]);
+  });
+
+  test("a later longhand call is a second birth, even when its kind is not itself a shape", () => {
+    expect(py("log = False\nlog = Toggle(True)", ["log"]).issues[0]).toMatchObject({ name: "log", severity: "error", message: expect.stringContaining("twice") });
+    expect(py("x = (1, 50)\nx = 5", ["x"]).issues[0]).toMatchObject({ name: "x", severity: "warn" });
+  });
 });
