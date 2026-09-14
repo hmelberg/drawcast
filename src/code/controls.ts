@@ -325,13 +325,47 @@ export function parseControls(language: string, code: string, names: string[]): 
   return { controls, issues };
 }
 
-// applyControls / withControlDefaults / formatValue: Task 3.
-export function formatValue(_language: string, _control: ControlSpec, _value: ControlValue): string {
-  throw new Error("Task 3");
+/** A control's value, rendered in the language's own literal syntax. */
+export function formatValue(language: string, control: ControlSpec, value: ControlValue): string {
+  const grammar = grammarFor(language) ?? "python";
+  switch (control.kind) {
+    case "toggle":
+      return grammar === "python" ? (value ? "True" : "False") : value ? "TRUE" : "FALSE";
+    case "text":
+    case "choice":
+      return `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+    case "button":
+      return String(Math.max(0, Math.round(Number(value))));
+    case "slider":
+    case "number": {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return String(control.default);
+      if (control.integer) return String(Math.round(n));
+      return n.toFixed(control.decimals ?? 2);
+    }
+    default:
+      return String(value);
+  }
 }
-export function applyControls(_language: string, _code: string, _controls: ControlSpec[], _values: Record<string, ControlValue>): string {
-  throw new Error("Task 3");
+
+/** Rewrite each control's literal span with its value (missing values → the control's default). Line count preserved. */
+export function applyControls(language: string, code: string, controls: ControlSpec[], values: Record<string, ControlValue>): string {
+  const lines = code.split("\n");
+  // Right-to-left within a line, so an earlier rewrite never moves a later span.
+  const ordered = [...controls].sort((a, b) => a.line - b.line || b.start - a.start);
+  for (const c of ordered) {
+    const line = lines[c.line];
+    if (line === undefined) continue;
+    const v = Object.prototype.hasOwnProperty.call(values, c.name) ? values[c.name] : c.default;
+    lines[c.line] = line.slice(0, c.start) + formatValue(language, c, v) + line.slice(c.end);
+  }
+  return lines.join("\n");
 }
-export function withControlDefaults(_language: string, _code: string, _names: string[] | undefined): string {
-  throw new Error("Task 3");
+
+/** parse + apply defaults; idempotent; returns `code` unchanged when names is empty/undefined or the language has no grammar. */
+export function withControlDefaults(language: string, code: string, names: string[] | undefined): string {
+  if (!names || names.length === 0 || grammarFor(language) === null) return code;
+  const { controls } = parseControls(language, code, names);
+  if (controls.length === 0) return code;
+  return applyControls(language, code, controls, {});
 }

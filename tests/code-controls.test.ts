@@ -2,7 +2,7 @@
 // The control grammar (spec 2026-09-14 §2.2–2.4): names in the spec, shapes
 // in the script. Pure string functions — no DOM, no runtime.
 import { describe, expect, test } from "vitest";
-import { grammarFor, parseControls } from "../src/code/controls";
+import { applyControls, grammarFor, parseControls, withControlDefaults } from "../src/code/controls";
 
 const py = (code: string, names: string[]) => parseControls("python", code, names);
 
@@ -181,5 +181,47 @@ describe("parseControls — R", () => {
     expect(r('n <- Slider(1, 50, default = 10, label = "Cycles")', ["n"]).controls[0]).toMatchObject({ default: 10, label: "Cycles" });
     expect(r('b <- Button("Resample")', ["b"]).controls[0]).toMatchObject({ kind: "button", caption: "Resample" });
     expect(r("t <- Toggle(FALSE)", ["t"]).controls[0]).toMatchObject({ kind: "toggle", default: false });
+  });
+});
+
+describe("applyControls / withControlDefaults", () => {
+  test("rewrites the literal span with the value, in the language's own syntax, keeping the line count", () => {
+    const code = "n = (1, 50)\nlog = False\nname = \"x\"\nm = [\"SIR\", \"SEIR\"]\nr = Button(\"Roll\")";
+    const { controls } = py(code, ["n", "log", "name", "m", "r"]);
+    const out = applyControls("python", code, controls, { n: 12, log: true, name: 'A"b', m: "SEIR", r: 3 });
+    expect(out.split("\n")).toEqual(["n = 12", "log = True", 'name = "A\\"b"', 'm = "SEIR"', "r = 3"]);
+  });
+  test("a float slider value is written with the step's decimals", () => {
+    const code = "beta = (0.1, 1.0, 0.05)";
+    const { controls } = py(code, ["beta"]);
+    expect(applyControls("python", code, controls, { beta: 0.35 })).toBe("beta = 0.35");
+    expect(applyControls("python", code, controls, { beta: 0.3 })).toBe("beta = 0.30");
+  });
+  test("R writes TRUE/FALSE", () => {
+    const code = "lg <- FALSE\nn <- c(1, 50)";
+    const { controls } = parseControls("r", code, ["lg", "n"]);
+    expect(applyControls("r", code, controls, { lg: true, n: 7 })).toBe("lg <- TRUE\nn <- 7");
+  });
+  test("two controls on one def line rewrite right-to-left so spans stay valid", () => {
+    const code = "def sim(n=(1, 50), beta=Slider(0.1, 1.0, step=0.05)):\n    pass\nsim()";
+    const { controls } = py(code, ["n", "beta"]);
+    expect(applyControls("python", code, controls, { n: 3, beta: 0.2 }).split("\n")[0]).toBe("def sim(n=3, beta=0.20):");
+  });
+  test("a missing value falls back to the default", () => {
+    const code = "n = (1, 50)";
+    const { controls } = py(code, ["n"]);
+    expect(applyControls("python", code, controls, {})).toBe("n = 25");
+  });
+  test("withControlDefaults applies defaults and is idempotent; no names → unchanged", () => {
+    const code = "n = Slider(20, 2000, default=200)\nseed = Button(\"Draw again\")\nx = n + seed";
+    const once = withControlDefaults("python", code, ["n", "seed"]);
+    expect(once).toBe("n = 200\nseed = 0\nx = n + seed");
+    expect(withControlDefaults("python", once, ["n", "seed"])).toBe(once);
+    expect(withControlDefaults("python", code, undefined)).toBe(code);
+    expect(withControlDefaults("python", code, [])).toBe(code);
+    expect(withControlDefaults("basic", "10 N = 5", ["N"])).toBe("10 N = 5");
+  });
+  test("a name with an issue is left as written (the lint reports it)", () => {
+    expect(withControlDefaults("python", "print(1)", ["n"])).toBe("print(1)");
   });
 });
