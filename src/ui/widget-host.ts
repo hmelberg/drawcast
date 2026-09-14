@@ -11,8 +11,14 @@ import { partAt, stepWidget } from "../scenes/widget-run";
 import type { WidgetEffect } from "../scenes/widget-effects";
 import type { WidgetBody, WidgetScene } from "../scenes/widget-types";
 import { makeBrowserMeasure } from "../render/svg-backend";
-import { logicalPoint } from "./dom";
+import { answersMatch } from "../spec/answers";
+import { h, logicalPoint } from "./dom";
 import { gateIsOpen } from "./gates";
+// Type-only: controls.ts imports this module for attachWidgetHost, so the
+// crossing back has to be erased at compile time or the two would cycle.
+import type { AskGateStep } from "./controls";
+
+const CARD_LINGER_MS = 900;
 
 export interface WidgetHost {
   /** Route a logical point: true when it hit a part (and the widget ran). */
@@ -160,4 +166,67 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
     host.reset();
   };
   return host;
+}
+
+/** A template-bound ask's gate: the figure gate's hint and Skip, clicks routed
+ *  to the host, resolved by the widget's next `answer` effect. Resolves a
+ *  string like every gate: the step's answer when judged right (so the
+ *  player's answersMatch agrees), the given string otherwise. */
+export function widgetGateFor(stage: HTMLElement, hd: RenderHandle, host: WidgetHost): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
+  return (signal, step) =>
+    new Promise<string | null>((resolve) => {
+      stage.querySelector(".cs-figgate")?.remove();
+      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "Use the figure ▸");
+      const gate = h("div", { class: "cs-figgate" }, hint);
+      const template = hd.spec.template;
+      // A body of this template's own, used for `judge` alone — the host keeps
+      // the one that holds the viewer's state.
+      const body = template && scenes[template]?.widget ? scenes[template]!.widget!() : null;
+      let settled = false;
+      // The one place either subscription comes off.
+      const detach = (): void => {
+        unsubscribe();
+        signal.removeEventListener("abort", onAbort);
+      };
+      /** The answerless exits (abort, Skip): nothing to show, so nothing lingers. */
+      const finish = (value: string | null): void => {
+        if (settled) return;
+        settled = true;
+        detach();
+        gate.remove();
+        resolve(value);
+      };
+      const onAbort = (): void => finish(null);
+      const unsubscribe = host.onAnswer((given) => {
+        if (settled) return;
+        if (step.answer === undefined || !body) return finish(given);
+        const ok = body.judge ? body.judge(given, step.answer) : answersMatch(given, step.answer);
+        const gr = gate.getBoundingClientRect();
+        const mark = h("span", { class: `cs-figgate-mark ${ok ? "right" : "wrong"}` });
+        mark.style.left = `${gr.width / 2}px`;
+        mark.style.top = `${gr.height / 2}px`;
+        gate.appendChild(mark);
+        hint.remove();
+        settled = true;
+        detach();
+        window.setTimeout(() => gate.remove(), CARD_LINGER_MS);
+        resolve(ok ? step.answer : given);
+      });
+      gate.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (settled) return;
+        const p = logicalPoint(stage, e);
+        if (p) host.clickAt(p);
+      });
+      if (!step.required) {
+        const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip" }, "Skip ▸");
+        skip.addEventListener("click", (e) => {
+          e.stopPropagation();
+          finish(null);
+        });
+        gate.appendChild(skip);
+      }
+      signal.addEventListener("abort", onAbort);
+      stage.appendChild(gate);
+    });
 }

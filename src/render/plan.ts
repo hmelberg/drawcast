@@ -10,6 +10,7 @@ import type { CodeWindow } from "../layout/code";
 import { readParam } from "./params";
 import { chessSquareBox, pianoKeyBox, pianoOctaves } from "./widgets";
 import { normalizeItems } from "../ui/drag-model";
+import { BUILTIN_WIDGETS } from "../spec/types";
 import type { Command, Easing, EndRef, GhostOption, HighlightEffect, PlayVoice, PointGesture, PointRef } from "../spec/types";
 import { notationBeats, parseNotation } from "../spec/notation";
 import { parseABC } from "../spec/abc";
@@ -47,7 +48,9 @@ export type PlanStep = (
       required: boolean;
       rightGoto?: string;
       wrongGoto?: string;
-      widget?: "click" | "piano" | "chess" | "code" | "drag" | "connect";
+      widget?: string;
+      /** ask.widget names the spec's template: the widget body answers, the demo performs. */
+      widgetTemplate?: true;
       answerBox?: BBox;
       /** drag widget: the chips, in order; element = a part of the figure (shown and glowed at the end). */
       items?: { id: string; label: string; element: boolean }[];
@@ -918,6 +921,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         // Naming a code element IS the code widget — one thing to get right
         // instead of two that can disagree.
         ...(cmd.ask.code !== undefined ? { widget: "code" as const, codeId: cmd.ask.code } : cmd.ask.widget !== undefined ? { widget: cmd.ask.widget } : {}),
+        // A device name the app does not build in is the spec's own template
+        // (the schema allows nothing else): its widget body is the answer
+        // device, and its demo is the movie form.
+        ...(cmd.ask.widget !== undefined && !(BUILTIN_WIDGETS as readonly string[]).includes(cmd.ask.widget) ? { widgetTemplate: true as const } : {}),
         ...(cmd.ask.code !== undefined && cmd.ask.expect !== undefined ? { expect: cmd.ask.expect } : {}),
         ...(cmd.ask.code !== undefined && currentBox(cmd.ask.code) !== null ? { answerBox: currentBox(cmd.ask.code)! } : {}),
         // The movie demo points at the answer: the element's box (click), the
