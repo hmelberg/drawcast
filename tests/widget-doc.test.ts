@@ -57,8 +57,21 @@ describe("widget body — document", () => {
     expect(errors[0]).toMatch(/widget body failed to compile/);
   });
 
+  test("a body that throws on load is a document error", () => {
+    const { module, errors } = compileTemplateDoc({ ...base, widget: `throw new Error("boom");` } as TemplateDoc);
+    expect(module).toBeUndefined();
+    expect(errors[0]).toMatch(/widget body threw on load/);
+  });
+
   test("a stub document keeps no widget", () => {
     const { module } = compileTemplateDoc({ ...base, status: "stub", layout: undefined, widget: WIDGET } as TemplateDoc);
     expect(module!.widget).toBeUndefined();
+    expect(module!.manifest.widget).toBeUndefined();
+  });
+
+  test("a ready document without a layout body keeps no widget either", () => {
+    const { module } = compileTemplateDoc({ ...base, layout: undefined, widget: WIDGET } as TemplateDoc);
+    expect(module!.widget).toBeUndefined();
+    expect(module!.manifest.widget).toBeUndefined();
   });
 });

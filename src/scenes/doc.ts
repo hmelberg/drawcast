@@ -157,7 +157,16 @@ export function docToManifest(doc: TemplateDoc): SceneManifest {
     ...(doc.model3d ? { model3d: doc.model3d } : {}),
     ...(doc.interactions && doc.interactions.length > 0 ? { interactions: doc.interactions } : {}),
     ...(doc.explore ? { explore: doc.explore } : {}),
-    ...(typeof doc.widget === "string" && doc.widget.trim() !== "" ? { widget: true as const } : {}),
+    // A stub never carries a widget: it has nothing to be playable IN — the
+    // widget flag rides on a ready doc with a real layout body, same as the
+    // compile-time gate in compile.ts's stub early-return.
+    ...(doc.status === "ready" &&
+    typeof doc.layout === "string" &&
+    doc.layout.trim() !== "" &&
+    typeof doc.widget === "string" &&
+    doc.widget.trim() !== ""
+      ? { widget: true as const }
+      : {}),
     ...(doc.accepts_data ? { accepts_data: true } : {}),
   };
 }
