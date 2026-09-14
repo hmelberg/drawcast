@@ -23,6 +23,7 @@
 // code/run — layout is a pure geometry layer and must never transitively
 // pull render/portrait (IndexedDB) in through the execution facade.
 import { stylable } from "../code/chart-style";
+import { withControlDefaults } from "../code/controls";
 import { c64ScreenDrawables, isC64Screen } from "./c64-screen";
 import { decodeCodeResult, type CodeTable } from "../code/envelope";
 import { FIGURE_GROUND } from "./ink";
@@ -334,7 +335,8 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   const windowRows = typeof el.lines === "number" && el.lines >= 3 ? Math.floor(el.lines) : 0;
 
   // ---- code pane content ---------------------------------------------------
-  const sourceLines = (el.code ?? "").replace(/\s+$/, "").split("\n");
+  // The panel shows the run's text: a control literal is drawn as its default value.
+  const sourceLines = withControlDefaults(el.language ?? "", el.code ?? "", el.controls).replace(/\s+$/, "").split("\n");
   const codeMax = Math.max(8, Math.floor((codePaneW - 2 * PAD) / (fontSize * CHAR_W)));
   const codeStack = showCode ? stackLines(sourceLines.map((l) => wrapCodeLine(l, codeMax)), fontSize) : { blocks: [], height: 0 };
   const windowH = windowRows > 0 ? windowRows * fontSize * ROW_H + (windowRows - 1) * fontSize * LINE_GAP : codeStack.height;

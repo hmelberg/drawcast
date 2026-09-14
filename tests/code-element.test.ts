@@ -447,3 +447,41 @@ describe("code element — table output", () => {
     expect(texts.some((t) => /more rows/.test(t))).toBe(true);
   });
 });
+
+describe("code controls — defaults are baked", () => {
+  const withControls = (extra: object = {}) =>
+    codeSpec({ code: "n = (1, 50)\nprint(n)", controls: ["n"], show: "left", ...extra });
+
+  test("the resolver runs the default-rewritten script and stamps that run", async () => {
+    const s = withControls();
+    const deps = runDeps(OK);
+    await resolveCode(s, deps);
+    expect(deps.calls).toEqual(["n = 25\nprint(n)"]);
+    expect(s.elements![0].code).toBe("n = 25\nprint(n)"); // the clone's code is the default run's code
+  });
+
+  test("a second pass re-uses the stamp (the rewritten code still covers)", async () => {
+    const s = withControls();
+    const deps = runDeps(OK);
+    await resolveCode(s, deps);
+    await resolveCode(s, deps);
+    expect(deps.calls.length).toBe(1);
+  });
+
+  test("the panel draws the rewritten line, never the tuple", () => {
+    const s = withControls({ code_result: JSON.stringify(OK) });
+    const texts = flattenDrawables(layoutSpec(s, heuristicMeasure).drawables)
+      .filter((d): d is TextDrawable => d.kind === "text" && d.id === "c1_line_1")
+      .map((d) => d.text);
+    expect(texts).toEqual(["n = 25"]);
+  });
+
+  test("the authoring-time check runs the defaults too", async () => {
+    const seen: string[] = [];
+    await codeExecutionErrors(withControls(), async (req) => {
+      seen.push(req.code);
+      return OK;
+    });
+    expect(seen).toEqual(["n = 25\nprint(n)"]);
+  });
+});

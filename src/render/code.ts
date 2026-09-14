@@ -12,6 +12,7 @@
 
 import { decodeCodeResult, runCode, type CodeRunDeps, type CodeRunResult } from "../code/run";
 import { pathsByCodeId, scanDataTokens, substituteDataTokens } from "../code/tokens";
+import { withControlDefaults } from "../code/controls";
 import type { Spec, SpecElement } from "../spec/types";
 
 export interface CodeResolution {
@@ -42,6 +43,11 @@ export async function resolveCode(spec: Spec, deps: CodeRunDeps = {}): Promise<C
   for (const el of spec.elements ?? []) {
     if (el.type !== "code") continue;
     codeEls.set(el.id, el);
+    // Code controls: the document's stamp is the run at the controls'
+    // defaults, and the panel draws the same text (design 2026-09-14 §2.5).
+    // Applied on the render CLONE, before the stamp check and the run — the
+    // authored spec keeps its tuples for the tray to parse.
+    if (el.language && el.code) el.code = withControlDefaults(el.language, el.code, el.controls);
     const paths = byId[el.id] ?? [];
     if (paneHidden(el) && paths.length === 0) {
       results.push({ id: el.id, ok: true, skipped: true });

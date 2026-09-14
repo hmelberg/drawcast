@@ -9,6 +9,7 @@ import type { Spec } from "../spec/types";
 import type { CodeRunRequest, CodeRunResult } from "./run";
 import { pathsByCodeId, scanDataTokens, substituteDataTokens } from "./tokens";
 import { RUNTIME_LABEL } from "./languages";
+import { withControlDefaults } from "./controls";
 
 export interface CodeCheckOutcome {
   errors: string[];
@@ -37,7 +38,7 @@ export async function codeExecutionErrors(
     const paths = byId[el.id] ?? [];
     let res: CodeRunResult;
     try {
-      res = await run({ language: el.language, code: el.code, paths });
+      res = await run({ language: el.language, code: withControlDefaults(el.language, el.code, el.controls), paths });
     } catch {
       // A throwing injected runner is still just this ONE element's runtime
       // being unavailable — the remaining code elements still get checked.
