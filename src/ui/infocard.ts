@@ -489,9 +489,14 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost
     true,
   );
 
-  // Quiet affordance while paused: the cursor knows what carries a card.
+  // Quiet affordance while paused: the cursor knows what carries a card —
+  // OR a widget part, so a pad and a card element share the one class
+  // (the sole toggle for it; widget-host.ts does not touch it, or the two
+  // add-ons would fight over the same class within a single pointermove).
   stage.addEventListener("pointermove", (e) => {
-    const on = hd.timeline.state !== "playing" && targetAt(e) !== null;
+    const p = logicalPoint(stage, e);
+    const overWidget = widgetHost !== null && p !== null && widgetHost.over(p);
+    const on = hd.timeline.state !== "playing" && (targetAt(e) !== null || overWidget);
     stage.classList.toggle("cs-cardable", on);
   });
 }

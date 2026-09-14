@@ -121,8 +121,10 @@ describe("attachWidgetHost — source pins", () => {
     expect(src).toContain("const prevOnStep = hd.timeline.callbacks.onStep");
     expect(src).toMatch(/if \(s === "playing"\) host\.reset\(\)/);
   });
-  test("the cursor class marks parts while paused", () => {
-    expect(src).toContain('stage.classList.toggle("cs-cardable"');
+  test("the cursor class marks parts while paused — the one toggle lives in the info card, and consults the widget host", () => {
+    expect(src).not.toContain('stage.classList.toggle("cs-cardable"');
+    expect(infocard).toContain('stage.classList.toggle("cs-cardable"');
+    expect(infocard).toContain("widgetHost !== null && p !== null && widgetHost.over(p)");
   });
   test("controls attaches it beside the chess free play, before the info cards", () => {
     const a = controls.indexOf("attachWidgetHost(stage, hd)");

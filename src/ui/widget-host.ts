@@ -61,7 +61,7 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
           else tones.play([{ notes: e.sound.notes }], e.sound.tempo ?? 120);
         }
       }
-      if (e.patch) {
+      if (e.patch && Object.keys(e.patch).length > 0) {
         patches = { ...patches, ...e.patch };
         hd.timeline.previewParams(patches, { revealNew: true });
       }
@@ -126,9 +126,12 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
   return host;
 }
 
-/** Wire the host to a stage: capture-phase clicks while paused, the cursor
- *  class over parts, resets on playback and step boundaries. Null when the
- *  template has no widget body. */
+/** Wire the host to a stage: capture-phase clicks while paused, resets on
+ *  playback and step boundaries. Null when the template has no widget body.
+ *  The cursor's `cs-cardable` class is NOT toggled here — infocard.ts owns
+ *  that one toggle (its own pointermove already runs after this add-on's
+ *  click listener attaches, and now consults `host.over(p)` too), so a pad
+ *  and a card element never fight over the same class in the same tick. */
 export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHost | null {
   const host = widgetHostFor(hd, { measure: makeBrowserMeasure() });
   if (!host) return null;
@@ -143,11 +146,6 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
       e.preventDefault();
     }
   }, true);
-  stage.addEventListener("pointermove", (e) => {
-    if (hd.timeline.state === "playing") return;
-    const p = logicalPoint(stage, e);
-    if (p && host.over(p)) stage.classList.toggle("cs-cardable", true);
-  });
 
   // Playback, a scrub or a step lands honest geometry — chain, never replace
   // (the tray and the info card hang their own logic on these callbacks).
