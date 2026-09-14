@@ -793,9 +793,10 @@ on a code element; the variables' literals in the script (`(1, 50)`,
 function default) become tray controls; a change rewrites the literal in
 place (line count kept) and re-runs through the tray's Run path; defaults are
 baked into `code_result`, so the movie shows the default run. `glow: true`
-holds the answer glow on the panel and the fed figure while a control moves;
-`autorun: false` waits for Run. One click on a control-bearing panel during
-playback pauses and opens its controls. The tray took the figure's paper and
+holds the answer glow on the panel, and on the figure when a `{id.path}`
+token feeds it, while a control moves; `autorun: false` waits for Run. One
+click on a control-bearing panel during playback pauses and opens its
+controls. The tray took the figure's paper and
 a hand-drawn border, and pops out into a movable, resizable palette (⧉).
 Three examples (LLN with a Draw-again button, SIR in function form, an R
 bootstrap). Round 1 of "users extend drawcast themselves"; the widget body
@@ -803,7 +804,12 @@ bootstrap). Round 1 of "users extend drawcast themselves"; the widget body
 
 Open: a `drawcast` stub module so a script with `Slider(...)` also runs in a
 notebook; `basic` scripts; a drag bubble showing the slider value on the
-thumb; controls on a template's own tier-2 code (none exist yet).
+thumb; controls on a template's own tier-2 code (none exist yet); a shared
+tray row builder — the controls rows duplicate the template slider/choice
+rows (aria-pressed already drifted once); a behavioural tray test on the
+mini-DOM (the round shipped source pins instead of spec §3's mini-DOM test);
+a tuple spanning lines and a control name inside a triple-quoted string get
+a poor lint message.
 
 ## Sound (the play command) — done 2026-08-26
 

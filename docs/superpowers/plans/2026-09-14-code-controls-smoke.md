@@ -22,10 +22,16 @@ Run `npm run dev`, open Examples.
    background once → it only pauses (as before).
 5. **glow: true**: edit example 1's spec to add `"glow": true`; dragging the
    slider glows the panel; releasing clears it. Without the flag: no glow.
+   Drag far enough that the histogram actually changes — the glow must
+   follow the NEW figure, never a stale copy.
 6. **Pop-out**: press ⧉ in the tray; drag it by its top edge; resize from the
-   corner; reload → it comes back where it was; Esc or ⇤ docks it. On a phone
-   width there is no ⧉.
+   corner; reload, open ⊕, press ⧉ → it reappears at the remembered position
+   and size (the popped state itself is not remembered); Esc or ⇤ docks it.
+   On a phone width there is no ⧉.
 7. **Taken over**: in the tray editor, change `bins=20` to `bins=5` and press
-   Run ▶ → the control rows go quiet (faded); Continue ▶, reopen → live again.
+   Run ▶ → the control rows go quiet (faded); Continue ▶, reopen → live
+   again. Move a slider afterwards: nothing runs and your edit stays.
 8. **Lint**: in the editor, change `controls` to `["n", "zzz"]` → the lint
    names `zzz` with "no birthplace"; set `n = 5` on a later line → warning.
+9. **Dark mode**: the docked tray reads as part of the figure, border soft,
+   no bright outline.

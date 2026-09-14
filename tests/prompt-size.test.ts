@@ -60,10 +60,11 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // file's own rule requires: a ratchet, not a budget that refills itself.
 // Re-pinned 2026-09-14 for the code-controls round (Task 4): three new
 // code-element properties — `controls` (one description, the literal grammar
-// in one sentence), `glow`, `autorun` — grew the schema by the measured
-// delta, which lands on the system prompt too (the schema is embedded
-// verbatim). The controls bullet itself lives in compiler-v1-code.md, which
-// only a code request receives, so it costs an ordinary request nothing.
+// in one sentence), `glow`, `autorun` — grew the schema by +1,291 chars on
+// both (schema 108516 → 109807, system 222709 → 224000), the schema being
+// embedded verbatim in the system prompt. The controls bullet itself lives
+// in compiler-v1-code.md, which only a code request receives, so it costs an
+// ordinary request nothing.
 const BASELINE_SYSTEM_CHARS = 224000;
 const BASELINE_SCHEMA_CHARS = 109807;
 

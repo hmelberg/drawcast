@@ -20790,7 +20790,7 @@
     }
   },
   {
-    "request": "What does a sampling distribution look like if I only have one sample? Bootstrap it in R.",
+    "request": "What does a sampling distribution look like if I only have one sample? Can I bootstrap it in R?",
     "spec": {
       "title": "One sample, resampled: the bootstrap",
       "elements": [
