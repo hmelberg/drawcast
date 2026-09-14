@@ -51,13 +51,15 @@ import { bboxOfPts } from "../layout/geometry";
 import { leafDrawables } from "../layout/model";
 import { openMediaModal } from "./media-modal";
 import { mountCodeEditor, type CodeAsk, type CodeEditorHandle, type EditorSurface } from "./code-editor";
+import { mountControlsCard, type ControlsCardHandle } from "./controls-card";
+import { buildControlsGroup, type ControlsGroupDeps } from "./controls-group";
 import { attachCodeTyping, type CodeTyping } from "./code-typing";
 import { activitiesFor } from "./quiz-model";
 import { MIN_PARTS } from "./parts-model";
 import { mountQuiz, partsFor } from "./quiz";
 import { mountChessVs } from "./chessvs";
 import { applyControls, parseControls, type ControlSpec, type ControlValue } from "../code/controls";
-import { debounceMs, nextValues, readout, rowWidth } from "./controls-model";
+import { debounceMs, nextValues } from "./controls-model";
 import { attachPopout } from "./tray-popout";
 
 /** Sliders whose param has a current numeric value in the mounted spec —
@@ -178,8 +180,16 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   // are the ways back.
   const stage = host.querySelector<HTMLElement>(".cs-stage");
   const freezeClick = (e: Event): void => {
-    // Buttons, the code card and the Body section's click overlay keep their clicks.
-    if (e.target instanceof Element && (e.target.closest("button") || e.target.closest(".cs-codeedit") || e.target.closest(".cs-bodyexplore") || e.target.closest(".cs-spaceexplore"))) return;
+    // Buttons, the code card, the controls card and the Body section's click overlay keep their clicks.
+    if (
+      e.target instanceof Element &&
+      (e.target.closest("button") ||
+        e.target.closest(".cs-codeedit") ||
+        e.target.closest(".cs-ctlcard") ||
+        e.target.closest(".cs-bodyexplore") ||
+        e.target.closest(".cs-spaceexplore"))
+    )
+      return;
     e.stopPropagation();
   };
   let unguide: (() => void) | null = null;
@@ -201,10 +211,30 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const patches = new Map<string, { code: string; result: string }>();
   /** Control values per script — preview state, dropped with the rest. */
   const controlValues = new Map<string, Record<string, ControlValue>>();
-  /** The controls group DOM node per script id, set when the group is built —
-   *  so `takenOver` (below) can reach the live tray, not just the next
-   *  rebuild (Task 1 fix; an editor Run never rebuilds the tray). */
-  const controlGroups = new Map<string, HTMLElement>();
+  /** The controls-group DOM nodes per script id, set when a group is built —
+   *  so `takenOver` (below) can reach every LIVE copy, not just the next
+   *  rebuild (Task 1 fix; an editor Run never rebuilds the tray). A `Set`,
+   *  not one node, because a `pane: controls` script can show at once in the
+   *  tray's own copy AND the in-place card's (pane-controls round, Task 3) —
+   *  the quiet class must land on both. */
+  const controlGroups = new Map<string, Set<HTMLElement>>();
+  const addControlGroup = (id: string, g: HTMLElement): void => {
+    let set = controlGroups.get(id);
+    if (!set) {
+      set = new Set();
+      controlGroups.set(id, set);
+    }
+    set.add(g);
+  };
+  const dropControlGroup = (id: string, g: HTMLElement): void => {
+    controlGroups.get(id)?.delete(g);
+  };
+  /** The tray's OWN control-group nodes from its last build — dropped from
+   *  `controlGroups` right before the tray rebuilds, so a takeover's quiet
+   *  class never reaches a detached copy the tray already threw away. The
+   *  in-place card's copy (if any) is untouched: it lives in `controlsCards`,
+   *  independent of how many times the tray itself has reopened. */
+  const trayControlGroups = new Map<string, HTMLElement>();
   /** Scripts the viewer took over by editing and running: their controls go quiet until Continue. */
   const takenOver = new Set<string>();
   const runTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -228,10 +258,18 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     drafts.clear();
     controlValues.clear();
     controlGroups.clear();
+    trayControlGroups.clear();
     takenOver.clear();
     for (const t of runTimers.values()) clearTimeout(t);
     runTimers.clear();
     lastControlsCode.clear();
+    // The in-place controls cards are as much a preview surface as a slider
+    // drag: Continue, a scrub or Play must throw them away with everything
+    // else (spec §3.2 — torn down with `clearPreview` and on Continue, like
+    // the editor card). Copy first: each card's own onClose deletes its
+    // entry, and mutating a Map mid-iteration-by-reference is asking for it.
+    for (const c of [...controlsCards.values()]) c.close();
+    controlsCards.clear();
   };
   const draftOf = (el: SpecElement): string => drafts.get(el.id) ?? patches.get(el.id)?.code ?? el.code ?? "";
   const announce = (id: string, fn: (s: EditorSurface) => void): void => {
@@ -295,7 +333,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     // the one the next `open()` would build.
     if (source === "editor" && code !== (lastControlsCode.get(el.id) ?? el.code)) {
       takenOver.add(el.id);
-      controlGroups.get(el.id)?.classList.add("cs-tray-controls-quiet");
+      for (const g of controlGroups.get(el.id) ?? []) g.classList.add("cs-tray-controls-quiet");
     }
     const paths = pathsByCodeId(scanDataTokens(hd.authored.params))[el.id] ?? [];
     setDraft(el.id, code);
@@ -345,18 +383,39 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     else runTimers.set(el.id, setTimeout(go, debounceMs(language)));
   };
 
+  /** The controls-group builder's deps for one script — SAME construction
+   *  wherever a group is built (the tray's own copy, the in-place card),
+   *  so `commit`/`run` are the exact same closures over `controlValues` and
+   *  `runControls` no matter which host mounts the group. */
+  const controlsDeps = (el: SpecElement, authoredCode: string, controls: ControlSpec[]): Omit<ControlsGroupDeps, "quiet"> => ({
+    el,
+    authoredCode,
+    controls,
+    values: () => controlValues.get(el.id) ?? {},
+    commit: (c, raw, immediate) => {
+      if (takenOver.has(el.id)) return; // the viewer's own script stands until Continue (Task 1 fix)
+      controlValues.set(el.id, nextValues(controlValues.get(el.id) ?? {}, c, raw));
+      runControls(el, controls, immediate);
+    },
+    run: () => runControls(el, controls, true, true),
+  });
+
   const trayBtn = h("button", { class: "cs-bar-btn cs-tray-btn", title: "Explore this figure" }, "⊕");
 
   // The cards lying on the panels, by element id. The tray and the cards each
   // freeze the stage while they are up, so the guard comes off only when the
   // LAST of them goes away.
   const editors = new Map<string, CodeEditorHandle>();
+  /** The in-place controls cards (pane-controls round, Task 3) — the same
+   *  "card lying on the pane" idea as `editors`, one script's controls-group
+   *  mounted over its `pane: controls` panel instead of the tray. */
+  const controlsCards = new Map<string, ControlsCardHandle>();
   const freezeStage = (): void => {
     stage?.classList.add("cs-exploring");
     stage?.addEventListener("click", freezeClick, true);
   };
   const thawStage = (): void => {
-    if (!tray.hidden || editors.size > 0) return;
+    if (!tray.hidden || editors.size > 0 || controlsCards.size > 0) return;
     stage?.classList.remove("cs-exploring");
     stage?.removeEventListener("click", freezeClick, true);
   };
@@ -367,11 +426,13 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   /** A Run or a switch re-lays the panel out under the card — twice, because
    *  the second pass catches a layout the browser had not finished painting. */
   const reflow = (): void => {
-    if (editors.size === 0) return;
+    if (editors.size === 0 && controlsCards.size === 0) return;
     for (const ed of editors.values()) ed.reposition();
+    for (const c of controlsCards.values()) c.reposition();
     if (typeof requestAnimationFrame === "function") {
       requestAnimationFrame(() => {
         for (const ed of editors.values()) ed.reposition();
+        for (const c of controlsCards.values()) c.reposition();
       });
     }
   };
@@ -535,6 +596,51 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     });
     if (!handle) return false;
     editors.set(el.id, handle);
+    freezeStage();
+    return true;
+  };
+
+  /**
+   * `pane: controls` (spec §3.2): a paused click, the one-click path and the
+   * explore beat all choose this over `openInPlace` when el.pane === "controls" —
+   * the panel's OWN doors, the tray's group mounted over the drawn knobs
+   * instead of the editor's text. False when there is no pane to lie on, no
+   * controls to build (the lint already refused an empty list at authoring
+   * time), or the panel is off screen right now — the caller's tray copy of
+   * the group (built regardless, by `plan.controls`) stands in for it then.
+   */
+  const openControlsInPlace = (el: SpecElement): boolean => {
+    if (!stage || !visibleNow(el.id)) return false;
+    const existing = controlsCards.get(el.id);
+    if (existing) {
+      existing.reposition();
+      return true;
+    }
+    const authoredEl = (hd.authored.elements ?? []).find((e) => e.id === el.id);
+    if (!authoredEl?.code || !el.language || !el.controls) return false;
+    const { controls } = parseControls(el.language, authoredEl.code, el.controls);
+    if (controls.length === 0) return false;
+    const group = buildControlsGroup({ ...controlsDeps(el, authoredEl.code, controls), quiet: takenOver.has(el.id) });
+    addControlGroup(el.id, group);
+    // el.pane === "controls" chose this door; mountControlsCard lies it down
+    // on the pane exactly where the knobs are drawn (paneBoxOf, as openInPlace
+    // uses for the editor).
+    const handle = mountControlsCard(stage, {
+      id: el.id,
+      paneBox: () => paneBoxOf(el.id),
+      group,
+      onClose: () => {
+        controlsCards.delete(el.id);
+        dropControlGroup(el.id, group);
+        thawStage();
+      },
+      onContinue: continueNow,
+    });
+    if (!handle) {
+      dropControlGroup(el.id, group);
+      return false;
+    }
+    controlsCards.set(el.id, handle);
     freezeStage();
     return true;
   };
@@ -904,89 +1010,24 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       }
     }
     // Code controls (design 2026-09-14 §2.6): one group per script, above the
-    // template sliders' cousins — a slider/text per row, the small controls
-    // two per row. Values rewrite the AUTHORED script and run through the
-    // same door an edited script uses.
+    // template sliders' cousins — built once by controls-group.ts's shared
+    // builder (pane-controls round, Task 3), so the tray's own copy and a
+    // `pane: controls` panel's in-place card (controls-card.ts) are the exact
+    // same rows, wired to the same `controlValues`. Drop the PREVIOUS build's
+    // tray-owned nodes from `controlGroups` first — this rebuild is about to
+    // orphan them, and a takeover's quiet toggle must never reach a detached
+    // copy the tray already threw away.
+    for (const [id, g] of trayControlGroups) dropControlGroup(id, g);
+    trayControlGroups.clear();
     for (const id of plan.controls) {
       const el = editable.find((e) => e.id === id);
       const authoredEl = (hd.authored.elements ?? []).find((e) => e.id === id);
       if (!el || !authoredEl?.code || !el.language || !el.controls) continue;
       const { controls } = parseControls(el.language, authoredEl.code, el.controls);
       if (controls.length === 0) continue;
-      const values = controlValues.get(id) ?? {};
-      const group = h("div", { class: "cs-tray-controls", role: "group", "aria-label": `Controls for ${id}` });
-      if (takenOver.has(id)) group.classList.add("cs-tray-controls-quiet");
-      controlGroups.set(id, group);
-      const commit = (c: ControlSpec, raw: string | boolean, immediate: boolean): void => {
-        if (takenOver.has(id)) return; // the viewer's own script stands until Continue (Task 1 fix)
-        controlValues.set(id, nextValues(controlValues.get(id) ?? {}, c, raw));
-        runControls(el, controls, immediate);
-      };
-      for (const c of controls) {
-        const row = h("div", { class: `cs-tray-row cs-tray-ctl cs-tray-ctl-${rowWidth(c.kind)}` });
-        const label = h("span", { class: "cs-tray-label" }, c.label);
-        const current = values[c.name] ?? c.default;
-        switch (c.kind) {
-          case "slider": {
-            const range = h("input", { type: "range", min: String(c.min), max: String(c.max), step: String(c.step), value: String(current), "aria-label": c.label }) as HTMLInputElement;
-            const out = h("span", { class: "cs-tray-value" }, readout(c, current));
-            range.addEventListener("input", () => {
-              out.textContent = readout(c, Number(range.value));
-              commit(c, range.value, false);
-            });
-            row.append(label, range, out);
-            break;
-          }
-          case "choice": {
-            const seg = h("div", { class: "cs-tray-choice", role: "group", "aria-label": c.label });
-            const btns: HTMLButtonElement[] = [];
-            for (const v of c.options ?? []) {
-              const b = h("button", { class: "cs-tray-choicebtn", "data-value": v }, v);
-              b.addEventListener("click", () => {
-                for (const x of btns) {
-                  const on = x === b;
-                  x.classList.toggle("on", on);
-                  x.setAttribute("aria-pressed", String(on));
-                }
-                commit(c, v, true);
-              });
-              const on = v === current;
-              b.classList.toggle("on", on);
-              b.setAttribute("aria-pressed", String(on));
-              btns.push(b);
-              seg.appendChild(b);
-            }
-            row.append(label, seg);
-            break;
-          }
-          case "toggle": {
-            const box = h("input", { type: "checkbox", "aria-label": c.label }) as HTMLInputElement;
-            box.checked = current === true;
-            box.addEventListener("change", () => commit(c, box.checked, true));
-            row.append(label, box);
-            break;
-          }
-          case "text":
-          case "number": {
-            const input = h("input", { type: c.kind === "number" ? "number" : "text", value: String(current), "aria-label": c.label, ...(c.kind === "number" ? { step: c.integer ? "1" : "any" } : {}) }) as HTMLInputElement;
-            input.addEventListener("change", () => commit(c, input.value, true)); // Enter or blur
-            row.append(label, input);
-            break;
-          }
-          case "button": {
-            const pill = h("button", { class: "cs-tray-pill cs-tray-ctlbtn" }, c.caption ?? c.label);
-            pill.addEventListener("click", () => commit(c, "", true));
-            row.append(pill);
-            break;
-          }
-        }
-        group.appendChild(row);
-      }
-      if (el.autorun === false) {
-        const run = h("button", { class: "cs-tray-run" }, "Run ▶");
-        run.addEventListener("click", () => runControls(el, controls, true, true));
-        group.appendChild(h("div", { class: "cs-tray-actions" }, run));
-      }
+      const group = buildControlsGroup({ ...controlsDeps(el, authoredEl.code, controls), quiet: takenOver.has(id) });
+      addControlGroup(id, group);
+      trayControlGroups.set(id, group);
       tray.appendChild(group);
     }
     // The scripts on screen. Expanded when the editor IS the point (the only
@@ -1123,6 +1164,9 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
           if (!el || !Array.isArray(el.controls) || el.controls.length === 0) return;
           e.stopPropagation(); // the bar's own click→pause toggle must not resume us
           hd.timeline.pause();
+          // The one-click rule (spec §3.4): a `pane: controls` panel gets its
+          // card on the SAME click that pauses — not a second click.
+          if (el.pane === "controls") openControlsInPlace(el);
           open({ onCode: id! });
           return;
         }
@@ -1139,10 +1183,13 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         const id = screenAt(e);
         if (id === null) return;
         e.stopPropagation();
-        // The object's natural action, ON the object. Only a panel that draws
-        // no code (or one whose code half is switched off) sends the viewer to
-        // the tray's copy instead.
+        // The object's natural action, ON the object. A `pane: controls`
+        // panel's object is its knobs (spec §3.2) — el.pane === "controls"
+        // sends it to its own card instead of the editor's. Only a panel
+        // that draws no code (or one whose code half is switched off) sends
+        // the viewer to the tray's copy instead.
         const el = editable.find((x) => x.id === id);
+        if (el && el.pane === "controls" && openControlsInPlace(el)) return;
         if (el && openInPlace(el)) return;
         open({ onCode: id });
       },
@@ -1194,6 +1241,13 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         resolve();
       };
       open({ filter: step.params, gated: true, code: step.code, anatomy: step.anatomy, space: step.space });
+      // `pane: controls` (spec §3.3): the explore beat opens the knobs IN
+      // PLACE too, not only in the tray's own copy — the same door a paused
+      // click uses, held open for Continue exactly as the beat holds the run.
+      if (step.code !== undefined) {
+        const el = editable.find((e) => e.id === step.code);
+        if (el?.pane === "controls") openControlsInPlace(el);
+      }
     });
 
   /**

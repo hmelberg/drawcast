@@ -31,4 +31,17 @@ describe("tray controls (pins)", () => {
     expect(region).toMatch(/open\(\{ onCode: /);
     expect(region.indexOf("hd.timeline.pause()")).toBeLessThan(region.indexOf("open({ onCode:"));
   });
+  test("one controls-group builder, two hosts (tray and in-place card)", () => {
+    const group = readFileSync("src/ui/controls-group.ts", "utf8");
+    expect(group).toMatch(/export function buildControlsGroup\(/);
+    expect(src).toMatch(/buildControlsGroup\(/);              // the tray uses it
+    expect(src).toMatch(/mountControlsCard\(/);               // and mounts it in place
+    expect(src).not.toMatch(/class: "cs-tray-ctl cs-tray-ctl-/); // the inline builder is gone from tray.ts
+  });
+  test("a pane: controls panel opens its card, not the editor, on a paused click", () => {
+    expect(src).toMatch(/el\.pane === "controls"[\s\S]{0,400}?mountControlsCard\(/);
+  });
+  test("the card is torn down with the preview", () => {
+    expect(src).toMatch(/const clearPreview[\s\S]{0,800}?controlsCards/);
+  });
 });
