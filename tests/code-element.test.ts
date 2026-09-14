@@ -47,6 +47,10 @@ describe("code element — schema", () => {
     expect(validateSpec(spec({ language: "python", code: "n = (1, 5)", controls: [1] })).ok).toBe(false);
     expect(validateSpec(spec({ language: "python", code: "n = (1, 5)", controls: ["not an identifier"] })).ok).toBe(false);
   });
+
+  test("pane: controls is accepted with show: left", () => {
+    expect(validateSpec(spec({ language: "python", code: "n = (1, 5)", controls: ["n"], show: "left", pane: "controls" })).ok).toBe(true);
+  });
 });
 
 const OK: CodeRunResult = { ok: true, stdout: "42", stderr: "", figures: [{ href: "data:image/png;base64,AA", w: 640, h: 480 }] };

@@ -11,6 +11,7 @@ import type { MeasureFn } from "../layout/measure";
 import type { Command, Spec } from "../spec/types";
 import { resolveGame } from "../code/c64-catalogue";
 import { grammarFor, parseControls } from "../code/controls";
+import { isInvitation } from "./invite";
 import { pathsByCodeId, scanDataTokens } from "../code/tokens";
 import { connectKey } from "../render/widgets";
 import { CONNECT_MAX_EDGES } from "../ui/connect-model";
@@ -51,7 +52,11 @@ export interface LintIssue {
     /** a math element whose TeX the engine cannot parse */
     | "math"
     /** code controls: a name with no birthplace, born twice, not a control literal, a bad longhand argument, or a control the viewer could not see change */
-    | "controls";
+    | "controls"
+    /** pane: controls without controls, or a pane on show: output/none, or lines/marks on a controls pane */
+    | "pane"
+    /** an ordinary speak that tells the viewer to slide/press/click — belongs in an explore beat */
+    | "explore-invite";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -647,6 +652,20 @@ function lintCode(spec: Spec): LintIssue[] {
       issues.push({ rule: "controls", ids: [el.id], message: `code "${el.id}": its pane is hidden and no template param reads {${el.id}.…} — a control would change nothing visible`, severity: "warn" });
     }
   }
+  for (const el of els) {
+    if (el.pane === undefined) continue;
+    const shown = el.show ?? "output";
+    if (shown === "output" || shown === "none") {
+      issues.push({ rule: "pane", ids: [el.id], message: `code "${el.id}": pane has no effect with show: "${shown}" — the pane sits on a side (left/right/above/below/code)`, severity: "warn" });
+    }
+    if (el.pane === "controls") {
+      if (!el.controls || el.controls.length === 0) {
+        issues.push({ rule: "pane", ids: [el.id], message: `code "${el.id}": pane: controls needs a non-empty controls list`, severity: "error" });
+      }
+      if (el.lines !== undefined) issues.push({ rule: "pane", ids: [el.id], message: `code "${el.id}": lines is ignored with pane: controls (there are no code lines to window)`, severity: "warn" });
+      if (el.marks !== undefined) issues.push({ rule: "pane", ids: [el.id], message: `code "${el.id}": marks is ignored with pane: controls (there are no code lines to mark)`, severity: "warn" });
+    }
+  }
   const referenced = new Set(scanDataTokens(spec.params).map((t) => t.codeId));
   for (const el of els) {
     const lines = (el.code ?? "").split("\n").filter((l) => l.trim() !== "").length;
@@ -733,6 +752,14 @@ export function lintCommands(spec: Spec): LintIssue[] {
     flagVars(c.ask?.right, `commands[${i}].ask.right`);
     flagVars(c.ask?.wrong, `commands[${i}].ask.wrong`);
     if (c.ask?.store) stored.add(c.ask.store.toLowerCase());
+    if (typeof c.speak === "string" && c.explore === undefined && isInvitation(c.speak)) {
+      issues.push({
+        rule: "explore-invite",
+        ids: [],
+        message: `commands[${i}].speak invites the viewer to interact ("${c.speak.slice(0, 40)}…") — the movie will say it too; put the invitation in an explore beat's speak`,
+        severity: "warn",
+      });
+    }
   });
 
   let speaksBeforeInk = 0;

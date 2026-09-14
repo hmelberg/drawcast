@@ -14,6 +14,7 @@
 
 import { describe, expect, test } from "vitest";
 import bundledExamples from "../src/examples.json";
+import { isInvitation } from "../src/lint/invite";
 import { isStandaloneSpeak } from "../src/lint/lint";
 import { parsePlaylistText, itemsOf } from "../src/playlist/playlist";
 import type { Spec } from "../src/spec/types";
@@ -107,5 +108,23 @@ describe("the bundled examples' teaching shape (ratchets — target 0)", () => {
       })
       .map(([request]) => request);
     expect(talkers.length, `speak-only openings:\n${talkers.join("\n")}`).toBeLessThanOrEqual(SPEAK_FIRST_BASELINE);
+  });
+
+  // Design 2026-09-14-pane-controls §5: the invitation to slide/press/click
+  // belongs in an explore beat's speak — the movie skips that beat whole —
+  // never in an ordinary speak, which the movie says too. Measured 2026-09-14
+  // across every spec the examples carry: 7 ordinary speaks trip the word
+  // list — some are genuine ("Slide the point along...", "Skyv kortene..."),
+  // some are the heuristic catching prose about the mechanism ("Click the 3D
+  // button...", "press a closed fluid...", "click it to read..."). Task 4
+  // fixes the genuine ones and lowers this pin; the target is 0.
+  const INVITE_BASELINE = 7;
+
+  test("no NEW example's ordinary speak invites interaction", () => {
+    const invites = examples
+      .flatMap((ex) => specsOf(ex).flatMap((spec) => (spec.commands ?? []).map((c) => [ex.request, c] as const)))
+      .filter(([, c]) => typeof c.speak === "string" && c.explore === undefined && isInvitation(c.speak))
+      .map(([request, c]) => `${request}: "${c.speak}"`);
+    expect(invites.length, `ordinary speak that invites interaction:\n${invites.join("\n")}`).toBeLessThanOrEqual(INVITE_BASELINE);
   });
 });

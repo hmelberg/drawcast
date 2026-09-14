@@ -252,6 +252,10 @@ export interface SpecElement {
   controls?: string[];
   /** code: re-run on every control change (default true); false shows a Run button instead. */
   autorun?: boolean;
+  /** code: what the pane holds — code (default: the script's lines) or controls (the
+   *  script's `controls` drawn as knobs and switches, live while paused; the movie
+   *  shows them at their defaults). Use with show: left/right/above/below. */
+  pane?: "code" | "controls";
   // source (a book cover, a paper's title page, or one page of either)
   /** DOI of a paper — resolved to its open-access PDF via OpenAlex/Unpaywall. */
   doi?: string;

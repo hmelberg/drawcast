@@ -66,8 +66,17 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // in compiler-v1-code.md, which only a code request receives, so it costs an
 // ordinary request nothing. glow removed the same day (Hans): −196 chars on
 // both (schema 109807 → 109611, system 224000 → 223804).
-const BASELINE_SYSTEM_CHARS = 223804;
-const BASELINE_SCHEMA_CHARS = 109611;
+// Re-pinned 2026-09-14 for the pane-controls round (Task 1): the `pane`
+// schema description (schema 109611 → 110146, +535) is embedded verbatim in
+// the system prompt, so it lands there too; the system prompt also gains the
+// explore-verb clause in compiler-v1.md ("the ONLY place a line may tell the
+// viewer to slide, press or try something…", +156, system-prompt only — it
+// is not part of the schema). Total system-prompt growth: +691 (223804 →
+// 224495). The `pane: controls` sentence in compiler-v1-code.md's controls
+// bullet is behind the {{CODE}} conditional fragment and costs an ordinary
+// request nothing, so it is not part of this pin.
+const BASELINE_SYSTEM_CHARS = 224495;
+const BASELINE_SCHEMA_CHARS = 110146;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {
