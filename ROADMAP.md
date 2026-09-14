@@ -798,8 +798,9 @@ token feeds it, while a control moves; `autorun: false` waits for Run. One
 click on a control-bearing panel during playback pauses and opens its
 controls. The tray took the figure's paper and
 a hand-drawn border, and pops out into a movable, resizable palette (⧉).
-Three examples (LLN with a Draw-again button, SIR in function form, an R
-bootstrap). Round 1 of "users extend drawcast themselves"; the widget body
+Six examples (LLN with a Draw-again button, SIR in function form, an R
+bootstrap; then a Markov cohort, a Monte Carlo cost-effectiveness plane with
+a willingness-to-pay slider, and discounting in R — Hans 2026-09-14). Round 1 of "users extend drawcast themselves"; the widget body
 (events on the drawing, games, sound) is the next round, its own spec.
 
 Open: a `drawcast` stub module so a script with `Slider(...)` also runs in a

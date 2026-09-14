@@ -20855,5 +20855,203 @@
         }
       ]
     }
+  },
+  {
+    "request": "How does a Markov cohort model turn two yearly risks into a picture of a whole population over time?",
+    "spec": {
+      "title": "A cohort walks through three states",
+      "elements": [
+        {
+          "id": "mk",
+          "type": "code",
+          "language": "python",
+          "show": "left",
+          "width": 900,
+          "controls": [
+            "p_sick",
+            "p_dead",
+            "years"
+          ],
+          "code": "import matplotlib.pyplot as plt\np_sick = (0.02, 0.30, 0.01)\np_dead = (0.01, 0.20, 0.01)\nyears = (10, 60)\nwell, sick, dead = 1.0, 0.0, 0.0\nW, S, D = [well], [sick], [dead]\nfor t in range(years):\n    well, sick, dead = well * (1 - p_sick), sick * (1 - p_dead) + well * p_sick, dead + sick * p_dead\n    W.append(well); S.append(sick); D.append(dead)\nplt.stackplot(range(years + 1), W, S, D, labels=[\"well\", \"sick\", \"dead\"])\nplt.legend(loc=\"upper right\"); print(\"alive after\", years, \"years:\", round(well + sick, 3))"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "mk",
+            "mk_line_1",
+            "mk_line_2",
+            "mk_line_3",
+            "mk_line_4"
+          ],
+          "parallel": true,
+          "speak": "Three states — well, sick, dead — and only two yearly risks: the chance of falling ill, and the chance of dying once ill. Both are knobs, and so is the horizon."
+        },
+        {
+          "draw": [
+            "mk_line_5",
+            "mk_line_6"
+          ],
+          "speak": "Everyone starts well. We keep a record of each state, year by year."
+        },
+        {
+          "draw": [
+            "mk_line_7",
+            "mk_line_8",
+            "mk_line_9"
+          ],
+          "speak": "Each year a share of the well fall ill, and a share of the sick die. That is the whole model: the same two rules, applied again and again."
+        },
+        {
+          "draw": [
+            "mk_line_10",
+            "mk_line_11"
+          ],
+          "speak": "Stack the three shares so they always add up to the whole cohort."
+        },
+        {
+          "draw": [
+            "mk_out"
+          ],
+          "delivery": "grave",
+          "speak": "The well shrink, the sick swell and then thin out, the dead accumulate. No individual is simulated — only shares moving between states."
+        },
+        {
+          "explore": {
+            "code": "mk"
+          },
+          "speak": "Raise the yearly risk of falling ill and watch the sick band bulge early; raise the risk of dying and it drains faster. Stretch the horizon to see where the cohort ends up."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why do health economists draw a cloud of dots instead of one number when they compare two treatments?",
+    "spec": {
+      "title": "The cost-effectiveness plane, drawn a thousand times",
+      "elements": [
+        {
+          "id": "ce",
+          "type": "code",
+          "language": "python",
+          "show": "left",
+          "width": 900,
+          "controls": [
+            "n",
+            "wtp",
+            "redraw"
+          ],
+          "code": "import numpy as np\nimport matplotlib.pyplot as plt\nn = Slider(100, 5000, default=1000, label=\"Draws\")\nwtp = Slider(10000, 100000, step=5000, default=50000, label=\"Willingness to pay\")\nredraw = Button(\"Draw again\")\nrng = np.random.default_rng(3 + redraw)\nd_cost = rng.normal(12000, 4000, n)\nd_qaly = rng.normal(0.25, 0.12, n)\nplt.scatter(d_qaly, d_cost, s=6, alpha=0.4)\nx = np.array([-0.2, 0.7]); plt.plot(x, wtp * x, \"r--\", label=\"WTP line\")\nplt.axhline(0, color=\"gray\"); plt.axvline(0, color=\"gray\"); plt.legend()\nprint(\"share below the WTP line:\", round((d_cost < wtp * d_qaly).mean(), 2))"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "ce",
+            "ce_line_1",
+            "ce_line_2",
+            "ce_line_3",
+            "ce_line_4",
+            "ce_line_5"
+          ],
+          "parallel": true,
+          "speak": "One number would hide the uncertainty. So we draw many: a thousand possible outcomes, a willingness-to-pay threshold, and a button for a fresh thousand."
+        },
+        {
+          "draw": [
+            "ce_line_6",
+            "ce_line_7",
+            "ce_line_8"
+          ],
+          "speak": "Each draw is one plausible world: the extra cost of the new treatment, and the extra health it buys, both uncertain."
+        },
+        {
+          "draw": [
+            "ce_line_9",
+            "ce_line_10",
+            "ce_line_11"
+          ],
+          "speak": "Plot cost against health. The dashed line is the threshold: below it, the health gain is worth its price."
+        },
+        {
+          "draw": [
+            "ce_line_12"
+          ],
+          "speak": "Count the share of worlds that land below the line — that is the probability the treatment is cost-effective."
+        },
+        {
+          "draw": [
+            "ce_out"
+          ],
+          "delivery": "grave",
+          "speak": "The cloud is the answer. Its centre says what we expect; its spread says how sure we are."
+        },
+        {
+          "explore": {
+            "code": "ce"
+          },
+          "speak": "Slide the willingness to pay down and watch the share below the line fall. Press Draw again: a new cloud, nearly the same share — that stability is the point."
+        }
+      ]
+    }
+  },
+  {
+    "request": "How much is a health gain worth today if it only arrives in twenty years?",
+    "spec": {
+      "title": "Discounting: the future, shrunk",
+      "elements": [
+        {
+          "id": "dc",
+          "type": "code",
+          "language": "r",
+          "show": "left",
+          "width": 900,
+          "controls": [
+            "rate",
+            "horizon"
+          ],
+          "code": "library(ggplot2)\nrate <- Slider(0, 0.10, step = 0.005, default = 0.04, label = \"Discount rate\")\nhorizon <- c(5, 50)\nyears <- 0:horizon\nvalue <- 1 / (1 + rate)^years\ncat(\"one unit in\", horizon, \"years is worth\", round(value[horizon + 1], 3), \"today\\n\")\nggplot(data.frame(years, value), aes(years, value)) + geom_line() + geom_hline(yintercept = 0.5, linetype = \"dashed\")"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "dc",
+            "dc_line_1",
+            "dc_line_2",
+            "dc_line_3"
+          ],
+          "parallel": true,
+          "speak": "Two knobs: the discount rate, and how far into the future the gain arrives."
+        },
+        {
+          "draw": [
+            "dc_line_4",
+            "dc_line_5"
+          ],
+          "speak": "Each year the value is divided by one plus the rate, again and again — so it shrinks geometrically, not in a straight line."
+        },
+        {
+          "draw": [
+            "dc_line_6",
+            "dc_line_7"
+          ],
+          "speak": "Print what one unit in the final year is worth today, and draw the whole curve. The dashed line marks the halfway point."
+        },
+        {
+          "draw": [
+            "dc_out"
+          ],
+          "delivery": "grave",
+          "speak": "At four percent, a gain twenty years away is worth less than half of one arriving now. Whether that is right is a question about ethics as much as arithmetic."
+        },
+        {
+          "explore": {
+            "code": "dc"
+          },
+          "speak": "Set the rate to zero and the curve goes flat: every year counts the same. Set it to ten percent and the future all but vanishes."
+        }
+      ]
+    }
   }
 ]
