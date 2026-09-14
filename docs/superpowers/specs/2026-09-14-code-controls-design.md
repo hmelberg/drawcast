@@ -132,9 +132,9 @@ source form in that language (`12`, `0.35`, `"SEIR"`, `True`/`TRUE`,
 
 - **The line count never changes.** `<id>_line_N` beats are indexed by
   source line (`src/layout/code.ts`); a rewrite is always within one line.
-- **The rewritten script is what runs AND what the panel draws.** The viewer
-  sees `n = 12` change under the slider; the tuple and the constructor never
-  appear on screen. (The editor card shows the same rewritten text; a viewer
+- **The rewritten script is what runs AND what the panel draws.** As the
+  slider moves, the panel's line changes to `n = 12`; the tuple and the
+  constructor never appear on screen. (The editor card shows the same rewritten text; a viewer
   who edits and Runs takes over the text as today, and the controls go quiet
   for that script until Continue.)
 - **The cache is free.** `codeCacheKey` hashes the code text, so every value
@@ -159,8 +159,10 @@ reason.
 
 The tray (`src/ui/tray.ts`, plan from `src/ui/tray-model.ts`) gets a
 **controls group per code element**, placed with that script's card, above
-the template sliders. Rows reuse the existing slider row (`cs-tray-row`) and
-segmented choice (`cs-tray-choice`) markup; toggle, text and number are
+the template sliders. Rows reuse the existing slider row (`cs-tray-row`: label, the range
+stretched to fill, the value right-aligned at the end in tabular numerals —
+one line per slider, the value always visible at rest) and segmented choice
+(`cs-tray-choice`) markup; toggle, text and number are
 plain inputs in the same row style; a button is a `cs-tray-pill`.
 
 - **Order** is the order written in `controls`.
