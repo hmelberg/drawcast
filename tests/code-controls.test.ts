@@ -224,4 +224,26 @@ describe("applyControls / withControlDefaults", () => {
   test("a name with an issue is left as written (the lint reports it)", () => {
     expect(withControlDefaults("python", "print(1)", ["n"])).toBe("print(1)");
   });
+  test("a button with a non-finite or wrong-typed value falls back to its default, not NaN", () => {
+    const code = 'r = Button("Roll")';
+    const { controls } = py(code, ["r"]);
+    expect(applyControls("python", code, controls, { r: "abc" })).toBe("r = 0");
+  });
+  test("a text/choice value with a raw newline or carriage return is escaped, keeping the line count", () => {
+    const code = 'name = "x"\nother = 1';
+    const { controls } = py(code, ["name"]);
+    const out = applyControls("python", code, controls, { name: "a\nb" });
+    expect(out.split("\n")).toHaveLength(2);
+    expect(out.split("\n")[0]).toBe('name = "a\\nb"');
+  });
+  test("a non-finite slider/number value falls back to the default, formatted with its decimals", () => {
+    const code = "beta = (0, 1, 0.02)";
+    const { controls } = py(code, ["beta"]);
+    expect(applyControls("python", code, controls, { beta: NaN })).toBe("beta = 0.50");
+  });
+  test('a toggle treats only true or "true" as on; any other string is off', () => {
+    const code = "log = False";
+    const { controls } = py(code, ["log"]);
+    expect(applyControls("python", code, controls, { log: "false" })).toBe("log = False");
+  });
 });

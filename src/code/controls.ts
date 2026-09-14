@@ -329,19 +329,23 @@ export function parseControls(language: string, code: string, names: string[]): 
 export function formatValue(language: string, control: ControlSpec, value: ControlValue): string {
   const grammar = grammarFor(language) ?? "python";
   switch (control.kind) {
-    case "toggle":
-      return grammar === "python" ? (value ? "True" : "False") : value ? "TRUE" : "FALSE";
+    case "toggle": {
+      const on = value === true || value === "true";
+      return grammar === "python" ? (on ? "True" : "False") : on ? "TRUE" : "FALSE";
+    }
     case "text":
     case "choice":
-      return `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-    case "button":
-      return String(Math.max(0, Math.round(Number(value))));
+      return `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r")}"`;
+    case "button": {
+      const n = Number(value);
+      return String(Number.isFinite(n) ? Math.max(0, Math.round(n)) : control.default);
+    }
     case "slider":
     case "number": {
       const n = Number(value);
-      if (!Number.isFinite(n)) return String(control.default);
-      if (control.integer) return String(Math.round(n));
-      return n.toFixed(control.decimals ?? 2);
+      const v = Number.isFinite(n) ? n : Number(control.default);
+      if (control.integer) return String(Math.round(v));
+      return v.toFixed(control.decimals ?? 2);
     }
     default:
       return String(value);
