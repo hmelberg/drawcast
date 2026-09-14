@@ -85,6 +85,7 @@ describe("Player → tones seam", () => {
         calls.push({ voices, tempo });
         return 100;
       },
+      beep: () => 0,
       cancel: () => undefined,
       pause: () => undefined,
       resume: () => undefined,

@@ -20,6 +20,12 @@ export interface ToneLike {
    * abort the signal to stop early.
    */
   play(voices: PlayVoice[], tempo: number, signal?: AbortSignal): number;
+  /**
+   * One plain tone at `hz` for `ms` (a widget's press, a Morse dot) with the
+   * "tone" recipe's envelope; returns ms. Nothing is scheduled for a
+   * non-positive hz or ms.
+   */
+  beep(hz: number, ms: number, signal?: AbortSignal): number;
   cancel(): void;
   pause(): void;
   resume(): void;
@@ -149,6 +155,42 @@ export class WebAudioTones implements ToneLike {
     });
     scheduled[scheduled.length - 1]?.addEventListener?.("ended", forget);
     return totalMs;
+  }
+
+  beep(hz: number, ms: number, signal?: AbortSignal): number {
+    if (!(hz > 0) || !(ms > 0)) return 0;
+    const audio = this.ensure();
+    if (!audio) return ms;
+    const { ctx, sink } = audio;
+    const recipe = RECIPES.tone;
+    const at = ctx.currentTime + 0.01;
+    const dur = ms / 1000;
+    const osc = ctx.createOscillator();
+    osc.type = recipe.layers[0][0];
+    osc.frequency.value = hz;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, at);
+    g.gain.linearRampToValueAtTime(recipe.gain, at + Math.min(recipe.attack, dur / 2));
+    g.gain.setValueAtTime(recipe.gain, Math.max(at + recipe.attack, at + dur - 0.02));
+    g.gain.linearRampToValueAtTime(0, at + dur);
+    osc.connect(g);
+    g.connect(sink);
+    osc.start(at);
+    osc.stop(at + dur + 0.01);
+    const handle = {
+      stop: () => {
+        try {
+          osc.stop();
+        } catch {
+          /* already stopped */
+        }
+        this.active.delete(handle);
+      },
+    };
+    this.active.add(handle);
+    osc.onended = () => this.active.delete(handle);
+    signal?.addEventListener("abort", handle.stop, { once: true });
+    return ms;
   }
 
   cancel(): void {

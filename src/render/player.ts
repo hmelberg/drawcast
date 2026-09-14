@@ -551,6 +551,38 @@ export class Player {
     this.geometryDirty = true;
   }
 
+  /** One swell of the answer glow on `ids` — a widget's "right", "wrong" or
+   *  "look here" — always cleared, even when there are no effects to draw it. */
+  async glow(ids: string[], ms = ANSWER_GLOW_MS, color?: string): Promise<void> {
+    const effects = this.effects;
+    if (!effects || ids.length === 0) return;
+    const ac = new AbortController();
+    try {
+      await this.progress(ms, ac.signal, (t) => effects.setHighlight(ids, "glow", t, null, color));
+    } finally {
+      effects.endHighlight(ids);
+    }
+  }
+
+  /** The laser taps the centre of `box` — a widget demo's gesture — and lifts. */
+  async tapAt(box: BBox, ms = 900): Promise<void> {
+    const effects = this.effects;
+    if (!effects) return;
+    const path = pointerPath({ x: box.x + box.w / 2, y: box.y + box.h / 2, box }, "tap");
+    const ac = new AbortController();
+    try {
+      await this.progress(ms, ac.signal, (t) => effects.setPointer(t >= 1 ? null : path(t)));
+    } finally {
+      effects.setPointer(null);
+    }
+  }
+
+  /** A widget's line in the caption band; null puts the narration's caption back. */
+  caption(text: string | null): void {
+    if (text === null) this.showCaption(this.captionSource);
+    else this.setCaption(text);
+  }
+
   /**
    * Paint the current boundary with a patched SPEC — the code editor's
    * preview: edited elements (a script and its fresh envelope) and, when the
