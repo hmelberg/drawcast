@@ -112,13 +112,10 @@ describe("the bundled examples' teaching shape (ratchets — target 0)", () => {
 
   // Design 2026-09-14-pane-controls §5: the invitation to slide/press/click
   // belongs in an explore beat's speak — the movie skips that beat whole —
-  // never in an ordinary speak, which the movie says too. Measured 2026-09-14
-  // across every spec the examples carry: 7 ordinary speaks trip the word
-  // list — some are genuine ("Slide the point along...", "Skyv kortene..."),
-  // some are the heuristic catching prose about the mechanism ("Click the 3D
-  // button...", "press a closed fluid...", "click it to read..."). Task 4
-  // fixes the genuine ones and lowers this pin; the target is 0.
-  const INVITE_BASELINE = 7;
+  // never in an ordinary speak, which the movie says too.
+  // 2026-09-14: seven pre-existing lines reworded in the same round; target
+  // and pin are both 0.
+  const INVITE_BASELINE = 0;
 
   test("no NEW example's ordinary speak invites interaction", () => {
     const invites = examples

@@ -256,7 +256,7 @@
           "draw": [
             "molecule_name"
           ],
-          "speak": "That's acetylsalicylic acid. Click the 3D button on this figure to explore the real three-dimensional structure."
+          "speak": "That's acetylsalicylic acid. The ⬡ 3D button on this figure opens the real three-dimensional structure."
         }
       ]
     }
@@ -7800,7 +7800,7 @@
           "draw": [
             "paper"
           ],
-          "speak": "John Ioannidis made exactly this arithmetic famous in 2005; his paper is here — click it to read."
+          "speak": "John Ioannidis made exactly this arithmetic famous in 2005; his paper is linked here."
         },
         {
           "speak": "Nothing was fabricated and no rule was broken. The false-discovery rate falls straight out of the base rate, the power, and the threshold."
@@ -14784,7 +14784,7 @@
           "draw": [
             "pascal"
           ],
-          "speak": "Blaise Pascal worked this out in the sixteen fifties: press a closed fluid anywhere, and every part of it feels the very same rise in pressure."
+          "speak": "Blaise Pascal worked this out in the sixteen fifties: squeeze a closed fluid anywhere, and every part of it feels the very same rise in pressure."
         },
         {
           "erase": [
@@ -15220,7 +15220,7 @@
       ],
       "commands": [
         { "draw": ["para", "t_b", "t_h"], "speak": "Et parallellogram med grunnlinje b og høyde h. Tenk på det som en stabel med tynne kort." },
-        { "draw": ["rekt"], "speak": "Skyv kortene så stabelen står rett. Hvert kort er like langt som før, og det er like mange kort." },
+        { "draw": ["rekt"], "speak": "Når kortene skyves så stabelen står rett, er hvert kort like langt som før, og det er like mange kort." },
         { "morph": { "target": ["para"], "to": { "ref": "rekt" }, "duration": 2 }, "speak": "Da er figuren et rektangel med sidene b og h. Arealet er uendret: b ganger h." },
         { "morph": { "target": ["para"], "stretch": [2, 1], "pivot": { "anchor": "left" }, "duration": 1.5 }, "speak": "Dobler vi grunnlinja og lar høyden stå, blir arealet dobbelt så stort. Ikke fire ganger: bare den ene faktoren vokste." }
       ]
@@ -15960,7 +15960,7 @@
             ],
             "duration": 1.4
           },
-          "speak": "Slide it in, tip first, and each cut comes to rest under one brass pin."
+          "speak": "It slides in, tip first, and each cut comes to rest under one brass pin."
         },
         {
           "move": {
@@ -18424,7 +18424,7 @@
             "t": 10
           },
           "duration": 4,
-          "speak": "Slide the point along the squeezed wave and you feel how fast it now has to move."
+          "speak": "As the point slides along the squeezed wave, you feel how fast it now has to move."
         }
       ]
     }
@@ -18556,7 +18556,7 @@
           },
           "duration": 7,
           "easing": "linear",
-          "speak": "Slide the point along, and the tangent turns with it: flat at the crest, steepest where the curve crosses zero, flat again in the trough."
+          "speak": "As the point slides along, the tangent turns with it: flat at the crest, steepest where the curve crosses zero, flat again in the trough."
         },
         {
           "highlight": {
