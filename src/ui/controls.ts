@@ -21,6 +21,7 @@ import { dragGateFor } from "./drag-gate";
 import { creditsOf } from "../export/credits";
 import { connectGateFor } from "./connect-gate";
 import { attachInfoCards } from "./infocard";
+import { attachWidgetHost } from "./widget-host";
 import { attachPanelView } from "./panel-view";
 import { scenes } from "../scenes/registry";
 
@@ -1012,7 +1013,8 @@ export function attachPlayerControls(
   // their own overlay and are left alone.
   const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
   if (interactions.includes("chess")) attachChessPlay(stage, hd);
-  attachInfoCards(stage, hd); // no-op unless the spec carries card elements
+  const widgetHost = attachWidgetHost(stage, hd); // no-op unless the template carries a widget body
+  attachInfoCards(stage, hd, widgetHost); // no-op unless the spec carries card elements
   attachPanelView(stage, hd); // no-op unless the figure draws a code panel
   if (interactions.includes("piano")) {
     const octaves = pianoOctaves(hd.spec.params);

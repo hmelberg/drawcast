@@ -32,6 +32,7 @@ import { overCaption } from "./caption";
 import { gateIsOpen } from "./gates";
 import { hitElement } from "./hit";
 import type { BBox } from "../layout/geometry";
+import type { WidgetHost } from "./widget-host";
 
 const SUMMARY_MAX = 200;
 
@@ -143,7 +144,7 @@ export function sceneNamesFor(hd: RenderHandle): { id: string; name: string }[] 
   return [];
 }
 
-export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
+export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost: WidgetHost | null = null): void {
   // The words a template DREW count too, not just the spec's own elements —
   // otherwise an axis caption, a node's text and a legend entry are all dead.
   // Each word's owning part comes from the drawable tree (the same walk the
@@ -223,6 +224,7 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
     if (!p) return null;
     if (interactions.includes("chess") && chessSquareAt(flip, p) !== null) return null;
     if (interactions.includes("piano") && pianoKeyAt(octaves, p) !== null) return null;
+    if (widgetHost?.over(p)) return null;
     // A code screen's natural action is EDITING it (the tray's own paused
     // click), so a card never opens on one — the same standing-aside the
     // instruments get above.
