@@ -58,6 +58,7 @@ import { mountQuiz, partsFor } from "./quiz";
 import { mountChessVs } from "./chessvs";
 import { applyControls, parseControls, type ControlSpec, type ControlValue } from "../code/controls";
 import { debounceMs, nextValues, readout, rowWidth } from "./controls-model";
+import { attachPopout } from "./tray-popout";
 
 /** Sliders whose param has a current numeric value in the mounted spec —
  *  a slider for a param the spec never set would move invisible geometry. */
@@ -104,7 +105,17 @@ function fmt(x: number): string {
   return Math.abs(x) >= 10 ? String(Math.round(x)) : String(Math.round(x * 100) / 100);
 }
 
+/** The pop-out's window listeners (keydown, and pointermove/up while
+ *  dragging), keyed per host — the same per-host teardown idiom
+ *  ui/controls.ts uses for its fold listener (foldTeardown). Nothing else
+ *  tells the old tray its host is about to grow a new one (a playlist
+ *  advancing, main.ts re-rendering the same figure), so the outgoing
+ *  pop-out is detached here, right where the outgoing tray is torn down. */
+const popoutTeardown = new WeakMap<HTMLElement, () => void>();
+
 export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
+  popoutTeardown.get(host)?.();
+  popoutTeardown.delete(host);
   host.querySelector(".cs-paramtray")?.remove();
   host.querySelector(".cs-tray-btn")?.remove();
   const bar = host.querySelector<HTMLElement>(".cs-controlbar");
@@ -153,6 +164,13 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const tray = h("div", { class: "cs-paramtray", hidden: "" });
   tray.addEventListener("click", (e) => e.stopPropagation());
   bar.insertAdjacentElement("afterend", tray);
+
+  // Pop-out (design 2026-09-14 §2.6b): the same tray, floating over the stage.
+  // On docking the tray returns under the bar — the host is the figure wrapper.
+  const figure = bar.parentElement as HTMLElement;
+  const popout = attachPopout(tray, figure, { storageKey: `drawcast.tray:${location.pathname}` });
+  popoutTeardown.set(host, () => popout.detach());
+  tray.addEventListener("cs-tray-dock", () => bar.insertAdjacentElement("afterend", tray));
 
   // While exploring, the stage is a workbench, not a play button: the big
   // centered ▶ would sit over the very figure being explored, and a stray
@@ -356,6 +374,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   };
 
   const close = (): void => {
+    popout.dock(); // a closed tray always docks — never left floating, hidden, over the stage
     tray.hidden = true;
     trayBtn.classList.remove("open");
     bodySection?.destroy();
@@ -549,6 +568,13 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       spaceTemplate,
       space: opts.space,
     });
+    // Pop-out (design 2026-09-14 §2.6b): only where a pointer can drag it and
+    // the viewport has room to float it beside the figure — never on a phone.
+    if (window.matchMedia("(pointer: fine) and (min-width: 720px)").matches) {
+      const pop = h("button", { class: "cs-tray-popbtn", title: "Pop the controls out" }, "⧉");
+      pop.addEventListener("click", () => popout.popOut());
+      tray.appendChild(h("div", { class: "cs-tray-toprow" }, pop));
+    }
     // The activity pills (spec §13's scheduled convergence): rendered from
     // the same interactions registry the context menu reads — right-click
     // opens this tray, so both doors show one row. Not during an explore

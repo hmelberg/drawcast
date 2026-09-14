@@ -159,6 +159,12 @@ body.mode-editor main {
   padding: 0.5rem 0.6rem 0.3rem;
 }
 
+/* No base rule existed for .cs-figure (render/index.ts's wrapper around the
+   stage, the control bar and the tray) — it needs one now: the popped-out
+   tray positions itself `absolute` against this element (tray-popout.ts's
+   `host`), which only works once it establishes a containing block. */
+.cs-figure { position: relative; }
+
 /* Fullscreen: the figure fills the screen, letterboxed on paper.
    The stage gets the height the title, control bar and caption LEAVE OVER,
    and derives its width from that through its own 4/3 aspect-ratio. It used
@@ -1831,15 +1837,35 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .pl-badge-basic { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, var(--surface)); }
 .pl-badge-advanced { color: var(--steel); border-color: color-mix(in srgb, var(--steel) 50%, var(--surface)); }
 
-/* ---------- explore tray (params sliders under the control bar) ---------- */
-
+/* ---------- explore tray (params sliders under the control bar) ----------
+   Looks like the figure (design 2026-09-14 §2.6b): the paper, the fonts, a
+   hand-drawn border, no gap under the bar. Popped out, it floats over the
+   stage with the browser's own resize handle. */
 .cs-paramtray {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  padding: 0.45rem 0.6rem 0.55rem;
-  border-top: 1px dashed var(--line);
+  padding: 0.5rem 0.7rem 0.6rem;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1.5px solid var(--ink);
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; /* the sketchy-box trick, same ink as the drawing */
+  margin-top: -1px;
 }
+.cs-paramtray.cs-popped {
+  position: absolute;
+  z-index: 30;
+  resize: both;
+  overflow: auto;
+  min-width: 260px;
+  min-height: 120px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.cs-tray-grip { cursor: grab; display: flex; justify-content: flex-end; padding: 0 0 0.2rem; border-bottom: 1px dashed var(--line); margin-bottom: 0.3rem; touch-action: none; }
+.cs-tray-grip:active { cursor: grabbing; }
+.cs-tray-dock, .cs-tray-popbtn { font-size: var(--text-xs); background: none; border: none; color: var(--muted); cursor: pointer; }
+.cs-tray-dock:hover, .cs-tray-popbtn:hover { color: var(--ink); }
+.cs-tray-toprow { display: flex; justify-content: flex-end; }
 .cs-tray-row {
   display: flex;
   align-items: center;
