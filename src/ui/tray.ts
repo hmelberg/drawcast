@@ -610,6 +610,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
    * the group (built regardless, by `plan.controls`) stands in for it then.
    */
   const openControlsInPlace = (el: SpecElement): boolean => {
+    // No `renderUpTo` snap here (unlike `openInPlace`, above): a pane's
+    // rectangle is fixed geometry in `hd.layout`/`paintedLayout()`, and
+    // `paneBoxOf` → `clientPointFor` only needs the SVG's live viewBox and
+    // the stage's own client rect to place the card — nothing about the
+    // preview or the timeline's position affects where it lands.
     if (!stage || !visibleNow(el.id)) return false;
     const existing = controlsCards.get(el.id);
     if (existing) {

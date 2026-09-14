@@ -39,9 +39,18 @@ describe("tray controls (pins)", () => {
     expect(src).not.toMatch(/class: "cs-tray-ctl cs-tray-ctl-/); // the inline builder is gone from tray.ts
   });
   test("a pane: controls panel opens its card, not the editor, on a paused click", () => {
-    expect(src).toMatch(/el\.pane === "controls"[\s\S]{0,400}?mountControlsCard\(/);
+    // Anchored on the REAL guard at the paused-click call site, not on
+    // openControlsInPlace's doc comment (which also contains the literal
+    // text "el.pane === \"controls\"" a few lines above its own
+    // mountControlsCard( call, and would still match this pin even with all
+    // three real callers' checks deleted).
+    expect(src).toMatch(/if \(el && el\.pane === "controls" && openControlsInPlace\(el\)\)/);
   });
   test("the card is torn down with the preview", () => {
     expect(src).toMatch(/const clearPreview[\s\S]{0,800}?controlsCards/);
+  });
+  test("the card takes keyboard focus on mount, so Escape (bound on the card) has something to reach", () => {
+    const card = readFileSync("src/ui/controls-card.ts", "utf8");
+    expect(card).toMatch(/reposition\(\)[\s\S]{0,300}?\.focus\(/);
   });
 });

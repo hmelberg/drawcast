@@ -1,12 +1,24 @@
 // The in-place controls card: a `pane: controls` panel's card (spec §3.2 in
-// docs/superpowers/specs/2026-09-14-pane-controls-design.md) — the SAME
-// controls-group node tray.ts builds (controls-group.ts) mounted ON the
-// drawn panel instead of under the control bar, the way ui/code-editor.ts's
-// mountCodeEditor mounts the script editor over a code pane. One group, one
-// `controlValues`, one `runControls`, one `takenOver`: tray.ts moves the node
-// between the two hosts rather than building a second one, so a slider
-// dragged here and a takeover run from the tray's own copy are impossible —
-// there is only ever one copy, wherever it currently lives.
+// docs/superpowers/specs/2026-09-14-pane-controls-design.md) — a controls-
+// group node (controls-group.ts) mounted ON the drawn panel instead of under
+// the control bar, the way ui/code-editor.ts's mountCodeEditor mounts the
+// script editor over a code pane. NOT one node moved between two hosts: when
+// the panel's own door is used (a paused click, the one-click path, the
+// explore beat) tray.ts builds a SECOND `buildControlsGroup` call for this
+// card, alongside the tray's own copy already in the tray (both can be on
+// screen together — the one-click path and the explore beat open both).
+// The two nodes are independent DOM, but read and write the SAME
+// `controlValues`/`runControls`/`takenOver` (one set of closures,
+// `controlsDeps` in tray.ts): a commit made through EITHER host's rows
+// updates the one shared state right away. Only EVENTUAL consistency
+// between the two visible copies, though — a host's own rows repaint
+// themselves on their own interaction, but do not repaint on a commit made
+// through the OTHER host; the tray's copy catches up on its next rebuild
+// (`open()`), and this card's copy — built once per mount, never rebuilt
+// while it stays open — does not catch up until it is closed and reopened.
+// A commit's underlying effect (the script re-running, the drawn panel
+// updating) is never in question; only the two hosts' own knob positions
+// can drift apart cosmetically while both are visible at once.
 //
 // Positioning mirrors mountCodeEditor's `reposition` (ui/code-editor.ts): the
 // pane rectangle, in logical y-up units, mapped to stage pixels through
@@ -29,8 +41,9 @@ export interface ControlsCardOpts {
    *  while the card is open. */
   paneBox(): BBox | null;
   /** The controls-group node to lay over the pane — built by the caller
-   *  (buildControlsGroup), so the tray and this card show one node, never
-   *  two copies of it. */
+   *  (buildControlsGroup) against the SAME deps as the tray's own copy, so
+   *  the two share one `controlValues`/`runControls` even though they are
+   *  two separate DOM nodes (see the file header). */
   group: HTMLElement;
   /** Closed by ✕ or Escape — the tray unfreezes the stage from here. */
   onClose(): void;
@@ -40,8 +53,8 @@ export interface ControlsCardOpts {
 
 export interface ControlsCardHandle {
   /** Re-measure and re-place; hides the card while the pane is gone. */
-  reposition(): void;
-  close(): void;
+  reposition: () => void;
+  close: () => void;
 }
 
 /** Kept clear of the stage edge, same idea as code-editor.ts's `editorRect`. */
@@ -97,11 +110,6 @@ export function mountControlsCard(stage: HTMLElement, opts: ControlsCardOpts): C
     card.style.maxHeight = `${Math.max(0, stageH - top - MARGIN)}px`;
   };
 
-  const onResize = (): void => reposition();
-  window.addEventListener("resize", onResize);
-  const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(onResize) : null;
-  ro?.observe(stage);
-
   let closed = false;
   function close(): void {
     if (closed) return;
@@ -113,5 +121,16 @@ export function mountControlsCard(stage: HTMLElement, opts: ControlsCardOpts): C
   }
 
   reposition();
+  // Escape (above) only ever reaches `close()` once the card can receive
+  // keyboard events at all — mirrors `mountCodeEditor`'s `area.focus()`, but
+  // there is no single input to prefer here (a slider, a choice row, a plain
+  // button might be first), so the card itself takes it (`tabindex="-1"`).
+  card.focus();
+
+  const onResize = (): void => reposition();
+  window.addEventListener("resize", onResize);
+  const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(onResize) : null;
+  ro?.observe(stage);
+
   return { reposition, close };
 }
