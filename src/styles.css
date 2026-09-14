@@ -1848,6 +1848,15 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   color: var(--muted);
 }
 .cs-tray-row input[type="range"] { flex: 1; accent-color: var(--ink); }
+/* Code controls (design 2026-09-14 §2.6): a slider or text field takes a
+   row; the small controls flow two per row. Quiet = the viewer edited and
+   ran the script; Continue restores the controls. */
+.cs-tray-controls { display: flex; flex-wrap: wrap; gap: 0.35rem 0.8rem; }
+.cs-tray-ctl-full { flex: 1 1 100%; }
+.cs-tray-ctl-half { flex: 1 1 calc(50% - 0.4rem); }
+.cs-tray-ctl input[type="text"], .cs-tray-ctl input[type="number"] { flex: 1; min-width: 0; font: inherit; }
+.cs-tray-controls-quiet { opacity: 0.45; pointer-events: none; }
+@media (max-width: 600px) { .cs-tray-ctl-half { flex-basis: 100%; } }
 .cs-tray-label { min-width: 6.5rem; }
 .cs-tray-value { min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
 /* A mode param (a short string enum) is a segmented control, not a knob: the

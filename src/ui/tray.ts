@@ -56,6 +56,8 @@ import { activitiesFor } from "./quiz-model";
 import { MIN_PARTS } from "./parts-model";
 import { mountQuiz, partsFor } from "./quiz";
 import { mountChessVs } from "./chessvs";
+import { applyControls, parseControls, type ControlSpec, type ControlValue } from "../code/controls";
+import { debounceMs, nextValues, readout, rowWidth } from "./controls-model";
 
 /** Sliders whose param has a current numeric value in the mounted spec —
  *  a slider for a param the spec never set would move invisible geometry. */
@@ -179,6 +181,14 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   // layer/systems/names strings. previewParams takes them all.
   const overrides: Record<string, unknown> = {};
   const patches = new Map<string, { code: string; result: string }>();
+  /** Control values per script — preview state, dropped with the rest. */
+  const controlValues = new Map<string, Record<string, ControlValue>>();
+  /** Scripts the viewer took over by editing and running: their controls go quiet until Continue. */
+  const takenOver = new Set<string>();
+  const runTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** The last script a control group itself produced — an editor Run with
+   *  different text is the viewer taking the script over. */
+  const lastControlsCode = new Map<string, string>();
   // ONE draft per script, and every surface showing that script is told when
   // it changes — so typing in the tray and finishing on the screen (or the
   // reverse) is one continuous edit, and a Run started at either door reports
@@ -194,6 +204,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     for (const k of Object.keys(overrides)) delete overrides[k];
     patches.clear();
     drafts.clear();
+    controlValues.clear();
+    takenOver.clear();
+    for (const t of runTimers.values()) clearTimeout(t);
+    runTimers.clear();
+    lastControlsCode.clear();
   };
   const draftOf = (el: SpecElement): string => drafts.get(el.id) ?? patches.get(el.id)?.code ?? el.code ?? "";
   const announce = (id: string, fn: (s: EditorSurface) => void): void => {
@@ -248,8 +263,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
    * envelope joins the preview state. settleParams() on Continue/close/Play
    * restores the lesson, so nothing persists.
    */
-  const runEdited = async (el: SpecElement, code: string): Promise<void> => {
+  const runEdited = async (el: SpecElement, code: string, source: "editor" | "controls" = "editor"): Promise<void> => {
     if (!el.language) return;
+    // A Run from the editor with text the controls did not produce: the
+    // viewer took the script over, and its controls go quiet until Continue.
+    if (source === "editor" && code !== (lastControlsCode.get(el.id) ?? el.code)) takenOver.add(el.id);
     const paths = pathsByCodeId(scanDataTokens(hd.authored.params))[el.id] ?? [];
     setDraft(el.id, code);
     announce(el.id, (s) => {
@@ -274,6 +292,27 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     } finally {
       announce(el.id, (s) => s.busy(false));
     }
+  };
+
+  /** A control moved: rewrite the AUTHORED script (its tuples intact) with
+   *  the current values and run it through the same door an edited script
+   *  uses. `immediate` = no debounce (a click, not a drag). `autorun: false`
+   *  runs only from the group's own Run button, which passes `force`. */
+  const runControls = (el: SpecElement, controls: ControlSpec[], immediate: boolean, force = false): void => {
+    const authoredEl = (hd.authored.elements ?? []).find((e) => e.id === el.id);
+    if (!authoredEl?.code || !el.language) return;
+    const language = el.language;
+    const authoredCode = authoredEl.code;
+    const pending = runTimers.get(el.id);
+    if (pending) clearTimeout(pending);
+    if (el.autorun === false && !force) return;
+    const go = (): void => {
+      const values = controlValues.get(el.id) ?? {};
+      lastControlsCode.set(el.id, applyControls(language, authoredCode, controls, values));
+      void runEdited(el, applyControls(language, authoredCode, controls, values), "controls");
+    };
+    if (immediate || force) go();
+    else runTimers.set(el.id, setTimeout(go, debounceMs(language)));
   };
 
   const trayBtn = h("button", { class: "cs-bar-btn cs-tray-btn", title: "Explore this figure" }, "⊕");
@@ -491,6 +530,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       sliderPaths: sliders.map((s) => s.spec.path),
       choicePaths: choices.map((c) => c.spec.path),
       codeIds: editable.map((e) => e.id),
+      controlIds: editable.filter((e) => Array.isArray(e.controls) && e.controls.length > 0).map((e) => e.id),
       gated: opts.gated,
       params: opts.filter,
       code: opts.code,
@@ -822,6 +862,98 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         }
         tray.appendChild(row);
       }
+    }
+    // Code controls (design 2026-09-14 §2.6): one group per script, above the
+    // template sliders' cousins — a slider/text per row, the small controls
+    // two per row. Values rewrite the AUTHORED script and run through the
+    // same door an edited script uses.
+    for (const id of plan.controls) {
+      const el = editable.find((e) => e.id === id);
+      const authoredEl = (hd.authored.elements ?? []).find((e) => e.id === id);
+      if (!el || !authoredEl?.code || !el.language || !el.controls) continue;
+      const { controls } = parseControls(el.language, authoredEl.code, el.controls);
+      if (controls.length === 0) continue;
+      const values = controlValues.get(id) ?? {};
+      const group = h("div", { class: "cs-tray-controls", role: "group", "aria-label": `Controls for ${id}` });
+      if (takenOver.has(id)) group.classList.add("cs-tray-controls-quiet");
+      const glowIds = el.glow ? [id, ...hd.layout.order.filter((o) => !editable.some((e) => o === e.id || o.startsWith(`${e.id}_`)))] : [];
+      let release: (() => void) | null = null;
+      const glowOn = (): void => {
+        if (glowIds.length === 0 || release) return;
+        release = hd.timeline.holdGlow(glowIds);
+      };
+      const glowOff = (): void => {
+        release?.();
+        release = null;
+      };
+      const commit = (c: ControlSpec, raw: string | boolean, immediate: boolean): void => {
+        controlValues.set(id, nextValues(controlValues.get(id) ?? {}, c, raw));
+        runControls(el, controls, immediate);
+      };
+      for (const c of controls) {
+        const row = h("div", { class: `cs-tray-row cs-tray-ctl cs-tray-ctl-${rowWidth(c.kind)}` });
+        const label = h("span", { class: "cs-tray-label" }, c.label);
+        const current = values[c.name] ?? c.default;
+        switch (c.kind) {
+          case "slider": {
+            const range = h("input", { type: "range", min: String(c.min), max: String(c.max), step: String(c.step), value: String(current), "aria-label": c.label }) as HTMLInputElement;
+            const out = h("span", { class: "cs-tray-value" }, readout(c, current));
+            range.addEventListener("input", () => {
+              out.textContent = readout(c, Number(range.value));
+              commit(c, range.value, false);
+            });
+            range.addEventListener("focus", glowOn);
+            range.addEventListener("pointerdown", glowOn);
+            range.addEventListener("blur", glowOff);
+            range.addEventListener("pointerup", glowOff);
+            row.append(label, range, out);
+            break;
+          }
+          case "choice": {
+            const seg = h("div", { class: "cs-tray-choice", role: "group", "aria-label": c.label });
+            const btns: HTMLButtonElement[] = [];
+            for (const v of c.options ?? []) {
+              const b = h("button", { class: "cs-tray-choicebtn", "data-value": v }, v);
+              b.addEventListener("click", () => {
+                for (const x of btns) x.classList.toggle("on", x === b);
+                commit(c, v, true);
+              });
+              b.classList.toggle("on", v === current);
+              btns.push(b);
+              seg.appendChild(b);
+            }
+            row.append(label, seg);
+            break;
+          }
+          case "toggle": {
+            const box = h("input", { type: "checkbox", "aria-label": c.label }) as HTMLInputElement;
+            box.checked = current === true;
+            box.addEventListener("change", () => commit(c, box.checked, true));
+            row.append(label, box);
+            break;
+          }
+          case "text":
+          case "number": {
+            const input = h("input", { type: c.kind === "number" ? "number" : "text", value: String(current), "aria-label": c.label, ...(c.kind === "number" && c.integer ? { step: "1" } : {}) }) as HTMLInputElement;
+            input.addEventListener("change", () => commit(c, input.value, true)); // Enter or blur
+            row.append(label, input);
+            break;
+          }
+          case "button": {
+            const pill = h("button", { class: "cs-tray-pill cs-tray-ctlbtn" }, c.caption ?? c.label);
+            pill.addEventListener("click", () => commit(c, "", true));
+            row.append(pill);
+            break;
+          }
+        }
+        group.appendChild(row);
+      }
+      if (el.autorun === false) {
+        const run = h("button", { class: "cs-tray-run" }, "Run ▶");
+        run.addEventListener("click", () => runControls(el, controls, true, true));
+        group.appendChild(h("div", { class: "cs-tray-actions" }, run));
+      }
+      tray.appendChild(group);
     }
     // The scripts on screen. Expanded when the editor IS the point (the only
     // control, the beat's own `code`, the screen the viewer clicked); behind
