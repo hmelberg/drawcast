@@ -228,6 +228,35 @@ bytes rather than through the app's grayscale-and-warm-tint pass, which needs
 a canvas node does not have — an accepted difference between a bundled example
 and a freshly generated one, not a defect.
 
+### 2026-09-15 — The movie rule is a default, not a law; one look for controls
+
+Hans (on the code controls after two rounds): "It works, but it is ugly
+and clunky. […] It would be better if the svg drawn controls themselves
+could work, instead of replacing them with html when we actually want to
+use it. […] The point is: Not have two slightly different looking, but
+one." And on the rule: "Relax the rule about everything being designed as
+a movie. It is too restrictive. Sometimes we really want to design an
+interactive lesson with lots of visible interactions and user input. We
+should not be restricted not to do so by the rules. Instead we might want
+to avoid those elements when we actually want to make something that can
+be a movie as well. And we can tell the llm that (maybe have a #movie)."
+Also: pausing on a control should not open the tray; no handwritten box
+around the tray; load the runtimes when the presentation starts.
+
+**Distillation.** Movie-first was written as a law for the model (an
+ordinary `speak` never invites; the invitation lives only in the explore
+beat) and that law is what constrains the lessons, not the engine. The
+engine's substrate rule — the timeline never waits on a response — is what
+keeps export free and stays. The model-facing rule flips to a default:
+interactive lessons may invite and stop as they like; `#movie` asks for a
+lesson that also works unattended (few live controls, invitations in
+explore beats, a played sweep instead of a live knob). A control has ONE
+look: the drawn one, which must itself be live while paused.
+
+**Status.** Evaluated 2026-09-15, staged plan proposed (SVG-live
+controls + preload; then `#movie` and the rule flip; then a code sweep
+verb). Not built.
+
 ### 2026-09-07 — A bundled example starts from a question, or from something worth explaining
 
 Hans: «Generelt er det fint om eksemplene tar utgangspunkt i et spørsmål
