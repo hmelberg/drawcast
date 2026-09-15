@@ -25,6 +25,10 @@ import { pathPosition } from "./effects";
 import { cumulativeLengthFractions } from "./trails";
 import type { GhostSpec, MintedSpec } from "./minted";
 import type { LayoutOverrides, PoseOverride } from "../layout/posed";
+import { SpeechManager } from "./speech";
+import { DEMO_EVERY_S, demoWalk, runValues } from "./sweep";
+import type { ControlSpec, ControlValue } from "../code/controls";
+import type { PlayArgs } from "../spec/types";
 
 export type PlanStep = (
   | { kind: "speak"; text: string; blocking: boolean; speaker?: "a" | "b"; delivery?: Delivery }
@@ -33,6 +37,10 @@ export type PlanStep = (
   | { kind: "wait" }
   | { kind: "label"; name: string }
   | { kind: "explore"; params?: string[]; code?: string; game?: string; anatomy?: boolean; space?: boolean }
+  /** A sweep (spec 2026-09-15 §4): the code element runs once per value map,
+   *  every control named in each, the whole series inside `seconds`. `demo` =
+   *  the explore beat's own seeded walk, played just before its gate. */
+  | { kind: "run"; code: string; values: Record<string, ControlValue>[]; seconds: number; demo: boolean }
   | { kind: "if"; varName: string; op: "gt" | "lt" | "gte" | "lte" | "eq" | "ne"; value: number | string; target: string }
   | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean; rightGoto?: string; wrongGoto?: string }
   | {
@@ -298,6 +306,9 @@ export interface PlanOptions {
   mathOf?: (id: string) => string | null;
   /** Whether an id names an element declared in the spec (as opposed to a minted or template id). */
   isElement?: (id: string) => boolean;
+  /** The ORIGINAL-parse controls of a code element that HAS controls, else
+   *  null — what a `run` sweeps and what the explore demo walks. */
+  controlsOf?: (id: string) => ControlSpec[] | null;
 }
 
 /** A PointRef that names a place in the SCENE (an array, a ref, or x+y) rather than the acting element's own anchor — resolved once per command, never per target. */
@@ -418,6 +429,23 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       tex: { ...tex },
       copies: { ...copies },
     });
+  };
+  /** A sweep's length: `every` per step when the author gave one; otherwise
+   *  at least `perStep` per step, and never shorter than the paired voice. */
+  const secondsFor = (n: number, every: number | undefined, narration: string | undefined, perStep: number): number =>
+    every !== undefined ? every * n : Math.max(perStep * n, narration !== undefined ? SpeechManager.estimateMs(narration) / 1000 : 0);
+  /** A `run` command, or an explore beat's demo, as a step — null when the id
+   *  is not a code element with controls (a warning for a `run`, which the
+   *  author asked for by name; silence for a demo, which is only an offer). */
+  const sweepStep = (codeId: string, args: PlayArgs | null, demo: boolean, where: string): PlanStep | null => {
+    const controls = opts.controlsOf?.(codeId) ?? null;
+    if (!controls || controls.length === 0) {
+      if (!demo) warnings.push(`${where}: "${codeId}" is not a code element with controls`);
+      return null;
+    }
+    const values = args ? runValues(args, controls).steps : demoWalk(codeId, controls);
+    if (values.length === 0) return null;
+    return { kind: "run", code: codeId, values, seconds: secondsFor(values.length, args?.every, currentNarration, demo ? DEMO_EVERY_S : 0.5), demo };
   };
   /** The window's scroll: the highest visible line's bottom sits at the
    *  window's bottom. Every line of the element gets the offset — the hidden
@@ -813,7 +841,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     };
   };
 
-  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "copy", "flow", "keep", "camera", "animate", "play"] as const;
+  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "copy", "flow", "keep", "camera", "animate", "play", "run"] as const;
   for (const cmd of commands ?? []) {
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
@@ -834,7 +862,22 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.label !== undefined) {
       labels[cmd.label] = steps.length;
       pushStep({ kind: "label", name: cmd.label });
+    } else if (cmd.run !== undefined) {
+      const s = sweepStep(cmd.run.code, cmd.run, false, "run");
+      if (s) pushStep(s);
     } else if (cmd.explore !== undefined) {
+      // The demo plays FIRST and carries the beat's voice: the viewer watches
+      // the controls move, hears why, and only then is handed the panel — so
+      // the gate that follows is silent (its own speak already spoke).
+      if (cmd.explore.code !== undefined && cmd.explore.play !== false) {
+        const s = sweepStep(cmd.explore.code, typeof cmd.explore.play === "object" ? cmd.explore.play : null, true, "explore.play");
+        if (s) {
+          pushStep(s);
+          currentNarration = undefined;
+          currentNarrationSpeaker = undefined;
+          currentNarrationDelivery = undefined;
+        }
+      }
       pushStep({
         kind: "explore",
         ...(cmd.explore.params !== undefined ? { params: cmd.explore.params } : {}),

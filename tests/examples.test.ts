@@ -14,6 +14,7 @@ import { validateSpec } from "../src/spec/schema";
 import { domainMapping, elementBBoxes, layoutSpec } from "../src/layout/layout";
 import { planCommands } from "../src/render/plan";
 import { planOptionsFor } from "../src/render/index";
+import { parseControls } from "../src/code/controls";
 import { lintCommands } from "../src/lint/lint";
 import { cardTargets } from "../src/ui/card-model";
 import { linkKindOf } from "../src/ui/link-model";
@@ -108,6 +109,15 @@ describe("bundled examples stay exemplary", () => {
         expect(l.issues.filter((i) => i.severity === "error"), `after ${JSON.stringify(params)}`).toEqual([]);
         const b = elementBBoxes(l);
         return (id) => b.get(id) ?? null;
+      },
+      // The way render() wires it (src/render/index.ts): a `run` or an explore
+      // demo reads the AUTHORED script's controls. Without this the gate could
+      // not tell a good sweep from one naming a script that has no controls —
+      // every run would warn, and every demo would silently plan nothing.
+      controlsOf: (id) => {
+        const el = spec.elements?.find((e) => e.id === id);
+        if (!el || el.type !== "code" || !el.controls?.length || !el.language) return null;
+        return parseControls(el.language, el.code ?? "", el.controls).controls;
       },
       ...planOptionsFor(spec, layout),
     });

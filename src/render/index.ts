@@ -19,6 +19,7 @@ import { SpeechManager, type SpeechLike } from "./speech";
 import { WebAudioTones, type ToneLike } from "./tones";
 import { resolvePortraits } from "./portrait";
 import { resolveCode } from "./code";
+import { parseControls } from "../code/controls";
 import { resolvedRenderSpec } from "./resolve";
 import { scenes } from "../scenes/registry";
 import { widgetDemoFor } from "./widget-demo";
@@ -333,6 +334,14 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
         const box = b.get(id);
         return box ? boxAnchor(box, name) : null;
       };
+    },
+    // A sweep reads the AUTHORED script: render's clone has already rewritten
+    // its control literals to their defaults (resolveCode), and the tuple/list
+    // that DECLARES a control only survives on the authored element.
+    controlsOf: (id) => {
+      const el = authored.elements?.find((e) => e.id === id);
+      if (!el || el.type !== "code" || !el.controls?.length || !el.language) return null;
+      return parseControls(el.language, el.code ?? "", el.controls).controls;
     },
     ...planOptionsFor(spec, layout),
   });
