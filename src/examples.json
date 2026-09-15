@@ -21117,5 +21117,208 @@
         }
       ]
     }
+  },
+  {
+    "request": "Why does a disease with a higher R0 need so many more people vaccinated before it stops spreading?",
+    "spec": {
+      "title": "The herd immunity threshold, walked",
+      "elements": [
+        {
+          "id": "herd",
+          "type": "code",
+          "language": "python",
+          "show": "left",
+          "width": 900,
+          "pane": "controls",
+          "controls": [
+            "r0",
+            "efficacy",
+            "coverage"
+          ],
+          "code": "import numpy as np\nimport matplotlib.pyplot as plt\nr0 = Slider(1.2, 8.0, step=0.2, default=2.0, label=\"R0\")\nefficacy = Slider(0.5, 1.0, step=0.05, default=0.9, label=\"Vaccine efficacy\")\ncoverage = Slider(0.0, 1.0, step=0.05, default=0.6, label=\"Coverage\")\nr = np.linspace(1.05, 8, 200)\nplt.plot(r, 1 - 1 / r, label=\"share that must be immune\")\nneed = 1 - 1 / r0\nplt.scatter([r0], [need], zorder=3)\nplt.axhline(coverage * efficacy, color=\"gray\", linestyle=\"--\", label=\"immune today\")\nplt.xlabel(\"R0\"); plt.ylabel(\"share immune\"); plt.ylim(0, 1); plt.legend()\nprint(\"R0\", r0, \"needs\", round(100 * need), \"% immune; today\", round(100 * coverage * efficacy), \"%\")"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "herd",
+            "herd_ctl_r0"
+          ],
+          "parallel": true,
+          "speak": "Measles needs about nineteen in twenty of us protected before it stops; flu manages with far fewer. The whole difference is one number — how many people each case infects, R0 — and it is the first knob."
+        },
+        {
+          "draw": [
+            "herd_ctl_efficacy",
+            "herd_ctl_coverage"
+          ],
+          "speak": "The other two knobs are what a vaccination programme controls: how well the vaccine works, and how many people take it."
+        },
+        {
+          "draw": [
+            "herd_out"
+          ],
+          "delivery": "grave",
+          "speak": "The curve is the share that must be immune, one minus one over R0. The dot is where we stand today: at an R0 of two, half of us must be immune — and with ninety percent efficacy at sixty percent coverage, we are just past it."
+        },
+        {
+          "run": {
+            "code": "herd",
+            "values": {
+              "r0": {
+                "from": 1.6,
+                "to": 5.8,
+                "steps": 4
+              }
+            }
+          },
+          "speak": "Walk R0 from one point six up to nearly six. The share that must be immune leaps from under forty percent to two thirds by three — and then it only crawls: three quarters, then four fifths."
+        },
+        {
+          "speak": "That is the surprise: most of the demand for immunity is bought between R0 of one and three. A disease twice as contagious as another does not need twice the coverage — the threshold flattens."
+        },
+        {
+          "explore": {
+            "code": "herd"
+          },
+          "speak": "Now try it yourself: set R0 to fifteen-ish for measles by sliding it to the top, and see how far coverage must rise before the dashed line clears the dot."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Hvorfor gir en god test så mange falske alarmer når sykdommen er sjelden?",
+    "spec": {
+      "title": "Positiv prediktiv verdi, gått gjennom",
+      "lang": "nb",
+      "elements": [
+        {
+          "id": "ppv",
+          "type": "code",
+          "language": "python",
+          "show": "left",
+          "width": 900,
+          "pane": "controls",
+          "controls": [
+            "forekomst",
+            "sensitivitet",
+            "spesifisitet"
+          ],
+          "code": "import numpy as np\nimport matplotlib.pyplot as plt\nforekomst = Slider(0.001, 0.2, step=0.001, default=0.01, label=\"Forekomst\")\nsensitivitet = Slider(0.5, 1.0, step=0.01, default=0.9, label=\"Sensitivitet\")\nspesifisitet = Slider(0.5, 1.0, step=0.01, default=0.95, label=\"Spesifisitet\")\nn = 100000\nsyke = n * forekomst\nekte = syke * sensitivitet\nfalske = (n - syke) * (1 - spesifisitet)\nppv = ekte / (ekte + falske)\nplt.bar([\"ekte syke\", \"falske alarmer\"], [ekte, falske])\nplt.ylabel(\"positive prøver av 100 000\")\nprint(\"Av de positive er\", round(100 * ppv), \"% faktisk syke\")"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "ppv",
+            "ppv_ctl_forekomst"
+          ],
+          "parallel": true,
+          "speak": "En test som finner ni av ti syke og frikjenner nitten av tjue friske høres nesten perfekt ut. Likevel kan de fleste som får positivt svar være friske. Det avgjørende er den første knappen: hvor vanlig sykdommen er."
+        },
+        {
+          "draw": [
+            "ppv_ctl_sensitivitet",
+            "ppv_ctl_spesifisitet"
+          ],
+          "speak": "De to andre knappene er testens egne egenskaper: sensitivitet, andelen syke den fanger, og spesifisitet, andelen friske den slipper gjennom."
+        },
+        {
+          "draw": [
+            "ppv_out"
+          ],
+          "delivery": "grave",
+          "speak": "Av hundre tusen testede er tusen syke. Testen finner ni hundre av dem — men den slår også alarm for fem prosent av de nittini tusen friske, altså nesten fem tusen. Bare femten av hundre positive er faktisk syke."
+        },
+        {
+          "run": {
+            "code": "ppv",
+            "values": {
+              "forekomst": {
+                "from": 0.1,
+                "to": 0.001,
+                "steps": 4
+              }
+            }
+          },
+          "speak": "Gå forekomsten ned fra én av ti til én av tusen. Søylen med ekte syke krymper, søylen med falske alarmer står nesten stille — og andelen ekte syke blant de positive faller fra to av tre til under to av hundre."
+        },
+        {
+          "speak": "Testen ble aldri dårligere. Det er de friske som er så mange at selv fem prosent av dem drukner de syke. Derfor screener man sjeldne sykdommer bare i grupper der de er vanlige."
+        },
+        {
+          "explore": {
+            "code": "ppv"
+          },
+          "speak": "Prøv selv: skru spesifisiteten helt opp mot hundre prosent og se hvor mye mer det hjelper enn å skru opp sensitiviteten."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why does a trial with forty patients so often miss a real effect that a trial with four hundred finds every time?",
+    "spec": {
+      "title": "Statistical power, one sample size at a time",
+      "elements": [
+        {
+          "id": "pow",
+          "type": "code",
+          "language": "r",
+          "show": "left",
+          "width": 900,
+          "pane": "controls",
+          "controls": [
+            "n",
+            "effect"
+          ],
+          "code": "library(ggplot2)\nn <- Slider(10, 400, default = 40, label = \"Patients per arm\")\neffect <- Slider(0.1, 1.0, step = 0.05, default = 0.4, label = \"Effect size\")\nsizes <- seq(10, 400, by = 10)\npw <- sapply(sizes, function(k) power.t.test(n = k, delta = effect, sd = 1)$power)\nhere <- power.t.test(n = n, delta = effect, sd = 1)$power\ncat(\"power at\", n, \"per arm:\", round(100 * here), \"%\\n\")\nggplot(data.frame(n = sizes, power = pw), aes(n, power)) + geom_line() +\n  geom_point(data = data.frame(n = n, power = here), size = 3) +\n  geom_hline(yintercept = 0.8, linetype = \"dashed\") + ylim(0, 1)"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "pow",
+            "pow_ctl_n"
+          ],
+          "parallel": true,
+          "speak": "Two trials test the same drug, and the drug genuinely works. The small one reports no significant difference; the large one reports a clear effect. Neither is wrong — the first knob, patients per arm, decides how often a real effect shows up at all."
+        },
+        {
+          "draw": [
+            "pow_ctl_effect"
+          ],
+          "speak": "The second knob is the effect itself, measured in standard deviations — a small effect needs far more patients to surface than a large one."
+        },
+        {
+          "draw": [
+            "pow_out"
+          ],
+          "delivery": "grave",
+          "speak": "The curve is statistical power: the chance a trial of that size detects the effect. The dot is our trial, forty per arm. It sits near forty percent — a coin toss, weighted against us."
+        },
+        {
+          "run": {
+            "code": "pow",
+            "values": {
+              "n": {
+                "from": 40,
+                "to": 400,
+                "steps": 4
+              }
+            }
+          },
+          "speak": "Walk the arms up from forty to four hundred. Power leaps from a coin toss to ninety-five percent by a hundred and sixty, and is all but certain by two hundred and eighty — the last hundred and twenty patients buy almost nothing."
+        },
+        {
+          "speak": "That is why trials are sized before they start: the cost of patients rises in a straight line, but what they buy flattens out."
+        },
+        {
+          "explore": {
+            "code": "pow"
+          },
+          "speak": "Now shrink the effect to a fifth of a standard deviation and watch the whole curve sink — then find how many patients per arm it takes to get back to eighty percent."
+        }
+      ]
+    }
   }
 ]
