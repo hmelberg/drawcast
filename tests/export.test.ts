@@ -151,20 +151,32 @@ describe("the export's sweep warm-up (source pins — the export is DOM-driven)"
     expect(src).toMatch(/import \{ precomputeSweeps \} from "\.\.\/render\/sweep-run";/);
     // Guarded: a player with no runtime (no run steps, a headless mount) has no runner.
     expect(src).toMatch(/if \(handle\.timeline\.sweepRunner\) await precomputeSweeps\(handle\.plan, handle\.timeline\.sweepRunner\);/);
+    // The two pause sources share `recorder.state` and nothing else, so the
+    // loop resumes ONLY what it paused itself (`heldByLoop`) and never into a
+    // hidden tab — where the visibility pauser owns the recorder and its own
+    // handler will resume it when the tab comes back (fix round 2).
+    expect(src).toMatch(/let heldByLoop = false;/);
+    expect(src).toMatch(/if \(recorder\.state === "recording"\) \{\s*recorder\.pause\(\);\s*heldByLoop = true;\s*\}/);
+    expect(src).toMatch(/if \(heldByLoop && recorder\.state === "paused" && !document\.hidden\) recorder\.resume\(\);/);
     // Searched from the item loop, so the visibility pauser's own pair (which
-    // uses the very same two lines, above the loop) cannot stand in for these.
+    // uses the very same two calls, above the loop) cannot stand in for these.
     const loop = src.indexOf("for (let i = 0; i < items.length; i++)");
     expect(loop).toBeGreaterThan(-1);
-    const pause = src.indexOf('if (recorder.state === "recording") recorder.pause();', loop);
+    const pause = src.indexOf('if (recorder.state === "recording") {', loop);
     const mount = src.indexOf("handle = await render(items[i]", loop);
     const warm = src.indexOf("await precomputeSweeps(handle.plan, handle.timeline.sweepRunner)", loop);
-    const resume = src.indexOf('if (recorder.state === "paused") recorder.resume();', loop);
+    const resume = src.indexOf('if (heldByLoop && recorder.state === "paused" && !document.hidden) recorder.resume();', loop);
     const play = src.indexOf("await handle.timeline.play();", loop);
     for (const i of [pause, mount, warm, resume, play]) expect(i).toBeGreaterThan(-1);
     expect(pause).toBeLessThan(mount);
     expect(mount).toBeLessThan(warm);
     expect(warm).toBeLessThan(resume);
     expect(resume).toBeLessThan(play);
+    // …and the resume lives in ONE place, a finally, so a mount or a warm-up
+    // that throws does not leave the recorder paused for good.
+    const fin = src.indexOf("} finally {", warm);
+    expect(fin).toBeGreaterThan(warm);
+    expect(fin).toBeLessThan(resume);
   });
 });
 
