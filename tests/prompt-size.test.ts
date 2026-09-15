@@ -123,8 +123,21 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // the schema (+6,479), the run bullet and the rewritten explore/controls
 // sentences in the prompts (+615) — schema 110309 → 116788, system
 // 225171 → 232265.
-const BASELINE_SYSTEM_CHARS = 232265;
-const BASELINE_SCHEMA_CHARS = 116788;
+// Re-pinned 2026-09-15 for the sweep fix wave (item 2): three wordings that
+// had gone stale or self-contradictory. compiler-v1.md's explore bullet said
+// BOTH "App only: movies drop the whole beat INCLUDING its speak" and "the
+// movie continues" — its middle is now one sentence, "Without a controls
+// script the beat is app-only (movies drop it, speak included)" (−22 on the
+// system prompt, prompt-only). The schema's `explore` description still
+// opened on the stage-1 world where the beat opened the ⊕ tray; its opener is
+// now "Hold the lesson for the viewer: on a `pane: controls` script the drawn
+// knobs are live and the tray stays shut…" (+52 on the schema, which is
+// embedded verbatim in the system prompt, so the same +52 lands there).
+// Net: schema 116788 → 116840 (+52), system 232265 → 232295 (+30 = +52 − 22).
+// (types.ts's `controls` docstring was fixed in the same item; a TS comment
+// is in neither measurement.)
+const BASELINE_SYSTEM_CHARS = 232295;
+const BASELINE_SCHEMA_CHARS = 116840;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

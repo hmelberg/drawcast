@@ -475,7 +475,15 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
     // fires when the export has no clock left; without one, freeze
     // everything until they return.
     let resumeTarget: Awaited<ReturnType<typeof render>> | null = null;
-    stopVisibility = visibilityPauser(keepAlive ?? document, {
+    // ONE visibility surface for the pauser AND for the item loop's resume
+    // guard. They must be the same object: with the keep-alive clock attached
+    // (the production default) `ExportKeepAlive.hidden` is FALSE while the tab
+    // itself is hidden — the export still has a clock — so the pauser never
+    // pauses. A loop that asked `document.hidden` instead would refuse to
+    // resume the recorder it paused over a mount, and the movie would end
+    // silently there, with nobody left to resume it.
+    const vis: VisibilityDoc = keepAlive ?? document;
+    stopVisibility = visibilityPauser(vis, {
       pause: () => {
         // Remember the handle only when its timeline is actually playing:
         // play() on a finished player restarts it from step 0 — hiding the tab
@@ -503,7 +511,8 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
     try {
       for (let i = 0; i < items.length; i++) {
         if (signal.aborted) break;
-        hooks.onStatus(items.length > 1 ? `Recording — playing part ${i + 1}/${items.length}…` : "Recording — playing the drawcast once…");
+        const playingStatus = items.length > 1 ? `Recording — playing part ${i + 1}/${items.length}…` : "Recording — playing the drawcast once…";
+        hooks.onStatus(playingStatus);
         // The recorder started BEFORE this loop, so everything between here
         // and play() would be recorded as a still frame: mounting the figure
         // (a runtime boot, a chart) and warming the sweeps below can each take
@@ -566,11 +575,17 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
           // player warms this cache on an idle callback while the viewer watches
           // the opening, but a recording has no spare time — a cold cache would
           // record the script's first run as a stalled frame.
-          if (handle.timeline.sweepRunner) await precomputeSweeps(handle.plan, handle.timeline.sweepRunner);
+          if (handle.timeline.sweepRunner) {
+            // Seconds of runtime with nothing on screen: say so, then hand the
+            // status line back to the part that is about to play.
+            hooks.onStatus("Preparing the sweeps…");
+            await precomputeSweeps(handle.plan, handle.timeline.sweepRunner);
+            hooks.onStatus(playingStatus);
+          }
         } finally {
           // ONE place, and on the error path too: a mount or a warm-up that
           // throws must not leave the recorder paused for the rest of the run.
-          if (heldByLoop && recorder.state === "paused" && !document.hidden) recorder.resume();
+          if (heldByLoop && recorder.state === "paused" && !vis.hidden) recorder.resume();
           heldByLoop = false;
         }
         await handle.timeline.play();

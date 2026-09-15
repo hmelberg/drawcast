@@ -843,7 +843,9 @@ The lint `explore-invite` (warn): an ordinary `speak` matching a small
 invitation word list — slide, drag, press, click, toggle, try it, turn the
 knob/dial, set the … to, and the Norwegian dra, trykk, klikk, prøv, skyv —
 belongs in an `explore` beat instead. `tests/examples-style.test.ts` pins
-`INVITE_BASELINE` at 0.
+`INVITE_BASELINE` at 0. (Retired 2026-09-15, stage 2: the explore beat now
+demos the knobs by itself, so the invitation law it enforced is gone — the
+rule, its tests and the ratchet are deleted.)
 
 Four bundled examples became two-part playlists (theory drawing, then the
 knobs), all four with `pane: controls`: SIR, the Markov cohort, the

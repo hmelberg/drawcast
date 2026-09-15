@@ -251,8 +251,8 @@ export interface SpecElement {
    *  control literal — `(min, max[, step])`, `["a", "b"]`, `True`/`False`, a
    *  string, a number — or as `Slider(...)`/`Choice(...)`/`Toggle(...)`/
    *  `Text(...)`/`Number(...)`/`Button(...)`. The literal's default (midpoint of
-   *  a range) is what the baked run and the movie show — at their defaults,
-   *  or wherever a `run` or the explore demo left them. */
+   *  a range) is what the baked run and the movie show, or wherever a `run`
+   *  or the explore demo left them. */
   controls?: string[];
   /** code: re-run on every control change (default true); false shows a Run button instead. */
   autorun?: boolean;

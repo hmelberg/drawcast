@@ -461,6 +461,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     // them too, but a plan is built without the lint often enough (the
     // subtitle pass, a test, an embed) that swallowing them here would let a
     // sweep vanish with no word said about why.
+    // A sweep repaints a figure that is not on screen yet: the values walk,
+    // the narration lands, and the viewer sees nothing. Not `mentioned` —
+    // this is a complaint that the script was never drawn, not a draw.
+    if (!visibleSet.has(codeId)) warnings.push(`commands[${i}].${where}: "${codeId}" has not been drawn yet`);
     const sweep = args ? runValues(args, controls) : { steps: demoWalk(codeId, controls), issues: [] as string[] };
     for (const issue of sweep.issues) warnings.push(`commands[${i}].${where}: ${issue}`);
     if (sweep.steps.length === 0) return null;

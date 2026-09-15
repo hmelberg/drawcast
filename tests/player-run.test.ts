@@ -3,7 +3,7 @@ import { Player, type CodePatch, type Reprojector } from "../src/render/player";
 import { planCommands } from "../src/render/plan";
 import { parseControls } from "../src/code/controls";
 import { SpeechManager } from "../src/render/speech";
-import { sweepRunnerFor } from "../src/render/sweep-run";
+import { precomputeSweeps, sweepRunnerFor } from "../src/render/sweep-run";
 import type { Spec } from "../src/spec/types";
 
 // node has no rAF; drive Player.progress with a timer-based stand-in.
@@ -124,6 +124,75 @@ describe("player: run", () => {
     player.renderUpTo(5);
     expect(patches.get("sim")?.values.beta).toBe(0.6);
   });
+  // A forward scrub crosses runs the viewer never played. Patches are RUNTIME
+  // state — `plan.states` carries none — so without this the figure at that
+  // boundary is the author's script, which the lesson has already swept past.
+  describe("a forward scrub over a run that never played", () => {
+    const NEVER = [{ draw: ["sim"] }, { run: { code: "sim", values: { beta: [0.2, 0.4] }, every: 0.01 } }, { pause: 0.01 }];
+    const tick = () => new Promise((r) => setTimeout(r, 0));
+
+    test("asks the runner for the run's LAST value and applies the answer", async () => {
+      const { player, patches, runs } = make(NEVER);
+      player.renderUpTo(3);
+      expect(patches.has("sim")).toBe(false); // nothing is invented synchronously
+      await tick();
+      expect(runs).toEqual(["sim:0.4"]); // the last value only — the rest never showed
+      expect(patches.get("sim")?.values.beta).toBe(0.4);
+    });
+
+    test("with no runner it leaves the authored script alone", async () => {
+      const { player, patches } = make(NEVER);
+      player.sweepRunner = null;
+      player.renderUpTo(3);
+      await tick();
+      expect(patches.size).toBe(0);
+    });
+
+    test("results from an earlier play are re-applied SYNCHRONOUSLY, without running anything", async () => {
+      const { player, patches, runs } = make(NEVER);
+      await player.play();
+      expect(runs).toEqual(["sim:0.2", "sim:0.4"]);
+      player.renderUpTo(0);
+      expect(patches.has("sim")).toBe(false);
+      player.renderUpTo(3);
+      expect(patches.get("sim")?.values.beta).toBe(0.4); // no await: the results were remembered
+      expect(runs).toEqual(["sim:0.2", "sim:0.4"]); // …and no step was run again
+    });
+
+    test("a resolution that arrives after the viewer has scrubbed away is dropped", async () => {
+      const { player, patches } = make(NEVER);
+      player.renderUpTo(3);
+      player.renderUpTo(0); // before the runner resolves
+      await tick();
+      expect(patches.size).toBe(0);
+      expect(player.codePatchOf("sim")).toBe(null);
+    });
+  });
+
+  // A remediation `goto` goes through jumpTo(n, true). Without the drop, the
+  // patches of the steps it jumped back over stay in the history, the replay
+  // appends its own out of order, and the next scrub reads the wrong one.
+  test("a goto drops the patches of the steps it jumps back over", async () => {
+    // steps: 0 draw, 1 run(0.2), 2 pause, 3 run(0.6), 4 pause.
+    const { player, patches } = make([
+      { draw: ["sim"] },
+      { run: { code: "sim", values: { beta: [0.2] }, every: 0.01 } },
+      { pause: 0.01 },
+      { run: { code: "sim", values: { beta: [0.6] }, every: 0.01 } },
+      { pause: 0.01 },
+    ]);
+    await player.play();
+    expect(patches.get("sim")?.values.beta).toBe(0.6);
+    player.jumpTo(2, true); // a goto landing between the two runs
+    expect(patches.get("sim")?.values.beta).toBe(0.2);
+    expect(player.codePatchOf("sim")?.values.beta).toBe(0.2);
+    player.renderUpTo(2); // …and a scrub to the same boundary agrees
+    expect(player.codePatchOf("sim")?.values.beta).toBe(0.2);
+    player.jumpTo(1, true); // back before both: the author's script again
+    expect(patches.has("sim")).toBe(false);
+    expect(player.codePatchOf("sim")).toBe(null);
+  });
+
   test("the explore demo plays under autoAnswers (movies) with its narration, and the gate step is still skipped", async () => {
     const { player, speech, runs } = make([{ explore: { code: "sim" }, speak: "Try it." }, { speak: "After." }]);
     player.autoAnswers = true;
@@ -173,5 +242,58 @@ describe("sweepRunnerFor", () => {
 
   test("an id that is not a code element with controls rejects", async () => {
     await expect(sweepRunnerFor(SPEC)("nope", { beta: 0.2 })).rejects.toThrow(/not a code element with controls/);
+  });
+
+  // A spec that has been through a render once carries the authored script in
+  // `code_src`, with its control literals still tuples; `code` is the rewritten
+  // one, in which parseControls finds nothing to sweep. controlsOfFor reads
+  // code_src first, and so must this — or a re-rendered cast sweeps nothing.
+  test("code_src wins over code: a re-rendered spec still sweeps", async () => {
+    const rendered = {
+      elements: [{ id: "sim", type: "code", language: "python", code: "beta = 0.55\nmodel = \"SIR\"", code_src: CODE, controls: ["beta", "model"] }],
+      commands: [],
+    } as unknown as Spec;
+    let seen = "";
+    const runner = sweepRunnerFor(rendered, {
+      runner: async (req) => {
+        seen = req.code;
+        return envelope({ stdout: "ok" });
+      },
+      cacheGet: async () => null,
+      cachePut: async () => undefined,
+    });
+    await runner("sim", { beta: 0.35, model: "SEIR" });
+    expect(seen).toContain("0.35");
+    expect(seen).toContain("SEIR");
+  });
+});
+
+describe("precomputeSweeps", () => {
+  const plan = planCommands([{ draw: ["sim"] }, { run: { code: "sim", values: { beta: [0.2, 0.4, 0.6] }, every: 0.01 } }] as never, ["sim"], { controlsOf } as never);
+
+  test("warms every value of every run step", async () => {
+    const seen: number[] = [];
+    await precomputeSweeps(plan, async (_id, v) => {
+      seen.push(v.beta as number);
+      return { code: "c", result: "r" };
+    });
+    expect(seen).toEqual([0.2, 0.4, 0.6]);
+  });
+
+  // It runs on an idle callback and boots a runtime per step: the figure it
+  // was warming may be long gone (a revise round, a playlist item ending).
+  test("stops between steps once the figure it was warming is disposed", async () => {
+    const seen: number[] = [];
+    let disposed = false;
+    await precomputeSweeps(
+      plan,
+      async (_id, v) => {
+        seen.push(v.beta as number);
+        disposed = true; // destroyed while the first step was booting
+        return { code: "c", result: "r" };
+      },
+      () => disposed,
+    );
+    expect(seen).toEqual([0.2]);
   });
 });

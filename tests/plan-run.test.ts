@@ -13,8 +13,8 @@ const kinds = (p: { steps: PlanStep[] }) => p.steps.filter((s) => !(s.kind === "
 
 describe("planner: run", () => {
   test("a run becomes one step with complete value maps and every × n seconds", () => {
-    const p = plan([{ run: { code: "sim", values: { beta: [0.2, 0.4, 0.6] }, every: 0.3 }, speak: "Watch." }]);
-    const s = p.steps[0];
+    const p = plan([{ draw: ["sim"] }, { run: { code: "sim", values: { beta: [0.2, 0.4, 0.6] }, every: 0.3 }, speak: "Watch." }]);
+    const s = p.steps[1];
     expect(s.kind).toBe("run");
     if (s.kind !== "run") return;
     expect(s.code).toBe("sim");
@@ -48,6 +48,21 @@ describe("planner: run", () => {
     const p = plan([{ run: { code: "nope", values: { beta: 1 } } }]);
     expect(p.steps.filter((s) => s.kind === "run")).toEqual([]);
     expect(p.warnings[0]).toMatch(/nope/);
+  });
+  // A sweep on a panel nobody has drawn yet walks the values, spends the
+  // narration, and shows the viewer nothing. The step still plays (the
+  // implicit final draw may yet put the figure on screen); the author is told.
+  test("a run before its script is drawn is a warning — and the step is still planned", () => {
+    const p = plan([{ run: { code: "sim", values: { beta: [0.2, 0.4] } }, speak: "Watch." }]);
+    expect(p.warnings).toEqual(['commands[0].run: "sim" has not been drawn yet']);
+    expect(p.steps.filter((s) => s.kind === "run")).toHaveLength(1);
+    // Not marked mentioned: complaining is not drawing, so the implicit final
+    // draw still has the element on its list.
+    expect(p.steps.some((s) => s.kind === "draw" && s.implicit && s.ids.includes("sim"))).toBe(true);
+    // Drawn first — including by a `show` — and there is nothing to say.
+    expect(plan([{ draw: ["sim"] }, { run: { code: "sim", values: { beta: [0.2] } } }]).warnings).toEqual([]);
+    // …and the explore demo, which is the same sweep, is held to the same rule.
+    expect(plan([{ explore: { code: "sim" }, speak: "Try it." }]).warnings).toEqual(['commands[0].explore.play: "sim" has not been drawn yet']);
   });
 });
 

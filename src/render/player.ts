@@ -270,6 +270,22 @@ export class Player {
    */
   private patchHistory = new Map<string, { step: number; patch: CodePatch }[]>();
   /**
+   * plan step index → the full series of results that `run` step produced,
+   * kept past the scrub that took its patch away. Patches are RUNTIME state:
+   * `plan.states` carries none, so a scrub FORWARD over a run lands on a
+   * boundary whose figure the plan cannot describe. This is how the boundary
+   * gets described anyway — without running the script again, and without
+   * the history entry, which `dropPatchesFrom` is entitled to throw away.
+   */
+  private runResults = new Map<number, CodePatch[]>();
+  /**
+   * The `run` step in flight, if any: its results all exist (they are
+   * computed before the first frame) but its history entry holds only the
+   * value the tween has reached so far. A scrub PAST it aborts it mid-sweep,
+   * and must land on the value the run ENDS at, not on the half-swept one.
+   */
+  private activeRun: { index: number; id: string; results: CodePatch[] } | null = null;
+  /**
    * The layout currently PAINTED, when a preview has replaced the plan-time
    * one. Anything hit-testing drawn geometry — a switch on a monitor's chin,
    * an overlay pinned to its glass — must ask for this, or it will be aiming
@@ -451,18 +467,23 @@ export class Player {
   /** Jump to a step boundary: apply exactly the scene state after steps[0..n-1]. */
   renderUpTo(n: number): void {
     this.abortRun();
-    // A sweep's patch belongs to the step that set it: scrubbing to before
-    // that step undoes it (back to the previous run's result, or to what the
-    // author wrote), scrubbing past it keeps it. Dropped BEFORE the jump, so
-    // the boundary commit below is laid out from the right script.
-    this.dropPatchesFrom(n);
     this.jumpTo(n, false);
   }
 
   /** Move the playhead to a boundary: scrub (keepPlaying false, from
    *  renderUpTo) or a content-initiated goto mid-run (keepPlaying true —
-   *  the run's own AbortController must survive the jump). */
-  private jumpTo(n: number, keepPlaying: boolean): void {
+   *  the run's own AbortController must survive the jump). Both drop the
+   *  patches the steps at or after `n` made: a remediation `goto` that
+   *  jumped backwards over a `run` and left its entry standing would put the
+   *  history out of order, and the next scrub would show the wrong patch. */
+  jumpTo(n: number, keepPlaying: boolean): void {
+    // A sweep's patch belongs to the step that set it: scrubbing to before
+    // that step undoes it (back to the previous run's result, or to what the
+    // author wrote), scrubbing past it keeps it. Dropped BEFORE the key is
+    // applied, so the boundary commit below is laid out from the right script.
+    this.dropPatchesFrom(n);
+    // …and a scrub landing PAST a run puts back what that run ended on.
+    if (!keepPlaying) this.restoreRunPatches(n);
     const scene = this.stateAt(n);
     this.applyKey(scene);
     this.applyScene(scene);
@@ -571,10 +592,66 @@ export class Player {
    *  never grows with the length of a sweep. */
   private pushCodePatch(id: string, patch: CodePatch, step: number): void {
     const hist = this.patchHistory.get(id) ?? [];
-    if (hist.length > 0 && hist[hist.length - 1].step === step) hist[hist.length - 1] = { step, patch };
-    else hist.push({ step, patch });
+    // BY STEP, not by arrival: a forward scrub fills in the runs it skipped
+    // after later ones may already have entries, and an out-of-order history
+    // would make `dropPatchesFrom` and `codePatchOf` answer with the wrong
+    // one. Playback always appends (its step is the newest), so the common
+    // path is still a push or an in-place replace.
+    const at = hist.findIndex((e) => e.step >= step);
+    if (at === -1) hist.push({ step, patch });
+    else if (hist[at].step === step) hist[at] = { step, patch };
+    else hist.splice(at, 0, { step, patch });
     this.patchHistory.set(id, hist);
-    this.showCodePatch(id, patch);
+    // Only the newest entry is what the figure shows; an older one filled in
+    // behind a later run's result must not paint over it.
+    if (hist[hist.length - 1].step === step) this.showCodePatch(id, patch);
+  }
+
+  /**
+   * Put back what every `run` before boundary `n` left its script at.
+   *
+   * A forward scrub crosses runs the viewer never played, and there is
+   * nothing in the plan to read their results from — `plan.states` carries
+   * geometry, not code. So: a run whose results are already known (the one in
+   * flight this scrub just aborted, or one remembered from an earlier play)
+   * gets its LAST result applied synchronously, before the boundary is laid
+   * out. A run with no results at all is asked for its last value only —
+   * a cache read after the idle warm-up — and the answer is applied later,
+   * and only if the scrub it was asked for still stands.
+   */
+  private restoreRunPatches(n: number): void {
+    const upto = Math.min(n, this.plan.steps.length);
+    for (let i = 0; i < upto; i++) {
+      const step = this.plan.steps[i];
+      if (step.kind !== "run") continue;
+      // The aborted in-flight run's entry holds the value its tween had
+      // reached; its own results say where it was going. Those win.
+      const known = (this.activeRun?.index === i ? this.activeRun.results : null) ?? this.runResults.get(i) ?? null;
+      if (known) {
+        const last = known[known.length - 1];
+        // code === "" is "nothing ever succeeded" — leave the authored script.
+        if (last && last.code !== "") this.pushCodePatch(step.code, last, i);
+        continue;
+      }
+      if (this.patchHistory.get(step.code)?.some((e) => e.step === i)) continue;
+      const runner = this.sweepRunner;
+      const values = step.values[step.values.length - 1];
+      if (!runner || !values) continue;
+      void runner(step.code, values).then(
+        (patch) => {
+          // The scrub must still stand, and nothing may have played this run
+          // in the meantime — either way its own result is the honest one.
+          if (this.completed !== n) return;
+          if (this.patchHistory.get(step.code)?.some((e) => e.step === i)) return;
+          this.pushCodePatch(step.code, { ...patch, values }, i);
+          this.applyKey(this.stateAt(this.completed));
+        },
+        () => {
+          /* a script that will not run leaves the authored figure standing */
+        },
+      );
+    }
+    this.activeRun = null; // consumed, or stale: either way the scrub owns the state now
   }
 
   /** Hand one script's patch (or null, the authored script) to the render
@@ -909,6 +986,11 @@ export class Player {
           if (signal.aborted) return;
         }
         const n = results.length;
+        // Remembered from here on: a scrub that skips this step (forward, or
+        // back and forward again) has to show what the run ended on, and
+        // re-running the series to find that out would stall the scrub.
+        this.runResults.set(index, results);
+        this.activeRun = { index, id: step.code, results };
         const scene = this.plan.states[index];
         const overrides = this.overridesOf(scene.offsets, scene.turns, scene.shapes, scene.tex, scene.copies);
         let last = -1;
@@ -931,6 +1013,7 @@ export class Player {
           this.geometryDirty = true;
         });
         if (signal.aborted) return; // a scrub's renderUpTo owns the state now
+        this.activeRun = null; // the run finished: its history entry IS its last result
         this.applyKey(scene); // the boundary, with the last patch in it
         this.applyScene(scene);
         return;

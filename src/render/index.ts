@@ -17,6 +17,8 @@ import type { LabelPin } from "../layout/labels";
 import { Player, type CodePatch, type PlaybackMode, type PlayerCallbacks } from "./player";
 import { applyCodePatches, precomputeSweeps, sweepRunnerFor } from "./sweep-run";
 import { stableHash } from "./sweep";
+import { scanDataTokens, substituteDataTokens } from "../code/tokens";
+import { decodeCodeResult } from "../code/envelope";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { WebAudioTones, type ToneLike } from "./tones";
 import { resolvePortraits } from "./portrait";
@@ -316,7 +318,26 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     // was built from the viewer's edits and already carries whatever it wants
     // to keep. With none, a live sweep's patches stand in.
     const patched = elements ?? (codePatches.size > 0 ? applyCodePatches(spec.elements ?? [], codePatches) : undefined);
-    const split = splitVarOverrides(params);
+    // A `{id.var}` template param is harvested from the script's OUTPUT, so a
+    // sweep that changes the output must change the param too — otherwise the
+    // CE plane's threshold line walks while the number that labels it stands
+    // still. Re-substituted into the AUTHORED params (the resolved clone
+    // holds the harvested values, not the tokens), from the PATCHED elements'
+    // fresh envelopes — the same reading the tray does in repaint(). The
+    // caller's own params are explicit overrides and keep the last word.
+    let effective = params;
+    if (codePatches.size > 0 && scanDataTokens(authored.params).length > 0) {
+      const from = patched ?? spec.elements ?? [];
+      const sub = substituteDataTokens(authored.params, (codeId, path) => {
+        const env = decodeCodeResult(from.find((e) => e.id === codeId)?.code_result);
+        if (!env || !env.ok) return { error: env?.error ?? "the script did not run" };
+        if (env.dataErrors && path in env.dataErrors) return { error: env.dataErrors[path] };
+        if (env.data && path in env.data) return { value: env.data[path] };
+        return { error: "not harvested" };
+      }).params;
+      effective = { ...sub, ...params };
+    }
+    const split = splitVarOverrides(effective);
     const l = applyTextStyle(
       layoutSpec(
         { ...spec, params: withOverrides(spec.params, split.params), ...(Object.keys(split.vars).length > 0 ? { vars: { ...(spec.vars ?? {}), ...split.vars } } : {}), ...(patched ? { elements: patched } : {}) },
@@ -427,6 +448,10 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // …and the cache is filled while the viewer watches the opening: every run
   // step's value maps, once, when the drawcast first starts playing. By the
   // time the sweep arrives, each step is a cache read.
+  // Set when this figure is torn down or replaced (destroy/update below). The
+  // idle precompute below can start after that — it is scheduled on an idle
+  // callback and boots a runtime per step — and must stop when it does.
+  let disposed = false;
   if (plan.steps.some((s) => s.kind === "run")) {
     let warmed = false;
     const prevOnState = player.callbacks.onState;
@@ -438,7 +463,10 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
       // of the global and throws "Illegal invocation" when called bare.
       const hasIdle = typeof (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback === "function";
       const idle = hasIdle ? (cb: () => void) => requestIdleCallback(cb) : (cb: () => void) => setTimeout(cb, 300);
-      idle(() => void precomputeSweeps(plan, sweepRunner));
+      idle(() => {
+        if (disposed) return;
+        void precomputeSweeps(plan, sweepRunner, () => disposed);
+      });
     };
   }
 
@@ -450,6 +478,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     authored,
     lint: () => layout.issues,
     update: async (diff) => {
+      disposed = true;
       player.dispose();
       mounted.destroy();
       figure.remove();
@@ -458,6 +487,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
       return handle;
     },
     destroy: () => {
+      disposed = true;
       player.dispose();
       mounted.destroy();
       figure.remove();

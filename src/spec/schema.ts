@@ -527,7 +527,7 @@ const commandSchema = {
     explore: {
       type: "object",
       description:
-        "Open the explore tray (the \u2295 sliders) and wait for the viewer to press Continue \u2014 the authored 'now try numbers yourself' moment, placed right after a personalized reveal. params restricts which sliders show; code opens a code editor instead. On a script with controls the beat first plays a short demo of the knobs (a seeded walk, or `play`'s planned sweep) with this speak over it; the app then stops with the knobs live, the movie continues. Without controls the beat is app-only and the movie skips it, speak included.",
+        "Hold the lesson for the viewer: on a `pane: controls` script the drawn knobs are live and the tray stays shut; otherwise the \u2295 tray opens (params restricts which sliders; code opens that script's editor). The authored 'now try numbers yourself' moment, placed right after a personalized reveal. On a script with controls the beat first plays a short demo of the knobs (a seeded walk, or `play`'s planned sweep) with this speak over it; the app then stops with the knobs live, the movie continues. Without controls the beat is app-only and the movie skips it, speak included.",
       properties: {
         params: { type: "array", items: { type: "string" }, description: "Slider param paths to show (default: all)." },
         code: {

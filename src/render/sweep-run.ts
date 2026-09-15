@@ -21,9 +21,14 @@ import type { CodePatch, SweepRunner } from "./player";
 export function sweepRunnerFor(authored: Spec, deps: CodeRunDeps = {}): SweepRunner {
   return async (codeId, values) => {
     const el = authored.elements?.find((e) => e.id === codeId);
-    if (!el || el.type !== "code" || !el.language || !el.code || !el.controls?.length) throw new Error(`run: "${codeId}" is not a code element with controls`);
-    const { controls } = parseControls(el.language, el.code, el.controls);
-    const code = applyControls(el.language, el.code, controls, values);
+    // `code_src` FIRST, exactly as controlsOfFor reads it: a spec that has
+    // been through a render once carries the authored script there, with its
+    // control literals still tuples — `code` may already be the rewritten
+    // one, and parseControls would find nothing in it to sweep.
+    const src = el?.code_src ?? el?.code;
+    if (!el || el.type !== "code" || !el.language || !src || !el.controls?.length) throw new Error(`run: "${codeId}" is not a code element with controls`);
+    const { controls } = parseControls(el.language, src, el.controls);
+    const code = applyControls(el.language, src, controls, values);
     // The data bridge's paths ride along exactly as in render/code.ts, or a
     // swept script would miss the cache the resolve pass filled (and harvest
     // nothing for a "{id.path}" param).
@@ -38,11 +43,16 @@ export function sweepRunnerFor(authored: Spec, deps: CodeRunDeps = {}): SweepRun
   };
 }
 
-/** Warm the cache for every run step, in order; failures are the step's own business later. */
-export async function precomputeSweeps(plan: Plan, runner: SweepRunner): Promise<void> {
+/** Warm the cache for every run step, in order; failures are the step's own
+ *  business later. `isDisposed` is asked between steps: this runs on an idle
+ *  callback, so the figure it was warming may have been destroyed or replaced
+ *  (a revise round, a playlist item ending) long before it gets there, and
+ *  every further boot is then a runtime the page has no use for. */
+export async function precomputeSweeps(plan: Plan, runner: SweepRunner, isDisposed?: () => boolean): Promise<void> {
   for (const step of plan.steps) {
     if (step.kind !== "run") continue;
     for (const v of step.values) {
+      if (isDisposed?.()) return;
       try {
         await runner(step.code, v);
       } catch {
