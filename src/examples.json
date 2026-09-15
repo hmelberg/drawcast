@@ -21322,7 +21322,7 @@
     }
   },
   {
-    "request": "How does turning beta and gamma change the epidemic curve, once the SIR model makes room for sliders on them?",
+    "request": "How does turning beta and gamma change the epidemic curve?",
     "packs": ["evidence"],
     "spec": {
       "title": "SIR, then the knobs",
