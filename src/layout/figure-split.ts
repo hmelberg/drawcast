@@ -57,7 +57,8 @@ export interface FigureSplit {
 export function figureSplit(input: {
   /** A template that actually lays out (a stub falls through to tier-2). */
   hasTemplate: boolean;
-  /** Its params_schema declares `box` — most templates own the whole canvas. */
+  /** The template lays out at all (every such template can take a box since
+   *  the template box round — natively, or fitted by template-fit.ts). */
   templateTakesBox: boolean;
   /** The author already placed the figure. */
   boxGiven: boolean;

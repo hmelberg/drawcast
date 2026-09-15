@@ -10,6 +10,11 @@
 // is 7 units, 3 px on a phone — which is what a hand does when it draws the
 // same figure small. Labels then take a larger share of the box; the label
 // solver moves them and the overlap lints report what no longer fits.
+//
+// The fit is recomputed on every relayout (animate, sweep). The box is
+// stable; `s` follows that frame's ink union, so a template whose OUTERMOST
+// ink moves with an animated param breathes slightly. Acceptable today;
+// pinning the boundary fit into layoutSpec is the fix if a lesson shows it.
 
 import { FONT_FLOOR } from "../lint/lint";
 import type { SceneLayout } from "../scenes/types";

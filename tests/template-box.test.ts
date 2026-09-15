@@ -101,7 +101,6 @@ describe("template box — a native box is resolved, never fitted", () => {
       if (id === "title") continue;
       expect(inside(b, R, 40), id).toBe(true); // axis labels hang just outside the plot area
     }
-    // "fit-scale" lands in Task 4 — the union doesn't know it yet.
     expect(r.issues.filter((i) => i.rule === "fit-scale")).toEqual([]);
   });
 
@@ -170,7 +169,7 @@ describe("template box — tier-2 ink stays inside the fitted plot", () => {
 
     const r = layoutSpec(spec("right"));
     expect(r.fit).toBeDefined();
-    const { s, dx, dy } = r.fit!;
+    const { s, dx } = r.fit!;
     const fitX0 = plot.x0 * s + dx;
     for (const d of flattenDrawables(r.drawables)) {
       if (!d.id.startsWith("p_")) continue;
@@ -302,7 +301,7 @@ describe("template box — fit-scale lint", () => {
     const hits = r.issues.filter((i) => i.rule === "fit-scale");
     expect(hits).toHaveLength(1);
     expect(hits[0].severity).toBe("warn");
-    expect(hits[0].ids).toEqual(["sir_compartments"]);
+    expect(hits[0].ids).toEqual([]); // a template name is not an element id (template-params does the same)
     expect(hits[0].message).toMatch(/fitted at 0\.\d+/);
     expect(hits[0].message).toMatch(/taller region|native box/);
   });

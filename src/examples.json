@@ -21343,9 +21343,9 @@
         { "draw": ["box_s", "box_code_s", "box_name_s"], "speak": "Everyone starts susceptible." },
         { "draw": ["flow_0", "rate_0", "box_i", "box_code_i", "box_name_i"], "speak": "Contact with an infectious person moves you across, at a rate beta times how many are infectious." },
         { "draw": ["flow_1", "rate_1", "box_r", "box_code_r", "box_name_r"], "speak": "And recovery moves you on, at a rate gamma." },
-        { "draw": ["sim", "sim_line_1", "sim_line_2", "sim_line_3"], "parallel": true, "speak": "The same three boxes in code: a rate in, a rate out, and a starting share." },
+        { "draw": ["sim", "sim_line_1", "sim_line_2", "sim_line_3"], "parallel": true, "speak": "Import the plotting library, then the same three boxes in code: a rate in, a rate out, and a starting share." },
         { "draw": ["sim_line_4", "sim_line_5", "sim_line_6", "sim_line_7", "sim_line_8", "sim_line_9"], "speak": "Each day, the new infections leave S and enter I, and the recoveries leave I and enter R." },
-        { "draw": ["sim_line_10", "sim_line_11", "sim_line_12", "sim_line_13", "sim_line_14"], "speak": "Then we plot the three shares over time." },
+        { "draw": ["sim_line_10", "sim_line_11", "sim_line_12", "sim_line_13", "sim_line_14"], "speak": "Then we print the peak and plot the three shares over time." },
         { "draw": ["sim_out"], "speak": "The infectious curve rises, peaks at under a third of the population, and falls as susceptibles run out." },
         { "explore": { "code": "sim" }, "speak": "Change beta or gamma and run it again." }
       ]

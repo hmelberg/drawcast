@@ -30,7 +30,7 @@ describe("bundled fewshots stay exemplary", () => {
     const plan = planCommands(spec.commands, layout.order, {
       bboxOf: (id) => bboxes.get(id) ?? null,
       windows: layout.windows ?? {},
-      ...domainMapping(spec.domain),
+      ...domainMapping(spec.domain, layout.fit),
       ...planOptionsFor(spec, layout),
     });
     expect(plan.warnings.filter((w) => w.includes("unknown id"))).toEqual([]);

@@ -1412,9 +1412,9 @@ drawcast in several languages, re-linted after translation.
   freehand elements; since the template box round (2026-09-15, `params.box`
   on every template, template-fit.ts) that template also takes a REGION and
   leaves the rest of the page free; links/info cards/quizzes compose freely
-  on any number of elements; heavy interactions are pause-gated so movies never need this;
-  and the note_sheet `keyboard: true` precedent shows a purpose-built
-  combined template covers a specific pairing cheaply.
+  on any number of elements; heavy interactions are pause-gated so movies
+  never need this; and the note_sheet `keyboard: true` precedent shows a
+  purpose-built combined template covers a specific pairing cheaply.
 - Time-proportional seek bar (estimate from speech + draw durations).
 - `morph`: spec-diff tweening for untemplated specs — no template param to
   drive, so it has to re-layout from a diffed spec and interpolate. Remains
