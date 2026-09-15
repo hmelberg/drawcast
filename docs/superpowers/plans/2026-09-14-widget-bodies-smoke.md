@@ -29,6 +29,12 @@ Open Examples → Widgets pack.
    snaps back and the caption says so, nothing moved. Press a BURIED disk and
    pull: it snaps back with "Only the top disk moves." Release a disk on
    blank paper: it snaps back, nothing moves, and playback does NOT resume.
+   Then play on to the QUESTION ("Move the tower to the right peg") and,
+   with the hint pill standing, drag disks to solve it — every drag lands
+   during the question exactly as it did paused, and the green mark
+   appears on the last move. (This ask-time path is the one no automated
+   test can drive: the player stays "playing" while a question stands.)
+   Also: a right-click on a disk does nothing to the tower.
 6. "How an XOR gate works." Paused: flip A — the bulb lights, the caption
    reads A=1, B=0 → 1. Flip B — it goes out. The ask accepts the lit state.
    In the movie the switch flips and the bulb lights on its own.
