@@ -20990,10 +20990,12 @@
           "speak": "Tap a bar and it sounds and joins the line above, or press its number; done delivers the tune."
         },
         {
-          "point": {
-            "at": {
-              "ref": "bar_5"
-            }
+          "highlight": {
+            "target": [
+              "bar_1",
+              "bar_3",
+              "bar_5"
+            ]
           },
           "speak": "The first, third and fifth bars — C, E and G — are a major chord: the three notes a tune usually comes home to."
         },
@@ -21099,7 +21101,7 @@
           "draw": [
             "status"
           ],
-          "speak": "The computer follows one fixed rule, in this order: take a winning square, else block yours, else the centre, else a corner. So it never blunders — and it never sets a trap either."
+          "speak": "The computer follows one fixed rule, in this order: take a winning square, else block yours, else the centre, else a corner. It never misses a win or a block in front of it — but it cannot see a fork coming."
         },
         {
           "ask": {
@@ -21107,7 +21109,7 @@
             "widget": "tictactoe",
             "answer": "draw",
             "right": "A draw — which is the best either side can force. Answer every threat and there is nothing left to win with.",
-            "wrong": "The computer took that one — try again."
+            "wrong": "The computer got that game. Press Continue, and open on a corner next time — two corners on one diagonal make a fork its rule cannot see."
           }
         }
       ]

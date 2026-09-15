@@ -424,7 +424,10 @@ widget: |
     let played = "";
     for (const note of norm(answer).split(" ")) {
       const i = NOTES.indexOf(note);
-      if (i < 0) continue;
+      // A note this xylophone does not have: demonstrate NOTHING. Skipping it
+      // would play a DIFFERENT tune than the one asked for, and the movie
+      // would look right while teaching the wrong answer.
+      if (i < 0) return [];
       played = played === "" ? NOTES[i] : played + " " + NOTES[i];
       out.push({ pointer: "bar_" + (i + 1), sound: { notes: NOTES[i] + ":q", tempo: 160 } }, { patch: { played } });
     }

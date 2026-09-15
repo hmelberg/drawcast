@@ -65,6 +65,12 @@ describe("xylophone", () => {
     expect(d.effects.filter((e) => e.sound)).toHaveLength(3);
     expect([...d.effects].reverse().find((e) => e.patch)!.patch).toEqual({ played: "C4 E4 G4" });
   });
+
+  test("an ask naming a note this xylophone has not got demonstrates NOTHING, not a different tune", () => {
+    const d = demoWidget(scenes["xylophone"], {}, "C4 F#4 G4");
+    expect(d.errors).toEqual([]);
+    expect(d.effects).toEqual([]);
+  });
 });
 
 describe("bubble sort", () => {
@@ -117,7 +123,21 @@ describe("tic-tac-toe", () => {
     expect(again.params.board).toBe(board); // deterministic opponent
   });
 
-  test("the opponent's fixed rule: win before block, block before the centre, then a corner", () => {
+  test("the opponent takes its OWN win ahead of blocking yours", () => {
+    // The one position that tells the two apart, and the reason it is here:
+    // every empty-board sequence below reads the same whether the rule looks
+    // for a win first or a block first, so none of them can fail if the two
+    // branches are swapped. Here O has oo. on the top row and X has xx. on
+    // the middle: taking the win ends the game, blocking prolongs it.
+    const r = runWidget(scenes["tictactoe"], { board: "oo.xx...." }, ["cell_6"]);
+    expect(r.errors).toEqual([]);
+    expect(r.params.board).toBe("oooxx.x.."); // O completed the top row…
+    expect(r.answer).toBe("lost");
+    // …and did NOT play the block at 5, which would have left the game open.
+    expect(r.params.board).not.toBe("oo.xxox..");
+  });
+
+  test("the opponent's fixed rule: block before the centre, the centre before a corner", () => {
     const t = scenes["tictactoe"];
     // Centre, then the far corner, then the block O forces: a draw, every time.
     const drawn = runWidget(t, {}, ["cell_4", "cell_8", "cell_1", "cell_3", "cell_6"]);
