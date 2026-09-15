@@ -81,6 +81,12 @@ describe("template box — the split default reaches every template", () => {
     const r = layoutSpec(sir({}, [{ id: "feed", type: "code", language: "python", show: "none", code: CODE }]));
     expect(r.fit).toBeUndefined();
   });
+
+  test("a side-by-side (show: left) code panel cannot share the page — no invented box, the overlap lint reports it", () => {
+    const r = layoutSpec(sir({}, [{ id: "sim", type: "code", language: "python", show: "left", code: CODE }]));
+    expect(r.fit).toBeUndefined();
+    expect(r.issues.some((i) => i.rule === "overlap-code-figure")).toBe(true);
+  });
 });
 
 describe("template box — a native box is resolved, never fitted", () => {

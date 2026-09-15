@@ -149,6 +149,13 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // merged tree, so the two constants below are pinned to the values actually
 // measured on the merge, not to a sum of the two rounds' deltas — schema
 // 116840 → 117162, system 232295 → 232892.
+// Re-measured 2026-09-15 for the final fix wave (item 4): the reworded
+// side-by-side clause in compiler-v1-code.md ("this holds for a code, below
+// or above panel — a side-by-side left/right panel needs the whole width…")
+// lives behind the {{CODE}} conditional fragment, which system(false) never
+// includes — so it costs an ordinary request nothing and BOTH constants stay
+// exactly where they were (schema 117162, system 232892), measured, not
+// assumed.
 const BASELINE_SYSTEM_CHARS = 232892;
 const BASELINE_SCHEMA_CHARS = 117162;
 

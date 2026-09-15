@@ -9,6 +9,10 @@
 // It is a DEFAULT, not a layout engine: it fills in only what the author left
 // out. An x, a width, a box — anything written explicitly still wins, and
 // what remains contested is the lint's business (rule overlap-code-figure).
+//
+// One shape it does NOT invent a box for: a side-by-side panel (show:
+// "left"/"right") needs the whole width (schema: ≥ 700) and so can never
+// share a page with a figure — beside a template, write "below" instead.
 
 import { CANVAS } from "./canvas";
 import { CHAR_W, PAD } from "./code";
@@ -63,11 +67,21 @@ export function figureSplit(input: {
   const { hasTemplate, templateTakesBox, boxGiven, code } = input;
   if (!hasTemplate || !code) return {};
   const out: FigureSplit = {};
-  // Untouched by the author: the script takes the reading side, the left, and
-  // no more of it than its own lines need. Only for a panel that is ALL code —
-  // one carrying its own output pane sizes that pane from the panel width, so
-  // hugging the script would squeeze the output instead of the chart.
   if (code.x === undefined && code.width === undefined) {
+    // A side-by-side panel (show: "left"/"right") is not sized like the
+    // others: the schema needs it width ≥ 700 (55% of the canvas), which is
+    // too wide to share a page with a figure at all — so it is NOT hugged to
+    // a half and gets no invented box; the pre-existing overlap-code-figure
+    // warn reports the combination instead (item 4, 2026-09-15).
+    if (code.show === "left" || code.show === "right") {
+      out.code = { x: 500, width: 900 }; // every bundled side-by-side example uses this
+      return out;
+    }
+    // Untouched by the author: the script takes the reading side, the left,
+    // and no more of it than its own lines need. Only for a panel that is
+    // ALL code — one carrying its own output pane (code, below, above) sizes
+    // that pane from the panel width, so hugging the script would squeeze
+    // the output instead of the chart.
     const width = code.show === "code" ? hugWidth(code.code ?? "", code.fontSize ?? 17) : CODE_HALF.width;
     out.code = { x: LEFT_EDGE + width / 2, width };
   }
