@@ -3,6 +3,7 @@ import { layoutSpec } from "../src/layout/layout";
 import { heuristicMeasure } from "../src/layout/measure";
 import { flattenDrawables, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
 import { controlsPane, controlsPaneHeight, CTL_ROW_H } from "../src/layout/code-controls-pane";
+import { withControlDefaults } from "../src/code/controls";
 import type { Spec } from "../src/spec/types";
 
 const OK = JSON.stringify({ ok: true, stdout: "42", stderr: "", figures: [] });
@@ -121,5 +122,27 @@ describe("pane: controls in the panel layout", () => {
     for (const d of rowDrawables) counts.set(d.id, (counts.get(d.id) ?? 0) + 1);
     expect(counts.size).toBeGreaterThan(0);
     for (const [id, n] of counts) expect(n, `${id} drawn ${n} times`).toBe(1);
+  });
+});
+
+describe("code_src is the panel's shape source, independent of the rewritten el.code (final wave item 1)", () => {
+  const authored = 'beta = Slider(0.1, 1.0, step=0.05, label="Willingness to pay")';
+  // What render/code.ts's resolveCode leaves in el.code AFTER the rewrite —
+  // a bare default value, every tuple/label already gone.
+  const rewritten = withControlDefaults("python", authored, ["beta"]);
+
+  test("with code_src holding the authored script, the panel draws a real slider with its authored label", () => {
+    const s = spec({ controls: ["beta"], code: rewritten, code_src: authored });
+    const all = ids(s);
+    expect(all).toContain("sim_ctl_beta__track");
+    const label = flattenDrawables(layoutSpec(s, heuristicMeasure).drawables).find((d) => d.id === "sim_ctl_beta__label") as TextDrawable;
+    expect(label.text).toBe("Willingness to pay");
+  });
+
+  test("without code_src, the same rewritten text alone is just a bare number — a number box, not a slider (documents the dependency)", () => {
+    const s = spec({ controls: ["beta"], code: rewritten });
+    const all = ids(s);
+    expect(all).not.toContain("sim_ctl_beta__track");
+    expect(all).toContain("sim_ctl_beta__box");
   });
 });

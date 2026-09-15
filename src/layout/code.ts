@@ -358,8 +358,13 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // `Slider(..., label="...")`, not just its name), and `controlsPaneHeight`
   // needs that same label text to settle the panel's height before `codeTop`
   // exists — so both must read the identical parse, or the settled height
-  // and the panel actually laid out could disagree.
-  const origControls = controlsPaneMode ? parseControls(el.language ?? "", el.code ?? "", el.controls!).controls : [];
+  // and the panel actually laid out could disagree. `el.code_src` — stamped
+  // by render/code.ts before it rewrote `el.code` to the controls' defaults
+  // — is the shape source: on the render clone, `el.code` alone has already
+  // lost every tuple/label to a bare default value (a slider parses back as
+  // a plain number). `el.code` is the fallback for direct layout callers
+  // (tests) that hand it an unrewritten script with no clone in the loop.
+  const origControls = controlsPaneMode ? parseControls(el.language ?? "", el.code_src ?? el.code ?? "", el.controls!).controls : [];
   const sourceLines = withControlDefaults(el.language ?? "", el.code ?? "", el.controls).replace(/\s+$/, "").split("\n");
   const codeMax = Math.max(8, Math.floor((codePaneW - 2 * PAD) / (fontSize * CHAR_W)));
   const codeStack = showCode && !controlsPaneMode ? stackLines(sourceLines.map((l) => wrapCodeLine(l, codeMax)), fontSize) : { blocks: [], height: 0 };

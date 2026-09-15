@@ -56,4 +56,7 @@ describe("tray controls (pins)", () => {
     const card = readFileSync("src/ui/controls-card.ts", "utf8");
     expect(card).toMatch(/stage\.appendChild\(card\);[\s\S]{0,2000}?card\.focus\(\);/);
   });
+  test("a controls card open during playback (not just the tray or an editor) settles the preview and closes (final wave item 2)", () => {
+    expect(src).toMatch(/s === "playing" && \(!tray\.hidden \|\| editors\.size > 0 \|\| controlsCards\.size > 0\)/);
+  });
 });

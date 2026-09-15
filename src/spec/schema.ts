@@ -376,6 +376,10 @@ const elementSchema = {
       type: "string",
       description: "code: machine-written execution result (copy VERBATIM if present; never write, edit, or invent it).",
     },
+    code_src: {
+      type: "string",
+      description: "code: machine-written (copy VERBATIM if present; never write it).",
+    },
     controls: {
       type: "array",
       items: { type: "string", pattern: "^[A-Za-z_][A-Za-z0-9_.]*$" },

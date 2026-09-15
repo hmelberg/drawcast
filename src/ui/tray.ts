@@ -1352,7 +1352,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const prevOnState = hd.timeline.callbacks.onState;
   hd.timeline.callbacks.onState = (s) => {
     prevOnState?.(s);
-    if (s === "playing" && (!tray.hidden || editors.size > 0)) {
+    if (s === "playing" && (!tray.hidden || editors.size > 0 || controlsCards.size > 0)) {
       closeEditors();
       clearPreview();
       panelViewFor(stage)?.reset();

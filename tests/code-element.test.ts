@@ -286,6 +286,29 @@ describe("code element — resolver", () => {
     expect(s.elements![0].code).toContain("(1, 50)");
     expect(copy.elements![0].code).toContain("n = 25");
   });
+
+  test("resolveCode stamps code_src with the authored script on the clone, never on the authored spec (final wave item 1)", async () => {
+    const s = codeSpec({ code: "n = (1, 50)\nprint(n)", controls: ["n"] });
+    const copy = await resolvedRenderSpec(s, {
+      resolvePortraits: async () => undefined,
+      resolveSources: async () => undefined,
+      resolveCode: async (c) => resolveCode(c, runDeps(OK)),
+      resolveImages: async () => [],
+      resolveIcons: async () => [],
+      contactEmail: "",
+    });
+    expect(s.elements![0].code_src).toBeUndefined();
+    expect(copy.elements![0].code_src).toBe("n = (1, 50)\nprint(n)");
+    // The rewrite happens AFTER the stamp, so code_src still holds the tuple
+    // even though el.code on the same clone has already lost it.
+    expect(copy.elements![0].code).not.toContain("(1, 50)");
+  });
+
+  test("a second resolveCode pass (a re-run) never overwrites an already-stamped code_src", async () => {
+    const s: Spec = { elements: [{ id: "c1", type: "code", language: "python", code: "n = (1, 50)\nprint(n)", controls: ["n"], code_src: "n = (1, 50)  # already stamped" }], commands: [] } as unknown as Spec;
+    await resolveCode(s, runDeps(OK));
+    expect(s.elements![0].code_src).toBe("n = (1, 50)  # already stamped");
+  });
 });
 
 describe("code element — hoisting", () => {

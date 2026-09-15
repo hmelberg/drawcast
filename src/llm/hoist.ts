@@ -19,14 +19,30 @@ export { HOISTED };
  *  the schema spells as identifiers), so the two cannot collide. */
 const assetsKey = (item: number): string => `assets:${item}`;
 
-/** The field per element type that holds encoded machine output, if any. */
-function blobField(el: SpecElement): "strokes" | "code_result" | null {
+type BlobField = "strokes" | "code_result" | "code_src";
+
+/** The fields per element type that hold encoded/machine-written content,
+ *  never meant for a model call. A code element carries two: `code_result`
+ *  (the run's envelope) and `code_src` (the authored script stamped before
+ *  control defaults were written in, design 2026-09-14 §2.5/pane-controls
+ *  review) — both machine-written onto the render CLONE only (never the
+ *  authored document, B11), but hoisted/stripped the same way in case one
+ *  ever rides along in a saved or hand-pasted document. */
+function blobFields(el: SpecElement): BlobField[] {
   // image/icon belong here for the same reason portrait/source do: a resolved
   // Commons photo is 10-34 KB of base64 in three bundled examples alone, and
   // it rode into every revise round and exemplar prompt until this list grew.
-  if (el.type === "portrait" || el.type === "source" || el.type === "image" || el.type === "icon") return "strokes";
-  if (el.type === "code") return "code_result";
-  return null;
+  if (el.type === "portrait" || el.type === "source" || el.type === "image" || el.type === "icon") return ["strokes"];
+  if (el.type === "code") return ["code_result", "code_src"];
+  return [];
+}
+
+/** A blob's key in the map: bare element id when the element has only one
+ *  possible blob field (portrait/source/image/icon, unchanged from before
+ *  code got a second one), `id:field` when it could have more than one (a
+ *  code element's `code_result` and `code_src`) so the two never collide. */
+function blobKey(id: string, field: BlobField, fields: BlobField[]): string {
+  return fields.length > 1 ? `${id}:${field}` : id;
 }
 
 export function hoistPortraitStrokes(docText: string): { text: string; blobs: Map<string, string> } {
@@ -40,11 +56,13 @@ export function hoistPortraitStrokes(docText: string): { text: string; blobs: Ma
   let any = false;
   itemsOf(playlist).forEach((item, i) => {
     for (const el of item.spec.elements ?? []) {
-      const field = blobField(el);
-      if (field && el[field] && el[field] !== HOISTED) {
-        blobs.set(el.id, el[field]!);
-        el[field] = HOISTED;
-        any = true;
+      const fields = blobFields(el);
+      for (const field of fields) {
+        if (el[field] && el[field] !== HOISTED) {
+          blobs.set(blobKey(el.id, field, fields), el[field]!);
+          el[field] = HOISTED;
+          any = true;
+        }
       }
     }
     // The `assets` map is the same bytes under another key (spec/assets.ts):
@@ -65,11 +83,13 @@ export function restorePortraitStrokes(playlist: Playlist, blobs: Map<string, st
     const assets = blobs.get(assetsKey(i));
     if (assets) item.spec.assets = JSON.parse(assets) as Record<string, string>;
     for (const el of item.spec.elements ?? []) {
-      const field = blobField(el);
-      if (field && el[field] === HOISTED) {
-        const blob = blobs.get(el.id);
-        if (blob) el[field] = blob;
-        else delete el[field];
+      const fields = blobFields(el);
+      for (const field of fields) {
+        if (el[field] === HOISTED) {
+          const blob = blobs.get(blobKey(el.id, field, fields));
+          if (blob) el[field] = blob;
+          else delete el[field];
+        }
       }
     }
   });
@@ -77,13 +97,16 @@ export function restorePortraitStrokes(playlist: Playlist, blobs: Map<string, st
 
 /** Exemplar hygiene: a spec copy with every encoded blob omitted entirely. */
 export function stripStrokesForModel(spec: Spec): Spec {
-  if (!spec.assets && !spec.elements?.some((e) => { const f = blobField(e); return f && e[f]; })) return spec;
+  if (!spec.assets && !spec.elements?.some((e) => blobFields(e).some((f) => e[f]))) return spec;
   return {
     ...spec,
     assets: undefined,
     elements: (spec.elements ?? []).map((e): SpecElement => {
-      const f = blobField(e);
-      return f && e[f] ? { ...e, [f]: undefined } : e;
+      const fields = blobFields(e).filter((f) => e[f]);
+      if (fields.length === 0) return e;
+      const patch: Partial<Record<BlobField, undefined>> = {};
+      for (const f of fields) patch[f] = undefined;
+      return { ...e, ...patch };
     }),
   };
 }

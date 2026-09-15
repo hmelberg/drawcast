@@ -243,6 +243,9 @@ export interface SpecElement {
   marks?: (string | { text: string; kind?: "mark" | "strike" | "underline" })[];
   /** code: machine-written execution result envelope (JSON — see src/code/run.ts). Never authored. */
   code_result?: string;
+  /** code: machine-stamped copy of the AUTHORED script before control defaults
+   *  were written in — the drawn panel's shape source; never authored. */
+  code_src?: string;
   /** code: names of script variables the viewer may change from the ⊕ tray
    *  (design 2026-09-14-code-controls). Each is born ONCE in the script as a
    *  control literal — `(min, max[, step])`, `["a", "b"]`, `True`/`False`, a

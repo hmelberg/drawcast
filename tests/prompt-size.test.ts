@@ -75,8 +75,15 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // 224495). The `pane: controls` sentence in compiler-v1-code.md's controls
 // bullet is behind the {{CODE}} conditional fragment and costs an ordinary
 // request nothing, so it is not part of this pin.
-const BASELINE_SYSTEM_CHARS = 224495;
-const BASELINE_SCHEMA_CHARS = 110146;
+// Re-pinned 2026-09-15 for the pane-controls final wave (item 1): one new
+// code-element property, `code_src` (the render clone's stamp of the
+// authored script before control defaults were written in — needed so a
+// revise round can copy an existing one through, same reason `code_result`
+// is in this schema), one short description sentence — +162 chars on the
+// schema (110146 → 110308), embedded verbatim in the system prompt so the
+// same +162 lands there too (224495 → 224657).
+const BASELINE_SYSTEM_CHARS = 224657;
+const BASELINE_SCHEMA_CHARS = 110308;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

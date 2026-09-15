@@ -46,8 +46,14 @@ export async function resolveCode(spec: Spec, deps: CodeRunDeps = {}): Promise<C
     // Code controls: the document's stamp is the run at the controls'
     // defaults, and the panel draws the same text (design 2026-09-14 §2.5).
     // Applied on the render CLONE, before the stamp check and the run — the
-    // authored spec keeps its tuples for the tray to parse.
-    if (el.language && el.code) el.code = withControlDefaults(el.language, el.code, el.controls);
+    // authored spec keeps its tuples for the tray to parse. The drawn panel
+    // (src/layout/code.ts) needs those tuples too — it lays out from the
+    // CLONE, not the authored spec — so the authored script is stamped onto
+    // code_src here, once, before the rewrite overwrites el.code.
+    if (el.language && el.code) {
+      if (el.code_src === undefined) el.code_src = el.code;
+      el.code = withControlDefaults(el.language, el.code, el.controls);
+    }
     const paths = byId[el.id] ?? [];
     if (paneHidden(el) && paths.length === 0) {
       results.push({ id: el.id, ok: true, skipped: true });
