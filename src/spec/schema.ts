@@ -942,7 +942,7 @@ export const specSchema = {
     params: {
       type: "object",
       description:
-        'Scene template parameters, per the catalog\'s parameter schema. A value may be a "{codeId.variable}" token naming a code element\'s script variable (or "{codeId.df.column}" for a DataFrame column) — the app substitutes the harvested value before drawing.',
+        'Scene template parameters, per the catalog\'s parameter schema. A value may be a "{codeId.variable}" token naming a code element\'s script variable (or "{codeId.df.column}" for a DataFrame column) — the app substitutes the harvested value before drawing. Any template also takes "box": a region name — "left", "right", "top", "bottom" or "full" — that puts the whole figure in that part of the canvas so a code panel, an equation or a table can have the rest; or {x, y, w, h} in canvas units. Give it only when something else shares the page, and prefer the names.',
       additionalProperties: true,
     },
     domain: {

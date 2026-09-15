@@ -90,7 +90,7 @@ describe("bundled examples stay exemplary", () => {
     const plan = planCommands(spec.commands, layout.order, {
       bboxOf: (id) => bboxes.get(id) ?? null,
       windows: layout.windows ?? {},
-      ...domainMapping(spec.domain),
+      ...domainMapping(spec.domain, layout.fit),
       animateBase: spec.template ? spec.params ?? {} : null,
       // Same shape render() builds (src/render/index.ts): after an animate
       // step the planner switches its bbox source to the post-animate

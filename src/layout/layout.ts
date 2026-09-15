@@ -7,19 +7,21 @@ import { applyTextMap } from "./text-map";
 import { DEFAULT_MATH_FONT } from "./text-style";
 import { setMathFont } from "../scenes/engines";
 import type { Spec } from "../spec/types";
-import { coVisible, lintLayout, type LintIssue } from "../lint/lint";
+import { coVisible, lintLayout, FIT_SCALE_FLOOR, type LintIssue } from "../lint/lint";
 import { layoutElements, type PieceGeometry } from "./tier2";
 import type { MeasureSpec } from "./measures";
 import type { CodeWindow } from "./code";
 import { annotationDrawables } from "./annotate";
 import { obstacleBoxes, placeLabels, type LabelPin, type LabelRequest } from "./labels";
 import type { BBox } from "./geometry";
-import { boxOfId, unionBBoxForId } from "./boxes";
+import { boxOfId, unionBBoxForId, unionBoxes } from "./boxes";
 import type { LayoutOverrides } from "./posed";
 import { heuristicMeasure, type MeasureFn } from "./measure";
 import { drawablesForId, leafDrawables, type Drawable, type Pt } from "./model";
 import { linearScale, plotArea } from "./canvas";
 import { figureSplit } from "./figure-split";
+import { fitSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
+import { FIT_NAMES, isFitName } from "./regions";
 
 export interface LayoutResult {
   drawables: Drawable[];
@@ -55,6 +57,9 @@ export interface LayoutResult {
    *  `pins` a tween frame hands back so the placement stops being re-solved
    *  sixty times a second (labels.ts, LabelPin). */
   labelPins: Record<string, LabelPin>;
+  /** The template's fit into its box (spec/2026-09-15-template-box): absent
+   *  when no box was in play or the template laid itself out in one. */
+  fit?: TemplateFit;
 }
 
 /**
@@ -81,19 +86,33 @@ export function layoutSpec(
   // this (scenes/engines.ts). The viewer's override arrives already folded
   // into text.math_font (text-style.ts withMathFont).
   setMathFont(spec.text?.math_font ?? DEFAULT_MATH_FONT);
+  const warnings: string[] = [];
   // A template and a script on screen each get their own half of the canvas
   // before anything is laid out — the default the two used to lack, so a
-  // chart no longer lands on top of the code that computed it.
+  // chart no longer lands on top of the code that computed it. Since the
+  // template box round every template that lays out can take a box: the
+  // five data templates natively, the rest by the fit below.
   const codeEl = (spec.elements ?? []).find((e) => e.type === "code" && e.show !== "none");
+  const hasTemplate = !!(spec.template && scenes[spec.template]?.layout);
+  const rawBox = (spec.params ?? {})["box"];
+  const requestedBox = resolveTemplateBox(rawBox);
+  if (rawBox !== undefined && !requestedBox) {
+    warnings.push(`template box ${JSON.stringify(rawBox)} is neither a region name (${FIT_NAMES.join(", ")}) nor {x, y, w, h} — ignored`);
+  }
   const split = figureSplit({
-    hasTemplate: !!(spec.template && scenes[spec.template]?.layout),
-    templateTakesBox: templateTakesBox(spec.template),
-    boxGiven: isFigureBox((spec.params ?? {})["box"]),
+    hasTemplate,
+    templateTakesBox: hasTemplate,
+    boxGiven: requestedBox !== null,
     code: codeEl ? { x: codeEl.x, width: codeEl.width, show: codeEl.show, code: codeEl.code, fontSize: codeEl.font_size } : null,
   });
   if (split.code && codeEl) Object.assign(codeEl, split.code);
-  if (split.box) spec.params = { ...(spec.params ?? {}), box: split.box };
-  const warnings: string[] = [];
+  const box = requestedBox ?? split.box ?? null;
+  const native = nativeBox(spec.template);
+  // The five templates that lay themselves out in a box get the RECTANGLE —
+  // a name means nothing to them. Everyone else keeps params untouched and
+  // is fitted after laying out.
+  if (box && native) spec.params = { ...(spec.params ?? {}), box };
+  let fit: TemplateFit | undefined;
   const issues: LintIssue[] = [];
   const drawables: Drawable[] = [];
   const labelRequests: LabelRequest[] = [];
@@ -119,6 +138,18 @@ export function layoutSpec(
     } else {
       try {
         const sceneLayout = scene.layout(spec.params ?? {});
+        if (box && !native) fit = fitSceneLayout(sceneLayout, box, measure) ?? undefined;
+        if (fit && fit.s < FIT_SCALE_FLOOR) {
+          const where = isFitName(rawBox) ? `"${rawBox}"` : JSON.stringify(fit.box);
+          issues.push({
+            rule: "fit-scale",
+            ids: [], // a template name is not an element id (template-params does the same)
+            severity: "warn",
+            message:
+              `template ${spec.template} is fitted at ${fit.s.toFixed(2)} into box ${where}; its labels are held at the readable floor — ` +
+              `give it a taller region, or use a template with a native box`,
+          });
+        }
         templateIds = sceneLayout.order;
         drawables.push(...sceneLayout.drawables);
         labelRequests.push(...sceneLayout.labels);
@@ -127,7 +158,7 @@ export function layoutSpec(
         // Scene curves arrive in logical coordinates; tier-2 thinks in the
         // spec's domain (default 0–100), so map them back before seeding.
         if (sceneLayout.curveSamples) {
-          const inv = inverseDomainMapping(spec.domain);
+          const inv = inverseDomainMapping(spec.domain, fit);
           seedCurveSamples = Object.fromEntries(
             Object.entries(sceneLayout.curveSamples).map(([id, pts]) => [id, pts.map(inv)]),
           );
@@ -140,7 +171,7 @@ export function layoutSpec(
 
   if (spec.elements && spec.elements.length > 0) {
     // `drawables` here is the template's output — an at.ref may name a template id.
-    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples, { measure, seedDrawables: [...drawables], vars: spec.vars, overrides });
+    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples, { measure, seedDrawables: [...drawables], vars: spec.vars, overrides, fit });
     drawables.push(...tier2.drawables);
     labelRequests.push(...tier2.labels);
     warnings.push(...tier2.warnings);
@@ -224,32 +255,15 @@ export function layoutSpec(
     Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
   issues.push(...lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], composed));
   if (codeEl) issues.push(...codeFigureOverlap(codeEl.id, templateIds, drawables, measure, spec));
-  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, fitGroups, namedAnchors, measures, labelPins };
+  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, fitGroups, namedAnchors, measures, labelPins, ...(fit ? { fit } : {}) };
 }
 
-function unionOfBoxes(boxes: (BBox | null)[]): BBox | null {
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const b of boxes) {
-    if (!b) continue;
-    x0 = Math.min(x0, b.x);
-    y0 = Math.min(y0, b.y);
-    x1 = Math.max(x1, b.x + b.w);
-    y1 = Math.max(y1, b.y + b.h);
-  }
-  return x0 === Infinity ? null : { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
-}
-
-/** Does this template accept a `box`? Most own the whole canvas instead. */
-function templateTakesBox(template: string | undefined): boolean {
+/** Does this template lay itself out in a `box` param? Five data templates
+ *  do; every other template is fitted by template-fit.ts. */
+export function nativeBox(template: string | undefined): boolean {
   if (!template) return false;
   const schema = scenes[template]?.manifest.params_schema as { properties?: Record<string, unknown> } | undefined;
   return schema?.properties?.box !== undefined;
-}
-
-function isFigureBox(v: unknown): boolean {
-  if (typeof v !== "object" || v === null) return false;
-  const b = v as Record<string, unknown>;
-  return ["x", "y", "w", "h"].every((k) => typeof b[k] === "number" && Number.isFinite(b[k] as number));
 }
 
 /**
@@ -264,7 +278,7 @@ function codeFigureOverlap(codeId: string, templateIds: string[], drawables: Dra
   // lines and its output pane are separate top-level drawables, and with
   // frame: "none" the group itself draws nothing at all. Empty space inside a
   // frameless panel is not something a figure can overlap.
-  const code = unionOfBoxes(
+  const code = unionBoxes(
     drawables
       .filter((d) => d.id === codeId || d.id.startsWith(`${codeId}_`))
       .map((d) => unionBBoxForId(drawables, d.id, measure)),
@@ -286,7 +300,7 @@ function codeFigureOverlap(codeId: string, templateIds: string[], drawables: Dra
           ids: [codeId, id],
           message:
             `code panel "${codeId}" and the ${spec.template} figure ("${id}") are drawn on the same ground — ` +
-            `give the code element x/width, or the template a box, so each has its own area`,
+            `give the template a box (params.box: "left" or "right"), or the code element x/width, so each has its own area`,
           severity: "warn",
         },
       ];
@@ -323,32 +337,36 @@ export function elementRings(layout: Pick<LayoutResult, "drawables" | "order">):
   return map;
 }
 
-/**
- * Domain → logical mappings for the gesture verbs, matching tier-2's
- * convention: coordinates are mapped only when a domain is declared.
- */
-export function domainMapping(domain: Spec["domain"]): { toLogical: (p: Pt) => Pt; deltaToLogical: (d: Pt) => Pt } {
+/** Spec domain → logical canvas. With a `fit`, the standard plot area is
+ *  where the template's axes WERE; the fit says where they are now.
+ *  No domain: coordinates are canvas coordinates and never follow a
+ *  template's fit (tier-3 rule). */
+export function domainMapping(domain: Spec["domain"], fit?: TemplateFit): { toLogical: (p: Pt) => Pt; deltaToLogical: (d: Pt) => Pt } {
   if (!domain) return { toLogical: (p) => p, deltaToLogical: (d) => d };
+  const s = fit?.s ?? 1, dx = fit?.dx ?? 0, dy = fit?.dy ?? 0;
+  const post = ([x, y]: Pt): Pt => [x * s + dx, y * s + dy];
+  const postDelta = ([a, b]: Pt): Pt => [a * s, b * s];
   const plot = plotArea();
-  const dx = domain.x ?? [0, 100];
-  const dy = domain.y ?? [0, 100];
-  const sx = linearScale(dx, [plot.x0, plot.x1]);
-  const sy = linearScale(dy, [plot.y0, plot.y1]);
-  const fx = (plot.x1 - plot.x0) / (dx[1] - dx[0] || 1);
-  const fy = (plot.y1 - plot.y0) / (dy[1] - dy[0] || 1);
+  const dX = domain.x ?? [0, 100];
+  const dY = domain.y ?? [0, 100];
+  const sx = linearScale(dX, [plot.x0, plot.x1]);
+  const sy = linearScale(dY, [plot.y0, plot.y1]);
+  const fx = (plot.x1 - plot.x0) / (dX[1] - dX[0] || 1);
+  const fy = (plot.y1 - plot.y0) / (dY[1] - dY[0] || 1);
   return {
-    toLogical: ([x, y]) => [sx(x), sy(y)],
-    deltaToLogical: ([a, b]) => [a * fx, b * fy],
+    toLogical: ([x, y]) => post([sx(x), sy(y)]),
+    deltaToLogical: ([a, b]) => postDelta([a * fx, b * fy]),
   };
 }
 
-/** Logical → spec-domain mapping (inverse of tier-2's scales; default domain 0–100). */
-export function inverseDomainMapping(domain: Spec["domain"]): (p: Pt) => Pt {
+/** Logical canvas → spec domain (the inverse of domainMapping, fit included). */
+export function inverseDomainMapping(domain: Spec["domain"], fit?: TemplateFit): (p: Pt) => Pt {
+  const s = fit?.s ?? 1, dx = fit?.dx ?? 0, dy = fit?.dy ?? 0;
   const plot = plotArea();
-  const dx = domain?.x ?? [0, 100];
-  const dy = domain?.y ?? [0, 100];
-  const ix = linearScale([plot.x0, plot.x1], dx);
-  const iy = linearScale([plot.y0, plot.y1], dy);
-  return ([x, y]) => [ix(x), iy(y)];
+  const dX = domain?.x ?? [0, 100];
+  const dY = domain?.y ?? [0, 100];
+  const ix = linearScale([plot.x0, plot.x1], dX);
+  const iy = linearScale([plot.y0, plot.y1], dY);
+  return ([x, y]) => [ix((x - dx) / s), iy((y - dy) / s)];
 }
 

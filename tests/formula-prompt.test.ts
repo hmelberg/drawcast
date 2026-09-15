@@ -82,7 +82,7 @@ describe("the prompt teaches morph.tex, copy, colors and the parametric curve (d
       const bboxes = elementBBoxes(layout);
       return planCommands(spec.commands, layout.order, {
         bboxOf: (id) => bboxes.get(id) ?? null,
-        ...domainMapping(spec.domain),
+        ...domainMapping(spec.domain, layout.fit),
         animateBase: null,
         varsBase: spec.vars ?? null,
         bboxesFor: (params, overrides) => {

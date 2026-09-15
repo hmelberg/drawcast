@@ -7,6 +7,9 @@
 
 import AjvModule, { type ValidateFunction } from "ajv";
 import { scenes } from "./registry";
+import { resolveTemplateBox } from "../layout/template-fit";
+import { isFitName } from "../layout/regions";
+import { nativeBox } from "../layout/layout";
 
 const AjvCtor = ((AjvModule as unknown as { default?: unknown }).default ?? AjvModule) as typeof AjvModule;
 const ajv = new AjvCtor({ allErrors: true, strict: false });
@@ -36,7 +39,25 @@ export function templateParamErrors(templateId: string, params: unknown): string
     entry = { schema, validate };
     compiled.set(templateId, entry);
   }
-  if (!entry.validate || entry.validate(params ?? {})) return [];
+  // `box` is the layout's key (template-fit.ts), not the template's — every
+  // template may take one (spec §10, the template box round) — UNLESS the
+  // template's own params_schema types it as a rectangle itself (the five
+  // native-box templates, same predicate layout.ts's nativeBox uses; a
+  // region name is resolved to that rectangle first). Every other template's
+  // schema never hears about `box` at all: a schema that closes params
+  // (additionalProperties: false — flower_anatomy, violin_anatomy) would
+  // otherwise reject it as an unknown property.
+  let p: unknown = params;
+  if (params && typeof params === "object") {
+    const raw = params as Record<string, unknown>;
+    if (nativeBox(templateId)) {
+      if (isFitName(raw["box"])) p = { ...raw, box: resolveTemplateBox(raw["box"]) };
+    } else if ("box" in raw) {
+      const { box: _box, ...rest } = raw;
+      p = rest;
+    }
+  }
+  if (!entry.validate || entry.validate(p ?? {})) return [];
   return (entry.validate.errors ?? []).map(
     (e) => `params${e.instancePath || ""} ${e.message ?? "invalid"}${e.params ? " " + JSON.stringify(e.params) : ""}`,
   );

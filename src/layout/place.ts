@@ -339,3 +339,9 @@ export function shiftPoints(rec: Record<string, Pt> | undefined, dx: number, dy:
   if (!rec) return;
   for (const k of Object.keys(rec)) rec[k] = [rec[k][0] + dx, rec[k][1] + dy];
 }
+
+/** Map a record of named points in place through any point transform. */
+export function mapPoints(rec: Record<string, Pt> | undefined, map: (p: Pt) => Pt): void {
+  if (!rec) return;
+  for (const k of Object.keys(rec)) rec[k] = map(rec[k]);
+}

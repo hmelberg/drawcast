@@ -136,6 +136,26 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Net: schema 116788 → 116840 (+52), system 232265 → 232295 (+30 = +52 − 22).
 // (types.ts's `controls` docstring was fixed in the same item; a TS comment
 // is in neither measurement.)
+// Re-pinned 2026-09-15 for the template box round: one sentence on params.box
+// in the schema (+322 on the schema, 110309 → 110631, which lands on the
+// system prompt too since the schema is embedded verbatim), one sentence in
+// compiler-v1.md's scene-template list item, and one clause in
+// compiler-v1-code.md's data-from-code bullet (behind the {{CODE}}
+// conditional, so it costs an ordinary request nothing) — net system-prompt
+// growth 225171 → 225768 (+597). (This round was cut from main before the
+// sweep round landed, so these deltas are against the pre-sweep baseline.)
+// Re-measured 2026-09-15 after merging origin/main (the sweep round, b82e503)
+// into the template-box branch: both rounds' changes are additive on the
+// merged tree, so the two constants below are pinned to the values actually
+// measured on the merge, not to a sum of the two rounds' deltas — schema
+// 116840 → 117162, system 232295 → 232892.
+// Re-measured 2026-09-15 for the final fix wave (item 4): the reworded
+// side-by-side clause in compiler-v1-code.md ("this holds for a code, below
+// or above panel — a side-by-side left/right panel needs the whole width…")
+// lives behind the {{CODE}} conditional fragment, which system(false) never
+// includes — so it costs an ordinary request nothing and BOTH constants stay
+// exactly where they were (schema 117162, system 232892), measured, not
+// assumed.
 // Re-pinned 2026-09-15 for the smooth-sweeps round: `run.smooth` and
 // `explore.play.smooth` — one description sentence, written twice because the
 // two shapes carry their properties separately — grew the schema by +566
@@ -157,8 +177,11 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // now "walks from one to the other" there too, +18 on the schema, which is
 // embedded verbatim in the system prompt, so the same +18 lands there.
 // Schema 117406 → 117424, system 233020 → 233038.
-const BASELINE_SYSTEM_CHARS = 233038;
-const BASELINE_SCHEMA_CHARS = 117424;
+// Re-measured 2026-09-15 on the merge of the smooth-sweeps round with the
+// template-box round (both additive): pinned to the values measured on the
+// merged tree: schema 117162 → 117746, system 232892 → 233635.
+const BASELINE_SYSTEM_CHARS = 233635;
+const BASELINE_SCHEMA_CHARS = 117746;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {
@@ -232,5 +255,13 @@ describe("prompt budget (spec §6.3)", () => {
     // Ordinary explanations still pay nothing for the code block.
     expect(wantsCode("Hvorfor er himmelen blå?")).toBe(false);
     expect(wantsCode("Forklar inflasjon for en nybegynner")).toBe(false);
+  });
+});
+
+describe("template box in the prompt (spec 2026-09-15-template-box §10)", () => {
+  test("the compiler learns params.box by its region names, in the main prompt, the code prompt and the schema", () => {
+    expect(system(false)).toContain('"box": "right"');
+    expect(system(true)).toContain('"box": "left"` puts the figure on the left');
+    expect(JSON.stringify(apiSchema())).toContain('Any template also takes \\"box\\"');
   });
 });

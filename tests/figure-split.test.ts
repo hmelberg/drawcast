@@ -43,7 +43,16 @@ describe("figureSplit — the rule", () => {
   });
 
   test("a panel carrying its own output pane keeps the half — hugging would squeeze the output", () => {
-    expect(figureSplit({ ...base, code: { show: "left", code: "y = 1" } }).code).toEqual({ ...CODE_HALF });
+    expect(figureSplit({ ...base, code: { show: "below", code: "y = 1" } }).code).toEqual({ ...CODE_HALF });
+  });
+
+  test("a side-by-side panel (show: left/right) needs the whole width and cannot share a page with a figure", () => {
+    const left = figureSplit({ ...base, code: { show: "left", code: "y = 1" } });
+    expect(left.code).toEqual({ x: 500, width: 900 });
+    expect(left.box).toBeUndefined();
+    const right = figureSplit({ ...base, code: { show: "right", code: "y = 1" } });
+    expect(right.code).toEqual({ x: 500, width: 900 });
+    expect(right.box).toBeUndefined();
   });
 
   test("an author's x and width win, and the figure moves to the side they left", () => {
