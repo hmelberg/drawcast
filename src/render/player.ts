@@ -8,7 +8,7 @@
 import type { MeasureFollow, MorphItem, Plan, PlanStep, SceneState, TrailProgress, TransformItem } from "./plan";
 import { moveFrame, morphFrame, transformFrame } from "./tween";
 import { overridesKey, type LayoutOverrides } from "../layout/posed";
-import { answersMatch, subVars } from "../spec/answers";
+import { answersMatch, AUTO_NAMESPACE, subVars } from "../spec/answers";
 import type { LayoutResult } from "../layout/layout";
 import { heldFrom, sceneAt } from "./plan";
 import type { BackendEffects, RenderedElement } from "./backend";
@@ -187,6 +187,37 @@ export class Player {
    *  (a remediation goto, a replay) overwrites its slot, never double-counts. */
   private outcomes = new Map<number, boolean>();
 
+  /** Step index → 1-based ordinal among the playlist's questions (the N of
+   *  `_answers.N`), assigned from the plan at construction. */
+  readonly ordinalOf = new Map<number, number>();
+  /** Question steps that have been answered (or skipped past) — `_answers.count`. */
+  private answeredSteps = new Set<number>();
+
+  /**
+   * Publish one answer (spec 2026-09-15-stored-answers §2): under its ordinal
+   * (`_answers.N`, `.N.ok`, `.N.secs`), under `_answers.last`, the running
+   * `_answers.count`, and under the explicit store name with the same fields.
+   * `ok` null (a collect-mode ask) and `secs` null (no live gate) write no
+   * field — and clear a stale one, since latest wins.
+   */
+  private recordAnswer(index: number, store: string | undefined, value: string, ok: boolean | null, secs: number | null): void {
+    const fields = (base: string): void => {
+      this.vars.set(base, value);
+      if (ok !== null) this.vars.set(`${base}.ok`, ok ? "true" : "false");
+      else this.vars.delete(`${base}.ok`);
+      if (secs !== null) this.vars.set(`${base}.secs`, secs.toFixed(1));
+      else this.vars.delete(`${base}.secs`);
+    };
+    const n = this.ordinalOf.get(index);
+    if (n !== undefined) {
+      fields(`${AUTO_NAMESPACE}.${n}`);
+      this.answeredSteps.add(index);
+    }
+    fields(`${AUTO_NAMESPACE}.last`);
+    this.vars.set(`${AUTO_NAMESPACE}.count`, String(this.answeredSteps.size));
+    if (store) fields(store.toLowerCase());
+  }
+
   /** Publish {score}/{score_total} from the outcomes — called right after an
    *  answer lands, BEFORE the feedback lines speak. Digit strings: they read
    *  naturally in narration and if's numeric ops coerce at comparison time. */
@@ -340,7 +371,7 @@ export class Player {
     elements: Map<string, RenderedElement>,
     speech: SpeechLike,
     captionEl: HTMLElement | null,
-    opts: { mode?: PlaybackMode; speed?: number; effects?: BackendEffects; questions?: "on" | "skip" } = {},
+    opts: { mode?: PlaybackMode; speed?: number; effects?: BackendEffects; questions?: "on" | "skip"; vars?: ReadonlyMap<string, string>; questionOffset?: number } = {},
     callbacks: PlayerCallbacks = {},
   ) {
     this.plan = plan;
@@ -358,6 +389,17 @@ export class Player {
     this.callbacks = callbacks;
     this.mode = opts.mode ?? "narrated";
     this.speedVal = opts.speed ?? 1;
+    // Carried in from earlier playlist items (playlist/carry.ts): a name
+    // stored in part 1 reads in part 3. Latest wins, so this item's own
+    // answers overwrite what came in.
+    if (opts.vars) for (const [k, v] of opts.vars) this.vars.set(k, v);
+    // Every quiz/ask step gets its ordinal up front, from the plan, so
+    // {_answers.N} means "the N-th question" whether or not the viewer
+    // answered it, and a wrong_goto loop re-answers the same slot.
+    let n = opts.questionOffset ?? 0;
+    plan.steps.forEach((s, i) => {
+      if (s.kind === "quiz" || s.kind === "ask") this.ordinalOf.set(i, ++n);
+    });
     this.skipQuestions = opts.questions === "skip";
     this.hideAll();
   }
@@ -1069,23 +1111,27 @@ export class Player {
         // The gate shows immediately — the viewer may answer while the
         // question narration (started by runStep) is still speaking.
         let chosen: number | null;
+        const liveQuiz = !this.autoAnswers && this.quizGate !== null;
+        const t0 = performance.now();
         if (this.quizGate) {
           chosen = await this.quizGate(signal, step);
         } else {
           await this.waitScaled(1600, signal);
           chosen = null;
         }
+        const quizSecs = liveQuiz ? (performance.now() - t0) / 1000 : null;
         if (signal.aborted) return;
         // Let the question finish before any feedback talks over it.
         if (this.narrationVoice) await this.narrationVoice;
         if (signal.aborted) return;
         // Auto paths (movies, gate-less players) answer correctly by
         // definition; a live viewer's Skip counts as wrong — a test is a test.
-        this.outcomes.set(index, this.autoAnswers || this.quizGate === null ? true : chosen === step.correct);
+        const quizOk = this.autoAnswers || this.quizGate === null ? true : chosen === step.correct;
+        this.outcomes.set(index, quizOk);
         this.updateScoreVars();
         // Store BEFORE feedback so the feedback lines may use {store} too; a
         // skip or an auto answer keeps the correct option (the ask's default).
-        if (step.store) this.vars.set(step.store.toLowerCase(), step.choices[chosen ?? step.correct]);
+        this.recordAnswer(index, step.store, step.choices[chosen ?? step.correct], quizOk, quizSecs);
         if (!this.autoAnswers && this.quizGate !== null) {
           this.callbacks.onAnswer?.({
             index,
@@ -1119,6 +1165,15 @@ export class Player {
         const auto = step.answer ?? step.fallback ?? "";
         let typed: string | null;
         const attempts: string[] = [];
+        // Seconds from the card opening to the answer, latest attempt wins;
+        // null when no viewer sat at a gate (movies, bare players).
+        let askSecs: number | null = null;
+        const timedGate = async (): Promise<string | null> => {
+          const from = performance.now();
+          const t = await this.askGate!(signal, step);
+          if (!this.autoAnswers) askSecs = (performance.now() - from) / 1000;
+          return t;
+        };
         if (step.widget !== undefined && (this.autoAnswers || !this.askGate)) {
           // Widget asks demonstrate with the laser instead of the typing card:
           // the pointer taps the answer element (SVG — it exports), then the
@@ -1154,7 +1209,7 @@ export class Player {
           }
           typed = auto;
         } else if (this.askGate) {
-          typed = await this.askGate(signal, step);
+          typed = await timedGate();
           if (typed !== null) attempts.push(typed);
         } else {
           await this.waitScaled(1600, signal);
@@ -1165,7 +1220,8 @@ export class Player {
         if (this.narrationVoice) await this.narrationVoice;
         if (signal.aborted) return;
         // Store BEFORE feedback so the feedback lines may use {store} too.
-        if (step.store) this.vars.set(step.store.toLowerCase(), typed ?? step.fallback ?? step.answer ?? "");
+        // Collect mode has nothing to judge, so no .ok field.
+        this.recordAnswer(index, step.store, typed ?? step.fallback ?? step.answer ?? "", null, askSecs);
         if (step.answer === undefined) return; // collect mode: nothing to judge
         const answer = step.answer;
         const isRight = (t: string | null): boolean => t !== null && answersMatch(t, answer);
@@ -1173,11 +1229,12 @@ export class Player {
           if (step.wrong) await this.speakLine(step.wrong, step, signal);
           if (signal.aborted) return;
           if (!step.retry || !this.askGate) break;
-          typed = await this.askGate(signal, step);
+          typed = await timedGate();
           if (typed !== null) attempts.push(typed);
           if (signal.aborted) return;
-          if (step.store && typed !== null) this.vars.set(step.store.toLowerCase(), typed);
+          if (typed !== null) this.recordAnswer(index, step.store, typed, null, askSecs);
         }
+        this.recordAnswer(index, step.store, typed ?? step.fallback ?? step.answer ?? "", isRight(typed), askSecs);
         this.outcomes.set(index, isRight(typed));
         this.updateScoreVars();
         if (!this.autoAnswers && this.askGate !== null) {
