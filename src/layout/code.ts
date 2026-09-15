@@ -86,16 +86,26 @@ export const TYPE_CPS = 28;
  * Two shapes count. Aligned columns: at least two lines carry a run of two or
  * more spaces (or a tab) AFTER a non-space character — what pandas, a
  * `print(f"{a:>8}")` loop and a `describe()` all produce; leading indentation
- * alone is prose, not a column. A DRAWN table: a pipe with text on both sides
- * of it, twice or more — either two rows of `| a | b |`, or one row with two
- * inner pipes.
+ * alone is prose, not a column.
+ *
+ * A DRAWN table: at least two lines that each carry two or more pipes, AND
+ * whose pipes stand in the SAME columns — which is what makes a row of `|`
+ * a table rather than a sentence. Counting pipes alone was too eager (review,
+ * 2026-09-16): `|x| + |y| = 5`, `P(A|B) = 0.4, P(B|A) = 0.6` and
+ * `n=10 | mean=5.2 | p<0.05` are prose, and prose belongs in the hand. The
+ * first two pipe-carrying lines are the ones compared — a real ascii table
+ * lines its rules up from its first row, and a table whose first two rows
+ * disagree has nothing for the mono face to preserve anyway.
  */
 export function looksTabular(stdout: string): boolean {
   const lines = stdout.split("\n");
   const columns = lines.filter((l) => /\S[^\n]*?(?: {2,}|\t)/.test(l)).length;
   if (columns >= 2) return true;
-  // Lookahead, not a consumed character: `a | b | c` must count twice.
-  return (stdout.match(/\S[ \t]*\|(?=[ \t]*\S)/g) ?? []).length >= 2;
+  const pipeCols = (l: string): number[] => [...l].flatMap((c, i) => (c === "|" ? [i] : []));
+  const piped = lines.map(pipeCols).filter((cols) => cols.length >= 2);
+  if (piped.length < 2) return false;
+  const [a, b] = piped;
+  return a.length === b.length && a.every((x, i) => x === b[i]);
 }
 
 /** One highlighter pass over the code: the drawn text to cover, and how. */

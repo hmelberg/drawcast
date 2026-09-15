@@ -94,7 +94,14 @@ describe("the print-out is written in the figure's own hand (unless it is column
     expect(looksTabular("    indented\n    also indented")).toBe(false);
     // A drawn table, pipes with text on both sides.
     expect(looksTabular("| a | b |\n| 1 | 2 |")).toBe(true);
-    expect(looksTabular("a | b | c")).toBe(true);
+    // …and only when the pipes really STAND in columns. Counting them was too
+    // eager (review, 2026-09-16): every one of these is prose, and prose
+    // belongs in the hand — alone, and together in one print-out.
+    const prose = ["|x| + |y| = 5", "P(A|B) = 0.4, P(B|A) = 0.6", "n=10 | mean=5.2 | p<0.05"];
+    for (const line of prose) expect(looksTabular(line), line).toBe(false);
+    expect(looksTabular(prose.join("\n"))).toBe(false);
+    expect(looksTabular("a | b | c")).toBe(false); // one row is not a table
+    expect(looksTabular("| a | b |\n1 2")).toBe(false); // …nor is one row with a neighbour
   });
 
   test("a plain stdout line takes the sketch face; a tabular one keeps the typewriter", () => {
@@ -128,28 +135,30 @@ describe("the print-out is written in the figure's own hand (unless it is column
   // is 30 characters of mono and 37 of handwriting — so a 36-character line
   // is one row in the hand and two in the typewriter.
   test("a plain line is wrapped by the SKETCH advance, a tabular one by the mono advance", () => {
-    const plain = "value : 42 : this is the payload xxx";
-    const tabular = plain.replace(/:/g, "|"); // same length, now a drawn table
-    expect(plain.length).toBe(36);
-    expect(tabular.length).toBe(36);
-    expect(looksTabular(plain)).toBe(false);
-    expect(looksTabular(tabular)).toBe(true);
+    const line = "value : 42 : this is the payload xxx";
+    expect(line.length).toBe(36);
+    expect(looksTabular(line)).toBe(false);
+    // The SAME line under a pair of column-aligned rows, which is what puts
+    // the whole pane in the typewriter face.
+    const columns = `a  b\nc  d\n${line}`;
+    expect(looksTabular(columns)).toBe(true);
     const rows = (stdout: string) =>
       flattenDrawables(
         layoutSpec(spec({ show: "output", width: 350, code_result: JSON.stringify({ ok: true, stdout, stderr: "", figures: [] }) }), heuristicMeasure).drawables,
       ).filter((d) => d.id.startsWith("c1__out")) as TextDrawable[];
-    const hand = rows(plain);
+    const hand = rows(line);
     expect(hand.length).toBe(1);
-    expect(hand[0].text).toBe(plain);
+    expect(hand[0].text).toBe(line);
     expect(hand[0].font).toBeUndefined();
-    const mono = rows(tabular);
-    expect(mono.length).toBe(2);
+    const mono = rows(columns);
+    expect(mono.length).toBe(4); // "a  b", "c  d", and the long line split in two
+    expect(mono.map((d) => d.text).slice(0, 2)).toEqual(["a  b", "c  d"]);
     expect(mono.every((d) => d.font === "mono")).toBe(true);
     // The two budgets themselves, so the arithmetic above is not a coincidence.
     expect(Math.floor((350 - 2 * PAD) / (17 * CHAR_W))).toBe(30);
     expect(Math.floor((350 - 2 * PAD) / (17 * SKETCH_CHAR_W))).toBe(37);
-    expect(wrapCodeLine(plain, 37).length).toBe(1);
-    expect(wrapCodeLine(plain, 30).length).toBe(2);
+    expect(wrapCodeLine(line, 37).length).toBe(1);
+    expect(wrapCodeLine(line, 30).length).toBe(2);
   });
 
   test("a drawn DataFrame table and its '… N more rows' line stay mono", () => {
