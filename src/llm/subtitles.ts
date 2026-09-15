@@ -12,7 +12,7 @@
 // voice stays put, and only what the caption displays is sent.
 
 import { callForJson, makeClient, type CallOpts } from "./client";
-import { planCommands } from "../render/plan";
+import { controlsOfFor, planCommands } from "../render/plan";
 import type { Pt } from "../layout/model";
 import type { SubtitleTrack } from "../spec/subtitles";
 import type { Spec } from "../spec/types";
@@ -97,6 +97,10 @@ export function captionLines(spec: Spec): string[] {
   const plan = planCommands(spec.commands ?? [], mentionedIds(spec), {
     bboxOf: () => ({ x: 0, y: 0, w: 0, h: 0 }),
     leafPointsOf: () => dummyLeaf,
+    // A `run` (and an explore beat's demo) is planned only when its script's
+    // controls can be read — without this the step is never pushed and the
+    // line paired with it is lost, the same way a motion verb's was.
+    controlsOf: controlsOfFor(spec),
   });
   for (const step of plan.steps) {
     add(step.narration);

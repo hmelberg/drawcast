@@ -119,15 +119,38 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // "Pack available but not enabled" line carries, and naming the three new
 // figures in it is +39 chars on the system prompt (225132 → 225171). The
 // schema is untouched (110309 stays 110309).
+// Re-pinned 2026-09-15 for the sweep round: `run` verb + `explore.play` in
+// the schema (+6,479), the run bullet and the rewritten explore/controls
+// sentences in the prompts (+615) — schema 110309 → 116788, system
+// 225171 → 232265.
+// Re-pinned 2026-09-15 for the sweep fix wave (item 2): three wordings that
+// had gone stale or self-contradictory. compiler-v1.md's explore bullet said
+// BOTH "App only: movies drop the whole beat INCLUDING its speak" and "the
+// movie continues" — its middle is now one sentence, "Without a controls
+// script the beat is app-only (movies drop it, speak included)" (−22 on the
+// system prompt, prompt-only). The schema's `explore` description still
+// opened on the stage-1 world where the beat opened the ⊕ tray; its opener is
+// now "Hold the lesson for the viewer: on a `pane: controls` script the drawn
+// knobs are live and the tray stays shut…" (+52 on the schema, which is
+// embedded verbatim in the system prompt, so the same +52 lands there).
+// Net: schema 116788 → 116840 (+52), system 232265 → 232295 (+30 = +52 − 22).
+// (types.ts's `controls` docstring was fixed in the same item; a TS comment
+// is in neither measurement.)
 // Re-pinned 2026-09-15 for the template box round: one sentence on params.box
 // in the schema (+322 on the schema, 110309 → 110631, which lands on the
 // system prompt too since the schema is embedded verbatim), one sentence in
 // compiler-v1.md's scene-template list item, and one clause in
 // compiler-v1-code.md's data-from-code bullet (behind the {{CODE}}
 // conditional, so it costs an ordinary request nothing) — net system-prompt
-// growth 225171 → 225768 (+597).
-const BASELINE_SYSTEM_CHARS = 225768;
-const BASELINE_SCHEMA_CHARS = 110631;
+// growth 225171 → 225768 (+597). (This round was cut from main before the
+// sweep round landed, so these deltas are against the pre-sweep baseline.)
+// Re-measured 2026-09-15 after merging origin/main (the sweep round, b82e503)
+// into the template-box branch: both rounds' changes are additive on the
+// merged tree, so the two constants below are pinned to the values actually
+// measured on the merge, not to a sum of the two rounds' deltas — schema
+// 116840 → 117162, system 232295 → 232892.
+const BASELINE_SYSTEM_CHARS = 232892;
+const BASELINE_SCHEMA_CHARS = 117162;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

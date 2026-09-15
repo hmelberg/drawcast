@@ -3,6 +3,7 @@
 // the live smoke's.
 
 import { describe, expect, test } from "vitest";
+import { readFileSync } from "node:fs";
 import { hiddenIds, pressSwitch, shownFor, veilOpacity, SWITCHES_ON, type SwitchState } from "../src/ui/panel-view";
 
 const parts = { lines: ["c1_line_1", "c1_line_2"], out: ["c1_out", "c1_fig_1"] };
@@ -48,5 +49,16 @@ describe("what the panel shows", () => {
   test("a half switched off on its own hides no ids — the layout did the work", () => {
     expect(hiddenIds(st({ code: false }), parts)).toEqual([]);
     expect(hiddenIds(SWITCHES_ON, parts)).toEqual([]);
+  });
+});
+
+describe("the composer-less preview (source pin — the DOM half is the smoke's)", () => {
+  test("previews from what is PAINTED, so a switch press does not undo a sweep", () => {
+    const src = readFileSync("src/ui/panel-view.ts", "utf8");
+    // Same rule as the tray's repaint(): a `run` has left its swept script and
+    // fresh envelope on the player, and a preview rebuilt from the authored
+    // `hd.spec.elements` would snap the figure back to the author's text.
+    expect(src).toMatch(/patch\(hd\.timeline\.patchedElements\(\) \?\? hd\.spec\.elements \?\? \[\]\)/);
+    expect(src).not.toMatch(/patch\(hd\.spec\.elements \?\? \[\]\)/);
   });
 });

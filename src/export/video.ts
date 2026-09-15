@@ -6,6 +6,8 @@
 // BYOK Google Cloud TTS key (browser speechSynthesis cannot be captured).
 
 import { render, type RenderStyle } from "../render";
+import { precomputeSweeps } from "../render/sweep-run";
+import { controlsOfFor } from "../render/plan";
 import { CaptionTape, splitLongCues, type CaptionCue } from "./captions";
 import { titleIsDrawn } from "../render/title";
 import { speechKey, type SpeakLine } from "../render/delivery";
@@ -21,6 +23,11 @@ import { WebAudioTones } from "../render/tones";
  *  speaker/delivery/gender attached, and {var} tokens interpolated with the
  *  asks' defaults — the movie's values — so the audio exists at export time. */
 export function collectSpeakLines(spec: Spec): SpeakLine[] {
+  // Whether a script can be DEMOed — asked through the planner's own reader
+  // (render/plan.ts), never a second copy of its rules: a beat the storyboard
+  // gives a demo sweep is exactly a beat the movie must voice. Right on the
+  // raw spec and on a resolved clone alike (controlsOfFor reads `code_src`).
+  const controlsOf = controlsOfFor(spec);
   const seen = new Map<string, SpeakLine>();
   const vars = new Map<string, string>();
   // The movie's tally: auto answers are always correct, so score == answered.
@@ -44,8 +51,10 @@ export function collectSpeakLines(spec: Spec): SpeakLine[] {
       const base = hasSpeak ? (c.speak as string) : q.question;
       return q.intro ? `${q.intro} ${base}` : base;
     };
-    // An explore command is skipped wholesale in movies — its speak too.
-    if (!c.quiz && !c.ask && !c.explore) push(c.speak);
+    // An explore beat is voiced when its demo plays in the movie (a controls
+    // script, play not false); otherwise the beat is app-only, speak included.
+    const demoPlays = c.explore !== undefined && c.explore.play !== false && c.explore.code !== undefined && (controlsOf(c.explore.code)?.length ?? 0) > 0;
+    if (!c.quiz && !c.ask && (!c.explore || demoPlays)) push(c.speak);
     if (c.quiz) {
       // The export's quiz path: the question line (pre-answer tally), then —
       // post-answer — the reveal: right if present, else the correct choice.
@@ -466,7 +475,15 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
     // fires when the export has no clock left; without one, freeze
     // everything until they return.
     let resumeTarget: Awaited<ReturnType<typeof render>> | null = null;
-    stopVisibility = visibilityPauser(keepAlive ?? document, {
+    // ONE visibility surface for the pauser AND for the item loop's resume
+    // guard. They must be the same object: with the keep-alive clock attached
+    // (the production default) `ExportKeepAlive.hidden` is FALSE while the tab
+    // itself is hidden — the export still has a clock — so the pauser never
+    // pauses. A loop that asked `document.hidden` instead would refuse to
+    // resume the recorder it paused over a mount, and the movie would end
+    // silently there, with nobody left to resume it.
+    const vis: VisibilityDoc = keepAlive ?? document;
+    stopVisibility = visibilityPauser(vis, {
       pause: () => {
         // Remember the handle only when its timeline is actually playing:
         // play() on a finished player restarts it from step 0 — hiding the tab
@@ -494,50 +511,83 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
     try {
       for (let i = 0; i < items.length; i++) {
         if (signal.aborted) break;
-        hooks.onStatus(items.length > 1 ? `Recording — playing part ${i + 1}/${items.length}…` : "Recording — playing the drawcast once…");
-        handle = await render(items[i], workbench, { style: cfg.style, speech, tones, mode: "narrated", speed: 1, questions: cfg.questions });
-        const svg = workbench.querySelector<SVGSVGElement>("svg.cs-svg");
-        if (!svg) throw new Error(`nothing to record — spec ${i + 1} rendered no figure`);
-        currentSvg = svg;
-        currentCaption = workbench.querySelector<HTMLElement>(".cs-caption");
-        // The frame's title band stays empty when the drawing draws its own
-        // title — the same no-duplicate rule the live player follows.
-        currentTitle = titleIsDrawn(items[i].title, handle.layout.drawables) ? "" : (items[i].title ?? "");
-        if (keepAlive) handle.timeline.raf = keepAlive.raf; // replay keeps ticking while the tab is hidden
-        handle.timeline.inputGate = (sig) => (sig.aborted ? Promise.resolve() : zzz(600));
-        // Movies never wait on an answer: the card performs — the quiz hovers
-        // across its options and settles on the correct one; the ask types
-        // its answer (or the default) by itself — then the timeline goes on.
-        const mounted = handle;
-        handle.timeline.autoAnswers = true; // demo answers are not a viewer's: gotos never fire, the movie stays linear
-        handle.timeline.quizGate = async (sig, step) => {
-          if (sig.aborted) return null;
-          const demo: DemoState = {
-            kind: "quiz",
-            question: subVars(step.question, mounted.timeline.vars),
-            choices: step.choices,
-            correct: step.correct,
-            t0: performance.now(),
+        const playingStatus = items.length > 1 ? `Recording — playing part ${i + 1}/${items.length}…` : "Recording — playing the drawcast once…";
+        hooks.onStatus(playingStatus);
+        // The recorder started BEFORE this loop, so everything between here
+        // and play() would be recorded as a still frame: mounting the figure
+        // (a runtime boot, a chart) and warming the sweeps below can each take
+        // seconds. Hold its breath over both, and resume on the frame the
+        // movie actually starts. `heldByLoop` is the ownership the two pause
+        // sources otherwise lack — they share `recorder.state` and nothing
+        // else — so this loop never resumes a recorder the visibility pauser
+        // stopped, and never resumes into a hidden tab (the pauser's own
+        // handler does that when the tab comes back).
+        let heldByLoop = false;
+        if (recorder.state === "recording") {
+          recorder.pause();
+          heldByLoop = true;
+        }
+        try {
+          handle = await render(items[i], workbench, { style: cfg.style, speech, tones, mode: "narrated", speed: 1, questions: cfg.questions });
+          const svg = workbench.querySelector<SVGSVGElement>("svg.cs-svg");
+          if (!svg) throw new Error(`nothing to record — spec ${i + 1} rendered no figure`);
+          currentSvg = svg;
+          currentCaption = workbench.querySelector<HTMLElement>(".cs-caption");
+          // The frame's title band stays empty when the drawing draws its own
+          // title — the same no-duplicate rule the live player follows.
+          currentTitle = titleIsDrawn(items[i].title, handle.layout.drawables) ? "" : (items[i].title ?? "");
+          if (keepAlive) handle.timeline.raf = keepAlive.raf; // replay keeps ticking while the tab is hidden
+          handle.timeline.inputGate = (sig) => (sig.aborted ? Promise.resolve() : zzz(600));
+          // Movies never wait on an answer: the card performs — the quiz hovers
+          // across its options and settles on the correct one; the ask types
+          // its answer (or the default) by itself — then the timeline goes on.
+          const mounted = handle;
+          handle.timeline.autoAnswers = true; // demo answers are not a viewer's: gotos never fire, the movie stays linear
+          handle.timeline.quizGate = async (sig, step) => {
+            if (sig.aborted) return null;
+            const demo: DemoState = {
+              kind: "quiz",
+              question: subVars(step.question, mounted.timeline.vars),
+              choices: step.choices,
+              correct: step.correct,
+              t0: performance.now(),
+            };
+            currentDemo = demo;
+            await zzz(quizDemoDuration(step.choices.length));
+            lingerDemo(demo);
+            return null;
           };
-          currentDemo = demo;
-          await zzz(quizDemoDuration(step.choices.length));
-          lingerDemo(demo);
-          return null;
-        };
-        handle.timeline.askGate = async (sig, step) => {
-          if (sig.aborted) return null;
-          const text = step.answer ?? step.fallback ?? "";
-          const demo: DemoState = {
-            kind: "ask",
-            question: subVars(step.question, mounted.timeline.vars),
-            typed: text,
-            t0: performance.now(),
+          handle.timeline.askGate = async (sig, step) => {
+            if (sig.aborted) return null;
+            const text = step.answer ?? step.fallback ?? "";
+            const demo: DemoState = {
+              kind: "ask",
+              question: subVars(step.question, mounted.timeline.vars),
+              typed: text,
+              t0: performance.now(),
+            };
+            currentDemo = demo;
+            await zzz(askDemoDuration(text));
+            lingerDemo(demo);
+            return text;
           };
-          currentDemo = demo;
-          await zzz(askDemoDuration(text));
-          lingerDemo(demo);
-          return text;
-        };
+          // Every sweep's values, run once BEFORE the clock starts: the live
+          // player warms this cache on an idle callback while the viewer watches
+          // the opening, but a recording has no spare time — a cold cache would
+          // record the script's first run as a stalled frame.
+          if (handle.timeline.sweepRunner) {
+            // Seconds of runtime with nothing on screen: say so, then hand the
+            // status line back to the part that is about to play.
+            hooks.onStatus("Preparing the sweeps…");
+            await precomputeSweeps(handle.plan, handle.timeline.sweepRunner);
+            hooks.onStatus(playingStatus);
+          }
+        } finally {
+          // ONE place, and on the error path too: a mount or a warm-up that
+          // throws must not leave the recorder paused for the rest of the run.
+          if (heldByLoop && recorder.state === "paused" && !vis.hidden) recorder.resume();
+          heldByLoop = false;
+        }
         await handle.timeline.play();
         if (i < items.length - 1) {
           await zzz(300); // beat between parts

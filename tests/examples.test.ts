@@ -109,6 +109,10 @@ describe("bundled examples stay exemplary", () => {
         const b = elementBBoxes(l);
         return (id) => b.get(id) ?? null;
       },
+      // planOptionsFor carries `controlsOf` too, so a `run` or an explore
+      // demo in a bundled example is planned exactly as the app plans it —
+      // without it every run would warn here and every demo would silently
+      // plan nothing, and this gate could not fail on a sweep.
       ...planOptionsFor(spec, layout),
     });
     expect(plan.warnings).toEqual([]);

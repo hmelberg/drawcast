@@ -65,6 +65,11 @@ describe("tray controls (pins)", () => {
     // without this a Run inside the debounce window — of the very text on
     // screen — counted as a takeover and quieted the viewer's own knobs.
     expect(body).toMatch(/lastControlsCode\.set\(el\.id, code\);/);
+    // …and the result it HOLDS through the debounce is the one on screen: a
+    // sweep's, when the viewer has run nothing of their own. Falling straight
+    // through to el.code_result snapped the output pane back to the authored
+    // defaults for the length of the first drag after a run (fix round 1).
+    expect(body).toMatch(/patches\.get\(el\.id\)\?\.result \?\? hd\.timeline\.codePatchOf\(el\.id\)\?\.result \?\? el\.code_result/);
     const commit = src.slice(src.indexOf("commit: (c, raw, immediate) =>"), src.indexOf("run: () => runControls"));
     expect(commit.indexOf("previewKnobs(")).toBeLessThan(commit.indexOf("runControls("));
   });
@@ -135,5 +140,14 @@ describe("tray controls (pins)", () => {
     const body = src.slice(src.indexOf("const clearPreview"), src.indexOf("const draftOf"));
     expect(body).toMatch(/if \(knobFrame !== null\) cancelAnimationFrame\(knobFrame\);/);
     expect(body).toMatch(/knobFrame = null;/);
+  });
+  test("the tray paints from the player's patched elements, so a sweep's last values are what a knob continues from", () => {
+    expect(src).toMatch(/hd\.timeline\.patchedElements\(\) \?\? hd\.spec\.elements/);
+    expect(src).toMatch(/controlValues\.get\(el\.id\) \?\? hd\.timeline\.codePatchOf\(el\.id\)\?\.values \?\? \{\}/);
+  });
+  test("every read of a script's current values goes through that one sweep-aware door — the commit, the knob preview, the run and the typed box", () => {
+    expect(src).toMatch(/const valuesOf = \(el: SpecElement\)[^\n]*=> controlValues\.get\(el\.id\) \?\? hd\.timeline\.codePatchOf\(el\.id\)\?\.values \?\? \{\};/);
+    expect(src).not.toMatch(/controlValues\.get\(el\.id\) \?\? \{\}/); // no bare read left to snap a swept script back to the defaults
+    expect(src).toMatch(/const current = valuesOf\(el\)\[c\.name\] \?\? c\.default;/);
   });
 });

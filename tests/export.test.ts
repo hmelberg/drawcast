@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { readFileSync } from "node:fs";
 import { speechKey, type SpeakOpts } from "../src/render/delivery";
 import { BufferSpeech } from "../src/export/tts";
 import { collectSpeakLines, narrationLanguage, wrapCaption } from "../src/export/video";
@@ -125,6 +126,70 @@ describe("collectSpeakLines", () => {
   test("ignores empty narration and specs without commands", () => {
     expect(collectSpeakLines({ commands: [{ speak: "  " }, { draw: ["a"] }] })).toEqual([]);
     expect(collectSpeakLines({})).toEqual([]);
+  });
+
+  test("an explore beat on a controls script is voiced (its demo plays in the movie); without controls or with play: false it is not", () => {
+    const withControls = { elements: [{ id: "sim", type: "code", language: "python", show: "left", controls: ["b"], code: "b = (1, 5)" }], commands: [{ explore: { code: "sim" }, speak: "Try it." }] };
+    expect(collectSpeakLines(withControls as never).map((l) => l.text)).toEqual(["Try it."]);
+    const noDemo = { ...withControls, commands: [{ explore: { code: "sim", play: false }, speak: "Try it." }] };
+    expect(collectSpeakLines(noDemo as never)).toEqual([]);
+    const noControls = { elements: [{ id: "p", type: "code", language: "python", show: "left", code: "print(1)" }], commands: [{ explore: { code: "p" }, speak: "Try it." }] };
+    expect(collectSpeakLines(noControls as never)).toEqual([]);
+    const plain = { elements: [], commands: [{ explore: { params: ["n"] }, speak: "Try it." }] };
+    expect(collectSpeakLines(plain as never)).toEqual([]);
+  });
+
+  test("a run's speak is voiced like any action's", () => {
+    const s = { elements: [{ id: "sim", type: "code", language: "python", show: "left", controls: ["b"], code: "b = (1, 5)" }], commands: [{ run: { code: "sim", values: { b: [1, 2] } }, speak: "Watch." }] };
+    expect(collectSpeakLines(s as never).map((l) => l.text)).toEqual(["Watch."]);
+  });
+});
+
+describe("the export's sweep warm-up (source pins — the export is DOM-driven)", () => {
+  const src = readFileSync("src/export/video.ts", "utf8");
+  test("the recorder holds its breath over the item's mount and its sweep warm-up — paused before render, resumed before play — so neither bakes a still lead-in", () => {
+    expect(src).toMatch(/import \{ precomputeSweeps \} from "\.\.\/render\/sweep-run";/);
+    // Guarded: a player with no runtime (no run steps, a headless mount) has no runner.
+    // The warm-up can take seconds with nothing on screen, so it says so and
+    // hands the status line back to the part that is about to play.
+    expect(src).toMatch(
+      /if \(handle\.timeline\.sweepRunner\) \{\s*(\/\/[^\n]*\n\s*)*hooks\.onStatus\("Preparing the sweeps…"\);\s*await precomputeSweeps\(handle\.plan, handle\.timeline\.sweepRunner\);\s*hooks\.onStatus\(playingStatus\);\s*\}/,
+    );
+    // The two pause sources share `recorder.state` and nothing else, so the
+    // loop resumes ONLY what it paused itself (`heldByLoop`) and never into a
+    // hidden tab — where the visibility pauser owns the recorder and its own
+    // handler will resume it when the tab comes back (fix round 2).
+    expect(src).toMatch(/let heldByLoop = false;/);
+    expect(src).toMatch(/if \(recorder\.state === "recording"\) \{\s*recorder\.pause\(\);\s*heldByLoop = true;\s*\}/);
+    // The guard asks the SAME visibility surface the pauser was built on —
+    // `vis`, not `document`. With the keep-alive clock attached (the
+    // production default) ExportKeepAlive.hidden is false while the tab is
+    // hidden, so the pauser never pauses; a loop asking `document.hidden`
+    // would refuse to resume the recorder it paused over the mount and the
+    // movie would end there, with nobody left to resume it (fix wave 1).
+    expect(src).toMatch(/const vis: VisibilityDoc = keepAlive \?\? document;/);
+    expect(src).toMatch(/stopVisibility = visibilityPauser\(vis, \{/);
+    expect(src).toMatch(/if \(heldByLoop && recorder\.state === "paused" && !vis\.hidden\) recorder\.resume\(\);/);
+    expect(src).not.toMatch(/heldByLoop[^\n]*document\.hidden/);
+    // Searched from the item loop, so the visibility pauser's own pair (which
+    // uses the very same two calls, above the loop) cannot stand in for these.
+    const loop = src.indexOf("for (let i = 0; i < items.length; i++)");
+    expect(loop).toBeGreaterThan(-1);
+    const pause = src.indexOf('if (recorder.state === "recording") {', loop);
+    const mount = src.indexOf("handle = await render(items[i]", loop);
+    const warm = src.indexOf("await precomputeSweeps(handle.plan, handle.timeline.sweepRunner)", loop);
+    const resume = src.indexOf('if (heldByLoop && recorder.state === "paused" && !vis.hidden) recorder.resume();', loop);
+    const play = src.indexOf("await handle.timeline.play();", loop);
+    for (const i of [pause, mount, warm, resume, play]) expect(i).toBeGreaterThan(-1);
+    expect(pause).toBeLessThan(mount);
+    expect(mount).toBeLessThan(warm);
+    expect(warm).toBeLessThan(resume);
+    expect(resume).toBeLessThan(play);
+    // …and the resume lives in ONE place, a finally, so a mount or a warm-up
+    // that throws does not leave the recorder paused for good.
+    const fin = src.indexOf("} finally {", warm);
+    expect(fin).toBeGreaterThan(warm);
+    expect(fin).toBeLessThan(resume);
   });
 });
 

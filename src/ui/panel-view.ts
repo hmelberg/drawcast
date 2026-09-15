@@ -244,7 +244,12 @@ export function attachPanelView(stage: HTMLElement, hd: RenderHandle): void {
   let composer: (() => void) | null = null;
   const applyView = (): void => {
     if (composer) composer();
-    else hd.timeline.previewSpec({ elements: patch(hd.spec.elements ?? []), hide: hidden() });
+    // From what is PAINTED, not from the author's spec — the same rule the
+    // tray's repaint() follows: a `run` has left its swept script and fresh
+    // envelope on the player, and a preview built from `hd.spec.elements`
+    // would snap the figure back to the authored text the moment a switch on
+    // the drawn panel was pressed.
+    else hd.timeline.previewSpec({ elements: patch(hd.timeline.patchedElements() ?? hd.spec.elements ?? []), hide: hidden() });
   };
 
   const clearAll = (): void => {

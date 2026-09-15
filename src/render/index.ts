@@ -8,13 +8,17 @@ import type { LintIssue } from "../lint/lint";
 import type { Spec, SpecElement } from "../spec/types";
 import { ensureFigureStyles } from "./figure-style";
 import { splitVarOverrides, withNewIdsVisible, withOverrides } from "./params";
-import { planCommands, type Plan, type PlanOptions } from "./plan";
+import { controlsOfFor, planCommands, type Plan, type PlanOptions } from "./plan";
 import { withMinted, type MintedSpec } from "./minted";
 import { dependentsMap, sourceIds } from "../spec/deps";
 import { boxAnchor } from "../layout/anchors";
 import { isEmptyOverrides, overridesKey, type LayoutOverrides } from "../layout/posed";
 import type { LabelPin } from "../layout/labels";
-import { Player, type PlaybackMode, type PlayerCallbacks } from "./player";
+import { Player, type CodePatch, type PlaybackMode, type PlayerCallbacks } from "./player";
+import { applyCodePatches, precomputeSweeps, sweepRunnerFor } from "./sweep-run";
+import { stableHash } from "./sweep";
+import { scanDataTokens, substituteDataTokens } from "../code/tokens";
+import { decodeCodeResult } from "../code/envelope";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { WebAudioTones, type ToneLike } from "./tones";
 import { resolvePortraits } from "./portrait";
@@ -107,7 +111,7 @@ function contactEmail(): string {
 export function planOptionsFor(
   spec: Spec,
   layout: LayoutResult,
-): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds" | "mathOf" | "isElement"> {
+): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds" | "mathOf" | "isElement" | "controlsOf"> {
   // Definitions hold (design 2026-09-10 §2.5): what is defined in terms of
   // what. A source that is a group or a pieces cut is moved through its
   // members (the planner expands it), so its dependents are attached to every
@@ -134,6 +138,10 @@ export function planOptionsFor(
   return {
     dependentsOf: (id) => depsByLeaf.get(id) ?? [],
     sourceIds: sources,
+    // A sweep reads the AUTHORED control literals: this clone has already
+    // rewritten them to their defaults, and `code_src` is where the original
+    // was stamped — controlsOfFor reads whichever the spec has.
+    controlsOf: controlsOfFor(spec),
     mathOf: (id) => {
       const el = spec.elements?.find((e) => e.id === id);
       return el?.type === "math" && typeof el.tex === "string" ? el.tex : null;
@@ -274,6 +282,14 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // plan-time bboxes) are cached; per-frame layouts are NOT (every tween tick
   // is a distinct param set — caching them would hoard hundreds of layouts).
   const boundaryLayouts = new Map<string, LayoutResult>();
+  // A `run`'s live patches (spec 2026-09-15 §4.2): the swept script and its
+  // fresh envelope, in place of the authored ones. Applied to FRAMES and to
+  // BOUNDARY COMMITS alike — a commit that dropped them would snap the figure
+  // back to the author's script at the end of every sweep — and part of the
+  // boundary cache key, so a patched boundary never gets an unpatched layout
+  // back out of the cache.
+  const codePatches = new Map<string, CodePatch>();
+  const patchesKey = (): string => (codePatches.size === 0 ? "" : [...codePatches].map(([id, p]) => `${id}:${p.code.length}:${stableHash(p.code)}`).join("|"));
   // Minted elements (design §2.1 round 3, §2.5 round 2 — trails, ghosts): set
   // once the plan is known, below — layoutFor and the mounted layout both
   // append them, so a reprojected preview or a scrub carries them too.
@@ -290,16 +306,41 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // the FRAMES between boundaries so the solver is not re-run per rAF tick.
   // Never cached with one: a cached boundary layout must be the honest solve.
   const rawLayoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[], overrides?: LayoutOverrides, pins?: Record<string, LabelPin>): LayoutResult => {
-    if (Object.keys(params).length === 0 && !elements && isEmptyOverrides(overrides)) return layout;
+    if (Object.keys(params).length === 0 && !elements && isEmptyOverrides(overrides) && codePatches.size === 0) return layout;
     // An elements override is the code editor's preview: never cached, its
-    // key would be the whole patched script.
-    const key = cache && !elements && !pins ? JSON.stringify([Object.entries(params).sort(), overridesKey(overrides)]) : undefined;
+    // key would be the whole patched script. A sweep's patches ARE cached —
+    // one entry per run step's tail commit — but only under a key that names
+    // them (their ids and script hashes), never the plain param key.
+    const key = cache && !elements && !pins ? JSON.stringify([Object.entries(params).sort(), overridesKey(overrides), patchesKey()]) : undefined;
     const hit = key !== undefined ? boundaryLayouts.get(key) : undefined;
     if (hit) return hit;
-    const split = splitVarOverrides(params);
+    // A caller's own element list (the tray's preview) has the last word: it
+    // was built from the viewer's edits and already carries whatever it wants
+    // to keep. With none, a live sweep's patches stand in.
+    const patched = elements ?? (codePatches.size > 0 ? applyCodePatches(spec.elements ?? [], codePatches) : undefined);
+    // A `{id.var}` template param is harvested from the script's OUTPUT, so a
+    // sweep that changes the output must change the param too — otherwise the
+    // CE plane's threshold line walks while the number that labels it stands
+    // still. Re-substituted into the AUTHORED params (the resolved clone
+    // holds the harvested values, not the tokens), from the PATCHED elements'
+    // fresh envelopes — the same reading the tray does in repaint(). The
+    // caller's own params are explicit overrides and keep the last word.
+    let effective = params;
+    if (codePatches.size > 0 && scanDataTokens(authored.params).length > 0) {
+      const from = patched ?? spec.elements ?? [];
+      const sub = substituteDataTokens(authored.params, (codeId, path) => {
+        const env = decodeCodeResult(from.find((e) => e.id === codeId)?.code_result);
+        if (!env || !env.ok) return { error: env?.error ?? "the script did not run" };
+        if (env.dataErrors && path in env.dataErrors) return { error: env.dataErrors[path] };
+        if (env.data && path in env.data) return { value: env.data[path] };
+        return { error: "not harvested" };
+      }).params;
+      effective = { ...sub, ...params };
+    }
+    const split = splitVarOverrides(effective);
     const l = applyTextStyle(
       layoutSpec(
-        { ...spec, params: withOverrides(spec.params, split.params), ...(Object.keys(split.vars).length > 0 ? { vars: { ...(spec.vars ?? {}), ...split.vars } } : {}), ...(elements ? { elements } : {}) },
+        { ...spec, params: withOverrides(spec.params, split.params), ...(Object.keys(split.vars).length > 0 ? { vars: { ...(spec.vars ?? {}), ...split.vars } } : {}), ...(patched ? { elements: patched } : {}) },
         measure,
         overrides,
         pins,
@@ -388,6 +429,44 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
         labelPins = l.labelPins;
         return mounted.remount!(l);
       },
+      setCodePatch: (id, p) => {
+        if (p) codePatches.set(id, p);
+        else codePatches.delete(id);
+      },
+      patchedElements: () => (codePatches.size > 0 ? applyCodePatches(spec.elements ?? [], codePatches) : undefined),
+    };
+  }
+
+  // The `run` verb's engine. Wired HERE, not in the tray: the exporter drives
+  // this same player with no UI at all (src/export/video.ts), and a movie
+  // whose sweeps did nothing would be the whole point of the verb missing.
+  // The AUTHORED spec, because its control literals are still tuples; the
+  // default deps, because that is exactly what resolveCode runs with — same
+  // runtime, same cache.
+  const sweepRunner = sweepRunnerFor(authored);
+  player.sweepRunner = sweepRunner;
+  // …and the cache is filled while the viewer watches the opening: every run
+  // step's value maps, once, when the drawcast first starts playing. By the
+  // time the sweep arrives, each step is a cache read.
+  // Set when this figure is torn down or replaced (destroy/update below). The
+  // idle precompute below can start after that — it is scheduled on an idle
+  // callback and boots a runtime per step — and must stop when it does.
+  let disposed = false;
+  if (plan.steps.some((s) => s.kind === "run")) {
+    let warmed = false;
+    const prevOnState = player.callbacks.onState;
+    player.callbacks.onState = (s) => {
+      prevOnState?.(s);
+      if (s !== "playing" || warmed) return;
+      warmed = true;
+      // Wrapped, never handed over detached: requestIdleCallback is a method
+      // of the global and throws "Illegal invocation" when called bare.
+      const hasIdle = typeof (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback === "function";
+      const idle = hasIdle ? (cb: () => void) => requestIdleCallback(cb) : (cb: () => void) => setTimeout(cb, 300);
+      idle(() => {
+        if (disposed) return;
+        void precomputeSweeps(plan, sweepRunner, () => disposed);
+      });
     };
   }
 
@@ -399,6 +478,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     authored,
     lint: () => layout.issues,
     update: async (diff) => {
+      disposed = true;
       player.dispose();
       mounted.destroy();
       figure.remove();
@@ -407,6 +487,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
       return handle;
     },
     destroy: () => {
+      disposed = true;
       player.dispose();
       mounted.destroy();
       figure.remove();

@@ -843,7 +843,9 @@ The lint `explore-invite` (warn): an ordinary `speak` matching a small
 invitation word list — slide, drag, press, click, toggle, try it, turn the
 knob/dial, set the … to, and the Norwegian dra, trykk, klikk, prøv, skyv —
 belongs in an `explore` beat instead. `tests/examples-style.test.ts` pins
-`INVITE_BASELINE` at 0.
+`INVITE_BASELINE` at 0. (Retired 2026-09-15, stage 2: the explore beat now
+demos the knobs by itself, so the invitation law it enforced is gone — the
+rule, its tests and the ratchet are deleted.)
 
 Four bundled examples became two-part playlists (theory drawing, then the
 knobs), all four with `pane: controls`: SIR, the Markov cohort, the
@@ -859,6 +861,9 @@ against.
   the sketchy tray border removed; panel text in the sketch face; drawn Run
   ▶ row. Next: stage 2 (the `run` sweep + explore demo), stage 3
   (`#movie`).
+- 2026-09-15 The sweep (stage 2): `run` verb, explore demo (seeded walk,
+  `play`), precompute-then-play with code patches that persist across
+  boundaries; the invitation lint retired. Next: stage 3 (`#movie`).
 
 Open: a performed sweep (the `animate` pairing) as the panel's own movie
 form — out of scope by design (§7), not built; the Norwegian invitation
