@@ -7,6 +7,8 @@
 
 import AjvModule, { type ValidateFunction } from "ajv";
 import { scenes } from "./registry";
+import { resolveTemplateBox } from "../layout/template-fit";
+import { isFitName } from "../layout/regions";
 
 const AjvCtor = ((AjvModule as unknown as { default?: unknown }).default ?? AjvModule) as typeof AjvModule;
 const ajv = new AjvCtor({ allErrors: true, strict: false });
@@ -36,7 +38,12 @@ export function templateParamErrors(templateId: string, params: unknown): string
     entry = { schema, validate };
     compiled.set(templateId, entry);
   }
-  if (!entry.validate || entry.validate(params ?? {})) return [];
+  // A region name is the layout's vocabulary for `box` (template-fit.ts);
+  // the five templates that type `box` as a rectangle get exactly that.
+  const p = params && typeof params === "object" && isFitName((params as Record<string, unknown>)["box"])
+    ? { ...(params as Record<string, unknown>), box: resolveTemplateBox((params as Record<string, unknown>)["box"]) }
+    : params;
+  if (!entry.validate || entry.validate(p ?? {})) return [];
   return (entry.validate.errors ?? []).map(
     (e) => `params${e.instancePath || ""} ${e.message ?? "invalid"}${e.params ? " " + JSON.stringify(e.params) : ""}`,
   );
