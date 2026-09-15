@@ -151,8 +151,14 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // the first is now "walks from one to the other" (+18), and the glide advice
 // asks for `steps: 10–16` rather than 8–16 (+1), since anything under 10 is
 // raised anyway. Prompt-only: system 233001 → 233020, schema unchanged.
-const BASELINE_SYSTEM_CHARS = 233020;
-const BASELINE_SCHEMA_CHARS = 117406;
+// Re-measured again 2026-09-15: the SCHEMA's `run` description carried the
+// same stale phrase the prompt bullet did ("{from, to, steps} is linear"),
+// one line above its own `smooth` property saying ranges glide by default —
+// now "walks from one to the other" there too, +18 on the schema, which is
+// embedded verbatim in the system prompt, so the same +18 lands there.
+// Schema 117406 → 117424, system 233020 → 233038.
+const BASELINE_SYSTEM_CHARS = 233038;
+const BASELINE_SCHEMA_CHARS = 117424;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

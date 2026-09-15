@@ -514,7 +514,7 @@ const commandSchema = {
     run: {
       type: "object",
       description:
-        'Play a controls script through a series of values while the speak lands \u2014 the movie form of a knob: {"run": {"code": "sim", "values": {"beta": {"from": 0.1, "to": 0.9, "steps": 5}, "gamma": 0.2}}, "speak": "Watch the peak move as the rate rises."}. values: per control name \u2014 a bare value holds, a list is the step values, {from, to, steps} is linear (snapped to the slider\'s step); the longest series sets the step count, shorter ones hold their last value; at most 20 steps. every: seconds per step (default: the speak\'s length divided by the steps, else 0.5). loop: repeat the series. The script and its drawn knobs STAY at the last values afterwards. Runs live in the app and in the movie; nothing is baked.',
+        'Play a controls script through a series of values while the speak lands \u2014 the movie form of a knob: {"run": {"code": "sim", "values": {"beta": {"from": 0.1, "to": 0.9, "steps": 5}, "gamma": 0.2}}, "speak": "Watch the peak move as the rate rises."}. values: per control name \u2014 a bare value holds, a list is the step values, {from, to, steps} walks from one to the other (snapped to the slider\'s step); the longest series sets the step count, shorter ones hold their last value; at most 20 steps. every: seconds per step (default: the speak\'s length divided by the steps, else 0.5). loop: repeat the series. The script and its drawn knobs STAY at the last values afterwards. Runs live in the app and in the movie; nothing is baked.',
       properties: {
         code: { type: "string", description: "Id of a code element with controls." },
         values: seriesValuesSchema,

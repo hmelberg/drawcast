@@ -81,12 +81,22 @@ describe("smooth sweeps", () => {
   });
   // The one that would have come apart: a densified range would walk ten
   // positions while the three-item list sat on "SIS" for seven of them.
-  test("a range paired with an explicit list does not glide at all — the two stay in step", () => {
+  test("a range paired with a list of several values does not glide at all — the two stay in step", () => {
     const { steps, issues } = runValues({ values: { beta: { from: 0.1, to: 0.9, steps: 3 }, model: ["SIR", "SEIR", "SIS"] } }, controls());
     expect(issues).toEqual([]);
     expect(steps).toHaveLength(3);
     expect(steps.map((s) => s.model)).toEqual(["SIR", "SEIR", "SIS"]);
     expect(steps.map((s) => s.beta)).toEqual([0.1, 0.5, 0.9]);
+  });
+  // A one-item list is a constant wearing brackets: it holds "SIR" at every
+  // step however many the range takes, so there is nothing to come apart.
+  test("a one-item list is a constant and costs the glide nothing", () => {
+    const { steps, issues } = runValues({ values: { beta: { from: 0.1, to: 0.9, steps: 3 }, model: ["SIR"] } }, controls());
+    expect(issues).toEqual([]);
+    expect(steps.length).toBeGreaterThanOrEqual(SMOOTH_MIN_STEPS);
+    expect(new Set(steps.map((s) => s.model))).toEqual(new Set(["SIR"]));
+    expect(steps[0].beta).toBe(0.1);
+    expect(steps[steps.length - 1].beta).toBe(0.9);
   });
   test("authored reports the count the author wrote, not the glide's", () => {
     expect(runValues({ values: { beta: { from: 0.1, to: 1.0, steps: 5 } } }, controls()).authored).toBe(5);

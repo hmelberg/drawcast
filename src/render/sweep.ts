@@ -135,7 +135,10 @@ export function runValues(args: PlayArgs, controls: ControlSpec[]): { steps: Rec
   // list has exactly as many values as the author wrote, and a densified
   // range would walk past them while the list sat on its last one — the two
   // series would come apart. The author counted; the run counts with them.
-  const listed = names.some((n) => Array.isArray(args.values[n]));
+  // A ONE-item list is not counting, it is a constant that happens to wear
+  // brackets: it holds its value at every step, whatever the range does, so
+  // it never comes apart and never costs the glide.
+  const listed = names.some((n) => Array.isArray(args.values[n]) && (args.values[n] as ControlValue[]).length > 1);
   const smooth = args.smooth !== false && !listed;
   const authored = Math.max(1, ...names.map((n) => authoredLength(args.values[n])));
   for (const name of names) {
