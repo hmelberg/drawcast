@@ -616,13 +616,12 @@ export class Player {
     return this.painted;
   }
 
-  /** Move a rendered part by (dx, dy) on top of whatever offset the current
-   *  boundary already gave it — a widget's drag ghost. (0, 0) restores it. */
+  /** Move a rendered part by (dx, dy) on top of the pose it is drawn with — a
+   *  widget's drag ghost; (0, 0) restores it. Through the EFFECTS, not the
+   *  element handles: the handles hold the nodes this figure mounted with, and
+   *  any preview since (a slider, the widget's own patch) has replaced them. */
   nudge(id: string, dx: number, dy: number): void {
-    const el = this.elements.get(id);
-    if (!el?.setOffset) return;
-    const base = this.stateAt(this.completed).offsets[id] ?? [0, 0];
-    el.setOffset(base[0] + dx, base[1] + dy);
+    this.effects?.setOffset?.(id, dx, dy);
   }
 
   /**

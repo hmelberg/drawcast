@@ -17,11 +17,16 @@ describe("Player: the widget host's public surface", () => {
     expect(body).toContain('pointerPath({ x: box.x + box.w / 2, y: box.y + box.h / 2, box }, "tap")');
     expect(body).toContain("effects.setPointer(null)");
   });
-  test("nudge(id, dx, dy) ghosts a part on TOP of the offset its boundary already gave it", () => {
+  test("nudge(id, dx, dy) hands the ghost to the effects, which own the live nodes", () => {
     expect(src).toMatch(/^\s+nudge\(id: string, dx: number, dy: number\): void/m);
     const body = src.slice(src.indexOf("nudge(id: string"), src.indexOf("nudge(id: string") + 400);
-    expect(body).toContain("this.stateAt(this.completed).offsets[id] ?? [0, 0]");
-    expect(body).toContain("el.setOffset(base[0] + dx, base[1] + dy)");
+    // NOT this.elements: those handles point at the mount-time nodes, which
+    // any preview has replaced (svg-backend swapGeometry). No base-offset
+    // arithmetic either — the live node's own transform already carries the
+    // boundary's offset and turn, and the effect composes with it.
+    expect(body).toContain("this.effects?.setOffset?.(id, dx, dy)");
+    expect(body).not.toContain("this.elements.get(id)");
+    expect(body).not.toContain("offsets[id]");
   });
   test("caption(text | null) writes the band or restores the source caption", () => {
     expect(src).toMatch(/^\s+caption\(text: string \| null\): void/m);

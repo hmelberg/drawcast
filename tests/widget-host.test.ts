@@ -241,6 +241,16 @@ describe("widgetHostFor — the gesture", () => {
     expect(host.release([400, 400])).toBeNull(); // nothing pressed
   });
 
+  test("a second press while a gesture is live is refused — the first ghost is never stranded", () => {
+    const { hd, calls } = fakeHandle();
+    const host = widgetHostFor(hd, { nudge: (id, dx, dy) => calls.push(`nudge ${id} ${dx} ${dy}`) })!;
+    expect(host.press([300, 400])).toBe(true);
+    host.move([400, 400]);
+    expect(host.press([500, 400])).toBe(false); // a second finger on the gap pad
+    expect(host.release([500, 400])).toBe("drag"); // still the FIRST gesture
+    expect(calls).toEqual(["nudge dot 100 0", "nudge dot 0 0", "caption dot>gap"]);
+  });
+
   test("a press on nothing begins no gesture", () => {
     const { hd, calls } = fakeHandle();
     const host = widgetHostFor(hd)!;
@@ -273,17 +283,52 @@ describe("attachWidgetHost — source pins", () => {
     const guard = src.slice(src.indexOf("const blocked = (e: Event): boolean =>"), src.indexOf('stage.addEventListener("pointerdown"'));
     expect(guard).toContain('hd.timeline.state === "playing"');
     expect(guard).toContain('e.target instanceof Element && e.target.closest("button") !== null');
-    expect(guard).toContain("gateIsOpen(stage)");
-    expect(src).toMatch(/stage\.addEventListener\("pointerdown",\s*\(e\) => \{\s*if \(blocked\(e\)\) return;/);
+    // The subtitle band lies across the bottom of the canvas and an open info
+    // card floats over the figure: a press on either is that thing's.
+    expect(guard).toContain("overCaption(e.target as Element | null)");
+    expect(guard).toContain('e.target.closest(".cs-infocard") !== null');
+    // …and under the widget's OWN gate the gesture is the whole point (the
+    // keys already read the gate this way).
+    expect(guard).toContain('gateIsOpen(stage) && !stage.querySelector(".cs-widgetgate")');
+    // …and the press disarms any swallow an earlier one left armed BEFORE it
+    // asks whether this press is the widget's at all (m1).
+    expect(src).toMatch(/stage\.addEventListener\("pointerdown", \(e\) => \{\s*swallowClick = false;[\s\S]{0,120}?if \(blocked\(e\)\) return;/);
   });
   test("the press takes touch-action and pointer capture, and hands both back at the end", () => {
     expect(src).toContain('stage.style.touchAction = "none"');
-    expect(src).toContain('stage.style.touchAction = ""');
+    // The figure's OWN inline value comes back (a piano stage sets "none" for
+    // the whole mount) — never a blanket "".
+    expect(src).toContain("priorTouchAction = stage.style.touchAction");
+    expect(src).toContain("stage.style.touchAction = priorTouchAction");
+    expect(src).not.toContain('stage.style.touchAction = ""');
     expect(src).toMatch(/try \{\s*stage\.setPointerCapture\(e\.pointerId\);\s*\} catch/);
     expect(src).toMatch(/try \{\s*stage\.releasePointerCapture\(e\.pointerId\);\s*\} catch/);
   });
-  test("pointermove costs nothing at rest — it moves the gesture, it never asks over()", () => {
+  test("one pointer owns the gesture: the others' moves, ups and cancels are not it", () => {
+    const attach = src.slice(src.indexOf("export function attachWidgetHost"), src.indexOf("export function widgetGateFor"));
+    expect(attach).toContain("let activeId: number | null = null;");
+    expect(attach).toContain("activeId = e.pointerId;");
+    expect(attach).toMatch(/if \(e\.pointerId !== activeId\) return;/);
+  });
+  test("a release on a control (the gate's Skip pill) cancels the gesture instead of delivering it", () => {
+    const end = src.slice(src.indexOf("const end = (e: PointerEvent"), src.indexOf('stage.addEventListener("pointerup"'));
+    // With the pointer captured every event retargets to the stage, so the
+    // event's own target cannot tell a drop on Skip from one on the paper.
+    expect(end).toContain("document.elementFromPoint(e.clientX, e.clientY)");
+    expect(end).toContain('closest("button")');
+    expect(end).toContain("host.cancel()");
+  });
+  test("capture lost mid-gesture drops the ghost and disarms the swallow — and the ordinary release is untouched", () => {
+    const lost = src.slice(src.indexOf('stage.addEventListener("lostpointercapture"'));
+    expect(lost).toContain("if (e.pointerId !== activeId) return;");
+    expect(lost).toContain("swallowClick = false;");
+    expect(lost).toContain("host.cancel();");
+  });
+  test("pointermove costs nothing at rest — no measuring without a gesture, and it never asks over()", () => {
     const move = src.slice(src.indexOf('stage.addEventListener("pointermove"'), src.indexOf("const end = (e: PointerEvent"));
+    // logicalPoint reads the svg's bounding box: without this guard every
+    // pointer move over a paused figure paid for a layout read.
+    expect(move).toMatch(/if \(e\.pointerId !== activeId\) return;[\s\S]*logicalPoint\(stage, e\)/);
     expect(move).toContain("host.move(p)");
     expect(move).not.toContain("host.over");
   });
@@ -301,18 +346,22 @@ describe("attachWidgetHost — source pins", () => {
   test("DRAG_MIN is six logical units, decided at release", () => {
     expect(src).toContain("export const DRAG_MIN = 6;");
   });
-  test("the widget gate forwards the same four calls, and no longer routes a click", () => {
+  // ONE owner. The gate used to route the gesture itself, but the stage's
+  // capture-phase listeners run FIRST on the same events (the gate is a child
+  // of the stage), so the two raced: the release was delivered twice over and
+  // a drop on Skip both answered the question and skipped it. The gate now
+  // carries nothing but its hint and its Skip pill; the stage's own listeners
+  // stand under the widget's gate instead of standing aside.
+  test("the widget gate routes no gestures of its own — the stage is the one owner", () => {
     const gate = src.slice(src.indexOf("export function widgetGateFor"));
     expect(gate).not.toContain("host.clickAt");
-    expect(gate).toContain('gate.addEventListener("pointerdown"');
-    expect(gate).toContain("host.press(p)");
-    expect(gate).toContain('gate.addEventListener("pointermove"');
-    expect(gate).toContain("host.move(p)");
-    expect(gate).toContain('gate.addEventListener("pointerup"');
-    expect(gate).toContain("host.release(p)");
-    expect(gate).toContain('gate.addEventListener("pointercancel"');
-    expect(gate).toContain("host.cancel()");
-    expect(gate).toContain("e.stopPropagation()");
+    expect(gate).not.toContain("host.press");
+    expect(gate).not.toContain("host.move");
+    expect(gate).not.toContain("host.release");
+    expect(gate).not.toContain('gate.addEventListener("pointer');
+    // What it keeps: the hint, Skip, and the answer subscription.
+    expect(gate).toContain("cs-figgate-skip");
+    expect(gate).toContain("host.onAnswer(");
   });
 
   // The key listeners (spec §2.2 addendum): the piano's free-play pattern —
