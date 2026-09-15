@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { compileTemplateDoc } from "../src/scenes/compile";
 import { buildWidgetScene, paramNamesOf } from "../src/scenes/widget-scene";
-import { demoWidget, partAt, runWidget, stepWidget } from "../src/scenes/widget-run";
+import { demoWidget, keyEvent, partAt, runWidget, stepWidget } from "../src/scenes/widget-run";
 import type { TemplateDoc } from "../src/scenes/doc";
 
 // A two-pad counter: dot adds ".", gap commits the count as the answer.
@@ -113,6 +113,17 @@ describe("runWidget — the harness", () => {
     expect(r.answer).toBe("3");
     expect(r.effects[3]).toEqual([{ answer: "3" }, { caption: "sent ..." }]); // the scene was rebuilt after the patches
   });
+  test("a key event reaches on() with its held duration", () => {
+    const keyed = compileTemplateDoc({ ...doc, widget: `
+      const init = () => ({ s: "" });
+      const on = (ev, st) => ev.type === "key" && ev.key === " " ? { state: { s: st.s + (ev.ms < 200 ? "." : "-") }, effects: [{ patch: { signal: st.s + (ev.ms < 200 ? "." : "-") } }] } : { state: st, effects: [] };
+      return { init, on, keys: [" "] };` } as TemplateDoc).module!;
+    const r = runWidget(keyed, {}, [keyEvent(" ", 80), keyEvent(" ", 300), "dot"]);
+    expect(r.errors).toEqual([]);
+    expect(r.states.at(-1)).toEqual({ s: ".-" });
+    expect(r.params).toEqual({ signal: ".-" });
+  });
+
   test("an unknown part id is an error, not a throw", () => {
     const r = runWidget(module, {}, ["nope"]);
     expect(r.errors).toEqual(['click: "nope" is not a part (dot, gap, signal)']);

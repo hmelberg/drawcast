@@ -61,6 +61,10 @@ export function compileTemplateDoc(doc: TemplateDoc): { module?: SceneModule; er
     if (typeof p !== "object" || p === null || typeof p.init !== "function" || typeof p.on !== "function") {
       return { errors: [`template "${doc.template}" widget body must return { init, on } (demo and judge optional)`] };
     }
+    const keys = (p as { keys?: unknown }).keys;
+    if (keys !== undefined && (!Array.isArray(keys) || !keys.every((k) => typeof k === "string"))) {
+      return { errors: [`template "${doc.template}" widget body: keys must be an array of strings`] };
+    }
     widget = () => wfn(kit) as WidgetBody;
   }
   return { module: { manifest: docToManifest(doc), layout, ...(widget ? { widget } : {}) }, errors: [] };

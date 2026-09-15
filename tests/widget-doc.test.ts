@@ -64,6 +64,15 @@ describe("widget body — document", () => {
     expect(errors[0]).toMatch(/widget body threw on load/);
   });
 
+  test("a body may declare keys; a non-array keys is a document error", () => {
+    const ok = compileTemplateDoc({ ...base, widget: `return { init: () => 0, on: (e, s) => ({ state: s, effects: [] }), keys: [" ", "Enter"] };` } as TemplateDoc);
+    expect(ok.errors).toEqual([]);
+    expect(ok.module!.widget!().keys).toEqual([" ", "Enter"]);
+    const bad = compileTemplateDoc({ ...base, widget: `return { init: () => 0, on: (e, s) => ({ state: s, effects: [] }), keys: "space" };` } as TemplateDoc);
+    expect(bad.module).toBeUndefined();
+    expect(bad.errors[0]).toMatch(/keys must be an array of strings/);
+  });
+
   test("a stub document keeps no widget", () => {
     const { module } = compileTemplateDoc({ ...base, status: "stub", layout: undefined, widget: WIDGET } as TemplateDoc);
     expect(module!.widget).toBeUndefined();

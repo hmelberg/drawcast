@@ -21,6 +21,9 @@ export function stepWidget(body: WidgetBody, state: unknown, event: WidgetEvent,
   return { state: r.state, effects: v.effects, errors: v.issues };
 }
 
+/** A key event for the harness and the tests: the key, held `ms`. */
+export const keyEvent = (key: string, ms: number): WidgetEvent => ({ type: "key", key, ms });
+
 export interface WidgetRun {
   states: unknown[];
   effects: WidgetEffect[][];

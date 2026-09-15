@@ -9,7 +9,7 @@ import { scenes } from "../scenes/registry";
 import { buildWidgetScene, paramNamesOf } from "../scenes/widget-scene";
 import { partAt, stepWidget } from "../scenes/widget-run";
 import type { WidgetEffect } from "../scenes/widget-effects";
-import type { WidgetBody, WidgetScene } from "../scenes/widget-types";
+import type { WidgetBody, WidgetEvent, WidgetScene } from "../scenes/widget-types";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { sceneAt } from "../render/plan";
 import { withNewIdsVisible } from "../render/params";
@@ -25,6 +25,11 @@ const CARD_LINGER_MS = 900;
 export interface WidgetHost {
   /** Route a logical point: true when it hit a part (and the widget ran). */
   clickAt(p: Pt): boolean;
+  /** The keys the body asked for (DOM KeyboardEvent.key values); empty for a
+   *  click-only widget, and then no key listener is installed at all. */
+  keys: readonly string[];
+  /** Deliver a released key: true when the body declared it (and ran). */
+  keyPress(key: string, ms: number): boolean;
   /** True when p is over a part (the cursor rule; no side effects). */
   over(p: Pt): boolean;
   lastAnswer(): string | null;
@@ -47,6 +52,16 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
   const warn = deps.warn ?? ((m: string) => console.warn(`[widget ${template}] ${m}`));
   const names = paramNamesOf(module);
   const listeners = new Set<(v: string) => void>();
+  // The keys the body asked for: read once, from a probe body that is then
+  // discarded (the host's own body still mounts on the first event). A body
+  // that throws on construction simply wants no keys — clickAt says so too.
+  const declaredKeys: string[] = (() => {
+    try {
+      return module.widget!().keys ?? [];
+    } catch {
+      return [];
+    }
+  })();
 
   let body: WidgetBody | null = null;
   let state: unknown;
@@ -118,7 +133,30 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
     }
   };
 
+  /** One event's whole journey: mount on the first one, step, keep the state,
+   *  perform. A click and a key press differ only in the event they carry. */
+  const run = (sc: WidgetScene, ev: WidgetEvent): void => {
+    if (!body) {
+      // Construction and init() are the author's code: a body that throws
+      // reports and stands down — the gate does the same (below), and the
+      // event is still the widget's, so nothing falls through to the card.
+      try {
+        body = module.widget!();
+        state = body.init(sc);
+      } catch (err) {
+        warn(`widget body threw on mount: ${(err as Error).message}`);
+        body = null;
+        return;
+      }
+    }
+    const r = stepWidget(body, state, ev, sc, names);
+    for (const m of r.errors) warn(m);
+    state = r.state;
+    perform(r.effects, sc);
+  };
+
   const host: WidgetHost = {
+    keys: declaredKeys,
     over(p) {
       const sc = scene();
       return sc !== null && partAt(sc, p) !== null;
@@ -128,23 +166,14 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
       if (!sc) return false;
       const id = partAt(sc, p);
       if (id === null) return false;
-      if (!body) {
-        // Construction and init() are the author's code: a body that throws
-        // reports and stands down — the gate does the same (below), and the
-        // click is still the widget's, so nothing falls through to the card.
-        try {
-          body = module.widget!();
-          state = body.init(sc);
-        } catch (err) {
-          warn(`widget body threw on mount: ${(err as Error).message}`);
-          body = null;
-          return true;
-        }
-      }
-      const r = stepWidget(body, state, { type: "click", id, point: p, domain: sc.toDomain(p) }, sc, names);
-      for (const m of r.errors) warn(m);
-      state = r.state;
-      perform(r.effects, sc);
+      run(sc, { type: "click", id, point: p, domain: sc.toDomain(p) });
+      return true;
+    },
+    keyPress(key, ms) {
+      if (!declaredKeys.includes(key)) return false;
+      const sc = scene();
+      if (!sc) return false;
+      run(sc, { type: "key", key, ms });
       return true;
     },
     lastAnswer: () => answer,
@@ -205,6 +234,45 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
     prevOnStep?.(completed, total);
     host.reset();
   };
+
+  // The keys (spec §2.2 addendum), the piano's free-play pattern: window
+  // listeners ONLY for a body that asked for keys, so a click-only widget
+  // adds none at all. One `key` event per release, with the held ms.
+  if (host.keys.length > 0) {
+    const downAt = new Map<string, number>();
+    const typing = (t: EventTarget | null): boolean =>
+      t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || (t instanceof HTMLElement && t.isContentEditable);
+    // While playing, and under any OTHER gate, the keys are not the widget's;
+    // under its own gate (cs-widgetgate) they are the whole point.
+    const keysBlocked = (e: KeyboardEvent): boolean =>
+      typing(e.target) ||
+      (hd.timeline.state === "playing" && !stage.querySelector(".cs-widgetgate")) ||
+      (gateIsOpen(stage) && !stage.querySelector(".cs-widgetgate"));
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (!stage.isConnected) {
+        window.removeEventListener("keydown", onKeyDown);
+        window.removeEventListener("keyup", onKeyUp);
+        return;
+      }
+      if (!host.keys.includes(e.key) || keysBlocked(e)) return;
+      // A declared key is the widget's: a focused play button or the page
+      // scrolling on Space never sees it.
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.repeat) return;
+      downAt.set(e.key, performance.now());
+    };
+    const onKeyUp = (e: KeyboardEvent): void => {
+      const t0 = downAt.get(e.key);
+      if (t0 === undefined) return;
+      downAt.delete(e.key);
+      if (keysBlocked(e)) return;
+      e.preventDefault();
+      host.keyPress(e.key, Math.max(1, Math.round(performance.now() - t0)));
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+  }
   return host;
 }
 
@@ -217,7 +285,9 @@ export function widgetGateFor(stage: HTMLElement, hd: RenderHandle, host: Widget
     new Promise<string | null>((resolve) => {
       stage.querySelector(".cs-figgate")?.remove();
       const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "Use the figure ▸");
-      const gate = h("div", { class: "cs-figgate" }, hint);
+      // The marker the key listeners look for: under THIS gate the widget's
+      // own keys still work, under any other gate they stand aside.
+      const gate = h("div", { class: "cs-figgate cs-widgetgate" }, hint);
       const template = hd.spec.template;
       // A body of this template's own, used for `judge` alone — the host keeps
       // the one that holds the viewer's state. A body that throws on

@@ -23,12 +23,14 @@ const doc = {
     return { drawables, labels: [], anchors: {}, order: ["dot", "gap", "signal"] };`,
   widget: `
     const init = () => ({ signal: "" });
+    const dot = (st) => { const signal = st.signal + "."; return { state: { signal }, effects: [{ sound: { hz: 700, ms: 80 } }, { patch: { signal } }, { glow: "dot" }] }; };
     const on = (ev, st) => {
-      if (ev.id === "dot") { const signal = st.signal + "."; return { state: { signal }, effects: [{ sound: { hz: 700, ms: 80 } }, { patch: { signal } }, { glow: "dot" }] }; }
+      if (ev.type === "key") return ev.key === " " && ev.ms < 200 ? dot(st) : { state: st, effects: [] };
+      if (ev.id === "dot") return dot(st);
       if (ev.id === "gap") return { state: st, effects: [{ answer: st.signal }, { caption: "sent" }, { patch: { nope: 1 } }] };
       return { state: st, effects: [] };
     };
-    return { init, on };`,
+    return { init, on, keys: [" "] };`,
 } as TemplateDoc;
 
 scenes["host_pads"] = compileTemplateDoc(doc).module!;
@@ -178,6 +180,15 @@ describe("widgetHostFor", () => {
     expect(builds()).toBe(after + 2);
   });
 
+  test("keyPress delivers a key event to the body — mounting it if needed — and ignores undeclared keys", () => {
+    const { hd, calls } = fakeHandle();
+    const host = widgetHostFor(hd)!;
+    expect(host.keyPress("x", 50)).toBe(false);
+    expect(calls).toEqual([]);
+    expect(host.keyPress(" ", 80)).toBe(true);
+    expect(calls).toEqual(["beep 700 80", 'preview {"signal":"."}', "glow dot"]);
+  });
+
   test("reset forgets state, patches and the caption", () => {
     const { hd, calls } = fakeHandle();
     const host = widgetHostFor(hd)!;
@@ -207,6 +218,34 @@ describe("attachWidgetHost — source pins", () => {
     // swallowed, so play never started (Hans 2026-09-15).
     const listener = src.slice(src.indexOf('stage.addEventListener("click"'), src.indexOf("}, true);"));
     expect(listener).toContain('e.target instanceof Element && e.target.closest("button") !== null) return');
+  });
+
+  // The key listeners (spec §2.2 addendum): the piano's free-play pattern —
+  // installed only for a body that asked for keys, self-cleaning, swallowing
+  // the key it owns, standing aside while playing, typing or another gate.
+  test("window key listeners are installed only when the body declares keys", () => {
+    expect(src).toMatch(/if \(host\.keys\.length > 0\) \{/);
+    expect(src).toContain('window.addEventListener("keydown", onKeyDown)');
+    expect(src).toContain('window.addEventListener("keyup", onKeyUp)');
+  });
+  test("the listeners self-clean, ignore auto-repeat and swallow a declared key", () => {
+    expect(src).toContain("if (!stage.isConnected)");
+    expect(src).toContain('window.removeEventListener("keydown", onKeyDown)');
+    expect(src).toContain('window.removeEventListener("keyup", onKeyUp)');
+    expect(src).toMatch(/if \(e\.repeat\) return;/);
+    const down = src.slice(src.indexOf("const onKeyDown"), src.indexOf("const onKeyUp"));
+    expect(down).toContain("e.preventDefault()");
+    expect(down).toContain("e.stopPropagation()");
+  });
+  test("typing in an input, textarea or contenteditable is never captured", () => {
+    expect(src).toContain("t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || (t instanceof HTMLElement && t.isContentEditable)");
+  });
+  test("keys stand aside while playing and while another gate is open — the widget's own gate excepted", () => {
+    expect(src).toContain('(hd.timeline.state === "playing" && !stage.querySelector(".cs-widgetgate"))');
+    expect(src).toContain('(gateIsOpen(stage) && !stage.querySelector(".cs-widgetgate"))');
+  });
+  test("the widget gate marks itself, so its own keys keep working", () => {
+    expect(src).toContain('h("div", { class: "cs-figgate cs-widgetgate" }');
   });
 
   test("resets on play, on a step boundary and chains the callbacks", () => {

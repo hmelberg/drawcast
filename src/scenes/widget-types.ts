@@ -4,15 +4,20 @@
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 
-export interface WidgetEvent {
-  type: "click";
-  /** The part hit (a top-level id of the template layout). */
-  id: string;
-  /** Logical, y-up. */
-  point: Pt;
-  /** Spec-domain units when the spec declares a domain, else null. */
-  domain: Pt | null;
-}
+export type WidgetEvent =
+  | {
+      type: "click";
+      /** The part hit (a top-level id of the template layout). */
+      id: string;
+      /** Logical, y-up. */
+      point: Pt;
+      /** Spec-domain units when the spec declares a domain, else null. */
+      domain: Pt | null;
+    }
+  /** A key the body declared, on release (spec §2.2 addendum 2026-09-15):
+   *  `key` is the DOM KeyboardEvent.key, `ms` how long it was held — one
+   *  key can be both a dot and a dash. */
+  | { type: "key"; key: string; ms: number };
 
 export interface WidgetScene {
   /** The widget's parts: the template layout's top-level ids at these params. */
@@ -33,4 +38,7 @@ export interface WidgetBody {
   on(event: WidgetEvent, state: unknown, scene: WidgetScene): { state: unknown; effects: unknown };
   demo?(scene: WidgetScene, answer: string): unknown;
   judge?(given: string, answer: string): boolean;
+  /** Keys the widget wants (DOM KeyboardEvent.key values); the host swallows
+   *  them while paused and delivers one `key` event per release, with the held ms. */
+  keys?: string[];
 }

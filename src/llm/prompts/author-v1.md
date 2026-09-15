@@ -61,9 +61,18 @@ FUNCTION BODY>"`. It is the body of: new Function("kit"), and must
 `return { init, on }` (optionally `demo` and `judge`):
 
 - `init(scene) -> state` — plain JSON data; the host holds it and passes it back.
-- `on(event, state, scene) -> { state, effects }` — the only event is
-  `{type: "click", id, point, domain}` where `id` is one of the layout's
-  top-level ids. Return the new state and a list of effects.
+- `on(event, state, scene) -> { state, effects }` — the event is either
+  `{type: "click", id, point, domain}`, where `id` is one of the layout's
+  top-level ids, or `{type: "key", key, ms}` (see `keys` below). Return the
+  new state and a list of effects.
+- `keys: [" ", "Enter"]` (optional) — the keys the widget wants, as DOM
+  `KeyboardEvent.key` values. One `key` event arrives when the viewer RELEASES
+  one of them, with `ms` = how long it was held, so ONE key can mean two
+  things (under 200 ms a dot, longer a dash). Keys you did not declare pass
+  through to the page untouched. A keyboard is a SHORTCUT, never the only way
+  in: the pads must still do everything on their own (a phone has no
+  keyboard), and the figure should SAY which key does what — a drawn hint line
+  under the pads, so the movie shows it too.
 - `demo(scene, answer) -> effects` — the movie form: what the laser does to
   show the answer (taps as `{pointer: id}`, sounds beside them).
 - `judge(given, answer) -> boolean` — when the ask's answer needs more than

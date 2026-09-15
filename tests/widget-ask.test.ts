@@ -96,7 +96,7 @@ describe("the player's widget-ask branch and the gate — source pins", () => {
     const gate = host.slice(host.indexOf("export function widgetGateFor"));
     expect(gate).toContain("body.judge ? body.judge(given, step.answer) : answersMatch(given, step.answer)");
     expect(gate).toContain("resolve(ok ? step.answer : given)");
-    expect(gate).toContain('class: "cs-figgate"');
+    expect(gate).toContain('class: "cs-figgate cs-widgetgate"'); // the figure gate's markup, plus the marker its own keys look for
     expect(gate).toContain("cs-figgate-skip");
     // A body that throws on construction must not take the question down with
     // it: the gate stands, body stays null, and answersMatch judges.
