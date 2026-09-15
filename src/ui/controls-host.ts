@@ -19,6 +19,8 @@ import type { BBox } from "../layout/geometry";
 import { bboxOfPts } from "../layout/geometry";
 import { leafDrawables, type Pt } from "../layout/model";
 import { RUN_ROW_ID } from "../layout/code-controls-pane";
+import { logicalPoint } from "./dom";
+import { registerControlRegion } from "./control-press";
 
 export interface ControlsPanel {
   el: SpecElement;
@@ -176,5 +178,75 @@ export function controlsHostFor(deps: ControlsHostDeps): ControlsHost {
     },
     drag: (g, p) => sliderCommit(g, p, false),
     release: (g, p) => sliderCommit(g, p, true),
+  };
+}
+
+export interface AttachOpts {
+  playing: () => boolean;
+  /** An explore gate holds the run with the tray shut: the panel is live
+   *  even though the timeline's state is "playing". */
+  gated: () => boolean;
+  /** Playing → paused at the boundary, so the gesture lands on settled
+   *  geometry (the tray's own one-click path does the same: pause, snap). */
+  pauseAndSnap: () => void;
+}
+
+/**
+ * The stage half: pointer events → the core. A press inside a panel is a
+ * control press for controls.ts's play gesture (the registry), pauses the
+ * timeline first when it is playing (one click, spec §3.3), and — for a
+ * slider — captures the pointer so the knob follows a drag that leaves the
+ * row and the release is the panel's, not the figure's.
+ */
+export function attachControlsHost(stage: HTMLElement, host: ControlsHost, opts: AttachOpts): () => void {
+  const live = (): boolean => !opts.playing() || opts.gated();
+  const unregister = registerControlRegion(stage, (e) => {
+    const p = logicalPoint(stage, e);
+    return p !== null && host.panelAt(p) !== null;
+  });
+  const controller = new AbortController();
+  const { signal } = controller;
+  let gesture: SliderGesture | null = null;
+  stage.addEventListener(
+    "pointerdown",
+    (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      const p = logicalPoint(stage, e);
+      if (!p || host.panelAt(p) === null) return;
+      if (opts.playing() && !opts.gated()) opts.pauseAndSnap();
+      const q = logicalPoint(stage, e) ?? p; // the snap may have moved the viewBox
+      gesture = host.press(q);
+      if (gesture) {
+        stage.setPointerCapture(e.pointerId);
+        e.preventDefault(); // no text selection, no page scroll on touch
+      }
+    },
+    { capture: true, signal },
+  );
+  stage.addEventListener(
+    "pointermove",
+    (e: PointerEvent) => {
+      const p = logicalPoint(stage, e);
+      if (gesture) {
+        if (p) host.drag(gesture, p);
+        return;
+      }
+      stage.classList.toggle("cs-ctl-hover", live() && p !== null && host.over(p));
+    },
+    { signal },
+  );
+  const onUp = (e: PointerEvent): void => {
+    if (!gesture) return;
+    const p = logicalPoint(stage, e);
+    if (p) host.release(gesture, p);
+    gesture = null;
+    if (stage.hasPointerCapture(e.pointerId)) stage.releasePointerCapture(e.pointerId);
+  };
+  stage.addEventListener("pointerup", onUp, { signal });
+  stage.addEventListener("pointercancel", onUp, { signal });
+  return () => {
+    unregister();
+    controller.abort();
+    stage.classList.remove("cs-ctl-hover");
   };
 }
