@@ -22,6 +22,7 @@ import { linearScale, plotArea } from "./canvas";
 import { figureSplit } from "./figure-split";
 import { fitSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
 import { FIT_NAMES, isFitName } from "./regions";
+import { expandBoxAnimate, withOverrides } from "../render/params";
 
 export interface LayoutResult {
   drawables: Drawable[];
@@ -79,6 +80,7 @@ export function layoutSpec(
   measure: MeasureFn = heuristicMeasure,
   overrides?: LayoutOverrides,
   labelPinsIn?: Record<string, LabelPin>,
+  opts: { skipDrawBeatLint?: boolean } = {},
 ): LayoutResult {
   const spec = normalizeSpec(rawSpec) as Spec;
   // Formulas are laid out as glyph outlines, so the font is a layout input,
@@ -253,8 +255,19 @@ export function layoutSpec(
   const ownsId = (m: string, id: string) => id === m || id.startsWith(`${m}_`) || (pieceGroups[m] ?? []).includes(id);
   const composed = (a: string, b: string) =>
     Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
-  issues.push(...lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], composed));
-  if (codeEl) issues.push(...codeFigureOverlap(codeEl.id, templateIds, drawables, measure, spec));
+  const layoutIssues = lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], composed);
+  const atDraw = codeEl && !opts.skipDrawBeatLint ? paramsAtFirstDraw(rawSpec, codeEl.id) : null;
+  if (!codeEl || atDraw === null) {
+    issues.push(...layoutIssues);
+    if (codeEl) issues.push(...codeFigureOverlap(codeEl.id, templateIds, drawables, measure, spec));
+  } else {
+    // The panel arrives after the figure has moved: its pairs are judged on
+    // the layout of THAT beat, everything else on the base layout as before.
+    const ownsCode = (id: string) => id === codeEl.id || id.startsWith(`${codeEl.id}_`);
+    issues.push(...layoutIssues.filter((i) => !i.ids.some(ownsCode)));
+    const later = layoutSpec({ ...rawSpec, params: atDraw }, measure, overrides, labelPinsIn, { skipDrawBeatLint: true });
+    issues.push(...later.issues.filter((i) => i.ids.some(ownsCode)));
+  }
   return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, fitGroups, namedAnchors, measures, labelPins, ...(fit ? { fit } : {}) };
 }
 
@@ -264,6 +277,29 @@ export function nativeBox(template: string | undefined): boolean {
   if (!template) return false;
   const schema = scenes[template]?.manifest.params_schema as { properties?: Record<string, unknown> } | undefined;
   return schema?.properties?.box !== undefined;
+}
+
+/**
+ * The params in force when `elementId` is first drawn: every `animate`
+ * before that beat, folded. Null when nothing animates before it — the
+ * layout at the base params is then the layout at that beat too. The lint
+ * uses this for a code panel that arrives after the figure has moved (a
+ * template that starts full and shrinks into a half to make room), so it
+ * judges the pair on the ground they actually share.
+ */
+export function paramsAtFirstDraw(spec: Spec, elementId: string): Record<string, unknown> | null {
+  let params = spec.params ?? {};
+  let animated = false;
+  const owns = (id: string) => id === elementId || id.startsWith(`${elementId}_`);
+  for (const cmd of spec.commands ?? []) {
+    const drawn = [cmd.draw, cmd.show].flatMap((d) => (d === undefined ? [] : Array.isArray(d) ? d : [d]));
+    if (drawn.some(owns)) return animated ? params : null;
+    if (cmd.animate) {
+      const numeric = Object.fromEntries(Object.entries(expandBoxAnimate(cmd.animate)).filter(([, v]) => typeof v === "number"));
+      if (Object.keys(numeric).length > 0) { params = withOverrides(params, numeric); animated = true; }
+    }
+  }
+  return null;
 }
 
 /**

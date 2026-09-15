@@ -696,8 +696,10 @@ function lintCode(spec: Spec): LintIssue[] {
       });
     }
     // A stacked layout shares the 750-unit canvas height between the two
-    // panes: a long script leaves the output no room unless it scrolls.
-    if ((show === "above" || show === "below") && el.lines === undefined && lines > 12) {
+    // panes: a long script leaves the output no room unless it scrolls. A
+    // controls pane draws knobs, not lines — its `code` is the model that
+    // feeds the sliders, not a script the viewer reads stacked over output.
+    if ((show === "above" || show === "below") && el.lines === undefined && lines > 12 && el.pane !== "controls") {
       issues.push({
         rule: "code-use",
         ids: [el.id],

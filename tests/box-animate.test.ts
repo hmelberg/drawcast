@@ -1,10 +1,11 @@
 import { beforeAll, describe, expect, test } from "vitest";
 import { expandBoxAnimate, readParam, withOverrides } from "../src/render/params";
-import { layoutSpec, elementBBoxes, domainMapping } from "../src/layout/layout";
+import { layoutSpec, elementBBoxes, domainMapping, paramsAtFirstDraw } from "../src/layout/layout";
 import { planCommands } from "../src/render/plan";
 import { planOptionsFor } from "../src/render/index";
 import { fitRegion } from "../src/layout/regions";
 import { ensureEnabledPacks } from "../src/scenes/packs";
+import { lintCommands } from "../src/lint/lint";
 import type { Spec } from "../src/spec/types";
 
 beforeAll(async () => { await ensureEnabledPacks(["evidence"]); });
@@ -62,5 +63,52 @@ describe("animate: {box: name} in the planner", () => {
   test("a non-name box target is dropped with a warning, as any non-number is", () => {
     const p = plan(cast({ box: "nowhere" }));
     expect(p.warnings.some((w) => /animate "box"/.test(w))).toBe(true);
+  });
+});
+
+const CONTROLS = "import matplotlib.pyplot as plt\nbeta = (0.1, 1.0, 0.05)\ngamma = (0.05, 0.5, 0.05)\nS, I, R = [0.99], [0.01], [0.0]\nfor t in range(160):\n    new = beta * S[-1] * I[-1]\n    rec = gamma * I[-1]\n    S.append(S[-1] - new)\n    I.append(I[-1] + new - rec)\n    R.append(R[-1] + rec)\n_ = plt.plot(S, label=\"S\")\n_ = plt.plot(I, label=\"I\")\n_ = plt.plot(R, label=\"R\")\n_ = plt.legend()";
+const SIR_IDS = ["box_s", "box_code_s", "box_name_s", "flow_0", "rate_0", "box_i", "box_code_i", "box_name_i", "flow_1", "rate_1", "box_r", "box_code_r", "box_name_r"];
+const knobs = (target: unknown): Spec =>
+  ({
+    template: "sir_compartments",
+    params: { box: "full" },
+    elements: [{ id: "sim", type: "code", language: "python", show: "below", pane: "controls", controls: ["beta", "gamma"], code: CONTROLS }],
+    commands: [
+      { draw: SIR_IDS, speak: "The model, large." },
+      { animate: { box: target }, duration: 3, speak: "Now let us make room." },
+      { draw: ["sim", "sim_out"], speak: "And the knobs." },
+      { explore: { code: "sim" }, speak: "Turn beta." },
+    ],
+  }) as unknown as Spec;
+
+describe("the lint judges a panel drawn after an animate on the layout of that beat", () => {
+  test("full → right, panel drawn after: no overlap issues at all", () => {
+    const r = layoutSpec(knobs("right"));
+    expect(r.issues.map((i) => `${i.rule}: ${i.message}`)).toEqual([]);
+  });
+  test("full → a box that still covers the panel's side: overlap-code-figure from the draw-beat layout", () => {
+    // expandBoxAnimate leaves an object `box` alone (only names expand), so the
+    // rectangle target is written as box.* keys — the way an author would.
+    const spec: Spec = {
+      template: "sir_compartments",
+      params: { box: "full" },
+      elements: [{ id: "sim", type: "code", language: "python", show: "below", pane: "controls", controls: ["beta", "gamma"], code: CONTROLS }],
+      commands: [
+        { draw: SIR_IDS, speak: "The model, large." },
+        { animate: { "box.x": 300, "box.w": 640 }, duration: 3, speak: "Now let us make room." },
+        { draw: ["sim", "sim_out"], speak: "And the knobs." },
+        { explore: { code: "sim" }, speak: "Turn beta." },
+      ],
+    } as unknown as Spec;
+    const r = layoutSpec(spec);
+    expect(r.issues.some((i) => i.rule === "overlap-code-figure")).toBe(true);
+  });
+  test("paramsAtFirstDraw folds the animates before the panel's first draw and is null without any", () => {
+    expect(paramsAtFirstDraw(knobs("right"), "sim")).toEqual({ box: { x: 520, y: 95, w: 420, h: 560 } });
+    const plain = { ...knobs("right"), commands: [{ draw: SIR_IDS }, { draw: ["sim", "sim_out"] }] } as unknown as Spec;
+    expect(paramsAtFirstDraw(plain, "sim")).toBeNull();
+  });
+  test("pane: controls is not a long script under the output", () => {
+    expect(lintCommands(knobs("right")).filter((i: { rule: string }) => i.rule === "code-use")).toEqual([]);
   });
 });
