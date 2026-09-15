@@ -192,8 +192,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-measured 2026-09-16 on the merge of the animated-box round with the
 // stored-answers round (both additive): pinned to the values measured on the
 // merged tree: schema 118280 (unchanged from stored-answers), system 234737 → 235066 (+329, the animated-box sentence).
-const BASELINE_SYSTEM_CHARS = 235066;
-const BASELINE_SCHEMA_CHARS = 118280;
+// Re-pinned 2026-09-16 animated-box fix wave: the animate description learns
+// box by name, +178 on the schema and the same +178 on the system prompt
+// (the schema is embedded verbatim). Schema 118280 → 118458, system
+// 235066 → 235244.
+const BASELINE_SYSTEM_CHARS = 235244;
+const BASELINE_SCHEMA_CHARS = 118458;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {
@@ -279,5 +283,9 @@ describe("template box in the prompt (spec 2026-09-15-template-box §10)", () =>
 
   test("the compiler learns the present-then-shrink pattern by names", () => {
     expect(system(false)).toContain('{"animate": {"box": "right"}');
+  });
+
+  test('the schema\'s animate description learns "box" may be a region name', () => {
+    expect(JSON.stringify(apiSchema())).toContain('{\\"animate\\": {\\"box\\": \\"right\\"}}');
   });
 });

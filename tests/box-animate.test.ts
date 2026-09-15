@@ -7,6 +7,7 @@ import { fitRegion } from "../src/layout/regions";
 import { ensureEnabledPacks } from "../src/scenes/packs";
 import { lintCommands } from "../src/lint/lint";
 import { validateSpec } from "../src/spec/schema";
+import bundledExamples from "../src/examples.json";
 import type { Spec } from "../src/spec/types";
 
 beforeAll(async () => { await ensureEnabledPacks(["evidence"]); });
@@ -27,6 +28,13 @@ describe("a region name stands for its rectangle in param paths", () => {
     expect(expandBoxAnimate({ box: "right", stage: 1 })).toEqual({ "box.x": 520, "box.y": 95, "box.w": 420, "box.h": 560, stage: 1 });
     expect(expandBoxAnimate({ box: "nowhere" })).toEqual({ box: "nowhere" });
     expect(expandBoxAnimate({ "box.x": 5 })).toEqual({ "box.x": 5 });
+  });
+  test("the coercion is scoped to the box key — a fit-name value under any other key is not a region", () => {
+    expect(readParam({ rule: "left" }, "rule.x")).toBeNull();
+    expect(withOverrides({ rule: "left" }, { "rule.x": 5 })).toEqual({ rule: "left" });
+    // nested under `box` still resolves — the segment that produced the string is `box`
+    expect(readParam({ shift: { box: "left" } }, "shift.box.x")).toBe(60);
+    expect(withOverrides({ shift: { box: "left" } }, { "shift.box.x": 7 })).toEqual({ shift: { box: { x: 7, y: 95, w: 420, h: 560 } } });
   });
 });
 
@@ -109,6 +117,16 @@ describe("the lint judges a panel drawn after an animate on the layout of that b
     const plain = { ...knobs("right"), commands: [{ draw: SIR_IDS }, { draw: ["sim", "sim_out"] }] } as unknown as Spec;
     expect(paramsAtFirstDraw(plain, "sim")).toBeNull();
   });
+  test("a var animate folds nothing — nothing template-side ever reads it, so paramsAtFirstDraw is null", () => {
+    const spec: Spec = {
+      template: "sir_compartments",
+      params: { box: "full" },
+      vars: { f: 1 },
+      elements: [{ id: "sim", type: "code", language: "python", show: "below", pane: "controls", controls: ["beta", "gamma"], code: CONTROLS }],
+      commands: [{ animate: { f: 3 } }, { draw: ["sim"] }],
+    } as unknown as Spec;
+    expect(paramsAtFirstDraw(spec, "sim")).toBeNull();
+  });
   test("pane: controls is not a long script under the output", () => {
     expect(lintCommands(knobs("right")).filter((i: { rule: string }) => i.rule === "code-use")).toEqual([]);
   });
@@ -132,6 +150,21 @@ describe("the lint judges a panel drawn after an animate on the layout of that b
   });
 });
 
+describe('lintCommands warns once when "box" is animated with no starting params.box', () => {
+  test("params: {} + animate box: right — one animate-box issue", () => {
+    const spec: Spec = {
+      template: "sir_compartments",
+      params: {},
+      commands: [{ animate: { box: "right" } }],
+    } as unknown as Spec;
+    expect(lintCommands(spec).filter((i) => i.rule === "animate-box")).toHaveLength(1);
+  });
+  test("the shipped SIR example (starts with params.box: full) has no animate-box issue", () => {
+    const sir = (bundledExamples as { spec?: Spec }[])[259].spec!;
+    expect(lintCommands(sir).filter((i) => i.rule === "animate-box")).toEqual([]);
+  });
+});
+
 describe("the spec validator accepts a region name under animate.box", () => {
   const minimal = (animate: Record<string, unknown>): Spec =>
     ({
@@ -149,7 +182,15 @@ describe("the spec validator accepts a region name under animate.box", () => {
     const v = validateSpec(minimal({ box: "middle" }));
     expect(v.ok).toBe(false);
     expect(v.errors).toContain(
-      'commands[0]: animate "box" must be a region name (left, right, top, bottom, full), a finite number for box.x/box.y/box.w/box.h, or a "{var}" token',
+      'commands[0]: animate "box" must be a region name (left, right, top, bottom, full); to animate one side write box.x, box.y, box.w or box.h with a number or a "{var}" token',
+    );
+  });
+
+  test("a number under the bare box key is rejected with the same message — it is never meaningful there", () => {
+    const v = validateSpec(minimal({ box: 5 }));
+    expect(v.ok).toBe(false);
+    expect(v.errors).toContain(
+      'commands[0]: animate "box" must be a region name (left, right, top, bottom, full); to animate one side write box.x, box.y, box.w or box.h with a number or a "{var}" token',
     );
   });
 

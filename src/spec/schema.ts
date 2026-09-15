@@ -854,7 +854,7 @@ const commandSchema = {
       type: "object",
       additionalProperties: true,
       description:
-        "Smoothly animate NUMERIC template params to these target values while the paired speak lands. Keys are dot paths into params (e.g. {\"demand_shift.amount\": 25} or {\"azimuth\": 240}); the whole figure re-computes every frame, so intersections, guides, and regions move honestly. Always write the STARTING value explicitly in params (e.g. demand_shift: {amount: 0}). Only for template specs. A data template's stage param is the canonical target ({\"stage\": 1}); array entries address as values.2.",
+        "Smoothly animate NUMERIC template params to these target values while the paired speak lands. Keys are dot paths into params (e.g. {\"demand_shift.amount\": 25} or {\"azimuth\": 240}); the whole figure re-computes every frame, so intersections, guides, and regions move honestly. Always write the STARTING value explicitly in params (e.g. demand_shift: {amount: 0}). Only for template specs. A data template's stage param is the canonical target ({\"stage\": 1}); array entries address as values.2. \"box\" may instead be a region name — {\"animate\": {\"box\": \"right\"}} shrinks the figure into that half over the beat; write the starting \"box\" (e.g. \"full\") in params.",
     },
     duration: { type: "number", description: "With animate: seconds the animation takes (default 2)." },
     easing: {
@@ -1260,10 +1260,16 @@ function semanticErrors(spec: Spec): string[] {
       for (const [k, v] of entries) {
         // "box" is the one animate key a region name stands for its rectangle
         // (render/params.ts expandBoxAnimate) — any other string under this
-        // key is an error, never a {var} token (fitRegion has no var form).
-        if (k === "box" && typeof v === "string") {
-          if (!isFitName(v)) {
-            errors.push(`commands[${i}]: animate "box" must be a region name (left, right, top, bottom, full), a finite number for box.x/box.y/box.w/box.h, or a "{var}" token`);
+        // key is an error, never a {var} token (fitRegion has no var form),
+        // and neither is a bare number (that is never meaningful here — it
+        // is box.x/box.y/box.w/box.h that take a number; a number would
+        // otherwise pass validation and only die in the layout as "neither a
+        // region name nor {x, y, w, h}").
+        if (k === "box") {
+          if (typeof v !== "string" || !isFitName(v)) {
+            errors.push(
+              `commands[${i}]: animate "box" must be a region name (left, right, top, bottom, full); to animate one side write box.x, box.y, box.w or box.h with a number or a "{var}" token`,
+            );
           }
           continue;
         }

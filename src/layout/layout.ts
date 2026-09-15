@@ -7,7 +7,7 @@ import { applyTextMap } from "./text-map";
 import { DEFAULT_MATH_FONT } from "./text-style";
 import { setMathFont } from "../scenes/engines";
 import type { Spec } from "../spec/types";
-import { coVisible, lintLayout, FIT_SCALE_FLOOR, type LintIssue } from "../lint/lint";
+import { coVisible, idsOf, lintLayout, FIT_SCALE_FLOOR, type LintIssue } from "../lint/lint";
 import { layoutElements, type PieceGeometry } from "./tier2";
 import type { MeasureSpec } from "./measures";
 import type { CodeWindow } from "./code";
@@ -22,7 +22,7 @@ import { linearScale, plotArea } from "./canvas";
 import { figureSplit } from "./figure-split";
 import { fitSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
 import { FIT_NAMES, isFitName } from "./regions";
-import { expandBoxAnimate, withOverrides } from "../render/params";
+import { expandBoxAnimate, readParam, withOverrides } from "../render/params";
 
 export interface LayoutResult {
   drawables: Drawable[];
@@ -284,27 +284,39 @@ export function nativeBox(template: string | undefined): boolean {
 
 /**
  * The params in force when `elementId` is first drawn: every `animate`
- * before that beat, folded. Null when nothing animates before it — the
+ * before that beat, folded — but only the keys that are actual TEMPLATE
+ * params. A key folds only when `readParam` already resolves it against the
+ * params accumulated so far (a `box.*` key resolves through the name-aware
+ * read too, so a region's rectangle still folds). A var override
+ * (`{animate: {f: 3}}`, which the player keeps under `vars.<name>`, not
+ * `params`) never resolves this way, so it is dropped here and never flips
+ * `animated` — nothing template-side reads it, so it cannot change what the
+ * lint judges. Null when nothing template-side animates before it — the
  * layout at the base params is then the layout at that beat too. The lint
  * uses this for a code panel that arrives after the figure has moved (a
  * template that starts full and shrinks into a half to make room), so it
  * judges the pair on the ground they actually share.
  *
- * An element never named in any `draw`/`show` is still drawn — by the plan's
- * IMPLICIT final draw, after every command (render/plan.ts, the trailing
- * draw of everything left undrawn). So running off the end of the commands
- * without ever finding `elementId` means it was drawn last, after every
- * animate: fold to the end just as if a final beat had drawn it.
+ * "Drawn" counts `draw`, `show`, and a play beat's `reveal` (ids it puts on
+ * screen in time with the notes, and keeps).
+ *
+ * An element never named in any `draw`/`show`/`reveal` is still drawn — by
+ * the plan's IMPLICIT final draw, after every command (render/plan.ts, the
+ * trailing draw of everything left undrawn). So running off the end of the
+ * commands without ever finding `elementId` means it was drawn last, after
+ * every animate: fold to the end just as if a final beat had drawn it.
  */
 export function paramsAtFirstDraw(spec: Spec, elementId: string): Record<string, unknown> | null {
   let params = spec.params ?? {};
   let animated = false;
   const owns = (id: string) => id === elementId || id.startsWith(`${elementId}_`);
   for (const cmd of spec.commands ?? []) {
-    const drawn = [cmd.draw, cmd.show].flatMap((d) => (d === undefined ? [] : Array.isArray(d) ? d : [d]));
+    const drawn = [...idsOf(cmd.draw), ...idsOf(cmd.show), ...idsOf(cmd.reveal)];
     if (drawn.some(owns)) return animated ? params : null;
     if (cmd.animate) {
-      const numeric = Object.fromEntries(Object.entries(expandBoxAnimate(cmd.animate)).filter(([, v]) => typeof v === "number"));
+      const numeric = Object.fromEntries(
+        Object.entries(expandBoxAnimate(cmd.animate)).filter(([k, v]) => typeof v === "number" && readParam(params, k) !== null),
+      );
       if (Object.keys(numeric).length > 0) { params = withOverrides(params, numeric); animated = true; }
     }
   }

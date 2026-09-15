@@ -13,15 +13,20 @@ function indexOf(seg: string): number | null {
 }
 
 /** The numeric value at a dot path, or null when missing/non-numeric. Array
- *  segments are integer indices (values.2, series.0.values.1). */
+ *  segments are integer indices (values.2, series.0.values.1). A fit-name
+ *  string is coerced to its rectangle ONLY when the segment that produced it
+ *  was exactly `box` — `rule: "left"` is not a region just because "left"
+ *  happens to be one of the five names. */
 export function readParam(params: Record<string, unknown> | undefined, path: string): number | null {
+  const segs = path.split(".");
   let cur: unknown = params;
-  for (const seg of path.split(".")) {
-    if (isFitName(cur)) cur = fitRegion(cur);
+  for (let i = 0; i < segs.length; i++) {
+    const seg = segs[i];
+    if (i > 0 && segs[i - 1] === "box" && isFitName(cur)) cur = fitRegion(cur);
     if (Array.isArray(cur)) {
-      const i = indexOf(seg);
-      if (i === null) return null;
-      cur = cur[i];
+      const idx = indexOf(seg);
+      if (idx === null) return null;
+      cur = cur[idx];
     } else if (isRecord(cur)) {
       cur = cur[seg];
     } else {
@@ -51,7 +56,7 @@ export function withOverrides(
       if (existing === undefined) next = {};
       else if (Array.isArray(existing)) next = [...existing];
       else if (isRecord(existing)) next = { ...existing };
-      else if (isFitName(existing)) next = fitRegion(existing) as unknown as Record<string, unknown>;
+      else if (segs[i] === "box" && isFitName(existing)) next = fitRegion(existing) as unknown as Record<string, unknown>;
       else { ok = false; break; }
       (host as Record<string | number, unknown>)[key] = next;
       host = next;

@@ -3,6 +3,7 @@
 // repair round as structured text.
 
 import { CANVAS } from "../layout/canvas";
+import { isFitName } from "../layout/regions";
 import { AUTO_NAMESPACE, baseName, isReservedVar, VAR_RE } from "../spec/answers";
 import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox, type BBox } from "../layout/geometry";
 import { flattenDrawables, leafDrawables, type Drawable, type GroupDrawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
@@ -56,6 +57,8 @@ export interface LintIssue {
     | "group-empty"
     /** a bind expression that cannot be evaluated: unknown var, non-numeric field, bad expression */
     | "bind"
+    /** animate targets the box region with no starting params.box to glide from — the figure would jump */
+    | "animate-box"
     /** a math element whose TeX the engine cannot parse */
     | "math"
     /** code controls: a name with no birthplace, born twice, not a control literal, a bad longhand argument, or a control the viewer could not see change */
@@ -71,9 +74,11 @@ export interface LintIssue {
   severity: "warn" | "error";
 }
 
-/** `draw`/`show`/`erase`/`hide`/`clear.keep` all take either a single id or a
- *  list — this is the one place that difference is normalised away. */
-function idsOf(raw: string[] | string | undefined): string[] {
+/** `draw`/`show`/`erase`/`hide`/`clear.keep`/`reveal` all take either a
+ *  single id or a list — this is the one place that difference is
+ *  normalised away. Exported so layout.ts can use the same rule for "ids a
+ *  command draws" (paramsAtFirstDraw). */
+export function idsOf(raw: string[] | string | undefined): string[] {
   return typeof raw === "string" ? [raw] : raw ?? [];
 }
 
@@ -785,6 +790,28 @@ export interface LintCommandsOptions {
 export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIssue[] {
   const cmds = spec.commands ?? [];
   const issues: LintIssue[] = [...lintSources(spec), ...lintCode(spec), ...lintWidget(spec)];
+
+  // animate.box glides the figure into a region — but only when params has a
+  // starting box (a name or a rectangle) to glide FROM. Without one it
+  // validates, lays out and lints clean everywhere else, and only the
+  // planner ever notices (four separate "no numeric start value" warnings on
+  // box.x/y/w/h, which never reach the repair round because lintCommands is
+  // what the LLM repair round reads). Warn once per spec, not once per
+  // command.
+  const paramsHaveBox = spec.params?.box !== undefined;
+  if (!paramsHaveBox) {
+    const animatesBox = cmds.some(
+      (c) => c.animate !== undefined && Object.keys(c.animate).some((k) => (k === "box" && isFitName(c.animate![k])) || k.startsWith("box.")),
+    );
+    if (animatesBox) {
+      issues.push({
+        rule: "animate-box",
+        ids: [],
+        message: 'animate "box" with no params.box — the figure would jump into the box instead of gliding; write the starting box in params (e.g. "full")',
+        severity: "warn",
+      });
+    }
+  }
 
   // {var} tokens must be stored by an EARLIER ask — a later or missing store
   // means the line speaks the literal braces. A dotted token ({age.secs})
