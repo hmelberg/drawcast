@@ -37,6 +37,9 @@ import type { SpecElement } from "../spec/types";
 
 /** Row height, × fontSize — a little airier than a code line. */
 export const CTL_ROW_H = 1.9;
+/** The `<name>` half of the Run row's id (`<id>_ctl__run`) — two underscores,
+ *  which no control name written in a script produces after `_ctl_`. */
+export const RUN_ROW_ID = "__run";
 /** Gap after the label column, and inside a row's own content. */
 const PAD = 10;
 /** Height of a row's own widget (pill/box), independent of the row's pitch. */
@@ -88,11 +91,12 @@ export interface ControlsPaneLayout {
  * `el.controls` order — the same parse `controlsPane` takes as its optional
  * last argument, so a caller that already parsed for one reuses it for both.
  */
-export function controlsPaneHeight(labels: string[], fontSize: number, w: number): number {
+export function controlsPaneHeight(labels: string[], fontSize: number, w: number, extraRows = 0): number {
   if (labels.length === 0) return 0;
   const rowH = fontSize * CTL_ROW_H;
   const labelW = labelColumnWidth(labels, fontSize, w);
-  return labels.reduce((sum, label) => sum + (labelWidthEstimate(label, fontSize) <= labelW ? rowH : WRAP_MULT * rowH), 0);
+  const labelsH = labels.reduce((sum, label) => sum + (labelWidthEstimate(label, fontSize) <= labelW ? rowH : WRAP_MULT * rowH), 0);
+  return labelsH + extraRows * fontSize * CTL_ROW_H;
 }
 
 function rectPts(x: number, y: number, w: number, h: number): Pt[] {
@@ -134,6 +138,10 @@ export function controlsPane(
    *  parsed fresh from `code`/`names` when omitted (every direct caller,
    *  tests included). */
   origControls?: ControlSpec[],
+  /** `runRow: true` appends one extra row after every control's — a drawn
+   *  "Run ▶" button (id `<id>_ctl_${RUN_ROW_ID}`) — for `autorun: false`
+   *  (`code.ts` passes it from `el.autorun === false`). */
+  opts: { runRow?: boolean } = {},
 ): ControlsPaneLayout {
   const orig = origControls ?? parseControls(language, code, names).controls;
   const cur = parseControls(language, withControlDefaults(language, code, names), names).controls;
@@ -166,7 +174,6 @@ export function controlsPane(
     text: value,
     fontSize,
     anchor,
-    font: "mono",
     z: Z_TEXT,
     style: inkStyle,
     drawOpts: textDraw,
@@ -215,14 +222,17 @@ export function controlsPane(
 
   // Cumulative top: a wrapped row is taller, so a row's y no longer follows
   // from its index alone — each row's top is the previous rows' bottom.
-  let rowTop = box.top;
+  // Hoisted above the loop (rather than declared inside it) so it is still
+  // readable AFTER the loop, holding the top-of-row just past the last
+  // control's row — where the Run row (below) picks up.
+  let nextTop = box.top;
 
   names.forEach((name, i) => {
     const label = labels[i];
     const wraps = labelWidthEstimate(label, fontSize) > labelW;
     const thisRowH = wraps ? WRAP_MULT * rowH : rowH;
-    const top = rowTop;
-    rowTop -= thisRowH;
+    const top = nextTop;
+    nextTop -= thisRowH;
 
     // Both parses must have found this control — an invalid/missing one (the
     // controls lint reports it) draws nothing but still holds its row's slot
@@ -306,7 +316,24 @@ export function controlsPane(
     anchors[rowId] = [box.x, cy];
   });
 
-  const height = controlsPaneHeight(labels, fontSize, box.w);
+  // The Run row (`autorun: false`) — drawn last, spanning the pane's full
+  // width (no label column: nothing shares this row with a label), starting
+  // where the last control's row left off (`nextTop`, hoisted above the
+  // loop). Task 3 makes `__pill` the button a click toggles.
+  if (opts.runRow) {
+    const rowId = `${id}_ctl_${RUN_ROW_ID}`;
+    const cy = nextTop - 0.5 * rowH;
+    const boxY = cy - fieldH / 2;
+    const children: Drawable[] = [
+      mkStrokeRect(`${rowId}__pill`, box.x, boxY, box.w, fieldH),
+      mkText(`${rowId}__value`, [box.x + box.w / 2, cy], "Run ▶", "middle"),
+    ];
+    rows.push({ id: rowId, kind: "group", z: Z_STROKE, style: defaultStyle(), drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 0 }), children });
+    order.push(rowId);
+    anchors[rowId] = [box.x, cy];
+  }
+
+  const height = controlsPaneHeight(labels, fontSize, box.w, opts.runRow ? 1 : 0);
   // `<id>_ctls` is NOT a drawable — it is a GROUP ID (the same mechanism a
   // spec `type: "group"` element registers in `LayoutResult.groups`): it
   // expands to the row ids at plan time (`expandGroup`, render/plan.ts), so
