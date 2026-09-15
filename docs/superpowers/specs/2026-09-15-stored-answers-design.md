@@ -61,7 +61,7 @@ An `ask` can store its answer (`store: name`) and later lines can say
 | `src/render/index.ts` | `RenderOptions.vars` seeds the player; `RenderOptions.questionOffset`; the handle exposes the player's `vars` | ~8 lines |
 | `src/playlist/session.ts` | one carried `Map` and a question counter; pass both into the two *item* mounts (not title page or chapter cards); merge back on item done | ~12 lines |
 | `src/lint/lint.ts` | `lintCommands(spec, knownVars?)` | ~5 lines |
-| `src/learn.ts` + `netlify/functions/learn*.ts` | `secs?: number` on `AnswerPayload` and the stored record | ~6 lines |
+| `src/learn.ts` + the course server (external; `apiBase()` in learn.ts) | `secs?: number` on `AnswerPayload`; the server must accept and store the field | ~6 lines here, plus the server |
 | tests | two-item session test (ask in 1, `{name}` in 2); quiz store; `_secs` set on gate, absent in export; ordinal continues across items; lint quiet for carried names | 5 tests |
 | `src/llm/prompts/compiler-v1.md` | one sentence each: quiz `store`, automatic `answer`/`answer_N`, `_secs`, "stored answers survive into later parts"; prompt-size re-pin | same round (prompt-sync rule) |
 
