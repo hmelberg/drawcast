@@ -830,6 +830,14 @@ as a group id that expands to every row, no `<id>_line_N`. A paused click on
 the panel, the explore beat, or the tray's group all mount the SAME
 controls-group builder in place over the drawn panel (Task 3's one builder,
 two hosts — the editor card's own trick, reused rather than duplicated).
+The label column sizes itself to the LONGEST label among the panel's own
+controls (`min(0.45 × pane width, (max label chars + 1) × 0.6 × font
+size)`, `code-controls-pane.ts`); a label that still doesn't fit that 45%
+cap wraps onto its own line above the control instead of overflowing into
+it — `controlsPaneHeight` takes the labels (not just a count) so the panel
+settles the right height before any row is positioned, and `code.ts` parses
+the script's controls once and hands that same parse to both the height
+call and the row layout.
 
 The lint `explore-invite` (warn): an ordinary `speak` matching a small
 invitation word list — slide, drag, press, click, toggle, try it, turn the
@@ -838,21 +846,17 @@ belongs in an `explore` beat instead. `tests/examples-style.test.ts` pins
 `INVITE_BASELINE` at 0.
 
 Four bundled examples became two-part playlists (theory drawing, then the
-knobs): SIR, the Markov cohort, and discounting draw their panel as
-`pane: controls`; the cost-effectiveness plane's part 2 keeps `pane: code`
-— its script's own `Slider(..., label="Willingness to pay")` overflows the
-drawn panel's fixed label column at any pane width or font size (the column
-cap and the label's own width both scale with `font_size`, so the overflow
-ratio never changes), a real `code-controls-pane.ts` limit, not a wording
-choice; part 1 turns quadrant_labels off for the same single-point layout,
-independently of that.
+knobs), all four with `pane: controls`: SIR, the Markov cohort, the
+cost-effectiveness plane, and discounting. The cost-effectiveness plane's
+`wtp` slider (`Slider(..., label="Willingness to pay")`, the longest label
+in the corpus) was the case that first exposed the label column's old fixed
+9-character cap; it is what the wrap rule above was built and tested
+against.
 
 Open: a performed sweep (the `animate` pairing) as the panel's own movie
 form — out of scope by design (§7), not built; the Norwegian invitation
-words are a short, unreviewed list; the drawn control panel's label column
-has no minimum-width guarantee, so a sufficiently long `label=` overflows
-into the track (seen on the cost-effectiveness plane's `wtp` slider) — a
-wider or content-aware label column is a follow-up, not done here.
+words are a short, unreviewed list; a choice row's chips have no equivalent
+wrap when the options themselves are long (only the label column wraps).
 
 ## Sound (the play command) — done 2026-08-26
 

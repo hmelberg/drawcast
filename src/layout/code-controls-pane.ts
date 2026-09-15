@@ -19,8 +19,17 @@
 // row once, rather than a wrapper drawable that would draw a row's ink AGAIN
 // whenever both it and the wrapper went unmentioned and fell to the
 // implicit final draw (render/plan.ts).
+//
+// The label column: one width, shared by every row, sized to the longest
+// label among the panel's OWN controls (`labelColumnWidth`) — never a fixed
+// character budget, since a `Slider(..., label="...")` can name anything. A
+// label past the column's 45%-of-panel cap wraps onto its own line above
+// its control instead of overflowing into it; `controlsPaneHeight` (which
+// `code.ts` must call before any row exists, to settle the pane's height)
+// makes the identical per-row decision from the labels alone, so the two
+// never disagree about how tall the panel is.
 
-import { formatValue, parseControls, withControlDefaults } from "../code/controls";
+import { formatValue, parseControls, withControlDefaults, type ControlSpec } from "../code/controls";
 import { COLORS, SKETCH_MS, Z_AREA, Z_STROKE, Z_TEXT, defaultStyle, type Drawable, type GroupDrawable, type Pt } from "./model";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
 import type { SpecElement } from "../spec/types";
@@ -31,6 +40,35 @@ export const CTL_ROW_H = 1.9;
 const PAD = 10;
 /** Height of a row's own widget (pill/box), independent of the row's pitch. */
 const FIELD_H_EM = 1.05;
+/**
+ * This module's own per-character width assumption for a label — distinct
+ * from `heuristicMeasure`'s 0.52 (svg-backend.ts's real-font measure isn't
+ * available here, and doesn't need to be: this only has to be internally
+ * consistent between `labelColumnWidth` and the per-row wrap decision, both
+ * in this file).
+ */
+const LABEL_CHAR_W = 0.6;
+/** A wrapped row (label on its own line above the control) is this many
+ *  ordinary row-heights tall — 0.75 for the label's own line, 1.0 (a full
+ *  ordinary row) for the control's line underneath it. */
+const WRAP_MULT = 1.75;
+
+/** A label's estimated width in this module's own units (see `LABEL_CHAR_W`). */
+function labelWidthEstimate(label: string, fontSize: number): number {
+  return label.length * LABEL_CHAR_W * fontSize;
+}
+
+/**
+ * The panel-wide label column width: sized to the LONGEST label among the
+ * panel's controls, plus one character of breathing room, but never past
+ * 45% of the panel — a label past that cap does not shrink the column
+ * further, it wraps onto its own line instead (see `controlsPane`'s
+ * per-row `wraps` check, which reuses this same `labelW`).
+ */
+function labelColumnWidth(labels: string[], fontSize: number, w: number): number {
+  const maxChars = labels.reduce((m, l) => Math.max(m, l.length), 0);
+  return Math.min(0.45 * w, (maxChars + 1) * LABEL_CHAR_W * fontSize);
+}
 
 export interface ControlsPaneLayout {
   /** Top-level: one `GroupDrawable` per row (`<id>_ctl_<name>`) — `<id>_ctls` is not among them (see `groups`). */
@@ -44,14 +82,21 @@ export interface ControlsPaneLayout {
 }
 
 /**
- * The pane's content height for `count` controls — known from the row count
- * alone, before any row is positioned. `code.ts` needs this FIRST: `codeTop`
- * for `show: "below"` is derived from the code pane's content height, so the
+ * The pane's content height for these controls' LABELS — known before any
+ * row is positioned, from the labels and the panel width alone (the same
+ * two numbers `controlsPane` uses for its own per-row wrap decision, so the
+ * two never disagree). `code.ts` needs this FIRST: `codeTop` for
+ * `show: "below"` is derived from the code pane's content height, so the
  * height has to settle before `controlsPane` (which needs `codeTop` as its
- * box's `top`) can run.
+ * box's `top`) can run. `labels` is the ORIGINAL-parse label per control, in
+ * `el.controls` order — the same parse `controlsPane` takes as its optional
+ * last argument, so a caller that already parsed for one reuses it for both.
  */
-export function controlsPaneHeight(count: number, fontSize: number): number {
-  return count * fontSize * CTL_ROW_H;
+export function controlsPaneHeight(labels: string[], fontSize: number, w: number): number {
+  if (labels.length === 0) return 0;
+  const rowH = fontSize * CTL_ROW_H;
+  const labelW = labelColumnWidth(labels, fontSize, w);
+  return labels.reduce((sum, label) => sum + (labelWidthEstimate(label, fontSize) <= labelW ? rowH : WRAP_MULT * rowH), 0);
 }
 
 function rectPts(x: number, y: number, w: number, h: number): Pt[] {
@@ -88,8 +133,13 @@ export function controlsPane(
   fontSize: number,
   style: SpecElement["style"],
   draw: SpecElement["draw"],
+  /** The ORIGINAL-parse controls, when the caller already has them (`code.ts`
+   *  parses once for `controlsPaneHeight` and passes the same parse here) —
+   *  parsed fresh from `code`/`names` when omitted (every direct caller,
+   *  tests included). */
+  origControls?: ControlSpec[],
 ): ControlsPaneLayout {
-  const orig = parseControls(language, code, names).controls;
+  const orig = origControls ?? parseControls(language, code, names).controls;
   const cur = parseControls(language, withControlDefaults(language, code, names), names).controls;
 
   const textStyle = resolveStyle(style, {});
@@ -100,7 +150,14 @@ export function controlsPane(
   // panel's own region tint use elsewhere in code.ts (COLORS.region1 @ 0.42).
   const fillStyle = resolveStyle(style, { fill: COLORS.region1, opacity: 0.42 });
 
-  const labelW = Math.min(0.32 * box.w, 9 * fontSize * 0.6);
+  // The label column is sized to the LONGEST label among ALL the panel's
+  // controls (not just this row's) — one column, shared by every row, so
+  // the tracks/chips/boxes all start at the same x. A label that still
+  // doesn't fit (the column hit its 45%-of-panel cap) wraps onto its own
+  // line above the control instead of overflowing into it (the wtp-slider
+  // defect this replaces): decided per row, below.
+  const labels = names.map((name) => orig.find((c) => c.name === name)?.label ?? name);
+  const labelW = labelColumnWidth(labels, fontSize, box.w);
   const contentX = box.x + labelW + PAD;
   const rowH = fontSize * CTL_ROW_H;
   const fieldH = fontSize * FIELD_H_EM;
@@ -159,29 +216,47 @@ export function controlsPane(
   const order: string[] = [];
   const anchors: Record<string, Pt> = {};
 
+  // Cumulative top: a wrapped row is taller, so a row's y no longer follows
+  // from its index alone — each row's top is the previous rows' bottom.
+  let rowTop = box.top;
+
   names.forEach((name, i) => {
+    const label = labels[i];
+    const wraps = labelWidthEstimate(label, fontSize) > labelW;
+    const thisRowH = wraps ? WRAP_MULT * rowH : rowH;
+    const top = rowTop;
+    rowTop -= thisRowH;
+
     // Both parses must have found this control — an invalid/missing one (the
-    // controls lint reports it) draws nothing but still holds its row's slot,
-    // so the rows below it don't creep up.
+    // controls lint reports it) draws nothing but still holds its row's slot
+    // (the height claimed above), so the rows below it don't creep up.
     const o = orig.find((c) => c.name === name);
     const c = cur.find((c) => c.name === name);
     if (!o || !c) return;
 
     const rowId = `${id}_ctl_${name}`;
-    const cy = box.top - (i + 0.5) * rowH;
-    const children: Drawable[] = [mkText(`${rowId}__label`, [box.x, cy], o.label ?? name, "start")];
+    // Unwrapped: one line, label and control share it (contentX, the
+    // panel-wide column). Wrapped: the label gets its own line (0.75 of a
+    // row) above the control's line (a full row), and the control starts
+    // at the row's own left edge, full width — the label column is not
+    // subtracted since nothing shares this row with it.
+    const labelY = wraps ? top - 0.5 * (WRAP_MULT - 1) * rowH : top - 0.5 * rowH;
+    const cy = wraps ? top - (WRAP_MULT - 1) * rowH - 0.5 * rowH : labelY;
+    const rowContentX = wraps ? box.x : contentX;
+    const rowContentW = box.x + box.w - rowContentX;
+    const children: Drawable[] = [mkText(`${rowId}__label`, [box.x, labelY], label, "start")];
 
     if (o.kind === "slider") {
       const min = o.min ?? 0;
       const max = o.max ?? 1;
       const value = typeof c.default === "number" ? c.default : Number(c.default);
       const valueW = 4 * fontSize * 0.6;
-      const trackW = box.w - labelW - PAD - valueW - PAD;
+      const trackW = rowContentW - valueW - PAD;
       const frac = max > min ? Math.min(1, Math.max(0, (value - min) / (max - min))) : 0;
-      const kx = contentX + trackW * frac;
+      const kx = rowContentX + trackW * frac;
       const knobR = 0.28 * fontSize;
       children.push(
-        mkStrokeLine(`${rowId}__track`, [contentX, cy], [contentX + trackW, cy]),
+        mkStrokeLine(`${rowId}__track`, [rowContentX, cy], [rowContentX + trackW, cy]),
         mkStrokeCircle(`${rowId}__knob`, [kx, cy], knobR),
         mkText(`${rowId}__value`, [box.x + box.w, cy], formatValue(language, o, value), "end"),
       );
@@ -189,7 +264,7 @@ export function controlsPane(
       const options = o.options ?? [];
       const chosen = String(c.default);
       const gap = 0.5 * fontSize;
-      let cursorX = contentX;
+      let cursorX = rowContentX;
       options.forEach((opt, k) => {
         const chipW = Math.max(2.4 * fontSize, opt.length * fontSize * 0.6 + 1.4 * fontSize);
         const chipY = cy - fieldH / 2;
@@ -205,24 +280,24 @@ export function controlsPane(
       const pillW = 2.2 * fontSize;
       const pillY = cy - fieldH / 2;
       const knobR = fieldH * 0.4;
-      const knobCx = value ? contentX + pillW - fieldH / 2 : contentX + fieldH / 2;
+      const knobCx = value ? rowContentX + pillW - fieldH / 2 : rowContentX + fieldH / 2;
       children.push(
-        mkStrokeRect(`${rowId}__pill`, contentX, pillY, pillW, fieldH),
+        mkStrokeRect(`${rowId}__pill`, rowContentX, pillY, pillW, fieldH),
         mkStrokeCircle(`${rowId}__knob`, [knobCx, cy], knobR),
         mkText(`${rowId}__value`, [box.x + box.w, cy], value ? "on" : "off", "end"),
       );
     } else if (o.kind === "text" || o.kind === "number") {
-      const boxW = box.x + box.w - contentX;
+      const boxW = rowContentW;
       const boxY = cy - fieldH / 2;
       const shown =
         o.kind === "text" ? `"${String(c.default)}"` : formatValue(language, o, typeof c.default === "number" ? c.default : Number(c.default));
-      children.push(mkStrokeRect(`${rowId}__box`, contentX, boxY, boxW, fieldH), mkText(`${rowId}__value`, [contentX + boxW / 2, cy], shown, "middle"));
+      children.push(mkStrokeRect(`${rowId}__box`, rowContentX, boxY, boxW, fieldH), mkText(`${rowId}__value`, [rowContentX + boxW / 2, cy], shown, "middle"));
     } else if (o.kind === "button") {
-      const boxW = box.x + box.w - contentX;
+      const boxW = rowContentW;
       const boxY = cy - fieldH / 2;
       children.push(
-        mkStrokeRect(`${rowId}__pill`, contentX, boxY, boxW, fieldH),
-        mkText(`${rowId}__value`, [contentX + boxW / 2, cy], o.caption ?? o.label ?? name, "middle"),
+        mkStrokeRect(`${rowId}__pill`, rowContentX, boxY, boxW, fieldH),
+        mkText(`${rowId}__value`, [rowContentX + boxW / 2, cy], o.caption ?? label, "middle"),
       );
     }
 
@@ -231,7 +306,7 @@ export function controlsPane(
     anchors[rowId] = [box.x, cy];
   });
 
-  const height = controlsPaneHeight(names.length, fontSize);
+  const height = controlsPaneHeight(labels, fontSize, box.w);
   // `<id>_ctls` is NOT a drawable — it is a GROUP ID (the same mechanism a
   // spec `type: "group"` element registers in `LayoutResult.groups`): it
   // expands to the row ids at plan time (`expandGroup`, render/plan.ts), so

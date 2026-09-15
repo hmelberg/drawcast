@@ -23,7 +23,7 @@
 // code/run — layout is a pure geometry layer and must never transitively
 // pull render/portrait (IndexedDB) in through the execution facade.
 import { stylable } from "../code/chart-style";
-import { withControlDefaults } from "../code/controls";
+import { parseControls, withControlDefaults } from "../code/controls";
 import { controlsPane, controlsPaneHeight } from "./code-controls-pane";
 import { c64ScreenDrawables, isC64Screen } from "./c64-screen";
 import { decodeCodeResult, type CodeTable } from "../code/envelope";
@@ -352,11 +352,27 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // (line ~312) — so only "output" is excluded (the design's own rule: pane:
   // controls needs a pane side to draw into).
   const controlsPaneMode = el.pane === "controls" && show !== "output" && (el.controls?.length ?? 0) > 0;
+  // Parsed ONCE here (the ORIGINAL, not default-rewritten, script — kind,
+  // shape and label per control) and reused below for `controlsPane` itself:
+  // the label column's width depends on every control's actual label (a
+  // `Slider(..., label="...")`, not just its name), and `controlsPaneHeight`
+  // needs that same label text to settle the panel's height before `codeTop`
+  // exists — so both must read the identical parse, or the settled height
+  // and the panel actually laid out could disagree.
+  const origControls = controlsPaneMode ? parseControls(el.language ?? "", el.code ?? "", el.controls!).controls : [];
   const sourceLines = withControlDefaults(el.language ?? "", el.code ?? "", el.controls).replace(/\s+$/, "").split("\n");
   const codeMax = Math.max(8, Math.floor((codePaneW - 2 * PAD) / (fontSize * CHAR_W)));
   const codeStack = showCode && !controlsPaneMode ? stackLines(sourceLines.map((l) => wrapCodeLine(l, codeMax)), fontSize) : { blocks: [], height: 0 };
   const windowH = windowRows > 0 ? windowRows * fontSize * ROW_H + (windowRows - 1) * fontSize * LINE_GAP : codeStack.height;
-  const codeContentH = controlsPaneMode ? controlsPaneHeight(el.controls!.length, fontSize) : showCode ? Math.min(codeStack.height, windowH) : 0;
+  const codeContentH = controlsPaneMode
+    ? controlsPaneHeight(
+        el.controls!.map((name) => origControls.find((c) => c.name === name)?.label ?? name),
+        fontSize,
+        codePaneW - 2 * PAD,
+      )
+    : showCode
+      ? Math.min(codeStack.height, windowH)
+      : 0;
 
   // ---- output pane content -------------------------------------------------
   const outMax = Math.max(8, Math.floor((outPaneW - 2 * PAD) / (fontSize * CHAR_W)));
@@ -706,6 +722,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       fontSize,
       el.style,
       el.draw,
+      origControls,
     );
     // Each row is its own top-level drawable (`draw: [sim_ctl_beta]` finds it
     // directly via drawablesForId, which only matches a top-level id — the

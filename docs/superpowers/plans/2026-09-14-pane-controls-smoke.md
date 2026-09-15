@@ -57,7 +57,7 @@ earlier and the row's own knob moves. Continue restores play. Exporting
 this example shows the three rows at their defaults and never speaks the
 explore line.
 
-## 4. The cost-effectiveness plane — theory, then the demonstration
+## 4. The cost-effectiveness plane — theory, then the knobs
 
 Load **"Why do health economists draw a cloud of dots instead of one
 number when they compare two treatments?"**.
@@ -65,17 +65,28 @@ number when they compare two treatments?"**.
 Part 1 (the `cost_effectiveness_plane` template, title "One point on the
 plane") draws the axes, the dashed willingness-to-pay line, and one
 emphasised point just under it, narrating that a single point cannot show
-how sure that roll of the dice was. Part 2 is the SAME code demonstration
-this example has always shown (script lines, not a drawn knob panel — see
-"Concerns" in the Task 4 report: the `wtp` slider's own
-`label="Willingness to pay"` overflows the drawn panel's fixed label
-column at any pane width, an unrelated pre-existing limit of
-`code-controls-pane.ts`, so this one example keeps `pane: code`). Confirm
-the explore beat still stops with the tray's controls group available (⊕
-or the paused click opens the tray, not an in-place card, since the pane
-is not `pane: controls` here), sliding the willingness to pay moves the
-share-below-the-line number, and the movie export never speaks the
+how sure that roll of the dice was. Part 2 draws the panel and its three
+knob rows — Draws, Willingness to pay, Draw again — one at a time, then
+the scatter plot, then stops on the explore beat with the card live over
+the rows. Look closely at the "Willingness to pay" row: the label reads in
+full on ONE line (this is the case that first exposed the drawn panel's
+label-column defect — a fixed 9-character cap that made this exact label
+overflow into its own track; the column now sizes itself to the longest
+label among the panel's controls, per the ROADMAP entry). Slide the
+willingness to pay down in the card: the share-below-the-line number in
+the plot falls and the row's own knob moves; press "Draw again" (the
+button row): a new cloud, nearly the same share. Continue restores.
+Exporting shows all three rows at their defaults and never speaks the
 explore line.
+
+## 4a. A wrapped label (node-test only, nothing in the Examples list)
+
+No bundled example's label is long enough to actually WRAP (the widened
+column comfortably fits "Willingness to pay", the longest one in the
+corpus) — the wrap path itself (a label past the column's 45%-of-panel cap
+moves to its own line above a full-width control) is covered by
+`tests/code-pane-controls.test.ts` rather than by hand here; nothing to
+click in the app for this one.
 
 ## 5. Discounting — knobs
 
@@ -93,20 +104,20 @@ the explore line.
 
 ## 6. Paused click opens the card; ✕ and Escape close it
 
-On any of the three `pane: controls` panels above (SIR, the Markov cohort,
-or discounting), pause playback BEFORE the explore beat and click directly
-on the drawn panel (not the output pane). Expect: the same in-place card
-mounts over the panel as the explore beat itself would open — same rows,
-same current values. Click the card's ✕: it closes, the drawn panel is
-left showing the values as last set. Reopen it (another paused click) and
-press Escape: it closes the same way. Clicking OUTSIDE the panel while
-paused does not open the card.
+On any of the four `pane: controls` panels above (SIR, the Markov cohort,
+the cost-effectiveness plane, or discounting), pause playback BEFORE the
+explore beat and click directly on the drawn panel (not the output pane).
+Expect: the same in-place card mounts over the panel as the explore beat
+itself would open — same rows, same current values. Click the card's ✕: it
+closes, the drawn panel is left showing the values as last set. Reopen it
+(another paused click) and press Escape: it closes the same way. Clicking
+OUTSIDE the panel while paused does not open the card.
 
 ## 7. The tray stays in sync
 
-With a card open in place (any of the three `pane: controls` examples),
-open the ⊕ tray as well. Expect: the tray lists the SAME controls group
-for that script (not a second, independent one), and moving a control in
+With a card open in place (any of the four `pane: controls` examples), open
+the ⊕ tray as well. Expect: the tray lists the SAME controls group for
+that script (not a second, independent one), and moving a control in
 EITHER the in-place card or the tray updates the other's shown value and
 the drawn row together — one state, two views, exactly as the editor card
 and the tray's own textarea already share one draft today.

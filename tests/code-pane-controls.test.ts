@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { layoutSpec } from "../src/layout/layout";
 import { heuristicMeasure } from "../src/layout/measure";
 import { flattenDrawables, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
-import { controlsPane, CTL_ROW_H } from "../src/layout/code-controls-pane";
+import { controlsPane, controlsPaneHeight, CTL_ROW_H } from "../src/layout/code-controls-pane";
 import type { Spec } from "../src/spec/types";
 
 const OK = JSON.stringify({ ok: true, stdout: "42", stderr: "", figures: [] });
@@ -45,6 +45,51 @@ describe("controlsPane (pure)", () => {
     expect(chips.map((d) => d.id)).toEqual(["sim_ctl_m__chip_0", "sim_ctl_m__chip_1"]);
     expect(chips[0].kind).toBe("area"); // filled = chosen
     expect(chips[1].kind).toBe("stroke");
+  });
+});
+
+describe("the label column sizes to the longest label, and a label past the cap wraps", () => {
+  const LONG_LABEL = "12345678901234567890"; // 20 characters
+  const longCode = `x = Slider(1, 100, default=10, label="${LONG_LABEL}")`;
+
+  test("controlsPaneHeight: short labels keep the un-wrapped total (the previous height)", () => {
+    expect(controlsPaneHeight(["n", "model", "log", "name", "roll"], 17, 400)).toBeCloseTo(5 * 17 * CTL_ROW_H, 5);
+  });
+
+  test("controlsPaneHeight: a label past 0.45*w wraps, adding 0.75 of a row", () => {
+    const rowH = 17 * CTL_ROW_H;
+    expect(controlsPaneHeight([LONG_LABEL], 17, 400)).toBeCloseTo(1.75 * rowH, 5);
+  });
+
+  test("controlsPaneHeight: the panel height equals the sum of row heights (short one-line, long wrapped)", () => {
+    const rowH = 17 * CTL_ROW_H;
+    expect(controlsPaneHeight(["n", LONG_LABEL], 17, 400)).toBeCloseTo(rowH + 1.75 * rowH, 5);
+  });
+
+  test("controlsPane: a 20-character label at w=400/fontSize=17 gets its own line, and the row is taller", () => {
+    const p = controlsPane("sim", "python", longCode, ["x"], { x: 0, top: 0, w: 400 }, 17, undefined, undefined);
+    const rowH = 17 * CTL_ROW_H;
+    expect(p.height).toBeCloseTo(1.75 * rowH, 5);
+    const label = flattenDrawables(p.drawables).find((d) => d.id === "sim_ctl_x__label") as TextDrawable;
+    const track = flattenDrawables(p.drawables).find((d) => d.id === "sim_ctl_x__track") as StrokeDrawable;
+    expect(label.text).toBe(LONG_LABEL);
+    // The label's own line sits ABOVE the control's line (y-up: a bigger y).
+    expect(label.pos[1]).toBeGreaterThan(track.pts[0][1]);
+    // The track starts at the row's own left edge (box.x), full width — not
+    // indented by a label column, since nothing shares this row with it.
+    expect(Math.min(...track.pts.map((q) => q[0]))).toBeCloseTo(0, 5);
+  });
+
+  test("controlsPane: mixing a short label and a wrapped one — total height is their sum, short label keeps its column", () => {
+    const code = `n = (1, 50)\n${longCode}`;
+    const p = controlsPane("sim", "python", code, ["n", "x"], { x: 0, top: 0, w: 400 }, 17, undefined, undefined);
+    const rowH = 17 * CTL_ROW_H;
+    expect(p.height).toBeCloseTo(rowH + 1.75 * rowH, 5);
+    // "n"'s row is unwrapped: its track does not start at the row's bare left
+    // edge — it is indented by the (shared) label column, sized to "x"'s
+    // longer label even though "n" is short.
+    const nTrack = flattenDrawables(p.drawables).find((d) => d.id === "sim_ctl_n__track") as StrokeDrawable;
+    expect(Math.min(...nTrack.pts.map((q) => q[0]))).toBeGreaterThan(0);
   });
 });
 
