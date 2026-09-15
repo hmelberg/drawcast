@@ -272,6 +272,10 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     // Continue, a scrub or Play throws it away with everything else.
     ctlInput?.close();
     ctlInput = null;
+    // …and so is a knob repaint already booked for the next frame: it would
+    // land AFTER the honest geometry was settled and dirty it again.
+    if (knobFrame !== null) cancelAnimationFrame(knobFrame);
+    knobFrame = null;
   };
   const draftOf = (el: SpecElement): string => drafts.get(el.id) ?? patches.get(el.id)?.code ?? el.code ?? "";
   const announce = (id: string, fn: (s: EditorSurface) => void): void => {
@@ -483,6 +487,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     if (gateResolve) {
       // The run is waiting on the explore gate: settle honest geometry
       // WITHOUT aborting it, then let it continue.
+      stage?.classList.remove("cs-gated"); // the centred ▶ comes back with the run
       clearPreview();
       panelViewFor(stage)?.reset();
       hd.timeline.settleParams();
@@ -1287,6 +1292,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       const shut = step.code !== undefined && editable.find((e) => e.id === step.code)?.pane === "controls";
       const onAbort = (): void => {
         gateResolve = null;
+        stage?.classList.remove("cs-gated");
         closeEditors();
         clearPreview();
         close();
@@ -1302,6 +1308,10 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         // on the drawing is Continue (tryContinue in controls.ts), never a
         // stray resume into a still-pending gate.
         hd.timeline.pause();
+        // …and the CENTRED ▶ stands down: it would sit over the very knobs
+        // being offered. Its own class — `cs-exploring` freezes stage
+        // clicks, and here the figure click IS Continue.
+        stage?.classList.add("cs-gated");
       }
       if (!shut) open({ filter: step.params, gated: true, code: step.code, anatomy: step.anatomy, space: step.space });
     });
@@ -1396,17 +1406,25 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     }
   };
 
-  // Play from anywhere else (big play, stage click) closes the tray; the
-  // player settles the preview itself at run start, so no restore here.
+  // Play from anywhere else (big play, stage click) closes the tray.
+  // `patches.size > 0` is the third door: a knob moved on the DRAWN panel
+  // leaves a preview behind with no tray and no editor open, and a mid-step
+  // resume (player.play()'s `pausedFlag` branch) returns BEFORE its own
+  // applyKey — so the run would otherwise go on over preview geometry with
+  // the viewer's values still patched in. settleParams() is the way back
+  // that does not abort the run (it is applyKey at the boundary, the very
+  // call continueNow's gate branch makes); harmless on the ordinary path,
+  // where play() has just settled the same boundary itself.
   // Chain, never replace, the existing onState (controls hangs its idle
   // logic here and the session may hang auto-advance).
   const prevOnState = hd.timeline.callbacks.onState;
   hd.timeline.callbacks.onState = (s) => {
     prevOnState?.(s);
-    if (s === "playing" && (!tray.hidden || editors.size > 0)) {
+    if (s === "playing" && (!tray.hidden || editors.size > 0 || patches.size > 0)) {
       closeEditors();
       clearPreview();
       panelViewFor(stage)?.reset();
+      hd.timeline.settleParams();
       close();
     }
   };

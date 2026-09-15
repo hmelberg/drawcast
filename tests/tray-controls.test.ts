@@ -7,6 +7,7 @@ import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 
 const src = readFileSync("src/ui/tray.ts", "utf8");
+const css = readFileSync("src/styles.css", "utf8");
 
 describe("tray controls (pins)", () => {
   test("controls parse the authored element, not the resolved clone", () => {
@@ -54,7 +55,15 @@ describe("tray controls (pins)", () => {
     expect(commit.indexOf("previewKnobs(")).toBeLessThan(commit.indexOf("runControls("));
   });
   test("a paused click on a pane: controls panel is the host's, not the editor's or the tray's", () => {
-    expect(src).toMatch(/if \(el\?\.pane === "controls"\) \{\s*e\.stopPropagation\(\);\s*return;\s*\}/);
+    // Anchored in the stage click handler AND ordered: the guard must come
+    // BEFORE openInPlace, or the editor card opens on the panel first and the
+    // guard below it never runs (fix round 1).
+    const region = src.slice(src.indexOf("const screenAt"));
+    const guard = region.search(/if \(el\?\.pane === "controls"\) \{\s*e\.stopPropagation\(\);\s*return;\s*\}/);
+    const opener = region.indexOf("if (el && openInPlace(el)) return;");
+    expect(guard).toBeGreaterThan(-1);
+    expect(opener).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(opener);
   });
   test("the explore beat on a pane: controls script holds the run with the tray SHUT: pause, hook Continue, no open()", () => {
     const i = src.indexOf("hd.timeline.exploreGate =");
@@ -71,5 +80,32 @@ describe("tray controls (pins)", () => {
   });
   test("the tray's cursor rule leaves pane: controls panels to the host", () => {
     expect(src).toMatch(/cs-editable[\s\S]{0,300}pane !== "controls"/);
+  });
+  test("the shut-tray gate hides the centred ▶ with a class of its own: on while it holds, off on Continue and on abort (fix round 1)", () => {
+    const i = src.indexOf("hd.timeline.exploreGate =");
+    const region = src.slice(i, i + 3000);
+    expect(region).toMatch(/if \(shut\) \{[\s\S]{0,500}classList\.add\("cs-gated"\)/);
+    // From `const shut`, so the GAME gate's own onAbort a few lines above
+    // (which closes the emulator) cannot stand in for the explore one.
+    const from = region.indexOf("const shut =");
+    const abort = region.slice(region.indexOf("const onAbort", from), region.indexOf('signal.addEventListener("abort"', from));
+    expect(abort).toMatch(/classList\.remove\("cs-gated"\)/);
+    const cont = src.slice(src.indexOf("const continueNow"), src.indexOf("const paneBoxOf"));
+    expect(cont).toMatch(/classList\.remove\("cs-gated"\)/);
+    // NOT cs-exploring: its freezeClick guard would swallow the very
+    // figure-click that IS Continue while the tray is shut.
+    expect(region).not.toMatch(/if \(shut\) \{[\s\S]{0,500}classList\.add\("cs-exploring"\)/);
+    expect(css).toMatch(/\.cs-stage\.cs-gated \.cs-bigplay \{ display: none; \}/);
+  });
+  test("controls used OUTSIDE the tray settle too: a live preview patch when the run resumes is thrown away and the boundary settled (fix round 1)", () => {
+    expect(src).toMatch(/s === "playing" && \(!tray\.hidden \|\| editors\.size > 0 \|\| patches\.size > 0\)/);
+    const body = src.slice(src.indexOf('s === "playing" && (!tray.hidden'), src.length).slice(0, 500);
+    expect(body).toContain("clearPreview();");
+    expect(body).toContain("hd.timeline.settleParams();");
+  });
+  test("a knob frame scheduled in the same tick as Continue never re-dirties the settled geometry (fix round 1)", () => {
+    const body = src.slice(src.indexOf("const clearPreview"), src.indexOf("const draftOf"));
+    expect(body).toMatch(/if \(knobFrame !== null\) cancelAnimationFrame\(knobFrame\);/);
+    expect(body).toMatch(/knobFrame = null;/);
   });
 });

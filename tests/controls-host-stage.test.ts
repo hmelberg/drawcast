@@ -42,4 +42,14 @@ describe("controls host on the stage (pins)", () => {
     expect(input).toMatch(/stopPropagation\(\)/);
     expect(input).toMatch(/clientPointFor\(stage, \[/);
   });
+  test("HTML chrome lying over a panel wins the press — the centred ▶, the tray, a code card, the transient input (fix round 1)", () => {
+    const down = /stage\.addEventListener\(\s*"pointerdown",\s*\(e: PointerEvent\) => \{([\s\S]*?)\n    \},\n    \{ capture: true, signal \},\n  \);/.exec(host);
+    expect(down).not.toBeNull();
+    const body = down![1];
+    expect(body).toMatch(/e\.target instanceof Element && e\.target\.closest\("button, input, select, textarea, \.cs-paramtray, \.cs-codeedit, \.cs-ctlinput"\)/);
+    // …and it must bow out BEFORE the press becomes a gesture, or the knob
+    // moves anyway while the button's own click also fires.
+    expect(body.indexOf("e.target.closest(")).toBeLessThan(body.indexOf("host.press("));
+    expect(body.indexOf("e.target.closest(")).toBeLessThan(body.indexOf("opts.pauseAndSnap()"));
+  });
 });

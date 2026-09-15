@@ -211,6 +211,13 @@ export function attachControlsHost(stage: HTMLElement, host: ControlsHost, opts:
     "pointerdown",
     (e: PointerEvent) => {
       if (e.button !== 0) return;
+      // HTML chrome over the figure wins the press. The centred ▶, the tray,
+      // a code card and the transient input all LIE on the stage and can
+      // overlap a panel's rows — without this the press would start a knob
+      // gesture here AND the button's own click would fire, so one tap both
+      // moved a slider and resumed the run. Same selector controls.ts uses
+      // for its own play gesture (CONTROL_SELECTOR).
+      if (e.target instanceof Element && e.target.closest("button, input, select, textarea, .cs-paramtray, .cs-codeedit, .cs-ctlinput")) return;
       const p = logicalPoint(stage, e);
       if (!p || host.panelAt(p) === null) return;
       if (opts.playing() && !opts.gated()) opts.pauseAndSnap();
