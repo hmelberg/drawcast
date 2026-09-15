@@ -33,7 +33,10 @@ export function widgetDemoFor(player: Player, spec: Spec, layout: LayoutResult):
         else player.tones.play([{ notes: e.sound.notes }], e.sound.tempo ?? 120, signal);
       }
       if (e.caption !== undefined) player.caption(e.caption);
-      if (e.patch) {
+      // An all-rejected patch ({} after validation) would otherwise repaint the
+      // figure for nothing — and, worse, reveal ids on a frame that changed
+      // nothing. The host guards the same branch the same way.
+      if (e.patch && Object.keys(e.patch).length > 0) {
         patches = { ...patches, ...e.patch };
         player.previewParams(patches, { revealNew: true });
         scene = buildWidgetScene(module, { ...params, ...patches }, sceneOpts());

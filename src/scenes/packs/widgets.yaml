@@ -89,6 +89,7 @@ widget: |
       return { state: next, effects: [{ patch: { signal: next.signal, decoded: next.text } }] };
     }
     if (ev.id === "key_send") {
+      if (st.letter === "" && st.text === "") return same(st);
       const open = st.letter !== "";
       const text = open ? st.text + decode(st.letter) : st.text;
       const next = { ...st, letter: "", text };
@@ -97,8 +98,20 @@ widget: |
     }
     return same(st);
   };
-  const demo = (scene, answer) => [...answer.toUpperCase()].flatMap((ch) =>
-    [...(CODE[ch] ?? "")].map((sym) => ({ pointer: sym === "." ? "key_dot" : "key_dash", ...beep(sym) })).concat([{ pointer: "key_gap" }])).concat([{ pointer: "key_send" }]);
+  const demo = (scene, answer) => {
+    const out = [];
+    let signal = "", decoded = "";
+    for (const ch of String(answer).toUpperCase()) {
+      for (const sym of (CODE[ch] ?? "")) {
+        signal = signal + sym;
+        out.push({ pointer: sym === "." ? "key_dot" : "key_dash", ...beep(sym) }, { patch: { signal } });
+      }
+      signal = signal + " ";
+      decoded = decoded + ch;
+      out.push({ pointer: "key_gap" }, { patch: { signal, decoded } });
+    }
+    return out.concat([{ pointer: "key_send" }]);
+  };
   const judge = (given, answer) => given.trim().toUpperCase() === answer.trim().toUpperCase();
   return { init, on, demo, judge };
 ---
@@ -148,6 +161,7 @@ layout: |
   const X = [220, 500, 780], BASE = 180, H = 24, MAXW = 200;
   pegs.forEach((stack, p) => {
     const children = [
+      kit.stroke("peg_" + p + "__zone", kit.rect(X[p] - 120, BASE, 240, 210), { closed: true, fill: kit.GROUND, opacity: 0.001, strokeWidth: 1, instant: true }),
       kit.stroke("peg_" + p + "__base", [[X[p] - 120, BASE], [X[p] + 120, BASE]], { strokeWidth: 4 }),
       kit.stroke("peg_" + p + "__pole", [[X[p], BASE], [X[p], BASE + 200]], { strokeWidth: 4 }),
     ];
@@ -192,12 +206,19 @@ widget: |
   };
   const demo = (scene, answer) => {
     const n = Math.min(5, Math.max(3, Number.isInteger(scene.params.disks) ? scene.params.disks : 3));
-    const taps = [];
-    const hanoi = (k, from, to, via) => { if (k === 0) return; hanoi(k - 1, from, via, to); taps.push({ pointer: "peg_" + from }, { pointer: "peg_" + to }); hanoi(k - 1, via, to, from); };
+    const pegs = [Array.from({ length: n }, (_, i) => String(n - i)), [], []];
+    const steps = [];
+    let moves = 0;
+    const move = (from, to) => {
+      pegs[to].push(pegs[from].pop());
+      moves = moves + 1;
+      steps.push([{ pointer: "peg_" + from }, { pointer: "peg_" + to }, { patch: { pegs: encode(pegs), moves } }]);
+    };
+    const hanoi = (k, from, to, via) => { if (k === 0) return; hanoi(k - 1, from, via, to); move(from, to); hanoi(k - 1, via, to, from); };
     hanoi(n, 0, 2, 1);
-    // Bounded to 14 taps (7 moves) on purpose: the whole 3-disk solution —
+    // Bounded to seven moves (14 taps) on purpose: the whole 3-disk solution —
     // a 4-disk solve would run 27s of movie.
-    return taps.slice(0, 14);
+    return steps.slice(0, 7).reduce((a, b) => a.concat(b), []);
   };
   return { init, on, demo };
 ---
@@ -275,9 +296,13 @@ widget: |
   };
   const demo = (scene, answer) => {
     const gate = ["AND", "OR", "XOR", "NAND"].includes(scene.params.gate) ? scene.params.gate : "AND";
-    const taps = [];
-    if (table(gate, true, false)) taps.push({ pointer: "switch_a" });
-    else if (table(gate, true, true)) taps.push({ pointer: "switch_a" }, { pointer: "switch_b" });
-    return taps.concat([{ glow: "bulb", color: "#4a7c59" }]);
+    let a = scene.params.a === true, b = scene.params.b === true;
+    const rows = [[false, false], [true, false], [false, true], [true, true]];
+    const lit = rows.find((r) => table(gate, r[0], r[1])) ?? [a, b];
+    const out = [];
+    if (a !== lit[0]) { a = lit[0]; out.push({ pointer: "switch_a" }, { patch: { a, b } }); }
+    if (b !== lit[1]) { b = lit[1]; out.push({ pointer: "switch_b" }, { patch: { a, b } }); }
+    if (table(gate, a, b)) out.push({ glow: "bulb", color: "#4a7c59" });
+    return out;
   };
   return { init, on, demo };

@@ -92,7 +92,11 @@ export function registerTemplateDoc(doc: TemplateDoc): { ok: boolean; errors: st
       : module;
     return { ok: true, errors: [] };
   }
-  const manifest = { ...docToManifest(doc), status: "stub" as const };
+  // A stub has no module, so there is nothing to WORK: drop the widget flag
+  // docToManifest sets for a ready doc, or the catalog would advertise a
+  // playable figure that cannot even be drawn (same rule as docToManifest's).
+  const { widget: _widget, ...ready } = docToManifest(doc);
+  const manifest = { ...ready, status: "stub" as const };
   if (doc.accepts_data) manifest.params_schema = widenForDataTokens(doc.params);
   scenes[doc.template] = { manifest };
   return { ok: false, errors };

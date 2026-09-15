@@ -3,10 +3,12 @@
 // source-pinned in tests/widget-ask.test.ts), which is the point — the exporter
 // never attaches UI and must still see the widget demonstrate itself.
 import { readFileSync } from "node:fs";
-import { describe, expect, test, vi } from "vitest";
+import { beforeAll, describe, expect, test, vi } from "vitest";
 import { compileTemplateDoc } from "../src/scenes/compile";
 import { scenes } from "../src/scenes/registry";
+import { ensureEnabledPacks, packTemplateIds } from "../src/scenes/packs";
 import { widgetDemoFor } from "../src/render/widget-demo";
+import { demoWidget } from "../src/scenes/widget-run";
 import { buildWidgetScene } from "../src/scenes/widget-scene";
 import { layoutSpec } from "../src/layout/layout";
 import type { BBox } from "../src/layout/geometry";
@@ -175,6 +177,32 @@ describe("widgetDemoFor — the laser performs the widget's own demo", () => {
     expect(calls).toEqual([]);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("demo() threw: nope"));
     warn.mockRestore();
+  });
+});
+
+// F6, the movie's own ruling: a demo that only TAPS leaves the figure frozen
+// while the laser dances over it — the viewer sees the gestures and none of
+// their consequences. Every shipped widget's demo must move the figure.
+describe("the widgets pack demonstrates itself by CHANGING the figure", () => {
+  const cases = [
+    { template: "morse_key", params: { word: "SOS" }, answer: "SOS" },
+    { template: "tower_of_hanoi", params: { disks: 3 }, answer: "solved" },
+    { template: "logic_gates", params: { gate: "XOR" }, answer: "lit" },
+  ];
+  beforeAll(async () => {
+    await ensureEnabledPacks(["widgets"]);
+  });
+
+  test("the list below covers every widget the pack ships", () => {
+    const shipped = packTemplateIds("widgets").filter((id) => scenes[id]?.widget);
+    expect(shipped.sort()).toEqual(cases.map((c) => c.template).sort());
+  });
+
+  test.each(cases)("$template's demo patches the params, taps, and reports nothing", ({ template, params, answer }) => {
+    const { effects, errors } = demoWidget(scenes[template], params, answer);
+    expect(errors, template).toEqual([]);
+    expect(effects.filter((e) => e.patch).length, `${template}: the figure never changes`).toBeGreaterThan(0);
+    expect(effects.filter((e) => e.pointer).length, `${template}: nothing is pointed at`).toBeGreaterThan(0);
   });
 });
 

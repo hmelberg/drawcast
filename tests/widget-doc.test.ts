@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { validateTemplateDoc, docToManifest, type TemplateDoc } from "../src/scenes/doc";
 import { compileTemplateDoc } from "../src/scenes/compile";
+import { registerTemplateDoc, scenes } from "../src/scenes/registry";
 
 const base = {
   template: "tap_pad",
@@ -73,5 +74,16 @@ describe("widget body — document", () => {
     const { module } = compileTemplateDoc({ ...base, layout: undefined, widget: WIDGET } as TemplateDoc);
     expect(module!.widget).toBeUndefined();
     expect(module!.manifest.widget).toBeUndefined();
+  });
+
+  // The degraded path: a READY document whose layout will not compile still
+  // reaches the catalog, as a stub — and a stub cannot be worked, so the flag
+  // must not survive the demotion either.
+  test("a document that fails to compile registers as a stub with no widget flag", () => {
+    const r = registerTemplateDoc({ ...base, template: "tap_pad_broken", layout: "return {", widget: WIDGET } as TemplateDoc);
+    expect(r.ok).toBe(false);
+    expect(scenes["tap_pad_broken"].manifest.status).toBe("stub");
+    expect(scenes["tap_pad_broken"].manifest.widget).toBeUndefined();
+    expect(scenes["tap_pad_broken"].widget).toBeUndefined();
   });
 });
