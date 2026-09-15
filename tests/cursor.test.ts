@@ -34,20 +34,37 @@ describe("styles.css — the gate's own cursor", () => {
   test("the hand shows through a click-ask's overlay: cs-cardable reaches the gate too", () => {
     expect(css).toContain(".cs-stage.cs-cardable .cs-figgate { cursor: pointer; }");
   });
-  test("cs-grabbable/cs-grabbing exist, and the grabbing rule reaches through a gate the way cs-cardable's does", () => {
-    expect(css).toContain(".cs-stage.cs-grabbable { cursor: grab; }");
+  // Both grab and grabbing reach through a gate the way cardable's own
+  // through-gate rule does — a press before DRAG_MIN is otherwise invisible
+  // during a question: the gate is the element actually under the pointer,
+  // and .cs-stage.cs-grabbable alone only styles the STAGE.
+  test("cs-grabbable/cs-grabbing exist, and BOTH reach through a gate the way cs-cardable's own through-gate rule does", () => {
+    expect(css).toContain(".cs-stage.cs-grabbable, .cs-stage.cs-grabbable .cs-figgate { cursor: grab; }");
     expect(css).toContain(".cs-stage.cs-grabbing, .cs-stage.cs-grabbing .cs-figgate { cursor: grabbing; }");
   });
-  // Same specificity as cs-cardable's two rules (2 and 3 classes respectively)
-  // — a tie the cascade breaks by source order alone, so a drag in progress
-  // must come AFTER cs-cardable in the file or a lingering hover would win.
-  test("cs-grabbable and cs-grabbing are declared after cs-cardable — the tie-break a live drag needs to win", () => {
-    const cardable = css.indexOf(".cs-stage.cs-cardable {");
-    const grabbable = css.indexOf(".cs-stage.cs-grabbable {");
-    const grabbing = css.indexOf(".cs-stage.cs-grabbing,");
-    expect(cardable).toBeGreaterThan(-1);
-    expect(grabbable).toBeGreaterThan(cardable);
-    expect(grabbing).toBeGreaterThan(cardable);
+  // The through-gate variants of cardable, grab and grabbing are all three
+  // classes — a real specificity tie, broken only by source order. This is
+  // the order that has to hold for a live press/drag to ever win over a
+  // lingering hover: cardable-through-gate first, then grab (a press that
+  // hasn't crossed DRAG_MIN yet), then grabbing last of all (nothing may
+  // out-rank an actual drag in progress).
+  test("cardable-through-gate < grab(-through-gate) < grabbing(-through-gate) in source order — the tie-break a live press and a live drag both need to win", () => {
+    const cardableGate = css.indexOf(".cs-stage.cs-cardable .cs-figgate {");
+    const grab = css.indexOf(".cs-stage.cs-grabbable, .cs-stage.cs-grabbable .cs-figgate {");
+    const grabbing = css.indexOf(".cs-stage.cs-grabbing, .cs-stage.cs-grabbing .cs-figgate {");
+    expect(cardableGate).toBeGreaterThan(-1);
+    expect(grab).toBeGreaterThan(cardableGate);
+    expect(grabbing).toBeGreaterThan(grab);
+  });
+  // connectgate's crosshair is LOWER specificity than cardable-through-gate
+  // (two classes, not three) and so wins in practice only because the two
+  // conditions never coexist — not because of source order. It is still
+  // placed after cardable-through-gate so the file's ordering reads
+  // consistently with everything else that says what a figgate shows.
+  test("connectgate is declared after cardable-through-gate too, for the same readability reason (though specificity, not order, is what actually protects it)", () => {
+    const cardableGate = css.indexOf(".cs-stage.cs-cardable .cs-figgate {");
+    const connectgate = css.indexOf(".cs-figgate.cs-connectgate {");
+    expect(connectgate).toBeGreaterThan(cardableGate);
   });
   // The idle rule (playback, mouse still) must keep winning regardless of
   // this round's additions: 3 class selectors (.cs-figure.cs-idle .cs-stage)

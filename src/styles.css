@@ -1312,12 +1312,9 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   z-index: 5;
   touch-action: none;
 }
-/* The connect question alone keeps the crosshair — press-and-drag between
-   stars wants a cursor that says "aim here", not "click me". Every other
-   figgate now shows what's actually under the pointer instead (the hand from
-   cs-cardable below, inherited through the overlay; a widget's own grab/
-   grabbing further down). */
-.cs-figgate.cs-connectgate { cursor: crosshair; }
+/* .cs-figgate sets no cursor of its own any more — what shows through this
+   overlay (the hand, the connect question's crosshair, a widget's grab/
+   grabbing) is decided together, in cascade order, down by cs-cardable. */
 .cs-figgate-hint {
   position: absolute;
   bottom: 1.1rem;
@@ -1543,16 +1540,31 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-infocard-sense:hover { border-color: var(--ink); }
 .cs-stage.cs-cardable { cursor: pointer; }
 /* The hand shows through a click-ask's overlay too: .cs-figgate sets no
-   cursor of its own (only the connect question's cs-connectgate does), so
-   without this rule it would default to auto over a box that covers the
-   whole figure. */
+   cursor of its own, so without this rule it would default to auto over a
+   box that covers the whole figure. Everything below this line that also
+   wants to say what a figgate shows is placed AFTER it for exactly that
+   reason: on equal specificity the cascade breaks the tie by source order,
+   and here that order is the whole story. */
 .cs-stage.cs-cardable .cs-figgate { cursor: pointer; }
+/* The connect question alone keeps the crosshair — press-and-drag between
+   stars wants a cursor that says "aim here", not "click me". Lower
+   specificity than the rule above (two classes, not three), so this only
+   actually wins because a connect gate never has cs-cardable true at the
+   same time (nothing ever sets it there) — not because of this ordering.
+   It is placed here anyway, after cardable-through-gate, so the file reads
+   in the same "later wins" order it would need if that ever changed. */
+.cs-figgate.cs-connectgate { cursor: crosshair; }
 /* A widget part being pressed: a grab while held, and — once the press
    crosses DRAG_MIN and becomes a drag — a grabbing hand, even through an
-   ask's own gate. Both rules come AFTER cs-cardable here on purpose: same
-   specificity as cs-cardable's own rules, so the later one wins the tie and
-   a drag in progress is never mistaken for a mere hover. */
-.cs-stage.cs-grabbable { cursor: grab; }
+   ask's own gate (its own cs-figgate variant, exactly like cardable's
+   above — without it, cs-cardable's rule, matched at equal specificity,
+   could win the tie merely by sitting earlier in the cascade and the hand
+   would show instead of a grab for a press that hasn't started dragging
+   yet). Both come AFTER cs-cardable's pair on purpose, and grabbing comes
+   LAST of all: same specificity throughout, so the later rule wins every
+   tie, and a drag in progress must never be mistaken for a mere hover or a
+   still-forming press. */
+.cs-stage.cs-grabbable, .cs-stage.cs-grabbable .cs-figgate { cursor: grab; }
 .cs-stage.cs-grabbing, .cs-stage.cs-grabbing .cs-figgate { cursor: grabbing; }
 /* A code screen takes typing: while paused, the cursor says so. */
 .cs-stage.cs-editable { cursor: text; }
