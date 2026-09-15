@@ -41,6 +41,7 @@ import type { LintIssue } from "../lint/lint";
 import type { EndRef, PointRef, SpecElement } from "../spec/types";
 import { evalBindings, interpolateVars, type Vars } from "../spec/vars";
 import { mapDrawable, poseMapOf, type LayoutOverrides } from "./posed";
+import type { TemplateFit } from "./template-fit";
 
 /**
  * One piece's geometry (currently only `pieces: {of: "sectors"}`), keyed by
@@ -205,16 +206,21 @@ export function layoutElements(
    *  seedDrawables: the template's drawables, so `at.ref` can name a template id.
    *  vars: the spec's top-level numbers (spec/vars.ts).
    *  overrides: poses and morphed shapes the definitional references read (posed.ts). */
-  opts: { measure?: MeasureFn; seedDrawables?: Drawable[]; vars?: Vars; overrides?: LayoutOverrides } = {},
+  opts: { measure?: MeasureFn; seedDrawables?: Drawable[]; vars?: Vars; overrides?: LayoutOverrides; fit?: TemplateFit } = {},
 ): Tier2Result {
   const measure = opts.measure ?? heuristicMeasure;
   const vars = opts.vars ?? {};
   const plot = plotArea();
   const domainX: [number, number] = domain?.x ?? [0, 100];
   const domainY: [number, number] = domain?.y ?? [0, 100];
+  const fs = opts.fit?.s ?? 1, fdx = opts.fit?.dx ?? 0, fdy = opts.fit?.dy ?? 0;
+  const sxStd = linearScale(domainX, [plot.x0, plot.x1]);
+  const syStd = linearScale(domainY, [plot.y0, plot.y1]);
+  const ixStd = linearScale([plot.x0, plot.x1], domainX);
+  const iyStd = linearScale([plot.y0, plot.y1], domainY);
   const ctx: Ctx = {
-    sx: linearScale(domainX, [plot.x0, plot.x1]),
-    sy: linearScale(domainY, [plot.y0, plot.y1]),
+    sx: (v) => sxStd(v) * fs + fdx,
+    sy: (v) => syStd(v) * fs + fdy,
     domainX,
     domainY,
     domainDeclared: domain !== undefined,
@@ -236,8 +242,8 @@ export function layoutElements(
     measures: {},
     atFallback: {},
     vars,
-    ix: linearScale([plot.x0, plot.x1], domainX),
-    iy: linearScale([plot.y0, plot.y1], domainY),
+    ix: (v) => ixStd((v - fdx) / fs),
+    iy: (v) => iyStd((v - fdy) / fs),
     posedAnchors: {},
     posedNamed: {},
     posedCurveSamples: new Map(),

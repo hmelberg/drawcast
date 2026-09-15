@@ -1,7 +1,8 @@
 import { beforeAll, describe, expect, test } from "vitest";
-import { layoutSpec, elementBBoxes } from "../src/layout/layout";
+import { layoutSpec, elementBBoxes, domainMapping, inverseDomainMapping } from "../src/layout/layout";
 import { fitRegion } from "../src/layout/regions";
 import { flattenDrawables } from "../src/layout/model";
+import { plotArea } from "../src/layout/canvas";
 import { ensureEnabledPacks } from "../src/scenes/packs";
 import { FONT_FLOOR } from "../src/lint/lint";
 import type { BBox } from "../src/layout/geometry";
@@ -100,5 +101,42 @@ describe("template box — a native box is resolved, never fitted", () => {
     const box = { x: 470, y: 95, w: 460, h: 560 };
     expect(chart(box).fit).toBeUndefined();
     expect(chart(box).warnings).toEqual([]);
+  });
+});
+
+describe("template box — domain coordinates follow the fit", () => {
+  // Tier-3 elements with literal x/y (text, shape, path, math) are CANVAS
+  // placement and deliberately do not follow the fit — that is how a note
+  // sits beside a fitted template — while domain-unit placement (point,
+  // curves, regions) follows the figure.
+  test("a freehand point at domain (50, 50) lands at the fitted image of the plot centre", () => {
+    const r = layoutSpec(sir({ box: "left" }, [{ id: "t", type: "point", at: { x: 50, y: 50 } }]));
+    const { s, dx, dy } = r.fit!;
+    const plot = plotArea();
+    const cx = (plot.x0 + plot.x1) / 2, cy = (plot.y0 + plot.y1) / 2;
+    const b = elementBBoxes(r).get("t")!;
+    expect(b.x + b.w / 2).toBeCloseTo(cx * s + dx, 0);
+    expect(b.y + b.h / 2).toBeCloseTo(cy * s + dy, 0);
+  });
+
+  test("domainMapping and its inverse compose the fit and round-trip", () => {
+    const fit = { s: 0.5, dx: 300, dy: 100, box: fitRegion("right") };
+    const fwd = domainMapping({ x: [0, 100], y: [0, 100] }, fit);
+    const inv = inverseDomainMapping({ x: [0, 100], y: [0, 100] }, fit);
+    const plain = domainMapping({ x: [0, 100], y: [0, 100] });
+    const p = plain.toLogical([25, 75]);
+    expect(fwd.toLogical([25, 75])).toEqual([p[0] * 0.5 + 300, p[1] * 0.5 + 100]);
+    const back = inv(fwd.toLogical([25, 75]));
+    expect(back[0]).toBeCloseTo(25, 6);
+    expect(back[1]).toBeCloseTo(75, 6);
+    // deltas scale by s and ignore the offset
+    const d = plain.deltaToLogical([10, 10]);
+    expect(fwd.deltaToLogical([10, 10])).toEqual([d[0] * 0.5, d[1] * 0.5]);
+  });
+
+  test("without a fit both mappings are unchanged", () => {
+    const a = domainMapping({ x: [0, 10], y: [0, 10] }).toLogical([5, 5]);
+    const b = domainMapping({ x: [0, 10], y: [0, 10] }, undefined).toLogical([5, 5]);
+    expect(a).toEqual(b);
   });
 });

@@ -12,7 +12,7 @@ export interface WidgetSceneOpts {
   domain?: Spec["domain"];
   vars?: Record<string, string>;
   /** The layout on screen; defaults to the module's own layout at `params`. */
-  layout?: Pick<LayoutResult, "drawables" | "order">;
+  layout?: Pick<LayoutResult, "drawables" | "order" | "fit">;
   measure?: MeasureFn;
   /**
    * The ids on screen at this boundary (the host passes
@@ -39,8 +39,9 @@ export function buildWidgetScene(module: SceneModule, params: Record<string, unk
   const all = elementBBoxes(layout, opts.measure);
   const boxes = new Map([...all].filter(([id]) => ids.includes(id)));
   const rings = new Map([...elementRings(layout)].filter(([id]) => ids.includes(id)));
-  const fwd = domainMapping(opts.domain);
-  const inv = opts.domain ? inverseDomainMapping(opts.domain) : null;
+  const fit = opts.layout?.fit;
+  const fwd = domainMapping(opts.domain, fit);
+  const inv = opts.domain ? inverseDomainMapping(opts.domain, fit) : null;
   return {
     ids,
     boxes,

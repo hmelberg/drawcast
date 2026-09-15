@@ -147,7 +147,7 @@ export function layoutSpec(
         // Scene curves arrive in logical coordinates; tier-2 thinks in the
         // spec's domain (default 0–100), so map them back before seeding.
         if (sceneLayout.curveSamples) {
-          const inv = inverseDomainMapping(spec.domain);
+          const inv = inverseDomainMapping(spec.domain, fit);
           seedCurveSamples = Object.fromEntries(
             Object.entries(sceneLayout.curveSamples).map(([id, pts]) => [id, pts.map(inv)]),
           );
@@ -160,7 +160,7 @@ export function layoutSpec(
 
   if (spec.elements && spec.elements.length > 0) {
     // `drawables` here is the template's output — an at.ref may name a template id.
-    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples, { measure, seedDrawables: [...drawables], vars: spec.vars, overrides });
+    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples, { measure, seedDrawables: [...drawables], vars: spec.vars, overrides, fit });
     drawables.push(...tier2.drawables);
     labelRequests.push(...tier2.labels);
     warnings.push(...tier2.warnings);
@@ -338,32 +338,34 @@ export function elementRings(layout: Pick<LayoutResult, "drawables" | "order">):
   return map;
 }
 
-/**
- * Domain → logical mappings for the gesture verbs, matching tier-2's
- * convention: coordinates are mapped only when a domain is declared.
- */
-export function domainMapping(domain: Spec["domain"]): { toLogical: (p: Pt) => Pt; deltaToLogical: (d: Pt) => Pt } {
-  if (!domain) return { toLogical: (p) => p, deltaToLogical: (d) => d };
+/** Spec domain → logical canvas. With a `fit`, the standard plot area is
+ *  where the template's axes WERE; the fit says where they are now. */
+export function domainMapping(domain: Spec["domain"], fit?: TemplateFit): { toLogical: (p: Pt) => Pt; deltaToLogical: (d: Pt) => Pt } {
+  const s = fit?.s ?? 1, dx = fit?.dx ?? 0, dy = fit?.dy ?? 0;
+  const post = ([x, y]: Pt): Pt => [x * s + dx, y * s + dy];
+  const postDelta = ([a, b]: Pt): Pt => [a * s, b * s];
+  if (!domain) return { toLogical: (p) => post(p), deltaToLogical: (d) => postDelta(d) };
   const plot = plotArea();
-  const dx = domain.x ?? [0, 100];
-  const dy = domain.y ?? [0, 100];
-  const sx = linearScale(dx, [plot.x0, plot.x1]);
-  const sy = linearScale(dy, [plot.y0, plot.y1]);
-  const fx = (plot.x1 - plot.x0) / (dx[1] - dx[0] || 1);
-  const fy = (plot.y1 - plot.y0) / (dy[1] - dy[0] || 1);
+  const dX = domain.x ?? [0, 100];
+  const dY = domain.y ?? [0, 100];
+  const sx = linearScale(dX, [plot.x0, plot.x1]);
+  const sy = linearScale(dY, [plot.y0, plot.y1]);
+  const fx = (plot.x1 - plot.x0) / (dX[1] - dX[0] || 1);
+  const fy = (plot.y1 - plot.y0) / (dY[1] - dY[0] || 1);
   return {
-    toLogical: ([x, y]) => [sx(x), sy(y)],
-    deltaToLogical: ([a, b]) => [a * fx, b * fy],
+    toLogical: ([x, y]) => post([sx(x), sy(y)]),
+    deltaToLogical: ([a, b]) => postDelta([a * fx, b * fy]),
   };
 }
 
-/** Logical → spec-domain mapping (inverse of tier-2's scales; default domain 0–100). */
-export function inverseDomainMapping(domain: Spec["domain"]): (p: Pt) => Pt {
+/** Logical canvas → spec domain (the inverse of domainMapping, fit included). */
+export function inverseDomainMapping(domain: Spec["domain"], fit?: TemplateFit): (p: Pt) => Pt {
+  const s = fit?.s ?? 1, dx = fit?.dx ?? 0, dy = fit?.dy ?? 0;
   const plot = plotArea();
-  const dx = domain?.x ?? [0, 100];
-  const dy = domain?.y ?? [0, 100];
-  const ix = linearScale([plot.x0, plot.x1], dx);
-  const iy = linearScale([plot.y0, plot.y1], dy);
-  return ([x, y]) => [ix(x), iy(y)];
+  const dX = domain?.x ?? [0, 100];
+  const dY = domain?.y ?? [0, 100];
+  const ix = linearScale([plot.x0, plot.x1], dX);
+  const iy = linearScale([plot.y0, plot.y1], dY);
+  return ([x, y]) => [ix((x - dx) / s), iy((y - dy) / s)];
 }
 
