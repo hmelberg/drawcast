@@ -50,7 +50,8 @@ describe("the viewer reports as the account", () => {
     expect(block).toMatch(/if \(firstOpenInSession\(reporter\.cast, session\)\) report\(\{ kind: "opened", cast: reporter\.cast \}\)/);
   });
   test("an answer is keyed by (item, step): the playlist item index plus the step inside it", () => {
-    expect(src).toMatch(/onAnswer: reporter\s*\?\s*\(a, _item, index\) =>/);
+    expect(src).toMatch(/onAnswer: \(a, item, index\) =>/);
+    expect(src).toMatch(/if \(reporter\) report\(\{ kind: "answer"/); // the record is kept for everyone; only the report needs an enrolled account
     expect(src).toMatch(/report\(\{ kind: "answer", cast: reporter\.cast, item: index, step: a\.index/);
   });
   test("opened, answer and completed go through report and are never awaited — a refusal or an outage can never reach playback", () => {

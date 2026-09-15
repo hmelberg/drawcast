@@ -656,6 +656,9 @@ export interface QuizArgs {
   right_goto?: string;
   /** Jump to this label on a wrong viewer answer — the re-watch loop. */
   wrong_goto?: string;
+  /** Store the chosen option's TEXT under this name; later lines may use
+   *  {name}, {name.ok}, {name.secs}. Movies and skips store the correct option. */
+  store?: string;
 }
 
 export interface Spec {
@@ -704,6 +707,8 @@ export interface Spec {
   zoom_from?: string;
   /** Difficulty badge, shown in playlist navigation (stamped from #basic/#advanced). */
   level?: "basic" | "advanced";
+  /** false: the player keeps no local record of the viewer's answers for this drawcast (render/record.ts). Default true. */
+  record?: boolean;
   /** Narrator gender preference (stamped from #male/#female). In dialogue this is speaker "a"; "b" gets the contrast. */
   voice?: "male" | "female";
   canvas?: { width: number; height: number };

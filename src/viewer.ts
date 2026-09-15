@@ -23,6 +23,7 @@ import type { JoinOutcome, JoinRequest, LearnEvent } from "./learn";
 import { anvilHashFor, nameInHash, resolveName, type Resolved } from "./names";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines } from "./playlist/session";
+import { appendRecord, localRecordStorage } from "./render/record";
 import { bakedAudioFor } from "./playlist/audio";
 import { validateSpec } from "./spec/schema";
 import { getTtsKey, loadSettings, saveSettings } from "./store";
@@ -701,13 +702,27 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       },
       controls: { speech, fullscreenEl: figureHost, trailing: [shareBtn] },
       onItemMounted: (hd) => attachParamsTray(figureHost, hd),
-      onAnswer: reporter
-        ? (a, _item, index) => {
-            // (item, step) together: a.index counts steps inside ONE playlist
-            // item, and a generated lecture is one item per part (spec §4).
-            report({ kind: "answer", cast: reporter.cast, item: index, step: a.index, question: a.question, given: a.given, expected: a.expected, correct: a.correct });
-          }
-        : undefined,
+      onAnswer: (a, item, index) => {
+        // (item, step) together: a.index counts steps inside ONE playlist
+        // item, and a generated lecture is one item per part (spec §4).
+        const secs = a.secs !== undefined ? { secs: a.secs } : {};
+        // The student's own record, in this browser, whoever they are — a
+        // published cast is keyed by its path, anything else by its hash.
+        if (item.spec.record !== false) {
+          appendRecord(localRecordStorage(), castKey ?? `hash:${location.hash}`, {
+            item: index,
+            step: a.index,
+            id: a.id,
+            question: a.question,
+            given: a.given,
+            expected: a.expected,
+            correct: a.correct,
+            ...secs,
+            at: new Date().toISOString(),
+          });
+        }
+        if (reporter) report({ kind: "answer", cast: reporter.cast, item: index, step: a.index, question: a.question, given: a.given, expected: a.expected, correct: a.correct, ...secs });
+      },
       onDone: reporter
         ? () => {
             report({ kind: "completed", cast: reporter.cast });

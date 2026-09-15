@@ -42,6 +42,8 @@ export interface AnswerPayload {
   given: string[];
   expected: string;
   correct: boolean;
+  /** Seconds from the question opening to the answer (latest attempt); absent without a live gate. */
+  secs?: number;
 }
 
 export type LearnEvent = { kind: "opened" | "completed"; cast: string } | ({ kind: "answer"; cast: string } & AnswerPayload);

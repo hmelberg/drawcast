@@ -874,6 +874,34 @@ the tray's ✎ On the screen still opens the code editor over a
 panel itself is the host's now, and there is no script text to type there
 once the pane is knobs, not lines).
 
+## Stored answers — done 2026-09-16
+
+Spec `docs/superpowers/specs/2026-09-15-stored-answers-design.md`, plan
+`docs/superpowers/plans/2026-09-16-stored-answers.md`. Two stores. The
+player's variable map (what narration and `if` read) now takes `store:` on
+quiz too (the chosen option's text; movies and skips keep the correct one),
+and every quiz/ask is stored automatically under the reserved namespace
+`_answers`: `{_answers.N}` is the N-th question in playlist order (assigned
+from the plan, so a skipped or re-answered question keeps its slot),
+`{_answers.N.ok}` true/false, `{_answers.N.secs}` seconds from the gate
+opening (live gates only), `{_answers.last}`, `{_answers.count}`; a stored
+name gets `{name.ok}`/`{name.secs}` the same way. Tokens may be dotted. The
+playlist session carries the map across items (`src/playlist/carry.ts`:
+static question offsets + `AnswerCarry`), and video export walks the same
+offsets so a `{name}` line in part 3 is synthesized with the text the part-3
+player asks for. The record (`src/render/record.ts`): every answer with
+item, step, id, question, attempts, expected, correct, secs and time,
+appended per cast under `drawcast.answers:` in localStorage — the viewer
+keys by cast path, the editor by document; `record: false` on a spec turns
+it off; the learner report gained `secs`. Lint: `ask-var` judges dotted
+tokens by base name, knows names earlier items stored, and lists the
+automatic names in its message. Rejected: the question text (or a hash of
+it) as the automatic name — unwritable in advance and broken by every
+rephrase. Open: Submit (a batch of the record to the course server when
+enrolled, else something the student sends themselves), a "My answers"
+panel, cumulative score across items, the outline telling later parts which
+names earlier parts stored.
+
 ## Widget bodies — done 2026-09-14
 
 Spec `docs/superpowers/specs/2026-09-14-widget-bodies-design.md`, plan
@@ -1396,8 +1424,13 @@ drawcast in several languages, re-linted after translation.
 
 ## Phase C — structure
 
-- `pages: [{elements, commands}]` — true multi-scene drawcasts with per-page
-  layout and lint; the player concatenates page plans with transitions.
+- ~~`pages: [{elements, commands}]`~~ — ruled 2026-09-15: a playlist ITEM is
+  a page (own template, domain, ids, layout and lint; `template` is one
+  string per spec), a `chapter:` marker is a heading over items, and `clear`
+  is an act change inside a page. Variables now survive the cut between
+  items (stored answers, 2026-09-16). What `pages` would still add — two
+  templates alive on one canvas, an element surviving a page boundary — is
+  the template-as-element item below, and parked with it.
 - **Template-as-element** (idea only — revisit if a concrete lesson demands
   it, not scheduled): let a tier-2 element embed a template instance (own
   params, offset/scale) so two engine-backed figures can share one screen —

@@ -27,6 +27,12 @@ describe("session learner hooks", () => {
     expect(src).toMatch(/function onItemDone\([^)]*\)[^{]*\{\s*if \(items\.length <= 1\) return;/);
     expect(src).toMatch(/function showNextLink\([^)]*\)[^{]*\{\s*if \(items\.length <= 1\) return;/);
   });
+  test("both item mounts seed the render from the carry and its static offset; answers and done absorb the player's map (stored-answers round)", () => {
+    expect(src.match(/vars: carry\.vars, questionOffset: offsets\[/g)?.length).toBe(2);
+    expect(src).toMatch(/opts\.onAnswer\?\.\(a, items\[i\], i\);\s*carry\.absorb\(hd\.timeline\.vars\);/);
+    expect(src).toMatch(/if \(s === "done"\) \{\s*carry\.absorb\(hd\.timeline\.vars\);/);
+  });
+
   test("the single-item path chains after attachPlayerControls installs its own callbacks", () => {
     const controls = src.indexOf("attachPlayerControls(host, hd, prefs, controlOpts)");
     const chain = src.indexOf("chainCallbacks(hd, 0)");
