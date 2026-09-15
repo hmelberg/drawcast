@@ -23,6 +23,7 @@ import { connectGateFor } from "./connect-gate";
 import { attachInfoCards } from "./infocard";
 import { attachWidgetHost, widgetGateFor } from "./widget-host";
 import { attachPanelView } from "./panel-view";
+import { inControlRegion, tryContinue } from "./control-press";
 import { scenes } from "../scenes/registry";
 
 export interface PlaybackPrefs {
@@ -1104,6 +1105,7 @@ export function attachPlayerControls(
   }
 
   const togglePlay = () => {
+    if (tryContinue(stage)) return; // an explore gate with the tray shut: this gesture is Continue
     if (hd.timeline.state === "playing") {
       hd.timeline.pause();
       return;
@@ -1141,15 +1143,20 @@ export function attachPlayerControls(
   // click's own target cannot tell. The pointerdown target can: remember
   // where the press started and let the click through only when both ends
   // are on the drawing. Same for a press that started on a button, a field,
-  // the tray, the code card or the controls card.
-  const CONTROL_SELECTOR = "input, button, select, textarea, label, .cs-paramtray, .cs-codeedit, .cs-ctlcard";
-  const onControl = (t: EventTarget | null): boolean => t instanceof Element && t.closest(CONTROL_SELECTOR) !== null;
+  // the tray, the code card or the controls card. A press inside a drawn
+  // control panel is a control press through the registry.
+  const CONTROL_SELECTOR = "input, button, select, textarea, label, .cs-paramtray, .cs-codeedit, .cs-ctlinput";
+  // …or inside a region some module owns — the drawn control panel has no
+  // DOM node of its own to match, so it registers a predicate instead
+  // (ui/control-press.ts).
+  const onControl = (e: MouseEvent): boolean =>
+    (e.target instanceof Element && e.target.closest(CONTROL_SELECTOR) !== null) || inControlRegion(stage, e);
   let pressOnControl = false;
-  stage.addEventListener("pointerdown", (e) => (pressOnControl = onControl(e.target)), true);
+  stage.addEventListener("pointerdown", (e) => (pressOnControl = onControl(e)), true);
   stage.addEventListener("click", (e) => {
     const began = pressOnControl;
     pressOnControl = false;
-    if (began || onControl(e.target)) return;
+    if (began || onControl(e)) return;
     if (gateIsOpen(stage)) return; // a question holds the run: its card is the door, not a click beside it
     if (isTextDrag(window.getSelection())) return;
     togglePlay();
