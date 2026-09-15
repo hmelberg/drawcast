@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { lintCommands } from "../src/lint/lint";
+import { isStandaloneSpeak, lintCommands } from "../src/lint/lint";
 import type { Spec } from "../src/spec/types";
 
 const OK = JSON.stringify({ ok: true, stdout: "", stderr: "", figures: [] });
@@ -32,6 +32,15 @@ describe("lint: run", () => {
     expect(runIssues([{ explore: { code: "sim", play: { values: { gamma: 1 } } } }])[0].message).toMatch(/explore\.play/);
     expect(runIssues([{ explore: { code: "sim", play: false } }])).toEqual([]);
     expect(runIssues([{ explore: { code: "sim" } }])).toEqual([]);
+  });
+  test("a narrated run is an action, not a narration line with an empty screen", () => {
+    expect(isStandaloneSpeak({ run: { code: "sim", values: { beta: 1 } }, speak: "Watch." } as never)).toBe(false);
+    const three = [
+      { run: { code: "sim", values: { beta: 0.2 } }, speak: "First the low rate." },
+      { run: { code: "sim", values: { beta: 0.5 } }, speak: "Then the middle." },
+      { run: { code: "sim", values: { beta: 0.9 } }, speak: "And now the high one." },
+    ];
+    expect(lintCommands(base(three)).filter((i) => i.rule === "talky-stretch")).toEqual([]);
   });
   test("the invitation law is gone: an ordinary speak may invite", () => {
     const all = lintCommands(base([{ speak: "Now slide the rate and watch." }]));

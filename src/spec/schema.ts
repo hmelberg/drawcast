@@ -564,7 +564,7 @@ const commandSchema = {
               additionalProperties: false,
             },
           ],
-          description: "The demo before the stop: omit for the seeded walk over the knobs, false for no demo, or {values, every, loop} (the run shape) for a planned sweep.",
+          description: "The demo before the stop: omit for the seeded walk over the knobs, false for no demo, or {values, every, loop} (the run shape) for a planned sweep (unrelated to the music `play` verb).",
         },
       },
       additionalProperties: false,
