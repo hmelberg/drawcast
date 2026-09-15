@@ -494,7 +494,27 @@ describe("attachWidgetHost — source pins", () => {
   test("resets on play, on a step boundary and chains the callbacks", () => {
     expect(src).toContain("const prevOnState = hd.timeline.callbacks.onState");
     expect(src).toContain("const prevOnStep = hd.timeline.callbacks.onStep");
-    expect(src).toMatch(/if \(s === "playing"\) host\.reset\(\)/);
+    expect(src).toMatch(/if \(s === "playing"\) \{\s*host\.reset\(\);/);
+  });
+  // reset()/cancel() in the host CORE never touch the DOM: a play or step
+  // landing mid-press (a keyboard-activated play button, a scrub) would
+  // otherwise leave cs-grabbable/cs-grabbing sitting on the stage until
+  // whatever pointer is still down finally lifts — and that later pointerup
+  // would run end()'s whole drop-on-a-control dance against a gesture the
+  // host had already dropped. Both chains must clear the classes AND null
+  // activeId (so end()'s own pointerId guard makes that pointerup inert).
+  test("onState and onStep both clear the grab classes and disarm the gesture right after host.reset()", () => {
+    const onStateAt = src.indexOf("hd.timeline.callbacks.onState = (s) => {");
+    const onStepAt = src.indexOf("hd.timeline.callbacks.onStep = (completed, total) => {");
+    expect(onStateAt).toBeGreaterThan(-1);
+    expect(onStepAt).toBeGreaterThan(onStateAt);
+    const onState = src.slice(onStateAt, onStepAt);
+    const onStep = src.slice(onStepAt, src.indexOf("// The keys (spec"));
+    for (const chain of [onState, onStep]) {
+      expect(chain).toMatch(/host\.reset\(\);[\s\S]*?clearGrab\(\);/);
+      expect(chain).toContain("activeId = null;");
+      expect(chain).toContain("stage.style.touchAction = priorTouchAction;");
+    }
   });
   test("controls' own callbacks chain the handlers the add-ons hung on first — a wholesale replacement would kill every reset above it", () => {
     const at = controls.indexOf("hd.timeline.callbacks = {");
@@ -541,14 +561,22 @@ describe("attachWidgetHost — source pins", () => {
       expect(move).toContain("host.dragging()");
       expect(move).toContain('stage.classList.replace("cs-grabbable", "cs-grabbing")');
     });
-    test("end() drops both classes, on the normal release and the cancelled path alike", () => {
-      const end = src.slice(src.indexOf("const end = (e: PointerEvent"), src.indexOf('stage.addEventListener("pointerup"'));
-      // Placed before the `if (cancelled)` branch: both paths run it.
-      expect(end.indexOf('stage.classList.remove("cs-grabbable", "cs-grabbing")')).toBeLessThan(end.indexOf("if (cancelled)"));
+    // clearGrab() is the ONE place cs-grabbable/cs-grabbing come off — a
+    // single helper rather than the same classList.remove call copy-pasted
+    // at every exit, so a future exit path can't forget one of the two
+    // classes.
+    test("clearGrab() is a single helper, defined once", () => {
+      expect(src.match(/const clearGrab = \(\): void => \{/g)?.length).toBe(1);
+      expect(src).toContain('stage.classList.remove("cs-grabbable", "cs-grabbing");');
+      expect(src.match(/stage\.classList\.remove\("cs-grabbable", "cs-grabbing"\);/g)?.length).toBe(1); // ONLY inside clearGrab's own body
     });
-    test("a lost pointer capture — the path that never reaches end() — clears both classes too", () => {
+    test("end() calls clearGrab() before the `if (cancelled)` branch — the normal release and the cancelled path alike", () => {
+      const end = src.slice(src.indexOf("const end = (e: PointerEvent"), src.indexOf('stage.addEventListener("pointerup"'));
+      expect(end.indexOf("clearGrab();")).toBeLessThan(end.indexOf("if (cancelled)"));
+    });
+    test("a lost pointer capture — the path that never reaches end() — calls clearGrab() too", () => {
       const lost = src.slice(src.indexOf('stage.addEventListener("lostpointercapture"'));
-      expect(lost).toContain('stage.classList.remove("cs-grabbable", "cs-grabbing")');
+      expect(lost).toContain("clearGrab();");
     });
     test("dragging() is on the WidgetHost interface", () => {
       expect(src).toMatch(/dragging\(\):\s*boolean;/);

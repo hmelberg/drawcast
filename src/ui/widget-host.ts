@@ -321,6 +321,16 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
   /** The figure's own inline touch-action (a piano stage sets "none" for the
    *  whole mount) — restored at the end, so the press only BORROWS it. */
   let priorTouchAction = "";
+  /** Both grab-cursor classes at once — the ONE place they come off, used by
+   *  every gesture exit (a normal release, a cancel, a lost capture) AND by
+   *  the onState/onStep chains below. reset()/cancel() in the host CORE
+   *  never touch the DOM, so a play or step that lands mid-press (a
+   *  keyboard-activated play button, a scrub) would otherwise leave a grab
+   *  or grabbing class sitting on the stage until whatever pointer is still
+   *  down finally lifts. */
+  const clearGrab = (): void => {
+    stage.classList.remove("cs-grabbable", "cs-grabbing");
+  };
   /** The widget's OWN ask gate is up — the marker the keys read too. It comes
    *  off the moment the gate settles, so the mark's 900 ms linger is foreign. */
   const ownGate = (): boolean => stage.querySelector(".cs-widgetgate") !== null;
@@ -376,7 +386,7 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
   const end = (e: PointerEvent, cancelled: boolean): void => {
     if (e.pointerId !== activeId) return;
     activeId = null;
-    stage.classList.remove("cs-grabbable", "cs-grabbing");
+    clearGrab();
     stage.style.touchAction = priorTouchAction;
     try {
       stage.releasePointerCapture(e.pointerId);
@@ -409,7 +419,7 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
     if (e.pointerId !== activeId) return;
     activeId = null;
     swallowClick = false;
-    stage.classList.remove("cs-grabbable", "cs-grabbing");
+    clearGrab();
     stage.style.touchAction = priorTouchAction;
     host.cancel();
   });
@@ -428,12 +438,28 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
   const prevOnState = hd.timeline.callbacks.onState;
   hd.timeline.callbacks.onState = (s) => {
     prevOnState?.(s);
-    if (s === "playing") host.reset();
+    if (s === "playing") {
+      host.reset();
+      // A press that never got to release (a keyboard-activated play button,
+      // this landing mid-drag) leaves the host's own gesture cleared already
+      // — but reset()/cancel() never touch the DOM, so without this the grab
+      // classes and the borrowed touch-action would sit on the stage until
+      // whatever pointer is still down finally lifts. Nulling activeId makes
+      // that eventual pointerup inert: end()'s own `e.pointerId !== activeId`
+      // guard is what stops it from running its drop-on-a-control dance
+      // against a gesture that is already gone.
+      clearGrab();
+      activeId = null;
+      stage.style.touchAction = priorTouchAction;
+    }
   };
   const prevOnStep = hd.timeline.callbacks.onStep;
   hd.timeline.callbacks.onStep = (completed, total) => {
     prevOnStep?.(completed, total);
     host.reset();
+    clearGrab();
+    activeId = null;
+    stage.style.touchAction = priorTouchAction;
   };
 
   // The keys (spec §2.2 addendum), the piano's free-play pattern: window
