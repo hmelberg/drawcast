@@ -20,6 +20,8 @@ import { heuristicMeasure, type MeasureFn } from "./measure";
 import { drawablesForId, leafDrawables, type Drawable, type Pt } from "./model";
 import { linearScale, plotArea } from "./canvas";
 import { figureSplit } from "./figure-split";
+import { fitSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
+import { FIT_NAMES } from "./regions";
 
 export interface LayoutResult {
   drawables: Drawable[];
@@ -55,6 +57,9 @@ export interface LayoutResult {
    *  `pins` a tween frame hands back so the placement stops being re-solved
    *  sixty times a second (labels.ts, LabelPin). */
   labelPins: Record<string, LabelPin>;
+  /** The template's fit into its box (spec/2026-09-15-template-box): absent
+   *  when no box was in play or the template laid itself out in one. */
+  fit?: TemplateFit;
 }
 
 /**
@@ -81,19 +86,33 @@ export function layoutSpec(
   // this (scenes/engines.ts). The viewer's override arrives already folded
   // into text.math_font (text-style.ts withMathFont).
   setMathFont(spec.text?.math_font ?? DEFAULT_MATH_FONT);
+  const warnings: string[] = [];
   // A template and a script on screen each get their own half of the canvas
   // before anything is laid out — the default the two used to lack, so a
-  // chart no longer lands on top of the code that computed it.
+  // chart no longer lands on top of the code that computed it. Since the
+  // template box round every template that lays out can take a box: the
+  // five data templates natively, the rest by the fit below.
   const codeEl = (spec.elements ?? []).find((e) => e.type === "code" && e.show !== "none");
+  const hasTemplate = !!(spec.template && scenes[spec.template]?.layout);
+  const rawBox = (spec.params ?? {})["box"];
+  const requestedBox = resolveTemplateBox(rawBox);
+  if (rawBox !== undefined && !requestedBox) {
+    warnings.push(`template box ${JSON.stringify(rawBox)} is neither a region name (${FIT_NAMES.join(", ")}) nor {x, y, w, h} — ignored`);
+  }
   const split = figureSplit({
-    hasTemplate: !!(spec.template && scenes[spec.template]?.layout),
-    templateTakesBox: templateTakesBox(spec.template),
-    boxGiven: isFigureBox((spec.params ?? {})["box"]),
+    hasTemplate,
+    templateTakesBox: hasTemplate,
+    boxGiven: requestedBox !== null,
     code: codeEl ? { x: codeEl.x, width: codeEl.width, show: codeEl.show, code: codeEl.code, fontSize: codeEl.font_size } : null,
   });
   if (split.code && codeEl) Object.assign(codeEl, split.code);
-  if (split.box) spec.params = { ...(spec.params ?? {}), box: split.box };
-  const warnings: string[] = [];
+  const box = requestedBox ?? split.box ?? null;
+  const native = nativeBox(spec.template);
+  // The five templates that lay themselves out in a box get the RECTANGLE —
+  // a name means nothing to them. Everyone else keeps params untouched and
+  // is fitted after laying out.
+  if (box && native) spec.params = { ...(spec.params ?? {}), box };
+  let fit: TemplateFit | undefined;
   const issues: LintIssue[] = [];
   const drawables: Drawable[] = [];
   const labelRequests: LabelRequest[] = [];
@@ -119,6 +138,7 @@ export function layoutSpec(
     } else {
       try {
         const sceneLayout = scene.layout(spec.params ?? {});
+        if (box && !native) fit = fitSceneLayout(sceneLayout, box, measure) ?? undefined;
         templateIds = sceneLayout.order;
         drawables.push(...sceneLayout.drawables);
         labelRequests.push(...sceneLayout.labels);
@@ -224,7 +244,7 @@ export function layoutSpec(
     Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
   issues.push(...lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], composed));
   if (codeEl) issues.push(...codeFigureOverlap(codeEl.id, templateIds, drawables, measure, spec));
-  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, fitGroups, namedAnchors, measures, labelPins };
+  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, fitGroups, namedAnchors, measures, labelPins, ...(fit ? { fit } : {}) };
 }
 
 function unionOfBoxes(boxes: (BBox | null)[]): BBox | null {
@@ -239,17 +259,12 @@ function unionOfBoxes(boxes: (BBox | null)[]): BBox | null {
   return x0 === Infinity ? null : { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 
-/** Does this template accept a `box`? Most own the whole canvas instead. */
-function templateTakesBox(template: string | undefined): boolean {
+/** Does this template lay itself out in a `box` param? Five data templates
+ *  do; every other template is fitted by template-fit.ts. */
+function nativeBox(template: string | undefined): boolean {
   if (!template) return false;
   const schema = scenes[template]?.manifest.params_schema as { properties?: Record<string, unknown> } | undefined;
   return schema?.properties?.box !== undefined;
-}
-
-function isFigureBox(v: unknown): boolean {
-  if (typeof v !== "object" || v === null) return false;
-  const b = v as Record<string, unknown>;
-  return ["x", "y", "w", "h"].every((k) => typeof b[k] === "number" && Number.isFinite(b[k] as number));
 }
 
 /**
