@@ -156,8 +156,34 @@ judge(given, answer)           -> boolean            // optional: for asks
 | --- | --- | --- |
 | `click` | `id` (hit part id), `point` (logical, y-up), `domain` (spec-domain units when the spec has a domain, else `null`) | a paused click that lands on one of the widget's parts |
 
-`key`, `tick`, press duration and `result` (running a code element from a
-widget) are deliberately not in v1; each waits for a lesson that needs it.
+`tick` and `result` (running a code element from a widget) are deliberately
+not in v1; each waits for a lesson that needs it.
+
+**Addendum 2026-09-15 — the `key` event (Hans: "the SOS example should
+also work with a key (space?) and the same key should be used for both
+long and short depending on the length of the key press").**
+
+| Event | Fields | When |
+| --- | --- | --- |
+| `key` | `key` (the DOM `KeyboardEvent.key`, e.g. `" "`, `"Enter"`, `"1"`), `ms` (how long it was held) | a declared key is released while the figure is paused, or while this template's own ask gate stands |
+
+A body opts in by returning `keys: string[]` beside `init`/`on` — the
+keys it wants. The host (`attachWidgetHost`) installs `keydown`/`keyup`
+listeners on `window` only when the body declares keys, exactly the
+piano's free-play pattern: self-cleaning when the stage leaves the DOM,
+standing aside while playing (unless the open gate is the widget's own,
+marked `cs-widgetgate`), while another gate is open, and while the focus
+is in an input, textarea or contenteditable. A declared key is swallowed
+(`preventDefault` + `stopPropagation`) on keydown so a focused play button
+or the page never sees it; auto-repeat is ignored; one `key` event fires
+on keyup with `ms = keyup − keydown`. Undeclared keys pass through
+untouched. The event mounts the body like a click does (`init` on first
+use). The harness accepts `{type: "key", key, ms}` events directly.
+
+Morse: `keys: [" ", "Enter"]`; Space held under `DOT_MS = 200` is a dot,
+longer a dash; Enter ends the letter; Enter on an already-closed letter
+sends. The pads keep working; a drawn hint line under them says which key
+does what, so the movie shows it too.
 
 **Effects (v1: six).** An effect is an object with one or more of these
 keys; the keys of one object are performed together (so `demo` may pair
