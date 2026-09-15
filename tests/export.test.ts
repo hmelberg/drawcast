@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { readFileSync } from "node:fs";
 import { speechKey, type SpeakOpts } from "../src/render/delivery";
 import { BufferSpeech } from "../src/export/tts";
 import { collectSpeakLines, narrationLanguage, wrapCaption } from "../src/export/video";
@@ -125,6 +126,37 @@ describe("collectSpeakLines", () => {
   test("ignores empty narration and specs without commands", () => {
     expect(collectSpeakLines({ commands: [{ speak: "  " }, { draw: ["a"] }] })).toEqual([]);
     expect(collectSpeakLines({})).toEqual([]);
+  });
+
+  test("an explore beat on a controls script is voiced (its demo plays in the movie); without controls or with play: false it is not", () => {
+    const withControls = { elements: [{ id: "sim", type: "code", language: "python", show: "left", controls: ["b"], code: "b = (1, 5)" }], commands: [{ explore: { code: "sim" }, speak: "Try it." }] };
+    expect(collectSpeakLines(withControls as never).map((l) => l.text)).toEqual(["Try it."]);
+    const noDemo = { ...withControls, commands: [{ explore: { code: "sim", play: false }, speak: "Try it." }] };
+    expect(collectSpeakLines(noDemo as never)).toEqual([]);
+    const noControls = { elements: [{ id: "p", type: "code", language: "python", show: "left", code: "print(1)" }], commands: [{ explore: { code: "p" }, speak: "Try it." }] };
+    expect(collectSpeakLines(noControls as never)).toEqual([]);
+    const plain = { elements: [], commands: [{ explore: { params: ["n"] }, speak: "Try it." }] };
+    expect(collectSpeakLines(plain as never)).toEqual([]);
+  });
+
+  test("a run's speak is voiced like any action's", () => {
+    const s = { elements: [{ id: "sim", type: "code", language: "python", show: "left", controls: ["b"], code: "b = (1, 5)" }], commands: [{ run: { code: "sim", values: { b: [1, 2] } }, speak: "Watch." }] };
+    expect(collectSpeakLines(s as never).map((l) => l.text)).toEqual(["Watch."]);
+  });
+});
+
+describe("the export's sweep warm-up (source pins — the export is DOM-driven)", () => {
+  const src = readFileSync("src/export/video.ts", "utf8");
+  test("every run step is precomputed after the item renders and before it plays, so a cold cache never records a stalled frame", () => {
+    expect(src).toMatch(/import \{ precomputeSweeps \} from "\.\.\/render\/sweep-run";/);
+    // Guarded: a player with no runtime (no run steps, a headless mount) has no runner.
+    expect(src).toMatch(/if \(handle\.timeline\.sweepRunner\) await precomputeSweeps\(handle\.plan, handle\.timeline\.sweepRunner\);/);
+    const mount = src.indexOf("handle = await render(items[i]");
+    const warm = src.indexOf("await precomputeSweeps(handle.plan, handle.timeline.sweepRunner)", mount);
+    const play = src.indexOf("await handle.timeline.play();", mount);
+    expect(mount).toBeGreaterThan(-1);
+    expect(warm).toBeGreaterThan(mount);
+    expect(warm).toBeLessThan(play);
   });
 });
 

@@ -136,4 +136,13 @@ describe("tray controls (pins)", () => {
     expect(body).toMatch(/if \(knobFrame !== null\) cancelAnimationFrame\(knobFrame\);/);
     expect(body).toMatch(/knobFrame = null;/);
   });
+  test("the tray paints from the player's patched elements, so a sweep's last values are what a knob continues from", () => {
+    expect(src).toMatch(/hd\.timeline\.patchedElements\(\) \?\? hd\.spec\.elements/);
+    expect(src).toMatch(/controlValues\.get\(el\.id\) \?\? hd\.timeline\.codePatchOf\(el\.id\)\?\.values \?\? \{\}/);
+  });
+  test("every read of a script's current values goes through that one sweep-aware door — the commit, the knob preview, the run and the typed box", () => {
+    expect(src).toMatch(/const valuesOf = \(el: SpecElement\)[^\n]*=> controlValues\.get\(el\.id\) \?\? hd\.timeline\.codePatchOf\(el\.id\)\?\.values \?\? \{\};/);
+    expect(src).not.toMatch(/controlValues\.get\(el\.id\) \?\? \{\}/); // no bare read left to snap a swept script back to the defaults
+    expect(src).toMatch(/const current = valuesOf\(el\)\[c\.name\] \?\? c\.default;/);
+  });
 });

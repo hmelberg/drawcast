@@ -6,6 +6,7 @@
 // BYOK Google Cloud TTS key (browser speechSynthesis cannot be captured).
 
 import { render, type RenderStyle } from "../render";
+import { precomputeSweeps } from "../render/sweep-run";
 import { CaptionTape, splitLongCues, type CaptionCue } from "./captions";
 import { titleIsDrawn } from "../render/title";
 import { speechKey, type SpeakLine } from "../render/delivery";
@@ -21,6 +22,14 @@ import { WebAudioTones } from "../render/tones";
  *  speaker/delivery/gender attached, and {var} tokens interpolated with the
  *  asks' defaults — the movie's values — so the audio exists at export time. */
 export function collectSpeakLines(spec: Spec): SpeakLine[] {
+  // A script the explore beat can DEMO: the planner's own test for turning an
+  // explore into a narrated sweep (render/plan.ts, controlsOfFor) — a code
+  // element with controls. Read off the raw spec, which is what the export
+  // collects from: `controls` is the author's list, untouched by resolve.
+  const hasControls = (id: string): boolean => {
+    const el = spec.elements?.find((e) => e.id === id);
+    return !!el && el.type === "code" && (el.controls?.length ?? 0) > 0;
+  };
   const seen = new Map<string, SpeakLine>();
   const vars = new Map<string, string>();
   // The movie's tally: auto answers are always correct, so score == answered.
@@ -44,8 +53,10 @@ export function collectSpeakLines(spec: Spec): SpeakLine[] {
       const base = hasSpeak ? (c.speak as string) : q.question;
       return q.intro ? `${q.intro} ${base}` : base;
     };
-    // An explore command is skipped wholesale in movies — its speak too.
-    if (!c.quiz && !c.ask && !c.explore) push(c.speak);
+    // An explore beat is voiced when its demo plays in the movie (a controls
+    // script, play not false); otherwise the beat is app-only, speak included.
+    const demoPlays = c.explore !== undefined && c.explore.play !== false && c.explore.code !== undefined && hasControls(c.explore.code);
+    if (!c.quiz && !c.ask && (!c.explore || demoPlays)) push(c.speak);
     if (c.quiz) {
       // The export's quiz path: the question line (pre-answer tally), then —
       // post-answer — the reveal: right if present, else the correct choice.
@@ -538,6 +549,11 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
           lingerDemo(demo);
           return text;
         };
+        // Every sweep's values, run once BEFORE the clock starts: the live
+        // player warms this cache on an idle callback while the viewer watches
+        // the opening, but a recording has no spare time — a cold cache would
+        // record the script's first run as a stalled frame.
+        if (handle.timeline.sweepRunner) await precomputeSweeps(handle.plan, handle.timeline.sweepRunner);
         await handle.timeline.play();
         if (i < items.length - 1) {
           await zzz(300); // beat between parts

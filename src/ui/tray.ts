@@ -223,6 +223,12 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const patches = new Map<string, { code: string; result: string }>();
   /** Control values per script — preview state, dropped with the rest. */
   const controlValues = new Map<string, Record<string, ControlValue>>();
+  /** One script's current control values — the ONE door every knob reads
+   *  through. Before the viewer touches anything it is where a `run`'s sweep
+   *  left the script (the player keeps that patch: it is the lesson now, not
+   *  a preview), so a knob continues from the sweep instead of snapping the
+   *  script back to the author's defaults. */
+  const valuesOf = (el: SpecElement): Record<string, ControlValue> => controlValues.get(el.id) ?? hd.timeline.codePatchOf(el.id)?.values ?? {};
   /** The controls-group DOM nodes per script id, set when a group is built —
    *  so `takenOver` (below) can reach every LIVE copy, not just the next
    *  rebuild (Task 1 fix; an editor Run never rebuilds the tray). A `Set`,
@@ -306,7 +312,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       hd.timeline.previewParams(overrides, { revealNew: true });
       return;
     }
-    let elements = (hd.spec.elements ?? []).map((e) => {
+    // From what is PAINTED, not from the author's spec: a `run` has left its
+    // swept script and fresh envelope on the player, and a preview built from
+    // `hd.spec.elements` would snap the figure back to the authored text the
+    // moment the viewer moved a knob.
+    let elements = (hd.timeline.patchedElements() ?? hd.spec.elements ?? []).map((e) => {
       const p = patches.get(e.id);
       return p ? { ...e, code: p.code, code_result: p.result } : e;
     });
@@ -385,7 +395,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     if (pending) clearTimeout(pending);
     if (el.autorun === false && !force) return;
     const go = (): void => {
-      const values = controlValues.get(el.id) ?? {};
+      const values = valuesOf(el);
       const code = applyControls(language, authoredCode, controls, values);
       lastControlsCode.set(el.id, code);
       void runEdited(el, code, "controls");
@@ -402,7 +412,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   let knobFrame: number | null = null;
   const previewKnobs = (el: SpecElement, authoredCode: string, controls: ControlSpec[]): void => {
     if (el.pane !== "controls") return;
-    const values = controlValues.get(el.id) ?? {};
+    const values = valuesOf(el);
     const code = applyControls(el.language ?? "python", authoredCode, controls, values);
     // The knobs' script is on screen NOW, so it is what an editor Run must be
     // compared against — runControls only records it when the debounce fires,
@@ -426,10 +436,10 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     el,
     authoredCode,
     controls,
-    values: () => controlValues.get(el.id) ?? {},
+    values: () => valuesOf(el),
     commit: (c, raw, immediate) => {
       if (takenOver.has(el.id)) return; // the viewer's own script stands until Continue (Task 1 fix)
-      const next = nextValues(controlValues.get(el.id) ?? {}, c, raw);
+      const next = nextValues(valuesOf(el), c, raw);
       controlValues.set(el.id, next);
       previewKnobs(el, authoredCode, controls);
       runControls(el, controls, immediate);
@@ -562,7 +572,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       ctlInput?.close();
       const p = controlPanels.find((x) => x.el.id === el.id);
       if (!p) return;
-      const current = controlValues.get(el.id)?.[c.name] ?? c.default;
+      const current = valuesOf(el)[c.name] ?? c.default;
       ctlInput = mountControlsInput(stage, {
         box,
         fontSize: el.font_size ?? 17, // the code pane's own default (layout/code.ts)
