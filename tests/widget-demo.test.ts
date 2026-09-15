@@ -8,7 +8,7 @@ import { compileTemplateDoc } from "../src/scenes/compile";
 import { scenes } from "../src/scenes/registry";
 import { ensureEnabledPacks, packTemplateIds } from "../src/scenes/packs";
 import { widgetDemoFor } from "../src/render/widget-demo";
-import { demoWidget } from "../src/scenes/widget-run";
+import { demoWidget, keyEvent, runWidget } from "../src/scenes/widget-run";
 import { buildWidgetScene } from "../src/scenes/widget-scene";
 import { layoutSpec } from "../src/layout/layout";
 import type { BBox } from "../src/layout/geometry";
@@ -203,6 +203,33 @@ describe("the widgets pack demonstrates itself by CHANGING the figure", () => {
     expect(errors, template).toEqual([]);
     expect(effects.filter((e) => e.patch).length, `${template}: the figure never changes`).toBeGreaterThan(0);
     expect(effects.filter((e) => e.pointer).length, `${template}: nothing is pointed at`).toBeGreaterThan(0);
+  });
+
+  test("morse: space held short is a dot, long a dash; Enter ends the letter; Enter again sends", () => {
+    const m = scenes["morse_key"];
+    const r = runWidget(m, { word: "SOS" }, [
+      keyEvent(" ", 80), keyEvent(" ", 80), keyEvent(" ", 80), keyEvent("Enter", 50),
+      keyEvent(" ", 400), keyEvent(" ", 400), keyEvent(" ", 400), keyEvent("Enter", 50),
+      keyEvent(" ", 80), keyEvent(" ", 80), keyEvent(" ", 80), keyEvent("Enter", 50),
+      keyEvent("Enter", 50),
+    ]);
+    expect(r.errors).toEqual([]);
+    expect(r.params.decoded).toBe("SOS");
+    expect(r.answer).toBe("SOS");
+    expect(r.effects.flat().filter((e) => e.answer !== undefined)).toHaveLength(1);
+  });
+  test("hanoi's demo ends on the solved tower whatever the disk count", () => {
+    for (const disks of [3, 4, 5]) {
+      const d = demoWidget(scenes["tower_of_hanoi"], { disks }, "solved");
+      const last = [...d.effects].reverse().find((e) => e.patch)!;
+      expect((last.patch as { pegs: string }).pegs.split("|")[2]).toHaveLength(disks);
+    }
+  });
+  test("every gate's demo taps something and ends lit", () => {
+    for (const gate of ["AND", "OR", "XOR", "NAND"]) {
+      const d = demoWidget(scenes["logic_gates"], { gate }, "lit");
+      expect(d.effects.some((e) => e.pointer)).toBe(true);
+    }
   });
 });
 
