@@ -344,6 +344,10 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
         measure,
         overrides,
         pins,
+        // Per-frame/boundary layouts here: their .issues are never read (the
+        // UI's lint is the mount-time layout above), and every tween tick
+        // would otherwise pay for a second nested layoutSpec call for nothing.
+        { skipDrawBeatLint: true },
       ),
       textStyle,
     );

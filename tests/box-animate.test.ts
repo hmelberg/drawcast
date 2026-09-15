@@ -111,4 +111,22 @@ describe("the lint judges a panel drawn after an animate on the layout of that b
   test("pane: controls is not a long script under the output", () => {
     expect(lintCommands(knobs("right")).filter((i: { rule: string }) => i.rule === "code-use")).toEqual([]);
   });
+  test("skipDrawBeatLint bypasses the draw-beat pass — the base-layout overlap resurfaces; the default call does not have it", () => {
+    const withFlag = layoutSpec(knobs("right"), undefined, undefined, undefined, { skipDrawBeatLint: true });
+    expect(withFlag.issues.some((i) => i.rule === "overlap-code-figure")).toBe(true);
+    const withoutFlag = layoutSpec(knobs("right"));
+    expect(withoutFlag.issues.some((i) => i.rule === "overlap-code-figure")).toBe(false);
+  });
+  test("a panel left to the implicit final draw (never named in any draw/show) folds to the end of the animates, not the start layout", () => {
+    const spec = {
+      ...knobs("right"),
+      commands: [
+        { draw: SIR_IDS, speak: "The model, large." },
+        { animate: { box: "right" }, duration: 3, speak: "Now let us make room." },
+        { explore: { code: "sim" }, speak: "Turn beta." },
+      ],
+    } as unknown as Spec;
+    expect(paramsAtFirstDraw(spec, "sim")).toEqual({ box: { x: 520, y: 95, w: 420, h: 560 } });
+    expect(layoutSpec(spec).issues).toEqual([]);
+  });
 });

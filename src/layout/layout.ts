@@ -267,6 +267,9 @@ export function layoutSpec(
     issues.push(...layoutIssues.filter((i) => !i.ids.some(ownsCode)));
     const later = layoutSpec({ ...rawSpec, params: atDraw }, measure, overrides, labelPinsIn, { skipDrawBeatLint: true });
     issues.push(...later.issues.filter((i) => i.ids.some(ownsCode)));
+    // later.warnings deliberately discarded: the base layout above already
+    // carries the template's/tier-2's warnings (same spec, same elements) —
+    // the draw-beat layout would only repeat them under a moved box.
   }
   return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, fitGroups, namedAnchors, measures, labelPins, ...(fit ? { fit } : {}) };
 }
@@ -286,6 +289,12 @@ export function nativeBox(template: string | undefined): boolean {
  * uses this for a code panel that arrives after the figure has moved (a
  * template that starts full and shrinks into a half to make room), so it
  * judges the pair on the ground they actually share.
+ *
+ * An element never named in any `draw`/`show` is still drawn — by the plan's
+ * IMPLICIT final draw, after every command (render/plan.ts, the trailing
+ * draw of everything left undrawn). So running off the end of the commands
+ * without ever finding `elementId` means it was drawn last, after every
+ * animate: fold to the end just as if a final beat had drawn it.
  */
 export function paramsAtFirstDraw(spec: Spec, elementId: string): Record<string, unknown> | null {
   let params = spec.params ?? {};
@@ -299,7 +308,7 @@ export function paramsAtFirstDraw(spec: Spec, elementId: string): Record<string,
       if (Object.keys(numeric).length > 0) { params = withOverrides(params, numeric); animated = true; }
     }
   }
-  return null;
+  return animated ? params : null;
 }
 
 /**
