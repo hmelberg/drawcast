@@ -20832,7 +20832,8 @@
             "key_dot",
             "key_dash",
             "key_gap",
-            "key_send"
+            "key_send",
+            "hint"
           ],
           "speak": "A telegraph key sends them. Here it is as four pads: dot, dash, the gap pad ends a letter, and send delivers the message — or hold the space bar: short for a dot, long for a dash; Enter ends a letter, Enter again sends."
         },

@@ -39,7 +39,7 @@ element_ids:
   signal: the strip of sent dots and dashes
   decoded: the decoded letters
   chart: the code chart (a group; chart_<letter> per row)
-  hint: the keyboard hint line (space = dot/dash, enter = gap/send)
+  hint: the keyboard hint line (space = dot/dash, enter = gap/send), drawn with the pads
   title: the title
 examples:
   - request: "Teach Morse code and let me send SOS."
