@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { parseControls, type ControlSpec } from "../src/code/controls";
-import { DEMO_MAX_STEPS, RUN_MAX_STEPS, demoWalk, expandSeries, lcg, runValues, stableHash } from "../src/render/sweep";
+import { DEMO_MAX_STEPS, RUN_MAX_STEPS, SMOOTH_MIN_STEPS, demoWalk, expandSeries, lcg, runValues, stableHash } from "../src/render/sweep";
 
 const CODE = 'beta = (0.1, 1.0, 0.05)\nmodel = ["SIR", "SEIR", "SIS"]\nlog = False\nname = "x"\ndays = 30\ngo = Button("Go")';
 const NAMES = ["beta", "model", "log", "name", "days", "go"];
@@ -25,10 +25,43 @@ describe("expandSeries", () => {
     expect(expandSeries(byName("beta"), 0.3)).toEqual([0.3]);
     expect(expandSeries(byName("model"), ["SIR", "SEIR"])).toEqual(["SIR", "SEIR"]);
   });
-  test("from/to/steps is linear, snapped to the slider's step, clamped", () => {
-    expect(expandSeries(byName("beta"), { from: 0.1, to: 0.9, steps: 5 })).toEqual([0.1, 0.3, 0.5, 0.7, 0.9]);
-    expect(expandSeries(byName("beta"), { from: 0, to: 2, steps: 2 })).toEqual([0.1, 1]);
-    expect(expandSeries(byName("beta"), { from: 0.1, to: 0.9, steps: 1 })).toEqual([0.1]);
+  // A range GLIDES unless told not to (see the smooth block below), so the
+  // linear contract is now pinned with smooth: false — the same values the
+  // author wrote down, in the count they wrote them in.
+  test("smooth: false is linear, snapped to the slider's step, clamped", () => {
+    expect(expandSeries(byName("beta"), { from: 0.1, to: 0.9, steps: 5 }, { smooth: false })).toEqual([0.1, 0.3, 0.5, 0.7, 0.9]);
+    expect(expandSeries(byName("beta"), { from: 0, to: 2, steps: 2 }, { smooth: false })).toEqual([0.1, 1]);
+    expect(expandSeries(byName("beta"), { from: 0.1, to: 0.9, steps: 1 }, { smooth: false })).toEqual([0.1]);
+  });
+});
+
+describe("smooth sweeps", () => {
+  const gaps = (vs: number[]) => vs.slice(1).map((v, i) => Number((v - vs[i]).toFixed(6)));
+  test("a range glides by default: densified to at least 10, eased, ends exact", () => {
+    const vs = runValues({ values: { beta: { from: 0.1, to: 1.0, steps: 5 } } }, controls()).steps.map((s) => s.beta as number);
+    expect(vs.length).toBeGreaterThanOrEqual(SMOOTH_MIN_STEPS);
+    expect(vs[0]).toBe(0.1);
+    expect(vs[vs.length - 1]).toBe(1);
+    // Monotone (duplicates kept — a repeated value is a cache hit, not a step
+    // to drop), and eased: the ends crawl, the middle strides.
+    expect(gaps(vs).every((g) => g >= 0)).toBe(true);
+    const g = gaps(vs);
+    expect(g[0]).toBeLessThan(g[Math.floor(g.length / 2)]);
+  });
+  test("smooth: false keeps exactly the authored linear steps", () => {
+    const vs = runValues({ values: { beta: { from: 0.1, to: 1.0, steps: 5 } }, smooth: false }, controls()).steps.map((s) => s.beta);
+    expect(vs).toEqual([0.1, 0.35, 0.55, 0.8, 1]);
+  });
+  test("the glide never spends more than the run's own ceiling: loop 3 gets floor(20 / 3) per pass", () => {
+    const { steps, issues } = runValues({ values: { beta: { from: 0.1, to: 1.0, steps: 5 } }, loop: 3 }, controls());
+    expect(issues).toEqual([]);
+    expect(steps).toHaveLength(Math.floor(RUN_MAX_STEPS / 3) * 3);
+    expect(steps.length / 3).toBe(6);
+  });
+  test("a list is never densified", () => {
+    const vs = runValues({ values: { beta: [0.2, 0.4, 0.6] } }, controls()).steps.map((s) => s.beta);
+    expect(vs).toEqual([0.2, 0.4, 0.6]);
+    expect(runValues({ values: { model: ["SIR", "SEIR"] } }, controls()).steps).toHaveLength(2);
   });
 });
 

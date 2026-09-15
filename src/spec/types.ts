@@ -455,6 +455,10 @@ export interface PlayArgs {
   values: Record<string, SeriesSpec>;
   every?: number;
   loop?: number;
+  /** Ranges glide by default (eased spacing, at least 10 steps, still ≤ 20);
+   *  false plays a range in exactly its authored linear jumps. Lists never
+   *  glide — their steps are the author's own count. */
+  smooth?: boolean;
 }
 /** `run`: play a controls script through a series of values (spec 2026-09-15 §4.1). */
 export interface RunArgs extends PlayArgs {

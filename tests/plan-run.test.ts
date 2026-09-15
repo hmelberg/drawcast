@@ -39,6 +39,18 @@ describe("planner: run", () => {
     expect(s.seconds).toBe(RUN_EVERY_S * 4);
     expect(s.narration).toBeUndefined();
   });
+  // The planner hands the WHOLE args to the sweep model, so a range's glide
+  // (and the author's opt-out) arrives without the planner knowing about it.
+  test("a range glides through the planner: at least 10 values, or exactly the authored jumps with smooth: false", () => {
+    const glide = plan([{ draw: ["sim"] }, { run: { code: "sim", values: { beta: { from: 0.1, to: 0.9, steps: 4 } } }, speak: "Watch." }]).steps[1];
+    if (glide.kind !== "run") throw new Error("run expected");
+    expect(glide.values.length).toBeGreaterThanOrEqual(10);
+    expect(glide.values[0].beta).toBe(0.1);
+    expect(glide.values[glide.values.length - 1].beta).toBe(0.9);
+    const jumps = plan([{ draw: ["sim"] }, { run: { code: "sim", values: { beta: { from: 0.1, to: 0.9, steps: 4 } }, smooth: false }, speak: "Watch." }]).steps[1];
+    if (jumps.kind !== "run") throw new Error("run expected");
+    expect(jumps.values).toHaveLength(4);
+  });
   test("a series the model cannot honour is a warning naming the command, and no step", () => {
     const p = plan([{ draw: ["sim"] }, { run: { code: "sim", values: { gamma: [1, 2] } }, speak: "Watch." }]);
     expect(p.steps.filter((s) => s.kind === "run")).toEqual([]);

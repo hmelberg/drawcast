@@ -50,13 +50,42 @@ function snap(c: ControlSpec, v: number): number {
   return Number(out.toFixed(c.decimals ?? 6));
 }
 
-export function expandSeries(c: ControlSpec, s: SeriesSpec): ControlValue[] {
+/** The least number of positions a glide needs to read as motion rather than
+ *  as a slideshow: below this a range is densified (never past its cap). */
+export const SMOOTH_MIN_STEPS = 10;
+
+/** Ease in/out cubic — the standard smoothstep-ish curve: still at both ends,
+ *  quick through the middle. A sweep spaced by it settles on its first and
+ *  last value instead of arriving at them at full speed. */
+export function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+/** Options for a range series: `smooth` (undefined = smooth, the default for
+ *  a range; false = exactly the authored linear jumps) and `max`, the most
+ *  steps a densified range may take — the run cap divided by its loop, so a
+ *  glide never spends more than the 20 steps the whole run is allowed. */
+export interface SeriesOptions {
+  smooth?: boolean;
+  max?: number;
+}
+
+export function expandSeries(c: ControlSpec, s: SeriesSpec, opts: SeriesOptions = {}): ControlValue[] {
+  // An explicit list is the author counting the steps out loud: never
+  // densified, never re-spaced. Only a range glides.
   if (Array.isArray(s)) return s;
   if (isRange(s)) {
-    const n = Math.max(1, Math.floor(s.steps));
+    const authored = Math.max(1, Math.floor(s.steps));
+    const smooth = opts.smooth !== false;
+    const cap = Math.max(1, Math.floor(opts.max ?? RUN_MAX_STEPS));
+    // Raise a thin range to a glide, but never BELOW what the author asked
+    // for: an authored count over the cap stays over it, so runValues can
+    // still complain about it in the author's own terms.
+    const n = smooth ? Math.max(authored, Math.min(SMOOTH_MIN_STEPS, cap)) : authored;
     const out: number[] = [];
     for (let i = 0; i < n; i++) {
-      const v = n === 1 ? s.from : s.from + ((s.to - s.from) * i) / (n - 1);
+      const t = n === 1 ? 0 : i / (n - 1);
+      const v = s.from + (s.to - s.from) * (smooth ? easeInOutCubic(t) : t);
       out.push(c.kind === "slider" ? snap(c, v) : v);
     }
     return out;
@@ -69,19 +98,22 @@ export function runValues(args: PlayArgs, controls: ControlSpec[]): { steps: Rec
   const names = Object.keys(args.values ?? {});
   if (names.length === 0) issues.push("values names no control");
   const series = new Map<string, ControlValue[]>();
+  const loop = Math.max(1, Math.floor(args.loop ?? 1));
+  // A glide is densified up to the run's own ceiling: with loop: 3 the whole
+  // run may still spend at most RUN_MAX_STEPS, so each pass gets a third.
+  const perPass = Math.max(1, Math.floor(RUN_MAX_STEPS / loop));
   for (const name of names) {
     const c = controls.find((x) => x.name === name);
     if (!c) { issues.push(`values.${name}: no control named "${name}"`); continue; }
     const spec = args.values[name];
     if (isRange(spec) && !(spec.steps >= 1)) { issues.push(`values.${name}: steps must be at least 1`); continue; }
-    const vals = expandSeries(c, spec);
+    const vals = expandSeries(c, spec, { smooth: args.smooth, max: perPass });
     if (vals.length === 0) { issues.push(`values.${name}: an empty list names no step`); continue; }
     if (c.kind === "choice") for (const v of vals) if (!(c.options ?? []).includes(String(v))) issues.push(`values.${name}: "${v}" is not one of ${(c.options ?? []).join(", ")}`);
     if (c.kind === "toggle") for (const v of vals) if (typeof v !== "boolean") issues.push(`values.${name}: a toggle takes true or false`);
     series.set(name, vals);
   }
   const n = Math.max(0, ...[...series.values()].map((v) => v.length));
-  const loop = Math.max(1, Math.floor(args.loop ?? 1));
   if (n * loop > RUN_MAX_STEPS) issues.push(`a run may have at most ${RUN_MAX_STEPS} steps (this one has ${n * loop})`);
   if (issues.length > 0 || n === 0) return { steps: [], issues };
   const base: Record<string, ControlValue>[] = [];

@@ -136,8 +136,18 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Net: schema 116788 → 116840 (+52), system 232265 → 232295 (+30 = +52 − 22).
 // (types.ts's `controls` docstring was fixed in the same item; a TS comment
 // is in neither measurement.)
-const BASELINE_SYSTEM_CHARS = 232295;
-const BASELINE_SCHEMA_CHARS = 116840;
+// Re-pinned 2026-09-15 for the smooth-sweeps round: `run.smooth` and
+// `explore.play.smooth` — one description sentence, written twice because the
+// two shapes carry their properties separately — grew the schema by +566
+// (116840 → 117406), which is embedded verbatim in the system prompt, so the
+// same +566 lands there; and compiler-v1.md's `run` bullet gained one
+// sentence (ranges glide by default; steps 8–16 for a visible glide;
+// smooth: false for the authored jumps), +140 on the system prompt alone.
+// Total system: +706 (232295 → 233001). The same round's fixed-axes sentence
+// in compiler-v1-code.md's controls bullet is behind the {{CODE}} conditional
+// fragment and costs an ordinary request nothing, so it is not in these pins.
+const BASELINE_SYSTEM_CHARS = 233001;
+const BASELINE_SCHEMA_CHARS = 117406;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

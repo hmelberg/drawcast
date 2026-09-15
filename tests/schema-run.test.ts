@@ -13,6 +13,10 @@ describe("schema: run and explore.play", () => {
     expect(validateSpec(doc({ run: { code: "sim", values: { beta: 1 }, loop: 0 } })).ok).toBe(false);
     expect(validateSpec(doc({ run: { code: "sim", values: { beta: 1 }, bogus: 1 } })).ok).toBe(false);
   });
+  test("smooth: false validates on both run and explore.play", () => {
+    expect(validateSpec(doc({ run: { code: "sim", values: { beta: { from: 0.1, to: 0.9, steps: 5 } }, smooth: false } })).ok).toBe(true);
+    expect(validateSpec(doc({ explore: { code: "sim", play: { values: { beta: { from: 0.1, to: 0.9, steps: 5 } }, smooth: false } } })).ok).toBe(true);
+  });
   test("explore.play accepts false or the run shape without code", () => {
     expect(validateSpec(doc({ explore: { code: "sim", play: false } })).ok).toBe(true);
     expect(validateSpec(doc({ explore: { code: "sim", play: { values: { beta: [0.2, 0.4] }, every: 0.4 } } })).ok).toBe(true);
