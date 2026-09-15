@@ -15,7 +15,7 @@ import { icon } from "./icons";
 import { isTextDrag } from "./caption";
 import type { SubtitleLanguage } from "../spec/subtitles";
 import type { VoiceOption } from "../render/voices";
-import { gateIsOpen } from "./gates";
+import { CONTROL_SELECTOR, gateIsOpen } from "./gates";
 import { attachChessPlay } from "./chessplay";
 import { dragGateFor } from "./drag-gate";
 import { creditsOf } from "../export/credits";
@@ -1143,9 +1143,9 @@ export function attachPlayerControls(
   // click's own target cannot tell. The pointerdown target can: remember
   // where the press started and let the click through only when both ends
   // are on the drawing. Same for a press that started on a button, a field,
-  // the tray, the code card or the controls card. A press inside a drawn
-  // control panel is a control press through the registry.
-  const CONTROL_SELECTOR = "input, button, select, textarea, label, .cs-paramtray, .cs-codeedit, .cs-ctlinput";
+  // the tray, the code card or the panel's text input. The selector lives in
+  // gates.ts: the widget host's press guard reads the very same list, and it
+  // cannot import a value from this file (cycle).
   // …or inside a region some module owns — the drawn control panel has no
   // DOM node of its own to match, so it registers a predicate instead
   // (ui/control-press.ts).

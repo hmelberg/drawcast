@@ -86,6 +86,15 @@ export interface BackendEffects {
   setFlow?(ids: string[], opts: FlowOpts, frame: { travelled: number; alpha: number }): void;
   /** Remove any leftover flow overlays for these ids (abort/scrub safety). */
   endFlow?(ids: string[]): void;
+  /**
+   * A transient translation of one element, logical units y-up — a widget's
+   * drag ghost (design 2026-09-14 §2.2 addendum b). COMPOSED with whatever
+   * transform the element's live nodes already carry (the boundary's own
+   * offset and turn), and (0, 0) puts that exact transform back. It lives
+   * here rather than on the element handle because the handles hold the
+   * MOUNT-TIME nodes, which every preview replaces (see swapGeometry).
+   */
+  setOffset?(id: string, dx: number, dy: number): void;
   /** Show the laser dot at a logical y-up point; null hides it. */
   setPointer(p: Pt | null): void;
   /** Jump the camera to a logical y-up viewBox; null = full canvas. */

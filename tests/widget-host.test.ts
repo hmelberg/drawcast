@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test, vi } from "vitest";
 import { compileTemplateDoc } from "../src/scenes/compile";
 import { scenes } from "../src/scenes/registry";
-import { widgetHostFor } from "../src/ui/widget-host";
+import { pressBlocked, widgetHostFor } from "../src/ui/widget-host";
 import { layoutSpec } from "../src/layout/layout";
 import { INITIAL_STATE, type Plan } from "../src/render/plan";
 import type { RenderHandle } from "../src/render";
@@ -26,6 +26,7 @@ const doc = {
     const dot = (st) => { const signal = st.signal + "."; return { state: { signal }, effects: [{ sound: { hz: 700, ms: 80 } }, { patch: { signal } }, { glow: "dot" }] }; };
     const on = (ev, st) => {
       if (ev.type === "key") return ev.key === " " && ev.ms < 200 ? dot(st) : { state: st, effects: [] };
+      if (ev.type === "drag") return { state: st, effects: [{ caption: ev.id + ">" + ev.to }] };
       if (ev.id === "dot") return dot(st);
       if (ev.id === "gap") return { state: st, effects: [{ answer: st.signal }, { caption: "sent" }, { patch: { nope: 1 } }] };
       return { state: st, effects: [] };
@@ -202,22 +203,214 @@ describe("widgetHostFor", () => {
   });
 });
 
+// One pointer gesture, read at release (spec §2.2 addendum 2026-09-15b): the
+// core is DOM-free, so the tests press, move and release it themselves and
+// hand it a fake `nudge` — the ghost the renderer would paint.
+describe("widgetHostFor — the gesture", () => {
+  test("a press and release in place is a click", () => {
+    const { hd, calls } = fakeHandle();
+    const host = widgetHostFor(hd, { nudge: (id, dx, dy) => calls.push(`nudge ${id} ${dx} ${dy}`) })!;
+    expect(host.press([300, 400])).toBe(true);
+    host.move([302, 401]); // under DRAG_MIN: no ghost
+    expect(host.release([302, 401])).toBe("click");
+    expect(calls).toEqual(["beep 700 80", 'preview {"signal":"."}', "glow dot"]);
+  });
+
+  test("a press that moves is a ghost, then a drag on release — ghost cleared first", () => {
+    const { hd, calls } = fakeHandle();
+    const host = widgetHostFor(hd, { nudge: (id, dx, dy) => calls.push(`nudge ${id} ${dx} ${dy}`) })!;
+    host.press([300, 400]);
+    host.move([340, 410]);
+    host.move([500, 400]);
+    expect(host.release([500, 400])).toBe("drag");
+    expect(calls).toEqual(["nudge dot 40 10", "nudge dot 200 0", "nudge dot 0 0", "caption dot>gap"]);
+  });
+
+  test("released on blank paper: to is null; cancel clears the ghost and delivers nothing", () => {
+    const { hd, calls } = fakeHandle();
+    const host = widgetHostFor(hd, { nudge: (id, dx, dy) => calls.push(`nudge ${id} ${dx} ${dy}`) })!;
+    host.press([300, 400]);
+    host.move([900, 700]);
+    expect(host.release([900, 700])).toBe("drag");
+    expect(calls.at(-1)).toBe("caption dot>null");
+    calls.length = 0;
+    host.press([300, 400]);
+    host.move([400, 400]);
+    host.cancel();
+    expect(calls).toEqual(["nudge dot 100 0", "nudge dot 0 0"]);
+    expect(host.release([400, 400])).toBeNull(); // nothing pressed
+  });
+
+  test("a second press while a gesture is live is refused — the first ghost is never stranded", () => {
+    const { hd, calls } = fakeHandle();
+    const host = widgetHostFor(hd, { nudge: (id, dx, dy) => calls.push(`nudge ${id} ${dx} ${dy}`) })!;
+    expect(host.press([300, 400])).toBe(true);
+    host.move([400, 400]);
+    expect(host.press([500, 400])).toBe(false); // a second finger on the gap pad
+    expect(host.release([500, 400])).toBe("drag"); // still the FIRST gesture
+    expect(calls).toEqual(["nudge dot 100 0", "nudge dot 0 0", "caption dot>gap"]);
+  });
+
+  test("a press on nothing begins no gesture", () => {
+    const { hd, calls } = fakeHandle();
+    const host = widgetHostFor(hd)!;
+    expect(host.press([900, 700])).toBe(false);
+    expect(host.release([900, 700])).toBeNull();
+    expect(calls).toEqual([]);
+  });
+});
+
+// The stage's press guard, as a truth table rather than a source pin. It was
+// a pin on the words `hd.timeline.state === "playing"` — which is exactly the
+// clause that made EVERY widget ask dead to the pointer: during an ask the
+// player stays in state "playing" (the gate is awaited inside the play loop),
+// so the guard refused every press under the widget's own gate, and the pin
+// certified the bug. Six flags, one function, every clause inverted below.
+describe("pressBlocked — whose press is it", () => {
+  const NONE = { playing: false, ownGate: false, foreignGate: false, onControl: false, onCaption: false, onCard: false };
+  const f = (o: Partial<typeof NONE>): boolean => pressBlocked({ ...NONE, ...o });
+
+  test("paused, on the paper: the press is the widget's", () => {
+    expect(f({})).toBe(false);
+  });
+  test("playing with no gate up: the press is the movie's (it pauses)", () => {
+    expect(f({ playing: true })).toBe(true);
+  });
+  // The regression this whole predicate exists for.
+  test("playing UNDER THE WIDGET'S OWN GATE: the press is the widget's — an ask never leaves the play loop", () => {
+    expect(f({ playing: true, ownGate: true })).toBe(false);
+  });
+  test("the widget's own gate while paused: still the widget's", () => {
+    expect(f({ ownGate: true })).toBe(false);
+  });
+  test("any other gate holds the run: its card is the door, not the figure", () => {
+    expect(f({ foreignGate: true })).toBe(true);
+    expect(f({ playing: true, foreignGate: true })).toBe(true);
+  });
+  test("a press on a control is that control's — even under the widget's own gate (the Skip pill lives inside it)", () => {
+    expect(f({ onControl: true })).toBe(true);
+    expect(f({ onControl: true, ownGate: true })).toBe(true);
+  });
+  test("the caption band and an open info card own their own presses", () => {
+    expect(f({ onCaption: true })).toBe(true);
+    expect(f({ onCard: true })).toBe(true);
+    expect(f({ onCaption: true, ownGate: true })).toBe(true);
+    expect(f({ onCard: true, ownGate: true })).toBe(true);
+  });
+});
+
 describe("attachWidgetHost — source pins", () => {
   const src = readFileSync("src/ui/widget-host.ts", "utf8");
   const controls = readFileSync("src/ui/controls.ts", "utf8");
   const infocard = readFileSync("src/ui/infocard.ts", "utf8");
-  test("listens in the capture phase, stands aside while playing and while a gate is open", () => {
-    expect(src).toContain('stage.addEventListener("click"');
-    expect(src).toMatch(/hd\.timeline\.state === "playing"\) return/);
-    expect(src).toMatch(/gateIsOpen\(stage\)\) return/);
-    expect(src).toContain("e.stopPropagation()");
+  test("the stage reads ONE pointer gesture in the capture phase, and no longer hit-tests clicks", () => {
+    for (const type of ["pointerdown", "pointermove", "pointerup", "pointercancel"]) {
+      expect(src).toContain(`stage.addEventListener("${type}"`);
+    }
+    const attach = src.slice(src.indexOf("export function attachWidgetHost"), src.indexOf("export function widgetGateFor"));
+    // The click listener keeps ONE job (below): the hit test moved to press().
+    expect(attach).not.toContain("host.clickAt");
+    expect(attach).toContain("host.press(p)");
+    expect(attach).toContain("host.release(p)");
+    expect(attach).toContain("host.cancel()");
+    expect(attach).toContain("e.stopPropagation()");
   });
-  test("a click on a control (the big play button, a gate pill) is never the widget's — same guard as chess and piano", () => {
-    // The big play overlay sits INSIDE the stage: a click on it over a large
-    // ringed part (Hanoi's middle peg zone, the gate body) was hit-tested and
-    // swallowed, so play never started (Hans 2026-09-15).
-    const listener = src.slice(src.indexOf('stage.addEventListener("click"'), src.indexOf("}, true);"));
-    expect(listener).toContain('e.target instanceof Element && e.target.closest("button") !== null) return');
+  // The guard's LOGIC is the truth table above; what the stage owes it is the
+  // six flags, read off the real DOM. Each one is pinned here because a flag
+  // wired to the wrong query would pass every unit test.
+  test("the stage reads the six flags off the DOM and asks pressBlocked", () => {
+    const guard = src.slice(src.indexOf("const blocked = (e: Event): boolean =>"), src.indexOf('stage.addEventListener("pointerdown"'));
+    expect(guard).toContain("return pressBlocked({");
+    expect(guard).toContain('playing: hd.timeline.state === "playing"');
+    // The widget's own gate is ONE definition, shared with the key listeners.
+    expect(src).toContain('const ownGate = (): boolean => stage.querySelector(".cs-widgetgate") !== null;');
+    expect(guard).toContain("ownGate: own");
+    expect(guard).toContain("foreignGate: gateIsOpen(stage) && !own");
+    // Every live control surface, not just "button": the same list the stage's
+    // own play/pause toggle uses (src/ui/gates.ts), so the two cannot drift —
+    // a press that began on a slider or the param tray is never a part's.
+    expect(guard).toContain("onControl: t !== null && t.closest(CONTROL_SELECTOR) !== null");
+    expect(src).toContain('import { CONTROL_SELECTOR, gateIsOpen } from "./gates";');
+    // The subtitle band lies across the bottom of the canvas and an open info
+    // card floats over the figure: a press on either is that thing's.
+    expect(guard).toContain("onCaption: overCaption(e.target as Element | null)");
+    expect(guard).toContain('onCard: t !== null && t.closest(".cs-infocard") !== null');
+  });
+  // A right-click over a part ran the widget (and a context menu on top of
+  // it); a second finger, or the right button pressed mid-drag, would also
+  // have disarmed the swallow the live press armed. Nothing but the primary
+  // button of the primary pointer begins — or disturbs — a gesture.
+  test("only the primary button of the primary pointer is a gesture, checked before anything else", () => {
+    expect(src).toMatch(/stage\.addEventListener\("pointerdown", \(e\) => \{[\s\S]{0,320}?if \(!e\.isPrimary \|\| \(e\.pointerType === "mouse" && e\.button !== 0\)\) return;\s*swallowClick = false;[\s\S]{0,140}?if \(blocked\(e\)\) return;/);
+  });
+  test("the press takes touch-action and pointer capture, and hands both back at the end", () => {
+    expect(src).toContain('stage.style.touchAction = "none"');
+    // The figure's OWN inline value comes back (a piano stage sets "none" for
+    // the whole mount) — never a blanket "".
+    expect(src).toContain("priorTouchAction = stage.style.touchAction");
+    expect(src).toContain("stage.style.touchAction = priorTouchAction");
+    expect(src).not.toContain('stage.style.touchAction = ""');
+    expect(src).toMatch(/try \{\s*stage\.setPointerCapture\(e\.pointerId\);\s*\} catch/);
+    expect(src).toMatch(/try \{\s*stage\.releasePointerCapture\(e\.pointerId\);\s*\} catch/);
+  });
+  test("one pointer owns the gesture: the others' moves, ups and cancels are not it", () => {
+    const attach = src.slice(src.indexOf("export function attachWidgetHost"), src.indexOf("export function widgetGateFor"));
+    expect(attach).toContain("let activeId: number | null = null;");
+    expect(attach).toContain("activeId = e.pointerId;");
+    expect(attach).toMatch(/if \(e\.pointerId !== activeId\) return;/);
+  });
+  test("a release on a control (the gate's Skip pill) cancels the gesture instead of delivering it", () => {
+    const end = src.slice(src.indexOf("const end = (e: PointerEvent"), src.indexOf('stage.addEventListener("pointerup"'));
+    // With the pointer captured every event retargets to the stage, so the
+    // event's own target cannot tell a drop on Skip from one on the paper.
+    expect(end).toContain("document.elementFromPoint(e.clientX, e.clientY)");
+    expect(end).toContain('closest("button")');
+    expect(end).toContain("host.cancel()");
+  });
+  test("capture lost mid-gesture drops the ghost and disarms the swallow — and the ordinary release is untouched", () => {
+    const lost = src.slice(src.indexOf('stage.addEventListener("lostpointercapture"'));
+    expect(lost).toContain("if (e.pointerId !== activeId) return;");
+    expect(lost).toContain("swallowClick = false;");
+    expect(lost).toContain("host.cancel();");
+  });
+  test("pointermove costs nothing at rest — no measuring without a gesture, and it never asks over()", () => {
+    const move = src.slice(src.indexOf('stage.addEventListener("pointermove"'), src.indexOf("const end = (e: PointerEvent"));
+    // logicalPoint reads the svg's bounding box: without this guard every
+    // pointer move over a paused figure paid for a layout read.
+    expect(move).toMatch(/if \(e\.pointerId !== activeId\) return;[\s\S]*logicalPoint\(stage, e\)/);
+    expect(move).toContain("host.move(p)");
+    expect(move).not.toContain("host.over");
+  });
+  test("a cancelled pointer disarms the swallow — no click follows it, and the next one is not the widget's", () => {
+    const end = src.slice(src.indexOf("const end = (e: PointerEvent"), src.indexOf('stage.addEventListener("pointerup"'));
+    expect(end).toMatch(/if \(cancelled\) \{[\s\S]*swallowClick = false;[\s\S]*host\.cancel\(\);/);
+  });
+  test("the synthesized click after a press that began on a part is swallowed (the piano's rule)", () => {
+    const listener = src.slice(src.indexOf('stage.addEventListener("click"'), src.indexOf("// Playback, a scrub or a step lands honest geometry"));
+    expect(listener).toContain("if (swallowClick) {");
+    expect(listener).toContain("swallowClick = false;");
+    expect(listener).toContain("e.stopPropagation();");
+    expect(listener).toContain("e.preventDefault();");
+  });
+  test("DRAG_MIN is six logical units, decided at release", () => {
+    expect(src).toContain("export const DRAG_MIN = 6;");
+  });
+  // ONE owner. The gate used to route the gesture itself, but the stage's
+  // capture-phase listeners run FIRST on the same events (the gate is a child
+  // of the stage), so the two raced: the release was delivered twice over and
+  // a drop on Skip both answered the question and skipped it. The gate now
+  // carries nothing but its hint and its Skip pill; the stage's own listeners
+  // stand under the widget's gate instead of standing aside.
+  test("the widget gate routes no gestures of its own — the stage is the one owner", () => {
+    const gate = src.slice(src.indexOf("export function widgetGateFor"));
+    expect(gate).not.toContain("host.clickAt");
+    expect(gate).not.toContain("host.press");
+    expect(gate).not.toContain("host.move");
+    expect(gate).not.toContain("host.release");
+    expect(gate).not.toContain('gate.addEventListener("pointer');
+    // What it keeps: the hint, Skip, and the answer subscription.
+    expect(gate).toContain("cs-figgate-skip");
+    expect(gate).toContain("host.onAnswer(");
   });
 
   // The key listeners (spec §2.2 addendum): the piano's free-play pattern —
@@ -251,11 +444,23 @@ describe("attachWidgetHost — source pins", () => {
     expect(src).toContain("t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || (t instanceof HTMLElement && t.isContentEditable)");
   });
   test("keys stand aside while playing and while another gate is open — the widget's own gate excepted", () => {
-    expect(src).toContain('(hd.timeline.state === "playing" && !stage.querySelector(".cs-widgetgate"))');
-    expect(src).toContain('(gateIsOpen(stage) && !stage.querySelector(".cs-widgetgate"))');
+    expect(src).toContain('(hd.timeline.state === "playing" && !ownGate())');
+    expect(src).toContain("(gateIsOpen(stage) && !ownGate())");
   });
   test("the widget gate marks itself, so its own keys keep working", () => {
     expect(src).toContain('h("div", { class: "cs-figgate cs-widgetgate" }');
+  });
+  // …and UNMARKS itself the instant it settles. The mark lingers 900 ms
+  // (CARD_LINGER_MS) before the gate leaves the DOM, and for that whole
+  // window the question is over — but the gate was still wearing the class
+  // that says "this figure's gestures are the point", so a press went on
+  // reaching the body after the answer had been judged. Dropping just the
+  // marker (cs-figgate stays, so gateIsOpen still holds) makes the linger
+  // read as any other gate: blocked, by the very same flag.
+  test("the gate drops its widget marker the moment it settles, before the mark lingers", () => {
+    const gate = src.slice(src.indexOf("export function widgetGateFor"));
+    expect(gate).toContain('gate.classList.remove("cs-widgetgate");');
+    expect(gate.indexOf('gate.classList.remove("cs-widgetgate");')).toBeLessThan(gate.indexOf("window.setTimeout(() => gate.remove(), CARD_LINGER_MS)"));
   });
   // I1: Skip lives INSIDE the widget's own gate (cs-widgetgate), so the
   // "another gate" exception above never stands aside for it — without this,

@@ -850,6 +850,10 @@ function makeEffects(
 ): BackendEffects {
   const active = new Map<string, HighlightNodes>();
   const flows = new Map<string, SVGPathElement[]>();
+  /** What a ghosted node's `transform` was before the drag picked it up — per
+   *  NODE, so a geometry rebuild simply starts the ghost over on the new one
+   *  rather than pasting a stale pose onto it. */
+  const ghostBase = new WeakMap<Element, string>();
   const keyOf = (ids: string[]) => ids.join("|");
   let pointer: SVGGElement | null = null;
 
@@ -911,6 +915,30 @@ function makeEffects(
 
     endHighlight(ids: string[]): void {
       removeHighlight(keyOf(ids));
+    },
+
+    /** The drag ghost: a translate PREPENDED to the node's own transform, so
+     *  it applies after the element's pose exactly as poseTransform's own
+     *  translate does (y-up in, SVG's y-down out). (0, 0) restores the
+     *  remembered string and forgets it. */
+    setOffset(id: string, dx: number, dy: number): void {
+      for (const { g } of leafNodes.get(id) ?? []) {
+        if (dx === 0 && dy === 0) {
+          const base = ghostBase.get(g);
+          if (base === undefined) continue;
+          ghostBase.delete(g);
+          if (base === "") g.removeAttribute("transform");
+          else g.setAttribute("transform", base);
+          continue;
+        }
+        let base = ghostBase.get(g);
+        if (base === undefined) {
+          base = g.getAttribute("transform") ?? "";
+          ghostBase.set(g, base);
+        }
+        const t = `translate(${dx.toFixed(1)} ${(-dy).toFixed(1)})`;
+        g.setAttribute("transform", base === "" ? t : `${t} ${base}`);
+      }
     },
 
     setFocus(dimIds: string[], alpha: number): void {
@@ -1140,7 +1168,14 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
           layers[0].replaceChildren();
           layers[1].replaceChildren();
           layers[2].replaceChildren();
-          buildNodes(l, new Map(), visible, offsets, turns, opacities, shapes, texts); // throwaway map: no handles, effects keep the mount-time nodes
+          // The SAME map makeEffects closed over, refreshed in place: the glow,
+          // the focus dim, the flow and the widget's drag ghost all reach for
+          // their nodes through it, and a throwaway map left every one of them
+          // writing to the nodes this line has just detached (found in review
+          // 2026-09-15 — one preview and the effects were painting nothing).
+          // Still no handles and no measurement: the next commit rebinds those.
+          leafNodes.clear();
+          buildNodes(l, leafNodes, visible, offsets, turns, opacities, shapes, texts);
         },
         remount: (l) => {
           layers[0].replaceChildren();

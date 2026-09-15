@@ -1,6 +1,7 @@
 // Stepping a widget body, and the node harness authors and the examples gate
 // run a click sequence through (spec §2.8). Nothing here touches the DOM.
 import { hitElement } from "../ui/hit";
+import type { Pt } from "../layout/model";
 import { validateEffects, type WidgetEffect } from "./widget-effects";
 import { buildWidgetScene, paramNamesOf, type WidgetSceneOpts } from "./widget-scene";
 import type { SceneModule } from "./types";
@@ -23,6 +24,9 @@ export function stepWidget(body: WidgetBody, state: unknown, event: WidgetEvent,
 
 /** A key event for the harness and the tests: the key, held `ms`. */
 export const keyEvent = (key: string, ms: number): WidgetEvent => ({ type: "key", key, ms });
+
+/** A drag for the harness and the tests: `id` dropped on `to` (null = blank paper). */
+export const dragEvent = (id: string, to: string | null, point: Pt = [0, 0]): WidgetEvent => ({ type: "drag", id, to, point, domain: null });
 
 export interface WidgetRun {
   states: unknown[];
@@ -64,6 +68,16 @@ export function runWidget(module: SceneModule, params: Record<string, unknown>, 
     if (!ev) {
       run.errors.push(`click: "${String(c)}" is not a part (${scene.ids.join(", ")})`);
       continue;
+    }
+    // A drag names TWO parts, and a typo in either is the same mistake the
+    // string form reports: `to` may be null (blank paper) and may equal `id`
+    // (dropped back where it was picked up), but neither may be invented.
+    if (ev.type === "drag") {
+      const unknown = [ev.id, ev.to].filter((id): id is string => id !== null && !scene!.ids.includes(id));
+      if (unknown.length > 0) {
+        for (const id of unknown) run.errors.push(`drag: "${id}" is not a part (${scene.ids.join(", ")})`);
+        continue;
+      }
     }
     const r = stepWidget(body, state, ev, scene, names);
     state = r.state;

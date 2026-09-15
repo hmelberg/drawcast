@@ -61,10 +61,18 @@ FUNCTION BODY>"`. It is the body of: new Function("kit"), and must
 `return { init, on }` (optionally `demo` and `judge`):
 
 - `init(scene) -> state` — plain JSON data; the host holds it and passes it back.
-- `on(event, state, scene) -> { state, effects }` — the event is either
+- `on(event, state, scene) -> { state, effects }` — the event is
   `{type: "click", id, point, domain}`, where `id` is one of the layout's
-  top-level ids, or `{type: "key", key, ms}` (see `keys` below). Return the
-  new state and a list of effects.
+  top-level ids; `{type: "drag", id, to, point, domain}` — a press that MOVED
+  before release, `id` the part picked up, `to` the part it was dropped on (or
+  null on blank paper; `to` may also EQUAL `id` — the viewer dropped the part
+  back where they picked it up, and a body should treat that as a no-op:
+  return the state unchanged, with no effects); or `{type: "key", key, ms}`
+  (see `keys` below). Return
+  the new state and a list of effects. Handle `drag` beside `click` for "put
+  this THERE" tasks (a disc onto a peg, a card into a slot) — and keep the
+  click path doing the same job on its own: click-then-click is the fallback
+  for a finger without a steady hand.
 - `keys: [" ", "Enter"]` (optional) — the keys the widget wants, as DOM
   `KeyboardEvent.key` values. One `key` event arrives when the viewer RELEASES
   one of them, with `ms` = how long it was held, so ONE key can mean two

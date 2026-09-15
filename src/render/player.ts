@@ -616,6 +616,14 @@ export class Player {
     return this.painted;
   }
 
+  /** Move a rendered part by (dx, dy) on top of the pose it is drawn with — a
+   *  widget's drag ghost; (0, 0) restores it. Through the EFFECTS, not the
+   *  element handles: the handles hold the nodes this figure mounted with, and
+   *  any preview since (a slider, the widget's own patch) has replaced them. */
+  nudge(id: string, dx: number, dy: number): void {
+    this.effects?.setOffset?.(id, dx, dy);
+  }
+
   /**
    * Add-on hook (the identify drill, ui/quiz.ts): dim these ids to alpha, or
    * restore them with alpha 1. Rides on the focus verb's primitive and, like

@@ -180,6 +180,48 @@ auto-repeat is ignored; one `key` event fires on keyup with
 untouched. The event mounts the body like a click does (`init` on first
 use). The harness accepts `{type: "key", key, ms}` events directly.
 
+**Addendum 2026-09-15b — one gesture, read at release: `click` or `drag`
+(Hans: "Do we have a primitive drag and drop?" — agreed: unified gesture
+with a ghost, end-only, no movie polish).**
+
+| Event | Fields | When |
+| --- | --- | --- |
+| `drag` | `id` (the part pressed), `to` (the part under the release point, or `null` on blank paper; may equal `id`), `point`, `domain` (the release point) | a press on a part that moved at least `DRAG_MIN = 6` logical units before release |
+
+The host no longer listens for `click`. It tracks one pointer gesture on
+the stage — pointerdown on a part, pointermove, pointerup — and reads it
+at release, the connect gate's rule: a press that barely moved is a
+`click` (as before, same event, same `partAt` hit), a press that moved is
+a `drag`. A body that handles only clicks ignores `drag` and loses nothing;
+Hanoi and bubble sort handle both (click-click stays the fallback for
+touch without a steady hand and for keyboard-only viewers via the pads).
+
+**The ghost.** While a press is moving, the pressed part follows the
+pointer through the renderer's per-element offset transform
+(`RenderedElement.setOffset`, the `move` verb's own tween primitive — no
+layout pass), exposed as a public `Player.nudge(id, dx, dy)` that adds to
+whatever offset the storyboard already gave the part and restores it on
+release. The host sets `touch-action: none` on the stage only for the
+duration of a press on a part (the piano's precedent) and takes pointer
+capture so a fast drag cannot escape the stage. On release the ghost is
+cleared BEFORE the event is delivered, so the body's `patch` is the only
+thing that moves geometry for real. `pointercancel` clears the ghost and
+delivers nothing.
+
+**The gesture core is DOM-free.** `WidgetHost` gains `press(p)`,
+`move(p)`, `release(p)` and `cancel()`; `clickAt(p)` remains as
+press-and-release in place. The stage listeners and the widget gate's
+overlay both forward to the same four calls, so a drag works during the
+widget's own ask exactly as in free play. Tests drive the core with a fake
+`nudge`.
+
+**Collisions.** The synthesized `click` that follows a press which began
+on a part is swallowed in the capture phase (the piano's rule), so a drag
+released on blank paper never toggles playback; a press that began on a
+button, on blank paper, while playing, or under another gate is not the
+widget's and is left alone. No drop-target glow in this round: the ghost is
+the feedback. No `drag` demo effect: the movie keeps tapping from and to.
+
 Morse: `keys: [" ", "Enter"]`; Space held under `DOT_MS = 200` is a dot,
 longer a dash; Enter ends the letter; Enter on an already-closed letter
 sends. The pads keep working; a drawn hint line beside or above them,
@@ -418,12 +460,18 @@ example lights the bulb.
    rhythm of SOS, then `ask … widget: morse_key, answer: SOS`. Exercises
    every effect and the ask binding.
 2. **Tower of Hanoi** (`tower_of_hanoi`): params `disks` (3–5) and `pegs`
-   (three stacks, widget-patched); state = pegs + selected peg; a click on
-   a peg selects, a second click moves the top disk if legal (smaller on
-   larger), an illegal move glows the target red, the solved tower glows
-   green and emits `answer: "solved"`; `demo` performs the optimal
-   solution. Example: "The Tower of Hanoi puzzle" with an ask
-   `answer: solved`. Exercises state, multi-step input, glow, demo.
+   (three stacks, widget-patched); state = pegs + selected peg. The DISKS
+   are their own top-level parts (`disk_1`… , not children of a peg), so
+   the viewer drags a disk onto a peg — a drop on a disk counts as its
+   peg, which is where a hand aiming at the top of a stack actually lets
+   go — or clicks the top disk and then a peg, the fallback for a finger
+   without a steady hand. Both gestures meet in one `move(from, to)`, so
+   the puzzle can only be wrong in one place: a larger disk onto a smaller
+   one glows the target red, lifting a buried disk says "only the top disk
+   moves", the solved tower glows green and emits `answer: "solved"`;
+   `demo` performs the optimal solution. Example: "The Tower of Hanoi
+   puzzle" with an ask `answer: solved`. Exercises state, drag, multi-step
+   input, glow, demo.
 3. **Logic gates** (`logic_gates`): params `gate` (AND/OR/XOR/NAND),
    `a`, `b` (widget-patched booleans); drawn with the kit's `switch`,
    `bulb` and `battery` stamps; a click on a switch toggles it, the bulb

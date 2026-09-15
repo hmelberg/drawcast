@@ -1,7 +1,11 @@
-// The widget host (spec §2.3): while paused, a click on one of the template's
-// parts runs the widget body and performs its effects; nothing persists past
-// the preview. The DOM-free core (widgetHostFor) is what tests drive; the
-// stage listener (attachWidgetHost) is source-pinned.
+// The widget host (spec §2.3): while paused, a gesture on one of the
+// template's parts runs the widget body and performs its effects; nothing
+// persists past the preview. ONE gesture is tracked — press, move, release —
+// and read at the end (§2.2 addendum 2026-09-15b): a press that barely moved
+// is a click, one that moved is a drag, and the pressed part follows the
+// pointer as a ghost on the renderer's offset. The DOM-free core
+// (widgetHostFor) is what tests drive; the stage listeners (attachWidgetHost)
+// are source-pinned.
 import type { RenderHandle } from "../render";
 import type { Pt } from "../layout/model";
 import type { MeasureFn } from "../layout/measure";
@@ -14,17 +18,36 @@ import { makeBrowserMeasure } from "../render/svg-backend";
 import { sceneAt } from "../render/plan";
 import { withNewIdsVisible } from "../render/params";
 import { answersMatch } from "../spec/answers";
+import { overCaption } from "./caption";
 import { h, logicalPoint } from "./dom";
-import { gateIsOpen } from "./gates";
+import { CONTROL_SELECTOR, gateIsOpen } from "./gates";
 // Type-only: controls.ts imports this module for attachWidgetHost, so the
 // crossing back has to be erased at compile time or the two would cycle.
 import type { AskGateStep } from "./controls";
 
 const CARD_LINGER_MS = 900;
 
+/** How far a press must travel, in logical units, for the release to read it
+ *  as a drag rather than a click. Decided at RELEASE, never before: a press
+ *  that wanders 5 units and comes back is still a click. */
+export const DRAG_MIN = 6;
+
 export interface WidgetHost {
-  /** Route a logical point: true when it hit a part (and the widget ran). */
+  /** Route a logical point: true when it hit a part (and the widget ran) —
+   *  a press and a release in the same place. */
   clickAt(p: Pt): boolean;
+  /** Begin the gesture: true when a part is under p, and the caller then owns
+   *  the pointer until release() or cancel(). False leaves everything alone. */
+  press(p: Pt): boolean;
+  /** Carry the pressed part along: past DRAG_MIN it ghosts under the pointer.
+   *  A no-op when no gesture is in flight, so it is free at rest. */
+  move(p: Pt): void;
+  /** Read the gesture at release: "click" when it barely moved, "drag" when it
+   *  did (the ghost is cleared BEFORE the event is delivered, so only the
+   *  body's own patch moves geometry for real); null when nothing was pressed. */
+  release(p: Pt): "click" | "drag" | null;
+  /** Drop the gesture and its ghost without delivering anything (pointercancel). */
+  cancel(): void;
   /** The keys the body asked for (DOM KeyboardEvent.key values); empty for a
    *  click-only widget, and then no key listener is installed at all. */
   keys: readonly string[];
@@ -43,6 +66,9 @@ export interface WidgetHostDeps {
   warn?: (msg: string) => void;
   /** Text measure for boxes; the browser's in the app, the heuristic in tests. */
   measure?: MeasureFn;
+  /** The drag ghost: the renderer's per-element offset (the player's `nudge`
+   *  in the app, a recorder in tests). (0, 0) puts the part back. */
+  nudge?: (id: string, dx: number, dy: number) => void;
 }
 
 export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): WidgetHost | null {
@@ -50,6 +76,7 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
   const module = template ? scenes[template] : undefined;
   if (!module?.widget || !module.layout) return null;
   const warn = deps.warn ?? ((m: string) => console.warn(`[widget ${template}] ${m}`));
+  const nudge = deps.nudge ?? ((id: string, dx: number, dy: number) => hd.timeline.nudge(id, dx, dy));
   const names = paramNamesOf(module);
   const listeners = new Set<(v: string) => void>();
   // The keys the body asked for: read once, from a probe body that is then
@@ -72,6 +99,9 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
    *  preview order `revealNew` compares against the mounted one (render/index.ts
    *  ~382), so a pad a patch mints is on screen and clickable at once. */
   let previewOrder: readonly string[] = [];
+  /** The one pointer gesture in flight: the part pressed, where the press
+   *  began, and whether it has passed DRAG_MIN (once past, it stays a drag). */
+  let gesture: { id: string; start: Pt; moved: boolean } | null = null;
 
   const params = (): Record<string, unknown> => ({ ...(hd.spec.params ?? {}), ...hd.timeline.getParamOverrides(), ...patches });
 
@@ -162,12 +192,50 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
       return sc !== null && partAt(sc, p) !== null;
     },
     clickAt(p) {
+      // The whole gesture in one point — the harness, the tests and anything
+      // that has a click and no pointer travel to read.
+      return this.press(p) && this.release(p) === "click";
+    },
+    press(p) {
+      // One gesture at a time: a second finger landing mid-drag would strand
+      // the first part on an offset nothing owns any more.
+      if (gesture) return false;
       const sc = scene();
       if (!sc) return false;
       const id = partAt(sc, p);
       if (id === null) return false;
-      run(sc, { type: "click", id, point: p, domain: sc.toDomain(p) });
+      gesture = { id, start: p, moved: false };
       return true;
+    },
+    move(p) {
+      if (!gesture) return;
+      const dx = p[0] - gesture.start[0],
+        dy = p[1] - gesture.start[1];
+      if (!gesture.moved && Math.hypot(dx, dy) < DRAG_MIN) return;
+      gesture.moved = true;
+      nudge(gesture.id, dx, dy);
+    },
+    release(p) {
+      if (!gesture) return null;
+      const g = gesture;
+      gesture = null;
+      // The ghost goes first — before the scene, before the event: the body's
+      // patch is the only thing that may move geometry for real, and a part
+      // left hanging on an offset nothing owns never finds its way back.
+      if (g.moved) nudge(g.id, 0, 0);
+      const sc = scene();
+      if (!sc) return null;
+      if (!g.moved) {
+        run(sc, { type: "click", id: g.id, point: g.start, domain: sc.toDomain(g.start) });
+        return "click";
+      }
+      run(sc, { type: "drag", id: g.id, to: partAt(sc, p), point: p, domain: sc.toDomain(p) });
+      return "drag";
+    },
+    cancel() {
+      if (!gesture) return;
+      if (gesture.moved) nudge(gesture.id, 0, 0);
+      gesture = null;
     },
     keyPress(key, ms) {
       if (!declaredKeys.includes(key)) return false;
@@ -182,6 +250,7 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
       return () => listeners.delete(fn);
     },
     reset() {
+      this.cancel();
       body = null;
       state = undefined;
       patches = {};
@@ -197,6 +266,30 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
   return host;
 }
 
+/** Whose press is this? The stage's press guard as a pure function of six
+ *  flags, so it can be unit-tested rather than read: a press is the widget's
+ *  only while the figure is not running past it (or the widget's own gate is
+ *  up, which is what that gate is FOR), nowhere near a control, the caption
+ *  band or an open info card, and with no other gate holding the run.
+ *
+ *  The clause that matters: during an ask the player stays in state "playing"
+ *  (the gate is awaited inside the play loop), so a bare `playing` test made
+ *  EVERY widget ask dead to the pointer — the gate's own router, since
+ *  removed, used to compensate. `ownGate` is the exception the keys have had
+ *  all along (keysBlocked below reads it the same way). */
+export function pressBlocked(f: { playing: boolean; ownGate: boolean; foreignGate: boolean; onControl: boolean; onCaption: boolean; onCard: boolean }): boolean {
+  // The big play overlay and the gate pills are buttons INSIDE the stage, the
+  // param tray and the code card are controls on it, the subtitle band lies
+  // across the bottom of the canvas, an open info card floats over the figure.
+  // A press on any of them belongs to that thing, never to a part.
+  if (f.onControl || f.onCaption || f.onCard) return true;
+  // Another gate holds the run: its card is the door, not the figure.
+  if (f.foreignGate) return true;
+  // Playing, the gesture is the movie's (a click pauses it) — unless the
+  // widget's own gate is up, where working the figure IS the question.
+  return f.playing && !f.ownGate;
+}
+
 /** Wire the host to a stage: capture-phase clicks while paused, resets on
  *  playback and step boundaries. Null when the template has no widget body.
  *  The cursor's `cs-cardable` class is NOT toggled here — infocard.ts owns
@@ -207,16 +300,107 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
   const host = widgetHostFor(hd, { measure: makeBrowserMeasure() });
   if (!host) return null;
 
-  stage.addEventListener("click", (e) => {
-    if (hd.timeline.state === "playing") return;
-    // The big play overlay and the gate pills are buttons INSIDE the stage: a
-    // click on one over a large ringed part (Hanoi's middle peg zone, the gate
-    // body) is the button's, never the widget's — the chess and piano guard.
-    if (e.target instanceof Element && e.target.closest("button") !== null) return;
-    if (gateIsOpen(stage)) return;
+  // One pointer gesture, read at release (spec §2.2 addendum 2026-09-15b),
+  // with ONE owner. Capture phase so the stage's play/pause toggle never sees
+  // it — and these listeners also stand UNDER the widget's own gate, because
+  // the gate is a child of the stage and they see its events first: a second
+  // router on the gate raced with this one, delivering the release twice and
+  // letting a drop on Skip both answer the question and skip it (review
+  // 2026-09-15).
+  let swallowClick = false;
+  /** The pointer that owns the gesture; every other one is someone else's. */
+  let activeId: number | null = null;
+  /** The figure's own inline touch-action (a piano stage sets "none" for the
+   *  whole mount) — restored at the end, so the press only BORROWS it. */
+  let priorTouchAction = "";
+  /** The widget's OWN ask gate is up — the marker the keys read too. It comes
+   *  off the moment the gate settles, so the mark's 900 ms linger is foreign. */
+  const ownGate = (): boolean => stage.querySelector(".cs-widgetgate") !== null;
+  const blocked = (e: Event): boolean => {
+    const own = ownGate();
+    const t = e.target instanceof Element ? e.target : null;
+    return pressBlocked({
+      playing: hd.timeline.state === "playing",
+      ownGate: own,
+      foreignGate: gateIsOpen(stage) && !own,
+      onControl: t !== null && t.closest(CONTROL_SELECTOR) !== null,
+      onCaption: overCaption(e.target as Element | null),
+      onCard: t !== null && t.closest(".cs-infocard") !== null,
+    });
+  };
+  stage.addEventListener("pointerdown", (e) => {
+    // A right- or middle-click, and a second finger, are nobody's gesture: no
+    // click follows a secondary button, so letting one through would both run
+    // the widget on a context menu and disarm a swallow a live press armed.
+    if (!e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
+    swallowClick = false; // whatever an earlier press armed, this click is new
+    if (blocked(e)) return;
     const p = logicalPoint(stage, e);
-    if (!p) return;
-    if (host.clickAt(p)) {
+    if (!p || !host.press(p)) return;
+    activeId = e.pointerId;
+    swallowClick = true;
+    // A part being dragged is not a page to scroll (the piano's precedent),
+    // and capture keeps a fast drag from escaping the stage mid-gesture.
+    priorTouchAction = stage.style.touchAction;
+    stage.style.touchAction = "none";
+    try {
+      stage.setPointerCapture(e.pointerId);
+    } catch {
+      /* a synthetic pointer has no capture to take */
+    }
+    e.preventDefault();
+  }, true);
+  // Nothing in flight means nothing to measure: logicalPoint reads the svg's
+  // bounding box, and every pointer move over a paused figure would pay for it.
+  // (It must never ask over() either — the hover class is the info card's.)
+  stage.addEventListener("pointermove", (e) => {
+    if (e.pointerId !== activeId) return;
+    const p = logicalPoint(stage, e);
+    if (p) host.move(p);
+  }, true);
+  const end = (e: PointerEvent, cancelled: boolean): void => {
+    if (e.pointerId !== activeId) return;
+    activeId = null;
+    stage.style.touchAction = priorTouchAction;
+    try {
+      stage.releasePointerCapture(e.pointerId);
+    } catch {
+      /* not captured */
+    }
+    if (cancelled) {
+      // No click follows a cancelled pointer, so the armed swallow would sit
+      // there and eat the NEXT one — a tap on the play button, doing nothing.
+      swallowClick = false;
+      host.cancel();
+      return;
+    }
+    // A drop on a control (the gate's Skip pill) is that control's gesture:
+    // the widget gets nothing and the ghost goes back. Under pointer capture
+    // every event retargets to the STAGE, so the event's own target cannot
+    // tell Skip from paper — the release point can.
+    const dropped = document.elementFromPoint(e.clientX, e.clientY);
+    const p = dropped instanceof Element && dropped.closest("button") !== null ? null : logicalPoint(stage, e);
+    if (p) host.release(p);
+    else host.cancel();
+  };
+  stage.addEventListener("pointerup", (e) => end(e, false), true);
+  stage.addEventListener("pointercancel", (e) => end(e, true), true);
+  // Capture yanked mid-gesture (the browser takes the pointer, the node goes
+  // away): no pointerup and no click will follow, so the ghost and the armed
+  // swallow would both be stranded. On the ORDINARY path end() has already
+  // cleared activeId by the time this fires, so it does nothing at all.
+  stage.addEventListener("lostpointercapture", (e) => {
+    if (e.pointerId !== activeId) return;
+    activeId = null;
+    swallowClick = false;
+    stage.style.touchAction = priorTouchAction;
+    host.cancel();
+  });
+  // The click that follows a press which began on a part is the widget's
+  // gesture already delivered — never the play/pause toggle (the piano's rule).
+  stage.addEventListener("click", (e) => {
+    if (swallowClick) {
+      swallowClick = false;
       e.stopPropagation();
       e.preventDefault();
     }
@@ -250,8 +434,8 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
     // below for the play button.
     const keysBlocked = (e: KeyboardEvent): boolean =>
       typing(e.target) ||
-      (hd.timeline.state === "playing" && !stage.querySelector(".cs-widgetgate")) ||
-      (gateIsOpen(stage) && !stage.querySelector(".cs-widgetgate")) ||
+      (hd.timeline.state === "playing" && !ownGate()) ||
+      (gateIsOpen(stage) && !ownGate()) ||
       (e.target instanceof Element && e.target.closest(".cs-figgate-skip, .cs-cardgate-pill") !== null);
     const onKeyDown = (e: KeyboardEvent): void => {
       if (!stage.isConnected) {
@@ -287,8 +471,11 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
   return host;
 }
 
-/** A template-bound ask's gate: the figure gate's hint and Skip, clicks routed
- *  to the host, resolved by the widget's next `answer` effect. Resolves a
+/** A template-bound ask's gate: the figure gate's hint and Skip, resolved by
+ *  the widget's next `answer` effect. It routes NO gestures of its own — the
+ *  stage's listeners (attachWidgetHost) read the gesture under this gate the
+ *  same way they do in free play, and two routers on the same events raced.
+ *  Resolves a
  *  string like every gate: the step's answer when judged right (so the
  *  player's answersMatch agrees), the given string otherwise. */
 export function widgetGateFor(stage: HTMLElement, hd: RenderHandle, host: WidgetHost): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
@@ -336,16 +523,15 @@ export function widgetGateFor(stage: HTMLElement, hd: RenderHandle, host: Widget
         mark.style.top = `${gr.height / 2}px`;
         gate.appendChild(mark);
         hint.remove();
+        // The mark lingers 900 ms — but the question is OVER. The marker class
+        // comes off right here (cs-figgate stays, so gateIsOpen still holds),
+        // and the stage's guards read the linger as any other gate: no press
+        // reaches the body after the answer has been judged.
+        gate.classList.remove("cs-widgetgate");
         settled = true;
         detach();
         window.setTimeout(() => gate.remove(), CARD_LINGER_MS);
         resolve(ok ? step.answer : given);
-      });
-      gate.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (settled) return;
-        const p = logicalPoint(stage, e);
-        if (p) host.clickAt(p);
       });
       if (!step.required) {
         const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip" }, "Skip ▸");
