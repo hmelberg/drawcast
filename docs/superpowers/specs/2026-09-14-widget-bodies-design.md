@@ -176,6 +176,14 @@ Unknown effect keys are ignored with a console warning; a body that throws
 is caught, logged and the state left unchanged. Nothing a widget returns
 can escape the host.
 
+**`answer` means "done".** The ask gate judges the FIRST `answer` effect it
+receives and settles (§2.4), so a widget emits `answer` only when the
+viewer has finished — a solved tower, a lit bulb, a pressed send pad —
+never a provisional value on every step (found in review 2026-09-15: the
+first Morse draft answered at every letter gap and SOS was judged wrong
+after the S; the fix was a send pad, not a lenient gate, because a gate
+that swallowed wrong answers would mute the ask's `wrong` line).
+
 **Scene** (`WidgetScene`, `src/scenes/widget-scene.ts`, pure): `ids` (the
 widget's parts, §2.3), `boxes: Map<id, BBox>`, `rings: Map<id, Pt[][]>`,
 `params` (the template params as painted, including the widget's own
@@ -363,10 +371,12 @@ example lights the bulb.
 
 ## 5. Bundled examples (`src/scenes/packs/widgets.yaml`, pack `widgets`)
 
-1. **Morse key** (`morse_key`, above): three pads, signal strip, decoded
-   text, code chart. Example cast: "Teach Morse code" — the chart, the
-   rhythm of SOS, then `ask … widget: morse_key, answer: SOS` with an
-   `explore` invitation. Exercises every effect and the ask binding.
+1. **Morse key** (`morse_key`, above, plus a fourth `key_send` pad): dot,
+   dash, gap and send pads, signal strip, decoded text, code chart. Gap
+   ends a letter; send closes an open letter and emits the `answer` (the
+   "done" rule above). Example cast: "Teach Morse code" — the chart, the
+   rhythm of SOS, then `ask … widget: morse_key, answer: SOS`. Exercises
+   every effect and the ask binding.
 2. **Tower of Hanoi** (`tower_of_hanoi`): params `disks` (3–5) and `pegs`
    (three stacks, widget-patched); state = pegs + selected peg; a click on
    a peg selects, a second click moves the top disk if legal (smaller on
