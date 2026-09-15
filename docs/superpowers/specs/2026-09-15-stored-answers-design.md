@@ -1,6 +1,6 @@
 # Stored answers: names, timing, and carry-over across items
 
-Date: 2026-09-15. Status: design agreed in conversation, not planned, not built.
+Date: 2026-09-15. Status: built 2026-09-16 (plan docs/superpowers/plans/2026-09-16-stored-answers.md); Submit and the "My answers" panel remain open (§4).
 
 ## 1. The problem
 
