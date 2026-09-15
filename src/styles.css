@@ -1865,9 +1865,9 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .pl-badge-advanced { color: var(--steel); border-color: color-mix(in srgb, var(--steel) 50%, var(--surface)); }
 
 /* ---------- explore tray (params sliders under the control bar) ----------
-   Looks like the figure (design 2026-09-14 §2.6b): the paper, the fonts, a
-   hand-drawn border, no gap under the bar. Popped out, it floats over the
-   stage with the browser's own resize handle. */
+   Paper, ink and the sketch face; a plain top edge — chrome, not a drawing
+   (2026-09-15). Popped out, it floats over the stage with the browser's own
+   resize handle. */
 .cs-paramtray {
   display: flex;
   flex-direction: column;
@@ -1875,20 +1875,14 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   padding: 0.5rem 0.7rem 0.6rem;
   background: var(--paper);
   color: var(--ink);
-  border: 1.5px solid var(--ink);
-  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; /* the sketchy-box trick, same ink as the drawing */
+  border: none;
+  border-top: 1px solid var(--line);
   margin-top: -1px;
 }
-/* Dark mode: the full-ink border reads as a bright outline against the dark
-   paper (--ink is near-white there). Soften it to --line, same as every
-   other real edge in dark mode; the theme paper background is unchanged.
-   The prefers-color-scheme half lives with the file's one allowed dark
-   media block, at the top (tests/palette.test.ts pins exactly one); the
-   explicit-choice half sits here, beside the rule it overrides. */
-:root[data-theme="dark"] .cs-paramtray { border-color: var(--line); }
 .cs-paramtray.cs-popped {
   position: absolute;
   z-index: 30;
+  border: 1px solid var(--line);
   resize: both;
   overflow: auto;
   min-width: 260px;
