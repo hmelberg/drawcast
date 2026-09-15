@@ -182,8 +182,18 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // merged tree: schema 117162 → 117746, system 232892 → 233635.
 // Re-pinned 2026-09-15 animated-box round: one sentence in compiler-v1.md,
 // +329 on the system prompt; schema untouched.
-const BASELINE_SYSTEM_CHARS = 233964;
-const BASELINE_SCHEMA_CHARS = 117746;
+// Re-pinned 2026-09-16 for the stored-answers round (spec
+// 2026-09-15-stored-answers-design.md): the schema gains `quiz.store` (one
+// description sentence naming {name}, {name.ok}, {name.secs}) and the
+// top-level `record` flag — +534 on the schema (117746 → 118280), embedded
+// verbatim in the system prompt; the prompt itself gains the _answers
+// namespace paragraph on the quiz bullet and one clause on the ask bullet,
+// +568 — total system +1102 (233635 → 234737).
+// Re-measured 2026-09-16 on the merge of the animated-box round with the
+// stored-answers round (both additive): pinned to the values measured on the
+// merged tree: schema 118280 (unchanged from stored-answers), system 234737 → 235066 (+329, the animated-box sentence).
+const BASELINE_SYSTEM_CHARS = 235066;
+const BASELINE_SCHEMA_CHARS = 118280;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

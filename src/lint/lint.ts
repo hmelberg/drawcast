@@ -3,7 +3,7 @@
 // repair round as structured text.
 
 import { CANVAS } from "../layout/canvas";
-import { RESERVED_VARS, VAR_RE } from "../spec/answers";
+import { AUTO_NAMESPACE, baseName, isReservedVar, VAR_RE } from "../spec/answers";
 import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox, type BBox } from "../layout/geometry";
 import { flattenDrawables, leafDrawables, type Drawable, type GroupDrawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
 import { mathBox } from "../layout/labels";
@@ -751,23 +751,60 @@ function lintWidget(spec: Spec): LintIssue[] {
  * moving. Deterministic, spec-level — feeds the same report as lintLayout so
  * the LLM repair round self-corrects talky storyboards.
  */
-export function lintCommands(spec: Spec): LintIssue[] {
+/** One question's automatic name (spec 2026-09-15-stored-answers §2), for
+ *  the lint message and any listing: `_answers.N` from the offset, plus the
+ *  explicit store when the author gave one. */
+export interface QuestionName {
+  /** Index into spec.commands. */
+  index: number;
+  kind: "quiz" | "ask";
+  /** `_answers.N`, N counting from questionOffset + 1. */
+  name: string;
+  store?: string;
+}
+
+export function questionNames(spec: Spec, questionOffset = 0): QuestionName[] {
+  const out: QuestionName[] = [];
+  let n = questionOffset;
+  (spec.commands ?? []).forEach((c, i) => {
+    const kind = c.quiz !== undefined ? "quiz" : c.ask !== undefined ? "ask" : null;
+    if (kind === null) return;
+    const store = kind === "quiz" ? c.quiz?.store : c.ask?.store;
+    out.push({ index: i, kind, name: `${AUTO_NAMESPACE}.${++n}`, ...(store ? { store } : {}) });
+  });
+  return out;
+}
+
+export interface LintCommandsOptions {
+  /** Store names earlier playlist items wrote — carried in, so not "used before stored" here. */
+  knownVars?: ReadonlySet<string>;
+  /** Questions in earlier items: this item's `_answers.N` continues from here. */
+  questionOffset?: number;
+}
+
+export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIssue[] {
   const cmds = spec.commands ?? [];
   const issues: LintIssue[] = [...lintSources(spec), ...lintCode(spec), ...lintWidget(spec)];
 
   // {var} tokens must be stored by an EARLIER ask — a later or missing store
-  // means the line speaks the literal braces.
+  // means the line speaks the literal braces. A dotted token ({age.secs})
+  // is judged by its base name; the player's own namespace ({_answers.*})
+  // and score are never flagged; a name an earlier item stored is known.
+  // The message lists the names this spec DOES have, so an author copies
+  // one instead of deriving it — the only way an automatic name gets used.
   const stored = new Set<string>();
+  const names = questionNames(spec, opts.questionOffset ?? 0);
+  const available = names.map((q) => (q.store ? `${q.store} (${q.kind} at commands[${q.index}], also ${q.name})` : `${q.name} (${q.kind} at commands[${q.index}])`)).join(", ") || "none";
   const flagVars = (text: string | undefined, where: string): void => {
     if (typeof text !== "string") return;
     for (const m of text.matchAll(VAR_RE)) {
-      const name = m[1].toLowerCase();
-      if ((RESERVED_VARS as readonly string[]).includes(name)) continue; // the player maintains these
-      if (!stored.has(name)) {
+      const name = baseName(m[1].toLowerCase());
+      if (isReservedVar(name)) continue; // the player maintains these
+      if (!stored.has(name) && !opts.knownVars?.has(name)) {
         issues.push({
           rule: "ask-var",
           ids: [],
-          message: `${where} uses {${m[1]}} before any ask stores it — add an ask with store: ${m[1]} earlier (or fix the name)`,
+          message: `${where} uses {${m[1]}} before any question stores it — add store: ${name} to an earlier quiz/ask (or fix the name); automatic names here: ${available}`,
           severity: "warn",
         });
       }
@@ -807,6 +844,7 @@ export function lintCommands(spec: Spec): LintIssue[] {
     flagVars(c.ask?.right, `commands[${i}].ask.right`);
     flagVars(c.ask?.wrong, `commands[${i}].ask.wrong`);
     if (c.ask?.store) stored.add(c.ask.store.toLowerCase());
+    if (c.quiz?.store) stored.add(c.quiz.store.toLowerCase());
     if (c.run !== undefined) checkSweep(i, "run", c.run.code, c.run);
     if (c.explore?.play !== undefined && c.explore.play !== false) checkSweep(i, "explore.play", c.explore.code, c.explore.play);
   });

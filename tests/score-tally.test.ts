@@ -42,6 +42,20 @@ describe("the score tally", () => {
     expect(speech.spoken.at(-1)).toBe("You got 1 of 2.");
   });
 
+  test("a quiz with store keeps the chosen option's text; a skip keeps the correct one", async () => {
+    const cmds: Command[] = [{ quiz: { question: "Pick?", choices: ["apples", "pears"], correct: 2, store: "pick" } }, { speak: "You chose {pick}." }];
+    let speech = new RecordingSpeech();
+    let player = makePlayer(cmds, speech);
+    player.quizGate = async () => 0;
+    await player.play();
+    expect(speech.spoken.at(-1)).toBe("You chose apples.");
+    speech = new RecordingSpeech();
+    player = makePlayer(cmds, speech);
+    player.quizGate = async () => null;
+    await player.play();
+    expect(speech.spoken.at(-1)).toBe("You chose pears.");
+  });
+
   test("a skipped answer counts as wrong", async () => {
     const speech = new RecordingSpeech();
     const player = makePlayer(TWO_QUESTIONS, speech);

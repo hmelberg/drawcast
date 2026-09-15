@@ -68,6 +68,7 @@ import {
   type Playlist,
 } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines, type SessionHandle } from "./playlist/session";
+import { appendRecord, localRecordStorage } from "./render/record";
 import { applyViewsFlag } from "./views";
 import { exportVideo, narrationLanguage, type ExportResult } from "./export/video";
 import { snapshotPng } from "./export/snapshot";
@@ -2673,6 +2674,22 @@ async function present(andPlay = false): Promise<void> {
     });
     const mounted = await mountPlaylist(host, doc.playlist, {
       style: settings.style,
+      // The local record (render/record.ts) — here keyed by the document, so
+      // an author's own test run shows up the way a student's would.
+      onAnswer: (a, item, index) => {
+        if (item.spec.record === false) return;
+        appendRecord(localRecordStorage(), `local:${doc.id ?? "draft"}`, {
+          item: index,
+          step: a.index,
+          id: a.id,
+          question: a.question,
+          given: a.given,
+          expected: a.expected,
+          correct: a.correct,
+          ...(a.secs !== undefined ? { secs: a.secs } : {}),
+          at: new Date().toISOString(),
+        });
+      },
       // The viewer's text override applies to every mount the app makes —
       // the editor pane and Player mode alike (Hans 2026-09-03: "these changes
       // should apply to both the player in the editor (preview) and the single

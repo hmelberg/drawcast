@@ -9,7 +9,7 @@
 import AjvModule, { type ValidateFunction } from "ajv";
 import { assetRef, resolveAssetRefs } from "./assets";
 import { BUILTIN_WIDGETS, SIDE_VALUES, type Command, type Spec, type SpecElement } from "./types";
-import { RESERVED_VARS } from "./answers";
+import { isReservedVar } from "./answers";
 import { SUB_SUFFIXES } from "../layout/model";
 import { isFitName } from "../layout/regions";
 import { C64_PROGRAMS } from "../code/c64-catalogue";
@@ -491,6 +491,11 @@ const commandSchema = {
         required: { type: "boolean", description: "App only: the question cannot be skipped without answering. Movies never wait." },
         right_goto: { type: "string", description: "Jump to this label on a correct VIEWER answer. Movies always play straight through." },
         wrong_goto: { type: "string", description: "Jump to this label on a wrong VIEWER answer — typically back to the explanation, so the viewer re-watches and the question comes again. Movies always play straight through." },
+        store: {
+          type: "string",
+          description:
+            "Store the chosen option's TEXT under this simple name (letters, digits, underscores; starts with a letter): later speak lines may use {name}, {name.ok} (true/false) and {name.secs} (seconds the viewer took). Movies and skipped questions store the correct option.",
+        },
       },
       required: ["question", "choices", "correct"],
       additionalProperties: false,
@@ -934,6 +939,7 @@ export const specSchema = {
         "Playlist items only: the semantic-zoom entrance. Before this item begins, the PREVIOUS figure zooms into this element id (an id of the PREVIOUS item's scene) and fades there — so the new figure feels like the inside of the old one (heart → cell, bins → bell curve). Replaces the chapter card at that junction.",
     },
     level: { type: "string", enum: ["basic", "advanced"], description: "Difficulty of the explanation, when the request states one. Shown as a badge; omit if unspecified." },
+    record: { type: "boolean", description: "false: keep no local record of the viewer's answers in their browser. Omit (default true)." },
     voice: {
       type: "string",
       enum: ["male", "female"],
@@ -1292,6 +1298,12 @@ function semanticErrors(spec: Spec): string[] {
       }
       checkGoto(i, "quiz", "right_goto", a.right_goto);
       checkGoto(i, "quiz", "wrong_goto", a.wrong_goto);
+      if (a.store !== undefined && !/^[a-z][a-z0-9_]*$/i.test(a.store)) {
+        errors.push(`commands[${i}]: quiz.store must be a simple name (letters, digits, underscores; starts with a letter)`);
+      }
+      if (a.store !== undefined && isReservedVar(a.store)) {
+        errors.push(`commands[${i}]: quiz.store may not claim the reserved name "${a.store}" — the player maintains it automatically`);
+      }
     }
     if (verb === "ask" && cmd.ask) {
       const a = cmd.ask;
@@ -1307,7 +1319,7 @@ function semanticErrors(spec: Spec): string[] {
       if (a.store !== undefined && !/^[a-z][a-z0-9_]*$/i.test(a.store)) {
         errors.push(`commands[${i}]: ask.store must be a simple name (letters, digits, underscores; starts with a letter)`);
       }
-      if (a.store !== undefined && (RESERVED_VARS as readonly string[]).includes(a.store.toLowerCase())) {
+      if (a.store !== undefined && isReservedVar(a.store)) {
         errors.push(`commands[${i}]: ask.store may not claim the reserved name "${a.store}" — the player maintains it automatically`);
       }
       if (a.store !== undefined && a.default === undefined) {
