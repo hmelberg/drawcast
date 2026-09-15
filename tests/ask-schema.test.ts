@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { validateSpec } from "../src/spec/schema";
-import { answersMatch, subVars } from "../src/spec/answers";
+import { answersMatch, AUTO_NAMESPACE, baseName, isReservedVar, subVars, VAR_RE } from "../src/spec/answers";
 
 const base = (ask: object) => ({
   elements: [{ id: "a", type: "text", text: "hi", x: 500, y: 375 }],
@@ -56,6 +56,29 @@ describe("answersMatch and subVars", () => {
   test("subVars replaces known names, leaves unknown braces alone", () => {
     const vars = new Map([["name", "Hans"]]);
     expect(subVars("Hi {name}, {x} stays.", vars)).toBe("Hi Hans, {x} stays.");
+  });
+
+  test("dotted and underscore-led tokens interpolate (the _answers namespace, spec 2026-09-15)", () => {
+    const vars = new Map([
+      ["_answers.2", "b"],
+      ["_answers.2.secs", "3.4"],
+      ["age.ok", "true"],
+      ["_answers.last", "b"],
+    ]);
+    expect(subVars("You chose {_answers.2} in {_answers.2.secs} s; ok={age.ok}; last {_answers.last}; {nope.x}", vars)).toBe(
+      "You chose b in 3.4 s; ok=true; last b; {nope.x}",
+    );
+    expect("{_Answers.1}".match(VAR_RE)?.[0]).toBe("{_Answers.1}");
+  });
+
+  test("reserved names and base names", () => {
+    expect(AUTO_NAMESPACE).toBe("_answers");
+    expect(isReservedVar("score")).toBe(true);
+    expect(isReservedVar("_answers")).toBe(true);
+    expect(isReservedVar("_answers.3.secs")).toBe(true);
+    expect(isReservedVar("age")).toBe(false);
+    expect(baseName("age.secs")).toBe("age");
+    expect(baseName("age")).toBe("age");
   });
 });
 
