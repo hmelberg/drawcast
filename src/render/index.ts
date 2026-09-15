@@ -54,6 +54,10 @@ export interface RenderOptions {
   callbacks?: PlayerCallbacks;
   /** Viewer preference: skip quiz/ask questions entirely (collect-asks still store their defaults). */
   questions?: "on" | "skip";
+  /** Variables carried in from earlier playlist items (playlist/carry.ts) — seeds the player's map. */
+  vars?: ReadonlyMap<string, string>;
+  /** Questions in earlier playlist items: this item's {_answers.N} continues from here. */
+  questionOffset?: number;
 }
 
 export interface RenderHandle {
@@ -388,7 +392,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     mounted.elements,
     speech,
     caption,
-    { mode: options.mode, speed: options.speed, effects: mounted.effects, questions: options.questions },
+    { mode: options.mode, speed: options.speed, effects: mounted.effects, questions: options.questions, vars: options.vars, questionOffset: options.questionOffset },
     options.callbacks,
   );
   player.setNarratorGender(spec.voice ?? null);

@@ -12,7 +12,8 @@ import { CaptionTape, splitLongCues, type CaptionCue } from "./captions";
 import { titleIsDrawn } from "../render/title";
 import { speechKey, type SpeakLine } from "../render/delivery";
 import { detectLang } from "../render/speech";
-import { subVars } from "../spec/answers";
+import { AUTO_NAMESPACE, subVars } from "../spec/answers";
+import { AnswerCarry, questionOffsets } from "../playlist/carry";
 import { askDemoAt, askDemoDuration, quizDemoAt, quizDemoDuration } from "./demo";
 import type { Spec } from "../spec/types";
 import type { ExportKeepAlive } from "./keepalive";
@@ -22,14 +23,18 @@ import { WebAudioTones } from "../render/tones";
 /** Every distinct narration line in the spec's storyboard, with
  *  speaker/delivery/gender attached, and {var} tokens interpolated with the
  *  asks' defaults — the movie's values — so the audio exists at export time. */
-export function collectSpeakLines(spec: Spec): SpeakLine[] {
+export function collectSpeakLines(spec: Spec, carry?: { vars: Map<string, string>; questionOffset: number }): SpeakLine[] {
   // Whether a script can be DEMOed — asked through the planner's own reader
   // (render/plan.ts), never a second copy of its rules: a beat the storyboard
   // gives a demo sweep is exactly a beat the movie must voice. Right on the
   // raw spec and on a resolved clone alike (controlsOfFor reads `code_src`).
   const controlsOf = controlsOfFor(spec);
   const seen = new Map<string, SpeakLine>();
-  const vars = new Map<string, string>();
+  // Shared across a playlist's items when the caller passes a carry (and
+  // MUTATED, so the next item continues) — the movie's mirror of the live
+  // session's AnswerCarry.
+  const vars = carry?.vars ?? new Map<string, string>();
+  let asked = carry?.questionOffset ?? 0;
   // The movie's tally: auto answers are always correct, so score == answered.
   let answered = 0;
   const publishScore = (): void => {
@@ -37,6 +42,19 @@ export function collectSpeakLines(spec: Spec): SpeakLine[] {
     vars.set("score_total", String(answered));
   };
   publishScore();
+  // The movie's answer to a question: the same names the live player writes
+  // (player.ts recordAnswer) with the auto answer, .ok true where something is
+  // judged, and never .secs — no viewer sat at a gate.
+  const auto = (store: string | undefined, value: string, ok: boolean | null): void => {
+    asked++;
+    for (const base of [`${AUTO_NAMESPACE}.${asked}`, `${AUTO_NAMESPACE}.last`, ...(store ? [store.toLowerCase()] : [])]) {
+      vars.set(base, value);
+      if (ok !== null) vars.set(`${base}.ok`, ok ? "true" : "false");
+      else vars.delete(`${base}.ok`);
+      vars.delete(`${base}.secs`);
+    }
+    vars.set(`${AUTO_NAMESPACE}.count`, String(asked));
+  };
   for (const c of spec.commands ?? []) {
     const push = (text: unknown): void => {
       if (typeof text !== "string" || text.trim().length === 0) return;
@@ -62,7 +80,7 @@ export function collectSpeakLines(spec: Spec): SpeakLine[] {
       push(questionLine(c.quiz));
       answered++;
       publishScore();
-      if (c.quiz.store) vars.set(c.quiz.store.toLowerCase(), c.quiz.choices[c.quiz.correct - 1]);
+      auto(c.quiz.store, c.quiz.choices[c.quiz.correct - 1], true);
       push(c.quiz.right ?? c.quiz.choices[c.quiz.correct - 1]);
     }
     if (c.ask) {
@@ -76,7 +94,9 @@ export function collectSpeakLines(spec: Spec): SpeakLine[] {
         publishScore();
         push(c.ask.right ?? c.ask.answer);
       }
-      if (c.ask.store) vars.set(c.ask.store.toLowerCase(), c.ask.default ?? "");
+      // Check mode "types" the answer, collect mode the default — the same
+      // string the player's auto path stores.
+      auto(c.ask.store, c.ask.answer ?? c.ask.default ?? "", c.ask.answer !== undefined ? true : null);
     }
   }
   return [...seen.values()];
@@ -96,7 +116,7 @@ export function narrationLanguage(specs: Spec[]): string {
   if (declared) return declared.trim();
   let nb = 0;
   let total = 0;
-  for (const line of specs.flatMap(collectSpeakLines)) {
+  for (const line of specs.flatMap((s) => collectSpeakLines(s))) {
     total++;
     if (detectLang(line.text) === "nb") nb++;
   }
@@ -398,10 +418,16 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
   const audioCtx = new AudioContext();
   let handle: Awaited<ReturnType<typeof render>> | null = null;
   let stopVisibility: (() => void) | null = null;
+  // One carry for the lines and one for the players, both walking the items
+  // in order with the same static offsets — so a {name} line in part 3 is
+  // synthesized with exactly the text the part-3 player will ask for.
+  const offsets = questionOffsets(items);
+  const lineVars = new Map<string, string>();
+  const playCarry = new AnswerCarry();
   try {
     const buffers = await synthesizeAll(
       { apiKey: cfg.ttsKey, rate: cfg.rate, lang: cfg.lang },
-      items.flatMap(collectSpeakLines),
+      items.flatMap((spec, i) => collectSpeakLines(spec, { vars: lineVars, questionOffset: offsets[i] })),
       audioCtx,
       (done, total) => hooks.onStatus(`Synthesizing narration ${done}/${total}…`),
       signal,
@@ -529,7 +555,7 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
           heldByLoop = true;
         }
         try {
-          handle = await render(items[i], workbench, { style: cfg.style, speech, tones, mode: "narrated", speed: 1, questions: cfg.questions });
+          handle = await render(items[i], workbench, { style: cfg.style, speech, tones, mode: "narrated", speed: 1, questions: cfg.questions, vars: playCarry.vars, questionOffset: offsets[i] });
           const svg = workbench.querySelector<SVGSVGElement>("svg.cs-svg");
           if (!svg) throw new Error(`nothing to record — spec ${i + 1} rendered no figure`);
           currentSvg = svg;
@@ -590,6 +616,7 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
           heldByLoop = false;
         }
         await handle.timeline.play();
+        playCarry.absorb(handle.timeline.vars);
         if (i < items.length - 1) {
           await zzz(300); // beat between parts
           currentSvg = null;

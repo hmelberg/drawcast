@@ -15,6 +15,7 @@ import type { SpeechManager } from "../render/speech";
 import { attachPlayerControls, clickGate, type ControlsOptions, type PlaybackPrefs } from "../ui/controls";
 import { h } from "../ui/dom";
 import { collectSpeakLines } from "../export/video";
+import { AnswerCarry, questionOffsets } from "./carry";
 import { exportSequence, itemsOf, itemTitle, makeChapterCard, makeTitlePage, ZOOM_EXIT, type Playlist, type PlaylistItem } from "./playlist";
 import { subtitleLanguages, subtitleTrack } from "../spec/subtitles";
 import { parseCloudVoiceId, parseVoiceId, voiceOptions } from "../render/voices";
@@ -101,7 +102,12 @@ export interface SessionHandle {
  */
 export function playlistSpeakLines(playlist: Playlist): SpeakLine[] {
   const seen = new Map<string, SpeakLine>();
-  for (const line of exportSequence(playlist).flatMap(collectSpeakLines)) {
+  // The same carry the movie plays with: a {name} stored in part 1 is spoken
+  // in part 3 as the default the export types, so the baked line matches.
+  const seq = exportSequence(playlist);
+  const offsets = questionOffsets(seq);
+  const vars = new Map<string, string>();
+  for (const line of seq.flatMap((spec, i) => collectSpeakLines(spec, { vars, questionOffset: offsets[i] }))) {
     const key = speechKey(line);
     if (!seen.has(key)) seen.set(key, line);
   }
@@ -143,6 +149,12 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     },
   };
   const renderOpts = { style: opts.style, text: opts.text, speech: opts.speech, mode: opts.mode, speed: opts.speed, questions: opts.questions };
+  // Stored answers survive the cut between items (spec 2026-09-15-stored-
+  // answers): every ITEM render is seeded from the carry and its static
+  // question offset; cards (title, chapter) render plain. Absorbed back on
+  // every answer and at "done" (a collect ask fires no answer event).
+  const carry = new AnswerCarry();
+  const offsets = questionOffsets(items.map((it) => it.spec));
 
   // ---- subtitles ----------------------------------------------------------
   // One choice for the whole playlist, held here rather than in the control
@@ -244,7 +256,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   // One item: exactly the pre-playlist behavior — no dots, no panel, no cards.
   if (items.length <= 1) {
     if (items.length === 1) {
-      const hd = await render(items[0].spec, host, renderOpts);
+      const hd = await render(items[0].spec, host, { ...renderOpts, vars: carry.vars, questionOffset: offsets[0] });
       handle = hd;
       shownSpec = items[0].spec;
       attachPlayerControls(host, hd, prefs, controlOpts);
@@ -396,7 +408,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   async function mountItem(i: number, autoplay: boolean): Promise<void> {
     if (destroyed) return;
     idx = i;
-    const hd = await swapFigure(() => render(items[i].spec, host, renderOpts));
+    const hd = await swapFigure(() => render(items[i].spec, host, { ...renderOpts, vars: carry.vars, questionOffset: offsets[i] }));
     if (destroyed) {
       hd.destroy();
       return;
@@ -432,6 +444,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
         // to flash at every chapter boundary of a lecture (player round).
         markChaining(s, chainsOn(i));
         if (s === "done") {
+          carry.absorb(hd.timeline.vars);
           void onItemDone();
           showNextLink();
           if (i === items.length - 1 && !doneReported) {
@@ -446,6 +459,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
       onAnswer: (a) => {
         prev.onAnswer?.(a);
         opts.onAnswer?.(a, items[i], i);
+        carry.absorb(hd.timeline.vars);
       },
     };
   }
