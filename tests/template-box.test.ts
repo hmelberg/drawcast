@@ -143,6 +143,65 @@ describe("template box — domain coordinates follow the fit", () => {
   });
 });
 
+describe("template box — tier-2 ink stays inside the fitted plot", () => {
+  test("point guides land inside the fitted plot, not the unfitted one", () => {
+    const el = { id: "p", type: "point", at: { x: 50, y: 50 }, guides: true };
+    const spec = (box?: unknown) =>
+      ({
+        template: "sir_compartments",
+        params: box !== undefined ? { box } : {},
+        domain: { x: [0, 100], y: [0, 100] },
+        elements: [el],
+        commands: [{ draw: ["p"] }],
+      }) as unknown as Spec;
+
+    // First: with no box, the guide reaches the UNFITTED plot.x0 — proves the
+    // fitted assertion below actually discriminates rather than passing vacuously.
+    const unfitted = layoutSpec(spec());
+    const plot = plotArea();
+    const unfittedGuide = flattenDrawables(unfitted.drawables).find((d) => d.id === "p_guides");
+    expect(unfittedGuide?.kind === "stroke" && unfittedGuide.pts.some((pt) => Math.abs(pt[0] - plot.x0) < 1)).toBe(true);
+
+    const r = layoutSpec(spec("right"));
+    expect(r.fit).toBeDefined();
+    const { s, dx, dy } = r.fit!;
+    const fitX0 = plot.x0 * s + dx;
+    for (const d of flattenDrawables(r.drawables)) {
+      if (!d.id.startsWith("p_")) continue;
+      if (d.kind !== "stroke") continue;
+      for (const pt of d.pts) expect(pt[0], `${d.id} x`).toBeGreaterThanOrEqual(fitX0 - 1);
+    }
+  });
+
+  test("a line through two domain points stays inside the fitted plot", () => {
+    const spec = {
+      template: "sir_compartments",
+      params: { box: "right" },
+      domain: { x: [0, 100], y: [0, 100] },
+      elements: [{ id: "ln", type: "line", through: [[10, 10], [90, 90]] }],
+      commands: [{ draw: ["ln"] }],
+    } as unknown as Spec;
+    const r = layoutSpec(spec);
+    expect(r.fit).toBeDefined();
+    const { s, dx, dy } = r.fit!;
+    const plot = plotArea();
+    const fitPlot = {
+      x0: plot.x0 * s + dx, x1: plot.x1 * s + dx,
+      y0: plot.y0 * s + dy, y1: plot.y1 * s + dy,
+    };
+    const line = flattenDrawables(r.drawables).find((d) => d.id === "ln");
+    expect(line?.kind).toBe("stroke");
+    if (line?.kind !== "stroke") throw new Error("expected a stroke");
+    expect(line.pts.length).toBeGreaterThan(0);
+    for (const pt of line.pts) {
+      expect(pt[0], "x").toBeGreaterThanOrEqual(fitPlot.x0 - 1);
+      expect(pt[0], "x").toBeLessThanOrEqual(fitPlot.x1 + 1);
+      expect(pt[1], "y").toBeGreaterThanOrEqual(fitPlot.y0 - 1);
+      expect(pt[1], "y").toBeLessThanOrEqual(fitPlot.y1 + 1);
+    }
+  });
+});
+
 describe("template box — the planner's domain mapping composes the fit", () => {
   test("a domain-unit move.to on a boxed template lands on the fitted figure", () => {
     const spec = {

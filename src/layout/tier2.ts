@@ -1,7 +1,7 @@
 // Tier-2/3 layout: turns semantic elements into Drawables. The LLM never
 // places anything here except tier-3 escape-hatch coordinates.
 
-import { CANVAS, linearScale, plotArea } from "./canvas";
+import { CANVAS, linearScale, plotArea, type PlotArea } from "./canvas";
 import { makeAxes } from "./axes";
 import { interpolateAtX, intersectPolylines, qualitativeShape, sampleExpression, sampleParametric } from "./curves";
 import { centroid, type BBox } from "./geometry";
@@ -102,6 +102,12 @@ interface Ctx {
   domainX: [number, number];
   domainY: [number, number];
   domainDeclared: boolean;
+  /** The default plot area, fitted (fs/fdx/fdy) — where a template's axes ARE
+   *  now, not where they were before the box. Readers that clip or anchor to
+   *  "the plot rectangle" (a line's clip box, an axes corner anchor) must use
+   *  this, not plotArea() directly, or their ink reaches past a fitted figure
+   *  into the box's margin or the panel beside it. */
+  plotFit: PlotArea;
   /** curve samples in domain coordinates, for intersections/regions */
   curveSamples: Map<string, Pt[]>;
   /** Ids of curves sampled from x_expr/y_expr (design 2026-09-10 §2.6) — not
@@ -214,6 +220,9 @@ export function layoutElements(
   const domainX: [number, number] = domain?.x ?? [0, 100];
   const domainY: [number, number] = domain?.y ?? [0, 100];
   const fs = opts.fit?.s ?? 1, fdx = opts.fit?.dx ?? 0, fdy = opts.fit?.dy ?? 0;
+  const plotFit: PlotArea = opts.fit
+    ? { x0: plot.x0 * fs + fdx, x1: plot.x1 * fs + fdx, y0: plot.y0 * fs + fdy, y1: plot.y1 * fs + fdy }
+    : plot;
   const sxStd = linearScale(domainX, [plot.x0, plot.x1]);
   const syStd = linearScale(domainY, [plot.y0, plot.y1]);
   const ixStd = linearScale([plot.x0, plot.x1], domainX);
@@ -224,6 +233,7 @@ export function layoutElements(
     domainX,
     domainY,
     domainDeclared: domain !== undefined,
+    plotFit,
     curveSamples: new Map(Object.entries(seedCurveSamples)),
     parametric: new Set(),
     nodeRadius: new Map(),
@@ -372,13 +382,17 @@ export function layoutElements(
     switch (el.type) {
       case "axes":
         drawables.push(makeAxes(el.id, plot, el.x_label, el.y_label));
-        ctx.anchors[el.id] = [plot.x1 - 60, plot.y0 + 40];
+        // The axes DRAWING is not fitted here (item 2's finding — deferred,
+        // the axes-only combination is Hans' to take further); this anchor is
+        // what at.ref reads, and it must land where the fitted figure's
+        // corner now is, not the unfitted one.
+        ctx.anchors[el.id] = [plotFit.x1 - 60, plotFit.y0 + 40];
         break;
       case "curve":
         drawables.push(curveDrawable(el, ctx));
         break;
       case "point":
-        drawables.push(...pointDrawables(el, ctx, plot));
+        drawables.push(...pointDrawables(el, ctx, plotFit));
         break;
       case "region":
         drawables.push(...regionDrawable(el, ctx));
@@ -911,20 +925,24 @@ function resolvePointDomain(el: SpecElement, ctx: Ctx): Pt | null {
   return null;
 }
 
-function pointDrawables(el: SpecElement, ctx: Ctx, plot: ReturnType<typeof plotArea>): Drawable[] {
+function pointDrawables(el: SpecElement, ctx: Ctx, plotFit: PlotArea): Drawable[] {
   const domainPt = resolvePointDomain(el, ctx);
   if (!domainPt) return [];
   const p: Pt = [ctx.sx(domainPt[0]), ctx.sy(domainPt[1])];
   ctx.anchors[el.id] = p;
   const out: Drawable[] = [];
   if (el.guides) {
+    // The FITTED plot corner (item 2's finding) — the guide is drawn from
+    // p's own fitted position, so it must run to the same fitted corner, not
+    // the unfitted plot.x0/y0 (which, on a fitted template, reaches across
+    // the whole canvas and whatever sits beside the box).
     out.push({
       id: `${el.id}_guides`,
       kind: "stroke",
       pts: [
-        [plot.x0, p[1]],
+        [plotFit.x0, p[1]],
         p,
-        [p[0], plot.y0],
+        [p[0], plotFit.y0],
       ],
       z: Z_STROKE,
       style: defaultStyle({ color: COLORS.guide, strokeWidth: 2.5, dash: true, roughness: 0.9 }),
@@ -2081,8 +2099,15 @@ function lineDrawable(el: SpecElement, ctx: Ctx): Drawable | null {
   } else if (typeof el.angle === "number") d = [Math.cos(el.angle * DEG), Math.sin(el.angle * DEG)];
   else { ctx.warnings.push(`line "${el.id}": needs a second point, a slope or an angle`); return null; }
   if (Math.hypot(d[0], d[1]) < 1e-9) { ctx.warnings.push(`line "${el.id}": its two points coincide`); return null; }
-  const plot = plotArea();
-  const box = ctx.domainDeclared ? { x0: plot.x0, x1: plot.x1, y0: plot.y0, y1: plot.y1 } : { x0: 0, x1: CANVAS.w, y0: 0, y1: CANVAS.h };
+  // The FITTED plot box (item 2's finding): `through`'s domain-unit points
+  // already came back through ctx.sx/sy, which compose the fit, so the box
+  // this line is clipped to must be that same fitted rectangle — the
+  // unfitted plotArea() let a fitted line reach past the box, onto whatever
+  // sits beside it. Without a domain, `through` is canvas-literal (resolveEnd)
+  // and never follows the fit (tier-3 rule) — so the canvas bounds stay bare.
+  const box = ctx.domainDeclared
+    ? { x0: ctx.plotFit.x0, x1: ctx.plotFit.x1, y0: ctx.plotFit.y0, y1: ctx.plotFit.y1 }
+    : { x0: 0, x1: CANVAS.w, y0: 0, y1: CANVAS.h };
   const seg = clipToBox(P, d, box);
   if (!seg) { ctx.warnings.push(`line "${el.id}": misses the canvas`); return null; }
   const [A, B] = seg;
