@@ -67,3 +67,6 @@ Open Examples → Widgets pack.
    to-square; Continue ▸ restores the lesson's position), and open a
    drawcast with a code panel (the tray's editor still opens on a paused
    click, runs, and Continue ▸ puts the honest figure back).
+14. cursor: a hand over a part (paused and during a question), an arrow over
+   paper, a grab while pressing a disk and grabbing while it moves; the
+   cross appears only in the constellation question.

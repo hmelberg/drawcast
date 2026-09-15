@@ -1301,9 +1301,11 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   position: absolute;
   inset: 0;
   z-index: 5;
-  cursor: crosshair;
   touch-action: none;
 }
+/* .cs-figgate sets no cursor of its own any more — what shows through this
+   overlay (the hand, the connect question's crosshair, a widget's grab/
+   grabbing) is decided together, in cascade order, down by cs-cardable. */
 .cs-figgate-hint {
   position: absolute;
   bottom: 1.1rem;
@@ -1528,6 +1530,35 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 .cs-infocard-sense:hover { border-color: var(--ink); }
 .cs-stage.cs-cardable { cursor: pointer; }
+/* .cs-figgate declares no cursor of its own — cursor is inherited, so a
+   figgate would show whatever the stage around it resolves to either way.
+   This rule (and the ones below it that also say what a figgate shows) is
+   here to be explicit and greppable, not because any one of them is
+   load-bearing by itself. What DOES matter is the order: equal specificity
+   throughout this family, so a tie is decided by whichever is declared
+   last, and everything from here down is placed for exactly that. */
+.cs-stage.cs-cardable .cs-figgate { cursor: pointer; }
+/* The connect question alone keeps the crosshair — press-and-drag between
+   stars wants a cursor that says "aim here", not "click me". Lower
+   specificity than the rule above (two classes, not three), so this only
+   actually wins because a connect gate never has cs-cardable true at the
+   same time (nothing ever sets it there) — not because of this ordering.
+   It is placed here anyway, after cardable-through-gate, so the file reads
+   in the same "later wins" order it would need if that ever changed. */
+.cs-figgate.cs-connectgate { cursor: crosshair; }
+/* A widget part being pressed: a grab while held, and — once the press
+   crosses DRAG_MIN and becomes a drag — a grabbing hand, even through an
+   ask's own gate. Same reasoning as cardable's own through-gate rule
+   above: cursor inherits, .cs-figgate declares none, so neither of these
+   is load-bearing on its own either — they're explicit and greppable, the
+   same way. Declared after cardable's pair, and grabbing last of all, so
+   that when more than one of these classes is true on the stage at once
+   (cs-cardable can still be lingering true from the hover that preceded a
+   press), the LATEST one declared is the one the equal-specificity tie
+   hands the cursor to — a drag in progress must never lose that tie to a
+   mere hover or a still-forming press. */
+.cs-stage.cs-grabbable, .cs-stage.cs-grabbable .cs-figgate { cursor: grab; }
+.cs-stage.cs-grabbing, .cs-stage.cs-grabbing .cs-figgate { cursor: grabbing; }
 /* A code screen takes typing: while paused, the cursor says so. */
 .cs-stage.cs-editable { cursor: text; }
 /* Over a game's play mark: a press, not typing. */

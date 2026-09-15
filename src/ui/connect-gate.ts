@@ -143,13 +143,14 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
       // instead of numbers tuned to not collide today.
       const status = h("div", { class: "cs-connect-status" }, counter, hint, summary);
       const bar = h("div", { class: "cs-connect-bar" }, doneBtn, status);
-      // No connect-specific modifier class on the gate itself (unlike
-      // dragGateFor's cs-draggate, which overrides .cs-figgate's cursor):
-      // this gate wants exactly .cs-figgate's own defaults (crosshair,
-      // touch-action: none, the position/z-index every figgate shares), and
-      // every actually-connect-specific rule already lives under its own
-      // cs-connect-* class instead.
-      const gate = h("div", { class: "cs-figgate" }, ink, bar);
+      // cs-connectgate is the ONE modifier this gate wears on itself (unlike
+      // dragGateFor's cs-draggate, everything else about it — touch-action:
+      // none, the position/z-index every figgate shares — comes from
+      // .cs-figgate's own defaults): it is what keeps the crosshair here
+      // while every other figgate now shows the hand or a grab instead.
+      // Every actually-connect-specific rule still lives under its own
+      // cs-connect-* class.
+      const gate = h("div", { class: "cs-figgate cs-connectgate" }, ink, bar);
 
       // Every point drawn in the overlay goes through clientPointFor — the
       // star positions (already logical) and, for the live rubber band, a

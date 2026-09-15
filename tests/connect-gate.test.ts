@@ -251,9 +251,11 @@ describe("connect-gate.ts", () => {
     // class in the markup and nowhere in the stylesheet reads as live
     // styling to the next person who touches this. Every cs-connect-*
     // class this file creates must appear as a selector in styles.css.
-    // (This test itself caught a SECOND instance while being written:
-    // cs-connectgate, orphaned since round 1 removed its only rule — see
-    // the gate's own "no connect-specific modifier class" comment.)
+    // (This test itself caught a SECOND instance while being written: at
+    // the time, cs-connectgate was orphaned — round 1 had removed its only
+    // rule. The cursor round later gave it back a real one, its own
+    // .cs-figgate.cs-connectgate { cursor: crosshair } in styles.css, so
+    // this extraction now finds it live rather than catching it again.)
     const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
     // Three shapes this file stamps a class through: h()'s plain string,
     // setAttribute with a plain string, and setAttribute with a template

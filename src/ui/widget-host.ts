@@ -48,6 +48,10 @@ export interface WidgetHost {
   release(p: Pt): "click" | "drag" | null;
   /** Drop the gesture and its ghost without delivering anything (pointercancel). */
   cancel(): void;
+  /** True once the live gesture has passed DRAG_MIN — the stage's cursor
+   *  reads this alone to swap a grab for a grabbing hand; false with no
+   *  gesture in flight and false again the moment one ends. */
+  dragging(): boolean;
   /** The keys the body asked for (DOM KeyboardEvent.key values); empty for a
    *  click-only widget, and then no key listener is installed at all. */
   keys: readonly string[];
@@ -237,6 +241,7 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
       if (gesture.moved) nudge(gesture.id, 0, 0);
       gesture = null;
     },
+    dragging: () => gesture?.moved === true,
     keyPress(key, ms) {
       if (!declaredKeys.includes(key)) return false;
       const sc = scene();
@@ -295,7 +300,10 @@ export function pressBlocked(f: { playing: boolean; ownGate: boolean; foreignGat
  *  The cursor's `cs-cardable` class is NOT toggled here — infocard.ts owns
  *  that one toggle (its own pointermove already runs after this add-on's
  *  click listener attaches, and now consults `host.over(p)` too), so a pad
- *  and a card element never fight over the same class in the same tick. */
+ *  and a card element never fight over the same class in the same tick.
+ *  `cs-grabbable`/`cs-grabbing`, the press-and-drag cursor, IS this add-on's
+ *  own: cs-cardable only ever says "something is here", and only this host
+ *  knows whether that something is currently being held. */
 export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHost | null {
   const host = widgetHostFor(hd, { measure: makeBrowserMeasure() });
   if (!host) return null;
@@ -313,6 +321,16 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
   /** The figure's own inline touch-action (a piano stage sets "none" for the
    *  whole mount) — restored at the end, so the press only BORROWS it. */
   let priorTouchAction = "";
+  /** Both grab-cursor classes at once — the ONE place they come off, used by
+   *  every gesture exit (a normal release, a cancel, a lost capture) AND by
+   *  the onState/onStep chains below. reset()/cancel() in the host CORE
+   *  never touch the DOM, so a play or step that lands mid-press (a
+   *  keyboard-activated play button, a scrub) would otherwise leave a grab
+   *  or grabbing class sitting on the stage until whatever pointer is still
+   *  down finally lifts. */
+  const clearGrab = (): void => {
+    stage.classList.remove("cs-grabbable", "cs-grabbing");
+  };
   /** The widget's OWN ask gate is up — the marker the keys read too. It comes
    *  off the moment the gate settles, so the mark's 900 ms linger is foreign. */
   const ownGate = (): boolean => stage.querySelector(".cs-widgetgate") !== null;
@@ -339,6 +357,8 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
     if (!p || !host.press(p)) return;
     activeId = e.pointerId;
     swallowClick = true;
+    // The grab cursor: a plain press, before it is known to be a drag.
+    stage.classList.add("cs-grabbable");
     // A part being dragged is not a page to scroll (the piano's precedent),
     // and capture keeps a fast drag from escaping the stage mid-gesture.
     priorTouchAction = stage.style.touchAction;
@@ -356,11 +376,17 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
   stage.addEventListener("pointermove", (e) => {
     if (e.pointerId !== activeId) return;
     const p = logicalPoint(stage, e);
-    if (p) host.move(p);
+    if (!p) return;
+    host.move(p);
+    // The grabbing hand: read off the host's own gesture, not the move
+    // event, the moment it flips — swapped, never merely added, so a stage
+    // never wears both cursors at once.
+    if (host.dragging()) stage.classList.replace("cs-grabbable", "cs-grabbing");
   }, true);
   const end = (e: PointerEvent, cancelled: boolean): void => {
     if (e.pointerId !== activeId) return;
     activeId = null;
+    clearGrab();
     stage.style.touchAction = priorTouchAction;
     try {
       stage.releasePointerCapture(e.pointerId);
@@ -393,6 +419,7 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
     if (e.pointerId !== activeId) return;
     activeId = null;
     swallowClick = false;
+    clearGrab();
     stage.style.touchAction = priorTouchAction;
     host.cancel();
   });
@@ -411,12 +438,28 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
   const prevOnState = hd.timeline.callbacks.onState;
   hd.timeline.callbacks.onState = (s) => {
     prevOnState?.(s);
-    if (s === "playing") host.reset();
+    if (s === "playing") {
+      host.reset();
+      // A press that never got to release (a keyboard-activated play button,
+      // this landing mid-drag) leaves the host's own gesture cleared already
+      // — but reset()/cancel() never touch the DOM, so without this the grab
+      // classes and the borrowed touch-action would sit on the stage until
+      // whatever pointer is still down finally lifts. Nulling activeId makes
+      // that eventual pointerup inert: end()'s own `e.pointerId !== activeId`
+      // guard is what stops it from running its drop-on-a-control dance
+      // against a gesture that is already gone.
+      clearGrab();
+      activeId = null;
+      stage.style.touchAction = priorTouchAction;
+    }
   };
   const prevOnStep = hd.timeline.callbacks.onStep;
   hd.timeline.callbacks.onStep = (completed, total) => {
     prevOnStep?.(completed, total);
     host.reset();
+    clearGrab();
+    activeId = null;
+    stage.style.touchAction = priorTouchAction;
   };
 
   // The keys (spec §2.2 addendum), the piano's free-play pattern: window
