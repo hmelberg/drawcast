@@ -15,4 +15,27 @@ App, SIR example (pane: controls), light then dark mode:
 
 ## Measured 2026-09-15
 
-Not measured by the implementer (no browser); the controller measures with `?perf` on the SIR example and decides on the warm-up.
+Controller measurement (Playwright on a fresh profile, `?perf`, SIR example
+opened from the library, no IndexedDB cache). Opening the cast emitted NO
+runtime span — the baked `code_result` satisfies the ensure phase. Pressing
+▶ emitted, before any knob was touched:
+
+| span | ms |
+| --- | --- |
+| runtime import python | 10.9 |
+| pyodide boot | 1595.0 |
+| (matplotlib + deps package load, between boot and exec) | ≈2960 |
+| python exec | 34.3 |
+| run python (total) | 4602.7 |
+
+Reading: the first Python run costs ≈4.6 s, of which the script itself is
+34 ms; the package load, not the boot, is the bulk. It fires at play start on
+its own (the player resolves the code element as the run reaches it), so a
+`warmRuntimes` call at play start would start the same work a few hundred
+milliseconds earlier at best. **Warm-up not warranted in this stage.** If a
+stall is still felt at the panel, stage 2's step precompute (which also runs
+during narration) is the lever, and the package load is what to hide.
+
+Also verified live in the same session: the explore beat on the SIR script
+held with the tray shut, the centred ▶ hidden (`cs-gated`), and a click on
+the figure outside the panel released the gate into playback.
