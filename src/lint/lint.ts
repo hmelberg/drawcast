@@ -9,11 +9,11 @@ import { flattenDrawables, leafDrawables, type Drawable, type GroupDrawable, typ
 import { mathBox } from "../layout/labels";
 import type { MeasureFn } from "../layout/measure";
 import { BUILTIN_WIDGETS } from "../spec/types";
-import type { Command, Spec } from "../spec/types";
+import type { Command, PlayArgs, Spec } from "../spec/types";
 import { scenes } from "../scenes/registry";
 import { resolveGame } from "../code/c64-catalogue";
 import { grammarFor, parseControls } from "../code/controls";
-import { isInvitation } from "./invite";
+import { runValues } from "../render/sweep";
 import { pathsByCodeId, scanDataTokens } from "../code/tokens";
 import { connectKey } from "../render/widgets";
 import { CONNECT_MAX_EDGES } from "../ui/connect-model";
@@ -57,8 +57,8 @@ export interface LintIssue {
     | "controls"
     /** pane: controls without controls, or a pane on show: output/none, or lines/marks on a controls pane */
     | "pane"
-    /** an ordinary speak that tells the viewer to slide/press/click — belongs in an explore beat */
-    | "explore-invite"
+    /** a run (or an explore beat's planned demo) whose script, controls or series the player could not honour */
+    | "run"
     /** an ask bound to the spec's template, whose document has no widget body */
     | "widget";
   ids: string[];
@@ -766,6 +766,31 @@ export function lintCommands(spec: Spec): LintIssue[] {
       }
     }
   };
+  // A run (and an explore beat's planned demo) names a script and a series per
+  // control: the same model the planner and the player use decides whether the
+  // sweep can be played at all, so a bad one is caught here rather than in a
+  // silent no-op at playback. The lint sees the RESOLVED spec in the app, where
+  // `code` was rewritten with the control defaults and `code_src` holds the
+  // authored literals; in a test it sees the raw spec, which has only `code`.
+  const checkSweep = (i: number, where: "run" | "explore.play", codeId: string | undefined, args: PlayArgs): void => {
+    if (codeId === undefined) {
+      issues.push({ rule: "run", ids: [], message: `commands[${i}].${where}: names no script — set ${where === "run" ? "run.code" : "explore.code"} to a code element with controls`, severity: "error" });
+      return;
+    }
+    const el = (spec.elements ?? []).find((e) => e.id === codeId);
+    if (!el || el.type !== "code") {
+      issues.push({ rule: "run", ids: [], message: `commands[${i}].${where}: "${codeId}" is not a code element`, severity: "error" });
+      return;
+    }
+    if (!el.controls || el.controls.length === 0) {
+      issues.push({ rule: "run", ids: [el.id], message: `commands[${i}].${where}: code "${el.id}" has no controls`, severity: "error" });
+      return;
+    }
+    const { controls } = parseControls(el.language ?? "", el.code_src ?? el.code ?? "", el.controls);
+    const { issues: found } = runValues(args, controls);
+    for (const m of found) issues.push({ rule: "run", ids: [el.id], message: `commands[${i}].${where}: ${m}`, severity: "error" });
+  };
+
   cmds.forEach((c, i) => {
     flagVars(c.speak, `commands[${i}].speak`);
     flagVars(c.quiz?.question, `commands[${i}].quiz.question`);
@@ -775,18 +800,8 @@ export function lintCommands(spec: Spec): LintIssue[] {
     flagVars(c.ask?.right, `commands[${i}].ask.right`);
     flagVars(c.ask?.wrong, `commands[${i}].ask.wrong`);
     if (c.ask?.store) stored.add(c.ask.store.toLowerCase());
-    if (typeof c.speak === "string" && c.explore === undefined && isInvitation(c.speak)) {
-      // "…" only earns its place when something was actually cut (final wave
-      // item 9) — a speak of 40 chars or fewer shown whole must not gain a
-      // trailing ellipsis that implies more text than there is.
-      const preview = c.speak.length > 40 ? `${c.speak.slice(0, 40)}…` : c.speak;
-      issues.push({
-        rule: "explore-invite",
-        ids: [],
-        message: `commands[${i}].speak invites the viewer to interact ("${preview}") — the movie will say it too; put the invitation in an explore beat's speak`,
-        severity: "warn",
-      });
-    }
+    if (c.run !== undefined) checkSweep(i, "run", c.run.code, c.run);
+    if (c.explore?.play !== undefined && c.explore.play !== false) checkSweep(i, "explore.play", c.explore.code, c.explore.play);
   });
 
   let speaksBeforeInk = 0;

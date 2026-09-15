@@ -414,10 +414,30 @@ const idListSchema = (description: string) => ({
   description,
 });
 
+/** One series per control name — the shape `run.values` and `explore.play.values` share. */
+const seriesValuesSchema = {
+  type: "object",
+  description: "Per control name: a value, a list, or {from, to, steps}.",
+  additionalProperties: {
+    anyOf: [
+      { type: "number" },
+      { type: "string" },
+      { type: "boolean" },
+      { type: "array", items: { anyOf: [{ type: "number" }, { type: "string" }, { type: "boolean" }] } },
+      {
+        type: "object",
+        properties: { from: { type: "number" }, to: { type: "number" }, steps: { type: "integer", minimum: 1 } },
+        required: ["from", "to", "steps"],
+        additionalProperties: false,
+      },
+    ],
+  },
+};
+
 const commandSchema = {
   type: "object",
   description:
-    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / arrange / fade / flip / morph / copy / flow / keep / camera / animate), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
+    "One playback command: ONE action verb (draw / pause / wait / quiz / ask / label / if / explore / show / hide / erase / clear / highlight / point / move / arrange / fade / flip / morph / copy / flow / keep / camera / animate / run), optionally WITH speak to narrate it — voice and action start together and the command ends when BOTH finish. Or speak alone (a rare standalone line, e.g. the closing synthesis). " +
     "Commands run strictly in sequence; each completes before the next begins (except a standalone speak with blocking:false).",
   properties: {
     speak: {
@@ -491,10 +511,23 @@ const commandSchema = {
       required: ["var", "goto"],
       additionalProperties: false,
     },
+    run: {
+      type: "object",
+      description:
+        'Play a controls script through a series of values while the speak lands \u2014 the movie form of a knob: {"run": {"code": "sim", "values": {"beta": {"from": 0.1, "to": 0.9, "steps": 5}, "gamma": 0.2}}, "speak": "Watch the peak move as the rate rises."}. values: per control name \u2014 a bare value holds, a list is the step values, {from, to, steps} is linear (snapped to the slider\'s step); the longest series sets the step count, shorter ones hold their last value; at most 20 steps. every: seconds per step (default: the speak\'s length divided by the steps, else 0.5). loop: repeat the series. The script and its drawn knobs STAY at the last values afterwards. Runs live in the app and in the movie; nothing is baked.',
+      properties: {
+        code: { type: "string", description: "Id of a code element with controls." },
+        values: seriesValuesSchema,
+        every: { type: "number", exclusiveMinimum: 0, description: "Seconds per step." },
+        loop: { type: "integer", minimum: 1, description: "Play the series this many times." },
+      },
+      required: ["code", "values"],
+      additionalProperties: false,
+    },
     explore: {
       type: "object",
       description:
-        "Open the explore tray (the \u2295 sliders) and wait for the viewer to press Continue \u2014 the authored 'now try numbers yourself' moment, placed right after a personalized reveal. params restricts which sliders show; code opens a code editor instead. App only: movies and skip-questions playback drop the whole beat, its narration included, so never put content the movie needs in its speak.",
+        "Open the explore tray (the \u2295 sliders) and wait for the viewer to press Continue \u2014 the authored 'now try numbers yourself' moment, placed right after a personalized reveal. params restricts which sliders show; code opens a code editor instead. On a script with controls the beat first plays a short demo of the knobs (a seeded walk, or `play`'s planned sweep) with this speak over it; the app then stops with the knobs live, the movie continues. Without controls the beat is app-only and the movie skips it, speak included.",
       properties: {
         params: { type: "array", items: { type: "string" }, description: "Slider param paths to show (default: all)." },
         code: {
@@ -516,6 +549,22 @@ const commandSchema = {
           type: "boolean",
           description:
             "On a solar_system figure: open the Space section of the explore tray — click a planet or moon to look closer, breadcrumbs back out, pills for scale, names and date, a fact card with the Wikipedia summary. On a sky_map figure the same flag opens the sky's own section — click a star or a constellation to read about it, pills for the hour, the date and where you are standing. Either way the lesson waits for Continue. The authored 'look around yourself' moment. App only; movies skip the beat.",
+        },
+        play: {
+          anyOf: [
+            { const: false },
+            {
+              type: "object",
+              properties: {
+                values: seriesValuesSchema,
+                every: { type: "number", exclusiveMinimum: 0 },
+                loop: { type: "integer", minimum: 1 },
+              },
+              required: ["values"],
+              additionalProperties: false,
+            },
+          ],
+          description: "The demo before the stop: omit for the seeded walk over the knobs, false for no demo, or {values, every, loop} (the run shape) for a planned sweep.",
         },
       },
       additionalProperties: false,
@@ -1111,7 +1160,7 @@ function semanticErrors(spec: Spec): string[] {
     }
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "copy", "flow", "keep", "camera", "animate", "play"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "copy", "flow", "keep", "camera", "animate", "play", "run"] as const;
   // Labels first (gotos may point forward): collect + check duplicates/names.
   const labels = new Set<string>();
   for (const [i, cmd] of (spec.commands ?? []).entries()) {

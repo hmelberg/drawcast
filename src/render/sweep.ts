@@ -6,10 +6,10 @@
 // same demo every time and a test can pin a frame (a movie that differs per
 // export, and a frame a test cannot pin, are both worse than a fixed walk).
 import type { ControlSpec, ControlValue } from "../code/controls";
-
-export type SeriesSpec = ControlValue | ControlValue[] | { from: number; to: number; steps: number };
-export interface PlayArgs { values: Record<string, SeriesSpec>; every?: number; loop?: number }
-export interface RunArgs extends PlayArgs { code: string }
+// The three series types live with the rest of the spec's shapes (the schema
+// and the lint read them too); this module only uses them.
+export type { PlayArgs, RunArgs, SeriesSpec } from "../spec/types";
+import type { PlayArgs, SeriesSpec } from "../spec/types";
 
 export const RUN_MAX_STEPS = 20;
 export const DEMO_MAX_STEPS = 5;
