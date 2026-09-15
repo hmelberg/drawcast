@@ -1,9 +1,6 @@
 # Template box — any template shares the page
 
-Status: specification, NOT scheduled. Written 2026-09-15 from a read of the
-code, no implementation. Implementer: read this whole file first, then §9
-(concurrent work) before creating a branch. Estimated size: one small round,
-about two days including tests and the prompt sync.
+Status: implemented 2026-09-15 on branch worktree-template-box (plan: docs/superpowers/plans/2026-09-15-template-box.md). Hans's smoke test of the SIR cast on a phone is the remaining acceptance step.
 
 ## 1. What this is
 

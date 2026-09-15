@@ -1404,8 +1404,10 @@ drawcast in several languages, re-linted after translation.
   Known costs: layout composition, interaction attach across embedded
   manifests, hit-testing (the R9 visible-set lesson), schema + prompt.
   Reasons to keep deferring: one spec already combines a template with
-  freehand elements; links/info cards/quizzes compose freely on any number
-  of elements; heavy interactions are pause-gated so movies never need this;
+  freehand elements; since the template box round (2026-09-15, `params.box`
+  on every template, template-fit.ts) that template also takes a REGION and
+  leaves the rest of the page free; links/info cards/quizzes compose freely
+  on any number of elements; heavy interactions are pause-gated so movies never need this;
   and the note_sheet `keyboard: true` precedent shows a purpose-built
   combined template covers a specific pairing cheaply.
 - Time-proportional seek bar (estimate from speech + draw durations).
