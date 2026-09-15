@@ -15,7 +15,7 @@ import { icon } from "./icons";
 import { isTextDrag } from "./caption";
 import type { SubtitleLanguage } from "../spec/subtitles";
 import type { VoiceOption } from "../render/voices";
-import { gateIsOpen } from "./gates";
+import { CONTROL_SELECTOR, gateIsOpen } from "./gates";
 import { attachChessPlay } from "./chessplay";
 import { dragGateFor } from "./drag-gate";
 import { creditsOf } from "../export/credits";
@@ -1142,7 +1142,8 @@ export function attachPlayerControls(
   // where the press started and let the click through only when both ends
   // are on the drawing. Same for a press that started on a button, a field,
   // the tray, the code card or the controls card.
-  const CONTROL_SELECTOR = "input, button, select, textarea, label, .cs-paramtray, .cs-codeedit, .cs-ctlcard";
+  // The selector lives in gates.ts: the widget host's press guard reads the
+  // very same list, and it cannot import a value from this file (cycle).
   const onControl = (t: EventTarget | null): boolean => t instanceof Element && t.closest(CONTROL_SELECTOR) !== null;
   let pressOnControl = false;
   stage.addEventListener("pointerdown", (e) => (pressOnControl = onControl(e.target)), true);

@@ -269,12 +269,14 @@ widget: |
     const pegs = [Array.from({ length: n }, (_, i) => String(n - i)), [], []];
     const steps = [];
     let moves = 0;
-    const move = (from, to) => {
+    // `tap`, not `move`: the movie's form of a move — two laser taps and a
+    // patch — and a second `move` in this file would shadow the RULE above.
+    const tap = (from, to) => {
       pegs[to].push(pegs[from].pop());
       moves = moves + 1;
       steps.push([{ pointer: "peg_" + from }, { pointer: "peg_" + to }, { patch: { pegs: encode(pegs), moves } }]);
     };
-    const hanoi = (k, from, to, via) => { if (k === 0) return; hanoi(k - 1, from, via, to); move(from, to); hanoi(k - 1, via, to, from); };
+    const hanoi = (k, from, to, via) => { if (k === 0) return; hanoi(k - 1, from, via, to); tap(from, to); hanoi(k - 1, via, to, from); };
     hanoi(n, 0, 2, 1);
     // Bounded to seven moves (14 taps) on purpose: the whole 3-disk solution —
     // a 4-disk solve would run 27s of movie. Whatever the disk count, the

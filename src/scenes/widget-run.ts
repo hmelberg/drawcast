@@ -69,6 +69,16 @@ export function runWidget(module: SceneModule, params: Record<string, unknown>, 
       run.errors.push(`click: "${String(c)}" is not a part (${scene.ids.join(", ")})`);
       continue;
     }
+    // A drag names TWO parts, and a typo in either is the same mistake the
+    // string form reports: `to` may be null (blank paper) and may equal `id`
+    // (dropped back where it was picked up), but neither may be invented.
+    if (ev.type === "drag") {
+      const unknown = [ev.id, ev.to].filter((id): id is string => id !== null && !scene!.ids.includes(id));
+      if (unknown.length > 0) {
+        for (const id of unknown) run.errors.push(`drag: "${id}" is not a part (${scene.ids.join(", ")})`);
+        continue;
+      }
+    }
     const r = stepWidget(body, state, ev, scene, names);
     state = r.state;
     run.states.push(state);

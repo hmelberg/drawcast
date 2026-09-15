@@ -139,6 +139,18 @@ describe("runWidget — the harness", () => {
     const r = runWidget(module, {}, ["nope"]);
     expect(r.errors).toEqual(['click: "nope" is not a part (dot, gap, signal)']);
   });
+  // A drag names TWO parts, and until now neither was checked: a typo in an
+  // authored click sequence reached the body as a drag from nowhere onto
+  // nothing, and the body's own "not one of mine" branch quietly swallowed it.
+  test("a drag naming a part that does not exist is an error on either end — null and self are not", () => {
+    expect(runWidget(module, {}, [dragEvent("nope", "gap")]).errors).toEqual(['drag: "nope" is not a part (dot, gap, signal)']);
+    expect(runWidget(module, {}, [dragEvent("dot", "nope")]).errors).toEqual(['drag: "nope" is not a part (dot, gap, signal)']);
+    expect(runWidget(module, {}, [dragEvent("nope", "nah")]).errors).toEqual(['drag: "nope" is not a part (dot, gap, signal)', 'drag: "nah" is not a part (dot, gap, signal)']);
+    // …and the bad step is skipped, not delivered: no state was pushed.
+    expect(runWidget(module, {}, [dragEvent("nope", "gap")]).states).toEqual([]);
+    // Blank paper (null) and a drop back where it was picked up are both real.
+    expect(runWidget(module, {}, [dragEvent("dot", null), dragEvent("dot", "dot")]).errors).toEqual([]);
+  });
   test("demoWidget validates the demo's effects, and defaults to one tap on the first part", () => {
     expect(demoWidget(module, {}, "2").effects).toEqual([{ pointer: "dot", sound: { hz: 700, ms: 80 } }, { pointer: "dot", sound: { hz: 700, ms: 80 } }, { pointer: "gap" }]);
     const noDemo = compileTemplateDoc({ ...doc, widget: "return { init: () => 0, on: (e, s) => ({ state: s, effects: [] }) };" } as TemplateDoc).module!;

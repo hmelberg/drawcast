@@ -460,12 +460,18 @@ example lights the bulb.
    rhythm of SOS, then `ask … widget: morse_key, answer: SOS`. Exercises
    every effect and the ask binding.
 2. **Tower of Hanoi** (`tower_of_hanoi`): params `disks` (3–5) and `pegs`
-   (three stacks, widget-patched); state = pegs + selected peg; a click on
-   a peg selects, a second click moves the top disk if legal (smaller on
-   larger), an illegal move glows the target red, the solved tower glows
-   green and emits `answer: "solved"`; `demo` performs the optimal
-   solution. Example: "The Tower of Hanoi puzzle" with an ask
-   `answer: solved`. Exercises state, multi-step input, glow, demo.
+   (three stacks, widget-patched); state = pegs + selected peg. The DISKS
+   are their own top-level parts (`disk_1`… , not children of a peg), so
+   the viewer drags a disk onto a peg — a drop on a disk counts as its
+   peg, which is where a hand aiming at the top of a stack actually lets
+   go — or clicks the top disk and then a peg, the fallback for a finger
+   without a steady hand. Both gestures meet in one `move(from, to)`, so
+   the puzzle can only be wrong in one place: a larger disk onto a smaller
+   one glows the target red, lifting a buried disk says "only the top disk
+   moves", the solved tower glows green and emits `answer: "solved"`;
+   `demo` performs the optimal solution. Example: "The Tower of Hanoi
+   puzzle" with an ask `answer: solved`. Exercises state, drag, multi-step
+   input, glow, demo.
 3. **Logic gates** (`logic_gates`): params `gate` (AND/OR/XOR/NAND),
    `a`, `b` (widget-patched booleans); drawn with the kit's `switch`,
    `bulb` and `battery` stamps; a click on a switch toggles it, the bulb

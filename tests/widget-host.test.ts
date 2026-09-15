@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test, vi } from "vitest";
 import { compileTemplateDoc } from "../src/scenes/compile";
 import { scenes } from "../src/scenes/registry";
-import { widgetHostFor } from "../src/ui/widget-host";
+import { pressBlocked, widgetHostFor } from "../src/ui/widget-host";
 import { layoutSpec } from "../src/layout/layout";
 import { INITIAL_STATE, type Plan } from "../src/render/plan";
 import type { RenderHandle } from "../src/render";
@@ -260,6 +260,45 @@ describe("widgetHostFor — the gesture", () => {
   });
 });
 
+// The stage's press guard, as a truth table rather than a source pin. It was
+// a pin on the words `hd.timeline.state === "playing"` — which is exactly the
+// clause that made EVERY widget ask dead to the pointer: during an ask the
+// player stays in state "playing" (the gate is awaited inside the play loop),
+// so the guard refused every press under the widget's own gate, and the pin
+// certified the bug. Six flags, one function, every clause inverted below.
+describe("pressBlocked — whose press is it", () => {
+  const NONE = { playing: false, ownGate: false, foreignGate: false, onControl: false, onCaption: false, onCard: false };
+  const f = (o: Partial<typeof NONE>): boolean => pressBlocked({ ...NONE, ...o });
+
+  test("paused, on the paper: the press is the widget's", () => {
+    expect(f({})).toBe(false);
+  });
+  test("playing with no gate up: the press is the movie's (it pauses)", () => {
+    expect(f({ playing: true })).toBe(true);
+  });
+  // The regression this whole predicate exists for.
+  test("playing UNDER THE WIDGET'S OWN GATE: the press is the widget's — an ask never leaves the play loop", () => {
+    expect(f({ playing: true, ownGate: true })).toBe(false);
+  });
+  test("the widget's own gate while paused: still the widget's", () => {
+    expect(f({ ownGate: true })).toBe(false);
+  });
+  test("any other gate holds the run: its card is the door, not the figure", () => {
+    expect(f({ foreignGate: true })).toBe(true);
+    expect(f({ playing: true, foreignGate: true })).toBe(true);
+  });
+  test("a press on a control is that control's — even under the widget's own gate (the Skip pill lives inside it)", () => {
+    expect(f({ onControl: true })).toBe(true);
+    expect(f({ onControl: true, ownGate: true })).toBe(true);
+  });
+  test("the caption band and an open info card own their own presses", () => {
+    expect(f({ onCaption: true })).toBe(true);
+    expect(f({ onCard: true })).toBe(true);
+    expect(f({ onCaption: true, ownGate: true })).toBe(true);
+    expect(f({ onCard: true, ownGate: true })).toBe(true);
+  });
+});
+
 describe("attachWidgetHost — source pins", () => {
   const src = readFileSync("src/ui/widget-host.ts", "utf8");
   const controls = readFileSync("src/ui/controls.ts", "utf8");
@@ -276,23 +315,33 @@ describe("attachWidgetHost — source pins", () => {
     expect(attach).toContain("host.cancel()");
     expect(attach).toContain("e.stopPropagation()");
   });
-  test("a press while playing, on a control (the big play button, a gate pill) or under another gate is never the widget's — same guard as chess and piano", () => {
-    // The big play overlay sits INSIDE the stage: a press on it over a large
-    // ringed part (Hanoi's middle peg zone, the gate body) was hit-tested and
-    // swallowed, so play never started (Hans 2026-09-15).
+  // The guard's LOGIC is the truth table above; what the stage owes it is the
+  // six flags, read off the real DOM. Each one is pinned here because a flag
+  // wired to the wrong query would pass every unit test.
+  test("the stage reads the six flags off the DOM and asks pressBlocked", () => {
     const guard = src.slice(src.indexOf("const blocked = (e: Event): boolean =>"), src.indexOf('stage.addEventListener("pointerdown"'));
-    expect(guard).toContain('hd.timeline.state === "playing"');
-    expect(guard).toContain('e.target instanceof Element && e.target.closest("button") !== null');
+    expect(guard).toContain("return pressBlocked({");
+    expect(guard).toContain('playing: hd.timeline.state === "playing"');
+    // The widget's own gate is ONE definition, shared with the key listeners.
+    expect(src).toContain('const ownGate = (): boolean => stage.querySelector(".cs-widgetgate") !== null;');
+    expect(guard).toContain("ownGate: own");
+    expect(guard).toContain("foreignGate: gateIsOpen(stage) && !own");
+    // Every live control surface, not just "button": the same list the stage's
+    // own play/pause toggle uses (src/ui/gates.ts), so the two cannot drift —
+    // a press that began on a slider or the param tray is never a part's.
+    expect(guard).toContain("onControl: t !== null && t.closest(CONTROL_SELECTOR) !== null");
+    expect(src).toContain('import { CONTROL_SELECTOR, gateIsOpen } from "./gates";');
     // The subtitle band lies across the bottom of the canvas and an open info
     // card floats over the figure: a press on either is that thing's.
-    expect(guard).toContain("overCaption(e.target as Element | null)");
-    expect(guard).toContain('e.target.closest(".cs-infocard") !== null');
-    // …and under the widget's OWN gate the gesture is the whole point (the
-    // keys already read the gate this way).
-    expect(guard).toContain('gateIsOpen(stage) && !stage.querySelector(".cs-widgetgate")');
-    // …and the press disarms any swallow an earlier one left armed BEFORE it
-    // asks whether this press is the widget's at all (m1).
-    expect(src).toMatch(/stage\.addEventListener\("pointerdown", \(e\) => \{\s*swallowClick = false;[\s\S]{0,120}?if \(blocked\(e\)\) return;/);
+    expect(guard).toContain("onCaption: overCaption(e.target as Element | null)");
+    expect(guard).toContain('onCard: t !== null && t.closest(".cs-infocard") !== null');
+  });
+  // A right-click over a part ran the widget (and a context menu on top of
+  // it); a second finger, or the right button pressed mid-drag, would also
+  // have disarmed the swallow the live press armed. Nothing but the primary
+  // button of the primary pointer begins — or disturbs — a gesture.
+  test("only the primary button of the primary pointer is a gesture, checked before anything else", () => {
+    expect(src).toMatch(/stage\.addEventListener\("pointerdown", \(e\) => \{[\s\S]{0,320}?if \(!e\.isPrimary \|\| \(e\.pointerType === "mouse" && e\.button !== 0\)\) return;\s*swallowClick = false;[\s\S]{0,140}?if \(blocked\(e\)\) return;/);
   });
   test("the press takes touch-action and pointer capture, and hands both back at the end", () => {
     expect(src).toContain('stage.style.touchAction = "none"');
@@ -395,11 +444,23 @@ describe("attachWidgetHost — source pins", () => {
     expect(src).toContain("t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || (t instanceof HTMLElement && t.isContentEditable)");
   });
   test("keys stand aside while playing and while another gate is open — the widget's own gate excepted", () => {
-    expect(src).toContain('(hd.timeline.state === "playing" && !stage.querySelector(".cs-widgetgate"))');
-    expect(src).toContain('(gateIsOpen(stage) && !stage.querySelector(".cs-widgetgate"))');
+    expect(src).toContain('(hd.timeline.state === "playing" && !ownGate())');
+    expect(src).toContain("(gateIsOpen(stage) && !ownGate())");
   });
   test("the widget gate marks itself, so its own keys keep working", () => {
     expect(src).toContain('h("div", { class: "cs-figgate cs-widgetgate" }');
+  });
+  // …and UNMARKS itself the instant it settles. The mark lingers 900 ms
+  // (CARD_LINGER_MS) before the gate leaves the DOM, and for that whole
+  // window the question is over — but the gate was still wearing the class
+  // that says "this figure's gestures are the point", so a press went on
+  // reaching the body after the answer had been judged. Dropping just the
+  // marker (cs-figgate stays, so gateIsOpen still holds) makes the linger
+  // read as any other gate: blocked, by the very same flag.
+  test("the gate drops its widget marker the moment it settles, before the mark lingers", () => {
+    const gate = src.slice(src.indexOf("export function widgetGateFor"));
+    expect(gate).toContain('gate.classList.remove("cs-widgetgate");');
+    expect(gate.indexOf('gate.classList.remove("cs-widgetgate");')).toBeLessThan(gate.indexOf("window.setTimeout(() => gate.remove(), CARD_LINGER_MS)"));
   });
   // I1: Skip lives INSIDE the widget's own gate (cs-widgetgate), so the
   // "another gate" exception above never stands aside for it — without this,

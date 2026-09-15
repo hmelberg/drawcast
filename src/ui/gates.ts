@@ -23,3 +23,15 @@ export const GATE_SELECTOR = ".cs-figgate, .cs-cardgate, .cs-waitgate";
 export function gateIsOpen(stage: ParentNode): boolean {
   return stage.querySelector(GATE_SELECTOR) !== null;
 }
+
+// Every live control surface on the stage, for the guards that must let a
+// press on one of them alone: the transport buttons and the big play overlay,
+// a slider or a field, the param tray, the code card, the controls card.
+//
+// It lives here for the same reason GATE_SELECTOR does — controls.ts (the
+// stage's click-to-toggle) and widget-host.ts (the widget's press guard) both
+// need it, and widget-host.ts cannot import a VALUE from controls.ts without
+// closing a cycle (controls.ts imports attachWidgetHost). One constant, so
+// the two guards cannot drift into naming different subsets: the widget used
+// to name only "button" and swallowed presses that began on a slider.
+export const CONTROL_SELECTOR = "input, button, select, textarea, label, .cs-paramtray, .cs-codeedit, .cs-ctlcard";

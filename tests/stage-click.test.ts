@@ -8,14 +8,21 @@ import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 
 const src = readFileSync("src/ui/controls.ts", "utf8");
+// The selector moved to gates.ts, beside GATE_SELECTOR: the widget host's
+// press guard reads the very same list and cannot import a value from
+// controls.ts (which imports attachWidgetHost — a cycle). Same reason
+// GATE_SELECTOR lives there; guards that name their own subset drift apart.
+const gates = readFileSync("src/ui/gates.ts", "utf8");
 
 describe("stage click never toggles play from a control", () => {
-  test("the control selector names every live control surface", () => {
-    const m = /const CONTROL_SELECTOR = "([^"]+)"/.exec(src);
-    expect(m, "CONTROL_SELECTOR must exist").not.toBeNull();
+  test("the control selector names every live control surface, in one shared place", () => {
+    const m = /export const CONTROL_SELECTOR = "([^"]+)"/.exec(gates);
+    expect(m, "CONTROL_SELECTOR must exist in src/ui/gates.ts").not.toBeNull();
     for (const part of ["input", "button", "select", "textarea", "label", ".cs-paramtray", ".cs-codeedit", ".cs-ctlcard"]) {
       expect(m![1].split(",").map((s) => s.trim())).toContain(part);
     }
+    expect(src).toContain('import { CONTROL_SELECTOR, gateIsOpen } from "./gates";');
+    expect(src).not.toMatch(/const CONTROL_SELECTOR =/); // no second copy to drift
   });
   test("the press start is remembered on pointerdown (capture) and consulted before togglePlay", () => {
     expect(src).toMatch(/stage\.addEventListener\("pointerdown", \(e\) => \(pressOnControl = onControl\(e\.target\)\), true\)/);

@@ -20,7 +20,7 @@ import { withNewIdsVisible } from "../render/params";
 import { answersMatch } from "../spec/answers";
 import { overCaption } from "./caption";
 import { h, logicalPoint } from "./dom";
-import { gateIsOpen } from "./gates";
+import { CONTROL_SELECTOR, gateIsOpen } from "./gates";
 // Type-only: controls.ts imports this module for attachWidgetHost, so the
 // crossing back has to be erased at compile time or the two would cycle.
 import type { AskGateStep } from "./controls";
@@ -266,6 +266,30 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
   return host;
 }
 
+/** Whose press is this? The stage's press guard as a pure function of six
+ *  flags, so it can be unit-tested rather than read: a press is the widget's
+ *  only while the figure is not running past it (or the widget's own gate is
+ *  up, which is what that gate is FOR), nowhere near a control, the caption
+ *  band or an open info card, and with no other gate holding the run.
+ *
+ *  The clause that matters: during an ask the player stays in state "playing"
+ *  (the gate is awaited inside the play loop), so a bare `playing` test made
+ *  EVERY widget ask dead to the pointer — the gate's own router, since
+ *  removed, used to compensate. `ownGate` is the exception the keys have had
+ *  all along (keysBlocked below reads it the same way). */
+export function pressBlocked(f: { playing: boolean; ownGate: boolean; foreignGate: boolean; onControl: boolean; onCaption: boolean; onCard: boolean }): boolean {
+  // The big play overlay and the gate pills are buttons INSIDE the stage, the
+  // param tray and the code card are controls on it, the subtitle band lies
+  // across the bottom of the canvas, an open info card floats over the figure.
+  // A press on any of them belongs to that thing, never to a part.
+  if (f.onControl || f.onCaption || f.onCard) return true;
+  // Another gate holds the run: its card is the door, not the figure.
+  if (f.foreignGate) return true;
+  // Playing, the gesture is the movie's (a click pauses it) — unless the
+  // widget's own gate is up, where working the figure IS the question.
+  return f.playing && !f.ownGate;
+}
+
 /** Wire the host to a stage: capture-phase clicks while paused, resets on
  *  playback and step boundaries. Null when the template has no widget body.
  *  The cursor's `cs-cardable` class is NOT toggled here — infocard.ts owns
@@ -289,19 +313,26 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
   /** The figure's own inline touch-action (a piano stage sets "none" for the
    *  whole mount) — restored at the end, so the press only BORROWS it. */
   let priorTouchAction = "";
-  const blocked = (e: Event): boolean =>
-    hd.timeline.state === "playing" ||
-    // The big play overlay and the gate pills are buttons INSIDE the stage; the
-    // subtitle band lies across the bottom of the canvas; an open info card
-    // floats over the figure. A press on any of the three belongs to that
-    // thing, never to a part — the chess and piano guard, widened.
-    (e.target instanceof Element && e.target.closest("button") !== null) ||
-    overCaption(e.target as Element | null) ||
-    (e.target instanceof Element && e.target.closest(".cs-infocard") !== null) ||
-    // Under the widget's OWN gate the gesture is the whole point (the keys
-    // read the gate exactly this way); under any other gate it stands aside.
-    (gateIsOpen(stage) && !stage.querySelector(".cs-widgetgate"));
+  /** The widget's OWN ask gate is up — the marker the keys read too. It comes
+   *  off the moment the gate settles, so the mark's 900 ms linger is foreign. */
+  const ownGate = (): boolean => stage.querySelector(".cs-widgetgate") !== null;
+  const blocked = (e: Event): boolean => {
+    const own = ownGate();
+    const t = e.target instanceof Element ? e.target : null;
+    return pressBlocked({
+      playing: hd.timeline.state === "playing",
+      ownGate: own,
+      foreignGate: gateIsOpen(stage) && !own,
+      onControl: t !== null && t.closest(CONTROL_SELECTOR) !== null,
+      onCaption: overCaption(e.target as Element | null),
+      onCard: t !== null && t.closest(".cs-infocard") !== null,
+    });
+  };
   stage.addEventListener("pointerdown", (e) => {
+    // A right- or middle-click, and a second finger, are nobody's gesture: no
+    // click follows a secondary button, so letting one through would both run
+    // the widget on a context menu and disarm a swallow a live press armed.
+    if (!e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
     swallowClick = false; // whatever an earlier press armed, this click is new
     if (blocked(e)) return;
     const p = logicalPoint(stage, e);
@@ -403,8 +434,8 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
     // below for the play button.
     const keysBlocked = (e: KeyboardEvent): boolean =>
       typing(e.target) ||
-      (hd.timeline.state === "playing" && !stage.querySelector(".cs-widgetgate")) ||
-      (gateIsOpen(stage) && !stage.querySelector(".cs-widgetgate")) ||
+      (hd.timeline.state === "playing" && !ownGate()) ||
+      (gateIsOpen(stage) && !ownGate()) ||
       (e.target instanceof Element && e.target.closest(".cs-figgate-skip, .cs-cardgate-pill") !== null);
     const onKeyDown = (e: KeyboardEvent): void => {
       if (!stage.isConnected) {
@@ -492,6 +523,11 @@ export function widgetGateFor(stage: HTMLElement, hd: RenderHandle, host: Widget
         mark.style.top = `${gr.height / 2}px`;
         gate.appendChild(mark);
         hint.remove();
+        // The mark lingers 900 ms — but the question is OVER. The marker class
+        // comes off right here (cs-figgate stays, so gateIsOpen still holds),
+        // and the stage's guards read the linger as any other gate: no press
+        // reaches the body after the answer has been judged.
+        gate.classList.remove("cs-widgetgate");
         settled = true;
         detach();
         window.setTimeout(() => gate.remove(), CARD_LINGER_MS);
