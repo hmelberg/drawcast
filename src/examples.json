@@ -20885,9 +20885,12 @@
           "draw": [
             "peg_0",
             "peg_1",
-            "peg_2"
+            "peg_2",
+            "disk_3",
+            "disk_2",
+            "disk_1"
           ],
-          "speak": "Move the whole tower from the left peg to the right, one disk at a time."
+          "speak": "Move the whole tower from the left peg to the right, one disk at a time. The top disk of a peg can be dragged across to another peg, or clicked and then set down with a click on the peg."
         },
         {
           "draw": [
@@ -20901,7 +20904,7 @@
             "widget": "tower_of_hanoi",
             "answer": "solved",
             "right": "Solved. Notice the pattern: move the smaller tower aside, the big disk over, the smaller tower back on top.",
-            "wrong": "Keep going — click a peg to lift its top disk, another to set it down."
+            "wrong": "Keep going — drag the top disk onto another peg, or click the disk and then the peg."
           }
         }
       ]
@@ -21052,7 +21055,7 @@
             "counter",
             "hint"
           ],
-          "speak": "One rule, and it is the whole algorithm: only bars standing next to each other may trade places. The counter keeps the tally."
+          "speak": "One rule, and it is the whole algorithm: only bars standing next to each other may trade places. A bar can be dragged onto its neighbour, or the two clicked in turn, and the counter keeps the tally."
         },
         {
           "ask": {
@@ -21060,7 +21063,7 @@
             "widget": "bubble_sort",
             "answer": "sorted",
             "right": "Seven swaps is the fewest this row allows — and notice what happened on the way: the tallest bar bubbled to the end on the very first pass.",
-            "wrong": "Only neighbours may swap — click a bar and then the one beside it."
+            "wrong": "Only neighbours may swap — drag a bar onto the one beside it, or click the two in turn."
           }
         }
       ]

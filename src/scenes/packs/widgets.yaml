@@ -138,10 +138,10 @@ status: ready
 description: >-
   The Tower of Hanoi puzzle: three pegs and a stack of disks that must move
   one at a time, never a larger disk onto a smaller one. The viewer can play
-  it while paused (click a peg to pick up its top disk, another to put it
-  down); an ask bound to this template can require the puzzle to be solved.
-  Choose this for ANY request about the Tower of Hanoi, recursion puzzles or
-  the 2^n − 1 moves.
+  it while paused — DRAG the top disk onto another peg, or click it and then
+  click the peg; an ask bound to this template can require the puzzle to be
+  solved. Choose this for ANY request about the Tower of Hanoi, recursion
+  puzzles or the 2^n − 1 moves.
 params:
   type: object
   properties:
@@ -155,9 +155,10 @@ params:
       type: integer
       description: "Moves made so far — the widget sets this; leave empty."
 element_ids:
-  peg_0: the left peg with its disks (a group)
-  peg_1: the middle peg with its disks (a group)
-  peg_2: the right peg with its disks (a group)
+  peg_0: the left peg — base, pole and the area around them (a group)
+  peg_1: the middle peg (a group)
+  peg_2: the right peg (a group)
+  disk_1: the smallest disk — drag it onto a peg, or click it then click a peg (one disk_<d> per disk, disk_1 smallest; draw every disk in the same beat as the pegs, or they are not there to be worked)
   counter: the move counter
   title: the title
 examples:
@@ -174,18 +175,27 @@ layout: |
   const push = (d) => { drawables.push(d); order.push(d.id); };
   push(kit.text("title", [500, 700], "Tower of Hanoi", { fontSize: 30 }));
   const X = [220, 500, 780], BASE = 180, H = 24, MAXW = 200;
+  // The pegs first — zone, base and pole, nothing else — so that every disk
+  // draws OVER the peg it stands on.
   pegs.forEach((stack, p) => {
-    const children = [
+    push(kit.group("peg_" + p, [
       kit.stroke("peg_" + p + "__zone", kit.rect(X[p] - 120, BASE, 240, 210), { closed: true, fill: kit.GROUND, opacity: 0.001, strokeWidth: 1, instant: true }),
       kit.stroke("peg_" + p + "__base", [[X[p] - 120, BASE], [X[p] + 120, BASE]], { strokeWidth: 4 }),
       kit.stroke("peg_" + p + "__pole", [[X[p], BASE], [X[p], BASE + 200]], { strokeWidth: 4 }),
-    ];
+    ]));
+    anchors["peg_" + p] = [X[p], BASE + 100];
+  });
+  // Then the disks, bottom to top — TOP-LEVEL parts, not children of a peg,
+  // because a viewer drags a disk and the body must be handed the disk it
+  // grabbed. Each disk is its own ROW (H − 4 tall on a pitch of H), so no
+  // disk's outline contains another disk's centre and the smallest
+  // containing ring is always the disk actually under the pointer.
+  pegs.forEach((stack, p) => {
     [...stack].forEach((d, i) => {
       const w = MAXW * (Number(d) / n), y = BASE + i * H;
-      children.push(kit.stroke("peg_" + p + "__disk_" + d, kit.rect(X[p] - w / 2, y, w, H - 4), { closed: true, fill: C.series[(Number(d) - 1) % C.series.length], strokeWidth: 2 }));
+      push(kit.stroke("disk_" + d, kit.rect(X[p] - w / 2, y, w, H - 4), { closed: true, fill: C.series[(Number(d) - 1) % C.series.length], strokeWidth: 2 }));
+      anchors["disk_" + d] = [X[p], y + (H - 4) / 2];
     });
-    push(kit.group("peg_" + p, children));
-    anchors["peg_" + p] = [X[p], BASE + 100];
   });
   push(kit.text("counter", [500, 120], "moves: " + (Number.isInteger(params.moves) ? params.moves : 0), { fontSize: 22, color: C.guide }));
   return { drawables, labels, anchors, order };
@@ -198,27 +208,61 @@ widget: |
     const pegs = raw ? raw.split("|").map((s) => [...s]) : [Array.from({ length: n }, (_, i) => String(n - i)), [], []];
     return { pegs, selected: null, moves: Number.isInteger(scene.params.moves) ? scene.params.moves : 0, n };
   };
-  const on = (ev, st) => {
-    if (ev.type !== "click") return same(st);
-    const m = /^peg_(\d)$/.exec(ev.id);
-    if (!m) return same(st);
-    const p = Number(m[1]);
-    if (st.selected === null) {
-      if (st.pegs[p].length === 0) return same(st);
-      return { state: { ...st, selected: p }, effects: [{ glow: "peg_" + p }] };
+  const TOP_ONLY = "Only the top disk moves.";
+  // Which peg disk `d` (a one-character string) stands on, or -1.
+  const pegOf = (st, d) => st.pegs.findIndex((s) => s.includes(d));
+  // The ONE move rule. Both gestures come here — a drag that was released on
+  // a peg, and the second click of a click-click — so the puzzle can only
+  // ever be wrong in one place.
+  const move = (st, from, to) => {
+    const idle = { ...st, selected: null };
+    if (from < 0 || to < 0 || from === to || st.pegs[from].length === 0) return same(idle);
+    const disk = st.pegs[from][st.pegs[from].length - 1], rest = st.pegs[to];
+    if (rest.length > 0 && Number(rest[rest.length - 1]) < Number(disk)) {
+      return { state: idle, effects: [{ glow: "peg_" + to, color: "#b23a3a" }, { caption: "A larger disk may not go on a smaller one." }] };
     }
-    if (st.selected === p) return { state: { ...st, selected: null }, effects: [] };
-    const from = st.pegs[st.selected], to = st.pegs[p];
-    const disk = from[from.length - 1];
-    if (to.length > 0 && Number(to[to.length - 1]) < Number(disk)) {
-      return { state: { ...st, selected: null }, effects: [{ glow: "peg_" + p, color: "#b23a3a" }, { caption: "A larger disk may not go on a smaller one." }] };
-    }
-    const pegs = st.pegs.map((s, i) => (i === st.selected ? s.slice(0, -1) : i === p ? [...s, disk] : s));
+    const pegs = st.pegs.map((s, i) => (i === from ? s.slice(0, -1) : i === to ? [...s, disk] : s));
     const moves = st.moves + 1;
     const solved = pegs[2].length === st.n;
     const effects = [{ patch: { pegs: encode(pegs), moves } }];
     if (solved) effects.push({ glow: "peg_2", color: "#4a7c59" }, { caption: "Solved in " + moves + " moves." }, { answer: "solved" });
     return { state: { ...st, pegs, selected: null, moves }, effects };
+  };
+  // Where a gesture LANDED, as a peg index. A peg is itself; a disk is the
+  // peg it stands on — which is where a viewer aiming at the top of a stack
+  // actually releases. Blank paper, the title and the counter are no target.
+  const target = (st, id) => {
+    const p = /^peg_(\d)$/.exec(id ?? "");
+    if (p) return Number(p[1]);
+    const d = /^disk_(\d)$/.exec(id ?? "");
+    return d ? pegOf(st, d[1]) : -1;
+  };
+  const on = (ev, st) => {
+    if (ev.type === "drag") {
+      const m = /^disk_(\d)$/.exec(ev.id);
+      if (!m) return same(st);
+      const from = pegOf(st, m[1]);
+      if (from < 0) return same(st);
+      // A buried disk is not liftable at all: say so rather than lifting the
+      // one above it, which is not what the pointer grabbed.
+      if (st.pegs[from][st.pegs[from].length - 1] !== m[1]) return { state: { ...st, selected: null }, effects: [{ caption: TOP_ONLY }] };
+      return move(st, from, target(st, ev.to));
+    }
+    if (ev.type !== "click") return same(st);
+    const disk = /^disk_(\d)$/.exec(ev.id), peg = /^peg_(\d)$/.exec(ev.id);
+    if (!disk && !peg) return same(st);
+    // A click on a disk is a click on its peg — with one extra rule when
+    // nothing is held yet: only the disk on TOP can be picked up.
+    const p = peg ? Number(peg[1]) : pegOf(st, disk[1]);
+    if (p < 0) return same(st);
+    if (st.selected === null) {
+      if (st.pegs[p].length === 0) return same(st);
+      const top = st.pegs[p][st.pegs[p].length - 1];
+      if (disk && disk[1] !== top) return { state: st, effects: [{ caption: TOP_ONLY }] };
+      return { state: { ...st, selected: p }, effects: [{ glow: "disk_" + top }] };
+    }
+    if (st.selected === p) return { state: { ...st, selected: null }, effects: [] };
+    return move(st, st.selected, p);
   };
   const demo = (scene, answer) => {
     const n = Math.min(5, Math.max(3, Number.isInteger(scene.params.disks) ? scene.params.disks : 3));
@@ -449,8 +493,8 @@ status: ready
 description: >-
   A row of bars, each as tall as its value and labelled with it, that the
   viewer sorts by hand under bubble sort's one rule: only NEIGHBOURS may
-  swap. Click a bar, then the bar beside it, and the two trade places; a
-  counter keeps the tally. When the row is ascending every bar glows. An ask
+  swap. DRAG a bar onto the bar beside it — or click one, then the other —
+  and the two trade places; a counter keeps the tally. When the row is ascending every bar glows. An ask
   bound to this template can require the row sorted. Choose this for ANY
   request about bubble sort, sorting algorithms by hand, swapping neighbours,
   or counting the swaps a sort takes.
@@ -490,7 +534,7 @@ layout: |
   const push = (d) => { drawables.push(d); order.push(d.id); };
   push(kit.text("title", [500, 700], "Bubble sort", { fontSize: 30 }));
   push(kit.text("counter", [500, 645], "swaps: " + (Number.isInteger(params.swaps) ? params.swaps : 0), { fontSize: 22, color: C.guide }));
-  push(kit.text("hint", [500, 600], "click a bar, then a NEIGHBOUR, to swap them", { fontSize: 16, color: C.guide }));
+  push(kit.text("hint", [500, 600], "drag a bar onto a NEIGHBOUR — or click both — to swap them", { fontSize: 16, color: C.guide }));
   const BASE = 150, PITCH = 820 / n, W = Math.min(120, PITCH - 22);
   values.forEach((v, i) => {
     const h = 70 + 330 * (Math.abs(v) / top), x = 90 + PITCH * (i + 0.5);
@@ -513,26 +557,40 @@ widget: |
     swaps: Number.isInteger(scene.params.swaps) ? scene.params.swaps : 0,
     done: false,
   });
-  const on = (ev, st) => {
-    // Once the row is sorted the widget has answered; further clicks are the
-    // viewer playing with a finished puzzle, not a second answer.
-    if (ev.type !== "click" || st.done) return same(st);
-    const m = /^bar_(\d+)$/.exec(ev.id);
-    if (!m) return same(st);
-    const i = Number(m[1]);
-    if (i >= st.values.length) return same(st);
-    if (st.selected === null) return { state: { ...st, selected: i }, effects: [{ glow: "bar_" + i }] };
-    if (st.selected === i) return { state: { ...st, selected: null }, effects: [] };
-    if (Math.abs(st.selected - i) !== 1) {
-      return { state: { ...st, selected: null }, effects: [{ caption: "Bubble sort only swaps neighbours." }] };
-    }
-    const a = Math.min(st.selected, i), values = st.values.slice();
+  // The index of the bar an event named, or -1 (blank paper included).
+  const barAt = (st, id) => {
+    const m = /^bar_(\d+)$/.exec(id ?? "");
+    const i = m ? Number(m[1]) : -1;
+    return i >= 0 && i < st.values.length ? i : -1;
+  };
+  // The one swap rule: the second click of a click-click and the release of
+  // a drag both land here, so "only neighbours" is stated once.
+  const trade = (st, i, j) => {
+    const idle = { ...st, selected: null };
+    if (i < 0 || j < 0 || i === j) return same(idle);
+    if (Math.abs(i - j) !== 1) return { state: idle, effects: [{ caption: "Bubble sort only swaps neighbours." }] };
+    const a = Math.min(i, j), values = st.values.slice();
     values[a] = st.values[a + 1];
     values[a + 1] = st.values[a];
     const swaps = st.swaps + 1, done = isSorted(values);
     const effects = [{ sound: { hz: 480, ms: 60 } }, { patch: { values, swaps } }];
     if (done) effects.push({ glow: allBars(values), color: "#4a7c59" }, { caption: "Sorted in " + swaps + " swaps." }, { answer: "sorted" });
     return { state: { ...st, values, selected: null, swaps, done }, effects };
+  };
+  const on = (ev, st) => {
+    // Once the row is sorted the widget has answered; further gestures are
+    // the viewer playing with a finished puzzle, not a second answer.
+    if (st.done) return same(st);
+    if (ev.type === "drag") {
+      const i = barAt(st, ev.id);
+      return i < 0 ? same(st) : trade(st, i, barAt(st, ev.to));
+    }
+    if (ev.type !== "click") return same(st);
+    const i = barAt(st, ev.id);
+    if (i < 0) return same(st);
+    if (st.selected === null) return { state: { ...st, selected: i }, effects: [{ glow: "bar_" + i }] };
+    if (st.selected === i) return { state: { ...st, selected: null }, effects: [] };
+    return trade(st, st.selected, i);
   };
   const demo = (scene) => {
     const start = barsOf(scene), values = start.slice(), steps = [];

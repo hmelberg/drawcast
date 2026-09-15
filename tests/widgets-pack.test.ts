@@ -11,7 +11,7 @@ import { beforeAll, describe, expect, test } from "vitest";
 import { layoutSpec } from "../src/layout/layout";
 import { ensureEnabledPacks } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
-import { demoWidget, keyEvent, partAt, runWidget } from "../src/scenes/widget-run";
+import { demoWidget, dragEvent, keyEvent, partAt, runWidget } from "../src/scenes/widget-run";
 import { buildWidgetScene } from "../src/scenes/widget-scene";
 import type { Spec } from "../src/spec/types";
 
@@ -74,7 +74,100 @@ describe("xylophone", () => {
   });
 });
 
+// The Tower of Hanoi is the one document where the DRAG is the natural
+// gesture — you pick a disk up and put it down — so its disks are parts in
+// their own right (spec §2.2 addendum 2026-09-15b). Click-click stays the
+// fallback, and both paths go through one move rule.
+describe("tower of hanoi", () => {
+  test("a disk dragged onto a peg moves when legal, is refused when not, and click-click still works", () => {
+    const h = scenes["tower_of_hanoi"];
+    const r = runWidget(h, { disks: 3 }, [dragEvent("disk_1", "peg_2")]);
+    expect(r.errors).toEqual([]);
+    expect(r.params.pegs).toBe("32||1");
+    expect(r.params.moves).toBe(1);
+    // A REFUSED drop leaves the tower exactly as it stood — the 2 is still on
+    // the left peg, on top of the 3. (The plan's sketch wrote "3|1|" here,
+    // which would have the 2 vanish in mid-air: a disk a body refuses to move
+    // is a disk that never left.)
+    const bad = runWidget(h, { disks: 3 }, [dragEvent("disk_1", "peg_1"), dragEvent("disk_2", "peg_1")]);
+    expect(bad.errors).toEqual([]);
+    expect(bad.params.pegs).toBe("32|1|");
+    expect(bad.effects[1].some((e) => e.caption)).toBe(true);
+    // Dropped ON A DISK = dropped on the peg that disk stands on, which is
+    // how a viewer aiming at the top of a stack actually releases. Legal here
+    // (the 1 goes on the 2), refused in the next case (the 2 on the 1) — both
+    // directions, so a resolver that answered `null` could not pass.
+    const onDisk = runWidget(h, { disks: 3 }, [dragEvent("disk_1", "peg_1"), dragEvent("disk_2", "peg_2"), dragEvent("disk_1", "disk_2")]);
+    expect(onDisk.errors).toEqual([]);
+    expect(onDisk.params.pegs).toBe("3||21");
+    expect(onDisk.params.moves).toBe(3);
+    const ontoSmaller = runWidget(h, { disks: 3 }, [dragEvent("disk_1", "peg_2"), dragEvent("disk_2", "disk_1")]);
+    expect(ontoSmaller.params.pegs).toBe("32||1");
+    expect(ontoSmaller.effects[1].some((e) => e.caption)).toBe(true);
+    // The click path is untouched: a disk, then a peg.
+    const cc = runWidget(h, { disks: 3 }, ["disk_1", "peg_2"]);
+    expect(cc.errors).toEqual([]);
+    expect(cc.params.pegs).toBe("32||1");
+    // …and a peg, then a peg — the gesture the movie still performs.
+    const pegs = runWidget(h, { disks: 3 }, ["peg_0", "peg_2"]);
+    expect(pegs.params.pegs).toBe("32||1");
+  });
+
+  test("only the TOP disk moves, and a disk released on blank paper does nothing at all", () => {
+    const h = scenes["tower_of_hanoi"];
+    const buried = runWidget(h, { disks: 3 }, [dragEvent("disk_3", "peg_1")]);
+    expect(buried.errors).toEqual([]);
+    expect(buried.params.pegs).toBeUndefined();
+    expect(buried.effects[0].some((e) => e.caption === "Only the top disk moves.")).toBe(true);
+    const clicked = runWidget(h, { disks: 3 }, ["disk_3", "peg_1"]);
+    expect(clicked.params.pegs).toBeUndefined();
+    // Blank paper: no patch, no caption, nothing — the ghost simply snaps back
+    // and (in the host) playback does not resume.
+    const blank = runWidget(h, { disks: 3 }, [dragEvent("disk_1", null)]);
+    expect(blank.errors).toEqual([]);
+    expect(blank.effects[0]).toEqual([]);
+    // Onto its own peg: also nothing.
+    const home = runWidget(h, { disks: 3 }, [dragEvent("disk_1", "peg_0")]);
+    expect(home.params.pegs).toBeUndefined();
+  });
+
+  test("dragging the tower across answers `solved`, exactly as the clicks do", () => {
+    const h = scenes["tower_of_hanoi"];
+    const moves: [string, string][] = [
+      ["disk_1", "peg_2"], ["disk_2", "peg_1"], ["disk_1", "peg_1"],
+      ["disk_3", "peg_2"], ["disk_1", "peg_0"], ["disk_2", "peg_2"], ["disk_1", "peg_2"],
+    ];
+    const r = runWidget(h, { disks: 3 }, moves.map(([id, to]) => dragEvent(id, to)));
+    expect(r.errors).toEqual([]);
+    expect(r.params.pegs).toBe("||321");
+    expect(r.params.moves).toBe(7);
+    expect(r.answer).toBe("solved");
+  });
+});
+
 describe("bubble sort", () => {
+  test("a bar dragged onto its neighbour swaps; onto a non-neighbour is refused", () => {
+    const b = scenes["bubble_sort"];
+    const r = runWidget(b, { values: [1, 3, 2, 4] }, [dragEvent("bar_1", "bar_2")]);
+    expect(r.errors).toEqual([]);
+    expect(r.params.values).toEqual([1, 2, 3, 4]);
+    expect(r.params.swaps).toBe(1);
+    expect(r.answer).toBe("sorted");
+    // A refused drop patches NOTHING — and the only way to SHOW that is to
+    // start from params that carry no `values` key at all, so a patch would
+    // have to create one. (The plan's sketch seeded `values: [3, 2, 1, 4]`
+    // and then asked for `undefined`, which no run can give: the harness
+    // seeds its params from the ones it was handed.)
+    const bad = runWidget(b, {}, [dragEvent("bar_0", "bar_2")]);
+    expect(bad.errors).toEqual([]);
+    expect(bad.params.values).toBeUndefined();
+    expect(bad.effects[0].some((e) => e.caption)).toBe(true);
+    // Blank paper, and a bar onto itself: nothing at all.
+    const blank = runWidget(b, {}, [dragEvent("bar_0", null), dragEvent("bar_0", "bar_0")]);
+    expect(blank.params.values).toBeUndefined();
+    expect(blank.effects.flat()).toEqual([]);
+  });
+
   test("two adjacent bars swap, non-adjacent is refused, the sorted state answers", () => {
     const b = scenes["bubble_sort"];
     // One swap from sorted, and four bars — the fewest the document declares.
@@ -195,7 +288,12 @@ describe("tic-tac-toe", () => {
 describe("every pack widget's interactive parts sit on the real hit surface", () => {
   const cases: { id: string; parts: string[] }[] = [
     { id: "morse_key", parts: ["key_dot", "key_dash", "key_gap", "key_send"] },
-    { id: "tower_of_hanoi", parts: ["peg_0", "peg_1", "peg_2"] },
+    // Hanoi's disks are parts too, and they STACK: a disk sits inside its
+    // peg's zone and directly above its neighbour, so this row is also the
+    // stacking pin — each disk's own centre must answer with that disk (the
+    // smallest containing outline), never the one beneath it or the peg
+    // around it, and a peg's centre must still answer with the peg.
+    { id: "tower_of_hanoi", parts: ["peg_0", "peg_1", "peg_2", "disk_1", "disk_2", "disk_3"] },
     { id: "logic_gates", parts: ["switch_a", "switch_b"] },
     { id: "xylophone", parts: Array.from({ length: 8 }, (_, i) => `bar_${i + 1}`).concat("key_done") },
     { id: "bubble_sort", parts: Array.from({ length: 6 }, (_, i) => `bar_${i}`) },

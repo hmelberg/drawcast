@@ -17,11 +17,18 @@ Open Examples → Widgets pack.
    and dash with its tone — **and the strip and the decoded line fill in as
    it goes** (a demo that only tapped left the figure frozen).
 5. "The Tower of Hanoi puzzle with three disks." Paused: click the left peg
-   (it glows), click the middle peg — the small disk moves, counter reads 1.
-   A click on the bare POLE above the disks, and on an EMPTY peg, both count.
-   Try a big disk onto a small one: red glow and the caption. Solve it: the
-   right peg glows green, the ask is satisfied. The pegs look unchanged —
-   no visible rectangle around them.
+   (its TOP DISK glows), click the middle peg — the small disk moves, counter
+   reads 1. A click on the bare POLE above the disks, and on an EMPTY peg,
+   both count. Try a big disk onto a small one: red glow and the caption.
+   Solve it: the right peg glows green, the ask is satisfied. The pegs look
+   unchanged — no visible rectangle around them.
+5b. **The drag** (same drawcast, paused): press the small disk and pull it to
+   the right peg — it follows the pointer the whole way and LANDS there on
+   release, counter up by one. Drop one on a disk rather than the peg's bare
+   pole: it goes on that disk's peg. Drag a big disk onto a small one — it
+   snaps back and the caption says so, nothing moved. Press a BURIED disk and
+   pull: it snaps back with "Only the top disk moves." Release a disk on
+   blank paper: it snaps back, nothing moves, and playback does NOT resume.
 6. "How an XOR gate works." Paused: flip A — the bulb lights, the caption
    reads A=1, B=0 → 1. Flip B — it goes out. The ask accepts the lit state.
    In the movie the switch flips and the bulb lights on its own.
@@ -38,9 +45,11 @@ Open Examples → Widgets pack.
    the key. In the movie the laser taps the three bars and they sound.
 11. "Sort the bars like bubble sort." Paused: click bar one, then bar two —
    they trade places and the counter reads 1. Click a bar and one two along:
-   nothing moves and the caption says only neighbours may swap. Sort the row
-   (seven swaps): every bar glows green and the ask is satisfied. Click on
-   after that — the gate does not fire a second time.
+   nothing moves and the caption says only neighbours may swap. Now DRAG a
+   bar onto its neighbour: the same swap, one gesture. Drag one onto a bar
+   two along: it snaps back with the same caption. Sort the row (seven
+   swaps): every bar glows green and the ask is satisfied. Click on after
+   that — the gate does not fire a second time.
 12. "Tic-tac-toe against the computer." Paused: click the centre — O takes
    the top-left corner, every time (play it twice and compare). Play 4, 8, 1,
    3, 6 and it ends in a draw with all nine squares glowing; the ask is

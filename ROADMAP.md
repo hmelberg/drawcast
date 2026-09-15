@@ -893,6 +893,20 @@ free — so the same clicks always give the same game; keys 1–9; answers
 `won`/`lost`/`draw`, and a win passes a draw's ask). Each has a bundled
 example and its own demo that patches the figure per move.
 
+Drag — 2026-09-15 (spec addendum 2026-09-15b). The host reads ONE pointer
+gesture on the stage and decides at release: a press that barely moved is the
+`click` it always was, a press that moved is `{type: "drag", id, to, point,
+domain}`, where `to` is the part under the release point (or `null` on blank
+paper); while the press moves, the pressed part follows the pointer on the
+renderer's own offset (`Player.nudge`), cleared before the event is
+delivered. Two documents took the gesture: `tower_of_hanoi`, whose disks are
+now TOP-LEVEL parts (`disk_<d>`, one per row, so the smallest containing ring
+is always the disk under the pointer) that you drag onto a peg — or onto a
+disk, which means the peg it stands on — with only the top disk liftable; and
+`bubble_sort`, where a bar dragged onto its neighbour makes the same swap the
+two clicks do. Click-click stays the fallback for touch and for the pads, and
+both documents route both gestures through one move rule.
+
 Open: `run`/`result` (a widget executing a code element); `tick` and hover
 events; anchors on the scene object; a ⊕ pill / context-menu launcher
 for free play (tray.ts); Python/R widget bodies; the tray-vs-widget preview
