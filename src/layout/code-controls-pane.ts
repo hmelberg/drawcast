@@ -92,11 +92,12 @@ export interface ControlsPaneLayout {
  * last argument, so a caller that already parsed for one reuses it for both.
  */
 export function controlsPaneHeight(labels: string[], fontSize: number, w: number, extraRows = 0): number {
-  if (labels.length === 0) return 0;
+  const extra = extraRows * fontSize * CTL_ROW_H;
+  if (labels.length === 0) return extra;
   const rowH = fontSize * CTL_ROW_H;
   const labelW = labelColumnWidth(labels, fontSize, w);
   const labelsH = labels.reduce((sum, label) => sum + (labelWidthEstimate(label, fontSize) <= labelW ? rowH : WRAP_MULT * rowH), 0);
-  return labelsH + extraRows * fontSize * CTL_ROW_H;
+  return labelsH + extra;
 }
 
 function rectPts(x: number, y: number, w: number, h: number): Pt[] {

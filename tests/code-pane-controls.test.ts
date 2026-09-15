@@ -68,6 +68,11 @@ describe("controlsPane (pure)", () => {
     const s = spec({ code: "n = (0, 100)", controls: ["n"], autorun: false });
     expect(ids(s)).toContain(`sim_ctl_${RUN_ROW_ID}__pill`);
   });
+  test("controlsPaneHeight counts the Run row even with zero labels — the two must never disagree", () => {
+    expect(controlsPaneHeight([], 20, 500, 1)).toBeCloseTo(20 * CTL_ROW_H, 5);
+    const p = controlsPane("sim", "python", "", [], { x: 0, top: 0, w: 500 }, 20, undefined, undefined, undefined, { runRow: true });
+    expect(p.height).toBeCloseTo(controlsPaneHeight([], 20, 500, 1), 5);
+  });
 });
 
 describe("the label column sizes to the longest label, and a label past the cap wraps", () => {
