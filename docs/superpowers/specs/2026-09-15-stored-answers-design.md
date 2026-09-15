@@ -32,7 +32,7 @@ An `ask` can store its answer (`store: name`) and later lines can say
   is what the student examines and a later submit sends, and survives
   reloads. Naming only matters for variables; the record identifies a
   question by cast, item, step and its text.
-- **Automatic variables live in one namespace, `answers`**, so they can
+- **Automatic variables live in one namespace, `_answers`**, so they can
   never collide with an author's `store:` name. Every quiz and ask is
   stored, always, no flag:
   - `{_answers.N}` — the N-th question in playlist order (items
