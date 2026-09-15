@@ -26,5 +26,7 @@ describe("tray chrome", () => {
   test("no rule anywhere carries the sketchy-box radius for tray chrome", () => {
     expect(css).not.toMatch(/\.cs-ctlcard/);
     expect(css).not.toMatch(/:root\[data-theme="dark"\] \.cs-paramtray/);
+    expect(css).not.toMatch(/\.cs-paramtray \{ border-color/);
+    expect(css).not.toContain(':root:not([data-theme="light"]) .cs-paramtray');
   });
 });
