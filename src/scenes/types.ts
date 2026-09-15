@@ -3,6 +3,8 @@ import type { LabelRequest } from "../layout/labels";
 import type { WidgetBody } from "./widget-types";
 
 /** What a scene's deterministic layout code produces. */
+/** A layout must build fresh objects on every call: the template fit
+ *  (layout/template-fit.ts) mutates what it returns. */
 export interface SceneLayout {
   drawables: Drawable[];
   labels: LabelRequest[];

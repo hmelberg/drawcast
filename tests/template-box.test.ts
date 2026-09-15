@@ -281,6 +281,20 @@ describe("template box — the planner's domain mapping composes the fit", () =>
   });
 });
 
+describe("template box — idempotent", () => {
+  test("layoutSpec twice on the same fitted spec object gives the same fit and the same first drawable bbox (no double fit)", () => {
+    const spec = sir({ box: "right" });
+    const r1 = layoutSpec(spec);
+    const r2 = layoutSpec(spec);
+    expect(r1.fit).toBeDefined();
+    expect(r2.fit).toBeDefined();
+    expect(r2.fit!.s).toBeCloseTo(r1.fit!.s, 10);
+    expect(r2.fit!.box).toEqual(r1.fit!.box);
+    const firstId = r1.order[0];
+    expect(elementBBoxes(r2).get(firstId)).toEqual(elementBBoxes(r1).get(firstId));
+  });
+});
+
 describe("template box — fit-scale lint", () => {
   test("a box too small for the template warns once, naming the scale and the way out", () => {
     const r = layoutSpec(sir({ box: { x: 60, y: 95, w: 200, h: 120 } }));
