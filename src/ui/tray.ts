@@ -202,6 +202,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   let unguide: (() => void) | null = null;
   /** Set while an explore command holds the run — Continue resolves it. */
   let gateResolve: (() => void) | null = null;
+  /** The gated beat's `code` while a SHUT-tray explore gate holds the run
+   *  (spec 2026-09-15 §3.3) — the one thing ⊕ needs to open that tray the
+   *  GATED way instead of aborting the gate it is standing in. Lives and
+   *  dies with `gateResolve`. */
+  let gatedCode: string | null = null;
   /** The anatomy Body section, while the tray shows one. */
   let bodySection: BodySection | null = null;
   /** The solar-system Space section, while the tray shows one. */
@@ -399,6 +404,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     if (el.pane !== "controls") return;
     const values = controlValues.get(el.id) ?? {};
     const code = applyControls(el.language ?? "python", authoredCode, controls, values);
+    // The knobs' script is on screen NOW, so it is what an editor Run must be
+    // compared against — runControls only records it when the debounce fires,
+    // and until then a Run of the very text the panel is showing read as the
+    // viewer taking the script over (and quieted their own knobs).
+    lastControlsCode.set(el.id, code);
     const result = patches.get(el.id)?.result ?? el.code_result ?? "";
     patches.set(el.id, { code, result });
     if (knobFrame !== null) return;
@@ -494,6 +504,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       close();
       const r = gateResolve;
       gateResolve = null;
+      gatedCode = null;
       r();
       if (hd.timeline.state === "paused") void hd.timeline.play(); // the shut-tray gate paused the timeline
     } else {
@@ -514,8 +525,9 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
 
   /** The drawn control panels, live (spec 2026-09-15 §3): the host reads the
    *  painted geometry and commits through the SAME closures the tray's rows
-   *  use — one state, one look. Disabled while the tray is open, so there is
-   *  one live copy at a time. */
+   *  use — one state, one look. ALWAYS live: the tray builds no rows for a
+   *  `pane: controls` script (§2.3), so the panel is the only copy there is,
+   *  open tray or not. */
   const controlPanels = editable
     .filter((e) => e.pane === "controls" && Array.isArray(e.controls) && e.controls.length > 0)
     .map((el) => {
@@ -530,7 +542,12 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     panels: () => controlPanels,
     layout: () => hd.timeline.paintedLayout() ?? hd.layout,
     visible: visibleNow,
-    enabled: () => tray.hidden,
+    // Unconditional (spec §2.3): with no tray rows for this script there is
+    // no second copy to stand down for, and standing down would leave the
+    // knobs dead while the tray was open — the tray's `freezeClick` only
+    // swallows CLICKs, and the host works on pointerdown/move/up, so the
+    // panel keeps working underneath an open tray exactly as it should.
+    enabled: () => true,
     commit: (el, c, raw, immediate) => {
       const p = controlPanels.find((x) => x.el.id === el.id);
       if (!p) return;
@@ -719,7 +736,15 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       sliderPaths: sliders.map((s) => s.spec.path),
       choicePaths: choices.map((c) => c.spec.path),
       codeIds: editable.map((e) => e.id),
-      controlIds: editable.filter((e) => Array.isArray(e.controls) && e.controls.length > 0).map((e) => e.id),
+      // …minus the scripts whose knobs are DRAWN. The tray keeps a controls
+      // group only for a script with no panel (`show: output`) — spec
+      // 2026-09-15 §2.3: "The tray keeps a controls group only for scripts
+      // with no panel." A `pane: controls` script's one live copy is its own
+      // panel, which stays live with the tray open, so a second set of rows
+      // here would be the two-copies drift the round exists to end. Filtered
+      // at this door, not in tray-model: which element OWNS a live copy is
+      // the tray's business, and the plan stays a pure derivation.
+      controlIds: editable.filter((e) => Array.isArray(e.controls) && e.controls.length > 0 && e.pane !== "controls").map((e) => e.id),
       gated: opts.gated,
       params: opts.filter,
       code: opts.code,
@@ -1060,10 +1085,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       }
     }
     // Code controls (design 2026-09-14 §2.6): one group per script, above the
-    // template sliders' cousins — built by controls-group.ts. These rows and
-    // the DRAWN panel the host makes live (controls-host.ts) are two faces of
-    // ONE state: both commit through `controlsDeps`, and the host stands down
-    // while the tray is open. Drop the PREVIOUS build's tray-owned nodes from
+    // template sliders' cousins — built by controls-group.ts. Only for a
+    // script with NO panel (`show: output`): `controlIds` above drops every
+    // `pane: controls` script, whose knobs are drawn and live in place
+    // (controls-host.ts), so the two copies that could drift never coexist.
+    // Drop the PREVIOUS build's tray-owned nodes from
     // `controlGroups` first — this rebuild is about to orphan them, and a
     // takeover's quiet toggle must never reach a detached copy.
     for (const [id, g] of trayControlGroups) dropControlGroup(id, g);
@@ -1153,8 +1179,14 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   };
 
   trayBtn.addEventListener("click", () => {
-    if (tray.hidden) open();
-    else if (gateResolve) continueNow(); // closing during an explore gate means "continue"
+    // ⊕ pressed while a SHUT-tray explore gate holds the run: open the tray
+    // the GATED way. A plain open() would renderUpTo, which aborts the gate —
+    // its onAbort then closes the tray in the middle of opening it, the tray
+    // appears anyway (open() finishes), and its Continue replays the beat.
+    if (tray.hidden) {
+      if (gateResolve !== null && gatedCode !== null) open({ gated: true, code: gatedCode });
+      else open();
+    } else if (gateResolve) continueNow(); // closing during an explore gate means "continue"
     else {
       restore(); // toggle-close: honest state, stay paused
       close();
@@ -1292,6 +1324,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       const shut = step.code !== undefined && editable.find((e) => e.id === step.code)?.pane === "controls";
       const onAbort = (): void => {
         gateResolve = null;
+        gatedCode = null;
         stage?.classList.remove("cs-gated");
         closeEditors();
         clearPreview();
@@ -1303,7 +1336,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         signal.removeEventListener("abort", onAbort);
         resolve();
       };
+      // Remember the beat's own script id while the gate holds: it is what ⊕
+      // needs to open THIS tray gated (see trayBtn) instead of aborting the
+      // gate it is standing in.
       if (shut) {
+        gatedCode = step.code ?? null;
         // Paused, not merely waiting: the bar shows ▶, and a click anywhere
         // on the drawing is Continue (tryContinue in controls.ts), never a
         // stray resume into a still-pending gate.

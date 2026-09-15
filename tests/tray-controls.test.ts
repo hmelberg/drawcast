@@ -41,8 +41,17 @@ describe("tray controls (pins)", () => {
     expect(src).not.toMatch(/syncControlsGroup/);
     expect(src).not.toMatch(/controlsCards/);
   });
-  test("the host is disabled while the tray is open (one live copy at a time)", () => {
-    expect(src).toMatch(/enabled: \(\) => tray\.hidden/);
+  test("the tray builds no group for a pane: controls script, so the host is always enabled (spec §2.3)", () => {
+    // §2.3: "The tray keeps a controls group only for scripts with no panel
+    // (show: output)." The ids the plan.controls loop builds groups from are
+    // filtered HERE, at the tray's own door into trayPlan…
+    const ids = /controlIds: editable\.filter\(([\s\S]*?)\)\.map\(\(e\) => e\.id\)/.exec(src);
+    expect(ids).not.toBeNull();
+    expect(ids![1]).toMatch(/e\.pane !== "controls"/);
+    // …and because the panel is then the ONLY live copy, it must not stand
+    // down for a tray that has no rows for it.
+    expect(src).toMatch(/enabled: \(\) => true/);
+    expect(src).not.toMatch(/enabled: \(\) => tray\.hidden/);
   });
   test("a commit relays the panel from the rewritten script at once (the knob follows the pointer), then the run follows the debounce", () => {
     const i = src.indexOf("const previewKnobs");
@@ -51,6 +60,11 @@ describe("tray controls (pins)", () => {
     expect(body).toContain("applyControls(");
     expect(body).toContain("patches.set(el.id, { code");
     expect(body).toContain("requestAnimationFrame");
+    // …and the script the panel is SHOWING is what an editor Run is compared
+    // against. runControls records it only when the debounce fires, so
+    // without this a Run inside the debounce window — of the very text on
+    // screen — counted as a takeover and quieted the viewer's own knobs.
+    expect(body).toMatch(/lastControlsCode\.set\(el\.id, code\);/);
     const commit = src.slice(src.indexOf("commit: (c, raw, immediate) =>"), src.indexOf("run: () => runControls"));
     expect(commit.indexOf("previewKnobs(")).toBeLessThan(commit.indexOf("runControls("));
   });
@@ -71,6 +85,20 @@ describe("tray controls (pins)", () => {
     expect(region).toMatch(/const shut = [\s\S]{0,200}pane === "controls"/);
     expect(region).toMatch(/if \(shut\) \{[\s\S]{0,400}hd\.timeline\.pause\(\);[\s\S]{0,400}\}/);
     expect(region).toMatch(/if \(!shut\) open\(\{ filter: step\.params, gated: true/);
+  });
+  test("⊕ pressed during a SHUT-tray gate opens the tray GATED, so the open never aborts the gate it stands in", () => {
+    const i = src.indexOf("trayBtn.addEventListener(\"click\"");
+    expect(i).toBeGreaterThan(-1);
+    const region = src.slice(i, i + 900);
+    // A plain open() calls renderUpTo → aborts the gate → onAbort closes the
+    // tray mid-open → the tray appears anyway and its Continue replays the beat.
+    expect(region).toMatch(/gateResolve !== null && gatedCode !== null\) open\(\{ gated: true, code: gatedCode \}\)/);
+    // The remembered id lives and dies with the gate.
+    expect(src).toMatch(/if \(shut\) \{\s*gatedCode = step\.code/);
+    const abort = src.slice(src.indexOf("const shut ="));
+    expect(abort).toMatch(/const onAbort = \(\): void => \{\s*gateResolve = null;\s*gatedCode = null;/);
+    const cont = src.slice(src.indexOf("const continueNow"), src.indexOf("const paneBoxOf"));
+    expect(cont).toMatch(/gateResolve = null;\s*gatedCode = null;/);
   });
   test("Continue through the play gesture: the hook resolves the gate and resumes the paused timeline", () => {
     expect(src).toMatch(/registerContinue\(stage, \(\) => \{[\s\S]{0,300}gateResolve !== null && tray\.hidden[\s\S]{0,300}continueNow\(\);[\s\S]{0,100}return true;/);

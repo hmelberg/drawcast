@@ -30,7 +30,7 @@ describe("controls-group builder (pins)", () => {
     expect(src).toContain('class: "cs-tray-choicebtn"');
     expect(src).toContain('class: "cs-tray-pill cs-tray-ctlbtn"');
   });
-  test("a control move commits through d.commit, never a local rewrite — and always names its own group (the two-hosts fix)", () => {
+  test("a control move commits through d.commit, never a local rewrite, and passes the group it happened in", () => {
     expect(src).toMatch(/d\.commit\(c, range\.value, false, group\)/);
     expect(src).toMatch(/d\.commit\(c, v, true, group\)/);
     expect(src).toMatch(/d\.commit\(c, box\.checked, true, group\)/);

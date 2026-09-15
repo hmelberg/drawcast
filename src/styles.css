@@ -1619,6 +1619,12 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   text-align: center;
 }
 .cs-stage.cs-ctl-hover { cursor: pointer; }
+/* A drawn panel is on this stage (attachControlsHost sets the class): a
+   horizontal drag is a slider, so the browser must hand it to us as pointer
+   events instead of panning with it. preventDefault on pointerdown is too
+   late for touch — only touch-action decides. `pan-y` keeps the page's own
+   vertical scroll, which is the gesture a reader still needs. */
+.cs-stage.cs-ctl-live { touch-action: pan-y; }
 
 /* The script editors' word list (ui/code-typing.ts). Fixed to the document so
    neither the card's box nor the tray's scroll can clip it; app chrome, not

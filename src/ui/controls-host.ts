@@ -33,8 +33,10 @@ export interface ControlsHostDeps {
   panels: () => ControlsPanel[];
   layout: () => LayoutResult;
   visible: (id: string) => boolean;
-  /** False while the tray is open: its rows are the live copy then, and one
-   *  live copy at a time is what keeps the two from drifting. */
+  /** Whether the drawn rows take the pointer at all. The tray builds no
+   *  controls group for a `pane: controls` script (spec §2.3), so there is
+   *  no second copy to yield to and the app passes `() => true`; the seam
+   *  stays because a test drives the core with it shut. */
   enabled: () => boolean;
   commit: (el: SpecElement, c: ControlSpec, raw: string | boolean, immediate: boolean) => void;
   run: (el: SpecElement) => void;
@@ -204,6 +206,12 @@ export function attachControlsHost(stage: HTMLElement, host: ControlsHost, opts:
     const p = logicalPoint(stage, e);
     return p !== null && host.panelAt(p) !== null;
   });
+  // Touch: `e.preventDefault()` on pointerdown does NOT stop the browser's
+  // own panning — by then the gesture is the scroller's. Only `touch-action`
+  // does, and it must be on the element BEFORE the finger lands. `pan-y`
+  // (in styles.css) gives the page its vertical scroll and hands the
+  // horizontal drag — a slider — to us as pointer events.
+  stage.classList.add("cs-ctl-live");
   const controller = new AbortController();
   const { signal } = controller;
   let gesture: SliderGesture | null = null;
@@ -212,12 +220,15 @@ export function attachControlsHost(stage: HTMLElement, host: ControlsHost, opts:
     (e: PointerEvent) => {
       if (e.button !== 0) return;
       // HTML chrome over the figure wins the press. The centred ▶, the tray,
-      // a code card and the transient input all LIE on the stage and can
-      // overlap a panel's rows — without this the press would start a knob
-      // gesture here AND the button's own click would fire, so one tap both
-      // moved a slider and resumed the run. Same selector controls.ts uses
-      // for its own play gesture (CONTROL_SELECTOR).
-      if (e.target instanceof Element && e.target.closest("button, input, select, textarea, .cs-paramtray, .cs-codeedit, .cs-ctlinput")) return;
+      // a code card, the transient input and the caption band all LIE on the
+      // stage and can overlap a panel's rows — without this the press would
+      // start a knob gesture here AND the button's own click would fire, so
+      // one tap both moved a slider and resumed the run. Same selector
+      // controls.ts uses for its own play gesture (CONTROL_SELECTOR).
+      // `.cs-caption` is the one that is not a button: an absolute overlay
+      // across the stage's whole bottom edge with its pointer events on, so
+      // selecting the beat's text over a bottom row would drag that slider.
+      if (e.target instanceof Element && e.target.closest("button, input, select, textarea, .cs-paramtray, .cs-codeedit, .cs-ctlinput, .cs-caption")) return;
       const p = logicalPoint(stage, e);
       if (!p || host.panelAt(p) === null) return;
       if (opts.playing() && !opts.gated()) opts.pauseAndSnap();
@@ -255,5 +266,6 @@ export function attachControlsHost(stage: HTMLElement, host: ControlsHost, opts:
     unregister();
     controller.abort();
     stage.classList.remove("cs-ctl-hover");
+    stage.classList.remove("cs-ctl-live");
   };
 }

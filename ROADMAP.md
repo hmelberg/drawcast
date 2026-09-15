@@ -865,9 +865,9 @@ form — out of scope by design (§7), not built; the Norwegian invitation
 words are a short, unreviewed list; a choice row's chips have no equivalent
 wrap when the options themselves are long (only the label column wraps);
 the tray's ✎ On the screen still opens the code editor over a
-`pane: controls` panel (it always calls `openInPlace`, never
-`openControlsInPlace` — there is no script text to type there once the pane
-is knobs, not lines).
+`pane: controls` panel (`openInPlace` has no `pane: controls` branch — the
+panel itself is the host's now, and there is no script text to type there
+once the pane is knobs, not lines).
 
 ## Widget bodies — done 2026-09-14
 

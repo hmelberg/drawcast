@@ -10,7 +10,7 @@ App, SIR example (pane: controls), light then dark mode:
 6. `autorun: false` (edit an example's YAML): the drawn Run ▶ row runs.
 7. Export the movie: the panel is drawn at its defaults, no invitation, no gate.
 8. Mobile (or DevTools touch): a slider drag does not scroll the page.
-9. The ⊕ tray opened by hand: no hand-drawn border, no scrollbar; its rows still work; while it is open the drawn panel ignores presses.
+9. The ⊕ tray opened by hand on a `pane: controls` figure: no hand-drawn border, no scrollbar; the tray shows the script's code cell only — no knob rows, since the knobs are drawn — and the drawn panel stays live while the tray is open (drag a knob with the tray up: it moves and the run follows). A `show: output` script's knobs are still tray rows, and they still work.
 10. `?perf` in the URL, cache cleared (DevTools → Application → IndexedDB → delete): the console shows the boot/install/run timings (Task 7).
 
 ## Measured 2026-09-15
