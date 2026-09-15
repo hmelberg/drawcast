@@ -5,6 +5,7 @@ import { parseControls } from "../src/code/controls";
 import { SpeechManager } from "../src/render/speech";
 import { precomputeSweeps, sweepRunnerFor } from "../src/render/sweep-run";
 import type { Spec } from "../src/spec/types";
+import { readFileSync } from "node:fs";
 
 // node has no rAF; drive Player.progress with a timer-based stand-in.
 globalThis.requestAnimationFrame ??= ((cb: FrameRequestCallback) => setTimeout(() => cb(performance.now()), 5) as unknown as number) as typeof requestAnimationFrame;
@@ -295,5 +296,36 @@ describe("precomputeSweeps", () => {
       () => disposed,
     );
     expect(seen).toEqual([0.2]);
+  });
+});
+
+// The flicker (2026-09-15): a repaint rebuilds every node, so the output
+// pane's <image> is BRAND NEW on every step and paints nothing until its PNG
+// has decoded. The fix is ordering, and ordering is what a source pin can
+// hold: every step's figures are decoded after the precompute loop and
+// before the first frame the sweep paints.
+describe("run: figures are decoded before the sweep paints (source pin)", () => {
+  const src = readFileSync("src/render/player.ts", "utf8");
+  const runCase = src.slice(src.indexOf('case "run": {'), src.indexOf('case "label":'));
+
+  test("decodeFigures runs after the precompute loop and before progress()", () => {
+    const precompute = runCase.indexOf("results.push({ ...(await runner(");
+    const decode = runCase.indexOf("decodeFigures(");
+    const paint = runCase.indexOf("this.progress(");
+    expect(precompute).toBeGreaterThan(-1);
+    expect(decode).toBeGreaterThan(precompute);
+    expect(paint).toBeGreaterThan(decode);
+    // Awaited, and the abort re-checked after it: a scrub during the decode
+    // must not paint the run it just left.
+    expect(runCase).toMatch(/await Promise\.all\(results\.map\(\(r\) => decodeFigures\(r\.result\)\)\);\s*\n\s*if \(signal\.aborted\) return;/);
+  });
+
+  test("a restored run decodes before it shows the figure", () => {
+    // The ASYNC branch only — the branch above it re-shows a result the run
+    // itself already decoded when it played.
+    const restore = src.slice(src.indexOf("private restoreRunPatches"), src.indexOf("private showCodePatch"));
+    const async = restore.slice(restore.indexOf("void runner(step.code, values).then("));
+    expect(async.indexOf("await decodeFigures(patch.result)")).toBeGreaterThan(-1);
+    expect(async.indexOf("await decodeFigures(patch.result)")).toBeLessThan(async.indexOf("this.pushCodePatch("));
   });
 });

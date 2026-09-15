@@ -29,6 +29,7 @@ import type { RenderHandle } from "../render";
 import type { SpecElement } from "../spec/types";
 import { decodeCodeResult, runCode } from "../code/run";
 import { pathsByCodeId, scanDataTokens, substituteDataTokens } from "../code/tokens";
+import { decodeFigures } from "../render/decode-figures";
 import { sceneAt } from "../render/plan";
 import { readParam, withOverrides } from "../render/params";
 import { scenes } from "../scenes/registry";
@@ -370,7 +371,12 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         paths,
         onStatus: (_phase, detail) => announce(el.id, (s) => s.status(detail)),
       });
-      patches.set(el.id, { code, result: JSON.stringify(result) });
+      const encoded = JSON.stringify(result);
+      // The repaint below rebuilds the output pane's <image> from scratch, so
+      // an undecoded PNG would paint nothing on the first frame — one white
+      // flash per knob move. Decode first, then swap the patch in.
+      await decodeFigures(encoded);
+      patches.set(el.id, { code, result: encoded });
       repaint();
       const msg = result.ok ? "Ran ✓ — Continue restores the lesson" : "The script failed — see the panel";
       announce(el.id, (s) => s.status(msg));

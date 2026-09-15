@@ -23,6 +23,7 @@ import { SpeechManager, type SpeechLike } from "./speech";
 import { translateCaption, type SubtitleTrack } from "../spec/subtitles";
 import type { ToneLike } from "./tones";
 import { isIdentity, type Turn } from "./pose";
+import { decodeFigures } from "./decode-figures";
 
 export type PlaybackMode = "narrated" | "silent" | "instant";
 export type PlayerState = "idle" | "playing" | "paused" | "done";
@@ -638,7 +639,10 @@ export class Player {
       const values = step.values[step.values.length - 1];
       if (!runner || !values) continue;
       void runner(step.code, values).then(
-        (patch) => {
+        async (patch) => {
+          // Decoded before it is shown (see the run case): the restored
+          // figure arrives painted, not as a pane that fills in a beat later.
+          await decodeFigures(patch.result);
           // The scrub must still stand, and nothing may have played this run
           // in the meantime — either way its own result is the honest one.
           if (this.completed !== n) return;
@@ -985,6 +989,12 @@ export class Player {
           }
           if (signal.aborted) return;
         }
+        // Every figure decoded before the first frame, for the same reason
+        // every VALUE was run before it: a repaint rebuilds the output pane's
+        // <image> from scratch, and an undecoded PNG paints nothing — a white
+        // flash per step. Cached by href, so a value seen before is free.
+        await Promise.all(results.map((r) => decodeFigures(r.result)));
+        if (signal.aborted) return;
         const n = results.length;
         // Remembered from here on: a scrub that skips this step (forward, or
         // back and forward again) has to show what the run ended on, and

@@ -16,6 +16,16 @@ describe("tray controls (pins)", () => {
   test("a control change runs the rewritten script through runEdited", () => {
     expect(src).toMatch(/const code = applyControls\([^)]*authoredCode[\s\S]{0,200}?runEdited\(el, code, "controls"\)/);
   });
+  // The flicker (2026-09-15): the repaint rebuilds the output pane's <image>
+  // from scratch, and a fresh <image> paints nothing until its PNG has
+  // decoded — one white flash per knob move. The run's figures are decoded
+  // BEFORE the patch is swapped in.
+  test("a run's figures are decoded before the patch is shown", () => {
+    const i = src.indexOf("const runEdited");
+    const region = src.slice(i, src.indexOf("const runControls", i));
+    expect(region).toContain("await decodeFigures(");
+    expect(region.indexOf("await decodeFigures(")).toBeLessThan(region.indexOf("patches.set(el.id"));
+  });
   test("control values are cleared with the preview", () => {
     expect(src).toMatch(/const clearPreview[\s\S]*?controlValues\.clear\(\)/);
   });
