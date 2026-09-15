@@ -78,7 +78,7 @@ An `ask` can store its answer (`store: name`) and later lines can say
 |---|---|---|
 | `src/spec/types.ts`, `schema.ts` | `store?: string` on `QuizArgs`; schema description | 5 lines |
 | `src/spec/answers.ts` | `VAR_RE` admits dotted names; reserved words `_answers`, `score` | 3 lines |
-| `src/render/player.ts` | on quiz answer set `store`; timestamps around `quizGate`/`askGate`; set `answers.<n>`, `.secs`, `.ok`, `answers.last/count`, and `<store>.secs/.ok`; the ordinal comes from a `questionOffset` option so item 2 continues item 1's numbering | ~30 lines |
+| `src/render/player.ts` | on quiz answer set `store`; timestamps around `quizGate`/`askGate`; set `_answers.<n>`, `.secs`, `.ok`, `_answers.last/count`, and `<store>.secs/.ok`; the ordinal comes from a `questionOffset` option so item 2 continues item 1's numbering | ~30 lines |
 | `src/render/index.ts` | `RenderOptions.vars` seeds the player; `RenderOptions.questionOffset`; the handle exposes the player's `vars` | ~8 lines |
 | `src/playlist/session.ts` | one carried `Map` and a question counter; pass both into the two *item* mounts (not title page or chapter cards); merge back on item done | ~12 lines |
 | `src/lint/lint.ts` | `lintCommands(spec, knownVars?)`; dotted tokens; `store:` of a reserved word is an error; the panel lists each question's automatic name ("quiz at commands[4] stores as _answers.3") | ~20 lines |
