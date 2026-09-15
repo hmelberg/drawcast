@@ -5,6 +5,8 @@ import { flattenDrawables } from "../src/layout/model";
 import { plotArea } from "../src/layout/canvas";
 import { ensureEnabledPacks } from "../src/scenes/packs";
 import { FONT_FLOOR } from "../src/lint/lint";
+import { planCommands } from "../src/render/plan";
+import { planOptionsFor } from "../src/render/index";
 import type { BBox } from "../src/layout/geometry";
 import type { Spec } from "../src/spec/types";
 
@@ -138,5 +140,41 @@ describe("template box — domain coordinates follow the fit", () => {
     const a = domainMapping({ x: [0, 10], y: [0, 10] }).toLogical([5, 5]);
     const b = domainMapping({ x: [0, 10], y: [0, 10] }, undefined).toLogical([5, 5]);
     expect(a).toEqual(b);
+  });
+});
+
+describe("template box — the planner's domain mapping composes the fit", () => {
+  test("a domain-unit move.to on a boxed template lands on the fitted figure", () => {
+    const spec = {
+      template: "sir_compartments",
+      params: { box: "left" },
+      domain: { x: [0, 100], y: [0, 100] },
+      commands: [{ draw: ["box_s"] }, { move: { target: "box_s", to: { x: 50, y: 50 } } }],
+    } as unknown as Spec;
+    const layout = layoutSpec(spec);
+    expect(layout.fit).toBeDefined();
+    const { s, dx, dy } = layout.fit!;
+    const plot = plotArea();
+    const cx = (plot.x0 + plot.x1) / 2, cy = (plot.y0 + plot.y1) / 2;
+    const bboxes = elementBBoxes(layout);
+    const before = bboxes.get("box_s")!;
+    const beforeCentre: [number, number] = [before.x + before.w / 2, before.y + before.h / 2];
+    // Planned the same way render() plans it (src/render/index.ts) — WITH the
+    // layout's fit, so a domain-unit destination on a boxed template lands
+    // where the figure now is, not where the standard plot area used to be.
+    const plan = planCommands(spec.commands, layout.order, {
+      bboxOf: (id) => bboxes.get(id) ?? null,
+      windows: layout.windows ?? {},
+      ...domainMapping(spec.domain, layout.fit),
+      animateBase: spec.template ? spec.params ?? {} : null,
+      varsBase: spec.vars ?? null,
+      ...planOptionsFor(spec, layout),
+    });
+    expect(plan.warnings).toEqual([]);
+    const step = plan.steps.find((st) => st.kind === "transform");
+    if (!step || step.kind !== "transform") throw new Error("expected a transform step");
+    const item = step.items.find((it) => it.id === "box_s")!;
+    expect(beforeCentre[0] + item.to.offset[0]).toBeCloseTo(cx * s + dx, 0);
+    expect(beforeCentre[1] + item.to.offset[1]).toBeCloseTo(cy * s + dy, 0);
   });
 });
