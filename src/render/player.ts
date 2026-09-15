@@ -894,6 +894,10 @@ export class Player {
           }
           // revealNew: a fresh envelope mints rows the authored run never had.
           rp.frame(this.withVarOverrides(scene.params), this.frameScene(scene), { revealNew: true, elements: this.patchedElements(), overrides });
+          // As in animate: frame() left the DOM at a live, handle-less state,
+          // so the boundary below MUST commit even when nothing was patched
+          // (a sweep whose every step failed still painted frames).
+          this.geometryDirty = true;
         });
         if (signal.aborted) return; // a scrub's renderUpTo owns the state now
         this.applyKey(scene); // the boundary, with the last patch in it

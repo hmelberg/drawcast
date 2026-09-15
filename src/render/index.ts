@@ -422,7 +422,8 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // The AUTHORED spec, because its control literals are still tuples; the
   // default deps, because that is exactly what resolveCode runs with — same
   // runtime, same cache.
-  player.sweepRunner = sweepRunnerFor(authored);
+  const sweepRunner = sweepRunnerFor(authored);
+  player.sweepRunner = sweepRunner;
   // …and the cache is filled while the viewer watches the opening: every run
   // step's value maps, once, when the drawcast first starts playing. By the
   // time the sweep arrives, each step is a cache read.
@@ -434,7 +435,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
       if (s !== "playing" || warmed) return;
       warmed = true;
       const idle = (globalThis as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 300));
-      idle(() => void precomputeSweeps(plan, player.sweepRunner!));
+      idle(() => void precomputeSweeps(plan, sweepRunner));
     };
   }
 
