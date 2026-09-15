@@ -21082,9 +21082,10 @@
           "draw": [
             "key_dot",
             "key_dash",
-            "key_gap"
+            "key_gap",
+            "key_send"
           ],
-          "speak": "A telegraph key sends them. Here it is as three pads: dot, dash, and a gap that ends a letter."
+          "speak": "A telegraph key sends them. Here it is as four pads: dot, dash, the gap pad ends a letter, and send delivers the message."
         },
         {
           "draw": [
@@ -21106,7 +21107,7 @@
             "widget": "morse_key",
             "answer": "SOS",
             "right": "Three short, three long, three short — the signal every radio operator knows.",
-            "wrong": "Not quite — end each letter with the gap pad."
+            "wrong": "Not quite — end each letter with gap, then press send."
           }
         }
       ]

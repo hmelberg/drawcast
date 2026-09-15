@@ -8,11 +8,13 @@ version: 1
 kit: 10
 status: ready
 description: >-
-  A telegraph key with a dot pad and a dash pad, the sent signal as a strip of
-  dots and dashes, the decoded letters, and a small code chart with one word
-  highlighted. The viewer can tap the pads while paused (each sounds); an ask
-  bound to this template can require a word. Choose this for ANY request about
-  Morse code, telegraphy, SOS, or dots and dashes.
+  A telegraph key with a dot pad, a dash pad, a gap pad that ends a letter,
+  and a send pad that delivers the finished message — the sent signal as a
+  strip of dots and dashes, the decoded letters, and a small code chart with
+  one word highlighted. The viewer can tap the pads while paused (each
+  sounds); an ask bound to this template can require a word, delivered by
+  pressing send. Choose this for ANY request about Morse code, telegraphy,
+  SOS, or dots and dashes.
 params:
   type: object
   properties:
@@ -32,6 +34,7 @@ element_ids:
   key_dot: the dot pad (tap to send a dot)
   key_dash: the dash pad (tap to send a dash)
   key_gap: the gap pad (tap to end a letter)
+  key_send: the send pad (tap to deliver the finished message)
   signal: the strip of sent dots and dashes
   decoded: the decoded letters
   chart: the code chart (a group; chart_<letter> per row)
@@ -50,6 +53,7 @@ layout: |
   push(kit.pad("key_dot", [300, 150], "·", { r: 42 }));
   push(kit.pad("key_dash", [430, 150], "−", { r: 42 }));
   push(kit.pad("key_gap", [580, 150], "gap", { w: 100, h: 64 }));
+  push(kit.pad("key_send", [730, 150], "send", { w: 100, h: 64 }));
   push(kit.text("signal", [500, 260], params.signal ?? "", { fontSize: 44, color: C.demand }));
   push(kit.text("decoded", [500, 330], params.decoded ?? "", { fontSize: 34 }));
   if (params.chart !== false) {
@@ -64,7 +68,7 @@ layout: |
     push(kit.group("chart", children));
     anchors.chart = [500, y0 - (rows * dy) / 2];
   }
-  anchors.key_dot = [300, 150]; anchors.key_dash = [430, 150]; anchors.key_gap = [580, 150];
+  anchors.key_dot = [300, 150]; anchors.key_dash = [430, 150]; anchors.key_gap = [580, 150]; anchors.key_send = [730, 150];
   return { drawables, labels, anchors, order };
 widget: |
   const CODE = kit.MORSE;
@@ -82,12 +86,19 @@ widget: |
     if (ev.id === "key_gap") {
       if (st.letter === "") return same(st);
       const next = { ...st, letter: "", text: st.text + decode(st.letter), signal: st.signal + " " };
-      return { state: next, effects: [{ patch: { signal: next.signal, decoded: next.text } }, { answer: next.text }] };
+      return { state: next, effects: [{ patch: { signal: next.signal, decoded: next.text } }] };
+    }
+    if (ev.id === "key_send") {
+      const open = st.letter !== "";
+      const text = open ? st.text + decode(st.letter) : st.text;
+      const next = { ...st, letter: "", text };
+      const effects = open ? [{ patch: { decoded: text } }, { answer: text }] : [{ answer: text }];
+      return { state: next, effects };
     }
     return same(st);
   };
   const demo = (scene, answer) => [...answer.toUpperCase()].flatMap((ch) =>
-    [...(CODE[ch] ?? "")].map((sym) => ({ pointer: sym === "." ? "key_dot" : "key_dash", ...beep(sym) })).concat([{ pointer: "key_gap" }]));
+    [...(CODE[ch] ?? "")].map((sym) => ({ pointer: sym === "." ? "key_dot" : "key_dash", ...beep(sym) })).concat([{ pointer: "key_gap" }])).concat([{ pointer: "key_send" }]);
   const judge = (given, answer) => given.trim().toUpperCase() === answer.trim().toUpperCase();
   return { init, on, demo, judge };
 ---
@@ -184,10 +195,11 @@ widget: |
     const taps = [];
     const hanoi = (k, from, to, via) => { if (k === 0) return; hanoi(k - 1, from, via, to); taps.push({ pointer: "peg_" + from }, { pointer: "peg_" + to }); hanoi(k - 1, via, to, from); };
     hanoi(n, 0, 2, 1);
+    // Bounded to 14 taps (7 moves) on purpose: the whole 3-disk solution —
+    // a 4-disk solve would run 27s of movie.
     return taps.slice(0, 14);
   };
-  const judge = (given, answer) => given === "solved";
-  return { init, on, demo, judge };
+  return { init, on, demo };
 ---
 template: logic_gates
 title: Logic gate
@@ -266,7 +278,6 @@ widget: |
     const taps = [];
     if (table(gate, true, false)) taps.push({ pointer: "switch_a" });
     else if (table(gate, true, true)) taps.push({ pointer: "switch_a" }, { pointer: "switch_b" });
-    else taps.push({ pointer: "switch_a" });
     return taps.concat([{ glow: "bulb", color: "#4a7c59" }]);
   };
   return { init, on, demo };
