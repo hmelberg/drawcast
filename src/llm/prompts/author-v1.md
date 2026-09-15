@@ -72,7 +72,9 @@ FUNCTION BODY>"`. It is the body of: new Function("kit"), and must
   through to the page untouched. A keyboard is a SHORTCUT, never the only way
   in: the pads must still do everything on their own (a phone has no
   keyboard), and the figure should SAY which key does what — a drawn hint line
-  under the pads, so the movie shows it too.
+  beside or above the pads, clear of the caption band along the bottom of the
+  canvas (a three-line caption covers roughly 110 logical units), so the movie
+  shows it too.
 - `demo(scene, answer) -> effects` — the movie form: what the laser does to
   show the answer (taps as `{pointer: id}`, sounds beside them).
 - `judge(given, answer) -> boolean` — when the ask's answer needs more than

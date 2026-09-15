@@ -232,6 +232,7 @@ describe("the widgets pack demonstrates itself by CHANGING the figure", () => {
     for (const gate of ["AND", "OR", "XOR", "NAND"]) {
       const d = demoWidget(scenes["logic_gates"], { gate }, "lit");
       expect(d.effects.some((e) => e.pointer)).toBe(true);
+      expect(d.effects.at(-1)!.glow).toEqual(["bulb"]);
     }
   });
 });

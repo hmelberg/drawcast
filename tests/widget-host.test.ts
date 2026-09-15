@@ -235,7 +235,17 @@ describe("attachWidgetHost — source pins", () => {
     expect(src).toMatch(/if \(e\.repeat\) return;/);
     const down = src.slice(src.indexOf("const onKeyDown"), src.indexOf("const onKeyUp"));
     expect(down).toContain("e.preventDefault()");
-    expect(down).toContain("e.stopPropagation()");
+    // NOT stopPropagation: this listener is on window, already last in the
+    // bubble phase, so calling it would stop nothing (unlike the capture-
+    // phase click listener above, which really does own something to stop).
+    expect(down).not.toContain("e.stopPropagation()");
+  });
+  // Both key listeners drop the SAME stage the way onKeyDown always has —
+  // onKeyUp used to skip the check, so a key released after the stage left
+  // the DOM (an item that has moved on) still tried to deliver it.
+  test("onKeyUp carries the same isConnected guard as onKeyDown", () => {
+    const up = src.slice(src.indexOf("const onKeyUp"), src.indexOf('window.addEventListener("keydown"'));
+    expect(up).toContain("if (!stage.isConnected)");
   });
   test("typing in an input, textarea or contenteditable is never captured", () => {
     expect(src).toContain("t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || (t instanceof HTMLElement && t.isContentEditable)");
@@ -246,6 +256,12 @@ describe("attachWidgetHost — source pins", () => {
   });
   test("the widget gate marks itself, so its own keys keep working", () => {
     expect(src).toContain('h("div", { class: "cs-figgate cs-widgetgate" }');
+  });
+  // I1: Skip lives INSIDE the widget's own gate (cs-widgetgate), so the
+  // "another gate" exception above never stands aside for it — without this,
+  // a keyboard could never reach Skip at all.
+  test("a key that lands on the gate's own Skip pill or a card gate's pill is the control's, never the widget's", () => {
+    expect(src).toContain('e.target.closest(".cs-figgate-skip, .cs-cardgate-pill") !== null');
   });
 
   test("resets on play, on a step boundary and chains the callbacks", () => {

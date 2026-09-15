@@ -174,16 +174,18 @@ piano's free-play pattern: self-cleaning when the stage leaves the DOM,
 standing aside while playing (unless the open gate is the widget's own,
 marked `cs-widgetgate`), while another gate is open, and while the focus
 is in an input, textarea or contenteditable. A declared key is swallowed
-(`preventDefault` + `stopPropagation`) on keydown so a focused play button
-or the page never sees it; auto-repeat is ignored; one `key` event fires
-on keyup with `ms = keyup − keydown`. Undeclared keys pass through
+(`preventDefault`, so a focused play button never activates) on keydown;
+auto-repeat is ignored; one `key` event fires on keyup with
+`ms = keyup − keydown`. Undeclared keys pass through
 untouched. The event mounts the body like a click does (`init` on first
 use). The harness accepts `{type: "key", key, ms}` events directly.
 
 Morse: `keys: [" ", "Enter"]`; Space held under `DOT_MS = 200` is a dot,
 longer a dash; Enter ends the letter; Enter on an already-closed letter
-sends. The pads keep working; a drawn hint line under them says which key
-does what, so the movie shows it too.
+sends. The pads keep working; a drawn hint line beside or above them,
+clear of the caption band along the bottom of the canvas (a three-line
+caption covers roughly 110 logical units), says which key does what, so
+the movie shows it too.
 
 **Effects (v1: six).** An effect is an object with one or more of these
 keys; the keys of one object are performed together (so `demo` may pair

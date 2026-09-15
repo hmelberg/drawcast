@@ -7,12 +7,11 @@ Open Examples → Widgets pack.
    decoded line shows "S". Continue ▸ — the strip is empty again.
 2. Play to the ask. Send S O S with gaps, then send: green mark, the right
    line. Reload, send "SOO" then send: red mark, the wrong line, the reveal.
-3. keyboard: send SOS with space and Enter only. Paused on the pads, click
-   the figure once to focus it, then hold the space bar short three times
-   (dots), Enter (ends S), hold it long three times (dashes), Enter (ends
-   O), short three times again (dots), Enter (ends S), Enter again (sends).
-   No mouse touches a pad — the strip and decoded line fill in exactly as
-   they do for a click, and the ask is satisfied.
+3. keyboard: send SOS with space and Enter only. Pause, then hold Space
+   short three times (dots), Enter (ends S), hold it long three times
+   (dashes), Enter (ends O), short three times again (dots), Enter (ends
+   S), Enter again (sends). No mouse touches a pad — the strip and decoded
+   line fill in exactly as they do for a click, and the ask is satisfied.
 4. Export the movie (or play with the response channel closed): the laser
    taps dot·dot·dot gap dash·dash·dash gap dot·dot·dot gap send, each dot
    and dash with its tone — **and the strip and the decoded line fill in as

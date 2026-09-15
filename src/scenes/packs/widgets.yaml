@@ -199,6 +199,7 @@ widget: |
     return { pegs, selected: null, moves: Number.isInteger(scene.params.moves) ? scene.params.moves : 0, n };
   };
   const on = (ev, st) => {
+    if (ev.type !== "click") return same(st);
     const m = /^peg_(\d)$/.exec(ev.id);
     if (!m) return same(st);
     const p = Number(m[1]);
@@ -234,10 +235,13 @@ widget: |
     // Bounded to seven moves (14 taps) on purpose: the whole 3-disk solution —
     // a 4-disk solve would run 27s of movie. Whatever the disk count, the
     // movie must still end on the solved tower: one last patch jumps
-    // straight there after the bounded taps.
+    // straight there after the bounded taps — but ONLY when the bound cut
+    // something off. At n=3 the whole solution IS seven moves, so the last
+    // bounded step already lands on the solved tower; appending the jump
+    // again would emit the very same patch twice.
     const bounded = steps.slice(0, 7).reduce((a, b) => a.concat(b), []);
     const solved = ["", "", Array.from({ length: n }, (_, i) => String(n - i)).join("")].join("|");
-    return bounded.concat([{ patch: { pegs: solved, moves: 2 ** n - 1 } }]);
+    return steps.length > 7 ? bounded.concat([{ patch: { pegs: solved, moves: 2 ** n - 1 } }]) : bounded;
   };
   return { init, on, demo };
 ---
@@ -306,6 +310,7 @@ widget: |
   const table = (gate, a, b) => gate === "AND" ? a && b : gate === "OR" ? a || b : gate === "XOR" ? a !== b : !(a && b);
   const init = (scene) => ({ a: scene.params.a === true, b: scene.params.b === true, gate: ["AND", "OR", "XOR", "NAND"].includes(scene.params.gate) ? scene.params.gate : "AND" });
   const on = (ev, st) => {
+    if (ev.type !== "click") return same(st);
     if (ev.id !== "switch_a" && ev.id !== "switch_b") return same(st);
     const next = { ...st, [ev.id === "switch_a" ? "a" : "b"]: !(ev.id === "switch_a" ? st.a : st.b) };
     const out = table(next.gate, next.a, next.b);

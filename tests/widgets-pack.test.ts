@@ -11,7 +11,8 @@ import { beforeAll, describe, expect, test } from "vitest";
 import { layoutSpec } from "../src/layout/layout";
 import { ensureEnabledPacks } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
-import { demoWidget, keyEvent, runWidget } from "../src/scenes/widget-run";
+import { demoWidget, keyEvent, partAt, runWidget } from "../src/scenes/widget-run";
+import { buildWidgetScene } from "../src/scenes/widget-scene";
 import type { Spec } from "../src/spec/types";
 
 const IDS = ["xylophone", "bubble_sort", "tictactoe"];
@@ -90,7 +91,7 @@ describe("bubble sort", () => {
     expect(bad.effects.flat().some((e) => e.caption)).toBe(true);
   });
 
-  test("the sorted tower answers exactly once — a tenth click does not ask the gate again", () => {
+  test("the sorted row answers exactly once — a tenth click does not ask the gate again", () => {
     const r = runWidget(scenes["bubble_sort"], { values: [1, 3, 2, 4] }, ["bar_1", "bar_2", "bar_0", "bar_1", "bar_2", "bar_3"]);
     expect(r.effects.flat().filter((e) => e.answer !== undefined)).toHaveLength(1);
     expect(r.params.values).toEqual([1, 2, 3, 4]);
@@ -181,6 +182,36 @@ describe("tic-tac-toe", () => {
     expect(d.effects.filter((e) => e.pointer).length).toBeGreaterThanOrEqual(5);
     const last = [...d.effects].reverse().find((e) => e.patch)!;
     expect((last.patch as { board: string }).board).toBe("oxoxxoxox");
+  });
+});
+
+// I4: a body's on() reads `ev.id` off wherever partAt() says the click
+// landed — so if the two ever disagreed, a viewer's tap on a pad's own
+// centre would silently miss it. This pins the whole pack's HIT SURFACE,
+// not just its ids: every interactive part (a pad, a cell, a bar, a peg, a
+// switch) at its own box centre, at the same params the bundled example
+// uses. Non-interactive ids (a title, a strip, a counter, a hint line, the
+// grid) are never clicked by a body, so they are left out on purpose.
+describe("every pack widget's interactive parts sit on the real hit surface", () => {
+  const cases: { id: string; parts: string[] }[] = [
+    { id: "morse_key", parts: ["key_dot", "key_dash", "key_gap", "key_send"] },
+    { id: "tower_of_hanoi", parts: ["peg_0", "peg_1", "peg_2"] },
+    { id: "logic_gates", parts: ["switch_a", "switch_b"] },
+    { id: "xylophone", parts: Array.from({ length: 8 }, (_, i) => `bar_${i + 1}`).concat("key_done") },
+    { id: "bubble_sort", parts: Array.from({ length: 6 }, (_, i) => `bar_${i}`) },
+    { id: "tictactoe", parts: Array.from({ length: 9 }, (_, i) => `cell_${i}`) },
+  ];
+
+  test.each(cases)("$id: partAt(centre-of-box) answers each part with its own id", ({ id, parts }) => {
+    const exampleParams = scenes[id].manifest.examples[0].params as Record<string, unknown>;
+    const scene = buildWidgetScene(scenes[id], exampleParams);
+    expect(scene, id).not.toBeNull();
+    for (const part of parts) {
+      const box = scene!.boxes.get(part);
+      expect(box, `${id}: ${part} has no box at the example params`).toBeDefined();
+      const centre: [number, number] = [box!.x + box!.w / 2, box!.y + box!.h / 2];
+      expect(partAt(scene!, centre), `${id}: a click at ${part}'s own centre`).toBe(part);
+    }
   });
 });
 

@@ -156,7 +156,7 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
   };
 
   const host: WidgetHost = {
-    keys: declaredKeys,
+    keys: Object.freeze(declaredKeys),
     over(p) {
       const sc = scene();
       return sc !== null && partAt(sc, p) !== null;
@@ -243,11 +243,16 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
     const typing = (t: EventTarget | null): boolean =>
       t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || (t instanceof HTMLElement && t.isContentEditable);
     // While playing, and under any OTHER gate, the keys are not the widget's;
-    // under its own gate (cs-widgetgate) they are the whole point.
+    // under its own gate (cs-widgetgate) they are the whole point. The
+    // gate's OWN controls (its Skip pill, a card gate's pill) are reachable
+    // by Tab, and a key landing there — Space activating Skip, say — is the
+    // control's gesture, never the widget's, exactly like the click guard
+    // below for the play button.
     const keysBlocked = (e: KeyboardEvent): boolean =>
       typing(e.target) ||
       (hd.timeline.state === "playing" && !stage.querySelector(".cs-widgetgate")) ||
-      (gateIsOpen(stage) && !stage.querySelector(".cs-widgetgate"));
+      (gateIsOpen(stage) && !stage.querySelector(".cs-widgetgate")) ||
+      (e.target instanceof Element && e.target.closest(".cs-figgate-skip, .cs-cardgate-pill") !== null);
     const onKeyDown = (e: KeyboardEvent): void => {
       if (!stage.isConnected) {
         window.removeEventListener("keydown", onKeyDown);
@@ -255,14 +260,20 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
         return;
       }
       if (!host.keys.includes(e.key) || keysBlocked(e)) return;
-      // A declared key is the widget's: a focused play button or the page
-      // scrolling on Space never sees it.
+      // A declared key is the widget's: preventDefault stops a focused play
+      // button from activating and the page from scrolling on Space. (No
+      // stopPropagation — this listener sits on window, already last in the
+      // bubble phase, so there is nothing left it could stop.)
       e.preventDefault();
-      e.stopPropagation();
       if (e.repeat) return;
       downAt.set(e.key, performance.now());
     };
     const onKeyUp = (e: KeyboardEvent): void => {
+      if (!stage.isConnected) {
+        window.removeEventListener("keydown", onKeyDown);
+        window.removeEventListener("keyup", onKeyUp);
+        return;
+      }
       const t0 = downAt.get(e.key);
       if (t0 === undefined) return;
       downAt.delete(e.key);
