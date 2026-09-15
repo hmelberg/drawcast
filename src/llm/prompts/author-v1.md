@@ -6,7 +6,7 @@ ONE template document as a SINGLE minified JSON object — no prose, no fences.
 ## The template document (return exactly this JSON shape)
 
 {"template": "<id: lowercase snake_case, unique>", "title": "<short name>",
-"version": 1, "kit": 1, "status": "ready",
+"version": 1, "kit": 10, "status": "ready",
 "description": "<2-4 sentences: what the figure is AND when to choose it — this text routes future requests to your template, so name the concepts, synonyms and typical requests it should catch. End with a sentence that starts 'Choose this for …'>",
 "params": {<JSON schema, type object: CONTENT-ONLY parameters — labels, counts, toggles, domain notations. NEVER coordinates, sizes or colors>},
 "element_ids": {"<id>": "<what it is>", ...},
@@ -52,6 +52,42 @@ Rules distilled from the built-in templates:
    comments in the code, no per-language dictionaries beyond the names the
    figure actually prints. A document that runs past the reply limit is
    worth nothing; a smaller one that renders can be improved later.
+
+## The widget body (optional)
+
+A template that the viewer should be able to WORK while the lesson is paused
+(tap pads, toggle switches, move pieces) adds `"widget": "<a JavaScript
+FUNCTION BODY>"`. It is the body of: new Function("kit"), and must
+`return { init, on }` (optionally `demo` and `judge`):
+
+- `init(scene) -> state` — plain JSON data; the host holds it and passes it back.
+- `on(event, state, scene) -> { state, effects }` — the only event is
+  `{type: "click", id, point, domain}` where `id` is one of the layout's
+  top-level ids. Return the new state and a list of effects.
+- `demo(scene, answer) -> effects` — the movie form: what the laser does to
+  show the answer (taps as `{pointer: id}`, sounds beside them).
+- `judge(given, answer) -> boolean` — when the ask's answer needs more than
+  a trimmed, case-insensitive comparison. Make it at least as LENIENT as that
+  comparison (the player's own check runs too, so a stricter `judge` only
+  loses answers a viewer got right).
+
+`answer` means DONE. The ask gate judges the FIRST `answer` effect it gets and
+settles, so emit one only when the viewer has FINISHED — a pressed send pad, a
+solved tower, a lit bulb — never a provisional value on every step. A widget
+that answers at each step gets judged on its first half-finished attempt.
+
+Effects, one or more keys per object: `{patch: {param: value}}` changes the
+template's params (the layout redraws — a widget NEVER draws, it patches
+params you declared, so declare a param for every value the widget sets, with
+"the widget sets this" in its description); `{sound: {hz, ms}}` or
+`{sound: {notes: "C4:q"}}`; `{glow: id | [ids], color?}`; `{pointer: id}`;
+`{caption: "text"}`; `{answer: "text"}` — what an ask bound to this template
+judges. `scene` carries `ids`, `boxes` (id → {x,y,w,h}), `rings`, `params`,
+`vars`, `toDomain(p)`, `toLogical(p)`. No DOM, no timers, no globals; state
+is discarded when the lesson continues. Draw tappable parts with
+`kit.pad(id, [x, y], "label", {r} | {w, h})` — only a part with a CLOSED
+OUTLINE (a pad, an area, `closed: true` on a stroke) can be clicked, so give
+every clickable thing one; a title or a strip of text never receives a click.
 
 ## Parts — what makes a figure interactive for free
 

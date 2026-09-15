@@ -8,7 +8,9 @@ import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox, type BBox }
 import { flattenDrawables, leafDrawables, type Drawable, type GroupDrawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
 import { mathBox } from "../layout/labels";
 import type { MeasureFn } from "../layout/measure";
+import { BUILTIN_WIDGETS } from "../spec/types";
 import type { Command, Spec } from "../spec/types";
+import { scenes } from "../scenes/registry";
 import { resolveGame } from "../code/c64-catalogue";
 import { grammarFor, parseControls } from "../code/controls";
 import { isInvitation } from "./invite";
@@ -56,7 +58,9 @@ export interface LintIssue {
     /** pane: controls without controls, or a pane on show: output/none, or lines/marks on a controls pane */
     | "pane"
     /** an ordinary speak that tells the viewer to slide/press/click — belongs in an explore beat */
-    | "explore-invite";
+    | "explore-invite"
+    /** an ask bound to the spec's template, whose document has no widget body */
+    | "widget";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -717,13 +721,32 @@ function lintCode(spec: Spec): LintIssue[] {
 }
 
 /**
+ * An ask may name this drawcast's own template as its answer device — but only
+ * a template DOCUMENT with a `widget:` body can answer one. Naming a template
+ * without one reaches the viewer as a question with no device: the schema
+ * accepts it (the name IS spec.template), so the check has to be here, where
+ * the registry says what the template actually carries.
+ */
+function lintWidget(spec: Spec): LintIssue[] {
+  const issues: LintIssue[] = [];
+  for (const cmd of spec.commands ?? []) {
+    const w = cmd.ask?.widget;
+    if (w === undefined || (BUILTIN_WIDGETS as readonly string[]).includes(w) || w !== spec.template) continue;
+    if (!scenes[w]?.widget) {
+      issues.push({ rule: "widget", ids: [], message: `ask widget: template "${w}" has no widget body — only a template document with a widget: body can answer an ask`, severity: "error" });
+    }
+  }
+  return issues;
+}
+
+/**
  * Screen-first lint (spec principle 1): the canvas must start fast and keep
  * moving. Deterministic, spec-level — feeds the same report as lintLayout so
  * the LLM repair round self-corrects talky storyboards.
  */
 export function lintCommands(spec: Spec): LintIssue[] {
   const cmds = spec.commands ?? [];
-  const issues: LintIssue[] = [...lintSources(spec), ...lintCode(spec)];
+  const issues: LintIssue[] = [...lintSources(spec), ...lintCode(spec), ...lintWidget(spec)];
 
   // {var} tokens must be stored by an EARLIER ask — a later or missing store
   // means the line speaks the literal braces.

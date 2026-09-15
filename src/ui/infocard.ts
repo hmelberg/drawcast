@@ -32,6 +32,7 @@ import { overCaption } from "./caption";
 import { gateIsOpen } from "./gates";
 import { hitElement } from "./hit";
 import type { BBox } from "../layout/geometry";
+import type { WidgetHost } from "./widget-host";
 
 const SUMMARY_MAX = 200;
 
@@ -143,7 +144,7 @@ export function sceneNamesFor(hd: RenderHandle): { id: string; name: string }[] 
   return [];
 }
 
-export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
+export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost: WidgetHost | null = null): void {
   // The words a template DREW count too, not just the spec's own elements —
   // otherwise an axis caption, a node's text and a legend entry are all dead.
   // Each word's owning part comes from the drawable tree (the same walk the
@@ -223,6 +224,7 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
     if (!p) return null;
     if (interactions.includes("chess") && chessSquareAt(flip, p) !== null) return null;
     if (interactions.includes("piano") && pianoKeyAt(octaves, p) !== null) return null;
+    if (widgetHost?.over(p)) return null;
     // A code screen's natural action is EDITING it (the tray's own paused
     // click), so a card never opens on one — the same standing-aside the
     // instruments get above.
@@ -487,9 +489,19 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle): void {
     true,
   );
 
-  // Quiet affordance while paused: the cursor knows what carries a card.
+  // Quiet affordance while paused: the cursor knows what carries a card —
+  // OR a widget part, so a pad and a card element share the one class
+  // (the sole toggle for it; widget-host.ts does not touch it, or the two
+  // add-ons would fight over the same class within a single pointermove).
+  const overWidget = (e: MouseEvent): boolean => {
+    const p = logicalPoint(stage, e);
+    return widgetHost !== null && p !== null && widgetHost.over(p);
+  };
   stage.addEventListener("pointermove", (e) => {
-    const on = hd.timeline.state !== "playing" && targetAt(e) !== null;
+    // The short-circuit ORDER is the point: asking the widget host builds its
+    // scene, and this handler runs on every pointer move. While the movie
+    // plays nothing is clickable, so the question is never asked.
+    const on = hd.timeline.state !== "playing" && (targetAt(e) !== null || overWidget(e));
     stage.classList.toggle("cs-cardable", on);
   });
 }

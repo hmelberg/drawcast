@@ -862,6 +862,30 @@ the tray's ✎ On the screen still opens the code editor over a
 `openControlsInPlace` — there is no script text to type there once the pane
 is knobs, not lines).
 
+## Widget bodies — done 2026-09-14
+
+Spec `docs/superpowers/specs/2026-09-14-widget-bodies-design.md`, plan
+`docs/superpowers/plans/2026-09-14-widget-bodies.md`. A template document may
+carry `widget: |` — a JS function body returning `{init, on, demo?, judge?}`
+— compiled once into a factory (`SceneModule.widget`). While paused, a click
+on one of the template's parts runs `on` and the host (`src/ui/widget-host.ts`)
+performs the effects: `patch` (params → `previewParams`), `sound`
+(`ToneLike.beep` or notes), `glow`, `pointer`, `caption`, `answer`. Nothing
+persists: state and patches die on play, step, scrub and Continue. `ask.widget`
+may name the spec's template: the widget gate judges the next `answer` effect
+(`judge` or `answersMatch`) and resolves a string like every gate; the movie
+performs `demo` through `Player.widgetDemo`. Pure core in
+`src/scenes/widget-{types,scene,effects,run}.ts` — `runWidget` is the node
+harness authors test with and the examples gate runs. Kit v10: `circle`,
+`rect`, `pad`, `MORSE`. Pack `widgets`: morse_key, tower_of_hanoi,
+logic_gates. Round 2 of "users extend drawcast themselves".
+
+Open: `run`/`result` (a widget executing a code element); `key`, `tick`,
+press duration; anchors on the scene object; a ⊕ pill / context-menu launcher
+for free play (tray.ts); Python/R widget bodies; the tray-vs-widget preview
+collision (last writer wins); a widget the author prompt writes on demand has
+not been exercised end to end.
+
 ## Sound (the play command) — done 2026-08-26
 
 `play` sounds synthesized notes (WebAudio oscillators, five instrument

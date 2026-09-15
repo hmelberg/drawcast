@@ -20802,5 +20802,153 @@
   {
     "request": "How much is a health gain worth today if it only arrives in twenty years?",
     "playlist": "playlist:\n  title: 'Discounting: the future, shrunk'\n---\ntitle: Why the future shrinks\ndomain:\n  x: [0, 50]\n  y: [0, 1]\nelements:\n  - id: axes\n    type: axes\n    x_label: years\n    y_label: \"value today\"\n  - id: shrink\n    type: curve\n    expr: \"1/(1.04)^x\"\n    x_from: 0\n    x_to: 50\n  - id: shrink_label\n    type: label\n    text: \"4 % a year\"\n    attach_to: shrink\n    side: above\ncommands:\n  - draw: [axes]\n    speak: \"Years along the bottom; what a future gain is worth today, up the side.\"\n  - pause: 0.3\n  - draw: [shrink, shrink_label]\n    speak: \"Each year the value is divided by the same number again — not subtracted, divided — so it shrinks geometrically, never in a straight line.\"\n  - highlight: { target: [shrink], effect: glow }\n    speak: \"That is why a gain thirty years out is worth so little today: the same small loss, compounding, year after year.\"\n---\ntitle: 'Discounting: the future, shrunk'\nelements:\n  - id: dc\n    type: code\n    language: r\n    show: left\n    width: 900\n    pane: controls\n    controls: [rate, horizon]\n    code: |-\n      library(ggplot2)\n      rate <- Slider(0, 0.10, step = 0.005, default = 0.04, label = \"Discount rate\")\n      horizon <- c(5, 50)\n      years <- 0:horizon\n      value <- 1 / (1 + rate)^years\n      cat(\"one unit in\", horizon, \"years is worth\", round(value[horizon + 1], 3), \"today\\n\")\n      ggplot(data.frame(years, value), aes(years, value)) + geom_line() + geom_hline(yintercept = 0.5, linetype = \"dashed\")\ncommands:\n  - draw: [dc, dc_ctl_rate]\n    parallel: true\n    speak: \"The same idea, now as knobs: the discount rate itself.\"\n  - pause: 0.3\n  - draw: [dc_ctl_horizon]\n    speak: \"And how far into the future the gain arrives.\"\n  - draw: [dc_out]\n    delivery: grave\n    speak: \"At today's four percent, a gain twenty years away is already worth less than half of one arriving now.\"\n  - explore: { code: dc }\n    speak: \"Set the rate to zero and the curve goes flat: every year counts the same. Set it to ten percent and the future all but vanishes.\"\n"
+  },
+  {
+    "request": "Teach Morse code and let me send SOS.",
+    "packs": [
+      "widgets"
+    ],
+    "spec": {
+      "title": "Sending SOS",
+      "template": "morse_key",
+      "params": {
+        "word": "SOS"
+      },
+      "commands": [
+        {
+          "draw": [
+            "title"
+          ],
+          "speak": "Morse code spells letters with two sounds: a short dot and a long dash."
+        },
+        {
+          "draw": [
+            "chart"
+          ],
+          "speak": "Every letter has its own pattern. S is three dots; O is three dashes."
+        },
+        {
+          "draw": [
+            "key_dot",
+            "key_dash",
+            "key_gap",
+            "key_send"
+          ],
+          "speak": "A telegraph key sends them. Here it is as four pads: dot, dash, the gap pad ends a letter, and send delivers the message."
+        },
+        {
+          "draw": [
+            "signal",
+            "decoded"
+          ]
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "key_dot"
+            }
+          },
+          "speak": "Tap the dot pad three times for S, the gap, then the dash pad three times for O."
+        },
+        {
+          "ask": {
+            "question": "Send SOS on the key.",
+            "widget": "morse_key",
+            "answer": "SOS",
+            "right": "Three short, three long, three short — the signal every radio operator knows.",
+            "wrong": "Not quite — end each letter with gap, then press send."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "The Tower of Hanoi puzzle with three disks.",
+    "packs": [
+      "widgets"
+    ],
+    "spec": {
+      "title": "The Tower of Hanoi",
+      "template": "tower_of_hanoi",
+      "params": {
+        "disks": 3
+      },
+      "commands": [
+        {
+          "draw": [
+            "title"
+          ],
+          "speak": "Three pegs, three disks, one rule: never put a larger disk on a smaller one."
+        },
+        {
+          "draw": [
+            "peg_0",
+            "peg_1",
+            "peg_2"
+          ],
+          "speak": "Move the whole tower from the left peg to the right, one disk at a time."
+        },
+        {
+          "draw": [
+            "counter"
+          ],
+          "speak": "With three disks the fewest moves is seven — two to the power of three, minus one."
+        },
+        {
+          "ask": {
+            "question": "Move the tower to the right peg.",
+            "widget": "tower_of_hanoi",
+            "answer": "solved",
+            "right": "Solved. Notice the pattern: move the smaller tower aside, the big disk over, the smaller tower back on top.",
+            "wrong": "Keep going — click a peg to lift its top disk, another to set it down."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "How an XOR gate works.",
+    "packs": [
+      "widgets"
+    ],
+    "spec": {
+      "title": "The XOR gate",
+      "template": "logic_gates",
+      "params": {
+        "gate": "XOR"
+      },
+      "commands": [
+        {
+          "draw": [
+            "title"
+          ],
+          "speak": "XOR means exclusive or: one input or the other, but not both."
+        },
+        {
+          "draw": [
+            "switch_a",
+            "switch_b",
+            "wires",
+            "gate"
+          ],
+          "speak": "Two switches feed the gate."
+        },
+        {
+          "draw": [
+            "bulb"
+          ],
+          "speak": "The bulb lights when the gate's output is one."
+        },
+        {
+          "ask": {
+            "question": "Find an input that lights the bulb.",
+            "widget": "logic_gates",
+            "answer": "lit",
+            "right": "Exactly one switch on — that is what exclusive means.",
+            "wrong": "Flip a switch and watch the bulb."
+          }
+        }
+      ]
+    }
   }
 ]

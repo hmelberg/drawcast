@@ -7,6 +7,7 @@ import { kit } from "./kit";
 import { docToManifest, type TemplateDoc } from "./doc";
 import { getLoadedEngines } from "./engines";
 import type { SceneLayout, SceneManifest, SceneModule } from "./types";
+import type { WidgetBody } from "./widget-types";
 import type { Pt } from "../layout/model";
 import { SIDE_VALUES } from "../spec/types";
 
@@ -42,7 +43,27 @@ export function compileTemplateDoc(doc: TemplateDoc): { module?: SceneModule; er
     }
     return out as SceneLayout;
   };
-  return { module: { manifest: docToManifest(doc), layout }, errors: [] };
+  let widget: (() => WidgetBody) | undefined;
+  if (typeof doc.widget === "string" && doc.widget.trim() !== "") {
+    let wfn: (kit: unknown) => unknown;
+    try {
+      wfn = new Function("kit", `"use strict";\n${doc.widget}`) as typeof wfn;
+    } catch (err) {
+      return { errors: [`template "${doc.template}" widget body failed to compile: ${(err as Error).message}`] };
+    }
+    let probe: unknown;
+    try {
+      probe = wfn(kit);
+    } catch (err) {
+      return { errors: [`template "${doc.template}" widget body threw on load: ${(err as Error).message}`] };
+    }
+    const p = probe as { init?: unknown; on?: unknown } | null;
+    if (typeof p !== "object" || p === null || typeof p.init !== "function" || typeof p.on !== "function") {
+      return { errors: [`template "${doc.template}" widget body must return { init, on } (demo and judge optional)`] };
+    }
+    widget = () => wfn(kit) as WidgetBody;
+  }
+  return { module: { manifest: docToManifest(doc), layout, ...(widget ? { widget } : {}) }, errors: [] };
 }
 
 function finitePt(p: unknown): p is Pt {

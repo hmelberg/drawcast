@@ -557,6 +557,9 @@ export interface IfArgs {
   goto: string;
 }
 
+/** The answer devices the app builds in; `ask.widget` may also name the spec's own template when that template carries a widget body. */
+export const BUILTIN_WIDGETS = ["click", "piano", "chess", "code", "drag", "connect"] as const;
+
 export interface AskArgs {
   /** The question, spoken aloud and shown as the caption (a paired speak overrides the spoken line). */
   question: string;
@@ -586,8 +589,11 @@ export interface AskArgs {
   /** Answer device: click = click the element on the figure (answer = its id);
    *  piano = press a key on the drawn keyboard (answer = the note, e.g. "C4");
    *  chess = click two squares (answer = the move, e.g. "e2e4");
-   *  code = write a script on a code panel (implied by `code`). Requires answer. */
-  widget?: "click" | "piano" | "chess" | "code" | "drag" | "connect";
+   *  code = write a script on a code panel (implied by `code`);
+   *  drag / connect as documented in the schema; or THE SPEC'S TEMPLATE NAME
+   *  when that template carries a widget body — the widget's `answer` effect
+   *  is what is judged. Requires answer. */
+  widget?: string;
   /** drag widget: what to drag onto the figure — element ids, notes (piano) or
    *  squares (chess), each with an optional label (default: the id humanised).
    *  The answer is implied (all of them); `right` is required. */

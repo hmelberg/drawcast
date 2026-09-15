@@ -21,6 +21,7 @@ import { dragGateFor } from "./drag-gate";
 import { creditsOf } from "../export/credits";
 import { connectGateFor } from "./connect-gate";
 import { attachInfoCards } from "./infocard";
+import { attachWidgetHost, widgetGateFor } from "./widget-host";
 import { attachPanelView } from "./panel-view";
 import { scenes } from "../scenes/registry";
 
@@ -185,7 +186,9 @@ export interface AskGateStep {
   answer?: string;
   retry: boolean;
   required: boolean;
-  widget?: "click" | "piano" | "chess" | "code" | "drag" | "connect";
+  widget?: string;
+  /** ask.widget names the spec's template: its widget body is the device. */
+  widgetTemplate?: true;
   /** drag widget: the chips, in order. */
   items?: { id: string; label: string; element: boolean }[];
   tolerance?: number;
@@ -980,14 +983,24 @@ export function attachPlayerControls(
 
   hd.timeline.inputGate = clickGate(stage);
   hd.timeline.quizGate = quizGateFor(stage);
+  // The widget host is attached HERE, above the gate block, because a
+  // template-bound ask's gate routes its clicks through it.
+  const widgetHost = attachWidgetHost(stage, hd); // no-op unless the template carries a widget body
   const textGate = askGateFor(stage);
   const figureGate = figureGateFor(stage, hd);
   const pianoGate = pianoGateFor(stage, hd);
   const chessGate = chessGateFor(stage, hd);
   const dragGate = dragGateFor(stage, hd);
   const connectGate = connectGateFor(stage, hd);
+  // A template-bound ask is worked on the figure itself, so its gate needs the
+  // host. Without one (the template carries no widget body — lint calls that an
+  // error) the branch is unreachable, and the typed card stands in, which is
+  // what the rest of the chain would have fallen through to anyway.
+  const widgetGate = widgetHost ? widgetGateFor(stage, hd, widgetHost) : textGate;
   hd.timeline.askGate = (signal, step) =>
-    step.widget === "click"
+    step.widgetTemplate && widgetHost
+      ? widgetGate(signal, step)
+      : step.widget === "click"
       ? figureGate(signal, step)
       : step.widget === "drag"
         ? dragGate(signal, step)
@@ -1012,7 +1025,7 @@ export function attachPlayerControls(
   // their own overlay and are left alone.
   const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
   if (interactions.includes("chess")) attachChessPlay(stage, hd);
-  attachInfoCards(stage, hd); // no-op unless the spec carries card elements
+  attachInfoCards(stage, hd, widgetHost); // no-op unless the spec carries card elements
   attachPanelView(stage, hd); // no-op unless the figure draws a code panel
   if (interactions.includes("piano")) {
     const octaves = pianoOctaves(hd.spec.params);
@@ -1145,8 +1158,16 @@ export function attachPlayerControls(
   });
   progress.addEventListener("pointerleave", () => (seekPreview.hidden = true));
 
+  // CHAIN, never replace. Every add-on above (the widget host, the info cards,
+  // the chess free play) hangs its own reset on hd.timeline.callbacks by
+  // wrapping whatever is there — and the Player reads `this.callbacks` at call
+  // time, so a wholesale assignment here would silently throw all of that away
+  // and their resets would never fire. `total` is hd.plan.steps.length, which
+  // is exactly what the Player passes as onStep's second argument.
+  const prev = hd.timeline.callbacks;
   hd.timeline.callbacks = {
     onState: (s) => {
+      prev.onState?.(s);
       stage.classList.toggle("is-playing", s === "playing");
       stage.classList.toggle("is-paused", s === "paused");
       playing = s === "playing";
@@ -1158,6 +1179,7 @@ export function attachPlayerControls(
       bigPlay.title = s === "done" ? "Replay with narration" : "Play with narration";
     },
     onStep: (done) => {
+      prev.onStep?.(done, total);
       stepInd.textContent = `${done}/${total}`;
       progressFill.style.width = `${total > 0 ? (done / total) * 100 : 0}%`;
     },

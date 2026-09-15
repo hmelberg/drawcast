@@ -127,6 +127,9 @@ export class Player {
   /** The code widget's gate — ui/tray.ts sets it, ui/controls.ts routes to it. */
   codeGate: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "ask" }>) => Promise<string | null>) | null = null;
 
+  /** A template-bound ask's movie form, set by render() when the template carries a widget body: performs the widget's demo effects. */
+  widgetDemo: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "ask" }>) => Promise<void>) | null = null;
+
   /**
    * Provider for the explore verb, wired by the tray: opens the sliders and
    * resolves on Continue. Must resolve on signal abort. Absent (movies,
@@ -551,6 +554,38 @@ export class Player {
     this.geometryDirty = true;
   }
 
+  /** One swell of the answer glow on `ids` — a widget's "right", "wrong" or
+   *  "look here" — always cleared, even when there are no effects to draw it. */
+  async glow(ids: string[], ms = ANSWER_GLOW_MS, color?: string): Promise<void> {
+    const effects = this.effects;
+    if (!effects || ids.length === 0) return;
+    const ac = new AbortController();
+    try {
+      await this.progress(ms, ac.signal, (t) => effects.setHighlight(ids, "glow", t, null, color));
+    } finally {
+      effects.endHighlight(ids);
+    }
+  }
+
+  /** The laser taps the centre of `box` — a widget demo's gesture — and lifts. */
+  async tapAt(box: BBox, ms = 900): Promise<void> {
+    const effects = this.effects;
+    if (!effects) return;
+    const path = pointerPath({ x: box.x + box.w / 2, y: box.y + box.h / 2, box }, "tap");
+    const ac = new AbortController();
+    try {
+      await this.progress(ms, ac.signal, (t) => effects.setPointer(t >= 1 ? null : path(t)));
+    } finally {
+      effects.setPointer(null);
+    }
+  }
+
+  /** A widget's line in the caption band; null puts the narration's caption back. */
+  caption(text: string | null): void {
+    if (text === null) this.showCaption(this.captionSource);
+    else this.setCaption(text);
+  }
+
   /**
    * Paint the current boundary with a patched SPEC — the code editor's
    * preview: edited elements (a script and its fresh envelope) and, when the
@@ -835,21 +870,26 @@ export class Player {
               /* an unparseable note stays silent */
             }
           }
-          // A drag question has one box per item: the laser taps each in turn.
-          const boxes = step.answerBoxes ?? (step.answerBox ? [step.answerBox] : []);
-          if (this.effects && boxes.length > 0) {
-            const effects = this.effects;
-            for (const b of boxes) {
-              const path = pointerPath({ x: b.x + b.w / 2, y: b.y + b.h / 2, box: b }, "tap");
-              try {
-                await this.progress(boxes.length > 1 ? 900 : 1400, signal, (t) => effects.setPointer(t >= 1 ? null : path(t)));
-              } finally {
-                effects.setPointer(null);
-              }
-              if (signal.aborted) return;
-            }
+          if (step.widgetTemplate && this.widgetDemo) {
+            await this.widgetDemo(signal, step);
+            if (signal.aborted) return;
           } else {
-            await this.waitScaled(1200, signal);
+            // A drag question has one box per item: the laser taps each in turn.
+            const boxes = step.answerBoxes ?? (step.answerBox ? [step.answerBox] : []);
+            if (this.effects && boxes.length > 0) {
+              const effects = this.effects;
+              for (const b of boxes) {
+                const path = pointerPath({ x: b.x + b.w / 2, y: b.y + b.h / 2, box: b }, "tap");
+                try {
+                  await this.progress(boxes.length > 1 ? 900 : 1400, signal, (t) => effects.setPointer(t >= 1 ? null : path(t)));
+                } finally {
+                  effects.setPointer(null);
+                }
+                if (signal.aborted) return;
+              }
+            } else {
+              await this.waitScaled(1200, signal);
+            }
           }
           typed = auto;
         } else if (this.askGate) {

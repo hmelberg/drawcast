@@ -82,8 +82,38 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // is in this schema), one short description sentence — +162 chars on the
 // schema (110146 → 110308), embedded verbatim in the system prompt so the
 // same +162 lands there too (224495 → 224657).
-const BASELINE_SYSTEM_CHARS = 224657;
-const BASELINE_SCHEMA_CHARS = 110308;
+// Re-pinned 2026-09-14 for the widget-bodies round (Task 6): ask.widget lost
+// its enum and gained one sentence (a template with a widget body may be the
+// device), and the ask bullet in compiler-v1.md gained the same sentence —
+// schema 109611 → 109612 (the dropped enum list very nearly paid for the
+// sentence), system 223804 → 224068 (that +1 plus the prompt's own +263).
+// The author prompt (author-v1.md, on-demand only) grew a section; it is not
+// part of these pins.
+// Re-pinned 2026-09-14 for the widget-bodies round (Task 7): the widgets
+// pack (three widget-body templates — morse_key, tower_of_hanoi,
+// logic_gates) — with no packs registered (this test's own config) it shows
+// up in the catalog as one more "Pack available but not enabled: Widgets —
+// …" line, +211 chars on the system prompt only; the schema is untouched
+// (109612 stays 109612).
+// Re-measured 2026-09-15 for the widget-bodies fix wave (F5): a template
+// whose document carries a widget body now emits one marker line in its FULL
+// catalog entry ("widget: the viewer can work this figure while paused; an
+// ask may bind to it with widget: <name>", ~105 chars), which is what the ask
+// bullet in compiler-v1.md has been telling the model to look for since Task
+// 6 and which nothing emitted until now. Nothing else in the prompt or the
+// schema changed. The three templates that carry the flag are all in the
+// widgets pack, which is not registered in this test's configuration (and is
+// an index line, not a full entry, in the two-level regime anyway) — so both
+// measurements come back UNCHANGED at 224279 / 109612. Pinned to what was
+// measured, as this file's rule requires, rather than nudged for a delta that
+// an ordinary request never pays. (With the widgets pack enabled the system
+// prompt measures 228539, the pack's own three index lines and hot-set
+// entries; that regime has never been what these ceilings pin.)
+// Re-measured 2026-09-15 at the merge of widget-bodies into main (after
+// pane-controls): both rounds grew the schema/prompt independently; the pins
+// below are the measured values after the merge.
+const BASELINE_SYSTEM_CHARS = 225132;
+const BASELINE_SCHEMA_CHARS = 110309;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

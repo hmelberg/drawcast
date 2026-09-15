@@ -296,7 +296,7 @@ function codeFigureOverlap(codeId: string, templateIds: string[], drawables: Dra
 }
 
 /** Union bbox per command-addressable element id (logical units), for the gesture verbs. */
-export function elementBBoxes(layout: LayoutResult, measure: MeasureFn = heuristicMeasure): Map<string, BBox> {
+export function elementBBoxes(layout: Pick<LayoutResult, "drawables" | "order">, measure: MeasureFn = heuristicMeasure): Map<string, BBox> {
   const map = new Map<string, BBox>();
   for (const id of layout.order) {
     const box = unionBBoxForId(layout.drawables, id, measure);
@@ -343,7 +343,7 @@ export function domainMapping(domain: Spec["domain"]): { toLogical: (p: Pt) => P
 }
 
 /** Logical → spec-domain mapping (inverse of tier-2's scales; default domain 0–100). */
-function inverseDomainMapping(domain: Spec["domain"]): (p: Pt) => Pt {
+export function inverseDomainMapping(domain: Spec["domain"]): (p: Pt) => Pt {
   const plot = plotArea();
   const dx = domain?.x ?? [0, 100];
   const dy = domain?.y ?? [0, 100];

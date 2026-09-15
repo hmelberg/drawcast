@@ -62,6 +62,10 @@ function fullEntry(manifest: SceneManifest): string {
   return (
     `### Scene template: ${manifest.name} (READY — prefer this when it fits)\n` +
     `${manifest.description}\n` +
+    // The marker the ask bullet in compiler-v1.md sends the model looking for
+    // ("its catalog entry says widget"). Only a document with a widget body
+    // carries it, so an ordinary template's entry is byte-identical to before.
+    (manifest.widget ? `widget: the viewer can work this figure while paused; an ask may bind to it with widget: ${manifest.name}\n` : "") +
     `Parameter schema:\n${JSON.stringify(manifest.params_schema, null, 1)}\n` +
     `Element ids your commands can reference:\n` +
     Object.entries(manifest.element_ids)

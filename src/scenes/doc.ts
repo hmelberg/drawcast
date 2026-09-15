@@ -26,6 +26,10 @@ export interface TemplateDoc {
   explore?: ExploreKind;
   /** JS function body: (params, kit, engines) => SceneLayout. Required when ready. */
   layout?: string;
+  /** JS function body: (kit) => { init, on, demo?, judge? } — the widget
+   *  contract (widget-types.ts). Optional; a document with one is playable
+   *  while paused by that fact alone. */
+  widget?: string;
   /** Opt-in: widen params_schema (data-schema.ts) at registration so numeric
    *  and array leaves also accept a "{id.var}" data token. */
   accepts_data?: boolean;
@@ -132,6 +136,9 @@ export function validateTemplateDoc(raw: unknown): DocResult {
   if (d.status === "ready" && (typeof d.layout !== "string" || d.layout.trim() === "")) {
     errors.push("a ready template needs a layout function body");
   }
+  if (d.widget !== undefined && typeof d.widget !== "string") {
+    errors.push("widget must be a string (a JavaScript function body returning { init, on })");
+  }
   if (d.title !== undefined && typeof d.title !== "string") errors.push("title must be a string");
   if (d.accepts_data !== undefined && typeof d.accepts_data !== "boolean") errors.push("accepts_data must be a boolean");
 
@@ -150,6 +157,16 @@ export function docToManifest(doc: TemplateDoc): SceneManifest {
     ...(doc.model3d ? { model3d: doc.model3d } : {}),
     ...(doc.interactions && doc.interactions.length > 0 ? { interactions: doc.interactions } : {}),
     ...(doc.explore ? { explore: doc.explore } : {}),
+    // A stub never carries a widget: it has nothing to be playable IN — the
+    // widget flag rides on a ready doc with a real layout body, same as the
+    // compile-time gate in compile.ts's stub early-return.
+    ...(doc.status === "ready" &&
+    typeof doc.layout === "string" &&
+    doc.layout.trim() !== "" &&
+    typeof doc.widget === "string" &&
+    doc.widget.trim() !== ""
+      ? { widget: true as const }
+      : {}),
     ...(doc.accepts_data ? { accepts_data: true } : {}),
   };
 }

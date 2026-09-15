@@ -118,6 +118,12 @@ export const PACK_DEFS: Record<string, PackDef> = {
     description: "The solar system: the Sun, planets, dwarf planets and moons drawn for a date at a chosen scale, every body clickable by name — and the night sky over a place at a moment, stars, planets and the Moon's phase.",
     load: async () => (await import("./packs/space.yaml?raw")).default,
   },
+  widgets: {
+    id: "widgets",
+    title: "Widgets",
+    description: "Figures the viewer can work while paused — a Morse key, the Tower of Hanoi, logic gates — each a template document with a widget body; the models for writing your own.",
+    load: async () => (await import("./packs/widgets.yaml?raw")).default,
+  },
 };
 
 /**
@@ -129,7 +135,7 @@ export const PACK_DEFS: Record<string, PackDef> = {
  * up in the catalog as "Pack available but not enabled" lines (see
  * catalogText in ./catalog) so the model knows they exist.
  */
-export const DEFAULT_OFF_PACKS: ReadonlySet<string> = new Set(["games", "maps"]);
+export const DEFAULT_OFF_PACKS: ReadonlySet<string> = new Set(["games", "maps", "widgets"]);
 
 export interface ParsedPack {
   id: string;

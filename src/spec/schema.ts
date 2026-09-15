@@ -8,7 +8,7 @@
 
 import AjvModule, { type ValidateFunction } from "ajv";
 import { assetRef, resolveAssetRefs } from "./assets";
-import { SIDE_VALUES, type Command, type Spec, type SpecElement } from "./types";
+import { BUILTIN_WIDGETS, SIDE_VALUES, type Command, type Spec, type SpecElement } from "./types";
 import { RESERVED_VARS } from "./answers";
 import { SUB_SUFFIXES } from "../layout/model";
 import { C64_PROGRAMS } from "../code/c64-catalogue";
@@ -548,9 +548,8 @@ const commandSchema = {
         required: { type: "boolean", description: "App only: cannot be skipped without answering. Movies never wait." },
         widget: {
           type: "string",
-          enum: ["click", "piano", "chess", "code", "drag", "connect"],
           description:
-            "Answer device instead of typing: click = click the named element on the figure (answer = its id; the correct element GLOWS while right/the reveal is spoken, so you never need a highlight beat after a click question); piano = press a key on the drawn keyboard (answer = the note, e.g. C4); chess = click two squares (answer = the move, e.g. e2e4); code = WRITE A SCRIPT on a code panel (implied by `code`, so you rarely write this one); drag = DRAG NAMES onto the figure (items = what to place, each judged where it lands; the answer is implied and `right` is required — it must say where each belongs; parts that were not drawn appear when the question ends, hits glow green and misses red); connect = DRAW A CONSTELLATION on a sky_map portrait (the viewer joins star to star — press one and drag to the next, or tap both — until the figure is made; answer = the constellation's element id, e.g. con_ori). Use it only with `focus` on that same figure, which is what gives every one of its stars an element id, and only AFTER AN EARLIER BEAT HAS DRAWN THE FIGURE — the lines are hidden while the question stands and drawn back as the reveal, so the task is \"draw the one you just saw\". The whole figure is required, exactly: every line and no extra one, since a wrong segment can be clicked away before Done. At most 24 lines — Orion's own count, and the most anyone will draw by hand; for a bigger figure ask which constellation it is instead. All but drag require answer. In movies the laser pointer demonstrates.",
+            "Answer device instead of typing: click = click the named element on the figure (answer = its id; the correct element GLOWS while right/the reveal is spoken, so you never need a highlight beat after a click question); piano = press a key on the drawn keyboard (answer = the note, e.g. C4); chess = click two squares (answer = the move, e.g. e2e4); code = WRITE A SCRIPT on a code panel (implied by `code`, so you rarely write this one); drag = DRAG NAMES onto the figure (items = what to place, each judged where it lands; the answer is implied and `right` is required — it must say where each belongs; parts that were not drawn appear when the question ends, hits glow green and misses red); connect = DRAW A CONSTELLATION on a sky_map portrait (the viewer joins star to star — press one and drag to the next, or tap both — until the figure is made; answer = the constellation's element id, e.g. con_ori). Use it only with `focus` on that same figure, which is what gives every one of its stars an element id, and only AFTER AN EARLIER BEAT HAS DRAWN THE FIGURE — the lines are hidden while the question stands and drawn back as the reveal, so the task is \"draw the one you just saw\". The whole figure is required, exactly: every line and no extra one, since a wrong segment can be clicked away before Done. At most 24 lines — Orion's own count, and the most anyone will draw by hand; for a bigger figure ask which constellation it is instead. All but drag require answer. In movies the laser pointer demonstrates. Or the name of this drawcast's template (spec.template) when that template carries a widget body: the viewer works the figure and the widget's own answer is judged — in movies the widget's demo performs it.",
         },
         items: {
           type: "array",
@@ -1261,6 +1260,11 @@ function semanticErrors(spec: Spec): string[] {
       }
       if (a.widget !== undefined && !isDrag && a.answer === undefined) {
         errors.push(`commands[${i}]: ask.widget requires answer (the element id / note / move the click must match)`);
+      }
+      // The device is one of the six the app builds in, or THIS drawcast's own
+      // template — whose widget body then answers. Nothing else can be wired.
+      if (a.widget !== undefined && !(BUILTIN_WIDGETS as readonly string[]).includes(a.widget) && a.widget !== spec.template) {
+        errors.push(`commands[${i}]: ask.widget "${a.widget}" is neither a built-in device (${BUILTIN_WIDGETS.join(", ")}) nor this drawcast's template (${spec.template ? `"${spec.template}"` : "none"})`);
       }
       if (isDrag) {
         if (!Array.isArray(a.items) || a.items.length === 0) errors.push(`commands[${i}]: ask.widget "drag" needs items — what to drag onto the figure`);

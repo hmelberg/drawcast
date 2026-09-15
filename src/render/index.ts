@@ -20,6 +20,8 @@ import { WebAudioTones, type ToneLike } from "./tones";
 import { resolvePortraits } from "./portrait";
 import { resolveCode } from "./code";
 import { resolvedRenderSpec } from "./resolve";
+import { scenes } from "../scenes/registry";
+import { widgetDemoFor } from "./widget-demo";
 import { titleIsDrawn } from "./title";
 import { resolveSources } from "./source";
 import { resolveImages } from "./image";
@@ -350,6 +352,12 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   );
   player.setNarratorGender(spec.voice ?? null);
   player.tones = options.tones ?? liveTones();
+  // A template-bound ask needs its movie form HERE, on the player, not in the
+  // controls layer: the exporter never attaches UI, and it must still see the
+  // widget demonstrate itself. (The layout only gains minted trails/ghosts on
+  // the way to `mountedLayout` — the widget's own parts sit at the same boxes
+  // in both, and a patch re-reads the painted layout anyway.)
+  if (spec.template && scenes[spec.template]?.widget) player.widgetDemo = widgetDemoFor(player, spec, layout);
 
   if (mounted.swapGeometry && mounted.remount) {
     // The label placements the last committed boundary solved. A label's spot
