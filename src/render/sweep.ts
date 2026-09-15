@@ -13,6 +13,10 @@ import type { PlayArgs, SeriesSpec } from "../spec/types";
 
 export const RUN_MAX_STEPS = 20;
 export const DEMO_MAX_STEPS = 5;
+/** Seconds per step when nothing else sets the pace: the floor under a `run`
+ *  (RUN_EVERY_S) and the demo walk's own step (DEMO_EVERY_S) — a narration
+ *  longer than the whole sweep still wins, since the voice must not be cut. */
+export const RUN_EVERY_S = 0.5;
 export const DEMO_EVERY_S = 0.5;
 
 /** FNV-1a, 32-bit unsigned — the same tag run.ts and svg-backend.ts keep privately. */

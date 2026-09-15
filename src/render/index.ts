@@ -8,7 +8,7 @@ import type { LintIssue } from "../lint/lint";
 import type { Spec, SpecElement } from "../spec/types";
 import { ensureFigureStyles } from "./figure-style";
 import { splitVarOverrides, withNewIdsVisible, withOverrides } from "./params";
-import { planCommands, type Plan, type PlanOptions } from "./plan";
+import { controlsOfFor, planCommands, type Plan, type PlanOptions } from "./plan";
 import { withMinted, type MintedSpec } from "./minted";
 import { dependentsMap, sourceIds } from "../spec/deps";
 import { boxAnchor } from "../layout/anchors";
@@ -19,7 +19,6 @@ import { SpeechManager, type SpeechLike } from "./speech";
 import { WebAudioTones, type ToneLike } from "./tones";
 import { resolvePortraits } from "./portrait";
 import { resolveCode } from "./code";
-import { parseControls } from "../code/controls";
 import { resolvedRenderSpec } from "./resolve";
 import { scenes } from "../scenes/registry";
 import { widgetDemoFor } from "./widget-demo";
@@ -108,7 +107,7 @@ function contactEmail(): string {
 export function planOptionsFor(
   spec: Spec,
   layout: LayoutResult,
-): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds" | "mathOf" | "isElement"> {
+): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds" | "mathOf" | "isElement" | "controlsOf"> {
   // Definitions hold (design 2026-09-10 §2.5): what is defined in terms of
   // what. A source that is a group or a pieces cut is moved through its
   // members (the planner expands it), so its dependents are attached to every
@@ -135,6 +134,10 @@ export function planOptionsFor(
   return {
     dependentsOf: (id) => depsByLeaf.get(id) ?? [],
     sourceIds: sources,
+    // A sweep reads the AUTHORED control literals: this clone has already
+    // rewritten them to their defaults, and `code_src` is where the original
+    // was stamped — controlsOfFor reads whichever the spec has.
+    controlsOf: controlsOfFor(spec),
     mathOf: (id) => {
       const el = spec.elements?.find((e) => e.id === id);
       return el?.type === "math" && typeof el.tex === "string" ? el.tex : null;
@@ -334,14 +337,6 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
         const box = b.get(id);
         return box ? boxAnchor(box, name) : null;
       };
-    },
-    // A sweep reads the AUTHORED script: render's clone has already rewritten
-    // its control literals to their defaults (resolveCode), and the tuple/list
-    // that DECLARES a control only survives on the authored element.
-    controlsOf: (id) => {
-      const el = authored.elements?.find((e) => e.id === id);
-      if (!el || el.type !== "code" || !el.controls?.length || !el.language) return null;
-      return parseControls(el.language, el.code ?? "", el.controls).controls;
     },
     ...planOptionsFor(spec, layout),
   });

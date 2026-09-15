@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { planCommands, type PlanStep } from "../src/render/plan";
 import { parseControls } from "../src/code/controls";
 import { SpeechManager } from "../src/render/speech";
+import { RUN_EVERY_S } from "../src/render/sweep";
 
 const CODE = 'beta = (0.1, 1.0, 0.05)\nmodel = ["SIR", "SEIR"]';
 const controlsOf = (id: string) => (id === "sim" ? parseControls("python", CODE, ["beta", "model"]).controls : null);
@@ -30,6 +31,18 @@ describe("planner: run", () => {
     const s = p.steps[0];
     if (s.kind !== "run") throw new Error("run expected");
     expect(s.seconds).toBeCloseTo(Math.max(1.0, SpeechManager.estimateMs(speak) / 1000), 3);
+  });
+  test("with neither every nor speak, the floor alone sets the seconds", () => {
+    const p = plan([{ run: { code: "sim", values: { beta: [0.2, 0.4, 0.6, 0.8] } } }]);
+    const s = p.steps[0];
+    if (s.kind !== "run") throw new Error("run expected");
+    expect(s.seconds).toBe(RUN_EVERY_S * 4);
+    expect(s.narration).toBeUndefined();
+  });
+  test("a series the model cannot honour is a warning naming the command, and no step", () => {
+    const p = plan([{ draw: ["sim"] }, { run: { code: "sim", values: { gamma: [1, 2] } }, speak: "Watch." }]);
+    expect(p.steps.filter((s) => s.kind === "run")).toEqual([]);
+    expect(p.warnings).toEqual(['commands[1].run: values.gamma: no control named "gamma"']);
   });
   test("a run on an unknown or control-less script is a warning and no step", () => {
     const p = plan([{ run: { code: "nope", values: { beta: 1 } } }]);
@@ -66,5 +79,11 @@ describe("planner: the explore demo", () => {
     const p = plan([{ explore: { params: ["n"] }, speak: "Look." }]);
     expect(kinds(p)).toEqual(["explore"]);
     expect(p.steps[0].narration).toBe("Look.");
+    // A code element the demo cannot walk (no controls) is still a legitimate
+    // app-only beat: the gate keeps its line, and nothing is warned about.
+    const q = plan([{ explore: { code: "sim_out" }, speak: "Type in it." }]);
+    expect(kinds(q)).toEqual(["explore"]);
+    expect(q.steps[0].narration).toBe("Type in it.");
+    expect(q.warnings).toEqual([]);
   });
 });

@@ -92,6 +92,26 @@ describe("captionLines", () => {
     expect(lines.filter((l) => l === "Twice.")).toHaveLength(1);
   });
 
+  test("a narrated run keeps its line — the plan is given the script's controls", () => {
+    // Same failure as the motion verbs', one verb later: a `run` is planned
+    // only when `controlsOf` can read the script's controls, so a collector
+    // that planned without them pushed no step and the paired speak — which
+    // used to fall back to a standalone speak step — went with it.
+    const sweeping = {
+      elements: [{ id: "sim", type: "code", language: "python", code: "beta = (0.1, 1.0, 0.05)", controls: ["beta"] }],
+      commands: [
+        { draw: ["sim"] },
+        { run: { code: "sim", values: { beta: [0.2, 0.9] } }, speak: "Watch the peak move." },
+        { explore: { code: "sim" }, speak: "Now you try." },
+      ],
+    } as unknown as Spec;
+    const lines = captionLines(sweeping);
+    expect(lines).toContain("Watch the peak move.");
+    // The explore beat's line rides its demo step now, not the gate — either
+    // way the caption shows it, so the track must carry it.
+    expect(lines).toContain("Now you try.");
+  });
+
   test("blank and absent lines are not sent", () => {
     expect(captionLines(spec([{ draw: ["a"] }, { speak: "   " }]))).toEqual([]);
   });

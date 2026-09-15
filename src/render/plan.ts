@@ -11,7 +11,7 @@ import { readParam } from "./params";
 import { chessSquareBox, pianoKeyBox, pianoOctaves } from "./widgets";
 import { normalizeItems } from "../ui/drag-model";
 import { BUILTIN_WIDGETS } from "../spec/types";
-import type { Command, Easing, EndRef, GhostOption, HighlightEffect, PlayVoice, PointGesture, PointRef } from "../spec/types";
+import type { Command, Easing, EndRef, GhostOption, HighlightEffect, PlayVoice, PointGesture, PointRef, Spec } from "../spec/types";
 import { notationBeats, parseNotation } from "../spec/notation";
 import { parseABC } from "../spec/abc";
 import type { Delivery } from "./delivery";
@@ -26,8 +26,8 @@ import { cumulativeLengthFractions } from "./trails";
 import type { GhostSpec, MintedSpec } from "./minted";
 import type { LayoutOverrides, PoseOverride } from "../layout/posed";
 import { SpeechManager } from "./speech";
-import { DEMO_EVERY_S, demoWalk, runValues } from "./sweep";
-import type { ControlSpec, ControlValue } from "../code/controls";
+import { DEMO_EVERY_S, demoWalk, RUN_EVERY_S, runValues } from "./sweep";
+import { parseControls, type ControlSpec, type ControlValue } from "../code/controls";
 import type { PlayArgs } from "../spec/types";
 
 export type PlanStep = (
@@ -311,6 +311,20 @@ export interface PlanOptions {
   controlsOf?: (id: string) => ControlSpec[] | null;
 }
 
+/** `PlanOptions.controlsOf` for a spec: the ORIGINAL-parse controls of a code
+ *  element that has any, else null. `code_src` is the authored script, stamped
+ *  onto render's clone before `code` is rewritten to the control defaults
+ *  (src/render/code.ts) — so this ONE reader is right for the authored spec and
+ *  for the resolved clone alike, which is how the lint (src/lint/lint.ts:789)
+ *  and the panel layout (src/layout/code.ts:367) read the same literals. */
+export function controlsOfFor(spec: Spec): (id: string) => ControlSpec[] | null {
+  return (id) => {
+    const el = spec.elements?.find((e) => e.id === id);
+    if (!el || el.type !== "code" || !el.controls?.length || !el.language) return null;
+    return parseControls(el.language, el.code_src ?? el.code ?? "", el.controls).controls;
+  };
+}
+
 /** A PointRef that names a place in the SCENE (an array, a ref, or x+y) rather than the acting element's own anchor — resolved once per command, never per target. */
 export function isExplicitPointRef(p: PointRef | undefined): boolean {
   if (p === undefined) return false;
@@ -437,15 +451,20 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   /** A `run` command, or an explore beat's demo, as a step — null when the id
    *  is not a code element with controls (a warning for a `run`, which the
    *  author asked for by name; silence for a demo, which is only an offer). */
-  const sweepStep = (codeId: string, args: PlayArgs | null, demo: boolean, where: string): PlanStep | null => {
+  const sweepStep = (i: number, codeId: string, args: PlayArgs | null, demo: boolean, where: string): PlanStep | null => {
     const controls = opts.controlsOf?.(codeId) ?? null;
     if (!controls || controls.length === 0) {
-      if (!demo) warnings.push(`${where}: "${codeId}" is not a code element with controls`);
+      if (!demo) warnings.push(`commands[${i}].${where}: "${codeId}" is not a code element with controls`);
       return null;
     }
-    const values = args ? runValues(args, controls).steps : demoWalk(codeId, controls);
-    if (values.length === 0) return null;
-    return { kind: "run", code: codeId, values, seconds: secondsFor(values.length, args?.every, currentNarration, demo ? DEMO_EVERY_S : 0.5), demo };
+    // The series' own complaints are the author's to fix: the lint raises
+    // them too, but a plan is built without the lint often enough (the
+    // subtitle pass, a test, an embed) that swallowing them here would let a
+    // sweep vanish with no word said about why.
+    const sweep = args ? runValues(args, controls) : { steps: demoWalk(codeId, controls), issues: [] as string[] };
+    for (const issue of sweep.issues) warnings.push(`commands[${i}].${where}: ${issue}`);
+    if (sweep.steps.length === 0) return null;
+    return { kind: "run", code: codeId, values: sweep.steps, seconds: secondsFor(sweep.steps.length, args?.every, currentNarration, demo ? DEMO_EVERY_S : RUN_EVERY_S), demo };
   };
   /** The window's scroll: the highest visible line's bottom sits at the
    *  window's bottom. Every line of the element gets the offset — the hidden
@@ -842,7 +861,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   };
 
   const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "copy", "flow", "keep", "camera", "animate", "play", "run"] as const;
+  /** The command's own index — what a sweep's warning names, so the author can find the line. */
+  let cmdIndex = -1;
   for (const cmd of commands ?? []) {
+    cmdIndex++;
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
     currentNarrationSpeaker = hasAction ? cmd.voice : undefined;
@@ -863,14 +885,14 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       labels[cmd.label] = steps.length;
       pushStep({ kind: "label", name: cmd.label });
     } else if (cmd.run !== undefined) {
-      const s = sweepStep(cmd.run.code, cmd.run, false, "run");
+      const s = sweepStep(cmdIndex, cmd.run.code, cmd.run, false, "run");
       if (s) pushStep(s);
     } else if (cmd.explore !== undefined) {
       // The demo plays FIRST and carries the beat's voice: the viewer watches
       // the controls move, hears why, and only then is handed the panel — so
       // the gate that follows is silent (its own speak already spoke).
       if (cmd.explore.code !== undefined && cmd.explore.play !== false) {
-        const s = sweepStep(cmd.explore.code, typeof cmd.explore.play === "object" ? cmd.explore.play : null, true, "explore.play");
+        const s = sweepStep(cmdIndex, cmd.explore.code, typeof cmd.explore.play === "object" ? cmd.explore.play : null, true, "explore.play");
         if (s) {
           pushStep(s);
           currentNarration = undefined;
