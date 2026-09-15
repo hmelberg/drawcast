@@ -147,16 +147,24 @@ describe("collectSpeakLines", () => {
 
 describe("the export's sweep warm-up (source pins — the export is DOM-driven)", () => {
   const src = readFileSync("src/export/video.ts", "utf8");
-  test("every run step is precomputed after the item renders and before it plays, so a cold cache never records a stalled frame", () => {
+  test("the recorder holds its breath over the item's mount and its sweep warm-up — paused before render, resumed before play — so neither bakes a still lead-in", () => {
     expect(src).toMatch(/import \{ precomputeSweeps \} from "\.\.\/render\/sweep-run";/);
     // Guarded: a player with no runtime (no run steps, a headless mount) has no runner.
     expect(src).toMatch(/if \(handle\.timeline\.sweepRunner\) await precomputeSweeps\(handle\.plan, handle\.timeline\.sweepRunner\);/);
-    const mount = src.indexOf("handle = await render(items[i]");
-    const warm = src.indexOf("await precomputeSweeps(handle.plan, handle.timeline.sweepRunner)", mount);
-    const play = src.indexOf("await handle.timeline.play();", mount);
-    expect(mount).toBeGreaterThan(-1);
-    expect(warm).toBeGreaterThan(mount);
-    expect(warm).toBeLessThan(play);
+    // Searched from the item loop, so the visibility pauser's own pair (which
+    // uses the very same two lines, above the loop) cannot stand in for these.
+    const loop = src.indexOf("for (let i = 0; i < items.length; i++)");
+    expect(loop).toBeGreaterThan(-1);
+    const pause = src.indexOf('if (recorder.state === "recording") recorder.pause();', loop);
+    const mount = src.indexOf("handle = await render(items[i]", loop);
+    const warm = src.indexOf("await precomputeSweeps(handle.plan, handle.timeline.sweepRunner)", loop);
+    const resume = src.indexOf('if (recorder.state === "paused") recorder.resume();', loop);
+    const play = src.indexOf("await handle.timeline.play();", loop);
+    for (const i of [pause, mount, warm, resume, play]) expect(i).toBeGreaterThan(-1);
+    expect(pause).toBeLessThan(mount);
+    expect(mount).toBeLessThan(warm);
+    expect(warm).toBeLessThan(resume);
+    expect(resume).toBeLessThan(play);
   });
 });
 

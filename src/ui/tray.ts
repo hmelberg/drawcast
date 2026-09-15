@@ -407,7 +407,10 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   /** A control moved: relay the DRAWN panel from the rewritten script right
    *  away — the knob lands under the pointer on this frame — while the run
    *  itself waits for the language's debounce (`runControls`). The patch
-   *  keeps the last result, so only the panel changes until the run lands;
+   *  keeps the last result, so only the panel changes until the run lands —
+   *  the viewer's own last run, else the one a `run`'s sweep left on screen
+   *  (`el.code_result` is the clone's DEFAULTS, and falling straight to it
+   *  snapped the output pane back for the whole first drag after a sweep);
    *  coalesced to one repaint per frame, since a drag commits per move. */
   let knobFrame: number | null = null;
   const previewKnobs = (el: SpecElement, authoredCode: string, controls: ControlSpec[]): void => {
@@ -419,7 +422,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     // and until then a Run of the very text the panel is showing read as the
     // viewer taking the script over (and quieted their own knobs).
     lastControlsCode.set(el.id, code);
-    const result = patches.get(el.id)?.result ?? el.code_result ?? "";
+    const result = patches.get(el.id)?.result ?? hd.timeline.codePatchOf(el.id)?.result ?? el.code_result ?? "";
     patches.set(el.id, { code, result });
     if (knobFrame !== null) return;
     knobFrame = requestAnimationFrame(() => {

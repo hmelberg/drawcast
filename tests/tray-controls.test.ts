@@ -65,6 +65,11 @@ describe("tray controls (pins)", () => {
     // without this a Run inside the debounce window — of the very text on
     // screen — counted as a takeover and quieted the viewer's own knobs.
     expect(body).toMatch(/lastControlsCode\.set\(el\.id, code\);/);
+    // …and the result it HOLDS through the debounce is the one on screen: a
+    // sweep's, when the viewer has run nothing of their own. Falling straight
+    // through to el.code_result snapped the output pane back to the authored
+    // defaults for the length of the first drag after a run (fix round 1).
+    expect(body).toMatch(/patches\.get\(el\.id\)\?\.result \?\? hd\.timeline\.codePatchOf\(el\.id\)\?\.result \?\? el\.code_result/);
     const commit = src.slice(src.indexOf("commit: (c, raw, immediate) =>"), src.indexOf("run: () => runControls"));
     expect(commit.indexOf("previewKnobs(")).toBeLessThan(commit.indexOf("runControls("));
   });

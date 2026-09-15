@@ -7,6 +7,7 @@
 
 import { render, type RenderStyle } from "../render";
 import { precomputeSweeps } from "../render/sweep-run";
+import { controlsOfFor } from "../render/plan";
 import { CaptionTape, splitLongCues, type CaptionCue } from "./captions";
 import { titleIsDrawn } from "../render/title";
 import { speechKey, type SpeakLine } from "../render/delivery";
@@ -22,14 +23,11 @@ import { WebAudioTones } from "../render/tones";
  *  speaker/delivery/gender attached, and {var} tokens interpolated with the
  *  asks' defaults — the movie's values — so the audio exists at export time. */
 export function collectSpeakLines(spec: Spec): SpeakLine[] {
-  // A script the explore beat can DEMO: the planner's own test for turning an
-  // explore into a narrated sweep (render/plan.ts, controlsOfFor) — a code
-  // element with controls. Read off the raw spec, which is what the export
-  // collects from: `controls` is the author's list, untouched by resolve.
-  const hasControls = (id: string): boolean => {
-    const el = spec.elements?.find((e) => e.id === id);
-    return !!el && el.type === "code" && (el.controls?.length ?? 0) > 0;
-  };
+  // Whether a script can be DEMOed — asked through the planner's own reader
+  // (render/plan.ts), never a second copy of its rules: a beat the storyboard
+  // gives a demo sweep is exactly a beat the movie must voice. Right on the
+  // raw spec and on a resolved clone alike (controlsOfFor reads `code_src`).
+  const controlsOf = controlsOfFor(spec);
   const seen = new Map<string, SpeakLine>();
   const vars = new Map<string, string>();
   // The movie's tally: auto answers are always correct, so score == answered.
@@ -55,7 +53,7 @@ export function collectSpeakLines(spec: Spec): SpeakLine[] {
     };
     // An explore beat is voiced when its demo plays in the movie (a controls
     // script, play not false); otherwise the beat is app-only, speak included.
-    const demoPlays = c.explore !== undefined && c.explore.play !== false && c.explore.code !== undefined && hasControls(c.explore.code);
+    const demoPlays = c.explore !== undefined && c.explore.play !== false && c.explore.code !== undefined && (controlsOf(c.explore.code)?.length ?? 0) > 0;
     if (!c.quiz && !c.ask && (!c.explore || demoPlays)) push(c.speak);
     if (c.quiz) {
       // The export's quiz path: the question line (pre-answer tally), then —
@@ -506,6 +504,12 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
       for (let i = 0; i < items.length; i++) {
         if (signal.aborted) break;
         hooks.onStatus(items.length > 1 ? `Recording — playing part ${i + 1}/${items.length}…` : "Recording — playing the drawcast once…");
+        // The recorder started BEFORE this loop, so everything between here
+        // and play() would be recorded as a still frame: mounting the figure
+        // (a runtime boot, a chart) and warming the sweeps below can each take
+        // seconds. Hold its breath over both — the same pair the visibility
+        // pauser uses above — and resume just before the timeline starts.
+        if (recorder.state === "recording") recorder.pause();
         handle = await render(items[i], workbench, { style: cfg.style, speech, tones, mode: "narrated", speed: 1, questions: cfg.questions });
         const svg = workbench.querySelector<SVGSVGElement>("svg.cs-svg");
         if (!svg) throw new Error(`nothing to record — spec ${i + 1} rendered no figure`);
@@ -554,6 +558,8 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
         // the opening, but a recording has no spare time — a cold cache would
         // record the script's first run as a stalled frame.
         if (handle.timeline.sweepRunner) await precomputeSweeps(handle.plan, handle.timeline.sweepRunner);
+        // …and the recording resumes on the frame the movie actually starts.
+        if (recorder.state === "paused") recorder.resume();
         await handle.timeline.play();
         if (i < items.length - 1) {
           await zzz(300); // beat between parts
