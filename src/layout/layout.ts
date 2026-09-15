@@ -350,12 +350,14 @@ export function elementRings(layout: Pick<LayoutResult, "drawables" | "order">):
 }
 
 /** Spec domain → logical canvas. With a `fit`, the standard plot area is
- *  where the template's axes WERE; the fit says where they are now. */
+ *  where the template's axes WERE; the fit says where they are now.
+ *  No domain: coordinates are canvas coordinates and never follow a
+ *  template's fit (tier-3 rule). */
 export function domainMapping(domain: Spec["domain"], fit?: TemplateFit): { toLogical: (p: Pt) => Pt; deltaToLogical: (d: Pt) => Pt } {
+  if (!domain) return { toLogical: (p) => p, deltaToLogical: (d) => d };
   const s = fit?.s ?? 1, dx = fit?.dx ?? 0, dy = fit?.dy ?? 0;
   const post = ([x, y]: Pt): Pt => [x * s + dx, y * s + dy];
   const postDelta = ([a, b]: Pt): Pt => [a * s, b * s];
-  if (!domain) return { toLogical: (p) => post(p), deltaToLogical: (d) => postDelta(d) };
   const plot = plotArea();
   const dX = domain.x ?? [0, 100];
   const dY = domain.y ?? [0, 100];

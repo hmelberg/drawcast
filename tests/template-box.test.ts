@@ -202,6 +202,43 @@ describe("template box — tier-2 ink stays inside the fitted plot", () => {
   });
 });
 
+describe("template box — no domain: coordinates are canvas coordinates and never follow the fit", () => {
+  test("domainMapping with no domain is the identity, even with a fit", () => {
+    const fit = { s: 0.5, dx: 300, dy: 100, box: fitRegion("right") };
+    const m = domainMapping(undefined, fit);
+    expect(m.toLogical([500, 300])).toEqual([500, 300]);
+    expect(m.deltaToLogical([100, 0])).toEqual([100, 0]);
+  });
+
+  test("a no-domain move.to on a boxed template lands at the literal canvas coordinates, not the fitted image", () => {
+    const spec = {
+      template: "sir_compartments",
+      params: { box: "left" },
+      elements: [{ id: "n", type: "text", text: "note", x: 700, y: 300 }],
+      commands: [{ draw: ["n"] }, { move: { target: "n", to: { x: 700, y: 300 } } }],
+    } as unknown as Spec;
+    const layout = layoutSpec(spec);
+    expect(layout.fit).toBeDefined();
+    const bboxes = elementBBoxes(layout);
+    const plan = planCommands(spec.commands, layout.order, {
+      bboxOf: (id) => bboxes.get(id) ?? null,
+      windows: layout.windows ?? {},
+      ...domainMapping(spec.domain, layout.fit),
+      animateBase: spec.template ? spec.params ?? {} : null,
+      varsBase: spec.vars ?? null,
+      ...planOptionsFor(spec, layout),
+    });
+    expect(plan.warnings).toEqual([]);
+    const step = plan.steps.find((st) => st.kind === "transform");
+    if (!step || step.kind !== "transform") throw new Error("expected a transform step");
+    const item = step.items.find((it) => it.id === "n")!;
+    // Same place it already was: a move.to that repeats a canvas coordinate
+    // a freehand element was already placed at must be a no-op offset.
+    expect(item.to.offset[0]).toBeCloseTo(0, 6);
+    expect(item.to.offset[1]).toBeCloseTo(0, 6);
+  });
+});
+
 describe("template box — the planner's domain mapping composes the fit", () => {
   test("a domain-unit move.to on a boxed template lands on the fitted figure", () => {
     const spec = {
