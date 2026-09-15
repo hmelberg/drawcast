@@ -272,7 +272,7 @@ function unionOfBoxes(boxes: (BBox | null)[]): BBox | null {
 
 /** Does this template lay itself out in a `box` param? Five data templates
  *  do; every other template is fitted by template-fit.ts. */
-function nativeBox(template: string | undefined): boolean {
+export function nativeBox(template: string | undefined): boolean {
   if (!template) return false;
   const schema = scenes[template]?.manifest.params_schema as { properties?: Record<string, unknown> } | undefined;
   return schema?.properties?.box !== undefined;
