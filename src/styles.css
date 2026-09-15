@@ -43,15 +43,6 @@
     --muted: #a49b8b;
     --line: #79715c;
   }
-  /* .cs-paramtray (explore tray, further down): its border is deliberately
-     var(--ink) in light mode (the sketchy-box trick, same ink as the
-     drawing), which reads as a bright outline once --ink flips to near-
-     white — soften it here, alongside the tokens it depends on, since this
-     file allows only one prefers-color-scheme dark block. The base rule sets
-     the whole `border` shorthand AFTER this block in source order, so at
-     equal specificity it would win regardless — the same guard the token
-     rule above uses raises this selector's specificity to beat it either way. */
-  :root:not([data-theme="light"]) .cs-paramtray, :root:not([data-theme="light"]) .cs-ctlcard { border-color: var(--line); }
 }
 :root[data-theme="dark"] {
   --paper: #1c1a17;
@@ -1640,6 +1631,30 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-codeedit-chin button:hover:not(:disabled) { background: #f2ece0; }
 .cs-codeedit-chin button:disabled { opacity: 0.5; cursor: default; }
 
+/* The live control panel's one HTML piece: a text/number field typed over
+   its DRAWN box (ui/controls-input.ts). The drawn box is the frame — no
+   border, no background of its own — in the figure's sketch face. */
+.cs-ctlinput {
+  position: absolute;
+  z-index: 25;
+  box-sizing: border-box;
+  padding: 0 0.3em;
+  margin: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--sketch-font);
+  text-align: center;
+}
+.cs-stage.cs-ctl-hover { cursor: pointer; }
+/* A drawn panel is on this stage (attachControlsHost sets the class): a
+   horizontal drag is a slider, so the browser must hand it to us as pointer
+   events instead of panning with it. preventDefault on pointerdown is too
+   late for touch — only touch-action decides. `pan-y` keeps the page's own
+   vertical scroll, which is the gesture a reader still needs. */
+.cs-stage.cs-ctl-live { touch-action: pan-y; }
+
 /* The script editors' word list (ui/code-typing.ts). Fixed to the document so
    neither the card's box nor the tray's scroll can clip it; app chrome, not
    drawing, so it wears the app's own surface. */
@@ -1876,9 +1891,9 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .pl-badge-advanced { color: var(--steel); border-color: color-mix(in srgb, var(--steel) 50%, var(--surface)); }
 
 /* ---------- explore tray (params sliders under the control bar) ----------
-   Looks like the figure (design 2026-09-14 §2.6b): the paper, the fonts, a
-   hand-drawn border, no gap under the bar. Popped out, it floats over the
-   stage with the browser's own resize handle. */
+   Paper, ink and the sketch face; a plain top edge — chrome, not a drawing
+   (2026-09-15). Popped out, it floats over the stage with the browser's own
+   resize handle. */
 .cs-paramtray {
   display: flex;
   flex-direction: column;
@@ -1886,23 +1901,14 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   padding: 0.5rem 0.7rem 0.6rem;
   background: var(--paper);
   color: var(--ink);
-  border: 1.5px solid var(--ink);
-  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; /* the sketchy-box trick, same ink as the drawing */
+  border: none;
+  border-top: 1px solid var(--line);
   margin-top: -1px;
 }
-/* Dark mode: the full-ink border reads as a bright outline against the dark
-   paper (--ink is near-white there). Soften it to --line, same as every
-   other real edge in dark mode; the theme paper background is unchanged.
-   The prefers-color-scheme half lives with the file's one allowed dark
-   media block, at the top (tests/palette.test.ts pins exactly one); the
-   explicit-choice half sits here, beside the rule it overrides. .cs-ctlcard
-   (below) is the same sketchy-box border on the same var(--ink), so it rides
-   along beside .cs-paramtray in both halves rather than growing a rule of
-   its own. */
-:root[data-theme="dark"] .cs-paramtray, :root[data-theme="dark"] .cs-ctlcard { border-color: var(--line); }
 .cs-paramtray.cs-popped {
   position: absolute;
   z-index: 30;
+  border: 1px solid var(--line);
   resize: both;
   overflow: auto;
   min-width: 260px;
@@ -1953,38 +1959,6 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-tray-actions { display: flex; justify-content: flex-end; }
 .cs-tray-continue { font-size: var(--text-xs); }
 
-/* The in-place controls card (ui/controls-card.ts, pane-controls round
-   2026-09-15, spec §3.2): the SAME .cs-tray-controls group, lying on the
-   `pane: controls` panel instead of under the bar. Wears the app's own
-   paper/ink (var(--paper)/var(--ink)) like .cs-paramtray, NOT the fixed
-   figure-ground colours .cs-codeedit uses — this card is app chrome offered
-   over a picture, not a stand-in for a drawn line, so it may sit in either
-   theme. The sketchy-box border is the tray's trick, same ink as the
-   drawing; dark mode softens it beside .cs-paramtray's own rule, above. */
-.cs-ctlcard {
-  position: absolute;
-  z-index: 25;
-  overflow: auto;
-  background: var(--paper);
-  color: var(--ink);
-  border: 1.5px solid var(--ink);
-  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
-  padding: 0.4rem 0.6rem;
-  box-shadow: 0 6px 18px rgba(30, 24, 16, 0.18);
-}
-.cs-ctlcard:focus-visible { outline: none; } /* the card itself is a container, not a control */
-.cs-ctlcard-chin { display: flex; justify-content: flex-end; gap: 0.3rem; margin-top: 0.3rem; padding-top: 0.3rem; border-top: 1px dashed var(--line); }
-.cs-ctlcard-chin button {
-  font-size: var(--text-xs);
-  padding: 0.1rem 0.5rem;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: var(--field);
-  color: var(--ink);
-  cursor: pointer;
-}
-.cs-ctlcard-chin button:hover { background: var(--surface); }
-
 /* The anatomy Body section: click-to-zoom overlay, breadcrumbs, pill rows. */
 .cs-bodyexplore { position: absolute; inset: 0; z-index: 4; cursor: zoom-in; }
 .cs-tray-body { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
@@ -2019,6 +1993,12 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-tray-hint { font-size: var(--text-xs); color: var(--muted); }
 /* Exploring: the stage is a workbench — no centered play button over it. */
 .cs-stage.cs-exploring .cs-bigplay { display: none; }
+/* An explore beat holding the run with the TRAY SHUT (spec 2026-09-15 §3.3):
+   the drawn panel is live and a click on the figure is Continue, so the big
+   ▶ must not sit over the very knobs being offered. Its own class, not
+   .cs-exploring — that one also freezes stage clicks, and the figure click
+   IS the way on from here. Ordinary paused knob use keeps the ▶. */
+.cs-stage.cs-gated .cs-bigplay { display: none; }
 
 /* On-key letter guide: which physical key plays which drawn key (DAW row). */
 .cs-keyguide {

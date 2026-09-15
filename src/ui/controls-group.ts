@@ -2,15 +2,16 @@
 // 2026-09-15 pane-controls round, spec §3.2 in
 // docs/superpowers/specs/2026-09-14-pane-controls-design.md): one row per
 // control, in authored order, plus a Run row when the script does not run
-// itself. This is the EXACT DOM tray.ts always built inline — moved here so
-// TWO hosts can mount it: the tray's own copy (under the control bar) and, a
-// `pane: controls` panel's card (controls-card.ts, lying ON the drawn pane).
-// Same group, same classes, same listeners either way.
+// itself. This is the EXACT DOM tray.ts always built inline — kept here as
+// its own module because the tray is no longer the only live copy of a
+// script's controls: since the 2026-09-15 live-controls round the DRAWN
+// `pane: controls` panel takes the pointer itself (ui/controls-host.ts),
+// and it commits through the very same closures these rows do.
 //
 // Pure with respect to the tray: it knows nothing of the tray's own value
 // map, its re-run scheduler, or its takeover set — its caller supplies
 // `values`, `commit`, `run` and `quiet` as closures over that shared state,
-// so a slider dragged in one host and a Run pressed in the other still read
+// so a knob moved on the drawing and a Run pressed in the tray still read
 // and write the one state tray.ts owns.
 import type { SpecElement } from "../spec/types";
 import type { ControlSpec, ControlValue } from "../code/controls";
@@ -29,8 +30,8 @@ export interface ControlsGroupDeps {
   /** The current values for this script — read fresh for every row built. */
   values: () => Record<string, ControlValue>;
   /** A control moved: the tray's next-values step, then a re-run. `group` is
-   *  the row's own enclosing group node — the two-hosts fix's caller uses it
-   *  to skip syncing the host the event came from back onto itself. */
+   *  the row's own enclosing group node — passed so a caller that ever needs
+   *  to tell one mounted copy from another can; tray.ts ignores it. */
   commit: (c: ControlSpec, raw: string | boolean, immediate: boolean, group: HTMLElement) => void;
   /** The group's own Run ▶, for `autorun: false` — an immediate, forced re-run. */
   run: () => void;
@@ -48,10 +49,9 @@ export function buildControlsGroup(d: ControlsGroupDeps): HTMLElement {
   const group = h("div", { class: "cs-tray-controls", role: "group", "aria-label": `Controls for ${d.el.id}` });
   if (d.quiet) group.classList.add("cs-tray-controls-quiet");
   for (const c of d.controls) {
-    // `data-control` names the row for `syncControlsGroup` — the OTHER live
-    // host of this same script (the tray's own copy vs. a `pane: controls`
-    // card lying on the pane) finds it by this attribute when one host's
-    // commit must move the other's knob too (the two-hosts desync fix).
+    // `data-control` names the row for anything that must find it again by
+    // control name — a debugging hook, and the handle a future cross-copy
+    // sync would need. Kept because it costs nothing and names the row.
     const row = h("div", { class: `cs-tray-row cs-tray-ctl cs-tray-ctl-${rowWidth(c.kind)}`, "data-control": c.name });
     const label = h("span", { class: "cs-tray-label" }, c.label);
     const current = d.values()[c.name] ?? c.default;
@@ -129,49 +129,4 @@ export function buildControlsGroup(d: ControlsGroupDeps): HTMLElement {
     group.appendChild(h("div", { class: "cs-tray-actions" }, run));
   }
   return group;
-}
-
-/**
- * Two hosts, one script (design 2026-09-14 §3.2 review): the tray's own
- * copy of a `pane: controls` script's group and the card lying on the pane
- * are separate DOM trees built from the same `controls` — a slider dragged
- * in one must move the OTHER's knob (and readout, chip, switch or box) too,
- * or the quiet host goes on showing — and later committing — a stale value.
- * DOM-only: finds the row by `data-control` (set by `buildControlsGroup`
- * above) and writes what that row shows; never reads or dispatches events,
- * so it cannot re-trigger the commit that called it.
- */
-export function syncControlsGroup(group: HTMLElement, control: ControlSpec, value: ControlValue): void {
-  const row = group.querySelector<HTMLElement>(`[data-control="${control.name}"]`);
-  if (!row) return;
-  switch (control.kind) {
-    case "slider": {
-      const range = row.querySelector<HTMLInputElement>('input[type="range"]');
-      if (range) range.value = String(value);
-      const out = row.querySelector<HTMLElement>(".cs-tray-value");
-      if (out) out.textContent = readout(control, value);
-      break;
-    }
-    case "choice": {
-      const chosen = String(value);
-      for (const b of row.querySelectorAll<HTMLButtonElement>(".cs-tray-choicebtn")) {
-        const on = b.dataset.value === chosen;
-        b.classList.toggle("on", on);
-        b.setAttribute("aria-pressed", String(on));
-      }
-      break;
-    }
-    case "toggle": {
-      const box = row.querySelector<HTMLInputElement>('input[type="checkbox"]');
-      if (box) box.checked = value === true || value === "true";
-      break;
-    }
-    case "text":
-    case "number": {
-      const input = row.querySelector<HTMLInputElement>("input");
-      if (input) input.value = String(value);
-      break;
-    }
-    // button: no persistent value shown in the row — nothing to sync.
-  }
 }

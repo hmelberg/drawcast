@@ -374,6 +374,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
         el.controls!.map((name) => origControls.find((c) => c.name === name)?.label ?? name),
         fontSize,
         codePaneW - 2 * PAD,
+        el.autorun === false ? 1 : 0,
       )
     : showCode
       ? Math.min(codeStack.height, windowH)
@@ -728,6 +729,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       el.style,
       el.draw,
       origControls,
+      { runRow: el.autorun === false },
     );
     // Each row is its own top-level drawable (`draw: [sim_ctl_beta]` finds it
     // directly via drawablesForId, which only matches a top-level id — the

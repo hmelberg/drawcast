@@ -853,14 +853,21 @@ in the corpus) was the case that first exposed the label column's old fixed
 9-character cap; it is what the wrap rule above was built and tested
 against.
 
+- 2026-09-15 Live drawn controls (stage 1 of
+  `docs/superpowers/specs/2026-09-15-live-controls-sweep-movie-design.md`):
+  the `pane: controls` panel is the control; HTML card, tray-on-pause and
+  the sketchy tray border removed; panel text in the sketch face; drawn Run
+  ▶ row. Next: stage 2 (the `run` sweep + explore demo), stage 3
+  (`#movie`).
+
 Open: a performed sweep (the `animate` pairing) as the panel's own movie
 form — out of scope by design (§7), not built; the Norwegian invitation
 words are a short, unreviewed list; a choice row's chips have no equivalent
 wrap when the options themselves are long (only the label column wraps);
 the tray's ✎ On the screen still opens the code editor over a
-`pane: controls` panel (it always calls `openInPlace`, never
-`openControlsInPlace` — there is no script text to type there once the pane
-is knobs, not lines).
+`pane: controls` panel (`openInPlace` has no `pane: controls` branch — the
+panel itself is the host's now, and there is no script text to type there
+once the pane is knobs, not lines).
 
 ## Widget bodies — done 2026-09-14
 

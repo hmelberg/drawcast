@@ -19,6 +19,7 @@ import { parseHarvest } from "./harvest";
 import { R_BOOT, R_WRAPPER, rPackagesIn } from "./harvest-r";
 import { bitmapToFigure } from "./png";
 import { RunQueue } from "./serial";
+import { perfSpan } from "./perf";
 
 const WEBR_BASE = `https://webr.r-wasm.org/v${RUNTIME_VERSION.r}/`;
 const WEBR_URL = `${WEBR_BASE}webr.mjs`;
@@ -76,10 +77,13 @@ function boot(): Promise<WebRInstance> {
   bootPromise = (async () => {
     if (typeof document === "undefined") throw unavailable("R needs a browser to run in");
     let mod: WebRModule;
+    const endImport = perfSpan("webr import");
     try {
       mod = (await import(/* @vite-ignore */ WEBR_URL)) as WebRModule;
     } catch {
       throw unavailable("could not load the R runtime (offline?)");
+    } finally {
+      endImport();
     }
     // Everything up to a working R is the runtime's problem, never the
     // script's: the 12 MB R.wasm, the filesystem image, the boot script.
@@ -103,6 +107,7 @@ async function ensurePackages(webR: WebRInstance, pkgs: string[], status: Status
   const missing = pkgs.filter((p) => !installed.has(p));
   if (missing.length === 0) return;
   status("loading", `Installing ${missing.join(", ")}…`);
+  const end = perfSpan("webr packages");
   // A package the repo lacks must not sink the run: the script's own
   // library() call then raises the honest R error the panel shows. Only a
   // SUCCESSFUL install is memoized — a CDN hiccup must retry on the next
@@ -112,6 +117,8 @@ async function ensurePackages(webR: WebRInstance, pkgs: string[], status: Status
     for (const p of missing) installed.add(p);
   } catch {
     /* retried next run */
+  } finally {
+    end();
   }
 }
 
@@ -136,20 +143,26 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
   status("running", paths.length > 0 ? "Running and reading data…" : "Running…");
   const shelter = await new webR.Shelter();
   try {
-    const captured = await shelter.captureR(R_WRAPPER, {
-      // A JS object becomes the evaluation environment: the wrapper reads
-      // .__code and .__paths as plain variables, and nothing of it leaks
-      // into the global environment — a fresh namespace per run, so the
-      // result cache stays order-independent.
-      env: { ".__code": req.code, ".__paths": paths.join("\n") },
-      withAutoprint: false,
-      captureStreams: true,
-      captureConditions: true,
-      // bg transparent, like matplotlib's savefig: the plot sits on the
-      // panel's paper rather than on a white rectangle of its own.
-      captureGraphics: { width: PLOT_WIDTH, height: PLOT_HEIGHT, pointsize: PLOT_POINTSIZE, bg: "transparent" },
-      throwJsException: true,
-    });
+    const endExec = perfSpan("r exec");
+    let captured;
+    try {
+      captured = await shelter.captureR(R_WRAPPER, {
+        // A JS object becomes the evaluation environment: the wrapper reads
+        // .__code and .__paths as plain variables, and nothing of it leaks
+        // into the global environment — a fresh namespace per run, so the
+        // result cache stays order-independent.
+        env: { ".__code": req.code, ".__paths": paths.join("\n") },
+        withAutoprint: false,
+        captureStreams: true,
+        captureConditions: true,
+        // bg transparent, like matplotlib's savefig: the plot sits on the
+        // panel's paper rather than on a white rectangle of its own.
+        captureGraphics: { width: PLOT_WIDTH, height: PLOT_HEIGHT, pointsize: PLOT_POINTSIZE, bg: "transparent" },
+        throwJsException: true,
+      });
+    } finally {
+      endExec();
+    }
     const [rError, rWarn, tableJson, dataJson] = (await captured.result.toArray()).map((s) => s ?? "");
     const stdout = textOf(captured.output, "stdout").replace(/\n$/, "");
     const stderrParts = [textOf(captured.output, "stderr").trim(), rWarn.trim()].filter((s) => s !== "");

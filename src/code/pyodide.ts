@@ -17,6 +17,7 @@ import { chartPrelude, DEFAULT_CHART_STYLE } from "./chart-style";
 import { dataHarvestScript, parseHarvest } from "./harvest";
 import { RunQueue } from "./serial";
 import { renderPlotlyFigures } from "./plotly-render";
+import { perfSpan } from "./perf";
 
 const PYODIDE_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/pyodide.js`;
 
@@ -69,17 +70,22 @@ export type { Pyodide };
 function boot(): Promise<Pyodide> {
   if (bootPromise) return bootPromise;
   bootPromise = (async () => {
-    if (typeof document === "undefined") throw unavailable("this runtime needs a browser to run in");
-    if (!window.loadPyodide) {
-      await new Promise<void>((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = PYODIDE_URL;
-        script.onload = () => resolve();
-        script.onerror = () => reject(unavailable("could not load the Python runtime (offline?)"));
-        document.head.appendChild(script);
-      });
+    const end = perfSpan("pyodide boot");
+    try {
+      if (typeof document === "undefined") throw unavailable("this runtime needs a browser to run in");
+      if (!window.loadPyodide) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = PYODIDE_URL;
+          script.onload = () => resolve();
+          script.onerror = () => reject(unavailable("could not load the Python runtime (offline?)"));
+          document.head.appendChild(script);
+        });
+      }
+      return await window.loadPyodide!();
+    } finally {
+      end();
     }
-    return window.loadPyodide!();
   })();
   // A failed boot must not poison every later run: clear so the next render retries.
   bootPromise.catch(() => {
@@ -106,21 +112,26 @@ export async function installPackage(
   py: { loadPackage(n: string): Promise<unknown>; runPythonAsync(c: string): Promise<unknown> },
   pkg: string,
 ): Promise<boolean> {
-  const importable = () => py.runPythonAsync(`import importlib as __il\n__il.import_module(${JSON.stringify(pkg)})`);
+  const end = perfSpan(`install ${pkg}`);
   try {
-    await py.loadPackage(pkg).catch(() => undefined);
-    await importable();
-    return true;
-  } catch {
-    /* fall through to micropip */
-  }
-  try {
-    await py.loadPackage("micropip");
-    await py.runPythonAsync(`import micropip\nawait micropip.install(${JSON.stringify(pkg)})`);
-    await importable();
-    return true;
-  } catch {
-    return false;
+    const importable = () => py.runPythonAsync(`import importlib as __il\n__il.import_module(${JSON.stringify(pkg)})`);
+    try {
+      await py.loadPackage(pkg).catch(() => undefined);
+      await importable();
+      return true;
+    } catch {
+      /* fall through to micropip */
+    }
+    try {
+      await py.loadPackage("micropip");
+      await py.runPythonAsync(`import micropip\nawait micropip.install(${JSON.stringify(pkg)})`);
+      await importable();
+      return true;
+    } catch {
+      return false;
+    }
+  } finally {
+    end();
   }
 }
 
@@ -245,7 +256,12 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
     error = undefined;
     try {
       status("running", "Running…");
-      await py.runPythonAsync(execWrapper(req.code));
+      const end = perfSpan("python exec");
+      try {
+        await py.runPythonAsync(execWrapper(req.code));
+      } finally {
+        end();
+      }
     } catch (err) {
       // Pyodide's PythonError message carries the full Python traceback.
       error = (err as Error).message;

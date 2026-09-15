@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { layoutSpec } from "../src/layout/layout";
 import { heuristicMeasure } from "../src/layout/measure";
 import { flattenDrawables, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
-import { controlsPane, controlsPaneHeight, CTL_ROW_H } from "../src/layout/code-controls-pane";
+import { controlsPane, controlsPaneHeight, CTL_ROW_H, RUN_ROW_ID } from "../src/layout/code-controls-pane";
 import { withControlDefaults } from "../src/code/controls";
 import type { Spec } from "../src/spec/types";
 
@@ -46,6 +46,32 @@ describe("controlsPane (pure)", () => {
     expect(chips.map((d) => d.id)).toEqual(["sim_ctl_m__chip_0", "sim_ctl_m__chip_1"]);
     expect(chips[0].kind).toBe("area"); // filled = chosen
     expect(chips[1].kind).toBe("stroke");
+  });
+  test("the panel's text is set in the figure's own face, not the code font (spec 2026-09-15 §3.5)", () => {
+    const p = controlsPane("sim", "python", code, names, { x: 100, top: 600, w: 400 }, 17, undefined, undefined);
+    const texts = flattenDrawables(p.drawables).filter((d) => d.kind === "text") as TextDrawable[];
+    expect(texts.length).toBeGreaterThan(0);
+    for (const t of texts) expect(t.font).toBeUndefined();
+  });
+  test("autorun: false draws a Run ▶ row last, and the height counts it", () => {
+    const p = controlsPane("sim", "python", "n = (0, 100)", ["n"], { x: 0, top: 0, w: 500 }, 20, undefined, undefined, undefined, { runRow: true });
+    expect(p.order).toEqual(["sim_ctl_n", `sim_ctl_${RUN_ROW_ID}`]);
+    expect(p.groups).toEqual({ sim_ctls: p.order });
+    const pill = flattenDrawables(p.drawables).find((d) => d.id === `sim_ctl_${RUN_ROW_ID}__pill`);
+    const cap = flattenDrawables(p.drawables).find((d) => d.id === `sim_ctl_${RUN_ROW_ID}__value`) as TextDrawable;
+    expect(pill).toBeDefined();
+    expect(cap.text).toBe("Run ▶");
+    expect(p.height).toBeCloseTo(controlsPaneHeight(["n"], 20, 500, 1), 5);
+    expect(p.height).toBeCloseTo(2 * 20 * CTL_ROW_H, 5);
+  });
+  test("a layout with autorun: false reserves the Run row in the pane", () => {
+    const s = spec({ code: "n = (0, 100)", controls: ["n"], autorun: false });
+    expect(ids(s)).toContain(`sim_ctl_${RUN_ROW_ID}__pill`);
+  });
+  test("controlsPaneHeight counts the Run row even with zero labels — the two must never disagree", () => {
+    expect(controlsPaneHeight([], 20, 500, 1)).toBeCloseTo(20 * CTL_ROW_H, 5);
+    const p = controlsPane("sim", "python", "", [], { x: 0, top: 0, w: 500 }, 20, undefined, undefined, undefined, { runRow: true });
+    expect(p.height).toBeCloseTo(controlsPaneHeight([], 20, 500, 1), 5);
   });
 });
 

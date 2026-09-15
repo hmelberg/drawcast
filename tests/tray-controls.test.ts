@@ -1,11 +1,13 @@
 // Source-level pins for the tray's controls group (no DOM in this repo):
 // the rows must rewrite the AUTHORED script (tuples intact) and run through
 // runEdited, values must die with the preview, and the group must be built
-// from the tray plan's `controls`.
+// from the tray plan's `controls`. Since 2026-09-15 the DRAWN panel is the
+// other live copy (ui/controls-host.ts) — there is no HTML card any more.
 import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 
 const src = readFileSync("src/ui/tray.ts", "utf8");
+const css = readFileSync("src/styles.css", "utf8");
 
 describe("tray controls (pins)", () => {
   test("controls parse the authored element, not the resolved clone", () => {
@@ -31,43 +33,107 @@ describe("tray controls (pins)", () => {
     expect(region).toMatch(/open\(\{ onCode: /);
     expect(region.indexOf("hd.timeline.pause()")).toBeLessThan(region.indexOf("open({ onCode:"));
   });
-  test("one controls-group builder, two hosts (tray and in-place card)", () => {
-    const group = readFileSync("src/ui/controls-group.ts", "utf8");
-    expect(group).toMatch(/export function buildControlsGroup\(/);
-    expect(src).toMatch(/buildControlsGroup\(/);              // the tray uses it
-    expect(src).toMatch(/mountControlsCard\(/);               // and mounts it in place
-    expect(src).not.toMatch(/class: "cs-tray-ctl cs-tray-ctl-/); // the inline builder is gone from tray.ts
+  test("the drawn panel is the live control: the tray builds the host from its own closures and attaches it (spec 2026-09-15 §3)", () => {
+    expect(src).toMatch(/import \{ attachControlsHost, controlsHostFor \} from "\.\/controls-host";/);
+    expect(src).toMatch(/const controlsHost = controlsHostFor\(\{/);
+    expect(src).toMatch(/attachControlsHost\(stage, controlsHost, \{/);
+    expect(src).not.toMatch(/controls-card/);
+    expect(src).not.toMatch(/syncControlsGroup/);
+    expect(src).not.toMatch(/controlsCards/);
   });
-  test("a pane: controls panel opens its card, not the editor, on a paused click", () => {
-    // Anchored on the REAL guard at the paused-click call site, not on
-    // openControlsInPlace's doc comment (which also contains the literal
-    // text "el.pane === \"controls\"" a few lines above its own
-    // mountControlsCard( call, and would still match this pin even with all
-    // three real callers' checks deleted).
-    expect(src).toMatch(/if \(el && el\.pane === "controls" && openControlsInPlace\(el\)\)/);
+  test("the tray builds no group for a pane: controls script, so the host is always enabled (spec §2.3)", () => {
+    // §2.3: "The tray keeps a controls group only for scripts with no panel
+    // (show: output)." The ids the plan.controls loop builds groups from are
+    // filtered HERE, at the tray's own door into trayPlan…
+    const ids = /controlIds: editable\.filter\(([\s\S]*?)\)\.map\(\(e\) => e\.id\)/.exec(src);
+    expect(ids).not.toBeNull();
+    expect(ids![1]).toMatch(/e\.pane !== "controls"/);
+    // …and because the panel is then the ONLY live copy, it must not stand
+    // down for a tray that has no rows for it.
+    expect(src).toMatch(/enabled: \(\) => true/);
+    expect(src).not.toMatch(/enabled: \(\) => tray\.hidden/);
   });
-  test("the card is torn down with the preview", () => {
-    expect(src).toMatch(/const clearPreview[\s\S]{0,800}?controlsCards/);
+  test("a commit relays the panel from the rewritten script at once (the knob follows the pointer), then the run follows the debounce", () => {
+    const i = src.indexOf("const previewKnobs");
+    expect(i).toBeGreaterThan(-1);
+    const body = src.slice(i, i + 900);
+    expect(body).toContain("applyControls(");
+    expect(body).toContain("patches.set(el.id, { code");
+    expect(body).toContain("requestAnimationFrame");
+    // …and the script the panel is SHOWING is what an editor Run is compared
+    // against. runControls records it only when the debounce fires, so
+    // without this a Run inside the debounce window — of the very text on
+    // screen — counted as a takeover and quieted the viewer's own knobs.
+    expect(body).toMatch(/lastControlsCode\.set\(el\.id, code\);/);
+    const commit = src.slice(src.indexOf("commit: (c, raw, immediate) =>"), src.indexOf("run: () => runControls"));
+    expect(commit.indexOf("previewKnobs(")).toBeLessThan(commit.indexOf("runControls("));
   });
-  test("the card takes keyboard focus on mount, so Escape (bound on the card) has something to reach", () => {
-    // Anchored on the literal statement, not on any mention of `.focus(`
-    // nearby (a doc comment referencing mountCodeEditor's own focus call
-    // would satisfy a looser pin without the real `card.focus();` present).
-    const card = readFileSync("src/ui/controls-card.ts", "utf8");
-    expect(card).toMatch(/stage\.appendChild\(card\);[\s\S]{0,2000}?card\.focus\(\);/);
+  test("a paused click on a pane: controls panel is the host's, not the editor's or the tray's", () => {
+    // Anchored in the stage click handler AND ordered: the guard must come
+    // BEFORE openInPlace, or the editor card opens on the panel first and the
+    // guard below it never runs (fix round 1).
+    const region = src.slice(src.indexOf("const screenAt"));
+    const guard = region.search(/if \(el\?\.pane === "controls"\) \{\s*e\.stopPropagation\(\);\s*return;\s*\}/);
+    const opener = region.indexOf("if (el && openInPlace(el)) return;");
+    expect(guard).toBeGreaterThan(-1);
+    expect(opener).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(opener);
   });
-  test("a controls card open during playback (not just the tray or an editor) settles the preview and closes (final wave item 2)", () => {
-    expect(src).toMatch(/s === "playing" && \(!tray\.hidden \|\| editors\.size > 0 \|\| controlsCards\.size > 0\)/);
+  test("the explore beat on a pane: controls script holds the run with the tray SHUT: pause, hook Continue, no open()", () => {
+    const i = src.indexOf("hd.timeline.exploreGate =");
+    const region = src.slice(i, i + 3000);
+    expect(region).toMatch(/const shut = [\s\S]{0,200}pane === "controls"/);
+    expect(region).toMatch(/if \(shut\) \{[\s\S]{0,400}hd\.timeline\.pause\(\);[\s\S]{0,400}\}/);
+    expect(region).toMatch(/if \(!shut\) open\(\{ filter: step\.params, gated: true/);
   });
-  test("a control moved in one host syncs every OTHER live copy of the same group (final wave item 3)", () => {
-    expect(src).toMatch(/syncControlsGroup\(/);
+  test("⊕ pressed during a SHUT-tray gate opens the tray GATED, so the open never aborts the gate it stands in", () => {
+    const i = src.indexOf("trayBtn.addEventListener(\"click\"");
+    expect(i).toBeGreaterThan(-1);
+    const region = src.slice(i, i + 900);
+    // A plain open() calls renderUpTo → aborts the gate → onAbort closes the
+    // tray mid-open → the tray appears anyway and its Continue replays the beat.
+    expect(region).toMatch(/gateResolve !== null && gatedCode !== null\) open\(\{ gated: true, code: gatedCode \}\)/);
+    // The remembered id lives and dies with the gate.
+    expect(src).toMatch(/if \(shut\) \{\s*gatedCode = step\.code/);
+    const abort = src.slice(src.indexOf("const shut ="));
+    expect(abort).toMatch(/const onAbort = \(\): void => \{\s*gateResolve = null;\s*gatedCode = null;/);
+    const cont = src.slice(src.indexOf("const continueNow"), src.indexOf("const paneBoxOf"));
+    expect(cont).toMatch(/gateResolve = null;\s*gatedCode = null;/);
   });
-  test("the one-click path reflows the card AFTER open()'s own snap, so it follows the settled layout (final wave item 4)", () => {
-    const i = src.indexOf("hd.timeline.state === \"playing\"", src.indexOf("const screenAt"));
-    const region = src.slice(i, i + 1200);
-    const openIdx = region.indexOf("open({ onCode: id! });");
-    const reflowIdx = region.indexOf("reflow();", openIdx);
-    expect(openIdx).toBeGreaterThan(-1);
-    expect(reflowIdx).toBeGreaterThan(openIdx);
+  test("Continue through the play gesture: the hook resolves the gate and resumes the paused timeline", () => {
+    expect(src).toMatch(/registerContinue\(stage, \(\) => \{[\s\S]{0,300}gateResolve !== null && tray\.hidden[\s\S]{0,300}continueNow\(\);[\s\S]{0,100}return true;/);
+    const i = src.indexOf("const continueNow");
+    const body = src.slice(i, i + 900);
+    expect(body).toMatch(/if \(hd\.timeline\.state === "paused"\) void hd\.timeline\.play\(\);/);
+  });
+  test("the tray's cursor rule leaves pane: controls panels to the host", () => {
+    expect(src).toMatch(/cs-editable[\s\S]{0,300}pane !== "controls"/);
+  });
+  test("the shut-tray gate hides the centred ▶ with a class of its own: on while it holds, off on Continue and on abort (fix round 1)", () => {
+    const i = src.indexOf("hd.timeline.exploreGate =");
+    const region = src.slice(i, i + 3000);
+    expect(region).toMatch(/if \(shut\) \{[\s\S]{0,500}classList\.add\("cs-gated"\)/);
+    // From `const shut`, so the GAME gate's own onAbort a few lines above
+    // (which closes the emulator) cannot stand in for the explore one.
+    const from = region.indexOf("const shut =");
+    const abort = region.slice(region.indexOf("const onAbort", from), region.indexOf('signal.addEventListener("abort"', from));
+    expect(abort).toMatch(/classList\.remove\("cs-gated"\)/);
+    const cont = src.slice(src.indexOf("const continueNow"), src.indexOf("const paneBoxOf"));
+    expect(cont).toMatch(/classList\.remove\("cs-gated"\)/);
+    // NOT cs-exploring: its freezeClick guard would swallow the very
+    // figure-click that IS Continue while the tray is shut.
+    expect(region).not.toMatch(/if \(shut\) \{[\s\S]{0,500}classList\.add\("cs-exploring"\)/);
+    expect(css).toMatch(/\.cs-stage\.cs-gated \.cs-bigplay \{ display: none; \}/);
+  });
+  test("controls used OUTSIDE the tray settle too: a live preview patch when the run resumes is thrown away and the boundary settled (fix round 1)", () => {
+    expect(src).toMatch(/s === "playing" && \(!tray\.hidden \|\| editors\.size > 0 \|\| patches\.size > 0\)/);
+    const body = src.slice(src.indexOf('s === "playing" && (!tray.hidden'), src.length).slice(0, 500);
+    expect(body).toContain("clearPreview();");
+    expect(body).toContain("hd.timeline.settleParams();");
+  });
+  test("a knob frame scheduled in the same tick as Continue never re-dirties the settled geometry (fix round 1)", () => {
+    const body = src.slice(src.indexOf("const clearPreview"), src.indexOf("const draftOf"));
+    expect(body).toMatch(/if \(knobFrame !== null\) cancelAnimationFrame\(knobFrame\);/);
+    expect(body).toMatch(/knobFrame = null;/);
   });
 });

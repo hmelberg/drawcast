@@ -30,17 +30,20 @@ describe("controls-group builder (pins)", () => {
     expect(src).toContain('class: "cs-tray-choicebtn"');
     expect(src).toContain('class: "cs-tray-pill cs-tray-ctlbtn"');
   });
-  test("a control move commits through d.commit, never a local rewrite — and always names its own group (the two-hosts fix)", () => {
+  test("a control move commits through d.commit, never a local rewrite, and passes the group it happened in", () => {
     expect(src).toMatch(/d\.commit\(c, range\.value, false, group\)/);
     expect(src).toMatch(/d\.commit\(c, v, true, group\)/);
     expect(src).toMatch(/d\.commit\(c, box\.checked, true, group\)/);
     expect(src).toMatch(/d\.commit\(c, input\.value, true, group\)/);
     expect(src).toMatch(/d\.commit\(c, "", true, group\)/);
   });
-  test("every row is named for syncControlsGroup via data-control (Task 3 review)", () => {
+  // The cross-host sync (syncControlsGroup) went away with the HTML card on
+  // 2026-09-15: the drawn panel is the other live copy now and it is repainted
+  // from the script, not written to row by row. `data-control` stays — it names
+  // the row, and costs nothing.
+  test("every row is named by its control via data-control", () => {
     expect(src).toMatch(/"data-control": c\.name/);
-    expect(src).toMatch(/export function syncControlsGroup\(group: HTMLElement, control: ControlSpec, value: ControlValue\): void/);
-    expect(src).toMatch(/querySelector<HTMLElement>\(`\[data-control="\$\{control\.name\}"\]`\)/);
+    expect(src).not.toMatch(/syncControlsGroup/);
   });
   test("quiet is applied from d.quiet, not sniffed from a takeover set", () => {
     expect(src).toMatch(/if \(d\.quiet\) group\.classList\.add\("cs-tray-controls-quiet"\)/);
