@@ -71,6 +71,7 @@ export function runValues(args: PlayArgs, controls: ControlSpec[]): { steps: Rec
     const spec = args.values[name];
     if (isRange(spec) && !(spec.steps >= 1)) { issues.push(`values.${name}: steps must be at least 1`); continue; }
     const vals = expandSeries(c, spec);
+    if (vals.length === 0) { issues.push(`values.${name}: an empty list names no step`); continue; }
     if (c.kind === "choice") for (const v of vals) if (!(c.options ?? []).includes(String(v))) issues.push(`values.${name}: "${v}" is not one of ${(c.options ?? []).join(", ")}`);
     if (c.kind === "toggle") for (const v of vals) if (typeof v !== "boolean") issues.push(`values.${name}: a toggle takes true or false`);
     series.set(name, vals);
@@ -79,17 +80,17 @@ export function runValues(args: PlayArgs, controls: ControlSpec[]): { steps: Rec
   const loop = Math.max(1, Math.floor(args.loop ?? 1));
   if (n * loop > RUN_MAX_STEPS) issues.push(`a run may have at most ${RUN_MAX_STEPS} steps (this one has ${n * loop})`);
   if (issues.length > 0 || n === 0) return { steps: [], issues };
-  const one: Record<string, ControlValue>[] = [];
+  const base: Record<string, ControlValue>[] = [];
   for (let i = 0; i < n; i++) {
     const m: Record<string, ControlValue> = {};
     for (const c of controls) {
       const s = series.get(c.name);
-      m[c.name] = s ? s[Math.min(i, s.length - 1)] : c.default;
+      m[c.name] = s && s.length > 0 ? s[Math.min(i, s.length - 1)] : c.default;
     }
-    one.push(m);
+    base.push(m);
   }
   const steps: Record<string, ControlValue>[] = [];
-  for (let k = 0; k < loop; k++) steps.push(...one.map((m) => ({ ...m })));
+  for (let k = 0; k < loop; k++) steps.push(...base.map((m) => ({ ...m })));
   return { steps, issues };
 }
 

@@ -54,6 +54,11 @@ describe("runValues", () => {
     expect(runValues({ values: { beta: { from: 0.1, to: 0.9, steps: 11 } }, loop: 2 }, controls()).issues[0]).toMatch(new RegExp(String(RUN_MAX_STEPS)));
     expect(runValues({ values: {} }, controls()).issues[0]).toMatch(/values/);
   });
+  test("an empty list series names no step", () => {
+    const { steps, issues } = runValues({ values: { model: [] } }, controls());
+    expect(issues[0]).toMatch(/model/);
+    expect(steps).toEqual([]);
+  });
 });
 
 describe("demoWalk", () => {
