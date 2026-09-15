@@ -28,8 +28,10 @@ export interface ControlsGroupDeps {
   controls: ControlSpec[];
   /** The current values for this script — read fresh for every row built. */
   values: () => Record<string, ControlValue>;
-  /** A control moved: the tray's next-values step, then a re-run. */
-  commit: (c: ControlSpec, raw: string | boolean, immediate: boolean) => void;
+  /** A control moved: the tray's next-values step, then a re-run. `group` is
+   *  the row's own enclosing group node — the two-hosts fix's caller uses it
+   *  to skip syncing the host the event came from back onto itself. */
+  commit: (c: ControlSpec, raw: string | boolean, immediate: boolean, group: HTMLElement) => void;
   /** The group's own Run ▶, for `autorun: false` — an immediate, forced re-run. */
   run: () => void;
   /** Quiet until Continue: the viewer took the script over by editing it. */
@@ -46,7 +48,11 @@ export function buildControlsGroup(d: ControlsGroupDeps): HTMLElement {
   const group = h("div", { class: "cs-tray-controls", role: "group", "aria-label": `Controls for ${d.el.id}` });
   if (d.quiet) group.classList.add("cs-tray-controls-quiet");
   for (const c of d.controls) {
-    const row = h("div", { class: `cs-tray-row cs-tray-ctl cs-tray-ctl-${rowWidth(c.kind)}` });
+    // `data-control` names the row for `syncControlsGroup` — the OTHER live
+    // host of this same script (the tray's own copy vs. a `pane: controls`
+    // card lying on the pane) finds it by this attribute when one host's
+    // commit must move the other's knob too (the two-hosts desync fix).
+    const row = h("div", { class: `cs-tray-row cs-tray-ctl cs-tray-ctl-${rowWidth(c.kind)}`, "data-control": c.name });
     const label = h("span", { class: "cs-tray-label" }, c.label);
     const current = d.values()[c.name] ?? c.default;
     switch (c.kind) {
@@ -62,7 +68,7 @@ export function buildControlsGroup(d: ControlsGroupDeps): HTMLElement {
         const out = h("span", { class: "cs-tray-value" }, readout(c, current));
         range.addEventListener("input", () => {
           out.textContent = readout(c, Number(range.value));
-          d.commit(c, range.value, false);
+          d.commit(c, range.value, false, group);
         });
         row.append(label, range, out);
         break;
@@ -78,7 +84,7 @@ export function buildControlsGroup(d: ControlsGroupDeps): HTMLElement {
               x.classList.toggle("on", on);
               x.setAttribute("aria-pressed", String(on));
             }
-            d.commit(c, v, true);
+            d.commit(c, v, true, group);
           });
           const on = v === current;
           b.classList.toggle("on", on);
@@ -92,7 +98,7 @@ export function buildControlsGroup(d: ControlsGroupDeps): HTMLElement {
       case "toggle": {
         const box = h("input", { type: "checkbox", "aria-label": c.label }) as HTMLInputElement;
         box.checked = current === true;
-        box.addEventListener("change", () => d.commit(c, box.checked, true));
+        box.addEventListener("change", () => d.commit(c, box.checked, true, group));
         row.append(label, box);
         break;
       }
@@ -104,13 +110,13 @@ export function buildControlsGroup(d: ControlsGroupDeps): HTMLElement {
           "aria-label": c.label,
           ...(c.kind === "number" ? { step: c.integer ? "1" : "any" } : {}),
         }) as HTMLInputElement;
-        input.addEventListener("change", () => d.commit(c, input.value, true)); // Enter or blur
+        input.addEventListener("change", () => d.commit(c, input.value, true, group)); // Enter or blur
         row.append(label, input);
         break;
       }
       case "button": {
         const pill = h("button", { class: "cs-tray-pill cs-tray-ctlbtn" }, c.caption ?? c.label);
-        pill.addEventListener("click", () => d.commit(c, "", true));
+        pill.addEventListener("click", () => d.commit(c, "", true, group));
         row.append(pill);
         break;
       }
@@ -123,4 +129,49 @@ export function buildControlsGroup(d: ControlsGroupDeps): HTMLElement {
     group.appendChild(h("div", { class: "cs-tray-actions" }, run));
   }
   return group;
+}
+
+/**
+ * Two hosts, one script (design 2026-09-14 §3.2 review): the tray's own
+ * copy of a `pane: controls` script's group and the card lying on the pane
+ * are separate DOM trees built from the same `controls` — a slider dragged
+ * in one must move the OTHER's knob (and readout, chip, switch or box) too,
+ * or the quiet host goes on showing — and later committing — a stale value.
+ * DOM-only: finds the row by `data-control` (set by `buildControlsGroup`
+ * above) and writes what that row shows; never reads or dispatches events,
+ * so it cannot re-trigger the commit that called it.
+ */
+export function syncControlsGroup(group: HTMLElement, control: ControlSpec, value: ControlValue): void {
+  const row = group.querySelector<HTMLElement>(`[data-control="${control.name}"]`);
+  if (!row) return;
+  switch (control.kind) {
+    case "slider": {
+      const range = row.querySelector<HTMLInputElement>('input[type="range"]');
+      if (range) range.value = String(value);
+      const out = row.querySelector<HTMLElement>(".cs-tray-value");
+      if (out) out.textContent = readout(control, value);
+      break;
+    }
+    case "choice": {
+      const chosen = String(value);
+      for (const b of row.querySelectorAll<HTMLButtonElement>(".cs-tray-choicebtn")) {
+        const on = b.dataset.value === chosen;
+        b.classList.toggle("on", on);
+        b.setAttribute("aria-pressed", String(on));
+      }
+      break;
+    }
+    case "toggle": {
+      const box = row.querySelector<HTMLInputElement>('input[type="checkbox"]');
+      if (box) box.checked = value === true || value === "true";
+      break;
+    }
+    case "text":
+    case "number": {
+      const input = row.querySelector<HTMLInputElement>("input");
+      if (input) input.value = String(value);
+      break;
+    }
+    // button: no persistent value shown in the row — nothing to sync.
+  }
 }

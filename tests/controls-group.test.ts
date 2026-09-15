@@ -30,12 +30,17 @@ describe("controls-group builder (pins)", () => {
     expect(src).toContain('class: "cs-tray-choicebtn"');
     expect(src).toContain('class: "cs-tray-pill cs-tray-ctlbtn"');
   });
-  test("a control move commits through d.commit, never a local rewrite", () => {
-    expect(src).toMatch(/d\.commit\(c, range\.value, false\)/);
-    expect(src).toMatch(/d\.commit\(c, v, true\)/);
-    expect(src).toMatch(/d\.commit\(c, box\.checked, true\)/);
-    expect(src).toMatch(/d\.commit\(c, input\.value, true\)/);
-    expect(src).toMatch(/d\.commit\(c, "", true\)/);
+  test("a control move commits through d.commit, never a local rewrite — and always names its own group (the two-hosts fix)", () => {
+    expect(src).toMatch(/d\.commit\(c, range\.value, false, group\)/);
+    expect(src).toMatch(/d\.commit\(c, v, true, group\)/);
+    expect(src).toMatch(/d\.commit\(c, box\.checked, true, group\)/);
+    expect(src).toMatch(/d\.commit\(c, input\.value, true, group\)/);
+    expect(src).toMatch(/d\.commit\(c, "", true, group\)/);
+  });
+  test("every row is named for syncControlsGroup via data-control (Task 3 review)", () => {
+    expect(src).toMatch(/"data-control": c\.name/);
+    expect(src).toMatch(/export function syncControlsGroup\(group: HTMLElement, control: ControlSpec, value: ControlValue\): void/);
+    expect(src).toMatch(/querySelector<HTMLElement>\(`\[data-control="\$\{control\.name\}"\]`\)/);
   });
   test("quiet is applied from d.quiet, not sniffed from a takeover set", () => {
     expect(src).toMatch(/if \(d\.quiet\) group\.classList\.add\("cs-tray-controls-quiet"\)/);

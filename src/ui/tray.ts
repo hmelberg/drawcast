@@ -52,7 +52,7 @@ import { leafDrawables } from "../layout/model";
 import { openMediaModal } from "./media-modal";
 import { mountCodeEditor, type CodeAsk, type CodeEditorHandle, type EditorSurface } from "./code-editor";
 import { mountControlsCard, type ControlsCardHandle } from "./controls-card";
-import { buildControlsGroup, type ControlsGroupDeps } from "./controls-group";
+import { buildControlsGroup, syncControlsGroup, type ControlsGroupDeps } from "./controls-group";
 import { attachCodeTyping, type CodeTyping } from "./code-typing";
 import { activitiesFor } from "./quiz-model";
 import { MIN_PARTS } from "./parts-model";
@@ -392,9 +392,17 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     authoredCode,
     controls,
     values: () => controlValues.get(el.id) ?? {},
-    commit: (c, raw, immediate) => {
+    commit: (c, raw, immediate, group) => {
       if (takenOver.has(el.id)) return; // the viewer's own script stands until Continue (Task 1 fix)
-      controlValues.set(el.id, nextValues(controlValues.get(el.id) ?? {}, c, raw));
+      const next = nextValues(controlValues.get(el.id) ?? {}, c, raw);
+      controlValues.set(el.id, next);
+      // Two hosts, one script (Task 3 review): the tray's own copy and a
+      // `pane: controls` card's copy each hold their own DOM for the same
+      // control — push the new value into every OTHER live copy so neither
+      // goes stale (the one that fired this commit already shows it).
+      for (const g of controlGroups.get(el.id) ?? []) {
+        if (g !== group) syncControlsGroup(g, c, next[c.name]);
+      }
       runControls(el, controls, immediate);
     },
     run: () => runControls(el, controls, true, true),
@@ -610,11 +618,13 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
    * the group (built regardless, by `plan.controls`) stands in for it then.
    */
   const openControlsInPlace = (el: SpecElement): boolean => {
-    // No `renderUpTo` snap here (unlike `openInPlace`, above): a pane's
-    // rectangle is fixed geometry in `hd.layout`/`paintedLayout()`, and
-    // `paneBoxOf` → `clientPointFor` only needs the SVG's live viewBox and
-    // the stage's own client rect to place the card — nothing about the
-    // preview or the timeline's position affects where it lands.
+    // No `renderUpTo` snap here (unlike `openInPlace`, above): the pane
+    // RECTANGLE itself is fixed geometry in `hd.layout`/`paintedLayout()`, so
+    // `paneBoxOf` → `clientPointFor` only needs the SVG's live viewBox and the
+    // stage's own client rect to place the card. But the timeline's position
+    // DOES affect placement indirectly — `paintedLayout()` can differ from
+    // `hd.layout` before the boundary is settled — which is why the one-click
+    // caller reflows the card after `open()`'s own snap (spec §3.4).
     if (!stage || !visibleNow(el.id)) return false;
     const existing = controlsCards.get(el.id);
     if (existing) {
@@ -1170,9 +1180,13 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
           e.stopPropagation(); // the bar's own click→pause toggle must not resume us
           hd.timeline.pause();
           // The one-click rule (spec §3.4): a `pane: controls` panel gets its
-          // card on the SAME click that pauses — not a second click.
+          // card on the SAME click that pauses — not a second click. `open`
+          // snaps the timeline to the boundary (renderUpTo), which can settle
+          // the pane at a slightly different spot than where the card was
+          // mounted a moment ago — reflow() after it so the card follows.
           if (el.pane === "controls") openControlsInPlace(el);
           open({ onCode: id! });
+          reflow();
           return;
         }
         if (e.target instanceof Element && e.target.closest("button, a")) return;

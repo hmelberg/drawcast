@@ -59,4 +59,15 @@ describe("tray controls (pins)", () => {
   test("a controls card open during playback (not just the tray or an editor) settles the preview and closes (final wave item 2)", () => {
     expect(src).toMatch(/s === "playing" && \(!tray\.hidden \|\| editors\.size > 0 \|\| controlsCards\.size > 0\)/);
   });
+  test("a control moved in one host syncs every OTHER live copy of the same group (final wave item 3)", () => {
+    expect(src).toMatch(/syncControlsGroup\(/);
+  });
+  test("the one-click path reflows the card AFTER open()'s own snap, so it follows the settled layout (final wave item 4)", () => {
+    const i = src.indexOf("hd.timeline.state === \"playing\"", src.indexOf("const screenAt"));
+    const region = src.slice(i, i + 1200);
+    const openIdx = region.indexOf("open({ onCode: id! });");
+    const reflowIdx = region.indexOf("reflow();", openIdx);
+    expect(openIdx).toBeGreaterThan(-1);
+    expect(reflowIdx).toBeGreaterThan(openIdx);
+  });
 });
