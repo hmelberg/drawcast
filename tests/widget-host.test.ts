@@ -201,6 +201,14 @@ describe("attachWidgetHost — source pins", () => {
     expect(src).toMatch(/gateIsOpen\(stage\)\) return/);
     expect(src).toContain("e.stopPropagation()");
   });
+  test("a click on a control (the big play button, a gate pill) is never the widget's — same guard as chess and piano", () => {
+    // The big play overlay sits INSIDE the stage: a click on it over a large
+    // ringed part (Hanoi's middle peg zone, the gate body) was hit-tested and
+    // swallowed, so play never started (Hans 2026-09-15).
+    const listener = src.slice(src.indexOf('stage.addEventListener("click"'), src.indexOf("}, true);"));
+    expect(listener).toContain('e.target instanceof Element && e.target.closest("button") !== null) return');
+  });
+
   test("resets on play, on a step boundary and chains the callbacks", () => {
     expect(src).toContain("const prevOnState = hd.timeline.callbacks.onState");
     expect(src).toContain("const prevOnStep = hd.timeline.callbacks.onStep");

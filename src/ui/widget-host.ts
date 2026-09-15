@@ -180,6 +180,10 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
 
   stage.addEventListener("click", (e) => {
     if (hd.timeline.state === "playing") return;
+    // The big play overlay and the gate pills are buttons INSIDE the stage: a
+    // click on one over a large ringed part (Hanoi's middle peg zone, the gate
+    // body) is the button's, never the widget's — the chess and piano guard.
+    if (e.target instanceof Element && e.target.closest("button") !== null) return;
     if (gateIsOpen(stage)) return;
     const p = logicalPoint(stage, e);
     if (!p) return;
