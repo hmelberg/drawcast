@@ -66,6 +66,10 @@ export interface RenderHandle {
   plan: Plan;
   /** The resolved clone the figure was laid out from (portraits, sources and code results stamped; tokens substituted). */
   spec: Spec;
+  /** How this figure is drawn (options.style, defaulted). Read-only: the tray
+   *  needs it to re-run a script in the look the drawing has — an unstyled
+   *  chart follows the hand (src/code/chart-style.ts). */
+  style: RenderStyle;
   /** The spec as passed to render — tokens intact — for previews that re-run a script. */
   authored: Spec;
   lint(): LintIssue[];
@@ -233,8 +237,14 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // "{id.path}" tokens into THESE params (the resolved clone below has the
   // values, not the tokens).
   const authored = spec;
-  spec = await resolvedRenderSpec(spec, { resolvePortraits, resolveSources, resolveCode, resolveImages, resolveIcons, contactEmail: contactEmail() });
-  const renderer = rendererFor(options.style ?? "sketchy");
+  // Sketchy is the app's default look — and the default CHART style follows
+  // it (a machine-ruled plot in a hand-drawn figure was the one bit of ink
+  // that did not come from the app's own hand). Resolved once here, then
+  // handed to every site that starts a run: the resolve pass below, the
+  // sweep runner, and the tray (through the handle).
+  const style: RenderStyle = options.style ?? "sketchy";
+  spec = await resolvedRenderSpec(spec, { resolvePortraits, resolveSources, resolveCode, resolveImages, resolveIcons, contactEmail: contactEmail(), style });
+  const renderer = rendererFor(style);
 
   const figure = document.createElement("div");
   figure.className = "cs-figure";
@@ -450,8 +460,8 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // whose sweeps did nothing would be the whole point of the verb missing.
   // The AUTHORED spec, because its control literals are still tuples; the
   // default deps, because that is exactly what resolveCode runs with — same
-  // runtime, same cache.
-  const sweepRunner = sweepRunnerFor(authored);
+  // runtime, same cache, and the same render style behind the chart default.
+  const sweepRunner = sweepRunnerFor(authored, { style });
   player.sweepRunner = sweepRunner;
   // …and the cache is filled while the viewer watches the opening: every run
   // step's value maps, once, when the drawcast first starts playing. By the
@@ -484,6 +494,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     plan,
     spec,
     authored,
+    style,
     lint: () => layout.issues,
     update: async (diff) => {
       disposed = true;

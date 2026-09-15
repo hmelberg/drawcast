@@ -347,7 +347,7 @@ const elementSchema = {
       type: "string",
       enum: ["seaborn", "xkcd", "plain"],
       description:
-        "code: how a matplotlib chart LOOKS — seaborn (THE DEFAULT: a calm grid, the figure's own ink and series colours on the drawing's paper), xkcd (matplotlib's hand-drawn wobble, which suits a sketched lecture), plain (matplotlib's own defaults). Only `language: \"python\"` has a real matplotlib to style; the light tiers draw their charts through an emulation and ignore it.",
+        "code: how a matplotlib chart LOOKS — THE DEFAULT IS xkcd: matplotlib's hand-drawn wobble, lettered in the app's own handwriting, so the chart is drawn in the same hand as the rest of the figure. Force another: seaborn (a calm grid, the figure's own ink and series colours on the drawing's paper) or plain (matplotlib's own defaults). Only `language: \"python\"` has a real matplotlib to style; the light tiers draw their charts through an emulation and ignore it.",
     },
     game: {
       type: "string",

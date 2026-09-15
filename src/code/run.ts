@@ -13,7 +13,7 @@
 // the next render.
 
 import { cacheGet, cachePut } from "../render/portrait";
-import { chartPrelude, DEFAULT_CHART_STYLE, type ChartStyle } from "./chart-style";
+import { chartPrelude, defaultChartStyle, type ChartStyle } from "./chart-style";
 import { CODE_VERSION, decodeCodeResult, type CodeRunResult } from "./envelope";
 import { RUNTIME_VERSION, cacheTag, isLanguage, type Language } from "./languages";
 import { perfSpan } from "./perf";
@@ -22,7 +22,7 @@ import { perfSpan } from "./perf";
 // directly from there); re-exported here so every existing
 // `from "../code/run"` import keeps working unchanged.
 export { CODE_VERSION, decodeCodeResult, type CodeFigure, type CodeRunResult, type CodeTable } from "./envelope";
-export { CHART_STYLES, DEFAULT_CHART_STYLE, isChartStyle, type ChartStyle } from "./chart-style";
+export { CHART_STYLES, defaultChartStyle, isChartStyle, type ChartStyle } from "./chart-style";
 
 // Languages, their pinned versions and cache tags live in ./languages (one
 // declaration for types, schema, dispatch and the check); re-exported here.
@@ -66,8 +66,12 @@ export function codeCacheKey(req: Pick<CodeRunRequest, "language" | "code" | "ch
   const paths = [...(req.paths ?? [])].sort().join(",");
   // The chart style changes the PIXELS a run returns, so it belongs in the
   // key exactly as the runtime version does — but only where it can apply,
-  // or every non-python script would miss its cache for nothing.
-  const style = chartPrelude(req.chart ?? DEFAULT_CHART_STYLE, req.code, req.language) === "" ? "" : (req.chart ?? DEFAULT_CHART_STYLE);
+  // or every non-python script would miss its cache for nothing. Every run
+  // site now resolves the style before it gets here (el.chart ??
+  // defaultChartStyle(renderStyle)); the fallback is the app's own default
+  // so a bare request and a sketchy render land on the SAME key.
+  const chart = req.chart ?? defaultChartStyle(undefined);
+  const style = chartPrelude(chart, req.code, req.language) === "" ? "" : chart;
   return `c${CODE_VERSION}|${tag}|${style}|${hash(req.code)}|${req.code.length}|${hash(paths)}`;
 }
 

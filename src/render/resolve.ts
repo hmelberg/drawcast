@@ -13,19 +13,25 @@
 // "never the document" with fake resolvers that scribble on what they get.
 
 import type { Spec } from "../spec/types";
+import type { RenderStyle } from "./svg-backend";
 
 export interface RenderResolveDeps {
   /** render/portrait.ts's resolvePortraits — mutates the spec it is given. */
   resolvePortraits: (spec: Spec) => Promise<unknown>;
   /** render/source.ts's resolveSources — mutates the spec it is given. */
   resolveSources: (spec: Spec, opts: { contactEmail: string }) => Promise<unknown>;
-  /** render/code.ts's resolveCode — mutates the spec it is given. */
-  resolveCode: (spec: Spec) => Promise<unknown>;
+  /** render/code.ts's resolveCode — mutates the spec it is given. Takes the
+   *  render style the way resolveSources takes the contact address: a chart
+   *  the author did not style follows the DRAWING's look, and only render()
+   *  knows which look this figure is being drawn in. */
+  resolveCode: (spec: Spec, deps: { style: RenderStyle }) => Promise<unknown>;
   /** render/image.ts's resolveImages — mutates the spec it is given. */
   resolveImages: (spec: Spec) => Promise<unknown>;
   /** render/icon.ts's resolveIcons — mutates the spec it is given. */
   resolveIcons: (spec: Spec) => Promise<unknown>;
   contactEmail: string;
+  /** How the figure is being drawn — the default chart style follows it. */
+  style: RenderStyle;
 }
 
 /**
@@ -38,7 +44,7 @@ export async function resolvedRenderSpec(spec: Spec, deps: RenderResolveDeps): P
   await Promise.all([
     deps.resolvePortraits(copy).catch(() => undefined),
     deps.resolveSources(copy, { contactEmail: deps.contactEmail }).catch(() => undefined),
-    deps.resolveCode(copy).catch(() => undefined),
+    deps.resolveCode(copy, { style: deps.style }).catch(() => undefined),
     deps.resolveImages(copy).catch(() => undefined),
     deps.resolveIcons(copy).catch(() => undefined),
   ]);

@@ -196,8 +196,27 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // box by name, +178 on the schema and the same +178 on the system prompt
 // (the schema is embedded verbatim). Schema 118280 → 118458, system
 // 235066 → 235244.
-const BASELINE_SYSTEM_CHARS = 235244;
-const BASELINE_SCHEMA_CHARS = 118458;
+// Re-pinned 2026-09-16 for the hand-drawn round: the code element's `chart`
+// description now says the default FOLLOWS THE DRAWING (hand-drawn → xkcd in
+// the app's own handwriting, clean → seaborn) and that xkcd/seaborn/plain
+// force one — +107 chars on the schema (117746 → 117853), which is embedded
+// verbatim in the system prompt, so the same +107 lands there (233635 →
+// 233742). The same round's rewritten `"chart"` sentence in
+// compiler-v1-code.md is behind the {{CODE}} conditional fragment and costs
+// an ordinary request nothing, so it is not part of these pins.
+// Re-measured 2026-09-16, same round, after Hans' live check overruled the
+// "follows the drawing" rule: the default is xkcd in BOTH drawing styles, so
+// the description is one clause shorter ("THE DEFAULT IS xkcd … Force
+// another: seaborn … or plain") — schema 117853 → 117837 (−16), system
+// 233742 → 233726, the same −16 down the verbatim embedding.
+// Re-measured 2026-09-16 on the merge of the hand-drawn-charts round with
+// the rounds that landed on main meanwhile (all additive): pinned to the
+// values measured on the merged tree: schema 118371, system 234828.
+// Re-measured 2026-09-16 on the merge of the animated-box round with the
+// code-hand round (both additive): pinned to the values measured on the
+// merged tree: schema 118371 → 118549 (+178, the animate.box description), system 234828 → 235335 (+178 + 329, the prompt sentence).
+const BASELINE_SYSTEM_CHARS = 235335;
+const BASELINE_SCHEMA_CHARS = 118549;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {
