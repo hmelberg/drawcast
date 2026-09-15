@@ -109,12 +109,14 @@ describe("the chart style", () => {
     }
   });
 
-  test("the default follows the DRAWING's style, and the style is part of the cache key", () => {
-    // A hand-drawn figure gets a hand-drawn chart; the clean renderer gets
-    // the calm grid. Undefined is sketchy — render()'s own default.
+  test("the default is xkcd in EVERY drawing style, and the style is part of the cache key", () => {
+    // Hans, 2026-09-16, live: "clean" is only the strokes — the app's own
+    // default style, and its text in both styles, are handwritten, so a
+    // ruled chart is the odd one out on a clean page too. An author who
+    // wants the grid asks for it.
     expect(defaultChartStyle("sketchy")).toBe("xkcd");
     expect(defaultChartStyle(undefined)).toBe("xkcd");
-    expect(defaultChartStyle("clean")).toBe("seaborn");
+    expect(defaultChartStyle("clean")).toBe("xkcd");
     const base = { language: "python" as const, code: "plt.plot(x)" };
     expect(codeCacheKey(base)).toBe(codeCacheKey({ ...base, chart: "xkcd" }));
     expect(codeCacheKey({ ...base, chart: "seaborn" })).not.toBe(codeCacheKey(base));

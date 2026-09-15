@@ -188,8 +188,13 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // 233742). The same round's rewritten `"chart"` sentence in
 // compiler-v1-code.md is behind the {{CODE}} conditional fragment and costs
 // an ordinary request nothing, so it is not part of these pins.
-const BASELINE_SYSTEM_CHARS = 233742;
-const BASELINE_SCHEMA_CHARS = 117853;
+// Re-measured 2026-09-16, same round, after Hans' live check overruled the
+// "follows the drawing" rule: the default is xkcd in BOTH drawing styles, so
+// the description is one clause shorter ("THE DEFAULT IS xkcd … Force
+// another: seaborn … or plain") — schema 117853 → 117837 (−16), system
+// 233742 → 233726, the same −16 down the verbatim embedding.
+const BASELINE_SYSTEM_CHARS = 233726;
+const BASELINE_SCHEMA_CHARS = 117837;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

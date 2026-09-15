@@ -19,15 +19,20 @@ export const CHART_STYLES = ["seaborn", "xkcd", "plain"] as const;
 export type ChartStyle = (typeof CHART_STYLES)[number];
 
 /**
- * What a code element gets when it says nothing: the look the DRAWING has.
- * A figure sketched by hand has no business carrying one machine-ruled chart
- * in the middle of it — so the hand-drawn renderer gets matplotlib's xkcd
- * wobble (in the app's own handwriting, see chartPrelude), and the clean one
- * gets the calm grid. Undefined is sketchy: that is render()'s own default
- * (src/render/index.ts, `options.style ?? "sketchy"`).
+ * What a code element gets when it says nothing: xkcd, in EVERY drawing style
+ * (Hans, 2026-09-16, after seeing it live). This function first returned
+ * seaborn for the clean renderer — but "clean" is only the strokes: the app's
+ * own default (src/store.ts) and the text in BOTH styles are handwritten, so
+ * a ruled matplotlib chart was the one foreign object on a clean page too.
+ * An author who wants the calm grid writes `chart: "seaborn"` (or "plain")
+ * and gets it.
+ *
+ * The parameter stays, and so does the threading behind it (render/code.ts,
+ * render/sweep-run.ts, the tray through RenderHandle.style): it costs one
+ * argument, and the next ruling about a style may well use it.
  */
-export function defaultChartStyle(render: "sketchy" | "clean" | undefined): ChartStyle {
-  return render === "clean" ? "seaborn" : "xkcd";
+export function defaultChartStyle(_render: "sketchy" | "clean" | undefined): ChartStyle {
+  return "xkcd";
 }
 
 /** The face the xkcd style draws its text in: the app's own sketch font

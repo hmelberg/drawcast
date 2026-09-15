@@ -7,7 +7,7 @@ import { describe, expect, test } from "vitest";
 import { validateSpec } from "../src/spec/schema";
 import { lintCommands } from "../src/lint/lint";
 import { elementBBoxes, layoutSpec } from "../src/layout/layout";
-import { frameSpace, looksTabular } from "../src/layout/code";
+import { CHAR_W, PAD, SKETCH_CHAR_W, frameSpace, looksTabular, wrapCodeLine } from "../src/layout/code";
 import { heuristicMeasure } from "../src/layout/measure";
 import { flattenDrawables, type TextDrawable } from "../src/layout/model";
 import { planCommands } from "../src/render/plan";
@@ -120,6 +120,36 @@ describe("the print-out is written in the figure's own hand (unless it is column
   test("the code pane is still a typewriter — only the OUTPUT follows the hand", () => {
     const line = textOf(spec({ show: "left", code: eight, code_result: OK }), "c1_line_1");
     expect(line.font).toBe("mono");
+  });
+
+  // The live bug (Hans, 2026-09-16, the herd-immunity figure): a printed line
+  // that FITS in the sketch face was wrapped at the mono pitch, leaving a lone
+  // "%" on a row of its own. The pane is 350 wide at the default 17 px, which
+  // is 30 characters of mono and 37 of handwriting — so a 36-character line
+  // is one row in the hand and two in the typewriter.
+  test("a plain line is wrapped by the SKETCH advance, a tabular one by the mono advance", () => {
+    const plain = "value : 42 : this is the payload xxx";
+    const tabular = plain.replace(/:/g, "|"); // same length, now a drawn table
+    expect(plain.length).toBe(36);
+    expect(tabular.length).toBe(36);
+    expect(looksTabular(plain)).toBe(false);
+    expect(looksTabular(tabular)).toBe(true);
+    const rows = (stdout: string) =>
+      flattenDrawables(
+        layoutSpec(spec({ show: "output", width: 350, code_result: JSON.stringify({ ok: true, stdout, stderr: "", figures: [] }) }), heuristicMeasure).drawables,
+      ).filter((d) => d.id.startsWith("c1__out")) as TextDrawable[];
+    const hand = rows(plain);
+    expect(hand.length).toBe(1);
+    expect(hand[0].text).toBe(plain);
+    expect(hand[0].font).toBeUndefined();
+    const mono = rows(tabular);
+    expect(mono.length).toBe(2);
+    expect(mono.every((d) => d.font === "mono")).toBe(true);
+    // The two budgets themselves, so the arithmetic above is not a coincidence.
+    expect(Math.floor((350 - 2 * PAD) / (17 * CHAR_W))).toBe(30);
+    expect(Math.floor((350 - 2 * PAD) / (17 * SKETCH_CHAR_W))).toBe(37);
+    expect(wrapCodeLine(plain, 37).length).toBe(1);
+    expect(wrapCodeLine(plain, 30).length).toBe(2);
   });
 
   test("a drawn DataFrame table and its '… N more rows' line stay mono", () => {

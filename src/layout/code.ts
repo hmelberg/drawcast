@@ -48,6 +48,21 @@ import type { SpecElement } from "../spec/types";
 /** Monospace advance as a fraction of the font size — the wrapper measures
  *  with it, and so does the figure split when it sizes a panel to its script. */
 export const CHAR_W = 0.62;
+/**
+ * The same thing for the SKETCH face (Patrick Hand), which is proportional:
+ * an average advance, not an exact one, because CodeCtx has no browser
+ * measurer — layout must stay deterministic in node. Measured in the browser
+ * at 0.44–0.48 em for mixed text; 0.5 is the conservative pick, so a line
+ * that the budget says fits really does fit and nothing overflows the pane.
+ *
+ * Used ONLY where the sketch face is what gets drawn: a plain (non-tabular)
+ * print-out. Everything drawn in mono — the code pane, a tabular print-out,
+ * an error, a table's cells and its "… N more rows" line — keeps CHAR_W,
+ * which is exact for a fixed pitch. Wrapping a handwritten line at the mono
+ * advance was a real bug: 36 characters that fit were broken at 30, leaving a
+ * lone "%" on a row of its own (Hans, 2026-09-16, herd-immunity figure).
+ */
+export const SKETCH_CHAR_W = 0.5;
 /** Vertical advance per wrapped row (matches drawLeaf's tspan spacing). */
 const ROW_H = 1.25;
 /** Layout's own cap on drawn table rows (the harvest already caps at 30). */
@@ -402,8 +417,19 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       : 0;
 
   // ---- output pane content -------------------------------------------------
-  const outMax = Math.max(8, Math.floor((outPaneW - 2 * PAD) / (fontSize * CHAR_W)));
   const failed = result !== null && (!result.ok || !!result.error);
+  // What a script PRINTS is part of the drawing, so it is written in the
+  // figure's own hand — `font` left off below, which is the sketch face. Two
+  // kinds of print-out still need the typewriter: anything that lines up in
+  // COLUMNS (a pandas describe(), a hand-drawn ascii table — a proportional
+  // face throws away the alignment that IS the information), and a failure,
+  // whose traceback carries indentation and a caret under the offending
+  // character.
+  const outFont: "mono" | undefined = failed || looksTabular(result?.stdout ?? "") ? "mono" : undefined;
+  // …and the pane's width is counted in the advance of the face it will
+  // actually be drawn in. Measuring handwriting with the mono pitch wrapped
+  // lines that fit (Hans, 2026-09-16).
+  const outMax = Math.max(8, Math.floor((outPaneW - 2 * PAD) / (fontSize * (outFont === "mono" ? CHAR_W : SKETCH_CHAR_W))));
   const outTextLines: { text: string; color?: string }[] = [];
   if (failed) {
     for (const row of wrapCodeLine(`✗ ${result!.error ?? result!.stderr}`.replace(/\n/g, " ⏎ "), outMax)) {
@@ -417,16 +443,6 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       for (const row of wrapCodeLine(result.stderr.trim(), outMax)) outTextLines.push({ text: row, color: COLORS.guide });
     }
   }
-  // What a script PRINTS is part of the drawing, so it is written in the
-  // figure's own hand — `font` left off, which is the sketch face. Two kinds
-  // of print-out still need the typewriter: anything that lines up in
-  // COLUMNS (a pandas describe(), a hand-drawn ascii table — a proportional
-  // face throws away the alignment that IS the information), and a failure,
-  // whose traceback carries indentation and a caret under the offending
-  // character. The wrap width above stays on the mono metric either way: the
-  // sketch face is narrower per character, so a row that fits as code fits as
-  // handwriting too.
-  const outFont: "mono" | undefined = failed || looksTabular(result?.stdout ?? "") ? "mono" : undefined;
   const rawFigures = failed || !result ? [] : result.figures;
   const rawTables = failed || !result ? [] : result.tables ?? [];
   const figW = outPaneW - 2 * PAD;
