@@ -32,7 +32,23 @@ Open Examples → Widgets pack.
 8. **Pause on beat 1 of the Morse example, before the pads are drawn**: a
    click on the blank paper where a pad will later stand still RESUMES.
 9. Scrub while a widget has state: the figure returns to the storyboard.
-10. Nothing else lost its resets to this round's callback chaining: open any
+10. "A xylophone I can play." Paused on the bars: tap the first, third and
+   fifth — each rings its own pitch and the line above fills in "C4 E4 G4".
+   Now do it from the keyboard instead (1, 3, 5, then Enter): the same line,
+   and the ask is satisfied. Press 9 — nothing happens, and the page keeps
+   the key. In the movie the laser taps the three bars and they sound.
+11. "Sort the bars like bubble sort." Paused: click bar one, then bar two —
+   they trade places and the counter reads 1. Click a bar and one two along:
+   nothing moves and the caption says only neighbours may swap. Sort the row
+   (seven swaps): every bar glows green and the ask is satisfied. Click on
+   after that — the gate does not fire a second time.
+12. "Tic-tac-toe against the computer." Paused: click the centre — O takes
+   the top-left corner, every time (play it twice and compare). Play 4, 8, 1,
+   3, 6 and it ends in a draw with all nine squares glowing; the ask is
+   satisfied. Play 1, 2, 4 instead and O wins on the diagonal from the top
+   right — the wrong line, and that line glows red. Keys 1–9 work as the
+   squares in reading order.
+13. Nothing else lost its resets to this round's callback chaining: open any
    chess drawcast and play a free move (pause, click from-square,
    to-square; Continue ▸ restores the lesson's position), and open a
    drawcast with a code panel (the tray's editor still opens on a paused

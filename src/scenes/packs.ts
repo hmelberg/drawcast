@@ -121,7 +121,7 @@ export const PACK_DEFS: Record<string, PackDef> = {
   widgets: {
     id: "widgets",
     title: "Widgets",
-    description: "Figures the viewer can work while paused — a Morse key, the Tower of Hanoi, logic gates — each a template document with a widget body; the models for writing your own.",
+    description: "Figures the viewer can work while paused — a Morse key, the Tower of Hanoi, logic gates, a xylophone, bubble sort, tic-tac-toe — each a template document with a widget body; the models for writing your own.",
     load: async () => (await import("./packs/widgets.yaml?raw")).default,
   },
 };

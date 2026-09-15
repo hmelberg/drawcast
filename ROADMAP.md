@@ -880,8 +880,21 @@ harness authors test with and the examples gate runs. Kit v10: `circle`,
 `rect`, `pad`, `MORSE`. Pack `widgets`: morse_key, tower_of_hanoi,
 logic_gates. Round 2 of "users extend drawcast themselves".
 
-Open: `run`/`result` (a widget executing a code element); `key`, `tick`,
-press duration; anchors on the scene object; a ⊕ pill / context-menu launcher
+Keys and three more widgets — 2026-09-15. A body may return `keys: [...]`;
+the host installs window listeners only then (the piano's free-play pattern)
+and delivers `{type: "key", key, ms}` on release, so one key can be both a
+dot and a dash — Morse now sends from the keyboard (space short/long, Enter
+gap, Enter again sends). Three widgets joined the pack: `xylophone` (eight
+tuned bars C4–C5, number keys 1–8, a done pad, `judge` on the played note
+string), `bubble_sort` (bars as tall as their value, ADJACENT swaps only, a
+swap counter, every bar glows on the sorted row) and `tictactoe` (nine
+squares against one fixed opponent rule — win, block, centre, corner, first
+free — so the same clicks always give the same game; keys 1–9; answers
+`won`/`lost`/`draw`, and a win passes a draw's ask). Each has a bundled
+example and its own demo that patches the figure per move.
+
+Open: `run`/`result` (a widget executing a code element); `tick` and hover
+events; anchors on the scene object; a ⊕ pill / context-menu launcher
 for free play (tray.ts); Python/R widget bodies; the tray-vs-widget preview
 collision (last writer wins); a widget the author prompt writes on demand has
 not been exercised end to end.

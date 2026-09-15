@@ -20951,5 +20951,166 @@
         }
       ]
     }
+  },
+  {
+    "request": "A xylophone I can play.",
+    "packs": [
+      "widgets"
+    ],
+    "spec": {
+      "title": "The xylophone",
+      "template": "xylophone",
+      "params": {},
+      "commands": [
+        {
+          "draw": [
+            "title"
+          ],
+          "speak": "A xylophone is a row of tuned bars: hit one and it rings at its own pitch."
+        },
+        {
+          "draw": [
+            "bar_1",
+            "bar_2",
+            "bar_3",
+            "bar_4",
+            "bar_5",
+            "bar_6",
+            "bar_7",
+            "bar_8"
+          ],
+          "speak": "Eight bars, C to C — one octave. The long bars ring low, and every bar to the right is a little shorter and a little higher."
+        },
+        {
+          "draw": [
+            "played",
+            "hint",
+            "key_done"
+          ],
+          "speak": "Tap a bar and it sounds and joins the line above, or press its number; done delivers the tune."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "bar_5"
+            }
+          },
+          "speak": "The first, third and fifth bars — C, E and G — are a major chord: the three notes a tune usually comes home to."
+        },
+        {
+          "ask": {
+            "question": "Play C4, E4 and G4, then press done.",
+            "widget": "xylophone",
+            "answer": "C4 E4 G4",
+            "right": "That is a C major chord, spelled out one bar at a time.",
+            "wrong": "Bars one, three and five, in that order — then done."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Sort the bars like bubble sort.",
+    "packs": [
+      "widgets"
+    ],
+    "spec": {
+      "title": "Bubble sort by hand",
+      "template": "bubble_sort",
+      "params": {
+        "values": [
+          5,
+          2,
+          8,
+          1,
+          9,
+          3
+        ]
+      },
+      "commands": [
+        {
+          "draw": [
+            "title"
+          ],
+          "speak": "Bubble sort walks along a row and swaps any two neighbours that are in the wrong order."
+        },
+        {
+          "draw": [
+            "bar_0",
+            "bar_1",
+            "bar_2",
+            "bar_3",
+            "bar_4",
+            "bar_5"
+          ],
+          "speak": "Six bars, jumbled, each as tall as the value written on it."
+        },
+        {
+          "draw": [
+            "counter",
+            "hint"
+          ],
+          "speak": "One rule, and it is the whole algorithm: only bars standing next to each other may trade places. The counter keeps the tally."
+        },
+        {
+          "ask": {
+            "question": "Sort the bars from shortest to tallest.",
+            "widget": "bubble_sort",
+            "answer": "sorted",
+            "right": "Seven swaps is the fewest this row allows — and notice what happened on the way: the tallest bar bubbled to the end on the very first pass.",
+            "wrong": "Only neighbours may swap — click a bar and then the one beside it."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Tic-tac-toe against the computer.",
+    "packs": [
+      "widgets"
+    ],
+    "spec": {
+      "title": "Tic-tac-toe",
+      "template": "tictactoe",
+      "params": {},
+      "commands": [
+        {
+          "draw": [
+            "title"
+          ],
+          "speak": "Tic-tac-toe: three in a row wins — and when both players are careful, nobody ever gets it."
+        },
+        {
+          "draw": [
+            "grid",
+            "cell_0",
+            "cell_1",
+            "cell_2",
+            "cell_3",
+            "cell_4",
+            "cell_5",
+            "cell_6",
+            "cell_7",
+            "cell_8"
+          ],
+          "speak": "Nine squares. You are X and you move first; the computer is O."
+        },
+        {
+          "draw": [
+            "status"
+          ],
+          "speak": "The computer follows one fixed rule, in this order: take a winning square, else block yours, else the centre, else a corner. So it never blunders — and it never sets a trap either."
+        },
+        {
+          "ask": {
+            "question": "Play a game. Can you hold it to a draw?",
+            "widget": "tictactoe",
+            "answer": "draw",
+            "right": "A draw — which is the best either side can force. Answer every threat and there is nothing left to win with.",
+            "wrong": "The computer took that one — try again."
+          }
+        }
+      ]
+    }
   }
 ]

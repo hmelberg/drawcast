@@ -1,6 +1,6 @@
 pack: widgets
 title: Widgets
-description: Figures the viewer can work while paused — a Morse key, the Tower of Hanoi, logic gates — each a template document with a widget body; the models for writing your own.
+description: Figures the viewer can work while paused — a Morse key, the Tower of Hanoi, logic gates, a xylophone, bubble sort, tic-tac-toe — each a template document with a widget body; the models for writing your own.
 ---
 template: morse_key
 title: Morse code key
@@ -332,3 +332,380 @@ widget: |
     return out;
   };
   return { init, on, demo };
+---
+template: xylophone
+title: Xylophone
+version: 1
+kit: 10
+status: ready
+description: >-
+  A xylophone: eight tuned bars from C4 to C5, long and low on the left,
+  short and high on the right, a line of the notes played so far, and a done
+  pad that delivers the tune. The viewer can play it while paused — tap a bar
+  and it sounds, or press the number keys 1 to 8, Enter for done; an ask
+  bound to this template can require a short tune. Choose this for ANY
+  request about a xylophone, a glockenspiel, a marimba, the notes of a scale,
+  or playing a short tune on tuned bars.
+params:
+  type: object
+  properties:
+    title:
+      type: string
+      description: "Heading above the bars (default \"Xylophone\")."
+    played:
+      type: string
+      description: "Notes played so far, space separated (e.g. \"C4 E4 G4\") — the widget sets this; leave empty."
+element_ids:
+  bar_1: the C4 bar (the longest, on the left)
+  bar_2: the D4 bar
+  bar_3: the E4 bar
+  bar_4: the F4 bar
+  bar_5: the G4 bar
+  bar_6: the A4 bar
+  bar_7: the B4 bar
+  bar_8: the C5 bar (the shortest, on the right)
+  key_done: the done pad (tap to deliver the tune)
+  played: the line of notes played so far
+  hint: the keyboard hint line, drawn with the pads
+  title: the title
+examples:
+  - request: "A xylophone I can play."
+    params: {}
+  - request: "Show the eight bars of a C major scale."
+    params: { title: "C major, one octave" }
+layout: |
+  const C = kit.COLORS;
+  const NOTES = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const title = typeof params.title === "string" && params.title.trim() !== "" ? params.title : "Xylophone";
+  push(kit.text("title", [500, 700], title, { fontSize: 30 }));
+  push(kit.text("played", [500, 630], params.played ?? "", { fontSize: 34, color: C.demand }));
+  push(kit.text("hint", [500, 582], "keys 1 to 8 play the bars · enter delivers the tune", { fontSize: 16, color: C.guide }));
+  const BASE = 170;
+  NOTES.forEach((note, i) => {
+    // The falling height IS the lesson: a long bar rings low, a short one
+    // high. The pad's own outline is the bar.
+    const h = 380 - i * 20, x = 137 + i * 105;
+    push(kit.pad("bar_" + (i + 1), [x, BASE + h / 2], note, { w: 90, h }, { fontSize: 26, fill: C.series[i % C.series.length] }));
+    anchors["bar_" + (i + 1)] = [x, BASE + h / 2];
+  });
+  push(kit.pad("key_done", [500, 105], "done", { w: 150, h: 60 }));
+  anchors.key_done = [500, 105];
+  return { drawables, labels, anchors, order };
+widget: |
+  const NOTES = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
+  const same = (state) => ({ state, effects: [] });
+  const norm = (s) => String(s).trim().toUpperCase().replace(/\s+/g, " ");
+  const init = (scene) => ({ played: typeof scene.params.played === "string" ? scene.params.played : "" });
+  const on = (ev, st) => {
+    // A bar and its number key are the same gesture, so both go through one
+    // rule; only done answers ("answer" means done — spec §2.2).
+    const play = (i) => {
+      const played = st.played === "" ? NOTES[i] : st.played + " " + NOTES[i];
+      return { state: { ...st, played }, effects: [
+        { sound: { notes: NOTES[i] + ":q", tempo: 160 } },
+        { patch: { played } },
+      ]};
+    };
+    const done = () => (st.played === "" ? same(st) : { state: st, effects: [{ answer: st.played }] });
+    if (ev.type === "key") {
+      if (ev.key === "Enter") return done();
+      const i = Number(ev.key) - 1;
+      return Number.isInteger(i) && i >= 0 && i < NOTES.length ? play(i) : same(st);
+    }
+    if (ev.type !== "click") return same(st);
+    if (ev.id === "key_done") return done();
+    const m = /^bar_([1-8])$/.exec(ev.id);
+    return m ? play(Number(m[1]) - 1) : same(st);
+  };
+  const demo = (scene, answer) => {
+    const out = [];
+    let played = "";
+    for (const note of norm(answer).split(" ")) {
+      const i = NOTES.indexOf(note);
+      if (i < 0) continue;
+      played = played === "" ? NOTES[i] : played + " " + NOTES[i];
+      out.push({ pointer: "bar_" + (i + 1), sound: { notes: NOTES[i] + ":q", tempo: 160 } }, { patch: { played } });
+    }
+    return out.concat([{ pointer: "key_done" }]);
+  };
+  const judge = (given, answer) => norm(given) === norm(answer);
+  return { init, on, demo, judge, keys: ["1", "2", "3", "4", "5", "6", "7", "8", "Enter"] };
+---
+template: bubble_sort
+title: Bubble sort
+version: 1
+kit: 10
+status: ready
+description: >-
+  A row of bars, each as tall as its value and labelled with it, that the
+  viewer sorts by hand under bubble sort's one rule: only NEIGHBOURS may
+  swap. Click a bar, then the bar beside it, and the two trade places; a
+  counter keeps the tally. When the row is ascending every bar glows. An ask
+  bound to this template can require the row sorted. Choose this for ANY
+  request about bubble sort, sorting algorithms by hand, swapping neighbours,
+  or counting the swaps a sort takes.
+params:
+  type: object
+  properties:
+    values:
+      type: array
+      items: { type: integer }
+      minItems: 4
+      maxItems: 8
+      description: "The bars, left to right (default [5, 2, 8, 1, 9, 3]) — start them UNSORTED, and the widget sets this as the viewer swaps."
+    swaps:
+      type: integer
+      description: "Swaps made so far — the widget sets this; leave empty."
+element_ids:
+  bar_0: the leftmost bar (one bar_<i> per value — bar_0 … bar_<n−1> — labelled with its value)
+  counter: the swap counter
+  hint: the line that states the neighbours-only rule
+  title: the title
+examples:
+  - request: "Sort six bars the way bubble sort does."
+    params: { values: [5, 2, 8, 1, 9, 3] }
+  - request: "Bubble sort on four bars."
+    params: { values: [4, 1, 3, 2] }
+layout: |
+  const C = kit.COLORS;
+  const DEFAULT = [5, 2, 8, 1, 9, 3];
+  const given = Array.isArray(params.values) ? params.values.filter((v) => typeof v === "number") : [];
+  const values = given.length >= 2 ? given.slice(0, 8) : DEFAULT;
+  const n = values.length;
+  const top = Math.max(...values.map((v) => Math.abs(v)), 1);
+  // Colour by RANK, never by position: a bar keeps its colour as it travels,
+  // which is the only way the eye can follow one value through a sort.
+  const ranked = values.slice().sort((a, b) => a - b);
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  push(kit.text("title", [500, 700], "Bubble sort", { fontSize: 30 }));
+  push(kit.text("counter", [500, 645], "swaps: " + (Number.isInteger(params.swaps) ? params.swaps : 0), { fontSize: 22, color: C.guide }));
+  push(kit.text("hint", [500, 600], "click a bar, then a NEIGHBOUR, to swap them", { fontSize: 16, color: C.guide }));
+  const BASE = 150, PITCH = 820 / n, W = Math.min(120, PITCH - 22);
+  values.forEach((v, i) => {
+    const h = 70 + 330 * (Math.abs(v) / top), x = 90 + PITCH * (i + 0.5);
+    push(kit.pad("bar_" + i, [x, BASE + h / 2], String(v), { w: W, h }, { fontSize: 26, fill: C.series[ranked.indexOf(v) % C.series.length] }));
+    anchors["bar_" + i] = [x, BASE + h / 2];
+  });
+  return { drawables, labels, anchors, order };
+widget: |
+  const DEFAULT = [5, 2, 8, 1, 9, 3];
+  const same = (state) => ({ state, effects: [] });
+  const barsOf = (scene) => {
+    const given = Array.isArray(scene.params.values) ? scene.params.values.filter((v) => typeof v === "number") : [];
+    return given.length >= 2 ? given.slice(0, 8) : DEFAULT.slice();
+  };
+  const isSorted = (v) => v.every((x, i) => i === 0 || v[i - 1] <= x);
+  const allBars = (v) => v.map((_, k) => "bar_" + k);
+  const init = (scene) => ({
+    values: barsOf(scene),
+    selected: null,
+    swaps: Number.isInteger(scene.params.swaps) ? scene.params.swaps : 0,
+    done: false,
+  });
+  const on = (ev, st) => {
+    // Once the row is sorted the widget has answered; further clicks are the
+    // viewer playing with a finished puzzle, not a second answer.
+    if (ev.type !== "click" || st.done) return same(st);
+    const m = /^bar_(\d+)$/.exec(ev.id);
+    if (!m) return same(st);
+    const i = Number(m[1]);
+    if (i >= st.values.length) return same(st);
+    if (st.selected === null) return { state: { ...st, selected: i }, effects: [{ glow: "bar_" + i }] };
+    if (st.selected === i) return { state: { ...st, selected: null }, effects: [] };
+    if (Math.abs(st.selected - i) !== 1) {
+      return { state: { ...st, selected: null }, effects: [{ caption: "Bubble sort only swaps neighbours." }] };
+    }
+    const a = Math.min(st.selected, i), values = st.values.slice();
+    values[a] = st.values[a + 1];
+    values[a + 1] = st.values[a];
+    const swaps = st.swaps + 1, done = isSorted(values);
+    const effects = [{ sound: { hz: 480, ms: 60 } }, { patch: { values, swaps } }];
+    if (done) effects.push({ glow: allBars(values), color: "#4a7c59" }, { caption: "Sorted in " + swaps + " swaps." }, { answer: "sorted" });
+    return { state: { ...st, values, selected: null, swaps, done }, effects };
+  };
+  const demo = (scene) => {
+    const start = barsOf(scene), values = start.slice(), steps = [];
+    let swaps = 0;
+    for (let end = values.length - 1; end > 0; end--) {
+      for (let i = 0; i < end; i++) {
+        if (values[i] <= values[i + 1]) continue;
+        const hold = values[i];
+        values[i] = values[i + 1];
+        values[i + 1] = hold;
+        swaps = swaps + 1;
+        steps.push([{ pointer: "bar_" + i }, { pointer: "bar_" + (i + 1) }, { patch: { values: values.slice(), swaps } }]);
+      }
+    }
+    // Bounded to twelve swaps (24 taps): the default six bars take seven, but
+    // a reversed eight takes 28 — a minute of laser. Whatever the bars, the
+    // movie must END SORTED: one last patch jumps straight there.
+    const bounded = steps.slice(0, 12).reduce((a, b) => a.concat(b), []);
+    const sorted = start.slice().sort((a, b) => a - b);
+    return bounded.concat([
+      { patch: { values: sorted, swaps } },
+      { glow: allBars(sorted), color: "#4a7c59" },
+      { caption: "Sorted in " + swaps + " swaps." },
+    ]);
+  };
+  return { init, on, demo };
+---
+template: tictactoe
+title: Tic-tac-toe
+version: 1
+kit: 10
+status: ready
+description: >-
+  Tic-tac-toe against a built-in opponent. The viewer is X and moves first —
+  click a square while paused, or press 1 to 9 (reading order) — and O
+  answers at once by ONE fixed rule: take the win, else block, else the
+  centre, else the first free corner, else the first free square. The same
+  moves therefore always give the same game. Three in a row glows and the
+  widget answers won, lost or draw. An ask bound to this template can require
+  a draw. Choose this for ANY request about tic-tac-toe, noughts and crosses,
+  or a game nobody can win against careful play.
+params:
+  type: object
+  properties:
+    title:
+      type: string
+      description: "Heading above the board (default \"Tic-tac-toe\")."
+    board:
+      type: string
+      description: "The nine squares in reading order, \"x\", \"o\" or \".\" (e.g. \"x...o....\") — the widget sets this; leave empty for an empty board."
+element_ids:
+  grid: the four lines of the board (a group)
+  cell_0: the top-left square (its mark is its label; key 1)
+  cell_1: the top-middle square (key 2)
+  cell_2: the top-right square (key 3)
+  cell_3: the middle-left square (key 4)
+  cell_4: the centre square (key 5)
+  cell_5: the middle-right square (key 6)
+  cell_6: the bottom-left square (key 7)
+  cell_7: the bottom-middle square (key 8)
+  cell_8: the bottom-right square (key 9)
+  status: the line under the title that says whose move it is, or how it ended
+  title: the title
+examples:
+  - request: "Tic-tac-toe against the computer."
+    params: {}
+  - request: "Show a tic-tac-toe board with the centre taken."
+    params: { board: "....x...." }
+layout: |
+  const C = kit.COLORS;
+  const LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+  const raw = typeof params.board === "string" && params.board.length === 9 ? params.board.toLowerCase() : ".........";
+  const board = raw.split("").map((c) => (c === "x" || c === "o" ? c : "."));
+  const won = LINES.find((l) => board[l[0]] !== "." && board[l[0]] === board[l[1]] && board[l[1]] === board[l[2]]);
+  const full = board.every((c) => c !== ".");
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  const title = typeof params.title === "string" && params.title.trim() !== "" ? params.title : "Tic-tac-toe";
+  push(kit.text("title", [500, 700], title, { fontSize: 30 }));
+  const status = won ? (board[won[0]] === "x" ? "You won." : "O won.") : full ? "A draw." : "Your move — you are X.";
+  push(kit.text("status", [500, 640], status, { fontSize: 24, color: C.guide }));
+  // The board is the four lines of the # — the squares themselves are
+  // invisible zones, so nothing is drawn twice and a click anywhere in a
+  // square counts (the Tower's peg zones, same trick).
+  const S = 130, X0 = 305, Y0 = 185;
+  const at = (i) => [X0 + S * (i % 3) + S / 2, Y0 + S * (2 - Math.floor(i / 3)) + S / 2];
+  push(kit.group("grid", [
+    kit.stroke("grid__v1", [[X0 + S, Y0], [X0 + S, Y0 + 3 * S]], { strokeWidth: 4 }),
+    kit.stroke("grid__v2", [[X0 + 2 * S, Y0], [X0 + 2 * S, Y0 + 3 * S]], { strokeWidth: 4 }),
+    kit.stroke("grid__h1", [[X0, Y0 + S], [X0 + 3 * S, Y0 + S]], { strokeWidth: 4 }),
+    kit.stroke("grid__h2", [[X0, Y0 + 2 * S], [X0 + 3 * S, Y0 + 2 * S]], { strokeWidth: 4 }),
+  ]));
+  anchors.grid = [500, Y0 + 1.5 * S];
+  board.forEach((mark, i) => {
+    const c = at(i);
+    push(kit.group("cell_" + i, [
+      kit.stroke("cell_" + i + "__zone", kit.rect(c[0] - S / 2, c[1] - S / 2, S, S), { closed: true, fill: kit.GROUND, opacity: 0.001, strokeWidth: 1, instant: true }),
+      kit.text("cell_" + i + "__mark", c, mark === "x" ? "X" : mark === "o" ? "O" : "", { fontSize: 64, color: mark === "x" ? C.demand : C.supply }),
+    ]));
+    anchors["cell_" + i] = c;
+  });
+  return { drawables, labels, anchors, order };
+widget: |
+  const LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+  const CORNERS = [0, 2, 6, 8];
+  const NAMES = ["the top left", "the top middle", "the top right", "the middle left", "the centre", "the middle right", "the bottom left", "the bottom middle", "the bottom right"];
+  const same = (state) => ({ state, effects: [] });
+  const readBoard = (s) => (typeof s === "string" && s.length === 9 ? s.toLowerCase() : ".........").split("").map((c) => (c === "x" || c === "o" ? c : "."));
+  const lineOf = (b) => LINES.find((l) => b[l[0]] !== "." && b[l[0]] === b[l[1]] && b[l[1]] === b[l[2]]) ?? null;
+  const full = (b) => b.every((c) => c !== ".");
+  /** A line where `who` has two and the third is free — the win, or the block. */
+  const third = (b, who) => {
+    for (const l of LINES) {
+      const free = l.filter((i) => b[i] === ".");
+      if (free.length === 1 && l.filter((i) => b[i] === who).length === 2) return free[0];
+    }
+    return null;
+  };
+  // ONE fixed rule, in this order, so the same clicks always give the same
+  // game — which is what makes the lesson (and the test) repeatable.
+  const reply = (b) => {
+    const win = third(b, "o");
+    if (win !== null) return win;
+    const block = third(b, "x");
+    if (block !== null) return block;
+    if (b[4] === ".") return 4;
+    const corner = CORNERS.find((i) => b[i] === ".");
+    if (corner !== undefined) return corner;
+    return b.findIndex((c) => c === ".");
+  };
+  const init = (scene) => {
+    const board = readBoard(scene.params.board);
+    return { board, done: lineOf(board) !== null || full(board) };
+  };
+  const play = (st, i) => {
+    if (st.done) return same(st);
+    if (st.board[i] !== ".") return { state: st, effects: [{ caption: "That square is taken." }] };
+    const b = st.board.slice();
+    b[i] = "x";
+    let theirs = null, line = lineOf(b);
+    let outcome = line ? "won" : full(b) ? "draw" : null;
+    if (outcome === null) {
+      theirs = reply(b);
+      b[theirs] = "o";
+      line = lineOf(b);
+      outcome = line ? "lost" : full(b) ? "draw" : null;
+    }
+    if (outcome === "draw") line = b.map((_, k) => k);
+    const caption = outcome === "won" ? "Three in a row — you won." :
+      outcome === "lost" ? "O got three in a row." :
+      outcome === "draw" ? "A draw — neither side could force it." :
+      "O played " + NAMES[theirs] + ".";
+    const effects = [{ sound: { hz: 620, ms: 60 } }, { caption }, { patch: { board: b.join("") } }];
+    if (outcome) effects.push({ glow: line.map((k) => "cell_" + k), color: outcome === "lost" ? "#b23a3a" : "#4a7c59" }, { answer: outcome });
+    return { state: { board: b, done: outcome !== null }, effects };
+  };
+  const on = (ev, st) => {
+    if (ev.type === "key") {
+      const i = Number(ev.key) - 1;
+      return Number.isInteger(i) && i >= 0 && i < 9 ? play(st, i) : same(st);
+    }
+    if (ev.type !== "click") return same(st);
+    const m = /^cell_([0-8])$/.exec(ev.id);
+    return m ? play(st, Number(m[1])) : same(st);
+  };
+  const demo = (scene) => {
+    // A scripted X — centre, the far corner, then the blocks O forces — run
+    // through the SAME rules the viewer plays against, so the movie can never
+    // show a game the widget would not allow. It ends in a draw.
+    let st = init(scene);
+    const out = [];
+    for (const i of [4, 8, 1, 3, 6]) {
+      if (st.done || st.board[i] !== ".") continue;
+      const r = play(st, i);
+      st = r.state;
+      out.push({ pointer: "cell_" + i });
+      for (const e of r.effects) if (e.answer === undefined) out.push(e);
+    }
+    return out;
+  };
+  const norm = (s) => String(s).trim().toLowerCase();
+  // A win passes a draw's ask: beating the rule is not a wrong answer.
+  const judge = (given, answer) => norm(given) === norm(answer) || (norm(answer) === "draw" && norm(given) === "won");
+  return { init, on, demo, judge, keys: ["1", "2", "3", "4", "5", "6", "7", "8", "9"] };

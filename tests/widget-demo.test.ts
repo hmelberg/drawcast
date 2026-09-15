@@ -188,6 +188,9 @@ describe("the widgets pack demonstrates itself by CHANGING the figure", () => {
     { template: "morse_key", params: { word: "SOS" }, answer: "SOS" },
     { template: "tower_of_hanoi", params: { disks: 3 }, answer: "solved" },
     { template: "logic_gates", params: { gate: "XOR" }, answer: "lit" },
+    { template: "xylophone", params: {}, answer: "C4 E4 G4" },
+    { template: "bubble_sort", params: { values: [5, 2, 8, 1, 9, 3] }, answer: "sorted" },
+    { template: "tictactoe", params: {}, answer: "draw" },
   ];
   beforeAll(async () => {
     await ensureEnabledPacks(["widgets"]);

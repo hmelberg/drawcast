@@ -112,7 +112,14 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-measured 2026-09-15 at the merge of widget-bodies into main (after
 // pane-controls): both rounds grew the schema/prompt independently; the pins
 // below are the measured values after the merge.
-const BASELINE_SYSTEM_CHARS = 225132;
+// Re-pinned 2026-09-15 for the widget-keys round (Task 3): three more widget
+// documents joined the widgets pack (xylophone, bubble_sort, tictactoe). The
+// pack is still not registered in this test's configuration, so the templates
+// themselves cost nothing — but the pack's one-line DESCRIPTION is what the
+// "Pack available but not enabled" line carries, and naming the three new
+// figures in it is +39 chars on the system prompt (225132 → 225171). The
+// schema is untouched (110309 stays 110309).
+const BASELINE_SYSTEM_CHARS = 225171;
 const BASELINE_SCHEMA_CHARS = 110309;
 
 const system = (code: boolean, sound = false) =>
