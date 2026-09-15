@@ -180,7 +180,9 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-measured 2026-09-15 on the merge of the smooth-sweeps round with the
 // template-box round (both additive): pinned to the values measured on the
 // merged tree: schema 117162 → 117746, system 232892 → 233635.
-const BASELINE_SYSTEM_CHARS = 233635;
+// Re-pinned 2026-09-15 animated-box round: one sentence in compiler-v1.md,
+// +329 on the system prompt; schema untouched.
+const BASELINE_SYSTEM_CHARS = 233964;
 const BASELINE_SCHEMA_CHARS = 117746;
 
 const system = (code: boolean, sound = false) =>
@@ -263,5 +265,9 @@ describe("template box in the prompt (spec 2026-09-15-template-box §10)", () =>
     expect(system(false)).toContain('"box": "right"');
     expect(system(true)).toContain('"box": "left"` puts the figure on the left');
     expect(JSON.stringify(apiSchema())).toContain('Any template also takes \\"box\\"');
+  });
+
+  test("the compiler learns the present-then-shrink pattern by names", () => {
+    expect(system(false)).toContain('{"animate": {"box": "right"}');
   });
 });

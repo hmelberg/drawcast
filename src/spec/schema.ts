@@ -11,6 +11,7 @@ import { assetRef, resolveAssetRefs } from "./assets";
 import { BUILTIN_WIDGETS, SIDE_VALUES, type Command, type Spec, type SpecElement } from "./types";
 import { RESERVED_VARS } from "./answers";
 import { SUB_SUFFIXES } from "../layout/model";
+import { isFitName } from "../layout/regions";
 import { C64_PROGRAMS } from "../code/c64-catalogue";
 import { LANGUAGES, isLanguage } from "../code/languages";
 import { notationBeats } from "./notation";
@@ -1251,6 +1252,15 @@ function semanticErrors(spec: Spec): string[] {
       const entries = Object.entries(cmd.animate!);
       if (entries.length === 0) errors.push(`commands[${i}]: animate needs at least one param target`);
       for (const [k, v] of entries) {
+        // "box" is the one animate key a region name stands for its rectangle
+        // (render/params.ts expandBoxAnimate) — any other string under this
+        // key is an error, never a {var} token (fitRegion has no var form).
+        if (k === "box" && typeof v === "string") {
+          if (!isFitName(v)) {
+            errors.push(`commands[${i}]: animate "box" must be a region name (left, right, top, bottom, full), a finite number for box.x/box.y/box.w/box.h, or a "{var}" token`);
+          }
+          continue;
+        }
         if (typeof v === "string" && /^\{[a-z][a-z0-9_]*\}$/i.test(v)) {
           const name = v.slice(1, -1).toLowerCase();
           if (!storedVars.has(name)) {

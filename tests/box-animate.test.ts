@@ -6,6 +6,7 @@ import { planOptionsFor } from "../src/render/index";
 import { fitRegion } from "../src/layout/regions";
 import { ensureEnabledPacks } from "../src/scenes/packs";
 import { lintCommands } from "../src/lint/lint";
+import { validateSpec } from "../src/spec/schema";
 import type { Spec } from "../src/spec/types";
 
 beforeAll(async () => { await ensureEnabledPacks(["evidence"]); });
@@ -128,5 +129,32 @@ describe("the lint judges a panel drawn after an animate on the layout of that b
     } as unknown as Spec;
     expect(paramsAtFirstDraw(spec, "sim")).toEqual({ box: { x: 520, y: 95, w: 420, h: 560 } });
     expect(layoutSpec(spec).issues).toEqual([]);
+  });
+});
+
+describe("the spec validator accepts a region name under animate.box", () => {
+  const minimal = (animate: Record<string, unknown>): Spec =>
+    ({
+      template: "sir_compartments",
+      params: { box: "full" },
+      commands: [{ animate }],
+    }) as unknown as Spec;
+
+  test("a region name reports no error mentioning animate", () => {
+    const v = validateSpec(minimal({ box: "right" }));
+    expect(v.errors.filter((e) => e.includes("animate"))).toEqual([]);
+  });
+
+  test("a string that is not one of the five names is rejected, naming them", () => {
+    const v = validateSpec(minimal({ box: "middle" }));
+    expect(v.ok).toBe(false);
+    expect(v.errors).toContain(
+      'commands[0]: animate "box" must be a region name (left, right, top, bottom, full), a finite number for box.x/box.y/box.w/box.h, or a "{var}" token',
+    );
+  });
+
+  test("the dotted numeric form still passes", () => {
+    const v = validateSpec(minimal({ "box.x": 520 }));
+    expect(v.errors.filter((e) => e.includes("animate"))).toEqual([]);
   });
 });

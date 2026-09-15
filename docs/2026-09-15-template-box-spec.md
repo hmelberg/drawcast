@@ -320,3 +320,9 @@ Tests, each written to fail first:
 - Teaching the compiler rectangles.
 - Changing any of the five native-box templates.
 - Touching `src/ui/controls.ts` or `src/ui/widget-host.ts` (§9).
+
+## 13. Animated box (2026-09-15, follow-up round)
+
+`box` is a tween target: `params.box: "full"` then `{"animate": {"box": "right"}}` shrinks the fitted figure into its half over the beat (a region name stands for its rectangle in every param path — `render/params.ts`). The lint judges a code panel drawn after such an animate on the layout of the beat it is first drawn (`paramsAtFirstDraw`, `layout/layout.ts`), so "present the model large, then make room for the knobs" carries no false overlap. Known limit: labels of the opening frame are still placed around the not-yet-drawn panel's ink (layout is static); invisible in practice for a panel on the empty side.
+
+(Numbered §13, not §12 as the round's plan said: this file's own §12 was already "Non-goals" — written in the earlier template-box round and shipped in commit `74d7b48`, before this follow-up round's plan was drafted. Renumbering an existing section for a plan-era typo seemed worse than the mismatch between the plan's label and the file's actual heading.)

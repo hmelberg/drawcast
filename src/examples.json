@@ -21322,32 +21322,31 @@
     }
   },
   {
-    "request": "Step through the SIR model: the compartments on the right, the Python that solves it and plots the three curves on the left.",
+    "request": "How does turning beta and gamma change the epidemic curve, once the SIR model makes room for sliders on them?",
     "packs": ["evidence"],
     "spec": {
-      "title": "SIR: the boxes and the curves",
+      "title": "SIR, then the knobs",
       "template": "sir_compartments",
-      "params": { "box": "right" },
+      "params": { "box": "full" },
       "elements": [
         {
           "id": "sim",
           "type": "code",
           "language": "python",
           "show": "below",
-          "lines": 8,
+          "pane": "controls",
+          "controls": ["beta", "gamma"],
           "chart": "seaborn",
-          "code": "import matplotlib.pyplot as plt\nbeta, gamma, days = 0.3, 0.1, 160\nS, I, R = [0.99], [0.01], [0.0]\nfor t in range(days):\n    new = beta * S[-1] * I[-1]\n    rec = gamma * I[-1]\n    S.append(S[-1] - new)\n    I.append(I[-1] + new - rec)\n    R.append(R[-1] + rec)\nprint(\"peak I:\", round(max(I), 2))\n_ = plt.plot(S, label=\"S\")\n_ = plt.plot(I, label=\"I\")\n_ = plt.plot(R, label=\"R\")\n_ = plt.legend()"
+          "code": "import matplotlib.pyplot as plt\nbeta = (0.1, 1.0, 0.05)\ngamma = (0.05, 0.5, 0.05)\nS, I, R = [0.99], [0.01], [0.0]\nfor t in range(160):\n    new = beta * S[-1] * I[-1]\n    rec = gamma * I[-1]\n    S.append(S[-1] - new)\n    I.append(I[-1] + new - rec)\n    R.append(R[-1] + rec)\n_ = plt.plot(S, label=\"S\")\n_ = plt.plot(I, label=\"I\")\n_ = plt.plot(R, label=\"R\")\n_ = plt.legend()"
         }
       ],
       "commands": [
         { "draw": ["box_s", "box_code_s", "box_name_s"], "speak": "Everyone starts susceptible." },
         { "draw": ["flow_0", "rate_0", "box_i", "box_code_i", "box_name_i"], "speak": "Contact with an infectious person moves you across, at a rate beta times how many are infectious." },
         { "draw": ["flow_1", "rate_1", "box_r", "box_code_r", "box_name_r"], "speak": "And recovery moves you on, at a rate gamma." },
-        { "draw": ["sim", "sim_line_1", "sim_line_2", "sim_line_3"], "parallel": true, "speak": "Import the plotting library, then the same three boxes in code: a rate in, a rate out, and a starting share." },
-        { "draw": ["sim_line_4", "sim_line_5", "sim_line_6", "sim_line_7", "sim_line_8", "sim_line_9"], "speak": "Each day, the new infections leave S and enter I, and the recoveries leave I and enter R." },
-        { "draw": ["sim_line_10", "sim_line_11", "sim_line_12", "sim_line_13", "sim_line_14"], "speak": "Then we print the peak and plot the three shares over time." },
-        { "draw": ["sim_out"], "speak": "The infectious curve rises, peaks at under a third of the population, and falls as susceptibles run out." },
-        { "explore": { "code": "sim" }, "speak": "Change beta or gamma and run it again." }
+        { "animate": { "box": "right" }, "duration": 3, "speak": "Two rates decide the whole epidemic. Let us make room to turn them." },
+        { "draw": ["sim", "sim_out"], "speak": "The same model as a curve: susceptible falls, infectious rises and peaks, recovered climbs." },
+        { "explore": { "code": "sim" }, "speak": "Slide beta up and watch the peak come sooner and higher; slide gamma up and watch it flatten." }
       ]
     }
   }
