@@ -8,7 +8,8 @@ import { layoutSpec } from "../src/layout/layout";
 import { CHAR_W, findMarkRow, normalizeMarks } from "../src/layout/code";
 import { heuristicMeasure } from "../src/layout/measure";
 import { flattenDrawables, COLORS, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
-import { chartPrelude, DEFAULT_CHART_STYLE } from "../src/code/chart-style";
+import { chartPrelude, defaultChartStyle } from "../src/code/chart-style";
+import { readFileSync } from "node:fs";
 import { codeCacheKey } from "../src/code/run";
 import { planCommands } from "../src/render/plan";
 import type { Spec } from "../src/spec/types";
@@ -108,11 +109,15 @@ describe("the chart style", () => {
     }
   });
 
-  test("the default is seaborn, and the style is part of the cache key", () => {
-    expect(DEFAULT_CHART_STYLE).toBe("seaborn");
+  test("the default follows the DRAWING's style, and the style is part of the cache key", () => {
+    // A hand-drawn figure gets a hand-drawn chart; the clean renderer gets
+    // the calm grid. Undefined is sketchy — render()'s own default.
+    expect(defaultChartStyle("sketchy")).toBe("xkcd");
+    expect(defaultChartStyle(undefined)).toBe("xkcd");
+    expect(defaultChartStyle("clean")).toBe("seaborn");
     const base = { language: "python" as const, code: "plt.plot(x)" };
-    expect(codeCacheKey(base)).toBe(codeCacheKey({ ...base, chart: "seaborn" }));
-    expect(codeCacheKey({ ...base, chart: "xkcd" })).not.toBe(codeCacheKey(base));
+    expect(codeCacheKey(base)).toBe(codeCacheKey({ ...base, chart: "xkcd" }));
+    expect(codeCacheKey({ ...base, chart: "seaborn" })).not.toBe(codeCacheKey(base));
     // …but a script it cannot touch must not miss its cache for nothing.
     const plain = { language: "micropython" as const, code: "print(1)" };
     expect(codeCacheKey({ ...plain, chart: "xkcd" })).toBe(codeCacheKey(plain));
@@ -124,6 +129,75 @@ describe("the chart style", () => {
       heuristicMeasure,
     );
     expect(l.warnings.some((w) => w.includes('chart: "xkcd" needs language: "python"'))).toBe(true);
+  });
+});
+
+describe("the xkcd chart writes in the app's own hand", () => {
+  const url = "http://x/f.ttf";
+  const withFont = chartPrelude("xkcd", "import matplotlib.pyplot as plt", "python", { fontUrl: url });
+
+  test("the font is fetched once, registered, and set AFTER xkcd's own family list", () => {
+    expect(withFont).toContain("pyfetch");
+    expect(withFont).toContain("addfont");
+    expect(withFont).toContain('"font.family"');
+    expect(withFont).toContain(url);
+    // Once per session: the check is the cache, and the file lives in the
+    // interpreter's own FS.
+    expect(withFont).toContain('if not _os.path.exists("/tmp/PatrickHand-Regular.ttf")');
+    // Order is the whole point — rcdefaults, then xkcd's look, then OUR face
+    // over the Humor Sans list it just set.
+    expect(withFont.indexOf("_m.rcdefaults()")).toBeLessThan(withFont.indexOf("_plt.xkcd()"));
+    expect(withFont.indexOf("_plt.xkcd()")).toBeLessThan(withFont.indexOf('"font.family"'));
+    // …and still inside the one try/except, so a failed fetch degrades to
+    // xkcd's fallback face instead of killing the prelude.
+    expect(withFont.startsWith("try:")).toBe(true);
+    expect(withFont.trimEnd().endsWith("    pass")).toBe(true);
+    expect(withFont).not.toContain('"font.size"'); // xkcd's own size stands
+  });
+
+  test("no url (node, a page with no location) means no font block at all", () => {
+    const bare = chartPrelude("xkcd", "import matplotlib.pyplot as plt", "python");
+    expect(bare).toContain("_plt.xkcd()");
+    for (const needle of ["pyfetch", "addfont", "font.family", "PatrickHand"]) expect(bare).not.toContain(needle);
+  });
+
+  test("the other styles never wobble, and never fetch", () => {
+    for (const style of ["seaborn", "plain"] as const) {
+      const p = chartPrelude(style, "import matplotlib.pyplot as plt", "python", { fontUrl: url });
+      expect(p).not.toContain("xkcd()");
+      expect(p).not.toContain("pyfetch");
+      expect(p).not.toContain("font.family");
+    }
+  });
+
+  test("the face the prelude asks for is the one that is shipped", () => {
+    // The family name comes out of the TTF's own name table — if the file is
+    // ever swapped for another hand, this test is where it is noticed.
+    const ttf = readFileSync("public/fonts/patrickhand/PatrickHand-Regular.ttf", "latin1");
+    expect(ttf.includes("Patrick Hand")).toBe(true); // the Mac name record, plain 8-bit
+    expect(withFont).toContain('"Patrick Hand"');
+  });
+});
+
+describe("every run site resolves the chart style from the drawing (pins)", () => {
+  const sites: [string, RegExp][] = [
+    ["src/render/code.ts", /chart: el\.chart \?\? defaultChartStyle\(deps\.style\)/],
+    ["src/render/sweep-run.ts", /chart: el\.chart \?\? defaultChartStyle\(deps\.style\)/],
+  ];
+  for (const [file, re] of sites) {
+    test(`${file} runs with el.chart ?? defaultChartStyle(…)`, () => {
+      expect(readFileSync(file, "utf8")).toMatch(re);
+    });
+  }
+  test("the tray's two runs (the editor's Run and an ask's Check) take it from the handle", () => {
+    const src = readFileSync("src/ui/tray.ts", "utf8");
+    expect(src.match(/chart: el\.chart \?\? defaultChartStyle\(hd\.style\)/g)?.length).toBe(2);
+  });
+  test("render() resolves the style ONCE and hands it to the resolve pass and the sweep runner", () => {
+    const src = readFileSync("src/render/index.ts", "utf8");
+    expect(src).toMatch(/const style: RenderStyle = options\.style \?\? "sketchy"/);
+    expect(src).toMatch(/resolvedRenderSpec\(spec, \{[^}]*style \}\)/);
+    expect(src).toMatch(/sweepRunnerFor\(authored, \{ style \}\)/);
   });
 });
 

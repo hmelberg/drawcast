@@ -268,6 +268,7 @@ describe("code element — resolver", () => {
       resolveImages: async () => [],
       resolveIcons: async () => [],
       contactEmail: "",
+      style: "sketchy",
     });
     expect(s.elements![0].code_result).toBeUndefined();
     expect(copy.elements![0].code_result).toBeDefined();
@@ -282,6 +283,7 @@ describe("code element — resolver", () => {
       resolveImages: async () => [],
       resolveIcons: async () => [],
       contactEmail: "",
+      style: "sketchy",
     });
     expect(s.elements![0].code).toContain("(1, 50)");
     expect(copy.elements![0].code).toContain("n = 25");
@@ -296,6 +298,7 @@ describe("code element — resolver", () => {
       resolveImages: async () => [],
       resolveIcons: async () => [],
       contactEmail: "",
+      style: "sketchy",
     });
     expect(s.elements![0].code_src).toBeUndefined();
     expect(copy.elements![0].code_src).toBe("n = (1, 50)\nprint(n)");

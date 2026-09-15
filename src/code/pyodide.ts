@@ -13,7 +13,7 @@
 // in the background, and the next queued run still waits for it to complete.
 
 import { PYODIDE_VERSION, type CodeFigure, type CodeRunRequest, type CodeRunResult, type CodeTable } from "./run";
-import { chartPrelude, DEFAULT_CHART_STYLE } from "./chart-style";
+import { chartPrelude, defaultChartStyle } from "./chart-style";
 import { dataHarvestScript, parseHarvest } from "./harvest";
 import { RunQueue } from "./serial";
 import { renderPlotlyFigures } from "./plotly-render";
@@ -231,6 +231,19 @@ if __plt is not None:
 __json.dumps(__figs)
 `;
 
+/** Where the app's handwriting face is served from, as an ABSOLUTE url the
+ *  interpreter can fetch: the prelude runs inside the WASM sandbox and has no
+ *  idea what origin the page came from. Undefined off the browser — node
+ *  tests have no `location` — and the prelude then leaves the font alone. */
+function handFontUrl(): string | undefined {
+  if (typeof location === "undefined") return undefined;
+  try {
+    return new URL("/fonts/patrickhand/PatrickHand-Regular.ttf", location.href).href;
+  } catch {
+    return undefined;
+  }
+}
+
 async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
   const status = req.onStatus ?? (() => undefined);
   status("loading", "Loading Python…");
@@ -239,7 +252,7 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
   await py.loadPackagesFromImports(req.code).catch(() => undefined);
   // The look, before the script and NEVER prepended to it: a traceback must
   // keep naming the line the author wrote.
-  const prelude = chartPrelude(req.chart ?? DEFAULT_CHART_STYLE, req.code, req.language);
+  const prelude = chartPrelude(req.chart ?? defaultChartStyle(undefined), req.code, req.language, { fontUrl: handFontUrl() });
   if (prelude !== "") await py.runPythonAsync(prelude).catch(() => undefined);
   let stdout = "";
   let stderr = "";

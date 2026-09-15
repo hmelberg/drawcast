@@ -5,7 +5,8 @@
 // patch application the render closure uses for both frames and commits.
 import type { Spec, SpecElement } from "../spec/types";
 import { applyControls, parseControls } from "../code/controls";
-import { runCode, type CodeRunDeps } from "../code/run";
+import { defaultChartStyle, runCode } from "../code/run";
+import type { CodeResolveDeps } from "./code";
 import { pathsByCodeId, scanDataTokens } from "../code/tokens";
 import type { Plan } from "./plan";
 import type { CodePatch, SweepRunner } from "./player";
@@ -18,7 +19,7 @@ import type { CodePatch, SweepRunner } from "./player";
  * and the same cache the author's resolve pass and the tray's Run go through,
  * which is what makes the idle precompute below pay off.
  */
-export function sweepRunnerFor(authored: Spec, deps: CodeRunDeps = {}): SweepRunner {
+export function sweepRunnerFor(authored: Spec, deps: CodeResolveDeps = {}): SweepRunner {
   return async (codeId, values) => {
     const el = authored.elements?.find((e) => e.id === codeId);
     // `code_src` FIRST, exactly as controlsOfFor reads it: a spec that has
@@ -33,7 +34,10 @@ export function sweepRunnerFor(authored: Spec, deps: CodeRunDeps = {}): SweepRun
     // swept script would miss the cache the resolve pass filled (and harvest
     // nothing for a "{id.path}" param).
     const paths = pathsByCodeId(scanDataTokens(authored.params))[el.id] ?? [];
-    const result = await runCode({ language: el.language, code, chart: el.chart, paths }, deps);
+    // The chart style resolves the same way the resolve pass resolves it, or
+    // a swept figure would change its LOOK as well as its numbers halfway
+    // through the sweep (and miss the cache the precompute filled).
+    const result = await runCode({ language: el.language, code, chart: el.chart ?? defaultChartStyle(deps.style), paths }, deps);
     // runCode NEVER throws — a boot failure, a timeout, a bug in the script
     // all come back as an ok:false envelope (src/code/run.ts:115-131). A
     // sweep must not paint one: the step that failed holds the PREVIOUS

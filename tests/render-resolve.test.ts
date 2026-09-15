@@ -19,6 +19,7 @@ describe("resolvedRenderSpec — render never writes into the document (B11)", (
     const doc = spec();
     const before = JSON.stringify(doc);
     const out = await resolvedRenderSpec(doc, {
+      style: "sketchy" as const,
       contactEmail: "x@y.z",
       resolvePortraits: async (s) => {
         el(s, 0).strokes = "t2:aa";
@@ -40,6 +41,7 @@ describe("resolvedRenderSpec — render never writes into the document (B11)", (
 
   it("swallows resolver failures — the figure degrades to placeholders, render never throws", async () => {
     const out = await resolvedRenderSpec(spec(), {
+      style: "sketchy" as const,
       contactEmail: "",
       resolvePortraits: async () => {
         throw new Error("no network");
@@ -55,6 +57,7 @@ describe("resolvedRenderSpec — render never writes into the document (B11)", (
   it("passes the contact email through to the source resolver", async () => {
     let seen = "";
     await resolvedRenderSpec(spec(), {
+      style: "sketchy" as const,
       contactEmail: "hans@example.org",
       resolvePortraits: async () => {},
       resolveSources: async (_s, opts) => {

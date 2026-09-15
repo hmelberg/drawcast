@@ -27,7 +27,7 @@
 
 import type { RenderHandle } from "../render";
 import type { SpecElement } from "../spec/types";
-import { decodeCodeResult, runCode } from "../code/run";
+import { decodeCodeResult, defaultChartStyle, runCode } from "../code/run";
 import { pathsByCodeId, scanDataTokens, substituteDataTokens } from "../code/tokens";
 import { decodeFigures } from "../render/decode-figures";
 import { sceneAt } from "../render/plan";
@@ -367,7 +367,10 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       const result = await runCode({
         language: el.language,
         code,
-        chart: el.chart,
+        // The viewer's own run must land in the look the figure is drawn in —
+        // the same default the resolve pass used, or their chart would come
+        // back ruled where the author's was sketched (and miss its cache).
+        chart: el.chart ?? defaultChartStyle(hd.style),
         paths,
         onStatus: (_phase, detail) => announce(el.id, (s) => s.status(detail)),
       });
@@ -1421,7 +1424,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
           const result = await runCode({
             language: el.language,
             code,
-            chart: el.chart,
+            chart: el.chart ?? defaultChartStyle(hd.style), // the answer is drawn in the figure's own hand too
             paths: askPaths(step.expect),
             onStatus: (_phase, detail) => announce(el.id, (s) => s.status(detail)),
           });

@@ -180,8 +180,16 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-measured 2026-09-15 on the merge of the smooth-sweeps round with the
 // template-box round (both additive): pinned to the values measured on the
 // merged tree: schema 117162 → 117746, system 232892 → 233635.
-const BASELINE_SYSTEM_CHARS = 233635;
-const BASELINE_SCHEMA_CHARS = 117746;
+// Re-pinned 2026-09-16 for the hand-drawn round: the code element's `chart`
+// description now says the default FOLLOWS THE DRAWING (hand-drawn → xkcd in
+// the app's own handwriting, clean → seaborn) and that xkcd/seaborn/plain
+// force one — +107 chars on the schema (117746 → 117853), which is embedded
+// verbatim in the system prompt, so the same +107 lands there (233635 →
+// 233742). The same round's rewritten `"chart"` sentence in
+// compiler-v1-code.md is behind the {{CODE}} conditional fragment and costs
+// an ordinary request nothing, so it is not part of these pins.
+const BASELINE_SYSTEM_CHARS = 233742;
+const BASELINE_SCHEMA_CHARS = 117853;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

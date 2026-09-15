@@ -364,6 +364,7 @@ describe("code element — resolver substitutes tokens on the clone", () => {
       resolveImages: async () => [],
       resolveIcons: async () => [],
       contactEmail: "",
+      style: "sketchy",
     });
     expect(JSON.stringify(doc)).toBe(before);
     expect(copy.params!.values).toEqual([[1, 2]]);

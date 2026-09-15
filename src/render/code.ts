@@ -10,10 +10,17 @@
 // clone's params — and applies the skip rule: a script whose output pane is
 // hidden and whose id no token names is never executed (its lines are text).
 
-import { decodeCodeResult, runCode, type CodeRunDeps, type CodeRunResult } from "../code/run";
+import { decodeCodeResult, defaultChartStyle, runCode, type CodeRunDeps, type CodeRunResult } from "../code/run";
 import { pathsByCodeId, scanDataTokens, substituteDataTokens } from "../code/tokens";
 import { withControlDefaults } from "../code/controls";
 import type { Spec, SpecElement } from "../spec/types";
+import type { RenderStyle } from "./svg-backend";
+
+/** The run deps plus the one thing about the FIGURE a script's run depends
+ *  on: how the drawing is being rendered. A chart the author did not style
+ *  follows the drawing's own hand (src/code/chart-style.ts), so the render
+ *  style has to reach every site that starts a run. */
+export type CodeResolveDeps = CodeRunDeps & { style?: RenderStyle };
 
 export interface CodeResolution {
   id: string;
@@ -35,7 +42,7 @@ function paneHidden(el: SpecElement): boolean {
   return el.show === "code" || el.show === "none";
 }
 
-export async function resolveCode(spec: Spec, deps: CodeRunDeps = {}): Promise<CodeResolution[]> {
+export async function resolveCode(spec: Spec, deps: CodeResolveDeps = {}): Promise<CodeResolution[]> {
   const results: CodeResolution[] = [];
   const byId = pathsByCodeId(scanDataTokens(spec.params));
   const codeEls = new Map<string, SpecElement>();
@@ -79,7 +86,7 @@ export async function resolveCode(spec: Spec, deps: CodeRunDeps = {}): Promise<C
       results.push({ id: el.id, ok: false, error: "code element needs language and code" });
       continue;
     }
-    const result = await runCode({ language: el.language, code: el.code, chart: el.chart, paths }, deps);
+    const result = await runCode({ language: el.language, code: el.code, chart: el.chart ?? defaultChartStyle(deps.style), paths }, deps);
     el.code_result = JSON.stringify(result);
     results.push({ id: el.id, ok: result.ok, error: result.error });
   }
