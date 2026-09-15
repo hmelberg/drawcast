@@ -938,6 +938,7 @@ export const specSchema = {
         "Playlist items only: the semantic-zoom entrance. Before this item begins, the PREVIOUS figure zooms into this element id (an id of the PREVIOUS item's scene) and fades there — so the new figure feels like the inside of the old one (heart → cell, bins → bell curve). Replaces the chapter card at that junction.",
     },
     level: { type: "string", enum: ["basic", "advanced"], description: "Difficulty of the explanation, when the request states one. Shown as a badge; omit if unspecified." },
+    record: { type: "boolean", description: "false: keep no local record of the viewer's answers in their browser. Omit (default true)." },
     voice: {
       type: "string",
       enum: ["male", "female"],

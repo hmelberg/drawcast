@@ -707,6 +707,8 @@ export interface Spec {
   zoom_from?: string;
   /** Difficulty badge, shown in playlist navigation (stamped from #basic/#advanced). */
   level?: "basic" | "advanced";
+  /** false: the player keeps no local record of the viewer's answers for this drawcast (render/record.ts). Default true. */
+  record?: boolean;
   /** Narrator gender preference (stamped from #male/#female). In dialogue this is speaker "a"; "b" gets the contrast. */
   voice?: "male" | "female";
   canvas?: { width: number; height: number };

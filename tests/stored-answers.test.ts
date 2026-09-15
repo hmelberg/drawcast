@@ -5,7 +5,9 @@ import { describe, expect, test } from "vitest";
 import { collectSpeakLines } from "../src/export/video";
 import { AnswerCarry, questionCount, questionOffsets } from "../src/playlist/carry";
 import { planCommands } from "../src/render/plan";
-import { Player } from "../src/render/player";
+import { Player, type AnswerEvent } from "../src/render/player";
+import { appendRecord, readRecords, RECORD_PREFIX } from "../src/render/record";
+import { validateSpec } from "../src/spec/schema";
 import { SpeechManager } from "../src/render/speech";
 import type { Command, Spec } from "../src/spec/types";
 
@@ -159,5 +161,45 @@ describe("carry across playlist items", () => {
     expect(lines.map((l) => l.text)).toContain("Hi friend, b, true, b, n=2");
     expect(carry.vars.has("_answers.1.secs")).toBe(false);
     expect(carry.vars.has("name.ok")).toBe(false); // collect mode: nothing judged
+  });
+});
+
+describe("the local record", () => {
+  function memStorage() {
+    const m = new Map<string, string>();
+    return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) };
+  }
+
+  test("records append per cast and survive a broken entry; no storage, no write", () => {
+    const s = memStorage();
+    const rec = { item: 0, step: 2, id: "name", question: "?", given: ["Hans"], expected: "", correct: true, secs: 1.2, at: "2026-09-16T00:00:00Z" };
+    expect(appendRecord(s, "o/r/a.yaml", rec)).toBe(true);
+    expect(appendRecord(s, "o/r/a.yaml", { ...rec, step: 3 })).toBe(true);
+    s.setItem(RECORD_PREFIX + "o/r/b.yaml", "{not json");
+    expect(readRecords(s, "o/r/a.yaml").map((r) => r.step)).toEqual([2, 3]);
+    expect(readRecords(s, "o/r/b.yaml")).toEqual([]);
+    expect(appendRecord(null, "x", rec)).toBe(false);
+  });
+
+  test("the answer event names its id (store, else _answers.N) and its seconds", async () => {
+    const events: AnswerEvent[] = [];
+    const player = new Player(
+      planCommands([{ quiz: { question: "?", choices: ["a", "b"], correct: 1, store: "pick" } }, { ask: { question: "?", answer: "x" } }], []),
+      new Map(),
+      new RecordingSpeech(),
+      null,
+      { mode: "narrated" },
+      { onAnswer: (e) => events.push(e) },
+    );
+    player.quizGate = async () => 0;
+    player.askGate = async () => "x";
+    await player.play();
+    expect(events.map((e) => e.id)).toEqual(["pick", "_answers.2"]);
+    expect(typeof events[0].secs).toBe("number");
+    expect(typeof events[1].secs).toBe("number");
+  });
+
+  test("record: false is a valid spec flag", () => {
+    expect(validateSpec({ elements: [{ id: "a", type: "text", text: "hi", x: 500, y: 375 }], commands: [{ draw: ["a"] }], record: false }).ok).toBe(true);
   });
 });

@@ -27,7 +27,7 @@ describe("quiz answers", () => {
     const { player, events } = makePlayer([QUIZ]);
     player.quizGate = async () => 0;
     await player.play();
-    expect(events).toEqual([{ index: 0, kind: "quiz", question: "Which?", given: ["dative"], expected: "genitive", correct: false }]);
+    expect(events).toMatchObject([{ index: 0, kind: "quiz", question: "Which?", given: ["dative"], expected: "genitive", correct: false }]);
   });
   test("a live right answer reports true", async () => {
     const { player, events } = makePlayer([QUIZ]);
@@ -44,14 +44,14 @@ describe("quiz answers", () => {
   test("a gate-less player (movie, embed) reports nothing", async () => {
     const { player, events } = makePlayer([QUIZ]);
     await player.play();
-    expect(events).toEqual([]);
+    expect(events).toMatchObject([]);
   });
   test("autoAnswers reports nothing even with a gate", async () => {
     const { player, events } = makePlayer([QUIZ]);
     player.autoAnswers = true;
     player.quizGate = async () => 0;
     await player.play();
-    expect(events).toEqual([]);
+    expect(events).toMatchObject([]);
   });
 });
 
@@ -61,7 +61,7 @@ describe("ask answers", () => {
     const tries = ["dativ", "Genitive"];
     player.askGate = async () => tries.shift() ?? null;
     await player.play();
-    expect(events).toEqual([{ index: 0, kind: "ask", question: "Case?", given: ["dativ", "Genitive"], expected: "genitive", correct: true }]);
+    expect(events).toMatchObject([{ index: 0, kind: "ask", question: "Case?", given: ["dativ", "Genitive"], expected: "genitive", correct: true }]);
   });
   test("a wrong answer without retry reports one attempt and false", async () => {
     const { player, events } = makePlayer([{ ask: { question: "Case?", answer: "genitive" } }]);
@@ -73,7 +73,7 @@ describe("ask answers", () => {
     const { player, events } = makePlayer([{ ask: { question: "Your name?", store: "name", default: "friend" } }]);
     player.askGate = async () => "Kari";
     await player.play();
-    expect(events).toEqual([]);
+    expect(events).toMatchObject([]);
   });
   test("skip on a check-mode ask reports no attempt and false", async () => {
     const { player, events } = makePlayer([{ ask: { question: "Case?", answer: "genitive", retry: true, wrong: "No." } }]);
@@ -84,6 +84,6 @@ describe("ask answers", () => {
   test("the auto path reports nothing", async () => {
     const { player, events } = makePlayer([{ ask: { question: "Case?", answer: "genitive" } }]);
     await player.play();
-    expect(events).toEqual([]);
+    expect(events).toMatchObject([]);
   });
 });

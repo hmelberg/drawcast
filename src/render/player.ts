@@ -90,10 +90,14 @@ export interface AnswerEvent {
   /** The step index — the question's slot in this drawcast's plan. */
   index: number;
   kind: "quiz" | "ask";
+  /** The variable the answer was stored under: the explicit store, else `_answers.N`. */
+  id: string;
   question: string;
   given: string[];
   expected: string;
   correct: boolean;
+  /** Seconds from the gate opening to the answer (latest attempt); absent without a live gate. */
+  secs?: number;
 }
 
 export interface PlayerCallbacks {
@@ -200,6 +204,11 @@ export class Player {
    * `ok` null (a collect-mode ask) and `secs` null (no live gate) write no
    * field — and clear a stale one, since latest wins.
    */
+  /** The name an answer event and the record report: the explicit store, else the ordinal's slot. */
+  private answerId(index: number, store: string | undefined): string {
+    return store ? store.toLowerCase() : `${AUTO_NAMESPACE}.${this.ordinalOf.get(index) ?? 0}`;
+  }
+
   private recordAnswer(index: number, store: string | undefined, value: string, ok: boolean | null, secs: number | null): void {
     const fields = (base: string): void => {
       this.vars.set(base, value);
@@ -1136,10 +1145,12 @@ export class Player {
           this.callbacks.onAnswer?.({
             index,
             kind: "quiz",
+            id: this.answerId(index, step.store),
             question: step.question,
             given: chosen === null ? [] : [step.choices[chosen]],
             expected: step.choices[step.correct],
             correct: chosen === step.correct,
+            ...(quizSecs !== null ? { secs: quizSecs } : {}),
           });
         }
         const reveal = step.right ?? step.choices[step.correct];
@@ -1167,11 +1178,11 @@ export class Player {
         const attempts: string[] = [];
         // Seconds from the card opening to the answer, latest attempt wins;
         // null when no viewer sat at a gate (movies, bare players).
-        let askSecs: number | null = null;
+        const timing: { secs: number | null } = { secs: null };
         const timedGate = async (): Promise<string | null> => {
           const from = performance.now();
           const t = await this.askGate!(signal, step);
-          if (!this.autoAnswers) askSecs = (performance.now() - from) / 1000;
+          if (!this.autoAnswers) timing.secs = (performance.now() - from) / 1000;
           return t;
         };
         if (step.widget !== undefined && (this.autoAnswers || !this.askGate)) {
@@ -1221,7 +1232,7 @@ export class Player {
         if (signal.aborted) return;
         // Store BEFORE feedback so the feedback lines may use {store} too.
         // Collect mode has nothing to judge, so no .ok field.
-        this.recordAnswer(index, step.store, typed ?? step.fallback ?? step.answer ?? "", null, askSecs);
+        this.recordAnswer(index, step.store, typed ?? step.fallback ?? step.answer ?? "", null, timing.secs);
         if (step.answer === undefined) return; // collect mode: nothing to judge
         const answer = step.answer;
         const isRight = (t: string | null): boolean => t !== null && answersMatch(t, answer);
@@ -1232,13 +1243,22 @@ export class Player {
           typed = await timedGate();
           if (typed !== null) attempts.push(typed);
           if (signal.aborted) return;
-          if (typed !== null) this.recordAnswer(index, step.store, typed, null, askSecs);
+          if (typed !== null) this.recordAnswer(index, step.store, typed, null, timing.secs);
         }
-        this.recordAnswer(index, step.store, typed ?? step.fallback ?? step.answer ?? "", isRight(typed), askSecs);
+        this.recordAnswer(index, step.store, typed ?? step.fallback ?? step.answer ?? "", isRight(typed), timing.secs);
         this.outcomes.set(index, isRight(typed));
         this.updateScoreVars();
         if (!this.autoAnswers && this.askGate !== null) {
-          this.callbacks.onAnswer?.({ index, kind: "ask", question: step.question, given: attempts, expected: answer, correct: isRight(typed) });
+          this.callbacks.onAnswer?.({
+            index,
+            kind: "ask",
+            id: this.answerId(index, step.store),
+            question: step.question,
+            given: attempts,
+            expected: answer,
+            correct: isRight(typed),
+            ...(timing.secs !== null ? { secs: timing.secs } : {}),
+          });
         }
         // A click question shows WHERE the answer was: the element glows
         // while the answer line is spoken — green when the viewer found it,
