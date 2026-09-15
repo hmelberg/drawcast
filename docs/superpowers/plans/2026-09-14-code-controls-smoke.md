@@ -31,3 +31,5 @@ Run `npm run dev`, open Examples.
    names `zzz` with "no birthplace"; set `n = 5` on a later line → warning.
 8. **Dark mode**: the docked tray reads as part of the figure, border soft,
    no bright outline.
+
+9. **Sliders never toggle play (2026-09-15):** open the controls (tray or the card over a knob panel), press on a slider and release OUTSIDE it — on the figure — repeatedly: playback never resumes or pauses from that gesture. A plain click on the figure still toggles.

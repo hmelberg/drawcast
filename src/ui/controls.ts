@@ -1135,7 +1135,22 @@ export function attachPlayerControls(
   // subtitle band lies across the bottom of it now, and selecting a phrase
   // there to look up ends in a click delivered to the stage. Toggling on that
   // click would pause the drawcast every time a viewer highlighted a word.
-  stage.addEventListener("click", () => {
+  // …and a click that BEGAN on a control is never that gesture either (Hans
+  // 2026-09-15): a slider drag released on the figure delivers its click to
+  // the stage — the two elements' common ancestor — not to the slider, so the
+  // click's own target cannot tell. The pointerdown target can: remember
+  // where the press started and let the click through only when both ends
+  // are on the drawing. Same for a press that started on a button, a field,
+  // the tray, the code card or the controls card.
+  const CONTROL_SELECTOR = "input, button, select, textarea, label, .cs-paramtray, .cs-codeedit, .cs-ctlcard";
+  const onControl = (t: EventTarget | null): boolean => t instanceof Element && t.closest(CONTROL_SELECTOR) !== null;
+  let pressOnControl = false;
+  stage.addEventListener("pointerdown", (e) => (pressOnControl = onControl(e.target)), true);
+  stage.addEventListener("click", (e) => {
+    const began = pressOnControl;
+    pressOnControl = false;
+    if (began || onControl(e.target)) return;
+    if (gateIsOpen(stage)) return; // a question holds the run: its card is the door, not a click beside it
     if (isTextDrag(window.getSelection())) return;
     togglePlay();
   });
