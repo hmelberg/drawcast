@@ -56,7 +56,7 @@ layout: |
   push(kit.pad("key_dash", [430, 150], "−", { r: 42 }));
   push(kit.pad("key_gap", [580, 150], "gap", { w: 100, h: 64 }));
   push(kit.pad("key_send", [730, 150], "send", { w: 100, h: 64 }));
-  push(kit.text("hint", [500, 88], "space: short = dot, long = dash · enter: end letter · enter again: send", { fontSize: 15, color: C.guide }));
+  push(kit.text("hint", [500, 215], "space: short = dot, long = dash · enter: end letter · enter again: send", { fontSize: 15, color: C.guide }));
   push(kit.text("signal", [500, 260], params.signal ?? "", { fontSize: 44, color: C.demand }));
   push(kit.text("decoded", [500, 330], params.decoded ?? "", { fontSize: 34 }));
   if (params.chart !== false) {
