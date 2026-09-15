@@ -434,7 +434,10 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
       prevOnState?.(s);
       if (s !== "playing" || warmed) return;
       warmed = true;
-      const idle = (globalThis as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 300));
+      // Wrapped, never handed over detached: requestIdleCallback is a method
+      // of the global and throws "Illegal invocation" when called bare.
+      const hasIdle = typeof (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback === "function";
+      const idle = hasIdle ? (cb: () => void) => requestIdleCallback(cb) : (cb: () => void) => setTimeout(cb, 300);
       idle(() => void precomputeSweeps(plan, sweepRunner));
     };
   }

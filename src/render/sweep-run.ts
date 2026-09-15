@@ -29,6 +29,11 @@ export function sweepRunnerFor(authored: Spec, deps: CodeRunDeps = {}): SweepRun
     // nothing for a "{id.path}" param).
     const paths = pathsByCodeId(scanDataTokens(authored.params))[el.id] ?? [];
     const result = await runCode({ language: el.language, code, chart: el.chart, paths }, deps);
+    // runCode NEVER throws — a boot failure, a timeout, a bug in the script
+    // all come back as an ok:false envelope (src/code/run.ts:115-131). A
+    // sweep must not paint one: the step that failed holds the PREVIOUS
+    // result (player.ts, case "run"), and that is only reachable by throwing.
+    if (!result.ok) throw new Error(result.error ?? "the script failed");
     return { code, result: JSON.stringify(result) };
   };
 }

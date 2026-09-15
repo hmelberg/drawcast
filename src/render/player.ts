@@ -259,13 +259,16 @@ export class Player {
    * an animate: the drawcast keeps its shape, the figure just does not move.
    */
   sweepRunner: SweepRunner | null = null;
-  /** The live patches, mirrored here so the player can answer without the
-   *  reprojector (the tray asks what a `run` left the script at). */
-  private codePatches = new Map<string, CodePatch>();
-  /** id → the step index that set its patch, so a scrub BEFORE that step can
-   *  take it back (a scrub past a run that never played leaves the authored
-   *  figure — it was never swept). */
-  private patchSteps = new Map<string, number>();
+  /**
+   * id → the patches a `run` has left on that script, oldest first, one entry
+   * per step that set one. A HISTORY, not a single value, because a script
+   * can be swept twice: a scrub to a boundary between two runs must put the
+   * FIRST run's result back, not throw the script away (the authored figure
+   * belongs only before the first run of all). Mirrored here so the player
+   * can answer without the reprojector — the tray asks what a run left the
+   * script at.
+   */
+  private patchHistory = new Map<string, { step: number; patch: CodePatch }[]>();
   /**
    * The layout currently PAINTED, when a preview has replaced the plan-time
    * one. Anything hit-testing drawn geometry — a switch on a monitor's chin,
@@ -449,10 +452,10 @@ export class Player {
   renderUpTo(n: number): void {
     this.abortRun();
     // A sweep's patch belongs to the step that set it: scrubbing to before
-    // that step undoes it (the script goes back to what the author wrote),
-    // scrubbing past it keeps it. Dropped BEFORE the jump, so the boundary
-    // commit below is laid out from the unpatched script.
-    for (const [id, s] of [...this.patchSteps]) if (s >= n) this.setCodePatch(id, null, -1);
+    // that step undoes it (back to the previous run's result, or to what the
+    // author wrote), scrubbing past it keeps it. Dropped BEFORE the jump, so
+    // the boundary commit below is laid out from the right script.
+    this.dropPatchesFrom(n);
     this.jumpTo(n, false);
   }
 
@@ -553,7 +556,8 @@ export class Player {
    *  open its knobs where the sweep stopped instead of at the author's
    *  defaults. */
   codePatchOf(id: string): CodePatch | null {
-    return this.codePatches.get(id) ?? null;
+    const hist = this.patchHistory.get(id);
+    return hist && hist.length > 0 ? hist[hist.length - 1].patch : null;
   }
 
   /** The elements a frame must be laid out from while a sweep is live. */
@@ -561,20 +565,45 @@ export class Player {
     return this.reprojector?.patchedElements?.();
   }
 
-  /** Set (or clear, with null) one script's patch: the render closure's copy
-   *  and the player's mirror move together, and the geometry is marked dirty
-   *  so the next boundary commits the patched layout even when its params
-   *  compare equal to what is mounted. */
-  private setCodePatch(id: string, patch: CodePatch | null, step: number): void {
-    if (patch) {
-      this.codePatches.set(id, patch);
-      this.patchSteps.set(id, step);
-    } else {
-      this.codePatches.delete(id);
-      this.patchSteps.delete(id);
-    }
+  /** Record one script's patch at the step that made it, and show it. Within
+   *  a step the newest wins (a sweep sets one per value, and only its last is
+   *  a boundary's state) — so the history holds one entry per (id, step) and
+   *  never grows with the length of a sweep. */
+  private pushCodePatch(id: string, patch: CodePatch, step: number): void {
+    const hist = this.patchHistory.get(id) ?? [];
+    if (hist.length > 0 && hist[hist.length - 1].step === step) hist[hist.length - 1] = { step, patch };
+    else hist.push({ step, patch });
+    this.patchHistory.set(id, hist);
+    this.showCodePatch(id, patch);
+  }
+
+  /** Hand one script's patch (or null, the authored script) to the render
+   *  closure, and mark the geometry dirty so the next boundary commits the
+   *  patched layout even when its params compare equal to what is mounted. */
+  private showCodePatch(id: string, patch: CodePatch | null): void {
     this.reprojector?.setCodePatch?.(id, patch);
     this.geometryDirty = true;
+  }
+
+  /** Take back every patch a step at or after `n` made — a scrub to before
+   *  the run that made it. What the EARLIER runs left stands: the newest
+   *  surviving entry goes back on screen, and only a script with no entry
+   *  left returns to what the author wrote. */
+  private dropPatchesFrom(n: number): void {
+    for (const [id, hist] of [...this.patchHistory]) {
+      let dropped = false;
+      while (hist.length > 0 && hist[hist.length - 1].step >= n) {
+        hist.pop();
+        dropped = true;
+      }
+      if (!dropped) continue;
+      if (hist.length === 0) {
+        this.patchHistory.delete(id);
+        this.showCodePatch(id, null);
+      } else {
+        this.showCodePatch(id, hist[hist.length - 1].patch);
+      }
+    }
   }
 
   /** The viewer's runtime var-animate values (path → number) — the tray
@@ -865,15 +894,17 @@ export class Player {
         // stalls between values is not a sweep, it is a slideshow of spinners.
         // The idle precompute (render/index.ts) has usually filled the cache
         // by now, so this loop is a cache read per step.
-        const results: { code: string; result: string }[] = [];
+        const results: CodePatch[] = [];
         for (const v of step.values) {
           try {
-            results.push(await runner(step.code, v));
+            results.push({ ...(await runner(step.code, v)), values: v });
           } catch (err) {
             // A step that failed HOLDS the previous result: the figure stops
-            // moving rather than blanking out mid-sweep.
+            // moving rather than blanking out mid-sweep. The held entry is
+            // reused WHOLE — its own values with its own script, or the tray
+            // would open knobs that never produced the code on screen.
             console.warn(`[run ${step.code}] step failed: ${(err as Error).message}`);
-            results.push(results[results.length - 1] ?? { code: "", result: "" });
+            results.push(results[results.length - 1] ?? { code: "", result: "", values: v });
           }
           if (signal.aborted) return;
         }
@@ -890,7 +921,7 @@ export class Player {
           while (last < k) {
             last++;
             // code === "" is "nothing ever succeeded": leave the authored script alone.
-            if (results[last].code !== "") this.setCodePatch(step.code, { ...results[last], values: step.values[last] }, index);
+            if (results[last].code !== "") this.pushCodePatch(step.code, results[last], index);
           }
           // revealNew: a fresh envelope mints rows the authored run never had.
           rp.frame(this.withVarOverrides(scene.params), this.frameScene(scene), { revealNew: true, elements: this.patchedElements(), overrides });
