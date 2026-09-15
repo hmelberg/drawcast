@@ -17,7 +17,12 @@ export type WidgetEvent =
   /** A key the body declared, on release (spec §2.2 addendum 2026-09-15):
    *  `key` is the DOM KeyboardEvent.key, `ms` how long it was held — one
    *  key can be both a dot and a dash. */
-  | { type: "key"; key: string; ms: number };
+  | { type: "key"; key: string; ms: number }
+  /** A press that moved ≥ DRAG_MIN before release (spec §2.2 addendum
+   *  2026-09-15b): `id` is the part pressed, `to` the part under the release
+   *  point — null on blank paper, and it may equal `id`. `point`/`domain` are
+   *  where it was let go. */
+  | { type: "drag"; id: string; to: string | null; point: Pt; domain: Pt | null };
 
 export interface WidgetScene {
   /** The widget's parts: the template layout's top-level ids at these params. */

@@ -1,4 +1,4 @@
-// tests/widget-player-api.test.ts — source pins: the three wrappers exist and route through the private machinery.
+// tests/widget-player-api.test.ts — source pins: the four wrappers exist and route through the private machinery.
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 
@@ -16,6 +16,12 @@ describe("Player: the widget host's public surface", () => {
     const body = src.slice(src.indexOf("async tapAt("), src.indexOf("async tapAt(") + 700);
     expect(body).toContain('pointerPath({ x: box.x + box.w / 2, y: box.y + box.h / 2, box }, "tap")');
     expect(body).toContain("effects.setPointer(null)");
+  });
+  test("nudge(id, dx, dy) ghosts a part on TOP of the offset its boundary already gave it", () => {
+    expect(src).toMatch(/^\s+nudge\(id: string, dx: number, dy: number\): void/m);
+    const body = src.slice(src.indexOf("nudge(id: string"), src.indexOf("nudge(id: string") + 400);
+    expect(body).toContain("this.stateAt(this.completed).offsets[id] ?? [0, 0]");
+    expect(body).toContain("el.setOffset(base[0] + dx, base[1] + dy)");
   });
   test("caption(text | null) writes the band or restores the source caption", () => {
     expect(src).toMatch(/^\s+caption\(text: string \| null\): void/m);

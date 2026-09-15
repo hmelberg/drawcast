@@ -1,6 +1,7 @@
 // Stepping a widget body, and the node harness authors and the examples gate
 // run a click sequence through (spec §2.8). Nothing here touches the DOM.
 import { hitElement } from "../ui/hit";
+import type { Pt } from "../layout/model";
 import { validateEffects, type WidgetEffect } from "./widget-effects";
 import { buildWidgetScene, paramNamesOf, type WidgetSceneOpts } from "./widget-scene";
 import type { SceneModule } from "./types";
@@ -23,6 +24,9 @@ export function stepWidget(body: WidgetBody, state: unknown, event: WidgetEvent,
 
 /** A key event for the harness and the tests: the key, held `ms`. */
 export const keyEvent = (key: string, ms: number): WidgetEvent => ({ type: "key", key, ms });
+
+/** A drag for the harness and the tests: `id` dropped on `to` (null = blank paper). */
+export const dragEvent = (id: string, to: string | null, point: Pt = [0, 0]): WidgetEvent => ({ type: "drag", id, to, point, domain: null });
 
 export interface WidgetRun {
   states: unknown[];

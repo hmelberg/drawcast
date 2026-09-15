@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { compileTemplateDoc } from "../src/scenes/compile";
 import { buildWidgetScene, paramNamesOf } from "../src/scenes/widget-scene";
-import { demoWidget, keyEvent, partAt, runWidget, stepWidget } from "../src/scenes/widget-run";
+import { demoWidget, dragEvent, keyEvent, partAt, runWidget, stepWidget } from "../src/scenes/widget-run";
 import type { TemplateDoc } from "../src/scenes/doc";
 
 // A two-pad counter: dot adds ".", gap commits the count as the answer.
@@ -122,6 +122,17 @@ describe("runWidget — the harness", () => {
     expect(r.errors).toEqual([]);
     expect(r.states.at(-1)).toEqual({ s: ".-" });
     expect(r.params).toEqual({ signal: ".-" });
+  });
+
+  test("a drag event reaches on() with the part it was dropped on", () => {
+    const dragged = compileTemplateDoc({ ...doc, widget: `
+      const init = () => ({ last: "" });
+      const on = (ev, st) => ev.type === "drag" ? { state: { last: ev.id + ">" + ev.to }, effects: [{ patch: { signal: ev.id + ">" + ev.to } }] } : { state: st, effects: [] };
+      return { init, on };` } as TemplateDoc).module!;
+    const r = runWidget(dragged, {}, [dragEvent("dot", "gap"), dragEvent("gap", null)]);
+    expect(r.errors).toEqual([]);
+    expect(r.states).toEqual([{ last: "dot>gap" }, { last: "gap>null" }]);
+    expect(r.params).toEqual({ signal: "gap>null" });
   });
 
   test("an unknown part id is an error, not a throw", () => {

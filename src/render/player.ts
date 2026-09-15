@@ -616,6 +616,15 @@ export class Player {
     return this.painted;
   }
 
+  /** Move a rendered part by (dx, dy) on top of whatever offset the current
+   *  boundary already gave it — a widget's drag ghost. (0, 0) restores it. */
+  nudge(id: string, dx: number, dy: number): void {
+    const el = this.elements.get(id);
+    if (!el?.setOffset) return;
+    const base = this.stateAt(this.completed).offsets[id] ?? [0, 0];
+    el.setOffset(base[0] + dx, base[1] + dy);
+  }
+
   /**
    * Add-on hook (the identify drill, ui/quiz.ts): dim these ids to alpha, or
    * restore them with alpha 1. Rides on the focus verb's primitive and, like
