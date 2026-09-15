@@ -119,8 +119,15 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // "Pack available but not enabled" line carries, and naming the three new
 // figures in it is +39 chars on the system prompt (225132 → 225171). The
 // schema is untouched (110309 stays 110309).
-const BASELINE_SYSTEM_CHARS = 225171;
-const BASELINE_SCHEMA_CHARS = 110309;
+// Re-pinned 2026-09-15 for the template box round: one sentence on params.box
+// in the schema (+322 on the schema, 110309 → 110631, which lands on the
+// system prompt too since the schema is embedded verbatim), one sentence in
+// compiler-v1.md's scene-template list item, and one clause in
+// compiler-v1-code.md's data-from-code bullet (behind the {{CODE}}
+// conditional, so it costs an ordinary request nothing) — net system-prompt
+// growth 225171 → 225768 (+597).
+const BASELINE_SYSTEM_CHARS = 225768;
+const BASELINE_SCHEMA_CHARS = 110631;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {
@@ -194,5 +201,13 @@ describe("prompt budget (spec §6.3)", () => {
     // Ordinary explanations still pay nothing for the code block.
     expect(wantsCode("Hvorfor er himmelen blå?")).toBe(false);
     expect(wantsCode("Forklar inflasjon for en nybegynner")).toBe(false);
+  });
+});
+
+describe("template box in the prompt (spec 2026-09-15-template-box §10)", () => {
+  test("the compiler learns params.box by its region names, in the main prompt, the code prompt and the schema", () => {
+    expect(system(false)).toContain('"box": "right"');
+    expect(system(true)).toContain('"box": "left"` puts the figure on the left');
+    expect(JSON.stringify(apiSchema())).toContain('Any template also takes \\"box\\"');
   });
 });
