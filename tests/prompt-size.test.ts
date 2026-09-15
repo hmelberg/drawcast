@@ -119,8 +119,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // "Pack available but not enabled" line carries, and naming the three new
 // figures in it is +39 chars on the system prompt (225132 → 225171). The
 // schema is untouched (110309 stays 110309).
-const BASELINE_SYSTEM_CHARS = 225171;
-const BASELINE_SCHEMA_CHARS = 110309;
+// Re-pinned 2026-09-15 for the sweep round: `run` verb + `explore.play` in
+// the schema (+6,479), the run bullet and the rewritten explore/controls
+// sentences in the prompts (+615) — schema 110309 → 116788, system
+// 225171 → 232265.
+const BASELINE_SYSTEM_CHARS = 232265;
+const BASELINE_SCHEMA_CHARS = 116788;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

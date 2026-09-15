@@ -251,13 +251,15 @@ export interface SpecElement {
    *  control literal — `(min, max[, step])`, `["a", "b"]`, `True`/`False`, a
    *  string, a number — or as `Slider(...)`/`Choice(...)`/`Toggle(...)`/
    *  `Text(...)`/`Number(...)`/`Button(...)`. The literal's default (midpoint of
-   *  a range) is what the baked run and the movie show. */
+   *  a range) is what the baked run and the movie show — at their defaults,
+   *  or wherever a `run` or the explore demo left them. */
   controls?: string[];
   /** code: re-run on every control change (default true); false shows a Run button instead. */
   autorun?: boolean;
   /** code: what the pane holds — code (default: the script's lines) or controls (the
    *  script's `controls` drawn as knobs and switches, live while paused; the movie
-   *  shows them at their defaults). Use with show: left/right/above/below. */
+   *  shows them at their defaults, or wherever a `run` or the explore demo left them).
+   *  Use with show: left/right/above/below. */
   pane?: "code" | "controls";
   // source (a book cover, a paper's title page, or one page of either)
   /** DOI of a paper — resolved to its open-access PDF via OpenAlex/Unpaywall. */
