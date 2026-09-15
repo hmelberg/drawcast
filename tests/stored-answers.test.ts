@@ -8,6 +8,7 @@ import { planCommands } from "../src/render/plan";
 import { Player, type AnswerEvent } from "../src/render/player";
 import { appendRecord, readRecords, RECORD_PREFIX } from "../src/render/record";
 import { validateSpec } from "../src/spec/schema";
+import { lintCommands, questionNames } from "../src/lint/lint";
 import { SpeechManager } from "../src/render/speech";
 import type { Command, Spec } from "../src/spec/types";
 
@@ -201,5 +202,34 @@ describe("the local record", () => {
 
   test("record: false is a valid spec flag", () => {
     expect(validateSpec({ elements: [{ id: "a", type: "text", text: "hi", x: 500, y: 375 }], commands: [{ draw: ["a"] }], record: false }).ok).toBe(true);
+  });
+});
+
+describe("the ask-var lint", () => {
+  const askVar = (spec: Spec, opts?: Parameters<typeof lintCommands>[1]) => lintCommands(spec, opts).filter((i) => i.rule === "ask-var");
+  const spec = {
+    elements: [],
+    commands: [
+      { quiz: { question: "?", choices: ["a", "b"], correct: 1 } },
+      { ask: { question: "?", store: "age", default: "20" } },
+      { speak: "{_answers.1} {_answers.1.secs} {_answers.last} {_answers.count} {age} {age.secs} {name} {name.ok} {score}" },
+    ],
+  } as unknown as Spec;
+
+  test("dotted and _answers tokens never warn; a carried name is known; a stranger is flagged once with the automatic names listed", () => {
+    const issues = askVar(spec, { knownVars: new Set(["name"]), questionOffset: 4 });
+    expect(issues).toEqual([]);
+    const cold = askVar(spec);
+    expect(cold).toHaveLength(2); // {name} and {name.ok} — one line each
+    expect(cold[0].message).toContain("{name}");
+    expect(cold[0].message).toContain("_answers.1 (quiz at commands[0])");
+    expect(cold[0].message).toContain("age (ask at commands[1], also _answers.2)");
+  });
+
+  test("questionNames lists every question's automatic name from an offset", () => {
+    expect(questionNames(spec, 4)).toEqual([
+      { index: 0, kind: "quiz", name: "_answers.5" },
+      { index: 1, kind: "ask", name: "_answers.6", store: "age" },
+    ]);
   });
 });

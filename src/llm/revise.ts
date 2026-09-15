@@ -15,7 +15,8 @@ import { validateSpec } from "../spec/schema";
 import { hoistPortraitStrokes, restorePortraitStrokes } from "./hoist";
 import { layoutSpec } from "../layout/layout";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
-import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
+import { lintCommands, questionNames, lintReportText, type LintIssue } from "../lint/lint";
+import { questionCount } from "../playlist/carry";
 import { callForText, describeApiError, makeClient, type Effort } from "./client";
 import { apiSchema, CODE_PROMPT_SOURCE, SOUND_PROMPT_SOURCE, fewshotsText, needsRepair, repairModelFor, type PromptVariant } from "./compile";
 import { catalogParts } from "../scenes/catalog";
@@ -55,6 +56,10 @@ export function checkPlaylist(playlist: Playlist, measure: MeasureFn = heuristic
   if (items.length === 0) return { errors: ["the document has no drawable items"], lintIssues: [] };
   const errors: string[] = [];
   const lintIssues: LintIssue[] = [];
+  // Stored answers survive the cut between items (playlist/carry.ts), so a
+  // {name} in item 3 that item 1 stored is not "used before stored".
+  const known = new Set<string>();
+  let offset = 0;
   for (const item of items) {
     const where = items.length > 1 ? `item ${item.index + 1}: ` : "";
     const v = validateSpec(item.spec);
@@ -64,7 +69,9 @@ export function checkPlaylist(playlist: Playlist, measure: MeasureFn = heuristic
     }
     try {
       lintIssues.push(...layoutSpec(item.spec, measure).issues);
-      lintIssues.push(...lintCommands(item.spec));
+      lintIssues.push(...lintCommands(item.spec, { knownVars: known, questionOffset: offset }));
+      for (const q of questionNames(item.spec)) if (q.store) known.add(q.store.toLowerCase());
+      offset += questionCount(item.spec);
     } catch (err) {
       errors.push(`${where}layout failed: ${(err as Error).message}`);
     }
