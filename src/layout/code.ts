@@ -62,6 +62,27 @@ export const PAD = 16;
 /** Typing speed of the `type` draw mode, characters per second. */
 export const TYPE_CPS = 28;
 
+/**
+ * Does this print-out line up in COLUMNS? The one question that decides
+ * whether the output pane is written in the figure's hand or in the
+ * typewriter face: handwriting is proportional, so a table drawn in it stops
+ * being a table, while `mean: 0.5` reads better in the drawing's own ink.
+ *
+ * Two shapes count. Aligned columns: at least two lines carry a run of two or
+ * more spaces (or a tab) AFTER a non-space character — what pandas, a
+ * `print(f"{a:>8}")` loop and a `describe()` all produce; leading indentation
+ * alone is prose, not a column. A DRAWN table: a pipe with text on both sides
+ * of it, twice or more — either two rows of `| a | b |`, or one row with two
+ * inner pipes.
+ */
+export function looksTabular(stdout: string): boolean {
+  const lines = stdout.split("\n");
+  const columns = lines.filter((l) => /\S[^\n]*?(?: {2,}|\t)/.test(l)).length;
+  if (columns >= 2) return true;
+  // Lookahead, not a consumed character: `a | b | c` must count twice.
+  return (stdout.match(/\S[ \t]*\|(?=[ \t]*\S)/g) ?? []).length >= 2;
+}
+
 /** One highlighter pass over the code: the drawn text to cover, and how. */
 export interface CodeMark {
   text: string;
@@ -396,6 +417,16 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       for (const row of wrapCodeLine(result.stderr.trim(), outMax)) outTextLines.push({ text: row, color: COLORS.guide });
     }
   }
+  // What a script PRINTS is part of the drawing, so it is written in the
+  // figure's own hand — `font` left off, which is the sketch face. Two kinds
+  // of print-out still need the typewriter: anything that lines up in
+  // COLUMNS (a pandas describe(), a hand-drawn ascii table — a proportional
+  // face throws away the alignment that IS the information), and a failure,
+  // whose traceback carries indentation and a caret under the offending
+  // character. The wrap width above stays on the mono metric either way: the
+  // sketch face is narrower per character, so a row that fits as code fits as
+  // handwriting too.
+  const outFont: "mono" | undefined = failed || looksTabular(result?.stdout ?? "") ? "mono" : undefined;
   const rawFigures = failed || !result ? [] : result.figures;
   const rawTables = failed || !result ? [] : result.tables ?? [];
   const figW = outPaneW - 2 * PAD;
@@ -774,7 +805,8 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
           text: block.rows.join(" "),
           fontSize,
           anchor: "start",
-          font: "mono",
+          // …and no `font` at all is the sketch hand (layout/model.ts:111).
+          ...(outFont ? { font: outFont } : {}),
           z: Z_TEXT,
           style: resolveStyle(el.style, outRows[i]?.color ? { color: outRows[i].color } : {}),
           drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),

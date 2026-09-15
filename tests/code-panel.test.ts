@@ -7,7 +7,7 @@ import { describe, expect, test } from "vitest";
 import { validateSpec } from "../src/spec/schema";
 import { lintCommands } from "../src/lint/lint";
 import { elementBBoxes, layoutSpec } from "../src/layout/layout";
-import { frameSpace } from "../src/layout/code";
+import { frameSpace, looksTabular } from "../src/layout/code";
 import { heuristicMeasure } from "../src/layout/measure";
 import { flattenDrawables, type TextDrawable } from "../src/layout/model";
 import { planCommands } from "../src/render/plan";
@@ -72,6 +72,69 @@ describe("code panel layouts", () => {
     const outs = flattenDrawables(l.drawables).filter((d) => d.id.startsWith("c1__out")) as TextDrawable[];
     expect(outs[0].text).toBe("…");
     expect(outs[outs.length - 1].text).toBe("row 11");
+  });
+});
+
+describe("the print-out is written in the figure's own hand (unless it is columns)", () => {
+  const out = (stdout: string) =>
+    flattenDrawables(layoutSpec(spec({ show: "below", code_result: JSON.stringify({ ok: true, stdout, stderr: "", figures: [] }) }), heuristicMeasure).drawables).filter(
+      (d) => d.id.startsWith("c1__out"),
+    ) as TextDrawable[];
+
+  test("looksTabular reads the SHAPE of the text, not its content", () => {
+    expect(looksTabular("mean: 0.5\npeak: 3")).toBe(false);
+    expect(looksTabular("")).toBe(false);
+    expect(looksTabular("The mean is 0.5, which is what theory says.")).toBe(false);
+    // Aligned columns: a run of 2+ spaces (or a tab) after a non-space, twice.
+    expect(looksTabular("a   b   c\n1   2   3")).toBe(true);
+    expect(looksTabular("a\tb\n1\t2")).toBe(true);
+    // One aligned line is not a table — a stray double space is not columns.
+    expect(looksTabular("a   b\nplain prose here")).toBe(false);
+    // Leading indentation is prose, not a column.
+    expect(looksTabular("    indented\n    also indented")).toBe(false);
+    // A drawn table, pipes with text on both sides.
+    expect(looksTabular("| a | b |\n| 1 | 2 |")).toBe(true);
+    expect(looksTabular("a | b | c")).toBe(true);
+  });
+
+  test("a plain stdout line takes the sketch face; a tabular one keeps the typewriter", () => {
+    const plain = out("mean: 0.5\npeak: 3");
+    expect(plain.length).toBeGreaterThan(0);
+    for (const d of plain) expect(d.font).toBeUndefined();
+    const table = out("year   gdp\n2010   87\n2020   67");
+    expect(table.length).toBeGreaterThan(0);
+    for (const d of table) expect(d.font).toBe("mono");
+  });
+
+  test("a failure keeps mono — a traceback's indentation and caret only line up there", () => {
+    const failed = flattenDrawables(
+      layoutSpec(
+        spec({ show: "below", code_result: JSON.stringify({ ok: false, stdout: "", stderr: "", figures: [], error: "NameError: name 'x' is not defined" }) }),
+        heuristicMeasure,
+      ).drawables,
+    ).filter((d) => d.id.startsWith("c1__out")) as TextDrawable[];
+    expect(failed.length).toBeGreaterThan(0);
+    for (const d of failed) expect(d.font).toBe("mono");
+  });
+
+  test("the code pane is still a typewriter — only the OUTPUT follows the hand", () => {
+    const line = textOf(spec({ show: "left", code: eight, code_result: OK }), "c1_line_1");
+    expect(line.font).toBe("mono");
+  });
+
+  test("a drawn DataFrame table and its '… N more rows' line stay mono", () => {
+    const withTable = JSON.stringify({
+      ok: true,
+      stdout: "done",
+      stderr: "",
+      figures: [],
+      tables: [{ columns: ["c"], rows: [["1"], ["2"]], truncated: 40 }],
+    });
+    const cells = flattenDrawables(layoutSpec(spec({ show: "below", code_result: withTable }), heuristicMeasure).drawables).filter((d) =>
+      d.id.includes("__tbl"),
+    ) as TextDrawable[];
+    expect(cells.some((d) => d.id.endsWith("__tmore"))).toBe(true);
+    for (const d of cells.filter((d) => d.kind === "text")) expect(d.font).toBe("mono");
   });
 });
 
