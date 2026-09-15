@@ -2,6 +2,18 @@
 
 Status: implemented 2026-09-15 on branch worktree-template-box (plan: docs/superpowers/plans/2026-09-15-template-box.md). Hans's smoke test of the SIR cast on a phone is the remaining acceptance step.
 
+Delivered with these deviations (2026-09-15):
+(a) the acceptance cast (§11) is `show: "below"` with `lines: 8`, not a
+side-by-side panel — a side-by-side (`show: "left"/"right"`) panel needs the
+whole canvas width and cannot share a page with a figure at all (final fix
+wave, item 4).
+(b) §7's "a note (not a warn) when placed labels spill outside the box" was
+not implemented — `LintIssue.severity` has no "note" level; struck below.
+(c) with no `domain`, planner and freehand coordinates are canvas
+coordinates and never follow the fit (tier-3 rule; final fix wave, item 3).
+(d) the `fit-scale` lint's `ids` is `[]`, not `[template]` — a template name
+is not an element id (final fix wave, item 7, matching `template-params`).
+
 ## 1. What this is
 
 A `box` that every template accepts, so a template can take one region of
@@ -177,7 +189,7 @@ answer may have changed under the live-controls and widgets rounds.
 New rule `fit-scale`, severity `warn`, when a fitted template's scale is
 below 0.5: "template <t> is fitted at <s> into box <name|rect>; labels are
 held at the floor — give it a taller region, or use a template with a
-native box". A note (not a warn) when placed labels spill outside the box.
+native box".
 
 `overlap-code-figure` keeps its message but its "give the template a box"
 hint is now true for every template; reword the hint to name the regions.
