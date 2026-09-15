@@ -258,6 +258,28 @@ describe("widgetHostFor — the gesture", () => {
     expect(host.release([900, 700])).toBeNull();
     expect(calls).toEqual([]);
   });
+
+  // The stage's cursor reads this ALONE to swap a grab for a grabbing hand
+  // (widget-host.test.ts's "cursor affordances" group pins that it does) —
+  // so every edge DRAG_MIN decides at release must show up here too.
+  test("dragging() is false at rest, false under DRAG_MIN, true past it, and false again after release or cancel", () => {
+    const { hd } = fakeHandle();
+    const host = widgetHostFor(hd, { nudge: () => undefined })!;
+    expect(host.dragging()).toBe(false); // nothing pressed
+    expect(host.press([300, 400])).toBe(true);
+    expect(host.dragging()).toBe(false); // pressed, not yet moved
+    host.move([302, 401]); // under DRAG_MIN
+    expect(host.dragging()).toBe(false);
+    host.move([340, 410]); // past DRAG_MIN
+    expect(host.dragging()).toBe(true);
+    host.release([340, 410]);
+    expect(host.dragging()).toBe(false); // released
+    host.press([300, 400]);
+    host.move([340, 410]);
+    expect(host.dragging()).toBe(true);
+    host.cancel();
+    expect(host.dragging()).toBe(false); // cancelled
+  });
 });
 
 // The stage's press guard, as a truth table rather than a source pin. It was
@@ -494,10 +516,42 @@ describe("attachWidgetHost — source pins", () => {
     expect(a).toBeGreaterThan(-1);
     expect(a).toBeLessThan(b);
   });
-  test("the hover class asks the widget only while paused — over() builds a scene, and the movie must not pay for it on every pointer move", () => {
-    expect(infocard).toContain('const on = hd.timeline.state !== "playing" && (targetAt(e) !== null || overWidget(e));');
+  // The clause is now "playing AND not under the widget's own gate" — an ask
+  // never leaves state "playing" (pressBlocked's own regression above), so
+  // without the `own` escape the hand could never show while a question on
+  // the widget's own figure was standing, over() cost included.
+  test("the hover class asks the widget while paused OR under the widget's own gate — over() builds a scene, and the plain movie must not pay for it on every pointer move", () => {
+    expect(infocard).toContain('const own = stage.querySelector(".cs-widgetgate") !== null;');
+    expect(infocard).toContain('const on = (hd.timeline.state !== "playing" || own) && (targetAt(e) !== null || overWidget(e));');
   });
   test("the info card stands aside for widget parts", () => {
     expect(infocard).toMatch(/widgetHost\?\.over\(p\)\) return null/);
+  });
+
+  // cursor affordances: a grab while a part is held, a grabbing hand once
+  // the gesture crosses DRAG_MIN — the widget host's own classes (cs-cardable
+  // stays infocard.ts's, per the two tests above).
+  describe("cursor affordances", () => {
+    test("cs-grabbable goes on the moment press() succeeds", () => {
+      const down = src.slice(src.indexOf('stage.addEventListener("pointerdown"'), src.indexOf('stage.addEventListener("pointermove"'));
+      expect(down).toMatch(/if \(!p \|\| !host\.press\(p\)\) return;[\s\S]*stage\.classList\.add\("cs-grabbable"\);/);
+    });
+    test("pointermove swaps grabbable for grabbing, reading host.dragging() alone", () => {
+      const move = src.slice(src.indexOf('stage.addEventListener("pointermove"'), src.indexOf("const end = (e: PointerEvent"));
+      expect(move).toContain("host.dragging()");
+      expect(move).toContain('stage.classList.replace("cs-grabbable", "cs-grabbing")');
+    });
+    test("end() drops both classes, on the normal release and the cancelled path alike", () => {
+      const end = src.slice(src.indexOf("const end = (e: PointerEvent"), src.indexOf('stage.addEventListener("pointerup"'));
+      // Placed before the `if (cancelled)` branch: both paths run it.
+      expect(end.indexOf('stage.classList.remove("cs-grabbable", "cs-grabbing")')).toBeLessThan(end.indexOf("if (cancelled)"));
+    });
+    test("a lost pointer capture — the path that never reaches end() — clears both classes too", () => {
+      const lost = src.slice(src.indexOf('stage.addEventListener("lostpointercapture"'));
+      expect(lost).toContain('stage.classList.remove("cs-grabbable", "cs-grabbing")');
+    });
+    test("dragging() is on the WidgetHost interface", () => {
+      expect(src).toMatch(/dragging\(\):\s*boolean;/);
+    });
   });
 });

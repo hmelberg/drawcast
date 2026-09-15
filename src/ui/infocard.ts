@@ -500,8 +500,12 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost
   stage.addEventListener("pointermove", (e) => {
     // The short-circuit ORDER is the point: asking the widget host builds its
     // scene, and this handler runs on every pointer move. While the movie
-    // plays nothing is clickable, so the question is never asked.
-    const on = hd.timeline.state !== "playing" && (targetAt(e) !== null || overWidget(e));
+    // plays nothing is clickable, so the question is never asked — except
+    // under the widget's OWN gate, where working the figure IS the question.
+    // targetAt still returns null under any open gate (kept, below), so
+    // under that gate only overWidget can turn the hand on, which is right.
+    const own = stage.querySelector(".cs-widgetgate") !== null;
+    const on = (hd.timeline.state !== "playing" || own) && (targetAt(e) !== null || overWidget(e));
     stage.classList.toggle("cs-cardable", on);
   });
 }

@@ -412,6 +412,7 @@ function figureGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSign
       let settled = false;
       const remove = (): void => {
         signal.removeEventListener("abort", onAbort);
+        stage.classList.remove("cs-cardable");
         gate.remove();
       };
       const onAbort = (): void => {
@@ -421,6 +422,20 @@ function figureGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSign
           resolve(null);
         }
       };
+      // The hand cursor through the overlay: infocard.ts's own toggle always
+      // reads targetAt() as null while ANY gate is open (by design — cards
+      // stand aside for a question), so a plain click-ask needs its own. Same
+      // hit test the click uses, and stopped from bubbling so infocard's
+      // stage-level listener never runs right after it and undoes the class
+      // within the same event (its target-phase placement on the gate always
+      // fires first; without stopPropagation infocard's "no gate of mine is
+      // open" answer would win every time).
+      gate.addEventListener("pointermove", (e) => {
+        e.stopPropagation();
+        const p = logicalPoint(stage, e);
+        const on = p !== null && hitElement(boxes, p, 18, rings) !== null;
+        stage.classList.toggle("cs-cardable", on);
+      });
       gate.addEventListener("click", (e) => {
         e.stopPropagation();
         if (settled) return;
