@@ -14,7 +14,9 @@ import { dependentsMap, sourceIds } from "../spec/deps";
 import { boxAnchor } from "../layout/anchors";
 import { isEmptyOverrides, overridesKey, type LayoutOverrides } from "../layout/posed";
 import type { LabelPin } from "../layout/labels";
-import { Player, type PlaybackMode, type PlayerCallbacks } from "./player";
+import { Player, type CodePatch, type PlaybackMode, type PlayerCallbacks } from "./player";
+import { applyCodePatches, precomputeSweeps, sweepRunnerFor } from "./sweep-run";
+import { stableHash } from "./sweep";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { WebAudioTones, type ToneLike } from "./tones";
 import { resolvePortraits } from "./portrait";
@@ -278,6 +280,14 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // plan-time bboxes) are cached; per-frame layouts are NOT (every tween tick
   // is a distinct param set — caching them would hoard hundreds of layouts).
   const boundaryLayouts = new Map<string, LayoutResult>();
+  // A `run`'s live patches (spec 2026-09-15 §4.2): the swept script and its
+  // fresh envelope, in place of the authored ones. Applied to FRAMES and to
+  // BOUNDARY COMMITS alike — a commit that dropped them would snap the figure
+  // back to the author's script at the end of every sweep — and part of the
+  // boundary cache key, so a patched boundary never gets an unpatched layout
+  // back out of the cache.
+  const codePatches = new Map<string, CodePatch>();
+  const patchesKey = (): string => (codePatches.size === 0 ? "" : [...codePatches].map(([id, p]) => `${id}:${p.code.length}:${stableHash(p.code)}`).join("|"));
   // Minted elements (design §2.1 round 3, §2.5 round 2 — trails, ghosts): set
   // once the plan is known, below — layoutFor and the mounted layout both
   // append them, so a reprojected preview or a scrub carries them too.
@@ -294,16 +304,22 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // the FRAMES between boundaries so the solver is not re-run per rAF tick.
   // Never cached with one: a cached boundary layout must be the honest solve.
   const rawLayoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[], overrides?: LayoutOverrides, pins?: Record<string, LabelPin>): LayoutResult => {
-    if (Object.keys(params).length === 0 && !elements && isEmptyOverrides(overrides)) return layout;
+    if (Object.keys(params).length === 0 && !elements && isEmptyOverrides(overrides) && codePatches.size === 0) return layout;
     // An elements override is the code editor's preview: never cached, its
-    // key would be the whole patched script.
-    const key = cache && !elements && !pins ? JSON.stringify([Object.entries(params).sort(), overridesKey(overrides)]) : undefined;
+    // key would be the whole patched script. A sweep's patches ARE cached —
+    // one entry per run step's tail commit — but only under a key that names
+    // them (their ids and script hashes), never the plain param key.
+    const key = cache && !elements && !pins ? JSON.stringify([Object.entries(params).sort(), overridesKey(overrides), patchesKey()]) : undefined;
     const hit = key !== undefined ? boundaryLayouts.get(key) : undefined;
     if (hit) return hit;
+    // A caller's own element list (the tray's preview) has the last word: it
+    // was built from the viewer's edits and already carries whatever it wants
+    // to keep. With none, a live sweep's patches stand in.
+    const patched = elements ?? (codePatches.size > 0 ? applyCodePatches(spec.elements ?? [], codePatches) : undefined);
     const split = splitVarOverrides(params);
     const l = applyTextStyle(
       layoutSpec(
-        { ...spec, params: withOverrides(spec.params, split.params), ...(Object.keys(split.vars).length > 0 ? { vars: { ...(spec.vars ?? {}), ...split.vars } } : {}), ...(elements ? { elements } : {}) },
+        { ...spec, params: withOverrides(spec.params, split.params), ...(Object.keys(split.vars).length > 0 ? { vars: { ...(spec.vars ?? {}), ...split.vars } } : {}), ...(patched ? { elements: patched } : {}) },
         measure,
         overrides,
         pins,
@@ -392,6 +408,33 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
         labelPins = l.labelPins;
         return mounted.remount!(l);
       },
+      setCodePatch: (id, p) => {
+        if (p) codePatches.set(id, p);
+        else codePatches.delete(id);
+      },
+      patchedElements: () => (codePatches.size > 0 ? applyCodePatches(spec.elements ?? [], codePatches) : undefined),
+    };
+  }
+
+  // The `run` verb's engine. Wired HERE, not in the tray: the exporter drives
+  // this same player with no UI at all (src/export/video.ts), and a movie
+  // whose sweeps did nothing would be the whole point of the verb missing.
+  // The AUTHORED spec, because its control literals are still tuples; the
+  // default deps, because that is exactly what resolveCode runs with — same
+  // runtime, same cache.
+  player.sweepRunner = sweepRunnerFor(authored);
+  // …and the cache is filled while the viewer watches the opening: every run
+  // step's value maps, once, when the drawcast first starts playing. By the
+  // time the sweep arrives, each step is a cache read.
+  if (plan.steps.some((s) => s.kind === "run")) {
+    let warmed = false;
+    const prevOnState = player.callbacks.onState;
+    player.callbacks.onState = (s) => {
+      prevOnState?.(s);
+      if (s !== "playing" || warmed) return;
+      warmed = true;
+      const idle = (globalThis as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 300));
+      idle(() => void precomputeSweeps(plan, player.sweepRunner!));
     };
   }
 

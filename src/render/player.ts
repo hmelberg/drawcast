@@ -18,6 +18,7 @@ import { pacedDurations } from "./pacing";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import type { Easing, SpecElement } from "../spec/types";
+import type { ControlValue } from "../code/controls";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { translateCaption, type SubtitleTrack } from "../spec/subtitles";
 import type { ToneLike } from "./tones";
@@ -48,6 +49,20 @@ export interface FrameOpts {
   trailProgress?: Record<string, number>;
 }
 
+/** One swept script as the figure must now show it (spec 2026-09-15 §4.2):
+ *  the rewritten code, its fresh envelope, and the value map that produced
+ *  them (what the tray's knobs are put at when a `run` hands over). */
+export interface CodePatch {
+  code: string;
+  result: string;
+  values: Record<string, ControlValue>;
+}
+
+/** Run one script at one value map — applyControls + runCode, through the
+ *  same door a knob uses. Injected by render() (src/render/sweep-run.ts), so
+ *  a bare Player never carries a runtime. */
+export type SweepRunner = (codeId: string, values: Record<string, ControlValue>) => Promise<{ code: string; result: string }>;
+
 export interface Reprojector {
   /** Cheap per-frame swap at interpolated params. Values are numbers from
    *  animate/sliders except under free-play previews (a fen string, a moves
@@ -57,6 +72,13 @@ export interface Reprojector {
   frame(params: Record<string, unknown>, scene: FrameScene, opts?: FrameOpts): LayoutResult | void;
   /** Full remount at settled params (and the source poses/shapes of that boundary); returns the new element handles. */
   commit(params: Record<string, number>, overrides?: LayoutOverrides): Map<string, RenderedElement>;
+  /** A `run`'s current patch for a script (null clears it). The render
+   *  closure keeps these, so a COMMIT is patched too — a boundary layout
+   *  that dropped them would snap the figure back to the authored script. */
+  setCodePatch?(id: string, patch: CodePatch | null): void;
+  /** The spec's elements with every live patch applied, or undefined when
+   *  there is none — what a frame must be laid out from mid-sweep. */
+  patchedElements?(): SpecElement[] | undefined;
 }
 
 /** One graded answer from a LIVE viewer (never a movie's auto path): what
@@ -230,6 +252,20 @@ export class Player {
   }
   /** Injectable after construction, exactly like inputGate: swaps geometry for the animate action. */
   reprojector: Reprojector | null = null;
+  /**
+   * Runs one script at one value map — the `run` step's engine, injected by
+   * render() (sweep-run.ts). Null (headless tests, a Player with no runtime)
+   * degrades a run to its pacing, exactly as a missing reprojector degrades
+   * an animate: the drawcast keeps its shape, the figure just does not move.
+   */
+  sweepRunner: SweepRunner | null = null;
+  /** The live patches, mirrored here so the player can answer without the
+   *  reprojector (the tray asks what a `run` left the script at). */
+  private codePatches = new Map<string, CodePatch>();
+  /** id → the step index that set its patch, so a scrub BEFORE that step can
+   *  take it back (a scrub past a run that never played leaves the authored
+   *  figure — it was never swept). */
+  private patchSteps = new Map<string, number>();
   /**
    * The layout currently PAINTED, when a preview has replaced the plan-time
    * one. Anything hit-testing drawn geometry — a switch on a monitor's chin,
@@ -412,6 +448,11 @@ export class Player {
   /** Jump to a step boundary: apply exactly the scene state after steps[0..n-1]. */
   renderUpTo(n: number): void {
     this.abortRun();
+    // A sweep's patch belongs to the step that set it: scrubbing to before
+    // that step undoes it (the script goes back to what the author wrote),
+    // scrubbing past it keeps it. Dropped BEFORE the jump, so the boundary
+    // commit below is laid out from the unpatched script.
+    for (const [id, s] of [...this.patchSteps]) if (s >= n) this.setCodePatch(id, null, -1);
     this.jumpTo(n, false);
   }
 
@@ -503,7 +544,37 @@ export class Player {
    *  gate's way back after slider previews (renderUpTo would abort the run
    *  the gate is parked on). Adopts fresh element handles. */
   settleParams(): void {
+    // A `run`'s patch is NOT preview state: it is what the lesson now shows,
+    // and it survives Continue (only a scrub back past the run takes it away).
     this.applyKey(this.stateAt(this.completed));
+  }
+
+  /** What a `run` has left this script at, or null — the tray reads it to
+   *  open its knobs where the sweep stopped instead of at the author's
+   *  defaults. */
+  codePatchOf(id: string): CodePatch | null {
+    return this.codePatches.get(id) ?? null;
+  }
+
+  /** The elements a frame must be laid out from while a sweep is live. */
+  patchedElements(): SpecElement[] | undefined {
+    return this.reprojector?.patchedElements?.();
+  }
+
+  /** Set (or clear, with null) one script's patch: the render closure's copy
+   *  and the player's mirror move together, and the geometry is marked dirty
+   *  so the next boundary commits the patched layout even when its params
+   *  compare equal to what is mounted. */
+  private setCodePatch(id: string, patch: CodePatch | null, step: number): void {
+    if (patch) {
+      this.codePatches.set(id, patch);
+      this.patchSteps.set(id, step);
+    } else {
+      this.codePatches.delete(id);
+      this.patchSteps.delete(id);
+    }
+    this.reprojector?.setCodePatch?.(id, patch);
+    this.geometryDirty = true;
   }
 
   /** The viewer's runtime var-animate values (path → number) — the tray
@@ -780,6 +851,53 @@ export class Player {
             released++;
           }
         });
+        return;
+      }
+      case "run": {
+        await this.narrationBarrier();
+        if (signal.aborted) return;
+        const rp = this.reprojector;
+        const runner = this.sweepRunner;
+        // No runtime and no reprojection surface (headless tests, the plan's
+        // subtitle pass, a degraded backend): keep the pacing, change nothing.
+        if (!runner || !rp) return this.waitScaled(step.seconds * 1000, signal);
+        // Every map is run BEFORE the first frame (spec §4.2): a sweep that
+        // stalls between values is not a sweep, it is a slideshow of spinners.
+        // The idle precompute (render/index.ts) has usually filled the cache
+        // by now, so this loop is a cache read per step.
+        const results: { code: string; result: string }[] = [];
+        for (const v of step.values) {
+          try {
+            results.push(await runner(step.code, v));
+          } catch (err) {
+            // A step that failed HOLDS the previous result: the figure stops
+            // moving rather than blanking out mid-sweep.
+            console.warn(`[run ${step.code}] step failed: ${(err as Error).message}`);
+            results.push(results[results.length - 1] ?? { code: "", result: "" });
+          }
+          if (signal.aborted) return;
+        }
+        const n = results.length;
+        const scene = this.plan.states[index];
+        const overrides = this.overridesOf(scene.offsets, scene.turns, scene.shapes, scene.tex, scene.copies);
+        let last = -1;
+        await this.progress(step.seconds * 1000, signal, (t) => {
+          const k = Math.min(n - 1, Math.floor(t * n));
+          if (k === last) return;
+          // Catch up rather than jump: a frame clock slower than the sweep
+          // must not drop values silently (and a test must be able to name
+          // every step the sweep went through).
+          while (last < k) {
+            last++;
+            // code === "" is "nothing ever succeeded": leave the authored script alone.
+            if (results[last].code !== "") this.setCodePatch(step.code, { ...results[last], values: step.values[last] }, index);
+          }
+          // revealNew: a fresh envelope mints rows the authored run never had.
+          rp.frame(this.withVarOverrides(scene.params), this.frameScene(scene), { revealNew: true, elements: this.patchedElements(), overrides });
+        });
+        if (signal.aborted) return; // a scrub's renderUpTo owns the state now
+        this.applyKey(scene); // the boundary, with the last patch in it
+        this.applyScene(scene);
         return;
       }
       case "label":
