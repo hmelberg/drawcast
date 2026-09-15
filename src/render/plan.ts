@@ -42,7 +42,7 @@ export type PlanStep = (
    *  the explore beat's own seeded walk, played just before its gate. */
   | { kind: "run"; code: string; values: Record<string, ControlValue>[]; seconds: number; demo: boolean }
   | { kind: "if"; varName: string; op: "gt" | "lt" | "gte" | "lte" | "eq" | "ne"; value: number | string; target: string }
-  | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean; rightGoto?: string; wrongGoto?: string }
+  | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean; rightGoto?: string; wrongGoto?: string; store?: string }
   | {
       kind: "ask";
       question: string;
@@ -945,6 +945,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         required: cmd.quiz.required === true,
         ...(cmd.quiz.right_goto !== undefined ? { rightGoto: cmd.quiz.right_goto } : {}),
         ...(cmd.quiz.wrong_goto !== undefined ? { wrongGoto: cmd.quiz.wrong_goto } : {}),
+        ...(cmd.quiz.store !== undefined ? { store: cmd.quiz.store } : {}),
       });
     } else if (cmd.ask !== undefined) {
       // The question IS the narration unless the author paired a speak; the

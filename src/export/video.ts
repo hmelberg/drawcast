@@ -62,6 +62,7 @@ export function collectSpeakLines(spec: Spec): SpeakLine[] {
       push(questionLine(c.quiz));
       answered++;
       publishScore();
+      if (c.quiz.store) vars.set(c.quiz.store.toLowerCase(), c.quiz.choices[c.quiz.correct - 1]);
       push(c.quiz.right ?? c.quiz.choices[c.quiz.correct - 1]);
     }
     if (c.ask) {

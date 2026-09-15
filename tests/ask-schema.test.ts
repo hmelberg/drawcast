@@ -38,6 +38,14 @@ describe("typed ask validation", () => {
     expect(validateSpec(base({ question: "Name?", store: "name", default: "x", wrong: "No." })).ok).toBe(false);
   });
 
+  test("quiz store: a simple name passes, a reserved or malformed one fails", () => {
+    const quiz = (store: string) => ({ elements: [{ id: "a", type: "text", text: "hi", x: 500, y: 375 }], commands: [{ draw: ["a"] }, { quiz: { question: "?", choices: ["a", "b"], correct: 1, store } }] });
+    expect(validateSpec(quiz("pick")).ok).toBe(true);
+    expect(validateSpec(quiz("score")).ok).toBe(false);
+    expect(validateSpec(quiz("_answers")).ok).toBe(false);
+    expect(validateSpec(quiz("bad name")).ok).toBe(false);
+  });
+
   test("ask counts as an action verb — combining it with draw fails", () => {
     const r = validateSpec({
       elements: [{ id: "a", type: "text", text: "hi", x: 500, y: 375 }],

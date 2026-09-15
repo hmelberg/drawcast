@@ -656,6 +656,9 @@ export interface QuizArgs {
   right_goto?: string;
   /** Jump to this label on a wrong viewer answer — the re-watch loop. */
   wrong_goto?: string;
+  /** Store the chosen option's TEXT under this name; later lines may use
+   *  {name}, {name.ok}, {name.secs}. Movies and skips store the correct option. */
+  store?: string;
 }
 
 export interface Spec {

@@ -882,6 +882,7 @@ export class Player {
       // Preference: no question, no narration, no gate — but a collect-ask
       // still stores its default so later {var} lines keep working.
       if (step.kind === "ask" && step.store) this.vars.set(step.store.toLowerCase(), step.fallback ?? step.answer ?? "");
+      if (step.kind === "quiz" && step.store) this.vars.set(step.store.toLowerCase(), step.choices[step.correct]);
       return;
     }
     if (step.kind !== "speak" && step.narration !== undefined) {
@@ -1082,6 +1083,9 @@ export class Player {
         // definition; a live viewer's Skip counts as wrong — a test is a test.
         this.outcomes.set(index, this.autoAnswers || this.quizGate === null ? true : chosen === step.correct);
         this.updateScoreVars();
+        // Store BEFORE feedback so the feedback lines may use {store} too; a
+        // skip or an auto answer keeps the correct option (the ask's default).
+        if (step.store) this.vars.set(step.store.toLowerCase(), step.choices[chosen ?? step.correct]);
         if (!this.autoAnswers && this.quizGate !== null) {
           this.callbacks.onAnswer?.({
             index,
