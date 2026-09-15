@@ -1,6 +1,8 @@
 // Dot-path helpers for the animate command: template params are nested
 // objects (demand_shift.amount), animate targets address them by path.
 
+import { fitRegion, isFitName } from "../layout/regions";
+
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
@@ -15,6 +17,7 @@ function indexOf(seg: string): number | null {
 export function readParam(params: Record<string, unknown> | undefined, path: string): number | null {
   let cur: unknown = params;
   for (const seg of path.split(".")) {
+    if (isFitName(cur)) cur = fitRegion(cur);
     if (Array.isArray(cur)) {
       const i = indexOf(seg);
       if (i === null) return null;
@@ -48,6 +51,7 @@ export function withOverrides(
       if (existing === undefined) next = {};
       else if (Array.isArray(existing)) next = [...existing];
       else if (isRecord(existing)) next = { ...existing };
+      else if (isFitName(existing)) next = fitRegion(existing) as unknown as Record<string, unknown>;
       else { ok = false; break; }
       (host as Record<string | number, unknown>)[key] = next;
       host = next;
@@ -62,6 +66,16 @@ export function withOverrides(
     }
   }
   return out;
+}
+
+/** `animate: {box: "right"}` → the region's four numbers; anything else is
+ *  copied as written (the planner then judges it as it always has). */
+export function expandBoxAnimate(animate: Record<string, unknown>): Record<string, unknown> {
+  const v = animate["box"];
+  if (!isFitName(v)) return { ...animate };
+  const { box: _box, ...rest } = animate;
+  const r = fitRegion(v);
+  return { ...rest, "box.x": r.x, "box.y": r.y, "box.w": r.w, "box.h": r.h };
 }
 
 /** The visible set grown by ids the previewed layout introduces — a free-play

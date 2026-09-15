@@ -7,7 +7,7 @@ import { CANVAS } from "../layout/canvas";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import type { CodeWindow } from "../layout/code";
-import { readParam } from "./params";
+import { expandBoxAnimate, readParam } from "./params";
 import { chessSquareBox, pianoKeyBox, pianoOctaves } from "./widgets";
 import { normalizeItems } from "../ui/drag-model";
 import { BUILTIN_WIDGETS } from "../spec/types";
@@ -1728,7 +1728,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         if (cmd.speak !== undefined) pushStep({ kind: "speak", text: cmd.speak, blocking: true, speaker: cmd.voice, delivery: cmd.delivery });
         continue;
       }
-      for (const [rawKey, v] of Object.entries(cmd.animate)) {
+      for (const [rawKey, v] of Object.entries(expandBoxAnimate(cmd.animate))) {
         const key = resolveKey(rawKey);
         if (key === null) {
           warnings.push(`animate "${rawKey}": neither a template param nor a var — skipped`);
