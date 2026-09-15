@@ -54,11 +54,13 @@ function snap(c: ControlSpec, v: number): number {
  *  as a slideshow: below this a range is densified (never past its cap). */
 export const SMOOTH_MIN_STEPS = 10;
 
-/** Ease in/out cubic — the standard smoothstep-ish curve: still at both ends,
- *  quick through the middle. A sweep spaced by it settles on its first and
- *  last value instead of arriving at them at full speed. */
-export function easeInOutCubic(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+/** Smoothstep — the app's ONE default easing curve: still at both ends, quick
+ *  through the middle. The player's `animate` has used it for every tween
+ *  without a named easing since the beginning; a sweep spaced by it settles
+ *  onto its first and last value instead of arriving at full speed. Defined
+ *  here and imported there, so the two cannot drift apart. */
+export function smoothstep(t: number): number {
+  return t * t * (3 - 2 * t);
 }
 
 /** Options for a range series: `smooth` (undefined = smooth, the default for
@@ -68,6 +70,21 @@ export function easeInOutCubic(t: number): number {
 export interface SeriesOptions {
   smooth?: boolean;
   max?: number;
+}
+
+/** How many positions a series names before any glide is added: an explicit
+ *  list's own length, a range's authored `steps`, 1 for a held value. This is
+ *  the count an author's `every` is a pace FOR. */
+export function authoredLength(s: SeriesSpec): number {
+  if (Array.isArray(s)) return s.length;
+  if (isRange(s)) return Math.max(1, Math.floor(s.steps));
+  return 1;
+}
+
+/** Loop count as the model reads it — one definition, since the planner has
+ *  to divide an authored `every` by the same number. */
+export function loopCount(args: PlayArgs): number {
+  return Math.max(1, Math.floor(args.loop ?? 1));
 }
 
 export function expandSeries(c: ControlSpec, s: SeriesSpec, opts: SeriesOptions = {}): ControlValue[] {
@@ -81,11 +98,21 @@ export function expandSeries(c: ControlSpec, s: SeriesSpec, opts: SeriesOptions 
     // Raise a thin range to a glide, but never BELOW what the author asked
     // for: an authored count over the cap stays over it, so runValues can
     // still complain about it in the author's own terms.
-    const n = smooth ? Math.max(authored, Math.min(SMOOTH_MIN_STEPS, cap)) : authored;
+    const raised = Math.max(authored, Math.min(SMOOTH_MIN_STEPS, cap));
+    // …and never past what the SLIDER can tell apart: ten positions along a
+    // range four steps wide would snap several of them onto the same value,
+    // which is a stutter, not a glide. (Duplicates that survive this are
+    // left alone — they are cache hits, and collapsing them would drop steps
+    // the author counted.)
+    // (The epsilon is not decoration: 0.3 − 0.1 is 0.19999999999999998 in
+    // binary floating point, which would count one grid stop too few and
+    // quietly drop a position from every range with round decimal ends.)
+    const grid = c.kind === "slider" && c.step && c.step > 0 ? Math.floor(Math.abs(s.to - s.from) / c.step + 1e-9) + 1 : Number.POSITIVE_INFINITY;
+    const n = smooth ? Math.max(authored, Math.min(raised, grid)) : authored;
     const out: number[] = [];
     for (let i = 0; i < n; i++) {
       const t = n === 1 ? 0 : i / (n - 1);
-      const v = s.from + (s.to - s.from) * (smooth ? easeInOutCubic(t) : t);
+      const v = s.from + (s.to - s.from) * (smooth ? smoothstep(t) : t);
       out.push(c.kind === "slider" ? snap(c, v) : v);
     }
     return out;
@@ -93,21 +120,30 @@ export function expandSeries(c: ControlSpec, s: SeriesSpec, opts: SeriesOptions 
   return [s];
 }
 
-export function runValues(args: PlayArgs, controls: ControlSpec[]): { steps: Record<string, ControlValue>[]; issues: string[] } {
+/** `authored` is the step count the author's own series named (the longest of
+ *  them), before any glide was added — what an explicit `every` paces. */
+export function runValues(args: PlayArgs, controls: ControlSpec[]): { steps: Record<string, ControlValue>[]; issues: string[]; authored: number } {
   const issues: string[] = [];
   const names = Object.keys(args.values ?? {});
   if (names.length === 0) issues.push("values names no control");
   const series = new Map<string, ControlValue[]>();
-  const loop = Math.max(1, Math.floor(args.loop ?? 1));
+  const loop = loopCount(args);
   // A glide is densified up to the run's own ceiling: with loop: 3 the whole
   // run may still spend at most RUN_MAX_STEPS, so each pass gets a third.
   const perPass = Math.max(1, Math.floor(RUN_MAX_STEPS / loop));
+  // A run that pairs a range with an explicit LIST does not glide at all: the
+  // list has exactly as many values as the author wrote, and a densified
+  // range would walk past them while the list sat on its last one — the two
+  // series would come apart. The author counted; the run counts with them.
+  const listed = names.some((n) => Array.isArray(args.values[n]));
+  const smooth = args.smooth !== false && !listed;
+  const authored = Math.max(1, ...names.map((n) => authoredLength(args.values[n])));
   for (const name of names) {
     const c = controls.find((x) => x.name === name);
     if (!c) { issues.push(`values.${name}: no control named "${name}"`); continue; }
     const spec = args.values[name];
     if (isRange(spec) && !(spec.steps >= 1)) { issues.push(`values.${name}: steps must be at least 1`); continue; }
-    const vals = expandSeries(c, spec, { smooth: args.smooth, max: perPass });
+    const vals = expandSeries(c, spec, { smooth, max: perPass });
     if (vals.length === 0) { issues.push(`values.${name}: an empty list names no step`); continue; }
     if (c.kind === "choice") for (const v of vals) if (!(c.options ?? []).includes(String(v))) issues.push(`values.${name}: "${v}" is not one of ${(c.options ?? []).join(", ")}`);
     if (c.kind === "toggle") for (const v of vals) if (typeof v !== "boolean") issues.push(`values.${name}: a toggle takes true or false`);
@@ -115,7 +151,7 @@ export function runValues(args: PlayArgs, controls: ControlSpec[]): { steps: Rec
   }
   const n = Math.max(0, ...[...series.values()].map((v) => v.length));
   if (n * loop > RUN_MAX_STEPS) issues.push(`a run may have at most ${RUN_MAX_STEPS} steps (this one has ${n * loop})`);
-  if (issues.length > 0 || n === 0) return { steps: [], issues };
+  if (issues.length > 0 || n === 0) return { steps: [], issues, authored };
   const base: Record<string, ControlValue>[] = [];
   for (let i = 0; i < n; i++) {
     const m: Record<string, ControlValue> = {};
@@ -127,7 +163,7 @@ export function runValues(args: PlayArgs, controls: ControlSpec[]): { steps: Rec
   }
   const steps: Record<string, ControlValue>[] = [];
   for (let k = 0; k < loop; k++) steps.push(...base.map((m) => ({ ...m })));
-  return { steps, issues };
+  return { steps, issues, authored };
 }
 
 /** The explore demo: a seeded walk over the movable controls, one at a time,

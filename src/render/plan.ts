@@ -26,7 +26,7 @@ import { cumulativeLengthFractions } from "./trails";
 import type { GhostSpec, MintedSpec } from "./minted";
 import type { LayoutOverrides, PoseOverride } from "../layout/posed";
 import { SpeechManager } from "./speech";
-import { DEMO_EVERY_S, demoWalk, RUN_EVERY_S, runValues } from "./sweep";
+import { DEMO_EVERY_S, demoWalk, loopCount, RUN_EVERY_S, runValues } from "./sweep";
 import { parseControls, type ControlSpec, type ControlValue } from "../code/controls";
 import type { PlayArgs } from "../spec/types";
 
@@ -465,10 +465,19 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     // the narration lands, and the viewer sees nothing. Not `mentioned` —
     // this is a complaint that the script was never drawn, not a draw.
     if (!visibleSet.has(codeId)) warnings.push(`commands[${i}].${where}: "${codeId}" has not been drawn yet`);
-    const sweep = args ? runValues(args, controls) : { steps: demoWalk(codeId, controls), issues: [] as string[] };
+    const walk = demoWalk(codeId, controls);
+    const sweep = args ? runValues(args, controls) : { steps: walk, issues: [] as string[], authored: walk.length };
     for (const issue of sweep.issues) warnings.push(`commands[${i}].${where}: ${issue}`);
     if (sweep.steps.length === 0) return null;
-    return { kind: "run", code: codeId, values: sweep.steps, seconds: secondsFor(sweep.steps.length, args?.every, currentNarration, demo ? DEMO_EVERY_S : RUN_EVERY_S), demo };
+    // `every` is a pace for the steps the AUTHOR wrote, not for the positions
+    // a glide added: spreading their total over the densified count keeps the
+    // beat exactly as long as they asked for (`every: 1` on a 5-step range is
+    // five seconds, whether it walks in 5 jumps or glides in 10).
+    const every =
+      args?.every !== undefined
+        ? (args.every * sweep.authored * loopCount(args)) / sweep.steps.length
+        : undefined;
+    return { kind: "run", code: codeId, values: sweep.steps, seconds: secondsFor(sweep.steps.length, every, currentNarration, demo ? DEMO_EVERY_S : RUN_EVERY_S), demo };
   };
   /** The window's scroll: the highest visible line's bottom sits at the
    *  window's bottom. Every line of the element gets the offset — the hidden

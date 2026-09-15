@@ -42,11 +42,27 @@ describe("smooth sweeps", () => {
     expect(vs.length).toBeGreaterThanOrEqual(SMOOTH_MIN_STEPS);
     expect(vs[0]).toBe(0.1);
     expect(vs[vs.length - 1]).toBe(1);
-    // Monotone (duplicates kept — a repeated value is a cache hit, not a step
-    // to drop), and eased: the ends crawl, the middle strides.
+    // Monotone, and eased: the ends crawl, the middle strides.
     expect(gaps(vs).every((g) => g >= 0)).toBe(true);
     const g = gaps(vs);
     expect(g[0]).toBeLessThan(g[Math.floor(g.length / 2)]);
+  });
+  // The glide has to MOVE at every step: a duplicate is a frame that shows
+  // the viewer nothing new, and a jump three grid stops wide is the stutter
+  // the round set out to remove. Both are properties of smoothstep spaced
+  // against this slider's own grid (0.1…1.0 by 0.05).
+  test("the glide never stands still and never lurches: no consecutive duplicates, no jump over 0.15", () => {
+    const vs = runValues({ values: { beta: { from: 0.1, to: 1.0, steps: 5 } } }, controls()).steps.map((s) => s.beta as number);
+    expect(gaps(vs).filter((g) => g === 0)).toEqual([]);
+    expect(Math.max(...gaps(vs))).toBeLessThanOrEqual(0.15);
+  });
+  // A range only four grid stops wide HAS no ten distinct positions, so the
+  // glide takes every stop the slider owns and no more — which is why this
+  // comes back as the 5 grid points rather than ten values with duplicates
+  // among them.
+  test("a narrow range is capped by the slider's grid: 0.1…0.3 by 0.05 glides through all 5 grid points", () => {
+    const vs = runValues({ values: { beta: { from: 0.1, to: 0.3, steps: 3 } } }, controls()).steps.map((s) => s.beta);
+    expect(vs).toEqual([0.1, 0.15, 0.2, 0.25, 0.3]);
   });
   test("smooth: false keeps exactly the authored linear steps", () => {
     const vs = runValues({ values: { beta: { from: 0.1, to: 1.0, steps: 5 } }, smooth: false }, controls()).steps.map((s) => s.beta);
@@ -62,6 +78,20 @@ describe("smooth sweeps", () => {
     const vs = runValues({ values: { beta: [0.2, 0.4, 0.6] } }, controls()).steps.map((s) => s.beta);
     expect(vs).toEqual([0.2, 0.4, 0.6]);
     expect(runValues({ values: { model: ["SIR", "SEIR"] } }, controls()).steps).toHaveLength(2);
+  });
+  // The one that would have come apart: a densified range would walk ten
+  // positions while the three-item list sat on "SIS" for seven of them.
+  test("a range paired with an explicit list does not glide at all — the two stay in step", () => {
+    const { steps, issues } = runValues({ values: { beta: { from: 0.1, to: 0.9, steps: 3 }, model: ["SIR", "SEIR", "SIS"] } }, controls());
+    expect(issues).toEqual([]);
+    expect(steps).toHaveLength(3);
+    expect(steps.map((s) => s.model)).toEqual(["SIR", "SEIR", "SIS"]);
+    expect(steps.map((s) => s.beta)).toEqual([0.1, 0.5, 0.9]);
+  });
+  test("authored reports the count the author wrote, not the glide's", () => {
+    expect(runValues({ values: { beta: { from: 0.1, to: 1.0, steps: 5 } } }, controls()).authored).toBe(5);
+    expect(runValues({ values: { beta: [0.2, 0.4, 0.6], model: ["SEIR"] } }, controls()).authored).toBe(3);
+    expect(runValues({ values: { beta: 0.3 } }, controls()).authored).toBe(1);
   });
 });
 

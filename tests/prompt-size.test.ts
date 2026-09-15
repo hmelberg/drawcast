@@ -146,7 +146,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Total system: +706 (232295 → 233001). The same round's fixed-axes sentence
 // in compiler-v1-code.md's controls bullet is behind the {{CODE}} conditional
 // fragment and costs an ordinary request nothing, so it is not in these pins.
-const BASELINE_SYSTEM_CHARS = 233001;
+// Re-measured 2026-09-15 in the same round's review wave: the `run` bullet
+// said BOTH "`{from, to, steps}` is linear" and "ranges glide by default" —
+// the first is now "walks from one to the other" (+18), and the glide advice
+// asks for `steps: 10–16` rather than 8–16 (+1), since anything under 10 is
+// raised anyway. Prompt-only: system 233001 → 233020, schema unchanged.
+const BASELINE_SYSTEM_CHARS = 233020;
 const BASELINE_SCHEMA_CHARS = 117406;
 
 const system = (code: boolean, sound = false) =>

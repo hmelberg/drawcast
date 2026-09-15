@@ -51,6 +51,23 @@ describe("planner: run", () => {
     if (jumps.kind !== "run") throw new Error("run expected");
     expect(jumps.values).toHaveLength(4);
   });
+  // `every` is the author's pace for the steps THEY wrote. A glide adds
+  // positions; if `every` multiplied those, a `steps: 5, every: 1` beat would
+  // silently run ten seconds and the narration would end halfway through it.
+  test("an explicit every keeps the authored total, however many positions the glide adds", () => {
+    const glide = plan([{ draw: ["sim"] }, { run: { code: "sim", values: { beta: { from: 0.1, to: 0.9, steps: 5 } }, every: 1 } }]).steps[1];
+    if (glide.kind !== "run") throw new Error("run expected");
+    expect(glide.values.length).toBeGreaterThanOrEqual(10);
+    expect(glide.seconds).toBeCloseTo(5, 6);
+    const jumps = plan([{ draw: ["sim"] }, { run: { code: "sim", values: { beta: { from: 0.1, to: 0.9, steps: 5 } }, every: 1, smooth: false } }]).steps[1];
+    if (jumps.kind !== "run") throw new Error("run expected");
+    expect(jumps.values).toHaveLength(5);
+    expect(jumps.seconds).toBeCloseTo(5, 6);
+    // …and a loop still multiplies it: 5 authored steps, twice, at 1 s each.
+    const looped = plan([{ draw: ["sim"] }, { run: { code: "sim", values: { beta: { from: 0.1, to: 0.9, steps: 5 } }, every: 1, loop: 2 } }]).steps[1];
+    if (looped.kind !== "run") throw new Error("run expected");
+    expect(looped.seconds).toBeCloseTo(10, 6);
+  });
   test("a series the model cannot honour is a warning naming the command, and no step", () => {
     const p = plan([{ draw: ["sim"] }, { run: { code: "sim", values: { gamma: [1, 2] } }, speak: "Watch." }]);
     expect(p.steps.filter((s) => s.kind === "run")).toEqual([]);

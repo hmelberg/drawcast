@@ -24,6 +24,7 @@ import { translateCaption, type SubtitleTrack } from "../spec/subtitles";
 import type { ToneLike } from "./tones";
 import { isIdentity, type Turn } from "./pose";
 import { decodeFigures } from "./decode-figures";
+import { smoothstep } from "./sweep";
 
 export type PlaybackMode = "narrated" | "silent" | "instant";
 export type PlayerState = "idle" | "playing" | "paused" | "done";
@@ -993,6 +994,8 @@ export class Player {
         // every VALUE was run before it: a repaint rebuilds the output pane's
         // <image> from scratch, and an undecoded PNG paints nothing — a white
         // flash per step. Cached by href, so a value seen before is free.
+        // It must stay BEFORE runResults.set below: restoreRunPatches' sync
+        // branch re-shows those results without decoding them itself.
         await Promise.all(results.map((r) => decodeFigures(r.result)));
         if (signal.aborted) return;
         const n = results.length;
@@ -1389,10 +1392,11 @@ export class Player {
         // plan makes it visible in the AFTER state); cut to the sweep's progress.
         const visible = new Set([...before.visible, ...(step.trails ?? []).map((tr) => tr.id)]);
         const overrides = this.overridesOf(before.offsets, before.turns, before.shapes, before.tex, before.copies);
-        // Absent easing keeps the historical smoothstep exactly; a long race
-        // asks for `linear` so the middle years do not blur past while the
-        // ends crawl.
-        const ease = step.easing ? EASINGS[step.easing] : (t: number) => t * t * (3 - 2 * t);
+        // Absent easing keeps the historical smoothstep exactly (the SAME
+        // definition a sweep glides by — render/sweep.ts owns it, so the two
+        // cannot drift); a long race asks for `linear` so the middle years do
+        // not blur past while the ends crawl.
+        const ease = step.easing ? EASINGS[step.easing] : smoothstep;
         await this.progress(step.seconds * 1000, signal, (t) => {
           const e = ease(t);
           const cur: Record<string, number> = { ...this.withVarOverrides(before.params) };

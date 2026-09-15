@@ -13,13 +13,18 @@
 // will not decode is not a reason to hold up the frame — the <image> will
 // simply do what it did before.
 import { decodeCodeResult } from "../code/envelope";
+import { stableHash } from "./sweep";
 
-/** Hrefs already handed to the decoder. A data URI is a long string, so the
- *  set is dropped whole once it grows past this — a cleared set costs at
- *  most one redundant decode (the browser's own image cache still has the
- *  bytes), an uncleared one would hold every figure a session ever ran. */
+/** Figures already handed to the decoder, by a SHORT key (length + hash of
+ *  the data URI, never the URI itself — holding those would keep every PNG a
+ *  session ever ran alive in memory). The value is the decode itself, so a
+ *  second caller for the same figure awaits the SAME work instead of
+ *  returning early on a decode that has not finished yet. Dropped whole once
+ *  it grows past the cap; a cleared memo costs at most one redundant decode,
+ *  since the browser's own image cache still holds the bytes. */
 const MAX_REMEMBERED = 256;
-const decoded = new Set<string>();
+const decoded = new Map<string, Promise<void>>();
+const keyOf = (href: string): string => `${href.length}:${stableHash(href)}`;
 
 /** Decode every figure in one code-result envelope. A no-op outside the
  *  browser (node has no `Image`), on an envelope that will not parse, and on
@@ -28,19 +33,27 @@ export async function decodeFigures(result: string | undefined): Promise<void> {
   if (typeof Image === "undefined") return;
   const figures = decodeCodeResult(result)?.figures ?? [];
   if (figures.length === 0) return;
-  const pending: Promise<unknown>[] = [];
+  const pending: Promise<void>[] = [];
   for (const f of figures) {
     const href = f?.href;
-    if (!href || decoded.has(href)) continue;
+    if (!href) continue;
+    const key = keyOf(href);
+    const already = decoded.get(key);
+    if (already) {
+      pending.push(already);
+      continue;
+    }
     if (decoded.size >= MAX_REMEMBERED) decoded.clear();
-    decoded.add(href);
+    let work = Promise.resolve();
     try {
       const img = new Image();
       img.src = href;
-      if (typeof img.decode === "function") pending.push(img.decode().catch(() => {}));
+      if (typeof img.decode === "function") work = img.decode().then(() => {}, () => {});
     } catch {
       /* an Image that cannot even be built: let the <image> element try */
     }
+    decoded.set(key, work);
+    pending.push(work);
   }
   await Promise.all(pending);
 }
