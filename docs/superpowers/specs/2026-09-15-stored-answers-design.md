@@ -35,14 +35,14 @@ An `ask` can store its answer (`store: name`) and later lines can say
 - **Automatic variables live in one namespace, `answers`**, so they can
   never collide with an author's `store:` name. Every quiz and ask is
   stored, always, no flag:
-  - `{answers.N}` — the N-th question in playlist order (items
+  - `{_answers.N}` — the N-th question in playlist order (items
     concatenated, cards excluded), its chosen option text or typed answer;
-  - `{answers.N.secs}`, `{answers.N.ok}` — its seconds and right/wrong;
-  - `{answers.last}` — the most recent answer; `{answers.count}`.
+  - `{_answers.N.secs}`, `{_answers.N.ok}` — its seconds and right/wrong;
+  - `{_answers.last}` — the most recent answer; `{_answers.count}`.
   The player's map is keyed by string, so a dotted key is just a key and
   `if.var` reads it unchanged (`src/render/player.ts:796`); only `VAR_RE`
-  (`src/spec/answers.ts:6`) and the lint's copy admit dots. Dotted tokens
-  already exist for params (`{codeId.variable}`). `answers` and `score` are
+  (`src/spec/answers.ts:6`) and the lint's copy admit dots and a leading underscore. The underscore is the "reserved" mark: no author or model picks it for a store name. Dotted tokens
+  already exist for params (`{codeId.variable}`). `_answers` and `score` are
   the two reserved words; a `store:` of either is a lint error.
 - **Explicit names get the same shape**: `store: age` gives `{age}`,
   `{age.secs}`, `{age.ok}`. Ordinals are predictable while writing; a slug
@@ -60,7 +60,7 @@ An `ask` can store its answer (`store: name`) and later lines can say
   without it or sit behind an `if`.
 - **The record** is the existing answer event (`AnswerPayload`,
   `src/learn.ts:36`: item, step, question, every attempt, expected,
-  correct) plus `secs` and `id: store ?? "answers.N"`, appended per cast
+  correct) plus `secs` and `id: store ?? "_answers.N"`, appended per cast
   under a `drawcast.answers:` prefix. On by default; a spec-level
   `record: false` turns it off. Writing to the student's own browser sends
   nothing. Enrolled students keep the per-answer streaming to the course
@@ -77,15 +77,15 @@ An `ask` can store its answer (`store: name`) and later lines can say
 | where | what | size |
 |---|---|---|
 | `src/spec/types.ts`, `schema.ts` | `store?: string` on `QuizArgs`; schema description | 5 lines |
-| `src/spec/answers.ts` | `VAR_RE` admits dotted names; reserved words `answers`, `score` | 3 lines |
+| `src/spec/answers.ts` | `VAR_RE` admits dotted names; reserved words `_answers`, `score` | 3 lines |
 | `src/render/player.ts` | on quiz answer set `store`; timestamps around `quizGate`/`askGate`; set `answers.<n>`, `.secs`, `.ok`, `answers.last/count`, and `<store>.secs/.ok`; the ordinal comes from a `questionOffset` option so item 2 continues item 1's numbering | ~30 lines |
 | `src/render/index.ts` | `RenderOptions.vars` seeds the player; `RenderOptions.questionOffset`; the handle exposes the player's `vars` | ~8 lines |
 | `src/playlist/session.ts` | one carried `Map` and a question counter; pass both into the two *item* mounts (not title page or chapter cards); merge back on item done | ~12 lines |
-| `src/lint/lint.ts` | `lintCommands(spec, knownVars?)`; dotted tokens; `store:` of a reserved word is an error; the panel lists each question's automatic name ("quiz at commands[4] stores as answers.3") | ~20 lines |
+| `src/lint/lint.ts` | `lintCommands(spec, knownVars?)`; dotted tokens; `store:` of a reserved word is an error; the panel lists each question's automatic name ("quiz at commands[4] stores as _answers.3") | ~20 lines |
 | `src/render/record.ts` (new) + `src/spec/types.ts` | append each answer event + secs to localStorage per cast key; `record?: boolean` on the spec | ~30 lines |
 | `src/learn.ts` + the course server (external; `apiBase()` in learn.ts) | `secs?: number` on `AnswerPayload`; the server must accept and store the field | ~6 lines here, plus the server |
-| tests | two-item session test (ask in 1, `{name}` in 2); quiz store; `.secs` set on gate, absent in export; ordinal continues across items; lint quiet for carried names and loud for `store: answers`; record appended and `record: false` respected | 7 tests |
-| `src/llm/prompts/compiler-v1.md` | one sentence each: quiz `store`, the `answers.N` namespace with `.secs`/`.ok`, the dotted token in `speak`, "stored answers survive into later parts"; prompt-size re-pin | same round (prompt-sync rule) |
+| tests | two-item session test (ask in 1, `{name}` in 2); quiz store; `.secs` set on gate, absent in export; ordinal continues across items; lint quiet for carried names and loud for `store: _answers`; record appended and `record: false` respected | 7 tests |
+| `src/llm/prompts/compiler-v1.md` | one sentence each: quiz `store`, the `_answers.N` namespace with `.secs`/`.ok`, the dotted token in `speak`, "stored answers survive into later parts"; prompt-size re-pin | same round (prompt-sync rule) |
 
 Roughly a day and a half. Nothing in layout, plan, export or the engine changes.
 
@@ -110,7 +110,7 @@ Roughly a day and a half. Nothing in layout, plan, export or the engine changes.
 - `npm test` and `npm run build` (tsc; the Netlify gate).
 - Hand smoke: a two-item playlist — item 1 asks `store: name`, item 2 opens
   with `speak: "Hi {name}, that took you {name.secs} seconds."`, then a quiz
-  with `store: pick`, then `speak: "You chose {pick}, and {answers.last} was
+  with `store: pick`, then `speak: "You chose {pick}, and {_answers.last} was
   your latest answer."`; export the movie and confirm the default/
   correct-option fallbacks and no seconds text; check localStorage holds
   three records with `secs` and that `record: false` leaves it empty.
