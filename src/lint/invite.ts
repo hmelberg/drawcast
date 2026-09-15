@@ -8,7 +8,11 @@ const WORDS = [
   "slide", "drag", "press", "click", "toggle", "move the slider", "turn the (?:knob|dial)", "set the \\w+ to", "try it",
   "dra", "trykk", "klikk", "skyv", "prøv selv", "prøv å (?:dra|trykke|klikke|skyve)",
 ];
-export const INVITE_RE = new RegExp(`(?:^|[.!?:;—-]\\s*|\\b(?:now|then|try)\\s+)(?:${WORDS.join("|")})\\b`, "i");
+// (?!-) after the alternation (final wave item 10): a WORD boundary alone
+// sits right before a hyphen too ("k" to "-" in "Click-through" is already a
+// boundary), so without it a hyphenated compound built on an invitation word
+// — "Click-through", "Press-fit" — matched as if the bare word had been said.
+export const INVITE_RE = new RegExp(`(?:^|[.!?:;—-]\\s*|\\b(?:now|then|try)\\s+)(?:${WORDS.join("|")})(?!-)\\b`, "i");
 
 export function isInvitation(text: string): boolean {
   return INVITE_RE.test(text);

@@ -856,7 +856,11 @@ against.
 Open: a performed sweep (the `animate` pairing) as the panel's own movie
 form — out of scope by design (§7), not built; the Norwegian invitation
 words are a short, unreviewed list; a choice row's chips have no equivalent
-wrap when the options themselves are long (only the label column wraps).
+wrap when the options themselves are long (only the label column wraps);
+the tray's ✎ On the screen still opens the code editor over a
+`pane: controls` panel (it always calls `openInPlace`, never
+`openControlsInPlace` — there is no script text to type there once the pane
+is knobs, not lines).
 
 ## Sound (the play command) — done 2026-08-26
 

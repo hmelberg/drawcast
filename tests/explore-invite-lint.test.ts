@@ -18,6 +18,11 @@ describe("isInvitation", () => {
       expect(isInvitation(t), t).toBe(false);
     }
   });
+  test("a hyphenated compound built on an invitation word does not trip (final wave item 10)", () => {
+    for (const t of ["Click-through rates rose that quarter.", "Press-fit parts need no glue."]) {
+      expect(isInvitation(t), t).toBe(false);
+    }
+  });
 });
 
 describe("explore-invite lint", () => {
@@ -31,5 +36,15 @@ describe("explore-invite lint", () => {
   });
   test("a standalone speak is checked too", () => {
     expect(rules(spec([{ draw: ["t"] }, { speak: "Press the button." }]))).toHaveLength(1);
+  });
+  test("the quoted preview gets an ellipsis only when something was actually cut (final wave item 9)", () => {
+    const short = "Now drag the knob."; // 18 chars, shown whole
+    const [shortIssue] = rules(spec([{ draw: ["t"], speak: short }]));
+    expect(shortIssue.message).toContain(`"${short}"`);
+    expect(shortIssue.message).not.toContain("…");
+
+    const long = "Now slide the rate down and watch the curve flatten out completely."; // 67 chars, cut
+    const [longIssue] = rules(spec([{ draw: ["t"], speak: long }]));
+    expect(longIssue.message).toContain(`"${long.slice(0, 40)}…"`);
   });
 });

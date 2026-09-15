@@ -753,10 +753,14 @@ export function lintCommands(spec: Spec): LintIssue[] {
     flagVars(c.ask?.wrong, `commands[${i}].ask.wrong`);
     if (c.ask?.store) stored.add(c.ask.store.toLowerCase());
     if (typeof c.speak === "string" && c.explore === undefined && isInvitation(c.speak)) {
+      // "…" only earns its place when something was actually cut (final wave
+      // item 9) — a speak of 40 chars or fewer shown whole must not gain a
+      // trailing ellipsis that implies more text than there is.
+      const preview = c.speak.length > 40 ? `${c.speak.slice(0, 40)}…` : c.speak;
       issues.push({
         rule: "explore-invite",
         ids: [],
-        message: `commands[${i}].speak invites the viewer to interact ("${c.speak.slice(0, 40)}…") — the movie will say it too; put the invitation in an explore beat's speak`,
+        message: `commands[${i}].speak invites the viewer to interact ("${preview}") — the movie will say it too; put the invitation in an explore beat's speak`,
         severity: "warn",
       });
     }

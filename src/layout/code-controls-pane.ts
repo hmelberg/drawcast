@@ -32,6 +32,7 @@
 import { formatValue, parseControls, withControlDefaults, type ControlSpec } from "../code/controls";
 import { COLORS, SKETCH_MS, Z_AREA, Z_STROKE, Z_TEXT, defaultStyle, type Drawable, type GroupDrawable, type Pt } from "./model";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
+import { CHAR_W } from "./code";
 import type { SpecElement } from "../spec/types";
 
 /** Row height, × fontSize — a little airier than a code line. */
@@ -40,22 +41,17 @@ export const CTL_ROW_H = 1.9;
 const PAD = 10;
 /** Height of a row's own widget (pill/box), independent of the row's pitch. */
 const FIELD_H_EM = 1.05;
-/**
- * This module's own per-character width assumption for a label — distinct
- * from `heuristicMeasure`'s 0.52 (svg-backend.ts's real-font measure isn't
- * available here, and doesn't need to be: this only has to be internally
- * consistent between `labelColumnWidth` and the per-row wrap decision, both
- * in this file).
- */
-const LABEL_CHAR_W = 0.6;
 /** A wrapped row (label on its own line above the control) is this many
  *  ordinary row-heights tall — 0.75 for the label's own line, 1.0 (a full
  *  ordinary row) for the control's line underneath it. */
 const WRAP_MULT = 1.75;
 
-/** A label's estimated width in this module's own units (see `LABEL_CHAR_W`). */
+/** A label's estimated width — the code pane's own per-character width
+ *  assumption (`CHAR_W`, code.ts), so a label and a code line size text the
+ *  same way (final wave item 6; this file used to keep its own, slightly
+ *  different, 0.6 constant). */
 function labelWidthEstimate(label: string, fontSize: number): number {
-  return label.length * LABEL_CHAR_W * fontSize;
+  return label.length * CHAR_W * fontSize;
 }
 
 /**
@@ -67,7 +63,7 @@ function labelWidthEstimate(label: string, fontSize: number): number {
  */
 function labelColumnWidth(labels: string[], fontSize: number, w: number): number {
   const maxChars = labels.reduce((m, l) => Math.max(m, l.length), 0);
-  return Math.min(0.45 * w, (maxChars + 1) * LABEL_CHAR_W * fontSize);
+  return Math.min(0.45 * w, (maxChars + 1) * CHAR_W * fontSize);
 }
 
 export interface ControlsPaneLayout {
@@ -142,9 +138,10 @@ export function controlsPane(
   const orig = origControls ?? parseControls(language, code, names).controls;
   const cur = parseControls(language, withControlDefaults(language, code, names), names).controls;
 
-  const textStyle = resolveStyle(style, {});
-  const textDraw = resolveDrawOpts(draw, { mode: "sketch", duration: SKETCH_MS.text });
+  // One resolved style for both text and ink (final wave item 7 — these used
+  // to be two identically-computed `resolveStyle(style, {})` calls).
   const inkStyle = resolveStyle(style, {});
+  const textDraw = resolveDrawOpts(draw, { mode: "sketch", duration: SKETCH_MS.text });
   const inkDraw = resolveDrawOpts(draw, { mode: "sketch", duration: SKETCH_MS.node });
   // Low-alpha fill for the chosen chip — the same wash the marker pen and the
   // panel's own region tint use elsewhere in code.ts (COLORS.region1 @ 0.42).
@@ -171,7 +168,7 @@ export function controlsPane(
     anchor,
     font: "mono",
     z: Z_TEXT,
-    style: textStyle,
+    style: inkStyle,
     drawOpts: textDraw,
   });
   const mkStrokeRect = (rid: string, x: number, y: number, w: number, h: number): Drawable => ({
@@ -250,7 +247,7 @@ export function controlsPane(
       const min = o.min ?? 0;
       const max = o.max ?? 1;
       const value = typeof c.default === "number" ? c.default : Number(c.default);
-      const valueW = 4 * fontSize * 0.6;
+      const valueW = 4 * fontSize * CHAR_W;
       const trackW = rowContentW - valueW - PAD;
       const frac = max > min ? Math.min(1, Math.max(0, (value - min) / (max - min))) : 0;
       const kx = rowContentX + trackW * frac;
@@ -266,7 +263,7 @@ export function controlsPane(
       const gap = 0.5 * fontSize;
       let cursorX = rowContentX;
       options.forEach((opt, k) => {
-        const chipW = Math.max(2.4 * fontSize, opt.length * fontSize * 0.6 + 1.4 * fontSize);
+        const chipW = Math.max(2.4 * fontSize, opt.length * fontSize * CHAR_W + 1.4 * fontSize);
         const chipY = cy - fieldH / 2;
         const isChosen = opt === chosen;
         children.push(
@@ -289,8 +286,11 @@ export function controlsPane(
     } else if (o.kind === "text" || o.kind === "number") {
       const boxW = rowContentW;
       const boxY = cy - fieldH / 2;
-      const shown =
-        o.kind === "text" ? `"${String(c.default)}"` : formatValue(language, o, typeof c.default === "number" ? c.default : Number(c.default));
+      // formatValue already quotes AND escapes a text default (backslash
+      // first, then the quote — final wave item 8; this used to interpolate
+      // the raw value between bare quotes, so a value containing one drew a
+      // syntactically broken literal).
+      const shown = formatValue(language, o, c.default);
       children.push(mkStrokeRect(`${rowId}__box`, rowContentX, boxY, boxW, fieldH), mkText(`${rowId}__value`, [rowContentX + boxW / 2, cy], shown, "middle"));
     } else if (o.kind === "button") {
       const boxW = rowContentW;
