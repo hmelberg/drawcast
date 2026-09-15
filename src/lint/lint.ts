@@ -19,6 +19,9 @@ import { connectKey } from "../render/widgets";
 import { CONNECT_MAX_EDGES } from "../ui/connect-model";
 
 export const FONT_FLOOR = 14;
+/** Below this fit scale the text floor is doing most of the work — the
+ *  template box was too small for the figure (template-fit.ts). */
+export const FIT_SCALE_FLOOR = 0.5;
 /** The floor for the Commodore 64 face: a pixel glyph the size of its cell. */
 export const C64_FONT_FLOOR = 11;
 const CANVAS_TOLERANCE = 2;
@@ -32,6 +35,8 @@ export interface LintIssue {
     | "overlap-math-label"
     /** a code panel and the template figure beside it drawn on the same ground */
     | "overlap-code-figure"
+    /** a template's box was small enough that the fit scale did most of the shrinking */
+    | "fit-scale"
     | "out-of-canvas"
     | "font-too-small"
     | "slow-start"

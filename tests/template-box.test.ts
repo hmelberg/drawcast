@@ -4,7 +4,7 @@ import { fitRegion } from "../src/layout/regions";
 import { flattenDrawables } from "../src/layout/model";
 import { plotArea } from "../src/layout/canvas";
 import { ensureEnabledPacks } from "../src/scenes/packs";
-import { FONT_FLOOR } from "../src/lint/lint";
+import { FONT_FLOOR, FIT_SCALE_FLOOR } from "../src/lint/lint";
 import { planCommands } from "../src/render/plan";
 import { planOptionsFor } from "../src/render/index";
 import type { BBox } from "../src/layout/geometry";
@@ -96,7 +96,7 @@ describe("template box — a native box is resolved, never fitted", () => {
       expect(inside(b, R, 40), id).toBe(true); // axis labels hang just outside the plot area
     }
     // "fit-scale" lands in Task 4 — the union doesn't know it yet.
-    expect(r.issues.filter((i) => (i.rule as string) === "fit-scale")).toEqual([]);
+    expect(r.issues.filter((i) => i.rule === "fit-scale")).toEqual([]);
   });
 
   test("bar_chart given a rectangle behaves as it did before this round", () => {
@@ -176,5 +176,31 @@ describe("template box — the planner's domain mapping composes the fit", () =>
     const item = step.items.find((it) => it.id === "box_s")!;
     expect(beforeCentre[0] + item.to.offset[0]).toBeCloseTo(cx * s + dx, 0);
     expect(beforeCentre[1] + item.to.offset[1]).toBeCloseTo(cy * s + dy, 0);
+  });
+});
+
+describe("template box — fit-scale lint", () => {
+  test("a box too small for the template warns once, naming the scale and the way out", () => {
+    const r = layoutSpec(sir({ box: { x: 60, y: 95, w: 200, h: 120 } }));
+    expect(r.fit!.s).toBeLessThan(FIT_SCALE_FLOOR);
+    const hits = r.issues.filter((i) => i.rule === "fit-scale");
+    expect(hits).toHaveLength(1);
+    expect(hits[0].severity).toBe("warn");
+    expect(hits[0].ids).toEqual(["sir_compartments"]);
+    expect(hits[0].message).toMatch(/fitted at 0\.\d+/);
+    expect(hits[0].message).toMatch(/taller region|native box/);
+  });
+
+  test("a comfortable box does not warn", () => {
+    const r = layoutSpec(sir({ box: "full" }));
+    expect(r.fit!.s).toBeGreaterThanOrEqual(FIT_SCALE_FLOOR);
+    expect(r.issues.filter((i) => i.rule === "fit-scale")).toEqual([]);
+  });
+
+  test("the overlap hint now names the region words", () => {
+    const r = layoutSpec(sir({}, [{ id: "sim", type: "code", language: "python", show: "code", code: CODE, x: 500, width: 880 }]));
+    const hit = r.issues.find((i) => i.rule === "overlap-code-figure");
+    expect(hit).toBeDefined();
+    expect(hit!.message).toMatch(/box: "left"|box: "right"/);
   });
 });

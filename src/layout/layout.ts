@@ -7,7 +7,7 @@ import { applyTextMap } from "./text-map";
 import { DEFAULT_MATH_FONT } from "./text-style";
 import { setMathFont } from "../scenes/engines";
 import type { Spec } from "../spec/types";
-import { coVisible, lintLayout, type LintIssue } from "../lint/lint";
+import { coVisible, lintLayout, FIT_SCALE_FLOOR, type LintIssue } from "../lint/lint";
 import { layoutElements, type PieceGeometry } from "./tier2";
 import type { MeasureSpec } from "./measures";
 import type { CodeWindow } from "./code";
@@ -21,7 +21,7 @@ import { drawablesForId, leafDrawables, type Drawable, type Pt } from "./model";
 import { linearScale, plotArea } from "./canvas";
 import { figureSplit } from "./figure-split";
 import { fitSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
-import { FIT_NAMES } from "./regions";
+import { FIT_NAMES, isFitName } from "./regions";
 
 export interface LayoutResult {
   drawables: Drawable[];
@@ -139,6 +139,17 @@ export function layoutSpec(
       try {
         const sceneLayout = scene.layout(spec.params ?? {});
         if (box && !native) fit = fitSceneLayout(sceneLayout, box, measure) ?? undefined;
+        if (fit && fit.s < FIT_SCALE_FLOOR) {
+          const where = isFitName((spec.params ?? {})["box"]) ? `"${(spec.params ?? {})["box"]}"` : JSON.stringify(fit.box);
+          issues.push({
+            rule: "fit-scale",
+            ids: [spec.template],
+            severity: "warn",
+            message:
+              `template ${spec.template} is fitted at ${fit.s.toFixed(2)} into box ${where}; its labels are held at the readable floor — ` +
+              `give it a taller region, or use a template with a native box`,
+          });
+        }
         templateIds = sceneLayout.order;
         drawables.push(...sceneLayout.drawables);
         labelRequests.push(...sceneLayout.labels);
@@ -301,7 +312,7 @@ function codeFigureOverlap(codeId: string, templateIds: string[], drawables: Dra
           ids: [codeId, id],
           message:
             `code panel "${codeId}" and the ${spec.template} figure ("${id}") are drawn on the same ground — ` +
-            `give the code element x/width, or the template a box, so each has its own area`,
+            `give the template a box (params.box: "left" or "right"), or the code element x/width, so each has its own area`,
           severity: "warn",
         },
       ];
