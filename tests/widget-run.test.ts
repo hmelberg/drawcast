@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { compileTemplateDoc } from "../src/scenes/compile";
 import { buildWidgetScene, paramNamesOf } from "../src/scenes/widget-scene";
-import { demoWidget, runWidget, stepWidget } from "../src/scenes/widget-run";
+import { demoWidget, partAt, runWidget, stepWidget } from "../src/scenes/widget-run";
 import type { TemplateDoc } from "../src/scenes/doc";
 
 // A two-pad counter: dot adds ".", gap commits the count as the answer.
@@ -45,11 +45,36 @@ describe("buildWidgetScene", () => {
     expect(scene.toDomain([500, 400])).toBeNull();
     expect(paramNamesOf(module)).toEqual(["signal"]);
   });
+  test("`visible` keeps the boundary's parts and drops the rest — ids, boxes and rings together", () => {
+    const scene = buildWidgetScene(module, {}, { visible: new Set(["dot", "signal"]) })!;
+    expect(scene.ids).toEqual(["dot", "signal"]);
+    expect(scene.boxes.has("gap")).toBe(false);
+    expect(scene.rings.has("gap")).toBe(false);
+    expect(scene.rings.has("dot")).toBe(true);
+  });
   test("with a domain, toDomain and toLogical invert each other", () => {
     const scene = buildWidgetScene(module, {}, { domain: { x: [0, 10], y: [0, 5] } })!;
     const p = scene.toLogical([5, 2.5]);
     expect(scene.toDomain(p)![0]).toBeCloseTo(5);
     expect(scene.toDomain(p)![1]).toBeCloseTo(2.5);
+  });
+});
+
+// The widget's SURFACE (spec §2.3): the parts you can be INSIDE of. Before
+// this, every top-level part was the widget's — and a title, a strip or a
+// legend silently lost its info card to a body that ignores the click.
+describe("partAt — only a part with a closed outline is tappable", () => {
+  const scene = buildWidgetScene(module, { signal: "...." })!;
+  test("a pad answers; the text beside it does not, though it IS a part", () => {
+    expect(partAt(scene, [300, 400])).toBe("dot");
+    expect(scene.ids).toContain("signal");
+    const b = scene.boxes.get("signal")!;
+    expect(b.w).toBeGreaterThan(0);
+    expect(partAt(scene, [b.x + b.w / 2, b.y + b.h / 2])).toBeNull();
+  });
+  test("the fat-finger slop still rescues a near miss — among the outlined parts", () => {
+    expect(partAt(scene, [300, 348])).toBe("dot"); // 12 logical units below the pad
+    expect(partAt(scene, [300, 300])).toBeNull();
   });
 });
 

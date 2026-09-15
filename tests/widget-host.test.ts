@@ -5,6 +5,7 @@ import { compileTemplateDoc } from "../src/scenes/compile";
 import { scenes } from "../src/scenes/registry";
 import { widgetHostFor } from "../src/ui/widget-host";
 import { layoutSpec } from "../src/layout/layout";
+import { INITIAL_STATE, type Plan } from "../src/render/plan";
 import type { RenderHandle } from "../src/render";
 import type { TemplateDoc } from "../src/scenes/doc";
 
@@ -32,25 +33,65 @@ const doc = {
 
 scenes["host_pads"] = compileTemplateDoc(doc).module!;
 
-function fakeHandle() {
-  const spec = { template: "host_pads", params: {}, commands: [] } as unknown as RenderHandle["spec"];
+// A second document whose PART SET depends on a param: the send pad exists
+// only once something has been sent. The widget's own patch is what mints it,
+// so this is the "revealed since mount" case (F1) in its smallest form.
+scenes["host_reveal"] = compileTemplateDoc({
+  ...doc,
+  template: "host_reveal",
+  element_ids: { dot: "dot pad", sent: "the send pad" },
+  layout: `
+    const drawables = [kit.pad("dot", [300, 400], "·", { r: 40 })];
+    const order = ["dot"];
+    if ((params.signal ?? "") !== "") { drawables.push(kit.pad("sent", [500, 400], "sent", { w: 90, h: 60 })); order.push("sent"); }
+    return { drawables, labels: [], anchors: {}, order };`,
+} as TemplateDoc).module!;
+
+/** Every part the boundary has drawn, unless a test says otherwise. */
+const ALL_DRAWN = ["dot", "gap", "signal", "sent"];
+
+/** The smallest plan whose single boundary shows `visible` (src/render/plan.ts). */
+function fakePlan(visible: string[]): Plan {
+  return { steps: [], states: [{ ...INITIAL_STATE, visible }], labels: {}, warnings: [], minted: [] } as unknown as Plan;
+}
+
+function fakeHandle(visible: string[] = ALL_DRAWN, template = "host_pads") {
+  const spec = { template, params: {}, commands: [] } as unknown as RenderHandle["spec"];
   const layout = layoutSpec(spec);
   const calls: string[] = [];
+  // previewParams PAINTS: what the host hit-tests afterwards is the patched
+  // geometry, exactly as the player's paintedLayout() hands it back.
+  let painted: ReturnType<typeof layoutSpec> | null = null;
   const timeline = {
     state: "paused",
-    position: 0,
+    position: 1,
     vars: new Map<string, string>(),
     callbacks: {},
     tones: { beep: (hz: number, ms: number) => (calls.push(`beep ${hz} ${ms}`), ms), play: () => 0, cancel: () => undefined, pause: () => undefined, resume: () => undefined },
-    previewParams: (o: Record<string, unknown>) => calls.push(`preview ${JSON.stringify(o)}`),
-    paintedLayout: () => null,
+    previewParams: (o: Record<string, unknown>) => {
+      painted = layoutSpec({ ...spec, params: o } as unknown as RenderHandle["spec"]);
+      return calls.push(`preview ${JSON.stringify(o)}`);
+    },
+    paintedLayout: () => painted,
     glow: async (ids: string[]) => void calls.push(`glow ${ids.join(",")}`),
     tapAt: async () => undefined,
     caption: (t: string | null) => calls.push(`caption ${t}`),
     getParamOverrides: () => ({}),
   };
-  const hd = { spec, layout, timeline } as unknown as RenderHandle;
+  const hd = { spec, layout, plan: fakePlan(visible), timeline } as unknown as RenderHandle;
   return { hd, calls, timeline };
+}
+
+/** A handle whose module counts what a scene build costs (one layout call). */
+let counted = 0;
+function countingHandle(visible: string[] = ALL_DRAWN) {
+  const name = `host_pads_counted_${++counted}`;
+  const base = scenes["host_pads"];
+  let builds = 0;
+  scenes[name] = { ...base, layout: (p: Record<string, unknown>) => (builds++, base.layout!(p)) };
+  const h = fakeHandle(visible, name);
+  builds = 0; // the handle's own layoutSpec is not a scene build
+  return { ...h, builds: () => builds };
 }
 
 describe("widgetHostFor", () => {
@@ -91,6 +132,50 @@ describe("widgetHostFor", () => {
     expect(calls).toContain("caption sent");
     expect(calls.filter((c) => c.includes("nope"))).toEqual([]);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('"nope" is not a template param'));
+  });
+
+  // F1: the scene is the boundary's, not the whole layout's. A pad the
+  // storyboard has not drawn yet is not there to click — and the click must
+  // fall THROUGH (false), or blank paper where a pad will later stand would
+  // swallow the resume.
+  test("a part the boundary has not drawn is neither hoverable nor clickable", () => {
+    const { hd, calls } = fakeHandle(["dot", "signal"]);
+    const host = widgetHostFor(hd)!;
+    expect(host.over([500, 400])).toBe(false);
+    expect(host.clickAt([500, 400])).toBe(false);
+    expect(calls).toEqual([]);
+    expect(host.over([300, 400])).toBe(true);
+    expect(host.clickAt([300, 400])).toBe(true);
+  });
+
+  // …but a part the widget's OWN patch mints counts as drawn from that moment,
+  // exactly as previewParams({revealNew: true}) reveals it on screen.
+  test("a part the widget's own patch reveals becomes clickable", () => {
+    const { hd } = fakeHandle(["dot"], "host_reveal");
+    const host = widgetHostFor(hd)!;
+    expect(host.over([500, 400])).toBe(false); // the send pad is not drawn yet
+    expect(host.clickAt([300, 400])).toBe(true); // …the dot patches signal…
+    expect(host.over([500, 400])).toBe(true); // …and now it is on screen
+  });
+
+  // F2: hover asks this question on every pointermove. Building the scene per
+  // move ran the template's layout body each time.
+  test("two looks in a row build the scene once", () => {
+    const { hd, builds } = countingHandle();
+    const host = widgetHostFor(hd)!;
+    host.over([300, 400]);
+    host.over([310, 400]);
+    host.over([900, 700]);
+    expect(builds()).toBe(1);
+    host.clickAt([300, 400]); // a patch changes the params — and the scene
+    const after = builds();
+    expect(after).toBeGreaterThan(1);
+    host.over([300, 400]);
+    host.over([310, 400]);
+    expect(builds()).toBe(after + 1);
+    host.reset(); // …and reset drops the memo with everything else
+    host.over([300, 400]);
+    expect(builds()).toBe(after + 2);
   });
 
   test("reset forgets state, patches and the caption", () => {
@@ -140,6 +225,9 @@ describe("attachWidgetHost — source pins", () => {
     const b = controls.indexOf("attachInfoCards(stage, hd, widgetHost)");
     expect(a).toBeGreaterThan(-1);
     expect(a).toBeLessThan(b);
+  });
+  test("the hover class asks the widget only while paused — over() builds a scene, and the movie must not pay for it on every pointer move", () => {
+    expect(infocard).toContain('const on = hd.timeline.state !== "playing" && (targetAt(e) !== null || overWidget(e));');
   });
   test("the info card stands aside for widget parts", () => {
     expect(infocard).toMatch(/widgetHost\?\.over\(p\)\) return null/);

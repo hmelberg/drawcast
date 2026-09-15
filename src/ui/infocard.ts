@@ -493,10 +493,15 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost
   // OR a widget part, so a pad and a card element share the one class
   // (the sole toggle for it; widget-host.ts does not touch it, or the two
   // add-ons would fight over the same class within a single pointermove).
-  stage.addEventListener("pointermove", (e) => {
+  const overWidget = (e: MouseEvent): boolean => {
     const p = logicalPoint(stage, e);
-    const overWidget = widgetHost !== null && p !== null && widgetHost.over(p);
-    const on = hd.timeline.state !== "playing" && (targetAt(e) !== null || overWidget);
+    return widgetHost !== null && p !== null && widgetHost.over(p);
+  };
+  stage.addEventListener("pointermove", (e) => {
+    // The short-circuit ORDER is the point: asking the widget host builds its
+    // scene, and this handler runs on every pointer move. While the movie
+    // plays nothing is clickable, so the question is never asked.
+    const on = hd.timeline.state !== "playing" && (targetAt(e) !== null || overWidget(e));
     stage.classList.toggle("cs-cardable", on);
   });
 }

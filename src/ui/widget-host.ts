@@ -11,6 +11,8 @@ import { partAt, stepWidget } from "../scenes/widget-run";
 import type { WidgetEffect } from "../scenes/widget-effects";
 import type { WidgetBody, WidgetScene } from "../scenes/widget-types";
 import { makeBrowserMeasure } from "../render/svg-backend";
+import { sceneAt } from "../render/plan";
+import { withNewIdsVisible } from "../render/params";
 import { answersMatch } from "../spec/answers";
 import { h, logicalPoint } from "./dom";
 import { gateIsOpen } from "./gates";
@@ -51,11 +53,32 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
   let patches: Record<string, unknown> = {};
   let answer: string | null = null;
   let captioned = false;
+  /** The order of the layout the widget's own patches last produced — the
+   *  preview order `revealNew` compares against the mounted one (render/index.ts
+   *  ~382), so a pad a patch mints is on screen and clickable at once. */
+  let previewOrder: readonly string[] = [];
 
   const params = (): Record<string, unknown> => ({ ...(hd.spec.params ?? {}), ...hd.timeline.getParamOverrides(), ...patches });
+
+  /** What the viewer can actually see right now: the paused boundary's own
+   *  visible set, widened by the ids this widget's patches have revealed. */
+  const visible = (): ReadonlySet<string> => {
+    const drawn = new Set(sceneAt(hd.plan, hd.timeline.position).visible);
+    return previewOrder.length > 0 ? withNewIdsVisible(new Set(hd.layout.order), previewOrder, drawn) : drawn;
+  };
+
+  // One scene per (painted geometry, params, boundary). `over()` runs on every
+  // pointermove, and building a scene runs the template's layout body — so the
+  // answer is remembered until something that could change it does.
+  let memo: { layout: unknown; key: string; scene: WidgetScene | null } | null = null;
   const scene = (): WidgetScene | null => {
     const painted = hd.timeline.paintedLayout() ?? hd.layout;
-    return buildWidgetScene(module, params(), { domain: hd.spec.domain, vars: Object.fromEntries(hd.timeline.vars), layout: painted, measure: deps.measure });
+    const p = params();
+    const key = `${hd.timeline.position}|${previewOrder.length}|${JSON.stringify(p)}`;
+    if (memo && memo.layout === painted && memo.key === key) return memo.scene;
+    const built = buildWidgetScene(module, p, { domain: hd.spec.domain, vars: Object.fromEntries(hd.timeline.vars), layout: painted, measure: deps.measure, visible: visible() });
+    memo = { layout: painted, key, scene: built };
+    return built;
   };
 
   const perform = (effects: WidgetEffect[], sc: WidgetScene): void => {
@@ -70,6 +93,14 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
       if (e.patch && Object.keys(e.patch).length > 0) {
         patches = { ...patches, ...e.patch };
         hd.timeline.previewParams(patches, { revealNew: true });
+        // The patched layout's own order: whatever it mints that the mounted
+        // layout never had is now painted (revealNew), so the host must count
+        // it as visible too or the widget could not click what it just drew.
+        try {
+          previewOrder = module.layout!(params()).order;
+        } catch {
+          previewOrder = [];
+        }
       }
       if (e.glow) void hd.timeline.glow(e.glow, undefined, e.color);
       if (e.pointer) {
@@ -98,11 +129,14 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
       const id = partAt(sc, p);
       if (id === null) return false;
       if (!body) {
-        body = module.widget!();
+        // Construction and init() are the author's code: a body that throws
+        // reports and stands down — the gate does the same (below), and the
+        // click is still the widget's, so nothing falls through to the card.
         try {
+          body = module.widget!();
           state = body.init(sc);
         } catch (err) {
-          warn(`init() threw: ${(err as Error).message}`);
+          warn(`widget body threw on mount: ${(err as Error).message}`);
           body = null;
           return true;
         }
@@ -123,6 +157,8 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
       state = undefined;
       patches = {};
       answer = null;
+      previewOrder = [];
+      memo = null;
       if (captioned) {
         hd.timeline.caption(null);
         captioned = false;

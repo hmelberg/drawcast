@@ -200,7 +200,19 @@ a now-exported `inverseDomainMapping`). Anchors are not published in v1
 - **Parts.** The widget's parts are the ids the template layout returned
   for the current params (`order` plus every group child) — template part
   ids are unprefixed in the layout, so this is exactly the template's
-  drawing. A click elsewhere keeps today's meaning (resume, card).
+  drawing — **filtered to the ids the paused boundary has actually drawn**
+  (`sceneAt(plan, position).visible`, widened by the ids the widget's own
+  patches have revealed, exactly as `previewParams({revealNew: true})`
+  reveals them on screen). An undrawn pad is not there to click, and blank
+  paper where one will later stand keeps its ordinary meaning.
+- **The surface.** Of those parts, only the ones with a CLOSED OUTLINE
+  (`scene.rings`) receive clicks: a pad, a peg's zone, a switch — the things
+  a viewer can be inside of. Texts, axes and open strokes stay the info
+  card's (the first draft handed the widget every top-level part, which took
+  the card away from every title and legend and gave the widget clicks its
+  body ignores; review 2026-09-15). `scene.ids` is still the full part list —
+  a body may glow or point at a part it never gets clicks from — and a click
+  on a part outside the surface is simply not the widget's.
 - **Mount.** On the first paused click that hits a part: `state =
   init(scene)`. On every hit: `on({type: "click", id, point, domain},
   state, scene)` → perform effects → keep the new state.

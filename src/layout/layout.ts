@@ -296,7 +296,7 @@ function codeFigureOverlap(codeId: string, templateIds: string[], drawables: Dra
 }
 
 /** Union bbox per command-addressable element id (logical units), for the gesture verbs. */
-export function elementBBoxes(layout: LayoutResult, measure: MeasureFn = heuristicMeasure): Map<string, BBox> {
+export function elementBBoxes(layout: Pick<LayoutResult, "drawables" | "order">, measure: MeasureFn = heuristicMeasure): Map<string, BBox> {
   const map = new Map<string, BBox>();
   for (const id of layout.order) {
     const box = unionBBoxForId(layout.drawables, id, measure);

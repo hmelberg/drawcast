@@ -14,6 +14,15 @@ export interface WidgetSceneOpts {
   /** The layout on screen; defaults to the module's own layout at `params`. */
   layout?: Pick<LayoutResult, "drawables" | "order">;
   measure?: MeasureFn;
+  /**
+   * The ids on screen at this boundary (the host passes
+   * `sceneAt(plan, position).visible` plus what the widget's own patches have
+   * revealed). Parts outside it are dropped from `ids`, `boxes` and `rings`:
+   * an undrawn pad is not there to click, and blank paper where one will
+   * later stand must keep its ordinary meaning. Absent = no filter (the
+   * harness and the author's node tests see the whole template).
+   */
+  visible?: ReadonlySet<string>;
 }
 
 /** The keys of the template's params_schema — what a `patch` may name. */
@@ -26,8 +35,8 @@ export function buildWidgetScene(module: SceneModule, params: Record<string, unk
   if (!module.layout) return null;
   const own = module.layout(params);
   const layout = opts.layout ?? { drawables: own.drawables, order: own.order };
-  const ids = own.order.slice();
-  const all = elementBBoxes(layout as LayoutResult, opts.measure);
+  const ids = opts.visible ? own.order.filter((id) => opts.visible!.has(id)) : own.order.slice();
+  const all = elementBBoxes(layout, opts.measure);
   const boxes = new Map([...all].filter(([id]) => ids.includes(id)));
   const rings = new Map([...elementRings(layout)].filter(([id]) => ids.includes(id)));
   const fwd = domainMapping(opts.domain);

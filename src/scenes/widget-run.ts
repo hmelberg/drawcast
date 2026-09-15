@@ -37,9 +37,13 @@ export function runWidget(module: SceneModule, params: Record<string, unknown>, 
   const names = paramNamesOf(module);
   let scene = buildWidgetScene(module, run.params, opts);
   if (!scene) return { ...run, errors: ["template has no layout"] };
-  const body = module.widget();
+  let body: WidgetBody;
   let state: unknown;
   try {
+    // Construction runs the author's `return { init, on }` line; init() runs
+    // their setup. Both are reported, never raised — the harness and the
+    // examples gate must say what broke, not crash on it.
+    body = module.widget();
     state = body.init(scene);
   } catch (err) {
     return { ...run, errors: [`widget init() threw: ${(err as Error).message}`] };
@@ -80,10 +84,10 @@ export function runWidget(module: SceneModule, params: Record<string, unknown>, 
 export function demoWidget(module: SceneModule, params: Record<string, unknown>, answer: string, opts: WidgetSceneOpts = {}): { effects: WidgetEffect[]; errors: string[] } {
   const scene = buildWidgetScene(module, params, opts);
   if (!scene || !module.widget) return { effects: [], errors: ["template has no widget body"] };
-  const body = module.widget();
-  if (!body.demo) return { effects: scene.ids.length > 0 ? [{ pointer: scene.ids[0] }] : [], errors: [] };
   let raw: unknown;
   try {
+    const body = module.widget();
+    if (!body.demo) return { effects: scene.ids.length > 0 ? [{ pointer: scene.ids[0] }] : [], errors: [] };
     raw = body.demo(scene, answer);
   } catch (err) {
     return { effects: [], errors: [`widget demo() threw: ${(err as Error).message}`] };
@@ -92,7 +96,18 @@ export function demoWidget(module: SceneModule, params: Record<string, unknown>,
   return { effects: v.effects, errors: v.issues };
 }
 
-/** Where a click at `p` lands among the parts, with the click gates' fat-finger slop. */
+/**
+ * Where a click at `p` lands on the widget's SURFACE, with the click gates'
+ * fat-finger slop.
+ *
+ * The surface is the parts that have a closed outline (`scene.rings`) — the
+ * thing you can point at and be inside of: a pad, a peg's zone, a switch.
+ * Texts, open strokes and axes are not tappable, so the info card keeps them
+ * (spec §2.3): every top-level part standing the card aside made a title or a
+ * legend dead to the viewer. `scene.ids` stays the full part list — a body
+ * may still glow or point at a label it never gets clicks from.
+ */
 export function partAt(scene: WidgetScene, p: [number, number], slop = 18): string | null {
-  return hitElement(scene.boxes, p, slop, scene.rings);
+  const surface = new Map([...scene.boxes].filter(([id]) => scene.rings.has(id)));
+  return hitElement(surface, p, slop, scene.rings);
 }
