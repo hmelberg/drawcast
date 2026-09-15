@@ -79,6 +79,20 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // up in the catalog as one more "Pack available but not enabled: Widgets —
 // …" line, +211 chars on the system prompt only; the schema is untouched
 // (109612 stays 109612).
+// Re-measured 2026-09-15 for the widget-bodies fix wave (F5): a template
+// whose document carries a widget body now emits one marker line in its FULL
+// catalog entry ("widget: the viewer can work this figure while paused; an
+// ask may bind to it with widget: <name>", ~105 chars), which is what the ask
+// bullet in compiler-v1.md has been telling the model to look for since Task
+// 6 and which nothing emitted until now. Nothing else in the prompt or the
+// schema changed. The three templates that carry the flag are all in the
+// widgets pack, which is not registered in this test's configuration (and is
+// an index line, not a full entry, in the two-level regime anyway) — so both
+// measurements come back UNCHANGED at 224279 / 109612. Pinned to what was
+// measured, as this file's rule requires, rather than nudged for a delta that
+// an ordinary request never pays. (With the widgets pack enabled the system
+// prompt measures 228539, the pack's own three index lines and hot-set
+// entries; that regime has never been what these ceilings pin.)
 const BASELINE_SYSTEM_CHARS = 224279;
 const BASELINE_SCHEMA_CHARS = 109612;
 

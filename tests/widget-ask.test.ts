@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test } from "vitest";
+import { catalogText } from "../src/scenes/catalog";
+import { ensureEnabledPacks } from "../src/scenes/packs";
 import { validateSpec } from "../src/spec/schema";
 import { planCommands } from "../src/render/plan";
 import { BUILTIN_WIDGETS } from "../src/spec/types";
@@ -51,6 +53,25 @@ describe("ask.widget may name the spec's template", () => {
     expect(step.widget).toBe("code");
     expect(step.codeId).toBe("panel");
     expect(step.widgetTemplate).toBeUndefined();
+  });
+});
+
+// The compiler prompt tells the model to look for a marker in the catalog
+// entry; until this round nothing ever emitted one, so the binding was
+// unreachable for any request the model had not been handed by name.
+describe("what the model sees: a workable template says so in its catalog entry", () => {
+  beforeAll(async () => {
+    await ensureEnabledPacks(["widgets"]);
+  });
+  test("the full entry carries the widget marker, and only for a widget-bearing template", () => {
+    const text = catalogText({ forced: "morse_key" });
+    expect(text).toContain("### Scene template: morse_key (READY");
+    expect(text).toContain("widget: the viewer can work this figure while paused; an ask may bind to it with widget: morse_key");
+    expect(catalogText({ forced: "supply_demand" })).not.toContain("widget: the viewer can work");
+  });
+  test("the ask bullet sends the model looking for exactly that marker", () => {
+    const prompt = readFileSync("src/llm/prompts/compiler-v1.md", "utf8");
+    expect(prompt).toContain('its catalog entry says "widget"');
   });
 });
 
