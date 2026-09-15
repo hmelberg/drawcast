@@ -12,3 +12,7 @@ App, SIR example (pane: controls), light then dark mode:
 8. Mobile (or DevTools touch): a slider drag does not scroll the page.
 9. The ⊕ tray opened by hand: no hand-drawn border, no scrollbar; its rows still work; while it is open the drawn panel ignores presses.
 10. `?perf` in the URL, cache cleared (DevTools → Application → IndexedDB → delete): the console shows the boot/install/run timings (Task 7).
+
+## Measured 2026-09-15
+
+Not measured by the implementer (no browser); the controller measures with `?perf` on the SIR example and decides on the warm-up.

@@ -16,6 +16,7 @@ import { cacheGet, cachePut } from "../render/portrait";
 import { chartPrelude, DEFAULT_CHART_STYLE, type ChartStyle } from "./chart-style";
 import { CODE_VERSION, decodeCodeResult, type CodeRunResult } from "./envelope";
 import { RUNTIME_VERSION, cacheTag, isLanguage, type Language } from "./languages";
+import { perfSpan } from "./perf";
 
 // Envelope shape lives in ./envelope (dependency-free — layout imports it
 // directly from there); re-exported here so every existing
@@ -91,6 +92,7 @@ async function defaultRunner(req: CodeRunRequest): Promise<CodeRunResult> {
     return { ok: false, stdout: "", stderr: "", figures: [], error: `unknown language "${String(req.language)}"` };
   }
   let mod: RuntimeModule;
+  const endImport = perfSpan(`runtime import ${req.language}`);
   try {
     mod = await RUNTIMES[req.language]();
   } catch (err) {
@@ -100,8 +102,15 @@ async function defaultRunner(req: CodeRunRequest): Promise<CodeRunResult> {
     const tagged = new Error((err as Error).message) as Error & { runtimeUnavailable?: boolean };
     tagged.runtimeUnavailable = true;
     throw tagged;
+  } finally {
+    endImport();
   }
-  return mod.run(req);
+  const endRun = perfSpan(`run ${req.language}`);
+  try {
+    return await mod.run(req);
+  } finally {
+    endRun();
+  }
 }
 
 export async function runCode(req: CodeRunRequest, deps: CodeRunDeps = {}): Promise<CodeRunResult> {
