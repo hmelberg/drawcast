@@ -18,6 +18,12 @@
 // state below, one Continue — so neither can hold a script the other does not
 // know about (2026-09-05; the tray was Ruling A of the M3 ledger, the card was
 // what spec §7 asked for first).
+//
+// A `pane: controls` script's knobs have two doors the same way, but the
+// second one carries no HTML at all: the DRAWN panel takes the pointer
+// itself (ui/controls-host.ts, built from this closure's own `controlsDeps`
+// below — spec 2026-09-15 §3). One state, one look; the host stands down
+// while the tray is open, so only one copy is live at a time.
 
 import type { RenderHandle } from "../render";
 import type { SpecElement } from "../spec/types";
@@ -51,8 +57,10 @@ import { bboxOfPts } from "../layout/geometry";
 import { leafDrawables } from "../layout/model";
 import { openMediaModal } from "./media-modal";
 import { mountCodeEditor, type CodeAsk, type CodeEditorHandle, type EditorSurface } from "./code-editor";
-import { mountControlsCard, type ControlsCardHandle } from "./controls-card";
-import { buildControlsGroup, syncControlsGroup, type ControlsGroupDeps } from "./controls-group";
+import { buildControlsGroup, type ControlsGroupDeps } from "./controls-group";
+import { attachControlsHost, controlsHostFor } from "./controls-host";
+import { mountControlsInput } from "./controls-input";
+import { registerContinue } from "./control-press";
 import { attachCodeTyping, type CodeTyping } from "./code-typing";
 import { activitiesFor } from "./quiz-model";
 import { MIN_PARTS } from "./parts-model";
@@ -180,12 +188,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   // are the ways back.
   const stage = host.querySelector<HTMLElement>(".cs-stage");
   const freezeClick = (e: Event): void => {
-    // Buttons, the code card, the controls card and the Body section's click overlay keep their clicks.
+    // Buttons, the code card and the Body section's click overlay keep their clicks.
     if (
       e.target instanceof Element &&
       (e.target.closest("button") ||
         e.target.closest(".cs-codeedit") ||
-        e.target.closest(".cs-ctlcard") ||
         e.target.closest(".cs-bodyexplore") ||
         e.target.closest(".cs-spaceexplore"))
     )
@@ -231,9 +238,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   };
   /** The tray's OWN control-group nodes from its last build — dropped from
    *  `controlGroups` right before the tray rebuilds, so a takeover's quiet
-   *  class never reaches a detached copy the tray already threw away. The
-   *  in-place card's copy (if any) is untouched: it lives in `controlsCards`,
-   *  independent of how many times the tray itself has reopened. */
+   *  class never reaches a detached copy the tray already threw away. */
   const trayControlGroups = new Map<string, HTMLElement>();
   /** Scripts the viewer took over by editing and running: their controls go quiet until Continue. */
   const takenOver = new Set<string>();
@@ -263,13 +268,10 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     for (const t of runTimers.values()) clearTimeout(t);
     runTimers.clear();
     lastControlsCode.clear();
-    // The in-place controls cards are as much a preview surface as a slider
-    // drag: Continue, a scrub or Play must throw them away with everything
-    // else (spec §3.2 — torn down with `clearPreview` and on Continue, like
-    // the editor card). Copy first: each card's own onClose deletes its
-    // entry, and mutating a Map mid-iteration-by-reference is asking for it.
-    for (const c of [...controlsCards.values()]) c.close();
-    controlsCards.clear();
+    // A half-typed value on a drawn text/number box is preview state too:
+    // Continue, a scrub or Play throws it away with everything else.
+    ctlInput?.close();
+    ctlInput = null;
   };
   const draftOf = (el: SpecElement): string => drafts.get(el.id) ?? patches.get(el.id)?.code ?? el.code ?? "";
   const announce = (id: string, fn: (s: EditorSurface) => void): void => {
@@ -383,26 +385,39 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     else runTimers.set(el.id, setTimeout(go, debounceMs(language)));
   };
 
+  /** A control moved: relay the DRAWN panel from the rewritten script right
+   *  away — the knob lands under the pointer on this frame — while the run
+   *  itself waits for the language's debounce (`runControls`). The patch
+   *  keeps the last result, so only the panel changes until the run lands;
+   *  coalesced to one repaint per frame, since a drag commits per move. */
+  let knobFrame: number | null = null;
+  const previewKnobs = (el: SpecElement, authoredCode: string, controls: ControlSpec[]): void => {
+    if (el.pane !== "controls") return;
+    const values = controlValues.get(el.id) ?? {};
+    const code = applyControls(el.language ?? "python", authoredCode, controls, values);
+    const result = patches.get(el.id)?.result ?? el.code_result ?? "";
+    patches.set(el.id, { code, result });
+    if (knobFrame !== null) return;
+    knobFrame = requestAnimationFrame(() => {
+      knobFrame = null;
+      repaint();
+    });
+  };
+
   /** The controls-group builder's deps for one script — SAME construction
-   *  wherever a group is built (the tray's own copy, the in-place card),
-   *  so `commit`/`run` are the exact same closures over `controlValues` and
-   *  `runControls` no matter which host mounts the group. */
+   *  wherever a control is moved (the tray's own rows, the drawn panel the
+   *  host makes live), so `commit`/`run` are the exact same closures over
+   *  `controlValues` and `runControls` either way. */
   const controlsDeps = (el: SpecElement, authoredCode: string, controls: ControlSpec[]): Omit<ControlsGroupDeps, "quiet"> => ({
     el,
     authoredCode,
     controls,
     values: () => controlValues.get(el.id) ?? {},
-    commit: (c, raw, immediate, group) => {
+    commit: (c, raw, immediate) => {
       if (takenOver.has(el.id)) return; // the viewer's own script stands until Continue (Task 1 fix)
       const next = nextValues(controlValues.get(el.id) ?? {}, c, raw);
       controlValues.set(el.id, next);
-      // Two hosts, one script (Task 3 review): the tray's own copy and a
-      // `pane: controls` card's copy each hold their own DOM for the same
-      // control — push the new value into every OTHER live copy so neither
-      // goes stale (the one that fired this commit already shows it).
-      for (const g of controlGroups.get(el.id) ?? []) {
-        if (g !== group) syncControlsGroup(g, c, next[c.name]);
-      }
+      previewKnobs(el, authoredCode, controls);
       runControls(el, controls, immediate);
     },
     run: () => runControls(el, controls, true, true),
@@ -410,20 +425,16 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
 
   const trayBtn = h("button", { class: "cs-bar-btn cs-tray-btn", title: "Explore this figure" }, "⊕");
 
-  // The cards lying on the panels, by element id. The tray and the cards each
-  // freeze the stage while they are up, so the guard comes off only when the
-  // LAST of them goes away.
+  // The editor cards lying on the panels, by element id. The tray and the
+  // cards each freeze the stage while they are up, so the guard comes off
+  // only when the LAST of them goes away.
   const editors = new Map<string, CodeEditorHandle>();
-  /** The in-place controls cards (pane-controls round, Task 3) — the same
-   *  "card lying on the pane" idea as `editors`, one script's controls-group
-   *  mounted over its `pane: controls` panel instead of the tray. */
-  const controlsCards = new Map<string, ControlsCardHandle>();
   const freezeStage = (): void => {
     stage?.classList.add("cs-exploring");
     stage?.addEventListener("click", freezeClick, true);
   };
   const thawStage = (): void => {
-    if (!tray.hidden || editors.size > 0 || controlsCards.size > 0) return;
+    if (!tray.hidden || editors.size > 0) return;
     stage?.classList.remove("cs-exploring");
     stage?.removeEventListener("click", freezeClick, true);
   };
@@ -434,13 +445,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   /** A Run or a switch re-lays the panel out under the card — twice, because
    *  the second pass catches a layout the browser had not finished painting. */
   const reflow = (): void => {
-    if (editors.size === 0 && controlsCards.size === 0) return;
+    if (editors.size === 0) return;
     for (const ed of editors.values()) ed.reposition();
-    for (const c of controlsCards.values()) c.reposition();
     if (typeof requestAnimationFrame === "function") {
       requestAnimationFrame(() => {
         for (const ed of editors.values()) ed.reposition();
-        for (const c of controlsCards.values()) c.reposition();
       });
     }
   };
@@ -481,6 +490,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       const r = gateResolve;
       gateResolve = null;
       r();
+      if (hd.timeline.state === "paused") void hd.timeline.play(); // the shut-tray gate paused the timeline
     } else {
       restore();
       close();
@@ -496,6 +506,78 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     const visible = sceneAt(hd.plan, n).visible;
     return visible.some((v) => v === id || v.startsWith(`${id}_`));
   };
+
+  /** The drawn control panels, live (spec 2026-09-15 §3): the host reads the
+   *  painted geometry and commits through the SAME closures the tray's rows
+   *  use — one state, one look. Disabled while the tray is open, so there is
+   *  one live copy at a time. */
+  const controlPanels = editable
+    .filter((e) => e.pane === "controls" && Array.isArray(e.controls) && e.controls.length > 0)
+    .map((el) => {
+      const authoredEl = (hd.authored.elements ?? []).find((e) => e.id === el.id);
+      const src = authoredEl?.code ?? el.code_src ?? el.code ?? "";
+      return { el, authoredCode: src, controls: parseControls(el.language ?? "python", src, el.controls ?? []).controls };
+    })
+    .filter((p) => p.controls.length > 0);
+  /** The transient <input> over a drawn text/number box, while one is open. */
+  let ctlInput: { close: () => void } | null = null;
+  const controlsHost = controlsHostFor({
+    panels: () => controlPanels,
+    layout: () => hd.timeline.paintedLayout() ?? hd.layout,
+    visible: visibleNow,
+    enabled: () => tray.hidden,
+    commit: (el, c, raw, immediate) => {
+      const p = controlPanels.find((x) => x.el.id === el.id);
+      if (!p) return;
+      controlsDeps(el, p.authoredCode, p.controls).commit(c, raw, immediate, tray);
+    },
+    run: (el) => {
+      const p = controlPanels.find((x) => x.el.id === el.id);
+      if (p) runControls(el, p.controls, true, true);
+    },
+    editText: (el, c, box) => {
+      if (!stage) return;
+      ctlInput?.close();
+      const p = controlPanels.find((x) => x.el.id === el.id);
+      if (!p) return;
+      const current = controlValues.get(el.id)?.[c.name] ?? c.default;
+      ctlInput = mountControlsInput(stage, {
+        box,
+        fontSize: el.font_size ?? 17, // the code pane's own default (layout/code.ts)
+        value: String(current),
+        numeric: c.kind === "number",
+        onCommit: (text) => {
+          ctlInput = null;
+          controlsDeps(el, p.authoredCode, p.controls).commit(c, text, true, tray);
+        },
+        onCancel: () => {
+          ctlInput = null;
+        },
+      });
+    },
+  });
+  if (stage && controlPanels.length > 0) {
+    attachControlsHost(stage, controlsHost, {
+      playing: () => hd.timeline.state === "playing",
+      gated: () => gateResolve !== null,
+      pauseAndSnap: () => {
+        hd.timeline.pause();
+        hd.timeline.renderUpTo(hd.timeline.position);
+      },
+    });
+  }
+  // An explore beat holding the run with the tray SHUT has no Continue ▶ of
+  // its own: the play gesture IS Continue (spec 2026-09-15 §3.3). controls.ts
+  // offers every gesture to this hook before it toggles the timeline.
+  if (stage) {
+    registerContinue(stage, () => {
+      if (gateResolve !== null && tray.hidden) {
+        continueNow();
+        return true;
+      }
+      return false;
+    });
+  }
 
   /** The machine whose ≡ is under a logical point, if any is on screen. */
   const gameAt = (p: [number, number]): SpecElement | null => {
@@ -604,58 +686,6 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     });
     if (!handle) return false;
     editors.set(el.id, handle);
-    freezeStage();
-    return true;
-  };
-
-  /**
-   * `pane: controls` (spec §3.2): a paused click, the one-click path and the
-   * explore beat all choose this over `openInPlace` when el.pane === "controls" —
-   * the panel's OWN doors, the tray's group mounted over the drawn knobs
-   * instead of the editor's text. False when there is no pane to lie on, no
-   * controls to build (the lint already refused an empty list at authoring
-   * time), or the panel is off screen right now — the caller's tray copy of
-   * the group (built regardless, by `plan.controls`) stands in for it then.
-   */
-  const openControlsInPlace = (el: SpecElement): boolean => {
-    // No `renderUpTo` snap here (unlike `openInPlace`, above): the pane
-    // RECTANGLE itself is fixed geometry in `hd.layout`/`paintedLayout()`, so
-    // `paneBoxOf` → `clientPointFor` only needs the SVG's live viewBox and the
-    // stage's own client rect to place the card. But the timeline's position
-    // DOES affect placement indirectly — `paintedLayout()` can differ from
-    // `hd.layout` before the boundary is settled — which is why the one-click
-    // caller reflows the card after `open()`'s own snap (spec §3.4).
-    if (!stage || !visibleNow(el.id)) return false;
-    const existing = controlsCards.get(el.id);
-    if (existing) {
-      existing.reposition();
-      return true;
-    }
-    const authoredEl = (hd.authored.elements ?? []).find((e) => e.id === el.id);
-    if (!authoredEl?.code || !el.language || !el.controls) return false;
-    const { controls } = parseControls(el.language, authoredEl.code, el.controls);
-    if (controls.length === 0) return false;
-    const group = buildControlsGroup({ ...controlsDeps(el, authoredEl.code, controls), quiet: takenOver.has(el.id) });
-    addControlGroup(el.id, group);
-    // el.pane === "controls" chose this door; mountControlsCard lies it down
-    // on the pane exactly where the knobs are drawn (paneBoxOf, as openInPlace
-    // uses for the editor).
-    const handle = mountControlsCard(stage, {
-      id: el.id,
-      paneBox: () => paneBoxOf(el.id),
-      group,
-      onClose: () => {
-        controlsCards.delete(el.id);
-        dropControlGroup(el.id, group);
-        thawStage();
-      },
-      onContinue: continueNow,
-    });
-    if (!handle) {
-      dropControlGroup(el.id, group);
-      return false;
-    }
-    controlsCards.set(el.id, handle);
     freezeStage();
     return true;
   };
@@ -1025,13 +1055,12 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       }
     }
     // Code controls (design 2026-09-14 §2.6): one group per script, above the
-    // template sliders' cousins — built once by controls-group.ts's shared
-    // builder (pane-controls round, Task 3), so the tray's own copy and a
-    // `pane: controls` panel's in-place card (controls-card.ts) are the exact
-    // same rows, wired to the same `controlValues`. Drop the PREVIOUS build's
-    // tray-owned nodes from `controlGroups` first — this rebuild is about to
-    // orphan them, and a takeover's quiet toggle must never reach a detached
-    // copy the tray already threw away.
+    // template sliders' cousins — built by controls-group.ts. These rows and
+    // the DRAWN panel the host makes live (controls-host.ts) are two faces of
+    // ONE state: both commit through `controlsDeps`, and the host stands down
+    // while the tray is open. Drop the PREVIOUS build's tray-owned nodes from
+    // `controlGroups` first — this rebuild is about to orphan them, and a
+    // takeover's quiet toggle must never reach a detached copy.
     for (const [id, g] of trayControlGroups) dropControlGroup(id, g);
     trayControlGroups.clear();
     for (const id of plan.controls) {
@@ -1179,12 +1208,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
           if (!el || !Array.isArray(el.controls) || el.controls.length === 0) return;
           e.stopPropagation(); // the bar's own click→pause toggle must not resume us
           hd.timeline.pause();
-          // The one-click rule (spec §3.4): a `pane: controls` panel gets its
-          // card on the SAME click that pauses — not a second click. `open`
-          // snaps the timeline to the boundary (renderUpTo), which can settle
-          // the pane at a slightly different spot than where the card was
-          // mounted a moment ago — reflow() after it so the card follows.
-          if (el.pane === "controls") openControlsInPlace(el);
+          // A `pane: controls` panel never reaches this branch: its host
+          // (ui/controls-host.ts) paused on the POINTERDOWN, so by click time
+          // the state is "paused" and the press was already the knob's. What
+          // is left here is a `pane: code` script with controls — one click
+          // from the movie into the tray's own rows, unchanged.
           open({ onCode: id! });
           reflow();
           return;
@@ -1202,25 +1230,30 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         const id = screenAt(e);
         if (id === null) return;
         e.stopPropagation();
-        // The object's natural action, ON the object. A `pane: controls`
-        // panel's object is its knobs (spec §3.2) — el.pane === "controls"
-        // sends it to its own card instead of the editor's. Only a panel
-        // that draws no code (or one whose code half is switched off) sends
-        // the viewer to the tray's copy instead.
+        // The object's natural action, ON the object: a code panel opens its
+        // editor.
         const el = editable.find((x) => x.id === id);
-        if (el && el.pane === "controls" && openControlsInPlace(el)) return;
+        // A `pane: controls` panel is the host's (ui/controls-host.ts): the
+        // press already did the object's natural action. Nothing to open.
+        if (el?.pane === "controls") {
+          e.stopPropagation();
+          return;
+        }
         if (el && openInPlace(el)) return;
         open({ onCode: id });
       },
       true,
     );
     // Quiet affordance while paused: the cursor knows the screen takes typing.
+    // A `pane: controls` panel is not one of them — its own cursor rule is the
+    // host's `cs-ctl-hover`, which points at a live ROW, not the whole panel.
     stage.addEventListener("pointermove", (e) => {
       const paused = hd.timeline.state !== "playing" && tray.hidden;
       const p = paused ? logicalPoint(stage, e) : null;
       const overPlay = p !== null && gameAt(p) !== null;
       stage.classList.toggle("cs-playable", overPlay);
-      stage.classList.toggle("cs-editable", paused && !overPlay && screenAt(e) !== null);
+      const over = screenAt(e);
+      stage.classList.toggle("cs-editable", paused && !overPlay && over !== null && editable.find((x) => x.id === over)?.pane !== "controls");
     });
   }
 
@@ -1247,6 +1280,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         }
         return;
       }
+      // A `pane: controls` script's beat holds the run with the tray SHUT
+      // (spec 2026-09-15 §3.3): the drawn panel is live, the caption carries
+      // the invitation, and Continue is the play gesture — the bar's ▶ or a
+      // click on the figure outside the panel — through the registry hook.
+      const shut = step.code !== undefined && editable.find((e) => e.id === step.code)?.pane === "controls";
       const onAbort = (): void => {
         gateResolve = null;
         closeEditors();
@@ -1259,14 +1297,13 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         signal.removeEventListener("abort", onAbort);
         resolve();
       };
-      open({ filter: step.params, gated: true, code: step.code, anatomy: step.anatomy, space: step.space });
-      // `pane: controls` (spec §3.3): the explore beat opens the knobs IN
-      // PLACE too, not only in the tray's own copy — the same door a paused
-      // click uses, held open for Continue exactly as the beat holds the run.
-      if (step.code !== undefined) {
-        const el = editable.find((e) => e.id === step.code);
-        if (el?.pane === "controls") openControlsInPlace(el);
+      if (shut) {
+        // Paused, not merely waiting: the bar shows ▶, and a click anywhere
+        // on the drawing is Continue (tryContinue in controls.ts), never a
+        // stray resume into a still-pending gate.
+        hd.timeline.pause();
       }
+      if (!shut) open({ filter: step.params, gated: true, code: step.code, anatomy: step.anatomy, space: step.space });
     });
 
   /**
@@ -1366,7 +1403,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const prevOnState = hd.timeline.callbacks.onState;
   hd.timeline.callbacks.onState = (s) => {
     prevOnState?.(s);
-    if (s === "playing" && (!tray.hidden || editors.size > 0 || controlsCards.size > 0)) {
+    if (s === "playing" && (!tray.hidden || editors.size > 0)) {
       closeEditors();
       clearPreview();
       panelViewFor(stage)?.reset();

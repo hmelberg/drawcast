@@ -1,7 +1,8 @@
 // Source-level pins for the tray's controls group (no DOM in this repo):
 // the rows must rewrite the AUTHORED script (tuples intact) and run through
 // runEdited, values must die with the preview, and the group must be built
-// from the tray plan's `controls`.
+// from the tray plan's `controls`. Since 2026-09-15 the DRAWN panel is the
+// other live copy (ui/controls-host.ts) — there is no HTML card any more.
 import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 
@@ -31,43 +32,44 @@ describe("tray controls (pins)", () => {
     expect(region).toMatch(/open\(\{ onCode: /);
     expect(region.indexOf("hd.timeline.pause()")).toBeLessThan(region.indexOf("open({ onCode:"));
   });
-  test("one controls-group builder, two hosts (tray and in-place card)", () => {
-    const group = readFileSync("src/ui/controls-group.ts", "utf8");
-    expect(group).toMatch(/export function buildControlsGroup\(/);
-    expect(src).toMatch(/buildControlsGroup\(/);              // the tray uses it
-    expect(src).toMatch(/mountControlsCard\(/);               // and mounts it in place
-    expect(src).not.toMatch(/class: "cs-tray-ctl cs-tray-ctl-/); // the inline builder is gone from tray.ts
+  test("the drawn panel is the live control: the tray builds the host from its own closures and attaches it (spec 2026-09-15 §3)", () => {
+    expect(src).toMatch(/import \{ attachControlsHost, controlsHostFor \} from "\.\/controls-host";/);
+    expect(src).toMatch(/const controlsHost = controlsHostFor\(\{/);
+    expect(src).toMatch(/attachControlsHost\(stage, controlsHost, \{/);
+    expect(src).not.toMatch(/controls-card/);
+    expect(src).not.toMatch(/syncControlsGroup/);
+    expect(src).not.toMatch(/controlsCards/);
   });
-  test("a pane: controls panel opens its card, not the editor, on a paused click", () => {
-    // Anchored on the REAL guard at the paused-click call site, not on
-    // openControlsInPlace's doc comment (which also contains the literal
-    // text "el.pane === \"controls\"" a few lines above its own
-    // mountControlsCard( call, and would still match this pin even with all
-    // three real callers' checks deleted).
-    expect(src).toMatch(/if \(el && el\.pane === "controls" && openControlsInPlace\(el\)\)/);
+  test("the host is disabled while the tray is open (one live copy at a time)", () => {
+    expect(src).toMatch(/enabled: \(\) => tray\.hidden/);
   });
-  test("the card is torn down with the preview", () => {
-    expect(src).toMatch(/const clearPreview[\s\S]{0,800}?controlsCards/);
+  test("a commit relays the panel from the rewritten script at once (the knob follows the pointer), then the run follows the debounce", () => {
+    const i = src.indexOf("const previewKnobs");
+    expect(i).toBeGreaterThan(-1);
+    const body = src.slice(i, i + 900);
+    expect(body).toContain("applyControls(");
+    expect(body).toContain("patches.set(el.id, { code");
+    expect(body).toContain("requestAnimationFrame");
+    const commit = src.slice(src.indexOf("commit: (c, raw, immediate) =>"), src.indexOf("run: () => runControls"));
+    expect(commit.indexOf("previewKnobs(")).toBeLessThan(commit.indexOf("runControls("));
   });
-  test("the card takes keyboard focus on mount, so Escape (bound on the card) has something to reach", () => {
-    // Anchored on the literal statement, not on any mention of `.focus(`
-    // nearby (a doc comment referencing mountCodeEditor's own focus call
-    // would satisfy a looser pin without the real `card.focus();` present).
-    const card = readFileSync("src/ui/controls-card.ts", "utf8");
-    expect(card).toMatch(/stage\.appendChild\(card\);[\s\S]{0,2000}?card\.focus\(\);/);
+  test("a paused click on a pane: controls panel is the host's, not the editor's or the tray's", () => {
+    expect(src).toMatch(/if \(el\?\.pane === "controls"\) \{\s*e\.stopPropagation\(\);\s*return;\s*\}/);
   });
-  test("a controls card open during playback (not just the tray or an editor) settles the preview and closes (final wave item 2)", () => {
-    expect(src).toMatch(/s === "playing" && \(!tray\.hidden \|\| editors\.size > 0 \|\| controlsCards\.size > 0\)/);
+  test("the explore beat on a pane: controls script holds the run with the tray SHUT: pause, hook Continue, no open()", () => {
+    const i = src.indexOf("hd.timeline.exploreGate =");
+    const region = src.slice(i, i + 3000);
+    expect(region).toMatch(/const shut = [\s\S]{0,200}pane === "controls"/);
+    expect(region).toMatch(/if \(shut\) \{[\s\S]{0,400}hd\.timeline\.pause\(\);[\s\S]{0,400}\}/);
+    expect(region).toMatch(/if \(!shut\) open\(\{ filter: step\.params, gated: true/);
   });
-  test("a control moved in one host syncs every OTHER live copy of the same group (final wave item 3)", () => {
-    expect(src).toMatch(/syncControlsGroup\(/);
+  test("Continue through the play gesture: the hook resolves the gate and resumes the paused timeline", () => {
+    expect(src).toMatch(/registerContinue\(stage, \(\) => \{[\s\S]{0,300}gateResolve !== null && tray\.hidden[\s\S]{0,300}continueNow\(\);[\s\S]{0,100}return true;/);
+    const i = src.indexOf("const continueNow");
+    const body = src.slice(i, i + 900);
+    expect(body).toMatch(/if \(hd\.timeline\.state === "paused"\) void hd\.timeline\.play\(\);/);
   });
-  test("the one-click path reflows the card AFTER open()'s own snap, so it follows the settled layout (final wave item 4)", () => {
-    const i = src.indexOf("hd.timeline.state === \"playing\"", src.indexOf("const screenAt"));
-    const region = src.slice(i, i + 1200);
-    const openIdx = region.indexOf("open({ onCode: id! });");
-    const reflowIdx = region.indexOf("reflow();", openIdx);
-    expect(openIdx).toBeGreaterThan(-1);
-    expect(reflowIdx).toBeGreaterThan(openIdx);
+  test("the tray's cursor rule leaves pane: controls panels to the host", () => {
+    expect(src).toMatch(/cs-editable[\s\S]{0,300}pane !== "controls"/);
   });
 });
