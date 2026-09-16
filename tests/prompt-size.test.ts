@@ -232,8 +232,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // than a wobble (Hans: the wobble was ugly): the `math_hand` schema
 // description and the prompt clause were reworded — schema +7 (119536 →
 // 119543), system +7 (237074 → 237081).
+// Re-measured 2026-09-16 for the Greek-in-the-hand round: the `math_hand`
+// description reworded once more (Greek and symbols now in the hand, only
+// stretched glyphs stay in the math font) — schema −7 (119543 → 119536);
+// the system prompt measured unchanged at 237081.
 const BASELINE_SYSTEM_CHARS = 237081;
-const BASELINE_SCHEMA_CHARS = 119543;
+const BASELINE_SCHEMA_CHARS = 119536;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

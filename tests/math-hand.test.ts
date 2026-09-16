@@ -2,7 +2,7 @@ import { afterEach, beforeAll, describe, expect, test } from "vitest";
 import { ensureEngines, getLoadedEngines, setMathHand, type MathJaxEngine } from "../src/scenes/engines";
 import { layoutSpec, elementBBoxes } from "../src/layout/layout";
 import { flattenDrawables } from "../src/layout/model";
-import { HAND_SCALE, handCharFor, handRingsFor } from "../src/scenes/math-hand";
+import { GREEK_SCALE, HAND_SCALE, STRETCH_RATIO, handCharFor, handFaceFor, handRingsFor } from "../src/scenes/math-hand";
 import { MATH_DEFAULT_SIZE } from "../src/layout/math";
 import { withTextStyle, effectiveTextStyle } from "../src/layout/text-style";
 import { lintCommands } from "../src/lint/lint";
@@ -46,12 +46,31 @@ describe("handCharFor — which MathJax glyphs a hand writes", () => {
     expect(handCharFor(0x2212)).toBe("−");
     expect(handCharFor(0x2223)).toBe("|");
   });
-  test("Greek and symbols the face lacks keep Fira", () => {
-    expect(handCharFor(0x3b1)).toBeNull();    // α
-    expect(handCharFor(0x1d6fc)).toBeNull();  // italic α
-    expect(handCharFor(0x2264)).toBeNull();   // ≤
-    expect(handCharFor(0x221a)).toBeNull();   // √
-    expect(handCharFor(0x2211)).toBeNull();   // ∑
+  test("Greek — plain, italic, bold, bold italic — maps to the letter; the variant forms to what a hand writes", () => {
+    expect(handCharFor(0x3b1)).toBe("α");
+    expect(handCharFor(0x393)).toBe("Γ");     // \Gamma, upright as MathJax writes it
+    expect(handCharFor(0x1d6fc)).toBe("α");   // italic α, as MathJax writes \alpha
+    expect(handCharFor(0x1d6fd)).toBe("β");
+    expect(handCharFor(0x1d70e)).toBe("σ");
+    expect(handCharFor(0x1d70d)).toBe("ς");   // \varsigma
+    expect(handCharFor(0x1d6e3)).toBe("Β");   // italic capital beta
+    expect(handCharFor(0x1d6c2)).toBe("α");   // bold α
+    expect(handCharFor(0x1d736)).toBe("α");   // bold italic α
+    expect(handCharFor(0x1d715)).toBe("∂");   // \partial
+    expect(handCharFor(0x1d716)).toBe("ε");   // \epsilon (lunate ϵ): the face has none, a hand writes ε
+    expect(handCharFor(0x1d700)).toBe("ε");   // \varepsilon
+    expect(handCharFor(0x1d719)).toBe("φ");   // \phi (ϕ) → φ
+    expect(handCharFor(0x1d71a)).toBe("ρ");   // \varrho
+    expect(handCharFor(0x1d6f3)).toBe("Θ");   // ϴ
+    expect(handCharFor(0x1d717)).toBeNull();  // ϑ: no hand form, Fira
+    expect(handCharFor(0x1d71b)).toBeNull();  // ϖ
+    expect(handCharFor(0x1d6fb)).toBeNull();  // ∇
+  });
+  test("the math symbols Patrick Hand has map; those it lacks keep Fira", () => {
+    for (const [cp, ch] of [[0x2264, "≤"], [0x2265, "≥"], [0x2260, "≠"], [0x2248, "≈"], [0x221e, "∞"], [0x2211, "∑"], [0x222b, "∫"]] as const) expect(handCharFor(cp)).toBe(ch);
+    expect(handCharFor(0x221a)).toBeNull();   // √ — a radical is stretched anyway
+    expect(handCharFor(0x2192)).toBeNull();   // →
+    expect(handCharFor(0x2208)).toBeNull();   // ∈
   });
 });
 
@@ -83,8 +102,30 @@ describe("handRingsFor — Patrick Hand's outline in Fira's slot", () => {
     expect((b.x0 + b.x1) / 2).toBeCloseTo(100, 0);
   });
   test("null for a glyph the hand does not write, or an empty slot", () => {
-    expect(handRingsFor(0x3b1, fira)).toBeNull();
+    expect(handRingsFor(0x2192, fira)).toBeNull();
     expect(handRingsFor(0x78, [])).toBeNull();
+  });
+  test("Greek comes from Playpen, scaled to Fira's x-height like the Latin", () => {
+    const b = box(handRingsFor(0x1d6fc, fira)!.flat()); // α
+    expect(b.y1).toBeGreaterThan(527 * 0.85);
+    expect(b.y1).toBeLessThan(527 * 1.15);
+    expect(GREEK_SCALE).toBeCloseTo(527 / 537, 3);
+    expect(GREEK_SCALE).not.toBe(HAND_SCALE);
+  });
+  test("Patrick Hand's own λ μ π Ω win over Playpen's; the rest of Greek is Playpen; Latin is Patrick Hand", () => {
+    for (const ch of "λμπΩ") expect(handFaceFor(ch), ch).toBe("patrickhand");
+    for (const ch of "αβγδσθΓΔΣ") expect(handFaceFor(ch), ch).toBe("playpen");
+    for (const ch of "ax1≤∑") expect(handFaceFor(ch), ch).toBe("patrickhand");
+    expect(handFaceFor("→")).toBeNull();
+  });
+  test("a stretched glyph — a slot far taller than the hand's own glyph — keeps Fira", () => {
+    // A "(" grown to bracket a fraction: the slot is 2.5 x-heights tall.
+    const tall: Pt[][] = [[[0, -600], [200, -600], [200, 900], [0, 900]]];
+    expect(handRingsFor(0x28, tall)).toBeNull();
+    // The same "(" at text size is written by the hand.
+    const text: Pt[][] = [[[0, -200], [200, -200], [200, 700], [0, 700]]];
+    expect(handRingsFor(0x28, text)).not.toBeNull();
+    expect(STRETCH_RATIO).toBe(1.3);
   });
 });
 
@@ -118,15 +159,28 @@ describe("math elements in the drawing's hand (real mathjax, node)", () => {
     expect(hb.w / pb.w).toBeLessThanOrEqual(1.01);
   });
 
-  test("Greek keeps Fira, so a mixed formula is the hand where it can be and print where it must", () => {
+  test("a mixed formula: Greek and Latin both in the hand, an arrow in Fira, tokens unchanged", () => {
     const eng = getLoadedEngines(["mathjax"]).mathjax as MathJaxEngine;
-    const on = eng.layoutTeX("\\alpha x", { display: true });
+    const on = eng.layoutTeX("\\alpha x \\to", { display: true });
     setMathHand(false);
-    const off = eng.layoutTeX("\\alpha x", { display: true });
-    expect(on.outlines[0].token.c).toBe(off.outlines[0].token.c);
-    expect(on.outlines[0].pts).toEqual(off.outlines[0].pts);       // α: Fira both ways
-    expect(on.outlines[1].pts).not.toEqual(off.outlines[1].pts);   // x: the hand
-    expect(on.outlines[1].token.c).toBe("1D465");                  // the token still names Fira's codepoint (colours, morph matching)
+    const off = eng.layoutTeX("\\alpha x \\to", { display: true });
+    expect(on.outlines.map((o) => o.token.c)).toEqual(off.outlines.map((o) => o.token.c));
+    expect(on.outlines[0].token.c).toBe("1D6FC");                  // α still names Fira's codepoint (colours, morph matching)
+    expect(on.outlines[0].pts).not.toEqual(off.outlines[0].pts);   // α: Playpen
+    expect(on.outlines[1].pts).not.toEqual(off.outlines[1].pts);   // x: Patrick Hand
+    expect(on.outlines[2].pts).toEqual(off.outlines[2].pts);       // →: Fira both ways
+  });
+
+  test("a delimiter grown around a fraction stays Fira; the same bracket at text size is the hand", () => {
+    const eng = getLoadedEngines(["mathjax"]).mathjax as MathJaxEngine;
+    const on = eng.layoutTeX("\\left( \\frac{a}{b} \\right) (c)", { display: true });
+    setMathHand(false);
+    const off = eng.layoutTeX("\\left( \\frac{a}{b} \\right) (c)", { display: true });
+    const parens = (l: typeof on) => l.outlines.filter((o) => o.token.c === "28");
+    expect(parens(on).length).toBe(2);
+    const [big, small] = parens(on), [bigOff, smallOff] = parens(off);
+    expect(big.pts).toEqual(bigOff.pts);
+    expect(small.pts).not.toEqual(smallOff.pts);
   });
 
   test("colours by term still find the swapped glyph", () => {

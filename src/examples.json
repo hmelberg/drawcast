@@ -21349,5 +21349,362 @@
         { "explore": { "code": "sim" }, "speak": "Slide beta up and watch the peak come sooner and higher; slide gamma up and watch it flatten." }
       ]
     }
+  },
+  {
+    "request": "Why is the regression slope the covariance divided by the variance?",
+    "spec": {
+      "title": "Where the regression slope comes from",
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "Why is the slope Cov(x, y) / Var(x)?",
+          "x": 500,
+          "y": 700,
+          "font_size": 34
+        },
+        {
+          "id": "slope",
+          "type": "math",
+          "tex": "\\hat{\\beta} = \\frac{\\sum (x_i - \\bar{x})(y_i - \\bar{y})}{\\sum (x_i - \\bar{x})^2}",
+          "x": 500,
+          "y": 520,
+          "colors": {
+            "x": "#2f6b8f",
+            "y": "#b5482e"
+          }
+        },
+        {
+          "id": "reading",
+          "type": "text",
+          "text": "how x and y move together, per unit of how x moves alone",
+          "x": 500,
+          "y": 330,
+          "font_size": 24,
+          "style": {
+            "color": "#8f887c"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title",
+            "slope"
+          ],
+          "speak": "Why is the regression slope the covariance of x and y divided by the variance of x?"
+        },
+        {
+          "highlight": {
+            "target": [
+              "slope"
+            ],
+            "effect": "glow"
+          },
+          "speak": "On top: every deviation of x, in blue, multiplied by the matching deviation of y, in red, and summed. When x and y move together, those products are mostly positive."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "reading"
+          ],
+          "speak": "Underneath: the squared deviations of x alone. So the slope asks how much x and y move together, per unit of how much x moves by itself."
+        },
+        {
+          "morph": {
+            "target": "slope",
+            "tex": "\\hat{\\beta} = \\frac{\\mathrm{Cov}(x, y)}{\\mathrm{Var}(x)}",
+            "duration": 1.5
+          },
+          "speak": "Divide both sums by n and the names appear: covariance over variance. Same fraction, shorter words."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": [
+              "slope"
+            ],
+            "effect": "glow"
+          },
+          "speak": "That is the whole least-squares slope: co-movement, scaled by the spread of the predictor."
+        }
+      ]
+    }
+  },
+  {
+    "request": "What do μ and σ do in the normal distribution's formula?",
+    "spec": {
+      "title": "μ and σ in the normal density",
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "What do μ and σ do in the normal formula?",
+          "x": 500,
+          "y": 700,
+          "font_size": 34
+        },
+        {
+          "id": "density",
+          "type": "math",
+          "tex": "f(x) = \\frac{1}{\\sigma \\sqrt{2\\pi}}\\, e^{-\\frac{(x - \\mu)^2}{2\\sigma^2}}",
+          "x": 500,
+          "y": 520,
+          "colors": {
+            "\\mu": "#b5482e",
+            "\\sigma": "#2f6b8f"
+          }
+        },
+        {
+          "id": "mu_note",
+          "type": "text",
+          "text": "μ: where the peak sits",
+          "x": 300,
+          "y": 330,
+          "font_size": 24,
+"style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "sigma_note",
+          "type": "text",
+          "text": "σ: how wide the bell is",
+          "x": 700,
+          "y": 330,
+          "font_size": 24,
+"style": {
+            "color": "#2f6b8f"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title",
+            "density"
+          ],
+          "speak": "What do mu and sigma actually do inside the normal distribution's formula?"
+        },
+        {
+          "highlight": {
+            "target": [
+              "density"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Look at the exponent first. x minus mu, squared: the further x is from mu, in red, the more negative the exponent, and the lower the curve. So mu is simply where the peak sits."
+        },
+        {
+          "draw": [
+            "mu_note"
+          ]
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "sigma_note"
+          ],
+          "speak": "Sigma, in blue, divides that distance. A large sigma makes every distance count for less, so the bell spreads out; a small sigma punishes distance, and the bell narrows."
+        },
+        {
+          "morph": {
+            "target": "density",
+            "tex": "f(x) = \\frac{1}{\\sigma \\sqrt{2\\pi}}\\, e^{-z^2/2}, \\quad z = \\frac{x - \\mu}{\\sigma}",
+            "duration": 1.5
+          },
+          "speak": "Name the standardised distance z: how many sigmas x lies from mu. The exponent becomes minus z squared over two, the same bell for every mu and sigma."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": [
+              "density"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Everything else in the formula is just the constant that makes the area under the bell equal to one."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why are future QALYs discounted?",
+    "spec": {
+      "title": "Discounting QALYs",
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "Why are future QALYs discounted?",
+          "x": 500,
+          "y": 700,
+          "font_size": 34
+        },
+        {
+          "id": "qaly",
+          "type": "math",
+          "tex": "\\text{QALYs} = \\sum_{t} u_t \\, \\Delta t",
+          "x": 500,
+          "y": 530,
+          "colors": {
+            "u": "#2f6b8f",
+            "\\Delta": "#8a5fa8"
+          }
+        },
+        {
+          "id": "rate",
+          "type": "text",
+          "text": "r = 3–4 % a year in most guidelines",
+          "x": 500,
+          "y": 330,
+          "font_size": 24,
+"style": {
+            "color": "#8f887c"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title",
+            "qaly"
+          ],
+          "speak": "Why are quality-adjusted life years in the future worth less than the same years now?"
+        },
+        {
+          "highlight": {
+            "target": [
+              "qaly"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Start with the undiscounted sum: each period of length delta t, in violet, weighted by its utility u, in blue, between zero and one."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "morph": {
+            "target": "qaly",
+            "tex": "\\text{QALYs} = \\sum_{t} \\frac{u_t \\, \\Delta t}{(1 + r)^t}",
+            "duration": 1.5
+          },
+          "speak": "Discounting divides each year's contribution by one plus r, raised to how far away that year is. A year of good health ten years out counts for less than one today."
+        },
+        {
+          "draw": [
+            "rate"
+          ],
+          "speak": "Guidelines typically set r around three to four percent a year: not because health matters less later, but because people, and budgets, prefer benefits sooner."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": [
+              "qaly"
+            ],
+            "effect": "glow"
+          },
+          "speak": "The same discount rate is applied to costs, so the ICER compares like with like."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Hvordan henger gjennomsnitt og standardavvik sammen?",
+    "spec": {
+      "title": "Gjennomsnitt og standardavvik",
+      "elements": [
+        {
+          "id": "title",
+          "type": "text",
+          "text": "Hvordan henger gjennomsnitt og standardavvik sammen?",
+          "x": 500,
+          "y": 700,
+          "font_size": 32
+        },
+        {
+          "id": "mean",
+          "type": "math",
+          "tex": "\\bar{x} = \\frac{1}{n} \\sum_{i=1}^{n} x_i",
+          "x": 500,
+          "y": 540,
+          "colors": {
+            "\\bar{x}": "#b5482e"
+          }
+        },
+        {
+          "id": "sd",
+          "type": "math",
+          "tex": "s = \\sqrt{\\frac{1}{n - 1} \\sum_{i=1}^{n} (x_i - \\bar{x})^2}",
+          "x": 500,
+          "y": 340,
+          "colors": {
+            "\\bar{x}": "#b5482e",
+            "s": "#2f6b8f"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "title",
+            "mean"
+          ],
+          "speak": "Hvordan henger gjennomsnittet og standardavviket sammen?"
+        },
+        {
+          "highlight": {
+            "target": [
+              "mean"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Gjennomsnittet, x-strek i rødt, er summen av alle verdiene delt på antallet. Det er midtpunktet dataene fordeler seg rundt."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "sd"
+          ],
+          "speak": "Standardavviket bruker det samme midtpunktet: hver verdi minus x-strek, opphøyd i annen så avvik i begge retninger teller positivt, summert, delt på n minus én, og til slutt kvadratroten for å komme tilbake til de opprinnelige enhetene."
+        },
+        {
+          "highlight": {
+            "target": [
+              "sd"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Så s, i blått, er et typisk avvik fra gjennomsnittet: stort s betyr spredte data, lite s betyr at nesten alt ligger nær x-strek."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "highlight": {
+            "target": [
+              "mean",
+              "sd"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Det ene forteller hvor dataene er, det andre hvor mye de sprer seg rundt det stedet."
+        }
+      ]
+    }
   }
 ]

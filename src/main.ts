@@ -673,8 +673,8 @@ mathFontSel.append(
   h("option", { value: "tex" }, "TeX (Computer Modern)"),
 );
 mathFontSel.value = settings.mathFont ?? "";
-// Whether a formula's letters and digits are written in Patrick Hand on the
-// typeset layout (scenes/math-hand.ts) or all in the math font, as print;
+// Whether a formula's letters, digits and Greek are written in handwriting
+// faces on the typeset layout (scenes/math-hand.ts) or all in the math font;
 // the spec's `text.math_hand` is the default the empty option follows.
 const mathHandSel = h("select", { title: "Math hand" });
 mathHandSel.append(
