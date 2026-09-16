@@ -1,6 +1,6 @@
-# Course progress: enrolment, Submit, activity signals, and what the teacher sees
+# Course progress: enrolment, activity signals, the outbox, hand-in, and what the teacher sees
 
-Date: 2026-09-16. Status: design agreed in conversation (Hans, 2026-09-16), not planned, not built.
+Date: 2026-09-16, revised 2026-09-17. Status: design agreed in conversation (Hans), not planned, not built.
 Builds on: `2026-09-04-learners-design.md` (runs, enrolments, events, the
 teacher dashboard), `2026-09-04-teachers-ownership-design.md` (the claim on
 publish, the sign-up checkbox), `2026-09-05-private-publishing-and-learner-
@@ -29,7 +29,8 @@ identity-design.md` (one account, the redirect handshake, join in one click),
   every live `answer` (item, step, id, question, attempts, expected,
   correct, secs) and `completed` to `<enroll>/_/api/event` under the
   account's token, and stops for this page load on a 401/403. Never
-  awaited; never reaches playback.
+  awaited; never reaches playback. A network failure is silent: that
+  answer never arrives.
 - **The record.** Every answer is appended locally per cast
   (`render/record.ts`), whoever the viewer is.
 - **The dashboard** (Anvil forms, teachers only): Courses → Runs → Run view,
@@ -44,61 +45,28 @@ colleague a second cohort.
 
 ## 1. Rulings
 
-1. **Sending answers to the server requires a signed-in, enrolled account.**
+1. **Sending to the server requires a signed-in, enrolled account.**
    Anything else has no teacher to reach. The record stays local for
    everyone.
-2. **Submit is small.** Enrolled students already stream every answer, so
-   Submit adds exactly three things: a deliberate act ("hand in", a mark the
-   teacher can treat as a deadline), the back-fill of answers given before
-   the student signed in or joined, and the complete set with seconds.
-3. **Sign in and join happen inside the Submit flow** when missing, through
-   the existing handshake and join call, with a resume marker so the dialog
-   comes back after the redirect.
-4. **Reuse the Anvil structure.** No new answers format: submitted answers
-   become `events` rows under the account's enrolment, upserted on
-   (enrolment, cast, item, step), tagged with a submission id. The Run view,
-   progress and CSV keep working; they gain columns.
-5. **Activity is reported as events too**, same channel, same gate
-   (enrolled account), same never-awaited rule.
+2. **No Submit button.** An enrolled student's answers already arrive as
+   they are given (revised 2026-09-17: "if the course automatically
+   submits data, do we need a submit button?" — no). What the button was for
+   is covered otherwise: the back-fill by the outbox (§3), the deadline mark
+   by a run-level hand-in flag (§4), seeing your own answers by the account
+   home.
+3. **One event channel, one endpoint.** Streaming and back-fill send the
+   same events to the same endpoint, which accepts one event or a list. The
+   server dedupes both the same way: latest answer per (enrolment, cast,
+   item, step), attempts kept. No separate submit endpoint.
+4. **The local record is the outbox.** Each entry carries `sent`; unsent
+   entries are resent at the next open and at join. That is why the record
+   stays for enrolled students too.
+5. **Activity is reported as events**, same channel, same gate, same
+   never-awaited rule.
 6. **The uuid per drawcast is parked** in ROADMAP (Phase C); the cast path
    stays the identity in this round.
 
-## 2. Submit
-
-**Where.** The player control bar's `trailing` slot (next to 🎓 and Share),
-shown when this browser's record for the cast is non-empty. Also on the
-end poster of the last item, beside the Next link — the moment most
-students will use. Never inside the drawing: a spec is also a movie, and a
-drawn button would export dead into the video.
-
-**The dialog** shows the record (question, your answer, ✓/✗, seconds) — the
-"My answers" panel for free and the consent moment — and one button whose
-label is the next step:
-
-| state | button | action |
-|---|---|---|
-| signed out | *Sign in to hand in* | store `drawcast.submit.resume:<cast>`; run the handshake; on return with a token, reopen the dialog |
-| signed in, not enrolled | *Join <course> and hand in* | `joinCourse`; `pending` → "Awaiting approval from the course's teachers", no send |
-| enrolled | *Hand in* | `POST /_/api/submit` |
-| no `meta.enroll` on the playlist | *Copy as text* | the record as plain text; nothing else — no mail, no file |
-
-**What is sent.** The whole record for this cast (it survives sittings), a
-submission id minted on the first press and stored with the record, the
-cast key, the account token. A second press sends the same id: the server
-updates, never duplicates. The server keeps the latest answer per (item,
-step) and the attempts as they are.
-
-**Endpoint.** `POST /_/api/submit {key, cast, submission, answers:[{item,
-step, id, question, given, expected, correct, secs?, at}]}` → `{ok, received,
-state}`; `401` bad token, `403` not enrolled in a run of this course (the
-client offers the join), `429` rate. Capped at 500 answers. Idempotent on
-`submission`.
-
-**After.** The dialog says "Handed in — N answers", and the record entry is
-marked submitted (id + time) so the button reads *Handed in ✓ · hand in
-again* afterwards.
-
-## 3. Activity signals
+## 2. Activity signals
 
 What a teacher can reasonably use, and no more. Every event carries the
 account (from the token), the cast, and `at`.
@@ -107,9 +75,9 @@ account (from the token), the cast, and `at`.
 |---|---|---|
 | `opened` | first open of a cast in a browser session (exists) | — |
 | `item` | an item ends (done, jump, navigation, or the page hides) | `item`, `title`, `visible_secs` (item on screen with the tab visible), `playing_secs` (player not paused), `done` (bool) |
-| `answer` | a live answer (exists) | + `secs` (shipped 2026-09-16) |
+| `answer` | a live answer (exists) | + `secs` (shipped 2026-09-16), `at` |
 | `completed` | the last item reaches done (exists) | — |
-| `submitted` | Submit succeeds | `submission`, `answers` (count) |
+| `handed_in` | the hand-in button, runs with the flag only (§4) | — |
 
 **Signed-in time** is the server's already: `tokens.last_used` moves on
 every call, and sign-in is a row. No client event needed.
@@ -129,47 +97,86 @@ course context and reports nothing). The privacy sentence on the join
 page lists what is stored: name, address, answers, when and how long you
 watched, and that *Forget me* deletes it all.
 
-**Gate and cost.** Same as today: only a signed-in, enrolled account
-reports; a refused cast stops for the page load; nothing is awaited. One
-`item` event per item view, so a 20-lecture course of 6 items each is ~120
-rows per learner — trivial.
+**Gate and cost.** Only a signed-in, enrolled account reports; a refused
+cast stops for the page load; nothing is awaited. One `item` event per item
+view, so a 20-lecture course of 6 items each is ~120 rows per learner.
 
-## 4. What the teacher sees (Anvil)
+## 3. The outbox
+
+- `AnswerRecord` gains `sent?: string` (the ISO time the server took it).
+  An answer event is written to the record first, then sent; on `ok` the
+  entry is stamped. `failed` leaves it unsent; `refused` stops the sweep
+  for this page load, as today.
+- **The sweep**: on viewer mount with a reporter, and right after a
+  successful join, every unsent entry for this cast goes in one batch to
+  the event endpoint. Stamped on `ok`. A batch is capped at 500 entries.
+- **Join from a lecture link.** `&join=<run>` on a lecture address enrols
+  the signed-in account in that run on open (signed out: the handshake
+  first, the parameter survives the return), then runs the sweep. "Open
+  this link" is the whole onboarding for a class. The parameter is stripped
+  with `history.replaceState` like the old learner code was.
+- The `item` events do not go through the record — a lost minute is not
+  worth a row in localStorage; answers are.
+
+## 4. Hand-in (runs that ask for it)
+
+A run setting, `handin: off | on`, with an optional `due` date. Off (the
+default): no button anywhere. On:
+
+- The last item's end poster gets *Hand in* beside the Next link (the
+  control bar stays as it is; a spec is also a movie, and nothing is ever
+  drawn into it). Pressing it runs the sweep, then sends `handed_in`. The
+  poster then reads *Handed in ✓ <time>*, from a local marker and from the
+  server's progress when the two disagree.
+- The teacher's cell shows the hand-in time and, with `due`, late/on time.
+- No dialog, no name field: the account is the identity. (Earlier draft's
+  "edit the prefilled name" is dropped — an alias weakens the link between
+  account and answers, and the teacher already knows the account's name.)
+
+## 5. What the teacher sees (Anvil)
 
 The Run view grid stays the unit. Additions:
 
 - Per cell: score as today, plus **time** (Σ `playing_secs` for the lecture)
-  and a **handed-in mark** with the date when a `submitted` event exists.
+  and, on hand-in runs, the **hand-in mark** with the date.
 - Per learner (click): the timeline — opened, items with minutes, answers
   with seconds and attempts, completed, handed in; last seen.
-- Per question column: "% correct" as today, plus **median seconds** — the
-  slow question is the hard one.
+- Per question column: "% correct" as today, plus **median seconds** and
+  **attempts** (a question that takes three tries is a different kind of
+  hard from one that takes long). Grouped by the answer's `id` — the
+  `store:` name when the author gave one, else `_answers.N` — so a
+  rephrased question keeps its history across cohorts when it was named.
 - Run summary: learners, active in the last 7 days, median minutes per
-  lecture, hand-in rate.
+  lecture, and on hand-in runs the hand-in rate.
 - CSV export gains the new columns; a second export of `item` rows for
   anyone who wants to do their own analysis.
 
 Schema: `events` gains `item_title`, `visible_secs`, `playing_secs`,
-`done`, `secs`, `submission` (nullable); kinds gain `item`, `submitted`.
-Nothing else changes.
+`done`, `secs` (nullable); kinds gain `item`, `handed_in`; the dedupe rule
+on `answer` (latest per enrolment, cast, item, step; attempts merged).
+`runs` gains `handin` (bool) and `due` (date, nullable). The event endpoint
+accepts a list. Nothing else changes.
 
-## 5. Delivery order
+## 6. Delivery order
 
-1. Client: `item` events from the session (visibility + player state),
-   `submitted` on success; `learn.ts` types; tests as source guards plus a
-   pure counter helper with unit tests. Ships with a server that ignores
-   unknown kinds (it reads only what it knows — `expected` is sent today
-   without being in the contract).
-2. Anvil: `secs` and the new columns; `/_/api/submit`; the two new kinds
-   accepted; Run view columns; CSV. Hans applies.
-3. Client: the Submit dialog and the resume-after-handshake marker; the
-   end-poster button. Needs 2 for the `403 → join` path.
+1. Client: `item` events from the session (visibility + player state);
+   `learn.ts` types and a list-accepting `sendEvents`; the outbox (`sent`
+   stamp, the sweep on mount and join); `&join=<run>`. Tests: a pure
+   counter helper and the outbox sweep with a stubbed fetch, plus source
+   guards for the wiring. Ships before the server: it ignores unknown
+   kinds and reads only the fields it knows (`expected` is sent today
+   without being in the contract) — a list body needs the server, so the
+   sweep sends one event per call until 2 lands.
+2. Anvil: the new columns, the dedupe rule, the list body, `runs.handin`
+   and `due`, Run view columns, CSV. Hans applies.
+3. Client: the hand-in button on the end poster, shown only when the
+   lecture's progress answer says the run has `handin` on.
 4. Docs: the join page's privacy sentence; README teacher section.
 
-## 6. Open
+## 7. Open
 
-- Whether a signed-in student may edit the prefilled name at hand-in (the
-  account's name is the identity; allowing an alias weakens the link).
 - Cumulative score across items, and the outline telling later parts which
   names earlier parts stored (both from the stored-answers spec §4).
 - The uuid per drawcast (ROADMAP Phase C).
+- Whether a learner should see the class median next to their own seconds.
+  Not now; it is a page on the account home when it comes.
