@@ -421,6 +421,13 @@ export interface CameraArgs {
   duration?: number;
 }
 
+export interface CardArgs {
+  /** The heading, sketched in the middle of the canvas over an underline. */
+  title: string;
+  /** A quieter line under it. */
+  subtitle?: string;
+}
+
 export interface FocusArgs {
   /** Element ids that stay at full strength; every other visible element dims. */
   target: string[] | string;
@@ -513,6 +520,9 @@ export interface Command {
   keep?: KeepArgs;
   /** Zoom/pan the view. */
   camera?: CameraArgs;
+  /** A disappearing heading: the title sketched over an underline, a slow
+   *  push-in, then un-drawn — expanded before layout (spec/card.ts). */
+  card?: CardArgs;
   /** Smoothly animate numeric template params to target values (dot paths
    *  into params). A value may be a "{var}" token: the param glides to the
    *  viewer's stored answer (fallback = that ask's default). */

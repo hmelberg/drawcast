@@ -517,7 +517,7 @@ export function lintLayout(drawables: Drawable[], measure: MeasureFn, commands?:
   return lintLayoutDetailed(drawables, measure, commands, expandId, sameGroup).issues;
 }
 
-const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "copy", "flow", "keep", "camera", "animate", "play", "run"] as const;
+const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "copy", "flow", "keep", "camera", "card", "animate", "play", "run"] as const;
 
 /** A narration line with nothing happening on screen. Exported for the examples' style ratchet (tests/examples-style.test.ts), which must count openings by the SAME definition the lint enforces. */
 export function isStandaloneSpeak(c: Command): boolean {

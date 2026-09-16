@@ -15,6 +15,7 @@ import { CloudSpeech } from "./export/tts";
 import { bakeClipStore } from "./export/bake-cache";
 import { h } from "./ui/dom";
 import { icon } from "./ui/icons";
+import { playerMeta } from "./ui/player-meta";
 import { attachParamsTray } from "./ui/tray";
 import { castKeyFor, countingEnabled, firstViewInSession, readViewCount, recordView } from "./views";
 import { getToken, setToken, signInUrl } from "./account";
@@ -549,21 +550,13 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   // comments) below it as page furniture.
   const figureHost = h("div", { class: "player-figure" }, status);
   const shareBtn = shareButton();
-  // Empty until the document names it: the row keeps its height meanwhile.
-  const titleEl = h("h1", { class: "viewer-title" });
   const viewsEl = h("span", { class: "viewer-views" });
   // The one line a lost narration gets (server casts): the same row as the
   // count, so it is said once and never blocks the drawing.
   const noteEl = h("span", { class: "viewer-note" });
-  const metaEl = h(
-    "div",
-    { class: "viewer-meta" },
-    titleEl,
-    viewsEl,
-    noteEl,
-    h("a", { class: "viewer-made", href: location.pathname, title: "Open the drawcast app" }, "Made with drawcast"),
-  );
-  app.append(h("div", { class: "viewer-wrap" }, figureHost, metaEl));
+  // The same row the app's Player mode draws (ui/player-meta.ts).
+  const meta = playerMeta(viewsEl, noteEl, h("a", { class: "viewer-made", href: location.pathname, title: "Open the drawcast app" }, "Made with drawcast"));
+  app.append(h("div", { class: "viewer-wrap" }, figureHost, meta.root));
 
   try {
     // Pack templates register BEFORE anything lays out — the viewer was the
@@ -604,7 +597,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     }
     const title = playlist.meta.title ?? items[0].spec.title;
     if (title) {
-      titleEl.textContent = title;
+      meta.setTitle(title);
       document.title = `${title} — drawcast`;
     }
     if (audioNote) noteEl.textContent = audioNote;
@@ -749,7 +742,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       });
       box.appendChild(script);
       // Under the meta row: page furniture, outside the player's box.
-      metaEl.insertAdjacentElement("afterend", box);
+      meta.root.insertAdjacentElement("afterend", box);
     }
   } catch (err) {
     if (err instanceof CastDenied && req.anvil) {

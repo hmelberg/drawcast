@@ -7,6 +7,7 @@
 // pre-playlist behavior, so every existing drawcast keeps working.
 
 import { CORE_SCHEMA, dump, loadAll } from "js-yaml";
+import { cardElements, titleFont } from "../spec/card";
 import { desmartenJson } from "../spec/extract";
 import { dumpSpecYaml, formatSpec, parseSpecText, type SpecFormat } from "../spec/text";
 import type { Spec } from "../spec/types";
@@ -354,11 +355,6 @@ export function itemTitle(item: PlaylistItem): string {
 // Text elements carry explicit sketch draws, so titles FADE in (text reveal
 // is an opacity ramp) and every card fades back out through clear.
 
-/** Font size that keeps a one-line title inside the 1000-unit canvas (no word-wrap for plain text). */
-function titleFont(text: string): number {
-  return Math.max(34, Math.min(64, Math.round(900 / (0.55 * Math.max(1, text.length)))));
-}
-
 export interface TitlePageOptions {
   title: string;
   subtitle?: string;
@@ -372,30 +368,8 @@ export interface TitlePageOptions {
  * Always auto-continues — the viewer already pressed play.
  */
 export function makeTitlePage(opts: TitlePageOptions): Spec {
-  const elements: Spec["elements"] = [
-    {
-      id: "tp_title",
-      type: "text",
-      text: opts.title,
-      x: 500,
-      y: 430,
-      font_size: titleFont(opts.title),
-      draw: { mode: "sketch", duration: 1.2 },
-    },
-    { id: "tp_line", type: "path", points: [[300, 372], [700, 368]] },
-  ];
-  if (opts.subtitle) {
-    elements.push({
-      id: "tp_subtitle",
-      type: "text",
-      text: opts.subtitle,
-      x: 500,
-      y: 315,
-      font_size: 28,
-      style: { opacity: 0.75 },
-      draw: { mode: "sketch", duration: 0.9 },
-    });
-  }
+  // The same geometry a cast's own `card` beat draws (spec/card.ts).
+  const elements = cardElements(opts.title, opts.subtitle, "tp");
   const commands: Spec["commands"] = [{ draw: ["tp_title", "tp_line"], speak: opts.title }];
   if (opts.subtitle) commands.push({ draw: ["tp_subtitle"], speak: opts.subtitle });
   commands.push({ camera: { center: { ref: "tp_title" }, zoom: 1.08, duration: Math.max(1.6, opts.gap ?? 1) } });
@@ -527,18 +501,35 @@ function withZoomExit(spec: Spec, ref: string, gap: number): Spec {
   };
 }
 
+export interface ExportSequenceOptions {
+  /**
+   * Open a SINGLE cast with a title card made from its own title — the
+   * exported file has no page under it to carry the title (title-below-player
+   * design, 2026-09-16). Skipped when the cast already opens with its own
+   * `card` beat; a playlist keeps its title page regardless.
+   */
+  titleCard?: boolean;
+}
+
+/** Whether the cast's first beat is its own `card` — then export adds none. */
+function opensWithCard(spec: Spec): boolean {
+  return spec.commands?.[0]?.card !== undefined;
+}
+
 /**
  * The specs a video export plays, in order — and the single description of
  * what a viewer sees live: title page first, each item un-drawing itself
  * before the next, a chapter card where a new chapter begins. Export always
  * auto-advances; there is no one to click.
  */
-export function exportSequence(playlist: Playlist): Spec[] {
+export function exportSequence(playlist: Playlist, opts: ExportSequenceOptions = {}): Spec[] {
   const items = itemsOf(playlist);
   const { meta } = playlist;
   const seq: Spec[] = [];
   if (meta.title !== undefined && items.length > 0) {
     seq.push(makeTitlePage({ title: meta.title, subtitle: meta.subtitle, gap: meta.gap }));
+  } else if (opts.titleCard && items.length === 1 && items[0].spec.title && !opensWithCard(items[0].spec)) {
+    seq.push(makeTitlePage({ title: items[0].spec.title, gap: meta.gap }));
   }
   items.forEach((item, i) => {
     if (i > 0 && meta.transitions === "auto") {

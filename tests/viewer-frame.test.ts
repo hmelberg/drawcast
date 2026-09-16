@@ -15,6 +15,9 @@ const strip = (s: string) => s.replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, "");
 const viewer = strip(readFileSync(new URL("../src/viewer.ts", import.meta.url), "utf8"));
 const session = strip(readFileSync(new URL("../src/playlist/session.ts", import.meta.url), "utf8"));
 const run = viewer.slice(viewer.indexOf("export async function runViewer("));
+const meta = strip(readFileSync(new URL("../src/ui/player-meta.ts", import.meta.url), "utf8"));
+const main = strip(readFileSync(new URL("../src/main.ts", import.meta.url), "utf8"));
+const figureStyle = strip(readFileSync(new URL("../src/render/figure-style.ts", import.meta.url), "utf8"));
 
 /** The declarations of every rule whose selector matches `pattern`. */
 function rulesMatching(pattern: RegExp): string[] {
@@ -61,15 +64,18 @@ describe("the viewer's frame has its shape before the figure mounts", () => {
 });
 
 describe("everything about the drawcast sits below the frame", () => {
-  test("the title is in the meta row under the figure, not above it", () => {
+  test("the title is in the shared meta row under the figure, not above it", () => {
     const wrap = /h\("div", \{ class: "viewer-wrap" \}([^)]*)\)/.exec(run)!;
     expect(wrap[1]).not.toContain("titleEl");
-    expect(wrap[1].indexOf("figureHost")).toBeLessThan(wrap[1].indexOf("metaEl"));
-    expect(run).toMatch(/\{ class: "viewer-meta" \},\s*titleEl,/);
+    expect(wrap[1].indexOf("figureHost")).toBeLessThan(wrap[1].indexOf("meta.root"));
+    expect(meta).toMatch(/\{ class: "player-meta" \},\s*titleEl,/);
+    expect(main).toMatch(/\{ class: "player-wrap" \},\s*playerHost,\s*playerMetaRow\.root\)/);
   });
 
-  test("the frame's own title band is off on the page and back in fullscreen", () => {
-    expect(rulesMatching(/^\.viewer-body \.player-figure:not\(:fullscreen\) \.cs-title$/)[0]).toMatch(/display:\s*none/);
+  test("the frame carries no title of its own — nowhere, not even in fullscreen (title-below-player, 2026-09-16)", () => {
+    expect(rulesMatching(/cs-title/)).toEqual([]);
+    expect(figureStyle).not.toContain("cs-title");
+    expect(rulesMatching(/^\.player-meta \.player-title$/)[0]).toMatch(/font-family:\s*var\(--sketch-font\)/);
   });
 
   test("share is an icon in the control bar; the footer strip is gone", () => {
@@ -82,7 +88,7 @@ describe("everything about the drawcast sits below the frame", () => {
   });
 
   test("comments go under the meta row, outside the player's box", () => {
-    expect(run).toMatch(/metaEl\.insertAdjacentElement\("afterend", box\)/);
+    expect(run).toMatch(/meta\.root\.insertAdjacentElement\("afterend", box\)/);
   });
 });
 

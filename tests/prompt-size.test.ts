@@ -215,8 +215,15 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-measured 2026-09-16 on the merge of the animated-box round with the
 // code-hand round (both additive): pinned to the values measured on the
 // merged tree: schema 118371 → 118549 (+178, the animate.box description), system 234828 → 235335 (+178 + 329, the prompt sentence).
-const BASELINE_SYSTEM_CHARS = 235335;
-const BASELINE_SCHEMA_CHARS = 118549;
+// Re-pinned 2026-09-16 for the title-below-player round: the `card` verb
+// (schema property with a three-sentence description + the verb-list entry)
+// grew the schema by +836 (118549 → 119385), which lands on the system
+// prompt verbatim; the prompt itself gained the `card` catalogue bullet and
+// a rewritten "Start on the canvas" opening rule (the title is page
+// furniture under the player; the canvas carries a heading only if drawn),
+// net +377 — system 235335 → 236548.
+const BASELINE_SYSTEM_CHARS = 236548;
+const BASELINE_SCHEMA_CHARS = 119385;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

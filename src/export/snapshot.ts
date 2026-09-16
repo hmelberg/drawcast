@@ -23,7 +23,7 @@ export async function snapshotPng(spec: Spec): Promise<string | null> {
       const canvas = document.createElement("canvas");
       canvas.width = 1280;
       canvas.height = 720;
-      await paintFrame(canvas.getContext("2d")!, new XMLSerializer().serializeToString(svg), await sketchFontStyle(), "", spec.title ?? "");
+      await paintFrame(canvas.getContext("2d")!, new XMLSerializer().serializeToString(svg), await sketchFontStyle(), "");
       return canvas.toDataURL("image/png");
     } finally {
       hd.destroy();

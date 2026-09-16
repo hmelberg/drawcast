@@ -243,7 +243,7 @@ describe("runViewer takes the fourth source through the same door as the others"
   });
   test("a lost narration is said once, in the meta row where the view count lives", () => {
     // The row's children, in order: the title (player round), the count, the note.
-    expect(viewer).toMatch(/\{ class: "viewer-meta" \},\s*titleEl,\s*viewsEl,\s*noteEl,/);
+    expect(viewer).toMatch(/playerMeta\(viewsEl,\s*noteEl,/);
     expect(viewer).toMatch(/if \(audioNote\) noteEl\.textContent = audioNote;/);
     expect(viewer).toMatch(/Recorded narration unavailable \(\$\{why\}\)/);
   });

@@ -188,9 +188,10 @@ describe("wiring — where the override applies and where it must not", () => {
     expect(src).toMatch(/--cs-text-scale/);
     expect(src).toMatch(/--sketch-font/);
   });
-  test("captions and the title scale with the drawing", () => {
+  test("captions scale with the drawing (the frame carries no title since 2026-09-16)", () => {
     const css = read("../src/render/figure-style.ts");
-    expect(css.match(/var\(--cs-text-scale, 1\)/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(css.match(/var\(--cs-text-scale, 1\)/g)?.length ?? 0).toBeGreaterThanOrEqual(1);
+    expect(css).not.toContain("cs-title");
   });
   test("the playlist session passes the override through to every render", () => {
     expect(read("../src/playlist/session.ts")).toMatch(/text: opts\.text/);

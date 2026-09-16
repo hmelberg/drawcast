@@ -1,4 +1,4 @@
-// The figure's own look (.cs-stage/.cs-svg/.cs-caption/.cs-title), injected
+// The figure's own look (.cs-stage/.cs-svg/.cs-caption), injected
 // as a <style> tag by render() — a host page needs no stylesheet for figures
 // to look right. Single source: styles.css no longer carries these base
 // rules (it keeps only app chrome and overrides like :fullscreen sizes).
@@ -107,23 +107,6 @@ const FIGURE_CSS = `
   white-space: nowrap;
 }
 .cs-lookup:hover { border-color: #b5482e; }
-.cs-title {
-  font-family: var(--sketch-font, "Patrick Hand", "Segoe Print", "Comic Sans MS", cursive);
-  font-size: calc(1.3rem * var(--cs-text-scale, 1));
-  /* The figure never reads a chrome token. Its paper is real paper — a sheet
-     on a dark desk when the app is dark — and an exported video must look
-     like what the editor showed. A themed --ink here would put light text on
-     white paper, inside the drawing, in the file. */
-  color: #3d3833;
-  text-align: center;
-  width: fit-content;
-  padding: 0 0.4rem;
-  /* Above the drawing — and only for a drawcast that does not DRAW its own
-     title (render/index.ts, C9 as clarified): drawn titles live on the
-     canvas, so this never duplicates one. */
-  margin: 0.05rem auto 0.1rem;
-  max-width: 90%;
-}
 `;
 
 let injected = false;

@@ -121,6 +121,13 @@ export interface Settings {
    * twice.
    */
   burnCaptions: boolean;
+  /**
+   * Open an exported single cast with a title card made from its title —
+   * the file has no page under it to carry the title (Share → Video). A
+   * cast that opens with its own `card` beat gets none; playlists keep
+   * their title page regardless.
+   */
+  titleCard: boolean;
   uiMode: "player" | "editor";
   /** Editor's left sidebar (Library + Examples) visibility. */
   sidebarOpen: boolean;
@@ -198,6 +205,7 @@ export const DEFAULT_SETTINGS: Settings = {
   captionsOn: true,
   captionLang: "",
   burnCaptions: true,
+  titleCard: true,
   uiMode: "player",
   sidebarOpen: true,
   sidebarSections: {},
