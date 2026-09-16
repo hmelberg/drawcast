@@ -738,7 +738,22 @@ Deliberately not done (design §6): a glide between `equation_steps`
 lines (round 2b — the copy-move-morph idiom covers the derivation case
 meanwhile); manim's `key_map` (author-directed matching); morphing a
 formula whose font changes; `stagger` on `draw`; a camera that follows
-an element; `{f}` in `speak`; sliders for vars in the explore tray.
+an element; `{f}` in `speak`; sliders for vars in the explore tray
+(done 2026-09-16, the animated-box round — SIR cast with sliders).
+
+Assessed 2026-09-17, in order of value per cost. **Recommended next:**
+the `equation_steps` glide (the model reaches for `equation_steps` for
+every derivation and never for copy-move-morph, so a `glide` flag on the
+template makes every derivation show which terms survive for free; the
+matcher and lerp exist, the work is wiring a step's draw to take its
+shared terms from the previous step) and **var values in `speak`**
+(needed by every sweep and slider cast; decide first what a recorded
+cloud-voice track does with a value only known at play time — browser
+voice only, or resolve at the sweep's default). Cheap but niche: a
+camera that follows an element (focus already moves a camera box, so
+this is a tween of that box against a live bbox — see the multi-screen
+idea below), `stagger` on `draw`. Not now: `key_map` (wait for a real
+mis-pairing), font-change morph.
 
 ## Six longer worked examples on the manim-round features — done 2026-09-10
 
@@ -1470,6 +1485,30 @@ drawcast in several languages, re-linted after translation.
   on any number of elements; heavy interactions are pause-gated so movies
   never need this; and the note_sheet `keyboard: true` precedent shows a
   purpose-built combined template covers a specific pairing cheaply.
+- **Screens on a world canvas** (idea, 2026-09-17 — brainstorm, not
+  scheduled). Hans: the screen is one visible area, so one template per
+  page; `params.box` relaxed that a little. Could there be a layer above —
+  an infinite canvas holding several screens, with a camera that swipes
+  to one, shows two at half size, zooms, fades the others? Assessment:
+  possible and moderate IF a screen = a playlist item. Each item keeps
+  its own 1000×750 frame, template, ids, layout, lint and interactions
+  unchanged; the new layer places the items' frames on a world (`row`,
+  `grid`, `path`, or explicit positions), keeps earlier items' last
+  frames mounted as `<g transform>` groups instead of clearing them, and
+  drives the EXISTING camera (`camera` is already a viewBox tween;
+  `zoom_from` already fakes "push into"). New vocabulary is small: a
+  playlist `stage:` arrangement, `camera: {screen, zoom, fade_others}`,
+  and a pull-back to the whole stage. Costs: the player mounts one spec
+  today (multi-mount is the main work); DOM weight of many wobbly-path
+  screens; readability at pull-back on a phone (text holds the 15-unit
+  floor per screen, not per stage); export records the viewBox so video
+  is free. Not this: elements crossing screens, two templates
+  interacting, an arrow from screen 1 to screen 3 — that is
+  template-as-element above, still parked. Pedagogy: zoom is a gimmick
+  unless the space IS the argument — comparison side by side, overview
+  → detail, a map of the lecture at the end. First step if pursued: a
+  one-day spike that mounts two items in one SVG with transforms and
+  moves the existing camera between them, to feel whether it earns it.
 - **A stable id per drawcast** (idea, 2026-09-16 — to consider, not
   scheduled). Today a drawcast's identity is its cast key, the path
   `owner/repo/dir/file`: readable, doubles as the fetch address, and breaks
