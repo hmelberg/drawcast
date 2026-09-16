@@ -874,6 +874,28 @@ the tray's ✎ On the screen still opens the code editor over a
 panel itself is the host's now, and there is no script text to type there
 once the pane is knobs, not lines).
 
+## Course progress, client — done 2026-09-17
+
+Spec `docs/superpowers/specs/2026-09-16-course-progress-and-submit-design.md`
+(revised 2026-09-17: no Submit button — an enrolled account streams every
+answer as it is given), plan
+`docs/superpowers/plans/2026-09-17-course-progress-client.md`. Steps 1 and 3
+of four. The viewer reports one `item` event per view of an item — seconds
+on screen with the tab visible, seconds playing, whether it reached done —
+closed on every figure swap, on hide, on the page leaving and on destroy
+(`playlist/item-timer.ts`, pure; the session owns one). The local record is
+the outbox (`src/outbox.ts`): an answer is written first and stamped `sent`
+when the server answers ok; unsent entries are swept at open and after a
+join, one event per call until the server takes a list. `&join=<run>` on a
+lecture link enrols the signed-in account on open (signed out: the
+handshake first; the parameter survives the round trip and leaves the
+address once the join was attempted), then re-sends `opened` and sweeps.
+Hand-in: `GET /_/api/run` says whether the run asks for one; when it does,
+the last item's poster gets *Hand in* (or *Handed in ✓ <time>*), whose press
+sweeps and sends `handed_in`. Remaining: step 2 on Anvil (the new columns
+and kinds, the dedupe rule, `/_/api/run`, the list body, Run view columns,
+CSV) and step 4 (the join page's privacy sentence, README).
+
 ## Stored answers — done 2026-09-16
 
 Spec `docs/superpowers/specs/2026-09-15-stored-answers-design.md`, plan

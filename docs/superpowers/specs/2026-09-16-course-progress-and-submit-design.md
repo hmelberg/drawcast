@@ -1,6 +1,14 @@
 # Course progress: enrolment, activity signals, the outbox, hand-in, and what the teacher sees
 
-Date: 2026-09-16, revised 2026-09-17. Status: design agreed in conversation (Hans), not planned, not built.
+Date: 2026-09-16, revised 2026-09-17. Status: client steps 1 and 3 built 2026-09-17 (plan `docs/superpowers/plans/2026-09-17-course-progress-client.md`); the Anvil step 2 and the docs step 4 remain.
+
+**Built, and one contract change.** The hand-in flag is read from
+`GET /_/api/run?key=&course=` → `{handin, due?, handed_in?}`, not from the
+progress endpoint: the client's learn module is guarded against any
+progress read (the identity round moved progress to the account home), and
+run settings are not progress. The sweep sends one event per call
+(`sendEvents`) until the server takes a list body; `item` and `handed_in`
+events, `at` and `id` on answers, are sent now and ignored until step 2.
 Builds on: `2026-09-04-learners-design.md` (runs, enrolments, events, the
 teacher dashboard), `2026-09-04-teachers-ownership-design.md` (the claim on
 publish, the sign-up checkbox), `2026-09-05-private-publishing-and-learner-
@@ -169,8 +177,9 @@ accepts a list. Nothing else changes.
    sweep sends one event per call until 2 lands.
 2. Anvil: the new columns, the dedupe rule, the list body, `runs.handin`
    and `due`, Run view columns, CSV. Hans applies.
-3. Client: the hand-in button on the end poster, shown only when the
-   lecture's progress answer says the run has `handin` on.
+3. Client: the hand-in button on the end poster, shown only when
+   `GET /_/api/run` says the run has `handin` on (built 2026-09-17; hidden
+   until the server answers).
 4. Docs: the join page's privacy sentence; README teacher section.
 
 ## 7. Open
