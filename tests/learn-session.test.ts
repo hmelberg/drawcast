@@ -33,6 +33,19 @@ describe("session learner hooks", () => {
     expect(src).toMatch(/if \(s === "done"\) \{\s*carry\.absorb\(hd\.timeline\.vars\);/);
   });
 
+  test("item views (course-progress round): the timer starts on both item mounts and on a return from hidden, every figure swap and destroy flush a view, and the hand-in poster is asked for on the last item's done", () => {
+    expect(src.match(/timer\.start\(/g)?.length).toBe(3);
+    expect(src).toMatch(/function swapFigure[^{]*\{[\s\S]*?flushItemView\(\);\s*handle\?\.destroy\(\);/);
+    expect(src.match(/flushItemView\(\);/g)?.length).toBe(5); // swap, hide, pagehide, two destroys
+    expect(src).toMatch(/document\.addEventListener\("visibilitychange", onVisibility\)/);
+    expect(src).toMatch(/window\.addEventListener\("pagehide", onPageHide\)/);
+    expect(src.match(/removeItemListeners\(\);/g)?.length).toBe(2);
+    expect(src).toMatch(/opts\.onItem\?\.\(view\)/);
+    expect(src).toMatch(/timer\.setPlaying\(s === "playing"\)/);
+    expect(src).toMatch(/if \(i === items\.length - 1\) showHandIn\(\);/);
+    expect(src).toMatch(/const state = opts\.handIn\?\.\(\);\s*if \(!state\) return;/);
+  });
+
   test("the single-item path chains after attachPlayerControls installs its own callbacks", () => {
     const controls = src.indexOf("attachPlayerControls(host, hd, prefs, controlOpts)");
     const chain = src.indexOf("chainCallbacks(hd, 0)");

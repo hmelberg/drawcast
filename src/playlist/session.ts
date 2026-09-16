@@ -16,6 +16,7 @@ import { attachPlayerControls, clickGate, type ControlsOptions, type PlaybackPre
 import { h } from "../ui/dom";
 import { collectSpeakLines } from "../export/video";
 import { AnswerCarry, questionOffsets } from "./carry";
+import { ItemTimer, type ItemView } from "./item-timer";
 import { exportSequence, itemsOf, itemTitle, makeChapterCard, makeTitlePage, ZOOM_EXIT, type Playlist, type PlaylistItem } from "./playlist";
 import { subtitleLanguages, subtitleTrack } from "../spec/subtitles";
 import { parseCloudVoiceId, parseVoiceId, voiceOptions } from "../render/voices";
@@ -34,6 +35,16 @@ function zoomTargetBox(handle: RenderHandle, id: string): BBox | null {
 }
 
 export { itemTitle };
+
+/** The hand-in poster button's state (spec 2026-09-16-course-progress §4). */
+export interface HandInState {
+  /** ISO time this account handed in, when it did — the button then reads "Handed in ✓". */
+  handedAt?: string;
+  /** The run's due date, shown in the button's title. */
+  due?: string;
+  /** Press: sweep the outbox, send handed_in; resolves the hand-in time, or null when it did not go through. */
+  press: () => Promise<string | null>;
+}
 
 export interface SessionOptions {
   style: RenderStyle;
@@ -81,6 +92,17 @@ export interface SessionOptions {
    *  Fires from either mount path: the single-drawcast lecture (the common
    *  case) as well as a multi-item playlist. */
   onDone?(): void;
+  /** One view of one item ended (spec 2026-09-16-course-progress §2): an
+   *  item change, a jump, the tab hiding, the page leaving, or destroy.
+   *  Seconds visible and playing, and whether it reached done. */
+  onItem?(view: ItemView): void;
+  /**
+   * The hand-in state for this playlist, asked for when the LAST item
+   * reaches done (spec §4): null = the run asks for no hand-in, so no
+   * button. Read lazily because the answer arrives from the server after
+   * the mount.
+   */
+  handIn?: () => HandInState | null;
   /**
    * Start playback the moment the first item (or the title page) mounts,
    * instead of waiting for a click on the poster's Play button. Set when this
@@ -155,6 +177,34 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   // every answer and at "done" (a collect ask fires no answer event).
   const carry = new AnswerCarry();
   const offsets = questionOffsets(items.map((it) => it.spec));
+
+  // ---- item views (spec 2026-09-16-course-progress §2) ---------------------
+  // One timer for the session: a view opens when an item mounts and closes
+  // on every figure swap (items and cards alike), on hide, on the page
+  // leaving and on destroy — each close is one onItem call. A return from
+  // hidden reopens a view for the same item, so the teacher sums per item.
+  const timer = new ItemTimer();
+  function flushItemView(): void {
+    const view = timer.close();
+    if (view) opts.onItem?.(view);
+  }
+  const onVisibility = (): void => {
+    if (document.visibilityState === "hidden") {
+      flushItemView();
+      timer.setVisible(false);
+    } else {
+      timer.setVisible(true);
+      const cur = timer.current();
+      if (!cur && handle && !destroyed) timer.start(idx, itemTitle(items[idx]));
+    }
+  };
+  const onPageHide = (): void => flushItemView();
+  document.addEventListener("visibilitychange", onVisibility);
+  window.addEventListener("pagehide", onPageHide);
+  function removeItemListeners(): void {
+    document.removeEventListener("visibilitychange", onVisibility);
+    window.removeEventListener("pagehide", onPageHide);
+  }
 
   // ---- subtitles ----------------------------------------------------------
   // One choice for the whole playlist, held here rather than in the control
@@ -266,12 +316,15 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
       // onItemDone/showNextLink are the multi-item "next" affordance and stay
       // no-ops here (guarded by items.length in their own bodies).
       chainCallbacks(hd, 0);
+      timer.start(0, itemTitle(items[0]));
       opts.onItemMounted?.(hd, items[0]);
       if (opts.autoplay) void hd.timeline.play();
     }
     return {
       destroy: () => {
         destroyed = true;
+        flushItemView();
+        removeItemListeners();
         handle?.destroy();
       },
     };
@@ -383,6 +436,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   async function swapFigure(make: () => Promise<RenderHandle>): Promise<RenderHandle> {
     const held = host.offsetHeight;
     if (held > 0) host.style.minHeight = `${held}px`;
+    flushItemView();
     handle?.destroy();
     handle = null;
     try {
@@ -423,6 +477,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     // Chain AFTER the controls install their callbacks (and their showPoster),
     // so the poster's initial "done" never triggers an advance.
     chainCallbacks(hd, i);
+    timer.start(i, itemTitle(items[i]));
     opts.onItemMounted?.(hd, items[i]);
     markCurrent();
     if (autoplay) void hd.timeline.play();
@@ -440,6 +495,8 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     hd.timeline.callbacks = {
       onState: (s) => {
         prev.onState?.(s);
+        timer.setPlaying(s === "playing");
+        if (s === "done") timer.markDone();
         // Between items "done" is a cut, not the end: the replay button used
         // to flash at every chapter boundary of a lecture (player round).
         markChaining(s, chainsOn(i));
@@ -447,12 +504,14 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
           carry.absorb(hd.timeline.vars);
           void onItemDone();
           showNextLink();
+          if (i === items.length - 1) showHandIn();
           if (i === items.length - 1 && !doneReported) {
             doneReported = true;
             opts.onDone?.();
           }
         } else {
           host.querySelector(".cs-nextlink")?.remove();
+          host.querySelector(".cs-handin")?.remove();
         }
       },
       onStep: prev.onStep,
@@ -486,6 +545,35 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
       location.reload();
     });
     stage.appendChild(a);
+  }
+
+  /**
+   * The hand-in button on the LAST item's poster (spec 2026-09-16-course-
+   * progress §4) — only when the run asks for it: opts.handIn answers null
+   * otherwise, and for every playlist without a course. Unlike showNextLink
+   * this is not multi-item only: a one-lecture course can ask for a hand-in.
+   */
+  function showHandIn(): void {
+    const state = opts.handIn?.();
+    if (!state) return;
+    const stage = host.querySelector<HTMLElement>(".cs-stage");
+    if (!stage || stage.querySelector(".cs-handin")) return;
+    const label = (at: string | undefined): string => (at ? `Handed in ✓ ${new Date(at).toLocaleString()}` : "Hand in");
+    const btn = h("button", { class: "cs-handin", title: state.due ? `Due ${state.due}` : "Hand in your answers to the course" }, label(state.handedAt)) as HTMLButtonElement;
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation(); // never also the stage's play/pause toggle
+      btn.disabled = true;
+      void state.press().then((at) => {
+        btn.disabled = false;
+        if (at) {
+          state.handedAt = at;
+          btn.textContent = label(at);
+        } else {
+          btn.textContent = "Could not hand in — try again";
+        }
+      });
+    });
+    stage.appendChild(btn);
   }
 
   /** The between-items gate: a gap timer on auto, otherwise the continue pill on the finished drawing. */
@@ -610,6 +698,8 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   return {
     destroy: () => {
       destroyed = true;
+      flushItemView();
+      removeItemListeners();
       cancelPending();
       document.removeEventListener("keydown", onKey);
       host.removeEventListener("click", onHostClick);

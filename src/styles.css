@@ -814,6 +814,24 @@ details > summary { cursor: pointer; color: var(--muted); }
 }
 .cs-nextlink:hover { background: #fffefb; border-color: #b5482e; color: #b5482e; }
 
+/* The hand-in button (course-progress §4): the next link's twin, on the left. */
+.cs-handin {
+  position: absolute;
+  left: 0.8rem;
+  bottom: 0.8rem;
+  z-index: 8;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(255, 253, 246, 0.95);
+  border: 1.5px solid #3d3833;
+  color: #3d3833;
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.cs-handin:hover:not(:disabled) { background: #fffefb; border-color: #b5482e; color: #b5482e; }
+.cs-handin:disabled { opacity: 0.6; cursor: default; }
+
 /* Control bar as its own strip below the drawing — never covers the figure */
 .cs-controlbar {
   position: relative; /* anchors the seek-preview chip */
