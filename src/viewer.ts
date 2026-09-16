@@ -20,11 +20,14 @@ import { attachParamsTray } from "./ui/tray";
 import { castKeyFor, countingEnabled, firstViewInSession, readViewCount, recordView } from "./views";
 import { getToken, setToken, signInUrl } from "./account";
 import { apiBase, DEFAULT_ENROLL_API, firstOpenInSession, joinCourse, joinNote, sendEvent } from "./learn";
-import type { JoinOutcome, JoinRequest, LearnEvent } from "./learn";
+import { courseKeyOf, runInfo, sendEvents } from "./learn";
+import type { JoinOutcome, JoinRequest, LearnEvent, SendOutcome } from "./learn";
+import { sweepOutbox } from "./outbox";
+import type { HandInState } from "./playlist/session";
 import { anvilHashFor, nameInHash, resolveName, type Resolved } from "./names";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
 import { mountPlaylist, playlistSpeakLines } from "./playlist/session";
-import { appendRecord, localRecordStorage } from "./render/record";
+import { appendRecord, localRecordStorage, markSent, readHandIn, writeHandIn, type AnswerRecord } from "./render/record";
 import { bakedAudioFor } from "./playlist/audio";
 import { validateSpec } from "./spec/schema";
 import { getTtsKey, loadSettings, saveSettings } from "./store";
@@ -56,6 +59,18 @@ export interface ViewerRequest {
   speed: number;
   /** Override of the playlist's advance mode (kiosk/loop playback). */
   advance?: "click" | "auto";
+  /**
+   * Join this run of the lecture's course on open (spec 2026-09-16-course-
+   * progress §3): a teacher's link is the whole onboarding. "" = the default
+   * run. Stripped from the address once the join has been attempted, never
+   * before — the sign-in round trip must keep it.
+   */
+  join?: string;
+}
+
+/** The address without its `join` parameter — what a copied link should carry. */
+export function stripJoin(url: string): string {
+  return url.replace(/([#&])join(=[^&]*)?&/, "$1").replace(/[#&]join(=[^&]*)?$/, "");
 }
 
 /**
@@ -158,6 +173,7 @@ export function parseViewerHash(hash: string): ViewerRequest | null {
     mode: (mode === "silent" || mode === "instant" ? mode : "narrated") as ViewerRequest["mode"],
     speed: parseFloat(params.get("speed") ?? "") || loadSettings().speed || 1,
     advance: (advance === "auto" || advance === "click" ? advance : undefined) as ViewerRequest["advance"],
+    ...(params.has("join") ? { join: params.get("join") ?? "" } : {}),
   };
 
   if (anv) {
@@ -646,12 +662,68 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     // A reload asks once more, which is right — a learner who joined from
     // another tab should not be silenced until the tab closes.
     // Never awaited: a report can never reach playback.
-    const report = (ev: LearnEvent): void => {
-      if (!reporter || reporter.stopped) return;
-      void sendEvent(reporter.api, ev, reporter.key).then((outcome) => {
+    const report = (ev: LearnEvent): Promise<SendOutcome | null> => {
+      if (!reporter || reporter.stopped) return Promise.resolve(null);
+      return sendEvent(reporter.api, ev, reporter.key).then((outcome) => {
         if (outcome === "refused") reporter.stopped = true;
+        return outcome;
       });
     };
+    // The outbox (course-progress §3): answers the server never took — a
+    // network failure, or answers given before this account was enrolled —
+    // go in one sweep at open and again after a join. Never awaited.
+    const sweep = (): void => {
+      if (!reporter || reporter.stopped) return;
+      const r = reporter;
+      void sweepOutbox({ storage: localRecordStorage(), castKey: r.cast, cast: r.cast, send: (evs) => sendEvents(r.api, evs, r.key) }).then((res) => {
+        if (res.refused) r.stopped = true;
+      });
+    };
+    // Join from the link (course-progress §3). Signed out: the handshake,
+    // which returns to this very address, join parameter included. Signed
+    // in: one call, then the parameter leaves the address bar whatever the
+    // answer, and a fresh "opened" goes out — the first one was refused if
+    // the account was not yet enrolled, which had stopped the reporter.
+    if (req.join !== undefined && castKey !== null && enroll === DEFAULT_ENROLL_API) {
+      if (key === "") {
+        location.href = signInUrl(location.href);
+        return;
+      }
+      const joinReq: JoinRequest = { course: courseKeyOf(castKey), title: title ?? castKey, page: stripJoin(location.href), ...(req.join ? { run: req.join } : {}) };
+      void joinCourse(DEFAULT_ENROLL_API, key, joinReq, (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) })).then((outcome) => {
+        history.replaceState(null, "", stripJoin(location.href));
+        noteEl.textContent = joinNote(outcome);
+        noteEl.classList.toggle("error", outcome !== "ok" && outcome !== "pending");
+        if (outcome === "ok" && reporter) {
+          reporter.stopped = false;
+          void report({ kind: "opened", cast: reporter.cast });
+          sweep();
+        }
+      });
+    }
+    // Hand-in (course-progress §4): the run says whether it asks for one;
+    // the poster button appears on the last item's done when it does. The
+    // answer lands after the mount, so the session reads the state lazily.
+    let handIn: HandInState | null = null;
+    if (reporter) {
+      const r = reporter;
+      void runInfo(r.api, r.key, courseKeyOf(r.cast)).then((info) => {
+        if (!info?.handin) return;
+        handIn = {
+          handedAt: info.handed_in ?? readHandIn(localRecordStorage(), r.cast) ?? undefined,
+          ...(info.due ? { due: info.due } : {}),
+          press: () =>
+            sweepOutbox({ storage: localRecordStorage(), castKey: r.cast, cast: r.cast, send: (evs) => sendEvents(r.api, evs, r.key) })
+              .then(() => report({ kind: "handed_in", cast: r.cast }))
+              .then((outcome) => {
+                if (outcome !== "ok") return null;
+                const at = new Date().toISOString();
+                writeHandIn(localRecordStorage(), r.cast, at);
+                return at;
+              }),
+        };
+      });
+    }
     if (reporter) {
       const session = (() => {
         try {
@@ -660,7 +732,8 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
           return null;
         }
       })();
-      if (firstOpenInSession(reporter.cast, session)) report({ kind: "opened", cast: reporter.cast });
+      if (firstOpenInSession(reporter.cast, session)) void report({ kind: "opened", cast: reporter.cast });
+      sweep();
     }
     const settings = loadSettings();
     const speech = new CloudSpeech(
@@ -701,24 +774,26 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
         const secs = a.secs !== undefined ? { secs: a.secs } : {};
         // The student's own record, in this browser, whoever they are — a
         // published cast is keyed by its path, anything else by its hash.
-        if (item.spec.record !== false) {
-          appendRecord(localRecordStorage(), castKey ?? `hash:${location.hash}`, {
-            item: index,
-            step: a.index,
-            id: a.id,
-            question: a.question,
-            given: a.given,
-            expected: a.expected,
-            correct: a.correct,
-            ...secs,
-            at: new Date().toISOString(),
+        // It is also the outbox: the entry is written first, and stamped
+        // sent only when the server answers ok (course-progress §3).
+        const recordKey = castKey ?? `hash:${location.hash}`;
+        const entry: AnswerRecord = { item: index, step: a.index, id: a.id, question: a.question, given: a.given, expected: a.expected, correct: a.correct, ...secs, at: new Date().toISOString() };
+        const kept = item.spec.record !== false && appendRecord(localRecordStorage(), recordKey, entry);
+        if (reporter)
+          void report({ kind: "answer", cast: reporter.cast, item: index, step: a.index, id: a.id, question: a.question, given: a.given, expected: a.expected, correct: a.correct, ...secs, at: entry.at }).then((outcome) => {
+            if (outcome === "ok" && kept) markSent(localRecordStorage(), recordKey, [entry], new Date().toISOString());
           });
-        }
-        if (reporter) report({ kind: "answer", cast: reporter.cast, item: index, step: a.index, question: a.question, given: a.given, expected: a.expected, correct: a.correct, ...secs });
       },
+      // One view of one item ended (course-progress §2): seconds visible and
+      // playing, and whether it reached done. keepalive rides on sendEvent,
+      // so the view that ends with the page leaving still gets out.
+      onItem: (view) => {
+        if (reporter) void report({ kind: "item", cast: reporter.cast, ...view });
+      },
+      handIn: () => handIn,
       onDone: reporter
         ? () => {
-            report({ kind: "completed", cast: reporter.cast });
+            void report({ kind: "completed", cast: reporter.cast });
           }
         : undefined,
       advanceOverride: req.advance,

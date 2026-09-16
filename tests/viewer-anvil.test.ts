@@ -230,7 +230,9 @@ describe("runViewer takes the fourth source through the same door as the others"
     // uses the counter's.
     expect(viewer).toMatch(/const castKey = req\.anvil \? req\.anvil\.cast : req\.gh \? castKeyFor\(req\.gh\) : null;/);
     expect(viewer).toMatch(/const reporter = castKey !== null && enroll === DEFAULT_ENROLL_API && key !== "" \? \{ api: enroll, key, cast: castKey, stopped: false \} : null;/);
-    expect(viewer.match(/report\(\{ kind: "[a-z]+", cast: reporter\.cast/g)).toHaveLength(3);
+    // Five since the course-progress round: opened (at open, and again after
+    // a join from the link), answer, completed, item — all under the one key.
+    expect(viewer.match(/report\(\{ kind: "[a-z_]+", cast: reporter\.cast/g)).toHaveLength(5);
     const learners = viewer.slice(viewer.indexOf("const castKey = req.anvil"), viewer.indexOf("const settings = loadSettings();"));
     expect(learners.length).toBeGreaterThan(0);
     expect(learners).not.toMatch(/viewKey|recordView|readViewCount/);

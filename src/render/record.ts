@@ -74,6 +74,27 @@ export function markSent(storage: StorageLike | null, castKey: string, entries: 
   }
 }
 
+const HANDIN_PREFIX = "drawcast.handin:";
+
+/** When this browser handed the cast in (course-progress §4), or null. */
+export function readHandIn(storage: StorageLike | null, castKey: string): string | null {
+  if (!storage) return null;
+  try {
+    return storage.getItem(HANDIN_PREFIX + castKey) || null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeHandIn(storage: StorageLike | null, castKey: string, at: string): void {
+  if (!storage) return;
+  try {
+    storage.setItem(HANDIN_PREFIX + castKey, at);
+  } catch {
+    /* no storage — the server's answer still says handed in next time */
+  }
+}
+
 /** Append one answer to the cast's record. False when nothing could be written. */
 export function appendRecord(storage: StorageLike | null, castKey: string, rec: AnswerRecord): boolean {
   if (!storage) return false;
