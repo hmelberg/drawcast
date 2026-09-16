@@ -3,6 +3,7 @@ import { ensureEngines, enginesForSpec } from "../src/scenes/engines";
 import { layoutSpec, elementBBoxes } from "../src/layout/layout";
 import { normalizeSpec } from "../src/spec/schema";
 import { flattenDrawables, SKETCH_MS } from "../src/layout/model";
+import { MATH_X_HEIGHT } from "../src/layout/math";
 
 describe("math element (real mathjax, node)", () => {
   beforeAll(async () => { await ensureEngines(["mathjax"]); });
@@ -31,7 +32,11 @@ describe("math element (real mathjax, node)", () => {
   });
 
   test("the glyphs stand upright: the bar of a fraction sits between its parts", () => {
+    // Exact print: with the hand on, a glyph may lean a unit past the
+    // typeset box (math-hand.test.ts bounds that), which is not what this
+    // test is about.
     const r = layoutSpec({
+      text: { math_hand: false },
       elements: [{ id: "m", type: "math", tex: "\\frac{1}{2} + x_1", size: 40, x: 500, y: 400 }],
       commands: [{ draw: ["m"] }],
     });
@@ -99,18 +104,20 @@ describe("math element (real mathjax, node)", () => {
   test("the x-height IS the scale: the row is half the size, and it doubles with it", () => {
     const heightAt = (size: number): number => {
       const r = layoutSpec({
+        text: { math_hand: false },
         elements: [{ id: "m", type: "math", tex: "x", size, x: 500, y: 400 }],
         commands: [{ draw: ["m"] }],
       });
       return elementBBoxes(r).get("m")!.h;
     };
-    // "x" is one x-height tall, and an x-height is MATH_X_HEIGHT × size — to
-    // within the glyph's own overshoot (a rounded letterform rises ~2% past
-    // the nominal x-height line), which is why 60 is bounded rather than
-    // toBeCloseTo(30, 0): the measured row is 30.66, not the constant's fault.
-    expect(heightAt(30)).toBeCloseTo(15, 0);
-    expect(heightAt(60)).toBeGreaterThan(29);
-    expect(heightAt(60)).toBeLessThan(31);
+    // "x" is one x-height tall, and an x-height is MATH_X_HEIGHT × size —
+    // Patrick Hand's own ratio since 2026-09-16, so a formula and the text
+    // beside it share one size model — to within the glyph's own overshoot
+    // (a rounded letterform rises ~2% past the nominal x-height line), which
+    // is why 60 is bounded rather than pinned: not the constant's fault.
+    expect(heightAt(30)).toBeCloseTo(MATH_X_HEIGHT * 30, 0);
+    expect(heightAt(60)).toBeGreaterThan(MATH_X_HEIGHT * 60 * 0.97);
+    expect(heightAt(60)).toBeLessThan(MATH_X_HEIGHT * 60 * 1.04);
     // …and it is linear in size, so the constant cannot hide in a
     // size-dependent fudge. Not linear to the last digit: RING_EPS is an
     // absolute tolerance, so a bigger glyph keeps marginally more of its

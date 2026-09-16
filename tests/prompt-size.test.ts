@@ -215,8 +215,14 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-measured 2026-09-16 on the merge of the animated-box round with the
 // code-hand round (both additive): pinned to the values measured on the
 // merged tree: schema 118371 → 118549 (+178, the animate.box description), system 234828 → 235335 (+178 + 329, the prompt sentence).
-const BASELINE_SYSTEM_CHARS = 235335;
-const BASELINE_SCHEMA_CHARS = 118549;
+// Re-pinned 2026-09-16 for the math-hand round: `text.math_hand` (one
+// description) and the rewritten `size` description (one size model for
+// formulas and text) grew the schema by +151 (118549 → 118700), embedded
+// verbatim in the system prompt; the prompt itself gained the display-style
+// sentence on freehand rule 5 (\frac not \dfrac, leave size out) and the
+// `math_hand` clause in Text (+375) — system 235335 → 235861.
+const BASELINE_SYSTEM_CHARS = 235861;
+const BASELINE_SCHEMA_CHARS = 118700;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

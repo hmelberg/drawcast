@@ -82,6 +82,8 @@ export interface Settings {
   textFamily: TextFamily | null;
   /** Viewer's font for formulas — a mathjax engine font, or null to follow the drawcast. */
   mathFont: MathFont | null;
+  /** Viewer's hand for formulas — true handwritten, false exact print, or null to follow the drawcast. */
+  mathHand: boolean | null;
   /** Prompt variant name, or "custom" for the locally edited prompt. */
   variant: string;
   /** The active style profile (B5) — null means no addendum. */
@@ -184,6 +186,7 @@ export const DEFAULT_SETTINGS: Settings = {
   textSize: null,
   textFamily: null,
   mathFont: null,
+  mathHand: null,
   variant: "v1",
   activeStyleId: null,
   cloudVoices: {},
@@ -305,7 +308,7 @@ export function saveSettings(s: Settings): void {
  */
 export const SETTINGS_TABS: { id: string; label: string; fields: string[] }[] = [
   { id: "keys", label: "Keys", fields: ["apiKey", "ttsKey"] },
-  { id: "playback", label: "Playback", fields: ["style", "textSize", "textFamily", "mathFont", "theme", "voice", "rate", "cloudPlayback", "cloudVoice", "skipQuestions", "burnCaptions"] },
+  { id: "playback", label: "Playback", fields: ["style", "textSize", "textFamily", "mathFont", "mathHand", "theme", "voice", "rate", "cloudPlayback", "cloudVoice", "skipQuestions", "burnCaptions"] },
   { id: "publishing", label: "Publishing", fields: ["githubRepo", "githubToken", "account", "coursesDir", "giscus"] },
   { id: "advanced", label: "Advanced", fields: ["contactEmail", "developerMode", "visualRepair", "backup"] },
 ];

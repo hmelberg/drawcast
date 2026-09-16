@@ -11,13 +11,47 @@ import { Z_AREA, SKETCH_MS, type Drawable, type Pt } from "./model";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
 import type { MathJaxEngine, MathOutline } from "../scenes/engines";
 import { matchShapes, normalizeTex } from "./math-morph";
+import { handShape } from "./math-hand";
 import { morphPair } from "../render/morph";
 import type { SpecElement } from "../spec/types";
 
-/** An x-height row is this fraction of `size` — the engine normalises the
- *  layout so one unit of y IS one x-height, so this is the whole scale. */
-export const MATH_X_HEIGHT = 0.5;
+/**
+ * An x-height row is this fraction of `size` — the engine normalises the
+ * layout so one unit of y IS one x-height, so this is the whole scale. The
+ * value is Patrick Hand's own x-height ratio (sxHeight / unitsPerEm of the
+ * bundled TTF), so a formula at `size: 26` has the same x-height as text at
+ * `font_size: 26`: one size model for letters and formulas (Hans 2026-09-16:
+ * "sometimes the math equations are written very large and then smaller
+ * equations in the same page").
+ */
+export const MATH_X_HEIGHT = 0.467;
+/** The size a formula gets when the spec names none — kit.text's and a
+ *  label's own default (scenes/kit.ts, layout/tier2.ts), so a TeX label and
+ *  a text label beside it come out the same size. */
 export const MATH_DEFAULT_SIZE = 28;
+
+/**
+ * The text style every formula is laid out under — set by layoutSpec from
+ * the spec's `text:` block before any element or template runs, the same
+ * arrangement as the math font (scenes/engines.ts setMathFont): a formula's
+ * glyphs are produced DURING layout, so the global text scale (which
+ * applyTextStyle stamps on text drawables after layout) has to reach the
+ * layout itself. `scale` multiplies every formula's size; `hand` says whether
+ * the glyphs get the pen's wobble (math-hand.ts) or stay exact print.
+ */
+export interface MathTextStyle { scale: number; hand: boolean }
+let currentMathText: MathTextStyle = { scale: 1, hand: true };
+export function setMathTextStyle(style: MathTextStyle): void {
+  currentMathText = { scale: style.scale, hand: style.hand };
+}
+export function mathTextStyle(): MathTextStyle {
+  return currentMathText;
+}
+/** The size a formula is laid out at: the element's own (or the default),
+ *  times the global text scale. */
+export function mathSizeOf(size: number | undefined): number {
+  return (size ?? MATH_DEFAULT_SIZE) * currentMathText.scale;
+}
 
 /** Ring simplification tolerance, logical units. Glyph curves arrive at 8
  *  segments each; at figure size that is far more detail than the paper
@@ -44,6 +78,7 @@ function placeFormula(
   cx: number,
   cy: number,
   size: number,
+  hand: string | null,
 ): { shapes: (PlacedShape | null)[]; box: BBox } {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const o of laid.outlines) {
@@ -66,15 +101,33 @@ function placeFormula(
   const ty = (y: number) => cy - h / 2 + (y - minY) * s;
   const place = (ring: [number, number][]): Pt[] => simplifyPolyline(ring.map(([x, y]) => [tx(x), ty(y)] as Pt), RING_EPS);
 
-  const shapes: (PlacedShape | null)[] = laid.outlines.map((o) => {
+  const shapes: (PlacedShape | null)[] = laid.outlines.map((o, i) => {
     const pts = place(o.pts);
     // A ring that simplifies away encloses no area — dropped, here and for
     // the counters (a hole of fewer than 3 points punches nothing out).
     if (pts.length < 3) return null;
     const holes = (o.holes ?? []).map(place).filter((r) => r.length >= 3);
-    return { pts, holes, outline: o };
+    // The hand, last: on the simplified rings (fewer points to move), seeded
+    // by the TeX and the glyph's index — so the same formula always wobbles
+    // the same way, and a `copy` of a formula is its source's identical twin
+    // (a derivation idiom copies an equation and slides the copy away: the
+    // two must coincide at the start).
+    const shaped = hand === null ? { pts, holes } : handShape({ pts, holes }, `${hand}:${i}`, size);
+    return { ...shaped, outline: o };
   });
-  const box = { x: cx - w / 2, y: cy - h / 2, w, h };
+  // The box is measured on the placed ink — with the hand, a glyph may lean
+  // a little past the typeset extent, and collision and `at` should see that.
+  let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+  for (const sh of shapes) {
+    if (sh === null) continue;
+    for (const [x, y] of sh.pts) {
+      if (x < bx0) bx0 = x;
+      if (x > bx1) bx1 = x;
+      if (y < by0) by0 = y;
+      if (y > by1) by1 = y;
+    }
+  }
+  const box = bx1 >= bx0 ? { x: bx0, y: by0, w: bx1 - bx0, h: by1 - by0 } : { x: cx - w / 2, y: cy - h / 2, w, h };
   return { shapes, box };
 }
 
@@ -121,9 +174,13 @@ export function mathDrawables(
   cx: number,
   cy: number,
 ): { drawables: Drawable[]; box: BBox; unusedColors: string[] } {
-  const size = el.size ?? el.font_size ?? MATH_DEFAULT_SIZE;
-  const laid = mathjax.layoutTeX(el.tex ?? "", { display: false });
-  const { shapes, box } = placeFormula(laid, cx, cy, size);
+  const size = mathSizeOf(el.size ?? el.font_size);
+  // Display style: a fraction's numerator and denominator at full size, as
+  // on a whiteboard — inline style shrank them to script size, and authors
+  // reached for \dfrac or a bigger `size` to compensate, which is where
+  // formulas of several sizes on one page came from.
+  const laid = mathjax.layoutTeX(el.tex ?? "", { display: true });
+  const { shapes, box } = placeFormula(laid, cx, cy, size, mathTextStyle().hand ? el.tex ?? "" : null);
 
   const ink = resolveStyle(el.style);
   const drawOpts = resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text });
@@ -178,11 +235,15 @@ export function mathMorphDrawables(
   to: string,
   t: number,
 ): { drawables: Drawable[]; box: BBox; unusedColors: string[] } {
-  const size = el.size ?? el.font_size ?? MATH_DEFAULT_SIZE;
-  const laidFrom = mathjax.layoutTeX(from, { display: false });
-  const laidTo = mathjax.layoutTeX(to, { display: false });
-  const A = placeFormula(laidFrom, cx, cy, size);
-  const B = placeFormula(laidTo, cx, cy, size);
+  const size = mathSizeOf(el.size ?? el.font_size);
+  const laidFrom = mathjax.layoutTeX(from, { display: true });
+  const laidTo = mathjax.layoutTeX(to, { display: true });
+  // Each side wobbles under its own TeX's seed: at t = 0 the glyphs are
+  // exactly the settled from-formula's, at t = 1 exactly the to-formula's,
+  // and a matched pair glides from one hand to the other with its points.
+  const hand = mathTextStyle().hand;
+  const A = placeFormula(laidFrom, cx, cy, size, hand ? from : null);
+  const B = placeFormula(laidTo, cx, cy, size, hand ? to : null);
   const m = matchShapes(laidFrom, laidTo);
 
   const ink = resolveStyle(el.style);

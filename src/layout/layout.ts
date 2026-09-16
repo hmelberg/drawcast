@@ -4,7 +4,8 @@
 import { scenes } from "../scenes/registry";
 import { normalizeSpec } from "../spec/schema";
 import { applyTextMap } from "./text-map";
-import { DEFAULT_MATH_FONT } from "./text-style";
+import { effectiveTextStyle } from "./text-style";
+import { setMathTextStyle } from "./math";
 import { setMathFont } from "../scenes/engines";
 import type { Spec } from "../spec/types";
 import { coVisible, idsOf, lintLayout, FIT_SCALE_FLOOR, type LintIssue } from "../lint/lint";
@@ -86,8 +87,13 @@ export function layoutSpec(
   // Formulas are laid out as glyph outlines, so the font is a layout input,
   // not a render one: every math element and equation_steps step below reads
   // this (scenes/engines.ts). The viewer's override arrives already folded
-  // into text.math_font (text-style.ts withMathFont).
-  setMathFont(spec.text?.math_font ?? DEFAULT_MATH_FONT);
+  // into the text block (text-style.ts withTextStyle).
+  const textStyle = effectiveTextStyle(spec);
+  setMathFont(textStyle.mathFont);
+  // Likewise the text scale and the hand (layout/math.ts): a formula's size
+  // follows `text.font_size` the way every text drawable does, and the pen's
+  // wobble is on unless the block says `math_hand: false`.
+  setMathTextStyle({ scale: textStyle.scale, hand: textStyle.mathHand });
   const warnings: string[] = [];
   // A template and a script on screen each get their own half of the canvas
   // before anything is laid out — the default the two used to lack, so a

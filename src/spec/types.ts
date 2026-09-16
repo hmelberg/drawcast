@@ -145,7 +145,7 @@ export interface SpecElement {
   fit?: "left" | "right" | "top" | "bottom" | "full" | { x: number; y: number; w: number; h: number };
   /** math: LaTeX, drawn as handwriting. label: LaTeX instead of text. */
   tex?: string;
-  /** math: font size (x-height-based). icon: box size in logical units (default 100). */
+  /** math: font size, the same units as text font_size (default 28); scaled by text.font_size like every text. icon: box size in logical units (default 100). */
   size?: number;
   /** math: colour per term, a TeX snippet → colour; every occurrence, deepest match wins. */
   colors?: Record<string, string>;

@@ -670,6 +670,16 @@ mathFontSel.append(
   h("option", { value: "tex" }, "TeX (Computer Modern)"),
 );
 mathFontSel.value = settings.mathFont ?? "";
+// Whether formulas get the pen's wobble (layout/math-hand.ts) or stay exact
+// print; the spec's `text.math_hand` is the default the empty option follows.
+const mathHandSel = h("select", { title: "Math hand" });
+mathHandSel.append(
+  h("option", { value: "" }, "Follow the drawcast"),
+  h("option", { value: "hand" }, "Handwritten"),
+  h("option", { value: "print" }, "Print"),
+);
+const mathHandValue = (v: boolean | null) => (v === null ? "" : v ? "hand" : "print");
+mathHandSel.value = mathHandValue(settings.mathHand);
 
 const themeSel = h("select", { title: "Appearance" });
 themeSel.append(
@@ -1793,6 +1803,7 @@ const settingsBlocks = new Map<string, HTMLElement>([
   ["textSize", h("div", { class: "settings-field" }, h("label", {}, "Text size"), textSizeSel)],
   ["textFamily", h("div", { class: "settings-field" }, h("label", {}, "Font"), textFamilySel)],
   ["mathFont", h("div", { class: "settings-field" }, h("label", {}, "Math font"), mathFontSel)],
+  ["mathHand", h("div", { class: "settings-field" }, h("label", {}, "Math hand"), mathHandSel)],
   ["theme", h("div", { class: "settings-field" }, h("label", {}, "Appearance"), themeSel)],
   [
     "apiKey",
@@ -2011,6 +2022,7 @@ function openSettings(): void {
   textSizeSel.value = settings.textSize == null ? "" : String(settings.textSize);
   textFamilySel.value = settings.textFamily ?? "";
   mathFontSel.value = settings.mathFont ?? "";
+  mathHandSel.value = mathHandValue(settings.mathHand);
   refreshCloudVoiceField();
   skipQuestionsCb.checked = settings.skipQuestions;
   burnCaptionsCb.checked = settings.burnCaptions;
@@ -2694,7 +2706,7 @@ async function present(andPlay = false): Promise<void> {
       // the editor pane and Player mode alike (Hans 2026-09-03: "these changes
       // should apply to both the player in the editor (preview) and the single
       // page player"). Exports never pass it, so they keep the spec's defaults.
-      text: { fontSize: settings.textSize, family: settings.textFamily, mathFont: settings.mathFont },
+      text: { fontSize: settings.textSize, family: settings.textFamily, mathFont: settings.mathFont, mathHand: settings.mathHand },
       mode: settings.mode,
       speed: settings.speed,
       questions: settings.skipQuestions ? "skip" : "on",
@@ -5331,6 +5343,11 @@ textFamilySel.addEventListener("change", () => {
 });
 mathFontSel.addEventListener("change", () => {
   settings.mathFont = (mathFontSel.value || null) as MathFont | null;
+  persist();
+  void present();
+});
+mathHandSel.addEventListener("change", () => {
+  settings.mathHand = mathHandSel.value === "" ? null : mathHandSel.value === "hand";
   persist();
   void present();
 });

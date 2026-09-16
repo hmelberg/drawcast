@@ -1056,14 +1056,18 @@ layout: |
     return out.length >= 3 ? out : ring;
   }
 
-  const STEP_H = 54, GAP = 40;
-  const totalH = n * STEP_H + (n - 1) * GAP;
-  const topY = 375 + totalH / 2;
+  // One letter height for every step (Hans 2026-09-16): each row is laid out
+  // at the same formula size — the engine's geometry is normalised to
+  // x-heights, and kit.mathUnit is the logical units per x-height at that
+  // size under the drawcast's text scale. The old rule scaled each row to a
+  // fixed box height, so "2x = 8" (one row of glyphs) came out three times
+  // the size of a step with a fraction (four rows). A row wider than the
+  // canvas allows still shrinks to fit; nothing ever grows.
+  const SIZE = 30, GAP = 34, MAX_W = 900;
+  const unit = kit.mathUnit(SIZE);
+  const fontSize = kit.mathSize(SIZE);
 
-  const drawables = [], labels = [], anchors = {}, order = [];
-  const push = (d) => { drawables.push(d); order.push(d.id); };
-
-  steps.forEach((step, i) => {
+  const rows = steps.map((step, i) => {
     let laid;
     try {
       laid = engines.mathjax.layoutTeX(step.tex, { display: true });
@@ -1081,25 +1085,41 @@ layout: |
       }
     }
     if (!(maxY > minY) || !(maxX >= minX)) throw new Error("equation_steps: degenerate glyph geometry in step " + i);
-    let scale = STEP_H / (maxY - minY);
-    const scaledW = (maxX - minX) * scale;
-    const MAX_W = 900;
-    if (scaledW > MAX_W) scale *= MAX_W / scaledW;
+    let scale = unit;
+    if ((maxX - minX) * scale > MAX_W) scale = MAX_W / (maxX - minX);
+    return { outlines, minX, maxX, minY, maxY, scale, h: (maxY - minY) * scale };
+  });
+  // A plain row (no fraction) is only a cap-height tall; give every row at
+  // least a full line so the pitch reads as lines of writing, not as ink
+  // packed to the glyphs.
+  const MIN_ROW = fontSize * 1.3;
+  const rowH = rows.map((r) => Math.max(r.h, MIN_ROW));
+  const totalH = rowH.reduce((a, b) => a + b, 0) + (n - 1) * GAP;
+  const topY = 375 + totalH / 2;
 
-    const top = topY - i * (STEP_H + GAP);
-    const bottom = top - STEP_H;
-    const midX = (minX + maxX) / 2;
+  const drawables = [], labels = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  let cursor = topY;
+  steps.forEach((step, i) => {
+    const r = rows[i];
+    const top = cursor, bottom = cursor - rowH[i];
+    cursor = bottom - GAP;
+    const rowMid = (top + bottom) / 2;
+    const midX = (r.minX + r.maxX) / 2, midY = (r.minY + r.maxY) / 2;
+    const scale = r.scale;
     const tx = (x) => 500 + (x - midX) * scale;
-    const ty = (y) => bottom + (y - minY) * scale;
+    const ty = (y) => rowMid + (y - midY) * scale;
 
     const place = (ring) => simplifyRing(ring.map((p) => [tx(p[0]), ty(p[1])]));
-    const children = outlines.map((o, j) => {
+    const children = r.outlines.map((o, j) => {
       const holes = (o.holes || []).map(place).filter((h) => h.length >= 3);
+      const shaped = kit.mathHand({ pts: place(o.pts), holes: holes }, step.tex + ":" + j, fontSize);
       const fill = kit.mathColorFor(o.token.chain, params.colors) ?? C.ink;
-      return kit.area("step_" + i + "__g" + j, place(o.pts), fill, { holes: holes, precise: true, ms: MS.text });
+      return kit.area("step_" + i + "__g" + j, shaped.pts, fill, { holes: shaped.holes, precise: true, ms: MS.text });
     });
     push(kit.group("step_" + i, children));
-    anchors["step_" + i] = [500, (top + bottom) / 2];
+    anchors["step_" + i] = [500, rowMid];
 
     if (typeof step.note === "string" && step.note.trim() !== "") {
       // Wrap and clamp: a wide step leaves little margin before the canvas
@@ -1117,12 +1137,11 @@ layout: |
       if (cur) lines.push(cur);
       const noteFS = 16;
       const lineW = Math.max(...lines.map((l) => l.length)) * noteFS * 0.52;
-      const naturalX = 500 + (maxX - midX) * scale + 24;
+      const naturalX = 500 + (r.maxX - midX) * scale + 24;
       const rightX = Math.min(naturalX, 992 - lineW);
-      const midY = (top + bottom) / 2;
-      const noteChildren = lines.map((line, k) => kit.text("note_" + i + "__l" + k, [rightX, midY + (((lines.length - 1) / 2 - k) * (noteFS * 1.5))], line, { fontSize: noteFS, color: C.guide, anchor: "start" }));
+      const noteChildren = lines.map((line, k) => kit.text("note_" + i + "__l" + k, [rightX, rowMid + (((lines.length - 1) / 2 - k) * (noteFS * 1.5))], line, { fontSize: noteFS, color: C.guide, anchor: "start" }));
       push(kit.group("note_" + i, noteChildren));
-      anchors["note_" + i] = [rightX, midY];
+      anchors["note_" + i] = [rightX, rowMid];
     }
   });
 

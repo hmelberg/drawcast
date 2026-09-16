@@ -20,6 +20,8 @@ import { AXIS_OVERHANG, axisLabelPlacement } from "../layout/axes";
 import { heuristicMeasure } from "../layout/measure";
 import { catmullRom, catmullRomClosed } from "../layout/smooth";
 import { colorFor } from "../layout/math-morph";
+import { MATH_X_HEIGHT, mathSizeOf, mathTextStyle } from "../layout/math";
+import { handShape } from "../layout/math-hand";
 import {
   COLORS,
   SKETCH_MS,
@@ -248,6 +250,21 @@ export interface SceneKit {
    *  `colors` key, normalised — or null when none matches (equation_steps
    *  can't import math-morph.ts's `colorFor` itself, so it goes through here). */
   mathColorFor(chain: string[], colors?: Record<string, string>): string | null;
+  /** Logical units per unit of engines.mathjax.layoutTeX geometry (one
+   *  x-height) for a formula at `size` (default: the math default, 28), under
+   *  the drawcast's global text scale — the ONE size model formulas and text
+   *  share (layout/math.ts). Multiply the engine's points by this and every
+   *  step of a derivation comes out with the same letter height. */
+  mathUnit(size?: number): number;
+  /** The formula's font size in logical units for the same `size` — what
+   *  `mathUnit` is built on; for row pitch and gaps. */
+  mathSize(size?: number): number;
+  /** One glyph's outline and counters (canvas coordinates) in the drawing's
+   *  hand — the pen's wobble of layout/math-hand.ts, deterministic from
+   *  `seed` (the formula's TeX plus the glyph's index, so the same formula
+   *  always wobbles the same way) — or unchanged when the drawcast asked for
+   *  exact print (`text.math_hand: false`). `size` is the formula's font size. */
+  mathHand(shape: { pts: Pt[]; holes: Pt[][] }, seed: string, size: number): { pts: Pt[]; holes: Pt[][] };
   text(id: string, pos: Pt, s: string, o?: TextOpts): TextDrawable;
   /**
    * The caption for one axis of an L-shaped axes pair, placed by the app's
@@ -621,6 +638,15 @@ export const kit: SceneKit = {
   },
   mathColorFor(chain, colors) {
     return colorFor(chain, colors);
+  },
+  mathUnit(size) {
+    return MATH_X_HEIGHT * mathSizeOf(size);
+  },
+  mathSize(size) {
+    return mathSizeOf(size);
+  },
+  mathHand(shape, seed, size) {
+    return mathTextStyle().hand ? handShape(shape, seed, size) : shape;
   },
   text(id, pos, s, o = {}) {
     return {

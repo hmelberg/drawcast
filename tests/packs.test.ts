@@ -1112,14 +1112,22 @@ describe("mathlogic pack", () => {
       const eng = (await import("../src/scenes/engines")).getLoadedEngines(["mathjax"]).mathjax as {
         layoutTeX(t: string, o?: { display?: boolean }): { outlines: { pts: [number, number][]; holes?: [number, number][][] }[] };
       };
+      // Exact print for this comparison: the hand (layout/math-hand.ts) is
+      // a deliberate distortion, bounded in its own tests.
+      const { setMathTextStyle } = await import("../src/layout/math");
+      setMathTextStyle({ scale: 1, hand: false });
       for (const tex of ["x", "8", "b"]) {
         const truth = eng.layoutTeX(tex, { display: true }).outlines[0];
         const drawn = areasOf(scenes.equation_steps.layout!({ steps: [{ tex }] }))[0];
         // area/bbox-area is invariant under the uniform scale + translate the
-        // template applies, so it compares SHAPE, not size.
-        expect(polyArea(drawn.pts) / bboxArea(drawn.pts), tex).toBeCloseTo(polyArea(truth.pts) / bboxArea(truth.pts), 2);
+        // template applies, so it compares SHAPE, not size. Within 1 %: the
+        // rows are text-sized since 2026-09-16 (a digit ≈ 20 units tall, not
+        // a 54-unit box), so the fixed 0.25-unit tolerance is a larger share
+        // of the glyph — still far below what the paper shows.
+        expect(Math.abs(polyArea(drawn.pts) / bboxArea(drawn.pts) - polyArea(truth.pts) / bboxArea(truth.pts)), tex).toBeLessThan(0.01);
         expect(drawn.pts.length, tex).toBeGreaterThanOrEqual(12);
       }
+      setMathTextStyle({ scale: 1, hand: true });
     });
 
     test("under fill-rule evenodd the counter is paper and the bowl around it is ink", async () => {

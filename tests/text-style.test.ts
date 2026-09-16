@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
-import { BASE_FONT_SIZE, applyTextStyle, effectiveTextStyle, scaledMeasure, type TextStyle, withMathFont } from "../src/layout/text-style";
+import { BASE_FONT_SIZE, applyTextStyle, effectiveTextStyle, scaledMeasure, type TextStyle, withTextStyle } from "../src/layout/text-style";
 import { heuristicMeasure } from "../src/layout/measure";
 import { Z_TEXT, defaultDrawOpts, defaultStyle, type Drawable, type TextDrawable } from "../src/layout/model";
 import type { LayoutResult } from "../src/layout/layout";
@@ -21,19 +21,19 @@ const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8"
 
 describe("effectiveTextStyle — one rule for one value", () => {
   test("nothing said anywhere: the app defaults", () => {
-    expect(effectiveTextStyle({})).toEqual({ scale: 1, family: "cursive", weight: "normal", mathFont: "fira" });
+    expect(effectiveTextStyle({})).toEqual({ scale: 1, family: "cursive", weight: "normal", mathFont: "fira", mathHand: true });
     expect(BASE_FONT_SIZE).toBe(26);
   });
 
   test("the spec's text block sets the defaults — size as a base, scaled against 26", () => {
-    const ts = effectiveTextStyle({ text: { font_size: 39, font_family: "sans-serif", font_weight: "bold", math_font: "tex" } });
-    expect(ts).toEqual({ scale: 1.5, family: "sans-serif", weight: "bold", mathFont: "tex" });
+    const ts = effectiveTextStyle({ text: { font_size: 39, font_family: "sans-serif", font_weight: "bold", math_font: "tex", math_hand: false } });
+    expect(ts).toEqual({ scale: 1.5, family: "sans-serif", weight: "bold", mathFont: "tex", mathHand: false });
   });
 
   test("the viewer's setting wins over the spec; a null setting follows the spec", () => {
     const spec = { text: { font_size: 39, font_family: "sans-serif" as const } };
-    expect(effectiveTextStyle(spec, { fontSize: 22, family: "monospace" })).toEqual({ scale: 22 / 26, family: "monospace", weight: "normal", mathFont: "fira" });
-    expect(effectiveTextStyle(spec, { fontSize: null, family: null })).toEqual({ scale: 1.5, family: "sans-serif", weight: "normal", mathFont: "fira" });
+    expect(effectiveTextStyle(spec, { fontSize: 22, family: "monospace" })).toEqual({ scale: 22 / 26, family: "monospace", weight: "normal", mathFont: "fira", mathHand: true });
+    expect(effectiveTextStyle(spec, { fontSize: null, family: null })).toEqual({ scale: 1.5, family: "sans-serif", weight: "normal", mathFont: "fira", mathHand: true });
   });
 
   test("the math font follows the same rule: viewer's choice, else the spec's, else Fira (Hans 2026-09-10)", () => {
@@ -41,11 +41,24 @@ describe("effectiveTextStyle — one rule for one value", () => {
     expect(effectiveTextStyle({ text: { math_font: "tex" } }).mathFont).toBe("tex");
     expect(effectiveTextStyle({ text: { math_font: "tex" } }, { mathFont: "fira" }).mathFont).toBe("fira");
     expect(effectiveTextStyle({ text: { math_font: "tex" } }, { mathFont: null }).mathFont).toBe("tex");
-    // withMathFont folds the drawn font into the spec layout reads; a no-op when it already says so.
+  });
+
+  test("the math hand follows the same rule: viewer's choice, else the spec's, else handwritten (Hans 2026-09-16)", () => {
+    expect(effectiveTextStyle({}).mathHand).toBe(true);
+    expect(effectiveTextStyle({ text: { math_hand: false } }).mathHand).toBe(false);
+    expect(effectiveTextStyle({ text: { math_hand: false } }, { mathHand: true }).mathHand).toBe(true);
+    expect(effectiveTextStyle({ text: {} }, { mathHand: false }).mathHand).toBe(false);
+    expect(effectiveTextStyle({ text: { math_hand: false } }, { mathHand: null }).mathHand).toBe(false);
+  });
+
+  test("withTextStyle folds what layout must know (size scale, math font, hand) into the spec; a no-op when it already says so", () => {
     const spec = { text: { font_weight: "bold" as const } };
-    expect(withMathFont(spec, "tex").text).toEqual({ font_weight: "bold", math_font: "tex" });
-    expect(withMathFont(spec, "fira")).toBe(spec);
+    const viewer: TextStyle = { scale: 22 / 26, family: "monospace", weight: "bold", mathFont: "tex", mathHand: false };
+    expect(withTextStyle(spec, viewer).text).toEqual({ font_weight: "bold", font_size: 22, math_font: "tex", math_hand: false });
+    expect(withTextStyle(spec, effectiveTextStyle(spec))).toBe(spec);
     expect(spec.text).toEqual({ font_weight: "bold" });
+    // Family and weight are NOT written: applyTextStyle stamps them after layout.
+    expect(withTextStyle(spec, viewer).text).not.toHaveProperty("font_family");
   });
 
   test("weight has no viewer override — it is the maker's emphasis", () => {
@@ -71,7 +84,7 @@ describe("scaledMeasure — layout reserves room for the text that will be drawn
 function text(id: string, extra: Partial<TextDrawable> = {}): TextDrawable {
   return { id, kind: "text", pos: [100, 100], text: "Price", fontSize: 26, anchor: "middle", z: Z_TEXT, style: defaultStyle(), drawOpts: defaultDrawOpts(), ...extra };
 }
-const bold: TextStyle = { scale: 1.5, family: "sans-serif", weight: "bold", mathFont: "fira" };
+const bold: TextStyle = { scale: 1.5, family: "sans-serif", weight: "bold", mathFont: "fira", mathHand: true };
 
 describe("applyTextStyle — the drawn text matches what was measured", () => {
   const layout = (): LayoutResult => ({
@@ -174,8 +187,10 @@ describe("Settings → Playback carries the viewer's two overrides", () => {
     const playback = SETTINGS_TABS.find((t) => t.id === "playback")!.fields;
     expect(playback).toContain("textSize");
     expect(playback).toContain("textFamily");
+    expect(playback).toContain("mathHand");
     expect(DEFAULT_SETTINGS.textSize).toBeNull();
     expect(DEFAULT_SETTINGS.textFamily).toBeNull();
+    expect(DEFAULT_SETTINGS.mathHand).toBeNull();
   });
 });
 
@@ -201,11 +216,11 @@ describe("wiring — where the override applies and where it must not", () => {
   // viewer; only exports, which never pass it, keep the maker's defaults.
   test("the app applies it in the editor pane and Player mode alike, and the viewer applies it", () => {
     const main = read("../src/main.ts");
-    expect(main).toMatch(/text: \{ fontSize: settings\.textSize, family: settings\.textFamily, mathFont: settings\.mathFont \},/);
+    expect(main).toMatch(/text: \{ fontSize: settings\.textSize, family: settings\.textFamily, mathFont: settings\.mathFont, mathHand: settings\.mathHand \},/);
     expect(main).not.toMatch(/isPlayer \? \{ fontSize/);
     expect(main).toMatch(/"Text size"\), textSizeSel/);
     expect(main).toMatch(/"Font"\), textFamilySel/);
     const viewer = read("../src/viewer.ts");
-    expect(viewer).toMatch(/text: \{ fontSize: settings\.textSize, family: settings\.textFamily, mathFont: settings\.mathFont \}/);
+    expect(viewer).toMatch(/text: \{ fontSize: settings\.textSize, family: settings\.textFamily, mathFont: settings\.mathFont, mathHand: settings\.mathHand \}/);
   });
 });

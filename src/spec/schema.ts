@@ -210,7 +210,7 @@ const elementSchema = {
       description: "group: scale and centre the members into this region or box (aspect kept).",
     },
     tex: { type: "string", description: "math: LaTeX, drawn as handwriting. label: LaTeX instead of text." },
-    size: { type: "number", description: "math: font size (≥ 18). icon: box size in logical units (default 100)." },
+    size: { type: "number", description: "math: font size, the same units as text font_size (default 28, a label's size). Leave it out: every formula on a page shares one size; at most a headline formula may take 34. icon: box size in logical units (default 100)." },
     colors: { type: "object", additionalProperties: { type: "string" }, description: 'math: colour per term, a TeX snippet → colour ({"x": "#2f6b8f", "\\\\Delta C": "#b5482e"}); every occurrence.' },
     set: { type: "string", description: "icon: icon set prefix (lucide, tabler, ph, heroicons, material-symbols; fa6-solid, twemoji as CC BY)." },
     credit: { type: "string", description: "image/icon: attribution (machine-written; copy VERBATIM if present)." },
@@ -999,12 +999,13 @@ export const specSchema = {
 const TEXT_FIELDS = {
   text: {
     type: "object",
-    description: "Global text defaults. font_size: base size in logical units (default 26; every size scales by it). font_family: cursive (handwriting, the default) | sans-serif | monospace. font_weight: normal | bold.",
+    description: "Global text defaults. font_size: base size in logical units (default 26; every size scales by it, formulas included). font_family: cursive (handwriting, the default) | sans-serif | monospace. font_weight: normal | bold.",
     properties: {
       font_size: { type: "number", minimum: 16, maximum: 48 },
       font_family: { type: "string", enum: ["cursive", "sans-serif", "monospace"] },
       font_weight: { type: "string", enum: ["normal", "bold"] },
       math_font: { type: "string", enum: ["fira", "tex"], description: "The font formulas are drawn with: fira (Fira Math, the default) | tex (MathJax's TeX font)." },
+      math_hand: { type: "boolean", description: "Formulas in the drawing's own hand (true, the default: every glyph gets a pen's small wobble) or as exact print (false) — set false only when the request asks for a printed, textbook look." },
     },
     additionalProperties: false,
   },

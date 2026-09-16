@@ -3,6 +3,7 @@
 // repair round as structured text.
 
 import { CANVAS } from "../layout/canvas";
+import { MATH_DEFAULT_SIZE } from "../layout/math";
 import { isFitName } from "../layout/regions";
 import { AUTO_NAMESPACE, baseName, isReservedVar, VAR_RE } from "../spec/answers";
 import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox, type BBox } from "../layout/geometry";
@@ -34,6 +35,8 @@ export interface LintIssue {
     /** a stroke through a formula's core, or a label on top of it — warns, never blocks (Hans 2026-09-10) */
     | "overlap-math-stroke"
     | "overlap-math-label"
+    /** formulas of different sizes on one page — warns, never blocks */
+    | "math-size"
     /** a code panel and the template figure beside it drawn on the same ground */
     | "overlap-code-figure"
     /** a template's box was small enough that the fit scale did most of the shrinking */
@@ -569,6 +572,32 @@ function lintSources(spec: Spec): LintIssue[] {
   return issues;
 }
 
+/** Formulas beyond this ratio of largest to smallest size on one page read as
+ *  a mistake, not an emphasis (Hans 2026-09-16: "very large and then smaller
+ *  equations in the same page"). 28 → 34, the headline allowance, is 1.21. */
+export const MATH_SIZE_SPREAD = 1.3;
+
+/**
+ * Every formula on a page shares one size; `size` exists for the one
+ * headline formula, not for compensating a fraction that looked small
+ * (formulas are typeset display-style now, so none does). A page whose
+ * formulas span more than MATH_SIZE_SPREAD is warned once, naming them all.
+ */
+function lintMathSizes(spec: Spec): LintIssue[] {
+  const maths = (spec.elements ?? []).filter((e) => e.type === "math");
+  if (maths.length < 2) return [];
+  const sized = maths.map((e) => ({ id: e.id, size: typeof e.size === "number" ? e.size : MATH_DEFAULT_SIZE }));
+  const lo = Math.min(...sized.map((s) => s.size)), hi = Math.max(...sized.map((s) => s.size));
+  if (hi <= lo * MATH_SIZE_SPREAD) return [];
+  const list = sized.map((s) => `${s.id} at ${s.size}`).join(", ");
+  return [{
+    rule: "math-size",
+    ids: sized.map((s) => s.id),
+    message: `formulas of different sizes on one page (${list}) — drop size so they share the text size, or keep at most one headline formula`,
+    severity: "warn",
+  }];
+}
+
 /**
  * Code panels are load-bearing: the script executes in the viewer's browser.
  * These rules catch the storyboard killers — a script too long to narrate, a
@@ -789,7 +818,7 @@ export interface LintCommandsOptions {
 
 export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIssue[] {
   const cmds = spec.commands ?? [];
-  const issues: LintIssue[] = [...lintSources(spec), ...lintCode(spec), ...lintWidget(spec)];
+  const issues: LintIssue[] = [...lintSources(spec), ...lintCode(spec), ...lintWidget(spec), ...lintMathSizes(spec)];
 
   // animate.box glides the figure into a region — but only when params has a
   // starting box (a name or a rectangle) to glide FROM. Without one it

@@ -34,6 +34,9 @@ export interface SpecText {
   font_weight?: TextWeight;
   /** The font formulas (math elements, TeX labels, equation_steps) are drawn with. */
   math_font?: MathFont;
+  /** Formulas in the drawing's own hand (a pen's wobble on every glyph,
+   *  layout/math-hand.ts) — the default; false draws them as exact print. */
+  math_hand?: boolean;
 }
 
 /** The viewer's override (Settings → Playback). null = follow the drawcast. */
@@ -41,6 +44,7 @@ export interface TextOverride {
   fontSize?: number | null;
   family?: TextFamily | null;
   mathFont?: MathFont | null;
+  mathHand?: boolean | null;
 }
 
 export interface TextStyle {
@@ -49,6 +53,8 @@ export interface TextStyle {
   family: TextFamily;
   weight: TextWeight;
   mathFont: MathFont;
+  /** Formulas handwritten (true, the default) or exact print. */
+  mathHand: boolean;
 }
 
 /** What the layout's sizes are written against. */
@@ -56,7 +62,7 @@ export const BASE_FONT_SIZE = 26;
 const MIN_FONT_SIZE = 16;
 const MAX_FONT_SIZE = 48;
 
-export const DEFAULT_TEXT_STYLE: TextStyle = { scale: 1, family: "cursive", weight: "normal", mathFont: DEFAULT_MATH_FONT };
+export const DEFAULT_TEXT_STYLE: TextStyle = { scale: 1, family: "cursive", weight: "normal", mathFont: DEFAULT_MATH_FONT, mathHand: true };
 
 /** Viewer's setting if set, else the spec's block, else the app default. */
 export function effectiveTextStyle(spec: { text?: SpecText }, override?: TextOverride): TextStyle {
@@ -67,19 +73,23 @@ export function effectiveTextStyle(spec: { text?: SpecText }, override?: TextOve
     family: override?.family ?? spec.text?.font_family ?? DEFAULT_TEXT_STYLE.family,
     weight: spec.text?.font_weight ?? DEFAULT_TEXT_STYLE.weight,
     mathFont: override?.mathFont ?? spec.text?.math_font ?? DEFAULT_TEXT_STYLE.mathFont,
+    mathHand: override?.mathHand ?? spec.text?.math_hand ?? DEFAULT_TEXT_STYLE.mathHand,
   };
 }
 
 /**
- * The spec with `text.math_font` set to what will actually be drawn. Unlike
- * size and family, the math font cannot be applied AFTER layout: a formula's
- * glyph outlines are produced during layout (layout/math.ts), so the
- * viewer's choice has to reach layoutSpec through the spec it lays out.
- * A new object; the input is untouched.
+ * The spec with its `text:` block set to what will actually be drawn — the
+ * viewer's choices folded in. Family and weight are applied AFTER layout
+ * (applyTextStyle), but a formula's glyph outlines are produced DURING layout
+ * (layout/math.ts), so the math font, the hand and the size scale have to
+ * reach layoutSpec through the spec it lays out: layoutSpec reads this block
+ * (effectiveTextStyle with no override) and sets the math layout state from
+ * it. A new object when anything differs; the input is untouched.
  */
-export function withMathFont<T extends { text?: SpecText }>(spec: T, font: MathFont): T {
-  if ((spec.text?.math_font ?? DEFAULT_MATH_FONT) === font) return spec;
-  return { ...spec, text: { ...(spec.text ?? {}), math_font: font } };
+export function withTextStyle<T extends { text?: SpecText }>(spec: T, style: TextStyle): T {
+  const cur = effectiveTextStyle(spec);
+  if (cur.scale === style.scale && cur.mathFont === style.mathFont && cur.mathHand === style.mathHand) return spec;
+  return { ...spec, text: { ...(spec.text ?? {}), font_size: style.scale * BASE_FONT_SIZE, math_font: style.mathFont, math_hand: style.mathHand } };
 }
 
 /** A measurer that reports the size the text will be DRAWN at. */
