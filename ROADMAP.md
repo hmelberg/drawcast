@@ -1448,6 +1448,28 @@ drawcast in several languages, re-linted after translation.
   on any number of elements; heavy interactions are pause-gated so movies
   never need this; and the note_sheet `keyboard: true` precedent shows a
   purpose-built combined template covers a specific pairing cheaply.
+- **A stable id per drawcast** (idea, 2026-09-16 — to consider, not
+  scheduled). Today a drawcast's identity is its cast key, the path
+  `owner/repo/dir/file`: readable, doubles as the fetch address, and breaks
+  on every rename or move, taking view counts, learner events, the
+  registered name and the local record with it. An `id:` minted by the app
+  on first save (the editor's SavedDrawing already has a uuid — it just never
+  travels into the file) would survive moves, give the editor's and the
+  viewer's local records one key, recognise the same lecture in two courses,
+  and hang a version story on something stable. It could also replace the
+  per-lecture `meta.enroll` for the default server: publish registers ids
+  with the course claim and the server, not the file, decides whether an
+  event means anything. The problem that decides the design: a GitHub fork
+  or a copied YAML carries the same id under another owner, and we control
+  none of those copies. So the id must name a LINEAGE, and ownership is
+  settled at publish — the one moment we control: first publisher of an id
+  owns it; a later publish of a claimed id re-mints into that file and keeps
+  the old one as `parent` (provenance for credit and the catalogue); events
+  carry id AND path, stored only when the pair matches what was registered.
+  The compiler must never write the field. `meta.enroll` shrinks to an
+  override for an author running their own server. A page of spec and a day
+  of work; the cast path stays the fetch address throughout, so nothing that
+  works today waits on it.
 - Time-proportional seek bar (estimate from speech + draw durations).
 - `morph`: spec-diff tweening for untemplated specs — no template param to
   drive, so it has to re-layout from a diffed spec and interpolate. Remains
