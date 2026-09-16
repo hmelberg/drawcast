@@ -1509,6 +1509,20 @@ drawcast in several languages, re-linted after translation.
   → detail, a map of the lecture at the end. First step if pursued: a
   one-day spike that mounts two items in one SVG with transforms and
   moves the existing camera between them, to feel whether it earns it.
+  Evidence (3b1b, "Reinventing Entropy", youtu.be/l6DKRf-fAAM, frames
+  read 2026-09-17): every screen change there is a VERTICAL scroll of a
+  single column — the old screen slides up out of frame as one unit,
+  the new one slides in from below (0:31, 15:28, 29:15, 30:36); the
+  same scroll run backwards is the "back to an earlier screen" gesture
+  (0:57); and at 20:46 the camera sits ~0.4× so two earlier definition
+  screens stay stacked above the current one as a recap. One axis, no
+  grid, no free positions, zoom only for the recap stack. So the
+  minimal design is `stage: column` on a playlist + a per-item
+  `transition: scroll` + `camera: {screen: <title|prev>}` + a pull-back;
+  in manim it is a group shift, in drawcast a viewBox tween — cheaper.
+  (18:38 is a different thing: a letter strip scrolling INSIDE one
+  element as the reader advances — an element-level window, not a
+  screen change.)
 - **A stable id per drawcast** (idea, 2026-09-16 — to consider, not
   scheduled). Today a drawcast's identity is its cast key, the path
   `owner/repo/dir/file`: readable, doubles as the fetch address, and breaks
