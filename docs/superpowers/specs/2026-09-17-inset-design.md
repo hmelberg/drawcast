@@ -179,8 +179,7 @@ the touchpoints in §10.
      Record<string, BBox> }` — `ink` is `unionBoxes` over the frame's
      leaves (for `crop`), `boxes` is `elementBBoxes(final)` filtered to
      visible ids, mapped through the same poses (for the read-only
-     anchors and the modal's hit-test — no, the modal takes the whole
-     inset; `boxes` serves anchors only).
+     anchors; the modal takes the whole inset and needs no boxes).
    Failures degrade: no siblings / no match / self → `picture` stays
    undefined and a warning string lands on `LayoutResult.warnings` via
    the element (the tier-2 case pushes it). Nothing throws.
