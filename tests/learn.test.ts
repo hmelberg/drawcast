@@ -1,7 +1,7 @@
 // The learner client. Every network call is injected, as in tests/views-client.test.ts.
 import { readFileSync } from "node:fs";
 import { describe, expect, test, vi } from "vitest";
-import { apiBase, CAST_KEY_RE, courseKeyOf, DEFAULT_ENROLL_API, firstOpenInSession, joinCourse, joinNote, sendEvent, type JoinOutcome } from "../src/learn";
+import { apiBase, CAST_KEY_RE, courseKeyOf, DEFAULT_ENROLL_API, firstOpenInSession, joinCourse, joinNote, runInfo, sendEvent, sendEvents, type JoinOutcome, type LearnEvent } from "../src/learn";
 
 const CAST = "hmelberg/dcast/learn-russian/03-cases.yaml";
 const COURSE = "hmelberg/dcast/learn-russian";
@@ -199,5 +199,58 @@ describe("joinCourse", () => {
     expect(joinNote("pending")).toMatch(/email/i);
     expect(joinNote("rejected")).toMatch(/declined/i);
     for (const o of ["pending", "rejected"] as const) expect(joinNote(o)).not.toMatch(/you're in/i);
+  });
+});
+
+// The course-progress round (spec 2026-09-16-course-progress-and-submit-design.md §3, §4).
+describe("sendEvents", () => {
+  const events: LearnEvent[] = [
+    { kind: "item", cast: CAST, item: 0, title: "Intro", visible_secs: 12, playing_secs: 9, done: true },
+    { kind: "answer", cast: CAST, item: 0, step: 3, question: "?", given: ["a"], expected: "a", correct: true, secs: 2.5, at: "2026-09-17T00:00:00Z" },
+    { kind: "handed_in", cast: CAST },
+  ];
+  test("one call per event, in order, bodies intact", async () => {
+    const f = fetchReturning(200, { ok: true });
+    const out = await sendEvents(API, events, KEY, f);
+    expect(out).toEqual(["ok", "ok", "ok"]);
+    expect(calls(f)).toBe(3);
+    const bodies = (f as unknown as ReturnType<typeof vi.fn>).mock.calls.map((c) => JSON.parse((c[1] as RequestInit).body as string));
+    expect(bodies.map((b) => b.kind)).toEqual(["item", "answer", "handed_in"]);
+    expect(bodies[0]).toMatchObject({ key: KEY, visible_secs: 12, playing_secs: 9, done: true });
+    expect(bodies[1]).toMatchObject({ secs: 2.5, at: "2026-09-17T00:00:00Z" });
+  });
+  test("a refusal stops the rest — the later events are refused without a call", async () => {
+    const f = fetchReturning(403, { error: "enrol" });
+    const out = await sendEvents(API, events, KEY, f);
+    expect(out).toEqual(["refused", "refused", "refused"]);
+    expect(calls(f)).toBe(1);
+  });
+  test("a failure does not stop the rest", async () => {
+    let n = 0;
+    const f = vi.fn(async () => new Response("{}", { status: n++ === 0 ? 500 : 200 })) as unknown as typeof fetch;
+    expect(await sendEvents(API, events, KEY, f)).toEqual(["failed", "ok", "ok"]);
+  });
+  test("an empty list makes no call", async () => {
+    const f = fetchReturning(200, {});
+    expect(await sendEvents(API, [], KEY, f)).toEqual([]);
+    expect(calls(f)).toBe(0);
+  });
+});
+
+describe("runInfo", () => {
+  test("reads the run's hand-in settings for a course", async () => {
+    const f = fetchReturning(200, { handin: true, due: "2026-10-01", handed_in: "2026-09-17T10:00:00Z" });
+    expect(await runInfo(API, KEY, COURSE, f)).toEqual({ handin: true, due: "2026-10-01", handed_in: "2026-09-17T10:00:00Z" });
+    const [url] = callOf(f);
+    expect(url).toBe(`${API}/_/api/run?key=${KEY}&course=${encodeURIComponent(COURSE)}`);
+  });
+  test("absent fields default: handin false, no due, no handed_in", async () => {
+    expect(await runInfo(API, KEY, COURSE, fetchReturning(200, {}))).toEqual({ handin: false });
+  });
+  test("null on a non-ok answer, a throw, a non-object body, or an empty key", async () => {
+    expect(await runInfo(API, KEY, COURSE, fetchReturning(404, {}))).toBeNull();
+    expect(await runInfo(API, KEY, COURSE, vi.fn(async () => { throw new Error("net"); }) as unknown as typeof fetch)).toBeNull();
+    expect(await runInfo(API, KEY, COURSE, fetchReturning(200, "nope"))).toBeNull();
+    expect(await runInfo(API, "", COURSE, fetchReturning(200, { handin: true }))).toBeNull();
   });
 });

@@ -44,9 +44,35 @@ export interface AnswerPayload {
   correct: boolean;
   /** Seconds from the question opening to the answer (latest attempt); absent without a live gate. */
   secs?: number;
+  /** When the answer was given (ISO) — set by the outbox sweep so a
+   *  back-filled answer keeps its own time, not the time it was sent. */
+  at?: string;
 }
 
-export type LearnEvent = { kind: "opened" | "completed"; cast: string } | ({ kind: "answer"; cast: string } & AnswerPayload);
+/** One view of one playlist item (spec 2026-09-16-course-progress §2): the
+ *  seconds it was on screen with the tab visible, the seconds the player
+ *  was playing, and whether it reached "done" in that view. */
+export interface ItemPayload {
+  item: number;
+  title: string;
+  visible_secs: number;
+  playing_secs: number;
+  done: boolean;
+}
+
+export type LearnEvent =
+  | { kind: "opened" | "completed" | "handed_in"; cast: string }
+  | ({ kind: "answer"; cast: string } & AnswerPayload)
+  | ({ kind: "item"; cast: string } & ItemPayload);
+
+/** The run's hand-in settings for a course, as `GET /_/api/run` answers them
+ *  (spec §4): whether the run asks for a hand-in, its due date, and when this
+ *  account handed in, if it did. */
+export interface RunInfo {
+  handin: boolean;
+  due?: string;
+  handed_in?: string;
+}
 
 /** The server's own limits (spec §3): at most 10 attempts, 2000 characters
  *  each. Trimming here means a long retry streak still records its answer
@@ -84,6 +110,52 @@ export async function sendEvent(api: string, ev: LearnEvent, key: string, fetchI
     return res.status === 401 || res.status === 403 ? "refused" : "failed";
   } catch {
     return "failed";
+  }
+}
+
+/**
+ * The outbox sweep's send (spec §3): one event per call, in order, so it
+ * works against today's server; a list body is the server round's
+ * optimisation. A refusal (401/403) is the server's no for this cast, so the
+ * rest are not sent and come back refused; a failure is one event's outage
+ * and the next may still get through.
+ */
+export async function sendEvents(api: string, events: LearnEvent[], key: string, fetchImpl: typeof fetch = fetch): Promise<SendOutcome[]> {
+  const out: SendOutcome[] = [];
+  let refused = false;
+  for (const ev of events) {
+    if (refused) {
+      out.push("refused");
+      continue;
+    }
+    const outcome = await sendEvent(api, ev, key, fetchImpl);
+    if (outcome === "refused") refused = true;
+    out.push(outcome);
+  }
+  return out;
+}
+
+/**
+ * The run's hand-in settings for a course (spec §4). A read, so the token
+ * travels in the query like the cast fetch's does (identity design §1: a
+ * fetch address no person handles). Null on anything but a JSON object
+ * from a 200 — the button simply stays hidden. Never throws.
+ */
+export async function runInfo(api: string, key: string, course: string, fetchImpl: typeof fetch = fetch): Promise<RunInfo | null> {
+  if (!key) return null;
+  try {
+    const res = await fetchImpl(`${apiBase(api)}/_/api/run?key=${encodeURIComponent(key)}&course=${encodeURIComponent(course)}`);
+    if (!res.ok) return null;
+    const body: unknown = await res.json();
+    if (typeof body !== "object" || body === null || Array.isArray(body)) return null;
+    const b = body as { handin?: unknown; due?: unknown; handed_in?: unknown };
+    return {
+      handin: b.handin === true,
+      ...(typeof b.due === "string" && b.due ? { due: b.due } : {}),
+      ...(typeof b.handed_in === "string" && b.handed_in ? { handed_in: b.handed_in } : {}),
+    };
+  } catch {
+    return null;
   }
 }
 
