@@ -654,6 +654,17 @@ const commandSchema = {
       },
       additionalProperties: false,
     },
+    card: {
+      type: "object",
+      description:
+        "A disappearing heading: the title is sketched in the middle of the canvas over an underline, the camera pushes in a little, then it is un-drawn and the view resets — the TV-style opening, as one beat. Put the paired speak on it to read the title aloud. The permanent alternative is an ordinary text element drawn on the first beat.",
+      properties: {
+        title: { type: "string", description: "The heading." },
+        subtitle: { type: "string", description: "A quieter line under it." },
+      },
+      required: ["title"],
+      additionalProperties: false,
+    },
     highlight: {
       type: "object",
       description:
@@ -971,7 +982,7 @@ export const specSchema = {
       type: "array",
       items: commandSchema,
       description:
-        "The playback sequence: narration (speak), drawing (draw/pause), and gesture verbs (highlight/point/move/show/hide/erase/clear/camera/animate). " +
+        "The playback sequence: narration (speak), drawing (draw/pause), and gesture verbs (highlight/point/move/show/hide/erase/clear/camera/card/animate). " +
         "Elements not mentioned in any draw/show/hide/erase command are drawn at the end automatically.",
     },
   },
@@ -1170,7 +1181,7 @@ function semanticErrors(spec: Spec): string[] {
     }
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "copy", "flow", "keep", "camera", "animate", "play", "run"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "copy", "flow", "keep", "camera", "card", "animate", "play", "run"] as const;
   // Labels first (gotos may point forward): collect + check duplicates/names.
   const labels = new Set<string>();
   for (const [i, cmd] of (spec.commands ?? []).entries()) {

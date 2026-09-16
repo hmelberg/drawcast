@@ -34,10 +34,12 @@ describe("compiler prompt style rules", () => {
     expect(compilerV1).toContain("No concept is important in itself");
   });
 
-  test("opens with the drawn title at the top — the app adds no duplicate around it (C9, clarified)", () => {
+  test("opens with a heading — the title field is page furniture, the canvas carries a heading only if drawn (title-below-player, 2026-09-16)", () => {
     expect(compilerV1).toContain("the title counts as something");
-    expect(compilerV1).toContain("at the top of the canvas");
-    expect(compilerV1).toContain("NO separate title text");
+    expect(compilerV1).toContain("shown UNDER the player");
+    expect(compilerV1).toContain("never inside the frame");
+    expect(compilerV1).toContain("a `card` beat");
+    expect(compilerV1).toMatch(/^- `card`: /m);
     expect(compilerV1).toContain("Speaking and drawing are not turns");
   });
 

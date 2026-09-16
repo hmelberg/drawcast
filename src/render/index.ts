@@ -26,7 +26,7 @@ import { resolveCode } from "./code";
 import { resolvedRenderSpec } from "./resolve";
 import { scenes } from "../scenes/registry";
 import { widgetDemoFor } from "./widget-demo";
-import { titleIsDrawn } from "./title";
+import { expandCards } from "../spec/card";
 import { resolveSources } from "./source";
 import { resolveImages } from "./image";
 import { resolveIcons } from "./icon";
@@ -237,6 +237,10 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // "{id.path}" tokens into THESE params (the resolved clone below has the
   // values, not the tokens).
   const authored = spec;
+  // A `card` beat (spec/card.ts) becomes its elements and commands here, so
+  // layout, plan and lint below never see the verb — the same expansion the
+  // compile-time lint applies.
+  spec = expandCards(spec);
   // Sketchy is the app's default look — and the default CHART style follows
   // it (a machine-ruled plot in a hand-drawn figure was the one bit of ink
   // that did not come from the app's own hand). Resolved once here, then
@@ -255,8 +259,9 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // The caption is a band ACROSS the bottom of the drawing, the way a video
   // carries its subtitles — figure chrome, never placed in canvas
   // coordinates, so it cannot collide with the drawing's own layout. The
-  // TITLE is added after layout below: it only appears when the drawing
-  // does not draw it itself (C9 as Hans clarified it).
+  // frame carries NO title: the document's title is page furniture under
+  // the player (ui/player-meta.ts), and a heading on the canvas is the
+  // cast's own ink — a text element, or a `card` beat (2026-09-16).
   stage.appendChild(caption);
   figure.appendChild(stage);
   container.appendChild(figure);
@@ -281,18 +286,6 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   const measure = scaledMeasure(makeBrowserMeasure({ family: fontStack(textStyle.family), weight: textStyle.weight }), textStyle.scale);
   const layout = applyTextStyle(layoutSpec(spec, measure), textStyle);
   const bboxes = elementBBoxes(layout, measure);
-
-  // A title that is PART of the drawcast — drawn ink, the opening beat the
-  // compiler prompt asks for — goes on top of the canvas, and then the app
-  // adds NO title text of its own: a chrome title duplicating the drawn one
-  // is exactly what Hans didn't want (C9, clarified 2026-09-02). The HTML
-  // title above the drawing is the fallback for casts that never draw theirs.
-  if (spec.title && !titleIsDrawn(spec.title, layout.drawables)) {
-    const title = document.createElement("div");
-    title.className = "cs-title";
-    title.textContent = spec.title;
-    figure.insertBefore(title, stage);
-  }
 
   // Param-state layouts for the animate command. Boundary layouts (commit,
   // plan-time bboxes) are cached; per-frame layouts are NOT (every tween tick

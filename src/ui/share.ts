@@ -795,14 +795,21 @@ function build(): ShareSession {
     videoBurnCb,
     " Burn captions into the picture — a downloaded file has no separate subtitle layer.",
   );
+  // The exported file has no page under it to carry the title (the app and
+  // the watch page show it under the frame), so a single cast opens with the
+  // same card a playlist's title page draws — unless the cast opens with its
+  // own `card` beat. YouTube uploads honour the same choice.
+  const videoCardCb = h("input", { type: "checkbox" }) as HTMLInputElement;
+  const videoCardLabel = h("label", { class: "settings-check" }, videoCardCb, " Open with a title card — the title sketched in, then gone. Also for YouTube uploads.");
   const videoLangHint = h("div", { class: "hint" });
-  const videoPanel = h("div", { class: "share-panel" }, videoBurnLabel, videoLangHint);
+  const videoPanel = h("div", { class: "share-panel" }, videoCardLabel, videoBurnLabel, videoLangHint);
   const videoGo = h("button", { class: "primary" }, "Export") as HTMLButtonElement;
   videoGo.addEventListener("click", () => {
     void (async () => {
       const deps = current;
       modal.dialog.close();
       deps.settings.burnCaptions = videoBurnCb.checked;
+      deps.settings.titleCard = videoCardCb.checked;
       deps.persist();
       deps.beginExport("Preparing…");
       try {
@@ -810,7 +817,7 @@ function build(): ShareSession {
         // Resolved ONCE, on a clone: the recording and the credits file must
         // describe the same drawing, and `creditsOf` reads only what the
         // resolvers stamped — so an unresolved document credits nobody (A3).
-        const seq = exportSequence(await embeddedPlaylist(doc.playlist, deps.embedDeps()));
+        const seq = exportSequence(await embeddedPlaylist(doc.playlist, deps.embedDeps()), { titleCard: videoCardCb.checked });
         const out = await deps.renderVideo(seq, videoBurnCb.checked);
         if (!out) return;
         const base = fileSafe(doc.title);
@@ -1185,7 +1192,7 @@ function build(): ShareSession {
         // paints its own captions over the picture, so a burnt-in upload says
         // every sentence twice.
         // Resolved once, and the same sequence feeds the credits file below.
-        const seq = exportSequence(await embeddedPlaylist(playlist, deps.embedDeps()));
+        const seq = exportSequence(await embeddedPlaylist(playlist, deps.embedDeps()), { titleCard: deps.settings.titleCard });
         const out = await deps.renderVideo(seq, false, of);
         // Null means the key is missing, the render failed, or the user
         // pressed cancel — all three already said so, and all three end the
@@ -1340,6 +1347,7 @@ function build(): ShareSession {
     const doc = current.doc();
     const playlist = doc.playlist;
     videoBurnCb.checked = current.settings.burnCaptions;
+    videoCardCb.checked = current.settings.titleCard;
     videoLangHint.textContent = `Renders in ${languageLabel(sourceLanguage(playlist))}.`;
     const lectures = doc.lectureCount ?? 0;
     linkSubjectLine.textContent = current.subject === "course" ? `Course — ${lectures} lecture${lectures === 1 ? "" : "s"}` : "";

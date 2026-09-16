@@ -9,7 +9,6 @@ import { render, type RenderStyle } from "../render";
 import { precomputeSweeps } from "../render/sweep-run";
 import { controlsOfFor } from "../render/plan";
 import { CaptionTape, splitLongCues, type CaptionCue } from "./captions";
-import { titleIsDrawn } from "../render/title";
 import { speechKey, type SpeakLine } from "../render/delivery";
 import { detectLang } from "../render/speech";
 import { AUTO_NAMESPACE, subVars } from "../spec/answers";
@@ -141,15 +140,15 @@ export function wrapCaption(measure: (s: string) => number, text: string, maxWid
   return lines;
 }
 
-// 720p, paper-colored: title band on top, the 4:3 figure centered, captions
-// below. The layout is fixed whether or not a title exists, so parts of a
-// playlist never jump.
+// 720p, paper-colored: the 4:3 figure centered, captions below. No title
+// band (title-below-player design, 2026-09-16): the file carries a title the
+// way the page does — outside the frame, as the opening card exportSequence
+// prepends — so the height once reserved for the band went to the figure.
 const W = 1280;
 const H = 720;
-const FIG_W = 800;
-const FIG_H = 600;
-const FIG_Y = 42;
-const TITLE_BASELINE = 30;
+const FIG_W = 840;
+const FIG_H = 630;
+const FIG_Y = 10;
 const FPS = 30;
 const PAPER = "#f5f1e6";
 import { C64_FONT_URLS } from "../render/figure-style";
@@ -278,7 +277,6 @@ export async function paintFrame(
   svgText: string,
   fontStyle: string,
   caption: string,
-  title: string,
   demo?: { state: DemoState; elapsed: number },
 ): Promise<void> {
   // Explicit dimensions: some browsers refuse to draw an SVG image without them.
@@ -303,14 +301,11 @@ export async function paintFrame(
     ctx.drawImage(img, x, FIG_Y, FIG_W, FIG_H);
     ctx.fillStyle = INK;
     ctx.textAlign = "center";
-    if (title) {
-      ctx.font = "30px 'Patrick Hand', 'Segoe Print', cursive";
-      ctx.fillText(title, W / 2, TITLE_BASELINE);
-    }
     if (caption) {
       ctx.font = "26px 'Patrick Hand', 'Segoe Print', cursive";
       const lines = wrapCaption((s) => ctx.measureText(s).width, caption, W - 200).slice(0, 2);
-      lines.forEach((line, i) => ctx.fillText(line, W / 2, FIG_Y + FIG_H + 34 + i * 32));
+      // Two lines fit under the figure: baselines at 672 and 704 of 720.
+      lines.forEach((line, i) => ctx.fillText(line, W / 2, FIG_Y + FIG_H + 32 + i * 32));
     }
     if (demo) paintDemoCard(ctx, demo.state, demo.elapsed);
   } finally {
@@ -454,7 +449,6 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
     // The frame loop reads whatever spec is currently mounted.
     let currentSvg: SVGSVGElement | null = null;
     let currentCaption: HTMLElement | null = null;
-    let currentTitle = "";
     let currentDemo: DemoState | null = null;
     // Keep the answered card on screen while the feedback line speaks.
     const lingerDemo = (demo: DemoState): void => {
@@ -479,7 +473,6 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
               serializer.serializeToString(currentSvg),
               fontStyle,
               cfg.burnCaptions ? (currentCaption?.textContent ?? "") : "",
-              currentTitle,
               currentDemo ? { state: currentDemo, elapsed: performance.now() - currentDemo.t0 } : undefined,
             );
             // Hidden tabs may stop delivering painted frames to the capture
@@ -560,9 +553,6 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
           if (!svg) throw new Error(`nothing to record — spec ${i + 1} rendered no figure`);
           currentSvg = svg;
           currentCaption = workbench.querySelector<HTMLElement>(".cs-caption");
-          // The frame's title band stays empty when the drawing draws its own
-          // title — the same no-duplicate rule the live player follows.
-          currentTitle = titleIsDrawn(items[i].title, handle.layout.drawables) ? "" : (items[i].title ?? "");
           if (keepAlive) handle.timeline.raf = keepAlive.raf; // replay keeps ticking while the tab is hidden
           handle.timeline.inputGate = (sig) => (sig.aborted ? Promise.resolve() : zzz(600));
           // Movies never wait on an answer: the card performs — the quiz hovers

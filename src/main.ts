@@ -43,6 +43,7 @@ import { SPEC_VERSION } from "./spec/schema";
 import type { Spec } from "./spec/types";
 import type { SpecFormat } from "./spec/text";
 import { h } from "./ui/dom";
+import { playerMeta } from "./ui/player-meta";
 import { openCoursePanel } from "./ui/course";
 import { referencedLectureIds } from "./course/document";
 import { fileSafe, openShare } from "./ui/share";
@@ -398,10 +399,12 @@ app.appendChild(
 
 // ---------- player mode ----------
 
-// Just the framed figure: the title renders inside it (cs-title), playback
-// chrome is the control bar, so nothing else is needed on the page.
+// The framed figure, and under it the same row the watch page draws — the
+// document's title as page furniture (ui/player-meta.ts). The frame itself
+// carries no title; playback chrome is the control bar.
 const playerHost = h("div", { class: "player-figure" });
-const playerWrap = h("div", { class: "player-wrap" }, playerHost);
+const playerMetaRow = playerMeta();
+const playerWrap = h("div", { class: "player-wrap" }, playerHost, playerMetaRow.root);
 
 function applyTheater(): void {
   playerWrap.classList.toggle("theater", settings.theater);
@@ -2661,6 +2664,7 @@ async function present(andPlay = false): Promise<void> {
   session = null;
   host.replaceChildren();
   document.title = `${doc.title} — drawcast`;
+  playerMetaRow.setTitle(doc.title);
   // A declared language picks the narrator's voice; without one the old
   // per-line sniff stands, which only ever tells English from Norwegian.
   speech.setLangHint(itemsOf(doc.playlist).find((i) => i.spec.lang)?.spec.lang ?? null);

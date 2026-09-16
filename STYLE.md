@@ -21,6 +21,32 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-16 — The title is page furniture; a heading on the canvas is the cast's own choice
+
+Hans: "In drawcast there is a title field on top, but also often a title
+below that, and sometimes we have a title that is in the middle that zooms in
+a little with an underline, and then disappears. Given that we want it to be
+a bit like YouTube, maybe it is best not to have the fixed title field above
+the whole presentation. […] This does not mean that the video should not have
+a headline (often it should, and maybe we can have different styles) or never
+a permanent title (as part of the drawcast)."
+
+Distilled:
+
+1. **The `title` field names the document, nothing more.** It is shown
+   under the player, like a video's name, and never painted inside the frame
+   — so a template's own title and the document's title no longer stack.
+2. **A heading on the canvas is drawn ink, in one of two styles.** A text
+   element at the top that stays, or a `card` beat — the title sketched in
+   the middle over an underline, a slow push-in, then gone — the opening the
+   playlist title page has always drawn, now available inside a single cast.
+3. **Rule 2 of the 2026-09-01 entry now bites in full:** the canvas is the
+   only place the viewer reads a heading, so open with one.
+
+Status: **in the prompt since 2026-09-16** — the "Start on the canvas"
+opening rule rewritten, `card` in the verb catalogue and the schema
+(design: `docs/superpowers/specs/2026-09-16-title-below-player-design.md`).
+
 ### 2026-09-12 — Be generous by default: things happening, and small asides
 
 Hans: «By default bør vi også være generøse med interaksjoner og ting som

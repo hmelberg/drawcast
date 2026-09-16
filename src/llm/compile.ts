@@ -18,6 +18,7 @@ import { attachSeedCredit, type SeedBlock } from "./seed";
 import { visualRepairMessages, wantsVisualRepair } from "./visual";
 import type { Spec } from "../spec/types";
 import { layoutSpec } from "../layout/layout";
+import { expandCards } from "../spec/card";
 import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { codeExecutionErrors, type CodeCheckOutcome } from "../code/check";
@@ -488,7 +489,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
           validation.errors.push(`engine load failed: ${(err as Error).message}`);
         });
         try {
-          lintIssues = [...layoutSpec(best, measure).issues, ...lintCommands(best)];
+          lintIssues = [...layoutSpec(expandCards(best), measure).issues, ...lintCommands(expandCards(best))];
         } catch (err) {
           lintIssues = [];
           validation.errors.push(`layout failed: ${(err as Error).message}`);
@@ -582,7 +583,8 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   // closure (it needs `measure`, which only exists inside this function).
   const lintOf = (spec: Spec): LintIssue[] | null => {
     try {
-      return [...layoutSpec(spec, measure).issues, ...lintCommands(spec)];
+      const expanded = expandCards(spec);
+      return [...layoutSpec(expanded, measure).issues, ...lintCommands(expanded)];
     } catch {
       return null;
     }

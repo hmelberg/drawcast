@@ -284,7 +284,7 @@ describe("dark-mode-safe surfaces", () => {
 // This card is an overlay on the FIGURE (it sits over .cs-stage so the
 // drawing shimmers through), not app chrome — the fix is fixed ink to match
 // the figure's own paper, not a themed token, the same call figure-style.ts
-// already makes for .cs-title/.cs-caption/.cs-lookup.
+// already makes for .cs-caption/.cs-lookup.
 describe("the flashcard question card (an overlay on the figure, not chrome)", () => {
   it("keeps its near-white translucent ground — this test would be pointless against a themed one", async () => {
     const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");

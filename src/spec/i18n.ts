@@ -109,6 +109,7 @@ function rewriteCommand(c: Command, rewrite: Rewrite): Command {
   if (str(out.speak)) out.speak = rewrite(out.speak, "narration");
   if (c.quiz) out.quiz = rewriteQuiz(c.quiz, rewrite);
   if (c.ask) out.ask = rewriteAsk(c.ask, rewrite);
+  if (c.card) out.card = { ...c.card, title: rewrite(c.card.title, "title"), ...(str(c.card.subtitle) ? { subtitle: rewrite(c.card.subtitle, "title") } : {}) };
   return out;
 }
 

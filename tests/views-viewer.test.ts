@@ -43,7 +43,7 @@ describe("the viewer counts views", () => {
   });
 
   test("the badge lives in a meta row under the figure, not in the title", () => {
-    expect(withoutComments).toMatch(/class: "viewer-meta"/);
+    expect(withoutComments).toMatch(/playerMeta\(viewsEl,\s*noteEl,/);
     // The PLAYER's wrap — runViewer's. The course door (courseDoor, identity
     // round) has a viewer-wrap of its own earlier in the file with no figure
     // in it, so the first match in the file is not the one with the badge.
@@ -53,8 +53,8 @@ describe("the viewer counts views", () => {
     expect(wrap).not.toBeNull();
     const order = wrap![1];
     expect(order.indexOf("figureHost")).toBeGreaterThan(-1);
-    expect(order.indexOf("metaEl")).toBeGreaterThan(-1);
-    expect(order.indexOf("figureHost")).toBeLessThan(order.indexOf("metaEl"));
+    expect(order.indexOf("meta.root")).toBeGreaterThan(-1);
+    expect(order.indexOf("figureHost")).toBeLessThan(order.indexOf("meta.root"));
   });
 });
 
@@ -92,7 +92,7 @@ describe("the badge styles", () => {
   const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
 
   test("the meta row and the count both have rules", () => {
-    expect(css).toMatch(/\.viewer-meta\s*\{/);
+    expect(css).toMatch(/\.player-meta\s*\{/);
     expect(css).toMatch(/\.viewer-views\s*\{/);
   });
 });
