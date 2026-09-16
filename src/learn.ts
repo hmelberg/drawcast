@@ -38,6 +38,9 @@ export interface AnswerPayload {
   item: number;
   step: number;
   question: string;
+  /** The variable the answer was stored under: the explicit store, else
+   *  `_answers.N` — the dashboard's grouping key across cohorts. */
+  id?: string;
   /** Every attempt, verbatim; [] for a skipped quiz. */
   given: string[];
   expected: string;

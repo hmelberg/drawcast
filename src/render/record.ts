@@ -27,6 +27,9 @@ export interface AnswerRecord {
   secs?: number;
   /** ISO timestamp of the answer. */
   at: string;
+  /** ISO time the course server took this answer (the outbox stamp, spec
+   *  2026-09-16-course-progress §3); absent = not sent yet. */
+  sent?: string;
 }
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
@@ -50,6 +53,24 @@ export function readRecords(storage: StorageLike | null, castKey: string): Answe
     return Array.isArray(parsed) ? (parsed as AnswerRecord[]) : [];
   } catch {
     return [];
+  }
+}
+
+/** The cast's answers the server has not taken yet — the outbox. */
+export function unsentRecords(storage: StorageLike | null, castKey: string): AnswerRecord[] {
+  return readRecords(storage, castKey).filter((r) => r.sent === undefined);
+}
+
+/** Stamp the given entries (matched by item, step and at) as sent. */
+export function markSent(storage: StorageLike | null, castKey: string, entries: AnswerRecord[], sentAt: string): boolean {
+  if (!storage || entries.length === 0) return false;
+  const keys = new Set(entries.map((e) => `${e.item}|${e.step}|${e.at}`));
+  try {
+    const next = readRecords(storage, castKey).map((r) => (keys.has(`${r.item}|${r.step}|${r.at}`) ? { ...r, sent: sentAt } : r));
+    storage.setItem(RECORD_PREFIX + castKey, JSON.stringify(next));
+    return true;
+  } catch {
+    return false;
   }
 }
 
