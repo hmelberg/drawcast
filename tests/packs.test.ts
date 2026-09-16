@@ -1112,10 +1112,10 @@ describe("mathlogic pack", () => {
       const eng = (await import("../src/scenes/engines")).getLoadedEngines(["mathjax"]).mathjax as {
         layoutTeX(t: string, o?: { display?: boolean }): { outlines: { pts: [number, number][]; holes?: [number, number][][] }[] };
       };
-      // Exact print for this comparison: the hand (layout/math-hand.ts) is
-      // a deliberate distortion, bounded in its own tests.
-      const { setMathTextStyle } = await import("../src/layout/math");
-      setMathTextStyle({ scale: 1, hand: false });
+      // Print for this comparison: with the hand on, the drawn "x" is Patrick
+      // Hand's, not the outline `truth` came from (scenes/math-hand.ts).
+      const { setMathHand } = await import("../src/scenes/engines");
+      setMathHand(false);
       for (const tex of ["x", "8", "b"]) {
         const truth = eng.layoutTeX(tex, { display: true }).outlines[0];
         const drawn = areasOf(scenes.equation_steps.layout!({ steps: [{ tex }] }))[0];
@@ -1127,7 +1127,7 @@ describe("mathlogic pack", () => {
         expect(Math.abs(polyArea(drawn.pts) / bboxArea(drawn.pts) - polyArea(truth.pts) / bboxArea(truth.pts)), tex).toBeLessThan(0.01);
         expect(drawn.pts.length, tex).toBeGreaterThanOrEqual(12);
       }
-      setMathTextStyle({ scale: 1, hand: true });
+      setMathHand(true);
     });
 
     test("under fill-rule evenodd the counter is paper and the bowl around it is ink", async () => {

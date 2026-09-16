@@ -1016,7 +1016,7 @@ const TEXT_FIELDS = {
       font_family: { type: "string", enum: ["cursive", "sans-serif", "monospace"] },
       font_weight: { type: "string", enum: ["normal", "bold"] },
       math_font: { type: "string", enum: ["fira", "tex"], description: "The font formulas are drawn with: fira (Fira Math, the default) | tex (MathJax's TeX font)." },
-      math_hand: { type: "boolean", description: "Formulas in the drawing's own hand (true, the default: every glyph gets a pen's small wobble) or as exact print (false) — set false only when the request asks for a printed, textbook look." },
+      math_hand: { type: "boolean", description: "Formulas in the drawing's own hand (true, the default: letters, digits and everyday operators written in the handwriting face on the typeset layout; Greek and symbols stay in the math font) or all in the math font, as print (false) — set false only when the request asks for a printed, textbook look." },
     },
     additionalProperties: false,
   },

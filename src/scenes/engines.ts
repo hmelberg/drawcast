@@ -24,6 +24,7 @@ import { DEFAULT_MATH_FONT, type MathFont } from "../layout/text-style";
 import type { Topology, GeometryCollection } from "topojson-specification";
 import type { FeatureCollection, Geometry, Polygon, MultiPolygon, Position } from "geojson";
 import { sampleSvgPath } from "./svgpath";
+import { handRingsFor } from "./math-hand";
 import type { Atlas, AtlasPart, AtlasSystem, AnatomyEngine } from "./anatomy/types";
 export type { AnatomyEngine } from "./anatomy/types";
 import type { ChemElement, ElementsEngine } from "./elements/types";
@@ -110,6 +111,16 @@ interface SdPreprocessor {
 let currentMathFont: MathFont = DEFAULT_MATH_FONT;
 export function setMathFont(font: MathFont): void {
   currentMathFont = font;
+}
+/** Whether layoutTeX writes letters, digits and everyday operators with
+ *  Patrick Hand's outlines on MathJax's layout (scenes/math-hand.ts) — set by
+ *  layoutSpec from `text.math_hand`, the same way as the font above. */
+let currentMathHand = true;
+export function setMathHand(on: boolean): void {
+  currentMathHand = on;
+}
+export function currentMathHandOn(): boolean {
+  return currentMathHand;
 }
 export function currentMathFontName(): MathFont {
   return currentMathFont;
@@ -356,12 +367,18 @@ async function loadMathJax(): Promise<MathJaxEngine> {
     };
     const kind = adaptor.kind(node);
     if (kind === "path") {
-      const rings = sampleSvgPath(adaptor.getAttribute(node, "d") || "").map((ring) => ring.map(([x, y]) => at(x, y)));
+      const c = adaptor.getAttribute(node, "data-c") ?? undefined;
+      const fira = sampleSvgPath(adaptor.getAttribute(node, "d") || "");
+      // The drawing's hand: a letter, digit or everyday operator is written
+      // with Patrick Hand's outline in Fira's slot (scenes/math-hand.ts);
+      // everything else keeps Fira's glyph. Same local space, same transform.
+      const local = currentMathHand && c !== undefined ? (handRingsFor(parseInt(c, 16), fira) ?? fira) : fira;
+      const rings = local.map((ring) => ring.map(([x, y]) => at(x, y)));
       if (rings.length > 0) {
         const tokenIndex = tokenFor("glyph");
         const glyph = walk.glyphs++;
         walk.tokens[tokenIndex].glyphs.push(glyph);
-        walk.groups.push({ rings, glyph, tokenIndex, c: adaptor.getAttribute(node, "data-c") ?? undefined });
+        walk.groups.push({ rings, glyph, tokenIndex, c });
       }
     } else if (kind === "rect") {
       // Rules (fraction bars, \sqrt and \overline overbars) — 4 corners.

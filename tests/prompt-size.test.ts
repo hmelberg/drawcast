@@ -228,9 +228,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // by +151 (119385 → 119536), embedded verbatim in the system prompt; the
 // prompt itself gained the display-style sentence on freehand rule 5 (\frac
 // not \dfrac, leave size out) and the `math_hand` clause in Text (+375) —
-// system 236548 → 237074.
-const BASELINE_SYSTEM_CHARS = 237074;
-const BASELINE_SCHEMA_CHARS = 119536;
+// system 236548 → 237074. Then the hand became Patrick Hand glyphs rather
+// than a wobble (Hans: the wobble was ugly): the `math_hand` schema
+// description and the prompt clause were reworded — schema +7 (119536 →
+// 119543), system +7 (237074 → 237081).
+const BASELINE_SYSTEM_CHARS = 237081;
+const BASELINE_SCHEMA_CHARS = 119543;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

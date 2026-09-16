@@ -73,11 +73,14 @@ describe("mathjax engine (real load — node, no DOM)", () => {
       expect(o.pts.length).toBeGreaterThanOrEqual(3);
       expect(finite(o.pts)).toBe(true);
     }
-    // Everything sits inside the reported box, origin at the left baseline.
+    // Everything sits inside the reported box, origin at the left baseline —
+    // to within a hand's undershoot: the drawn "1" is Patrick Hand's
+    // (scenes/math-hand.ts), whose rounded bottom dips a hair under the
+    // line Fira's flat "1" stands on, and MathJax's box knows only Fira.
     const b = box(allPts(outlines));
     expect(b.x0).toBeGreaterThanOrEqual(-1e-6);
     expect(b.x1).toBeLessThanOrEqual(w + 1e-6);
-    expect(b.y1 - b.y0).toBeLessThanOrEqual(h + 1e-6);
+    expect(b.y1 - b.y0).toBeLessThanOrEqual(h + 0.01);
   });
 
   test("the engine loads once — a second ensure is cached and free", async () => {

@@ -34,8 +34,10 @@ export interface SpecText {
   font_weight?: TextWeight;
   /** The font formulas (math elements, TeX labels, equation_steps) are drawn with. */
   math_font?: MathFont;
-  /** Formulas in the drawing's own hand (a pen's wobble on every glyph,
-   *  layout/math-hand.ts) — the default; false draws them as exact print. */
+  /** Formulas in the drawing's own hand — letters, digits and everyday
+   *  operators written with Patrick Hand on MathJax's layout
+   *  (scenes/math-hand.ts) — the default; false draws them all in the math
+   *  font, as print. */
   math_hand?: boolean;
 }
 

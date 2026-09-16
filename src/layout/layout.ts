@@ -6,7 +6,7 @@ import { normalizeSpec } from "../spec/schema";
 import { applyTextMap } from "./text-map";
 import { effectiveTextStyle } from "./text-style";
 import { setMathTextStyle } from "./math";
-import { setMathFont } from "../scenes/engines";
+import { setMathFont, setMathHand } from "../scenes/engines";
 import type { Spec } from "../spec/types";
 import { coVisible, idsOf, lintLayout, FIT_SCALE_FLOOR, type LintIssue } from "../lint/lint";
 import { layoutElements, type PieceGeometry } from "./tier2";
@@ -90,10 +90,12 @@ export function layoutSpec(
   // into the text block (text-style.ts withTextStyle).
   const textStyle = effectiveTextStyle(spec);
   setMathFont(textStyle.mathFont);
-  // Likewise the text scale and the hand (layout/math.ts): a formula's size
-  // follows `text.font_size` the way every text drawable does, and the pen's
-  // wobble is on unless the block says `math_hand: false`.
-  setMathTextStyle({ scale: textStyle.scale, hand: textStyle.mathHand });
+  // Likewise the hand (scenes/math-hand.ts: letters and digits written with
+  // Patrick Hand on MathJax's layout, on unless the block says
+  // `math_hand: false`) and the text scale (layout/math.ts): a formula's
+  // size follows `text.font_size` the way every text drawable does.
+  setMathHand(textStyle.mathHand);
+  setMathTextStyle({ scale: textStyle.scale });
   const warnings: string[] = [];
   // A template and a script on screen each get their own half of the canvas
   // before anything is laid out — the default the two used to lack, so a

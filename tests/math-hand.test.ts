@@ -1,9 +1,9 @@
-import { beforeAll, describe, expect, test } from "vitest";
-import { ensureEngines, getLoadedEngines, type MathJaxEngine } from "../src/scenes/engines";
+import { afterEach, beforeAll, describe, expect, test } from "vitest";
+import { ensureEngines, getLoadedEngines, setMathHand, type MathJaxEngine } from "../src/scenes/engines";
 import { layoutSpec, elementBBoxes } from "../src/layout/layout";
 import { flattenDrawables } from "../src/layout/model";
-import { HAND_MAX_SHIFT, handShape } from "../src/layout/math-hand";
-import { MATH_DEFAULT_SIZE, setMathTextStyle } from "../src/layout/math";
+import { HAND_SCALE, handCharFor, handRingsFor } from "../src/scenes/math-hand";
+import { MATH_DEFAULT_SIZE } from "../src/layout/math";
 import { withTextStyle, effectiveTextStyle } from "../src/layout/text-style";
 import { lintCommands } from "../src/lint/lint";
 import { registerPack } from "../src/scenes/packs";
@@ -15,11 +15,13 @@ import type { Spec } from "../src/spec/types";
 // Sometimes the math equations are written very large and then smaller
 // equations in the same page. Also it does not have the same handwritten
 // font type or feeling that much of the other text and even charts have."
-// Four causes, one round: formulas typeset inline (fractions shrunk, authors
-// compensating with sizes), equation_steps scaling every row to one box
-// height, the global text scale skipping formulas, and exact Fira outlines
-// beside a handwriting face. And the hand is optional — `text.math_hand:
-// false` (or the viewer's Playback setting) gives exact print back.
+// Sizes: formulas typeset inline (fractions shrunk, authors compensating),
+// equation_steps scaling every row to one box height, the global text scale
+// skipping formulas. The hand: MathJax keeps the layout (Fira Math), and the
+// glyphs a hand writes — letters, digits, everyday operators — are Patrick
+// Hand's outlines in Fira's slots (scenes/math-hand.ts). A wobble on Fira's
+// glyphs was tried first and judged ugly. Optional: `text.math_hand: false`
+// (or the viewer's Playback setting) gives print back.
 
 type Pt = [number, number];
 type Area = { id: string; kind: string; pts: Pt[]; holes?: Pt[][] };
@@ -28,77 +30,110 @@ const box = (pts: Pt[]) => {
   const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
   return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
 };
-function pointInRing(p: Pt, ring: Pt[]): boolean {
-  let hit = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i], [xj, yj] = ring[j];
-    if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) hit = !hit;
-  }
-  return hit;
-}
 const glyphsOf = (spec: Spec, id: string): Area[] =>
   flattenDrawables(layoutSpec(spec).drawables).filter((d) => d.id.startsWith(`${id}__g`) && d.kind === "area") as unknown as Area[];
 
-describe("handShape — a pen's imperfections, deterministic and bounded", () => {
-  // A square with a square counter, like a fat "0".
-  const outer: Pt[] = [[0, 0], [20, 0], [20, 30], [0, 30]];
-  const hole: Pt[] = [[6, 8], [14, 8], [14, 22], [6, 22]];
-  const shape = { pts: outer, holes: [hole] };
-
-  test("same seed, same size → identical points; another seed → different ones", () => {
-    const a = handShape(shape, "eq:3", 28), b = handShape(shape, "eq:3", 28), c = handShape(shape, "eq:4", 28);
-    expect(a).toEqual(b);
-    expect(a.pts).not.toEqual(c.pts);
-    expect(a.pts).not.toEqual(outer);
+describe("handCharFor — which MathJax glyphs a hand writes", () => {
+  test("ASCII, the math-alphanumeric variants and the everyday operators map to a character", () => {
+    expect(handCharFor(0x78)).toBe("x");
+    expect(handCharFor(0x31)).toBe("1");
+    expect(handCharFor(0x1d465)).toBe("x");   // italic x, as MathJax writes a variable
+    expect(handCharFor(0x1d434)).toBe("A");   // italic A
+    expect(handCharFor(0x1d41a)).toBe("a");   // bold a
+    expect(handCharFor(0x1d482)).toBe("a");   // bold italic a
+    expect(handCharFor(0x210e)).toBe("h");    // italic h lives at the Planck codepoint
+    expect(handCharFor(0x1d7d0)).toBe("2");   // bold 2
+    expect(handCharFor(0x2212)).toBe("−");
+    expect(handCharFor(0x2223)).toBe("|");
   });
-
-  test("every point moves less than HAND_MAX_SHIFT × size, and the hand scales with the size", () => {
-    for (const size of [20, 28, 40]) {
-      const h = handShape(shape, "eq:0", size);
-      const shift = Math.max(
-        ...h.pts.map((p, i) => Math.hypot(p[0] - outer[i][0], p[1] - outer[i][1])),
-        ...h.holes[0].map((p, i) => Math.hypot(p[0] - hole[i][0], p[1] - hole[i][1])),
-      );
-      expect(shift).toBeGreaterThan(0);
-      expect(shift).toBeLessThan(HAND_MAX_SHIFT * size);
-    }
+  test("Greek and symbols the face lacks keep Fira", () => {
+    expect(handCharFor(0x3b1)).toBeNull();    // α
+    expect(handCharFor(0x1d6fc)).toBeNull();  // italic α
+    expect(handCharFor(0x2264)).toBeNull();   // ≤
+    expect(handCharFor(0x221a)).toBeNull();   // √
+    expect(handCharFor(0x2211)).toBeNull();   // ∑
   });
+});
 
-  test("a counter deforms with its outline: it stays inside, and keeps its point count", () => {
-    for (let k = 0; k < 40; k++) {
-      const h = handShape(shape, `seed:${k}`, 28);
-      expect(h.holes).toHaveLength(1);
-      expect(h.holes[0]).toHaveLength(4);
-      for (const p of h.holes[0]) expect(pointInRing(p, h.pts)).toBe(true);
-    }
+describe("handRingsFor — Patrick Hand's outline in Fira's slot", () => {
+  // A stand-in for Fira's "x": a 500-wide, x-height-tall block starting at x = 20.
+  const fira: Pt[][] = [[[20, 0], [520, 0], [520, 527], [20, 527]]];
+  test("scaled so the x-heights agree, baseline kept, ink centred on Fira's ink", () => {
+    const rings = handRingsFor(0x1d465, fira)!;
+    expect(rings.length).toBeGreaterThan(0);
+    const b = box(rings.flat());
+    expect(b.y1).toBeGreaterThan(527 * 0.9);
+    expect(b.y1).toBeLessThan(527 * 1.15);
+    expect(b.y0).toBeGreaterThan(-60); // on the baseline, bar a hand's undershoot
+    expect((b.x0 + b.x1) / 2).toBeCloseTo(270, 0);
+    expect(b.x1 - b.x0).toBeLessThanOrEqual(500 + 1e-6);
+    expect(HAND_SCALE).toBeCloseTo(527 / 467, 3);
+  });
+  test("a capital taller than Fira's slot is squeezed to it about the baseline", () => {
+    const short: Pt[][] = [[[0, 0], [500, 0], [500, 600], [0, 600]]];
+    const b = box(handRingsFor(0x48, short)!.flat()); // "H", 661 tall in the face, 746 scaled
+    expect(b.y1).toBeLessThanOrEqual(600 + 1e-6);
+    expect(b.y1).toBeGreaterThan(590);
+    expect(b.y0).toBeGreaterThan(-30);
+  });
+  test("a letter wider than Fira's slot is squeezed to it, never spilling into a neighbour", () => {
+    const narrow: Pt[][] = [[[0, 0], [200, 0], [200, 527], [0, 527]]];
+    const b = box(handRingsFor(0x6d, narrow)!.flat()); // "m"
+    expect(b.x1 - b.x0).toBeLessThanOrEqual(200 + 1e-6);
+    expect((b.x0 + b.x1) / 2).toBeCloseTo(100, 0);
+  });
+  test("null for a glyph the hand does not write, or an empty slot", () => {
+    expect(handRingsFor(0x3b1, fira)).toBeNull();
+    expect(handRingsFor(0x78, [])).toBeNull();
   });
 });
 
 describe("math elements in the drawing's hand (real mathjax, node)", () => {
   beforeAll(async () => { await ensureEngines(["mathjax"]); });
+  afterEach(() => setMathHand(true));
   const spec = (text?: Spec["text"], tex = "E = mc^2", extra: Record<string, unknown> = {}): Spec => ({
     ...(text ? { text } : {}),
     elements: [{ id: "m", type: "math", tex, x: 500, y: 400, ...extra }],
     commands: [{ draw: ["m"] }],
   });
 
-  test("on by default, off with text.math_hand: false — and deterministic across layouts", () => {
-    const hand = glyphsOf(spec(), "m"), again = glyphsOf(spec(), "m"), print = glyphsOf(spec({ math_hand: false }), "m");
+  test("on by default, off with text.math_hand: false — same glyph count, same tokens, different outlines", () => {
+    const hand = glyphsOf(spec(), "m"), print = glyphsOf(spec({ math_hand: false }), "m");
     expect(hand.length).toBe(print.length);
-    expect(hand.map((g) => g.pts)).toEqual(again.map((g) => g.pts));
     expect(hand.map((g) => g.pts)).not.toEqual(print.map((g) => g.pts));
-    // Precise, filled outlines either way: the hand is geometry, not a stroke.
     expect(hand.every((g) => (g as { precise?: boolean }).precise === true)).toBe(true);
+    // Deterministic: the same spec lays out to the same points.
+    expect(glyphsOf(spec(), "m").map((g) => g.pts)).toEqual(hand.map((g) => g.pts));
   });
 
-  test("the hand moves no glyph point further than the bound, so the box stays honest", () => {
+  test("the swapped glyphs sit in Fira's slots: every glyph's ink centre and baseline row stay put", () => {
     const hand = glyphsOf(spec(), "m"), print = glyphsOf(spec({ math_hand: false }), "m");
     for (let i = 0; i < hand.length; i++) {
       const a = box(hand[i].pts), b = box(print[i].pts);
-      for (const d of [a.x0 - b.x0, a.x1 - b.x1, a.y0 - b.y0, a.y1 - b.y1]) expect(Math.abs(d)).toBeLessThan(HAND_MAX_SHIFT * MATH_DEFAULT_SIZE);
+      expect(Math.abs((a.x0 + a.x1) / 2 - (b.x0 + b.x1) / 2)).toBeLessThan(0.08 * MATH_DEFAULT_SIZE);
+      expect(a.x1 - a.x0).toBeLessThanOrEqual(b.x1 - b.x0 + 0.5);
     }
     const hb = elementBBoxes(layoutSpec(spec())).get("m")!, pb = elementBBoxes(layoutSpec(spec({ math_hand: false }))).get("m")!;
-    expect(Math.abs(hb.w - pb.w)).toBeLessThan(2 * HAND_MAX_SHIFT * MATH_DEFAULT_SIZE);
+    expect(hb.w / pb.w).toBeGreaterThan(0.85);
+    expect(hb.w / pb.w).toBeLessThanOrEqual(1.01);
+  });
+
+  test("Greek keeps Fira, so a mixed formula is the hand where it can be and print where it must", () => {
+    const eng = getLoadedEngines(["mathjax"]).mathjax as MathJaxEngine;
+    const on = eng.layoutTeX("\\alpha x", { display: true });
+    setMathHand(false);
+    const off = eng.layoutTeX("\\alpha x", { display: true });
+    expect(on.outlines[0].token.c).toBe(off.outlines[0].token.c);
+    expect(on.outlines[0].pts).toEqual(off.outlines[0].pts);       // α: Fira both ways
+    expect(on.outlines[1].pts).not.toEqual(off.outlines[1].pts);   // x: the hand
+    expect(on.outlines[1].token.c).toBe("1D465");                  // the token still names Fira's codepoint (colours, morph matching)
+  });
+
+  test("colours by term still find the swapped glyph", () => {
+    const r = layoutSpec(spec(undefined, "x + y", { colors: { x: "#b5482e" } }));
+    const glyphs = flattenDrawables(r.drawables).filter((d) => d.id.startsWith("m__g")) as unknown as { style: { fill?: string } }[];
+    expect(glyphs.filter((g) => g.style.fill === "#b5482e")).toHaveLength(1);
+    expect(r.warnings.filter((w) => w.includes("colors"))).toEqual([]);
   });
 
   test("the viewer's Playback choice reaches layout through withTextStyle", () => {
@@ -110,6 +145,7 @@ describe("math elements in the drawing's hand (real mathjax, node)", () => {
 
 describe("one size model for formulas and text (real mathjax, node)", () => {
   beforeAll(async () => { await ensureEngines(["mathjax"]); });
+  afterEach(() => setMathHand(true));
   const print = { math_hand: false as const };
   const tallest = (spec: Spec, id: string) => Math.max(...glyphsOf(spec, id).map((g) => { const b = box(g.pts); return b.y1 - b.y0; }));
 
@@ -134,41 +170,33 @@ describe("one size model for formulas and text (real mathjax, node)", () => {
 
   test("equation_steps: every step at one letter height — a plain step no longer dwarfs one with a fraction", async () => {
     registerPack("mathlogic", mathlogicYaml);
-    setMathTextStyle({ scale: 1, hand: false });
-    try {
-      const r = scenes.equation_steps.layout!({ steps: [{ tex: "x = 1" }, { tex: "\\frac{x}{2} = 1" }, { tex: "2x + 1 = 3" }] });
-      const areas = flattenDrawables(r.drawables).filter((d) => d.kind === "area") as unknown as Area[];
-      const stepTallest = (i: number) => Math.max(...areas.filter((a) => a.id.startsWith(`step_${i}__g`)).map((a) => { const b = box(a.pts); return b.y1 - b.y0; }));
-      // Each step has a "1" or a "2": the digit height is the same in all three.
-      expect(stepTallest(1) / stepTallest(0)).toBeCloseTo(1, 1);
-      expect(stepTallest(2) / stepTallest(0)).toBeCloseTo(1, 1);
-      // The fraction step is taller than the plain one (it stacks), so rows
-      // are pitched by their own height, not a fixed box.
-      const rowH = (i: number) => { const b = box(areas.filter((a) => a.id.startsWith(`step_${i}__g`)).flatMap((a) => a.pts)); return b.y1 - b.y0; };
-      expect(rowH(1)).toBeGreaterThan(rowH(0) * 1.8);
-      // Top to bottom, and centred on the canvas's middle.
-      expect(r.anchors["step_0"][1]).toBeGreaterThan(r.anchors["step_1"][1]);
-      expect(r.anchors["step_1"][1]).toBeGreaterThan(r.anchors["step_2"][1]);
-    } finally {
-      setMathTextStyle({ scale: 1, hand: true });
-    }
+    setMathHand(false);
+    const r = scenes.equation_steps.layout!({ steps: [{ tex: "x = 1" }, { tex: "\\frac{x}{2} = 1" }, { tex: "2x + 1 = 3" }] });
+    const areas = flattenDrawables(r.drawables).filter((d) => d.kind === "area") as unknown as Area[];
+    const stepTallest = (i: number) => Math.max(...areas.filter((a) => a.id.startsWith(`step_${i}__g`)).map((a) => { const b = box(a.pts); return b.y1 - b.y0; }));
+    // Each step has a "1" or a "2": the digit height is the same in all three.
+    expect(stepTallest(1) / stepTallest(0)).toBeCloseTo(1, 1);
+    expect(stepTallest(2) / stepTallest(0)).toBeCloseTo(1, 1);
+    // The fraction step is taller than the plain one (it stacks), so rows
+    // are pitched by their own height, not a fixed box.
+    const rowH = (i: number) => { const b = box(areas.filter((a) => a.id.startsWith(`step_${i}__g`)).flatMap((a) => a.pts)); return b.y1 - b.y0; };
+    expect(rowH(1)).toBeGreaterThan(rowH(0) * 1.8);
+    // Top to bottom, and centred on the canvas's middle.
+    expect(r.anchors["step_0"][1]).toBeGreaterThan(r.anchors["step_1"][1]);
+    expect(r.anchors["step_1"][1]).toBeGreaterThan(r.anchors["step_2"][1]);
   });
 
   test("equation_steps still shrinks a row wider than the canvas allows, and never grows one", async () => {
     registerPack("mathlogic", mathlogicYaml);
-    setMathTextStyle({ scale: 1, hand: false });
-    try {
-      const wide = "a_1 + a_2 + a_3 + a_4 + a_5 + a_6 + a_7 + a_8 + a_9 + a_{10} + a_{11} + a_{12} + a_{13} + a_{14} + a_{15} + a_{16} + a_{17} + a_{18} + a_{19} + a_{20} + a_{21} + a_{22}";
-      const r = scenes.equation_steps.layout!({ steps: [{ tex: wide }, { tex: "a_1" }] });
-      const areas = flattenDrawables(r.drawables).filter((d) => d.kind === "area") as unknown as Area[];
-      const rowBox = (i: number) => box(areas.filter((a) => a.id.startsWith(`step_${i}__g`)).flatMap((a) => a.pts));
-      const tallestGlyph = (i: number) => Math.max(...areas.filter((a) => a.id.startsWith(`step_${i}__g`)).map((a) => { const b = box(a.pts); return b.y1 - b.y0; }));
-      expect(rowBox(0).x1 - rowBox(0).x0).toBeLessThanOrEqual(900);
-      // Shrunk to fit: its "a" is smaller than the plain row's.
-      expect(tallestGlyph(0)).toBeLessThan(tallestGlyph(1) * 0.9);
-    } finally {
-      setMathTextStyle({ scale: 1, hand: true });
-    }
+    setMathHand(false);
+    const wide = "a_1 + a_2 + a_3 + a_4 + a_5 + a_6 + a_7 + a_8 + a_9 + a_{10} + a_{11} + a_{12} + a_{13} + a_{14} + a_{15} + a_{16} + a_{17} + a_{18} + a_{19} + a_{20} + a_{21} + a_{22}";
+    const r = scenes.equation_steps.layout!({ steps: [{ tex: wide }, { tex: "a_1" }] });
+    const areas = flattenDrawables(r.drawables).filter((d) => d.kind === "area") as unknown as Area[];
+    const rowBox = (i: number) => box(areas.filter((a) => a.id.startsWith(`step_${i}__g`)).flatMap((a) => a.pts));
+    const tallestGlyph = (i: number) => Math.max(...areas.filter((a) => a.id.startsWith(`step_${i}__g`)).map((a) => { const b = box(a.pts); return b.y1 - b.y0; }));
+    expect(rowBox(0).x1 - rowBox(0).x0).toBeLessThanOrEqual(900);
+    // Shrunk to fit: its "a" is smaller than the plain row's.
+    expect(tallestGlyph(0)).toBeLessThan(tallestGlyph(1) * 0.9);
   });
 
   test("the engine is asked for display style by the math element (the layout unit is the same either way)", async () => {

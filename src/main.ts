@@ -673,8 +673,9 @@ mathFontSel.append(
   h("option", { value: "tex" }, "TeX (Computer Modern)"),
 );
 mathFontSel.value = settings.mathFont ?? "";
-// Whether formulas get the pen's wobble (layout/math-hand.ts) or stay exact
-// print; the spec's `text.math_hand` is the default the empty option follows.
+// Whether a formula's letters and digits are written in Patrick Hand on the
+// typeset layout (scenes/math-hand.ts) or all in the math font, as print;
+// the spec's `text.math_hand` is the default the empty option follows.
 const mathHandSel = h("select", { title: "Math hand" });
 mathHandSel.append(
   h("option", { value: "" }, "Follow the drawcast"),

@@ -1114,9 +1114,8 @@ layout: |
     const place = (ring) => simplifyRing(ring.map((p) => [tx(p[0]), ty(p[1])]));
     const children = r.outlines.map((o, j) => {
       const holes = (o.holes || []).map(place).filter((h) => h.length >= 3);
-      const shaped = kit.mathHand({ pts: place(o.pts), holes: holes }, step.tex + ":" + j, fontSize);
       const fill = kit.mathColorFor(o.token.chain, params.colors) ?? C.ink;
-      return kit.area("step_" + i + "__g" + j, shaped.pts, fill, { holes: shaped.holes, precise: true, ms: MS.text });
+      return kit.area("step_" + i + "__g" + j, place(o.pts), fill, { holes: holes, precise: true, ms: MS.text });
     });
     push(kit.group("step_" + i, children));
     anchors["step_" + i] = [500, rowMid];
