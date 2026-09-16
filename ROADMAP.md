@@ -1485,44 +1485,75 @@ drawcast in several languages, re-linted after translation.
   on any number of elements; heavy interactions are pause-gated so movies
   never need this; and the note_sheet `keyboard: true` precedent shows a
   purpose-built combined template covers a specific pairing cheaply.
-- **Screens on a world canvas** (idea, 2026-09-17 — brainstorm, not
-  scheduled). Hans: the screen is one visible area, so one template per
-  page; `params.box` relaxed that a little. Could there be a layer above —
-  an infinite canvas holding several screens, with a camera that swipes
-  to one, shows two at half size, zooms, fades the others? Assessment:
-  possible and moderate IF a screen = a playlist item. Each item keeps
-  its own 1000×750 frame, template, ids, layout, lint and interactions
-  unchanged; the new layer places the items' frames on a world (`row`,
-  `grid`, `path`, or explicit positions), keeps earlier items' last
-  frames mounted as `<g transform>` groups instead of clearing them, and
-  drives the EXISTING camera (`camera` is already a viewBox tween;
-  `zoom_from` already fakes "push into"). New vocabulary is small: a
-  playlist `stage:` arrangement, `camera: {screen, zoom, fade_others}`,
-  and a pull-back to the whole stage. Costs: the player mounts one spec
-  today (multi-mount is the main work); DOM weight of many wobbly-path
-  screens; readability at pull-back on a phone (text holds the 15-unit
-  floor per screen, not per stage); export records the viewBox so video
-  is free. Not this: elements crossing screens, two templates
-  interacting, an arrow from screen 1 to screen 3 — that is
-  template-as-element above, still parked. Pedagogy: zoom is a gimmick
-  unless the space IS the argument — comparison side by side, overview
-  → detail, a map of the lecture at the end. First step if pursued: a
-  one-day spike that mounts two items in one SVG with transforms and
-  moves the existing camera between them, to feel whether it earns it.
-  Evidence (3b1b, "Reinventing Entropy", youtu.be/l6DKRf-fAAM, frames
-  read 2026-09-17): every screen change there is a VERTICAL scroll of a
-  single column — the old screen slides up out of frame as one unit,
-  the new one slides in from below (0:31, 15:28, 29:15, 30:36); the
-  same scroll run backwards is the "back to an earlier screen" gesture
-  (0:57); and at 20:46 the camera sits ~0.4× so two earlier definition
-  screens stay stacked above the current one as a recap. One axis, no
-  grid, no free positions, zoom only for the recap stack. So the
-  minimal design is `stage: column` on a playlist + a per-item
-  `transition: scroll` + `camera: {screen: <title|prev>}` + a pull-back;
-  in manim it is a group shift, in drawcast a viewBox tween — cheaper.
-  (18:38 is a different thing: a letter strip scrolling INSIDE one
-  element as the reader advances — an element-level window, not a
-  screen change.)
+- **Screens in a spec, side by side** (potential feature, 2026-09-17 —
+  brainstormed with Hans, not scheduled; design sketch below, spike
+  first). The aim: several screens with different templates alive at
+  once — present a model, keep it visible while simulating it with
+  controls and a plot, then conclude with text while small versions of
+  model and simulation stay in view. Almost linear; the camera does the
+  focusing. Not Prezi (many find it fascinating and confusing): no free
+  positions, no swooping, comparison side by side is the key case.
+  - **Shape.** A spec gets `screens: [{id, template, params, elements,
+    size?}]`; each screen is the block the model already writes, laid
+    out on its own 1000×750 frame with its own lint, label solver and
+    template box; a `stage` places the frames (row default, column the
+    only alternative) in world coordinates. One command list narrates
+    across screens with DOTTED ids (`model.arrows`, `sim.curve_0` — the
+    model already uses dotted tokens for vars and stored answers), bare
+    ids stay legal when unique across screens (ambiguous → lint error).
+    Camera gains `screen: id`, `screens: [a, b]` (fit both) beside
+    today's center/zoom/`reset` (the whole stage); the camera is the
+    existing viewBox tween, so export is free. A spec with screens is
+    still one playlist item.
+  - **Three rulings from the Markov use case.** (1) Vars are shared
+    across screens (one namespace per spec) and a var change relays out
+    EVERY screen that reads it — the slider on the sim screen moves the
+    labels on the model screen; this kills the "screen = playlist item"
+    variant (items cannot share a live var). (2) Per-screen static
+    `size` (full | half): model and sim at half in a column beside a
+    full-size text screen makes the stage 1500×750, so the fit-all
+    camera shows the conclusion at ~19 units (above the floor) with the
+    others as thumbnails, while `zoom: 2` on a half screen fills the
+    frame — no screen transform tween needed (manim's shrink-to-corner
+    idiom deliberately not built). (3) Live controls on ONE screen
+    (widgets/tray/quiz attach to the screen the camera is on), live
+    layout on all.
+  - **Not this.** Elements crossing screens, an arrow from screen 1 to
+    3, two templates interacting — template-as-element below, still
+    parked. Free positions, grids beyond named rows/columns, learner
+    swipe between screens (the one thing a video cannot offer — a later
+    arrangement on the same stage if wanted).
+  - **Cost.** Two rounds of the template-box size. Round 1: stage
+    layout (layoutSpec per screen, prefix ids, translate), multi-mount
+    in the renderer (the main work; scene state is keyed by id string so
+    prefixed ids should flow through plan/player unchanged — the spike
+    checks this), camera targets, shared vars + per-screen relayout,
+    `size`. Round 2: interaction attach per screen (the registry already
+    takes a multi-kind list), lints (ambiguous bare id, unknown screen,
+    canvas per screen), prompt section + one example + schema re-pin,
+    guidance against overuse (one screen is the default; screens exist
+    for figures that must be seen together; examples show ≤4). Limits
+    to accept: two half screens read on a laptop, marginal on a phone —
+    the pattern is see both, then camera in to read; DOM weight of
+    several wobbly-path screens (unmount far-off ones).
+  - **Spike first** (throwaway branch, 1–2 h): two hand-written specs
+    laid out with the existing function, mounted into one SVG with a
+    translate, ids prefixed by hand, a few camera commands at world
+    rects. Answers: does the pan feel right at drawcast pacing, and do
+    prefixed ids pass through the planner untouched. Write the Markov
+    cast both ways — conclusion as a text screen vs as page text beside
+    a boxed template — and keep whichever the model writes naturally.
+  - **Evidence** (3b1b "Reinventing Entropy", youtu.be/l6DKRf-fAAM,
+    frames read 2026-09-17): every screen change there is a vertical
+    scroll of one column (0:31, 15:28, 29:15, 30:36), the same scroll
+    backwards is "back to an earlier screen" (0:57), and at 20:46 the
+    camera sits ~0.4× so two earlier definition screens stay stacked
+    above the current one as a recap; in manim it is a group shift, in
+    drawcast a viewBox tween. That scroll-between-items variant is the
+    cheaper cousin (nothing changes inside a spec) but cannot do side by
+    side with one narration; both are callers of the same stage +
+    multi-mount if the stage uses real world coordinates. 18:38 is a
+    letter strip scrolling INSIDE one element — a different feature.
 - **A stable id per drawcast** (idea, 2026-09-16 — to consider, not
   scheduled). Today a drawcast's identity is its cast key, the path
   `owner/repo/dir/file`: readable, doubles as the fetch address, and breaks
