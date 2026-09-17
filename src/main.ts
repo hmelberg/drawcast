@@ -80,9 +80,9 @@ import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "./export/bak
 import { listCloudVoices, stampedVoice, synthesizeBase64, voiceLang } from "./export/tts";
 import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "./export/bake-cache";
 import { bakeCost, costLabel } from "./export/tts-cost";
-import { castRegistration, publishCast } from "./publish/cast";
+import { publishCast } from "./publish/cast";
 import { publishToServer, serverCastKey, type ServerAccess } from "./publish/server";
-import { MIN_NAME_LENGTH, isRegistrable, nameNote, normalizeName, paidInHash, registerName } from "./names";
+import { isPayable, normalizeName, paidInHash, registerName, startNamePayment } from "./names";
 import { DEFAULT_ENROLL_API } from "./learn";
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
@@ -222,6 +222,8 @@ interface Doc {
    * shared link already points at.
    */
   publishedAs?: string;
+  /** The copy on the drawcast server, as a cast key — see SavedDrawing.serverCast. */
+  serverCast?: string;
   /** Whether the last GitHub publish carried the giscus wiring (C1). */
   publishedComments?: boolean;
   /** Whether the last GitHub publish counted views. */
@@ -361,12 +363,12 @@ function docFromSaved(saved: SavedDrawing): Doc {
       const playlist = parsePlaylistText(saved.playlist);
       // The file's own founding prompt wins (B9); `saved.prompt` is what a
       // library entry written before B9 has instead — its only copy.
-      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, publishedComments: saved.publishedComments, publishedViews: saved.publishedViews, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, title: saved.title, prompt: playlist.meta.prompt ?? saved.prompt, playlist };
+      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, serverCast: saved.serverCast, publishedComments: saved.publishedComments, publishedViews: saved.publishedViews, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, title: saved.title, prompt: playlist.meta.prompt ?? saved.prompt, playlist };
     } catch {
       /* fall through to the single spec */
     }
   }
-  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, publishedComments: saved.publishedComments, publishedViews: saved.publishedViews, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
+  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, serverCast: saved.serverCast, publishedComments: saved.publishedComments, publishedViews: saved.publishedViews, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
 }
 
 function initialDoc(): Doc {
@@ -2806,7 +2808,7 @@ function showVersion(index: number): void {
     specArea.value = v.text;
     // Same rule as setDoc: the version's own text is authoritative about the
     // founding request (B9) when it carries one; doc.prompt is the fallback.
-    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
+    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
     void present();
     // A history restore filled the textarea, not a keystroke — it already
     // matches what present() just drew.
@@ -2913,7 +2915,7 @@ function autosave(): void {
       // row: the sidebar rebuilds on every keystroke of the filter box, and
       // parsing every row's YAML to count its items would be absurd there.
       parts: itemsOf(doc.playlist).length,
-      publishedAs: doc.publishedAs,
+      publishedAs: doc.publishedAs, serverCast: doc.serverCast,
       publishedComments: doc.publishedComments,
       publishedViews: doc.publishedViews,
       drivePublishedId: doc.drivePublishedId,
@@ -3455,7 +3457,7 @@ async function revise(): Promise<void> {
       // Same document, edited in place by AI (same as a manual re-render) — carry
       // driveFileId forward too, or a Save right after a Revise would litter
       // Drive with a second copy of the file the earlier Save already created.
-      { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
+      { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
       `Revised: ${instruction}` + costText(),
       { label, kind: "revise" },
     );
@@ -3733,7 +3735,7 @@ function ensureRendered(andPlay = false): boolean {
   // replaces this entry instead of minting a second one (copy-on-write). The
   // prompt follows setDoc's rule: what the TEXT says wins (a hand-edited
   // header is an edit like any other), with doc.prompt as the fallback.
-  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
+  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
   if (!restoring) stack = pushManualEdit(stack, specArea.value, new Date().toISOString());
   applyHistoryUi();
   void present(andPlay);
@@ -4616,22 +4618,11 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
     } catch (err) {
       console.error("drawcast: publish succeeded, bookkeeping failed", err);
     }
-    // The name is registered only now, against a commit that exists: a
-    // drawcast.app/#name pointing at a file that was never written would be
-    // worse than no name at all. Signed out there is nothing to register
-    // with, and the publish simply carries no name. The timeout bounds an
-    // unreachable registry at ten seconds.
-    let note = "";
-    // `token` above is the GitHub one; this is the drawcast server's.
-    const accountToken = getToken();
-    if (accountToken) {
-      const reg = castRegistration(out.slug, repo, joinPath(settings.coursesDir, "casts"), out.pagesUrl);
-      const outcome = await registerName(DEFAULT_ENROLL_API, { key: accountToken, ...reg }, (input, init) =>
-        fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
-      );
-      note = nameNote(outcome, reg.name);
-    }
-    setStatus(`Published to ${out.castUrl}${note}${lastEmbedNote}${lastBakeNote}`, "ok");
+    // No name is registered here since the pretty-link round (2026-09-18):
+    // the direct #gh= link is the free, permanent address, and a name — the
+    // pretty link — is bought under Share → Pretty link. The automatic free
+    // registration lived here until commit 181305a.
+    setStatus(`Published to ${out.castUrl}${lastEmbedNote}${lastBakeNote}`, "ok");
   } catch (err) {
     console.error("drawcast: publish failed", err);
     const e = err as Error;
@@ -4717,26 +4708,17 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
     );
     const out = await publishToServer({ slug, file, title: doc.title, yaml: text, access, token: accountToken, api: DEFAULT_ENROLL_API, viewerBase: settings.viewerBase }, fetchImpl);
     // Past this line the spec has LANDED (the narration may not have —
-    // `out.audio` says). The name is registered only now, against a copy
-    // that exists, exactly as the GitHub publish does; a name under the
-    // floor skips it with a note rather than failing the publish (spec §9).
-    let note = "";
-    // The address to REPORT. Naming a cast is what buys the short form, so
-    // when the name registers, that IS the address — reporting the raw
-    // `#anvil=` key and hanging the name off the end as "also at" buries the
-    // thing the author just asked for, and they read the long one (Hans,
-    // first real publish). The raw key stays the answer only when there is
-    // no name to use.
-    let address = out.url;
-    if (isRegistrable(slug)) {
-      const outcome = await registerName(DEFAULT_ENROLL_API, { key: accountToken, name: slug, kind: "cast", target: out.cast }, (input, init) =>
-        fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
-      );
-      if (outcome === "ok") address = `${settings.viewerBase.replace(/\/+$/, "")}/#${slug}`;
-      else note = nameNote(outcome, slug);
-    } else {
-      note = ` · name not registered: names need at least ${MIN_NAME_LENGTH} characters for now`;
+    // `out.audio` says). The server copy is recorded on the document so
+    // Share → Pretty link can point a bought name at it. No name is
+    // registered here since the pretty-link round (2026-09-18) — the
+    // automatic free registration lived here until commit 181305a.
+    doc.serverCast = out.cast;
+    try {
+      autosave();
+    } catch (err) {
+      console.error("drawcast: server publish succeeded, bookkeeping failed", err);
     }
+    const address = out.url;
     // Which door this publish set, or that it left the door alone: the
     // server keeps the course's value unless the body carries one (spec §5),
     // so *as before* is a true statement about what happened, not a guess.
@@ -4750,7 +4732,7 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
             : " — enrolled learners (and you) can watch; a link shared while it was open now asks to sign in";
     if (typeof out.audio === "object") {
       setStatus(
-        `Published to ${address}${door}, but WITHOUT its narration — ${out.audio.failed}. Publishing cleared the narration stored before, so the cast plays with a browser voice until you publish again.${note}${lastEmbedNote}`,
+        `Published to ${address}${door}, but WITHOUT its narration — ${out.audio.failed}. Publishing cleared the narration stored before, so the cast plays with a browser voice until you publish again.${lastEmbedNote}`,
         "error",
       );
       return;
@@ -4761,7 +4743,7 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
     // no-op. The client cannot know whether anything was stored, so the
     // sentence is worded to be true either way.
     const silent = out.audio === "none" ? " without narration — any narration stored there earlier is gone (tick Embed narration and publish again to add it)" : "";
-    setStatus(`Published to ${address}${silent}${door}${note}${lastEmbedNote}${lastBakeNote}`, "ok");
+    setStatus(`Published to ${address}${silent}${door}${lastEmbedNote}${lastBakeNote}`, "ok");
   } catch (err) {
     console.error("drawcast: server publish failed", err);
     const e = err as Error;
@@ -5097,6 +5079,49 @@ async function openSourceFromGithub(): Promise<void> {
   }
 }
 
+/**
+ * Share → Pretty link → Buy (pretty-link round, 2026-09-18): the name in the
+ * box, pointed at ONE published copy (GitHub, the server or Drive — the
+ * panel lists what exists), bought through the server's Checkout door. A
+ * name already this account's is re-pointed for free instead. Stripe brings
+ * the browser back with `#paid=<name>` (read at start-up, above).
+ */
+async function buyPrettyLink(choice: { name: string; target: string }): Promise<void> {
+  const accountToken = getToken();
+  if (!accountToken) {
+    setStatus("Sign in first (Settings → Publishing) — a pretty link belongs to an account.", "error");
+    return;
+  }
+  const name = normalizeName(choice.name);
+  if (!name || !isPayable(name)) {
+    setStatus("That is not a name drawcast can register: at least 3 characters, lower-case letters, digits and dashes.", "error");
+    return;
+  }
+  setStatus(`Opening the payment for drawcast.app/#${name}…`);
+  const reg = { key: accountToken, name, kind: "cast" as const, target: choice.target, title: doc.title };
+  const started = await startNamePayment(DEFAULT_ENROLL_API, { ...reg, return: location.href.split("#")[0] });
+  if (typeof started === "object") {
+    location.href = started.url;
+    return;
+  }
+  if (started === "yours") {
+    const moved = await registerName(DEFAULT_ENROLL_API, reg);
+    setStatus(
+      moved === "ok" ? `drawcast.app/#${name} is yours and now points at this copy.` : `Could not move the name (${moved}) — try again in a moment.`,
+      moved === "ok" ? "ok" : "error",
+    );
+    return;
+  }
+  setStatus(
+    started === "taken"
+      ? `"${name}" belongs to someone else — pick another.`
+      : started === "key"
+        ? "Sign in first (Settings → Publishing)."
+        : `Could not start the payment (${started}) — try again in a moment.`,
+    "error",
+  );
+}
+
 // ---------- video export ----------
 
 // The export runs in the background — no modal, the app stays usable — so the
@@ -5203,6 +5228,7 @@ shareBtn.addEventListener("click", () => {
     publish: (choices) => publishDrawcast(choices),
     publishDrive: (choices) => publishDriveCast(choices),
     publishServer: (choices) => publishServerCast(choices),
+    buyPrettyLink: (choice) => buyPrettyLink(choice),
     renderVideo,
     beginExport,
     setProgress: (text) => (exportChipText.textContent = text),

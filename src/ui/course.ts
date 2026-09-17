@@ -5,7 +5,7 @@
 
 import { type Course, type CourseLecture, formatCourse, parseCourse } from "../course/document";
 import { generateCoursePlan } from "../course/plan";
-import { applyCourseName, applyJoinDoor, commitPublish, courseDoorName, courseNameFor, preparePublish, type PublishArgs } from "../course/publish";
+import { applyCourseName, applyJoinDoor, commitPublish, courseDoorName, courseKeyFor, courseRegistration, preparePublish, type PublishArgs } from "../course/publish";
 import type { Door, DoorlessReason } from "../course/page";
 import { matchLibrary, restoredStatus } from "../course/reconcile";
 import { reviseCourse } from "../course/revise";
@@ -25,7 +25,7 @@ import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from
 import { addCosts, bakeCost, costLabel, courseNarrationProjection, type BakeCost } from "../export/tts-cost";
 import { stampedVoice, synthesizeBase64, voiceLang } from "../export/tts";
 import { joinPath } from "../course/publish";
-import { MIN_NAME_LENGTH, type Registration, claimCourse, claimNote, courseClaim, formatPrice, isRegistrable, nameNote, normalizeName, priceFor, registerName, startNamePayment } from "../names";
+import { claimCourse, claimNote, courseClaim, isPayable, nameNote, normalizeName, registerName, startNamePayment } from "../names";
 import { DEFAULT_ENROLL_API } from "../learn";
 import { getToken } from "../account";
 
@@ -323,50 +323,6 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
   }
 
   /** Transient progress: the panel's line only, never the app's. */
-  /**
-   * The Pay button (paid-names round, 2026-09-17): a course name costs
-   * money, and POST /name answered so. The button rides the panel's status
-   * line so it survives the publish's own final message; pressing it opens
-   * a Stripe Checkout Session for exactly this registration and sends the
-   * browser there. Stripe brings it back to drawcast.app with `#paid=<name>`
-   * (main.ts reads it). The door lands on the page at the next publish.
-   */
-  let payBtn: HTMLButtonElement | null = null;
-  function offerPayment(reg: Omit<Registration, "key">, accountToken: string): void {
-    payBtn?.remove();
-    const price = formatPrice(priceFor(reg.name));
-    // The terms ride the tooltip (Hans 2026-09-17); Stripe shows the same line
-    // as the product's description on its page (payments.TERMS_LINE).
-    const btn = h(
-      "button",
-      { class: "small primary course-pay", title: `One-time contribution: registers drawcast.app/#${reg.name}. As-is, no uptime guarantee, no refund once registered.` },
-      `Pay ${price} for drawcast.app/#${reg.name}`,
-    ) as HTMLButtonElement;
-    btn.addEventListener("click", () => {
-      btn.disabled = true;
-      void (async () => {
-        const started = await startNamePayment(DEFAULT_ENROLL_API, { key: accountToken, ...reg, return: location.href.split("#")[0] });
-        if (typeof started === "object") {
-          location.href = started.url;
-          return;
-        }
-        btn.disabled = false;
-        say(
-          started === "yours"
-            ? `"${reg.name}" is already yours — publish again to put the door on the page.`
-            : started === "taken"
-              ? `"${reg.name}" was taken meanwhile — set name: in the course document to pick another.`
-              : started === "key"
-                ? "Sign in first (Settings → Publishing)."
-                : `Could not start the payment (${started}) — try again in a moment.`,
-          "error",
-        );
-      })();
-    });
-    payBtn = btn;
-    status.after(btn);
-  }
-
   function working(text: string): void {
     status.textContent = text;
     status.classList.remove("course-status-error");
@@ -954,11 +910,11 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
    * instruction the first time a repo is written to.
    */
   // `slug` (B3's Link name field) is accepted here only to match
-  // ShareDeps.publish's signature. `slug` is what Link's Name field holds:
-  // for a course that is the DOOR name (name round, 2026-09-17), bound to
-  // the document's `name:` option below — each lecture's file name is still
-  // derived by publishCourse from the document, and the folder never moves.
-  async function publish({ bake, embedImages, slug, allowComments, countViews, allowSignup }: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean; allowSignup?: boolean }): Promise<void> {
+  // ShareDeps.publish's signature — a course has no single file slug of its
+  // own (each lecture's file name is derived by publishCourse from the
+  // document), so `slug` is never read here. The course's NAME — its pretty
+  // link — is bought and bound to `name:` by buyPrettyLink below (2026-09-18).
+  async function publish({ bake, embedImages, allowComments, countViews, allowSignup }: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean; allowSignup?: boolean }): Promise<void> {
     const settings = loadSettings();
     const token = getGithubToken();
     const repo = parseRepo(settings.githubRepo);
@@ -970,14 +926,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
     // out and the copy written back (out.text) agree on the enroll: line. The
     // editor's own document changes only when the commit lands, with the rest
     // of the bookkeeping below.
-    // The Name field (name round, 2026-09-17) binds to `name:` — the door —
-    // and never to `slug:`; applyCourseName is where that rule lives. Applied
-    // to the TEXT first, like the Join-door choice, so the copy that goes out
-    // and the copy written back agree.
-    const before = parseCourse(doc.value);
-    const previousName = before.context.slug ? courseNameFor(before, before.context.slug) : null;
-    const named = applyCourseName(doc.value, slug, before.context.slug);
-    const text = allowSignup === undefined ? named : applyJoinDoor(named, allowSignup);
+    const text = allowSignup === undefined ? doc.value : applyJoinDoor(doc.value, allowSignup);
     const course = parseCourse(text);
     if (course.lectures.length === 0) {
       say("There is nothing to publish yet.", "error");
@@ -1068,26 +1017,16 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         // explicit answers, so the name step never runs for them — and
         // neither does "rate": the registry is refusing calls, not unsure.
         if (claimed === "ok" || claimed === "error") {
-          if (isRegistrable(reg.name)) {
+          // Re-points a name already bought (free — the pointer moves); a
+          // name not yet bought answers "pay", and nameNote points at Share →
+          // Pretty link. Below the paid floor nothing is sent.
+          if (isPayable(reg.name)) {
             const named = await registerName(DEFAULT_ENROLL_API, { key: accountToken, ...reg }, bounded);
             nameSuffix += nameNote(named, reg.name);
-            // A free course name is bought, not registered (paid-names round):
-            // the publish goes through doorless, and the panel offers the
-            // payment as a button once the status is up (see below).
-            if (named === "pay") offerPayment(reg, accountToken);
-            // A renamed door: the old name keeps resolving (the registry never
-            // forgets a name), so say so rather than let the author wonder.
-            if (named === "ok" && previousName && previousName !== reg.name) nameSuffix += ` · the previous name "${previousName}" goes on working`;
             door = named === "ok" ? { name: reg.name, app: settings.viewerBase } : { name: null, why: DOORLESS[named] };
           } else {
-            // A name under the floor is not sent (main.ts does the same for
-            // a cast): the registry would answer 400 and nameNote would call
-            // the name invalid, which it is not — it is short.
-            const short = normalizeName(reg.name) !== null;
-            nameSuffix += short
-              ? ` · name not registered: names need at least ${MIN_NAME_LENGTH} characters — set a longer name: in the course document`
-              : nameNote("invalid", reg.name);
-            door = { name: null, why: short ? "short" : "invalid" };
+            nameSuffix += nameNote("invalid", reg.name);
+            door = { name: null, why: normalizeName(reg.name) !== null ? "short" : "invalid" };
           }
         } else {
           door = { name: null, why: claimed === "owner" ? "owner" : claimed === "key" ? "signed-out" : "unreachable" };
@@ -1230,6 +1169,13 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
           // folder it must never be confused with, once there is one.
           publishedAs: courseDoorName(course),
           folder: course.context.slug ? joinPath(deps.settings.coursesDir, course.context.slug) : undefined,
+          // What a pretty link points at for a course: its page (the folder
+          // is the course's key on the server too). Nothing until published.
+          copies: (() => {
+            const repo = parseRepo(deps.settings.githubRepo);
+            const slug = course.context.slug;
+            return repo && slug ? [{ label: "the course page", target: courseKeyFor(repo, joinPath(deps.settings.coursesDir, slug)) }] : [];
+          })(),
           narrationCost: costLabel(addCosts(doneLectureCosts(course))),
           publishedViews,
           // Whether the page carries its Join door, straight from the document (spec §5).
@@ -1251,6 +1197,56 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       refreshAccountRow: deps.refreshAccountRow,
       openSettings: deps.openSettings,
       publish,
+      // Share → Pretty link → Buy for a course (2026-09-18): the bought name
+      // is the course's door, written into the document as `name:` so every
+      // later publish re-points it for free and builds the page's door from it.
+      buyPrettyLink: async ({ name }) => {
+        const accountToken = getToken();
+        if (!accountToken) {
+          say("Sign in first (Settings → Publishing) — a pretty link belongs to an account.", "error");
+          return;
+        }
+        const repo = parseRepo(deps.settings.githubRepo);
+        const slug = parseCourse(doc.value).context.slug;
+        if (!repo || !slug) {
+          say("Publish the course first — the link needs a course page to point at.", "error");
+          return;
+        }
+        const named = applyCourseName(doc.value, name, slug);
+        if (named !== doc.value) {
+          doc.value = named;
+          persist();
+          render();
+        }
+        const dir = joinPath(deps.settings.coursesDir, slug);
+        const reg = courseRegistration(parseCourse(doc.value), repo, deps.settings.coursesDir, `https://${repo.owner}.github.io/${repo.repo}/${dir}/`);
+        if (!reg || !isPayable(reg.name)) {
+          say("That is not a name drawcast can register: at least 3 characters, lower-case letters, digits and dashes.", "error");
+          return;
+        }
+        say(`Opening the payment for drawcast.app/#${reg.name}…`);
+        const started = await startNamePayment(DEFAULT_ENROLL_API, { key: accountToken, ...reg, return: location.href.split("#")[0] });
+        if (typeof started === "object") {
+          location.href = started.url;
+          return;
+        }
+        if (started === "yours") {
+          const moved = await registerName(DEFAULT_ENROLL_API, { key: accountToken, ...reg });
+          say(
+            moved === "ok" ? `drawcast.app/#${reg.name} is yours — publish again to put the Join door on the page.` : `Could not move the name (${moved}) — try again in a moment.`,
+            moved === "ok" ? "ok" : "error",
+          );
+          return;
+        }
+        say(
+          started === "taken"
+            ? `"${reg.name}" belongs to someone else — set another name.`
+            : started === "owner"
+              ? "This course belongs to another drawcast account on the server — publish it signed in as its owner first."
+              : `Could not start the payment (${started}) — try again in a moment.`,
+          "error",
+        );
+      },
       // Unreachable by construction: Drive's DESTS row is `courses: false`,
       // so the rail never offers it here and its button is never mounted.
       // Present, and loud rather than silent, because the alternative is an

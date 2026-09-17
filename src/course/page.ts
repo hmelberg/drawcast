@@ -3,7 +3,7 @@
 // document on every publish, so it cannot drift from the plan. It is equally
 // at home hosted on Pages and pasted into an LMS.
 
-import { MIN_NAME_LENGTH } from "../names";
+import { PAID_MIN_LENGTH } from "../names";
 import type { CourseEntry } from "../publish/github";
 import type { Course } from "./document";
 
@@ -43,7 +43,7 @@ export function doorlessNote(why: DoorlessReason): string {
     case "taken":
       return "the name it asked for belongs to someone else. Its author can set another name: in the course document and publish again.";
     case "short":
-      return `its name is too short to register (names need at least ${MIN_NAME_LENGTH} characters). Its author can set a longer name: in the course document and publish again.`;
+      return `its name is too short to register (names need at least ${PAID_MIN_LENGTH} characters). Its author can set a longer name: in the course document and publish again.`;
     case "invalid":
       return "its name is not one the registry accepts. Its author can set another name: in the course document and publish again.";
     case "owner":

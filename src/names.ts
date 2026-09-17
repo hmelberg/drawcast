@@ -19,13 +19,12 @@ export function normalizeName(raw: string | null | undefined): string | null {
   return name;
 }
 
-export const MIN_NAME_LENGTH = 8;
-
-// ---- Paid course names (paid-names round, 2026-09-17) ----------------------
-// A COURSE's door name is bought, one-time, priced by the base's length in US
-// cents; the paid floor is three characters. Cast names stay free behind
-// MIN_NAME_LENGTH. Mirrors server_code/names.py — tests/names.test.ts pins
-// the four constants to that file.
+// ---- Paid names (paid-names round 2026-09-17; every name since the pretty-
+// link round 2026-09-18) ------------------------------------------------------
+// A name — a cast's or a course's — is bought, one-time, priced by the base's
+// length in US cents; the floor is three characters. The direct `#gh=` link
+// stays free; the name is the pretty link. Mirrors server_code/names.py —
+// tests/names.test.ts pins the four constants to that file.
 export const PAID_MIN_LENGTH = 3;
 export const PRICE_TIERS: readonly (readonly [number, number])[] = [
   [5, 2000],
@@ -41,7 +40,7 @@ export function priceFor(raw: string): number {
   return PRICE_LONG;
 }
 
-/** May this name be BOUGHT as a course name? The read rule, a base name only, and the paid floor. */
+/** May this name be BOUGHT? The read rule, a base name only, and the paid floor. */
 export function isPayable(raw: string | null | undefined): boolean {
   const name = normalizeName(raw);
   if (name === null || name.includes("/")) return false;
@@ -60,15 +59,6 @@ export function paidInHash(hash: string): { outcome: "paid" | "unpaid" | "taken"
   const m = /^#(paid|unpaid|taken)=([a-z0-9-]+)$/.exec(hash);
   if (!m) return null;
   return { outcome: m[1] as "paid" | "unpaid" | "taken", name: m[2] };
-}
-
-/** May this name be REGISTERED? Mirrors names.py's registrable(). Reading
- *  stays normalizeName's job, so a name already registered below the floor
- *  keeps resolving (spec §9). */
-export function isRegistrable(raw: string | null | undefined): boolean {
-  const name = normalizeName(raw);
-  if (name === null) return false;
-  return name.split("/", 1)[0].length >= MIN_NAME_LENGTH;
 }
 
 /** The name segment of a hash: everything after "#" up to the first "&". */
@@ -99,10 +89,18 @@ export function ghHashFor(hash: string, target: string): string {
 }
 
 /** The hash a resolved target should be played through: the server for an
- *  `anvil/` key, GitHub for anything else. One place, so runNamed does not
- *  have to know how a cast key is shaped. */
+ *  `anvil/` key, Drive for a `gdrive/` id (pretty-link round), GitHub for
+ *  anything else. One place, so runNamed does not have to know how a cast
+ *  key is shaped. */
 export function anvilHashFor(hash: string, target: string): string {
-  return target.startsWith("anvil/") ? `#anvil=${target.slice("anvil/".length)}${hashTail(hash)}` : ghHashFor(hash, target);
+  if (target.startsWith("anvil/")) return `#anvil=${target.slice("anvil/".length)}${hashTail(hash)}`;
+  if (target.startsWith("gdrive/")) return `#gdrive=${target.slice("gdrive/".length)}${hashTail(hash)}`;
+  return ghHashFor(hash, target);
+}
+
+/** The registry's form of a cast published to Google Drive. */
+export function driveTarget(fileId: string): string {
+  return `gdrive/${fileId}`;
 }
 
 export interface Resolved {
@@ -164,7 +162,7 @@ export function nameNote(outcome: RegisterOutcome, name: string): string {
     case "ok":
       return ` · also at https://drawcast.app/#${name}`;
     case "pay":
-      return ` · the name "${name}" costs ${formatPrice(priceFor(name))} — not registered yet`;
+      return ` · the name "${name}" is not registered — buy it under Share → Pretty link (${formatPrice(priceFor(name))})`;
     case "taken":
       return ` · the name "${name}" is taken by someone else (set name: in the document to pick another)`;
     case "owner":
@@ -193,50 +191,21 @@ export function nameNote(outcome: RegisterOutcome, name: string): string {
 
 export type CheckState = "free" | "yours" | "taken" | "short" | "invalid" | "error";
 
-/**
- * Advice, not a reservation (spec §9): nothing is held, and POST /name still
- * decides — the server walks _name_set's own verdicts in _name_set's own
- * order, so a name called "free" here is one the publish would take. The
- * rule and the floor are checked here FIRST, so a malformed or obviously
- * short name costs no request out of the 600/h name budget. The token is
- * what tells "yours" from "taken"; without one the server never says
- * "yours", so a signed-out check sends no key at all. Never throws: an
- * unreachable registry is "error", and the publish will tell for certain.
- */
-export async function checkName(api: string, name: string, token: string, fetchImpl: typeof fetch = fetch): Promise<CheckState> {
-  const normalized = normalizeName(name);
-  if (normalized === null) return "invalid";
-  if (!isRegistrable(normalized)) return "short";
-  try {
-    const res = await fetchImpl(`${apiBase(api)}/_/api/name/check`, {
-      method: "POST",
-      headers: { "content-type": "text/plain" },
-      body: JSON.stringify(token ? { name: normalized, key: token } : { name: normalized }),
-    });
-    if (!res.ok) return "error";
-    const body = (await res.json()) as { state?: unknown };
-    const state = body.state;
-    return state === "free" || state === "yours" || state === "taken" || state === "short" || state === "invalid" ? state : "error";
-  } catch {
-    return "error";
-  }
-}
-
 /** The note under the field: what to do next, not what happened. For a
  *  course name (paid-names round) `price` says what a free name costs, and
  *  `kind: "course"` states the paid floor instead of the free one. */
 export function checkNote(state: CheckState, name: string, opts: { price?: number; kind?: "cast" | "course" } = {}): string {
   switch (state) {
     case "free":
-      return opts.price !== undefined ? `"${name}" is free — ${formatPrice(opts.price)} to register it as this course’s address.` : `"${name}" is free.`;
+      return opts.price !== undefined
+        ? `"${name}" is free — ${formatPrice(opts.price)} to register it as this ${opts.kind === "course" ? "course" : "drawcast"}’s address.`
+        : `"${name}" is free.`;
     case "yours":
       return `"${name}" is already yours — publishing moves it to this ${opts.kind === "course" ? "course" : "drawcast"}.`;
     case "taken":
       return `"${name}" belongs to someone else. Pick another.`;
     case "short":
-      return opts.kind === "course"
-        ? `A course name needs at least ${PAID_MIN_LENGTH} characters.`
-        : `Names need at least ${MIN_NAME_LENGTH} characters for now.`;
+      return `A name needs at least ${PAID_MIN_LENGTH} characters.`;
     case "invalid":
       return "That is not a valid name: lower-case letters, digits and dashes, not starting with a reserved word like gh or me.";
     case "error":
@@ -249,12 +218,15 @@ export function checkNote(state: CheckState, name: string, opts: { price?: numbe
 }
 
 /**
- * The Check button for a COURSE name (paid-names round): the paid floor is
- * checked locally first, `kind: "course"` rides the body, and the server's
- * price comes back beside the state so the note can say what a free name
- * costs. Never throws, like checkName.
+ * The Check button (spec §9; every name bought since the pretty-link round):
+ * advice, not a reservation. The rule and the paid floor are checked here
+ * FIRST, so a malformed or short name costs no request out of the 600/h
+ * name budget; `kind` rides the body; the server's price comes back beside
+ * the state so the note can say what a free name costs. The token is what
+ * tells "yours" from "taken"; signed out, no key is sent and the server
+ * never answers "yours". Never throws: an unreachable registry is "error".
  */
-export async function checkCourseName(api: string, name: string, token: string, fetchImpl: typeof fetch = fetch): Promise<{ state: CheckState; price?: number }> {
+export async function checkPaidName(api: string, name: string, token: string, kind: "cast" | "course", fetchImpl: typeof fetch = fetch): Promise<{ state: CheckState; price?: number }> {
   const normalized = normalizeName(name);
   if (normalized === null) return { state: "invalid" };
   if (!isPayable(normalized)) return { state: "short" };
@@ -262,7 +234,7 @@ export async function checkCourseName(api: string, name: string, token: string, 
     const res = await fetchImpl(`${apiBase(api)}/_/api/name/check`, {
       method: "POST",
       headers: { "content-type": "text/plain" },
-      body: JSON.stringify(token ? { name: normalized, key: token, kind: "course" } : { name: normalized, kind: "course" }),
+      body: JSON.stringify(token ? { name: normalized, key: token, kind } : { name: normalized, kind }),
     });
     if (!res.ok) return { state: "error" };
     const body = (await res.json()) as { state?: unknown; price?: unknown };

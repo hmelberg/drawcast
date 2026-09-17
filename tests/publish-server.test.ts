@@ -278,16 +278,14 @@ describe("publishServerCast — main.ts's wiring", () => {
     expect(serverCast).toContain('await import("./viewer")');
     expect(main).not.toMatch(/from "\.\/viewer"/);
   });
-  test("keys the copy anvil/<name>/<file>, passes the access through, and registers the name only after the spec landed", () => {
+  test("keys the copy anvil/<name>/<file>, passes the access through, and records the server copy on the document once the spec landed — no name is registered here", () => {
     expect(serverCast).toContain("serverCastKey(slug, file)");
     expect(serverCast).toMatch(/publishToServer\(\{[^}]*access,/);
-    expect(serverCast.indexOf("publishToServer(")).toBeLessThan(serverCast.indexOf("registerName("));
-    expect(serverCast).toContain('kind: "cast", target: out.cast');
-    expect(serverCast).toContain("AbortSignal.timeout(10_000)");
-  });
-  test("a name under the floor publishes anyway and says why it was not registered (spec §9)", () => {
-    expect(serverCast).toContain("isRegistrable(slug)");
-    expect(serverCast).toMatch(/name not registered: names need at least \$\{MIN_NAME_LENGTH\} characters/);
+    // The copy is what Share → Pretty link points a bought name at (2026-09-18);
+    // the automatic free registration that lived here until 181305a is gone.
+    expect(serverCast.indexOf("publishToServer(")).toBeLessThan(serverCast.indexOf("doc.serverCast = out.cast;"));
+    expect(serverCast).not.toContain("registerName(");
+    expect(serverCast).toContain("until commit 181305a");
   });
   test("a lost narration is reported as what it is: the spec landed, the old narration is gone", () => {
     expect(serverCast).toContain('typeof out.audio === "object"');
@@ -304,14 +302,9 @@ describe("publishServerCast — main.ts's wiring", () => {
     // In the SAME status line as the address, on the ok path.
     expect(serverCast).toMatch(/setStatus\(`Published to \$\{address\}\$\{silent\}/);
   });
-  test("a registered name IS the address — the raw key is the fallback", () => {
-    // Naming a cast is what buys the short form, so reporting the raw
-    // #anvil= key and hanging the name off the end as "also at" buries the
-    // one thing the author asked for. They read the long one.
-    expect(main).toMatch(/let address = out\.url;/);
-    expect(main).toMatch(/if \(outcome === "ok"\) address = `\$\{settings\.viewerBase\.replace\(\/\\\/\+\$\/, ""\)\}\/#\$\{slug\}`;/);
-    // and the "also at" note is NOT appended when the short form won
-    expect(main).toMatch(/else note = nameNote\(outcome, slug\);/);
+  test("the address reported is the server copy's own link — a pretty link is bought separately", () => {
+    expect(serverCast).toMatch(/const address = out\.url;/);
+    expect(serverCast).not.toContain("nameNote(");
   });
   test("every successful publish says which door it set — or that it left the door alone", () => {
     expect(serverCast).toMatch(/const door =\s*access === undefined\s*\?/);
@@ -336,26 +329,30 @@ describe("publishServerCast — main.ts's wiring", () => {
 // tests/names.test.ts; this pins where the button lives and, above all, what
 // it does NOT listen to.
 describe("the Check button in Share", () => {
-  test("is built once and sits beside BOTH name fields — GitHub's and the server's", () => {
+  test("is built once and sits beside the Pretty link's name field alone — Link's and the server's fields name files, not addresses", () => {
     expect(share).toContain("function buildNameCheck(");
-    // Declaration + two instantiations.
-    expect(share.match(/buildNameCheck\(/g)).toHaveLength(3);
-    expect(share).toMatch(/"Name ", publishNameInput, publishNameCheck\.button\)/);
-    expect(share).toMatch(/"Name ", serverNameInput, serverNameCheck\.button\)/);
+    // Declaration + one instantiation (pretty-link round, 2026-09-18).
+    expect(share.match(/buildNameCheck\(/g)).toHaveLength(2);
+    expect(share).toMatch(/"Name ", prettyNameInput, prettyCheck\.button\)/);
+    expect(share).toMatch(/"Name ", publishNameInput\)/);
+    expect(share).toMatch(/"Name ", serverNameInput\)/);
   });
-  test("fires on the click only — no input listener anywhere in Share (the budget is 600/h per IP)", () => {
-    expect(share).not.toContain('addEventListener("input"');
+  test("fires on the click only — the one input listener in Share updates the price line and never asks the registry (the budget is 600/h per IP)", () => {
+    expect(share.match(/addEventListener\("input"/g)).toHaveLength(1);
+    expect(share).toContain('prettyNameInput.addEventListener("input", refreshPrettyPrice)');
     expect(share).not.toContain('addEventListener("keyup"');
     expect(share).not.toContain('addEventListener("keydown"');
     const builder = share.slice(share.indexOf("function buildNameCheck("), share.indexOf("// ---- Link panel"));
     expect(builder).toContain('button.addEventListener("click"');
-    expect(builder).toContain("checkNote(await checkName(DEFAULT_ENROLL_API, name, getToken()), name)");
+    expect(builder).toContain("await checkPaidName(DEFAULT_ENROLL_API, name, getToken(), kind)");
+    expect(builder).not.toContain('addEventListener("input"');
     // Disabled while the answer is on its way — one click, one request.
-    expect(builder.indexOf("button.disabled = true;")).toBeLessThan(builder.indexOf("await checkName("));
+    expect(builder.indexOf("button.disabled = true;")).toBeLessThan(builder.indexOf("await checkPaidName("));
   });
   test("the verdict is cleared on every open, so a stale answer never describes another document", () => {
     const prep = share.slice(share.indexOf("function prepPanels(): void {"), share.indexOf("function refresh(deps: ShareDeps): void {"));
-    expect(prep).toContain("publishNameCheck.reset();");
-    expect(prep).toContain("serverNameCheck.reset();");
+    expect(prep).toContain("refreshPretty(doc, current.subject);");
+    const refreshFn = share.slice(share.indexOf("function refreshPretty("), share.indexOf("prettyGo.addEventListener("));
+    expect(refreshFn).toContain("prettyCheck.reset();");
   });
 });

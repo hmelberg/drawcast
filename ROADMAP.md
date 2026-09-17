@@ -2412,6 +2412,27 @@ wildcard alias, Stripe keys + webhook into Anvil Secrets, pull + schema,
 rotate the committed Stripe refresh token, the business/VAT side) is §4 of
 the spec. Both repos committed, NOT pushed.
 
+### The pretty-link round — delivered 2026-09-18
+
+Hans: a paid name "should not be" course-only; "Add 'Buy pretty link' as an
+option in the menu and we then use the name in the name box and charge
+people." Spec §7 of `specs/2026-09-17-paid-course-names-and-name-hosts-
+design.md`. Rulings: the direct `#gh=` link stays free and EVERY pretty
+link is bought (the automatic free 8+-character registration at a GitHub or
+server publish is gone — it lived there until 181305a); same tiers for casts
+and courses (20/10/5 USD, floor 3); renames never move files. What shipped:
+a "Pretty link" rail row for both subjects with its own panel (name, the one
+Check in Share, live price, "Points at" from `prettyCopies` — GitHub /
+server / Drive copies for a drawcast, the page for a course — terms, Buy
+that signs in first); `serverCast` recorded on the document by the server
+publish; Drive copies nameable (`gdrive/<id>` targets, `#gdrive=` playback);
+Link's and the server's Name fields name files only and lost their Check;
+the course panel's Pay button replaced by the panel. Server (drawcast-anvil
+15a5562): 402 for any free name, `/name/pay` for both kinds, priced check,
+`GDRIVE_RE`. Help page: "Pretty links and the name service". Smoke-tested in
+a browser (Share → Pretty link renders, Check answers, playback clean).
+Not done: a name before a publish; deleting a cast's old file on rename.
+
 ## Private courses on the drawcast server — decided 2026-09-17, parked
 
 Round 3 of the private-publishing spec (`specs/2026-09-05-private-publishing-

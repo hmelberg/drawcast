@@ -40,27 +40,28 @@ describe("the account lives beside the GitHub token", () => {
     expect(signOut.indexOf("signOutServer(DEFAULT_ENROLL_API, getToken())")).toBeGreaterThan(0);
     expect(signOut.indexOf("signOutServer(DEFAULT_ENROLL_API, getToken())")).toBeLessThan(signOut.indexOf('setToken("")'));
   });
-  test("both publishers register with the token, a timeout, and the outcome reported — the cast after its commit, the course BEFORE its commit", () => {
+  test("a cast registers a name only from Share → Pretty link (re-pointing one already owned); a course still registers BEFORE its commit", () => {
     const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
     const course = readFileSync(new URL("../src/ui/course.ts", import.meta.url), "utf8");
     for (const src of [main, course]) {
       expect(src).toMatch(/getToken\(\)/);
       expect(src).not.toMatch(/getAuthorKey/);
       expect(src).toMatch(/registerName\(DEFAULT_ENROLL_API,/);
-      expect(src).toMatch(/nameNote\(/);
-      // An unreachable registry costs ten seconds, not the rest of the session.
-      expect(src).toMatch(/AbortSignal\.timeout\(10_000\)/);
     }
-    // Sliced at the publish call so the anchors are the ones in THIS function:
-    // autosave() and render() are called all over both files.
-    const castPublish = main.slice(main.indexOf("await publishCast("));
-    expect(castPublish.indexOf("registerName(")).toBeGreaterThan(0);
-    expect(castPublish.indexOf("registerName(")).toBeGreaterThan(castPublish.indexOf("autosave();"));
+    // The cast publish registers nothing since the pretty-link round
+    // (2026-09-18): the direct #gh= link is the free address; a name is bought.
+    const castPublish = main.slice(main.indexOf("await publishCast("), main.indexOf("async function publishServerCast("));
+    expect(castPublish).not.toContain("registerName(");
+    const buy = main.slice(main.indexOf("async function buyPrettyLink("), main.indexOf("// ---------- video export ----------"));
+    expect(buy).toContain("registerName(DEFAULT_ENROLL_API, reg)");
     // A course's page carries a door to its name (identity round), so the
     // name must be registered before the page is written: between
-    // preparePublish (reads) and commitPublish (the write), never after.
+    // preparePublish (reads) and commitPublish (the write), never after —
+    // with a timeout, so an unreachable registry costs ten seconds.
     const coursePublish = course.slice(course.indexOf("await preparePublish("), course.indexOf("function showLinks("));
     expect(coursePublish.indexOf("registerName(")).toBeGreaterThan(0);
+    expect(coursePublish).toMatch(/AbortSignal\.timeout\(10_000\)/);
+    expect(coursePublish).toMatch(/nameNote\(/);
     expect(coursePublish.indexOf("registerName(")).toBeLessThan(coursePublish.indexOf("await commitPublish("));
     expect(coursePublish.indexOf("await commitPublish(")).toBeLessThan(coursePublish.indexOf("render();"));
   });

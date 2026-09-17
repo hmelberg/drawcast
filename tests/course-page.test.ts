@@ -1,7 +1,7 @@
 import { describe, expect, it, test } from "vitest";
 import { parseCourse } from "../src/course/document";
 import { courseHref, coursePage, doorlessNote, escapeHtml, lectureHref, repoIndexPage, type DoorlessReason } from "../src/course/page";
-import { MIN_NAME_LENGTH } from "../src/names";
+import { PAID_MIN_LENGTH } from "../src/names";
 import { hasDoor } from "./helpers/course-door";
 
 const COURSE = parseCourse(`# Causal Inference
@@ -103,8 +103,8 @@ describe("the door", () => {
     expect(html).not.toMatch(/name and address/);
   });
   test("the short-name sentence quotes the registry's floor, not a number of its own", () => {
-    // names.ts owns MIN_NAME_LENGTH; a literal here drifted once already.
-    expect(doorlessNote("short")).toContain(`at least ${MIN_NAME_LENGTH} characters`);
+    // names.ts owns PAID_MIN_LENGTH; a literal here drifted once already.
+    expect(doorlessNote("short")).toContain(`at least ${PAID_MIN_LENGTH} characters`);
   });
   test("the door is the name it was GIVEN — the one this publish registered — never one derived from the document", () => {
     // A `name:` in the document, or the slug, is not a door on its own: only
@@ -143,7 +143,7 @@ describe("the door", () => {
     }
     expect(hasDoor(coursePage(SPANISH, LINKS, DOOR))).toBe(true); // …and the same detector sees the door when there is one
     expect(doorlessNote("taken")).toMatch(/belongs to someone else/);
-    expect(doorlessNote("short")).toMatch(/8 characters/);
+    expect(doorlessNote("short")).toMatch(/3 characters/);
     expect(doorlessNote("signed-out")).toMatch(/without a drawcast account/);
     expect(doorlessNote("elsewhere")).toMatch(/drawcast server only/);
   });

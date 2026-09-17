@@ -139,3 +139,51 @@ Anvil README, and here.
 - No price in NOK/EUR; the currency is one constant in both repos.
 - Deleting a single drawcast's previous file on a rename (cast publish says
   "no deletions").
+
+## 7. Addendum 2026-09-18 — the pretty link, for every work
+
+Hans: "publishing a single drawcast with a 'paid' name is not an option (is
+it only for courses? it should not be). Add 'Buy pretty link' as an option in
+the menu and we then use the name in the name box and charge people." Three
+rulings followed the discussion:
+
+1. **The direct link stays free; every pretty link is bought.** The
+   automatic free registration of 8+-character cast names at a GitHub or
+   server publish is gone (it lived in `publishDrawcast` and
+   `publishServerCast` until commit 181305a — one call site each, the
+   functions stay). Names already registered keep resolving.
+2. **Same prices for casts and courses** (§1), floor 3 for both. The server's
+   write rule is `names.payable` for every kind; `POST /name` answers 402 for
+   any name not yet the caller's; `/name/pay` takes both kinds (the claim only
+   for a course); `/name/check` prices every name.
+3. **Renames never move files** (§1 and the name round).
+
+**The panel.** A "Pretty link" row in Share's rail, for both subjects, with
+its own panel: the name box (prefilled from the published name or the
+title), the one Check button in Share (`checkPaidName`, kind by subject,
+price in the note), a live price line, "Points at" — the published copies
+the link can point at (`prettyCopies`: a drawcast's GitHub copy from
+`publishedAs` + the settings' repo, its server copy from the new
+`serverCast` field the server publish records, its Drive copy from
+`drivePublishedId`; a course's page) — the terms (§5), and Buy, which signs
+in first when needed. Nothing published → "Publish first — the link needs
+somewhere to point" and Buy disabled. Link's and the server's Name fields
+name FILES and lost their Check buttons.
+
+**Drive becomes nameable:** a cast target may be `gdrive/<file id>`
+(`parsers.GDRIVE_RE`); `anvilHashFor` plays it through `#gdrive=`. Sharing
+the file stays the author's job.
+
+**Buying.** A drawcast: `buyPrettyLink` in main.ts → `startNamePayment`
+(kind cast, the chosen copy) → Stripe → `#paid=`. A name already the
+account's is re-pointed for free (`registerName`). A course: the panel
+writes the name into the document as `name:` (`applyCourseName`), then
+`startNamePayment` (kind course, the course folder as target; the server
+claims the course first); at every later publish the course's registration
+re-points the owned name for free and builds the page's door from it. The
+course panel's own Pay button (§2) is gone — the Pretty link panel is the
+one place.
+
+Not done: a name before anything is published (a reservation without a
+target invites the squatting the price deters); deleting a cast's previous
+file on a rename.

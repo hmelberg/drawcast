@@ -117,7 +117,7 @@
         <a href="#playlists">Multi-part drawcasts</a>
         <a href="#controls">Player controls</a>
         <a href="#share">Sharing a drawcast</a>
-        <a href="#names">Names and the name service</a>
+        <a href="#names">Pretty links and the name service</a>
         <a href="#video">Video export</a>
         <a href="#keys">Keys and privacy</a>
         <a href="#trouble">Troubleshooting</a>
@@ -456,20 +456,24 @@ commands: [ … ]</code></pre>
         </table>
         <p>A multi-part drawcast works the same way: put the whole YAML stream in the one document.</p>
 
-        <h2 id="names">Names and the name service</h2>
+        <h2 id="names">Pretty links and the name service</h2>
         <p>
-          A published drawcast or course can have a short address, <code>drawcast.app/#<em>name</em></code>,
-          which also answers as <code><em>name</em>.drawcast.app</code>. The name is a pointer kept by the
-          drawcast server: it resolves to wherever the work is published, so a republish never breaks the
-          link, and a name once registered goes on working even after you change to another. Only a
-          registered name opens anything; an unknown name says so.
+          Every published drawcast has a free, permanent address: the link Publish shows, with the file's
+          location inside it (<code>drawcast.app/#gh=…</code>). A <strong>pretty link</strong> is a short name
+          on top of that: <code>drawcast.app/#<em>name</em></code>, which also answers as
+          <code><em>name</em>.drawcast.app</code>. The name is a pointer kept by the drawcast server: it
+          resolves to wherever the work is published — GitHub, the drawcast server or Google Drive — so a
+          republish never breaks the link, and a name once registered goes on working even after you change
+          to another. Only a registered name opens anything; an unknown name says so.
         </p>
         <p>
-          A single drawcast's name is free and needs at least 8 characters. A course's name is registered
-          when you publish the course, and costs a one-time amount by length: 20 USD up to 5 characters,
-          10 USD up to 7, 5 USD from 8 (at least 3). You pay on Stripe's page; the Publish dialog's
-          <strong>Check</strong> button tells you beforehand whether a name is free and what it costs.
-          Renaming a course buys the new name; the folder its lectures live in never moves.
+          You buy a pretty link under <strong>↗ Publish → Pretty link</strong>, for a drawcast or a course,
+          once you have published it somewhere: the panel lists the copies the name can point at, and
+          <strong>Check</strong> tells you whether a name is free and what it costs. The price follows the
+          name's length: 20 USD up to 5 characters, 10 USD up to 7, 5 USD from 8 (at least 3). You pay on
+          Stripe's page and land back here with the name registered. A course's pretty link points at its
+          course page; the folder its lectures live in never moves. Renaming buys the new name; the previous
+          one goes on working.
         </p>
         <p>
           <strong>Terms.</strong> Registering a name is a one-time contribution to drawcast, not a

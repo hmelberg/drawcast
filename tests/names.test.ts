@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import { checkName, checkNote, ghHashFor, isNameHash, isRegistrable, MIN_NAME_LENGTH, nameInHash, normalizeName, registerName, resolveName, NAME_RE, RESERVED_PREFIXES, type CheckState } from "../src/names";
+import { anvilHashFor, checkNote, checkPaidName, driveTarget, ghHashFor, isNameHash, nameInHash, normalizeName, registerName, resolveName, NAME_RE, RESERVED_PREFIXES, type CheckState } from "../src/names";
 
 function fetchReturning(status: number, body: unknown): typeof fetch {
   return vi.fn(async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
@@ -87,60 +87,56 @@ describe("the registration floor", () => {
     expect(normalizeName("me")).toBeNull();
     expect(normalizeName("me-too")).toBeNull();
   });
-  test("eight characters in the base segment, and reading is unaffected", () => {
-    expect(MIN_NAME_LENGTH).toBe(8);
-    expect(isRegistrable("spanish1")).toBe(true);
-    expect(isRegistrable("learn-russian/3")).toBe(true);
-    expect(isRegistrable("spanish")).toBe(false);
-    expect(normalizeName("spanish")).toBe("spanish");
-  });
 });
 
-// The Check button (round 0 spec §9): advice, not a reservation. The floor
-// and the rule are refused locally, so they never spend the 600/h budget.
-describe("checkName", () => {
-  test("passes the state through and never throws", async () => {
-    const ok = fetchReturning(200, { state: "taken" });
-    expect(await checkName("https://a", "spanish1", "t", ok)).toBe("taken");
+// The Check button: advice, not a reservation. Every name is bought since the
+// pretty-link round (2026-09-18), so the ONE check is the paid one: the rule
+// and the paid floor are refused locally (never spending the 600/h budget),
+// `kind` rides the body, and the price comes back beside the state.
+describe("checkPaidName", () => {
+  test("passes the state and the price through and never throws", async () => {
+    const ok = fetchReturning(200, { state: "taken", price: 500, currency: "usd" });
+    expect(await checkPaidName("https://a", "spanish1", "t", "cast", ok)).toEqual({ state: "taken", price: 500 });
     const dead = vi.fn(async () => {
       throw new Error("offline");
     }) as unknown as typeof fetch;
-    expect(await checkName("https://a", "spanish1", "t", dead)).toBe("error");
+    expect(await checkPaidName("https://a", "spanish1", "t", "cast", dead)).toEqual({ state: "error" });
   });
-  test("a short name is refused without asking the server", async () => {
+  test("the paid floor is three, and a derived name is never registered — both refused locally", async () => {
     const f = vi.fn() as unknown as typeof fetch;
-    expect(await checkName("https://a", "spanish", "t", f)).toBe("short");
+    expect(await checkPaidName("https://a", "ab", "t", "cast", f)).toEqual({ state: "short" });
+    expect(await checkPaidName("https://a", "learn-russian/3", "t", "course", f)).toEqual({ state: "short" });
     expect(calls(f).length).toBe(0);
   });
   test("a malformed or reserved name is refused without asking either", async () => {
     const f = vi.fn() as unknown as typeof fetch;
-    expect(await checkName("https://a", "gh-spanish", "t", f)).toBe("invalid");
-    expect(await checkName("https://a", "learn russian", "t", f)).toBe("invalid");
-    expect(await checkName("https://a", "", "t", f)).toBe("invalid");
+    expect(await checkPaidName("https://a", "gh-spanish", "t", "cast", f)).toEqual({ state: "invalid" });
+    expect(await checkPaidName("https://a", "learn russian", "t", "cast", f)).toEqual({ state: "invalid" });
+    expect(await checkPaidName("https://a", "", "t", "cast", f)).toEqual({ state: "invalid" });
     expect(calls(f).length).toBe(0);
   });
-  test("POSTs text/plain JSON to /_/api/name/check with the NORMALIZED name and the token", async () => {
-    const f = fetchReturning(200, { state: "free" });
-    expect(await checkName("https://drawcast.anvil.app/", " Learn-Russian ", "t", f)).toBe("free");
+  test("POSTs text/plain JSON to /_/api/name/check with the NORMALIZED name, the token and the kind", async () => {
+    const f = fetchReturning(200, { state: "free", price: 500, currency: "usd" });
+    expect(await checkPaidName("https://drawcast.anvil.app/", " Learn-Russian ", "t", "course", f)).toEqual({ state: "free", price: 500 });
     const [url, init] = calls(f)[0];
     expect(url).toBe("https://drawcast.anvil.app/_/api/name/check");
     expect(init.method).toBe("POST");
     expect((init.headers as Record<string, string>)["content-type"]).toBe("text/plain");
-    expect(JSON.parse(init.body as string)).toEqual({ name: "learn-russian", key: "t" });
+    expect(JSON.parse(init.body as string)).toEqual({ name: "learn-russian", key: "t", kind: "course" });
   });
-  test("signed out, the body carries no key at all — the server then never answers yours", async () => {
-    const f = fetchReturning(200, { state: "taken" });
-    expect(await checkName("https://a", "spanish1", "", f)).toBe("taken");
-    expect(JSON.parse(calls(f)[0][1].body as string)).toEqual({ name: "spanish1" });
+  test("signed out, no key rides the body — the server then never answers yours", async () => {
+    const f = fetchReturning(200, { state: "taken", price: 500 });
+    expect(await checkPaidName("https://a", "spanish1", "", "cast", f)).toEqual({ state: "taken", price: 500 });
+    expect(JSON.parse(calls(f)[0][1].body as string)).toEqual({ name: "spanish1", kind: "cast" });
   });
   test("a refusal, or an answer it does not recognise, is error — not a guess", async () => {
-    expect(await checkName("https://a", "spanish1", "t", fetchReturning(429, { error: "rate" }))).toBe("error");
-    expect(await checkName("https://a", "spanish1", "t", fetchReturning(200, { state: "reserved" }))).toBe("error");
-    expect(await checkName("https://a", "spanish1", "t", fetchReturning(200, {}))).toBe("error");
+    expect(await checkPaidName("https://a", "spanish1", "t", "cast", fetchReturning(429, { error: "rate" }))).toEqual({ state: "error" });
+    expect(await checkPaidName("https://a", "spanish1", "t", "cast", fetchReturning(200, { state: "reserved" }))).toEqual({ state: "error" });
+    expect(await checkPaidName("https://a", "spanish1", "t", "cast", fetchReturning(200, {}))).toEqual({ state: "error" });
   });
   test("the note says what to do, not what happened", () => {
     expect(checkNote("free", "spanish1")).toMatch(/free/i);
-    expect(checkNote("short", "spanish")).toMatch(/8/);
+    expect(checkNote("short", "ab")).toMatch(/3/);
     expect(checkNote("yours", "spanish1")).toMatch(/publishing moves it/);
     expect(checkNote("taken", "spanish1")).toMatch(/pick another/i);
     expect(checkNote("error", "spanish1")).toMatch(/publishing will tell/i);
@@ -155,7 +151,7 @@ describe("checkName", () => {
 
 // ---- Paid course names (paid-names round, 2026-09-17) ----------------------
 import { readFileSync } from "node:fs";
-import { checkCourseName, formatPrice, isPayable, paidInHash, PAID_MIN_LENGTH, PRICE_CURRENCY, PRICE_LONG, PRICE_TIERS, priceFor, startNamePayment } from "../src/names";
+import { formatPrice, isPayable, paidInHash, PAID_MIN_LENGTH, PRICE_CURRENCY, PRICE_LONG, PRICE_TIERS, priceFor, startNamePayment } from "../src/names";
 
 describe("price tiers mirror server_code/names.py", () => {
   test("the constants are pinned to the server's", () => {
@@ -194,24 +190,25 @@ describe("registerName answers pay on a 402", () => {
   });
 });
 
-describe("checkCourseName", () => {
-  test("sends kind: course and reads the price back", async () => {
-    const f = fetchReturning(200, { state: "free", price: 1000, currency: "usd" });
-    expect(await checkCourseName("https://x", "seven77", "tok", f)).toEqual({ state: "free", price: 1000 });
-    expect(JSON.parse(calls(f)[0][1].body as string)).toEqual({ name: "seven77", key: "tok", kind: "course" });
-  });
-  test("the paid floor is three, checked locally before any request", async () => {
-    const f = fetchReturning(200, { state: "free" });
-    expect(await checkCourseName("https://x", "ab", "", f)).toEqual({ state: "short" });
-    expect(await checkCourseName("https://x", "a/1", "", f)).toEqual({ state: "short" });
-    expect(calls(f).length).toBe(0);
-  });
-  test("checkNote prices a free or owned course name and states the paid floor", () => {
-    expect(checkNote("free", "micro-i", { price: 500 })).toBe('"micro-i" is free — 5 USD to register it as this course’s address.');
+describe("checkNote with a price and a kind", () => {
+  test("prices a free name for its subject, says nothing about money for a name already yours, and states the paid floor", () => {
+    expect(checkNote("free", "micro-i", { price: 500, kind: "course" })).toBe('"micro-i" is free — 5 USD to register it as this course\u2019s address.');
+    expect(checkNote("free", "micro-i", { price: 2000 })).toBe('"micro-i" is free — 20 USD to register it as this drawcast\u2019s address.');
     expect(checkNote("yours", "micro-i", { price: 500 })).toMatch(/already yours/);
     expect(checkNote("yours", "micro-i", { price: 500 })).not.toMatch(/USD/);
     expect(checkNote("short", "ab", { kind: "course" })).toMatch(/3/);
-    expect(checkNote("short", "ab")).toMatch(/8/);
+    expect(checkNote("short", "ab")).toMatch(/3/);
+  });
+});
+
+describe("where a resolved target plays", () => {
+  test("anvilHashFor: the server for anvil/, Drive for gdrive/, GitHub for the rest — the tail kept", () => {
+    expect(anvilHashFor("#spanish1&mode=silent", "anvil/spanish1/01.yaml")).toBe("#anvil=spanish1/01.yaml&mode=silent");
+    expect(anvilHashFor("#spanish1", "gdrive/1AbC_defGH-ijkLMN")).toBe("#gdrive=1AbC_defGH-ijkLMN");
+    expect(anvilHashFor("#spanish1", "hm/casts/casts/spanish1.yaml")).toBe("#gh=hm/casts/casts/spanish1.yaml");
+  });
+  test("driveTarget is the registry's form of a Drive copy", () => {
+    expect(driveTarget("1AbC_defGH-ijkLMN")).toBe("gdrive/1AbC_defGH-ijkLMN");
   });
 });
 

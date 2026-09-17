@@ -7,43 +7,44 @@ import { destinationOffers, panelVisibility, shareDestinations, type ShareDest, 
 // (spec §7) brought it back to four; the drawcast server (round 0 spec §4)
 // makes it five — so the comment has to move with DESTS again, and this pins
 // that it did.
-it("panelVisibility's doc comment says five panels, matching DESTS", async () => {
+it("panelVisibility's doc comment says six panels, matching DESTS", async () => {
   const src = await readFile(new URL("../src/ui/share.ts", import.meta.url), "utf8");
   expect(src).not.toMatch(/four panels/);
-  expect(src).toMatch(/five panels/);
+  expect(src).not.toMatch(/five panels/);
+  expect(src).toMatch(/six panels/);
 });
 
 const all = { github: true, google: true, tts: true };
-const ALL_IDS: ShareTo[] = ["link", "drive", "server", "youtube", "video"];
+const ALL_IDS: ShareTo[] = ["link", "drive", "server", "pretty", "youtube", "video"];
 const dest = (id: ShareTo): ShareDest => ({ id, label: id, action: id });
 
 describe("shareDestinations", () => {
-  it("offers five destinations for a drawcast when everything is configured", () => {
+  it("offers six destinations for a drawcast when everything is configured — the pretty link after the three publish targets", () => {
     expect(shareDestinations(all, "drawcast").map((d) => d.id))
-      .toEqual(["link", "drive", "server", "youtube", "video"]);
+      .toEqual(["link", "drive", "server", "pretty", "youtube", "video"]);
   });
 
   it("names each action with the verb its button performs", () => {
     const byId = Object.fromEntries(shareDestinations(all, "drawcast").map((d) => [d.id, d.action]));
-    expect(byId).toEqual({ link: "Publish", drive: "Publish", server: "Publish", youtube: "Upload", video: "Export" });
+    expect(byId).toEqual({ link: "Publish", drive: "Publish", server: "Publish", pretty: "Buy", youtube: "Upload", video: "Export" });
   });
 
   it("hides the link when there is no GitHub — a capability without its\n     credential does not advertise itself", () => {
     expect(shareDestinations({ ...all, github: false }, "drawcast").map((d) => d.id))
-      .toEqual(["drive", "server", "youtube", "video"]);
+      .toEqual(["drive", "server", "pretty", "youtube", "video"]);
   });
 
   it("hides YouTube without Google, and video without a TTS key — the server needs neither", () => {
     expect(shareDestinations({ github: true, google: false, tts: false }, "drawcast").map((d) => d.id))
-      .toEqual(["link", "server"]);
+      .toEqual(["link", "server", "pretty"]);
   });
 
-  it("offers a course the link alone — batch video is not written", () => {
-    expect(shareDestinations(all, "course").map((d) => d.id)).toEqual(["link"]);
+  it("offers a course the link and the pretty link — batch video is not written", () => {
+    expect(shareDestinations(all, "course").map((d) => d.id)).toEqual(["link", "pretty"]);
   });
 
-  it("can offer nothing at all", () => {
-    expect(shareDestinations({ github: false, google: false, tts: false }, "course")).toEqual([]);
+  it("with no credentials a course still sees the pretty link — it needs only the sign-in its button carries", () => {
+    expect(shareDestinations({ github: false, google: false, tts: false }, "course").map((d) => d.id)).toEqual(["pretty"]);
   });
 });
 
@@ -64,16 +65,16 @@ describe("destinationOffers — the §0.1 third state", () => {
     expect(yt.enabled).toBe(false);
     expect(yt.reason).toMatch(/TTS key/);
   });
-  it("with no credentials at all a drawcast still sees two disabled rows and the server, never an empty modal", () => {
+  it("with no credentials at all a drawcast still sees two disabled rows, the server and the pretty link, never an empty modal", () => {
     const offers = destinationOffers({ github: false, google: false, tts: false }, "drawcast");
-    expect(offers.map((o) => o.id)).toEqual(["link", "server", "video"]);
-    expect(offers.filter((o) => o.id !== "server").every((o) => !o.enabled)).toBe(true);
+    expect(offers.map((o) => o.id)).toEqual(["link", "server", "pretty", "video"]);
+    expect(offers.filter((o) => o.id !== "server" && o.id !== "pretty").every((o) => !o.enabled)).toBe(true);
     // The server's credential is the sign-in, which its PANEL asks for — the
     // row itself has no Settings value to be missing (see the DESTS comment).
     expect(offers.find((o) => o.id === "server")!.enabled).toBe(true);
   });
-  it("a course is offered the GitHub destination alone, same third-state rules", () => {
-    expect(destinationOffers({ github: false, google: true, tts: true }, "course").map((o) => o.id)).toEqual(["link"]);
+  it("a course is offered the GitHub destination and the pretty link, same third-state rules", () => {
+    expect(destinationOffers({ github: false, google: true, tts: true }, "course").map((o) => o.id)).toEqual(["link", "pretty"]);
   });
 });
 
@@ -103,8 +104,8 @@ describe("destinationOffers — Google Drive", () => {
     expect(ids.indexOf("drive")).toBe(ids.indexOf("link") + 1);
   });
 
-  it("is never offered to a course — courses stay GitHub-only (spec §9)", () => {
-    expect(destinationOffers(all, "course").map((o) => o.id)).toEqual(["link"]);
+  it("is never offered to a course — a course publishes to GitHub (spec §9)", () => {
+    expect(destinationOffers(all, "course").map((o) => o.id)).toEqual(["link", "pretty"]);
     expect(shareDestinations(all, "course").map((d) => d.id)).not.toContain("drive");
   });
 });
@@ -131,7 +132,7 @@ describe("destinationOffers — the drawcast server", () => {
   });
 
   it("is never offered to a course in this round", () => {
-    expect(destinationOffers(all, "course").map((o) => o.id)).toEqual(["link"]);
+    expect(destinationOffers(all, "course").map((o) => o.id)).toEqual(["link", "pretty"]);
     expect(shareDestinations(all, "course").map((d) => d.id)).not.toContain("server");
   });
 });
@@ -144,24 +145,24 @@ describe("panelVisibility", () => {
     // un-set `.hidden` default and rendered anyway.
     const available = [dest("link"), dest("video")];
     const visible = panelVisibility(ALL_IDS, available, "link");
-    expect(visible).toEqual({ link: true, drive: false, server: false, youtube: false, video: false });
+    expect(visible).toEqual({ link: true, drive: false, server: false, pretty: false, youtube: false, video: false });
   });
 
   it("shows whichever available destination is selected", () => {
     const available = [dest("link"), dest("video")];
-    expect(panelVisibility(ALL_IDS, available, "video")).toEqual({ link: false, drive: false, server: false, youtube: false, video: true });
+    expect(panelVisibility(ALL_IDS, available, "video")).toEqual({ link: false, drive: false, server: false, pretty: false, youtube: false, video: true });
   });
 
   it("shows nothing when the selection names a destination that is not available", () => {
     // Defensive: a stale/invalid selection must never leak a hidden panel's
     // content rather than showing the wrong (but at least real) one.
     const available = [dest("link")];
-    expect(panelVisibility(ALL_IDS, available, "youtube")).toEqual({ link: false, drive: false, server: false, youtube: false, video: false });
+    expect(panelVisibility(ALL_IDS, available, "youtube")).toEqual({ link: false, drive: false, server: false, pretty: false, youtube: false, video: false });
   });
 
-  it("shows all five when everything is available and one is picked", () => {
+  it("shows only the picked one when all six are available", () => {
     const available = ALL_IDS.map(dest);
-    expect(panelVisibility(ALL_IDS, available, "youtube")).toEqual({ link: false, drive: false, server: false, youtube: true, video: false });
+    expect(panelVisibility(ALL_IDS, available, "youtube")).toEqual({ link: false, drive: false, server: false, pretty: false, youtube: true, video: false });
   });
 
   it("hides Drive's panel for a Google-less build even when it is the remembered selection", () => {
@@ -169,12 +170,32 @@ describe("panelVisibility", () => {
     // leak: settings.shareTo can hold "drive" from a session where Google WAS
     // configured, and the drive panel's `.hidden` is otherwise never touched.
     const available = [dest("link"), dest("video")];
-    expect(panelVisibility(ALL_IDS, available, "drive")).toEqual({ link: false, drive: false, server: false, youtube: false, video: false });
+    expect(panelVisibility(ALL_IDS, available, "drive")).toEqual({ link: false, drive: false, server: false, pretty: false, youtube: false, video: false });
   });
 
   it("shows the server's panel when it is selected, and hides it when another is", () => {
     const available = [dest("link"), dest("server"), dest("video")];
-    expect(panelVisibility(ALL_IDS, available, "server")).toEqual({ link: false, drive: false, server: true, youtube: false, video: false });
+    expect(panelVisibility(ALL_IDS, available, "server")).toEqual({ link: false, drive: false, server: true, pretty: false, youtube: false, video: false });
     expect(panelVisibility(ALL_IDS, available, "link").server).toBe(false);
+  });
+});
+
+// The pretty link (2026-09-18): an address for where the work already is,
+// bought once — offered to both subjects, always ready (sign-in is the
+// button's), sitting after the three publish targets and before the exports.
+describe("destinationOffers — the pretty link", () => {
+  it("is offered ENABLED with no credential at all, for a drawcast and a course alike", () => {
+    for (const subject of ["drawcast", "course"] as const) {
+      const pretty = destinationOffers({ github: false, google: false, tts: false }, subject).find((o) => o.id === "pretty")!;
+      expect(pretty.enabled).toBe(true);
+      expect(pretty.reason).toBeUndefined();
+      expect(pretty.action).toBe("Buy");
+      expect(pretty.label).toBe("Pretty link");
+    }
+  });
+  it("sits directly after the server, before the exports", () => {
+    const ids = destinationOffers(all, "drawcast").map((o) => o.id);
+    expect(ids.indexOf("pretty")).toBe(ids.indexOf("server") + 1);
+    expect(ids.indexOf("pretty")).toBeLessThan(ids.indexOf("youtube"));
   });
 });

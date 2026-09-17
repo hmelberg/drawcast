@@ -28,9 +28,11 @@ import type { Spec } from "../spec/types";
 import { downloadBlob, getApiKey, getGithubToken, getTtsKey, saveDrawing, type Settings, type ShareTo } from "../store";
 import { DEFAULT_ENROLL_API } from "../learn";
 import { getToken, signInUrl } from "../account";
-import { checkCourseName, checkName, checkNote } from "../names";
+import { checkNote, checkPaidName, driveTarget, formatPrice, priceFor } from "../names";
 import { embeddedPlaylist, type EmbedDeps } from "../publish/embed";
 import { parseRepo, slugify } from "../publish/github";
+import { castRegistration } from "../publish/cast";
+import { joinPath } from "../course/publish";
 import type { ServerAccess } from "../publish/server";
 import { h } from "./dom";
 import { unembeddedImages } from "./insert";
@@ -89,6 +91,11 @@ export interface ShareDoc {
    * to warn about — before the first publish there is no file to rename.
    */
   drivePublishedId?: string;
+  /** The copy on the drawcast server, as a cast key — a target for a pretty link. */
+  serverCast?: string;
+  /** What a pretty link can point at, when the caller knows better than
+   *  prettyCopies' derivation (a course: its page). */
+  copies?: PrettyCopy[];
   /**
    * What that Drive file is CALLED, without the .yaml. Prefills the Drive
    * panel's name field, so republishing keeps the name the author gave it
@@ -117,6 +124,34 @@ export interface ShareDoc {
    * see what unchecking would delete (F2). Course only.
    */
   enrollUrl?: string;
+}
+
+/** One published copy a pretty link can point at. */
+export interface PrettyCopy {
+  label: string;
+  /** The registry's target form: `owner/repo/…/file.yaml`, `anvil/<slug>/<file>`, `gdrive/<id>`, or a course folder. */
+  target: string;
+}
+
+/**
+ * The copies a pretty link can point at (pretty-link round, 2026-09-18). A
+ * course names its own (the course page); a drawcast's are derived from what
+ * the document records: the GitHub copy (publishedAs + the settings' repo),
+ * the server copy (serverCast) and the Drive copy (drivePublishedId). Empty
+ * means "publish first — the link needs somewhere to point".
+ */
+export function prettyCopies(
+  doc: Pick<ShareDoc, "publishedAs" | "serverCast" | "drivePublishedId" | "copies">,
+  settings: Pick<Settings, "githubRepo" | "coursesDir">,
+  subject: "drawcast" | "course",
+): PrettyCopy[] {
+  if (subject === "course") return doc.copies ?? [];
+  const out: PrettyCopy[] = [];
+  const repo = parseRepo(settings.githubRepo);
+  if (doc.publishedAs && repo) out.push({ label: `GitHub copy (${repo.owner}/${repo.repo})`, target: castRegistration(doc.publishedAs, repo, joinPath(settings.coursesDir, "casts"), "").target });
+  if (doc.serverCast) out.push({ label: "drawcast server copy", target: doc.serverCast });
+  if (doc.drivePublishedId) out.push({ label: "Google Drive copy", target: driveTarget(doc.drivePublishedId) });
+  return out;
 }
 
 export interface ShareDeps {
@@ -197,6 +232,12 @@ export interface ShareDeps {
    */
   publishServer: (choices: { bake: boolean; embedImages: boolean; name?: string; access?: ServerAccess }) => Promise<void>;
   /**
+   * Share → Pretty link → Buy (pretty-link round, 2026-09-18): register the
+   * name in the box for this work, pointed at `target` (one of prettyCopies),
+   * through the server's Checkout door — or re-point a name already owned.
+   */
+  buyPrettyLink: (choice: { name: string; target: string }) => Promise<void>;
+  /**
    * The existing render path (export/video.ts's `exportVideo`, wrapped with
    * the offscreen canvas and the keep-alive worker that survive a hidden tab).
    * Null means the TTS key is missing, the render failed, or it was
@@ -243,6 +284,10 @@ const DESTS: DestRow[] = [
   // here" (refreshServerSignIn), not the rail. Courses stay GitHub-only in
   // this round: one cast per key, and a course is many files.
   { id: "server", label: "drawcast server", action: "Publish", offered: () => true, ready: () => true, reason: "", courses: false },
+  // The pretty link (2026-09-18): not a place the work goes but an address for
+  // where it already is — drawcast.app/#name and name.drawcast.app — bought
+  // once. Offered for both subjects; sign-in happens at the button.
+  { id: "pretty", label: "Pretty link", action: "Buy", offered: () => true, ready: () => true, reason: "", courses: true },
   { id: "youtube", label: "YouTube", action: "Upload", offered: (c) => c.google, ready: (c) => c.tts, reason: "Add a Google TTS key in Settings", courses: false },
   { id: "video", label: "Video file", action: "Export", offered: () => true, ready: (c) => c.tts, reason: "Add a Google TTS key in Settings", courses: false },
 ];
@@ -290,7 +335,7 @@ export function shareDestinations(caps: ShareCaps, subject: "drawcast" | "course
 const ALL_DESTS: ShareTo[] = DESTS.map((d) => d.id);
 
 /**
- * Which of the five panels should be visible: exactly the selected one, and
+ * Which of the six panels should be visible: exactly the selected one, and
  * ONLY if it is actually offered right now. A destination that is filtered
  * out of `available` (an unconfigured capability) must never show its panel
  * even if `selected` still names it — a stale/unavailable selection hides
@@ -507,14 +552,11 @@ function build(): ShareSession {
         button.disabled = true;
         note.textContent = "Checking…";
         try {
-          // A course name is bought (paid-names round): the course check
-          // carries the paid floor and brings the price back for the note.
-          if (subject() === "course") {
-            const verdict = await checkCourseName(DEFAULT_ENROLL_API, name, getToken());
-            note.textContent = checkNote(verdict.state, name, { price: verdict.price, kind: "course" });
-          } else {
-            note.textContent = checkNote(await checkName(DEFAULT_ENROLL_API, name, getToken()), name);
-          }
+          // Every name is bought (pretty-link round): the one check carries
+          // the paid floor and brings the price back for the note.
+          const kind = subject() === "course" ? "course" : "cast";
+          const verdict = await checkPaidName(DEFAULT_ENROLL_API, name, getToken(), kind);
+          note.textContent = checkNote(verdict.state, name, { price: verdict.price, kind });
         } finally {
           button.disabled = false;
         }
@@ -540,24 +582,16 @@ function build(): ShareSession {
   // published as before, or a fresh slug of the title on a first publish.
   // Normalized on blur (not on every keystroke — a mid-word slugify would
   // fight the author's cursor) so what the field shows is exactly what
-  // `slug:` below will send. For a course (name round, 2026-09-17) the same
-  // field is the DOOR name — drawcast.app/#<name>, the course document's
-  // `name:` option — and never the folder: course.ts binds it with
-  // applyCourseName, and the folder shows read-only underneath.
+  // `slug:` below will send. Hidden for a course: courses have no single
+  // file of their own (`publishCourse` derives each lecture's own path). The
+  // REGISTRY name — the pretty link — is the Pretty link panel's, for both
+  // subjects, since 2026-09-18; this field names the file only.
   const publishNameInput = h("input", { type: "text", class: "yt-field", "aria-label": "Publish as" }) as HTMLInputElement;
   publishNameInput.addEventListener("blur", () => {
     publishNameInput.value = slugify(publishNameInput.value);
   });
   const publishNameHint = h("div", { class: "hint" }, "Changing the name publishes a new copy; the old link keeps working.");
-  const NAME_HINT_DRAWCAST = "Changing the name publishes a new copy; the old link keeps working.";
-  const NAME_HINT_COURSE =
-    "The course's short address, drawcast.app/#<name>. Registering it costs 20 USD up to 5 characters, 10 USD up to 7, 5 USD from 8 — once, when you publish. Changing it later buys the new name; the previous one goes on working, and the folder below never moves. " +
-    "Registering a name is a one-time contribution to drawcast: it buys the address for as long as drawcast runs, with no guarantee of uptime or of the service continuing, and no refund once the name is registered.";
-  const linkFolderLine = h("div", { class: "hint" });
-  // The name is also what the publish registers (castRegistration), so it
-  // can be asked about first (spec §9).
-  const publishNameCheck = buildNameCheck(publishNameInput, () => current.subject);
-  const publishNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", publishNameInput, publishNameCheck.button), publishNameCheck.note, publishNameHint, linkFolderLine);
+  const publishNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", publishNameInput), publishNameHint);
   // Key "share" so this panel's two boxes keep the exact ids they have always
   // had ("share-embed-images"/"share-embed-narration") — extracting the rows
   // into a builder must not be observable from outside this file.
@@ -680,8 +714,7 @@ function build(): ShareSession {
     { class: "hint" },
     "Publishing again with the same name and title replaces the copy on the server; a changed title may write a new copy beside the old one.",
   );
-  const serverNameCheck = buildNameCheck(serverNameInput);
-  const serverNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", serverNameInput, serverNameCheck.button), serverNameCheck.note, serverNameHint);
+  const serverNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", serverNameInput), serverNameHint);
   // "Who can watch" (spec §5, question 2): the COURSE's door, edited live
   // in the dashboard — so the default here is "as before", which sends
   // nothing and leaves the server's value alone. A choice is the author's
@@ -1302,13 +1335,89 @@ function build(): ShareSession {
 
   ytGo.addEventListener("click", () => void runYoutubeUpload());
 
+  // ---- Pretty link panel — an address for where the work already is ----
+  //
+  // pretty-link round (2026-09-18): drawcast.app/#<name>, also
+  // <name>.drawcast.app. Not a destination the work goes to but a pointer at
+  // a copy that exists, bought once through the server (Stripe Checkout).
+  // The direct #gh= link stays free. One panel for both subjects: a
+  // drawcast points at one of its copies (GitHub, server, Drive), a course
+  // at its page. Sign-in happens at the button, like the server panel.
+  const prettyHelp = h(
+    "div",
+    { class: "hint" },
+    "A short address for this work: drawcast.app/#name, which also answers as name.drawcast.app. Bought once; the direct link you already have stays free.",
+  );
+  const prettyNameInput = h("input", { type: "text", class: "yt-field", "aria-label": "Pretty link name" }) as HTMLInputElement;
+  const prettyPriceLine = h("div", { class: "hint" });
+  function refreshPrettyPrice(): void {
+    const name = slugify(prettyNameInput.value);
+    prettyPriceLine.textContent = name
+      ? `${formatPrice(priceFor(name))} for "${name}" — 20 USD up to 5 characters, 10 USD up to 7, 5 USD from 8.`
+      : "20 USD up to 5 characters, 10 USD up to 7, 5 USD from 8.";
+  }
+  prettyNameInput.addEventListener("blur", () => {
+    prettyNameInput.value = slugify(prettyNameInput.value);
+    refreshPrettyPrice();
+  });
+  prettyNameInput.addEventListener("input", refreshPrettyPrice);
+  const prettyCheck = buildNameCheck(prettyNameInput, () => current.subject);
+  const prettyTargetSel = h("select", { class: "small", "aria-label": "Points at" }) as HTMLSelectElement;
+  const prettyTargetRow = h("div", {}, h("label", { class: "quiet-label" }, "Points at ", prettyTargetSel));
+  const prettyNoCopy = h("div", { class: "hint" }, "Publish first — the link needs somewhere to point.");
+  const prettyFolderLine = h("div", { class: "hint" });
+  const prettyTerms = h(
+    "div",
+    { class: "hint" },
+    "Registering a name is a one-time contribution to drawcast: it buys the address for as long as drawcast runs, with no guarantee of uptime or of the service continuing, and no refund once the name is registered. Changing the name later buys the new one; the previous name goes on working.",
+  );
+  const prettySignInHint = h("div", { class: "hint" }, "Signed out — the button signs you in first; a pretty link belongs to an account.");
+  const prettyPanel = h(
+    "div",
+    { class: "share-panel" },
+    prettyHelp,
+    h("div", {}, h("label", { class: "quiet-label" }, "Name ", prettyNameInput, prettyCheck.button), prettyCheck.note, prettyPriceLine),
+    prettyTargetRow,
+    prettyNoCopy,
+    prettyFolderLine,
+    prettyTerms,
+    prettySignInHint,
+  );
+  const prettyGo = h("button", { class: "primary" }, "Buy") as HTMLButtonElement;
+  function refreshPretty(doc: ShareDoc, subject: "drawcast" | "course"): void {
+    const copies = prettyCopies(doc, current.settings, subject);
+    prettyTargetSel.replaceChildren(...copies.map((c) => h("option", { value: c.target }, c.label)));
+    prettyTargetRow.hidden = copies.length === 0;
+    prettyNoCopy.hidden = copies.length > 0;
+    prettyFolderLine.textContent = doc.folder ? `The course's folder, ${doc.folder}/, never changes — only the address does.` : "";
+    prettyFolderLine.hidden = !doc.folder;
+    prettyNameInput.value = doc.publishedAs ?? slugify(doc.title);
+    refreshPrettyPrice();
+    prettyCheck.reset();
+    const signedIn = getToken() !== "";
+    prettyGo.textContent = signedIn ? "Buy" : "Sign in to buy";
+    prettySignInHint.hidden = signedIn;
+    prettyGo.disabled = copies.length === 0;
+  }
+  prettyGo.addEventListener("click", () => {
+    if (getToken() === "") {
+      location.href = signInUrl(location.href);
+      return;
+    }
+    const name = slugify(prettyNameInput.value);
+    const target = prettyTargetSel.value;
+    if (!name || !target) return;
+    modal.dialog.close();
+    void current.buyPrettyLink({ name, target });
+  });
+
   // ---- the modal shell: rail on the left, that destination's panel on the right ----
 
-  const panels: Record<ShareTo, HTMLElement> = { link: linkPanel, drive: drivePanel, server: serverPanel, youtube: youtubePanel, video: videoPanel };
-  const actionBtns: Record<ShareTo, HTMLButtonElement> = { link: publishGo, drive: driveGo, server: serverGo, youtube: ytGo, video: videoGo };
+  const panels: Record<ShareTo, HTMLElement> = { link: linkPanel, drive: drivePanel, server: serverPanel, pretty: prettyPanel, youtube: youtubePanel, video: videoPanel };
+  const actionBtns: Record<ShareTo, HTMLButtonElement> = { link: publishGo, drive: driveGo, server: serverGo, pretty: prettyGo, youtube: ytGo, video: videoGo };
 
   const rail = h("div", { class: "share-rail" });
-  const panelHost = h("div", { class: "share-panel-host" }, linkPanel, drivePanel, serverPanel, youtubePanel, videoPanel);
+  const panelHost = h("div", { class: "share-panel-host" }, linkPanel, drivePanel, serverPanel, prettyPanel, youtubePanel, videoPanel);
   const layout = h("div", { class: "share-layout" }, rail, panelHost);
   const settingsBtn = h("button", { class: "small" }, "Open Settings");
   settingsBtn.addEventListener("click", () => {
@@ -1375,15 +1484,12 @@ function build(): ShareSession {
     const lectures = doc.lectureCount ?? 0;
     linkSubjectLine.textContent = current.subject === "course" ? `Course — ${lectures} lecture${lectures === 1 ? "" : "s"}` : "";
     linkSubjectLine.hidden = current.subject !== "course";
-    // For a course the field is the door name (course.ts fills publishedAs
-    // with courseDoorName); the folder is context, not a decision.
-    publishNameHint.textContent = current.subject === "course" ? NAME_HINT_COURSE : NAME_HINT_DRAWCAST;
-    linkFolderLine.textContent = doc.folder ? `Published in ${doc.folder}/ — the folder never changes.` : "";
-    linkFolderLine.hidden = !doc.folder;
-    publishNameInput.value = doc.publishedAs ?? slugify(doc.title);
-    // A verdict is about one name for one document — never carried into the
-    // next open, where it would describe a name the field no longer shows.
-    publishNameCheck.reset();
+    // A course derives each lecture's own path (publishCourse), so it has no
+    // single file name for this field to show or send — hidden rather than
+    // shown disabled, since there is nothing here for a course author to decide.
+    publishNameRow.hidden = current.subject === "course";
+    publishNameInput.value = current.subject === "course" ? "" : (doc.publishedAs ?? slugify(doc.title));
+    refreshPretty(doc, current.subject);
     linkChoices.refresh(doc, current.subject);
     refreshCommentsChoice(doc);
     refreshCountViewsChoice(doc);
@@ -1393,7 +1499,6 @@ function build(): ShareSession {
     // this one publish gets to make by default — and the sign-in state as of
     // this open.
     serverNameInput.value = doc.publishedAs ?? slugify(doc.title);
-    serverNameCheck.reset();
     serverAccess.value = "";
     serverChoices.refresh(doc, current.subject);
     refreshServerSignIn();

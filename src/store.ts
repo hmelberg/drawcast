@@ -51,7 +51,7 @@ const KEYS = {
  *  destination (spec §7) — a finished file in the author's own Drive, not a
  *  link the app hands out. "server" is the third (round 0 spec §4): the
  *  drawcast server, per account, the one that can keep a cast behind sign-in. */
-export type ShareTo = "link" | "youtube" | "video" | "drive" | "server";
+export type ShareTo = "link" | "youtube" | "video" | "drive" | "server" | "pretty";
 
 /**
  * A settings blob written before the source download moved out of Share can
@@ -64,7 +64,7 @@ export type ShareTo = "link" | "youtube" | "video" | "drive" | "server";
  * written happily and then silently downgraded to "link" on the next load.
  */
 export function migrateShareTo(v: string): ShareTo {
-  return v === "youtube" || v === "video" || v === "drive" || v === "server" ? v : "link";
+  return v === "youtube" || v === "video" || v === "drive" || v === "server" || v === "pretty" ? v : "link";
 }
 
 export interface Settings {
@@ -435,6 +435,10 @@ export interface SavedDrawing {
    * file a shared link already points at.
    */
   publishedAs?: string;
+  /** The cast key of the copy on the drawcast server (`anvil/<name>/<file>`),
+   *  once published there — what Share → Pretty link points a bought name at
+   *  (pretty-link round, 2026-09-18). */
+  serverCast?: string;
   /** Whether the last GitHub publish carried the giscus wiring (C1) — seeds the checkbox on the next publish so a typo-fix republish doesn't silently strip a live page's comments. */
   publishedComments?: boolean;
   /** Whether the last GitHub publish counted views — seeds the checkbox so a republish cannot silently re-enable counting. */

@@ -1,6 +1,7 @@
 // The claim (teachers round, spec §3/§5) and the Join-door checkbox's rule.
 // Pure halves here; Task 3 appends the source guards for the DOM wiring.
 import { readFileSync } from "node:fs";
+import { prettyCopies } from "../src/ui/share";
 import { describe, expect, test } from "vitest";
 import { parseCourse } from "../src/course/document";
 import { applyJoinDoor, courseRegistration } from "../src/course/publish";
@@ -197,7 +198,7 @@ describe("the Join-door checkbox and the claim are wired (source guards — no j
     expect(course).toMatch(/joinDoor: course\.enroll !== undefined/);
     expect(course).toMatch(/enrollUrl: course\.enroll/); // F2 — what unchecking would delete
     const publishFn = course.slice(course.indexOf("async function publish("), course.indexOf("function showLinks("));
-    expect(publishFn).toMatch(/applyJoinDoor\(named, allowSignup\)/); // `named` = doc.value with the Name field applied (name round)
+    expect(publishFn).toMatch(/applyJoinDoor\(doc\.value, allowSignup\)/);
     expect(publishFn.indexOf("applyJoinDoor(")).toBeLessThan(publishFn.indexOf("await preparePublish("));
     // The text handed to the publish is the one the choice was applied to.
     expect(publishFn).toMatch(/const publishArgs: PublishArgs = \{\s*text,/);
@@ -225,10 +226,9 @@ describe("the Join-door checkbox and the claim are wired (source guards — no j
     const publishFn = course.slice(course.indexOf("async function publish("), course.indexOf("function showLinks("));
     expect(publishFn).toMatch(/let door: Door = \{ name: null, why: "signed-out" \};/);
     expect(publishFn).toMatch(/door = named === "ok" \? \{ name: reg\.name, app: settings\.viewerBase \} : \{ name: null, why: DOORLESS\[named\] \};/);
-    // A name under the floor is never sent, and is reported as short, not invalid.
-    expect(publishFn).toMatch(/if \(isRegistrable\(reg\.name\)\)/);
-    expect(publishFn).toMatch(/names need at least \$\{MIN_NAME_LENGTH\} characters/);
-    expect(publishFn).toMatch(/why: short \? "short" : "invalid"/);
+    // A name under the (paid) floor is never sent, and is reported as short, not invalid.
+    expect(publishFn).toMatch(/if \(isPayable\(reg\.name\)\)/);
+    expect(publishFn).toMatch(/why: normalizeName\(reg\.name\) !== null \? "short" : "invalid"/);
     // A refused claim is a doorless page too, with the claim's own reason.
     expect(publishFn).toMatch(/why: claimed === "owner" \? "owner" : claimed === "key" \? "signed-out" : "unreachable"/);
     // The registry's every non-ok answer has a reason — the map is total over the union (tsc), and it never maps anything to a door.
@@ -297,58 +297,72 @@ describe("courseDoorName — what the Publish field is prefilled with", () => {
   });
 });
 
-describe("name field wiring (share.ts + ui/course.ts)", () => {
+describe("the Pretty link panel — wiring (pretty-link round, 2026-09-18)", () => {
   const share = readFileSync(new URL("../src/ui/share.ts", import.meta.url), "utf8");
   const panel = readFileSync(new URL("../src/ui/course.ts", import.meta.url), "utf8");
-  test("Link's Name field is shown for a course too, with the folder as a read-only line", () => {
-    expect(share).not.toContain('publishNameRow.hidden = current.subject === "course"');
-    expect(share).toContain("linkFolderLine");
-  });
-  test("the course panel prefills the field with the door name and binds what is typed to name:, never slug:", () => {
-    expect(panel).toMatch(/publishedAs: courseDoorName\(course\)/);
-    expect(panel).toMatch(/applyCourseName\(doc\.value, slug, before\.context\.slug\)/);
-    expect(panel).not.toMatch(/setCourseOption\([^)]*"slug"/);
-  });
-});
-
-describe("paid course names — wiring (paid-names round, 2026-09-17)", () => {
-  const panel = readFileSync(new URL("../src/ui/course.ts", import.meta.url), "utf8");
-  const share = readFileSync(new URL("../src/ui/share.ts", import.meta.url), "utf8");
   const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
-  test("a pay verdict leaves the page doorless and offers the payment as a button in the panel", () => {
-    expect(panel).toMatch(/pay: "unregistered"/);
-    expect(panel).toMatch(/named === "pay"[\s\S]*offerPayment\(reg/);
-    expect(panel).toMatch(/startNamePayment\(DEFAULT_ENROLL_API, \{ key: accountToken, \.\.\.reg, return: /);
-    expect(panel).toMatch(/location\.href = started\.url/);
+  test("Pretty link is a rail row for both subjects, with its own panel and Buy button", () => {
+    expect(share).toMatch(/\{ id: "pretty", label: "Pretty link", action: "Buy", offered: \(\) => true, ready: \(\) => true, reason: "", courses: true \}/);
+    expect(share).toMatch(/pretty: prettyPanel/);
+    expect(share).toMatch(/pretty: prettyGo/);
+    expect(share).toMatch(/void current\.buyPrettyLink\(\{ name, target \}\)/);
   });
-  test("Link's Check button asks as a course when the subject is a course, and the hint names the tiers", () => {
-    expect(share).toMatch(/buildNameCheck\(publishNameInput, \(\) => current\.subject\)/);
-    expect(share).toMatch(/checkCourseName\(DEFAULT_ENROLL_API, name, getToken\(\)\)/);
-    expect(share).toMatch(/NAME_HINT_COURSE =\s*"[^"]*20 USD[^"]*10 USD[^"]*5 USD/);
+  test("the registry Check lives on the Pretty panel alone; Link's and the server's Name fields name files, not addresses", () => {
+    expect(share.match(/buildNameCheck\(/g)?.length).toBe(2); // the definition and the one call
+    expect(share).toMatch(/const prettyCheck = buildNameCheck\(prettyNameInput, \(\) => current\.subject\)/);
+    expect(share).toContain('publishNameRow.hidden = current.subject === "course"');
+    expect(share).not.toContain("serverNameCheck");
+    expect(share).not.toContain("NAME_HINT_COURSE");
+  });
+  test("the panel's terms and price line say the rule; the free direct link is named", () => {
+    expect(share).toMatch(/prettyTerms[\s\S]*?one-time contribution[\s\S]*?no refund once the name is registered/);
+    expect(share).toMatch(/20 USD up to 5 characters, 10 USD up to 7, 5 USD from 8/);
+    expect(share).toMatch(/the direct link you already have stays free/);
+  });
+  test("no name is registered automatically at a publish any more — GitHub or server (the freebie lived there until 181305a)", () => {
+    expect(main).not.toContain("castRegistration(");
+    const gh = main.slice(main.indexOf("async function publishDrawcast("), main.indexOf("async function publishServerCast("));
+    expect(gh).not.toContain("registerName(");
+    expect(gh).toContain("until commit 181305a");
+    const srv = main.slice(main.indexOf("async function publishServerCast("), main.indexOf("async function buyPrettyLink("));
+    expect(srv).not.toContain("registerName(");
+    expect(srv).toContain("doc.serverCast = out.cast;");
+  });
+  test("the editor buys a cast's name for the chosen copy, and re-points a name already owned for free", () => {
+    const buy = main.slice(main.indexOf("async function buyPrettyLink("), main.indexOf("// ---------- video export ----------"));
+    expect(buy).toMatch(/kind: "cast" as const, target: choice\.target/);
+    expect(buy).toMatch(/startNamePayment\(DEFAULT_ENROLL_API, \{ \.\.\.reg, return: location\.href\.split\("#"\)\[0\] \}\)/);
+    expect(buy).toMatch(/started === "yours"[\s\S]*registerName\(DEFAULT_ENROLL_API, reg\)/);
+    expect(main).toMatch(/buyPrettyLink: \(choice\) => buyPrettyLink\(choice\)/);
+  });
+  test("the course panel binds the bought name to name: (never slug:), points at the course page, and has no Pay button of its own", () => {
+    expect(panel).toMatch(/buyPrettyLink: async \(\{ name \}\) =>[\s\S]*applyCourseName\(doc\.value, name, slug\)[\s\S]*courseRegistration\([\s\S]*startNamePayment\(/);
+    expect(panel).toMatch(/copies: \(\(\) =>[\s\S]*courseKeyFor\(repo, joinPath\(deps\.settings\.coursesDir, slug\)\)/);
+    expect(panel).not.toContain("offerPayment");
+    expect(panel).not.toMatch(/setCourseOption\([^)]*"slug"/);
+    expect(panel).toMatch(/pay: "unregistered"/);
   });
   test("the editor reads Stripe's return marker at start-up, says what happened, and clears it", () => {
     expect(main).toMatch(/const paidReturn = paidInHash\(location\.hash\)/);
-    expect(main).toMatch(/paidReturn\.outcome === "paid"[\s\S]*publish[\s\S]*again/i);
     expect(main).toMatch(/history\.replaceState\(null, "", location\.pathname \+ location\.search\)/);
   });
 });
 
-describe("terms of the name service (Hans 2026-09-17: a one-time contribution, as-is, no refund once registered)", () => {
-  const share = readFileSync(new URL("../src/ui/share.ts", import.meta.url), "utf8");
-  const panel = readFileSync(new URL("../src/ui/course.ts", import.meta.url), "utf8");
-  const help = readFileSync(new URL("../public/help.html", import.meta.url), "utf8");
-  test("the Name hint states the terms after the price tiers", () => {
-    expect(share).toMatch(/NAME_HINT_COURSE =[\s\S]*?one-time contribution[\s\S]*?no refund once the name is registered/);
+describe("prettyCopies — what a pretty link can point at", () => {
+  const settings = { githubRepo: "hm/casts", coursesDir: "courses" };
+  test("a drawcast's copies are derived from what the document records, GitHub first", () => {
+    expect(prettyCopies({ publishedAs: "supply", serverCast: "anvil/supply/supply.yaml", drivePublishedId: "1AbC_defGH-ijkLMN" }, settings, "drawcast")).toEqual([
+      { label: "GitHub copy (hm/casts)", target: "hm/casts/courses/casts/supply.yaml" },
+      { label: "drawcast server copy", target: "anvil/supply/supply.yaml" },
+      { label: "Google Drive copy", target: "gdrive/1AbC_defGH-ijkLMN" },
+    ]);
   });
-  test("the Pay button's tooltip carries the one-line terms", () => {
-    expect(panel).toMatch(/title: `One-time contribution: registers drawcast\.app\/#\$\{reg\.name\}\. As-is, no uptime guarantee, no refund once registered\.`/);
+  test("nothing published means nothing to point at; a GitHub copy needs a repo in Settings", () => {
+    expect(prettyCopies({}, settings, "drawcast")).toEqual([]);
+    expect(prettyCopies({ publishedAs: "supply" }, { githubRepo: "", coursesDir: "" }, "drawcast")).toEqual([]);
   });
-  test("the help page has a Names section with the terms and the host form", () => {
-    expect(help).toContain('<h2 id="names">');
-    expect(help).toContain('<a href="#names">');
-    expect(help).toMatch(/one-time contribution/);
-    expect(help).toMatch(/no refund is made once\s+the name is registered/i);
-    expect(help).toMatch(/NAME\.drawcast\.app|<em>name<\/em>\.drawcast\.app/);
-    expect(help).toMatch(/20 USD[\s\S]*10 USD[\s\S]*5 USD/);
+  test("a course names its own copies (its page)", () => {
+    expect(prettyCopies({ copies: [{ label: "the course page", target: "hm/casts/courses/micro-i" }] }, settings, "course")).toEqual([{ label: "the course page", target: "hm/casts/courses/micro-i" }]);
+    expect(prettyCopies({}, settings, "course")).toEqual([]);
   });
 });
