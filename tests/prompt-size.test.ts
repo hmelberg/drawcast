@@ -242,7 +242,13 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // `height` — +850 on the schema (119536 → 120386), embedded verbatim in the
 // system prompt; compiler-v1.md gains the inset bullet, +1191 — total system
 // +2041 (237081 → 239122).
-const BASELINE_SYSTEM_CHARS = 239122;
+// Re-pinned 2026-09-17, Task 9 fix round 2: the inset bullet's round-trip
+// illustration combined `move` and `focus` in one command — a shape the
+// schema itself rejects (one action verb per command), so a model shown the
+// literal JSON would copy an invalid pattern. Split into two command
+// objects (a plain `move`, then `focus` with the beat's `speak`) — prompt
+// only, +8 chars (system 239122 → 239130); the schema is untouched.
+const BASELINE_SYSTEM_CHARS = 239130;
 const BASELINE_SCHEMA_CHARS = 120386;
 
 const system = (code: boolean, sound = false) =>
