@@ -116,8 +116,10 @@ geometry and are NOT floored at `FONT_FLOOR`; the `font-too-small` and
 {ref: id}, zoom: 4}` then `camera: {reset: true}` moves the page to the
 picture; `move: {target: id, scale: 4, to: {x, y}}` with `focus:
 {target: id}` brings the picture forward and keeps the page — the better
-feel for a reference during narration. If the pattern proves common a
-sugar verb is a later round.
+feel for a reference during narration; `move` has no reset, so the way
+back is a second move (`scale: 0.25`, cumulative) to the slot's centre
+(x 900, y 670 for the first thumbnail, 136 lower for each next). If the
+pattern proves common a sugar verb is a later round.
 
 **Reference by title or number, warn on a miss.** Items have no ids
 (`PlaylistItem` = spec + chapter + index). `of` is the item's title
