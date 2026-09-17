@@ -13,7 +13,7 @@ export function openInsetModal(stage: HTMLElement, hd: RenderHandle, pic: InsetP
   const goBtn = h("button", { class: "cs-insetmodal-go", title: "Go to this page" }, "Go to page →");
   const closeBtn = h("button", { class: "cs-mediamodal-close", title: "Close" }, "✕");
   const title = h("span", { class: "cs-insetmodal-title" }, pic.spec.title ?? `Page ${pic.index + 1}`);
-  const box = h("div", { class: "cs-mediamodal-box cs-insetmodal-box" }, h("div", { class: "cs-mediamodal-bar" }, title, goBtn, closeBtn), host);
+  const box = h("div", { class: "cs-mediamodal-box" }, h("div", { class: "cs-mediamodal-bar" }, title, goBtn, closeBtn), host);
   const scrim = h("div", { class: "cs-mediamodal cs-insetmodal" }, box);
 
   let dead = false;
