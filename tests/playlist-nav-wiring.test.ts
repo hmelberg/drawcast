@@ -32,3 +32,17 @@ describe("player-nav wiring", () => {
     expect(session).toMatch(/else \{\s*\n\s*finishedLast = false;/);
   });
 });
+
+// Regression (Hans, live 2026-09-18: "can't access lexical declaration before
+// initialization" on every single drawcast): chainCallbacks serves BOTH mount
+// paths, and the single-item path returns before the multi-item block — so
+// every flag the shared callback writes must be declared before that return.
+describe("flags written by the shared callback are declared before the single-item branch", () => {
+  const session = readFileSync(new URL("../src/playlist/session.ts", import.meta.url), "utf8");
+  test("finishedLast, like doneReported, lives above `if (items.length <= 1)`", () => {
+    const branch = session.indexOf("if (items.length <= 1) {");
+    expect(branch).toBeGreaterThan(0);
+    expect(session.indexOf("let finishedLast")).toBeLessThan(branch);
+    expect(session.indexOf("let doneReported")).toBeLessThan(branch);
+  });
+});

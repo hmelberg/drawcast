@@ -166,6 +166,14 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   // single-drawcast playlist mounts its one item on a path that returns
   // before the multi-item state below (idx, panel) is ever set up.
   let doneReported = false;
+  /** The LAST item has finished playing (not merely been jumped to and
+   *  shown as a poster): the next play press restarts the whole drawcast.
+   *  Declared HERE, beside doneReported, for the same reason: chainCallbacks
+   *  writes it on both mount paths, and the single-item path returns before
+   *  the multi-item block below — a `let` down there was a temporal dead
+   *  zone that threw on every single drawcast's first "done" (live,
+   *  2026-09-18). tests/playlist-nav-wiring.test.ts pins the order. */
+  let finishedLast = false;
 
   const prefs: PlaybackPrefs = {
     ...opts.prefs,
@@ -335,9 +343,6 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   }
 
   let idx = 0;
-  /** The LAST item has finished playing (not merely been jumped to and
-   *  shown as a poster): the next play press restarts the whole drawcast. */
-  let finishedLast = false;
 
   /** The multi-item control options: the editor's beforePlay (opts.controls)
    *  keeps first refusal on both hooks; the pure rules live in nav-model.ts. */
