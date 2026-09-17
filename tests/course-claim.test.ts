@@ -332,3 +332,23 @@ describe("paid course names — wiring (paid-names round, 2026-09-17)", () => {
     expect(main).toMatch(/history\.replaceState\(null, "", location\.pathname \+ location\.search\)/);
   });
 });
+
+describe("terms of the name service (Hans 2026-09-17: a one-time contribution, as-is, no refund once registered)", () => {
+  const share = readFileSync(new URL("../src/ui/share.ts", import.meta.url), "utf8");
+  const panel = readFileSync(new URL("../src/ui/course.ts", import.meta.url), "utf8");
+  const help = readFileSync(new URL("../public/help.html", import.meta.url), "utf8");
+  test("the Name hint states the terms after the price tiers", () => {
+    expect(share).toMatch(/NAME_HINT_COURSE =[\s\S]*?one-time contribution[\s\S]*?no refund once the name is registered/);
+  });
+  test("the Pay button's tooltip carries the one-line terms", () => {
+    expect(panel).toMatch(/title: `One-time contribution: registers drawcast\.app\/#\$\{reg\.name\}\. As-is, no uptime guarantee, no refund once registered\.`/);
+  });
+  test("the help page has a Names section with the terms and the host form", () => {
+    expect(help).toContain('<h2 id="names">');
+    expect(help).toContain('<a href="#names">');
+    expect(help).toMatch(/one-time contribution/);
+    expect(help).toMatch(/no refund is made once\s+the name is registered/i);
+    expect(help).toMatch(/NAME\.drawcast\.app|<em>name<\/em>\.drawcast\.app/);
+    expect(help).toMatch(/20 USD[\s\S]*10 USD[\s\S]*5 USD/);
+  });
+});

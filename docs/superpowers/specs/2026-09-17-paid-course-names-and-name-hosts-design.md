@@ -110,7 +110,29 @@ segment (`spanish/1`) have no host form.
   digital sales to consumers in Norway/EU — Stripe Tax can compute and
   collect it (`automatic_tax` is one field in `checkout_fields`, off today).
 
-## 5. Not done
+## 5. Terms of the name service
+
+Hans (2026-09-17): "Donation to Drawcast for name service with no guarantees
+or refunds (uptime or existence over time)." Rephrased, because a donation
+given in return for a delivered name is a paid digital service under
+Norwegian and EU consumer rules whatever it is called, and because one
+refund case already exists (`#taken=`):
+
+> Registering a course name is a one-time contribution to drawcast, not a
+> subscription. It registers the address drawcast.app/#name to your account
+> for as long as drawcast operates. drawcast is a free research project and
+> offers the service as-is: no guarantee of uptime, of the address
+> continuing to resolve, or of the service existing in the future. No refund
+> is made once the name is registered. If the name cannot be registered
+> after payment, because someone else took it in the meantime, the payment
+> is refunded.
+
+Where it shows: the Name hint in the Publish dialog (short form), the Pay
+button's tooltip and Stripe's product description (`payments.TERMS_LINE`,
+one line, on Stripe's page and receipt), the help page's Names section, the
+Anvil README, and here.
+
+## 6. Not done
 
 - Refunds are manual (Stripe dashboard); the `taken` outcome names the case.
 - No receipt mail beyond Stripe's own.

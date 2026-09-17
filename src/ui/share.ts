@@ -551,7 +551,8 @@ function build(): ShareSession {
   const publishNameHint = h("div", { class: "hint" }, "Changing the name publishes a new copy; the old link keeps working.");
   const NAME_HINT_DRAWCAST = "Changing the name publishes a new copy; the old link keeps working.";
   const NAME_HINT_COURSE =
-    "The course's short address, drawcast.app/#<name>. Registering it costs 20 USD up to 5 characters, 10 USD up to 7, 5 USD from 8 — once, when you publish. Changing it later buys the new name; the previous one goes on working, and the folder below never moves.";
+    "The course's short address, drawcast.app/#<name>. Registering it costs 20 USD up to 5 characters, 10 USD up to 7, 5 USD from 8 — once, when you publish. Changing it later buys the new name; the previous one goes on working, and the folder below never moves. " +
+    "Registering a name is a one-time contribution to drawcast: it buys the address for as long as drawcast runs, with no guarantee of uptime or of the service continuing, and no refund once the name is registered.";
   const linkFolderLine = h("div", { class: "hint" });
   // The name is also what the publish registers (castRegistration), so it
   // can be asked about first (spec §9).

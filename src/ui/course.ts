@@ -335,7 +335,13 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
   function offerPayment(reg: Omit<Registration, "key">, accountToken: string): void {
     payBtn?.remove();
     const price = formatPrice(priceFor(reg.name));
-    const btn = h("button", { class: "small primary course-pay", title: `Buy the address drawcast.app/#${reg.name}` }, `Pay ${price} for drawcast.app/#${reg.name}`) as HTMLButtonElement;
+    // The terms ride the tooltip (Hans 2026-09-17); Stripe shows the same line
+    // as the product's description on its page (payments.TERMS_LINE).
+    const btn = h(
+      "button",
+      { class: "small primary course-pay", title: `One-time contribution: registers drawcast.app/#${reg.name}. As-is, no uptime guarantee, no refund once registered.` },
+      `Pay ${price} for drawcast.app/#${reg.name}`,
+    ) as HTMLButtonElement;
     btn.addEventListener("click", () => {
       btn.disabled = true;
       void (async () => {

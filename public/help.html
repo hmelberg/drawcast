@@ -117,6 +117,7 @@
         <a href="#playlists">Multi-part drawcasts</a>
         <a href="#controls">Player controls</a>
         <a href="#share">Sharing a drawcast</a>
+        <a href="#names">Names and the name service</a>
         <a href="#video">Video export</a>
         <a href="#keys">Keys and privacy</a>
         <a href="#trouble">Troubleshooting</a>
@@ -454,6 +455,30 @@ commands: [ … ]</code></pre>
           </tbody>
         </table>
         <p>A multi-part drawcast works the same way: put the whole YAML stream in the one document.</p>
+
+        <h2 id="names">Names and the name service</h2>
+        <p>
+          A published drawcast or course can have a short address, <code>drawcast.app/#<em>name</em></code>,
+          which also answers as <code><em>name</em>.drawcast.app</code>. The name is a pointer kept by the
+          drawcast server: it resolves to wherever the work is published, so a republish never breaks the
+          link, and a name once registered goes on working even after you change to another. Only a
+          registered name opens anything; an unknown name says so.
+        </p>
+        <p>
+          A single drawcast's name is free and needs at least 8 characters. A course's name is registered
+          when you publish the course, and costs a one-time amount by length: 20 USD up to 5 characters,
+          10 USD up to 7, 5 USD from 8 (at least 3). You pay on Stripe's page; the Publish dialog's
+          <strong>Check</strong> button tells you beforehand whether a name is free and what it costs.
+          Renaming a course buys the new name; the folder its lectures live in never moves.
+        </p>
+        <p>
+          <strong>Terms.</strong> Registering a name is a one-time contribution to drawcast, not a
+          subscription. It registers the address to your account for as long as drawcast operates.
+          drawcast is a free research project and offers the service as-is: no guarantee of uptime, of the
+          address continuing to resolve, or of the service existing in the future. No refund is made once
+          the name is registered. If the name cannot be registered after payment because someone else took
+          it in the meantime, the payment is refunded.
+        </p>
 
         <h2 id="video">Video export</h2>
         <p>
