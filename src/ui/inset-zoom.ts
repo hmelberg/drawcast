@@ -26,6 +26,15 @@ import { sceneNamesFor } from "./infocard";
 import { openInsetModal } from "./inset-modal";
 
 export function attachInsetZoom(stage: HTMLElement, hd: RenderHandle): void {
+  // Bail before building anything (owner map, drawn texts, cardTargets —
+  // which calls sceneNamesFor and is heavy on a space/sky figure) when the
+  // spec carries no zoomable inset, so every other page pays nothing.
+  const candidates = new Map<string, InsetPicture>();
+  for (const el of hd.spec.elements ?? []) {
+    if (el.type === "inset" && el.picture && !("error" in el.picture) && el.link === undefined) candidates.set(el.id, el.picture);
+  }
+  if (candidates.size === 0) return;
+
   // The identical LayoutFacts infocard.ts:157 builds — order, the drawn
   // words, and the scene's own names — so this excludes exactly the ids
   // attachInfoCards would claim for itself, not an approximation of them.
@@ -37,9 +46,7 @@ export function attachInsetZoom(stage: HTMLElement, hd: RenderHandle): void {
   const cards = cardTargets(hd.spec, { order: hd.layout.order, texts: drawnTexts, sceneNames: sceneNamesFor(hd) });
 
   const pictures = new Map<string, InsetPicture>();
-  for (const el of hd.spec.elements ?? []) {
-    if (el.type === "inset" && el.picture && !("error" in el.picture) && el.link === undefined && !cards.has(el.id)) pictures.set(el.id, el.picture);
-  }
+  for (const [id, picture] of candidates) if (!cards.has(id)) pictures.set(id, picture);
   if (pictures.size === 0) return;
   const measure = makeBrowserMeasure();
   const targetAt = (e: MouseEvent): string | null => {

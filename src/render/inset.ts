@@ -114,7 +114,9 @@ export async function resolveInsets(spec: Spec, deps: InsetDeps): Promise<void> 
  * Same job as `resolveInsets` — fills `picture` on every inset element, in
  * place — but synchronous, and built straight off the AUTHORED sibling: no
  * `prepare` (no engines, no assets, no cards — a source whose final frame
- * needs those still lays out as far as layout can without them). For a
+ * needs those still lays out as far as layout can without them). A source
+ * whose frame needs code output, traced assets or card expansion is laid
+ * out here in its unresolved form; the live app draws it resolved. For a
  * node-side caller that already holds every sibling's spec and has no event
  * loop to await across (spec 2026-09-17-inset §9: the examples gate resolves
  * insets so a `point` at a part inside one is exercised, not just the frame).

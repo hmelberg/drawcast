@@ -7,8 +7,13 @@ import type { InsetPicture } from "../layout/inset";
 import { render, type RenderHandle } from "../render";
 import { h } from "./dom";
 
+// The one inset modal open at a time — closed properly (timeline callbacks
+// unhooked, inner handle destroyed) rather than yanked out of the DOM, which
+// left the previous render's onState/onStep still chained to hd.timeline.
+let open: { close(): void } | null = null;
+
 export function openInsetModal(stage: HTMLElement, hd: RenderHandle, pic: InsetPicture): { close: () => void } {
-  stage.querySelector(".cs-insetmodal")?.remove();
+  open?.close();
   const host = h("div", { class: "cs-insetmodal-host" });
   const goBtn = h("button", { class: "cs-insetmodal-go", title: "Go to this page" }, "Go to page →");
   const closeBtn = h("button", { class: "cs-mediamodal-close", title: "Close" }, "✕");
@@ -26,6 +31,7 @@ export function openInsetModal(stage: HTMLElement, hd: RenderHandle, pic: InsetP
     window.removeEventListener("keydown", onKey);
     inner?.destroy();
     scrim.remove();
+    open = null;
   };
   const onKey = (e: KeyboardEvent): void => {
     if (e.key === "Escape") close();
@@ -68,5 +74,6 @@ export function openInsetModal(stage: HTMLElement, hd: RenderHandle, pic: InsetP
     .catch((err: unknown) => {
       host.textContent = `Could not draw this page: ${(err as Error).message}`;
     });
-  return { close };
+  open = { close };
+  return open;
 }

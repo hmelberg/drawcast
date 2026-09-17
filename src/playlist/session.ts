@@ -425,10 +425,11 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   }
 
   // An inset's modal asks to go to the page it shows (ui/inset-modal.ts).
-  host.addEventListener("cs-goto-item", (e) => {
+  const onGoto = (e: Event): void => {
     const index = (e as CustomEvent<{ index: number }>).detail?.index;
     if (typeof index === "number" && index >= 0 && index < items.length && index !== idx) void jump(index);
-  });
+  };
+  host.addEventListener("cs-goto-item", onGoto);
 
   /**
    * Replace the figure on screen with a freshly rendered one without the box
@@ -709,6 +710,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
       cancelPending();
       document.removeEventListener("keydown", onKey);
       host.removeEventListener("click", onHostClick);
+      host.removeEventListener("cs-goto-item", onGoto);
       handle?.destroy();
       panel.remove();
       dotsWrap.remove();
