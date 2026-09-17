@@ -8,14 +8,8 @@ the remaining acceptance step.
 Deviations made during Task 9 (the prompt bullet, the schema-size pin,
 the three bundled examples, ROADMAP, smoke):
 
-(a) The prompt bullet's illustrative round-trip — one command carrying
-both `move` and `focus` together — cannot be authored as literally shown:
-the schema allows exactly one action verb per command. The bundled
-examples split it into two commands (a plain `move`, then a `focus` that
-carries the beat's `speak`). The prompt bullet itself is unchanged from
-the brief's exact text, since it is prose teaching the pattern to the
-model, not a runnable spec — the model is expected to write it as two
-commands too, the same way it already does for `move`+`speak` elsewhere.
+(a) SUPERSEDED (fix round 2): the bullet's illustration is two command
+objects (one action verb per command); see §8.
 
 (b) `generic_axes_diagram`'s curves are fixed to x, y ∈ [0, 100] — there
 is no `x_range`/`y_range` param (checked: `params_schema` in
@@ -33,6 +27,15 @@ inside the canvas over the whole fixed domain.
 resolves insets before laying an item out, so the two `point.at.ref+anchor`
 beats keep the source element's own id (`t_2`, `step_2`) as originally
 drafted — see §9 below.
+
+(e) SUPERSEDED (final review, fix wave): §3 and §4.3 as originally
+written say `resolveInsets` runs inside `resolvedRenderSpec`, wired into
+`RenderResolveDeps` and its four injection sites. The code instead calls
+it from `render()` (`src/render/index.ts` ~294), after the resolve pass
+and after `withTextStyle`: the picture needs the source's settled text
+style (§6), and the other four resolve sites (portraits/sources/code/
+images/icons) have no siblings to resolve against. §3 and §4.3 below are
+rewritten to describe the code as it stands.
 
 ## 1. What this is
 
@@ -90,11 +93,15 @@ not used.
 
 **Computed once, in the async resolve phase.** `layoutSpec` is
 synchronous and re-runs per tween frame, so the picture cannot be laid
-out inside the host's layout. `resolveInsets` runs in
-`resolvedRenderSpec` beside portraits/images/icons, on the deep clone
-(B11: never the author's document), and stores the picture on the
-element clone; tier-2 only FITS the stored picture into its box on each
-layout call.
+out inside the host's layout. `resolveInsets` runs in `render()`
+(`src/render/index.ts` ~294), on the deep clone `resolvedRenderSpec` has
+already produced (B11: never the author's document) and after
+`withTextStyle` has settled the host's text style on it — AFTER the
+resolve pass, not inside it, because the picture needs that settled
+style (§6) and the other four resolve sites (portraits/sources/code/
+images/icons) have no siblings to resolve against. It stores the picture
+on the element clone; tier-2 only FITS the stored picture into its box
+on each layout call.
 
 **Crop by default, whole canvas on request.** `crop: true` (default)
 fits the ink union of the frame (plus padding) into the box, so a small
@@ -183,17 +190,25 @@ the touchpoints in §10.
    `export/video.ts:545` the same. The editor and viewer both mount
    through `mountPlaylist`, so a single cast simply has `siblings` of
    length 1 and an inset warns.
-3. **Resolver** (`resolveInsets(spec, {siblings, measure, style,
-   text})`, wired into `RenderResolveDeps`/`resolvedRenderSpec` and its
-   four injection sites). For each `inset` element: resolve `of` → source
-   spec; strip the source's `inset` elements; `expandCards`; `await
-   ensureEnginesForSpecs([source])`; `resolvedRenderSpec(source, deps
-   with no siblings)` (so the recursion is one level by construction);
-   then the pure core `pictureOf(source, measure)`:
-   - `layout = layoutSpec(withTextStyle(source), measure)` (text style
-     of the source's own `text:` block applied so a page set in the C64
-     face keeps it; the host's `applyTextStyle` is NOT applied to the
-     picture — see 6);
+3. **Resolver** (`resolveInsets(spec, {siblings, self, prepare,
+   measureFor, planOpts})`), called from `render()` (`src/render/
+   index.ts` ~294) AFTER the resolve pass (`resolvedRenderSpec`) and
+   after `withTextStyle` — not wired into either: the picture needs the
+   source's own settled text style (§6), and the other four resolve
+   sites (portraits/sources/code/images/icons) have no siblings to
+   resolve against, so folding insets into that pass would gain them
+   nothing. For each `inset` element: `resolveSibling(of, siblings,
+   self)` finds the source spec; `deps.prepare(source)` does what
+   `render()` does to its own spec — `ensureEnginesForSpecs([source])`,
+   `expandCards`, `resolvedRenderSpec(source, deps with no siblings)`
+   (so the recursion is one level by construction), `ensureMathFont`,
+   `withTextStyle` — then the pure core `pictureOf(source, measure,
+   planOpts, prefix)` (`src/render/inset.ts`; strips the source's own
+   `inset` elements first):
+   - `layout = layoutSpec(source, measure)` (`source` already carries
+     its own `text:` block's style, applied by `prepare` above, so a
+     page set in the C64 face keeps it; the host's `applyTextStyle` is
+     NOT applied to the picture — see 6);
    - `plan = planCommands(source.commands, layout.order,
      {...planOptionsFor(source, layout), bboxOf, bboxesFor, anchorsAt})`;
    - `state = sceneAt(plan, plan.steps.length)`;
@@ -292,9 +307,9 @@ the touchpoints in §10.
 At the default slot a 28-unit label becomes ~4.5 units: unreadable
 everywhere, by design; the thumbnail is a memory cue. `zoom: 4` on it
 gives ~18 units, readable on a laptop. Two half-page insets (explicit
-`width: 420`) read at ~12 units, fine on a laptop and marginal on a
-phone. Five in the column is the maximum before the lint; there is no
-scrolling column and there will not be one.
+`x`/`y` and `width: 420`) read at ~12 units, fine on a laptop and
+marginal on a phone. Five in the column is the maximum before the
+lint; there is no scrolling column and there will not be one.
 
 ## 6. Lint
 
@@ -343,10 +358,13 @@ playlist (its final frame), for referring back without leaving the page:
 the position: insets stack in a right-hand column, and a template on
 the same page then takes the region to the left automatically. Give a
 `width` only when the picture must be read in place (half the page).
-Bring it forward for a beat with `move: {target, scale: 4, to: {x: 500,
-y: 375}}` plus `focus`, then `move: {target, reset: true}`; or `camera`
-into it. Use insets ONLY to refer back to an earlier page; a page's own
-figure is never an inset of itself; at most a few per page.
+Bring it forward for a beat with TWO commands, one action verb each —
+`{"move": {"target": id, "scale": 4, "to": {"x": 500, "y": 375}}}`, then
+`{"focus": {"target": id}, "speak": "…"}` — then put it back with a
+second `move` (`scale: 0.25`, cumulative, to the slot's centre); or
+`camera` into it and `camera: {"reset": true}` back. Use insets ONLY to
+refer back to an earlier page; a page's own figure is never an inset of
+itself; at most a few per page.
 
 Re-pin `tests/prompt-size.test.ts` in the same commit as the schema and
 prompt text (house rule, Hans 2026-09-10).

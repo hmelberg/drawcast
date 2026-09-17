@@ -907,7 +907,10 @@ reference, and a paused-click modal that shows the page full size with
 "Go to page". Opt-in: a page without insets is untouched. Not built
 (spec §10): auto insets, the shrink transition, page slides, a scrolling
 column, live insets. Open: `group.fit` still leaves stroke width and
-roughness unscaled (the inset's `thin` is the fix to copy).
+roughness unscaled (the inset's `thin` is the fix to copy); no
+cross-item picture cache — in a long playlist where many items inset the
+same page, that page is prepared and pictured once per mount (bounded,
+correct); a session-level cache is the next lever if it feels heavy.
 
 Three bundled examples teach the element (Task 9): "A Markov model,
 simulated and read" (a three-state model, its cohort simulation kept as a
