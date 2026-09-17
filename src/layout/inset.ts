@@ -80,10 +80,11 @@ export function columnSlots(n: number): BBox[] {
  * into the slot's inner box (crop: the ink union padded; else the whole
  * canvas, so every uncropped inset shares one scale). scaleDrawables scales
  * geometry and font sizes but not styles — rough.js works in absolute units —
- * so stroke width and roughness are divided by the scale here (a 1/6 picture
- * with full-size wobble is six times too rough), width floored so lines stay
- * visible on a phone. Draw durations shrink with the picture, so a thumbnail
- * of a ten-second page draws in under two. The input is untouched.
+ * so stroke width and roughness are scaled down with the picture, multiplied by
+ * the fit scale s here (a 1/6 picture with full-size wobble is six times too
+ * rough), width floored so lines stay visible on a phone. Draw durations shrink
+ * with the picture, so a thumbnail of a ten-second page draws in under two. The
+ * input is untouched.
  */
 export function fitPicture(picture: Pick<InsetPicture, "drawables" | "ink">, slot: BBox, crop: boolean): { children: Drawable[]; s: number; dx: number; dy: number } {
   const inner = expandBox(slot, -INSET_FRAME_PAD);
