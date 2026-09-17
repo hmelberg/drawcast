@@ -1382,17 +1382,41 @@ export const kit: SceneKit = {
         v[0] * Math.cos(a) - v[1] * Math.sin(a),
         v[0] * Math.sin(a) + v[1] * Math.cos(a),
       ];
-      const ALPHA = 0.8; // half-angle between the two boundary anchors
-      const u1 = rotate(d, ALPHA);
-      const u2 = rotate(d, -ALPHA);
-      const start: Pt = [from[0] + u1[0] * bdist(u1), from[1] + u1[1] * bdist(u1)];
-      const end: Pt = [from[0] + u2[0] * bdist(u2), from[1] + u2[1] * bdist(u2)];
       const r = Math.max(18, Math.abs(o.curve ?? 0.4) * 120);
       const bd = bdist(d);
+      // The mouth: the two boundary anchors sit ±alpha around the bulge
+      // direction, with alpha chosen so the chord between them is about half
+      // the loop's reach — in DIRECTION space a fixed angle opened a 100-unit
+      // mouth on a wide ellipse for a 48-unit loop, and the teardrop swung
+      // back through the node (arrow round, 2026-09-17). A point node (no
+      // shape) keeps the old opening; the anchors coincide there anyway.
+      const anchorsAt = (alpha: number): [Pt, Pt] => {
+        const u1 = rotate(d, alpha);
+        const u2 = rotate(d, -alpha);
+        return [
+          [from[0] + u1[0] * bdist(u1), from[1] + u1[1] * bdist(u1)],
+          [from[0] + u2[0] * bdist(u2), from[1] + u2[1] * bdist(u2)],
+        ];
+      };
+      const target = 0.5 * r;
+      let alpha = bd > 0 ? Math.min(0.8, Math.max(0.18, Math.asin(Math.min(1, target / bd)))) : 0.8;
+      let [start, end] = anchorsAt(alpha);
+      if (bd > 0) {
+        // The chord was sized on a circle of radius bd; on an ellipse the
+        // boundary at ±alpha lies farther out along the long axis, so measure
+        // the mouth once and scale alpha down to hit the target.
+        const mouth = Math.hypot(end[0] - start[0], end[1] - start[1]);
+        if (mouth > target * 1.05) {
+          alpha = Math.max(0.18, alpha * (target / mouth));
+          [start, end] = anchorsAt(alpha);
+        }
+      }
       const base: Pt = [from[0] + d[0] * bd, from[1] + d[1] * bd];
       const apex: Pt = [base[0] + d[0] * r, base[1] + d[1] * r];
-      const side1: Pt = [base[0] + d[0] * r * 0.6 + perp[0] * r * 0.75, base[1] + d[1] * r * 0.6 + perp[1] * r * 0.75];
-      const side2: Pt = [base[0] + d[0] * r * 0.6 - perp[0] * r * 0.75, base[1] + d[1] * r * 0.6 - perp[1] * r * 0.75];
+      // A narrower teardrop than before (0.55 r wide, was 0.75 r), so the
+      // loop reads as a loop rather than a blob beside the state.
+      const side1: Pt = [base[0] + d[0] * r * 0.6 + perp[0] * r * 0.55, base[1] + d[1] * r * 0.6 + perp[1] * r * 0.55];
+      const side2: Pt = [base[0] + d[0] * r * 0.6 - perp[0] * r * 0.55, base[1] + d[1] * r * 0.6 - perp[1] * r * 0.55];
       pathPts = this.smooth([start, side1, apex, side2, end], 8);
       tip = pathPts[pathPts.length - 1];
       const prev = pathPts[pathPts.length - 2] ?? pathPts[0];

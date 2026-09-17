@@ -211,15 +211,47 @@ function exactAreaPath(d: AreaDrawable): SVGPathElement {
   return p;
 }
 
-function arrowheadPts(pts: Pt[], at: "end" | "start"): [Pt, Pt, Pt] | null {
+/** Arrowhead arm length in logical units — also how far back along the path the head reads its direction. */
+export const ARROWHEAD_SIZE = 13;
+
+/**
+ * The point on a polyline `dist` units back from one end, walking along the
+ * path (interpolated within a segment); the far end when the path is shorter.
+ */
+function pointBackAlong(pts: Pt[], at: "end" | "start", dist: number): Pt {
+  const order = at === "end" ? [...pts].reverse() : pts;
+  let left = dist;
+  for (let i = 1; i < order.length; i++) {
+    const a = order[i - 1];
+    const b = order[i];
+    const seg = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (seg >= left && seg > 0) {
+      const t = left / seg;
+      return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    }
+    left -= seg;
+  }
+  return order[order.length - 1];
+}
+
+/**
+ * The two arms of an open arrowhead at a path's tip. Its direction is the
+ * tangent over the last ARROWHEAD_SIZE units of the path, not the final
+ * sample pair: a smoothed curve ends in a segment a few units long whose
+ * direction wobbles, and the head sat askew on every curved edge and every
+ * self-loop (arrow round, 2026-09-17). A straight two-point path is
+ * unchanged.
+ */
+export function arrowheadPts(pts: Pt[], at: "end" | "start"): [Pt, Pt, Pt] | null {
   if (pts.length < 2) return null;
-  const [tip, prev] = at === "end" ? [pts[pts.length - 1], pts[pts.length - 2]] : [pts[0], pts[1]];
+  const tip = at === "end" ? pts[pts.length - 1] : pts[0];
+  const prev = pointBackAlong(pts, at, ARROWHEAD_SIZE);
   const dx = tip[0] - prev[0];
   const dy = tip[1] - prev[1];
   const len = Math.hypot(dx, dy) || 1;
   const ux = dx / len;
   const uy = dy / len;
-  const size = 13;
+  const size = ARROWHEAD_SIZE;
   const spread = 0.45;
   const left: Pt = [tip[0] - size * (ux * Math.cos(spread) - uy * Math.sin(spread)), tip[1] - size * (uy * Math.cos(spread) + ux * Math.sin(spread))];
   const right: Pt = [tip[0] - size * (ux * Math.cos(spread) + uy * Math.sin(spread)), tip[1] - size * (uy * Math.cos(spread) - ux * Math.sin(spread))];
