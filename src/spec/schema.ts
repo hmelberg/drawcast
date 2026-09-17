@@ -105,7 +105,7 @@ const elementSchema = {
       enum: [
         "axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code",
         "sector", "arc", "polygon", "pieces", "angle", "measure", "ellipse", "line",
-        "group", "math", "image", "icon",
+        "group", "math", "image", "icon", "inset",
       ],
     },
     // axes
@@ -214,10 +214,11 @@ const elementSchema = {
     colors: { type: "object", additionalProperties: { type: "string" }, description: 'math: colour per term, a TeX snippet → colour ({"x": "#2f6b8f", "\\\\Delta C": "#b5482e"}); every occurrence.' },
     set: { type: "string", description: "icon: icon set prefix (lucide, tabler, ph, heroicons, material-symbols; fa6-solid, twemoji as CC BY)." },
     credit: { type: "string", description: "image/icon: attribution (machine-written; copy VERBATIM if present)." },
-    x: { type: "number", description: "text/shape/sector/arc/polygon/pieces/ellipse: logical x (y-up canvas) — the centre, for the shapes that have one." },
-    y: { type: "number", description: "text/shape/sector/arc/polygon/pieces/ellipse: logical y (y-up canvas) — the centre, for the shapes that have one." },
-    width: { type: "number", description: "shape rect / portrait / source / code / pieces strips+grid (the rectangle to cut): width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880). / image: width." },
-    height: { type: "number", description: "shape rect / pieces strips+grid (the rectangle to cut): height in logical units." },
+    crop: { type: "boolean", description: "inset: true (default) fits the source page's ink into the box so the drawing fills it; false fits the whole 1000×750 canvas, so every uncropped inset shares one scale and the source's layout is preserved." },
+    x: { type: "number", description: "text/shape/sector/arc/polygon/pieces/ellipse: logical x (y-up canvas) — the centre, for the shapes that have one. inset: the centre of the box; omit x, y and at to take the next slot in the right-hand thumbnail column." },
+    y: { type: "number", description: "text/shape/sector/arc/polygon/pieces/ellipse: logical y (y-up canvas) — the centre, for the shapes that have one. inset: the centre of the box; omit x, y and at to take the next slot in the right-hand thumbnail column." },
+    width: { type: "number", description: "shape rect / portrait / source / code / pieces strips+grid (the rectangle to cut): width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880). / image: width. inset: box width (default 160; the height follows 4:3 unless given) — only read when x/y or at place the inset; in the column, width and height are ignored." },
+    height: { type: "number", description: "shape rect / pieces strips+grid (the rectangle to cut): height in logical units. inset: box height." },
     radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces / angle: radius in logical units (angle default 40)." },
     font_size: { type: "number", description: "text: font size in logical units (≥ 14; default 26)." },
     // sector / arc / polygon / pieces
@@ -269,7 +270,8 @@ const elementSchema = {
         "source: the WORK'S TITLE, e.g. \"The Wealth of Nations\" — the PREFERRED reference, because the app verifies it against Wikipedia, so a wrong title fails visibly (a wrong doi/isbn resolves to the wrong work in silence). It is also drawn as the caption under the picture, so never add a label element for it. " +
         "pieces: what to cut — \"sectors\" (a circle of radius at x, y), \"strips\" (a width × height rectangle centred on x, y, n vertical strips), \"grid\" (the same rectangle, n columns × rows rows), \"rings\" (n concentric rings of a circle of radius at x, y — unroll them with arrange), " +
         "\"triangles\" (fans a regular polygon (sides + radius) or a polygon (points, from: \"vertex_k\") into triangles) or \"halving\" (halves a width × height rectangle n times, alternately, with `<id>_rest` the remainder — 1/2 + 1/4 + …). " +
-        "measure: the element to measure. image: what to photograph (a Commons/Wikipedia title). icon: a keyword.",
+        "measure: the element to measure. image: what to photograph (a Commons/Wikipedia title). icon: a keyword. " +
+        "inset: the playlist item whose final frame this shows — its title (case-insensitive), its 1-based number as a string (\"2\"), or \"previous\".",
     },
     url: {
       type: "string",
@@ -1100,6 +1102,9 @@ export function normalizeSpec(spec: unknown): unknown {
       delete el.text;
       delete el.font_size;
     }
+    // inset's of takes a playlist number too (YAML `of: 2`) — normalized to
+    // its string form so validation and the resolver only ever see a string.
+    if (el.type === "inset" && typeof el.of === "number") el.of = String(el.of);
   }
   for (const cmd of clone.commands ?? []) {
     if (!cmd) continue;
@@ -1551,6 +1556,7 @@ function elementErrors(el: SpecElement): string[] {
     }
     case "image":
     case "icon":
+    case "inset":
       if (typeof el.of !== "string" || el.of.trim() === "") {
         errs.push(`element "${el.id}": ${el.type} needs of`);
       }

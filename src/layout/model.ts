@@ -137,9 +137,11 @@ export interface GroupDrawable extends BaseDrawable {
    * What the group IS, where layout has to treat it unlike an anonymous
    * bundle of children. "math": a TeX element's glyph outlines — words in
    * disguise, so labels avoid it like text (labels.ts obstacleBoxes) and lint
-   * reports a stroke or a label lying across it (overlap-math-*).
+   * reports a stroke or a label lying across it (overlap-math-*). "inset":
+   * another page's picture — its text is a picture of text (lint skips it;
+   * layout/text-style leaves it alone).
    */
-  role?: "math";
+  role?: "math" | "inset";
 }
 
 /**

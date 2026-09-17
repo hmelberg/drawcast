@@ -38,13 +38,13 @@ describe("default column slots (spec §4.5)", () => {
 
 describe("isDefaultColumn", () => {
   test("an inset with no position is in the column; x/y or at takes it out", () => {
-    expect(isDefaultColumn({ id: "a", type: "inset" as string, of: "1" } as any)).toBe(true);
-    expect(isDefaultColumn({ id: "a", type: "inset" as string, of: "1", width: 300 } as any)).toBe(true);
-    expect(isDefaultColumn({ id: "a", type: "inset" as string, of: "1", x: 100, y: 100 } as any)).toBe(false);
-    expect(isDefaultColumn({ id: "a", type: "inset" as string, of: "1", at: { ref: "b", side: "right" } } as any)).toBe(false);
+    expect(isDefaultColumn({ id: "a", type: "inset", of: "1" } as any)).toBe(true);
+    expect(isDefaultColumn({ id: "a", type: "inset", of: "1", width: 300 } as any)).toBe(true);
+    expect(isDefaultColumn({ id: "a", type: "inset", of: "1", x: 100, y: 100 } as any)).toBe(false);
+    expect(isDefaultColumn({ id: "a", type: "inset", of: "1", at: { ref: "b", side: "right" } } as any)).toBe(false);
     expect(isDefaultColumn({ id: "a", type: "image", of: "1" })).toBe(false);
-    expect(hasDefaultColumnInsets([{ id: "a", type: "inset" as string, of: "1" } as any])).toBe(true);
-    expect(hasDefaultColumnInsets([{ id: "a", type: "inset" as string, of: "1", x: 1, y: 1 } as any])).toBe(false);
+    expect(hasDefaultColumnInsets([{ id: "a", type: "inset", of: "1" } as any])).toBe(true);
+    expect(hasDefaultColumnInsets([{ id: "a", type: "inset", of: "1", x: 1, y: 1 } as any])).toBe(false);
     expect(hasDefaultColumnInsets(undefined)).toBe(false);
   });
 });

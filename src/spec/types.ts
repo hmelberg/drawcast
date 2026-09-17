@@ -7,6 +7,7 @@ import type { SpecText } from "../layout/text-style";
 import type { Language } from "../code/languages";
 import type { ChartStyle } from "../code/chart-style";
 import type { Instrument, PlayVoice } from "./notation";
+import type { InsetError, InsetPicture } from "../layout/inset";
 export type { Instrument, PlayVoice } from "./notation";
 
 export type ElementType =
@@ -36,7 +37,8 @@ export type ElementType =
   | "group"
   | "math"
   | "image"
-  | "icon";
+  | "icon"
+  | "inset";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -198,7 +200,7 @@ export interface SpecElement {
   /** line: direction in degrees, counter-clockwise from +x (with one point in `through`). Not to be confused with the `angle` element type. */
   angle?: number;
   // portrait (a photo traced into sketch strokes) / source (a book or paper)
-  /** Person's name (portrait), work's title (source) — resolved via Wikipedia when url/strokes are absent — or, on pieces, what to cut: "sectors" (a circle), "strips" or "grid" (a width × height rectangle centred on x, y). measure: the element to measure. */
+  /** Person's name (portrait), work's title (source) — resolved via Wikipedia when url/strokes are absent — or, on pieces, what to cut: "sectors" (a circle), "strips" or "grid" (a width × height rectangle centred on x, y). measure: the element to measure. inset: the playlist item whose final frame this shows — its title, its 1-based number (as a string), or "previous". */
   of?: string;
   /** Direct image URL (user-provided; CORS-permitting hosts only). */
   url?: string;
@@ -218,6 +220,11 @@ export interface SpecElement {
    * iris = circle opening, drift = settle-and-fade, fade = plain opacity.
    */
   reveal?: "develop" | "iris" | "wipe" | "drift" | "fade";
+  // inset (a small picture of another playlist item's final frame — spec 2026-09-17-inset)
+  /** inset: true (default) fits the source page's ink into the box; false fits its whole canvas. */
+  crop?: boolean;
+  /** inset, INTERNAL: what render/inset.ts stored on the render clone — the source's frame, or why it could not be built. Never authored, never saved. */
+  picture?: InsetPicture | InsetError;
   // code (a script whose code and/or output is drawn in a panel)
   /** code: the runtime that executes the script — see src/code/languages.ts. */
   language?: Language;

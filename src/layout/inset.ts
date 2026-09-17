@@ -49,7 +49,7 @@ export interface InsetError {
 
 /** An inset with no position of its own: it takes the next column slot. */
 export function isDefaultColumn(el: SpecElement): boolean {
-  return (el.type as string) === "inset" && el.x === undefined && el.y === undefined && !relAt(el)?.ref;
+  return el.type === "inset" && el.x === undefined && el.y === undefined && !relAt(el)?.ref;
 }
 
 export function hasDefaultColumnInsets(elements: SpecElement[] | undefined): boolean {
