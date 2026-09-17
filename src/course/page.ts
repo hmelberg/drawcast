@@ -136,7 +136,7 @@ export function coursePage(course: Course, links: PageLink[], door?: Door): stri
         ? `<section class="join">
 <p><b>Join this course</b> — it keeps track of progress for signed-in learners: what you have opened, finished and answered, for you and the course's teachers.</p>
 <p><a class="door" href="${escapeHtml(courseHref(door.app, door.name))}">Join this course in drawcast →</a></p>
-<p class="privacy">Joining stores your account's email address — the account holds no name — and what you open, finish and answer, so you and the course's teachers can see your progress. The learner backend is hosted in the UK.</p>
+<p class="privacy">Joining stores your account's email address — the account holds no name — and what you open, finish and answer, when and for how long you watched each lecture, and how long each answer took, so you and the course's teachers can see your progress. Nothing is recorded outside a course you joined. "Forget me" on your account home deletes all of it. The learner backend is hosted in the UK.</p>
 </section>`
         : `<section class="join">
 <p><b>Joining is not open yet</b> — ${escapeHtml(doorlessNote(door.why))}</p>

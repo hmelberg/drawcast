@@ -53,6 +53,33 @@ word-processor smart quotes are repaired. Internally the engine and the LLM
 always speak JSON; YAML is a lossless human-facing conversion layer
 (`src/spec/text.ts`).
 
+## Courses, learners and teachers
+
+A course is a document with one `##` heading per lecture; publishing it
+(Share → Publish, signed in under Settings → Publishing) claims it for your
+account and, with **Allow sign-up on the course page** ticked, writes the
+`enroll:` line that tells every lecture where progress goes. A course has
+**runs** — one per cohort; the same course next year is a second run, never a
+second publish. Opening and closing enrolment, approval, drip mail and hand-in
+are run settings in the teacher dashboard on the drawcast server and take
+effect at once, without republishing.
+
+A learner joins with one click on the course page (or from a lecture link
+carrying `&join=<run>`), signed in with Google, Microsoft, Facebook or an
+emailed link. From then on the viewer reports, under that account only:
+`opened`, every answer (with the stored id, all attempts and the seconds it
+took), one `item` per view of a lecture part (seconds on screen, seconds
+playing, whether it finished), and `completed`. Answers are kept in the
+browser first and stamped when the server takes them, so an outage loses
+nothing: unsent ones go out at the next open or right after a join. A run
+that asks for a hand-in shows *Hand in* on the last part's poster. Teachers
+see a learners × lectures grid with scores, time, attempts and hand-ins, a
+per-learner timeline, and CSV export. Specs:
+`docs/superpowers/specs/2026-09-04-learners-design.md`,
+`…/2026-09-05-private-publishing-and-learner-identity-design.md`,
+`…/2026-09-15-stored-answers-design.md`,
+`…/2026-09-16-course-progress-and-submit-design.md`.
+
 ## The command language
 
 A spec is elements + a storyboard of commands. Narration: `speak` (with
