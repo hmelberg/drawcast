@@ -194,7 +194,7 @@ export interface ShareDeps {
    * Null means the TTS key is missing, the render failed, or it was
    * cancelled — every case already reported through `setStatus`.
    */
-  renderVideo: (specs: Spec[], burnCaptions: boolean, of?: string) => Promise<ExportResult | null>;
+  renderVideo: (specs: Spec[], burnCaptions: boolean, of?: string, siblings?: readonly Spec[]) => Promise<ExportResult | null>;
   /** Shows the export-progress chip and freezes the Share entry point. */
   beginExport: (status: string) => void;
   /** Updates the chip's text while an export/upload it started is running. */
@@ -817,8 +817,9 @@ function build(): ShareSession {
         // Resolved ONCE, on a clone: the recording and the credits file must
         // describe the same drawing, and `creditsOf` reads only what the
         // resolvers stamped — so an unresolved document credits nobody (A3).
-        const seq = exportSequence(await embeddedPlaylist(doc.playlist, deps.embedDeps()), { titleCard: videoCardCb.checked });
-        const out = await deps.renderVideo(seq, videoBurnCb.checked);
+        const embedded = await embeddedPlaylist(doc.playlist, deps.embedDeps());
+        const seq = exportSequence(embedded, { titleCard: videoCardCb.checked });
+        const out = await deps.renderVideo(seq, videoBurnCb.checked, "", itemsOf(embedded).map((i) => i.spec));
         if (!out) return;
         const base = fileSafe(doc.title);
         downloadBlob(`${base}.webm`, out.blob);
@@ -1192,8 +1193,9 @@ function build(): ShareSession {
         // paints its own captions over the picture, so a burnt-in upload says
         // every sentence twice.
         // Resolved once, and the same sequence feeds the credits file below.
-        const seq = exportSequence(await embeddedPlaylist(playlist, deps.embedDeps()), { titleCard: deps.settings.titleCard });
-        const out = await deps.renderVideo(seq, false, of);
+        const embedded = await embeddedPlaylist(playlist, deps.embedDeps());
+        const seq = exportSequence(embedded, { titleCard: deps.settings.titleCard });
+        const out = await deps.renderVideo(seq, false, of, itemsOf(embedded).map((i) => i.spec));
         // Null means the key is missing, the render failed, or the user
         // pressed cancel — all three already said so, and all three end the
         // queue: the rest would fail the same way or was not wanted.

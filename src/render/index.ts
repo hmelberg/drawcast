@@ -35,6 +35,7 @@ import { fontStack, makeBrowserMeasure, rendererFor, type RenderStyle } from "./
 import { registerCastTemplates } from "../scenes/cast-templates";
 import { ensureEnginesForSpecs, ensureMathFont } from "../scenes/engines";
 import { applyTextStyle, effectiveTextStyle, scaledMeasure, type TextOverride, withTextStyle } from "../layout/text-style";
+import { resolveInsets } from "./inset";
 
 export type { RenderStyle } from "./svg-backend";
 
@@ -58,6 +59,8 @@ export interface RenderOptions {
   vars?: ReadonlyMap<string, string>;
   /** Questions in earlier playlist items: this item's {_answers.N} continues from here. */
   questionOffset?: number;
+  /** The playlist's item specs in order (authored, not the export sequence) — what an `inset` element takes its page from (spec 2026-09-17-inset §4.2). */
+  siblings?: readonly Spec[];
 }
 
 export interface RenderHandle {
@@ -210,6 +213,10 @@ function ensureFonts(): Promise<void> {
 }
 
 export async function render(spec: Spec, container: HTMLElement, options: RenderOptions = {}): Promise<RenderHandle> {
+  // Which sibling THIS spec is, by identity, before anything clones or
+  // expands it. The export sequence spreads an item's spec to append its
+  // exit, so the elements array is the surviving identity there.
+  const self = options.siblings ? options.siblings.findIndex((s) => s === spec || (s.elements !== undefined && s.elements === spec.elements)) : -1;
   // A cast that carries its own templates registers them before anything
   // reads the registry (template-on-demand): never shadows a built-in.
   registerCastTemplates(spec);
@@ -284,6 +291,21 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   figure.style.setProperty("--cs-text-scale", String(textStyle.scale));
   figure.style.setProperty("--sketch-font", fontStack(textStyle.family));
   const measure = scaledMeasure(makeBrowserMeasure({ family: fontStack(textStyle.family), weight: textStyle.weight }), textStyle.scale);
+  if ((spec.elements ?? []).some((e) => e.type === "inset")) {
+    await resolveInsets(spec, {
+      siblings: options.siblings,
+      self,
+      planOpts: planOptionsFor,
+      measureFor: (ts) => scaledMeasure(makeBrowserMeasure({ family: fontStack(ts.family), weight: ts.weight }), ts.scale),
+      prepare: async (source) => {
+        await ensureEnginesForSpecs([source]);
+        const resolved = await resolvedRenderSpec(expandCards(source), { resolvePortraits, resolveSources, resolveCode, resolveImages, resolveIcons, contactEmail: contactEmail(), style });
+        const ts = effectiveTextStyle(resolved);
+        await ensureMathFont(ts.mathFont).catch(() => undefined);
+        return withTextStyle(resolved, ts);
+      },
+    });
+  }
   const layout = applyTextStyle(layoutSpec(spec, measure), textStyle);
   const bboxes = elementBBoxes(layout, measure);
 

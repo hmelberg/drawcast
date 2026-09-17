@@ -5040,7 +5040,7 @@ function endExport(): void {
  * cancelled, or the export failed — in every one of those cases the status
  * line already says why, so callers just return.
  */
-async function renderVideo(specs: Spec[], burnCaptions: boolean, of = ""): Promise<ExportResult | null> {
+async function renderVideo(specs: Spec[], burnCaptions: boolean, of = "", siblings?: readonly Spec[]): Promise<ExportResult | null> {
   const ttsKey = getTtsKey();
   if (!ttsKey) {
     setStatus("Video export needs a Google Cloud Text-to-Speech API key — add it in Settings.", "error");
@@ -5059,7 +5059,7 @@ async function renderVideo(specs: Spec[], burnCaptions: boolean, of = ""): Promi
   try {
     return await exportVideo(
       specs,
-      { ttsKey, style: settings.style, rate: settings.rate, questions: settings.skipQuestions ? "skip" : "on", burnCaptions, lang: narrationLanguage(specs) },
+      { ttsKey, style: settings.style, rate: settings.rate, questions: settings.skipQuestions ? "skip" : "on", burnCaptions, lang: narrationLanguage(specs), siblings },
       {
         onStatus: (t) => (exportChipText.textContent = of ? `${t.replace(/…$/, "")}${of}…` : t),
         canvas: exportCanvas,

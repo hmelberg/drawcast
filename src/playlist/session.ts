@@ -170,7 +170,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
       opts.prefs.onMode?.(m);
     },
   };
-  const renderOpts = { style: opts.style, text: opts.text, speech: opts.speech, mode: opts.mode, speed: opts.speed, questions: opts.questions };
+  const renderOpts = { style: opts.style, text: opts.text, speech: opts.speech, mode: opts.mode, speed: opts.speed, questions: opts.questions, siblings: items.map((it) => it.spec) };
   // Stored answers survive the cut between items (spec 2026-09-15-stored-
   // answers): every ITEM render is seeded from the carry and its static
   // question offset; cards (title, chapter) render plain. Absorbed back on

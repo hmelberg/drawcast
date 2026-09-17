@@ -278,7 +278,7 @@ describe("the YouTube burn-in setting dies (ruling 4)", () => {
     const src = await shareSrc();
     expect(src).not.toContain("burnCaptionsOnUpload");
     const yt = await ytRegion();
-    expect(yt).toContain("deps.renderVideo(seq, false, of)");
+    expect(yt).toContain("deps.renderVideo(seq, false, of, itemsOf(embedded).map((i) => i.spec))");
   });
 
   it("leaves the DOWNLOAD's burn checkbox alone — a file has no subtitle layer", async () => {

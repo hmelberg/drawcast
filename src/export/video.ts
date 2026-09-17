@@ -371,6 +371,8 @@ export interface ExportConfig {
    * track shown together are two copies of the same sentence on screen.
    */
   burnCaptions: boolean;
+  /** The playlist's authored item specs — what an `inset` takes its page from; the sequence itself carries cards and exits. */
+  siblings?: readonly Spec[];
 }
 
 export interface ExportHooks {
@@ -548,7 +550,7 @@ export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: Expor
           heldByLoop = true;
         }
         try {
-          handle = await render(items[i], workbench, { style: cfg.style, speech, tones, mode: "narrated", speed: 1, questions: cfg.questions, vars: playCarry.vars, questionOffset: offsets[i] });
+          handle = await render(items[i], workbench, { style: cfg.style, speech, tones, mode: "narrated", speed: 1, questions: cfg.questions, vars: playCarry.vars, questionOffset: offsets[i], siblings: cfg.siblings });
           const svg = workbench.querySelector<SVGSVGElement>("svg.cs-svg");
           if (!svg) throw new Error(`nothing to record — spec ${i + 1} rendered no figure`);
           currentSvg = svg;
