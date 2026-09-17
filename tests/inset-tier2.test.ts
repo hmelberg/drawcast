@@ -87,6 +87,20 @@ describe("insetDrawable (spec §4.4)", () => {
     expect(silent.warnings).toEqual([]);
     expect(silent.issues).toEqual([]);
   });
+  test("a bound default-column inset finds its slot by id, not by the (copied) object bind hands back", () => {
+    // evalBindings (spec/vars.ts) returns a NEW object for an element with a
+    // `bind` field once any binding is applied — so the `el` insetDrawable
+    // sees is not the same object `column` was filtered from. Regression for
+    // the fix round 1 crash: `column.indexOf(el)` used to return -1 here,
+    // `columnSlots(1)[-1]` is undefined, and reading `.x` off it threw. An
+    // inset degrades, never throws (spec 2026-09-17-inset).
+    const spec = host([inset({ width: 1, bind: { width: "10 * t" } })], { vars: { t: 2 } });
+    expect(() => layoutSpec(spec, heuristicMeasure)).not.toThrow();
+    const l = layoutSpec(spec, heuristicMeasure);
+    const g = l.drawables.find((d) => d.id === "pic") as GroupDrawable;
+    expect(g.box).toEqual({ x: INSET_RIGHT - INSET_W, y: INSET_TOP - INSET_H, w: INSET_W, h: INSET_H });
+    expect(l.issues.filter((i) => i.severity === "error")).toEqual([]);
+  });
 });
 
 describe("the template box default (spec §4.7)", () => {

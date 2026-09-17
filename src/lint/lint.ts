@@ -21,21 +21,35 @@ import { pathsByCodeId, scanDataTokens } from "../code/tokens";
 import { connectKey } from "../render/widgets";
 import { CONNECT_MAX_EDGES } from "../ui/connect-model";
 
+/**
+ * The shared traversal behind `lintableLeaves` and `flattenLintable`: a
+ * pre-order walk of `drawables` that never descends into a `role: "inset"`
+ * group's children — another page's ink, drawn small on purpose (spec
+ * 2026-09-17-inset §6). `includeGroups` false collects leaves only (what
+ * font-too-small, the overlap rules and out-of-canvas read); true also
+ * collects the groups themselves (what the math-overlap rules filter by
+ * role). One walker, one skip rule, so the two can never drift apart.
+ */
+function walkLintable(drawables: Drawable[], includeGroups: boolean, out: Drawable[]): void {
+  for (const d of drawables) {
+    if (d.kind === "group") {
+      if (d.role === "inset") continue;
+      if (includeGroups) out.push(d);
+      walkLintable(d.children, includeGroups, out);
+      continue;
+    }
+    out.push(d);
+  }
+}
+
 /** The leaves lint reads: everything painted EXCEPT an inset's picture — a
  *  picture of text is not text, and its strokes are the other page's, drawn
  *  small on purpose (spec 2026-09-17-inset §6). The inset's own frame stays. */
 export function lintableLeaves(drawables: Drawable[]): LeafDrawable[] {
-  const out: LeafDrawable[] = [];
-  const walk = (d: Drawable): void => {
-    if (d.kind === "group") {
-      if (d.role === "inset") return;
-      d.children.forEach(walk);
-      return;
-    }
-    out.push(d);
-  };
-  drawables.forEach(walk);
-  return out;
+  const out: Drawable[] = [];
+  walkLintable(drawables, false, out);
+  // Safe: includeGroups is false, so walkLintable never pushes a GroupDrawable.
+  return out as LeafDrawable[];
 }
 
 /** `flattenDrawables`, but an inset's picture subtree is skipped, same as
@@ -43,11 +57,7 @@ export function lintableLeaves(drawables: Drawable[]): LeafDrawable[] {
  *  into another page's ink either. */
 function flattenLintable(drawables: Drawable[]): Drawable[] {
   const out: Drawable[] = [];
-  const walk = (d: Drawable) => {
-    out.push(d);
-    if (d.kind === "group" && d.role !== "inset") d.children.forEach(walk);
-  };
-  drawables.forEach(walk);
+  walkLintable(drawables, true, out);
   return out;
 }
 

@@ -1555,7 +1555,13 @@ function imageDrawable(el: SpecElement, ctx: Ctx): GroupDrawable | null {
 function insetDrawable(el: SpecElement, ctx: Ctx, column: SpecElement[]): GroupDrawable {
   let slot: BBox;
   if (isDefaultColumn(el)) {
-    slot = columnSlots(column.length)[column.indexOf(el)];
+    // `bind` (evalBindings) hands back a COPY when the element binds a field,
+    // so `el` here may not be the same object `column` was filtered from —
+    // look it up by id, not by reference. An inset degrades, never throws
+    // (spec 2026-09-17-inset): a lookup that somehow still misses falls back
+    // to the first slot rather than indexing with -1 into columnSlots.
+    const at = column.findIndex((e) => e.id === el.id);
+    slot = columnSlots(column.length)[at < 0 ? 0 : at];
   } else {
     const w = el.width ?? (el.height !== undefined ? (el.height * 4) / 3 : INSET_W);
     const h = el.height ?? (w * 3) / 4;
