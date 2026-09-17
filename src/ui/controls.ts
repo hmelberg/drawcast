@@ -84,6 +84,13 @@ export interface ControlsOptions {
    * so this toggle must not also start the timeline it is about to lose.
    */
   beforePlay?(): boolean;
+  /**
+   * First refusal on a step button press (player-nav round, 2026-09-17).
+   * Returning true means the caller took the step itself — a playlist
+   * session crossing into the neighbouring item when the step would
+   * otherwise clamp at this item's first or last command.
+   */
+  onStepEdge?(dir: "back" | "forward"): boolean;
 }
 
 /**
@@ -1137,8 +1144,14 @@ export function attachPlayerControls(
     togglePlay();
   });
   playBtn.addEventListener("click", togglePlay);
-  backBtn.addEventListener("click", () => hd.timeline.stepBack());
-  fwdBtn.addEventListener("click", () => hd.timeline.stepForward());
+  backBtn.addEventListener("click", () => {
+    if (opts.onStepEdge?.("back")) return;
+    hd.timeline.stepBack();
+  });
+  fwdBtn.addEventListener("click", () => {
+    if (opts.onStepEdge?.("forward")) return;
+    hd.timeline.stepForward();
+  });
   modeSel.addEventListener("change", () => {
     const m = modeSel.value as "narrated" | "silent" | "instant";
     hd.timeline.setMode(m);

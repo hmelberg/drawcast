@@ -1834,26 +1834,9 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .tag-suggest-tag { color: var(--steel); font-weight: 600; white-space: nowrap; }
 .tag-suggest-hint { color: var(--muted); }
 
-/* ---------- playlist: dots, panel, badges ---------- */
+/* ---------- playlist: panel, badges ---------- */
 
 .pl-host { position: relative; }
-.pl-dots {
-  display: inline-flex;
-  gap: 0.28rem;
-  align-items: center;
-  padding: 0 0.2rem;
-}
-.pl-dot {
-  width: 0.62rem;
-  height: 0.62rem;
-  border-radius: 50%;
-  border: 1.5px solid var(--muted);
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-}
-.pl-dot:hover { border-color: var(--ink); }
-.pl-dot.current { background: var(--rust); border-color: var(--rust); }
 .pl-panel {
   position: absolute;
   top: 0;

@@ -5,7 +5,10 @@
 // chapter card where a new chapter begins — are synthesized specs played
 // through the same renderer so they show up in live playback, the #gdoc
 // viewer and video export alike. Navigation: chapter-tree panel (native
-// <details> for collapse), per-item dots in the control bar, and n/p keys.
+// <details> for collapse) and n/p keys; the step buttons walk across item
+// borders and the replay after the last item restarts the whole drawcast
+// (player-nav round, 2026-09-17 — the per-item dots went then: a lecture of
+// many pages should feel like ONE drawcast, and the panel already lists them).
 
 import { render, type RenderHandle, type RenderStyle } from "../render";
 import type { TextOverride } from "../layout/text-style";
@@ -17,6 +20,7 @@ import { h } from "../ui/dom";
 import { collectSpeakLines } from "../export/video";
 import { AnswerCarry, questionOffsets } from "./carry";
 import { ItemTimer, type ItemView } from "./item-timer";
+import { edgeStep, replayTarget } from "./nav-model";
 import { exportSequence, itemsOf, itemTitle, makeChapterCard, makeTitlePage, ZOOM_EXIT, type Playlist, type PlaylistItem } from "./playlist";
 import { subtitleLanguages, subtitleTrack } from "../spec/subtitles";
 import { parseCloudVoiceId, parseVoiceId, voiceOptions } from "../render/voices";
@@ -160,7 +164,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   let modeRef: PlaybackMode = opts.mode;
   // Guards opts.onDone: it must fire once for the whole mount, even though a
   // single-drawcast playlist mounts its one item on a path that returns
-  // before the multi-item state below (idx, dots, panel) is ever set up.
+  // before the multi-item state below (idx, panel) is ever set up.
   let doneReported = false;
 
   const prefs: PlaybackPrefs = {
@@ -331,16 +335,38 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   }
 
   let idx = 0;
+  /** The LAST item has finished playing (not merely been jumped to and
+   *  shown as a poster): the next play press restarts the whole drawcast. */
+  let finishedLast = false;
 
-  const dots = items.map((it, i) => {
-    const d = h("button", { class: "pl-dot", title: itemTitle(it) });
-    d.addEventListener("click", (e) => {
-      e.stopPropagation();
-      void jump(i);
-    });
-    return d;
-  });
-  const dotsWrap = h("span", { class: "pl-dots" }, ...dots);
+  /** The multi-item control options: the editor's beforePlay (opts.controls)
+   *  keeps first refusal on both hooks; the pure rules live in nav-model.ts. */
+  const navOpts: ControlsOptions = {
+    ...controlOpts,
+    beforePlay: () => {
+      if (opts.controls?.beforePlay?.()) return true;
+      const title = playlist.meta.title;
+      const target = replayTarget({ finishedLast, hasTitle: title !== undefined });
+      if (!target) return false;
+      finishedLast = false;
+      cancelPending();
+      if (target === "title" && title !== undefined) void mountTitlePage(title, true);
+      else void jump(0);
+      return true;
+    },
+    onStepEdge: (dir) => {
+      if (!handle) return false;
+      const move = edgeStep(dir, { completed: handle.timeline.position, total: handle.timeline.totalSteps, idx, count: items.length });
+      if (!move) return false;
+      // A scrub across the border is a hard jump: no card, no fade. The new
+      // item mounts paused on its poster (= "end"); "start" rewinds it to a
+      // blank stage so stepping forward from there draws its first command.
+      void jump(move.index, false).then(() => {
+        if (move.at === "start") handle?.timeline.renderUpTo(0);
+      });
+      return true;
+    },
+  };
 
   const panel = buildPanel();
   const panelBtn = h("button", { class: "cs-bar-btn", title: "Playlist (n/p: next/previous)" }, "☰");
@@ -408,7 +434,6 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   }
 
   function markCurrent(): void {
-    dots.forEach((d, i) => d.classList.toggle("current", i === idx));
     panel.querySelectorAll<HTMLElement>(".pl-item").forEach((b) => {
       b.classList.toggle("current", Number(b.dataset.i) === idx);
     });
@@ -419,9 +444,9 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     gateAbort = null;
   }
 
-  async function jump(i: number): Promise<void> {
+  async function jump(i: number, autoplay = true): Promise<void> {
     cancelPending();
-    await mountItem(i, true);
+    await mountItem(i, autoplay);
   }
 
   // An inset's modal asks to go to the page it shows (ui/inset-modal.ts).
@@ -477,8 +502,8 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     handle = hd;
     shownSpec = items[i].spec;
     attachPlayerControls(host, hd, prefs, {
-      ...controlOpts,
-      trailing: [dotsWrap, panelBtn, ...(opts.controls?.trailing ?? [])],
+      ...navOpts,
+      trailing: [panelBtn, ...(opts.controls?.trailing ?? [])],
     });
     applyCaptions(hd);
     // Chain AFTER the controls install their callbacks (and their showPoster),
@@ -509,6 +534,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
         markChaining(s, chainsOn(i));
         if (s === "done") {
           carry.absorb(hd.timeline.vars);
+          finishedLast = i === items.length - 1;
           void onItemDone();
           showNextLink();
           if (i === items.length - 1) showHandIn();
@@ -517,6 +543,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
             opts.onDone?.();
           }
         } else {
+          finishedLast = false;
           host.querySelector(".cs-nextlink")?.remove();
           host.querySelector(".cs-handin")?.remove();
         }
@@ -537,7 +564,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
    *  reload; modified clicks keep real-anchor semantics (new tab). */
   function showNextLink(): void {
     // A single-drawcast playlist has no "next item" chaining (no idx, no
-    // dots) — that affordance is multi-item only, and stays absent here.
+    // panel) — that affordance is multi-item only, and stays absent here.
     if (items.length <= 1) return;
     const nx = playlist.meta.next;
     if (!nx || idx < items.length - 1) return;
@@ -664,8 +691,8 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     }
     handle = hd;
     attachPlayerControls(host, hd, prefs, {
-      ...controlOpts,
-      trailing: [dotsWrap, panelBtn, ...(opts.controls?.trailing ?? [])],
+      ...navOpts,
+      trailing: [panelBtn, ...(opts.controls?.trailing ?? [])],
     });
     applyCaptions(hd);
     // Chain AFTER the controls install their callbacks (and their showPoster),
@@ -713,7 +740,6 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
       host.removeEventListener("cs-goto-item", onGoto);
       handle?.destroy();
       panel.remove();
-      dotsWrap.remove();
       panelBtn.remove();
       host.classList.remove("pl-host");
     },

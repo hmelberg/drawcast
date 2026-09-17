@@ -59,7 +59,6 @@ const RUST_ALLOWED_SELECTORS = [
   "button.primary", // primary action — covers button.primary and button.primary.cancelling:hover
   ".tab-btn.active", // you are here
   ".library-open.current",
-  ".pl-dot.current",
   ".pl-item.current",
   ".share-dest.current",
   ".cs-infocard-actions a", // inline links

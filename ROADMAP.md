@@ -2412,6 +2412,26 @@ Three things to decide when it matters, none of them now:
 Trigger to watch: total `casts.audio` size against 100 GB. Nothing else about
 the design changes when this lands.
 
+### The player-nav round — delivered 2026-09-17
+
+Hans: a lecture of many pages "should be treated more like a single
+drawcast — same transitions, but no need for the red dots for each
+chapter (we have the hamburger menu), and fast back / forward should go
+all the way, not stop at the chapter; the replay at the end should start
+from the very beginning." What shipped (`src/playlist/nav-model.ts`, pure
+rules; `tests/playlist-nav.test.ts`, `tests/playlist-nav-wiring.test.ts`):
+the per-item dots are gone from the control bar (the ☰ panel and n/p are
+the item navigation); the step buttons offer the session first refusal
+(`ControlsOptions.onStepEdge`) and at an item's first or last command the
+session crosses into the neighbour — back lands on the previous item's
+finished figure, forward on the next item's blank stage, both paused, as
+a hard jump (a scrub plays no card and no fade; normal playback keeps its
+transitions); and once the LAST item has *finished playing* (a poster
+merely jumped to does not count) the next play press restarts at the
+title page, or at the first item when there is none, via `beforePlay`
+with the editor's own beforePlay keeping first refusal. Not pushed with
+its own round — Hans had more player changes coming.
+
 ## Deliberately left in `draw` (the frozen lab)
 
 Backend comparison grids, the raw-SVG baseline, the benchmark runner UI, and
