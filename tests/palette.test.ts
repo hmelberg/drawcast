@@ -65,6 +65,7 @@ const RUST_ALLOWED_SELECTORS = [
   ".cs-infocard-actions a", // inline links
   ".cs-infocard-actions .cs-infocard-act",
   ".cs-mediamodal-bar a",
+  ".cs-insetmodal-go", // primary action — "Go to page" (ui/inset-modal.ts)
 ];
 
 /**

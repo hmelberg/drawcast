@@ -21,6 +21,7 @@ import { dragGateFor } from "./drag-gate";
 import { creditsOf } from "../export/credits";
 import { connectGateFor } from "./connect-gate";
 import { attachInfoCards } from "./infocard";
+import { attachInsetZoom } from "./inset-zoom";
 import { attachWidgetHost, widgetGateFor } from "./widget-host";
 import { attachPanelView } from "./panel-view";
 import { inControlRegion, tryContinue } from "./control-press";
@@ -1042,6 +1043,7 @@ export function attachPlayerControls(
   const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
   if (interactions.includes("chess")) attachChessPlay(stage, hd);
   attachInfoCards(stage, hd, widgetHost); // no-op unless the spec carries card elements
+  attachInsetZoom(stage, hd); // no-op unless the spec carries insets with a picture
   attachPanelView(stage, hd); // no-op unless the figure draws a code panel
   if (interactions.includes("piano")) {
     const octaves = pianoOctaves(hd.spec.params);

@@ -424,6 +424,12 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     await mountItem(i, true);
   }
 
+  // An inset's modal asks to go to the page it shows (ui/inset-modal.ts).
+  host.addEventListener("cs-goto-item", (e) => {
+    const index = (e as CustomEvent<{ index: number }>).detail?.index;
+    if (typeof index === "number" && index >= 0 && index < items.length && index !== idx) void jump(index);
+  });
+
   /**
    * Replace the figure on screen with a freshly rendered one without the box
    * collapsing in between. destroy() removes the old figure at once, and

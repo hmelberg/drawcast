@@ -17,7 +17,8 @@
 // phase and stopped the gate's own listener from ever seeing it. Clicking a
 // chapter's "go on to …" pill did nothing wherever the drawing had a name on
 // it. Guards that name their own subset drift apart; this one cannot.
-export const GATE_SELECTOR = ".cs-figgate, .cs-cardgate, .cs-waitgate";
+// .cs-insetmodal is an inset's page shown full size (ui/inset-modal.ts).
+export const GATE_SELECTOR = ".cs-figgate, .cs-cardgate, .cs-waitgate, .cs-insetmodal";
 
 /** True while a verb is waiting on the viewer through a full-stage overlay. */
 export function gateIsOpen(stage: ParentNode): boolean {

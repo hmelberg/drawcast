@@ -1747,6 +1747,26 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 .cs-mediamodal-frame { flex: 1; width: 100%; border: none; }
 
+/* An inset's page, full size (ui/inset-modal.ts): the media modal's shell
+   around a live figure. Mirrors .player-figure:fullscreen above rather than
+   the brief's first draft (width:100%; max-height:100% on .cs-figure alone
+   left the aspect-ratio-driven height of .cs-stage free to overflow the
+   box's overflow:hidden and get silently cropped): the host gives .cs-figure
+   BOTH axes (flex:1 fills the row; default align-items:stretch fills the
+   column), .cs-figure centers .cs-stage in a column of its own, and
+   .cs-stage's height (flex:1 1 0, filling that column) derives its width
+   through the base rule's 4/3 aspect-ratio (figure-style.ts), capped by
+   max-width so a boxed host narrower than 4/3 never pushes past the sides —
+   the SVG letterboxes itself inside whatever shape is left, never a
+   scrollbar and never a clip. */
+.cs-insetmodal-host { flex: 1; min-height: 0; display: flex; padding: 0.4rem; }
+.cs-insetmodal-host .cs-figure { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; justify-content: center; }
+.cs-insetmodal-host .cs-stage { flex: 1 1 0; min-height: 0; width: auto; max-width: 100%; margin: 0 auto; }
+.cs-insetmodal-title { margin-right: auto; font-size: var(--text-sm); color: var(--muted); }
+.cs-insetmodal-go { border: none; background: none; color: var(--rust); font-size: var(--text-xs); cursor: pointer; }
+.cs-insetmodal-go:hover { text-decoration: underline; }
+.cs-stage.cs-insetable { cursor: zoom-in; }
+
 /* Identify quiz: activity pills in the tray, Again ↻ on the quiz gate. */
 .cs-tray-acts { display: flex; gap: 0.4rem; flex-wrap: wrap; }
 .cs-tray-pill { font-size: var(--text-xs); padding: 0.25rem 0.7rem; }
