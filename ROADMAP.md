@@ -916,6 +916,15 @@ size rides on the stroke (`headSize`, scaled by `scaleDrawables`, floor
 `tests/edge-curve.test.ts`; `tests/packs.test.ts`'s argument-map link
 assertion reworded (each end hugs its own box; the trims differ when the
 boxes' heights do).
+Round 3 (Hans: "the arrow from a state to itself is still not smooth
+enough"; "no need to spend a lot of time redrawing the pictures on the
+side — make it almost instant"): a self-loop is ONE cubic Bézier from
+its two boundary anchors, controls thrown 1.35 r out along the bulge and
+0.9 r to either side (the midpoint lands at base + r), 41 samples, no
+corners — the five-point Catmull-Rom bent at each hand-placed point; and
+an inset's picture leaves are `instant` (only the frame is sketched).
+Tests: smoothness cases in `tests/selfloop-geometry.test.ts`, the
+instant rule in `tests/inset-layout.test.ts`.
 Not done (Hans: "do 2–4, but not 1"): a filled, stroke-width-scaled
 head; with an open V the shaft must reach the apex, so shaft trimming
 went with it. Open: graphviz-style layout for graph templates
