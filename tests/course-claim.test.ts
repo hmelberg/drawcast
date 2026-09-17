@@ -310,3 +310,25 @@ describe("name field wiring (share.ts + ui/course.ts)", () => {
     expect(panel).not.toMatch(/setCourseOption\([^)]*"slug"/);
   });
 });
+
+describe("paid course names — wiring (paid-names round, 2026-09-17)", () => {
+  const panel = readFileSync(new URL("../src/ui/course.ts", import.meta.url), "utf8");
+  const share = readFileSync(new URL("../src/ui/share.ts", import.meta.url), "utf8");
+  const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
+  test("a pay verdict leaves the page doorless and offers the payment as a button in the panel", () => {
+    expect(panel).toMatch(/pay: "unregistered"/);
+    expect(panel).toMatch(/named === "pay"[\s\S]*offerPayment\(reg/);
+    expect(panel).toMatch(/startNamePayment\(DEFAULT_ENROLL_API, \{ key: accountToken, \.\.\.reg, return: /);
+    expect(panel).toMatch(/location\.href = started\.url/);
+  });
+  test("Link's Check button asks as a course when the subject is a course, and the hint names the tiers", () => {
+    expect(share).toMatch(/buildNameCheck\(publishNameInput, \(\) => current\.subject\)/);
+    expect(share).toMatch(/checkCourseName\(DEFAULT_ENROLL_API, name, getToken\(\)\)/);
+    expect(share).toMatch(/NAME_HINT_COURSE =\s*"[^"]*20 USD[^"]*10 USD[^"]*5 USD/);
+  });
+  test("the editor reads Stripe's return marker at start-up, says what happened, and clears it", () => {
+    expect(main).toMatch(/const paidReturn = paidInHash\(location\.hash\)/);
+    expect(main).toMatch(/paidReturn\.outcome === "paid"[\s\S]*publish[\s\S]*again/i);
+    expect(main).toMatch(/history\.replaceState\(null, "", location\.pathname \+ location\.search\)/);
+  });
+});

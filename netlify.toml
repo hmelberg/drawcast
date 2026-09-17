@@ -33,3 +33,10 @@
   [headers.values]
     Access-Control-Allow-Origin = "*"
     Cache-Control = "public, max-age=31536000, immutable"
+
+# NAME.drawcast.app → drawcast.app/#name (netlify/edge-functions/name-host.mts).
+# Needs `*.drawcast.app` as a domain alias on the site; the apex and www pass
+# straight through, so the function costs the ordinary page one host check.
+[[edge_functions]]
+  path = "/*"
+  function = "name-host"

@@ -2395,6 +2395,23 @@ a single drawcast's previous file on a rename (`publish/cast.ts` says "no
 deletions" — the old copy stays reachable, frozen). Tests:
 `tests/course-claim.test.ts` (applyCourseName, courseDoorName, wiring).
 
+### Paid course names + NAME.drawcast.app — delivered 2026-09-17
+
+Spec: `specs/2026-09-17-paid-course-names-and-name-hosts-design.md`. A
+course's door name is bought once through Stripe Checkout (20/10/5 USD by
+base length ≤5/≤7/8+, paid floor 3; cast names stay free behind the
+8-floor): `POST /name` answers 402 for a free course name, `POST /name/pay`
+opens the session and parks the registration in `pending_names`,
+`GET /name/paid` and the signed webhook settle through `_name_write`
+(idempotent; `payments` ledger). Client: `pay` outcome, the Pay button on
+the course panel's status line, `#paid=`/`#unpaid=`/`#taken=` read at
+start-up, a priced Check for course names, tier hint. And
+`NAME.drawcast.app → drawcast.app/#name` by an edge function (only a
+registered name opens anything; `www` reserved). Hans's setup (Netlify
+wildcard alias, Stripe keys + webhook into Anvil Secrets, pull + schema,
+rotate the committed Stripe refresh token, the business/VAT side) is §4 of
+the spec. Both repos committed, NOT pushed.
+
 ## Private courses on the drawcast server — decided 2026-09-17, parked
 
 Round 3 of the private-publishing spec (`specs/2026-09-05-private-publishing-

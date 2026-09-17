@@ -28,7 +28,7 @@ import type { Spec } from "../spec/types";
 import { downloadBlob, getApiKey, getGithubToken, getTtsKey, saveDrawing, type Settings, type ShareTo } from "../store";
 import { DEFAULT_ENROLL_API } from "../learn";
 import { getToken, signInUrl } from "../account";
-import { checkName, checkNote } from "../names";
+import { checkCourseName, checkName, checkNote } from "../names";
 import { embeddedPlaylist, type EmbedDeps } from "../publish/embed";
 import { parseRepo, slugify } from "../publish/github";
 import type { ServerAccess } from "../publish/server";
@@ -493,7 +493,7 @@ function build(): ShareSession {
    * the three stay on one line; a click on it is the button's own — a label
    * does not re-target a click on an interactive descendant.
    */
-  function buildNameCheck(input: HTMLInputElement): { button: HTMLButtonElement; note: HTMLElement; reset: () => void } {
+  function buildNameCheck(input: HTMLInputElement, subject: () => "drawcast" | "course" = () => "drawcast"): { button: HTMLButtonElement; note: HTMLElement; reset: () => void } {
     const button = h("button", { class: "small", type: "button" }, "Check") as HTMLButtonElement;
     const note = h("div", { class: "hint" });
     button.addEventListener("click", () => {
@@ -507,7 +507,14 @@ function build(): ShareSession {
         button.disabled = true;
         note.textContent = "Checking…";
         try {
-          note.textContent = checkNote(await checkName(DEFAULT_ENROLL_API, name, getToken()), name);
+          // A course name is bought (paid-names round): the course check
+          // carries the paid floor and brings the price back for the note.
+          if (subject() === "course") {
+            const verdict = await checkCourseName(DEFAULT_ENROLL_API, name, getToken());
+            note.textContent = checkNote(verdict.state, name, { price: verdict.price, kind: "course" });
+          } else {
+            note.textContent = checkNote(await checkName(DEFAULT_ENROLL_API, name, getToken()), name);
+          }
         } finally {
           button.disabled = false;
         }
@@ -543,11 +550,12 @@ function build(): ShareSession {
   });
   const publishNameHint = h("div", { class: "hint" }, "Changing the name publishes a new copy; the old link keeps working.");
   const NAME_HINT_DRAWCAST = "Changing the name publishes a new copy; the old link keeps working.";
-  const NAME_HINT_COURSE = "The course's short address, drawcast.app/#<name>. Changing it re-points the door; the previous name goes on working, and the folder below never moves.";
+  const NAME_HINT_COURSE =
+    "The course's short address, drawcast.app/#<name>. Registering it costs 20 USD up to 5 characters, 10 USD up to 7, 5 USD from 8 — once, when you publish. Changing it later buys the new name; the previous one goes on working, and the folder below never moves.";
   const linkFolderLine = h("div", { class: "hint" });
   // The name is also what the publish registers (castRegistration), so it
   // can be asked about first (spec §9).
-  const publishNameCheck = buildNameCheck(publishNameInput);
+  const publishNameCheck = buildNameCheck(publishNameInput, () => current.subject);
   const publishNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", publishNameInput, publishNameCheck.button), publishNameCheck.note, publishNameHint, linkFolderLine);
   // Key "share" so this panel's two boxes keep the exact ids they have always
   // had ("share-embed-images"/"share-embed-narration") — extracting the rows

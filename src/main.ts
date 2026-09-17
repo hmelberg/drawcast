@@ -82,7 +82,7 @@ import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from
 import { bakeCost, costLabel } from "./export/tts-cost";
 import { castRegistration, publishCast } from "./publish/cast";
 import { publishToServer, serverCastKey, type ServerAccess } from "./publish/server";
-import { isRegistrable, MIN_NAME_LENGTH, nameNote, normalizeName, registerName } from "./names";
+import { MIN_NAME_LENGTH, isRegistrable, nameNote, normalizeName, paidInHash, registerName } from "./names";
 import { DEFAULT_ENROLL_API } from "./learn";
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
@@ -4003,6 +4003,23 @@ async function loadCoursesFromGithub(opts: { quiet?: boolean } = {}): Promise<vo
 refreshLibrary();
 refreshAccountRow();
 if (settings.githubRepo) void loadCoursesFromGithub({ quiet: true });
+
+// Stripe's return (paid-names round, 2026-09-17): the browser comes back to
+// drawcast.app with `#paid=<name>`, `#unpaid=<name>` or `#taken=<name>`. Say
+// what happened, then clear the marker so a reload does not repeat it. The
+// door reaches the course page at the next publish — the page's door is only
+// ever built from a name this account has registered.
+const paidReturn = paidInHash(location.hash);
+if (paidReturn) {
+  history.replaceState(null, "", location.pathname + location.search);
+  if (paidReturn.outcome === "paid") {
+    setStatusAction(`drawcast.app/#${paidReturn.name} is yours. Publish the course again to put the Join door on its page.`, "Open courses", () => openCourse(), "ok");
+  } else if (paidReturn.outcome === "taken") {
+    setStatus(`"${paidReturn.name}" was taken by someone else while you paid — the payment will be refunded. Set name: in the course document to pick another.`, "error");
+  } else {
+    setStatus(`The payment for drawcast.app/#${paidReturn.name} was not completed — the course is published without its short address.`);
+  }
+}
 
 // ---------- my templates ----------
 

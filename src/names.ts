@@ -8,7 +8,7 @@ import { apiBase } from "./learn";
 
 export const NAME_RE = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?(?:\/[a-z0-9-]{1,20})?$/;
 /** May not start a name, with or without a trailing dash: `gh-…` is an alias of `gh=…` in the viewer. */
-export const RESERVED_PREFIXES = ["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner", "me"] as const;
+export const RESERVED_PREFIXES = ["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner", "me", "www"] as const;
 
 export function normalizeName(raw: string | null | undefined): string | null {
   if (typeof raw !== "string") return null;
@@ -20,6 +20,47 @@ export function normalizeName(raw: string | null | undefined): string | null {
 }
 
 export const MIN_NAME_LENGTH = 8;
+
+// ---- Paid course names (paid-names round, 2026-09-17) ----------------------
+// A COURSE's door name is bought, one-time, priced by the base's length in US
+// cents; the paid floor is three characters. Cast names stay free behind
+// MIN_NAME_LENGTH. Mirrors server_code/names.py — tests/names.test.ts pins
+// the four constants to that file.
+export const PAID_MIN_LENGTH = 3;
+export const PRICE_TIERS: readonly (readonly [number, number])[] = [
+  [5, 2000],
+  [7, 1000],
+];
+export const PRICE_LONG = 500;
+export const PRICE_CURRENCY = "usd";
+
+/** Cents for registering `raw` as a course name — by the BASE's length. */
+export function priceFor(raw: string): number {
+  const base = raw.trim().toLowerCase().split("/", 1)[0];
+  for (const [upto, cents] of PRICE_TIERS) if (base.length <= upto) return cents;
+  return PRICE_LONG;
+}
+
+/** May this name be BOUGHT as a course name? The read rule, a base name only, and the paid floor. */
+export function isPayable(raw: string | null | undefined): boolean {
+  const name = normalizeName(raw);
+  if (name === null || name.includes("/")) return false;
+  return name.length >= PAID_MIN_LENGTH;
+}
+
+/** "5 USD", "10.50 USD" — whole units where they are whole. */
+export function formatPrice(cents: number, currency: string = PRICE_CURRENCY): string {
+  const units = cents / 100;
+  const text = Number.isInteger(units) ? String(units) : units.toFixed(2);
+  return `${text} ${currency.toUpperCase()}`;
+}
+
+/** Stripe's return lands on drawcast.app with the outcome in the fragment. */
+export function paidInHash(hash: string): { outcome: "paid" | "unpaid" | "taken"; name: string } | null {
+  const m = /^#(paid|unpaid|taken)=([a-z0-9-]+)$/.exec(hash);
+  if (!m) return null;
+  return { outcome: m[1] as "paid" | "unpaid" | "taken", name: m[2] };
+}
 
 /** May this name be REGISTERED? Mirrors names.py's registrable(). Reading
  *  stays normalizeName's job, so a name already registered below the floor
@@ -92,7 +133,9 @@ export interface Registration {
   lectures?: string[];
 }
 
-export async function registerName(api: string, reg: Registration, fetchImpl: typeof fetch = fetch): Promise<"ok" | "taken" | "owner" | "key" | "invalid" | "rate" | "error"> {
+export type RegisterOutcome = "ok" | "taken" | "owner" | "key" | "invalid" | "rate" | "error" | "pay";
+
+export async function registerName(api: string, reg: Registration, fetchImpl: typeof fetch = fetch): Promise<RegisterOutcome> {
   if (normalizeName(reg.name) !== reg.name) return "invalid";
   try {
     const res = await fetchImpl(`${apiBase(api)}/_/api/name`, {
@@ -101,6 +144,9 @@ export async function registerName(api: string, reg: Registration, fetchImpl: ty
       body: JSON.stringify(reg),
     });
     if (res.ok) return "ok";
+    // A course name not yet yours is a sale (paid-names round): the
+    // registration waits for Stripe — startNamePayment is the door.
+    if (res.status === 402) return "pay";
     if (res.status === 409) return "taken";
     if (res.status === 403) return "owner";
     if (res.status === 401) return "key";
@@ -113,10 +159,12 @@ export async function registerName(api: string, reg: Registration, fetchImpl: ty
 }
 
 /** The status suffix after a publish (spec §7). */
-export function nameNote(outcome: "ok" | "taken" | "owner" | "key" | "invalid" | "rate" | "error", name: string): string {
+export function nameNote(outcome: RegisterOutcome, name: string): string {
   switch (outcome) {
     case "ok":
       return ` · also at https://drawcast.app/#${name}`;
+    case "pay":
+      return ` · the name "${name}" costs ${formatPrice(priceFor(name))} — not registered yet`;
     case "taken":
       return ` · the name "${name}" is taken by someone else (set name: in the document to pick another)`;
     case "owner":
@@ -174,17 +222,21 @@ export async function checkName(api: string, name: string, token: string, fetchI
   }
 }
 
-/** The note under the field: what to do next, not what happened. */
-export function checkNote(state: CheckState, name: string): string {
+/** The note under the field: what to do next, not what happened. For a
+ *  course name (paid-names round) `price` says what a free name costs, and
+ *  `kind: "course"` states the paid floor instead of the free one. */
+export function checkNote(state: CheckState, name: string, opts: { price?: number; kind?: "cast" | "course" } = {}): string {
   switch (state) {
     case "free":
-      return `"${name}" is free.`;
+      return opts.price !== undefined ? `"${name}" is free — ${formatPrice(opts.price)} to register it as this course’s address.` : `"${name}" is free.`;
     case "yours":
-      return `"${name}" is already yours — publishing moves it to this drawcast.`;
+      return `"${name}" is already yours — publishing moves it to this ${opts.kind === "course" ? "course" : "drawcast"}.`;
     case "taken":
       return `"${name}" belongs to someone else. Pick another.`;
     case "short":
-      return `Names need at least ${MIN_NAME_LENGTH} characters for now.`;
+      return opts.kind === "course"
+        ? `A course name needs at least ${PAID_MIN_LENGTH} characters.`
+        : `Names need at least ${MIN_NAME_LENGTH} characters for now.`;
     case "invalid":
       return "That is not a valid name: lower-case letters, digits and dashes, not starting with a reserved word like gh or me.";
     case "error":
@@ -193,6 +245,65 @@ export function checkNote(state: CheckState, name: string): string {
       const unreachable: never = state;
       return unreachable;
     }
+  }
+}
+
+/**
+ * The Check button for a COURSE name (paid-names round): the paid floor is
+ * checked locally first, `kind: "course"` rides the body, and the server's
+ * price comes back beside the state so the note can say what a free name
+ * costs. Never throws, like checkName.
+ */
+export async function checkCourseName(api: string, name: string, token: string, fetchImpl: typeof fetch = fetch): Promise<{ state: CheckState; price?: number }> {
+  const normalized = normalizeName(name);
+  if (normalized === null) return { state: "invalid" };
+  if (!isPayable(normalized)) return { state: "short" };
+  try {
+    const res = await fetchImpl(`${apiBase(api)}/_/api/name/check`, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: JSON.stringify(token ? { name: normalized, key: token, kind: "course" } : { name: normalized, kind: "course" }),
+    });
+    if (!res.ok) return { state: "error" };
+    const body = (await res.json()) as { state?: unknown; price?: unknown };
+    const state = body.state;
+    if (!(state === "free" || state === "yours" || state === "taken" || state === "short" || state === "invalid")) return { state: "error" };
+    return typeof body.price === "number" ? { state, price: body.price } : { state };
+  } catch {
+    return { state: "error" };
+  }
+}
+
+export type PaymentStart = { url: string } | "taken" | "yours" | "owner" | "key" | "invalid" | "rate" | "error";
+
+/**
+ * Open a Stripe Checkout Session for a course name (POST /_/api/name/pay):
+ * the registration body plus `return`, the address Stripe sends the browser
+ * back to — drawcast.app reads the outcome from the fragment (paidInHash).
+ * `{url}` is where the browser goes next; every refusal is a word.
+ */
+export async function startNamePayment(api: string, args: Registration & { return: string }, fetchImpl: typeof fetch = fetch): Promise<PaymentStart> {
+  try {
+    const res = await fetchImpl(`${apiBase(api)}/_/api/name/pay`, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: JSON.stringify(args),
+    });
+    if (res.ok) {
+      const body = (await res.json()) as { url?: unknown };
+      return typeof body.url === "string" ? { url: body.url } : "error";
+    }
+    if (res.status === 409) {
+      const body = (await res.json().catch(() => ({}))) as { error?: unknown };
+      return body.error === "yours" ? "yours" : "taken";
+    }
+    if (res.status === 403) return "owner";
+    if (res.status === 401) return "key";
+    if (res.status === 400) return "invalid";
+    if (res.status === 429) return "rate";
+    return "error";
+  } catch {
+    return "error";
   }
 }
 

@@ -25,7 +25,7 @@ import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from
 import { addCosts, bakeCost, costLabel, courseNarrationProjection, type BakeCost } from "../export/tts-cost";
 import { stampedVoice, synthesizeBase64, voiceLang } from "../export/tts";
 import { joinPath } from "../course/publish";
-import { claimCourse, claimNote, courseClaim, isRegistrable, MIN_NAME_LENGTH, nameNote, normalizeName, registerName } from "../names";
+import { MIN_NAME_LENGTH, type Registration, claimCourse, claimNote, courseClaim, formatPrice, isRegistrable, nameNote, normalizeName, priceFor, registerName, startNamePayment } from "../names";
 import { DEFAULT_ENROLL_API } from "../learn";
 import { getToken } from "../account";
 
@@ -41,6 +41,8 @@ const DOORLESS: Record<Exclude<Awaited<ReturnType<typeof registerName>>, "ok">, 
   invalid: "invalid",
   rate: "unreachable",
   error: "unreachable",
+  // A course name is bought (paid-names round): unpaid, it is simply not registered yet.
+  pay: "unregistered",
 };
 import { parseRepo, readFile } from "../publish/github";
 import { embeddedPlaylist } from "../publish/embed";
@@ -321,6 +323,44 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
   }
 
   /** Transient progress: the panel's line only, never the app's. */
+  /**
+   * The Pay button (paid-names round, 2026-09-17): a course name costs
+   * money, and POST /name answered so. The button rides the panel's status
+   * line so it survives the publish's own final message; pressing it opens
+   * a Stripe Checkout Session for exactly this registration and sends the
+   * browser there. Stripe brings it back to drawcast.app with `#paid=<name>`
+   * (main.ts reads it). The door lands on the page at the next publish.
+   */
+  let payBtn: HTMLButtonElement | null = null;
+  function offerPayment(reg: Omit<Registration, "key">, accountToken: string): void {
+    payBtn?.remove();
+    const price = formatPrice(priceFor(reg.name));
+    const btn = h("button", { class: "small primary course-pay", title: `Buy the address drawcast.app/#${reg.name}` }, `Pay ${price} for drawcast.app/#${reg.name}`) as HTMLButtonElement;
+    btn.addEventListener("click", () => {
+      btn.disabled = true;
+      void (async () => {
+        const started = await startNamePayment(DEFAULT_ENROLL_API, { key: accountToken, ...reg, return: location.href.split("#")[0] });
+        if (typeof started === "object") {
+          location.href = started.url;
+          return;
+        }
+        btn.disabled = false;
+        say(
+          started === "yours"
+            ? `"${reg.name}" is already yours — publish again to put the door on the page.`
+            : started === "taken"
+              ? `"${reg.name}" was taken meanwhile — set name: in the course document to pick another.`
+              : started === "key"
+                ? "Sign in first (Settings → Publishing)."
+                : `Could not start the payment (${started}) — try again in a moment.`,
+          "error",
+        );
+      })();
+    });
+    payBtn = btn;
+    status.after(btn);
+  }
+
   function working(text: string): void {
     status.textContent = text;
     status.classList.remove("course-status-error");
@@ -1025,6 +1065,10 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
           if (isRegistrable(reg.name)) {
             const named = await registerName(DEFAULT_ENROLL_API, { key: accountToken, ...reg }, bounded);
             nameSuffix += nameNote(named, reg.name);
+            // A free course name is bought, not registered (paid-names round):
+            // the publish goes through doorless, and the panel offers the
+            // payment as a button once the status is up (see below).
+            if (named === "pay") offerPayment(reg, accountToken);
             // A renamed door: the old name keeps resolving (the registry never
             // forgets a name), so say so rather than let the author wonder.
             if (named === "ok" && previousName && previousName !== reg.name) nameSuffix += ` · the previous name "${previousName}" goes on working`;
