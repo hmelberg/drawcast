@@ -236,8 +236,14 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // description reworded once more (Greek and symbols now in the hand, only
 // stretched glyphs stay in the math font) — schema −7 (119543 → 119536);
 // the system prompt measured unchanged at 237081.
-const BASELINE_SYSTEM_CHARS = 237081;
-const BASELINE_SCHEMA_CHARS = 119536;
+// Re-pinned 2026-09-17 for the inset round (spec
+// 2026-09-17-inset-design.md): the schema gains "inset" in the type enum, a
+// `crop` property, and one sentence each on `of`, `x`, `y`, `width` and
+// `height` — +850 on the schema (119536 → 120386), embedded verbatim in the
+// system prompt; compiler-v1.md gains the inset bullet, +1191 — total system
+// +2041 (237081 → 239122).
+const BASELINE_SYSTEM_CHARS = 239122;
+const BASELINE_SCHEMA_CHARS = 120386;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {
@@ -327,5 +333,16 @@ describe("template box in the prompt (spec 2026-09-15-template-box §10)", () =>
 
   test('the schema\'s animate description learns "box" may be a region name', () => {
     expect(JSON.stringify(apiSchema())).toContain('{\\"animate\\": {\\"box\\": \\"right\\"}}');
+  });
+});
+
+describe("inset in the prompt (spec 2026-09-17-inset §8)", () => {
+  test("the schema and the prompt teach the inset", () => {
+    const schema = JSON.stringify(apiSchema());
+    expect(schema).toContain('"inset"');
+    expect(schema).toContain("fits the whole 1000×750 canvas");
+    const sys = system(false);
+    expect(sys).toContain("**inset** is a small picture of ANOTHER page");
+    expect(sys).toContain('"of": "The Markov model"');
   });
 });

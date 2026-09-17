@@ -1,8 +1,48 @@
 # Inset — a small picture of another page on this one
 
-Status: designed 2026-09-17 (brainstormed with Hans the same day;
-ROADMAP entry "Screens in a spec, side by side" holds the wider idea this
-round deliberately does NOT build). Plan: docs/superpowers/plans/2026-09-17-inset.md.
+Status: implemented 2026-09-17 on branch worktree-inset (plan:
+docs/superpowers/plans/2026-09-17-inset.md, smoke:
+docs/superpowers/plans/2026-09-17-inset-smoke.md). Hans's smoke test is
+the remaining acceptance step.
+
+Deviations made during Task 9 (the prompt bullet, the schema-size pin,
+the three bundled examples, ROADMAP, smoke):
+
+(a) The prompt bullet's illustrative round-trip — one command carrying
+both `move` and `focus` together — cannot be authored as literally shown:
+the schema allows exactly one action verb per command. The bundled
+examples split it into two commands (a plain `move`, then a `focus` that
+carries the beat's `speak`). The prompt bullet itself is unchanged from
+the brief's exact text, since it is prose teaching the pattern to the
+model, not a runnable spec — the model is expected to write it as two
+commands too, the same way it already does for `move`+`speak` elsewhere.
+
+(b) `generic_axes_diagram`'s curves are fixed to x, y ∈ [0, 100] — there
+is no `x_range`/`y_range` param (checked: `params_schema` in
+`src/scenes/generic_axes_diagram/layout.ts`). The addendum's own suggested
+parabola substitute (`x*x - 4*x + 5`) still overflows the canvas well
+before x = 100 (y reaches 9,605), which the layout gate catches as
+`fit-scale`/`overlap-label` warnings once the template is fitted into the
+inset column's smaller box. The bundled parabola example uses a shallow
+leading coefficient instead (`0.02(x-50)^2 + 1`, vertex (50, 1), y ranges
+1–51), and the growth-curves example's exponential rate was lowered
+(`5*exp(0.025*x)`, not the first-drafted 6 %/year) to keep every curve
+inside the canvas over the whole fixed domain.
+
+(c) The two `point.at.ref+anchor` beats that were meant to land on a part
+INSIDE the referenced inset's picture (the Sick→Dead arrow; the
+derivation's last line) point at the universal anchor `right` instead of
+the source element's own id (`t_2`, `step_2`). `tests/examples.test.ts`
+lays out each playlist item alone (§4.4) — an inset's picture is never
+built there — so a non-universal anchor into an unbuilt picture warns
+`"<id>" has no anchor "<name>" — using center`, which the "no plan
+warning at all" gate correctly refuses. In the live app, where the
+picture IS built (render.ts resolves it from the sibling item), the same
+`point.at: {ref, anchor}` commands resolve the named anchor cleanly — this
+is a limitation of the isolated per-item gate, not of the feature; the
+compiler prompt's own illustration (`{"point": {"at": {"ref": "model_pic",
+"anchor": "arrow_1"}}}`) is unchanged, since it is a real, working pattern
+the model should still reach for.
 
 ## 1. What this is
 

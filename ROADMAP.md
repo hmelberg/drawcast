@@ -889,6 +889,38 @@ the tray's ✎ On the screen still opens the code editor over a
 panel itself is the host's now, and there is no script text to type there
 once the pane is knobs, not lines).
 
+## Inset — a small picture of another page — done 2026-09-17
+
+Spec `docs/superpowers/specs/2026-09-17-inset-design.md`, plan
+`docs/superpowers/plans/2026-09-17-inset.md`, smoke
+`docs/superpowers/plans/2026-09-17-inset-smoke.md`. A new element type
+`inset` draws another playlist item's held final frame as a hand-drawn
+thumbnail: built once in render() from the source's layout + plan
+(`src/render/inset.ts`, `src/render/frame.ts` — the pure counterpart of
+buildNodes), fitted into its slot on every layout (`src/layout/inset.ts`:
+crop on by default, stroke width and roughness divided by the scale, draw
+durations shortened), a right-hand column of up to five by default with
+the template keeping left of it, read-only anchors into the picture
+(`point`/`camera`/`at` aim at a source element by its id), lint and text
+style leaving the picture alone, a playlist-parser warning for a bad
+reference, and a paused-click modal that shows the page full size with
+"Go to page". Opt-in: a page without insets is untouched. Not built
+(spec §10): auto insets, the shrink transition, page slides, a scrolling
+column, live insets. Open: `group.fit` still leaves stroke width and
+roughness unscaled (the inset's `thin` is the fix to copy).
+
+Three bundled examples teach the element (Task 9): "A Markov model,
+simulated and read" (a three-state model, its cohort simulation kept as a
+corner thumbnail, then a third page with two thumbnails and a `move`
+forward/back into the model); "The vertex, derived and drawn" (an
+algebra derivation kept in the corner of the parabola it proves, the same
+grow/point/return round-trip); "Two growth curves, side by side" (two
+uncropped half-page pictures at one shared scale, with `camera` zooming
+into one and back) — see `docs/superpowers/specs/2026-09-17-inset-design.md`
+for the deviations the isolated per-item example gate forced (a narrower
+`generic_axes_diagram` domain than first drafted, and a universal anchor
+in place of a named one for the two point-into-picture beats).
+
 ## Course progress, client — done 2026-09-17
 
 Spec `docs/superpowers/specs/2026-09-16-course-progress-and-submit-design.md`
@@ -1554,6 +1586,9 @@ drawcast in several languages, re-linted after translation.
     side with one narration; both are callers of the same stage +
     multi-mount if the stage uses real world coordinates. 18:38 is a
     letter strip scrolling INSIDE one element — a different feature.
+  The inset element (done 2026-09-17) covers presenting and concluding
+  with pictures of earlier pages; screens remain the answer for a LIVE
+  model beside a live simulation.
 - **A stable id per drawcast** (idea, 2026-09-16 — to consider, not
   scheduled). Today a drawcast's identity is its cast key, the path
   `owner/repo/dir/file`: readable, doubles as the fetch address, and breaks
