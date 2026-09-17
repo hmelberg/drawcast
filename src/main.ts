@@ -93,9 +93,10 @@ import { resolveImages } from "./render/image";
 import { decodeIcon } from "./spec/trace";
 import { seedBlock, type SeedBlock } from "./llm/seed";
 import { resolveSources } from "./render/source";
-import { parseRepo, readFile, slugify, type RepoRef } from "./publish/github";
+import { parseManifest, parseRepo, readFile, slugify, type RepoRef } from "./publish/github";
 import { parseSourceManifest, saveSource, sourceIndexPath } from "./publish/source";
 import { joinPath } from "./course/publish";
+import { importCourse, lectureFilesOf, planCourseLoad } from "./course/load";
 import { translateSubtitles, withSubtitles } from "./llm/subtitles";
 import { ExportKeepAlive, startWorkerClock } from "./export/keepalive";
 import { CloudSpeech } from "./export/tts";
@@ -129,6 +130,7 @@ import {
   loadUserPrompts,
   migrateLegacyCustomPrompt,
   deleteRemotePack,
+  saveCourse,
   saveDrawing,
   saveMyTemplate,
   saveRemotePack,
@@ -771,9 +773,17 @@ const examplesList = examplesSection.list;
 // "＋ New course" replaces the old "🎓 Course" tool row — same wiring
 // (openCourse, defined with the other library/course refresh functions
 // below), new home at the foot of the Courses section.
+// …and since 2026-09-17 at its HEAD, with ⇩ Load courses beside it: the
+// course list can be long, and the two verbs should not hide under it (Hans).
+// ＋ New really starts an empty course; Load pulls the repo's published
+// courses in (course/load.ts) — the same sync a declared repo runs quietly
+// at startup, see loadCoursesFromGithub.
 const newCourseRow = h("button", { class: "sidebar-row" }, "＋ New course");
-newCourseRow.addEventListener("click", () => openCourse());
-coursesSection.details.append(newCourseRow);
+newCourseRow.addEventListener("click", () => openCourse(undefined, { fresh: true }));
+const loadCoursesRow = h("button", { class: "sidebar-row", title: "Load the courses published to your GitHub repository (Settings → Publishing)" }, "⇩ Load courses");
+loadCoursesRow.addEventListener("click", () => void loadCoursesFromGithub());
+coursesSection.details.insertBefore(newCourseRow, coursesSection.list);
+coursesSection.details.insertBefore(loadCoursesRow, coursesSection.list);
 const manageTemplatesRow = h("button", { class: "sidebar-row" }, "Manage…");
 manageTemplatesRow.addEventListener("click", () => openTemplatesModal("list"));
 templatesSection.details.append(manageTemplatesRow);
@@ -3899,7 +3909,7 @@ function refreshCourses(): void {
  *  sidebar row was clicked for, so the panel loads THAT course rather than
  *  whichever one it last happened to have open — omitted by "＋ New course",
  *  which leaves the panel wherever it already was. */
-function openCourse(id?: string): void {
+function openCourse(id?: string, opts: { fresh?: boolean } = {}): void {
   openCoursePanel({
     apiKey: () => getApiKey(),
     model: () => settings.model,
@@ -3925,11 +3935,74 @@ function openCourse(id?: string): void {
     setProgress: (text) => (exportChipText.textContent = text),
     endExport,
     setAbort: (c) => (exportAbort = c),
-  }, id);
+  }, id, opts);
+}
+
+/**
+ * Pull the courses published to the GitHub repo into this browser (course-
+ * load round, 2026-09-17): the sidebar's ⇩ Load courses row, and — quietly,
+ * when a repo is declared — every startup, so a new machine simply has your
+ * courses. What to fetch and what it becomes are course/load.ts's pure
+ * rules; this is the network and the stores. Public repos only (readFile).
+ * `quiet` says nothing unless something was actually loaded.
+ */
+let courseLoadInFlight = false;
+async function loadCoursesFromGithub(opts: { quiet?: boolean } = {}): Promise<void> {
+  if (courseLoadInFlight) return;
+  const repo = parseRepo(settings.githubRepo);
+  if (!repo) {
+    if (!opts.quiet) setStatus("Set your GitHub repository in Settings first (Settings → Publishing).", "error");
+    return;
+  }
+  courseLoadInFlight = true;
+  const plural = (n: number) => `${n} course${n === 1 ? "" : "s"}`;
+  try {
+    const manifestText = await readFile(repo, joinPath(settings.coursesDir, "courses.json"));
+    if (manifestText === null) {
+      if (!opts.quiet) setStatus(`No courses have been published to ${repo.owner}/${repo.repo} yet.`);
+      return;
+    }
+    const todo = planCourseLoad(parseManifest(manifestText), loadCourses(), repo, settings.coursesDir);
+    if (todo.length === 0) {
+      if (!opts.quiet) setStatus("Your courses are up to date with GitHub.", "ok");
+      return;
+    }
+    if (!opts.quiet) setStatus(`Loading ${plural(todo.length)} from GitHub…`);
+    let loaded = 0;
+    const missing: string[] = [];
+    for (const t of todo) {
+      const text = await readFile(repo, joinPath(t.dir, "course.md"));
+      if (text === null) {
+        missing.push(`${t.slug}/course.md`);
+        continue;
+      }
+      const yamlByFile: Record<string, string> = {};
+      await Promise.all(
+        lectureFilesOf(text).map(async (f) => {
+          const yaml = await readFile(repo, joinPath(t.dir, f));
+          if (yaml !== null) yamlByFile[f] = yaml;
+        }),
+      );
+      const out = importCourse({ text, yamlByFile, courseId: t.localId ?? crypto.randomUUID(), updated: t.updated });
+      out.drawings.forEach(saveDrawing);
+      saveCourse(out.course);
+      loaded++;
+      missing.push(...out.missing.map((f) => `${t.slug}/${f}`));
+    }
+    refreshLibrary();
+    if (loaded === 0 && opts.quiet) return;
+    const tail = missing.length > 0 ? ` ${missing.length} lecture file${missing.length === 1 ? "" : "s"} could not be read: ${missing.join(", ")}.` : "";
+    setStatus(`Loaded ${plural(loaded)} from GitHub.${tail}`, missing.length > 0 ? "error" : "ok");
+  } catch (err) {
+    if (!opts.quiet) setStatus(`Loading courses failed: ${(err as Error).message}`, "error");
+  } finally {
+    courseLoadInFlight = false;
+  }
 }
 
 refreshLibrary();
 refreshAccountRow();
+if (settings.githubRepo) void loadCoursesFromGithub({ quiet: true });
 
 // ---------- my templates ----------
 

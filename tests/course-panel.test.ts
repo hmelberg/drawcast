@@ -96,16 +96,24 @@ describe("the panel's own source", () => {
 });
 
 describe("the course modal's regions", () => {
-  it("no longer runs twelve controls in one bar — the picker, persistence and\n     history have left it", async () => {
+  it("splits the working verbs over two rows — the plan slot with Cancel under the request box, Generate with the cost under a rule — and has no separate Revise button", async () => {
     const src = await readFile(new URL("../src/ui/course.ts", import.meta.url), "utf8");
-    const bar = src.slice(src.indexOf('class: "pane-bar"'));
-    const line = bar.slice(0, bar.indexOf("\n", bar.indexOf("pane-spacer")));
-    for (const gone of ["courseSel", "newBtn", "saveBtn", "publishBtn", "bakeLabel", "backupBtn", "undoBtn", "matchBtn"]) {
-      expect(line).not.toContain(gone);
+    const planRow = src.slice(src.indexOf('class: "pane-bar course-plan-row"'));
+    const planLine = planRow.slice(0, planRow.indexOf("\n"));
+    expect(planLine).toContain("planBtn");
+    expect(planLine).toContain("cancelBtn");
+    expect(planLine).not.toContain("runBtn");
+    const runRow = src.slice(src.indexOf('class: "pane-bar course-run-row"'));
+    const runLine = runRow.slice(0, runRow.indexOf("\n"));
+    expect(runLine).toContain("runBtn");
+    expect(runLine).toContain("cost");
+    expect(runLine).not.toContain("planBtn");
+    for (const gone of ["reviseBtn", "courseSel", "newBtn", "saveBtn", "publishBtn", "undoBtn", "matchBtn"]) {
+      expect(planLine + runLine).not.toContain(gone);
     }
-    for (const kept of ["planBtn", "reviseBtn", "runBtn", "cancelBtn"]) {
-      expect(line).toContain(kept);
-    }
+    expect(src).not.toContain("reviseBtn");
+    // The body lays them out in that order: request block, rule, run row.
+    expect(src).toMatch(/course-ask-block"[\s\S]*?\n\s*rule,\n\s*runRow,/);
   });
 
   it("has no second copy of the publish checkbox — Share asks it once", async () => {
@@ -141,5 +149,22 @@ describe("the course modal's width", () => {
   it("still caps the small dialog, so ordinary dialogs stay narrow", async () => {
     const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
     expect(/\.modal-s\s*\{[^}]*max-width:\s*30rem/.test(css)).toBe(true);
+  });
+});
+
+// Course panel layout (course-load round, 2026-09-17): one plan slot that
+// reads Make plan until the document has lectures and Revise plan after;
+// Generate appears only once there is a plan.
+import { panelActions } from "../src/ui/course";
+
+describe("panelActions", () => {
+  it("an empty document offers Make plan and hides Generate", () => {
+    expect(panelActions(parseCourse(""))).toEqual({ plan: "make", generate: false });
+  });
+  it("a document with lectures offers Revise plan and shows Generate", () => {
+    expect(panelActions(parseCourse(DOC))).toEqual({ plan: "revise", generate: true });
+  });
+  it("a title alone is not a plan yet", () => {
+    expect(panelActions(parseCourse("# Just a title\n"))).toEqual({ plan: "make", generate: false });
   });
 });

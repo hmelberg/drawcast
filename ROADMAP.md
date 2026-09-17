@@ -2432,6 +2432,31 @@ title page, or at the first item when there is none, via `beforePlay`
 with the editor's own beforePlay keeping first refusal. Not pushed with
 its own round — Hans had more player changes coming.
 
+### The course-load round — delivered 2026-09-17
+
+Hans: "is it possible to load course(s) that you have in your github
+repo?" — watching was (every published lecture plays from `#gh=`), editing
+was not: courses lived only in the browser that generated them. What
+shipped: `src/course/load.ts` (pure — `planCourseLoad` picks the manifest
+courses to fetch, matching a local course by the `slug:` publish stamps
+into its text and letting the repo win only when its manifest time is
+newer than the local save, so unpublished edits are never clobbered;
+`importCourse` turns course.md + lecture yamls into the SavedCourse and
+library rows under the ids the status lines already carry, through the
+saveable gate, dropping baked audio and the publish-only `next` link);
+`loadCoursesFromGithub` in main.ts (the sidebar's ⇩ Load courses row, and
+the same sync quietly at startup when a repo is declared). Public repos
+only. Sidebar: ＋ New course and ⇩ Load courses now LEAD the Courses
+section (the list can be long), and ＋ New really starts an empty course
+(`openCoursePanel(…, { fresh: true })`). Course panel relaid (Hans): one
+plan slot under the request box — "✦ Make plan" until the document has
+lectures, "✎ Revise plan" after (`panelActions`) — with Cancel on the same
+row; a rule; "▶ Generate drawcasts" with the cost on its own row, shown
+only once a plan exists; the separate Revise button is gone. Tests:
+`tests/course-load.test.ts` (rules + main.ts wiring),
+`tests/course-panel.test.ts` (panelActions, two-row layout). Browser
+smoke GJENSTÅR. Not pushed on its own — more player changes coming.
+
 ## Deliberately left in `draw` (the frozen lab)
 
 Backend comparison grids, the raw-SVG baseline, the benchmark runner UI, and

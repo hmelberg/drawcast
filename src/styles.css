@@ -2261,6 +2261,11 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   resize: vertical;
 }
 .course-pick { max-width: 14rem; }
+/* The request box and its one verb read as a block (Hans 2026-09-17); the
+   textarea's own bottom margin would open a gap inside it. */
+.course-ask-block .course-ask { margin-bottom: 0.3rem; }
+.course-rule { border: 0; border-top: 1px solid var(--line); margin: 0.8rem 0 0.6rem; }
+.course-run-row { margin-bottom: 0.2rem; }
 /* Only ever visible while something is running, so it should be the thing the
    eye lands on when it appears. */
 .course-match {

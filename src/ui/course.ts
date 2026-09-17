@@ -121,6 +121,23 @@ const published = new Set<string>();
  * newest saved course (saveCourse unshifts, so `saved[0]` is newest), or
  * nothing when there is nothing saved.
  */
+/**
+ * The panel's two working verbs from the document alone (Hans 2026-09-17):
+ * ONE plan slot under the request box that reads "Make plan" until the
+ * document has lectures and "Revise plan" after — the same box feeds both —
+ * and Generate, which has nothing to do until there is a plan, so it is not
+ * shown before one exists.
+ */
+export function panelActions(course: Course): { plan: "make" | "revise"; generate: boolean } {
+  const hasPlan = course.lectures.length > 0;
+  return { plan: hasPlan ? "revise" : "make", generate: hasPlan };
+}
+
+/** The panel's own "start an empty course" — the sidebar's ＋ New course row
+ *  reaches it through openCoursePanel's `fresh`, the same way its course rows
+ *  reach loadCourse. */
+let newCourseRef: (() => void) | null = null;
+
 export function resolveOpenCourseId(requestedId: string | undefined, saved: { id: string }[]): string | null {
   if (requestedId && saved.some((c) => c.id === requestedId)) return requestedId;
   if (requestedId) return null; // asked for a course that is gone — load nothing rather than guess
@@ -134,11 +151,14 @@ export function resolveOpenCourseId(requestedId: string | undefined, saved: { id
  *  panel already was, or load the newest saved course on first open. Named
  *  differently from the panel's own internal `courseId` (the currently-open
  *  course, tracked below) so the two are never confused. */
-export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
+export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { fresh?: boolean } = {}): void {
   if (panel) {
     panel.open();
     reopen?.();
-    if (openId) {
+    // `fresh` (the sidebar's ＋ New course row) really starts an empty course
+    // — it used to leave the panel wherever it was (Hans 2026-09-17).
+    if (opts.fresh) newCourseRef?.();
+    else if (openId) {
       const toLoad = resolveOpenCourseId(openId, loadCourses());
       if (toLoad) loadCourseRef?.(toLoad);
     }
@@ -170,7 +190,6 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
     class: "course-ask",
     rows: "2",
     spellcheck: "false",
-    placeholder: "Describe the course to plan it — or a change to revise it (e.g. “add a lecture on synthetic control, and make lecture 3 shorter”)",
   }) as HTMLTextAreaElement;
   const rows = h("div", { class: "course-rows" });
   const warnings = h("div", { class: "course-warnings" });
@@ -179,9 +198,13 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
   const links = h("div", { class: "course-links" });
   links.hidden = true;
 
-  const planBtn = h("button", { class: "small" }, "✦ Plan");
-  const reviseBtn = h("button", { class: "small" }, "✎ Revise");
-  const runBtn = h("button", { class: "small primary" }, "▶ Generate");
+  // One plan slot (panelActions): Make plan / Revise plan share it, and the
+  // request box above feeds whichever is showing. Generate is the body's one
+  // primary, on its own row under a rule, and only there once a plan exists.
+  const planBtn = h("button", { class: "small course-plan-btn" }, "✦ Make plan");
+  const runBtn = h("button", { class: "small primary" }, "▶ Generate drawcasts");
+  const runRow = h("div", { class: "pane-bar course-run-row" }, runBtn, h("span", { class: "pane-spacer" }), cost);
+  const rule = h("hr", { class: "course-rule" });
   const matchBtn = h("button", { class: "small course-match" }, "⟲ Match");
   matchBtn.hidden = true;
   const undoBtn = h("button", { class: "small", title: "Undo the last AI change to this document" }, "↩ Undo");
@@ -241,7 +264,6 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
   function syncBusy(): void {
     const busy = inFlight.size > 0;
     planBtn.disabled = busy;
-    reviseBtn.disabled = busy;
     runBtn.disabled = busy;
     saveBtn.disabled = busy;
     // Publish carried this same guard before it moved into Share: publish()
@@ -326,6 +348,15 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
     warnings.textContent = course.warnings.join(" ");
     warnings.hidden = course.warnings.length === 0;
     cost.textContent = course.lectures.length > 0 ? costPreview(course) : "";
+    const actions = panelActions(course);
+    planBtn.textContent = actions.plan === "make" ? "✦ Make plan" : "✎ Revise plan";
+    planBtn.title = actions.plan === "make" ? "Plan the course from the description above" : "Revise the plan as the box above says";
+    ask.placeholder =
+      actions.plan === "make"
+        ? "Describe the course to plan it — topic, level, how many lectures"
+        : "Describe a change to revise the plan (e.g. “add a lecture on synthetic control, and make lecture 3 shorter”)";
+    runRow.hidden = !actions.generate;
+    rule.hidden = !actions.generate;
     // A lecture whose drawcast exists but whose status line was lost would be
     // generated again at full cost. Offer the repair, and only when there is
     // one to make.
@@ -1108,8 +1139,10 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
     );
   });
 
-  planBtn.addEventListener("click", () => void plan());
-  reviseBtn.addEventListener("click", () => void revise());
+  planBtn.addEventListener("click", () => {
+    if (panelActions(parseCourse(doc.value)).plan === "make") void plan();
+    else void revise();
+  });
   runBtn.addEventListener("click", () => void run());
   shareBtn.addEventListener("click", () => {
     openShare({
@@ -1222,8 +1255,11 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
       { class: "course-help" },
       "One ## heading per lecture \u2014 each becomes its own drawcast. Under it, write what the lecture must cover: questions work best (especially why and how), but topics or material to present are equally fine. Tags like #why, #data or #parts=4 apply to that lecture.",
     ),
-    ask,
-    h("div", { class: "pane-bar" }, planBtn, reviseBtn, runBtn, cancelBtn, h("span", { class: "pane-spacer" }), cost),
+    // The request box and its one verb are a block; Cancel rides the same
+    // row so it is present in both states, disabled when nothing runs.
+    h("div", { class: "course-ask-block" }, ask, h("div", { class: "pane-bar course-plan-row" }, planBtn, h("span", { class: "pane-spacer" }), cancelBtn)),
+    rule,
+    runRow,
     // Messages sit with the buttons that produce them; the document and the
     // lecture list share the width below, side by side when there is room.
     status,
@@ -1245,8 +1281,9 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string): void {
     render();
   };
   loadCourseRef = loadCourse;
+  newCourseRef = () => newBtn.click();
   const saved = loadCourses();
-  const toLoad = resolveOpenCourseId(openId, saved);
+  const toLoad = opts.fresh ? null : resolveOpenCourseId(openId, saved);
   if (toLoad) loadCourse(toLoad);
   else refreshCourseList();
   render();
