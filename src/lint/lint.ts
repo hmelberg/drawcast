@@ -7,7 +7,8 @@ import { MATH_DEFAULT_SIZE } from "../layout/math";
 import { isFitName } from "../layout/regions";
 import { AUTO_NAMESPACE, baseName, isReservedVar, VAR_RE } from "../spec/answers";
 import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox, type BBox } from "../layout/geometry";
-import { flattenDrawables, leafDrawables, type Drawable, type GroupDrawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
+import { leafDrawables, type Drawable, type GroupDrawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
+import type { LeafDrawable } from "../layout/posed";
 import { mathBox } from "../layout/labels";
 import type { MeasureFn } from "../layout/measure";
 import { BUILTIN_WIDGETS } from "../spec/types";
@@ -19,6 +20,36 @@ import { runValues } from "../render/sweep";
 import { pathsByCodeId, scanDataTokens } from "../code/tokens";
 import { connectKey } from "../render/widgets";
 import { CONNECT_MAX_EDGES } from "../ui/connect-model";
+
+/** The leaves lint reads: everything painted EXCEPT an inset's picture — a
+ *  picture of text is not text, and its strokes are the other page's, drawn
+ *  small on purpose (spec 2026-09-17-inset §6). The inset's own frame stays. */
+export function lintableLeaves(drawables: Drawable[]): LeafDrawable[] {
+  const out: LeafDrawable[] = [];
+  const walk = (d: Drawable): void => {
+    if (d.kind === "group") {
+      if (d.role === "inset") return;
+      d.children.forEach(walk);
+      return;
+    }
+    out.push(d);
+  };
+  drawables.forEach(walk);
+  return out;
+}
+
+/** `flattenDrawables`, but an inset's picture subtree is skipped, same as
+ *  `lintableLeaves` — a group search (the `maths` line below) must not reach
+ *  into another page's ink either. */
+function flattenLintable(drawables: Drawable[]): Drawable[] {
+  const out: Drawable[] = [];
+  const walk = (d: Drawable) => {
+    out.push(d);
+    if (d.kind === "group" && d.role !== "inset") d.children.forEach(walk);
+  };
+  drawables.forEach(walk);
+  return out;
+}
 
 export const FONT_FLOOR = 14;
 /** Below this fit scale the text floor is doing most of the work — the
@@ -70,6 +101,8 @@ export interface LintIssue {
     | "pane"
     /** a run (or an explore beat's planned demo) whose script, controls or series the player could not honour */
     | "run"
+    /** more insets in the thumbnail column than INSET_MAX: they shrink to fit */
+    | "inset-count"
     /** an ask bound to the spec's template, whose document has no widget body */
     | "widget";
   ids: string[];
@@ -285,7 +318,7 @@ export function lintLayoutDetailed(
 ): { issues: LintIssue[]; exempt: LintIssue[] } {
   const issues: LintIssue[] = [];
   const exempt: LintIssue[] = [];
-  const leaves = leafDrawables(drawables);
+  const leaves = lintableLeaves(drawables);
   const texts = leaves.filter((d): d is TextDrawable => d.kind === "text");
   const strokes = leaves.filter((d): d is StrokeDrawable => d.kind === "stroke");
   // Leaf → owning top-level element, for the co-visibility exemption.
@@ -402,7 +435,9 @@ export function lintLayoutDetailed(
   // WARN, never error — a drawing with many elements may have to accept a
   // collision, and the placement (place.ts pickSide) has already taken the
   // least-bad side.
-  const maths = flattenDrawables(drawables).filter((d): d is GroupDrawable => d.kind === "group" && d.role === "math");
+  // An inset's picture is skipped here too — its own math groups belong to
+  // another page, drawn small on purpose (spec 2026-09-17-inset §6).
+  const maths = flattenLintable(drawables).filter((d): d is GroupDrawable => d.kind === "group" && d.role === "math");
   for (const m of maths) {
     const box = mathBox(m);
     if (!box) continue;

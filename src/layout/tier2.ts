@@ -11,6 +11,7 @@ import { codeDrawables, type CodeWindow } from "./code";
 import { UNIVERSAL_ANCHORS, boxAnchor, isUniversalAnchor, polygonAnchors, polylineAnchors, ptsBox, sectorAnchors } from "./anchors";
 import { boxOfId } from "./boxes";
 import { fitTransform, ownBBox, pickSide, placementOrder, refBBox, relAt, relativeDelta, scaleDrawables, shiftDrawables, shiftPoints } from "./place";
+import { columnSlots, fitPicture, isDefaultColumn, INSET_MAX, INSET_W } from "./inset";
 import { fitRegion, isFitName } from "./regions";
 import {
   COLORS,
@@ -294,6 +295,19 @@ export function layoutElements(
   const placedLater = new Set(elements.filter((e) => e.type === "label" || e.type === "annotation").map((e) => e.id));
   const { order: emitOrder, issues } = placementOrder(elements, known);
 
+  // Insets with no position of their own stack in the right-hand column, in
+  // element order (spec 2026-09-17-inset §4.5). More than INSET_MAX shrink
+  // the column and warn once.
+  const column = elements.filter(isDefaultColumn);
+  if (column.length > INSET_MAX) {
+    issues.push({
+      rule: "inset-count",
+      ids: column.map((e) => e.id),
+      severity: "warn",
+      message: `${column.length} insets in the thumbnail column (more than ${INSET_MAX}): they shrink to fit — give some an x/y of their own, or drop some`,
+    });
+  }
+
   // bind (design 2026-09-10 §2.2): every element is laid out from a copy
   // with its bound fields computed from the vars; a binding that cannot be
   // evaluated is error-severity lint (the repair round sees it) and is
@@ -506,6 +520,9 @@ export function layoutElements(
         if (group) drawables.push(group);
         break;
       }
+      case "inset":
+        drawables.push(insetDrawable(el, ctx, column));
+        break;
       case "source":
         drawables.push(...sourceDrawables(el, ctx));
         break;
@@ -1522,6 +1539,74 @@ function imageDrawable(el: SpecElement, ctx: Ctx): GroupDrawable | null {
     z: Z_STROKE,
     style: defaultStyle(),
     drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 0 }),
+    children,
+  };
+}
+
+/**
+ * An inset element (spec 2026-09-17-inset §4.4): another page's final frame
+ * as a small picture. The picture itself was built by render/inset.ts and
+ * stored on the element clone; here it is fitted into its slot on every
+ * layout call. The group's nominal `box` is the slot, so camera/move/point
+ * and hit-testing see the frame, not the ink. The inner group carries
+ * `role: "inset"` so lint and applyTextStyle leave a picture of text alone.
+ * No picture: the frame alone (and, when the resolver said why, a warning).
+ */
+function insetDrawable(el: SpecElement, ctx: Ctx, column: SpecElement[]): GroupDrawable {
+  let slot: BBox;
+  if (isDefaultColumn(el)) {
+    slot = columnSlots(column.length)[column.indexOf(el)];
+  } else {
+    const w = el.width ?? (el.height !== undefined ? (el.height * 4) / 3 : INSET_W);
+    const h = el.height ?? (w * 3) / 4;
+    const [cx, cy] = originOr(el, ctx, [500, 375]);
+    slot = { x: cx - w / 2, y: cy - h / 2, w, h };
+  }
+  const frame: Drawable = {
+    id: `${el.id}__frame`,
+    kind: "stroke",
+    pts: [
+      [slot.x, slot.y],
+      [slot.x + slot.w, slot.y],
+      [slot.x + slot.w, slot.y + slot.h],
+      [slot.x, slot.y + slot.h],
+    ],
+    closed: true,
+    z: Z_STROKE,
+    style: resolveStyle(el.style, { strokeWidth: 1, roughness: 0.6 }),
+    drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 240 }),
+  };
+  const children: Drawable[] = [frame];
+  const named: Record<string, Pt> = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(slot, n)]));
+  const pic = el.picture;
+  if (pic && "error" in pic) {
+    ctx.warnings.push(`inset "${el.id}": ${pic.error}`);
+  } else if (pic) {
+    const fit = fitPicture(pic, slot, el.crop ?? true);
+    children.push({
+      id: `${el.id}__pic`,
+      kind: "group",
+      role: "inset",
+      z: Z_STROKE,
+      style: defaultStyle(),
+      drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 0 }),
+      children: fit.children,
+    });
+    // Read-only anchors into the picture: the source's element ids, at their
+    // centres as fitted. The universal nine win a name clash.
+    for (const [srcId, b] of Object.entries(pic.boxes)) {
+      if (!(srcId in named)) named[srcId] = [(b.x + b.w / 2) * fit.s + fit.dx, (b.y + b.h / 2) * fit.s + fit.dy];
+    }
+  }
+  ctx.anchors[el.id] = [slot.x + slot.w / 2, slot.y + slot.h / 2];
+  ctx.namedAnchors[el.id] = named;
+  return {
+    id: el.id,
+    kind: "group",
+    z: Z_STROKE,
+    style: defaultStyle(),
+    drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 0 }),
+    box: slot,
     children,
   };
 }

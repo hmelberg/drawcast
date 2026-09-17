@@ -103,6 +103,9 @@ export function scaledMeasure(base: MeasureFn, scale: number): MeasureFn {
 /** The layout with every text drawable scaled and stamped — a new tree; the input is untouched. */
 export function applyTextStyle(layout: LayoutResult, style: TextStyle): LayoutResult {
   const walk = (d: Drawable): Drawable => {
+    // An inset's picture was styled when its own page was laid out; its text
+    // is a picture of text (spec 2026-09-17-inset §4.6).
+    if (d.kind === "group" && d.role === "inset") return d;
     if (d.kind === "group") return { ...d, children: d.children.map(walk) };
     if (d.kind === "text") return { ...d, fontSize: d.fontSize * style.scale, family: style.family, weight: style.weight };
     return d;

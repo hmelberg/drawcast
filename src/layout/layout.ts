@@ -16,6 +16,7 @@ import { annotationDrawables } from "./annotate";
 import { obstacleBoxes, placeLabels, type LabelPin, type LabelRequest } from "./labels";
 import type { BBox } from "./geometry";
 import { boxOfId, unionBBoxForId, unionBoxes } from "./boxes";
+import { hasDefaultColumnInsets, INSET_MAIN } from "./inset";
 import type { LayoutOverrides } from "./posed";
 import { heuristicMeasure, type MeasureFn } from "./measure";
 import { drawablesForId, leafDrawables, type Drawable, type Pt } from "./model";
@@ -116,7 +117,8 @@ export function layoutSpec(
     code: codeEl ? { x: codeEl.x, width: codeEl.width, show: codeEl.show, code: codeEl.code, fontSize: codeEl.font_size } : null,
   });
   if (split.code && codeEl) Object.assign(codeEl, split.code);
-  const box = requestedBox ?? split.box ?? null;
+  // A page with thumbnail-column insets and no box of its own keeps the template left of the column (spec 2026-09-17-inset §4.7).
+  const box = requestedBox ?? split.box ?? (hasTemplate && hasDefaultColumnInsets(spec.elements) ? INSET_MAIN : null);
   const native = nativeBox(spec.template);
   // The five templates that lay themselves out in a box get the RECTANGLE —
   // a name means nothing to them. Everyone else keeps params untouched and
