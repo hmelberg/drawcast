@@ -53,7 +53,7 @@ export interface MarkovParams {
 const BOX = { x: 140, y: 200, w: 720, h: 360 };
 const RX = 78;
 const RY = 44;
-const REVERSE_CURVE = 0.12;
+const REVERSE_CURVE = 0.18; // was 0.12: with edges now attaching where their own curve arrives, a little more bow gives a reverse pair air between the lines too (arrow round 2, 2026-09-17)
 /** Min normalized clearance (1.0 = a state ellipse's own boundary) a transition path must keep from every OTHER state. */
 const EDGE_CLEARANCE = 1.12;
 /** Perpendicular nudge (px) off an edge's own line, for its label anchor. */

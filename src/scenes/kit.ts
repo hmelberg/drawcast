@@ -1430,22 +1430,48 @@ export const kit: SceneKit = {
       // Shape trims are computed along this straight chord direction even
       // when `curve` bows the drawn path afterward — an accepted
       // approximation (see EdgeArrowOpts.shorten doc).
-      const startTrim = edgeTrimAmount(o.shortenStart ?? o.shorten ?? 0, ux, uy);
-      const endTrim = edgeTrimAmount(o.shortenEnd ?? o.shorten ?? 0, ux, uy);
-      const a: Pt = [from[0] + ux * startTrim, from[1] + uy * startTrim];
-      const b: Pt = [to[0] - ux * endTrim, to[1] - uy * endTrim];
       const curve = o.curve ?? 0;
       if (curve) {
-        const bl = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
-        const bux = (b[0] - a[0]) / bl, buy = (b[1] - a[1]) / bl;
-        const nx = -buy, ny = bux;
-        const mid: Pt = [(a[0] + b[0]) / 2 + nx * curve * bl, (a[1] + b[1]) / 2 + ny * curve * bl];
-        pathPts = this.smooth([a, mid, b], 10);
+        // A bowed edge is a quadratic Bézier through its bow point — the
+        // chord's midpoint pushed (-uy, ux) · curve · chord — sampled finely,
+        // so it reads as one arc rather than a line bent in the middle
+        // (Catmull-Rom through three points left both ends flat). It meets
+        // each node where ITS OWN curve arrives: the trim runs along the
+        // end tangent, not the chord, so the two edges of a reverse pair
+        // attach at different boundary points instead of the same one
+        // (arrow round 2, 2026-09-17).
+        const bow: Pt = [(from[0] + to[0]) / 2 - uy * curve * len0, (from[1] + to[1]) / 2 + ux * curve * len0];
+        const ctrl0: Pt = [2 * bow[0] - (from[0] + to[0]) / 2, 2 * bow[1] - (from[1] + to[1]) / 2];
+        const unit = (p: Pt, q: Pt): Pt => {
+          const l = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
+          return [(q[0] - p[0]) / l, (q[1] - p[1]) / l];
+        };
+        const dA = unit(from, ctrl0);
+        const dB = unit(to, ctrl0);
+        const startTrim = edgeTrimAmount(o.shortenStart ?? o.shorten ?? 0, dA[0], dA[1]);
+        const endTrim = edgeTrimAmount(o.shortenEnd ?? o.shorten ?? 0, dB[0], dB[1]);
+        const a: Pt = [from[0] + dA[0] * startTrim, from[1] + dA[1] * startTrim];
+        const b: Pt = [to[0] + dB[0] * endTrim, to[1] + dB[1] * endTrim];
+        // Re-derive the control so the trimmed curve still passes through the bow.
+        const ctrl: Pt = [2 * bow[0] - (a[0] + b[0]) / 2, 2 * bow[1] - (a[1] + b[1]) / 2];
+        const n = 32;
+        pathPts = [];
+        for (let i = 0; i <= n; i++) {
+          const t = i / n;
+          const w0 = (1 - t) * (1 - t), w1 = 2 * (1 - t) * t, w2 = t * t;
+          pathPts.push([w0 * a[0] + w1 * ctrl[0] + w2 * b[0], w0 * a[1] + w1 * ctrl[1] + w2 * b[1]]);
+        }
+        tip = b;
+        tipDir = unit(ctrl, b);
       } else {
+        const startTrim = edgeTrimAmount(o.shortenStart ?? o.shorten ?? 0, ux, uy);
+        const endTrim = edgeTrimAmount(o.shortenEnd ?? o.shorten ?? 0, ux, uy);
+        const a: Pt = [from[0] + ux * startTrim, from[1] + uy * startTrim];
+        const b: Pt = [to[0] - ux * endTrim, to[1] - uy * endTrim];
         pathPts = [a, b];
+        tip = b;
+        tipDir = [ux, uy];
       }
-      tip = b;
-      tipDir = [ux, uy];
     }
 
     const drawables: Drawable[] = [];

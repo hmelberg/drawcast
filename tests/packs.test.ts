@@ -932,14 +932,27 @@ describe("evidence pack", () => {
     const link1 = flat.find((d) => d.id === "link_1") as { pts: [number, number][] };
     const start = link1.pts[0];
     const tip = link1.pts[link1.pts.length - 1];
-    // Both premise boxes are the same width, so a horizontal link trims by
-    // exactly the same amount at both ends: well short of the source/target
-    // center, and hugging the box, not floating off toward the other end.
-    const startDist = Math.hypot(start[0] - premise1[0], start[1] - premise1[1]);
-    const tipDist = Math.hypot(tip[0] - premise0[0], tip[1] - premise0[1]);
-    expect(startDist).toBeCloseTo(tipDist, 6);
-    expect(startDist).toBeGreaterThan(100);
-    expect(startDist).toBeLessThan(200);
+    // Each end hugs ITS OWN box: just outside the rect boundary (the 3-unit
+    // breathing gap), never at the box centre and never floating off toward
+    // the other end. Since the arrow round (2026-09-17) a bowed link is
+    // trimmed along its own end tangent, so with curve 0.35 it leaves
+    // through the top/bottom edge — the two trims differ when the boxes'
+    // heights differ, which they do here (one premise wraps to two lines).
+    const rectOf = (id: string) => {
+      const box = flat.find((d) => d.id === id) as { pts: [number, number][] };
+      const xs = box.pts.map((p) => p[0]);
+      const ys = box.pts.map((p) => p[1]);
+      return { cx: (Math.min(...xs) + Math.max(...xs)) / 2, cy: (Math.min(...ys) + Math.max(...ys)) / 2, hw: (Math.max(...xs) - Math.min(...xs)) / 2, hh: (Math.max(...ys) - Math.min(...ys)) / 2 };
+    };
+    const outside = (p: [number, number], r: ReturnType<typeof rectOf>) => Math.max(Math.abs(p[0] - r.cx) / r.hw, Math.abs(p[1] - r.cy) / r.hh);
+    const r1 = rectOf("premise_1__box");
+    const r0 = rectOf("premise_0__box");
+    expect(outside(start, r1)).toBeGreaterThanOrEqual(1);
+    expect(outside(start, r1)).toBeLessThanOrEqual(1.2);
+    expect(outside(tip, r0)).toBeGreaterThanOrEqual(1);
+    expect(outside(tip, r0)).toBeLessThanOrEqual(1.2);
+    expect(Math.hypot(start[0] - premise1[0], start[1] - premise1[1])).toBeGreaterThan(20);
+    expect(Math.hypot(tip[0] - premise0[0], tip[1] - premise0[1])).toBeGreaterThan(20);
   });
 
   test("sir_compartments: the in-box code label is ~1/3 of the box height (bold against the 4px stroke); the full name is a smaller caption below", () => {
