@@ -103,6 +103,9 @@ function thin(ds: Drawable[], s: number): void {
       continue;
     }
     d.style = { ...d.style, strokeWidth: Math.max(INSET_STROKE_FLOOR, d.style.strokeWidth * s), roughness: d.style.roughness * s };
-    d.drawOpts = { ...d.drawOpts, duration: Math.max(20, Math.round(d.drawOpts.duration * s)) };
+    // The picture appears at once — only its frame is sketched. Redrawing
+    // another page's every stroke in miniature spent seconds on a thumbnail
+    // (Hans, 2026-09-17: "make it almost instant").
+    d.drawOpts = { ...d.drawOpts, mode: "instant", duration: 0 };
   }
 }

@@ -39,3 +39,27 @@ describe("self-loop geometry on a wide ellipse", () => {
     expect(dir[0] * inward[0] + dir[1] * inward[1]).toBeGreaterThan(0);
   });
 });
+
+describe("a self-loop is one smooth curve (Hans 2026-09-17: 'still not smooth enough')", () => {
+  const turn = (p: Pt, q: Pt, r: Pt): number => {
+    const a1 = Math.atan2(q[1] - p[1], q[0] - p[0]);
+    const a2 = Math.atan2(r[1] - q[1], r[0] - q[0]);
+    let d = a2 - a1;
+    while (d > Math.PI) d -= 2 * Math.PI;
+    while (d < -Math.PI) d += 2 * Math.PI;
+    return Math.abs(d);
+  };
+  for (const dir of [[0, 1], [-0.7, -0.7], [1, 0]] as Pt[]) {
+    test(`loopDir ${JSON.stringify(dir)}: many samples, no turn above 0.3 rad between neighbours, and the turning is evenly spread`, () => {
+      const pts = loop(dir);
+      expect(pts.length).toBeGreaterThanOrEqual(36);
+      const turns: number[] = [];
+      for (let i = 1; i + 1 < pts.length; i++) turns.push(turn(pts[i - 1], pts[i], pts[i + 1]));
+      expect(Math.max(...turns)).toBeLessThan(0.3);
+      // No corner: the sharpest turn is at most 3× the median turn.
+      const sorted = [...turns].sort((a, b) => a - b);
+      const median = sorted[Math.floor(sorted.length / 2)];
+      expect(Math.max(...turns)).toBeLessThan(median * 3 + 0.02);
+    });
+  }
+});

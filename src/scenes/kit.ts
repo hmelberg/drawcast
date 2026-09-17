@@ -1411,13 +1411,27 @@ export const kit: SceneKit = {
           [start, end] = anchorsAt(alpha);
         }
       }
+      // One cubic Bézier from start to end, its two controls thrown out
+      // along the bulge and to either side: a teardrop with no corners
+      // (a Catmull-Rom through five hand-placed points bent at each of
+      // them — Hans, arrow round 3, 2026-09-17). The curve's midpoint
+      // reaches base + r along the bulge ((P0 + 3P1 + 3P2 + P3) / 8), so
+      // the loop's extent is what `curve` asked for.
       const base: Pt = [from[0] + d[0] * bd, from[1] + d[1] * bd];
-      const apex: Pt = [base[0] + d[0] * r, base[1] + d[1] * r];
-      // A narrower teardrop than before (0.55 r wide, was 0.75 r), so the
-      // loop reads as a loop rather than a blob beside the state.
-      const side1: Pt = [base[0] + d[0] * r * 0.6 + perp[0] * r * 0.55, base[1] + d[1] * r * 0.6 + perp[1] * r * 0.55];
-      const side2: Pt = [base[0] + d[0] * r * 0.6 - perp[0] * r * 0.55, base[1] + d[1] * r * 0.6 - perp[1] * r * 0.55];
-      pathPts = this.smooth([start, side1, apex, side2, end], 8);
+      const reach = 1.35 * r;
+      const flare = 0.9 * r;
+      const c1: Pt = [base[0] + d[0] * reach + perp[0] * flare, base[1] + d[1] * reach + perp[1] * flare];
+      const c2: Pt = [base[0] + d[0] * reach - perp[0] * flare, base[1] + d[1] * reach - perp[1] * flare];
+      const n = 40;
+      pathPts = [];
+      for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        const w0 = (1 - t) ** 3, w1 = 3 * (1 - t) ** 2 * t, w2 = 3 * (1 - t) * t * t, w3 = t ** 3;
+        pathPts.push([
+          w0 * start[0] + w1 * c1[0] + w2 * c2[0] + w3 * end[0],
+          w0 * start[1] + w1 * c1[1] + w2 * c2[1] + w3 * end[1],
+        ]);
+      }
       tip = pathPts[pathPts.length - 1];
       const prev = pathPts[pathPts.length - 2] ?? pathPts[0];
       const dx = tip[0] - prev[0], dy = tip[1] - prev[1];

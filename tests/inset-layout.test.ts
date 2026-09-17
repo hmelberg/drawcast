@@ -75,14 +75,17 @@ describe("fitPicture (spec §3 crop, §4.4)", () => {
     expect(dy).toBeCloseTo(slot.y + 6, 5);
     expect(dx).toBeCloseTo(slot.x + 6 + (148 - 1000 * s) / 2, 5);
   });
-  test("stroke width and roughness are divided by the scale; width is floored; text scales; durations shrink", () => {
+  test("stroke width and roughness scale down; width is floored; text scales; the picture appears at once (Hans 2026-09-17: no need to redraw the side pictures)", () => {
     const { children, s } = fitPicture(picture, slot, true);
     const st = children[0] as StrokeDrawable;
     expect(st.style.roughness).toBeCloseTo(1.4 * s, 5);
     expect(st.style.strokeWidth).toBe(Math.max(INSET_STROKE_FLOOR, 2 * s));
     const tx = children[1] as TextDrawable;
     expect(tx.fontSize).toBeCloseTo(28 * s, 5);
-    expect(st.drawOpts.duration).toBe(Math.max(20, Math.round(900 * s)));
+    for (const c of children) {
+      expect(c.drawOpts.mode).toBe("instant");
+      expect(c.drawOpts.duration).toBe(0);
+    }
   });
   test("the input picture is untouched", () => {
     const before = JSON.stringify(picture);
