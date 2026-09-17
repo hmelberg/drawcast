@@ -104,6 +104,14 @@ export interface ShareDoc {
    */
   joinDoor?: boolean;
   /**
+   * The folder a course is published in (`<coursesDir>/<slug>`), once it has
+   * published — shown as a read-only line under the Name field (name round,
+   * 2026-09-17), because the folder is what every lecture link and the
+   * server's course key hang off and it never moves; the Name field is the
+   * door name only. Course only; undefined before a first publish.
+   */
+  folder?: string;
+  /**
    * The `enroll:` URL the course document currently carries, when it is not
    * the default app — shown so an author with their own Anvil backend can
    * see what unchecking would delete (F2). Course only.
@@ -525,18 +533,22 @@ function build(): ShareSession {
   // published as before, or a fresh slug of the title on a first publish.
   // Normalized on blur (not on every keystroke — a mid-word slugify would
   // fight the author's cursor) so what the field shows is exactly what
-  // `slug:` below will send. Hidden for a course: courses have no single
-  // slug of their own (`publishCourse` derives each lecture's own path), so
-  // the field would have nothing true to prefill or send (B3).
+  // `slug:` below will send. For a course (name round, 2026-09-17) the same
+  // field is the DOOR name — drawcast.app/#<name>, the course document's
+  // `name:` option — and never the folder: course.ts binds it with
+  // applyCourseName, and the folder shows read-only underneath.
   const publishNameInput = h("input", { type: "text", class: "yt-field", "aria-label": "Publish as" }) as HTMLInputElement;
   publishNameInput.addEventListener("blur", () => {
     publishNameInput.value = slugify(publishNameInput.value);
   });
   const publishNameHint = h("div", { class: "hint" }, "Changing the name publishes a new copy; the old link keeps working.");
+  const NAME_HINT_DRAWCAST = "Changing the name publishes a new copy; the old link keeps working.";
+  const NAME_HINT_COURSE = "The course's short address, drawcast.app/#<name>. Changing it re-points the door; the previous name goes on working, and the folder below never moves.";
+  const linkFolderLine = h("div", { class: "hint" });
   // The name is also what the publish registers (castRegistration), so it
   // can be asked about first (spec §9).
   const publishNameCheck = buildNameCheck(publishNameInput);
-  const publishNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", publishNameInput, publishNameCheck.button), publishNameCheck.note, publishNameHint);
+  const publishNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", publishNameInput, publishNameCheck.button), publishNameCheck.note, publishNameHint, linkFolderLine);
   // Key "share" so this panel's two boxes keep the exact ids they have always
   // had ("share-embed-images"/"share-embed-narration") — extracting the rows
   // into a builder must not be observable from outside this file.
@@ -1354,10 +1366,11 @@ function build(): ShareSession {
     const lectures = doc.lectureCount ?? 0;
     linkSubjectLine.textContent = current.subject === "course" ? `Course — ${lectures} lecture${lectures === 1 ? "" : "s"}` : "";
     linkSubjectLine.hidden = current.subject !== "course";
-    // A course derives each lecture's own path (publishCourse), so it has no
-    // single slug for this field to show or send — hidden rather than shown
-    // disabled, since there is nothing here for a course author to decide.
-    publishNameRow.hidden = current.subject === "course";
+    // For a course the field is the door name (course.ts fills publishedAs
+    // with courseDoorName); the folder is context, not a decision.
+    publishNameHint.textContent = current.subject === "course" ? NAME_HINT_COURSE : NAME_HINT_DRAWCAST;
+    linkFolderLine.textContent = doc.folder ? `Published in ${doc.folder}/ — the folder never changes.` : "";
+    linkFolderLine.hidden = !doc.folder;
     publishNameInput.value = doc.publishedAs ?? slugify(doc.title);
     // A verdict is about one name for one document — never carried into the
     // next open, where it would describe a name the field no longer shows.

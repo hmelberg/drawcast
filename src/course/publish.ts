@@ -15,6 +15,7 @@ import {
   readFile,
   removedPaths,
   slugFor,
+  slugify,
   upsertCourse,
   type Manifest,
   type PublishFile,
@@ -56,6 +57,39 @@ export function lectureCastKeys(course: Course, repo: { owner: string; repo: str
 export function courseNameFor(course: Pick<Course, "name">, slug: string): string {
   const wanted = course.name ?? slug;
   return normalizeName(wanted) ?? wanted;
+}
+
+/**
+ * What the Publish dialog's Name field shows for a course (name round,
+ * 2026-09-17): the `name:` override when set, else the folder slug once the
+ * course has published, else the title's own slug — which is what the first
+ * publish will mint (barring a collision suffix).
+ */
+export function courseDoorName(course: Pick<Course, "name" | "title" | "context">): string {
+  return course.name ?? course.context.slug ?? slugify(course.title);
+}
+
+/**
+ * Bind what the author typed into the Name field to the `name:` option — the
+ * short address drawcast.app/#<name> — and to NOTHING else. `slug:` is the
+ * folder every published lecture link and the Anvil course key hang off; it
+ * is minted once and never moves (setCourseOption's contract), so a rename
+ * here re-points the door while every link, enrolment and progress row stays
+ * where it is. A name equal to the default (the slug, or the title's slug
+ * before a first publish) is no override, so a stale `name:` is removed
+ * rather than a redundant one written; nothing typed leaves the text alone.
+ */
+export function applyCourseName(text: string, typed: string | undefined, slug: string | undefined): string {
+  // Emptiness is checked BEFORE slugify: slugify's own fallback for nothing
+  // is a placeholder word, and an empty field means "no change", not that.
+  const raw = (typed ?? "").trim();
+  if (raw === "") return text;
+  const wanted = slugify(raw);
+  const course = parseCourse(text);
+  const fallback = slug ?? slugify(course.title);
+  if (wanted === fallback) return course.name === undefined ? text : removeCourseOption(text, "name");
+  if (course.name === wanted) return text;
+  return setCourseOption(text, "name", wanted);
 }
 
 /** What a course publish registers (spec §7): `name:` if set, else the slug. */

@@ -5,7 +5,7 @@
 
 import { type Course, type CourseLecture, formatCourse, parseCourse } from "../course/document";
 import { generateCoursePlan } from "../course/plan";
-import { applyJoinDoor, commitPublish, preparePublish, type PublishArgs } from "../course/publish";
+import { applyCourseName, applyJoinDoor, commitPublish, courseDoorName, courseNameFor, preparePublish, type PublishArgs } from "../course/publish";
 import type { Door, DoorlessReason } from "../course/page";
 import { matchLibrary, restoredStatus } from "../course/reconcile";
 import { reviseCourse } from "../course/revise";
@@ -908,11 +908,11 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
    * instruction the first time a repo is written to.
    */
   // `slug` (B3's Link name field) is accepted here only to match
-  // ShareDeps.publish's signature — a course has no single slug of its own
-  // (each lecture's file name is derived by publishCourse from the course
-  // document, below), so Link hides the name field for `subject: "course"`
-  // and this parameter is never read.
-  async function publish({ bake, embedImages, allowComments, countViews, allowSignup }: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean; allowSignup?: boolean }): Promise<void> {
+  // ShareDeps.publish's signature. `slug` is what Link's Name field holds:
+  // for a course that is the DOOR name (name round, 2026-09-17), bound to
+  // the document's `name:` option below — each lecture's file name is still
+  // derived by publishCourse from the document, and the folder never moves.
+  async function publish({ bake, embedImages, slug, allowComments, countViews, allowSignup }: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean; allowSignup?: boolean }): Promise<void> {
     const settings = loadSettings();
     const token = getGithubToken();
     const repo = parseRepo(settings.githubRepo);
@@ -924,7 +924,14 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
     // out and the copy written back (out.text) agree on the enroll: line. The
     // editor's own document changes only when the commit lands, with the rest
     // of the bookkeeping below.
-    const text = allowSignup === undefined ? doc.value : applyJoinDoor(doc.value, allowSignup);
+    // The Name field (name round, 2026-09-17) binds to `name:` — the door —
+    // and never to `slug:`; applyCourseName is where that rule lives. Applied
+    // to the TEXT first, like the Join-door choice, so the copy that goes out
+    // and the copy written back agree.
+    const before = parseCourse(doc.value);
+    const previousName = before.context.slug ? courseNameFor(before, before.context.slug) : null;
+    const named = applyCourseName(doc.value, slug, before.context.slug);
+    const text = allowSignup === undefined ? named : applyJoinDoor(named, allowSignup);
     const course = parseCourse(text);
     if (course.lectures.length === 0) {
       say("There is nothing to publish yet.", "error");
@@ -1018,6 +1025,9 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
           if (isRegistrable(reg.name)) {
             const named = await registerName(DEFAULT_ENROLL_API, { key: accountToken, ...reg }, bounded);
             nameSuffix += nameNote(named, reg.name);
+            // A renamed door: the old name keeps resolving (the registry never
+            // forgets a name), so say so rather than let the author wonder.
+            if (named === "ok" && previousName && previousName !== reg.name) nameSuffix += ` · the previous name "${previousName}" goes on working`;
             door = named === "ok" ? { name: reg.name, app: settings.viewerBase } : { name: null, why: DOORLESS[named] };
           } else {
             // A name under the floor is not sent (main.ts does the same for
@@ -1166,6 +1176,10 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
           // The one line Link's panel shows so Publish never looks the same
           // as publishing a single drawcast (spec §2).
           lectureCount: course.lectures.length,
+          // The Name field's prefill: the door name (name round) — and the
+          // folder it must never be confused with, once there is one.
+          publishedAs: courseDoorName(course),
+          folder: course.context.slug ? joinPath(deps.settings.coursesDir, course.context.slug) : undefined,
           narrationCost: costLabel(addCosts(doneLectureCosts(course))),
           publishedViews,
           // Whether the page carries its Join door, straight from the document (spec §5).

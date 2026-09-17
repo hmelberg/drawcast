@@ -2374,6 +2374,27 @@ Left for later:
   surface-coloured bands beside it — a `fit-content` wrap would follow the
   stage's width, if it ever matters.
 
+### The course-name round — delivered 2026-09-17
+
+Hans: "when we publish to github, would it be a good idea to ask for a name
+(use the existing one as prefilled name) or would that create problems (if
+they change the name)?" Two names exist and behave oppositely on a rename:
+the **slug** is the folder, minted once from the title and recorded in the
+document so a retitle cannot move it — every lecture link and the Anvil
+course key (owner/repo/dir, hence enrolments, runs, events, progress) hang
+off it; the **door name** (`name:` option, drawcast.app/#<name>) is a
+registry pointer that re-points safely, and an old name keeps resolving.
+What shipped: Link's Name field is shown for a course too, prefilled with
+`courseDoorName` (name: → slug → the title's slug); what is typed is bound
+by `applyCourseName` to `name:` ONLY (a name equal to the default removes a
+stale override; empty = no change; `slug:` is never touched — pinned); the
+folder shows as a read-only line "Published in courses/<slug>/ — the folder
+never changes"; a course-specific hint; and after a renamed registration the
+status line adds "the previous name … goes on working". Not done: deleting
+a single drawcast's previous file on a rename (`publish/cast.ts` says "no
+deletions" — the old copy stays reachable, frozen). Tests:
+`tests/course-claim.test.ts` (applyCourseName, courseDoorName, wiring).
+
 ## Private courses on the drawcast server — decided 2026-09-17, parked
 
 Round 3 of the private-publishing spec (`specs/2026-09-05-private-publishing-

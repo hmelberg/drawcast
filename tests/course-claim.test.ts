@@ -197,7 +197,7 @@ describe("the Join-door checkbox and the claim are wired (source guards — no j
     expect(course).toMatch(/joinDoor: course\.enroll !== undefined/);
     expect(course).toMatch(/enrollUrl: course\.enroll/); // F2 — what unchecking would delete
     const publishFn = course.slice(course.indexOf("async function publish("), course.indexOf("function showLinks("));
-    expect(publishFn).toMatch(/applyJoinDoor\(doc\.value, allowSignup\)/);
+    expect(publishFn).toMatch(/applyJoinDoor\(named, allowSignup\)/); // `named` = doc.value with the Name field applied (name round)
     expect(publishFn.indexOf("applyJoinDoor(")).toBeLessThan(publishFn.indexOf("await preparePublish("));
     // The text handed to the publish is the one the choice was applied to.
     expect(publishFn).toMatch(/const publishArgs: PublishArgs = \{\s*text,/);
@@ -249,5 +249,64 @@ describe("the Join-door checkbox and the claim are wired (source guards — no j
     expect(names).not.toMatch(/author key/i);
     expect(nameNote("key", "learn-russian")).toMatch(/sign in again from Settings → Publishing/);
     expect(claimNote("key")).toMatch(/sign in again from Settings → Publishing/);
+  });
+});
+
+// The course's door name as a Publish field (name round, 2026-09-17): what
+// the author types binds to the `name:` option — the short address
+// drawcast.app/#<name> — and NEVER to `slug:`, the folder every published
+// link and the Anvil course key hang off.
+import { applyCourseName } from "../src/course/publish";
+
+describe("applyCourseName", () => {
+  const PUBLISHED = "# Micro I\nslug: micro-i\n---\n## Supply\nWhy?\n";
+  test("writes a typed name that differs from the slug as the name: option", () => {
+    const out = applyCourseName(PUBLISHED, "Micro-Economics-1", "micro-i");
+    expect(out).toContain("name: micro-economics-1");
+    expect(out).toContain("slug: micro-i");
+  });
+  test("never touches slug:, whatever is typed", () => {
+    const out = applyCourseName(PUBLISHED, "somewhere-else", "micro-i");
+    expect(parseCourse(out).context.slug).toBe("micro-i");
+  });
+  test("a name equal to the slug removes a stale override rather than writing a redundant one", () => {
+    const withName = applyCourseName(PUBLISHED, "micro-economics-1", "micro-i");
+    const back = applyCourseName(withName, "micro-i", "micro-i");
+    expect(back).not.toContain("name:");
+    expect(back).toBe(PUBLISHED);
+  });
+  test("nothing typed, or the name already in force, leaves the document byte-identical", () => {
+    expect(applyCourseName(PUBLISHED, undefined, "micro-i")).toBe(PUBLISHED);
+    expect(applyCourseName(PUBLISHED, "", "micro-i")).toBe(PUBLISHED);
+    const withName = applyCourseName(PUBLISHED, "micro-economics-1", "micro-i");
+    expect(applyCourseName(withName, "micro-economics-1", "micro-i")).toBe(withName);
+  });
+  test("on a first publish (no slug yet) the title's own slug is the default and writes nothing", () => {
+    const fresh = "# Micro I\n---\n## Supply\nWhy?\n";
+    expect(applyCourseName(fresh, "micro-i", undefined)).toBe(fresh);
+    expect(applyCourseName(fresh, "intro-micro", undefined)).toContain("name: intro-micro");
+  });
+});
+
+describe("courseDoorName — what the Publish field is prefilled with", () => {
+  test("is the name: override when set, else the slug, else the title's slug", async () => {
+    const { courseDoorName } = await import("../src/course/publish");
+    expect(courseDoorName(parseCourse("# Micro I\nslug: micro-i\nname: intro-micro\n"))).toBe("intro-micro");
+    expect(courseDoorName(parseCourse("# Micro I\nslug: micro-i\n"))).toBe("micro-i");
+    expect(courseDoorName(parseCourse("# Micro I\n"))).toBe("micro-i");
+  });
+});
+
+describe("name field wiring (share.ts + ui/course.ts)", () => {
+  const share = readFileSync(new URL("../src/ui/share.ts", import.meta.url), "utf8");
+  const panel = readFileSync(new URL("../src/ui/course.ts", import.meta.url), "utf8");
+  test("Link's Name field is shown for a course too, with the folder as a read-only line", () => {
+    expect(share).not.toContain('publishNameRow.hidden = current.subject === "course"');
+    expect(share).toContain("linkFolderLine");
+  });
+  test("the course panel prefills the field with the door name and binds what is typed to name:, never slug:", () => {
+    expect(panel).toMatch(/publishedAs: courseDoorName\(course\)/);
+    expect(panel).toMatch(/applyCourseName\(doc\.value, slug, before\.context\.slug\)/);
+    expect(panel).not.toMatch(/setCourseOption\([^)]*"slug"/);
   });
 });
