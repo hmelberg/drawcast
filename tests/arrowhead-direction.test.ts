@@ -49,3 +49,13 @@ describe("arrowheadPts direction", () => {
     expect(ARROWHEAD_SIZE).toBe(13);
   });
 });
+
+describe("arrowhead size scales with the drawing (Hans 2026-09-17: heads did not shrink in an inset)", () => {
+  test("arrowheadPts takes the head size; a smaller head has shorter arms", () => {
+    const big = arrowheadPts([[0, 0], [100, 0]], "end")!;
+    const small = arrowheadPts([[0, 0], [100, 0]], "end", 4)!;
+    const arm = (t: [Pt, Pt, Pt]) => Math.hypot(t[0][0] - t[1][0], t[0][1] - t[1][1]);
+    expect(arm(big)).toBeCloseTo(ARROWHEAD_SIZE, 5);
+    expect(arm(small)).toBeCloseTo(4, 5);
+  });
+});

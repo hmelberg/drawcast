@@ -90,3 +90,22 @@ describe("fitPicture (spec §3 crop, §4.4)", () => {
     expect(JSON.stringify(picture)).toBe(before);
   });
 });
+
+describe("arrowheads shrink with the picture", () => {
+  test("fitPicture scales a stroke's headSize with s, floored at ARROWHEAD_FLOOR", async () => {
+    const { ARROWHEAD_SIZE, ARROWHEAD_FLOOR } = await import("../src/layout/model");
+    const { scaleDrawables } = await import("../src/layout/place");
+    const arrow = { ...stroke("a", [[100, 100], [300, 100]]), arrowhead: "end" as const };
+    const plain = stroke("b", [[100, 100], [300, 100]]);
+    const ds: Drawable[] = [arrow, plain];
+    scaleDrawables(ds, 0.5, 0, 0);
+    expect((ds[0] as StrokeDrawable).headSize).toBeCloseTo(ARROWHEAD_SIZE * 0.5, 5);
+    expect((ds[1] as StrokeDrawable).headSize).toBeUndefined();
+    scaleDrawables(ds, 0.01, 0, 0);
+    expect((ds[0] as StrokeDrawable).headSize).toBe(ARROWHEAD_FLOOR);
+    // Through fitPicture the same: a 1/6 thumbnail gets a 1/6 head.
+    const pic = { drawables: [{ ...stroke("c", [[0, 0], [600, 0]]), arrowhead: "end" as const }] as Drawable[], ink: { x: 0, y: 0, w: 600, h: 450 } };
+    const { children, s } = fitPicture(pic, { x: 820, y: 610, w: 160, h: 120 }, true);
+    expect((children[0] as StrokeDrawable).headSize).toBeCloseTo(Math.max(ARROWHEAD_FLOOR, ARROWHEAD_SIZE * s), 5);
+  });
+});

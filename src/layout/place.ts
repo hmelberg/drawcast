@@ -4,7 +4,7 @@ import type { BBox } from "./geometry";
 import { boxAnchor } from "./anchors";
 import { boxOfId, unionBBoxForId, unionBoxes } from "./boxes";
 import type { MeasureFn } from "./measure";
-import type { Drawable, Pt } from "./model";
+import { ARROWHEAD_FLOOR, ARROWHEAD_SIZE, type Drawable, type Pt } from "./model";
 import type { LintIssue } from "../lint/lint";
 import { SIDE_VALUES, type Side, type SpecElement } from "../spec/types";
 import type { Obstacle } from "./labels";
@@ -326,6 +326,10 @@ export function scaleDrawables(ds: Drawable[], s: number, dx: number, dy: number
     if (d.kind === "image") { d.pos = m(d.pos); d.w *= s; d.h *= s; continue; }
     d.pts = d.pts.map(m);
     if (d.kind === "area" && d.holes) d.holes = d.holes.map((h) => h.map(m));
+    // The arrowhead is drawn by the backend at headSize (default
+    // ARROWHEAD_SIZE): scale it with the geometry or a fitted figure wears a
+    // full-size head on a small arrow.
+    if (d.kind === "stroke" && d.arrowhead) d.headSize = Math.max(ARROWHEAD_FLOOR, (d.headSize ?? ARROWHEAD_SIZE) * s);
     if (d.kind === "stroke" && d.shapeHint) {
       d.shapeHint = d.shapeHint.type === "circle"
         ? { ...d.shapeHint, c: m(d.shapeHint.c), r: d.shapeHint.r * s }

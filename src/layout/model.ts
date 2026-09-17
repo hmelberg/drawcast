@@ -76,6 +76,10 @@ export interface StrokeDrawable extends BaseDrawable {
   pts: Pt[];
   closed?: boolean;
   arrowhead?: "end" | "start" | "both";
+  /** Arm length of the arrowhead (default ARROWHEAD_SIZE). Scaled with the
+   *  geometry by scaleDrawables, so a fitted figure or an inset thumbnail
+   *  wears a head its own size (Hans 2026-09-17). */
+  headSize?: number;
   /** Lets backends draw a true circle/rect instead of the sampled polyline. */
   shapeHint?: ShapeHint;
 }
@@ -167,6 +171,10 @@ export interface ImageDrawable extends BaseDrawable {
 
 export type Drawable = StrokeDrawable | AreaDrawable | TextDrawable | ImageDrawable | GroupDrawable;
 
+/** Arrowhead arm length in logical units — also how far back along the path the head reads its direction. */
+export const ARROWHEAD_SIZE = 13;
+/** A scaled head never shrinks below this (a 1/6 thumbnail still shows a V). */
+export const ARROWHEAD_FLOOR = 3;
 export const Z_AREA = 0;
 export const Z_STROKE = 1;
 export const Z_TEXT = 2;

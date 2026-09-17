@@ -211,8 +211,8 @@ function exactAreaPath(d: AreaDrawable): SVGPathElement {
   return p;
 }
 
-/** Arrowhead arm length in logical units — also how far back along the path the head reads its direction. */
-export const ARROWHEAD_SIZE = 13;
+import { ARROWHEAD_SIZE } from "../layout/model";
+export { ARROWHEAD_SIZE };
 
 /**
  * The point on a polyline `dist` units back from one end, walking along the
@@ -242,16 +242,15 @@ function pointBackAlong(pts: Pt[], at: "end" | "start", dist: number): Pt {
  * self-loop (arrow round, 2026-09-17). A straight two-point path is
  * unchanged.
  */
-export function arrowheadPts(pts: Pt[], at: "end" | "start"): [Pt, Pt, Pt] | null {
+export function arrowheadPts(pts: Pt[], at: "end" | "start", size: number = ARROWHEAD_SIZE): [Pt, Pt, Pt] | null {
   if (pts.length < 2) return null;
   const tip = at === "end" ? pts[pts.length - 1] : pts[0];
-  const prev = pointBackAlong(pts, at, ARROWHEAD_SIZE);
+  const prev = pointBackAlong(pts, at, size);
   const dx = tip[0] - prev[0];
   const dy = tip[1] - prev[1];
   const len = Math.hypot(dx, dy) || 1;
   const ux = dx / len;
   const uy = dy / len;
-  const size = ARROWHEAD_SIZE;
   const spread = 0.45;
   const left: Pt = [tip[0] - size * (ux * Math.cos(spread) - uy * Math.sin(spread)), tip[1] - size * (uy * Math.cos(spread) + ux * Math.sin(spread))];
   const right: Pt = [tip[0] - size * (ux * Math.cos(spread) + uy * Math.sin(spread)), tip[1] - size * (uy * Math.cos(spread) - ux * Math.sin(spread))];
@@ -326,7 +325,7 @@ function drawLeafClean(g: SVGGElement, d: Exclude<Drawable, { kind: "group" | "t
   if (d.arrowhead && d.pts.length >= 2) {
     const heads: ("end" | "start")[] = d.arrowhead === "both" ? ["start", "end"] : [d.arrowhead];
     for (const at of heads) {
-      const tri = arrowheadPts(d.pts, at);
+      const tri = arrowheadPts(d.pts, at, d.headSize);
       if (tri) g.appendChild(plainPath(pathFromPts(tri), d.style));
     }
   }
@@ -427,7 +426,7 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
   if (d.kind === "stroke" && d.arrowhead && d.pts.length >= 2) {
     const heads: ("end" | "start")[] = d.arrowhead === "both" ? ["start", "end"] : [d.arrowhead];
     for (const at of heads) {
-      const tri = arrowheadPts(d.pts, at);
+      const tri = arrowheadPts(d.pts, at, d.headSize);
       if (tri) g.appendChild(rc.linearPath(tri.map(([x, y]) => [x, toSvgY(y)] as [number, number]), opts));
     }
   }
