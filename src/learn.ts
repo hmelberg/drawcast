@@ -144,10 +144,11 @@ export async function sendEvents(api: string, events: LearnEvent[], key: string,
  * fetch address no person handles). Null on anything but a JSON object
  * from a 200 — the button simply stays hidden. Never throws.
  */
-export async function runInfo(api: string, key: string, course: string, fetchImpl: typeof fetch = fetch): Promise<RunInfo | null> {
+export async function runInfo(api: string, key: string, course: string, cast?: string, fetchImpl: typeof fetch = fetch): Promise<RunInfo | null> {
   if (!key) return null;
   try {
-    const res = await fetchImpl(`${apiBase(api)}/_/api/run?key=${encodeURIComponent(key)}&course=${encodeURIComponent(course)}`);
+    // `cast` makes handed_in the LECTURE's own hand-in, not the course's latest.
+    const res = await fetchImpl(`${apiBase(api)}/_/api/run?key=${encodeURIComponent(key)}&course=${encodeURIComponent(course)}${cast ? `&cast=${encodeURIComponent(cast)}` : ""}`);
     if (!res.ok) return null;
     const body: unknown = await res.json();
     if (typeof body !== "object" || body === null || Array.isArray(body)) return null;

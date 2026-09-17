@@ -240,17 +240,20 @@ describe("sendEvents", () => {
 describe("runInfo", () => {
   test("reads the run's hand-in settings for a course", async () => {
     const f = fetchReturning(200, { handin: true, due: "2026-10-01", handed_in: "2026-09-17T10:00:00Z" });
-    expect(await runInfo(API, KEY, COURSE, f)).toEqual({ handin: true, due: "2026-10-01", handed_in: "2026-09-17T10:00:00Z" });
+    expect(await runInfo(API, KEY, COURSE, CAST, f)).toEqual({ handin: true, due: "2026-10-01", handed_in: "2026-09-17T10:00:00Z" });
     const [url] = callOf(f);
-    expect(url).toBe(`${API}/_/api/run?key=${KEY}&course=${encodeURIComponent(COURSE)}`);
+    expect(url).toBe(`${API}/_/api/run?key=${KEY}&course=${encodeURIComponent(COURSE)}&cast=${encodeURIComponent(CAST)}`);
+    const g = fetchReturning(200, { handin: false });
+    await runInfo(API, KEY, COURSE, undefined, g);
+    expect(callOf(g)[0]).toBe(`${API}/_/api/run?key=${KEY}&course=${encodeURIComponent(COURSE)}`);
   });
   test("absent fields default: handin false, no due, no handed_in", async () => {
-    expect(await runInfo(API, KEY, COURSE, fetchReturning(200, {}))).toEqual({ handin: false });
+    expect(await runInfo(API, KEY, COURSE, undefined, fetchReturning(200, {}))).toEqual({ handin: false });
   });
   test("null on a non-ok answer, a throw, a non-object body, or an empty key", async () => {
-    expect(await runInfo(API, KEY, COURSE, fetchReturning(404, {}))).toBeNull();
-    expect(await runInfo(API, KEY, COURSE, vi.fn(async () => { throw new Error("net"); }) as unknown as typeof fetch)).toBeNull();
-    expect(await runInfo(API, KEY, COURSE, fetchReturning(200, "nope"))).toBeNull();
-    expect(await runInfo(API, "", COURSE, fetchReturning(200, { handin: true }))).toBeNull();
+    expect(await runInfo(API, KEY, COURSE, undefined, fetchReturning(404, {}))).toBeNull();
+    expect(await runInfo(API, KEY, COURSE, undefined, vi.fn(async () => { throw new Error("net"); }) as unknown as typeof fetch)).toBeNull();
+    expect(await runInfo(API, KEY, COURSE, undefined, fetchReturning(200, "nope"))).toBeNull();
+    expect(await runInfo(API, "", COURSE, undefined, fetchReturning(200, { handin: true }))).toBeNull();
   });
 });

@@ -91,7 +91,7 @@ describe("course progress in the viewer", () => {
   test("item views and hand-in go through the reporter; the hand-in state is read lazily by the session", () => {
     expect(src).toMatch(/onItem: \(view\) => \{\s*if \(reporter\) void report\(\{ kind: "item", cast: reporter\.cast, \.\.\.view \}\);/);
     expect(src).toMatch(/handIn: \(\) => handIn/);
-    expect(src).toMatch(/runInfo\(r\.api, r\.key, courseKeyOf\(r\.cast\)\)/);
+    expect(src).toMatch(/runInfo\(r\.api, r\.key, courseKeyOf\(r\.cast\), r\.cast\)/);
     expect(src).toMatch(/if \(!info\?\.handin\) return;/);
     expect(src).toMatch(/report\(\{ kind: "handed_in", cast: r\.cast \}\)/);
     // still never awaited, and the three original kinds still go through report exactly once each

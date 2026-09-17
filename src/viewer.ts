@@ -707,7 +707,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     let handIn: HandInState | null = null;
     if (reporter) {
       const r = reporter;
-      void runInfo(r.api, r.key, courseKeyOf(r.cast)).then((info) => {
+      void runInfo(r.api, r.key, courseKeyOf(r.cast), r.cast).then((info) => {
         if (!info?.handin) return;
         handIn = {
           handedAt: info.handed_in ?? readHandIn(localRecordStorage(), r.cast) ?? undefined,
