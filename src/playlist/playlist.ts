@@ -12,6 +12,7 @@ import { desmartenJson } from "../spec/extract";
 import { dumpSpecYaml, formatSpec, parseSpecText, type SpecFormat } from "../spec/text";
 import type { Spec } from "../spec/types";
 import { narrationLanguage } from "../export/video";
+import { resolveSibling } from "./inset-ref";
 
 export interface PlaylistMeta {
   title?: string;
@@ -224,6 +225,16 @@ function classifyDocs(docs: Record<string, unknown>[]): Playlist {
       entries.push({ kind: "item", spec: doc as Spec });
     }
   }
+  // An inset names another item (spec 2026-09-17-inset §4.10): the one check
+  // that needs the whole playlist, so it lives here rather than in a spec's lint.
+  const specs = entries.filter((e): e is { kind: "item"; spec: Spec } => e.kind === "item").map((e) => e.spec);
+  specs.forEach((spec, i) => {
+    for (const el of spec.elements ?? []) {
+      if (!isPlainObject(el) || el.type !== "inset") continue;
+      const ref = resolveSibling(String(el.of ?? ""), specs, i);
+      if ("error" in ref) warnings.push(`item ${i + 1}: inset "${String(el.id)}": ${ref.error}`);
+    }
+  });
   return { meta, entries, warnings, ...(audio ? { audio } : {}) };
 }
 
