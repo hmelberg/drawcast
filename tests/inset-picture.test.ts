@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { resolveSibling } from "../src/playlist/inset-ref";
-import { pictureOf, resolveInsets } from "../src/render/inset";
+import { pictureOf, resolveInsets, resolveInsetsSync } from "../src/render/inset";
 import { planOptionsFor } from "../src/render/index";
 import { heuristicMeasure } from "../src/layout/measure";
 import type { Spec } from "../src/spec/types";
@@ -76,5 +76,23 @@ describe("resolveInsets", () => {
     const host = structuredClone(C);
     await resolveInsets(host, { ...deps, prepare: async () => { throw new Error("boom"); }, siblings: [A, B, C], self: 2 });
     expect((host.elements![0].picture as InsetError).error).toMatch(/boom/);
+  });
+});
+
+describe("resolveInsetsSync (spec 2026-09-17-inset §9: the examples gate)", () => {
+  test("fills the picture for a title reference, built straight off the authored sibling", () => {
+    const host = structuredClone(C);
+    resolveInsetsSync(host, [A, B, C], 2, heuristicMeasure, planOptionsFor);
+    const pic = host.elements![0].picture as InsetPicture;
+    expect("error" in pic).toBe(false);
+    expect(pic.spec).toBe(A);
+    expect(pic.index).toBe(0);
+    expect(pic.drawables.length).toBeGreaterThan(0);
+    expect(pic.boxes.tri).toBeDefined();
+  });
+  test("a miss stores an error, never throws", () => {
+    const miss: Spec = structuredClone({ ...C, elements: [{ id: "pic", type: "inset", of: "Nope" }] });
+    resolveInsetsSync(miss, [A, B, C], 2, heuristicMeasure, planOptionsFor);
+    expect((miss.elements![0].picture as InsetError).error).toBe('no item titled "Nope"');
   });
 });

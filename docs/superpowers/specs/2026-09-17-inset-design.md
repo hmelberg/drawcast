@@ -29,20 +29,10 @@ leading coefficient instead (`0.02(x-50)^2 + 1`, vertex (50, 1), y ranges
 (`5*exp(0.025*x)`, not the first-drafted 6 %/year) to keep every curve
 inside the canvas over the whole fixed domain.
 
-(c) The two `point.at.ref+anchor` beats that were meant to land on a part
-INSIDE the referenced inset's picture (the Sick→Dead arrow; the
-derivation's last line) point at the universal anchor `right` instead of
-the source element's own id (`t_2`, `step_2`). `tests/examples.test.ts`
-lays out each playlist item alone (§4.4) — an inset's picture is never
-built there — so a non-universal anchor into an unbuilt picture warns
-`"<id>" has no anchor "<name>" — using center`, which the "no plan
-warning at all" gate correctly refuses. In the live app, where the
-picture IS built (render.ts resolves it from the sibling item), the same
-`point.at: {ref, anchor}` commands resolve the named anchor cleanly — this
-is a limitation of the isolated per-item gate, not of the feature; the
-compiler prompt's own illustration (`{"point": {"at": {"ref": "model_pic",
-"anchor": "arrow_1"}}}`) is unchanged, since it is a real, working pattern
-the model should still reach for.
+(c) SUPERSEDED (controller ruling, fix round 1): the examples gate now
+resolves insets before laying an item out, so the two `point.at.ref+anchor`
+beats keep the source element's own id (`t_2`, `step_2`) as originally
+drafted — see §9 below.
 
 ## 1. What this is
 
@@ -404,6 +394,18 @@ Tests, each written to fail first:
 14. Prompt: the schema and prompt sentences are present; sizes re-pinned.
 15. Examples: the Markov playlist is lint-clean per item and its ids are
     real.
+16. Fix round 1 (controller ruling, recorded in the ledger): `pictureOf` is
+    pure and synchronous and a playlist example's other items are already
+    in scope in `tests/examples.test.ts`, so the gate need not skip inset
+    resolution — `resolveInsetsSync` (`src/render/inset.ts`, beside
+    `resolveInsets`) builds a source's picture straight off the AUTHORED
+    sibling spec (no `prepare`: no engines, no assets, no cards) and is
+    called once per playlist example in `beforeAll`, after packs and
+    engines are ready, mutating the same spec objects `cases` already
+    holds. The gate now lints the pictures themselves too, not just the
+    frame — tighter, not looser — and the bundled examples keep the
+    part-anchor beats (`point.at: {ref, anchor: t_2}` etc.) the feature
+    exists to show. Unit tests: `tests/inset-picture.test.ts`.
 
 ## 10. Non-goals, written down so they stay out
 

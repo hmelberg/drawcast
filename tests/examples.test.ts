@@ -12,8 +12,10 @@ import { scenes } from "../src/scenes/registry";
 import { flattenDrawables } from "../src/layout/model";
 import { validateSpec } from "../src/spec/schema";
 import { domainMapping, elementBBoxes, layoutSpec } from "../src/layout/layout";
+import { heuristicMeasure } from "../src/layout/measure";
 import { planCommands } from "../src/render/plan";
 import { planOptionsFor } from "../src/render/index";
+import { resolveInsetsSync } from "../src/render/inset";
 import { lintCommands } from "../src/lint/lint";
 import { cardTargets } from "../src/ui/card-model";
 import { linkKindOf } from "../src/ui/link-model";
@@ -37,14 +39,58 @@ interface BundledExample {
 
 const examples = bundledExamples as BundledExample[];
 
-/** Every spec an example carries: a single spec, or each item of its playlist. */
+/** An inset clone whose picture is resolved in `beforeAll`, once packs and
+ *  engines are ready — NOT at module load, when `cases` is built (a source
+ *  template a pack registers, like `equation_steps`, does not exist as a
+ *  scene yet at that point, and mathjax has not measured a font). */
+interface DeferredInsetResolve {
+  spec: Spec;
+  siblings: Spec[];
+  index: number;
+}
+const deferredInsetResolves: DeferredInsetResolve[] = [];
+
+/** Every spec an example carries: a single spec, or each item of its
+ *  playlist — with any inset CLONED off its own siblings now (so `cases`
+ *  below holds the object `beforeAll` later mutates in place) but not yet
+ *  RESOLVED — see `deferredInsetResolves` (spec 2026-09-17-inset §9: the
+ *  gate resolves insets, synchronously, the same way render() does, so a
+ *  `point` at a part INSIDE one is exercised by the same layout/plan/lint
+ *  checks as everything else, not skipped). Only a playlist item can have
+ *  siblings; a single-spec example is unchanged. */
 function specsOf(ex: BundledExample): Spec[] {
   if (ex.spec) return [ex.spec];
-  if (ex.playlist) return itemsOf(parsePlaylistText(ex.playlist)).map((i) => i.spec);
+  if (ex.playlist) {
+    const items = itemsOf(parsePlaylistText(ex.playlist));
+    const siblings = items.map((it) => it.spec);
+    return items.map((it, i) => {
+      if (!(it.spec.elements ?? []).some((e) => e.type === "inset")) return it.spec;
+      const clone = structuredClone(it.spec);
+      deferredInsetResolves.push({ spec: clone, siblings, index: i });
+      return clone;
+    });
+  }
   return [];
 }
 
 const cases = examples.flatMap((ex) => specsOf(ex).map((spec, i) => [`${ex.request}${i > 0 ? ` [part ${i + 1}]` : ""}`, spec] as const));
+
+/** `resolveInsetsSync` stores `picture` on an inset element for layout/plan
+ *  to read — a render-time-only field the compiler-facing schema does not
+ *  carry (render() itself only resolves insets AFTER validateSpec, never
+ *  before). Strip it before validating, the one check that runs on the
+ *  authored shape rather than the resolved one. */
+function stripPictures(spec: Spec): Spec {
+  if (!(spec.elements ?? []).some((el) => el.type === "inset" && "picture" in el)) return spec;
+  return {
+    ...spec,
+    elements: (spec.elements ?? []).map((el) => {
+      if (el.type !== "inset" || !("picture" in el)) return el;
+      const { picture: _picture, ...rest } = el;
+      return rest;
+    }),
+  };
+}
 
 /** The spec at a plan-time param set: template params overlaid, `vars.<name>` keys into vars (the shape render() builds). */
 function specAt(spec: Spec, params: Record<string, number>): Spec {
@@ -57,6 +103,11 @@ beforeAll(async () => {
   // its own (loadBundledExample enables those before rendering).
   await ensureEnabledPacks(Object.keys(PACK_DEFS));
   await ensureEnginesForSpecs(cases.map(([, spec]) => spec));
+  // Now that every pack is registered and every engine an inset's SOURCE
+  // needs is ready (equation_steps needs mathjax, registered by mathlogic),
+  // resolve the insets `specsOf` deferred — into the very spec objects
+  // `cases` already holds, so every test below sees the resolved picture.
+  for (const { spec, siblings, index } of deferredInsetResolves) resolveInsetsSync(spec, siblings, index, heuristicMeasure, planOptionsFor);
 });
 
 describe("bundled examples stay exemplary", () => {
@@ -84,7 +135,7 @@ describe("bundled examples stay exemplary", () => {
   // id" never saw it: the symmetry example was quietly emitting `flip target
   // "tri" has no geometry (skipped)`. So: no warning at all, of any kind.
   test.each(cases)("%s — validates, lays out, and plans with no warning at all", (_req, spec) => {
-    expect(validateSpec(spec).ok).toBe(true);
+    expect(validateSpec(stripPictures(spec)).ok).toBe(true);
     const layout = layoutSpec(spec);
     const bboxes = elementBBoxes(layout);
     const plan = planCommands(spec.commands, layout.order, {

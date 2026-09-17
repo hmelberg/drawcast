@@ -912,14 +912,21 @@ roughness unscaled (the inset's `thin` is the fix to copy).
 Three bundled examples teach the element (Task 9): "A Markov model,
 simulated and read" (a three-state model, its cohort simulation kept as a
 corner thumbnail, then a third page with two thumbnails and a `move`
-forward/back into the model); "The vertex, derived and drawn" (an
-algebra derivation kept in the corner of the parabola it proves, the same
-grow/point/return round-trip); "Two growth curves, side by side" (two
-uncropped half-page pictures at one shared scale, with `camera` zooming
-into one and back) — see `docs/superpowers/specs/2026-09-17-inset-design.md`
-for the deviations the isolated per-item example gate forced (a narrower
-`generic_axes_diagram` domain than first drafted, and a universal anchor
-in place of a named one for the two point-into-picture beats).
+forward/back into the model, pointing at the Sick→Dead arrow INSIDE the
+picture); "The vertex, derived and drawn" (an algebra derivation kept in
+the corner of the parabola it proves, the same grow/point/return
+round-trip onto its own last line); "Two growth curves, side by side"
+(two uncropped half-page pictures at one shared scale, with `camera`
+zooming into one and back) — see
+`docs/superpowers/specs/2026-09-17-inset-design.md` for the one
+deviation the isolated per-item example gate forced (a narrower
+`generic_axes_diagram` domain than first drafted). The gate (Task 9 fix
+round 1, controller ruling) resolves every playlist example's insets
+before laying an item out — `resolveInsetsSync`
+(`src/render/inset.ts`), a synchronous sibling of `resolveInsets` built
+straight off the authored sibling spec, no `prepare` — so the
+point-into-picture beats above are exercised for real, not skipped, and
+the gate lints the pictures themselves, not just the frame.
 
 ## Course progress, client — done 2026-09-17
 

@@ -10,9 +10,8 @@ no blank frame, no giant wobble, no collision.
     picture's lines are thin and calm (not six-times-too-rough).
 (3) Item 3: two thumbnails top-right (model above plot), the text left of
     them; "Look again…" brings the model forward four times larger over a
-    dimmed page, the pointer lands at the picture's right edge — by the
-    chain layout, right by the Sick→Dead arrow, the rightmost transition —
-    and the picture returns to its slot.
+    dimmed page, the pointer lands on the sick→dead arrow INSIDE the
+    picture, and the picture returns to its slot.
 (4) Pause on item 3, hover a thumbnail: zoom-in cursor. Click the model
     thumbnail: a modal with the model page drawn full size at its final
     frame. Esc closes. Click again → "Go to page": item 1 opens.
@@ -30,8 +29,8 @@ Two more bundled examples (Task 9 addendum):
 (9) Open "The vertex, derived and drawn" (Examples → search "vertex").
     Item 2: the algebra thumbnail (top-right) grows ×3 over a dimmed
     page while "Look at the last line again…" plays, the pointer lands
-    at the thumbnail's right edge (by the last line, "vertex = (50, 1)"),
-    and it returns to its slot at the original size.
+    on the last line INSIDE the picture ("vertex = (50, 1)"), and it
+    returns to its slot at the original size.
 (10) Open "Two growth curves, side by side" (Examples → search "growth
      curves"). Item 3: two half-page uncropped pictures — exponential on
      the left, logistic on the right — share one scale (same box size,

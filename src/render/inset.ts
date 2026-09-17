@@ -110,6 +110,48 @@ export async function resolveInsets(spec: Spec, deps: InsetDeps): Promise<void> 
   );
 }
 
+/**
+ * Same job as `resolveInsets` — fills `picture` on every inset element, in
+ * place — but synchronous, and built straight off the AUTHORED sibling: no
+ * `prepare` (no engines, no assets, no cards — a source whose final frame
+ * needs those still lays out as far as layout can without them). For a
+ * node-side caller that already holds every sibling's spec and has no event
+ * loop to await across (spec 2026-09-17-inset §9: the examples gate resolves
+ * insets so a `point` at a part inside one is exercised, not just the frame).
+ */
+export function resolveInsetsSync(spec: Spec, siblings: readonly Spec[], self: number, measure: MeasureFn, planOpts: PlanOptsFor): void {
+  const insets = (spec.elements ?? []).filter((e) => e.type === "inset");
+  if (insets.length === 0) return;
+  const cache = new Map<number, Pick<InsetPicture, "drawables" | "ink" | "boxes">>();
+  for (const el of insets) {
+    const fail = (error: string): void => {
+      el.picture = { error } satisfies InsetError;
+    };
+    if (siblings.length === 0) {
+      fail("an inset needs a playlist to take its page from");
+      continue;
+    }
+    const ref = resolveSibling(String(el.of ?? ""), siblings, self);
+    if ("error" in ref) {
+      fail(ref.error);
+      continue;
+    }
+    const source = siblings[ref.index];
+    try {
+      // Two insets of the same page share one build — but each needs its
+      // own prefix, so the cached drawables are re-prefixed per element.
+      let pic = cache.get(ref.index);
+      if (!pic) {
+        pic = pictureOf(source, measure, planOpts, "src");
+        cache.set(ref.index, pic);
+      }
+      el.picture = { ...pic, drawables: reprefix(structuredClone(pic.drawables), "src", el.id), spec: source, index: ref.index };
+    } catch (err) {
+      fail(`could not draw "${source.title ?? `item ${ref.index + 1}`}": ${(err as Error).message}`);
+    }
+  }
+}
+
 function reprefix<T extends { id: string; kind: string; children?: T[] }>(ds: T[], from: string, to: string): T[] {
   for (const d of ds) {
     if (d.id.startsWith(`${from}__p`)) d.id = `${to}__p${d.id.slice(from.length + 3)}`;
