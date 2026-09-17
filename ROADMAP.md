@@ -889,6 +889,28 @@ the tray's ✎ On the screen still opens the code editor over a
 panel itself is the host's now, and there is no script text to type there
 once the pane is knobs, not lines).
 
+## Arrowheads and self-loops — done 2026-09-17
+
+Hans, on the Markov examples: "arrows are often ugly in the way they are
+shaped and the size of the arrow head, especially arrows that go from one
+state to itself". Two causes, both fixed without touching the head's look
+(the open V stays, by Hans's choice): `arrowheadPts`
+(`src/render/svg-backend.ts`) now reads the head's direction as the
+tangent over the last head-length of the path instead of the final two
+samples — a smoothed curve ends in a segment a few units long whose
+direction wobbles, so every curved edge and every loop wore its head
+askew; and `kit.edgeArrow`'s self-loop sizes its mouth to the loop (a
+chord of about half the loop's reach, corrected once for the ellipse)
+instead of a fixed ±0.8 rad in direction space, which on a wide state
+opened a 100-unit mouth for a 48-unit loop and swung the teardrop back
+through the state; the teardrop is narrower (0.55 r). Tests
+`tests/arrowhead-direction.test.ts`, `tests/selfloop-geometry.test.ts`.
+Not done (Hans: "do 2–4, but not 1"): a filled, stroke-width-scaled
+head; with an open V the shaft must reach the apex, so shaft trimming
+went with it. Open: graphviz-style layout for graph templates
+(viz-js, WASM ≈ 2 MB) is a later lever for PLACEMENT, not for heads —
+the heads are drawcast's own renderer's, for axes and freehand arrows too.
+
 ## Inset — a small picture of another page — done 2026-09-17
 
 Spec `docs/superpowers/specs/2026-09-17-inset-design.md`, plan
