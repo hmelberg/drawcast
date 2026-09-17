@@ -2374,6 +2374,91 @@ Left for later:
   surface-coloured bands beside it — a `fit-content` wrap would follow the
   stage's width, if it ever matters.
 
+## Private courses on the drawcast server — decided 2026-09-17, parked
+
+Round 3 of the private-publishing spec (`specs/2026-09-05-private-publishing-
+and-learner-identity-design.md` §12). Hans: "I thought it was possible to
+save/publish a (private) course in anvil, but I see no such option" — right:
+`share.ts` DESTS marks the server row `courses: false`; a single cast goes to
+the server, a course is GitHub-only, and the help page's sharing section
+documents neither (it still describes only the Google Doc link). Designed in
+conversation 2026-09-17, spec NOT yet written — Hans: "let's wait".
+
+**Rulings taken.**
+
+- **Who can watch: enrolled learners** (the join door, approval optional),
+  teachers and the owner — the course-progress model, not "anyone signed in".
+- **Front door: server only.** Nothing goes to GitHub. `drawcast.app/#<name>`
+  renders the course home (title, lecture list, join door) from server data,
+  reusing `coursePage`'s pure markup. `#free` previews and the GitHub-page
+  hybrid were weighed and not taken.
+- **Narration: author's choice, default on.** The egress fear in spec §4 is
+  moot — Anvil meters no outbound bandwidth (round-0 measurements). Storage is
+  the only cost.
+- **Storage stays Anvil.** Sizing at the measured 3.5 MB per baked lecture
+  (1.4–6.8 MB): a 20-lecture course is ~70 MB, so **~1 400 baked courses in
+  100 GB** (~735 if every lecture were 6.8 MB); **~1 900 with gzip on store**
+  — the audio Media is base64 YAML text (1.43 MB where the MP3 bytes are 1.07
+  and the gzip 1.06), so gzipping in `_cast_audio_put`/`_get` buys the whole
+  binary saving with no format change. The codec is already 32 kbps mono
+  MP3; Opus would halve it again but Safari/Ogg is patchy — leave it. Overflow
+  when it matters: a ~5 $/month DigitalOcean Space behind the same gated
+  endpoint (the seam below). Rejected: authors' own buckets (Anvil would hold
+  their secrets; nobody needs it yet), unlisted YouTube (a video export loses
+  every interaction), per-student synthesis (~40 $/cohort in TTS calls).
+- **Private GitHub repos for students: no.** A private repo needs a
+  credential on every read — either every student has a GitHub account and a
+  collaborator invite plus an OAuth flow that needs a server anyway, or a
+  shared read token rides the link, which is "anyone with the link" security
+  that Anvil's `access: open` already gives without token handling. Files
+  ≤100 MB, repos ~1 GB (≈12 baked courses each), API reads 5 000/h per token,
+  no CDN, and GitHub's terms frown on media hosting. **Yes for the author's
+  own drafts/backups** (the author holds the token): Save→GitHub and ⇩ Load
+  courses reading through the API with the token instead of raw — a small
+  item to fold into round 3 or its own.
+
+**Facts the design rests on** (sweep 2026-09-17, all in this repo's client
+and ledgers; the Anvil repo is at `../drawcast-anvil`):
+
+- Server publish is two requests, never one: `POST /_/api/cast` (JSON in a
+  text/plain body, token as `key`, `access` absent = keep) then
+  `POST /_/api/cast/audio?cast=&key=` with the raw audio document
+  (`publish/server.ts`). The server claims `anvil/<slug>` itself on the first
+  cast write; `POST /course` and course-kind `POST /name` answer `400
+  reserved` for `anvil/` keys (round-1a ledger) — so a course name needs a
+  server change to resolve.
+- `courseKeyOf(anvil/<slug>/<file>)` = `anvil/<slug>`: events, progress, the
+  grid and the run keep working unmodified. But `_lectures` never consults
+  `casts` (1b ledger), so a server course's grid axis is events-driven until
+  the casts table is read.
+- The 403 body carries no course title — the viewer's door is headed by the
+  slug (deferred to round 3 in the 1b ledger).
+- `lectureHref` (`course/page.ts`) has only a `#gh=` form, so `meta.next` can
+  never point at a server lecture today; and progress reporting for an anvil
+  cast still requires `meta.enroll` in the yaml, which only the course
+  publish plan writes — a singly published server cast reports nothing.
+- `listed`, `join`, `drip`, `#free`, `&app=` are unimplemented in `src/**`;
+  round 2 (catalogue, delete) has no plan or ledger — undelivered.
+- Still open from 1b: `redeemFromAddress` overwrites `drawcast.token` on any
+  `t=` link (a forwarded link signs a browser into the sender's account).
+
+**Size: medium-large, three deliveries.**
+
+1. **Publish and play.** Server destination offered for courses (name, Check,
+   bake); the publish loop — one spec + one audio request per lecture under
+   `anvil/<slug>/<file>`, `meta.enroll` and an anvil-form `meta.next` stamped,
+   stale lectures deleted, progress on the status line and a resumable retry
+   (twenty uploads of several MB each); the course panel's ▶ links point at
+   `#anvil=`; Anvil returns the course title in the 403 body. A private course
+   is watchable from its links; no course home yet.
+2. **Course home.** `#<name>` from server data with the join door: a
+   course-info endpoint (title, ordered lectures from `casts`, access, join
+   state), course-kind names allowed for `anvil/` targets, the dashboard's
+   lecture axis from `casts`.
+3. **Housekeeping.** ⇩ Load courses from the server (analogue of
+   `course/load.ts`), delete, gzip on store, the help page's sharing section
+   rewritten to cover GitHub, the server, courses and the join door.
+
 ## Storage beyond Anvil — when 100 GB stops being enough
 
 Round 0 stores a private cast as two objects: a ~10 KB spec in a text column
