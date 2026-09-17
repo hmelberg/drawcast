@@ -905,6 +905,17 @@ instead of a fixed ±0.8 rad in direction space, which on a wide state
 opened a 100-unit mouth for a 48-unit loop and swung the teardrop back
 through the state; the teardrop is narrower (0.55 r). Tests
 `tests/arrowhead-direction.test.ts`, `tests/selfloop-geometry.test.ts`.
+Round 2 the same day (Hans: "the line of the arrow is not really smooth
+when it bends" and "an arrow from one state to another and another back
+are too close"): a bowed `edgeArrow` is a quadratic Bézier through its
+bow point, 33 samples, and each end is trimmed along its own end tangent
+rather than the chord — the two edges of a reverse pair attached to the
+SAME boundary points before; `REVERSE_CURVE` 0.12 → 0.18; the head's
+size rides on the stroke (`headSize`, scaled by `scaleDrawables`, floor
+3) so insets and fitted figures wear heads their own size. Tests
+`tests/edge-curve.test.ts`; `tests/packs.test.ts`'s argument-map link
+assertion reworded (each end hugs its own box; the trims differ when the
+boxes' heights do).
 Not done (Hans: "do 2–4, but not 1"): a filled, stroke-width-scaled
 head; with an open V the shaft must reach the apex, so shaft trimming
 went with it. Open: graphviz-style layout for graph templates
