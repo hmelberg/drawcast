@@ -94,6 +94,18 @@ describe("structured output is decided per schema", () => {
 });
 
 describe("max_tokens", () => {
+  test("the default ceiling is 64000 — streaming, so a high ceiling costs nothing until used (Hans 2026-09-18)", async () => {
+    const { client, recorded } = queuedClient([{ text: '{"a":"1"}' }]);
+    await callForJson(client, "claude-sonnet-5", "s", [{ role: "user", content: "u" }], CLOSED);
+    expect(recorded[0].body.max_tokens).toBe(64000);
+  });
+
+  test("a caller's own ceiling still wins", async () => {
+    const { client, recorded } = queuedClient([{ text: '{"a":"1"}' }]);
+    await callForJson(client, "claude-sonnet-5", "s", [{ role: "user", content: "u" }], CLOSED, { maxTokens: 8000 });
+    expect(recorded[0].body.max_tokens).toBe(8000);
+  });
+
   test("a cut-off reply is reported as such, not as bad JSON", async () => {
     const { client } = queuedClient([{ text: '{"a":"1', stop_reason: "max_tokens" }]);
     await expect(callForJson(client, "claude-sonnet-5", "s", [{ role: "user", content: "u" }], CLOSED)).rejects.toThrow(/cut off/);

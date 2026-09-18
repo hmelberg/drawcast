@@ -269,7 +269,9 @@ export async function generateTemplate(description: string, image: AuthorImage |
           // cut-off thinks less (medium) so the document itself fits.
           effort: isRepair ? "low" : cutRetried ? (cfg.effort === "low" ? "low" : "medium") : cfg.effort,
           // A template document is a whole program: Opus with thinking on
-          // overran the 16k default on the first real topic (spike 2026-09-07).
+          // overran the then-16k default on the first real topic (spike
+          // 2026-09-07). The client's default is 64k now too; this stays
+          // explicit so the two cannot drift apart unnoticed.
           maxTokens: AUTHOR_MAX_TOKENS,
           onDelta: cfg.onProgress && ((_delta, text) => cfg.onProgress!({ round: rounds.length + 1, text })),
         });

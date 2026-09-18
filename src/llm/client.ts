@@ -158,6 +158,9 @@ function textOf(response: Anthropic.Message): string {
     .join("");
 }
 
+/** The output ceiling every call gets unless it asks for its own (see CallOpts.maxTokens). */
+export const DEFAULT_MAX_TOKENS = 64000;
+
 /** The effort dial: thinking depth and overall token spend. "high" is the API default. */
 export type Effort = "low" | "medium" | "high";
 
@@ -169,7 +172,12 @@ export interface CallOpts {
   onDelta?: (delta: string, snapshot: string) => void;
   /** output_config.effort. Omitted means the model's default (high). */
   effort?: Effort;
-  /** max_tokens for the reply (thinking included). Default 16000; template authoring needs more. */
+  /**
+   * max_tokens for the reply (thinking included). Default 64000: every call
+   * streams, so a high ceiling costs nothing until it is used, and the 16000
+   * it replaced cut off 9 of 10 lecture parts on a real course (Hans
+   * 2026-09-18) — the model's thinking counts against the same limit.
+   */
   maxTokens?: number;
 }
 
@@ -193,7 +201,7 @@ async function createMessage(
   };
   const base = {
     model,
-    max_tokens: opts.maxTokens ?? 16000,
+    max_tokens: opts.maxTokens ?? DEFAULT_MAX_TOKENS,
     system,
     messages,
     ...(Object.keys(outputConfig).length > 0 ? { output_config: outputConfig } : {}),
