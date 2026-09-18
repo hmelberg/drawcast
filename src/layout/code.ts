@@ -48,21 +48,6 @@ import type { SpecElement } from "../spec/types";
 /** Monospace advance as a fraction of the font size — the wrapper measures
  *  with it, and so does the figure split when it sizes a panel to its script. */
 export const CHAR_W = 0.62;
-/**
- * The same thing for the SKETCH face (Patrick Hand), which is proportional:
- * an average advance, not an exact one, because CodeCtx has no browser
- * measurer — layout must stay deterministic in node. Measured in the browser
- * at 0.44–0.48 em for mixed text; 0.5 is the conservative pick, so a line
- * that the budget says fits really does fit and nothing overflows the pane.
- *
- * Used ONLY where the sketch face is what gets drawn: a plain (non-tabular)
- * print-out. Everything drawn in mono — the code pane, a tabular print-out,
- * an error, a table's cells and its "… N more rows" line — keeps CHAR_W,
- * which is exact for a fixed pitch. Wrapping a handwritten line at the mono
- * advance was a real bug: 36 characters that fit were broken at 30, leaving a
- * lone "%" on a row of its own (Hans, 2026-09-16, herd-immunity figure).
- */
-export const SKETCH_CHAR_W = 0.5;
 /** Vertical advance per wrapped row (matches drawLeaf's tspan spacing). */
 const ROW_H = 1.25;
 /** Layout's own cap on drawn table rows (the harvest already caps at 30). */
@@ -76,37 +61,6 @@ export const LINE_PITCH = ROW_H + LINE_GAP;
 export const PAD = 16;
 /** Typing speed of the `type` draw mode, characters per second. */
 export const TYPE_CPS = 28;
-
-/**
- * Does this print-out line up in COLUMNS? The one question that decides
- * whether the output pane is written in the figure's hand or in the
- * typewriter face: handwriting is proportional, so a table drawn in it stops
- * being a table, while `mean: 0.5` reads better in the drawing's own ink.
- *
- * Two shapes count. Aligned columns: at least two lines carry a run of two or
- * more spaces (or a tab) AFTER a non-space character — what pandas, a
- * `print(f"{a:>8}")` loop and a `describe()` all produce; leading indentation
- * alone is prose, not a column.
- *
- * A DRAWN table: at least two lines that each carry two or more pipes, AND
- * whose pipes stand in the SAME columns — which is what makes a row of `|`
- * a table rather than a sentence. Counting pipes alone was too eager (review,
- * 2026-09-16): `|x| + |y| = 5`, `P(A|B) = 0.4, P(B|A) = 0.6` and
- * `n=10 | mean=5.2 | p<0.05` are prose, and prose belongs in the hand. The
- * first two pipe-carrying lines are the ones compared — a real ascii table
- * lines its rules up from its first row, and a table whose first two rows
- * disagree has nothing for the mono face to preserve anyway.
- */
-export function looksTabular(stdout: string): boolean {
-  const lines = stdout.split("\n");
-  const columns = lines.filter((l) => /\S[^\n]*?(?: {2,}|\t)/.test(l)).length;
-  if (columns >= 2) return true;
-  const pipeCols = (l: string): number[] => [...l].flatMap((c, i) => (c === "|" ? [i] : []));
-  const piped = lines.map(pipeCols).filter((cols) => cols.length >= 2);
-  if (piped.length < 2) return false;
-  const [a, b] = piped;
-  return a.length === b.length && a.every((x, i) => x === b[i]);
-}
 
 /** One highlighter pass over the code: the drawn text to cover, and how. */
 export interface CodeMark {
@@ -428,18 +382,16 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
 
   // ---- output pane content -------------------------------------------------
   const failed = result !== null && (!result.ok || !!result.error);
-  // What a script PRINTS is part of the drawing, so it is written in the
-  // figure's own hand — `font` left off below, which is the sketch face. Two
-  // kinds of print-out still need the typewriter: anything that lines up in
-  // COLUMNS (a pandas describe(), a hand-drawn ascii table — a proportional
-  // face throws away the alignment that IS the information), and a failure,
-  // whose traceback carries indentation and a caret under the offending
-  // character.
-  const outFont: "mono" | undefined = failed || looksTabular(result?.stdout ?? "") ? "mono" : undefined;
-  // …and the pane's width is counted in the advance of the face it will
-  // actually be drawn in. Measuring handwriting with the mono pitch wrapped
-  // lines that fit (Hans, 2026-09-16).
-  const outMax = Math.max(8, Math.floor((outPaneW - 2 * PAD) / (fontSize * (outFont === "mono" ? CHAR_W : SKETCH_CHAR_W))));
+  // What a script PRINTS looks printed: the output pane is set in the
+  // typewriter face, always — the same pitch as the code pane, so columns,
+  // a traceback's caret and a plain `mean: 0.5` all line up as the machine
+  // wrote them. A reversal (Hans, 2026-09-18: "a print-out should look
+  // printed"): from 2026-09-16 prose output was written in the figure's own
+  // hand and only columns and failures kept the mono face, decided by a
+  // looksTabular() shape test and wrapped at a sketch advance; both went
+  // with the rule. The pane's width is counted in the mono advance again.
+  const outFont = "mono" as const;
+  const outMax = Math.max(8, Math.floor((outPaneW - 2 * PAD) / (fontSize * CHAR_W)));
   const outTextLines: { text: string; color?: string }[] = [];
   if (failed) {
     for (const row of wrapCodeLine(`✗ ${result!.error ?? result!.stderr}`.replace(/\n/g, " ⏎ "), outMax)) {
@@ -831,8 +783,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
           text: block.rows.join(" "),
           fontSize,
           anchor: "start",
-          // …and no `font` at all is the sketch hand (layout/model.ts:111).
-          ...(outFont ? { font: outFont } : {}),
+          font: outFont, // the typewriter; no `font` at all would be the sketch hand (layout/model.ts:111)
           z: Z_TEXT,
           style: resolveStyle(el.style, outRows[i]?.color ? { color: outRows[i].color } : {}),
           drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
