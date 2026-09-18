@@ -125,6 +125,18 @@ export function lecturePlaylist(course: Course, index: number, result: PartsResu
   return { meta: { ...DEFAULT_META, title: lecture.title, prompt }, entries, warnings: [] };
 }
 
+/**
+ * A lecture plays through on its own: `wait: click` gates are dropped unless
+ * the lecture asked for them with #click. The model wrote three per part into
+ * an untagged course (Hans 2026-09-18) — the prompt now forbids it, and this
+ * is the guarantee. The whole command goes, speak included: a line saying
+ * "now click" has nothing to say once nothing waits.
+ */
+export function stripClickGates(spec: Spec, tags: string[]): void {
+  if (tags.includes("click") || !spec.commands) return;
+  spec.commands = spec.commands.filter((c) => !("wait" in c));
+}
+
 /** An error must fit on one status line: no newlines, no "·" (the line's own separator), not endless. */
 function oneLine(text: string): string {
   return text.replace(/\s+/g, " ").replace(/·/g, "-").trim().slice(0, 300);
@@ -275,6 +287,7 @@ export async function runCourse(
         for (const spec of result.specs) {
           spec.level ??= parsedTags.level ?? undefined;
           spec.voice ??= parsedTags.voiceGender ?? undefined;
+          stripClickGates(spec, parsedTags.tags);
         }
         try {
           // Synchronous between awaits, so the parallel lectures cannot

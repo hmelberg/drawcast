@@ -248,7 +248,13 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // literal JSON would copy an invalid pattern. Split into two command
 // objects (a plain `move`, then `focus` with the beat's `speak`) — prompt
 // only, +8 chars (system 239122 → 239130); the schema is untouched.
-const BASELINE_SYSTEM_CHARS = 239130;
+// Re-pinned 2026-09-18 for the generation fix round (item 4, no click gates
+// unless asked): the `wait` bullet in compiler-v1.md now says outright that
+// without a request for click-gated pacing there must be NO wait commands —
+// a lecture plays through on its own, a breath is `pause` — after the model
+// wrote three gates per part into an untagged 10-lecture course. Prompt
+// only, +140 chars (system 239130 → 239270); the schema is untouched.
+const BASELINE_SYSTEM_CHARS = 239270;
 const BASELINE_SCHEMA_CHARS = 120386;
 
 const system = (code: boolean, sound = false) =>
