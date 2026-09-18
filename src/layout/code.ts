@@ -24,6 +24,7 @@
 // pull render/portrait (IndexedDB) in through the execution facade.
 import { stylable } from "../code/chart-style";
 import { parseControls, withControlDefaults } from "../code/controls";
+import { tokenColor, tokenizeLine } from "../code/highlight";
 import { controlsPane, controlsPaneHeight } from "./code-controls-pane";
 import { c64ScreenDrawables, isC64Screen } from "./c64-screen";
 import { decodeCodeResult, type CodeTable } from "../code/envelope";
@@ -142,6 +143,105 @@ export function wrapCodeLine(line: string, maxChars: number): string[] {
   }
   rows.push(rest);
   return rows;
+}
+
+/**
+ * Syntax-coloured runs for one SOURCE line's wrapped rows: tokenize the
+ * WHOLE line once (so a token that straddles a wrap keeps its kind), then
+ * walk `rows` in reading order, advancing a cursor through the tokens by
+ * exactly as many characters as each row accounts for.
+ *
+ * A wrapped continuation row is not simply the next slice of the line:
+ * wrapCodeLine prepends a hanging INDENT (synthetic — no token owns it) and
+ * drops the whitespace run at the cut (via trimStart) before every
+ * continuation. Both are replayed here the same way wrapCodeLine computes
+ * them, so the token cursor lands back on real source content instead of
+ * drifting row over row: the indent's length is added as an uncoloured run
+ * without consuming any tokens, and the SAME leading-whitespace run
+ * wrapCodeLine trimmed (read directly off `line` at the cursor, not assumed
+ * to be exactly one space — a run of several spaces trims the same way) is
+ * skipped without emitting a run for it either.
+ *
+ * Regardless of that bookkeeping, every row's own text is what the caller
+ * gets back: `consume` pads any shortfall with the row's own literal
+ * remainder in no colour, so a row's run texts always concatenate to that
+ * row's own text exactly, even if some future edge case in wrapCodeLine's
+ * cutting made the position tracking above disagree.
+ */
+export function codeLineRuns(line: string, rows: string[], language: string): { text: string; color?: string }[][] {
+  const tokens = tokenizeLine(line, language);
+  let ti = 0;
+  let tOff = 0;
+  let linePos = 0;
+
+  const push = (runs: { text: string; color?: string }[], text: string, color: string | undefined) => {
+    const last = runs[runs.length - 1];
+    if (last && last.color === color) last.text += text;
+    else runs.push({ text, color });
+  };
+  /** Consume tokens to reproduce `expected` — a slice this function believes
+   *  is next in the source — colouring each piece by its token's kind. */
+  const consume = (expected: string): { text: string; color?: string }[] => {
+    const runs: { text: string; color?: string }[] = [];
+    let need = expected.length;
+    while (need > 0 && ti < tokens.length) {
+      const tok = tokens[ti];
+      const avail = tok.text.length - tOff;
+      const take = Math.min(avail, need);
+      if (take > 0) {
+        push(runs, tok.text.slice(tOff, tOff + take), tokenColor(tok.kind));
+        tOff += take;
+        need -= take;
+      }
+      if (tOff >= tok.text.length) {
+        ti++;
+        tOff = 0;
+      }
+    }
+    if (need > 0) push(runs, expected.slice(expected.length - need), undefined);
+    return runs.length > 0 ? runs : [{ text: "", color: undefined }];
+  };
+  /** Advance the cursor past characters the wrap dropped, without emitting
+   *  a run for them. */
+  const skip = (count: number): void => {
+    let need = count;
+    while (need > 0 && ti < tokens.length) {
+      const tok = tokens[ti];
+      const avail = tok.text.length - tOff;
+      const take = Math.min(avail, need);
+      tOff += take;
+      need -= take;
+      if (tOff >= tok.text.length) {
+        ti++;
+        tOff = 0;
+      }
+    }
+  };
+
+  const lead = /^\s*/.exec(line)![0];
+  const indent = `${lead}  `;
+
+  return rows.map((row, i) => {
+    if (i === 0) {
+      // Row 0 is always a genuine prefix of `line` — no indent, nothing
+      // dropped before it.
+      const runs = consume(row);
+      linePos += row.length;
+      return runs;
+    }
+    const indentLen = Math.min(indent.length, row.length);
+    const runs: { text: string; color?: string }[] = [];
+    if (indentLen > 0) push(runs, row.slice(0, indentLen), undefined);
+    const content = row.slice(indentLen);
+    if (content.length > 0) {
+      const droppedLen = /^\s*/.exec(line.slice(linePos))![0].length;
+      skip(droppedLen);
+      linePos += droppedLen;
+      for (const r of consume(content)) push(runs, r.text, r.color);
+      linePos += content.length;
+    }
+    return runs.length > 0 ? runs : [{ text: "", color: undefined }];
+  });
 }
 
 interface TextBlock {
@@ -650,6 +750,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
         pos,
         text: block.rows.join(" "),
         lines: block.rows.length > 1 ? block.rows : undefined,
+        runs: codeLineRuns(sourceLines[i], block.rows, el.language ?? ""),
         fontSize,
         anchor: "start",
         font: "mono",

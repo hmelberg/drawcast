@@ -119,6 +119,18 @@ export interface TextDrawable extends BaseDrawable {
   weight?: TextWeight;
   /** Set when the text is word-wrapped; pos is the center of the whole block. */
   lines?: string[];
+  /**
+   * Syntax-coloured runs for a code pane's SOURCE line (layout/code.ts,
+   * src/code/highlight.ts) — one array per row, parallel to `lines` when
+   * set, or a single row when it is absent. Each row's run texts
+   * concatenate back to that row's own text exactly — the invariant every
+   * reader of this field (svg-backend's drawLeaf and its `type` reveal) may
+   * rely on. A run with no `color` paints in this drawable's own
+   * `style.color`: the renderer emits no `fill` attribute for it, so it
+   * inherits normally. Only the code element's source pane sets this —
+   * never the output pane, table cells, or marks.
+   */
+  runs?: { text: string; color?: string }[][];
 }
 
 export const LINE_HEIGHT = 1.25;
