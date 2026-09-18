@@ -28,6 +28,14 @@ describe("lectureRowLabel", () => {
     const failed = parseCourse("# T\n---\n## A\nQ?\nstatus: failed · error: no spec\n");
     expect(lectureRowLabel(failed.lectures[0])).toContain("no spec");
   });
+
+  it("names the missing parts of a partial lecture", () => {
+    const partial = parseCourse("# T\n---\n## A\nQ?\nstatus: failed · id: a1 · missing: 1, 4 · error: parts 1, 4 of 4 failed - cut off\n");
+    const label = lectureRowLabel(partial.lectures[0]);
+    expect(label).toContain("partial");
+    expect(label).toContain("missing 1, 4");
+    expect(label).toContain("cut off");
+  });
 });
 
 describe("costPreview", () => {

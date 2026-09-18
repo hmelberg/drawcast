@@ -13,6 +13,12 @@ export interface LectureStatus {
   file?: string;
   ts?: string;
   error?: string;
+  /**
+   * A failed lecture whose other parts landed: the 1-based part numbers still
+   * to generate. The library row (SavedDrawing.outline/missing) carries the
+   * plan; the runner fills in only these (course/run.ts).
+   */
+  missing?: number[];
 }
 
 export interface CourseLecture {
@@ -78,6 +84,10 @@ export function parseStatus(value: string): LectureStatus {
     if (m[1] === "id") status.id = m[2];
     else if (m[1] === "file") status.file = m[2];
     else if (m[1] === "error") status.error = m[2];
+    else if (m[1] === "missing") {
+      const missing = m[2].split(",").map((n) => parseInt(n.trim(), 10)).filter((n) => Number.isInteger(n) && n > 0);
+      if (missing.length > 0) status.missing = missing;
+    }
   }
   return status;
 }
@@ -86,6 +96,7 @@ export function formatStatus(status: LectureStatus): string {
   const parts: string[] = [status.state];
   if (status.id) parts.push(`id: ${status.id}`);
   if (status.file) parts.push(`file: ${status.file}`);
+  if (status.missing && status.missing.length > 0) parts.push(`missing: ${status.missing.join(", ")}`);
   if (status.error) parts.push(`error: ${status.error}`);
   if (status.ts) parts.push(status.ts);
   return `status: ${parts.join(" · ")}`;

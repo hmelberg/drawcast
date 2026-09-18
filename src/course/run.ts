@@ -6,9 +6,11 @@
 import { collectSpeakLines } from "../export/video";
 import { type GenerateConfig } from "../llm/compile";
 import { generateFromOutline, outlineParts, type PartsRequest, type PartsResult } from "../llm/multi";
+import type { Outline } from "../llm/outline";
 import { buildBrief, parseTags } from "../llm/tags";
-import { DEFAULT_META, makeNextCard, type Playlist, type PlaylistEntry } from "../playlist/playlist";
+import { DEFAULT_META, itemsOf, makeNextCard, parsePlaylistText, type Playlist, type PlaylistEntry } from "../playlist/playlist";
 import type { Spec } from "../spec/types";
+import type { SavedDrawing } from "../store";
 import { parseCourse, setLectureStatus, type Course, type CourseLecture } from "./document";
 
 /**
@@ -28,6 +30,12 @@ function partsOf(lecture: CourseLecture): number {
 
 function isPending(lecture: CourseLecture): boolean {
   return lecture.status?.state !== "done";
+}
+
+/** A failed lecture that kept its other parts: the part numbers its status says are still to generate. */
+function missingOf(lecture: CourseLecture): number[] | undefined {
+  const status = lecture.status;
+  return status?.state === "failed" && status.missing && status.missing.length > 0 ? status.missing : undefined;
 }
 
 /**
@@ -84,9 +92,14 @@ export function buildLectureRequest(course: Course, index: number): string {
   return lines.join("\n");
 }
 
-/** AI calls a full run would make: one outline plus its parts, per pending lecture. */
+/**
+ * AI calls a full run would make: one outline plus its parts, per pending
+ * lecture — or just the missing parts of a partial one, whose outline is
+ * kept. (Read from the document alone: if the library row turns out to be
+ * gone, the run regenerates that lecture in full and spends more than this.)
+ */
 export function estimateCalls(course: Course): number {
-  return course.lectures.filter(isPending).reduce((sum, lecture) => sum + 1 + partsOf(lecture), 0);
+  return course.lectures.filter(isPending).reduce((sum, lecture) => sum + (missingOf(lecture)?.length ?? 1 + partsOf(lecture)), 0);
 }
 
 /** Rough runtime of a generated lecture, in minutes. */
@@ -145,7 +158,8 @@ function oneLine(text: string): string {
 /**
  * Why a lecture failed, from its parts result — undefined when every part
  * landed. A lecture with a part missing is a failed lecture: its arc has a
- * hole, and storing it as done would hide that the run lost work.
+ * hole, and storing it as done would hide that the run lost work. (What
+ * landed IS kept, with `missing` beside this on the status line.)
  */
 export function partsFailure(result: PartsResult, parts: number): string | undefined {
   if (result.failed.length === 0 && result.specs.length > 0) return undefined;
@@ -174,15 +188,19 @@ export interface RunHooks {
 }
 
 export interface RunOptions {
-  /** Regenerate exactly this lecture, ignoring its status. */
+  /** Regenerate exactly this lecture, ignoring its status — a partial one is filled in, not redone. */
   only?: number;
+  /** The library row behind a partial lecture; without it every lecture is generated in full. */
+  loadLecture?: LoadLecture;
 }
 
 export interface RunResult {
   text: string;
   generated: number;
-  /** Indices of the lectures that failed. */
+  /** Indices of the lectures that failed with nothing kept. */
   failed: number[];
+  /** Indices of the lectures stored with parts missing — ⟳ fills them in. */
+  partial: number[];
 }
 
 /**
@@ -190,12 +208,87 @@ export interface RunResult {
  * than an import, so the runner stays testable without localStorage. It may
  * throw StorageFullError; runCourse catches it and marks that lecture failed.
  */
-export type StoreLecture = (index: number, lecture: CourseLecture, playlist: Playlist) => string;
+export type StoreLecture = (index: number, lecture: CourseLecture, playlist: Playlist, partial?: PartialLecture) => string;
+
+/** What a partial lecture's library row must carry to be resumed: its plan and the parts it lacks. */
+export interface PartialLecture {
+  outline: Outline;
+  /** 1-based part numbers, ascending. */
+  missing: number[];
+}
+
+/** A partial lecture as the library holds it: the plan, the parts that landed (in plan order), and what is missing. */
+export interface LoadedLecture extends PartialLecture {
+  specs: Spec[];
+  chapterOf: (string | undefined)[];
+}
+
+/**
+ * The library row behind a partial lecture, or null when it is gone (deleted
+ * from the library) or predates this — the runner then regenerates in full.
+ * Injected like `store`, for the same reason.
+ */
+export type LoadLecture = (index: number, lecture: CourseLecture) => LoadedLecture | null;
+
+/**
+ * Read a partial lecture back from its library row: the landed parts come
+ * first in the stored playlist, in plan order, and the next-card (when the
+ * lecture has one) follows them — so the first `parts − missing` items are
+ * the parts. Null for a row that cannot be resumed.
+ */
+export function loadedLectureFromRow(row: Pick<SavedDrawing, "playlist" | "outline" | "missing">): LoadedLecture | null {
+  if (!row.playlist || !row.outline || !row.missing || row.missing.length === 0) return null;
+  let items: ReturnType<typeof itemsOf>;
+  try {
+    items = itemsOf(parsePlaylistText(row.playlist));
+  } catch {
+    return null;
+  }
+  const landed = row.outline.parts.length - row.missing.length;
+  if (landed < 0 || items.length < landed) return null;
+  const parts = items.slice(0, landed);
+  return { outline: row.outline, specs: parts.map((i) => i.spec), chapterOf: parts.map((i) => i.chapter), missing: [...row.missing] };
+}
+
+/**
+ * A resumed lecture's parts in plan order: the stored ones where they landed
+ * before, the fresh ones where they landed now. `failed` is what is STILL
+ * missing — the fresh result only ever named the parts it was asked for.
+ */
+export function mergeParts(stored: LoadedLecture, fresh: PartsResult): PartsResult {
+  const specs: Spec[] = [];
+  const chapterOf: (string | undefined)[] = [];
+  let oldAt = 0;
+  let newAt = 0;
+  for (let part = 1; part <= stored.outline.parts.length; part++) {
+    if (!stored.missing.includes(part)) {
+      specs.push(stored.specs[oldAt]);
+      chapterOf.push(stored.chapterOf[oldAt]);
+      oldAt++;
+    } else if (!fresh.failed.includes(part) && newAt < fresh.specs.length) {
+      specs.push(fresh.specs[newAt]);
+      chapterOf.push(fresh.chapterOf[newAt]);
+      newAt++;
+    }
+  }
+  return { outline: stored.outline, specs, chapterOf, failed: fresh.failed, errors: fresh.errors, error: specs.length === 0 ? fresh.error : undefined };
+}
 
 /** The lectures a run would touch: what is missing, or exactly the one named. */
 export function pendingIndices(course: Course, opts: RunOptions = {}): number[] {
   if (opts.only !== undefined) return opts.only < course.lectures.length ? [opts.only] : [];
   return course.lectures.map((_, i) => i).filter((i) => isPending(course.lectures[i]));
+}
+
+/**
+ * The stored parts of a partial lecture, when the run can resume it: the
+ * status names what is missing AND the library still has the row with its
+ * plan. A lecture marked done (⟳ on it) is regenerated in full, as ever.
+ */
+function resumable(course: Course, index: number, opts: RunOptions): LoadedLecture | null {
+  const lecture = course.lectures[index];
+  if (!opts.loadLecture || !missingOf(lecture)) return null;
+  return opts.loadLecture(index, lecture);
 }
 
 function requestFor(course: Course, index: number): PartsRequest {
@@ -222,6 +315,13 @@ function requestFor(course: Course, index: number): PartsRequest {
  *
  * Results land as they finish, so status is written back per lecture and a
  * cancelled run keeps everything that was already generated.
+ *
+ * A lecture with a part missing is stored with the parts it has, its plan and
+ * the missing numbers (a PARTIAL lecture, status "failed" with `missing`);
+ * the next run — or ⟳ on it — skips its outline, generates only those parts
+ * against the stored plan, and splices them in. Nine of ten lectures in a
+ * real course lost a part or two and were thrown away whole (Hans
+ * 2026-09-18).
  */
 export async function runCourse(
   text: string,
@@ -235,6 +335,7 @@ export async function runCourse(
   let current = text;
   let generated = 0;
   const failed: number[] = [];
+  const partial: number[] = [];
   let lecturesDone = 0;
   let partsDone = 0;
   let partsTotal = 0;
@@ -249,12 +350,14 @@ export async function runCourse(
     targets.map(async (i) => {
       hooks.onLecture(i, "start");
       const request = requestFor(course, i);
-      return { index: i, request, ...(await outlineParts(request, cfg)) };
+      const stored = resumable(course, i, opts);
+      if (stored) return { index: i, request, stored, outline: stored.outline as Outline | null, error: undefined as string | undefined };
+      return { index: i, request, stored: null, ...(await outlineParts(request, cfg)) };
     }),
   );
 
   for (const plan of plans) {
-    if (plan.outline) partsTotal += plan.outline.parts.length;
+    if (plan.outline) partsTotal += plan.stored ? plan.stored.missing.length : plan.outline.parts.length;
     else {
       failed.push(plan.index);
       current = setLectureStatus(current, plan.index, { state: "failed", error: oneLine(plan.error ?? "no outline"), ts });
@@ -271,15 +374,22 @@ export async function runCourse(
       const i = plan.index;
       const lecture = course.lectures[i];
       const parsedTags = parseTags(lecture.tags.join(" "));
-      const result = await generateFromOutline(plan.request, plan.outline, cfg, {
-        onPart: () => {
-          partsDone++;
-          progress("generating");
+      const fresh = await generateFromOutline(
+        plan.request,
+        plan.outline,
+        cfg,
+        {
+          onPart: () => {
+            partsDone++;
+            progress("generating");
+          },
         },
-      });
+        plan.stored ? { only: plan.stored.missing } : undefined,
+      );
+      const result = plan.stored ? mergeParts(plan.stored, fresh) : fresh;
 
       const failure = partsFailure(result, plan.outline.parts.length);
-      if (failure !== undefined) {
+      if (result.specs.length === 0) {
         failed.push(i);
         current = setLectureStatus(current, i, { state: "failed", error: failure, ts });
         hooks.onLecture(i, "failed");
@@ -289,15 +399,23 @@ export async function runCourse(
           spec.voice ??= parsedTags.voiceGender ?? undefined;
           stripClickGates(spec, parsedTags.tags);
         }
+        const missing = result.failed.length > 0 ? result.failed : undefined;
+        // The published file name, once stage B has minted one, is permanent —
+        // carry it through so a regenerated lecture keeps its link.
+        const file = lecture.status?.file;
         try {
           // Synchronous between awaits, so the parallel lectures cannot
           // interleave mid-write and lose one another's status lines.
-          const id = store(i, lecture, lecturePlaylist(course, i, result));
-          generated++;
-          // The published file name, once stage B has minted one, is permanent —
-          // carry it through so a regenerated lecture keeps its link.
-          current = setLectureStatus(current, i, { state: "done", id, file: lecture.status?.file, ts });
-          hooks.onLecture(i, "done");
+          const id = store(i, lecture, lecturePlaylist(course, i, result), missing ? { outline: plan.outline, missing } : undefined);
+          if (missing) {
+            partial.push(i);
+            current = setLectureStatus(current, i, { state: "failed", id, file, missing, error: failure, ts });
+            hooks.onLecture(i, "failed");
+          } else {
+            generated++;
+            current = setLectureStatus(current, i, { state: "done", id, file, ts });
+            hooks.onLecture(i, "done");
+          }
         } catch (err) {
           failed.push(i);
           current = setLectureStatus(current, i, { state: "failed", error: oneLine((err as Error).message), ts });
@@ -309,5 +427,5 @@ export async function runCourse(
       hooks.onDocument(current);
     }),
   );
-  return { text: current, generated, failed: [...new Set(failed)].sort((a, b) => a - b) };
+  return { text: current, generated, failed: [...new Set(failed)].sort((a, b) => a - b), partial: partial.sort((a, b) => a - b) };
 }

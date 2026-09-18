@@ -49,6 +49,13 @@ describe("parseCourse", () => {
     expect(s).toEqual({ state: "done", id: "a3f9c1", file: "potential-outcomes.yaml", ts: "2026-08-30" });
   });
 
+  it("round-trips a partial lecture's missing parts on the one status line", () => {
+    const status = { state: "failed" as const, id: "b2", missing: [1, 4], error: "parts 1, 4 of 4 failed - cut off", ts: "2026-09-18" };
+    const text = setLectureStatus(DOC, 1, status);
+    expect(text).toContain("status: failed · id: b2 · missing: 1, 4 · error: parts 1, 4 of 4 failed - cut off · 2026-09-18");
+    expect(parseCourse(text).lectures[1].status).toEqual(status);
+  });
+
   it("distinguishes a heading from a tag line", () => {
     const c = parseCourse("# Title\n---\n## L\n#why #fun\n");
     expect(c.title).toBe("Title");

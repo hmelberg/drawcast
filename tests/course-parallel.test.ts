@@ -80,6 +80,40 @@ describe("generateFromOutline", () => {
   });
 });
 
+// Resuming a partial lecture (course/run.ts): only the parts that are missing
+// are generated again, against the same plan.
+describe("generateFromOutline with `only`", () => {
+  // Genuinely valid (tests/generate-loop.test.ts), so no repair round muddies the call count.
+  const SPEC = { title: "t", template: "supply_demand", params: { demand: {}, supply: {}, equilibrium: { show: true, guides: true } }, commands: [] };
+
+  it("generates only the named parts — no call for the rest, and they are not reported as failed", async () => {
+    mockCallForJson.mockResolvedValueOnce(respond(SPEC));
+    const r = await generateFromOutline({ request: "r", parts: 2, brief: "" }, PLAN, cfg(), {}, { only: [2] });
+    expect(mockCallForJson).toHaveBeenCalledTimes(1);
+    const user = (mockCallForJson.mock.calls[0][3] as { content: string }[])[0].content;
+    expect(user).toContain("Two");
+    expect(r.specs).toHaveLength(1);
+    expect(r.failed).toEqual([]);
+    expect(r.error).toBeUndefined();
+  });
+
+  it("a named part that fails keeps its plan number", async () => {
+    mockCallForJson.mockRejectedValueOnce(new Error("boom"));
+    const r = await generateFromOutline({ request: "r", parts: 2, brief: "" }, PLAN, cfg(), {}, { only: [2] });
+    expect(r.specs).toEqual([]);
+    expect(r.failed).toEqual([2]);
+    expect(r.errors).toEqual(["boom"]);
+    expect(r.error).toBe("boom");
+  });
+
+  it("counts progress over the named parts only", async () => {
+    mockCallForJson.mockResolvedValue(respond(SPEC));
+    const seen: [number, number][] = [];
+    await generateFromOutline({ request: "r", parts: 2, brief: "" }, PLAN, cfg(), { onPart: (done, total) => seen.push([done, total]) }, { only: [1] });
+    expect(seen).toEqual([[1, 1]]);
+  });
+});
+
 describe("the gate is what sets batch throughput", () => {
   it("is wide enough that one #parts=4 lecture cannot saturate it alone", () => {
     expect(GENERATION_LIMIT).toBeGreaterThan(4);

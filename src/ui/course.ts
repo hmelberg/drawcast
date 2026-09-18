@@ -9,7 +9,7 @@ import { applyCourseFolder, applyCourseName, applyJoinDoor, commitPublish, cours
 import type { Door, DoorlessReason } from "../course/page";
 import { matchLibrary, restoredStatus } from "../course/reconcile";
 import { reviseCourse } from "../course/revise";
-import { estimateCalls, runCourse } from "../course/run";
+import { estimateCalls, loadedLectureFromRow, runCourse, type PartialLecture } from "../course/run";
 import { setLectureStatus } from "../course/document";
 import type { GenerateConfig, PromptVariant } from "../llm/compile";
 import type { Exemplar } from "../llm/prompt";
@@ -59,6 +59,9 @@ import { openShare, type ShareDeps } from "./share";
 export function lectureRowLabel(lecture: CourseLecture): string {
   const status = lecture.status;
   if (!status || status.state === "pending") return `${lecture.title} — pending`;
+  if (status.state === "failed" && status.missing && status.missing.length > 0) {
+    return `${lecture.title} — partial, missing ${status.missing.join(", ")}: ${status.error ?? "unknown error"}`;
+  }
   if (status.state === "failed") return `${lecture.title} — failed: ${status.error ?? "unknown error"}`;
   return `${lecture.title} — done`;
 }
@@ -383,11 +386,14 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         }) as HTMLInputElement;
         if (done) parts.push(note);
 
+        const partial = lecture.status?.state === "failed" && (lecture.status.missing?.length ?? 0) > 0;
         const again = h("button", {
           class: "small course-again",
           title: done
             ? `Apply the note to "${lecture.title}" — or regenerate it if the note is empty`
-            : `Generate "${lecture.title}"`,
+            : partial
+              ? `Fill in the missing parts of "${lecture.title}"`
+              : `Generate "${lecture.title}"`,
         }, "⟳");
         again.addEventListener("click", () => {
           const instruction = done ? note.value.trim() : "";
@@ -640,7 +646,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
     }
   }
 
-  function store(_index: number, lecture: CourseLecture, playlist: Playlist): string {
+  function store(_index: number, lecture: CourseLecture, playlist: Playlist, partial?: PartialLecture): string {
     // Regenerating writes over the row it replaces rather than minting a new
     // one: the course document points at this id, and a fresh id every time
     // would leave the previous version orphaned in the library.
@@ -658,10 +664,20 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       playlist: formatPlaylist(playlist, "yaml"),
       parts: itemsOf(playlist).length, // what the library's ▤ marker reads
       courseId: courseId ?? undefined,
+      // A partial lecture keeps its plan and what it lacks, so the next run
+      // fills in only that (loadLecture below); cleared once it is whole.
+      outline: partial?.outline,
+      missing: partial?.missing,
       sourcePath: null, // a course lecture; GitHub source-saving is per drawcast, not wired to courses
       ts: new Date().toISOString(),
     });
     return id;
+  }
+
+  /** The row behind a partial lecture — null once it is gone from the library, and the run regenerates in full. */
+  function loadLecture(_index: number, lecture: CourseLecture) {
+    const row = loadLibrary().find((d) => d.id === lecture.status?.id);
+    return row ? loadedLectureFromRow(row) : null;
   }
 
   async function run(opts: { only?: number } = {}): Promise<void> {
@@ -740,17 +756,24 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
           },
         },
         store,
-        opts,
+        { ...opts, loadLecture },
       );
       status.textContent = "";
       const failed = result.failed.length;
+      const partial = result.partial.length;
+      const trouble = [
+        failed > 0 ? `${failed} failed — press ⟳ on a failed lecture to try again` : "",
+        partial > 0 ? `${partial} partial — press ⟳ to fill in the missing parts` : "",
+      ]
+        .filter(Boolean)
+        .join("; ");
       say(
         (controller.signal.aborted
           ? `Cancelled after ${result.generated} lecture${result.generated === 1 ? "" : "s"}.`
-          : failed > 0
-            ? `Generated ${result.generated}; ${failed} failed — press ⟳ on a failed lecture to try again.`
+          : trouble
+            ? `Generated ${result.generated}; ${trouble}.`
             : `Generated ${result.generated} lecture${result.generated === 1 ? "" : "s"}.`) + onDemandSummary(onDemandRun),
-        failed > 0 ? "error" : "ok",
+        trouble ? "error" : "ok",
       );
     } catch (err) {
       say(`The run stopped: ${(err as Error).message}`, "error");

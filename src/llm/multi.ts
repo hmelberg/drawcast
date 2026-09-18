@@ -187,6 +187,15 @@ async function authorTemplatesForParts(
 
 export const EMPTY_PARTS: PartsResult = { outline: null, specs: [], chapterOf: [], failed: [] };
 
+export interface FromOutlineOptions {
+  /**
+   * 1-based part numbers to generate; the rest are neither called nor given a
+   * gate slot, and are absent from specs AND failed. How a partial lecture is
+   * resumed against its stored plan (course/run.ts).
+   */
+  only?: number[];
+}
+
 /**
  * Phase one, on its own so a batch can run every outline first and then pour
  * all the parts into one pool. Outlines are small and independent; doing them
@@ -216,14 +225,19 @@ export async function generateFromOutline(
   plan: Outline,
   cfg: GenerateConfig,
   hooks: PartsHooks = {},
+  opts: FromOutlineOptions = {},
 ): Promise<PartsResult> {
   // Parts depend only on the outline (bridging uses outline titles, not each
   // other's specs), so they generate in parallel — the gate caps how many.
-  const n = plan.parts.length;
+  const wanted = (i: number): boolean => opts.only === undefined || opts.only.includes(i + 1);
+  const n = plan.parts.filter((_, i) => wanted(i)).length;
+  const skipped: GenerationOutcome = { spec: null, rounds: [], error: "skipped", systemPromptChars: 0, seeded: false };
   let finished = 0;
   const outcomes = await Promise.all(
     plan.parts.map((_, i) =>
-      generationGate(() =>
+      !wanted(i)
+        ? Promise.resolve(skipped)
+        : generationGate(() =>
         // A queued task whose run was cancelled while it waited must not spend
         // a call: after a cancel, dozens of doomed requests could still be
         // holding gate slots.
@@ -248,6 +262,7 @@ export async function generateFromOutline(
   const failed: number[] = [];
   const errors: string[] = [];
   outcomes.forEach((outcome, i) => {
+    if (!wanted(i)) return;
     if (!outcome.spec) {
       failed.push(i + 1);
       errors.push(outcome.error ?? "no spec");
@@ -264,7 +279,7 @@ export async function generateFromOutline(
     chapterOf,
     failed,
     errors,
-    error: specs.length === 0 ? (outcomes[0]?.error ?? "no spec") : undefined,
+    error: specs.length === 0 ? (errors[0] ?? "no spec") : undefined,
   };
 }
 

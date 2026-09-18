@@ -9,6 +9,7 @@ import type { SpecFormat } from "./spec/text";
 import type { LintIssue } from "./lint/lint";
 import type { StoredDriveRom } from "./code/c64-drive-rom";
 import type { RenderStyle } from "./render";
+import type { Outline } from "./llm/outline";
 
 const KEYS = {
   settings: "drawcast.settings.v1",
@@ -429,6 +430,13 @@ export interface SavedDrawing {
    * their course instead of scattering ten rows through everything else.
    */
   courseId?: string;
+  /**
+   * A partial lecture's plan and the 1-based numbers of the parts it still
+   * lacks (course/run.ts): what lets a later run fill in only what is missing,
+   * against the same outline. Cleared once every part has landed.
+   */
+  outline?: Outline;
+  missing?: number[];
   /**
    * The name this drawcast was published under in the author's repo, once it
    * has been. Permanent from the first publish: retitling must never move the

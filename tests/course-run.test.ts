@@ -61,6 +61,12 @@ describe("estimateCalls", () => {
     const done = DOC.replace("#why #parts=4", "#why #parts=4\nstatus: done · id: a1");
     expect(estimateCalls(parseCourse(done))).toBe(8);
   });
+
+  it("counts only the missing parts of a partial lecture — its outline is kept", () => {
+    const partial = DOC.replace("#why #parts=4", "#why #parts=4\nstatus: failed · id: a1 · missing: 1, 4 · error: cut off");
+    // 2 + (1+3) + (1+3)
+    expect(estimateCalls(parseCourse(partial))).toBe(10);
+  });
 });
 
 describe("lecturePlaylist", () => {
