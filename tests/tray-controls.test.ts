@@ -96,10 +96,26 @@ describe("tray controls (pins)", () => {
   });
   test("the explore beat on a pane: controls script holds the run with the tray SHUT: pause, hook Continue, no open()", () => {
     const i = src.indexOf("hd.timeline.exploreGate =");
-    const region = src.slice(i, i + 3000);
-    expect(region).toMatch(/const shut = [\s\S]{0,200}pane === "controls"/);
+    const region = src.slice(i, i + 4000);
+    // The decision itself is tray-model's exploreSurface (2026-09-18; unit-
+    // tested there): "shut" for a pane: controls script, "card" for a script
+    // named alone, "tray" for the rest.
+    expect(region).toMatch(/const surface = exploreSurface\(step, editable\.map/);
+    expect(region).toMatch(/const shut = surface === "shut";/);
     expect(region).toMatch(/if \(shut\) \{[\s\S]{0,400}hd\.timeline\.pause\(\);[\s\S]{0,400}\}/);
-    expect(region).toMatch(/if \(!shut\) open\(\{ filter: step\.params, gated: true/);
+    expect(region).toMatch(/if \(shut\) return;/);
+    expect(region).toMatch(/open\(\{ filter: step\.params, gated: true/);
+  });
+  test("the explore beat on a script named alone mounts the CARD on its pane, tray shut: openInPlace, remembered for ⊕ and ✕, paused (ruling 2026-09-18)", () => {
+    const i = src.indexOf("hd.timeline.exploreGate =");
+    const region = src.slice(i, i + 4000);
+    expect(region).toMatch(/if \(target && openInPlace\(target\)\) \{\s*gatedCode = target\.id;\s*gatedCard = target\.id;\s*hd\.timeline\.pause\(\);\s*return;/);
+    // The card's ✕ (its onClose) is Continue while the gate holds — and
+    // continueNow takes the gate down BEFORE closing the cards, so that
+    // re-entry finds nothing to resolve.
+    expect(src).toMatch(/onClose: \(\) => \{\s*editors\.delete\(el\.id\);\s*thawStage\(\);[\s\S]{0,200}if \(gatedCard === el\.id && gateResolve !== null\) continueNow\(\);/);
+    const cont = src.slice(src.indexOf("const continueNow"), src.indexOf("const paneBoxOf"));
+    expect(cont).toMatch(/const r = gateResolve;\s*gateResolve = null;\s*gatedCode = null;\s*gatedCard = null;\s*closeEditors\(\);/);
   });
   test("⊕ pressed during a SHUT-tray gate opens the tray GATED, so the open never aborts the gate it stands in", () => {
     const i = src.indexOf("trayBtn.addEventListener(\"click\"");

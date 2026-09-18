@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { sliderSpecs, trayPlan } from "../src/ui/tray-model";
+import { exploreSurface, sliderSpecs, trayPlan } from "../src/ui/tray-model";
 
 describe("sliderSpecs", () => {
   test("finds a top-level bounded number", () => {
@@ -163,5 +163,38 @@ describe("trayPlan — controls", () => {
   });
   test("controlIds is optional (older callers)", () => {
     expect(trayPlan({ sliderPaths: [], codeIds: ["a"] }).controls).toEqual([]);
+  });
+});
+
+describe("exploreSurface — where an authored explore beat puts the viewer", () => {
+  const scripts = [
+    { id: "sim", pane: "code" },
+    { id: "knobs", pane: "controls" },
+    { id: "plain" },
+  ];
+
+  test("a beat naming a script on screen opens the CARD on its pane, the tray shut (ruling 2026-09-18)", () => {
+    expect(exploreSurface({ code: "sim" }, scripts)).toBe("card");
+    expect(exploreSurface({ code: "plain" }, scripts)).toBe("card");
+  });
+
+  test("a `pane: controls` script's beat holds the run with everything shut (spec 2026-09-15 §3.3)", () => {
+    expect(exploreSurface({ code: "knobs" }, scripts)).toBe("shut");
+  });
+
+  test("params alone, the body, the sky, or no beat detail at all is the tray, as before", () => {
+    expect(exploreSurface({}, scripts)).toBe("tray");
+    expect(exploreSurface({ params: ["n"] }, scripts)).toBe("tray");
+    expect(exploreSurface({ anatomy: true }, scripts)).toBe("tray");
+    expect(exploreSurface({ space: true }, scripts)).toBe("tray");
+  });
+
+  test("a script named TOGETHER with knobs needs the one surface that holds both — the tray", () => {
+    expect(exploreSurface({ code: "sim", params: ["n"] }, scripts)).toBe("tray");
+    expect(exploreSurface({ code: "sim", anatomy: true }, scripts)).toBe("tray");
+  });
+
+  test("a script that is not on screen falls to the tray, whose text area needs no pane", () => {
+    expect(exploreSurface({ code: "ghost" }, scripts)).toBe("tray");
   });
 });

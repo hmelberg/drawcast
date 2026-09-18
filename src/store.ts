@@ -1,6 +1,17 @@
 // Local persistence: settings, API key, the drawing library, the exemplar
 // library (Loop 2), a custom compiler-prompt override, and generation logs
 // that feed the exportable improvement packet (Loop 3).
+//
+// Two collections outgrew localStorage — the drawing library (one JSON key
+// rewritten whole on every save) and the logs (300 entries, each carrying a
+// full spec): a batch course generation filled the ~5 MB quota (Hans,
+// 2026-09-18). They live in IndexedDB now, behind the SAME synchronous read
+// API: an in-memory cache is hydrated once at boot (hydrateStore, awaited by
+// main.ts before the first read), reads return the cache, writes update it
+// synchronously and persist in the background — a failure there is logged,
+// never thrown. On the first hydrate an existing localStorage copy is
+// imported and the old keys removed. Everything else here is still
+// localStorage.
 
 import type { MathFont, TextFamily } from "./layout/text-style";
 import { SPEC_VERSION } from "./spec/schema";
@@ -13,6 +24,8 @@ import type { Outline } from "./llm/outline";
 
 const KEYS = {
   settings: "drawcast.settings.v1",
+  // logs and library: the LEGACY localStorage keys, read once by
+  // hydrateStore's migration and removed; the data lives in IndexedDB.
   logs: "drawcast.logs.v1",
   exemplars: "drawcast.exemplars.v1",
   library: "drawcast.library.v1",
@@ -389,10 +402,12 @@ export class StorageFullError extends Error {
 }
 
 /**
- * Every library write goes through here, so a full quota is an error a caller
- * can show. Batch course generation is the first thing that realistically
- * fills the ~5 MB quota, and an uncaught throw there would lose a run that had
- * already spent forty AI calls.
+ * Every course-library write goes through here, so a full quota is an error a
+ * caller can show rather than a raw QuotaExceededError. The drawing library
+ * and the logs — what actually filled the ~5 MB quota during a batch course
+ * generation — left localStorage for IndexedDB on 2026-09-18 (see the header
+ * and hydrateStore); a course document is small, but the quota is shared
+ * with every other key here, so the guard stays.
  */
 function writeJson(key: string, value: unknown, what: string): void {
   try {
@@ -494,18 +509,162 @@ export function isMultiPart(saved: Pick<SavedDrawing, "parts" | "playlist">): bo
   return saved.parts === undefined ? saved.playlist !== undefined : saved.parts > 1;
 }
 
+// ---- IndexedDB-backed collections: the drawing library and the logs ----
+//
+// Same idiom as export/bake-cache.ts and render/portrait.ts: one database,
+// one object store, JSON text per key, every failure resolved rather than
+// thrown, and no IndexedDB at all (node, a browser with it disabled) means
+// the cache is all there is — then localStorage stands in as the mirror, as
+// it did before, so nothing is lost where the old store still works.
+
+const DB_NAME = "drawcast-store";
+const DB_STORE = "collections";
+/** The object-store keys — and, by name, the collections the cache holds. */
+type Collection = "library" | "logs";
+
+let dbPromise: Promise<IDBDatabase | null> | null = null;
+function openStoreDb(): Promise<IDBDatabase | null> {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve) => {
+    if (typeof indexedDB === "undefined") return resolve(null);
+    try {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null); // some private modes throw on open itself
+    }
+  });
+  return dbPromise;
+}
+
+function dbGet(db: IDBDatabase, key: Collection): Promise<unknown[]> {
+  return new Promise((resolve) => {
+    try {
+      const req = db.transaction(DB_STORE, "readonly").objectStore(DB_STORE).get(key);
+      req.onsuccess = () => {
+        try {
+          const v = typeof req.result === "string" ? JSON.parse(req.result) : undefined;
+          resolve(Array.isArray(v) ? v : []);
+        } catch {
+          resolve([]);
+        }
+      };
+      req.onerror = () => resolve([]);
+    } catch {
+      resolve([]);
+    }
+  });
+}
+
+/** Resolves true when the write committed — the migration removes the old
+ *  localStorage key only on that. */
+function dbPut(db: IDBDatabase, key: Collection, value: unknown[]): Promise<boolean> {
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(DB_STORE, "readwrite");
+      tx.objectStore(DB_STORE).put(JSON.stringify(value), key);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+      tx.onabort = () => resolve(false);
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
+/** The legacy localStorage key each collection lived under. */
+const LEGACY_KEY: Record<Collection, string> = { library: KEYS.library, logs: KEYS.logs };
+
+let libraryCache: SavedDrawing[] = [];
+let logsCache: LogEntry[] = [];
+
+/**
+ * Write a collection behind the cache. Fire-and-forget: the cache is already
+ * the truth for this session, and a store that cannot keep up is reported on
+ * the console rather than thrown into a save, an autosave or a course run.
+ * Puts are issued in call order on one connection, so the last write holds
+ * the latest cache. Without IndexedDB the write goes to localStorage, where
+ * the collection lived before — a quota failure there is a warning.
+ */
+function persist(key: Collection, value: unknown[]): void {
+  void openStoreDb()
+    .then(async (db) => {
+      if (db) {
+        if (!(await dbPut(db, key, value))) console.error(`drawcast: could not persist the ${key} to IndexedDB`);
+        return;
+      }
+      if (typeof localStorage === "undefined") return;
+      try {
+        localStorage.setItem(LEGACY_KEY[key], JSON.stringify(value));
+      } catch (err) {
+        console.warn(`drawcast: could not persist the ${key} to localStorage`, err);
+      }
+    })
+    .catch((err) => console.error(`drawcast: could not persist the ${key}`, err));
+}
+
+/** Rows by id: IndexedDB's version of a row wins, and the legacy rows it
+ *  lacks are added on the side the collection's order puts older rows —
+ *  the library is newest-first, the logs oldest-first (the cap keeps the
+ *  end). */
+function unionById<T extends { id: string }>(stored: T[], legacy: T[], legacyGoes: "first" | "last"): T[] {
+  const seen = new Set(stored.map((r) => r.id));
+  const extra = legacy.filter((r) => !seen.has(r.id));
+  return legacyGoes === "first" ? [...extra, ...stored] : [...stored, ...extra];
+}
+
+/**
+ * Fill the caches from IndexedDB — awaited ONCE at boot by main.ts, before
+ * the first loadLibrary()/loadLogs(); every entry that reads either does the
+ * same. Tests call it per case to reset the cache from their fake
+ * localStorage.
+ *
+ * The one-time migration: whatever the legacy localStorage keys still hold
+ * is imported (union by id, so a copy that was already migrated cannot be
+ * doubled, then the log cap) and the keys are removed once the IndexedDB
+ * write has committed — Hans's own saved drawcasts must survive the move.
+ * Without IndexedDB the legacy keys ARE the store: read, never removed.
+ */
+export async function hydrateStore(): Promise<void> {
+  const legacyLibrary = readArray<SavedDrawing>(KEYS.library);
+  const legacyLogs = readArray<LogEntry>(KEYS.logs);
+  const db = await openStoreDb();
+  if (!db) {
+    libraryCache = legacyLibrary;
+    logsCache = legacyLogs;
+    return;
+  }
+  const [storedLibrary, storedLogs] = await Promise.all([dbGet(db, "library"), dbGet(db, "logs")]);
+  libraryCache = unionById(storedLibrary as SavedDrawing[], legacyLibrary, "last");
+  logsCache = capLogs(unionById(storedLogs as LogEntry[], legacyLogs, "first"));
+  if (legacyLibrary.length > 0 && (await dbPut(db, "library", libraryCache))) forgetLegacy(KEYS.library);
+  if (legacyLogs.length > 0 && (await dbPut(db, "logs", logsCache))) forgetLegacy(KEYS.logs);
+}
+
+function forgetLegacy(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* the copy stays; the next hydrate unions it away again */
+  }
+}
+
 export function loadLibrary(): SavedDrawing[] {
-  return readArray<SavedDrawing>(KEYS.library);
+  return libraryCache;
 }
 
 export function saveDrawing(d: SavedDrawing): void {
-  const all = loadLibrary().filter((x) => x.id !== d.id);
+  const all = libraryCache.filter((x) => x.id !== d.id);
   all.unshift(d);
-  writeJson(KEYS.library, all, "a drawcast");
+  libraryCache = all;
+  persist("library", all);
 }
 
 export function deleteDrawing(id: string): void {
-  writeJson(KEYS.library, loadLibrary().filter((x) => x.id !== id), "the library");
+  libraryCache = libraryCache.filter((x) => x.id !== id);
+  persist("library", libraryCache);
 }
 
 // ---- Course library (course documents, stage A) ----
@@ -685,32 +844,30 @@ export interface LogEntry {
 
 const MAX_LOGS = 300;
 
+/** The newest MAX_LOGS entries — the cap the logs have always had. */
+function capLogs(logs: LogEntry[]): LogEntry[] {
+  return logs.length > MAX_LOGS ? logs.slice(logs.length - MAX_LOGS) : logs;
+}
+
 export function loadLogs(): LogEntry[] {
-  return readArray<LogEntry>(KEYS.logs);
+  return logsCache;
 }
 
 export function appendLog(entry: LogEntry): void {
-  const logs = loadLogs();
-  logs.push(entry);
-  while (logs.length > MAX_LOGS) logs.shift();
-  try {
-    localStorage.setItem(KEYS.logs, JSON.stringify(logs));
-  } catch {
-    // quota: drop oldest half and retry once
-    localStorage.setItem(KEYS.logs, JSON.stringify(logs.slice(Math.floor(logs.length / 2))));
-  }
+  logsCache = capLogs([...logsCache, entry]);
+  persist("logs", logsCache);
 }
 
 export function updateLog(id: string, patch: Partial<LogEntry>): void {
-  const logs = loadLogs();
-  const idx = logs.findIndex((l) => l.id === id);
+  const idx = logsCache.findIndex((l) => l.id === id);
   if (idx === -1) return;
-  logs[idx] = { ...logs[idx], ...patch };
-  localStorage.setItem(KEYS.logs, JSON.stringify(logs));
+  logsCache = logsCache.map((l, i) => (i === idx ? { ...l, ...patch } : l));
+  persist("logs", logsCache);
 }
 
 export function clearLogs(): void {
-  localStorage.removeItem(KEYS.logs);
+  logsCache = [];
+  persist("logs", logsCache);
 }
 
 /** The worst logged generations (lowest rating, most lint, errors), for prompt improvement. */

@@ -7,8 +7,12 @@
 // Continue, no coordinate mapping). Both surfaces now exist and the viewer
 // picks — a paused click on the screen types here, the ⊕ still opens the
 // tray's copy — because the two are one editor: ONE draft string, ONE Run
-// through the tray's preview state, ONE Continue. Nothing here talks to the
-// runtime or the player; tray.ts owns all of that and hands us callbacks.
+// through the tray's preview state, ONE Continue. Since 2026-09-18 an
+// AUTHORED explore that names a script lands here too, with the tray shut
+// (Hans's ruling after a course smoke: the beat means the code window on
+// screen, not the panel under the player); its ✕ then continues the lesson.
+// Nothing here talks to the runtime or the player; tray.ts owns all of that
+// and hands us callbacks.
 //
 // It stays an HTML overlay over the SVG (the house rule the veil follows):
 // movies and <drawcast-figure> mount no control bar, so no recording and no

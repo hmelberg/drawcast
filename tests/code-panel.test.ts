@@ -7,7 +7,7 @@ import { describe, expect, test } from "vitest";
 import { validateSpec } from "../src/spec/schema";
 import { lintCommands } from "../src/lint/lint";
 import { elementBBoxes, layoutSpec } from "../src/layout/layout";
-import { CHAR_W, PAD, SKETCH_CHAR_W, frameSpace, looksTabular, wrapCodeLine } from "../src/layout/code";
+import { CHAR_W, PAD, frameSpace, wrapCodeLine } from "../src/layout/code";
 import { heuristicMeasure } from "../src/layout/measure";
 import { flattenDrawables, type TextDrawable } from "../src/layout/model";
 import { planCommands } from "../src/render/plan";
@@ -75,45 +75,26 @@ describe("code panel layouts", () => {
   });
 });
 
-describe("the print-out is written in the figure's own hand (unless it is columns)", () => {
+describe("the print-out looks printed — the output pane is the typewriter face, always", () => {
+  // Hans, 2026-09-18: "a print-out should look printed". This reverses the
+  // 2026-09-16 rule that wrote prose output in the figure's own hand and kept
+  // the mono face for columns and tracebacks only (a looksTabular() shape
+  // test, wrapped at a sketch advance — both deleted with the rule).
   const out = (stdout: string) =>
     flattenDrawables(layoutSpec(spec({ show: "below", code_result: JSON.stringify({ ok: true, stdout, stderr: "", figures: [] }) }), heuristicMeasure).drawables).filter(
       (d) => d.id.startsWith("c1__out"),
     ) as TextDrawable[];
 
-  test("looksTabular reads the SHAPE of the text, not its content", () => {
-    expect(looksTabular("mean: 0.5\npeak: 3")).toBe(false);
-    expect(looksTabular("")).toBe(false);
-    expect(looksTabular("The mean is 0.5, which is what theory says.")).toBe(false);
-    // Aligned columns: a run of 2+ spaces (or a tab) after a non-space, twice.
-    expect(looksTabular("a   b   c\n1   2   3")).toBe(true);
-    expect(looksTabular("a\tb\n1\t2")).toBe(true);
-    // One aligned line is not a table — a stray double space is not columns.
-    expect(looksTabular("a   b\nplain prose here")).toBe(false);
-    // Leading indentation is prose, not a column.
-    expect(looksTabular("    indented\n    also indented")).toBe(false);
-    // A drawn table, pipes with text on both sides.
-    expect(looksTabular("| a | b |\n| 1 | 2 |")).toBe(true);
-    // …and only when the pipes really STAND in columns. Counting them was too
-    // eager (review, 2026-09-16): every one of these is prose, and prose
-    // belongs in the hand — alone, and together in one print-out.
-    const prose = ["|x| + |y| = 5", "P(A|B) = 0.4, P(B|A) = 0.6", "n=10 | mean=5.2 | p<0.05"];
-    for (const line of prose) expect(looksTabular(line), line).toBe(false);
-    expect(looksTabular(prose.join("\n"))).toBe(false);
-    expect(looksTabular("a | b | c")).toBe(false); // one row is not a table
-    expect(looksTabular("| a | b |\n1 2")).toBe(false); // …nor is one row with a neighbour
-  });
-
-  test("a plain stdout line takes the sketch face; a tabular one keeps the typewriter", () => {
+  test("a plain stdout line and a tabular one are both set in mono", () => {
     const plain = out("mean: 0.5\npeak: 3");
     expect(plain.length).toBeGreaterThan(0);
-    for (const d of plain) expect(d.font).toBeUndefined();
+    for (const d of plain) expect(d.font).toBe("mono");
     const table = out("year   gdp\n2010   87\n2020   67");
     expect(table.length).toBeGreaterThan(0);
     for (const d of table) expect(d.font).toBe("mono");
   });
 
-  test("a failure keeps mono — a traceback's indentation and caret only line up there", () => {
+  test("a failure is mono too — a traceback's indentation and caret line up there", () => {
     const failed = flattenDrawables(
       layoutSpec(
         spec({ show: "below", code_result: JSON.stringify({ ok: false, stdout: "", stderr: "", figures: [], error: "NameError: name 'x' is not defined" }) }),
@@ -124,40 +105,32 @@ describe("the print-out is written in the figure's own hand (unless it is column
     for (const d of failed) expect(d.font).toBe("mono");
   });
 
-  test("the code pane is still a typewriter — only the OUTPUT follows the hand", () => {
+  test("the code pane is the same typewriter", () => {
     const line = textOf(spec({ show: "left", code: eight, code_result: OK }), "c1_line_1");
     expect(line.font).toBe("mono");
   });
 
-  // The live bug (Hans, 2026-09-16, the herd-immunity figure): a printed line
-  // that FITS in the sketch face was wrapped at the mono pitch, leaving a lone
-  // "%" on a row of its own. The pane is 350 wide at the default 17 px, which
-  // is 30 characters of mono and 37 of handwriting — so a 36-character line
-  // is one row in the hand and two in the typewriter.
-  test("a plain line is wrapped by the SKETCH advance, a tabular one by the mono advance", () => {
+  // The pane is 350 wide at the default 17 px, which is 30 characters of
+  // mono — so a 36-character line is two rows, printed or not. (Until
+  // 2026-09-18 a prose line was wrapped at a wider sketch advance, 37, and
+  // stayed on one row in the hand.)
+  test("every output line is wrapped by the mono advance", () => {
     const line = "value : 42 : this is the payload xxx";
     expect(line.length).toBe(36);
-    expect(looksTabular(line)).toBe(false);
-    // The SAME line under a pair of column-aligned rows, which is what puts
-    // the whole pane in the typewriter face.
     const columns = `a  b\nc  d\n${line}`;
-    expect(looksTabular(columns)).toBe(true);
     const rows = (stdout: string) =>
       flattenDrawables(
         layoutSpec(spec({ show: "output", width: 350, code_result: JSON.stringify({ ok: true, stdout, stderr: "", figures: [] }) }), heuristicMeasure).drawables,
       ).filter((d) => d.id.startsWith("c1__out")) as TextDrawable[];
-    const hand = rows(line);
-    expect(hand.length).toBe(1);
-    expect(hand[0].text).toBe(line);
-    expect(hand[0].font).toBeUndefined();
+    const prose = rows(line);
+    expect(prose.length).toBe(2);
+    expect(prose.every((d) => d.font === "mono")).toBe(true);
     const mono = rows(columns);
     expect(mono.length).toBe(4); // "a  b", "c  d", and the long line split in two
     expect(mono.map((d) => d.text).slice(0, 2)).toEqual(["a  b", "c  d"]);
     expect(mono.every((d) => d.font === "mono")).toBe(true);
-    // The two budgets themselves, so the arithmetic above is not a coincidence.
+    // The budget itself, so the arithmetic above is not a coincidence.
     expect(Math.floor((350 - 2 * PAD) / (17 * CHAR_W))).toBe(30);
-    expect(Math.floor((350 - 2 * PAD) / (17 * SKETCH_CHAR_W))).toBe(37);
-    expect(wrapCodeLine(line, 37).length).toBe(1);
     expect(wrapCodeLine(line, 30).length).toBe(2);
   });
 

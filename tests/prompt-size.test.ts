@@ -272,8 +272,18 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Merged 2026-09-18 (integration of the two tracks above): prompt +140 and
 // schema/fewshot +113 land together in the system prompt (239130 → 239383);
 // the schema pin is the layout track's 120496.
-const BASELINE_SYSTEM_CHARS = 239383;
-const BASELINE_SCHEMA_CHARS = 120496;
+// Re-pinned 2026-09-18 (the explore-card ruling): the `explore` bullet no
+// longer says the beat "opens the app's explore tray" — `code` now opens the
+// editor card on the script's drawn pane and only `params` opens the tray —
+// +36 chars on the prompt; the schema's explore description says the same
+// ("the ⊕ tray opens" → "opens exactly what it names"), +43 (120386 →
+// 120429), embedded verbatim in the system prompt — total system +79
+// (239130 → 239209).
+// Merged 2026-09-18 (all three tracks of the fix round): the wait bullet, the
+// explore bullet, the node/shape and explore schema sentences and the migrated
+// fewshot land together — measured after the merge: schema 120539, system 239462.
+const BASELINE_SYSTEM_CHARS = 239462;
+const BASELINE_SCHEMA_CHARS = 120539;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {
