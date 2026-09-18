@@ -248,8 +248,16 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // literal JSON would copy an invalid pattern. Split into two command
 // objects (a plain `move`, then `focus` with the beat's `speak`) — prompt
 // only, +8 chars (system 239122 → 239130); the schema is untouched.
-const BASELINE_SYSTEM_CHARS = 239130;
-const BASELINE_SCHEMA_CHARS = 120386;
+// Re-pinned 2026-09-18 for the layout fix round (node width/height): the
+// `shape` description gains one sentence — a node's width/height are honoured,
+// centred on x/y, a circle's width is its diameter, and a shape rect's x/y is
+// its LOWER-LEFT corner (the x/y description said "the centre", the code has
+// always used the corner, and the bundled examples build on the corner) —
+// and `width`/`height` each name `node` in their element list: +138 on the
+// schema (120386 → 120524), embedded verbatim in the system prompt, so the
+// same +138 lands there (239130 → 239268). Nothing in the prompt files changed.
+const BASELINE_SYSTEM_CHARS = 239268;
+const BASELINE_SCHEMA_CHARS = 120524;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

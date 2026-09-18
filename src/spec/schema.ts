@@ -195,7 +195,7 @@ const elementSchema = {
     shape: {
       type: "string",
       enum: ["decision", "chance", "terminal", "rect", "circle", "triangle", "person"],
-      description: "node/shape: decision=square, chance=circle, terminal=triangle (health-economics conventions); person = stick figure.",
+      description: "node/shape: decision=square, chance=circle, terminal=triangle (health-economics conventions); person = stick figure. A node's width/height (circle: width = diameter) are honoured, centred on x/y; a shape rect's x/y is its LOWER-LEFT corner.",
     },
     // tier-3 raw
     points: { type: "array", items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, description: "path: polyline points in logical coordinates (y-up)." },
@@ -217,8 +217,8 @@ const elementSchema = {
     crop: { type: "boolean", description: "inset: true (default) fits the source page's ink into the box so the drawing fills it; false fits the whole 1000×750 canvas, so every uncropped inset shares one scale and the source's layout is preserved." },
     x: { type: "number", description: "text/shape/sector/arc/polygon/pieces/ellipse: logical x (y-up canvas) — the centre, for the shapes that have one. inset: the centre of the box; omit x, y and at to take the next slot in the right-hand thumbnail column." },
     y: { type: "number", description: "text/shape/sector/arc/polygon/pieces/ellipse: logical y (y-up canvas) — the centre, for the shapes that have one. inset: the centre of the box; omit x, y and at to take the next slot in the right-hand thumbnail column." },
-    width: { type: "number", description: "shape rect / portrait / source / code / pieces strips+grid (the rectangle to cut): width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880). / image: width. inset: box width (default 160; the height follows 4:3 unless given) — only read when x/y or at place the inset; in the column, width and height are ignored." },
-    height: { type: "number", description: "shape rect / pieces strips+grid (the rectangle to cut): height in logical units. inset: box height." },
+    width: { type: "number", description: "shape rect / node / portrait / source / code / pieces strips+grid (the rectangle to cut): width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880). / image: width. inset: box width (default 160; the height follows 4:3 unless given) — only read when x/y or at place the inset; in the column, width and height are ignored." },
+    height: { type: "number", description: "shape rect / node / pieces strips+grid (the rectangle to cut): height in logical units. inset: box height." },
     radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces / angle: radius in logical units (angle default 40)." },
     font_size: { type: "number", description: "text: font size in logical units (≥ 14; default 26)." },
     // sector / arc / polygon / pieces

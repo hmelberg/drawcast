@@ -132,3 +132,41 @@ describe("layoutElements (tier 2/3)", () => {
     expect(box.shapeHint?.type).toBe("rect");
   });
 });
+
+describe("node width and height", () => {
+  const lay = (el: object) => layoutElements([{ id: "n", type: "node", text: "Vault", x: 250, y: 250, ...el }] as SpecElement[], undefined);
+  const hint = (el: object) => (get(lay(el).drawables, "n") as StrokeDrawable).shapeHint;
+
+  test("a rect node takes its declared width and height, centred on x/y", () => {
+    expect(hint({ shape: "rect", width: 320, height: 250 })).toEqual({ type: "rect", x: 90, y: 125, w: 320, h: 250 });
+  });
+
+  test("only one of width/height given keeps the other's default", () => {
+    const wide = hint({ shape: "rect", width: 320 });
+    expect(wide).toMatchObject({ type: "rect", w: 320, h: 62 });
+    const tall = hint({ shape: "rect", height: 250 });
+    expect(tall).toMatchObject({ type: "rect", h: 250 });
+    expect((tall as { w: number }).w).toBeGreaterThanOrEqual(130); // the text-fitted default
+  });
+
+  test("a circle node takes width as its diameter; the larger of width/height wins", () => {
+    expect(hint({ shape: "circle", width: 200 })).toEqual({ type: "circle", c: [250, 250], r: 100 });
+    expect(hint({ shape: "circle", width: 120, height: 200 })).toMatchObject({ r: 100 });
+    expect(hint({ shape: "chance", width: 90 })).toMatchObject({ r: 45 });
+  });
+
+  test("an edge attaches at the rim of the sized node, not at the default one", () => {
+    const r = layoutElements(
+      [
+        { id: "n", type: "node", shape: "rect", text: "Vault", x: 250, y: 250, width: 320, height: 250 },
+        { id: "m", type: "node", shape: "circle", text: "M", x: 900, y: 250 },
+        { id: "e", type: "edge", from: { ref: "n" }, to: { ref: "m" } },
+      ] as SpecElement[],
+      undefined,
+    );
+    const e = get(r.drawables, "e") as StrokeDrawable;
+    const start = e.pts[0];
+    // The edge leaves the node at nodeRadius + 4 from its centre (half the diagonal for a rect).
+    expect(Math.hypot(start[0] - 250, start[1] - 250)).toBeCloseTo(Math.hypot(320, 250) / 2 + 4, 3);
+  });
+});
