@@ -1043,9 +1043,13 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   const drawOpts = resolveDrawOpts(el.draw, { duration: SKETCH_MS.node });
   const out: Drawable[] = [];
   const textW = text ? heuristicMeasure(text, NODE_FONT).w : 0;
+  // A declared width/height is honoured, centred on x/y; without one the
+  // conventional size (text-fitted rect, fixed decision/chance/terminal/person).
+  // A round shape reads the larger of the two as its diameter.
+  const declared = el.width !== undefined || el.height !== undefined ? Math.max(el.width ?? 0, el.height ?? 0) : undefined;
 
   if (shape === "person") {
-    const s = 34; // half-height
+    const s = el.height !== undefined ? el.height / 2 : 34; // half-height
     const head: StrokeDrawable = {
       id: `${el.id}_head`,
       kind: "stroke",
@@ -1076,8 +1080,8 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     ctx.nodeRadius.set(el.id, s * 1.2);
     out.push(group);
   } else if (shape === "rect" || shape === "decision") {
-    const w = shape === "decision" ? 56 : Math.max(130, textW + 36);
-    const h = shape === "decision" ? 56 : 62;
+    const w = el.width ?? (shape === "decision" ? 56 : Math.max(130, textW + 36));
+    const h = el.height ?? (shape === "decision" ? 56 : 62);
     ctx.nodeRadius.set(el.id, Math.hypot(w, h) / 2);
     out.push({
       id: el.id,
@@ -1090,7 +1094,7 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
       drawOpts,
     });
   } else if (shape === "triangle" || shape === "terminal") {
-    const s = 30;
+    const s = declared !== undefined ? declared / 2 : 30;
     ctx.nodeRadius.set(el.id, s + 6);
     out.push({
       id: el.id,
@@ -1107,7 +1111,7 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     });
   } else {
     // circle / chance
-    const r = shape === "chance" ? 32 : Math.max(44, textW / 2 + 14);
+    const r = declared !== undefined ? declared / 2 : shape === "chance" ? 32 : Math.max(44, textW / 2 + 14);
     ctx.nodeRadius.set(el.id, r);
     out.push({
       id: el.id,
@@ -1270,22 +1274,19 @@ function shapeDrawable(el: SpecElement, ctx: Ctx): StrokeDrawable {
     ctx.anchors[el.id] = c;
     return { id: el.id, kind: "stroke", pts: [c], shapeHint: { type: "circle", c, r }, z: Z_STROKE, style, drawOpts };
   }
-  // rect (x,y = lower-left corner in logical units)
-  const [x, y] = originOr(el, ctx, [100, 100]);
+  // rect: x/y is the CENTRE, like every other element's x/y (node, text,
+  // circle). Until 2026-09-18 it was the lower-left corner while the schema
+  // said centre, and the model placed things inside a rect that was not there.
+  const c = originOr(el, ctx, [CANVAS.w / 2, CANVAS.h / 2]);
   const w = el.width ?? 160;
   const h = el.height ?? 100;
-  ctx.anchors[el.id] = [x + w / 2, y + h / 2];
+  ctx.anchors[el.id] = c;
   return {
     id: el.id,
     kind: "stroke",
-    pts: [
-      [x, y],
-      [x + w, y],
-      [x + w, y + h],
-      [x, y + h],
-    ],
+    pts: rectPts(c, w, h),
     closed: true,
-    shapeHint: { type: "rect", x, y, w, h },
+    shapeHint: { type: "rect", x: c[0] - w / 2, y: c[1] - h / 2, w, h },
     z: Z_STROKE,
     style,
     drawOpts,

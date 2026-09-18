@@ -20,11 +20,16 @@ const areaOf = (b: BBox | undefined): number => (b ? b.w * b.h : Infinity);
 
 /** The id of the element under the point, or null on a miss.
  *
- *  Elements that declare an OUTLINE (`rings`) are judged on that outline, not
- *  on their box — anatomy is the case that forces this: a liver's box swallows
- *  half a lung it does not touch, and the smallest-box rule then answers with
- *  whichever box happens to be smaller. Boxes remain the rule for everything
- *  that has no closed geometry (labels, axes, curves).
+ *  Containment is one contest, the smallest box among the CANDIDATES wins.
+ *  An element that declares an OUTLINE (`rings`) is a candidate only when one
+ *  of its rings contains the point, never on its box alone — anatomy is the
+ *  case that forces this: a liver's box swallows half a lung it does not
+ *  touch, and the smallest-box rule would then answer with whichever box
+ *  happens to be smaller. An element with no closed geometry (labels, axes,
+ *  curves, the text lines of a code panel) is a candidate when its box
+ *  contains the point. The two kinds compete on box area, so a line of code
+ *  inside an outlined panel beats the panel: outlines are a filter on
+ *  candidacy, not a tier that pre-empts every box.
  *
  *  With slop > 0, a clean miss snaps to the nearest box within that many
  *  logical units — fat-finger tolerance for touch (and kinder mouse aim). The
@@ -39,27 +44,29 @@ export function hitElement(
   let best: string | null = null;
   let bestArea = Infinity;
 
-  // Pass 1: outlines. Smallest box among the shapes that actually contain p.
-  if (rings) {
-    for (const [id, rs] of rings) {
-      if (!rs.some((r) => r.length >= 3 && pointInRing(r, p))) continue;
-      const area = areaOf(boxes.get(id));
-      if (area < bestArea) {
-        bestArea = area;
-        best = id;
-      }
-    }
-    if (best !== null) return best;
-  }
-
-  // Pass 2: boxes, skipping anything that already answered "not me" in pass 1.
+  // Pass 1: containment. Outlined ids qualify on a ring, the rest on the box.
   for (const [id, b] of boxes) {
-    if (rings?.has(id)) continue;
-    if (p[0] < b.x || p[0] > b.x + b.w || p[1] < b.y || p[1] > b.y + b.h) continue;
+    const rs = rings?.get(id);
+    const inside = rs
+      ? rs.some((r) => r.length >= 3 && pointInRing(r, p))
+      : p[0] >= b.x && p[0] <= b.x + b.w && p[1] >= b.y && p[1] <= b.y + b.h;
+    if (!inside) continue;
     const area = b.w * b.h;
     if (area < bestArea) {
       bestArea = area;
       best = id;
+    }
+  }
+  // An outlined id with no box of its own (a ring-only entry) still qualifies.
+  if (rings) {
+    for (const [id, rs] of rings) {
+      if (boxes.has(id)) continue;
+      if (!rs.some((r) => r.length >= 3 && pointInRing(r, p))) continue;
+      const area = areaOf(undefined);
+      if (best === null || area < bestArea) {
+        bestArea = area;
+        best = id;
+      }
     }
   }
   if (best !== null || slop <= 0) return best;

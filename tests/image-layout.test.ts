@@ -9,7 +9,7 @@ describe("image element layout", () => {
   test("photo with credit caption below, sized by width, placeable with at", () => {
     const r = layoutSpec({
       elements: [
-        { id: "a", type: "shape", shape: "rect", x: 300, y: 300, width: 100, height: 40 },
+        { id: "a", type: "shape", shape: "rect", x: 350, y: 320, width: 100, height: 40 },
         { id: "p", type: "image", of: "Bicycle pump", width: 200, strokes, credit: "Jane Doe · CC0", at: { ref: "a", side: "right", gap: 30 } },
       ],
       commands: [{ draw: ["a", "p"] }],

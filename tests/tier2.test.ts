@@ -122,7 +122,7 @@ describe("layoutElements (tier 2/3)", () => {
     const r = layoutElements(
       [
         { id: "t", type: "text", text: "Sensitivity", x: 250, y: 600, font_size: 28 },
-        { id: "box", type: "shape", shape: "rect", x: 200, y: 400, width: 200, height: 150 },
+        { id: "box", type: "shape", shape: "rect", x: 300, y: 475, width: 200, height: 150 },
       ] as SpecElement[],
       undefined,
     );
@@ -130,5 +130,55 @@ describe("layoutElements (tier 2/3)", () => {
     expect(t?.kind).toBe("text");
     const box = get(r.drawables, "box") as StrokeDrawable;
     expect(box.shapeHint?.type).toBe("rect");
+  });
+});
+
+describe("node width and height", () => {
+  const lay = (el: object) => layoutElements([{ id: "n", type: "node", text: "Vault", x: 250, y: 250, ...el }] as SpecElement[], undefined);
+  const hint = (el: object) => (get(lay(el).drawables, "n") as StrokeDrawable).shapeHint;
+
+  test("a rect node takes its declared width and height, centred on x/y", () => {
+    expect(hint({ shape: "rect", width: 320, height: 250 })).toEqual({ type: "rect", x: 90, y: 125, w: 320, h: 250 });
+  });
+
+  test("only one of width/height given keeps the other's default", () => {
+    const wide = hint({ shape: "rect", width: 320 });
+    expect(wide).toMatchObject({ type: "rect", w: 320, h: 62 });
+    const tall = hint({ shape: "rect", height: 250 });
+    expect(tall).toMatchObject({ type: "rect", h: 250 });
+    expect((tall as { w: number }).w).toBeGreaterThanOrEqual(130); // the text-fitted default
+  });
+
+  test("a circle node takes width as its diameter; the larger of width/height wins", () => {
+    expect(hint({ shape: "circle", width: 200 })).toEqual({ type: "circle", c: [250, 250], r: 100 });
+    expect(hint({ shape: "circle", width: 120, height: 200 })).toMatchObject({ r: 100 });
+    expect(hint({ shape: "chance", width: 90 })).toMatchObject({ r: 45 });
+  });
+
+  test("an edge attaches at the rim of the sized node, not at the default one", () => {
+    const r = layoutElements(
+      [
+        { id: "n", type: "node", shape: "rect", text: "Vault", x: 250, y: 250, width: 320, height: 250 },
+        { id: "m", type: "node", shape: "circle", text: "M", x: 900, y: 250 },
+        { id: "e", type: "edge", from: { ref: "n" }, to: { ref: "m" } },
+      ] as SpecElement[],
+      undefined,
+    );
+    const e = get(r.drawables, "e") as StrokeDrawable;
+    const start = e.pts[0];
+    // The edge leaves the node at nodeRadius + 4 from its centre (half the diagonal for a rect).
+    expect(Math.hypot(start[0] - 250, start[1] - 250)).toBeCloseTo(Math.hypot(320, 250) / 2 + 4, 3);
+  });
+});
+
+describe("shape rect origin", () => {
+  test("a shape rect with x/y/width/height is centred on x/y, like a node", () => {
+    const r = layoutElements([{ id: "vault", type: "shape", shape: "rect", x: 250, y: 250, width: 320, height: 250 }] as SpecElement[], undefined);
+    const s = get(r.drawables, "vault") as StrokeDrawable;
+    expect(s.shapeHint).toEqual({ type: "rect", x: 90, y: 125, w: 320, h: 250 });
+    const xs = s.pts.map((p) => p[0]);
+    const ys = s.pts.map((p) => p[1]);
+    expect((Math.min(...xs) + Math.max(...xs)) / 2).toBeCloseTo(250, 6);
+    expect((Math.min(...ys) + Math.max(...ys)) / 2).toBeCloseTo(250, 6);
   });
 });

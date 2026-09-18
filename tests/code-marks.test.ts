@@ -48,8 +48,10 @@ describe("where the pen goes", () => {
     // Starts at the phrase's column (6: "rng = "), one 0.15 em overshoot each side.
     expect(m.pts[0][0]).toBeCloseTo(line2.pos[0] + 6 * CHAR_W * fontSize - fontSize * 0.15, 5);
     expect(m.pts[1][0] - m.pts[0][0]).toBeCloseTo(24 * CHAR_W * fontSize + 2 * fontSize * 0.15, 5);
-    // On the line's own row, and a band the height of the glyphs.
-    expect(m.pts[0][1]).toBeCloseTo(line2.pos[1] + fontSize * 0.28, 5);
+    // Centred on the line's own row (the rows are drawn with a central
+    // baseline, so the text's y IS the glyph centre), a band the height of
+    // the glyphs.
+    expect(m.pts[0][1]).toBeCloseTo(line2.pos[1], 5);
     expect(m.style.strokeWidth).toBeCloseTo(fontSize * 0.95, 5);
     expect(m.style.color).toBe(COLORS.region1);
     expect(m.style.opacity).toBeCloseTo(0.42, 5);
@@ -61,7 +63,13 @@ describe("where the pen goes", () => {
     expect(strike.style.color).toBe(COLORS.regionLoss);
     expect(under.style.color).toBe(COLORS.demand);
     expect(strike.style.strokeWidth).toBe(2.5);
-    expect(under.pts[0][1]).toBeLessThan(strike.pts[0][1]); // under the letters, not through them
+    const line3 = flattenDrawables(lay({ marks: ["x = rng"] }).drawables).find((d) => d.id === "sim_line_3") as TextDrawable;
+    const fontSize = 17;
+    // The strike runs through the glyph centre; the underline sits 0.45 em
+    // below it — under the letters' feet, not through their lower half.
+    expect(strike.pts[0][1]).toBeCloseTo(line3.pos[1], 5);
+    expect(under.pts[0][1]).toBeCloseTo(line3.pos[1] - fontSize * 0.45, 5);
+    expect(under.pts[0][1]).toBeLessThan(strike.pts[0][1]);
     expect(strike.pts[1][0] - strike.pts[0][0]).toBeCloseTo(under.pts[1][0] - under.pts[0][0], 5);
   });
 

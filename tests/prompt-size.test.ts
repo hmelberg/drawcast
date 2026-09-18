@@ -254,8 +254,26 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // a lecture plays through on its own, a breath is `pause` — after the model
 // wrote three gates per part into an untagged 10-lecture course. Prompt
 // only, +140 chars (system 239130 → 239270); the schema is untouched.
-const BASELINE_SYSTEM_CHARS = 239270;
-const BASELINE_SCHEMA_CHARS = 120386;
+// Re-pinned 2026-09-18 for the layout fix round (node width/height): the
+// `shape` description gains one sentence — a node's width/height are honoured,
+// centred on x/y, a circle's width is its diameter, and a shape rect's x/y is
+// its LOWER-LEFT corner (the x/y description said "the centre", the code has
+// always used the corner, and the bundled examples build on the corner) —
+// and `width`/`height` each name `node` in their element list: +138 on the
+// schema (120386 → 120524), embedded verbatim in the system prompt, so the
+// same +138 lands there (239130 → 239268). Nothing in the prompt files changed.
+// Re-pinned DOWN the same day: a shape rect's x/y became its centre (the
+// corner convention was the bug — the model had read "the centre" in the
+// x/y description and placed things inside a rect that was not there), so
+// the corner clause went and the sentence is now the one rule for node and
+// shape: −28 on the schema (120524 → 120496); the system prompt takes the
+// same −28 plus +3 from the bicycle-pump fewshot, whose body rect was
+// migrated from (0, 0) to its centre (45, 160): 239268 → 239243.
+// Merged 2026-09-18 (integration of the two tracks above): prompt +140 and
+// schema/fewshot +113 land together in the system prompt (239130 → 239383);
+// the schema pin is the layout track's 120496.
+const BASELINE_SYSTEM_CHARS = 239383;
+const BASELINE_SCHEMA_CHARS = 120496;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

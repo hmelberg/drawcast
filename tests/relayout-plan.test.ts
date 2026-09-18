@@ -76,8 +76,8 @@ describe("relayout steps", () => {
   test("a group as a source: the move of its members carries the poses the group's dependents follow (review finding 2)", () => {
     const spec: Spec = {
       elements: [
-        { id: "p1", type: "shape", shape: "rect", x: 100, y: 100, width: 100, height: 50 },
-        { id: "p2", type: "shape", shape: "rect", x: 300, y: 100, width: 100, height: 50 },
+        { id: "p1", type: "shape", shape: "rect", x: 150, y: 125, width: 100, height: 50 },
+        { id: "p2", type: "shape", shape: "rect", x: 350, y: 125, width: 100, height: 50 },
         { id: "g", type: "group", members: ["p1", "p2"] },
         { id: "a", type: "arrow", from: { ref: "g" }, to: { x: 500, y: 600 } },
       ],

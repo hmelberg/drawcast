@@ -8,7 +8,7 @@ describe("relative placement in layoutSpec", () => {
     const r = layoutSpec({
       elements: [
         { id: "t", type: "text", text: "Piston", font_size: 24, at: { ref: "a", side: "above", gap: 10 } },
-        { id: "a", type: "shape", shape: "rect", x: 300, y: 300, width: 100, height: 40 },
+        { id: "a", type: "shape", shape: "rect", x: 350, y: 320, width: 100, height: 40 },
       ],
       commands: [{ draw: ["a", "t"] }],
     });
@@ -21,7 +21,7 @@ describe("relative placement in layoutSpec", () => {
   test("anchor placement: a circle's bottom lands on the rect's top", () => {
     const r = layoutSpec({
       elements: [
-        { id: "a", type: "shape", shape: "rect", x: 300, y: 300, width: 100, height: 40 },
+        { id: "a", type: "shape", shape: "rect", x: 350, y: 320, width: 100, height: 40 },
         { id: "c", type: "shape", shape: "circle", radius: 20, at: { ref: "a", anchor: "top" }, anchor: "bottom" },
       ],
       commands: [{ draw: ["a", "c"] }],
@@ -32,7 +32,7 @@ describe("relative placement in layoutSpec", () => {
   test("a path's own anchors follow the shift", () => {
     const r = layoutSpec({
       elements: [
-        { id: "a", type: "shape", shape: "rect", x: 300, y: 300, width: 100, height: 40 },
+        { id: "a", type: "shape", shape: "rect", x: 350, y: 320, width: 100, height: 40 },
         { id: "p", type: "path", points: [[0, 0], [50, 30]], at: { ref: "a", side: "right", gap: 5 } },
       ],
       commands: [{ draw: ["a", "p"] }],
@@ -42,7 +42,7 @@ describe("relative placement in layoutSpec", () => {
   test("a pieces element moves as a whole — its cells and their geometry come along", () => {
     const r = layoutSpec({
       elements: [
-        { id: "a", type: "shape", shape: "rect", x: 300, y: 300, width: 100, height: 40 },
+        { id: "a", type: "shape", shape: "rect", x: 350, y: 320, width: 100, height: 40 },
         { id: "pie", type: "pieces", of: "sectors", n: 4, radius: 50, at: { ref: "a", side: "right", gap: 20 } },
       ],
       commands: [{ draw: ["a"] }, { draw: ["pie_1", "pie_2", "pie_3", "pie_4"] }],
@@ -63,7 +63,7 @@ describe("relative placement in layoutSpec", () => {
   test("an at.anchor the ref does not have is a placement WARN, and the centre is used", () => {
     const r = layoutSpec({
       elements: [
-        { id: "a", type: "shape", shape: "rect", x: 300, y: 300, width: 100, height: 40 },
+        { id: "a", type: "shape", shape: "rect", x: 350, y: 320, width: 100, height: 40 },
         { id: "c", type: "shape", shape: "circle", radius: 20, at: { ref: "a", anchor: "nozzle" } },
       ],
       commands: [{ draw: ["a", "c"] }],
@@ -80,7 +80,7 @@ describe("relative placement in layoutSpec", () => {
   test("an anchor the ref DOES have (its own named anchor, or a universal one) says nothing", () => {
     const r = layoutSpec({
       elements: [
-        { id: "a", type: "shape", shape: "rect", x: 300, y: 300, width: 100, height: 40 },
+        { id: "a", type: "shape", shape: "rect", x: 350, y: 320, width: 100, height: 40 },
         { id: "p", type: "path", points: [[0, 0], [50, 30]] },
         { id: "c", type: "shape", shape: "circle", radius: 20, at: { ref: "a", anchor: "top" } },
         { id: "d", type: "shape", shape: "circle", radius: 10, at: { ref: "p", anchor: "start" } },
@@ -92,7 +92,7 @@ describe("relative placement in layoutSpec", () => {
   test("side AND anchor together is a placement WARN naming the one that wins", () => {
     const r = layoutSpec({
       elements: [
-        { id: "a", type: "shape", shape: "rect", x: 300, y: 300, width: 100, height: 40 },
+        { id: "a", type: "shape", shape: "rect", x: 350, y: 320, width: 100, height: 40 },
         { id: "c", type: "shape", shape: "circle", radius: 20, at: { ref: "a", side: "right", anchor: "top", gap: 5 } },
       ],
       commands: [{ draw: ["a", "c"] }],
@@ -126,7 +126,7 @@ describe("relative placement: every failure path says what happened", () => {
     delete scenes.temp_placement_scene;
   });
 
-  const rect = { id: "a", type: "shape" as const, shape: "rect" as const, x: 300, y: 300, width: 100, height: 40 };
+  const rect = { id: "a", type: "shape" as const, shape: "rect" as const, x: 350, y: 320, width: 100, height: 40 };
 
   test("a label draws nothing of its own, so at is a warning — and it lands where it would have anyway", () => {
     const spec = (at: object | undefined) => ({
@@ -217,7 +217,7 @@ describe("relative placement: every failure path says what happened", () => {
 });
 
 describe("relative placement: every side, and the default gap", () => {
-  const ref = { id: "a", type: "shape" as const, shape: "rect" as const, x: 300, y: 300, width: 100, height: 40 };
+  const ref = { id: "a", type: "shape" as const, shape: "rect" as const, x: 350, y: 320, width: 100, height: 40 };
   // The reference box is x 300..400, y 300..340.
   const place = (at: object) => {
     const r = layoutSpec({

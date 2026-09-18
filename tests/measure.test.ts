@@ -71,7 +71,7 @@ describe("measure element (design §2.3)", () => {
     expect(validateSpec(spec([sq, { id: "m", type: "measure", of: "sq" }])).ok).toBe(true);
   });
   test("of a shape (rect or circle) is measurable — a shapeHint stroke's pts are not a literal ring", () => {
-    const rect = { id: "r", type: "shape", shape: "rect", x: 100, y: 100, width: 100, height: 100 };
+    const rect = { id: "r", type: "shape", shape: "rect", x: 150, y: 150, width: 100, height: 100 };
     const circle = { id: "c", type: "shape", shape: "circle", x: 500, y: 400, radius: 100 };
     const out = layoutSpec(
       spec([

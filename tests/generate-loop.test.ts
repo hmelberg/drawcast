@@ -650,7 +650,7 @@ describe("visual repair round (freehand-figures Task 14b)", () => {
   const SPEC_WITH_GROUP = {
     title: "t",
     elements: [
-      { id: "a", type: "shape", shape: "rect", x: 1, y: 1 },
+      { id: "a", type: "shape", shape: "rect", x: 81, y: 51 },
       { id: "g", type: "group", members: ["a"] },
     ],
     commands: [{ draw: ["a", "g"] }],

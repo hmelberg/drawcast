@@ -748,14 +748,19 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       const pad = fontSize * 0.15;
       const x0m = codeX + PAD + hit.col * CHAR_W * fontSize - pad;
       const x1m = x0m + m.text.length * CHAR_W * fontSize + 2 * pad;
-      // The band sits on the glyph body: a baseline is the FOOT of the text.
-      const midY = rowY + fontSize * 0.28;
+      // rowY is the row's CENTRE, not its baseline: the rows are drawn with
+      // dominant-baseline "central" around the block's centre (svg-backend),
+      // so the glyph body straddles rowY. The band and the strike sit on it.
+      // The underline goes 0.45 em below: the baseline of a mono face is
+      // ~0.3 em under the em-box centre, so this is 0.15 em under the
+      // letters' feet, grazing only the deepest descenders the way a text
+      // underline does, and well clear of the next row (1.25 em pitch).
       const geom =
         m.kind === "underline"
-          ? { y: rowY - fontSize * 0.12, width: 2.5, color: COLORS.demand, opacity: 1 }
+          ? { y: rowY - fontSize * 0.45, width: 2.5, color: COLORS.demand, opacity: 1 }
           : m.kind === "strike"
-            ? { y: midY, width: 2.5, color: COLORS.regionLoss, opacity: 1 }
-            : { y: midY, width: fontSize * 0.95, color: COLORS.region1, opacity: 0.42 };
+            ? { y: rowY, width: 2.5, color: COLORS.regionLoss, opacity: 1 }
+            : { y: rowY, width: fontSize * 0.95, color: COLORS.region1, opacity: 0.42 };
       ctx.anchors[id] = [(x0m + x1m) / 2, geom.y];
       out.push({
         id,
