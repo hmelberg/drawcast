@@ -5,7 +5,7 @@
 
 import { type Course, type CourseLecture, formatCourse, parseCourse } from "../course/document";
 import { generateCoursePlan } from "../course/plan";
-import { applyCourseName, applyJoinDoor, commitPublish, courseDoorName, courseKeyFor, courseRegistration, preparePublish, type PublishArgs } from "../course/publish";
+import { applyCourseFolder, applyCourseName, applyJoinDoor, commitPublish, courseDoorName, courseKeyFor, courseRegistration, preparePublish, type PublishArgs } from "../course/publish";
 import type { Door, DoorlessReason } from "../course/page";
 import { matchLibrary, restoredStatus } from "../course/reconcile";
 import { reviseCourse } from "../course/revise";
@@ -914,7 +914,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
   // own (each lecture's file name is derived by publishCourse from the
   // document), so `slug` is never read here. The course's NAME — its pretty
   // link — is bought and bound to `name:` by buyPrettyLink below (2026-09-18).
-  async function publish({ bake, embedImages, allowComments, countViews, allowSignup }: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean; allowSignup?: boolean }): Promise<void> {
+  async function publish({ bake, embedImages, allowComments, countViews, allowSignup, folder }: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean; allowSignup?: boolean; folder?: string }): Promise<void> {
     const settings = loadSettings();
     const token = getGithubToken();
     const repo = parseRepo(settings.githubRepo);
@@ -922,11 +922,14 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       say("Set your GitHub repository and token in Settings first (Settings → Publishing).", "error");
       return;
     }
-    // The Join-door choice is applied to the TEXT first, so the copy that goes
-    // out and the copy written back (out.text) agree on the enroll: line. The
-    // editor's own document changes only when the commit lands, with the rest
-    // of the bookkeeping below.
-    const text = allowSignup === undefined ? doc.value : applyJoinDoor(doc.value, allowSignup);
+    // The Folder field (2026-09-18) and the Join-door choice are applied to
+    // the TEXT first, so the copy that goes out and the copy written back
+    // (out.text) agree on the slug: and enroll: lines — and the plan below
+    // mints the folder the author chose, not the title's. The editor's own
+    // document changes only when the commit lands, with the rest of the
+    // bookkeeping below. applyCourseFolder writes nothing once slug: exists.
+    const withFolder = applyCourseFolder(doc.value, folder);
+    const text = allowSignup === undefined ? withFolder : applyJoinDoor(withFolder, allowSignup);
     const course = parseCourse(text);
     if (course.lectures.length === 0) {
       say("There is nothing to publish yet.", "error");

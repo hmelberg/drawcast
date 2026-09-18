@@ -198,7 +198,7 @@ describe("the Join-door checkbox and the claim are wired (source guards — no j
     expect(course).toMatch(/joinDoor: course\.enroll !== undefined/);
     expect(course).toMatch(/enrollUrl: course\.enroll/); // F2 — what unchecking would delete
     const publishFn = course.slice(course.indexOf("async function publish("), course.indexOf("function showLinks("));
-    expect(publishFn).toMatch(/applyJoinDoor\(doc\.value, allowSignup\)/);
+    expect(publishFn).toMatch(/applyJoinDoor\(withFolder, allowSignup\)/); // the Folder field (2026-09-18) is applied first
     expect(publishFn.indexOf("applyJoinDoor(")).toBeLessThan(publishFn.indexOf("await preparePublish("));
     // The text handed to the publish is the one the choice was applied to.
     expect(publishFn).toMatch(/const publishArgs: PublishArgs = \{\s*text,/);
@@ -256,7 +256,7 @@ describe("the Join-door checkbox and the claim are wired (source guards — no j
 // the author types binds to the `name:` option — the short address
 // drawcast.app/#<name> — and NEVER to `slug:`, the folder every published
 // link and the Anvil course key hang off.
-import { applyCourseName } from "../src/course/publish";
+import { applyCourseFolder, applyCourseName } from "../src/course/publish";
 
 describe("applyCourseName", () => {
   const PUBLISHED = "# Micro I\nslug: micro-i\n---\n## Supply\nWhy?\n";
@@ -364,5 +364,47 @@ describe("prettyCopies — what a pretty link can point at", () => {
   test("a course names its own copies (its page)", () => {
     expect(prettyCopies({ copies: [{ label: "the course page", target: "hm/casts/courses/micro-i" }] }, settings, "course")).toEqual([{ label: "the course page", target: "hm/casts/courses/micro-i" }]);
     expect(prettyCopies({}, settings, "course")).toEqual([]);
+  });
+});
+
+// The Folder field (2026-09-18, Hans: "the user may want to control the name
+// of the folder"): the course's `slug:` is chosen BEFORE the first publish and
+// never after — every lecture link, the Anvil course key and every learner
+// record hang off it. applyCourseFolder is the one place that rule lives.
+describe("applyCourseFolder", () => {
+  const FRESH = "# Micro I\n---\n## Supply\nWhy?\n";
+  const PUBLISHED = "# Micro I\nslug: micro-i\n---\n## Supply\nWhy?\n";
+  test("before a first publish, a typed folder becomes slug:, normalised like a name", () => {
+    const out = applyCourseFolder(FRESH, "Micro Economics 1");
+    expect(out).toContain("slug: micro-economics-1");
+    expect(parseCourse(out).context.slug).toBe("micro-economics-1");
+    expect(out.startsWith("# Micro I\nslug: micro-economics-1\n")).toBe(true);
+  });
+  test("once slug: exists nothing typed can move it", () => {
+    expect(applyCourseFolder(PUBLISHED, "somewhere-else")).toBe(PUBLISHED);
+    expect(parseCourse(applyCourseFolder(PUBLISHED, "somewhere-else")).context.slug).toBe("micro-i");
+  });
+  test("nothing typed leaves the document byte-identical, and the title's own slug is not written twice", () => {
+    expect(applyCourseFolder(FRESH, undefined)).toBe(FRESH);
+    expect(applyCourseFolder(FRESH, "   ")).toBe(FRESH);
+    const once = applyCourseFolder(FRESH, "micro-i");
+    expect(applyCourseFolder(once, "micro-i")).toBe(once);
+  });
+});
+
+describe("the Folder field's wiring (source guards — no jsdom here)", () => {
+  const share = readFileSync(new URL("../src/ui/share.ts", import.meta.url), "utf8").replace(/^\s*\/\/.*$/gm, "");
+  const coursePanel = readFileSync(new URL("../src/ui/course.ts", import.meta.url), "utf8").replace(/^\s*\/\/.*$/gm, "");
+  test("Share shows the Folder row for a course before its first publish only, prefilled from the title, following the pretty name until touched", () => {
+    expect(share).toMatch(/publishFolderRow\.hidden = current\.subject !== "course" \|\| doc\.folder !== undefined;/);
+    expect(share).toMatch(/publishFolderInput\.value = slugify\(doc\.title\)/);
+    expect(share).toMatch(/publishFolderTouched = false;/);
+    expect(share).toMatch(/prettyNameInput\.addEventListener\("change", \(\) => \{\s*if \(!publishFolderTouched\) publishFolderInput\.value = slugify\(prettyNameInput\.value\);/);
+    expect(share).toMatch(/folder: deps\.subject === "course" && !publishFolderRow\.hidden \? publishFolderInput\.value\.trim\(\) \|\| undefined : undefined,/);
+  });
+  test("the course publisher applies the folder to the text before the join door, so the plan sees the chosen slug", () => {
+    const body = coursePanel.slice(coursePanel.indexOf("async function publish({"), coursePanel.indexOf("const course = parseCourse(text);"));
+    expect(body).toMatch(/applyCourseFolder\(doc\.value, folder\)/);
+    expect(body.indexOf("applyCourseFolder(")).toBeLessThan(body.indexOf("applyJoinDoor("));
   });
 });

@@ -182,8 +182,14 @@ export interface ShareDeps {
    * `allowSignup` is the course-only Join-door choice (teachers round): true
    * writes `enroll: <default app>` into the course document before
    * publishing, false removes the line; undefined for `subject: "drawcast"`.
+   *
+   * `folder` is the course-only Folder field (2026-09-18): the folder under
+   * <coursesDir>/ the course publishes into, offered BEFORE the first publish
+   * only — it becomes `slug:` and never moves. Undefined for a drawcast, for
+   * a published course (the row is hidden), and when left empty (the title's
+   * own slug is minted as before).
    */
-  publish: (choices: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean; allowSignup?: boolean }) => Promise<void>;
+  publish: (choices: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean; allowSignup?: boolean; folder?: string }) => Promise<void>;
   /**
    * The four resolvers (portrait, source, image, icon) a bake runs, read
    * fresh from Settings for the contact address — main.ts's `embedDeps()`.
@@ -592,6 +598,22 @@ function build(): ShareSession {
   });
   const publishNameHint = h("div", { class: "hint" }, "Changing the name publishes a new copy; the old link keeps working.");
   const publishNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", publishNameInput), publishNameHint);
+  // The Folder field (2026-09-18): a COURSE's folder under <coursesDir>/,
+  // chosen before its first publish and fixed afterwards (the Pretty link
+  // panel's folder line says so once it exists). Prefilled with the title's
+  // slug; follows the pretty-link name as it is typed until the author
+  // touches it, since the two usually want to match — and stay independent
+  // afterwards, because a folder never moves and a name can.
+  const publishFolderInput = h("input", { type: "text", class: "yt-field", "aria-label": "Folder" }) as HTMLInputElement;
+  let publishFolderTouched = false;
+  publishFolderInput.addEventListener("change", () => {
+    publishFolderTouched = true;
+  });
+  publishFolderInput.addEventListener("blur", () => {
+    publishFolderInput.value = slugify(publishFolderInput.value);
+  });
+  const publishFolderHint = h("div", { class: "hint" }, "The folder this course publishes into. Fixed after the first publish — every lecture link and learner record points here.");
+  const publishFolderRow = h("div", {}, h("label", { class: "quiet-label" }, "Folder ", publishFolderInput), publishFolderHint);
   // Key "share" so this panel's two boxes keep the exact ids they have always
   // had ("share-embed-images"/"share-embed-narration") — extracting the rows
   // into a builder must not be observable from outside this file.
@@ -670,13 +692,14 @@ function build(): ShareSession {
         ? `enroll: ${doc.enrollUrl} names a server of your own — this app reports progress to the drawcast server only, so learners are not followed there and the page gets no Join link; unchecking removes the line from the course document`
         : SIGNUP_HINT_DEFAULT;
   }
-  const linkPanel = h("div", { class: "share-panel" }, linkSubjectLine, publishNameRow, ...linkChoices.rows, commentsLabel, countViewsLabel, signupLabel);
+  const linkPanel = h("div", { class: "share-panel" }, linkSubjectLine, publishNameRow, publishFolderRow, ...linkChoices.rows, commentsLabel, countViewsLabel, signupLabel);
   const publishGo = h("button", { class: "primary" }, "Publish") as HTMLButtonElement;
   publishGo.addEventListener("click", () => {
     const deps = current;
     const choices = {
       ...linkChoices.choices(),
       slug: publishNameInput.value.trim() || undefined,
+      folder: deps.subject === "course" && !publishFolderRow.hidden ? publishFolderInput.value.trim() || undefined : undefined,
       allowComments: commentsCb.checked && !commentsCb.disabled,
       countViews: countViewsCb.checked,
       allowSignup: deps.subject === "course" ? signupCb.checked : undefined,
@@ -1349,6 +1372,11 @@ function build(): ShareSession {
     "A short address for this work: drawcast.app/#name, which also answers as name.drawcast.app. Bought once; the direct link you already have stays free.",
   );
   const prettyNameInput = h("input", { type: "text", class: "yt-field", "aria-label": "Pretty link name" }) as HTMLInputElement;
+  // "change", not "input": Share keeps exactly one input listener (the price
+  // line), so the folder follows the pretty name when that field is left.
+  prettyNameInput.addEventListener("change", () => {
+    if (!publishFolderTouched) publishFolderInput.value = slugify(prettyNameInput.value);
+  });
   const prettyPriceLine = h("div", { class: "hint" });
   function refreshPrettyPrice(): void {
     const name = slugify(prettyNameInput.value);
@@ -1489,6 +1517,11 @@ function build(): ShareSession {
     // shown disabled, since there is nothing here for a course author to decide.
     publishNameRow.hidden = current.subject === "course";
     publishNameInput.value = current.subject === "course" ? "" : (doc.publishedAs ?? slugify(doc.title));
+    // The Folder row: a course, before its first publish. Reset on every open
+    // so a value typed for one course never rides into another.
+    publishFolderRow.hidden = current.subject !== "course" || doc.folder !== undefined;
+    publishFolderInput.value = slugify(doc.title);
+    publishFolderTouched = false;
     refreshPretty(doc, current.subject);
     linkChoices.refresh(doc, current.subject);
     refreshCommentsChoice(doc);

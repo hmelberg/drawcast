@@ -92,6 +92,23 @@ export function applyCourseName(text: string, typed: string | undefined, slug: s
   return setCourseOption(text, "name", wanted);
 }
 
+/**
+ * Bind what the author typed into the Folder field (2026-09-18) to `slug:` —
+ * the folder under <coursesDir>/ every lecture link, the Anvil course key
+ * and every learner record hang off — and only BEFORE the first publish:
+ * once `slug:` exists it never moves (setCourseOption's contract, and the
+ * name round's ruling), so a typed folder against a published course is
+ * ignored rather than becoming a silent move. Nothing typed leaves the text
+ * alone; the folder is normalised like a name.
+ */
+export function applyCourseFolder(text: string, typed: string | undefined): string {
+  const raw = (typed ?? "").trim();
+  if (raw === "") return text;
+  const course = parseCourse(text);
+  if (course.context.slug) return text;
+  return setCourseOption(text, "slug", slugify(raw));
+}
+
 /** What a course publish registers (spec §7): `name:` if set, else the slug. */
 export function courseRegistration(
   course: Course,
