@@ -44,6 +44,37 @@ describe("hitElement with outlines", () => {
   });
 });
 
+describe("hitElement across outlines and boxes", () => {
+  // A code panel: the element `md` draws its frame as a closed stroke (so it
+  // has a ring) and its lines are text drawables with boxes only.
+  const frame: Pt[] = [[0, 0], [400, 0], [400, 300], [0, 300]];
+  const boxes = new Map([
+    ["md", { x: 0, y: 0, w: 400, h: 300 }],
+    ["md_line_1", { x: 20, y: 250, w: 360, h: 20 }],
+    ["md_line_4", { x: 20, y: 100, w: 360, h: 20 }],
+  ]);
+  const rings = new Map([["md", [frame]]]);
+
+  test("a box-only element inside an outlined container wins when it is smaller", () => {
+    expect(hitElement(boxes, [100, 110], 0, rings)).toBe("md_line_4");
+    expect(hitElement(boxes, [100, 260], 0, rings)).toBe("md_line_1");
+  });
+
+  test("the container still answers between its lines", () => {
+    expect(hitElement(boxes, [100, 180], 0, rings)).toBe("md");
+  });
+
+  test("an outlined element whose box contains the point but whose outline does not is never a candidate", () => {
+    // [5, 5] is inside the diamond's BOX and outside its outline; the label's
+    // box is larger, but it is the only real candidate.
+    const withLabel = new Map([
+      ["small_diamond", { x: 0, y: 0, w: 100, h: 100 }],
+      ["label", { x: 0, y: 0, w: 150, h: 150 }],
+    ]);
+    expect(hitElement(withLabel, [5, 5], 0, new Map([["small_diamond", [diamond]]]))).toBe("label");
+  });
+});
+
 test("elementRings collects closed outlines and ignores open strokes", () => {
   const area: Drawable = {
     id: "liver", kind: "area", pts: diamond, z: Z_AREA,
