@@ -24,6 +24,7 @@ import type { BBox } from "../layout/geometry";
 import type { HighlightEffect } from "../spec/types";
 import type { BackendEffects, BackendModule, FlowOpts, MountResult, RenderedElement, Squash } from "./backend";
 import type { Turn } from "./pose";
+import { computeTypeFrame, type TypeRun } from "./type-reveal";
 
 export const SKETCH_FONT = "'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive";
 /** System monospace stack: no webfont fetch, and available to the export
@@ -332,6 +333,21 @@ function drawLeafClean(g: SVGGElement, d: Exclude<Drawable, { kind: "group" | "t
   if (d.style.opacity < 1) g.setAttribute("opacity", String(d.style.opacity));
 }
 
+/** A code source line's coloured runs (layout/model.ts TextDrawable.runs) as
+ *  nested tspans on their row (or directly on `<text>` for a single-row
+ *  leaf) — one child per run, in order, so the run texts read exactly as
+ *  the row's own text. A plain run (no colour: the tokenizer's `plain`
+ *  kind, or an unknown language) gets no `fill` attribute at all and simply
+ *  inherits the drawable's own `style.color` from the ancestor `<text>`. */
+function appendRuns(parent: SVGTextElement | SVGTSpanElement, runs: { text: string; color?: string }[]): void {
+  for (const run of runs) {
+    const span = document.createElementNS(SVG_NS, "tspan");
+    if (run.color) span.setAttribute("fill", run.color);
+    span.textContent = run.text;
+    parent.appendChild(span);
+  }
+}
+
 function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>): SVGGElement {
   const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
   g.dataset.leafId = d.id;
@@ -367,9 +383,17 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
         const span = document.createElementNS(SVG_NS, "tspan");
         span.setAttribute("x", String(x));
         span.setAttribute("dy", String(i === 0 ? -((d.lines!.length - 1) / 2) * lineH : lineH));
-        span.textContent = line;
+        // Marks this as a ROW, for the `type` draw mode below — distinct
+        // from a single-row leaf's own run tspans (case just below), which
+        // sit directly on <text> with no row wrapper and so carry no marker.
+        span.dataset.row = "1";
+        const runs = d.runs?.[i];
+        if (runs) appendRuns(span, runs);
+        else span.textContent = line;
         t.appendChild(span);
       });
+    } else if (d.runs?.[0]) {
+      appendRuns(t, d.runs[0]);
     } else {
       t.textContent = d.text;
     }
@@ -509,29 +533,43 @@ function makeLeafHandle(g: SVGGElement, leaf: Exclude<Drawable, { kind: "group" 
     // brightening ever matters, and re-check the 3D scenes when you do.
     if (leaf.drawOpts.mode === "type") {
       // The typed reveal: at progress p the node shows the first round(p·n)
-      // characters, row by row for a wrapped line, with a cursor glyph after
-      // the last shown character while typing. A pure function of p, so
-      // scrub, erase (p runs 1→0: the line untypes) and the exporter's fixed
-      // frame clock all agree. The handle reads the DOM's rows, not the
-      // leaf's joined text, so wrapped rows type in reading order.
+      // characters, row by row for a wrapped line — and, within a coloured
+      // source line, run by run, so a token keeps its own fill while it
+      // types — with a cursor glyph after the last shown character while
+      // typing. The character math is pure (computeTypeFrame,
+      // render/type-reveal.ts — untestable here without a browser, this
+      // repo carries no jsdom): scrub, erase (p runs 1→0: the line untypes)
+      // and the exporter's fixed frame clock all agree because they are all
+      // just calls to it at different n. This is only the DOM glue around
+      // that: reading the leaf's rows/runs from what drawLeaf just built,
+      // and writing the answer back.
+      //
+      // Rows are the direct-child ROW tspans drawLeaf marks with
+      // `data-row` (a wrapped, multi-row leaf) — never every descendant
+      // tspan, which would also catch a row's own nested run tspans and
+      // miscount them as extra rows. A single-row leaf has no row tspan at
+      // all: its run tspans (a coloured line with no `lines`), if any, sit
+      // directly on `<text>`, so `<text>` itself is that one row; with
+      // neither runs nor rows, `<text>` is its own single, uncoloured run
+      // (the legacy shape, textContent set directly).
       const textEl = g.querySelector("text");
-      const spans = textEl ? [...textEl.querySelectorAll("tspan")] : [];
-      const full = spans.length > 0 ? spans.map((s) => s.textContent ?? "") : [textEl?.textContent ?? ""];
-      const total = full.reduce((a, s) => a + s.length, 0);
+      const isTspan = (n: Element): n is SVGTSpanElement => n.tagName === "tspan";
+      const rowTspans = textEl ? [...textEl.children].filter((c): c is SVGTSpanElement => isTspan(c) && "row" in c.dataset) : [];
+      const rowEls: (SVGTextElement | SVGTSpanElement)[] = rowTspans.length > 0 ? rowTspans : textEl ? [textEl] : [];
+      const rowRunEls: (SVGTextElement | SVGTSpanElement)[][] = rowEls.map((row) => {
+        const nested = [...row.children].filter(isTspan);
+        return nested.length > 0 ? nested : [row];
+      });
+      const full: TypeRun[][] = rowRunEls.map((runEls) => runEls.map((el) => ({ text: el.textContent ?? "" })));
+      const total = full.reduce((a, runs) => a + runs.reduce((b, r) => b + r.text.length, 0), 0);
       const CURSOR = "▌";
       const apply = (n: number, typing: boolean) => {
-        let left = n;
-        let cursorPlaced = false;
-        full.forEach((s, i) => {
-          const take = Math.max(0, Math.min(s.length, left));
-          left -= take;
-          let shown = s.slice(0, take);
-          if (typing && !cursorPlaced && (take < s.length || i === full.length - 1)) {
-            shown += CURSOR;
-            cursorPlaced = true;
-          }
-          if (spans.length > 0) spans[i].textContent = shown;
-          else if (textEl) textEl.textContent = shown;
+        const { shown, cursorAt } = computeTypeFrame(full, n, typing);
+        shown.forEach((runs, i) => {
+          runs.forEach((text, j) => {
+            const cursor = cursorAt && cursorAt[0] === i && cursorAt[1] === j ? CURSOR : "";
+            rowRunEls[i][j].textContent = text + cursor;
+          });
         });
       };
       return {
@@ -844,6 +882,11 @@ function emphasisClone(g: SVGGElement, color: string, glow: boolean): SVGGElemen
     p.setAttribute("stroke-width", String(w + 1.5));
   }
   for (const t of Array.from(c.querySelectorAll("text"))) t.setAttribute("fill", color);
+  // A code line's coloured runs (layout/model.ts TextDrawable.runs) sit on
+  // nested tspans with their OWN `fill` — which, unlike the ancestor
+  // <text>'s, is not overwritten above and would otherwise win, leaving the
+  // emphasis echo rainbow-tinted instead of a flat highlight colour.
+  for (const s of Array.from(c.querySelectorAll("tspan"))) s.removeAttribute("fill");
   if (glow) c.style.filter = `drop-shadow(0 0 9px ${color})`;
   return c;
 }
