@@ -12,6 +12,8 @@ import { reviseCourse } from "../course/revise";
 import { estimateCalls, loadedLectureFromRow, runCourse, type PartialLecture } from "../course/run";
 import { setLectureStatus } from "../course/document";
 import type { GenerateConfig, PromptVariant } from "../llm/compile";
+import { callLedger, costSummary, formatCost, MODELS, resetCallLedger } from "../llm/client";
+import { estimateCourseUsd, formatCourseEstimate, learnRate, rateKey } from "../llm/cost-estimate";
 import type { Exemplar } from "../llm/prompt";
 import { reviseDocument } from "../llm/revise";
 import { generationGate } from "../llm/limit";
@@ -51,7 +53,7 @@ import { resolveSources } from "../render/source";
 import { resolveImages } from "../render/image";
 import { resolveIcons } from "../render/icon";
 import { unembeddedImages } from "./insert";
-import { getGithubToken, getTtsKey, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, type SavedCourse, type SavedDrawing } from "../store";
+import { getGithubToken, getTtsKey, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, saveSettings, type SavedCourse, type SavedDrawing } from "../store";
 import { h } from "./dom";
 import { createModal } from "./modal";
 import { openShare, type ShareDeps } from "./share";
@@ -703,6 +705,12 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         say("Every lecture is already generated.", "ok");
         return;
       }
+      // The AI-call count above is not the bill — the confirm never priced
+      // it (Hans 2026-09-18). Estimated from a learned $/part once a run has
+      // measured one (Settings.costPerPart), from a rough prior until then.
+      const modelLabel = (MODELS.find((m) => m.id === deps.model())?.label ?? deps.model()).split(" — ")[0];
+      const costEstimate = estimateCourseUsd(course, deps.model(), deps.settings.effort, deps.settings.costPerPart);
+      const costNote = `\n${formatCourseEstimate(costEstimate, modelLabel, deps.settings.effort)}`;
       // Narration is paid LATER (Publish → Embed narration), but the size of
       // that later bill belongs in this confirm (Hans 2026-09-02): projected
       // from the lectures generated so far, or from a measured typical
@@ -711,7 +719,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       const narrationNote = projection.chars > 0
         ? `\nNarration, if you later publish with “Embed narration”: roughly ${costLabel(projection)} for all ${course.lectures.length} lectures with the current voice.`
         : "";
-      if (!confirm(`${costPreview(course)}${narrationNote}\n\nGenerate now?`)) return;
+      if (!confirm(`${costPreview(course)}${costNote}${narrationNote}\n\nGenerate now?`)) return;
     }
     // Mint the course id before the first lecture is stored, so every lecture
     // this run produces is tagged with the course that owns it.
@@ -728,6 +736,10 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
     // the others and keeps the cap a cap for the run, not per lecture.
     const onDemandRun = createOnDemandRun(deps.settings.templatesOnDemandMax);
     try {
+      // Cleared right before the calls it is meant to total start, so the
+      // ledger read below is this run's alone — a per-lecture ⟳ resets it
+      // just the same, and so learns its own rate.
+      resetCallLedger();
       const result = await runCourse(
         doc.value,
         { ...config(controller.signal), onDemandRun },
@@ -758,6 +770,22 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         store,
         { ...opts, loadLecture },
       );
+      // The rate this run actually paid, learned into Settings.costPerPart
+      // for the next confirm — only from a run that both generated a part
+      // fresh and spent something the ledger saw (a run that only replayed
+      // stored parts, or that failed before any call, teaches nothing).
+      const costs = costSummary(callLedger());
+      if (result.partsGenerated > 0 && costs.usd > 0) {
+        const key = rateKey(deps.model(), deps.settings.effort);
+        const measured = costs.usd / result.partsGenerated;
+        // Reassigned, never mutated in place: a settings blob that predates
+        // this field aliases DEFAULT_SETTINGS.costPerPart's own {} instance
+        // (see the read() comment in store.ts) until it is saved once, and
+        // an in-place write would corrupt that shared default for the rest
+        // of the session.
+        deps.settings.costPerPart = { ...deps.settings.costPerPart, [key]: learnRate(deps.settings.costPerPart[key], measured) };
+        saveSettings(deps.settings);
+      }
       status.textContent = "";
       const failed = result.failed.length;
       const partial = result.partial.length;
@@ -767,12 +795,18 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       ]
         .filter(Boolean)
         .join("; ");
+      const costSuffix = costs.calls > 0 ? ` · ${formatCost(costs)}` : "";
+      const teachingSuffix =
+        result.teachingPass.runs > 0 ? ` · teaching pass changed ${result.teachingPass.adopted} of ${result.teachingPass.runs}` : "";
       say(
         (controller.signal.aborted
           ? `Cancelled after ${result.generated} lecture${result.generated === 1 ? "" : "s"}.`
           : trouble
             ? `Generated ${result.generated}; ${trouble}.`
-            : `Generated ${result.generated} lecture${result.generated === 1 ? "" : "s"}.`) + onDemandSummary(onDemandRun),
+            : `Generated ${result.generated} lecture${result.generated === 1 ? "" : "s"}.`) +
+          onDemandSummary(onDemandRun) +
+          costSuffix +
+          teachingSuffix,
         trouble ? "error" : "ok",
       );
     } catch (err) {

@@ -39,7 +39,11 @@ export function buildSystemPrompt(variantSource: string, parts: PromptParts): st
 export function buildSystemBlocks(variantSource: string, parts: PromptParts): { prefix: string; suffix: string } {
   const fill = (s: string) =>
     s
-      .replaceAll("{{SCHEMA}}", JSON.stringify(parts.schema, null, 2))
+      // Minified, not pretty-printed: measured 2026-09-18 at 36,265 tokens
+      // pretty vs 29,838 minified (Opus 5, count_tokens) — the model reads
+      // minified JSON just as well, and the schema is the largest single
+      // block of the cached prefix.
+      .replaceAll("{{SCHEMA}}", JSON.stringify(parts.schema))
       .replaceAll("{{CATALOG}}", parts.catalog)
       .replaceAll("{{FEWSHOTS}}", parts.fewshots)
       .replaceAll("{{CODE}}", parts.code ?? "")

@@ -24,16 +24,17 @@ export const SECONDS_PER_SPEAK_LINE = 4.5;
 /** Default parts when a lecture declares none — about five minutes. */
 const DEFAULT_PARTS = 4;
 
-function partsOf(lecture: CourseLecture): number {
+/** Exported for src/llm/cost-estimate.ts, which counts a would-be run the same way estimateCalls does. */
+export function partsOf(lecture: CourseLecture): number {
   return parseTags(lecture.tags.join(" ")).parts ?? DEFAULT_PARTS;
 }
 
-function isPending(lecture: CourseLecture): boolean {
+export function isPending(lecture: CourseLecture): boolean {
   return lecture.status?.state !== "done";
 }
 
 /** A failed lecture that kept its other parts: the part numbers its status says are still to generate. */
-function missingOf(lecture: CourseLecture): number[] | undefined {
+export function missingOf(lecture: CourseLecture): number[] | undefined {
   const status = lecture.status;
   return status?.state === "failed" && status.missing && status.missing.length > 0 ? status.missing : undefined;
 }
@@ -201,6 +202,10 @@ export interface RunResult {
   failed: number[];
   /** Indices of the lectures stored with parts missing — ⟳ fills them in. */
   partial: number[];
+  /** Parts (figures) that landed fresh this run — a resumed lecture's already-stored parts don't count, only the ones this run generated. Divides the ledger's dollar total into a $/part rate (src/ui/course.ts, src/llm/cost-estimate.ts). */
+  partsGenerated: number;
+  /** The teaching (pedagogy) pass across every part this run touched: how many parts got one, and how many of those replaced the delivered spec. */
+  teachingPass: { runs: number; adopted: number };
 }
 
 /**
@@ -341,6 +346,11 @@ export async function runCourse(
   let lecturesDone = 0;
   let partsDone = 0;
   let partsTotal = 0;
+  // Fed from the onPart hook below (used to learn a $/part rate — see
+  // src/llm/cost-estimate.ts and src/ui/course.ts).
+  let partsGenerated = 0;
+  let teachingRuns = 0;
+  let teachingAdopted = 0;
 
   const progress = (phase: RunProgress["phase"]): void =>
     hooks.onProgress({ phase, lecturesTotal: targets.length, lecturesDone, partsTotal, partsDone });
@@ -381,8 +391,15 @@ export async function runCourse(
         plan.outline,
         cfg,
         {
-          onPart: () => {
+          onPart: (_done, _total, _index, outcome) => {
             partsDone++;
+            if (outcome.spec) partsGenerated++;
+            for (const round of outcome.rounds) {
+              if (round.label === "pedagogy") {
+                teachingRuns++;
+                if (round.adopted === true) teachingAdopted++;
+              }
+            }
             progress("generating");
           },
         },
@@ -429,5 +446,12 @@ export async function runCourse(
       hooks.onDocument(current);
     }),
   );
-  return { text: current, generated, failed: [...new Set(failed)].sort((a, b) => a - b), partial: partial.sort((a, b) => a - b) };
+  return {
+    text: current,
+    generated,
+    failed: [...new Set(failed)].sort((a, b) => a - b),
+    partial: partial.sort((a, b) => a - b),
+    partsGenerated,
+    teachingPass: { runs: teachingRuns, adopted: teachingAdopted },
+  };
 }

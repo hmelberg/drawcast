@@ -1,7 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// Only for the "landed parts and the teaching pass" describe block below —
+// the same mocking style as tests/course-partial.test.ts: generateFromOutline
+// stands in for the whole multi-part pipeline, so its mock is what calls
+// runCourse's onPart hook with the outcomes a test wants to count.
+vi.mock("../src/llm/multi", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/llm/multi")>();
+  return { ...actual, outlineParts: vi.fn(), generateFromOutline: vi.fn() };
+});
+
+import { generateFromOutline, outlineParts } from "../src/llm/multi";
 import { parseCourse } from "../src/course/document";
-import { buildLectureRequest, estimateCalls, estimateMinutes, lecturePlaylist, pendingIndices } from "../src/course/run";
+import { buildLectureRequest, estimateCalls, estimateMinutes, lecturePlaylist, pendingIndices, runCourse, type RunHooks, type StoreLecture } from "../src/course/run";
 import { itemsOf } from "../src/playlist/playlist";
+import type { GenerateConfig, GenerationOutcome, GenerationRound, PromptVariant } from "../src/llm/compile";
+import type { Outline } from "../src/llm/outline";
 import type { Spec } from "../src/spec/types";
 
 const DOC = `# Causal Inference
@@ -200,5 +213,65 @@ The 2x2 estimator
 
   it("still carries questions when they are questions", () => {
     expect(buildLectureRequest(parseCourse(DOC), 1)).toContain("What breaks parallel trends?");
+  });
+});
+
+describe("runCourse: landed parts and the teaching pass", () => {
+  const VARIANT: PromptVariant = { name: "t", source: "" };
+  const cfg: GenerateConfig = { apiKey: "k", model: "claude-opus-5", variant: VARIANT, exemplars: [] };
+  const hooks: RunHooks = { onLecture: () => {}, onProgress: () => {}, onDocument: () => {} };
+  const ONE_LECTURE = `# C\n\n## L1\nq\n#parts=3\n`;
+  const OUTLINE: Outline = { title: "L1", parts: [{ title: "a", brief: "" }, { title: "b", brief: "" }, { title: "c", brief: "" }] };
+  const mkSpec = (title: string): Spec => ({ title, elements: [], commands: [] }) as Spec;
+  const round = (label: GenerationRound["label"], adopted?: boolean): GenerationRound => ({
+    label,
+    spec: null,
+    validationErrors: [],
+    lintIssues: [],
+    meta: { ms: 0, structuredOutput: true },
+    ...(adopted !== undefined ? { adopted } : {}),
+  });
+  const outcome = (spec: Spec | null, rounds: GenerationRound[]): GenerationOutcome => ({
+    spec,
+    rounds,
+    systemPromptChars: 0,
+    seeded: false,
+    ...(spec ? {} : { error: "no spec" }),
+  });
+
+  beforeEach(() => {
+    vi.mocked(outlineParts).mockReset();
+    vi.mocked(generateFromOutline).mockReset();
+    vi.mocked(outlineParts).mockResolvedValue({ outline: OUTLINE });
+  });
+
+  it("counts only the parts that landed fresh, and tallies the teaching pass across every part touched", async () => {
+    // Part 1: pedagogy ran and replaced the spec. Part 2: pedagogy ran but was
+    // not adopted. Part 3: failed before a pedagogy pass ever ran.
+    const outcomes = [
+      outcome(mkSpec("a"), [round("initial"), round("pedagogy", true)]),
+      outcome(mkSpec("b"), [round("initial"), round("pedagogy", false)]),
+      outcome(null, [round("initial")]),
+    ];
+    vi.mocked(generateFromOutline).mockImplementation(async (_req, _plan, _cfg, partsHooks) => {
+      outcomes.forEach((o, i) => partsHooks?.onPart?.(i + 1, outcomes.length, i, o));
+      return { outline: null, specs: [mkSpec("a"), mkSpec("b")], chapterOf: [undefined, undefined], failed: [3], errors: ["no spec"] };
+    });
+    const store = vi.fn<StoreLecture>(() => "id");
+    const result = await runCourse(ONE_LECTURE, cfg, hooks, store);
+    expect(result.partsGenerated).toBe(2); // only the two that produced a spec
+    expect(result.teachingPass).toEqual({ runs: 2, adopted: 1 });
+  });
+
+  it("counts nothing generated and no teaching pass when every part fails outright", async () => {
+    const outcomes = [outcome(null, [round("initial")]), outcome(null, [round("initial")]), outcome(null, [round("initial")])];
+    vi.mocked(generateFromOutline).mockImplementation(async (_req, _plan, _cfg, partsHooks) => {
+      outcomes.forEach((o, i) => partsHooks?.onPart?.(i + 1, outcomes.length, i, o));
+      return { outline: null, specs: [], chapterOf: [], failed: [1, 2, 3], errors: ["x", "x", "x"], error: "x" };
+    });
+    const store = vi.fn<StoreLecture>(() => "id");
+    const result = await runCourse(ONE_LECTURE, cfg, hooks, store);
+    expect(result.partsGenerated).toBe(0);
+    expect(result.teachingPass).toEqual({ runs: 0, adopted: 0 });
   });
 });

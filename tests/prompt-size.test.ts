@@ -282,8 +282,15 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Merged 2026-09-18 (all three tracks of the fix round): the wait bullet, the
 // explore bullet, the node/shape and explore schema sentences and the migrated
 // fewshot land together — measured after the merge: schema 120539, system 239462.
-const BASELINE_SYSTEM_CHARS = 239462;
-const BASELINE_SCHEMA_CHARS = 120539;
+// Re-pinned DOWN 2026-09-18 for the cost round: the schema is embedded
+// minified now instead of pretty-printed with a 2-space indent (measured with
+// Anthropic's count_tokens: 36,265 tokens pretty vs 29,838 minified on Opus
+// 5 — the model reads minified JSON just as well, and the schema is the
+// largest single block of the cached prefix). This is pure whitespace, so
+// both anchors drop by exactly the same 41,862 chars: schema 120539 → 78677,
+// system 239462 → 197600.
+const BASELINE_SYSTEM_CHARS = 197600;
+const BASELINE_SCHEMA_CHARS = 78677;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {
@@ -297,7 +304,7 @@ const system = (code: boolean, sound = false) =>
 
 describe("prompt budget (spec §6.3)", () => {
   test("the schema stays within the pinned size", () => {
-    expect(JSON.stringify(apiSchema(), null, 2).length).toBeLessThanOrEqual(BASELINE_SCHEMA_CHARS);
+    expect(JSON.stringify(apiSchema()).length).toBeLessThanOrEqual(BASELINE_SCHEMA_CHARS);
   });
   test("a non-code request gets a system prompt no larger than the pinned size", () => {
     expect(system(false).length).toBeLessThanOrEqual(BASELINE_SYSTEM_CHARS);

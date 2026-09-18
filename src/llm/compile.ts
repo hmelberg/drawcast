@@ -320,7 +320,7 @@ export const PEDAGOGY_RUBRIC = `The spec is structurally correct and renders cle
 6. INTELLIGENT VIEWER — no words spent on the self-evident; the emphasis lands on the non-intuitive.
 7. MOMENTS MARKED — highlight/focus/annotation sit at the moments of meaning (the reveal, the contrast), never as decoration.
 8. NAMED PARTS — if the figure is a thing rather than a plot, its parts are named elements the narration points at, not anonymous strokes.
-If the spec already does all of this, return it EXACTLY unchanged. Otherwise return the improved COMPLETE spec — SAME template, params and figure; better narration, ordering and staging — as minified JSON.`;
+If the spec already does all of this, reply with exactly {"unchanged": true} and nothing else. Otherwise return the improved COMPLETE spec — SAME template, params and figure; better narration, ordering and staging — as minified JSON.`;
 
 /**
  * The adoption rule shared by every optional improvement round (pedagogy,
@@ -348,6 +348,14 @@ function adoptIfNoWorse(
   const changed = JSON.stringify(candidate) !== JSON.stringify(current);
   if (noWorse && changed) return { spec: candidate, adopted: true, lintIssues: candidateLint, validationErrors: [] };
   return { spec: current, adopted: false, lintIssues: baseLint, validationErrors: [] };
+}
+
+// The pedagogy pass used to have the model echo the whole spec back to say
+// "no changes" — several thousand output tokens at $25/M for nothing
+// (2026-09-18). Now a pass verdict is this one small object instead; true
+// for any plain object with `unchanged === true` (nothing else required).
+export function isUnchangedReply(json: unknown): boolean {
+  return typeof json === "object" && json !== null && !Array.isArray(json) && (json as { unchanged?: unknown }).unchanged === true;
 }
 
 export async function generateSpec(request: string, cfg: GenerateConfig): Promise<GenerationOutcome> {
@@ -645,9 +653,13 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
           onDelta: cfg.onProgress && ((_delta, text) => cfg.onProgress!({ label: "pedagogy", round, text })),
         },
       );
-      const result = adoptIfNoWorse(best, json, baseLint, lintOf);
-      if (result.adopted) best = result.spec;
-      rounds.push({ label: "pedagogy", spec: json, validationErrors: result.validationErrors, lintIssues: result.lintIssues, meta, adopted: result.adopted });
+      if (isUnchangedReply(json)) {
+        rounds.push({ label: "pedagogy", spec: best, validationErrors: [], lintIssues: baseLint, meta, adopted: false });
+      } else {
+        const result = adoptIfNoWorse(best, json, baseLint, lintOf);
+        if (result.adopted) best = result.spec;
+        rounds.push({ label: "pedagogy", spec: json, validationErrors: result.validationErrors, lintIssues: result.lintIssues, meta, adopted: result.adopted });
+      }
     } catch {
       /* best-effort by design */
     }
@@ -720,6 +732,10 @@ export async function generateOutline(
 ): Promise<Outline | null> {
   const client = makeClient(cfg.apiKey);
   const { system, user } = buildOutlineMessages(request, parts, chapters);
-  const { json } = await callForJson(client, cfg.model, system, [{ role: "user", content: user }], OUTLINE_SCHEMA as unknown as object, { signal });
+  // Low effort: four titles and one-line briefs need no deliberation, and at
+  // the API default the model thought for thousands of tokens over a reply
+  // of a hundred (cost round 2026-09-18). The parts themselves keep the
+  // author's effort dial; this is the plan, not the teaching.
+  const { json } = await callForJson(client, cfg.model, system, [{ role: "user", content: user }], OUTLINE_SCHEMA as unknown as object, { signal, effort: "low" });
   return normalizeOutline(json, chapters);
 }

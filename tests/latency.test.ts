@@ -41,7 +41,7 @@ describe("buildSystemBlocks — static prefix cacheable, exemplars in the dynami
 
   test("splits at the exemplars placeholder with all other placeholders filled", () => {
     const { prefix, suffix } = buildSystemBlocks(source, parts);
-    expect(prefix).toContain('"a": 1');
+    expect(prefix).toContain('"a":1');
     expect(prefix).toContain("CAT");
     expect(prefix).toContain("FEW");
     expect(prefix).not.toContain("EXE");
@@ -52,7 +52,7 @@ describe("buildSystemBlocks — static prefix cacheable, exemplars in the dynami
 
   test("a source without the exemplars placeholder becomes one fully static block", () => {
     const { prefix, suffix } = buildSystemBlocks("Only {{SCHEMA}} here.", parts);
-    expect(prefix).toContain('"a": 1');
+    expect(prefix).toContain('"a":1');
     expect(suffix).toBe("");
   });
 

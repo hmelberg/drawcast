@@ -194,6 +194,9 @@ export interface Settings {
   /** Chrome appearance. "system" follows prefers-color-scheme; the figure
    *  itself never reads this (see render/figure-style.ts). */
   theme: "system" | "light" | "dark";
+  /** Learned $/part by `${model}|${effort}` (src/llm/cost-estimate.ts's rateKey), written after every course
+   *  run and read by the course confirm to estimate the next one's AI-call cost. */
+  costPerPart: Record<string, number>;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -250,6 +253,7 @@ export const DEFAULT_SETTINGS: Settings = {
   giscusCategory: "Announcements",
   giscusCategoryId: "",
   theme: "system",
+  costPerPart: {},
 };
 
 function read<T>(key: string, fallback: T): T {

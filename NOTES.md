@@ -144,8 +144,20 @@ ruled on:
   budget instead of BYOK and key vending.
 - The YAML spec editor to a drawer; prompt library, ratings,
   improve-from-worst and the Data modal to dev-only or out.
-- Schema condensation (17.7k tokens today, larger than the prompt); the
-  `code` bullet as a conditional block (in the freehand round).
+- Schema condensation. Measured 2026-09-18 (count_tokens, Opus 5): the
+  cached prefix is ~83k tokens, the schema ~30k of it now that it is
+  embedded minified (36k pretty-printed); 54k of its 79k chars are the 280
+  property descriptions, many restating compiler-v1.md. Worth doing only
+  for the cache WRITES — a cached read of the whole prefix is ~$0.04. The
+  `code` bullet is a conditional block since the freehand round.
+- Cost levers still open after the 2026-09-18 cost round (which added the
+  prefix gate, low-effort outline, medium-effort plan, the one-token
+  "unchanged" teaching-pass reply and the course cost estimate): the effort
+  dial at medium for the creative round (output is ~80 % of a part's cost
+  and thinking most of the output — measure one course at each setting);
+  dropping or narrowing the teaching pass once its adopted count (now on
+  the course run summary) says how often it changes anything; the Batch
+  API for courses (50 % off everything, needs the repair loop as rounds).
 - Warn-level lint (overlap, small text) getting one repair round.
 - One deploy target (Netlify); the Pages build depends on Netlify anyway.
 - Code runtimes beyond Pyodide and webR (Brython, MicroPython,

@@ -144,7 +144,7 @@ describe("buildSystemPrompt", () => {
       fewshots: "FEWSHOTS HERE",
       exemplars: "EXEMPLARS HERE",
     });
-    expect(out).toContain('"type": "object"');
+    expect(out).toContain('"type":"object"');
     expect(out).toContain("SCENE CATALOG HERE");
     expect(out).toContain("FEWSHOTS HERE");
     expect(out).toContain("EXEMPLARS HERE");

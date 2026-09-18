@@ -481,6 +481,20 @@ describe("pedagogy review pass", () => {
     expect(outcome.spec).toEqual(VALID_SUPPLY_DEMAND);
   });
 
+  test("an unchanged verdict ({\"unchanged\": true}) is recorded but not adopted, with no spec echoed back", async () => {
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND)).mockResolvedValueOnce(respond({ unchanged: true }));
+    const outcome = await generateSpec("draw supply and demand", baseCfg({ pedagogyReview: true }));
+    expect(outcome.rounds[1].label).toBe("pedagogy");
+    expect(outcome.rounds[1].adopted).toBe(false);
+    // The round records the DELIVERED spec, not the {"unchanged": true} reply.
+    expect(outcome.rounds[1].spec).toEqual(VALID_SUPPLY_DEMAND);
+    expect(outcome.spec).toEqual(VALID_SUPPLY_DEMAND);
+    // The rubric sent to the model asks for the compact verdict, not a full echo.
+    const sentMessages = mockCallForJson.mock.calls[1][3] as { role: string; content: string }[];
+    const rubricMsg = sentMessages[sentMessages.length - 1].content;
+    expect(rubricMsg).toContain('{"unchanged": true}');
+  });
+
   test("a revision that switches template or breaks validation is discarded", async () => {
     // The base spec deliberately does NOT lint clean (D1): two speaks before
     // any draw is a slow-start WARN. With the old fixture — VALID_SUPPLY_DEMAND,

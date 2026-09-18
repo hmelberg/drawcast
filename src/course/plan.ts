@@ -144,7 +144,11 @@ export async function generateCoursePlan(
 ): Promise<Course | null> {
   const client = makeClient(cfg.apiKey);
   const { system, user } = buildCourseMessages(request, lectures);
-  const { json } = await callForJson(client, cfg.model, system, [{ role: "user", content: user }], COURSE_SCHEMA as unknown as object, { signal });
+  // Medium, not the default high: one call per course, and its judgement is
+  // the product (which questions, which lecture gets `controversy`), so it
+  // keeps more thinking than the outline does — but a plan is a page of
+  // JSON, not a proof (cost round 2026-09-18).
+  const { json } = await callForJson(client, cfg.model, system, [{ role: "user", content: user }], COURSE_SCHEMA as unknown as object, { signal, effort: "medium" });
   const course = normalizeCoursePlan(json);
   if (course && !course.title) course.title = request;
   return course;

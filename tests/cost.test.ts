@@ -38,7 +38,7 @@ describe("costSummary", () => {
 describe("formatCost", () => {
   test("reads as an estimate with thousands and the cached share", () => {
     const text = formatCost(costSummary([call("claude-opus-5", 9_000, 52_000, 0, 8_000)]));
-    expect(text).toMatch(/^≈ \$\d+\.\d\d · 61k tokens in \(52k cached\) · 8k out · 1 call$/);
+    expect(text).toMatch(/^≈ \$\d+\.\d\d · 61k tokens in \(52k cache read\) · 8k out · 1 call$/);
   });
   test("a fraction of a cent reads as <$0.01", () => {
     expect(formatCost(costSummary([call("claude-haiku-4-5", 100, 0, 0, 10)]))).toMatch(/^≈ <\$0\.01/);

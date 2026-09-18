@@ -132,14 +132,20 @@ export function costSummary(calls: readonly CallUsage[] = ledger): CostSummary {
   return s;
 }
 
-/** "≈ $0.48 · 61k tokens in (52k cached) · 8k out · 6 calls" — an estimate from list prices, never a bill. */
+/**
+ * "≈ $0.48 · 61k tokens in (52k cache read, 8k written) · 8k out · 6 calls" —
+ * an estimate from list prices, never a bill. Reads and writes are named
+ * apart: a write costs 12.5× a read, and a run whose "written" is a large
+ * multiple of one prefix is a run whose parallel lanes missed each other's
+ * cache (the prefix gate above exists to make that number small).
+ */
 export function formatCost(s: CostSummary): string {
   if (s.calls === 0) return "";
   const k = (n: number): string => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(n));
   const usd = s.usd < 0.01 ? "<$0.01" : `$${s.usd.toFixed(2)}`;
   const inAll = s.input + s.cacheRead + s.cacheWrite;
-  const cached = s.cacheRead + s.cacheWrite;
-  return `≈ ${usd} · ${k(inAll)} tokens in${cached > 0 ? ` (${k(cached)} cached)` : ""} · ${k(s.output)} out · ${s.calls} call${s.calls === 1 ? "" : "s"}`;
+  const cached = [s.cacheRead > 0 ? `${k(s.cacheRead)} cache read` : "", s.cacheWrite > 0 ? `${k(s.cacheWrite)} written` : ""].filter(Boolean).join(", ");
+  return `≈ ${usd} · ${k(inAll)} tokens in${cached ? ` (${cached})` : ""} · ${k(s.output)} out · ${s.calls} call${s.calls === 1 ? "" : "s"}`;
 }
 
 export function opusTier(model: string): boolean {
@@ -181,6 +187,66 @@ export interface CallOpts {
   maxTokens?: number;
 }
 
+// ---- the prefix gate: one cache write per prefix, not one per lane --------
+// A cache entry becomes readable only once the first response that writes
+// it BEGINS streaming, so N parallel requests over the same cache_control
+// prefix all pay the write (1.25× input) and none reads (0.1×). A course
+// pours GENERATION_LIMIT parts into the pool at once, so eight 83k-token
+// prefixes were written at course start where one write and seven reads
+// would do — ≈ $3–4 on Opus, and again for the first Sonnet repairs, whose
+// cache is a separate one (entries are per model). Measured 2026-09-18: a
+// leader wrote 14,861 tokens; two followers fired at its message_start each
+// read 14,861 and wrote 0.
+//
+// So the first request per (model, cached prefix) LEADS and the rest wait
+// for its first stream event. A follower waits at most once: after the
+// leader's first event the entry is dropped, the cache is warm, and the
+// next arrival simply leads a new (short) wait for anyone behind it. A
+// leader that fails before streaming (429, 400, abort) releases its
+// followers on the way out — they then race as before, which is the old
+// behaviour, never a hang. Only a system block with cache_control gates;
+// a plain string system (the outline, the plan) has nothing to share.
+const prefixLeaders = new Map<string, Promise<void>>();
+
+function prefixKey(model: string, system: string | Anthropic.TextBlockParam[]): string | null {
+  if (typeof system === "string") return null;
+  const cached = system.find((b) => b.cache_control);
+  return cached ? `${model}\u0000${cached.text}` : null;
+}
+
+/** Wait for the leader of this prefix (if any), then lead if nobody does. Returns the release for a leader, undefined for a follower. */
+async function joinPrefix(key: string | null): Promise<(() => void) | undefined> {
+  if (!key) return undefined;
+  const lead = prefixLeaders.get(key);
+  if (lead) {
+    await lead;
+    // The cache is warm now (or the leader failed, and racing is the old
+    // behaviour) — proceed either way, never queue behind a second leader.
+    return undefined;
+  }
+  let release!: () => void;
+  const p = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  prefixLeaders.set(key, p);
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    if (prefixLeaders.get(key) === p) prefixLeaders.delete(key);
+    release();
+  };
+}
+
+/**
+ * Effort is a dial only the Opus/Sonnet tiers have: Haiku 4.5 rejects the
+ * parameter outright (400, measured 2026-09-07 in router.ts), so a call
+ * that reached it with `effort` set never got an answer.
+ */
+function supportsEffort(model: string): boolean {
+  return !model.startsWith("claude-haiku");
+}
+
 /**
  * Every call streams. Not for the incremental text alone — a streamed request
  * is also the one an AbortSignal can cut off mid-flight, and the one whose
@@ -197,7 +263,7 @@ async function createMessage(
 ): Promise<Anthropic.Message> {
   const outputConfig = {
     ...(outputSchema ? { format: { type: "json_schema" as const, schema: outputSchema as Record<string, unknown> } } : {}),
-    ...(opts.effort ? { effort: opts.effort } : {}),
+    ...(opts.effort && supportsEffort(model) ? { effort: opts.effort } : {}),
   };
   const base = {
     model,
@@ -207,27 +273,36 @@ async function createMessage(
     ...(Object.keys(outputConfig).length > 0 ? { output_config: outputConfig } : {}),
   };
   const requestOptions = { signal: opts.signal };
-  // The two branches are kept apart rather than joined into one `stream`
-  // variable: MessageStream and BetaMessageStream have incompatible `.on`
-  // overloads, so a union of them is not callable.
-  if (useFallbacks && opusTier(model)) {
-    // Server-side refusal fallbacks, scalar "default" form (routes by refusal
-    // category). Enabled by default for the Opus-5 tier; a 400 falls back to a
-    // plain request below.
-    const stream = client.beta.messages.stream(
-      {
-        ...base,
-        betas: ["server-side-fallback-2026-07-01"],
-        ...({ fallbacks: "default" } as object),
-      } as never,
-      requestOptions,
-    );
+  const release = await joinPrefix(prefixKey(model, system));
+  try {
+    // The two branches are kept apart rather than joined into one `stream`
+    // variable: MessageStream and BetaMessageStream have incompatible `.on`
+    // overloads, so a union of them is not callable.
+    if (useFallbacks && opusTier(model)) {
+      // Server-side refusal fallbacks, scalar "default" form (routes by refusal
+      // category). Enabled by default for the Opus-5 tier; a 400 falls back to a
+      // plain request below.
+      const stream = client.beta.messages.stream(
+        {
+          ...base,
+          betas: ["server-side-fallback-2026-07-01"],
+          ...({ fallbacks: "default" } as object),
+        } as never,
+        requestOptions,
+      );
+      if (release) stream.on("streamEvent", release);
+      if (opts.onDelta) stream.on("text", opts.onDelta);
+      return (await stream.finalMessage()) as unknown as Anthropic.Message;
+    }
+    const stream = client.messages.stream(base, requestOptions);
+    if (release) stream.on("streamEvent", release);
     if (opts.onDelta) stream.on("text", opts.onDelta);
-    return (await stream.finalMessage()) as unknown as Anthropic.Message;
+    return await stream.finalMessage();
+  } finally {
+    // A leader that never streamed (thrown before or without an event) must
+    // not hold its followers; for one that did, this is a no-op.
+    release?.();
   }
-  const stream = client.messages.stream(base, requestOptions);
-  if (opts.onDelta) stream.on("text", opts.onDelta);
-  return await stream.finalMessage();
 }
 
 /**
