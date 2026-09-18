@@ -248,8 +248,15 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // literal JSON would copy an invalid pattern. Split into two command
 // objects (a plain `move`, then `focus` with the beat's `speak`) — prompt
 // only, +8 chars (system 239122 → 239130); the schema is untouched.
-const BASELINE_SYSTEM_CHARS = 239130;
-const BASELINE_SCHEMA_CHARS = 120386;
+// Re-pinned 2026-09-18 (the explore-card ruling): the `explore` bullet no
+// longer says the beat "opens the app's explore tray" — `code` now opens the
+// editor card on the script's drawn pane and only `params` opens the tray —
+// +36 chars on the prompt; the schema's explore description says the same
+// ("the ⊕ tray opens" → "opens exactly what it names"), +43 (120386 →
+// 120429), embedded verbatim in the system prompt — total system +79
+// (239130 → 239209).
+const BASELINE_SYSTEM_CHARS = 239209;
+const BASELINE_SCHEMA_CHARS = 120429;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

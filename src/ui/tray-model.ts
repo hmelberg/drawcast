@@ -234,3 +234,33 @@ export function trayPlan(input: {
     controls: codeIds.filter((id) => controlIds.includes(id)),
   };
 }
+
+/** Where an authored explore beat puts the viewer (tray.ts's exploreGate). */
+export type ExploreSurface = "card" | "tray" | "shut";
+
+/**
+ * An authored explore that names a script means "now write here": it opens
+ * the CARD on the script's drawn pane, with the tray shut (ruling 2026-09-18,
+ * Hans — the smoke of a generated course dropped him in the tray under the
+ * player when the beat had said to edit the code; he expected to be placed
+ * in the code window on screen). Named alone: a beat that also asks for
+ * knobs (`params`), the body or the sky needs the one surface that holds
+ * them all, the tray. A `pane: controls` script has no code pane to write on
+ * — its beat holds the run with everything shut and the drawn panel live
+ * (spec 2026-09-15 §3.3). A script that is not on screen (an unknown id, or
+ * `show: none`) falls to the tray, whose text area needs no geometry.
+ *
+ * Pure: which surface a beat opens is the decision worth pinning in a node
+ * test; mounting it is the tray's DOM work.
+ */
+export function exploreSurface(
+  step: { code?: string; params?: string[]; anatomy?: boolean; space?: boolean },
+  scripts: { id: string; pane?: string }[],
+): ExploreSurface {
+  if (step.code === undefined) return "tray";
+  const el = scripts.find((s) => s.id === step.code);
+  if (!el) return "tray";
+  if (el.pane === "controls") return "shut";
+  if (step.params !== undefined || step.anatomy === true || step.space === true) return "tray";
+  return "card";
+}

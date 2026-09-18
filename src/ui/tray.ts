@@ -19,6 +19,15 @@
 // know about (2026-09-05; the tray was Ruling A of the M3 ledger, the card was
 // what spec §7 asked for first).
 //
+// An AUTHORED explore that names a script opens the card, not the tray
+// (ruling 2026-09-18, Hans: the smoke of a generated course dropped him in
+// the tray under the player when the beat had said to edit the code — he
+// expected to be placed in the code window on screen). The tray stays SHUT,
+// the gate holds exactly as the shut-tray beat's does, the beat's speak is
+// the invitation, and the card's Continue, its ✕ or the bar's ▶ is the way
+// on; ⊕ still opens the tray, gated. Which surface a beat opens — card, tray
+// or shut — is tray-model's exploreSurface, pinned in a node test.
+//
 // A `pane: controls` script's knobs have two doors the same way, but the
 // second one carries no HTML at all: the DRAWN panel takes the pointer
 // itself (ui/controls-host.ts, built from this closure's own `controlsDeps`
@@ -45,7 +54,7 @@ import { mountSkySection } from "./sky-explore";
 import type { BBox } from "../layout/geometry";
 import { mountKeyGuide } from "./controls";
 import { pianoOctaves } from "../render/widgets";
-import { choiceSpecs, readChoice, sliderSpecs, trayPlan, type ChoiceSpec, type SliderSpec } from "./tray-model";
+import { choiceSpecs, exploreSurface, readChoice, sliderSpecs, trayPlan, type ChoiceSpec, type SliderSpec } from "./tray-model";
 import { panelViewFor } from "./panel-view";
 import { askPaths, checkedAnswer } from "../code/ask-check";
 import { c64EmulatorUrl, prefersTouchJoystick } from "../code/c64";
@@ -208,6 +217,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
    *  GATED way instead of aborting the gate it is standing in. Lives and
    *  dies with `gateResolve`. */
   let gatedCode: string | null = null;
+  /** The script whose CARD an explore beat mounted on the pane while the
+   *  gate holds (ruling 2026-09-18): closing that card — ✕, Escape — is
+   *  Continue, not a stranded gate over an empty stage. Lives and dies with
+   *  `gateResolve` too. */
+  let gatedCard: string | null = null;
   /** The anatomy Body section, while the tray shows one. */
   let bodySection: BodySection | null = null;
   /** The solar-system Space section, while the tray shows one. */
@@ -515,8 +529,14 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   /** Continue ▶ — the same action from the tray's button and from a card's:
    *  settle the honest geometry, let a parked explore run on, or play. */
   const continueNow = (): void => {
+    // The gate comes down BEFORE the cards close: a gated card's onClose
+    // re-enters here (its ✕ is Continue) and must find nothing left to resolve.
+    const r = gateResolve;
+    gateResolve = null;
+    gatedCode = null;
+    gatedCard = null;
     closeEditors();
-    if (gateResolve) {
+    if (r) {
       // The run is waiting on the explore gate: settle honest geometry
       // WITHOUT aborting it, then let it continue.
       stage?.classList.remove("cs-gated"); // the centred ▶ comes back with the run
@@ -524,11 +544,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       panelViewFor(stage)?.reset();
       hd.timeline.settleParams();
       close();
-      const r = gateResolve;
-      gateResolve = null;
-      gatedCode = null;
       r();
-      if (hd.timeline.state === "paused") void hd.timeline.play(); // the shut-tray gate paused the timeline
+      if (hd.timeline.state === "paused") void hd.timeline.play(); // a shut-tray gate (panel or card) paused the timeline
     } else {
       restore();
       close();
@@ -720,6 +737,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       onClose: () => {
         editors.delete(el.id);
         thawStage();
+        // The card an explore beat put up: putting it away is the way on.
+        if (gatedCard === el.id && gateResolve !== null) continueNow();
       },
       register: (surface) => {
         const entry = { id: el.id, ...surface };
@@ -1339,14 +1358,19 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         }
         return;
       }
-      // A `pane: controls` script's beat holds the run with the tray SHUT
-      // (spec 2026-09-15 §3.3): the drawn panel is live, the caption carries
-      // the invitation, and Continue is the play gesture — the bar's ▶ or a
-      // click on the figure outside the panel — through the registry hook.
-      const shut = step.code !== undefined && editable.find((e) => e.id === step.code)?.pane === "controls";
+      // Which surface the beat opens (tray-model's exploreSurface): a
+      // `pane: controls` script's beat holds the run with the tray SHUT
+      // (spec 2026-09-15 §3.3) — the drawn panel is live, the caption carries
+      // the invitation, and Continue is the play gesture, the bar's ▶ or a
+      // click on the figure outside the panel, through the registry hook. A
+      // script named alone gets its CARD on the pane, tray shut likewise
+      // (ruling 2026-09-18). Everything else is the gated tray.
+      const surface = exploreSurface(step, editable.map((e) => ({ id: e.id, ...(e.pane !== undefined ? { pane: e.pane } : {}) })));
+      const shut = surface === "shut";
       const onAbort = (): void => {
         gateResolve = null;
         gatedCode = null;
+        gatedCard = null;
         stage?.classList.remove("cs-gated");
         closeEditors();
         clearPreview();
@@ -1372,7 +1396,22 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         // clicks, and here the figure click IS Continue.
         stage?.classList.add("cs-gated");
       }
-      if (!shut) open({ filter: step.params, gated: true, code: step.code, anatomy: step.anatomy, space: step.space });
+      if (shut) return;
+      // The card, where the script is drawn: the same freeze and guard the
+      // paused click uses (openInPlace), the gate already set so nothing
+      // snaps to the boundary under it. Paused as the shut-tray beat is, so
+      // the bar shows ▶ and that ▶ is Continue (registerContinue above);
+      // the card's own Continue and ✕ are too (onClose). ⊕ opens the tray
+      // gated, through `gatedCode`. No pane to lie on (`show: output`, the
+      // code half switched off) — the tray, as before.
+      const target = surface === "card" ? editable.find((e) => e.id === step.code) : undefined;
+      if (target && openInPlace(target)) {
+        gatedCode = target.id;
+        gatedCard = target.id;
+        hd.timeline.pause();
+        return;
+      }
+      open({ filter: step.params, gated: true, code: step.code, anatomy: step.anatomy, space: step.space });
     });
 
   /**
