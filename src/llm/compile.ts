@@ -3,7 +3,7 @@
 // The vision critic (Loop 1.3) hooks in here when built — see ROADMAP.
 
 import type Anthropic from "@anthropic-ai/sdk";
-import { makeClient, callForJson, callForText, describeApiError, repairModelFor, type Effort, type JsonCallMeta } from "./client";
+import { makeClient, callForJson, callForText, describeApiError, isOutputLimitError, repairModelFor, type Effort, type JsonCallMeta } from "./client";
 import { buildOutlineMessages, normalizeOutline, OUTLINE_SCHEMA, type Outline } from "./outline";
 import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, styleBlock, systemBlocks, wantsCode, wantsSound, OPTIONAL_PROMPT_PLACEHOLDERS, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
 import { pickExemplars } from "./exemplars";
@@ -106,6 +106,12 @@ export interface GenerationRound {
   meta: JsonCallMeta;
   /** Pedagogy and visual rounds only: whether the revision replaced the delivered spec. */
   adopted?: boolean;
+  /**
+   * The reply hit the output ceiling and never parsed (spec is null,
+   * validationErrors carries the client's message). Logged as a round because
+   * the call was spent; the round after it is the compact retry.
+   */
+  cutOff?: true;
 }
 
 /** What the model is writing, right now — the UI's only view into a round in flight. */
@@ -411,6 +417,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   let lastRaw = "";
   let repairsUsed = 0;
   let escalated = false;
+  let cutRetried = false;
 
   try {
     while (true) {
@@ -418,7 +425,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       const label: GenerationRound["label"] =
         rounds.length === 0
           ? "initial"
-          : prevRound.label === "template-fetch"
+          : prevRound.label === "template-fetch" || prevRound.cutOff
             ? "initial"
             : prevRound.validationErrors.length > 0
               ? "schema-repair"
@@ -436,11 +443,43 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       // default — that judgment is the product.
       const round = rounds.length + 1;
       cfg.onPhase?.(label === "initial" ? (round > 1 ? `writing the spec, attempt ${round}` : "writing the spec") : `repairing (${label === "schema-repair" ? "schema" : "layout"})`);
-      const { json, raw, meta } = await callForJson(client, roundModel, system, messages, schema, {
-        signal: cfg.signal,
-        effort: label === "initial" ? cfg.effort : "low",
-        onDelta: cfg.onProgress && ((_delta, text) => cfg.onProgress!({ label, round, text })),
-      });
+      const t0 = performance.now();
+      let call: Awaited<ReturnType<typeof callForJson>>;
+      try {
+        call = await callForJson(client, roundModel, system, messages, schema, {
+          signal: cfg.signal,
+          effort: label === "initial" ? cfg.effort : "low",
+          onDelta: cfg.onProgress && ((_delta, text) => cfg.onProgress!({ label, round, text })),
+        });
+      } catch (err) {
+        // A creative reply that ran past the output ceiling is not a failed
+        // figure, it is an over-long one — 9 of 10 lectures in a real course
+        // died on this with no retry (Hans 2026-09-18). Once: ask for a more
+        // compact spec of the SAME figure. The cut-off reply never reached
+        // `messages`, so the note rides on the last user turn rather than on
+        // a new one (turns must alternate) — the same device author.ts uses.
+        // The spent call is logged as a round of its own, so the record shows
+        // it and the retry reads as "attempt 2". A repair round is never
+        // retried: it is already the compact form of an earlier reply.
+        if (label === "initial" && !cutRetried && isOutputLimitError(err)) {
+          cutRetried = true;
+          rounds.push({
+            label,
+            spec: null,
+            validationErrors: [(err as Error).message],
+            lintIssues: [],
+            meta: { ms: performance.now() - t0, structuredOutput: false },
+            cutOff: true,
+          });
+          const last = messages[messages.length - 1];
+          const note =
+            "\n\nYour previous reply was cut off at the output limit. Reply again with a more COMPACT spec of the SAME figure: fewer and shorter speak lines, fewer commands, no comments in code — do not change what is drawn.";
+          last.content = typeof last.content === "string" ? last.content + note : [...last.content, { type: "text", text: note.trim() }];
+          continue;
+        }
+        throw err;
+      }
+      const { json, raw, meta } = call;
 
       lastRaw = raw;
       // Escalation (fires at most once): the model asked for a template's full

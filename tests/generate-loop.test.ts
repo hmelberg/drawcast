@@ -177,6 +177,69 @@ describe("generateSpec loop", () => {
   });
 });
 
+// A creative round that hit the output ceiling is retried ONCE with a note
+// asking for a more compact spec — 9 of 10 lectures in a real course died on
+// this with no retry (Hans 2026-09-18). The cut-off round is logged so the
+// record shows the spent call; the retry is "initial" again (round 2).
+describe("generateSpec cut-off retry", () => {
+  const CUT_OFF = new Error("The reply was cut off at the output limit (16000 tokens, thinking included) — try again, or ask for something smaller.");
+  const lastUserContent = (call: number): string => {
+    const messages = mockCallForJson.mock.calls[call][3] as { role: string; content: string }[];
+    return messages[messages.length - 1].content;
+  };
+
+  test("a cut-off creative round is retried once, on cfg.model, with a note asking for a more compact spec", async () => {
+    mockCallForJson.mockRejectedValueOnce(CUT_OFF).mockResolvedValueOnce(respond(VALID_SUPPLY_DEMAND));
+    const phases: string[] = [];
+
+    const outcome = await generateSpec("draw supply and demand", baseCfg({ onPhase: (t) => phases.push(t) }));
+
+    expect(outcome.error).toBeUndefined();
+    expect(outcome.spec?.template).toBe("supply_demand");
+    expect(outcome.rounds.map((r) => r.label)).toEqual(["initial", "initial"]);
+    expect(outcome.rounds[0].cutOff).toBe(true);
+    expect(outcome.rounds[0].validationErrors[0]).toMatch(/cut off at the output limit/);
+    expect(outcome.rounds[1].cutOff).toBeUndefined();
+    expect(mockCallForJson).toHaveBeenCalledTimes(2);
+    expect(mockCallForJson.mock.calls[1][1]).toBe(MODEL);
+    expect(lastUserContent(1)).toMatch(/cut off at the output limit/);
+    expect(lastUserContent(1)).toMatch(/compact/i);
+    expect(lastUserContent(1)).toMatch(/same figure/i);
+    // (the mock records `messages` by reference and the note rides on the
+    // last user turn in place, so call 0 cannot be inspected after the fact)
+    expect(phases).toContain("writing the spec, attempt 2");
+  });
+
+  test("a second cut-off fails as before", async () => {
+    mockCallForJson.mockRejectedValueOnce(CUT_OFF).mockRejectedValueOnce(CUT_OFF);
+
+    const outcome = await generateSpec("draw supply and demand", baseCfg());
+
+    expect(outcome.spec).toBeNull();
+    expect(outcome.error).toMatch(/cut off at the output limit/);
+    expect(outcome.rounds.map((r) => r.label)).toEqual(["initial"]);
+    expect(mockCallForJson).toHaveBeenCalledTimes(2);
+  });
+
+  test("a cut-off repair round is not retried", async () => {
+    mockCallForJson
+      .mockResolvedValueOnce(respond({ commands: [] })) // invalid -> schema-repair
+      .mockRejectedValueOnce(CUT_OFF);
+
+    const outcome = await generateSpec("draw supply and demand", baseCfg());
+
+    expect(outcome.error).toMatch(/cut off at the output limit/);
+    expect(mockCallForJson).toHaveBeenCalledTimes(2);
+  });
+
+  test("any other error still ends the generation at once", async () => {
+    mockCallForJson.mockRejectedValueOnce(new Error("boom"));
+    const outcome = await generateSpec("draw supply and demand", baseCfg());
+    expect(outcome.error).toBe("boom");
+    expect(mockCallForJson).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("generateSpec repair feedback surfaces warn-severity lint (F1)", () => {
   // A template whose layout ALWAYS places one text element off-canvas — a
   // deterministic "error"-severity lint issue (lintLayout's out-of-canvas

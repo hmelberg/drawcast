@@ -393,6 +393,11 @@ export async function callForText(
 export { extractJson };
 
 /** Human-readable message for the UI. */
+/** Whether `err` is this file's own "cut off at the output limit" error (thrown above for stop_reason max_tokens). */
+export function isOutputLimitError(err: unknown): boolean {
+  return /cut off at the output limit/i.test(err instanceof Error ? err.message : String(err));
+}
+
 export function describeApiError(err: unknown): string {
   if (err instanceof RefusalError) return `Refused: ${err.message}`;
   // Before the APIError checks below — a user abort is one of them, and it is

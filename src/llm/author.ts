@@ -6,7 +6,7 @@
 
 import type Anthropic from "@anthropic-ai/sdk";
 import { dump } from "js-yaml";
-import { callForJson, describeApiError, makeClient, type Effort, type JsonCallMeta } from "./client";
+import { callForJson, describeApiError, isOutputLimitError, makeClient, type Effort, type JsonCallMeta } from "./client";
 import { repairModelFor } from "./compile";
 import { parseTemplateDoc, validateTemplateDoc, type TemplateDoc } from "../scenes/doc";
 import { compileTemplateDoc } from "../scenes/compile";
@@ -219,10 +219,7 @@ const YAML_OPTS = { lineWidth: -1, noRefs: true } as const;
  *  32000 was overrun by a twelve-part rig on 2026-09-07. */
 export const AUTHOR_MAX_TOKENS = 64000;
 
-/** The client's own wording for a reply that hit max_tokens (llm/client.ts). */
-export function isOutputLimitError(err: unknown): boolean {
-  return /cut off at the output limit/i.test(err instanceof Error ? err.message : String(err));
-}
+export { isOutputLimitError };
 
 /** Serialize + round-trip guard: never hand the user YAML that will not parse back. */
 export function templateDocToYaml(doc: TemplateDoc): { yaml: string | null; error?: string } {
