@@ -20,7 +20,9 @@ vi.stubGlobal("localStorage", {
 });
 
 import { DEFAULT_SETTINGS, loadSettings, migrateShareTo } from "../src/store";
+import type { Settings } from "../src/store";
 import { DEFAULT_ON_DEMAND_MAX } from "../src/llm/on-demand-run";
+import { APPROACHES, DEFAULT_APPROACH } from "../src/llm/storyboard";
 
 const SETTINGS_KEY = "drawcast.settings.v1";
 
@@ -88,6 +90,18 @@ describe("the template-on-demand cap", () => {
   it("a stored cap survives a reload", () => {
     mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, templatesOnDemandMax: 0 }));
     expect(loadSettings().templatesOnDemandMax).toBe(0);
+  });
+});
+
+describe("the approach setting (docs/2026-09-19-storyboard-approach.md)", () => {
+  it("defaults to the storyboard module's default — store.ts spells it as a literal union, so pin the two equal", () => {
+    expect(DEFAULT_SETTINGS.approach).toBe(DEFAULT_APPROACH);
+  });
+  it("every APPROACHES id is assignable to Settings.approach's literal union", () => {
+    for (const { id } of APPROACHES) {
+      const pinned: Settings["approach"] = id;
+      expect(["storyboard", "independent"]).toContain(pinned);
+    }
   });
 });
 

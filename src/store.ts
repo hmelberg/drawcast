@@ -85,6 +85,10 @@ export interface Settings {
   model: string;
   /** Effort for the creative rounds (generate, revise, author): thinking depth and token spend. Repairs always run low. */
   effort: "low" | "medium" | "high";
+  /** How a multi-part drawcast or lecture is planned (docs/2026-09-19-storyboard-approach.md) — mirrors llm/storyboard.ts's
+   *  Approach as a literal union so store.ts stays free of llm/ imports. Read by generateParts (main.ts) and the course
+   *  panel (ui/course.ts) when building a GenerateConfig; a single figure has no parts and ignores it. */
+  approach: "storyboard" | "independent";
   /** Template on demand without asking, for COURSE (and other multi-part) runs: when two or more freehand parts turn out to be the same kind of figure (their on-demand briefs agree), a template is authored and they are redrawn with it, one after another. A single freehand figure — in a course or standalone — always gets the OFFER instead; this setting never applies to it (spec §5.5). */
   templatesOnDemand: boolean;
   /** At most this many templates are authored in ONE multi-part drawcast or course run (0 = none there; a single figure is unaffected). Bounds time (~4 min each) and spend. */
@@ -202,6 +206,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   model: "claude-opus-5",
   effort: "high",
+  approach: "storyboard",
   templatesOnDemand: false,
   // A literal, not DEFAULT_ON_DEMAND_MAX: store.ts is imported by the viewer
   // and stays free of llm/ imports. tests/settings-migration.test.ts pins the two equal.

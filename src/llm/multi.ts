@@ -3,7 +3,8 @@
 // generateSpec per part — per-part generation stays inside the quality envelope
 // tuned for single figures, which one giant completion would not.
 
-import { generateOutline, generateSpec, type GenerateConfig, type GenerationOutcome } from "./compile";
+import { generateOutline, generateSpec, generateStoryboard, type GenerateConfig, type GenerationOutcome } from "./compile";
+import { DEFAULT_APPROACH } from "./storyboard";
 import { buildPartRequest, type Outline } from "./outline";
 import { generationGate } from "./limit";
 import { authorOnDemand, describeTemplateFor, templateWorthy, type TemplateBrief } from "./on-demand";
@@ -203,13 +204,23 @@ export interface FromOutlineOptions {
  */
 export async function outlineParts(req: PartsRequest, cfg: GenerateConfig): Promise<{ outline: Outline | null; error?: string }> {
   let outline: Outline | null;
+  // The approach decides what the plan IS (docs/2026-09-19-storyboard-
+  // approach.md): a storyboard carries every part's script and figure and
+  // is written by the creative model at the author's effort with the tag
+  // brief in hand; an outline names the parts and leaves the words to each.
+  const storyboard = (cfg.approach ?? DEFAULT_APPROACH) === "storyboard";
   try {
     outline = await generationGate(() =>
       // Same guard the parts have: an outline still queued when the run was
       // cancelled must not spend a call on its way out.
       cfg.signal?.aborted
         ? Promise.resolve(null)
-        : generateOutline(req.request, { apiKey: cfg.apiKey, model: cfg.model }, req.parts, cfg.signal, req.chapters),
+        : storyboard
+          ? generateStoryboard(req.request, { apiKey: cfg.apiKey, model: cfg.model, effort: cfg.effort, styleText: cfg.styleText }, req.parts, cfg.signal, {
+              chapters: req.chapters,
+              brief: req.brief,
+            })
+          : generateOutline(req.request, { apiKey: cfg.apiKey, model: cfg.model }, req.parts, cfg.signal, req.chapters),
     );
   } catch (err) {
     return { outline: null, error: (err as Error).message };
@@ -243,7 +254,12 @@ export async function generateFromOutline(
         // holding gate slots.
         cfg.signal?.aborted
           ? Promise.resolve({ spec: null, rounds: [], error: "cancelled", systemPromptChars: 0, seeded: false } satisfies GenerationOutcome)
-          : generateSpec(buildPartRequest(req.request, plan, i, req.brief), cfg),
+          : // A part with a script skips the per-part teaching pass: its
+            // narration was written for the series, and a pass over one
+            // part alone would re-situate and undo the coherence the
+            // storyboard bought. A part without one (independent approach,
+            // or a plan stored before scripts existed) keeps the pass.
+            generateSpec(buildPartRequest(req.request, plan, i, req.brief), plan.parts[i].script?.length ? { ...cfg, pedagogyReview: false } : cfg),
       ).then((outcome) => {
         finished++;
         hooks.onPart?.(finished, n, i, outcome);

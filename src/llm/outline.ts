@@ -10,6 +10,17 @@ export interface OutlinePart {
   level?: "basic" | "advanced";
   /** The author-declared chapter this part falls under, when the caller declared any. */
   chapter?: string;
+  /**
+   * Storyboard approach only (llm/storyboard.ts): what this part's figure
+   * is and what changes across its beats — the artist's paragraph.
+   */
+  figure?: string;
+  /**
+   * Storyboard approach only: the spoken lines, in order, written for the
+   * whole series at once. A part with a script is DRAWN to it
+   * (buildPartRequest) and skips the per-part teaching pass (multi.ts).
+   */
+  script?: string[];
 }
 
 export interface Outline {
@@ -86,13 +97,21 @@ export function normalizeOutline(json: unknown, chapters?: string[]): Outline | 
   const parts: OutlinePart[] = [];
   for (const p of raw.parts) {
     if (typeof p !== "object" || p === null) continue;
-    const { title, brief, level, chapter } = p as Record<string, unknown>;
+    const { title, brief, level, chapter, figure, script } = p as Record<string, unknown>;
     if (typeof title !== "string" || title.length === 0) continue;
     const part: OutlinePart = { title, brief: typeof brief === "string" ? brief : "" };
     if (level === "basic" || level === "advanced") part.level = level;
     // The plain-JSON fallback is unconstrained, so an invented chapter must not
     // reach the playlist as a chapter card nobody asked for.
     if (typeof chapter === "string" && (!chapters || chapters.includes(chapter))) part.chapter = chapter;
+    // The storyboard's two extra fields (llm/storyboard.ts); an outline reply
+    // simply never carries them. An empty script is no script: the part then
+    // falls back to being written on its own, teaching pass included.
+    if (typeof figure === "string" && figure.trim()) part.figure = figure.trim();
+    if (Array.isArray(script)) {
+      const lines = script.filter((l): l is string => typeof l === "string" && l.trim().length > 0).map((l) => l.trim());
+      if (lines.length > 0) part.script = lines;
+    }
     parts.push(part);
   }
   if (parts.length < 2) return null;
@@ -123,5 +142,24 @@ export function buildPartRequest(clean: string, outline: Outline, index: number,
     lines.push("End with a synthesis that ties the series together and restates the core insight.");
   }
   if (brief) lines.push("", brief);
+  if (part.script && part.script.length > 0) lines.push("", scriptBlock(part));
   return lines.join("\n");
+}
+
+/**
+ * The storyboard's hand-over to the artist (docs/2026-09-19-storyboard-
+ * approach.md): the figure paragraph and the lines, with the one rule that
+ * makes the series cohere — the words are written, the job is to STAGE
+ * them. Appended LAST, after the tag brief, so that a brief's "open with a
+ * question" cannot read as licence to write a line the script lacks.
+ */
+export function scriptBlock(part: OutlinePart): string {
+  const out: string[] = [];
+  if (part.figure) out.push(`The figure for this part: ${part.figure}`, "");
+  out.push(
+    "The narration for this part is ALREADY WRITTEN — for the whole series at once, so it bridges from the previous part, uses the series' notation and repeats nothing. Your job is to STAGE it: each line below becomes the `speak` of the draw command it belongs to, in this order, one line per beat (two short ones where the ink is a single stroke). You may tighten a line to fit its ink; do not reword its content, reorder, drop or add lines — a quiz or ask the brief calls for carries its own question text and nothing more.",
+    "",
+    ...(part.script ?? []).map((line, i) => `${i + 1}. ${line}`),
+  );
+  return out.join("\n");
 }

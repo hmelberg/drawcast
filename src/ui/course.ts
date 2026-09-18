@@ -487,10 +487,13 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       apiKey: deps.apiKey(),
       pedagogyReview: true,
       model: deps.model(),
-      // The same dials the single-figure Generate reads: effort, the template
-      // router, and template on demand for every part the router finds
-      // nothing for (decided before Generate, so a course never stops to ask).
+      // The same dials the single-figure Generate reads: effort, approach
+      // (docs/2026-09-19-storyboard-approach.md — a course run reads this
+      // too), the template router, and template on demand for every part the
+      // router finds nothing for (decided before Generate, so a course never
+      // stops to ask).
       effort: deps.settings.effort,
+      approach: deps.settings.approach,
       route: deps.route,
       templatesOnDemand: deps.settings.templatesOnDemand,
       onTemplateAuthored: deps.onTemplateAuthored,

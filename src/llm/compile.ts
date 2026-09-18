@@ -5,6 +5,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { makeClient, callForJson, callForText, describeApiError, isOutputLimitError, repairModelFor, type Effort, type JsonCallMeta } from "./client";
 import { buildOutlineMessages, normalizeOutline, OUTLINE_SCHEMA, type Outline } from "./outline";
+import { buildStoryboardMessages, STORYBOARD_SCHEMA, type Approach } from "./storyboard";
 import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, styleBlock, systemBlocks, wantsCode, wantsSound, OPTIONAL_PROMPT_PLACEHOLDERS, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
 import { pickExemplars } from "./exemplars";
 import { catalogIsTwoLevel, catalogParts, detectNeedTemplate } from "../scenes/catalog";
@@ -216,6 +217,16 @@ export interface GenerateConfig {
   templatesOnDemandMax?: number;
   /** The shared state of one run's authoring (on-demand-run.ts): a course hands every lecture the same object, so parallel lectures share the cap, the lock and the authored documents. */
   onDemandRun?: OnDemandRun;
+  /**
+   * How a multi-part drawcast or a lecture is planned (llm/multi.ts;
+   * docs/2026-09-19-storyboard-approach.md). "storyboard" (the default):
+   * one call writes the whole series' narration and names each part's
+   * figure, then every part is drawn to its script. "independent": the
+   * outline names the parts and each is written on its own, knowing the
+   * others only by title — the pre-2026-09-19 pipeline, kept selectable.
+   * Read nowhere in generateSpec itself; a single figure has no parts.
+   */
+  approach?: Approach;
   /** Cancels the generation, whichever round is in flight. */
   signal?: AbortSignal;
   /** Called as the model writes, once per streamed delta. */
@@ -738,4 +749,26 @@ export async function generateOutline(
   // author's effort dial; this is the plan, not the teaching.
   const { json } = await callForJson(client, cfg.model, system, [{ role: "user", content: user }], OUTLINE_SCHEMA as unknown as object, { signal, effort: "low" });
   return normalizeOutline(json, chapters);
+}
+
+/**
+ * The storyboard call (docs/2026-09-19-storyboard-approach.md): the outline
+ * AND the whole series' narration in one reply. The creative model at the
+ * author's effort — this is where the teaching is written now — with the
+ * author's style. Throws on API errors; null when the reply is unusable.
+ */
+export async function generateStoryboard(
+  request: string,
+  cfg: { apiKey: string; model: string; effort?: Effort; styleText?: string },
+  parts: number | null,
+  signal?: AbortSignal,
+  opts: { chapters?: string[]; brief?: string } = {},
+): Promise<Outline | null> {
+  const client = makeClient(cfg.apiKey);
+  const { system, user } = buildStoryboardMessages(request, parts, { ...opts, styleText: cfg.styleText });
+  const { json } = await callForJson(client, cfg.model, system, [{ role: "user", content: user }], STORYBOARD_SCHEMA as unknown as object, {
+    signal,
+    ...(cfg.effort ? { effort: cfg.effort } : {}),
+  });
+  return normalizeOutline(json, opts.chapters);
 }

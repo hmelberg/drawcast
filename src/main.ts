@@ -11,6 +11,7 @@ import { generateSpec, improvePrompt, promptVariants, type ImproveCase, type Pro
 import { routeTemplates } from "./llm/router";
 import { authorOnDemand, templateWorthy } from "./llm/on-demand";
 import { generateParts } from "./llm/multi";
+import { APPROACHES, DEFAULT_APPROACH } from "./llm/storyboard";
 import { createOnDemandRun, onDemandSummary } from "./llm/on-demand-run";
 import { missingPlaceholders } from "./llm/prompt";
 import { usableExemplars } from "./llm/exemplars";
@@ -631,6 +632,17 @@ const effortSel = h(
   h("option", { value: "low" }, "Low — quick sketch"),
 );
 effortSel.value = settings.effort;
+// How a multi-part drawcast or lecture is planned (docs/2026-09-19-storyboard-approach.md):
+// storyboard writes the narration once for the whole series, then draws each
+// figure to its lines; independent writes each part on its own, knowing the
+// others by title only. Applies to #parts=N, #playlist and course runs; a
+// single figure has no parts and ignores it.
+const approachSel = h(
+  "select",
+  { title: "How a multi-part drawcast or lecture is planned. Applies to #parts=N, #playlist and course runs; a single figure has no parts and ignores it." },
+  ...APPROACHES.map((a) => h("option", { value: a.id }, a.label)),
+);
+approachSel.value = APPROACHES.some((a) => a.id === settings.approach) ? settings.approach : DEFAULT_APPROACH;
 // Template on demand without asking (Hans, 2026-09-07): decided BEFORE
 // Generate so a course never stops to ask part by part. Applies to course
 // (and other multi-part) runs only — a single freehand figure always gets
@@ -1174,6 +1186,7 @@ const genChoices = h(
   instrChoiceLabel,
   h("label", { class: "quiet-label" }, "Model ", modelSel),
   h("label", { class: "quiet-label" }, "Effort ", effortSel),
+  h("label", { class: "quiet-label" }, "Approach ", approachSel),
   h("label", { class: "quiet-label" }, templatesOnDemandBox, " Author templates when none fits"),
   h("label", { class: "quiet-label" }, "at most ", templatesOnDemandMaxInput, " per run"),
 );
@@ -1199,8 +1212,9 @@ function refreshChoicesToggle(): void {
   const showVariant = settings.developerMode || settings.variant !== variants[0].name;
   const dev = showVariant ? ` · Instructions: ${prompt}` : "";
   const effort = effortSel.options[effortSel.selectedIndex]?.textContent?.split(" — ")[0] ?? settings.effort;
+  const approach = approachSel.options[approachSel.selectedIndex]?.textContent?.split(" — ")[0] ?? settings.approach;
   const onDemand = settings.templatesOnDemand ? ` · Templates on demand (≤${settings.templatesOnDemandMax} per run)` : "";
-  choicesBtn.title = `Template: ${tpl} · Style: ${styleName}${dev} · Model: ${model} · Effort: ${effort}${onDemand}`;
+  choicesBtn.title = `Template: ${tpl} · Style: ${styleName}${dev} · Model: ${model} · Effort: ${effort} · Approach: ${approach}${onDemand}`;
   choicesBtn.classList.toggle("has-choice", templateChoice !== "" && genChoices.hidden);
 }
 
@@ -3521,6 +3535,7 @@ async function generateMulti(
       pedagogyReview: true,
       model: settings.model,
       effort: settings.effort,
+      approach: settings.approach,
       variant: currentVariant(),
       styleText: activeStyleText(),
       exemplars: usableExemplars(loadExemplars(), isReadyTemplate),
@@ -5435,6 +5450,10 @@ modelSel.addEventListener("change", () => {
 });
 effortSel.addEventListener("change", () => {
   settings.effort = effortSel.value === "low" || effortSel.value === "medium" ? effortSel.value : "high";
+  persist();
+});
+approachSel.addEventListener("change", () => {
+  settings.approach = APPROACHES.some((a) => a.id === approachSel.value) ? (approachSel.value as typeof settings.approach) : DEFAULT_APPROACH;
   persist();
 });
 templatesOnDemandBox.addEventListener("change", () => {
