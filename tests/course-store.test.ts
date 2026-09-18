@@ -1,5 +1,7 @@
 // The course library, and the quota guard that stands between a forty-call
-// batch run and a silent QuotaExceededError.
+// batch run and a silent QuotaExceededError. The drawing library is a cache
+// persisted to IndexedDB since 2026-09-18; here, with no IndexedDB, the fake
+// localStorage stands in as its mirror, so its rows are still visible below.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -19,12 +21,16 @@ vi.stubGlobal("localStorage", {
   removeItem: (k: string) => void mem.delete(k),
 });
 
-import { StorageFullError, deleteCourse, loadCourses, loadLibrary, saveCourse, saveDrawing } from "../src/store";
+import { StorageFullError, deleteCourse, hydrateStore, loadCourses, loadLibrary, saveCourse, saveDrawing } from "../src/store";
 
-beforeEach(() => {
+beforeEach(async () => {
   mem.clear();
   full = false;
+  await hydrateStore(); // the library cache re-reads the (now empty) fake
 });
+
+/** The background write has landed once the microtasks have run. */
+const settled = () => new Promise<void>((r) => setTimeout(r, 0));
 
 describe("course library", () => {
   it("saves and loads a course", () => {
@@ -53,14 +59,33 @@ describe("quota", () => {
     expect(() => saveCourse({ id: "c1", title: "A", text: "x", ts: "1" })).toThrow(StorageFullError);
   });
 
-  it("guards the drawing library too", () => {
+  it("no longer reaches the drawing library — a save there never throws, and the row stays in the cache", async () => {
     full = true;
-    expect(() => saveDrawing({ id: "d1", title: "A", spec: {} as never, ts: "1" })).toThrow(StorageFullError);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(() => saveDrawing({ id: "d1", title: "A", spec: {} as never, ts: "1" })).not.toThrow();
+    expect(loadLibrary()).toHaveLength(1);
+    await settled();
+    expect(warn).toHaveBeenCalled(); // the mirror write is reported, not raised
+    warn.mockRestore();
   });
 
   it("says what could not be saved", () => {
     full = true;
     expect(() => saveCourse({ id: "c1", title: "A", text: "x", ts: "1" })).toThrow(/a course/);
+  });
+});
+
+describe("the library behind the cache (no IndexedDB here)", () => {
+  it("hydrates from the legacy localStorage key and mirrors every write back to it", async () => {
+    mem.set("drawcast.library.v1", JSON.stringify([{ id: "old", title: "Kept", spec: {}, ts: "0" }]));
+    await hydrateStore();
+    expect(loadLibrary().map((d) => d.id)).toEqual(["old"]);
+    // Without IndexedDB the key IS the store — never removed.
+    expect(mem.has("drawcast.library.v1")).toBe(true);
+    saveDrawing({ id: "new", title: "New", spec: {} as never, ts: "1" });
+    expect(loadLibrary().map((d) => d.id)).toEqual(["new", "old"]);
+    await settled();
+    expect(JSON.parse(mem.get("drawcast.library.v1")!).map((d: { id: string }) => d.id)).toEqual(["new", "old"]);
   });
 });
 

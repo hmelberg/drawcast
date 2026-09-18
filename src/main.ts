@@ -118,6 +118,7 @@ import {
   getGithubToken,
   setGithubToken,
   getTtsKey,
+  hydrateStore,
   setTtsKey,
   isMultiPart,
   loadExemplars,
@@ -262,6 +263,11 @@ interface Doc {
   prompt?: string;
   playlist: Playlist;
 }
+
+// The drawing library and the logs live in IndexedDB behind a synchronous
+// cache (store.ts): filled here, once, before anything reads them —
+// initialDoc() below is the first reader.
+await hydrateStore();
 
 let doc: Doc = initialDoc();
 let stack: Stack = emptyStack();
@@ -2904,33 +2910,28 @@ function setDoc(next: Doc, statusText?: string, version?: { label: string; kind:
  */
 function autosave(): void {
   doc.id ??= crypto.randomUUID();
-  try {
-    saveDrawing({
-      id: doc.id,
-      title: doc.title,
-      prompt: doc.prompt,
-      spec: firstSpec(doc),
-      playlist: isSingle(doc.playlist) ? undefined : formatPlaylist(doc.playlist, "yaml"),
-      // What the library's ▤ marker reads. Stored rather than re-derived per
-      // row: the sidebar rebuilds on every keystroke of the filter box, and
-      // parsing every row's YAML to count its items would be absurd there.
-      parts: itemsOf(doc.playlist).length,
-      publishedAs: doc.publishedAs, serverCast: doc.serverCast,
-      publishedComments: doc.publishedComments,
-      publishedViews: doc.publishedViews,
-      drivePublishedId: doc.drivePublishedId,
-      drivePublishedName: doc.drivePublishedName,
-      sourcePath: doc.sourcePath,
-      ts: new Date().toISOString(),
-    });
-  } catch (err) {
-    // saveDrawing is an unguarded localStorage.setItem, so a full origin throws
-    // QuotaExceededError straight through its caller — which in revise() landed
-    // BEFORE the request box was cleared and surfaced as an unhandled rejection,
-    // leaving the status reading "Revised: …" with nothing on disk. Say so
-    // instead. Making room automatically (eviction) is phase 2, deliberately.
-    setStatus(`Could not save: ${(err as Error).message}`, "error");
-  }
+  // Never throws: the library is a cache persisted to IndexedDB in the
+  // background (store.ts), and a store failure is logged there, not raised
+  // into revise() — where a localStorage quota throw once surfaced as an
+  // unhandled rejection with nothing on disk.
+  saveDrawing({
+    id: doc.id,
+    title: doc.title,
+    prompt: doc.prompt,
+    spec: firstSpec(doc),
+    playlist: isSingle(doc.playlist) ? undefined : formatPlaylist(doc.playlist, "yaml"),
+    // What the library's ▤ marker reads. Stored rather than re-derived per
+    // row: the sidebar rebuilds on every keystroke of the filter box, and
+    // parsing every row's YAML to count its items would be absurd there.
+    parts: itemsOf(doc.playlist).length,
+    publishedAs: doc.publishedAs, serverCast: doc.serverCast,
+    publishedComments: doc.publishedComments,
+    publishedViews: doc.publishedViews,
+    drivePublishedId: doc.drivePublishedId,
+    drivePublishedName: doc.drivePublishedName,
+    sourcePath: doc.sourcePath,
+    ts: new Date().toISOString(),
+  });
   refreshLibrary();
 }
 

@@ -175,8 +175,10 @@ export interface RunResult {
 
 /**
  * Persists one finished lecture and returns its library id. A parameter rather
- * than an import, so the runner stays testable without localStorage. It may
- * throw StorageFullError; runCourse catches it and marks that lecture failed.
+ * than an import, so the runner stays testable without the store. Should it
+ * throw, runCourse catches it and marks that lecture failed (the library's
+ * own save no longer can — it left localStorage's quota for IndexedDB on
+ * 2026-09-18 — but the parameter is any caller's).
  */
 export type StoreLecture = (index: number, lecture: CourseLecture, playlist: Playlist) => string;
 
