@@ -1274,22 +1274,19 @@ function shapeDrawable(el: SpecElement, ctx: Ctx): StrokeDrawable {
     ctx.anchors[el.id] = c;
     return { id: el.id, kind: "stroke", pts: [c], shapeHint: { type: "circle", c, r }, z: Z_STROKE, style, drawOpts };
   }
-  // rect (x,y = lower-left corner in logical units)
-  const [x, y] = originOr(el, ctx, [100, 100]);
+  // rect: x/y is the CENTRE, like every other element's x/y (node, text,
+  // circle). Until 2026-09-18 it was the lower-left corner while the schema
+  // said centre, and the model placed things inside a rect that was not there.
+  const c = originOr(el, ctx, [CANVAS.w / 2, CANVAS.h / 2]);
   const w = el.width ?? 160;
   const h = el.height ?? 100;
-  ctx.anchors[el.id] = [x + w / 2, y + h / 2];
+  ctx.anchors[el.id] = c;
   return {
     id: el.id,
     kind: "stroke",
-    pts: [
-      [x, y],
-      [x + w, y],
-      [x + w, y + h],
-      [x, y + h],
-    ],
+    pts: rectPts(c, w, h),
     closed: true,
-    shapeHint: { type: "rect", x, y, w, h },
+    shapeHint: { type: "rect", x: c[0] - w / 2, y: c[1] - h / 2, w, h },
     z: Z_STROKE,
     style,
     drawOpts,

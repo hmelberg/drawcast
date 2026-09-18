@@ -239,8 +239,8 @@
           "id": "body",
           "type": "shape",
           "shape": "rect",
-          "x": 0,
-          "y": 0,
+          "x": 45,
+          "y": 160,
           "width": 90,
           "height": 320
         },

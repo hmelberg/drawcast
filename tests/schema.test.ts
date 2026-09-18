@@ -201,7 +201,7 @@ describe("voice and delivery", () => {
 
 describe("element links", () => {
   const withLink = (link: unknown) => ({
-    elements: [{ id: "book", type: "shape", shape: "rect", x: 100, y: 100, width: 80, height: 120, link }],
+    elements: [{ id: "book", type: "shape", shape: "rect", x: 140, y: 160, width: 80, height: 120, link }],
     commands: [{ draw: ["book"] }],
   });
 

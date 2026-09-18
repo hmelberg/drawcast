@@ -5,10 +5,10 @@ const ok = (elements: unknown[]) => validateSpec({ elements, commands: [{ draw: 
 
 describe("freehand spec fields", () => {
   test("text may be placed with at.ref instead of x/y", () => {
-    expect(ok([{ id: "a", type: "shape", shape: "rect", x: 100, y: 100 }, { id: "t", type: "text", text: "hi", at: { ref: "a", side: "above", gap: 10 } }]).ok).toBe(true);
+    expect(ok([{ id: "a", type: "shape", shape: "rect", x: 180, y: 150 }, { id: "t", type: "text", text: "hi", at: { ref: "a", side: "above", gap: 10 } }]).ok).toBe(true);
   });
   test("x/y together with at.ref is rejected", () => {
-    const r = ok([{ id: "a", type: "shape", shape: "rect", x: 100, y: 100 }, { id: "t", type: "text", text: "hi", x: 5, y: 5, at: { ref: "a" } }]);
+    const r = ok([{ id: "a", type: "shape", shape: "rect", x: 180, y: 150 }, { id: "t", type: "text", text: "hi", x: 5, y: 5, at: { ref: "a" } }]);
     expect(r.ok).toBe(false);
     expect(r.errors.join(" ")).toMatch(/"t".*at\.ref.*x\/y/);
   });
@@ -20,15 +20,15 @@ describe("freehand spec fields", () => {
   });
   test("math needs somewhere to go: x and y, or at.ref", () => {
     expect(ok([{ id: "m", type: "math", tex: "x" }]).errors.join(" ")).toMatch(/"m": math needs x and y, or at\.ref/);
-    expect(ok([{ id: "a", type: "shape", shape: "rect", x: 1, y: 1 }, { id: "m", type: "math", tex: "x", at: { ref: "a", side: "above" } }]).ok).toBe(true);
+    expect(ok([{ id: "a", type: "shape", shape: "rect", x: 81, y: 51 }, { id: "m", type: "math", tex: "x", at: { ref: "a", side: "above" } }]).ok).toBe(true);
     // A label written as TeX says it with attach_to — normalizeSpec turns that
     // into at.ref, so it satisfies the same rule; without one it does not.
-    expect(ok([{ id: "a", type: "shape", shape: "rect", x: 1, y: 1 }, { id: "l", type: "label", tex: "x", attach_to: "a" }]).ok).toBe(true);
+    expect(ok([{ id: "a", type: "shape", shape: "rect", x: 81, y: 51 }, { id: "l", type: "label", tex: "x", attach_to: "a" }]).ok).toBe(true);
     expect(ok([{ id: "l", type: "label", tex: "x" }]).errors.join(" ")).toMatch(/"l": math needs x and y, or at\.ref/);
   });
   test("a full freehand thing validates", () => {
     expect(ok([
-      { id: "body", type: "shape", shape: "rect", x: 300, y: 300, width: 60, height: 200 },
+      { id: "body", type: "shape", shape: "rect", x: 330, y: 400, width: 60, height: 200 },
       { id: "piston", type: "shape", shape: "rect", width: 40, height: 60, at: { ref: "body", anchor: "top" }, anchor: "bottom" },
       { id: "hose", type: "path", points: [[0, 0], [40, -20], [80, 0]], smooth: true, at: { ref: "body", side: "right", gap: 6 } },
       { id: "pump", type: "group", members: ["body", "piston", "hose"], fit: "left" },

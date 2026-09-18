@@ -17,7 +17,7 @@ describe("math element (real mathjax, node)", () => {
   test("draws precise areas, sized by size, placeable with at", () => {
     const r = layoutSpec({
       elements: [
-        { id: "a", type: "shape", shape: "rect", x: 300, y: 300, width: 100, height: 40 },
+        { id: "a", type: "shape", shape: "rect", x: 350, y: 320, width: 100, height: 40 },
         { id: "m", type: "math", tex: "F = m a", size: 32, at: { ref: "a", side: "above", gap: 12 } },
       ],
       commands: [{ draw: ["a", "m"] }],
@@ -74,7 +74,7 @@ describe("math element (real mathjax, node)", () => {
   });
 
   test("a label with tex normalizes to a math element placed by side", () => {
-    const n = normalizeSpec({ elements: [{ id: "a", type: "shape", shape: "rect", x: 1, y: 1 }, { id: "l", type: "label", tex: "y = x^2", attach_to: "a", side: "right" }], commands: [] }) as { elements: { id: string; type: string; at?: unknown }[] };
+    const n = normalizeSpec({ elements: [{ id: "a", type: "shape", shape: "rect", x: 81, y: 51 }, { id: "l", type: "label", tex: "y = x^2", attach_to: "a", side: "right" }], commands: [] }) as { elements: { id: string; type: string; at?: unknown }[] };
     expect(n.elements[1]).toMatchObject({ id: "l", type: "math", tex: "y = x^2", at: { ref: "a", side: "right", gap: 8 } });
     expect(n.elements[1]).not.toHaveProperty("attach_to");
     expect(n.elements[1]).not.toHaveProperty("side");
@@ -90,7 +90,7 @@ describe("math element (real mathjax, node)", () => {
 
     const r = layoutSpec({
       elements: [
-        { id: "a", type: "shape", shape: "rect", x: 200, y: 200, width: 60, height: 60 },
+        { id: "a", type: "shape", shape: "rect", x: 230, y: 230, width: 60, height: 60 },
         { id: "l", type: "label", tex: "\\pi", attach_to: "a", side: "right" },
       ],
       commands: [{ draw: ["a", "l"] }],

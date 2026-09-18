@@ -256,8 +256,15 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // and `width`/`height` each name `node` in their element list: +138 on the
 // schema (120386 → 120524), embedded verbatim in the system prompt, so the
 // same +138 lands there (239130 → 239268). Nothing in the prompt files changed.
-const BASELINE_SYSTEM_CHARS = 239268;
-const BASELINE_SCHEMA_CHARS = 120524;
+// Re-pinned DOWN the same day: a shape rect's x/y became its centre (the
+// corner convention was the bug — the model had read "the centre" in the
+// x/y description and placed things inside a rect that was not there), so
+// the corner clause went and the sentence is now the one rule for node and
+// shape: −28 on the schema (120524 → 120496); the system prompt takes the
+// same −28 plus +3 from the bicycle-pump fewshot, whose body rect was
+// migrated from (0, 0) to its centre (45, 160): 239268 → 239243.
+const BASELINE_SYSTEM_CHARS = 239243;
+const BASELINE_SCHEMA_CHARS = 120496;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

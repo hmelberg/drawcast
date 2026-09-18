@@ -3,7 +3,7 @@ import { layoutSpec, elementBBoxes } from "../src/layout/layout";
 
 const thing = {
   elements: [
-    { id: "body", type: "shape", shape: "rect", x: 300, y: 300, width: 60, height: 200 },
+    { id: "body", type: "shape", shape: "rect", x: 330, y: 400, width: 60, height: 200 },
     { id: "cap", type: "shape", shape: "circle", radius: 20, at: { ref: "body", anchor: "top" }, anchor: "bottom" },
     { id: "pump", type: "group", members: ["body", "cap"] },
     { id: "name", type: "label", text: "Pump", attach_to: "pump", side: "right" },
@@ -26,7 +26,7 @@ describe("group", () => {
   test("nested groups flatten; missing member and empty group are errors", () => {
     const r = layoutSpec({
       elements: [
-        { id: "a", type: "shape", shape: "rect", x: 100, y: 100 }, { id: "b", type: "shape", shape: "rect", x: 400, y: 100 },
+        { id: "a", type: "shape", shape: "rect", x: 180, y: 150 }, { id: "b", type: "shape", shape: "rect", x: 480, y: 150 },
         { id: "inner", type: "group", members: ["a"] }, { id: "outer", type: "group", members: ["inner", "b"] },
         { id: "bad", type: "group", members: ["ghost"] },
       ],
@@ -40,7 +40,7 @@ describe("group", () => {
   test("a label is a legal member: it joins the leaves but not the box", () => {
     const r = layoutSpec({
       elements: [
-        { id: "box", type: "shape", shape: "rect", x: 300, y: 300, width: 60, height: 40 },
+        { id: "box", type: "shape", shape: "rect", x: 330, y: 320, width: 60, height: 40 },
         { id: "tag", type: "label", text: "Tag", attach_to: "box", side: "right" },
         { id: "g", type: "group", members: ["box", "tag"] },
       ],
@@ -80,7 +80,7 @@ describe("group", () => {
   test("an annotation is a legal member too", () => {
     const r = layoutSpec({
       elements: [
-        { id: "box", type: "shape", shape: "rect", x: 300, y: 300, width: 60, height: 40 },
+        { id: "box", type: "shape", shape: "rect", x: 330, y: 320, width: 60, height: 40 },
         { id: "mark", type: "annotation", target: "box" },
         { id: "g", type: "group", members: ["box", "mark"] },
       ],
@@ -100,7 +100,7 @@ describe("annotation targets that draw nothing under their own id (C2)", () => {
   test("a box around a GROUP surrounds the union of its members", () => {
     const r = layoutSpec({
       elements: [
-        { id: "body", type: "shape", shape: "rect", x: 300, y: 300, width: 60, height: 200 },
+        { id: "body", type: "shape", shape: "rect", x: 330, y: 400, width: 60, height: 200 },
         { id: "cap", type: "shape", shape: "circle", radius: 20, at: { ref: "body", anchor: "top" }, anchor: "bottom" },
         { id: "pump", type: "group", members: ["body", "cap"] },
         { id: "ring", type: "annotation", kind: "box", target: "pump" },
@@ -123,7 +123,7 @@ describe("annotation targets that draw nothing under their own id (C2)", () => {
   test("a circle around a line-less measure lands on its label", () => {
     const r = layoutSpec({
       elements: [
-        { id: "body", type: "shape", shape: "rect", x: 300, y: 300, width: 60, height: 200 },
+        { id: "body", type: "shape", shape: "rect", x: 330, y: 400, width: 60, height: 200 },
         { id: "areal", type: "measure", of: "body", what: "area", label: "A = {value}" },
         { id: "mark", type: "annotation", kind: "circle", target: "areal" },
       ],

@@ -195,7 +195,7 @@ const elementSchema = {
     shape: {
       type: "string",
       enum: ["decision", "chance", "terminal", "rect", "circle", "triangle", "person"],
-      description: "node/shape: decision=square, chance=circle, terminal=triangle (health-economics conventions); person = stick figure. A node's width/height (circle: width = diameter) are honoured, centred on x/y; a shape rect's x/y is its LOWER-LEFT corner.",
+      description: "node/shape: decision=square, chance=circle, terminal=triangle (health-economics conventions); person = stick figure. x/y is the CENTRE of a node or shape, and width/height (circle: width = diameter) are honoured.",
     },
     // tier-3 raw
     points: { type: "array", items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, description: "path: polyline points in logical coordinates (y-up)." },

@@ -7,7 +7,7 @@ import type { Spec } from "../src/spec/types";
 import type { InsetError, InsetPicture } from "../src/layout/inset";
 
 const A: Spec = { title: "The model", elements: [{ id: "tri", type: "polygon", points: [[100, 100], [300, 100], [200, 300]] }], commands: [{ draw: ["tri"] }] };
-const B: Spec = { title: "Results", elements: [{ id: "sq", type: "shape", shape: "rect", x: 500, y: 400, width: 100, height: 80 }], commands: [{ draw: ["sq"] }] };
+const B: Spec = { title: "Results", elements: [{ id: "sq", type: "shape", shape: "rect", x: 550, y: 440, width: 100, height: 80 }], commands: [{ draw: ["sq"] }] };
 const C: Spec = { title: "Conclusion", elements: [{ id: "pic", type: "inset", of: "The model" }], commands: [{ draw: ["pic"] }] };
 
 describe("resolveSibling (spec §3 reference by title or number)", () => {

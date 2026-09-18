@@ -122,7 +122,7 @@ describe("layoutElements (tier 2/3)", () => {
     const r = layoutElements(
       [
         { id: "t", type: "text", text: "Sensitivity", x: 250, y: 600, font_size: 28 },
-        { id: "box", type: "shape", shape: "rect", x: 200, y: 400, width: 200, height: 150 },
+        { id: "box", type: "shape", shape: "rect", x: 300, y: 475, width: 200, height: 150 },
       ] as SpecElement[],
       undefined,
     );
@@ -168,5 +168,17 @@ describe("node width and height", () => {
     const start = e.pts[0];
     // The edge leaves the node at nodeRadius + 4 from its centre (half the diagonal for a rect).
     expect(Math.hypot(start[0] - 250, start[1] - 250)).toBeCloseTo(Math.hypot(320, 250) / 2 + 4, 3);
+  });
+});
+
+describe("shape rect origin", () => {
+  test("a shape rect with x/y/width/height is centred on x/y, like a node", () => {
+    const r = layoutElements([{ id: "vault", type: "shape", shape: "rect", x: 250, y: 250, width: 320, height: 250 }] as SpecElement[], undefined);
+    const s = get(r.drawables, "vault") as StrokeDrawable;
+    expect(s.shapeHint).toEqual({ type: "rect", x: 90, y: 125, w: 320, h: 250 });
+    const xs = s.pts.map((p) => p[0]);
+    const ys = s.pts.map((p) => p[1]);
+    expect((Math.min(...xs) + Math.max(...xs)) / 2).toBeCloseTo(250, 6);
+    expect((Math.min(...ys) + Math.max(...ys)) / 2).toBeCloseTo(250, 6);
   });
 });

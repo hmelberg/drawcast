@@ -82,7 +82,7 @@ describe("math and the rest of the drawing (real mathjax)", () => {
   test("a clean preferred side is kept exactly where at: put it before", () => {
     const r = layoutSpec({
       elements: [
-        { id: "a", type: "shape", shape: "rect", x: 300, y: 300, width: 100, height: 40 },
+        { id: "a", type: "shape", shape: "rect", x: 350, y: 320, width: 100, height: 40 },
         { id: "m", type: "math", tex: "F = m a", size: 32, at: { ref: "a", side: "above", gap: 12 } },
       ],
       commands: [{ draw: ["a", "m"] }],

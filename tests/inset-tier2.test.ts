@@ -53,7 +53,7 @@ describe("insetDrawable (spec §4.4)", () => {
   test("explicit x/y and width place the box; at places it too", () => {
     const g = groupOf(host([inset({ x: 300, y: 300, width: 400 })]), "pic");
     expect(g.box).toEqual({ x: 100, y: 150, w: 400, h: 300 });
-    const spec = host([{ id: "anchor", type: "shape", shape: "rect", x: 200, y: 200, width: 50, height: 50 }, inset({ at: { ref: "anchor", side: "right", gap: 10 } })]);
+    const spec = host([{ id: "anchor", type: "shape", shape: "rect", x: 225, y: 225, width: 50, height: 50 }, inset({ at: { ref: "anchor", side: "right", gap: 10 } })]);
     const boxes = elementBBoxes(layoutSpec(spec, heuristicMeasure), heuristicMeasure);
     // shape/rect's x,y is its lower-left corner (place.ts/tier2.ts shapeDrawable), so the anchor's
     // right edge is 200 + 50 = 250, not 225 — relativeDelta (place.ts:187-206) puts the inset's

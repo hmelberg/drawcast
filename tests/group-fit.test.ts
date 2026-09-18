@@ -6,7 +6,7 @@ import type { BBox } from "../src/layout/geometry";
 
 const pump = (fit: unknown) => ({
   elements: [
-    { id: "body", type: "shape", shape: "rect", x: 0, y: 0, width: 60, height: 200 },
+    { id: "body", type: "shape", shape: "rect", x: 30, y: 100, width: 60, height: 200 },
     { id: "cap", type: "shape", shape: "circle", radius: 20, at: { ref: "body", anchor: "top" }, anchor: "bottom" },
     { id: "t", type: "text", text: "cap", font_size: 24, at: { ref: "cap", side: "above", gap: 4 } },
     { id: "pump", type: "group", members: ["body", "cap", "t"], fit },
@@ -35,8 +35,8 @@ describe("group.fit", () => {
   test("overlap between two members of a fitted group is not reported", () => {
     const r = layoutSpec({
       elements: [
-        { id: "a", type: "shape", shape: "rect", x: 0, y: 0, width: 100, height: 100 },
-        { id: "b", type: "shape", shape: "rect", x: 20, y: 20, width: 100, height: 100 },
+        { id: "a", type: "shape", shape: "rect", x: 50, y: 50, width: 100, height: 100 },
+        { id: "b", type: "shape", shape: "rect", x: 70, y: 70, width: 100, height: 100 },
         { id: "g", type: "group", members: ["a", "b"], fit: "right" },
       ],
       commands: [{ draw: ["g"] }],
@@ -46,8 +46,8 @@ describe("group.fit", () => {
   test("at.ref across a fit boundary is a placement error", () => {
     const r = layoutSpec({
       elements: [
-        { id: "o", type: "shape", shape: "rect", x: 600, y: 600 },
-        { id: "a", type: "shape", shape: "rect", x: 0, y: 0 },
+        { id: "o", type: "shape", shape: "rect", x: 680, y: 650 },
+        { id: "a", type: "shape", shape: "rect", x: 80, y: 50 },
         { id: "b", type: "text", text: "x", at: { ref: "o", side: "above" } },
         { id: "g", type: "group", members: ["a", "b"], fit: "left" },
       ],
@@ -77,8 +77,8 @@ describe("group.fit", () => {
   test("an arrow member pointing out of its fit group is a placement error", () => {
     const r = layoutSpec({
       elements: [
-        { id: "o", type: "shape", shape: "rect", x: 600, y: 600 },
-        { id: "a", type: "shape", shape: "rect", x: 0, y: 0 },
+        { id: "o", type: "shape", shape: "rect", x: 680, y: 650 },
+        { id: "a", type: "shape", shape: "rect", x: 80, y: 50 },
         { id: "arr", type: "arrow", from: { ref: "a" }, to: { ref: "o" } },
         { id: "g", type: "group", members: ["a", "arr"], fit: "left" },
       ],
@@ -90,7 +90,7 @@ describe("group.fit", () => {
   // Review fix 3: the other direction is ordered, not refused.
   test("an element placed against a member waits for the fit, whatever the spec order", () => {
     const spec = (elements: unknown[]) => ({ elements, commands: [{ draw: ["g", "out"] }] });
-    const a = { id: "a", type: "shape", shape: "rect", x: 0, y: 0, width: 60, height: 200 };
+    const a = { id: "a", type: "shape", shape: "rect", x: 30, y: 100, width: 60, height: 200 };
     const b = { id: "b", type: "shape", shape: "circle", radius: 20, at: { ref: "a", anchor: "top" }, anchor: "bottom" };
     const out = { id: "out", type: "text", text: "note", font_size: 24, at: { ref: "a", side: "right", gap: 10 } };
     const g = { id: "g", type: "group", members: ["a", "b"], fit: "left" };
@@ -108,7 +108,7 @@ describe("group.fit", () => {
   test("a member label follows the scaled part instead of its old position", () => {
     const r = layoutSpec({
       elements: [
-        { id: "part", type: "shape", shape: "rect", x: 0, y: 0, width: 60, height: 200 },
+        { id: "part", type: "shape", shape: "rect", x: 30, y: 100, width: 60, height: 200 },
         { id: "name", type: "label", text: "piston", attach_to: "part", side: "right" },
         { id: "g", type: "group", members: ["part", "name"], fit: "left" },
       ],
@@ -149,7 +149,7 @@ describe("group.fit", () => {
   // control that proves the lint still sees it.
   const wordOnLine = (fit: unknown) => ({
     elements: [
-      { id: "s", type: "shape", shape: "rect", x: 100, y: 100, width: 200, height: 200 },
+      { id: "s", type: "shape", shape: "rect", x: 200, y: 200, width: 200, height: 200 },
       { id: "w", type: "text", text: "hello", x: 200, y: 100, font_size: 28 },
       { id: "g", type: "group", members: ["s", "w"], ...(fit ? { fit } : {}) },
     ],
