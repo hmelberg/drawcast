@@ -2601,6 +2601,54 @@ only once a plan exists; the separate Revise button is gone. Tests:
 `tests/course-panel.test.ts` (panelActions, two-row layout). Browser
 smoke GJENSTÅR. Not pushed on its own — more player changes coming.
 
+## Timing anchors — shipped 2026-09-19, ON REVIEW
+
+An action can now be placed in a sentence three ways, and Hans is not yet
+sure all three earn their place. **Keep for now; revisit after real use.**
+
+| What you write | When it runs |
+|---|---|
+| indented under the line | with the whole line (the normal beat) |
+| `(@draw x@)` inline | starts at that word (`cue`) |
+| `(@draw x ends@)` inline | finishes at that word (`cue` + `cue_end`) |
+
+The case for keeping both cues: a sketched curve costs 2150 ms, so on a 3–5
+second sentence the difference between "starts here" and "lands here" is
+plainly visible — start-anchored, the ink is still arriving after the
+sentence has ended. The case against: it is a third thing to hold in mind
+while writing, actions buried in prose are harder to audit than a column of
+indented directions, and only 3 bundled examples use it, so the corpus
+exercises the path thinly.
+
+### If it goes, what comes out
+
+The feature is additive — nothing that existed before depends on it — so
+removal is mechanical rather than delicate. It touches:
+
+- `src/render/cue.ts` (delete), and the `actionMs` helper in `player.ts`
+- `cue`/`cueEnd` on the plan step, and the wait in `player.ts`'s runStep
+- `cue`/`cue_end` in `spec/types.ts` and `spec/schema.ts` (including the
+  word-snap in `normalizeSpec`)
+- the span lift in `script/lines.ts`, the cued branch in `script/parse.ts`,
+  the inline insertion in `script/print.ts`
+- `lintCueTiming` in `lint/lint.ts` and its rule name
+- two sentences in `compiler-v1.md`, and the prompt-size pins (which move
+  DOWN, so the test fails loudly until they are corrected)
+- `cue`/`cue_end` in three bundled examples (Når musikken stopper, Hva et
+  søk går gjennom, Sluttfarten) — the casts stay, the timing fields go
+- `tests/inline-timing.test.ts` and `tests/cue-timing.test.ts` (delete)
+
+About an hour, and the round-trip corpus gate proves nothing else moved.
+Group layout (row/column/grid) is independent and unaffected.
+
+### The cheaper experiment first
+
+Before deleting anything: **stop teaching it**. Remove the two sentences
+from `compiler-v1.md` and the `cue`/`cue_end` schema descriptions, and the
+model stops writing cues while the engine keeps supporting them for
+hand-written casts. Fifteen minutes, fully reversible, and it answers "do I
+miss it?" without throwing the mechanism away.
+
 ## Deliberately left in `draw` (the frozen lab)
 
 Backend comparison grids, the raw-SVG baseline, the benchmark runner UI, and
