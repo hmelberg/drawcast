@@ -7,11 +7,13 @@ import { MATH_DEFAULT_SIZE } from "../layout/math";
 import { isFitName } from "../layout/regions";
 import { AUTO_NAMESPACE, baseName, isReservedVar, VAR_RE } from "../spec/answers";
 import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox, type BBox } from "../layout/geometry";
-import { leafDrawables, type Drawable, type GroupDrawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
+import { drawablesForId, leafDrawables, type Drawable, type GroupDrawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
 import type { LeafDrawable } from "../layout/posed";
 import { mathBox } from "../layout/labels";
 import type { MeasureFn } from "../layout/measure";
 import { BUILTIN_WIDGETS } from "../spec/types";
+import { pacedDurations } from "../render/pacing";
+import { lineMs } from "../render/cue";
 import type { Command, PlayArgs, Spec } from "../spec/types";
 import { scenes } from "../scenes/registry";
 import { resolveGame } from "../code/c64-catalogue";
@@ -88,6 +90,8 @@ export interface LintIssue {
     /** authoring only: a figure of many strokes exposes no named, outlined part the identify drill or a click ask could use */
     | "drillable-parts"
     | "talky-stretch"
+    /** an action cued inside a sentence cannot land where it was written */
+    | "cue-timing"
     | "ask-var"
     | "source-use"
     | "code-use"
@@ -315,6 +319,57 @@ function crossingPair(a: Drawable, b: Drawable): boolean {
  * is how two differently-shaped exemptions come to exist). `issues` is what
  * every caller acts on; `exempt` is evidence.
  */
+/**
+ * An action written inside a sentence has to be able to land where it was
+ * written. A sketched curve costs 2150 ms, so a cue three tenths into a
+ * three-second line simply cannot be a finish — and a start cue late in the
+ * line leaves the ink arriving after the sentence has ended, which is the
+ * mistake `cue_end` exists to fix.
+ *
+ * Only `draw` and `erase` are checked, and only against durations read off
+ * the drawables themselves, paced exactly as the player paces them. Other
+ * verbs carry their own `duration` and are the author's own arithmetic.
+ */
+function lintCueTiming(drawables: Drawable[], commands: Command[], expandId?: (id: string) => string[] | null | undefined): LintIssue[] {
+  const issues: LintIssue[] = [];
+  const secs = (ms: number): string => (ms / 1000).toFixed(1);
+  for (const cmd of commands) {
+    if (cmd.cue === undefined || cmd.speak === undefined) continue;
+    const ids = ([] as string[]).concat(cmd.draw ?? cmd.erase ?? []);
+    if (ids.length === 0) continue;
+    // One duration per drawn id, the way the player counts them: it looks up
+    // one element per id, and a group's element is the sum of its leaves.
+    const durations: number[] = [];
+    for (const id of ids) {
+      for (const each of expandId?.(id) ?? [id]) {
+        const leaves = leafDrawables(drawablesForId(drawables, each));
+        if (leaves.length > 0) durations.push(leaves.reduce((a, d) => a + d.drawOpts.duration, 0));
+      }
+    }
+    if (durations.length === 0) continue;
+    const paced = pacedDurations(durations, { narrated: true, parallel: cmd.parallel === true });
+    const actionMs = cmd.parallel === true ? Math.max(...paced) : paced.reduce((a, b) => a + b, 0);
+    const line = lineMs(cmd.speak, cmd.delivery);
+    const point = line * cmd.cue;
+    if (cmd.cue_end === true && actionMs > point) {
+      issues.push({
+        rule: "cue-timing",
+        ids,
+        severity: "warn",
+        message: `this draw takes ${secs(actionMs)} s but its cue sits ${secs(point)} s into the line, so it cannot finish there — move the cue later, or drop cue_end`,
+      });
+    } else if (cmd.cue_end !== true && point + actionMs > line) {
+      issues.push({
+        rule: "cue-timing",
+        ids,
+        severity: "warn",
+        message: `this draw starts ${secs(point)} s in and takes ${secs(actionMs)} s, so it is still arriving ${secs(point + actionMs - line)} s after the line ends — did you mean cue_end (land it ON the word)?`,
+      });
+    }
+  }
+  return issues;
+}
+
 export function lintLayoutDetailed(
   drawables: Drawable[],
   measure: MeasureFn,
@@ -326,7 +381,7 @@ export function lintLayoutDetailed(
    *  the drawing, not a collision. Overlap rules only. */
   sameGroup?: (a: string, b: string) => boolean,
 ): { issues: LintIssue[]; exempt: LintIssue[] } {
-  const issues: LintIssue[] = [];
+  const issues: LintIssue[] = [...lintCueTiming(drawables, commands ?? [], expandId)];
   const exempt: LintIssue[] = [];
   const leaves = lintableLeaves(drawables);
   const texts = leaves.filter((d): d is TextDrawable => d.kind === "text");

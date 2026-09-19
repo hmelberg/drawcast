@@ -65,3 +65,52 @@ describe("saying it in a script", () => {
     expect(printScriptPages({}, [{ spec: one(source) }])).toBe(source);
   });
 });
+
+import { layoutSpec } from "../src/layout/layout";
+import type { Spec } from "../src/spec/types";
+
+const issuesOf = (spec: Spec) => layoutSpec(spec).issues.filter((i) => i.rule === "cue-timing");
+
+// A sketched curve costs 2150 ms (SKETCH_MS.curve); this line is ~10 words,
+// so about 3.5 s of narration.
+const withCue = (cue: number, cue_end?: boolean): Spec => ({
+  domain: { x: [0, 100], y: [0, 100] },
+  elements: [
+    { id: "ax", type: "axes", x_label: "x", y_label: "y" },
+    { id: "kurve", type: "curve", direction: "decreasing", curvature: "convex" },
+  ],
+  commands: [
+    { draw: ["ax"] },
+    { draw: ["kurve"], cue, ...(cue_end === undefined ? {} : { cue_end }), speak: "Renta stiger og etterspørselen faller helt ned hit igjen nå." },
+  ],
+});
+
+describe("a cue that cannot land where it was written", () => {
+  test("an end cue earlier than the action is long is reported", () => {
+    // 2.15 s of curve cannot be finished 0.35 s into the line.
+    const issues = issuesOf(withCue(0.1, true));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].message).toMatch(/cannot finish/);
+    expect(issues[0].ids).toContain("kurve");
+  });
+
+  test("an end cue with room to spare is fine", () => {
+    expect(issuesOf(withCue(0.9, true))).toEqual([]);
+  });
+
+  test("a start cue whose action overruns the sentence suggests the other anchor", () => {
+    const issues = issuesOf(withCue(0.85));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].message).toMatch(/cue_end/);
+  });
+
+  test("a start cue early enough to finish inside the line is fine", () => {
+    expect(issuesOf(withCue(0.2))).toEqual([]);
+  });
+
+  test("a cast with no cue is never reported", () => {
+    const spec = withCue(0.85);
+    delete spec.commands![1].cue;
+    expect(issuesOf(spec)).toEqual([]);
+  });
+});

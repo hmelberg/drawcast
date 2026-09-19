@@ -20,6 +20,12 @@ import { SpeechManager } from "./speech";
  * knows what the action costs, so it starts it that much earlier — and an
  * action that cannot fit starts at once rather than at a negative time.
  */
+/** How long a spoken line takes, delivery included — the denominator every
+ *  cue is measured against, in the player and in the lint alike. */
+export function lineMs(text: string, delivery: Delivery | undefined): number {
+  return SpeechManager.estimateMs(text) / (delivery ? DELIVERY[delivery].rate : 1);
+}
+
 export function cueStartMs(
   cue: number | undefined,
   cueEnd: boolean | undefined,
@@ -28,8 +34,6 @@ export function cueStartMs(
   actionMs: number,
 ): number {
   if (cue === undefined || cue <= 0) return cueEnd === true ? 0 : 0;
-  const rate = delivery ? DELIVERY[delivery].rate : 1;
-  const lineMs = SpeechManager.estimateMs(text) / rate;
-  const point = lineMs * cue;
+  const point = lineMs(text, delivery) * cue;
   return Math.max(0, cueEnd === true ? point - actionMs : point);
 }

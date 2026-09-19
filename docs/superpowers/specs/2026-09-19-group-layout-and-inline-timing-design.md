@@ -21,6 +21,14 @@ lands its last stroke on its word. Start is for gestures and streams, end for
 reveals and completions; the arithmetic for both lives in one pure function,
 `src/render/cue.ts`.
 
+A `cue-timing` lint rule then makes an impossible timing visible rather than
+merely computable: an end cue earlier than the action is long cannot be a
+finish, and a start cue late in the line leaves the ink arriving after the
+sentence has ended — which is the mistake `cue_end` exists to fix, so the
+message says so. It reads the durations off the drawables and paces them
+with the player's own `pacedDurations`, and measures the line with the same
+`lineMs` the player waits on, so the lint and the playback cannot disagree.
+
 Two rules Part B needed that §12 did not foresee, both about exactness: a
 cue's resolution is one character of its line, so `normalizeSpec` snaps it
 (a hand-written 0.5 and the same cue read back off the text are then the
