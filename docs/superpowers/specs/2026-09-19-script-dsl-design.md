@@ -433,17 +433,22 @@ language:
 
 ## 12. Order of work
 
-1. **Core.** Grammar, parser, printer, generic key/value fallback, props
+1. **Places** (Hans, 2026-09-19: places before the parser). Named places
+   and auto-placement in the layout (§7). It ships as a spec feature on
+   its own — a YAML cast and the model's output both get it the day it
+   lands — and it must therefore be taught in the same round, per the
+   standing rule: `src/llm/prompts/compiler-v1.md`, the schema
+   description, and a prompt-size re-pin. Ordering it first means the
+   script never has a stage where it prints a coordinate it cannot
+   round-trip back into a word.
+2. **Core.** Grammar, parser, printer, generic key/value fallback, props
    block, format detection. Round-trip green on the whole corpus. The
    editor switches to script; YAML and JSON stay as exports. No sugar
    beyond what the round trip needs.
-2. **Places.** Named places and auto-placement in the layout (§7), the
-   two lint rules. Until this lands the printer prints coordinates, and
-   `left`/`right` are the only thing a hand-written cast loses on a
-   reprint.
 3. **Sugar.** Aliases, shorthands, `->`, connector labels, fences, quiz
-   choice lists, dialogue, `@labels`. Each addition is guarded by the
-   same corpus test, so sugar can never cost fidelity.
+   choice lists, dialogue, `@labels`, and the two lint rules of §11. Each
+   addition is guarded by the same corpus test, so sugar can never cost
+   fidelity.
 4. **Separate round, separate decision.** Teach the compiler to emit
    script instead of JSON, and A/B token cost and output quality. Phase 1
    is what makes this cheap to try; it is not part of this spec.
@@ -457,11 +462,14 @@ language:
   attempted here.
 - **A third format to keep correct.** Mitigated by the corpus test,
   which is cheap to run and hard to fool.
-- **Phase 1 prints coordinates.** The headline simplification arrives in
-  phase 2; phase 1 is honest about it rather than faking words it cannot
-  round-trip.
+- **Phase 1 pays off before the language exists.** Named places and
+  auto-placement land with no script to spell them in, so the only
+  visible win that round is better placement from the model and shorter
+  YAML. Accepted: it is the order that spares the script a stage of
+  printing numbers it cannot turn back into words.
 - **The name.** `format: "script"`, files `.cast`, the editor tab says
-  Script. It is the one thing here that is expensive to change later.
+  Script (Hans, 2026-09-19). It is the one thing here that is expensive
+  to change later.
 
 ## 14. What this deliberately does not do
 
