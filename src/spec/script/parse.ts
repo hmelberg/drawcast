@@ -5,6 +5,7 @@
 import { scanLines, type ScriptLine } from "./lines";
 import { parseValue, setPath, splitTokens } from "./values";
 import { specSchema } from "../schema";
+import { ELEMENT_ALIASES, FLAGS, PLACE_WORDS, SIDE_TYPES, SIDE_WORDS, isColor, seconds } from "./sugar";
 import { CORE_SCHEMA, load } from "js-yaml";
 import { isLanguage } from "../../code/languages";
 import type { Command, Spec, SpecElement } from "../types";
@@ -81,6 +82,13 @@ function splitPairs(head: string, tokens: string[], line: number): { args: strin
   const extra: string[] = [];
   const mine = argKeys(head);
   for (let i = 0; i < tokens.length; i += 2) {
+    // `3s` stands alone: a duration, not the first half of a pair.
+    const secs = seconds(tokens[i]);
+    if (secs !== null) {
+      (mine.has("duration") ? args : extra).push("duration", String(secs));
+      i -= 1;
+      continue;
+    }
     if (i + 1 >= tokens.length) throw new ScriptError(`"${tokens[i]}" has no value`, line);
     const pair = [tokens[i], tokens[i + 1]];
     (MODIFIER_KEYS.has(tokens[i]) && !mine.has(tokens[i]) ? extra : args).push(...pair);
@@ -91,6 +99,9 @@ function splitPairs(head: string, tokens: string[], line: number): { args: strin
 function keyValues(tokens: string[], into: Record<string, unknown>, line: number): void {
   for (let i = 0; i < tokens.length; i += 2) {
     const path = tokens[i];
+    // `3s` stands alone: it is a duration, not the first half of a pair.
+    const secs = seconds(path);
+    if (secs !== null) { into.duration = secs; i -= 1; continue; }
     if (i + 1 >= tokens.length) throw new ScriptError(`"${path}" has no value`, line);
     setPath(into, path, parseValue(tokens[i + 1]));
   }
@@ -109,17 +120,57 @@ export interface Direction {
 
 export function parseDirection(head: string, rest: string, line: number): Direction {
   const tokens = splitTokens(rest);
-  // `dot` is the point element; the bare word `point` is the laser verb.
-  const type = head === "dot" ? "point" : head;
-  if (head === "dot" || ELEMENT_HEADS.has(head)) {
-    const el: Record<string, unknown> = {};
+  const alias = ELEMENT_ALIASES[head];
+  const type = alias?.type ?? head;
+  if (alias !== undefined || ELEMENT_HEADS.has(head)) {
+    const el: Record<string, unknown> = { ...(alias?.fields ?? {}) };
+    let rest2 = [...tokens];
+    // `a -> b`: the connector's ends, read before anything else so the ids
+    // around the arrow are never mistaken for the element's own id.
+    const arrow = rest2.indexOf("->");
+    if (arrow > 0) {
+      setPath(el, "from.ref", rest2[arrow - 1]);
+      setPath(el, "to.ref", rest2[arrow + 1]);
+      const id = arrow >= 2 ? rest2[0] : undefined;
+      rest2 = [...(id !== undefined ? [id] : []), ...rest2.slice(arrow + 2)];
+    }
     let i = 0;
     // The id is the first bare token, full stop. Element fields make perfectly
     // good ids (`slope`, `text`, `line`), and an element always has one.
-    if (tokens[0] !== undefined && isBareId(tokens[0])) el.id = tokens[i++];
-    if (tokens[i] !== undefined && tokens[i].startsWith('"')) el.text = parseValue(tokens[i++]);
-    keyValues(tokens.slice(i), el, line);
-    if (typeof el.id !== "string") throw new ScriptError(`a ${head} needs an id`, line);
+    if (rest2[0] !== undefined && isBareId(rest2[0]) && FLAGS[rest2[0]] === undefined && !isColor(rest2[0]) && !SIDE_WORDS.has(rest2[0]) && !PLACE_WORDS.has(rest2[0])) {
+      el.id = rest2[i++];
+    }
+    if (rest2[i] !== undefined && rest2[i].startsWith('"')) el.text = parseValue(rest2[i++]);
+    const pairs: string[] = [];
+    for (let k = i; k < rest2.length; k++) {
+      const tok = rest2[k];
+      const flag = FLAGS[tok];
+      if (flag) { setPath(el, flag[0], flag[1]); continue; }
+      if (isColor(tok)) { setPath(el, "style.color", tok); continue; }
+      const secs = seconds(tok);
+      if (secs !== null) { setPath(el, "draw.duration", secs); continue; }
+      if (SIDE_WORDS.has(tok) || PLACE_WORDS.has(tok)) {
+        const next = rest2[k + 1];
+        if (SIDE_WORDS.has(tok) && next !== undefined && isBareId(next) && !ELEMENT_KEYS.has(next)) {
+          setPath(el, "at.side", tok);
+          setPath(el, "at.ref", next);
+          k++;
+          continue;
+        }
+        if (SIDE_TYPES.has(type) && SIDE_WORDS.has(tok)) { setPath(el, "side", tok); continue; }
+        setPath(el, "at.place", PLACE_WORDS.get(tok) ?? tok);
+        continue;
+      }
+      // `gap` belongs to the placement it follows — `above bedr gap 20` is
+      // one phrase, and a bare top-level `gap` means nothing to any element.
+      if (tok === "gap" && el.at !== undefined && rest2[k + 1] !== undefined) {
+        setPath(el, "at.gap", parseValue(rest2[++k]));
+        continue;
+      }
+      pairs.push(tok);
+    }
+    keyValues(pairs, el, line);
+    if (typeof el.id !== "string") el.id = `${type}_${line}`;
     const hidden = el.hidden === true;
     delete el.hidden;
     return { element: { ...el, type } as unknown as SpecElement, args: el, hidden };
