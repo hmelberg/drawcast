@@ -1,0 +1,45 @@
+- generic [active] [ref=f1e1]:
+  - alert [ref=f1e2]:
+    - generic [ref=f1e3]: ⚠ Testversjon — IKKE offisiell informasjon. Skal IKKE brukes som medisinsk råd.
+    - generic [ref=f1e4]:
+      - text: Dette er et eksperimentelt verktøy laget for teknisk testing. Innholdet kommer fra en automatisk henting av artikler på helsenorge.no/giftinformasjon/ og et språkmodell-svar. Det er
+      - strong [ref=f1e5]: ikke
+      - text: offisiell informasjon fra Folkehelseinstituttet, Helsedirektoratet, Giftinformasjonen, eller andre offentlige etater. Det kan inneholde feil. Ved faktisk mistanke om forgiftning, ring Giftinformasjonen på
+      - strong [ref=f1e6]: 22 59 13 00
+      - text: eller 113 ved livstruende situasjoner.
+  - banner [ref=f1e7]:
+    - button "Meny" [ref=f1e8] [cursor=pointer]: ☰
+    - generic [ref=f1e9]:
+      - heading "Maler" [level=1] [ref=f1e89]
+      - text: Testversjon · basert på artikler fra helsenorge.no
+  - main [ref=f1e11]:
+    - generic [ref=f1e90]:
+      - generic [ref=f1e91]:
+        - heading "Maler" [level=2] [ref=f1e92]
+        - button "Ny mal" [ref=f1e93] [cursor=pointer]
+      - paragraph [ref=f1e94]: En mal styrer rolle og stil. Grunnreglene (svar bare fra artiklene, siter med id, JSON) og sikkerhetsreglene ligger fast uansett mal.
+      - generic [ref=f1e95]:
+        - generic [ref=f1e97]:
+          - button "Standard innebygd" [ref=f1e143] [cursor=pointer]:
+            - generic [ref=f1e144]: Standard
+            - generic [ref=f1e145]: innebygd
+          - button "Akutt førstehjelp innebygd" [ref=f1e146] [cursor=pointer]:
+            - generic [ref=f1e147]: Akutt førstehjelp
+            - generic [ref=f1e148]: innebygd
+          - button "Helsepersonell innebygd" [ref=f1e149] [cursor=pointer]:
+            - generic [ref=f1e150]: Helsepersonell
+            - generic [ref=f1e151]: innebygd
+          - button "Klarspråk innebygd" [ref=f1e152] [cursor=pointer]:
+            - generic [ref=f1e153]: Klarspråk
+            - generic [ref=f1e154]: innebygd
+        - generic [ref=f1e110]:
+          - generic [ref=f1e155]: Navn
+          - textbox "Navn" [ref=f1e156]: Standard
+          - generic [ref=f1e157]: Tekst (rolle og stil)
+          - textbox "Tekst (rolle og stil)" [ref=f1e158]: "Du er en assistent som svarer på spørsmål om forgiftninger og giftige stoffer, basert utelukkende på artikler fra helsenorge.no/giftinformasjon/ som du får siterte utdrag fra. Stil: - Svar kort og konkret: 2-4 setninger. - Svar alltid på norsk, selv om spørsmålet er på engelsk. - Ingen overskrifter, punktlister eller markdown i selve `answer`-feltet. - Bruk aktivt språk (\"Skyll munnen med vann og drikk et glass melk\") — ikke passive \"det anbefales at\". - Gjenta aldri brukerens spørsmål. Gå rett på svaret."
+          - generic [ref=f1e159]:
+            - button "Lagre" [ref=f1e160] [cursor=pointer]
+            - button "Bruk i samtalen" [ref=f1e161] [cursor=pointer]
+            - button "Lag kopi" [ref=f1e162] [cursor=pointer]
+            - button "Slett" [ref=f1e163] [cursor=pointer]
+  - generic [ref=f1e142]: Tilbakestilt

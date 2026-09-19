@@ -53,8 +53,18 @@ describe("dotted paths", () => {
       { path: "style.stroke_width", token: "3" },
     ]);
   });
-  test("an empty object is written whole, not flattened away", () => {
-    expect(fieldLines("params", { supply: {} })).toEqual([{ path: "params", token: '{"supply":{}}' }]);
+  test("an empty object is a leaf, not something that vanishes", () => {
+    // It prints as its own token rather than being flattened INTO nothing:
+    // `params: {supply: {}}` is a real corpus value and must survive.
+    expect(fieldLines("params", { supply: {} })).toEqual([{ path: "params.supply", token: "{}" }]);
+    expect(fieldLines("params", {})).toEqual([{ path: "params", token: "{}" }]);
+  });
+
+  test("a key that is not a plain identifier is never flattened", () => {
+    // `animate` keys ARE dot paths and math `colors` keys are TeX with
+    // spaces — flattening either would split a literal key.
+    expect(fieldLines("animate", { "demand_shift.amount": 22 })).toEqual([{ path: "animate", token: '{"demand_shift.amount":22}' }]);
+    expect(fieldLines("colors", { "\\Delta C": "#b5482e" })).toEqual([{ path: "colors", token: '{"\\\\Delta C":"#b5482e"}' }]);
   });
   test("an array is written whole", () => {
     expect(fieldLines("points", [[0, 0], [10, 5]])).toEqual([{ path: "points", token: "[[0,0],[10,5]]" }]);

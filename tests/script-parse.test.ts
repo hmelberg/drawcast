@@ -59,7 +59,7 @@ describe("directions", () => {
   test("dot declares a point element and point is the laser verb", () => {
     const spec = one("Se.\n    dot p x 3 on wave\n    point at.ref p gesture tap\n");
     expect(spec.elements).toEqual([{ id: "p", type: "point", x: 3, on: "wave" }]);
-    expect(spec.commands[1]).toEqual({ point: { at: { ref: "p" }, gesture: "tap" } });
+    expect(spec.commands![1]).toEqual({ point: { at: { ref: "p" }, gesture: "tap" } });
   });
 
   test("a quoted string after the id is the element's text", () => {

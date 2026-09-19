@@ -1,0 +1,64 @@
+- generic [ref=e1]:
+  - alert [ref=e2]:
+    - generic [ref=e3]: ⚠ Testversjon — IKKE offisiell informasjon. Skal IKKE brukes som medisinsk råd.
+    - generic [ref=e4]:
+      - text: Dette er et eksperimentelt verktøy laget for teknisk testing. Innholdet kommer fra en automatisk henting av artikler på helsenorge.no/giftinformasjon/ og et språkmodell-svar. Det er
+      - strong [ref=e5]: ikke
+      - text: offisiell informasjon fra Folkehelseinstituttet, Helsedirektoratet, Giftinformasjonen, eller andre offentlige etater. Det kan inneholde feil. Ved faktisk mistanke om forgiftning, ring Giftinformasjonen på
+      - strong [ref=e6]: 22 59 13 00
+      - text: eller 113 ved livstruende situasjoner.
+  - banner [ref=e7]:
+    - button "Meny" [ref=e8] [cursor=pointer]: ☰
+    - generic [ref=e9]:
+      - heading "Spør om giftinformasjon" [level=1] [ref=e21]
+      - text: Testversjon · basert på artikler fra helsenorge.no
+  - main [ref=e11]:
+    - generic [ref=e22]:
+      - generic [ref=e39]:
+        - generic [ref=e45]: Er liljekonvall giftig for hunder?
+        - generic [ref=e48]:
+          - generic [ref=e49]: Artiklene som er tilgjengelige dekker liljekonvall hos mennesker og liljer hos katter, men ikke liljekonvall spesifikt for hunder. Kontakt veterinær direkte for råd om dette – Giftinformasjonen besvarer ikke henvendelser om dyr. Dette er ikke medisinsk rådgivning. Ved mistanke om forgiftning, ring Giftinformasjonen 22 59 13 00 (døgnåpen). Ved livstruende situasjoner ring 113.
+          - generic [ref=e50]:
+            - generic [ref=e51]: Informasjon
+            - generic [ref=e52]: 7.1 s · claude-sonnet-4-6 · Standard · bm25
+          - generic [ref=e53]:
+            - heading "Nærmeste artikler fra helsenorge.no — ingen av dem dekker spørsmålet ditt" [level=4] [ref=e54]
+            - list [ref=e55]:
+              - listitem [ref=e56]:
+                - link "Liljekonvall er en giftig plante" [ref=e57] [cursor=pointer]:
+                  - /url: https://www.helsenorge.no/giftinformasjon/planter-og-bar-a-a/liljekonvall/
+                - text: · Planter og bær
+              - listitem [ref=e58]:
+                - link "Forvekslingsfaren mellom liljekonvall og ramsløk" [ref=e59] [cursor=pointer]:
+                  - /url: https://www.helsenorge.no/giftinformasjon/planter-og-bar-a-a/forvekslingsfare-mellom-liljekonvall-og-ramsloek/
+                - text: · Planter og bær
+              - listitem [ref=e60]:
+                - link "Rosiner og druer kan gi forgiftning hos hund" [ref=e61] [cursor=pointer]:
+                  - /url: https://www.helsenorge.no/giftinformasjon/hund-og-katt/rosiner-og-druer-kan-gi-forgiftning-hos-hund/
+                - text: · Hund og katt
+              - listitem [ref=e62]:
+                - link "Hund og katt" [ref=e63] [cursor=pointer]:
+                  - /url: https://www.helsenorge.no/giftinformasjon/hund-og-katt/
+                - text: · Hund og katt
+              - listitem [ref=e64]:
+                - link "Paracetamol kan gi alvorlig forgiftning hos hund og katt" [ref=e65] [cursor=pointer]:
+                  - /url: https://www.helsenorge.no/giftinformasjon/hund-og-katt/paracetamol-kan-gi-alvorlig-forgiftning-hos-hund-og-katt/
+                - text: · Hund og katt
+              - listitem [ref=e66]:
+                - link "Nøtter kan gi forgiftning hos hund" [ref=e67] [cursor=pointer]:
+                  - /url: https://www.helsenorge.no/giftinformasjon/hund-og-katt/notter/
+                - text: · Hund og katt
+              - listitem [ref=e68]:
+                - link "Sjokolade kan gi forgiftning hos hund" [ref=e69] [cursor=pointer]:
+                  - /url: https://www.helsenorge.no/giftinformasjon/hund-og-katt/sjokolade-kan-gi-forgiftning-hos-hund/
+                - text: · Hund og katt
+              - listitem [ref=e70]:
+                - link "Rips er ikke giftig for hund og katt" [ref=e71] [cursor=pointer]:
+                  - /url: https://www.helsenorge.no/giftinformasjon/hund-og-katt/rips-er-lite-giftig-for-hund-og-katt/
+                - text: · Hund og katt
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - textbox "Still et spørsmål om gift eller forgiftning ..." [active] [ref=e29]
+          - button "Spør" [ref=e30] [cursor=pointer]
+          - button "Flere valg" [ref=e31] [cursor=pointer]: …
+        - generic [ref=e32]: Trykk Enter for å sende · Shift+Enter for ny linje

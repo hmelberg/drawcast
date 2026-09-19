@@ -1,0 +1,85 @@
+- generic [active] [ref=f1e1]:
+  - alert [ref=f1e2]:
+    - generic [ref=f1e3]: ⚠ Testversjon — IKKE offisiell informasjon. Skal IKKE brukes som medisinsk råd.
+    - generic [ref=f1e4]:
+      - text: Dette er et eksperimentelt verktøy laget for teknisk testing. Innholdet kommer fra en automatisk henting av artikler på helsenorge.no/giftinformasjon/ og et språkmodell-svar. Det er
+      - strong [ref=f1e5]: ikke
+      - text: offisiell informasjon fra Folkehelseinstituttet, Helsedirektoratet, Giftinformasjonen, eller andre offentlige etater. Det kan inneholde feil. Ved faktisk mistanke om forgiftning, ring Giftinformasjonen på
+      - strong [ref=f1e6]: 22 59 13 00
+      - text: eller 113 ved livstruende situasjoner.
+  - banner [ref=f1e7]:
+    - button "Meny" [ref=f1e8] [cursor=pointer]: ☰
+    - generic [ref=f1e9]:
+      - heading "Repetisjoner" [level=1] [ref=f1e164]
+      - text: Testversjon · basert på artikler fra helsenorge.no
+  - main [ref=f1e11]:
+    - generic [ref=f1e165]:
+      - heading "Repetisjoner" [level=2] [ref=f1e166]
+      - paragraph [ref=f1e167]: Samme spørsmål stilles n ganger med valgt modell, mal og strategi. Svarene lagres, måles og analyseres.
+      - generic [ref=f1e168]:
+        - generic [ref=f1e169]: Spørsmål
+        - textbox "Spørsmål" [ref=f1e170]: Er revebjelle giftig?
+        - generic [ref=f1e171]:
+          - generic [ref=f1e172]:
+            - generic [ref=f1e173]: Antall (n)
+            - spinbutton "Antall (n)" [ref=f1e174]: "2"
+          - generic [ref=f1e175]:
+            - generic [ref=f1e176]: Analysemodell
+            - combobox "Analysemodell" [ref=f1e177]:
+              - option "claude-opus-5" [selected]
+              - option "claude-sonnet-5"
+              - option "claude-sonnet-4-6"
+              - option "claude-opus-4-6"
+              - option "claude-haiku-4-5"
+          - button "… valg" [ref=f1e178] [cursor=pointer]
+          - button "Kjør" [ref=f1e179] [cursor=pointer]
+      - generic [ref=f1e189]:
+        - generic [ref=f1e190]:
+          - generic [ref=f1e191]:
+            - strong [ref=f1e192]: Er revebjelle giftig?
+            - generic [ref=f1e193]: 2026-09-09T15:47:54.609Z · n=2 · claude-sonnet-4-6 · Standard · bm25
+          - generic [ref=f1e194]:
+            - button "Last ned JSON" [ref=f1e195] [cursor=pointer]
+            - button "Last ned Markdown" [ref=f1e196] [cursor=pointer]
+            - button "Analyser på nytt" [ref=f1e197] [cursor=pointer]
+        - heading "Mål" [level=3] [ref=f1e198]
+        - table [ref=f1e199]:
+          - rowgroup [ref=f1e200]:
+            - row [ref=f1e201]:
+              - rowheader "Svar (ok / feilet)" [ref=f1e202]
+              - cell "2 / 0" [ref=f1e203]
+            - row [ref=f1e204]:
+              - rowheader "Ulike svar" [ref=f1e205]
+              - cell "2 av 2 (største gruppe 1)" [ref=f1e206]
+            - row [ref=f1e207]:
+              - rowheader "Ordlikhet (parvis Jaccard)" [ref=f1e208]
+              - cell "0.76" [ref=f1e209]
+            - row [ref=f1e210]:
+              - rowheader "Sitatoverlapp (parvis Jaccard)" [ref=f1e211]
+              - cell "1" [ref=f1e212]
+            - row [ref=f1e213]:
+              - rowheader "Ord per svar (min / median / maks)" [ref=f1e214]
+              - cell "39 / 39.5 / 40" [ref=f1e215]
+            - row [ref=f1e216]:
+              - rowheader "Akutt / informasjon" [ref=f1e217]
+              - cell "0 / 2" [ref=f1e218]
+            - row [ref=f1e219]:
+              - rowheader "sufficient true / false" [ref=f1e220]
+              - cell "2 / 0" [ref=f1e221]
+            - row [ref=f1e222]:
+              - rowheader "Latens (snitt / maks)" [ref=f1e223]
+              - cell "12.9 s / 13.0 s" [ref=f1e224]
+        - heading "Analyse (claude-opus-5, 17.2 s)" [level=3] [ref=f1e225]
+        - generic [ref=f1e226]: "1. Hva som sies. Begge svarene: revebjelle er en svært giftig plante; første symptomer kommer fra magen; magesmerter, kvalme, oppkast og diaré; hjertesymptomer kan oppstå; kontakt Giftinformasjonen på 22 59 13 00 ved inntak. Begge oppgir urgency «info», sufficient «true» og samme kilde («Revebjelle er en svært giftig plante»). Bare i svar 2: tidsangivelsen «innen noen timer» for når magesymptomene kommer. Dette er den eneste substansielle forskjellen — den kan ikke verifiseres uten kildeutdraget, men er en konkret tilleggspåstand som svar 1 ikke gir. Bare i svar 1: bekreftende «Ja» innledningsvis. Ingen direkte motstrid mellom svarene. 2. Hvordan det sies. Begge er tre setninger, nøkternt informerende, uten overskrifter, lister eller markdown. Begge slutter med samme handlingsanvisning i aktiv form («Kontakt Giftinformasjonen …»). Svar 1 åpner med «Ja, revebjelle er …», som delvis speiler brukerens spørsmålsform («Er revebjelle giftig?») og dermed grenser mot instruksen om ikke å gjenta spørsmålet — men det er en bekreftelse, ikke en gjentakelse, så bruddet er marginalt. Svar 2 åpner rett på påstanden og ligger nærmere instruksen «gå rett på svaret». Svar 2 bruker tankestrek for å binde sammen symptombeskrivelsen, noe mer flytende, mens svar 1 bruker «og»-rekker. Ingen bruker passivkonstruksjoner av typen «det anbefales at». 3. Samlet. Svarene er tilnærmet identiske. 2 av 2 har samme innhold, samme lengde (tre setninger), samme kilde, samme metadata og samme avslutning. Avvikene er små og ligger på to steder: åpningen (1 av 2 starter med «Ja») og en tidsangivelse i symptombeskrivelsen (1 av 2 nevner «innen noen timer»). Det første er ren formulering; det andre er en reell, om liten, innholdsforskjell. Ingen forskjell i vektlegging eller hastegrad. 4. Å merke seg. Tidsangivelsen «innen noen timer» i svar 2 kan jeg ikke bekrefte uten kildeutdraget; hvis den ikke står der, er den lagt til av modellen. Ellers er begge svar konsistente og gir samme telefonnummer. Ingen svar feilet."
+        - heading "Svarene" [level=3] [ref=f1e227]
+        - group [ref=f1e228]:
+          - generic "Svar 1 · info · ok · 12.8 s" [ref=f1e229] [cursor=pointer]
+        - group [ref=f1e230]:
+          - generic "Svar 2 · info · ok · 13.0 s" [ref=f1e231] [cursor=pointer]
+      - heading "Tidligere kjøringer" [level=2] [ref=f1e180]
+      - list [ref=f1e181]:
+        - listitem [ref=f1e232]:
+          - generic [ref=f1e233] [cursor=pointer]:
+            - generic [ref=f1e234]: Er revebjelle giftig?
+            - generic [ref=f1e235]: 2026-09-09 15:47 · n=2 · claude-sonnet-4-6 · Standard · 2 ulike
+          - button "Slett" [ref=f1e236] [cursor=pointer]

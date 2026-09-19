@@ -1,0 +1,42 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]:
+    - generic [ref=e3]: ⚠ Testversjon — IKKE offisiell informasjon. Skal IKKE brukes som medisinsk råd.
+    - generic [ref=e4]:
+      - text: Dette er et eksperimentelt verktøy laget for teknisk testing. Innholdet kommer fra en automatisk henting av artikler på helsenorge.no/giftinformasjon/ og et språkmodell-svar. Det er
+      - strong [ref=e5]: ikke
+      - text: offisiell informasjon fra Folkehelseinstituttet, Helsedirektoratet, Giftinformasjonen, eller andre offentlige etater. Det kan inneholde feil. Ved faktisk mistanke om forgiftning, ring Giftinformasjonen på
+      - strong [ref=e6]: 22 59 13 00
+      - text: eller 113 ved livstruende situasjoner.
+  - banner [ref=e7]:
+    - button "Meny" [ref=e8] [cursor=pointer]: ☰
+    - generic [ref=e9]:
+      - heading "Repetisjoner" [level=1] [ref=e124]
+      - text: Testversjon · basert på artikler fra helsenorge.no
+  - main [ref=e11]:
+    - generic [ref=e125]:
+      - heading "Repetisjoner" [level=2] [ref=e126]
+      - paragraph [ref=e127]: Samme spørsmål stilles n ganger med valgt modell, mal og strategi. Svarene lagres, måles og analyseres.
+      - generic [ref=e128]:
+        - generic [ref=e129]: Spørsmål
+        - textbox "Spørsmål" [ref=e130]: Er liljekonvall giftig for hunder?
+        - generic [ref=e131]:
+          - generic [ref=e132]:
+            - generic [ref=e133]: Antall (n)
+            - spinbutton "Antall (n)" [ref=e134]: "2"
+          - generic [ref=e135]:
+            - generic [ref=e136]: Analysemodell
+            - combobox "Analysemodell" [ref=e137]:
+              - option "claude-opus-5"
+              - option "claude-sonnet-5"
+              - option "claude-sonnet-4-6"
+              - option "claude-opus-4-6"
+              - option "claude-haiku-4-5" [selected]
+          - button "… valg" [ref=e138] [cursor=pointer]
+          - button "Kjør" [ref=e139] [cursor=pointer]
+        - generic [ref=e140]:
+          - generic [ref=e141]: Lagring av forrige kjøring feilet. Svarene er bevart.
+          - generic [ref=e142]: "Spørsmål: Er liljekonvall giftig for hunder? · n=2"
+          - button "Prøv å lagre igjen" [ref=e143] [cursor=pointer]
+      - heading "Tidligere kjøringer" [level=2] [ref=e144]
+      - list [ref=e145]:
+        - listitem [ref=e146]: Laster ...

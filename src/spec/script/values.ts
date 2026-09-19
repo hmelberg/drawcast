@@ -51,8 +51,6 @@ export function formatValue(v: unknown): string {
   return JSON.stringify(v);
 }
 
-const isScalar = (v: unknown): boolean => v === null || ["string", "number", "boolean"].includes(typeof v);
-
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 

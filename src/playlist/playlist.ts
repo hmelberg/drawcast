@@ -10,6 +10,8 @@ import { CORE_SCHEMA, dump, loadAll } from "js-yaml";
 import { cardElements, titleFont } from "../spec/card";
 import { desmartenJson } from "../spec/extract";
 import { dumpSpecYaml, formatSpec, parseSpecText, type SpecFormat } from "../spec/text";
+import { parseScriptPages, printScriptPages } from "../spec/script/index";
+import { looksLikeScript } from "../spec/script/detect";
 import type { Spec } from "../spec/types";
 import { narrationLanguage } from "../export/video";
 import { resolveSibling } from "./inset-ref";
@@ -180,6 +182,24 @@ export function parsePlaylistText(text: string): Playlist {
       return classifyDocs(present);
     }
   }
+  // A script says "another page" with `##`, not with a document separator.
+  if (looksLikeScript(text)) {
+    const { meta, pages } = parseScriptPages(text);
+    if (pages.length > 1 || meta.title !== undefined || meta.chapters !== undefined) {
+      const playlist: Playlist = { meta: { ...DEFAULT_META }, entries: [], warnings: [] };
+      for (const [key, value] of Object.entries(meta)) {
+        if (key === "chapters") continue;
+        (playlist.meta as unknown as Record<string, unknown>)[key] = value;
+      }
+      const chapters = (meta.chapters as { before: number; title: string }[] | undefined) ?? [];
+      pages.forEach((p, i) => {
+        for (const c of chapters) if (c.before === i) playlist.entries.push({ kind: "chapter", title: c.title });
+        playlist.entries.push({ kind: "item", spec: p.spec });
+      });
+      return playlist;
+    }
+    return singlePlaylist(pages[0].spec);
+  }
   const single = parseSpecText(text).value as Spec;
   return singlePlaylist(single);
 }
@@ -311,6 +331,20 @@ const YAML_OPTS = { lineWidth: -1, noRefs: true } as const;
 export function formatPlaylist(playlist: Playlist, format: SpecFormat): string {
   if (isSingle(playlist)) {
     return formatSpec((playlist.entries[0] as { spec: Spec }).spec, format);
+  }
+  if (format === "script") {
+    const meta: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(playlist.meta)) {
+      if (value !== undefined && value !== (DEFAULT_META as unknown as Record<string, unknown>)[key]) meta[key] = value;
+    }
+    const pages: { spec: Spec }[] = [];
+    const chapters: { before: number; title: string }[] = [];
+    for (const e of playlist.entries) {
+      if (e.kind === "chapter") chapters.push({ before: pages.length, title: e.title });
+      else pages.push({ spec: e.spec });
+    }
+    if (chapters.length > 0) meta.chapters = chapters;
+    return printScriptPages(meta, pages);
   }
   const parts: string[] = [];
   const header: Record<string, unknown> = {};

@@ -6,8 +6,13 @@
 import { CORE_SCHEMA, dump, load, YAMLException } from "js-yaml";
 import { desmartenJson, extractJson } from "./extract";
 import { specForDump } from "./assets";
+import { parseScript, printScript } from "./script/index";
+import { SPEC_KEYS, looksLikeScript } from "./script/detect";
+import type { Spec } from "./types";
 
-export type SpecFormat = "yaml" | "json";
+export type SpecFormat = "yaml" | "json" | "script";
+
+
 
 export interface ParsedSpecText {
   value: unknown;
@@ -45,7 +50,7 @@ export function parseSpecText(text: string): ParsedSpecText {
     try {
       // CORE_SCHEMA keeps every value a JSON type (no implicit Date parsing).
       const value = load(candidate, { schema: CORE_SCHEMA });
-      if (isPlainObject(value)) return { value, format: "yaml" };
+      if (isPlainObject(value) && SPEC_KEYS.some((k) => k in value)) return { value, format: "yaml" };
       // Parsed but not a mapping (a bare string/number/list) — remember why.
       yamlError ??= new Error("the document is not a mapping (an object with keys)");
     } catch (err) {
@@ -56,7 +61,14 @@ export function parseSpecText(text: string): ParsedSpecText {
   try {
     return { value: extractJson(desmartened), format: "json" };
   } catch {
-    /* no embedded JSON either — report the YAML reading, it's the most informative */
+    /* no embedded JSON either — try the script reading before reporting */
+  }
+
+  if (looksLikeScript(text)) {
+    // A script that does not parse is the most informative error there is
+    // for text that is plainly neither JSON nor YAML.
+    const value = parseScript(text);
+    if (isPlainObject(value)) return { value, format: "script" };
   }
 
   if (yamlError instanceof YAMLException) {
@@ -69,6 +81,7 @@ export function parseSpecText(text: string): ParsedSpecText {
 /** Serialize a spec for display/download in the given format. */
 export function formatSpec(spec: unknown, format: SpecFormat): string {
   if (format === "json") return JSON.stringify(spec, null, 2);
+  if (format === "script") return printScript(spec as Spec);
   return dumpSpecYaml(spec);
 }
 
