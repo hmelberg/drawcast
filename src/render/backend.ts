@@ -64,11 +64,14 @@ export interface RenderedElement {
  */
 export interface BackendEffects {
   /**
-   * Emphasis at progress t ∈ [0,1] on already-drawn elements. box is the
-   * logical-units union box of the targets (for the circle effect).
-   * t = 1 must leave the elements back in their normal appearance.
+   * ONE FRAME of emphasis at intensity `level` ∈ [0,1] on already-drawn
+   * elements — 0 is the normal appearance, 1 is full strength. The shape over
+   * time (render/emphasis.ts: three throbs, then a hold for the length of the
+   * sentence, then a release) belongs to the Player, which samples it per
+   * frame. box is the logical-units union box of the targets (circle effect).
+   * Nothing here ends the emphasis: endHighlight does.
    */
-  setHighlight(ids: string[], effect: HighlightEffect, t: number, box: BBox | null, color?: string): void;
+  setHighlight(ids: string[], effect: HighlightEffect, level: number, box: BBox | null, color?: string): void;
   /** Remove any leftover emphasis for these ids (abort/scrub safety). */
   endHighlight(ids: string[]): void;
   /**

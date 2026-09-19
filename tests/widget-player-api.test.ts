@@ -8,7 +8,7 @@ describe("Player: the widget host's public surface", () => {
   test("glow(ids, ms, color) is one swell of the answer glow, always cleared", () => {
     expect(src).toMatch(/^\s+async glow\(ids: string\[\], ms = ANSWER_GLOW_MS, color\?: string\): Promise<void>/m);
     const body = src.slice(src.indexOf("async glow("), src.indexOf("async glow(") + 900);
-    expect(body).toContain('effects.setHighlight(ids, "glow", t, null, color)');
+    expect(body).toContain('effects.setHighlight(ids, "glow", swellLevel(t), null, color)');
     expect(body).toContain("effects.endHighlight(ids)");
   });
   test("tapAt(box, ms) drives the laser along pointerPath(…, \"tap\") and lifts it", () => {

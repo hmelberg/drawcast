@@ -309,8 +309,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned 2026-09-19 (an end-anchored cue): `cue_end` — the cue marks
 // where the action has FINISHED, so a reveal lands on its word instead of
 // starting there. schema 80832 → 81186, system 201941 → 202736.
-const BASELINE_SYSTEM_CHARS = 202736;
-const BASELINE_SCHEMA_CHARS = 81186;
+// Re-pinned 2026-09-19 (emphasis holds): a narrated highlight throbs three
+// times and then STAYS lit for the rest of the sentence rather than breathing
+// through it, so both the verb's description and the effect names had to say
+// what they now do. schema 81186 → 81370, system 202736 → 203007.
+const BASELINE_SYSTEM_CHARS = 203007;
+const BASELINE_SCHEMA_CHARS = 81370;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

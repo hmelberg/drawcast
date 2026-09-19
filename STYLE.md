@@ -21,6 +21,34 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-19 — Emphasis should land and STAY, not breathe through the sentence
+
+Hans: "in drawcast, the we use the pulsating highlight (glow?) it often keep
+going for too long. And it is also not disitnct enough." Asked what should
+happen instead: "how about three swells then hold".
+
+Distillation: attention is a thing you place, not a thing you keep asking
+for. A mark that throbs for eight seconds is the visual equivalent of
+repeating a word — and, like a highlight on something self-evident, it
+teaches the viewer to ignore the next one. The motion earns the glance; the
+hold is what lets them actually look while the sentence explains. Measured
+before the change: of 155 highlight commands in `src/examples.json`, **not
+one** carried an explicit `duration`, so every one repeated a 1.5 s swell
+until the voice ended — a median of 5 swells and up to 10 — and, because the
+loop could only stop at a cycle boundary, went on breathing 0.67 s past the
+end of the sentence on average (1.4 s worst case). The peak was 0.7 opacity
+for an instant, averaging 0.45 over a cycle, so the element was never plainly
+ON.
+
+Status: shipped 2026-09-19. `src/render/emphasis.ts` owns the envelope —
+three throbs whose troughs rise (1/3, 2/3), the third running straight into a
+hold at full for the rest of the sentence, released over 400 ms the moment
+the voice stops. Distinctness came from the hold rather than from more
+motion: full opacity instead of a 0.7 peak, and a two-layer halo for `glow`.
+Taught to the model in the same round (`compiler-v1.md`, the `highlight`
+schema description). Dimming the rest of the frame was considered and
+rejected — that is what `focus` is for.
+
 ### 2026-09-16 — The title is page furniture; a heading on the canvas is the cast's own choice
 
 Hans: "In drawcast there is a title field on top, but also often a title

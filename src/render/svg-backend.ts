@@ -872,7 +872,14 @@ function emphasisClone(g: SVGGElement, color: string, glow: boolean): SVGGElemen
   c.style.opacity = "0";
   c.style.pointerEvents = "none";
   for (const p of Array.from(c.querySelectorAll("path"))) {
-    if ((p.getAttribute("fill") ?? "none") !== "none") p.setAttribute("fill", color);
+    if ((p.getAttribute("fill") ?? "none") !== "none") {
+      p.setAttribute("fill", color);
+      // A shaded AREA stays see-through even at full strength: there is
+      // something underneath it (the labels in a region, the curve through a
+      // sector) that a solid echo would paint over for the whole sentence.
+      // A letterform has nothing behind it and keeps its solid fill below.
+      if (!p.hasAttribute(EXACT_ATTR)) p.setAttribute("fill-opacity", "0.4");
+    }
     // An exact area (a letterform) stays fill-only: a 4.5 px echo stroke
     // around a glyph welds its counters shut. Everything else — rough.js's own
     // solid-fill paths included — keeps the bolder echo it has always had.
@@ -887,7 +894,9 @@ function emphasisClone(g: SVGGElement, color: string, glow: boolean): SVGGElemen
   // <text>'s, is not overwritten above and would otherwise win, leaving the
   // emphasis echo rainbow-tinted instead of a flat highlight colour.
   for (const s of Array.from(c.querySelectorAll("tspan"))) s.removeAttribute("fill");
-  if (glow) c.style.filter = `drop-shadow(0 0 9px ${color})`;
+  // Two layers, not one: the tight halo is what makes a thin stroke read as
+  // lit at all, the wide one is what carries the emphasis across the frame.
+  if (glow) c.style.filter = `drop-shadow(0 0 4px ${color}) drop-shadow(0 0 14px ${color})`;
   return c;
 }
 
@@ -914,6 +923,8 @@ function ellipseRingPath(box: BBox, color: string, rc: RoughSVG | null): SVGGEle
 interface HighlightNodes {
   nodes: SVGGElement[];
   ringPaths: { el: SVGPathElement; len: number }[];
+  /** How much of the ring has been written — the highest level it has seen. */
+  drawn: number;
 }
 
 function makeEffects(
@@ -939,14 +950,22 @@ function makeEffects(
   };
 
   return {
-    setHighlight(ids: string[], effect: HighlightEffect, t: number, box: BBox | null, color?: string): void {
+    /**
+     * ONE FRAME of emphasis, at intensity `level` (0-1). The shape over time —
+     * three swells and then a hold — belongs to render/emphasis.ts and the
+     * player that samples it; a backend only says what a level LOOKS like.
+     * Nothing here removes the echo: `endHighlight` does, which is what lets
+     * the player release exactly when the voice stops rather than at the end
+     * of whatever cycle it happened to be in.
+     */
+    setHighlight(ids: string[], effect: HighlightEffect, level: number, box: BBox | null, color?: string): void {
       const col = color ?? HIGHLIGHT_COLOR;
       const key = keyOf(ids);
       // A circle without a box degrades to a pulse.
       const kind: HighlightEffect = effect === "circle" && !box ? "pulse" : effect;
       let st = active.get(key);
       if (!st) {
-        st = { nodes: [], ringPaths: [] };
+        st = { nodes: [], ringPaths: [], drawn: 0 };
         if (kind === "circle") {
           const ring = ellipseRingPath(box!, col, rc);
           overlay.appendChild(ring);
@@ -968,23 +987,14 @@ function makeEffects(
         }
         active.set(key, st);
       }
-      if (t >= 1) {
-        removeHighlight(key);
-        return;
-      }
+      const a = Math.min(Math.max(level, 0), 1);
       if (kind === "circle") {
-        const reveal = Math.min(t / 0.3, 1);
-        const fade = t < 0.78 ? 1 : 1 - (t - 0.78) / 0.22;
-        for (const { el, len } of st.ringPaths) el.style.strokeDashoffset = `${len * (1 - reveal)}`;
-        st.nodes.forEach((n) => (n.style.opacity = String(0.95 * fade)));
-      } else if (kind === "glow") {
-        const swell = Math.sin(Math.PI * t);
-        st.nodes.forEach((n) => (n.style.opacity = String(0.7 * swell)));
-      } else {
-        // pulse: three throbs of the colored echo
-        const phase = Math.sin(Math.PI * t * 3) ** 2;
-        st.nodes.forEach((n) => (n.style.opacity = String(0.8 * phase)));
+        // The ring is written ON by the rising level and then stays written:
+        // a pen stroke does not unwrite itself when the throb dips.
+        st.drawn = Math.max(st.drawn, a);
+        for (const { el, len } of st.ringPaths) el.style.strokeDashoffset = `${len * (1 - st.drawn)}`;
       }
+      st.nodes.forEach((n) => (n.style.opacity = String(a)));
     },
 
     endHighlight(ids: string[]): void {

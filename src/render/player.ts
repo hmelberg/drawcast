@@ -21,6 +21,7 @@ import type { Easing, SpecElement } from "../spec/types";
 import type { ControlValue } from "../code/controls";
 import { cueStartMs } from "./cue";
 import { SpeechManager, type SpeechLike } from "./speech";
+import { EMPHASIS_FIRST_PEAK_MS, EMPHASIS_HOLD_AT_MS, EMPHASIS_ONE_SWELL_MS, EMPHASIS_RELEASE_MS, emphasisLevel, releaseLevel, swellLevel } from "./emphasis";
 import { translateCaption, type SubtitleTrack } from "../spec/subtitles";
 import type { ToneLike } from "./tones";
 import { isIdentity, type Turn } from "./pose";
@@ -115,7 +116,7 @@ const SCROLL_MS = 250; // a code window sliding one or more rows
 const CLEAR_MIN_MS = 250;
 
 /** One swell of the answer glow a click question puts on the correct element. */
-const ANSWER_GLOW_MS = 1200;
+const ANSWER_GLOW_MS = EMPHASIS_ONE_SWELL_MS;
 /** The click gate's "right" green (styles.css --ok) — a literal, since SVG presentation attributes cannot read CSS variables. */
 const ANSWER_OK_COLOR = "#4a7c59";
 
@@ -795,7 +796,7 @@ export class Player {
     if (!effects || ids.length === 0) return;
     const ac = new AbortController();
     try {
-      await this.progress(ms, ac.signal, (t) => effects.setHighlight(ids, "glow", t, null, color));
+      await this.progress(ms, ac.signal, (t) => effects.setHighlight(ids, "glow", swellLevel(t), null, color));
     } finally {
       effects.endHighlight(ids);
     }
@@ -1377,17 +1378,18 @@ export class Player {
             return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
           }),
         );
+        const paint = (level: number) => effects.setHighlight(step.ids, step.effect, level, box, step.color);
         try {
           if (step.untilNarrationEnd && this.narrationVoice) {
-            // Glow-while-speaking: repeat full effect cycles until the voice
-            // ends (each progress cycle is one complete swell/throb).
-            let speaking = true;
-            void this.narrationVoice.finally(() => (speaking = false));
-            while (speaking && !signal.aborted) {
-              await this.progress(step.seconds * 1000, signal, (t) => effects.setHighlight(step.ids, step.effect, t, box, step.color));
-            }
+            // Emphasis-while-speaking: three throbs, then held at full for the
+            // rest of the sentence, released the moment the voice stops.
+            await this.emphasize(signal, paint, this.narrationVoice);
           } else {
-            await this.progress(step.seconds * 1000, signal, (t) => effects.setHighlight(step.ids, step.effect, t, box, step.color));
+            // An explicit duration is the whole effect, release included: the
+            // throbs compress to fit when there is less room than they want.
+            const swellMs = Math.max(1, step.seconds * 1000 - EMPHASIS_RELEASE_MS);
+            const rate = Math.max(1, EMPHASIS_HOLD_AT_MS / swellMs);
+            await this.emphasize(signal, paint, this.waitScaled(swellMs, signal), rate);
           }
         } finally {
           effects.endHighlight(step.ids);
@@ -1798,18 +1800,65 @@ export class Player {
       await work();
       return;
     }
-    let working = true;
-    const done = work().finally(() => (working = false));
+    const done = work();
     try {
-      do {
-        await this.progress(ANSWER_GLOW_MS, signal, (t) => {
-          for (const g of live) effects.setHighlight(g.ids, "glow", t, null, g.color);
-        });
-      } while (working && !signal.aborted);
+      await this.emphasize(signal, (level) => {
+        for (const g of live) effects.setHighlight(g.ids, "glow", level, null, g.color);
+      }, done);
     } finally {
       for (const g of live) effects.endHighlight(g.ids);
     }
     await done;
+  }
+
+  /**
+   * An open-ended rAF loop: `onFrame(elapsedMs)` every frame until it returns
+   * false (or the signal aborts). progress()'s sibling for work whose length
+   * is not known in advance — a sentence's, say. Honours pause and speed the
+   * same way.
+   */
+  private frames(signal: AbortSignal, onFrame: (elapsedMs: number) => boolean): Promise<void> {
+    return new Promise((resolve) => {
+      let t = 0;
+      let last = performance.now();
+      const tick = (now: number) => {
+        if (signal.aborted) return resolve();
+        if (!this.pausedFlag) t += (now - last) * this.speedVal;
+        last = now;
+        if (!onFrame(t)) return resolve();
+        this.raf(tick);
+      };
+      this.raf(tick);
+    });
+  }
+
+  /**
+   * The emphasis envelope: three throbs, then a HOLD at full for as long as
+   * `until` takes, then a release from wherever the level had got to.
+   *
+   * The hold is the point. Repeating a swell instead — which is what this used
+   * to do — left the element at full for an instant at a time and never simply
+   * ON, and since a repeat could only stop at a cycle boundary it went on
+   * breathing past the end of the voice. Here the level is sampled per frame,
+   * so the release starts on the word. `rate` > 1 compresses the throbs to fit
+   * an explicit duration; the floor at the first peak keeps even an instant
+   * emphasis visible.
+   */
+  private async emphasize(signal: AbortSignal, paint: (level: number) => void, until: Promise<unknown>, rate = 1): Promise<void> {
+    let running = true;
+    void until.then(
+      () => (running = false),
+      () => (running = false),
+    );
+    let level = 0;
+    await this.frames(signal, (elapsed) => {
+      const at = elapsed * rate;
+      level = emphasisLevel(at);
+      paint(level);
+      return running || at < EMPHASIS_FIRST_PEAK_MS;
+    });
+    if (signal.aborted) return;
+    await this.progress(EMPHASIS_RELEASE_MS, signal, (t) => paint(releaseLevel(level, t)));
   }
 
   private progress(ms: number, signal: AbortSignal, onTick: (t: number) => void): Promise<void> {
