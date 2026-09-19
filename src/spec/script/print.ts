@@ -3,7 +3,8 @@
 // holds it to over the whole bundled corpus.
 import { dump } from "js-yaml";
 import { fieldLines, formatValue } from "./values";
-import { LIST_VERBS, OBJECT_VERBS, SCALAR_VERBS, TARGET_VERBS } from "./parse";
+import { COMMAND_ORDER, ELEMENT_ORDER, LIST_VERBS, OBJECT_VERBS, SCALAR_VERBS, TARGET_VERBS } from "./parse";
+import { ELEMENT_ALIASES, FLAG_FOR, PLACE_WORDS, SIDE_TYPES, isColor } from "./sugar";
 
 /** The keys that can head a direction line. Everything else in a command
  *  rides along as a modifier on the same line. */
@@ -28,19 +29,100 @@ const BEAT_FIELDS = new Set(["speak", "voice", "label"]);
 
 const yaml = (v: unknown): string => dump(v, { lineWidth: -1, noRefs: true }).trimEnd();
 
-/** `key value` pairs for everything in `obj` except the keys named. */
-function pairs(obj: Record<string, unknown>, skip: Set<string>): string {
-  const out: string[] = [];
-  for (const [k, v] of Object.entries(obj)) {
-    if (skip.has(k) || v === undefined) continue;
-    for (const { path, token } of fieldLines(k, v)) out.push(`${path} ${token}`);
+/**
+ * `key value` pairs for everything in `obj` except the keys named, in a fixed
+ * order. Object insertion order is NOT it: a reparsed spec builds its fields
+ * in the order the grammar read them, so printing by insertion order would
+ * make a second print differ from the first without anything having changed.
+ */
+function pairs(obj: Record<string, unknown>, skip: Set<string>, order: string[] = ELEMENT_ORDER, skipPaths: Set<string> = new Set()): string {
+  const rank = (k: string): number => {
+    const i = order.indexOf(k);
+    return i === -1 ? order.length : i;
+  };
+  const lines: { path: string; token: string }[] = [];
+  for (const k of Object.keys(obj)) {
+    if (skip.has(k) || obj[k] === undefined) continue;
+    for (const fl of fieldLines(k, obj[k])) if (!skipPaths.has(fl.path)) lines.push(fl);
   }
-  return out.join(" ");
+  // Sorted by the schema's order at the top level, then by the whole path —
+  // so a nested `style.dash` never trades places with `style.color` between
+  // one print and the next.
+  lines.sort((a, b) => rank(a.path.split(".")[0]) - rank(b.path.split(".")[0]) || a.path.localeCompare(b.path));
+  return lines.map(({ path, token }) => `${path} ${token}`).join(" ");
+}
+
+/** node shape → the alias that says it. Built from the table, not beside it. */
+const ALIAS_FOR = new Map<string, string>(
+  Object.entries(ELEMENT_ALIASES)
+    .filter(([, a]) => a.fields?.shape !== undefined)
+    .map(([word, a]) => [`${a.type}:${String(a.fields!.shape)}`, word]),
+);
+
+/**
+ * The shorthands an element can be written with, and the fields they eat.
+ * Reversible by construction: a word is emitted only when the field holds
+ * EXACTLY the value that word means — which is what the corpus gate checks,
+ * 258 times over, every run.
+ */
+function shorthands(el: SpecElement): { words: string[]; used: Set<string>; eaten: Set<string> } {
+  const words: string[] = [];
+  const used = new Set<string>();
+  const e = el as unknown as Record<string, unknown>;
+  const at = e.at as Record<string, unknown> | undefined;
+
+  // `a -> b`, when both ends are plain refs and carry nothing else.
+  const end = (v: unknown): string | null => {
+    if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+    const keys = Object.keys(v as object);
+    return keys.length === 1 && keys[0] === "ref" ? String((v as { ref: unknown }).ref) : null;
+  };
+  const from = end(e.from), to = end(e.to);
+  if (from !== null && to !== null) { words.push(from, "->", to); used.add("from"); used.add("to"); }
+
+  // Placement, in words.
+  if (at && typeof at.place === "string" && Object.keys(at).length === 1) {
+    const word = [...PLACE_WORDS].find(([, anchor]) => anchor === at.place)?.[0];
+    if (word !== undefined) { words.push(word); used.add("at"); }
+  } else if (at && typeof at.side === "string" && typeof at.ref === "string" && Object.keys(at).every((k) => ["side", "ref", "gap"].includes(k))) {
+    words.push(at.side, at.ref);
+    if (typeof at.gap === "number") words.push("gap", String(at.gap));
+    used.add("at");
+  }
+  if (SIDE_TYPES.has(el.type) && typeof e.side === "string" && at === undefined) { words.push(e.side); used.add("side"); }
+
+  // Flags and colours, in a fixed order so a reprint never reshuffles them.
+  const style = e.style as Record<string, unknown> | undefined;
+  const draw = e.draw as Record<string, unknown> | undefined;
+  const eaten = new Set<string>();
+  for (const [path, value] of [["curved", e.curved], ["smooth", e.smooth], ["closed", e.closed],
+    ["direction", e.direction], ["curvature", e.curvature], ["steepness", e.steepness],
+    ["draw.mode", draw?.mode], ["style.dash", style?.dash], ["style.stroke_width", style?.stroke_width]] as [string, unknown][]) {
+    if (value === undefined) continue;
+    const word = FLAG_FOR.get(`${path}=${JSON.stringify(value)}`);
+    if (word === undefined) continue;
+    words.push(word);
+    if (path.startsWith("style.")) eaten.add(`style.${path.slice(6)}`);
+    else if (path.startsWith("draw.")) eaten.add(path);
+    else used.add(path);
+  }
+  if (typeof style?.color === "string" && isColor(style.color)) { words.push(style.color); eaten.add("style.color"); }
+  if (typeof draw?.duration === "number" && eaten.has("draw.mode")) { words.push(`${draw.duration}s`); eaten.add("draw.duration"); }
+
+  // Whatever a word already said is not said again as a pair — `dashed` and
+  // `style.dash true` on one line would both round-trip and both be noise.
+  return { words, used, eaten };
 }
 
 /** One element, as the line that declares it. */
 function elementLine(el: SpecElement, hidden: boolean): string {
-  const rest = pairs(el as unknown as Record<string, unknown>, new Set(["id", "type", "text", "language", "code"]));
+  const { words, used, eaten } = el.type === "code"
+    ? { words: [] as string[], used: new Set<string>(), eaten: new Set<string>() }
+    : shorthands(el);
+  const shapeAlias = ALIAS_FOR.get(`${el.type}:${String((el as unknown as Record<string, unknown>).shape ?? "")}`);
+  const skip = new Set(["id", "type", "text", "language", "code", ...used]);
+  if (shapeAlias !== undefined) skip.add("shape");
+  const rest = pairs(el as unknown as Record<string, unknown>, skip, ELEMENT_ORDER, eaten);
   if (el.type === "code") {
     // `code` is the head when the element names no language — a fence must
     // always say what it is, and no runtime is called "code".
@@ -48,11 +130,11 @@ function elementLine(el: SpecElement, hidden: boolean): string {
     const body = (el.code ?? "").split("\n").map((l) => (l === "" ? l : INDENT + l)).join("\n");
     return `${INDENT}${info}\n${body}\n${INDENT}\`\`\``;
   }
-  const head = el.type === "point" ? "dot" : el.type;
+  const head = shapeAlias ?? (el.type === "point" ? "dot" : el.type);
   // Always quoted: the parser recognizes the positional text BY its quote, so
   // a text that needs no quotes would read back as a stray key.
   const text = typeof el.text === "string" ? ` ${JSON.stringify(el.text)}` : "";
-  const tail = [rest, hidden ? "hidden true" : ""].filter(Boolean).join(" ");
+  const tail = [words.join(" "), rest, hidden ? "hidden true" : ""].filter(Boolean).join(" ");
   return `${INDENT}${head} ${el.id}${text}${tail === "" ? "" : ` ${tail}`}`;
 }
 
@@ -77,7 +159,7 @@ function commandLines(cmd: Command): string[] {
   const at = Math.max(0, entries.findIndex(([k]) => MAIN_VERBS.has(k)));
   const [head, value] = entries[at];
   const extra = Object.fromEntries(entries.filter((_, i) => i !== at));
-  const tail = pairs(extra, new Set());
+  const tail = pairs(extra, new Set(), COMMAND_ORDER);
   const join = (line: string): string => `${INDENT}${[line, tail].filter(Boolean).join(" ")}`;
   if (LIST_VERBS.has(head)) return [join(`${head} ${([] as string[]).concat(value as string[]).join(" ")}`)];
   if (TARGET_VERBS.has(head)) {

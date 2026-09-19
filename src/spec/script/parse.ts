@@ -52,9 +52,14 @@ export const SCALAR_VERBS = new Set(["pause", "wait", "animate", "play"]);
  */
 export const MODIFIER_KEYS = new Set(["parallel", "blocking", "delivery", "duration", "easing", "ghost", "trail", "tempo", "instrument", "reveal", "press"]);
 
-/** Every element field, and every command field: what ends an id run. */
-export const ELEMENT_KEYS = new Set<string>(schemaProps("elements"));
-export const COMMAND_KEYS = new Set<string>(schemaProps("commands"));
+/** Every element field, and every command field: what ends an id run. The
+ *  ARRAYS keep the schema's own order, which is the order the printer writes
+ *  fields in — so a reprint never depends on the order an object happened to
+ *  be built in. */
+export const ELEMENT_ORDER = schemaProps("elements");
+export const COMMAND_ORDER = schemaProps("commands");
+export const ELEMENT_KEYS = new Set<string>(ELEMENT_ORDER);
+export const COMMAND_KEYS = new Set<string>(COMMAND_ORDER);
 
 /**
  * A verb's OWN argument names, off the schema — `highlight` stops an id run
@@ -154,6 +159,24 @@ export function parseDirection(head: string, rest: string, line: number): Direct
         setPath(el, flag[0], flag[1]);
         continue;
       }
+      // Placement words come before the key check too: `right` is BOTH a
+      // side word and a real field (the right-angle square on an `angle`),
+      // so `right win2` is a placement and `right true` is a pair.
+      if (SIDE_WORDS.has(tok) || PLACE_WORDS.has(tok)) {
+        const next = rest2[k + 1];
+        const asKey = ELEMENT_KEYS.has(tok) && (next === "true" || next === "false");
+        if (!asKey) {
+          if (SIDE_WORDS.has(tok) && next !== undefined && isBareId(next) && !ELEMENT_KEYS.has(next) && FLAGS[next] === undefined && !SIDE_WORDS.has(next) && !PLACE_WORDS.has(next)) {
+            setPath(el, "at.side", tok);
+            setPath(el, "at.ref", next);
+            k++;
+            continue;
+          }
+          if (SIDE_TYPES.has(type) && SIDE_WORDS.has(tok)) { setPath(el, "side", tok); continue; }
+          setPath(el, "at.place", PLACE_WORDS.get(tok) ?? tok);
+          continue;
+        }
+      }
       // A KEY takes the next token as its value, and that value is never
       // read as a shorthand — `style.color red` is a pair, and the `red` in
       // it is not also a standalone colour word.
@@ -165,18 +188,6 @@ export function parseDirection(head: string, rest: string, line: number): Direct
       if (isColor(tok)) { setPath(el, "style.color", tok); continue; }
       const secs = seconds(tok);
       if (secs !== null) { setPath(el, "draw.duration", secs); continue; }
-      if (SIDE_WORDS.has(tok) || PLACE_WORDS.has(tok)) {
-        const next = rest2[k + 1];
-        if (SIDE_WORDS.has(tok) && next !== undefined && isBareId(next) && !ELEMENT_KEYS.has(next)) {
-          setPath(el, "at.side", tok);
-          setPath(el, "at.ref", next);
-          k++;
-          continue;
-        }
-        if (SIDE_TYPES.has(type) && SIDE_WORDS.has(tok)) { setPath(el, "side", tok); continue; }
-        setPath(el, "at.place", PLACE_WORDS.get(tok) ?? tok);
-        continue;
-      }
       // `gap` belongs to the placement it follows — `above bedr gap 20` is
       // one phrase, and a bare top-level `gap` means nothing to any element.
       if (tok === "gap" && el.at !== undefined && rest2[k + 1] !== undefined) {

@@ -82,7 +82,7 @@ describe("the sugared forms print back", () => {
     expect(trip({
       elements: [{ id: "a", type: "arrow", from: { ref: "x" }, to: { ref: "y" }, curved: true, style: { color: "#2f6b8f", stroke_width: 3 } }],
       commands: [{ draw: ["a"] }],
-    })).toBe("    arrow a x -> y curved #2f6b8f thick\n");
+    })).toBe("    arrow a x -> y curved thick #2f6b8f\n");
   });
 
   test("a placed element prints its place word", () => {
