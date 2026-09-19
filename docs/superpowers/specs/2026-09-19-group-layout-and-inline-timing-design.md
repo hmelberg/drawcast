@@ -30,9 +30,9 @@ with the player's own `pacedDurations`, and measures the line with the same
 `lineMs` the player waits on, so the lint and the playback cannot disagree.
 
 Two rules Part B needed that §12 did not foresee, both about exactness: a
-cue's resolution is one character of its line, so `normalizeSpec` snaps it
-(a hand-written 0.5 and the same cue read back off the text are then the
-same number); and a CUED draw's elements cannot also be declared by that
+cue's resolution is a WORD of its line, so `normalizeSpec` snaps it to the
+nearest gap between words (speech has no sub-word timing, and a cue between
+two letters prints with the action wedged inside a word); and a CUED draw's elements cannot also be declared by that
 beat, because the declaration would carry no cue — they are declared up
 front and the inline action draws them. Two independent features in one document because they came out
 of one conversation; neither depends on the other.
