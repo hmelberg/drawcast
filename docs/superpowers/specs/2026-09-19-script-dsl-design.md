@@ -1,8 +1,15 @@
 # Script — a drawcast written the way it is performed
 
-Status: designed 2026-09-19, not implemented. Brainstormed with Hans in
-four decisions (§2). Next step: an implementation plan under
-docs/superpowers/plans/.
+Status: §7 (named places and auto-placement) IMPLEMENTED 2026-09-19 — plan:
+docs/superpowers/plans/2026-09-19-named-places.md, 8617 tests, tsc+build
+green, no layout regressions. §3-§6 and §8-§11 (the script format itself)
+are designed, not implemented; their plan is written now that places have
+landed. Brainstormed with Hans in four decisions (§2).
+
+Deviation from §12's task list, found while implementing: `text` and `math`
+each carried their own copy of the rule "needs x and y, or at.ref", which
+would have refused an element placed with `at.place`. Both now read one
+`placedByAt` helper in src/spec/schema.ts, and a place counts as a position.
 
 ## 1. What this is
 

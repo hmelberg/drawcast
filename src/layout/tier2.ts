@@ -673,7 +673,7 @@ export function layoutElements(
           // from a misspelt anchor looks assembled, just wrong — and place.ts
           // cannot say so itself: it knows neither the element's id nor the
           // ref's name. Wording mirrors render/plan.ts's "— using center".
-          const refAnchors = ctx.namedAnchors[at.ref] ?? {};
+          const refAnchors = ctx.namedAnchors[at.ref!] ?? {};
           if (at.side && at.anchor !== undefined) {
             issues.push({
               rule: "placement",

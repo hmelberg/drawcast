@@ -1,0 +1,55 @@
+- generic [ref=f1e1]:
+  - alert [ref=f1e2]:
+    - generic [ref=f1e3]: ⚠ Testversjon — IKKE offisiell informasjon. Skal IKKE brukes som medisinsk råd.
+    - generic [ref=f1e4]:
+      - text: Dette er et eksperimentelt verktøy laget for teknisk testing. Innholdet kommer fra en automatisk henting av artikler på helsenorge.no/giftinformasjon/ og et språkmodell-svar. Det er
+      - strong [ref=f1e5]: ikke
+      - text: offisiell informasjon fra Folkehelseinstituttet, Helsedirektoratet, Giftinformasjonen, eller andre offentlige etater. Det kan inneholde feil. Ved faktisk mistanke om forgiftning, ring Giftinformasjonen på
+      - strong [ref=f1e6]: 22 59 13 00
+      - text: eller 113 ved livstruende situasjoner.
+  - banner [ref=f1e7]:
+    - button "Meny" [ref=f1e8] [cursor=pointer]: ☰
+    - generic [ref=f1e9]:
+      - heading "Spør om giftinformasjon" [level=1] [ref=f1e10]
+      - text: Testversjon · basert på artikler fra helsenorge.no
+  - main [ref=f1e11]:
+    - generic [ref=f1e12]:
+      - generic [ref=f1e13]:
+        - heading "Hva lurer du på?" [level=2] [ref=f1e14]
+        - generic [ref=f1e15]: Svarene bygger på artikler fra helsenorge.no/giftinformasjon
+      - generic [ref=f1e17]:
+        - generic [ref=f1e18]:
+          - textbox "Still et spørsmål om gift eller forgiftning ..." [ref=f1e19]
+          - button "Spør" [ref=f1e20] [cursor=pointer]
+          - button "Flere valg" [expanded] [active] [ref=f1e21] [cursor=pointer]: …
+        - generic [ref=f1e29]:
+          - generic [ref=f1e30]:
+            - generic [ref=f1e31]: Modell
+            - combobox "Modell" [ref=f1e32]:
+              - option "claude-opus-5"
+              - option "claude-sonnet-5"
+              - option "claude-sonnet-4-6" [selected]
+              - option "claude-opus-4-6"
+              - option "claude-haiku-4-5"
+          - generic [ref=f1e33]:
+            - generic [ref=f1e34]: Mal
+            - combobox "Mal" [ref=f1e35]:
+              - option "Standard" [selected]
+          - generic [ref=f1e36]:
+            - generic [ref=f1e37]: Strategi
+            - combobox "Strategi" [ref=f1e38]:
+              - option "bm25"
+              - option "dense"
+              - option "hybrid"
+              - option "catalogue"
+              - option "guarded" [selected]
+          - generic [ref=f1e39]:
+            - generic [ref=f1e40]: k (artikler til modellen)
+            - spinbutton "k (artikler til modellen)" [ref=f1e41]
+        - generic [ref=f1e22]: Trykk Enter for å sende · Shift+Enter for ny linje
+      - generic [ref=f1e23]:
+        - button "Er liljekonvall giftig for hunder?" [ref=f1e24] [cursor=pointer]
+        - button "Barnet mitt har smakt på en tyrihjelm, hva gjør jeg?" [ref=f1e25] [cursor=pointer]
+        - button "Hva er symptomer på karbonmonoksid-forgiftning?" [ref=f1e26] [cursor=pointer]
+        - button "Kan katter få forgiftning av sjokolade?" [ref=f1e27] [cursor=pointer]
+        - button "Er revebjelle giftig?" [ref=f1e28] [cursor=pointer]
