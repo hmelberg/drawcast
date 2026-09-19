@@ -11,7 +11,7 @@ import { codeDrawables, type CodeWindow } from "./code";
 import { UNIVERSAL_ANCHORS, boxAnchor, isUniversalAnchor, polygonAnchors, polylineAnchors, ptsBox, sectorAnchors } from "./anchors";
 import { boxOfId } from "./boxes";
 import { fitTransform, ownBBox, pickSide, placementOrder, refBBox, relAt, relativeDelta, scaleDrawables, shiftDrawables, shiftPoints } from "./place";
-import { placeDelta } from "./places";
+import { autoRow, placeDelta } from "./places";
 import { columnSlots, fitPicture, isDefaultColumn, INSET_MAX, INSET_W } from "./inset";
 import { fitRegion, isFitName } from "./regions";
 import {
@@ -40,10 +40,14 @@ import { obstacleBoxes, wrapText, type LabelRequest } from "./labels";
 import { currentMathFontName, enginesLoaded, getLoadedEngines, type MathJaxEngine } from "../scenes/engines";
 import { linkKindOf } from "../ui/link-model";
 import type { LintIssue } from "../lint/lint";
-import type { EndRef, PointRef, SpecElement } from "../spec/types";
+import type { ElementType, EndRef, PointRef, SpecElement } from "../spec/types";
 import { evalBindings, interpolateVars, type Vars } from "../spec/vars";
 import { mapDrawable, poseMapOf, type LayoutOverrides } from "./posed";
 import type { TemplateFit } from "./template-fit";
+
+/** The types the auto-row places: the ones that own a free x/y and would
+ *  otherwise fall back to the middle of the canvas. */
+const AUTO_ROW_TYPES = new Set<ElementType>(["text", "shape", "math", "image", "icon", "portrait", "polygon", "sector", "arc", "ellipse"]);
 
 /**
  * One piece's geometry (currently only `pieces: {of: "sectors"}`), keyed by
@@ -117,6 +121,8 @@ interface Ctx {
    *  to read them. */
   parametric: Set<string>;
   nodeRadius: Map<string, number>;
+  /** Positions computed for elements that gave none (the auto-row pass). */
+  autoPlace: Record<string, Pt>;
   anchors: Record<string, Pt>;
   namedAnchors: Record<string, Record<string, Pt>>;
   /** The drawables laid out so far — an arrow endpoint's `anchor` reads a box off them. */
@@ -239,6 +245,7 @@ export function layoutElements(
     curveSamples: new Map(Object.entries(seedCurveSamples)),
     parametric: new Set(),
     nodeRadius: new Map(),
+    autoPlace: {},
     anchors: { ...seedAnchors },
     namedAnchors: {},
     drawablesSoFar: [],
@@ -285,6 +292,22 @@ export function layoutElements(
   });
   for (const node of elements.filter((e) => e.type === "node" && e.x !== undefined)) {
     ctx.anchors[node.id] = [node.x!, node.y ?? CANVAS.h / 2];
+  }
+
+  // Pass 1b: elements that gave no position at all would each take their own
+  // type's fallback — in practice the middle of the canvas, so two of them
+  // land on top of each other. They spread into a row instead (spec
+  // 2026-09-19 §7). ONE free element keeps the centre it has always had, so a
+  // figure only changes when it was already a pile. Nodes are excluded (their
+  // own ring is above), and so are the types whose position comes from
+  // somewhere else: a label from what it is attached to, a curve from the
+  // domain, an inset from its column.
+  const freeElements = elements.filter((e) => AUTO_ROW_TYPES.has(e.type) && e.x === undefined && e.y === undefined && !relAt(e));
+  if (freeElements.length > 1) {
+    const slots = autoRow(freeElements.length);
+    freeElements.forEach((el, i) => {
+      ctx.autoPlace[el.id] = slots[i];
+    });
   }
 
   // Ids that exist outside `elements` and are therefore legal `at.ref`
@@ -840,7 +863,8 @@ function originOr(el: SpecElement, ctx: Ctx, fallback: Pt): Pt {
     ctx.atFallback[el.id] = fallback;
     return [0, 0];
   }
-  return [el.x ?? fallback[0], el.y ?? fallback[1]];
+  const auto = ctx.autoPlace[el.id];
+  return [el.x ?? auto?.[0] ?? fallback[0], el.y ?? auto?.[1] ?? fallback[1]];
 }
 
 function sampleCurveDomain(el: SpecElement, ctx: Ctx): Pt[] {
