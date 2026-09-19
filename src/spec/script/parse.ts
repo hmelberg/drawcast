@@ -144,8 +144,24 @@ export function parseDirection(head: string, rest: string, line: number): Direct
     const pairs: string[] = [];
     for (let k = i; k < rest2.length; k++) {
       const tok = rest2[k];
+      // Flags come first, because `curved`, `smooth` and `closed` are BOTH
+      // shorthand words and real field names — written long (`curved true`)
+      // they are a pair, written alone they are the flag.
       const flag = FLAGS[tok];
-      if (flag) { setPath(el, flag[0], flag[1]); continue; }
+      if (flag) {
+        const next = rest2[k + 1];
+        if (ELEMENT_KEYS.has(tok) && (next === "true" || next === "false")) { pairs.push(tok, rest2[++k]); continue; }
+        setPath(el, flag[0], flag[1]);
+        continue;
+      }
+      // A KEY takes the next token as its value, and that value is never
+      // read as a shorthand — `style.color red` is a pair, and the `red` in
+      // it is not also a standalone colour word.
+      if (tok.includes(".") || ELEMENT_KEYS.has(tok)) {
+        if (rest2[k + 1] === undefined) throw new ScriptError(`"${tok}" has no value`, line);
+        pairs.push(tok, rest2[++k]);
+        continue;
+      }
       if (isColor(tok)) { setPath(el, "style.color", tok); continue; }
       const secs = seconds(tok);
       if (secs !== null) { setPath(el, "draw.duration", secs); continue; }
