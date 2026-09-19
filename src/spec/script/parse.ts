@@ -33,13 +33,23 @@ export const ELEMENT_HEADS = new Set<string>(
 );
 
 /** Verbs whose argument list is bare ids: the command field IS a list. */
-export const LIST_VERBS = new Set(["draw", "show", "hide", "erase", "reveal", "press"]);
+export const LIST_VERBS = new Set(["draw", "show", "hide", "erase"]);
 /** Verbs whose leading bare ids fill `target` inside an object. */
 export const TARGET_VERBS = new Set(["highlight", "focus", "move", "arrange", "fade", "flip", "morph", "keep"]);
 /** Verbs whose whole argument set is an object with no positional part. */
 export const OBJECT_VERBS = new Set(["point", "copy", "flow", "camera", "card", "clear", "quiz", "ask", "run", "explore", "if"]);
 /** Verbs and beat modifiers that take one value (or stand alone). */
-export const SCALAR_VERBS = new Set(["pause", "wait", "parallel", "blocking", "voice", "delivery", "duration", "easing", "tempo", "instrument", "animate", "play", "ghost", "trail", "label"]);
+export const SCALAR_VERBS = new Set(["pause", "wait", "animate", "play"]);
+
+/**
+ * Fields that ride ALONG with a verb rather than being one: they belong to
+ * the command, not to the verb's own arguments. `{animate: …, duration: 3}`
+ * is one command, and so is `{play: …, reveal: [...], press: [...]}` — the
+ * whole point of the split is that `duration 3` after `animate` must not
+ * end up inside animate. A verb that declares the same name in its own
+ * schema (camera's duration, highlight's duration) keeps it.
+ */
+export const MODIFIER_KEYS = new Set(["parallel", "blocking", "delivery", "duration", "easing", "ghost", "trail", "tempo", "instrument", "reveal", "press"]);
 
 /** Every element field, and every command field: what ends an id run. */
 export const ELEMENT_KEYS = new Set<string>(schemaProps("elements"));
@@ -65,6 +75,19 @@ function argKeys(head: string): Set<string> {
 
 const isBareId = (t: string): boolean => /^[A-Za-z_][\w-]*$/.test(t);
 
+/** Pairs whose key is a modifier the verb does not itself declare. */
+function splitPairs(head: string, tokens: string[], line: number): { args: string[]; extra: string[] } {
+  const args: string[] = [];
+  const extra: string[] = [];
+  const mine = argKeys(head);
+  for (let i = 0; i < tokens.length; i += 2) {
+    if (i + 1 >= tokens.length) throw new ScriptError(`"${tokens[i]}" has no value`, line);
+    const pair = [tokens[i], tokens[i + 1]];
+    (MODIFIER_KEYS.has(tokens[i]) && !mine.has(tokens[i]) ? extra : args).push(...pair);
+  }
+  return { args, extra };
+}
+
 function keyValues(tokens: string[], into: Record<string, unknown>, line: number): void {
   for (let i = 0; i < tokens.length; i += 2) {
     const path = tokens[i];
@@ -76,6 +99,8 @@ function keyValues(tokens: string[], into: Record<string, unknown>, line: number
 export interface Direction {
   element?: SpecElement;
   command?: Record<string, unknown>;
+  /** A beat modifier (`parallel true`): it joins the command being built. */
+  modifier?: Record<string, unknown>;
   /** Where a deeper-indented continuation line writes. */
   args: Record<string, unknown>;
   /** A declaration the props block marked `hidden`: declared, not drawn. */
@@ -89,7 +114,9 @@ export function parseDirection(head: string, rest: string, line: number): Direct
   if (head === "dot" || ELEMENT_HEADS.has(head)) {
     const el: Record<string, unknown> = {};
     let i = 0;
-    if (tokens[0] !== undefined && isBareId(tokens[0]) && !ELEMENT_KEYS.has(tokens[0])) el.id = tokens[i++];
+    // The id is the first bare token, full stop. Element fields make perfectly
+    // good ids (`slope`, `text`, `line`), and an element always has one.
+    if (tokens[0] !== undefined && isBareId(tokens[0])) el.id = tokens[i++];
     if (tokens[i] !== undefined && tokens[i].startsWith('"')) el.text = parseValue(tokens[i++]);
     keyValues(tokens.slice(i), el, line);
     if (typeof el.id !== "string") throw new ScriptError(`a ${head} needs an id`, line);
@@ -106,35 +133,49 @@ export function parseDirection(head: string, rest: string, line: number): Direct
     return { ids, next: i };
   };
   if (LIST_VERBS.has(head)) {
-    const { ids, next } = idRun(COMMAND_KEYS);
+    const { ids, next } = idRun(MODIFIER_KEYS);
     const cmd: Record<string, unknown> = { [head]: ids };
     keyValues(tokens.slice(next), cmd, line);
     return { command: cmd, args: cmd };
   }
   if (TARGET_VERBS.has(head)) {
-    const { ids, next } = idRun(argKeys(head));
+    const { ids, next } = idRun(new Set([...argKeys(head), ...MODIFIER_KEYS]));
     const args: Record<string, unknown> = {};
     if (ids.length > 0) args.target = ids;
-    keyValues(tokens.slice(next), args, line);
-    return { command: { [head]: args }, args };
+    const { args: own, extra } = splitPairs(head, tokens.slice(next), line);
+    keyValues(own, args, line);
+    const cmd: Record<string, unknown> = { [head]: args };
+    keyValues(extra, cmd, line);
+    return { command: cmd, args };
   }
-  if (OBJECT_VERBS.has(head)) {
-    const args: Record<string, unknown> = {};
-    keyValues(tokens, args, line);
-    return { command: { [head]: args }, args };
-  }
-  if (SCALAR_VERBS.has(head)) {
+  if (OBJECT_VERBS.has(head) || SCALAR_VERBS.has(head)) {
     if (tokens.length === 0) {
-      const cmd: Record<string, unknown> = { [head]: head === "wait" ? "click" : true };
-      return { command: cmd, args: cmd };
+      const cmd: Record<string, unknown> = { [head]: head === "wait" ? "click" : head === "pause" ? true : {} };
+      return { command: cmd, args: cmd[head] as Record<string, unknown> };
     }
-    if (tokens.length === 1) {
+    // A leading LITERAL is the verb's whole value — a play string, a pause
+    // number, an animate map whose keys are dot paths. A leading bare word is
+    // the first of the verb's own `key value` pairs.
+    if (!/^[A-Za-z_]/.test(tokens[0])) {
       const cmd: Record<string, unknown> = { [head]: parseValue(tokens[0]) };
+      keyValues(tokens.slice(1), cmd, line);
       return { command: cmd, args: cmd };
     }
     const args: Record<string, unknown> = {};
-    keyValues(tokens, args, line);
-    return { command: { [head]: args }, args };
+    const { args: own, extra } = splitPairs(head, tokens, line);
+    keyValues(own, args, line);
+    const cmd: Record<string, unknown> = { [head]: args };
+    keyValues(extra, cmd, line);
+    return { command: cmd, args };
+  }
+  if (MODIFIER_KEYS.has(head)) {
+    // A modifier is not a command of its own: it joins the one the beat is
+    // building (the draw its declarations describe, or the line above).
+    const mod: Record<string, unknown> = {};
+    if (tokens.length === 0) mod[head] = true;
+    else if (tokens.length === 1) mod[head] = parseValue(tokens[0]);
+    else keyValues(tokens, mod, line);
+    return { modifier: mod, args: mod };
   }
   throw new ScriptError(`"${head}" is not a kind of thing or a verb`, line);
 }
@@ -174,6 +215,11 @@ export function parseScriptPages(text: string): ParsedScript {
     const commands: Record<string, unknown>[] = [];
     let pendingDraw: string[] | null = null;
     for (const item of beat.items) {
+      if (item.modifier) {
+        const target = commands[commands.length - 1] ?? (commands.push({}), commands[0]);
+        Object.assign(target, item.modifier);
+        continue;
+      }
       if (item.element) {
         (spec.elements ??= []).push(item.element);
         if (item.hidden) { pendingDraw = null; continue; }
@@ -201,11 +247,23 @@ export function parseScriptPages(text: string): ParsedScript {
 
   const startBeat = (): Beat => (beat ??= { items: [], label: (() => { const l = pendingLabel; pendingLabel = undefined; return l; })() });
 
-  for (const l of lines) {
+  for (let li = 0; li < lines.length; li++) {
+    const l = lines[li];
     switch (l.kind) {
       case "blank": flush(); break;
       case "comment": break;
-      case "goto": flush(); pendingLabel = l.name; break;
+      case "goto": {
+        flush();
+        // `@name` hard against a beat labels that beat; `@name` alone in its
+        // own paragraph is a label-only command — a bare jump target, which
+        // is how the corpus writes a re-watch destination.
+        let next = li + 1;
+        while (next < lines.length && lines[next].kind === "comment") next++;
+        const attached = next < lines.length && (lines[next].kind === "speech" || lines[next].kind === "direction" || lines[next].kind === "fence");
+        if (attached) pendingLabel = l.name;
+        else ((openPage().commands ??= []) as Command[]).push({ label: l.name } as Command);
+        break;
+      }
       case "heading":
         flush();
         if (l.depth === 1) docTitle = l.text;
@@ -287,14 +345,16 @@ function parseFence(l: ScriptLine & { kind: "fence" }, spec: Spec, isLanguage: (
     if (value && typeof value === "object") Object.assign(spec, value);
     return null;
   }
-  if (!isLanguage(head)) throw new ScriptError(`"${head}" is not a language, and not yaml or assets`, l.line);
-  const el: Record<string, unknown> = { language: head };
+  if (head !== "code" && !isLanguage(head)) throw new ScriptError(`"${head}" is not a language, and not yaml or assets`, l.line);
+  const el: Record<string, unknown> = head === "code" ? {} : { language: head };
   let i = 1;
   if (tokens[i] !== undefined && isBareId(tokens[i]) && !ELEMENT_KEYS.has(tokens[i])) el.id = tokens[i++];
   keyValues(tokens.slice(i), el, l.line);
   if (typeof el.id !== "string") throw new ScriptError("a code fence needs an id", l.line);
   const hidden = el.hidden === true;
   delete el.hidden;
-  el.code = l.body;
+  // An empty body leaves `code` as the info line set it (usually absent): a
+  // code element may carry only a `game`, with no script at all.
+  if (l.body !== "") el.code = l.body;
   return { element: { ...el, type: "code" } as unknown as SpecElement, args: el, hidden };
 }

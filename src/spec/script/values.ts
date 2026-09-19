@@ -62,16 +62,25 @@ const isPlainObject = (v: unknown): v is Record<string, unknown> =>
  * An EMPTY object has no leaves, so flattening would write nothing and the
  * field would vanish; `params: {supply: {}}` is a real corpus value.
  */
+const SIMPLE_KEY_RE = /^[A-Za-z_][\w-]*$/;
+
 function flattenable(v: unknown): boolean {
   if (!isPlainObject(v)) return false;
   const keys = Object.keys(v);
   if (keys.length === 0) return false;
-  return keys.every((k) => isScalar(v[k]) || flattenable(v[k]));
+  // A key that is not a plain identifier cannot survive a dotted path: an
+  // `animate` key IS a dot path ("demand_shift.amount"), and a math `colors`
+  // key is a TeX snippet with spaces ("\\Delta C"). Both are written whole.
+  if (!keys.every((k) => SIMPLE_KEY_RE.test(k))) return false;
+  // An array or an empty object is a leaf: it prints as one JSON token
+  // (`at [650,380]`) and reads back as itself. Only a non-empty object has
+  // to be flattenable in its own right.
+  return keys.every((k) => !isPlainObject(v[k]) || Object.keys(v[k]).length === 0 || flattenable(v[k]));
 }
 
 /** One printed line per scalar leaf, or one whole-value line for anything else. */
 export function fieldLines(key: string, value: unknown): { path: string; token: string }[] {
-  if (isScalar(value) || !flattenable(value)) return [{ path: key, token: formatValue(value) }];
+  if (!isPlainObject(value) || !flattenable(value)) return [{ path: key, token: formatValue(value) }];
   const out: { path: string; token: string }[] = [];
   for (const [k, v] of Object.entries(value as Record<string, unknown>)) out.push(...fieldLines(`${key}.${k}`, v));
   return out;

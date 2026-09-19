@@ -3,7 +3,11 @@
 // holds it to over the whole bundled corpus.
 import { dump } from "js-yaml";
 import { fieldLines, formatValue } from "./values";
-import { ELEMENT_HEADS, LIST_VERBS, OBJECT_VERBS, SCALAR_VERBS, TARGET_VERBS } from "./parse";
+import { LIST_VERBS, OBJECT_VERBS, SCALAR_VERBS, TARGET_VERBS } from "./parse";
+
+/** The keys that can head a direction line. Everything else in a command
+ *  rides along as a modifier on the same line. */
+const MAIN_VERBS = new Set<string>([...LIST_VERBS, ...TARGET_VERBS, ...OBJECT_VERBS, ...SCALAR_VERBS]);
 import type { Command, Spec, SpecElement } from "../types";
 
 const INDENT = "    ";
@@ -38,7 +42,9 @@ function pairs(obj: Record<string, unknown>, skip: Set<string>): string {
 function elementLine(el: SpecElement, hidden: boolean): string {
   const rest = pairs(el as unknown as Record<string, unknown>, new Set(["id", "type", "text", "language", "code"]));
   if (el.type === "code") {
-    const info = ["```" + (el.language ?? ""), el.id, rest, hidden ? "hidden true" : ""].filter(Boolean).join(" ");
+    // `code` is the head when the element names no language — a fence must
+    // always say what it is, and no runtime is called "code".
+    const info = ["```" + (el.language ?? "code"), el.id, rest, el.code === "" ? 'code ""' : "", hidden ? "hidden true" : ""].filter(Boolean).join(" ");
     const body = (el.code ?? "").split("\n").map((l) => (l === "" ? l : INDENT + l)).join("\n");
     return `${INDENT}${info}\n${body}\n${INDENT}\`\`\``;
   }
@@ -50,12 +56,27 @@ function elementLine(el: SpecElement, hidden: boolean): string {
   return `${INDENT}${head} ${el.id}${text}${tail === "" ? "" : ` ${tail}`}`;
 }
 
+/**
+ * A verb's arguments after its head. The SAME flattenability rule the parser
+ * relies on: simple keys become `key value` pairs, anything else (an animate
+ * map whose keys are dot paths, a colours map keyed by TeX) stays one JSON
+ * token — flattening those would split a literal key on its own dot.
+ */
+function verbArgs(head: string, value: unknown): string {
+  const fl = fieldLines(head, value);
+  if (fl.length === 1 && fl[0].path === head) return fl[0].token;
+  return fl.map(({ path, token }) => `${path.slice(head.length + 1)} ${token}`).join(" ");
+}
+
 /** One command, as the direction line that carries it. */
 function commandLines(cmd: Command): string[] {
   const entries = Object.entries(cmd as unknown as Record<string, unknown>).filter(([k, v]) => !BEAT_FIELDS.has(k) && v !== undefined);
   if (entries.length === 0) return [];
-  const [head, value] = entries[0];
-  const extra = Object.fromEntries(entries.slice(1));
+  // The verb heads the line wherever it sits in the object; `{duration: 3,
+  // animate: {...}}` is an animate line, not a duration line.
+  const at = Math.max(0, entries.findIndex(([k]) => MAIN_VERBS.has(k)));
+  const [head, value] = entries[at];
+  const extra = Object.fromEntries(entries.filter((_, i) => i !== at));
   const tail = pairs(extra, new Set());
   const join = (line: string): string => `${INDENT}${[line, tail].filter(Boolean).join(" ")}`;
   if (LIST_VERBS.has(head)) return [join(`${head} ${([] as string[]).concat(value as string[]).join(" ")}`)];
@@ -63,14 +84,20 @@ function commandLines(cmd: Command): string[] {
     const args = { ...(value as Record<string, unknown>) };
     const target = ([] as string[]).concat((args.target as string[]) ?? []);
     delete args.target;
-    return [join([head, target.join(" "), pairs(args, new Set())].filter(Boolean).join(" "))];
+    const more = Object.keys(args).length > 0 ? verbArgs(head, args) : "";
+    return [join([head, target.join(" "), more].filter(Boolean).join(" "))];
   }
-  if (OBJECT_VERBS.has(head)) return [join(`${head} ${pairs(value as Record<string, unknown>, new Set())}`.trim())];
-  if (SCALAR_VERBS.has(head)) {
-    if (value === true) return [join(head)];
+  if (OBJECT_VERBS.has(head) || SCALAR_VERBS.has(head)) {
+    if (value === true && head !== "pause") return [join(head)];
     if (head === "wait" && value === "click") return [join(head)];
-    if (value !== null && typeof value === "object") return [join(`${head} ${pairs(value as Record<string, unknown>, new Set())}`)];
-    return [join(`${head} ${formatValue(value)}`)];
+    if (value !== null && typeof value === "object") {
+      if (!Array.isArray(value) && Object.keys(value as object).length === 0) return [join(head)];
+      return [join(`${head} ${verbArgs(head, value)}`.trim())];
+    }
+    // A string value is quoted even when it need not be: the parser tells a
+    // verb's VALUE from its first KEY by the quote, and a notation string
+    // ("C4:h") is a perfectly good bare word.
+    return [join(`${head} ${typeof value === "string" ? JSON.stringify(value) : formatValue(value)}`)];
   }
   // A verb the tables do not know: still printable, still readable back.
   return [join(`${head} ${pairs({ [head]: value }, new Set())}`.replace(`${head} ${head} `, `${head} `))];
@@ -84,7 +111,7 @@ function commandLines(cmd: Command): string[] {
  * array, and goes to the props block instead. Measured: 92 of 121 corpus
  * specs (76%) need no props block at all.
  */
-function homes(spec: Spec, firstMention: Map<string, number>): { inline: Map<number, string[]>; props: string[] } {
+function homes(spec: Spec, firstMention: Map<string, number>, drawLists: Map<number, string[]>): { inline: Map<number, string[]>; props: string[] } {
   const els = spec.elements ?? [];
   // The props block prints ABOVE every beat, so whatever goes in it comes
   // first when the text is read back. The inline elements are therefore the
@@ -99,13 +126,26 @@ function homes(spec: Spec, firstMention: Map<string, number>): { inline: Map<num
     prevBeat = beat;
     start = i;
   }
-  const props = els.slice(0, start).map((e) => e.id);
-  const inline = new Map<number, string[]>();
-  for (const el of els.slice(start)) {
-    const beat = firstMention.get(el.id)!;
-    inline.set(beat, [...(inline.get(beat) ?? []), el.id]);
+  // A beat's declarations ARE its draw command, so they may only be used when
+  // they rebuild it exactly — same ids, same order. A draw that also names
+  // something declared elsewhere (or minted by a code element) keeps its own
+  // line, and its elements move to the props block. Measured: no corpus draw
+  // mixes first-drawn and already-drawn ids, so this is a guard, not a path.
+  for (;;) {
+    const inline = new Map<number, string[]>();
+    for (const el of els.slice(start)) {
+      const beat = firstMention.get(el.id)!;
+      inline.set(beat, [...(inline.get(beat) ?? []), el.id]);
+    }
+    let cut = -1;
+    for (const [beat, ids] of inline) {
+      const draw = drawLists.get(beat) ?? [];
+      if (ids.length === draw.length && ids.every((id, k) => id === draw[k])) continue;
+      for (const id of ids) cut = Math.max(cut, els.findIndex((e) => e.id === id));
+    }
+    if (cut === -1) return { inline, props: els.slice(0, start).map((e) => e.id) };
+    start = cut + 1;
   }
-  return { inline, props };
 }
 
 /** For each element id, the index of the command that first DRAWS it. */
@@ -120,7 +160,11 @@ function firstDraws(spec: Spec): Map<string, number> {
 export function printScriptPage(spec: Spec): string {
   const byId = new Map((spec.elements ?? []).map((el) => [el.id, el]));
   const mention = firstDraws(spec);
-  const { inline, props } = homes(spec, mention);
+  const drawLists = new Map<number, string[]>();
+  (spec.commands ?? []).forEach((cmd, i) => {
+    if (cmd.draw !== undefined) drawLists.set(i, ([] as string[]).concat(cmd.draw));
+  });
+  const { inline, props } = homes(spec, mention, drawLists);
   const blocks: string[] = [];
 
   const settings: string[] = [];
@@ -131,7 +175,10 @@ export function printScriptPage(spec: Spec): string {
   if (settings.length > 0) blocks.push(settings.join("\n"));
 
   if (props.length > 0) {
-    blocks.push(props.map((id) => elementLine(byId.get(id)!, !mention.has(id))).join("\n"));
+    // ALWAYS hidden: a props declaration only declares. Whatever draws it
+    // later keeps its own `draw` line, so declaring it visible here would
+    // mint a second, phantom draw command at the top of the page.
+    blocks.push(props.map((id) => elementLine(byId.get(id)!, true)).join("\n"));
   }
 
   (spec.commands ?? []).forEach((cmd, i) => {
@@ -142,12 +189,14 @@ export function printScriptPage(spec: Spec): string {
     if (declared.length > 0) {
       // The draw this beat's declarations ARE — printed as the elements.
       for (const id of declared) lines.push(elementLine(byId.get(id)!, false));
-      const rest: Command = { ...cmd };
-      delete rest.draw;
-      delete rest.speak;
-      delete rest.voice;
-      delete rest.label;
-      lines.push(...commandLines(rest));
+      // What the declarations did not carry: `parallel`, a `duration` — beat
+      // modifiers, printed as their own lines, which the parser folds back
+      // into the draw the declarations rebuilt.
+      const rest = Object.entries(cmd as unknown as Record<string, unknown>)
+        .filter(([k, v]) => !BEAT_FIELDS.has(k) && k !== "draw" && v !== undefined);
+      for (const [k, v] of rest) {
+        for (const { path, token } of fieldLines(k, v)) lines.push(`${INDENT}${path} ${token}`);
+      }
     } else {
       lines.push(...commandLines(cmd));
     }
