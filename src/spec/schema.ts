@@ -11,6 +11,7 @@ import { assetRef, resolveAssetRefs } from "./assets";
 import { BUILTIN_WIDGETS, SIDE_VALUES, type Command, type Spec, type SpecElement } from "./types";
 import { isReservedVar } from "./answers";
 import { SUB_SUFFIXES } from "../layout/model";
+import { UNIVERSAL_ANCHORS } from "../layout/anchors";
 import { isFitName } from "../layout/regions";
 import { C64_PROGRAMS } from "../code/c64-catalogue";
 import { LANGUAGES, isLanguage } from "../code/languages";
@@ -137,6 +138,12 @@ const elementSchema = {
             side: { type: "string", enum: [...SIDE_VALUES], description: "Place OUTSIDE ref's box on this side, gap units away." },
             gap: { type: "number", description: "With side: distance from ref's box, logical units." },
             offset: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "[dx, dy] nudge applied after side/gap or anchor placement." },
+            place: {
+              type: "string",
+              enum: [...UNIVERSAL_ANCHORS],
+              description:
+                "A named spot on the CANVAS, for a part that belongs to the page rather than to another element: the element's own same-named point lands on that point of the canvas's safe area, so \"left\" seats its left edge at the left margin, \"center\" centres it, and \"top_right\" tucks it into that corner — it can never fall off the edge, whatever its size. Its own `anchor` overrides which of ITS points lands there. Never with x/y or ref.",
+            },
           },
           additionalProperties: false,
         },
@@ -1085,6 +1092,15 @@ export function normalizeSpec(spec: unknown): unknown {
   for (const el of Array.isArray(clone.elements) ? clone.elements : []) {
     if (!el || typeof el !== "object") continue;
     if (el.link !== undefined) el.link = toList(el.link);
+    // `at: "left"` is the short way to say `at: {place: "left"}`, and the
+    // hyphenated spelling (the one a model reaches for by analogy with side
+    // names) normalizes to the anchor spelling — so validation, layout and
+    // lint only ever see one form. An unknown name is left as written: the
+    // schema enum reports it, this function does not.
+    if (typeof (el.at as unknown) === "string") {
+      const place = (el.at as unknown as string).replace(/-/g, "_");
+      el.at = { place } as SpecElement["at"];
+    }
     // A label written as TeX IS a math element: `attach_to`/`side` are the
     // label's way of saying `at`, and `font_size` its way of saying `size`.
     // Rewritten before validation, so everything downstream — elementErrors
@@ -1460,6 +1476,15 @@ function semanticErrors(spec: Spec): string[] {
   return errors;
 }
 
+/** True when `at` gives the element somewhere to go — another element's box
+ *  (ref) or a named spot on the canvas (place). Both satisfy the types that
+ *  refuse to be left with no position at all. */
+function placedByAt(el: SpecElement): boolean {
+  if (el.at === undefined || Array.isArray(el.at)) return false;
+  const at = el.at as { ref?: string; place?: string };
+  return typeof at.ref === "string" || typeof at.place === "string";
+}
+
 function elementErrors(el: SpecElement): string[] {
   const errs: string[] = [];
   const need = (cond: boolean, msg: string) => {
@@ -1473,9 +1498,15 @@ function elementErrors(el: SpecElement): string[] {
   // Cross-cutting: at.ref places relative to another element's box/anchor —
   // combining it with an absolute x/y is a contradiction on every type.
   if (el.at !== undefined && !Array.isArray(el.at)) {
-    const at = el.at as { ref?: string };
+    const at = el.at as { ref?: string; place?: string };
     if (typeof at.ref === "string" && (typeof el.x === "number" || typeof el.y === "number")) {
       errs.push(`element "${el.id}": at.ref cannot be combined with x/y`);
+    }
+    if (typeof at.place === "string" && (typeof el.x === "number" || typeof el.y === "number")) {
+      errs.push(`element "${el.id}": at.place cannot be combined with x/y`);
+    }
+    if (typeof at.place === "string" && typeof at.ref === "string") {
+      errs.push(`element "${el.id}": at.place cannot be combined with at.ref — a place is on the canvas, a ref is on another element`);
     }
   }
   switch (el.type) {
@@ -1532,8 +1563,7 @@ function elementErrors(el: SpecElement): string[] {
       break;
     case "text": {
       need(!!el.text, "needs text");
-      const textAtRef = el.at !== undefined && !Array.isArray(el.at) && typeof (el.at as { ref?: string }).ref === "string";
-      need((typeof el.x === "number" && typeof el.y === "number") || textAtRef, "needs x and y (logical coordinates), or at: {ref: ...}");
+      need((typeof el.x === "number" && typeof el.y === "number") || placedByAt(el), "needs x and y (logical coordinates), or at: {ref: ...}, or at: {place: ...}");
       break;
     }
     case "group":
@@ -1548,9 +1578,8 @@ function elementErrors(el: SpecElement): string[] {
       // Same rule as `text`: an equation with nowhere to go would land in the
       // middle of the canvas, on top of the drawing. A `label` with tex says
       // it with attach_to, which normalizeSpec has already turned into at.ref.
-      const mathAtRef = el.at !== undefined && !Array.isArray(el.at) && typeof (el.at as { ref?: string }).ref === "string";
-      if (!((typeof el.x === "number" && typeof el.y === "number") || mathAtRef)) {
-        errs.push(`element "${el.id}": math needs x and y, or at.ref`);
+      if (!((typeof el.x === "number" && typeof el.y === "number") || placedByAt(el))) {
+        errs.push(`element "${el.id}": math needs x and y, or at.ref, or at.place`);
       }
       break;
     }
