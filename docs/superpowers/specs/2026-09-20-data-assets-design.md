@@ -70,10 +70,22 @@ does not silently reverse it.
    separate `data:`. They share everything that matters: named, big, kept out
    of model calls, referenced by `@name`, written last in the file. Two
    near-identical mechanisms would be worse than one map with two value types.
-3. **The model may REFERENCE an asset, never rewrite one.** It sees a
-   descriptor, never the rows (§5). The author's data is the author's; a revise
-   round cannot quietly edit a repertoire. This also makes corruption
-   structurally impossible rather than merely unlikely.
+3. **A data asset is editable in the app exactly when it is small enough to
+   send** (§5.1). Small assets ride into the model call, so "add the Sicilian"
+   works in the revise box; large ones are hoisted to a descriptor and the app
+   says why they cannot be revised there.
+
+   This started out as an absolute ruling — the model may reference an asset,
+   never rewrite one — until Hans took it apart on 2026-09-20: *"since the data
+   is in the spec, I could also revise the drawcast data by asking you to add
+   the scicilian? (All athors can change the spec?!)"* He is right, and the
+   ruling was a consequence dressed up as a principle. Hoisting exists for cost
+   and corruption risk; read-only-ness is what falls out of it. As a safety
+   guarantee it guarantees nothing, because the author can already change the
+   data three other ways — the Spec source textarea (`specArea`, main.ts:1149),
+   a re-import through `＋ Insert`, or an agent editing the file directly, none
+   of which hoisting has any say over. All it really did was make one box less
+   capable than it could be. So the rule follows the cost instead.
 4. **Assets stay per playlist item.** A playlist-level map is a header change
    worth making when something needs it. The openings trainer is one item.
 5. **PGN is the chess pack's problem.** JSON and CSV are generic; chess
@@ -184,6 +196,10 @@ message is the lesson from that. The cap is a single exported constant so the
 
 ## 5. What the model sees — the part that makes this affordable
 
+This section is about assets over the send threshold (§5.1). A data asset
+under it is sent as it is, and everything below applies only to the ones too
+big to send.
+
 `src/llm/hoist.ts` already lifts each item's `assets` map out before a model
 call. Today it stashes blind, which for data would leave the model unable to
 know the asset exists at all — and therefore unable to write
@@ -209,13 +225,41 @@ Descriptor shapes, all derived from the value, never authored:
 
 Cost: about twelve tokens where the rows would have been three thousand. The
 model can place beats, write narration around the set and reference it by name,
-and is structurally incapable of corrupting a row because no row was ever in
-the call. Restoration is by name, exactly as for strokes today.
+and cannot corrupt a row because no row was ever in the call. Restoration is by
+name, exactly as for strokes today.
 
 A descriptor is a string, so a spec mid-round-trip still type-checks as
 `Record<string, unknown>` with no special case.
 
-### 5.1 Hoisting versus validation — an ordering that must change
+### 5.1 The send threshold
+
+**32 KB of serialized JSON.** Under it a data asset is sent whole and the model
+may rewrite it; over it the model gets a descriptor and cannot.
+
+Why there: a 50-row openings set is 5-6 KB, about 1,500 tokens against a system
+prompt already near 50,000 — affordable precisely when the data is there, and
+exactly the size where an author wants to say "add the Sicilian". A real
+dataset is not, and a 1 MB asset (§4.5's cap) would swamp the call. The
+threshold is a single exported constant beside the cap, so the two are read
+together.
+
+When a request is refused for size the app must SAY so, naming the asset and
+its size, and name the two paths that do work:
+
+> "openings is 40 KB — too large to revise here. Edit it in the Spec source, or
+> re-import the file."
+
+Silence is the failure mode to avoid: a revise that quietly leaves the data
+alone while reporting success is how an author comes to believe their
+repertoire changed when it did not.
+
+**Accepted risk.** A model that re-emits 50 rows may silently alter one. That is
+the cost of the capability and it is not mitigated in v1: the document is in a
+textarea the author can read, and the data is small by construction — that is
+what being under the threshold means. Diffing a returned asset against the
+stashed one, and showing what changed, is the obvious v2 if this bites.
+
+### 5.2 Hoisting versus validation — an ordering that must change
 
 **A hoisted spec is not a complete spec and must not be judged as one.** Today
 that is true by accident rather than by design: the only reference site is an
@@ -281,7 +325,9 @@ model writing a small set as ordinary inline params when there is no file.
   element's precedent exists if it is ever wanted, and §3.1's self-containment
   is the reason not to start there.
 - No playlist-level asset map (§3.4).
-- No model-authored or model-edited data (§5).
+- No model-AUTHORED data: `assets` stays out of the wire schema, so the model
+  can fill a set it was given but cannot invent one from nothing.
+- No diffing of a model-returned asset against the stashed one (§5.1).
 - No PGN (§3.5).
 - No data-token bridge integration: `{openings.moves}` is NOT part of this.
   The token bridge is shaped for a script's numbers and columns; rows of
@@ -294,10 +340,14 @@ The pins that a later round would otherwise break without noticing:
 1. **Round-trip identity.** A data asset survives hoist → model call →
    restore byte-identical, for each descriptor shape. This is the one that
    protects the author's data.
-1b. **Order (§5.1).** A reply that drops the `assets:` block while params still
+1b. **Order (§5.2).** A reply that drops the `assets:` block while params still
    reference an asset validates clean — the regression test for restore-
    before-validate, on both the revise path and the compile path's internal
    rounds.
+1c. **The threshold (§5.1), at its boundary.** An asset just under 32 KB reaches
+   the model whole and a rewritten one is kept; an asset just over it is
+   replaced by a descriptor and the original survives the round unchanged. The
+   second half is the one that protects a large dataset.
 2. **Descriptor generation**, per shape in §5's table, including an empty array
    and a row whose keys differ from the first row's (first row wins; the
    descriptor is a hint, not a schema).
@@ -341,7 +391,8 @@ purpose.
 | `src/spec/assets.ts` | `resolveParamAssetRefs`, `paramsWithAssets`, `describeAsset`, the size constant; `inlineStrokes` guards a non-string value |
 | `src/spec/schema.ts` | `ASSET_FIELDS` widened (document schema only); normalize resolves params; four `semanticErrors` |
 | `src/llm/hoist.ts` | descriptor instead of a blind stash for non-string assets |
-| `src/llm/compile.ts` | validate through `paramsWithAssets` (§4.3); restore before validate on the internal rounds (§5.1) |
-| `src/llm/revise.ts` | restore blobs into each candidate before `validateSpec` (§5.1) |
+| `src/llm/compile.ts` | validate through `paramsWithAssets` (§4.3); restore before validate on the internal rounds (§5.2) |
+| `src/llm/revise.ts` | restore blobs into each candidate before `validateSpec` (§5.2) |
 | `src/ui/insert.ts` | `Data…` entry, CSV/JSON parse, naming, cap |
+| revise UI | the over-threshold refusal message (§5.1), naming the asset and its size |
 | `tests/` | §8 |
