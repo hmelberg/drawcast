@@ -35,10 +35,15 @@ export const ELEMENT_HEADS = new Set<string>(
 
 /** Verbs whose argument list is bare ids: the command field IS a list. */
 export const LIST_VERBS = new Set(["draw", "show", "hide", "erase"]);
-/** Verbs whose leading bare ids fill `target` inside an object. */
-export const TARGET_VERBS = new Set(["highlight", "focus", "move", "arrange", "fade", "flip", "morph", "keep"]);
+/** Verbs whose leading bare ids fill one field inside their object — the
+ *  field differs (`flow` streams ALONG strokes, the rest act ON targets). */
+export const TARGET_FIELD: Record<string, string> = {
+  highlight: "target", focus: "target", move: "target", arrange: "target",
+  fade: "target", flip: "target", morph: "target", keep: "target", flow: "along",
+};
+export const TARGET_VERBS = new Set(Object.keys(TARGET_FIELD));
 /** Verbs whose whole argument set is an object with no positional part. */
-export const OBJECT_VERBS = new Set(["point", "copy", "flow", "camera", "card", "clear", "quiz", "ask", "run", "explore", "if"]);
+export const OBJECT_VERBS = new Set(["point", "copy", "camera", "card", "clear", "quiz", "ask", "run", "explore", "if"]);
 /** Verbs and beat modifiers that take one value (or stand alone). */
 export const SCALAR_VERBS = new Set(["pause", "wait", "animate", "play"]);
 
@@ -219,7 +224,7 @@ export function parseDirection(head: string, rest: string, line: number): Direct
   if (TARGET_VERBS.has(head)) {
     const { ids, next } = idRun(new Set([...argKeys(head), ...MODIFIER_KEYS]));
     const args: Record<string, unknown> = {};
-    if (ids.length > 0) args.target = ids;
+    if (ids.length > 0) args[TARGET_FIELD[head]] = ids;
     const { args: own, extra } = splitPairs(head, tokens.slice(next), line);
     keyValues(own, args, line);
     const cmd: Record<string, unknown> = { [head]: args };

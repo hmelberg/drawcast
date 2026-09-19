@@ -3,7 +3,7 @@
 // holds it to over the whole bundled corpus.
 import { dump } from "js-yaml";
 import { fieldLines, formatValue } from "./values";
-import { COMMAND_ORDER, ELEMENT_ORDER, LIST_VERBS, OBJECT_VERBS, SCALAR_VERBS, TARGET_VERBS } from "./parse";
+import { COMMAND_ORDER, ELEMENT_ORDER, LIST_VERBS, OBJECT_VERBS, SCALAR_VERBS, TARGET_FIELD, TARGET_VERBS } from "./parse";
 import { ELEMENT_ALIASES, FLAG_FOR, PLACE_WORDS, SIDE_TYPES, isColor } from "./sugar";
 
 /** The keys that can head a direction line. Everything else in a command
@@ -164,8 +164,9 @@ function commandLines(cmd: Command): string[] {
   if (LIST_VERBS.has(head)) return [join(`${head} ${([] as string[]).concat(value as string[]).join(" ")}`)];
   if (TARGET_VERBS.has(head)) {
     const args = { ...(value as Record<string, unknown>) };
-    const target = ([] as string[]).concat((args.target as string[]) ?? []);
-    delete args.target;
+    const field = TARGET_FIELD[head];
+    const target = ([] as string[]).concat((args[field] as string[]) ?? []);
+    delete args[field];
     const more = Object.keys(args).length > 0 ? verbArgs(head, args) : "";
     return [join([head, target.join(" "), more].filter(Boolean).join(" "))];
   }
