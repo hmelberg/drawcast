@@ -184,11 +184,11 @@ export function parsePlaylistText(text: string): Playlist {
   }
   // A script says "another page" with `##`, not with a document separator.
   if (looksLikeScript(text)) {
-    const { meta, pages } = parseScriptPages(text);
+    const { meta, pages, warnings } = parseScriptPages(text);
     // Any document-level setting — a founding prompt, a subtitle, an advance
     // rule — means this is a playlist document, not a bare spec.
     if (pages.length > 1 || Object.keys(meta).length > 0) {
-      const playlist: Playlist = { meta: { ...DEFAULT_META }, entries: [], warnings: [] };
+      const playlist: Playlist = { meta: { ...DEFAULT_META }, entries: [], warnings: [...warnings] };
       for (const [key, value] of Object.entries(meta)) {
         if (key === "chapters") continue;
         (playlist.meta as unknown as Record<string, unknown>)[key] = value;
@@ -200,7 +200,9 @@ export function parsePlaylistText(text: string): Playlist {
       });
       return playlist;
     }
-    return singlePlaylist(pages[0].spec);
+    const single = singlePlaylist(pages[0].spec);
+    single.warnings.push(...warnings);
+    return single;
   }
   const single = parseSpecText(text).value as Spec;
   return singlePlaylist(single);

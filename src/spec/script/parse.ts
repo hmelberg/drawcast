@@ -5,6 +5,7 @@
 import { scanLines, type ScriptLine } from "./lines";
 import { parseValue, setPath, splitTokens } from "./values";
 import { specSchema } from "../schema";
+import { ELEMENT_ALIASES, FLAGS, PLACE_WORDS, SHORTHAND_WORDS, SIDE_TYPES, SIDE_WORDS, isColor, seconds } from "./sugar";
 import { CORE_SCHEMA, load } from "js-yaml";
 import { isLanguage } from "../../code/languages";
 import type { Command, Spec, SpecElement } from "../types";
@@ -17,7 +18,7 @@ export class ScriptError extends Error {
 }
 
 export interface ScriptPage { spec: Spec }
-export interface ParsedScript { meta: Record<string, unknown>; pages: ScriptPage[] }
+export interface ParsedScript { meta: Record<string, unknown>; pages: ScriptPage[]; warnings: string[] }
 
 const schemaProps = (path: "elements" | "commands"): string[] =>
   Object.keys(((specSchema as unknown as Record<string, { properties: Record<string, { items: { properties: Record<string, unknown> } }> }>).properties as unknown as Record<string, { items: { properties: Record<string, unknown> } }>)[path].items.properties);
@@ -34,10 +35,15 @@ export const ELEMENT_HEADS = new Set<string>(
 
 /** Verbs whose argument list is bare ids: the command field IS a list. */
 export const LIST_VERBS = new Set(["draw", "show", "hide", "erase"]);
-/** Verbs whose leading bare ids fill `target` inside an object. */
-export const TARGET_VERBS = new Set(["highlight", "focus", "move", "arrange", "fade", "flip", "morph", "keep"]);
+/** Verbs whose leading bare ids fill one field inside their object — the
+ *  field differs (`flow` streams ALONG strokes, the rest act ON targets). */
+export const TARGET_FIELD: Record<string, string> = {
+  highlight: "target", focus: "target", move: "target", arrange: "target",
+  fade: "target", flip: "target", morph: "target", keep: "target", flow: "along",
+};
+export const TARGET_VERBS = new Set(Object.keys(TARGET_FIELD));
 /** Verbs whose whole argument set is an object with no positional part. */
-export const OBJECT_VERBS = new Set(["point", "copy", "flow", "camera", "card", "clear", "quiz", "ask", "run", "explore", "if"]);
+export const OBJECT_VERBS = new Set(["point", "copy", "camera", "card", "clear", "quiz", "ask", "run", "explore", "if"]);
 /** Verbs and beat modifiers that take one value (or stand alone). */
 export const SCALAR_VERBS = new Set(["pause", "wait", "animate", "play"]);
 
@@ -51,9 +57,14 @@ export const SCALAR_VERBS = new Set(["pause", "wait", "animate", "play"]);
  */
 export const MODIFIER_KEYS = new Set(["parallel", "blocking", "delivery", "duration", "easing", "ghost", "trail", "tempo", "instrument", "reveal", "press"]);
 
-/** Every element field, and every command field: what ends an id run. */
-export const ELEMENT_KEYS = new Set<string>(schemaProps("elements"));
-export const COMMAND_KEYS = new Set<string>(schemaProps("commands"));
+/** Every element field, and every command field: what ends an id run. The
+ *  ARRAYS keep the schema's own order, which is the order the printer writes
+ *  fields in — so a reprint never depends on the order an object happened to
+ *  be built in. */
+export const ELEMENT_ORDER = schemaProps("elements");
+export const COMMAND_ORDER = schemaProps("commands");
+export const ELEMENT_KEYS = new Set<string>(ELEMENT_ORDER);
+export const COMMAND_KEYS = new Set<string>(COMMAND_ORDER);
 
 /**
  * A verb's OWN argument names, off the schema — `highlight` stops an id run
@@ -81,6 +92,13 @@ function splitPairs(head: string, tokens: string[], line: number): { args: strin
   const extra: string[] = [];
   const mine = argKeys(head);
   for (let i = 0; i < tokens.length; i += 2) {
+    // `3s` stands alone: a duration, not the first half of a pair.
+    const secs = seconds(tokens[i]);
+    if (secs !== null) {
+      (mine.has("duration") ? args : extra).push("duration", String(secs));
+      i -= 1;
+      continue;
+    }
     if (i + 1 >= tokens.length) throw new ScriptError(`"${tokens[i]}" has no value`, line);
     const pair = [tokens[i], tokens[i + 1]];
     (MODIFIER_KEYS.has(tokens[i]) && !mine.has(tokens[i]) ? extra : args).push(...pair);
@@ -91,6 +109,9 @@ function splitPairs(head: string, tokens: string[], line: number): { args: strin
 function keyValues(tokens: string[], into: Record<string, unknown>, line: number): void {
   for (let i = 0; i < tokens.length; i += 2) {
     const path = tokens[i];
+    // `3s` stands alone: it is a duration, not the first half of a pair.
+    const secs = seconds(path);
+    if (secs !== null) { into.duration = secs; i -= 1; continue; }
     if (i + 1 >= tokens.length) throw new ScriptError(`"${path}" has no value`, line);
     setPath(into, path, parseValue(tokens[i + 1]));
   }
@@ -98,6 +119,8 @@ function keyValues(tokens: string[], into: Record<string, unknown>, line: number
 
 export interface Direction {
   element?: SpecElement;
+  /** Elements the direction minted alongside its own (a connector's label). */
+  extra?: SpecElement[];
   command?: Record<string, unknown>;
   /** A beat modifier (`parallel true`): it joins the command being built. */
   modifier?: Record<string, unknown>;
@@ -107,22 +130,100 @@ export interface Direction {
   hidden?: boolean;
 }
 
-export function parseDirection(head: string, rest: string, line: number): Direction {
+export function parseDirection(head: string, rest: string, line: number, warn: (msg: string) => void = () => {}): Direction {
   const tokens = splitTokens(rest);
-  // `dot` is the point element; the bare word `point` is the laser verb.
-  const type = head === "dot" ? "point" : head;
-  if (head === "dot" || ELEMENT_HEADS.has(head)) {
-    const el: Record<string, unknown> = {};
+  const alias = ELEMENT_ALIASES[head];
+  const type = alias?.type ?? head;
+  if (alias !== undefined || ELEMENT_HEADS.has(head)) {
+    const el: Record<string, unknown> = { ...(alias?.fields ?? {}) };
+    let rest2 = [...tokens];
+    // `a -> b`: the connector's ends, read before anything else so the ids
+    // around the arrow are never mistaken for the element's own id.
+    const arrow = rest2.indexOf("->");
+    if (arrow > 0) {
+      setPath(el, "from.ref", rest2[arrow - 1]);
+      setPath(el, "to.ref", rest2[arrow + 1]);
+      const id = arrow >= 2 ? rest2[0] : undefined;
+      rest2 = [...(id !== undefined ? [id] : []), ...rest2.slice(arrow + 2)];
+    }
     let i = 0;
     // The id is the first bare token, full stop. Element fields make perfectly
     // good ids (`slope`, `text`, `line`), and an element always has one.
-    if (tokens[0] !== undefined && isBareId(tokens[0])) el.id = tokens[i++];
-    if (tokens[i] !== undefined && tokens[i].startsWith('"')) el.text = parseValue(tokens[i++]);
-    keyValues(tokens.slice(i), el, line);
-    if (typeof el.id !== "string") throw new ScriptError(`a ${head} needs an id`, line);
+    if (rest2[0] !== undefined && isBareId(rest2[0]) && FLAGS[rest2[0]] === undefined && !isColor(rest2[0]) && !SIDE_WORDS.has(rest2[0]) && !PLACE_WORDS.has(rest2[0])) {
+      el.id = rest2[i++];
+    } else if (rest2[0] !== undefined && isBareId(rest2[0]) && SHORTHAND_WORDS.has(rest2[0]) && rest2[1]?.startsWith('"')) {
+      // Plainly meant as an id — but it is also a word the grammar owns, so
+      // say so rather than quietly reading it as placement or style (§11).
+      warn(`line ${line}: "${rest2[0]}" is also a placement or style word — it is being used as an id here`);
+      el.id = rest2[i++];
+    }
+    if (rest2[i] !== undefined && rest2[i].startsWith('"')) el.text = parseValue(rest2[i++]);
+    const pairs: string[] = [];
+    for (let k = i; k < rest2.length; k++) {
+      const tok = rest2[k];
+      // Flags come first, because `curved`, `smooth` and `closed` are BOTH
+      // shorthand words and real field names — written long (`curved true`)
+      // they are a pair, written alone they are the flag.
+      const flag = FLAGS[tok];
+      if (flag) {
+        const next = rest2[k + 1];
+        if (ELEMENT_KEYS.has(tok) && (next === "true" || next === "false")) { pairs.push(tok, rest2[++k]); continue; }
+        setPath(el, flag[0], flag[1]);
+        continue;
+      }
+      // Placement words come before the key check too: `right` is BOTH a
+      // side word and a real field (the right-angle square on an `angle`),
+      // so `right win2` is a placement and `right true` is a pair.
+      if (SIDE_WORDS.has(tok) || PLACE_WORDS.has(tok)) {
+        const next = rest2[k + 1];
+        const asKey = ELEMENT_KEYS.has(tok) && (next === "true" || next === "false");
+        if (!asKey) {
+          if (SIDE_WORDS.has(tok) && next !== undefined && isBareId(next) && !ELEMENT_KEYS.has(next) && FLAGS[next] === undefined && !SIDE_WORDS.has(next) && !PLACE_WORDS.has(next)) {
+            setPath(el, "at.side", tok);
+            setPath(el, "at.ref", next);
+            k++;
+            continue;
+          }
+          if ((SIDE_TYPES.has(type) || type === "arrow" || type === "edge") && SIDE_WORDS.has(tok)) { setPath(el, "side", tok); continue; }
+          setPath(el, "at.place", PLACE_WORDS.get(tok) ?? tok);
+          continue;
+        }
+      }
+      // A KEY takes the next token as its value, and that value is never
+      // read as a shorthand — `style.color red` is a pair, and the `red` in
+      // it is not also a standalone colour word.
+      if (tok.includes(".") || ELEMENT_KEYS.has(tok)) {
+        if (rest2[k + 1] === undefined) throw new ScriptError(`"${tok}" has no value`, line);
+        pairs.push(tok, rest2[++k]);
+        continue;
+      }
+      if (isColor(tok)) { setPath(el, "style.color", tok); continue; }
+      const secs = seconds(tok);
+      if (secs !== null) { setPath(el, "draw.duration", secs); continue; }
+      // `gap` belongs to the placement it follows — `above bedr gap 20` is
+      // one phrase, and a bare top-level `gap` means nothing to any element.
+      if (tok === "gap" && el.at !== undefined && rest2[k + 1] !== undefined) {
+        setPath(el, "at.gap", parseValue(rest2[++k]));
+        continue;
+      }
+      pairs.push(tok);
+    }
+    keyValues(pairs, el, line);
+    if (typeof el.id !== "string") el.id = `${type}_${line}`;
     const hidden = el.hidden === true;
     delete el.hidden;
-    return { element: { ...el, type } as unknown as SpecElement, args: el, hidden };
+    // A connector's quoted text is the label ON it: the line that draws the
+    // arrow also names it. Parse-only sugar — the printer writes the two
+    // elements as two lines, because folding them back would have to invent
+    // the label's id, and the corpus has no convention to invent from.
+    const extra: SpecElement[] = [];
+    if ((type === "arrow" || type === "edge") && typeof el.text === "string") {
+      const label: Record<string, unknown> = { id: `${String(el.id)}_label`, type: "label", text: el.text, attach_to: el.id };
+      if (typeof el.side === "string") { label.side = el.side; delete el.side; }
+      delete el.text;
+      extra.push(label as unknown as SpecElement);
+    }
+    return { element: { ...el, type } as unknown as SpecElement, extra, args: el, hidden };
   }
   // The id run: bare words up to the first known field name. The same run
   // serves every verb that takes ids; only where it LANDS differs.
@@ -141,7 +242,7 @@ export function parseDirection(head: string, rest: string, line: number): Direct
   if (TARGET_VERBS.has(head)) {
     const { ids, next } = idRun(new Set([...argKeys(head), ...MODIFIER_KEYS]));
     const args: Record<string, unknown> = {};
-    if (ids.length > 0) args.target = ids;
+    if (ids.length > 0) args[TARGET_FIELD[head]] = ids;
     const { args: own, extra } = splitPairs(head, tokens.slice(next), line);
     keyValues(own, args, line);
     const cmd: Record<string, unknown> = { [head]: args };
@@ -190,6 +291,8 @@ interface Beat {
 export function parseScriptPages(text: string): ParsedScript {
   const lines = scanLines(text);
   const meta: Record<string, unknown> = {};
+  const warnings: string[] = [];
+  const warn = (msg: string): void => { warnings.push(msg); };
   const pages: ScriptPage[] = [];
   let page: Spec | null = null;
   let beat: Beat | null = null;
@@ -221,11 +324,11 @@ export function parseScriptPages(text: string): ParsedScript {
         continue;
       }
       if (item.element) {
-        (spec.elements ??= []).push(item.element);
+        (spec.elements ??= []).push(item.element, ...(item.extra ?? []));
         if (item.hidden) { pendingDraw = null; continue; }
-        if (pendingDraw) pendingDraw.push(item.element.id);
+        const ids = [item.element.id, ...(item.extra ?? []).map((x) => x.id)];
+        if (pendingDraw) pendingDraw.push(...ids);
         else {
-          const ids = [item.element.id];
           commands.push({ draw: ids });
           pendingDraw = ids;
         }
@@ -272,6 +375,10 @@ export function parseScriptPages(text: string): ParsedScript {
       case "setting": flush(); applySetting(l, openPage(), meta, pages.length > 0 || page !== null); break;
       case "speech": {
         flush();
+        const firstWord = l.text.split(/\s+/)[0];
+        if ((ELEMENT_ALIASES[firstWord] !== undefined || ELEMENT_HEADS.has(firstWord) || COMMAND_KEYS.has(firstWord)) && !/[.!?:…]$/.test(l.text.trim())) {
+          warn(`line ${l.line}: this looks like a direction but sits at column 0, so it will be read aloud`);
+        }
         const b = startBeat();
         b.speech = l.text;
         if (l.voice) b.voice = l.voice;
@@ -281,11 +388,20 @@ export function parseScriptPages(text: string): ParsedScript {
         const b = startBeat();
         if (b.items.length === 0) baseIndent = l.indent;
         if (l.indent > baseIndent && lastArgs) {
+          // `*` is a choice, `+` is the correct one — a quiz's answers, one
+          // per line, in the order the viewer sees them.
+          if (l.head === "*" || l.head === "+") {
+            const choices = (lastArgs.choices as string[] | undefined) ?? [];
+            choices.push(l.rest);
+            lastArgs.choices = choices;
+            if (l.head === "+") lastArgs.correct = choices.length;
+            break;
+          }
           const tokens = splitTokens(`${l.head} ${l.rest}`.trim());
           keyValues(tokens, lastArgs, l.line);
           break;
         }
-        const d = parseDirection(l.head, l.rest, l.line);
+        const d = parseDirection(l.head, l.rest, l.line, warn);
         b.items.push(d);
         lastArgs = d.args;
         break;
@@ -307,7 +423,7 @@ export function parseScriptPages(text: string): ParsedScript {
     else meta.title = docTitle;
   }
   delete meta.pageCount;
-  return { meta, pages };
+  return { meta, pages, warnings };
 }
 
 /** The settings that are spelled differently in a script than in the spec. */
