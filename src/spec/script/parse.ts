@@ -5,6 +5,8 @@
 import { scanLines, type ScriptLine } from "./lines";
 import { parseValue, setPath, splitTokens } from "./values";
 import { specSchema } from "../schema";
+import { CORE_SCHEMA, load } from "js-yaml";
+import { isLanguage } from "../../code/languages";
 import type { Command, Spec, SpecElement } from "../types";
 
 export class ScriptError extends Error {
@@ -152,10 +154,17 @@ export function parseScriptPages(text: string): ParsedScript {
   let beat: Beat | null = null;
   let pendingLabel: string | undefined;
   let baseIndent = 0;
+  let docTitle: string | undefined;
+  let pendingTitle: string | undefined;
   let lastArgs: Record<string, unknown> | null = null;
 
   const openPage = (): Spec => {
-    if (!page) { page = {} as Spec; pages.push({ spec: page }); }
+    if (!page) {
+      page = {} as Spec;
+      if (pendingTitle !== undefined) { page.title = pendingTitle; pendingTitle = undefined; }
+      pages.push({ spec: page });
+      meta.pageCount = pages.length;
+    }
     return page;
   };
 
@@ -197,8 +206,12 @@ export function parseScriptPages(text: string): ParsedScript {
       case "blank": flush(); break;
       case "comment": break;
       case "goto": flush(); pendingLabel = l.name; break;
-      case "heading": flush(); handleHeading(l, meta, pages, () => { page = null; }); break;
-      case "setting": flush(); applySetting(l, openPage(), meta, pages.length); break;
+      case "heading":
+        flush();
+        if (l.depth === 1) docTitle = l.text;
+        else { page = null; pendingTitle = l.text; }
+        break;
+      case "setting": flush(); applySetting(l, openPage(), meta, pages.length > 0 || page !== null); break;
       case "speech": {
         flush();
         const b = startBeat();
@@ -222,18 +235,66 @@ export function parseScriptPages(text: string): ParsedScript {
       case "fence": {
         const b = startBeat();
         if (b.items.length === 0) baseIndent = l.indent;
-        const d = parseFence(l, openPage(), l.line);
+        const d = parseFence(l, openPage(), isLanguage);
         if (d) { b.items.push(d); lastArgs = d.args; }
         break;
       }
     }
   }
   flush();
-  if (pages.length === 0) pages.push({ spec: {} as Spec });
+  if (pages.length === 0) pages.push({ spec: pendingTitle !== undefined ? ({ title: pendingTitle } as Spec) : ({} as Spec) });
+  // One `#` titles a lone page; with `##` sections it is the playlist's name.
+  if (docTitle !== undefined) {
+    if (pages.length === 1 && pages[0].spec.title === undefined) pages[0].spec.title = docTitle;
+    else meta.title = docTitle;
+  }
+  delete meta.pageCount;
   return { meta, pages };
 }
 
-// Task 4 fills these in.
-function handleHeading(_l: ScriptLine & { kind: "heading" }, _meta: Record<string, unknown>, _pages: ScriptPage[], _closePage: () => void): void {}
-function applySetting(_l: ScriptLine & { kind: "setting" }, _spec: Spec, _meta: Record<string, unknown>, _pageCount: number): void {}
-function parseFence(_l: ScriptLine & { kind: "fence" }, _spec: Spec, _line: number): Direction | null { return null; }
+/** The settings that are spelled differently in a script than in the spec. */
+const SETTING_FIELD: Record<string, string> = { use: "template", with: "params" };
+/** Playlist-level settings — they live on the document, not on a page. */
+const META_SETTINGS = new Set(["subtitle", "advance", "gap", "transitions", "next", "enroll", "prompt", "comments", "views"]);
+
+function applySetting(l: ScriptLine & { kind: "setting" }, spec: Spec, meta: Record<string, unknown>, started: boolean): void {
+  const value = l.rest === "" ? true : parseValue(l.rest);
+  if (l.key === "chapter") {
+    // A chapter is an entry of its own, ahead of the page that follows.
+    const chapters = (meta.chapters as { before: number; title: string }[] | undefined) ?? [];
+    chapters.push({ before: (meta.pageCount as number) ?? 0, title: String(value) });
+    meta.chapters = chapters;
+    return;
+  }
+  if (META_SETTINGS.has(l.key) && !started) { meta[l.key] = value; return; }
+  (spec as unknown as Record<string, unknown>)[SETTING_FIELD[l.key] ?? l.key] = value;
+}
+
+function parseFence(l: ScriptLine & { kind: "fence" }, spec: Spec, isLanguage: (s: string) => boolean): Direction | null {
+  const tokens = splitTokens(l.info);
+  const head = tokens[0] ?? "";
+  if (head === "assets" || head === "yaml") {
+    const value = load(l.body, { schema: CORE_SCHEMA }) as unknown;
+    if (head === "assets") {
+      spec.assets = { ...(spec.assets ?? {}), ...(value as Record<string, string>) };
+      return null;
+    }
+    // The escape hatch: a list is elements, a mapping is merged into the page.
+    if (Array.isArray(value)) {
+      (spec.elements ??= []).push(...(value as SpecElement[]));
+      return null;
+    }
+    if (value && typeof value === "object") Object.assign(spec, value);
+    return null;
+  }
+  if (!isLanguage(head)) throw new ScriptError(`"${head}" is not a language, and not yaml or assets`, l.line);
+  const el: Record<string, unknown> = { language: head };
+  let i = 1;
+  if (tokens[i] !== undefined && isBareId(tokens[i]) && !ELEMENT_KEYS.has(tokens[i])) el.id = tokens[i++];
+  keyValues(tokens.slice(i), el, l.line);
+  if (typeof el.id !== "string") throw new ScriptError("a code fence needs an id", l.line);
+  const hidden = el.hidden === true;
+  delete el.hidden;
+  el.code = l.body;
+  return { element: { ...el, type: "code" } as unknown as SpecElement, args: el, hidden };
+}

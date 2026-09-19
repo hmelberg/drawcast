@@ -88,3 +88,40 @@ describe("directions", () => {
     expect(() => one("Hei.\n    bx a x 1\n")).toThrow(/line 2/);
   });
 });
+
+describe("settings, pages and fences", () => {
+  test("# titles a single page, ## opens pages", () => {
+    const doc = parseScriptPages("# Kretsløpet\n\nHei.\n    camera zoom 2\n");
+    expect(doc.pages).toHaveLength(1);
+    expect(doc.pages[0].spec.title).toBe("Kretsløpet");
+  });
+
+  test("## pages carry their own titles and the # title is the playlist's", () => {
+    const doc = parseScriptPages("# Serien\n\n## Første\nHei.\n\n## Andre\nDa.\n");
+    expect(doc.meta.title).toBe("Serien");
+    expect(doc.pages.map((p) => p.spec.title)).toEqual(["Første", "Andre"]);
+  });
+
+  test("settings land on the page, and use/with are template and params", () => {
+    const spec = parseScriptPages('## Smitte\nlang: nb\nuse: sir_model\nwith: {"beta": 0.3}\nvars: {"f": 1}\nHei.\n').pages[0].spec;
+    expect(spec).toMatchObject({ lang: "nb", template: "sir_model", params: { beta: 0.3 }, vars: { f: 1 } });
+  });
+
+  test("a language fence is a code element, drawn in its beat", () => {
+    const spec = parseScriptPages('Se.\n    ```python p show below lines 5\n    import numpy as np\n    x = 1\n    ```\n').pages[0].spec;
+    expect(spec.elements).toEqual([
+      { id: "p", type: "code", language: "python", show: "below", lines: 5, code: "import numpy as np\nx = 1" },
+    ]);
+    expect(spec.commands).toEqual([{ speak: "Se.", draw: ["p"] }]);
+  });
+
+  test("a yaml fence is the escape hatch: its elements land verbatim", () => {
+    const spec = parseScriptPages("Se.\n    ```yaml\n    - id: odd\n      type: pieces\n      of: sectors\n      n: 8\n      radius: 50\n    ```\n").pages[0].spec;
+    expect(spec.elements).toEqual([{ id: "odd", type: "pieces", of: "sectors", n: 8, radius: 50 }]);
+  });
+
+  test("an assets fence restores the machine payloads", () => {
+    const spec = parseScriptPages("Hei.\n    camera zoom 2\n\n```assets\nfoto: AAAB\n```\n").pages[0].spec;
+    expect(spec.assets).toEqual({ foto: "AAAB" });
+  });
+});
