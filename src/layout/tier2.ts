@@ -11,6 +11,7 @@ import { codeDrawables, type CodeWindow } from "./code";
 import { UNIVERSAL_ANCHORS, boxAnchor, isUniversalAnchor, polygonAnchors, polylineAnchors, ptsBox, sectorAnchors } from "./anchors";
 import { boxOfId } from "./boxes";
 import { fitTransform, ownBBox, pickSide, placementOrder, refBBox, relAt, relativeDelta, scaleDrawables, shiftDrawables, shiftPoints } from "./place";
+import { placeDelta } from "./places";
 import { columnSlots, fitPicture, isDefaultColumn, INSET_MAX, INSET_W } from "./inset";
 import { fitRegion, isFitName } from "./regions";
 import {
@@ -610,9 +611,8 @@ export function layoutElements(
     // their `at` is a POINT they resolve inside their own case (the angle's
     // vertex; the point's coordinates, where {ref} is a reported mistake).
     const at = relAt(el);
-    if (at?.ref && el.type !== "angle" && el.type !== "point") {
+    if ((at?.ref || at?.place) && el.type !== "angle" && el.type !== "point") {
       const mine = drawables.slice(start);
-      const refBox = refBBox([...(opts.seedDrawables ?? []), ...drawables.slice(0, start)], at.ref, measure, ctx);
       const ownBox = ownBBox(mine, el.id, measure);
       const move = (dx: number, dy: number) => {
         shiftDrawables(mine, dx, dy);
@@ -626,60 +626,79 @@ export function layoutElements(
         bump(el.id);
         for (const k of ctx.pieceGroups[el.id] ?? []) bump(k);
       };
-      const fallback = ctx.atFallback[el.id];
-      if (refBox && ownBox) {
-        // Both silent failures `at` used to have (C1). A figure assembled
-        // from a misspelt anchor looks assembled, just wrong — and place.ts
-        // cannot say so itself: it knows neither the element's id nor the
-        // ref's name. Wording mirrors render/plan.ts's "— using center".
-        const refAnchors = ctx.namedAnchors[at.ref] ?? {};
-        if (at.side && at.anchor !== undefined) {
-          issues.push({
-            rule: "placement",
-            ids: [el.id],
-            severity: "warn",
-            message: `element "${el.id}": at gives both side "${at.side}" and anchor "${at.anchor}" — side is used, anchor is ignored`,
-          });
-        } else if (at.anchor !== undefined && !isUniversalAnchor(at.anchor) && refAnchors[at.anchor] === undefined) {
-          issues.push({
-            rule: "placement",
-            ids: [el.id],
-            severity: "warn",
-            message: `element "${el.id}": at.anchor "${at.anchor}" is not an anchor of "${at.ref}" — using center`,
-          });
-        }
-        if (el.type === "math" && at.side && at.anchor === undefined) {
-          // A formula is words: it tries the neighbouring sides before it
-          // lies down on an axis or a curve (place.ts pickSide). Only what is
-          // already built counts — labels are placed after this pass and
-          // avoid the formula themselves (labels.ts obstacleBoxes).
-          const obstacles = obstacleBoxes([...(opts.seedDrawables ?? []), ...drawables.slice(0, start)], measure);
-          const pick = pickSide(ownBox, refBox, refAnchors, at, el.anchor, obstacles, CANVAS);
-          move(pick.delta[0], pick.delta[1]);
-          if (pick.side !== at.side) ctx.warnings.push(`math "${el.id}": side "${at.side}" of "${at.ref}" lands on other ink — placed ${pick.side} instead`);
-        } else {
-          const [dx, dy] = relativeDelta(ownBox, refBox, refAnchors, at, el.anchor);
+      if (at.place) {
+        // A place needs no ref box: the canvas itself is the reference, and
+        // the element's own same-named anchor is what lands on it.
+        if (ownBox) {
+          const [dx, dy] = placeDelta(ownBox, at.place, el.anchor);
           move(dx, dy);
-        }
-      } else if (!refBox) {
-        // The element was already built at the origin, so leaving it there
-        // would drop it in the bottom-left corner: put it back where it
-        // would have gone with no `at` at all.
-        if (fallback) {
-          move(fallback[0], fallback[1]);
-          ctx.warnings.push(`element "${el.id}": at.ref "${at.ref}" has no box — placed at its default position`);
         } else {
-          ctx.warnings.push(`element "${el.id}": at.ref "${at.ref}" has no box — left where it was`);
+          issues.push({
+            rule: "placement",
+            ids: [el.id],
+            severity: "warn",
+            message: el.type === "label"
+              ? `element "${el.id}": at.place is ignored — a label draws nothing of its own to place; use attach_to and side instead`
+              : `element "${el.id}": at.place is ignored — ${el.type} draws nothing of its own to place`,
+          });
         }
       } else {
-        issues.push({
-          rule: "placement",
-          ids: [el.id],
-          severity: "warn",
-          message: el.type === "label"
-            ? `element "${el.id}": at is ignored — a label draws nothing of its own to place; use attach_to and side instead`
-            : `element "${el.id}": at is ignored — ${el.type} draws nothing of its own to place`,
-        });
+        const refBox = refBBox([...(opts.seedDrawables ?? []), ...drawables.slice(0, start)], at.ref!, measure, ctx);
+        const fallback = ctx.atFallback[el.id];
+        if (refBox && ownBox) {
+          // Both silent failures `at` used to have (C1). A figure assembled
+          // from a misspelt anchor looks assembled, just wrong — and place.ts
+          // cannot say so itself: it knows neither the element's id nor the
+          // ref's name. Wording mirrors render/plan.ts's "— using center".
+          const refAnchors = ctx.namedAnchors[at.ref] ?? {};
+          if (at.side && at.anchor !== undefined) {
+            issues.push({
+              rule: "placement",
+              ids: [el.id],
+              severity: "warn",
+              message: `element "${el.id}": at gives both side "${at.side}" and anchor "${at.anchor}" — side is used, anchor is ignored`,
+            });
+          } else if (at.anchor !== undefined && !isUniversalAnchor(at.anchor) && refAnchors[at.anchor] === undefined) {
+            issues.push({
+              rule: "placement",
+              ids: [el.id],
+              severity: "warn",
+              message: `element "${el.id}": at.anchor "${at.anchor}" is not an anchor of "${at.ref}" — using center`,
+            });
+          }
+          if (el.type === "math" && at.side && at.anchor === undefined) {
+            // A formula is words: it tries the neighbouring sides before it
+            // lies down on an axis or a curve (place.ts pickSide). Only what is
+            // already built counts — labels are placed after this pass and
+            // avoid the formula themselves (labels.ts obstacleBoxes).
+            const obstacles = obstacleBoxes([...(opts.seedDrawables ?? []), ...drawables.slice(0, start)], measure);
+            const pick = pickSide(ownBox, refBox, refAnchors, at, el.anchor, obstacles, CANVAS);
+            move(pick.delta[0], pick.delta[1]);
+            if (pick.side !== at.side) ctx.warnings.push(`math "${el.id}": side "${at.side}" of "${at.ref}" lands on other ink — placed ${pick.side} instead`);
+          } else {
+            const [dx, dy] = relativeDelta(ownBox, refBox, refAnchors, at, el.anchor);
+            move(dx, dy);
+          }
+        } else if (!refBox) {
+          // The element was already built at the origin, so leaving it there
+          // would drop it in the bottom-left corner: put it back where it
+          // would have gone with no `at` at all.
+          if (fallback) {
+            move(fallback[0], fallback[1]);
+            ctx.warnings.push(`element "${el.id}": at.ref "${at.ref}" has no box — placed at its default position`);
+          } else {
+            ctx.warnings.push(`element "${el.id}": at.ref "${at.ref}" has no box — left where it was`);
+          }
+        } else {
+          issues.push({
+            rule: "placement",
+            ids: [el.id],
+            severity: "warn",
+            message: el.type === "label"
+              ? `element "${el.id}": at is ignored — a label draws nothing of its own to place; use attach_to and side instead`
+              : `element "${el.id}": at is ignored — ${el.type} draws nothing of its own to place`,
+          });
+        }
       }
     }
     // --- end relative placement
@@ -816,7 +835,8 @@ function fitGroup(
  * finished drawables into place), otherwise its own x/y or the fallback.
  */
 function originOr(el: SpecElement, ctx: Ctx, fallback: Pt): Pt {
-  if (relAt(el)?.ref) {
+  const at = relAt(el);
+  if (at?.ref || at?.place) {
     ctx.atFallback[el.id] = fallback;
     return [0, 0];
   }
