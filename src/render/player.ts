@@ -952,7 +952,17 @@ export class Player {
           : this.waitScaled(Math.min(1400, SpeechManager.estimateMs(narration) * 0.4), signal);
       this.narrationVoice = voice;
       try {
-        await Promise.all([this.runAction(index, signal), voice]);
+        // An action written inside the sentence waits for its moment. The
+        // estimate rather than a measured duration: it is the one number
+        // available identically here, in a baked-audio cast and in the
+        // export, and no speech marks have to be plumbed to get it.
+        const cued = async (): Promise<void> => {
+          const cue = step.cue ?? 0;
+          if (cue > 0) await this.waitScaled(SpeechManager.estimateMs(narration) * cue, signal);
+          if (signal.aborted) return;
+          return this.runAction(index, signal);
+        };
+        await Promise.all([cued(), voice]);
       } finally {
         this.narrationVoice = null;
       }

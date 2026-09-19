@@ -129,6 +129,9 @@ export type PlanStep = (
   narration?: string;
   narrationSpeaker?: "a" | "b";
   narrationDelivery?: Delivery;
+  /** An action written INSIDE the sentence: it waits until the narration is
+   *  this far through the line (0–1) before it starts. */
+  cue?: number;
 };
 
 /** One id's pose change within a `transform` step. */
@@ -418,6 +421,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
 
   /** Narration of the command currently being planned (speak paired with an action). */
   let currentNarration: string | undefined;
+  /** When in the current line the action starts, 0–1 (an inline action). */
+  let currentCue: number | undefined;
   /** Voice/delivery hints for currentNarration — travel together, always. */
   let currentNarrationSpeaker: "a" | "b" | undefined;
   let currentNarrationDelivery: Delivery | undefined;
@@ -430,6 +435,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         narrationDelivery: currentNarrationDelivery,
       };
     }
+    // A cue belongs to the action whether or not THIS command carries the
+    // line: an action cued inside a sentence spoken by an earlier command
+    // still has to wait for its moment.
+    if (currentCue !== undefined && step.kind !== "speak") step = { ...step, cue: currentCue };
     steps.push(step);
     states.push({
       visible: [...visible],
@@ -880,6 +889,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     cmdIndex++;
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
     currentNarration = hasAction ? cmd.speak : undefined;
+    currentCue = cmd.cue;
     currentNarrationSpeaker = hasAction ? cmd.voice : undefined;
     currentNarrationDelivery = hasAction ? cmd.delivery : undefined;
     if (cmd.speak !== undefined && !hasAction) {

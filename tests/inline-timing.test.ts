@@ -97,3 +97,26 @@ describe("printing a cue back inside its line", () => {
     expect(printScriptPages({}, [{ spec: one(source) }])).toBe(source);
   });
 });
+
+import { planCommands } from "../src/render/plan";
+import { layoutSpec } from "../src/layout/layout";
+
+describe("the plan carries the cue to the player", () => {
+  const planOf = (spec: Spec) => planCommands(spec.commands ?? [], layoutSpec(spec).order);
+
+  test("a cued command's step knows when to start", () => {
+    const spec = one('Se her (@camera zoom 2@) nå.\n    draw a\n    dot a x 1 y 2 hidden true\n');
+    const plan = planOf(spec);
+    const cued = plan.steps.find((s) => s.kind === "camera")!;
+    expect((cued as { cue?: number }).cue).toBeGreaterThan(0);
+  });
+
+  test("an uncued command's step carries none", () => {
+    const spec: Spec = {
+      elements: [{ id: "a", type: "point", x: 1, y: 2 }],
+      commands: [{ draw: ["a"], speak: "Hei." }],
+    };
+    const step = planOf(spec).steps.find((s) => s.kind === "draw")!;
+    expect((step as { cue?: number }).cue).toBeUndefined();
+  });
+});
