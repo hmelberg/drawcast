@@ -1,10 +1,13 @@
 # Script — a drawcast written the way it is performed
 
-Status: §7 (named places and auto-placement) IMPLEMENTED 2026-09-19 — plan:
-docs/superpowers/plans/2026-09-19-named-places.md, 8617 tests, tsc+build
-green, no layout regressions. §3-§6 and §8-§11 (the script format itself)
-are designed, not implemented; their plan is written now that places have
-landed. Brainstormed with Hans in four decisions (§2).
+Status: IMPLEMENTED 2026-09-19, both phases. §7 (named places and
+auto-placement): plan docs/superpowers/plans/2026-09-19-named-places.md.
+§3-§6 and §8-§10 (the script format): plan
+docs/superpowers/plans/2026-09-19-script-format.md — 8686 tests, tsc+build
+green, and the round-trip gate (tests/script-roundtrip.test.ts) holds all
+258 bundled examples and every scene pack's params. §6's sugar (aliases,
+`->`, colour words, quiz choice lists) and §11's two lint rules are phase
+3, deliberately not built. Brainstormed with Hans in four decisions (§2).
 
 Deviation from §12's task list, found while implementing: `text` and `math`
 each carried their own copy of the rule "needs x and y, or at.ref", which

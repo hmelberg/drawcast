@@ -231,7 +231,7 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
     // The error path still adopts `best` when one exists (main.ts checks the
     // playlist, not the error), so the founding prompt is preserved here too.
     if (best && preserveFoundingPrompt(best.playlist, parsedNow.playlist)) {
-      best = { playlist: best.playlist, text: formatPlaylist(best.playlist, "yaml") };
+      best = { playlist: best.playlist, text: formatPlaylist(best.playlist, "script") };
     }
     return { playlist: best?.playlist ?? null, text: best?.text ?? null, rounds, error: describeApiError(err) };
   }
@@ -239,7 +239,7 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
   const promptFilled = best ? preserveFoundingPrompt(best.playlist, parsedNow.playlist) : false;
   if (best && (hoisted.blobs.size > 0 || promptFilled)) {
     if (hoisted.blobs.size > 0) restorePortraitStrokes(best.playlist, hoisted.blobs);
-    best = { playlist: best.playlist, text: formatPlaylist(best.playlist, "yaml") };
+    best = { playlist: best.playlist, text: formatPlaylist(best.playlist, "script") };
   }
   return {
     playlist: best?.playlist ?? null,

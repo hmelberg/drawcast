@@ -212,15 +212,22 @@ export function printScriptPage(spec: Spec): string {
   return blocks.join("\n\n") + "\n";
 }
 
+/** Playlist-level settings, in the order they print. */
+const META_ORDER = ["subtitle", "prompt", "comments", "views", "next", "enroll", "advance", "gap", "transitions"];
+
 export function printScriptPages(meta: Record<string, unknown>, pages: { spec: Spec }[]): string {
   const multi = pages.length > 1;
+  // One page takes the `#` for itself; several sit under the playlist's.
+  const docTitle = multi ? meta.title : (pages[0]?.spec.title ?? meta.title);
   const head: string[] = [];
-  if (multi && typeof meta.title === "string") head.push(`# ${meta.title}`);
+  if (typeof docTitle === "string") head.push(`# ${docTitle}`);
+  for (const key of META_ORDER) {
+    if (meta[key] !== undefined) head.push(`${key}: ${formatValue(meta[key])}`);
+  }
   const body = pages.map((p) => {
     const text = printScriptPage(p.spec);
-    if (!multi) return typeof p.spec.title === "string" ? `# ${p.spec.title}\n\n${text}` : text;
-    return typeof p.spec.title === "string" ? `## ${p.spec.title}\n${text}` : text;
+    return multi && typeof p.spec.title === "string" ? `## ${p.spec.title}\n${text}` : text;
   });
-  // The cast title stands alone, a blank line above the first page.
-  return [...head.map((h) => `${h}\n`), ...body].join("\n").replace(/\n{3,}/g, "\n\n");
+  const headBlock = head.length > 0 ? [`${head.join("\n")}\n`] : [];
+  return [...headBlock, ...body].join("\n").replace(/\n{3,}/g, "\n\n");
 }

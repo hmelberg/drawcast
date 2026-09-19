@@ -185,7 +185,9 @@ export function parsePlaylistText(text: string): Playlist {
   // A script says "another page" with `##`, not with a document separator.
   if (looksLikeScript(text)) {
     const { meta, pages } = parseScriptPages(text);
-    if (pages.length > 1 || meta.title !== undefined || meta.chapters !== undefined) {
+    // Any document-level setting — a founding prompt, a subtitle, an advance
+    // rule — means this is a playlist document, not a bare spec.
+    if (pages.length > 1 || Object.keys(meta).length > 0) {
       const playlist: Playlist = { meta: { ...DEFAULT_META }, entries: [], warnings: [] };
       for (const [key, value] of Object.entries(meta)) {
         if (key === "chapters") continue;
