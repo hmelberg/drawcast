@@ -9,7 +9,7 @@ import { heuristicMeasure, type MeasureFn } from "./measure";
 import * as M from "./measures";
 import { codeDrawables, type CodeWindow } from "./code";
 import { UNIVERSAL_ANCHORS, boxAnchor, isUniversalAnchor, polygonAnchors, polylineAnchors, ptsBox, sectorAnchors } from "./anchors";
-import { boxOfId } from "./boxes";
+import { boxOfId, unionBoxes } from "./boxes";
 import { fitTransform, ownBBox, pickSide, placementOrder, refBBox, relAt, relativeDelta, scaleDrawables, shiftDrawables, shiftPoints } from "./place";
 import { autoRow, placeDelta } from "./places";
 import { naturalNodeSize, slotCentres, type GroupLayout } from "./group-layout";
@@ -627,6 +627,8 @@ export function layoutElements(
         ctx.groups[el.id] = leaves;
         const all = [...(opts.seedDrawables ?? []), ...drawables];
         let box = boxOfId(all, el.id, measure, ctx.groups, ctx.pieceGroups);
+        // --- layout: arrange the members, then fit places the assembly.
+        if (el.layout !== undefined) box = layoutGroup(el, all, labels, ctx, measure, issues) ?? box;
         // --- fit (spec §3.2): scale and centre the whole thing into a region.
         if (el.fit && box && box.w > 0 && box.h > 0) {
           box = fitGroup(el, leaves, box, all, labels, ctx, measure, issues);
@@ -795,33 +797,38 @@ const FIT_FONT_FLOOR = 18;
  * nested group's box, a measure's remembered endpoints — and the group's own
  * box is recomputed from the scaled ink. Returns that new box.
  */
-function fitGroup(
-  el: SpecElement,
+/** Every id a set of leaves hides its ink under: the leaf, its sub-drawables
+ *  and minted children (`<leaf>_…`), and the number a line-less measure keeps
+ *  under a name of its own. */
+function ownedIds(leaves: string[], ctx: Ctx): string[] {
+  return [...new Set(leaves.flatMap((m) => [m, ...(ctx.pieceGroups[m] ?? [])]))];
+}
+
+/**
+ * Move everything that hangs off `leaves` by one affine map: the ink, the
+ * anchors, the named anchors, the boxes of groups made entirely of these
+ * leaves, piece geometry, measure endpoints, and the points labels have yet
+ * to be solved against. Every group transform has to do all of it — `fit`
+ * with a scale, `layout` with a translation per member — and a second copy of
+ * this list is how the two would drift apart.
+ */
+function transformOwned(
   leaves: string[],
-  box: BBox,
+  ownerId: string,
   all: Drawable[],
   labels: LabelRequest[],
   ctx: Ctx,
-  measure: MeasureFn,
-  issues: LintIssue[],
-): BBox | null {
-  const target = isFitName(el.fit) ? fitRegion(el.fit) : (el.fit as BBox);
-  if (!target || !(target.w > 0) || !(target.h > 0)) {
-    issues.push({ rule: "placement", ids: [el.id], severity: "error", message: `group "${el.id}": fit needs a region name or a box with a positive width and height` });
-    return box;
-  }
-  const { s, dx, dy } = fitTransform(box, target);
+  t: { s: number; dx: number; dy: number },
+): void {
+  const { s, dx, dy } = t;
   const map = (p: Pt): Pt => [p[0] * s + dx, p[1] * s + dy];
   const scaleBox = (b: BBox): BBox => ({ x: b.x * s + dx, y: b.y * s + dy, w: b.w * s, h: b.h * s });
-  // Every id the group's ink hides under: a leaf, that leaf's sub-drawables
-  // and minted children (`<leaf>_…`), and the number a line-less measure
-  // keeps under a name of its own (pieceGroups).
-  const owned = [...new Set(leaves.flatMap((m) => [m, ...(ctx.pieceGroups[m] ?? [])]))];
+  const owned = ownedIds(leaves, ctx);
   const belongs = (id: string) => owned.some((m) => id === m || id.startsWith(`${m}_`));
   // A group whose every leaf is one of ours moved with us, whether it is a
   // member of this group or a member of a member.
   const leafSet = new Set(leaves);
-  const nested = new Set(Object.keys(ctx.groups).filter((g) => g !== el.id && ctx.groups[g].length > 0 && ctx.groups[g].every((m) => leafSet.has(m))));
+  const nested = new Set(Object.keys(ctx.groups).filter((g) => g !== ownerId && ctx.groups[g].length > 0 && ctx.groups[g].every((m) => leafSet.has(m))));
   const touched = (id: string) => belongs(id) || nested.has(id);
 
   scaleDrawables(all.filter((d) => belongs(d.id)), s, dx, dy);
@@ -840,9 +847,9 @@ function fitGroup(
     if (pg.ring) pg.ring = { rIn: pg.ring.rIn * s, rOut: pg.ring.rOut * s };
     if (pg.height !== undefined) pg.height *= s;
   }
-  // A measure remembers the points it spanned; the fit moves them like ink.
-  // The NUMBER it prints is deliberately left alone — it is the figure's own
-  // measurement, and a scale drawing keeps its dimensions.
+  // A measure remembers the points it spanned; a transform moves them like
+  // ink. The NUMBER it prints is deliberately left alone — it is the figure's
+  // own measurement, and a scale drawing keeps its dimensions.
   for (const [id, ms] of Object.entries(ctx.measures)) {
     if (!belongs(id)) continue;
     for (const end of ["from", "to"] as const) {
@@ -851,15 +858,74 @@ function fitGroup(
     }
     if (ms.circle) ms.circle = { c: map(ms.circle.c), r: ms.circle.r * s };
   }
-
   // A member LABEL is not ink yet — layout.ts solves it against the finished
   // drawing after tier-2 — but the point it will be solved AGAINST was read
-  // off the member when the label was emitted, which was before this fit.
-  // Move that point too, or the words land where the part used to be.
-  // (An `annotation` member needs nothing: layout.ts measures its target's
-  // box off the drawables after everything is laid out, so it reads the
-  // scaled ink already. `ignore` holds drawable ids, not geometry.)
+  // off the member when the label was emitted, which was before this. Move
+  // that point too, or the words land where the part used to be.
   for (const req of labels) if (belongs(req.id)) req.anchor = map(req.anchor);
+}
+
+/**
+ * Arrange a group's members — a row, a column, a grid — by translating each
+ * one from where it was emitted to the slot the arrangement gives it. The
+ * assembly stays centred on the members' own centroid, so a laid-out group
+ * lands where it would have landed anyway; `fit` (which runs after) is how
+ * you put it somewhere specific.
+ */
+function layoutGroup(
+  el: SpecElement,
+  all: Drawable[],
+  labels: LabelRequest[],
+  ctx: Ctx,
+  measure: MeasureFn,
+  issues: LintIssue[],
+): BBox | null {
+  const members = (el.members ?? []).filter((m) => boxOfId(all, m, measure, ctx.groups, ctx.pieceGroups) !== null);
+  if (members.length === 0) {
+    issues.push({ rule: "placement", ids: [el.id], severity: "warn", message: `group "${el.id}": nothing to arrange (no member has a box)` });
+    return null;
+  }
+  const boxes = members.map((m) => boxOfId(all, m, measure, ctx.groups, ctx.pieceGroups)!);
+  const centres = slotCentres(el.layout as GroupLayout, boxes.map((b) => ({ w: b.w, h: b.h })), {
+    gap: el.gap,
+    columns: el.columns,
+    align: el.align,
+  });
+  // The arrangement is computed in its own coordinates; put its centre where
+  // the members already were, so nothing jumps across the canvas.
+  const before = unionBoxes(boxes)!;
+  const spanX = Math.max(...centres.map((c, i) => c[0] + boxes[i].w / 2));
+  const spanY = Math.max(...centres.map((c, i) => c[1] + boxes[i].h / 2));
+  const originX = before.x + before.w / 2 - spanX / 2;
+  const originY = before.y + before.h / 2 - spanY / 2;
+  members.forEach((m, i) => {
+    const leaves = ctx.groups[m] ?? [m];
+    const now = boxes[i];
+    const dx = originX + centres[i][0] - (now.x + now.w / 2);
+    const dy = originY + centres[i][1] - (now.y + now.h / 2);
+    if (dx !== 0 || dy !== 0) transformOwned(leaves, el.id, all, labels, ctx, { s: 1, dx, dy });
+  });
+  return boxOfId(all, el.id, measure, ctx.groups, ctx.pieceGroups);
+}
+
+function fitGroup(
+  el: SpecElement,
+  leaves: string[],
+  box: BBox,
+  all: Drawable[],
+  labels: LabelRequest[],
+  ctx: Ctx,
+  measure: MeasureFn,
+  issues: LintIssue[],
+): BBox | null {
+  const target = isFitName(el.fit) ? fitRegion(el.fit) : (el.fit as BBox);
+  if (!target || !(target.w > 0) || !(target.h > 0)) {
+    issues.push({ rule: "placement", ids: [el.id], severity: "error", message: `group "${el.id}": fit needs a region name or a box with a positive width and height` });
+    return box;
+  }
+  const { s, dx, dy } = fitTransform(box, target);
+  transformOwned(leaves, el.id, all, labels, ctx, { s, dx, dy });
+  const belongs = (id: string) => ownedIds(leaves, ctx).some((m) => id === m || id.startsWith(`${m}_`));
 
   for (const d of leafDrawables(all.filter((x) => belongs(x.id)))) {
     if (d.kind !== "text" || d.fontSize >= FIT_FONT_FLOOR) continue;

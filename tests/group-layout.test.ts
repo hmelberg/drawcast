@@ -106,3 +106,84 @@ describe("equalize", () => {
     expect(b.get("a")!.w).toBeLessThan(b.get("b")!.w);
   });
 });
+
+describe("a structure with no coordinates anywhere", () => {
+  const CHAIN: Spec = {
+    elements: [
+      { id: "a", type: "node", shape: "rect", text: "Innsats" },
+      { id: "b", type: "node", shape: "rect", text: "Produksjon" },
+      { id: "c", type: "node", shape: "rect", text: "Resultat" },
+      { id: "g", type: "group", members: ["a", "b", "c"], layout: "row" },
+      { id: "e1", type: "arrow", from: { ref: "a" }, to: { ref: "b" } },
+      { id: "e2", type: "arrow", from: { ref: "b" }, to: { ref: "c" } },
+    ],
+    commands: [{ draw: ["g", "e1", "e2"] }],
+  };
+
+  test("a row runs left to right, one gap apart, level", () => {
+    const r = layoutSpec(CHAIN);
+    const b = elementBBoxes(r);
+    expect(b.get("a")!.x).toBeLessThan(b.get("b")!.x);
+    expect(b.get("b")!.x).toBeLessThan(b.get("c")!.x);
+    expect(b.get("b")!.x - (b.get("a")!.x + b.get("a")!.w)).toBeCloseTo(DEFAULT_GAP, 0);
+    expect(b.get("a")!.y).toBeCloseTo(b.get("c")!.y, 0);
+    expect(r.issues.filter((i) => i.severity === "error")).toEqual([]);
+  });
+
+  test("the arrows run between the boxes where they ended up", () => {
+    const b = elementBBoxes(layoutSpec(CHAIN));
+    const arrow = b.get("e1")!;
+    expect(arrow.x).toBeGreaterThanOrEqual(b.get("a")!.x);
+    expect(arrow.x + arrow.w).toBeLessThanOrEqual(b.get("b")!.x + b.get("b")!.w + 1);
+  });
+
+  test("a column stacks downward", () => {
+    const spec = JSON.parse(JSON.stringify(CHAIN)) as Spec;
+    spec.elements![3].layout = "column";
+    const b = elementBBoxes(layoutSpec(spec));
+    expect(b.get("a")!.y).toBeGreaterThan(b.get("b")!.y);
+    expect(b.get("a")!.x).toBeCloseTo(b.get("b")!.x, 0);
+  });
+
+  test("gap is honoured", () => {
+    const spec = JSON.parse(JSON.stringify(CHAIN)) as Spec;
+    spec.elements![3].gap = 120;
+    const b = elementBBoxes(layoutSpec(spec));
+    expect(b.get("b")!.x - (b.get("a")!.x + b.get("a")!.w)).toBeCloseTo(120, 0);
+  });
+
+  test("a column nested in a row moves as one thing", () => {
+    const spec: Spec = {
+      elements: [
+        { id: "a", type: "node", shape: "rect", text: "Søk" },
+        { id: "b", type: "node", shape: "rect", text: "Filtrer" },
+        { id: "c", type: "node", shape: "rect", text: "Rangér" },
+        { id: "inner", type: "group", members: ["b", "c"], layout: "column" },
+        { id: "outer", type: "group", members: ["a", "inner"], layout: "row" },
+      ],
+      commands: [{ draw: ["outer"] }],
+    };
+    const b = elementBBoxes(layoutSpec(spec));
+    // The column's two boxes stay aligned with each other, and both sit right of a.
+    expect(b.get("b")!.x).toBeCloseTo(b.get("c")!.x, 0);
+    expect(b.get("b")!.x).toBeGreaterThan(b.get("a")!.x);
+  });
+
+  test("layout then fit: the arrangement is scaled into its region", () => {
+    const spec = JSON.parse(JSON.stringify(CHAIN)) as Spec;
+    spec.elements![3].fit = "left";
+    const b = elementBBoxes(layoutSpec(spec));
+    expect(b.get("c")!.x + b.get("c")!.w).toBeLessThan(520);
+  });
+
+  test("a member drawn two beats later does not move the ones already there", () => {
+    const together = elementBBoxes(layoutSpec(CHAIN));
+    const staged = JSON.parse(JSON.stringify(CHAIN)) as Spec;
+    staged.commands = [{ draw: ["a"] }, { draw: ["b"] }, { draw: ["c"] }, { draw: ["e1", "e2"] }];
+    const later = elementBBoxes(layoutSpec(staged));
+    for (const id of ["a", "b", "c"]) {
+      expect(later.get(id)!.x).toBeCloseTo(together.get(id)!.x, 5);
+      expect(later.get(id)!.y).toBeCloseTo(together.get(id)!.y, 5);
+    }
+  });
+});

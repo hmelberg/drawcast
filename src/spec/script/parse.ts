@@ -199,6 +199,13 @@ export function parseDirection(head: string, rest: string, line: number, warn: (
           continue;
         }
       }
+      // `gap` right after a placement phrase belongs to the placement —
+      // `above bedr gap 20` is one phrase. A group's OWN gap (the space in a
+      // row) has no placement in front of it, so the two never collide.
+      if (tok === "gap" && el.at !== undefined && rest2[k + 1] !== undefined) {
+        setPath(el, "at.gap", parseValue(rest2[++k]));
+        continue;
+      }
       // A KEY takes the next token as its value, and that value is never
       // read as a shorthand — `style.color red` is a pair, and the `red` in
       // it is not also a standalone colour word.
@@ -210,12 +217,6 @@ export function parseDirection(head: string, rest: string, line: number, warn: (
       if (isColor(tok)) { setPath(el, "style.color", tok); continue; }
       const secs = seconds(tok);
       if (secs !== null) { setPath(el, "draw.duration", secs); continue; }
-      // `gap` belongs to the placement it follows — `above bedr gap 20` is
-      // one phrase, and a bare top-level `gap` means nothing to any element.
-      if (tok === "gap" && el.at !== undefined && rest2[k + 1] !== undefined) {
-        setPath(el, "at.gap", parseValue(rest2[++k]));
-        continue;
-      }
       pairs.push(tok);
     }
     keyValues(pairs, el, line);
