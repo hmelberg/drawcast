@@ -4,7 +4,7 @@
 import { dump } from "js-yaml";
 import { fieldLines, formatValue } from "./values";
 import { COMMAND_ORDER, ELEMENT_ORDER, LIST_VERBS, OBJECT_VERBS, SCALAR_VERBS, TARGET_FIELD, TARGET_VERBS } from "./parse";
-import { ELEMENT_ALIASES, FLAG_FOR, PLACE_WORDS, SIDE_TYPES, isColor } from "./sugar";
+import { AROUND_FIELD, ELEMENT_ALIASES, FLAG_FOR, PLACE_WORDS, SIDE_TYPES, isColor } from "./sugar";
 
 /** The keys that can head a direction line. Everything else in a command
  *  rides along as a modifier on the same line. */
@@ -59,6 +59,9 @@ const ALIAS_FOR = new Map<string, string>(
     .map(([word, a]) => [`${a.type}:${String(a.fields!.shape)}`, word]),
 );
 
+/** Element types written under a shorter name of their own. */
+const HEAD_FOR: Record<string, string> = { point: "dot", annotation: "mark" };
+
 /**
  * The shorthands an element can be written with, and the fields they eat.
  * Reversible by construction: a word is emitted only when the field holds
@@ -79,6 +82,13 @@ function shorthands(el: SpecElement): { words: string[]; used: Set<string>; eate
   };
   const from = end(e.from), to = end(e.to);
   if (from !== null && to !== null) { words.push(from, "->", to); used.add("from"); used.add("to"); }
+
+  // What a border wraps.
+  const aroundField = AROUND_FIELD[el.type];
+  if (aroundField !== undefined && Array.isArray(e[aroundField])) {
+    words.push("around", ...(e[aroundField] as string[]));
+    used.add(aroundField);
+  }
 
   // Placement, in words.
   if (at && typeof at.place === "string" && Object.keys(at).length === 1) {
@@ -130,7 +140,7 @@ function elementLine(el: SpecElement, hidden: boolean): string {
     const body = (el.code ?? "").split("\n").map((l) => (l === "" ? l : INDENT + l)).join("\n");
     return `${INDENT}${info}\n${body}\n${INDENT}\`\`\``;
   }
-  const head = shapeAlias ?? (el.type === "point" ? "dot" : el.type);
+  const head = shapeAlias ?? HEAD_FOR[el.type] ?? el.type;
   // Always quoted: the parser recognizes the positional text BY its quote, so
   // a text that needs no quotes would read back as a stray key.
   const text = typeof el.text === "string" ? ` ${JSON.stringify(el.text)}` : "";

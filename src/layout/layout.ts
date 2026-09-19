@@ -12,10 +12,11 @@ import { coVisible, idsOf, lintLayout, FIT_SCALE_FLOOR, type LintIssue } from ".
 import { layoutElements, type PieceGeometry } from "./tier2";
 import type { MeasureSpec } from "./measures";
 import type { CodeWindow } from "./code";
-import { annotationDrawables } from "./annotate";
+import { annotationDrawables, DEFAULT_FIT, padFor } from "./annotate";
 import { obstacleBoxes, placeLabels, type LabelPin, type LabelRequest } from "./labels";
 import type { BBox } from "./geometry";
 import { boxOfId, unionBBoxForId, unionBoxes } from "./boxes";
+import { bboxOfText } from "./geometry";
 import { hasDefaultColumnInsets, INSET_MAIN } from "./inset";
 import type { LayoutOverrides } from "./posed";
 import { heuristicMeasure, type MeasureFn } from "./measure";
@@ -227,8 +228,35 @@ export function layoutSpec(
   // measured against the words that actually get drawn.
   if (spec.text_map) applyTextMap(drawables, labelRequests, spec.text_map);
 
-  // Label placement against everything drawn so far.
+  // Label placement against everything drawn so far — INCLUDING the borders
+  // that are not drawn yet. An annotation is laid out last, because it may
+  // mark a label; but one that marks something already drawn has a box we can
+  // predict here, and a label that cannot see it will happily sit on it. The
+  // prediction is the same padFor the real pass uses, so what the solver
+  // avoids is what gets drawn.
   const obstacles = obstacleBoxes(drawables, measure);
+  const labelIds = new Set(labelRequests.map((r) => r.id));
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "annotation" || el.kind === "strike" || el.kind === "cross") continue;
+    const targets = ([] as string[]).concat(el.target ?? []);
+    if (targets.length === 0 || targets.some((id) => labelIds.has(id))) continue;
+    const box = unionBoxes(targets.map((id) => boxOfId(drawables, id, measure, groups, pieceGroups)));
+    if (!box) continue;
+    const leaves = targets.flatMap((id) => leafDrawables(drawablesForId(drawables, id)));
+    if (leaves.length === 0) continue;
+    const isText = leaves.every((d) => d.kind === "text");
+    const pad = padFor(
+      {
+        roughness: Math.max(DEFAULT_FIT.roughness, ...leaves.map((d) => d.style.roughness)),
+        strokeWidth: Math.max(DEFAULT_FIT.strokeWidth, ...leaves.map((d) => d.style.strokeWidth)),
+        fontSize: isText ? Math.max(...leaves.map((d) => (d.kind === "text" ? d.fontSize : 0))) : undefined,
+      },
+      DEFAULT_FIT.roughness,
+      DEFAULT_FIT.strokeWidth,
+    );
+    // Solid: a drawn border is ink a label must not sit on, the same as text.
+    obstacles.push({ box: { x: box.x - pad, y: box.y - pad, w: box.w + 2 * pad, h: box.h + 2 * pad }, solid: true, id: el.id });
+  }
   const placed = placeLabels(labelRequests, obstacles, measure, labelPinsIn);
   const labelPins: Record<string, LabelPin> = {};
   for (const p of placed) {
@@ -248,14 +276,36 @@ export function layoutSpec(
     // ids and a line-less `measure` (what: area/perimeter) draws only its
     // text, so reading the drawables directly reported both as unknown
     // targets and skipped the mark (C2).
-    const box = el.target ? boxOfId(drawables, el.target, measure, groups, pieceGroups) : null;
+    // One border around all of its targets: the union of their boxes, and the
+    // union of their ink for deciding what the border has to clear.
+    const targets = ([] as string[]).concat(el.target ?? []);
+    const found = targets.filter((id) => {
+      const ok = boxOfId(drawables, id, measure, groups, pieceGroups) !== null;
+      if (!ok) warnings.push(`annotation "${el.id}": unknown or empty target "${id}" — not marked`);
+      return ok;
+    });
+    const box = unionBoxes(found.map((id) => boxOfId(drawables, id, measure, groups, pieceGroups)));
     if (!box) {
-      warnings.push(`annotation "${el.id}": unknown or empty target "${el.target}" — skipped`);
+      warnings.push(`annotation "${el.id}": nothing to mark — skipped`);
       continue;
     }
-    const leaves = leafDrawables(drawablesForId(drawables, el.target!));
+    const leaves = found.flatMap((id) => leafDrawables(drawablesForId(drawables, id)));
     const textTarget = leaves.length > 0 && leaves.every((d) => d.kind === "text");
-    drawables.push(...annotationDrawables(el, box, textTarget, (msg) => warnings.push(msg)));
+    // What the border has to clear, read off the ink itself rather than
+    // assumed: the roughest stroke, the widest, and the largest font.
+    const fit = {
+      roughness: Math.max(DEFAULT_FIT.roughness, ...leaves.map((d) => d.style.roughness)),
+      strokeWidth: Math.max(DEFAULT_FIT.strokeWidth, ...leaves.map((d) => d.style.strokeWidth)),
+      fontSize: textTarget ? Math.max(...leaves.map((d) => (d.kind === "text" ? d.fontSize : 0))) : undefined,
+    };
+    // The target's ink, for sizing a ring: stroke points as they are, and the
+    // corners of anything that occupies a box.
+    const inkPts = leaves.flatMap((d) => {
+      if (d.kind === "stroke" || d.kind === "area") return d.pts;
+      const b = d.kind === "text" ? bboxOfText(d, measure) : { x: d.pos[0] - d.w / 2, y: d.pos[1] - d.h / 2, w: d.w, h: d.h };
+      return [[b.x, b.y], [b.x + b.w, b.y], [b.x, b.y + b.h], [b.x + b.w, b.y + b.h]] as Pt[];
+    });
+    drawables.push(...annotationDrawables(el, box, textTarget, (msg) => warnings.push(msg), fit, inkPts));
   }
 
   // lint hands us TOP-LEVEL drawable ids (`n1_text`, a pieces cell, a

@@ -13885,179 +13885,751 @@
   },
   {
     "request": "Which one is Mars?",
-    "packs": ["space"],
+    "packs": [
+      "space"
+    ],
     "spec": {
       "title": "Find Mars",
       "template": "solar_system",
-      "params": { "view": "top", "scale": "schematic", "date": "2026-09-06", "names": "none" },
+      "params": {
+        "view": "top",
+        "scale": "schematic",
+        "date": "2026-09-06",
+        "names": "none"
+      },
       "commands": [
-        { "draw": ["sun", "orbit_mercury", "orbit_venus", "orbit_earth", "orbit_mars", "orbit_jupiter", "orbit_saturn", "orbit_uranus", "orbit_neptune", "scale_note"], "speak": "The Sun, and eight orbits around it, seen from above. Not to scale — no drawing on one page can be." },
-        { "draw": ["mercury", "venus", "earth", "mars"], "speak": "Four small rocky planets keep close to the Sun." },
-        { "draw": ["jupiter", "saturn", "uranus", "neptune"], "speak": "Four giants keep their distance. Every planet sits where it really was on the day this was drawn." },
-        { "ask": { "question": "Which one is Mars?", "widget": "click", "answer": "mars", "right": "Mars — the fourth planet out, on the orbit just outside Earth's.", "wrong": "Count outward from the Sun: Mercury, Venus, Earth — and the next orbit is Mars." } }
+        {
+          "draw": [
+            "sun",
+            "orbit_mercury",
+            "orbit_venus",
+            "orbit_earth",
+            "orbit_mars",
+            "orbit_jupiter",
+            "orbit_saturn",
+            "orbit_uranus",
+            "orbit_neptune",
+            "scale_note"
+          ],
+          "speak": "The Sun, and eight orbits around it, seen from above. Not to scale — no drawing on one page can be."
+        },
+        {
+          "draw": [
+            "mercury",
+            "venus",
+            "earth",
+            "mars"
+          ],
+          "speak": "Four small rocky planets keep close to the Sun."
+        },
+        {
+          "draw": [
+            "jupiter",
+            "saturn",
+            "uranus",
+            "neptune"
+          ],
+          "speak": "Four giants keep their distance. Every planet sits where it really was on the day this was drawn."
+        },
+        {
+          "ask": {
+            "question": "Which one is Mars?",
+            "widget": "click",
+            "answer": "mars",
+            "right": "Mars — the fourth planet out, on the orbit just outside Earth's.",
+            "wrong": "Count outward from the Sun: Mercury, Venus, Earth — and the next orbit is Mars."
+          }
+        }
       ]
     }
   },
   {
     "request": "How big is Jupiter?",
-    "packs": ["space"],
+    "packs": [
+      "space"
+    ],
     "spec": {
       "title": "How big is Jupiter?",
       "template": "solar_system",
-      "params": { "view": "row", "scale": "sizes", "date": "2026-09-06" },
+      "params": {
+        "view": "row",
+        "scale": "sizes",
+        "date": "2026-09-06"
+      },
       "commands": [
-        { "draw": ["sun", "label_sun", "scale_note", "scale_bar"], "speak": "Sizes to scale this time. The Sun is so large that only its edge fits on the page." },
-        { "draw": ["mercury", "label_mercury", "venus", "label_venus", "earth", "label_earth", "mars", "label_mars"], "speak": "The four rocky planets are specks beside it — Earth is a dot a hundredth of the Sun's width." },
-        { "draw": ["jupiter", "label_jupiter"], "speak": "Jupiter: eleven Earths across, and heavier than all the other planets put together." },
-        { "draw": ["saturn", "label_saturn", "uranus", "label_uranus", "neptune", "label_neptune"], "speak": "Saturn with its rings, then the two ice giants, Uranus and Neptune — near twins." },
-        { "quiz": { "question": "Which of the two ice giants is larger?", "choices": ["Uranus", "Neptune", "They are the same size"], "correct": 1, "right": "Uranus, by a whisker — 25 400 kilometres in radius to Neptune's 24 600. Neptune is the heavier one, though." } }
+        {
+          "draw": [
+            "sun",
+            "label_sun",
+            "scale_note",
+            "scale_bar"
+          ],
+          "speak": "Sizes to scale this time. The Sun is so large that only its edge fits on the page."
+        },
+        {
+          "draw": [
+            "mercury",
+            "label_mercury",
+            "venus",
+            "label_venus",
+            "earth",
+            "label_earth",
+            "mars",
+            "label_mars"
+          ],
+          "speak": "The four rocky planets are specks beside it — Earth is a dot a hundredth of the Sun's width."
+        },
+        {
+          "draw": [
+            "jupiter",
+            "label_jupiter"
+          ],
+          "speak": "Jupiter: eleven Earths across, and heavier than all the other planets put together."
+        },
+        {
+          "draw": [
+            "saturn",
+            "label_saturn",
+            "uranus",
+            "label_uranus",
+            "neptune",
+            "label_neptune"
+          ],
+          "speak": "Saturn with its rings, then the two ice giants, Uranus and Neptune — near twins."
+        },
+        {
+          "quiz": {
+            "question": "Which of the two ice giants is larger?",
+            "choices": [
+              "Uranus",
+              "Neptune",
+              "They are the same size"
+            ],
+            "correct": 1,
+            "right": "Uranus, by a whisker — 25 400 kilometres in radius to Neptune's 24 600. Neptune is the heavier one, though."
+          }
+        }
       ]
     }
   },
   {
     "request": "Why are the inner planets small and the outer ones huge?",
-    "packs": ["space"],
+    "packs": [
+      "space"
+    ],
     "spec": {
       "title": "Rock near the Sun, gas far from it",
       "template": "solar_system",
-      "params": { "view": "row", "scale": "schematic", "date": "2026-09-06", "names": "none" },
+      "params": {
+        "view": "row",
+        "scale": "schematic",
+        "date": "2026-09-06",
+        "names": "none"
+      },
       "commands": [
-        { "draw": ["sun", "mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune", "scale_note"], "speak": "The Sun and its eight planets in a line, closest first, names left off. Look at the split: four small, then four huge, and nothing in between." },
-        { "ask": { "question": "Drag each name onto its planet.", "intro": "Close to the young Sun it was too hot for ice to survive, so there was only rock and metal to build with — and there is not much of either. Further out ice lasted, there was far more of it, and those four grew heavy enough to hold on to gas as well.", "widget": "drag", "items": [{ "id": "mercury", "label": "Mercury" }, { "id": "venus", "label": "Venus" }, { "id": "earth", "label": "Earth" }, { "id": "mars", "label": "Mars" }, { "id": "jupiter", "label": "Jupiter" }, { "id": "saturn", "label": "Saturn" }, { "id": "uranus", "label": "Uranus" }, { "id": "neptune", "label": "Neptune" }], "tolerance": 1, "right": "Mercury, Venus, Earth, Mars, then Jupiter, Saturn, Uranus and Neptune. The line where ice could survive falls between Mars and Jupiter — and so does the split between small and huge.", "wrong": "The four rocky ones come first, small and close to the Sun; the four giants follow, and Saturn is the one with the ring." } }
+        {
+          "draw": [
+            "sun",
+            "mercury",
+            "venus",
+            "earth",
+            "mars",
+            "jupiter",
+            "saturn",
+            "uranus",
+            "neptune",
+            "scale_note"
+          ],
+          "speak": "The Sun and its eight planets in a line, closest first, names left off. Look at the split: four small, then four huge, and nothing in between."
+        },
+        {
+          "ask": {
+            "question": "Drag each name onto its planet.",
+            "intro": "Close to the young Sun it was too hot for ice to survive, so there was only rock and metal to build with — and there is not much of either. Further out ice lasted, there was far more of it, and those four grew heavy enough to hold on to gas as well.",
+            "widget": "drag",
+            "items": [
+              {
+                "id": "mercury",
+                "label": "Mercury"
+              },
+              {
+                "id": "venus",
+                "label": "Venus"
+              },
+              {
+                "id": "earth",
+                "label": "Earth"
+              },
+              {
+                "id": "mars",
+                "label": "Mars"
+              },
+              {
+                "id": "jupiter",
+                "label": "Jupiter"
+              },
+              {
+                "id": "saturn",
+                "label": "Saturn"
+              },
+              {
+                "id": "uranus",
+                "label": "Uranus"
+              },
+              {
+                "id": "neptune",
+                "label": "Neptune"
+              }
+            ],
+            "tolerance": 1,
+            "right": "Mercury, Venus, Earth, Mars, then Jupiter, Saturn, Uranus and Neptune. The line where ice could survive falls between Mars and Jupiter — and so does the split between small and huge.",
+            "wrong": "The four rocky ones come first, small and close to the Sun; the four giants follow, and Saturn is the one with the ring."
+          }
+        }
       ]
     }
   },
   {
     "request": "Where are the planets today?",
-    "packs": ["space"],
+    "packs": [
+      "space"
+    ],
     "spec": {
       "title": "The inner planets, moving",
       "template": "solar_system",
-      "params": { "view": "top", "scale": "distances", "bodies": ["inner"], "date": "2026-10-09", "days": 0 },
+      "params": {
+        "view": "top",
+        "scale": "distances",
+        "bodies": [
+          "inner"
+        ],
+        "date": "2026-10-09",
+        "days": 0
+      },
       "commands": [
-        { "draw": ["sun", "label_sun", "orbit_mercury", "orbit_venus", "orbit_earth", "orbit_mars", "scale_note", "scale_bar"], "speak": "The four inner orbits with the distances to scale: Mars is half again as far from the Sun as Earth." },
-        { "draw": ["mercury", "label_mercury", "venus", "label_venus", "earth", "label_earth", "mars", "label_mars"], "speak": "And the planets where they stood on the ninth of October 2026." },
-        { "animate": { "days": 687 }, "duration": 8, "easing": "linear", "speak": "Now let time run: 687 days, one Martian year. Mars goes round once — and Earth, on the inside track, goes round almost twice and laps it." }
+        {
+          "draw": [
+            "sun",
+            "label_sun",
+            "orbit_mercury",
+            "orbit_venus",
+            "orbit_earth",
+            "orbit_mars",
+            "scale_note",
+            "scale_bar"
+          ],
+          "speak": "The four inner orbits with the distances to scale: Mars is half again as far from the Sun as Earth."
+        },
+        {
+          "draw": [
+            "mercury",
+            "label_mercury",
+            "venus",
+            "label_venus",
+            "earth",
+            "label_earth",
+            "mars",
+            "label_mars"
+          ],
+          "speak": "And the planets where they stood on the ninth of October 2026."
+        },
+        {
+          "animate": {
+            "days": 687
+          },
+          "duration": 8,
+          "easing": "linear",
+          "speak": "Now let time run: 687 days, one Martian year. Mars goes round once — and Earth, on the inside track, goes round almost twice and laps it."
+        }
       ]
     }
   },
   {
     "request": "How did Jupiter's moons show the Earth is not the centre?",
-    "packs": ["space"],
+    "packs": [
+      "space"
+    ],
     "spec": {
       "title": "The four that go round something else",
       "template": "solar_system",
-      "params": { "focus": "jupiter", "moons": ["jupiter"], "date": "2026-09-09" },
+      "params": {
+        "focus": "jupiter",
+        "moons": [
+          "jupiter"
+        ],
+        "date": "2026-09-09"
+      },
       "commands": [
-        { "draw": ["frame", "jupiter", "label_jupiter", "axis", "scale_note"], "speak": "Jupiter, close up. In 1610 Galileo turned a new telescope on it and found four small lights beside it that shifted from one night to the next." },
-        { "draw": ["orbit_io", "io", "label_io", "orbit_europa", "europa", "label_europa"], "speak": "Io and Europa, the two inner ones — volcanic Io, and Europa with an ocean under its ice." },
-        { "draw": ["orbit_ganymede", "ganymede", "label_ganymede", "orbit_callisto", "callisto", "label_callisto"], "speak": "Then Ganymede, the largest moon in the solar system, and Callisto, cratered and quiet. Four bodies plainly circling Jupiter and not us — the first things anyone had seen going round another planet." },
-        { "explore": { "space": true }, "speak": "Click any moon to look closer, use the crumbs to come back out, and try the scale and date buttons. Press Continue when you are done." },
-        { "quiz": { "question": "Which of the four is the largest?", "choices": ["Io", "Europa", "Ganymede", "Callisto"], "correct": 3, "right": "Ganymede — larger than the planet Mercury." } }
+        {
+          "draw": [
+            "frame",
+            "jupiter",
+            "label_jupiter",
+            "axis",
+            "scale_note"
+          ],
+          "speak": "Jupiter, close up. In 1610 Galileo turned a new telescope on it and found four small lights beside it that shifted from one night to the next."
+        },
+        {
+          "draw": [
+            "orbit_io",
+            "io",
+            "label_io",
+            "orbit_europa",
+            "europa",
+            "label_europa"
+          ],
+          "speak": "Io and Europa, the two inner ones — volcanic Io, and Europa with an ocean under its ice."
+        },
+        {
+          "draw": [
+            "orbit_ganymede",
+            "ganymede",
+            "label_ganymede",
+            "orbit_callisto",
+            "callisto",
+            "label_callisto"
+          ],
+          "speak": "Then Ganymede, the largest moon in the solar system, and Callisto, cratered and quiet. Four bodies plainly circling Jupiter and not us — the first things anyone had seen going round another planet."
+        },
+        {
+          "explore": {
+            "space": true
+          },
+          "speak": "Click any moon to look closer, use the crumbs to come back out, and try the scale and date buttons. Press Continue when you are done."
+        },
+        {
+          "quiz": {
+            "question": "Which of the four is the largest?",
+            "choices": [
+              "Io",
+              "Europa",
+              "Ganymede",
+              "Callisto"
+            ],
+            "correct": 3,
+            "right": "Ganymede — larger than the planet Mercury."
+          }
+        }
       ]
     }
   },
   {
     "request": "Why does the sky turn?",
-    "packs": ["space"],
+    "packs": [
+      "space"
+    ],
     "spec": {
       "title": "The sky turns because we do",
       "template": "sky_map",
-      "params": { "time": "2026-09-07T22:00:00+02:00", "lat": 59.91, "lon": 10.75, "place": "Oslo", "mark": ["Polaris"], "hours": 0, "constellations": "none" },
+      "params": {
+        "time": "2026-09-07T22:00:00+02:00",
+        "lat": 59.91,
+        "lon": 10.75,
+        "place": "Oslo",
+        "mark": [
+          "Polaris"
+        ],
+        "hours": 0,
+        "constellations": "none"
+      },
       "commands": [
-        { "draw": ["horizon", "compass_n", "compass_e", "compass_s", "compass_w", "place_label"], "speak": "The rim of this circle is the horizon all the way round you, and the middle is straight up. North is at the top — and east is on the left, because you are looking at a chart held over your head rather than a map of the ground." },
-        { "draw": ["stars", "saturn", "label_saturn", "sky_note"], "speak": "Oslo, a quarter to nine on a September evening. Every star bright enough to see on a clear night out of town, where it really was — and low in the east, one point that is not a star at all." },
-        { "draw": ["polaris", "label_polaris"], "speak": "One star sits almost still: Polaris, nearly straight above the Earth's axis, and as high above your horizon as your latitude — sixty degrees, here." },
-        { "animate": { "hours": 6 }, "duration": 8, "easing": "linear", "speak": "Now let six hours run. Nothing out there moved: the ground you are standing on turned a quarter of a circle, and the whole sky wheels around the one point the axis is pointing at." },
-        { "quiz": { "question": "From the equator, where would Polaris be?", "choices": ["Straight overhead", "Halfway up the sky", "On the horizon"], "correct": 3, "right": "On the horizon — the pole star stands as many degrees up as you are north, and at the equator that is nothing." } }
+        {
+          "draw": [
+            "horizon",
+            "compass_n",
+            "compass_e",
+            "compass_s",
+            "compass_w",
+            "place_label"
+          ],
+          "speak": "The rim of this circle is the horizon all the way round you, and the middle is straight up. North is at the top — and east is on the left, because you are looking at a chart held over your head rather than a map of the ground."
+        },
+        {
+          "draw": [
+            "stars",
+            "saturn",
+            "label_saturn",
+            "sky_note"
+          ],
+          "speak": "Oslo, a quarter to nine on a September evening. Every star bright enough to see on a clear night out of town, where it really was — and low in the east, one point that is not a star at all."
+        },
+        {
+          "draw": [
+            "polaris",
+            "label_polaris"
+          ],
+          "speak": "One star sits almost still: Polaris, nearly straight above the Earth's axis, and as high above your horizon as your latitude — sixty degrees, here."
+        },
+        {
+          "animate": {
+            "hours": 6
+          },
+          "duration": 8,
+          "easing": "linear",
+          "speak": "Now let six hours run. Nothing out there moved: the ground you are standing on turned a quarter of a circle, and the whole sky wheels around the one point the axis is pointing at."
+        },
+        {
+          "quiz": {
+            "question": "From the equator, where would Polaris be?",
+            "choices": [
+              "Straight overhead",
+              "Halfway up the sky",
+              "On the horizon"
+            ],
+            "correct": 3,
+            "right": "On the horizon — the pole star stands as many degrees up as you are north, and at the equator that is nothing."
+          }
+        }
       ]
     }
   },
   {
     "request": "Why can't I see the winter stars in summer?",
-    "packs": ["space"],
+    "packs": [
+      "space"
+    ],
     "spec": {
       "title": "Half a year, the other half of the sky",
       "template": "sky_map",
-      "params": { "time": "2026-12-20T21:00:00Z", "place": "Oslo", "mark": ["Orion"], "names": "la", "days": 0 },
+      "params": {
+        "time": "2026-12-20T21:00:00Z",
+        "place": "Oslo",
+        "mark": [
+          "Orion"
+        ],
+        "names": "la",
+        "days": 0
+      },
       "commands": [
-        { "draw": ["horizon", "compass_n", "compass_e", "compass_s", "compass_w", "stars", "figures", "place_label"], "speak": "A quarter to ten in the evening, the night before the winter solstice, and this is the whole sky over Oslo — the rim is the horizon, the middle is straight up." },
-        { "draw": ["con_ori", "label_con_ori"], "speak": "Orion is the winter shape everyone knows among all those traced overhead: three stars in a row with a bright one above and below. Every December evening it climbs the eastern sky and stays up long after midnight." },
-        { "animate": { "days": 182 }, "duration": 9, "easing": "linear", "speak": "Now hold the hour still and let half a year go by. The Earth carries you round the far side of its orbit, so at nine in the evening your night side is pointing the opposite way — and Orion is out there in broad daylight, behind the Sun." },
-        { "quiz": { "question": "Why is Orion missing in June?", "choices": ["It has moved to another part of the galaxy", "It is above the horizon only in daytime", "It is too faint in summer"], "correct": 2, "right": "It is up in the daytime. Nothing out there moved — we did, half an orbit's worth, and the night now faces the other way." } }
+        {
+          "draw": [
+            "horizon",
+            "compass_n",
+            "compass_e",
+            "compass_s",
+            "compass_w",
+            "stars",
+            "figures",
+            "place_label"
+          ],
+          "speak": "A quarter to ten in the evening, the night before the winter solstice, and this is the whole sky over Oslo — the rim is the horizon, the middle is straight up."
+        },
+        {
+          "draw": [
+            "con_ori",
+            "label_con_ori"
+          ],
+          "speak": "Orion is the winter shape everyone knows among all those traced overhead: three stars in a row with a bright one above and below. Every December evening it climbs the eastern sky and stays up long after midnight."
+        },
+        {
+          "animate": {
+            "days": 182
+          },
+          "duration": 9,
+          "easing": "linear",
+          "speak": "Now hold the hour still and let half a year go by. The Earth carries you round the far side of its orbit, so at nine in the evening your night side is pointing the opposite way — and Orion is out there in broad daylight, behind the Sun."
+        },
+        {
+          "quiz": {
+            "question": "Why is Orion missing in June?",
+            "choices": [
+              "It has moved to another part of the galaxy",
+              "It is above the horizon only in daytime",
+              "It is too faint in summer"
+            ],
+            "correct": 2,
+            "right": "It is up in the daytime. Nothing out there moved — we did, half an orbit's worth, and the night now faces the other way."
+          }
+        }
       ]
     }
   },
   {
     "request": "Which constellation is this?",
-    "packs": ["space"],
+    "packs": [
+      "space"
+    ],
     "spec": {
       "title": "The shape that never sets",
       "template": "sky_map",
-      "params": { "time": "2026-12-20T21:00:00Z", "place": "Oslo", "focus": "Cassiopeia", "names": "la" },
+      "params": {
+        "time": "2026-12-20T21:00:00Z",
+        "place": "Oslo",
+        "focus": "Cassiopeia",
+        "names": "la"
+      },
       "commands": [
-        { "draw": ["frame", "caph", "shedar", "navi", "ruchbah", "hip_8886"], "speak": "A patch of the northern sky, magnified. Four stars close together in brightness, and a fifth a full magnitude fainter — and no two of them the same distance from us: this shape is a trick of where we happen to stand." },
-        { "draw": ["con_cas"], "speak": "Joined up, they trace a zigzag — a W one night, an M another, depending on which way round the sky has turned. From this far north it never sets: it wheels round the pole all night and all year, which is why sailors used it to find north when cloud hid the pole star itself." },
-        { "quiz": { "question": "Which constellation is this?", "choices": ["Cassiopeia", "Perseus", "Andromeda", "Ursa Major"], "correct": 1, "right": "Cassiopeia — the queen, drawn as a W or an M depending on which way round the sky has turned." } }
+        {
+          "draw": [
+            "frame",
+            "caph",
+            "shedar",
+            "navi",
+            "ruchbah",
+            "hip_8886"
+          ],
+          "speak": "A patch of the northern sky, magnified. Four stars close together in brightness, and a fifth a full magnitude fainter — and no two of them the same distance from us: this shape is a trick of where we happen to stand."
+        },
+        {
+          "draw": [
+            "con_cas"
+          ],
+          "speak": "Joined up, they trace a zigzag — a W one night, an M another, depending on which way round the sky has turned. From this far north it never sets: it wheels round the pole all night and all year, which is why sailors used it to find north when cloud hid the pole star itself."
+        },
+        {
+          "quiz": {
+            "question": "Which constellation is this?",
+            "choices": [
+              "Cassiopeia",
+              "Perseus",
+              "Andromeda",
+              "Ursa Major"
+            ],
+            "correct": 1,
+            "right": "Cassiopeia — the queen, drawn as a W or an M depending on which way round the sky has turned."
+          }
+        }
       ]
     }
   },
   {
     "request": "Hvilket stjernebilde er dette?",
-    "packs": ["space"],
+    "packs": [
+      "space"
+    ],
     "spec": {
       "title": "Tjue stjerner, men bare sju kjente",
       "template": "sky_map",
-      "params": { "time": "2026-12-20T21:00:00Z", "place": "Oslo", "focus": "Ursa Major", "names": "la" },
+      "params": {
+        "time": "2026-12-20T21:00:00Z",
+        "place": "Oslo",
+        "focus": "Ursa Major",
+        "names": "la"
+      },
       "commands": [
-        { "draw": ["frame", "hip_41704", "hip_44127", "hip_44471", "hip_46733", "hip_46853", "hip_48319", "hip_48402", "hip_50372", "hip_50801", "merak", "dubhe", "hip_54539", "hip_55203", "hip_55219", "hip_57399", "phecda", "hip_59774", "alioth", "mizar", "alkaid"], "speak": "Et utsnitt av himmelen mot nord, forstørret. Tjue stjerner her — langt flere enn den kjente firkanten med hank du kanskje venter å se." },
-        { "draw": ["con_uma"], "speak": "Sammen tegner de en hel bjørn: rygg, lang hale og fire bein. De sju du kjenner som Karlsvogna er bare ryggen og halen — beina er ikke med." },
-        { "highlight": { "target": ["hip_59774"] }, "speak": "Se på denne: Megrez, der ryggen møter halen. Den er tydelig svakere enn de seks andre i vogna, og derfor ser skålen litt skjev ut." },
-        { "highlight": { "target": ["dubhe", "merak"] }, "speak": "To andre er verdt å kjenne ved navn: Dubhe og Merak, i enden av ryggen. En linje gjennom dem, fem ganger så lang, treffer polarstjernen — og dermed nord, uten kompass." },
-        { "ask": { "question": "Skriv det latinske navnet på stjernebildet.", "intro": "Det har tre navn: ett norsk, ett engelsk og ett latinsk, og astronomer over hele verden bruker det latinske.", "answer": "Ursa Major", "right": "Ursa Major — Store bjørn. Karlsvogna er bare ryggen og halen på den.", "wrong": "Det norske navnet er Store bjørn — det latinske er to ord som betyr omtrent det samme." } }
+        {
+          "draw": [
+            "frame",
+            "hip_41704",
+            "hip_44127",
+            "hip_44471",
+            "hip_46733",
+            "hip_46853",
+            "hip_48319",
+            "hip_48402",
+            "hip_50372",
+            "hip_50801",
+            "merak",
+            "dubhe",
+            "hip_54539",
+            "hip_55203",
+            "hip_55219",
+            "hip_57399",
+            "phecda",
+            "hip_59774",
+            "alioth",
+            "mizar",
+            "alkaid"
+          ],
+          "speak": "Et utsnitt av himmelen mot nord, forstørret. Tjue stjerner her — langt flere enn den kjente firkanten med hank du kanskje venter å se."
+        },
+        {
+          "draw": [
+            "con_uma"
+          ],
+          "speak": "Sammen tegner de en hel bjørn: rygg, lang hale og fire bein. De sju du kjenner som Karlsvogna er bare ryggen og halen — beina er ikke med."
+        },
+        {
+          "highlight": {
+            "target": [
+              "hip_59774"
+            ]
+          },
+          "speak": "Se på denne: Megrez, der ryggen møter halen. Den er tydelig svakere enn de seks andre i vogna, og derfor ser skålen litt skjev ut."
+        },
+        {
+          "highlight": {
+            "target": [
+              "dubhe",
+              "merak"
+            ]
+          },
+          "speak": "To andre er verdt å kjenne ved navn: Dubhe og Merak, i enden av ryggen. En linje gjennom dem, fem ganger så lang, treffer polarstjernen — og dermed nord, uten kompass."
+        },
+        {
+          "ask": {
+            "question": "Skriv det latinske navnet på stjernebildet.",
+            "intro": "Det har tre navn: ett norsk, ett engelsk og ett latinsk, og astronomer over hele verden bruker det latinske.",
+            "answer": "Ursa Major",
+            "right": "Ursa Major — Store bjørn. Karlsvogna er bare ryggen og halen på den.",
+            "wrong": "Det norske navnet er Store bjørn — det latinske er to ord som betyr omtrent det samme."
+          }
+        }
       ]
     }
   },
   {
     "request": "Do I know Orion well enough to draw it?",
-    "packs": ["space"],
+    "packs": [
+      "space"
+    ],
     "spec": {
       "title": "The shield and the club this atlas draws",
       "template": "sky_map",
-      "params": { "time": "2027-01-15T21:00:00Z", "place": "Oslo", "focus": "con_ori" },
+      "params": {
+        "time": "2027-01-15T21:00:00Z",
+        "place": "Oslo",
+        "focus": "con_ori"
+      },
       "commands": [
-        { "draw": ["frame", "hip_22449", "hip_22509", "hip_22549", "hip_22845", "hip_22797", "hip_23123", "hip_22957", "bellatrix", "hip_23607", "hip_24010", "rigel", "hip_25281", "mintaka", "hip_26207", "betelgeuse", "alnilam", "alnitak", "saiph", "hip_27913", "hip_28716", "hip_29038", "hip_28614", "hip_29426"], "speak": "A January evening, and here is the patch of sky Orion sits in: twenty-three stars, no lines between them yet." },
-        { "draw": ["con_ori"], "speak": "Joined up: three stars in a short straight row make the belt; above it, Betelgeuse and Bellatrix mark the shoulders; below, Rigel is the foot. This atlas also gives Orion a shield on one raised arm and a club in the other — details plenty of star charts leave out." },
-        { "ask": { "question": "Draw Orion.", "widget": "connect", "answer": "con_ori", "right": "That's Orion — belt, shoulders, foot, shield and club: all twenty-four lines of this atlas's own figure." } }
+        {
+          "draw": [
+            "frame",
+            "hip_22449",
+            "hip_22509",
+            "hip_22549",
+            "hip_22845",
+            "hip_22797",
+            "hip_23123",
+            "hip_22957",
+            "bellatrix",
+            "hip_23607",
+            "hip_24010",
+            "rigel",
+            "hip_25281",
+            "mintaka",
+            "hip_26207",
+            "betelgeuse",
+            "alnilam",
+            "alnitak",
+            "saiph",
+            "hip_27913",
+            "hip_28716",
+            "hip_29038",
+            "hip_28614",
+            "hip_29426"
+          ],
+          "speak": "A January evening, and here is the patch of sky Orion sits in: twenty-three stars, no lines between them yet."
+        },
+        {
+          "draw": [
+            "con_ori"
+          ],
+          "speak": "Joined up: three stars in a short straight row make the belt; above it, Betelgeuse and Bellatrix mark the shoulders; below, Rigel is the foot. This atlas also gives Orion a shield on one raised arm and a club in the other — details plenty of star charts leave out."
+        },
+        {
+          "ask": {
+            "question": "Draw Orion.",
+            "widget": "connect",
+            "answer": "con_ori",
+            "right": "That's Orion — belt, shoulders, foot, shield and club: all twenty-four lines of this atlas's own figure."
+          }
+        }
       ]
     }
   },
   {
     "request": "Hvordan finner jeg Kassiopeia?",
-    "packs": ["space"],
+    "packs": [
+      "space"
+    ],
     "spec": {
       "title": "Fire streker som tegner en W",
       "template": "sky_map",
-      "params": { "time": "2026-12-20T21:00:00Z", "place": "Oslo", "focus": "con_cas", "names": "nb" },
+      "params": {
+        "time": "2026-12-20T21:00:00Z",
+        "place": "Oslo",
+        "focus": "con_cas",
+        "names": "nb"
+      },
       "commands": [
-        { "draw": ["frame", "caph", "shedar", "navi", "ruchbah", "hip_8886"], "speak": "Fem stjerner tett i himmelen mot nord, forstørret. Ingen streker mellom dem ennå." },
-        { "draw": ["con_cas"], "speak": "Sammen tegner de en tydelig sikksakk — en W en natt, en M en annen, avhengig av hvordan himmelen har snudd seg. Bare fire streker, fem stjerner: en av de raskeste figurene å kjenne igjen." },
-        { "ask": { "question": "Tegn Kassiopeia.", "widget": "connect", "answer": "con_cas", "right": "Der er hun — dronningen, W-en du nettopp så." } }
+        {
+          "draw": [
+            "frame",
+            "caph",
+            "shedar",
+            "navi",
+            "ruchbah",
+            "hip_8886"
+          ],
+          "speak": "Fem stjerner tett i himmelen mot nord, forstørret. Ingen streker mellom dem ennå."
+        },
+        {
+          "draw": [
+            "con_cas"
+          ],
+          "speak": "Sammen tegner de en tydelig sikksakk — en W en natt, en M en annen, avhengig av hvordan himmelen har snudd seg. Bare fire streker, fem stjerner: en av de raskeste figurene å kjenne igjen."
+        },
+        {
+          "ask": {
+            "question": "Tegn Kassiopeia.",
+            "widget": "connect",
+            "answer": "con_cas",
+            "right": "Der er hun — dronningen, W-en du nettopp så."
+          }
+        }
       ]
     }
   },
   {
     "request": "Why doesn't Jupiter twinkle when the stars do?",
-    "packs": ["space"],
+    "packs": [
+      "space"
+    ],
     "spec": {
       "title": "A point twinkles, a disc does not",
       "template": "sky_map",
-      "params": { "time": "2027-02-19T21:00:00Z", "place": "Oslo", "show": ["jupiter"], "mark": ["Sirius", "Capella"], "names": "la" },
+      "params": {
+        "time": "2027-02-19T21:00:00Z",
+        "place": "Oslo",
+        "show": [
+          "jupiter"
+        ],
+        "mark": [
+          "Sirius",
+          "Capella"
+        ],
+        "names": "la"
+      },
       "commands": [
-        { "draw": ["horizon", "compass_n", "compass_e", "compass_s", "compass_w", "stars", "place_label"], "speak": "An evening in February. Somewhere in here is something that looks like a very bright star and is not one." },
-        { "draw": ["sirius", "label_sirius", "capella", "label_capella"], "speak": "Sirius and Capella are stars: unimaginably far away, so each arrives as a single point of light. Every pocket of moving air in the atmosphere bends that one point a little, and it flickers." },
-        { "draw": ["jupiter", "label_jupiter"], "speak": "Jupiter is close enough to be a tiny disc rather than a point — a few dozen points side by side, each flickering out of step with the others. Averaged together they hold steady, and that steadiness is how you pick a planet out of a sky full of stars." },
-        { "ask": { "question": "Click the one that is not a star.", "widget": "click", "answer": "jupiter", "right": "Jupiter — the steady one. Sunlight bounced off a planet, not a star's own light.", "wrong": "The two you were told about are stars. Look for the third bright light." } }
+        {
+          "draw": [
+            "horizon",
+            "compass_n",
+            "compass_e",
+            "compass_s",
+            "compass_w",
+            "stars",
+            "place_label"
+          ],
+          "speak": "An evening in February. Somewhere in here is something that looks like a very bright star and is not one."
+        },
+        {
+          "draw": [
+            "sirius",
+            "label_sirius",
+            "capella",
+            "label_capella"
+          ],
+          "speak": "Sirius and Capella are stars: unimaginably far away, so each arrives as a single point of light. Every pocket of moving air in the atmosphere bends that one point a little, and it flickers."
+        },
+        {
+          "draw": [
+            "jupiter",
+            "label_jupiter"
+          ],
+          "speak": "Jupiter is close enough to be a tiny disc rather than a point — a few dozen points side by side, each flickering out of step with the others. Averaged together they hold steady, and that steadiness is how you pick a planet out of a sky full of stars."
+        },
+        {
+          "ask": {
+            "question": "Click the one that is not a star.",
+            "widget": "click",
+            "answer": "jupiter",
+            "right": "Jupiter — the steady one. Sunlight bounced off a planet, not a star's own light.",
+            "wrong": "The two you were told about are stars. Look for the third bright light."
+          }
+        }
       ]
     }
   },
@@ -14717,7 +15289,10 @@
         {
           "id": "mark_dist",
           "type": "annotation",
-          "target": "eq_dist",
+          "target": [
+            "eq_force",
+            "eq_dist"
+          ],
           "kind": "box"
         }
       ],
@@ -14855,20 +15430,91 @@
     "spec": {
       "title": "Hvorfor er arealet av en sirkel πr²?",
       "template": "circle_sectors",
-      "params": { "n": 12, "t": 0 },
+      "params": {
+        "n": 12,
+        "t": 0
+      },
       "elements": [
-        { "id": "eq", "type": "text", "text": "πr · r = πr²", "x": 690, "y": 120, "font_size": 36, "style": { "color": "#b5482e" } },
-        { "id": "mark", "type": "annotation", "target": "eq", "kind": "box" }
+        {
+          "id": "eq",
+          "type": "text",
+          "text": "πr · r = πr²",
+          "x": 690,
+          "y": 120,
+          "font_size": 36,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "mark",
+          "type": "annotation",
+          "target": "eq",
+          "kind": "box"
+        }
       ],
       "commands": [
-        { "draw": ["piece_1", "piece_2", "piece_3", "piece_4", "piece_5", "piece_6", "piece_7", "piece_8", "piece_9", "piece_10", "piece_11", "piece_12"], "parallel": true, "speak": "πr² ser ut som noe man bare må pugge, men formelen kan du klippe ut med saks. Her er en sirkel delt i tolv like kakestykker." },
-        { "draw": ["radius_line", "label_r"], "speak": "Radien er r, og hele buen rundt er omkretsen, to π r." },
-        { "pause": 0.4 },
-        { "animate": { "t": 1 }, "duration": 4, "ghost": true, "speak": "Nå snur vi annenhvert stykke og skyver dem sammen, som tenner i en glidelås. Arealet er uendret, vi har bare flyttet bitene, mens den oppdelte sirkelen blir stående bak." },
-        { "draw": ["label_base", "label_height"], "speak": "Halve omkretsen ligger nede og halve oppe, så grunnlinjen er πr, og høyden er radien r." },
-        { "animate": { "n": 40 }, "duration": 3, "easing": "linear", "speak": "Med førti tynnere stykker blir den bulkete kanten nesten helt rett: et rektangel." },
-        { "draw": ["eq", "mark"], "speak": "Grunnlinje ganger høyde: πr ganger r, altså πr²." },
-        { "speak": "Så πr² er ikke et mysterium. Det er omkretsen ganget med radien, halvert av en sirkel som er rettet ut." }
+        {
+          "draw": [
+            "piece_1",
+            "piece_2",
+            "piece_3",
+            "piece_4",
+            "piece_5",
+            "piece_6",
+            "piece_7",
+            "piece_8",
+            "piece_9",
+            "piece_10",
+            "piece_11",
+            "piece_12"
+          ],
+          "parallel": true,
+          "speak": "πr² ser ut som noe man bare må pugge, men formelen kan du klippe ut med saks. Her er en sirkel delt i tolv like kakestykker."
+        },
+        {
+          "draw": [
+            "radius_line",
+            "label_r"
+          ],
+          "speak": "Radien er r, og hele buen rundt er omkretsen, to π r."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "animate": {
+            "t": 1
+          },
+          "duration": 4,
+          "ghost": true,
+          "speak": "Nå snur vi annenhvert stykke og skyver dem sammen, som tenner i en glidelås. Arealet er uendret, vi har bare flyttet bitene, mens den oppdelte sirkelen blir stående bak."
+        },
+        {
+          "draw": [
+            "label_base",
+            "label_height"
+          ],
+          "speak": "Halve omkretsen ligger nede og halve oppe, så grunnlinjen er πr, og høyden er radien r."
+        },
+        {
+          "animate": {
+            "n": 40
+          },
+          "duration": 3,
+          "easing": "linear",
+          "speak": "Med førti tynnere stykker blir den bulkete kanten nesten helt rett: et rektangel."
+        },
+        {
+          "draw": [
+            "eq",
+            "mark"
+          ],
+          "speak": "Grunnlinje ganger høyde: πr ganger r, altså πr²."
+        },
+        {
+          "speak": "Så πr² er ikke et mysterium. Det er omkretsen ganget med radien, halvert av en sirkel som er rettet ut."
+        }
       ]
     }
   },
@@ -14878,17 +15524,97 @@
     "spec": {
       "title": "Sektorer blir et rektangel",
       "elements": [
-        { "id": "kake", "type": "pieces", "of": "sectors", "x": 300, "y": 380, "radius": 130, "n": 12, "style": { "fill": "#f2c14e" } },
-        { "id": "radius", "type": "path", "points": [[300, 380], [425.6, 413.6]], "style": { "color": "#b5482e", "stroke_width": 3 } },
-        { "id": "t_base", "type": "text", "text": "πr", "x": 650, "y": 285, "font_size": 30, "style": { "color": "#b5482e" } },
-        { "id": "t_height", "type": "text", "text": "r", "x": 905, "y": 380, "font_size": 30, "style": { "color": "#b5482e" } }
+        {
+          "id": "kake",
+          "type": "pieces",
+          "of": "sectors",
+          "x": 300,
+          "y": 380,
+          "radius": 130,
+          "n": 12,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "radius",
+          "type": "path",
+          "points": [
+            [
+              300,
+              380
+            ],
+            [
+              425.6,
+              413.6
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "t_base",
+          "type": "text",
+          "text": "πr",
+          "x": 650,
+          "y": 285,
+          "font_size": 30,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "t_height",
+          "type": "text",
+          "text": "r",
+          "x": 905,
+          "y": 380,
+          "font_size": 30,
+          "style": {
+            "color": "#b5482e"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["kake"], "parallel": true, "speak": "En sirkel delt i tolv like kakestykker." },
-        { "draw": ["radius"], "speak": "Hvert stykke har radius r som side, og en liten bit av omkretsen som bue." },
-        { "hide": ["radius"] },
-        { "arrange": { "target": "kake", "layout": "zipper", "at": [650, 380], "duration": 3 }, "speak": "Snu annethvert stykke og skyv dem sammen som tenner i en glidelås." },
-        { "draw": ["t_base", "t_height"], "speak": "Grunnlinjen er halve omkretsen, πr, og høyden er r. Arealet er πr ganger r." }
+        {
+          "draw": [
+            "kake"
+          ],
+          "parallel": true,
+          "speak": "En sirkel delt i tolv like kakestykker."
+        },
+        {
+          "draw": [
+            "radius"
+          ],
+          "speak": "Hvert stykke har radius r som side, og en liten bit av omkretsen som bue."
+        },
+        {
+          "hide": [
+            "radius"
+          ]
+        },
+        {
+          "arrange": {
+            "target": "kake",
+            "layout": "zipper",
+            "at": [
+              650,
+              380
+            ],
+            "duration": 3
+          },
+          "speak": "Snu annethvert stykke og skyv dem sammen som tenner i en glidelås."
+        },
+        {
+          "draw": [
+            "t_base",
+            "t_height"
+          ],
+          "speak": "Grunnlinjen er halve omkretsen, πr, og høyden er r. Arealet er πr ganger r."
+        }
       ]
     }
   },
@@ -14898,18 +15624,143 @@
     "spec": {
       "title": "Parallellogram = rektangel",
       "elements": [
-        { "id": "para", "type": "polygon", "points": [[200, 300], [600, 300], [700, 500], [300, 500]], "style": { "fill": "#87a878" } },
-        { "id": "bit", "type": "polygon", "points": [[200, 300], [300, 300], [300, 500]], "style": { "fill": "#f2c14e" } },
-        { "id": "rekt", "type": "polygon", "points": [[300, 300], [700, 300], [700, 500], [300, 500]], "style": { "color": "#b5482e", "stroke_width": 3 } },
-        { "id": "t_b", "type": "text", "text": "b", "x": 500, "y": 270, "font_size": 30, "style": { "color": "#b5482e" } },
-        { "id": "t_h", "type": "text", "text": "h", "x": 730, "y": 400, "font_size": 30, "style": { "color": "#b5482e" } }
+        {
+          "id": "para",
+          "type": "polygon",
+          "points": [
+            [
+              200,
+              300
+            ],
+            [
+              600,
+              300
+            ],
+            [
+              700,
+              500
+            ],
+            [
+              300,
+              500
+            ]
+          ],
+          "style": {
+            "fill": "#87a878"
+          }
+        },
+        {
+          "id": "bit",
+          "type": "polygon",
+          "points": [
+            [
+              200,
+              300
+            ],
+            [
+              300,
+              300
+            ],
+            [
+              300,
+              500
+            ]
+          ],
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "rekt",
+          "type": "polygon",
+          "points": [
+            [
+              300,
+              300
+            ],
+            [
+              700,
+              300
+            ],
+            [
+              700,
+              500
+            ],
+            [
+              300,
+              500
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "t_b",
+          "type": "text",
+          "text": "b",
+          "x": 500,
+          "y": 270,
+          "font_size": 30,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "t_h",
+          "type": "text",
+          "text": "h",
+          "x": 730,
+          "y": 400,
+          "font_size": 30,
+          "style": {
+            "color": "#b5482e"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["para"], "speak": "Et parallellogram med grunnlinje b og høyde h." },
-        { "draw": ["bit"], "speak": "Klipp av trekanten på venstre side." },
-        { "fade": { "target": ["para"], "to": 0.3 } },
-        { "move": { "target": ["bit"], "by": [400, 0], "duration": 1.5 }, "speak": "Flytt den over til høyre side. Arealet er det samme." },
-        { "draw": ["rekt", "t_b", "t_h"], "speak": "Nå har vi et rektangel med sidene b og h. Arealet er b ganger h." }
+        {
+          "draw": [
+            "para"
+          ],
+          "speak": "Et parallellogram med grunnlinje b og høyde h."
+        },
+        {
+          "draw": [
+            "bit"
+          ],
+          "speak": "Klipp av trekanten på venstre side."
+        },
+        {
+          "fade": {
+            "target": [
+              "para"
+            ],
+            "to": 0.3
+          }
+        },
+        {
+          "move": {
+            "target": [
+              "bit"
+            ],
+            "by": [
+              400,
+              0
+            ],
+            "duration": 1.5
+          },
+          "speak": "Flytt den over til høyre side. Arealet er det samme."
+        },
+        {
+          "draw": [
+            "rekt",
+            "t_b",
+            "t_h"
+          ],
+          "speak": "Nå har vi et rektangel med sidene b og h. Arealet er b ganger h."
+        }
       ]
     }
   },
@@ -14919,18 +15770,117 @@
     "spec": {
       "title": "Formlikhet: dobbelt så stor",
       "elements": [
-        { "id": "tri", "type": "polygon", "points": [[300, 250], [500, 250], [400, 400]], "style": { "fill": "#f2c14e" } },
-        { "id": "orig", "type": "polygon", "points": [[300, 250], [500, 250], [400, 400]], "style": { "color": "#b5482e", "stroke_width": 3 } },
-        { "id": "t_big", "type": "text", "text": "2b", "x": 500, "y": 220, "font_size": 30, "style": { "color": "#b5482e" } }
+        {
+          "id": "tri",
+          "type": "polygon",
+          "points": [
+            [
+              300,
+              250
+            ],
+            [
+              500,
+              250
+            ],
+            [
+              400,
+              400
+            ]
+          ],
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "orig",
+          "type": "polygon",
+          "points": [
+            [
+              300,
+              250
+            ],
+            [
+              500,
+              250
+            ],
+            [
+              400,
+              400
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "t_big",
+          "type": "text",
+          "text": "2b",
+          "x": 500,
+          "y": 220,
+          "font_size": 30,
+          "style": {
+            "color": "#b5482e"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["tri"], "speak": "En trekant med grunnlinje b." },
-        { "camera": { "center": { "ref": "tri" }, "zoom": 2, "duration": 1.2 }, "speak": "Se nøye på hjørnet nede til venstre." },
-        { "camera": { "reset": true, "duration": 1 } },
-        { "move": { "target": ["tri"], "scale": 2, "pivot": [300, 250], "duration": 2 }, "speak": "Forstørr den til det dobbelte fra det hjørnet: hver side blir dobbelt så lang." },
-        { "draw": ["orig"], "speak": "Den opprinnelige trekanten får plass fire ganger inni. Arealet blir fire ganger så stort, ikke to." },
-        { "fade": { "target": ["tri"], "to": 0.5 } },
-        { "draw": ["t_big"] }
+        {
+          "draw": [
+            "tri"
+          ],
+          "speak": "En trekant med grunnlinje b."
+        },
+        {
+          "camera": {
+            "center": {
+              "ref": "tri"
+            },
+            "zoom": 2,
+            "duration": 1.2
+          },
+          "speak": "Se nøye på hjørnet nede til venstre."
+        },
+        {
+          "camera": {
+            "reset": true,
+            "duration": 1
+          }
+        },
+        {
+          "move": {
+            "target": [
+              "tri"
+            ],
+            "scale": 2,
+            "pivot": [
+              300,
+              250
+            ],
+            "duration": 2
+          },
+          "speak": "Forstørr den til det dobbelte fra det hjørnet: hver side blir dobbelt så lang."
+        },
+        {
+          "draw": [
+            "orig"
+          ],
+          "speak": "Den opprinnelige trekanten får plass fire ganger inni. Arealet blir fire ganger så stort, ikke to."
+        },
+        {
+          "fade": {
+            "target": [
+              "tri"
+            ],
+            "to": 0.5
+          }
+        },
+        {
+          "draw": [
+            "t_big"
+          ]
+        }
       ]
     }
   },
@@ -14940,20 +15890,145 @@
     "spec": {
       "title": "Vinkelsummen i en trekant",
       "elements": [
-        { "id": "tri", "type": "polygon", "points": [[300, 250], [700, 250], [450, 500]], "style": { "fill": "#87a878" } },
-        { "id": "va", "type": "sector", "x": 300, "y": 250, "radius": 70, "start": 0, "end": 59.04, "style": { "fill": "#f2c14e" } },
-        { "id": "vb", "type": "sector", "x": 700, "y": 250, "radius": 70, "start": 135, "end": 180, "style": { "fill": "#d0865f" } },
-        { "id": "vc", "type": "sector", "x": 450, "y": 500, "radius": 70, "start": 239.04, "end": 315, "style": { "fill": "#8a5fa8" } },
-        { "id": "linje", "type": "path", "points": [[380, 600], [620, 600]], "style": { "color": "#b5482e", "stroke_width": 3 } },
-        { "id": "t_sum", "type": "text", "text": "180°", "x": 500, "y": 565, "font_size": 30, "style": { "color": "#b5482e" } }
+        {
+          "id": "tri",
+          "type": "polygon",
+          "points": [
+            [
+              300,
+              250
+            ],
+            [
+              700,
+              250
+            ],
+            [
+              450,
+              500
+            ]
+          ],
+          "style": {
+            "fill": "#87a878"
+          }
+        },
+        {
+          "id": "va",
+          "type": "sector",
+          "x": 300,
+          "y": 250,
+          "radius": 70,
+          "start": 0,
+          "end": 59.04,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "vb",
+          "type": "sector",
+          "x": 700,
+          "y": 250,
+          "radius": 70,
+          "start": 135,
+          "end": 180,
+          "style": {
+            "fill": "#d0865f"
+          }
+        },
+        {
+          "id": "vc",
+          "type": "sector",
+          "x": 450,
+          "y": 500,
+          "radius": 70,
+          "start": 239.04,
+          "end": 315,
+          "style": {
+            "fill": "#8a5fa8"
+          }
+        },
+        {
+          "id": "linje",
+          "type": "path",
+          "points": [
+            [
+              380,
+              600
+            ],
+            [
+              620,
+              600
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "t_sum",
+          "type": "text",
+          "text": "180°",
+          "x": 500,
+          "y": 565,
+          "font_size": 30,
+          "style": {
+            "color": "#b5482e"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["tri"], "speak": "En vilkårlig trekant med tre vinkler." },
-        { "draw": ["va", "vb", "vc"], "parallel": true, "speak": "Vi merker de tre vinklene med hver sin farge." },
-        { "fade": { "target": ["tri"], "to": 0.35 } },
-        { "draw": ["linje"], "speak": "Så river vi av hjørnene og legger dem inntil hverandre på en rett linje." },
-        { "arrange": { "target": ["va", "vb", "vc"], "layout": "fan", "at": [500, 600], "duration": 2.5 }, "speak": "De tre vinklene fyller nøyaktig en halv omdreining." },
-        { "draw": ["t_sum"], "speak": "En rett linje er 180 grader. Derfor er vinkelsummen i enhver trekant 180 grader." }
+        {
+          "draw": [
+            "tri"
+          ],
+          "speak": "En vilkårlig trekant med tre vinkler."
+        },
+        {
+          "draw": [
+            "va",
+            "vb",
+            "vc"
+          ],
+          "parallel": true,
+          "speak": "Vi merker de tre vinklene med hver sin farge."
+        },
+        {
+          "fade": {
+            "target": [
+              "tri"
+            ],
+            "to": 0.35
+          }
+        },
+        {
+          "draw": [
+            "linje"
+          ],
+          "speak": "Så river vi av hjørnene og legger dem inntil hverandre på en rett linje."
+        },
+        {
+          "arrange": {
+            "target": [
+              "va",
+              "vb",
+              "vc"
+            ],
+            "layout": "fan",
+            "at": [
+              500,
+              600
+            ],
+            "duration": 2.5
+          },
+          "speak": "De tre vinklene fyller nøyaktig en halv omdreining."
+        },
+        {
+          "draw": [
+            "t_sum"
+          ],
+          "speak": "En rett linje er 180 grader. Derfor er vinkelsummen i enhver trekant 180 grader."
+        }
       ]
     }
   },
@@ -14963,16 +16038,90 @@
     "spec": {
       "title": "Tre åttedeler",
       "elements": [
-        { "id": "pizza", "type": "pieces", "of": "sectors", "x": 280, "y": 400, "radius": 140, "n": 8, "style": { "fill": "#f2c14e" } },
-        { "id": "t_hel", "type": "text", "text": "8 stykker = 1 hel", "x": 280, "y": 590, "font_size": 26, "style": { "color": "#b5482e" } },
-        { "id": "t_brok", "type": "text", "text": "3/8", "x": 720, "y": 540, "font_size": 40, "style": { "color": "#b5482e" } }
+        {
+          "id": "pizza",
+          "type": "pieces",
+          "of": "sectors",
+          "x": 280,
+          "y": 400,
+          "radius": 140,
+          "n": 8,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "t_hel",
+          "type": "text",
+          "text": "8 stykker = 1 hel",
+          "x": 280,
+          "y": 590,
+          "font_size": 26,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "t_brok",
+          "type": "text",
+          "text": "3/8",
+          "x": 720,
+          "y": 540,
+          "font_size": 40,
+          "style": {
+            "color": "#b5482e"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["pizza"], "parallel": true, "speak": "En pizza delt i åtte like store stykker." },
-        { "draw": ["t_hel"], "speak": "Alle åtte stykkene til sammen er én hel pizza: åtte åttedeler." },
-        { "arrange": { "target": ["pizza_1", "pizza_2", "pizza_3"], "layout": "row", "at": [720, 400], "gap": 10, "duration": 2 }, "speak": "Vi tar ut tre av stykkene." },
-        { "fade": { "target": ["pizza_4", "pizza_5", "pizza_6", "pizza_7", "pizza_8"], "to": 0.3 } },
-        { "draw": ["t_brok"], "speak": "Tre av åtte like deler: tre åttedeler. Telleren sier hvor mange, nevneren sier hvor store." }
+        {
+          "draw": [
+            "pizza"
+          ],
+          "parallel": true,
+          "speak": "En pizza delt i åtte like store stykker."
+        },
+        {
+          "draw": [
+            "t_hel"
+          ],
+          "speak": "Alle åtte stykkene til sammen er én hel pizza: åtte åttedeler."
+        },
+        {
+          "arrange": {
+            "target": [
+              "pizza_1",
+              "pizza_2",
+              "pizza_3"
+            ],
+            "layout": "row",
+            "at": [
+              720,
+              400
+            ],
+            "gap": 10,
+            "duration": 2
+          },
+          "speak": "Vi tar ut tre av stykkene."
+        },
+        {
+          "fade": {
+            "target": [
+              "pizza_4",
+              "pizza_5",
+              "pizza_6",
+              "pizza_7",
+              "pizza_8"
+            ],
+            "to": 0.3
+          }
+        },
+        {
+          "draw": [
+            "t_brok"
+          ],
+          "speak": "Tre av åtte like deler: tre åttedeler. Telleren sier hvor mange, nevneren sier hvor store."
+        }
       ]
     }
   },
@@ -14982,22 +16131,205 @@
     "spec": {
       "title": "Vektstang og moment",
       "elements": [
-        { "id": "stotte", "type": "polygon", "points": [[470, 200], [530, 200], [500, 262]], "style": { "fill": "#8f887c" } },
-        { "id": "bjelke", "type": "polygon", "points": [[200, 262], [800, 262], [800, 277], [200, 277]], "style": { "fill": "#d0865f" } },
-        { "id": "lodd_a", "type": "polygon", "points": [[230, 277], [290, 277], [290, 337], [230, 337]], "style": { "fill": "#b5482e" } },
-        { "id": "lodd_b", "type": "polygon", "points": [[680, 277], [740, 277], [740, 337], [680, 337]], "style": { "fill": "#2f6b8f" } },
-        { "id": "l_a", "type": "label", "attach_to": "lodd_a", "text": "2 kg", "side": "above" },
-        { "id": "l_b", "type": "label", "attach_to": "lodd_b", "text": "1 kg", "side": "above" },
-        { "id": "t_regel", "type": "text", "text": "kraft · arm = kraft · arm", "x": 500, "y": 460, "font_size": 28, "style": { "color": "#b5482e" } }
+        {
+          "id": "stotte",
+          "type": "polygon",
+          "points": [
+            [
+              470,
+              200
+            ],
+            [
+              530,
+              200
+            ],
+            [
+              500,
+              262
+            ]
+          ],
+          "style": {
+            "fill": "#8f887c"
+          }
+        },
+        {
+          "id": "bjelke",
+          "type": "polygon",
+          "points": [
+            [
+              200,
+              262
+            ],
+            [
+              800,
+              262
+            ],
+            [
+              800,
+              277
+            ],
+            [
+              200,
+              277
+            ]
+          ],
+          "style": {
+            "fill": "#d0865f"
+          }
+        },
+        {
+          "id": "lodd_a",
+          "type": "polygon",
+          "points": [
+            [
+              230,
+              277
+            ],
+            [
+              290,
+              277
+            ],
+            [
+              290,
+              337
+            ],
+            [
+              230,
+              337
+            ]
+          ],
+          "style": {
+            "fill": "#b5482e"
+          }
+        },
+        {
+          "id": "lodd_b",
+          "type": "polygon",
+          "points": [
+            [
+              680,
+              277
+            ],
+            [
+              740,
+              277
+            ],
+            [
+              740,
+              337
+            ],
+            [
+              680,
+              337
+            ]
+          ],
+          "style": {
+            "fill": "#2f6b8f"
+          }
+        },
+        {
+          "id": "l_a",
+          "type": "label",
+          "attach_to": "lodd_a",
+          "text": "2 kg",
+          "side": "above"
+        },
+        {
+          "id": "l_b",
+          "type": "label",
+          "attach_to": "lodd_b",
+          "text": "1 kg",
+          "side": "above"
+        },
+        {
+          "id": "t_regel",
+          "type": "text",
+          "text": "kraft · arm = kraft · arm",
+          "x": 500,
+          "y": 460,
+          "font_size": 28,
+          "style": {
+            "color": "#b5482e"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["stotte", "bjelke"], "speak": "En vektstang som hviler på et støttepunkt i midten." },
-        { "draw": ["lodd_b", "l_b"], "speak": "Ett kilo til høyre, litt innenfor enden." },
-        { "draw": ["lodd_a", "l_a"], "speak": "To kilo til venstre, helt ute på enden." },
-        { "move": { "target": ["bjelke", "lodd_a", "lodd_b", "l_a", "l_b"], "rotate": 12, "pivot": [500, 262], "duration": 1.5 }, "speak": "Den tunge siden vipper ned. Det som teller er kraften ganger armen, altså avstanden til støttepunktet." },
-        { "move": { "target": ["bjelke", "lodd_a", "lodd_b", "l_a", "l_b"], "rotate": -12, "pivot": [500, 262], "duration": 1 } },
-        { "move": { "target": ["lodd_a", "l_a"], "by": [135, 0], "duration": 1.5 }, "speak": "Flytter vi det tunge loddet inn til halve armen, blir to kilo ganger halv arm lik ett kilo ganger hel arm." },
-        { "draw": ["t_regel"], "speak": "Momentene er like på begge sider, og stangen ligger i ro." }
+        {
+          "draw": [
+            "stotte",
+            "bjelke"
+          ],
+          "speak": "En vektstang som hviler på et støttepunkt i midten."
+        },
+        {
+          "draw": [
+            "lodd_b",
+            "l_b"
+          ],
+          "speak": "Ett kilo til høyre, litt innenfor enden."
+        },
+        {
+          "draw": [
+            "lodd_a",
+            "l_a"
+          ],
+          "speak": "To kilo til venstre, helt ute på enden."
+        },
+        {
+          "move": {
+            "target": [
+              "bjelke",
+              "lodd_a",
+              "lodd_b",
+              "l_a",
+              "l_b"
+            ],
+            "rotate": 12,
+            "pivot": [
+              500,
+              262
+            ],
+            "duration": 1.5
+          },
+          "speak": "Den tunge siden vipper ned. Det som teller er kraften ganger armen, altså avstanden til støttepunktet."
+        },
+        {
+          "move": {
+            "target": [
+              "bjelke",
+              "lodd_a",
+              "lodd_b",
+              "l_a",
+              "l_b"
+            ],
+            "rotate": -12,
+            "pivot": [
+              500,
+              262
+            ],
+            "duration": 1
+          }
+        },
+        {
+          "move": {
+            "target": [
+              "lodd_a",
+              "l_a"
+            ],
+            "by": [
+              135,
+              0
+            ],
+            "duration": 1.5
+          },
+          "speak": "Flytter vi det tunge loddet inn til halve armen, blir to kilo ganger halv arm lik ett kilo ganger hel arm."
+        },
+        {
+          "draw": [
+            "t_regel"
+          ],
+          "speak": "Momentene er like på begge sider, og stangen ligger i ro."
+        }
       ]
     }
   },
@@ -15007,22 +16339,178 @@
     "spec": {
       "title": "Klokka: kvarter og halvtime",
       "elements": [
-        { "id": "skive", "type": "shape", "shape": "circle", "x": 500, "y": 400, "radius": 150 },
-        { "id": "n12", "type": "text", "text": "12", "x": 500, "y": 520, "font_size": 26 },
-        { "id": "n3", "type": "text", "text": "3", "x": 620, "y": 400, "font_size": 26 },
-        { "id": "n6", "type": "text", "text": "6", "x": 500, "y": 280, "font_size": 26 },
-        { "id": "n9", "type": "text", "text": "9", "x": 380, "y": 400, "font_size": 26 },
-        { "id": "timeviser", "type": "polygon", "points": [[492, 400], [508, 400], [500, 465]], "style": { "fill": "#2f6b8f", "color": "#2f6b8f" } },
-        { "id": "minuttviser", "type": "polygon", "points": [[495, 400], [505, 400], [500, 500]], "style": { "fill": "#b5482e", "color": "#b5482e" } },
-        { "id": "senter", "type": "shape", "shape": "circle", "x": 500, "y": 400, "radius": 7, "style": { "fill": "#3a3631" } }
+        {
+          "id": "skive",
+          "type": "shape",
+          "shape": "circle",
+          "x": 500,
+          "y": 400,
+          "radius": 150
+        },
+        {
+          "id": "n12",
+          "type": "text",
+          "text": "12",
+          "x": 500,
+          "y": 520,
+          "font_size": 26
+        },
+        {
+          "id": "n3",
+          "type": "text",
+          "text": "3",
+          "x": 620,
+          "y": 400,
+          "font_size": 26
+        },
+        {
+          "id": "n6",
+          "type": "text",
+          "text": "6",
+          "x": 500,
+          "y": 280,
+          "font_size": 26
+        },
+        {
+          "id": "n9",
+          "type": "text",
+          "text": "9",
+          "x": 380,
+          "y": 400,
+          "font_size": 26
+        },
+        {
+          "id": "timeviser",
+          "type": "polygon",
+          "points": [
+            [
+              492,
+              400
+            ],
+            [
+              508,
+              400
+            ],
+            [
+              500,
+              465
+            ]
+          ],
+          "style": {
+            "fill": "#2f6b8f",
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "minuttviser",
+          "type": "polygon",
+          "points": [
+            [
+              495,
+              400
+            ],
+            [
+              505,
+              400
+            ],
+            [
+              500,
+              500
+            ]
+          ],
+          "style": {
+            "fill": "#b5482e",
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "senter",
+          "type": "shape",
+          "shape": "circle",
+          "x": 500,
+          "y": 400,
+          "radius": 7,
+          "style": {
+            "fill": "#3a3631"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["skive", "n12", "n3", "n6", "n9"], "parallel": true, "speak": "En klokke. Begge viserne peker på tolv." },
-        { "draw": ["timeviser", "minuttviser", "senter"], "parallel": true },
-        { "move": { "target": ["minuttviser"], "rotate": -90, "pivot": [500, 400], "duration": 2 }, "speak": "Et kvarter senere har minuttviseren gått en kvart runde, nitti grader, til tretallet." },
-        { "move": { "target": ["timeviser"], "rotate": -7.5, "pivot": [500, 400], "duration": 1 }, "speak": "Timeviseren har bare flyttet seg litt: en kvart av veien mot ettallet." },
-        { "move": { "target": ["minuttviser"], "rotate": -90, "pivot": [500, 400], "duration": 2 }, "speak": "En halvtime etter tolv peker minuttviseren rett ned på sekstallet." },
-        { "move": { "target": ["timeviser"], "rotate": -7.5, "pivot": [500, 400], "duration": 1 }, "speak": "Og timeviseren står midt mellom tolv og ett. Klokka er halv ett." }
+        {
+          "draw": [
+            "skive",
+            "n12",
+            "n3",
+            "n6",
+            "n9"
+          ],
+          "parallel": true,
+          "speak": "En klokke. Begge viserne peker på tolv."
+        },
+        {
+          "draw": [
+            "timeviser",
+            "minuttviser",
+            "senter"
+          ],
+          "parallel": true
+        },
+        {
+          "move": {
+            "target": [
+              "minuttviser"
+            ],
+            "rotate": -90,
+            "pivot": [
+              500,
+              400
+            ],
+            "duration": 2
+          },
+          "speak": "Et kvarter senere har minuttviseren gått en kvart runde, nitti grader, til tretallet."
+        },
+        {
+          "move": {
+            "target": [
+              "timeviser"
+            ],
+            "rotate": -7.5,
+            "pivot": [
+              500,
+              400
+            ],
+            "duration": 1
+          },
+          "speak": "Timeviseren har bare flyttet seg litt: en kvart av veien mot ettallet."
+        },
+        {
+          "move": {
+            "target": [
+              "minuttviser"
+            ],
+            "rotate": -90,
+            "pivot": [
+              500,
+              400
+            ],
+            "duration": 2
+          },
+          "speak": "En halvtime etter tolv peker minuttviseren rett ned på sekstallet."
+        },
+        {
+          "move": {
+            "target": [
+              "timeviser"
+            ],
+            "rotate": -7.5,
+            "pivot": [
+              500,
+              400
+            ],
+            "duration": 1
+          },
+          "speak": "Og timeviseren står midt mellom tolv og ett. Klokka er halv ett."
+        }
       ]
     }
   },
@@ -15032,20 +16520,148 @@
     "spec": {
       "title": "Sekskanter fyller planet",
       "elements": [
-        { "id": "midt", "type": "polygon", "x": 500, "y": 400, "radius": 60, "sides": 6, "rotation": 30, "style": { "fill": "#f2c14e" } },
-        { "id": "h1", "type": "polygon", "x": 150, "y": 620, "radius": 60, "sides": 6, "rotation": 30, "style": { "fill": "#f2c14e" } },
-        { "id": "h2", "type": "polygon", "x": 850, "y": 620, "radius": 60, "sides": 6, "rotation": 30, "style": { "fill": "#f2c14e" } },
-        { "id": "h3", "type": "polygon", "x": 850, "y": 180, "radius": 60, "sides": 6, "rotation": 30, "style": { "fill": "#f2c14e" } },
-        { "id": "h4", "type": "polygon", "x": 150, "y": 180, "radius": 60, "sides": 6, "rotation": 30, "style": { "fill": "#f2c14e" } },
-        { "id": "h5", "type": "polygon", "x": 300, "y": 90, "radius": 60, "sides": 6, "rotation": 30, "style": { "fill": "#f2c14e" } },
-        { "id": "h6", "type": "polygon", "x": 700, "y": 90, "radius": 60, "sides": 6, "rotation": 30, "style": { "fill": "#f2c14e" } },
-        { "id": "t_vinkel", "type": "text", "text": "3 · 120° = 360°", "x": 500, "y": 640, "font_size": 28, "style": { "color": "#b5482e" } }
+        {
+          "id": "midt",
+          "type": "polygon",
+          "x": 500,
+          "y": 400,
+          "radius": 60,
+          "sides": 6,
+          "rotation": 30,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "h1",
+          "type": "polygon",
+          "x": 150,
+          "y": 620,
+          "radius": 60,
+          "sides": 6,
+          "rotation": 30,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "h2",
+          "type": "polygon",
+          "x": 850,
+          "y": 620,
+          "radius": 60,
+          "sides": 6,
+          "rotation": 30,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "h3",
+          "type": "polygon",
+          "x": 850,
+          "y": 180,
+          "radius": 60,
+          "sides": 6,
+          "rotation": 30,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "h4",
+          "type": "polygon",
+          "x": 150,
+          "y": 180,
+          "radius": 60,
+          "sides": 6,
+          "rotation": 30,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "h5",
+          "type": "polygon",
+          "x": 300,
+          "y": 90,
+          "radius": 60,
+          "sides": 6,
+          "rotation": 30,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "h6",
+          "type": "polygon",
+          "x": 700,
+          "y": 90,
+          "radius": 60,
+          "sides": 6,
+          "rotation": 30,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "t_vinkel",
+          "type": "text",
+          "text": "3 · 120° = 360°",
+          "x": 500,
+          "y": 640,
+          "font_size": 28,
+          "style": {
+            "color": "#b5482e"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["midt"], "speak": "En regulær sekskant har vinkler på 120 grader i hvert hjørne." },
-        { "draw": ["h1", "h2", "h3", "h4", "h5", "h6"], "parallel": true, "speak": "Seks like sekskanter til." },
-        { "arrange": { "target": ["midt", "h1", "h2", "h3", "h4", "h5", "h6"], "layout": "hex", "at": [500, 400], "gap": 0, "duration": 2.5 }, "speak": "Legger vi dem rundt den første, møtes tre hjørner i hvert punkt." },
-        { "draw": ["t_vinkel"], "speak": "Tre ganger 120 grader er 360 grader, en hel runde. Ingen sprekker, ingen overlapp. Derfor er sekskanten biens form: mest plass for minst voks." }
+        {
+          "draw": [
+            "midt"
+          ],
+          "speak": "En regulær sekskant har vinkler på 120 grader i hvert hjørne."
+        },
+        {
+          "draw": [
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6"
+          ],
+          "parallel": true,
+          "speak": "Seks like sekskanter til."
+        },
+        {
+          "arrange": {
+            "target": [
+              "midt",
+              "h1",
+              "h2",
+              "h3",
+              "h4",
+              "h5",
+              "h6"
+            ],
+            "layout": "hex",
+            "at": [
+              500,
+              400
+            ],
+            "gap": 0,
+            "duration": 2.5
+          },
+          "speak": "Legger vi dem rundt den første, møtes tre hjørner i hvert punkt."
+        },
+        {
+          "draw": [
+            "t_vinkel"
+          ],
+          "speak": "Tre ganger 120 grader er 360 grader, en hel runde. Ingen sprekker, ingen overlapp. Derfor er sekskanten biens form: mest plass for minst voks."
+        }
       ]
     }
   },
@@ -15055,18 +16671,104 @@
     "spec": {
       "title": "3 · 4 = 4 · 3",
       "elements": [
-        { "id": "rute", "type": "pieces", "of": "grid", "x": 500, "y": 400, "width": 400, "height": 300, "n": 4, "rows": 3, "style": { "fill": "#f2c14e" } },
-        { "id": "t_rader", "type": "text", "text": "3 rader med 4", "x": 500, "y": 650, "font_size": 30, "style": { "color": "#b5482e" } },
-        { "id": "t_kol", "type": "text", "text": "4 rader med 3", "x": 500, "y": 130, "font_size": 30, "style": { "color": "#b5482e" } },
-        { "id": "t_sum", "type": "text", "text": "= 12 ruter uansett", "x": 500, "y": 80, "font_size": 30, "style": { "color": "#2f6b8f" } }
+        {
+          "id": "rute",
+          "type": "pieces",
+          "of": "grid",
+          "x": 500,
+          "y": 400,
+          "width": 400,
+          "height": 300,
+          "n": 4,
+          "rows": 3,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "t_rader",
+          "type": "text",
+          "text": "3 rader med 4",
+          "x": 500,
+          "y": 650,
+          "font_size": 30,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "t_kol",
+          "type": "text",
+          "text": "4 rader med 3",
+          "x": 500,
+          "y": 130,
+          "font_size": 30,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "t_sum",
+          "type": "text",
+          "text": "= 12 ruter uansett",
+          "x": 500,
+          "y": 80,
+          "font_size": 30,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["rute"], "parallel": true, "speak": "Tolv like ruter i et rektangel." },
-        { "draw": ["t_rader"], "speak": "Les det radvis: tre rader med fire i hver. Tre ganger fire." },
-        { "highlight": { "target": ["rute_1", "rute_2", "rute_3", "rute_4"], "effect": "glow" }, "speak": "Her er den første raden." },
-        { "move": { "target": "rute", "rotate": 90, "pivot": [500, 400], "duration": 2 }, "speak": "Snu hele rektangelet en kvart omdreining. Ingen ruter kommer til eller forsvinner." },
-        { "draw": ["t_kol"], "speak": "Nå står det fire rader med tre i hver. Fire ganger tre." },
-        { "draw": ["t_sum"], "speak": "Samme tolv ruter, bare lest den andre veien. Derfor kan faktorene bytte plass." }
+        {
+          "draw": [
+            "rute"
+          ],
+          "parallel": true,
+          "speak": "Tolv like ruter i et rektangel."
+        },
+        {
+          "draw": [
+            "t_rader"
+          ],
+          "speak": "Les det radvis: tre rader med fire i hver. Tre ganger fire."
+        },
+        {
+          "highlight": {
+            "target": [
+              "rute_1",
+              "rute_2",
+              "rute_3",
+              "rute_4"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Her er den første raden."
+        },
+        {
+          "move": {
+            "target": "rute",
+            "rotate": 90,
+            "pivot": [
+              500,
+              400
+            ],
+            "duration": 2
+          },
+          "speak": "Snu hele rektangelet en kvart omdreining. Ingen ruter kommer til eller forsvinner."
+        },
+        {
+          "draw": [
+            "t_kol"
+          ],
+          "speak": "Nå står det fire rader med tre i hver. Fire ganger tre."
+        },
+        {
+          "draw": [
+            "t_sum"
+          ],
+          "speak": "Samme tolv ruter, bare lest den andre veien. Derfor kan faktorene bytte plass."
+        }
       ]
     }
   },
@@ -15076,20 +16778,116 @@
     "spec": {
       "title": "2/4 = 1/2",
       "elements": [
-        { "id": "fire", "type": "pieces", "of": "strips", "x": 500, "y": 480, "width": 480, "height": 90, "n": 4, "style": { "fill": "#f2c14e" } },
-        { "id": "to", "type": "pieces", "of": "strips", "x": 500, "y": 320, "width": 480, "height": 90, "n": 2, "style": { "fill": "#87a878" } },
-        { "id": "t_fire", "type": "text", "text": "2/4", "x": 820, "y": 480, "font_size": 34, "style": { "color": "#b5482e" } },
-        { "id": "t_to", "type": "text", "text": "1/2", "x": 820, "y": 320, "font_size": 34, "style": { "color": "#b5482e" } },
-        { "id": "t_lik", "type": "text", "text": "2/4 = 1/2", "x": 500, "y": 200, "font_size": 36, "style": { "color": "#2f6b8f" } }
+        {
+          "id": "fire",
+          "type": "pieces",
+          "of": "strips",
+          "x": 500,
+          "y": 480,
+          "width": 480,
+          "height": 90,
+          "n": 4,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "to",
+          "type": "pieces",
+          "of": "strips",
+          "x": 500,
+          "y": 320,
+          "width": 480,
+          "height": 90,
+          "n": 2,
+          "style": {
+            "fill": "#87a878"
+          }
+        },
+        {
+          "id": "t_fire",
+          "type": "text",
+          "text": "2/4",
+          "x": 820,
+          "y": 480,
+          "font_size": 34,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "t_to",
+          "type": "text",
+          "text": "1/2",
+          "x": 820,
+          "y": 320,
+          "font_size": 34,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "t_lik",
+          "type": "text",
+          "text": "2/4 = 1/2",
+          "x": 500,
+          "y": 200,
+          "font_size": 36,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["fire"], "parallel": true, "speak": "En stang delt i fire like deler." },
-        { "fade": { "target": ["fire_3", "fire_4"], "to": 0.25 } },
-        { "draw": ["t_fire"], "speak": "To av fire deler: to firedeler." },
-        { "draw": ["to"], "parallel": true, "speak": "En like lang stang delt i to like deler." },
-        { "fade": { "target": ["to_2"], "to": 0.25 } },
-        { "draw": ["t_to"], "speak": "Én av to deler: en halv." },
-        { "draw": ["t_lik"], "speak": "Den fargede lengden er nøyaktig den samme. To firedeler og en halv er samme brøk, bare skrevet med forskjellige deler." }
+        {
+          "draw": [
+            "fire"
+          ],
+          "parallel": true,
+          "speak": "En stang delt i fire like deler."
+        },
+        {
+          "fade": {
+            "target": [
+              "fire_3",
+              "fire_4"
+            ],
+            "to": 0.25
+          }
+        },
+        {
+          "draw": [
+            "t_fire"
+          ],
+          "speak": "To av fire deler: to firedeler."
+        },
+        {
+          "draw": [
+            "to"
+          ],
+          "parallel": true,
+          "speak": "En like lang stang delt i to like deler."
+        },
+        {
+          "fade": {
+            "target": [
+              "to_2"
+            ],
+            "to": 0.25
+          }
+        },
+        {
+          "draw": [
+            "t_to"
+          ],
+          "speak": "Én av to deler: en halv."
+        },
+        {
+          "draw": [
+            "t_lik"
+          ],
+          "speak": "Den fargede lengden er nøyaktig den samme. To firedeler og en halv er samme brøk, bare skrevet med forskjellige deler."
+        }
       ]
     }
   },
@@ -15099,19 +16897,131 @@
     "spec": {
       "title": "Vektorsum: hale mot spiss",
       "elements": [
-        { "id": "a", "type": "arrow", "from": { "x": 200, "y": 250 }, "to": { "x": 480, "y": 330 }, "style": { "color": "#b5482e", "stroke_width": 4 } },
-        { "id": "la", "type": "label", "attach_to": "a", "side": "below", "text": "a", "style": { "color": "#b5482e" } },
-        { "id": "b", "type": "arrow", "from": { "x": 200, "y": 450 }, "to": { "x": 330, "y": 650 }, "style": { "color": "#2f6b8f", "stroke_width": 4 } },
-        { "id": "lb", "type": "label", "attach_to": "b", "side": "left", "text": "b", "style": { "color": "#2f6b8f" } },
-        { "id": "sum", "type": "arrow", "from": { "x": 200, "y": 250 }, "to": { "x": 610, "y": 530 }, "style": { "color": "#8a5fa8", "stroke_width": 4 } },
-        { "id": "lsum", "type": "label", "attach_to": "sum", "side": "below-right", "text": "a + b", "style": { "color": "#8a5fa8" } }
+        {
+          "id": "a",
+          "type": "arrow",
+          "from": {
+            "x": 200,
+            "y": 250
+          },
+          "to": {
+            "x": 480,
+            "y": 330
+          },
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "la",
+          "type": "label",
+          "attach_to": "a",
+          "side": "below",
+          "text": "a",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "b",
+          "type": "arrow",
+          "from": {
+            "x": 200,
+            "y": 450
+          },
+          "to": {
+            "x": 330,
+            "y": 650
+          },
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "lb",
+          "type": "label",
+          "attach_to": "b",
+          "side": "left",
+          "text": "b",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "sum",
+          "type": "arrow",
+          "from": {
+            "x": 200,
+            "y": 250
+          },
+          "to": {
+            "x": 610,
+            "y": 530
+          },
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "lsum",
+          "type": "label",
+          "attach_to": "sum",
+          "side": "below-right",
+          "text": "a + b",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["a", "la"], "speak": "To vektorer. Den røde er a: den peker mot høyre og litt opp." },
-        { "draw": ["b", "lb"], "speak": "Den blå er b: kortere, og mest oppover." },
-        { "move": { "target": ["b"], "anchor": "tail", "to": { "ref": "a", "anchor": "tip" }, "duration": 1.5 }, "speak": "Å legge dem sammen betyr å sette halen på b i spissen av a." },
-        { "draw": ["sum", "lsum"], "speak": "Summen går fra start til slutt: fra halen på a til spissen av b." },
-        { "point": { "at": { "ref": "b", "anchor": "tip" }, "gesture": "circle" }, "speak": "Rekkefølgen spiller ingen rolle: b først og så a ender i samme punkt." }
+        {
+          "draw": [
+            "a",
+            "la"
+          ],
+          "speak": "To vektorer. Den røde er a: den peker mot høyre og litt opp."
+        },
+        {
+          "draw": [
+            "b",
+            "lb"
+          ],
+          "speak": "Den blå er b: kortere, og mest oppover."
+        },
+        {
+          "move": {
+            "target": [
+              "b"
+            ],
+            "anchor": "tail",
+            "to": {
+              "ref": "a",
+              "anchor": "tip"
+            },
+            "duration": 1.5
+          },
+          "speak": "Å legge dem sammen betyr å sette halen på b i spissen av a."
+        },
+        {
+          "draw": [
+            "sum",
+            "lsum"
+          ],
+          "speak": "Summen går fra start til slutt: fra halen på a til spissen av b."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "b",
+              "anchor": "tip"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Rekkefølgen spiller ingen rolle: b først og så a ender i samme punkt."
+        }
       ]
     }
   },
@@ -15121,20 +17031,168 @@
     "spec": {
       "title": "Trekant = halvt parallellogram",
       "elements": [
-        { "id": "tri", "type": "polygon", "points": [[250, 250], [650, 250], [400, 550]], "style": { "fill": "#f2c14e" } },
-        { "id": "kopi", "type": "polygon", "points": [[250, 250], [650, 250], [400, 550]], "style": { "fill": "#87a878" } },
-        { "id": "para", "type": "polygon", "points": [[250, 250], [650, 250], [800, 550], [400, 550]], "style": { "color": "#b5482e", "stroke_width": 3 } },
-        { "id": "t_b", "type": "text", "text": "b", "x": 450, "y": 220, "font_size": 30, "style": { "color": "#b5482e" } },
-        { "id": "hoyde", "type": "path", "points": [[400, 250], [400, 550]], "style": { "color": "#8f887c", "stroke_width": 2, "dash": true } },
-        { "id": "t_h", "type": "text", "text": "h", "x": 375, "y": 400, "font_size": 30, "style": { "color": "#b5482e" } }
+        {
+          "id": "tri",
+          "type": "polygon",
+          "points": [
+            [
+              250,
+              250
+            ],
+            [
+              650,
+              250
+            ],
+            [
+              400,
+              550
+            ]
+          ],
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "kopi",
+          "type": "polygon",
+          "points": [
+            [
+              250,
+              250
+            ],
+            [
+              650,
+              250
+            ],
+            [
+              400,
+              550
+            ]
+          ],
+          "style": {
+            "fill": "#87a878"
+          }
+        },
+        {
+          "id": "para",
+          "type": "polygon",
+          "points": [
+            [
+              250,
+              250
+            ],
+            [
+              650,
+              250
+            ],
+            [
+              800,
+              550
+            ],
+            [
+              400,
+              550
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "t_b",
+          "type": "text",
+          "text": "b",
+          "x": 450,
+          "y": 220,
+          "font_size": 30,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "hoyde",
+          "type": "path",
+          "points": [
+            [
+              400,
+              250
+            ],
+            [
+              400,
+              550
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "stroke_width": 2,
+            "dash": true
+          }
+        },
+        {
+          "id": "t_h",
+          "type": "text",
+          "text": "h",
+          "x": 375,
+          "y": 400,
+          "font_size": 30,
+          "style": {
+            "color": "#b5482e"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["tri"], "speak": "En trekant med grunnlinje b og høyde h. Hvorfor er arealet halvparten av b ganger h?" },
-        { "draw": ["kopi"], "speak": "Lag en kopi av trekanten, oppå den første." },
-        { "move": { "target": ["kopi"], "rotate": 180, "pivot": { "anchor": "side_2" }, "duration": 2 }, "speak": "Snu kopien en halv omdreining om midtpunktet på den skrå siden." },
-        { "draw": ["para", "t_b", "hoyde", "t_h"], "speak": "Sammen fyller de to trekantene et parallellogram med samme grunnlinje og samme høyde: areal b ganger h." },
-        { "fade": { "target": ["kopi"], "to": 0.25 } },
-        { "highlight": { "target": ["tri"], "effect": "glow" }, "speak": "Trekanten er nøyaktig halvparten av det. Derfor: en halv b h." }
+        {
+          "draw": [
+            "tri"
+          ],
+          "speak": "En trekant med grunnlinje b og høyde h. Hvorfor er arealet halvparten av b ganger h?"
+        },
+        {
+          "draw": [
+            "kopi"
+          ],
+          "speak": "Lag en kopi av trekanten, oppå den første."
+        },
+        {
+          "move": {
+            "target": [
+              "kopi"
+            ],
+            "rotate": 180,
+            "pivot": {
+              "anchor": "side_2"
+            },
+            "duration": 2
+          },
+          "speak": "Snu kopien en halv omdreining om midtpunktet på den skrå siden."
+        },
+        {
+          "draw": [
+            "para",
+            "t_b",
+            "hoyde",
+            "t_h"
+          ],
+          "speak": "Sammen fyller de to trekantene et parallellogram med samme grunnlinje og samme høyde: areal b ganger h."
+        },
+        {
+          "fade": {
+            "target": [
+              "kopi"
+            ],
+            "to": 0.25
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "tri"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Trekanten er nøyaktig halvparten av det. Derfor: en halv b h."
+        }
       ]
     }
   },
@@ -15144,16 +17202,118 @@
     "spec": {
       "title": "Sykloiden",
       "elements": [
-        { "id": "bakke", "type": "path", "points": [[60, 200], [940, 200]], "style": { "color": "#8f887c", "stroke_width": 3 } },
-        { "id": "hjul", "type": "shape", "shape": "circle", "x": 160, "y": 260, "radius": 60, "style": { "color": "#3d3833", "stroke_width": 3 } },
-        { "id": "eike", "type": "path", "points": [[160, 260], [160, 200]], "style": { "color": "#8f887c", "stroke_width": 2 } },
-        { "id": "prikk", "type": "shape", "shape": "circle", "x": 160, "y": 200, "radius": 7, "style": { "color": "#b5482e", "fill": "#b5482e" } }
+        {
+          "id": "bakke",
+          "type": "path",
+          "points": [
+            [
+              60,
+              200
+            ],
+            [
+              940,
+              200
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "hjul",
+          "type": "shape",
+          "shape": "circle",
+          "x": 160,
+          "y": 260,
+          "radius": 60,
+          "style": {
+            "color": "#3d3833",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "eike",
+          "type": "path",
+          "points": [
+            [
+              160,
+              260
+            ],
+            [
+              160,
+              200
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "stroke_width": 2
+          }
+        },
+        {
+          "id": "prikk",
+          "type": "shape",
+          "shape": "circle",
+          "x": 160,
+          "y": 200,
+          "radius": 7,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["bakke", "hjul", "eike", "prikk"], "speak": "Et hjul med radius r står på bakken, og ett punkt på kanten er merket rødt. Hvor går det punktet når hjulet ruller?" },
-        { "move": { "target": ["hjul", "eike", "prikk"], "by": [377, 0], "rotate": -360, "pivot": { "ref": "hjul" }, "trail": { "of": "prikk" }, "duration": 4, "easing": "linear" }, "speak": "Én omdreining. Punktet stiger, svever over hjulet, og lander på bakken igjen." },
-        { "highlight": { "target": ["prikk_trail"], "effect": "glow" }, "speak": "Buen heter sykloiden. Den er ikke en sirkelbue: punktet står stille i det øyeblikket det treffer bakken." },
-        { "point": { "at": { "ref": "prikk" }, "gesture": "tap" }, "speak": "Og avstanden hjulet rullet på én omdreining er omkretsen: to pi r." }
+        {
+          "draw": [
+            "bakke",
+            "hjul",
+            "eike",
+            "prikk"
+          ],
+          "speak": "Et hjul med radius r står på bakken, og ett punkt på kanten er merket rødt. Hvor går det punktet når hjulet ruller?"
+        },
+        {
+          "move": {
+            "target": [
+              "hjul",
+              "eike",
+              "prikk"
+            ],
+            "by": [
+              377,
+              0
+            ],
+            "rotate": -360,
+            "pivot": {
+              "ref": "hjul"
+            },
+            "trail": {
+              "of": "prikk"
+            },
+            "duration": 4,
+            "easing": "linear"
+          },
+          "speak": "Én omdreining. Punktet stiger, svever over hjulet, og lander på bakken igjen."
+        },
+        {
+          "highlight": {
+            "target": [
+              "prikk_trail"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Buen heter sykloiden. Den er ikke en sirkelbue: punktet står stille i det øyeblikket det treffer bakken."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "prikk"
+            },
+            "gesture": "tap"
+          },
+          "speak": "Og avstanden hjulet rullet på én omdreining er omkretsen: to pi r."
+        }
       ]
     }
   },
@@ -15163,19 +17323,114 @@
     "spec": {
       "title": "Det økonomiske kretsløpet",
       "elements": [
-        { "id": "hush", "type": "node", "shape": "rect", "text": "Husholdninger", "x": 220, "y": 375 },
-        { "id": "bedr", "type": "node", "shape": "rect", "text": "Bedrifter", "x": 780, "y": 375 },
-        { "id": "lonn", "type": "arrow", "from": { "ref": "bedr" }, "to": { "ref": "hush" }, "curved": true, "style": { "color": "#2f6b8f", "stroke_width": 3 } },
-        { "id": "l_lonn", "type": "label", "attach_to": "lonn", "side": "below", "text": "Lønn og inntekt", "style": { "color": "#2f6b8f" } },
-        { "id": "kjop", "type": "arrow", "from": { "ref": "hush" }, "to": { "ref": "bedr" }, "curved": true, "style": { "color": "#b5482e", "stroke_width": 3 } },
-        { "id": "l_kjop", "type": "label", "attach_to": "kjop", "side": "above", "text": "Kjøp av varer", "style": { "color": "#b5482e" } }
+        {
+          "id": "hush",
+          "type": "node",
+          "shape": "rect",
+          "text": "Husholdninger",
+          "x": 220,
+          "y": 375
+        },
+        {
+          "id": "bedr",
+          "type": "node",
+          "shape": "rect",
+          "text": "Bedrifter",
+          "x": 780,
+          "y": 375
+        },
+        {
+          "id": "lonn",
+          "type": "arrow",
+          "from": {
+            "ref": "bedr"
+          },
+          "to": {
+            "ref": "hush"
+          },
+          "curved": true,
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "l_lonn",
+          "type": "label",
+          "attach_to": "lonn",
+          "side": "below",
+          "text": "Lønn og inntekt",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "kjop",
+          "type": "arrow",
+          "from": {
+            "ref": "hush"
+          },
+          "to": {
+            "ref": "bedr"
+          },
+          "curved": true,
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "l_kjop",
+          "type": "label",
+          "attach_to": "kjop",
+          "side": "above",
+          "text": "Kjøp av varer",
+          "style": {
+            "color": "#b5482e"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["hush", "bedr"], "speak": "To slags aktører: husholdninger som eier arbeidskraften, og bedrifter som lager varene." },
-        { "draw": ["lonn", "l_lonn"], "speak": "Bedriftene betaler lønn. Pengene går fra bedriftene til husholdningene." },
-        { "draw": ["kjop", "l_kjop"], "speak": "Husholdningene bruker pengene på varer. Da går de tilbake til bedriftene." },
-        { "flow": { "along": ["lonn", "kjop"] }, "speak": "Pengene sirkulerer. Det én bruker, er det en annen tjener, og i neste runde er inntekten tilbake hos den som brukte." },
-        { "flow": { "along": ["kjop"], "speed": 40, "color": "#8f887c" }, "speak": "Sparer husholdningene mer, tynnes strømmen: bedriftene selger mindre, og lønningene i neste runde blir lavere." }
+        {
+          "draw": [
+            "hush",
+            "bedr"
+          ],
+          "speak": "To slags aktører: husholdninger som eier arbeidskraften, og bedrifter som lager varene."
+        },
+        {
+          "draw": [
+            "lonn",
+            "l_lonn"
+          ],
+          "speak": "Bedriftene betaler lønn. Pengene går fra bedriftene til husholdningene."
+        },
+        {
+          "draw": [
+            "kjop",
+            "l_kjop"
+          ],
+          "speak": "Husholdningene bruker pengene på varer. Da går de tilbake til bedriftene."
+        },
+        {
+          "flow": {
+            "along": [
+              "lonn",
+              "kjop"
+            ]
+          },
+          "speak": "Pengene sirkulerer. Det én bruker, er det en annen tjener, og i neste runde er inntekten tilbake hos den som brukte."
+        },
+        {
+          "flow": {
+            "along": [
+              "kjop"
+            ],
+            "speed": 40,
+            "color": "#8f887c"
+          },
+          "speak": "Sparer husholdningene mer, tynnes strømmen: bedriftene selger mindre, og lønningene i neste runde blir lavere."
+        }
       ]
     }
   },
@@ -15185,25 +17440,195 @@
     "spec": {
       "title": "Speiling",
       "elements": [
-        { "id": "akse", "type": "path", "points": [[500, 200], [500, 620]], "style": { "color": "#8f887c", "stroke_width": 2, "dash": true } },
-        { "id": "tri", "type": "polygon", "points": [[250, 300], [450, 300], [300, 520]], "style": { "fill": "#f2c14e" } },
-        { "id": "skygge", "type": "polygon", "points": [[250, 300], [450, 300], [300, 520]], "style": { "color": "#8f887c", "dash": true } },
-        { "id": "t_a", "type": "text", "text": "A", "x": 230, "y": 280, "font_size": 26 },
-        { "id": "t_b", "type": "text", "text": "B", "x": 470, "y": 280, "font_size": 26 },
-        { "id": "t_c", "type": "text", "text": "C", "x": 290, "y": 545, "font_size": 26 },
-        { "id": "t_a2", "type": "text", "text": "A", "x": 770, "y": 280, "font_size": 26 },
-        { "id": "t_b2", "type": "text", "text": "B", "x": 530, "y": 280, "font_size": 26 },
-        { "id": "t_c2", "type": "text", "text": "C", "x": 710, "y": 545, "font_size": 26 }
+        {
+          "id": "akse",
+          "type": "path",
+          "points": [
+            [
+              500,
+              200
+            ],
+            [
+              500,
+              620
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "stroke_width": 2,
+            "dash": true
+          }
+        },
+        {
+          "id": "tri",
+          "type": "polygon",
+          "points": [
+            [
+              250,
+              300
+            ],
+            [
+              450,
+              300
+            ],
+            [
+              300,
+              520
+            ]
+          ],
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "skygge",
+          "type": "polygon",
+          "points": [
+            [
+              250,
+              300
+            ],
+            [
+              450,
+              300
+            ],
+            [
+              300,
+              520
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "dash": true
+          }
+        },
+        {
+          "id": "t_a",
+          "type": "text",
+          "text": "A",
+          "x": 230,
+          "y": 280,
+          "font_size": 26
+        },
+        {
+          "id": "t_b",
+          "type": "text",
+          "text": "B",
+          "x": 470,
+          "y": 280,
+          "font_size": 26
+        },
+        {
+          "id": "t_c",
+          "type": "text",
+          "text": "C",
+          "x": 290,
+          "y": 545,
+          "font_size": 26
+        },
+        {
+          "id": "t_a2",
+          "type": "text",
+          "text": "A",
+          "x": 770,
+          "y": 280,
+          "font_size": 26
+        },
+        {
+          "id": "t_b2",
+          "type": "text",
+          "text": "B",
+          "x": 530,
+          "y": 280,
+          "font_size": 26
+        },
+        {
+          "id": "t_c2",
+          "type": "text",
+          "text": "C",
+          "x": 710,
+          "y": 545,
+          "font_size": 26
+        }
       ],
       "commands": [
-        { "draw": ["tri", "t_a", "t_b", "t_c"], "speak": "En trekant med hjørnene A, B og C, lest mot klokka." },
-        { "draw": ["akse"], "speak": "Og en speilingsakse. Hva skjer når trekanten speiles i den?" },
-        { "draw": ["skygge"] },
-        { "flip": { "target": ["tri"], "line": { "from": { "ref": "akse", "anchor": "start" }, "to": { "ref": "akse", "anchor": "end" } }, "duration": 1.6 }, "speak": "Hvert punkt havner like langt på den andre siden av aksen. Formen og størrelsen er bevart." },
-        { "draw": ["t_a2", "t_b2", "t_c2"], "speak": "Hjørnene er de samme, men de har byttet side: A ytterst til høyre, B nærmest aksen." },
-        { "point": { "at": { "ref": "t_b2" }, "gesture": "circle" }, "speak": "Og rekkefølgen har snudd: A, B, C går nå med klokka. En speiling kan aldri lages med bare flytting og dreining." },
-        { "flip": { "target": ["tri"], "axis": "horizontal", "duration": 1.2 }, "speak": "Speil én gang til, om en vannrett linje gjennom midten: da er retningen mot klokka igjen." },
-        { "fade": { "target": ["t_a2", "t_b2", "t_c2"], "to": 0.3 }, "speak": "Bokstavene blir stående der de var etter første speiling — trekanten har flyttet seg fra dem." }
+        {
+          "draw": [
+            "tri",
+            "t_a",
+            "t_b",
+            "t_c"
+          ],
+          "speak": "En trekant med hjørnene A, B og C, lest mot klokka."
+        },
+        {
+          "draw": [
+            "akse"
+          ],
+          "speak": "Og en speilingsakse. Hva skjer når trekanten speiles i den?"
+        },
+        {
+          "draw": [
+            "skygge"
+          ]
+        },
+        {
+          "flip": {
+            "target": [
+              "tri"
+            ],
+            "line": {
+              "from": {
+                "ref": "akse",
+                "anchor": "start"
+              },
+              "to": {
+                "ref": "akse",
+                "anchor": "end"
+              }
+            },
+            "duration": 1.6
+          },
+          "speak": "Hvert punkt havner like langt på den andre siden av aksen. Formen og størrelsen er bevart."
+        },
+        {
+          "draw": [
+            "t_a2",
+            "t_b2",
+            "t_c2"
+          ],
+          "speak": "Hjørnene er de samme, men de har byttet side: A ytterst til høyre, B nærmest aksen."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "t_b2"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Og rekkefølgen har snudd: A, B, C går nå med klokka. En speiling kan aldri lages med bare flytting og dreining."
+        },
+        {
+          "flip": {
+            "target": [
+              "tri"
+            ],
+            "axis": "horizontal",
+            "duration": 1.2
+          },
+          "speak": "Speil én gang til, om en vannrett linje gjennom midten: da er retningen mot klokka igjen."
+        },
+        {
+          "fade": {
+            "target": [
+              "t_a2",
+              "t_b2",
+              "t_c2"
+            ],
+            "to": 0.3
+          },
+          "speak": "Bokstavene blir stående der de var etter første speiling — trekanten har flyttet seg fra dem."
+        }
       ]
     }
   },
@@ -15213,50 +17638,261 @@
     "spec": {
       "title": "Skjæring bevarer areal",
       "elements": [
-        { "id": "para", "type": "polygon", "points": [[200, 250], [550, 250], [700, 500], [350, 500]], "style": { "fill": "#87a878" } },
-        { "id": "rekt", "type": "polygon", "points": [[200, 250], [550, 250], [550, 500], [200, 500]], "style": { "color": "#8f887c", "dash": true } },
-        { "id": "t_b", "type": "text", "text": "b", "x": 375, "y": 220, "font_size": 30 },
-        { "id": "t_h", "type": "text", "text": "h", "x": 170, "y": 375, "font_size": 30 }
+        {
+          "id": "para",
+          "type": "polygon",
+          "points": [
+            [
+              200,
+              250
+            ],
+            [
+              550,
+              250
+            ],
+            [
+              700,
+              500
+            ],
+            [
+              350,
+              500
+            ]
+          ],
+          "style": {
+            "fill": "#87a878"
+          }
+        },
+        {
+          "id": "rekt",
+          "type": "polygon",
+          "points": [
+            [
+              200,
+              250
+            ],
+            [
+              550,
+              250
+            ],
+            [
+              550,
+              500
+            ],
+            [
+              200,
+              500
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "dash": true
+          }
+        },
+        {
+          "id": "t_b",
+          "type": "text",
+          "text": "b",
+          "x": 375,
+          "y": 220,
+          "font_size": 30
+        },
+        {
+          "id": "t_h",
+          "type": "text",
+          "text": "h",
+          "x": 170,
+          "y": 375,
+          "font_size": 30
+        }
       ],
       "commands": [
-        { "draw": ["para", "t_b", "t_h"], "speak": "Et parallellogram med grunnlinje b og høyde h. Tenk på det som en stabel med tynne kort." },
-        { "draw": ["rekt"], "speak": "Når kortene skyves så stabelen står rett, er hvert kort like langt som før, og det er like mange kort." },
-        { "morph": { "target": ["para"], "to": { "ref": "rekt" }, "duration": 2 }, "speak": "Da er figuren et rektangel med sidene b og h. Arealet er uendret: b ganger h." },
-        { "morph": { "target": ["para"], "stretch": [2, 1], "pivot": { "anchor": "left" }, "duration": 1.5 }, "speak": "Dobler vi grunnlinja og lar høyden stå, blir arealet dobbelt så stort. Ikke fire ganger: bare den ene faktoren vokste." }
+        {
+          "draw": [
+            "para",
+            "t_b",
+            "t_h"
+          ],
+          "speak": "Et parallellogram med grunnlinje b og høyde h. Tenk på det som en stabel med tynne kort."
+        },
+        {
+          "draw": [
+            "rekt"
+          ],
+          "speak": "Når kortene skyves så stabelen står rett, er hvert kort like langt som før, og det er like mange kort."
+        },
+        {
+          "morph": {
+            "target": [
+              "para"
+            ],
+            "to": {
+              "ref": "rekt"
+            },
+            "duration": 2
+          },
+          "speak": "Da er figuren et rektangel med sidene b og h. Arealet er uendret: b ganger h."
+        },
+        {
+          "morph": {
+            "target": [
+              "para"
+            ],
+            "stretch": [
+              2,
+              1
+            ],
+            "pivot": {
+              "anchor": "left"
+            },
+            "duration": 1.5
+          },
+          "speak": "Dobler vi grunnlinja og lar høyden stå, blir arealet dobbelt så stort. Ikke fire ganger: bare den ene faktoren vokste."
+        }
       ]
     }
   },
   {
     "request": "Hva er egentlig et integral?",
-    "packs": ["mathlogic"],
+    "packs": [
+      "mathlogic"
+    ],
     "spec": {
       "title": "Integralet: summen av tynne søyler",
       "template": "riemann_sum",
-      "params": { "expr": "x*x/10 + 1", "x_from": 0, "x_to": 10, "a": 2, "b": 8, "n": 4, "rule": "left", "x_label": "x", "y_label": "f(x)" },
+      "params": {
+        "expr": "x*x/10 + 1",
+        "x_from": 0,
+        "x_to": 10,
+        "a": 2,
+        "b": 8,
+        "n": 4,
+        "rule": "left",
+        "x_label": "x",
+        "y_label": "f(x)"
+      },
       "commands": [
-        { "draw": ["axes", "x_label", "y_label", "curve"], "speak": "Hva er arealet under en kurve? Ingen formel for rektangler hjelper når kanten er buet." },
-        { "draw": ["area", "label_a", "label_b"], "speak": "Vi vil ha arealet mellom a og b. Ideen er å bytte det ut med noe vi kan regne på." },
-        { "draw": ["bar_1", "bar_2", "bar_3", "bar_4"], "parallel": true, "speak": "Fire søyler, hver like høy som kurven i venstre kant. Søyler kan vi summere." },
-        { "draw": ["sum_label", "exact_label"], "speak": "Summen er for liten: søylene mangler skivene under kurven." },
-        { "animate": { "n": 40 }, "duration": 4, "speak": "Flere og tynnere søyler. Feilen krymper for hver deling." },
-        { "highlight": { "target": ["sum_label"], "effect": "glow" }, "speak": "Grensen når søylene blir uendelig tynne er integralet. Det er ikke en formel: det er en sum som har sluttet å forandre seg." }
+        {
+          "draw": [
+            "axes",
+            "x_label",
+            "y_label",
+            "curve"
+          ],
+          "speak": "Hva er arealet under en kurve? Ingen formel for rektangler hjelper når kanten er buet."
+        },
+        {
+          "draw": [
+            "area",
+            "label_a",
+            "label_b"
+          ],
+          "speak": "Vi vil ha arealet mellom a og b. Ideen er å bytte det ut med noe vi kan regne på."
+        },
+        {
+          "draw": [
+            "bar_1",
+            "bar_2",
+            "bar_3",
+            "bar_4"
+          ],
+          "parallel": true,
+          "speak": "Fire søyler, hver like høy som kurven i venstre kant. Søyler kan vi summere."
+        },
+        {
+          "draw": [
+            "sum_label",
+            "exact_label"
+          ],
+          "speak": "Summen er for liten: søylene mangler skivene under kurven."
+        },
+        {
+          "animate": {
+            "n": 40
+          },
+          "duration": 4,
+          "speak": "Flere og tynnere søyler. Feilen krymper for hver deling."
+        },
+        {
+          "highlight": {
+            "target": [
+              "sum_label"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Grensen når søylene blir uendelig tynne er integralet. Det er ikke en formel: det er en sum som har sluttet å forandre seg."
+        }
       ]
     }
   },
   {
     "request": "Hva er den deriverte?",
-    "packs": ["mathlogic"],
+    "packs": [
+      "mathlogic"
+    ],
     "spec": {
       "title": "Den deriverte: stigningen i ett punkt",
       "template": "tangent_secant",
-      "params": { "expr": "x*x/10 + 1", "x_from": 0, "x_to": 10, "at": 4, "h": 4, "x_label": "x", "y_label": "f(x)" },
+      "params": {
+        "expr": "x*x/10 + 1",
+        "x_from": 0,
+        "x_to": 10,
+        "at": 4,
+        "h": 4,
+        "x_label": "x",
+        "y_label": "f(x)"
+      },
       "commands": [
-        { "draw": ["axes", "x_label", "y_label", "curve"], "speak": "Hvor bratt er en kurve i ett punkt? En rett linje har én stigning, men denne stiger mer og mer." },
-        { "draw": ["point_a", "point_b", "secant"], "speak": "Ta to punkter på kurven, A og B, og trekk linja gjennom dem." },
-        { "draw": ["run", "rise", "label_dx", "label_dy", "slope_label"], "speak": "Stigningen er endring i høyde delt på endring i bredde: delta y over delta x." },
-        { "animate": { "h": 0.05 }, "duration": 4, "speak": "Flytt B nærmere A. Linja vipper, og stigningstallet nærmer seg én bestemt verdi." },
-        { "draw": ["tangent", "derivative_label"], "speak": "Den verdien er den deriverte i A: stigningen til tangenten, linja som bare så vidt berører kurven." },
-        { "highlight": { "target": ["derivative_label"], "effect": "glow" }, "speak": "Den deriverte er altså ikke en stigning mellom to punkter, men det stigningen går mot når punktene smelter sammen." }
+        {
+          "draw": [
+            "axes",
+            "x_label",
+            "y_label",
+            "curve"
+          ],
+          "speak": "Hvor bratt er en kurve i ett punkt? En rett linje har én stigning, men denne stiger mer og mer."
+        },
+        {
+          "draw": [
+            "point_a",
+            "point_b",
+            "secant"
+          ],
+          "speak": "Ta to punkter på kurven, A og B, og trekk linja gjennom dem."
+        },
+        {
+          "draw": [
+            "run",
+            "rise",
+            "label_dx",
+            "label_dy",
+            "slope_label"
+          ],
+          "speak": "Stigningen er endring i høyde delt på endring i bredde: delta y over delta x."
+        },
+        {
+          "animate": {
+            "h": 0.05
+          },
+          "duration": 4,
+          "speak": "Flytt B nærmere A. Linja vipper, og stigningstallet nærmer seg én bestemt verdi."
+        },
+        {
+          "draw": [
+            "tangent",
+            "derivative_label"
+          ],
+          "speak": "Den verdien er den deriverte i A: stigningen til tangenten, linja som bare så vidt berører kurven."
+        },
+        {
+          "highlight": {
+            "target": [
+              "derivative_label"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Den deriverte er altså ikke en stigning mellom to punkter, men det stigningen går mot når punktene smelter sammen."
+        }
       ]
     }
   },
@@ -15266,17 +17902,92 @@
     "spec": {
       "title": "Sirkelen som ringer",
       "elements": [
-        { "id": "ringer", "type": "pieces", "of": "rings", "x": 250, "y": 400, "radius": 100, "n": 8, "style": { "fill": "#2f6b8f" } },
-        { "id": "lengste", "type": "measure", "of": "ringer_8", "what": "width", "label": "{value}", "side": "right", "offset": 110 },
-        { "id": "hoyde", "type": "measure", "from": [250, 400], "to": [250, 500], "label": "r = {value}", "side": "left", "offset": 112 }
+        {
+          "id": "ringer",
+          "type": "pieces",
+          "of": "rings",
+          "x": 250,
+          "y": 400,
+          "radius": 100,
+          "n": 8,
+          "style": {
+            "fill": "#2f6b8f"
+          }
+        },
+        {
+          "id": "lengste",
+          "type": "measure",
+          "of": "ringer_8",
+          "what": "width",
+          "label": "{value}",
+          "side": "right",
+          "offset": 110
+        },
+        {
+          "id": "hoyde",
+          "type": "measure",
+          "from": [
+            250,
+            400
+          ],
+          "to": [
+            250,
+            500
+          ],
+          "label": "r = {value}",
+          "side": "left",
+          "offset": 112
+        }
       ],
       "commands": [
-        { "draw": ["ringer"], "speak": "Del sirkelen i tynne ringer i stedet for kakestykker. Hver ring er nesten en smal stripe bøyd rundt sentrum." },
-        { "draw": ["hoyde", "label_hoyde"], "speak": "Stablet oppå hverandre er ringene til sammen så høye som radien r." },
-        { "keep": { "target": "ringer" }, "speak": "Behold sirkelen der den står." },
-        { "arrange": { "target": "ringer", "layout": "unroll", "at": [670, 400], "duration": 3 }, "speak": "Rett ut hver ring til en stripe. Den innerste er kort, den ytterste nesten hele omkretsen: to pi r." },
-        { "draw": ["lengste", "label_lengste"], "speak": "Stripene danner en trapp som nærmer seg en trekant med grunnlinje to pi r og høyde r." },
-        { "highlight": { "target": ["label_hoyde", "label_lengste"], "effect": "glow" }, "speak": "Arealet av trekanten er en halv ganger to pi r ganger r. Det er pi r i annen." }
+        {
+          "draw": [
+            "ringer"
+          ],
+          "speak": "Del sirkelen i tynne ringer i stedet for kakestykker. Hver ring er nesten en smal stripe bøyd rundt sentrum."
+        },
+        {
+          "draw": [
+            "hoyde",
+            "label_hoyde"
+          ],
+          "speak": "Stablet oppå hverandre er ringene til sammen så høye som radien r."
+        },
+        {
+          "keep": {
+            "target": "ringer"
+          },
+          "speak": "Behold sirkelen der den står."
+        },
+        {
+          "arrange": {
+            "target": "ringer",
+            "layout": "unroll",
+            "at": [
+              670,
+              400
+            ],
+            "duration": 3
+          },
+          "speak": "Rett ut hver ring til en stripe. Den innerste er kort, den ytterste nesten hele omkretsen: to pi r."
+        },
+        {
+          "draw": [
+            "lengste",
+            "label_lengste"
+          ],
+          "speak": "Stripene danner en trapp som nærmer seg en trekant med grunnlinje to pi r og høyde r."
+        },
+        {
+          "highlight": {
+            "target": [
+              "label_hoyde",
+              "label_lengste"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Arealet av trekanten er en halv ganger to pi r ganger r. Det er pi r i annen."
+        }
       ]
     }
   },
@@ -15286,15 +17997,74 @@
     "spec": {
       "title": "Sekskanten som trekanter",
       "elements": [
-        { "id": "trek", "type": "pieces", "of": "triangles", "x": 250, "y": 400, "radius": 140, "sides": 6, "style": { "fill": "#f2c14e" } },
-        { "id": "apotem", "type": "measure", "from": { "ref": "trek_1", "anchor": "apex" }, "to": { "ref": "trek_1", "anchor": "base" }, "label": "a = {value}", "side": "right" }
+        {
+          "id": "trek",
+          "type": "pieces",
+          "of": "triangles",
+          "x": 250,
+          "y": 400,
+          "radius": 140,
+          "sides": 6,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "apotem",
+          "type": "measure",
+          "from": {
+            "ref": "trek_1",
+            "anchor": "apex"
+          },
+          "to": {
+            "ref": "trek_1",
+            "anchor": "base"
+          },
+          "label": "a = {value}",
+          "side": "right"
+        }
       ],
       "commands": [
-        { "draw": ["trek"], "speak": "En regulær sekskant delt i seks like trekanter fra sentrum." },
-        { "draw": ["apotem", "label_apotem"], "speak": "Høyden i hver trekant, fra sentrum til midten av en side, heter apotemet a." },
-        { "keep": { "target": "trek" }, "speak": "Behold sekskanten i tankene." },
-        { "arrange": { "target": "trek", "layout": "zipper", "at": [700, 400], "duration": 3 }, "speak": "Legg trekantene annenhver opp og ned. De danner et parallellogram med høyde a." },
-        { "highlight": { "target": ["label_apotem"], "effect": "glow" }, "speak": "Grunnlinja er tre sider, halve omkretsen. Arealet er halve omkretsen ganger apotemet. Med flere og flere sider blir det sirkelens pi r i annen." }
+        {
+          "draw": [
+            "trek"
+          ],
+          "speak": "En regulær sekskant delt i seks like trekanter fra sentrum."
+        },
+        {
+          "draw": [
+            "apotem",
+            "label_apotem"
+          ],
+          "speak": "Høyden i hver trekant, fra sentrum til midten av en side, heter apotemet a."
+        },
+        {
+          "keep": {
+            "target": "trek"
+          },
+          "speak": "Behold sekskanten i tankene."
+        },
+        {
+          "arrange": {
+            "target": "trek",
+            "layout": "zipper",
+            "at": [
+              700,
+              400
+            ],
+            "duration": 3
+          },
+          "speak": "Legg trekantene annenhver opp og ned. De danner et parallellogram med høyde a."
+        },
+        {
+          "highlight": {
+            "target": [
+              "label_apotem"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Grunnlinja er tre sider, halve omkretsen. Arealet er halve omkretsen ganger apotemet. Med flere og flere sider blir det sirkelens pi r i annen."
+        }
       ]
     }
   },
@@ -15304,16 +18074,89 @@
     "spec": {
       "title": "Halvparten av resten",
       "elements": [
-        { "id": "ramme", "type": "polygon", "points": [[300, 175], [700, 175], [700, 575], [300, 575]], "style": { "color": "#3d3833", "stroke_width": 3 } },
-        { "id": "kv", "type": "pieces", "of": "halving", "x": 500, "y": 375, "width": 400, "height": 400, "n": 6, "style": { "fill": "#2f6b8f" } }
+        {
+          "id": "ramme",
+          "type": "polygon",
+          "points": [
+            [
+              300,
+              175
+            ],
+            [
+              700,
+              175
+            ],
+            [
+              700,
+              575
+            ],
+            [
+              300,
+              575
+            ]
+          ],
+          "style": {
+            "color": "#3d3833",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "kv",
+          "type": "pieces",
+          "of": "halving",
+          "x": 500,
+          "y": 375,
+          "width": 400,
+          "height": 400,
+          "n": 6,
+          "style": {
+            "fill": "#2f6b8f"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["ramme"], "speak": "Et kvadrat med areal 1. Kan vi fylle det med biter som er halvparten så store hver gang?" },
-        { "draw": ["kv_1"], "speak": "Først en halv." },
-        { "draw": ["kv_2"], "speak": "Så en firedel, halvparten av det som var igjen." },
-        { "draw": ["kv_3"], "speak": "En åttedel." },
-        { "draw": ["kv_4", "kv_5", "kv_6", "kv_rest"], "speak": "En sekstendel, en trettitodel, en sekstifiredel. Hver bit tar halvparten av resten." },
-        { "highlight": { "target": ["kv_rest"], "effect": "glow" }, "speak": "Det som er igjen er alltid like stort som den siste biten, og det halveres for alltid. Summen nærmer seg 1 uten noen gang å nå den." }
+        {
+          "draw": [
+            "ramme"
+          ],
+          "speak": "Et kvadrat med areal 1. Kan vi fylle det med biter som er halvparten så store hver gang?"
+        },
+        {
+          "draw": [
+            "kv_1"
+          ],
+          "speak": "Først en halv."
+        },
+        {
+          "draw": [
+            "kv_2"
+          ],
+          "speak": "Så en firedel, halvparten av det som var igjen."
+        },
+        {
+          "draw": [
+            "kv_3"
+          ],
+          "speak": "En åttedel."
+        },
+        {
+          "draw": [
+            "kv_4",
+            "kv_5",
+            "kv_6",
+            "kv_rest"
+          ],
+          "speak": "En sekstendel, en trettitodel, en sekstifiredel. Hver bit tar halvparten av resten."
+        },
+        {
+          "highlight": {
+            "target": [
+              "kv_rest"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Det som er igjen er alltid like stort som den siste biten, og det halveres for alltid. Summen nærmer seg 1 uten noen gang å nå den."
+        }
       ]
     }
   },
@@ -15323,14 +18166,85 @@
     "spec": {
       "title": "Dobbel side, firedobbelt areal",
       "elements": [
-        { "id": "kv", "type": "polygon", "points": [[150, 150], [350, 150], [350, 350], [150, 350]], "style": { "fill": "#87a878" } },
-        { "id": "side", "type": "measure", "from": { "ref": "kv", "anchor": "vertex_1" }, "to": { "ref": "kv", "anchor": "vertex_2" }, "label": "s = {value}" },
-        { "id": "areal", "type": "measure", "of": "kv", "label": "A = {value}" }
+        {
+          "id": "kv",
+          "type": "polygon",
+          "points": [
+            [
+              150,
+              150
+            ],
+            [
+              350,
+              150
+            ],
+            [
+              350,
+              350
+            ],
+            [
+              150,
+              350
+            ]
+          ],
+          "style": {
+            "fill": "#87a878"
+          }
+        },
+        {
+          "id": "side",
+          "type": "measure",
+          "from": {
+            "ref": "kv",
+            "anchor": "vertex_1"
+          },
+          "to": {
+            "ref": "kv",
+            "anchor": "vertex_2"
+          },
+          "label": "s = {value}"
+        },
+        {
+          "id": "areal",
+          "type": "measure",
+          "of": "kv",
+          "label": "A = {value}"
+        }
       ],
       "commands": [
-        { "draw": ["kv", "side", "label_side", "areal", "label_areal"], "speak": "Et kvadrat med side 200 og areal 40 000. Hva skjer om vi dobler siden?" },
-        { "move": { "target": ["kv"], "scale": 2, "pivot": { "anchor": "bottom_left" }, "duration": 2, "ghost": true }, "speak": "Siden blir 400. Men arealet blir 160 000: fire ganger så stort, ikke to." },
-        { "highlight": { "target": ["label_areal"], "effect": "glow" }, "speak": "Areal vokser med kvadratet av skaleringen. Dobler du siden, får du to ganger to." }
+        {
+          "draw": [
+            "kv",
+            "side",
+            "label_side",
+            "areal",
+            "label_areal"
+          ],
+          "speak": "Et kvadrat med side 200 og areal 40 000. Hva skjer om vi dobler siden?"
+        },
+        {
+          "move": {
+            "target": [
+              "kv"
+            ],
+            "scale": 2,
+            "pivot": {
+              "anchor": "bottom_left"
+            },
+            "duration": 2,
+            "ghost": true
+          },
+          "speak": "Siden blir 400. Men arealet blir 160 000: fire ganger så stort, ikke to."
+        },
+        {
+          "highlight": {
+            "target": [
+              "label_areal"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Areal vokser med kvadratet av skaleringen. Dobler du siden, får du to ganger to."
+        }
       ]
     }
   },
@@ -15340,19 +18254,161 @@
     "spec": {
       "title": "Ytre vinkel",
       "elements": [
-        { "id": "tri", "type": "polygon", "points": [[200, 250], [600, 250], [450, 500]], "style": { "fill": "#f2c14e" } },
-        { "id": "forl", "type": "line", "through": [{ "ref": "tri", "anchor": "vertex_1" }, { "ref": "tri", "anchor": "vertex_2" }], "style": { "dash": true, "color": "#8f887c" } },
-        { "id": "a", "type": "angle", "at": { "ref": "tri", "anchor": "vertex_1" }, "from": { "ref": "tri", "anchor": "vertex_2" }, "to": { "ref": "tri", "anchor": "vertex_3" }, "style": { "color": "#b5482e" } },
-        { "id": "c", "type": "angle", "at": { "ref": "tri", "anchor": "vertex_3" }, "from": { "ref": "tri", "anchor": "vertex_1" }, "to": { "ref": "tri", "anchor": "vertex_2" }, "style": { "color": "#2f6b8f" } },
-        { "id": "ytre", "type": "angle", "at": { "ref": "tri", "anchor": "vertex_2" }, "from": 0, "to": { "ref": "tri", "anchor": "vertex_3" }, "radius": 60, "style": { "color": "#8a5fa8" } }
+        {
+          "id": "tri",
+          "type": "polygon",
+          "points": [
+            [
+              200,
+              250
+            ],
+            [
+              600,
+              250
+            ],
+            [
+              450,
+              500
+            ]
+          ],
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "forl",
+          "type": "line",
+          "through": [
+            {
+              "ref": "tri",
+              "anchor": "vertex_1"
+            },
+            {
+              "ref": "tri",
+              "anchor": "vertex_2"
+            }
+          ],
+          "style": {
+            "dash": true,
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "a",
+          "type": "angle",
+          "at": {
+            "ref": "tri",
+            "anchor": "vertex_1"
+          },
+          "from": {
+            "ref": "tri",
+            "anchor": "vertex_2"
+          },
+          "to": {
+            "ref": "tri",
+            "anchor": "vertex_3"
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "c",
+          "type": "angle",
+          "at": {
+            "ref": "tri",
+            "anchor": "vertex_3"
+          },
+          "from": {
+            "ref": "tri",
+            "anchor": "vertex_1"
+          },
+          "to": {
+            "ref": "tri",
+            "anchor": "vertex_2"
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "ytre",
+          "type": "angle",
+          "at": {
+            "ref": "tri",
+            "anchor": "vertex_2"
+          },
+          "from": 0,
+          "to": {
+            "ref": "tri",
+            "anchor": "vertex_3"
+          },
+          "radius": 60,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["tri"], "speak": "En trekant med hjørnene A, B og C." },
-        { "draw": ["a"], "speak": "Vinkelen ved A er 45 grader." },
-        { "draw": ["c"], "speak": "Vinkelen ved C er 76 grader." },
-        { "draw": ["forl", "ytre"], "speak": "Forleng siden AB forbi B. Vinkelen mellom forlengelsen og siden BC er den ytre vinkelen: 121 grader." },
-        { "move": { "target": ["a"], "anchor": "vertex", "to": { "ref": "tri", "anchor": "vertex_2" }, "duration": 1.5, "ghost": true }, "speak": "Flytt vinkelen ved A bort til B. Den fyller den første delen av den ytre vinkelen." },
-        { "move": { "target": ["c"], "anchor": "vertex", "to": { "ref": "tri", "anchor": "vertex_2" }, "rotate": -180, "pivot": { "anchor": "vertex" }, "duration": 1.5, "ghost": true }, "speak": "Snu vinkelen ved C og legg den inntil. Sammen fyller de nøyaktig den ytre vinkelen: 45 pluss 76 er 121." }
+        {
+          "draw": [
+            "tri"
+          ],
+          "speak": "En trekant med hjørnene A, B og C."
+        },
+        {
+          "draw": [
+            "a"
+          ],
+          "speak": "Vinkelen ved A er 45 grader."
+        },
+        {
+          "draw": [
+            "c"
+          ],
+          "speak": "Vinkelen ved C er 76 grader."
+        },
+        {
+          "draw": [
+            "forl",
+            "ytre"
+          ],
+          "speak": "Forleng siden AB forbi B. Vinkelen mellom forlengelsen og siden BC er den ytre vinkelen: 121 grader."
+        },
+        {
+          "move": {
+            "target": [
+              "a"
+            ],
+            "anchor": "vertex",
+            "to": {
+              "ref": "tri",
+              "anchor": "vertex_2"
+            },
+            "duration": 1.5,
+            "ghost": true
+          },
+          "speak": "Flytt vinkelen ved A bort til B. Den fyller den første delen av den ytre vinkelen."
+        },
+        {
+          "move": {
+            "target": [
+              "c"
+            ],
+            "anchor": "vertex",
+            "to": {
+              "ref": "tri",
+              "anchor": "vertex_2"
+            },
+            "rotate": -180,
+            "pivot": {
+              "anchor": "vertex"
+            },
+            "duration": 1.5,
+            "ghost": true
+          },
+          "speak": "Snu vinkelen ved C og legg den inntil. Sammen fyller de nøyaktig den ytre vinkelen: 45 pluss 76 er 121."
+        }
       ]
     }
   },
@@ -15362,19 +18418,136 @@
     "spec": {
       "title": "Ellipsen: to brennpunkter",
       "elements": [
-        { "id": "ell", "type": "ellipse", "x": 500, "y": 375, "rx": 300, "ry": 180 },
-        { "id": "akse", "type": "line", "through": [{ "ref": "ell", "anchor": "focus_1" }, { "ref": "ell", "anchor": "focus_2" }], "style": { "dash": true, "color": "#8f887c" } },
-        { "id": "f1", "type": "shape", "shape": "circle", "x": 260, "y": 375, "radius": 6, "style": { "fill": "#3d3833" } },
-        { "id": "f2", "type": "shape", "shape": "circle", "x": 740, "y": 375, "radius": 6, "style": { "fill": "#3d3833" } },
-        { "id": "p", "type": "shape", "shape": "circle", "x": 500, "y": 555, "radius": 7, "style": { "color": "#b5482e", "fill": "#b5482e" } },
-        { "id": "d1", "type": "measure", "from": { "ref": "p" }, "to": { "ref": "f1" }, "style": { "color": "#b5482e" } },
-        { "id": "d2", "type": "measure", "from": { "ref": "p" }, "to": { "ref": "f2" }, "style": { "color": "#2f6b8f" } }
+        {
+          "id": "ell",
+          "type": "ellipse",
+          "x": 500,
+          "y": 375,
+          "rx": 300,
+          "ry": 180
+        },
+        {
+          "id": "akse",
+          "type": "line",
+          "through": [
+            {
+              "ref": "ell",
+              "anchor": "focus_1"
+            },
+            {
+              "ref": "ell",
+              "anchor": "focus_2"
+            }
+          ],
+          "style": {
+            "dash": true,
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "f1",
+          "type": "shape",
+          "shape": "circle",
+          "x": 260,
+          "y": 375,
+          "radius": 6,
+          "style": {
+            "fill": "#3d3833"
+          }
+        },
+        {
+          "id": "f2",
+          "type": "shape",
+          "shape": "circle",
+          "x": 740,
+          "y": 375,
+          "radius": 6,
+          "style": {
+            "fill": "#3d3833"
+          }
+        },
+        {
+          "id": "p",
+          "type": "shape",
+          "shape": "circle",
+          "x": 500,
+          "y": 555,
+          "radius": 7,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e"
+          }
+        },
+        {
+          "id": "d1",
+          "type": "measure",
+          "from": {
+            "ref": "p"
+          },
+          "to": {
+            "ref": "f1"
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "d2",
+          "type": "measure",
+          "from": {
+            "ref": "p"
+          },
+          "to": {
+            "ref": "f2"
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["ell", "akse", "f1", "f2"], "speak": "En ellipse har to brennpunkter på den lange aksen." },
-        { "draw": ["p", "d1", "label_d1", "d2", "label_d2"], "speak": "Fra et punkt på kurven måler vi avstanden til hvert brennpunkt: 300 og 300." },
-        { "move": { "target": ["p"], "to": { "ref": "ell", "anchor": "right" }, "duration": 3 }, "speak": "Flytt punktet til enden av den lange aksen: den ene avstanden vokser til 540, den andre krymper til 60." },
-        { "highlight": { "target": ["label_d1", "label_d2"], "effect": "glow" }, "speak": "Summen er alltid 600, to ganger den halve storaksen. Det er definisjonen på en ellipse." }
+        {
+          "draw": [
+            "ell",
+            "akse",
+            "f1",
+            "f2"
+          ],
+          "speak": "En ellipse har to brennpunkter på den lange aksen."
+        },
+        {
+          "draw": [
+            "p",
+            "d1",
+            "label_d1",
+            "d2",
+            "label_d2"
+          ],
+          "speak": "Fra et punkt på kurven måler vi avstanden til hvert brennpunkt: 300 og 300."
+        },
+        {
+          "move": {
+            "target": [
+              "p"
+            ],
+            "to": {
+              "ref": "ell",
+              "anchor": "right"
+            },
+            "duration": 3
+          },
+          "speak": "Flytt punktet til enden av den lange aksen: den ene avstanden vokser til 540, den andre krymper til 60."
+        },
+        {
+          "highlight": {
+            "target": [
+              "label_d1",
+              "label_d2"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Summen er alltid 600, to ganger den halve storaksen. Det er definisjonen på en ellipse."
+        }
       ]
     }
   },
@@ -20611,28 +23784,156 @@
     "title": "Why the frontier bows",
     "spec": {
       "title": "Why the frontier bows",
-      "domain": { "x": [0, 100], "y": [0, 100] },
+      "domain": {
+        "x": [
+          0,
+          100
+        ],
+        "y": [
+          0,
+          100
+        ]
+      },
       "elements": [
-        { "id": "axes", "type": "axes", "x_label": "Bread", "y_label": "Steel" },
-        { "id": "straight", "type": "curve", "expr": "90 - 0.9*x", "x_from": 0, "x_to": 100, "style": { "color": "#8f887c", "dash": true } },
-        { "id": "flat_point", "type": "point", "at": { "x": 50, "on": "straight" }, "style": { "color": "#8f887c" } },
-        { "id": "lab_straight", "type": "label", "text": "A flat rate?", "attach_to": "flat_point", "side": "below-left" },
-        { "id": "bowed", "type": "curve", "expr": "90 - 0.009*x*x", "x_from": 0, "x_to": 100, "style": { "color": "#b5482e" } },
-        { "id": "first_swap", "type": "point", "at": { "x": 20, "on": "bowed" }, "style": { "color": "#2f6b8f" } },
-        { "id": "lab_bowed", "type": "label", "text": "What it really looks like", "attach_to": "first_swap", "side": "above-right" },
-        { "id": "last_swap", "type": "point", "at": { "x": 90, "on": "bowed" }, "style": { "color": "#2f6b8f" } }
+        {
+          "id": "axes",
+          "type": "axes",
+          "x_label": "Bread",
+          "y_label": "Steel"
+        },
+        {
+          "id": "straight",
+          "type": "curve",
+          "expr": "90 - 0.9*x",
+          "x_from": 0,
+          "x_to": 100,
+          "style": {
+            "color": "#8f887c",
+            "dash": true
+          }
+        },
+        {
+          "id": "flat_point",
+          "type": "point",
+          "at": {
+            "x": 50,
+            "on": "straight"
+          },
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "lab_straight",
+          "type": "label",
+          "text": "A flat rate?",
+          "attach_to": "flat_point",
+          "side": "below-left"
+        },
+        {
+          "id": "bowed",
+          "type": "curve",
+          "expr": "90 - 0.009*x*x",
+          "x_from": 0,
+          "x_to": 100,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "first_swap",
+          "type": "point",
+          "at": {
+            "x": 20,
+            "on": "bowed"
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "lab_bowed",
+          "type": "label",
+          "text": "What it really looks like",
+          "attach_to": "first_swap",
+          "side": "above-right"
+        },
+        {
+          "id": "last_swap",
+          "type": "point",
+          "at": {
+            "x": 90,
+            "on": "bowed"
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["axes"], "speak": "A country can put its people into bread or into steel, and the shape of the line between them is what tells you what a choice actually costs." },
-        { "draw": ["straight", "flat_point", "lab_straight"], "speak": "The natural guess is a straight line: hand over the same amount of bread for every extra tonne of steel." },
-        { "pause": 0.4 },
-        { "highlight": { "target": ["straight"], "effect": "glow" }, "speak": "It is a sensible guess, and it quietly assumes something that is never true — that one worker is as good as another at both jobs." },
-        { "erase": ["straight", "flat_point", "lab_straight"], "speak": "People are not interchangeable, so the line is not straight." },
-        { "draw": ["bowed", "first_swap", "lab_bowed"], "speak": "It bows outward, and the bulge is the whole story." },
-        { "point": { "at": { "ref": "first_swap" }, "gesture": "tap" }, "speak": "Move the first few people into steel and you pick the ones who were worst at baking — barely any bread is lost." },
-        { "draw": ["last_swap"], "speak": "Move the last few and you are taking your best bakers to a job they are bad at. The same tonne of steel now costs a fortune in bread." },
-        { "pause": 0.5 },
-        { "speak": "So a straight frontier would describe a world where nobody is especially good at anything. The bow IS the fact that people differ." }
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "A country can put its people into bread or into steel, and the shape of the line between them is what tells you what a choice actually costs."
+        },
+        {
+          "draw": [
+            "straight",
+            "flat_point",
+            "lab_straight"
+          ],
+          "speak": "The natural guess is a straight line: hand over the same amount of bread for every extra tonne of steel."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "highlight": {
+            "target": [
+              "straight"
+            ],
+            "effect": "glow"
+          },
+          "speak": "It is a sensible guess, and it quietly assumes something that is never true — that one worker is as good as another at both jobs."
+        },
+        {
+          "erase": [
+            "straight",
+            "flat_point",
+            "lab_straight"
+          ],
+          "speak": "People are not interchangeable, so the line is not straight."
+        },
+        {
+          "draw": [
+            "bowed",
+            "first_swap",
+            "lab_bowed"
+          ],
+          "speak": "It bows outward, and the bulge is the whole story."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "first_swap"
+            },
+            "gesture": "tap"
+          },
+          "speak": "Move the first few people into steel and you pick the ones who were worst at baking — barely any bread is lost."
+        },
+        {
+          "draw": [
+            "last_swap"
+          ],
+          "speak": "Move the last few and you are taking your best bakers to a job they are bad at. The same tonne of steel now costs a fortune in bread."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "speak": "So a straight frontier would describe a world where nobody is especially good at anything. The bow IS the fact that people differ."
+        }
       ]
     }
   },
@@ -20642,25 +23943,160 @@
     "spec": {
       "title": "Where a heat pump's extra heat comes from",
       "elements": [
-        { "id": "outdoor", "type": "node", "shape": "rect", "text": "Outdoor coil", "x": 230, "y": 230 },
-        { "id": "compressor", "type": "node", "shape": "rect", "text": "Compressor", "x": 230, "y": 530 },
-        { "id": "indoor", "type": "node", "shape": "rect", "text": "Indoor coil", "x": 730, "y": 530 },
-        { "id": "valve", "type": "node", "shape": "rect", "text": "Expansion valve", "x": 730, "y": 230 },
-        { "id": "a1", "type": "arrow", "from": { "ref": "outdoor" }, "to": { "ref": "compressor" }, "style": { "color": "#2f6b8f" } },
-        { "id": "a2", "type": "arrow", "from": { "ref": "compressor" }, "to": { "ref": "indoor" }, "style": { "color": "#b5482e" } },
-        { "id": "a3", "type": "arrow", "from": { "ref": "indoor" }, "to": { "ref": "valve" }, "style": { "color": "#b5482e" } },
-        { "id": "a4", "type": "arrow", "from": { "ref": "valve" }, "to": { "ref": "outdoor" }, "style": { "color": "#2f6b8f" } }
+        {
+          "id": "outdoor",
+          "type": "node",
+          "shape": "rect",
+          "text": "Outdoor coil",
+          "x": 230,
+          "y": 230
+        },
+        {
+          "id": "compressor",
+          "type": "node",
+          "shape": "rect",
+          "text": "Compressor",
+          "x": 230,
+          "y": 530
+        },
+        {
+          "id": "indoor",
+          "type": "node",
+          "shape": "rect",
+          "text": "Indoor coil",
+          "x": 730,
+          "y": 530
+        },
+        {
+          "id": "valve",
+          "type": "node",
+          "shape": "rect",
+          "text": "Expansion valve",
+          "x": 730,
+          "y": 230
+        },
+        {
+          "id": "a1",
+          "type": "arrow",
+          "from": {
+            "ref": "outdoor"
+          },
+          "to": {
+            "ref": "compressor"
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "a2",
+          "type": "arrow",
+          "from": {
+            "ref": "compressor"
+          },
+          "to": {
+            "ref": "indoor"
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "a3",
+          "type": "arrow",
+          "from": {
+            "ref": "indoor"
+          },
+          "to": {
+            "ref": "valve"
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "a4",
+          "type": "arrow",
+          "from": {
+            "ref": "valve"
+          },
+          "to": {
+            "ref": "outdoor"
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        }
       ],
       "commands": [
-        { "draw": ["outdoor", "compressor", "indoor", "valve"], "parallel": true, "speak": "A heat pump takes one unit of electricity and puts three or four units of heat into the house. That sounds like something for nothing, so it is worth following where the extra comes from." },
-        { "draw": ["a1", "a2", "a3", "a4"], "speak": "The same refrigerant goes round and round these four parts, and the whole trick is what happens in each one." },
-        { "focus": { "target": ["outdoor"] }, "speak": "Outside in the cold, the refrigerant is colder still — so heat flows into it. Even at minus five, the air has plenty of heat left to give up." },
-        { "focus": { "target": ["compressor"] }, "speak": "The compressor squeezes that gas, and squeezing a gas makes it hot — hotter than the living room. This is the step the electricity pays for." },
-        { "focus": { "target": ["indoor"] }, "speak": "Now the refrigerant is the hottest thing in the room, so heat flows the only way heat ever flows: out of it and into the air you breathe." },
-        { "focus": { "target": ["valve"] }, "speak": "The valve lets it expand and turn cold again, ready to go back outside and collect another load." },
-        { "flow": { "along": ["a1", "a2", "a3", "a4"] }, "speak": "Round it goes, carrying heat inwards every time." },
-        { "pause": 0.5 },
-        { "speak": "So the electricity never became the heat. It paid for the squeezing — the heat was already outside all along, and the pump only carried it in. A fan heater cannot beat one for one, because it has nothing to carry." }
+        {
+          "draw": [
+            "outdoor",
+            "compressor",
+            "indoor",
+            "valve"
+          ],
+          "parallel": true,
+          "speak": "A heat pump takes one unit of electricity and puts three or four units of heat into the house. That sounds like something for nothing, so it is worth following where the extra comes from."
+        },
+        {
+          "draw": [
+            "a1",
+            "a2",
+            "a3",
+            "a4"
+          ],
+          "speak": "The same refrigerant goes round and round these four parts, and the whole trick is what happens in each one."
+        },
+        {
+          "focus": {
+            "target": [
+              "outdoor"
+            ]
+          },
+          "speak": "Outside in the cold, the refrigerant is colder still — so heat flows into it. Even at minus five, the air has plenty of heat left to give up."
+        },
+        {
+          "focus": {
+            "target": [
+              "compressor"
+            ]
+          },
+          "speak": "The compressor squeezes that gas, and squeezing a gas makes it hot — hotter than the living room. This is the step the electricity pays for."
+        },
+        {
+          "focus": {
+            "target": [
+              "indoor"
+            ]
+          },
+          "speak": "Now the refrigerant is the hottest thing in the room, so heat flows the only way heat ever flows: out of it and into the air you breathe."
+        },
+        {
+          "focus": {
+            "target": [
+              "valve"
+            ]
+          },
+          "speak": "The valve lets it expand and turn cold again, ready to go back outside and collect another load."
+        },
+        {
+          "flow": {
+            "along": [
+              "a1",
+              "a2",
+              "a3",
+              "a4"
+            ]
+          },
+          "speak": "Round it goes, carrying heat inwards every time."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "speak": "So the electricity never became the heat. It paid for the squeezing — the heat was already outside all along, and the pump only carried it in. A fan heater cannot beat one for one, because it has nothing to carry."
+        }
       ]
     }
   },
@@ -20669,27 +24105,151 @@
     "title": "What a poll's margin really depends on",
     "spec": {
       "title": "What a poll's margin really depends on",
-      "domain": { "x": [0, 2500], "y": [0, 12] },
+      "domain": {
+        "x": [
+          0,
+          2500
+        ],
+        "y": [
+          0,
+          12
+        ]
+      },
       "elements": [
-        { "id": "axes", "type": "axes", "x_label": "People asked", "y_label": "Margin of error (points)" },
-        { "id": "moe", "type": "curve", "expr": "98/sqrt(x)", "x_from": 100, "x_to": 2500, "style": { "color": "#b5482e" } },
-        { "id": "p100", "type": "point", "at": { "x": 100, "on": "moe" }, "style": { "color": "#2f6b8f" } },
-        { "id": "lab100", "type": "label", "text": "100 asked: ±10", "attach_to": "p100", "side": "right" },
-        { "id": "p400", "type": "point", "at": { "x": 400, "on": "moe" }, "style": { "color": "#2f6b8f" } },
-        { "id": "lab400", "type": "label", "text": "400: ±5", "attach_to": "p400", "side": "above-right" },
-        { "id": "p1600", "type": "point", "at": { "x": 1600, "on": "moe" }, "style": { "color": "#2f6b8f" } },
-        { "id": "lab1600", "type": "label", "text": "1600: ±2.5", "attach_to": "p1600", "side": "above-right" }
+        {
+          "id": "axes",
+          "type": "axes",
+          "x_label": "People asked",
+          "y_label": "Margin of error (points)"
+        },
+        {
+          "id": "moe",
+          "type": "curve",
+          "expr": "98/sqrt(x)",
+          "x_from": 100,
+          "x_to": 2500,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "p100",
+          "type": "point",
+          "at": {
+            "x": 100,
+            "on": "moe"
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "lab100",
+          "type": "label",
+          "text": "100 asked: ±10",
+          "attach_to": "p100",
+          "side": "right"
+        },
+        {
+          "id": "p400",
+          "type": "point",
+          "at": {
+            "x": 400,
+            "on": "moe"
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "lab400",
+          "type": "label",
+          "text": "400: ±5",
+          "attach_to": "p400",
+          "side": "above-right"
+        },
+        {
+          "id": "p1600",
+          "type": "point",
+          "at": {
+            "x": 1600,
+            "on": "moe"
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "lab1600",
+          "type": "label",
+          "text": "1600: ±2.5",
+          "attach_to": "p1600",
+          "side": "above-right"
+        }
       ],
       "commands": [
-        { "draw": ["axes"], "speak": "A poll asks a thousand people and then reports a number for five million. Whether you can trust it comes down to one curve." },
-        { "draw": ["moe"], "speak": "This is how far off the poll can be, as the number of people asked grows. It drops steeply, then flattens out." },
-        { "draw": ["p100", "lab100"], "speak": "Ask a hundred people and the answer is give or take ten points — useless for anything close." },
-        { "draw": ["p400", "lab400"], "speak": "Ask four times as many and the error halves, to five points." },
-        { "pause": 0.4 },
-        { "draw": ["p1600", "lab1600"], "speak": "Four times again, and it only halves once more. Every halving costs four times the interviews, which is exactly why nobody polls a hundred thousand people." },
-        { "highlight": { "target": ["moe"], "effect": "glow" }, "speak": "And nothing in that arithmetic ever asked how many people there were to begin with." },
-        { "quiz": { "intro": "One question before we finish.", "question": "A poll of 1,000 Norwegians and a poll of 1,000 Americans. Which has the smaller margin of error?", "choices": ["The Norwegian one — a smaller country to cover", "The American one — more people to draw from", "Neither — they are the same"], "correct": 3, "right": "The same. The margin depends on how many you asked, not on how many you could have asked.", "wrong": "The same. The margin depends on how many you asked, not on how many you could have asked." } },
-        { "speak": "A spoonful tells you how the soup tastes whether the pot is small or enormous — as long as you stirred it first. That stirring is the random sample, and it is the part that actually goes wrong." }
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "A poll asks a thousand people and then reports a number for five million. Whether you can trust it comes down to one curve."
+        },
+        {
+          "draw": [
+            "moe"
+          ],
+          "speak": "This is how far off the poll can be, as the number of people asked grows. It drops steeply, then flattens out."
+        },
+        {
+          "draw": [
+            "p100",
+            "lab100"
+          ],
+          "speak": "Ask a hundred people and the answer is give or take ten points — useless for anything close."
+        },
+        {
+          "draw": [
+            "p400",
+            "lab400"
+          ],
+          "speak": "Ask four times as many and the error halves, to five points."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "p1600",
+            "lab1600"
+          ],
+          "speak": "Four times again, and it only halves once more. Every halving costs four times the interviews, which is exactly why nobody polls a hundred thousand people."
+        },
+        {
+          "highlight": {
+            "target": [
+              "moe"
+            ],
+            "effect": "glow"
+          },
+          "speak": "And nothing in that arithmetic ever asked how many people there were to begin with."
+        },
+        {
+          "quiz": {
+            "intro": "One question before we finish.",
+            "question": "A poll of 1,000 Norwegians and a poll of 1,000 Americans. Which has the smaller margin of error?",
+            "choices": [
+              "The Norwegian one — a smaller country to cover",
+              "The American one — more people to draw from",
+              "Neither — they are the same"
+            ],
+            "correct": 3,
+            "right": "The same. The margin depends on how many you asked, not on how many you could have asked.",
+            "wrong": "The same. The margin depends on how many you asked, not on how many you could have asked."
+          }
+        },
+        {
+          "speak": "A spoonful tells you how the soup tastes whether the pot is small or enormous — as long as you stirred it first. That stirring is the random sample, and it is the part that actually goes wrong."
+        }
       ]
     }
   },
@@ -20698,25 +24258,124 @@
     "title": "Ventetid og slakk",
     "spec": {
       "title": "Ventetid og slakk",
-      "domain": { "x": [0, 100], "y": [0, 100] },
+      "domain": {
+        "x": [
+          0,
+          100
+        ],
+        "y": [
+          0,
+          100
+        ]
+      },
       "elements": [
-        { "id": "axes", "type": "axes", "x_label": "Hvor fullt dagen er booket (%)", "y_label": "Ventetid" },
-        { "id": "vent", "type": "curve", "expr": "5*x/(100-x)", "x_from": 0, "x_to": 95, "style": { "color": "#b5482e" } },
-        { "id": "p80", "type": "point", "at": { "x": 80, "on": "vent" }, "style": { "color": "#2f6b8f" } },
-        { "id": "lab80", "type": "label", "text": "80 % booket", "attach_to": "p80", "side": "right" },
-        { "id": "p95", "type": "point", "at": { "x": 95, "on": "vent" }, "style": { "color": "#2f6b8f" } },
-        { "id": "lab95", "type": "label", "text": "95 % booket", "attach_to": "p95", "side": "left" }
+        {
+          "id": "axes",
+          "type": "axes",
+          "x_label": "Hvor fullt dagen er booket (%)",
+          "y_label": "Ventetid"
+        },
+        {
+          "id": "vent",
+          "type": "curve",
+          "expr": "5*x/(100-x)",
+          "x_from": 0,
+          "x_to": 95,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "p80",
+          "type": "point",
+          "at": {
+            "x": 80,
+            "on": "vent"
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "lab80",
+          "type": "label",
+          "text": "80 % booket",
+          "attach_to": "p80",
+          "side": "right"
+        },
+        {
+          "id": "p95",
+          "type": "point",
+          "at": {
+            "x": 95,
+            "on": "vent"
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "lab95",
+          "type": "label",
+          "text": "95 % booket",
+          "attach_to": "p95",
+          "side": "left"
+        }
       ],
       "commands": [
-        { "draw": ["axes"], "speak": "Hvor fullt bør et legekontor bookes? Svaret avgjør hvor lenge du sitter på venterommet, og det ligger ikke der de fleste tror." },
-        { "draw": ["vent"], "speak": "Ventetiden vokser ikke jevnt med hvor fullt det er. Den bøyer av oppover, og til slutt nesten rett opp." },
-        { "draw": ["p80", "lab80"], "speak": "Ved åtti prosent booking venter du litt, men dagen henger sammen." },
-        { "pause": 0.4 },
-        { "draw": ["p95", "lab95"], "speak": "Ved nittifem prosent, bare femten prosentpoeng mer, er ventetiden mangedoblet." },
-        { "highlight": { "target": ["vent"], "effect": "glow" }, "speak": "Grunnen er at pasienter ikke kommer jevnt utover dagen. De klumper seg." },
-        { "point": { "at": { "ref": "p95" }, "gesture": "circle" }, "speak": "Er det luft igjen i dagen, spises en forsinkelse opp av den luften. Er det ikke det, arver neste pasient hele forsinkelsen, og pasienten etter der igjen." },
-        { "pause": 0.5 },
-        { "speak": "Så ventetid måler ikke hvor hardt de jobber der inne. Den måler hvor lite slakk de har igjen å ta forsinkelser med." }
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Hvor fullt bør et legekontor bookes? Svaret avgjør hvor lenge du sitter på venterommet, og det ligger ikke der de fleste tror."
+        },
+        {
+          "draw": [
+            "vent"
+          ],
+          "speak": "Ventetiden vokser ikke jevnt med hvor fullt det er. Den bøyer av oppover, og til slutt nesten rett opp."
+        },
+        {
+          "draw": [
+            "p80",
+            "lab80"
+          ],
+          "speak": "Ved åtti prosent booking venter du litt, men dagen henger sammen."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "p95",
+            "lab95"
+          ],
+          "speak": "Ved nittifem prosent, bare femten prosentpoeng mer, er ventetiden mangedoblet."
+        },
+        {
+          "highlight": {
+            "target": [
+              "vent"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Grunnen er at pasienter ikke kommer jevnt utover dagen. De klumper seg."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "p95"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Er det luft igjen i dagen, spises en forsinkelse opp av den luften. Er det ikke det, arver neste pasient hele forsinkelsen, og pasienten etter der igjen."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "speak": "Så ventetid måler ikke hvor hardt de jobber der inne. Den måler hvor lite slakk de har igjen å ta forsinkelser med."
+        }
       ]
     }
   },
@@ -21323,11 +24982,15 @@
   },
   {
     "request": "How does turning beta and gamma change the epidemic curve?",
-    "packs": ["evidence"],
+    "packs": [
+      "evidence"
+    ],
     "spec": {
       "title": "SIR, then the knobs",
       "template": "sir_compartments",
-      "params": { "box": "full" },
+      "params": {
+        "box": "full"
+      },
       "elements": [
         {
           "id": "sim",
@@ -21335,18 +24998,63 @@
           "language": "python",
           "show": "below",
           "pane": "controls",
-          "controls": ["beta", "gamma"],
+          "controls": [
+            "beta",
+            "gamma"
+          ],
           "chart": "seaborn",
           "code": "import matplotlib.pyplot as plt\nbeta = (0.1, 1.0, 0.05)\ngamma = (0.05, 0.5, 0.05)\nS, I, R = [0.99], [0.01], [0.0]\nfor t in range(160):\n    new = beta * S[-1] * I[-1]\n    rec = gamma * I[-1]\n    S.append(S[-1] - new)\n    I.append(I[-1] + new - rec)\n    R.append(R[-1] + rec)\n_ = plt.plot(S, label=\"S\")\n_ = plt.plot(I, label=\"I\")\n_ = plt.plot(R, label=\"R\")\n_ = plt.legend()"
         }
       ],
       "commands": [
-        { "draw": ["box_s", "box_code_s", "box_name_s"], "speak": "Everyone starts susceptible." },
-        { "draw": ["flow_0", "rate_0", "box_i", "box_code_i", "box_name_i"], "speak": "Contact with an infectious person moves you across, at a rate beta times how many are infectious." },
-        { "draw": ["flow_1", "rate_1", "box_r", "box_code_r", "box_name_r"], "speak": "And recovery moves you on, at a rate gamma." },
-        { "animate": { "box": "right" }, "duration": 3, "speak": "Two rates decide the whole epidemic. Let us make room to turn them." },
-        { "draw": ["sim", "sim_out"], "speak": "The same model as a curve: susceptible falls, infectious rises and peaks, recovered climbs." },
-        { "explore": { "code": "sim" }, "speak": "Slide beta up and watch the peak come sooner and higher; slide gamma up and watch it flatten." }
+        {
+          "draw": [
+            "box_s",
+            "box_code_s",
+            "box_name_s"
+          ],
+          "speak": "Everyone starts susceptible."
+        },
+        {
+          "draw": [
+            "flow_0",
+            "rate_0",
+            "box_i",
+            "box_code_i",
+            "box_name_i"
+          ],
+          "speak": "Contact with an infectious person moves you across, at a rate beta times how many are infectious."
+        },
+        {
+          "draw": [
+            "flow_1",
+            "rate_1",
+            "box_r",
+            "box_code_r",
+            "box_name_r"
+          ],
+          "speak": "And recovery moves you on, at a rate gamma."
+        },
+        {
+          "animate": {
+            "box": "right"
+          },
+          "duration": 3,
+          "speak": "Two rates decide the whole epidemic. Let us make room to turn them."
+        },
+        {
+          "draw": [
+            "sim",
+            "sim_out"
+          ],
+          "speak": "The same model as a curve: susceptible falls, infectious rises and peaks, recovered climbs."
+        },
+        {
+          "explore": {
+            "code": "sim"
+          },
+          "speak": "Slide beta up and watch the peak come sooner and higher; slide gamma up and watch it flatten."
+        }
       ]
     }
   },
@@ -21466,7 +25174,7 @@
           "x": 300,
           "y": 330,
           "font_size": 24,
-"style": {
+          "style": {
             "color": "#b5482e"
           }
         },
@@ -21477,7 +25185,7 @@
           "x": 700,
           "y": 330,
           "font_size": 24,
-"style": {
+          "style": {
             "color": "#2f6b8f"
           }
         }
@@ -21567,7 +25275,7 @@
           "x": 500,
           "y": 330,
           "font_size": 24,
-"style": {
+          "style": {
             "color": "#8f887c"
           }
         }
@@ -21715,7 +25423,9 @@
   {
     "request": "Where does the vertex of a parabola come from, and what does it look like?",
     "title": "The vertex, derived and drawn",
-    "packs": ["mathlogic"],
+    "packs": [
+      "mathlogic"
+    ],
     "playlist": "playlist:\n  title: The vertex, derived and drawn\n---\ntitle: Completing the square\ntemplate: equation_steps\nparams:\n  title: Completing the square\n  steps:\n    - tex: y = 0.02x^2 - 2x + 51\n      note: A parabola.\n    - tex: y = 0.02(x-50)^2 + 1\n      note: Complete the square.\n    - tex: \\text{vertex} = (50,\\,1)\n      note: Read it off.\ncommands:\n  - draw: [step_0, note_0]\n    speak: \"Every parabola hides its lowest point in its algebra: start with the parabola.\"\n  - draw: [step_1, note_1]\n    speak: \"Complete the square: the x-terms fold into one bracket.\"\n  - draw: [step_2, note_2]\n    speak: \"The bracket is zero at x equals fifty, and what is left is one. That is the vertex.\"\n---\ntitle: The parabola\ntemplate: generic_axes_diagram\nparams:\n  title: The parabola\n  x_label: x\n  y_label: y\n  curves:\n    - { expression: \"0.02*x*x - 2*x + 51\", label: y }\n  points:\n    - { x: 50, y: 1, label: vertex }\nelements:\n  - { id: derivation, type: inset, of: Completing the square }\ncommands:\n  - draw: [derivation]\n    speak: \"Keep the algebra in the corner.\"\n  - draw: [axes, x_label, y_label]\n  - draw: [curve_0, label_curve_0]\n    speak: \"Here is the same parabola, drawn.\"\n  - draw: [point_0, point_label_0]\n    speak: \"And its lowest point sits exactly where the algebra said.\"\n  - move: { target: derivation, scale: 3, to: { x: 500, y: 400 } }\n  - focus: { target: derivation }\n    speak: \"Look at the last line again: fifty, one.\"\n  - point: { at: { ref: derivation, anchor: step_2 } }\n  - move: { target: derivation, scale: 0.3333, to: { x: 900, y: 670 } }\n"
   },
   {
