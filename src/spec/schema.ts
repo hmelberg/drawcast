@@ -1155,12 +1155,22 @@ export function normalizeSpec(spec: unknown): unknown {
   }
   for (const cmd of clone.commands ?? []) {
     if (!cmd) continue;
-    // A cue's resolution is one character of the line it is written in: that
-    // is what the script can express, so it is what the spec stores. Snapping
-    // here means a hand-written 0.5 and the same cue read back off the text
-    // are the same number.
+    // A cue's resolution is a WORD of the line it is written in — speech has
+    // no sub-word timing, and a cue between two letters would print with the
+    // action wedged inside a word. So it snaps to the nearest gap between
+    // words, which also makes a hand-written 0.88 and the same cue read back
+    // off the text the same number.
     if (typeof cmd.cue === "number" && typeof cmd.speak === "string" && cmd.speak.length > 0) {
-      cmd.cue = Math.round(cmd.cue * cmd.speak.length) / cmd.speak.length;
+      const text = cmd.speak;
+      const target = Math.round(cmd.cue * text.length);
+      let best = 0;
+      let bestDist = Math.abs(target);
+      for (let i = 0; i <= text.length; i++) {
+        if (i !== 0 && i !== text.length && text[i] !== " ") continue;
+        const dist = Math.abs(i - target);
+        if (dist < bestDist) { best = i; bestDist = dist; }
+      }
+      cmd.cue = best / text.length;
     }
     // YAML-friendly spelling: `pause: click` means the wait verb.
     if ((cmd.pause as unknown) === "click") {

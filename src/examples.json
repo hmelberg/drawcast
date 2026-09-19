@@ -26478,5 +26478,121 @@
         }
       ]
     }
+  },
+  {
+    "request": "Hvorfor faller ikke en fallskjermhopper fortere og fortere hele veien ned?",
+    "spec": {
+      "title": "Sluttfarten",
+      "lang": "nb",
+      "domain": {
+        "x": [
+          0,
+          60
+        ],
+        "y": [
+          0,
+          80
+        ]
+      },
+      "elements": [
+        {
+          "id": "ax",
+          "type": "axes",
+          "x_label": "Tid",
+          "y_label": "Fart"
+        },
+        {
+          "id": "grense",
+          "type": "curve",
+          "expr": "60",
+          "style": {
+            "color": "#8f887c",
+            "dash": true
+          }
+        },
+        {
+          "id": "l_grense",
+          "type": "label",
+          "attach_to": "grense",
+          "side": "above",
+          "text": "Sluttfart",
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "fart",
+          "type": "curve",
+          "expr": "60*(1 - exp(-x/12))",
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "start",
+          "type": "point",
+          "at": {
+            "x": 4,
+            "on": "fart"
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "l_start",
+          "type": "label",
+          "attach_to": "start",
+          "side": "right",
+          "text": "her drar tyngdekraften mest",
+          "style": {
+            "color": "#b5482e"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "ax"
+          ],
+          "speak": "Slipp noe tungt fra stor høyde, og det faller ikke fortere og fortere hele veien ned."
+        },
+        {
+          "draw": [
+            "grense",
+            "l_grense"
+          ],
+          "speak": "Det finnes én fart der lufta bremser akkurat like hardt som tyngdekraften drar."
+        },
+        {
+          "draw": [
+            "fart"
+          ],
+          "cue": 0.88,
+          "cue_end": true,
+          "speak": "I starten øker farten raskt, men jo fortere du faller, jo hardere tar lufta imot — helt til kurven flater ut her."
+        },
+        {
+          "draw": [
+            "start",
+            "l_start"
+          ],
+          "speak": "Helt i begynnelsen er lufta nesten ikke der: det er da du virkelig akselererer."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "highlight": {
+            "target": [
+              "grense"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Og derfor er sluttfarten ikke en grense noen har satt — den er der de to kreftene er like store."
+        }
+      ]
+    }
   }
 ]
