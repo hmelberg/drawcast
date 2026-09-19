@@ -170,6 +170,16 @@ function commandLines(cmd: Command): string[] {
     const more = Object.keys(args).length > 0 ? verbArgs(head, args) : "";
     return [join([head, target.join(" "), more].filter(Boolean).join(" "))];
   }
+  if (head === "quiz" && value !== null && typeof value === "object") {
+    // The choices become their own lines, `+` on the correct one.
+    const args = { ...(value as Record<string, unknown>) };
+    const choices = (args.choices as string[] | undefined) ?? [];
+    const correct = args.correct as number | undefined;
+    delete args.choices;
+    delete args.correct;
+    const first = join(`quiz ${verbArgs("quiz", args)}`.trim());
+    return [first, ...choices.map((c, i) => `${INDENT}${INDENT}${i + 1 === correct ? "+" : "*"} ${c}`)];
+  }
   if (OBJECT_VERBS.has(head) || SCALAR_VERBS.has(head)) {
     if (value === true && head !== "pause") return [join(head)];
     if (head === "wait" && value === "click") return [join(head)];

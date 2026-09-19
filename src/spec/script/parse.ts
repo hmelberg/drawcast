@@ -364,6 +364,15 @@ export function parseScriptPages(text: string): ParsedScript {
         const b = startBeat();
         if (b.items.length === 0) baseIndent = l.indent;
         if (l.indent > baseIndent && lastArgs) {
+          // `*` is a choice, `+` is the correct one — a quiz's answers, one
+          // per line, in the order the viewer sees them.
+          if (l.head === "*" || l.head === "+") {
+            const choices = (lastArgs.choices as string[] | undefined) ?? [];
+            choices.push(l.rest);
+            lastArgs.choices = choices;
+            if (l.head === "+") lastArgs.correct = choices.length;
+            break;
+          }
           const tokens = splitTokens(`${l.head} ${l.rest}`.trim());
           keyValues(tokens, lastArgs, l.line);
           break;

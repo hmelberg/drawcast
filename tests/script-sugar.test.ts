@@ -90,3 +90,20 @@ describe("the sugared forms print back", () => {
       .toBe('    text n "x" top-right\n');
   });
 });
+
+describe("quiz choice lists", () => {
+  test("* is a choice and + is the correct one", () => {
+    const spec = one('Hva skjer?\n    quiz question "Hva skjer med toppen?"\n        * Den blir høyere\n        + Den blir lavere\n        * Ingenting\n        right "Nettopp."\n');
+    expect(spec.commands).toEqual([{
+      speak: "Hva skjer?",
+      quiz: { question: "Hva skjer med toppen?", choices: ["Den blir høyere", "Den blir lavere", "Ingenting"], correct: 2, right: "Nettopp." },
+    }]);
+  });
+
+  test("the choices print back as a list", () => {
+    const text = printScriptPages({}, [{ spec: {
+      commands: [{ speak: "Hva skjer?", quiz: { question: "Hva nå?", choices: ["Opp", "Ned"], correct: 1 } }],
+    } }]);
+    expect(text).toBe('Hva skjer?\n    quiz question "Hva nå?"\n        + Opp\n        * Ned\n');
+  });
+});
