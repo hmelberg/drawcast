@@ -2692,6 +2692,63 @@ Parked at Hans's call: live with it a while first and see whether the
 throbbing glow grates in real casts. Nothing depends on the decision — the
 envelope lives in one module and the effect names are already plumbed.
 
+## A repair round for warnings alone — noted 2026-09-20, parked
+
+The bundled-examples gate (`tests/examples.test.ts`) treats a warn-severity
+lint issue as fatal: a label sitting across a curve is a defect in a figure
+the app shows off. The generator's own gate is looser — `needsRepair`
+(`src/llm/compile.ts:241`) fires only on validation errors or error-severity
+lint — so the same cosmetic defect ships to the user untouched.
+
+What is NOT missing: visibility. A repair round already appends every warn to
+its feedback ("Also worth fixing while you're at it (non-blocking)",
+`compile.ts:608`), so the model sees warnings whenever a round is running for
+a real problem. What is missing is a round *triggered* by warnings alone,
+i.e. on a spec that is otherwise clean.
+
+Doing it safely is four small pieces, ~60 lines:
+
+1. **Adopt through `adoptIfNoWorse` (`compile.ts:345`)**, not the loop's
+   unconditional `best = json` (`compile.ts:533`). That guard — valid, same
+   template, no worse on BOTH error and warn counts, actually changed —
+   already exists for the pedagogy pass. Without it a warn round can trade a
+   clean figure for a differently imperfect one with nothing comparing them.
+2. **A whitelist of warn rules worth a round**: `overlap-label-stroke`,
+   `overlap-label-label`, `overlap-math-stroke`, `overlap-math-label`,
+   `out-of-canvas`, `font-too-small`. Not `code-use`, not `template-params`
+   (advisory by construction), not `math-size`.
+3. **Its own budget** — one round, separate from `maxRepairs` (default 2), or
+   cosmetics eat the budget reserved for real breakage.
+4. **Plumbing**: a `"warn-repair"` label in `src/llm/types.ts:103` and a line
+   in `phaseText` (`src/main.ts:3171`); five call sites if it becomes a flag
+   like `pedagogyReview`.
+
+**How much it would buy, measured.** The freehand eval
+(`docs/superpowers/plans/2026-09-09-freehand-figures-ledger.md`, twelve
+requests with no ready template — the hardest class — Opus at effort high,
+pedagogy pass on) recorded lint warnings on the DELIVERED spec: 14 across the
+twelve baseline figures, 2 in the best after-run, 7 in the other. Errors 0 in
+all three. So on today's default configuration warnings are not epidemic —
+roughly one figure in six carries one, clustered in `image` cases — and a
+warn round would fire rarely and repair blind (the model guesses at geometry
+it cannot see unless visual repair is on). That is why this is parked rather
+than scheduled.
+
+**The cheap variant, if it ever looks worth doing:** fold the warnings block
+into the PEDAGOGY pass instead of adding a round. That call already happens on
+nearly every generation (`pedagogyReview: true` at four call sites) and
+already adopts only a no-worse candidate, so appending the visual warnings to
+`PEDAGOGY_RUBRIC` costs no extra calls at all — about five lines. Weaker than
+a dedicated round (one prompt now asks for two different kinds of fix), but
+the cost/benefit is much better at this warn rate.
+
+**What would change the verdict:** the eval numbers above are Opus at effort
+high. Course runs now use cheaper models and lower effort (the cost round,
+2026-09-18), where warn rates are plausibly higher and nobody has measured
+them. `scripts/freehand-eval.mjs` already records `lintWarns` per delivered
+spec, so one run with the cheap configuration settles it before any code is
+written.
+
 ## Deliberately left in `draw` (the frozen lab)
 
 Backend comparison grids, the raw-SVG baseline, the benchmark runner UI, and
