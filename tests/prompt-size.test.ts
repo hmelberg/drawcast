@@ -302,8 +302,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // is what stops the model writing x/y for a row of boxes (34% of corpus
 // elements carry raw coordinates today). schema 79430 → 80476, system
 // 199080 → 201143.
-const BASELINE_SYSTEM_CHARS = 201143;
-const BASELINE_SCHEMA_CHARS = 80476;
+// Re-pinned 2026-09-19 (inline timing): `cue` — when in the sentence an
+// action starts — costs its schema description (+356, embedded in the system
+// prompt) and a sentence on the canonical-beat bullet (+442).
+// schema 80476 → 80832, system 201143 → 201941.
+const BASELINE_SYSTEM_CHARS = 201941;
+const BASELINE_SCHEMA_CHARS = 80832;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

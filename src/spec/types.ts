@@ -498,6 +498,10 @@ export interface Command {
   speak?: string;
   /** With speak: false = start speaking and continue to the next command immediately. */
   blocking?: boolean;
+  /** With speak: WHEN in the sentence this command's action starts, 0–1 of the
+   *  way through the spoken line. Absent = with the line, as always. Written
+   *  in a script as an action inside the sentence: `… rundt (@flow a@) og …`. */
+  cue?: number;
   /** With speak: which dialogue voice reads the line ("a" = lead/teacher, the default; "b" = second voice). */
   voice?: "a" | "b";
   /** With speak: named prosody nudge — soft (confiding), grave (slow reveal), brisk (light recap). Use sparingly. */

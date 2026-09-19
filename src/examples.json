@@ -26084,5 +26084,398 @@
         }
       ]
     }
+  },
+  {
+    "request": "Hvorfor sprekker en boble, når alle vet at prisen er for høy?",
+    "spec": {
+      "title": "Når musikken stopper",
+      "lang": "nb",
+      "elements": [
+        {
+          "id": "kjoper1",
+          "type": "node",
+          "shape": "rect",
+          "text": "Kjøper 1"
+        },
+        {
+          "id": "kjoper2",
+          "type": "node",
+          "shape": "rect",
+          "text": "Kjøper 2"
+        },
+        {
+          "id": "kjoper3",
+          "type": "node",
+          "shape": "rect",
+          "text": "Kjøper 3"
+        },
+        {
+          "id": "kjede",
+          "type": "group",
+          "members": [
+            "kjoper1",
+            "kjoper2",
+            "kjoper3"
+          ],
+          "layout": "row",
+          "gap": 70
+        },
+        {
+          "id": "s1",
+          "type": "arrow",
+          "from": {
+            "ref": "kjoper1"
+          },
+          "to": {
+            "ref": "kjoper2"
+          },
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "l_s1",
+          "type": "label",
+          "attach_to": "s1",
+          "side": "above",
+          "text": "selger dyrere"
+        },
+        {
+          "id": "s2",
+          "type": "arrow",
+          "from": {
+            "ref": "kjoper2"
+          },
+          "to": {
+            "ref": "kjoper3"
+          },
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "l_s2",
+          "type": "label",
+          "attach_to": "s2",
+          "side": "above",
+          "text": "selger dyrere"
+        },
+        {
+          "id": "ingen",
+          "type": "text",
+          "text": "ingen kjøper 4",
+          "at": {
+            "ref": "kjoper3",
+            "side": "below",
+            "gap": 24
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "mark",
+          "type": "annotation",
+          "target": [
+            "kjoper3",
+            "ingen"
+          ],
+          "kind": "box",
+          "style": {
+            "color": "#b5482e"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "kjoper1",
+            "kjoper2",
+            "kjoper3"
+          ],
+          "speak": "En boble er en kjede av kjøpere, og hver av dem regner med det samme."
+        },
+        {
+          "draw": [
+            "s1",
+            "l_s1"
+          ],
+          "speak": "Kjøper 1 betaler for mye, men det gjør ingenting: kjøper 2 betaler mer."
+        },
+        {
+          "draw": [
+            "s2",
+            "l_s2"
+          ],
+          "speak": "Kjøper 2 tenker likedan, og kjøper 3 bekrefter regnestykket."
+        },
+        {
+          "draw": [
+            "ingen"
+          ],
+          "speak": "Prisen har ikke lenger noe med verdien å gjøre — den handler bare om neste ledd."
+        },
+        {
+          "draw": [
+            "mark"
+          ],
+          "cue": 0.62,
+          "speak": "Og kjeden holder akkurat så lenge det finnes et neste ledd, så da det tar slutt, er det kjøper 3 som sitter igjen med regningen.",
+          "delivery": "grave"
+        }
+      ]
+    }
+  },
+  {
+    "request": "Hvordan blir en lov til i Norge?",
+    "spec": {
+      "title": "Fra forslag til lov",
+      "lang": "nb",
+      "elements": [
+        {
+          "id": "gangen",
+          "type": "group",
+          "members": [
+            "forslag",
+            "komite",
+            "sal",
+            "lov"
+          ],
+          "layout": "row",
+          "gap": 55
+        },
+        {
+          "id": "forslag",
+          "type": "node",
+          "shape": "rect",
+          "text": "Forslag"
+        },
+        {
+          "id": "komite",
+          "type": "node",
+          "shape": "rect",
+          "text": "Komité"
+        },
+        {
+          "id": "sal",
+          "type": "node",
+          "shape": "rect",
+          "text": "Stortinget"
+        },
+        {
+          "id": "lov",
+          "type": "node",
+          "shape": "rect",
+          "text": "Lov"
+        },
+        {
+          "id": "a1",
+          "type": "arrow",
+          "from": {
+            "ref": "forslag"
+          },
+          "to": {
+            "ref": "komite"
+          }
+        },
+        {
+          "id": "a2",
+          "type": "arrow",
+          "from": {
+            "ref": "komite"
+          },
+          "to": {
+            "ref": "sal"
+          }
+        },
+        {
+          "id": "a3",
+          "type": "arrow",
+          "from": {
+            "ref": "sal"
+          },
+          "to": {
+            "ref": "lov"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "forslag"
+          ],
+          "speak": "En lov begynner som et forslag, fra regjeringen eller fra en representant."
+        },
+        {
+          "draw": [
+            "a1",
+            "komite"
+          ],
+          "speak": "Først går det til en komité, der det leses, høres og skrives om."
+        },
+        {
+          "draw": [
+            "a2",
+            "sal"
+          ],
+          "speak": "Så kommer det i salen, der alle kan si sitt og stemmen telles."
+        },
+        {
+          "draw": [
+            "a3",
+            "lov"
+          ],
+          "speak": "Blir det vedtatt to ganger, er forslaget blitt en lov."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "highlight": {
+            "target": [
+              "komite"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Og det er i komiteen det meste av arbeidet skjer — lenge før noen stemmer."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Hva skjer med et søk i en søkemotor?",
+    "spec": {
+      "title": "Hva et søk går gjennom",
+      "lang": "nb",
+      "elements": [
+        {
+          "id": "sok",
+          "type": "node",
+          "shape": "rect",
+          "text": "Søket"
+        },
+        {
+          "id": "indeks",
+          "type": "node",
+          "shape": "rect",
+          "text": "Indeksen"
+        },
+        {
+          "id": "rangering",
+          "type": "node",
+          "shape": "rect",
+          "text": "Rangeringen"
+        },
+        {
+          "id": "midten",
+          "type": "group",
+          "members": [
+            "indeks",
+            "rangering"
+          ],
+          "layout": "column",
+          "gap": 40
+        },
+        {
+          "id": "svar",
+          "type": "node",
+          "shape": "rect",
+          "text": "Svaret"
+        },
+        {
+          "id": "veien",
+          "type": "group",
+          "members": [
+            "sok",
+            "midten",
+            "svar"
+          ],
+          "layout": "row",
+          "gap": 80
+        },
+        {
+          "id": "b1",
+          "type": "arrow",
+          "from": {
+            "ref": "sok"
+          },
+          "to": {
+            "ref": "indeks"
+          }
+        },
+        {
+          "id": "b2",
+          "type": "arrow",
+          "from": {
+            "ref": "sok"
+          },
+          "to": {
+            "ref": "rangering"
+          }
+        },
+        {
+          "id": "b3",
+          "type": "arrow",
+          "from": {
+            "ref": "indeks"
+          },
+          "to": {
+            "ref": "svar"
+          }
+        },
+        {
+          "id": "b4",
+          "type": "arrow",
+          "from": {
+            "ref": "rangering"
+          },
+          "to": {
+            "ref": "svar"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "sok"
+          ],
+          "speak": "Du skriver noen ord, og de gjør to helt forskjellige jobber på én gang."
+        },
+        {
+          "draw": [
+            "b1",
+            "indeks"
+          ],
+          "speak": "Den ene finner alt som i det hele tatt nevner ordene — det kan være millioner av sider."
+        },
+        {
+          "draw": [
+            "b2",
+            "rangering"
+          ],
+          "speak": "Den andre avgjør rekkefølgen, og det er den som bestemmer hva du faktisk ser."
+        },
+        {
+          "draw": [
+            "b3",
+            "b4",
+            "svar"
+          ],
+          "speak": "Begge må være ferdige før listen kan settes sammen."
+        },
+        {
+          "highlight": {
+            "target": [
+              "rangering"
+            ],
+            "effect": "glow"
+          },
+          "cue": 0.5,
+          "speak": "Å finne sidene er det lette; å vite hvilke ti som skal stå øverst, er hele problemet."
+        }
+      ]
+    }
   }
 ]

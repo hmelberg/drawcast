@@ -9,7 +9,7 @@ export type ScriptLine =
   | { kind: "heading"; line: number; depth: 1 | 2; text: string }
   | { kind: "setting"; line: number; key: string; rest: string }
   | { kind: "goto"; line: number; name: string }
-  | { kind: "speech"; line: number; text: string; voice?: "a" | "b" }
+  | { kind: "speech"; line: number; text: string; voice?: "a" | "b"; actions?: InlineAction[] }
   | { kind: "direction"; line: number; indent: number; head: string; rest: string }
   | { kind: "fence"; line: number; indent: number; info: string; body: string };
 
@@ -18,6 +18,64 @@ export type ScriptLine =
  * line may perfectly well begin "Kort sagt:", and the only thing that keeps
  * that from being read as a setting is that `Kort sagt` is not in this list.
  */
+/** An action written inside a spoken line, and where it sat in it. */
+export interface InlineAction {
+  head: string;
+  rest: string;
+  /** Characters of SPOKEN text before it — the span itself is not spoken. */
+  offset: number;
+}
+
+/** Thrown for a span that is opened and never closed. */
+export class ScanError extends Error {
+  constructor(message: string, readonly line: number) {
+    super(`line ${line}: ${message}`);
+    this.name = "ScanError";
+  }
+}
+
+const OPEN = "(@";
+const CLOSE = "@)";
+
+/**
+ * Lift `(@ … @)` out of a spoken line. What is left is what gets said; each
+ * action remembers how many spoken characters came before it, which is what
+ * makes it a TIME rather than a second way of writing the same direction.
+ *
+ * `(@` opens an action only when a word follows it, so a parenthesis and an
+ * at-sign in ordinary prose need no escape.
+ */
+function liftActions(text: string, line: number): { text: string; actions?: InlineAction[] } {
+  if (!text.includes(OPEN)) return { text };
+  const actions: InlineAction[] = [];
+  let spoken = "";
+  let i = 0;
+  while (i < text.length) {
+    const open = text.indexOf(OPEN, i);
+    if (open === -1 || !/^[A-Za-z_]/.test(text.slice(open + OPEN.length))) {
+      spoken += text.slice(i);
+      break;
+    }
+    const close = text.indexOf(CLOSE, open);
+    if (close === -1) throw new ScanError(`an action opened with "(@" is never closed with "@)"`, line);
+    // The span, and the space in front of it, leave the spoken line together.
+    let upto = open;
+    if (upto > i && text[upto - 1] === " ") upto -= 1;
+    spoken += text.slice(i, upto);
+    const body = text.slice(open + OPEN.length, close).trim();
+    const space = body.indexOf(" ");
+    actions.push({
+      head: space === -1 ? body : body.slice(0, space),
+      rest: space === -1 ? "" : body.slice(space + 1).trim(),
+      offset: spoken.length,
+    });
+    i = close + CLOSE.length;
+    // A span at the very start leaves its trailing space behind too.
+    if (spoken.length === 0 && text[i] === " ") i += 1;
+  }
+  return actions.length > 0 ? { text: spoken, actions } : { text };
+}
+
 export const SETTING_KEYS = [
   // page
   "lang", "voice", "level", "record", "canvas", "domain", "vars", "text", "zoom_from", "use", "with", "chapter",
@@ -82,8 +140,8 @@ export function scanLines(text: string): ScriptLine[] {
     const setting = SETTING_RE.exec(body);
     if (setting) { out.push({ kind: "setting", line, key: setting[1], rest: (setting[2] ?? "").trim() }); continue; }
     const dialogue = DIALOGUE_RE.exec(body);
-    if (dialogue) { out.push({ kind: "speech", line, text: dialogue[2].trim(), voice: dialogue[1].toLowerCase() as "a" | "b" }); continue; }
-    out.push({ kind: "speech", line, text: body });
+    if (dialogue) { out.push({ kind: "speech", line, ...liftActions(dialogue[2].trim(), line), voice: dialogue[1].toLowerCase() as "a" | "b" }); continue; }
+    out.push({ kind: "speech", line, ...liftActions(body, line) });
   }
   return out;
 }
