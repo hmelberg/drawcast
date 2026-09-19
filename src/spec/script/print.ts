@@ -172,5 +172,6 @@ export function printScriptPages(meta: Record<string, unknown>, pages: { spec: S
     if (!multi) return typeof p.spec.title === "string" ? `# ${p.spec.title}\n\n${text}` : text;
     return typeof p.spec.title === "string" ? `## ${p.spec.title}\n${text}` : text;
   });
-  return [...head, ...body].join("\n").replace(/\n{3,}/g, "\n\n");
+  // The cast title stands alone, a blank line above the first page.
+  return [...head.map((h) => `${h}\n`), ...body].join("\n").replace(/\n{3,}/g, "\n\n");
 }

@@ -63,3 +63,42 @@ describe("printing beats", () => {
     expect(print(parseScriptPages(once).pages[0].spec)).toBe(once);
   });
 });
+
+describe("printing settings, pages and payloads", () => {
+  test("page settings print above the first beat, in a fixed order", () => {
+    const spec: Spec = { title: "Smitte", lang: "nb", template: "sir_model", params: { beta: 0.3 }, commands: [{ speak: "Hei." }] };
+    expect(print(spec)).toBe('# Smitte\n\nlang: nb\nuse: sir_model\nwith: {"beta":0.3}\n\nHei.\n');
+  });
+
+  test("several pages print as ## sections under one # title", () => {
+    const text = printScriptPages({ title: "Serien" }, [
+      { spec: { title: "Første", commands: [{ speak: "Hei." }] } },
+      { spec: { title: "Andre", commands: [{ speak: "Da." }] } },
+    ]);
+    expect(text).toBe("# Serien\n\n## Første\nHei.\n\n## Andre\nDa.\n");
+  });
+
+  test("a code element prints as a fence in its beat", () => {
+    const spec: Spec = {
+      elements: [{ id: "p", type: "code", language: "python", show: "below", lines: 5, code: "import numpy as np\nx = 1" }],
+      commands: [{ draw: ["p"], speak: "Se." }],
+    };
+    expect(print(spec)).toBe("Se.\n    ```python p show below lines 5\n    import numpy as np\n    x = 1\n    ```\n");
+  });
+
+  test("machine payloads print last, in an assets fence", () => {
+    const spec: Spec = { assets: { foto: "AAAB" }, commands: [{ speak: "Hei." }] };
+    expect(print(spec)).toBe("Hei.\n\n```assets\nfoto: AAAB\n```\n");
+  });
+
+  test("every printed page reads back as the spec it came from", () => {
+    const spec: Spec = {
+      title: "Smitte", lang: "nb", template: "sir_model", params: { beta: 0.3 },
+      elements: [{ id: "p", type: "code", language: "python", code: "x = 1", show: "below" }],
+      commands: [{ draw: ["p"], speak: "Se." }],
+      assets: { foto: "AAAB" },
+    };
+    const back = parseScriptPages(print(spec)).pages[0].spec;
+    expect(back).toEqual(spec);
+  });
+});
