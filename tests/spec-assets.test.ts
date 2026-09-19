@@ -10,6 +10,7 @@ import { formatPlaylist, itemsOf, parsePlaylistText, singlePlaylist } from "../s
 import { layoutSpec } from "../src/layout/layout";
 import { resolveImages } from "../src/render/image";
 import { HOISTED, hoistPortraitStrokes, restorePortraitStrokes } from "../src/llm/hoist";
+import { parseScriptPages } from "../src/spec/script/parse";
 import type { Spec } from "../src/spec/types";
 
 const examples = JSON.parse(readFileSync(new URL("../src/examples.json", import.meta.url), "utf8")) as { title: string; spec?: Spec; playlist?: string }[];
@@ -170,5 +171,15 @@ describe("an asset may be data, not only bytes", () => {
     expect(hoistStrokes(spec)).toBe(1);
     expect(spec.elements![0].strokes).toBe("@foto");
     expect(spec.assets!.foto).toBe(PHOTO);
+  });
+
+  // Round 1 review finding: parseFence's ```assets``` fence cast the parsed
+  // YAML to Record<string, string>, silently narrowing hand-typed data back
+  // to bytes. A hand-typed `assets:` block is a documented way to add a data
+  // asset (design 2026-09-20 §6), so the fence must carry an array value
+  // (not just a string) with its shape intact.
+  test("a hand-typed assets fence carries data, not only bytes", () => {
+    const spec = parseScriptPages(["Hei.", "", "```assets", "openings:", "  - name: Italian Game", "    moves: [e4, e5, Nf3]", "```", ""].join("\n")).pages[0].spec;
+    expect(spec.assets).toEqual({ openings: [{ name: "Italian Game", moves: ["e4", "e5", "Nf3"] }] });
   });
 });

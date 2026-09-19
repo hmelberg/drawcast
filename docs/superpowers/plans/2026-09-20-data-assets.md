@@ -67,7 +67,7 @@ describe("an asset may be data, not only bytes", () => {
     const spec = { template: "chess_board", params: { set: "@openings" }, assets: { openings: OPENINGS }, commands: [] } as unknown as Spec;
     expect(validateSpec(spec).errors).toEqual([]);
     const back = parsePlaylistText(formatPlaylist(singlePlaylist(spec), "script"));
-    expect(back.items[0].spec.assets!.openings).toEqual(OPENINGS);
+    expect(itemsOf(back)[0].spec.assets!.openings).toEqual(OPENINGS);
   });
 
   test("strokes pointing at a data asset reads as absent rather than as an object", () => {
@@ -609,6 +609,8 @@ git commit -m "Never ask the model to repair a reference into data"
 
 ### Task 5: Descriptors and the send threshold
 
+> **Imports:** these tests use `itemsOf(playlist)` — `Playlist` carries `entries`, not `items`, and `itemsOf` (from `../src/playlist/playlist`) is the helper that flattens chapters out of them. `tests/` is inside tsconfig's include, so `tsc` type-checks it: add every import the test needs.
+
 Spec §5, §5.1. A data asset under 32 KB rides into the model call and may be rewritten; a larger one is replaced by a one-line descriptor and cannot be.
 
 **Files:**
@@ -643,7 +645,7 @@ describe("descriptors and the send threshold", () => {
   test("a small data asset is SENT, so the model can edit it", () => {
     const doc = formatPlaylist(singlePlaylist({ template: "chess_board", params: { set: "@openings" }, assets: { openings: small } } as unknown as Spec), "script");
     const hoisted = hoistPortraitStrokes(doc);
-    const sent = parsePlaylistText(hoisted.text).items[0].spec;
+    const sent = itemsOf(parsePlaylistText(hoisted.text))[0].spec;
     expect(sent.assets!.openings).toEqual(small);
     expect(hoisted.described).toEqual([]);
   });
@@ -652,14 +654,14 @@ describe("descriptors and the send threshold", () => {
     expect(assetBytes(big)).toBeGreaterThan(ASSET_SEND_MAX);
     const doc = formatPlaylist(singlePlaylist({ template: "chess_board", params: { set: "@openings" }, assets: { openings: big } } as unknown as Spec), "script");
     const hoisted = hoistPortraitStrokes(doc);
-    const seen = parsePlaylistText(hoisted.text).items[0].spec;
+    const seen = itemsOf(parsePlaylistText(hoisted.text))[0].spec;
     expect(seen.assets!.openings).toBe(`@data ${big.length} rows — name, eco, moves[], idea`);
     expect(hoisted.described.map((d) => d.name)).toEqual(["openings"]);
 
     // What the model returns, descriptor and all, restores to the original.
     const reply = parsePlaylistText(hoisted.text);
     restorePortraitStrokes(reply, hoisted.blobs);
-    expect(reply.items[0].spec.assets!.openings).toEqual(big);
+    expect(itemsOf(reply)[0].spec.assets!.openings).toEqual(big);
   });
 
   test("an edit to a SENT asset survives restoration", () => {
@@ -667,18 +669,18 @@ describe("descriptors and the send threshold", () => {
     const hoisted = hoistPortraitStrokes(doc);
     const reply = parsePlaylistText(hoisted.text);
     const edited = [...small, { name: "Sicilian Defence", eco: "B20", moves: ["e4", "c5"], idea: "asymmetry" }];
-    reply.items[0].spec.assets = { openings: edited };
+    itemsOf(reply)[0].spec.assets = { openings: edited };
     restorePortraitStrokes(reply, hoisted.blobs);
-    expect(reply.items[0].spec.assets!.openings).toEqual(edited);
+    expect(itemsOf(reply)[0].spec.assets!.openings).toEqual(edited);
   });
 
   test("a reply that drops the assets block loses nothing", () => {
     const doc = formatPlaylist(singlePlaylist({ template: "chess_board", params: { set: "@openings" }, assets: { openings: small } } as unknown as Spec), "script");
     const hoisted = hoistPortraitStrokes(doc);
     const reply = parsePlaylistText(hoisted.text);
-    delete reply.items[0].spec.assets;
+    delete itemsOf(reply)[0].spec.assets;
     restorePortraitStrokes(reply, hoisted.blobs);
-    expect(reply.items[0].spec.assets!.openings).toEqual(small);
+    expect(itemsOf(reply)[0].spec.assets!.openings).toEqual(small);
   });
 
   test("the threshold decides AT its boundary, not near it", () => {
@@ -692,7 +694,7 @@ describe("descriptors and the send threshold", () => {
 
     const seen = (rows: unknown) => {
       const doc = formatPlaylist(singlePlaylist({ template: "chess_board", params: { set: "@s" }, assets: { s: rows } } as unknown as Spec), "script");
-      return parsePlaylistText(hoistPortraitStrokes(doc).text).items[0].spec.assets!.s;
+      return itemsOf(parsePlaylistText(hoistPortraitStrokes(doc).text))[0].spec.assets!.s;
     };
     expect(seen(fit)).toEqual(fit); // exactly at the limit: still sent
     expect(typeof seen(over)).toBe("string"); // one row more: described
@@ -724,7 +726,7 @@ describe("descriptors and the send threshold", () => {
     expect(hoisted.text).not.toContain(PHOTO.slice(0, 40));
     const reply = parsePlaylistText(hoisted.text);
     restorePortraitStrokes(reply, hoisted.blobs);
-    expect(reply.items[0].spec.assets!.foto).toBe(PHOTO);
+    expect(itemsOf(reply)[0].spec.assets!.foto).toBe(PHOTO);
   });
 });
 ```
@@ -874,6 +876,8 @@ git commit -m "Describe what is too big to send, send what is not"
 
 ### Task 6: Restore before validate
 
+> **Imports:** these tests use `itemsOf(playlist)` — `Playlist` carries `entries`, not `items`, and `itemsOf` (from `../src/playlist/playlist`) is the helper that flattens chapters out of them. `tests/` is inside tsconfig's include, so `tsc` type-checks it: add every import the test needs.
+
 Spec §5.2. Today validation runs at `revise.ts:66` and restoration at `:241`. A reply that drops the `assets:` block while params still reference an asset would fail validation every round.
 
 **Files:**
@@ -886,7 +890,7 @@ Spec §5.2. Today validation runs at `revise.ts:66` and restoration at `:241`. A
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `tests/revise.test.ts` (import `checkPlaylist` only if the file already does; otherwise test through the exported seam the file already uses):
+Append to `tests/revise.test.ts`, adding whatever imports it needs (`hoistPortraitStrokes`, `restorePortraitStrokes`, `formatPlaylist`, `itemsOf`, `parsePlaylistText`, `singlePlaylist`, `normalizeSpec`, `validateSpec`, `type Spec`). It asserts on those directly and does not need `checkPlaylist`:
 
 ```ts
 describe("a hoisted document is not a complete document (design §5.2)", () => {
@@ -901,15 +905,15 @@ describe("a hoisted document is not a complete document (design §5.2)", () => {
 
     // The model's reply: the document, with no assets block of its own.
     const reply = parsePlaylistText(hoisted.text);
-    delete reply.items[0].spec.assets;
+    delete itemsOf(reply)[0].spec.assets;
 
     // Before restoration the reference is dangling — this is the state the
     // old order judged, and it is not a real error.
-    expect(validateSpec(normalizeSpec(reply.items[0].spec)).errors.join("\n")).toContain('"@line"');
+    expect(validateSpec(normalizeSpec(itemsOf(reply)[0].spec)).errors.join("\n")).toContain('"@line"');
 
     // After restoration, which is what the loop must now do first, it is clean.
     restorePortraitStrokes(reply, hoisted.blobs);
-    expect(validateSpec(normalizeSpec(reply.items[0].spec)).ok).toBe(true);
+    expect(validateSpec(normalizeSpec(itemsOf(reply)[0].spec)).ok).toBe(true);
   });
 });
 ```
@@ -1349,6 +1353,8 @@ git commit -m "Say when a set is too large to revise here"
 
 ### Task 9: A published cast with data needs nothing of the author's
 
+> **Imports:** these tests use `itemsOf(playlist)` — `Playlist` carries `entries`, not `items`, and `itemsOf` (from `../src/playlist/playlist`) is the helper that flattens chapters out of them. `tests/` is inside tsconfig's include, so `tsc` type-checks it: add every import the test needs.
+
 Spec §8.6. The promise the whole design rests on: the data travels with the cast. This is the test that would catch a future round quietly making an asset depend on app state.
 
 **Files:**
@@ -1377,7 +1383,7 @@ describe("self-containment", () => {
 
     // Everything a viewer gets: the document as TEXT, and nothing else.
     const published = formatPlaylist(singlePlaylist(authored), "script");
-    const viewerSpec = parsePlaylistText(published).items[0].spec;
+    const viewerSpec = itemsOf(parsePlaylistText(published))[0].spec;
 
     const res = layoutSpec(viewerSpec as never);
     expect(res.warnings).toEqual([]);
