@@ -5,7 +5,7 @@
 import { scanLines, type ScriptLine } from "./lines";
 import { parseValue, setPath, splitTokens } from "./values";
 import { specSchema } from "../schema";
-import { ELEMENT_ALIASES, FLAGS, PLACE_WORDS, SIDE_TYPES, SIDE_WORDS, isColor, seconds } from "./sugar";
+import { ELEMENT_ALIASES, FLAGS, PLACE_WORDS, SHORTHAND_WORDS, SIDE_TYPES, SIDE_WORDS, isColor, seconds } from "./sugar";
 import { CORE_SCHEMA, load } from "js-yaml";
 import { isLanguage } from "../../code/languages";
 import type { Command, Spec, SpecElement } from "../types";
@@ -18,7 +18,7 @@ export class ScriptError extends Error {
 }
 
 export interface ScriptPage { spec: Spec }
-export interface ParsedScript { meta: Record<string, unknown>; pages: ScriptPage[] }
+export interface ParsedScript { meta: Record<string, unknown>; pages: ScriptPage[]; warnings: string[] }
 
 const schemaProps = (path: "elements" | "commands"): string[] =>
   Object.keys(((specSchema as unknown as Record<string, { properties: Record<string, { items: { properties: Record<string, unknown> } }> }>).properties as unknown as Record<string, { items: { properties: Record<string, unknown> } }>)[path].items.properties);
@@ -119,6 +119,8 @@ function keyValues(tokens: string[], into: Record<string, unknown>, line: number
 
 export interface Direction {
   element?: SpecElement;
+  /** Elements the direction minted alongside its own (a connector's label). */
+  extra?: SpecElement[];
   command?: Record<string, unknown>;
   /** A beat modifier (`parallel true`): it joins the command being built. */
   modifier?: Record<string, unknown>;
@@ -128,7 +130,7 @@ export interface Direction {
   hidden?: boolean;
 }
 
-export function parseDirection(head: string, rest: string, line: number): Direction {
+export function parseDirection(head: string, rest: string, line: number, warn: (msg: string) => void = () => {}): Direction {
   const tokens = splitTokens(rest);
   const alias = ELEMENT_ALIASES[head];
   const type = alias?.type ?? head;
@@ -148,6 +150,11 @@ export function parseDirection(head: string, rest: string, line: number): Direct
     // The id is the first bare token, full stop. Element fields make perfectly
     // good ids (`slope`, `text`, `line`), and an element always has one.
     if (rest2[0] !== undefined && isBareId(rest2[0]) && FLAGS[rest2[0]] === undefined && !isColor(rest2[0]) && !SIDE_WORDS.has(rest2[0]) && !PLACE_WORDS.has(rest2[0])) {
+      el.id = rest2[i++];
+    } else if (rest2[0] !== undefined && isBareId(rest2[0]) && SHORTHAND_WORDS.has(rest2[0]) && rest2[1]?.startsWith('"')) {
+      // Plainly meant as an id — but it is also a word the grammar owns, so
+      // say so rather than quietly reading it as placement or style (§11).
+      warn(`line ${line}: "${rest2[0]}" is also a placement or style word — it is being used as an id here`);
       el.id = rest2[i++];
     }
     if (rest2[i] !== undefined && rest2[i].startsWith('"')) el.text = parseValue(rest2[i++]);
@@ -177,7 +184,7 @@ export function parseDirection(head: string, rest: string, line: number): Direct
             k++;
             continue;
           }
-          if (SIDE_TYPES.has(type) && SIDE_WORDS.has(tok)) { setPath(el, "side", tok); continue; }
+          if ((SIDE_TYPES.has(type) || type === "arrow" || type === "edge") && SIDE_WORDS.has(tok)) { setPath(el, "side", tok); continue; }
           setPath(el, "at.place", PLACE_WORDS.get(tok) ?? tok);
           continue;
         }
@@ -205,7 +212,18 @@ export function parseDirection(head: string, rest: string, line: number): Direct
     if (typeof el.id !== "string") el.id = `${type}_${line}`;
     const hidden = el.hidden === true;
     delete el.hidden;
-    return { element: { ...el, type } as unknown as SpecElement, args: el, hidden };
+    // A connector's quoted text is the label ON it: the line that draws the
+    // arrow also names it. Parse-only sugar — the printer writes the two
+    // elements as two lines, because folding them back would have to invent
+    // the label's id, and the corpus has no convention to invent from.
+    const extra: SpecElement[] = [];
+    if ((type === "arrow" || type === "edge") && typeof el.text === "string") {
+      const label: Record<string, unknown> = { id: `${String(el.id)}_label`, type: "label", text: el.text, attach_to: el.id };
+      if (typeof el.side === "string") { label.side = el.side; delete el.side; }
+      delete el.text;
+      extra.push(label as unknown as SpecElement);
+    }
+    return { element: { ...el, type } as unknown as SpecElement, extra, args: el, hidden };
   }
   // The id run: bare words up to the first known field name. The same run
   // serves every verb that takes ids; only where it LANDS differs.
@@ -273,6 +291,8 @@ interface Beat {
 export function parseScriptPages(text: string): ParsedScript {
   const lines = scanLines(text);
   const meta: Record<string, unknown> = {};
+  const warnings: string[] = [];
+  const warn = (msg: string): void => { warnings.push(msg); };
   const pages: ScriptPage[] = [];
   let page: Spec | null = null;
   let beat: Beat | null = null;
@@ -304,11 +324,11 @@ export function parseScriptPages(text: string): ParsedScript {
         continue;
       }
       if (item.element) {
-        (spec.elements ??= []).push(item.element);
+        (spec.elements ??= []).push(item.element, ...(item.extra ?? []));
         if (item.hidden) { pendingDraw = null; continue; }
-        if (pendingDraw) pendingDraw.push(item.element.id);
+        const ids = [item.element.id, ...(item.extra ?? []).map((x) => x.id)];
+        if (pendingDraw) pendingDraw.push(...ids);
         else {
-          const ids = [item.element.id];
           commands.push({ draw: ids });
           pendingDraw = ids;
         }
@@ -355,6 +375,10 @@ export function parseScriptPages(text: string): ParsedScript {
       case "setting": flush(); applySetting(l, openPage(), meta, pages.length > 0 || page !== null); break;
       case "speech": {
         flush();
+        const firstWord = l.text.split(/\s+/)[0];
+        if ((ELEMENT_ALIASES[firstWord] !== undefined || ELEMENT_HEADS.has(firstWord) || COMMAND_KEYS.has(firstWord)) && !/[.!?:…]$/.test(l.text.trim())) {
+          warn(`line ${l.line}: this looks like a direction but sits at column 0, so it will be read aloud`);
+        }
         const b = startBeat();
         b.speech = l.text;
         if (l.voice) b.voice = l.voice;
@@ -377,7 +401,7 @@ export function parseScriptPages(text: string): ParsedScript {
           keyValues(tokens, lastArgs, l.line);
           break;
         }
-        const d = parseDirection(l.head, l.rest, l.line);
+        const d = parseDirection(l.head, l.rest, l.line, warn);
         b.items.push(d);
         lastArgs = d.args;
         break;
@@ -399,7 +423,7 @@ export function parseScriptPages(text: string): ParsedScript {
     else meta.title = docTitle;
   }
   delete meta.pageCount;
-  return { meta, pages };
+  return { meta, pages, warnings };
 }
 
 /** The settings that are spelled differently in a script than in the spec. */

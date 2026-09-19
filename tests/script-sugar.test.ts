@@ -107,3 +107,45 @@ describe("quiz choice lists", () => {
     expect(text).toBe('Hva skjer?\n    quiz question "Hva nå?"\n        + Opp\n        * Ned\n');
   });
 });
+
+describe("connector labels (parse-only sugar)", () => {
+  test("quoted text on an arrow mints the attached label too", () => {
+    const spec = one('Hei.\n    arrow lonn bedr -> hush "Lønn og inntekt" below\n');
+    expect(spec.elements).toEqual([
+      { id: "lonn", type: "arrow", from: { ref: "bedr" }, to: { ref: "hush" } },
+      { id: "lonn_label", type: "label", text: "Lønn og inntekt", attach_to: "lonn", side: "below" },
+    ]);
+    expect(spec.commands).toEqual([{ speak: "Hei.", draw: ["lonn", "lonn_label"] }]);
+  });
+
+  test("the printer canonicalizes it to two lines — the fold is not reversible", () => {
+    const spec = one('Hei.\n    arrow lonn bedr -> hush "Lønn" below\n');
+    const text = printScriptPages({}, [{ spec }]);
+    expect(text).toBe('Hei.\n    arrow lonn bedr -> hush\n    label lonn_label "Lønn" below attach_to lonn\n');
+  });
+});
+
+describe("the two lint rules", () => {
+  test("a spoken line that looks like a direction is reported", () => {
+    const { warnings } = parseScriptPages("Hei.\n    camera zoom 2\n\ndraw axes\n");
+    expect(warnings.join(" ")).toMatch(/line 4.*column 0/);
+  });
+
+  test("a real sentence beginning with a verb word is left alone", () => {
+    const { warnings } = parseScriptPages("Point at the ramp and you see it.\n    camera zoom 2\n");
+    expect(warnings).toEqual([]);
+  });
+
+  test("an id that shadows a shorthand word is reported", () => {
+    const { warnings } = parseScriptPages('Hei.\n    box left "x"\n');
+    expect(warnings.join(" ")).toMatch(/line 2.*left/);
+  });
+});
+
+describe("warnings reach the editor's own channel", () => {
+  test("a script's warnings land on the playlist", async () => {
+    const { parsePlaylistText } = await import("../src/playlist/playlist");
+    const playlist = parsePlaylistText("Hei.\n    camera zoom 2\n\ndraw axes\n");
+    expect(playlist.warnings.join(" ")).toMatch(/column 0/);
+  });
+});
