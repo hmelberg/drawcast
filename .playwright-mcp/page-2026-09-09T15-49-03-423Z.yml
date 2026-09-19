@@ -1,0 +1,15 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]:
+    - generic [ref=e3]: ⚠ Testversjon — IKKE offisiell informasjon. Skal IKKE brukes som medisinsk råd.
+    - generic [ref=e4]:
+      - text: Dette er et eksperimentelt verktøy laget for teknisk testing. Innholdet kommer fra en automatisk henting av artikler på helsenorge.no/giftinformasjon/ og et språkmodell-svar. Det er
+      - strong [ref=e5]: ikke
+      - text: offisiell informasjon fra Folkehelseinstituttet, Helsedirektoratet, Giftinformasjonen, eller andre offentlige etater. Det kan inneholde feil. Ved faktisk mistanke om forgiftning, ring Giftinformasjonen på
+      - strong [ref=e6]: 22 59 13 00
+      - text: eller 113 ved livstruende situasjoner.
+  - banner [ref=e7]:
+    - button "Meny" [ref=e8] [cursor=pointer]: ☰
+    - generic [ref=e9]:
+      - heading "Spør om giftinformasjon" [level=1] [ref=e10]
+      - text: Testversjon · basert på artikler fra helsenorge.no
+  - main [ref=e11]

@@ -1,0 +1,85 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]:
+    - generic [ref=e3]: ⚠ Testversjon — IKKE offisiell informasjon. Skal IKKE brukes som medisinsk råd.
+    - generic [ref=e4]:
+      - text: Dette er et eksperimentelt verktøy laget for teknisk testing. Innholdet kommer fra en automatisk henting av artikler på helsenorge.no/giftinformasjon/ og et språkmodell-svar. Det er
+      - strong [ref=e5]: ikke
+      - text: offisiell informasjon fra Folkehelseinstituttet, Helsedirektoratet, Giftinformasjonen, eller andre offentlige etater. Det kan inneholde feil. Ved faktisk mistanke om forgiftning, ring Giftinformasjonen på
+      - strong [ref=e6]: 22 59 13 00
+      - text: eller 113 ved livstruende situasjoner.
+  - banner [ref=e7]:
+    - button "Meny" [ref=e8] [cursor=pointer]: ☰
+    - generic [ref=e9]:
+      - heading "Repetisjoner" [level=1] [ref=e124]
+      - text: Testversjon · basert på artikler fra helsenorge.no
+  - main [ref=e11]:
+    - generic [ref=e125]:
+      - heading "Repetisjoner" [level=2] [ref=e126]
+      - paragraph [ref=e127]: Samme spørsmål stilles n ganger med valgt modell, mal og strategi. Svarene lagres, måles og analyseres.
+      - generic [ref=e128]:
+        - generic [ref=e129]: Spørsmål
+        - textbox "Spørsmål" [ref=e130]: Er liljekonvall giftig for hunder?
+        - generic [ref=e131]:
+          - generic [ref=e132]:
+            - generic [ref=e133]: Antall (n)
+            - spinbutton "Antall (n)" [ref=e134]: "2"
+          - generic [ref=e135]:
+            - generic [ref=e136]: Analysemodell
+            - combobox "Analysemodell" [ref=e137]:
+              - option "claude-opus-5"
+              - option "claude-sonnet-5"
+              - option "claude-sonnet-4-6"
+              - option "claude-opus-4-6"
+              - option "claude-haiku-4-5" [selected]
+          - button "… valg" [ref=e138] [cursor=pointer]
+          - button "Kjør" [ref=e139] [cursor=pointer]
+      - generic [ref=e149]:
+        - generic [ref=e150]:
+          - generic [ref=e151]:
+            - strong [ref=e152]: Er liljekonvall giftig for hunder?
+            - generic [ref=e153]: 2026-09-09T15:28:03.997Z · n=2 · claude-opus-4-6 · Standard · bm25
+          - generic [ref=e154]:
+            - button "Last ned JSON" [ref=e155] [cursor=pointer]
+            - button "Last ned Markdown" [ref=e156] [cursor=pointer]
+            - button "Analyser på nytt" [ref=e157] [cursor=pointer]
+        - heading "Mål" [level=3] [ref=e158]
+        - table [ref=e159]:
+          - rowgroup [ref=e160]:
+            - row [ref=e161]:
+              - rowheader "Svar (ok / feilet)" [ref=e162]
+              - cell "2 / 0" [ref=e163]
+            - row [ref=e164]:
+              - rowheader "Ulike svar" [ref=e165]
+              - cell "2 av 2 (største gruppe 1)" [ref=e166]
+            - row [ref=e167]:
+              - rowheader "Ordlikhet (parvis Jaccard)" [ref=e168]
+              - cell "0.57" [ref=e169]
+            - row [ref=e170]:
+              - rowheader "Sitatoverlapp (parvis Jaccard)" [ref=e171]
+              - cell "1" [ref=e172]
+            - row [ref=e173]:
+              - rowheader "Ord per svar (min / median / maks)" [ref=e174]
+              - cell "60 / 65 / 70" [ref=e175]
+            - row [ref=e176]:
+              - rowheader "Akutt / informasjon" [ref=e177]
+              - cell "0 / 2" [ref=e178]
+            - row [ref=e179]:
+              - rowheader "sufficient true / false" [ref=e180]
+              - cell "0 / 2" [ref=e181]
+            - row [ref=e182]:
+              - rowheader "Latens (snitt / maks)" [ref=e183]
+              - cell "6.6 s / 8.2 s" [ref=e184]
+        - heading "Analyse (claude-haiku-4-5, 7.4 s)" [level=3] [ref=e185]
+        - generic [ref=e186]: "# Rapport **1. Hva som sies.** Begge svar deler samme kjernepåstand: liljekonvall omtales i tilgjengelige kilder kun for mennesker, ikke spesifikt for hunder. Begge nevner at det finnes en generell artikkel om at planter kan forårsake forgiftning hos hund og katt, men uten detaljer om liljekonvall. Begge anbefaler kontakt med veterinær og noterer at giftinformasjonen ikke besvarer henvendelser om dyr. Det er ingen direkte motstridig informasjon mellom svarene. **2. Hvordan det sies.** Begge svar holder seg til stilinstruksen: korthet (rundt 3-4 setninger), norsk språk, ingen markdown eller overskrifter. Tonen er identisk — informativ og forklarende, men både svarene avviker fra instruksen om «aktivt språk» siden de bruker passiv konstruksjon («omtales», «finnes», «besvarer ikke») snarere enn direkte handlingsanvisninger. Svar 1 åpner med «Artiklene jeg har tilgang til omtaler»; Svar 2 med «Artiklene jeg har tilgjengelig omtaler» — små ordlydvarianter uten betydning. **3. Samlet.** Svarene er nesten identiske i både innhold og struktur. Begge rapporterer samme mangel på informasjon (2 av 2 nevner at kilder handler om mennesker, ikke hunder). Små formuleringsvarianter skilles ved «tilgang til» mot «tilgjengelig», og «kategorien «Hund og katt» nevner» mot «finnes en generell artikkel om». Dette er ordvalg uten innholdsmessig betydning. **4. Å merke seg.** Begge svar markeres som `sufficient: false` — de innrømmer åpent at de ikke kan svare på spørsmålet basert på tilgjengelige kilder. Dette er korrekt gitt stilinstruksen om å basere svar «utelukkende» på helsenorge.no-artiklene. Svarene bryter imidlertid instruksen om aktivt språk ved å unngå handlingsanvisninger."
+        - heading "Svarene" [level=3] [ref=e187]
+        - group [ref=e188]:
+          - generic "Svar 1 · info · utilstrekkelig · 5.1 s" [ref=e189] [cursor=pointer]
+        - group [ref=e190]:
+          - generic "Svar 2 · info · utilstrekkelig · 8.2 s" [ref=e191] [cursor=pointer]
+      - heading "Tidligere kjøringer" [level=2] [ref=e144]
+      - list [ref=e145]:
+        - listitem [ref=e192]:
+          - generic [ref=e193] [cursor=pointer]:
+            - generic [ref=e194]: Er liljekonvall giftig for hunder?
+            - generic [ref=e195]: 2026-09-09 15:28 · n=2 · claude-opus-4-6 · Standard · 2 ulike
+          - button "Slett" [ref=e196] [cursor=pointer]

@@ -7,6 +7,9 @@ import type { Pt } from "./model";
 
 export const UNIVERSAL_ANCHORS = ["center", "top", "bottom", "left", "right", "top_left", "top_right", "bottom_left", "bottom_right"] as const;
 
+/** A name every box answers to — the vocabulary `at.anchor` and `at.place` share. */
+export type UniversalAnchor = (typeof UNIVERSAL_ANCHORS)[number];
+
 export function isUniversalAnchor(name: string): boolean {
   return (UNIVERSAL_ANCHORS as readonly string[]).includes(name);
 }

@@ -1,0 +1,139 @@
+{
+  "id": "r_mtu8f8zn99s3",
+  "created_at": "2026-09-09T15:07:11.555Z",
+  "tier": "private",
+  "question": "Er liljekonvall giftig for hunder?",
+  "n": 3,
+  "settings": {
+    "strategy": "bm25",
+    "model": "claude-sonnet-4-6",
+    "template": {
+      "id": "standard",
+      "name": "Standard",
+      "text": "Du er en assistent som svarer på spørsmål om forgiftninger og giftige\nstoffer, basert utelukkende på artikler fra helsenorge.no/giftinformasjon/\nsom du får siterte utdrag fra.\n\nStil:\n- Svar kort og konkret: 2-4 setninger.\n- Svar alltid på norsk, selv om spørsmålet er på engelsk.\n- Ingen overskrifter, punktlister eller markdown i selve `answer`-feltet.\n- Bruk aktivt språk (\"Skyll munnen med vann og drikk et glass melk\") — ikke\n  passive \"det anbefales at\".\n- Gjenta aldri brukerens spørsmål. Gå rett på svaret."
+    }
+  },
+  "answers": [
+    {
+      "index": 0,
+      "answer": "Artiklene fra helsenorge.no dekker liljekonvall som giftig for mennesker, og liljer som giftige for katter, men inneholder ikke spesifikk informasjon om liljekonvall og hunder. Kontakt veterinær eller ring Giftinformasjonen (22 59 13 00) for råd – de kan veilede deg videre, selv om de normalt ikke besvarer henvendelser om dyr direkte.",
+      "citations": [],
+      "related_links": [
+        "planter-og-bar__planter-og-bar-a-a__liljekonvall",
+        "planter-og-bar__planter-og-bar-a-a__forvekslingsfare-mellom-liljekonvall-og-ramsloek",
+        "hund-og-katt__hund-og-katt__rosiner-og-druer-kan-gi-forgiftning-hos-hund",
+        "hund-og-katt__hund-og-katt",
+        "hund-og-katt__hund-og-katt__paracetamol-kan-gi-alvorlig-forgiftning-hos-hund-og-katt",
+        "hund-og-katt__hund-og-katt__notter",
+        "hund-og-katt__hund-og-katt__sjokolade-kan-gi-forgiftning-hos-hund",
+        "hund-og-katt__hund-og-katt__rips-er-lite-giftig-for-hund-og-katt"
+      ],
+      "urgency": "info",
+      "sufficient": false,
+      "latency_ms": 5105,
+      "usage": {
+        "input_tokens": 4272,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 135,
+        "service_tier": "standard",
+        "inference_geo": "global"
+      }
+    },
+    {
+      "index": 1,
+      "answer": "Kildeartiklene dekker ikke spesifikt liljekonvall og hunder. Artikkelen om liljekonvall gjelder barn, og Giftinformasjonens hundeartikler nevner ikke liljekonvall. Kontakt veterinær direkte, ettersom Giftinformasjonen ikke besvarer henvendelser om dyr.\n\nDette er ikke medisinsk rådgivning. Ved mistanke om forgiftning, ring Giftinformasjonen 22 59 13 00 (døgnåpen). Ved livstruende situasjoner ring 113.",
+      "citations": [],
+      "related_links": [
+        "planter-og-bar__planter-og-bar-a-a__liljekonvall",
+        "planter-og-bar__planter-og-bar-a-a__forvekslingsfare-mellom-liljekonvall-og-ramsloek",
+        "hund-og-katt__hund-og-katt__rosiner-og-druer-kan-gi-forgiftning-hos-hund",
+        "hund-og-katt__hund-og-katt",
+        "hund-og-katt__hund-og-katt__paracetamol-kan-gi-alvorlig-forgiftning-hos-hund-og-katt",
+        "hund-og-katt__hund-og-katt__notter",
+        "hund-og-katt__hund-og-katt__sjokolade-kan-gi-forgiftning-hos-hund",
+        "hund-og-katt__hund-og-katt__rips-er-lite-giftig-for-hund-og-katt"
+      ],
+      "urgency": "info",
+      "sufficient": false,
+      "latency_ms": 4441,
+      "usage": {
+        "input_tokens": 4272,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 114,
+        "service_tier": "standard",
+        "inference_geo": "global"
+      }
+    },
+    {
+      "index": 2,
+      "answer": "Kildeartiklene dekker liljekonvall som giftig for mennesker og omtaler planter som giftige for hund og katt generelt, men ingen av artiklene gir spesifikk informasjon om liljekonvall og hunder. Kontakt veterinær eller ring Giftinformasjonen (22 59 13 00) for konkrete råd – de henviser videre til riktig instans for dyr.",
+      "citations": [],
+      "related_links": [
+        "planter-og-bar__planter-og-bar-a-a__liljekonvall",
+        "planter-og-bar__planter-og-bar-a-a__forvekslingsfare-mellom-liljekonvall-og-ramsloek",
+        "hund-og-katt__hund-og-katt__rosiner-og-druer-kan-gi-forgiftning-hos-hund",
+        "hund-og-katt__hund-og-katt",
+        "hund-og-katt__hund-og-katt__paracetamol-kan-gi-alvorlig-forgiftning-hos-hund-og-katt",
+        "hund-og-katt__hund-og-katt__notter",
+        "hund-og-katt__hund-og-katt__sjokolade-kan-gi-forgiftning-hos-hund",
+        "hund-og-katt__hund-og-katt__rips-er-lite-giftig-for-hund-og-katt"
+      ],
+      "urgency": "info",
+      "sufficient": false,
+      "latency_ms": 4517,
+      "usage": {
+        "input_tokens": 4272,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 131,
+        "service_tier": "standard",
+        "inference_geo": "global"
+      }
+    }
+  ],
+  "metrics": {
+    "n": 3,
+    "ok": 3,
+    "failed": 0,
+    "distinct_answers": 3,
+    "largest_cluster": 1,
+    "words": {
+      "min": 28,
+      "median": 48,
+      "max": 51
+    },
+    "urgency": {
+      "info": 3,
+      "urgent": 0
+    },
+    "sufficient": {
+      "true": 0,
+      "false": 3
+    },
+    "citation_overlap": 1,
+    "text_similarity": 0.3085746877367299,
+    "latency_ms": {
+      "mean": 4688,
+      "max": 5105
+    }
+  },
+  "analysis": {
+    "model": "claude-haiku-4-5",
+    "text": "# Rapport: Analyse av tre svar om liljekonvall og hunders\n\n## 1. Hva som sies\n\nAlle tre svar sier det samme: kildene dekker ikke liljekonvall spesifikt for hunder. Alle konkluderer at informasjonen er utilstrekkelig og anbefaler kontakt med veterinær.\n\nSvar 1 og 3 legger til telefonummeret til Giftinformasjonen (22 59 13 00) som et alternativ, mens Svar 2 utelater det og sier bestemt at Giftinformasjonen ikke besvarer henvendelser om dyr. Det er en konkret påstand som bare Svar 2 fremsetter.\n\nDet er ingen direkte motstrid mellom svarene, men Svar 1 og 3 åpner for at Giftinformasjonen kan hjelpe, mens Svar 2 lukker døren.\n\n## 2. Hvordan det sies\n\nSvar 1 og 3 er nærmest identiske i lengde (3 setninger) og struktur. Begge starter med «Kildeartiklene/Artiklene fra helsenorge.no» og oppgir samme telefonnummer.\n\nSvar 2 er kortere (2 setninger) og mer direkte. Det unngår telefonummeret og spesifiserer at Giftinformasjonen «ikke besvarer henvendelser om dyr», mens de andre sier «normalt ikke» eller «ikke direkte» — små ord som endrer betydningen.\n\nAlle tre bryter med stilinstruksen: de skal være 2-4 setninger (alle oppfyller det), men de skal ikke gjenta brukerens spørsmål — og alle begynner med å forklare hva som ikke er dekket, i stedet for å gå rett på svaret.\n\n## 3. Samlet\n\nSvarene er tilnærmet like i innhold (3 av 3 sier informasjonen mangler), men avviker i anbefaling. 2 av 3 foreslår Giftinformasjonen som mulig ressurs; 1 av 3 utelukker det helt. Avvikene oppstår i konklusjonens siste del — vektlegging av hva som er mulig framfor hva som er sikkert.\n\n## 4. Å merke seg\n\nUklarhet om Giftinformasjonen faktisk besvarer dyrerelaterte henvendelser: Svar 2 utsier det som fakta, mens Svar 1 og 3 presiserer «normalt ikke» eller «ikke direkte», noe som antyder at det kan skje i praksis — og dette kan ikke avgjøres uten å verifisere mot giftinformasjonen selv.",
+    "latency_ms": 8700
+  }
+}

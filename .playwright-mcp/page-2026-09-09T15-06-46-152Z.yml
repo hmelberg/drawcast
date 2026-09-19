@@ -1,0 +1,66 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]:
+    - generic [ref=e3]: ⚠ Testversjon — IKKE offisiell informasjon. Skal IKKE brukes som medisinsk råd.
+    - generic [ref=e4]:
+      - text: Dette er et eksperimentelt verktøy laget for teknisk testing. Innholdet kommer fra en automatisk henting av artikler på helsenorge.no/giftinformasjon/ og et språkmodell-svar. Det er
+      - strong [ref=e5]: ikke
+      - text: offisiell informasjon fra Folkehelseinstituttet, Helsedirektoratet, Giftinformasjonen, eller andre offentlige etater. Det kan inneholde feil. Ved faktisk mistanke om forgiftning, ring Giftinformasjonen på
+      - strong [ref=e6]: 22 59 13 00
+      - text: eller 113 ved livstruende situasjoner.
+  - banner [ref=e7]:
+    - button "Meny" [ref=e8] [cursor=pointer]: ☰
+    - generic [ref=e9]:
+      - heading "Repetisjoner" [level=1] [ref=e72]
+      - text: Testversjon · basert på artikler fra helsenorge.no
+  - main [ref=e11]:
+    - generic [ref=e73]:
+      - heading "Repetisjoner" [level=2] [ref=e74]
+      - paragraph [ref=e75]: Samme spørsmål stilles n ganger med valgt modell, mal og strategi. Svarene lagres, måles og analyseres.
+      - generic [ref=e76]:
+        - generic [ref=e77]: Spørsmål
+        - textbox "Spørsmål" [ref=e78]: Er liljekonvall giftig for hunder?
+        - generic [ref=e79]:
+          - generic [ref=e80]:
+            - generic [ref=e81]: Antall (n)
+            - spinbutton "Antall (n)" [ref=e82]: "3"
+          - generic [ref=e83]:
+            - generic [ref=e84]: Analysemodell
+            - combobox "Analysemodell" [ref=e85]:
+              - option "claude-opus-5" [selected]
+              - option "claude-sonnet-5"
+              - option "claude-sonnet-4-6"
+              - option "claude-opus-4-6"
+              - option "claude-haiku-4-5"
+          - button "… valg" [ref=e86] [cursor=pointer]
+          - button "Kjør" [ref=e87] [cursor=pointer]
+        - generic [ref=e92]:
+          - generic [ref=e93]:
+            - generic [ref=e94]: Modell
+            - combobox "Modell" [ref=e95]:
+              - option "claude-opus-5"
+              - option "claude-sonnet-5"
+              - option "claude-sonnet-4-6" [selected]
+              - option "claude-opus-4-6"
+              - option "claude-haiku-4-5"
+          - generic [ref=e96]:
+            - generic [ref=e97]: Mal
+            - combobox "Mal" [ref=e98]:
+              - option "Standard" [selected]
+              - option "Akutt førstehjelp"
+              - option "Helsepersonell"
+              - option "Klarspråk"
+          - generic [ref=e99]:
+            - generic [ref=e100]: Strategi
+            - combobox "Strategi" [ref=e101]:
+              - option "bm25" [selected]
+              - option "dense"
+              - option "hybrid"
+              - option "catalogue"
+              - option "guarded"
+          - generic [ref=e102]:
+            - generic [ref=e103]: k (artikler til modellen)
+            - spinbutton "k (artikler til modellen)" [ref=e104]
+        - generic [ref=e105]: "Feil (HTTP 500): TimeoutError: Task timed out after 30.00 seconds at new TimeoutError (/opt/homebrew/lib/node_modules/netlify-cli/node_modules/lambda-local/build/lib/utils.js:119:28) at Context.<anonymous> (/opt/homebrew/lib/node_modules/netlify-cli/node_modules/lambda-local/build/lib/context.js:113:19) at listOnTimeout (node:internal/timers:605:17) at processTimers (node:internal/timers:541:7)"
+      - heading "Tidligere kjøringer" [level=2] [ref=e88]
+      - list [ref=e89]:
+        - listitem [ref=e91]: Ingen kjøringer ennå.

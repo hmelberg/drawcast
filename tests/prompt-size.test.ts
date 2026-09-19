@@ -289,8 +289,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // largest single block of the cached prefix). This is pure whitespace, so
 // both anchors drop by exactly the same 41,862 chars: schema 120539 → 78677,
 // system 239462 → 197600.
-const BASELINE_SYSTEM_CHARS = 197600;
-const BASELINE_SCHEMA_CHARS = 78677;
+// Re-pinned 2026-09-19 (named places): `at.place` — a named spot on the
+// canvas — costs a schema description (+575, embedded verbatim in the system
+// prompt) and a sentence in the freehand placement bullet (+549). Both
+// anchors move: schema 78677 → 79252, system 197600 → 198724.
+const BASELINE_SYSTEM_CHARS = 198724;
+const BASELINE_SCHEMA_CHARS = 79252;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

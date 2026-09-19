@@ -1,0 +1,114 @@
+- generic [ref=e1]:
+  - alert [ref=e2]:
+    - generic [ref=e3]: ⚠ Testversjon — IKKE offisiell informasjon. Skal IKKE brukes som medisinsk råd.
+    - generic [ref=e4]:
+      - text: Dette er et eksperimentelt verktøy laget for teknisk testing. Innholdet kommer fra en automatisk henting av artikler på helsenorge.no/giftinformasjon/ og et språkmodell-svar. Det er
+      - strong [ref=e5]: ikke
+      - text: offisiell informasjon fra Folkehelseinstituttet, Helsedirektoratet, Giftinformasjonen, eller andre offentlige etater. Det kan inneholde feil. Ved faktisk mistanke om forgiftning, ring Giftinformasjonen på
+      - strong [ref=e6]: 22 59 13 00
+      - text: eller 113 ved livstruende situasjoner.
+  - banner [ref=e7]:
+    - button "Meny" [ref=e8] [cursor=pointer]: ☰
+    - generic [ref=e9]:
+      - heading "Repetisjoner" [level=1] [ref=e72]
+      - text: Testversjon · basert på artikler fra helsenorge.no
+  - main [ref=e11]:
+    - generic [ref=e73]:
+      - heading "Repetisjoner" [level=2] [ref=e74]
+      - paragraph [ref=e75]: Samme spørsmål stilles n ganger med valgt modell, mal og strategi. Svarene lagres, måles og analyseres.
+      - generic [ref=e76]:
+        - generic [ref=e77]: Spørsmål
+        - textbox "Spørsmål" [ref=e78]: Er liljekonvall giftig for hunder?
+        - generic [ref=e79]:
+          - generic [ref=e80]:
+            - generic [ref=e81]: Antall (n)
+            - spinbutton "Antall (n)" [ref=e82]: "3"
+          - generic [ref=e83]:
+            - generic [ref=e84]: Analysemodell
+            - combobox "Analysemodell" [ref=e85]:
+              - option "claude-opus-5"
+              - option "claude-sonnet-5"
+              - option "claude-sonnet-4-6"
+              - option "claude-opus-4-6"
+              - option "claude-haiku-4-5" [selected]
+          - button "… valg" [ref=e86] [cursor=pointer]
+          - button "Kjør" [ref=e87] [cursor=pointer]
+        - generic [ref=e92]:
+          - generic [ref=e93]:
+            - generic [ref=e94]: Modell
+            - combobox "Modell" [ref=e95]:
+              - option "claude-opus-5"
+              - option "claude-sonnet-5"
+              - option "claude-sonnet-4-6" [selected]
+              - option "claude-opus-4-6"
+              - option "claude-haiku-4-5"
+          - generic [ref=e96]:
+            - generic [ref=e97]: Mal
+            - combobox "Mal" [ref=e98]:
+              - option "Standard" [selected]
+              - option "Akutt førstehjelp"
+              - option "Helsepersonell"
+              - option "Klarspråk"
+          - generic [ref=e99]:
+            - generic [ref=e100]: Strategi
+            - combobox "Strategi" [ref=e101]:
+              - option "bm25" [selected]
+              - option "dense"
+              - option "hybrid"
+              - option "catalogue"
+              - option "guarded"
+          - generic [ref=e102]:
+            - generic [ref=e103]: k (artikler til modellen)
+            - spinbutton "k (artikler til modellen)" [ref=e104]
+      - generic [ref=e116]:
+        - generic [ref=e117]:
+          - generic [ref=e118]:
+            - strong [ref=e119]: Er liljekonvall giftig for hunder?
+            - generic [ref=e120]: 2026-09-09T15:07:11.555Z · n=3 · claude-sonnet-4-6 · Standard · bm25
+          - generic [ref=e121]:
+            - button "Last ned JSON" [active] [ref=e122] [cursor=pointer]
+            - button "Last ned Markdown" [ref=e123] [cursor=pointer]
+            - button "Analyser på nytt" [ref=e124] [cursor=pointer]
+        - heading "Mål" [level=3] [ref=e125]
+        - table [ref=e126]:
+          - rowgroup [ref=e127]:
+            - row [ref=e128]:
+              - rowheader "Svar (ok / feilet)" [ref=e129]
+              - cell "3 / 0" [ref=e130]
+            - row [ref=e131]:
+              - rowheader "Ulike svar" [ref=e132]
+              - cell "3 av 3 (største gruppe 1)" [ref=e133]
+            - row [ref=e134]:
+              - rowheader "Ordlikhet (parvis Jaccard)" [ref=e135]
+              - cell "0.31" [ref=e136]
+            - row [ref=e137]:
+              - rowheader "Sitatoverlapp (parvis Jaccard)" [ref=e138]
+              - cell "1" [ref=e139]
+            - row [ref=e140]:
+              - rowheader "Ord per svar (min / median / maks)" [ref=e141]
+              - cell "28 / 48 / 51" [ref=e142]
+            - row [ref=e143]:
+              - rowheader "Akutt / informasjon" [ref=e144]
+              - cell "0 / 3" [ref=e145]
+            - row [ref=e146]:
+              - rowheader "sufficient true / false" [ref=e147]
+              - cell "0 / 3" [ref=e148]
+            - row [ref=e149]:
+              - rowheader "Latens (snitt / maks)" [ref=e150]
+              - cell "4.7 s / 5.1 s" [ref=e151]
+        - heading "Analyse (claude-haiku-4-5, 8.7 s)" [level=3] [ref=e152]
+        - generic [ref=e153]: "# Rapport: Analyse av tre svar om liljekonvall og hunders ## 1. Hva som sies Alle tre svar sier det samme: kildene dekker ikke liljekonvall spesifikt for hunder. Alle konkluderer at informasjonen er utilstrekkelig og anbefaler kontakt med veterinær. Svar 1 og 3 legger til telefonummeret til Giftinformasjonen (22 59 13 00) som et alternativ, mens Svar 2 utelater det og sier bestemt at Giftinformasjonen ikke besvarer henvendelser om dyr. Det er en konkret påstand som bare Svar 2 fremsetter. Det er ingen direkte motstrid mellom svarene, men Svar 1 og 3 åpner for at Giftinformasjonen kan hjelpe, mens Svar 2 lukker døren. ## 2. Hvordan det sies Svar 1 og 3 er nærmest identiske i lengde (3 setninger) og struktur. Begge starter med «Kildeartiklene/Artiklene fra helsenorge.no» og oppgir samme telefonnummer. Svar 2 er kortere (2 setninger) og mer direkte. Det unngår telefonummeret og spesifiserer at Giftinformasjonen «ikke besvarer henvendelser om dyr», mens de andre sier «normalt ikke» eller «ikke direkte» — små ord som endrer betydningen. Alle tre bryter med stilinstruksen: de skal være 2-4 setninger (alle oppfyller det), men de skal ikke gjenta brukerens spørsmål — og alle begynner med å forklare hva som ikke er dekket, i stedet for å gå rett på svaret. ## 3. Samlet Svarene er tilnærmet like i innhold (3 av 3 sier informasjonen mangler), men avviker i anbefaling. 2 av 3 foreslår Giftinformasjonen som mulig ressurs; 1 av 3 utelukker det helt. Avvikene oppstår i konklusjonens siste del — vektlegging av hva som er mulig framfor hva som er sikkert. ## 4. Å merke seg Uklarhet om Giftinformasjonen faktisk besvarer dyrerelaterte henvendelser: Svar 2 utsier det som fakta, mens Svar 1 og 3 presiserer «normalt ikke» eller «ikke direkte», noe som antyder at det kan skje i praksis — og dette kan ikke avgjøres uten å verifisere mot giftinformasjonen selv."
+        - heading "Svarene" [level=3] [ref=e154]
+        - group [ref=e155]:
+          - generic "Svar 1 · info · utilstrekkelig · 5.1 s" [ref=e156] [cursor=pointer]
+        - group [ref=e157]:
+          - generic "Svar 2 · info · utilstrekkelig · 4.4 s" [ref=e158] [cursor=pointer]
+        - group [ref=e159]:
+          - generic "Svar 3 · info · utilstrekkelig · 4.5 s" [ref=e160] [cursor=pointer]
+      - heading "Tidligere kjøringer" [level=2] [ref=e88]
+      - list [ref=e89]:
+        - listitem [ref=e161]:
+          - generic [ref=e162] [cursor=pointer]:
+            - generic [ref=e163]: Er liljekonvall giftig for hunder?
+            - generic [ref=e164]: 2026-09-09 15:07 · n=3 · claude-sonnet-4-6 · Standard · 3 ulike
+          - button "Slett" [ref=e165] [cursor=pointer]

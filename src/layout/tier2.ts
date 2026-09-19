@@ -11,6 +11,7 @@ import { codeDrawables, type CodeWindow } from "./code";
 import { UNIVERSAL_ANCHORS, boxAnchor, isUniversalAnchor, polygonAnchors, polylineAnchors, ptsBox, sectorAnchors } from "./anchors";
 import { boxOfId } from "./boxes";
 import { fitTransform, ownBBox, pickSide, placementOrder, refBBox, relAt, relativeDelta, scaleDrawables, shiftDrawables, shiftPoints } from "./place";
+import { autoRow, placeDelta } from "./places";
 import { columnSlots, fitPicture, isDefaultColumn, INSET_MAX, INSET_W } from "./inset";
 import { fitRegion, isFitName } from "./regions";
 import {
@@ -39,10 +40,14 @@ import { obstacleBoxes, wrapText, type LabelRequest } from "./labels";
 import { currentMathFontName, enginesLoaded, getLoadedEngines, type MathJaxEngine } from "../scenes/engines";
 import { linkKindOf } from "../ui/link-model";
 import type { LintIssue } from "../lint/lint";
-import type { EndRef, PointRef, SpecElement } from "../spec/types";
+import type { ElementType, EndRef, PointRef, SpecElement } from "../spec/types";
 import { evalBindings, interpolateVars, type Vars } from "../spec/vars";
 import { mapDrawable, poseMapOf, type LayoutOverrides } from "./posed";
 import type { TemplateFit } from "./template-fit";
+
+/** The types the auto-row places: the ones that own a free x/y and would
+ *  otherwise fall back to the middle of the canvas. */
+const AUTO_ROW_TYPES = new Set<ElementType>(["text", "shape", "math", "image", "icon", "portrait", "polygon", "sector", "arc", "ellipse"]);
 
 /**
  * One piece's geometry (currently only `pieces: {of: "sectors"}`), keyed by
@@ -116,6 +121,8 @@ interface Ctx {
    *  to read them. */
   parametric: Set<string>;
   nodeRadius: Map<string, number>;
+  /** Positions computed for elements that gave none (the auto-row pass). */
+  autoPlace: Record<string, Pt>;
   anchors: Record<string, Pt>;
   namedAnchors: Record<string, Record<string, Pt>>;
   /** The drawables laid out so far — an arrow endpoint's `anchor` reads a box off them. */
@@ -238,6 +245,7 @@ export function layoutElements(
     curveSamples: new Map(Object.entries(seedCurveSamples)),
     parametric: new Set(),
     nodeRadius: new Map(),
+    autoPlace: {},
     anchors: { ...seedAnchors },
     namedAnchors: {},
     drawablesSoFar: [],
@@ -284,6 +292,22 @@ export function layoutElements(
   });
   for (const node of elements.filter((e) => e.type === "node" && e.x !== undefined)) {
     ctx.anchors[node.id] = [node.x!, node.y ?? CANVAS.h / 2];
+  }
+
+  // Pass 1b: elements that gave no position at all would each take their own
+  // type's fallback — in practice the middle of the canvas, so two of them
+  // land on top of each other. They spread into a row instead (spec
+  // 2026-09-19 §7). ONE free element keeps the centre it has always had, so a
+  // figure only changes when it was already a pile. Nodes are excluded (their
+  // own ring is above), and so are the types whose position comes from
+  // somewhere else: a label from what it is attached to, a curve from the
+  // domain, an inset from its column.
+  const freeElements = elements.filter((e) => AUTO_ROW_TYPES.has(e.type) && e.x === undefined && e.y === undefined && !relAt(e));
+  if (freeElements.length > 1) {
+    const slots = autoRow(freeElements.length);
+    freeElements.forEach((el, i) => {
+      ctx.autoPlace[el.id] = slots[i];
+    });
   }
 
   // Ids that exist outside `elements` and are therefore legal `at.ref`
@@ -610,9 +634,8 @@ export function layoutElements(
     // their `at` is a POINT they resolve inside their own case (the angle's
     // vertex; the point's coordinates, where {ref} is a reported mistake).
     const at = relAt(el);
-    if (at?.ref && el.type !== "angle" && el.type !== "point") {
+    if ((at?.ref || at?.place) && el.type !== "angle" && el.type !== "point") {
       const mine = drawables.slice(start);
-      const refBox = refBBox([...(opts.seedDrawables ?? []), ...drawables.slice(0, start)], at.ref, measure, ctx);
       const ownBox = ownBBox(mine, el.id, measure);
       const move = (dx: number, dy: number) => {
         shiftDrawables(mine, dx, dy);
@@ -626,60 +649,79 @@ export function layoutElements(
         bump(el.id);
         for (const k of ctx.pieceGroups[el.id] ?? []) bump(k);
       };
-      const fallback = ctx.atFallback[el.id];
-      if (refBox && ownBox) {
-        // Both silent failures `at` used to have (C1). A figure assembled
-        // from a misspelt anchor looks assembled, just wrong — and place.ts
-        // cannot say so itself: it knows neither the element's id nor the
-        // ref's name. Wording mirrors render/plan.ts's "— using center".
-        const refAnchors = ctx.namedAnchors[at.ref] ?? {};
-        if (at.side && at.anchor !== undefined) {
-          issues.push({
-            rule: "placement",
-            ids: [el.id],
-            severity: "warn",
-            message: `element "${el.id}": at gives both side "${at.side}" and anchor "${at.anchor}" — side is used, anchor is ignored`,
-          });
-        } else if (at.anchor !== undefined && !isUniversalAnchor(at.anchor) && refAnchors[at.anchor] === undefined) {
-          issues.push({
-            rule: "placement",
-            ids: [el.id],
-            severity: "warn",
-            message: `element "${el.id}": at.anchor "${at.anchor}" is not an anchor of "${at.ref}" — using center`,
-          });
-        }
-        if (el.type === "math" && at.side && at.anchor === undefined) {
-          // A formula is words: it tries the neighbouring sides before it
-          // lies down on an axis or a curve (place.ts pickSide). Only what is
-          // already built counts — labels are placed after this pass and
-          // avoid the formula themselves (labels.ts obstacleBoxes).
-          const obstacles = obstacleBoxes([...(opts.seedDrawables ?? []), ...drawables.slice(0, start)], measure);
-          const pick = pickSide(ownBox, refBox, refAnchors, at, el.anchor, obstacles, CANVAS);
-          move(pick.delta[0], pick.delta[1]);
-          if (pick.side !== at.side) ctx.warnings.push(`math "${el.id}": side "${at.side}" of "${at.ref}" lands on other ink — placed ${pick.side} instead`);
-        } else {
-          const [dx, dy] = relativeDelta(ownBox, refBox, refAnchors, at, el.anchor);
+      if (at.place) {
+        // A place needs no ref box: the canvas itself is the reference, and
+        // the element's own same-named anchor is what lands on it.
+        if (ownBox) {
+          const [dx, dy] = placeDelta(ownBox, at.place, el.anchor);
           move(dx, dy);
-        }
-      } else if (!refBox) {
-        // The element was already built at the origin, so leaving it there
-        // would drop it in the bottom-left corner: put it back where it
-        // would have gone with no `at` at all.
-        if (fallback) {
-          move(fallback[0], fallback[1]);
-          ctx.warnings.push(`element "${el.id}": at.ref "${at.ref}" has no box — placed at its default position`);
         } else {
-          ctx.warnings.push(`element "${el.id}": at.ref "${at.ref}" has no box — left where it was`);
+          issues.push({
+            rule: "placement",
+            ids: [el.id],
+            severity: "warn",
+            message: el.type === "label"
+              ? `element "${el.id}": at.place is ignored — a label draws nothing of its own to place; use attach_to and side instead`
+              : `element "${el.id}": at.place is ignored — ${el.type} draws nothing of its own to place`,
+          });
         }
       } else {
-        issues.push({
-          rule: "placement",
-          ids: [el.id],
-          severity: "warn",
-          message: el.type === "label"
-            ? `element "${el.id}": at is ignored — a label draws nothing of its own to place; use attach_to and side instead`
-            : `element "${el.id}": at is ignored — ${el.type} draws nothing of its own to place`,
-        });
+        const refBox = refBBox([...(opts.seedDrawables ?? []), ...drawables.slice(0, start)], at.ref!, measure, ctx);
+        const fallback = ctx.atFallback[el.id];
+        if (refBox && ownBox) {
+          // Both silent failures `at` used to have (C1). A figure assembled
+          // from a misspelt anchor looks assembled, just wrong — and place.ts
+          // cannot say so itself: it knows neither the element's id nor the
+          // ref's name. Wording mirrors render/plan.ts's "— using center".
+          const refAnchors = ctx.namedAnchors[at.ref!] ?? {};
+          if (at.side && at.anchor !== undefined) {
+            issues.push({
+              rule: "placement",
+              ids: [el.id],
+              severity: "warn",
+              message: `element "${el.id}": at gives both side "${at.side}" and anchor "${at.anchor}" — side is used, anchor is ignored`,
+            });
+          } else if (at.anchor !== undefined && !isUniversalAnchor(at.anchor) && refAnchors[at.anchor] === undefined) {
+            issues.push({
+              rule: "placement",
+              ids: [el.id],
+              severity: "warn",
+              message: `element "${el.id}": at.anchor "${at.anchor}" is not an anchor of "${at.ref}" — using center`,
+            });
+          }
+          if (el.type === "math" && at.side && at.anchor === undefined) {
+            // A formula is words: it tries the neighbouring sides before it
+            // lies down on an axis or a curve (place.ts pickSide). Only what is
+            // already built counts — labels are placed after this pass and
+            // avoid the formula themselves (labels.ts obstacleBoxes).
+            const obstacles = obstacleBoxes([...(opts.seedDrawables ?? []), ...drawables.slice(0, start)], measure);
+            const pick = pickSide(ownBox, refBox, refAnchors, at, el.anchor, obstacles, CANVAS);
+            move(pick.delta[0], pick.delta[1]);
+            if (pick.side !== at.side) ctx.warnings.push(`math "${el.id}": side "${at.side}" of "${at.ref}" lands on other ink — placed ${pick.side} instead`);
+          } else {
+            const [dx, dy] = relativeDelta(ownBox, refBox, refAnchors, at, el.anchor);
+            move(dx, dy);
+          }
+        } else if (!refBox) {
+          // The element was already built at the origin, so leaving it there
+          // would drop it in the bottom-left corner: put it back where it
+          // would have gone with no `at` at all.
+          if (fallback) {
+            move(fallback[0], fallback[1]);
+            ctx.warnings.push(`element "${el.id}": at.ref "${at.ref}" has no box — placed at its default position`);
+          } else {
+            ctx.warnings.push(`element "${el.id}": at.ref "${at.ref}" has no box — left where it was`);
+          }
+        } else {
+          issues.push({
+            rule: "placement",
+            ids: [el.id],
+            severity: "warn",
+            message: el.type === "label"
+              ? `element "${el.id}": at is ignored — a label draws nothing of its own to place; use attach_to and side instead`
+              : `element "${el.id}": at is ignored — ${el.type} draws nothing of its own to place`,
+          });
+        }
       }
     }
     // --- end relative placement
@@ -816,11 +858,13 @@ function fitGroup(
  * finished drawables into place), otherwise its own x/y or the fallback.
  */
 function originOr(el: SpecElement, ctx: Ctx, fallback: Pt): Pt {
-  if (relAt(el)?.ref) {
+  const at = relAt(el);
+  if (at?.ref || at?.place) {
     ctx.atFallback[el.id] = fallback;
     return [0, 0];
   }
-  return [el.x ?? fallback[0], el.y ?? fallback[1]];
+  const auto = ctx.autoPlace[el.id];
+  return [el.x ?? auto?.[0] ?? fallback[0], el.y ?? auto?.[1] ?? fallback[1]];
 }
 
 function sampleCurveDomain(el: SpecElement, ctx: Ctx): Pt[] {

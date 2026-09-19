@@ -1,0 +1,40 @@
+- generic [ref=e1]:
+  - alert [ref=e2]:
+    - generic [ref=e3]: ⚠ Testversjon — IKKE offisiell informasjon. Skal IKKE brukes som medisinsk råd.
+    - generic [ref=e4]:
+      - text: Dette er et eksperimentelt verktøy laget for teknisk testing. Innholdet kommer fra en automatisk henting av artikler på helsenorge.no/giftinformasjon/ og et språkmodell-svar. Det er
+      - strong [ref=e5]: ikke
+      - text: offisiell informasjon fra Folkehelseinstituttet, Helsedirektoratet, Giftinformasjonen, eller andre offentlige etater. Det kan inneholde feil. Ved faktisk mistanke om forgiftning, ring Giftinformasjonen på
+      - strong [ref=e6]: 22 59 13 00
+      - text: eller 113 ved livstruende situasjoner.
+  - banner [ref=e7]:
+    - button "Meny" [expanded] [active] [ref=e8] [cursor=pointer]: ☰
+    - generic [ref=e9]:
+      - heading "Spør om giftinformasjon" [level=1] [ref=e10]
+      - text: Testversjon · basert på artikler fra helsenorge.no
+  - navigation "Hovedmeny" [ref=e30]:
+    - link "Samtale" [ref=e31] [cursor=pointer]:
+      - /url: "#samtale"
+    - link "Maler" [ref=e32] [cursor=pointer]:
+      - /url: "#maler"
+    - link "Repetisjoner" [ref=e33] [cursor=pointer]:
+      - /url: "#repetisjoner"
+    - link "API-nøkler" [ref=e34] [cursor=pointer]:
+      - /url: "#nokler"
+  - main [ref=e11]:
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - heading "Hva lurer du på?" [level=2] [ref=e14]
+        - generic [ref=e15]: Svarene bygger på artikler fra helsenorge.no/giftinformasjon
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - textbox "Still et spørsmål om gift eller forgiftning ..." [ref=e19]
+          - button "Spør" [ref=e20] [cursor=pointer]
+          - button "Flere valg" [ref=e21] [cursor=pointer]: …
+        - generic [ref=e22]: Trykk Enter for å sende · Shift+Enter for ny linje
+      - generic [ref=e23]:
+        - button "Er liljekonvall giftig for hunder?" [ref=e24] [cursor=pointer]
+        - button "Barnet mitt har smakt på en tyrihjelm, hva gjør jeg?" [ref=e25] [cursor=pointer]
+        - button "Hva er symptomer på karbonmonoksid-forgiftning?" [ref=e26] [cursor=pointer]
+        - button "Kan katter få forgiftning av sjokolade?" [ref=e27] [cursor=pointer]
+        - button "Er revebjelle giftig?" [ref=e28] [cursor=pointer]

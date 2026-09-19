@@ -1,0 +1,45 @@
+- generic [ref=f2e1]:
+  - alert [ref=f2e2]:
+    - generic [ref=f2e3]: ⚠ Testversjon — IKKE offisiell informasjon. Skal IKKE brukes som medisinsk råd.
+    - generic [ref=f2e4]:
+      - text: Dette er et eksperimentelt verktøy laget for teknisk testing. Innholdet kommer fra en automatisk henting av artikler på helsenorge.no/giftinformasjon/ og et språkmodell-svar. Det er
+      - strong [ref=f2e5]: ikke
+      - text: offisiell informasjon fra Folkehelseinstituttet, Helsedirektoratet, Giftinformasjonen, eller andre offentlige etater. Det kan inneholde feil. Ved faktisk mistanke om forgiftning, ring Giftinformasjonen på
+      - strong [ref=f2e6]: 22 59 13 00
+      - text: eller 113 ved livstruende situasjoner.
+  - banner [ref=f2e7]:
+    - button "Meny" [expanded] [active] [ref=f2e8] [cursor=pointer]: ☰
+    - generic [ref=f2e9]:
+      - heading "Spør om giftinformasjon" [level=1] [ref=f2e91]
+      - text: Testversjon · basert på artikler fra helsenorge.no
+  - navigation "Hovedmeny" [ref=f2e115]:
+    - link "Samtale" [ref=f2e116] [cursor=pointer]:
+      - /url: "#samtale"
+    - link "Maler" [ref=f2e117] [cursor=pointer]:
+      - /url: "#maler"
+    - link "Repetisjoner" [ref=f2e118] [cursor=pointer]:
+      - /url: "#repetisjoner"
+    - link "API-nøkler" [ref=f2e119] [cursor=pointer]:
+      - /url: "#nokler"
+  - main [ref=f2e11]:
+    - generic [ref=f2e92]:
+      - generic [ref=f2e93]:
+        - generic [ref=f2e94]: Er revebjelle giftig?
+        - generic [ref=f2e97]:
+          - generic [ref=f2e98]: Ja, revebjelle er en svært giftig plante. De første symptomene, som magesmerter, kvalme, oppkast og diaré, kommer gjerne i løpet av noen timer, og planten kan også gi hjertesymptomer. Kontakt Giftinformasjonen umiddelbart ved mistanke om inntak. Dette er ikke medisinsk rådgivning. Ved mistanke om forgiftning, ring Giftinformasjonen 22 59 13 00 (døgnåpen). Ved livstruende situasjoner ring 113.
+          - generic [ref=f2e99]:
+            - generic [ref=f2e100]: Informasjon
+            - generic [ref=f2e101]: 5.8 s · claude-sonnet-4-6 · Standard · bm25
+          - generic [ref=f2e102]:
+            - heading "Relaterte artikler fra helsenorge.no (de uthevede er brukt som kilder i svaret)" [level=4] [ref=f2e103]
+            - list [ref=f2e104]:
+              - listitem [ref=f2e105]:
+                - link "Revebjelle er en svært giftig plante" [ref=f2e106] [cursor=pointer]:
+                  - /url: https://www.helsenorge.no/giftinformasjon/planter-og-bar-a-a/revebjelle/
+                - text: · Planter og bær – giftighetsbeskrivelse og symptomer
+      - generic [ref=f2e108]:
+        - generic [ref=f2e109]:
+          - textbox "Still et spørsmål om gift eller forgiftning ..." [ref=f2e110]
+          - button "Spør" [ref=f2e111] [cursor=pointer]
+          - button "Flere valg" [ref=f2e112] [cursor=pointer]: …
+        - generic [ref=f2e113]: Trykk Enter for å sende · Shift+Enter for ny linje
