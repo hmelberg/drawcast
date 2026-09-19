@@ -52,7 +52,9 @@ describe("printing", () => {
       { id: "b", type: "node", shape: "rect", text: "B" },
       { id: "g", type: "group", layout: "row", members: ["a", "b"] },
     ],
-    commands: [{ draw: ["a", "b", "g"], speak: "Hei." }],
+    // The draw list a nested block actually produces: the members, not the
+    // group — a group is a handle, so drawing it is a different spec.
+    commands: [{ draw: ["a", "b"], speak: "Hei." }],
   };
 
   test("members drawn with their group print as a block", () => {
@@ -67,5 +69,13 @@ describe("printing", () => {
     const text = printScriptPages({}, [{ spec: staged }]);
     expect(text).toContain("in g");
     expect(parseScriptPages(text).pages[0].spec.elements!.find((e) => e.id === "g")!.members).toEqual(["a", "b"]);
+  });
+});
+
+describe("the block form survives a round trip", () => {
+  test("write it as a block, read it, write it again — unchanged", () => {
+    const source = 'To slags aktører.\n    row aktorer gap 260\n        box hush "Husholdninger"\n        box bedr "Bedrifter"\n';
+    const spec = parseScriptPages(source).pages[0].spec;
+    expect(printScriptPages({}, [{ spec }])).toBe(source);
   });
 });
