@@ -19,3 +19,6 @@ __pycache__/
 
 # SDD/eval scratch (ledger docs carry the numbers; the specs stay on disk, not in git)
 .superpowers/
+
+# Dev-only casts for /frames.html (never shipped, never committed)
+dev-casts/

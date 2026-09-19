@@ -6,6 +6,46 @@ to this file as "notes". Dated entries, newest first. When an item
 graduates into a spec or the roadmap, note that on the entry rather than
 deleting it.
 
+## 2026-09-20 — The caption band sits on the x-axis label
+
+Seen for the first time by looking, not by linting: at the end of the
+bundled `ppf` cast the x-axis caption "Hospitals" is illegible, because the
+narration band is drawn over it.
+
+Not a bug in the example. `.cs-caption` is `position: absolute; bottom: 0`
+across the stage (`src/render/figure-style.ts`), translucent by design — the
+alpha is 0.6 and `tests/caption-band.test.ts` pins it as the lightest value
+that still gives the caption text 4.5:1. Measured at a realistic size (900 ×
+675): the band is 65 px, the bottom 9.6% of the figure, and `kit.axisLabel`
+puts an x-axis label below the plot floor at y0 = 95 — the bottom 12.7%. So
+the two occupy the same strip, in every template that labels its x-axis, for
+as long as any line of narration is on screen. That is most of the chart-like
+catalogue: supply_demand, ppf, ad_as, firm_cost_curves, is_lm, the empirics
+pack, generic_axes_diagram.
+
+Nothing catches it. The lint works in canvas coordinates and the band is
+chrome ("never placed in canvas coordinates, so it cannot collide with the
+drawing's own layout" — render/index.ts), which is true and is exactly why
+this is invisible to every gate we have.
+
+Options, none costed yet:
+
+1. **Reserve the strip**: shrink the figure's usable canvas by the band's
+   height while a caption is showing. Truest, but the figure would resize as
+   narration comes and goes unless the room is reserved permanently.
+2. **Raise the axis label**: move `kit.axisLabel`'s x-label above the plot
+   floor rather than below it. One kit function, every template inherits it —
+   but it changes the look of every existing figure.
+3. **Live with it** and let authors avoid bottom labels on casts with heavy
+   narration. Cheapest, and the worst answer for generated casts, which
+   cannot know.
+
+Found with the dev-only frame harness added the same day (`/frames.html`,
+`npm run dev`): it lays a cast's resting frames out with the browser's real
+text metrics and mounts them as a contact sheet, so one screenshot shows the
+whole cast. The five intro-economics casts were clean on every on-screen
+frame under those metrics — and this, which no metric was looking for.
+
 ## 2026-09-11 — Exemplar selection is lexical, and that is half a problem
 
 `selectExemplars` (`src/llm/prompt.ts`) picks the 3 exemplars for a request

@@ -1,0 +1,41 @@
+<!doctype html>
+<!--
+  Dev-only frame harness. NOT part of the build: vite's build input is
+  index.html alone, so this page exists on `npm run dev` and never ships.
+
+  What it is for: a drawcast written by hand (in a chat, in an editor) never
+  passes through the app's own eyes. The test gate lints it with
+  heuristicMeasure and no DOM; this page lints it with the REAL text metrics
+  the app uses (makeBrowserMeasure) and shows the frames the storyboard rests
+  on, side by side, so one screenshot covers the whole cast.
+
+    npm run dev        then open  http://localhost:5173/frames.html
+
+  Load a cast:
+    /frames.html?index=274            a bundled example by index
+    /frames.html?cast=/dev-casts/x.json   any JSON/YAML under the repo root
+                                          (dev-casts/ is gitignored)
+    paste it into the box              a spec, a {request, spec}, or playlist YAML
+
+  From a driver (any browser-automation tool), the cheap call is the JSON one —
+  no pictures, small answer:
+
+    await window.__frames({ index: 274 })       // or { text: "<json or yaml>" }
+
+  which returns, per part and per resting frame: the boundary, what changed
+  there, the narration up to it, the BROWSER-measured lint issues, and every
+  element's bbox — the last of which is what makes a claim in the narration
+  checkable ("the price rose by a quarter of the tax") instead of a matter of
+  opinion.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>drawcast — frames (dev)</title>
+  </head>
+  <body>
+    <div id="frames-app"></div>
+    <script type="module" src="/src/dev/frames.ts"></script>
+  </body>
+</html>
