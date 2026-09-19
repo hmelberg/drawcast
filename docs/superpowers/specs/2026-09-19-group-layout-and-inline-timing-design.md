@@ -1,9 +1,22 @@
 # Structure without coordinates, and actions inside a sentence
 
-Status: Part A IMPLEMENTED 2026-09-19 (plan:
-docs/superpowers/plans/2026-09-19-group-layout.md, 8744 tests, tsc+build
-green, round-trip gate intact). Part B (inline timing) designed, not
-implemented. Two independent features in one document because they came out
+Status: BOTH PARTS IMPLEMENTED 2026-09-19. Part A: plan
+docs/superpowers/plans/2026-09-19-group-layout.md. Part B: plan
+docs/superpowers/plans/2026-09-19-inline-timing.md. 8794 tests, tsc+build
+green, round-trip gate intact, three bundled examples added.
+
+§15 named export timing as Part B's main risk, on the assumption that the
+video export schedules its own steps. It does not: `src/export/video.ts`
+calls `render()`, which builds the same `Player` (`src/render/index.ts:421`)
+with a pre-synthesized `BufferSpeech`. The cue is honoured in ONE place and
+the export inherits it.
+
+Two rules Part B needed that §12 did not foresee, both about exactness: a
+cue's resolution is one character of its line, so `normalizeSpec` snaps it
+(a hand-written 0.5 and the same cue read back off the text are then the
+same number); and a CUED draw's elements cannot also be declared by that
+beat, because the declaration would carry no cue — they are declared up
+front and the inline action draws them. Two independent features in one document because they came out
 of one conversation; neither depends on the other.
 
 Two deviations in Part A, both deliberate:

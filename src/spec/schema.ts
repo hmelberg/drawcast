@@ -1150,6 +1150,13 @@ export function normalizeSpec(spec: unknown): unknown {
   }
   for (const cmd of clone.commands ?? []) {
     if (!cmd) continue;
+    // A cue's resolution is one character of the line it is written in: that
+    // is what the script can express, so it is what the spec stores. Snapping
+    // here means a hand-written 0.5 and the same cue read back off the text
+    // are the same number.
+    if (typeof cmd.cue === "number" && typeof cmd.speak === "string" && cmd.speak.length > 0) {
+      cmd.cue = Math.round(cmd.cue * cmd.speak.length) / cmd.speak.length;
+    }
     // YAML-friendly spelling: `pause: click` means the wait verb.
     if ((cmd.pause as unknown) === "click") {
       delete cmd.pause;

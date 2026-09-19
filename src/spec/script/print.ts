@@ -227,12 +227,8 @@ function commandLines(cmd: Command): string[] {
  * array, and goes to the props block instead. Measured: 92 of 121 corpus
  * specs (76%) need no props block at all.
  */
-function homes(spec: Spec, firstMention: Map<string, number>, drawLists: Map<number, string[]>): { inline: Map<number, string[]>; props: string[] } {
-  // A layout group is never drawn, so it has no first mention — but it is not
-  // a WALL either: the block it encloses declares it, at its members' beat,
-  // and the parser writes it back after them. Leaving it in the walk would
-  // push every element before it into the props block for no reason.
-  const els = (spec.elements ?? []).filter((e) => layoutHead(e) === null);
+function homes(spec: Spec, firstMention: Map<string, number>, drawLists: Map<number, string[]>, byId: Map<string, SpecElement>): { inline: Map<number, string[]>; props: string[] } {
+  const els = spec.elements ?? [];
   // The props block prints ABOVE every beat, so whatever goes in it comes
   // first when the text is read back. The inline elements are therefore the
   // longest SUFFIX of the array whose first-draw beats never go backwards;
@@ -260,7 +256,10 @@ function homes(spec: Spec, firstMention: Map<string, number>, drawLists: Map<num
     let cut = -1;
     for (const [beat, ids] of inline) {
       const draw = drawLists.get(beat) ?? [];
-      if (ids.length === draw.length && ids.every((id, k) => id === draw[k])) continue;
+      // A layout group is declared, never drawn, so it is not part of the
+      // draw its beat's declarations have to rebuild.
+      const drawn = ids.filter((id) => layoutHead(byId.get(id) ?? ({} as SpecElement)) === null);
+      if (drawn.length === draw.length && drawn.every((id, k) => id === draw[k])) continue;
       for (const id of ids) cut = Math.max(cut, els.findIndex((e) => e.id === id));
     }
     if (cut === -1) return { inline, props: els.slice(0, start).map((e) => e.id) };
@@ -272,8 +271,20 @@ function homes(spec: Spec, firstMention: Map<string, number>, drawLists: Map<num
 function firstDraws(spec: Spec): Map<string, number> {
   const out = new Map<string, number>();
   (spec.commands ?? []).forEach((cmd, i) => {
+    // A CUED draw is written inside its sentence, so its elements cannot also
+    // be declared by that beat — the declaration would carry no cue. They are
+    // declared up front instead, and the inline action draws them.
+    if (cmd.cue !== undefined) return;
     for (const id of ([] as string[]).concat(cmd.draw ?? [])) if (!out.has(id)) out.set(id, i);
   });
+  // A layout group is never drawn, so it has no beat of its own — but it is
+  // not a WALL in the ordering walk either. It belongs to the beat its LAST
+  // member arrives in, which is where the parser writes it back: after them.
+  for (const el of spec.elements ?? []) {
+    if (layoutHead(el) === null) continue;
+    const beats = ((el.members ?? []) as string[]).map((m) => out.get(m));
+    if (beats.length > 0 && beats.every((b) => b !== undefined)) out.set(el.id, Math.max(...(beats as number[])));
+  }
   return out;
 }
 
@@ -285,24 +296,13 @@ export function printScriptPage(spec: Spec): string {
     if (layoutHead(el) === null) continue;
     for (const m of (el.members ?? []) as string[]) groupOf.set(m, el.id);
   }
-  const layoutGroups = (spec.elements ?? []).filter((e) => layoutHead(e) !== null);
   const mention = firstDraws(spec);
   const drawLists = new Map<number, string[]>();
   (spec.commands ?? []).forEach((cmd, i) => {
     if (cmd.draw !== undefined) drawLists.set(i, ([] as string[]).concat(cmd.draw));
   });
-  const { inline, props } = homes(spec, mention, drawLists);
-  const nestedAt = new Map<string, number>();
-  for (const g of layoutGroups) {
-    const members = (g.members ?? []) as string[];
-    const beats = new Set(members.map((m) => (layoutHead(byId.get(m) ?? ({} as SpecElement)) !== null ? nestedAt.get(m) : mention.get(m))));
-    const beat = [...beats][0];
-    if (beats.size === 1 && beat !== undefined && members.every((m) => (inline.get(beat) ?? []).includes(m) || nestedAt.get(m) === beat)) {
-      nestedAt.set(g.id, beat);
-    } else {
-      props.push(g.id);
-    }
-  }
+  const { inline, props } = homes(spec, mention, drawLists, byId);
+
   const blocks: string[] = [];
 
   const settings: string[] = [];
@@ -356,9 +356,12 @@ export function printScriptPage(spec: Spec): string {
       // a layout group's members nested under the group's own line.
       const nested = new Set<string>();
       for (const id of declared) {
-        const group = groupOf.get(id);
-        if (group === undefined || nested.has(id) || nestedAt.get(group) !== i) continue;
-        const members = ((byId.get(group)!.members ?? []) as string[]);
+        if (layoutHead(byId.get(id) ?? ({} as SpecElement)) === null) continue;
+        const members = ((byId.get(id)!.members ?? []) as string[]);
+        // Nested only when the whole group arrives here; otherwise it is a
+        // declared handle and each member says which group it is in.
+        if (!members.every((m) => declared.includes(m))) continue;
+        const group = id;
         lines.push(elementLine(byId.get(group)!, false));
         nested.add(group);
         for (const m of members) {
@@ -371,7 +374,11 @@ export function printScriptPage(spec: Spec): string {
           }
         }
       }
-      for (const id of declared) if (!nested.has(id)) lines.push(elementLine(byId.get(id)!, false, INDENT, groupOf.get(id)));
+      for (const id of declared) {
+        if (nested.has(id)) continue;
+        const el = byId.get(id)!;
+        lines.push(elementLine(el, layoutHead(el) !== null, INDENT, groupOf.get(id)));
+      }
       // What the declarations did not carry: `parallel`, a `duration` — beat
       // modifiers, printed as their own lines, which the parser folds back
       // into the draw the declarations rebuilt.
