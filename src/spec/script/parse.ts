@@ -5,7 +5,7 @@
 import { scanLines, type ScriptLine } from "./lines";
 import { parseValue, setPath, splitTokens } from "./values";
 import { specSchema } from "../schema";
-import { AROUND_FIELD, ELEMENT_ALIASES, FLAGS, PLACE_WORDS, SHORTHAND_WORDS, SIDE_TYPES, SIDE_WORDS, isColor, seconds } from "./sugar";
+import { AROUND_FIELD, ELEMENT_ALIASES, FLAGS, LAYOUT_HEADS, PLACE_WORDS, SHORTHAND_WORDS, SIDE_TYPES, SIDE_WORDS, isColor, seconds } from "./sugar";
 import { CORE_SCHEMA, load } from "js-yaml";
 import { isLanguage } from "../../code/languages";
 import type { Command, Spec, SpecElement } from "../types";
@@ -119,6 +119,8 @@ function keyValues(tokens: string[], into: Record<string, unknown>, line: number
 
 export interface Direction {
   element?: SpecElement;
+  /** The indent the direction was written at — deeper is nested deeper. */
+  indent?: number;
   /** Elements the direction minted alongside its own (a connector's label). */
   extra?: SpecElement[];
   command?: Record<string, unknown>;
@@ -128,6 +130,10 @@ export interface Direction {
   args: Record<string, unknown>;
   /** A declaration the props block marked `hidden`: declared, not drawn. */
   hidden?: boolean;
+  /** A layout group that collected its members from the block under it. It is
+   *  a handle rather than ink — never drawn, and written to `elements` after
+   *  the members it owns. A group written the old way is untouched. */
+  encloses?: boolean;
 }
 
 export function parseDirection(head: string, rest: string, line: number, warn: (msg: string) => void = () => {}): Direction {
@@ -202,6 +208,12 @@ export function parseDirection(head: string, rest: string, line: number, warn: (
       // `gap` right after a placement phrase belongs to the placement —
       // `above bedr gap 20` is one phrase. A group's OWN gap (the space in a
       // row) has no placement in front of it, so the two never collide.
+      // `in <group>`: membership, resolved when the page is finished so the
+      // group may be declared later in the file.
+      if (tok === "in" && rest2[k + 1] !== undefined) {
+        el["@in"] = rest2[++k];
+        continue;
+      }
       if (tok === "gap" && el.at !== undefined && rest2[k + 1] !== undefined) {
         setPath(el, "at.gap", parseValue(rest2[++k]));
         continue;
@@ -220,7 +232,9 @@ export function parseDirection(head: string, rest: string, line: number, warn: (
       pairs.push(tok);
     }
     keyValues(pairs, el, line);
-    if (typeof el.id !== "string") el.id = `${type}_${line}`;
+    // Named after what was WRITTEN, not what it became: `row_4` reads better
+    // than `group_4`, and a `box` is a node.
+    if (typeof el.id !== "string") el.id = `${head}_${line}`;
     const hidden = el.hidden === true;
     delete el.hidden;
     // A connector's quoted text is the label ON it: the line that draws the
@@ -292,6 +306,9 @@ export function parseDirection(head: string, rest: string, line: number, warn: (
   throw new ScriptError(`"${head}" is not a kind of thing or a verb`, line);
 }
 
+/** The open layout block a line at this indent belongs to, if any. */
+type OpenLayout = { item: Direction; indent: number };
+
 interface Beat {
   speech?: string;
   voice?: "a" | "b";
@@ -309,6 +326,12 @@ export function parseScriptPages(text: string): ParsedScript {
   let beat: Beat | null = null;
   let pendingLabel: string | undefined;
   let baseIndent = 0;
+  let openLayouts: OpenLayout[] = [];
+  /** The group a member at `indent` joins: the innermost open layout shallower than it. */
+  const memberOwner = (items: Direction[], indent: number): Direction | null => {
+    openLayouts = openLayouts.filter((o) => o.indent < indent && items.includes(o.item));
+    return openLayouts.length > 0 ? openLayouts[openLayouts.length - 1].item : null;
+  };
   let docTitle: string | undefined;
   let pendingTitle: string | undefined;
   let lastArgs: Record<string, unknown> | null = null;
@@ -328,6 +351,10 @@ export function parseScriptPages(text: string): ParsedScript {
     const spec = openPage();
     const commands: Record<string, unknown>[] = [];
     let pendingDraw: string[] | null = null;
+    // A group is a HANDLE, not ink: declaring one draws nothing, and it is
+    // complete only once its members exist — so it is written to `elements`
+    // after them, innermost first.
+    const groupItems = beat.items.filter((it) => it.encloses === true).sort((a, b2) => (b2.indent ?? 0) - (a.indent ?? 0));
     for (const item of beat.items) {
       if (item.modifier) {
         const target = commands[commands.length - 1] ?? (commands.push({}), commands[0]);
@@ -335,6 +362,7 @@ export function parseScriptPages(text: string): ParsedScript {
         continue;
       }
       if (item.element) {
+        if (item.encloses === true) continue;
         (spec.elements ??= []).push(item.element, ...(item.extra ?? []));
         if (item.hidden) { pendingDraw = null; continue; }
         const ids = [item.element.id, ...(item.extra ?? []).map((x) => x.id)];
@@ -348,6 +376,7 @@ export function parseScriptPages(text: string): ParsedScript {
         commands.push(item.command);
       }
     }
+    for (const g of groupItems) (spec.elements ??= []).push(g.element!);
     if (commands.length === 0 && beat.speech === undefined && beat.label === undefined) { beat = null; return; }
     if (commands.length === 0) commands.push({});
     const first = commands[0];
@@ -398,6 +427,23 @@ export function parseScriptPages(text: string): ParsedScript {
       case "direction": {
         const b = startBeat();
         if (b.items.length === 0) baseIndent = l.indent;
+        // Inside a layout block, a deeper-indented element head declares a
+        // MEMBER of that group rather than continuing the line above.
+        const owner = memberOwner(b.items, l.indent);
+        if (owner !== null && (ELEMENT_ALIASES[l.head] !== undefined || ELEMENT_HEADS.has(l.head))) {
+          const d = parseDirection(l.head, l.rest, l.line, warn);
+          if (d.element) {
+            const members = (owner.element!.members as string[] | undefined) ?? [];
+            members.push(d.element.id);
+            (owner.element as unknown as Record<string, unknown>).members = members;
+            owner.encloses = true;
+            d.indent = l.indent;
+            b.items.push(d);
+            lastArgs = d.args;
+            if (LAYOUT_HEADS[l.head] !== undefined) openLayouts.push({ item: d, indent: l.indent });
+            break;
+          }
+        }
         if (l.indent > baseIndent && lastArgs) {
           // `*` is a choice, `+` is the correct one — a quiz's answers, one
           // per line, in the order the viewer sees them.
@@ -413,8 +459,10 @@ export function parseScriptPages(text: string): ParsedScript {
           break;
         }
         const d = parseDirection(l.head, l.rest, l.line, warn);
+        d.indent = l.indent;
         b.items.push(d);
         lastArgs = d.args;
+        if (LAYOUT_HEADS[l.head] !== undefined && d.element) openLayouts.push({ item: d, indent: l.indent });
         break;
       }
       case "fence": {
@@ -432,6 +480,24 @@ export function parseScriptPages(text: string): ParsedScript {
   if (docTitle !== undefined) {
     if (pages.length === 1 && pages[0].spec.title === undefined) pages[0].spec.title = docTitle;
     else meta.title = docTitle;
+  }
+  // `in <group>` written on a member, now that every group on the page exists.
+  for (const { spec } of pages) {
+    const byId = new Map((spec.elements ?? []).map((e) => [e.id, e as unknown as Record<string, unknown>]));
+    for (const el of spec.elements ?? []) {
+      const rec = el as unknown as Record<string, unknown>;
+      const owner = rec["@in"];
+      delete rec["@in"];
+      if (typeof owner !== "string") continue;
+      const group = byId.get(owner);
+      if (group === undefined) {
+        warnings.push(`element "${el.id}": there is no group "${owner}" to be in`);
+        continue;
+      }
+      const members = (group.members as string[] | undefined) ?? [];
+      if (!members.includes(el.id)) members.push(el.id);
+      group.members = members;
+    }
   }
   delete meta.pageCount;
   return { meta, pages, warnings };

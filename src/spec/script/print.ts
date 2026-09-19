@@ -4,7 +4,7 @@
 import { dump } from "js-yaml";
 import { fieldLines, formatValue } from "./values";
 import { COMMAND_ORDER, ELEMENT_ORDER, LIST_VERBS, OBJECT_VERBS, SCALAR_VERBS, TARGET_FIELD, TARGET_VERBS } from "./parse";
-import { AROUND_FIELD, ELEMENT_ALIASES, FLAG_FOR, PLACE_WORDS, SIDE_TYPES, isColor } from "./sugar";
+import { AROUND_FIELD, ELEMENT_ALIASES, FLAG_FOR, LAYOUT_HEADS, PLACE_WORDS, SIDE_TYPES, isColor } from "./sugar";
 
 /** The keys that can head a direction line. Everything else in a command
  *  rides along as a modifier on the same line. */
@@ -62,6 +62,12 @@ const ALIAS_FOR = new Map<string, string>(
 /** Element types written under a shorter name of their own. */
 const HEAD_FOR: Record<string, string> = { point: "dot", annotation: "mark" };
 
+/** The layout word a group is written under, when it has one. */
+function layoutHead(el: SpecElement): string | null {
+  const layout = (el as unknown as Record<string, unknown>).layout;
+  return el.type === "group" && typeof layout === "string" && LAYOUT_HEADS[layout] !== undefined ? layout : null;
+}
+
 /**
  * The shorthands an element can be written with, and the fields they eat.
  * Reversible by construction: a word is emitted only when the field holds
@@ -82,6 +88,13 @@ function shorthands(el: SpecElement): { words: string[]; used: Set<string>; eate
   };
   const from = end(e.from), to = end(e.to);
   if (from !== null && to !== null) { words.push(from, "->", to); used.add("from"); used.add("to"); }
+
+  // A layout group is headed by its layout word, and its membership is
+  // written by the block it encloses or by each member's `in`.
+  if (el.type === "group" && typeof e.layout === "string" && LAYOUT_HEADS[e.layout] !== undefined) {
+    used.add("layout");
+    used.add("members");
+  }
 
   // What a border wraps.
   const aroundField = AROUND_FIELD[el.type];
@@ -125,7 +138,7 @@ function shorthands(el: SpecElement): { words: string[]; used: Set<string>; eate
 }
 
 /** One element, as the line that declares it. */
-function elementLine(el: SpecElement, hidden: boolean): string {
+function elementLine(el: SpecElement, hidden: boolean, indent: string = INDENT, inGroup?: string): string {
   const { words, used, eaten } = el.type === "code"
     ? { words: [] as string[], used: new Set<string>(), eaten: new Set<string>() }
     : shorthands(el);
@@ -137,15 +150,15 @@ function elementLine(el: SpecElement, hidden: boolean): string {
     // `code` is the head when the element names no language — a fence must
     // always say what it is, and no runtime is called "code".
     const info = ["```" + (el.language ?? "code"), el.id, rest, el.code === "" ? 'code ""' : "", hidden ? "hidden true" : ""].filter(Boolean).join(" ");
-    const body = (el.code ?? "").split("\n").map((l) => (l === "" ? l : INDENT + l)).join("\n");
-    return `${INDENT}${info}\n${body}\n${INDENT}\`\`\``;
+    const body = (el.code ?? "").split("\n").map((l) => (l === "" ? l : indent + l)).join("\n");
+    return `${indent}${info}\n${body}\n${indent}\`\`\``;
   }
-  const head = shapeAlias ?? HEAD_FOR[el.type] ?? el.type;
+  const head = shapeAlias ?? layoutHead(el) ?? HEAD_FOR[el.type] ?? el.type;
   // Always quoted: the parser recognizes the positional text BY its quote, so
   // a text that needs no quotes would read back as a stray key.
   const text = typeof el.text === "string" ? ` ${JSON.stringify(el.text)}` : "";
-  const tail = [words.join(" "), rest, hidden ? "hidden true" : ""].filter(Boolean).join(" ");
-  return `${INDENT}${head} ${el.id}${text}${tail === "" ? "" : ` ${tail}`}`;
+  const tail = [words.join(" "), rest, inGroup !== undefined ? `in ${inGroup}` : "", hidden ? "hidden true" : ""].filter(Boolean).join(" ");
+  return `${indent}${head} ${el.id}${text}${tail === "" ? "" : ` ${tail}`}`;
 }
 
 /**
@@ -262,6 +275,12 @@ function firstDraws(spec: Spec): Map<string, number> {
 
 export function printScriptPage(spec: Spec): string {
   const byId = new Map((spec.elements ?? []).map((el) => [el.id, el]));
+  // member id → the layout group it belongs to.
+  const groupOf = new Map<string, string>();
+  for (const el of spec.elements ?? []) {
+    if (layoutHead(el) === null) continue;
+    for (const m of (el.members ?? []) as string[]) groupOf.set(m, el.id);
+  }
   const mention = firstDraws(spec);
   const drawLists = new Map<number, string[]>();
   (spec.commands ?? []).forEach((cmd, i) => {
@@ -281,7 +300,9 @@ export function printScriptPage(spec: Spec): string {
     // ALWAYS hidden: a props declaration only declares. Whatever draws it
     // later keeps its own `draw` line, so declaring it visible here would
     // mint a second, phantom draw command at the top of the page.
-    blocks.push(props.map((id) => elementLine(byId.get(id)!, true)).join("\n"));
+    // `hidden` is what keeps a props declaration from minting a draw command
+    // of its own, so everything here carries it — a group included.
+    blocks.push(props.map((id) => elementLine(byId.get(id)!, true, INDENT, groupOf.get(id))).join("\n"));
   }
 
   (spec.commands ?? []).forEach((cmd, i) => {
@@ -290,8 +311,27 @@ export function printScriptPage(spec: Spec): string {
     if (cmd.speak !== undefined) lines.push(`${cmd.voice === "b" ? "B: " : cmd.voice === "a" ? "A: " : ""}${cmd.speak}`);
     const declared = inline.get(i) ?? [];
     if (declared.length > 0) {
-      // The draw this beat's declarations ARE — printed as the elements.
-      for (const id of declared) lines.push(elementLine(byId.get(id)!, false));
+      // The draw this beat's declarations ARE — printed as the elements, with
+      // a layout group's members nested under the group's own line.
+      const nested = new Set<string>();
+      for (const id of declared) {
+        const group = groupOf.get(id);
+        if (group === undefined || nested.has(id)) continue;
+        const members = ((byId.get(group)!.members ?? []) as string[]);
+        if (!members.every((m) => declared.includes(m) || byId.get(m)?.type === "group")) continue;
+        lines.push(elementLine(byId.get(group)!, false));
+        nested.add(group);
+        for (const m of members) {
+          const child = byId.get(m)!;
+          lines.push(elementLine(child, false, INDENT + INDENT));
+          nested.add(m);
+          for (const gm of ((child.members ?? []) as string[])) {
+            lines.push(elementLine(byId.get(gm)!, false, INDENT + INDENT + INDENT));
+            nested.add(gm);
+          }
+        }
+      }
+      for (const id of declared) if (!nested.has(id)) lines.push(elementLine(byId.get(id)!, false, INDENT, groupOf.get(id)));
       // What the declarations did not carry: `parallel`, a `duration` — beat
       // modifiers, printed as their own lines, which the parser folds back
       // into the draw the declarations rebuilt.
