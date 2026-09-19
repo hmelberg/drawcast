@@ -21737,5 +21737,636 @@
     "request": "Why does coffee go cold in a mug in an hour but stay hot in a flask all day?",
     "title": "The flask that only subtracts",
     "playlist": "playlist:\n  title: The flask that only subtracts\n---\ntitle: Three ways out\nelements:\n  - { id: mug, type: path, closed: true, points: [[310, 170], [490, 170], [510, 480], [290, 480]] }\n  - { id: brew, type: path, closed: true, points: [[318, 178], [482, 178], [497, 430], [303, 430]], style: { fill: \"#d0865f\" } }\n  - { id: a_cond, type: arrow, from: { x: 515, y: 280 }, to: { x: 700, y: 280 }, style: { color: \"#b5482e\" } }\n  - { id: lab_cond, type: label, text: Conduction, attach_to: a_cond, side: right, style: { color: \"#b5482e\" } }\n  - { id: a_conv, type: arrow, from: { x: 400, y: 500 }, to: { x: 400, y: 650 }, style: { color: \"#b5482e\" } }\n  - { id: lab_conv, type: label, text: Convection, attach_to: a_conv, side: left, style: { color: \"#b5482e\" } }\n  - { id: a_rad, type: arrow, from: { x: 520, y: 420 }, to: { x: 675, y: 530 }, style: { color: \"#b5482e\" } }\n  - { id: lab_rad, type: label, text: Radiation, attach_to: a_rad, side: right, style: { color: \"#b5482e\" } }\ncommands:\n  - draw: [mug]\n    speak: \"Coffee poured at ninety degrees is undrinkably hot; in an open mug it is lukewarm within the hour.\"\n  - draw: [brew]\n    speak: \"In a flask the same coffee is still hot at supper — and the flask has no power, no battery, nothing added.\"\n  - draw: [a_cond, lab_cond]\n    speak: \"So whatever it does, it does by closing the ways heat leaves. Conduction is the first: heat walks out through the ceramic, molecule bumping molecule.\"\n  - draw: [a_conv, lab_conv]\n    speak: \"Convection is the second, off the top: warm air lifts away, and every gram of water that evaporates carries off the energy it took to boil it.\"\n  - draw: [a_rad, lab_rad]\n    speak: \"The third is radiation — anything warmer than its surroundings glows in the infrared, coffee and hand alike.\"\n  - highlight: { target: [a_conv], effect: glow }\n    speak: \"The open top is the widest door, which is why a saucer laid over the cup does more than it looks like it should.\"\n  - point: { at: { ref: mug }, gesture: circle }\n    speak: \"None of this is a fault in the mug. All three are simply what physics does to anything warm.\"\n  - focus: { target: [a_cond, a_conv, a_rad] }\n    speak: \"Three doors, then — and a flask cannot add heat, so the only thing it can possibly do is shut them.\"\n---\ntitle: How the flask shuts them\nelements:\n  - { id: outer, type: path, closed: true, points: [[300, 150], [640, 150], [640, 620], [300, 620]] }\n  - { id: inner, type: path, closed: true, points: [[350, 195], [590, 195], [590, 620], [350, 620]] }\n  - { id: brew2, type: path, closed: true, points: [[358, 203], [582, 203], [582, 555], [358, 555]], style: { fill: \"#d0865f\" } }\n  - { id: gap, type: shape, shape: rect, x: 615, y: 470, width: 42, height: 190, style: { color: \"#2f6b8f\", dash: true } }\n  - { id: lab_vac, type: label, text: Vacuum, attach_to: gap, side: right, style: { color: \"#2f6b8f\" } }\n  - { id: silver_in, type: path, points: [[592, 350], [592, 210]], style: { color: \"#2f6b8f\" } }\n  - { id: silver_in_l, type: path, points: [[348, 350], [348, 210]], style: { color: \"#2f6b8f\" } }\n  - { id: silver_out_l, type: path, points: [[302, 350], [302, 210]], style: { color: \"#2f6b8f\" } }\n  - { id: silver_out, type: path, points: [[638, 350], [638, 210]], style: { color: \"#2f6b8f\" } }\n  - { id: lab_sil, type: label, text: Silvered, attach_to: silver_out, side: right, style: { color: \"#2f6b8f\" } }\n  - { id: stopper, type: shape, shape: rect, x: 470, y: 650, width: 260, height: 60, style: { color: \"#2f6b8f\" } }\n  - { id: lab_stopper, type: label, text: Stopper, attach_to: stopper, side: above, style: { color: \"#2f6b8f\" } }\ncommands:\n  - draw: [outer]\n    speak: \"Now that the three doors have names, here is what the flask does to them: it is two bottles, one inside the other.\"\n  - draw: [inner, brew2]\n    speak: \"The coffee only ever touches the inner one.\"\n  - draw: [gap, lab_vac]\n    speak: \"The air between them is pumped out. With almost nothing left in that gap there is nothing to conduct heat across it and nothing to circulate — one emptiness closes two of the three doors.\"\n  - draw: [silver_in, silver_out, silver_in_l, silver_out_l, lab_sil]\n    speak: \"Radiation crosses a vacuum perfectly happily, so both facing surfaces are silvered: infrared arrives at a mirror and is sent straight back into the coffee.\"\n  - draw: [stopper, lab_stopper]\n    speak: \"And the stopper seals the top, where the steam was leaving.\"\n  - focus: { target: [outer, inner] }\n    speak: \"James Dewar built the first one of these in 1892, to hold gases he had just learned to liquefy — and never patented it.\"\n  - point: { at: { ref: outer }, gesture: circle }\n    speak: \"A glassblower who had made flasks for his laboratory put it on the market as the Thermos; Dewar went to court over it and lost.\"\n  - highlight: { target: [gap, silver_in, silver_out, stopper], effect: glow }\n    speak: \"Three ways out, three of them closed, and not one watt spent doing it.\"\n---\ntitle: What is left\ntemplate: generic_axes_diagram\nparams:\n  title: Coffee, cooling\n  x_label: Time\n  y_label: Temperature\n  curves:\n    - { expression: \"20 + 70*exp(-x/4)\", label: Mug, color: demand }\n    - { expression: \"20 + 70*exp(-x/140)\", label: Flask, color: supply }\n  points:\n    - { x: 8, y: 29.5, label: \"30 °C after 1 hour\" }\n    - { x: 50, y: 69, label: \"69 °C after 6 hours\" }\nelements:\n  - { id: flask_pic, type: inset, of: How the flask shuts them }\ncommands:\n  - draw: [flask_pic]\n    speak: \"Now that the doors are shut, watch what the two vessels actually do.\"\n  - draw: [title, axes, x_label, y_label]\n  - draw: [curve_0, label_curve_0]\n    speak: \"Ninety degrees in an open mug: the curve falls off a cliff, because all three doors are wide open.\"\n  - draw: [point_0, point_label_0]\n    speak: \"An hour in, it is down to thirty degrees — barely warm.\"\n  - draw: [curve_1, label_curve_1]\n    speak: \"The flask starts at the same ninety and takes all day to do what the mug did in an hour.\"\n  - draw: [point_1, point_label_1]\n    speak: \"Six hours later it is still at sixty-nine.\"\n  - highlight: { target: [curve_1], effect: glow }\n    speak: \"But look at the slope: it does fall. A perfect flask would be a flat line, and this is not one.\"\n  - move: { target: flask_pic, scale: 4, to: { x: 480, y: 400 } }\n  - focus: { target: [flask_pic] }\n    speak: \"The two bottles have to meet somewhere, and they meet at the neck — a ring of glass that conducts, under a stopper that is not a vacuum.\"\n  - point: { at: { ref: flask_pic, anchor: stopper } }\n  - move: { target: flask_pic, scale: 0.25, to: { x: 900, y: 670 } }\n  - highlight: { target: [curve_0, curve_1], effect: glow }\n    speak: \"So a flask never keeps anything hot. It only makes the way out long — and that alone turns one hour into a day.\"\n"
+  },
+  {
+    "request": "What does it actually cost a country to build more hospitals?",
+    "spec": {
+      "title": "Economics 1 · What a hospital really costs",
+      "template": "ppf",
+      "params": {
+        "good_x": "Hospitals",
+        "good_y": "Everything else",
+        "indifference_curves": 1,
+        "optimum_at": 0.22,
+        "optimum_label": "This year's choice"
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "What a hospital really costs",
+            "subtitle": "Scarcity and choice"
+          },
+          "speak": "A new hospital comes with an invoice. An economist will tell you the invoice is not the cost."
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Hospitals along the bottom, and up the side everything else the country makes — schools, roads, pensions, coffee."
+        },
+        {
+          "draw": [
+            "frontier"
+          ],
+          "speak": "This curve is the edge of the possible: every mix on it uses every nurse, builder and machine the country has, with nobody left idle."
+        },
+        {
+          "draw": [
+            "attainable"
+          ],
+          "speak": "Everything in here is possible too, but only by leaving people and machines standing still."
+        },
+        {
+          "draw": [
+            "ic_1",
+            "label_ic_1"
+          ],
+          "speak": "Now what the country wants. Along this line every mix pleases it equally well, and it is the best such line the economy can actually reach."
+        },
+        {
+          "draw": [
+            "optimum",
+            "optimum_label"
+          ],
+          "speak": "So this year's budget lands where the two just touch: a few hospitals, and a great deal of everything else."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "optimum"
+            },
+            "gesture": "circle"
+          },
+          "speak": "And here is the question no invoice can answer — what does one more hospital cost from there?"
+        },
+        {
+          "highlight": {
+            "target": [
+              "frontier"
+            ],
+            "effect": "glow"
+          },
+          "speak": "The answer is the steepness of the curve at that point, and up at this end it is nearly flat: the first hospital takes builders who were barely needed elsewhere, so almost nothing else is given up."
+        },
+        {
+          "animate": {
+            "optimum_at": 0.72
+          },
+          "duration": 3.5,
+          "speak": "Now suppose health becomes the priority, and the country goes on buying hospitals."
+        },
+        {
+          "highlight": {
+            "target": [
+              "frontier"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Same curve, same country, and the slope where it now sits is steep. One more hospital takes surgeons and steel from schools that genuinely needed them."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "optimum"
+            },
+            "gesture": "underline"
+          },
+          "speak": "Which is why an economist meets every price with the question “compared with what?” Milton Friedman made a book title of the answer: there is no such thing as a free lunch."
+        },
+        {
+          "focus": {
+            "target": [
+              "frontier",
+              "optimum"
+            ]
+          },
+          "speak": "The cost of a hospital was never the invoice, then. It is a slope — the schools you no longer build — and it climbs with every hospital you add."
+        }
+      ]
+    }
+  },
+  {
+    "request": "If nobody sets the price, how does a market end up with one?",
+    "spec": {
+      "title": "Economics 2 · The price nobody decides",
+      "template": "supply_demand",
+      "params": {
+        "x_label": "Flats to rent",
+        "y_label": "Monthly rent",
+        "demand": {},
+        "supply": {},
+        "equilibrium": {
+          "show": true,
+          "guides": true
+        },
+        "price_ceiling": {
+          "label": "Rent cap",
+          "show_shortage": true
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "The price nobody decides",
+            "subtitle": "How a market clears"
+          },
+          "speak": "Nobody in this city sets the rent. No committee meets, no minister signs anything — and yet there is a going rate."
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Flats to rent along the bottom, the monthly rent up the side."
+        },
+        {
+          "draw": [
+            "demand_curve",
+            "label_D"
+          ],
+          "speak": "Tenants first: the cheaper flats are, the more people want one — students who would otherwise share, couples who would otherwise stay put. Demand slopes down."
+        },
+        {
+          "draw": [
+            "supply_curve",
+            "label_S"
+          ],
+          "speak": "Landlords read the same number the other way round. The higher the rent, the more flats get built, converted, and let out rather than left empty."
+        },
+        {
+          "draw": [
+            "equilibrium_point",
+            "label_E"
+          ],
+          "speak": "The two lines cross exactly once."
+        },
+        {
+          "draw": [
+            "guide_lines",
+            "label_Pstar",
+            "label_Qstar"
+          ],
+          "speak": "At that rent every tenant willing to pay it finds a flat, and every landlord willing to let at it finds a tenant. Nobody is left holding anything."
+        },
+        {
+          "highlight": {
+            "target": [
+              "equilibrium_point"
+            ],
+            "effect": "glow"
+          },
+          "speak": "That is the one rent in the picture with nothing pushing on it — a claim worth testing, so let us pick a different one."
+        },
+        {
+          "draw": [
+            "ceiling_line",
+            "label_ceiling"
+          ],
+          "speak": "The city caps the rent below the crossing, meaning well: rents shall not exceed this."
+        },
+        {
+          "draw": [
+            "shortage_guides"
+          ],
+          "speak": "Read across to both curves at the capped rent. Many more tenants now want a flat…"
+        },
+        {
+          "draw": [
+            "shortage_arrow",
+            "label_shortage"
+          ],
+          "speak": "…and fewer landlords are willing to offer one. That gap is a queue: people who would gladly pay the capped rent and find nothing at all."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "shortage_arrow"
+            },
+            "gesture": "circle"
+          },
+          "speak": "A queue is pressure. Someone slips the landlord a little extra, a flat goes quietly to a cousin, or it leaves the market as a holiday let. New York has had rent control since a wartime freeze in nineteen forty-three, and its housing queue is a famous institution."
+        },
+        {
+          "focus": {
+            "target": [
+              "equilibrium_point",
+              "ceiling_line"
+            ]
+          },
+          "speak": "Set the rent above the crossing instead and the pressure runs the other way, with empty flats and landlords cutting deals."
+        },
+        {
+          "quiz": {
+            "question": "At a rent set above the crossing, what shows up?",
+            "choices": [
+              "A queue of tenants",
+              "Empty flats nobody takes",
+              "Nothing changes"
+            ],
+            "correct": 2,
+            "right": "Empty flats — landlords offer more than tenants will take at that rent, and every empty month argues the rent back down.",
+            "wrong": "Read both curves across at the higher rent: landlords offer more, tenants want fewer."
+          }
+        },
+        {
+          "speak": "You answered {score} of {score_total}. So the crossing is not where a market is told to sit — it is the only rent nobody has a reason to move away from, which is how a price gets set by no one in particular."
+        }
+      ]
+    }
+  },
+  {
+    "request": "A tax is collected from sellers, so why do buyers end up paying part of it?",
+    "spec": {
+      "title": "Economics 3 · Who really pays a tax",
+      "template": "supply_demand",
+      "params": {
+        "x_label": "Packs of cigarettes",
+        "y_label": "Price per pack",
+        "demand": {
+          "steepness": 0.35
+        },
+        "supply": {
+          "steepness": 1
+        },
+        "equilibrium": {
+          "show": true
+        },
+        "tax": {
+          "show_deadweight_loss": true
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Who really pays a tax",
+            "subtitle": "Taxes, prices and lost trades"
+          },
+          "speak": "The tax on a pack of cigarettes is collected from the shop. The shop, it turns out, is not who pays it."
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Packs along the bottom, the price of a pack up the side."
+        },
+        {
+          "draw": [
+            "demand_curve",
+            "label_D"
+          ],
+          "speak": "Here is demand, and how flat it lies is the whole story: this is a town of casual smokers who would give up the habit, or drive to the next town, if the price moved much."
+        },
+        {
+          "draw": [
+            "supply_curve",
+            "label_S"
+          ],
+          "speak": "Supply behaves as always — the better the price, the more shops bother to stock them."
+        },
+        {
+          "draw": [
+            "equilibrium_point",
+            "guide_lines",
+            "label_E",
+            "label_Pstar",
+            "label_Qstar"
+          ],
+          "speak": "Untaxed, the market settles here."
+        },
+        {
+          "draw": [
+            "tax_supply_curve",
+            "label_S_tax"
+          ],
+          "speak": "Now a fixed tax on every pack, collected from the seller. Each pack costs the shop that much more than it did, so the whole supply curve lifts by exactly the tax."
+        },
+        {
+          "draw": [
+            "tax_equilibrium_point",
+            "tax_guide_lines"
+          ],
+          "speak": "The new crossing is the price on the shelf — and it has not risen by the whole tax. Measure it against the lift in the curve: it is up by about a quarter of it."
+        },
+        {
+          "highlight": {
+            "target": [
+              "equilibrium_point",
+              "tax_equilibrium_point"
+            ],
+            "effect": "glow"
+          },
+          "speak": "The other three quarters come out of the shop's own margin. With buyers this quick to walk away, the seller swallows most of the tax rather than lose them."
+        },
+        {
+          "draw": [
+            "dwl_region",
+            "label_DWL"
+          ],
+          "speak": "And a third thing appears: a wedge of packs nobody sells any more, though a buyer valued them above what a seller would have taken. Nobody collects that. It is simply gone."
+        },
+        {
+          "animate": {
+            "demand.steepness": 1.2
+          },
+          "duration": 3.5,
+          "speak": "Now the same tax in a town of committed smokers who will buy their packs whatever they cost. Watch demand steepen."
+        },
+        {
+          "highlight": {
+            "target": [
+              "tax_equilibrium_point"
+            ],
+            "effect": "glow"
+          },
+          "speak": "The shelf price now carries about half the tax instead of a quarter. The shop hands on what it can, because these buyers do not leave."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "dwl_region"
+            },
+            "gesture": "circle"
+          },
+          "speak": "The lost wedge shrank by a third at the same time, because hardly any trades were given up. A tax that collects a great deal and destroys little is exactly why cigarettes are taxed and bread is not."
+        },
+        {
+          "erase": [
+            "label_DWL"
+          ]
+        },
+        {
+          "animate": {
+            "supply.steepness": 0.35
+          },
+          "duration": 3.5,
+          "speak": "So much for the buyers. What if the sellers are the ones who can walk away — shops with other things to sell, and shelf space that will happily hold something else?"
+        },
+        {
+          "highlight": {
+            "target": [
+              "tax_equilibrium_point",
+              "dwl_region"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Three quarters of the tax lands on the shelf price now, and the wedge of lost trades is back to its full size: those are the packs the shops stopped bothering with."
+        },
+        {
+          "focus": {
+            "target": [
+              "tax_supply_curve",
+              "demand_curve"
+            ]
+          },
+          "speak": "So who pays is not written in the tax law at all. It settles on whichever side cannot walk away — which the English window tax of sixteen ninety-six learned backwards, when people bricked up their windows rather than pay."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why does competition leave a firm no profit at all?",
+    "spec": {
+      "title": "Economics 4 · Where the profit goes",
+      "template": "firm_cost_curves",
+      "params": {
+        "mode": "competition",
+        "show": [
+          "mc",
+          "atc",
+          "price_line"
+        ],
+        "price": 78,
+        "shade": "profit"
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Where the profit goes",
+            "subtitle": "Firms, costs and competition"
+          },
+          "speak": "A bakery opens in a town that had none, and for a year it prints money. Then, reliably, it stops."
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "One firm this time, not a market: loaves baked along the bottom, money per loaf up the side."
+        },
+        {
+          "draw": [
+            "mc",
+            "label_mc"
+          ],
+          "speak": "Marginal cost is what one more loaf costs to make — falling while the ovens fill up, then climbing as the bakers go into overtime."
+        },
+        {
+          "draw": [
+            "atc",
+            "label_atc"
+          ],
+          "speak": "Average total cost spreads everything over the loaves — flour, wages, the rent and the oven — and bottoms out where the bakery is worked just right, neither half empty nor frantic."
+        },
+        {
+          "draw": [
+            "price_line",
+            "label_price_line"
+          ],
+          "speak": "The bakery is far too small to move the price of bread, so the price arrives as a flat line handed to it by the market. Today it is generous."
+        },
+        {
+          "draw": [
+            "q_star",
+            "label_q_star",
+            "p_star",
+            "label_p_star"
+          ],
+          "speak": "How much to bake? Go on while another loaf sells for more than it costs to make, and stop where marginal cost catches the price."
+        },
+        {
+          "draw": [
+            "shade",
+            "label_shade"
+          ],
+          "speak": "That rectangle is the profit: the gap between price and average cost, on every loaf sold."
+        },
+        {
+          "highlight": {
+            "target": [
+              "shade"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Word of a rectangle like that travels."
+        },
+        {
+          "animate": {
+            "price": 40
+          },
+          "duration": 3,
+          "speak": "A second bakery opens, then a third. Between them there is more bread than the town was buying, and the price begins to slide."
+        },
+        {
+          "highlight": {
+            "target": [
+              "shade"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Each firm re-reads the same rule, bakes a little less, and keeps a thinner rectangle."
+        },
+        {
+          "animate": {
+            "price": 23
+          },
+          "duration": 3,
+          "speak": "And newcomers do not stop arriving while there is still something to arrive for."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "atc"
+            },
+            "gesture": "circle"
+          },
+          "speak": "The price comes to rest just above the lowest point of average cost, and the rectangle is a sliver. Nothing has gone wrong: the bakers are paid, the oven is paid off, and the owner earns what the owner could have earned elsewhere."
+        },
+        {
+          "focus": {
+            "target": [
+              "mc",
+              "atc",
+              "price_line"
+            ]
+          },
+          "speak": "That is what competition does with a profit — it hands it to the customer as a lower price. The bakery never got worse; it got company."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Where does a recession come from, and what can a government actually do about it?",
+    "spec": {
+      "title": "Economics 5 · When the economy falls short",
+      "template": "ad_as",
+      "params": {
+        "shift": {
+          "curve": "ad",
+          "direction": "left",
+          "amount": 4
+        },
+        "show_lras": true
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "When the economy falls short",
+            "subtitle": "Booms, slumps and policy"
+          },
+          "speak": "In a recession the factories still stand, the workers still know their jobs, and nothing has been bombed. Something else has gone missing."
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "A whole economy on one picture: everything it produces in a year along the bottom, the general price level up the side."
+        },
+        {
+          "draw": [
+            "ad",
+            "label_ad"
+          ],
+          "speak": "Aggregate demand is all the spending there is — households, firms, government, foreigners. The cheaper things are overall, the more of them get bought."
+        },
+        {
+          "draw": [
+            "as",
+            "label_as"
+          ],
+          "speak": "Aggregate supply is what firms will actually produce at each price level, and the better prices are, the harder they run."
+        },
+        {
+          "draw": [
+            "eq",
+            "guides",
+            "label_eq"
+          ],
+          "speak": "Where the two cross is what the economy is doing this year."
+        },
+        {
+          "draw": [
+            "lras",
+            "label_lras"
+          ],
+          "speak": "This vertical line is what it could do with everyone who wants a job working — its potential. Just now the two agree."
+        },
+        {
+          "draw": [
+            "ad_shifted",
+            "label_ad_shifted",
+            "shift_arrow",
+            "eq_new",
+            "label_eq_new"
+          ],
+          "speak": "Take a copy of aggregate demand, sitting all but on top of the original, and give the economy some bad news."
+        },
+        {
+          "animate": {
+            "shift.amount": 18
+          },
+          "duration": 3.5,
+          "speak": "Firms postpone an investment, households save for a rainy day, an export market closes. Nobody produced less because they could not; they produced less because nobody ordered it."
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq_new",
+              "lras"
+            ],
+            "effect": "glow"
+          },
+          "speak": "That distance is the recession: output below potential, with the factories and the workers still standing there. Economists call it the output gap, which sounds tidier than being unemployed does."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "lras"
+            },
+            "gesture": "underline"
+          },
+          "speak": "The price level slipped as it happened, too. A slump made of missing spending arrives with weak prices rather than a burst of inflation, and the two diagnoses call for opposite medicine."
+        },
+        {
+          "animate": {
+            "shift.amount": 4
+          },
+          "duration": 3.5,
+          "speak": "So if what is missing is spending, spending can replace it: a government that cuts taxes or builds something, a central bank that makes borrowing cheap."
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq"
+            ],
+            "effect": "glow"
+          },
+          "speak": "Output returns to potential — and that argument is why the book John Maynard Keynes published in nineteen thirty-six, in the middle of the slump it describes, changed what governments take themselves to be for."
+        },
+        {
+          "quiz": {
+            "question": "A recession opens a gap below potential output. What is missing?",
+            "choices": [
+              "Factories and machines",
+              "Spending on what the economy can make",
+              "Workers who know the job"
+            ],
+            "correct": 2,
+            "right": "Spending. Every bit of the capacity is still there, which is why policy that lifts demand can close the gap.",
+            "wrong": "Look at what actually moved in the picture: only the demand curve. The supply side never budged."
+          }
+        },
+        {
+          "speak": "You answered {score} of {score_total}. On this picture a recession is not an economy that cannot — it is an economy that is not being asked to, and that is a fixable kind of trouble."
+        }
+      ]
+    }
   }
 ]

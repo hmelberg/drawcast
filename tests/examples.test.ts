@@ -11,6 +11,7 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 import { scenes } from "../src/scenes/registry";
 import { flattenDrawables } from "../src/layout/model";
 import { validateSpec } from "../src/spec/schema";
+import { expandCards } from "../src/spec/card";
 import { domainMapping, elementBBoxes, layoutSpec } from "../src/layout/layout";
 import { heuristicMeasure } from "../src/layout/measure";
 import { planCommands } from "../src/render/plan";
@@ -51,17 +52,23 @@ interface DeferredInsetResolve {
 const deferredInsetResolves: DeferredInsetResolve[] = [];
 
 /** Every spec an example carries: a single spec, or each item of its
- *  playlist — with any inset CLONED off its own siblings now (so `cases`
- *  below holds the object `beforeAll` later mutates in place) but not yet
- *  RESOLVED — see `deferredInsetResolves` (spec 2026-09-17-inset §9: the
- *  gate resolves insets, synchronously, the same way render() does, so a
- *  `point` at a part INSIDE one is exercised by the same layout/plan/lint
- *  checks as everything else, not skipped). Only a playlist item can have
- *  siblings; a single-spec example is unchanged. */
+ *  playlist — with every `card` beat EXPANDED into its elements and commands
+ *  first, exactly as render() and the compile-time lint expand it
+ *  (src/spec/card.ts): without that the gate read a card as "command with no
+ *  recognized verb skipped", so no bundled example could open with the
+ *  disappearing heading STYLE.md's 2026-09-16 ruling asks for.
+ *
+ *  Any inset is CLONED off its own siblings here (so `cases` below holds the
+ *  object `beforeAll` later mutates in place) but not yet RESOLVED — see
+ *  `deferredInsetResolves` (spec 2026-09-17-inset §9: the gate resolves
+ *  insets, synchronously, the same way render() does, so a `point` at a part
+ *  INSIDE one is exercised by the same layout/plan/lint checks as everything
+ *  else, not skipped). Only a playlist item can have siblings; a single-spec
+ *  example is unchanged. */
 function specsOf(ex: BundledExample): Spec[] {
-  if (ex.spec) return [ex.spec];
+  if (ex.spec) return [expandCards(ex.spec)];
   if (ex.playlist) {
-    const items = itemsOf(parsePlaylistText(ex.playlist));
+    const items = itemsOf(parsePlaylistText(ex.playlist)).map((it) => ({ ...it, spec: expandCards(it.spec) }));
     const siblings = items.map((it) => it.spec);
     return items.map((it, i) => {
       if (!(it.spec.elements ?? []).some((e) => e.type === "inset")) return it.spec;
