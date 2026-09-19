@@ -12,6 +12,7 @@ import { UNIVERSAL_ANCHORS, boxAnchor, isUniversalAnchor, polygonAnchors, polyli
 import { boxOfId } from "./boxes";
 import { fitTransform, ownBBox, pickSide, placementOrder, refBBox, relAt, relativeDelta, scaleDrawables, shiftDrawables, shiftPoints } from "./place";
 import { autoRow, placeDelta } from "./places";
+import { naturalNodeSize, slotCentres, type GroupLayout } from "./group-layout";
 import { columnSlots, fitPicture, isDefaultColumn, INSET_MAX, INSET_W } from "./inset";
 import { fitRegion, isFitName } from "./regions";
 import {
@@ -292,6 +293,27 @@ export function layoutElements(
   });
   for (const node of elements.filter((e) => e.type === "node" && e.x !== undefined)) {
     ctx.anchors[node.id] = [node.x!, node.y ?? CANVAS.h / 2];
+  }
+
+  // Pass 1a: a laid-out group gives every member that draws a border one
+  // size, the largest any of them needs — a row of unequal boxes reads as
+  // accidental. Written onto the members BEFORE they are emitted, because a
+  // rect node already honours a declared width/height; the alternative would
+  // be to emit them all twice. normalizeSpec has deep-cloned the spec, so
+  // writing here cannot reach the caller's object.
+  const byIdForLayout = new Map(elements.map((e) => [e.id, e]));
+  for (const g of elements) {
+    if (g.type !== "group" || g.layout === undefined || g.equalize === false) continue;
+    const sized = (g.members ?? []).map((m) => byIdForLayout.get(m)).filter((m): m is SpecElement => m !== undefined);
+    const sizes = sized.map((m) => naturalNodeSize(m)).filter((s): s is { w: number; h: number } => s !== null);
+    if (sizes.length < 2) continue;
+    const w = Math.max(...sizes.map((s) => s.w));
+    const h = Math.max(...sizes.map((s) => s.h));
+    for (const m of sized) {
+      if (naturalNodeSize(m) === null) continue;
+      m.width = w;
+      m.height = h;
+    }
   }
 
   // Pass 1b: elements that gave no position at all would each take their own

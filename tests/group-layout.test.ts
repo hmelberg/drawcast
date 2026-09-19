@@ -59,3 +59,50 @@ describe("the natural size of a node", () => {
     expect(naturalNodeSize({ id: "t", type: "text", text: "hi" })).toBeNull();
   });
 });
+
+import { elementBBoxes, layoutSpec } from "../src/layout/layout";
+import { validateSpec } from "../src/spec/schema";
+import type { Spec } from "../src/spec/types";
+
+const ROW: Spec = {
+  elements: [
+    { id: "a", type: "node", shape: "rect", text: "Innsats" },
+    { id: "b", type: "node", shape: "rect", text: "Produksjon" },
+    { id: "g", type: "group", members: ["a", "b"], layout: "row" },
+  ],
+  commands: [{ draw: ["g"] }],
+};
+
+describe("the fields", () => {
+  test("a group with a layout validates", () => {
+    expect(validateSpec(ROW).ok).toBe(true);
+  });
+
+  test("layout on something that is not a group is refused", () => {
+    const r = validateSpec({ elements: [{ id: "t", type: "text", text: "hi", x: 1, y: 2, layout: "row" }], commands: [] });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join(" ")).toContain("layout");
+  });
+});
+
+describe("equalize", () => {
+  test("a row gives its boxes one size, the largest needed", () => {
+    const b = elementBBoxes(layoutSpec(ROW));
+    expect(b.get("a")!.w).toBeCloseTo(b.get("b")!.w, 0);
+    expect(b.get("a")!.h).toBeCloseTo(b.get("b")!.h, 0);
+  });
+
+  test("equalize false leaves every box its own size", () => {
+    const spec = JSON.parse(JSON.stringify(ROW)) as Spec;
+    spec.elements![2].equalize = false;
+    const b = elementBBoxes(layoutSpec(spec));
+    expect(b.get("a")!.w).toBeLessThan(b.get("b")!.w);
+  });
+
+  test("a group with no layout is untouched", () => {
+    const spec = JSON.parse(JSON.stringify(ROW)) as Spec;
+    delete spec.elements![2].layout;
+    const b = elementBBoxes(layoutSpec(spec));
+    expect(b.get("a")!.w).toBeLessThan(b.get("b")!.w);
+  });
+});
