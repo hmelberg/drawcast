@@ -11,6 +11,16 @@ calls `render()`, which builds the same `Player` (`src/render/index.ts:421`)
 with a pre-synthesized `BufferSpeech`. The cue is honoured in ONE place and
 the export inherits it.
 
+Two corrections landed the same day, after Hans asked what the feature cost:
+the wait ignored the DELIVERY rate (a `grave` line is spoken at 0.88× and so
+runs ~14% longer than the estimate, firing every cue in it about half a
+second early on a six-second sentence), and a cue could only say "start
+here". `cue_end` says the cue is where the action has FINISHED — the engine
+knows what the action costs and starts it that much earlier, so a reveal
+lands its last stroke on its word. Start is for gestures and streams, end for
+reveals and completions; the arithmetic for both lives in one pure function,
+`src/render/cue.ts`.
+
 Two rules Part B needed that §12 did not foresee, both about exactness: a
 cue's resolution is one character of its line, so `normalizeSpec` snaps it
 (a hand-written 0.5 and the same cue read back off the text are then the

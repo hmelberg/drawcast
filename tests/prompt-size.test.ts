@@ -306,8 +306,11 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // action starts — costs its schema description (+356, embedded in the system
 // prompt) and a sentence on the canonical-beat bullet (+442).
 // schema 80476 → 80832, system 201143 → 201941.
-const BASELINE_SYSTEM_CHARS = 201941;
-const BASELINE_SCHEMA_CHARS = 80832;
+// Re-pinned 2026-09-19 (an end-anchored cue): `cue_end` — the cue marks
+// where the action has FINISHED, so a reveal lands on its word instead of
+// starting there. schema 80832 → 81186, system 201941 → 202736.
+const BASELINE_SYSTEM_CHARS = 202736;
+const BASELINE_SCHEMA_CHARS = 81186;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

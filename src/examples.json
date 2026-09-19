@@ -26223,7 +26223,8 @@
           ],
           "cue": 0.62,
           "speak": "Og kjeden holder akkurat så lenge det finnes et neste ledd, så da det tar slutt, er det kjøper 3 som sitter igjen med regningen.",
-          "delivery": "grave"
+          "delivery": "grave",
+          "cue_end": true
         }
       ]
     }

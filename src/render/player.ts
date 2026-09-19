@@ -19,6 +19,7 @@ import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import type { Easing, SpecElement } from "../spec/types";
 import type { ControlValue } from "../code/controls";
+import { cueStartMs } from "./cue";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { translateCaption, type SubtitleTrack } from "../spec/subtitles";
 import type { ToneLike } from "./tones";
@@ -957,8 +958,8 @@ export class Player {
         // available identically here, in a baked-audio cast and in the
         // export, and no speech marks have to be plumbed to get it.
         const cued = async (): Promise<void> => {
-          const cue = step.cue ?? 0;
-          if (cue > 0) await this.waitScaled(SpeechManager.estimateMs(narration) * cue, signal);
+          const wait = cueStartMs(step.cue, step.cueEnd, narration, step.narrationDelivery, this.actionMs(index));
+          if (wait > 0) await this.waitScaled(wait, signal);
           if (signal.aborted) return;
           return this.runAction(index, signal);
         };
@@ -1626,6 +1627,23 @@ export class Player {
    * multiplier (erase runs faster than draw) and applies before the cap, so
    * the budget always means wall-clock.
    */
+  /**
+   * What a step's animation costs, in milliseconds — what an end-anchored cue
+   * has to start early by. A draw is its elements' own paced durations; every
+   * other animating kind carries its `seconds`. Anything instant (a show, a
+   * hide) costs nothing, which makes an end cue on it the same as a start
+   * cue, exactly as it should be.
+   */
+  private actionMs(index: number): number {
+    const step = this.plan.steps[index];
+    if (step.kind === "draw" || step.kind === "erase") {
+      const ms = this.paced(this.els(step.ids), step, 1);
+      if (ms.length === 0) return 0;
+      return step.parallel ? Math.max(...ms) : ms.reduce((a, b) => a + b, 0);
+    }
+    return "seconds" in step && typeof step.seconds === "number" ? step.seconds * 1000 : 0;
+  }
+
   private paced(els: RenderedElement[], step: { parallel?: boolean; narration?: string }, speedFactor: number): number[] {
     return pacedDurations(
       els.map((el) => el.durationMs * speedFactor),
