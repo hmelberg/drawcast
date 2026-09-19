@@ -115,7 +115,7 @@ const elementSchema = {
     // curve
     direction: { type: "string", enum: ["increasing", "decreasing", "flat", "vertical"], description: "curve: qualitative slope." },
     curvature: { type: "string", enum: ["linear", "convex", "concave"], description: "curve: qualitative curvature." },
-    steepness: { type: "string", enum: ["gentle", "medium", "steep"], description: "curve: qualitative steepness." },
+    steepness: { type: "string", enum: ["gentle", "medium", "steep"], description: "curve: qualitative steepness — `medium` and `steep` draw nearly the same curve (the shape clips to the plot); `gentle` is the only visibly flatter one." },
     expr: { type: "string", description: "curve: explicit function of x over the domain, e.g. \"100 - 0.5*x\". Use instead of direction/curvature when you know the function." },
     x_from: { type: ["number", "object"], properties: { ref: { type: "string" } }, description: "curve/region: start of the x interval (domain units; default: whole domain). region: {\"ref\": id} = that point's x, followed as it moves." },
     x_to: { type: ["number", "object"], properties: { ref: { type: "string" } }, description: "curve/region: end of the x interval. region: {\"ref\": \"eq\"} shades up to that point wherever it stands." },

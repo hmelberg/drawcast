@@ -313,8 +313,17 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // times and then STAYS lit for the rest of the sentence rather than breathing
 // through it, so both the verb's description and the effect names had to say
 // what they now do. schema 81186 → 81370, system 202736 → 203007.
-const BASELINE_SYSTEM_CHARS = 203007;
-const BASELINE_SCHEMA_CHARS = 81370;
+// Re-pinned 2026-09-20 (steepness stops overpromising): supply_demand's two
+// `steepness` descriptions now say where the VISIBLE range actually ends —
+// qualitativeShape clips the shape to the plot at k ≈ 1.05, so every value
+// above that draws the same curve, `steep` (1.5) reads like `medium` (1), and
+// an animate from 1 to 2.5 renders a still picture — plus the rule that an
+// animated param needs a numeric start in the base params. The spec-level
+// `curve` steepness carries the one-line version. Descriptions the model reads
+// before choosing a value, so the cost lands in the cached prefix.
+// schema 81370 → 81492, system 203007 → 203644.
+const BASELINE_SYSTEM_CHARS = 203644;
+const BASELINE_SCHEMA_CHARS = 81492;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

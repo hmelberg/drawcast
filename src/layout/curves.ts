@@ -13,6 +13,16 @@ const STEEPNESS: Record<string, number> = { gentle: 0.55, medium: 1, steep: 1.5 
  * Qualitative curve in shape space: x in [0,1] → y in [0,1].
  * Curvature is relative to the curve's own run (convex = bowed toward the
  * origin corner for decreasing curves — the classic demand-curve look).
+ *
+ * `steepness` k spreads the endpoints 0.42k either side of 0.5 and then CLIPS
+ * them to [0.06, 0.94], so the span SATURATES at k ≈ 1.048: every k from
+ * there up draws the identical curve — the word "steep" (1.5) included — and
+ * "medium" (1) already spans 0.84 of the available 0.88. Only `gentle` and
+ * numbers below ~1 read as visibly flatter. A figure that needs a big
+ * difference in slope between two curves must therefore FLATTEN one rather
+ * than steepen the other; the steepness notes in supply_demand's manifest say
+ * so where the compiler model can read them, since a spec that animates
+ * steepness from 1 to 2.5 renders as a still picture.
  */
 export function qualitativeShape(
   direction: "increasing" | "decreasing" | "flat" | "vertical",

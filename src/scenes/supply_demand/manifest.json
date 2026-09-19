@@ -33,7 +33,7 @@
                 "maximum": 2.5
               }
             ],
-            "description": "Either a word (gentle=0.55, medium=1, steep=1.5) or a numeric factor k directly — useful range ~0.25 (flat) to 2.5 (very steep), clamped to ≥ 0.05. Use a number when the value needs to animate smoothly."
+            "description": "Either a word (gentle=0.55, medium=1, steep=1.5) or a numeric factor k. Use a number when the value must animate, and give it a number in the base params too — an animate with no numeric start jumps straight to the target. The visible range ENDS at k ≈ 1.05, where the shape clips to the plot: every value above that draws the SAME curve, so `steep` ≈ `medium`. To make one curve read as markedly steeper, flatten the other instead."
           },
           "curvature": {
             "type": "string",
@@ -73,7 +73,7 @@
                 "maximum": 2.5
               }
             ],
-            "description": "Either a word (gentle=0.55, medium=1, steep=1.5) or a numeric factor k directly — useful range ~0.25 (flat) to 2.5 (very steep), clamped to ≥ 0.05."
+            "description": "Either a word (gentle=0.55, medium=1, steep=1.5) or a numeric factor k. Use a number when the value must animate, and give it a number in the base params too — an animate with no numeric start jumps straight to the target. The visible range ENDS at k ≈ 1.05, where the shape clips to the plot: every value above that draws the SAME curve, so `steep` ≈ `medium`. To make one curve read as markedly steeper, flatten the other instead."
           },
           "curvature": {
             "type": "string",
