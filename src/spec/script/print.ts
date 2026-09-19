@@ -228,7 +228,11 @@ function commandLines(cmd: Command): string[] {
  * specs (76%) need no props block at all.
  */
 function homes(spec: Spec, firstMention: Map<string, number>, drawLists: Map<number, string[]>): { inline: Map<number, string[]>; props: string[] } {
-  const els = spec.elements ?? [];
+  // A layout group is never drawn, so it has no first mention — but it is not
+  // a WALL either: the block it encloses declares it, at its members' beat,
+  // and the parser writes it back after them. Leaving it in the walk would
+  // push every element before it into the props block for no reason.
+  const els = (spec.elements ?? []).filter((e) => layoutHead(e) === null);
   // The props block prints ABOVE every beat, so whatever goes in it comes
   // first when the text is read back. The inline elements are therefore the
   // longest SUFFIX of the array whose first-draw beats never go backwards;
@@ -281,12 +285,24 @@ export function printScriptPage(spec: Spec): string {
     if (layoutHead(el) === null) continue;
     for (const m of (el.members ?? []) as string[]) groupOf.set(m, el.id);
   }
+  const layoutGroups = (spec.elements ?? []).filter((e) => layoutHead(e) !== null);
   const mention = firstDraws(spec);
   const drawLists = new Map<number, string[]>();
   (spec.commands ?? []).forEach((cmd, i) => {
     if (cmd.draw !== undefined) drawLists.set(i, ([] as string[]).concat(cmd.draw));
   });
   const { inline, props } = homes(spec, mention, drawLists);
+  const nestedAt = new Map<string, number>();
+  for (const g of layoutGroups) {
+    const members = (g.members ?? []) as string[];
+    const beats = new Set(members.map((m) => (layoutHead(byId.get(m) ?? ({} as SpecElement)) !== null ? nestedAt.get(m) : mention.get(m))));
+    const beat = [...beats][0];
+    if (beats.size === 1 && beat !== undefined && members.every((m) => (inline.get(beat) ?? []).includes(m) || nestedAt.get(m) === beat)) {
+      nestedAt.set(g.id, beat);
+    } else {
+      props.push(g.id);
+    }
+  }
   const blocks: string[] = [];
 
   const settings: string[] = [];
@@ -316,9 +332,8 @@ export function printScriptPage(spec: Spec): string {
       const nested = new Set<string>();
       for (const id of declared) {
         const group = groupOf.get(id);
-        if (group === undefined || nested.has(id)) continue;
+        if (group === undefined || nested.has(id) || nestedAt.get(group) !== i) continue;
         const members = ((byId.get(group)!.members ?? []) as string[]);
-        if (!members.every((m) => declared.includes(m) || byId.get(m)?.type === "group")) continue;
         lines.push(elementLine(byId.get(group)!, false));
         nested.add(group);
         for (const m of members) {
