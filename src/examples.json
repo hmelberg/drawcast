@@ -17327,17 +17327,23 @@
           "id": "hush",
           "type": "node",
           "shape": "rect",
-          "text": "Husholdninger",
-          "x": 220,
-          "y": 375
+          "text": "Husholdninger"
         },
         {
           "id": "bedr",
           "type": "node",
           "shape": "rect",
-          "text": "Bedrifter",
-          "x": 780,
-          "y": 375
+          "text": "Bedrifter"
+        },
+        {
+          "id": "aktorer",
+          "type": "group",
+          "members": [
+            "hush",
+            "bedr"
+          ],
+          "layout": "row",
+          "gap": 260
         },
         {
           "id": "lonn",

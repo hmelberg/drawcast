@@ -297,8 +297,13 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // `target` became a list, which costs its schema description (+178, embedded
 // in the system prompt) and a sentence in the annotation bullet (+178).
 // schema 79252 → 79430, system 198724 → 199080.
-const BASELINE_SYSTEM_CHARS = 199080;
-const BASELINE_SCHEMA_CHARS = 79430;
+// Re-pinned 2026-09-19 (group layout): five fields on a group — layout, gap,
+// columns, align, equalize — and the freehand bullet that teaches them, which
+// is what stops the model writing x/y for a row of boxes (34% of corpus
+// elements carry raw coordinates today). schema 79430 → 80476, system
+// 199080 → 201143.
+const BASELINE_SYSTEM_CHARS = 201143;
+const BASELINE_SCHEMA_CHARS = 80476;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

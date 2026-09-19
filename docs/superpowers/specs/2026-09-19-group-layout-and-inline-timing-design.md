@@ -1,8 +1,25 @@
 # Structure without coordinates, and actions inside a sentence
 
-Status: designed 2026-09-19, not implemented. Two independent features in one
-document because they came out of one conversation; they ship as two rounds
-with two plans, and neither depends on the other.
+Status: Part A IMPLEMENTED 2026-09-19 (plan:
+docs/superpowers/plans/2026-09-19-group-layout.md, 8744 tests, tsc+build
+green, round-trip gate intact). Part B (inline timing) designed, not
+implemented. Two independent features in one document because they came out
+of one conversation; neither depends on the other.
+
+Two deviations in Part A, both deliberate:
+
+(a) `boxed` (§2) was NOT built. `box` members already carry their own border,
+so it serves only rows of formulas, images and portraits, and it would have
+landed a second border mechanism in the same week as the border fix.
+
+(b) §4 feared a two-pass emit for `equalize`. It is a pre-pass instead: a rect
+node already honours a declared `width`/`height` (`tier2.ts`), so the sizes
+are written onto the members before anything is emitted. §4 is corrected below.
+
+One limitation worth naming: `at` on a group still does nothing — a group
+pushes no drawables of its own, so pass 3 has nothing to shift. A laid-out
+group stays centred on its members' own centroid, and `fit` is how you put it
+somewhere specific. That predates this round and is unchanged by it.
 
 Part A (§1–§9) answers "I have to write x and y to put three boxes in a row".
 Part B (§10–§14) answers "sometimes the action belongs inside the sentence,
@@ -114,12 +131,12 @@ than as rectangles that happen to be adjacent.
 Members with no border (a `text`, a `math`, an `image`) keep their own size
 and are aligned by `align` on the cross axis.
 
-This needs two passes over the members: emit them at their natural size,
-take the largest, then emit again with that size forced. The engine computes
-an element's box only by emitting it (`ownBBox` reads the drawables it just
-produced), so there is no cheaper way to learn the maximum. `node` sizes
-itself from its text (`tier2.ts` node case) and is the type that needs the
-override; §15 names this as Part A's main risk.
+This is a PRE-pass, not the two-pass this section first assumed. A rect node
+already honours a declared `width`/`height`, so the natural size of each
+member is computed with the same arithmetic `nodeDrawables` uses
+(`naturalNodeSize` in `src/layout/group-layout.ts`), the largest is taken, and
+both are written onto the members before anything is emitted. One formula,
+two callers, so an equalized width is always a width that actually gets drawn.
 
 ## 5. Membership from a later beat
 
