@@ -203,7 +203,9 @@ describe("reviseDocument preserves the founding prompt", () => {
     const out = await reviseDocument(HEADERED, "steeper", cfg());
     expect(out.error).toBeUndefined();
     expect(out.playlist!.meta.prompt).toBe("explain trade");
-    expect(out.text).toContain("prompt: explain trade");
+    // The editor's text is script now, so a refilled prompt comes back as a
+    // document setting with a quoted value.
+    expect(out.text).toContain('prompt: "explain trade"');
   });
 
   test("a reply that kept the header is left byte-alone — no reformat", async () => {

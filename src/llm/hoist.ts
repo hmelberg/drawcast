@@ -73,7 +73,7 @@ export function hoistPortraitStrokes(docText: string): { text: string; blobs: Ma
       any = true;
     }
   });
-  return any ? { text: formatPlaylist(playlist, "yaml"), blobs } : { text: docText, blobs };
+  return any ? { text: formatPlaylist(playlist, "script"), blobs } : { text: docText, blobs };
 }
 
 /** Put hoisted strokes back into the model's revised playlist, by element id. */

@@ -833,7 +833,7 @@ const importInput = h("input", { type: "file", accept: ".json,.yaml,.yml,.txt", 
 // button whose only explanation was a hover title= — invisible on touch, and
 // easy enough to forget that the person who wrote it had to ask what it did.
 const applyPlaylist = (playlist: Playlist): void => {
-  specArea.value = formatPlaylist(playlist, "yaml");
+  specArea.value = formatPlaylist(playlist, "script");
   ensureRendered();
 };
 const insertMenu = createMenu("Insert", [
@@ -864,7 +864,7 @@ const insertMenu = createMenu("Insert", [
 // same filename rule; only the format choice's home changed. Built once, like
 // the app's other small modals, and reused on every open.
 const saveDiskFormatSel = h("select", { "aria-label": "Spec format" }) as HTMLSelectElement;
-saveDiskFormatSel.append(h("option", { value: "yaml" }, "YAML"), h("option", { value: "json" }, "JSON"));
+saveDiskFormatSel.append(h("option", { value: "script" }, "Script"), h("option", { value: "yaml" }, "YAML"), h("option", { value: "json" }, "JSON"));
 // The editable file name (B3) — prefilled from the doc title in
 // openSaveToDisk() below, since `prepareSave()` (and so the real, possibly
 // reparsed `save.title`) only runs once the Save button is clicked.
@@ -886,8 +886,8 @@ saveDiskFormatSel.addEventListener("change", () => {
   // front of a one-figure document.
   if (next === "json" && !isSingle(doc.playlist)) {
     setStatus("This document has a playlist header, so it is YAML-only (a JSON document cannot hold a multi-document stream).", "error");
-    saveDiskFormatSel.value = "yaml";
-    settings.specFormat = "yaml";
+    saveDiskFormatSel.value = "script";
+    settings.specFormat = "script";
   } else {
     settings.specFormat = next;
   }
@@ -906,10 +906,10 @@ saveDiskBtn.addEventListener("click", () => {
   // very message explaining why (round-2 fix).
   saveDiskModal.dialog.close();
   if (!save) return;
-  const format: SpecFormat = isSingle(save.playlist) ? (saveDiskFormatSel.value as SpecFormat) : "yaml";
-  // YAML ships the editor's own text verbatim; JSON has to be derived (the
-  // textarea is always YAML — see saveToDrive's note below).
-  const content = format === "yaml" ? save.text : formatPlaylist(save.playlist, format);
+  const format: SpecFormat = isSingle(save.playlist) ? (saveDiskFormatSel.value as SpecFormat) : "script";
+  // Script ships the editor's own text verbatim; YAML and JSON have to be
+  // derived (the textarea holds script — see saveToDrive's note below).
+  const content = format === "script" ? save.text : formatPlaylist(save.playlist, format);
   // The typed name still passes through fileSafe (B3) — illegal characters
   // must never reach downloadText just because the author typed them.
   // Falling back to `save.title` (not the stale prefill) covers the field
@@ -2890,7 +2890,7 @@ function setDoc(next: Doc, statusText?: string, version?: { label: string; kind:
   doc.prompt = doc.playlist.meta.prompt ?? doc.prompt;
   lastLogId = null; // ratings apply to generations only
   promoted = false; // before applyHistoryUi(), which reads it
-  specArea.value = formatPlaylist(doc.playlist, "yaml");
+  specArea.value = formatPlaylist(doc.playlist, "script");
   // A new document starts a new history. Generate hands us a brand-new drawcast
   // (`id: null`, and autosave() mints it its own library row straight after), so
   // its stack is RESEEDED: appending it to the outgoing document's stack would
@@ -2933,7 +2933,7 @@ function autosave(): void {
     title: doc.title,
     prompt: doc.prompt,
     spec: firstSpec(doc),
-    playlist: isSingle(doc.playlist) ? undefined : formatPlaylist(doc.playlist, "yaml"),
+    playlist: isSingle(doc.playlist) ? undefined : formatPlaylist(doc.playlist, "script"),
     // What the library's ▤ marker reads. Stored rather than re-derived per
     // row: the sidebar rebuilds on every keystroke of the filter box, and
     // parsing every row's YAML to count its items would be absurd there.
@@ -3610,7 +3610,7 @@ const BLANK_SPEC: Spec = { elements: [], commands: [] };
 /** The blank text ＋ New puts in the editor — authoringMode's "empty document". */
 let blankTextCache: string | null = null;
 function blankDocText(): string {
-  return (blankTextCache ??= formatPlaylist(singlePlaylist(JSON.parse(JSON.stringify(BLANK_SPEC)) as Spec), "yaml"));
+  return (blankTextCache ??= formatPlaylist(singlePlaylist(JSON.parse(JSON.stringify(BLANK_SPEC)) as Spec), "script"));
 }
 
 /** One button, one truth (B7): label, tooltip and placeholder all derive from
@@ -5506,7 +5506,7 @@ clearLogsBtn.addEventListener("click", () => {
 
 // ---------- boot ----------
 
-specArea.value = formatPlaylist(doc.playlist, "yaml");
+specArea.value = formatPlaylist(doc.playlist, "script");
 stack = seedStack(specArea.value, doc.prompt || doc.title);
 applyHistoryUi();
 refreshStylePanel();

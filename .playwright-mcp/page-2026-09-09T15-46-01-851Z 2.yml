@@ -1,0 +1,72 @@
+- generic [ref=f1e1]:
+  - alert [ref=f1e2]:
+    - generic [ref=f1e3]: ⚠ Testversjon — IKKE offisiell informasjon. Skal IKKE brukes som medisinsk råd.
+    - generic [ref=f1e4]:
+      - text: Dette er et eksperimentelt verktøy laget for teknisk testing. Innholdet kommer fra en automatisk henting av artikler på helsenorge.no/giftinformasjon/ og et språkmodell-svar. Det er
+      - strong [ref=f1e5]: ikke
+      - text: offisiell informasjon fra Folkehelseinstituttet, Helsedirektoratet, Giftinformasjonen, eller andre offentlige etater. Det kan inneholde feil. Ved faktisk mistanke om forgiftning, ring Giftinformasjonen på
+      - strong [ref=f1e6]: 22 59 13 00
+      - text: eller 113 ved livstruende situasjoner.
+  - banner [ref=f1e7]:
+    - button "Meny" [ref=f1e8] [cursor=pointer]: ☰
+    - generic [ref=f1e9]:
+      - heading "Spør om giftinformasjon" [level=1] [ref=f1e44]
+      - text: Testversjon · basert på artikler fra helsenorge.no
+  - navigation "Hovedmeny" [ref=f1e39]:
+    - link "Samtale" [ref=f1e40] [cursor=pointer]:
+      - /url: "#samtale"
+    - link "Maler" [ref=f1e41] [cursor=pointer]:
+      - /url: "#maler"
+    - link "Repetisjoner" [ref=f1e42] [cursor=pointer]:
+      - /url: "#repetisjoner"
+    - link "API-nøkler" [ref=f1e43] [cursor=pointer]:
+      - /url: "#nokler"
+  - main [ref=f1e11]:
+    - generic [ref=f1e45]:
+      - generic [ref=f1e75]:
+        - generic [ref=f1e76]: Er revebjelle giftig?
+        - generic [ref=f1e79]:
+          - generic [ref=f1e80]: Ja, revebjelle er en svært giftig plante. De første symptomene kommer fra magen i løpet av noen timer og inkluderer magesmerter, kvalme, oppkast og/eller diaré, samt hjertesymptomer. Kontakt Giftinformasjonen (22 59 13 00) hvis noen har spist av planten.
+          - generic [ref=f1e81]:
+            - generic [ref=f1e82]: Informasjon
+            - generic [ref=f1e83]: 5.8 s · claude-sonnet-4-6 · Standard · bm25
+          - generic [ref=f1e84]:
+            - heading "Relaterte artikler fra helsenorge.no (de uthevede er brukt som kilder i svaret)" [level=4] [ref=f1e85]
+            - list [ref=f1e86]:
+              - listitem [ref=f1e87]:
+                - link "Revebjelle er en svært giftig plante" [ref=f1e88] [cursor=pointer]:
+                  - /url: https://www.helsenorge.no/giftinformasjon/planter-og-bar-a-a/revebjelle/
+                - text: · Planter og bær – giftighetsbeskrivelse og symptomer
+      - generic [ref=f1e50]:
+        - generic [ref=f1e51]:
+          - textbox "Still et spørsmål om gift eller forgiftning ..." [active] [ref=f1e52]
+          - button "Spør" [ref=f1e53] [cursor=pointer]
+          - button "Flere valg" [expanded] [ref=f1e54] [cursor=pointer]: …
+        - generic [ref=f1e62]:
+          - generic [ref=f1e63]:
+            - generic [ref=f1e64]: Modell
+            - combobox "Modell" [ref=f1e65]:
+              - option "claude-opus-5"
+              - option "claude-sonnet-5"
+              - option "claude-sonnet-4-6" [selected]
+              - option "claude-opus-4-6"
+              - option "claude-haiku-4-5"
+          - generic [ref=f1e66]:
+            - generic [ref=f1e67]: Mal
+            - combobox "Mal" [ref=f1e68]:
+              - option "Standard" [selected]
+              - option "Akutt førstehjelp"
+              - option "Helsepersonell"
+              - option "Klarspråk"
+          - generic [ref=f1e69]:
+            - generic [ref=f1e70]: Strategi
+            - combobox "Strategi" [ref=f1e71]:
+              - option "bm25" [selected]
+              - option "dense"
+              - option "hybrid"
+              - option "catalogue"
+              - option "guarded"
+          - generic [ref=f1e72]:
+            - generic [ref=f1e73]: k (artikler til modellen)
+            - spinbutton "k (artikler til modellen)" [ref=f1e74]
+        - generic [ref=f1e55]: Trykk Enter for å sende · Shift+Enter for ny linje

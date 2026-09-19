@@ -136,7 +136,8 @@ describe("assets and the model round-trip (llm/hoist.ts)", () => {
     const hoisted = hoistPortraitStrokes(doc);
     expect(hoisted.text).not.toContain("img1:");
     expect(hoisted.text).not.toContain("assets:");
-    expect(hoisted.text).toMatch(new RegExp(`strokes: ['"]${HOISTED}['"]`));
+    // hoist re-prints the document, and the editor's format is script now.
+    expect(hoisted.text).toMatch(new RegExp(`strokes ${HOISTED}`));
     const back = parsePlaylistText(hoisted.text);
     restorePortraitStrokes(back, hoisted.blobs);
     const spec = back.entries[0].kind === "item" ? back.entries[0].spec : null;
