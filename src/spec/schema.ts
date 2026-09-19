@@ -215,6 +215,16 @@ const elementSchema = {
     closed: { type: "boolean", description: "path: close the polyline." },
     smooth: { type: "boolean", description: "path: smooth curve through the points (Catmull-Rom)." },
     members: { type: "array", items: { type: "string" }, minItems: 1, description: "group: element ids that form one thing; draw/move/highlight the group id to act on all." },
+    layout: {
+      type: "string",
+      enum: ["row", "column", "grid"],
+      description:
+        "group: ARRANGE the members — \"row\" side by side, \"column\" stacked, \"grid\" `columns` wide. Every position is computed from the members' own sizes, so a structure of boxes needs NO x/y anywhere: declare the parts, wrap them in a group with a layout, and join them with arrows. Boxes in a laid-out group are given one size (the largest needed) so the row reads as a row. `gap` (default 40) spaces them, `align` (center/start/end) sets the cross axis. Combine with `fit` to scale the finished arrangement into a region.",
+    },
+    gap: { type: "number", description: "group layout: space between neighbours, logical units (default 40)." },
+    columns: { type: "integer", minimum: 1, description: "group layout grid: members per row." },
+    align: { type: "string", enum: ["center", "start", "end"], description: "group layout: cross-axis alignment (default center)." },
+    equalize: { type: "boolean", description: "group layout: one size for every member that draws a border (default true)." },
     fit: {
       oneOf: [
         { type: "string", enum: ["left", "right", "top", "bottom", "full"] },
@@ -1517,6 +1527,9 @@ function elementErrors(el: SpecElement): string[] {
     if (typeof at.place === "string" && typeof at.ref === "string") {
       errs.push(`element "${el.id}": at.place cannot be combined with at.ref — a place is on the canvas, a ref is on another element`);
     }
+  }
+  if (el.layout !== undefined && el.type !== "group") {
+    errs.push(`element "${el.id}": layout is a group's field — wrap the parts in a group to arrange them`);
   }
   switch (el.type) {
     case "curve":

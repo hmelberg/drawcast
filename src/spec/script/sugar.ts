@@ -18,7 +18,14 @@ export const ELEMENT_ALIASES: Record<string, { type: string; fields?: Record<str
   // A border around something already drawn. `box` and `circle` are taken (a
   // node's shapes), and `mark` is what the thing is: a permanent mark.
   mark: { type: "annotation" },
+  // A structure: the lines under it are its members.
+  row: { type: "group", fields: { layout: "row" } },
+  column: { type: "group", fields: { layout: "column" } },
+  grid: { type: "group", fields: { layout: "grid" } },
 };
+
+/** head → the layout it means, for the printer and for the member rule. */
+export const LAYOUT_HEADS: Record<string, string> = { row: "row", column: "column", grid: "grid" };
 
 /** The element field a head's `around` id-run fills. */
 export const AROUND_FIELD: Record<string, string> = { annotation: "target", mark: "target" };

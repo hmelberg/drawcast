@@ -147,6 +147,19 @@ export interface SpecElement {
   members?: string[];
   /** group: scale and centre the members into this region or box (aspect kept). */
   fit?: "left" | "right" | "top" | "bottom" | "full" | { x: number; y: number; w: number; h: number };
+  /** group: arrange the members — a row, a column, or a grid `columns` wide.
+   *  The engine computes every position from the members' own sizes, so a
+   *  structure needs no coordinates. Absent: members keep their own places. */
+  layout?: "row" | "column" | "grid";
+  /** layout: space between neighbours, logical units (default 40). */
+  gap?: number;
+  /** layout grid: members per row. */
+  columns?: number;
+  /** layout: alignment across the arrangement's cross axis (default center). */
+  align?: "center" | "start" | "end";
+  /** layout: give every member that draws a border the same size, the largest
+   *  needed (default true) — a row of unequal boxes reads as accidental. */
+  equalize?: boolean;
   /** math: LaTeX, drawn as handwriting. label: LaTeX instead of text. */
   tex?: string;
   /** math: font size, the same units as text font_size (default 28); scaled by text.font_size like every text. icon: box size in logical units (default 100). */

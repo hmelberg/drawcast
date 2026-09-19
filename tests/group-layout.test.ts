@@ -1,141 +1,189 @@
 import { describe, expect, test } from "vitest";
-import { layoutSpec, elementBBoxes } from "../src/layout/layout";
+import { DEFAULT_GAP, naturalNodeSize, slotCentres } from "../src/layout/group-layout";
 
-const thing = {
-  elements: [
-    { id: "body", type: "shape", shape: "rect", x: 330, y: 400, width: 60, height: 200 },
-    { id: "cap", type: "shape", shape: "circle", radius: 20, at: { ref: "body", anchor: "top" }, anchor: "bottom" },
-    { id: "pump", type: "group", members: ["body", "cap"] },
-    { id: "name", type: "label", text: "Pump", attach_to: "pump", side: "right" },
-    { id: "f", type: "text", text: "F", font_size: 24, at: { ref: "pump", side: "above", gap: 10 } },
-  ],
-  commands: [{ draw: ["pump", "name", "f"] }],
-} as const;
+const size = (w: number, h: number) => ({ w, h });
 
-describe("group", () => {
-  test("has the union box of its members, is not in order, and expands", () => {
-    const r = layoutSpec(thing as never);
-    expect(r.order).not.toContain("pump");
-    expect(r.groups.pump).toEqual(["body", "cap"]);
-    const b = elementBBoxes(r);
-    const body = b.get("body")!, cap = b.get("cap")!, f = b.get("f")!;
-    expect(f.y).toBeCloseTo(cap.y + cap.h + 10, 0);
-    expect(r.namedAnchors.pump.bottom[1]).toBeCloseTo(body.y, 0);
-    expect(r.issues.filter((i) => i.rule === "placement" || i.rule === "group-empty")).toEqual([]);
+describe("slot centres", () => {
+  test("a row places members left to right, one gap apart, centred on the cross axis", () => {
+    const c = slotCentres("row", [size(100, 40), size(60, 80)]);
+    expect(c[1][0] - c[0][0]).toBeCloseTo(100 / 2 + DEFAULT_GAP + 60 / 2, 5);
+    expect(c[0][1]).toBeCloseTo(c[1][1], 5);
   });
-  test("nested groups flatten; missing member and empty group are errors", () => {
-    const r = layoutSpec({
-      elements: [
-        { id: "a", type: "shape", shape: "rect", x: 180, y: 150 }, { id: "b", type: "shape", shape: "rect", x: 480, y: 150 },
-        { id: "inner", type: "group", members: ["a"] }, { id: "outer", type: "group", members: ["inner", "b"] },
-        { id: "bad", type: "group", members: ["ghost"] },
-      ],
-      commands: [{ draw: ["outer"] }],
-    } as never);
-    expect(r.groups.outer.sort()).toEqual(["a", "b"]);
-    const bad = r.issues.filter((i) => i.rule === "group-empty");
-    expect(bad.map((i) => i.severity)).toEqual(["error"]);
-    expect(bad[0].message).toMatch(/"bad".*"ghost"/);
+
+  test("a column places them top to bottom", () => {
+    const c = slotCentres("column", [size(100, 40), size(60, 80)]);
+    expect(c[0][1] - c[1][1]).toBeCloseTo(40 / 2 + DEFAULT_GAP + 80 / 2, 5);
+    expect(c[0][0]).toBeCloseTo(c[1][0], 5);
   });
-  test("a label is a legal member: it joins the leaves but not the box", () => {
-    const r = layoutSpec({
-      elements: [
-        { id: "box", type: "shape", shape: "rect", x: 330, y: 320, width: 60, height: 40 },
-        { id: "tag", type: "label", text: "Tag", attach_to: "box", side: "right" },
-        { id: "g", type: "group", members: ["box", "tag"] },
-      ],
-      commands: [{ draw: ["g"] }],
-    } as never);
-    expect(r.issues.filter((i) => i.rule === "group-empty")).toEqual([]);
-    expect(r.groups.g).toEqual(["box", "tag"]);
-    const b = elementBBoxes(r);
-    // The label is placed after tier-2, so the group's box is the rect's alone.
-    expect(r.namedAnchors.g.center).toEqual([b.get("box")!.x + b.get("box")!.w / 2, b.get("box")!.y + b.get("box")!.h / 2]);
-    // …and the label is a real, drawable id, so the group reaches it.
-    expect(r.order).toContain("tag");
-    expect(b.get("tag")).toBeDefined();
+
+  test("the gap is the one thing you usually do not write", () => {
+    const wide = slotCentres("row", [size(100, 40), size(100, 40)], { gap: 100 });
+    const narrow = slotCentres("row", [size(100, 40), size(100, 40)]);
+    expect(wide[1][0] - wide[0][0]).toBeCloseTo(narrow[1][0] - narrow[0][0] + (100 - DEFAULT_GAP), 5);
   });
-  test("a pieces parent as a member gives the group its cells' box", () => {
-    const r = layoutSpec({
-      elements: [
-        { id: "kake", type: "pieces", of: "sectors", x: 300, y: 400, radius: 120, n: 4, style: { fill: "#2f6b8f" } },
-        { id: "g", type: "group", members: ["kake"] },
-        { id: "t", type: "text", text: "T", font_size: 24, at: { ref: "g", side: "above", gap: 10 } },
-      ],
-      commands: [{ draw: ["g", "t"] }],
-    } as never);
-    expect(r.issues.filter((i) => i.rule === "group-empty" || i.rule === "placement")).toEqual([]);
-    expect(r.warnings).toEqual([]);
-    const b = elementBBoxes(r);
-    const cells = r.pieceGroups.kake.map((id) => b.get(id)!);
-    const x0 = Math.min(...cells.map((c) => c.x)), y0 = Math.min(...cells.map((c) => c.y));
-    const x1 = Math.max(...cells.map((c) => c.x + c.w)), y1 = Math.max(...cells.map((c) => c.y + c.h));
-    expect(r.namedAnchors.g.bottom_left[0]).toBeCloseTo(x0, 6);
-    expect(r.namedAnchors.g.bottom_left[1]).toBeCloseTo(y0, 6);
-    expect(r.namedAnchors.g.top_right[0]).toBeCloseTo(x1, 6);
-    expect(r.namedAnchors.g.top_right[1]).toBeCloseTo(y1, 6);
-    // …and text placed above the group clears the cut cake, gap and all.
-    expect(b.get("t")!.y).toBeCloseTo(y1 + 10, 0);
+
+  test("align start lines a row up by its members' tops", () => {
+    const c = slotCentres("row", [size(100, 40), size(60, 80)], { align: "start" });
+    expect(c[0][1] + 40 / 2).toBeCloseTo(c[1][1] + 80 / 2, 5);
   });
-  test("an annotation is a legal member too", () => {
-    const r = layoutSpec({
-      elements: [
-        { id: "box", type: "shape", shape: "rect", x: 330, y: 320, width: 60, height: 40 },
-        { id: "mark", type: "annotation", target: "box" },
-        { id: "g", type: "group", members: ["box", "mark"] },
-      ],
-      commands: [{ draw: ["g"] }],
-    } as never);
-    expect(r.issues.filter((i) => i.rule === "group-empty")).toEqual([]);
-    expect(r.groups.g).toEqual(["box", "mark"]);
+
+  test("a grid wraps at columns, row by row", () => {
+    const c = slotCentres("grid", [size(50, 50), size(50, 50), size(50, 50)], { columns: 2 });
+    expect(c[0][1]).toBeCloseTo(c[1][1], 5);
+    expect(c[2][1]).toBeLessThan(c[0][1]);
+    expect(c[2][0]).toBeCloseTo(c[0][0], 5);
+  });
+
+  test("one member is its own centre", () => {
+    expect(slotCentres("row", [size(80, 20)])).toHaveLength(1);
+  });
+
+  test("no members is no slots", () => {
+    expect(slotCentres("row", [])).toEqual([]);
   });
 });
 
-// C2: an annotation marks ALREADY-placed geometry, and it used to read the
-// drawables directly (unionBBoxForId) — which cannot see a `group` (its
-// members' ink is filed under THEIR ids) nor a line-less `measure` (an
-// area/perimeter measure draws no line, only its text). Both were reported
-// as "unknown or empty target" and silently skipped. boxOfId sees both.
-describe("annotation targets that draw nothing under their own id (C2)", () => {
-  test("a box around a GROUP surrounds the union of its members", () => {
-    const r = layoutSpec({
-      elements: [
-        { id: "body", type: "shape", shape: "rect", x: 330, y: 400, width: 60, height: 200 },
-        { id: "cap", type: "shape", shape: "circle", radius: 20, at: { ref: "body", anchor: "top" }, anchor: "bottom" },
-        { id: "pump", type: "group", members: ["body", "cap"] },
-        { id: "ring", type: "annotation", kind: "box", target: "pump" },
-      ],
-      commands: [{ draw: ["pump"] }, { draw: ["ring"] }],
-    } as never);
-    expect(r.warnings.filter((w) => w.includes("ring"))).toEqual([]);
-    const b = elementBBoxes(r);
-    const body = b.get("body")!, cap = b.get("cap")!, ring = b.get("ring")!;
-    const unionY0 = Math.min(body.y, cap.y), unionY1 = Math.max(body.y + body.h, cap.y + cap.h);
-    // Around, not inside: the mark clears the union on every side.
-    expect(ring.x).toBeLessThan(Math.min(body.x, cap.x));
-    expect(ring.x + ring.w).toBeGreaterThan(Math.max(body.x + body.w, cap.x + cap.w));
-    expect(ring.y).toBeLessThan(unionY0);
-    expect(ring.y + ring.h).toBeGreaterThan(unionY1);
-    // And it really is the union — the cap alone would be far shorter.
-    expect(ring.h).toBeGreaterThan(unionY1 - unionY0);
+describe("the natural size of a node", () => {
+  test("a rect grows with its text", () => {
+    const small = naturalNodeSize({ id: "a", type: "node", shape: "rect", text: "Hi" })!;
+    const big = naturalNodeSize({ id: "b", type: "node", shape: "rect", text: "Husholdninger" })!;
+    expect(big.w).toBeGreaterThan(small.w);
+    expect(big.h).toBeCloseTo(small.h, 5);
   });
 
-  test("a circle around a line-less measure lands on its label", () => {
-    const r = layoutSpec({
-      elements: [
-        { id: "body", type: "shape", shape: "rect", x: 330, y: 400, width: 60, height: 200 },
-        { id: "areal", type: "measure", of: "body", what: "area", label: "A = {value}" },
-        { id: "mark", type: "annotation", kind: "circle", target: "areal" },
-      ],
-      commands: [{ draw: ["body"] }, { draw: ["areal"] }, { draw: ["mark"] }],
-    } as never);
-    expect(r.warnings.filter((w) => w.includes("mark"))).toEqual([]);
+  test("a declared width wins", () => {
+    expect(naturalNodeSize({ id: "a", type: "node", shape: "rect", text: "Hi", width: 300 })!.w).toBe(300);
+  });
+
+  test("only nodes have one", () => {
+    expect(naturalNodeSize({ id: "t", type: "text", text: "hi" })).toBeNull();
+  });
+});
+
+import { elementBBoxes, layoutSpec } from "../src/layout/layout";
+import { validateSpec } from "../src/spec/schema";
+import type { Spec } from "../src/spec/types";
+
+const ROW: Spec = {
+  elements: [
+    { id: "a", type: "node", shape: "rect", text: "Innsats" },
+    { id: "b", type: "node", shape: "rect", text: "Produksjon" },
+    { id: "g", type: "group", members: ["a", "b"], layout: "row" },
+  ],
+  commands: [{ draw: ["g"] }],
+};
+
+describe("the fields", () => {
+  test("a group with a layout validates", () => {
+    expect(validateSpec(ROW).ok).toBe(true);
+  });
+
+  test("layout on something that is not a group is refused", () => {
+    const r = validateSpec({ elements: [{ id: "t", type: "text", text: "hi", x: 1, y: 2, layout: "row" }], commands: [] });
+    expect(r.ok).toBe(false);
+    expect(r.errors.join(" ")).toContain("layout");
+  });
+});
+
+describe("equalize", () => {
+  test("a row gives its boxes one size, the largest needed", () => {
+    const b = elementBBoxes(layoutSpec(ROW));
+    expect(b.get("a")!.w).toBeCloseTo(b.get("b")!.w, 0);
+    expect(b.get("a")!.h).toBeCloseTo(b.get("b")!.h, 0);
+  });
+
+  test("equalize false leaves every box its own size", () => {
+    const spec = JSON.parse(JSON.stringify(ROW)) as Spec;
+    spec.elements![2].equalize = false;
+    const b = elementBBoxes(layoutSpec(spec));
+    expect(b.get("a")!.w).toBeLessThan(b.get("b")!.w);
+  });
+
+  test("a group with no layout is untouched", () => {
+    const spec = JSON.parse(JSON.stringify(ROW)) as Spec;
+    delete spec.elements![2].layout;
+    const b = elementBBoxes(layoutSpec(spec));
+    expect(b.get("a")!.w).toBeLessThan(b.get("b")!.w);
+  });
+});
+
+describe("a structure with no coordinates anywhere", () => {
+  const CHAIN: Spec = {
+    elements: [
+      { id: "a", type: "node", shape: "rect", text: "Innsats" },
+      { id: "b", type: "node", shape: "rect", text: "Produksjon" },
+      { id: "c", type: "node", shape: "rect", text: "Resultat" },
+      { id: "g", type: "group", members: ["a", "b", "c"], layout: "row" },
+      { id: "e1", type: "arrow", from: { ref: "a" }, to: { ref: "b" } },
+      { id: "e2", type: "arrow", from: { ref: "b" }, to: { ref: "c" } },
+    ],
+    commands: [{ draw: ["g", "e1", "e2"] }],
+  };
+
+  test("a row runs left to right, one gap apart, level", () => {
+    const r = layoutSpec(CHAIN);
     const b = elementBBoxes(r);
-    // An area measure draws no line at all: its only ink is the number,
-    // filed under `label_areal`. The mark has to find it anyway.
-    const text = b.get("label_areal")!, mark = b.get("mark")!;
-    expect(mark.x).toBeLessThanOrEqual(text.x);
-    expect(mark.x + mark.w).toBeGreaterThanOrEqual(text.x + text.w);
-    expect(mark.y).toBeLessThanOrEqual(text.y);
+    expect(b.get("a")!.x).toBeLessThan(b.get("b")!.x);
+    expect(b.get("b")!.x).toBeLessThan(b.get("c")!.x);
+    expect(b.get("b")!.x - (b.get("a")!.x + b.get("a")!.w)).toBeCloseTo(DEFAULT_GAP, 0);
+    expect(b.get("a")!.y).toBeCloseTo(b.get("c")!.y, 0);
+    expect(r.issues.filter((i) => i.severity === "error")).toEqual([]);
+  });
+
+  test("the arrows run between the boxes where they ended up", () => {
+    const b = elementBBoxes(layoutSpec(CHAIN));
+    const arrow = b.get("e1")!;
+    expect(arrow.x).toBeGreaterThanOrEqual(b.get("a")!.x);
+    expect(arrow.x + arrow.w).toBeLessThanOrEqual(b.get("b")!.x + b.get("b")!.w + 1);
+  });
+
+  test("a column stacks downward", () => {
+    const spec = JSON.parse(JSON.stringify(CHAIN)) as Spec;
+    spec.elements![3].layout = "column";
+    const b = elementBBoxes(layoutSpec(spec));
+    expect(b.get("a")!.y).toBeGreaterThan(b.get("b")!.y);
+    expect(b.get("a")!.x).toBeCloseTo(b.get("b")!.x, 0);
+  });
+
+  test("gap is honoured", () => {
+    const spec = JSON.parse(JSON.stringify(CHAIN)) as Spec;
+    spec.elements![3].gap = 120;
+    const b = elementBBoxes(layoutSpec(spec));
+    expect(b.get("b")!.x - (b.get("a")!.x + b.get("a")!.w)).toBeCloseTo(120, 0);
+  });
+
+  test("a column nested in a row moves as one thing", () => {
+    const spec: Spec = {
+      elements: [
+        { id: "a", type: "node", shape: "rect", text: "Søk" },
+        { id: "b", type: "node", shape: "rect", text: "Filtrer" },
+        { id: "c", type: "node", shape: "rect", text: "Rangér" },
+        { id: "inner", type: "group", members: ["b", "c"], layout: "column" },
+        { id: "outer", type: "group", members: ["a", "inner"], layout: "row" },
+      ],
+      commands: [{ draw: ["outer"] }],
+    };
+    const b = elementBBoxes(layoutSpec(spec));
+    // The column's two boxes stay aligned with each other, and both sit right of a.
+    expect(b.get("b")!.x).toBeCloseTo(b.get("c")!.x, 0);
+    expect(b.get("b")!.x).toBeGreaterThan(b.get("a")!.x);
+  });
+
+  test("layout then fit: the arrangement is scaled into its region", () => {
+    const spec = JSON.parse(JSON.stringify(CHAIN)) as Spec;
+    spec.elements![3].fit = "left";
+    const b = elementBBoxes(layoutSpec(spec));
+    expect(b.get("c")!.x + b.get("c")!.w).toBeLessThan(520);
+  });
+
+  test("a member drawn two beats later does not move the ones already there", () => {
+    const together = elementBBoxes(layoutSpec(CHAIN));
+    const staged = JSON.parse(JSON.stringify(CHAIN)) as Spec;
+    staged.commands = [{ draw: ["a"] }, { draw: ["b"] }, { draw: ["c"] }, { draw: ["e1", "e2"] }];
+    const later = elementBBoxes(layoutSpec(staged));
+    for (const id of ["a", "b", "c"]) {
+      expect(later.get(id)!.x).toBeCloseTo(together.get(id)!.x, 5);
+      expect(later.get(id)!.y).toBeCloseTo(together.get(id)!.y, 5);
+    }
   });
 });
