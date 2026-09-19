@@ -14,16 +14,21 @@ description: >-
   moves in Standard Algebraic Notation (SAN) played out via the chess
   engine: a green-and-cream 8x8 board with drawn Staunton piece
   silhouettes, an
-  arrow along the most recently played move, optional static annotation
+  arrow along the move being played, optional static annotation
   arrows and highlighted squares, and file/rank coordinates. Choose this
   scene for ANY request about a chess position, a FEN diagram, a chess
   opening, a chess line, a chess puzzle or tactic, a checkmate, or replaying
   a sequence of chess moves. `plies_shown` is NUMERIC and ANIMATABLE:
   animate it from 0 to moves.length (write the starting value, e.g.
   `plies_shown: 0`, explicitly in params) to replay the line move by move,
-  narrating each beat, with the newest move drawn as an arrow as it lands —
-  each animated ply glides the moving piece (and, for a capture, fades the
-  captured one) rather than teleporting it.
+  narrating each beat. A ply ANNOUNCES ITSELF FIRST: the move arrow grows out
+  of the origin square over a still board, and only then does the piece glide
+  along it (a capture fading the piece it takes as it arrives) — finger
+  first, then the piece. Every one of the 64 squares is an element, so a beat
+  can point at or circle a square with nothing on it (`sq_f7`), and a `move`
+  can slide a piece onto one for a what-if and slide it back. Circle a
+  square, glow a PIECE — a glow repaints its target in the highlight color,
+  which over a square would cover whatever stands on it.
 params:
   type: object
   properties:
@@ -58,9 +63,9 @@ params:
       description: "Show file letters (a-h) and rank numbers (1-8) around the board. Default true."
 element_ids:
   board: the 8x8 board — its light-square ground plus the grid lines
-  sq_<file><rank>: a dark square's fill (one per dark square, e.g. sq_a1); the light squares are part of `board`
+  sq_<file><rank>: one square's own fill — ALL SIXTY-FOUR of them, dark (sq_a1) and light (sq_f7) alike. A light square paints the same cream the board's ground already paints, so drawing it or leaving it out looks identical — what it gives you is an id, and that is how a beat points at, circles or glows a square with NOTHING on it, and what a `move` lands a what-if piece on. Name a square in an earlier `draw` before pointing at it
   piece_<file><rank>: the drawn piece on that square in the currently shown position — a filled silhouette with an ink outline — present for every square occupied in the starting position or ever visited by `moves` (including a castling move's rook squares) (an empty group on a touched-but-currently-vacant square, so the same id exists at every plies_shown and can be animated). At a fractional plies_shown mid-`animate`, the departing square's id carries the moving piece gliding toward its destination (a captured piece, if any, stays on the destination square's id and fades out instead)
-  move_arrow: an arrow along the most recently played move currently shown (demand color, over a paper casing so it separates from either square color); present whenever `moves` is non-empty, collapsed to nothing before the first ply is shown
+  move_arrow: an arrow along the move currently shown (demand color, over a paper casing so it separates from either square color); present whenever `moves` is non-empty, collapsed to nothing before the first ply is shown. During an animated ply it belongs to the move being PLAYED and grows out of its origin square before the piece sets off; at rest it is the last move played
   arrow_<i>: a static annotation arrow from arrows[i] (accent color, over the same paper casing)
   hl_<sq>: a marked square from highlights[i] — a bright wash inside an ink frame, so it reads on a dark and a light square alike
   coord_<k>: a file letter (a-h) or rank number (1-8) around the board, when coords is true
@@ -129,6 +134,32 @@ layout: |
   const positionFen = shown > 0 ? plies[shown - 1].fenAfter : fen;
   const board = engines.chess.board(positionFen); // also validates a bare fen with no moves.
   const startBoard = movesRaw.length > 0 ? engines.chess.board(fen) : board;
+
+  // ---- The two legs of a ply -----------------------------------------------
+  //
+  // A ply is ANNOUNCED, then played (pointing round, 2026-09-20; Hans: "I
+  // wonder if the arrows should be drawn before the pieces move, not after as
+  // it is"). The arrow used to be a record of the move already made —
+  // plies[shown - 1] — so it could only ever arrive at a square the piece was
+  // already standing on. Now the beat splits in two: over the first ARROW_LEAD
+  // of it the move arrow GROWS out of the origin square toward the
+  // destination, and only over what is left does the piece cross. Which is how
+  // a person shows a move on a board: finger first, then the piece.
+  //
+  // Both fractions get their own smoothstep, so each leg eases in and out on
+  // its own terms. Without the second one the piece would inherit the
+  // already-eased plyT's non-zero velocity at the handoff and start with a
+  // visible jerk; `animate`'s easing shapes how plyT advances over wall-clock
+  // time (src/render/player.ts), and these two shape what happens INSIDE the
+  // resulting value.
+  //
+  // At plyT === 0 — every integer plies_shown, i.e. every still frame — both
+  // are 0 and nothing below this line behaves differently than it did before
+  // the lead existed. That is what keeps the byte-identical pin honest.
+  const ARROW_LEAD = 0.35;
+  const smooth = (u) => u * u * (3 - 2 * u);
+  const arrowT = plyT > 0 ? smooth(Math.min(1, plyT / ARROW_LEAD)) : 0;
+  const travelT = plyT > ARROW_LEAD ? smooth((plyT - ARROW_LEAD) / (1 - ARROW_LEAD)) : 0;
 
   // Square <-> board-array mapping, verified both ways:
   //
@@ -232,14 +263,28 @@ layout: |
   // shaded diagram rather than a board. demand (the move arrow), region1
   // (highlights) and accent (annotation arrows) are all non-green and stay
   // clearly legible on either square.
+  //
+  // ALL SIXTY-FOUR squares are elements, light ones included (pointing round,
+  // 2026-09-20). A light square paints the very cream the ground under it
+  // already paints, so it is invisible as a change — but it now has an id, a
+  // box and an anchor, which is what lets narration circle an EMPTY square,
+  // glow it, or land a pretend-move on it. f7 is the case that forced this:
+  // the square Scholar's Mate is entirely about, and light, so until now the
+  // example could only point at the piece standing on it.
+  //
+  // The ground stays exactly where it was rather than being replaced by these
+  // 32 new elements: a draw list that names only the dark squares (every chess
+  // spec written before today, the bundled example included) must keep
+  // rendering a complete two-tone board, and an author who never mentions a
+  // light square should never see a half-painted one.
   for (let r = 0; r < 8; r++) {
     for (let c = 0; c < 8; c++) {
-      if ((r + c) % 2 !== 1) continue;
       const [br, bc] = boardRC(r, c);
       const id = "sq_" + squareId(br, bc);
       const [cx, cy] = cellPos(r, c);
       const h = CELL / 2;
-      push(kit.area(id, [[cx - h, cy - h], [cx + h, cy - h], [cx + h, cy + h], [cx - h, cy + h]], C.boardDark, { precise: true, ms: SCAFFOLD_MS }));
+      const fill = (r + c) % 2 === 1 ? C.boardDark : C.boardLight;
+      push(kit.area(id, [[cx - h, cy - h], [cx + h, cy - h], [cx + h, cy + h], [cx - h, cy + h]], fill, { precise: true, ms: SCAFFOLD_MS }));
       anchors[id] = [cx, cy];
     }
   }
@@ -608,9 +653,9 @@ layout: |
   const fade = new Map();
   if (plyT > 0) {
     const nextPly = plies[shown];
-    const lift = 1 + 0.1 * 4 * plyT * (1 - plyT); // parabolic, peaks at +10% when plyT=0.5
+    const lift = 1 + 0.1 * 4 * travelT * (1 - travelT); // parabolic, peaks at +10% halfway across
     glide.set(nextPly.from, { toSq: nextPly.to, lift });
-    if (nextPly.capture) fade.set(nextPly.to, 1 - plyT);
+    if (nextPly.capture) fade.set(nextPly.to, 1 - travelT);
     const rook = castleRook(nextPly);
     if (rook) glide.set(rook.from, { toSq: rook.to, lift });
   }
@@ -631,7 +676,7 @@ layout: |
     const inFlight = glide.get(sq);
     if (inFlight) {
       const [tx, ty] = squarePos(inFlight.toSq);
-      at = [cx + (tx - cx) * plyT, cy + (ty - cy) * plyT];
+      at = [cx + (tx - cx) * travelT, cy + (ty - cy) * travelT];
       lift = inFlight.lift;
     }
     const opacity = fade.get(sq);
@@ -659,20 +704,40 @@ layout: |
    * is packaging for the beat, not the beat.
    */
   function arrowWithHalo(id, from, to, color, strokeWidth) {
-    const geom = { shorten: 22 };
+    // 22px off each end, EXCEPT while the move arrow is still growing out of
+    // its origin square: kit.edgeArrow trims both ends blindly, so a 44px trim
+    // on a segment shorter than that turns the arrow inside out. Capping the
+    // trim at 30% of the current length keeps every growth stage well-formed
+    // and pointing the right way. The cap never binds on a finished arrow —
+    // the shortest legal move is one cell (CELL = 77.5), 30% of which is over
+    // 22 — so a completed arrow is trimmed exactly as it always was.
+    const span = Math.hypot(to[0] - from[0], to[1] - from[1]);
+    const geom = { shorten: Math.min(22, span * 0.3) };
     const halo = kit.edgeArrow(id + "__halo", from, to, { ...geom, color: C.paper, strokeWidth: strokeWidth + 3.5, ms: SCAFFOLD_MS });
     const line = kit.edgeArrow(id + "__line", from, to, { ...geom, color, strokeWidth, ms: MS.connector });
     return kit.group(id, [...halo.drawables, ...line.drawables]);
   }
 
-  // Last-move arrow: present whenever the line has any moves at all (so it
+  // The move arrow: present whenever the line has any moves at all (so it
   // can be animated in smoothly), collapsed to a zero-length segment at the
   // board's own center — a point no piece ever anchors on — before the
   // first ply is shown.
+  //
+  // Mid-ply it belongs to the move IN FLIGHT (plies[shown], the one the glide
+  // above is playing) rather than to the one already made, and reaches only
+  // arrowT of the way there: that is the announcement growing out of the
+  // origin square while the piece still stands on it. At every integer
+  // plies_shown — arrowT 0, nothing in flight — it is the last move played,
+  // full length, exactly as before.
   if (maxPlies > 0) {
     const boardCenter = [X0 + BOARD / 2, Y0 + BOARD / 2];
     let from = boardCenter, to = boardCenter;
-    if (shown > 0) {
+    if (plyT > 0) {
+      const flying = plies[shown];
+      from = squarePos(flying.from);
+      const dest = squarePos(flying.to);
+      to = [from[0] + (dest[0] - from[0]) * arrowT, from[1] + (dest[1] - from[1]) * arrowT];
+    } else if (shown > 0) {
       const last = plies[shown - 1];
       from = squarePos(last.from);
       to = squarePos(last.to);

@@ -322,7 +322,15 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // `curve` steepness carries the one-line version. Descriptions the model reads
 // before choosing a value, so the cost lands in the cached prefix.
 // schema 81370 → 81492, system 203007 → 203644.
-const BASELINE_SYSTEM_CHARS = 203644;
+// Re-pinned 2026-09-20 (pointing at a chess square): chess_board's own
+// description and its sq_<square> entry now say that ALL 64 squares are
+// elements — which is what lets a beat circle an EMPTY square — that a ply's
+// arrow is drawn BEFORE the piece crosses, and that a glow belongs on a piece
+// rather than a square. Plus one general `move` bullet on the what-if: ghost
+// it out, take it back, and mind that an offset persists until you do. Catalog
+// and prompt only; the schema is untouched (81492).
+// system 203644 -> 204130.
+const BASELINE_SYSTEM_CHARS = 204130;
 const BASELINE_SCHEMA_CHARS = 81492;
 
 const system = (code: boolean, sound = false) =>

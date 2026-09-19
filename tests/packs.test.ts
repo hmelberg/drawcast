@@ -1452,6 +1452,18 @@ function chessCellCenter(sq: string, flip = false): [number, number] {
   return [X0 + (c + 0.5) * CHESS_CELL, Y0 + 620 - (r + 0.5) * CHESS_CELL];
 }
 
+// A chess ply is announced, then played: over its first ARROW_LEAD the move
+// arrow grows out of the origin square, and the piece crosses over the 0.65
+// that is left, on its own smoothstep. So the interesting fractional
+// plies_shown are no longer 0.25/0.5/0.75 of the PLY but of that second leg —
+// named here, since a bare 0.675 in an assertion says nothing on its own.
+// Each is an exact decimal, and the smoothstep puts the piece at 5/32, 1/2 and
+// 27/32 of the way across at the three below.
+const ARROW_LEAD = 0.35;
+const MID_TRAVEL = ARROW_LEAD + (1 - ARROW_LEAD) / 2; // 0.675
+const QUARTER_TRAVEL = ARROW_LEAD + (1 - ARROW_LEAD) * 0.25; // 0.5125
+const THREE_QUARTER_TRAVEL = ARROW_LEAD + (1 - ARROW_LEAD) * 0.75; // 0.8375
+
 describe("games pack", () => {
   beforeEach(() => unregisterPack("games"));
 
@@ -1566,6 +1578,97 @@ describe("games pack", () => {
     expect((arrowFlat.find((d) => d.id === "move_arrow__line") as { drawOpts: { duration: number } }).drawOpts.duration).toBe(850); // kit.SKETCH_MS.connector, unchanged.
     expect((arrowFlat.find((d) => d.id === "move_arrow__halo") as { drawOpts: { duration: number } }).drawOpts.duration).toBe(420);
   });
+
+  // Pointing round, 2026-09-20 (Hans): "in the scholar's mate example you say
+  // 'threatens ...' then you might want to highlight the piece or square that
+  // is threatened". You could not. The board painted the 32 DARK squares as
+  // elements and left the light ones to the `board` element's own ground, so
+  // f7 — the square the whole example is about — had no id to point at,
+  // circle, glow or land a pretend-move on. Every square is an element now;
+  // the light ones paint the same cream the ground already paints, so drawing
+  // one (or leaving it out of a draw list) looks exactly the same either way
+  // and the ground stays as the board's backstop.
+  test("every one of the 64 squares is an element with an anchor — a light square painted the ground's own cream, so an EMPTY light square can be pointed at", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    const res = scenes.chess_board.layout!({});
+    const flat = flattenDrawables(res.drawables);
+    const every: string[] = [];
+    for (const f of "abcdefgh") for (let r = 1; r <= 8; r++) every.push(`sq_${f}${r}`);
+    expect(every.filter((id) => !flat.some((d) => d.id === id))).toEqual([]);
+    expect(every.filter((id) => !res.anchors[id])).toEqual([]);
+
+    // f7: light, empty in the start position, and the square Scholar's Mate is about.
+    const f7 = flat.find((d) => d.id === "sq_f7") as {
+      kind: string;
+      style: { fill: string; opacity: number };
+      precise?: boolean;
+      drawOpts: { duration: number };
+      pts: [number, number][];
+    };
+    expect(f7.kind).toBe("area");
+    expect(f7.style.fill).toBe(COLORS.boardLight);
+    expect(f7.style.opacity).toBe(1);
+    expect(f7.precise).toBe(true);
+    expect(f7.drawOpts.duration).toBe(420); // scaffold, like every other square
+    const xs = f7.pts.map(([x]) => x), ys = f7.pts.map(([, y]) => y);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(CHESS_CELL, 6);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(CHESS_CELL, 6);
+    expect(res.anchors.sq_f7).toEqual(chessCellCenter("f7"));
+
+    // The ground is still there under all of them: a draw list that names
+    // only the dark squares (every chess spec written before today) still
+    // renders a complete two-tone board.
+    expect(flat.find((d) => d.id === "board__ground")).toBeDefined();
+  });
+
+  /** The drawn move arrow's length — how far the announcement has got. */
+  function moveArrowLength(flat: Drawable[]): number {
+    const line = flat.find((d) => d.id === "move_arrow__line") as { pts: [number, number][] };
+    const a = line.pts[0], b = line.pts[line.pts.length - 1];
+    return Math.hypot(b[0] - a[0], b[1] - a[1]);
+  }
+
+  // Pointing round, 2026-09-20 (Hans): "I wonder if the arrows should be drawn
+  // before the pieces move, not after as it is." They were a RECORD of the
+  // move just played — plies[shown - 1] — so the arrow could only ever arrive
+  // after the piece had already got there. Now the beat announces itself: the
+  // arrow grows out of the origin square over the first ARROW_LEAD of the ply,
+  // and the piece crosses over what is left.
+  test("the arrow announces the move BEFORE the piece travels: it grows from the origin over the lead, and only then does the piece cross", async () => {
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+    const at = (p: number) => scenes.chess_board.layout!({ moves: ["e4"], plies_shown: p });
+    const flatAt = (p: number) => flattenDrawables(at(p).drawables);
+    const e2 = chessCellCenter("e2"), e4 = chessCellCenter("e4");
+    const full = moveArrowLength(flatAt(1));
+
+    // Inside the lead: the arrow is growing, and it grows out of e2.
+    const early = moveArrowLength(flatAt(0.1)), later = moveArrowLength(flatAt(0.3));
+    expect(early).toBeGreaterThan(0);
+    expect(early).toBeLessThan(later);
+    expect(later).toBeLessThan(full);
+    const earlyLine = flatAt(0.1).find((d) => d.id === "move_arrow__line") as { pts: [number, number][] };
+    expect(Math.hypot(earlyLine.pts[0][0] - e2[0], earlyLine.pts[0][1] - e2[1])).toBeLessThan(CHESS_CELL / 2);
+    expect(earlyLine.pts[1][1]).toBeGreaterThan(earlyLine.pts[0][1]); // aimed up the board, at e4
+
+    // ...and through all of it the pawn has not stirred.
+    expect(at(0.1).anchors.piece_e2).toEqual(e2);
+    expect(at(0.3).anchors.piece_e2).toEqual(e2);
+
+    // At the handoff the announcement is complete and the pawn is still home.
+    expect(moveArrowLength(flatAt(0.35))).toBeCloseTo(full, 6);
+    expect(at(0.35).anchors.piece_e2).toEqual(e2);
+
+    // Past it the arrow stays full and the pawn crosses — halfway across its
+    // own leg (0.35 + 0.65/2) it stands halfway up the e-file, since the leg's
+    // smoothstep is symmetric about its midpoint.
+    expect(moveArrowLength(flatAt(0.675))).toBeCloseTo(full, 6);
+    const mid = at(0.675).anchors.piece_e2 as [number, number];
+    expect(mid[0]).toBeCloseTo(e2[0], 6);
+    expect(mid[1]).toBeCloseTo((e2[1] + e4[1]) / 2, 6);
+  });
+
 
   // THE definitive centering test, and the reason the pieces stopped being
   // Unicode text at all. The old glyphs were centered by SVG's
@@ -1840,43 +1943,59 @@ describe("games pack", () => {
     // at all, and — the invariant this test actually protects — the per-square
     // lookup at every integer boundary is reached the same way as before, with
     // plyT === 0 and no glide/fade/lift branch taken.
+    //
+    // Recaptured a final time for the pointing round (2026-09-20), which gave
+    // the 32 LIGHT squares elements of their own so an empty light square can
+    // be pointed at. Every hash moves, the default included — 32 new drawables
+    // and 32 new anchors in every render. The scoping was proved the same way
+    // as last time, against this commit's parent loaded side by side: at all
+    // nine renders below, stripping the new `sq_<light>` drawables, anchors and
+    // order entries leaves output byte-identical before and after. So the
+    // ground, the dark squares, the pieces, the coordinates and the arrow are
+    // untouched — and the same proof covers the round's OTHER change, the
+    // arrow's lead over the piece: it lives entirely behind `plyT > 0`, so at
+    // an integer boundary it is not reached at all.
     const EXPECTED: Record<number, string> = {
-      0: "f3b9dfca6681f6ad300c2b52cfc6ee4c1dbf3e17d19955a598972b99bc671800",
-      1: "af1770f53c90804e666f005ddcb6e6cc539faefefd2841c0bd0fbe58c9cb3b94",
-      2: "9e284480e22d6dae130c25ecc6c4c3c8a9ff145b043e9e2527e3d388e505328b",
-      3: "0942021e5356bcc747cff4a3a347586c4e07db866691642e43657efca6f8808a",
-      4: "687b96492b7d94a43450d1eb6e4d90bcf2cdf5813f89df9f92f9c49e0a5bc6c1",
-      5: "35af84cd0cb87b2ed1f7f79f1559e4fc13afc9b748a99b6a07ac23c79e9a9ce9",
-      6: "1d4921acab25e0471407edfa4df0ff7cb450c24943a69bc8287900240de972cf",
-      7: "e31ba753e992108cdd0d52dae8f0ee049418b2784c8c5d964cb2487947128b32",
+      0: "9c99144062403a434b890ab4a7e08d47ea29c42089a9a664753acc597f4bab4b",
+      1: "5ebe4996643e33fbeebeb84cd025568c75031a9ec0cb724694a96df26b52727d",
+      2: "d6cd9d2904b2278d4673444ee18b06deca67962031d42b7877dfb500f1d2ae23",
+      3: "7da8ff2334bacf0c4b129692e6bff517b4ba764c50b258790ad680cc3ea74b60",
+      4: "715323fac62e178d58796e97f1b240340475b0953c61bda3a27ba9f2f1f29630",
+      5: "3d2847b91d0a991524086a6dbe9b1128721167f0ed3fc0568a013b8650a48b2c",
+      6: "5dc9fa46dd30a35b93c695d357c3b597ffdb20785df5ee050ce0190a340ae147",
+      7: "143ac18c479084ec0a383b7cbe6c76b326c9f7fe72c199d589f67b4baeef0af5",
     };
     for (let i = 0; i <= moves.length; i++) {
       const r = scenes.chess_board.layout!({ moves, plies_shown: i });
       expect(hashOf(r)).toBe(EXPECTED[i]);
     }
     const r0 = scenes.chess_board.layout!({});
-    expect(hashOf(r0)).toBe("5ea5ee4ea87d06fa6898ae1f09c838166fa3f3245b801fa77bfb4ebcec18fb3a");
+    expect(hashOf(r0)).toBe("7b12c61e38908a88acf49199f7613aea0c4bd080332b793087730ac37d370e4d");
   });
 
-  test("fractional plies_shown glides the moving piece in a straight line: 0.5 into 1.e4 sits the e-pawn strictly between e2 and e4, x unchanged", async () => {
+  test("fractional plies_shown glides the moving piece in a straight line: halfway through its own leg the e-pawn sits between e2 and e4, x unchanged", async () => {
     await ensureEngines(["chess"]);
     registerPack("games", gamesYaml);
     const before = scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0 });
     const after = scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 1 });
-    const mid = scenes.chess_board.layout!({ moves: ["e4"], plies_shown: 0.5 });
+    // MID_TRAVEL, not 0.5: the ply's first ARROW_LEAD (0.35) belongs to the
+    // arrow announcing the move, and the piece crosses over the 0.65 that is
+    // left, so its own midpoint is 0.35 + 0.65/2. The leg's smoothstep is
+    // symmetric about that point, which is what makes the board midpoint below
+    // exact rather than approximate.
+    const mid = scenes.chess_board.layout!({ moves: ["e4"], plies_shown: MID_TRAVEL });
     const e2 = (before.anchors.piece_e2 as [number, number]);
     const e4 = (after.anchors.piece_e4 as [number, number]);
     const flat = flattenDrawables(mid.drawables);
     // The mover still carries the DEPARTURE square's id mid-glide — and its
     // WHOLE geometry travels: fill ring, outline and detail strokes together.
-    const movingPiece = chessPieceAt(flat, "e2", 1.1)!; // lift peak at t=0.5
+    const movingPiece = chessPieceAt(flat, "e2", 1.1)!; // lift peak, halfway across
     expect(movingPiece).toMatchObject({ kind: "p", side: "w" });
     expect(movingPiece.center[0]).toBeCloseTo(e2[0], 6); // same file: x unchanged
     expect(movingPiece.center[0]).toBeCloseTo(e4[0], 6);
     expect(movingPiece.center[1]).toBeGreaterThan(Math.min(e2[1], e4[1]));
     expect(movingPiece.center[1]).toBeLessThan(Math.max(e2[1], e4[1]));
-    // Halfway is the exact midpoint (linear lerp; animate's own smoothstep
-    // easing already shaped how t itself advances over wall-clock time).
+    // Halfway across its leg is the exact midpoint of the two squares.
     expect(movingPiece.center[1]).toBeCloseTo((e2[1] + e4[1]) / 2, 6);
     // The outline stroke rides along with the fill, point for point.
     const edge = flat.find((d) => d.id === "piece_e2__edge") as { pts: [number, number][] };
@@ -1885,19 +2004,26 @@ describe("games pack", () => {
     expect(chessPieceAt(flat, "e4")).toBeNull();
   });
 
-  test("mid-move lift: the moving silhouette scales +10% about its own center at t=0.5 and returns to normal at the integer boundaries", async () => {
+  test("mid-move lift: the moving silhouette scales +10% about its own center halfway across its leg, and is untouched while the arrow is still being drawn", async () => {
     await ensureEngines(["chess"]);
     registerPack("games", gamesYaml);
     const at = (plies_shown: number) => chessPieceAt(flattenDrawables(scenes.chess_board.layout!({ moves: ["e4"], plies_shown }).drawables), "e2")!;
     const base = 0.76 * 0.8 * CHESS_CELL; // a pawn at rest
     expect(at(0).height).toBeCloseTo(base, 6);
-    expect(at(0.5).height).toBeCloseTo(base * 1.1, 6); // parabola peak at t=0.5
-    expect(at(0.25).height).toBeCloseTo(base * (1 + 0.1 * 4 * 0.25 * 0.75), 6);
-    expect(at(0.75).height).toBeCloseTo(at(0.25).height, 6); // symmetric around t=0.5
-    expect(at(0.25).height).toBeLessThan(at(0.5).height);
+    // Through the whole arrow lead the piece is exactly at rest — no lift, no
+    // travel. The announcement happens over a still board.
+    expect(at(0.1).height).toBeCloseTo(base, 6);
+    expect(at(ARROW_LEAD).height).toBeCloseTo(base, 6);
+    expect(at(MID_TRAVEL).height).toBeCloseTo(base * 1.1, 6); // parabola peak, halfway across
+    // A quarter and three quarters of the way through the leg: the leg's
+    // smoothstep puts the piece at 5/32 and 27/32 of the way across, which sum
+    // to 1 — so the parabolic lift reads the same at both.
+    expect(at(QUARTER_TRAVEL).height).toBeCloseTo(base * (1 + 0.1 * 4 * (5 / 32) * (27 / 32)), 6);
+    expect(at(THREE_QUARTER_TRAVEL).height).toBeCloseTo(at(QUARTER_TRAVEL).height, 6);
+    expect(at(QUARTER_TRAVEL).height).toBeLessThan(at(MID_TRAVEL).height);
     // The lift scales about the piece's OWN center: width grows in step, and
     // the center itself stays exactly on the glide path (checked above).
-    expect(at(0.5).width / at(0).width).toBeCloseTo(1.1, 6);
+    expect(at(MID_TRAVEL).width / at(0).width).toBeCloseTo(1.1, 6);
   });
 
   test("capture ply fades the captured piece's fill AND outline 1 -> 0 over t, at its own square, while the capturing piece glides in", async () => {
@@ -1905,20 +2031,25 @@ describe("games pack", () => {
     registerPack("games", gamesYaml);
     // 1.e4 d5 2.exd5 — ply index 2 (0-based) is the capture "exd5".
     const moves = ["e4", "d5", "exd5"];
-    const q1 = flattenDrawables(scenes.chess_board.layout!({ moves, plies_shown: 2.25 }).drawables);
-    const q3 = flattenDrawables(scenes.chess_board.layout!({ moves, plies_shown: 2.75 }).drawables);
+    const q1 = flattenDrawables(scenes.chess_board.layout!({ moves, plies_shown: 2 + QUARTER_TRAVEL }).drawables);
+    const q3 = flattenDrawables(scenes.chess_board.layout!({ moves, plies_shown: 2 + THREE_QUARTER_TRAVEL }).drawables);
     const victimQ1 = chessPieceAt(q1, "d5")!;
     const victimQ3 = chessPieceAt(q3, "d5")!;
     expect(victimQ1).toMatchObject({ kind: "p", side: "b" }); // still on d5, fading
     expect(victimQ3).toMatchObject({ kind: "p", side: "b" });
-    expect(victimQ1.opacity).toBeCloseTo(0.75, 6); // 1 - t
-    expect(victimQ3.opacity).toBeCloseTo(0.25, 6);
+    // The fade tracks the TAKING piece's own leg, not the whole beat: while
+    // the arrow is still being drawn the victim is whole — nothing has come
+    // for it yet — and it then dissolves as the pawn crosses.
+    const lead = flattenDrawables(scenes.chess_board.layout!({ moves, plies_shown: 2.1 }).drawables);
+    expect(chessPieceAt(lead, "d5")!.opacity).toBe(1);
+    expect(victimQ1.opacity).toBeCloseTo(1 - 5 / 32, 6);
+    expect(victimQ3.opacity).toBeCloseTo(1 - 27 / 32, 6);
     expect(victimQ3.opacity).toBeLessThan(victimQ1.opacity);
     // The outline fades with the fill — StrokeOpts carries opacity, so the
     // whole piece dissolves rather than leaving a floating contour behind.
-    expect((q1.find((d) => d.id === "piece_d5__edge") as { style: { opacity: number } }).style.opacity).toBeCloseTo(0.75, 6);
+    expect((q1.find((d) => d.id === "piece_d5__edge") as { style: { opacity: number } }).style.opacity).toBeCloseTo(1 - 5 / 32, 6);
     // The capturing pawn is gliding in on the departure square's id.
-    expect(chessPieceAt(q1, "e4", 1 + 0.1 * 4 * 0.25 * 0.75)).toMatchObject({ kind: "p", side: "w" });
+    expect(chessPieceAt(q1, "e4", 1 + 0.1 * 4 * (5 / 32) * (27 / 32))).toMatchObject({ kind: "p", side: "w" });
     // At the integer boundary after the capture, the victim is fully gone
     // (plain per-square lookup — no fade artifact left behind).
     const after = flattenDrawables(scenes.chess_board.layout!({ moves, plies_shown: 3 }).drawables);
@@ -1932,7 +2063,7 @@ describe("games pack", () => {
     const moves = ["e4", "e5", "Nf3", "Nc6", "Bc4", "Bc5", "O-O"];
     const before = scenes.chess_board.layout!({ moves, plies_shown: 6 });
     const after = scenes.chess_board.layout!({ moves, plies_shown: 7 });
-    const mid = scenes.chess_board.layout!({ moves, plies_shown: 6.5 });
+    const mid = scenes.chess_board.layout!({ moves, plies_shown: 6 + MID_TRAVEL });
     const flat = flattenDrawables(mid.drawables);
 
     const king = chessPieceAt(flat, "e1", 1.1)!;
@@ -1949,7 +2080,7 @@ describe("games pack", () => {
     expect(king.center[1]).toBeCloseTo((kingFrom[1] + kingTo[1]) / 2, 6);
     expect(rook.center[0]).toBeCloseTo((rookFrom[0] + rookTo[0]) / 2, 6);
     expect(rook.center[1]).toBeCloseTo((rookFrom[1] + rookTo[1]) / 2, 6);
-    // Both lifted the same amount (t=0.5 peak) since one ply moves both.
+    // Both lifted the same amount (the peak, halfway across) since one ply moves both.
     expect(king.height).toBeCloseTo(1 * 0.8 * CHESS_CELL * 1.1, 6);
     expect(rook.height).toBeCloseTo(0.84 * 0.8 * CHESS_CELL * 1.1, 6);
 
