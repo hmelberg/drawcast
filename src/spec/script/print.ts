@@ -25,7 +25,7 @@ const SETTING_ORDER: [keyof Spec, string][] = [
 const PAYLOAD_KEYS = ["assets", "subtitles", "text_map", "templates"] as const;
 
 /** Fields a beat carries rather than a direction. */
-const BEAT_FIELDS = new Set(["speak", "voice", "label", "cue"]);
+const BEAT_FIELDS = new Set(["speak", "voice", "label", "cue", "cue_end"]);
 
 const yaml = (v: unknown): string => dump(v, { lineWidth: -1, noRefs: true }).trimEnd();
 
@@ -345,7 +345,7 @@ export function printScriptPage(spec: Spec): string {
       for (const k of cued) {
         const at = Math.round((spec.commands![k].cue ?? 0) * cmd.speak.length);
         const action = commandLines(spec.commands![k])[0]?.trim() ?? "";
-        const span = `(@${action}@)`;
+        const span = `(@${action}${spec.commands![k].cue_end === true ? " ends" : ""}@)`;
         spoken = at === 0 ? `${span} ${spoken}` : `${spoken.slice(0, at)} ${span}${spoken.slice(at)}`;
       }
       lines.push(`${cmd.voice === "b" ? "B: " : cmd.voice === "a" ? "A: " : ""}${spoken}`);

@@ -478,6 +478,11 @@ const commandSchema = {
       description:
         "With speak: WHEN in the sentence this command's action starts — 0 is with the first word, 0.5 half way, 1 at the last. Use it when the action belongs to a MOMENT in the line (\"and then the arrow appears\"); leave it out and the action runs with the whole sentence, which is the normal case.",
     },
+    cue_end: {
+      type: "boolean",
+      description:
+        "With cue: the cue is where the action has FINISHED, not where it starts — the reveal lands its last stroke on that word, and the engine starts it early enough by itself. Use it for a completion (\"…and the curve is back where it began\"); leave it out for a gesture or a stream, where the START is the event.",
+    },
     blocking: {
       type: "boolean",
       description: "With speak: false starts the narration and immediately continues to the next command — use it to talk while pointing, highlighting, or drawing.",

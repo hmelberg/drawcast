@@ -312,7 +312,7 @@ type OpenLayout = { item: Direction; indent: number };
 interface Beat {
   speech?: string;
   /** Actions written inside the spoken line, with their cues. */
-  cued?: { direction: Direction; cue: number }[];
+  cued?: { direction: Direction; cue: number; ends: boolean }[];
   voice?: "a" | "b";
   label?: string;
   items: Direction[];
@@ -380,13 +380,14 @@ export function parseScriptPages(text: string): ParsedScript {
     }
     for (const g of groupItems) (spec.elements ??= []).push(g.element!);
     // Cued commands come after the uncued ones, in the order they are heard.
-    for (const { direction, cue } of [...(beat.cued ?? [])].sort((x, y) => x.cue - y.cue)) {
+    for (const { direction, cue, ends } of [...(beat.cued ?? [])].sort((x, y) => x.cue - y.cue)) {
+      const timing = ends ? { cue, cue_end: true } : { cue };
       if (direction.element) {
         (spec.elements ??= []).push(direction.element, ...(direction.extra ?? []));
         const ids = [direction.element.id, ...(direction.extra ?? []).map((x) => x.id)];
-        commands.push({ draw: ids, cue });
+        commands.push({ draw: ids, ...timing });
       } else if (direction.command) {
-        commands.push({ ...direction.command, cue });
+        commands.push({ ...direction.command, ...timing });
       }
     }
     if (commands.length === 0 && beat.speech === undefined && beat.label === undefined) { beat = null; return; }
@@ -437,8 +438,11 @@ export function parseScriptPages(text: string): ParsedScript {
         // An action written inside the line: a command of its own, cued to
         // the point in the sentence where it was written.
         for (const a of l.actions ?? []) {
-          const d = parseDirection(a.head, a.rest, l.line, warn);
-          (b.cued ??= []).push({ direction: d, cue: l.text.length === 0 ? 0 : a.offset / l.text.length });
+          // A trailing `ends` says the cue marks the action's FINISH.
+          const ends = a.rest === "ends" || a.rest.endsWith(" ends");
+          const rest = ends ? a.rest.slice(0, a.rest.length - "ends".length).trim() : a.rest;
+          const d = parseDirection(a.head, rest, l.line, warn);
+          (b.cued ??= []).push({ direction: d, cue: l.text.length === 0 ? 0 : a.offset / l.text.length, ends });
         }
         break;
       }

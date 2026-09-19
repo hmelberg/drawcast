@@ -502,6 +502,11 @@ export interface Command {
    *  way through the spoken line. Absent = with the line, as always. Written
    *  in a script as an action inside the sentence: `… rundt (@flow a@) og …`. */
   cue?: number;
+  /** With cue: the cue marks where the action has FINISHED rather than where
+   *  it begins, so its last stroke lands on that word — the engine starts it
+   *  early enough, knowing what the action costs. Written in a script as
+   *  `ends` inside the action: `… ned hit (@draw kurve ends@) igjen.` */
+  cue_end?: boolean;
   /** With speak: which dialogue voice reads the line ("a" = lead/teacher, the default; "b" = second voice). */
   voice?: "a" | "b";
   /** With speak: named prosody nudge — soft (confiding), grave (slow reveal), brisk (light recap). Use sparingly. */
