@@ -25,7 +25,7 @@ const SETTING_ORDER: [keyof Spec, string][] = [
 const PAYLOAD_KEYS = ["assets", "subtitles", "text_map", "templates"] as const;
 
 /** Fields a beat carries rather than a direction. */
-const BEAT_FIELDS = new Set(["speak", "voice", "label"]);
+const BEAT_FIELDS = new Set(["speak", "voice", "label", "cue"]);
 
 const yaml = (v: unknown): string => dump(v, { lineWidth: -1, noRefs: true }).trimEnd();
 
@@ -321,10 +321,35 @@ export function printScriptPage(spec: Spec): string {
     blocks.push(props.map((id) => elementLine(byId.get(id)!, true, INDENT, groupOf.get(id))).join("\n"));
   }
 
+  // A cued command is written INSIDE the spoken line of the beat it belongs
+  // to — the beat that carries the speak, which is the last one before it.
+  const cuedOf = new Map<number, number[]>();
+  let speakAt = -1;
   (spec.commands ?? []).forEach((cmd, i) => {
+    if (cmd.speak !== undefined) speakAt = i;
+    if (cmd.cue === undefined) return;
+    if (cmd.speak !== undefined) { cuedOf.set(i, [...(cuedOf.get(i) ?? []), i]); return; }
+    if (speakAt >= 0) cuedOf.set(speakAt, [...(cuedOf.get(speakAt) ?? []), i]);
+  });
+  const inlined = new Set([...cuedOf.values()].flat());
+
+  (spec.commands ?? []).forEach((cmd, i) => {
+    if (inlined.has(i) && cmd.speak === undefined) return;
     const lines: string[] = [];
     if (cmd.label !== undefined) lines.push(`@${cmd.label}`);
-    if (cmd.speak !== undefined) lines.push(`${cmd.voice === "b" ? "B: " : cmd.voice === "a" ? "A: " : ""}${cmd.speak}`);
+    if (cmd.speak !== undefined) {
+      // Put each cued action back where it was written, from the end so the
+      // earlier offsets are still valid as the line grows.
+      let spoken = cmd.speak;
+      const cued = [...(cuedOf.get(i) ?? [])].sort((a, b2) => (spec.commands![b2].cue ?? 0) - (spec.commands![a].cue ?? 0));
+      for (const k of cued) {
+        const at = Math.round((spec.commands![k].cue ?? 0) * cmd.speak.length);
+        const action = commandLines(spec.commands![k])[0]?.trim() ?? "";
+        const span = `(@${action}@)`;
+        spoken = at === 0 ? `${span} ${spoken}` : `${spoken.slice(0, at)} ${span}${spoken.slice(at)}`;
+      }
+      lines.push(`${cmd.voice === "b" ? "B: " : cmd.voice === "a" ? "A: " : ""}${spoken}`);
+    }
     const declared = inline.get(i) ?? [];
     if (declared.length > 0) {
       // The draw this beat's declarations ARE — printed as the elements, with
@@ -355,7 +380,7 @@ export function printScriptPage(spec: Spec): string {
       for (const [k, v] of rest) {
         for (const { path, token } of fieldLines(k, v)) lines.push(`${INDENT}${path} ${token}`);
       }
-    } else {
+    } else if (cmd.cue === undefined) {
       lines.push(...commandLines(cmd));
     }
     if (lines.length > 0) blocks.push(lines.join("\n"));

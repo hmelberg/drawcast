@@ -37,3 +37,63 @@ describe("lifting an action out of a line", () => {
     expect(() => scanLines("Pengene (@arrow a -> b går rundt.\n")).toThrow(/line 1/);
   });
 });
+
+import { parseScriptPages } from "../src/spec/script/parse";
+import { printScriptPages } from "../src/spec/script/print";
+import { validateSpec } from "../src/spec/schema";
+import type { Spec } from "../src/spec/types";
+
+const one = (text: string) => parseScriptPages(text).pages[0].spec;
+
+describe("the cue", () => {
+  test("an action inside a line becomes a command with a cue", () => {
+    const spec = one("Pengene går rundt (@camera zoom 2@) og tilbake.\n");
+    expect(spec.commands).toHaveLength(1);
+    const cmd = spec.commands![0];
+    expect(cmd.speak).toBe("Pengene går rundt og tilbake.");
+    expect(cmd.camera).toEqual({ zoom: 2 });
+    expect(cmd.cue).toBeCloseTo("Pengene går rundt".length / "Pengene går rundt og tilbake.".length, 6);
+  });
+
+  test("two actions are two commands, in the order they are heard", () => {
+    const spec = one("Først (@camera zoom 2@) så (@camera reset true@) ferdig.\n");
+    expect(spec.commands).toHaveLength(2);
+    expect(spec.commands![0].cue!).toBeLessThan(spec.commands![1].cue!);
+    expect(spec.commands![0].speak).toBe("Først så ferdig.");
+    expect(spec.commands![1].speak).toBeUndefined();
+  });
+
+  test("an indented direction comes first and has no cue", () => {
+    const spec = one("Se her (@camera zoom 2@) nå.\n    draw a\n");
+    expect(spec.commands![0]).toMatchObject({ draw: ["a"], speak: "Se her nå." });
+    expect(spec.commands![0].cue).toBeUndefined();
+    expect(spec.commands![1]).toMatchObject({ camera: { zoom: 2 } });
+  });
+
+  test("a cue outside 0–1 is refused", () => {
+    expect(validateSpec({ commands: [{ speak: "hei", camera: { zoom: 2 }, cue: 1.5 }], elements: [] }).ok).toBe(false);
+  });
+});
+
+describe("printing a cue back inside its line", () => {
+  test("print → parse → print is stable", () => {
+    const source = "Pengene går rundt (@camera zoom 2@) og tilbake.\n";
+    const spec = one(source);
+    expect(printScriptPages({}, [{ spec }])).toBe(source);
+  });
+
+  test("an action at the start prints at the start", () => {
+    const source = "(@camera zoom 2@) Se her.\n";
+    expect(printScriptPages({}, [{ spec: one(source) }])).toBe(source);
+  });
+
+  test("an uncued command still prints on its own line", () => {
+    const spec: Spec = { commands: [{ speak: "Hei.", camera: { zoom: 2 } }] };
+    expect(printScriptPages({}, [{ spec }])).toBe("Hei.\n    camera zoom 2\n");
+  });
+
+  test("both forms in one beat: the indented one first, the cued one inside the line", () => {
+    const source = "Se her (@camera zoom 2@) nå.\n    draw a\n";
+    expect(printScriptPages({}, [{ spec: one(source) }])).toBe(source);
+  });
+});

@@ -471,6 +471,13 @@ const commandSchema = {
       description:
         "Narration sentence, spoken aloud and shown as a caption. Alongside an action verb it narrates that action simultaneously (the preferred style: {\"draw\": [\"supply\"], \"speak\": \"This is the supply curve.\"}). Alone, it is a standalone narration line.",
     },
+    cue: {
+      type: "number",
+      minimum: 0,
+      maximum: 1,
+      description:
+        "With speak: WHEN in the sentence this command's action starts — 0 is with the first word, 0.5 half way, 1 at the last. Use it when the action belongs to a MOMENT in the line (\"and then the arrow appears\"); leave it out and the action runs with the whole sentence, which is the normal case.",
+    },
     blocking: {
       type: "boolean",
       description: "With speak: false starts the narration and immediately continues to the next command — use it to talk while pointing, highlighting, or drawing.",
