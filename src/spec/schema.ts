@@ -191,7 +191,13 @@ const elementSchema = {
         "region: two curve ids — your own curves OR a scene template's (e.g. demand_curve/supply_curve/ceiling_line in supply_demand, curve_<id> in qaly_profiles); the region is shaded between them (use x_from/x_to to limit; 0–100 axis units when no domain is declared).",
     },
     // annotation
-    target: { type: "string", description: "annotation: id of the element to mark (declare the annotation AFTER its target)." },
+    target: {
+      type: "array",
+      items: { type: "string" },
+      minItems: 1,
+      description:
+        "annotation: the ids to mark (declare the annotation AFTER them). SEVERAL ids means ONE border around them all — the way to ring a cluster of marks, or box a word and its number together, without inventing a group for it.",
+    },
     kind: {
       type: "string",
       enum: ["box", "circle", "strike", "cross"],
@@ -1121,6 +1127,9 @@ export function normalizeSpec(spec: unknown): unknown {
     // inset's of takes a playlist number too (YAML `of: 2`) — normalized to
     // its string form so validation and the resolver only ever see a string.
     if (el.type === "inset" && typeof el.of === "number") el.of = String(el.of);
+    // One target or many: the list is the canonical form, so layout and lint
+    // only ever see one shape.
+    if (el.type === "annotation" && el.target !== undefined) el.target = toList(el.target);
   }
   for (const cmd of clone.commands ?? []) {
     if (!cmd) continue;
@@ -1535,7 +1544,7 @@ function elementErrors(el: SpecElement): string[] {
       need(Array.isArray(el.between) && el.between.length === 2, "needs between: [curveId, curveId]");
       break;
     case "annotation":
-      need(!!el.target, "needs target (id of the element it marks)");
+      need(Array.isArray(el.target) && el.target.length > 0, "needs target (the id, or ids, of what it marks)");
       break;
     case "point":
       need(!!el.at, "needs at ({x,y}, {x, on} or {intersection_of})");

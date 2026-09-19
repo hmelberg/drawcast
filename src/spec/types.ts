@@ -131,8 +131,9 @@ export interface SpecElement {
   // region
   between?: string[];
   // annotation
-  /** Id of the element this annotation marks. */
-  target?: string;
+  /** Ids of the elements this annotation marks — the border wraps them all.
+   *  A bare string is folded into a one-element list by normalizeSpec. */
+  target?: string[] | string;
   /** Mark style; defaults to box for text targets, circle otherwise. */
   kind?: AnnotationKind;
   // node / tier-3 shape

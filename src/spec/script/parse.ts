@@ -5,7 +5,7 @@
 import { scanLines, type ScriptLine } from "./lines";
 import { parseValue, setPath, splitTokens } from "./values";
 import { specSchema } from "../schema";
-import { ELEMENT_ALIASES, FLAGS, PLACE_WORDS, SHORTHAND_WORDS, SIDE_TYPES, SIDE_WORDS, isColor, seconds } from "./sugar";
+import { AROUND_FIELD, ELEMENT_ALIASES, FLAGS, PLACE_WORDS, SHORTHAND_WORDS, SIDE_TYPES, SIDE_WORDS, isColor, seconds } from "./sugar";
 import { CORE_SCHEMA, load } from "js-yaml";
 import { isLanguage } from "../../code/languages";
 import type { Command, Spec, SpecElement } from "../types";
@@ -145,6 +145,16 @@ export function parseDirection(head: string, rest: string, line: number, warn: (
       setPath(el, "to.ref", rest2[arrow + 1]);
       const id = arrow >= 2 ? rest2[0] : undefined;
       rest2 = [...(id !== undefined ? [id] : []), ...rest2.slice(arrow + 2)];
+    }
+    // `around d1 d2 d3`: what a border wraps, read like a verb's id run so a
+    // cluster needs no group invented for it.
+    const around = rest2.indexOf("around");
+    if (around >= 0 && AROUND_FIELD[type] !== undefined) {
+      const ids: string[] = [];
+      let k = around + 1;
+      while (rest2[k] !== undefined && isBareId(rest2[k]) && !ELEMENT_KEYS.has(rest2[k])) ids.push(rest2[k++]);
+      el[AROUND_FIELD[type]] = ids;
+      rest2 = [...rest2.slice(0, around), ...rest2.slice(k)];
     }
     let i = 0;
     // The id is the first bare token, full stop. Element fields make perfectly

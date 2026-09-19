@@ -293,8 +293,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // canvas — costs a schema description (+575, embedded verbatim in the system
 // prompt) and a sentence in the freehand placement bullet (+549). Both
 // anchors move: schema 78677 → 79252, system 197600 → 198724.
-const BASELINE_SYSTEM_CHARS = 198724;
-const BASELINE_SCHEMA_CHARS = 79252;
+// Re-pinned 2026-09-19 (a border around several things): the annotation
+// `target` became a list, which costs its schema description (+178, embedded
+// in the system prompt) and a sentence in the annotation bullet (+178).
+// schema 79252 → 79430, system 198724 → 199080.
+const BASELINE_SYSTEM_CHARS = 199080;
+const BASELINE_SCHEMA_CHARS = 79430;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

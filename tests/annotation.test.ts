@@ -106,7 +106,10 @@ describe("annotation element — layout", () => {
       commands: [],
     });
     const markBox = elementBBoxes(layout).get("mark")!;
-    expect(markBox.h).toBeLessThan(70); // text-height box, not a leader-spanning monster
+    // A text-height box, not a leader-spanning monster. The padding is no
+    // longer a flat 6: it now covers the target's own stroke and how far the
+    // hand-drawn wobble strays, so a one-line box is ~70 rather than ~45.
+    expect(markBox.h).toBeLessThan(100);
   });
 
   test("an unknown target produces a warning and no drawables", () => {

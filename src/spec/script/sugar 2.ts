@@ -15,13 +15,7 @@ export const ELEMENT_ALIASES: Record<string, { type: string; fields?: Record<str
   terminal: { type: "node", fields: { shape: "terminal" } },
   note: { type: "text" },
   dot: { type: "point" },
-  // A border around something already drawn. `box` and `circle` are taken (a
-  // node's shapes), and `mark` is what the thing is: a permanent mark.
-  mark: { type: "annotation" },
 };
-
-/** The element field a head's `around` id-run fills. */
-export const AROUND_FIELD: Record<string, string> = { annotation: "target", mark: "target" };
 
 /** A bare word that stands for one field and one value. */
 export const FLAGS: Record<string, [string, unknown]> = {
