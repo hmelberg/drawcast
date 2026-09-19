@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { assetRef, hoistStrokes, inlineStrokes, resolveAssetRefs, specForDump } from "../src/spec/assets";
 import { compactPointPairs, dumpSpecYaml, formatSpec, parseSpecText } from "../src/spec/text";
 import { normalizeSpec, validateSpec } from "../src/spec/schema";
-import { formatPlaylist, parsePlaylistText, singlePlaylist } from "../src/playlist/playlist";
+import { formatPlaylist, itemsOf, parsePlaylistText, singlePlaylist } from "../src/playlist/playlist";
 import { layoutSpec } from "../src/layout/layout";
 import { resolveImages } from "../src/render/image";
 import { HOISTED, hoistPortraitStrokes, restorePortraitStrokes } from "../src/llm/hoist";
@@ -143,5 +143,32 @@ describe("assets and the model round-trip (llm/hoist.ts)", () => {
     const spec = back.entries[0].kind === "item" ? back.entries[0].spec : null;
     expect(spec?.assets).toEqual({ foto: PHOTO });
     expect(spec?.elements?.[0].strokes).toBe("@foto");
+  });
+});
+
+describe("an asset may be data, not only bytes", () => {
+  const OPENINGS = [
+    { name: "Italian Game", eco: "C50", moves: ["e4", "e5", "Nf3", "Nc6", "Bc4"] },
+    { name: "Ruy Lopez", eco: "C60", moves: ["e4", "e5", "Nf3", "Nc6", "Bb5"] },
+  ];
+
+  test("a data asset validates, and survives a YAML round trip with its types intact", () => {
+    const spec = { template: "chess_board", params: { set: "@openings" }, assets: { openings: OPENINGS }, commands: [] } as unknown as Spec;
+    expect(validateSpec(spec).errors).toEqual([]);
+    const back = parsePlaylistText(formatPlaylist(singlePlaylist(spec), "script"));
+    // Playlist exposes items via itemsOf (chapters excluded), not a bare `.items`.
+    expect(itemsOf(back)[0].spec.assets!.openings).toEqual(OPENINGS);
+  });
+
+  test("strokes pointing at a data asset reads as absent rather than as an object", () => {
+    const spec = { assets: { openings: OPENINGS } } as unknown as Spec;
+    expect(inlineStrokes(spec, { strokes: "@openings" })).toBeUndefined();
+  });
+
+  test("a byte asset is untouched: hoistStrokes still moves long strokes and names them by element id", () => {
+    const spec = { elements: [{ id: "foto", type: "image", strokes: PHOTO }] } as unknown as Spec;
+    expect(hoistStrokes(spec)).toBe(1);
+    expect(spec.elements![0].strokes).toBe("@foto");
+    expect(spec.assets!.foto).toBe(PHOTO);
   });
 });

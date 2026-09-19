@@ -1087,12 +1087,14 @@ const TEMPLATE_FIELDS = {
 /** The authoring schema plus the fields tooling stamps. What validateSpec checks. */
 /** Long machine-written payloads by name (spec/assets.ts) — the Embed dialog
  *  and the file insert write them; the model never sees a spec that has them
- *  (llm/hoist.ts), so they are a document field, not an authoring one. */
+ *  (llm/hoist.ts), so they are a document field, not an authoring one. A
+ *  string value is bytes; any other JSON value is data a param references
+ *  (design 2026-09-20 §4.1). */
 const ASSET_FIELDS = {
   assets: {
     type: "object",
-    additionalProperties: { type: "string" },
-    description: 'Machine-written payloads an element\'s strokes refers to as "@name".',
+    additionalProperties: true,
+    description: 'Payloads referenced as "@name" — encoded bytes from an element\'s strokes, or data from params.',
   },
 } as const;
 

@@ -81,7 +81,7 @@ export function restorePortraitStrokes(playlist: Playlist, blobs: Map<string, st
   if (blobs.size === 0) return;
   itemsOf(playlist).forEach((item, i) => {
     const assets = blobs.get(assetsKey(i));
-    if (assets) item.spec.assets = JSON.parse(assets) as Record<string, string>;
+    if (assets) item.spec.assets = JSON.parse(assets) as Record<string, unknown>;
     for (const el of item.spec.elements ?? []) {
       const fields = blobFields(el);
       for (const field of fields) {
