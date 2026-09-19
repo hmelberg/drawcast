@@ -2649,6 +2649,49 @@ model stops writing cues while the engine keeps supporting them for
 hand-written casts. Fifteen minutes, fully reversible, and it answers "do I
 miss it?" without throwing the mechanism away.
 
+## `glow` has drifted from its name — noted 2026-09-20, parked
+
+The emphasis round (2026-09-19) gave every highlight the same shape in time:
+three throbs whose troughs rise, the third running into a HOLD at full for
+the rest of the sentence, then a 400 ms release. Before it, the two effects
+differed in motion as well as in look:
+
+| | before | after |
+|---|---|---|
+| `pulse` | 3 throbs per 1.5 s cycle, repeated until the voice ended (~15 throbs on a median sentence) | 3 throbs, then held at full |
+| `glow` | 1 slow breath per 1.5 s cycle, repeated (~5 breaths) | 3 throbs, then held at full |
+| `circle` | ring drawn on, then faded | ring drawn on, held, then faded |
+
+So they now differ ONLY by the halo (`glow` wears a two-layer drop-shadow;
+`pulse` is the bare echo). Hans, on seeing that: "egentlig tenker jeg pulse
+nå har glidd som den skulle være, men glow har blitt noe den ikke skal være
+rent intuitivt, men avventer litt å endre det."
+
+The read to hold on to: **`pulse` landed where it belongs — it is a pulse,
+and now it stops pulsing and stays. `glow` did not.** A glow is a light: it
+should come UP smoothly and sit there. Throbbing three times is a pulse
+wearing a halo, whatever the field is called. The name promises a behaviour
+the effect no longer has.
+
+Three ways out, when it is time:
+
+1. **Give `glow` its own envelope** — a smooth rise to the hold, no throbs,
+   same release. One extra curve in `src/render/emphasis.ts` (the ramp
+   alone, without the carrier) and a branch on `effect` in the player's
+   `emphasize`. Keeps two honest effects: `pulse` throbs into its hold,
+   `glow` simply lights up. Cheapest, and the one the names argue for.
+2. **Collapse to one effect** — delete `pulse`, keep the halo as the
+   default, keep `circle`. 121 of 155 highlights in `src/examples.json`
+   already ask for `glow`; the other 30 would just drop the field. Simplest
+   surface, but it throws away a distinction Hans says is now right.
+3. **Rename** so the split is what it actually is (lit vs lit-with-halo).
+   Churns 30 examples and the prompt for no behavioural gain — listed for
+   completeness, not recommended.
+
+Parked at Hans's call: live with it a while first and see whether the
+throbbing glow grates in real casts. Nothing depends on the decision — the
+envelope lives in one module and the effect names are already plumbed.
+
 ## Deliberately left in `draw` (the frozen lab)
 
 Backend comparison grids, the raw-SVG baseline, the benchmark runner UI, and
