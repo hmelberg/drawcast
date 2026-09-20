@@ -67,7 +67,7 @@ describe("an asset may be data, not only bytes", () => {
     const spec = { template: "chess_board", params: { set: "@openings" }, assets: { openings: OPENINGS }, commands: [] } as unknown as Spec;
     expect(validateSpec(spec).errors).toEqual([]);
     const back = parsePlaylistText(formatPlaylist(singlePlaylist(spec), "script"));
-    expect(back.items[0].spec.assets!.openings).toEqual(OPENINGS);
+    expect(itemsOf(back)[0].spec.assets!.openings).toEqual(OPENINGS);
   });
 
   test("strokes pointing at a data asset reads as absent rather than as an object", () => {
@@ -352,7 +352,7 @@ Add `resolveParamAssetRefs` to the existing import from `./assets`.
 - [ ] **Step 5: Run the tests**
 
 Run: `npx vitest run tests/spec-assets.test.ts -t "@name inside params"`
-Expected: PASS, all six.
+Expected: PASS, all seven.
 
 - [ ] **Step 6: Full suite and tsc**
 
@@ -609,6 +609,8 @@ git commit -m "Never ask the model to repair a reference into data"
 
 ### Task 5: Descriptors and the send threshold
 
+> **Imports:** these tests use `itemsOf(playlist)` — `Playlist` carries `entries`, not `items`, and `itemsOf` (from `../src/playlist/playlist`) is the helper that flattens chapters out of them. `tests/` is inside tsconfig's include, so `tsc` type-checks it: add every import the test needs.
+
 Spec §5, §5.1. A data asset under 32 KB rides into the model call and may be rewritten; a larger one is replaced by a one-line descriptor and cannot be.
 
 **Files:**
@@ -643,7 +645,7 @@ describe("descriptors and the send threshold", () => {
   test("a small data asset is SENT, so the model can edit it", () => {
     const doc = formatPlaylist(singlePlaylist({ template: "chess_board", params: { set: "@openings" }, assets: { openings: small } } as unknown as Spec), "script");
     const hoisted = hoistPortraitStrokes(doc);
-    const sent = parsePlaylistText(hoisted.text).items[0].spec;
+    const sent = itemsOf(parsePlaylistText(hoisted.text))[0].spec;
     expect(sent.assets!.openings).toEqual(small);
     expect(hoisted.described).toEqual([]);
   });
@@ -652,14 +654,14 @@ describe("descriptors and the send threshold", () => {
     expect(assetBytes(big)).toBeGreaterThan(ASSET_SEND_MAX);
     const doc = formatPlaylist(singlePlaylist({ template: "chess_board", params: { set: "@openings" }, assets: { openings: big } } as unknown as Spec), "script");
     const hoisted = hoistPortraitStrokes(doc);
-    const seen = parsePlaylistText(hoisted.text).items[0].spec;
+    const seen = itemsOf(parsePlaylistText(hoisted.text))[0].spec;
     expect(seen.assets!.openings).toBe(`@data ${big.length} rows — name, eco, moves[], idea`);
     expect(hoisted.described.map((d) => d.name)).toEqual(["openings"]);
 
     // What the model returns, descriptor and all, restores to the original.
     const reply = parsePlaylistText(hoisted.text);
     restorePortraitStrokes(reply, hoisted.blobs);
-    expect(reply.items[0].spec.assets!.openings).toEqual(big);
+    expect(itemsOf(reply)[0].spec.assets!.openings).toEqual(big);
   });
 
   test("an edit to a SENT asset survives restoration", () => {
@@ -667,18 +669,18 @@ describe("descriptors and the send threshold", () => {
     const hoisted = hoistPortraitStrokes(doc);
     const reply = parsePlaylistText(hoisted.text);
     const edited = [...small, { name: "Sicilian Defence", eco: "B20", moves: ["e4", "c5"], idea: "asymmetry" }];
-    reply.items[0].spec.assets = { openings: edited };
+    itemsOf(reply)[0].spec.assets = { openings: edited };
     restorePortraitStrokes(reply, hoisted.blobs);
-    expect(reply.items[0].spec.assets!.openings).toEqual(edited);
+    expect(itemsOf(reply)[0].spec.assets!.openings).toEqual(edited);
   });
 
   test("a reply that drops the assets block loses nothing", () => {
     const doc = formatPlaylist(singlePlaylist({ template: "chess_board", params: { set: "@openings" }, assets: { openings: small } } as unknown as Spec), "script");
     const hoisted = hoistPortraitStrokes(doc);
     const reply = parsePlaylistText(hoisted.text);
-    delete reply.items[0].spec.assets;
+    delete itemsOf(reply)[0].spec.assets;
     restorePortraitStrokes(reply, hoisted.blobs);
-    expect(reply.items[0].spec.assets!.openings).toEqual(small);
+    expect(itemsOf(reply)[0].spec.assets!.openings).toEqual(small);
   });
 
   test("the threshold decides AT its boundary, not near it", () => {
@@ -692,7 +694,7 @@ describe("descriptors and the send threshold", () => {
 
     const seen = (rows: unknown) => {
       const doc = formatPlaylist(singlePlaylist({ template: "chess_board", params: { set: "@s" }, assets: { s: rows } } as unknown as Spec), "script");
-      return parsePlaylistText(hoistPortraitStrokes(doc).text).items[0].spec.assets!.s;
+      return itemsOf(parsePlaylistText(hoistPortraitStrokes(doc).text))[0].spec.assets!.s;
     };
     expect(seen(fit)).toEqual(fit); // exactly at the limit: still sent
     expect(typeof seen(over)).toBe("string"); // one row more: described
@@ -724,7 +726,7 @@ describe("descriptors and the send threshold", () => {
     expect(hoisted.text).not.toContain(PHOTO.slice(0, 40));
     const reply = parsePlaylistText(hoisted.text);
     restorePortraitStrokes(reply, hoisted.blobs);
-    expect(reply.items[0].spec.assets!.foto).toBe(PHOTO);
+    expect(itemsOf(reply)[0].spec.assets!.foto).toBe(PHOTO);
   });
 });
 ```
@@ -856,7 +858,7 @@ Add `ASSET_SEND_MAX, assetBytes, describeAsset, isDataAsset` to hoist.ts's impor
 - [ ] **Step 6: Run the tests**
 
 Run: `npx vitest run tests/spec-assets.test.ts -t "descriptors and the send threshold"`
-Expected: PASS, all six.
+Expected: PASS, all seven.
 
 - [ ] **Step 7: Full suite and tsc**
 
@@ -874,6 +876,8 @@ git commit -m "Describe what is too big to send, send what is not"
 
 ### Task 6: Restore before validate
 
+> **Imports:** these tests use `itemsOf(playlist)` — `Playlist` carries `entries`, not `items`, and `itemsOf` (from `../src/playlist/playlist`) is the helper that flattens chapters out of them. `tests/` is inside tsconfig's include, so `tsc` type-checks it: add every import the test needs.
+
 Spec §5.2. Today validation runs at `revise.ts:66` and restoration at `:241`. A reply that drops the `assets:` block while params still reference an asset would fail validation every round.
 
 **Files:**
@@ -886,7 +890,7 @@ Spec §5.2. Today validation runs at `revise.ts:66` and restoration at `:241`. A
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `tests/revise.test.ts` (import `checkPlaylist` only if the file already does; otherwise test through the exported seam the file already uses):
+Append to `tests/revise.test.ts`, adding whatever imports it needs (`hoistPortraitStrokes`, `restorePortraitStrokes`, `formatPlaylist`, `itemsOf`, `parsePlaylistText`, `singlePlaylist`, `normalizeSpec`, `validateSpec`, `type Spec`). It asserts on those directly and does not need `checkPlaylist`:
 
 ```ts
 describe("a hoisted document is not a complete document (design §5.2)", () => {
@@ -901,15 +905,15 @@ describe("a hoisted document is not a complete document (design §5.2)", () => {
 
     // The model's reply: the document, with no assets block of its own.
     const reply = parsePlaylistText(hoisted.text);
-    delete reply.items[0].spec.assets;
+    delete itemsOf(reply)[0].spec.assets;
 
     // Before restoration the reference is dangling — this is the state the
     // old order judged, and it is not a real error.
-    expect(validateSpec(normalizeSpec(reply.items[0].spec)).errors.join("\n")).toContain('"@line"');
+    expect(validateSpec(normalizeSpec(itemsOf(reply)[0].spec)).errors.join("\n")).toContain('"@line"');
 
     // After restoration, which is what the loop must now do first, it is clean.
     restorePortraitStrokes(reply, hoisted.blobs);
-    expect(validateSpec(normalizeSpec(reply.items[0].spec)).ok).toBe(true);
+    expect(validateSpec(normalizeSpec(itemsOf(reply)[0].spec)).ok).toBe(true);
   });
 });
 ```
@@ -1094,7 +1098,7 @@ export function assetNameFor(filename: string, taken: readonly string[]): string
 - [ ] **Step 4: Run the pure tests**
 
 Run: `npx vitest run tests/data-insert.test.ts`
-Expected: PASS, all six.
+Expected: PASS, all seven.
 
 - [ ] **Step 5: Build the dialog**
 
@@ -1312,7 +1316,17 @@ Add `formatAssetSize` to hoist.ts's import from `../spec/assets`.
   notes?: string[];
 ```
 
-…and add `notes: noteForDescribed(hoisted.described)` to BOTH return paths in `reviseDocument` (the `catch` return and the final return). Import `noteForDescribed` alongside the existing hoist imports.
+…and add `notes` to BOTH return paths in `reviseDocument` (the `catch` return and the final return). Import `noteForDescribed` alongside the existing hoist imports.
+
+`notes` carries TWO things, deduped, in this order:
+
+```ts
+const notes = [...new Set([...noteForDescribed(hoisted.described), ...(best?.playlist.warnings ?? [])])];
+```
+
+The second half matters. Task 5's restore pushes a line into `playlist.warnings` when an asset is still a descriptor after restoration — which means its stash was not found, and the author's data did not come back. That array turned out to have **no reader anywhere in `src/`**: it is written by `playlist.ts` and by the restore, and displayed by nothing. Folding it in here gives it its first one, and is what makes the restore failure actually visible rather than merely recorded.
+
+Consequence to accept deliberately: existing parse warnings from `playlist.ts` now surface too, on revise. They are real document warnings that were previously dead, so showing them is the point rather than a side effect — but it does mean a revise can now print a line it never printed before.
 
 - [ ] **Step 5: Show it**
 
@@ -1349,6 +1363,8 @@ git commit -m "Say when a set is too large to revise here"
 
 ### Task 9: A published cast with data needs nothing of the author's
 
+> **Imports:** these tests use `itemsOf(playlist)` — `Playlist` carries `entries`, not `items`, and `itemsOf` (from `../src/playlist/playlist`) is the helper that flattens chapters out of them. `tests/` is inside tsconfig's include, so `tsc` type-checks it: add every import the test needs.
+
 Spec §8.6. The promise the whole design rests on: the data travels with the cast. This is the test that would catch a future round quietly making an asset depend on app state.
 
 **Files:**
@@ -1377,14 +1393,26 @@ describe("self-containment", () => {
 
     // Everything a viewer gets: the document as TEXT, and nothing else.
     const published = formatPlaylist(singlePlaylist(authored), "script");
-    const viewerSpec = parsePlaylistText(published).items[0].spec;
+    const viewerSpec = itemsOf(parsePlaylistText(published))[0].spec;
 
     const res = layoutSpec(viewerSpec as never);
     expect(res.warnings).toEqual([]);
     expect(res.issues.filter((i) => i.severity === "error")).toEqual([]);
-    // The line really was played: e2 is vacated after 1.e4, and the arrow exists.
+
+    // `move_arrow` is the proof the DATA arrived: the chess template emits it
+    // only when `moves` is a non-empty array, so its presence means "@line"
+    // resolved to three SAN strings on the way through normalizeSpec. An
+    // unresolved reference would instead be a string where an array belongs,
+    // which the checks above would have caught as a param error.
     expect(res.order).toContain("move_arrow");
-    expect(res.anchors.piece_e4).toBeDefined();
+    expect(res.order).toContain("piece_e4");
+
+    // NOT `res.anchors` and NOT `res.pieces`. For a pure template spec
+    // `anchors` is empty by documented design (it holds tier-2 element
+    // anchors), and `pieces` is an unrelated concept — the geometry of a
+    // `pieces` ELEMENT, empty unless the spec has one. The template's own
+    // anchors are returned by `scenes.chess_board.layout!(params)`, which is
+    // what tests/packs.test.ts reads; `layoutSpec` does not surface them.
   });
 });
 ```
@@ -1392,7 +1420,7 @@ describe("self-containment", () => {
 - [ ] **Step 2: Run it**
 
 Run: `npx vitest run tests/spec-assets.test.ts -t "self-containment"`
-Expected: PASS. If it fails on `params.moves` being a string, the resolution point (Task 2) is wrong — `layoutSpec` calls `normalizeSpec`, so this is the end-to-end proof that it does.
+Expected: PASS. If `move_arrow` is missing from `res.order`, the resolution point (Task 2) is wrong — `layoutSpec` calls `normalizeSpec`, so this is the end-to-end proof that it does.
 
 - [ ] **Step 3: Full suite, tsc, build**
 

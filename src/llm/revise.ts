@@ -12,7 +12,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { itemsOf, parsePlaylistText, type Playlist, formatPlaylist } from "../playlist/playlist";
 import { buildSystemBlocks, stripFence, styleBlock, systemBlocks, wantsCode, wantsSound } from "./prompt";
 import { validateSpec } from "../spec/schema";
-import { hoistPortraitStrokes, restorePortraitStrokes } from "./hoist";
+import { hoistPortraitStrokes, noteForDescribed, restorePortraitStrokes } from "./hoist";
 import { layoutSpec } from "../layout/layout";
 import { expandCards } from "../spec/card";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
@@ -113,6 +113,9 @@ export interface ReviseOutcome {
   text: string | null;
   rounds: ReviseRound[];
   error?: string;
+  /** Things the author should know about this revision that are not errors —
+   *  today, data assets too large to have been given to the model (§5.1). */
+  notes?: string[];
 }
 
 /**
@@ -141,7 +144,11 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
   docText = hoisted.text;
   const parsedNow = parseReviseReply(docText);
   if (!parsedNow.playlist) {
-    return { playlist: null, text: null, rounds: [], error: `the current document is unreadable: ${parsedNow.error}` };
+    // No model call happened yet, so there is no best.playlist.warnings to
+    // fold in here — but an over-threshold asset was already decided by the
+    // hoist above, and every exit of this function answers the same
+    // question about it (design §5.1, round 1 review).
+    return { playlist: null, text: null, rounds: [], error: `the current document is unreadable: ${parsedNow.error}`, notes: noteForDescribed(hoisted.described) };
   }
 
   // Same system blocks as generation, including the cache_control prefix, so a
@@ -189,6 +196,13 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
       const cleaned = stripFence(raw);
       const parsed = parseReviseReply(raw);
 
+      // Blobs come back BEFORE anything judges this candidate: a hoisted
+      // document is not a complete document, and a reply that dropped the
+      // `assets:` block would otherwise fail validation on a reference that is
+      // perfectly good (design 2026-09-20 §5.2). Restoring into losers as well
+      // as the winner costs a map lookup per asset.
+      if (parsed.playlist && hoisted.blobs.size > 0) restorePortraitStrokes(parsed.playlist, hoisted.blobs);
+
       let errors: string[] = [];
       let lintIssues: LintIssue[] = [];
       if (!parsed.playlist) {
@@ -233,18 +247,35 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
     if (best && preserveFoundingPrompt(best.playlist, parsedNow.playlist)) {
       best = { playlist: best.playlist, text: formatPlaylist(best.playlist, "script") };
     }
-    return { playlist: best?.playlist ?? null, text: best?.text ?? null, rounds, error: describeApiError(err) };
+    // Deduped: an asset can be both too large to send (noted here on every
+    // round, since hoisting happens once up front) and, separately, flagged
+    // by the restore if its stash went missing — no reason to say either
+    // thing twice (design §5.1).
+    const notes = [...new Set([...noteForDescribed(hoisted.described), ...(best?.playlist.warnings ?? [])])];
+    return { playlist: best?.playlist ?? null, text: best?.text ?? null, rounds, error: describeApiError(err), notes };
   }
 
   const promptFilled = best ? preserveFoundingPrompt(best.playlist, parsedNow.playlist) : false;
   if (best && (hoisted.blobs.size > 0 || promptFilled)) {
-    if (hoisted.blobs.size > 0) restorePortraitStrokes(best.playlist, hoisted.blobs);
+    // The winner's `text` is the model's raw reply, which still shows
+    // placeholders and descriptors; the playlist has been restored in the loop
+    // above, so the document is re-printed from it.
     best = { playlist: best.playlist, text: formatPlaylist(best.playlist, "script") };
   }
+  // `notes` carries TWO things, deduped (design §5.1): assets too large to
+  // send at all, and — from Task 5's restore — any that came back as a
+  // descriptor because its stash went missing. `playlist.warnings` had no
+  // reader anywhere in src/ before this; folding it in here gives a failed
+  // restoration its first one, alongside existing parse warnings from
+  // playlist.ts that were equally silent until now. Showing those too is the
+  // point, not a side effect — though it does mean a revise can print a line
+  // it never printed before.
+  const notes = [...new Set([...noteForDescribed(hoisted.described), ...(best?.playlist.warnings ?? [])])];
   return {
     playlist: best?.playlist ?? null,
     text: best?.text ?? null,
     rounds,
     error: best ? undefined : (rounds[rounds.length - 1]?.errors[0] ?? "The model never produced a usable document."),
+    notes,
   };
 }

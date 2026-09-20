@@ -311,7 +311,7 @@ describe("the rename: pin becomes embed (P §3.7)", () => {
   it("the Insert menu offers embedding, and no user-facing string says pin", async () => {
     const main = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");
     expect(main).toContain('label: "Embed images in the file"');
-    expect(main).toContain('title: "Add an image, or embed every image into the file"');
+    expect(main).toContain('title: "Add an image or a data file, or embed every image into the file"');
     expect(main).not.toContain('"Pin all images"');
   });
 

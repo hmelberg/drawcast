@@ -549,7 +549,7 @@ function parseFence(l: ScriptLine & { kind: "fence" }, spec: Spec, isLanguage: (
   if (head === "assets" || head === "yaml") {
     const value = load(l.body, { schema: CORE_SCHEMA }) as unknown;
     if (head === "assets") {
-      spec.assets = { ...(spec.assets ?? {}), ...(value as Record<string, string>) };
+      spec.assets = { ...(spec.assets ?? {}), ...(value as Record<string, unknown>) };
       return null;
     }
     // The escape hatch: a list is elements, a mapping is merged into the page.

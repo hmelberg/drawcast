@@ -19,6 +19,7 @@ import { buildBrief, parseTags, suggestTags, TAGS, type ParsedTags } from "./llm
 import { MODELS, callLedger, costSummary, describeApiError, formatCost, resetCallLedger } from "./llm/client";
 import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/author";
 import { reviseDocument, type ReviseOutcome } from "./llm/revise";
+import { withNotes } from "./llm/hoist";
 import { atNewest, currentVersion, emptyStack, pushManualEdit, pushVersion, restoreViewed, seedStack, viewAt, type Stack } from "./history";
 import { registerMyTemplatesAtStartup, registerUserTemplateYaml, unregisterUserTemplate } from "./scenes/my-templates";
 import { PACK_DEFS, ensureEnabledPacks, packTemplateIds, parsePack, unregisterPack } from "./scenes/packs";
@@ -50,7 +51,7 @@ import { referencedLectureIds } from "./course/document";
 import { fileSafe, openShare } from "./ui/share";
 import { checkSaveable } from "./ui/save-gate";
 import { authorButtonLabel, authoringMode, promptPlaceholder } from "./ui/author-mode";
-import { openEmbedDialog, openInsertPortrait, unembeddedImages } from "./ui/insert";
+import { openEmbedDialog, openInsertData, openInsertPortrait, unembeddedImages } from "./ui/insert";
 import { accordionOpenState, applySection, courseGroup, createSidebarSection, sidebarSections, type SectionInput, type SidebarSection } from "./ui/sidebar";
 import { attachReview, type ReviewHandle } from "./ui/review";
 import { type PlaybackPrefs } from "./ui/controls";
@@ -848,6 +849,16 @@ const insertMenu = createMenu("Insert", [
       }),
   },
   {
+    label: "Data from disk…",
+    onSelect: () =>
+      openInsertData({
+        readPlaylist: () => readPlaylistText(specArea.value),
+        viewedPart: () => previewedPart,
+        applyPlaylist,
+        setStatus,
+      }),
+  },
+  {
     label: "Embed images in the file",
     onSelect: () =>
       openEmbedDialog({
@@ -857,7 +868,7 @@ const insertMenu = createMenu("Insert", [
         setStatus,
       }),
   },
-], { title: "Add an image, or embed every image into the file" });
+], { title: "Add an image or a data file, or embed every image into the file" });
 // ---- Save → To disk: the YAML/JSON spec download Share's Spec file panel
 // used to do (share.ts's now-deleted specGo) — moved here because downloading
 // your own source is a save, not a share (spec §1). Same formatPlaylist call,
@@ -3460,9 +3471,14 @@ async function revise(): Promise<void> {
     });
     stopAiStatus();
     const logId = logRevision(instruction, outcome);
+    // Data too large to have been given to the model, or a restore that lost
+    // an asset's stash, rides out on the same status line as the result — a
+    // second setStatus would simply overwrite it, and the whole point of the
+    // note is that the author sees it (design §5.1).
+    const notes = outcome.notes ?? [];
     if (!outcome.playlist) {
       endSpecStream(true);
-      setStatus(outcome.error ?? "Revision failed.", controller.signal.aborted ? "info" : "error");
+      setStatus(withNotes(outcome.error ?? "Revision failed.", notes), controller.signal.aborted ? "info" : "error");
       return;
     }
     endSpecStream(false);
@@ -3473,7 +3489,7 @@ async function revise(): Promise<void> {
       // driveFileId forward too, or a Save right after a Revise would litter
       // Drive with a second copy of the file the earlier Save already created.
       { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
-      `Revised: ${instruction}` + costText(),
+      withNotes(`Revised: ${instruction}` + costText(), notes),
       { label, kind: "revise" },
     );
     lastLogId = logId; // after setDoc, so the rating stars target this revision

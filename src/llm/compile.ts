@@ -15,6 +15,7 @@ import type { describeTemplateFor } from "./on-demand";
 import type { TemplateDoc } from "../scenes/doc";
 import { ensureEnginesForSpecs } from "../scenes/engines";
 import { specSchema, validateSpec } from "../spec/schema";
+import { paramsWithAssets } from "../spec/assets";
 import { attachSeedCredit, type SeedBlock } from "./seed";
 import { visualRepairMessages, wantsVisualRepair } from "./visual";
 import type { Spec } from "../spec/types";
@@ -589,7 +590,11 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
           const substituted = check.resolvedParams !== undefined && (check.unresolvedTokens ?? 0) === 0;
           const issues = templateParamIssues(
             best.template,
-            check.resolvedParams ?? best.params,
+            // Through paramsWithAssets, never raw: authoring-time validation
+            // does not go through normalizeSpec, so an unresolved "@openings"
+            // would read as "expected array, got string" and the repair round
+            // would answer it by INVENTING data (design 2026-09-20 §4.3).
+            paramsWithAssets({ assets: best.assets, params: check.resolvedParams ?? best.params }),
             paramsStrictness({ tokens, substituted, dataPack }),
           );
           validation.errors.push(...issues.errors);

@@ -7,7 +7,7 @@
 // to the LLM in the repair round.
 
 import AjvModule, { type ValidateFunction } from "ajv";
-import { assetRef, resolveAssetRefs } from "./assets";
+import { ASSET_MAX_BYTES, assetBytes, assetRef, formatAssetSize, isDataAsset, paramAssetRefs, resolveAssetRefs, resolveParamAssetRefs } from "./assets";
 import { BUILTIN_WIDGETS, SIDE_VALUES, type Command, type Spec, type SpecElement } from "./types";
 import { isReservedVar } from "./answers";
 import { SUB_SUFFIXES } from "../layout/model";
@@ -1087,12 +1087,14 @@ const TEMPLATE_FIELDS = {
 /** The authoring schema plus the fields tooling stamps. What validateSpec checks. */
 /** Long machine-written payloads by name (spec/assets.ts) — the Embed dialog
  *  and the file insert write them; the model never sees a spec that has them
- *  (llm/hoist.ts), so they are a document field, not an authoring one. */
+ *  (llm/hoist.ts), so they are a document field, not an authoring one. A
+ *  string value is bytes; any other JSON value is data a param references
+ *  (design 2026-09-20 §4.1). */
 const ASSET_FIELDS = {
   assets: {
     type: "object",
-    additionalProperties: { type: "string" },
-    description: 'Machine-written payloads an element\'s strokes refers to as "@name".',
+    additionalProperties: true,
+    description: 'Payloads referenced as "@name" — encoded bytes from an element\'s strokes, or data from params.',
   },
 } as const;
 
@@ -1110,11 +1112,20 @@ let structural: ValidateFunction | null = null;
  */
 export function normalizeSpec(spec: unknown): unknown {
   if (typeof spec !== "object" || spec === null) return spec;
-  const clone = JSON.parse(JSON.stringify(spec)) as { commands?: Command[]; elements?: SpecElement[]; assets?: unknown };
+  const clone = JSON.parse(JSON.stringify(spec)) as {
+    commands?: Command[];
+    elements?: SpecElement[];
+    assets?: unknown;
+    params?: unknown;
+  };
   // `strokes: "@name"` becomes its bytes here, so the layout, the lint and
   // every decoder only ever see inline strokes (spec/assets.ts). A name that
   // resolves to nothing stays as written for semanticErrors to report.
   resolveAssetRefs(clone);
+  // …and `params: {set: "@name"}` becomes its rows, for the same reason: a
+  // template, a widget and the lint all read params, and none of them should
+  // have to know what a reference is (design 2026-09-20 §4.3).
+  resolveParamAssetRefs(clone);
   const toList = (v: string[] | string | undefined): string[] | undefined => (typeof v === "string" ? [v] : v);
   // Malformed input flows through here before validation — guard shapes.
   for (const el of Array.isArray(clone.elements) ? clone.elements : []) {
@@ -1242,11 +1253,42 @@ function semanticErrors(spec: Spec): string[] {
 
   // A strokes reference that survived normalizeSpec's inlining names an asset
   // the document does not carry — that element would draw its placeholder
-  // (or refetch) while looking embedded.
+  // (or refetch) while looking embedded — or one of the wrong kind.
   for (const el of spec.elements ?? []) {
     const name = assetRef(el.strokes);
-    if (name !== null && typeof spec.assets?.[name] !== "string") {
+    if (name === null) continue;
+    const value = spec.assets?.[name];
+    if (value === undefined) {
       errors.push(`element "${el.id}" (${el.type}): strokes refers to asset "@${name}", which is not in assets`);
+    } else if (typeof value !== "string") {
+      errors.push(`element "${el.id}" (${el.type}): strokes refers to asset "@${name}", which is data, not encoded bytes`);
+    }
+  }
+
+  // The same two questions for a params reference, plus the size cap. A
+  // reference that survived normalizeSpec is one that could not resolve
+  // (design §4.4).
+  for (const { path, name } of paramAssetRefs(spec.params)) {
+    const value = spec.assets?.[name];
+    if (value === undefined) {
+      errors.push(`params.${path} refers to asset "@${name}", which is not in assets`);
+    } else if (!isDataAsset(value)) {
+      // Same predicate resolveParamAssetRefs left the reference standing
+      // for (round 2 review, I2) — a string is encoded bytes, and anything
+      // else isDataAsset excludes is null (a hand-typed `name:` with nothing
+      // after the colon, or the Spec source textarea). Two distinct
+      // messages because they are two distinct authoring mistakes.
+      errors.push(
+        typeof value === "string"
+          ? `params.${path} refers to asset "@${name}", which is encoded bytes, not data`
+          : `params.${path} refers to asset "@${name}", which is empty, not data`,
+      );
+    }
+  }
+  for (const [name, value] of Object.entries(spec.assets ?? {})) {
+    const bytes = assetBytes(value);
+    if (bytes > ASSET_MAX_BYTES) {
+      errors.push(`asset "@${name}" is ${formatAssetSize(bytes)}; the limit is ${formatAssetSize(ASSET_MAX_BYTES)}`);
     }
   }
 

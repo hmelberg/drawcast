@@ -1,8 +1,17 @@
 # Data assets — a drawcast that carries its own data
 
-Status: specification, ready to plan. Written 2026-09-20 with Hans after the
-chess pointing round (main 3448ace). Implementer: read this whole file first;
-it assumes the drawcast repo and nothing else.
+Status: IMPLEMENTED 2026-09-20, plan docs/superpowers/plans/2026-09-20-data-assets.md.
+8909 tests, tsc + build green. Written with Hans after the chess pointing round
+(main 3448ace). Implementer: read this whole file first; it assumes the
+drawcast repo and nothing else.
+
+One correction the implementation found, recorded rather than quietly fixed:
+§10's file table asks `src/llm/compile.ts` to "restore before validate on the
+internal rounds". It does not need to. `compile.ts` never imports `hoist.ts`,
+so the compile path never hoists, and a freshly compiled spec has no assets at
+all because the model cannot write them. Only §4.3's params half applied there,
+and that is what Task 4 built. The restore-before-validate reorder (§5.2) is
+`revise.ts`'s alone.
 
 ## 1. What this is
 
@@ -332,6 +341,19 @@ model writing a small set as ordinary inline params when there is no file.
 - No data-token bridge integration: `{openings.moves}` is NOT part of this.
   The token bridge is shaped for a script's numbers and columns; rows of
   objects reach templates through params.
+- No deletion of an asset through a revise. `restorePortraitStrokes` starts
+  its merge from `{...original}` and only ever ADDS or REPLACES a name the
+  reply also returned, so there is no way for a reply to make one go away —
+  impossible by construction, not merely unimplemented. Round 2 review, I4:
+  the gap is currently SILENT rather than refused — a reply that drops
+  `openings` from `assets:`, or one that says "removed the openings data",
+  is reported as a success while the asset sits in the document exactly as
+  before. That is precisely the shape §5.1 names as the failure mode to
+  avoid ("a revise that quietly leaves the data alone while reporting
+  success"), just reached from the opposite direction. Accepted as a v1
+  limitation, same as §5.1's own accepted risk; not worth a round to build,
+  and the fix is not "detect the omission and delete" — it is choosing
+  whether deletion should exist at all, and how a reply would ask for it.
 
 ## 8. Testing
 

@@ -1,6 +1,9 @@
 import { describe, expect, test } from "vitest";
 import { buildReviseUser, checkPlaylist, parseReviseReply, preserveFoundingPrompt } from "../src/llm/revise";
-import { parsePlaylistText } from "../src/playlist/playlist";
+import { formatPlaylist, itemsOf, parsePlaylistText, singlePlaylist } from "../src/playlist/playlist";
+import { hoistPortraitStrokes, restorePortraitStrokes } from "../src/llm/hoist";
+import { normalizeSpec, validateSpec } from "../src/spec/schema";
+import type { Spec } from "../src/spec/types";
 
 const SPEC_YAML = `title: A line
 domain: { x: [0, 100], y: [0, 100] }
@@ -85,5 +88,29 @@ describe("preserveFoundingPrompt — fill-if-absent only", () => {
     const revised = p();
     expect(preserveFoundingPrompt(revised, p())).toBe(false);
     expect(revised.meta.prompt).toBeUndefined();
+  });
+});
+
+describe("a hoisted document is not a complete document (design §5.2)", () => {
+  test("a reply that drops the assets block validates clean once restored", () => {
+    const spec = {
+      template: "chess_board",
+      params: { moves: "@line" },
+      assets: { line: ["e4", "e5", "Nf3"] },
+      commands: [{ draw: ["board"], speak: "A line." }],
+    } as unknown as Spec;
+    const hoisted = hoistPortraitStrokes(formatPlaylist(singlePlaylist(spec), "script"));
+
+    // The model's reply: the document, with no assets block of its own.
+    const reply = parsePlaylistText(hoisted.text);
+    delete itemsOf(reply)[0].spec.assets;
+
+    // Before restoration the reference is dangling — this is the state the
+    // old order judged, and it is not a real error.
+    expect(validateSpec(normalizeSpec(itemsOf(reply)[0].spec)).errors.join("\n")).toContain('"@line"');
+
+    // After restoration, which is what the loop must now do first, it is clean.
+    restorePortraitStrokes(reply, hoisted.blobs);
+    expect(validateSpec(normalizeSpec(itemsOf(reply)[0].spec)).ok).toBe(true);
   });
 });

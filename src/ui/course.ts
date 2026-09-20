@@ -16,6 +16,7 @@ import { callLedger, costSummary, formatCost, MODELS, resetCallLedger } from "..
 import { estimateCourseUsd, formatCourseEstimate, learnRate, rateKey } from "../llm/cost-estimate";
 import type { Exemplar } from "../llm/prompt";
 import { reviseDocument } from "../llm/revise";
+import { withNotes } from "../llm/hoist";
 import { generationGate } from "../llm/limit";
 import { createOnDemandRun, onDemandSummary } from "../llm/on-demand-run";
 import { DEFAULT_META, formatPlaylist, formatPublished, itemsOf, parsePlaylistText, singlePlaylist, type AudioTrack, type Playlist } from "../playlist/playlist";
@@ -456,8 +457,13 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
           signal: controller.signal,
         }),
       );
+      // Data too large to have been given to the model (or a restore that
+      // lost an asset's stash) rides on the same line `say` already prints —
+      // a second call would just overwrite it, and the point of the note is
+      // that the author sees it (design §5.1).
+      const notes = outcome.notes ?? [];
       if (!outcome.playlist || !outcome.text) {
-        say(controller.signal.aborted ? "Cancelled." : `Could not revise "${title}": ${outcome.error}`, "error");
+        say(withNotes(controller.signal.aborted ? "Cancelled." : `Could not revise "${title}": ${outcome.error}`, notes), "error");
         return;
       }
       const first = outcome.playlist.entries.find((e) => e.kind === "item");
@@ -474,7 +480,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       saveDrawing(next);
       deps.refreshLibrary();
       note.value = "";
-      say(`Revised "${title}". Press ▶ to watch it again.`, "ok");
+      say(withNotes(`Revised "${title}". Press ▶ to watch it again.`, notes), "ok");
     } catch (err) {
       say(`Could not revise "${title}": ${(err as Error).message}`, "error");
     } finally {

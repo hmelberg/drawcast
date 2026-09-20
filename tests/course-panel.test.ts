@@ -76,6 +76,32 @@ describe("resolveOpenCourseId", () => {
   });
 });
 
+describe("reviseLecture reports outcome.notes (round 1 review, fix 1)", () => {
+  // reviseDocument's `notes` (design §5.1) had a first caller, main.ts's
+  // Revise, that was fixed on this same round — but reviseLecture is a
+  // SECOND caller, and it read `outcome` on both its success and its
+  // failure branch without ever looking at `.notes`, so an over-threshold
+  // asset (or a restore that lost one) silently vanished on this path even
+  // though the model call reported it. reviseLecture is a closure inside
+  // openCoursePanel — not exported, and reaching it end-to-end means
+  // mocking the store, the network layer, and a live dialog's DOM, none of
+  // which any existing test for this module does — so this is a structural
+  // guard on the wiring itself (withNotes's own joining rule is unit-tested
+  // in spec-assets.test.ts) rather than a full integration test.
+  it("reads outcome.notes and joins it via the shared withNotes helper on both branches", async () => {
+    const src = await readFile(new URL("../src/ui/course.ts", import.meta.url), "utf8");
+    expect(src).toContain('import { withNotes } from "../llm/hoist";');
+    const start = src.indexOf("async function reviseLecture(");
+    expect(start).toBeGreaterThan(-1);
+    const end = src.indexOf("\n  function config(", start);
+    const body = src.slice(start, end);
+    expect(body).toContain("outcome.notes");
+    // Both say() calls that report the model's outcome must ride the notes
+    // along — the success line and the "could not revise" / "Cancelled" line.
+    expect((body.match(/say\(withNotes\(/g) ?? []).length).toBe(2);
+  });
+});
+
 describe("the panel's own source", () => {
   // A blanket search-and-replace of deps.setStatus( -> the local reporter once
   // rewrote the call INSIDE that reporter, so every message recursed until the

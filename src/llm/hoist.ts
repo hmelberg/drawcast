@@ -10,7 +10,7 @@
 
 import { formatPlaylist, itemsOf, parsePlaylistText, type Playlist } from "../playlist/playlist";
 import type { Spec, SpecElement } from "../spec/types";
-import { HOISTED } from "../spec/assets";
+import { ASSET_SEND_MAX, assetBytes, DATA_DESCRIPTOR, describeAsset, formatAssetSize, HOISTED, isDataAsset } from "../spec/assets";
 
 export { HOISTED };
 
@@ -45,13 +45,14 @@ function blobKey(id: string, field: BlobField, fields: BlobField[]): string {
   return fields.length > 1 ? `${id}:${field}` : id;
 }
 
-export function hoistPortraitStrokes(docText: string): { text: string; blobs: Map<string, string> } {
+export function hoistPortraitStrokes(docText: string): { text: string; blobs: Map<string, string>; described: { name: string; bytes: number }[] } {
   const blobs = new Map<string, string>();
+  const described: { name: string; bytes: number }[] = [];
   let playlist: Playlist;
   try {
     playlist = parsePlaylistText(docText);
   } catch {
-    return { text: docText, blobs };
+    return { text: docText, blobs, described };
   }
   let any = false;
   itemsOf(playlist).forEach((item, i) => {
@@ -66,22 +67,103 @@ export function hoistPortraitStrokes(docText: string): { text: string; blobs: Ma
       }
     }
     // The `assets` map is the same bytes under another key (spec/assets.ts):
-    // it leaves with them and comes back with them.
-    if (item.spec.assets) {
+    // BYTES leave with the blobs and come back with them, exactly as before.
+    // DATA is decided per asset (design §5.1): small enough to send rides
+    // along and may be edited; larger is replaced by a descriptor naming its
+    // shape. The whole map is stashed either way, so nothing can be lost.
+    if (item.spec.assets && Object.keys(item.spec.assets).length > 0) {
       blobs.set(assetsKey(i), JSON.stringify(item.spec.assets));
-      delete item.spec.assets;
+      const forModel: Record<string, unknown> = {};
+      for (const [name, value] of Object.entries(item.spec.assets)) {
+        if (!isDataAsset(value)) continue; // bytes: not shown at all
+        const bytes = assetBytes(value);
+        if (bytes > ASSET_SEND_MAX) {
+          forModel[name] = describeAsset(value);
+          described.push({ name, bytes });
+        } else {
+          forModel[name] = value;
+        }
+      }
+      if (Object.keys(forModel).length > 0) item.spec.assets = forModel;
+      else delete item.spec.assets;
       any = true;
     }
   });
-  return any ? { text: formatPlaylist(playlist, "script"), blobs } : { text: docText, blobs };
+  return any ? { text: formatPlaylist(playlist, "script"), blobs, described } : { text: docText, blobs, described };
+}
+
+/**
+ * What to tell the author about assets the model could not be given
+ * (design §5.1). Silence is the failure mode this exists to prevent: a revise
+ * that quietly leaves the data alone while reporting success is how someone
+ * comes to believe their repertoire changed when it did not.
+ */
+export function noteForDescribed(described: readonly { name: string; bytes: number }[]): string[] {
+  return described.map(
+    (d) => `${d.name} is ${formatAssetSize(d.bytes)} — too large to revise here. Edit it in the Spec source, or re-import the file.`,
+  );
+}
+
+/**
+ * Ride `notes` (design §5.1) onto a status message a caller already builds,
+ * rather than reporting them with a second call that would simply overwrite
+ * the first. Shared by main.ts's Revise and course.ts's per-lecture revise —
+ * both report through a single status line, just via different plumbing
+ * (setStatus/setDoc vs. the panel's own `say`) — so this is the one place the
+ * joining rule (and its "nothing to add" case) is written and tested once.
+ */
+export function withNotes(message: string, notes: readonly string[]): string {
+  return notes.length > 0 ? [message, ...notes].join("  ") : message;
 }
 
 /** Put hoisted strokes back into the model's revised playlist, by element id. */
 export function restorePortraitStrokes(playlist: Playlist, blobs: Map<string, string>): void {
   if (blobs.size === 0) return;
-  itemsOf(playlist).forEach((item, i) => {
-    const assets = blobs.get(assetsKey(i));
-    if (assets) item.spec.assets = JSON.parse(assets) as Record<string, string>;
+  const items = itemsOf(playlist);
+  items.forEach((item, i) => {
+    const stashed = blobs.get(assetsKey(i));
+    if (stashed) {
+      // The stash is the authority for everything the model could not edit —
+      // bytes, and any data too large to send. An asset that WAS sent may have
+      // been legitimately rewritten, so the reply's version wins for those.
+      // A reply that drops the block entirely therefore loses nothing.
+      const original = JSON.parse(stashed) as Record<string, unknown>;
+      const returned = (item.spec.assets ?? {}) as Record<string, unknown>;
+      const merged: Record<string, unknown> = { ...original };
+      for (const [name, value] of Object.entries(returned)) {
+        const was = original[name];
+        // The reply only wins when it is ITSELF data (round 1 review, C1): a
+        // byte string — empty, or shaped like a descriptor — must never
+        // replace rows just because the name was small enough to send. Without
+        // this, `{openings: ""}` or `{openings: "@data 1 rows — …"}` silently
+        // erased a user's data (resolveParamAssetRefs then treats the string
+        // as bytes and leaves the reference dangling — a fresh way to lose
+        // rows, not merely a confusing one).
+        if (was !== undefined && isDataAsset(was) && assetBytes(was) <= ASSET_SEND_MAX && isDataAsset(value)) merged[name] = value;
+      }
+      item.spec.assets = merged;
+    }
+    // DATA_DESCRIPTOR is only ever MINTED on the way out (above, for an asset
+    // too large to send) and is never itself in a stash — so if one is still
+    // sitting in the restored document, this item's stash never covered that
+    // name: most plausibly assetsKey's positional index (round 1 review, I1 —
+    // pre-existing, not fixed here) landed on the wrong item, or none at all,
+    // after a page was inserted or removed. Silently keeping it would look
+    // like real content forever; throwing is too violent for a restore path
+    // that must still return a document. Flagged instead — but console.warn
+    // (round 1) was the wrong channel: that is this repo's INFRASTRUCTURE log
+    // (pack loads, fonts, widget bodies), not something an author ever sees.
+    // A non-fatal DOCUMENT problem belongs in the playlist's own `warnings`
+    // (round 2 review, I1) — the same field parsePlaylistText already fills
+    // for document-level issues (a dangling inset, malformed audio, a script
+    // sugar column) — so this reaches the author the same way those already
+    // do, not a devtools line nobody opens.
+    for (const [name, value] of Object.entries(item.spec.assets ?? {})) {
+      if (typeof value === "string" && value.startsWith(DATA_DESCRIPTOR)) {
+        const where = items.length > 1 ? `item ${i + 1}: ` : "";
+        playlist.warnings.push(`${where}asset "${name}" is still a descriptor after restore — its stash was not found`);
+      }
+    }
     for (const el of item.spec.elements ?? []) {
       const fields = blobFields(el);
       for (const field of fields) {
