@@ -1,8 +1,17 @@
 # Data assets — a drawcast that carries its own data
 
-Status: specification, ready to plan. Written 2026-09-20 with Hans after the
-chess pointing round (main 3448ace). Implementer: read this whole file first;
-it assumes the drawcast repo and nothing else.
+Status: IMPLEMENTED 2026-09-20, plan docs/superpowers/plans/2026-09-20-data-assets.md.
+8909 tests, tsc + build green. Written with Hans after the chess pointing round
+(main 3448ace). Implementer: read this whole file first; it assumes the
+drawcast repo and nothing else.
+
+One correction the implementation found, recorded rather than quietly fixed:
+§10's file table asks `src/llm/compile.ts` to "restore before validate on the
+internal rounds". It does not need to. `compile.ts` never imports `hoist.ts`,
+so the compile path never hoists, and a freshly compiled spec has no assets at
+all because the model cannot write them. Only §4.3's params half applied there,
+and that is what Task 4 built. The restore-before-validate reorder (§5.2) is
+`revise.ts`'s alone.
 
 ## 1. What this is
 
