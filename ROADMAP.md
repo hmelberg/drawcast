@@ -2790,6 +2790,35 @@ Backend comparison grids, the raw-SVG baseline, the benchmark runner UI, and
 prompt A/B scoring. When a prompt change needs evidence, run it through the
 lab; the packet export here feeds the same improvement loop.
 
+## Data assets: small gaps knowingly left open — noted 2026-09-20
+
+The data-assets round (spec `docs/superpowers/specs/2026-09-20-data-assets-design.md`)
+shipped with these triaged as fine to leave. Recorded so they are found on purpose
+rather than rediscovered by accident. None loses data: every one of them either fails
+loudly or is unreachable from the printer.
+
+- `assetsKey(i)` in `src/llm/hoist.ts` keys the stash POSITIONALLY, so inserting a page
+  mid-revise would restore an asset to the wrong item. Pre-existing indexing. It fails
+  loudly now — a value still carrying the `@data` marker after restore pushes a warning,
+  which `notes` surfaces to the author.
+- `restorePortraitStrokes` would duplicate that warning line if ever called twice on one
+  playlist. No second call site exists today; restore is now per candidate, so this is
+  worth a look if another caller appears.
+- An asset name the model invents is dropped silently on restore. Conservative is right
+  (the model may not mint data), but the drop is unreported; it surfaces downstream as a
+  dangling reference, which is loud.
+- `splitCsvLine`'s sibling gaps: a CSV field containing a newline is out of scope, and
+  the Name field in the Insert dialog goes stale when the part selector changes after an
+  untouched prefill (the note and the written result are correct; only the visible text
+  lags).
+- In `src/spec/script/detect.ts`, an opening fence at column 0 whose CLOSING marker is
+  indented runs on to the next bare marker and deletes real ink, and a bare marker inside
+  a fence body closes it early. Both fail closed (unreadable, never mis-parsed), and
+  `print.ts` never emits either shape.
+- A descriptor reads "1 rows" for a single row.
+- `src/llm/hoist.ts` now holds stroke hoisting AND note formatting. Fine for two; worth a
+  rename or split if a third unrelated helper lands there.
+
 ## Housekeeping
 
 - Regenerate `package-lock.json` (`npm install`) and switch CI back to
