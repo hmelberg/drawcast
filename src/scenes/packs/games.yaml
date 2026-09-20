@@ -28,7 +28,11 @@ description: >-
   can point at or circle a square with nothing on it (`sq_f7`), and a `move`
   can slide a piece onto one for a what-if and slide it back. Circle a
   square, glow a PIECE — a glow repaints its target in the highlight color,
-  which over a square would cover whatever stands on it.
+  which over a square would cover whatever stands on it. Every chess board
+  also offers the viewer a "Drill openings" activity while paused; give a
+  cast `openings` and the drill asks for THOSE openings rather than the
+  built-in set, so a cast that explains a few lines can end by handing them
+  over to be practised.
 params:
   type: object
   properties:
@@ -55,6 +59,18 @@ params:
       type: array
       items: { type: string }
       description: "Algebraic squares to shade, e.g. [\"d5\", \"e4\"] — outposts, weak squares, key files."
+    openings:
+      type: array
+      items:
+        type: object
+        properties:
+          name: { type: string, description: "What the opening is called — how the drill names it, and how it remembers your misses." }
+          eco: { type: string, description: "ECO code, e.g. \"C50\". Labelling only." }
+          side: { type: string, enum: [white, black], description: "Which side the viewer plays. Needed rather than inferred — the Sicilian is Black's opening, but its line still begins 1. e4 c5. Default white." }
+          moves: { type: array, items: { type: string }, description: "The line in SAN, 3-6 plies — e.g. [\"e4\", \"e5\", \"Nf3\", \"Nc6\", \"Bc4\"]." }
+          idea: { type: string, description: "One sentence on the point of it, spoken when the viewer finishes the line." }
+        required: [name, moves]
+      description: "The set the viewer drills when they press \"Drill openings\" in the tray, INSTEAD of the built-in dozen. Give it the openings this cast just taught, so practice asks for exactly what was explained — and choose a set whose members are each other's likely mistakes, since a wrong move is named when it matches another opening in the set (\"that's the Vienna\"). The drill is a pill on any chess board; this param only changes WHICH openings it asks for."
     flip:
       type: boolean
       description: "Show the board from Black's point of view (rank 1 at top, files mirrored). Default false (White's view)."
