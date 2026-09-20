@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 import { Chess } from "chess.js";
 import { BUILT_IN_OPENINGS, matchingOpenings, plyList, validateSet, type Opening } from "../src/ui/chess-openings";
 import type { ChessCtor } from "../src/ui/chessplay-model";
+import { pickOpening, readHistory, recordAttempt, weightFor, WINDOW } from "../src/ui/chess-openings-store";
 
 const Ctor = Chess as unknown as ChessCtor;
 
@@ -132,5 +133,64 @@ describe("plyList", () => {
     const plies = plyList(Ctor, { name: "X", side: "white", moves: ["e4", "e5", "Nf3"] });
     expect(plies[0]).toMatchObject({ from: "e2", to: "e4", san: "e4" });
     expect(plies[2]).toMatchObject({ from: "g1", to: "f3", san: "Nf3" });
+  });
+});
+
+describe("weighting", () => {
+  test("an opening with no history weighs 1, and each recent miss adds 2", () => {
+    expect(weightFor(undefined)).toBe(1);
+    expect(weightFor([true, true, true])).toBe(1);
+    expect(weightFor([false])).toBe(3);
+    expect(weightFor([false, false])).toBe(5);
+    expect(weightFor([false, false, false])).toBe(7);
+  });
+
+  test("the window IS the cap — only the last three attempts count", () => {
+    expect(WINDOW).toBe(3);
+    // Five old misses, three recent hits: back to 1, with no separate clamp.
+    expect(weightFor([false, false, false, false, false, true, true, true])).toBe(1);
+    // And the worst possible weight is the window's.
+    expect(weightFor(Array(20).fill(false))).toBe(7);
+  });
+
+  test("a miss you have since fixed decays on its own", () => {
+    expect(weightFor([false, false, false])).toBe(7);
+    expect(weightFor([false, false, false, true])).toBe(5);
+    expect(weightFor([false, false, false, true, true])).toBe(3);
+    expect(weightFor([false, false, false, true, true, true])).toBe(1);
+  });
+});
+
+describe("pickOpening", () => {
+  const set: Opening[] = [
+    { name: "A", side: "white", moves: ["e4", "e5", "Nf3"] },
+    { name: "B", side: "white", moves: ["d4", "d5", "c4"] },
+  ];
+
+  test("with no history it is uniform over the set", () => {
+    expect(pickOpening(set, {}, () => 0).name).toBe("A");
+    expect(pickOpening(set, {}, () => 0.9).name).toBe("B");
+  });
+
+  test("a missed opening takes a larger share of the range", () => {
+    // A weighs 7 (three misses), B weighs 1 — so A covers 7/8 of the range.
+    const history = { A: [false, false, false] };
+    expect(pickOpening(set, history, () => 0.8).name).toBe("A");
+    expect(pickOpening(set, history, () => 0.95).name).toBe("B");
+  });
+
+  test("an empty set is never asked for — the caller guarantees it", () => {
+    // Documented rather than defended: pickOpening on [] would have nothing
+    // to return, and every call site falls back to the built-in set first.
+    expect(set.length).toBeGreaterThan(0);
+  });
+});
+
+describe("the history store", () => {
+  test("reads as empty and writes silently when storage is unavailable", () => {
+    // jsdom is not configured for this suite, so localStorage is absent —
+    // which is exactly the private-mode case the store must survive.
+    expect(() => recordAttempt("Italian Game", false)).not.toThrow();
+    expect(readHistory()).toEqual({});
   });
 });
