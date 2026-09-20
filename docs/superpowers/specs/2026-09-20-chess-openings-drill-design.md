@@ -1,9 +1,16 @@
 # Drill openings — a third pill on the chess board
 
-Status: specification, ready to plan. Written 2026-09-20 with Hans, after the
-data-assets round (main d37da65) made a cast able to carry a set of openings.
-Implementer: read this whole file first; it assumes the drawcast repo and
-nothing else.
+Status: IMPLEMENTED 2026-09-20, plan docs/superpowers/plans/2026-09-20-chess-openings-drill.md.
+8945 tests, tsc + build green. Written with Hans after the data-assets round
+(main d37da65) made a cast able to carry a set of openings.
+
+§8's flip claim was VERIFIED rather than assumed during implementation: the
+board can be flipped through `previewParams` even when the author never wrote
+a `flip` param. `previewParams`' overrides are a plain unfiltered spread —
+distinct from the filtered `varParamOverrides` mechanism the comment at
+`src/render/player.ts:187` actually describes — and `renderUpTo` rebuilds from
+the boundary's own authored params, so teardown un-flips the board with no
+restore code. The drill flips to the side being drilled.
 
 ## 1. What this is
 
