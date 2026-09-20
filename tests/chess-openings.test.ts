@@ -5,6 +5,7 @@ import { Chess } from "chess.js";
 import { BUILT_IN_OPENINGS, matchingOpenings, plyList, validateSet, type Opening } from "../src/ui/chess-openings";
 import type { ChessCtor } from "../src/ui/chessplay-model";
 import { pickOpening, readHistory, recordAttempt, weightFor, WINDOW } from "../src/ui/chess-openings-store";
+import { withNewIdsVisible } from "../src/render/params";
 
 const Ctor = Chess as unknown as ChessCtor;
 
@@ -192,5 +193,20 @@ describe("the history store", () => {
     // which is exactly the private-mode case the store must survive.
     expect(() => recordAttempt("Italian Game", false)).not.toThrow();
     expect(readHistory()).toEqual({});
+  });
+});
+
+describe("a drill move onto a square the cast never touched", () => {
+  test("mints an id the plan's visible set grows to include", () => {
+    // What a Scholar's Mate board knows about: its own line's squares.
+    const baseIds = new Set(["board", "piece_e2", "piece_e4", "piece_f7"]);
+    const visible = new Set(["board", "piece_e2"]);
+    // What a Sicilian drill paints: a pawn on c5, which that cast never saw.
+    const previewOrder = ["board", "piece_e2", "piece_c5"];
+
+    const grown = withNewIdsVisible(baseIds, previewOrder, visible);
+    expect(grown.has("piece_c5")).toBe(true);
+    // An id the base layout already had keeps its honest visibility.
+    expect(grown.has("piece_e4")).toBe(false);
   });
 });
