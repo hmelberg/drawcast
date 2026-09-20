@@ -76,6 +76,7 @@ import { activitiesFor } from "./quiz-model";
 import { MIN_PARTS } from "./parts-model";
 import { mountQuiz, partsFor } from "./quiz";
 import { mountChessVs } from "./chessvs";
+import { mountChessDrill } from "./chessdrill";
 import { applyControls, parseControls, type ControlSpec, type ControlValue } from "../code/controls";
 import { debounceMs, nextValues } from "./controls-model";
 import { attachPopout } from "./tray-popout";
@@ -815,6 +816,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
           restore(); // the session runs on the honest boundary
           close();
           if (a.id === "vs_computer") mountChessVs(stage, hd);
+          else if (a.id === "openings_drill") mountChessDrill(stage, hd);
           else mountQuiz(stage, hd, a);
         });
         row.appendChild(pill);
