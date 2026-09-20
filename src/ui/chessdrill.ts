@@ -11,8 +11,9 @@
 // position back and play/scrub tear the session down on their own.
 
 import type { RenderHandle } from "../render";
-import { chessSquareAt, chessSquareBox } from "../render/widgets";
-import { clientPointFor, h, logicalPoint } from "./dom";
+import { chessSquareBox } from "../render/widgets";
+import { clientPointFor, h } from "./dom";
+import { attachChessDrag } from "./chess-drag";
 import { legalTargets, type ChessCtor, type ChessLike } from "./chessplay-model";
 import { BUILT_IN_OPENINGS, matchingOpenings, plyList, validateSet, type Opening } from "./chess-openings";
 import { pickOpening, readHistory, recordAttempt } from "./chess-openings-store";
@@ -159,7 +160,7 @@ export function mountChessDrill(stage: HTMLElement, hd: RenderHandle): void {
   }
 
   /**
-   * A completed from -> to from the gate's click handler: the judging core.
+   * A completed from -> to, whether clicked or dragged: the judging core.
    * Illegal (chess.js rejects it outright) is a mis-click, not a miss — the
    * selection is left standing so the viewer can re-aim, exactly as
    * chessvs treats an illegal move.
@@ -270,13 +271,11 @@ export function mountChessDrill(stage: HTMLElement, hd: RenderHandle): void {
     else busy = false;
   }
 
-  gate.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (e.target instanceof Element && e.target.closest("button")) return;
+  /** The viewer named a square — by clicking it, or by letting a carried
+   *  piece go on it (ui/chess-drag.ts): one handler, two gestures, and one
+   *  place where a wrong-but-legal move is still a miss. */
+  const onSquare = (sq: string): void => {
     if (busy || over || dead || !game) return;
-    const p = logicalPoint(stage, e);
-    const sq = p && chessSquareAt(flip, p);
-    if (!sq) return;
     if (selected === null) {
       const piece = game.get(sq);
       if (!piece || piece.color !== drilled) return;
@@ -296,7 +295,18 @@ export function mountChessDrill(stage: HTMLElement, hd: RenderHandle): void {
       return;
     }
     tryMove(selected, sq);
+  };
+
+  attachChessDrag(stage, hd, {
+    target: gate,
+    flip: () => flip, // the board turns to face the side being drilled
+    grabbable: (sq) => !busy && !over && !dead && game?.get(sq)?.color === drilled,
+    deliver: onSquare,
+    blocked: (e) => e.target instanceof Element && e.target.closest("button") !== null,
   });
+  // The press has already been read; this only keeps the click off the
+  // stage's play/pause toggle underneath.
+  gate.addEventListener("click", (e) => e.stopPropagation());
 
   closeBtn.addEventListener("click", (e) => {
     e.stopPropagation();

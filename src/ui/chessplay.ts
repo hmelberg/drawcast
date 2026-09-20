@@ -17,6 +17,7 @@ import { sceneAt } from "../render/plan";
 import { readParam, withOverrides } from "../render/params";
 import { chessSquareAt, chessSquareBox } from "../render/widgets";
 import { clientPointFor, h, logicalPoint } from "./dom";
+import { attachChessDrag } from "./chess-drag";
 import { gateIsOpen } from "./gates";
 import { freeMove, legalTargets, shownFen, type ChessCtor } from "./chessplay-model";
 
@@ -142,16 +143,27 @@ export function attachChessPlay(stage: HTMLElement, hd: RenderHandle): void {
     }
   };
 
-  stage.addEventListener(
-    "pointerdown",
-    (e) => {
-      if (blocked(e)) return;
-      const p = logicalPoint(stage, e);
-      const sq = p && chessSquareAt(flip, p);
-      if (!sq) {
-        deselect(); // off-board: drop any selection, let the click resume
-        return;
-      }
+  // chess.js is the very chunk that DREW this board (scenes/engines.ts loads
+  // it to lay the position out), so asking for it at mount costs nothing that
+  // was not already paid — and it is what lets a press know, in the same tick
+  // it lands, whether there is a piece under it to carry.
+  void import("chess.js").then((m) => {
+    Chess ??= m.Chess as unknown as ChessCtor;
+  });
+
+  // Press a square, and — dragging or not — it is named exactly as a click
+  // named it before: select, move, or shrug. Carry the piece to another
+  // square and the release names that one, which is the same two squares in
+  // the same order (ui/chess-drag.ts).
+  attachChessDrag(stage, hd, {
+    target: stage,
+    flip: () => flip,
+    grabbable: (sq) => {
+      if (!Chess) return false;
+      liveFen ??= boundaryFen();
+      return liveFen !== null && !!new Chess(liveFen, { skipValidation: true }).get(sq);
+    },
+    deliver: (sq) => {
       if (Chess) {
         onSquare(sq);
         return;
@@ -161,8 +173,9 @@ export function attachChessPlay(stage: HTMLElement, hd: RenderHandle): void {
         onSquare(sq);
       });
     },
-    true,
-  );
+    blocked,
+    offBoard: () => deselect(), // drop any selection, let the click resume
+  });
   // A paused click on the board is instrument input, never the play/pause
   // toggle — same capture-phase suppression as the piano's keys.
   stage.addEventListener(
