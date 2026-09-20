@@ -24,22 +24,32 @@ function storage(): Storage | null {
   }
 }
 
+/** A history object with no prototype — so NO name, however it is spelled,
+ *  can ever resolve to an inherited Object.prototype member (`constructor`,
+ *  `toString`, `valueOf`, ...) instead of `undefined`. Every return path of
+ *  readHistory uses this, because every lookup against its result — here,
+ *  in recordAttempt, in pickOpening — trusted a `{}` literal not to have
+ *  that problem, and two of the three did not. */
+function emptyHistory(): Record<string, boolean[]> {
+  return Object.create(null) as Record<string, boolean[]>;
+}
+
 /** Opening name -> its attempts, newest last. Empty when storage is dead. */
 export function readHistory(): Record<string, boolean[]> {
   const s = storage();
-  if (!s) return {};
+  if (!s) return emptyHistory();
   try {
     const raw = s.getItem(OPENINGS_RECORD_KEY);
-    if (!raw) return {};
+    if (!raw) return emptyHistory();
     const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-    const out: Record<string, boolean[]> = {};
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return emptyHistory();
+    const out = emptyHistory();
     for (const [name, v] of Object.entries(parsed as Record<string, unknown>)) {
       if (Array.isArray(v)) out[name] = v.filter((x): x is boolean => typeof x === "boolean").slice(-WINDOW);
     }
     return out;
   } catch {
-    return {};
+    return emptyHistory();
   }
 }
 
@@ -64,10 +74,11 @@ export function weightFor(attempts: readonly boolean[] | undefined): number {
 
 /** A weighted random opening. `rng` returns [0, 1); inject it for tests. */
 export function pickOpening(set: readonly Opening[], history: Record<string, boolean[]>, rng: () => number): Opening {
-  // Object.hasOwn, not `history[o.name]` alone: a custom opening named
-  // `constructor`, `toString` or `valueOf` would otherwise hand weightFor an
-  // INHERITED FUNCTION from Object.prototype instead of undefined — on a
-  // completely fresh browser with no stored history, `history` is just `{}`.
+  // Kept even though readHistory now hands back a null-prototype object
+  // (emptyHistory): `history` is a plain parameter here, not something this
+  // function controls the shape of, and the existing tests (rightly) pass a
+  // `{}` literal straight in. Object.hasOwn keeps this call safe regardless
+  // of which kind of object the caller built.
   const weights = set.map((o) => weightFor(Object.hasOwn(history, o.name) ? history[o.name] : undefined));
   const total = weights.reduce((a, b) => a + b, 0);
   let r = rng() * total;

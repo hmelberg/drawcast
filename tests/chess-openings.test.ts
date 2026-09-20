@@ -1,6 +1,6 @@
 // The openings drill's pure half: the shipped set, what a custom set must
 // survive, and the one prefix query the whole drill is built on.
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { Chess } from "chess.js";
 import { BUILT_IN_OPENINGS, matchingOpenings, plyList, validateSet, type Opening } from "../src/ui/chess-openings";
 import type { ChessCtor } from "../src/ui/chessplay-model";
@@ -210,6 +210,29 @@ describe("the history store", () => {
     // which is exactly the private-mode case the store must survive.
     expect(() => recordAttempt("Italian Game", false)).not.toThrow();
     expect(readHistory()).toEqual({});
+  });
+
+  test("an opening named constructor is recorded and read back, not silently dropped", () => {
+    // history["constructor"] on a plain {} is the INHERITED FUNCTION
+    // Object.prototype.constructor, which is not nullish — so
+    // recordAttempt's `history[name] ?? []` does not rescue it, and
+    // spreading a function throws "not iterable" inside recordAttempt's
+    // own try/catch. That catch exists for a full/refusing store, so it
+    // swallows this too: no visible error, just an attempt that never
+    // gets saved. readHistory must hand back an object no name can walk
+    // off the end of into Object.prototype.
+    const mem = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => mem.get(k) ?? null,
+      setItem: (k: string, v: string) => void mem.set(k, v),
+      removeItem: (k: string) => void mem.delete(k),
+    });
+    try {
+      expect(() => recordAttempt("constructor", false)).not.toThrow();
+      expect(readHistory()).toEqual({ constructor: [false] });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 
