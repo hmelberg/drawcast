@@ -50,7 +50,7 @@ import { referencedLectureIds } from "./course/document";
 import { fileSafe, openShare } from "./ui/share";
 import { checkSaveable } from "./ui/save-gate";
 import { authorButtonLabel, authoringMode, promptPlaceholder } from "./ui/author-mode";
-import { openEmbedDialog, openInsertPortrait, unembeddedImages } from "./ui/insert";
+import { openEmbedDialog, openInsertData, openInsertPortrait, unembeddedImages } from "./ui/insert";
 import { accordionOpenState, applySection, courseGroup, createSidebarSection, sidebarSections, type SectionInput, type SidebarSection } from "./ui/sidebar";
 import { attachReview, type ReviewHandle } from "./ui/review";
 import { type PlaybackPrefs } from "./ui/controls";
@@ -848,6 +848,16 @@ const insertMenu = createMenu("Insert", [
       }),
   },
   {
+    label: "Data from disk…",
+    onSelect: () =>
+      openInsertData({
+        readPlaylist: () => readPlaylistText(specArea.value),
+        viewedPart: () => previewedPart,
+        applyPlaylist,
+        setStatus,
+      }),
+  },
+  {
     label: "Embed images in the file",
     onSelect: () =>
       openEmbedDialog({
@@ -857,7 +867,7 @@ const insertMenu = createMenu("Insert", [
         setStatus,
       }),
   },
-], { title: "Add an image, or embed every image into the file" });
+], { title: "Add an image or a data file, or embed every image into the file" });
 // ---- Save → To disk: the YAML/JSON spec download Share's Spec file panel
 // used to do (share.ts's now-deleted specGo) — moved here because downloading
 // your own source is a save, not a share (spec §1). Same formatPlaylist call,

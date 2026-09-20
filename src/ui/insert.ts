@@ -13,7 +13,7 @@
 import { resolvePortraits, traceFromBlob } from "../render/portrait";
 import { resolveSources } from "../render/source";
 import { resolveImages } from "../render/image";
-import { hoistStrokes } from "../spec/assets";
+import { ASSET_MAX_BYTES, assetBytes, formatAssetSize, hoistStrokes } from "../spec/assets";
 import { resolveIcons } from "../render/icon";
 import type { SpecElement } from "../spec/types";
 import { itemsOf, itemTitle, type Playlist, type PlaylistItem } from "../playlist/playlist";
@@ -395,6 +395,169 @@ function buildEmbedDialog(): EmbedSession {
           : "No portrait, source, image or icon elements to embed.";
       embedBtn.remove();
       if (count > 0) modal.footer.append(embedBtn);
+      modal.open();
+    },
+  };
+}
+
+// The ＋ Insert menu's "Data from disk…" — a JSON or CSV file becomes a
+// spec.assets entry, named, parsed, size-checked, in the part being viewed.
+// Same node-safety rule as build() above: parseDataFile and assetNameFor
+// touch no DOM and sit at module scope so the test file can import them;
+// everything else lives inside buildData(), called lazily.
+
+/**
+ * A data file's rows. JSON as written; CSV's header row as keys.
+ *
+ * A column becomes numbers only when EVERY cell in it parses as one — the
+ * overpromising trap from the steepness round (2026-09-20): a rule that
+ * mostly works is worse than one that is stated. One "n/a" and the column
+ * stays text, which the author can see in the editor.
+ */
+export function parseDataFile(text: string, filename: string): { rows: unknown; error?: string } {
+  const trimmed = text.trim();
+  if (trimmed === "") return { rows: null, error: `${filename} is empty` };
+  if (/\.json$/i.test(filename)) {
+    try {
+      return { rows: JSON.parse(trimmed) as unknown };
+    } catch (err) {
+      return { rows: null, error: `${filename} could not be read as JSON: ${(err as Error).message}` };
+    }
+  }
+  const lines = trimmed.split(/\r?\n/).filter((l) => l.trim() !== "");
+  if (lines.length < 2) return { rows: null, error: `${filename} has a header but no rows` };
+  const cell = (line: string): string[] => line.split(",").map((c) => c.trim());
+  const headers = cell(lines[0]);
+  const body = lines.slice(1).map(cell);
+  const numeric = headers.map((_, c) => body.every((r) => r[c] !== undefined && r[c] !== "" && Number.isFinite(Number(r[c]))));
+  const rows = body.map((r) => {
+    const row: Record<string, unknown> = {};
+    headers.forEach((h, c) => {
+      const raw = r[c] ?? "";
+      row[h] = numeric[c] ? Number(raw) : raw;
+    });
+    return row;
+  });
+  return { rows };
+}
+
+/** A filename as an asset name: the reference character set, and never one already taken. */
+export function assetNameFor(filename: string, taken: readonly string[]): string {
+  const base = filename.replace(/\.[^.]+$/, "");
+  const slug =
+    base
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "data";
+  if (!taken.includes(slug)) return slug;
+  for (let n = 2; ; n++) if (!taken.includes(`${slug}_${n}`)) return `${slug}_${n}`;
+}
+
+let dataSession: InsertSession | null = null;
+
+/** Opens the "Insert data from disk" dialog. Safe to call repeatedly — the
+ *  modal is built once and reused, refreshed with whichever `deps` this call
+ *  passed (same pattern as openInsertPortrait above). */
+export function openInsertData(deps: InsertPortraitDeps): void {
+  if (!dataSession) dataSession = buildData();
+  dataSession.open(deps);
+}
+
+function buildData(): InsertSession {
+  // Reassigned on every open() and read only from inside the handlers below,
+  // rather than captured once — so a reopen never acts on a stale document.
+  let current: InsertPortraitDeps;
+  let items: PlaylistItem[] = [];
+  /** The picked file's parsed rows and size — null until a file reads cleanly. */
+  let picked: { rows: unknown; bytes: number } | null = null;
+
+  const explanation = h(
+    "p",
+    { class: "settings-note" },
+    "A JSON or CSV file, carried inside the drawcast as an asset. A template's params point at it by name, so a published cast needs none of your files. CSV's header row becomes the keys.",
+  );
+
+  const fileInput = h("input", { type: "file", accept: ".json,.csv" }) as HTMLInputElement;
+  const partSel = h("select", {}) as HTMLSelectElement;
+  const nameInput = h("input", { type: "text", spellcheck: "false" }) as HTMLInputElement;
+  const sizeNote = h("p", { class: "settings-note" }, "");
+
+  const modal = createModal("Insert data from disk", { size: "s" });
+  // Detached <dialog>.showModal() throws, and the click then looks like it did
+  // nothing at all — the bug that made two dialogs dead from the day they
+  // shipped. Attach here, like every other modal in the app.
+  document.body.append(modal.dialog);
+  modal.body.append(
+    explanation,
+    h("div", { class: "settings-field" }, fileInput),
+    h("div", { class: "settings-field" }, h("label", {}, "Part"), partSel),
+    h("div", { class: "settings-field" }, h("label", {}, "Name"), nameInput),
+    sizeNote,
+  );
+
+  const insertBtn = h("button", { class: "primary" }, "Insert") as HTMLButtonElement;
+  insertBtn.disabled = true;
+  modal.footer.append(insertBtn);
+
+  /** Asset names already in the chosen part — what a new name must not collide with. */
+  const takenIn = (i: number): string[] => Object.keys(items[i]?.spec.assets ?? {});
+
+  fileInput.addEventListener("change", () => {
+    picked = null;
+    insertBtn.disabled = true;
+    sizeNote.textContent = "";
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    void file.text().then((text) => {
+      const { rows, error } = parseDataFile(text, file.name);
+      if (error) {
+        current.setStatus(error, "error");
+        return;
+      }
+      const bytes = assetBytes(rows);
+      // Refused BEFORE anything is embedded, so an oversized file never
+      // reaches the document at all.
+      if (bytes > ASSET_MAX_BYTES) {
+        current.setStatus(`${file.name} is ${formatAssetSize(bytes)} — the limit is ${formatAssetSize(ASSET_MAX_BYTES)}`, "error");
+        return;
+      }
+      picked = { rows, bytes };
+      nameInput.value = assetNameFor(file.name, takenIn(Number(partSel.value)));
+      sizeNote.textContent = `${formatAssetSize(bytes)}${Array.isArray(rows) ? `, ${rows.length} rows` : ""}`;
+      insertBtn.disabled = false;
+    });
+  });
+
+  insertBtn.addEventListener("click", () => {
+    const playlist = current.readPlaylist();
+    if (!playlist || !picked) return;
+    const part = Number(partSel.value);
+    const item = itemsOf(playlist)[part];
+    if (!item) return;
+    const name = assetNameFor(nameInput.value || "data", takenIn(part).filter((n) => n !== nameInput.value));
+    ((item.spec.assets ??= {}) as Record<string, unknown>)[name] = picked.rows;
+    current.applyPlaylist(playlist);
+    current.setStatus(`Added "@${name}" — ${formatAssetSize(picked.bytes)}. Point a param at it, e.g. set: "@${name}"`, "ok");
+    modal.dialog.close();
+  });
+
+  return {
+    open(deps: InsertPortraitDeps) {
+      current = deps;
+      const playlist = deps.readPlaylist();
+      if (!playlist) return; // readPlaylist already reported why
+      items = itemsOf(playlist);
+      partSel.replaceChildren(
+        ...items.map((it, i) => h("option", { value: String(i) }, itemTitle(it) || `Part ${i + 1}`)),
+      );
+      // The part being VIEWED, never 0 — the bug this file's header comment
+      // calls out for portraits, one dialog over.
+      partSel.value = String(Math.min(deps.viewedPart(), items.length - 1));
+      picked = null;
+      fileInput.value = "";
+      nameInput.value = "";
+      sizeNote.textContent = "";
+      insertBtn.disabled = true;
       modal.open();
     },
   };
