@@ -1316,7 +1316,17 @@ Add `formatAssetSize` to hoist.ts's import from `../spec/assets`.
   notes?: string[];
 ```
 
-…and add `notes: noteForDescribed(hoisted.described)` to BOTH return paths in `reviseDocument` (the `catch` return and the final return). Import `noteForDescribed` alongside the existing hoist imports.
+…and add `notes` to BOTH return paths in `reviseDocument` (the `catch` return and the final return). Import `noteForDescribed` alongside the existing hoist imports.
+
+`notes` carries TWO things, deduped, in this order:
+
+```ts
+const notes = [...new Set([...noteForDescribed(hoisted.described), ...(best?.playlist.warnings ?? [])])];
+```
+
+The second half matters. Task 5's restore pushes a line into `playlist.warnings` when an asset is still a descriptor after restoration — which means its stash was not found, and the author's data did not come back. That array turned out to have **no reader anywhere in `src/`**: it is written by `playlist.ts` and by the restore, and displayed by nothing. Folding it in here gives it its first one, and is what makes the restore failure actually visible rather than merely recorded.
+
+Consequence to accept deliberately: existing parse warnings from `playlist.ts` now surface too, on revise. They are real document warnings that were previously dead, so showing them is the point rather than a side effect — but it does mean a revise can now print a line it never printed before.
 
 - [ ] **Step 5: Show it**
 
