@@ -167,6 +167,69 @@ commands:
   });
 });
 
+// design 2026-09-20 §5.2: a hoisted document is not a complete document.
+// restorePortraitStrokes must run on a candidate BEFORE checkPlaylist judges
+// it, not only on the eventual winner afterwards -- otherwise a reply whose
+// params reference an asset, but which drops the assets: block (the
+// realistic case: assets is not in the wire schema, so a model never echoes
+// it back), fails "not in assets" on a reference that is perfectly good, and
+// spends a repair round the model can only satisfy by inventing data.
+describe("reviseDocument restores hoisted assets before judging a candidate (design §5.2)", () => {
+  const DATA_TEMPLATE_ID = "revise_data_assets_restore_test";
+  function registerDataTemplate(): void {
+    registerTemplateDoc({
+      template: DATA_TEMPLATE_ID,
+      version: 1,
+      kit: 1,
+      status: "ready",
+      description: "Test template for the restore-before-validate test: takes an array param.",
+      params: { type: "object", properties: { moves: { type: "array", items: { type: "string" } } } },
+      element_ids: { fig: "the one label this template draws" },
+      examples: [{ request: "Draw the restore-before-validate test figure.", params: {} }],
+      // On-canvas (CANVAS is 1000x750) and lint-clean either way — params.moves
+      // is not even read; only its presence as a schema-legal array matters here.
+      layout: `return { drawables: [kit.text("fig", [500, 375], "Data", { fontSize: 28 })], labels: [], anchors: {}, order: ["fig"] };`,
+    });
+  }
+  afterEach(() => {
+    delete scenes[DATA_TEMPLATE_ID];
+  });
+
+  // A `draw` beat matters here beyond realism: formatPlaylist's "script" format
+  // needs at least one indented action line to separate narration from the
+  // trailing ```assets fence on reparse — a commands list with only `speak`
+  // reformats into something parsePlaylistText itself cannot read back, which
+  // would make this test fail for a reason that has nothing to do with §5.2.
+  const WITH_ASSETS = `template: ${DATA_TEMPLATE_ID}
+params: { moves: "@line" }
+assets: { line: ["e4", "e5", "Nf3"] }
+commands:
+  - { draw: [fig], speak: "A line." }
+`;
+  // The realistic reply: assets is not in the wire schema, so the model
+  // returns the document with only the reference surviving.
+  const WITHOUT_ASSETS = `template: ${DATA_TEMPLATE_ID}
+params: { moves: "@line" }
+commands:
+  - { draw: [fig], speak: "A line." }
+`;
+
+  test("a reply that drops the assets block still completes in one round", async () => {
+    registerDataTemplate();
+    // Two identical canned replies: if the ordering under test regresses, the
+    // repair round the model is sent gets the very same reply back (a model
+    // cannot invent the author's data), so a second, distinct failure mode
+    // (running out of canned replies) never masks the one this test is for.
+    replies = [WITHOUT_ASSETS, WITHOUT_ASSETS];
+
+    const out = await reviseDocument(WITH_ASSETS, "tweak it", { ...cfg(), maxRepairs: 1 });
+
+    expect(out.rounds).toHaveLength(1);
+    expect(out.error).toBeUndefined();
+    expect(calls).toHaveLength(1);
+  });
+});
+
 describe("system blocks", () => {
   // Live 400 from Hans's smoke test, 2026-08-24:
   // "system: text content blocks must contain non-whitespace text".
