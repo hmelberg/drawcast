@@ -86,3 +86,80 @@ export function specForDump<T extends { assets?: unknown }>(spec: T): T {
   const { assets, ...rest } = spec;
   return (assets === undefined ? rest : { ...rest, assets }) as T;
 }
+
+/**
+ * Every `@name` inside `params`, with the dotted path it sits at ("set",
+ * "deep.rows.0"). One walk serves both the resolver below and the semantic
+ * errors, so the two can never disagree about what counts as a reference.
+ *
+ * A reference is the WHOLE string or nothing: ASSET_REF is anchored, so
+ * "see @openings" is prose and stays prose.
+ */
+export function paramAssetRefs(params: unknown): { path: string; name: string }[] {
+  const out: { path: string; name: string }[] = [];
+  const walk = (value: unknown, path: string): void => {
+    if (typeof value === "string") {
+      const name = assetRef(value);
+      if (name !== null) out.push({ path, name });
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((v, i) => walk(v, path === "" ? String(i) : `${path}.${i}`));
+      return;
+    }
+    if (value !== null && typeof value === "object") {
+      for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+        walk(v, path === "" ? k : `${path}.${k}`);
+      }
+    }
+  };
+  walk(params, "");
+  return out;
+}
+
+/** Write `value` at a dotted path inside `params`. The path came from paramAssetRefs, so every host exists. */
+function setAtPath(params: unknown, path: string, value: unknown): void {
+  const keys = path.split(".");
+  let host = params as Record<string, unknown>;
+  for (const key of keys.slice(0, -1)) host = host[key] as Record<string, unknown>;
+  host[keys[keys.length - 1]] = value;
+}
+
+/**
+ * Rewrite every `@name` inside `params` into its asset value, IN PLACE.
+ * Names that do not resolve are left as written (semanticErrors reports
+ * them) and returned. The strokes counterpart is resolveAssetRefs above;
+ * normalizeSpec calls both.
+ */
+export function resolveParamAssetRefs(spec: { assets?: unknown; params?: unknown }): string[] {
+  const dangling: string[] = [];
+  const assets = typeof spec.assets === "object" && spec.assets !== null ? (spec.assets as Record<string, unknown>) : {};
+  for (const { path, name } of paramAssetRefs(spec.params)) {
+    const value = assets[name];
+    // Two references are left STANDING for semanticErrors to report: a name
+    // that is not there, and a name whose asset is encoded bytes. Bytes are
+    // not data, and silently pasting a base64 string into a param would fail
+    // much further downstream, as a template complaining about a type.
+    if (value === undefined) {
+      dangling.push(name);
+      continue;
+    }
+    if (typeof value === "string") continue;
+    setAtPath(spec.params, path, value);
+  }
+  return dangling;
+}
+
+/**
+ * Params with every `@name` resolved — the form every VALIDATOR must see.
+ * normalizeSpec does this for the render path; this is for the authoring
+ * path, which does not go through it (design §4.3). A copy: the document
+ * keeps its references.
+ */
+export function paramsWithAssets(spec: Pick<Spec, "assets" | "params">): Record<string, unknown> {
+  const params = (spec.params ?? {}) as Record<string, unknown>;
+  if (spec.assets === undefined) return params;
+  const clone = JSON.parse(JSON.stringify(params)) as Record<string, unknown>;
+  resolveParamAssetRefs({ assets: spec.assets, params: clone });
+  return clone;
+}

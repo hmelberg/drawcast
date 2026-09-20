@@ -3,7 +3,7 @@
 // last, referenced as `strokes: "@name"`, and number pairs on one line.
 import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
-import { assetRef, hoistStrokes, inlineStrokes, resolveAssetRefs, specForDump } from "../src/spec/assets";
+import { assetRef, hoistStrokes, inlineStrokes, paramAssetRefs, paramsWithAssets, resolveAssetRefs, resolveParamAssetRefs, specForDump } from "../src/spec/assets";
 import { compactPointPairs, dumpSpecYaml, formatSpec, parseSpecText } from "../src/spec/text";
 import { normalizeSpec, validateSpec } from "../src/spec/schema";
 import { formatPlaylist, itemsOf, parsePlaylistText, singlePlaylist } from "../src/playlist/playlist";
@@ -181,5 +181,57 @@ describe("an asset may be data, not only bytes", () => {
   test("a hand-typed assets fence carries data, not only bytes", () => {
     const spec = parseScriptPages(["Hei.", "", "```assets", "openings:", "  - name: Italian Game", "    moves: [e4, e5, Nf3]", "```", ""].join("\n")).pages[0].spec;
     expect(spec.assets).toEqual({ openings: [{ name: "Italian Game", moves: ["e4", "e5", "Nf3"] }] });
+  });
+});
+
+describe("@name inside params", () => {
+  const SET = [{ name: "Italian Game", moves: ["e4"] }];
+
+  test("resolves at the top level, and at any depth", () => {
+    const params = { set: "@openings", nested: { pair: ["@openings", 3] } };
+    const dangling = resolveParamAssetRefs({ assets: { openings: SET }, params });
+    expect(dangling).toEqual([]);
+    expect(params.set).toEqual(SET);
+    expect((params.nested.pair as unknown[])[0]).toEqual(SET);
+    expect((params.nested.pair as unknown[])[1]).toBe(3);
+  });
+
+  test("a partial match is left alone — the reference is the WHOLE string or nothing", () => {
+    const params = { title: "see @openings", set: "@openings" };
+    resolveParamAssetRefs({ assets: { openings: SET }, params });
+    expect(params.title).toBe("see @openings");
+  });
+
+  test("a name that resolves to nothing is reported, not thrown, and left as written", () => {
+    const params = { set: "@missing" };
+    expect(resolveParamAssetRefs({ assets: {}, params })).toEqual(["missing"]);
+    expect(params.set).toBe("@missing");
+  });
+
+  test("a reference to BYTES is left standing too — bytes are not data", () => {
+    const params = { set: "@foto" };
+    expect(resolveParamAssetRefs({ assets: { foto: "iVBORw0KGgo" }, params })).toEqual([]);
+    expect(params.set).toBe("@foto"); // semanticErrors says why, in Task 3
+  });
+
+  test("paramAssetRefs reports where each reference sits", () => {
+    expect(paramAssetRefs({ set: "@openings", deep: { rows: ["@endgames"] } })).toEqual([
+      { path: "set", name: "openings" },
+      { path: "deep.rows.0", name: "endgames" },
+    ]);
+  });
+
+  test("normalizeSpec resolves params, so a layout never sees a reference", () => {
+    const spec = { template: "chess_board", params: { set: "@openings" }, assets: { openings: SET } };
+    const out = normalizeSpec(spec) as { params: { set: unknown }; assets: unknown };
+    expect(out.params.set).toEqual(SET);
+    // The input document is untouched: normalizeSpec clones.
+    expect(spec.params.set).toBe("@openings");
+  });
+
+  test("paramsWithAssets returns a resolved copy and leaves the spec alone", () => {
+    const spec = { params: { set: "@openings" }, assets: { openings: SET } } as unknown as Spec;
+    expect(paramsWithAssets(spec).set).toEqual(SET);
+    expect((spec.params as { set: string }).set).toBe("@openings");
   });
 });

@@ -7,7 +7,7 @@
 // to the LLM in the repair round.
 
 import AjvModule, { type ValidateFunction } from "ajv";
-import { assetRef, resolveAssetRefs } from "./assets";
+import { assetRef, resolveAssetRefs, resolveParamAssetRefs } from "./assets";
 import { BUILTIN_WIDGETS, SIDE_VALUES, type Command, type Spec, type SpecElement } from "./types";
 import { isReservedVar } from "./answers";
 import { SUB_SUFFIXES } from "../layout/model";
@@ -1112,11 +1112,20 @@ let structural: ValidateFunction | null = null;
  */
 export function normalizeSpec(spec: unknown): unknown {
   if (typeof spec !== "object" || spec === null) return spec;
-  const clone = JSON.parse(JSON.stringify(spec)) as { commands?: Command[]; elements?: SpecElement[]; assets?: unknown };
+  const clone = JSON.parse(JSON.stringify(spec)) as {
+    commands?: Command[];
+    elements?: SpecElement[];
+    assets?: unknown;
+    params?: unknown;
+  };
   // `strokes: "@name"` becomes its bytes here, so the layout, the lint and
   // every decoder only ever see inline strokes (spec/assets.ts). A name that
   // resolves to nothing stays as written for semanticErrors to report.
   resolveAssetRefs(clone);
+  // …and `params: {set: "@name"}` becomes its rows, for the same reason: a
+  // template, a widget and the lint all read params, and none of them should
+  // have to know what a reference is (design 2026-09-20 §4.3).
+  resolveParamAssetRefs(clone);
   const toList = (v: string[] | string | undefined): string[] | undefined => (typeof v === "string" ? [v] : v);
   // Malformed input flows through here before validation — guard shapes.
   for (const el of Array.isArray(clone.elements) ? clone.elements : []) {
