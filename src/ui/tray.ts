@@ -1047,7 +1047,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         h(
           "div",
           { class: "cs-tray-hint" },
-          "♟️ Playable while paused — click a piece, then its target square (whichever side you grab has the move). Continue ▸ restores the lesson's position.",
+          "♟️ Playable while paused — drag a piece to its square, or click it and then the square (whichever side you grab has the move). Continue ▸ restores the lesson's position.",
         ),
       );
     }

@@ -9,14 +9,15 @@ import { answersMatch } from "../spec/answers";
 import { elementBBoxes, elementRings } from "../layout/layout";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { hitElement } from "./hit";
-import { chessSquareAt, pianoKeyAt, pianoKeyBox, pianoKeyGuide, pianoNoteForKey, pianoOctaves } from "../render/widgets";
-import { h, logicalPoint } from "./dom";
+import { pianoKeyAt, pianoKeyBox, pianoKeyGuide, pianoNoteForKey, pianoOctaves } from "../render/widgets";
+import { clientPointFor, h, logicalPoint } from "./dom";
 import { icon } from "./icons";
 import { isTextDrag } from "./caption";
 import type { SubtitleLanguage } from "../spec/subtitles";
 import type { VoiceOption } from "../render/voices";
 import { CONTROL_SELECTOR, gateIsOpen } from "./gates";
 import { attachChessPlay } from "./chessplay";
+import { attachChessDrag } from "./chess-drag";
 import { dragGateFor } from "./drag-gate";
 import { creditsOf } from "../export/credits";
 import { connectGateFor } from "./connect-gate";
@@ -335,15 +336,17 @@ function pianoGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSigna
 }
 
 /**
- * The chess widget's gate: click the move's FROM square (a steel ring marks
- * it; clicking it again deselects), then the TO square — resolves the move
- * as coordinates ("e2e4"), judged like any typed answer.
+ * The chess widget's gate: name the move's FROM square (a steel ring marks
+ * it; naming it again deselects), then the TO square — resolves the move as
+ * coordinates ("e2e4"), judged like any typed answer. Either square can be
+ * clicked, or the piece carried from the one to the other (ui/chess-drag.ts):
+ * a drag is the same two squares in the same order.
  */
 function chessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
   return (signal, step) =>
     new Promise<string | null>((resolve) => {
       stage.querySelector(".cs-figgate")?.remove();
-      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "Click the move: from, then to \u25b8");
+      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "Click or drag the move: from, then to \u25b8");
       const gate = h("div", { class: "cs-figgate" }, hint);
       const flip = hd.spec.params?.["flip"] === true;
       let from: string | null = null;
@@ -360,20 +363,23 @@ function chessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSigna
           resolve(null);
         }
       };
-      gate.addEventListener("click", (e) => {
-        e.stopPropagation();
+      /** A mark where a square was named. The gate lies exactly over the stage
+       *  (`.cs-figgate { inset: 0 }`), so stage pixels are gate pixels — the
+       *  same conversion the drill and free play mark their rings with. */
+      const markAt = (p: [number, number], cls: string): HTMLElement | null => {
+        const c = clientPointFor(stage, p);
+        if (!c) return null;
+        const m = h("span", { class: cls });
+        m.style.left = `${c[0]}px`;
+        m.style.top = `${c[1]}px`;
+        gate.appendChild(m);
+        return m;
+      };
+      const onSquare = (sq: string, p: [number, number]): void => {
         if (settled) return;
-        const p = logicalPoint(stage, e);
-        if (!p) return;
-        const sq = chessSquareAt(flip, p);
-        if (sq === null) return;
-        const gr = gate.getBoundingClientRect();
         if (from === null) {
           from = sq;
-          fromMark = h("span", { class: "cs-figgate-mark from" });
-          fromMark.style.left = `${e.clientX - gr.left}px`;
-          fromMark.style.top = `${e.clientY - gr.top}px`;
-          gate.appendChild(fromMark);
+          fromMark = markAt(p, "cs-figgate-mark from");
           return;
         }
         if (sq === from) {
@@ -385,15 +391,25 @@ function chessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSigna
         settled = true;
         const move = `${from}${sq}`;
         const ok = step.answer !== undefined && answersMatch(move, step.answer);
-        const mark = h("span", { class: `cs-figgate-mark ${ok ? "right" : "wrong"}` });
-        mark.style.left = `${e.clientX - gr.left}px`;
-        mark.style.top = `${e.clientY - gr.top}px`;
-        gate.appendChild(mark);
+        markAt(p, `cs-figgate-mark ${ok ? "right" : "wrong"}`);
         fromMark?.classList.add(ok ? "right" : "wrong");
         hint.remove();
         window.setTimeout(remove, CARD_LINGER_MS);
         resolve(move);
+      };
+      attachChessDrag(stage, hd, {
+        target: gate,
+        flip: () => flip,
+        // This gate knows the board's geometry, never its position: whatever
+        // stands on the pressed square is what gets carried, and a square with
+        // nothing on it simply carries nothing.
+        grabbable: () => true,
+        deliver: onSquare,
+        blocked: (e) => settled || (e.target instanceof Element && e.target.closest("button") !== null),
       });
+      // The press has already been read; this only keeps the click off the
+      // stage's play/pause toggle underneath.
+      gate.addEventListener("click", (e) => e.stopPropagation());
       if (!step.required) {
         const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip" }, "Skip \u25b8");
         skip.addEventListener("click", (e) => {

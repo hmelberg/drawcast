@@ -7,8 +7,9 @@
 // free play and the piano stand down automatically while it runs.
 
 import type { RenderHandle } from "../render";
-import { chessSquareAt, chessSquareBox } from "../render/widgets";
-import { clientPointFor, h, logicalPoint } from "./dom";
+import { chessSquareBox } from "../render/widgets";
+import { clientPointFor, h } from "./dom";
+import { attachChessDrag } from "./chess-drag";
 import { boundaryChessFen } from "./chessplay";
 import { legalTargets, type ChessCtor, type ChessLike } from "./chessplay-model";
 import { bestReply, type AiChessCtor } from "./chess-ai";
@@ -116,7 +117,7 @@ export function mountChessVs(stage: HTMLElement, hd: RenderHandle): void {
 
   const yourMove = (): void => {
     busy = false;
-    hint.textContent = `♟ Your move (${viewerColor === "w" ? "White" : "Black"}) — click a piece, then its square`;
+    hint.textContent = `♟ Your move (${viewerColor === "w" ? "White" : "Black"}) — drag a piece, or click it and its square`;
   };
 
   const computerMove = (): void => {
@@ -156,13 +157,10 @@ export function mountChessVs(stage: HTMLElement, hd: RenderHandle): void {
     yourMove();
   };
 
-  gate.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (e.target instanceof Element && e.target.closest("button")) return;
+  /** The viewer named a square — by clicking it, or by letting a carried
+   *  piece go on it (ui/chess-drag.ts): one handler, two gestures. */
+  const onSquare = (sq: string): void => {
     if (busy || over || dead || !game) return;
-    const p = logicalPoint(stage, e);
-    const sq = p && chessSquareAt(flip, p);
-    if (!sq) return;
     if (selected === null) {
       const piece = game.get(sq);
       if (!piece || piece.color !== viewerColor) return;
@@ -190,7 +188,18 @@ export function mountChessVs(stage: HTMLElement, hd: RenderHandle): void {
     clearMarks();
     paint();
     if (!maybeFinish()) computerMove();
+  };
+
+  attachChessDrag(stage, hd, {
+    target: gate,
+    flip: () => flip,
+    grabbable: (sq) => !busy && !over && !dead && game?.get(sq)?.color === viewerColor,
+    deliver: onSquare,
+    blocked: (e) => e.target instanceof Element && e.target.closest("button") !== null,
   });
+  // The press has already been read; this only keeps the click off the
+  // stage's play/pause toggle underneath.
+  gate.addEventListener("click", (e) => e.stopPropagation());
 
   closeBtn.addEventListener("click", (e) => {
     e.stopPropagation();
