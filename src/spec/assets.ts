@@ -183,3 +183,27 @@ export function paramsWithAssets(spec: Pick<Spec, "assets" | "params">): Record<
   if (spec.assets !== undefined) resolveParamAssetRefs({ assets: spec.assets, params: clone });
   return clone;
 }
+
+/**
+ * The largest a single asset may be (design §4.5). An error, not a warning:
+ * assets land in IndexedDB with the rest of the library, and the course round
+ * of 2026-09-18 lost a user's work to a storage limit that failed silently. A
+ * named limit with a clear message is that round's lesson.
+ */
+export const ASSET_MAX_BYTES = 1024 * 1024;
+
+/** An asset's size as serialized — what it costs in the document and in a model call. */
+export function assetBytes(value: unknown): number {
+  const text = typeof value === "string" ? value : JSON.stringify(value) ?? "";
+  // Byte length, not character count: a spec is UTF-8 on disk and on the wire.
+  return new TextEncoder().encode(text).length;
+}
+
+/** A size the way a person says it: "6 KB", "1.4 MB". */
+export function formatAssetSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) {
+    const mb = bytes / (1024 * 1024);
+    return `${mb >= 10 ? Math.round(mb) : Math.round(mb * 10) / 10} MB`;
+  }
+  return `${Math.round(bytes / 1024)} KB`;
+}

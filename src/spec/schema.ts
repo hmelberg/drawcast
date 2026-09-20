@@ -7,7 +7,7 @@
 // to the LLM in the repair round.
 
 import AjvModule, { type ValidateFunction } from "ajv";
-import { assetRef, resolveAssetRefs, resolveParamAssetRefs } from "./assets";
+import { ASSET_MAX_BYTES, assetBytes, assetRef, formatAssetSize, paramAssetRefs, resolveAssetRefs, resolveParamAssetRefs } from "./assets";
 import { BUILTIN_WIDGETS, SIDE_VALUES, type Command, type Spec, type SpecElement } from "./types";
 import { isReservedVar } from "./answers";
 import { SUB_SUFFIXES } from "../layout/model";
@@ -1253,11 +1253,33 @@ function semanticErrors(spec: Spec): string[] {
 
   // A strokes reference that survived normalizeSpec's inlining names an asset
   // the document does not carry — that element would draw its placeholder
-  // (or refetch) while looking embedded.
+  // (or refetch) while looking embedded — or one of the wrong kind.
   for (const el of spec.elements ?? []) {
     const name = assetRef(el.strokes);
-    if (name !== null && typeof spec.assets?.[name] !== "string") {
+    if (name === null) continue;
+    const value = spec.assets?.[name];
+    if (value === undefined) {
       errors.push(`element "${el.id}" (${el.type}): strokes refers to asset "@${name}", which is not in assets`);
+    } else if (typeof value !== "string") {
+      errors.push(`element "${el.id}" (${el.type}): strokes refers to asset "@${name}", which is data, not encoded bytes`);
+    }
+  }
+
+  // The same two questions for a params reference, plus the size cap. A
+  // reference that survived normalizeSpec is one that could not resolve
+  // (design §4.4).
+  for (const { path, name } of paramAssetRefs(spec.params)) {
+    const value = spec.assets?.[name];
+    if (value === undefined) {
+      errors.push(`params.${path} refers to asset "@${name}", which is not in assets`);
+    } else if (typeof value === "string") {
+      errors.push(`params.${path} refers to asset "@${name}", which is encoded bytes, not data`);
+    }
+  }
+  for (const [name, value] of Object.entries(spec.assets ?? {})) {
+    const bytes = assetBytes(value);
+    if (bytes > ASSET_MAX_BYTES) {
+      errors.push(`asset "@${name}" is ${formatAssetSize(bytes)}; the limit is ${formatAssetSize(ASSET_MAX_BYTES)}`);
     }
   }
 

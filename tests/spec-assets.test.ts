@@ -3,7 +3,19 @@
 // last, referenced as `strokes: "@name"`, and number pairs on one line.
 import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
-import { assetRef, hoistStrokes, inlineStrokes, paramAssetRefs, paramsWithAssets, resolveAssetRefs, resolveParamAssetRefs, specForDump } from "../src/spec/assets";
+import {
+  ASSET_MAX_BYTES,
+  assetBytes,
+  assetRef,
+  formatAssetSize,
+  hoistStrokes,
+  inlineStrokes,
+  paramAssetRefs,
+  paramsWithAssets,
+  resolveAssetRefs,
+  resolveParamAssetRefs,
+  specForDump,
+} from "../src/spec/assets";
 import { compactPointPairs, dumpSpecYaml, formatSpec, parseSpecText } from "../src/spec/text";
 import { normalizeSpec, validateSpec } from "../src/spec/schema";
 import { formatPlaylist, itemsOf, parsePlaylistText, singlePlaylist } from "../src/playlist/playlist";
@@ -246,5 +258,51 @@ describe("@name inside params", () => {
     const out = paramsWithAssets(spec);
     out.set = "mutated";
     expect((spec.params as { set: string }).set).toBe("plain");
+  });
+});
+
+describe("asset errors", () => {
+  const errorsFor = (spec: unknown): string[] => validateSpec(normalizeSpec(spec)).errors;
+
+  test("a params reference to an absent asset names the path and the name", () => {
+    expect(errorsFor({ template: "chess_board", params: { set: "@missing" }, commands: [] })).toContain(
+      'params.set refers to asset "@missing", which is not in assets',
+    );
+  });
+
+  test("strokes pointing at data, and params pointing at bytes, each say which is which", () => {
+    const strokesAtData = errorsFor({
+      elements: [{ id: "p1", type: "portrait", of: "Ada", strokes: "@openings" }],
+      assets: { openings: [{ name: "Italian Game" }] },
+      commands: [],
+    });
+    expect(strokesAtData).toContain(
+      'element "p1" (portrait): strokes refers to asset "@openings", which is data, not encoded bytes',
+    );
+    const paramsAtBytes = errorsFor({
+      template: "chess_board",
+      params: { set: "@foto" },
+      assets: { foto: "iVBORw0KGgo" },
+      commands: [],
+    });
+    expect(paramsAtBytes).toContain('params.set refers to asset "@foto", which is encoded bytes, not data');
+  });
+
+  test("the absent-strokes message is unchanged", () => {
+    expect(errorsFor({ elements: [{ id: "p1", type: "portrait", of: "Ada", strokes: "@gone" }], commands: [] })).toContain(
+      'element "p1" (portrait): strokes refers to asset "@gone", which is not in assets',
+    );
+  });
+
+  test("an asset over the cap is refused, and the message names both sizes", () => {
+    const big = Array.from({ length: 40_000 }, (_, i) => ({ name: `row ${i}`, moves: ["e4", "e5"] }));
+    expect(assetBytes(big)).toBeGreaterThan(ASSET_MAX_BYTES);
+    const errs = errorsFor({ template: "chess_board", params: { set: "@big" }, assets: { big }, commands: [] });
+    expect(errs.some((e) => /^asset "@big" is [\d.]+ MB; the limit is 1 MB$/.test(e))).toBe(true);
+  });
+
+  test("formatAssetSize reads the way a person would say it", () => {
+    expect(formatAssetSize(6 * 1024)).toBe("6 KB");
+    expect(formatAssetSize(1_468_006)).toBe("1.4 MB");
   });
 });
