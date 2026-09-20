@@ -100,6 +100,17 @@ describe("validateSet", () => {
     expect(dropped.length).toBe(4);
   });
 
+  // The miss store keys on the name. A blank name would let two rows share
+  // one history and silently defeats the built-in set's own uniqueness test.
+  test("drops a row with an empty or whitespace-only name, named as row N", () => {
+    const { set, dropped } = validateSet(Ctor, [
+      { name: "", side: "white", moves: ["e4", "e5", "Nf3"] },
+      { name: "   ", side: "white", moves: ["e4", "e5", "Nf3"] },
+    ]);
+    expect(set).toEqual([]);
+    expect(dropped).toEqual(["row 1", "row 2"]);
+  });
+
   test("defaults side to white, and keeps an explicit black", () => {
     const { set } = validateSet(Ctor, [
       { name: "X", moves: ["e4", "e5", "Nf3"] },

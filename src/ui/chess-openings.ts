@@ -71,8 +71,15 @@ export function validateSet(Chess: ChessCtor, rows: unknown): { set: Opening[]; 
   if (!Array.isArray(rows)) return { set, dropped };
   for (const [i, raw] of rows.entries()) {
     const row = raw as Partial<Opening> | null;
-    const label = (row && typeof row === "object" && typeof row.name === "string" && row.name) || `row ${i + 1}`;
-    if (!row || typeof row !== "object" || typeof row.name !== "string" || !Array.isArray(row.moves) || row.moves.length === 0) {
+    const label = (row && typeof row === "object" && typeof row.name === "string" && row.name.trim() && row.name) || `row ${i + 1}`;
+    if (
+      !row ||
+      typeof row !== "object" ||
+      typeof row.name !== "string" ||
+      !row.name.trim() ||
+      !Array.isArray(row.moves) ||
+      row.moves.length === 0
+    ) {
       dropped.push(label);
       continue;
     }
@@ -80,10 +87,11 @@ export function validateSet(Chess: ChessCtor, rows: unknown): { set: Opening[]; 
       name: row.name,
       ...(typeof row.eco === "string" ? { eco: row.eco } : {}),
       side: row.side === "black" ? "black" : "white",
-      moves: row.moves.map(String),
+      moves: [],
       ...(typeof row.idea === "string" ? { idea: row.idea } : {}),
     };
     try {
+      o.moves = row.moves.map(String);
       o.moves = plyList(Chess, o).map((p) => p.san);
     } catch {
       dropped.push(label);
