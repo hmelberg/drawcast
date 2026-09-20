@@ -3,7 +3,7 @@
 // round labels and per-call models the real loop actually produces — not a
 // paraphrase of them. See src/llm/compile.ts / src/llm/author.ts.
 
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 
 // vi.mock hoists above these imports; keep the factory self-contained (a
 // fresh vi.fn() per mocked export) and drive behavior per-test through the
@@ -21,6 +21,8 @@ import { callForJson, type JsonCallMeta } from "../src/llm/client";
 import { generateSpec, repairModelFor, type GenerateConfig, type PromptVariant } from "../src/llm/compile";
 import { generateTemplate, type AuthorConfig } from "../src/llm/author";
 import { registerTemplateDoc, scenes } from "../src/scenes/registry";
+import { registerPack, unregisterPack } from "../src/scenes/packs";
+import dataYaml from "../src/scenes/packs/data.yaml?raw";
 import { TEMPLATE_FULL_THRESHOLD } from "../src/scenes/catalog";
 import type { TemplateDoc } from "../src/scenes/doc";
 import type { Exemplar } from "../src/llm/prompt";
@@ -708,5 +710,66 @@ describe("visual repair round (freehand-figures Task 14b)", () => {
 
     expect(mockCallForJson).toHaveBeenCalledTimes(1);
     expect(outcome.rounds.every((r) => r.label !== "visual")).toBe(true);
+  });
+});
+
+// The authoring-time trap (design 2026-09-20 §4.3, Task 4 review round 1):
+// templateParamIssues checks best.params, which — unlike the render path —
+// never goes through normalizeSpec, so an unresolved "@name" used to read as
+// a schema violation ("expected array, got string"). A repair round fed that
+// violation back to the model, which "fixed" it by inventing data to replace
+// the reference. compile.ts now runs best.params through paramsWithAssets
+// first. bar_chart (data pack) is used, not a hand-registered template,
+// because its params_schema.values is a real oneOf (array | staged array |
+// "{id.var}" token) that a bare "@name" string genuinely fails, and because
+// isPackTemplateId(t) && packTemplateIds("data").includes(t) is what makes
+// paramsStrictness strict here (no code tokens involved) — so a regression
+// surfaces as a validation ERROR (a schema-repair round), the same
+// data-destroying round the design doc warns about, not a mere warning.
+describe("a params reference into a data asset (design §4.3, Task 4)", () => {
+  beforeAll(() => {
+    const r = registerPack("data", dataYaml);
+    expect(r.errors).toEqual([]);
+  });
+  afterAll(() => {
+    unregisterPack("data");
+  });
+
+  const VALID_BAR_CHART_WITH_ASSET = {
+    title: "t",
+    template: "bar_chart",
+    params: { labels: ["A", "B", "C"], values: "@vals" },
+    assets: { vals: [10, 20, 30] },
+    commands: [],
+  };
+  // Queued as a second reply ONLY so that if the guard regresses and a
+  // repair round fires, that round has somewhere valid to land — the test
+  // then fails on the rounds/label assertion below (a legible diff) instead
+  // of on a starved mock (an opaque "Cannot destructure 'json'" crash, which
+  // is what happens with only one queued reply — checked by hand, see
+  // task-4-report.md).
+  const VALID_BAR_CHART_RESOLVED = {
+    title: "t",
+    template: "bar_chart",
+    params: { labels: ["A", "B", "C"], values: [10, 20, 30] },
+    commands: [],
+  };
+
+  test("a valid reference into assets never triggers a schema-repair round — the model is never asked to invent the data", async () => {
+    mockCallForJson.mockResolvedValueOnce(respond(VALID_BAR_CHART_WITH_ASSET)).mockResolvedValueOnce(respond(VALID_BAR_CHART_RESOLVED));
+
+    const outcome = await generateSpec("bar chart of three made-up values", baseCfg());
+
+    expect(outcome.error).toBeUndefined();
+    // The single observable this test exists for: reverting compile.ts's
+    // paramsWithAssets wrapper turns this into ["initial", "schema-repair"]
+    // (see task-4-report.md for the red run this was checked against).
+    expect(outcome.rounds.map((r) => r.label)).toEqual(["initial"]);
+    expect(outcome.rounds[0].validationErrors).toEqual([]);
+    expect(mockCallForJson).toHaveBeenCalledTimes(1);
+    // The delivered spec keeps the reference exactly as written — resolving
+    // is for the validator's eyes only (paramsWithAssets always copies),
+    // never a rewrite of the spec the model produced.
+    expect((outcome.spec?.params as { values: unknown }).values).toBe("@vals");
   });
 });
