@@ -304,5 +304,13 @@ describe("asset errors", () => {
   test("formatAssetSize reads the way a person would say it", () => {
     expect(formatAssetSize(6 * 1024)).toBe("6 KB");
     expect(formatAssetSize(1_468_006)).toBe("1.4 MB");
+    // Low KB range, untouched by the fix below.
+    expect(formatAssetSize(2 * 1024)).toBe("2 KB");
+    // The KB branch rounds up to 1024 before the old MB gate (>= 1024 * 1024)
+    // would trip — a byte count a hair under the cap must still read "1 MB",
+    // never "1024 KB" (round 1 review finding, cross-task: Tasks 7 and 8
+    // call this with arbitrary sizes that land in exactly this gap).
+    expect(formatAssetSize(ASSET_MAX_BYTES - 1)).toBe("1 MB");
+    expect(formatAssetSize(ASSET_MAX_BYTES)).toBe("1 MB");
   });
 });

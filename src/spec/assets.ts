@@ -199,11 +199,17 @@ export function assetBytes(value: unknown): number {
   return new TextEncoder().encode(text).length;
 }
 
-/** A size the way a person says it: "6 KB", "1.4 MB". */
+/** A size the way a person says it: "6 KB", "1.4 MB". The switchover reads
+ *  the KB branch's own rounded output, not a second independent threshold —
+ *  otherwise a byte count that rounds up to 1024 KB (roughly
+ *  [1_048_064, 1_048_576)) prints as "1024 KB" instead of "1 MB" (round 1
+ *  review finding, cross-task: Tasks 7 and 8 call this with arbitrary
+ *  sizes that land in exactly this gap). */
 export function formatAssetSize(bytes: number): string {
-  if (bytes >= 1024 * 1024) {
+  const kb = Math.round(bytes / 1024);
+  if (kb >= 1024) {
     const mb = bytes / (1024 * 1024);
     return `${mb >= 10 ? Math.round(mb) : Math.round(mb * 10) / 10} MB`;
   }
-  return `${Math.round(bytes / 1024)} KB`;
+  return `${kb} KB`;
 }
