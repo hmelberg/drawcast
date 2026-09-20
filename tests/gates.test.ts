@@ -50,3 +50,26 @@ describe("no guard names its own subset", () => {
     });
   }
 });
+
+describe("the chess-ish quiz gates clear each other on mount", () => {
+  // quiz.ts, chessvs.ts and chessdrill.ts each put up a distinct .cs-figgate
+  // subclass (.cs-quizgate / .cs-vsgate / .cs-drillgate) directly on the
+  // stage, and each pre-clears the OTHER two so opening one from inside
+  // another (without pressing ✕ first) swaps it rather than stacking two
+  // overlays. chessdrill.ts named its own class correctly but chessvs.ts and
+  // quiz.ts had never heard of it — caught only in review, because
+  // mountChessDrill had no call sites yet to make it visible at runtime.
+  // Same silent-drift shape this file's own header warns about.
+  const SIBLINGS = ["cs-quizgate", "cs-vsgate", "cs-drillgate"];
+  const PRE_CLEAR = /stage\.querySelector\("([^"]+)"\)\?\.remove\(\);/;
+
+  for (const name of ["quiz.ts", "chessvs.ts", "chessdrill.ts"]) {
+    test(`${name} names every sibling in its pre-mount clear`, () => {
+      const text = source(name);
+      const m = text.match(PRE_CLEAR);
+      expect(m, `${name}: no stage.querySelector(...)?.remove() pre-clear found`).not.toBeNull();
+      const selector = m![1];
+      for (const cls of SIBLINGS) expect(selector, `${name}'s pre-clear selector`).toContain(`.${cls}`);
+    });
+  }
+});

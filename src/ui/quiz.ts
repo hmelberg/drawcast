@@ -94,7 +94,7 @@ function sceneNamesFor(hd: RenderHandle): { id: string; name: string }[] {
 }
 
 export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activity): void {
-  stage.querySelector(".cs-quizgate, .cs-vsgate")?.remove();
+  stage.querySelector(".cs-quizgate, .cs-vsgate, .cs-drillgate")?.remove();
   const kind = activity.kind;
   const flip = hd.spec.params?.["flip"] === true;
   const octaves = pianoOctaves(hd.spec.params);

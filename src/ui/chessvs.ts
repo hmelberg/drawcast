@@ -24,7 +24,7 @@ interface ChessGame extends ChessLike {
 }
 
 export function mountChessVs(stage: HTMLElement, hd: RenderHandle): void {
-  stage.querySelector(".cs-quizgate, .cs-vsgate")?.remove();
+  stage.querySelector(".cs-quizgate, .cs-vsgate, .cs-drillgate")?.remove();
   const flip = hd.spec.params?.["flip"] === true;
 
   const gate = h("div", { class: "cs-figgate cs-vsgate" });
