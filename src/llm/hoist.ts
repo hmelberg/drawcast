@@ -10,7 +10,7 @@
 
 import { formatPlaylist, itemsOf, parsePlaylistText, type Playlist } from "../playlist/playlist";
 import type { Spec, SpecElement } from "../spec/types";
-import { HOISTED } from "../spec/assets";
+import { ASSET_SEND_MAX, assetBytes, describeAsset, HOISTED, isDataAsset } from "../spec/assets";
 
 export { HOISTED };
 
@@ -45,13 +45,14 @@ function blobKey(id: string, field: BlobField, fields: BlobField[]): string {
   return fields.length > 1 ? `${id}:${field}` : id;
 }
 
-export function hoistPortraitStrokes(docText: string): { text: string; blobs: Map<string, string> } {
+export function hoistPortraitStrokes(docText: string): { text: string; blobs: Map<string, string>; described: { name: string; bytes: number }[] } {
   const blobs = new Map<string, string>();
+  const described: { name: string; bytes: number }[] = [];
   let playlist: Playlist;
   try {
     playlist = parsePlaylistText(docText);
   } catch {
-    return { text: docText, blobs };
+    return { text: docText, blobs, described };
   }
   let any = false;
   itemsOf(playlist).forEach((item, i) => {
@@ -66,22 +67,50 @@ export function hoistPortraitStrokes(docText: string): { text: string; blobs: Ma
       }
     }
     // The `assets` map is the same bytes under another key (spec/assets.ts):
-    // it leaves with them and comes back with them.
+    // BYTES leave with the blobs and come back with them, exactly as before.
+    // DATA is decided per asset (design §5.1): small enough to send rides
+    // along and may be edited; larger is replaced by a descriptor naming its
+    // shape. The whole map is stashed either way, so nothing can be lost.
     if (item.spec.assets) {
       blobs.set(assetsKey(i), JSON.stringify(item.spec.assets));
-      delete item.spec.assets;
+      const forModel: Record<string, unknown> = {};
+      for (const [name, value] of Object.entries(item.spec.assets)) {
+        if (!isDataAsset(value)) continue; // bytes: not shown at all
+        const bytes = assetBytes(value);
+        if (bytes > ASSET_SEND_MAX) {
+          forModel[name] = describeAsset(value);
+          described.push({ name, bytes });
+        } else {
+          forModel[name] = value;
+        }
+      }
+      if (Object.keys(forModel).length > 0) item.spec.assets = forModel;
+      else delete item.spec.assets;
       any = true;
     }
   });
-  return any ? { text: formatPlaylist(playlist, "script"), blobs } : { text: docText, blobs };
+  return any ? { text: formatPlaylist(playlist, "script"), blobs, described } : { text: docText, blobs, described };
 }
 
 /** Put hoisted strokes back into the model's revised playlist, by element id. */
 export function restorePortraitStrokes(playlist: Playlist, blobs: Map<string, string>): void {
   if (blobs.size === 0) return;
   itemsOf(playlist).forEach((item, i) => {
-    const assets = blobs.get(assetsKey(i));
-    if (assets) item.spec.assets = JSON.parse(assets) as Record<string, unknown>;
+    const stashed = blobs.get(assetsKey(i));
+    if (stashed) {
+      // The stash is the authority for everything the model could not edit —
+      // bytes, and any data too large to send. An asset that WAS sent may have
+      // been legitimately rewritten, so the reply's version wins for those.
+      // A reply that drops the block entirely therefore loses nothing.
+      const original = JSON.parse(stashed) as Record<string, unknown>;
+      const returned = (item.spec.assets ?? {}) as Record<string, unknown>;
+      const merged: Record<string, unknown> = { ...original };
+      for (const [name, value] of Object.entries(returned)) {
+        const was = original[name];
+        if (was !== undefined && isDataAsset(was) && assetBytes(was) <= ASSET_SEND_MAX) merged[name] = value;
+      }
+      item.spec.assets = merged;
+    }
     for (const el of item.spec.elements ?? []) {
       const fields = blobFields(el);
       for (const field of fields) {

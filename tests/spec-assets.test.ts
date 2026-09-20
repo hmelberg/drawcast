@@ -5,8 +5,10 @@ import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import {
   ASSET_MAX_BYTES,
+  ASSET_SEND_MAX,
   assetBytes,
   assetRef,
+  describeAsset,
   formatAssetSize,
   hoistStrokes,
   inlineStrokes,
@@ -334,5 +336,106 @@ describe("the authoring-time trap (design §4.3)", () => {
     expect(templateParamIssues("chess_board", spec.params, true).errors.length).toBeGreaterThan(0);
     // Resolved — the form every validator must see — it is clean.
     expect(templateParamIssues("chess_board", paramsWithAssets(spec), true).errors).toEqual([]);
+  });
+});
+
+describe("descriptors and the send threshold", () => {
+  const small = [{ name: "Italian Game", eco: "C50", moves: ["e4", "e5"], idea: "f7" }];
+  const big = Array.from({ length: 2_000 }, (_, i) => ({ name: `Line ${i}`, eco: "C50", moves: ["e4", "e5"], idea: "x" }));
+
+  test("describeAsset names the shape, never the contents", () => {
+    expect(describeAsset(small)).toBe("@data 1 rows — name, eco, moves[], idea");
+    expect(describeAsset([])).toBe("@data 0 rows");
+    expect(describeAsset([1, 2, 3])).toBe("@data 3 numbers");
+    expect(describeAsset(["a", "b"])).toBe("@data 2 strings");
+    expect(describeAsset({ openings: 1, endgames: 2 })).toBe("@data object — openings, endgames");
+    expect(describeAsset(42)).toBe("@data value");
+  });
+
+  test("a small data asset is SENT, so the model can edit it", () => {
+    const doc = formatPlaylist(singlePlaylist({ template: "chess_board", params: { set: "@openings" }, assets: { openings: small } } as unknown as Spec), "script");
+    const hoisted = hoistPortraitStrokes(doc);
+    const sent = itemsOf(parsePlaylistText(hoisted.text))[0].spec;
+    expect(sent.assets!.openings).toEqual(small);
+    expect(hoisted.described).toEqual([]);
+  });
+
+  test("a large one is described, and the original comes back untouched", () => {
+    expect(assetBytes(big)).toBeGreaterThan(ASSET_SEND_MAX);
+    const doc = formatPlaylist(singlePlaylist({ template: "chess_board", params: { set: "@openings" }, assets: { openings: big } } as unknown as Spec), "script");
+    const hoisted = hoistPortraitStrokes(doc);
+    const seen = itemsOf(parsePlaylistText(hoisted.text))[0].spec;
+    expect(seen.assets!.openings).toBe(`@data ${big.length} rows — name, eco, moves[], idea`);
+    expect(hoisted.described.map((d) => d.name)).toEqual(["openings"]);
+
+    // What the model returns, descriptor and all, restores to the original.
+    const reply = parsePlaylistText(hoisted.text);
+    restorePortraitStrokes(reply, hoisted.blobs);
+    expect(itemsOf(reply)[0].spec.assets!.openings).toEqual(big);
+  });
+
+  test("an edit to a SENT asset survives restoration", () => {
+    const doc = formatPlaylist(singlePlaylist({ template: "chess_board", params: { set: "@openings" }, assets: { openings: small } } as unknown as Spec), "script");
+    const hoisted = hoistPortraitStrokes(doc);
+    const reply = parsePlaylistText(hoisted.text);
+    const edited = [...small, { name: "Sicilian Defence", eco: "B20", moves: ["e4", "c5"], idea: "asymmetry" }];
+    itemsOf(reply)[0].spec.assets = { openings: edited };
+    restorePortraitStrokes(reply, hoisted.blobs);
+    expect(itemsOf(reply)[0].spec.assets!.openings).toEqual(edited);
+  });
+
+  test("a reply that drops the assets block loses nothing", () => {
+    const doc = formatPlaylist(singlePlaylist({ template: "chess_board", params: { set: "@openings" }, assets: { openings: small } } as unknown as Spec), "script");
+    const hoisted = hoistPortraitStrokes(doc);
+    const reply = parsePlaylistText(hoisted.text);
+    delete itemsOf(reply)[0].spec.assets;
+    restorePortraitStrokes(reply, hoisted.blobs);
+    expect(itemsOf(reply)[0].spec.assets!.openings).toEqual(small);
+  });
+
+  test("the threshold decides AT its boundary, not near it", () => {
+    // A row is ~46 bytes serialized; build one set just under 32 KB and one just over.
+    const row = (i: number) => ({ name: `Line ${i}`, eco: "C50", moves: ["e4"] });
+    const fit: ReturnType<typeof row>[] = [];
+    while (assetBytes([...fit, row(fit.length)]) <= ASSET_SEND_MAX) fit.push(row(fit.length));
+    const over = [...fit, row(fit.length)];
+    expect(assetBytes(fit)).toBeLessThanOrEqual(ASSET_SEND_MAX);
+    expect(assetBytes(over)).toBeGreaterThan(ASSET_SEND_MAX);
+
+    const seen = (rows: unknown) => {
+      const doc = formatPlaylist(singlePlaylist({ template: "chess_board", params: { set: "@s" }, assets: { s: rows } } as unknown as Spec), "script");
+      return itemsOf(parsePlaylistText(hoistPortraitStrokes(doc).text))[0].spec.assets!.s;
+    };
+    expect(seen(fit)).toEqual(fit); // exactly at the limit: still sent
+    expect(typeof seen(over)).toBe("string"); // one row more: described
+  });
+
+  test("a ragged table describes as its FIRST row — a hint, not a schema", () => {
+    expect(describeAsset([{ name: "a", eco: "C50" }, { name: "b", extra: 1 }])).toBe("@data 2 rows — name, eco");
+  });
+
+  test("bytes and data coexist in one spec, each reachable only from its own kind of site", () => {
+    const spec = {
+      template: "chess_board",
+      params: { set: "@openings" },
+      elements: [{ id: "foto", type: "image", strokes: "@foto" }],
+      assets: { foto: PHOTO, openings: small },
+      commands: [],
+    } as unknown as Spec;
+    const out = normalizeSpec(spec) as Spec;
+    expect((out.params as { set: unknown }).set).toEqual(small);
+    expect(out.elements![0].strokes).toBe(PHOTO);
+    // Scoped to what this test is about: an unrelated schema complaint about
+    // the image element must not decide whether asset handling is correct.
+    expect(validateSpec(out).errors.filter((e) => e.includes("asset"))).toEqual([]);
+  });
+
+  test("bytes are unchanged: still stashed whole, still invisible to the model", () => {
+    const doc = formatPlaylist(singlePlaylist({ elements: [{ id: "foto", type: "image", strokes: "@foto" }], assets: { foto: PHOTO } } as unknown as Spec), "script");
+    const hoisted = hoistPortraitStrokes(doc);
+    expect(hoisted.text).not.toContain(PHOTO.slice(0, 40));
+    const reply = parsePlaylistText(hoisted.text);
+    restorePortraitStrokes(reply, hoisted.blobs);
+    expect(itemsOf(reply)[0].spec.assets!.foto).toBe(PHOTO);
   });
 });

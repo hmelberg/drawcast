@@ -22,10 +22,17 @@ const KEY_LINE = new RegExp(`^(?:${SPEC_KEYS.join("|")})\\s*:`, "m");
 const DIRECTION_LINE = /^[ \t]+\S/m;
 /** A `#` or `##` heading at column 0. */
 const HEADING_LINE = /^#{1,2}\s+\S/m;
+/** A `\`\`\`assets` fence at column 0 — how a script writes its own
+ *  machine-written assets map (print.ts's PAYLOAD_KEYS) when the page has no
+ *  other ink: a template-driven item with no elements of its own and a data
+ *  asset too large to send, described down to one flat line (design §5.1).
+ *  Real YAML/JSON never opens a document this way, and a whole-reply wrapper
+ *  fence is tagged `yaml`/`json`, never `assets` — so this can only be a script. */
+const ASSETS_FENCE_LINE = /^```assets$/m;
 
 /**
  * True when the text is a script: no spec key, not JSON, and carrying at
- * least one direction or heading.
+ * least one direction, heading, or assets fence.
  *
  * That last requirement is what keeps the format from swallowing everything.
  * Prose alone is syntactically a run of spoken lines, so without it ANY text
@@ -36,5 +43,5 @@ const HEADING_LINE = /^#{1,2}\s+\S/m;
 export function looksLikeScript(text: string): boolean {
   if (/^\s*[{[]/.test(text)) return false;
   if (KEY_LINE.test(text)) return false;
-  return DIRECTION_LINE.test(text) || HEADING_LINE.test(text);
+  return DIRECTION_LINE.test(text) || HEADING_LINE.test(text) || ASSETS_FENCE_LINE.test(text);
 }

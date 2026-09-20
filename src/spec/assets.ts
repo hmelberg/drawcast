@@ -213,3 +213,51 @@ export function formatAssetSize(bytes: number): string {
   }
   return `${kb} KB`;
 }
+
+/**
+ * Serialized size beyond which a data asset is DESCRIBED to the model rather
+ * than sent (design §5.1). Under it the asset rides into the call and the
+ * model may rewrite it, which is what makes "add the Sicilian" work; over it
+ * the model gets a line about its shape and cannot touch the rows.
+ *
+ * 32 KB because a 50-row openings set is 5-6 KB — about 1500 tokens against a
+ * system prompt already near 50 000, affordable exactly when the data is
+ * there — while a real dataset is not.
+ */
+export const ASSET_SEND_MAX = 32 * 1024;
+
+/** The marker that opens every descriptor. Never a valid ASSET_REF (it has a space). */
+export const DATA_DESCRIPTOR = "@data ";
+
+/**
+ * One line naming a data asset's SHAPE, for a model that must not see its
+ * contents: "@data 50 rows — name, eco, moves[], idea". Twelve tokens where
+ * the rows would have been three thousand, and the model cannot corrupt a row
+ * it was never shown.
+ *
+ * Derived from the value, never authored. The keys come from the FIRST row —
+ * a hint, not a schema; a ragged table describes as its first row and that is
+ * accepted.
+ */
+export function describeAsset(value: unknown): string {
+  if (Array.isArray(value)) {
+    if (value.length === 0) return `${DATA_DESCRIPTOR}0 rows`;
+    const first = value[0];
+    if (first !== null && typeof first === "object" && !Array.isArray(first)) {
+      const row = first as Record<string, unknown>;
+      const keys = Object.keys(row).map((k) => (Array.isArray(row[k]) ? `${k}[]` : k));
+      return `${DATA_DESCRIPTOR}${value.length} rows — ${keys.join(", ")}`;
+    }
+    const kind = typeof first === "number" ? "numbers" : typeof first === "string" ? "strings" : "values";
+    return `${DATA_DESCRIPTOR}${value.length} ${kind}`;
+  }
+  if (value !== null && typeof value === "object") {
+    return `${DATA_DESCRIPTOR}object — ${Object.keys(value as Record<string, unknown>).join(", ")}`;
+  }
+  return `${DATA_DESCRIPTOR}value`;
+}
+
+/** True for an asset value that is data (rows, numbers, an object) rather than encoded bytes. */
+export function isDataAsset(value: unknown): boolean {
+  return typeof value !== "string";
+}
