@@ -7,7 +7,7 @@
 // to the LLM in the repair round.
 
 import AjvModule, { type ValidateFunction } from "ajv";
-import { ASSET_MAX_BYTES, assetBytes, assetRef, formatAssetSize, paramAssetRefs, resolveAssetRefs, resolveParamAssetRefs } from "./assets";
+import { ASSET_MAX_BYTES, assetBytes, assetRef, formatAssetSize, isDataAsset, paramAssetRefs, resolveAssetRefs, resolveParamAssetRefs } from "./assets";
 import { BUILTIN_WIDGETS, SIDE_VALUES, type Command, type Spec, type SpecElement } from "./types";
 import { isReservedVar } from "./answers";
 import { SUB_SUFFIXES } from "../layout/model";
@@ -1272,8 +1272,17 @@ function semanticErrors(spec: Spec): string[] {
     const value = spec.assets?.[name];
     if (value === undefined) {
       errors.push(`params.${path} refers to asset "@${name}", which is not in assets`);
-    } else if (typeof value === "string") {
-      errors.push(`params.${path} refers to asset "@${name}", which is encoded bytes, not data`);
+    } else if (!isDataAsset(value)) {
+      // Same predicate resolveParamAssetRefs left the reference standing
+      // for (round 2 review, I2) — a string is encoded bytes, and anything
+      // else isDataAsset excludes is null (a hand-typed `name:` with nothing
+      // after the colon, or the Spec source textarea). Two distinct
+      // messages because they are two distinct authoring mistakes.
+      errors.push(
+        typeof value === "string"
+          ? `params.${path} refers to asset "@${name}", which is encoded bytes, not data`
+          : `params.${path} refers to asset "@${name}", which is empty, not data`,
+      );
     }
   }
   for (const [name, value] of Object.entries(spec.assets ?? {})) {

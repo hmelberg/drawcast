@@ -66,6 +66,14 @@ describe("parseDataFile", () => {
   test("an unterminated quote is reported, never silently spilled across lines", () => {
     expect(parseDataFile('a,b\n"unterminated,x', "broken.csv").error).toMatch(/unterminated/);
   });
+
+  // Round 2 review, finding 1: text after a closing quote used to be treated
+  // as "ignored whitespace" and discarded — `"x"junk,c` silently became
+  // `{a: "x"}` with `junk` gone and nothing said about it. Reported instead,
+  // the same way an unterminated quote already was.
+  test("text right after a closing quote is reported, never silently dropped", () => {
+    expect(parseDataFile('a,b\n"x"junk,c', "trailing.csv").error).toMatch(/closing quote/);
+  });
 });
 
 // Round 1 review, finding 1: the confirm handler used to dedupe against

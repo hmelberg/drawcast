@@ -158,14 +158,19 @@ export function resolveParamAssetRefs(spec: { assets?: unknown; params?: unknown
   for (const ref of findParamRefs(spec.params)) {
     const value = assets[ref.name];
     // Two references are left STANDING for semanticErrors to report: a name
-    // that is not there, and a name whose asset is encoded bytes. Bytes are
-    // not data, and silently pasting a base64 string into a param would fail
-    // much further downstream, as a template complaining about a type.
+    // that is not there, and a name whose asset is not data by isDataAsset's
+    // own rule — encoded bytes, or null. Bytes are not data, and silently
+    // pasting a base64 string into a param would fail much further
+    // downstream, as a template complaining about a type; null is the exact
+    // case isDataAsset was written to exclude (round 1 review, C1), so this
+    // must agree with it rather than re-deciding with its own `typeof`
+    // check — round 2 review, I2: the old inline check saw only "is it a
+    // string", so a null asset resolved into params with no error at all.
     if (value === undefined) {
       dangling.push(ref.name);
       continue;
     }
-    if (typeof value === "string") continue;
+    if (!isDataAsset(value)) continue;
     setRef(ref, value);
   }
   return dangling;

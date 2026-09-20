@@ -341,6 +341,19 @@ model writing a small set as ordinary inline params when there is no file.
 - No data-token bridge integration: `{openings.moves}` is NOT part of this.
   The token bridge is shaped for a script's numbers and columns; rows of
   objects reach templates through params.
+- No deletion of an asset through a revise. `restorePortraitStrokes` starts
+  its merge from `{...original}` and only ever ADDS or REPLACES a name the
+  reply also returned, so there is no way for a reply to make one go away —
+  impossible by construction, not merely unimplemented. Round 2 review, I4:
+  the gap is currently SILENT rather than refused — a reply that drops
+  `openings` from `assets:`, or one that says "removed the openings data",
+  is reported as a success while the asset sits in the document exactly as
+  before. That is precisely the shape §5.1 names as the failure mode to
+  avoid ("a revise that quietly leaves the data alone while reporting
+  success"), just reached from the opposite direction. Accepted as a v1
+  limitation, same as §5.1's own accepted risk; not worth a round to build,
+  and the fix is not "detect the omission and delete" — it is choosing
+  whether deletion should exist at all, and how a reply would ask for it.
 
 ## 8. Testing
 

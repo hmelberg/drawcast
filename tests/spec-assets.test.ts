@@ -234,6 +234,17 @@ describe("@name inside params", () => {
     expect(params.set).toBe("@foto"); // semanticErrors says why, in Task 3
   });
 
+  test("a reference to an EMPTY asset (null) is left standing too — null is not data either", () => {
+    // Round 2 review, I2: the old inline `typeof value === "string"` check
+    // here saw only "is it bytes", so a null asset resolved straight into
+    // params with no error at all. isDataAsset (spec/assets.ts) has excluded
+    // null since round 1 (C1) — this resolver must agree with it rather than
+    // re-deciding on its own.
+    const params = { set: "@openings" };
+    expect(resolveParamAssetRefs({ assets: { openings: null }, params })).toEqual([]);
+    expect(params.set).toBe("@openings"); // semanticErrors says why, below
+  });
+
   test("paramAssetRefs reports where each reference sits", () => {
     expect(paramAssetRefs({ set: "@openings", deep: { rows: ["@endgames"] } })).toEqual([
       { path: "set", name: "openings" },
@@ -294,6 +305,16 @@ describe("asset errors", () => {
       commands: [],
     });
     expect(paramsAtBytes).toContain('params.set refers to asset "@foto", which is encoded bytes, not data');
+  });
+
+  test("a params reference to an EMPTY asset (null) says so, end to end — never silently treated as data", () => {
+    // Reachable by a hand-typed fence (`openings:` with nothing after the
+    // colon) or the Spec source textarea (round 2 review, I2). Goes through
+    // normalizeSpec's real resolveParamAssetRefs call, then semanticErrors —
+    // the whole seam, not just one function.
+    expect(
+      errorsFor({ template: "chess_board", params: { set: "@openings" }, assets: { openings: null }, commands: [] }),
+    ).toContain('params.set refers to asset "@openings", which is empty, not data');
   });
 
   test("the absent-strokes message is unchanged", () => {
@@ -635,9 +656,13 @@ describe("self-containment", () => {
 
     // `move_arrow` is the proof the DATA arrived: the chess template emits it
     // only when `moves` is a non-empty array, so its presence means "@line"
-    // resolved to three SAN strings on the way through normalizeSpec. An
-    // unresolved reference would instead be a string where an array belongs,
-    // which the checks above would have caught as a param error.
+    // resolved to three SAN strings on the way through normalizeSpec. These
+    // two `res.order` assertions are the ONLY real proof of that — the
+    // `res.warnings`/`res.issues` checks above are ordinary sanity checks,
+    // not evidence for it: `layoutSpec` never validates params (only
+    // `compile.ts` calls `templateParamIssues`/`templateParamErrors`), so an
+    // unresolved "@line" would silently become an empty array here, which
+    // neither check would have caught.
     expect(res.order).toContain("move_arrow");
     expect(res.order).toContain("piece_e4");
 

@@ -2749,6 +2749,41 @@ them. `scripts/freehand-eval.mjs` already records `lintWarns` per delivered
 spec, so one run with the cheap configuration settles it before any code is
 written.
 
+## An inkless spec silently mis-parses in script format — noted 2026-09-20, open
+
+A spec that is only `{template, params}` — no title, no elements, no
+commands — is valid (the schema does not require any of those) and the
+editor lets it be saved: `isBlankSpec` only refuses the genuinely empty
+case (no template EITHER), so this one is not it. Script is the editor's
+default save/print format, and the script printer (`src/spec/script/print.ts`)
+prints `template`/`params` as `use:`/`with:` settings lines unconditionally,
+title or no — a title only adds a leading `# heading`. Give it no title and
+no draw beat, and the printed document's very first line is a bare
+`use: chess_board`, followed by `with: {…}`.
+
+That is valid YAML on its own, so `parsePlaylistText` reads it back not as
+a template document but as an ordinary mapping: `template` never survives,
+and the `with:` object is adopted whole as if it WERE the params — every
+key of `moves`/`plies_shown`/whatever becomes a top-level spec field
+instead. No error, no warning: the document round-trips as a different,
+invalid spec, silently.
+
+Pre-existing, unrelated to the data-assets branch, and it bit that round's
+own test-writing three separate times — each worked around locally by
+giving the fixture a title (see `tests/spec-assets.test.ts`'s
+self-containment test for the pattern, and its own comment there).
+
+The data-assets branch makes the SAME inkless shape fail LOUDLY instead,
+once an `assets:` fence sits under it: the fence turns the leading
+`use:`/`with:` mapping into invalid YAML as a whole document, so parsing
+fails outright ("not JSON, and not valid YAML (line …)"), and
+`reviseDocument`'s early return reports "the current document is
+unreadable" rather than silently adopting the wrong shape. That is the
+direction worth generalizing — either make `parsePlaylistText` reject a
+bare `use:`/`with:` mapping outright, or make the script printer always
+emit a title line — not something to fix by giving every fixture a title
+forever.
+
 ## Deliberately left in `draw` (the frozen lab)
 
 Backend comparison grids, the raw-SVG baseline, the benchmark runner UI, and

@@ -416,11 +416,13 @@ function buildEmbedDialog(): EmbedSession {
  *
  * Embedded newlines inside a quoted field are OUT of scope — the reader
  * splits on line breaks before this ever runs, so a field that legitimately
- * spans lines has nowhere to go. Returns null when a quote never closes on
- * its own line, so the caller can report it instead of letting the next
- * line's text silently become part of this row.
+ * spans lines has nowhere to go. Returns an error string, instead of a row,
+ * when a quote never closes on its own line, or when text follows a closing
+ * quote that is not the next comma — either way there is no cell value a
+ * reader could honestly report, so the caller names the file and reports it
+ * rather than guessing.
  */
-function splitCsvLine(line: string): string[] | null {
+function splitCsvLine(line: string): string[] | string {
   const cells: string[] = [];
   const n = line.length;
   let i = 0;
@@ -445,10 +447,15 @@ function splitCsvLine(line: string): string[] | null {
         value += line[j];
         j++;
       }
-      if (!closed) return null;
-      // Anything between the closing quote and the next comma is ignored
-      // whitespace (`"a", "b"` — the space before "b" is not part of it).
-      while (j < n && line[j] !== ",") j++;
+      if (!closed) return "has an unterminated quote — a quoted field cannot span multiple lines";
+      // Whitespace between the closing quote and the next comma is skipped
+      // (`"a" , "b"` — the space before the comma is not part of either
+      // cell). Anything else there — `"x"junk,c` — is text this format has
+      // no cell to put it in, so it is reported instead of silently dropped.
+      while (j < n && (line[j] === " " || line[j] === "\t")) j++;
+      if (j < n && line[j] !== ",") {
+        return "has text right after a closing quote that is not a comma — a quoted field cannot be followed by more text";
+      }
       cells.push(value);
       i = j + 1;
       continue;
@@ -490,8 +497,8 @@ export function parseDataFile(text: string, filename: string): { rows: unknown; 
   const parsed: string[][] = [];
   for (const line of lines) {
     const cells = splitCsvLine(line);
-    if (cells === null) {
-      return { rows: null, error: `${filename} has an unterminated quote — a quoted field cannot span multiple lines` };
+    if (typeof cells === "string") {
+      return { rows: null, error: `${filename} ${cells}` };
     }
     parsed.push(cells);
   }

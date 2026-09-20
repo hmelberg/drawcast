@@ -71,7 +71,7 @@ export function hoistPortraitStrokes(docText: string): { text: string; blobs: Ma
     // DATA is decided per asset (design §5.1): small enough to send rides
     // along and may be edited; larger is replaced by a descriptor naming its
     // shape. The whole map is stashed either way, so nothing can be lost.
-    if (item.spec.assets) {
+    if (item.spec.assets && Object.keys(item.spec.assets).length > 0) {
       blobs.set(assetsKey(i), JSON.stringify(item.spec.assets));
       const forModel: Record<string, unknown> = {};
       for (const [name, value] of Object.entries(item.spec.assets)) {
