@@ -189,6 +189,13 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
       const cleaned = stripFence(raw);
       const parsed = parseReviseReply(raw);
 
+      // Blobs come back BEFORE anything judges this candidate: a hoisted
+      // document is not a complete document, and a reply that dropped the
+      // `assets:` block would otherwise fail validation on a reference that is
+      // perfectly good (design 2026-09-20 §5.2). Restoring into losers as well
+      // as the winner costs a map lookup per asset.
+      if (parsed.playlist && hoisted.blobs.size > 0) restorePortraitStrokes(parsed.playlist, hoisted.blobs);
+
       let errors: string[] = [];
       let lintIssues: LintIssue[] = [];
       if (!parsed.playlist) {
@@ -238,7 +245,9 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
 
   const promptFilled = best ? preserveFoundingPrompt(best.playlist, parsedNow.playlist) : false;
   if (best && (hoisted.blobs.size > 0 || promptFilled)) {
-    if (hoisted.blobs.size > 0) restorePortraitStrokes(best.playlist, hoisted.blobs);
+    // The winner's `text` is the model's raw reply, which still shows
+    // placeholders and descriptors; the playlist has been restored in the loop
+    // above, so the document is re-printed from it.
     best = { playlist: best.playlist, text: formatPlaylist(best.playlist, "script") };
   }
   return {
