@@ -609,3 +609,43 @@ describe("withNotes: joining a note onto a status line rather than overwriting i
     expect(withNotes("Revised: add the Sicilian", [])).toBe("Revised: add the Sicilian");
   });
 });
+
+describe("self-containment", () => {
+  test("a cast with data lays out from its serialized text alone, with no app state", async () => {
+    const { registerPack } = await import("../src/scenes/packs");
+    const { ensureEngines } = await import("../src/scenes/engines");
+    const gamesYaml = (await import("../src/scenes/packs/games.yaml?raw")).default;
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+
+    const authored = {
+      template: "chess_board",
+      params: { moves: "@line", plies_shown: 2 },
+      assets: { line: ["e4", "e5", "Nf3"] },
+      commands: [{ draw: ["board"], speak: "A line." }],
+    } as unknown as Spec;
+
+    // Everything a viewer gets: the document as TEXT, and nothing else.
+    const published = formatPlaylist(singlePlaylist(authored), "script");
+    const viewerSpec = itemsOf(parsePlaylistText(published))[0].spec;
+
+    const res = layoutSpec(viewerSpec as never);
+    expect(res.warnings).toEqual([]);
+    expect(res.issues.filter((i) => i.severity === "error")).toEqual([]);
+
+    // `move_arrow` is the proof the DATA arrived: the chess template emits it
+    // only when `moves` is a non-empty array, so its presence means "@line"
+    // resolved to three SAN strings on the way through normalizeSpec. An
+    // unresolved reference would instead be a string where an array belongs,
+    // which the checks above would have caught as a param error.
+    expect(res.order).toContain("move_arrow");
+    expect(res.order).toContain("piece_e4");
+
+    // NOT `res.anchors` and NOT `res.pieces`. For a pure template spec
+    // `anchors` is empty by documented design (it holds tier-2 element
+    // anchors), and `pieces` is an unrelated concept — the geometry of a
+    // `pieces` ELEMENT, empty unless the spec has one. The template's own
+    // anchors are returned by `scenes.chess_board.layout!(params)`, which is
+    // what tests/packs.test.ts reads; `layoutSpec` does not surface them.
+  });
+});

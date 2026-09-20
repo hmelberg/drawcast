@@ -1398,9 +1398,21 @@ describe("self-containment", () => {
     const res = layoutSpec(viewerSpec as never);
     expect(res.warnings).toEqual([]);
     expect(res.issues.filter((i) => i.severity === "error")).toEqual([]);
-    // The line really was played: e2 is vacated after 1.e4, and the arrow exists.
+
+    // `move_arrow` is the proof the DATA arrived: the chess template emits it
+    // only when `moves` is a non-empty array, so its presence means "@line"
+    // resolved to three SAN strings on the way through normalizeSpec. An
+    // unresolved reference would instead be a string where an array belongs,
+    // which the checks above would have caught as a param error.
     expect(res.order).toContain("move_arrow");
-    expect(res.anchors.piece_e4).toBeDefined();
+    expect(res.order).toContain("piece_e4");
+
+    // NOT `res.anchors` and NOT `res.pieces`. For a pure template spec
+    // `anchors` is empty by documented design (it holds tier-2 element
+    // anchors), and `pieces` is an unrelated concept — the geometry of a
+    // `pieces` ELEMENT, empty unless the spec has one. The template's own
+    // anchors are returned by `scenes.chess_board.layout!(params)`, which is
+    // what tests/packs.test.ts reads; `layoutSpec` does not surface them.
   });
 });
 ```
@@ -1408,7 +1420,7 @@ describe("self-containment", () => {
 - [ ] **Step 2: Run it**
 
 Run: `npx vitest run tests/spec-assets.test.ts -t "self-containment"`
-Expected: PASS. If it fails on `params.moves` being a string, the resolution point (Task 2) is wrong — `layoutSpec` calls `normalizeSpec`, so this is the end-to-end proof that it does.
+Expected: PASS. If `move_arrow` is missing from `res.order`, the resolution point (Task 2) is wrong — `layoutSpec` calls `normalizeSpec`, so this is the end-to-end proof that it does.
 
 - [ ] **Step 3: Full suite, tsc, build**
 
