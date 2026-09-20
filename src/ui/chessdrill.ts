@@ -217,6 +217,12 @@ export function mountChessDrill(stage: HTMLElement, hd: RenderHandle): void {
       ringAt(want.from, "from");
       ringAt(want.to, "");
       misses = 0;
+      // The reveal just put `want` on the board — restate the hint in the
+      // past tense so it describes what the viewer is looking at, not a
+      // move that is no longer to come.
+      hint.textContent = other
+        ? `♟ That's the ${other.name}. The ${opening.name} played ${want.san}.`
+        : `♟ Not this line — the ${opening.name} played ${want.san}.`;
       if (ply >= plies.length) finishRound();
       else opponentMove();
     }
@@ -234,8 +240,12 @@ export function mountChessDrill(stage: HTMLElement, hd: RenderHandle): void {
     } catch {
       // Should never happen: `set` is either BUILT_IN_OPENINGS (legality
       // proved by tests/chess-openings.test.ts) or already survived this
-      // exact plyList call once, inside validateSet. Fail closed rather
-      // than throw out of a click handler (Again) or the mount itself.
+      // exact plyList call once, inside validateSet. pickOpening's own
+      // history lookup has its own failure mode — an opening named for an
+      // inherited Object.prototype member — and is guarded against it at
+      // the source (chess-openings-store.ts); this catch is the fail-closed
+      // net for both, rather than throw out of a click handler (Again) or
+      // the mount itself.
       hint.textContent = "♟ This opening set could not be replayed.";
       over = true;
       busy = true;

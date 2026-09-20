@@ -15,7 +15,11 @@ describe("the built-in set", () => {
   test("every line is legal, replayed move by move through the engine", () => {
     for (const o of BUILT_IN_OPENINGS) {
       expect(() => plyList(Ctor, o), `${o.name}: ${o.moves.join(" ")}`).not.toThrow();
-      expect(plyList(Ctor, o), o.name).toHaveLength(o.moves.length);
+      // Not just "the right length" — the engine's own SAN must match the
+      // shipped spelling exactly, or the default session (which never runs
+      // its lines through validateSet) would compare two spellings of one
+      // move without anything here catching it.
+      expect(plyList(Ctor, o).map((p) => p.san), o.name).toEqual(o.moves);
     }
   });
 
@@ -184,6 +188,19 @@ describe("pickOpening", () => {
     // Documented rather than defended: pickOpening on [] would have nothing
     // to return, and every call site falls back to the built-in set first.
     expect(set.length).toBeGreaterThan(0);
+  });
+
+  test("a custom opening named constructor picks normally, on a history with no record of it", () => {
+    // history[o.name] on a plain {} would return the INHERITED FUNCTION
+    // Object.prototype.constructor, not undefined — exactly the shape
+    // readHistory() returns on a completely fresh browser.
+    const trapped: Opening[] = [
+      { name: "constructor", side: "white", moves: ["e4", "e5", "Nf3"] },
+      { name: "B", side: "white", moves: ["d4", "d5", "c4"] },
+    ];
+    expect(() => pickOpening(trapped, {}, () => 0)).not.toThrow();
+    expect(pickOpening(trapped, {}, () => 0).name).toBe("constructor");
+    expect(pickOpening(trapped, {}, () => 0.9).name).toBe("B");
   });
 });
 

@@ -64,7 +64,11 @@ export function weightFor(attempts: readonly boolean[] | undefined): number {
 
 /** A weighted random opening. `rng` returns [0, 1); inject it for tests. */
 export function pickOpening(set: readonly Opening[], history: Record<string, boolean[]>, rng: () => number): Opening {
-  const weights = set.map((o) => weightFor(history[o.name]));
+  // Object.hasOwn, not `history[o.name]` alone: a custom opening named
+  // `constructor`, `toString` or `valueOf` would otherwise hand weightFor an
+  // INHERITED FUNCTION from Object.prototype instead of undefined — on a
+  // completely fresh browser with no stored history, `history` is just `{}`.
+  const weights = set.map((o) => weightFor(Object.hasOwn(history, o.name) ? history[o.name] : undefined));
   const total = weights.reduce((a, b) => a + b, 0);
   let r = rng() * total;
   for (const [i, w] of weights.entries()) {

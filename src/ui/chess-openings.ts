@@ -46,7 +46,8 @@ export const BUILT_IN_OPENINGS: readonly Opening[] = [
 ];
 
 /** Every ply of an opening as the engine sees it. Throws on an illegal line —
- *  which is why validateSet calls it behind a try, and the drill never does. */
+ *  so every caller must be behind a try. Both are: validateSet here, and
+ *  startRound in chessdrill.ts. */
 export function plyList(Chess: ChessCtor, o: Opening): { from: string; to: string; san: string }[] {
   const game = new Chess() as unknown as {
     move(san: string): { from: string; to: string; san: string } | null;
