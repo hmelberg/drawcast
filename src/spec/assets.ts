@@ -257,7 +257,15 @@ export function describeAsset(value: unknown): string {
   return `${DATA_DESCRIPTOR}value`;
 }
 
-/** True for an asset value that is data (rows, numbers, an object) rather than encoded bytes. */
+/**
+ * True for an asset value that is data (rows, numbers, an object) rather
+ * than encoded bytes. `null`/`undefined` are excluded too (round 1 review,
+ * C1 follow-up): `typeof null === "object"`, so without this a reply that
+ * writes `openings:` with nothing after the colon parses as `null`, reads as
+ * "data" here, and silently replaces a SENT asset's real rows in
+ * restorePortraitStrokes's merge guard — the same class of hole an empty
+ * string was, closed the same way.
+ */
 export function isDataAsset(value: unknown): boolean {
-  return typeof value !== "string";
+  return value !== null && value !== undefined && typeof value !== "string";
 }

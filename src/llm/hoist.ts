@@ -95,7 +95,8 @@ export function hoistPortraitStrokes(docText: string): { text: string; blobs: Ma
 /** Put hoisted strokes back into the model's revised playlist, by element id. */
 export function restorePortraitStrokes(playlist: Playlist, blobs: Map<string, string>): void {
   if (blobs.size === 0) return;
-  itemsOf(playlist).forEach((item, i) => {
+  const items = itemsOf(playlist);
+  items.forEach((item, i) => {
     const stashed = blobs.get(assetsKey(i));
     if (stashed) {
       // The stash is the authority for everything the model could not edit —
@@ -125,12 +126,18 @@ export function restorePortraitStrokes(playlist: Playlist, blobs: Map<string, st
     // pre-existing, not fixed here) landed on the wrong item, or none at all,
     // after a page was inserted or removed. Silently keeping it would look
     // like real content forever; throwing is too violent for a restore path
-    // that must still return a document. Flagged instead — console.warn is
-    // the only channel this module has today (Task 8 adds a real reporting
-    // channel for a related but distinct gap; see round 1 review).
+    // that must still return a document. Flagged instead — but console.warn
+    // (round 1) was the wrong channel: that is this repo's INFRASTRUCTURE log
+    // (pack loads, fonts, widget bodies), not something an author ever sees.
+    // A non-fatal DOCUMENT problem belongs in the playlist's own `warnings`
+    // (round 2 review, I1) — the same field parsePlaylistText already fills
+    // for document-level issues (a dangling inset, malformed audio, a script
+    // sugar column) — so this reaches the author the same way those already
+    // do, not a devtools line nobody opens.
     for (const [name, value] of Object.entries(item.spec.assets ?? {})) {
       if (typeof value === "string" && value.startsWith(DATA_DESCRIPTOR)) {
-        console.warn(`restorePortraitStrokes: item ${i}'s asset "${name}" is still a descriptor after restore — its stash was not found`);
+        const where = items.length > 1 ? `item ${i + 1}: ` : "";
+        playlist.warnings.push(`${where}asset "${name}" is still a descriptor after restore — its stash was not found`);
       }
     }
     for (const el of item.spec.elements ?? []) {
