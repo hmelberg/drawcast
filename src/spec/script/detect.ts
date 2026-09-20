@@ -22,26 +22,52 @@ const KEY_LINE = new RegExp(`^(?:${SPEC_KEYS.join("|")})\\s*:`, "m");
 const DIRECTION_LINE = /^[ \t]+\S/m;
 /** A `#` or `##` heading at column 0. */
 const HEADING_LINE = /^#{1,2}\s+\S/m;
-/** A `\`\`\`assets` fence at column 0 — how a script writes its own
- *  machine-written assets map (print.ts's PAYLOAD_KEYS) when the page has no
- *  other ink: a template-driven item with no elements of its own and a data
- *  asset too large to send, described down to one flat line (design §5.1).
- *  Real YAML/JSON never opens a document this way, and a whole-reply wrapper
- *  fence is tagged `yaml`/`json`, never `assets` — so this can only be a script. */
-const ASSETS_FENCE_LINE = /^```assets$/m;
+/** A payload fence's OPENING delimiter — `\`\`\`assets` or `\`\`\`yaml`
+ *  (print.ts's PAYLOAD_KEYS: assets, subtitles, text_map, templates) — still
+ *  standing after withoutPayloadFenceBodies below has blanked its content.
+ *  Column 0, always tagged. A script's own `code` element fence is always
+ *  indented (print.ts's INDENT), so it never matches this; real YAML/JSON
+ *  never opens a document with a bare fence at all, and a whole-reply
+ *  wrapper is stripped (`stripFence`) long before this runs. */
+const FENCE_LINE = /^```\S+$/m;
+
+/**
+ * A payload key prints as a fence opened at column 0, its BODY the plain
+ * YAML dump of whatever an author or the model put there — not the
+ * document's own ink. Left visible, an asset (or subtitle) named the same as
+ * a SPEC_KEY ("title", "assets"…) prints that name at column 0 too, and
+ * KEY_LINE — checked first, unconditionally — would misread a real script,
+ * heading and direction lines and all, as a spec document (round 1 review,
+ * C2 — reachable by this plan's own design: Task 7 names an asset after its
+ * filename, so `title.csv` gives an asset named `title`, and a hand-typed
+ * `assets:` block is documented, design §6). So neither KEY_LINE nor the ink
+ * signals below may see a fence's BODY — only the delimiter that opens it,
+ * which is what survives here.
+ */
+const PAYLOAD_FENCE = /^(```\S+)\n[\s\S]*?\n```$/gm;
+function withoutPayloadFenceBodies(text: string): string {
+  return text.replace(PAYLOAD_FENCE, "$1\n```");
+}
 
 /**
  * True when the text is a script: no spec key, not JSON, and carrying at
- * least one direction, heading, or assets fence.
+ * least one direction, heading, or payload fence — every signal read with
+ * every payload fence's own body blanked out first, so a data value can
+ * never masquerade as document structure in EITHER direction: a spec key
+ * inside a fence can no longer defeat detection (C2), and a bare fence
+ * marker still counts as ink even once its content is gone (what used to be
+ * ASSETS_FENCE_LINE — generalized, since `subtitles`/`text_map`/`templates`
+ * fence the same way and were unparseable for the identical reason).
  *
- * That last requirement is what keeps the format from swallowing everything.
- * Prose alone is syntactically a run of spoken lines, so without it ANY text
- * — a stray paragraph, a pasted email, a half-downloaded file — would parse
- * as a valid one-beat drawcast instead of being reported as unreadable. A
- * real script always has ink in it.
+ * The heading/direction requirement is what keeps the format from
+ * swallowing everything. Prose alone is syntactically a run of spoken lines,
+ * so without it ANY text — a stray paragraph, a pasted email, a
+ * half-downloaded file — would parse as a valid one-beat drawcast instead of
+ * being reported as unreadable. A real script always has ink in it.
  */
 export function looksLikeScript(text: string): boolean {
   if (/^\s*[{[]/.test(text)) return false;
-  if (KEY_LINE.test(text)) return false;
-  return DIRECTION_LINE.test(text) || HEADING_LINE.test(text) || ASSETS_FENCE_LINE.test(text);
+  const ink = withoutPayloadFenceBodies(text);
+  if (KEY_LINE.test(ink)) return false;
+  return DIRECTION_LINE.test(ink) || HEADING_LINE.test(ink) || FENCE_LINE.test(ink);
 }

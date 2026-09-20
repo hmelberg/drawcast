@@ -10,7 +10,7 @@
 
 import { formatPlaylist, itemsOf, parsePlaylistText, type Playlist } from "../playlist/playlist";
 import type { Spec, SpecElement } from "../spec/types";
-import { ASSET_SEND_MAX, assetBytes, describeAsset, HOISTED, isDataAsset } from "../spec/assets";
+import { ASSET_SEND_MAX, assetBytes, DATA_DESCRIPTOR, describeAsset, HOISTED, isDataAsset } from "../spec/assets";
 
 export { HOISTED };
 
@@ -107,9 +107,31 @@ export function restorePortraitStrokes(playlist: Playlist, blobs: Map<string, st
       const merged: Record<string, unknown> = { ...original };
       for (const [name, value] of Object.entries(returned)) {
         const was = original[name];
-        if (was !== undefined && isDataAsset(was) && assetBytes(was) <= ASSET_SEND_MAX) merged[name] = value;
+        // The reply only wins when it is ITSELF data (round 1 review, C1): a
+        // byte string — empty, or shaped like a descriptor — must never
+        // replace rows just because the name was small enough to send. Without
+        // this, `{openings: ""}` or `{openings: "@data 1 rows — …"}` silently
+        // erased a user's data (resolveParamAssetRefs then treats the string
+        // as bytes and leaves the reference dangling — a fresh way to lose
+        // rows, not merely a confusing one).
+        if (was !== undefined && isDataAsset(was) && assetBytes(was) <= ASSET_SEND_MAX && isDataAsset(value)) merged[name] = value;
       }
       item.spec.assets = merged;
+    }
+    // DATA_DESCRIPTOR is only ever MINTED on the way out (above, for an asset
+    // too large to send) and is never itself in a stash — so if one is still
+    // sitting in the restored document, this item's stash never covered that
+    // name: most plausibly assetsKey's positional index (round 1 review, I1 —
+    // pre-existing, not fixed here) landed on the wrong item, or none at all,
+    // after a page was inserted or removed. Silently keeping it would look
+    // like real content forever; throwing is too violent for a restore path
+    // that must still return a document. Flagged instead — console.warn is
+    // the only channel this module has today (Task 8 adds a real reporting
+    // channel for a related but distinct gap; see round 1 review).
+    for (const [name, value] of Object.entries(item.spec.assets ?? {})) {
+      if (typeof value === "string" && value.startsWith(DATA_DESCRIPTOR)) {
+        console.warn(`restorePortraitStrokes: item ${i}'s asset "${name}" is still a descriptor after restore — its stash was not found`);
+      }
     }
     for (const el of item.spec.elements ?? []) {
       const fields = blobFields(el);

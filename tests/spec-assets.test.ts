@@ -1,13 +1,14 @@
 // Hans 2026-09-10: base64 photos and long point lists made a spec hard to
 // move around in. Two spec-level answers: an OPTIONAL `assets:` map written
 // last, referenced as `strokes: "@name"`, and number pairs on one line.
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import {
   ASSET_MAX_BYTES,
   ASSET_SEND_MAX,
   assetBytes,
   assetRef,
+  DATA_DESCRIPTOR,
   describeAsset,
   formatAssetSize,
   hoistStrokes,
@@ -25,6 +26,7 @@ import { layoutSpec } from "../src/layout/layout";
 import { resolveImages } from "../src/render/image";
 import { HOISTED, hoistPortraitStrokes, restorePortraitStrokes } from "../src/llm/hoist";
 import { parseScriptPages } from "../src/spec/script/parse";
+import { looksLikeScript } from "../src/spec/script/detect";
 import type { Spec } from "../src/spec/types";
 
 const examples = JSON.parse(readFileSync(new URL("../src/examples.json", import.meta.url), "utf8")) as { title: string; spec?: Spec; playlist?: string }[];
@@ -437,5 +439,97 @@ describe("descriptors and the send threshold", () => {
     const reply = parsePlaylistText(hoisted.text);
     restorePortraitStrokes(reply, hoisted.blobs);
     expect(itemsOf(reply)[0].spec.assets!.foto).toBe(PHOTO);
+  });
+});
+
+describe("fix round 1 (review): the merge guard, script detection, and a stranded descriptor", () => {
+  const small = [{ name: "Italian Game", eco: "C50", moves: ["e4", "e5"], idea: "f7" }];
+
+  describe("C1: a reply's value only wins when it is itself data", () => {
+    test("an empty string cannot overwrite a SENT asset's rows", () => {
+      const doc = formatPlaylist(singlePlaylist({ template: "chess_board", params: { set: "@openings" }, assets: { openings: small } } as unknown as Spec), "script");
+      const hoisted = hoistPortraitStrokes(doc);
+      const reply = parsePlaylistText(hoisted.text);
+      itemsOf(reply)[0].spec.assets = { openings: "" };
+      restorePortraitStrokes(reply, hoisted.blobs);
+      expect(itemsOf(reply)[0].spec.assets!.openings).toEqual(small);
+    });
+
+    test("a descriptor-shaped string cannot overwrite a SENT asset's rows", () => {
+      const doc = formatPlaylist(singlePlaylist({ template: "chess_board", params: { set: "@openings" }, assets: { openings: small } } as unknown as Spec), "script");
+      const hoisted = hoistPortraitStrokes(doc);
+      const reply = parsePlaylistText(hoisted.text);
+      itemsOf(reply)[0].spec.assets = { openings: "@data 1 rows — name, eco, moves[], idea" };
+      restorePortraitStrokes(reply, hoisted.blobs);
+      expect(itemsOf(reply)[0].spec.assets!.openings).toEqual(small);
+    });
+  });
+
+  describe("C2: a payload fence's body is not the document's own ink", () => {
+    test("a real YAML spec with title: at column 0 is still NOT a script", () => {
+      const yamlDoc = "title: A line\nelements:\n  - id: a\n    type: node\n    text: hi\n    x: 1\n    y: 2\ncommands: []\n";
+      expect(looksLikeScript(yamlDoc)).toBe(false);
+    });
+
+    test("a script whose fence body contains title: still IS one", () => {
+      const script = ["# A line", "    node a x 1 y 2", "", "```assets", "title:", "  - name: Italian Game", "```", ""].join("\n");
+      expect(looksLikeScript(script)).toBe(true);
+    });
+
+    test("an asset named like a spec key does not defeat detection on a real document", () => {
+      const spec = {
+        elements: [{ id: "a", type: "node", text: "hi", x: 1, y: 2 }],
+        commands: [{ draw: ["a"] }],
+        assets: { title: small },
+      } as unknown as Spec;
+      const doc = formatPlaylist(singlePlaylist(spec), "script");
+      // Before the fix: KEY_LINE saw "title:" inside the ```assets fence and
+      // returned false outright, even though this document plainly has real
+      // ink (an indented direction line) of its own.
+      expect(looksLikeScript(doc)).toBe(true);
+      const back = parsePlaylistText(doc);
+      expect(itemsOf(back)[0].spec.assets).toEqual({ title: small });
+    });
+
+    test("a subtitles-only document — the same fence mechanism — is repaired too", () => {
+      const doc = formatPlaylist(singlePlaylist({ elements: [{ id: "a", type: "node", text: "hi", x: 1, y: 2 }], commands: [{ draw: ["a"] }], subtitles: { title: "hei" } } as unknown as Spec), "script");
+      expect(looksLikeScript(doc)).toBe(true);
+      expect(itemsOf(parsePlaylistText(doc))[0].spec.subtitles).toEqual({ title: "hei" });
+    });
+  });
+
+  describe("I1: a stranded descriptor after restore is flagged, not silently kept", () => {
+    test("no stash for this item's position leaves its descriptor untouched, and warns", () => {
+      const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        const reply = singlePlaylist({ assets: { openings: `${DATA_DESCRIPTOR}1 rows — name, eco, moves[], idea` }, commands: [] } as unknown as Spec);
+        // blobs is non-empty (so the early return doesn't skip everything)
+        // but carries no "assets:0" entry — the position this item is at.
+        const blobs = new Map<string, string>([["assets:1", JSON.stringify({ unrelated: [1, 2, 3] })]]);
+        restorePortraitStrokes(reply, blobs);
+        expect(itemsOf(reply)[0].spec.assets!.openings).toBe(`${DATA_DESCRIPTOR}1 rows — name, eco, moves[], idea`);
+        expect(warned).toHaveBeenCalledTimes(1);
+        expect(warned.mock.calls[0][0]).toContain("openings");
+      } finally {
+        warned.mockRestore();
+      }
+    });
+
+    test("a real hoist/restore round trip never leaves one behind (no false positive)", () => {
+      const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        const big = Array.from({ length: 2_000 }, (_, i) => ({ name: `Line ${i}`, eco: "C50", moves: ["e4", "e5"], idea: "x" }));
+        const doc = formatPlaylist(singlePlaylist({ template: "chess_board", params: { set: "@openings" }, assets: { openings: big } } as unknown as Spec), "script");
+        const hoisted = hoistPortraitStrokes(doc);
+        const reply = parsePlaylistText(hoisted.text);
+        restorePortraitStrokes(reply, hoisted.blobs);
+        // The descriptor the model was shown is correctly replaced by the
+        // real rows on restore (Task 5's own contract) — never a warning.
+        expect(itemsOf(reply)[0].spec.assets!.openings).toEqual(big);
+        expect(warned).not.toHaveBeenCalled();
+      } finally {
+        warned.mockRestore();
+      }
+    });
   });
 });
