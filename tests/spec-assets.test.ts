@@ -24,7 +24,7 @@ import { normalizeSpec, validateSpec } from "../src/spec/schema";
 import { formatPlaylist, itemsOf, parsePlaylistText, singlePlaylist } from "../src/playlist/playlist";
 import { layoutSpec } from "../src/layout/layout";
 import { resolveImages } from "../src/render/image";
-import { HOISTED, hoistPortraitStrokes, noteForDescribed, restorePortraitStrokes } from "../src/llm/hoist";
+import { HOISTED, hoistPortraitStrokes, noteForDescribed, restorePortraitStrokes, withNotes } from "../src/llm/hoist";
 import { parseScriptPages } from "../src/spec/script/parse";
 import { looksLikeScript } from "../src/spec/script/detect";
 import type { Spec } from "../src/spec/types";
@@ -591,5 +591,21 @@ describe("the over-threshold note (design §5.1)", () => {
 
   test("nothing to say when every asset was sent", () => {
     expect(noteForDescribed([])).toEqual([]);
+  });
+});
+
+describe("withNotes: joining a note onto a status line rather than overwriting it (round 1 review, fix 1)", () => {
+  // main.ts's Revise and course.ts's per-lecture revise each report through a
+  // single call (setStatus/setDoc, or the panel's own `say`) — a second call
+  // with the note would simply overwrite the first, so both join the note
+  // onto the message they already show, via this one shared, tested rule.
+  test("joins the message and every note on one line when there is something to say", () => {
+    expect(withNotes("Revised: add the Sicilian", ["openings is 40 KB — too large to revise here. Edit it in the Spec source, or re-import the file."])).toBe(
+      "Revised: add the Sicilian  openings is 40 KB — too large to revise here. Edit it in the Spec source, or re-import the file.",
+    );
+  });
+
+  test("leaves the message untouched when there is nothing to add", () => {
+    expect(withNotes("Revised: add the Sicilian", [])).toBe("Revised: add the Sicilian");
   });
 });

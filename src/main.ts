@@ -19,6 +19,7 @@ import { buildBrief, parseTags, suggestTags, TAGS, type ParsedTags } from "./llm
 import { MODELS, callLedger, costSummary, describeApiError, formatCost, resetCallLedger } from "./llm/client";
 import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/author";
 import { reviseDocument, type ReviseOutcome } from "./llm/revise";
+import { withNotes } from "./llm/hoist";
 import { atNewest, currentVersion, emptyStack, pushManualEdit, pushVersion, restoreViewed, seedStack, viewAt, type Stack } from "./history";
 import { registerMyTemplatesAtStartup, registerUserTemplateYaml, unregisterUserTemplate } from "./scenes/my-templates";
 import { PACK_DEFS, ensureEnabledPacks, packTemplateIds, parsePack, unregisterPack } from "./scenes/packs";
@@ -3477,20 +3478,18 @@ async function revise(): Promise<void> {
     const notes = outcome.notes ?? [];
     if (!outcome.playlist) {
       endSpecStream(true);
-      const message = outcome.error ?? "Revision failed.";
-      setStatus(notes.length > 0 ? [message, ...notes].join("  ") : message, controller.signal.aborted ? "info" : "error");
+      setStatus(withNotes(outcome.error ?? "Revision failed.", notes), controller.signal.aborted ? "info" : "error");
       return;
     }
     endSpecStream(false);
     // doc.prompt is deliberately NOT replaced: it stays the original request, so
     // exemplars, the log and "👍 Learn from this" keep pairing original request -> current spec.
-    const message = `Revised: ${instruction}` + costText();
     setDoc(
       // Same document, edited in place by AI (same as a manual re-render) — carry
       // driveFileId forward too, or a Save right after a Revise would litter
       // Drive with a second copy of the file the earlier Save already created.
       { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
-      notes.length > 0 ? [message, ...notes].join("  ") : message,
+      withNotes(`Revised: ${instruction}` + costText(), notes),
       { label, kind: "revise" },
     );
     lastLogId = logId; // after setDoc, so the rating stars target this revision

@@ -104,6 +104,18 @@ export function noteForDescribed(described: readonly { name: string; bytes: numb
   );
 }
 
+/**
+ * Ride `notes` (design §5.1) onto a status message a caller already builds,
+ * rather than reporting them with a second call that would simply overwrite
+ * the first. Shared by main.ts's Revise and course.ts's per-lecture revise —
+ * both report through a single status line, just via different plumbing
+ * (setStatus/setDoc vs. the panel's own `say`) — so this is the one place the
+ * joining rule (and its "nothing to add" case) is written and tested once.
+ */
+export function withNotes(message: string, notes: readonly string[]): string {
+  return notes.length > 0 ? [message, ...notes].join("  ") : message;
+}
+
 /** Put hoisted strokes back into the model's revised playlist, by element id. */
 export function restorePortraitStrokes(playlist: Playlist, blobs: Map<string, string>): void {
   if (blobs.size === 0) return;

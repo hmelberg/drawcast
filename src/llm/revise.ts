@@ -144,7 +144,11 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
   docText = hoisted.text;
   const parsedNow = parseReviseReply(docText);
   if (!parsedNow.playlist) {
-    return { playlist: null, text: null, rounds: [], error: `the current document is unreadable: ${parsedNow.error}` };
+    // No model call happened yet, so there is no best.playlist.warnings to
+    // fold in here — but an over-threshold asset was already decided by the
+    // hoist above, and every exit of this function answers the same
+    // question about it (design §5.1, round 1 review).
+    return { playlist: null, text: null, rounds: [], error: `the current document is unreadable: ${parsedNow.error}`, notes: noteForDescribed(hoisted.described) };
   }
 
   // Same system blocks as generation, including the cache_control prefix, so a

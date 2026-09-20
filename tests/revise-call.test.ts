@@ -95,6 +95,11 @@ describe("reviseDocument", () => {
     const out = await reviseDocument("::: not a document :::", "steeper", cfg());
     expect(out.error).toMatch(/current document/);
     expect(calls).toHaveLength(0);
+    // round 1 review, fix 2: every exit of reviseDocument answers the "is
+    // there a note?" question — this early return (before the try block, so
+    // there is no `best` yet to fold playlist.warnings from) must still carry
+    // a `notes` array rather than leaving it undefined on just this one path.
+    expect(out.notes).toEqual([]);
   });
 });
 
@@ -227,6 +232,24 @@ commands:
     expect(out.rounds).toHaveLength(1);
     expect(out.error).toBeUndefined();
     expect(calls).toHaveLength(1);
+  });
+
+  test("an asset too large to send notes the author on the finished outcome (design §5.1, round 1 review)", async () => {
+    registerDataTemplate();
+    const big = Array.from({ length: 2_000 }, (_, i) => `move-number-${i}-with-extra-padding-to-grow-the-row`);
+    const withBig = `template: ${DATA_TEMPLATE_ID}
+params: { moves: "@line" }
+assets: { line: ${JSON.stringify(big)} }
+commands:
+  - { draw: [fig], speak: "A line." }
+`;
+    replies = [WITHOUT_ASSETS];
+    const out = await reviseDocument(withBig, "tweak it", cfg());
+    expect(out.error).toBeUndefined();
+    expect(out.notes).toEqual(["line is 104 KB — too large to revise here. Edit it in the Spec source, or re-import the file."]);
+    // And the data itself made the round trip untouched — the note is in
+    // addition to the restore, not instead of it.
+    expect((out.playlist!.entries[0] as { spec: { assets?: { line?: unknown } } }).spec.assets?.line).toEqual(big);
   });
 });
 
