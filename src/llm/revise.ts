@@ -12,7 +12,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { itemsOf, parsePlaylistText, type Playlist, formatPlaylist } from "../playlist/playlist";
 import { buildSystemBlocks, stripFence, styleBlock, systemBlocks, wantsCode, wantsSound } from "./prompt";
 import { validateSpec } from "../spec/schema";
-import { hoistPortraitStrokes, restorePortraitStrokes } from "./hoist";
+import { hoistPortraitStrokes, noteForDescribed, restorePortraitStrokes } from "./hoist";
 import { layoutSpec } from "../layout/layout";
 import { expandCards } from "../spec/card";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
@@ -113,6 +113,9 @@ export interface ReviseOutcome {
   text: string | null;
   rounds: ReviseRound[];
   error?: string;
+  /** Things the author should know about this revision that are not errors —
+   *  today, data assets too large to have been given to the model (§5.1). */
+  notes?: string[];
 }
 
 /**
@@ -240,7 +243,12 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
     if (best && preserveFoundingPrompt(best.playlist, parsedNow.playlist)) {
       best = { playlist: best.playlist, text: formatPlaylist(best.playlist, "script") };
     }
-    return { playlist: best?.playlist ?? null, text: best?.text ?? null, rounds, error: describeApiError(err) };
+    // Deduped: an asset can be both too large to send (noted here on every
+    // round, since hoisting happens once up front) and, separately, flagged
+    // by the restore if its stash went missing — no reason to say either
+    // thing twice (design §5.1).
+    const notes = [...new Set([...noteForDescribed(hoisted.described), ...(best?.playlist.warnings ?? [])])];
+    return { playlist: best?.playlist ?? null, text: best?.text ?? null, rounds, error: describeApiError(err), notes };
   }
 
   const promptFilled = best ? preserveFoundingPrompt(best.playlist, parsedNow.playlist) : false;
@@ -250,10 +258,20 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
     // above, so the document is re-printed from it.
     best = { playlist: best.playlist, text: formatPlaylist(best.playlist, "script") };
   }
+  // `notes` carries TWO things, deduped (design §5.1): assets too large to
+  // send at all, and — from Task 5's restore — any that came back as a
+  // descriptor because its stash went missing. `playlist.warnings` had no
+  // reader anywhere in src/ before this; folding it in here gives a failed
+  // restoration its first one, alongside existing parse warnings from
+  // playlist.ts that were equally silent until now. Showing those too is the
+  // point, not a side effect — though it does mean a revise can print a line
+  // it never printed before.
+  const notes = [...new Set([...noteForDescribed(hoisted.described), ...(best?.playlist.warnings ?? [])])];
   return {
     playlist: best?.playlist ?? null,
     text: best?.text ?? null,
     rounds,
     error: best ? undefined : (rounds[rounds.length - 1]?.errors[0] ?? "The model never produced a usable document."),
+    notes,
   };
 }

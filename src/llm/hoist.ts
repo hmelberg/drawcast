@@ -10,7 +10,7 @@
 
 import { formatPlaylist, itemsOf, parsePlaylistText, type Playlist } from "../playlist/playlist";
 import type { Spec, SpecElement } from "../spec/types";
-import { ASSET_SEND_MAX, assetBytes, DATA_DESCRIPTOR, describeAsset, HOISTED, isDataAsset } from "../spec/assets";
+import { ASSET_SEND_MAX, assetBytes, DATA_DESCRIPTOR, describeAsset, formatAssetSize, HOISTED, isDataAsset } from "../spec/assets";
 
 export { HOISTED };
 
@@ -90,6 +90,18 @@ export function hoistPortraitStrokes(docText: string): { text: string; blobs: Ma
     }
   });
   return any ? { text: formatPlaylist(playlist, "script"), blobs, described } : { text: docText, blobs, described };
+}
+
+/**
+ * What to tell the author about assets the model could not be given
+ * (design §5.1). Silence is the failure mode this exists to prevent: a revise
+ * that quietly leaves the data alone while reporting success is how someone
+ * comes to believe their repertoire changed when it did not.
+ */
+export function noteForDescribed(described: readonly { name: string; bytes: number }[]): string[] {
+  return described.map(
+    (d) => `${d.name} is ${formatAssetSize(d.bytes)} — too large to revise here. Edit it in the Spec source, or re-import the file.`,
+  );
 }
 
 /** Put hoisted strokes back into the model's revised playlist, by element id. */

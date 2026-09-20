@@ -24,7 +24,7 @@ import { normalizeSpec, validateSpec } from "../src/spec/schema";
 import { formatPlaylist, itemsOf, parsePlaylistText, singlePlaylist } from "../src/playlist/playlist";
 import { layoutSpec } from "../src/layout/layout";
 import { resolveImages } from "../src/render/image";
-import { HOISTED, hoistPortraitStrokes, restorePortraitStrokes } from "../src/llm/hoist";
+import { HOISTED, hoistPortraitStrokes, noteForDescribed, restorePortraitStrokes } from "../src/llm/hoist";
 import { parseScriptPages } from "../src/spec/script/parse";
 import { looksLikeScript } from "../src/spec/script/detect";
 import type { Spec } from "../src/spec/types";
@@ -570,5 +570,26 @@ describe("fix round 1 (review): the merge guard, script detection, and a strande
       expect(itemsOf(reply)[0].spec.assets!.openings).toEqual(big);
       expect(reply.warnings).toEqual([]);
     });
+  });
+});
+
+describe("the over-threshold note (design §5.1)", () => {
+  test("names the asset, its size, and the two paths that do work", () => {
+    const big = Array.from({ length: 2_000 }, (_, i) => ({ name: `Line ${i}`, moves: ["e4"] }));
+    // title: a bare {template, params, assets} item has no ink of its own
+    // (script/detect.ts's C2 requirement — see "descriptors and the send
+    // threshold" above), so without it this document round-trips as
+    // unreadable YAML rather than as a script, and never reaches the
+    // over-threshold branch at all.
+    const hoisted = hoistPortraitStrokes(
+      formatPlaylist(singlePlaylist({ title: "Openings", template: "chess_board", params: { set: "@openings" }, assets: { openings: big } } as unknown as Spec), "script"),
+    );
+    expect(noteForDescribed(hoisted.described)).toEqual([
+      `openings is ${formatAssetSize(assetBytes(big))} — too large to revise here. Edit it in the Spec source, or re-import the file.`,
+    ]);
+  });
+
+  test("nothing to say when every asset was sent", () => {
+    expect(noteForDescribed([])).toEqual([]);
   });
 });
