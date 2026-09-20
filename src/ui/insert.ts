@@ -407,12 +407,73 @@ function buildEmbedDialog(): EmbedSession {
 // everything else lives inside buildData(), called lazily.
 
 /**
+ * One CSV line's cells — RFC 4180's basics, not the whole spec (round 1
+ * review, finding 3): a field wrapped in double quotes may contain commas,
+ * and `""` inside it is one escaped literal quote. The surrounding quotes
+ * are stripped from the result. Whitespace around an UNQUOTED field is
+ * trimmed, matching the plain split(",") this replaces; whitespace inside a
+ * quoted field is kept exactly as written.
+ *
+ * Embedded newlines inside a quoted field are OUT of scope — the reader
+ * splits on line breaks before this ever runs, so a field that legitimately
+ * spans lines has nowhere to go. Returns null when a quote never closes on
+ * its own line, so the caller can report it instead of letting the next
+ * line's text silently become part of this row.
+ */
+function splitCsvLine(line: string): string[] | null {
+  const cells: string[] = [];
+  const n = line.length;
+  let i = 0;
+  while (i <= n) {
+    let start = i;
+    while (start < n && (line[start] === " " || line[start] === "\t")) start++;
+    if (line[start] === '"') {
+      let j = start + 1;
+      let value = "";
+      let closed = false;
+      while (j < n) {
+        if (line[j] === '"') {
+          if (line[j + 1] === '"') {
+            value += '"';
+            j += 2;
+            continue;
+          }
+          closed = true;
+          j++;
+          break;
+        }
+        value += line[j];
+        j++;
+      }
+      if (!closed) return null;
+      // Anything between the closing quote and the next comma is ignored
+      // whitespace (`"a", "b"` — the space before "b" is not part of it).
+      while (j < n && line[j] !== ",") j++;
+      cells.push(value);
+      i = j + 1;
+      continue;
+    }
+    const comma = line.indexOf(",", start);
+    if (comma === -1) {
+      cells.push(line.slice(start).trim());
+      i = n + 1;
+    } else {
+      cells.push(line.slice(start, comma).trim());
+      i = comma + 1;
+    }
+  }
+  return cells;
+}
+
+/**
  * A data file's rows. JSON as written; CSV's header row as keys.
  *
  * A column becomes numbers only when EVERY cell in it parses as one — the
  * overpromising trap from the steepness round (2026-09-20): a rule that
  * mostly works is worse than one that is stated. One "n/a" and the column
- * stays text, which the author can see in the editor.
+ * stays text, which the author can see in the editor. A quoted "2400" is
+ * still a number under this rule — quoting only protects a comma, it does
+ * not change the value.
  */
 export function parseDataFile(text: string, filename: string): { rows: unknown; error?: string } {
   const trimmed = text.trim();
@@ -426,9 +487,16 @@ export function parseDataFile(text: string, filename: string): { rows: unknown; 
   }
   const lines = trimmed.split(/\r?\n/).filter((l) => l.trim() !== "");
   if (lines.length < 2) return { rows: null, error: `${filename} has a header but no rows` };
-  const cell = (line: string): string[] => line.split(",").map((c) => c.trim());
-  const headers = cell(lines[0]);
-  const body = lines.slice(1).map(cell);
+  const parsed: string[][] = [];
+  for (const line of lines) {
+    const cells = splitCsvLine(line);
+    if (cells === null) {
+      return { rows: null, error: `${filename} has an unterminated quote — a quoted field cannot span multiple lines` };
+    }
+    parsed.push(cells);
+  }
+  const headers = parsed[0];
+  const body = parsed.slice(1);
   const numeric = headers.map((_, c) => body.every((r) => r[c] !== undefined && r[c] !== "" && Number.isFinite(Number(r[c]))));
   const rows = body.map((r) => {
     const row: Record<string, unknown> = {};
@@ -453,6 +521,27 @@ export function assetNameFor(filename: string, taken: readonly string[]): string
   for (let n = 2; ; n++) if (!taken.includes(`${slug}_${n}`)) return `${slug}_${n}`;
 }
 
+/**
+ * The name to write at confirm time, and whether writing it overwrites an
+ * asset already there. Round 1 review, finding 1: the previous logic deduped
+ * against `taken.filter(n => n !== nameInput.value)`, which erased the typed
+ * name from the taken list and made every retype of an existing name look
+ * free — a silent overwrite reported as "Added".
+ *
+ * The two cases are genuinely different and both are correct, once told
+ * apart: an untouched PREFILL (edited: false) keeps auto-deduping, so a
+ * careless confirm can never clobber anything by accident. A name the author
+ * actually TYPED (edited: true) is taken at face value — no renaming, no
+ * filtering the taken list — because overwriting it is a wanted re-import
+ * (the oversize message already tells an author to "re-import the file"),
+ * not a bug. The caller reports `replacing` as "Replaced" instead of "Added".
+ */
+export function pickAssetName(typed: string, edited: boolean, taken: readonly string[]): { name: string; replacing: boolean } {
+  const trimmed = typed.trim();
+  const name = edited && trimmed !== "" ? trimmed : assetNameFor(trimmed, taken);
+  return { name, replacing: taken.includes(name) };
+}
+
 let dataSession: InsertSession | null = null;
 
 /** Opens the "Insert data from disk" dialog. Safe to call repeatedly — the
@@ -470,6 +559,10 @@ function buildData(): InsertSession {
   let items: PlaylistItem[] = [];
   /** The picked file's parsed rows and size — null until a file reads cleanly. */
   let picked: { rows: unknown; bytes: number } | null = null;
+  /** False for the auto-filled prefill, true the moment the author edits the
+   *  Name field by hand — the distinction pickAssetName runs on (round 1
+   *  review, finding 1). */
+  let nameEdited = false;
 
   const explanation = h(
     "p",
@@ -480,6 +573,7 @@ function buildData(): InsertSession {
   const fileInput = h("input", { type: "file", accept: ".json,.csv" }) as HTMLInputElement;
   const partSel = h("select", {}) as HTMLSelectElement;
   const nameInput = h("input", { type: "text", spellcheck: "false" }) as HTMLInputElement;
+  const nameNote = h("p", { class: "settings-note" }, "");
   const sizeNote = h("p", { class: "settings-note" }, "");
 
   const modal = createModal("Insert data from disk", { size: "s" });
@@ -492,6 +586,7 @@ function buildData(): InsertSession {
     h("div", { class: "settings-field" }, fileInput),
     h("div", { class: "settings-field" }, h("label", {}, "Part"), partSel),
     h("div", { class: "settings-field" }, h("label", {}, "Name"), nameInput),
+    nameNote,
     sizeNote,
   );
 
@@ -501,6 +596,20 @@ function buildData(): InsertSession {
 
   /** Asset names already in the chosen part — what a new name must not collide with. */
   const takenIn = (i: number): string[] => Object.keys(items[i]?.spec.assets ?? {});
+
+  /** Says so BEFORE the click, in the author's own words: a typed name that
+   *  matches an asset already in the chosen part will replace it. */
+  const updateNameNote = (): void => {
+    const typed = nameInput.value.trim();
+    const taken = takenIn(Number(partSel.value));
+    nameNote.textContent = nameEdited && typed !== "" && taken.includes(typed) ? `Replaces the existing "@${typed}".` : "";
+  };
+
+  nameInput.addEventListener("input", () => {
+    nameEdited = true;
+    updateNameNote();
+  });
+  partSel.addEventListener("change", () => updateNameNote());
 
   fileInput.addEventListener("change", () => {
     picked = null;
@@ -523,6 +632,8 @@ function buildData(): InsertSession {
       }
       picked = { rows, bytes };
       nameInput.value = assetNameFor(file.name, takenIn(Number(partSel.value)));
+      nameEdited = false;
+      updateNameNote();
       sizeNote.textContent = `${formatAssetSize(bytes)}${Array.isArray(rows) ? `, ${rows.length} rows` : ""}`;
       insertBtn.disabled = false;
     });
@@ -533,11 +644,20 @@ function buildData(): InsertSession {
     if (!playlist || !picked) return;
     const part = Number(partSel.value);
     const item = itemsOf(playlist)[part];
-    if (!item) return;
-    const name = assetNameFor(nameInput.value || "data", takenIn(part).filter((n) => n !== nameInput.value));
+    if (!item) {
+      // Same race, same wording as openInsertPortrait's commit(): the chosen
+      // part no longer exists in a fresh read, so there is nothing sensible
+      // to insert into and nothing was.
+      current.setStatus("That part no longer exists in the current text — nothing was inserted.", "error");
+      return;
+    }
+    const { name, replacing } = pickAssetName(nameInput.value, nameEdited, takenIn(part));
     ((item.spec.assets ??= {}) as Record<string, unknown>)[name] = picked.rows;
     current.applyPlaylist(playlist);
-    current.setStatus(`Added "@${name}" — ${formatAssetSize(picked.bytes)}. Point a param at it, e.g. set: "@${name}"`, "ok");
+    current.setStatus(
+      `${replacing ? "Replaced" : "Added"} "@${name}" — ${formatAssetSize(picked.bytes)}. Point a param at it, e.g. set: "@${name}"`,
+      "ok",
+    );
     modal.dialog.close();
   });
 
@@ -556,6 +676,8 @@ function buildData(): InsertSession {
       picked = null;
       fileInput.value = "";
       nameInput.value = "";
+      nameEdited = false;
+      nameNote.textContent = "";
       sizeNote.textContent = "";
       insertBtn.disabled = true;
       modal.open();
