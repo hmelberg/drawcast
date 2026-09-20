@@ -352,7 +352,7 @@ Add `resolveParamAssetRefs` to the existing import from `./assets`.
 - [ ] **Step 5: Run the tests**
 
 Run: `npx vitest run tests/spec-assets.test.ts -t "@name inside params"`
-Expected: PASS, all six.
+Expected: PASS, all seven.
 
 - [ ] **Step 6: Full suite and tsc**
 
@@ -858,7 +858,7 @@ Add `ASSET_SEND_MAX, assetBytes, describeAsset, isDataAsset` to hoist.ts's impor
 - [ ] **Step 6: Run the tests**
 
 Run: `npx vitest run tests/spec-assets.test.ts -t "descriptors and the send threshold"`
-Expected: PASS, all six.
+Expected: PASS, all seven.
 
 - [ ] **Step 7: Full suite and tsc**
 
@@ -1098,7 +1098,7 @@ export function assetNameFor(filename: string, taken: readonly string[]): string
 - [ ] **Step 4: Run the pure tests**
 
 Run: `npx vitest run tests/data-insert.test.ts`
-Expected: PASS, all six.
+Expected: PASS, all seven.
 
 - [ ] **Step 5: Build the dialog**
 

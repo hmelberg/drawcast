@@ -234,4 +234,17 @@ describe("@name inside params", () => {
     expect(paramsWithAssets(spec).set).toEqual(SET);
     expect((spec.params as { set: string }).set).toBe("@openings");
   });
+
+  test("a literal dotted key resolves correctly and does not throw — the path is a label, not a traversal", () => {
+    const params = { "chart.title": "@openings" };
+    expect(resolveParamAssetRefs({ assets: { openings: SET }, params })).toEqual([]);
+    expect(params["chart.title"]).toEqual(SET);
+  });
+
+  test("paramsWithAssets copies even with no assets — mutating the result must not touch spec.params", () => {
+    const spec = { params: { set: "plain" } } as unknown as Spec;
+    const out = paramsWithAssets(spec);
+    out.set = "mutated";
+    expect((spec.params as { set: string }).set).toBe("plain");
+  });
 });

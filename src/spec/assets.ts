@@ -87,42 +87,63 @@ export function specForDump<T extends { assets?: unknown }>(spec: T): T {
   return (assets === undefined ? rest : { ...rest, assets }) as T;
 }
 
+/** One `@name` found inside `params`: the dotted path it sits at, for
+ *  MESSAGES only ("deep.rows.0"), and the container + key it actually
+ *  occupies, for writing back without re-parsing that path as a string —
+ *  which would mis-traverse a params object that has a literal dotted key
+ *  (`{"chart.title": "@x"}`, the same idiom as `bind: {"at.x": "t"}`). */
+interface FoundRef {
+  path: string;
+  name: string;
+  host: Record<string, unknown> | unknown[];
+  key: string | number;
+}
+
 /**
- * Every `@name` inside `params`, with the dotted path it sits at ("set",
- * "deep.rows.0"). One walk serves both the resolver below and the semantic
- * errors, so the two can never disagree about what counts as a reference.
+ * The one walk that finds every `@name` inside `params`. `paramAssetRefs`
+ * (the public, message-only view) and `resolveParamAssetRefs` (the writer)
+ * both stand on this, so they can never disagree about what counts as a
+ * reference — and the writer never throws away the container it is standing
+ * on only to reconstruct it later by splitting a string.
  *
  * A reference is the WHOLE string or nothing: ASSET_REF is anchored, so
  * "see @openings" is prose and stays prose.
  */
-export function paramAssetRefs(params: unknown): { path: string; name: string }[] {
-  const out: { path: string; name: string }[] = [];
-  const walk = (value: unknown, path: string): void => {
+function findParamRefs(params: unknown): FoundRef[] {
+  const out: FoundRef[] = [];
+  const walk = (value: unknown, path: string, host: Record<string, unknown> | unknown[] | null, key: string | number | null): void => {
     if (typeof value === "string") {
       const name = assetRef(value);
-      if (name !== null) out.push({ path, name });
+      if (name !== null && host !== null && key !== null) out.push({ path, name, host, key });
       return;
     }
     if (Array.isArray(value)) {
-      value.forEach((v, i) => walk(v, path === "" ? String(i) : `${path}.${i}`));
+      value.forEach((v, i) => walk(v, path === "" ? String(i) : `${path}.${i}`, value, i));
       return;
     }
     if (value !== null && typeof value === "object") {
       for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-        walk(v, path === "" ? k : `${path}.${k}`);
+        walk(v, path === "" ? k : `${path}.${k}`, value as Record<string, unknown>, k);
       }
     }
   };
-  walk(params, "");
+  walk(params, "", null, null);
   return out;
 }
 
-/** Write `value` at a dotted path inside `params`. The path came from paramAssetRefs, so every host exists. */
-function setAtPath(params: unknown, path: string, value: unknown): void {
-  const keys = path.split(".");
-  let host = params as Record<string, unknown>;
-  for (const key of keys.slice(0, -1)) host = host[key] as Record<string, unknown>;
-  host[keys[keys.length - 1]] = value;
+/** Write into the container a FoundRef stands on — never a path re-parsed from a string. No `any`: the two host shapes each get their own indexing. */
+function setRef(ref: FoundRef, value: unknown): void {
+  if (Array.isArray(ref.host)) ref.host[ref.key as number] = value;
+  else ref.host[ref.key as string] = value;
+}
+
+/**
+ * Every `@name` inside `params`, with the dotted path it sits at ("set",
+ * "deep.rows.0") — for MESSAGES (semanticErrors, Task 3). Resolution itself
+ * goes through findParamRefs directly, never through this path string.
+ */
+export function paramAssetRefs(params: unknown): { path: string; name: string }[] {
+  return findParamRefs(params).map(({ path, name }) => ({ path, name }));
 }
 
 /**
@@ -134,18 +155,18 @@ function setAtPath(params: unknown, path: string, value: unknown): void {
 export function resolveParamAssetRefs(spec: { assets?: unknown; params?: unknown }): string[] {
   const dangling: string[] = [];
   const assets = typeof spec.assets === "object" && spec.assets !== null ? (spec.assets as Record<string, unknown>) : {};
-  for (const { path, name } of paramAssetRefs(spec.params)) {
-    const value = assets[name];
+  for (const ref of findParamRefs(spec.params)) {
+    const value = assets[ref.name];
     // Two references are left STANDING for semanticErrors to report: a name
     // that is not there, and a name whose asset is encoded bytes. Bytes are
     // not data, and silently pasting a base64 string into a param would fail
     // much further downstream, as a template complaining about a type.
     if (value === undefined) {
-      dangling.push(name);
+      dangling.push(ref.name);
       continue;
     }
     if (typeof value === "string") continue;
-    setAtPath(spec.params, path, value);
+    setRef(ref, value);
   }
   return dangling;
 }
@@ -153,13 +174,12 @@ export function resolveParamAssetRefs(spec: { assets?: unknown; params?: unknown
 /**
  * Params with every `@name` resolved — the form every VALIDATOR must see.
  * normalizeSpec does this for the render path; this is for the authoring
- * path, which does not go through it (design §4.3). A copy: the document
- * keeps its references.
+ * path, which does not go through it (design §4.3). ALWAYS a copy — even
+ * when there are no assets to resolve — so a caller can never end up
+ * mutating the spec's own params through the result.
  */
 export function paramsWithAssets(spec: Pick<Spec, "assets" | "params">): Record<string, unknown> {
-  const params = (spec.params ?? {}) as Record<string, unknown>;
-  if (spec.assets === undefined) return params;
-  const clone = JSON.parse(JSON.stringify(params)) as Record<string, unknown>;
-  resolveParamAssetRefs({ assets: spec.assets, params: clone });
+  const clone = JSON.parse(JSON.stringify(spec.params ?? {})) as Record<string, unknown>;
+  if (spec.assets !== undefined) resolveParamAssetRefs({ assets: spec.assets, params: clone });
   return clone;
 }
