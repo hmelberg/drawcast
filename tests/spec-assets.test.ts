@@ -314,3 +314,25 @@ describe("asset errors", () => {
     expect(formatAssetSize(ASSET_MAX_BYTES)).toBe("1 MB");
   });
 });
+
+describe("the authoring-time trap (design §4.3)", () => {
+  test("a param that points at an asset is not a schema violation", async () => {
+    const { registerPack } = await import("../src/scenes/packs");
+    const { ensureEngines } = await import("../src/scenes/engines");
+    const { templateParamIssues } = await import("../src/scenes/params-check");
+    const gamesYaml = (await import("../src/scenes/packs/games.yaml?raw")).default;
+    await ensureEngines(["chess"]);
+    registerPack("games", gamesYaml);
+
+    const spec = {
+      template: "chess_board",
+      params: { moves: "@line" },
+      assets: { line: ["e4", "e5", "Nf3"] },
+    } as unknown as Spec;
+
+    // Unresolved, the schema sees a string where an array belongs.
+    expect(templateParamIssues("chess_board", spec.params, true).errors.length).toBeGreaterThan(0);
+    // Resolved — the form every validator must see — it is clean.
+    expect(templateParamIssues("chess_board", paramsWithAssets(spec), true).errors).toEqual([]);
+  });
+});
