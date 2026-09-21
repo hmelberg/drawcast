@@ -2912,6 +2912,47 @@ loudly or is unreachable from the printer.
 - `src/llm/hoist.ts` now holds stroke hoisting AND note formatting. Fine for two; worth a
   rename or split if a third unrelated helper lands there.
 
+## supply_demand welfare round (2026-09-21, af6e47e) — deferred, known, not blocking
+
+Everything below was found by review, judged not worth blocking the round, and
+is recorded here because the round's scratch ledger does not survive. Design:
+`docs/superpowers/specs/2026-09-21-supply-demand-welfare-design.md`.
+
+- `shadeable` uses a bare `qTraded > qLeft`, not the file's own `> 0.5` sliver
+  idiom the DWL and wedge use. Extreme corners (demand 0.4 / supply 0.3 +
+  `price_floor: 81`) still ship a `cs_region` 0.098 px wide — geometrically
+  correct, but it reads as a line. 895 of 16288 regions in a control-level
+  sweep come out under 100 px².
+- The DWL sliver suppression drops a REQUESTED region with no warning.
+- Five of 360 swept elasticity combos leave a 3.3–4.6 % welfare-identity
+  residual (all `demand 0.06 / supply 0.06`, both curves near-vertical, tiny
+  base). A deliberate consequence of the `|Q_t − Q*| > 0.5` threshold, which
+  arrived in b783bbb on this branch — not inherited.
+- `qLeft` assumes the curve arrays are x-ascending. `interpolateAtX` and
+  `solveForX` already assume it too; nothing asserts it anywhere.
+- `simplify` de-duplicates in domain space, but coincident vertices also arise
+  after scaling to logical space.
+- 41 of 81 free-market figures moved a `cs_region`/`ps_region` LABEL ANCHOR by
+  up to 8 logical px (the polygons gain or lose a coincident vertex). Areas are
+  bit-identical. Only the two intended manifest examples differ among the 11
+  shipped `supply_demand` figures.
+- `tax_equilibrium_point` and `price_buyers_point` are two drawables at
+  identical coordinates, documented as separate ids with no hint they coincide;
+  drawing both doubles the sketch dot.
+- `addGap` measures the shortage/surplus off the UNTAXED curves, so a tax plus a
+  binding ceiling draws a gap that is wrong for the taxed market. Precedence
+  correctly gives the intervention to the tax; the gap ignores it.
+- `tax.amount`'s clamp bounds (per_unit [-40, 60], ad_valorem [-50, 200]) are
+  undocumented in the manifest.
+- Not done, ruled out deliberately: spec §9 asked for an incidence fewshot in
+  `fewshots.json`. The two manifest examples and the rewritten bundled exemplar
+  already teach these params, and prompt size was being cut, so it was skipped.
+
+Next round candidates from the same design (§12): externality / Pigouvian tax
+(a third curve — MSC/MSB, the social optimum, the externality DWL), and
+tariff / quota (a world-price line and import geometry). Neither reuses this
+round's machinery, so neither got cheaper by being crammed in.
+
 ## Housekeeping
 
 - Regenerate `package-lock.json` (`npm install`) and switch CI back to
