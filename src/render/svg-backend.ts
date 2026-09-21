@@ -601,42 +601,167 @@ function makeLeafHandle(g: SVGGElement, leaf: Exclude<Drawable, { kind: "group" 
   // revealed path lands back on exactly the value a freshly built node
   // carries — the invariant animate's cheap tween frames depend on (see
   // swapGeometry).
-  let paths: { el: SVGPathElement; len: number; fillOpacity: number | null }[] | null = null;
+  let paths: RevealNode[] | null = null;
+  /** The nodes the reveal is writing to WHILE it runs: one per subpath (see
+   *  splitForReveal), or null whenever the leaf stands at its own nodes. */
+  let drawing: RevealNode[] | null = null;
   let total = 0;
   const ensure = () => {
     if (paths) return;
     paths = [];
     for (const p of Array.from(g.querySelectorAll("path"))) {
-      const len = p.getTotalLength();
-      // Solid fills are not hidden by dash-offset; fade them with progress.
-      const authored = Number(p.getAttribute("fill-opacity") ?? "1");
-      const fillOpacity =
-        (p.getAttribute("fill") ?? "none") === "none" ? null : Number.isFinite(authored) ? authored : 1;
-      paths.push({ el: p, len, fillOpacity });
-      total += len;
+      paths.push(revealNode(p));
+      total += p.getTotalLength();
     }
+  };
+  /** Back to the leaf's own nodes: what a freshly built leaf looks like, which
+   *  is what every cheap tween frame and every clone of this group assumes. */
+  const collapse = () => {
+    if (!drawing) return;
+    for (const n of drawing) if (n.el.dataset.revealPiece) n.el.remove();
+    for (const n of paths!) n.el.style.display = "";
+    drawing = null;
+  };
+  const apply = (nodes: RevealNode[], t: number) => {
+    const locals = revealLocals(nodes.map((n) => n.len), t);
+    nodes.forEach((n, i) => setRevealAt(n, locals[i], t));
   };
   return {
     durationMs: leaf.drawOpts.duration,
     prepare: () => {
       ensure();
-      for (const { el, len, fillOpacity } of paths!) {
-        el.style.strokeDasharray = `${len}`;
-        el.style.strokeDashoffset = `${len}`;
-        if (fillOpacity !== null) el.style.fillOpacity = "0";
-      }
+      collapse();
+      apply(paths!, 0);
     },
     setProgress: (t) => {
       ensure();
-      let elapsed = t * total;
-      for (const { el, len, fillOpacity } of paths!) {
-        const local = Math.min(Math.max(elapsed, 0), len);
-        el.style.strokeDashoffset = `${len - local}`;
-        if (fillOpacity !== null) el.style.fillOpacity = String(fillOpacity * (len > 0 ? local / len : t));
-        elapsed -= len;
+      // At either end the leaf stands at its own nodes; only the draw itself
+      // needs the split, so the DOM carries the extra nodes for the length of
+      // one beat and no longer.
+      if (t <= 0 || t >= 1) {
+        collapse();
+        apply(paths!, t);
+        return;
       }
+      if (!drawing) drawing = splitForReveal(paths!);
+      apply(drawing, t);
     },
   };
+}
+
+/** One node the reveal writes to, and what it needs to know about it. */
+interface RevealNode {
+  el: SVGPathElement;
+  len: number;
+  /** The path's OWN authored fill-opacity; null when there is no fill to fade. */
+  fillOpacity: number | null;
+}
+
+function revealNode(el: SVGPathElement): RevealNode {
+  const authored = Number(el.getAttribute("fill-opacity") ?? "1");
+  // Solid fills are not hidden by dash-offset; fade them with progress.
+  const fillOpacity = (el.getAttribute("fill") ?? "none") === "none" ? null : Number.isFinite(authored) ? authored : 1;
+  return { el, len: el.getTotalLength(), fillOpacity };
+}
+
+/** Where the pen has got to on each node when the leaf is at `t`: one node is
+ *  finished before the next is started, so the lengths are drawn in order.
+ *  Pure, and the whole of the reveal's timing. */
+export function revealLocals(lens: number[], t: number): number[] {
+  const total = lens.reduce((a, b) => a + b, 0);
+  let elapsed = t * total;
+  return lens.map((len) => {
+    const local = Math.min(Math.max(elapsed, 0), len);
+    elapsed -= len;
+    return local;
+  });
+}
+
+function setRevealAt(n: RevealNode, local: number, t: number): void {
+  const { el, len, fillOpacity } = n;
+  if (len > 0) {
+    el.style.strokeDasharray = `${len}`;
+    el.style.strokeDashoffset = `${len - local}`;
+  } else {
+    // A path with no length cannot be dashed at all: `stroke-dasharray: 0` is
+    // a no-op, and a round cap paints the degenerate subpath as a DOT. Hide it
+    // outright until the pen reaches it.
+    el.style.visibility = t > 0 ? "" : "hidden";
+  }
+  if (fillOpacity !== null) el.style.fillOpacity = String(fillOpacity * (len > 0 ? local / len : t));
+}
+
+/** At most this many nodes stand in for one path while it is drawn. A traced
+ *  outline can hold thousands of subpaths; past the cap they are grouped, so
+ *  the drawing still moves through the path in order and the DOM stays sane. */
+const MAX_REVEAL_NODES = 240;
+
+/**
+ * The reveal's nodes for one beat: every multi-subpath path replaced, in
+ * place, by one node per subpath.
+ *
+ * Why, at all: a dash pattern RESTARTS at the start of every subpath, so
+ * `stroke-dasharray: len; stroke-dashoffset: len − local` (the whole path's
+ * length) advances EVERY subpath by `local` at once. A path holds many
+ * subpaths — rough.js draws each segment twice, each pass its own subpath; a
+ * dashed line is one subpath per dash; an arrowhead is a subpath of its own —
+ * so the leaf did not draw stroke by stroke at all: every stroke grew at the
+ * same time, the short ones finished within the first percent of the beat and
+ * then SAT THERE as small marks (an arrowhead waiting at the tip for its
+ * shaft) while the long ones caught up, and the whole shape was done long
+ * before its beat was (measured 2026-09-21: a triangle at 21% of its slot, a
+ * dashed curve at 1%). One node per subpath is the same ink with one pen.
+ */
+function splitForReveal(paths: RevealNode[]): RevealNode[] {
+  const out: RevealNode[] = [];
+  for (const n of paths) {
+    // A filled path is one shape: split it and each piece would fill itself.
+    const subs = n.fillOpacity === null ? splitSubpaths(n.el.getAttribute("d") ?? "") : null;
+    if (!subs || subs.length < 2) {
+      out.push(n);
+      continue;
+    }
+    const parent = n.el.parentNode;
+    if (!parent) {
+      out.push(n);
+      continue;
+    }
+    for (const d of chunkSubpaths(subs, MAX_REVEAL_NODES)) {
+      const piece = n.el.cloneNode(false) as SVGPathElement;
+      piece.setAttribute("d", d);
+      piece.dataset.revealPiece = "1";
+      parent.insertBefore(piece, n.el);
+      out.push(revealNode(piece));
+    }
+    n.el.style.display = "none";
+  }
+  return out;
+}
+
+/**
+ * A path's data as one string per subpath, in drawing order — or null when
+ * the data must not be taken apart: a RELATIVE moveto reads from the previous
+ * subpath's last point, so a piece lifted out of the path would move.
+ */
+export function splitSubpaths(d: string): string[] | null {
+  const parts = d
+    .split(/(?=[Mm])/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  if (parts.length === 0) return null;
+  if (parts.some((p) => p.startsWith("m"))) return null;
+  return parts;
+}
+
+/** `subs` as at most `max` nodes, consecutive subpaths grouped when there are
+ *  more than that. Order is never disturbed: the join of the result is the
+ *  join of the input. */
+export function chunkSubpaths(subs: string[], max: number): string[] {
+  if (subs.length <= max) return subs;
+  const per = Math.ceil(subs.length / max);
+  const out: string[] = [];
+  for (let i = 0; i < subs.length; i += per) out.push(subs.slice(i, i + per).join(" "));
+  return out;
 }
 
 /**
