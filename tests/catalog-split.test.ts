@@ -92,10 +92,15 @@ describe("catalogParts above the threshold", () => {
     expect(catalogText({ request })).toBe(joined);
   });
 
-  test("no keyword match yields an empty variable even above threshold", () => {
+  // Before the unpin (design §3.1) this returned an empty variable: the
+  // always-full core pin made the empty-shortlist case moot. Now a
+  // non-empty request neither selector could place is exactly the case
+  // LAST_RESORT_IDS exists for (src/scenes/catalog.ts) — an index and
+  // nothing else was the one prompt this catalog promised never to send.
+  test("no keyword match falls back to the last-resort ids instead of an empty variable", () => {
     fillPastThreshold();
     const parts = catalogParts({ request: "zzz qqq" });
-    expect(parts.variable).toBe("");
+    expect(parts.variable).toContain("### Scene template: supply_demand (READY");
   });
 });
 
@@ -117,9 +122,10 @@ describe("catalogParts with a router shortlist", () => {
     expect(variable.indexOf("### Scene template: rs_b (READY")).toBeLessThan(variable.indexOf("### Scene template: rs_a (READY"));
     expect(variable).not.toContain("### Scene template: rs_c (READY");
     expect(variable).not.toContain("nope");
-    // supply_demand is CORE: it is in stable already, so never duplicated into variable.
-    expect(stable).toContain("### Scene template: supply_demand (READY");
-    expect(variable).not.toContain("### Scene template: supply_demand (READY");
+    // supply_demand is no longer pinned into stable (design §3.1): shortlisted
+    // like any other id, it travels in variable, in full, with the rest of the pick.
+    expect(stable).not.toContain("### Scene template: supply_demand (READY");
+    expect(variable).toContain("### Scene template: supply_demand (READY");
     // The router never touches the stable prefix.
     expect(stable).toBe(catalogParts({ request: "unrelated words" }).stable);
   });

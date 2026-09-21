@@ -27,8 +27,24 @@ import { PACK_DEFS, packTemplateIds } from "./packs";
  */
 export const TEMPLATE_FULL_THRESHOLD = 40; // lowered 2026-09-07: the router (src/llm/router.ts) makes two-level the default regime
 
-/** Always promoted to a full entry once the catalog goes two-level. */
-const CORE_IDS = ["supply_demand", "decision_tree", "qaly_profiles"];
+/**
+ * The shortlist of last resort: used ONLY when a request produced no
+ * shortlist at all — no router (or a failed one) AND no keyword overlap.
+ *
+ * Until 2026-09-22 these three were pinned into every request's stable
+ * catalog in full, 26,890 chars a chess question paid for. That pin predates
+ * the template router (src/llm/router.ts, 97.9 % top-5 joined with the
+ * keyword selector), which shortlists them for the requests that want them.
+ *
+ * It is not simply deleted, because the keyword selector is ENGLISH: every
+ * template description is written in English, so `selectTemplates("Forklar
+ * tilbud og etterspørsel", 5)` returns [] — measured — and half this app's
+ * requests are written in Norwegian. With a router that is harmless (it
+ * reads meaning, not keywords); with no router it is the one case the pin
+ * was really carrying. So the pin becomes a fallback for exactly that case
+ * and costs nothing in every other.
+ */
+const LAST_RESORT_IDS = ["supply_demand", "decision_tree", "qaly_profiles"];
 
 /**
  * True when id names a registered, ready (rendering) template — a stub, an
@@ -257,10 +273,10 @@ export function catalogParts(opts: CatalogOpts = {}): { stable: string; variable
 
   const index = ready.map((s) => `- ${s.manifest.name}: ${firstSentence(s.manifest.description)}`).join("\n");
 
-  // Preference-stable hot set: config only (forced/priority/core), NEVER the
+  // Preference-stable hot set: config only (forced/priority), NEVER the
   // free-text request — that's what keeps `stable` identical across requests
   // sharing the same forced template / priority packs (the cache_control pin).
-  const stableIds = dedupe([...(opts.forced ? [opts.forced] : []), ...(opts.priorityIds ?? []), ...CORE_IDS]).filter(
+  const stableIds = dedupe([...(opts.forced ? [opts.forced] : []), ...(opts.priorityIds ?? [])]).filter(
     (id) => scenes[id]?.manifest.status === "ready" && !excluded.has(id),
   );
 
@@ -279,8 +295,18 @@ export function catalogParts(opts: CatalogOpts = {}): { stable: string; variable
   // 97.9 %), the router being terse and the keyword selector literal. Without
   // a router it is the keyword selector alone, three deep, as before.
   const routed = opts.shortlist && opts.shortlist.length > 0 ? dedupe(opts.shortlist).slice(0, HOT_SHORTLIST) : [];
-  const picks = routed.length > 0 ? dedupe([...routed, ...selectTemplates(opts.request ?? "", HOT_SHORTLIST)]).slice(0, HOT_SHORTLIST) : selectTemplates(opts.request ?? "", 3);
-  const shortlist = picks.filter((id) => scenes[id]?.manifest.status === "ready" && !stableIds.includes(id) && !excluded.has(id));
+  const keyword = selectTemplates(opts.request ?? "", routed.length > 0 ? HOT_SHORTLIST : 3);
+  const picks = routed.length > 0 ? dedupe([...routed, ...keyword]).slice(0, HOT_SHORTLIST) : keyword;
+  // Neither selector placed this request (a router outage on a request whose
+  // language the English keyword selector cannot read). An index and nothing
+  // else is the one prompt this catalog promised never to send — see
+  // LAST_RESORT_IDS.
+  // Guarded on a non-empty request: catalogParts({}) is a degenerate call
+  // with no request to serve (tests/catalog_exclude.test.ts makes it), and
+  // firing the fallback there would add ~27,000 chars nobody asked for.
+  const needsFallback = picks.length === 0 && stableIds.length === 0 && (opts.request ?? "").trim().length > 0;
+  const placed = needsFallback ? LAST_RESORT_IDS : picks;
+  const shortlist = placed.filter((id) => scenes[id]?.manifest.status === "ready" && !stableIds.includes(id) && !excluded.has(id));
   const variable = shortlist.length > 0 ? [VARIABLE_PREAMBLE, ...shortlist.map((id) => fullEntry(scenes[id].manifest))].join("\n\n") : "";
 
   return { stable: stableParts.join("\n\n"), variable };

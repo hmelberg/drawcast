@@ -40,13 +40,54 @@ describe("the default catalog", () => {
     expect(catalogIsTwoLevel()).toBe(true);
   });
 
-  test("every ready template is on the index, the core stays in full, and the escalation is offered", () => {
+  test("every ready template is on the index, and the escalation is offered", () => {
     const { stable, variable } = catalogParts({ request: "draw the structure of aspirin" });
     for (const id of readyIds()) expect(stable).toContain(`- ${id}: `);
-    for (const id of ["supply_demand", "decision_tree", "qaly_profiles"]) expect(stable).toContain(`### Scene template: ${id} (READY`);
+    // The core three are no longer pinned into the stable half (design §3.1);
+    // their own test above covers how a request reaches them now.
+    for (const id of ["supply_demand", "decision_tree", "qaly_profiles"]) expect(stable).toContain(`- ${id}: `);
     expect(stable).toContain("need_template");
     // The request's own shortlist travels outside the cached prefix, in full.
     expect(variable).toContain("### Scene template: molecule (READY");
+  });
+
+  // Design §3.1. The two-level catalog's stable half is the cached prefix of
+  // every request, whatever its topic. Before this round it carried three
+  // health-economics templates in full — 26,890 chars a chess request paid
+  // for. The router shortlists them now. Measured 2026-09-22 after the
+  // unpin: 25,513 chars. The ceiling is the measurement plus ~10 % of room
+  // for the index to grow with the library; a round that adds a pack may
+  // re-pin it, on purpose, with a note like this one.
+  test("the stable catalog is the index and nothing expanded", () => {
+    const { stable } = catalogParts({ request: "explain a chess opening" });
+    expect(stable).not.toContain("### Scene template: supply_demand (READY");
+    expect(stable).not.toContain("### Scene template: qaly_profiles (READY");
+    expect(stable).not.toContain("### Scene template: decision_tree (READY");
+    expect(stable.length).toBeLessThan(26_000); // measured 25,513, rounded up to the next 500
+    // The index itself is intact: every ready template still has its line.
+    for (const id of readyIds()) expect(stable).toContain(`- ${id}: `);
+    expect(stable).toContain("need_template");
+  });
+
+  test("a request that wants a core template still gets it in full", () => {
+    const { variable } = catalogParts({ request: "Explain supply and demand with a tax" });
+    expect(variable).toContain("### Scene template: supply_demand (READY");
+  });
+
+  // The measured hole the unpin opens: template descriptions are English, so
+  // a Norwegian request scores zero keyword overlap and selectTemplates
+  // returns []. With a router that is fine — it reads meaning. With no
+  // router and no keyword hit the model would face an index and nothing
+  // else, which is exactly the request the pin used to rescue.
+  test("a request no selector could shortlist still gets the fallback", () => {
+    const { variable } = catalogParts({ request: "Forklar tilbud og etterspørsel" });
+    expect(variable).toContain("### Scene template: supply_demand (READY");
+  });
+
+  test("a request the keyword selector CAN place gets no fallback padding", () => {
+    const { variable } = catalogParts({ request: "draw the structure of aspirin" });
+    expect(variable).toContain("### Scene template: molecule (READY");
+    expect(variable).not.toContain("### Scene template: qaly_profiles (READY");
   });
 
   test("a router shortlist puts its picks in full, capped, ahead of the keyword picks", () => {
