@@ -15,7 +15,7 @@
 import { beforeAll, describe, expect, test } from "vitest";
 import { DEFAULT_SETTINGS } from "../src/store";
 import { PACK_DEFS, DEFAULT_OFF_PACKS, ensureEnabledPacks } from "../src/scenes/packs";
-import { catalogFullText, catalogIsTwoLevel, catalogParts, catalogText, HOT_SHORTLIST, TEMPLATE_FULL_THRESHOLD } from "../src/scenes/catalog";
+import { catalogFullText, catalogIsTwoLevel, catalogParts, catalogText, HOT_SHORTLIST, TEMPLATE_FULL_THRESHOLD, routerIndexText } from "../src/scenes/catalog";
 import { scenes } from "../src/scenes/registry";
 
 function readyIds(): string[] {
@@ -166,5 +166,31 @@ describe("the default catalog", () => {
     const full = catalogFullText().length;
     const { stable, variable } = catalogParts({ request: "draw the structure of aspirin" });
     expect(stable.length + variable.length).toBeLessThan(full * 0.35);
+  });
+
+  // Design §3.4. The index is in the cached prefix of every request; the
+  // router reads its own, richer index (routerIndexText), so capping this
+  // one costs routing nothing. Its two jobs here are knowing what exists and
+  // naming an id for the need_template escalation — 140 chars serves both.
+  // Measured in this worktree before the cap: 24,728 index chars (median
+  // line 276, longest 497 — note_sheet), stable.length 25,513. After: 13,194
+  // index chars (median 152, longest 163), stable.length 13,979 — the index
+  // alone dropped ~47%, and it is most of stable, so stable dropped ~45%.
+  test("no index line runs long", () => {
+    const index = catalogParts({ request: "x" }).stable.split("\n\n")[0].split("\n");
+    expect(index).toHaveLength(readyIds().length);
+    for (const line of index) {
+      const text = line.slice(line.indexOf(": ") + 2);
+      expect(text.length, line).toBeLessThanOrEqual(141); // 140 + the ellipsis
+      expect(line.length, line).toBeLessThanOrEqual(180); // sanity: id + prefix + capped text
+    }
+    // The cap is a cap, not a truncation of everything: short descriptions are
+    // untouched and still end in their own full stop.
+    expect(index.some((l) => l.endsWith("."))).toBe(true);
+  });
+
+  test("the router's index is NOT capped", () => {
+    const longest = routerIndexText().split("\n").reduce((a, b) => (b.length > a.length ? b : a));
+    expect(longest.length).toBeGreaterThan(200);
   });
 });

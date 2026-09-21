@@ -109,6 +109,29 @@ function firstSentence(description: string): string {
   return (m ? m[0] : description.trim()).trim();
 }
 
+/**
+ * One template's line in the compiler's index — the list of every ready
+ * template that rides the cached prefix of every request. Capped, because at
+ * 88 templates the uncapped first sentence came to 24,815 chars (median 276,
+ * longest 497: descriptions that open by listing their presets).
+ *
+ * Capping is safe here and nowhere else: the ROUTER reads its own index
+ * (routerIndexText below), which keeps the full sentence plus the "Choose
+ * this for…" sentence plus two example requests. This line's only jobs are
+ * telling the model the template exists and giving it an id to name in a
+ * need_template escalation. Cut on a word boundary so the tail is never a
+ * half word, and only when there is something to cut. Design §3.4.
+ */
+const INDEX_LINE_MAX = 140;
+
+function indexLine(manifest: SceneManifest): string {
+  const text = firstSentence(manifest.description);
+  if (text.length <= INDEX_LINE_MAX) return `- ${manifest.name}: ${text}`;
+  const cut = text.slice(0, INDEX_LINE_MAX);
+  const at = cut.lastIndexOf(" ");
+  return `- ${manifest.name}: ${(at > INDEX_LINE_MAX / 2 ? cut.slice(0, at) : cut).trimEnd()}…`;
+}
+
 /** The "Choose this scene for …" sentence most descriptions carry — the
  *  author's own routing hint, written for exactly this purpose. */
 function chooseSentence(description: string): string | null {
@@ -276,7 +299,7 @@ export function catalogParts(opts: CatalogOpts = {}): { stable: string; variable
     return { stable: parts.join("\n\n"), variable: "" };
   }
 
-  const index = ready.map((s) => `- ${s.manifest.name}: ${firstSentence(s.manifest.description)}`).join("\n");
+  const index = ready.map((s) => indexLine(s.manifest)).join("\n");
 
   // Preference-stable hot set: config only (forced/priority), NEVER the
   // free-text request — that's what keeps `stable` identical across requests
