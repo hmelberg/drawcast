@@ -44,8 +44,8 @@ export interface SupplyDemandParams {
     show_deadweight_loss?: boolean;
     label?: string;
   };
-  price_ceiling?: { label?: string; show_shortage?: boolean };
-  price_floor?: { label?: string; show_surplus?: boolean };
+  price_ceiling?: { level?: number; label?: string; show_shortage?: boolean };
+  price_floor?: { level?: number; label?: string; show_surplus?: boolean };
   regions?: ("consumer_surplus" | "producer_surplus")[];
 }
 
@@ -331,21 +331,32 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     }
   }
 
-  // Price ceiling below equilibrium (creates a shortage).
-  if (params.price_ceiling && eq) {
-    const pc = eq[1] * 0.62;
+  // Price controls. Both resolve to the same Intervention as the tax: the
+  // quantity actually traded is the SHORT side, and both sides face one price,
+  // so the wedge rectangle is zero-height and Task 4 skips it automatically.
+  if (params.price_ceiling && eq && supplyPts) {
+    const pc = Math.max(2, Math.min(96, params.price_ceiling.level ?? eq[1] * 0.62));
     addPriceLine("ceiling", pc, params.price_ceiling.label ?? "Price ceiling");
-    if (params.price_ceiling.show_shortage !== false && supplyPts) {
-      addGap("shortage", pc, solveForX(supplyPts, pc), solveForX(demandPts, pc), "Shortage");
+    const binds = pc < eq[1];
+    const qs = binds ? solveForX(supplyPts, pc) : null;
+    if (binds && qs !== null) {
+      if (iv.kind === "none") iv = { kind: "ceiling", qTraded: qs, pBuyers: pc, pSellers: pc };
+      if (params.price_ceiling.show_shortage !== false) {
+        addGap("shortage", pc, qs, solveForX(demandPts, pc), "Shortage");
+      }
     }
   }
 
-  // Price floor above equilibrium (creates a surplus).
-  if (params.price_floor && eq) {
-    const pf = Math.min(eq[1] * 1.35, 92);
+  if (params.price_floor && eq && supplyPts) {
+    const pf = Math.max(2, Math.min(96, params.price_floor.level ?? Math.min(eq[1] * 1.35, 92)));
     addPriceLine("floor", pf, params.price_floor.label ?? "Price floor");
-    if (params.price_floor.show_surplus !== false && supplyPts) {
-      addGap("surplus", pf, solveForX(demandPts, pf), solveForX(supplyPts, pf), "Surplus");
+    const binds = pf > eq[1];
+    const qd = binds ? solveForX(demandPts, pf) : null;
+    if (binds && qd !== null) {
+      if (iv.kind === "none") iv = { kind: "floor", qTraded: qd, pBuyers: pf, pSellers: pf };
+      if (params.price_floor.show_surplus !== false) {
+        addGap("surplus", pf, qd, solveForX(supplyPts, pf), "Surplus");
+      }
     }
   }
 

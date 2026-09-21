@@ -326,3 +326,44 @@ describe("tax decomposition", () => {
     }
   });
 });
+
+describe("price control levels", () => {
+  test("level sets the line, and the defaults reproduce today's figure", () => {
+    const dflt = layoutSupplyDemand({ price_ceiling: {} });
+    const explicit = layoutSupplyDemand({ price_ceiling: { level: 31 } });
+    const y = (l: SceneLayout) => stroke(l, "ceiling_line").pts[0][1];
+    expect(y(explicit)).toBeCloseTo(y(dflt), 1);
+    const lower = layoutSupplyDemand({ price_ceiling: { level: 20 } });
+    expect(y(lower)).toBeLessThan(y(dflt)); // lower price = smaller logical y (y is UP)
+  });
+
+  test("a lower ceiling opens a wider shortage", () => {
+    const gap = (level: number) => {
+      const a = stroke(layoutSupplyDemand({ price_ceiling: { level } }), "shortage_arrow").pts;
+      return Math.abs(a[1][0] - a[0][0]);
+    };
+    expect(gap(20)).toBeGreaterThan(gap(40));
+  });
+
+  test("a non-binding control still draws its line but no gap", () => {
+    const all = ids(layoutSupplyDemand({ price_ceiling: { level: 80 } })); // above P* = 50
+    expect(all).toContain("ceiling_line");
+    expect(all).not.toContain("shortage_arrow");
+  });
+
+  test("a floor above the equilibrium produces a surplus", () => {
+    const all = ids(layoutSupplyDemand({ price_floor: { level: 70 } }));
+    expect(all).toContain("floor_line");
+    expect(all).toContain("surplus_arrow");
+  });
+
+  // Not in the brief: the test above passes even if `level` were ignored,
+  // since the hard-coded default (67.5) is also above P* = 50 and would still
+  // draw a surplus. This mirrors the ceiling's non-binding test to actually
+  // pin the floor's `level` wiring and its binds check.
+  test("a non-binding floor still draws its line but no gap", () => {
+    const all = ids(layoutSupplyDemand({ price_floor: { level: 40 } })); // below P* = 50
+    expect(all).toContain("floor_line");
+    expect(all).not.toContain("surplus_arrow");
+  });
+});
