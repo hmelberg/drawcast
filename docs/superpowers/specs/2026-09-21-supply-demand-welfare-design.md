@@ -139,9 +139,18 @@ Applied to the sampled polyline *after* `shapedCurve`, so **nothing inside
 | 1.5 (`elastic`) | 2.41 | flat |
 | 1.94 (`perfectly_elastic`) | 21.2 | horizontal — 4.0 units of height across the plot |
 
-`tan(π/4) = 1` exactly, so `e = 1` is a true identity: every existing figure
-renders byte-identically and the two steepness tests at
+`e = 1` must be an exact identity: every existing figure renders
+byte-identically and the two steepness tests at
 `tests/supply-demand.test.ts:99` keep passing untouched.
+
+**It does not come free from the arithmetic.** An earlier draft of this
+section claimed `tan(π/4) = 1` exactly. It does not — IEEE-754 gives
+`Math.tan(Math.PI / 4) === 0.9999999999999999`, so an `s === 1` fast path
+never fires for the default and the identity survives only by floating-point
+coincidence (`(a·s)/s` happening to round-trip for this one `s`). Measured
+2026-09-21, after a reviewer caught it. `elasticityFactor` must therefore
+special-case the unit input and return exactly `1` before computing any
+tangent.
 
 **The clamp is load-bearing, not cosmetic.** At `e = 0` the curve collapses to
 a literal vertical line, and `interpolateAtX`, `solveForX` and
