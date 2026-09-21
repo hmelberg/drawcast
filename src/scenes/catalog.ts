@@ -22,8 +22,9 @@ import { PACK_DEFS, packTemplateIds } from "./packs";
  * story. With the template router (src/llm/router.ts — a Haiku call over
  * the index, 94.4 % alone, 97.9 % joined with the keyword picks) the
  * two-level regime became the default: the bundled library (84 ready
- * templates, ~279k chars in full) now reaches the model as a ~24k-char
- * index plus a five-entry shortlist for the request (the three
+ * templates, ~279k chars in full) now reaches the model as an index —
+ * ~13k chars since the per-line cap, down from ~24k (see indexLine below,
+ * design §3.4) — plus a five-entry shortlist for the request (the three
  * health-economics templates ride along in that shortlist only when a
  * request wants them — see LAST_RESORT_IDS for the rare case none of the
  * selectors do). Below this number — a single-domain library, a host embed
