@@ -513,8 +513,19 @@ commands: [ … ]</code></pre>
           language code or its English name, so <code>[french:c'est la vie]</code> and
           <code>[fr:c'est la vie]</code> are the same thing. The caption shows just the word — the brackets are
           an instruction to the voice, never something a viewer reads. If you have picked a voice for that
-          language under Settings → Playback, that is the one used. Square brackets that do not name a language
-          drawcast can speak are left alone, so <code>[see: figure 3]</code> stays in the sentence as written.
+          language under Settings → Playback, that is the one used.
+        </p>
+        <p>
+          The named languages are English, Norwegian, Danish, Swedish, Finnish, German, Dutch, French, Spanish,
+          Italian, Portuguese, Polish, Russian, Turkish, Arabic, Hindi, Japanese, Korean and Chinese. For any
+          other language, write the full locale — <code>[cs-CZ:ahoj]</code>, <code>[el-GR:γεια]</code> — in the
+          same form the voice catalogues use; it is passed straight through, so a browser or a cloud voice that
+          has that language will speak it. Bokmål is <code>nb</code> or <code>nb-NO</code>, not <code>no-bm</code>.
+        </p>
+        <p>
+          A bare tag has to be one of the named languages, because <em>see</em>, <em>it</em> and <em>no</em> are
+          ordinary words as well as language codes — so <code>[see: figure 3]</code> stays in the sentence
+          exactly as written, and so does <code>[see-also: page 9]</code>.
         </p>
 
         <h2 id="keys">Keys and privacy</h2>

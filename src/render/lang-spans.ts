@@ -65,24 +65,58 @@ const LANG_NAMES: Readonly<Record<string, string>> = {
 const LANG_CODES: ReadonlySet<string> = new Set(Object.values(LANG_NAMES));
 
 /**
+ * A locale for a language the list above does not name: `cs-CZ`, `el-GR`,
+ * `zh-Hant-TW`. Language lowercase, script title case, region upper case or
+ * three digits — BCP-47's own canonical spelling.
+ *
+ * The SCRIPT subtag is matched case-sensitively and the region is not, on
+ * purpose. A region is two letters, so demanding capitals there would reject
+ * `[cs-cz:…]`, which is a spelling people really use; but a script is four
+ * letters, and four lower-case letters after a hyphen is what ordinary prose
+ * looks like — `[see-also: figure 3]` would otherwise parse as the language
+ * "see" in the script "Also" and be eaten. `Hant` and `Latn` are always
+ * written in title case, so nothing legitimate is lost by requiring it.
+ */
+const LOCALE = /^([a-z]{2,3})(?:-([A-Z][a-z]{3}))?(?:-([A-Za-z]{2}|[0-9]{3}))?$/;
+
+/**
  * The language a tag names, or null when it names none — and null is the
  * load-bearing half. Ordinary prose has square brackets in it ("[see: figure
  * 3]", "[sic]", a citation), and eating one would be a silent corruption of
- * the narration. Only a tag that resolves to a language drawcast can actually
- * voice is treated as markup; everything else stays literal text.
+ * the narration.
+ *
+ * Two tiers, which is what keeps that guard while leaving the notation open
+ * (Hans, 2026-09-21). A BARE tag — a code or an English name — must be one of
+ * the languages above, because "see", "it", "no" and "as" are all words as
+ * well as codes and a bare tag has nothing else to prove itself with. A
+ * HYPHENATED one is taken on its shape alone, for any language at all: the
+ * hyphen is what prose does not have, so it can carry the whole burden of
+ * telling markup from a citation.
+ *
+ * What comes back differs by tier, and that is the point. A known language
+ * returns its PRIMARY subtag ("de"), because VOICES, LANGUAGES and the
+ * author's cloudVoices picks are all keyed that way. An unknown one returns
+ * the WHOLE locale ("cs-CZ"), because voiceFor falls through to it verbatim
+ * as the request's languageCode — and Google wants a locale there, not a
+ * language. A bare "cs" would 400 the publish.
  */
 export function resolveLangTag(tag: string): string | null {
-  const t = tag.trim().toLowerCase();
+  const raw = tag.trim();
+  const t = raw.toLowerCase();
   if (t === "") return null;
   if (LANG_CODES.has(t)) return t;
   if (LANG_NAMES[t]) return LANG_NAMES[t];
-  // A full BCP-47 tag is what anyone who has seen Google's voice names will
-  // reach for — `[de-DE:ich]`, `[fr-FR:…]` — and rejecting it would fail the
-  // silent way: the brackets simply stay in the narration and the word is
-  // read by the wrong voice, with nothing anywhere saying why. Reduced to
-  // the primary subtag, which is what voiceLang and cloudVoices key on.
-  const primary = t.split("-")[0];
-  return LANG_CODES.has(primary) ? primary : null;
+  if (!raw.includes("-")) return null; // a bare tag gets no benefit of the doubt
+  const m = LOCALE.exec(raw);
+  if (!m) return null;
+  // A known language written as a locale is still that language: `[de-DE:ich]`
+  // and `[nb-no:…]` must land on the same "de"/"nb" the bare tag does, or the
+  // author's own voice pick for it would be missed.
+  const primary = m[1].toLowerCase();
+  if (LANG_CODES.has(primary)) return primary;
+  const script = m[2] ? `-${m[2]}` : "";
+  const region = m[3] ? `-${m[3].toUpperCase()}` : "";
+  return `${primary}${script}${region}`;
 }
 
 /** `[de:ich]` — the tag, then a colon, then everything up to the first `]`. */

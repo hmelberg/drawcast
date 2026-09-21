@@ -403,15 +403,22 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // its own readers say their own way. 209953 -> 210560, 607 chars for a
 // feature whose absence is silent: an unmarked foreign word is simply
 // mispronounced, and nothing in the output says a mark was available.
-const BASELINE_SYSTEM_CHARS = 210560;
+// Again the same day, 210560 -> 210880: the notation stopped being a closed
+// list (Hans), so the rule now NAMES the 19 short names and says to write a
+// full locale for anything else. Spelling the list out is what the 320 chars
+// buy — without it a model has no way to know whether `[czech:…]` is a short
+// name or needs `[cs-CZ:…]`, and guessing wrong is silent: the brackets
+// simply stay in the narration and the word is read by the narrator.
+const BASELINE_SYSTEM_CHARS = 210880;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
 // 81722 -> 81655. Then UP the same day, 81655 -> 81832, for the sentence on
 // `speak` that says a foreign word may be marked `[de:ich]` — the schema
 // description is the only place a model reading the API contract alone would
-// learn it exists.
-const BASELINE_SCHEMA_CHARS = 81832;
+// learn it exists. 81832 -> 81898 when that sentence gained the locale form
+// for languages outside the named list.
+const BASELINE_SCHEMA_CHARS = 81898;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

@@ -33,6 +33,12 @@ const AVOID_NAMES =
 
 function scoreVoice(v: SpeechSynthesisVoice, lang: string): number {
   const vLang = v.lang.toLowerCase();
+  // Lower-cased on BOTH sides. It never mattered while every language reaching
+  // here was a bare primary subtag, already lower case — but a `[cs-CZ:…]` run
+  // arrives as a whole locale (render/lang-spans.ts), and "cs-cz" does not
+  // start with "cs-CZ", so every voice would have scored -1 and the word would
+  // have been read by the narrator with no sign anything was asked for.
+  lang = lang.toLowerCase();
   // Norwegian is the one family whose tags genuinely disagree (nb/no/nn all
   // mean the same shelf of voices); every other language matches its own tag.
   const langFamily = lang === "nb" ? ["nb", "no", "nn"] : [lang];

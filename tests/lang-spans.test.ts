@@ -15,11 +15,38 @@ describe("the tag", () => {
   // Anyone who has seen a Google voice name reaches for the full tag. Failing
   // it would fail silently: the brackets stay in the narration and the word is
   // read by the wrong voice, with nothing saying why.
-  test("a full BCP-47 tag is reduced to its primary subtag", () => {
+  test("a KNOWN language written as a locale is still that language", () => {
     expect(resolveLangTag("de-DE")).toBe("de");
     expect(resolveLangTag("fr-FR")).toBe("fr");
     expect(resolveLangTag("nb-NO")).toBe("nb");
-    expect(resolveLangTag("xx-YY")).toBeNull();
+    expect(resolveLangTag("nb-no")).toBe("nb"); // the casing people really use
+  });
+
+  // The second tier (Hans, 2026-09-21): the notation must not stop at the 19
+  // languages the voice picker offers. A hyphen is what prose does not have,
+  // so it carries the whole burden of telling markup from a citation.
+  test("an UNKNOWN language is taken on its shape, and keeps its whole locale", () => {
+    // The whole locale, not the primary subtag: voiceFor passes it through
+    // verbatim as Google's languageCode, and a bare "cs" would 400 the publish.
+    expect(resolveLangTag("cs-CZ")).toBe("cs-CZ");
+    expect(resolveLangTag("el-GR")).toBe("el-GR");
+    expect(resolveLangTag("he-il")).toBe("he-IL"); // normalised to canonical
+    expect(resolveLangTag("zh-Hant-TW")).toBe("zh"); // zh IS known — primary wins
+    expect(resolveLangTag("yue-Hant-HK")).toBe("yue-Hant-HK");
+  });
+
+  test("a bare tag gets no benefit of the doubt — the list is the whole of it", () => {
+    // "cs" alone could be anything; only the hyphen proves intent.
+    expect(resolveLangTag("cs")).toBeNull();
+    expect(resolveLangTag("el")).toBeNull();
+  });
+
+  // Four lower-case letters after a hyphen is what ordinary prose looks like.
+  // Matching the SCRIPT subtag case-sensitively is what keeps this out.
+  test("prose with a hyphen in the tag is still prose", () => {
+    expect(resolveLangTag("see-also")).toBeNull();
+    expect(resolveLangTag("figure-caption")).toBeNull();
+    expect(resolveLangTag("note-to-self")).toBeNull();
   });
 
   // The whole point of resolving rather than pattern-matching: prose has
@@ -87,9 +114,17 @@ describe("splitting a line into runs", () => {
   });
 
   test("brackets that are not a language are left exactly as written", () => {
-    const line = "As shown [see: figure 3], the curve bends.";
-    expect(splitLangRuns(line)).toEqual([{ text: line }]);
-    expect(stripLangMarks(line)).toBe(line);
+    for (const line of ["As shown [see: figure 3], the curve bends.", "A note [see-also: page 9] in passing."]) {
+      expect(splitLangRuns(line)).toEqual([{ text: line }]);
+      expect(stripLangMarks(line)).toBe(line);
+    }
+  });
+
+  test("a language the picker never heard of is spoken all the same", () => {
+    expect(splitLangRuns("The Czech for hello is [cs-CZ:ahoj].")).toEqual([
+      { text: "The Czech for hello is" },
+      { text: "ahoj.", lang: "cs-CZ" },
+    ]);
   });
 });
 
