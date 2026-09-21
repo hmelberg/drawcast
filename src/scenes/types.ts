@@ -16,6 +16,18 @@ export interface SceneLayout {
    * so spec-level region/intersection elements can reference scene curves.
    */
   curveSamples?: Record<string, Pt[]>;
+  /**
+   * Names for sets of this template's OWN elements — `{pieces: ["piece_a1",
+   * …]}`. Naming one in a command stands for every member (the planner's
+   * expandOne has always done this for freehand parents; this is the channel
+   * a template reaches it through), while each member keeps its own id for
+   * everything else: a chess board is `draw: ["board", "squares", "pieces"]`
+   * and `piece_e2` is still the thing a beat points at.
+   *
+   * A group is a NAME, not an element: it belongs to no `order` and draws
+   * nothing of its own, or the implicit final draw would paint a phantom.
+   */
+  groups?: Record<string, string[]>;
 }
 
 /** Intrinsic interactions a template can declare (interactivity spec §6):

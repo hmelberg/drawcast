@@ -330,8 +330,16 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // it out, take it back, and mind that an offset persists until you do. Catalog
 // and prompt only; the schema is untouched (81492).
 // system 203644 -> 204130.
-const BASELINE_SYSTEM_CHARS = 204130;
-const BASELINE_SCHEMA_CHARS = 81492;
+// Re-pinned 2026-09-21 (a template may name a set of its own ids): the chess
+// board's catalog entry gains `position`, `pieces` and `squares` beside its
+// individual ids, and one sentence each in the `draw` bullet and the `draw`
+// schema description says what naming a set does — every member drawn, every
+// member still its own id. It PAYS for itself many times over in output: the
+// three bundled chess casts lost 222 lines of draw list between them, and a
+// board is one id rather than sixty in everything the model writes from here.
+// schema 81492 -> 81722, system 204130 -> 204717.
+const BASELINE_SYSTEM_CHARS = 204717;
+const BASELINE_SCHEMA_CHARS = 81722;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

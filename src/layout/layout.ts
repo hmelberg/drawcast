@@ -164,6 +164,12 @@ export function layoutSpec(
           });
         }
         templateIds = sceneLayout.order;
+        // The template's own group names (scenes/types.ts): a channel to the
+        // planner's parent-id expansion, which until now only freehand specs
+        // could reach. Set before tier-2 runs, and tier-2's own groups are
+        // merged onto them below, so a spec-level group of the same name wins
+        // — the author's word beats the template's.
+        if (sceneLayout.groups) groups = { ...sceneLayout.groups };
         drawables.push(...sceneLayout.drawables);
         labelRequests.push(...sceneLayout.labels);
         order.push(...sceneLayout.order);
@@ -193,7 +199,7 @@ export function layoutSpec(
     panes = tier2.panes;
     pieces = tier2.pieces;
     pieceGroups = tier2.pieceGroups;
-    groups = tier2.groups;
+    groups = { ...groups, ...tier2.groups };
     fitGroups = tier2.fitGroups;
     namedAnchors = tier2.namedAnchors;
     measures = tier2.measures;

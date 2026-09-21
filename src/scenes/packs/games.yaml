@@ -78,6 +78,9 @@ params:
       type: boolean
       description: "Show file letters (a-h) and rank numbers (1-8) around the board. Default true — they are part of the board itself, so drawing `board` draws them; set false for a bare grid."
 element_ids:
+  position: the whole board at once — the board below, all 64 squares, every man and the move arrow. A draw list of just this one id shows the position, which is what an opening beat almost always wants; name the individual ids below only when a beat is ABOUT one of them (circling a square, pointing at a piece)
+  pieces: all the men at once, for a beat that draws or highlights the array as a whole. Each is still piece_<file><rank> below
+  squares: all 64 square fills at once. Each is still sq_<file><rank> below
   board: the 8x8 board — its light-square ground, the grid lines, and the file/rank coordinates around it (unless coords is false). Drawing this one id gives you a labelled board
   sq_<file><rank>: one square's own fill — ALL SIXTY-FOUR of them, dark (sq_a1) and light (sq_f7) alike. A light square paints the same cream the board's ground already paints, so drawing it or leaving it out looks identical — what it gives you is an id, and that is how a beat points at, circles or glows a square with NOTHING on it, and what a `move` lands a what-if piece on. Name a square in an earlier `draw` before pointing at it
   piece_<file><rank>: the drawn piece on that square in the currently shown position — a filled silhouette with an ink outline — present for every square occupied in the starting position or ever visited by `moves` (including a castling move's rook squares) (an empty group on a touched-but-currently-vacant square, so the same id exists at every plies_shown and can be animated). At a fractional plies_shown mid-`animate`, the departing square's id carries the moving piece gliding toward its destination (a captured piece, if any, stays on the destination square's id and fades out instead)
@@ -801,4 +804,27 @@ layout: |
   // here (unlike the pieces above): plain digit/letter glyphs already sit
   // close to the font's central baseline, so dominant-baseline: "central"
   // centers them well enough on its own.
-  return { drawables, labels, anchors, order };
+  // Names for the sets a cast would otherwise have to list id by id: the
+  // sixty-four square fills and the men standing on the board right now.
+  // Naming one in a command stands for every member (SceneLayout.groups),
+  // and every member keeps its own id — `piece_e2` is still what a beat
+  // points at, what a `move` slides for a what-if, and what an animated
+  // `plies_shown` glides. A group is a name, so it joins no `order`.
+  const groups = {
+    // The whole board in one word, for a cast whose point is the POSITION
+    // rather than the order things appear in: `draw: ["position"]` and the
+    // board, its squares, its men and the move arrow are all there. Groups
+    // nest (the planner's expandOne recurses), so this names the other two.
+    // The arrow belongs in it: before the first ply it is collapsed to
+    // nothing, and leaving it out is what leaves it for the implicit final
+    // draw to sweep up after the last beat.
+    position: ["board", "squares", "pieces", ...(movesRaw.length > 0 ? ["move_arrow"] : [])],
+    squares: order.filter((id) => /^sq_[a-h][1-8]$/.test(id)),
+    // Every piece id this board has, INCLUDING the empty groups on squares
+    // the line only reaches later: drawing one paints nothing, and leaving it
+    // out would leave it unmentioned for the implicit final draw to sweep up
+    // after the last beat.
+    pieces: order.filter((id) => /^piece_[a-h][1-8]$/.test(id)),
+  };
+
+  return { drawables, labels, anchors, order, groups };

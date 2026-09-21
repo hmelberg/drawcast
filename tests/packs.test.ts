@@ -1969,6 +1969,13 @@ describe("games pack", () => {
     // lookup at every integer boundary is reached the same way as before, with
     // plyT === 0 and no glide/fade/lift branch taken.
     //
+    // Recaptured for the groups round (2026-09-21, same day): the layout now
+    // also returns a `groups` map — NAMES for sets of its own ids (`position`,
+    // `pieces`, `squares`), so a cast can draw a whole board with one id. It is
+    // a map beside the drawables, not ink: proved against this commit's parent
+    // loaded side by side, over all nine renders here plus a flipped,
+    // coordinate-less board, dropping `groups` leaves output byte-identical.
+    //
     // Recaptured once more for the coordinates round (2026-09-21), which moved
     // the sixteen file/rank glyphs INSIDE the `board` group so that drawing the
     // board draws its coordinates (they were elements of their own, and so were
@@ -1992,21 +1999,21 @@ describe("games pack", () => {
     // arrow's lead over the piece: it lives entirely behind `plyT > 0`, so at
     // an integer boundary it is not reached at all.
     const EXPECTED: Record<number, string> = {
-      0: "df87e2fa9b10dbe1251b6499e85e3fcebe9d81ea72af69d74921cb6b8c2cc9e2",
-      1: "91748ece9e84ba2ff51805bfb2c3718cdb128d4c2b8508c2bcfc05c74dd09b95",
-      2: "c7220960ccfdc0c0c661dbcf4cb3257fb222c41a56a4a137a024c8f0f398b990",
-      3: "5456e7599d8412881ece62e3d78d749c272a2366b3409fba9a72f2f56dd8594b",
-      4: "d7fd1763ea18e09ed65c7c1a321e3619493fd2a0dd78de7ddcfb956929e6193f",
-      5: "3d9541ff3b918eac816cdc79d4a496f367aeb301abef37bd9eeb60057a1e11f5",
-      6: "4f1ec021be759f0fffad868f43551fd519b14a17dfec98986fd8b0e83a24301d",
-      7: "33357c32baf7f79e3169e9e4ae99e4e59465bf4b56fc3ff4756e940c64ae1717",
+      0: "b88ff82321453f1b90906f741b5820d7b8095d29222d0abc126fad9e5975f1a8",
+      1: "6a6068590d3615c87c66c138591967a0dd988f50f0128738f5e6eb7f137b1e9b",
+      2: "8c4b0b20a2f106260f59c405bf2ebce742448c114dacdda10653dc5340f9653a",
+      3: "8c08e1af1f9ae6d2bdd74dcb30458b104e89d17cf30785a2c4f88061034b7539",
+      4: "2c01f92e93cc96874651559b22c1e324caafcb79f8166bf724315d95f783c733",
+      5: "88ffe89ec4524e127842fbf8d0ef8b839d6ea60f1d1a6ec10d7be878ab9f12fe",
+      6: "cda306e8cd37d1fd768c6e7278d5cdaea68fb8d640fb3b4988018e0c48a7a5eb",
+      7: "5758b3af04e397dd35df0d0451126d3357b21c2f1d8f0981aee3e2406df7e9f4",
     };
     for (let i = 0; i <= moves.length; i++) {
       const r = scenes.chess_board.layout!({ moves, plies_shown: i });
       expect(hashOf(r)).toBe(EXPECTED[i]);
     }
     const r0 = scenes.chess_board.layout!({});
-    expect(hashOf(r0)).toBe("1b8bd6d4dc40f75569882b7a61fc7fe9a17c11266bce45ae4b9e4a04d6fb7abb");
+    expect(hashOf(r0)).toBe("f75d0e166fc1f315845c4e21b6b68aa65ee59fa004553165b8806f934c9fdf61");
   });
 
   test("fractional plies_shown glides the moving piece in a straight line: halfway through its own leg the e-pawn sits between e2 and e4, x unchanged", async () => {
