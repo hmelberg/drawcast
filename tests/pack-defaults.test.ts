@@ -56,6 +56,11 @@ describe("the default catalog", () => {
   // health-economics templates in full — 26,890 chars a chess request paid
   // for. The router shortlists them now. Measured 2026-09-22 after the
   // unpin: 25,513 chars, rounded up to the next 500 for the ceiling below.
+  // Re-measured the same day, after Task 4 capped each index line at 140
+  // chars (design §3.4, indexLine): 13,979 chars — the unpin removed three
+  // full entries, and the per-line cap then shrank the index itself by
+  // ~47 %, on top of that. Rounded up to the next 500 again, so the ceiling
+  // still catches real regrowth instead of sitting ~12k above it.
   // A round that adds a pack may re-pin it, on purpose, with a note like
   // this one.
   test("the stable catalog is the index and nothing expanded", () => {
@@ -63,7 +68,7 @@ describe("the default catalog", () => {
     expect(stable).not.toContain("### Scene template: supply_demand (READY");
     expect(stable).not.toContain("### Scene template: qaly_profiles (READY");
     expect(stable).not.toContain("### Scene template: decision_tree (READY");
-    expect(stable.length).toBeLessThan(26_000); // measured 25,513, rounded up to the next 500
+    expect(stable.length).toBeLessThan(14_000); // measured 13,979, rounded up to the next 500
     // The index itself is intact: every ready template still has its line.
     for (const id of readyIds()) expect(stable).toContain(`- ${id}: `);
     expect(stable).toContain("need_template");
