@@ -335,10 +335,20 @@ polygons actually shaded:
 
     ΔCS + ΔPS + wedge + DWL ≈ 0
 
-One assertion validates every region's geometry at once, and it is run over all
-five interventions (per-unit tax both sides, ad valorem, subsidy, ceiling,
-floor). A sign error, a wrong bound or an off-by-one in a polygon cannot
-survive it.
+It is run over all five interventions (per-unit tax both sides, ad valorem,
+subsidy, ceiling, floor), and it catches a sign error, a missing region or a
+swapped price in any of them.
+
+**It does NOT catch a wrong bound, and an earlier draft of this section wrongly
+claimed it did.** The identity is an integral-tiling argument: with
+`pB = D(q)` and `pS = S(q)`, `CS + PS + wedge` is the integral of `D − S` over
+the interval for *any* q, so `identity + DWL` is identically `CS₀ + PS₀`
+whatever quantity the regions actually use. Proved twice on 2026-09-21 — a
+reviewer halved the tax shift and all 37 tests passed, and a later mutation
+(M10, a shared but *wrong* left edge) passed the identity while failing the
+geometry tests. The bounds are therefore pinned separately, by §10.2's worked
+numbers and by the elasticity-varying cases; the identity and those tests
+cover different axes and neither substitutes for the other.
 
 Also:
 
@@ -355,6 +365,14 @@ Also:
    every new combination, including both elasticity extremes.
 9. The two existing steepness tests (`supply-demand.test.ts:99`) pass
    **unmodified** — the §4 identity.
+9b. **Regions are bounded by the curves, not by the axis.** A curve with
+   `elasticity < 1` does not span the plot, so every region shares one left
+   bound `qLeft = max(D0, demand[0].x, supply[0].x)` and is skipped when
+   `qTraded <= qLeft`. Shared, not per-region: per-region edges break the
+   tiling argument as soon as the two curves differ in elasticity. The same
+   applies to the right edge. Added 2026-09-21 after the whole-branch review
+   found `perfectly_inelastic` + tax off by 19.5%, and an inelastic curve with
+   a price ceiling shipping a zero-area two-point `cs_region`.
 10. **A bare `tax: {}` shades nothing**, and `regions: ["deadweight_loss"]`
     shades the same triangle it used to (decision 3.4).
 
