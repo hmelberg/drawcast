@@ -347,7 +347,17 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // `regions` further (government_revenue, transfer) and adds a full set of new
 // params, so this number moves again there.
 // system 204717 -> 204741.
-const BASELINE_SYSTEM_CHARS = 204741;
+// Re-pinned 2026-09-21 (supply & demand welfare): supply_demand's manifest
+// gains `elasticity` on both curves (the lever for tax incidence, where
+// `steepness` saturates), `tax.amount/side/kind`, `level` on both price
+// controls, three more `regions` members, ten element ids and two examples.
+// The scene's params_schema is embedded verbatim in the catalog
+// (src/scenes/catalog.ts:69), so all of it lands on the system prompt; the
+// spec-level schema is untouched (81722). One sentence in compiler-v1.md's
+// animate bullet also changed — it promised that steepening demand shrinks a
+// deadweight-loss triangle, which saturation means it does not.
+// system 204741 -> 210292.
+const BASELINE_SYSTEM_CHARS = 210292;
 const BASELINE_SCHEMA_CHARS = 81722;
 
 const system = (code: boolean, sound = false) =>

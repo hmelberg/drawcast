@@ -44,6 +44,26 @@
             ],
             "description": "convex = classic bowed-toward-origin demand"
           },
+          "elasticity": {
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "perfectly_inelastic",
+                  "inelastic",
+                  "unit",
+                  "elastic",
+                  "perfectly_elastic"
+                ]
+              },
+              {
+                "type": "number",
+                "minimum": 0.06,
+                "maximum": 1.94
+              }
+            ],
+            "description": "How flat or steep the curve is, as an elasticity — the lever to use for tax incidence. Words: perfectly_inelastic, inelastic, unit (default, unchanged), elastic, perfectly_elastic; or a number 0.06–1.94 that animates. Unlike steepness, which saturates, this reaches genuinely vertical and genuinely horizontal. Changing it never moves the equilibrium, so two figures at different elasticities are directly comparable."
+          },
           "label": {
             "type": "string",
             "description": "Default \"D\"."
@@ -82,6 +102,26 @@
               "convex",
               "concave"
             ]
+          },
+          "elasticity": {
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "perfectly_inelastic",
+                  "inelastic",
+                  "unit",
+                  "elastic",
+                  "perfectly_elastic"
+                ]
+              },
+              {
+                "type": "number",
+                "minimum": 0.06,
+                "maximum": 1.94
+              }
+            ],
+            "description": "How flat or steep the curve is, as an elasticity — the lever to use for tax incidence. Words: perfectly_inelastic, inelastic, unit (default, unchanged), elastic, perfectly_elastic; or a number 0.06–1.94 that animates. Unlike steepness, which saturates, this reaches genuinely vertical and genuinely horizontal. Changing it never moves the equilibrium, so two figures at different elasticities are directly comparable."
           },
           "label": {
             "type": "string",
@@ -164,22 +204,33 @@
       },
       "tax": {
         "type": "object",
-        "description": "A per-unit tax: draws S+tax above S, the new equilibrium, and (by default) the deadweight-loss triangle. Use for any deadweight-loss-from-tax request.",
+        "description": "A tax on the market: draws the shifted curve, the new equilibrium, and the two prices the two sides now face — the price buyers pay and the price sellers receive. Use for any request about tax incidence, who bears a tax, tax revenue, subsidies, or deadweight loss from a tax. Nothing is SHADED unless you also list it in `regions`.",
         "properties": {
-          "show_deadweight_loss": {
-            "type": "boolean",
-            "description": "Default true."
+          "amount": {
+            "type": "number",
+            "description": "Size of the tax in price-axis units — the axis runs 0-100 and the untaxed equilibrium sits at 50, so 18 is a substantial tax. Default 18. NEGATIVE IS A SUBSIDY: the curve shifts the other way, more is traded, and `government_revenue` becomes a government cost. Numeric, so it animates: tween it from 0 to watch the wedge open and the deadweight loss grow. For kind ad_valorem this is a PERCENTAGE instead (36 = 36%)."
           },
-          "label": {
+          "side": {
             "type": "string",
-            "description": "Default \"S + tax\"."
-          }
+            "enum": ["seller", "buyer"],
+            "description": "Who the tax is collected from: seller (default) shifts supply up, buyer shifts demand down. The figure comes out IDENTICAL either way — same quantity, same two prices — which is the point worth showing when a request asks whether it matters who pays."
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["per_unit", "ad_valorem"],
+            "description": "per_unit (default) is a fixed amount per unit, so the curve shifts parallel. ad_valorem is a percentage of the price, so the curve PIVOTS from the origin and the wedge widens as price rises — the realistic shape for VAT or sales tax."
+          },
+          "label": { "type": "string", "description": "Default \"S + tax\", or \"D - tax\" for a buyer-side tax." }
         }
       },
       "price_ceiling": {
         "type": "object",
         "description": "A binding price ceiling below equilibrium; by default also shows the resulting shortage (Qd > Qs).",
         "properties": {
+          "level": {
+            "type": "number",
+            "description": "Where the line sits, in price-axis units (0-100; the equilibrium price is 50). Numeric, so it animates — sliding a ceiling down opens the shortage and grows the deadweight loss in one gesture. A ceiling only BINDS below the equilibrium price; above it the line is drawn and nothing else happens, which is a legitimate figure about a ceiling that does nothing."
+          },
           "label": {
             "type": "string",
             "description": "Default \"Price ceiling\"."
@@ -194,6 +245,10 @@
         "type": "object",
         "description": "A binding price floor above equilibrium; by default also shows the resulting surplus.",
         "properties": {
+          "level": {
+            "type": "number",
+            "description": "Where the line sits, in price-axis units (0-100; the equilibrium price is 50). Numeric, so it animates — sliding a floor up opens the surplus and grows the deadweight loss in one gesture. A floor only BINDS above the equilibrium price; below it the line is drawn and nothing else happens, which is a legitimate figure about a floor that does nothing."
+          },
           "label": {
             "type": "string"
           },
@@ -209,10 +264,12 @@
           "enum": [
             "consumer_surplus",
             "producer_surplus",
-            "deadweight_loss"
+            "deadweight_loss",
+            "government_revenue",
+            "transfer"
           ]
         },
-        "description": "Shaded surplus regions at the market equilibrium."
+        "description": "Which areas to shade. NOTHING IS SHADED UNLESS LISTED HERE — ask for an area on the beat that explains it, not by default. Every area is computed against whichever intervention is set (tax, ceiling or floor), not against the untaxed market: with a tax, consumer surplus is measured from the price buyers actually pay. government_revenue is the tax wedge (a government COST when the amount is negative) and is skipped for a price control, where both sides face one price; transfer is the surplus a price control moves between the two sides, and is skipped for a tax. A binding ceiling's consumer surplus assumes efficient rationing — the buyers who value the good most are the ones who get it."
       }
     }
   },
@@ -235,12 +292,22 @@
     "label_E_shift": "shifted equilibrium label (\"E′\")",
     "label_P_shift": "price-axis label at the shifted equilibrium (\"P*′\")",
     "label_Q_shift": "quantity-axis label at the shifted equilibrium (\"Q*′\")",
-    "tax_supply_curve": "the S+tax curve (when tax is set)",
+    "tax_supply_curve": "the S+tax curve (seller-side tax)",
+    "tax_demand_curve": "the D-tax curve (buyer-side tax)",
     "label_S_tax": "its label",
+    "label_D_tax": "its label",
     "tax_equilibrium_point": "the with-tax equilibrium dot",
     "tax_guide_lines": "dashed guides at the with-tax equilibrium",
+    "price_buyers_point": "dot at the price buyers actually pay (P_b)",
+    "price_sellers_point": "dot at the price sellers actually receive (P_s)",
+    "label_Pb": "price-buyers-pay label",
+    "label_Ps": "price-sellers-receive label",
     "dwl_region": "shaded deadweight-loss triangle",
     "label_DWL": "deadweight-loss label",
+    "wedge_region": "shaded government-revenue wedge between P_b and P_s (a tax only)",
+    "label_wedge": "government-revenue label",
+    "transfer_region": "shaded transfer between consumers and producers (a price control only)",
+    "label_transfer": "transfer label",
     "ceiling_line / floor_line": "the dashed price-control line",
     "label_ceiling / label_floor": "its label",
     "shortage_guides / surplus_guides": "dashed guides at Qd and Qs",
@@ -285,6 +352,26 @@
         "demand_shift": {
           "amount": 0
         }
+      }
+    },
+    {
+      "request": "Show that when demand is inelastic, buyers pay most of a tax.",
+      "params": {
+        "demand": { "elasticity": "inelastic" },
+        "supply": {},
+        "equilibrium": { "show": true },
+        "tax": { "amount": 18 },
+        "regions": ["government_revenue", "deadweight_loss"]
+      }
+    },
+    {
+      "request": "What does a price ceiling cost society?",
+      "params": {
+        "demand": {},
+        "supply": {},
+        "equilibrium": { "show": true },
+        "price_ceiling": { "level": 32 },
+        "regions": ["consumer_surplus", "producer_surplus", "transfer", "deadweight_loss"]
       }
     }
   ]

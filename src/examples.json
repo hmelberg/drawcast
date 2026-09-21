@@ -25538,15 +25538,15 @@
         "x_label": "Packs of cigarettes",
         "y_label": "Price per pack",
         "demand": {
-          "steepness": 0.35
+          "elasticity": 1.5
         },
         "supply": {
-          "steepness": 1
+          "elasticity": 1
         },
         "equilibrium": {
           "show": true
         },
-        "tax": {},
+        "tax": { "amount": 18 },
         "regions": ["deadweight_loss"]
       },
       "commands": [
@@ -25602,6 +25602,20 @@
           "speak": "The new crossing is the price on the shelf — and it has not risen by the whole tax. Measure it against the lift in the curve: it is up by about a quarter of it."
         },
         {
+          "draw": [
+            "price_buyers_point",
+            "label_Pb"
+          ],
+          "speak": "Buyers now hand over this much — noticeably more than before the tax."
+        },
+        {
+          "draw": [
+            "price_sellers_point",
+            "label_Ps"
+          ],
+          "speak": "But the shop only keeps this much. The gap between the two lines is the government's, and neither side chose how to split it."
+        },
+        {
           "highlight": {
             "target": [
               "equilibrium_point",
@@ -25620,7 +25634,7 @@
         },
         {
           "animate": {
-            "demand.steepness": 1.2
+            "demand.elasticity": 1
           },
           "duration": 3.5,
           "speak": "Now the same tax in a town of committed smokers who will buy their packs whatever they cost. Watch demand steepen."
@@ -25650,7 +25664,7 @@
         },
         {
           "animate": {
-            "supply.steepness": 0.35
+            "supply.elasticity": 1.5
           },
           "duration": 3.5,
           "speak": "So much for the buyers. What if the sellers are the ones who can walk away — shops with other things to sell, and shelf space that will happily hold something else?"
