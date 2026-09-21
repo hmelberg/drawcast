@@ -15,7 +15,7 @@ export const APPROACHES: readonly { id: Approach; label: string; hint: string }[
   { id: "independent", label: "Independent parts — each figure written on its own", hint: "An outline names the parts; each part is written separately, knowing the others by title only." },
 ];
 
-import { OUTLINE_SCHEMA } from "./outline";
+import { mayProposeChapters, OUTLINE_SCHEMA, PROPOSE_CHAPTERS_LINE } from "./outline";
 import { styleBlock } from "./prompt";
 
 /** The outline's shape plus, per part, the figure paragraph and the script — closed, so structured outputs hold the model to it. */
@@ -82,17 +82,23 @@ export function buildStoryboardMessages(
     "- Write the lines in the language of the request.",
     "- level: \"basic\" or \"advanced\" only when the request implies one.",
   ];
+  const propose = mayProposeChapters(parts, opts.chapters);
   if (chapters) {
     system.push(
       `- chapter: the author declared these chapters, in order: ${chapters.map((c, i) => `${i + 1}. ${c}`).join("; ")}. Assign every part to one of them, in order, and never invent a chapter that is not on this list.`,
     );
+  } else if (propose) {
+    system.push(`- ${PROPOSE_CHAPTERS_LINE}`);
   }
+  const chapterField = chapters
+    ? '"chapter":"<one of the declared chapters>",'
+    : propose
+      ? '"chapter":"<the chapter this part falls under, or omit the field>",'
+      : "";
   system.push(
     "",
     "Return ONLY a minified JSON object of exactly this shape, nothing else:",
-    chapters
-      ? '{"title":"<short series title>","parts":[{"title":"<short part title>","brief":"<one line>","level":"basic|advanced (only when implied)","chapter":"<one of the declared chapters>","figure":"<what is drawn and what changes>","script":["<line 1>","<line 2>"]}]}'
-      : '{"title":"<short series title>","parts":[{"title":"<short part title>","brief":"<one line>","level":"basic|advanced (only when implied)","figure":"<what is drawn and what changes>","script":["<line 1>","<line 2>"]}]}',
+    `{"title":"<short series title>","parts":[{"title":"<short part title>","brief":"<one line>","level":"basic|advanced (only when implied)",${chapterField}"figure":"<what is drawn and what changes>","script":["<line 1>","<line 2>"]}]}`,
   );
   const user = opts.brief ? `${request}\n\n${opts.brief}` : request;
   return { system: system.join("\n") + styleBlock(opts.styleText), user };

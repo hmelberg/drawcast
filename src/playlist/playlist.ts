@@ -118,6 +118,27 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/**
+ * The parts of a lecture, plus the chapter each part falls under, as entries:
+ * a chapter entry wherever the chapter changes. ONE copy, because there were
+ * two places turning parts into a playlist — the course runner, which made
+ * chapter entries, and #parts=N in main.ts, which mapped specs straight to
+ * items and dropped `chapterOf` on the floor.
+ */
+export function entriesForParts(specs: Spec[], chapterOf: (string | undefined)[]): PlaylistEntry[] {
+  const entries: PlaylistEntry[] = [];
+  let chapter: string | undefined;
+  specs.forEach((spec, i) => {
+    const next = chapterOf[i];
+    if (next && next !== chapter) {
+      entries.push({ kind: "chapter", title: next });
+      chapter = next;
+    }
+    entries.push({ kind: "item", spec });
+  });
+  return entries;
+}
+
 /** Wrap one spec as a playlist (the single-figure case). */
 export function singlePlaylist(spec: Spec): Playlist {
   return { meta: { ...DEFAULT_META }, entries: [{ kind: "item", spec }], warnings: [] };
@@ -160,6 +181,33 @@ function readMeta(raw: Record<string, unknown>, warnings: string[]): PlaylistMet
   return meta;
 }
 
+/**
+ * Settings that belong to the DOCUMENT and are not fields of a page spec
+ * (spec/schema.ts: specSchema has no `prompt`, no `advance`, …). A page that
+ * carries one fails validateSpec with "(root) must NOT have additional
+ * properties", which is how a revised drawcast used to become unrunnable, so
+ * they are lifted to where they belong rather than left to sink the page.
+ * Same set as the script parser's META_SETTINGS (spec/script/parse.ts).
+ */
+const DOC_SETTINGS = ["subtitle", "prompt", "advance", "gap", "transitions", "next", "enroll", "comments", "views"] as const;
+
+/** Move any document settings off a page spec; null when it carried none. */
+function takeDocSettings(spec: Record<string, unknown>): Record<string, unknown> | null {
+  const raw: Record<string, unknown> = {};
+  for (const key of DOC_SETTINGS) {
+    if (key in spec) {
+      raw[key] = spec[key];
+      delete spec[key];
+    }
+  }
+  return Object.keys(raw).length > 0 ? raw : null;
+}
+
+/** Has anything to put on a canvas — as opposed to a header mistaken for a page. */
+function isDrawable(doc: Record<string, unknown>): boolean {
+  return "commands" in doc || "elements" in doc || "template" in doc;
+}
+
 const SEPARATOR_RE = /^---\s*$/m;
 
 /**
@@ -198,6 +246,10 @@ export function parsePlaylistText(text: string): Playlist {
         for (const c of chapters) if (c.before === i) playlist.entries.push({ kind: "chapter", title: c.title });
         playlist.entries.push({ kind: "item", spec: p.spec });
       });
+      // A chapter written after the last page opens nothing, but dropping it
+      // here would be the one entry a round trip silently eats — the printer
+      // writes it back out at the end, so read it back in at the end.
+      for (const c of chapters) if (c.before >= pages.length) playlist.entries.push({ kind: "chapter", title: c.title });
       return playlist;
     }
     const single = singlePlaylist(pages[0].spec);
@@ -205,7 +257,13 @@ export function parsePlaylistText(text: string): Playlist {
     return single;
   }
   const single = parseSpecText(text).value as Spec;
-  return singlePlaylist(single);
+  const playlist = singlePlaylist(single);
+  // A lone spec that carries `prompt:` (the founding request, which every
+  // saved document now keeps) is a one-page PLAYLIST with a header, not an
+  // invalid page.
+  const stray = takeDocSettings(single as unknown as Record<string, unknown>);
+  if (stray) playlist.meta = readMeta(stray, playlist.warnings);
+  return playlist;
 }
 
 /** Tolerant read of a baked-audio document; anything malformed is ignored. */
@@ -226,13 +284,16 @@ function readAudio(raw: unknown, warnings: string[]): AudioTrack | undefined {
 
 function classifyDocs(docs: Record<string, unknown>[]): Playlist {
   const warnings: string[] = [];
-  let meta: PlaylistMeta = { ...DEFAULT_META };
   const entries: PlaylistEntry[] = [];
   let audio: AudioTrack | undefined;
+  /** The `playlist:` header, which wins over anything read loosely below. */
+  let wrapped: Record<string, unknown> | null = null;
+  /** A header written without its wrapper, plus settings found on pages. */
+  let loose: Record<string, unknown> = {};
   for (const doc of docs) {
     if ("playlist" in doc) {
       const raw = doc.playlist;
-      if (isPlainObject(raw)) meta = readMeta(raw, warnings);
+      if (isPlainObject(raw)) wrapped = raw;
       else warnings.push("playlist header is not a mapping — ignored");
     } else if ("audio" in doc) {
       // MUST be an explicit branch: the else below treats any unrecognized
@@ -245,10 +306,20 @@ function classifyDocs(docs: Record<string, unknown>[]): Playlist {
       const title = typeof raw === "string" ? raw : isPlainObject(raw) && typeof raw.title === "string" ? raw.title : null;
       if (title) entries.push({ kind: "chapter", title });
       else warnings.push("chapter document without a title — ignored");
+    } else if (!isDrawable(doc) && DOC_SETTINGS.some((key) => key in doc)) {
+      // A header that forgot its `playlist:` wrapper — the near miss a model
+      // makes when it is handed a document and asked for one back. Read as a
+      // header, it says what it meant; read as a page, it is a blank figure
+      // that fails validation and takes the whole drawcast down.
+      loose = { ...loose, ...doc };
     } else {
+      const stray = takeDocSettings(doc);
+      if (stray) loose = { ...loose, ...stray };
       entries.push({ kind: "item", spec: doc as Spec });
     }
   }
+  const raw = { ...loose, ...(wrapped ?? {}) };
+  const meta: PlaylistMeta = Object.keys(raw).length > 0 ? readMeta(raw, warnings) : { ...DEFAULT_META };
   // An inset names another item (spec 2026-09-17-inset §4.10): the one check
   // that needs the whole playlist, so it lives here rather than in a spec's lint.
   const specs = entries.filter((e): e is { kind: "item"; spec: Spec } => e.kind === "item").map((e) => e.spec);

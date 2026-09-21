@@ -425,7 +425,7 @@ export function parseScriptPages(text: string): ParsedScript {
         if (l.depth === 1) docTitle = l.text;
         else { page = null; pendingTitle = l.text; }
         break;
-      case "setting": flush(); applySetting(l, openPage(), meta, pages.length > 0 || page !== null); break;
+      case "setting": flush(); applySetting(l, openPage, meta); break;
       case "speech": {
         flush();
         const firstWord = l.text.split(/\s+/)[0];
@@ -527,10 +527,24 @@ export function parseScriptPages(text: string): ParsedScript {
 
 /** The settings that are spelled differently in a script than in the spec. */
 const SETTING_FIELD: Record<string, string> = { use: "template", with: "params" };
-/** Playlist-level settings — they live on the document, not on a page. */
+/**
+ * Playlist-level settings — they live on the document, not on a page. None of
+ * them is a field of specSchema, so a page is never the right home for one:
+ * `prompt` on a page spec is what made a revised single-page drawcast
+ * unrunnable ("(root) must NOT have additional properties: prompt").
+ */
 const META_SETTINGS = new Set(["subtitle", "advance", "gap", "transitions", "next", "enroll", "prompt", "comments", "views"]);
 
-function applySetting(l: ScriptLine & { kind: "setting" }, spec: Spec, meta: Record<string, unknown>, started: boolean): void {
+/**
+ * `openPage` is a THUNK, and that is the whole point: opening a page is what a
+ * page setting needs and what a document setting must not do. Called eagerly
+ * (as `applySetting(l, openPage(), …)` did) it opened a page before the
+ * document/page question was even asked — which made the old `started`
+ * argument unconditionally true, so the document branch below was dead from
+ * the day it was written, and a `prompt:` above the first `##` became a blank
+ * first page carrying it.
+ */
+function applySetting(l: ScriptLine & { kind: "setting" }, openPage: () => Spec, meta: Record<string, unknown>): void {
   const value = l.rest === "" ? true : parseValue(l.rest);
   if (l.key === "chapter") {
     // A chapter is an entry of its own, ahead of the page that follows.
@@ -539,8 +553,8 @@ function applySetting(l: ScriptLine & { kind: "setting" }, spec: Spec, meta: Rec
     meta.chapters = chapters;
     return;
   }
-  if (META_SETTINGS.has(l.key) && !started) { meta[l.key] = value; return; }
-  (spec as unknown as Record<string, unknown>)[SETTING_FIELD[l.key] ?? l.key] = value;
+  if (META_SETTINGS.has(l.key)) { meta[l.key] = value; return; }
+  (openPage() as unknown as Record<string, unknown>)[SETTING_FIELD[l.key] ?? l.key] = value;
 }
 
 function parseFence(l: ScriptLine & { kind: "fence" }, spec: Spec, isLanguage: (s: string) => boolean): Direction | null {

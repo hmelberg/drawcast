@@ -171,6 +171,18 @@ describe("stripFence", () => {
   test("leaves unfenced text (and inner fences) alone", () => {
     expect(stripFence("# Prompt\n```json\n{}\n```\ntail")).toBe("# Prompt\n```json\n{}\n```\ntail");
   });
+
+  // A revise request hands the document over in FOUR backticks, because a
+  // document has ```python / ```yaml / ```assets fences of its own — and a
+  // model mirrors the wrapper it was given.
+  test("takes a wrapper of four backticks, and keeps the document's own fences", () => {
+    const doc = "# L\n\nSe.\n    ```python p\n    x = 1\n    ```";
+    expect(stripFence("````\n" + doc + "\n````")).toBe(doc);
+    expect(stripFence("```\n" + doc + "\n```")).toBe(doc);
+    // The closer has to match the opener: a stray three-tick line inside is
+    // not the end of a four-tick wrapper.
+    expect(stripFence("````yaml\n" + doc + "\n````")).toBe(doc);
+  });
 });
 
 describe("selectExemplars", () => {

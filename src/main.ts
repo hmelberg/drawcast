@@ -59,6 +59,7 @@ import { attachParamsTray } from "./ui/tray";
 import { lintChipModel } from "./ui/lint-chip";
 import {
   DEFAULT_META,
+  entriesForParts,
   formatPlaylist,
   formatPublished,
   isSingle,
@@ -3594,7 +3595,10 @@ async function generateMulti(
   const n = result.outline?.parts.length ?? result.specs.length;
   const playlist: Playlist = {
     meta: { ...DEFAULT_META, title },
-    entries: result.specs.map((spec) => ({ kind: "item" as const, spec })),
+    // …and its chapters, when the outline put the parts under any: the same
+    // assembly the course runner uses, so a lecture made here and a lecture
+    // made there are the same document (playlist/playlist.ts).
+    entries: entriesForParts(result.specs, result.chapterOf),
     warnings: [],
   };
   // Same as generate(): the founding request goes in the file (B9). Written as

@@ -65,8 +65,10 @@ export function buildSystemBlocks(variantSource: string, parts: PromptParts): { 
  * and the suffix collapses to exactly that whenever the prompt source ends
  * with {{EXEMPLARS}} and there are no exemplars to fill it with — the slice
  * keeps the trailing newline, so `suffix` is "\n": whitespace, but truthy, so
- * a plain `suffix ? …` guard sails straight past it. That is every revise
- * call, which passes no exemplars by design.
+ * a plain `suffix ? …` guard sails straight past it. That was every revise
+ * call, which passes no exemplars by design — until the revise card (llm/
+ * prompts/revise-v1.md) started riding in that same tail; the guard stays for
+ * every other caller that can empty it.
  */
 export function systemBlocks(prefix: string, suffix: string): { type: "text"; text: string; cache_control?: { type: "ephemeral" } }[] {
   const blocks: { type: "text"; text: string; cache_control?: { type: "ephemeral" } }[] = [];
@@ -161,8 +163,13 @@ export function missingPlaceholders(source: string): string[] {
 
 /** Strip a single markdown code fence wrapping the whole text (LLMs love adding one). */
 export function stripFence(text: string): string {
-  const m = /^\s*```[a-z]*\s*\n([\s\S]*?)\n\s*```\s*$/i.exec(text);
-  return m ? m[1] : text.trim();
+  // THREE OR MORE backticks, closed by as many as opened: a drawcast document
+  // contains ```python / ```yaml / ```assets fences of its own, so the revise
+  // request wraps it in four — and a model mirrors the wrapper it was given.
+  // A three-backtick-only reader left those four in place and the document
+  // then failed to parse.
+  const m = /^\s*(`{3,})[a-z]*\s*\n([\s\S]*?)\n\s*\1\s*$/i.exec(text);
+  return m ? m[2] : text.trim();
 }
 
 export interface Exemplar {

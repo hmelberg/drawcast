@@ -54,3 +54,21 @@ describe("the blank page (＋ New, 2026-09-02)", () => {
     expect(d.ok).toBe(false);
   });
 });
+
+// The end-to-end shape of Hans's 2026-09-21 report: revise a single-page
+// drawcast, press Play, "Spec invalid: (root) must NOT have additional
+// properties {"additionalProperty":"prompt"}". Every notation a reply can
+// arrive in has to clear the gate.
+describe("a document carrying its founding prompt is runnable", () => {
+  for (const [notation, text] of Object.entries({
+    script: '# Ramp\nprompt: "explain the ramp"\n\nHei.\n    shape a shape rect x 1 y 2\n',
+    yaml: `prompt: explain the ramp\n${VALID_SPEC}`,
+    json: JSON.stringify({ prompt: "explain the ramp", title: "Ramp", elements: [{ id: "t", type: "text", text: "hi", x: 500, y: 375 }], commands: [] }),
+  })) {
+    it(`accepts it in ${notation}`, () => {
+      const d = checkSaveable(text);
+      expect(d.ok ? "ok" : d.reason).toBe("ok");
+      if (d.ok) expect(d.playlist.meta.prompt).toBe("explain the ramp");
+    });
+  }
+});

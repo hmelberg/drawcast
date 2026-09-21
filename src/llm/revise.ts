@@ -9,6 +9,7 @@
 // its cost does not grow every round.
 
 import type Anthropic from "@anthropic-ai/sdk";
+import reviseMd from "./prompts/revise-v1.md?raw";
 import { itemsOf, parsePlaylistText, type Playlist, formatPlaylist } from "../playlist/playlist";
 import { buildSystemBlocks, stripFence, styleBlock, systemBlocks, wantsCode, wantsSound } from "./prompt";
 import { validateSpec } from "../spec/schema";
@@ -24,16 +25,29 @@ import { catalogParts } from "../scenes/catalog";
 import { ensureEnginesForSpecs, ensureEnginesForTemplate } from "../scenes/engines";
 import { makeBrowserMeasure } from "../render/svg-backend";
 
+/**
+ * The notation card: how to read and write a drawcast document, and the
+ * output contract that replaces the compiler prompt's "JSON only". Sent with
+ * every revision, in the uncached tail.
+ */
+export const REVISE_PROMPT_SOURCE = reviseMd;
+
+/**
+ * FOUR backticks, not three: a document may itself contain ```python, ```yaml
+ * or ```assets fences, and a three-backtick wrapper would be closed by the
+ * first of them. The old wrapper also said `yaml`, which the script notation
+ * is not — a label that sent the model looking for `key: value` everywhere.
+ */
 export function buildReviseUser(docText: string, instruction: string): string {
   return [
-    "Here is the current drawcast document:",
-    "```yaml",
+    "Here is the current drawcast document, in the author's own notation:",
+    "````",
     docText,
-    "```",
+    "````",
     "",
     `Apply this change: ${instruction}`,
     "",
-    "Return the COMPLETE document in the same shape it came in — one document, or a `---` separated multi-document stream if it already is one.",
+    "Return the COMPLETE document, in the same notation and the same shape it came in — the same pages, plus or minus any the change calls for.",
     "Change only what the instruction asks for and leave everything else as it is.",
     "Return the document only, with no commentary before or after it.",
   ].join("\n");
@@ -170,7 +184,15 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
     // richer") rarely names sound, but a document that already plays does.
     sound: wantsSound(instruction) || /\bplay:/.test(docText) ? SOUND_PROMPT_SOURCE : "",
   });
-  const suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "") + styleBlock(cfg.styleText);
+  // The revise block comes AFTER the compiler prompt and before the style
+  // profile: the compiler prompt ends by declaring "a valid spec, JSON only"
+  // the absolute output contract, which is the one rule a revision must not
+  // follow — it returns the author's whole document, in the author's own
+  // notation, a notation the compiler prompt never mentions. Left to the user
+  // message alone, that instruction was arguing with 46k characters of system
+  // prompt. In the SUFFIX, so the cached prefix is still the one Generate
+  // warms (llm/prompt.ts's split).
+  const suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "") + "\n\n" + REVISE_PROMPT_SOURCE + styleBlock(cfg.styleText);
   // systemBlocks drops a whitespace-only tail. Passing no exemplars leaves the
   // suffix as just the newline after {{EXEMPLARS}}, which the API rejects.
   const system: Anthropic.TextBlockParam[] = systemBlocks(blocks.prefix, suffixText);

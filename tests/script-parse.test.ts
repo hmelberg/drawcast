@@ -125,3 +125,24 @@ describe("settings, pages and fences", () => {
     expect(spec.assets).toEqual({ foto: "AAAB" });
   });
 });
+
+describe("document settings", () => {
+  test("a founding prompt above a lone page is the document's, not the page's", () => {
+    const { meta, pages } = parseScriptPages('# Ramp\nprompt: "explain the ramp"\n\nHei.\n    shape a shape rect x 1 y 2\n');
+    expect(meta).toMatchObject({ prompt: "explain the ramp" });
+    expect(pages).toHaveLength(1);
+    expect(pages[0].spec).not.toHaveProperty("prompt");
+  });
+
+  test("document settings above the first ## do not become a blank first page", () => {
+    const { meta, pages } = parseScriptPages('# Lecture\nprompt: "explain it"\nadvance: click\n\n## One\nHei.\n    shape a shape rect x 1 y 2\n\n## Two\nDa.\n    shape b shape rect x 3 y 4\n');
+    expect(meta).toMatchObject({ title: "Lecture", prompt: "explain it", advance: "click" });
+    expect(pages.map((p) => p.spec.title)).toEqual(["One", "Two"]);
+  });
+
+  test("a document setting written under a later page still belongs to the document", () => {
+    const { meta, pages } = parseScriptPages('## One\nHei.\n    shape a shape rect x 1 y 2\n\n## Two\ngap: 3\nDa.\n    shape b shape rect x 3 y 4\n');
+    expect(meta).toMatchObject({ gap: 3 });
+    expect(pages[1].spec).not.toHaveProperty("gap");
+  });
+});

@@ -414,10 +414,20 @@ export function printScriptPages(meta: Record<string, unknown>, pages: { spec: S
   for (const key of META_ORDER) {
     if (meta[key] !== undefined) head.push(`${key}: ${formatValue(meta[key])}`);
   }
-  const body = pages.map((p) => {
+  // Chapters are entries between pages, not a setting of one, so they print
+  // ABOVE the `##` heading of the page they open — `chapter:` is a line the
+  // parser has always understood and this printer never wrote, which quietly
+  // dropped every chapter of a lecture the moment it was shown in the editor.
+  const chapters = (meta.chapters as { before: number; title: string }[] | undefined) ?? [];
+  const opening = (i: number) => chapters.filter((c) => c.before === i).map((c) => `chapter: ${formatValue(c.title)}\n\n`).join("");
+  const body = pages.map((p, i) => {
     const text = printScriptPage(p.spec);
-    return multi && typeof p.spec.title === "string" ? `## ${p.spec.title}\n${text}` : text;
+    const heading = multi && typeof p.spec.title === "string" ? `## ${p.spec.title}\n` : "";
+    return opening(i) + heading + text;
   });
+  // A chapter past the last page would otherwise be the one entry a round
+  // trip loses; it belongs at the end, where it was.
+  const trailing = chapters.filter((c) => c.before >= pages.length).map((c) => `chapter: ${formatValue(c.title)}\n`);
   const headBlock = head.length > 0 ? [`${head.join("\n")}\n`] : [];
-  return [...headBlock, ...body].join("\n").replace(/\n{3,}/g, "\n\n");
+  return [...headBlock, ...body, ...trailing].join("\n").replace(/\n{3,}/g, "\n\n");
 }

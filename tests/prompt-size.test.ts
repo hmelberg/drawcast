@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { apiSchema, fewshotsText, promptVariants, CODE_PROMPT_SOURCE, SOUND_PROMPT_SOURCE } from "../src/llm/compile";
+import { REVISE_PROMPT_SOURCE } from "../src/llm/revise";
 import { catalogParts } from "../src/scenes/catalog";
 import { buildSystemPrompt, wantsCode, wantsSound } from "../src/llm/prompt";
 import bundledExamples from "../src/examples.json";
@@ -398,6 +399,16 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 const BASELINE_SYSTEM_CHARS = 209953;
 const BASELINE_SCHEMA_CHARS = 81722;
 
+// Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
+// the one block a REVISION pays for that a generation does not. It rides in
+// the uncached tail, so every revision pays it in full — cheap against the
+// ~10k-token cached prefix, and it buys the thing the compiler prompt never
+// said: what the author's own notation is, that a document may have pages,
+// where the document settings live, and that "JSON only" is off for this
+// turn. Same ratchet rule as the constants above: a round that adds to the
+// card re-pins here, on purpose, with a note.
+const BASELINE_REVISE_CHARS = 4520;
+
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {
     schema: apiSchema(),
@@ -411,6 +422,9 @@ const system = (code: boolean, sound = false) =>
 describe("prompt budget (spec §6.3)", () => {
   test("the schema stays within the pinned size", () => {
     expect(JSON.stringify(apiSchema()).length).toBeLessThanOrEqual(BASELINE_SCHEMA_CHARS);
+  });
+  test("the revise card stays within the pinned size", () => {
+    expect(REVISE_PROMPT_SOURCE.length).toBeLessThanOrEqual(BASELINE_REVISE_CHARS);
   });
   test("a non-code request gets a system prompt no larger than the pinned size", () => {
     expect(system(false).length).toBeLessThanOrEqual(BASELINE_SYSTEM_CHARS);

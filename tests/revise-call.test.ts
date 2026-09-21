@@ -308,3 +308,82 @@ describe("reviseDocument preserves the founding prompt", () => {
     expect(out.playlist!.meta.prompt).toBeUndefined();
   });
 });
+
+// Revising a LECTURE, which is the case the prompt never described until the
+// revise card: pages under `##`, chapters between them, the founding prompt
+// above both. The reply shapes below are the ones a model actually reaches
+// for — the document back as it came, the document with a page added, and the
+// document as JSON because the compiler prompt spent 46k characters asking
+// for JSON.
+describe("reviseDocument on a multi-page document", () => {
+  const LECTURE = `# Marginal cost
+prompt: "explain marginal cost #parts=2"
+
+chapter: "Setting up"
+
+## The curve
+Costs rise with output.
+    axes ax x_label q y_label kr
+    curve c1 expr "50"
+
+chapter: "The turn"
+
+## The margin
+The slope is what matters.
+    axes ax2 x_label q y_label kr
+    curve c2 expr 2*x
+`;
+
+  const shape = (out: { playlist: { entries: { kind: string; title?: string; spec?: { title?: string } }[] } | null }) =>
+    out.playlist!.entries.map((e) => (e.kind === "chapter" ? `chapter:${e.title}` : `item:${e.spec!.title}`));
+
+  test("the document is handed over whole, fenced so its own code fences cannot close it", async () => {
+    replies = [LECTURE];
+    await reviseDocument(LECTURE, "make the second curve steeper", cfg());
+    const user = calls[0].messages[0].content as string;
+    expect(user).toContain(LECTURE);
+    expect(user).toContain("````");
+    // The notation card rides in the uncached tail, not the cached prefix.
+    const blocks = calls[0].system as { text: string; cache_control?: unknown }[];
+    expect(blocks[blocks.length - 1].text).toContain('replaces "Output"');
+    expect(blocks[0].cache_control).toEqual({ type: "ephemeral" });
+  });
+
+  test("pages, chapters and the founding prompt all survive the round trip", async () => {
+    replies = [LECTURE];
+    const out = await reviseDocument(LECTURE, "make the second curve steeper", cfg());
+    expect(out.error).toBeUndefined();
+    expect(shape(out)).toEqual(["chapter:Setting up", "item:The curve", "chapter:The turn", "item:The margin"]);
+    expect(out.playlist!.meta.prompt).toBe("explain marginal cost #parts=2");
+  });
+
+  test("a reply that adds a page and a chapter is taken as it stands", async () => {
+    replies = [LECTURE.replace(/$/, '\nchapter: "The moral"\n\n## What it means\nSo price equals marginal cost.\n    axes ax3 x_label q y_label kr\n')];
+    const out = await reviseDocument(LECTURE, "add a closing part", cfg());
+    expect(out.error).toBeUndefined();
+    expect(shape(out)).toEqual([
+      "chapter:Setting up",
+      "item:The curve",
+      "chapter:The turn",
+      "item:The margin",
+      "chapter:The moral",
+      "item:What it means",
+    ]);
+  });
+
+  test("a reply that drops a page keeps the rest, rather than failing the revision", async () => {
+    replies = [LECTURE.slice(0, LECTURE.indexOf('chapter: "The turn"'))];
+    const out = await reviseDocument(LECTURE, "cut the second part", cfg());
+    expect(out.error).toBeUndefined();
+    expect(shape(out)).toEqual(["chapter:Setting up", "item:The curve"]);
+    expect(out.playlist!.meta.prompt).toBe("explain marginal cost #parts=2");
+  });
+
+  test("a reply that switched to JSON, prompt and all, is read rather than refused", async () => {
+    replies = [JSON.stringify({ prompt: "explain marginal cost #parts=2", title: "The curve", elements: [{ id: "ax", type: "axes" }], commands: [{ draw: ["ax"], speak: "Hei." }] })];
+    const out = await reviseDocument(LECTURE, "just the first part, as JSON", cfg());
+    expect(out.error).toBeUndefined();
+    expect(shape(out)).toEqual(["item:The curve"]);
+    expect(out.playlist!.meta.prompt).toBe("explain marginal cost #parts=2");
+  });
+});
