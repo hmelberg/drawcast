@@ -349,25 +349,47 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     const want = new Set(params.regions);
     const { qTraded, pBuyers, pSellers } = iv;
     const [qStar, pStar] = eq;
+    // ONE left edge for the whole block. The regions deliberately start at the
+    // domain edge rather than at quantity 0 (that convention is why the
+    // identity closes so tightly), but `elasticity < 1` shrinks a curve's
+    // x-run about the equilibrium, so a curve can begin well to the RIGHT of
+    // D0 — e.g. demand.elasticity 0.5 leaves demand defined only over
+    // [29.5, 68.5]. Closing at D0 there ran a fabricated straight edge from
+    // the curve's first point down to the price axis, shading area no curve
+    // bounds (measured: 19.5 % of total surplus for perfectly_inelastic).
+    //
+    // It must be SHARED, not computed per region: CS, PS and the wedge only
+    // add up to ∫(D − S) when all three span the SAME interval. Give CS the
+    // demand curve's own start and PS the supply curve's own start and the
+    // areas stop tiling as soon as the two elasticities differ, so the
+    // welfare identity breaks by the width of the mismatch.
+    const qLeft = Math.max(D0, demandPts[0][0], supplyPts[0][0]);
+    // Nothing to shade: the traded quantity is left of where both curves
+    // exist (a ceiling on inelastic demand does this). Shading it anyway
+    // shipped a zero-area two-point "area" that rendered as a bare line.
+    const shadeable = qTraded > qLeft;
 
-    if (want.has("consumer_surplus")) {
-      const upper = demandPts.filter(([x]) => x <= qTraded);
-      const pts = ctx.toLogical([...upper, [qTraded, pBuyers], [D0, pBuyers]]);
+    if (want.has("consumer_surplus") && shadeable) {
+      const upper = spanFrom(demandPts, qLeft, qTraded);
+      const pts = ctx.toLogical(simplify([...upper, [qTraded, pBuyers], [qLeft, pBuyers]]));
       push(area("cs_region", pts, COLORS.region1));
       anchors["cs_region"] = centroid(pts);
       label("label_CS", anchors["cs_region"], "above-right", "Consumer surplus");
     }
 
-    if (want.has("producer_surplus")) {
-      const lower = supplyPts.filter(([x]) => x <= qTraded);
-      const pts = ctx.toLogical([[D0, pSellers], [qTraded, pSellers], ...lower.reverse()]);
+    if (want.has("producer_surplus") && shadeable) {
+      const lower = spanFrom(supplyPts, qLeft, qTraded);
+      const pts = ctx.toLogical(simplify([[qLeft, pSellers], [qTraded, pSellers], ...lower.reverse()]));
       push(area("ps_region", pts, COLORS.region2));
       anchors["ps_region"] = centroid(pts);
       label("label_PS", anchors["ps_region"], "below-right", "Producer surplus");
     }
 
+    // qLeft clamps the interval here too — when qTraded is left of it the
+    // deadweight loss is the WHOLE of [qLeft, qStar], which is exactly what
+    // the two skipped surpluses gave up.
     if (want.has("deadweight_loss") && Math.abs(qTraded - qStar) > 0.5) {
-      const region = betweenRegion(demandPts, supplyPts, Math.min(qTraded, qStar), Math.max(qTraded, qStar));
+      const region = betweenRegion(demandPts, supplyPts, Math.max(qLeft, Math.min(qTraded, qStar)), Math.max(qTraded, qStar));
       if (region) {
         const pts = ctx.toLogical(region);
         push({
@@ -385,11 +407,11 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
 
     // Zero-height for a price control, where both sides face one price, so
     // this skips itself without a branch on iv.kind.
-    if (want.has("government_revenue") && Math.abs(pBuyers - pSellers) > 0.5) {
-      const pts = ctx.toLogical([[D0, pSellers], [qTraded, pSellers], [qTraded, pBuyers], [D0, pBuyers]]);
+    if (want.has("government_revenue") && shadeable && Math.abs(pBuyers - pSellers) > 0.5) {
+      const pts = ctx.toLogical([[qLeft, pSellers], [qTraded, pSellers], [qTraded, pBuyers], [qLeft, pBuyers]]);
       push(area("wedge_region", pts, COLORS.accent));
       anchors["wedge_region"] = centroid(pts);
-      // The wedge spans the WHOLE traded quantity (0 to qTraded, not a
+      // The wedge spans the WHOLE traded quantity (qLeft to qTraded, not a
       // sliver near the crossing), so its horizontal centroid sits under the
       // untaxed guide_lines (at pStar) and its right edge grazes the with-tax
       // guides — label the wedge's upper band instead (between pStar and
@@ -397,7 +419,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       // sets and a deadweight-loss region leaves clear.
       label(
         "label_wedge",
-        ctx.toLogical([[(D0 + qTraded) / 2, (pStar + pBuyers) / 2]])[0],
+        ctx.toLogical([[(qLeft + qTraded) / 2, (pStar + pBuyers) / 2]])[0],
         "above",
         pBuyers > pSellers ? "Government revenue" : "Government cost",
         COLORS.accent,
@@ -407,8 +429,8 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     // A transfer exists when both sides face ONE price (so there is no wedge)
     // and that price differs from the free-market one — which is true for a
     // binding ceiling or floor and false for a tax, without asking which.
-    if (want.has("transfer") && Math.abs(pBuyers - pSellers) <= 0.5 && Math.abs(pStar - pBuyers) > 0.5) {
-      const pts = ctx.toLogical([[D0, pStar], [qTraded, pStar], [qTraded, pBuyers], [D0, pBuyers]]);
+    if (want.has("transfer") && shadeable && Math.abs(pBuyers - pSellers) <= 0.5 && Math.abs(pStar - pBuyers) > 0.5) {
+      const pts = ctx.toLogical([[qLeft, pStar], [qTraded, pStar], [qTraded, pBuyers], [qLeft, pBuyers]]);
       push(area("transfer_region", pts, COLORS.accent));
       anchors["transfer_region"] = centroid(pts);
       label("label_transfer", anchors["transfer_region"], "right", "Transfer", COLORS.accent);
@@ -528,6 +550,55 @@ function area(id: string, pts: Pt[], color: string): Drawable {
     style: defaultStyle({ color, fill: color, opacity: 0.5, strokeWidth: 1 }),
     drawOpts: defaultDrawOpts("sketch", SKETCH_MS.region),
   };
+}
+
+/**
+ * The curve's own sample points over [x0, x1], with exact points AT both ends
+ * spliced in where the samples do not already land there.
+ *
+ * Filtering alone would leave each region's edges on the nearest sample
+ * INSIDE the interval, and the sample spacing is not small next to a narrow
+ * interval: an inelastic curve traded near its own equilibrium can leave no
+ * sample at all between the two bounds, and the polygon then closes with a
+ * chord that cuts the corner off. That is invisible for a tax (there
+ * pBuyers IS D(qTraded) and pSellers IS S(qTraded), so the corner is already
+ * on the curve) and up to 12 % of total surplus for a price control, where
+ * the two sides face a control price the curve does not pass through.
+ */
+function spanFrom(pts: Pt[], x0: number, x1: number): Pt[] {
+  const inner = pts.filter(([x]) => x >= x0 && x <= x1);
+  const out = [...inner];
+  if (!(inner.length > 0 && inner[0][0] - x0 < 1e-9)) {
+    const y0 = interpolateAtX(pts, x0);
+    if (y0 !== null) out.unshift([x0, y0]);
+  }
+  if (!(inner.length > 0 && x1 - inner[inner.length - 1][0] < 1e-9)) {
+    const y1 = interpolateAtX(pts, x1);
+    if (y1 !== null) out.push([x1, y1]);
+  }
+  return out;
+}
+
+/**
+ * Consecutive coincident vertices dropped (and a last one coinciding with the
+ * first). A tax's surplus polygon meets its closing price exactly ON the
+ * curve, so `spanFrom`'s endpoint and the price corner are the same point
+ * there — bit for bit, both being the same `interpolateAtX` call. Dropping
+ * the doubled vertex keeps every existing figure byte-identical.
+ *
+ * EXACT equality, not a tolerance, and that is load-bearing: in the free
+ * market the traded quantity lands one ulp off a curve sample (q* = 49 IS a
+ * sample), and a tolerant compare would swallow that pre-existing pair and
+ * move the CS/PS label anchors — `centroid` averages vertices, so dropping
+ * one shifts it. Only the genuinely-identical vertex this function adds is
+ * removed again.
+ */
+function simplify(pts: Pt[]): Pt[] {
+  const same = (a: Pt, b: Pt) => a[0] === b[0] && a[1] === b[1];
+  const out: Pt[] = [];
+  for (const p of pts) if (out.length === 0 || !same(out[out.length - 1], p)) out.push(p);
+  while (out.length > 1 && same(out[0], out[out.length - 1])) out.pop();
+  return out;
 }
 
 function betweenRegion(a: Pt[], b: Pt[], x0: number, x1: number): Pt[] | null {

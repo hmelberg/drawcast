@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { layoutSupplyDemand, type SupplyDemandParams } from "../src/scenes/supply_demand/layout";
 import { flattenDrawables, type StrokeDrawable, type Pt } from "../src/layout/model";
 import { CANVAS, linearScale, plotArea } from "../src/layout/canvas";
-import { qualitativeShape, solveForX } from "../src/layout/curves";
+import { interpolateAtX, qualitativeShape, solveForX } from "../src/layout/curves";
 import type { SceneLayout } from "../src/scenes/types";
 
 function ids(result: ReturnType<typeof layoutSupplyDemand>): string[] {
@@ -206,7 +206,8 @@ describe("elasticity", () => {
 
   test("the equilibrium never moves, and every elasticity draws a different curve", () => {
     const base = layoutSupplyDemand({}).anchors["equilibrium_point"];
-    const shapes = new Set<string>();
+    const demandShapes = new Set<string>();
+    const supplyShapes = new Set<string>();
     for (const e of [0.06, 0.3, 0.5, 1, 1.5, 1.9, 1.94]) {
       for (const params of [{ demand: { elasticity: e } }, { supply: { elasticity: e } }]) {
         const l = layoutSupplyDemand(params);
@@ -214,10 +215,15 @@ describe("elasticity", () => {
         expect(eq[0]).toBeCloseTo(base[0], 2);
         expect(eq[1]).toBeCloseTo(base[1], 2);
       }
-      shapes.add(JSON.stringify(layoutSupplyDemand({ demand: { elasticity: e } }).curveSamples!["demand_curve"]));
+      demandShapes.add(JSON.stringify(layoutSupplyDemand({ demand: { elasticity: e } }).curveSamples!["demand_curve"]));
+      supplyShapes.add(JSON.stringify(layoutSupplyDemand({ supply: { elasticity: e } }).curveSamples!["supply_curve"]));
     }
-    // without this, the invariance assertions above pass against a no-op
-    expect(shapes.size).toBe(7);
+    // Without these, the invariance assertions above pass against a no-op —
+    // and BOTH sides must be swept: with the distinctness check on demand
+    // only, making `supply.elasticity` a complete no-op left the whole suite
+    // green (whole-branch review, Gap D).
+    expect(demandShapes.size).toBe(7);
+    expect(supplyShapes.size).toBe(7);
   });
 
   test("inelastic is near-vertical, elastic is near-horizontal, and both keep enough points", () => {
@@ -247,6 +253,50 @@ describe("elasticity", () => {
 
 describe("tax decomposition", () => {
   const P = (l: SceneLayout, id: string) => l.anchors[id];
+  // Logical → internal domain: the exact inverse of the scales layout.ts
+  // builds, so the worked numbers below can be asserted in the units the
+  // spec states them in (0–100 × 0–100) rather than in canvas pixels.
+  const toQ = linearScale([plotArea().x0, plotArea().x1], [0, 100]);
+  const toP = linearScale([plotArea().y0, plotArea().y1], [0, 100]);
+
+  test("the spec's worked tax numbers, pinned in domain units", () => {
+    // The welfare identity CANNOT catch a wrong traded quantity: with
+    // pB = D(q) and pS = S(q), CS + PS + wedge = ∫(D − S) over the interval
+    // for ANY q, so identity + DWL is identically CS₀ + PS₀ — the
+    // whole-branch reviewer halved the tax shift and all 37 tests stayed
+    // green. These values (hand-verified four times, spec §6.3) are what
+    // actually pins Q_t, so treat them as a ratchet, not as a snapshot.
+    const near = (actual: number, expected: number, what: string) => {
+      expect(Math.abs(actual - expected), `${what}: ${actual.toFixed(4)} vs ${expected}`).toBeLessThanOrEqual(0.01);
+    };
+    // the anchor of every number below: the default equilibrium is (49, 50)
+    const eq = layoutSupplyDemand({}).anchors["equilibrium_point"];
+    near(toQ(eq[0]), 49, "Q*");
+    near(toP(eq[1]), 50, "P*");
+
+    const worked = (params: SupplyDemandParams) => {
+      const l = layoutSupplyDemand(params);
+      const pb = P(l, "price_buyers_point");
+      const ps = P(l, "price_sellers_point");
+      expect(pb[0]).toBeCloseTo(ps[0], 6); // one quantity, two prices
+      return { q: toQ(pb[0]), pB: toP(pb[1]), pS: toP(ps[1]) };
+    };
+
+    const perUnit = worked({ tax: { amount: 18 } });
+    near(perUnit.q, 38.93, "per-unit 18 Q_t");
+    near(perUnit.pB, 59.0, "per-unit 18 P_b");
+    near(perUnit.pS, 41.0, "per-unit 18 P_s");
+
+    const subsidy = worked({ tax: { amount: -18 } });
+    near(subsidy.q, 59.07, "subsidy 18 Q_t");
+    near(subsidy.pB, 41.0, "subsidy 18 P_b");
+    near(subsidy.pS, 59.0, "subsidy 18 P_s");
+
+    const adValorem = worked({ tax: { amount: 36, kind: "ad_valorem" } });
+    near(adValorem.q, 40.46, "ad valorem 36 Q_t");
+    near(adValorem.pB, 57.63, "ad valorem 36 P_b");
+    near(adValorem.pS, 42.37, "ad valorem 36 P_s");
+  });
 
   test("default per-unit tax lands on the worked values from the spec", () => {
     // Domain units: the equilibrium is (49, 50); a per-unit 18 gives
@@ -261,15 +311,27 @@ describe("tax decomposition", () => {
     expect(ps[1]).toBeLessThan(eq[1]); // sellers receive LESS
   });
 
-  test("a seller-side and a buyer-side tax are the same figure", () => {
-    const seller = layoutSupplyDemand({ tax: { amount: 18, side: "seller" } });
-    const buyer = layoutSupplyDemand({ tax: { amount: 18, side: "buyer" } });
-    for (const id of ["price_buyers_point", "price_sellers_point"]) {
-      expect(P(buyer, id)[0]).toBeCloseTo(P(seller, id)[0], 1);
-      expect(P(buyer, id)[1]).toBeCloseTo(P(seller, id)[1], 1);
+  // Looped over `kind` rather than duplicated: ad_valorem × buyer-side is the
+  // ONLY caller of the division branch of layout.ts's `shift`
+  // (y / (1 + amount/100)) and had zero coverage before this loop
+  // (whole-branch review, Gap C).
+  test("a seller-side and a buyer-side tax are the same figure, for both kinds", () => {
+    for (const [kind, amount] of [["per_unit", 18], ["ad_valorem", 36]] as const) {
+      const seller = layoutSupplyDemand({ tax: { amount, kind, side: "seller" } });
+      const buyer = layoutSupplyDemand({ tax: { amount, kind, side: "buyer" } });
+      for (const id of ["price_buyers_point", "price_sellers_point"]) {
+        expect(P(buyer, id)[0], `${kind} ${id} x`).toBeCloseTo(P(seller, id)[0], 1);
+        expect(P(buyer, id)[1], `${kind} ${id} y`).toBeCloseTo(P(seller, id)[1], 1);
+      }
+      expect(ids(seller)).toContain("tax_supply_curve");
+      expect(ids(buyer)).toContain("tax_demand_curve");
+      // ...and the buyer-side curve really did move: equal-to-seller alone
+      // would also hold if the shift were a no-op on both sides.
+      const moved = buyer.curveSamples!["tax_demand_curve"];
+      const base = buyer.curveSamples!["demand_curve"];
+      expect(moved).toBeDefined();
+      expect(JSON.stringify(moved)).not.toBe(JSON.stringify(base));
     }
-    expect(ids(seller)).toContain("tax_supply_curve");
-    expect(ids(buyer)).toContain("tax_demand_curve");
   });
 
   test("perfectly inelastic demand puts the whole burden on buyers", () => {
@@ -373,6 +435,13 @@ function polyArea(l: SceneLayout, id: string): number {
   return Math.abs(a) / 2;
 }
 
+/** A region's own polygon. `.pts` is not on every Drawable variant — narrow first. */
+function areaPts(l: SceneLayout, id: string): Pt[] {
+  const d = flattenDrawables(l.drawables).find((x) => x.id === id);
+  if (!d || d.kind !== "area") throw new Error(`no area drawable ${id}`);
+  return d.pts;
+}
+
 const ALL_REGIONS = ["consumer_surplus", "producer_surplus", "deadweight_loss", "government_revenue", "transfer"] as const;
 
 describe("welfare regions", () => {
@@ -383,32 +452,203 @@ describe("welfare regions", () => {
     }
   });
 
-  test("the welfare identity holds for every intervention", () => {
-    const base = layoutSupplyDemand({ regions: [...ALL_REGIONS] });
-    const cs0 = polyArea(base, "cs_region");
-    const ps0 = polyArea(base, "ps_region");
-    const cases: SupplyDemandParams[] = [
-      { tax: { amount: 18 } },
-      { tax: { amount: 18, side: "buyer" } },
-      { tax: { amount: 36, kind: "ad_valorem" } },
-      { tax: { amount: -18 } },
-      { price_ceiling: { level: 32 } },
-      { price_floor: { level: 68 } },
+  test("the welfare identity holds for every intervention, at every elasticity", () => {
+    // Each CONTEXT brings its own baseline, and every case in it is measured
+    // against that baseline. This is not optional bookkeeping: the regions
+    // share one left edge (layout.ts `qLeft`) and that edge moves with
+    // elasticity, so a 0.5-elasticity case measured against the DEFAULT
+    // baseline compares two regions that span different intervals and reports
+    // the test's own artifact. Measured both ways on the unfixed code, the
+    // same defect read 7.4 % (mismatched baseline) and 9.2 % (matched); only
+    // the matched number is the layout's error.
+    const contexts: { name: string; ctx: SupplyDemandParams; cases: SupplyDemandParams[] }[] = [
+      {
+        name: "unit elasticity",
+        ctx: {},
+        cases: [
+          { tax: { amount: 18 } },
+          { tax: { amount: 18, side: "buyer" } },
+          { tax: { amount: 36, kind: "ad_valorem" } },
+          { tax: { amount: 36, kind: "ad_valorem", side: "buyer" } },
+          { tax: { amount: -18 } },
+          { price_ceiling: { level: 32 } },
+          { price_floor: { level: 68 } },
+        ],
+      },
+      // elasticity < 1 shrinks a curve's x-run about the equilibrium, so the
+      // curve no longer reaches the price axis — the case the identity was
+      // blind to until it was swept here.
+      {
+        name: "inelastic demand (0.5)",
+        ctx: { demand: { elasticity: 0.5 } },
+        // the ceiling case traded LEFT of where demand exists — 2-point
+        // zero-area "regions" before the fix
+        cases: [{ tax: { amount: 18 } }, { tax: { amount: -18 } }, { price_ceiling: { level: 32 } }],
+      },
+      {
+        name: "perfectly inelastic demand",
+        ctx: { demand: { elasticity: "perfectly_inelastic" } },
+        cases: [{ tax: { amount: 18 } }, { price_ceiling: { level: 32 } }],
+      },
+      // the mirror: an inelastic SUPPLY with a binding floor
+      {
+        name: "inelastic supply (0.5)",
+        ctx: { supply: { elasticity: 0.5 } },
+        cases: [{ tax: { amount: 18 } }, { price_floor: { level: 68 } }],
+      },
+      // The case that proves the left edge must be SHARED rather than taken
+      // per curve: with different elasticities the two curves start at
+      // different x, so per-region edges would stop the areas tiling one
+      // interval and the identity would not close.
+      {
+        name: "mixed elasticities (D 0.5, S 1.5)",
+        ctx: { demand: { elasticity: 0.5 }, supply: { elasticity: 1.5 } },
+        cases: [{ tax: { amount: 18 } }, { tax: { amount: -18 } }, { price_ceiling: { level: 32 } }],
+      },
+      {
+        name: "mixed elasticities (D 1.5, S 0.5)",
+        ctx: { demand: { elasticity: 1.5 }, supply: { elasticity: 0.5 } },
+        cases: [{ tax: { amount: 18 } }, { price_floor: { level: 68 } }],
+      },
+      // The narrowest traded span in the sweep: no curve sample lands
+      // between the shared left edge and Q, so a polygon that closes on its
+      // last sample instead of on Q loses a big share of its own area (12 %
+      // of base surplus, measured).
+      {
+        name: "perfectly inelastic demand, elastic supply",
+        ctx: { demand: { elasticity: "perfectly_inelastic" }, supply: { elasticity: 1.5 } },
+        cases: [{ price_floor: { level: 68 } }, { price_floor: { level: 90 } }],
+      },
     ];
-    for (const c of cases) {
-      const l = layoutSupplyDemand({ ...c, regions: [...ALL_REGIONS] });
-      const dCS = polyArea(l, "cs_region") - cs0;
-      const dPS = polyArea(l, "ps_region") - ps0;
-      // the wedge is a TRANSFER out of the two surpluses for a tax, and INTO
-      // them for a subsidy, so it enters the identity with the sign of the tax
-      const wedge = polyArea(l, "wedge_region") * (c.tax && (c.tax.amount ?? 0) < 0 ? -1 : 1);
-      const dwl = polyArea(l, "dwl_region");
-      // RELATIVE tolerance: these are logical pixels squared, order 1e5, and
-      // CS/PS are built from the 61-point curves while betweenRegion resamples
-      // at 24 — an absolute tolerance would be tighter than the sampling. 2% of
-      // total surplus still catches any sign error, wrong bound or missing region.
-      expect(Math.abs(dCS + dPS + wedge + dwl)).toBeLessThan((cs0 + ps0) * 0.02);
+    for (const { name, ctx, cases } of contexts) {
+      const base = layoutSupplyDemand({ ...ctx, regions: [...ALL_REGIONS] });
+      const cs0 = polyArea(base, "cs_region");
+      const ps0 = polyArea(base, "ps_region");
+      // a context whose own baseline shades nothing would make every
+      // comparison below 0 ≈ 0
+      expect(cs0, `${name} baseline CS`).toBeGreaterThan(0);
+      expect(ps0, `${name} baseline PS`).toBeGreaterThan(0);
+      for (const c of cases) {
+        const l = layoutSupplyDemand({ ...ctx, ...c, regions: [...ALL_REGIONS] });
+        const dCS = polyArea(l, "cs_region") - cs0;
+        const dPS = polyArea(l, "ps_region") - ps0;
+        // the wedge is a TRANSFER out of the two surpluses for a tax, and INTO
+        // them for a subsidy, so it enters the identity with the sign of the tax
+        const wedge = polyArea(l, "wedge_region") * (c.tax && (c.tax.amount ?? 0) < 0 ? -1 : 1);
+        const dwl = polyArea(l, "dwl_region");
+        // RELATIVE tolerance: these are logical pixels squared, order 1e5, and
+        // CS/PS are built from the 61-point curves while betweenRegion resamples
+        // at 24 — an absolute tolerance would be tighter than the sampling. 2% of
+        // total surplus still catches any sign error, wrong bound or missing region.
+        const residual = Math.abs(dCS + dPS + wedge + dwl);
+        expect(
+          residual,
+          `${name} / ${JSON.stringify(c)}: residual ${((residual / (cs0 + ps0)) * 100).toFixed(1)}% of base surplus`,
+        ).toBeLessThan((cs0 + ps0) * 0.02);
+      }
     }
+  });
+
+  // The identity above is algebraically blind to WHERE the common interval
+  // starts, so it can only see this defect through the baseline comparison.
+  // This pins the geometry itself: no region may close to the price axis
+  // across ground no curve covers, and none may ship as a degenerate polygon.
+  test("regions start where the curves do, not at the axis", () => {
+    const l = layoutSupplyDemand({ demand: { elasticity: 0.5 }, tax: { amount: 18 }, regions: [...ALL_REGIONS] });
+    // demand.elasticity 0.5 leaves demand defined over roughly [29.5, 68.5]
+    // of the [2, 96] plot; supply still starts at D0 = 2, so the SHARED left
+    // edge is demand's start.
+    const dStart = l.curveSamples!["demand_curve"][0][0];
+    const sStart = l.curveSamples!["supply_curve"][0][0];
+    const qLeft = Math.max(dStart, sStart);
+    expect(qLeft).toBeCloseTo(dStart, 6);
+    // not vacuous: the shared edge is far to the right of the price axis
+    expect(qLeft).toBeGreaterThan(plotArea().x0 + 100);
+    for (const id of ["cs_region", "ps_region", "wedge_region"]) {
+      const pts = areaPts(l, id);
+      expect(pts.length, `${id} is a real polygon`).toBeGreaterThanOrEqual(3);
+      expect(Math.min(...pts.map(([x]) => x)), `${id} left edge`).toBeCloseTo(qLeft, 6);
+      // ...and that edge is an EDGE, not a corner: the polygon meets the
+      // curve AT qLeft (two vertices there), rather than cutting the corner
+      // off to the curve's first sample inside it.
+      expect(
+        pts.filter(([x]) => Math.abs(x - qLeft) < 1e-6).length,
+        `${id} left edge is vertical`,
+      ).toBeGreaterThanOrEqual(2);
+    }
+
+    // And when the traded quantity falls LEFT of that edge there is nothing
+    // to shade at all — before the fix this shipped a 2-point, zero-area
+    // "area" that rendered as a line.
+    const ceiling = layoutSupplyDemand({
+      demand: { elasticity: 0.5 },
+      price_ceiling: { level: 32 },
+      regions: [...ALL_REGIONS],
+    });
+    expect(ceiling.anchors["ceiling_line"]).toBeDefined(); // the control itself still draws
+    const floor = layoutSupplyDemand({
+      supply: { elasticity: 0.5 },
+      price_floor: { level: 68 },
+      regions: [...ALL_REGIONS],
+    });
+    expect(floor.anchors["floor_line"]).toBeDefined();
+    for (const l2 of [ceiling, floor]) {
+      for (const id of ["cs_region", "ps_region", "transfer_region", "wedge_region"]) {
+        expect(ids(l2)).not.toContain(id);
+      }
+      // the whole of [qLeft, Q*] is deadweight loss instead, and it is drawn
+      expect(polyArea(l2, "dwl_region")).toBeGreaterThan(0);
+    }
+  });
+
+  // The RIGHT edge has the same failure mode as the left one, and only a
+  // price control exposes it: under a tax the closing price IS the curve's
+  // own value at Q_t, so the corner already sits on the curve, but a control
+  // price does not lie on the short side's curve. The polygon then closed
+  // with a chord from the last sample INSIDE the interval — worth up to 12 %
+  // of total surplus when the interval is narrower than the sample spacing.
+  test("a price control's surplus polygon meets the curve at Q, not at the last sample before it", () => {
+    const l = layoutSupplyDemand({
+      demand: { elasticity: "perfectly_inelastic" },
+      supply: { elasticity: 1.5 },
+      price_floor: { level: 68 },
+      regions: [...ALL_REGIONS],
+    });
+    const supply = l.curveSamples!["supply_curve"];
+    const qLeft = Math.max(l.curveSamples!["demand_curve"][0][0], supply[0][0]);
+    const pf = l.anchors["floor_line"][1];
+    const qd = solveForX(l.curveSamples!["demand_curve"], pf); // the short side sets Q
+    if (qd === null) throw new Error("no traded quantity at the floor price");
+    // Not vacuous: the traded span is narrower than the supply curve's own
+    // sampling, so the cut corner was a large share of the region.
+    expect(supply.filter(([x]) => x > qLeft && x < qd).length).toBeLessThanOrEqual(1);
+    const pts = areaPts(l, "ps_region");
+    expect(pts.filter(([x]) => Math.abs(x - qd) < 1e-6).length, "ps right edge is vertical").toBeGreaterThanOrEqual(2);
+    // and the area is the honest trapezoid, rebuilt from the curve samples
+    // rather than read back off the region
+    const sLeft = interpolateAtX(supply, qLeft);
+    const sRight = interpolateAtX(supply, qd);
+    if (sLeft === null || sRight === null) throw new Error("supply does not span the traded interval");
+    expect(polyArea(l, "ps_region")).toBeCloseTo((qd - qLeft) * (pf - (sLeft + sRight) / 2), 0);
+
+    // ...while the FREE MARKET figure keeps exactly the vertices it always
+    // had: every demand sample up to Q*, plus the closing corner and the
+    // left-edge corner. Q* lands one ulp off the sample that sits on it, so
+    // the two are near-identical but not identical — the de-duplication that
+    // cleans up the corner fix must compare exactly, or it eats that
+    // pre-existing vertex and shifts the label's centroid anchor.
+    const free = layoutSupplyDemand({ regions: ["consumer_surplus"] });
+    const onCurve = free.curveSamples!["demand_curve"].filter(([x]) => x <= free.anchors["equilibrium_point"][0]).length;
+    expect(areaPts(free, "cs_region").length).toBe(onCurve + 2);
+
+    // And a TAX figure keeps its old vertex count too, from the other side:
+    // there the closing corner IS the curve's value at Q_t — the same
+    // interpolation, bit for bit — so the corner point the fix adds is the
+    // corner that was already there and must not ship twice.
+    const taxed = layoutSupplyDemand({ tax: { amount: 18 }, regions: ["consumer_surplus"] });
+    const qT = taxed.anchors["price_buyers_point"][0];
+    const onCurveTaxed = taxed.curveSamples!["demand_curve"].filter(([x]) => x <= qT).length;
+    expect(areaPts(taxed, "cs_region").length).toBe(onCurveTaxed + 2);
   });
 
   test("the wedge rectangle spans the two prices and ends at the traded quantity", () => {
