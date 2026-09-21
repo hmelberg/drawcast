@@ -2,10 +2,12 @@
 // ready templates, every template gets a full entry — the original,
 // byte-stable format prompt caching pins (never perturb it below threshold).
 // At or above the threshold, the catalog degrades to a complete one-line
-// index plus full entries for a "hot set" (forced / keyword-matched /
-// priority / core), with an escalation protocol: the LLM asks for a
-// template's full definition by name (need_template) instead of guessing its
-// parameters from the index line alone.
+// index plus full entries for a "hot set" (forced / priority / router-
+// shortlisted / keyword-matched), with an escalation protocol: the LLM asks
+// for a template's full definition by name (need_template) instead of
+// guessing its parameters from the index line alone. Since 2026-09-22 the
+// hot set also has a last-resort fallback for the rare request neither
+// selector places anything for — see LAST_RESORT_IDS below.
 
 import { scenes } from "./registry";
 import type { SceneManifest } from "./types";
@@ -21,9 +23,11 @@ import { PACK_DEFS, packTemplateIds } from "./packs";
  * the index, 94.4 % alone, 97.9 % joined with the keyword picks) the
  * two-level regime became the default: the bundled library (84 ready
  * templates, ~279k chars in full) now reaches the model as a ~24k-char
- * index plus the core and a five-entry shortlist. Below this number — a
- * single-domain library, a host embed — everything is still expanded and
- * no router is needed.
+ * index plus a five-entry shortlist for the request (the three
+ * health-economics templates ride along in that shortlist only when a
+ * request wants them — see LAST_RESORT_IDS for the rare case none of the
+ * selectors do). Below this number — a single-domain library, a host embed
+ * — everything is still expanded and no router is needed.
  */
 export const TEMPLATE_FULL_THRESHOLD = 40; // lowered 2026-09-07: the router (src/llm/router.ts) makes two-level the default regime
 
@@ -226,8 +230,9 @@ const VARIABLE_PREAMBLE = "Additional likely-relevant template definitions for T
  * stable and `variable` is empty (byte-identical to the pre-split catalogText
  * output — required for prompt-cache pinning, see catalogText below). Above
  * the threshold, `stable` is built ONLY from configuration that doesn't vary
- * per free-text request (forced/priority/core + the full index + stubs +
- * pack lines + escalation prose) — so it can sit in generateSpec's
+ * per free-text request (forced/priority + the full index + stubs +
+ * pack lines + escalation prose — no longer the core three, see
+ * LAST_RESORT_IDS) — so it can sit in generateSpec's
  * cache_control prefix and stay byte-identical across different requests
  * sharing the same forced/priority config. `variable` carries the
  * keyword-matched shortlist (selectTemplates(request, …), the one part that

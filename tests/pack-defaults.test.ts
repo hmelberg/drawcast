@@ -55,9 +55,9 @@ describe("the default catalog", () => {
   // every request, whatever its topic. Before this round it carried three
   // health-economics templates in full — 26,890 chars a chess request paid
   // for. The router shortlists them now. Measured 2026-09-22 after the
-  // unpin: 25,513 chars. The ceiling is the measurement plus ~10 % of room
-  // for the index to grow with the library; a round that adds a pack may
-  // re-pin it, on purpose, with a note like this one.
+  // unpin: 25,513 chars, rounded up to the next 500 for the ceiling below.
+  // A round that adds a pack may re-pin it, on purpose, with a note like
+  // this one.
   test("the stable catalog is the index and nothing expanded", () => {
     const { stable } = catalogParts({ request: "explain a chess opening" });
     expect(stable).not.toContain("### Scene template: supply_demand (READY");
