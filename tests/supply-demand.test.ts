@@ -1,7 +1,8 @@
 import { describe, expect, test } from "vitest";
 import { layoutSupplyDemand } from "../src/scenes/supply_demand/layout";
-import { flattenDrawables, type StrokeDrawable } from "../src/layout/model";
-import { CANVAS } from "../src/layout/canvas";
+import { flattenDrawables, type StrokeDrawable, type Pt } from "../src/layout/model";
+import { CANVAS, linearScale, plotArea } from "../src/layout/canvas";
+import { qualitativeShape } from "../src/layout/curves";
 import type { SceneLayout } from "../src/scenes/types";
 
 function ids(result: ReturnType<typeof layoutSupplyDemand>): string[] {
@@ -181,15 +182,51 @@ describe("elasticity", () => {
     }
   });
 
-  test("the equilibrium never moves, whatever the elasticities", () => {
+  // Pins the MECHANISM, not just the effect: elasticityFactor is not exported
+  // (and shouldn't be, just for this), so this reconstructs the pre-elasticity
+  // curve independently, from the same public primitives shapedCurve itself
+  // is built from (qualitativeShape + the documented D0=2/D1=96 domain slice
+  // + the same canvas scale), and checks it against the actual default-path
+  // output byte for byte. `elasticityFactor(undefined)` computes
+  // `Math.tan(Math.PI / 4)` internally, which is 0.9999999999999999, not 1 —
+  // so if the `clamped === 1` short-circuit in elasticityFactor were removed,
+  // `scaleXAbout`'s `s === 1` guard would never fire and this would resample
+  // the curve through an s fractionally below 1, drifting off this
+  // independently-computed reference. (Comparing default output only against
+  // an explicit `elasticity: 1`/`"unit"` run, as the test above does, would
+  // NOT catch that regression: both runs would recompute the same
+  // slightly-off `s` and agree with each other while still drifting from the
+  // true pre-elasticity shape.)
+  test("the default elasticity path matches the pre-elasticity curve exactly, not just itself", () => {
+    const sx = linearScale([0, 100], [plotArea().x0, plotArea().x1]);
+    const sy = linearScale([0, 100], [plotArea().y0, plotArea().y1]);
+    const D0 = 2;
+    const D1 = 96;
+    const expectedDemand: Pt[] = qualitativeShape("decreasing", "linear", "medium").map(
+      ([tx, ty]): Pt => [sx(D0 + (D1 - D0) * tx), sy(ty * 100)],
+    );
+    const expectedSupply: Pt[] = qualitativeShape("increasing", "linear", "medium").map(
+      ([tx, ty]): Pt => [sx(D0 + (D1 - D0) * tx), sy(ty * 100)],
+    );
+    const l = layoutSupplyDemand({});
+    expect(l.curveSamples!["demand_curve"]).toEqual(expectedDemand);
+    expect(l.curveSamples!["supply_curve"]).toEqual(expectedSupply);
+  });
+
+  test("the equilibrium never moves, and every elasticity draws a different curve", () => {
     const base = layoutSupplyDemand({}).anchors["equilibrium_point"];
+    const shapes = new Set<string>();
     for (const e of [0.06, 0.3, 0.5, 1, 1.5, 1.9, 1.94]) {
       for (const params of [{ demand: { elasticity: e } }, { supply: { elasticity: e } }]) {
-        const eq = layoutSupplyDemand(params).anchors["equilibrium_point"];
+        const l = layoutSupplyDemand(params);
+        const eq = l.anchors["equilibrium_point"];
         expect(eq[0]).toBeCloseTo(base[0], 2);
         expect(eq[1]).toBeCloseTo(base[1], 2);
       }
+      shapes.add(JSON.stringify(layoutSupplyDemand({ demand: { elasticity: e } }).curveSamples!["demand_curve"]));
     }
+    // without this, the invariance assertions above pass against a no-op
+    expect(shapes.size).toBe(7);
   });
 
   test("inelastic is near-vertical, elastic is near-horizontal, and both keep enough points", () => {

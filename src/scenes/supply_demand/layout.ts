@@ -68,7 +68,12 @@ const ELASTICITY: Record<string, number> = {
  */
 function elasticityFactor(e: CurveParams["elasticity"]): number {
   const raw = typeof e === "number" ? e : ELASTICITY[e ?? "unit"] ?? 1;
-  return Math.tan((Math.max(0.06, Math.min(1.94, raw)) * Math.PI) / 4);
+  const clamped = Math.max(0.06, Math.min(1.94, raw));
+  // Math.tan(Math.PI / 4) is 0.9999999999999999, NOT 1, so the unit case must
+  // short-circuit: scaleXAbout's `s === 1` identity guard would otherwise never
+  // fire for the default elasticity, and byte-identity with every existing
+  // figure would rest on floating-point coincidence rather than on this line.
+  return clamped === 1 ? 1 : Math.tan((clamped * Math.PI) / 4);
 }
 
 /**
