@@ -742,7 +742,11 @@ describe("welfare regions", () => {
     const l = layoutSupplyDemand({ tax: { amount: 18 }, regions: ["government_revenue"] });
     const pb = l.anchors["price_buyers_point"];
     const ps = l.anchors["price_sellers_point"];
-    const pts = flattenDrawables(l.drawables).find((d) => d.id === "wedge_region")!.pts;
+    // NB: `.pts` is not on every Drawable variant (TextDrawable has none), so
+    // narrow before reading it — a bare `.find(...)!.pts` does not compile here.
+    const wedge = flattenDrawables(l.drawables).find((d) => d.id === "wedge_region");
+    if (!wedge || wedge.kind !== "area") throw new Error("wedge_region missing or not an area");
+    const pts = wedge.pts;
     const xs = pts.map(([x]) => x);
     const ys = pts.map(([, y]) => y);
     // a true rectangle: its height IS the price gap and its right edge IS Q_t
