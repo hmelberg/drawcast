@@ -40,3 +40,29 @@ describe("playlists in script", () => {
     expect(itemsOf(playlist)).toHaveLength(2);
   });
 });
+
+// A lecture's chapters used to be a one-way street: `chapter:` was a line the
+// parser understood and the printer never wrote, so the editor — which always
+// shows the script form — dropped every chapter the first time a document was
+// rendered into it, and a revise then worked from a document that no longer
+// had any (Hans, 2026-09-21).
+describe("chapters in script", () => {
+  const LECTURE = '# Lecture\n\nchapter: Opening\n\n## One\nHei.\n    camera zoom 2\n\nchapter: "Middle: the turn"\n\n## Two\nDa.\n    camera zoom 2\n';
+
+  test("a chapter prints above the page it opens, and comes back where it was", () => {
+    const playlist = parsePlaylistText(LECTURE);
+    expect(playlist.entries.map((e) => (e.kind === "chapter" ? `chapter:${e.title}` : `item:${e.spec.title}`))).toEqual([
+      "chapter:Opening",
+      "item:One",
+      "chapter:Middle: the turn",
+      "item:Two",
+    ]);
+    expect(formatPlaylist(playlist, "script")).toBe(LECTURE);
+  });
+
+  test("a chapter after the last page is not lost either", () => {
+    const playlist = parsePlaylistText('## One\nHei.\n    camera zoom 2\n\n## Two\nDa.\n    camera zoom 2\n\nchapter: Coda\n');
+    expect(playlist.entries[playlist.entries.length - 1]).toEqual({ kind: "chapter", title: "Coda" });
+    expect(parsePlaylistText(formatPlaylist(playlist, "script")).entries).toEqual(playlist.entries);
+  });
+});

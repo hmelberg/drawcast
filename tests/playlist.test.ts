@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  entriesForParts,
   exportSequence,
   formatPlaylist,
   isSingle,
@@ -325,5 +326,72 @@ describe("playlist.prompt — the founding request travels in the file (B9)", ()
   test("a non-string prompt in the header is ignored, not carried", () => {
     const p = parsePlaylistText(`playlist: {prompt: 42}\n---\n${SPEC_A}`);
     expect(p.meta.prompt).toBeUndefined();
+  });
+});
+
+// A revised drawcast came back unrunnable: "Spec invalid: (root) must NOT have
+// additional properties {"additionalProperty":"prompt"}" (Hans, 2026-09-21).
+// The founding prompt is a DOCUMENT setting; a page that carries one is a page
+// that fails validation, whichever notation the document arrived in.
+describe("document settings never sink the page they were written on", () => {
+  test("a lone spec carrying the founding prompt becomes a one-page playlist with a header", () => {
+    const p = parsePlaylistText(`prompt: explain the ramp\n${SPEC_A}`);
+    expect(p.meta.prompt).toBe("explain the ramp");
+    expect(itemsOf(p)).toHaveLength(1);
+    expect(itemsOf(p)[0].spec).not.toHaveProperty("prompt");
+    expect(itemsOf(p)[0].spec.title).toBe("Part one");
+  });
+
+  test("the same holds for JSON, which is what a model reaches for unasked", () => {
+    const p = parsePlaylistText(JSON.stringify({ prompt: "explain it", title: "T", commands: [{ speak: "Hei." }] }));
+    expect(p.meta.prompt).toBe("explain it");
+    expect(itemsOf(p)[0].spec).not.toHaveProperty("prompt");
+  });
+
+  test("a header that forgot its playlist: wrapper is read as a header, not a blank page", () => {
+    const p = parsePlaylistText(`title: Lecture\nprompt: explain it\nadvance: click\n---\n${SPEC_A}\n---\n${SPEC_B}`);
+    expect(p.meta).toMatchObject({ title: "Lecture", prompt: "explain it", advance: "click" });
+    expect(itemsOf(p).map((i) => i.spec.title)).toEqual(["Part one", "Part two"]);
+  });
+
+  test("a page in a stream that carries one hands it up to the document", () => {
+    const p = parsePlaylistText(`prompt: explain it\n${SPEC_A}\n---\n${SPEC_B}`);
+    expect(p.meta.prompt).toBe("explain it");
+    expect(itemsOf(p)[0].spec).not.toHaveProperty("prompt");
+  });
+
+  test("an explicit playlist: header still wins over anything read loosely", () => {
+    const p = parsePlaylistText(`playlist: {prompt: the real one}\n---\nprompt: a stray\n${SPEC_A}`);
+    expect(p.meta.prompt).toBe("the real one");
+  });
+
+  test("printing a single page with a founding prompt round-trips through the parser", () => {
+    const p = parsePlaylistText(SPEC_A);
+    p.meta.prompt = "explain the ramp";
+    for (const format of ["script", "yaml", "json"] as const) {
+      const back = parsePlaylistText(formatPlaylist(p, format));
+      expect(back.meta.prompt, format).toBe("explain the ramp");
+      expect(itemsOf(back), format).toHaveLength(1);
+      expect(itemsOf(back)[0].spec, format).not.toHaveProperty("prompt");
+    }
+  });
+});
+
+describe("entriesForParts", () => {
+  const specs = [{ title: "a" }, { title: "b" }, { title: "c" }] as Spec[];
+
+  test("opens a chapter where the chapter changes, and nowhere else", () => {
+    const entries = entriesForParts(specs, ["Opening", "Opening", "The turn"]);
+    expect(entries.map((e) => (e.kind === "chapter" ? `chapter:${e.title}` : `item:${e.spec.title}`))).toEqual([
+      "chapter:Opening",
+      "item:a",
+      "item:b",
+      "chapter:The turn",
+      "item:c",
+    ]);
+  });
+
+  test("parts with no chapters are plain items", () => {
+    expect(entriesForParts(specs, [undefined, undefined, undefined]).every((e) => e.kind === "item")).toBe(true);
   });
 });

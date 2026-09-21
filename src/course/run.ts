@@ -8,7 +8,7 @@ import { type GenerateConfig } from "../llm/compile";
 import { generateFromOutline, outlineParts, type PartsRequest, type PartsResult } from "../llm/multi";
 import type { Outline } from "../llm/outline";
 import { buildBrief, parseTags } from "../llm/tags";
-import { DEFAULT_META, itemsOf, makeNextCard, parsePlaylistText, type Playlist, type PlaylistEntry } from "../playlist/playlist";
+import { DEFAULT_META, entriesForParts, itemsOf, makeNextCard, parsePlaylistText, type Playlist, type PlaylistEntry } from "../playlist/playlist";
 import type { Spec } from "../spec/types";
 import type { SavedDrawing } from "../store";
 import { parseCourse, setLectureStatus, type Course, type CourseLecture } from "./document";
@@ -112,16 +112,7 @@ export function estimateMinutes(specs: Spec[]): number {
 /** One lecture's playlist: its parts, its chapters, and the card naming what follows. */
 export function lecturePlaylist(course: Course, index: number, result: PartsResult): Playlist {
   const lecture = course.lectures[index];
-  const entries: PlaylistEntry[] = [];
-  let chapter: string | undefined;
-  result.specs.forEach((spec, i) => {
-    const next = result.chapterOf[i];
-    if (next && next !== chapter) {
-      entries.push({ kind: "chapter", title: next });
-      chapter = next;
-    }
-    entries.push({ kind: "item", spec });
-  });
+  const entries: PlaylistEntry[] = entriesForParts(result.specs, result.chapterOf);
   const following = course.lectures[index + 1];
   if (following) {
     entries.push({

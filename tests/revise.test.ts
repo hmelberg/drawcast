@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { buildReviseUser, checkPlaylist, parseReviseReply, preserveFoundingPrompt } from "../src/llm/revise";
+import { buildReviseUser, checkPlaylist, parseReviseReply, preserveFoundingPrompt, REVISE_PROMPT_SOURCE } from "../src/llm/revise";
 import { formatPlaylist, itemsOf, parsePlaylistText, singlePlaylist } from "../src/playlist/playlist";
 import { hoistPortraitStrokes, restorePortraitStrokes } from "../src/llm/hoist";
 import { normalizeSpec, validateSpec } from "../src/spec/schema";
@@ -112,5 +112,37 @@ describe("a hoisted document is not a complete document (design §5.2)", () => {
     // After restoration, which is what the loop must now do first, it is clean.
     restorePortraitStrokes(reply, hoisted.blobs);
     expect(validateSpec(normalizeSpec(itemsOf(reply)[0].spec)).ok).toBe(true);
+  });
+});
+
+// The card teaches the notation by showing one figure in both — so the two
+// halves have to BE the same figure. A Rosetta stone with a typo in it teaches
+// the typo to every revision the app ever makes.
+describe("the revise notation card (llm/prompts/revise-v1.md)", () => {
+  const blocks = [...REVISE_PROMPT_SOURCE.matchAll(/```(json)?\n([\s\S]*?)\n```/g)];
+
+  test("its two example blocks say the same thing", () => {
+    const json = blocks.find((b) => b[1] === "json");
+    const script = blocks.find((b) => b[1] === undefined);
+    expect(json, "a ```json block").toBeDefined();
+    expect(script, "a plain ``` block").toBeDefined();
+    const fromScript = parsePlaylistText(script![2]);
+    expect(itemsOf(fromScript)).toHaveLength(1);
+    expect(normalizeSpec(itemsOf(fromScript)[0].spec)).toEqual(normalizeSpec(JSON.parse(json![2])));
+  });
+
+  test("the figure it teaches is a valid spec", () => {
+    const json = blocks.find((b) => b[1] === "json")!;
+    const v = validateSpec(JSON.parse(json[2]));
+    expect(v.ok ? [] : v.errors).toEqual([]);
+  });
+
+  test("it replaces the compiler prompt's JSON-only contract, and is sent with every revision", () => {
+    expect(REVISE_PROMPT_SOURCE).toContain('replaces "Output"');
+    // Document settings are the half of the notation a page must never carry
+    // (the 2026-09-21 "(root) must NOT have additional properties: prompt").
+    expect(REVISE_PROMPT_SOURCE).toContain("prompt:");
+    // …and pages are the half a lecture needs.
+    expect(REVISE_PROMPT_SOURCE).toContain("## Name");
   });
 });

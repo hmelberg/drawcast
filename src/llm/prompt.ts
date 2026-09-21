@@ -65,8 +65,10 @@ export function buildSystemBlocks(variantSource: string, parts: PromptParts): { 
  * and the suffix collapses to exactly that whenever the prompt source ends
  * with {{EXEMPLARS}} and there are no exemplars to fill it with — the slice
  * keeps the trailing newline, so `suffix` is "\n": whitespace, but truthy, so
- * a plain `suffix ? …` guard sails straight past it. That is every revise
- * call, which passes no exemplars by design.
+ * a plain `suffix ? …` guard sails straight past it. That was every revise
+ * call, which passes no exemplars by design — until the revise card (llm/
+ * prompts/revise-v1.md) started riding in that same tail; the guard stays for
+ * every other caller that can empty it.
  */
 export function systemBlocks(prefix: string, suffix: string): { type: "text"; text: string; cache_control?: { type: "ephemeral" } }[] {
   const blocks: { type: "text"; text: string; cache_control?: { type: "ephemeral" } }[] = [];
