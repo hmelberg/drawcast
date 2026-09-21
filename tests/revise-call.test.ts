@@ -40,15 +40,44 @@ beforeEach(() => {
 });
 
 describe("reviseDocument", () => {
+  // Task 3 (design §3.3) fix round 1: a prose-only assertion here cannot
+  // catch a revert of revise.ts's schema half alone — `schema: apiSchema()`
+  // (dropping the { code, sound } flags) keeps this test, and every other
+  // test in the suite, green, while silently constraining a code- or
+  // sound-carrying revision to a schema missing the element/verb it needs
+  // (the exact "silent corruption of someone's existing work" design §3.3
+  // warns about). `code_result` and `instrument` are schema PROPERTY NAMES:
+  // {{SCHEMA}} is filled via JSON.stringify (src/llm/prompt.ts), which
+  // escapes any quote that was already INSIDE a description string (so the
+  // play description's own embedded example, `"instrument": "piano"`, lands
+  // in the prompt as `\"instrument\": \"piano\"` — a different substring),
+  // so an unescaped '"code_result"' / '"instrument"' can only come from the
+  // schema's own JSON key. Checked (grep) that neither appears, quoted, in
+  // compiler-v1.md or revise-v1.md — the two prompt sources present on every
+  // call regardless of these gates — so the assertion cannot pass by
+  // accident from an always-on source.
   test("the conditional code block rides along only when the document or the instruction wants a script", async () => {
     // Task 10: the 15k code bullet is filled into {{CODE}} on demand. A
     // revision of a document that HAS a code element still needs the rules.
     replies = [GOOD, GOOD];
     await reviseDocument(GOOD, "make the curve steeper", cfg());
     expect(systemText(0)).not.toContain("**code** runs a real script");
+    expect(systemText(0)).not.toContain('"code_result"');
     const withCode = GOOD.replace("  - { id: c1", "  - { id: sim, type: code, language: python, code: \"print(1)\" }\n  - { id: c1");
     await reviseDocument(withCode, "make it print two", cfg());
     expect(systemText(1)).toContain("**code** runs a real script");
+    expect(systemText(1)).toContain('"code_result"');
+  });
+
+  test("the conditional sound block, and the schema's play verb, ride along only when the document or the instruction wants sound", async () => {
+    replies = [GOOD, GOOD];
+    await reviseDocument(GOOD, "make the curve steeper", cfg());
+    expect(systemText(0)).not.toContain("**play** sounds synthesized notes");
+    expect(systemText(0)).not.toContain('"instrument"');
+    const withSound = GOOD.replace("  - { draw: [ax, c1] }", "  - { draw: [ax, c1] }\n  - { play: \"C4:q\" }");
+    await reviseDocument(withSound, "make it louder", cfg());
+    expect(systemText(1)).toContain("**play** sounds synthesized notes");
+    expect(systemText(1)).toContain('"instrument"');
   });
 
   test("a clean reply returns the playlist in one round", async () => {
