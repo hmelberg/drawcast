@@ -4,7 +4,7 @@
 
 import { linearScale, plotArea } from "../../layout/canvas";
 import { makeAxes } from "../../layout/axes";
-import { interpolateAtX, intersectPolylines, qualitativeShape, solveForX } from "../../layout/curves";
+import { CURVE_SAMPLES, interpolateAtX, intersectPolylines, qualitativeShape, solveForX } from "../../layout/curves";
 import { centroid } from "../../layout/geometry";
 import {
   COLORS,
@@ -23,6 +23,8 @@ import type { SceneLayout } from "../types";
 export interface CurveParams {
   steepness?: "gentle" | "medium" | "steep" | number;
   curvature?: "linear" | "convex" | "concave";
+  /** Scales the curve's x-run about the equilibrium — see ELASTICITY. */
+  elasticity?: "perfectly_inelastic" | "inelastic" | "unit" | "elastic" | "perfectly_elastic" | number;
   label?: string;
 }
 
@@ -43,6 +45,52 @@ export interface SupplyDemandParams {
 
 const D0 = 2;
 const D1 = 96; // usable slice of the 0–100 domain, keeps arrowheads clear
+
+const ELASTICITY: Record<string, number> = {
+  perfectly_inelastic: 0.06,
+  inelastic: 0.5,
+  unit: 1,
+  elastic: 1.5,
+  perfectly_elastic: 1.94,
+};
+
+/**
+ * `steepness` widens a curve's Y-SPAN, which is why it saturates at k ≈ 1.05
+ * (curves.ts): the span hits the plot edges. `elasticity` scales the X-RUN
+ * about the equilibrium instead, which has no ceiling — e = 0 would be
+ * vertical and e = 2 horizontal.
+ *
+ * e is CLAMPED to [0.06, 1.94] and the clamp is not cosmetic: at the open
+ * ends the polyline stops being a function of x, and interpolateAtX,
+ * solveForX and intersectPolylines all assume that it is. 0.06 still reads
+ * as vertical (a 4.4-unit x-run over the full height) and 1.94 as horizontal
+ * (4 units of height across the plot). Do not widen it.
+ */
+function elasticityFactor(e: CurveParams["elasticity"]): number {
+  const raw = typeof e === "number" ? e : ELASTICITY[e ?? "unit"] ?? 1;
+  return Math.tan((Math.max(0.06, Math.min(1.94, raw)) * Math.PI) / 4);
+}
+
+/**
+ * The curve with its x-run scaled by `s` about `px`, RESAMPLED over the range
+ * it now occupies. Resampling rather than transforming the points is what
+ * keeps both extremes usable: a straight map would leave ~3 points inside the
+ * plot at either end of the range.
+ */
+function scaleXAbout(pts: Pt[], px: number, s: number): Pt[] {
+  if (s === 1) return pts; // exact identity — every existing figure is untouched
+  const xs = pts.map(([x]) => x);
+  const lo = Math.max(D0, px + (Math.min(...xs) - px) * s);
+  const hi = Math.min(D1, px + (Math.max(...xs) - px) * s);
+  if (!(hi > lo)) return pts;
+  const out: Pt[] = [];
+  for (let i = 0; i <= CURVE_SAMPLES; i++) {
+    const x = lo + ((hi - lo) * i) / CURVE_SAMPLES;
+    const y = interpolateAtX(pts, px + (x - px) / s);
+    if (y !== null) out.push([x, y]);
+  }
+  return out.length >= 2 ? out : pts;
+}
 
 interface Ctx {
   sx: (v: number) => number;
@@ -87,9 +135,16 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
 
   push(makeAxes("axes", plot, params.x_label ?? "Quantity (Q)", params.y_label ?? "Price (P)"));
 
-  // Curves in domain space (0–100 both axes).
-  const demandPts = shapedCurve("decreasing", params.demand);
-  const supplyPts = params.supply === null ? null : shapedCurve("increasing", params.supply ?? {});
+  // Curves in domain space (0–100 both axes). Elasticity scales each curve's
+  // x-run about the crossing of the UN-elasticized pair, so changing either
+  // elasticity provably cannot move the equilibrium — which is what makes the
+  // tax-incidence comparison honest.
+  const demandBase = shapedCurve("decreasing", params.demand);
+  const supplyBase = params.supply === null ? null : shapedCurve("increasing", params.supply ?? {});
+  const pivot = supplyBase ? intersectPolylines(demandBase, supplyBase) : null;
+  const px = pivot ? pivot[0] : (D0 + D1) / 2;
+  const demandPts = scaleXAbout(demandBase, px, elasticityFactor(params.demand?.elasticity));
+  const supplyPts = supplyBase ? scaleXAbout(supplyBase, px, elasticityFactor(params.supply?.elasticity)) : null;
 
   push(curve("demand_curve", demandPts, COLORS.demand, ctx));
   recordCurve("demand_curve", demandPts);

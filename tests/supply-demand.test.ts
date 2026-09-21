@@ -170,3 +170,49 @@ describe("numeric curve params (animate prerequisites)", () => {
     }
   });
 });
+
+describe("elasticity", () => {
+  test("elasticity 1 and the word 'unit' are exact identities", () => {
+    const base = layoutSupplyDemand({});
+    for (const e of [1, "unit" as const]) {
+      const l = layoutSupplyDemand({ demand: { elasticity: e }, supply: { elasticity: e } });
+      expect(l.curveSamples!["demand_curve"]).toEqual(base.curveSamples!["demand_curve"]);
+      expect(l.curveSamples!["supply_curve"]).toEqual(base.curveSamples!["supply_curve"]);
+    }
+  });
+
+  test("the equilibrium never moves, whatever the elasticities", () => {
+    const base = layoutSupplyDemand({}).anchors["equilibrium_point"];
+    for (const e of [0.06, 0.3, 0.5, 1, 1.5, 1.9, 1.94]) {
+      for (const params of [{ demand: { elasticity: e } }, { supply: { elasticity: e } }]) {
+        const eq = layoutSupplyDemand(params).anchors["equilibrium_point"];
+        expect(eq[0]).toBeCloseTo(base[0], 2);
+        expect(eq[1]).toBeCloseTo(base[1], 2);
+      }
+    }
+  });
+
+  test("inelastic is near-vertical, elastic is near-horizontal, and both keep enough points", () => {
+    const span = (l: SceneLayout, id: string, i: 0 | 1) => {
+      const v = l.curveSamples![id].map((p) => p[i]);
+      return Math.max(...v) - Math.min(...v);
+    };
+    const inelastic = layoutSupplyDemand({ demand: { elasticity: "perfectly_inelastic" } });
+    const elastic = layoutSupplyDemand({ demand: { elasticity: "perfectly_elastic" } });
+    // near-vertical: a narrow x-run, the full y-span
+    expect(span(inelastic, "demand_curve", 0)).toBeLessThan(span(elastic, "demand_curve", 0) / 10);
+    expect(span(inelastic, "demand_curve", 1)).toBeGreaterThan(span(elastic, "demand_curve", 1) * 10);
+    // neither extreme degenerates into a 2-point polyline
+    for (const l of [inelastic, elastic]) expect(l.curveSamples!["demand_curve"].length).toBeGreaterThan(20);
+  });
+
+  test("elasticity composes with steepness rather than replacing it", () => {
+    const ySpan = (l: SceneLayout) => {
+      const ys = l.curveSamples!["demand_curve"].map(([, y]) => y);
+      return Math.max(...ys) - Math.min(...ys);
+    };
+    const flat = layoutSupplyDemand({ demand: { steepness: 0.4, elasticity: 0.5 } });
+    const full = layoutSupplyDemand({ demand: { steepness: 1, elasticity: 0.5 } });
+    expect(ySpan(full)).toBeGreaterThan(ySpan(flat));
+  });
+});
