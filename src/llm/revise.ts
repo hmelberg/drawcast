@@ -171,18 +171,24 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
   // authoring, and a revision already has a spec in front of it.
   const priorityIds = [...new Set([...(cfg.priorityIds ?? []), ...templatesIn(parsedNow.playlist)])];
   const catalog = catalogParts({ request: instruction, priorityIds });
+  // The code block is conditional now (Task 10), and a revision needs it
+  // whenever the DOCUMENT already has a code element — the instruction
+  // ("make it 1000 draws") rarely says so itself. Same arrangement for the
+  // play verb: the instruction ("make the chord richer") rarely names sound,
+  // but a document that already plays does. Hoisted so the prose gate and
+  // the schema gate (design §3.3) read the same two booleans — getting this
+  // wrong would validate a code- or sound-carrying document's revision
+  // against a schema with no `code` element or `play` verb in it, a silent
+  // corruption of someone's existing work.
+  const wantCode = wantsCode(instruction) || /\btype:\s*['"]?code\b/.test(docText);
+  const wantSound = wantsSound(instruction) || /\bplay:/.test(docText);
   const blocks = buildSystemBlocks(cfg.variant.source, {
-    schema: apiSchema(),
+    schema: apiSchema({ code: wantCode, sound: wantSound }),
     catalog: catalog.stable,
     fewshots: fewshotsText(),
     exemplars: "",
-    // The code block is conditional now (Task 10), and a revision needs it
-    // whenever the DOCUMENT already has a code element — the instruction
-    // ("make it 1000 draws") rarely says so itself.
-    code: wantsCode(instruction) || /\btype:\s*['"]?code\b/.test(docText) ? CODE_PROMPT_SOURCE : "",
-    // Same arrangement for the play verb: the instruction ("make the chord
-    // richer") rarely names sound, but a document that already plays does.
-    sound: wantsSound(instruction) || /\bplay:/.test(docText) ? SOUND_PROMPT_SOURCE : "",
+    code: wantCode ? CODE_PROMPT_SOURCE : "",
+    sound: wantSound ? SOUND_PROMPT_SOURCE : "",
   });
   // The revise block comes AFTER the compiler prompt and before the style
   // profile: the compiler prompt ends by declaring "a valid spec, JSON only"

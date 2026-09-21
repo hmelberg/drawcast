@@ -463,6 +463,33 @@ const elementSchema = {
   additionalProperties: false,
 };
 
+/**
+ * Element properties that belong to the `code` element alone — the rule is
+ * the description's own prefix, "code: ", which every one of them already
+ * carries. Kept as an explicit list rather than derived at call time so the
+ * gate is greppable and a new code property that forgets the prefix fails
+ * tests/schema-gate.test.ts rather than silently riding every request.
+ * `width` deliberately absent: it describes six element types, one of which
+ * is code. Design §3.3.
+ */
+export const CODE_ONLY_ELEMENT_PROPS = [
+  "language", "code", "show", "lines", "frame", "figures", "chart",
+  "game", "marks", "code_result", "code_src", "controls", "autorun", "pane",
+] as const;
+
+/**
+ * Command properties that belong to the `play` verb alone — same rule as
+ * above, but the prefix is "With play: " on four of the five (tempo,
+ * instrument, reveal, press); `play` itself IS the verb rather than a
+ * property of it, so its own description doesn't carry that prefix and it
+ * is listed explicitly. All five are already validated together as
+ * play-only below ("tempo, instrument, press and reveal only apply to a
+ * play command") — a list here that dropped press/reveal would leave a
+ * soundless request still carrying two properties it can never legally use.
+ * Design §3.3.
+ */
+export const SOUND_ONLY_COMMAND_PROPS = ["play", "instrument", "tempo", "press", "reveal"] as const;
+
 const idListSchema = (description: string) => ({
   type: "array",
   items: { type: "string" },

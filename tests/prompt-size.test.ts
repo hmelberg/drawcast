@@ -457,6 +457,20 @@ describe("prompt budget (spec §6.3)", () => {
   test("the schema stays within the pinned size", () => {
     expect(JSON.stringify(apiSchema()).length).toBeLessThanOrEqual(BASELINE_SCHEMA_CHARS);
   });
+  // Task 3 (design §3.3): the code/sound gate that already withholds
+  // {{CODE}} and {{SOUND}} in prose now withholds the matching schema keys
+  // too — the `code` element and its 14 properties, and the `play` verb with
+  // its four play-only properties (tempo, instrument, reveal, press).
+  // Measured 2026-09-22: full 79,310 -> both gates off 68,166, a withheld
+  // 11,144 (9,161 of it the code half, 1,983 the sound half — measured
+  // separately and additively, since the two gates touch disjoint parts of
+  // the schema). This is the ordinary request: not about code, not about
+  // sound, so it should be handed neither schema half.
+  test("a request about neither code nor sound is not handed either schema half", () => {
+    const full = JSON.stringify(apiSchema()).length;
+    const bare = JSON.stringify(apiSchema({ code: false, sound: false })).length;
+    expect(full - bare).toBeGreaterThan(9_000);
+  });
   test("the revise card stays within the pinned size", () => {
     expect(REVISE_PROMPT_SOURCE.length).toBeLessThanOrEqual(BASELINE_REVISE_CHARS);
   });
