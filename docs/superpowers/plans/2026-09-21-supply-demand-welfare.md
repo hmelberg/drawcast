@@ -409,9 +409,16 @@ Replace the whole `if (params.tax && supplyPts && eq) { … }` block
     const shift = (y: number, up: boolean): number =>
       perUnit ? y + (up ? amount : -amount) : up ? y * (1 + amount / 100) : y / (1 + amount / 100);
 
-    const shifted = (buyerSide ? demandPts : supplyPts)
-      .map(([x, y]): Pt => [x, shift(y, !buyerSide)])
-      .filter(([, y]) => y >= 2 && y <= 98);
+    const moved = (buyerSide ? demandPts : supplyPts).map(([x, y]): Pt => [x, shift(y, !buyerSide)]);
+    const kept = moved.filter(([, y]) => y >= 2 && y <= 98);
+    // Dropping the off-plot points (the existing idiom) keeps the slope, but a
+    // big enough tax pushes the WHOLE curve off and leaves nothing — and
+    // `shifted[shifted.length - 1]` below would throw on an empty array. In
+    // that one case clamp instead: the curve pins to the plot edge, stays in
+    // bounds, finds no crossing, and the figure simply shows no new
+    // equilibrium. Never an early return — the price controls and the regions
+    // further down must still draw.
+    const shifted = kept.length >= 2 ? kept : moved.map(([x, y]): Pt => [x, Math.max(2, Math.min(98, y))]);
     const id = buyerSide ? "tax_demand_curve" : "tax_supply_curve";
     const color = buyerSide ? COLORS.demand : COLORS.supply;
     push({ ...curve(id, shifted, color, ctx), style: defaultStyle({ color, strokeWidth: 4.5, dash: true }) });
@@ -450,16 +457,37 @@ Replace the whole `if (params.tax && supplyPts && eq) { … }` block
   }
 ```
 
-**Drop the old DWL shading** while you are here — the whole
-`if (params.tax.show_deadweight_loss !== false) { … }` body at `layout.ts:186-201`.
-Task 4 reinstates it through `regions`. Two pre-existing tests assert it, so
-mark exactly these two `test.skip` with a `// re-enabled in Task 4` comment and
-nothing else:
+**KEEP the old deadweight-loss block** — do not delete it here. Move it inside
+the `if (pB !== null && pS !== null)` branch above and adapt it to the new
+quantity, so it reads:
 
-- `tests/supply-demand.test.ts:40` — "all geometry stays inside the logical canvas"
-- `tests/supply-demand.test.ts:65` — "tax adds a shifted supply curve above the original…"
+```ts
+        if (params.tax.show_deadweight_loss !== false) {
+          const region = betweenRegion(demandPts, supplyPts, Math.min(qT, eq[0]), Math.max(qT, eq[0]));
+          if (region) {
+            const pts = ctx.toLogical(region);
+            push({
+              id: "dwl_region",
+              kind: "area",
+              pts,
+              z: Z_AREA,
+              style: defaultStyle({ color: COLORS.regionLoss, fill: COLORS.regionLoss, opacity: 0.5, strokeWidth: 1 }),
+              drawOpts: defaultDrawOpts("sketch", SKETCH_MS.region),
+            });
+            anchors["dwl_region"] = centroid(pts);
+            label("label_DWL", anchors["dwl_region"], "right", "Deadweight loss", COLORS.regionLoss);
+          }
+        }
+```
 
-Task 4 deletes both skips. Do not finish the round with a skipped test.
+`Math.min`/`Math.max` is what makes it work for a subsidy too, where the taxed
+quantity is above `Q*` rather than below. Task 4 moves this into `regions`.
+
+**Why it stays:** `tsconfig.json` sets `noUnusedLocals: true`, and this is the
+only call site of the module-level `betweenRegion` (`layout.ts:357`) — deleting
+it makes that function unused and fails this task's own `npx tsc --noEmit` step.
+Keeping it also means **no test needs skipping**: the two pre-existing tests
+that pass `show_deadweight_loss: true` keep passing untouched.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
@@ -688,7 +716,11 @@ describe("welfare regions", () => {
       // them for a subsidy, so it enters the identity with the sign of the tax
       const wedge = polyArea(l, "wedge_region") * (c.tax && (c.tax.amount ?? 0) < 0 ? -1 : 1);
       const dwl = polyArea(l, "dwl_region");
-      expect(dCS + dPS + wedge + dwl).toBeCloseTo(0, 0);
+      // RELATIVE tolerance: these are logical pixels squared, order 1e5, and
+      // CS/PS are built from the 61-point curves while betweenRegion resamples
+      // at 24 — an absolute tolerance would be tighter than the sampling. 2% of
+      // total surplus still catches any sign error, wrong bound or missing region.
+      expect(Math.abs(dCS + dPS + wedge + dwl)).toBeLessThan((cs0 + ps0) * 0.02);
     }
   });
 
