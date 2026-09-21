@@ -3,10 +3,11 @@
 // explore tray starts from.
 import { describe, expect, test } from "vitest";
 import { Chess } from "chess.js";
-import { flipTurn, freeMove, legalTargets, shownFen, type ChessCtor } from "../src/ui/chessplay-model";
+import { flipTurn, freeMove, legalTargets, selectionTargets, shownFen, type ChessCtor } from "../src/ui/chessplay-model";
 
 const C = Chess as unknown as ChessCtor;
 const board = (fen: string | null) => fen?.split(" ")[0];
+const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const turn = (fen: string | null) => fen?.split(" ")[1];
 
 describe("shownFen", () => {
@@ -78,5 +79,36 @@ describe("legalTargets", () => {
   test("promotion squares are deduped", () => {
     const t = legalTargets(C, "8/P6k/8/8/8/8/8/7K w - - 0 1", "a7");
     expect(t).toEqual(["a8"]);
+  });
+});
+
+describe("selectionTargets — what a grabbed piece marks", () => {
+  // Hans, 2026-09-21: "when we click a piece in chess, the squares it is
+  // allowed to go are marked. disable that by default and only make it
+  // appear if we turn it on." The RING on the grabbed piece is not this —
+  // that says what you picked up, not where it may go, and stays.
+  test("marks nothing at all while the hints are off", () => {
+    expect(selectionTargets(C, START, "e2", false)).toEqual([]);
+  });
+
+  test("with the hints on, a pawn's own squares — and nothing it cannot reach", () => {
+    expect(selectionTargets(C, START, "e2", true).map((m) => m.sq).sort()).toEqual(["e3", "e4"]);
+  });
+
+  test("a square it would CAPTURE on is marked as one", () => {
+    // Black knight on d5, White pawn on e4: e4 takes d5, and e5 is only a step.
+    const fen = "4k3/8/8/3n4/4P3/8/8/4K3 w - - 0 1";
+    const marks = selectionTargets(C, fen, "e4", true);
+    expect(marks.find((m) => m.sq === "d5")?.capture).toBe(true);
+    expect(marks.find((m) => m.sq === "e5")?.capture).toBe(false);
+  });
+
+  test("an empty square marks nothing, hints or no hints", () => {
+    expect(selectionTargets(C, START, "e5", true)).toEqual([]);
+    expect(selectionTargets(C, START, "e5", false)).toEqual([]);
+  });
+
+  test("a position chess.js cannot search marks nothing rather than throwing", () => {
+    expect(selectionTargets(C, "not a fen", "e2", true)).toEqual([]);
   });
 });

@@ -14,7 +14,8 @@ import type { RenderHandle } from "../render";
 import { chessSquareBox } from "../render/widgets";
 import { clientPointFor, h } from "./dom";
 import { attachChessDrag } from "./chess-drag";
-import { legalTargets, type ChessCtor, type ChessLike } from "./chessplay-model";
+import { selectionTargets, type ChessCtor, type ChessLike } from "./chessplay-model";
+import { readShowLegalMoves } from "./chess-prefs";
 import { BUILT_IN_OPENINGS, matchingOpenings, plyList, validateSet, type Opening } from "./chess-openings";
 import { pickOpening, readHistory, recordAttempt } from "./chess-openings-store";
 
@@ -100,8 +101,10 @@ export function mountChessDrill(stage: HTMLElement, hd: RenderHandle): void {
     clearMarks();
     ringAt(sq, "from");
     if (!Chess || !game) return;
-    for (const t of legalTargets(Chess, game.fen(), sq)) {
-      place(t, game.get(t) ? "cs-figgate-mark cs-chesstake" : "cs-chessdot");
+    // Where it may go is a SETTING, off by default — the ring above is not
+    // part of it: that says what you picked up (chessplay-model).
+    for (const m of selectionTargets(Chess, game.fen(), sq, readShowLegalMoves())) {
+      place(m.sq, m.capture ? "cs-figgate-mark cs-chesstake" : "cs-chessdot");
     }
   };
 

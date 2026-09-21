@@ -76,15 +76,14 @@ params:
       description: "Show the board from Black's point of view (rank 1 at top, files mirrored). Default false (White's view)."
     coords:
       type: boolean
-      description: "Show file letters (a-h) and rank numbers (1-8) around the board. Default true."
+      description: "Show file letters (a-h) and rank numbers (1-8) around the board. Default true — they are part of the board itself, so drawing `board` draws them; set false for a bare grid."
 element_ids:
-  board: the 8x8 board — its light-square ground plus the grid lines
+  board: the 8x8 board — its light-square ground, the grid lines, and the file/rank coordinates around it (unless coords is false). Drawing this one id gives you a labelled board
   sq_<file><rank>: one square's own fill — ALL SIXTY-FOUR of them, dark (sq_a1) and light (sq_f7) alike. A light square paints the same cream the board's ground already paints, so drawing it or leaving it out looks identical — what it gives you is an id, and that is how a beat points at, circles or glows a square with NOTHING on it, and what a `move` lands a what-if piece on. Name a square in an earlier `draw` before pointing at it
   piece_<file><rank>: the drawn piece on that square in the currently shown position — a filled silhouette with an ink outline — present for every square occupied in the starting position or ever visited by `moves` (including a castling move's rook squares) (an empty group on a touched-but-currently-vacant square, so the same id exists at every plies_shown and can be animated). At a fractional plies_shown mid-`animate`, the departing square's id carries the moving piece gliding toward its destination (a captured piece, if any, stays on the destination square's id and fades out instead)
   move_arrow: an arrow along the move currently shown (demand color, over a paper casing so it separates from either square color); present whenever `moves` is non-empty, collapsed to nothing before the first ply is shown. During an animated ply it belongs to the move being PLAYED and grows out of its origin square before the piece sets off; at rest it is the last move played
   arrow_<i>: a static annotation arrow from arrows[i] (accent color, over the same paper casing)
   hl_<sq>: a marked square from highlights[i] — a bright wash inside an ink frame, so it reads on a dark and a light square alike
-  coord_<k>: a file letter (a-h) or rank number (1-8) around the board, when coords is true
 examples:
   - request: "Draw the starting chess position."
     params: {}
@@ -262,11 +261,37 @@ layout: |
     C.boardLight,
     { precise: true, ms: SCAFFOLD_MS },
   );
-  push(kit.group("board", [ground, ...gridGroup.children]));
+  const boardGroup = kit.group("board", [ground, ...gridGroup.children]);
+  push(boardGroup);
   anchors.board = [X0 + BOARD / 2, Y0 + BOARD / 2];
 
   function cellPos(r, c) { return t.anchors["board__c" + r + "_" + c]; }
   function squarePos(sq) { const [r, c] = rcOfSquare(sq); return cellPos(r, c); }
+
+  // The file letters and rank numbers ride INSIDE the board group, for the
+  // same reason the light ground does (see the note above it): the board is
+  // the one element every chess cast draws, and a coordinate belongs to a
+  // board the way its grid lines do. As sixteen elements of their own they
+  // were on by default in name only — a cast had to name every one of them
+  // in a draw list before a single letter appeared. `coords: false` still
+  // takes them off for a diagram that wants the bare grid.
+  //
+  // Added here rather than where they are built, because they need cellPos,
+  // which needs the table the group was assembled from; the group keeps the
+  // array it was handed, and layout reads it once, at the end.
+  if (showCoords) {
+    const FS = 24; // grown with the board (20 at BOARD=520).
+    for (let c = 0; c < 8; c++) {
+      const file = fileOf(boardRC(0, c)[1]);
+      const [cx] = cellPos(0, c);
+      boardGroup.children.push(kit.text("coord_" + file, [cx, Y0 - 31], file, { fontSize: FS, color: C.guide, anchor: "middle" }));
+    }
+    for (let r = 0; r < 8; r++) {
+      const rank = rankOf(boardRC(r, 0)[0]);
+      const [, cy] = cellPos(r, 0);
+      boardGroup.children.push(kit.text("coord_" + rank, [X0 - 26, cy], String(rank), { fontSize: FS, color: C.guide, anchor: "end" }));
+    }
+  }
 
   // Dark squares: (r + c) odd is dark on EITHER orientation — the 180-degree
   // flip subtracts both r and c from 7 (an odd number), so the sum's parity
@@ -776,24 +801,4 @@ layout: |
   // here (unlike the pieces above): plain digit/letter glyphs already sit
   // close to the font's central baseline, so dominant-baseline: "central"
   // centers them well enough on its own.
-  if (showCoords) {
-    const FS = 24; // grown with the board (20 at BOARD=520).
-    for (let c = 0; c < 8; c++) {
-      const file = fileOf(boardRC(0, c)[1]);
-      const id = "coord_" + file;
-      const [cx] = cellPos(0, c);
-      const pos = [cx, Y0 - 31];
-      push(kit.text(id, pos, file, { fontSize: FS, color: C.guide, anchor: "middle" }));
-      anchors[id] = pos;
-    }
-    for (let r = 0; r < 8; r++) {
-      const rank = rankOf(boardRC(r, 0)[0]);
-      const id = "coord_" + rank;
-      const [, cy] = cellPos(r, 0);
-      const pos = [X0 - 26, cy];
-      push(kit.text(id, pos, String(rank), { fontSize: FS, color: C.guide, anchor: "end" }));
-      anchors[id] = pos;
-    }
-  }
-
   return { drawables, labels, anchors, order };

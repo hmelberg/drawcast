@@ -11,7 +11,8 @@ import { chessSquareBox } from "../render/widgets";
 import { clientPointFor, h } from "./dom";
 import { attachChessDrag } from "./chess-drag";
 import { boundaryChessFen } from "./chessplay";
-import { legalTargets, type ChessCtor, type ChessLike } from "./chessplay-model";
+import { selectionTargets, type ChessCtor, type ChessLike } from "./chessplay-model";
+import { boardFlip, readShowLegalMoves } from "./chess-prefs";
 import { bestReply, type AiChessCtor } from "./chess-ai";
 
 const THINK_MS = 650;
@@ -26,7 +27,9 @@ interface ChessGame extends ChessLike {
 
 export function mountChessVs(stage: HTMLElement, hd: RenderHandle): void {
   stage.querySelector(".cs-quizgate, .cs-vsgate, .cs-drillgate")?.remove();
-  const flip = hd.spec.params?.["flip"] === true;
+  // The board the viewer pressed the pill on — turned with ⇅ or not — is the
+  // board they play on. Fixed for the session: the tray is shut while it runs.
+  const flip = boardFlip(hd);
 
   const gate = h("div", { class: "cs-figgate cs-vsgate" });
   const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "♟ Loading…");
@@ -85,14 +88,16 @@ export function mountChessVs(stage: HTMLElement, hd: RenderHandle): void {
     clearMarks();
     ringAt(sq, "from");
     if (!Chess || !game) return;
-    for (const t of legalTargets(Chess, game.fen(), sq)) {
-      place(t, game.get(t) ? "cs-figgate-mark cs-chesstake" : "cs-chessdot");
+    // Where it may go is a SETTING, off by default — the ring above is not
+    // part of it: that says what you picked up (chessplay-model).
+    for (const m of selectionTargets(Chess, game.fen(), sq, readShowLegalMoves())) {
+      place(m.sq, m.capture ? "cs-figgate-mark cs-chesstake" : "cs-chessdot");
     }
   };
 
   const paint = (): void => {
     if (!game) return;
-    hd.timeline.previewParams({ fen: game.fen(), moves: [], plies_shown: 0 }, { revealNew: true });
+    hd.timeline.previewParams({ fen: game.fen(), moves: [], plies_shown: 0, flip }, { revealNew: true });
   };
 
   /** Game-over check; sets the final hint and the Again button. True if over. */

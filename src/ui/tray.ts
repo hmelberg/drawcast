@@ -77,6 +77,7 @@ import { MIN_PARTS } from "./parts-model";
 import { mountQuiz, partsFor } from "./quiz";
 import { mountChessVs } from "./chessvs";
 import { mountChessDrill } from "./chessdrill";
+import { boardFlip, clearViewerFlip, readShowLegalMoves, setShowLegalMoves, setViewerFlip } from "./chess-prefs";
 import { applyControls, parseControls, type ControlSpec, type ControlValue } from "../code/controls";
 import { debounceMs, nextValues } from "./controls-model";
 import { attachPopout } from "./tray-popout";
@@ -530,6 +531,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   /** Continue ▶ — the same action from the tray's button and from a card's:
    *  settle the honest geometry, let a parked explore run on, or play. */
   const continueNow = (): void => {
+    clearViewerFlip(hd); // the lesson goes on, and it faces its own way
     // The gate comes down BEFORE the cards close: a gated card's onClose
     // re-enters here (its ✕ is Continue) and must find nothing left to resolve.
     const r = gateResolve;
@@ -759,7 +761,13 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     // paused, so previews never paint over half-drawn strokes. NOT when an
     // explore gate called us — the run is parked on the gate's promise, and
     // renderUpTo would abort it and replay the invitation forever.
-    if (!opts.gated && editors.size === 0) hd.timeline.renderUpTo(hd.timeline.position);
+    // …and the board goes back to the cast's own view with it: renderUpTo
+    // draws it that way, and a flip that outlived the drawing would mirror
+    // every square read off it (ui/chess-prefs.ts).
+    if (!opts.gated && editors.size === 0) {
+      clearViewerFlip(hd);
+      hd.timeline.renderUpTo(hd.timeline.position);
+    }
     // replaceChildren throws away the tray's text areas: their surfaces go too,
     // or a Run would post its status into detached nodes.
     for (const s of [...surfaces]) if (trayOwned.has(s)) surfaces.delete(s);
@@ -1050,6 +1058,32 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
           "♟️ Playable while paused — drag a piece to its square, or click it and then the square (whichever side you grab has the move). Continue ▸ restores the lesson's position.",
         ),
       );
+      // The board's own two switches. Both are the VIEWER's, not the cast's:
+      // one is remembered between casts, the other lasts as long as this
+      // excursion does (ui/chess-prefs.ts says why they differ).
+      const legal = h("button", { class: "cs-cardgate-pill cs-tray-pill" }, "");
+      const paintLegal = (): void => {
+        const on = readShowLegalMoves();
+        legal.textContent = on ? "◉ Legal moves on" : "◯ Legal moves off";
+        legal.title = on ? "A grabbed piece dots the squares it may go to" : "A grabbed piece shows only that you picked it up";
+      };
+      paintLegal();
+      legal.addEventListener("click", () => {
+        setShowLegalMoves(!readShowLegalMoves());
+        paintLegal();
+      });
+      const turn = h("button", { class: "cs-cardgate-pill cs-tray-pill" }, "⇅ Turn the board");
+      turn.title = "See it from the other side — Continue ▸ puts it back";
+      turn.addEventListener("click", () => {
+        // The same door the activity pills use: settle the honest board,
+        // shut the tray, and make the excursion AFTER it — a flip applied
+        // before the restore would be the thing the restore undoes.
+        const to = !boardFlip(hd);
+        restore();
+        close();
+        setViewerFlip(hd, to);
+      });
+      tray.appendChild(h("div", { class: "cs-tray-acts" }, legal, turn));
     }
     // The modes come before the magnitudes: a choice says what the figure IS
     // (oral vs iv, linear vs convex), a slider says how much of it — and a
@@ -1520,6 +1554,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   const prevOnState = hd.timeline.callbacks.onState;
   hd.timeline.callbacks.onState = (s) => {
     prevOnState?.(s);
+    if (s === "playing") clearViewerFlip(hd); // playback draws the cast's own view
     if (s === "playing" && (!tray.hidden || editors.size > 0 || patches.size > 0)) {
       closeEditors();
       clearPreview();

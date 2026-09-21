@@ -81,3 +81,28 @@ export function freeMove(Chess: ChessCtor, fen: string, from: string, to: string
     return null;
   }
 }
+
+/** One square a grabbed piece may go to, and whether going there TAKES. */
+export interface SelectionMark {
+  sq: string;
+  capture: boolean;
+}
+
+/**
+ * What a grabbed piece marks on the board. Off by default (Hans,
+ * 2026-09-21) — the hints are a setting, and with them off a selection
+ * marks nothing but the ring on the piece itself, which says what you
+ * picked up rather than where it may go.
+ *
+ * The one place the rule lives, so free play, the drill and the
+ * play-the-computer session cannot drift into three answers.
+ */
+export function selectionTargets(Chess: ChessCtor, fen: string, from: string, showLegal: boolean): SelectionMark[] {
+  if (!showLegal) return [];
+  try {
+    const game = new Chess(fen, { skipValidation: true });
+    return legalTargets(Chess, fen, from).map((sq) => ({ sq, capture: !!game.get(sq) }));
+  } catch {
+    return [];
+  }
+}

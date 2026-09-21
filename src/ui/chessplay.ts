@@ -19,7 +19,8 @@ import { chessSquareAt, chessSquareBox } from "../render/widgets";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import { attachChessDrag } from "./chess-drag";
 import { gateIsOpen } from "./gates";
-import { freeMove, legalTargets, shownFen, type ChessCtor } from "./chessplay-model";
+import { freeMove, selectionTargets, shownFen, type ChessCtor } from "./chessplay-model";
+import { boardFlip, clearViewerFlip, onBoardViewChange, readShowLegalMoves } from "./chess-prefs";
 
 /** The FEN actually shown at the current boundary (fen + moves + the runtime
  *  plies_shown a {var} animate may have committed) — where free play and the
@@ -35,7 +36,11 @@ export function boundaryChessFen(hd: RenderHandle, Chess: ChessCtor): string | n
 }
 
 export function attachChessPlay(stage: HTMLElement, hd: RenderHandle): void {
-  const flip = hd.spec.params?.["flip"] === true;
+  /** Which way the board faces right now — the cast's own view until the
+   *  viewer turns it with the tray's ⇅ pill (ui/chess-prefs.ts). Read at
+   *  every use, never captured: a captured flip and a turned board disagree
+   *  about which square a point is on, and every click lands mirrored. */
+  const flip = (): boolean => boardFlip(hd);
   let Chess: ChessCtor | null = null;
   /** The position on the board right now, evolving with the viewer's moves;
    *  null = re-derive from the current boundary before the next move. */
@@ -56,6 +61,9 @@ export function attachChessPlay(stage: HTMLElement, hd: RenderHandle): void {
   const invalidate = (): void => {
     liveFen = null;
     deselect();
+    // Playback, a step or a scrub has drawn the board the cast's own way —
+    // a viewer flip that outlived it would mirror every square underneath.
+    clearViewerFlip(hd);
   };
 
   // Playback, a scrub, or a step lands honest geometry — the free-play
@@ -72,6 +80,15 @@ export function attachChessPlay(stage: HTMLElement, hd: RenderHandle): void {
     invalidate();
   };
 
+  // The ⇅ pill turned the board. Repaint what is on it — the free-play
+  // position when there is one, else the boundary's own — the other way
+  // round, and drop marks that were placed at the mirrored squares.
+  onBoardViewChange(hd, () => {
+    deselect();
+    const fen = liveFen;
+    hd.timeline.previewParams(fen !== null ? { fen, moves: [], plies_shown: 0, flip: flip() } : { flip: flip() }, { revealNew: true });
+  });
+
   const blocked = (e: Event): boolean =>
     hd.timeline.state === "playing" ||
     (e.target instanceof Element && e.target.closest("button") !== null) ||
@@ -80,7 +97,7 @@ export function attachChessPlay(stage: HTMLElement, hd: RenderHandle): void {
   const boundaryFen = (): string | null => (Chess ? boundaryChessFen(hd, Chess) : null);
 
   const place = (sq: string, className: string): HTMLElement | null => {
-    const box = chessSquareBox(flip, sq);
+    const box = chessSquareBox(flip(), sq);
     const c = box && clientPointFor(stage, [box.x + box.w / 2, box.y + box.h / 2]);
     if (!c) return null;
     const m = h("span", { class: className });
@@ -97,9 +114,10 @@ export function attachChessPlay(stage: HTMLElement, hd: RenderHandle): void {
     dropMarks();
     ring = place(sq, "cs-figgate-mark from cs-chessring");
     if (!Chess || liveFen === null) return;
-    const game = new Chess(liveFen, { skipValidation: true });
-    for (const t of legalTargets(Chess, liveFen, sq)) {
-      place(t, game.get(t) ? "cs-figgate-mark cs-chessring cs-chesstake" : "cs-chessdot");
+    // Where it may go is a SETTING, off by default — the ring above is not
+    // part of it: that says what you picked up (chessplay-model).
+    for (const m of selectionTargets(Chess, liveFen, sq, readShowLegalMoves())) {
+      place(m.sq, m.capture ? "cs-figgate-mark cs-chessring cs-chesstake" : "cs-chessdot");
     }
   };
 
@@ -129,7 +147,7 @@ export function attachChessPlay(stage: HTMLElement, hd: RenderHandle): void {
     if (next !== null) {
       liveFen = next;
       deselect();
-      hd.timeline.previewParams({ fen: next, moves: [], plies_shown: 0 }, { revealNew: true });
+      hd.timeline.previewParams({ fen: next, moves: [], plies_shown: 0, flip: flip() }, { revealNew: true });
       return;
     }
     // Illegal — grabbing another piece switches the selection; anything
@@ -157,7 +175,7 @@ export function attachChessPlay(stage: HTMLElement, hd: RenderHandle): void {
   // the same order (ui/chess-drag.ts).
   attachChessDrag(stage, hd, {
     target: stage,
-    flip: () => flip,
+    flip,
     grabbable: (sq) => {
       if (!Chess) return false;
       liveFen ??= boundaryFen();
@@ -183,7 +201,7 @@ export function attachChessPlay(stage: HTMLElement, hd: RenderHandle): void {
     (e) => {
       if (blocked(e)) return;
       const p = logicalPoint(stage, e);
-      if (p && chessSquareAt(flip, p) !== null) e.stopPropagation();
+      if (p && chessSquareAt(flip(), p) !== null) e.stopPropagation();
     },
     true,
   );
