@@ -804,6 +804,25 @@ describe("welfare regions", () => {
     }
   });
 
+  test("a tax outranks a price control set alongside it (tax > ceiling > floor)", () => {
+    // Task 3 coded this precedence but nothing consumed `iv` downstream yet, so
+    // it has been unverifiable until now. This is where it gets pinned.
+    const rel = (a: number, b: number) => Math.abs(a - b) / Math.max(a, b, 1);
+    const taxOnly = layoutSupplyDemand({ tax: { amount: 18 }, regions: ["consumer_surplus"] });
+    const ceilingOnly = layoutSupplyDemand({ price_ceiling: { level: 32 }, regions: ["consumer_surplus"] });
+    const both = layoutSupplyDemand({
+      tax: { amount: 18 },
+      price_ceiling: { level: 32 },
+      regions: ["consumer_surplus"],
+    });
+    // the ceiling still draws its line...
+    expect(ids(both)).toContain("ceiling_line");
+    // ...but the welfare maths is the TAX's, not the ceiling's
+    expect(rel(polyArea(both, "cs_region"), polyArea(taxOnly, "cs_region"))).toBeLessThan(0.001);
+    // and the two interventions genuinely differ, so the check above is not vacuous
+    expect(rel(polyArea(taxOnly, "cs_region"), polyArea(ceilingOnly, "cs_region"))).toBeGreaterThan(0.01);
+  });
+
   test("the wedge is labelled a cost when the tax is negative", () => {
     const sub = layoutSupplyDemand({ tax: { amount: -18 }, regions: ["government_revenue"] });
     expect(sub.labels.find((l) => l.id === "label_wedge")!.text).toMatch(/cost/i);
