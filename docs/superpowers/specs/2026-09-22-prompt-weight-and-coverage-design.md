@@ -122,12 +122,23 @@ the 330-char `ANCHOR_NAMES` tail. Measured repetition across the whole schema:
 | … and 10 more | | | |
 | **total** | | | **8,545 ch (10.4 %)** |
 
-Two strategies were measured. **Strategy A** puts the *structure* in `$defs`
-and keeps every per-site description via an `allOf` wrapper: 8,545 chars, and
-nothing the model reads changes. **Strategy B** also shares the long
-description tail: 14,633 chars, but each site then reads
-`"To — see $defs/point_ref"` instead of the anchor vocabulary it needs at that
-exact moment.
+**CORRECTED 2026-09-22, after implementation.** The estimate above the line is
+wrong and is kept only so the error is legible. The real saving from Strategy A
+is **2,588 chars (3.2 %)**, measured as a before/after diff of
+`JSON.stringify(apiSchema()).length`: 81,898 → 79,310. The 8,545 figure came
+from a walk that summed `JSON.stringify(node).length` for every repeated node
+*including nodes nested inside other counted nodes*, so a shape like
+`point_ref` — whose `oneOf` contains an array schema and an object schema that
+are themselves repeated elsewhere — was counted at three levels at once. The
+per-shape table above inherits the same over-count and should be read as
+*relative* weight only. Ground truth is the diff, not the walk.
+
+Two strategies were estimated. **Strategy A** puts the *structure* in `$defs`
+and keeps every per-site description via an `allOf` wrapper: nothing the model
+reads changes. **Strategy B** also shares the long description tail, and would
+save more, but each site then reads `"To — see $defs/point_ref"` instead of the
+anchor vocabulary it needs at that exact moment. Both strategies' estimates were
+produced by the same flawed walk; only Strategy A's true figure is now known.
 
 **Ruling: Strategy A only.** The extra 6 k of Strategy B is bought by making
 the schema worse to read at the point of use, which is the one thing the
@@ -281,16 +292,22 @@ belongs to whoever next touches the exemplar pool.
 
 ## 6. What this round is worth
 
-| change | chars off every request |
-|---|---|
-| unpin `CORE_IDS` | 26,890 |
-| `$defs`, Strategy A | 8,545 |
-| gate the code/sound half of the schema | ~10,000 (code-less request) |
-| cap the index line at 140 | ~11,000 |
-| **total** | **≈ 56,000 ch, on the order of 14 k tokens** |
+Revised 2026-09-22 as each task landed. **Measured** means a before/after diff
+was taken on the finished code; **estimated** means it has not been implemented
+yet and the figure may move the way §3.2's did.
 
-Against a 203,909-char prefix, that is **27 %**, with no feature removed and no
-template deleted.
+| change | chars off every request | status |
+|---|---|---|
+| unpin `CORE_IDS` | 26,896 | measured (stable 52,409 → 25,513) |
+| `$defs`, Strategy A | 2,588 | measured (schema 81,898 → 79,310) |
+| gate the code/sound half of the schema | ~10,600 (code-less request) | estimated — summed the gated properties' own serialized bytes, which does not nest, so this one should hold |
+| cap the index line at 140 | ~11,000 | estimated |
+| **total** | **≈ 51,000 ch** | ~29,500 measured, ~21,600 estimated |
+
+Against a 203,909-char prefix, that is **25 %**, with no feature removed and no
+template deleted. The headline was ≈ 56,000 before §3.2's correction; the honest
+number is whatever the close-out measures, and the close-out reports it whatever
+it turns out to be.
 
 The economics, stated honestly: the prefix is cached
 (`cache_control: ephemeral`, 5-minute TTL, with the leader/follower warm-up in
