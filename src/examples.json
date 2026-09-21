@@ -25546,9 +25546,8 @@
         "equilibrium": {
           "show": true
         },
-        "tax": {
-          "show_deadweight_loss": true
-        }
+        "tax": {},
+        "regions": ["deadweight_loss"]
       },
       "commands": [
         {

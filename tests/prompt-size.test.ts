@@ -338,7 +338,16 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // three bundled chess casts lost 222 lines of draw list between them, and a
 // board is one id rather than sixty in everything the model writes from here.
 // schema 81492 -> 81722, system 204130 -> 204717.
-const BASELINE_SYSTEM_CHARS = 204717;
+// Re-pinned 2026-09-21 (deadweight loss joins `regions`): supply_demand's tax
+// no longer self-shades its triangle; the bundled example that used to set
+// `tax.show_deadweight_loss` now asks for it via `regions: ["deadweight_loss"]`
+// instead, which needs the value in the manifest's `regions` enum. Schema is
+// untouched (81722) — only the catalog-embedded manifest grew, by one enum
+// string. This is a narrow, interim re-pin: Task 5 of this same round widens
+// `regions` further (government_revenue, transfer) and adds a full set of new
+// params, so this number moves again there.
+// system 204717 -> 204741.
+const BASELINE_SYSTEM_CHARS = 204741;
 const BASELINE_SCHEMA_CHARS = 81722;
 
 const system = (code: boolean, sound = false) =>

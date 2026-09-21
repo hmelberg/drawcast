@@ -208,7 +208,8 @@
           "type": "string",
           "enum": [
             "consumer_surplus",
-            "producer_surplus"
+            "producer_surplus",
+            "deadweight_loss"
           ]
         },
         "description": "Shaded surplus regions at the market equilibrium."

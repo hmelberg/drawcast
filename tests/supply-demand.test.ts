@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { layoutSupplyDemand } from "../src/scenes/supply_demand/layout";
+import { layoutSupplyDemand, type SupplyDemandParams } from "../src/scenes/supply_demand/layout";
 import { flattenDrawables, type StrokeDrawable, type Pt } from "../src/layout/model";
 import { CANVAS, linearScale, plotArea } from "../src/layout/canvas";
 import { qualitativeShape } from "../src/layout/curves";
@@ -39,7 +39,7 @@ describe("layoutSupplyDemand", () => {
   });
 
   test("all geometry stays inside the logical canvas", () => {
-    const r = layoutSupplyDemand({ tax: { show_deadweight_loss: true }, price_ceiling: { show_shortage: true } });
+    const r = layoutSupplyDemand({ tax: { amount: 18 }, regions: ["deadweight_loss"], price_ceiling: { show_shortage: true } });
     for (const d of flattenDrawables(r.drawables)) {
       if (d.kind === "stroke" || d.kind === "area") {
         for (const [x, y] of d.pts) {
@@ -64,7 +64,7 @@ describe("layoutSupplyDemand", () => {
   });
 
   test("tax adds a shifted supply curve above the original and a deadweight-loss region", () => {
-    const r = layoutSupplyDemand({ tax: { show_deadweight_loss: true } });
+    const r = layoutSupplyDemand({ tax: { amount: 18 }, regions: ["deadweight_loss"] });
     const all = ids(r);
     expect(all).toContain("tax_supply_curve");
     expect(all).toContain("dwl_region");
@@ -365,5 +365,148 @@ describe("price control levels", () => {
     const all = ids(layoutSupplyDemand({ price_floor: { level: 40 } })); // below P* = 50
     expect(all).toContain("floor_line");
     expect(all).not.toContain("surplus_arrow");
+  });
+});
+
+/** Polygon area by the shoelace formula, in logical units. */
+function polyArea(l: SceneLayout, id: string): number {
+  const d = flattenDrawables(l.drawables).find((x) => x.id === id);
+  if (!d || (d.kind !== "area" && d.kind !== "stroke")) return 0;
+  const p = d.pts;
+  let a = 0;
+  for (let i = 0; i < p.length; i++) {
+    const [x1, y1] = p[i];
+    const [x2, y2] = p[(i + 1) % p.length];
+    a += x1 * y2 - x2 * y1;
+  }
+  return Math.abs(a) / 2;
+}
+
+const ALL_REGIONS = ["consumer_surplus", "producer_surplus", "deadweight_loss", "government_revenue", "transfer"] as const;
+
+describe("welfare regions", () => {
+  test("a bare tax shades nothing", () => {
+    const all = ids(layoutSupplyDemand({ tax: { amount: 18 } }));
+    for (const id of ["cs_region", "ps_region", "dwl_region", "wedge_region"]) {
+      expect(all).not.toContain(id);
+    }
+  });
+
+  test("the welfare identity holds for every intervention", () => {
+    const base = layoutSupplyDemand({ regions: [...ALL_REGIONS] });
+    const cs0 = polyArea(base, "cs_region");
+    const ps0 = polyArea(base, "ps_region");
+    const cases: SupplyDemandParams[] = [
+      { tax: { amount: 18 } },
+      { tax: { amount: 18, side: "buyer" } },
+      { tax: { amount: 36, kind: "ad_valorem" } },
+      { tax: { amount: -18 } },
+      { price_ceiling: { level: 32 } },
+      { price_floor: { level: 68 } },
+    ];
+    for (const c of cases) {
+      const l = layoutSupplyDemand({ ...c, regions: [...ALL_REGIONS] });
+      const dCS = polyArea(l, "cs_region") - cs0;
+      const dPS = polyArea(l, "ps_region") - ps0;
+      // the wedge is a TRANSFER out of the two surpluses for a tax, and INTO
+      // them for a subsidy, so it enters the identity with the sign of the tax
+      const wedge = polyArea(l, "wedge_region") * (c.tax && (c.tax.amount ?? 0) < 0 ? -1 : 1);
+      const dwl = polyArea(l, "dwl_region");
+      // RELATIVE tolerance: these are logical pixels squared, order 1e5, and
+      // CS/PS are built from the 61-point curves while betweenRegion resamples
+      // at 24 — an absolute tolerance would be tighter than the sampling. 2% of
+      // total surplus still catches any sign error, wrong bound or missing region.
+      expect(Math.abs(dCS + dPS + wedge + dwl)).toBeLessThan((cs0 + ps0) * 0.02);
+    }
+  });
+
+  test("the wedge rectangle spans the two prices and ends at the traded quantity", () => {
+    const l = layoutSupplyDemand({ tax: { amount: 18 }, regions: ["government_revenue"] });
+    const pb = l.anchors["price_buyers_point"];
+    const ps = l.anchors["price_sellers_point"];
+    // NB: `.pts` is not on every Drawable variant (TextDrawable has none), so
+    // narrow before reading it — a bare `.find(...)!.pts` does not compile here.
+    const wedge = flattenDrawables(l.drawables).find((d) => d.id === "wedge_region");
+    if (!wedge || wedge.kind !== "area") throw new Error("wedge_region missing or not an area");
+    const pts = wedge.pts;
+    const xs = pts.map(([x]) => x);
+    const ys = pts.map(([, y]) => y);
+    // a true rectangle: its height IS the price gap and its right edge IS Q_t
+    expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(Math.abs(pb[1] - ps[1]), 1);
+    expect(Math.max(...xs)).toBeCloseTo(pb[0], 1);
+    expect(polyArea(l, "wedge_region")).toBeCloseTo(
+      (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys)),
+      0,
+    );
+  });
+
+  test("a price control has no wedge but does have a transfer", () => {
+    const l = layoutSupplyDemand({ price_ceiling: { level: 32 }, regions: ["government_revenue", "transfer"] });
+    expect(ids(l)).not.toContain("wedge_region");
+    expect(polyArea(l, "transfer_region")).toBeGreaterThan(0);
+  });
+
+  test("consumer surplus follows the intervention rather than the free market", () => {
+    const free = layoutSupplyDemand({ regions: ["consumer_surplus"] });
+    const taxed = layoutSupplyDemand({ tax: { amount: 18 }, regions: ["consumer_surplus"] });
+    expect(polyArea(taxed, "cs_region")).toBeLessThan(polyArea(free, "cs_region") * 0.95);
+  });
+
+  test("a subsidy costs the government more than the two sides gain", () => {
+    const base = layoutSupplyDemand({ regions: [...ALL_REGIONS] });
+    const sub = layoutSupplyDemand({ tax: { amount: -18 }, regions: [...ALL_REGIONS] });
+    const gain =
+      polyArea(sub, "cs_region") - polyArea(base, "cs_region") +
+      (polyArea(sub, "ps_region") - polyArea(base, "ps_region"));
+    expect(polyArea(sub, "wedge_region")).toBeGreaterThan(gain);
+  });
+
+  test("every combination stays inside the logical canvas", () => {
+    // spec §10.8 — replaces the narrower pre-existing bounds test
+    const combos: SupplyDemandParams[] = [
+      { tax: { amount: 18 }, regions: [...ALL_REGIONS] },
+      { tax: { amount: -40 }, regions: [...ALL_REGIONS] },
+      { tax: { amount: 200, kind: "ad_valorem" }, regions: [...ALL_REGIONS] },
+      { tax: { amount: 18, side: "buyer" }, regions: [...ALL_REGIONS] },
+      { price_ceiling: { level: 4 }, regions: [...ALL_REGIONS] },
+      { price_floor: { level: 94 }, regions: [...ALL_REGIONS] },
+      { demand: { elasticity: 0.06 }, supply: { elasticity: 1.94 }, tax: { amount: 18 }, regions: [...ALL_REGIONS] },
+      { demand: { elasticity: 1.94 }, supply: { elasticity: 0.06 }, tax: { amount: 18 }, regions: [...ALL_REGIONS] },
+    ];
+    for (const c of combos) {
+      for (const d of flattenDrawables(layoutSupplyDemand(c).drawables)) {
+        if (d.kind !== "stroke" && d.kind !== "area") continue;
+        for (const [x, y] of d.pts) {
+          expect(x).toBeGreaterThanOrEqual(0);
+          expect(x).toBeLessThanOrEqual(CANVAS.w);
+          expect(y).toBeGreaterThanOrEqual(0);
+          expect(y).toBeLessThanOrEqual(CANVAS.h);
+        }
+      }
+    }
+  });
+
+  test("a tax outranks a price control set alongside it (tax > ceiling > floor)", () => {
+    // Task 3 coded this precedence but nothing consumed `iv` downstream yet, so
+    // it has been unverifiable until now. This is where it gets pinned.
+    const rel = (a: number, b: number) => Math.abs(a - b) / Math.max(a, b, 1);
+    const taxOnly = layoutSupplyDemand({ tax: { amount: 18 }, regions: ["consumer_surplus"] });
+    const ceilingOnly = layoutSupplyDemand({ price_ceiling: { level: 32 }, regions: ["consumer_surplus"] });
+    const both = layoutSupplyDemand({
+      tax: { amount: 18 },
+      price_ceiling: { level: 32 },
+      regions: ["consumer_surplus"],
+    });
+    // the ceiling still draws its line...
+    expect(ids(both)).toContain("ceiling_line");
+    // ...but the welfare maths is the TAX's, not the ceiling's
+    expect(rel(polyArea(both, "cs_region"), polyArea(taxOnly, "cs_region"))).toBeLessThan(0.001);
+    // and the two interventions genuinely differ, so the check above is not vacuous
+    expect(rel(polyArea(taxOnly, "cs_region"), polyArea(ceilingOnly, "cs_region"))).toBeGreaterThan(0.01);
+  });
+
+  test("the wedge is labelled a cost when the tax is negative", () => {
+    const sub = layoutSupplyDemand({ tax: { amount: -18 }, regions: ["government_revenue"] });
+    expect(sub.labels.find((l) => l.id === "label_wedge")!.text).toMatch(/cost/i);
   });
 });

@@ -41,12 +41,11 @@ export interface SupplyDemandParams {
     amount?: number;
     side?: "seller" | "buyer";
     kind?: "per_unit" | "ad_valorem";
-    show_deadweight_loss?: boolean;
     label?: string;
   };
   price_ceiling?: { level?: number; label?: string; show_shortage?: boolean };
   price_floor?: { level?: number; label?: string; show_surplus?: boolean };
-  regions?: ("consumer_surplus" | "producer_surplus")[];
+  regions?: ("consumer_surplus" | "producer_surplus" | "deadweight_loss" | "government_revenue" | "transfer")[];
 }
 
 const D0 = 2;
@@ -310,23 +309,6 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
         const subsidy = amount < 0;
         label("label_Pb", [plot.x0, pbL[1]], "left", subsidy ? "P paid" : "P buyers", COLORS.demand);
         label("label_Ps", [plot.x0, psL[1]], "left", subsidy ? "P received" : "P sellers", COLORS.supply);
-
-        if (params.tax.show_deadweight_loss !== false) {
-          const region = betweenRegion(demandPts, supplyPts, Math.min(iv.qTraded, eq[0]), Math.max(iv.qTraded, eq[0]));
-          if (region) {
-            const pts = ctx.toLogical(region);
-            push({
-              id: "dwl_region",
-              kind: "area",
-              pts,
-              z: Z_AREA,
-              style: defaultStyle({ color: COLORS.regionLoss, fill: COLORS.regionLoss, opacity: 0.5, strokeWidth: 1 }),
-              drawOpts: defaultDrawOpts("sketch", SKETCH_MS.region),
-            });
-            anchors["dwl_region"] = centroid(pts);
-            label("label_DWL", anchors["dwl_region"], "right", "Deadweight loss", COLORS.regionLoss);
-          }
-        }
       }
     }
   }
@@ -360,22 +342,67 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     }
   }
 
-  // Consumer / producer surplus at the market equilibrium.
-  if (params.regions && eq) {
+  // Every shaded area, computed against whatever intervention resolved above.
+  // Nothing here asks WHICH intervention it is — that is the point of §5's
+  // single { qTraded, pBuyers, pSellers }.
+  if (params.regions?.length && eq && supplyPts) {
+    const want = new Set(params.regions);
+    const { qTraded, pBuyers, pSellers } = iv;
     const [qStar, pStar] = eq;
-    if (params.regions.includes("consumer_surplus")) {
-      const upper = demandPts.filter(([x]) => x <= qStar);
-      const pts = ctx.toLogical([...upper, [qStar, pStar], [D0, pStar]]);
+
+    if (want.has("consumer_surplus")) {
+      const upper = demandPts.filter(([x]) => x <= qTraded);
+      const pts = ctx.toLogical([...upper, [qTraded, pBuyers], [D0, pBuyers]]);
       push(area("cs_region", pts, COLORS.region1));
       anchors["cs_region"] = centroid(pts);
       label("label_CS", anchors["cs_region"], "above-right", "Consumer surplus");
     }
-    if (params.regions.includes("producer_surplus") && supplyPts) {
-      const lower = supplyPts.filter(([x]) => x <= qStar);
-      const pts = ctx.toLogical([[D0, pStar], [qStar, pStar], ...lower.reverse()]);
+
+    if (want.has("producer_surplus")) {
+      const lower = supplyPts.filter(([x]) => x <= qTraded);
+      const pts = ctx.toLogical([[D0, pSellers], [qTraded, pSellers], ...lower.reverse()]);
       push(area("ps_region", pts, COLORS.region2));
       anchors["ps_region"] = centroid(pts);
       label("label_PS", anchors["ps_region"], "below-right", "Producer surplus");
+    }
+
+    if (want.has("deadweight_loss") && Math.abs(qTraded - qStar) > 0.5) {
+      const region = betweenRegion(demandPts, supplyPts, Math.min(qTraded, qStar), Math.max(qTraded, qStar));
+      if (region) {
+        const pts = ctx.toLogical(region);
+        push({
+          id: "dwl_region",
+          kind: "area",
+          pts,
+          z: Z_AREA,
+          style: defaultStyle({ color: COLORS.regionLoss, fill: COLORS.regionLoss, opacity: 0.5, strokeWidth: 1 }),
+          drawOpts: defaultDrawOpts("sketch", SKETCH_MS.region),
+        });
+        anchors["dwl_region"] = centroid(pts);
+        label("label_DWL", anchors["dwl_region"], "right", "Deadweight loss", COLORS.regionLoss);
+      }
+    }
+
+    // Zero-height for a price control, where both sides face one price, so
+    // this skips itself without a branch on iv.kind.
+    if (want.has("government_revenue") && Math.abs(pBuyers - pSellers) > 0.5) {
+      const pts = ctx.toLogical([[D0, pSellers], [qTraded, pSellers], [qTraded, pBuyers], [D0, pBuyers]]);
+      push(area("wedge_region", pts, COLORS.accent));
+      anchors["wedge_region"] = centroid(pts);
+      label(
+        "label_wedge",
+        anchors["wedge_region"],
+        "right",
+        pBuyers > pSellers ? "Government revenue" : "Government cost",
+        COLORS.accent,
+      );
+    }
+
+    if (want.has("transfer") && (iv.kind === "ceiling" || iv.kind === "floor")) {
+      const pts = ctx.toLogical([[D0, pStar], [qTraded, pStar], [qTraded, pBuyers], [D0, pBuyers]]);
+      push(area("transfer_region", pts, COLORS.accent));
+      anchors["transfer_region"] = centroid(pts);
+      label("label_transfer", anchors["transfer_region"], "right", "Transfer", COLORS.accent);
     }
   }
 
