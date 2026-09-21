@@ -494,9 +494,9 @@ const commandSchema = {
     },
     delivery: {
       type: "string",
-      enum: ["soft", "grave", "brisk"],
+      enum: ["grave", "brisk"],
       description:
-        "With speak: named delivery nudge — soft = confiding lean-in (slightly slower, lower, quieter); grave = slow and weighty for the key reveal; brisk = lightly quicker for recaps. Mark only the few lines where the meaning warrants it.",
+        "With speak: named delivery nudge — grave = slow and weighty for the key reveal; brisk = lightly quicker for recaps. Mark only the few lines where the meaning warrants it.",
     },
     draw: idListSchema("Element ids to draw. Listed elements animate one after another unless parallel is true. A template may also name a SET of its own ids (a chess board's \"position\", \"pieces\", \"squares\" — its catalog entry lists them): naming one draws every member, and each member still answers to its own id for everything else."),
     parallel: { type: "boolean", description: "With draw/erase: animate the listed elements simultaneously." },

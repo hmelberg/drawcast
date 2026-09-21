@@ -11,7 +11,7 @@ import { SpeechManager } from "./speech";
  * Two corrections over the naive `cue × estimate`:
  *
  * The DELIVERY rate. A line marked `grave` is spoken at 0.88× and therefore
- * runs about 14% longer than the reading estimate, `soft` at 0.93×. Ignoring
+ * runs about 14% longer than the reading estimate. Ignoring
  * that fired every cue in such a line early — by roughly half a second on a
  * six-second sentence, which is exactly the scale a viewer notices.
  *

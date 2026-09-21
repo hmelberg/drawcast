@@ -1241,7 +1241,7 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
       svg.setAttribute("class", "cs-svg");
       const rc = opts.sketchy ? rough.svg(svg) : null;
 
-      const layers = { 0: document.createElementNS(SVG_NS, "g"), 1: document.createElementNS(SVG_NS, "g"), 2: document.createElementNS(SVG_NS, "g") };
+      const layers = { 0: document.createElementNS(SVG_NS, "g"), 1: document.createElementNS(SVG_NS, "g"), 2: document.createElementNS(SVG_NS, "g"), 3: document.createElementNS(SVG_NS, "g") };
       // Overlay for gesture effects (highlight echoes, laser pointer) — always on top.
       const overlay = document.createElementNS(SVG_NS, "g") as SVGGElement;
       overlay.setAttribute("class", "cs-overlay");
@@ -1269,7 +1269,7 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
         }
         return id;
       };
-      svg.append(defs, layers[0], layers[1], layers[2], overlay);
+      svg.append(defs, layers[0], layers[1], layers[2], layers[3], overlay);
 
       // Paint order: z layer, then IR order within the layer. Extracted so
       // swapGeometry/remount can rebuild nodes for a new layout without
@@ -1305,7 +1305,7 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
                   ? { ...leaf, text, lines: undefined }
                   : leaf;
             const g = drawLeaf(rc, drawn);
-            const z = (leaf.z <= 0 ? 0 : leaf.z === 1 ? 1 : 2) as 0 | 1 | 2;
+            const z = (leaf.z <= 0 ? 0 : leaf.z === 1 ? 1 : leaf.z === 2 ? 2 : 3) as 0 | 1 | 2 | 3;
             const [dx, dy] = offsets?.[id] ?? [0, 0];
             // The SAME string the element handle would write (poseTransform):
             // a tween frame attaches no handles, so anything it does not
@@ -1377,6 +1377,7 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
           layers[0].replaceChildren();
           layers[1].replaceChildren();
           layers[2].replaceChildren();
+          layers[3].replaceChildren();
           // The SAME map makeEffects closed over, refreshed in place: the glow,
           // the focus dim, the flow and the widget's drag ghost all reach for
           // their nodes through it, and a throwaway map left every one of them
@@ -1390,6 +1391,7 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
           layers[0].replaceChildren();
           layers[1].replaceChildren();
           layers[2].replaceChildren();
+          layers[3].replaceChildren();
           leafNodes.clear();
           buildNodes(l, leafNodes);
           nudgeTextsIntoCanvas(svg);

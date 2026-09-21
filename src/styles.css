@@ -173,14 +173,43 @@ body.mode-editor main {
    caption wrapped to a third line, it didn't: the column is centered, so the
    overflow went half above the top of the screen, where nothing can scroll
    to it. Hence flex, which cannot guess wrong. */
-.player-figure:fullscreen {
+/* Both routes, one layout. `:is()` and not a selector list on purpose: a
+   selector list is dropped whole if ONE of its selectors is unknown, so a
+   browser that has never heard of :fullscreen would lose the faux rules with
+   it — and that browser is exactly the one that needs them. `:is()` is
+   forgiving, and takes its specificity from its most specific argument, so
+   these still weigh the same as the plain `:fullscreen` rules they replace
+   (which the .editor-preview note below depends on). */
+.player-figure:is(:fullscreen, .cs-faux-fs) {
   display: flex;
   background: var(--paper);
   border: none;
   border-radius: 0;
   padding: 1rem 2rem;
 }
-.player-figure:fullscreen .cs-figure {
+/* The faux half of it: no ::backdrop and no browser-managed box, so the
+   figure has to take the viewport itself. 100dvh, not 100vh — on a phone
+   100vh is the LARGE viewport (the one with the address bar retracted), so
+   a 100vh stage is cropped by the very bar that is on screen while you look
+   at it. z-index 50 clears the app's own furniture (the mobile sidebar is
+   the highest at 45); modals are <dialog>.showModal(), which is in the top
+   layer and above any z-index, so they still open over this. */
+.player-figure.cs-faux-fs {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  box-shadow: none;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+/* ui/fullscreen.ts pins <body> itself (the only scroll lock iOS honours);
+   this stops the document scrolling behind the overlay everywhere else. */
+html.cs-faux-fs-lock { overflow: hidden; }
+.player-figure:is(:fullscreen, .cs-faux-fs) .cs-figure {
   flex: 1;
   min-width: 0;
   /* Without min-height:0 a flex item refuses to shrink below its content, so
@@ -190,7 +219,7 @@ body.mode-editor main {
   flex-direction: column;
   justify-content: center;
 }
-.player-figure:fullscreen .cs-stage {
+.player-figure:is(:fullscreen, .cs-faux-fs) .cs-stage {
   flex: 1 1 0;
   min-height: 0;
   /* width auto + the base rule's aspect-ratio: the ratio reads the height
@@ -201,7 +230,21 @@ body.mode-editor main {
   max-width: 100%;
   margin: 0 auto;
 }
-.player-figure:fullscreen .cs-caption { font-size: 1.5rem; }
+.player-figure:is(:fullscreen, .cs-faux-fs) .cs-caption { font-size: 1.5rem; }
+
+/* A phone, either way up. 2rem of side padding is a fifth of a portrait
+   screen and 1.5rem caption text wraps to three lines — between them they
+   were taking more of the stage than the drawing had left. The safe-area
+   insets matter in LANDSCAPE above all: that is where the notch and the home
+   indicator sit beside the figure rather than above and below it. */
+@media (max-width: 780px) {
+  .player-figure:is(:fullscreen, .cs-faux-fs) {
+    padding:
+      max(0.3rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right))
+      max(0.3rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
+  }
+  .player-figure:is(:fullscreen, .cs-faux-fs) .cs-caption { font-size: 1.05rem; }
+}
 
 /* ---------- editor mode (xplainer-style workbench) ---------- */
 
@@ -335,7 +378,7 @@ body.mode-editor main {
    win: the figure would lose its paper and its padding, leaving dark ink on
    the browser's black ::backdrop with the controls running to the very edges.
    Player mode never showed it because nothing overrides its figure. */
-.editor-preview .player-figure:not(:fullscreen) { border: none; box-shadow: none; padding: 0; background: none; }
+.editor-preview .player-figure:not(:is(:fullscreen, .cs-faux-fs)) { border: none; box-shadow: none; padding: 0; background: none; }
 
 /* ---------- left sidebar: the one menu ---------- */
 
@@ -1095,7 +1138,16 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
      it — the wrap's padding, the frame's bar and padding, the meta row —
      so the play bar never lands below the fold. Measured before this: a
      730 px window put the bar off-screen and the page scrolled. */
-  --viewer-stage-h: min(calc((min(960px, 96vw) - 1.2rem - 3px) * 0.75), calc(100vh - 10rem));
+  --viewer-stage-h: min(calc((min(960px, 96vw) - 1.2rem - 3px) * 0.75), calc(100dvh - 10rem));
+}
+/* A phone held sideways has about 390px of height in TOTAL, so the 10rem
+   above — a reserve sized for a laptop's title, meta row and padding —
+   leaves a stage barely taller than the control bar under it. On a small
+   landscape screen the furniture may go below the fold: the drawing is what
+   the page is for, and ⛶ is one tap away. Portrait keeps the full reserve,
+   where there is height to spend and scrolling past the frame is the norm. */
+@media (max-width: 940px) and (orientation: landscape) {
+  .viewer-body { --viewer-stage-h: min(calc((min(960px, 96vw) - 1.2rem - 3px) * 0.75), calc(100dvh - 5rem)); }
 }
 .viewer-wrap {
   width: min(960px, 96vw);
@@ -1113,7 +1165,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
    strip that jumps to full height when the figure mounts seconds later. A
    min-height, not a height: a params tray or a code panel opening below the
    bar must still be free to grow the box. Fullscreen keeps its own sizing. */
-.viewer-body .player-figure:not(:fullscreen) {
+.viewer-body .player-figure:not(:is(:fullscreen, .cs-faux-fs)) {
   display: flex;
   flex-direction: column;
   /* 3rem: the bar and the frame's padding — measured 48 px, 2026-09-08. */
@@ -1121,21 +1173,21 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 /* Any difference between that estimate and the mounted figure is centred,
    not left as a gap under the bar. */
-.viewer-body .player-figure:not(:fullscreen) .cs-figure {
+.viewer-body .player-figure:not(:is(:fullscreen, .cs-faux-fs)) .cs-figure {
   flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
-.viewer-body .player-figure:not(:fullscreen) > .viewer-status { margin: auto; text-align: center; }
-.viewer-body .player-figure:not(:fullscreen):has(.cs-figure) > .viewer-status { display: none; }
+.viewer-body .player-figure:not(:is(:fullscreen, .cs-faux-fs)) > .viewer-status { margin: auto; text-align: center; }
+.viewer-body .player-figure:not(:is(:fullscreen, .cs-faux-fs)):has(.cs-figure) > .viewer-status { display: none; }
 /* The stage takes the height decided above and derives its width from that
    through its own 4/3 aspect-ratio (figure-style.ts): width auto plus auto
    side margins, which keep the flex column from stretching it back to full
    width — the same construction as the fullscreen rule. When the window is
    the binding constraint the stage is narrower than the frame and centred;
    otherwise it fills it, as before. */
-.viewer-body .player-figure:not(:fullscreen) .cs-stage {
+.viewer-body .player-figure:not(:is(:fullscreen, .cs-faux-fs)) .cs-stage {
   height: var(--viewer-stage-h);
   width: auto;
   max-width: 100%;

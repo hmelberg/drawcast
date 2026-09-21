@@ -6,7 +6,7 @@ import { VOICES } from "../src/export/tts";
 describe("delivery table", () => {
   test("keys are stable and distinct per speaker/delivery/gender", () => {
     expect(speechKey({ text: "Hi" })).toBe("|a||Hi");
-    expect(speechKey({ text: "Hi", speaker: "b", delivery: "soft", gender: "male" })).toBe("male|b|soft|Hi");
+    expect(speechKey({ text: "Hi", speaker: "b", delivery: "brisk", gender: "male" })).toBe("male|b|brisk|Hi");
   });
   test("effectiveGender: null without request; b contrasts a", () => {
     expect(effectiveGender(undefined)).toBeNull();
@@ -14,10 +14,15 @@ describe("delivery table", () => {
     expect(effectiveGender({ speaker: "b" })).toBe("male");
     expect(effectiveGender({ gender: "male", speaker: "b" })).toBe("female");
   });
-  test("deltas are gentle", () => {
+  test("deltas are gentle, and every one of them is a PACE change only", () => {
     for (const d of Object.values(DELIVERY)) {
       expect(d.rate).toBeGreaterThan(0.8);
       expect(d.rate).toBeLessThan(1.2);
+      // `soft` was the only delivery that coloured pitch and volume, and it
+      // is gone (Hans, 2026-09-21). With it went the only reason either
+      // backend ever announces a pitch or a gain — see the TTS body test.
+      expect(d.pitchSt).toBe(0);
+      expect(d.gainDb).toBe(0);
     }
     expect(dbToGain(-3)).toBeCloseTo(0.708, 2);
   });

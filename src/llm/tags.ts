@@ -218,7 +218,7 @@ export const TAGS: TagDef[] = [
     hint: "hesitations and natural pauses in the narration",
     brief:
       "Sound human, not machine-read: an occasional hesitation ('Hmm —', 'well,', 'so…') at a genuine thinking moment (a few per drawcast, not per line), at most one self-correction ('about 30 — actually, closer to 33'), and em dashes or ellipses for natural micro-pauses. Never write literal stutters ('th-the') — text-to-speech reads them as glitches." +
-      ' Where the meaning warrants it, mark 2–4 speak lines with a delivery hint: "soft" for a confiding lean-in, "grave" to let a key reveal land slowly, "brisk" for recaps and transitions; leave all other lines unmarked.',
+      ' Where the meaning warrants it, mark 2–4 speak lines with a delivery hint: "grave" to let a key reveal land slowly, "brisk" for recaps and transitions; leave all other lines unmarked.',
   },
   {
     tag: "male",

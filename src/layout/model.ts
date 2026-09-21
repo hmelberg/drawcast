@@ -190,6 +190,16 @@ export const ARROWHEAD_FLOOR = 3;
 export const Z_AREA = 0;
 export const Z_STROKE = 1;
 export const Z_TEXT = 2;
+/**
+ * Above the text layer: a leaf that OCCLUDES rather than joins the drawing.
+ * The portrait is the whole reason it exists (Hans, 2026-09-21: "whatever is
+ * under the portrait should not be visible — the portrait has priority").
+ * Three layers could not express that: a portrait's photo sat in Z_STROKE, so
+ * every text in the figure painted over it by layer and every later stroke by
+ * IR order — a face with an axis label across it. Put nothing here that is
+ * part of the drawing; this layer is for things pasted ON it.
+ */
+export const Z_TOP = 3;
 
 // Palette (see also src/styles.css). Warm ink on paper; curves get semantic colors.
 export const INK = "#3d3833";

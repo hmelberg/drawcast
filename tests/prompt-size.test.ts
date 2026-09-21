@@ -397,7 +397,11 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // named. Net of the trim and the additions: system 210292 -> 209953 (the
 // trim recovered more than the fixes above added back).
 const BASELINE_SYSTEM_CHARS = 209953;
-const BASELINE_SCHEMA_CHARS = 81722;
+// Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
+// left the enum's description (Hans — the confiding lean-in was the one
+// delivery that dropped pitch and volume, and it read as mumbling). The
+// ratchet only ever tightens: 81722 -> 81655.
+const BASELINE_SCHEMA_CHARS = 81655;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

@@ -33,8 +33,12 @@ describe("the viewer's frame has its shape before the figure mounts", () => {
   test("the stage's height comes from the viewport, not from content", () => {
     const def = rulesMatching(/^\.viewer-body$/).join(" ");
     expect(def).toMatch(/--viewer-stage-h:\s*min\(/);
-    expect(def).toContain("100vh");
-    const stage = rulesMatching(/^\.viewer-body \.player-figure:not\(:fullscreen\) \.cs-stage$/);
+    // 100dvh, not 100vh: on a phone 100vh is the LARGE viewport (address bar
+    // retracted), so a stage sized from it is cropped by the bar that is on
+    // screen while you watch. Hans, 2026-09-21 — the mobile round.
+    expect(def).toContain("100dvh");
+    expect(def).not.toContain("100vh");
+    const stage = rulesMatching(/^\.viewer-body \.player-figure:not\(:is\(:fullscreen, \.cs-faux-fs\)\) \.cs-stage$/);
     expect(stage).toHaveLength(1);
     expect(stage[0]).toMatch(/height:\s*var\(--viewer-stage-h\)/);
     // Width follows the height through the stage's aspect-ratio; auto side
@@ -45,7 +49,7 @@ describe("the viewer's frame has its shape before the figure mounts", () => {
   });
 
   test("the frame is that tall from the first paint — a min-height, so a tray can still grow it", () => {
-    const frame = rulesMatching(/^\.viewer-body \.player-figure:not\(:fullscreen\)$/);
+    const frame = rulesMatching(/^\.viewer-body \.player-figure:not\(:is\(:fullscreen, \.cs-faux-fs\)\)$/);
     expect(frame).toHaveLength(1);
     expect(frame[0]).toMatch(/min-height:\s*calc\(var\(--viewer-stage-h\)/);
     expect(frame[0]).not.toMatch(/(^|[^-])height:/);
@@ -53,13 +57,13 @@ describe("the viewer's frame has its shape before the figure mounts", () => {
 
   test("fullscreen keeps its own sizing: the viewer rules step aside for it", () => {
     for (const sel of css.match(/[^{}]*\.viewer-body \.player-figure[^{}]*(?=\{)/g) ?? []) {
-      if (/\.cs-stage|^\s*\.viewer-body \.player-figure\s*$/.test(sel)) expect(sel).toContain(":not(:fullscreen)");
+      if (/\.cs-stage|^\s*\.viewer-body \.player-figure\s*$/.test(sel)) expect(sel).toContain(":not(:is(:fullscreen, .cs-faux-fs))");
     }
   });
 
   test("the loading line waits inside the frame and steps aside for the figure", () => {
     expect(run).toMatch(/h\("div", \{ class: "player-figure" \}, status\)/);
-    expect(rulesMatching(/^\.viewer-body \.player-figure:not\(:fullscreen\):has\(\.cs-figure\) > \.viewer-status$/)[0]).toMatch(/display:\s*none/);
+    expect(rulesMatching(/^\.viewer-body \.player-figure:not\(:is\(:fullscreen, \.cs-faux-fs\)\):has\(\.cs-figure\) > \.viewer-status$/)[0]).toMatch(/display:\s*none/);
   });
 });
 

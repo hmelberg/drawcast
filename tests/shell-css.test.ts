@@ -236,15 +236,18 @@ describe("the fullscreen figure", () => {
     const css = (await readFile(new URL("../src/styles.css", import.meta.url), "utf8"))
       .replace(/\/\*[\s\S]*?\*\//g, "");
     // A "pane rule" is one that reaches .player-figure from an ancestor. It ties
-    // with `.player-figure:fullscreen` on specificity — `:fullscreen` is a
-    // pseudo-CLASS — and, coming later in the file, wins. A pane rule that
-    // strips `background` therefore strips it in fullscreen too, leaving dark
-    // ink on the browser's black ::backdrop.
+    // with `.player-figure:is(:fullscreen, .cs-faux-fs)` on specificity —
+    // `:fullscreen` is a pseudo-CLASS, and `:is()` takes the weight of its
+    // most specific argument — and, coming later in the file, wins. A pane
+    // rule that strips `background` therefore strips it in fullscreen too,
+    // leaving dark ink on the browser's black ::backdrop. `:not(:is(…))`
+    // weighs the same as the `:not(:fullscreen)` it replaced, so adding the
+    // faux route changed none of this arithmetic.
     const paneRules = [...css.matchAll(/([^{}]+)\{/g)]
       .map((m) => m[1].trim())
       .filter((sel) => sel.includes(".player-figure") && !sel.startsWith(".player-figure"));
     expect(paneRules.length).toBeGreaterThan(0);
-    for (const sel of paneRules) expect(sel).toContain(":not(:fullscreen)");
+    for (const sel of paneRules) expect(sel).toContain(":not(:is(:fullscreen, .cs-faux-fs))");
   });
 });
 

@@ -5,7 +5,7 @@
 import { describe, expect, test } from "vitest";
 import { validateSpec } from "../src/spec/schema";
 import { layoutSpec } from "../src/layout/layout";
-import { flattenDrawables } from "../src/layout/model";
+import { flattenDrawables, Z_TOP } from "../src/layout/model";
 import { encodeTrace } from "../src/spec/trace";
 import { portraitCacheKey, thumbFromSummary, wikiSummaryUrl, TRACE_VERSION } from "../src/render/portrait";
 import type { Spec } from "../src/spec/types";
@@ -60,6 +60,34 @@ describe("portrait element", () => {
     expect(flat.some((d) => d.id === "p1__frame")).toBe(true);
     const initials = flat.find((d) => d.id === "p1__initials") as { text: string };
     expect(initials.text).toBe("JMK");
+  });
+
+  // Hans, 2026-09-21: "whatever is under the portrait should not be visible
+  // — the portrait has priority. Right now we see background lines and
+  // drawings on top of the portrait." Three layers could not say that: the
+  // photo and the traced shapes lived in Z_STROKE, so EVERY text in the
+  // figure painted over the face (layer 2 beats layer 1, whatever the IR
+  // order) and any stroke declared after it did too.
+  test("a portrait outranks the rest of the figure — every leaf of it is Z_TOP", () => {
+    const withNeighbours = {
+      elements: [
+        { id: "grid", type: "shape", shape: "rect", x: 200, y: 500, width: 400, height: 400 },
+        { id: "p1", type: "portrait", x: 200, y: 500, width: 160, strokes: TRACE },
+        { id: "note", type: "text", x: 200, y: 500, text: "across the face" },
+      ],
+      commands: [],
+    } as unknown as Spec;
+    const flat = flattenDrawables(layoutSpec(withNeighbours).drawables);
+    const portrait = flat.filter((d) => d.id.startsWith("p1__"));
+    expect(portrait.length).toBeGreaterThan(0);
+    for (const d of portrait) expect(d.z).toBe(Z_TOP);
+    // …and nothing else has climbed up there with it.
+    for (const d of flat.filter((x) => !x.id.startsWith("p1"))) expect(d.z).toBeLessThan(Z_TOP);
+  });
+
+  test("the placeholder and its initials rank the same — a missing photo still occludes", () => {
+    const flat = flattenDrawables(layoutSpec(spec({ of: "John Maynard Keynes" })).drawables);
+    for (const d of flat.filter((x) => x.id.startsWith("p1__"))) expect(d.z).toBe(Z_TOP);
   });
 
   test("corrupted strokes degrade to the placeholder instead of throwing", () => {

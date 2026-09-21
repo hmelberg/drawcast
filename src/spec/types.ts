@@ -509,8 +509,8 @@ export interface Command {
   cue_end?: boolean;
   /** With speak: which dialogue voice reads the line ("a" = lead/teacher, the default; "b" = second voice). */
   voice?: "a" | "b";
-  /** With speak: named prosody nudge — soft (confiding), grave (slow reveal), brisk (light recap). Use sparingly. */
-  delivery?: "soft" | "grave" | "brisk";
+  /** With speak: named prosody nudge — grave (slow reveal), brisk (light recap). Use sparingly. */
+  delivery?: "grave" | "brisk";
   draw?: string[] | string;
   /** With draw/erase: animate the listed elements simultaneously. */
   parallel?: boolean;

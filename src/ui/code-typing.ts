@@ -16,6 +16,7 @@
 import { knownMicrodataVariables } from "../code/vocabulary";
 import { completionsFor, enterEdit, indentWidth, tabEdit, type Completion, type TextEdit } from "./code-complete";
 import { h } from "./dom";
+import { fullscreenElement } from "./fullscreen";
 
 /** Apply an edit, keeping native undo where the browser allows it. */
 function applyEdit(area: HTMLTextAreaElement, edit: TextEdit): void {
@@ -140,8 +141,11 @@ export function attachCodeTyping(area: HTMLTextAreaElement, opts: { language: st
       pop = h("div", { class: "cs-suggest", role: "listbox" });
       // In fullscreen ONLY descendants of the fullscreen element are painted,
       // so the list has to move in there with the figure — position: fixed
-      // still measures against the viewport, which is what it covers.
-      (document.fullscreenElement ?? document.body).appendChild(pop);
+      // still measures against the viewport, which is what it covers. The
+      // faux path (ui/fullscreen.ts) needs the same move for a different
+      // reason: its figure is a z-index:50 stacking context, and a list left
+      // on <body> at z-index:40 would be painted behind it.
+      (fullscreenElement() ?? document.body).appendChild(pop);
     }
     paint();
   };

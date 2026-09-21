@@ -27,14 +27,14 @@ describe("collectSpeakLines", () => {
       commands: [
         { speak: "First line." },
         { draw: ["a"] },
-        { speak: "Second line.", blocking: false, voice: "b", delivery: "soft" },
+        { speak: "Second line.", blocking: false, voice: "b", delivery: "brisk" },
         { speak: "First line." }, // duplicate (same text/speaker/delivery/gender) synthesized once
         { pause: 1 },
       ],
     });
     expect(lines).toEqual([
       { text: "First line.", speaker: undefined, delivery: undefined, gender: "male" },
-      { text: "Second line.", speaker: "b", delivery: "soft", gender: "male" },
+      { text: "Second line.", speaker: "b", delivery: "brisk", gender: "male" },
     ]);
   });
 

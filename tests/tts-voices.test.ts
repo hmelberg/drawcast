@@ -220,7 +220,7 @@ describe("audioLimits — what prosody a voice family accepts", () => {
 });
 
 describe("synthesizeBase64 — the request a delivery line actually sends", () => {
-  const bodyOf = async (voiceName: string, delivery: "soft" | "grave") => {
+  const bodyOf = async (voiceName: string, delivery: "grave" | "brisk") => {
     const g = globalThis as unknown as { fetch: unknown };
     const original = g.fetch;
     let sent: Record<string, never> | undefined;
@@ -237,17 +237,22 @@ describe("synthesizeBase64 — the request a delivery line actually sends", () =
   };
 
   test("a Chirp voice gets no pitch and no volumeGainDb — the fields it 400s on", async () => {
-    const body = await bodyOf("nb-NO-Chirp3-HD-Charon", "soft");
+    const body = await bodyOf("nb-NO-Chirp3-HD-Charon", "grave");
     expect(body.voice.name).toBe("nb-NO-Chirp3-HD-Charon");
     expect(body.audioConfig).not.toHaveProperty("pitch");
     expect(body.audioConfig).not.toHaveProperty("volumeGainDb");
     expect(body.audioConfig.speakingRate).toBeLessThanOrEqual(2);
   });
 
-  test("an ordinary voice keeps the whole prosody nudge", async () => {
-    const body = await bodyOf("nb-NO-Wavenet-E", "soft");
-    expect(body.audioConfig.pitch).toBe(-1.5);
-    expect(body.audioConfig.volumeGainDb).toBe(-3);
+  // With `soft` gone there is no delivery left that colours pitch or volume,
+  // so an ORDINARY voice now gets the same bare body a Chirp one does. The
+  // 2026-09-04 publish failure can no longer be reached through delivery at
+  // all; audioLimits still guards the rate cap, which grave/brisk do use.
+  test("an ordinary voice gets the same bare body — no delivery colours the voice any more", async () => {
+    const body = await bodyOf("nb-NO-Wavenet-E", "grave");
+    expect(body.audioConfig).not.toHaveProperty("pitch");
+    expect(body.audioConfig).not.toHaveProperty("volumeGainDb");
+    expect(body.audioConfig.speakingRate).toBeCloseTo(0.88);
   });
 });
 
@@ -289,13 +294,14 @@ describe("a rejected voice reports why", () => {
 // Hans, 2026-09-04: "don't send fields that are null".
 //
 // The measurement behind the rule: of 42 delivery uses in the bundled
-// examples, 40 are `grave` — and grave's pitchSt and gainDb are BOTH 0. So
+// examples, 40 were `grave` — and grave's pitchSt and gainDb are BOTH 0. So
 // on 95 % of them drawcast announced a pitch and a gain it was not applying,
 // and that announcement is exactly what a Chirp voice 400s on. A field that
 // carries the API's own default is not a setting; it is noise with a failure
-// mode.
+// mode. Since `soft` was dropped (2026-09-21) the remaining two deliveries
+// are pace-only, so the rule now covers every line there is.
 describe("the request carries only fields that do something", () => {
-  const bodyOf = async (voiceName: string, opts: { delivery?: "soft" | "grave" | "brisk"; rate?: number }) => {
+  const bodyOf = async (voiceName: string, opts: { delivery?: "grave" | "brisk"; rate?: number }) => {
     const g = globalThis as unknown as { fetch: unknown };
     const original = g.fetch;
     let sent: { audioConfig: Record<string, unknown> } | undefined;
@@ -328,12 +334,6 @@ describe("the request carries only fields that do something", () => {
     const cfg = await bodyOf("nb-NO-Wavenet-E", { delivery: "brisk" });
     expect(cfg).not.toHaveProperty("pitch");
     expect(cfg).not.toHaveProperty("volumeGainDb");
-  });
-
-  test("soft really does colour the voice, so it really does send those fields", async () => {
-    const cfg = await bodyOf("nb-NO-Wavenet-E", { delivery: "soft" });
-    expect(cfg.pitch).toBe(-1.5);
-    expect(cfg.volumeGainDb).toBe(-3);
   });
 
   test("the neutral speaking rate is the API's own default and is not sent either", async () => {

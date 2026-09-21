@@ -18,6 +18,7 @@ import type { VoiceOption } from "../render/voices";
 import { CONTROL_SELECTOR, gateIsOpen } from "./gates";
 import { attachChessPlay } from "./chessplay";
 import { attachChessDrag } from "./chess-drag";
+import { toggleFullscreen } from "./fullscreen";
 import { dragGateFor } from "./drag-gate";
 import { creditsOf } from "../export/credits";
 import { connectGateFor } from "./connect-gate";
@@ -860,10 +861,10 @@ export function attachPlayerControls(
   if (opts.fullscreenEl) {
     const el = opts.fullscreenEl;
     const fsBtnEl = h("button", { class: "cs-bar-btn", title: "Fullscreen" }, icon("fullscreen"));
-    fsBtnEl.addEventListener("click", () => {
-      if (document.fullscreenElement) void document.exitFullscreen();
-      else void el.requestFullscreen?.();
-    });
+    // ui/fullscreen.ts, not requestFullscreen directly: an iPhone has no
+    // Fullscreen API for a <div>, and the old `?.()` made that silence look
+    // like a dead button. See that file for the faux path.
+    fsBtnEl.addEventListener("click", () => toggleFullscreen(el));
     fsBtn = fsBtnEl;
   }
 

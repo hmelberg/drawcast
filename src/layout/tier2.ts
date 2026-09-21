@@ -21,6 +21,7 @@ import {
   Z_AREA,
   Z_STROKE,
   Z_TEXT,
+  Z_TOP,
   SKETCH_MS,
   SUB_SUFFIXES,
   defaultStyle,
@@ -1431,6 +1432,14 @@ function shapeDrawable(el: SpecElement, ctx: Ctx): StrokeDrawable {
  * cache-cold, corrupted) — a sketched placeholder frame with the person's
  * initials, so a missing image degrades instead of breaking. Position and
  * width are LOGICAL units, like text/shape.
+ *
+ * EVERY leaf here is Z_TOP (Hans, 2026-09-21: a portrait has priority over
+ * whatever is under it). A portrait is pasted onto the drawing, not part of
+ * it, and the three ordinary layers could not say so: the photo sat in
+ * Z_STROKE, so the figure's texts painted over the face by layer and any
+ * later stroke did by IR order. One layer for the whole element keeps its
+ * OWN internal order intact — within a layer, IR order decides, and the
+ * trace branch below already sorts its shapes wash → fill → paper → line.
  */
 function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
   // Cameo presentation: centered, larger, frameless, fast fade — built for
@@ -1452,7 +1461,7 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
       pos: [cx, cy],
       w,
       h,
-      z: Z_STROKE,
+      z: Z_TOP,
       style: resolveStyle(undefined, {}),
       // wipe by default for portraits (the face emerges like a print; erase
       // plays it backwards). Non-portrait images keep the plain fade — the
@@ -1476,7 +1485,7 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
         text: name,
         fontSize,
         anchor: "middle",
-        z: Z_TEXT,
+        z: Z_TOP,
         style: resolveStyle(el.style, {}),
         drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 240 }),
       });
@@ -1492,7 +1501,7 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
           [cx - w / 2 - 5, cy + h / 2 + 5],
         ],
         closed: true,
-        z: Z_STROKE,
+        z: Z_TOP,
         style: resolveStyle(el.style, { strokeWidth: 3 }),
         drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.node }),
       });
@@ -1517,7 +1526,7 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
           kind: "stroke",
           pts: [c],
           shapeHint: { type: "circle", c, r },
-          z: Z_STROKE,
+          z: Z_TOP,
           style: resolveStyle(undefined, { color: COLORS.ink, fill: COLORS.ink, strokeWidth: 0.4 }),
           drawOpts: resolveDrawOpts(el.draw, { mode: "instant", duration: 0 }),
         });
@@ -1528,7 +1537,7 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
           id: `${el.id}__s${i}`,
           kind: "stroke",
           pts,
-          z: Z_STROKE,
+          z: Z_TOP,
           style: resolveStyle(el.style, { strokeWidth: 2.2 }),
           drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: msPer }),
         });
@@ -1540,7 +1549,7 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
           id: `${el.id}__w${i}`,
           kind: "area",
           pts,
-          z: Z_AREA,
+          z: Z_TOP,
           style: resolveStyle(undefined, { fill: COLORS.ink, opacity: 0.3, strokeWidth: 0 }),
           drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: msPer }),
         });
@@ -1553,7 +1562,7 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
         kind: "area",
         pts,
         precise: true,
-        z: Z_STROKE,
+        z: Z_TOP,
         style: resolveStyle(undefined, { fill: paper ? COLORS.paper : COLORS.ink, opacity: 1, strokeWidth: 0 }),
         drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: msPer }),
       });
@@ -1563,7 +1572,7 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
           kind: "stroke",
           pts,
           closed: true,
-          z: Z_STROKE,
+          z: Z_TOP,
           style: resolveStyle(el.style, { strokeWidth: 2 }),
           drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: msPer }),
         });
@@ -1591,7 +1600,7 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
         [cx - w / 2, cy + h / 2],
       ],
       closed: true,
-      z: Z_STROKE,
+      z: Z_TOP,
       style: resolveStyle(el.style, { color: COLORS.guide, strokeWidth: 3 }),
       drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.node }),
     });
@@ -1602,7 +1611,7 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
       text: initials || "?",
       fontSize: Math.max(24, Math.round(w / 4)),
       anchor: "middle",
-      z: Z_TEXT,
+      z: Z_TOP,
       style: resolveStyle(el.style, { color: COLORS.guide }),
       drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
     });
@@ -1611,7 +1620,7 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
   return {
     id: el.id,
     kind: "group",
-    z: Z_STROKE,
+    z: Z_TOP,
     style: defaultStyle(),
     drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 0 }),
     children,

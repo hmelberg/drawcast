@@ -1,5 +1,10 @@
 // Fullscreen sizing, and the duplicate that broke it.
 //
+// Since 2026-09-21 there are TWO routes into fullscreen — the browser's, and
+// ui/fullscreen.ts's faux one for a phone, whose figure wears `.cs-faux-fs`
+// instead of matching `:fullscreen`. Every rule below must serve both, which
+// is what `:is(:fullscreen, .cs-faux-fs)` is doing in the selectors here.
+//
 // `.viewer-figure` was a byte-for-byte copy of `.player-figure`, so every
 // `:fullscreen` rule — all of them written against `.player-figure` — simply
 // did not apply in the standalone viewer. A published drawcast went fullscreen
@@ -41,18 +46,27 @@ describe("one frame for the player and the viewer", () => {
   test("the fullscreen rules are reachable from the viewer", () => {
     // Every :fullscreen rule must be keyed on the shared class — a rule keyed
     // on anything else is a rule one of the two mounts would not get.
-    // A rule that EXCLUDES fullscreen (`:not(:fullscreen)`) is not a fullscreen
-    // rule — it is a pane rule stepping aside so these can apply. Strip that
-    // form before asking whether `:fullscreen` is still being targeted.
+    // A rule that EXCLUDES fullscreen (`:not(:is(:fullscreen, .cs-faux-fs))`)
+    // is not a fullscreen rule — it is a pane rule stepping aside so these can
+    // apply. Strip that form before asking what is still being targeted.
     const selectors = (css.match(/[^{}]*:fullscreen[^{}]*(?=\{)/g) ?? [])
-      .filter((sel) => sel.replace(/:not\(:fullscreen\)/g, "").includes(":fullscreen"));
+      .filter((sel) => sel.replace(/:not\([^)]*\)\)?/g, "").includes(":fullscreen"));
     expect(selectors.length).toBeGreaterThan(0);
-    for (const sel of selectors) expect(sel).toContain(".player-figure:fullscreen");
+    for (const sel of selectors) expect(sel).toContain(".player-figure:is(:fullscreen, .cs-faux-fs)");
+  });
+
+  // The faux route is CSS and nothing else, so a rule that reaches only the
+  // native one is a rule a phone silently does not get — the exact failure
+  // ui/fullscreen.ts exists to end.
+  test("the faux route gets every rule the native one does", () => {
+    const declaring = (css.match(/[^{}]*:fullscreen[^{}]*(?=\{)/g) ?? []).filter((sel) => !/:not\(/.test(sel));
+    expect(declaring.length).toBeGreaterThan(0);
+    for (const sel of declaring) expect(sel).toContain("cs-faux-fs");
   });
 });
 
 describe("the fullscreen stage is sized by what is left over", () => {
-  const stage = rulesMatching(/\.player-figure:fullscreen\s+\.cs-stage/);
+  const stage = rulesMatching(/\.player-figure:is\(:fullscreen, \.cs-faux-fs\)\s+\.cs-stage/);
 
   test("there is such a rule", () => {
     expect(stage).toHaveLength(1);
@@ -73,7 +87,7 @@ describe("the fullscreen stage is sized by what is left over", () => {
   });
 
   test("the figure between it and the screen is a column that can shrink", () => {
-    const figure = rulesMatching(/\.player-figure:fullscreen\s+\.cs-figure/);
+    const figure = rulesMatching(/\.player-figure:is\(:fullscreen, \.cs-faux-fs\)\s+\.cs-figure/);
     expect(figure).toHaveLength(1);
     expect(figure[0]).toMatch(/flex-direction:\s*column/);
     expect(figure[0]).toMatch(/min-height:\s*0/);

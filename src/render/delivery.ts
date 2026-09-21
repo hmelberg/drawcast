@@ -2,7 +2,7 @@
 // drives BOTH speech backends so live playback and video export sound alike.
 // Deterministic by design — no jitter; variation is authored, never random.
 
-export type Delivery = "soft" | "grave" | "brisk";
+export type Delivery = "grave" | "brisk";
 
 export interface SpeakOpts {
   /** Dialogue speaker; "a" (default) is the lead voice, "b" the contrast. */
@@ -20,7 +20,6 @@ export interface SpeakLine {
 }
 
 export const DELIVERY: Record<Delivery, { rate: number; pitchSt: number; gainDb: number }> = {
-  soft: { rate: 0.93, pitchSt: -1.5, gainDb: -3 },
   grave: { rate: 0.88, pitchSt: 0, gainDb: 0 },
   brisk: { rate: 1.07, pitchSt: 0, gainDb: 0 },
 };

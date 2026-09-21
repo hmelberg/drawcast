@@ -75,7 +75,7 @@ export function isUsableVoice(name: string): boolean {
  * Norwegian voice succeeded for three lectures and died on the fourth. The
  * voice was never the problem — `delivery` was. It is the only reason
  * `pitch` and `volumeGainDb` are ever sent, so the publish ran until the
- * series' first soft/grave/brisk line and 400ed there. Chirp 3: HD rejects
+ * series' first grave/brisk line and 400ed there. Chirp 3: HD rejects
  * pitch outright and caps speakingRate at 2.0; Studio rejects pitch (the
  * case this code already knew, as a substring test on one family).
  *
@@ -291,12 +291,15 @@ export async function synthesizeBase64(cfg: TtsConfig, text: string, opts?: Spea
             ? { languageCode: voice.languageCode, name: voice.name }
             : { languageCode: voice.languageCode, ssmlGender: g === "male" ? "MALE" : "FEMALE" },
         // Only fields that DO something (Hans, 2026-09-04). Of the delivery
-        // uses in the bundled examples, 40 of 42 are `grave`, whose pitchSt
+        // uses in the bundled examples, 40 of 42 were `grave`, whose pitchSt
         // and gainDb are both 0 — so the old body announced a pitch and a
         // gain it was not applying, and that announcement is precisely what
         // a Chirp voice 400s on. A field carrying the API's own default is
         // not a setting; it is noise with a failure mode. The per-family
-        // limits above still apply to the fields that DO carry a value.
+        // limits above still apply to the fields that DO carry a value —
+        // which, since `soft` was dropped (2026-09-21), is the rate alone:
+        // grave and brisk are pace-only, so pitch and gain are now never
+        // sent by any line and the 2026-09-04 failure is out of reach.
         audioConfig: {
           audioEncoding: "MP3",
           ...(rate === 1 ? {} : { speakingRate: rate }),
