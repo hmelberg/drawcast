@@ -92,3 +92,63 @@ describe("buildPartRequest", () => {
     expect(r).toContain("Audience: beginners.");
   });
 });
+
+// Chapters used to reach a playlist only from a course, where the author
+// declares them — so an ordinary #parts=6 lecture ran without any, and the
+// feature was exercised by nobody (which is how the script printer came to
+// drop chapters silently for months). From four parts up the planner is now
+// OFFERED the field, and below that it is not told chapters exist.
+describe("chapters a long series may propose", () => {
+  test("the field is offered from four parts up, in the instruction and in the shape", () => {
+    for (const n of [4, 5, 6]) {
+      const { system } = buildOutlineMessages("x", n);
+      expect(system, `${n} parts`).toContain("chapter: OPTIONAL");
+      expect(system, `${n} parts`).toContain("or omit the field");
+    }
+  });
+
+  test("a short series is never told chapters exist", () => {
+    for (const parts of [null, 2, 3]) {
+      const { system } = buildOutlineMessages("x", parts);
+      expect(system, `${parts} parts`).not.toContain("chapter");
+    }
+  });
+
+  test("a declared list still wins: assign, never invent", () => {
+    const { system } = buildOutlineMessages("x", 6, ["Setting up", "The turn"]);
+    expect(system).toContain("never invent a chapter that is not on this list");
+    expect(system).not.toContain("chapter: OPTIONAL");
+  });
+
+  test("proposed chapters come through when they actually group", () => {
+    const o = normalizeOutline({
+      title: "T",
+      parts: [
+        { title: "A", brief: "a", chapter: "Setting up" },
+        { title: "B", brief: "b", chapter: "Setting up" },
+        { title: "C", brief: "c", chapter: "The turn" },
+        { title: "D", brief: "d", chapter: "The turn" },
+      ],
+    });
+    expect(o!.parts.map((p) => p.chapter)).toEqual(["Setting up", "Setting up", "The turn", "The turn"]);
+  });
+
+  test("one chapter per part is not a grouping, and neither is one over everything", () => {
+    const perPart = normalizeOutline({ title: "T", parts: [1, 2, 3, 4].map((i) => ({ title: `P${i}`, brief: "b", chapter: `C${i}` })) });
+    expect(perPart!.parts.every((p) => p.chapter === undefined)).toBe(true);
+    const oneForAll = normalizeOutline({ title: "T", parts: [1, 2, 3, 4].map((i) => ({ title: `P${i}`, brief: "b", chapter: "All of it" })) });
+    expect(oneForAll!.parts.every((p) => p.chapter === undefined)).toBe(true);
+    // A partial naming is not degenerate: the unnamed parts read as a preface
+    // and the crossing into the first chapter is a real one.
+    const halfNamed = normalizeOutline({ title: "T", parts: [{ title: "A", brief: "a" }, { title: "B", brief: "b", chapter: "The turn" }, { title: "C", brief: "c", chapter: "The turn" }, { title: "D", brief: "d", chapter: "The turn" }] });
+    expect(halfNamed!.parts.map((p) => p.chapter)).toEqual([undefined, "The turn", "The turn", "The turn"]);
+  });
+
+  test("a declared list is the author's business, however they use it", () => {
+    const o = normalizeOutline(
+      { title: "T", parts: [{ title: "A", brief: "a", chapter: "Only one" }, { title: "B", brief: "b", chapter: "Only one" }] },
+      ["Only one"],
+    );
+    expect(o!.parts.map((p) => p.chapter)).toEqual(["Only one", "Only one"]);
+  });
+});

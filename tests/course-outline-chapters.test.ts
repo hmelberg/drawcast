@@ -8,8 +8,12 @@ describe("chapters in the outline call", () => {
     expect(system).toContain("When it breaks");
   });
 
-  it("says nothing about chapters when none are given", () => {
-    expect(buildOutlineMessages("DiD", 4).system).not.toContain("chapter");
+  // Superseded 2026-09-21: with no declared list, a series of four parts or
+  // more is now OFFERED chapters to propose (outline.ts CHAPTERS_FROM_PARTS);
+  // a shorter one is still never told they exist.
+  it("says nothing about chapters for a series too short to need them", () => {
+    expect(buildOutlineMessages("DiD", 3).system).not.toContain("chapter");
+    expect(buildOutlineMessages("DiD", 4).system).toContain("chapter: OPTIONAL");
   });
 
   it("keeps a part's chapter through normalize", () => {

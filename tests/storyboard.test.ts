@@ -110,3 +110,25 @@ describe("outlineParts chooses by approach", () => {
     expect(cfgs).toEqual([false, true]);
   });
 });
+
+describe("chapters in the storyboard plan (the default approach)", () => {
+  test("a long series is offered the field, a short one is not", () => {
+    expect(buildStoryboardMessages("x", 5).system).toContain("chapter: OPTIONAL");
+    expect(buildStoryboardMessages("x", 5).system).toContain("or omit the field");
+    expect(buildStoryboardMessages("x", 3).system).not.toContain("chapter");
+    expect(buildStoryboardMessages("x", null).system).not.toContain("chapter");
+  });
+
+  test("a declared list still wins", () => {
+    const { system } = buildStoryboardMessages("x", 6, { chapters: ["Setting up", "The turn"] });
+    expect(system).toContain("never invent a chapter that is not on this list");
+    expect(system).not.toContain("chapter: OPTIONAL");
+  });
+
+  test("the script and figure fields are still in the shape either way", () => {
+    for (const parts of [3, 5]) {
+      expect(buildStoryboardMessages("x", parts).system).toContain('"script"');
+      expect(buildStoryboardMessages("x", parts).system).toContain('"figure"');
+    }
+  });
+});

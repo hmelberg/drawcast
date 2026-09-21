@@ -55,6 +55,28 @@ export const OUTLINE_SCHEMA = {
   additionalProperties: false,
 } as const;
 
+/**
+ * A series short enough to watch in one sitting needs no chapters: the cards
+ * would be two extra title screens in four minutes. From four parts up the
+ * arc can have movements worth naming, so the planner is OFFERED the field —
+ * never required to use it. Below the gate the shape does not mention
+ * chapters at all, which is how a three-part drawcast stays chapterless
+ * without being told to.
+ *
+ * A course is the other case entirely: there the author declared the
+ * chapters, and the planner's job is to assign parts to them, not to invent
+ * any (buildOutlineMessages / buildStoryboardMessages take `chapters`).
+ */
+export const CHAPTERS_FROM_PARTS = 4;
+
+export function mayProposeChapters(parts: number | null, declared?: string[]): boolean {
+  return (!declared || declared.length === 0) && parts !== null && parts >= CHAPTERS_FROM_PARTS;
+}
+
+/** The one copy of the instruction, so the two planners cannot drift apart. */
+export const PROPOSE_CHAPTERS_LINE =
+  "chapter: OPTIONAL. If this series really has movements — two or three stretches that each do something different — name them and give every part the one it falls under, in order. The viewer then gets a chapter card where each begins. A chapter covering every part says nothing, and one chapter per part is not a grouping: leave the field out entirely unless several parts share each name.";
+
 export function buildOutlineMessages(
   request: string,
   parts: number | null,
@@ -66,21 +88,25 @@ export function buildOutlineMessages(
     `Split the request into ${count}. Each part must stand on one single figure and one idea.`,
     "Design the arc across parts: part 1 announces what the series will explain and grounds it in a concrete example, the middle carries the step-by-step development (the worked example, and one brief enrichment moment if the topic genuinely offers one — why it matters, a real debate, a historical note, an empirical number, or strengths and weaknesses — never more than one per part), the last part delivers the synthesis.",
   ];
+  const propose = mayProposeChapters(parts, chapters);
   if (chapters && chapters.length > 0) {
     system.push(
       `The author declared these chapters, in order: ${chapters.map((c, i) => `${i + 1}. ${c}`).join("; ")}. ` +
         "Assign every part to one of them with the `chapter` field, in order, and never invent a chapter that is not on this list.",
     );
+  } else if (propose) {
+    system.push(PROPOSE_CHAPTERS_LINE);
   }
   // The shape lives in the prompt text too: when structured outputs are
   // unavailable (the client degrades to plain JSON per session), the model
   // must still know exactly what to return.
-  system.push(
-    "Return ONLY a minified JSON object of exactly this shape, nothing else:",
-    chapters && chapters.length > 0
-      ? '{"title": "<short series title>", "parts": [{"title": "<short part title>", "brief": "<one line: coverage and role in the arc>", "level": "basic|advanced (only when the request implies one)", "chapter": "<one of the declared chapters>"}]}'
-      : '{"title": "<short series title>", "parts": [{"title": "<short part title>", "brief": "<one line: coverage and role in the arc>", "level": "basic|advanced (only when the request implies one)"}]}',
-  );
+  const part = [
+    '"title": "<short part title>"',
+    '"brief": "<one line: coverage and role in the arc>"',
+    '"level": "basic|advanced (only when the request implies one)"',
+    ...(chapters && chapters.length > 0 ? ['"chapter": "<one of the declared chapters>"'] : propose ? ['"chapter": "<the chapter this part falls under, or omit the field>"'] : []),
+  ].join(", ");
+  system.push("Return ONLY a minified JSON object of exactly this shape, nothing else:", `{"title": "<short series title>", "parts": [{${part}}]}`);
   return { system: system.join("\n"), user: request };
 }
 
@@ -101,9 +127,13 @@ export function normalizeOutline(json: unknown, chapters?: string[]): Outline | 
     if (typeof title !== "string" || title.length === 0) continue;
     const part: OutlinePart = { title, brief: typeof brief === "string" ? brief : "" };
     if (level === "basic" || level === "advanced") part.level = level;
-    // The plain-JSON fallback is unconstrained, so an invented chapter must not
-    // reach the playlist as a chapter card nobody asked for.
-    if (typeof chapter === "string" && (!chapters || chapters.includes(chapter))) part.chapter = chapter;
+    // Declared chapters are a closed list — the plain-JSON fallback is
+    // unconstrained, so an invented one must not reach the playlist as a
+    // chapter card nobody asked for. With none declared the planner may have
+    // been invited to propose some (mayProposeChapters), and those are taken
+    // as written; dropPointlessChapters below throws out the groupings that
+    // group nothing.
+    if (typeof chapter === "string" && chapter.trim() && (!chapters || chapters.includes(chapter))) part.chapter = chapter.trim();
     // The storyboard's two extra fields (llm/storyboard.ts); an outline reply
     // simply never carries them. An empty script is no script: the part then
     // falls back to being written on its own, teaching pass included.
@@ -115,7 +145,29 @@ export function normalizeOutline(json: unknown, chapters?: string[]): Outline | 
     parts.push(part);
   }
   if (parts.length < 2) return null;
-  return { title: typeof raw.title === "string" ? raw.title : "", parts: parts.slice(0, MAX_PARTS) };
+  const kept = parts.slice(0, MAX_PARTS);
+  if (!chapters || chapters.length === 0) dropPointlessChapters(kept);
+  return { title: typeof raw.title === "string" ? raw.title : "", parts: kept };
+}
+
+/**
+ * The two groupings that group nothing, which a prompt rule alone will not
+ * hold off: EVERY part under one chapter — a label that shows no card at all,
+ * since exportSequence only cards a CROSSING — and one chapter per part,
+ * which turns every junction into a title card. Both come back as no
+ * chapters, which is what the series would have had before it was offered the
+ * field. A partial naming is left alone: parts outside the first chapter read
+ * as a preface, and the crossing into it is a real one.
+ *
+ * Proposed chapters only — a declared list is the author's business, however
+ * they use it.
+ */
+function dropPointlessChapters(parts: OutlinePart[]): void {
+  const named = parts.filter((p) => p.chapter !== undefined);
+  if (named.length === 0 || named.length !== parts.length) return;
+  const distinct = new Set(named.map((p) => p.chapter)).size;
+  if (distinct > 1 && distinct < parts.length) return;
+  for (const p of parts) delete p.chapter;
 }
 
 /** The per-part request handed to the ordinary single-figure generator. */
