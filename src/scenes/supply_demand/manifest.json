@@ -1,7 +1,7 @@
 {
   "name": "supply_demand",
   "status": "ready",
-  "description": "A price–quantity market diagram: downward-sloping demand, upward-sloping supply, equilibrium where they cross. Choose this scene for ANY request about markets, demand/supply, equilibrium, price ceilings or floors (shortage/surplus), taxes and deadweight loss, consumer/producer surplus, or curve shifts. All geometry is computed for you — you only choose which ingredients to include. Spec-level region elements can shade between this scene's curves (between: [supply_curve, demand_curve], or a price line like ceiling_line) — e.g. to shade a shortage wedge or a surplus area not covered by the built-in regions.",
+  "description": "A price–quantity market diagram: downward-sloping demand, upward-sloping supply, equilibrium where they cross. Choose this scene for ANY request about markets, demand/supply, equilibrium, price ceilings or floors (shortage/surplus), taxes, subsidies and deadweight loss, consumer/producer surplus, or curve shifts. All geometry is computed for you — you only choose which ingredients to include. Spec-level region elements can shade between this scene's curves (between: [supply_curve, demand_curve], or a price line like ceiling_line) — e.g. to shade a shortage wedge or a surplus area not covered by the built-in regions.",
   "params_schema": {
     "type": "object",
     "properties": {
@@ -62,7 +62,7 @@
                 "maximum": 1.94
               }
             ],
-            "description": "How flat or steep the curve is, as an elasticity — the lever to use for tax incidence. Words: perfectly_inelastic, inelastic, unit (default, unchanged), elastic, perfectly_elastic; or a number 0.06–1.94 that animates. Unlike steepness, which saturates, this reaches genuinely vertical and genuinely horizontal. Changing it never moves the equilibrium, so two figures at different elasticities are directly comparable."
+            "description": "How flat or steep the curve is, as an elasticity — the lever to use for tax incidence. Words: perfectly_inelastic (0.06), inelastic (0.5), unit (1, default), elastic (1.5), perfectly_elastic (1.94); or any number in that range, which animates. Unlike steepness, which saturates, this reaches near-vertical and near-horizontal. Changing it never moves the equilibrium, so two figures at different elasticities are directly comparable."
           },
           "label": {
             "type": "string",
@@ -121,7 +121,7 @@
                 "maximum": 1.94
               }
             ],
-            "description": "How flat or steep the curve is, as an elasticity — the lever to use for tax incidence. Words: perfectly_inelastic, inelastic, unit (default, unchanged), elastic, perfectly_elastic; or a number 0.06–1.94 that animates. Unlike steepness, which saturates, this reaches genuinely vertical and genuinely horizontal. Changing it never moves the equilibrium, so two figures at different elasticities are directly comparable."
+            "description": "Same as demand.elasticity, applied to supply."
           },
           "label": {
             "type": "string",
@@ -208,7 +208,7 @@
         "properties": {
           "amount": {
             "type": "number",
-            "description": "Size of the tax in price-axis units — the axis runs 0-100 and the untaxed equilibrium sits at 50, so 18 is a substantial tax. Default 18. NEGATIVE IS A SUBSIDY: the curve shifts the other way, more is traded, and `government_revenue` becomes a government cost. Numeric, so it animates: tween it from 0 to watch the wedge open and the deadweight loss grow. For kind ad_valorem this is a PERCENTAGE instead (36 = 36%)."
+            "description": "Size of the tax in price-axis units — the axis runs 0-100 and the untaxed equilibrium sits at 50, so 18 is a substantial tax and the default for kind per_unit. NEGATIVE IS A SUBSIDY: the curve shifts the other way, more is traded, and `government_revenue` becomes a government cost. Numeric, so it animates: tween it from 0 to watch the wedge open and the deadweight loss grow. For kind ad_valorem this is a PERCENTAGE instead, default 36 (36%)."
           },
           "side": {
             "type": "string",
@@ -225,11 +225,11 @@
       },
       "price_ceiling": {
         "type": "object",
-        "description": "A binding price ceiling below equilibrium; by default also shows the resulting shortage (Qd > Qs).",
+        "description": "A price ceiling on the market; when it binds below equilibrium (see `level`) also shows the resulting shortage (Qd > Qs) by default.",
         "properties": {
           "level": {
             "type": "number",
-            "description": "Where the line sits, in price-axis units (0-100; the equilibrium price is 50). Numeric, so it animates — sliding a ceiling down opens the shortage and grows the deadweight loss in one gesture. A ceiling only BINDS below the equilibrium price; above it the line is drawn and nothing else happens, which is a legitimate figure about a ceiling that does nothing."
+            "description": "Where the line sits, in price-axis units (same 0-100 scale as tax.amount). Sliding it down opens the shortage and grows the deadweight loss in one gesture. A ceiling only BINDS below the equilibrium price; above it the line is drawn and nothing else happens, which is a legitimate figure about a ceiling that does nothing."
           },
           "label": {
             "type": "string",
@@ -243,11 +243,11 @@
       },
       "price_floor": {
         "type": "object",
-        "description": "A binding price floor above equilibrium; by default also shows the resulting surplus.",
+        "description": "A price floor on the market; when it binds above equilibrium (see `level`) also shows the resulting surplus by default.",
         "properties": {
           "level": {
             "type": "number",
-            "description": "Where the line sits, in price-axis units (0-100; the equilibrium price is 50). Numeric, so it animates — sliding a floor up opens the surplus and grows the deadweight loss in one gesture. A floor only BINDS above the equilibrium price; below it the line is drawn and nothing else happens, which is a legitimate figure about a floor that does nothing."
+            "description": "Where the line sits, in price-axis units (same 0-100 scale as tax.amount). Sliding it up opens the surplus and grows the deadweight loss in one gesture. A floor only BINDS above the equilibrium price; below it the line is drawn and nothing else happens, which is a legitimate figure about a floor that does nothing."
           },
           "label": {
             "type": "string"
@@ -292,16 +292,12 @@
     "label_E_shift": "shifted equilibrium label (\"E′\")",
     "label_P_shift": "price-axis label at the shifted equilibrium (\"P*′\")",
     "label_Q_shift": "quantity-axis label at the shifted equilibrium (\"Q*′\")",
-    "tax_supply_curve": "the S+tax curve (seller-side tax)",
-    "tax_demand_curve": "the D-tax curve (buyer-side tax)",
-    "label_S_tax": "its label",
-    "label_D_tax": "its label",
+    "tax_supply_curve / tax_demand_curve": "the shifted curve — S+tax for a seller-side tax, D−tax for a buyer-side tax",
+    "label_S_tax / label_D_tax": "its label",
     "tax_equilibrium_point": "the with-tax equilibrium dot",
     "tax_guide_lines": "dashed guides at the with-tax equilibrium",
-    "price_buyers_point": "dot at the price buyers actually pay (P_b)",
-    "price_sellers_point": "dot at the price sellers actually receive (P_s)",
-    "label_Pb": "price-buyers-pay label",
-    "label_Ps": "price-sellers-receive label",
+    "price_buyers_point / price_sellers_point": "dot at the price buyers pay (P_b) or sellers receive (P_s) — a tax only",
+    "label_Pb / label_Ps": "its label",
     "dwl_region": "shaded deadweight-loss triangle",
     "label_DWL": "deadweight-loss label",
     "wedge_region": "shaded government-revenue wedge between P_b and P_s (a tax only)",

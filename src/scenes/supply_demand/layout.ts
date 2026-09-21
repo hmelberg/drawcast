@@ -389,10 +389,16 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       const pts = ctx.toLogical([[D0, pSellers], [qTraded, pSellers], [qTraded, pBuyers], [D0, pBuyers]]);
       push(area("wedge_region", pts, COLORS.accent));
       anchors["wedge_region"] = centroid(pts);
+      // The wedge spans the WHOLE traded quantity (0 to qTraded, not a
+      // sliver near the crossing), so its horizontal centroid sits under the
+      // untaxed guide_lines (at pStar) and its right edge grazes the with-tax
+      // guides — label the wedge's upper band instead (between pStar and
+      // pBuyers), the one strip a busy figure with both curves, both guide
+      // sets and a deadweight-loss region leaves clear.
       label(
         "label_wedge",
-        anchors["wedge_region"],
-        "right",
+        ctx.toLogical([[(D0 + qTraded) / 2, (pStar + pBuyers) / 2]])[0],
+        "above",
         pBuyers > pSellers ? "Government revenue" : "Government cost",
         COLORS.accent,
       );

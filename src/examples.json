@@ -25547,7 +25547,7 @@
           "show": true
         },
         "tax": { "amount": 18 },
-        "regions": ["deadweight_loss"]
+        "regions": ["government_revenue", "deadweight_loss"]
       },
       "commands": [
         {
@@ -25603,7 +25603,6 @@
         },
         {
           "draw": [
-            "price_buyers_point",
             "label_Pb"
           ],
           "speak": "Buyers now hand over this much — noticeably more than before the tax."
@@ -25611,9 +25610,11 @@
         {
           "draw": [
             "price_sellers_point",
-            "label_Ps"
+            "label_Ps",
+            "wedge_region",
+            "label_wedge"
           ],
-          "speak": "But the shop only keeps this much. The gap between the two lines is the government's, and neither side chose how to split it."
+          "speak": "But the shop only keeps this much. The shaded band between the two prices is the government's cut, and neither side chose how to split it."
         },
         {
           "highlight": {

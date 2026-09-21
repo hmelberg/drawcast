@@ -350,14 +350,52 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned 2026-09-21 (supply & demand welfare): supply_demand's manifest
 // gains `elasticity` on both curves (the lever for tax incidence, where
 // `steepness` saturates), `tax.amount/side/kind`, `level` on both price
-// controls, three more `regions` members, ten element ids and two examples.
-// The scene's params_schema is embedded verbatim in the catalog
-// (src/scenes/catalog.ts:69), so all of it lands on the system prompt; the
-// spec-level schema is untouched (81722). One sentence in compiler-v1.md's
-// animate bullet also changed — it promised that steepening demand shrinks a
-// deadweight-loss triangle, which saturation means it does not.
+// controls, two more `regions` members (government_revenue, transfer —
+// deadweight_loss was already added, and re-pinned, by an earlier commit
+// this same round), ten element ids and two examples. The scene's
+// params_schema is embedded verbatim in the catalog (src/scenes/catalog.ts:69),
+// so all of it lands on the system prompt; the spec-level schema is
+// untouched (81722). One sentence in compiler-v1.md's animate bullet also
+// changed — it promised that steepening demand shrinks a deadweight-loss
+// triangle, which saturation means it does not (fixed again below: the
+// first version of that sentence also had the elasticity direction
+// backwards).
 // system 204741 -> 210292.
-const BASELINE_SYSTEM_CHARS = 210292;
+// Fix round 1 on the above (2026-09-21): corrected the compiler-v1.md
+// sentence's direction (animating `demand.elasticity` DOWN — not up — is
+// what swings a tax's burden onto buyers and shrinks the triangle; verified
+// against the bundled example, which animates down and narrates a shrink);
+// gave the elasticity words their numbers inline (perfectly_inelastic 0.06 …
+// perfectly_elastic 1.94), since the neighbouring `steepness` already does
+// and the un-numbered list is exactly how the original direction mistake
+// happened; softened "reaches genuinely vertical/horizontal" to
+// "near-vertical/near-horizontal" (it's clamped to [0.06, 1.94], never 0 or
+// 2); made `tax.amount`'s stated default correct for kind ad_valorem (36,
+// not 18); stopped price_ceiling/price_floor's own descriptions from
+// assuming binding, now that a non-binding `level` is a documented, legal
+// figure; taught the acceptance example's "gap between the two lines" beat
+// to draw `wedge_region`/`label_wedge` — the thing the sentence was
+// describing — instead of asserting a second line that was never drawn
+// (this needed a small layout.ts fix too: the wedge's default label anchor,
+// dead-centre of a rectangle spanning the WHOLE traded quantity, collided
+// with four other strokes once it shared the canvas with both curves, both
+// guide sets and the DWL region; moved only the label's anchor into the
+// wedge's upper band, not the polygon or the centroid other code reads);
+// dropped a redundant `price_buyers_point` draw that duplicated
+// `tax_equilibrium_point`'s dot; and trimmed ~700 chars of duplication per
+// Hans's standing instruction — the 430-char elasticity paragraph no longer
+// repeats verbatim on `supply` (one line points back to `demand`), and the
+// "0-100 / equilibrium at 50" / "Numeric, so it animates" phrases each say
+// once (on `tax.amount`) what they said three times (also on both
+// `level`s). Also combined `tax_supply_curve`/`tax_demand_curve` and
+// `price_buyers_point`/`price_sellers_point`'s element_ids entries in the
+// file's own `ceiling_line / floor_line` idiom, marked the P_b/P_s dots
+// "a tax only" (matching `wedge_region`/`transfer_region`'s notes), and
+// added "subsidies" to the scene's own routing description, since a
+// negative tax amount is a headline new capability that sentence never
+// named. Net of the trim and the additions: system 210292 -> 209953 (the
+// trim recovered more than the fixes above added back).
+const BASELINE_SYSTEM_CHARS = 209953;
 const BASELINE_SCHEMA_CHARS = 81722;
 
 const system = (code: boolean, sound = false) =>
