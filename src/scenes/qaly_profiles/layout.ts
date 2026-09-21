@@ -251,8 +251,12 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
     drawables.push(d);
     order.push(d.id);
   };
-  const label = (id: string, anchor: Pt, side: LabelRequest["side"], text: string, color: string) => {
+  const attached: Record<string, string[]> = {};
+  // `of` is the element this label names: it moves, fades and stays lit with
+  // it (scenes/types.ts `attached`).
+  const label = (id: string, anchor: Pt, side: LabelRequest["side"], text: string, color: string, of?: string) => {
     labels.push({ id, anchor, side, text, fontSize: 26, style: defaultStyle({ color }), drawOpts: defaultDrawOpts("instant") });
+    if (of) attached[of] = [...(attached[of] ?? []), id];
     anchors[id] = anchor;
     order.push(id);
   };
@@ -322,7 +326,7 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
     // Anchor the label at the last level stretch before the death drop.
     const anchorPt = pts[Math.max(0, pts.length - 3)];
     anchors[`curve_${p.id}`] = anchorPt;
-    label(`label_${p.id}`, anchorPt, "above-right", p.label ?? p.id, p.color);
+    label(`label_${p.id}`, anchorPt, "above-right", p.label ?? p.id, p.color, `curve_${p.id}`);
   }
 
   // The reference path — the health a comparable person without the disease
@@ -346,7 +350,7 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
       curveSamples["reference_curve"] = refPts;
       const refAnchor = refPts[Math.max(0, refPts.length - 3)];
       anchors["reference_curve"] = refAnchor;
-      label("label_reference", refAnchor, "above-left", ref.label ?? "Without the disease", COLORS.guide);
+      label("label_reference", refAnchor, "above-left", ref.label ?? "Without the disease", COLORS.guide, "reference_curve");
     }
 
     const sf = params.shortfall;
@@ -396,7 +400,7 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
         drawOpts: defaultDrawOpts("sketch", SKETCH_MS.guides),
       });
       anchors["index_line"] = [sx(indexAge), sy(1.03)];
-      label("label_index", [sx(indexAge), sy(1.03)], "above-right", `From age ${Math.round(indexAge)}`, COLORS.guide);
+      label("label_index", [sx(indexAge), sy(1.03)], "above-right", `From age ${Math.round(indexAge)}`, COLORS.guide, "index_line");
 
       // The arithmetic in the open: a shortfall is only credible if you can see
       // the two remaining-QALY figures it was subtracted from. Kept to three
@@ -495,18 +499,18 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
         push(gains);
         const biggest = gains.children.reduce((a, b) => ((a as AreaDrawable).pts.length >= (b as AreaDrawable).pts.length ? a : b));
         anchors["gain_regions"] = centroid((biggest as AreaDrawable).pts);
-        label("label_gain", anchors["gain_regions"], "above-right", shade.gain_label ?? "QALYs gained", COLORS.region2);
+        label("label_gain", anchors["gain_regions"], "above-right", shade.gain_label ?? "QALYs gained", COLORS.region2, "gain_regions");
       }
       if (losses) {
         push(losses);
         const biggest = losses.children.reduce((a, b) => ((a as AreaDrawable).pts.length >= (b as AreaDrawable).pts.length ? a : b));
         anchors["loss_regions"] = centroid((biggest as AreaDrawable).pts);
         if (shade.loss_label !== "") {
-          label("label_loss", anchors["loss_regions"], "below-left", shade.loss_label ?? "Initial loss", COLORS.regionLoss);
+          label("label_loss", anchors["loss_regions"], "below-left", shade.loss_label ?? "Initial loss", COLORS.regionLoss, "loss_regions");
         }
       }
     }
   }
 
-  return { drawables, labels, anchors, order, curveSamples };
+  return { drawables, labels, anchors, order, curveSamples, attached };
 }

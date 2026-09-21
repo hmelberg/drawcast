@@ -45,10 +45,14 @@ layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
-  const label = (id, anchor, side, text, color, fontSize) => {
+  const attached = {};
+  // `of` is the organelle this label names: it fades, moves and stays lit
+  // with it (scenes/types.ts `attached`).
+  const label = (id, anchor, side, text, color, fontSize, of) => {
     if (!showLabels) return;
     labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
     order.push(id);
+    if (of) attached[of] = [...(attached[of] ?? []), id];
   };
   const cx = 470, cy = 380;
 
@@ -57,7 +61,7 @@ layout: |
   push(kit.stroke("membrane", outer, { closed: true, strokeWidth: 4.5, ms: MS.curve }));
   push(kit.stroke("membrane_inner", kit.blob([cx, cy], 358, 268, 0.05, 1), { closed: true, strokeWidth: 2.5, ms: MS.curve }));
   anchors.membrane = [cx - 190, cy + 245];
-  label("label_membrane", [cx - 190, cy + 245], "above-left", "Cell membrane");
+  label("label_membrane", [cx - 190, cy + 245], "above-left", "Cell membrane", undefined, undefined, "membrane");
 
   if (on.has("nucleus")) {
     const nc = [590, 420];
@@ -65,7 +69,7 @@ layout: |
     push(kit.stroke("nucleus", kit.blob(nc, 100, 92, 0.03, 2), { closed: true, color: C.accent, strokeWidth: 4, ms: MS.node }));
     push(kit.area("nucleolus", kit.blob([nc[0] + 22, nc[1] - 12], 26, 24, 0.06, 3), C.accent, { opacity: 0.5, ms: MS.dot }));
     anchors.nucleus = nc;
-    label("label_nucleus", nc, "right", "Nucleus", C.accent);
+    label("label_nucleus", nc, "right", "Nucleus", C.accent, undefined, "nucleus");
   }
 
   if (on.has("mitochondria")) {
@@ -83,7 +87,7 @@ layout: |
     }
     push(kit.group("cristae", cristae));
     anchors.mito = mc;
-    label("label_mito", [mc[0], mc[1] - 44], "below", "Mitochondrion", C.demand);
+    label("label_mito", [mc[0], mc[1] - 44], "below", "Mitochondrion", C.demand, undefined, "mito");
   }
 
   if (on.has("er")) {
@@ -93,7 +97,7 @@ layout: |
     }
     push(kit.group("er", er));
     anchors.er = [428, 300];
-    label("label_er", [428, 292], "above-left", "Endoplasmic reticulum", C.supply, 24);
+    label("label_er", [428, 292], "above-left", "Endoplasmic reticulum", C.supply, 24, "er");
   }
 
   if (on.has("golgi")) {
@@ -103,7 +107,7 @@ layout: |
     }
     push(kit.group("golgi", gg));
     anchors.golgi = [320, 320];
-    label("label_golgi", [320, 350], "above", "Golgi apparatus", C.shifted, 24);
+    label("label_golgi", [320, 350], "above", "Golgi apparatus", C.shifted, 24, "golgi");
   }
 
   if (on.has("ribosomes")) {
@@ -119,7 +123,7 @@ layout: |
     }
     push(kit.group("ribosomes", dots));
     anchors.ribosomes = spots[0] ?? [cx, cy];
-    label("label_ribo", spots[0] ?? [cx, cy], "above-right", "Ribosomes", C.ink, 24);
+    label("label_ribo", spots[0] ?? [cx, cy], "above-right", "Ribosomes", C.ink, 24, "ribosomes");
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };

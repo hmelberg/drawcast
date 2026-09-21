@@ -75,6 +75,7 @@ layout: |
   const wantKeyboard = params.keyboard === true;
 
   const drawables = [], labels = [], anchors = {}, order = [];
+  const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
   // Staff: five lines, E4 on the bottom. One diatonic step = half a gap.
@@ -235,6 +236,7 @@ layout: |
         const name = tok.pitches.map((p) => p.replace(/\d/g, "")).join("-");
         push(kit.text("label_" + i, [x, labelY], name, { fontSize: 18, color: C.guide }));
         anchors["label_" + i] = [x, labelY];
+        attached["note_" + i] = ["label_" + i];
       }
     }
     push(kit.group(id, children));
@@ -251,7 +253,7 @@ layout: |
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [500, wantKeyboard ? 700 : 640], params.title, { fontSize: 30 }));
   }
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 ---
 template: piano_keys
 title: Piano keyboard

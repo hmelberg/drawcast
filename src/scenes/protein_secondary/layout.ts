@@ -44,6 +44,7 @@ export function layoutProteinSecondary(params: ProteinSecondaryParams): SceneLay
   const labels: LabelRequest[] = [];
   const anchors: Record<string, Pt> = {};
   const order: string[] = [];
+  const attached: Record<string, string[]> = {};
   const text = (id: string, pos: Pt, s: string, color: string, fontSize = 30) => {
     drawables.push({ id, kind: "text", pos, text: s, fontSize, anchor: "middle", z: Z_TEXT, style: defaultStyle({ color }), drawOpts: defaultDrawOpts("instant") });
     order.push(id);
@@ -82,6 +83,8 @@ export function layoutProteinSecondary(params: ProteinSecondaryParams): SceneLay
     if (seg.label) {
       labels.push({ id: `label_${i}`, anchor: [x + w / 2, MID_Y + 52], side: "above", text: seg.label, fontSize: 26, style: defaultStyle(), drawOpts: defaultDrawOpts("instant") });
       order.push(`label_${i}`);
+      // The label names this segment (scenes/types.ts `attached`).
+      attached[id] = [`label_${i}`];
     }
     order.push(id);
     x += w;
@@ -94,7 +97,7 @@ export function layoutProteinSecondary(params: ProteinSecondaryParams): SceneLay
     order.push("strip_title");
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 }
 
 function defaultSegments(): ProteinSegment[] {

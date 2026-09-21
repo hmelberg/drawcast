@@ -269,6 +269,7 @@ layout: |
   const point = [O[0] + R * cosV, O[1] + R * sinV];
 
   const drawables = [], labels = [], anchors = {}, order = [];
+  const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
   const label = (id, anchor, side, text, color, fontSize) => { labels.push(kit.label(id, anchor, side, text, { color, fontSize })); order.push(id); };
 
@@ -319,6 +320,7 @@ layout: |
     const mid = arcTheta / 2;
     const labelAnchor = [O[0] + (arcR + 14) * Math.cos(mid), O[1] + (arcR + 14) * Math.sin(mid)];
     label("angle_label", labelAnchor, sideFromDir(Math.cos(mid), Math.sin(mid)), "θ", C.accent, 20);
+    attached["angle_arc"] = [...(attached["angle_arc"] ?? []), "angle_label"];
   }
   if (showSet.has("coords")) {
     const text = "(" + cosV.toFixed(2) + ", " + sinV.toFixed(2) + ")";
@@ -332,7 +334,7 @@ layout: |
     });
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 ---
 template: number_line
 title: Number line
@@ -418,6 +420,7 @@ layout: |
   function fmt(v) { return String(Math.round(v * 1000) / 1000); }
 
   const drawables = [], labels = [], anchors = {}, order = [];
+  const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
   const label = (id, anchor, side, text, color, fontSize) => { labels.push(kit.label(id, anchor, side, text, { color, fontSize })); order.push(id); };
 
@@ -447,6 +450,7 @@ layout: |
     anchors[id] = [x, Y];
     if (typeof p.label === "string" && p.label.trim() !== "") {
       label(id + "_label", [x, Y], "above", p.label, C.ink, 20);
+      attached[id] = [...(attached[id] ?? []), id + "_label"];
     }
   });
 
@@ -463,6 +467,7 @@ layout: |
     anchors[id] = [(x0 + x1) / 2, Y];
     if (typeof iv.label === "string" && iv.label.trim() !== "") {
       label(id + "_label", [(x0 + x1) / 2, Y + 8], "above", iv.label, C.accent, 20);
+      attached[id] = [...(attached[id] ?? []), id + "_label"];
     }
   });
 
@@ -478,10 +483,11 @@ layout: |
     anchors[id] = mid;
     if (typeof op.label === "string" && op.label.trim() !== "") {
       label(id + "_label", mid, "above", op.label, C.accent, 20);
+      attached[id] = [...(attached[id] ?? []), id + "_label"];
     }
   });
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 ---
 template: geometry_figure
 title: Labeled geometry figure
@@ -1455,10 +1461,12 @@ layout: |
   // would happily park a short axis's label right on top of axis_z's own
   // stroke elsewhere along its path (a real, avoidable obstacle, not the
   // "two axes meet at the origin" case self-ignore exists for).
+  const attached = {};
   const labels = [];
   axisSpecs.forEach((ax) => {
     const { anchor, side } = anchorFor(projected.anchors[ax.id]);
     labels.push({ ...kit.label(ax.id + "_label", anchor, side, ax.label, { fontSize: 24, color: C.guide }), ignore: [ax.id] });
+    attached[ax.id] = [ax.id + "_label"];
   });
   if (kind === "points") {
     pointsWorld.forEach((pt, i) => {
@@ -1508,7 +1516,7 @@ layout: |
     order = order.concat(["title"]);
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 ---
 template: circle_sectors
 title: Circle cut into sectors → the πr² rectangle
@@ -1569,6 +1577,7 @@ layout: |-
   const rectCy = 375;
   const x0 = rectCx - (s * (n - 1)) / 2;
   const drawables = [], labels = [], anchors = {}, order = [];
+  const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
   const rot = (p, c, a) => { const dx = p[0] - c[0], dy = p[1] - c[1]; return [c[0] + dx * Math.cos(a) - dy * Math.sin(a), c[1] + dx * Math.sin(a) + dy * Math.cos(a)]; };
   const lerp = (a, b, u) => a + (b - a) * u;
@@ -1609,6 +1618,7 @@ layout: |-
     push(kit.stroke("radius_line", [apex, tip], { color: C.demand, strokeWidth: 3, ms: MS.stroke }));
     const side = Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle)) ? "above" : "left";
     labels.push(kit.label("label_r", [(apex[0] + tip[0]) / 2, (apex[1] + tip[1]) / 2], side, "r", { color: C.demand, fontSize: 26 }));
+    attached["radius_line"] = [...(attached["radius_line"] ?? []), "label_r"];
     order.push("label_r");
     anchors.radius_line = tip;
   }
@@ -1620,7 +1630,7 @@ layout: |-
   }
   anchors.circle = CIRCLE;
   anchors.rectangle = [rectCx, rectCy];
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 ---
 template: riemann_sum
 title: Riemann sum → the integral

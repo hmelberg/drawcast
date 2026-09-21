@@ -313,6 +313,7 @@ layout: |
   const levelY = (lvl) => Y0 + lvl * scaleY;
 
   const drawables = [], labels = [], anchors = {}, order = [];
+  const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
   push(kit.group("axes", [
@@ -350,6 +351,7 @@ layout: |
   anchors.ea_arrow = [eaX, (levelY(reactantLevel) + levelY(peakLevel)) / 2];
   if (showLabels) {
     labels.push(kit.label("label_ea", anchors.ea_arrow, "left", "Eₐ", { fontSize: 26, color: C.accent }));
+    attached["ea_arrow"] = [...(attached["ea_arrow"] ?? []), "label_ea"];
     order.push("label_ea");
   }
 
@@ -358,6 +360,7 @@ layout: |
   anchors.dh_arrow = [dhX, (levelY(reactantLevel) + levelY(productLevel)) / 2];
   if (showLabels) {
     labels.push(kit.label("label_dh", anchors.dh_arrow, "right", "ΔH", { fontSize: 26, color: C.demand }));
+    attached["dh_arrow"] = [...(attached["dh_arrow"] ?? []), "label_dh"];
     order.push("label_dh");
   }
 
@@ -368,7 +371,7 @@ layout: |
     order.push("label_products");
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 ---
 template: lewis_dot
 title: Lewis dot structure

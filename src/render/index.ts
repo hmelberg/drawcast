@@ -186,6 +186,10 @@ export function planOptionsFor(
       const out: string[] = [];
       for (const el of spec.elements ?? []) if (el.type === "label" && el.attach_to === id) out.push(el.id, `${el.id}_leader`);
       if (layout.order.includes(`label_${id}`)) out.push(`label_${id}`, `label_${id}_leader`);
+      // What the TEMPLATE says outright (scenes/types.ts `attached`), for the
+      // labels the `label_<id>` guess above cannot see: `wtp_label` beside
+      // `wtp_line`, `label_S` beside `supply_curve`.
+      out.push(...(layout.attached[id] ?? []));
       // A spec label id can coincide with the implicit label_<id> convention
       // (e.g. {"id": "label_req", "attach_to": "req"}) — dedupe so the same
       // follower id isn't returned twice.

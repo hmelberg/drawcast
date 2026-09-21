@@ -49,8 +49,11 @@ export function layoutTimeline(params: TimelineParams): SceneLayout {
     drawables.push(d);
     order.push(d.id);
   };
-  const label = (id: string, anchor: Pt, side: LabelRequest["side"], t: string, color: string = COLORS.ink, fontSize = 24) => {
+  const attached: Record<string, string[]> = {};
+  // `of` is the element this label names (scenes/types.ts `attached`).
+  const label = (id: string, anchor: Pt, side: LabelRequest["side"], t: string, color: string = COLORS.ink, fontSize = 24, of?: string) => {
     labels.push({ id, anchor, side, text: t, fontSize, style: defaultStyle({ color }), drawOpts: defaultDrawOpts("instant") });
+    if (of) attached[of] = [...(attached[of] ?? []), id];
     anchors[id] = anchor;
     order.push(id);
   };
@@ -91,12 +94,12 @@ export function layoutTimeline(params: TimelineParams): SceneLayout {
 
     const text = m.sublabel ? `${m.label} — ${m.sublabel}` : m.label;
     const side: LabelRequest["side"] = i % 2 === 0 ? "above" : "below";
-    label(`label_${i}`, c, side, text, m.emphasize ? COLORS.accent : COLORS.ink, m.emphasize ? 27 : 24);
+    label(`label_${i}`, c, side, text, m.emphasize ? COLORS.accent : COLORS.ink, m.emphasize ? 27 : 24, dotId);
   });
 
   if (params.title) {
     push(kit.text("title", [(X0 + X1) / 2, 700], params.title, { fontSize: 32 }));
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 }

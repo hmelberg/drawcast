@@ -55,9 +55,14 @@ export function layoutFreeBody(params: FreeBodyParams): SceneLayout {
     drawables.push(d);
     order.push(d.id);
   };
-  const label = (id: string, anchor: Pt, side: LabelRequest["side"], text: string, color: string = COLORS.ink, fontSize = 28) => {
+  const attached: Record<string, string[]> = {};
+  // `of` names the element this label belongs to: it then moves, fades and
+  // stays lit with it (scenes/types.ts `attached`) — `label_gravity` beside
+  // `force_gravity` is not a relation the planner can guess from the id.
+  const label = (id: string, anchor: Pt, side: LabelRequest["side"], text: string, color: string = COLORS.ink, fontSize = 28, of?: string) => {
     labels.push({ id, anchor, side, text, fontSize, style: defaultStyle({ color }), drawOpts: defaultDrawOpts("instant") });
     order.push(id);
+    if (of) attached[of] = [...(attached[of] ?? []), id];
   };
 
   const incline = params.incline_deg !== undefined ? Math.max(8, Math.min(45, params.incline_deg)) : undefined;
@@ -116,7 +121,7 @@ export function layoutFreeBody(params: FreeBodyParams): SceneLayout {
       style: defaultStyle({ strokeWidth: 2.5, color: COLORS.guide }),
       drawOpts: defaultDrawOpts("sketch", SKETCH_MS.guides),
     });
-    label("label_angle", [x0 + 130, baseY + rise * 0.11], "right", `θ = ${incline}°`, COLORS.guide, 26);
+    label("label_angle", [x0 + 130, baseY + rise * 0.11], "right", `θ = ${incline}°`, COLORS.guide, 26, "angle_arc");
     // Body midway up the slope, offset perpendicular to it.
     const mx = (x0 + x1) / 2;
     const my = baseY + (rise * (mx - x0)) / (x1 - x0);
@@ -153,7 +158,7 @@ export function layoutFreeBody(params: FreeBodyParams): SceneLayout {
     });
   }
   anchors["body"] = center;
-  if (params.body_label) label("label_body", center, "below-left", params.body_label);
+  if (params.body_label) label("label_body", center, "below-left", params.body_label, COLORS.ink, 28, "body");
 
   // Dashed axes through the body.
   if (params.show_axes) {
@@ -162,8 +167,8 @@ export function layoutFreeBody(params: FreeBodyParams): SceneLayout {
     axes.push(axisLine("fbd_x", [center[0] - L * 0.7, center[1]], [center[0] + L, center[1]]));
     axes.push(axisLine("fbd_y", [center[0], center[1] - L * 0.7], [center[0], center[1] + L]));
     push({ id: "axes", kind: "group", z: Z_STROKE, style: defaultStyle(), drawOpts: defaultDrawOpts(), children: axes });
-    label("label_x_axis", [center[0] + L + 18, center[1]], "right", "x", COLORS.guide, 26);
-    label("label_y_axis", [center[0], center[1] + L + 18], "above", "y", COLORS.guide, 26);
+    label("label_x_axis", [center[0] + L + 18, center[1]], "right", "x", COLORS.guide, 26, "axes");
+    label("label_y_axis", [center[0], center[1] + L + 18], "above", "y", COLORS.guide, 26, "axes");
   }
 
   // Forces.
@@ -184,7 +189,7 @@ export function layoutFreeBody(params: FreeBodyParams): SceneLayout {
       drawOpts: defaultDrawOpts("sketch", SKETCH_MS.arrow),
     });
     anchors[id] = to;
-    label(`label_${f.id ?? i}`, [center[0] + Math.cos(a) * (half + len + 36), center[1] + Math.sin(a) * (half + len + 36)], sideFor(f.angle_deg), f.label, f.color ? FORCE_COLORS[f.color] : COLORS.ink);
+    label(`label_${f.id ?? i}`, [center[0] + Math.cos(a) * (half + len + 36), center[1] + Math.sin(a) * (half + len + 36)], sideFor(f.angle_deg), f.label, f.color ? FORCE_COLORS[f.color] : COLORS.ink, 28, id);
   });
 
   // Net force (dashed, accent).
@@ -203,10 +208,10 @@ export function layoutFreeBody(params: FreeBodyParams): SceneLayout {
       drawOpts: defaultDrawOpts("sketch", SKETCH_MS.arrow),
     });
     anchors["net_force"] = to;
-    label("label_net", [to[0] + Math.cos(a) * 40, to[1] + Math.sin(a) * 40], sideFor(n.angle_deg), n.label ?? "F_net", COLORS.accent);
+    label("label_net", [to[0] + Math.cos(a) * 40, to[1] + Math.sin(a) * 40], sideFor(n.angle_deg), n.label ?? "F_net", COLORS.accent, 28, "net_force");
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 }
 
 function sideFor(angleDeg: number): LabelRequest["side"] {

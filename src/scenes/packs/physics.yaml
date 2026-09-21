@@ -150,6 +150,7 @@ layout: |
   const wl = len / cycles;
   const amp = ampU * 22;
   const drawables = [], labels = [], anchors = {}, order = [];
+  const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
   push(kit.stroke("axis", [[x0 - 20, midY], [x0 + len + 30, midY]], { arrowhead: "end", strokeWidth: 2.5, color: C.guide, ms: MS.axis }));
   push(kit.stroke("wave", kit.wave([x0, midY], len, amp, wl), { strokeWidth: 4.5, color: C.supply, ms: MS.curve }));
@@ -174,16 +175,18 @@ layout: |
     const wlX1 = wlFits ? crestX + wl : x0 + wl;
     push(kit.stroke("amp_arrow", [[wlX1, midY], [wlX1, midY + amp]], { arrowhead: "both", strokeWidth: 2.5, color: C.accent, ms: MS.guides }));
     labels.push(kit.label("label_amp", [wlX1 + 8, midY + amp / 2], "right", "Amplitude A", { color: C.accent, fontSize: 24 }));
+    attached["amp_arrow"] = [...(attached["amp_arrow"] ?? []), "label_amp"];
     order.push("label_amp");
     push(kit.stroke("wl_arrow", [[wlX0, midY + amp + 26], [wlX1, midY + amp + 26]], { arrowhead: "both", strokeWidth: 2.5, color: C.accent, ms: MS.guides }));
     labels.push(kit.label("label_wl", [(wlX0 + wlX1) / 2, midY + amp + 34], "above", "Wavelength λ", { color: C.accent, fontSize: 24 }));
+    attached["wl_arrow"] = [...(attached["wl_arrow"] ?? []), "label_wl"];
     order.push("label_wl");
     labels.push(kit.label("label_crest", [crestX, midY + amp], "above", "Crest", { fontSize: 22 }));
     order.push("label_crest");
     labels.push(kit.label("label_trough", [crestX + wl / 2, midY - amp], "below", "Trough", { fontSize: 22 }));
     order.push("label_trough");
   }
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 ---
 template: circuit_diagram
 title: Electric circuit diagram

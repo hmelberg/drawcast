@@ -85,6 +85,7 @@ layout: |
   const sy = (v) => plot.y0 + (v / worldYMax) * (plot.y1 - plot.y0);
 
   const drawables = [], labels = [], anchors = {}, order = [];
+  const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
   const label = (id, anchor, side, text, color, fontSize) => {
     labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
@@ -103,6 +104,7 @@ layout: |
   push(kit.stroke("budget_line", budgetPts, { color: C.ink, strokeWidth: 4.5, ms: MS.curve }));
   anchors.budget_line = budgetPts[1];
   label("label_budget", budgetPts[1], "below-right", "Budget line", C.ink, 20);
+  attached["budget_line"] = [...(attached["budget_line"] ?? []), "label_budget"];
 
   const uAt = Math.pow(xStar, alpha) * Math.pow(yStar, 1 - alpha);
   const U = { below: uAt * 0.6, at: uAt, above: uAt * 1.55 };
@@ -135,9 +137,10 @@ layout: |
     push(kit.stroke("optimum", [opt], { shapeHint: { type: "circle", c: opt, r: 7 }, strokeWidth: 3, fill: C.ink, ms: MS.dot }));
     anchors.optimum = opt;
     label("optimum_label", opt, "above-right", "Optimum", C.ink, 22);
+    attached["optimum"] = [...(attached["optimum"] ?? []), "optimum_label"];
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 ---
 template: ppf
 title: Production possibilities frontier
@@ -245,6 +248,7 @@ layout: |
   }
 
   const drawables = [], labels = [], anchors = {}, order = [];
+  const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
   const label = (id, anchor, side, text, color, fontSize) => {
     labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
@@ -322,9 +326,10 @@ layout: |
     push(kit.stroke("optimum", [opt], { shapeHint: { type: "circle", c: opt, r: 7 }, strokeWidth: 3, fill: C.ink, ms: MS.dot }));
     anchors.optimum = opt;
     label("optimum_label", opt, "above-right", optimumLabel, C.ink, 22);
+    attached["optimum"] = [...(attached["optimum"] ?? []), "optimum_label"];
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 ---
 template: firm_cost_curves
 title: Firm cost curves (competition & monopoly)

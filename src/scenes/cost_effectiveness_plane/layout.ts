@@ -95,6 +95,7 @@ export function layoutCostEffectivenessPlane(params: CEParams): SceneLayout {
   const labels: LabelRequest[] = [];
   const anchors: Record<string, Pt> = {};
   const order: string[] = [];
+  const attached: Record<string, string[]> = {};
   const push = (d: Drawable) => {
     drawables.push(d);
     order.push(d.id);
@@ -171,6 +172,8 @@ export function layoutCostEffectivenessPlane(params: CEParams): SceneLayout {
       ignore: ["wtp_line"],
     });
     order.push("wtp_label");
+    // The price IS the line: it fades, moves and stays lit with it.
+    attached["wtp_line"] = ["wtp_label"];
   }
 
   points.forEach((p, i) => {
@@ -207,5 +210,5 @@ export function layoutCostEffectivenessPlane(params: CEParams): SceneLayout {
     push(kit.text("title", [CX, CY + HALF_H + 40], params.title, { fontSize: 30 }));
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 }

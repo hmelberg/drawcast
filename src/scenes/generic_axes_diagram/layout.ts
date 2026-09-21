@@ -125,6 +125,9 @@ export function layoutGenericAxes(params: GenericAxesParams): SceneLayout {
   });
   push(kit.axisLabel("x_label", "x", plot, params.x_label, { fontSize: 28 }));
   push(kit.axisLabel("y_label", "y", plot, params.y_label, { fontSize: 28 }));
+  // The captions are the axes' own name: they fade, move and stay lit with
+  // them (scenes/types.ts `attached`). Their own ids still address them.
+  const attached: Record<string, string[]> = { axes: ["x_label", "y_label"] };
 
   // Curves.
   const curves = params.curves.slice(0, 4);
@@ -238,7 +241,7 @@ export function layoutGenericAxes(params: GenericAxesParams): SceneLayout {
     push(kit.text("title", [(plot.x0 + plot.x1) / 2, plot.y1 + 30], params.title, { fontSize: 30 }));
   }
 
-  return { drawables, labels, anchors, order, curveSamples };
+  return { drawables, labels, anchors, order, curveSamples, attached };
 }
 
 function guideLine(id: string, pts: Pt[]): Drawable {

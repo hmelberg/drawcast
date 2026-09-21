@@ -123,9 +123,14 @@ layout: |
     closed: true, color: kit.COLORS.guide, strokeWidth: 2, dash: true, opacity: 0.4, ms: kit.SKETCH_MS.guides,
   });
   const labels = [kit.label("caption", [500, 120], "below", params.name ?? preset.caption, { fontSize: 28 })];
+  // Each symbol is its atom's own name: it fades, moves and stays lit with it
+  // (scenes/types.ts `attached`).
+  const attached = {};
+  if (showLabels) preset.atoms.forEach((a, i) => { attached["atom_" + i] = ["label_" + i]; });
   return {
     drawables: [shadow, ...projected.drawables],
     labels,
     anchors: projected.anchors,
     order: ["ground_shadow", ...projected.order, "caption"],
+    attached,
   };

@@ -74,6 +74,7 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
   const anchors: Record<string, Pt> = {};
   const positions: Record<string, Pt> = {};
   const order: string[] = [];
+  const attached: Record<string, string[]> = {};
 
   type LaidOut = typeof h & { x: number; y: number };
   const pos = (n: typeof h): Pt => {
@@ -102,6 +103,7 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
     if (node.type === "terminal") {
       labels.push(labelReq(`label_${cleanId}`, c, "above-right", node.label, 26, COLORS.ink, own));
       order.push(`label_${cleanId}`);
+      attached[id] = [...(attached[id] ?? []), `label_${cleanId}`];
       const b = n.data.branch;
       const payoff = node.payoff ?? b?.payoff;
       const cost = node.cost ?? b?.cost;
@@ -111,10 +113,12 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
         if (cost !== undefined) parts.push(`cost ${cost}`);
         labels.push(labelReq(`payoff_${cleanId}`, [c[0] + 42, c[1]], "right", parts.join(", "), 26, COLORS.supply, own));
         order.push(`payoff_${cleanId}`);
+        attached[id] = [...(attached[id] ?? []), `payoff_${cleanId}`];
       }
     } else {
       labels.push(labelReq(`label_${cleanId}`, [c[0], c[1] + nodeRadius(node.type)], "above", node.label, 26, COLORS.ink, own));
       order.push(`label_${cleanId}`);
+      attached[id] = [...(attached[id] ?? []), `label_${cleanId}`];
     }
   }
 
@@ -170,10 +174,11 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
       // clear of it (the middle branch of a three-way fan).
       labels.push(labelReq(labelId, at, side, text, branchFontSize(text, Math.abs(to[0] - from[0])), COLORS.guide, diagonal ? [id] : undefined));
       order.push(labelId);
+      attached[id] = [...(attached[id] ?? []), labelId];
     }
   }
 
-  return { drawables, labels, anchors, positions, order };
+  return { drawables, labels, anchors, positions, order, attached };
 }
 
 /** How far along its branch a label sits (0 = parent end, 1 = child end). */

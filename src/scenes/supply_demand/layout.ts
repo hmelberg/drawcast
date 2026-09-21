@@ -142,7 +142,13 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     drawables.push(d);
     order.push(d.id);
   };
-  const label = (id: string, anchor: Pt, side: LabelRequest["side"], text: string, color: string = COLORS.ink) => {
+  const attached: Record<string, string[]> = {};
+
+  // `of` is the element the label NAMES: it then follows that element's move,
+  // fades when it fades, and stays lit when a focus keeps it (scenes/types.ts
+  // `attached`). Without it the planner can only guess from the id, and
+  // `label_S` beside `supply_curve` is not a guess it can make.
+  const label = (id: string, anchor: Pt, side: LabelRequest["side"], text: string, color: string = COLORS.ink, of?: string) => {
     labels.push({
       id,
       anchor,
@@ -154,6 +160,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     });
     anchors[id] = anchor;
     order.push(id);
+    if (of) attached[of] = [...(attached[of] ?? []), id];
   };
 
   push(makeAxes("axes", plot, params.x_label ?? "Quantity (Q)", params.y_label ?? "Price (P)"));
@@ -172,14 +179,14 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
   push(curve("demand_curve", demandPts, COLORS.demand, ctx));
   recordCurve("demand_curve", demandPts);
   anchors["demand_curve"] = ctx.toLogical([demandPts[demandPts.length - 1]])[0];
-  label("label_D", anchors["demand_curve"], "right", params.demand?.label ?? "D", COLORS.demand);
+  label("label_D", anchors["demand_curve"], "right", params.demand?.label ?? "D", COLORS.demand, "demand_curve");
 
   let eq: Pt | null = null;
   if (supplyPts) {
     push(curve("supply_curve", supplyPts, COLORS.supply, ctx));
     recordCurve("supply_curve", supplyPts);
     anchors["supply_curve"] = ctx.toLogical([supplyPts[supplyPts.length - 1]])[0];
-    label("label_S", anchors["supply_curve"], "right", params.supply?.label ?? "S", COLORS.supply);
+    label("label_S", anchors["supply_curve"], "right", params.supply?.label ?? "S", COLORS.supply, "supply_curve");
 
     eq = intersectPolylines(demandPts, supplyPts);
     if (eq && params.equilibrium?.show !== false) {
@@ -189,9 +196,9 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       }
       push(dot("equilibrium_point", eqL));
       anchors["equilibrium_point"] = eqL;
-      label("label_E", eqL, "above-right", params.equilibrium?.label ?? "E");
-      label("label_Pstar", [plot.x0, eqL[1]], "left", params.equilibrium?.p_label ?? "P*");
-      label("label_Qstar", [eqL[0], plot.y0], "below", params.equilibrium?.q_label ?? "Q*");
+      label("label_E", eqL, "above-right", params.equilibrium?.label ?? "E", COLORS.ink, "equilibrium_point");
+      label("label_Pstar", [plot.x0, eqL[1]], "left", params.equilibrium?.p_label ?? "P*", COLORS.ink, "equilibrium_point");
+      label("label_Qstar", [eqL[0], plot.y0], "below", params.equilibrium?.q_label ?? "Q*", COLORS.ink, "equilibrium_point");
     }
   }
 
@@ -214,7 +221,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     recordCurve(`${kind}_shift_curve`, shifted);
     const endL = ctx.toLogical([shifted[shifted.length - 1]])[0];
     anchors[`${kind}_shift_curve`] = endL;
-    label(`label_${kind === "demand" ? "D" : "S"}_shift`, endL, "right", shift.label ?? (kind === "demand" ? "D′" : "S′"), COLORS.shifted);
+    label(`label_${kind === "demand" ? "D" : "S"}_shift`, endL, "right", shift.label ?? (kind === "demand" ? "D′" : "S′"), COLORS.shifted, `${kind}_shift_curve`);
     const midBase = ctx.toLogical([base[Math.floor(base.length / 2)]])[0];
     const midShifted = ctx.toLogical([shifted[Math.floor(shifted.length / 2)]])[0];
     push({
@@ -239,9 +246,9 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       push(guides("shift_guide_lines", eqS, ctx, plot));
       push(dot("shift_equilibrium_point", eqSL));
       anchors["shift_equilibrium_point"] = eqSL;
-      label("label_E_shift", eqSL, "above-right", "E′");
-      label("label_P_shift", [plot.x0, eqSL[1]], "left", "P*′");
-      label("label_Q_shift", [eqSL[0], plot.y0], "below", "Q*′");
+      label("label_E_shift", eqSL, "above-right", "E′", COLORS.ink, "shift_equilibrium_point");
+      label("label_P_shift", [plot.x0, eqSL[1]], "left", "P*′", COLORS.ink, "shift_equilibrium_point");
+      label("label_Q_shift", [eqSL[0], plot.y0], "below", "Q*′", COLORS.ink, "shift_equilibrium_point");
     }
   }
 
@@ -285,6 +292,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       "above-left",
       params.tax.label ?? (buyerSide ? "D − tax" : "S + tax"),
       color,
+      id,
     );
 
     const eq2 = buyerSide ? intersectPolylines(shifted, supplyPts) : intersectPolylines(demandPts, shifted);
@@ -307,8 +315,8 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
         push(dot("price_sellers_point", psL));
         anchors["price_sellers_point"] = psL;
         const subsidy = amount < 0;
-        label("label_Pb", [plot.x0, pbL[1]], "left", subsidy ? "P paid" : "P buyers", COLORS.demand);
-        label("label_Ps", [plot.x0, psL[1]], "left", subsidy ? "P received" : "P sellers", COLORS.supply);
+        label("label_Pb", [plot.x0, pbL[1]], "left", subsidy ? "P paid" : "P buyers", COLORS.demand, "price_buyers_point");
+        label("label_Ps", [plot.x0, psL[1]], "left", subsidy ? "P received" : "P sellers", COLORS.supply, "price_sellers_point");
       }
     }
   }
@@ -374,7 +382,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       const pts = ctx.toLogical(simplify([...upper, [qTraded, pBuyers], [qLeft, pBuyers]]));
       push(area("cs_region", pts, COLORS.region1));
       anchors["cs_region"] = centroid(pts);
-      label("label_CS", anchors["cs_region"], "above-right", "Consumer surplus");
+      label("label_CS", anchors["cs_region"], "above-right", "Consumer surplus", COLORS.ink, "cs_region");
     }
 
     if (want.has("producer_surplus") && shadeable) {
@@ -382,7 +390,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       const pts = ctx.toLogical(simplify([[qLeft, pSellers], [qTraded, pSellers], ...lower.reverse()]));
       push(area("ps_region", pts, COLORS.region2));
       anchors["ps_region"] = centroid(pts);
-      label("label_PS", anchors["ps_region"], "below-right", "Producer surplus");
+      label("label_PS", anchors["ps_region"], "below-right", "Producer surplus", COLORS.ink, "ps_region");
     }
 
     // qLeft clamps the interval here too — when qTraded is left of it the
@@ -401,7 +409,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
           drawOpts: defaultDrawOpts("sketch", SKETCH_MS.region),
         });
         anchors["dwl_region"] = centroid(pts);
-        label("label_DWL", anchors["dwl_region"], "right", "Deadweight loss", COLORS.regionLoss);
+        label("label_DWL", anchors["dwl_region"], "right", "Deadweight loss", COLORS.regionLoss, "dwl_region");
       }
     }
 
@@ -423,6 +431,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
         "above",
         pBuyers > pSellers ? "Government revenue" : "Government cost",
         COLORS.accent,
+        "wedge_region",
       );
     }
 
@@ -433,11 +442,11 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       const pts = ctx.toLogical([[qLeft, pStar], [qTraded, pStar], [qTraded, pBuyers], [qLeft, pBuyers]]);
       push(area("transfer_region", pts, COLORS.accent));
       anchors["transfer_region"] = centroid(pts);
-      label("label_transfer", anchors["transfer_region"], "right", "Transfer", COLORS.accent);
+      label("label_transfer", anchors["transfer_region"], "right", "Transfer", COLORS.accent, "transfer_region");
     }
   }
 
-  return { drawables, labels, anchors, order, curveSamples };
+  return { drawables, labels, anchors, order, curveSamples, attached };
 
   function addPriceLine(kind: "ceiling" | "floor", p: number, text: string) {
     const pts = ctx.toLogical([
@@ -457,7 +466,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       [D0, p],
       [D1, p],
     ]);
-    label(`label_${kind}`, pts[1], "above-left", text, COLORS.accent);
+    label(`label_${kind}`, pts[1], "above-left", text, COLORS.accent, `${kind}_line`);
   }
 
   function addGap(kind: "shortage" | "surplus", p: number, qLow: number | null, qHigh: number | null, text: string) {
@@ -493,7 +502,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     });
     const mid: Pt = [(arrowPts[0][0] + arrowPts[1][0]) / 2, arrowPts[0][1]];
     anchors[`${kind}_arrow`] = mid;
-    label(`label_${kind}`, mid, kind === "shortage" ? "below" : "above", text, COLORS.accent);
+    label(`label_${kind}`, mid, kind === "shortage" ? "below" : "above", text, COLORS.accent, `${kind}_arrow`);
   }
 }
 

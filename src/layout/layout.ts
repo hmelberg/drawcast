@@ -50,6 +50,9 @@ export interface LayoutResult {
   /** `group` element id → its members, flattened to leaf element ids — one id
    *  the commands can draw, move or highlight as a single thing. */
   groups: Record<string, string[]>;
+  /** Element id → the ids that follow it (a template's own labels, scenes/types.ts
+   *  `attached`). Empty for a spec with no template. */
+  attached: Record<string, string[]>;
   /** Those groups that carry a `fit` (tier2.fitGroups): their members were
    *  scaled and centred together, which excuses their mutual overlaps. */
   fitGroups: Record<string, string[]>;
@@ -135,6 +138,7 @@ export function layoutSpec(
   let pieces: Record<string, PieceGeometry> = {};
   let pieceGroups: Record<string, string[]> = {};
   let groups: Record<string, string[]> = {};
+  let attached: Record<string, string[]> = {};
   let fitGroups: Record<string, string[]> = {};
   let namedAnchors: Record<string, Record<string, Pt>> = {};
   let measures: Record<string, MeasureSpec> = {};
@@ -170,6 +174,7 @@ export function layoutSpec(
         // merged onto them below, so a spec-level group of the same name wins
         // — the author's word beats the template's.
         if (sceneLayout.groups) groups = { ...sceneLayout.groups };
+        if (sceneLayout.attached) attached = { ...sceneLayout.attached };
         drawables.push(...sceneLayout.drawables);
         labelRequests.push(...sceneLayout.labels);
         order.push(...sceneLayout.order);
@@ -337,7 +342,7 @@ export function layoutSpec(
     // carries the template's/tier-2's warnings (same spec, same elements) —
     // the draw-beat layout would only repeat them under a moved box.
   }
-  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, fitGroups, namedAnchors, measures, labelPins, ...(fit ? { fit } : {}) };
+  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, attached, fitGroups, namedAnchors, measures, labelPins, ...(fit ? { fit } : {}) };
 }
 
 /** Does this template lay itself out in a `box` param? Five data templates

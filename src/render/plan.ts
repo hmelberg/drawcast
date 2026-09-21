@@ -1100,9 +1100,18 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         return false;
       });
       if (ids.length === 0) continue;
+      // A label belongs to the thing it names. `fade` and `move` have always
+      // carried followers; the inverse spotlight did not, so it held an
+      // element at full strength and dimmed its own name — three lit,
+      // nameless arrows in "The flask that only subtracts", a threshold line
+      // without its price in "One drug, two verdicts" (measured 2026-09-21,
+      // 4 of the corpus's 15 focus beats). Only followers already ON SCREEN:
+      // the dim is computed from what is visible, so anything else is moot.
+      const kept = [...ids];
+      for (const id of ids) for (const f of opts.attachedTo?.(id) ?? []) if (visibleSet.has(f) && !kept.includes(f)) kept.push(f);
       pushStep({
         kind: "focus",
-        ids,
+        ids: kept,
         seconds: cmd.focus.duration ?? 2,
         ...(cmd.focus.duration === undefined && currentNarration !== undefined ? { untilNarrationEnd: true } : {}),
       });

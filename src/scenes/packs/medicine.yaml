@@ -382,6 +382,7 @@ layout: |
   const defect = params.defect === "septal_defect";
 
   const drawables = [], labels = [], anchors = {}, order = [];
+  const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
   const label = (id, anchor, side, text, color, fontSize) => {
     labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
@@ -466,6 +467,7 @@ layout: |
       label("label_pa", [312, 496], "left", "Pulmonary artery", C.supply, 18);
       label("label_pv", [700, 545], "right", "Pulmonary vein", C.demand, 18);
       label("label_ao", [752, 247], "right", "Aorta", C.demand, 18);
+      attached["aorta"] = [...(attached["aorta"] ?? []), "label_ao"];
     }
   }
 
@@ -477,7 +479,7 @@ layout: |
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [500, 724], params.title, { fontSize: 28 }));
   }
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 ---
 template: neuron
 title: Neuron
@@ -721,6 +723,7 @@ layout: |
   const X = (t) => 115 + (t / tmax) * (905 - 115);
 
   const drawables = [], labels = [], anchors = {}, order = [];
+  const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
   const label = (id, anchor, side, text, color, fontSize) => {
     labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
@@ -771,9 +774,12 @@ layout: |
   });
 
   label("label_onset", [X(onset), rows[0].y + 8], "above", "Onset", C.ink, 19);
+  attached["onset_0"] = [...(attached["onset_0"] ?? []), "label_onset"];
   label("label_detectable", [X(detectable), rows[0].y + 14], "above-right", "Detectable", C.guide, 18);
+  attached["detectable_0"] = [...(attached["detectable_0"] ?? []), "label_detectable"];
   label("label_dx_0", [X(symptoms), rows[0].y + 20], "above", compare ? "Diagnosis (symptoms)" : "Diagnosis", C.demand, 19);
   label("label_death", [X(death) + 12, rows[0].y], "right", "Death", C.ink, 19);
+  attached["death_0"] = [...(attached["death_0"] ?? []), "label_death"];
 
   if (compare) {
     label("label_dx_1", [X(screenAt), rows[1].y + 20], "above", "Diagnosis (screen)", C.supply, 19);
@@ -786,13 +792,14 @@ layout: |
       push(kit.area("lead_time", [[X(screenAt), y - 24], [X(symptoms), y - 24], [X(symptoms), y + 24], [X(screenAt), y + 24]], C.region1, { opacity: 0.3 }));
       anchors.lead_time = [X((screenAt + symptoms) / 2), y];
       label("label_lead", [X((screenAt + symptoms) / 2), y + 26], "above", "Lead time", C.ink, 20);
+      attached["lead_time"] = [...(attached["lead_time"] ?? []), "label_lead"];
     }
   }
 
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [500, 705], params.title, { fontSize: 30 }));
   }
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 ---
 template: pk_curve
 title: Drug concentration curve (pharmacokinetics)
@@ -909,6 +916,7 @@ layout: |
   const Y = (c) => plot.y0 + (c / yTop) * (plot.y1 - plot.y0);
 
   const drawables = [], labels = [], anchors = {}, order = [];
+  const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
   push(kit.group("axes", [
@@ -955,6 +963,7 @@ layout: |
     // provably empty (yTop carries 1.12 headroom, so nothing drawn exceeds
     // y0 + 500/1.12 ≈ 576) — the caption lives there as a plot-header note.
     push(kit.text("label_ss", [plot.x1 - 12, plot.y1 - 8], "Steady state (≈ 5 half-lives)", { fontSize: 18, anchor: "end", color: C.guide }));
+    attached["ss_line"] = [...(attached["ss_line"] ?? []), "label_ss"];
     anchors.label_ss = [plot.x1 - 12, plot.y1 - 8];
   }
 
@@ -976,7 +985,7 @@ layout: |
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [540, 708], params.title, { fontSize: 30 }));
   }
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 ---
 template: pv_loop
 title: Cardiac pressure-volume loop
@@ -1253,6 +1262,7 @@ layout: |
   const hl = typeof params.highlight_segment === "string" && SEGKEYS[params.highlight_segment] ? params.highlight_segment : "none";
 
   const drawables = [], labels = [], anchors = {}, order = [];
+  const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
   const segStyle = (name, base) => (hl === name ? { color: C.accent, strokeWidth: 6 } : base || {});
 
@@ -1339,6 +1349,7 @@ layout: |
       kit.text("label_glom__2", [195, 626], "(Bowman's capsule)", { fontSize: 14, color: C.guide }),
     ]));
     anchors.label_glom = [195, 652];
+    attached["glomerulus"] = ["label_glom"];
     push(kit.text("label_proximal", [345, 604], "Proximal tubule", { fontSize: 17 }));
     anchors.label_proximal = [345, 604];
     push(kit.text("label_henle", [480, 108], "Loop of Henle", { fontSize: 17 }));
@@ -1348,10 +1359,11 @@ layout: |
     push(kit.text("label_collecting", [740, 390], "Collecting duct", { fontSize: 17, anchor: "start" }));
     anchors.label_collecting = [740, 390];
     push(kit.text("label_urine", [740, 110], "Urine", { fontSize: 16, anchor: "start", color: C.shifted }));
+    attached["urine_arrow"] = [...(attached["urine_arrow"] ?? []), "label_urine"];
     anchors.label_urine = [740, 110];
   }
 
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [500, 706], params.title, { fontSize: 30 }));
   }
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };

@@ -28,6 +28,21 @@ export interface SceneLayout {
    * nothing of its own, or the implicit final draw would paint a phantom.
    */
   groups?: Record<string, string[]>;
+
+  /**
+   * Which of this template's ids FOLLOW another — `{wtp_line: ["wtp_label"]}`.
+   * A follower goes where its element goes (`move`, `arrange`), fades when it
+   * fades, and stays lit when a `focus` keeps it: it is the element's own
+   * name, not a thing of its own.
+   *
+   * The planner has always known this relation, but could only GUESS it from
+   * the id: `label_<id>` and nothing else (render/index.ts attachedTo). A
+   * template that calls its label anything shorter — `wtp_label` beside
+   * `wtp_line`, `label_S` beside `supply_curve` — left it behind, in 70 of
+   * the 262 bundled figures (measured 2026-09-21). This is the channel that
+   * says it outright instead.
+   */
+  attached?: Record<string, string[]>;
 }
 
 /** Intrinsic interactions a template can declare (interactivity spec §6):

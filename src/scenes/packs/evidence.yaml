@@ -335,6 +335,7 @@ layout: |
   const rowY = (i) => TOP_ROW_Y - i * rowSpacing;
 
   const drawables = [], labels = [], anchors = {}, order = [];
+  const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
   const nullPx = xOf(nullVal);
@@ -364,6 +365,7 @@ layout: |
       kit.text("pooled_label__stats", [EST_X, POOLED_Y], estStr, { fontSize: 17, anchor: "start", color: C.accent }),
     ]));
     anchors.pooled_label = [(LABEL_X + EST_X) / 2, POOLED_Y];
+    attached["pooled"] = ["pooled_label"];
   }
 
   const minOriginal = isLog ? Math.exp(dMin) : dMin;
@@ -385,7 +387,7 @@ layout: |
     push(kit.text("title", [500, TITLE_Y], params.title, { fontSize: 28 }));
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 ---
 template: causal_dag
 title: Causal DAG (directed acyclic graph)
@@ -606,6 +608,7 @@ layout: |
   const positions = kit.layoutNodes(compartmentsIn, [], { style: "chain", x: 80, y: 395, w: 840, h: 10 });
 
   const drawables = [], labels = [], anchors = {}, order = [];
+  const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
   const label = (id, anchor, side, text, color, fontSize) => {
     labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
@@ -671,9 +674,10 @@ layout: |
     anchors.loop = lowest;
     const loopText = typeof loopParam.label === "string" && loopParam.label.trim() !== "" ? loopParam.label : "Waning immunity";
     label("loop_label", lowest, "below", loopText, C.guide, 20);
+    attached["loop"] = [...(attached["loop"] ?? []), "loop_label"];
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 ---
 template: distribution_curve
 title: Probability distribution curve
@@ -783,6 +787,7 @@ layout: |
   const sigma = kind === "right_skew" ? RIGHT_SKEW_SIG : kind === "left_skew" ? LEFT_SKEW_SIG : { left: S, right: S };
 
   const drawables = [], labels = [], anchors = {}, order = [];
+  const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
   const label = (id, anchor, side, text, color, fontSize) => {
     labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
@@ -854,6 +859,7 @@ layout: |
         ? sx(MEAN_X - ((from + to) / 2) * sigma.left)
         : sx(MEAN_X + ((from + to) / 2) * sigma.right);
     label("shade_label", [labelX, plot.y1 + 18], "above", labelText, C.ink, 19);
+    attached["shade"] = [...(attached["shade"] ?? []), "shade_label"];
   }
 
   const meanHeight = curveFn(MEAN_X);
@@ -882,4 +888,4 @@ layout: |
     push(kit.text("title", [(plot.x0 + plot.x1) / 2, plot.y1 + 70], params.title, { fontSize: 30 }));
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };

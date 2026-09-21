@@ -338,6 +338,7 @@ layout: |
   const BOT = { y0: 120, h: 205 };
 
   const drawables = [], labels = [], anchors = {}, order = [];
+  const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
   push(kit.group("axes", [
@@ -389,6 +390,7 @@ layout: |
   push(kit.stroke("se_bracket", [[X(mu - se), bY + 8], [X(mu - se), bY], [X(mu + se), bY], [X(mu + se), bY + 8]], { color: C.demand, strokeWidth: 2.5, ms: MS.guides }));
   anchors.se_bracket = [X(mu), bY];
   push(kit.text("se_label", [X(mu + se) + 10, bY + 4], seTxt, { fontSize: 18, anchor: "start", color: C.demand }));
+  attached["se_bracket"] = [...(attached["se_bracket"] ?? []), "se_label"];
   anchors.se_label = [X(mu + se) + 10, bY + 4];
 
   if (showNormal) {
@@ -399,7 +401,7 @@ layout: |
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [500, 706], params.title, { fontSize: 30 }));
   }
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 ---
 template: ci_dance
 title: Confidence-interval dance
