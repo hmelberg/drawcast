@@ -284,8 +284,8 @@ describe("tax decomposition", () => {
     const ps = P(l, "price_sellers_point");
     expect(pb[0]).toBeCloseTo(ps[0], 3);          // same quantity
     const eq = P(l, "equilibrium_point");
-    expect(pb[1]).toBeLessThan(eq[1]);            // buyers pay MORE (y grows downward? see note)
-    expect(ps[1]).toBeGreaterThan(eq[1]);
+    expect(pb[1]).toBeGreaterThan(eq[1]);         // buyers pay MORE, and logical y is UP
+    expect(ps[1]).toBeLessThan(eq[1]);            // sellers receive LESS
   });
 
   test("a seller-side and a buyer-side tax are the same figure", () => {
@@ -333,8 +333,8 @@ describe("tax decomposition", () => {
     const eq = P(l, "equilibrium_point");
     const pb = P(l, "price_buyers_point");
     const ps = P(l, "price_sellers_point");
-    expect(pb[0]).toBeGreaterThan(eq[0]);  // more is traded
-    expect(ps[1]).toBeLessThan(pb[1]);      // sellers do better than buyers pay (logical y grows downward)
+    expect(pb[0]).toBeGreaterThan(eq[0]);   // more is traded
+    expect(ps[1]).toBeGreaterThan(pb[1]);   // sellers receive MORE than buyers pay
   });
 
   test("P_b and P_s are drawn by default, with their axis labels", () => {
@@ -346,12 +346,21 @@ describe("tax decomposition", () => {
 });
 ```
 
-**Note on the y direction:** `sy` maps domain 0–100 onto the plot, and the
-logical canvas has y growing **downward**, so a higher price is a *smaller*
-logical y. The assertions above are written for logical coordinates because
-`anchors` holds logical points. Verify the direction with one throwaway
-`console.log` before trusting a sign; if it is the other way, flip the
-comparisons rather than the implementation.
+**Note on the y direction — measured, not assumed.** The logical canvas is
+**y-UP**: `plotArea()` returns `y0 = PLOT_MARGIN.bottom` and
+`y1 = CANVAS.h - PLOT_MARGIN.top`, so `sy = linearScale([0,100], [y0, y1])`
+sends a higher price to a **larger** logical y. `src/layout/canvas.ts:33`
+calls the SVG flip "the one y-flip … backends call this at emission time
+only". Confirmed by probe on 2026-09-21: the default equilibrium is
+`[516.9, 385.0]`, the demand curve runs from `[136.2, 628.6]` at low quantity
+(high price) to `[897.6, 141.4]` at high quantity (low price).
+
+The pre-existing ceiling test at `tests/supply-demand.test.ts:54` already
+encodes this — it asserts `ceilingY < eqY` for a ceiling *below* the
+equilibrium price — so it is independent confirmation, not just a probe.
+
+`anchors` holds logical points, so every price assertion here reads
+"higher price ⇒ larger y".
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -545,7 +554,7 @@ describe("price control levels", () => {
     const y = (l: SceneLayout) => flattenDrawables(l.drawables).find((d) => d.id === "ceiling_line")!.pts[0][1];
     expect(y(explicit)).toBeCloseTo(y(dflt), 1);
     const lower = layoutSupplyDemand({ price_ceiling: { level: 20 } });
-    expect(y(lower)).toBeGreaterThan(y(dflt)); // lower price = larger logical y
+    expect(y(lower)).toBeLessThan(y(dflt)); // lower price = smaller logical y (y is UP)
   });
 
   test("a lower ceiling opens a wider shortage", () => {
@@ -1136,8 +1145,8 @@ beats ran from 0.35 to 1.2 and therefore stopped moving partway through its
 - **If the welfare identity fails**, do not adjust the tolerance. It is exact
   geometry, and a real failure means a region polygon does not close on its
   curve. `toBeCloseTo(0, 0)` is already loose enough for polyline sampling.
-- **The logical canvas has y growing downward.** Every price comparison in the
-  tests is written in logical coordinates; check the direction once at the
-  start of Task 2 rather than guessing per assertion.
+- **The logical canvas is y-UP** (measured; see Task 2's note). A higher price
+  is a LARGER logical y. Every price comparison in the tests is written in
+  logical coordinates.
 - **Do not widen the elasticity clamp** to make a figure look more extreme. The
   whole of `curves.ts`'s interpolation assumes a function of x.
