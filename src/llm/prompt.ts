@@ -163,8 +163,13 @@ export function missingPlaceholders(source: string): string[] {
 
 /** Strip a single markdown code fence wrapping the whole text (LLMs love adding one). */
 export function stripFence(text: string): string {
-  const m = /^\s*```[a-z]*\s*\n([\s\S]*?)\n\s*```\s*$/i.exec(text);
-  return m ? m[1] : text.trim();
+  // THREE OR MORE backticks, closed by as many as opened: a drawcast document
+  // contains ```python / ```yaml / ```assets fences of its own, so the revise
+  // request wraps it in four — and a model mirrors the wrapper it was given.
+  // A three-backtick-only reader left those four in place and the document
+  // then failed to parse.
+  const m = /^\s*(`{3,})[a-z]*\s*\n([\s\S]*?)\n\s*\1\s*$/i.exec(text);
+  return m ? m[2] : text.trim();
 }
 
 export interface Exemplar {
