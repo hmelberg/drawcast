@@ -398,7 +398,10 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       );
     }
 
-    if (want.has("transfer") && (iv.kind === "ceiling" || iv.kind === "floor")) {
+    // A transfer exists when both sides face ONE price (so there is no wedge)
+    // and that price differs from the free-market one — which is true for a
+    // binding ceiling or floor and false for a tax, without asking which.
+    if (want.has("transfer") && Math.abs(pBuyers - pSellers) <= 0.5 && Math.abs(pStar - pBuyers) > 0.5) {
       const pts = ctx.toLogical([[D0, pStar], [qTraded, pStar], [qTraded, pBuyers], [D0, pBuyers]]);
       push(area("transfer_region", pts, COLORS.accent));
       anchors["transfer_region"] = centroid(pts);

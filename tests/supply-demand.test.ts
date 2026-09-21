@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { layoutSupplyDemand, type SupplyDemandParams } from "../src/scenes/supply_demand/layout";
 import { flattenDrawables, type StrokeDrawable, type Pt } from "../src/layout/model";
 import { CANVAS, linearScale, plotArea } from "../src/layout/canvas";
-import { qualitativeShape } from "../src/layout/curves";
+import { qualitativeShape, solveForX } from "../src/layout/curves";
 import type { SceneLayout } from "../src/scenes/types";
 
 function ids(result: ReturnType<typeof layoutSupplyDemand>): string[] {
@@ -38,19 +38,10 @@ describe("layoutSupplyDemand", () => {
     }
   });
 
-  test("all geometry stays inside the logical canvas", () => {
-    const r = layoutSupplyDemand({ tax: { amount: 18 }, regions: ["deadweight_loss"], price_ceiling: { show_shortage: true } });
-    for (const d of flattenDrawables(r.drawables)) {
-      if (d.kind === "stroke" || d.kind === "area") {
-        for (const [x, y] of d.pts) {
-          expect(x).toBeGreaterThanOrEqual(0);
-          expect(x).toBeLessThanOrEqual(CANVAS.w);
-          expect(y).toBeGreaterThanOrEqual(0);
-          expect(y).toBeLessThanOrEqual(CANVAS.h);
-        }
-      }
-    }
-  });
+  // Superseded by "every combination stays inside the logical canvas" below
+  // (describe("welfare regions")), which covers this case plus tax extremes,
+  // price-control extremes and elasticity extremes — removed rather than left
+  // to rot beside a comment claiming it was already gone.
 
   test("price ceiling sits below equilibrium and produces shortage elements", () => {
     const r = layoutSupplyDemand({ price_ceiling: { show_shortage: true } });
@@ -440,10 +431,36 @@ describe("welfare regions", () => {
     );
   });
 
-  test("a price control has no wedge but does have a transfer", () => {
-    const l = layoutSupplyDemand({ price_ceiling: { level: 32 }, regions: ["government_revenue", "transfer"] });
-    expect(ids(l)).not.toContain("wedge_region");
-    expect(polyArea(l, "transfer_region")).toBeGreaterThan(0);
+  // `area > 0` alone pins nothing: it survives both dropping the iv.kind
+  // guard (a tax would also draw a bogus transfer) and swapping qTraded for
+  // qStar in the rectangle's right edge. So the expected area is rebuilt
+  // independently here — (P* − P_control) · (Q_short − D0) — from anchors
+  // and curveSamples the regions block never touches, not read back off
+  // transfer_region itself.
+  test("a price control has no wedge, and its transfer rectangle is pinned to (P* − P_control)·(Q_short − D0)", () => {
+    const expectedTransferArea = (l: SceneLayout, controlPriceLogical: number, shortSideCurve: "supply_curve" | "demand_curve") => {
+      const pStarLogical = l.anchors["equilibrium_point"][1];
+      const d0Logical = l.curveSamples!["demand_curve"][0][0]; // logical x of domain D0 — same for both curves
+      const qShortLogical = solveForX(l.curveSamples![shortSideCurve], controlPriceLogical);
+      if (qShortLogical === null) throw new Error(`could not solve ${shortSideCurve} for the control price`);
+      return Math.abs(pStarLogical - controlPriceLogical) * Math.abs(qShortLogical - d0Logical);
+    };
+
+    // Ceiling: the SHORT side is supply (less is supplied at the lower price).
+    const ceiling = layoutSupplyDemand({ price_ceiling: { level: 32 }, regions: ["government_revenue", "transfer"] });
+    expect(ids(ceiling)).not.toContain("wedge_region");
+    const pc = ceiling.anchors["ceiling_line"][1];
+    expect(polyArea(ceiling, "transfer_region")).toBeCloseTo(expectedTransferArea(ceiling, pc, "supply_curve"), 0);
+
+    // Floor: the SHORT side is demand (less is demanded at the higher price).
+    const floor = layoutSupplyDemand({ price_floor: { level: 68 }, regions: ["government_revenue", "transfer"] });
+    expect(ids(floor)).not.toContain("wedge_region");
+    // A tax asking for `transfer` gets none: both sides face DIFFERENT prices,
+    // so the guard that lets a control through must exclude it — caught a
+    // mutation that dropped the guard down to bare `want.has("transfer")`.
+    expect(ids(layoutSupplyDemand({ tax: { amount: 18 }, regions: ["transfer"] }))).not.toContain("transfer_region");
+    const pf = floor.anchors["floor_line"][1];
+    expect(polyArea(floor, "transfer_region")).toBeCloseTo(expectedTransferArea(floor, pf, "demand_curve"), 0);
   });
 
   test("consumer surplus follows the intervention rather than the free market", () => {
@@ -503,6 +520,22 @@ describe("welfare regions", () => {
     expect(rel(polyArea(both, "cs_region"), polyArea(taxOnly, "cs_region"))).toBeLessThan(0.001);
     // and the two interventions genuinely differ, so the check above is not vacuous
     expect(rel(polyArea(taxOnly, "cs_region"), polyArea(ceilingOnly, "cs_region"))).toBeGreaterThan(0.01);
+
+    // ceiling > floor: with both binding at once, the ceiling (processed
+    // first) claims `iv` and the floor block's `iv.kind === "none"` guard
+    // never fires.
+    const floorOnly = layoutSupplyDemand({ price_floor: { level: 68 }, regions: ["consumer_surplus"] });
+    const ceilingAndFloor = layoutSupplyDemand({
+      price_ceiling: { level: 32 },
+      price_floor: { level: 68 },
+      regions: ["consumer_surplus"],
+    });
+    // the floor still draws its line...
+    expect(ids(ceilingAndFloor)).toContain("floor_line");
+    // ...but the welfare maths is the CEILING's, not the floor's
+    expect(rel(polyArea(ceilingAndFloor, "cs_region"), polyArea(ceilingOnly, "cs_region"))).toBeLessThan(0.001);
+    // and the two interventions genuinely differ, so the check above is not vacuous
+    expect(rel(polyArea(ceilingOnly, "cs_region"), polyArea(floorOnly, "cs_region"))).toBeGreaterThan(0.01);
   });
 
   test("the wedge is labelled a cost when the tax is negative", () => {
