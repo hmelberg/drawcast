@@ -139,9 +139,19 @@ Applied to the sampled polyline *after* `shapedCurve`, so **nothing inside
 | 1.5 (`elastic`) | 2.41 | flat |
 | 1.94 (`perfectly_elastic`) | 21.2 | horizontal — 4.0 units of height across the plot |
 
-`e = 1` must be an exact identity: every existing figure renders
-byte-identically and the two steepness tests at
-`tests/supply-demand.test.ts:99` keep passing untouched.
+`e = 1` must be an exact identity for the CURVES: `curveSamples` comes back
+byte-identical and the two steepness tests at `tests/supply-demand.test.ts:99`
+keep passing untouched.
+
+Scope that claim carefully — an earlier draft said "every existing figure
+renders byte-identically", and §9b's region work makes that false. Measured
+2026-09-21 over 405 unit-elasticity combos: taxes and subsidies are identical
+(0 of 324 changed), price-control regions change as intended (160 of 162), and
+41 of 81 free-market figures shift a `cs_region`/`ps_region` LABEL ANCHOR by up
+to 8 logical px, because the region polygons gain or lose a coincident vertex.
+The shaded areas are bit-identical; only where the label sits moves. The
+default figure is unaffected, and of the 11 shipped `supply_demand` figures
+only the two intended manifest examples differ.
 
 **It does not come free from the arithmetic.** An earlier draft of this
 section claimed `tan(π/4) = 1` exactly. It does not — IEEE-754 gives
