@@ -2,6 +2,7 @@
 // written inside a sentence, in one pure function so it can be tested without
 // a browser and so the player, the export and any future consumer agree.
 import { DELIVERY, type Delivery } from "./delivery";
+import { stripLangMarks } from "./lang-spans";
 import { SpeechManager } from "./speech";
 
 /**
@@ -23,7 +24,10 @@ import { SpeechManager } from "./speech";
 /** How long a spoken line takes, delivery included — the denominator every
  *  cue is measured against, in the player and in the lint alike. */
 export function lineMs(text: string, delivery: Delivery | undefined): number {
-  return SpeechManager.estimateMs(text) / (delivery ? DELIVERY[delivery].rate : 1);
+  // The SPOKEN length, so the brackets of a `[de:ich]` mark are not counted
+  // as syllables — an estimate taken over the raw string runs long and fires
+  // every cue in the line late.
+  return SpeechManager.estimateMs(stripLangMarks(text)) / (delivery ? DELIVERY[delivery].rate : 1);
 }
 
 export function cueStartMs(

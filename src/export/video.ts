@@ -11,6 +11,7 @@ import { controlsOfFor } from "../render/plan";
 import { CaptionTape, splitLongCues, type CaptionCue } from "./captions";
 import { speechKey, type SpeakLine } from "../render/delivery";
 import { detectLang } from "../render/speech";
+import { splitLangRuns } from "../render/lang-spans";
 import { AUTO_NAMESPACE, subVars } from "../spec/answers";
 import { AnswerCarry, questionOffsets } from "../playlist/carry";
 import { askDemoAt, askDemoDuration, quizDemoAt, quizDemoDuration } from "./demo";
@@ -57,9 +58,16 @@ export function collectSpeakLines(spec: Spec, carry?: { vars: Map<string, string
   for (const c of spec.commands ?? []) {
     const push = (text: unknown): void => {
       if (typeof text !== "string" || text.trim().length === 0) return;
-      const line: SpeakLine = { text: subVars(text, vars), speaker: c.voice, delivery: c.delivery, gender: spec.voice };
-      const key = speechKey(line);
-      if (!seen.has(key)) seen.set(key, line);
+      // One line, but possibly several RUNS: `[de:ich]` is synthesized as its
+      // own clip in its own voice (render/lang-spans.ts), so the bake, the
+      // prefetch and the cost estimate must all count it as its own line.
+      // A line with no mark yields exactly one run holding the original text,
+      // which is what keeps every clip baked before this notation valid.
+      for (const run of splitLangRuns(subVars(text, vars))) {
+        const line: SpeakLine = { text: run.text, speaker: c.voice, delivery: c.delivery, gender: spec.voice, ...(run.lang ? { lang: run.lang } : {}) };
+        const key = speechKey(line);
+        if (!seen.has(key)) seen.set(key, line);
+      }
     };
     const hasSpeak = typeof c.speak === "string" && c.speak.trim().length > 0;
     // The spoken question line mirrors the plan exactly: (intro +) speak-or-

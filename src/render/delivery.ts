@@ -10,6 +10,12 @@ export interface SpeakOpts {
   delivery?: Delivery;
   /** Speaker "a"'s gender (from Spec.voice); "b" gets the opposite. */
   gender?: "male" | "female";
+  /**
+   * This RUN's language, when a `[de:ich]` mark put it in one of its own
+   * (render/lang-spans.ts) — a primary subtag, "de". Absent means the line
+   * speaks the document's language, which is every line that carries no mark.
+   */
+  lang?: string;
 }
 
 export interface SpeakLine {
@@ -17,6 +23,8 @@ export interface SpeakLine {
   speaker?: "a" | "b";
   delivery?: Delivery;
   gender?: "male" | "female";
+  /** See SpeakOpts.lang — a run split out of the line by a `[de:…]` mark. */
+  lang?: string;
 }
 
 export const DELIVERY: Record<Delivery, { rate: number; pitchSt: number; gainDb: number }> = {
@@ -24,9 +32,18 @@ export const DELIVERY: Record<Delivery, { rate: number; pitchSt: number; gainDb:
   brisk: { rate: 1.07, pitchSt: 0, gainDb: 0 },
 };
 
-/** Canonical cache/buffer key for one spoken line across backends. */
+/**
+ * Canonical cache/buffer key for one spoken line across backends.
+ *
+ * A language PREFIXES the key rather than joining the fields, and only when
+ * there is one. The text is the last field and may itself contain "|", so
+ * there is no room to append; and a line with no `[de:…]` mark — which is
+ * every line written before 2026-09-21 — must hash to the byte-identical
+ * string it always did, or every clip ever baked stops matching its line.
+ */
 export function speechKey(line: SpeakLine): string {
-  return `${line.gender ?? ""}|${line.speaker ?? "a"}|${line.delivery ?? ""}|${line.text}`;
+  const base = `${line.gender ?? ""}|${line.speaker ?? "a"}|${line.delivery ?? ""}|${line.text}`;
+  return line.lang ? `@${line.lang}|${base}` : base;
 }
 
 export function dbToGain(db: number): number {

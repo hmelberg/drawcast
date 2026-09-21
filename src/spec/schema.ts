@@ -469,7 +469,7 @@ const commandSchema = {
     speak: {
       type: "string",
       description:
-        "Narration sentence, spoken aloud and shown as a caption. Alongside an action verb it narrates that action simultaneously (the preferred style: {\"draw\": [\"supply\"], \"speak\": \"This is the supply curve.\"}). Alone, it is a standalone narration line.",
+        "Narration sentence, spoken aloud and shown as a caption. Alongside an action verb it narrates that action simultaneously (the preferred style: {\"draw\": [\"supply\"], \"speak\": \"This is the supply curve.\"}). Alone, it is a standalone narration line. A word in ANOTHER language is marked [de:ich] or [french:c'est la vie] — code or English name — and is then spoken by a voice of that language; the caption shows just the word.",
     },
     cue: {
       type: "number",

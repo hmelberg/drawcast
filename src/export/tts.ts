@@ -180,9 +180,34 @@ export const VOICES: Record<string, Record<"female" | "male", VoiceChoice>> = {
  * do not support pitch (Google's documented limitation) — synthesizeBase64
  * omits pitch for them.
  */
-export const DEFAULT_VOICES: Record<string, VoiceChoice> = {
-  en: { languageCode: "en-US", name: "en-US-Studio-Q" },
+export const DEFAULT_VOICES: Record<string, VoiceChoice & { gender: "female" | "male" }> = {
+  en: { languageCode: "en-US", name: "en-US-Studio-Q", gender: "male" },
 };
+
+/**
+ * The sex of the undeclared narrator — needed only to match a `[de:ich]` run
+ * to it, since a male sentence with a female German word in the middle is a
+ * second person rather than a foreign word.
+ *
+ * Read off the table above rather than repeated: en-US-Studio-Q is MALE in
+ * Google's own supported-voices list. The table has exactly one entry, so
+ * "the undeclared narrator" is unambiguous; add a second and this needs the
+ * DOCUMENT's language threaded in to choose between them, which is why a test
+ * pins the count.
+ */
+export function undeclaredNarratorGender(): "female" | "male" {
+  return DEFAULT_VOICES.en.gender;
+}
+
+/**
+ * The language that picks THIS run's voice. A `[de:ich]` mark
+ * (render/lang-spans.ts) wins over the document's declared language, which
+ * wins over a sniff — the mark is the author saying outright what a sniff
+ * could only guess at, and for a single word a sniff would guess wrong.
+ */
+export function runLang(line: SpeakLine, declared: string | undefined): string {
+  return line.lang ?? voiceLang(declared, line.text);
+}
 
 /**
  * The one place that decides which voice speaks a line — the author's
@@ -195,6 +220,11 @@ export function narrationVoice(voices: Record<string, string> | undefined, lang:
   if (pref) return { languageCode: voiceLanguageCode(pref), name: pref };
   const eff = effectiveGender(opts);
   if (eff === null && DEFAULT_VOICES[lang]) return DEFAULT_VOICES[lang];
+  // A foreign RUN under a narrator nobody declared a sex for: match the
+  // undeclared narrator instead of the gendered table's female default.
+  // Gated on opts.lang, which ONLY a `[de:…]` run ever sets — so no document
+  // that existed before this notation changes voice, or loses a baked clip.
+  if (eff === null && opts?.lang !== undefined) return voiceFor(lang, undeclaredNarratorGender());
   return voiceFor(lang, eff ?? "female");
 }
 
@@ -220,7 +250,7 @@ export function stampedVoice(voices: Record<string, string> | undefined, lang: s
  * a published line is free on replay.
  */
 export function clipCacheKey(rate: number, voices: Record<string, string> | undefined, line: SpeakLine, lang?: string): string {
-  const v = narrationVoice(voices, voiceLang(lang, line.text), line);
+  const v = narrationVoice(voices, runLang(line, lang), line);
   return `${rate}|${v.languageCode}|${v.name ?? ""}|${speechKey(line)}`;
 }
 
@@ -268,8 +298,8 @@ export async function synthesizeBase64(cfg: TtsConfig, text: string, opts?: Spea
   // Soft monthly cap — applies only when the stored key was vended (shared).
   const budget = ttsBudgetError();
   if (budget) throw new Error(budget);
-  const g = effectiveGender(opts) ?? "female";
-  const lang = voiceLang(cfg.lang, text);
+  const g = effectiveGender(opts) ?? (opts?.lang !== undefined ? undeclaredNarratorGender() : "female");
+  const lang = runLang({ text, lang: opts?.lang }, cfg.lang);
   const pref = preferredVoice(cfg.voices, lang, opts?.speaker);
   const voice = narrationVoice(cfg.voices, lang, opts);
   const limits = audioLimits(voice.name);
@@ -413,7 +443,7 @@ export class CloudSpeech extends SpeechManager {
 
   private buffer(text: string, rate: number, audioCtx: AudioContext, opts?: SpeakOpts): Promise<AudioBuffer> {
     const voices = this.getVoices();
-    const line: SpeakLine = { text, speaker: opts?.speaker, delivery: opts?.delivery, gender: opts?.gender };
+    const line: SpeakLine = { text, speaker: opts?.speaker, delivery: opts?.delivery, gender: opts?.gender, lang: opts?.lang };
     // The voice pick and the rate are part of the key: changing either
     // mid-session must not replay lines recorded under the old one. It is
     // the BAKE's key, so the two caches are one.
@@ -470,8 +500,8 @@ export class CloudSpeech extends SpeechManager {
     this.forceBrowser = on;
   }
 
-  override speak(text: string, speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void> {
-    if (this.forceBrowser || !this.getKey()) return super.speak(text, speedMultiplier, signal, opts);
+  override speakOne(text: string, speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void> {
+    if (this.forceBrowser || !this.getKey()) return super.speakOne(text, speedMultiplier, signal, opts);
     const audioCtx = this.ensureCtx();
     // Prefetch may have created the context before any user gesture (autoplay
     // policy leaves it suspended); speak runs inside the play click, so resume.
@@ -504,7 +534,7 @@ export class CloudSpeech extends SpeechManager {
             src.start();
           }),
       )
-      .catch(() => super.speak(text, speedMultiplier, signal, opts)); // cloud hiccup → browser voice
+      .catch(() => super.speakOne(text, speedMultiplier, signal, opts)); // cloud hiccup → browser voice
   }
 
   override cancel(): void {
@@ -566,8 +596,8 @@ export class BufferSpeech extends SpeechManager {
     this.active.clear();
   }
 
-  override speak(text: string, _speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void> {
-    const buffer = this.buffers.get(speechKey({ text, speaker: opts?.speaker, delivery: opts?.delivery, gender: opts?.gender }));
+  override speakOne(text: string, _speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void> {
+    const buffer = this.buffers.get(speechKey({ text, speaker: opts?.speaker, delivery: opts?.delivery, gender: opts?.gender, lang: opts?.lang }));
     if (!buffer || signal?.aborted) return Promise.resolve();
     return new Promise((resolve) => {
       const src = this.audioCtx.createBufferSource();

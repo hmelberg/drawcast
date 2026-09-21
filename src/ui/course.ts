@@ -26,7 +26,7 @@ import type { SpeakLine } from "../render/delivery";
 import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "../export/bake";
 import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "../export/bake-cache";
 import { addCosts, bakeCost, costLabel, courseNarrationProjection, type BakeCost } from "../export/tts-cost";
-import { stampedVoice, synthesizeBase64, voiceLang } from "../export/tts";
+import { runLang, stampedVoice, synthesizeBase64 } from "../export/tts";
 import { joinPath } from "../course/publish";
 import { claimCourse, claimNote, courseClaim, isPayable, nameNote, normalizeName, registerName, startNamePayment } from "../names";
 import { DEFAULT_ENROLL_API } from "../learn";
@@ -872,7 +872,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       const lines = playlistSpeakLines(playlist);
       // Undefined when nothing declares one — see the same decision in main.ts.
       const declaredLang = playlist.entries.flatMap((e) => (e.kind === "item" && e.spec.lang ? [e.spec.lang] : []))[0];
-      const voiceOf = (line: SpeakLine): string | undefined => stampedVoice(settings.cloudVoices, voiceLang(declaredLang, line.text), line);
+      const voiceOf = (line: SpeakLine): string | undefined => stampedVoice(settings.cloudVoices, runLang(line, declaredLang), line);
       // What this lecture already published, so unchanged lines are free.
       let existing: AudioTrack["lines"] = {};
       const file = course.lectures[index].status?.file;

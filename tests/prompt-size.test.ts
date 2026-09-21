@@ -396,12 +396,22 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // negative tax amount is a headline new capability that sentence never
 // named. Net of the trim and the additions: system 210292 -> 209953 (the
 // trim recovered more than the fixes above added back).
-const BASELINE_SYSTEM_CHARS = 209953;
+// Re-pinned UP 2026-09-21 for the foreign-word notation (`[de:ich]`,
+// render/lang-spans.ts): one rule under the narration rules teaching the
+// mark, the language name as well as the code, and the one thing the model
+// gets wrong unprompted — marking the whole sentence, or marking a loanword
+// its own readers say their own way. 209953 -> 210560, 607 chars for a
+// feature whose absence is silent: an unmarked foreign word is simply
+// mispronounced, and nothing in the output says a mark was available.
+const BASELINE_SYSTEM_CHARS = 210560;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
-// delivery that dropped pitch and volume, and it read as mumbling). The
-// ratchet only ever tightens: 81722 -> 81655.
-const BASELINE_SCHEMA_CHARS = 81655;
+// delivery that dropped pitch and volume, and it read as mumbling):
+// 81722 -> 81655. Then UP the same day, 81655 -> 81832, for the sentence on
+// `speak` that says a foreign word may be marked `[de:ich]` — the schema
+// description is the only place a model reading the API contract alone would
+// learn it exists.
+const BASELINE_SCHEMA_CHARS = 81832;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

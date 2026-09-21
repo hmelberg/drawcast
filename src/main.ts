@@ -80,7 +80,7 @@ import { LANGUAGES, languageLabel } from "./export/tts";
 import { subtitleLanguages } from "./spec/subtitles";
 import { bakedAudioFor, type BakedAudio } from "./playlist/audio";
 import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "./export/bake";
-import { listCloudVoices, stampedVoice, synthesizeBase64, voiceLang } from "./export/tts";
+import { listCloudVoices, runLang, stampedVoice, synthesizeBase64 } from "./export/tts";
 import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "./export/bake-cache";
 import { bakeCost, costLabel } from "./export/tts-cost";
 import { publishCast } from "./publish/cast";
@@ -4574,7 +4574,7 @@ async function publishTextFor(
   // re-charge its whole narration. Live playback reads the same tag through
   // speech.setLangHint, so a line previewed in the editor is still free here.
   const declaredLang = itemsOf(source).find((i) => i.spec.lang)?.spec.lang;
-  const voiceOf = (line: SpeakLine): string | undefined => stampedVoice(settings.cloudVoices, voiceLang(declaredLang, line.text), line);
+  const voiceOf = (line: SpeakLine): string | undefined => stampedVoice(settings.cloudVoices, runLang(line, declaredLang), line);
   const stats: SynthStats = { cached: 0, synthesized: 0 };
   const track = await bakeNarration(
     bakeLines,

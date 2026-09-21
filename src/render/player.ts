@@ -20,6 +20,7 @@ import type { Pt } from "../layout/model";
 import type { Easing, SpecElement } from "../spec/types";
 import type { ControlValue } from "../code/controls";
 import { cueStartMs } from "./cue";
+import { stripLangMarks } from "./lang-spans";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { EMPHASIS_FIRST_PEAK_MS, EMPHASIS_HOLD_AT_MS, EMPHASIS_ONE_SWELL_MS, EMPHASIS_RELEASE_MS, emphasisLevel, releaseLevel, swellLevel } from "./emphasis";
 import { translateCaption, type SubtitleTrack } from "../spec/subtitles";
@@ -920,6 +921,12 @@ export class Player {
 
   private setCaption(text: string): void {
     if (!this.captionEl) return;
+    // `[de:ich]` is an instruction to the VOICE; the reader sees "ich". The
+    // strip belongs here and not upstream because this is the one place every
+    // caption passes through — narration, a widget's own line, a translated
+    // track — so no path can forget it. (pronounce.ts draws the same line
+    // from the other side: what is SAID is not what is written.)
+    text = stripLangMarks(text);
     this.captionEl.textContent = text;
     this.captionEl.classList.toggle("cs-caption-empty", text === "");
   }

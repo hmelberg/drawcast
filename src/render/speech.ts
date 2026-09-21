@@ -62,6 +62,7 @@ export function detectLang(text: string): "en" | "nb" {
  * pipeline is authoritative.
  */
 import { sayable } from "./pronounce";
+import { splitLangRuns } from "./lang-spans";
 
 export interface SpeechLike {
   /** Speak one utterance; resolves when it ends (or its fallback wait does). */
@@ -184,10 +185,32 @@ export class SpeechManager {
   }
 
   /**
-   * Speak one utterance; resolves when it ends. speedMultiplier scales the
+   * Speak one line, run by run.
+   *
+   * A line is usually one run and this is one call, exactly as before. A line
+   * carrying a `[de:ich]` mark is several (render/lang-spans.ts), spoken back
+   * to back — the ONLY way to voice a foreign word on either backend, since
+   * the Web Speech API has nothing below the utterance and Chirp 3: HD
+   * silently drops <lang>. Every layer of the chain inherits this, so the
+   * split is written once: subclasses override `speakOne` and receive runs.
+   */
+  async speak(text: string, speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void> {
+    // A run already carries its language — re-splitting it would be a no-op,
+    // but PublishedSpeech delegates run by run to CloudSpeech, so saying so
+    // here keeps that chain from walking the regex three times a line.
+    const runs = opts?.lang !== undefined ? [{ text }] : splitLangRuns(text);
+    if (runs.length === 1 && runs[0].lang === undefined) return this.speakOne(runs[0].text, speedMultiplier, signal, opts);
+    for (const run of runs) {
+      if (signal?.aborted) return;
+      await this.speakOne(run.text, speedMultiplier, signal, run.lang === undefined ? opts : { ...opts, lang: run.lang });
+    }
+  }
+
+  /**
+   * Speak ONE run; resolves when it ends. speedMultiplier scales the
    * configured rate. Falls back to a timed wait on error/unavailability.
    */
-  speak(text: string, speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void> {
+  protected speakOne(text: string, speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void> {
     const d = opts?.delivery ? DELIVERY[opts.delivery] : null;
     const deliveryRate = d?.rate ?? 1;
     const estimate = SpeechManager.estimateMs(text) / (speedMultiplier * deliveryRate);
@@ -212,10 +235,15 @@ export class SpeechManager {
 
       // Spoken form only — the caption keeps its capitals (see pronounce.ts).
       const utterance = new SpeechSynthesisUtterance(sayable(text));
-      // A declared language beats a sniff: detectLang can only tell en from nb,
-      // so a translated drawcast would otherwise be read by an English voice.
-      const lang = this.langHint ?? detectLang(text);
-      const explicit = this.voices().find((v) => v.voiceURI === this.voiceURI);
+      // A run's own `[de:…]` language beats both; a declared language beats a
+      // sniff (detectLang can only tell en from nb, so a translated drawcast
+      // would otherwise be read by an English voice).
+      const lang = opts?.lang ?? this.langHint ?? detectLang(text);
+      // …and a foreign run must NOT keep the viewer's explicitly chosen voice:
+      // that voice speaks one language, and it is not this run's. Asking for
+      // the best voice of the run's language, at the narrator's gender, is the
+      // whole feature — a German word said by a German voice of the same sex.
+      const explicit = opts?.lang !== undefined ? undefined : this.voices().find((v) => v.voiceURI === this.voiceURI);
       const g = effectiveGender(opts);
       const voice = explicit ?? this.bestVoice(lang, g);
       if (voice) utterance.voice = voice;

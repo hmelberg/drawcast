@@ -113,9 +113,9 @@ export class PublishedSpeech extends SpeechManager {
     (this.inner as Partial<SpeechManager>).setVoice?.(uri);
   }
 
-  override async speak(text: string, speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void> {
+  override async speakOne(text: string, speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void> {
     if (signal?.aborted) return;
-    const key = speechKey({ text, speaker: opts?.speaker, delivery: opts?.delivery, gender: opts?.gender });
+    const key = speechKey({ text, speaker: opts?.speaker, delivery: opts?.delivery, gender: opts?.gender, lang: opts?.lang });
     if (!this.forceBrowser && this.clips.has(key)) {
       try {
         await this.clips.play(key, speedMultiplier, signal);
