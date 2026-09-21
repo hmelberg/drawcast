@@ -409,7 +409,11 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // buy — without it a model has no way to know whether `[czech:…]` is a short
 // name or needs `[cs-CZ:…]`, and guessing wrong is silent: the brackets
 // simply stay in the narration and the word is read by the narrator.
-const BASELINE_SYSTEM_CHARS = 210880;
+// Re-pinned DOWN 2026-09-22 for the schema's $defs round (Task 2, design
+// 2026-09-22 §3.2): the schema is embedded verbatim in the system prompt, so
+// its own re-pin below (81898 -> 79310) lands here by the same delta:
+// 210880 -> 208292.
+const BASELINE_SYSTEM_CHARS = 208292;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -418,7 +422,16 @@ const BASELINE_SYSTEM_CHARS = 210880;
 // description is the only place a model reading the API contract alone would
 // learn it exists. 81832 -> 81898 when that sentence gained the locale form
 // for languages outside the named list.
-const BASELINE_SCHEMA_CHARS = 81898;
+// Re-pinned DOWN 2026-09-22: the repeated sub-shapes (the point-ref bag ×8,
+// the ghost option ×5, the arrow endpoint ×4) moved into specSchema.$defs
+// and each call site became an allOf wrapper that keeps its own description
+// unchanged (design 2026-09-22 §3.2). 81898 -> 79310. Nothing the model
+// reads changed; only the number of times it reads the same braces. (The
+// design doc's own §3.2 estimate for this move was 8,545 chars — that figure
+// turned out to count the per-site descriptions too, which Strategy A
+// deliberately keeps at every site; the structural saving alone, measured
+// here, is 2,588.)
+const BASELINE_SCHEMA_CHARS = 79310;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

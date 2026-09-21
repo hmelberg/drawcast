@@ -58,38 +58,67 @@ const drawSchema = {
 const ANCHOR_NAMES =
   "center (default) / top / bottom / left / right / top_left / top_right / bottom_left / bottom_right on any element; polygon vertex_1…, side_1… (side midpoints), centroid; sector apex, arc, start, end; arrow and edge tail, tip, mid; path start, end, mid, point_1…; angle vertex, arc; ellipse focus_1, focus_2; line start, end, mid, point_1…";
 
-const endRefSchema = {
-  type: "object",
-  description: "Arrow/edge endpoint: set ref to an element id, OR x+y coordinates (domain coordinates if a domain is declared, else logical).",
-  properties: {
-    ref: { type: "string" },
-    x: { type: "number" },
-    y: { type: "number" },
-    anchor: { type: "string", description: `A named point ON ref instead of its centre — e.g. {"ref": "tri", "anchor": "vertex_1"}: ${ANCHOR_NAMES}.` },
+/**
+ * Shapes written out at more than one call site. They live here once and the
+ * call sites reference them, so the schema — which is embedded verbatim in
+ * every system prompt and is also the structured-output constraint — pays for
+ * each shape once instead of once per site (2,588 chars measured: 81898 ->
+ * 79310, tests/prompt-size.test.ts; the design doc's §3.2 estimate of 8,545
+ * counted the per-site descriptions too — each of which embeds the anchor
+ * vocabulary and stays put below — not just the structure this consolidates).
+ * Each site keeps its OWN description through the `allOf` wrapper the
+ * factories below emit: the anchor vocabulary is what a site needs at the
+ * moment it is read, and sharing THAT would make the schema worse to read to
+ * save characters (that would be Strategy B, out of scope here).
+ *
+ * Ajv resolves `#/$defs/...` by JSON pointer even on draft-07, where the
+ * keyword is spelled `definitions`, and `documentSchema`'s spread carries
+ * $defs onto its own root so both compile. tests/schema-defs.test.ts pins it.
+ */
+const SHARED_DEFS = {
+  point_ref: {
+    oneOf: [
+      { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
+      {
+        type: "object",
+        properties: { ref: { type: "string" }, anchor: { type: "string" }, x: { type: "number" }, y: { type: "number" } },
+        additionalProperties: false,
+      },
+    ],
   },
-  additionalProperties: false,
+  ghost: {
+    oneOf: [
+      { type: "boolean" },
+      { type: "array", items: { type: "string" } },
+      { type: "object", properties: { of: { type: "array", items: { type: "string" } }, opacity: { type: "number", minimum: 0, maximum: 1 } }, additionalProperties: false },
+    ],
+  },
+  end_ref: {
+    type: "object",
+    properties: {
+      ref: { type: "string" },
+      x: { type: "number" },
+      y: { type: "number" },
+      anchor: { type: "string", description: `A named point ON ref instead of its centre — e.g. {"ref": "tri", "anchor": "vertex_1"}: ${ANCHOR_NAMES}.` },
+    },
+    additionalProperties: false,
+  },
+};
+
+const endRefSchema = {
+  allOf: [{ $ref: "#/$defs/end_ref" }],
+  description: "Arrow/edge endpoint: set ref to an element id, OR x+y coordinates (domain coordinates if a domain is declared, else logical).",
 };
 
 /** A point a verb takes: [x, y], or a named point on an element so the model never computes it. */
 const pointRefSchema = (what: string) => ({
-  oneOf: [
-    { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
-    {
-      type: "object",
-      properties: { ref: { type: "string" }, anchor: { type: "string" }, x: { type: "number" }, y: { type: "number" } },
-      additionalProperties: false,
-    },
-  ],
+  allOf: [{ $ref: "#/$defs/point_ref" }],
   description: `${what} — [x, y] (domain units when a domain is declared, else logical), or {"ref": id, "anchor": name} for a point ON an element so you never compute it: ${ANCHOR_NAMES}.`,
 });
 
 /** A verb's ghost option: true (every target), a list of ids, or {of, opacity}. */
 const ghostSchema = (what: string) => ({
-  oneOf: [
-    { type: "boolean" },
-    { type: "array", items: { type: "string" } },
-    { type: "object", properties: { of: { type: "array", items: { type: "string" } }, opacity: { type: "number", minimum: 0, maximum: 1 } }, additionalProperties: false },
-  ],
+  allOf: [{ $ref: "#/$defs/ghost" }],
   description: `${what} — KEEP a faded copy of the original where it is while this plays: true keeps every target at 0.3, ["id", …] keeps those, {"of": […], "opacity": 0.2} sets the shade. The copy is an element <id>_ghost you can erase or fade later — a pieces id ghosts every piece: kake_1_ghost, kake_2_ghost, … Default: nothing is kept.`,
 });
 
@@ -157,13 +186,13 @@ const elementSchema = {
     anchor: { type: "string", description: "With at: which of THIS element's anchors lands there (default opposite of at.side, else center)." },
     // arrow / edge / angle
     from: {
-      oneOf: [{ type: "number" }, { type: "string" }, { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, { type: "object", properties: endRefSchema.properties, additionalProperties: false }],
+      oneOf: [{ type: "number" }, { type: "string" }, { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, { type: "object", properties: SHARED_DEFS.end_ref.properties, additionalProperties: false }],
       description:
         "arrow/edge: endpoint (ref or x+y); angle: the arm — a point ({ref, anchor} or [x, y]) or a direction in degrees counter-clockwise from +x — e.g. from: {\"ref\": \"tri\", \"anchor\": \"vertex_2\"}. " +
         "pieces of triangles: the vertex to fan from (\"vertex_1\").",
     },
     to: {
-      oneOf: [{ type: "number" }, { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, { type: "object", properties: endRefSchema.properties, additionalProperties: false }],
+      oneOf: [{ type: "number" }, { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, { type: "object", properties: SHARED_DEFS.end_ref.properties, additionalProperties: false }],
       description:
         "arrow/edge: endpoint (ref or x+y); angle: the arm — a point ({ref, anchor} or [x, y]) or a direction in degrees counter-clockwise from +x — e.g. to: {\"ref\": \"tri\", \"anchor\": \"vertex_3\"}.",
     },
@@ -973,6 +1002,7 @@ const commandSchema = {
 
 export const specSchema = {
   $schema: "http://json-schema.org/draft-07/schema#",
+  $defs: SHARED_DEFS,
   title: "ConceptSketchSpec",
   type: "object",
   description:
