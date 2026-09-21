@@ -37,7 +37,13 @@ export interface SupplyDemandParams {
   equilibrium?: { show?: boolean; label?: string; guides?: boolean; q_label?: string; p_label?: string };
   demand_shift?: { direction?: "right" | "left"; amount?: number; label?: string };
   supply_shift?: { direction?: "right" | "left"; amount?: number; label?: string };
-  tax?: { show_deadweight_loss?: boolean; label?: string };
+  tax?: {
+    amount?: number;
+    side?: "seller" | "buyer";
+    kind?: "per_unit" | "ad_valorem";
+    show_deadweight_loss?: boolean;
+    label?: string;
+  };
   price_ceiling?: { label?: string; show_shortage?: boolean };
   price_floor?: { label?: string; show_surplus?: boolean };
   regions?: ("consumer_surplus" | "producer_surplus")[];
@@ -101,6 +107,19 @@ interface Ctx {
   sx: (v: number) => number;
   sy: (v: number) => number;
   toLogical: (pts: Pt[]) => Pt[];
+}
+
+/**
+ * A tax, a subsidy, a price ceiling and a price floor are the same object: a
+ * quantity actually traded, and the two prices the two sides face. Every
+ * welfare region is computed from this and nothing else, which is why there is
+ * no per-intervention branch further down.
+ */
+interface Intervention {
+  kind: "none" | "tax" | "ceiling" | "floor";
+  qTraded: number;
+  pBuyers: number;
+  pSellers: number;
 }
 
 export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
@@ -227,36 +246,86 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     }
   }
 
-  // Tax: supply shifts up; new equilibrium; deadweight-loss triangle.
+  // Tax / subsidy. The taxed curve shifts; then Q_t is the new crossing and
+  // the two prices are read off the ORIGINAL curves at Q_t. That last step is
+  // what makes per-unit and ad valorem, seller-side and buyer-side, one path:
+  // P_s = P_b − t holds only for a per-unit tax, but "evaluate the untaxed
+  // curve at Q_t" holds for all four.
+  let iv: Intervention = eq
+    ? { kind: "none", qTraded: eq[0], pBuyers: eq[1], pSellers: eq[1] }
+    : { kind: "none", qTraded: 0, pBuyers: 0, pSellers: 0 };
+
   if (params.tax && supplyPts && eq) {
-    const taxAmount = 18;
-    // drop (not clamp) points shifted past the top of the plot, keeping the slope
-    const taxed = supplyPts.map(([x, y]): Pt => [x, y + taxAmount]).filter(([, y]) => y <= 98);
-    push({ ...curve("tax_supply_curve", taxed, COLORS.supply, ctx), style: defaultStyle({ color: COLORS.supply, strokeWidth: 4.5, dash: true }) });
-    recordCurve("tax_supply_curve", taxed);
-    const taxedEndL = ctx.toLogical([taxed[taxed.length - 1]])[0];
-    anchors["tax_supply_curve"] = taxedEndL;
-    label("label_S_tax", taxedEndL, "above-left", params.tax.label ?? "S + tax", COLORS.supply);
-    const eq2 = intersectPolylines(demandPts, taxed);
+    const perUnit = (params.tax.kind ?? "per_unit") !== "ad_valorem";
+    const amount = perUnit
+      ? Math.max(-40, Math.min(60, params.tax.amount ?? 18))
+      : Math.max(-50, Math.min(200, params.tax.amount ?? 36));
+    const buyerSide = params.tax.side === "buyer";
+    const shift = (y: number, up: boolean): number =>
+      perUnit ? y + (up ? amount : -amount) : up ? y * (1 + amount / 100) : y / (1 + amount / 100);
+
+    const moved = (buyerSide ? demandPts : supplyPts).map(([x, y]): Pt => [x, shift(y, !buyerSide)]);
+    const kept = moved.filter(([, y]) => y >= 2 && y <= 98);
+    // Dropping the off-plot points (the existing idiom) keeps the slope, but a
+    // big enough tax pushes the WHOLE curve off and leaves nothing — and
+    // `shifted[shifted.length - 1]` below would throw on an empty array. In
+    // that one case clamp instead: the curve pins to the plot edge, stays in
+    // bounds, finds no crossing, and the figure simply shows no new
+    // equilibrium. Never an early return — the price controls and the regions
+    // further down must still draw.
+    const shifted = kept.length >= 2 ? kept : moved.map(([x, y]): Pt => [x, Math.max(2, Math.min(98, y))]);
+    const id = buyerSide ? "tax_demand_curve" : "tax_supply_curve";
+    const color = buyerSide ? COLORS.demand : COLORS.supply;
+    push({ ...curve(id, shifted, color, ctx), style: defaultStyle({ color, strokeWidth: 4.5, dash: true }) });
+    recordCurve(id, shifted);
+    const endL = ctx.toLogical([shifted[shifted.length - 1]])[0];
+    anchors[id] = endL;
+    label(
+      buyerSide ? "label_D_tax" : "label_S_tax",
+      endL,
+      "above-left",
+      params.tax.label ?? (buyerSide ? "D − tax" : "S + tax"),
+      color,
+    );
+
+    const eq2 = buyerSide ? intersectPolylines(shifted, supplyPts) : intersectPolylines(demandPts, shifted);
     if (eq2) {
-      push(guides("tax_guide_lines", eq2, ctx, plot));
-      const eq2L = ctx.toLogical([eq2])[0];
-      push(dot("tax_equilibrium_point", eq2L));
-      anchors["tax_equilibrium_point"] = eq2L;
-      if (params.tax.show_deadweight_loss !== false) {
-        const region = betweenRegion(demandPts, supplyPts, eq2[0], eq[0]);
-        if (region) {
-          const pts = ctx.toLogical(region);
-          push({
-            id: "dwl_region",
-            kind: "area",
-            pts,
-            z: Z_AREA,
-            style: defaultStyle({ color: COLORS.regionLoss, fill: COLORS.regionLoss, opacity: 0.5, strokeWidth: 1 }),
-            drawOpts: defaultDrawOpts("sketch", SKETCH_MS.region),
-          });
-          anchors["dwl_region"] = centroid(pts);
-          label("label_DWL", anchors["dwl_region"], "right", "Deadweight loss", COLORS.regionLoss);
+      const qT = eq2[0];
+      const pB = interpolateAtX(demandPts, qT);
+      const pS = interpolateAtX(supplyPts, qT);
+      if (pB !== null && pS !== null) {
+        iv = { kind: "tax", qTraded: qT, pBuyers: pB, pSellers: pS };
+        // Every downstream point is read off `iv` from here on, not off the
+        // raw qT/pB/pS locals: iv is the single source of truth Tasks 3 and 4
+        // extend to price controls and welfare regions.
+        push(guides("tax_guide_lines", [iv.qTraded, iv.pBuyers], ctx, plot));
+        const pbL = ctx.toLogical([[iv.qTraded, iv.pBuyers]])[0];
+        const psL = ctx.toLogical([[iv.qTraded, iv.pSellers]])[0];
+        push(dot("tax_equilibrium_point", pbL));
+        anchors["tax_equilibrium_point"] = pbL;
+        push(dot("price_buyers_point", pbL));
+        anchors["price_buyers_point"] = pbL;
+        push(dot("price_sellers_point", psL));
+        anchors["price_sellers_point"] = psL;
+        const subsidy = amount < 0;
+        label("label_Pb", [plot.x0, pbL[1]], "left", subsidy ? "P paid" : "P buyers", COLORS.demand);
+        label("label_Ps", [plot.x0, psL[1]], "left", subsidy ? "P received" : "P sellers", COLORS.supply);
+
+        if (params.tax.show_deadweight_loss !== false) {
+          const region = betweenRegion(demandPts, supplyPts, Math.min(iv.qTraded, eq[0]), Math.max(iv.qTraded, eq[0]));
+          if (region) {
+            const pts = ctx.toLogical(region);
+            push({
+              id: "dwl_region",
+              kind: "area",
+              pts,
+              z: Z_AREA,
+              style: defaultStyle({ color: COLORS.regionLoss, fill: COLORS.regionLoss, opacity: 0.5, strokeWidth: 1 }),
+              drawOpts: defaultDrawOpts("sketch", SKETCH_MS.region),
+            });
+            anchors["dwl_region"] = centroid(pts);
+            label("label_DWL", anchors["dwl_region"], "right", "Deadweight loss", COLORS.regionLoss);
+          }
         }
       }
     }

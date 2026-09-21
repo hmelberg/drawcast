@@ -253,3 +253,76 @@ describe("elasticity", () => {
     expect(ySpan(full)).toBeGreaterThan(ySpan(flat));
   });
 });
+
+describe("tax decomposition", () => {
+  const P = (l: SceneLayout, id: string) => l.anchors[id];
+
+  test("default per-unit tax lands on the worked values from the spec", () => {
+    // Domain units: the equilibrium is (49, 50); a per-unit 18 gives
+    // Q_t = 38.93, P_b = 59.00, P_s = 41.00 (spec §6.3).
+    const l = layoutSupplyDemand({ tax: { amount: 18 } });
+    const pb = P(l, "price_buyers_point");
+    const ps = P(l, "price_sellers_point");
+    expect(pb[0]).toBeCloseTo(ps[0], 3); // same quantity
+    const eq = P(l, "equilibrium_point");
+    // logical y is UP (verified: higher domain price -> larger logical y)
+    expect(pb[1]).toBeGreaterThan(eq[1]); // buyers pay MORE
+    expect(ps[1]).toBeLessThan(eq[1]); // sellers receive LESS
+  });
+
+  test("a seller-side and a buyer-side tax are the same figure", () => {
+    const seller = layoutSupplyDemand({ tax: { amount: 18, side: "seller" } });
+    const buyer = layoutSupplyDemand({ tax: { amount: 18, side: "buyer" } });
+    for (const id of ["price_buyers_point", "price_sellers_point"]) {
+      expect(P(buyer, id)[0]).toBeCloseTo(P(seller, id)[0], 1);
+      expect(P(buyer, id)[1]).toBeCloseTo(P(seller, id)[1], 1);
+    }
+    expect(ids(seller)).toContain("tax_supply_curve");
+    expect(ids(buyer)).toContain("tax_demand_curve");
+  });
+
+  test("perfectly inelastic demand puts the whole burden on buyers", () => {
+    const l = layoutSupplyDemand({ demand: { elasticity: "perfectly_inelastic" }, tax: { amount: 18 } });
+    const eq = P(l, "equilibrium_point");
+    const ps = P(l, "price_sellers_point");
+    // sellers receive what they did before: the seller price barely moves
+    expect(Math.abs(ps[1] - eq[1])).toBeLessThan(Math.abs(P(l, "price_buyers_point")[1] - eq[1]) / 4);
+  });
+
+  test("perfectly elastic demand puts the whole burden on sellers", () => {
+    const l = layoutSupplyDemand({ demand: { elasticity: "perfectly_elastic" }, tax: { amount: 18 } });
+    const eq = P(l, "equilibrium_point");
+    const pb = P(l, "price_buyers_point");
+    expect(Math.abs(pb[1] - eq[1])).toBeLessThan(Math.abs(P(l, "price_sellers_point")[1] - eq[1]) / 4);
+  });
+
+  test("an ad valorem tax pivots supply instead of translating it", () => {
+    const l = layoutSupplyDemand({ tax: { amount: 36, kind: "ad_valorem" } });
+    const base = l.curveSamples!["supply_curve"];
+    const taxed = l.curveSamples!["tax_supply_curve"];
+    const gapAt = (frac: number) => {
+      const i = Math.floor(base.length * frac);
+      const b = base[i];
+      const t = taxed.reduce((best, p) => (Math.abs(p[0] - b[0]) < Math.abs(best[0] - b[0]) ? p : best), taxed[0]);
+      return Math.abs(t[1] - b[1]);
+    };
+    // proportional, so the gap GROWS along the curve; a per-unit tax is parallel
+    expect(gapAt(0.8)).toBeGreaterThan(gapAt(0.2) * 1.5);
+  });
+
+  test("a negative amount is a subsidy: quantity rises and sellers receive more than buyers pay", () => {
+    const l = layoutSupplyDemand({ tax: { amount: -18 } });
+    const eq = P(l, "equilibrium_point");
+    const pb = P(l, "price_buyers_point");
+    const ps = P(l, "price_sellers_point");
+    expect(pb[0]).toBeGreaterThan(eq[0]); // more is traded
+    expect(ps[1]).toBeGreaterThan(pb[1]); // sellers receive MORE than buyers pay (logical y is UP)
+  });
+
+  test("P_b and P_s are drawn by default, with their axis labels", () => {
+    const all = ids(layoutSupplyDemand({ tax: { amount: 18 } }));
+    for (const id of ["price_buyers_point", "price_sellers_point", "label_Pb", "label_Ps"]) {
+      expect(all).toContain(id);
+    }
+  });
+});
