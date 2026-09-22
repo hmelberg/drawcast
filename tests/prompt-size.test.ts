@@ -413,7 +413,11 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // 2026-09-22 §3.2): the schema is embedded verbatim in the system prompt, so
 // its own re-pin below (81898 -> 79310) lands here by the same delta:
 // 210880 -> 208292.
-const BASELINE_SYSTEM_CHARS = 208292;
+// Re-pinned UP 2026-09-22 for one clause on the point bullet: `"blocking":
+// false` was named by the SCHEMA's point description and by nothing the
+// model reads as prose — 0 of 291 bundled specs used it (design 2026-09-22
+// §4.1). 208292 -> 208483.
+const BASELINE_SYSTEM_CHARS = 208483;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -537,6 +541,14 @@ describe("prompt budget (spec §6.3)", () => {
     // Ordinary explanations still pay nothing for the code block.
     expect(wantsCode("Hvorfor er himmelen blå?")).toBe(false);
     expect(wantsCode("Forklar inflasjon for en nybegynner")).toBe(false);
+  });
+
+  // A command key the schema advertises must be reachable from the prose.
+  // `blocking` was in neither the prompt nor tags.ts nor any of 291 bundled
+  // specs, while the schema's `point` description told the model to combine
+  // it with speak. Design §4.1.
+  test("the prompt names blocking where the schema says to use it", () => {
+    expect(system(false)).toContain('"blocking": false');
   });
 });
 
