@@ -423,7 +423,18 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // before (BASELINE_REVISE_CHARS was 4520 against an actual 4500). Measured
 // directly this time, via this test's own system(false).length: 208483,
 // exactly the derived figure — no correction needed.
-const BASELINE_SYSTEM_CHARS = 208483;
+// Re-pinned UP 2026-09-22 for the icon-stamp move (Hans): the `icon` rule
+// lived as Freehand rule 8, under a heading that scopes itself "when no
+// template fits", so a template figure was told the whole section did not
+// apply to it. Measured before the move: 2 of 280 bundled specs use an icon
+// element and ZERO of those also use a template — a perfect correlation with
+// where the prompt happened to file the rule. The stamp half moves to
+// "Elements that need more than the schema" (which no heading scopes away)
+// and says templates may use it; the seed half stays in freehand, where a
+// thing you take apart belongs. Net +845 (208483 -> 209328): the new bullet
+// costs more than the old rule 8 gave back, and buys a capability the schema
+// has always carried and nothing reachable ever offered.
+const BASELINE_SYSTEM_CHARS = 209328;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

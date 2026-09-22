@@ -108,9 +108,23 @@ describe("compiler prompt style rules", () => {
     expect(compilerV1).toContain('{"fit": "left"}');
   });
 
-  test("the freehand section separates the icon STAMP from the seed's ready paths", () => {
-    expect(compilerV1).toContain("`icon` is a STAMP; the seed is a starting shape");
-    expect(compilerV1).toContain("arrives as ready `path` elements in a group named `seed`");
+  // The seed belongs to freehand — it is a thing you take apart. The icon
+  // STAMP does not, and used to be trapped there: it lived as freehand rule 8
+  // under the heading "## Freehand figures (when no template fits)", so a
+  // template figure was told the whole section did not apply to it. Measured
+  // 2026-09-22 before the move: 2 of 280 bundled specs use an icon element,
+  // and ZERO of those also use a template — a perfect correlation with where
+  // the prompt happened to file the rule. It now sits in the elements
+  // section, which no heading scopes away.
+  test("the seed stays a freehand rule, and the icon stamp is reachable from a template figure", () => {
+    const freehand = compilerV1.slice(compilerV1.indexOf("## Freehand figures"), compilerV1.indexOf("## Color"));
+    const elements = compilerV1.slice(compilerV1.indexOf("## Elements that need more than the schema"));
+    expect(freehand).toContain("arrives as ready `path` elements in a group named `seed`");
+    expect(freehand).not.toContain('"type": "icon"');
+    expect(elements).toContain('"type": "icon"');
+    expect(elements).toContain("A TEMPLATE figure may use icons too");
+    // Widening without a budget is how a figure ends up decorated with stamps.
+    expect(elements).toContain("at most a handful, one per category");
   });
 
   test("the freehand section names the anti-patterns", () => {
