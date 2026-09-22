@@ -27,8 +27,13 @@ describe("the curve variable is x", () => {
 describe("interactive code sits output-over-code by default", () => {
   test("the code prompt and the schema both say so", () => {
     expect(compilerV1Code).toMatch(/controls[^.]*output on top/i);
-    const show = (specSchema.properties.elements.items.properties as { show: { description: string } }).show.description;
-    expect(show).toMatch(/controls/);
-    expect(show).toMatch(/below/);
+    // The knobs pane too: sliders under the output, never beside it by default.
+    expect(compilerV1Code).toMatch(/"pane": "controls"[^.]*(under|below) the output/i);
+    expect(compilerV1Code).not.toContain('add `"pane": "controls"` (with show: left/right/above/below)');
+    const props = specSchema.properties.elements.items.properties as { show: { description: string }; pane: { description: string } };
+    expect(props.show.description).toMatch(/controls/);
+    expect(props.show.description).toMatch(/below/);
+    expect(props.pane.description).toMatch(/under the output|below/i);
+    expect(props.pane.description).not.toContain("Use with show: left/right/above/below");
   });
 });

@@ -489,7 +489,7 @@ The slope is what matters.
 // reachable once the bundled library is past TEMPLATE_FULL_THRESHOLD (below
 // it, catalogParts never runs the two-level branch at all), so this
 // registers throwaway templates to get there, same as tests/catalog-split.test.ts.
-describe("reviseDocument never pulls in the catalog's last-resort fallback (design finding IMPORTANT 2, 2026-09-22)", () => {
+describe("reviseDocument never pulls in a full template a template-less document did not ask for (2026-09-22; the catalog fallback itself was deleted 2026-09-23)", () => {
   const added: string[] = [];
   function addFake(id: string): void {
     registerTemplateDoc({

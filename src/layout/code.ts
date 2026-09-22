@@ -22,6 +22,7 @@
 // Envelope types come from the dependency-free code/envelope module, not
 // code/run — layout is a pure geometry layer and must never transitively
 // pull render/portrait (IndexedDB) in through the execution facade.
+import { effectiveShow } from "../spec/code-show";
 import { stylable } from "../code/chart-style";
 import { parseControls, withControlDefaults } from "../code/controls";
 import { tokenColor, tokenizeLine } from "../code/highlight";
@@ -410,11 +411,7 @@ function tableDrawables(
 export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // A Commodore 64 is a screen, not a panel (layout/c64-screen.ts).
   if (isC64Screen(el)) return c64ScreenDrawables(el, ctx);
-  // Interactive code (a script with controls) defaults to the output on top
-  // and the code under it (Hans 2026-09-23): the viewer turns a knob and
-  // watches the picture change, with the script in view below. A plain
-  // script keeps showing its output alone.
-  const show = el.show ?? ((el.controls?.length ?? 0) > 0 ? "below" : "output");
+  const show = effectiveShow(el); // spec/code-show.ts: the one default rule, shared with lint
   // A pure data source draws nothing, mints no ids and has no anchors, so the
   // only thing it can still contribute is a harvest warning. This function
   // re-runs on EVERY animate tick, and the envelope it would parse carries

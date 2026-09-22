@@ -449,7 +449,7 @@ const elementSchema = {
       type: "string",
       enum: ["code", "controls"],
       description:
-        "code: what the pane holds — code (THE DEFAULT: the script's lines) or controls (the script's `controls` drawn as knobs and switches — a slider as a track with a knob, a choice as chips, a toggle as a switch — live while paused; the movie shows them at their defaults). Use with show: left/right/above/below when the viewer should see the knobs, not the code.",
+        "code: what the pane holds — code (THE DEFAULT: the script's lines) or controls (the script's `controls` drawn as knobs and switches — a slider as a track with a knob, a choice as chips, a toggle as a switch — live while paused; the movie shows them at their defaults). The pane sits UNDER the output by default (show: below, full width); set show only when the request wants it elsewhere.",
     },
     bind: {
       type: "object",

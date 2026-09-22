@@ -5,9 +5,7 @@
 // index plus full entries for a "hot set" (forced / priority / router-
 // shortlisted / keyword-matched), with an escalation protocol: the LLM asks
 // for a template's full definition by name (need_template) instead of
-// guessing its parameters from the index line alone. Since 2026-09-22 the
-// hot set also has a last-resort fallback for the rare request neither
-// selector places anything for — see LAST_RESORT_IDS below.
+// guessing its parameters from the index line alone.
 
 import { scenes } from "./registry";
 import type { SceneManifest } from "./types";
@@ -24,32 +22,14 @@ import { PACK_DEFS, packTemplateIds } from "./packs";
  * two-level regime became the default: the bundled library (88 ready
  * templates, ~279k chars in full) now reaches the model as an index —
  * ~13k chars since the per-line cap, down from ~24k (see indexLine below,
- * design §3.4) — plus a five-entry shortlist for the request (the three
- * health-economics templates ride along in that shortlist only when a
- * request wants them — see LAST_RESORT_IDS for the rare case none of the
- * selectors do). Below this number — a single-domain library, a host embed
- * — everything is still expanded and no router is needed.
+ * design §3.4) — plus a five-entry shortlist for the request. A request
+ * neither selector can place gets the index and the need_template
+ * escalation, nothing more (the last-resort pin of three health-economics
+ * templates was deleted 2026-09-23). Below this number — a single-domain
+ * library, a host embed — everything is still expanded and no router is
+ * needed.
  */
 export const TEMPLATE_FULL_THRESHOLD = 40; // lowered 2026-09-07: the router (src/llm/router.ts) makes two-level the default regime
-
-/**
- * The shortlist of last resort: used ONLY when a request produced no
- * shortlist at all — no router (or a failed one) AND no keyword overlap.
- *
- * Until 2026-09-22 these three were pinned into every request's stable
- * catalog in full, 26,890 chars a chess question paid for. That pin predates
- * the template router (src/llm/router.ts, 97.9 % top-5 joined with the
- * keyword selector), which shortlists them for the requests that want them.
- *
- * It is not simply deleted, because the keyword selector is ENGLISH: every
- * template description is written in English, so `selectTemplates("Forklar
- * tilbud og etterspørsel", 5)` returns [] — measured — and half this app's
- * requests are written in Norwegian. With a router that is harmless (it
- * reads meaning, not keywords); with no router it is the one case the pin
- * was really carrying. So the pin becomes a fallback for exactly that case
- * and costs nothing in every other.
- */
-const LAST_RESORT_IDS = ["supply_demand", "decision_tree", "qaly_profiles"];
 
 /**
  * True when id names a registered, ready (rendering) template — a stub, an
@@ -77,17 +57,6 @@ export interface CatalogOpts {
    * an index-only prompt.
    */
   shortlist?: string[];
-  /**
-   * Whether the last-resort fallback (LAST_RESORT_IDS) may fire when neither
-   * selector placed anything usable. Default true: Generate has no shortlist
-   * of its own for a request the router missed, and genuinely needs the
-   * rescue. false for revise.ts (design finding IMPORTANT 2, 2026-09-22): a
-   * revision has the whole document already in front of the model and the
-   * revise card tells it to keep every template as-is, so there is nothing
-   * for this fallback to rescue there — only ~27k chars it would otherwise
-   * add to the UNCACHED suffix on every template-less, non-English revision.
-   */
-  lastResort?: boolean;
 }
 
 function fullEntry(manifest: SceneManifest): string {
@@ -266,8 +235,8 @@ const VARIABLE_PREAMBLE = "Additional likely-relevant template definitions for T
  * output — required for prompt-cache pinning, see catalogText below). Above
  * the threshold, `stable` is built ONLY from configuration that doesn't vary
  * per free-text request (forced/priority + the full index + stubs +
- * pack lines + escalation prose — no longer the core three, see
- * LAST_RESORT_IDS) — so it can sit in generateSpec's
+ * pack lines + escalation prose — never a pinned core set) — so it can sit
+ * in generateSpec's
  * cache_control prefix and stay byte-identical across different requests
  * sharing the same forced/priority config. `variable` carries the
  * keyword-matched shortlist (selectTemplates(request, …), the one part that
@@ -338,28 +307,12 @@ export function catalogParts(opts: CatalogOpts = {}): { stable: string; variable
   const keyword = selectTemplates(opts.request ?? "", routed.length > 0 ? HOT_SHORTLIST : 3);
   const picks = routed.length > 0 ? dedupe([...routed, ...keyword]).slice(0, HOT_SHORTLIST) : keyword;
   const usable = (ids: string[]): string[] => ids.filter((id) => scenes[id]?.manifest.status === "ready" && !stableIds.includes(id) && !excluded.has(id));
-  // MINOR 3 fix (final-review round, 2026-09-22): the readiness/exclusion
-  // filter has to run BEFORE the fallback decides, not after — neither
+  // Readiness and exclusion are checked here, not by the selectors: neither
   // `routed` (a router's raw picks) nor `keyword` (selectTemplates, which
-  // knows nothing about excludeIds) checks it. A shortlist whose every id
-  // turned out excluded or unready used to leave `picks` non-empty, so the
-  // old guard (`picks.length === 0`) never fired, and `shortlist` came out
-  // empty anyway — an index and nothing else, the one prompt this catalog
-  // promised never to send.
-  const picked = usable(picks);
-  // Neither selector placed anything USABLE for this request (a router
-  // outage on a request whose language the English keyword selector cannot
-  // read, or a shortlist that was entirely excluded/unready). An index and
-  // nothing else is the one prompt this catalog promised never to send — see
-  // LAST_RESORT_IDS.
-  // Guarded on a non-empty request: catalogParts({}) is a degenerate call
-  // with no request to serve (tests/catalog_exclude.test.ts makes it), and
-  // firing the fallback there would add ~27,000 chars nobody asked for.
-  // Also guarded on opts.lastResort (default true, see CatalogOpts) — a
-  // caller with nothing for this fallback to rescue (revise.ts) can suppress
-  // it outright, since sending it there is pure uncached cost.
-  const needsFallback = (opts.lastResort ?? true) && picked.length === 0 && stableIds.length === 0 && (opts.request ?? "").trim().length > 0;
-  const shortlist = needsFallback ? usable(LAST_RESORT_IDS) : picked;
+  // knows nothing about excludeIds) does. A request that ends up with nothing
+  // usable gets the index and the need_template escalation, and nothing
+  // else — the last-resort pin that used to fire here was deleted 2026-09-23.
+  const shortlist = usable(picks);
   const variable = shortlist.length > 0 ? [VARIABLE_PREAMBLE, ...shortlist.map((id) => fullEntry(scenes[id].manifest))].join("\n\n") : "";
 
   return { stable: stableParts.join("\n\n"), variable };

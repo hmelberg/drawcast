@@ -445,7 +445,9 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // does it (gestures run under the voice, a draw waits), the curve variable
 // named as `x` with `t`/`q` as aliases, and the `show` description's default
 // for a script with controls. 209730 -> 210300.
-const BASELINE_SYSTEM_CHARS = 210300;
+// Re-pinned UP 2026-09-23 (knobs pane): the `pane` description and the code
+// prompt say the drawn controls sit under the output by default. 210300 -> 210330.
+const BASELINE_SYSTEM_CHARS = 210330;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -465,7 +467,8 @@ const BASELINE_SYSTEM_CHARS = 210300;
 // here, is 2,588.)
 // Re-pinned UP 2026-09-23: `show` says a script with controls defaults to
 // below (output on top, code under it). 79310 -> 79419.
-const BASELINE_SCHEMA_CHARS = 79419;
+// Re-pinned UP 2026-09-23 (knobs pane): `pane` says under the output by default. 79419 -> 79449.
+const BASELINE_SCHEMA_CHARS = 79449;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

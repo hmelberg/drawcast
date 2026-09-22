@@ -79,14 +79,15 @@ describe("the default catalog", () => {
     expect(variable).toContain("### Scene template: supply_demand (READY");
   });
 
-  // The measured hole the unpin opens: template descriptions are English, so
-  // a Norwegian request scores zero keyword overlap and selectTemplates
-  // returns []. With a router that is fine — it reads meaning. With no
-  // router and no keyword hit the model would face an index and nothing
-  // else, which is exactly the request the pin used to rescue.
-  test("a request no selector could shortlist still gets the fallback", () => {
+  // Template descriptions are English, so a Norwegian request scores zero
+  // keyword overlap and selectTemplates returns []. The router reads meaning
+  // and places it (97.8 % top-5 with the keyword picks, 2026-09-23); with no
+  // router the model gets the index and the need_template escalation. The
+  // last-resort pin that used to fire here was deleted 2026-09-23 (Hans): it
+  // handed ~27k uncached chars of health economics to ANY unplaceable request.
+  test("a request no selector could shortlist gets no fallback — index and escalation only", () => {
     const { variable } = catalogParts({ request: "Forklar tilbud og etterspørsel" });
-    expect(variable).toContain("### Scene template: supply_demand (READY");
+    expect(variable).toBe("");
   });
 
   test("a request the keyword selector CAN place gets no fallback padding", () => {

@@ -23,6 +23,17 @@ describe("interactive code — default layout", () => {
     expect(out!.y).toBeGreaterThan(line!.y); // y-up: the output sits above the code
   });
 
+  test("pane: controls and no show: the knobs are drawn UNDER the output, not beside it (Hans 2026-09-23)", () => {
+    const layout = layoutSpec(spec({ controls: ["n"], pane: "controls" }), heuristicMeasure);
+    const boxes = elementBBoxes(layout, heuristicMeasure);
+    const out = boxes.get("c1_out");
+    const knob = boxes.get("c1_ctl_n");
+    expect(out).toBeDefined();
+    expect(knob).toBeDefined();
+    expect(out!.y).toBeGreaterThan(knob!.y + knob!.h - 1); // the whole output above the knob row
+    expect(Math.abs(out!.x - knob!.x)).toBeLessThan(60); // stacked, not side by side
+  });
+
   test("no controls and no show: output alone, as before", () => {
     const layout = layoutSpec(spec({}), heuristicMeasure);
     expect(elementBBoxes(layout, heuristicMeasure).has("c1_line_1")).toBe(false);

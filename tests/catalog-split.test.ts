@@ -92,15 +92,17 @@ describe("catalogParts above the threshold", () => {
     expect(catalogText({ request })).toBe(joined);
   });
 
-  // Before the unpin (design §3.1) this returned an empty variable: the
-  // always-full core pin made the empty-shortlist case moot. Now a
-  // non-empty request neither selector could place is exactly the case
-  // LAST_RESORT_IDS exists for (src/scenes/catalog.ts) — an index and
-  // nothing else was the one prompt this catalog promised never to send.
-  test("no keyword match falls back to the last-resort ids instead of an empty variable", () => {
+  // The last-resort fallback (three health-economics templates for any
+  // request neither selector could place) was deleted 2026-09-23 (Hans): on
+  // a router outage it handed ~27k uncached chars of supply/demand to a
+  // biology question, and the need_template escalation already covers the
+  // index-only prompt. An unplaceable request now gets the index and the
+  // escalation protocol, nothing more.
+  test("no keyword match leaves variable empty — there is no fallback", () => {
     fillPastThreshold();
     const parts = catalogParts({ request: "zzz qqq" });
-    expect(parts.variable).toContain("### Scene template: supply_demand (READY");
+    expect(parts.variable).toBe("");
+    expect(parts.stable).toContain("need_template");
   });
 
   // MINOR 3 (final-review round, 2026-09-22): the guard used to test
@@ -111,22 +113,16 @@ describe("catalogParts above the threshold", () => {
   // readiness/exclusion filter on the next line still emptied it out —
   // exactly the index-and-nothing-else prompt LAST_RESORT_IDS exists to rule
   // out.
-  test("a shortlist whose every id is excluded still falls back to the last-resort ids", () => {
+  test("a shortlist whose every id is excluded leaves variable empty too", () => {
     fillPastThreshold();
     addFake("only_pick");
     const parts = catalogParts({ request: "zzz qqq", shortlist: ["only_pick"], excludeIds: ["only_pick"] });
-    expect(parts.variable).toContain("### Scene template: supply_demand (READY");
+    expect(parts.variable).toBe("");
   });
 
-  // IMPORTANT 2 (final-review round, 2026-09-22): revise.ts has no router
-  // shortlist of its own, so a template-less, Norwegian (keyword-selector-
-  // blind) revision used to meet every condition for this fallback — ~27k
-  // chars appended to `variable`, which revise.ts puts in its UNCACHED
-  // suffix. lastResort: false is how a caller with nothing for the fallback
-  // to rescue (the document is already in front of the model) opts out.
-  test("lastResort: false suppresses the fallback, leaving variable empty", () => {
+  test("a Norwegian request the English keyword selector cannot read gets no health-economics rescue", () => {
     fillPastThreshold();
-    const parts = catalogParts({ request: "Forklar tilbud og etterspørsel", lastResort: false });
+    const parts = catalogParts({ request: "Forklar tilbud og etterspørsel" });
     expect(parts.variable).toBe("");
   });
 });

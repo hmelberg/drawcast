@@ -7,6 +7,7 @@ import { MATH_DEFAULT_SIZE } from "../layout/math";
 import { isFitName } from "../layout/regions";
 import { AUTO_NAMESPACE, baseName, isReservedVar, VAR_RE } from "../spec/answers";
 import { EXPR_BASE_VARS } from "../spec/vars";
+import { effectiveShow } from "../spec/code-show";
 import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox, type BBox } from "../layout/geometry";
 import { drawablesForId, leafDrawables, type Drawable, type GroupDrawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
 import type { LeafDrawable } from "../layout/posed";
@@ -734,7 +735,7 @@ function lintCode(spec: Spec): LintIssue[] {
       issues.push({ rule: "code-use", ids: [id], message: `ask code: "${id}" is not a code element in this drawcast`, severity: "warn" });
       continue;
     }
-    const shown = target.show ?? "output";
+    const shown = effectiveShow(target);
     if (shown === "output" || shown === "none") {
       issues.push({
         rule: "code-use",
@@ -796,13 +797,13 @@ function lintCode(spec: Spec): LintIssue[] {
       });
     }
     // A hidden pane that feeds nothing: the control would change nothing visible.
-    if ((el.show ?? "output") === "none" && (fed[el.id] ?? []).length === 0) {
+    if (effectiveShow(el) === "none" && (fed[el.id] ?? []).length === 0) {
       issues.push({ rule: "controls", ids: [el.id], message: `code "${el.id}": its pane is hidden and no template param reads {${el.id}.…} — a control would change nothing visible`, severity: "warn" });
     }
   }
   for (const el of els) {
     if (el.pane === undefined) continue;
-    const shown = el.show ?? "output";
+    const shown = effectiveShow(el);
     if (shown === "output" || shown === "none") {
       issues.push({ rule: "pane", ids: [el.id], message: `code "${el.id}": pane has no effect with show: "${shown}" — the pane sits on a side (left/right/above/below/code)`, severity: "warn" });
     }
@@ -825,7 +826,7 @@ function lintCode(spec: Spec): LintIssue[] {
         severity: "warn",
       });
     }
-    const show = el.show ?? "output";
+    const show = effectiveShow(el);
     if ((show === "left" || show === "right") && (el.width ?? 880) < 560) {
       issues.push({
         rule: "code-use",

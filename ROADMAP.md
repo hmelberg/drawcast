@@ -290,7 +290,12 @@ the code/sound gate is prose-only — harmless, and now documented as such in
 - **Fewshots follow the code gate**: the three with code elements ride only
   code prompts.
 - **Interactive code** (a script with `controls`) defaults to `show:
-  "below"` — output on top, code under it (Hans).
+  "below"` — output on top, and the code or the drawn knobs (`pane:
+  "controls"`) under it, never beside it (Hans). The three bundled
+  knobs-pane exemplars dropped their `show: "left"` so they teach the same.
+- **`LAST_RESORT_IDS` deleted** (Hans): on a router outage it handed ~27k
+  uncached chars of health-economics templates to any unplaceable request;
+  the `need_template` escalation already covers the index-only prompt.
 
 ## Motion and primitives — done 2026-09-08
 

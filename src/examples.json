@@ -24629,8 +24629,6 @@
           "id": "herd",
           "type": "code",
           "language": "python",
-          "show": "left",
-          "width": 900,
           "pane": "controls",
           "controls": [
             "r0",
@@ -24698,8 +24696,6 @@
           "id": "ppv",
           "type": "code",
           "language": "python",
-          "show": "left",
-          "width": 900,
           "pane": "controls",
           "controls": [
             "forekomst",
@@ -24766,8 +24762,6 @@
           "id": "pow",
           "type": "code",
           "language": "r",
-          "show": "left",
-          "width": 900,
           "pane": "controls",
           "controls": [
             "n",
@@ -25543,8 +25537,13 @@
         "equilibrium": {
           "show": true
         },
-        "tax": { "amount": 18 },
-        "regions": ["government_revenue", "deadweight_loss"]
+        "tax": {
+          "amount": 18
+        },
+        "regions": [
+          "government_revenue",
+          "deadweight_loss"
+        ]
       },
       "commands": [
         {

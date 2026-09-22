@@ -170,16 +170,10 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
   // Exemplars are deliberately empty: pickExemplars teaches request -> spec
   // authoring, and a revision already has a spec in front of it.
   const priorityIds = [...new Set([...(cfg.priorityIds ?? []), ...templatesIn(parsedNow.playlist)])];
-  // Final-review round (2026-09-22), IMPORTANT 2: revise has no router of its
-  // own, so catalogParts here NEVER gets a shortlist — a template-less
-  // document with no priority packs set (the default) meets every condition
-  // for the last-resort fallback (LAST_RESORT_IDS), and that fallback rides
-  // in the UNCACHED suffix below. Suppressed: a revision has the whole
-  // document already in front of the model, and the revise card tells it to
-  // keep every template as-is, so there is nothing here for the fallback to
-  // rescue — only ~27k chars paid at full price instead of the cached
-  // prefix's ~0.1×, on exactly the path this round was meant to lighten.
-  const catalog = catalogParts({ request: instruction, priorityIds, lastResort: false });
+  // revise has no router of its own, so this shortlist is keyword-only; a
+  // template-less document usually gets an empty variable half, which is
+  // right — the whole document is already in front of the model.
+  const catalog = catalogParts({ request: instruction, priorityIds });
   // The code block is conditional now (Task 10), and a revision needs it
   // whenever the DOCUMENT already has a code element — the instruction
   // ("make it 1000 draws") rarely says so itself. Same arrangement for the
