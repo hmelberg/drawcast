@@ -18,6 +18,9 @@ vi.mock("../src/llm/client", async () => {
 import { reviseDocument } from "../src/llm/revise";
 import { promptVariants } from "../src/llm/compile";
 import { registerTemplateDoc, scenes } from "../src/scenes/registry";
+import { formatPlaylist, singlePlaylist } from "../src/playlist/playlist";
+import { TEMPLATE_FULL_THRESHOLD } from "../src/scenes/catalog";
+import type { Command, Spec, SpecElement } from "../src/spec/types";
 
 const GOOD = `title: A line
 domain: { x: [0, 100], y: [0, 100] }
@@ -28,6 +31,28 @@ commands:
   - { draw: [ax, c1] }
 `;
 const BROKEN = "title: Broken\nelements: not-an-array\ncommands: []\n";
+
+// IMPORTANT 1 fixtures (final-review round, 2026-09-22): GOOD above is the
+// YAML escape-hatch form (a ```yaml fence merged into the page) — exactly
+// what the old regexes matched. A real revision's docText is SCRIPT
+// notation (main.ts's specArea.value = formatPlaylist(playlist, "script")),
+// so these are built through the real printer rather than typed by hand,
+// to be exactly what a revision actually receives.
+const SCRIPT_ELEMENTS: SpecElement[] = [
+  { id: "ax", type: "axes", x_label: "x", y_label: "y" },
+  { id: "c1", type: "curve", expr: "50" },
+];
+const SCRIPT_COMMANDS: Command[] = [{ draw: ["ax", "c1"] }];
+const SCRIPT_SPEC_BASE: Spec = { title: "A line", domain: { x: [0, 100], y: [0, 100] }, elements: SCRIPT_ELEMENTS, commands: SCRIPT_COMMANDS };
+const SCRIPT_PLAIN = formatPlaylist(singlePlaylist(SCRIPT_SPEC_BASE), "script");
+const SCRIPT_WITH_CODE = formatPlaylist(
+  singlePlaylist({ ...SCRIPT_SPEC_BASE, elements: [...SCRIPT_ELEMENTS, { id: "sim", type: "code", language: "python", code: "print(1)" }] }),
+  "script",
+);
+const SCRIPT_WITH_SOUND = formatPlaylist(
+  singlePlaylist({ ...SCRIPT_SPEC_BASE, commands: [...SCRIPT_COMMANDS, { play: "C4:q" }] }),
+  "script",
+);
 
 const cfg = () => ({ apiKey: "k", model: "claude-opus-5", variant: promptVariants()[0] });
 
@@ -76,6 +101,41 @@ describe("reviseDocument", () => {
     expect(systemText(0)).not.toContain('"instrument"');
     const withSound = GOOD.replace("  - { draw: [ax, c1] }", "  - { draw: [ax, c1] }\n  - { play: \"C4:q\" }");
     await reviseDocument(withSound, "make it louder", cfg());
+    expect(systemText(1)).toContain("**play** sounds synthesized notes");
+    expect(systemText(1)).toContain('"instrument"');
+  });
+
+  // IMPORTANT 1 (final-review round, 2026-09-22): the two tests above use the
+  // YAML escape-hatch form, which is the ONLY form the old regexes
+  // (`/\btype:\s*['"]?code\b/`, `/\bplay:/`) ever matched — dead on the
+  // SCRIPT notation a real revision actually sends (main.ts:838/:2905 set
+  // specArea.value = formatPlaylist(playlist, "script")). These two use the
+  // real printer's output instead, so they fail against the old textual
+  // regexes and pass only once wantCode/wantSound read the parsed spec.
+  test("the conditional code block rides along for a SCRIPT-notation document too — the old regex never matched a real one", async () => {
+    // Evidence: a real code fence never contains the literal substring the
+    // old regex looked for. Against the pre-fix regex this line alone shows
+    // the fixture can never trip it; the assertions below show the fix reads
+    // the parsed spec instead and gets the right answer anyway.
+    expect(SCRIPT_WITH_CODE).not.toMatch(/\btype:\s*['"]?code\b/);
+    replies = [SCRIPT_PLAIN, SCRIPT_PLAIN];
+    await reviseDocument(SCRIPT_PLAIN, "make the curve steeper", cfg());
+    expect(systemText(0)).not.toContain("**code** runs a real script");
+    expect(systemText(0)).not.toContain('"code_result"');
+    await reviseDocument(SCRIPT_WITH_CODE, "make it print two", cfg());
+    expect(systemText(1)).toContain("**code** runs a real script");
+    expect(systemText(1)).toContain('"code_result"');
+  });
+
+  test("the conditional sound block rides along for a SCRIPT-notation document too — the old regex never matched a real one", async () => {
+    // Evidence: a play command prints as a direction line, `play "C4:q"` —
+    // no colon after `play`, so the old regex can never see it either.
+    expect(SCRIPT_WITH_SOUND).not.toMatch(/\bplay:/);
+    replies = [SCRIPT_PLAIN, SCRIPT_PLAIN];
+    await reviseDocument(SCRIPT_PLAIN, "make the curve steeper", cfg());
+    expect(systemText(0)).not.toContain("**play** sounds synthesized notes");
+    expect(systemText(0)).not.toContain('"instrument"');
+    await reviseDocument(SCRIPT_WITH_SOUND, "make it louder", cfg());
     expect(systemText(1)).toContain("**play** sounds synthesized notes");
     expect(systemText(1)).toContain('"instrument"');
   });
@@ -414,5 +474,53 @@ The slope is what matters.
     expect(out.error).toBeUndefined();
     expect(shape(out)).toEqual(["item:The curve"]);
     expect(out.playlist!.meta.prompt).toBe("explain marginal cost #parts=2");
+  });
+});
+
+// IMPORTANT 2 (final-review round, 2026-09-22): reviseDocument calls
+// catalogParts with no router shortlist of its own — revise has no router.
+// A template-less document (no priorityIds either, the default) then meets
+// every condition for the catalog's last-resort fallback whenever the
+// instruction is not in English (the keyword selector is English-only, so it
+// scores zero and returns []): ~27k chars of supply_demand + qaly_profiles +
+// decision_tree get appended to catalog.variable, which revise puts in the
+// UNCACHED suffix (revise.ts) — paid in full on every such revision, instead
+// of riding the ~0.1×-cost cached prefix the way a fixed hot set would. Only
+// reachable once the bundled library is past TEMPLATE_FULL_THRESHOLD (below
+// it, catalogParts never runs the two-level branch at all), so this
+// registers throwaway templates to get there, same as tests/catalog-split.test.ts.
+describe("reviseDocument never pulls in the catalog's last-resort fallback (design finding IMPORTANT 2, 2026-09-22)", () => {
+  const added: string[] = [];
+  function addFake(id: string): void {
+    registerTemplateDoc({
+      template: id,
+      version: 1,
+      kit: 1,
+      status: "ready",
+      description: `Fake ${id} figure for the revise lastResort test. Second sentence.`,
+      params: {},
+      element_ids: {},
+      examples: [{ request: `Draw the ${id} thing.`, params: {} }],
+      layout: `return { drawables: [], labels: [], anchors: {}, order: [] };`,
+    });
+    added.push(id);
+  }
+  function fillPastThreshold(): void {
+    const ready = () => Object.values(scenes).filter((s) => s.manifest.status === "ready").length;
+    for (let i = 0; ready() <= TEMPLATE_FULL_THRESHOLD; i++) addFake(`revise_lastresort_fake_${i}`);
+  }
+  afterEach(() => {
+    for (const id of added.splice(0)) delete scenes[id];
+  });
+
+  test("a Norwegian instruction revising a template-less document leaves the catalog's variable half empty", async () => {
+    fillPastThreshold();
+    replies = [GOOD];
+    await reviseDocument(GOOD, "Forklar tilbud og etterspørsel", cfg());
+    // Evidence: the keyword selector really cannot place this request (it is
+    // English-only), so before the fix every one of these appears in full.
+    expect(systemText(0)).not.toContain("### Scene template: supply_demand (READY");
+    expect(systemText(0)).not.toContain("### Scene template: qaly_profiles (READY");
+    expect(systemText(0)).not.toContain("### Scene template: decision_tree (READY");
   });
 });

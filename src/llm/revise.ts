@@ -170,7 +170,16 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
   // Exemplars are deliberately empty: pickExemplars teaches request -> spec
   // authoring, and a revision already has a spec in front of it.
   const priorityIds = [...new Set([...(cfg.priorityIds ?? []), ...templatesIn(parsedNow.playlist)])];
-  const catalog = catalogParts({ request: instruction, priorityIds });
+  // Final-review round (2026-09-22), IMPORTANT 2: revise has no router of its
+  // own, so catalogParts here NEVER gets a shortlist — a template-less
+  // document with no priority packs set (the default) meets every condition
+  // for the last-resort fallback (LAST_RESORT_IDS), and that fallback rides
+  // in the UNCACHED suffix below. Suppressed: a revision has the whole
+  // document already in front of the model, and the revise card tells it to
+  // keep every template as-is, so there is nothing here for the fallback to
+  // rescue — only ~27k chars paid at full price instead of the cached
+  // prefix's ~0.1×, on exactly the path this round was meant to lighten.
+  const catalog = catalogParts({ request: instruction, priorityIds, lastResort: false });
   // The code block is conditional now (Task 10), and a revision needs it
   // whenever the DOCUMENT already has a code element — the instruction
   // ("make it 1000 draws") rarely says so itself. Same arrangement for the
@@ -180,8 +189,19 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
   // wrong would validate a code- or sound-carrying document's revision
   // against a schema with no `code` element or `play` verb in it, a silent
   // corruption of someone's existing work.
-  const wantCode = wantsCode(instruction) || /\btype:\s*['"]?code\b/.test(docText);
-  const wantSound = wantsSound(instruction) || /\bplay:/.test(docText);
+  //
+  // Structural, not textual (final-review round, 2026-09-22, IMPORTANT 1):
+  // docText is the SCRIPT notation (main.ts's specArea.value), where a code
+  // element prints as a fence — print.ts puts "type" in its skip set, so the
+  // literal text `type: code` never appears — and a `play` command prints as
+  // a direction line, `play "C4:q"`, no colon after `play`. The old regexes
+  // matched only the YAML escape-hatch form (a ```yaml fence merged into the
+  // page), so they were dead on every ordinary script-notation document;
+  // reading the PARSED spec instead asks the same question the schema gate
+  // below answers, on the shape that is actually there.
+  const specs = itemsOf(parsedNow.playlist).map((i) => i.spec);
+  const wantCode = wantsCode(instruction) || specs.some((s) => (s.elements ?? []).some((e) => e.type === "code"));
+  const wantSound = wantsSound(instruction) || specs.some((s) => (s.commands ?? []).some((c) => c.play !== undefined));
   const blocks = buildSystemBlocks(cfg.variant.source, {
     schema: apiSchema({ code: wantCode, sound: wantSound }),
     catalog: catalog.stable,

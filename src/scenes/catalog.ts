@@ -77,6 +77,17 @@ export interface CatalogOpts {
    * an index-only prompt.
    */
   shortlist?: string[];
+  /**
+   * Whether the last-resort fallback (LAST_RESORT_IDS) may fire when neither
+   * selector placed anything usable. Default true: Generate has no shortlist
+   * of its own for a request the router missed, and genuinely needs the
+   * rescue. false for revise.ts (design finding IMPORTANT 2, 2026-09-22): a
+   * revision has the whole document already in front of the model and the
+   * revise card tells it to keep every template as-is, so there is nothing
+   * for this fallback to rescue there — only ~27k chars it would otherwise
+   * add to the UNCACHED suffix on every template-less, non-English revision.
+   */
+  lastResort?: boolean;
 }
 
 function fullEntry(manifest: SceneManifest): string {
@@ -326,16 +337,29 @@ export function catalogParts(opts: CatalogOpts = {}): { stable: string; variable
   const routed = opts.shortlist && opts.shortlist.length > 0 ? dedupe(opts.shortlist).slice(0, HOT_SHORTLIST) : [];
   const keyword = selectTemplates(opts.request ?? "", routed.length > 0 ? HOT_SHORTLIST : 3);
   const picks = routed.length > 0 ? dedupe([...routed, ...keyword]).slice(0, HOT_SHORTLIST) : keyword;
-  // Neither selector placed this request (a router outage on a request whose
-  // language the English keyword selector cannot read). An index and nothing
-  // else is the one prompt this catalog promised never to send — see
+  const usable = (ids: string[]): string[] => ids.filter((id) => scenes[id]?.manifest.status === "ready" && !stableIds.includes(id) && !excluded.has(id));
+  // MINOR 3 fix (final-review round, 2026-09-22): the readiness/exclusion
+  // filter has to run BEFORE the fallback decides, not after — neither
+  // `routed` (a router's raw picks) nor `keyword` (selectTemplates, which
+  // knows nothing about excludeIds) checks it. A shortlist whose every id
+  // turned out excluded or unready used to leave `picks` non-empty, so the
+  // old guard (`picks.length === 0`) never fired, and `shortlist` came out
+  // empty anyway — an index and nothing else, the one prompt this catalog
+  // promised never to send.
+  const picked = usable(picks);
+  // Neither selector placed anything USABLE for this request (a router
+  // outage on a request whose language the English keyword selector cannot
+  // read, or a shortlist that was entirely excluded/unready). An index and
+  // nothing else is the one prompt this catalog promised never to send — see
   // LAST_RESORT_IDS.
   // Guarded on a non-empty request: catalogParts({}) is a degenerate call
   // with no request to serve (tests/catalog_exclude.test.ts makes it), and
   // firing the fallback there would add ~27,000 chars nobody asked for.
-  const needsFallback = picks.length === 0 && stableIds.length === 0 && (opts.request ?? "").trim().length > 0;
-  const placed = needsFallback ? LAST_RESORT_IDS : picks;
-  const shortlist = placed.filter((id) => scenes[id]?.manifest.status === "ready" && !stableIds.includes(id) && !excluded.has(id));
+  // Also guarded on opts.lastResort (default true, see CatalogOpts) — a
+  // caller with nothing for this fallback to rescue (revise.ts) can suppress
+  // it outright, since sending it there is pure uncached cost.
+  const needsFallback = (opts.lastResort ?? true) && picked.length === 0 && stableIds.length === 0 && (opts.request ?? "").trim().length > 0;
+  const shortlist = needsFallback ? usable(LAST_RESORT_IDS) : picked;
   const variable = shortlist.length > 0 ? [VARIABLE_PREAMBLE, ...shortlist.map((id) => fullEntry(scenes[id].manifest))].join("\n\n") : "";
 
   return { stable: stableParts.join("\n\n"), variable };
