@@ -256,8 +256,12 @@ part *i*; the assembly loop is the only honest seam. The fewshots (22.6k, ×2.9
 since 1 Sep) need a live eval, not a reading. The `run` verb and the `params`
 data-token prose still ride a code-less schema (~1.5k).
 
-**Open:** `npm run selector:eval -- --router --gate 0.95` has not been run;
-it gates the `CORE_IDS` unpin and nothing else on the branch.
+**Gate run 2026-09-23** — `npm run selector:eval -- --router --gate 0.95`
+passed: 88 ready templates, 366 cases; keyword alone recall@5 91.3 %, router
+alone 93.7 %, router ∪ keyword (the shipped shortlist) **97.8 %** (358/366).
+None of the eight misses is `supply_demand`, `decision_tree` or
+`qaly_profiles`, so the `CORE_IDS` unpin stands. Cost of the run: 372 Haiku
+calls, 7.9k uncached input + 19.3k output tokens (the index is cached).
 
 ### Review fixes — 2026-09-23
 
