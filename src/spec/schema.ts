@@ -379,7 +379,7 @@ const elementSchema = {
       type: "string",
       enum: ["output", "left", "right", "above", "below", "code", "none"],
       description:
-        "code: where the CODE sits relative to its output — output (just the result; the default), left / right (code pane on that side, 55 % of the width; give the element width ≥ 700), above / below (code pane stacked over or under the output at full width — pair with lines on a long script), code (the script alone), none (draws NOTHING — the script only feeds template params through \"{id.var}\" tokens).",
+        "code: where the CODE sits relative to its output — output (just the result; the default for a script without controls), left / right (code pane on that side, 55 % of the width; give the element width ≥ 700), above / below (code pane stacked over or under the output at full width — pair with lines on a long script; below is the default for a script WITH controls: output on top, code under it), code (the script alone), none (draws NOTHING — the script only feeds template params through \"{id.var}\" tokens).",
     },
     lines: {
       type: "number",

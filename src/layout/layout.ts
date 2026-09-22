@@ -24,6 +24,7 @@ import { drawablesForId, leafDrawables, type Drawable, type Pt } from "./model";
 import { linearScale, plotArea } from "./canvas";
 import { figureSplit } from "./figure-split";
 import { fitSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
+import type { SceneLayout } from "../scenes/types";
 import { FIT_NAMES, isFitName } from "./regions";
 import { expandBoxAnimate, readParam, withOverrides } from "../render/params";
 
@@ -168,6 +169,20 @@ export function layoutSpec(
           });
         }
         templateIds = sceneLayout.order;
+        // A `draw` of an id the template's catalog entry DECLARES but this
+        // layout did not PRODUCE — `dwl_region` on a page whose `regions`
+        // lacks "deadweight_loss" — used to be a plan warning ("unknown id —
+        // dropped") that never reached the repair loop, so the beat shipped
+        // drawing nothing (the Haiku specimen, 2026-09-22). An error here,
+        // carrying the entry's own doc string: that is where a manifest names
+        // the param that switches the id on. Only ids the template declares:
+        // an id it never heard of is the planner's unknown-id warning.
+        // A draw-beat lint: it asks whether the id existed when its draw beat
+        // ran, so a relayout at a later animate stage (the examples bench,
+        // the draw-beat layout below) passes skipDrawBeatLint and skips it —
+        // a label that legitimately vanishes as the triangle shrinks is not
+        // a beat that drew nothing.
+        if (!opts.skipDrawBeatLint) issues.push(...templateIdsOff(spec, scene.manifest.element_ids ?? {}, sceneLayout));
         // The template's own group names (scenes/types.ts): a channel to the
         // planner's parent-id expansion, which until now only freehand specs
         // could reach. Set before tier-2 runs, and tier-2's own groups are
@@ -377,6 +392,33 @@ export function nativeBox(template: string | undefined): boolean {
  * commands without ever finding `elementId` means it was drawn last, after
  * every animate: fold to the end just as if a final beat had drawn it.
  */
+function templateIdsOff(spec: Spec, declared: Record<string, string>, laid: SceneLayout): LintIssue[] {
+  const docOf = new Map<string, string>();
+  for (const [key, doc] of Object.entries(declared)) for (const id of key.split("/")) docOf.set(id.trim(), doc);
+  const produced = new Set<string>([
+    ...leafDrawables(laid.drawables).map((d) => d.id),
+    ...laid.drawables.map((d) => d.id),
+    ...laid.labels.map((l) => l.id),
+    ...Object.keys(laid.groups ?? {}),
+    ...(spec.elements ?? []).map((e) => e.id),
+  ]);
+  const seen = new Set<string>();
+  const issues: LintIssue[] = [];
+  for (const cmd of spec.commands ?? []) {
+    for (const id of ([] as string[]).concat(cmd.draw ?? [])) {
+      if (seen.has(id) || produced.has(id) || !docOf.has(id)) continue;
+      seen.add(id);
+      issues.push({
+        rule: "template-id-off",
+        ids: [], // a template's id is not a spec element (template-params does the same)
+        severity: "error",
+        message: `draw "${id}": template ${spec.template} did not draw it with these params — its catalog entry says: ${docOf.get(id)}`,
+      });
+    }
+  }
+  return issues;
+}
+
 export function paramsAtFirstDraw(spec: Spec, elementId: string): Record<string, unknown> | null {
   let params = spec.params ?? {};
   let animated = false;

@@ -23,7 +23,7 @@ class RecordingSpeech extends SpeechManager {
 }
 
 function makePlayer(commands: Command[], speech: RecordingSpeech) {
-  return new Player(planCommands(commands, []), new Map(), speech, null, { mode: "narrated" });
+  return new Player(planCommands(commands, []), new Map(), speech, null, { mode: "narrated", breath: false });
 }
 
 const TWO_QUESTIONS: Command[] = [

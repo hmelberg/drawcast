@@ -53,7 +53,7 @@ function narratedGlow(rec: ReturnType<typeof recorder>, speech: StubSpeech) {
   const plan = planCommands([{ draw: ["t"] }, { highlight: { target: ["t"], effect: "glow" }, speak: "about this curve" }] as Command[], ["t"], {
     bboxOf: () => ({ x: 0, y: 0, w: 10, h: 10 }),
   });
-  return new Player(plan, new Map(), speech, null, { mode: "narrated", effects: rec.effects as never });
+  return new Player(plan, new Map(), speech, null, { mode: "narrated", breath: false, effects: rec.effects as never });
 }
 
 describe("a narrated highlight throbs three times, then holds", () => {

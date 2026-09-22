@@ -29,7 +29,7 @@ class RecordingSpeech extends SpeechManager {
 }
 
 function makePlayer(commands: Command[], speech: RecordingSpeech, opts: { vars?: Map<string, string>; questionOffset?: number } = {}) {
-  return new Player(planCommands(commands, []), new Map(), speech, null, { mode: "narrated", ...opts });
+  return new Player(planCommands(commands, []), new Map(), speech, null, { mode: "narrated", breath: false, ...opts });
 }
 
 describe("the _answers namespace in the player", () => {
@@ -189,7 +189,7 @@ describe("the local record", () => {
       new Map(),
       new RecordingSpeech(),
       null,
-      { mode: "narrated" },
+      { mode: "narrated", breath: false },
       { onAnswer: (e) => events.push(e) },
     );
     player.quizGate = async () => 0;

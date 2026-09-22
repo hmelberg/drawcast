@@ -23,7 +23,7 @@ function makePlayer(commands: Command[], speech: SpeechManager): Player {
   // No elements: draw steps carry no animation, so completion order reflects
   // pure sequencing — exactly what these tests are about.
   const plan = planCommands(commands, []);
-  return new Player(plan, new Map(), speech, null, { mode: "narrated" });
+  return new Player(plan, new Map(), speech, null, { mode: "narrated", breath: false });
 }
 
 describe("narration barrier — visuals never race ahead of the voice", () => {

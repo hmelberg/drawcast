@@ -220,7 +220,7 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
   const blocks = buildSystemBlocks(cfg.variant.source, {
     schema: apiSchema({ code: wantCode, sound: wantSound }),
     catalog: catalog.stable,
-    fewshots: fewshotsText(),
+    fewshots: fewshotsText({ code: wantCode }),
     exemplars: "",
     code: wantCode ? CODE_PROMPT_SOURCE : "",
     sound: wantSound ? SOUND_PROMPT_SOURCE : "",

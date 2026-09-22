@@ -259,6 +259,35 @@ data-token prose still ride a code-less schema (~1.5k).
 **Open:** `npm run selector:eval -- --router --gate 0.95` has not been run;
 it gates the `CORE_IDS` unpin and nothing else on the branch.
 
+### Review fixes — 2026-09-23
+
+A second-model review of the round found the design's structured-output
+premise wrong (the spec schema never passes `structuredOutputSupported`, so
+the code/sound gate is prose-only — harmless, and now documented as such in
+`compile.ts` and the design spec §3.3) and landed eight fixes:
+
+- **Breathing** (`src/render/breath.ts`): the player now waits after every
+  spoken beat — 0.35 s plain, 0.8 s after a question mark, 1 s at the end of
+  a section (last beat of a page, or before quiz/ask/wait/explore/clear);
+  an author's own `pause` replaces it. Hans: casts sounded like one endless
+  sentence; the measured specimens paused 5–6 times in 40–50 beats. The
+  storyboard prompt learns that a rhetorical question is a line of its own.
+- **`#parts=N` in the schema**: `outlineSchemaFor` / `storyboardSchemaFor`
+  write `minItems`/`maxItems` into the one call whose schema IS the
+  constraint; `normalizeOutline`'s clip stays as the plain-JSON backstop.
+- **`blocking: false`** retaught as the player does it: gestures, pause,
+  flow and animate run under the voice; a draw/show/erase still waits.
+- **`curve-var-shadow`** is an error (a warning never triggered a repair),
+  and the prompt names `x` as the curve variable with `t`/`q` as aliases.
+- **`template-id-off`** (`layout.ts`): a `draw` of an id the template
+  declares in `element_ids` but did not produce under these params is an
+  error carrying the entry's doc string — every regions-gated id in every
+  template, not just supply_demand's manifest wording.
+- **Fewshots follow the code gate**: the three with code elements ride only
+  code prompts.
+- **Interactive code** (a script with `controls`) defaults to `show:
+  "below"` — output on top, code under it (Hans).
+
 ## Motion and primitives — done 2026-09-08
 
 The πr² drawcast ("Hvorfor er arealet av en sirkel πr²?") exposed a gap: the

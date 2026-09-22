@@ -441,7 +441,11 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // said "a tax only" and never mentioned `regions`. All five now name the
 // value that creates them. 209328 -> 209730, +402 for a miss that was silent
 // at every stage: it validated, it laid out, it rendered an empty beat.
-const BASELINE_SYSTEM_CHARS = 209730;
+// Re-pinned UP 2026-09-23 (review): `blocking: false` retaught as the player
+// does it (gestures run under the voice, a draw waits), the curve variable
+// named as `x` with `t`/`q` as aliases, and the `show` description's default
+// for a script with controls. 209730 -> 210300.
+const BASELINE_SYSTEM_CHARS = 210300;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -459,7 +463,9 @@ const BASELINE_SYSTEM_CHARS = 209730;
 // turned out to count the per-site descriptions too, which Strategy A
 // deliberately keeps at every site; the structural saving alone, measured
 // here, is 2,588.)
-const BASELINE_SCHEMA_CHARS = 79310;
+// Re-pinned UP 2026-09-23: `show` says a script with controls defaults to
+// below (output on top, code under it). 79310 -> 79419.
+const BASELINE_SCHEMA_CHARS = 79419;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

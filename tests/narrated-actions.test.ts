@@ -82,7 +82,7 @@ describe("Player — narrated actions join voice and animation", () => {
   test("a narrated draw step completes only when the voice finishes", async () => {
     const plan = planCommands([{ draw: ["x"], speak: "while drawing" }] as Command[], []);
     const speech = new StubSpeech();
-    const player = new Player(plan, new Map(), speech, null, { mode: "narrated" });
+    const player = new Player(plan, new Map(), speech, null, { mode: "narrated", breath: false });
     const done = player.play();
     await tick();
     // The (empty) animation finished instantly; the step must still be open.

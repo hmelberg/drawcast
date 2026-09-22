@@ -4,8 +4,8 @@
 
 import type Anthropic from "@anthropic-ai/sdk";
 import { makeClient, callForJson, callForText, describeApiError, isOutputLimitError, planningModelFor, repairModelFor, type Effort, type JsonCallMeta } from "./client";
-import { buildOutlineMessages, normalizeOutline, OUTLINE_SCHEMA, type Outline } from "./outline";
-import { buildStoryboardMessages, STORYBOARD_SCHEMA, type Approach } from "./storyboard";
+import { buildOutlineMessages, normalizeOutline, outlineSchemaFor, type Outline } from "./outline";
+import { buildStoryboardMessages, storyboardSchemaFor, type Approach } from "./storyboard";
 import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, styleBlock, systemBlocks, wantsCode, wantsSound, OPTIONAL_PROMPT_PLACEHOLDERS, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
 import { pickExemplars } from "./exemplars";
 import { catalogIsTwoLevel, catalogParts, detectNeedTemplate } from "../scenes/catalog";
@@ -87,8 +87,17 @@ export function promptVariants(): PromptVariant[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function fewshotsText(): string {
+/**
+ * The bundled fewshots as prompt text. `code: false` drops the ones that
+ * carry a code element (review 2026-09-23): they follow the same boolean
+ * that gates the code block and the code half of the schema, or a code-less
+ * request is shown a worked code example beside a schema with no code
+ * element in it. Omitted means all of them.
+ */
+export function fewshotsText(opts: { code?: boolean } = {}): string {
+  const hasCode = (spec: unknown): boolean => ((spec as { elements?: { type?: string }[] }).elements ?? []).some((e) => e.type === "code");
   return (fewshots as { request: string; spec: unknown }[])
+    .filter((ex) => opts.code !== false || !hasCode(ex.spec))
     .map((ex, i) => `### Example ${i + 1}\nRequest: ${ex.request}\nSpec:\n\`\`\`json\n${JSON.stringify(ex.spec, null, 1)}\n\`\`\``)
     .join("\n\n");
 }
@@ -104,11 +113,16 @@ export function fewshotsText(): string {
  * these two — gating the schema too adds no fifth cache entry.
  *
  * generateSpec and reviseDocument each hoist ONE pair of these booleans and
- * pass the resulting schema to every call site that needs it, rather than
- * calling this again per site — a model shown one contract in the prompt and
- * held to a different one in the structured-output constraint is the
- * failure this design exists to close, and hoisting makes disagreement
- * impossible rather than merely unlikely.
+ * pass the resulting schema to every call site that needs it, so the prompt's
+ * {{SCHEMA}} and the copy handed to callForJson can never disagree.
+ *
+ * Note what that copy is NOT (review 2026-09-23): this schema never reaches
+ * the API as a structured-output constraint — client.ts
+ * structuredOutputSupported rejects it (open `params`, open `animate`), so
+ * every spec call runs as plain JSON. The gate is therefore prose-only: it
+ * changes what the model READS, and Ajv still validates the reply against
+ * the full specSchema, so a request the gate misjudged is not rejected for
+ * writing a code element anyway.
  */
 export function apiSchema(opts: { code?: boolean; sound?: boolean } = {}): object {
   const copy = JSON.parse(JSON.stringify(specSchema)) as Record<string, unknown>;
@@ -453,7 +467,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   let blocks = buildSystemBlocks(cfg.variant.source, {
     schema,
     catalog: catalog.stable,
-    fewshots: fewshotsText(),
+    fewshots: fewshotsText({ code: wantCode }),
     exemplars: formatExemplars(pickExemplars(request, cfg.exemplars, cfg.bundledExemplars ?? [], 3)),
     code,
     sound,
@@ -549,7 +563,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
         blocks = buildSystemBlocks(cfg.variant.source, {
           schema,
           catalog: catalog.stable,
-          fewshots: fewshotsText(),
+          fewshots: fewshotsText({ code: wantCode }),
           exemplars: formatExemplars(pickExemplars(request, cfg.exemplars, cfg.bundledExemplars ?? [], 3)),
           code,
           sound,
@@ -785,7 +799,7 @@ export async function generateOutline(
   // the API default the model thought for thousands of tokens over a reply
   // of a hundred (cost round 2026-09-18). The parts themselves keep the
   // author's effort dial; this is the plan, not the teaching.
-  const { json } = await callForJson(client, planningModelFor(cfg.model), system, [{ role: "user", content: user }], OUTLINE_SCHEMA as unknown as object, { signal, effort: "low" });
+  const { json } = await callForJson(client, planningModelFor(cfg.model), system, [{ role: "user", content: user }], outlineSchemaFor(parts), { signal, effort: "low" });
   return normalizeOutline(json, chapters, parts);
 }
 
@@ -804,7 +818,7 @@ export async function generateStoryboard(
 ): Promise<Outline | null> {
   const client = makeClient(cfg.apiKey);
   const { system, user } = buildStoryboardMessages(request, parts, { ...opts, styleText: cfg.styleText });
-  const { json } = await callForJson(client, planningModelFor(cfg.model), system, [{ role: "user", content: user }], STORYBOARD_SCHEMA as unknown as object, {
+  const { json } = await callForJson(client, planningModelFor(cfg.model), system, [{ role: "user", content: user }], storyboardSchemaFor(parts), {
     signal,
     ...(cfg.effort ? { effort: cfg.effort } : {}),
   });

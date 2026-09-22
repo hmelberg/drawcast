@@ -21,7 +21,7 @@ class RecordingSpeech extends SpeechManager {
 }
 
 function makePlayer(commands: Command[], speech: RecordingSpeech, questions?: "on" | "skip") {
-  return new Player(planCommands(commands, []), new Map(), speech, null, { mode: "narrated", questions });
+  return new Player(planCommands(commands, []), new Map(), speech, null, { mode: "narrated", breath: false, questions });
 }
 
 describe("skip questions", () => {
@@ -178,7 +178,7 @@ describe("the click ask glows the answer element", () => {
       ["liver", "stomach"],
       { bboxOf: (id) => (id === "liver" ? LIVER_BOX : null) },
     );
-    return new Player(plan, new Map(), speech, null, { mode: "narrated", effects: effects as never });
+    return new Player(plan, new Map(), speech, null, { mode: "narrated", breath: false, effects: effects as never });
   };
 
   test("a right click: the liver glows green while the right line is spoken", async () => {
@@ -230,7 +230,7 @@ describe("the click ask glows the answer element", () => {
     const speech = new RecordingSpeech();
     const { effects, calls } = fakeEffects();
     const plan = planCommands([{ ask: { question: "Gold?", answer: "Au", right: "Gold is Au." } }], [], { bboxOf: () => LIVER_BOX });
-    const player = new Player(plan, new Map(), speech, null, { mode: "narrated", effects: effects as never });
+    const player = new Player(plan, new Map(), speech, null, { mode: "narrated", breath: false, effects: effects as never });
     player.askGate = async () => "Ag";
     await player.play();
     expect(speech.spoken).toEqual(["Gold?", "Gold is Au."]);
@@ -255,7 +255,7 @@ describe("the drag ask shows the truth in two colours", () => {
     const finished: string[] = [];
     const el = (id: string) => ({ id, finish: () => finished.push(id), hide: () => undefined, setProgress: () => undefined, durationMs: 100 }) as never;
     const elements = new Map(["body", "heart", "liver"].map((id) => [id, el(id)]));
-    return { player: new Player(plan, elements, speech, null, { mode: "narrated", effects: effects as never }), finished };
+    return { player: new Player(plan, elements, speech, null, { mode: "narrated", breath: false, effects: effects as never }), finished };
   };
 
   test("all placed: both glow green while right is spoken; the elements are shown", async () => {

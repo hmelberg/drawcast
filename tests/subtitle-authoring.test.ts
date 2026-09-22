@@ -152,6 +152,7 @@ describe("what the player actually shows is what we offer to translate", () => {
     const seen: string[] = [];
     const player = new Player(planCommands(commands, []), new Map(), new MuteSpeech(), recordingCaption(seen), {
       mode: "narrated",
+      breath: false,
     });
     player.quizGate = async (_s, step) => (answer === "right" ? step.correct : (step.correct + 1) % step.choices.length);
     player.askGate = async (_s, step) => (answer === "right" ? (step.answer ?? "") : "nonsense");

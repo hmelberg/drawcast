@@ -28,7 +28,7 @@ export interface Outline {
   parts: OutlinePart[];
 }
 
-const MAX_PARTS = 6;
+export const MAX_PARTS = 6;
 
 /** Flat schema for the outline call (structured-output friendly: no oneOf/anyOf). */
 export const OUTLINE_SCHEMA = {
@@ -54,6 +54,22 @@ export const OUTLINE_SCHEMA = {
   required: ["title", "parts"],
   additionalProperties: false,
 } as const;
+
+/**
+ * The outline schema with an explicit `#parts=N` written INTO it. This call's
+ * schema is a real structured-output constraint (client.ts
+ * structuredOutputSupported passes it), so the count is enforced by the
+ * grammar rather than asked for in prose and clipped afterwards — the
+ * measured failure (2026-09-22) was five parts for an explicit three, and
+ * clipping the five loses the synthesis. normalizeOutline's clip stays as
+ * the backstop for the plain-JSON fallback. `want` null (a bare `#parts`)
+ * leaves the count to the planner.
+ */
+export function outlineSchemaFor(want: number | null, base: typeof OUTLINE_SCHEMA = OUTLINE_SCHEMA): object {
+  if (want === null) return base;
+  const n = Math.max(1, Math.min(want, MAX_PARTS));
+  return { ...base, properties: { ...base.properties, parts: { ...base.properties.parts, minItems: n, maxItems: n } } };
+}
 
 /**
  * A series short enough to watch in one sitting needs no chapters: the cards

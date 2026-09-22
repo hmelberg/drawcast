@@ -121,7 +121,9 @@ export interface LintIssue {
     /** more insets in the thumbnail column than INSET_MAX: they shrink to fit */
     | "inset-count"
     /** an ask bound to the spec's template, whose document has no widget body */
-    | "widget";
+    | "widget"
+    /** a draw naming an id the template DECLARES (element_ids) but did not draw under these params — a region without its `regions` entry, say */
+    | "template-id-off";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -952,7 +954,11 @@ function lintCurveExprs(spec: Spec): LintIssue[] {
       rule: "curve-var-shadow",
       ids: [el.id],
       message: `curve "${el.id}": expr "${el.expr}" reads ${hit.join(", ")}, which this page also declares in vars — the var wins, so the curve is a flat line. Write the curve variable as x, or drop the var.`,
-      severity: "warn",
+      // An error, not a warning (review 2026-09-23): a warning only rides
+      // along with a repair some ERROR already triggered (compile.ts), so the
+      // flat curve this rule was written for still shipped. A curve with no
+      // live plot variable left is always a defect.
+      severity: "error",
     });
   }
   return issues;

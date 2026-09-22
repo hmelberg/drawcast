@@ -171,8 +171,20 @@ requests that do not want them (`wantsCode` / `wantsSound`,
   `reveal` ≈ **1,983 ch**
 
 So a request the prompt has already decided is not about code is still told,
-in the schema, exactly how to write a code element — and is *constrained* to a
-schema that permits one.
+in the schema, exactly how to write a code element.
+
+**CORRECTED 2026-09-23 (review).** The paragraph above originally went on:
+*"— and is constrained to a schema that permits one."* It is not. The spec
+schema never reaches the API as a structured-output constraint:
+`structuredOutputSupported()` (`src/llm/client.ts`) rejects any object
+without `additionalProperties: false`, and the spec schema has open `params`
+and `animate`, so every spec call runs as plain JSON and Ajv validates the
+reply against the FULL `specSchema`. The gate below is therefore prose-only —
+it changes what the model reads, not what it may return — which also means
+the "shown one contract, held to another" hazard in the next paragraph cannot
+occur, and the `$defs` support check in §3.2 was for a path this schema never
+takes. The gate is still worth its ~11k chars; the reasoning around it was
+wrong.
 
 This costs nothing in cache variants: `{{CODE}}` and `{{SOUND}}` sit **before**
 `{{EXEMPLARS}}`, so the cached prefix already forks four ways on these two

@@ -188,6 +188,10 @@ describe("curve-var-shadow", () => {
     expect(hit).toBeDefined();
     expect(hit!.ids).toEqual(["c"]);
     expect(hit!.message).toContain("flat line");
+    // An error, not a warning: a warning never triggers a repair on its own
+    // (compile.ts), so the flat curve shipped. A curve with no live plot
+    // variable is always a defect.
+    expect(hit!.severity).toBe("error");
   });
 
   test("an expr that still has a live plot variable is silent — that is the vars feature working", () => {

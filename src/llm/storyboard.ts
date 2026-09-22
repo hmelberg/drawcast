@@ -15,7 +15,7 @@ export const APPROACHES: readonly { id: Approach; label: string; hint: string }[
   { id: "independent", label: "Independent parts — each figure written on its own", hint: "An outline names the parts; each part is written separately, knowing the others by title only." },
 ];
 
-import { mayProposeChapters, OUTLINE_SCHEMA, PROPOSE_CHAPTERS_LINE } from "./outline";
+import { mayProposeChapters, OUTLINE_SCHEMA, PROPOSE_CHAPTERS_LINE, outlineSchemaFor } from "./outline";
 import { styleBlock } from "./prompt";
 
 /** The outline's shape plus, per part, the figure paragraph and the script — closed, so structured outputs hold the model to it. */
@@ -44,6 +44,11 @@ export const STORYBOARD_SCHEMA = {
     },
   },
 } as const;
+
+/** STORYBOARD_SCHEMA with an explicit `#parts=N` written into it — see outlineSchemaFor. */
+export function storyboardSchemaFor(want: number | null): object {
+  return outlineSchemaFor(want, STORYBOARD_SCHEMA as unknown as typeof OUTLINE_SCHEMA);
+}
 
 /**
  * The storyboard call's messages. The teaching rules the per-part pedagogy
@@ -77,6 +82,7 @@ export function buildStoryboardMessages(
     "- Situate before you explain, ONCE, in part 1: the opening states or hints why this matters — the decision it informs, the mistake it prevents — the stakes, not the conclusion. Later parts build; they do not re-situate.",
     "- Explain in passing, never by announcement: no \"note that\", \"it is important\", \"here we see\". The ink shows where to look; the line carries the idea.",
     "- Assume an intelligent viewer: spend the words on the step they would not have seen coming, and let the obvious pass without ceremony.",
+    "- A rhetorical question is a line of its own, and the line after it begins the answer, never a second question: the player leaves a moment of silence after a question mark, and that silence is where the viewer thinks.",
     "- One genuinely interesting thing in the whole series — a surprising implication, a real number, a scrap of history, a reframing — placed where it fits, and only if it is true: a clean explanation beats an invented tidbit. Never manufacture a controversy, a quote or a statistic.",
     "- Each part converges on one insight, and its closing line says what the viewer can now see.",
     "- Write the lines in the language of the request.",

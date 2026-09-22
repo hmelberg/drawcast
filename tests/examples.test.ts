@@ -163,7 +163,8 @@ describe("bundled examples stay exemplary", () => {
       // var-animate keeps its value under vars.<name> (design 2026-09-10).
       varsBase: spec.vars ?? null,
       bboxesFor: (params, overrides) => {
-        const l = layoutSpec(specAt(spec, params), undefined, overrides);
+        // A stage relayout has no draw beat: the draw-beat lints (code's, template-id-off) are skipped here.
+        const l = layoutSpec(specAt(spec, params), undefined, overrides, undefined, { skipDrawBeatLint: true });
         // The layout AFTER the move or the sweep is what the viewer sees:
         // it must lay out as cleanly as the first frame (review finding 9).
         expect(l.warnings, `after ${JSON.stringify(params)} ${JSON.stringify(overrides)}`).toEqual([]);
@@ -212,7 +213,7 @@ describe("bundled examples stay exemplary", () => {
     for (const cmd of (spec.commands ?? []) as Command[]) {
       const stage = cmd.animate?.stage;
       if (typeof stage !== "number") continue;
-      const at = layoutSpec({ ...spec, params: withOverrides(spec.params, { stage }) });
+      const at = layoutSpec({ ...spec, params: withOverrides(spec.params, { stage }) }, undefined, undefined, undefined, { skipDrawBeatLint: true });
       expect(at.warnings, `stage ${stage}`).toEqual([]);
       expect(at.issues.filter((i) => i.severity === "error"), `stage ${stage}`).toEqual([]);
     }
@@ -229,7 +230,7 @@ describe("bundled examples stay exemplary", () => {
       const next = { ...vars };
       for (const [k, v] of Object.entries(cmd.animate)) if (typeof v === "number" && k in vars) next[k] = v;
       vars = next;
-      const at = layoutSpec({ ...spec, vars });
+      const at = layoutSpec({ ...spec, vars }, undefined, undefined, undefined, { skipDrawBeatLint: true });
       expect(at.warnings, JSON.stringify(vars)).toEqual([]);
       expect(at.issues.filter((i) => i.severity === "error"), JSON.stringify(vars)).toEqual([]);
     }

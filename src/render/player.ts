@@ -11,6 +11,7 @@ import { overridesKey, type LayoutOverrides } from "../layout/posed";
 import { answersMatch, AUTO_NAMESPACE, subVars } from "../spec/answers";
 import type { LayoutResult } from "../layout/layout";
 import { heldFrom, sceneAt } from "./plan";
+import { breathAfterMs } from "./breath";
 import type { BackendEffects, RenderedElement } from "./backend";
 import { EASINGS, FULL_CANVAS_BOX, lerpBox, pointerPath, unionBoxes } from "./effects";
 import { lengthFractionAt } from "./trails";
@@ -353,6 +354,8 @@ export class Player {
 
   private mode: PlaybackMode;
   private speedVal: number;
+  /** Breathe after spoken beats (render/breath.ts). Off only for tests that measure raw sequencing. */
+  private breathOn: boolean;
   private pausedFlag = false;
   /**
    * In-flight non-blocking narration. Steps that add or remove content (draw/
@@ -383,7 +386,7 @@ export class Player {
     elements: Map<string, RenderedElement>,
     speech: SpeechLike,
     captionEl: HTMLElement | null,
-    opts: { mode?: PlaybackMode; speed?: number; effects?: BackendEffects; questions?: "on" | "skip"; vars?: ReadonlyMap<string, string>; questionOffset?: number } = {},
+    opts: { mode?: PlaybackMode; speed?: number; effects?: BackendEffects; questions?: "on" | "skip"; vars?: ReadonlyMap<string, string>; questionOffset?: number; breath?: boolean } = {},
     callbacks: PlayerCallbacks = {},
   ) {
     this.plan = plan;
@@ -401,6 +404,7 @@ export class Player {
     this.callbacks = callbacks;
     this.mode = opts.mode ?? "narrated";
     this.speedVal = opts.speed ?? 1;
+    this.breathOn = opts.breath ?? true;
     // Carried in from earlier playlist items (playlist/carry.ts): a name
     // stored in part 1 reads in part 3. Latest wins, so this item's own
     // answers overwrite what came in.
@@ -469,6 +473,14 @@ export class Player {
         this.pendingJump = null;
         this.jumpTo(n, true);
         continue;
+      }
+      // A breath after a spoken beat (render/breath.ts): the next step's
+      // voice and ink start only once the sentence has had its moment.
+      // Scaled with playback speed like every other wait, and skipped when
+      // the author wrote a `pause` here.
+      if (this.breathOn) {
+        await this.waitScaled(breathAfterMs(this.plan.steps, this.completed), ac.signal);
+        if (ac.signal.aborted) return;
       }
       this.completed++;
       this.callbacks.onStep?.(this.completed, this.plan.steps.length);
