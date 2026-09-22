@@ -36,9 +36,13 @@ interface BundledExample {
   spec?: Spec;
   playlist?: string;
   packs?: string[];
+  /** Kept to be examined, not imitated — see src/main.ts. Skipped by every
+   *  gate here, which all ask "is this example exemplary?" of entries that
+   *  are on purpose not. tests/model-tier-examples.test.ts gates them. */
+  specimen?: boolean;
 }
 
-const examples = bundledExamples as BundledExample[];
+const examples = (bundledExamples as BundledExample[]).filter((e) => !e.specimen);
 
 /** An inset clone whose picture is resolved in `beforeAll`, once packs and
  *  engines are ready — NOT at module load, when `cases` is built (a source

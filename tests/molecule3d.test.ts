@@ -291,7 +291,9 @@ describe("bundled offline examples (src/examples.json)", () => {
     }
   }
 
-  for (const ex of bundledExamples as Entry[]) {
+  // Specimens are excluded: they exist to show what a weaker model does,
+  // defects and all (src/main.ts BundledExample.specimen).
+  for (const ex of (bundledExamples as (Entry & { specimen?: boolean })[]).filter((e) => !e.specimen)) {
     test(`"${ex.title ?? ex.spec?.title ?? ex.request}" validates, renders clean, and every drawn id exists`, () => {
       if (ex.playlist) {
         const playlist = parsePlaylistText(ex.playlist);

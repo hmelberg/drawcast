@@ -197,6 +197,14 @@ interface BundledExample {
   spec?: Spec;
   playlist?: string;
   packs?: string[];
+  /**
+   * A SPECIMEN is kept to be examined, not imitated: the same request
+   * generated at several model tiers and shown side by side, defects
+   * included, so the difference is visible in the menu. It is offered to a
+   * viewer and withheld from every gate that treats a bundled example as
+   * exemplary — the exemplar pool below, and the two test gates.
+   */
+  specimen?: boolean;
 }
 const examples: BundledExample[] = [...(fewshots as { request: string; spec: Spec }[]), ...(bundledExamples as BundledExample[])];
 
@@ -210,7 +218,13 @@ const examples: BundledExample[] = [...(fewshots as { request: string; spec: Spe
  */
 function bundledExemplarPool(): { prompt: string; spec: Spec }[] {
   return usableExemplars(
-    (bundledExamples as BundledExample[]).map((e) => ({ prompt: e.request, spec: e.spec })),
+    (bundledExamples as BundledExample[])
+      // A specimen is a worked example of what a WEAKER model produced. Today
+      // every specimen is a playlist, which usableExemplars already drops for
+      // having no `spec` — this guard is what keeps that true of a specimen
+      // that is a single spec, where nothing else would notice.
+      .filter((e) => !e.specimen)
+      .map((e) => ({ prompt: e.request, spec: e.spec })),
     isReadyTemplate,
   );
 }
