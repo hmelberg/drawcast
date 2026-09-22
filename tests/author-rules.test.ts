@@ -51,4 +51,32 @@ describe("buildAuthorSystem (refreshed)", () => {
     expect(y.startsWith("template: violin_anatomy")).toBe(true);
     expect(y).toContain("layout: |");
   });
+
+  // The layout contract the author prompt states must be the contract
+  // SceneLayout actually has. It said four keys for two rounds after `groups`
+  // (4901ab0) and `attached` (46e5a0d) landed, so every AI-authored template
+  // was structurally unable to use either while eight hand-written packs did.
+  // Design §4.2.
+  test("the author prompt teaches the whole SceneLayout return shape", () => {
+    // The ASSEMBLED prompt, the way the file's other tests read it — what the
+    // model is actually handed, not the source with its placeholders unfilled.
+    // Assert on the PROSE, not on bare identifiers: {{KIT_SOURCE}} fills this
+    // prompt with kit.ts, which contains "group", "labels" and "anchors" of
+    // its own, so `toContain("groups")` would pass without a word changing.
+    const text = buildAuthorSystem()[0].text;
+    expect(text).toContain("`return { drawables, labels, anchors, order }`");
+    expect(text).toContain("**`groups`**");
+    expect(text).toContain("**`attached`**");
+    expect(text).toContain("**`curveSamples`**");
+    // Each is explained, not merely listed.
+    // Final-review round (2026-09-22): reworded to "A `groups` entry is a
+    // NAME" — "group" alone was ambiguous against kit.group() a few lines
+    // below, which IS a drawable and DOES belong in order (the opposite of
+    // what this sentence says about a `groups` entry).
+    expect(text).toContain("A `groups` entry is a NAME, not a drawable");
+    expect(text).toContain("which of your ids FOLLOW another");
+    // And it says group names must be documented, because element_ids is the
+    // only channel the COMPILER has for learning them.
+    expect(text).toMatch(/element_ids[\s\S]{0,400}`groups`/);
+  });
 });

@@ -2,10 +2,12 @@
 // ready templates, every template gets a full entry — the original,
 // byte-stable format prompt caching pins (never perturb it below threshold).
 // At or above the threshold, the catalog degrades to a complete one-line
-// index plus full entries for a "hot set" (forced / keyword-matched /
-// priority / core), with an escalation protocol: the LLM asks for a
-// template's full definition by name (need_template) instead of guessing its
-// parameters from the index line alone.
+// index plus full entries for a "hot set" (forced / priority / router-
+// shortlisted / keyword-matched), with an escalation protocol: the LLM asks
+// for a template's full definition by name (need_template) instead of
+// guessing its parameters from the index line alone. Since 2026-09-22 the
+// hot set also has a last-resort fallback for the rare request neither
+// selector places anything for — see LAST_RESORT_IDS below.
 
 import { scenes } from "./registry";
 import type { SceneManifest } from "./types";
@@ -19,16 +21,35 @@ import { PACK_DEFS, packTemplateIds } from "./packs";
  * 92.6 % of 338 known requests and missed every request shaped like a
  * story. With the template router (src/llm/router.ts — a Haiku call over
  * the index, 94.4 % alone, 97.9 % joined with the keyword picks) the
- * two-level regime became the default: the bundled library (84 ready
- * templates, ~279k chars in full) now reaches the model as a ~24k-char
- * index plus the core and a five-entry shortlist. Below this number — a
- * single-domain library, a host embed — everything is still expanded and
- * no router is needed.
+ * two-level regime became the default: the bundled library (88 ready
+ * templates, ~279k chars in full) now reaches the model as an index —
+ * ~13k chars since the per-line cap, down from ~24k (see indexLine below,
+ * design §3.4) — plus a five-entry shortlist for the request (the three
+ * health-economics templates ride along in that shortlist only when a
+ * request wants them — see LAST_RESORT_IDS for the rare case none of the
+ * selectors do). Below this number — a single-domain library, a host embed
+ * — everything is still expanded and no router is needed.
  */
 export const TEMPLATE_FULL_THRESHOLD = 40; // lowered 2026-09-07: the router (src/llm/router.ts) makes two-level the default regime
 
-/** Always promoted to a full entry once the catalog goes two-level. */
-const CORE_IDS = ["supply_demand", "decision_tree", "qaly_profiles"];
+/**
+ * The shortlist of last resort: used ONLY when a request produced no
+ * shortlist at all — no router (or a failed one) AND no keyword overlap.
+ *
+ * Until 2026-09-22 these three were pinned into every request's stable
+ * catalog in full, 26,890 chars a chess question paid for. That pin predates
+ * the template router (src/llm/router.ts, 97.9 % top-5 joined with the
+ * keyword selector), which shortlists them for the requests that want them.
+ *
+ * It is not simply deleted, because the keyword selector is ENGLISH: every
+ * template description is written in English, so `selectTemplates("Forklar
+ * tilbud og etterspørsel", 5)` returns [] — measured — and half this app's
+ * requests are written in Norwegian. With a router that is harmless (it
+ * reads meaning, not keywords); with no router it is the one case the pin
+ * was really carrying. So the pin becomes a fallback for exactly that case
+ * and costs nothing in every other.
+ */
+const LAST_RESORT_IDS = ["supply_demand", "decision_tree", "qaly_profiles"];
 
 /**
  * True when id names a registered, ready (rendering) template — a stub, an
@@ -56,6 +77,17 @@ export interface CatalogOpts {
    * an index-only prompt.
    */
   shortlist?: string[];
+  /**
+   * Whether the last-resort fallback (LAST_RESORT_IDS) may fire when neither
+   * selector placed anything usable. Default true: Generate has no shortlist
+   * of its own for a request the router missed, and genuinely needs the
+   * rescue. false for revise.ts (design finding IMPORTANT 2, 2026-09-22): a
+   * revision has the whole document already in front of the model and the
+   * revise card tells it to keep every template as-is, so there is nothing
+   * for this fallback to rescue there — only ~27k chars it would otherwise
+   * add to the UNCACHED suffix on every template-less, non-English revision.
+   */
+  lastResort?: boolean;
 }
 
 function fullEntry(manifest: SceneManifest): string {
@@ -87,6 +119,29 @@ function stubLine(manifest: SceneManifest): string {
 function firstSentence(description: string): string {
   const m = /^[^.!?]*[.!?]/.exec(description.trim());
   return (m ? m[0] : description.trim()).trim();
+}
+
+/**
+ * One template's line in the compiler's index — the list of every ready
+ * template that rides the cached prefix of every request. Capped, because at
+ * 88 templates the uncapped first sentence came to 24,815 chars (median 276,
+ * longest 497: descriptions that open by listing their presets).
+ *
+ * Capping is safe here and nowhere else: the ROUTER reads its own index
+ * (routerIndexText below), which keeps the full sentence plus the "Choose
+ * this for…" sentence plus two example requests. This line's only jobs are
+ * telling the model the template exists and giving it an id to name in a
+ * need_template escalation. Cut on a word boundary so the tail is never a
+ * half word, and only when there is something to cut. Design §3.4.
+ */
+const INDEX_LINE_MAX = 140;
+
+function indexLine(manifest: SceneManifest): string {
+  const text = firstSentence(manifest.description);
+  if (text.length <= INDEX_LINE_MAX) return `- ${manifest.name}: ${text}`;
+  const cut = text.slice(0, INDEX_LINE_MAX);
+  const at = cut.lastIndexOf(" ");
+  return `- ${manifest.name}: ${(at > INDEX_LINE_MAX / 2 ? cut.slice(0, at) : cut).trimEnd()}…`;
 }
 
 /** The "Choose this scene for …" sentence most descriptions carry — the
@@ -210,8 +265,9 @@ const VARIABLE_PREAMBLE = "Additional likely-relevant template definitions for T
  * stable and `variable` is empty (byte-identical to the pre-split catalogText
  * output — required for prompt-cache pinning, see catalogText below). Above
  * the threshold, `stable` is built ONLY from configuration that doesn't vary
- * per free-text request (forced/priority/core + the full index + stubs +
- * pack lines + escalation prose) — so it can sit in generateSpec's
+ * per free-text request (forced/priority + the full index + stubs +
+ * pack lines + escalation prose — no longer the core three, see
+ * LAST_RESORT_IDS) — so it can sit in generateSpec's
  * cache_control prefix and stay byte-identical across different requests
  * sharing the same forced/priority config. `variable` carries the
  * keyword-matched shortlist (selectTemplates(request, …), the one part that
@@ -255,12 +311,12 @@ export function catalogParts(opts: CatalogOpts = {}): { stable: string; variable
     return { stable: parts.join("\n\n"), variable: "" };
   }
 
-  const index = ready.map((s) => `- ${s.manifest.name}: ${firstSentence(s.manifest.description)}`).join("\n");
+  const index = ready.map((s) => indexLine(s.manifest)).join("\n");
 
-  // Preference-stable hot set: config only (forced/priority/core), NEVER the
+  // Preference-stable hot set: config only (forced/priority), NEVER the
   // free-text request — that's what keeps `stable` identical across requests
   // sharing the same forced template / priority packs (the cache_control pin).
-  const stableIds = dedupe([...(opts.forced ? [opts.forced] : []), ...(opts.priorityIds ?? []), ...CORE_IDS]).filter(
+  const stableIds = dedupe([...(opts.forced ? [opts.forced] : []), ...(opts.priorityIds ?? [])]).filter(
     (id) => scenes[id]?.manifest.status === "ready" && !excluded.has(id),
   );
 
@@ -279,8 +335,31 @@ export function catalogParts(opts: CatalogOpts = {}): { stable: string; variable
   // 97.9 %), the router being terse and the keyword selector literal. Without
   // a router it is the keyword selector alone, three deep, as before.
   const routed = opts.shortlist && opts.shortlist.length > 0 ? dedupe(opts.shortlist).slice(0, HOT_SHORTLIST) : [];
-  const picks = routed.length > 0 ? dedupe([...routed, ...selectTemplates(opts.request ?? "", HOT_SHORTLIST)]).slice(0, HOT_SHORTLIST) : selectTemplates(opts.request ?? "", 3);
-  const shortlist = picks.filter((id) => scenes[id]?.manifest.status === "ready" && !stableIds.includes(id) && !excluded.has(id));
+  const keyword = selectTemplates(opts.request ?? "", routed.length > 0 ? HOT_SHORTLIST : 3);
+  const picks = routed.length > 0 ? dedupe([...routed, ...keyword]).slice(0, HOT_SHORTLIST) : keyword;
+  const usable = (ids: string[]): string[] => ids.filter((id) => scenes[id]?.manifest.status === "ready" && !stableIds.includes(id) && !excluded.has(id));
+  // MINOR 3 fix (final-review round, 2026-09-22): the readiness/exclusion
+  // filter has to run BEFORE the fallback decides, not after — neither
+  // `routed` (a router's raw picks) nor `keyword` (selectTemplates, which
+  // knows nothing about excludeIds) checks it. A shortlist whose every id
+  // turned out excluded or unready used to leave `picks` non-empty, so the
+  // old guard (`picks.length === 0`) never fired, and `shortlist` came out
+  // empty anyway — an index and nothing else, the one prompt this catalog
+  // promised never to send.
+  const picked = usable(picks);
+  // Neither selector placed anything USABLE for this request (a router
+  // outage on a request whose language the English keyword selector cannot
+  // read, or a shortlist that was entirely excluded/unready). An index and
+  // nothing else is the one prompt this catalog promised never to send — see
+  // LAST_RESORT_IDS.
+  // Guarded on a non-empty request: catalogParts({}) is a degenerate call
+  // with no request to serve (tests/catalog_exclude.test.ts makes it), and
+  // firing the fallback there would add ~27,000 chars nobody asked for.
+  // Also guarded on opts.lastResort (default true, see CatalogOpts) — a
+  // caller with nothing for this fallback to rescue (revise.ts) can suppress
+  // it outright, since sending it there is pure uncached cost.
+  const needsFallback = (opts.lastResort ?? true) && picked.length === 0 && stableIds.length === 0 && (opts.request ?? "").trim().length > 0;
+  const shortlist = needsFallback ? usable(LAST_RESORT_IDS) : picked;
   const variable = shortlist.length > 0 ? [VARIABLE_PREAMBLE, ...shortlist.map((id) => fullEntry(scenes[id].manifest))].join("\n\n") : "";
 
   return { stable: stableParts.join("\n\n"), variable };

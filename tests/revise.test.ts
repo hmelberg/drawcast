@@ -3,6 +3,7 @@ import { buildReviseUser, checkPlaylist, parseReviseReply, preserveFoundingPromp
 import { formatPlaylist, itemsOf, parsePlaylistText, singlePlaylist } from "../src/playlist/playlist";
 import { hoistPortraitStrokes, restorePortraitStrokes } from "../src/llm/hoist";
 import { normalizeSpec, validateSpec } from "../src/spec/schema";
+import { SETTING_KEYS } from "../src/spec/script/lines";
 import type { Spec } from "../src/spec/types";
 
 const SPEC_YAML = `title: A line
@@ -144,5 +145,26 @@ describe("the revise notation card (llm/prompts/revise-v1.md)", () => {
     expect(REVISE_PROMPT_SOURCE).toContain("prompt:");
     // …and pages are the half a lecture needs.
     expect(REVISE_PROMPT_SOURCE).toContain("## Name");
+  });
+
+  // The revise card is the ONLY prompt that teaches the script notation, and a
+  // revision is told to return every other beat byte-for-byte. A construct the
+  // scanner accepts but the card never mentions is a construct the model is
+  // asked to preserve without having been told it exists. Design §4.3.
+  test("the revise card covers every construct the scanner accepts", () => {
+    expect(REVISE_PROMPT_SOURCE).toContain("(@");      // inline action spans
+    expect(REVISE_PROMPT_SOURCE).toContain("@)");
+    expect(REVISE_PROMPT_SOURCE).toContain("`A:`");    // dialogue lines
+    expect(REVISE_PROMPT_SOURCE).toContain("`@name`"); // goto lines
+  });
+
+  // The closed list in the scanner and the closed list in the card must not
+  // drift apart — the card is the only place a model learns either.
+  test("every SETTING_KEYS entry appears in the revise card", () => {
+    // Backtick + key + colon, so `vars: {json}` and `use: <template>` count as
+    // well as a bare `gap:` — the card writes some of them with their value
+    // shape inside the same span.
+    const missing = SETTING_KEYS.filter((k) => !REVISE_PROMPT_SOURCE.includes(`\`${k}:`));
+    expect(missing).toEqual([]);
   });
 });

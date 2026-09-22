@@ -409,7 +409,21 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // buy — without it a model has no way to know whether `[czech:…]` is a short
 // name or needs `[cs-CZ:…]`, and guessing wrong is silent: the brackets
 // simply stay in the narration and the word is read by the narrator.
-const BASELINE_SYSTEM_CHARS = 210880;
+// Re-pinned DOWN 2026-09-22 for the schema's $defs round (Task 2, design
+// 2026-09-22 §3.2): the schema is embedded verbatim in the system prompt, so
+// its own re-pin below (81898 -> 79310) lands here by the same delta:
+// 210880 -> 208292.
+// Re-pinned UP 2026-09-22 for one clause on the point bullet: `"blocking":
+// false` was named by the SCHEMA's point description and by nothing the
+// model reads as prose — 0 of 291 bundled specs used it (design 2026-09-22
+// §4.1). 208292 -> 208483.
+// Verified 2026-09-22 (final-review round, MINOR 8): the prior entry got here
+// by SUBTRACTING the schema's own delta rather than measuring the system
+// prompt directly — this repo's pins have carried slack from that shortcut
+// before (BASELINE_REVISE_CHARS was 4520 against an actual 4500). Measured
+// directly this time, via this test's own system(false).length: 208483,
+// exactly the derived figure — no correction needed.
+const BASELINE_SYSTEM_CHARS = 208483;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -418,7 +432,16 @@ const BASELINE_SYSTEM_CHARS = 210880;
 // description is the only place a model reading the API contract alone would
 // learn it exists. 81832 -> 81898 when that sentence gained the locale form
 // for languages outside the named list.
-const BASELINE_SCHEMA_CHARS = 81898;
+// Re-pinned DOWN 2026-09-22: the repeated sub-shapes (the point-ref bag ×8,
+// the ghost option ×5, the arrow endpoint ×4) moved into specSchema.$defs
+// and each call site became an allOf wrapper that keeps its own description
+// unchanged (design 2026-09-22 §3.2). 81898 -> 79310. Nothing the model
+// reads changed; only the number of times it reads the same braces. (The
+// design doc's own §3.2 estimate for this move was 8,545 chars — that figure
+// turned out to count the per-site descriptions too, which Strategy A
+// deliberately keeps at every site; the structural saving alone, measured
+// here, is 2,588.)
+const BASELINE_SCHEMA_CHARS = 79310;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in
@@ -428,7 +451,19 @@ const BASELINE_SCHEMA_CHARS = 81898;
 // where the document settings live, and that "JSON only" is off for this
 // turn. Same ratchet rule as the constants above: a round that adds to the
 // card re-pins here, on purpose, with a note.
-const BASELINE_REVISE_CHARS = 4520;
+// Re-pinned UP 2026-09-22: four constructs the scanner accepts but the card
+// never named — inline `(@ … @)` action spans, `A:`/`B:` dialogue lines,
+// `@name` gotos, and the closed SETTING_KEYS list (design 2026-09-22 §4.3).
+// 4520 -> 5246. A revision was being told to return every beat unchanged
+// while being shown a notation missing four of its spellings.
+// Re-pinned UP 2026-09-22 (final-review round, MINOR 7): the inline-span
+// bullet's headline wrote the construct as `(@ … @)` with a space, but
+// liftActions (src/spec/script/lines.ts) only opens a span when a LETTER
+// follows `(@` immediately — a model copying the spaced form literally
+// produces a span that is silently spoken aloud instead of firing. Added
+// half a clause saying so; the bullet's own concrete example was already
+// correct. 5246 -> 5372.
+const BASELINE_REVISE_CHARS = 5372;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {
@@ -443,6 +478,20 @@ const system = (code: boolean, sound = false) =>
 describe("prompt budget (spec §6.3)", () => {
   test("the schema stays within the pinned size", () => {
     expect(JSON.stringify(apiSchema()).length).toBeLessThanOrEqual(BASELINE_SCHEMA_CHARS);
+  });
+  // Task 3 (design §3.3): the code/sound gate that already withholds
+  // {{CODE}} and {{SOUND}} in prose now withholds the matching schema keys
+  // too — the `code` element and its 14 properties, and the `play` verb with
+  // its four play-only properties (tempo, instrument, reveal, press).
+  // Measured 2026-09-22: full 79,310 -> both gates off 68,166, a withheld
+  // 11,144 (9,161 of it the code half, 1,983 the sound half — measured
+  // separately and additively, since the two gates touch disjoint parts of
+  // the schema). This is the ordinary request: not about code, not about
+  // sound, so it should be handed neither schema half.
+  test("a request about neither code nor sound is not handed either schema half", () => {
+    const full = JSON.stringify(apiSchema()).length;
+    const bare = JSON.stringify(apiSchema({ code: false, sound: false })).length;
+    expect(full - bare).toBeGreaterThan(9_000);
   });
   test("the revise card stays within the pinned size", () => {
     expect(REVISE_PROMPT_SOURCE.length).toBeLessThanOrEqual(BASELINE_REVISE_CHARS);
@@ -505,6 +554,14 @@ describe("prompt budget (spec §6.3)", () => {
     // Ordinary explanations still pay nothing for the code block.
     expect(wantsCode("Hvorfor er himmelen blå?")).toBe(false);
     expect(wantsCode("Forklar inflasjon for en nybegynner")).toBe(false);
+  });
+
+  // A command key the schema advertises must be reachable from the prose.
+  // `blocking` was in neither the prompt nor tags.ts nor any of 291 bundled
+  // specs, while the schema's `point` description told the model to combine
+  // it with speak. Design §4.1.
+  test("the prompt names blocking where the schema says to use it", () => {
+    expect(system(false)).toContain('"blocking": false');
   });
 });
 

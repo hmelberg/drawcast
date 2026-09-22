@@ -5,17 +5,17 @@
 // DEFAULT_OFF_PACKS (games, maps), which are bundled but sit outside that
 // academic default and stay opt-in — and, since 2026-09-07, the default
 // library is ABOVE TEMPLATE_FULL_THRESHOLD on purpose: the catalog is an
-// index of every template plus full entries for the core and for the
-// request's shortlist (the router in src/llm/router.ts, then the keyword
-// selector), with the need_template escalation as the safety valve. Before
-// the router the full catalog was the default (~75k tokens a request); the
-// index + shortlist regime is ~20k. See src/scenes/catalog.ts and
-// src/store.ts.
+// index of every template plus full entries for the request's shortlist
+// (the router in src/llm/router.ts, then the keyword selector), with the
+// need_template escalation as the safety valve. Before the router the full
+// catalog was the default (~75k tokens a request); the index + shortlist
+// regime is ~14k (measured below: stable.length 13,979, ceiling test at
+// line ~71). See src/scenes/catalog.ts and src/store.ts.
 
 import { beforeAll, describe, expect, test } from "vitest";
 import { DEFAULT_SETTINGS } from "../src/store";
 import { PACK_DEFS, DEFAULT_OFF_PACKS, ensureEnabledPacks } from "../src/scenes/packs";
-import { catalogFullText, catalogIsTwoLevel, catalogParts, catalogText, HOT_SHORTLIST, TEMPLATE_FULL_THRESHOLD } from "../src/scenes/catalog";
+import { catalogFullText, catalogIsTwoLevel, catalogParts, catalogText, HOT_SHORTLIST, TEMPLATE_FULL_THRESHOLD, routerIndexText } from "../src/scenes/catalog";
 import { scenes } from "../src/scenes/registry";
 
 function readyIds(): string[] {
@@ -40,13 +40,59 @@ describe("the default catalog", () => {
     expect(catalogIsTwoLevel()).toBe(true);
   });
 
-  test("every ready template is on the index, the core stays in full, and the escalation is offered", () => {
+  test("every ready template is on the index, and the escalation is offered", () => {
     const { stable, variable } = catalogParts({ request: "draw the structure of aspirin" });
     for (const id of readyIds()) expect(stable).toContain(`- ${id}: `);
-    for (const id of ["supply_demand", "decision_tree", "qaly_profiles"]) expect(stable).toContain(`### Scene template: ${id} (READY`);
+    // The core three are no longer pinned into the stable half (design §3.1);
+    // their own test above covers how a request reaches them now.
+    for (const id of ["supply_demand", "decision_tree", "qaly_profiles"]) expect(stable).toContain(`- ${id}: `);
     expect(stable).toContain("need_template");
     // The request's own shortlist travels outside the cached prefix, in full.
     expect(variable).toContain("### Scene template: molecule (READY");
+  });
+
+  // Design §3.1. The two-level catalog's stable half is the cached prefix of
+  // every request, whatever its topic. Before this round it carried three
+  // health-economics templates in full — 26,890 chars a chess request paid
+  // for. The router shortlists them now. Measured 2026-09-22 after the
+  // unpin: 25,513 chars, rounded up to the next 500 for the ceiling below.
+  // Re-measured the same day, after Task 4 capped each index line at 140
+  // chars (design §3.4, indexLine): 13,979 chars — the unpin removed three
+  // full entries, and the per-line cap then shrank the index itself by
+  // ~47 %, on top of that. Rounded up to the next 500 again, so the ceiling
+  // still catches real regrowth instead of sitting ~12k above it.
+  // A round that adds a pack may re-pin it, on purpose, with a note like
+  // this one.
+  test("the stable catalog is the index and nothing expanded", () => {
+    const { stable } = catalogParts({ request: "explain a chess opening" });
+    expect(stable).not.toContain("### Scene template: supply_demand (READY");
+    expect(stable).not.toContain("### Scene template: qaly_profiles (READY");
+    expect(stable).not.toContain("### Scene template: decision_tree (READY");
+    expect(stable.length).toBeLessThan(14_000); // measured 13,979, rounded up to the next 500
+    // The index itself is intact: every ready template still has its line.
+    for (const id of readyIds()) expect(stable).toContain(`- ${id}: `);
+    expect(stable).toContain("need_template");
+  });
+
+  test("a request that wants a core template still gets it in full", () => {
+    const { variable } = catalogParts({ request: "Explain supply and demand with a tax" });
+    expect(variable).toContain("### Scene template: supply_demand (READY");
+  });
+
+  // The measured hole the unpin opens: template descriptions are English, so
+  // a Norwegian request scores zero keyword overlap and selectTemplates
+  // returns []. With a router that is fine — it reads meaning. With no
+  // router and no keyword hit the model would face an index and nothing
+  // else, which is exactly the request the pin used to rescue.
+  test("a request no selector could shortlist still gets the fallback", () => {
+    const { variable } = catalogParts({ request: "Forklar tilbud og etterspørsel" });
+    expect(variable).toContain("### Scene template: supply_demand (READY");
+  });
+
+  test("a request the keyword selector CAN place gets no fallback padding", () => {
+    const { variable } = catalogParts({ request: "draw the structure of aspirin" });
+    expect(variable).toContain("### Scene template: molecule (READY");
+    expect(variable).not.toContain("### Scene template: qaly_profiles (READY");
   });
 
   test("a router shortlist puts its picks in full, capped, ahead of the keyword picks", () => {
@@ -125,5 +171,31 @@ describe("the default catalog", () => {
     const full = catalogFullText().length;
     const { stable, variable } = catalogParts({ request: "draw the structure of aspirin" });
     expect(stable.length + variable.length).toBeLessThan(full * 0.35);
+  });
+
+  // Design §3.4. The index is in the cached prefix of every request; the
+  // router reads its own, richer index (routerIndexText), so capping this
+  // one costs routing nothing. Its two jobs here are knowing what exists and
+  // naming an id for the need_template escalation — 140 chars serves both.
+  // Measured in this worktree before the cap: 24,728 index chars (median
+  // line 276, longest 497 — note_sheet), stable.length 25,513. After: 13,194
+  // index chars (median 152, longest 163), stable.length 13,979 — the index
+  // alone dropped ~47%, and it is most of stable, so stable dropped ~45%.
+  test("no index line runs long", () => {
+    const index = catalogParts({ request: "x" }).stable.split("\n\n")[0].split("\n");
+    expect(index).toHaveLength(readyIds().length);
+    for (const line of index) {
+      const text = line.slice(line.indexOf(": ") + 2);
+      expect(text.length, line).toBeLessThanOrEqual(141); // 140 + the ellipsis
+      expect(line.length, line).toBeLessThanOrEqual(180); // sanity: id + prefix + capped text
+    }
+    // The cap is a cap, not a truncation of everything: short descriptions are
+    // untouched and still end in their own full stop.
+    expect(index.some((l) => l.endsWith("."))).toBe(true);
+  });
+
+  test("the router's index is NOT capped", () => {
+    const longest = routerIndexText().split("\n").reduce((a, b) => (b.length > a.length ? b : a));
+    expect(longest.length).toBeGreaterThan(200);
   });
 });

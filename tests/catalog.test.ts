@@ -61,8 +61,8 @@ describe("catalogText above the threshold", () => {
     for (let i = 0; i < 8; i++) expect(t).toContain(`- fake_${i}:`);   // index complete
     expect(t).toContain("- free_body:");
     expect(t).toContain("### Scene template: fake_3 (READY");           // matched → full
-    expect(t).toContain("### Scene template: supply_demand (READY");    // core → full
-    expect(t).not.toContain("### Scene template: fake_6 (READY");       // unmatched non-core → index only
+    expect(t).toContain("- supply_demand: ");                           // shortlisted only on its own request now (design §3.1) → index only
+    expect(t).not.toContain("### Scene template: fake_6 (READY");       // unmatched → index only
     expect(t).toContain("need_template");
   });
 

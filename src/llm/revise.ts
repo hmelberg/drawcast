@@ -170,19 +170,60 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
   // Exemplars are deliberately empty: pickExemplars teaches request -> spec
   // authoring, and a revision already has a spec in front of it.
   const priorityIds = [...new Set([...(cfg.priorityIds ?? []), ...templatesIn(parsedNow.playlist)])];
-  const catalog = catalogParts({ request: instruction, priorityIds });
+  // Final-review round (2026-09-22), IMPORTANT 2: revise has no router of its
+  // own, so catalogParts here NEVER gets a shortlist — a template-less
+  // document with no priority packs set (the default) meets every condition
+  // for the last-resort fallback (LAST_RESORT_IDS), and that fallback rides
+  // in the UNCACHED suffix below. Suppressed: a revision has the whole
+  // document already in front of the model, and the revise card tells it to
+  // keep every template as-is, so there is nothing here for the fallback to
+  // rescue — only ~27k chars paid at full price instead of the cached
+  // prefix's ~0.1×, on exactly the path this round was meant to lighten.
+  const catalog = catalogParts({ request: instruction, priorityIds, lastResort: false });
+  // The code block is conditional now (Task 10), and a revision needs it
+  // whenever the DOCUMENT already has a code element — the instruction
+  // ("make it 1000 draws") rarely says so itself. Same arrangement for the
+  // play verb: the instruction ("make the chord richer") rarely names sound,
+  // but a document that already plays does. Hoisted so the prose gate and
+  // the schema gate (design §3.3) read the same two booleans — getting this
+  // wrong would validate a code- or sound-carrying document's revision
+  // against a schema with no `code` element or `play` verb in it, a silent
+  // corruption of someone's existing work.
+  //
+  // Structural, not textual (final-review round, 2026-09-22, IMPORTANT 1):
+  // docText is the SCRIPT notation (main.ts's specArea.value), where a code
+  // element prints as a fence — print.ts puts "type" in its skip set, so the
+  // literal text `type: code` never appears — and a `play` command prints as
+  // a direction line, `play "C4:q"`, no colon after `play`. The old regexes
+  // matched only the YAML escape-hatch form (a ```yaml fence merged into the
+  // page), so they were dead on every ordinary script-notation document;
+  // reading the PARSED spec instead asks the same question the schema gate
+  // below answers, on the shape that is actually there.
+  //
+  // Guarded, not just typed (scoped re-review, 2026-09-22): parsedNow.playlist
+  // is PARSED but never VALIDATED — validateSpec/checkPlaylist run on the
+  // model's reply, not on the incoming document — and this is the CURRENT
+  // document straight from the textarea, which may carry a hand-edit the
+  // author never re-rendered (main.ts). So `elements`/`commands` may be any
+  // shape JSON/YAML allows: not an array at all (`elements: not-an-array`),
+  // or an array holding a null/blank entry. Array.isArray rules out the
+  // former; `e?.type`/`c?.play` the latter. (Each item's `spec` itself is
+  // always a plain object here, never null/array — every path that builds a
+  // PlaylistItem either checks isPlainObject first (the JSON/YAML/`---`
+  // paths in playlist.ts) or constructs the object itself (parseScriptPages,
+  // spec/script/parse.ts:500), and a document that parses to anything else
+  // at the top level throws inside parsePlaylistText, caught above before
+  // this point is ever reached — so only elements/commands need guarding.)
+  const specs = itemsOf(parsedNow.playlist).map((i) => i.spec);
+  const wantCode = wantsCode(instruction) || specs.some((s) => Array.isArray(s.elements) && s.elements.some((e) => e?.type === "code"));
+  const wantSound = wantsSound(instruction) || specs.some((s) => Array.isArray(s.commands) && s.commands.some((c) => c?.play !== undefined));
   const blocks = buildSystemBlocks(cfg.variant.source, {
-    schema: apiSchema(),
+    schema: apiSchema({ code: wantCode, sound: wantSound }),
     catalog: catalog.stable,
     fewshots: fewshotsText(),
     exemplars: "",
-    // The code block is conditional now (Task 10), and a revision needs it
-    // whenever the DOCUMENT already has a code element — the instruction
-    // ("make it 1000 draws") rarely says so itself.
-    code: wantsCode(instruction) || /\btype:\s*['"]?code\b/.test(docText) ? CODE_PROMPT_SOURCE : "",
-    // Same arrangement for the play verb: the instruction ("make the chord
-    // richer") rarely names sound, but a document that already plays does.
-    sound: wantsSound(instruction) || /\bplay:/.test(docText) ? SOUND_PROMPT_SOURCE : "",
+    code: wantCode ? CODE_PROMPT_SOURCE : "",
+    sound: wantSound ? SOUND_PROMPT_SOURCE : "",
   });
   // The revise block comes AFTER the compiler prompt and before the style
   // profile: the compiler prompt ends by declaring "a valid spec, JSON only"

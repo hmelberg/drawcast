@@ -57,6 +57,13 @@ export function hoistPortraitStrokes(docText: string): { text: string; blobs: Ma
   let any = false;
   itemsOf(playlist).forEach((item, i) => {
     for (const el of item.spec.elements ?? []) {
+      // docText is PARSED but never VALIDATED here (scoped re-review,
+      // 2026-09-22): this is the CURRENT document straight from the
+      // textarea, so a blank/null entry in `elements` — a hand-edit the
+      // author never re-rendered — reaches this loop before validateSpec
+      // ever would. Skipping it is the same guard revise.ts's structural
+      // code/sound check needed for the identical reason.
+      if (!el) continue;
       const fields = blobFields(el);
       for (const field of fields) {
         if (el[field] && el[field] !== HOISTED) {

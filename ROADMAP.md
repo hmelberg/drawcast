@@ -214,11 +214,50 @@ call).
 5. **Also open:** the on-demand offer only lives in the editor's
    single-figure flow (courses and embeds log `none_fits` but do not
    offer); maps' countries as parts (scene names from the geo engine, the
-   anatomy hook); the fixed prompt parts (compiler prompt 41k chars,
-   schema 39k, fewshots 14k ≈ 26k tokens) are now the bigger half of every
-   request — the next slimming target, unrelated to routing; the author
-   bench and the Wikipedia reference-image experiment, once real
-   `none_fits` requests have accumulated.
+   anatomy hook); the author bench and the Wikipedia reference-image
+   experiment, once real `none_fits` requests have accumulated.
+   The "fixed prompt parts are the next slimming target" note that stood
+   here was **done on 2026-09-22** — see below.
+
+## Prompt weight and coverage — done 2026-09-22
+
+Design `docs/superpowers/specs/2026-09-22-prompt-weight-and-coverage-design.md`,
+plan `docs/superpowers/plans/2026-09-22-prompt-weight-and-coverage.md`.
+
+Measured on the default library (88 ready templates), for an ordinary
+code-less, sound-less request: the system prompt went **203,909 → 151,938
+chars, −51,971 (25.5 %)**, with no feature removed and no template deleted.
+
+| change | chars | how |
+|---|---|---|
+| unpinned `CORE_IDS` | −26,896 | the router (97.9 % top-5) shortlists the three health-economics templates for the requests that want them; `LAST_RESORT_IDS` rescues only a non-empty request neither selector could place |
+| capped the index line at 140 | −11,534 | the compiler's index; `routerIndexText()` stays uncapped, which is what makes it safe |
+| gated the schema's code/sound halves | −11,144 | the same two booleans that already gated the prose blocks |
+| `$defs` for repeated sub-shapes | −2,588 | structure shared, every per-site description kept verbatim |
+| Part B added back | +937 | the revise card's missing notation, and one clause for `blocking` |
+
+Three features that had no way into a prompt now have one: the template
+author learns `groups` / `attached` / `curveSamples` (`author-v1.md` was two
+rounds behind the `SceneLayout` contract); the revise card learns the four
+script constructs it was being asked to round-trip blind, and the five
+setting keys it lacked; and `blocking: false` is named in prose for the
+first time — the schema advertised it while nothing taught it, and it
+appeared in 0 of 291 bundled specs.
+
+Two defects the round found in code it did not write: `revise.ts` detected
+code/sound documents with regexes that cannot match the script notation the
+app actually hands it (so the new schema gate would have stripped the `code`
+element from exactly the revisions meant to keep it), and
+`hoistPortraitStrokes` threw on a null element in a hand-edited document.
+
+**Deliberately not done:** `zoom_from` is a pipeline gap, not a prompt gap —
+`multi.ts` writes parts in parallel, so part *i+1* cannot name an element of
+part *i*; the assembly loop is the only honest seam. The fewshots (22.6k, ×2.9
+since 1 Sep) need a live eval, not a reading. The `run` verb and the `params`
+data-token prose still ride a code-less schema (~1.5k).
+
+**Open:** `npm run selector:eval -- --router --gate 0.95` has not been run;
+it gates the `CORE_IDS` unpin and nothing else on the branch.
 
 ## Motion and primitives — done 2026-09-08
 

@@ -18,6 +18,9 @@ vi.mock("../src/llm/client", async () => {
 import { reviseDocument } from "../src/llm/revise";
 import { promptVariants } from "../src/llm/compile";
 import { registerTemplateDoc, scenes } from "../src/scenes/registry";
+import { formatPlaylist, singlePlaylist } from "../src/playlist/playlist";
+import { TEMPLATE_FULL_THRESHOLD } from "../src/scenes/catalog";
+import type { Command, Spec, SpecElement } from "../src/spec/types";
 
 const GOOD = `title: A line
 domain: { x: [0, 100], y: [0, 100] }
@@ -28,6 +31,28 @@ commands:
   - { draw: [ax, c1] }
 `;
 const BROKEN = "title: Broken\nelements: not-an-array\ncommands: []\n";
+
+// IMPORTANT 1 fixtures (final-review round, 2026-09-22): GOOD above is the
+// YAML escape-hatch form (a ```yaml fence merged into the page) — exactly
+// what the old regexes matched. A real revision's docText is SCRIPT
+// notation (main.ts's specArea.value = formatPlaylist(playlist, "script")),
+// so these are built through the real printer rather than typed by hand,
+// to be exactly what a revision actually receives.
+const SCRIPT_ELEMENTS: SpecElement[] = [
+  { id: "ax", type: "axes", x_label: "x", y_label: "y" },
+  { id: "c1", type: "curve", expr: "50" },
+];
+const SCRIPT_COMMANDS: Command[] = [{ draw: ["ax", "c1"] }];
+const SCRIPT_SPEC_BASE: Spec = { title: "A line", domain: { x: [0, 100], y: [0, 100] }, elements: SCRIPT_ELEMENTS, commands: SCRIPT_COMMANDS };
+const SCRIPT_PLAIN = formatPlaylist(singlePlaylist(SCRIPT_SPEC_BASE), "script");
+const SCRIPT_WITH_CODE = formatPlaylist(
+  singlePlaylist({ ...SCRIPT_SPEC_BASE, elements: [...SCRIPT_ELEMENTS, { id: "sim", type: "code", language: "python", code: "print(1)" }] }),
+  "script",
+);
+const SCRIPT_WITH_SOUND = formatPlaylist(
+  singlePlaylist({ ...SCRIPT_SPEC_BASE, commands: [...SCRIPT_COMMANDS, { play: "C4:q" }] }),
+  "script",
+);
 
 const cfg = () => ({ apiKey: "k", model: "claude-opus-5", variant: promptVariants()[0] });
 
@@ -40,15 +65,79 @@ beforeEach(() => {
 });
 
 describe("reviseDocument", () => {
+  // Task 3 (design §3.3) fix round 1: a prose-only assertion here cannot
+  // catch a revert of revise.ts's schema half alone — `schema: apiSchema()`
+  // (dropping the { code, sound } flags) keeps this test, and every other
+  // test in the suite, green, while silently constraining a code- or
+  // sound-carrying revision to a schema missing the element/verb it needs
+  // (the exact "silent corruption of someone's existing work" design §3.3
+  // warns about). `code_result` and `instrument` are schema PROPERTY NAMES:
+  // {{SCHEMA}} is filled via JSON.stringify (src/llm/prompt.ts), which
+  // escapes any quote that was already INSIDE a description string (so the
+  // play description's own embedded example, `"instrument": "piano"`, lands
+  // in the prompt as `\"instrument\": \"piano\"` — a different substring),
+  // so an unescaped '"code_result"' / '"instrument"' can only come from the
+  // schema's own JSON key. Checked (grep) that neither appears, quoted, in
+  // compiler-v1.md or revise-v1.md — the two prompt sources present on every
+  // call regardless of these gates — so the assertion cannot pass by
+  // accident from an always-on source.
   test("the conditional code block rides along only when the document or the instruction wants a script", async () => {
     // Task 10: the 15k code bullet is filled into {{CODE}} on demand. A
     // revision of a document that HAS a code element still needs the rules.
     replies = [GOOD, GOOD];
     await reviseDocument(GOOD, "make the curve steeper", cfg());
     expect(systemText(0)).not.toContain("**code** runs a real script");
+    expect(systemText(0)).not.toContain('"code_result"');
     const withCode = GOOD.replace("  - { id: c1", "  - { id: sim, type: code, language: python, code: \"print(1)\" }\n  - { id: c1");
     await reviseDocument(withCode, "make it print two", cfg());
     expect(systemText(1)).toContain("**code** runs a real script");
+    expect(systemText(1)).toContain('"code_result"');
+  });
+
+  test("the conditional sound block, and the schema's play verb, ride along only when the document or the instruction wants sound", async () => {
+    replies = [GOOD, GOOD];
+    await reviseDocument(GOOD, "make the curve steeper", cfg());
+    expect(systemText(0)).not.toContain("**play** sounds synthesized notes");
+    expect(systemText(0)).not.toContain('"instrument"');
+    const withSound = GOOD.replace("  - { draw: [ax, c1] }", "  - { draw: [ax, c1] }\n  - { play: \"C4:q\" }");
+    await reviseDocument(withSound, "make it louder", cfg());
+    expect(systemText(1)).toContain("**play** sounds synthesized notes");
+    expect(systemText(1)).toContain('"instrument"');
+  });
+
+  // IMPORTANT 1 (final-review round, 2026-09-22): the two tests above use the
+  // YAML escape-hatch form, which is the ONLY form the old regexes
+  // (`/\btype:\s*['"]?code\b/`, `/\bplay:/`) ever matched — dead on the
+  // SCRIPT notation a real revision actually sends (main.ts:838/:2905 set
+  // specArea.value = formatPlaylist(playlist, "script")). These two use the
+  // real printer's output instead, so they fail against the old textual
+  // regexes and pass only once wantCode/wantSound read the parsed spec.
+  test("the conditional code block rides along for a SCRIPT-notation document too — the old regex never matched a real one", async () => {
+    // Evidence: a real code fence never contains the literal substring the
+    // old regex looked for. Against the pre-fix regex this line alone shows
+    // the fixture can never trip it; the assertions below show the fix reads
+    // the parsed spec instead and gets the right answer anyway.
+    expect(SCRIPT_WITH_CODE).not.toMatch(/\btype:\s*['"]?code\b/);
+    replies = [SCRIPT_PLAIN, SCRIPT_PLAIN];
+    await reviseDocument(SCRIPT_PLAIN, "make the curve steeper", cfg());
+    expect(systemText(0)).not.toContain("**code** runs a real script");
+    expect(systemText(0)).not.toContain('"code_result"');
+    await reviseDocument(SCRIPT_WITH_CODE, "make it print two", cfg());
+    expect(systemText(1)).toContain("**code** runs a real script");
+    expect(systemText(1)).toContain('"code_result"');
+  });
+
+  test("the conditional sound block rides along for a SCRIPT-notation document too — the old regex never matched a real one", async () => {
+    // Evidence: a play command prints as a direction line, `play "C4:q"` —
+    // no colon after `play`, so the old regex can never see it either.
+    expect(SCRIPT_WITH_SOUND).not.toMatch(/\bplay:/);
+    replies = [SCRIPT_PLAIN, SCRIPT_PLAIN];
+    await reviseDocument(SCRIPT_PLAIN, "make the curve steeper", cfg());
+    expect(systemText(0)).not.toContain("**play** sounds synthesized notes");
+    expect(systemText(0)).not.toContain('"instrument"');
+    await reviseDocument(SCRIPT_WITH_SOUND, "make it louder", cfg());
+    expect(systemText(1)).toContain("**play** sounds synthesized notes");
+    expect(systemText(1)).toContain('"instrument"');
   });
 
   test("a clean reply returns the playlist in one round", async () => {
@@ -385,5 +474,102 @@ The slope is what matters.
     expect(out.error).toBeUndefined();
     expect(shape(out)).toEqual(["item:The curve"]);
     expect(out.playlist!.meta.prompt).toBe("explain marginal cost #parts=2");
+  });
+});
+
+// IMPORTANT 2 (final-review round, 2026-09-22): reviseDocument calls
+// catalogParts with no router shortlist of its own — revise has no router.
+// A template-less document (no priorityIds either, the default) then meets
+// every condition for the catalog's last-resort fallback whenever the
+// instruction is not in English (the keyword selector is English-only, so it
+// scores zero and returns []): ~27k chars of supply_demand + qaly_profiles +
+// decision_tree get appended to catalog.variable, which revise puts in the
+// UNCACHED suffix (revise.ts) — paid in full on every such revision, instead
+// of riding the ~0.1×-cost cached prefix the way a fixed hot set would. Only
+// reachable once the bundled library is past TEMPLATE_FULL_THRESHOLD (below
+// it, catalogParts never runs the two-level branch at all), so this
+// registers throwaway templates to get there, same as tests/catalog-split.test.ts.
+describe("reviseDocument never pulls in the catalog's last-resort fallback (design finding IMPORTANT 2, 2026-09-22)", () => {
+  const added: string[] = [];
+  function addFake(id: string): void {
+    registerTemplateDoc({
+      template: id,
+      version: 1,
+      kit: 1,
+      status: "ready",
+      description: `Fake ${id} figure for the revise lastResort test. Second sentence.`,
+      params: {},
+      element_ids: {},
+      examples: [{ request: `Draw the ${id} thing.`, params: {} }],
+      layout: `return { drawables: [], labels: [], anchors: {}, order: [] };`,
+    });
+    added.push(id);
+  }
+  function fillPastThreshold(): void {
+    const ready = () => Object.values(scenes).filter((s) => s.manifest.status === "ready").length;
+    for (let i = 0; ready() <= TEMPLATE_FULL_THRESHOLD; i++) addFake(`revise_lastresort_fake_${i}`);
+  }
+  afterEach(() => {
+    for (const id of added.splice(0)) delete scenes[id];
+  });
+
+  test("a Norwegian instruction revising a template-less document leaves the catalog's variable half empty", async () => {
+    fillPastThreshold();
+    replies = [GOOD];
+    await reviseDocument(GOOD, "Forklar tilbud og etterspørsel", cfg());
+    // Evidence: the keyword selector really cannot place this request (it is
+    // English-only), so before the fix every one of these appears in full.
+    expect(systemText(0)).not.toContain("### Scene template: supply_demand (READY");
+    expect(systemText(0)).not.toContain("### Scene template: qaly_profiles (READY");
+    expect(systemText(0)).not.toContain("### Scene template: decision_tree (READY");
+  });
+});
+
+// Scoped re-review finding (2026-09-22): parsedNow.playlist (the CURRENT
+// document, straight off the textarea) is PARSED but never VALIDATED —
+// validateSpec/checkPlaylist run on the model's REPLY, not on the incoming
+// document — and main.ts notes a hand-edit the author never re-rendered
+// still rides into a revision. The structural code/sound check above
+// (`specs.some((s) => ... s.elements.some((e) => e.type === "code"))`) can
+// therefore meet `elements`/`commands` in any shape JSON/YAML allows: not an
+// array at all, or an array holding a null/blank entry. The OLD regex-based
+// check could never throw (a regex test against a string always returns);
+// the new structural one could, before Array.isArray + `?.` guards were
+// added. This runs before reviseDocument's own try block, and main.ts's
+// revise() has no catch around the call — so an unguarded throw here would
+// have reached the author as a spinner that silently clears with no error
+// shown at all.
+describe("reviseDocument survives a malformed CURRENT document (scoped re-review, 2026-09-22)", () => {
+  const ELEMENTS_NOT_ARRAY = "title: A\nelements: not-an-array\ncommands: []\n";
+  const ELEMENTS_NULL_ITEM = "title: A\nelements:\n  - null\n  - { id: ax, type: axes, x_label: x, y_label: y }\ncommands: []\n";
+  const COMMANDS_NOT_ARRAY = "title: A\nelements: []\ncommands: not-an-array\n";
+  const COMMANDS_NULL_ITEM = "title: A\nelements: []\ncommands:\n  - null\n  - { pause: 0.4 }\n";
+
+  test("elements that are not an array at all do not crash the code check", async () => {
+    replies = [GOOD];
+    const out = await reviseDocument(ELEMENTS_NOT_ARRAY, "steeper", cfg());
+    expect(out.error).toBeUndefined();
+    expect(calls).toHaveLength(1);
+  });
+
+  test("an elements list holding a null item does not crash the code check", async () => {
+    replies = [GOOD];
+    const out = await reviseDocument(ELEMENTS_NULL_ITEM, "steeper", cfg());
+    expect(out.error).toBeUndefined();
+    expect(calls).toHaveLength(1);
+  });
+
+  test("commands that are not an array at all do not crash the sound check", async () => {
+    replies = [GOOD];
+    const out = await reviseDocument(COMMANDS_NOT_ARRAY, "steeper", cfg());
+    expect(out.error).toBeUndefined();
+    expect(calls).toHaveLength(1);
+  });
+
+  test("a commands list holding a null item does not crash the sound check", async () => {
+    replies = [GOOD];
+    const out = await reviseDocument(COMMANDS_NULL_ITEM, "steeper", cfg());
+    expect(out.error).toBeUndefined();
+    expect(calls).toHaveLength(1);
   });
 });

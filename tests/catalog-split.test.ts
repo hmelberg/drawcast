@@ -1,5 +1,5 @@
 // M5 Task 2: {{CATALOG}} cache split. catalogParts() separates the
-// preference-stable part (index + forced/priority/core + stubs + packs +
+// preference-stable part (index + forced/priority + stubs + packs +
 // escalation — never depends on the free-text request) from the
 // request-dependent shortlist, so generateSpec can pin the stable part in
 // its cache_control prefix. catalogText(opts) must still equal the two
@@ -92,9 +92,41 @@ describe("catalogParts above the threshold", () => {
     expect(catalogText({ request })).toBe(joined);
   });
 
-  test("no keyword match yields an empty variable even above threshold", () => {
+  // Before the unpin (design §3.1) this returned an empty variable: the
+  // always-full core pin made the empty-shortlist case moot. Now a
+  // non-empty request neither selector could place is exactly the case
+  // LAST_RESORT_IDS exists for (src/scenes/catalog.ts) — an index and
+  // nothing else was the one prompt this catalog promised never to send.
+  test("no keyword match falls back to the last-resort ids instead of an empty variable", () => {
     fillPastThreshold();
     const parts = catalogParts({ request: "zzz qqq" });
+    expect(parts.variable).toContain("### Scene template: supply_demand (READY");
+  });
+
+  // MINOR 3 (final-review round, 2026-09-22): the guard used to test
+  // `picks.length === 0` — but neither `routed` (a router's raw picks) nor
+  // `keyword` (selectTemplates, which does not know excludeIds) checks
+  // readiness or exclusion, so a shortlist that turned out entirely excluded
+  // left `picks` non-empty and the fallback never fired, while the
+  // readiness/exclusion filter on the next line still emptied it out —
+  // exactly the index-and-nothing-else prompt LAST_RESORT_IDS exists to rule
+  // out.
+  test("a shortlist whose every id is excluded still falls back to the last-resort ids", () => {
+    fillPastThreshold();
+    addFake("only_pick");
+    const parts = catalogParts({ request: "zzz qqq", shortlist: ["only_pick"], excludeIds: ["only_pick"] });
+    expect(parts.variable).toContain("### Scene template: supply_demand (READY");
+  });
+
+  // IMPORTANT 2 (final-review round, 2026-09-22): revise.ts has no router
+  // shortlist of its own, so a template-less, Norwegian (keyword-selector-
+  // blind) revision used to meet every condition for this fallback — ~27k
+  // chars appended to `variable`, which revise.ts puts in its UNCACHED
+  // suffix. lastResort: false is how a caller with nothing for the fallback
+  // to rescue (the document is already in front of the model) opts out.
+  test("lastResort: false suppresses the fallback, leaving variable empty", () => {
+    fillPastThreshold();
+    const parts = catalogParts({ request: "Forklar tilbud og etterspørsel", lastResort: false });
     expect(parts.variable).toBe("");
   });
 });
@@ -117,9 +149,10 @@ describe("catalogParts with a router shortlist", () => {
     expect(variable.indexOf("### Scene template: rs_b (READY")).toBeLessThan(variable.indexOf("### Scene template: rs_a (READY"));
     expect(variable).not.toContain("### Scene template: rs_c (READY");
     expect(variable).not.toContain("nope");
-    // supply_demand is CORE: it is in stable already, so never duplicated into variable.
-    expect(stable).toContain("### Scene template: supply_demand (READY");
-    expect(variable).not.toContain("### Scene template: supply_demand (READY");
+    // supply_demand is no longer pinned into stable (design §3.1): shortlisted
+    // like any other id, it travels in variable, in full, with the rest of the pick.
+    expect(stable).not.toContain("### Scene template: supply_demand (READY");
+    expect(variable).toContain("### Scene template: supply_demand (READY");
     // The router never touches the stable prefix.
     expect(stable).toBe(catalogParts({ request: "unrelated words" }).stable);
   });

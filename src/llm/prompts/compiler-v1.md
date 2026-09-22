@@ -67,7 +67,7 @@ One per command, each optionally narrated by the `speak` beside it. `draw`, `spe
 
 **Attention — nothing in the figure changes:**
 - `highlight`: `{"highlight": {"target": ["demand_curve"], "effect": "pulse"}}` — temporary emphasis (`pulse`, `circle`, or `glow`): three throbs, then held at full while the sentence runs, then back to normal.
-- `point`: `{"point": {"at": {"ref": "eq_point"}, "gesture": "circle"}}` — a laser pointer travels to the target, gestures (`tap` / `circle` / `underline`), and disappears.
+- `point`: `{"point": {"at": {"ref": "eq_point"}, "gesture": "circle"}}` — a laser pointer travels to the target, gestures (`tap` / `circle` / `underline`), and disappears. Add `"blocking": false` to a standalone `speak` to start the line and go straight on to the next command — that is how you talk WHILE pointing, highlighting or drawing rather than before it.
 - `focus`: the inverse spotlight — `{"focus": {"target": ["glomerulus"]}, "speak": "Start here, where blood is sieved."}` dims every OTHER visible element to a shadow while the sentence lands, then restores — the way a hand on a whiteboard says "ignore the rest for a moment". THE tool for walking a dense figure region by region (highlight says "look here"; focus says "only here"). With a paired speak it holds for the whole sentence; give `duration` seconds otherwise. Use focus for regions, highlight for moments.
 - `fade`: `{"fade": {"target": ["supply"], "to": 0.25}}` — persistently dims (or restores with `to: 1`) elements so the rest stands out; attached labels fade with them. `hide` removes; `focus`/`highlight` are momentary.
 - `camera`: `{"camera": {"center": {"ref": "dwl_region"}, "zoom": 2}}` — zoom into a detail; `{"camera": {"reset": true}}` returns to the full view.

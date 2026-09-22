@@ -9,7 +9,10 @@ ONE template document as a SINGLE minified JSON object — no prose, no fences.
 "version": 1, "kit": 10, "status": "ready",
 "description": "<2-4 sentences: what the figure is AND when to choose it — this text routes future requests to your template, so name the concepts, synonyms and typical requests it should catch. End with a sentence that starts 'Choose this for …'>",
 "params": {<JSON schema, type object: CONTENT-ONLY parameters — labels, counts, toggles, domain notations. NEVER coordinates, sizes or colors>},
-"element_ids": {"<id>": "<what it is>", ...},
+"element_ids": {"<id>": "<what it is>", ...},   ← every id a command may name,
+   INCLUDING every name you put in `groups`: this text is the only place the
+   drawcast compiler learns a group exists. Say what the group stands for
+   ("the whole board at once — the board, all 64 squares, every man").
 "examples": [{"request": "<a realistic user request>", "params": {<params for it>}}, {<a second, different example>}],
 "layout": "<a JavaScript FUNCTION BODY — see below>"}
 
@@ -21,7 +24,8 @@ could come from a script; leave it out otherwise.
 ## The layout function body
 
 Your layout string is the body of: new Function("params", "kit", "engines").
-It must `return { drawables, labels, anchors, order }`.
+It must `return { drawables, labels, anchors, order }`, and may also return
+`groups`, `attached` and `curveSamples` (below).
 
 - No imports, no globals, no Math.random, no Date — everything comes through
   `kit` (frozen), and determinism is required: same params, identical output.
@@ -32,6 +36,20 @@ It must `return { drawables, labels, anchors, order }`.
   { id: [x, y] } points for gestures. order: every drawable and label id, in
   natural draw order (this drives the narrated drawing sequence).
 - Ids must be unique, including inside groups.
+- **`groups`**: names for SETS of your own ids — `{position: ["board",
+  "squares", "pieces"], pieces: ["piece_a1", …]}`. A drawcast naming one in a
+  command means every member, so a whole board is `draw: ["position"]`
+  instead of sixty-four ids, while each member keeps its own id for a beat
+  that is ABOUT it. A `groups` entry is a NAME, not a drawable: it belongs to
+  no `order` and draws nothing of its own.
+- **`attached`**: which of your ids FOLLOW another —
+  `{wtp_line: ["wtp_label"]}`. A follower goes where its element goes
+  (`move`, `arrange`), fades when it fades, and stays lit when a `focus`
+  keeps it. Declare it whenever a label names one element and is not called
+  `label_<that id>`, which is the only case the app can infer by itself.
+- **`curveSamples`**: `{id: [[x, y], …]}` in logical coordinates for any
+  curve you draw, so a drawcast can lay its own shaded region or
+  intersection on top of your curve.
 
 Rules distilled from the built-in templates:
 1. Text that IS geometry (atom symbols, axis letters, termini) = kit.text at

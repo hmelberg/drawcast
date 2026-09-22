@@ -14,7 +14,7 @@ import type { OnDemandRun } from "./on-demand-run";
 import type { describeTemplateFor } from "./on-demand";
 import type { TemplateDoc } from "../scenes/doc";
 import { ensureEnginesForSpecs } from "../scenes/engines";
-import { specSchema, validateSpec } from "../spec/schema";
+import { specSchema, validateSpec, CODE_ONLY_ELEMENT_PROPS, SOUND_ONLY_COMMAND_PROPS } from "../spec/schema";
 import { paramsWithAssets } from "../spec/assets";
 import { attachSeedCredit, type SeedBlock } from "./seed";
 import { visualRepairMessages, wantsVisualRepair } from "./visual";
@@ -93,10 +93,36 @@ export function fewshotsText(): string {
     .join("\n\n");
 }
 
-/** Schema copy for the API's structured-output constraint, and for the prompt's {{SCHEMA}}. */
-export function apiSchema(): object {
+/**
+ * Schema copy for the API's structured-output constraint, and for the
+ * prompt's {{SCHEMA}}.
+ *
+ * `code` and `sound` are the SAME two booleans that already gate {{CODE}}
+ * and {{SOUND}} (llm/prompt.ts's wantsCode / wantsSound). Omitted means the
+ * full schema, so every caller that does not care is unaffected. Both blocks
+ * sit before {{EXEMPLARS}}, so the cached prefix already forks four ways on
+ * these two — gating the schema too adds no fifth cache entry.
+ *
+ * generateSpec and reviseDocument each hoist ONE pair of these booleans and
+ * pass the resulting schema to every call site that needs it, rather than
+ * calling this again per site — a model shown one contract in the prompt and
+ * held to a different one in the structured-output constraint is the
+ * failure this design exists to close, and hoisting makes disagreement
+ * impossible rather than merely unlikely.
+ */
+export function apiSchema(opts: { code?: boolean; sound?: boolean } = {}): object {
   const copy = JSON.parse(JSON.stringify(specSchema)) as Record<string, unknown>;
   delete copy.$schema;
+  const props = copy.properties as Record<string, any>;
+  if (opts.code === false) {
+    const el = props.elements.items.properties;
+    for (const k of CODE_ONLY_ELEMENT_PROPS) delete el[k];
+    el.type.enum = el.type.enum.filter((t: string) => t !== "code");
+  }
+  if (opts.sound === false) {
+    const cmd = props.commands.items.properties;
+    for (const k of SOUND_ONLY_COMMAND_PROPS) delete cmd[k];
+  }
   return copy;
 }
 
@@ -377,7 +403,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   // skip re-processing ~10k tokens of prompt. Below the catalog's two-level
   // threshold (src/scenes/catalog.ts) catalogParts().variable is always "",
   // so the prefix is byte-stable across requests. At or above it, catalogParts
-  // splits {{CATALOG}} itself: `stable` (index + forced/priority/core hot set
+  // splits {{CATALOG}} itself: `stable` (index + forced/priority hot set
   // + stubs + pack lines + escalation, NEVER the free-text request) goes into
   // the cache_control prefix, while `variable` (the shortlist — the router's
   // picks filled up with selectTemplates(request, …), minus anything in `stable`) is
@@ -412,12 +438,20 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   const seeded = seed !== null;
   // ---- end icon seed ----
   let catalog = catalogParts({ request, forced: cfg.forcedTemplate, priorityIds: cfg.priorityIds, excludeIds: cfg.excludeIds, shortlist });
+  // One pair of booleans, read three times below: the prose gate ({{CODE}}/
+  // {{SOUND}}), the schema built for the prompt's {{SCHEMA}}, and the same
+  // schema reused as the structured-output constraint (and again at the
+  // template-fetch escalation rebuild further down). Hoisted once so those
+  // three reads can never disagree.
+  const wantCode = wantsCode(request);
+  const wantSound = wantsSound(request);
   // The code block rides along only for a request that wants a script; every
   // other request keeps 15k chars out of its (cached) prefix.
-  const code = wantsCode(request) ? CODE_PROMPT_SOURCE : "";
-  const sound = wantsSound(request) ? SOUND_PROMPT_SOURCE : "";
+  const code = wantCode ? CODE_PROMPT_SOURCE : "";
+  const sound = wantSound ? SOUND_PROMPT_SOURCE : "";
+  const schema = apiSchema({ code: wantCode, sound: wantSound });
   let blocks = buildSystemBlocks(cfg.variant.source, {
-    schema: apiSchema(),
+    schema,
     catalog: catalog.stable,
     fewshots: fewshotsText(),
     exemplars: formatExemplars(pickExemplars(request, cfg.exemplars, cfg.bundledExemplars ?? [], 3)),
@@ -426,7 +460,6 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   });
   let suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "") + styleBlock(cfg.styleText);
   let system: Anthropic.TextBlockParam[] = systemBlocks(blocks.prefix, suffixText);
-  const schema = apiSchema();
   const measure = makeBrowserMeasure();
   const maxRepairs = cfg.maxRepairs ?? 2;
 
@@ -514,7 +547,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
         // the escalation rebuild pins a fully cache-stable prefix too.
         catalog = catalogParts({ forced: needed, excludeIds: cfg.excludeIds });
         blocks = buildSystemBlocks(cfg.variant.source, {
-          schema: apiSchema(),
+          schema,
           catalog: catalog.stable,
           fewshots: fewshotsText(),
           exemplars: formatExemplars(pickExemplars(request, cfg.exemplars, cfg.bundledExemplars ?? [], 3)),

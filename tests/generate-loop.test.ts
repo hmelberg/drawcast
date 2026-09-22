@@ -332,7 +332,7 @@ describe("generateSpec cache split (M5 Task 2)", () => {
   // A unique keyword ("qxzzyweeble") that appears in ONLY this template's
   // description/example, so selectTemplates(request, 3) shortlists exactly
   // this one id deterministically (no ties with the filler templates, none
-  // of which is in CORE_IDS or cfg.priorityIds either).
+  // of which is in LAST_RESORT_IDS or cfg.priorityIds either).
   function addTarget(): void {
     const doc: TemplateDoc = {
       template: "csplit_target", version: 1, kit: 1, status: "ready",
