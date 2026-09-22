@@ -434,7 +434,14 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // thing you take apart belongs. Net +845 (208483 -> 209328): the new bullet
 // costs more than the old rule 8 gave back, and buys a capability the schema
 // has always carried and nothing reachable ever offered.
-const BASELINE_SYSTEM_CHARS = 209328;
+// Re-pinned UP 2026-09-23 for supply_demand's region element_ids: two of the
+// five said nothing about needing their name in `regions` and a third was
+// vague ("when regions is set"). A live Haiku cast drew `wedge_region` with a
+// tax present, exactly as its entry described, and got nothing — the entry
+// said "a tax only" and never mentioned `regions`. All five now name the
+// value that creates them. 209328 -> 209730, +402 for a miss that was silent
+// at every stage: it validated, it laid out, it rendered an empty beat.
+const BASELINE_SYSTEM_CHARS = 209730;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
