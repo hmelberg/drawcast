@@ -45,6 +45,14 @@ How to read it, in full:
   `animate stage 1 duration 3`, `move target b by [15, 0] duration 1`,
   `camera zoom 2`, `erase p1`, `pause 0.4`. A dotted key is a nested field:
   `at.ref eq` is `"at": {"ref": "eq"}`.
+- **An action may sit INSIDE a spoken line**, wrapped in `(@ … @)`: `"This
+  line (@point at.ref eq gesture circle@) is the equilibrium."` The span is
+  not spoken — it marks the MOMENT in the sentence at which its action
+  fires. Keep a span exactly where it sits; moving it retimes the beat.
+- **A dialogue beat names its speaker** with `A:` or `B:` at the left margin:
+  `A: So the gap IS the loss?`. A is the lead voice, B the second.
+- **`@name` on its own line is a label** — the target a quiz, an ask or an
+  `if` jumps to.
 - An **element** is declared on the beat that first draws it, by its type:
   `node hush "Husholdninger" x 220 y 375`, `label price "Pris" attach_to demand
   side right`. Declaring it there IS its draw — it needs no `draw` line. The
@@ -52,9 +60,12 @@ How to read it, in full:
   block of their own, marked `hidden true`.
 - A **code element** is a fence, its info line carrying the id and fields:
   ` ```python gdp x 225 y 400 show code `, the script, then ` ``` `.
-- **Page settings** are `key: value` lines above the page's first beat:
-  `lang: nb`, `use: <template>` (the spec's `template`), `with: {json}` (its
-  `params`), `vars: {json}`, `text: {json}`, `level: advanced`.
+- **Page settings** are `key: value` lines above the page's first beat, and
+  the list is CLOSED — a spoken line may perfectly well begin "Kort sagt:",
+  and only this list keeps that from being read as a setting: `lang:`,
+  `voice:` (male/female), `level:`, `record:`, `canvas:`, `domain:`,
+  `vars: {json}`, `text: {json}`, `zoom_from:`, `use: <template>` (the
+  spec's `template`), `with: {json}` (its `params`), `chapter:`.
 - **When the script has no spelling for what you need, use the escape hatch
   rather than inventing one**: a ` ```yaml ` fence holding a LIST is appended to
   the page's elements, and one holding a MAPPING is merged into the page. Both

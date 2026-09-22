@@ -441,7 +441,12 @@ const BASELINE_SCHEMA_CHARS = 79310;
 // where the document settings live, and that "JSON only" is off for this
 // turn. Same ratchet rule as the constants above: a round that adds to the
 // card re-pins here, on purpose, with a note.
-const BASELINE_REVISE_CHARS = 4520;
+// Re-pinned UP 2026-09-22: four constructs the scanner accepts but the card
+// never named — inline `(@ … @)` action spans, `A:`/`B:` dialogue lines,
+// `@name` gotos, and the closed SETTING_KEYS list (design 2026-09-22 §4.3).
+// 4520 -> 5246. A revision was being told to return every beat unchanged
+// while being shown a notation missing four of its spellings.
+const BASELINE_REVISE_CHARS = 5246;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {
