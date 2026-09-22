@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { planningModelFor } from "../src/llm/client";
 import { buildOutlineMessages, buildPartRequest, normalizeOutline, type Outline } from "../src/llm/outline";
 
 describe("buildOutlineMessages", () => {
@@ -7,9 +8,12 @@ describe("buildOutlineMessages", () => {
     expect(user).toContain("The economics of vaccination");
   });
 
-  test("an explicit part count is demanded, otherwise 2–4", () => {
+  test("an explicit part count is demanded, otherwise 1–4", () => {
     expect(buildOutlineMessages("x", 3).system).toContain("exactly 3");
-    expect(buildOutlineMessages("x", null).system).toMatch(/2[–-]4/);
+    // Bare #parts may answer ONE (Hans 2026-09-22): some questions are a
+    // single figure, and a planner forced to split one pads it.
+    expect(buildOutlineMessages("x", null).system).toMatch(/1[–-]4/);
+    expect(buildOutlineMessages("x", null).system).toContain("ONE is a real answer");
   });
 
   test("the JSON shape is spelled out in the prompt itself (plain-JSON fallback must work too)", () => {
@@ -26,10 +30,29 @@ describe("normalizeOutline", () => {
     expect(o?.parts).toHaveLength(2);
   });
 
-  test("fewer than two parts is rejected", () => {
-    expect(normalizeOutline({ title: "T", parts: [{ title: "A", brief: "a" }] })).toBeNull();
+  test("one part is a legitimate answer; nothing readable is not", () => {
+    // Changed 2026-09-22: a bare #parts may come back as a single part.
+    expect(normalizeOutline({ title: "T", parts: [{ title: "A", brief: "a" }] })?.parts).toHaveLength(1);
+    expect(normalizeOutline({ title: "T", parts: [] })).toBeNull();
     expect(normalizeOutline({ title: "T" })).toBeNull();
     expect(normalizeOutline("garbage")).toBeNull();
+  });
+
+  // The defect this exists for, measured 2026-09-22: a request tagged
+  // #parts=3 came back with FIVE parts, two of them near-duplicate
+  // syntheses. The prompt said "exactly 3" and nothing checked the reply.
+  test("an explicit #parts=N is enforced, not merely requested", () => {
+    const five = { title: "T", parts: [1, 2, 3, 4, 5].map((n) => ({ title: `P${n}`, brief: `b${n}` })) };
+    expect(normalizeOutline(five, undefined, 3)?.parts.map((p) => p.title)).toEqual(["P1", "P2", "P3"]);
+    // Clipped to the FIRST N, never first-N-minus-one plus the planner's
+    // last: a synthesis written to follow five parts names what those five
+    // showed, so grafting it after part two promises a payoff never seen.
+    expect(normalizeOutline(five, undefined, 1)?.parts.map((p) => p.title)).toEqual(["P1"]);
+    // Fewer than asked is accepted — parts cannot be invented.
+    const two = { title: "T", parts: [{ title: "A", brief: "a" }, { title: "B", brief: "b" }] };
+    expect(normalizeOutline(two, undefined, 4)?.parts).toHaveLength(2);
+    // No count asked for: the planner's judgement stands, up to the ceiling.
+    expect(normalizeOutline(five, undefined, null)?.parts).toHaveLength(5);
   });
 
   test("a missing series title is tolerated (empty — the caller falls back to the request)", () => {
@@ -150,5 +173,24 @@ describe("chapters a long series may propose", () => {
       ["Only one"],
     );
     expect(o!.parts.map((p) => p.chapter)).toEqual(["Only one", "Only one"]);
+  });
+});
+
+// The PLANNING call — the one whose single output shapes a whole series —
+// carries a model floor. Measured 2026-09-22 on one request
+// ("how a tax creates a deadweight loss", #parts=3) at all three tiers:
+// Haiku returned five parts with two near-duplicate syntheses and narration
+// whose order did not match its own ink; Sonnet and Opus both returned three
+// coherent parts. Only the plan is raised — every part is still DRAWN with
+// the model the author chose, which is the setting they actually made.
+describe("planningModelFor", () => {
+  test("Haiku is raised to Sonnet for the plan", () => {
+    expect(planningModelFor("claude-haiku-4-5")).toBe("claude-sonnet-5");
+  });
+
+  test("anything at or above Sonnet is left exactly as chosen", () => {
+    expect(planningModelFor("claude-sonnet-5")).toBe("claude-sonnet-5");
+    expect(planningModelFor("claude-opus-5")).toBe("claude-opus-5");
+    expect(planningModelFor("claude-fable-5-1")).toBe("claude-fable-5-1");
   });
 });

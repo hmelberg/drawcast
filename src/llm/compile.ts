@@ -3,7 +3,7 @@
 // The vision critic (Loop 1.3) hooks in here when built — see ROADMAP.
 
 import type Anthropic from "@anthropic-ai/sdk";
-import { makeClient, callForJson, callForText, describeApiError, isOutputLimitError, repairModelFor, type Effort, type JsonCallMeta } from "./client";
+import { makeClient, callForJson, callForText, describeApiError, isOutputLimitError, planningModelFor, repairModelFor, type Effort, type JsonCallMeta } from "./client";
 import { buildOutlineMessages, normalizeOutline, OUTLINE_SCHEMA, type Outline } from "./outline";
 import { buildStoryboardMessages, STORYBOARD_SCHEMA, type Approach } from "./storyboard";
 import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, styleBlock, systemBlocks, wantsCode, wantsSound, OPTIONAL_PROMPT_PLACEHOLDERS, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
@@ -785,8 +785,8 @@ export async function generateOutline(
   // the API default the model thought for thousands of tokens over a reply
   // of a hundred (cost round 2026-09-18). The parts themselves keep the
   // author's effort dial; this is the plan, not the teaching.
-  const { json } = await callForJson(client, cfg.model, system, [{ role: "user", content: user }], OUTLINE_SCHEMA as unknown as object, { signal, effort: "low" });
-  return normalizeOutline(json, chapters);
+  const { json } = await callForJson(client, planningModelFor(cfg.model), system, [{ role: "user", content: user }], OUTLINE_SCHEMA as unknown as object, { signal, effort: "low" });
+  return normalizeOutline(json, chapters, parts);
 }
 
 /**
@@ -804,9 +804,9 @@ export async function generateStoryboard(
 ): Promise<Outline | null> {
   const client = makeClient(cfg.apiKey);
   const { system, user } = buildStoryboardMessages(request, parts, { ...opts, styleText: cfg.styleText });
-  const { json } = await callForJson(client, cfg.model, system, [{ role: "user", content: user }], STORYBOARD_SCHEMA as unknown as object, {
+  const { json } = await callForJson(client, planningModelFor(cfg.model), system, [{ role: "user", content: user }], STORYBOARD_SCHEMA as unknown as object, {
     signal,
     ...(cfg.effort ? { effort: cfg.effort } : {}),
   });
-  return normalizeOutline(json, opts.chapters);
+  return normalizeOutline(json, opts.chapters, parts);
 }

@@ -6,6 +6,7 @@ import { CANVAS } from "../layout/canvas";
 import { MATH_DEFAULT_SIZE } from "../layout/math";
 import { isFitName } from "../layout/regions";
 import { AUTO_NAMESPACE, baseName, isReservedVar, VAR_RE } from "../spec/answers";
+import { EXPR_BASE_VARS } from "../spec/vars";
 import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox, type BBox } from "../layout/geometry";
 import { drawablesForId, leafDrawables, type Drawable, type GroupDrawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
 import type { LeafDrawable } from "../layout/posed";
@@ -113,6 +114,8 @@ export interface LintIssue {
     | "controls"
     /** pane: controls without controls, or a pane on show: output/none, or lines/marks on a controls pane */
     | "pane"
+    /** a curve whose expr reads a plot-variable alias the page also declares as a var — the var wins and the curve is flat */
+    | "curve-var-shadow"
     /** a run (or an explore beat's planned demo) whose script, controls or series the player could not honour */
     | "run"
     /** more insets in the thumbnail column than INSET_MAX: they shrink to fit */
@@ -916,9 +919,48 @@ export interface LintCommandsOptions {
   questionOffset?: number;
 }
 
+/**
+ * A curve whose `expr` reads a plot-variable ALIAS that the page has also
+ * declared as a var. `t`, `T`, `q` and `Q` are aliases of the curve variable
+ * only until a var of that name exists, at which point the var wins —
+ * layout/curves.ts sampleExpression spreads `vars` last, on purpose, because
+ * a sweep parameter naturally wants to be called `t`.
+ *
+ * So `expr: "0.5*t*t"` on a page carrying `vars: {"t": 0}` is not a parabola.
+ * It is the constant 0, drawn as a flat line, and nothing else in the
+ * pipeline complains: it validates, it lays out, it renders. Measured
+ * 2026-09-22 on a real generation, where a deadweight-loss-against-tax curve
+ * came back flat for exactly this reason. The PARAMETRIC path already warns
+ * about the same collision (layout/tier2.ts, "a var named t is shadowed by
+ * the parameter"); the plain `expr` path did not.
+ *
+ * Only flagged when the expression has no live plot variable LEFT — an expr
+ * of `100 - t - x` deliberately mixes a swept var with the curve variable,
+ * which is the whole point of the vars round, and must stay silent.
+ */
+function lintCurveExprs(spec: Spec): LintIssue[] {
+  const shadowed = new Set(Object.keys(spec.vars ?? {}).filter((n) => EXPR_BASE_VARS.includes(n)));
+  if (shadowed.size === 0) return [];
+  const issues: LintIssue[] = [];
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "curve" || typeof el.expr !== "string") continue;
+    const names = new Set(el.expr.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []);
+    const hit = [...names].filter((n) => shadowed.has(n));
+    if (hit.length === 0) continue;
+    if ([...names].some((n) => EXPR_BASE_VARS.includes(n) && !shadowed.has(n))) continue;
+    issues.push({
+      rule: "curve-var-shadow",
+      ids: [el.id],
+      message: `curve "${el.id}": expr "${el.expr}" reads ${hit.join(", ")}, which this page also declares in vars — the var wins, so the curve is a flat line. Write the curve variable as x, or drop the var.`,
+      severity: "warn",
+    });
+  }
+  return issues;
+}
+
 export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIssue[] {
   const cmds = spec.commands ?? [];
-  const issues: LintIssue[] = [...lintSources(spec), ...lintCode(spec), ...lintWidget(spec), ...lintMathSizes(spec)];
+  const issues: LintIssue[] = [...lintSources(spec), ...lintCode(spec), ...lintWidget(spec), ...lintMathSizes(spec), ...lintCurveExprs(spec)];
 
   // animate.box glides the figure into a region — but only when params has a
   // starting box (a name or a rectangle) to glide FROM. Without one it

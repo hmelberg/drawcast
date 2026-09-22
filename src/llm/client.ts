@@ -157,6 +157,26 @@ export function repairModelFor(model: string): string {
   return opusTier(model) ? "claude-sonnet-5" : model;
 }
 
+/**
+ * The model floor for a PLANNING call — the single call whose one output
+ * shapes a whole series (the storyboard, the outline). Raised to Sonnet
+ * because Haiku cannot hold a multi-part arc together, measured 2026-09-22
+ * on one request ("how a tax creates a deadweight loss", #parts=3) run at
+ * all three tiers: Haiku returned FIVE parts for a request that asked for
+ * three, two of them near-duplicate syntheses, and narration whose order did
+ * not match the ink it was paired with. Sonnet and Opus both returned three
+ * coherent parts with narration matching its figure beat for beat.
+ *
+ * Only the planning call is raised, not the parts. There is one of these per
+ * cast and one drawing call per PART, so the floor costs a single cheap call
+ * while the user's own model choice still draws everything that is drawn —
+ * which is the setting they actually made. A cast is only as coherent as the
+ * one call that decided its arc.
+ */
+export function planningModelFor(model: string): string {
+  return model.startsWith("claude-haiku") ? "claude-sonnet-5" : model;
+}
+
 function textOf(response: Anthropic.Message): string {
   return response.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")

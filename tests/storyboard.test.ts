@@ -47,7 +47,9 @@ describe("the storyboard prompt", () => {
     const { system, user } = buildStoryboardMessages("Explain compound interest", null, { brief: "Open with a question.", styleText: "Dry humour." });
     expect(user).toBe("Explain compound interest\n\nOpen with a question.");
     expect(system.endsWith("Dry humour.")).toBe(true);
-    expect(system).toContain("2–4 parts");
+    // 1–4 since 2026-09-22 (Hans): ONE part is a real answer to a bare
+    // #parts when the question is genuinely one figure.
+    expect(system).toContain("1–4 parts");
   });
 
   test("declared chapters are listed and appear in the shape", () => {

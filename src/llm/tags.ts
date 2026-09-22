@@ -270,7 +270,7 @@ export const TAGS: TagDef[] = [
   {
     tag: "playlist",
     group: "structure",
-    hint: "multi-part drawcast (AI chooses 2–4 parts)",
+    hint: "multi-part drawcast (AI chooses 1–4 parts)",
     brief: "",
   },
   {

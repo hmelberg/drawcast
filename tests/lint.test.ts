@@ -170,3 +170,33 @@ describe("lintCommands", () => {
     expect(issues.map((i) => i.rule).sort()).toEqual(["slow-start", "talky-stretch"]);
   });
 });
+
+// A curve's `expr` may read `t`, `T`, `q` or `Q` as aliases of the curve
+// variable — but only until the page declares a var of that name, at which
+// point the var wins (layout/curves.ts spreads vars last, deliberately: a
+// sweep parameter naturally wants to be called `t`). The result is a curve
+// that validates, lays out and renders as a FLAT LINE with nothing
+// complaining. Measured 2026-09-22 on a real generation: a
+// deadweight-loss-against-tax curve came back flat for exactly this reason.
+describe("curve-var-shadow", () => {
+  const curve = (expr: string, vars?: Record<string, number>): Spec =>
+    ({ elements: [{ id: "c", type: "curve", expr }], commands: [{ draw: ["c"] }], ...(vars ? { vars } : {}) }) as unknown as Spec;
+
+  test("a var shadowing the only plot variable is flagged", () => {
+    const issues = lintCommands(curve("0.5*t*t", { t: 0 }));
+    const hit = issues.find((i) => i.rule === "curve-var-shadow");
+    expect(hit).toBeDefined();
+    expect(hit!.ids).toEqual(["c"]);
+    expect(hit!.message).toContain("flat line");
+  });
+
+  test("an expr that still has a live plot variable is silent — that is the vars feature working", () => {
+    // `100 - t - x` deliberately mixes a swept var with the curve variable.
+    expect(lintCommands(curve("100 - t - x", { t: 0 })).some((i) => i.rule === "curve-var-shadow")).toBe(false);
+  });
+
+  test("no vars, or vars that collide with nothing, stay silent", () => {
+    expect(lintCommands(curve("0.5*t*t")).some((i) => i.rule === "curve-var-shadow")).toBe(false);
+    expect(lintCommands(curve("0.5*x*x", { shift: 3 })).some((i) => i.rule === "curve-var-shadow")).toBe(false);
+  });
+});

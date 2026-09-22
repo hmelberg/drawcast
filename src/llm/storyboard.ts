@@ -58,7 +58,7 @@ export function buildStoryboardMessages(
   parts: number | null,
   opts: { chapters?: string[]; brief?: string; styleText?: string } = {},
 ): { system: string; user: string } {
-  const count = parts !== null ? `exactly ${parts} parts` : "2–4 parts (your judgement: the fewest parts that teach it well)";
+  const count = parts !== null ? `exactly ${parts} parts` : "1–4 parts (your judgement: the fewest that teach it well — ONE is a real answer when the question is genuinely one figure, and padding a single idea into three is worse than one good part)";
   const chapters = opts.chapters && opts.chapters.length > 0 ? opts.chapters : undefined;
   const system: string[] = [
     "You write the STORYBOARD for a multi-part drawcast: a short series of narrated, hand-drawn teaching figures, each part 30–90 seconds on one single figure and one idea. You write the whole series' narration now, in one sitting, so that it coheres; another pass draws each part's figure to your lines and cannot change your words — it may only tighten a line to fit the ink.",

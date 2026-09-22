@@ -82,7 +82,7 @@ export function buildOutlineMessages(
   parts: number | null,
   chapters?: string[],
 ): { system: string; user: string } {
-  const count = parts !== null ? `exactly ${parts} parts` : "2–4 parts (your judgement: fewest parts that teach it well)";
+  const count = parts !== null ? `exactly ${parts} parts` : "1–4 parts (your judgement: the fewest that teach it well — ONE is a real answer when the question is genuinely one figure, and padding a single idea into three is worse than one good part)";
   const system = [
     "You plan a multi-part drawcast: a short series of narrated, hand-drawn teaching figures, each about 30–90 seconds.",
     `Split the request into ${count}. Each part must stand on one single figure and one idea.`,
@@ -116,7 +116,14 @@ export function buildOutlineMessages(
  * a title to survive; a missing series title becomes "" (caller falls back to
  * the request).
  */
-export function normalizeOutline(json: unknown, chapters?: string[]): Outline | null {
+/**
+ * `want` is the count the author asked for with `#parts=N`, or null for a
+ * bare `#parts` (the planner's own judgement). Until 2026-09-22 this was not
+ * passed at all: the prompt said "exactly N parts" and NOTHING checked the
+ * reply, so an explicit #parts=3 could come back as five — measured, with
+ * two of the five near-duplicate syntheses. Asking is not enforcing.
+ */
+export function normalizeOutline(json: unknown, chapters?: string[], want: number | null = null): Outline | null {
   if (typeof json !== "object" || json === null) return null;
   const raw = json as { title?: unknown; parts?: unknown };
   if (!Array.isArray(raw.parts)) return null;
@@ -144,8 +151,19 @@ export function normalizeOutline(json: unknown, chapters?: string[]): Outline | 
     }
     parts.push(part);
   }
-  if (parts.length < 2) return null;
-  const kept = parts.slice(0, MAX_PARTS);
+  // ONE part is a legitimate answer to a bare `#parts` (Hans 2026-09-22):
+  // some questions are one figure, and a planner forced to split them pads.
+  // Zero is not an answer, and neither is a reply we could not read.
+  if (parts.length < 1) return null;
+  // An explicit #parts=N is honoured by CLIPPING to the first N, never by
+  // grafting the planner's last part onto a shorter arc. The parts arrive in
+  // teaching order, and a synthesis written to follow five parts names what
+  // those five showed — pasted after part two it promises a payoff the
+  // viewer never saw ("now that we have seen … the mathematics", when the
+  // mathematics was one of the parts dropped). Truncation loses the ending;
+  // grafting invents a false one, which is worse.
+  const ceiling = want !== null ? Math.min(want, MAX_PARTS) : MAX_PARTS;
+  const kept = parts.slice(0, ceiling);
   if (!chapters || chapters.length === 0) dropPointlessChapters(kept);
   return { title: typeof raw.title === "string" ? raw.title : "", parts: kept };
 }
