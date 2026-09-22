@@ -403,7 +403,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   // skip re-processing ~10k tokens of prompt. Below the catalog's two-level
   // threshold (src/scenes/catalog.ts) catalogParts().variable is always "",
   // so the prefix is byte-stable across requests. At or above it, catalogParts
-  // splits {{CATALOG}} itself: `stable` (index + forced/priority/core hot set
+  // splits {{CATALOG}} itself: `stable` (index + forced/priority hot set
   // + stubs + pack lines + escalation, NEVER the free-text request) goes into
   // the cache_control prefix, while `variable` (the shortlist — the router's
   // picks filled up with selectTemplates(request, …), minus anything in `stable`) is

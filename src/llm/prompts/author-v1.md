@@ -40,8 +40,8 @@ It must `return { drawables, labels, anchors, order }`, and may also return
   "squares", "pieces"], pieces: ["piece_a1", …]}`. A drawcast naming one in a
   command means every member, so a whole board is `draw: ["position"]`
   instead of sixty-four ids, while each member keeps its own id for a beat
-  that is ABOUT it. A group is a NAME, not a drawable: it belongs to no
-  `order` and draws nothing of its own.
+  that is ABOUT it. A `groups` entry is a NAME, not a drawable: it belongs to
+  no `order` and draws nothing of its own.
 - **`attached`**: which of your ids FOLLOW another —
   `{wtp_line: ["wtp_label"]}`. A follower goes where its element goes
   (`move`, `arrange`), fades when it fades, and stays lit when a `focus`

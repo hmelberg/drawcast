@@ -417,6 +417,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // false` was named by the SCHEMA's point description and by nothing the
 // model reads as prose — 0 of 291 bundled specs used it (design 2026-09-22
 // §4.1). 208292 -> 208483.
+// Verified 2026-09-22 (final-review round, MINOR 8): the prior entry got here
+// by SUBTRACTING the schema's own delta rather than measuring the system
+// prompt directly — this repo's pins have carried slack from that shortcut
+// before (BASELINE_REVISE_CHARS was 4520 against an actual 4500). Measured
+// directly this time, via this test's own system(false).length: 208483,
+// exactly the derived figure — no correction needed.
 const BASELINE_SYSTEM_CHARS = 208483;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
@@ -450,7 +456,14 @@ const BASELINE_SCHEMA_CHARS = 79310;
 // `@name` gotos, and the closed SETTING_KEYS list (design 2026-09-22 §4.3).
 // 4520 -> 5246. A revision was being told to return every beat unchanged
 // while being shown a notation missing four of its spellings.
-const BASELINE_REVISE_CHARS = 5246;
+// Re-pinned UP 2026-09-22 (final-review round, MINOR 7): the inline-span
+// bullet's headline wrote the construct as `(@ … @)` with a space, but
+// liftActions (src/spec/script/lines.ts) only opens a span when a LETTER
+// follows `(@` immediately — a model copying the spaced form literally
+// produces a span that is silently spoken aloud instead of firing. Added
+// half a clause saying so; the bullet's own concrete example was already
+// correct. 5246 -> 5372.
+const BASELINE_REVISE_CHARS = 5372;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

@@ -45,10 +45,12 @@ How to read it, in full:
   `animate stage 1 duration 3`, `move target b by [15, 0] duration 1`,
   `camera zoom 2`, `erase p1`, `pause 0.4`. A dotted key is a nested field:
   `at.ref eq` is `"at": {"ref": "eq"}`.
-- **An action may sit INSIDE a spoken line**, wrapped in `(@ … @)`: `"This
-  line (@point at.ref eq gesture circle@) is the equilibrium."` The span is
-  not spoken — it marks the MOMENT in the sentence at which its action
-  fires. Keep a span exactly where it sits; moving it retimes the beat.
+- **An action may sit INSIDE a spoken line**, wrapped in `(@ … @)` — no space
+  right after `(@`, or it is read as ordinary words instead of firing (a
+  trailing space before `@)` is harmless): `"This line (@point at.ref eq
+  gesture circle@) is the equilibrium."` The span is not spoken — it marks
+  the MOMENT in the sentence at which its action fires. Keep a span exactly
+  where it sits; moving it retimes the beat.
 - **A dialogue beat names its speaker** with `A:` or `B:` at the left margin:
   `A: So the gap IS the loss?`. A is the lead voice, B the second.
 - **`@name` on its own line is a label** — the target a quiz, an ask or an

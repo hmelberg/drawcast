@@ -69,7 +69,11 @@ describe("buildAuthorSystem (refreshed)", () => {
     expect(text).toContain("**`attached`**");
     expect(text).toContain("**`curveSamples`**");
     // Each is explained, not merely listed.
-    expect(text).toContain("A group is a NAME, not a drawable");
+    // Final-review round (2026-09-22): reworded to "A `groups` entry is a
+    // NAME" — "group" alone was ambiguous against kit.group() a few lines
+    // below, which IS a drawable and DOES belong in order (the opposite of
+    // what this sentence says about a `groups` entry).
+    expect(text).toContain("A `groups` entry is a NAME, not a drawable");
     expect(text).toContain("which of your ids FOLLOW another");
     // And it says group names must be documented, because element_ids is the
     // only channel the COMPILER has for learning them.

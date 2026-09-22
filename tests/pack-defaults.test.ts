@@ -5,12 +5,12 @@
 // DEFAULT_OFF_PACKS (games, maps), which are bundled but sit outside that
 // academic default and stay opt-in — and, since 2026-09-07, the default
 // library is ABOVE TEMPLATE_FULL_THRESHOLD on purpose: the catalog is an
-// index of every template plus full entries for the core and for the
-// request's shortlist (the router in src/llm/router.ts, then the keyword
-// selector), with the need_template escalation as the safety valve. Before
-// the router the full catalog was the default (~75k tokens a request); the
-// index + shortlist regime is ~20k. See src/scenes/catalog.ts and
-// src/store.ts.
+// index of every template plus full entries for the request's shortlist
+// (the router in src/llm/router.ts, then the keyword selector), with the
+// need_template escalation as the safety valve. Before the router the full
+// catalog was the default (~75k tokens a request); the index + shortlist
+// regime is ~14k (measured below: stable.length 13,979, ceiling test at
+// line ~71). See src/scenes/catalog.ts and src/store.ts.
 
 import { beforeAll, describe, expect, test } from "vitest";
 import { DEFAULT_SETTINGS } from "../src/store";

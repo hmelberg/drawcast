@@ -66,6 +66,16 @@ describe("structuredOutputSupported", () => {
   test("rejects the spec schema (open params)", () => {
     expect(structuredOutputSupported(apiSchema())).toBe(false);
   });
+  // MINOR 9 (final-review round, 2026-09-22): the ungated schema's root
+  // `params` (a template's own params object) is open, and that alone is what
+  // keeps callForJson off output_config.format.schema for every spec call —
+  // sent as plain prompt JSON instead. The code/sound-GATED schema (revise.ts
+  // passes { code, sound } from the document) has to fail the same way, or a
+  // future gate that happened to delete the last open object would silently
+  // start sending the spec schema as a live structured-output constraint.
+  test("rejects the gated spec schema too (still an open params object)", () => {
+    expect(structuredOutputSupported(apiSchema({ code: false, sound: false }))).toBe(false);
+  });
   test("rejects a map-typed additionalProperties", () => {
     const mapped = { type: "object", properties: { c: { type: "object", additionalProperties: { type: "string" } } }, additionalProperties: false };
     expect(structuredOutputSupported(mapped)).toBe(false);
