@@ -524,3 +524,52 @@ describe("reviseDocument never pulls in the catalog's last-resort fallback (desi
     expect(systemText(0)).not.toContain("### Scene template: decision_tree (READY");
   });
 });
+
+// Scoped re-review finding (2026-09-22): parsedNow.playlist (the CURRENT
+// document, straight off the textarea) is PARSED but never VALIDATED —
+// validateSpec/checkPlaylist run on the model's REPLY, not on the incoming
+// document — and main.ts notes a hand-edit the author never re-rendered
+// still rides into a revision. The structural code/sound check above
+// (`specs.some((s) => ... s.elements.some((e) => e.type === "code"))`) can
+// therefore meet `elements`/`commands` in any shape JSON/YAML allows: not an
+// array at all, or an array holding a null/blank entry. The OLD regex-based
+// check could never throw (a regex test against a string always returns);
+// the new structural one could, before Array.isArray + `?.` guards were
+// added. This runs before reviseDocument's own try block, and main.ts's
+// revise() has no catch around the call — so an unguarded throw here would
+// have reached the author as a spinner that silently clears with no error
+// shown at all.
+describe("reviseDocument survives a malformed CURRENT document (scoped re-review, 2026-09-22)", () => {
+  const ELEMENTS_NOT_ARRAY = "title: A\nelements: not-an-array\ncommands: []\n";
+  const ELEMENTS_NULL_ITEM = "title: A\nelements:\n  - null\n  - { id: ax, type: axes, x_label: x, y_label: y }\ncommands: []\n";
+  const COMMANDS_NOT_ARRAY = "title: A\nelements: []\ncommands: not-an-array\n";
+  const COMMANDS_NULL_ITEM = "title: A\nelements: []\ncommands:\n  - null\n  - { pause: 0.4 }\n";
+
+  test("elements that are not an array at all do not crash the code check", async () => {
+    replies = [GOOD];
+    const out = await reviseDocument(ELEMENTS_NOT_ARRAY, "steeper", cfg());
+    expect(out.error).toBeUndefined();
+    expect(calls).toHaveLength(1);
+  });
+
+  test("an elements list holding a null item does not crash the code check", async () => {
+    replies = [GOOD];
+    const out = await reviseDocument(ELEMENTS_NULL_ITEM, "steeper", cfg());
+    expect(out.error).toBeUndefined();
+    expect(calls).toHaveLength(1);
+  });
+
+  test("commands that are not an array at all do not crash the sound check", async () => {
+    replies = [GOOD];
+    const out = await reviseDocument(COMMANDS_NOT_ARRAY, "steeper", cfg());
+    expect(out.error).toBeUndefined();
+    expect(calls).toHaveLength(1);
+  });
+
+  test("a commands list holding a null item does not crash the sound check", async () => {
+    replies = [GOOD];
+    const out = await reviseDocument(COMMANDS_NULL_ITEM, "steeper", cfg());
+    expect(out.error).toBeUndefined();
+    expect(calls).toHaveLength(1);
+  });
+});

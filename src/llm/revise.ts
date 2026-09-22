@@ -199,9 +199,24 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
   // page), so they were dead on every ordinary script-notation document;
   // reading the PARSED spec instead asks the same question the schema gate
   // below answers, on the shape that is actually there.
+  //
+  // Guarded, not just typed (scoped re-review, 2026-09-22): parsedNow.playlist
+  // is PARSED but never VALIDATED — validateSpec/checkPlaylist run on the
+  // model's reply, not on the incoming document — and this is the CURRENT
+  // document straight from the textarea, which may carry a hand-edit the
+  // author never re-rendered (main.ts). So `elements`/`commands` may be any
+  // shape JSON/YAML allows: not an array at all (`elements: not-an-array`),
+  // or an array holding a null/blank entry. Array.isArray rules out the
+  // former; `e?.type`/`c?.play` the latter. (Each item's `spec` itself is
+  // always a plain object here, never null/array — every path that builds a
+  // PlaylistItem either checks isPlainObject first (the JSON/YAML/`---`
+  // paths in playlist.ts) or constructs the object itself (parseScriptPages,
+  // spec/script/parse.ts:500), and a document that parses to anything else
+  // at the top level throws inside parsePlaylistText, caught above before
+  // this point is ever reached — so only elements/commands need guarding.)
   const specs = itemsOf(parsedNow.playlist).map((i) => i.spec);
-  const wantCode = wantsCode(instruction) || specs.some((s) => (s.elements ?? []).some((e) => e.type === "code"));
-  const wantSound = wantsSound(instruction) || specs.some((s) => (s.commands ?? []).some((c) => c.play !== undefined));
+  const wantCode = wantsCode(instruction) || specs.some((s) => Array.isArray(s.elements) && s.elements.some((e) => e?.type === "code"));
+  const wantSound = wantsSound(instruction) || specs.some((s) => Array.isArray(s.commands) && s.commands.some((c) => c?.play !== undefined));
   const blocks = buildSystemBlocks(cfg.variant.source, {
     schema: apiSchema({ code: wantCode, sound: wantSound }),
     catalog: catalog.stable,
