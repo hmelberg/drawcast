@@ -224,8 +224,11 @@ layout: |
   // grand staff: by beat, so what both hands play at once lines up.
   const totalBeats = Math.max(1, ...staves.map((st) => st.tokens.reduce((a, t) => a + t.beats, 0)));
   const nMax = Math.max(1, ...staves.map((st) => st.tokens.length));
-  const advance = Math.max(48, Math.min(84, (X1 - 240) / nMax));
-  const beatW = Math.max(24, Math.min(84, (X1 - 240) / totalBeats));
+  // Never wider than the staff: the last token must land before its end
+  // (a floor here once pushed a sixteen-token line off the right edge; the
+  // staff's own size already shrinks with density — GAP, above).
+  const advance = Math.min(84, (X1 - 240) / nMax);
+  const beatW = Math.min(84, (X1 - 240) / totalBeats);
   const xOf = (i, beatAt) => (grand ? 225 + beatAt * beatW : 225 + i * advance);
   const headHalf = (M.bboxOf("noteheadBlack")[2] / 2) * GAP;
   const ledgerHalf = headHalf + M.defaults.legerLineExtension * GAP;

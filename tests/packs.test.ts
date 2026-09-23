@@ -2937,6 +2937,16 @@ describe("music pack", () => {
     expect(flat.filter((d) => d.id.startsWith("note_0__lg") || d.id.startsWith("note_0__lu"))).toHaveLength(0);
   });
 
+  test("note_sheet: a full sixteen-token line stays on its staff", () => {
+    registerPack("music", musicYaml);
+    const notes = Array.from({ length: 16 }, () => "F4:e").join(" ");
+    const r = scenes.note_sheet.layout!({ notes });
+    const flat = flattenDrawables(r.drawables);
+    const right = Math.max(...flat.filter((d) => d.id.startsWith("note_15") && "pts" in d).flatMap((d) => (d as { pts: [number, number][] }).pts.map((p) => p[0])));
+    const staffEnd = Math.max(...(flat.find((d) => d.id === "staff__l0") as { pts: [number, number][] }).pts.map((p) => p[0]));
+    expect(right).toBeLessThanOrEqual(staffEnd);
+  });
+
   test("note_sheet grand staff: two staves and a brace, the hands lined up by beat", () => {
     registerPack("music", musicYaml);
     const r = scenes.note_sheet.layout!({ clef: "grand", notes: "E4:q F4:q G4:h", bass_notes: "C3:h G2:h" });
