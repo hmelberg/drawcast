@@ -461,7 +461,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // its description (+297); the prompt's hand-written-fade instructions shrink
 // to one sentence in rule 3 and a pointer in the fade bullet (−26).
 // 211437 -> 211708.
-const BASELINE_SYSTEM_CHARS = 211708;
+// Re-pinned UP 2026-09-23 (walk modes, Hans: motion that follows from the
+// structure): `walk` gains "zoom" (the camera frames each peer) and
+// "replace" (alternatives erase each other — the 2026-09-12 contrast rule),
+// and `camera.zoom` gains "fit". Schema +370 (walk's anyOf and description,
+// zoom's), prompt +293 (one sentence each in rule 3). 211708 -> 212371.
+const BASELINE_SYSTEM_CHARS = 212371;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -485,7 +490,8 @@ const BASELINE_SYSTEM_CHARS = 211708;
 // Re-pinned UP 2026-09-23 (galleries): `columns`, and the `group` layout
 // sentence, say it may be left out. 79449 -> 79584.
 // Re-pinned UP 2026-09-23 (walk): the group's `walk` field. 79584 -> 79881.
-const BASELINE_SCHEMA_CHARS = 79881;
+// Re-pinned UP 2026-09-23 (walk modes): walk "zoom"/"replace", camera zoom "fit". 79881 -> 80251.
+const BASELINE_SCHEMA_CHARS = 80251;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

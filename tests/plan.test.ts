@@ -262,6 +262,35 @@ describe("camera", () => {
     expect(plan.states[1].camera).toEqual(step.box);
   });
 
+  // zoom "fit" (2026-09-23): frame the target's box with a margin — what a
+  // zoom walk needs, since it is expanded before layout knows any sizes.
+  test("zoom fit frames the target with a margin, keeping the canvas shape", () => {
+    const box = { x: 100, y: 200, w: 200, h: 100 };
+    const plan = planCommands([{ draw: ["eq"] }, { camera: { center: { ref: "eq" }, zoom: "fit" } }], ["eq"], { bboxOf: (id) => (id === "eq" ? box : null) });
+    const cam = (plan.steps[1] as Extract<PlanStep, { kind: "camera" }>).box!;
+    expect(cam.w / cam.h).toBeCloseTo(CANVAS.w / CANVAS.h, 5);
+    // The target sits inside the view, with room to spare on its tighter side.
+    expect(cam.x).toBeLessThanOrEqual(box.x);
+    expect(cam.x + cam.w).toBeGreaterThanOrEqual(box.x + box.w);
+    expect(cam.w).toBeGreaterThan(box.w * 1.2);
+    expect(cam.w).toBeLessThan(box.w * 1.6);
+  });
+
+  test("zoom fit lifts the target clear of the caption band at the bottom of the frame", () => {
+    const box = { x: 400, y: 300, w: 200, h: 100 };
+    const plan = planCommands([{ draw: ["eq"] }, { camera: { center: { ref: "eq" }, zoom: "fit" } }], ["eq"], { bboxOf: () => box });
+    const cam = (plan.steps[1] as Extract<PlanStep, { kind: "camera" }>).box!;
+    const below = box.y - cam.y;
+    const above = cam.y + cam.h - (box.y + box.h);
+    expect(below).toBeGreaterThan(cam.h * 0.18);
+    expect(above).toBeGreaterThan(0);
+  });
+
+  test("zoom fit on something as large as the page does not zoom", () => {
+    const plan = planCommands([{ draw: ["eq"] }, { camera: { center: { ref: "eq" }, zoom: "fit" } }], ["eq"], { bboxOf: () => ({ x: 0, y: 0, w: CANVAS.w, h: CANVAS.h }) });
+    expect((plan.steps[1] as Extract<PlanStep, { kind: "camera" }>).box).toBeNull();
+  });
+
   test("reset returns the camera state to null", () => {
     const plan = planCommands([{ camera: { zoom: 2 } }, { camera: { reset: true } }], []);
     expect(plan.states[0].camera).not.toBeNull();

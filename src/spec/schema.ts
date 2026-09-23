@@ -252,7 +252,10 @@ const elementSchema = {
     },
     gap: { type: "number", description: "group layout: space between neighbours, logical units (default 40)." },
     columns: { type: "integer", minimum: 1, description: "group layout grid: members per row. Leave it out and the grid picks the count that shows the members largest." },
-    walk: { type: "boolean", description: "group: the members are peers the narration goes through one at a time (kinds of bridge, types of cell). Drawing the next fades the ones already shown; a command across two or more members, or the group, brings them all back. Replaces writing those fades." },
+    walk: {
+      anyOf: [{ type: "boolean" }, { type: "string", enum: ["fade", "zoom", "replace"] }],
+      description: "group: the members are gone through one at a time. true/\"fade\": peers (kinds of bridge) — drawing the next fades the ones shown; a command across two or more, or the group, brings them back. \"zoom\": the same, and the camera frames each as it arrives, pulling back for a comparison. \"replace\": alternatives in ONE place (a straight frontier, then the bowed one) — the next erases the one before; a command naming several draws them back. Replaces writing those commands.",
+    },
     align: { type: "string", enum: ["center", "start", "end"], description: "group layout: cross-axis alignment (default center)." },
     equalize: { type: "boolean", description: "group layout: one size for every member that draws a border (default true)." },
     fit: {
@@ -949,7 +952,7 @@ const commandSchema = {
       description: "Zoom/pan the view. Set reset:true to return to the full canvas.",
       properties: {
         center: endRefSchema,
-        zoom: { type: "number", description: "Magnification: 1 = whole canvas, 2 = 2× (default 2 when centering)." },
+        zoom: { anyOf: [{ type: "number" }, { type: "string", enum: ["fit"] }], description: "Magnification: 1 = whole canvas, 2 = 2× (default 2 when centering); \"fit\" frames center.ref with a margin." },
         reset: { type: "boolean", description: "Return to the full canvas." },
         duration: { type: "number", description: "Seconds (default 1.2)." },
       },

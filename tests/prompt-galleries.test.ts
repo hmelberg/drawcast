@@ -31,6 +31,8 @@ describe("walking a list is a field on the group", () => {
     expect(compilerV1).toMatch(/ONE AT A TIME get `"walk": true` on their group/);
     expect(compilerV1).toMatch(/brings them all back — never write those fades yourself/);
     expect(compilerV1).toMatch(/Walking a list of peers is `"walk": true`/);
+    expect(compilerV1).toMatch(/`"walk": "zoom"`, and the camera also frames each/);
+    expect(compilerV1).toMatch(/ALTERNATIVES standing in one place[^.]*`"walk": "replace"`/);
   });
 });
 

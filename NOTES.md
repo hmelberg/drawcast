@@ -6,6 +6,48 @@ to this file as "notes". Dated entries, newest first. When an item
 graduates into a spec or the roadmap, note that on the entry rather than
 deleting it.
 
+## 2026-09-23 — Structure-derived motion: candidates after `walk`
+
+The principle (STYLE.md 2026-09-23): one field on the content's structure,
+expanded into ordinary commands by `expandSpec`, beats choreography the model
+must place by hand. Counted over the 265 bundled casts before choosing:
+
+| Pattern written by hand | Count |
+|---|---|
+| camera zoom-in | 1 in 265 casts |
+| erase followed by draw (contrast) | 6 |
+| arrow drawn on a later beat than both its ends | 19 of 28 |
+| highlight of the element just drawn, on the next beat | 29 |
+
+Candidates, strongest first:
+
+1. **`walk: "zoom"`** — the walk also pushes the camera in on each new peer
+   while it is explained and pulls back for the comparison. The camera is
+   the least-used verb in the library, and this gives small grid cells full
+   size while they are the subject — most of what the dock (below) wanted,
+   with no new layout.
+2. **`walk: "replace"`** — for alternatives rather than peers: the next one
+   erases (or ghosts) the previous, the survivor stays. This is the
+   2026-09-12 contrast rule ("with more than two alternatives, draw-then-
+   erase each rejected alternative"), still not in the prompt.
+3. **`chain: true`** on a laid-out row/column joined by arrows — drawing the
+   next box draws the arrow into it. Weak evidence: the bundled casts draw
+   19 of 28 arrows on a beat of their own, often narrated, so this would
+   take a choice away. Lower priority.
+
+Built the same day (Hans: "do it"): 1 and 2, as `walk: "zoom"` and
+`walk: "replace"`, plus `camera.zoom: "fit"` — the planner frames the
+target's box with a 1.4 margin, lifted a tenth of the view clear of the
+caption band — which the zoom walk needs because it is expanded before
+layout knows any sizes. Examples: note values (zoom), Newton's cannon
+(replace). Example 242 (the PPF, straight vs bowed) could move to
+`walk: "replace"`; not done. Candidate 3 stays open.
+
+Already automatic and worth pointing at walked groups: the identify drill
+(`src/ui/parts-model.ts`) builds "click the ___" questions from a figure's
+named parts; a walked gallery's captions are exactly such names — check
+whether it qualifies before building anything.
+
 ## 2026-09-23 — A dock: finished drawings shrink aside for the next one
 
 Raised by Hans alongside the gallery ruling (STYLE.md 2026-09-23): the inset

@@ -156,9 +156,11 @@ export interface SpecElement {
   /** layout grid: members per row. */
   columns?: number;
   /** group: the members are peers walked one at a time — drawing the next
-   *  fades the ones already shown, a command across several brings them all
-   *  back (spec/walk.ts expands it into ordinary fades). */
-  walk?: boolean;
+   *  steps the ones already shown back, a command across several brings
+   *  them back (spec/walk.ts expands it into ordinary commands). true or
+   *  "fade" dims; "zoom" dims and frames each with the camera; "replace"
+   *  erases (alternatives in one place). */
+  walk?: boolean | "fade" | "zoom" | "replace";
   /** layout: alignment across the arrangement's cross axis (default center). */
   align?: "center" | "start" | "end";
   /** layout: give every member that draws a border the same size, the largest
@@ -439,8 +441,8 @@ export interface FlowArgs {
 export interface CameraArgs {
   /** Element id (ref) or coordinates to center on. */
   center?: EndRef;
-  /** Magnification: 1 = whole canvas, 2 = 2×, … */
-  zoom?: number;
+  /** Magnification: 1 = whole canvas, 2 = 2×, … — or "fit": frame center.ref with a margin. */
+  zoom?: number | "fit";
   /** Return to the full canvas. */
   reset?: boolean;
   /** seconds */

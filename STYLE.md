@@ -21,6 +21,32 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-23 — Motion that follows from the structure, not from commands
+
+Hans: "It is a good general pattern that we introduce interactions and
+animations that do not need a lot of extra or specific or detailed code.
+This makes it easier for the llm to write engaging and interesting
+drawcasts. Walk is a good example. If we have a list we may often (if it
+fits in the context) apply a walk which makes it more dynamic without a lot
+of commands. It just follows from the content and the structure of the
+content."
+
+**Distillation.** Prefer one declarative field on the content's structure — a
+group of peers, a set of alternatives, a chain — that the engine turns into
+motion, over verbs the model must place one command at a time. The model
+reliably gets structure right (both live galleries were grids) and reliably
+forgets choreography (neither faded). So choreography should be derived from
+structure wherever the rule is simple enough to predict. Mechanism: sugar
+expanded into ordinary commands before layout (`expandSpec`:
+cards, then walks), so the player, lint and export stay unchanged; the
+author's explicit command always wins.
+
+Status: the principle is recorded; `walk` is its first instance, and its
+`"zoom"` and `"replace"` values (built the same day) the next two — the
+latter finally carries the 2026-09-12 contrast rule into the prompt.
+Remaining candidates are in NOTES.md (2026-09-23, "Structure-derived
+motion").
+
 ### 2026-09-23 — A gallery of peers: a grid, walked with a fade
 
 Hans, on a Sonnet cast for "an overview of different bridge designs": "It is

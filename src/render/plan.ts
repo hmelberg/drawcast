@@ -339,6 +339,11 @@ export function isExplicitPointRef(p: PointRef | undefined): boolean {
 }
 
 const CAMERA_MAX_ZOOM = 8;
+/** zoom "fit": the view is this much larger than the target on its tighter side. */
+const CAMERA_FIT_MARGIN = 1.4;
+/** zoom "fit": the target's centre sits this fraction of the view above the
+ *  view's centre — the caption band covers roughly the bottom tenth. */
+const CAMERA_FIT_LIFT = 0.1;
 
 export function planCommands(commands: Command[] | undefined, allIds: string[], opts: PlanOptions = {}): Plan {
   let bboxOf = opts.bboxOf ?? (() => null);
@@ -1690,37 +1695,50 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.camera !== undefined) {
       let box: BBox | null = null;
       if (!cmd.camera.reset) {
-        const zoom = Math.min(CAMERA_MAX_ZOOM, Math.max(1, cmd.camera.zoom ?? 2));
+        let cx: number = camera ? camera.x + camera.w / 2 : CANVAS.w / 2;
+        let cy: number = camera ? camera.y + camera.h / 2 : CANVAS.h / 2;
+        let target: BBox | null = null;
+        const center = cmd.camera.center;
+        if (center?.ref !== undefined) {
+          const kids = standsFor(center.ref);
+          if (!known.has(center.ref) && kids.length === 0) {
+            warnings.push(`camera command references unknown id "${center.ref}" (centering on canvas)`);
+          } else {
+            // A pieces id centres on the whole group.
+            target = kids.length > 0 ? unionBox(kids.map(currentBox)) : currentBox(center.ref);
+            if (target) {
+              cx = target.x + target.w / 2;
+              cy = target.y + target.h / 2;
+            }
+            if (center.anchor !== undefined) {
+              const p = anchorNow(center.ref, center.anchor, "camera");
+              if (p) [cx, cy] = p;
+            }
+          }
+        } else if (center?.x !== undefined && center?.y !== undefined) {
+          [cx, cy] = toLogical([center.x, center.y]);
+        }
+        // "fit": as close as frames the target with a margin (a zoom walk is
+        // expanded before layout, so it cannot know a number); nothing to
+        // fit falls back to the default 2×.
+        const asked =
+          cmd.camera.zoom === "fit"
+            ? target && target.w > 0 && target.h > 0
+              ? Math.min(CANVAS.w / (target.w * CAMERA_FIT_MARGIN), CANVAS.h / (target.h * CAMERA_FIT_MARGIN))
+              : 2
+            : cmd.camera.zoom ?? 2;
+        const zoom = Math.min(CAMERA_MAX_ZOOM, Math.max(1, asked));
         if (zoom <= 1) {
           box = null;
         } else {
-          let cx: number = camera ? camera.x + camera.w / 2 : CANVAS.w / 2;
-          let cy: number = camera ? camera.y + camera.h / 2 : CANVAS.h / 2;
-          const center = cmd.camera.center;
-          if (center?.ref !== undefined) {
-            const kids = standsFor(center.ref);
-            if (!known.has(center.ref) && kids.length === 0) {
-              warnings.push(`camera command references unknown id "${center.ref}" (centering on canvas)`);
-            } else {
-              // A pieces id centres on the whole group.
-              const b = kids.length > 0 ? unionBox(kids.map(currentBox)) : currentBox(center.ref);
-              if (b) {
-                cx = b.x + b.w / 2;
-                cy = b.y + b.h / 2;
-              }
-              if (center.anchor !== undefined) {
-                const p = anchorNow(center.ref, center.anchor, "camera");
-                if (p) [cx, cy] = p;
-              }
-            }
-          } else if (center?.x !== undefined && center?.y !== undefined) {
-            [cx, cy] = toLogical([center.x, center.y]);
-          }
           const w = CANVAS.w / zoom;
           const h = CANVAS.h / zoom;
+          // A fitted target sits a little above centre: the caption band
+          // covers the bottom of the frame, and its words would sit under it.
+          const lift = cmd.camera.zoom === "fit" ? CAMERA_FIT_LIFT * h : 0;
           box = {
             x: Math.min(Math.max(cx - w / 2, 0), CANVAS.w - w),
-            y: Math.min(Math.max(cy - h / 2, 0), CANVAS.h - h),
+            y: Math.min(Math.max(cy - h / 2 - lift, 0), CANVAS.h - h),
             w,
             h,
           };

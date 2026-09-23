@@ -10,13 +10,13 @@ import type { Command, Spec } from "../src/spec/types";
 const rect = (id: string) => ({ id, type: "shape" as const, shape: "rect" as const, x: 0, y: 0, width: 40, height: 40 });
 
 /** Three peers a, b, c — each a picture and its caption — walked as one group. */
-function spec(commands: Command[], walk = true): Spec {
+function spec(commands: Command[], walk: boolean | "fade" | "zoom" | "replace" = true): Spec {
   return {
     elements: [
       ...["a", "b", "c"].flatMap((m) => [rect(`${m}_pic`), { id: `${m}_cap`, type: "label" as const, text: m, attach_to: `${m}_pic`, side: "below" as const }]),
       rect("a_extra"),
       ...["a", "b", "c"].map((m) => ({ id: m, type: "group" as const, members: m === "a" ? ["a_pic", "a_cap", "a_extra"] : [`${m}_pic`, `${m}_cap`] })),
-      { id: "peers", type: "group", members: ["a", "b", "c"], ...(walk ? { walk: true } : {}) },
+      { id: "peers", type: "group", members: ["a", "b", "c"], ...(walk ? { walk } : {}) },
     ],
     commands,
   };
@@ -105,9 +105,88 @@ describe("expandWalks", () => {
 
 import { validateSpec } from "../src/spec/schema";
 
+/** Every inserted or kept command, one word each: "fade 0.3 a", "camera a", "camera reset", "erase a", "draw a". */
+const trace = (s: Spec) =>
+  (s.commands ?? []).map((c) =>
+    c.fade ? `fade ${c.fade.to} ${[c.fade.target].flat()}` :
+    c.camera ? (c.camera.reset ? "camera reset" : `camera ${c.camera.center?.ref} ${c.camera.zoom}`) :
+    c.erase ? `erase ${[c.erase].flat()}` :
+    c.draw ? `draw ${[c.draw].flat()}` :
+    Object.keys(c).filter((k) => k !== "speak")[0]);
+
+describe('walk: "zoom"', () => {
+  test("the camera frames each new peer as it arrives, after the others step back", () => {
+    const out = expandWalks(spec([{ draw: ["a"] }, { draw: ["b"] }], "zoom"));
+    expect(trace(out)).toEqual(["camera a fit", "draw a", `fade ${WALK_DIM} a`, "camera b fit", "draw b", "camera reset"]);
+  });
+
+  test("a comparison pulls back to the whole page and brings them all back", () => {
+    const out = expandWalks(spec([{ draw: ["a"] }, { draw: ["b"] }, { highlight: { target: ["a_pic", "b_pic"] } }], "zoom"));
+    expect(trace(out).slice(-3)).toEqual(["camera reset", "fade 1 a", "highlight"]);
+  });
+
+  test("going back to one frames it again", () => {
+    const out = expandWalks(spec([{ draw: ["a"] }, { draw: ["b"] }, { highlight: { target: ["a_pic"] } }], "zoom"));
+    expect(trace(out).slice(-5)).toEqual([`fade ${WALK_DIM} b`, "fade 1 a", "camera a fit", "highlight", "camera reset"]);
+  });
+
+  test("a quiz, and the end of the cast, see the whole page", () => {
+    const quizzed = expandWalks(spec([{ draw: ["a"] }, { quiz: { question: "?", choices: ["x", "y"], correct: 1 } }], "zoom"));
+    expect(trace(quizzed)).toEqual(["camera a fit", "draw a", "camera reset", "quiz"]);
+    const ended = expandWalks(spec([{ draw: ["a"] }, { draw: ["b"] }], "zoom"));
+    expect(trace(ended).slice(-2)).toEqual(["draw b", "camera reset"]);
+  });
+
+  test("the author's own camera wins: a reset they wrote is not doubled", () => {
+    const out = expandWalks(spec([{ draw: ["a"] }, { camera: { reset: true } }, { highlight: { target: ["peers"] } }], "zoom"));
+    expect(trace(out).filter((t) => t === "camera reset")).toHaveLength(1);
+  });
+});
+
+describe('walk: "replace"', () => {
+  test("the next alternative erases the one before", () => {
+    const out = expandWalks(spec([{ draw: ["a"] }, { draw: ["b"] }, { draw: ["c"] }], "replace"));
+    expect(trace(out)).toEqual(["draw a", "erase a", "draw b", "erase b", "draw c"]);
+  });
+
+  test("a comparison draws back only the ones it names", () => {
+    const out = expandWalks(spec([{ draw: ["a"] }, { draw: ["b"] }, { draw: ["c"] }, { highlight: { target: ["a_pic", "c_pic"] } }], "replace"));
+    expect(trace(out).slice(-2)).toEqual(["draw a", "highlight"]);
+  });
+
+  test("naming the group draws them all back", () => {
+    const out = expandWalks(spec([{ draw: ["a"] }, { draw: ["b"] }, { draw: ["c"] }, { focus: { target: ["peers"] } }], "replace"));
+    expect(trace(out).slice(-2)).toEqual(["draw a,b", "focus"]);
+  });
+
+  test("going back to one erases the current and draws it again", () => {
+    const out = expandWalks(spec([{ draw: ["a"] }, { draw: ["b"] }, { highlight: { target: ["a_pic"] } }], "replace"));
+    expect(trace(out).slice(-3)).toEqual(["erase b", "draw a", "highlight"]);
+  });
+
+  test("an author's own draw of an erased one is not doubled", () => {
+    const out = expandWalks(spec([{ draw: ["a"] }, { draw: ["b"] }, { draw: ["a"] }], "replace"));
+    expect(trace(out).slice(-2)).toEqual(["erase b", "draw a"]);
+  });
+
+  test("drawing one PART of an erased one brings the whole of it back first", () => {
+    const out = expandWalks(spec([{ draw: ["a"] }, { draw: ["b"] }, { draw: ["a_extra"] }], "replace"));
+    expect(trace(out).slice(-3)).toEqual(["erase b", "draw a", "draw a_extra"]);
+  });
+});
+
 describe("the field", () => {
   test("a walked group validates", () => {
     expect(validateSpec(spec([{ draw: ["a"] }])).ok).toBe(true);
+  });
+
+  test("the three ways validate, and nothing else does", () => {
+    for (const w of ["fade", "zoom", "replace"] as const) expect(validateSpec(spec([{ draw: ["a"] }], w)).ok).toBe(true);
+    expect(validateSpec(spec([{ draw: ["a"] }], "sideways" as never)).ok).toBe(false);
+  });
+
+  test("a camera may ask to fit its target", () => {
+    expect(validateSpec(spec([{ draw: ["a"] }, { camera: { center: { ref: "a" }, zoom: "fit" } }], false)).ok).toBe(true);
   });
 
   test("walk on something that is not a group is refused", () => {

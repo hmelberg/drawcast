@@ -27979,5 +27979,745 @@
         }
       ]
     }
+  },
+  {
+    "request": "How long does each kind of note last in music?",
+    "spec": {
+      "title": "Five shapes, each half the last",
+      "elements": [
+        {
+          "id": "whole_oval",
+          "type": "ellipse",
+          "x": 0,
+          "y": 0,
+          "rx": 20,
+          "ry": 13,
+          "style": {
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "whole_pic",
+          "type": "group",
+          "members": [
+            "whole_oval"
+          ]
+        },
+        {
+          "id": "whole_name",
+          "type": "text",
+          "text": "whole · 4 beats",
+          "font_size": 24,
+          "at": {
+            "ref": "whole_pic",
+            "side": "below",
+            "gap": 16
+          }
+        },
+        {
+          "id": "whole",
+          "type": "group",
+          "members": [
+            "whole_pic",
+            "whole_name"
+          ]
+        },
+        {
+          "id": "half_oval",
+          "type": "ellipse",
+          "x": 0,
+          "y": 0,
+          "rx": 17,
+          "ry": 12,
+          "rotation": 25,
+          "style": {
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "half_stem",
+          "type": "path",
+          "points": [
+            [
+              15,
+              4
+            ],
+            [
+              15,
+              95
+            ]
+          ],
+          "style": {
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "half_pic",
+          "type": "group",
+          "members": [
+            "half_oval",
+            "half_stem"
+          ]
+        },
+        {
+          "id": "half_name",
+          "type": "text",
+          "text": "half · 2 beats",
+          "font_size": 24,
+          "at": {
+            "ref": "half_pic",
+            "side": "below",
+            "gap": 16
+          }
+        },
+        {
+          "id": "half",
+          "type": "group",
+          "members": [
+            "half_pic",
+            "half_name"
+          ]
+        },
+        {
+          "id": "quarter_oval",
+          "type": "ellipse",
+          "x": 0,
+          "y": 0,
+          "rx": 17,
+          "ry": 12,
+          "rotation": 25,
+          "style": {
+            "fill": "#3a3a3a"
+          }
+        },
+        {
+          "id": "quarter_stem",
+          "type": "path",
+          "points": [
+            [
+              15,
+              4
+            ],
+            [
+              15,
+              95
+            ]
+          ],
+          "style": {
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "quarter_pic",
+          "type": "group",
+          "members": [
+            "quarter_oval",
+            "quarter_stem"
+          ]
+        },
+        {
+          "id": "quarter_name",
+          "type": "text",
+          "text": "quarter · 1 beat",
+          "font_size": 24,
+          "at": {
+            "ref": "quarter_pic",
+            "side": "below",
+            "gap": 16
+          }
+        },
+        {
+          "id": "quarter",
+          "type": "group",
+          "members": [
+            "quarter_pic",
+            "quarter_name"
+          ]
+        },
+        {
+          "id": "eighth_oval",
+          "type": "ellipse",
+          "x": 0,
+          "y": 0,
+          "rx": 17,
+          "ry": 12,
+          "rotation": 25,
+          "style": {
+            "fill": "#3a3a3a"
+          }
+        },
+        {
+          "id": "eighth_stem",
+          "type": "path",
+          "points": [
+            [
+              15,
+              4
+            ],
+            [
+              15,
+              95
+            ]
+          ],
+          "style": {
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "eighth_flag",
+          "type": "path",
+          "points": [
+            [
+              15,
+              95
+            ],
+            [
+              29,
+              79
+            ],
+            [
+              39,
+              60
+            ],
+            [
+              35,
+              44
+            ]
+          ],
+          "smooth": true,
+          "style": {
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "eighth_pic",
+          "type": "group",
+          "members": [
+            "eighth_oval",
+            "eighth_stem",
+            "eighth_flag"
+          ]
+        },
+        {
+          "id": "eighth_name",
+          "type": "text",
+          "text": "eighth · ½ beat",
+          "font_size": 24,
+          "at": {
+            "ref": "eighth_pic",
+            "side": "below",
+            "gap": 16
+          }
+        },
+        {
+          "id": "eighth",
+          "type": "group",
+          "members": [
+            "eighth_pic",
+            "eighth_name"
+          ]
+        },
+        {
+          "id": "sixteenth_oval",
+          "type": "ellipse",
+          "x": 0,
+          "y": 0,
+          "rx": 17,
+          "ry": 12,
+          "rotation": 25,
+          "style": {
+            "fill": "#3a3a3a"
+          }
+        },
+        {
+          "id": "sixteenth_stem",
+          "type": "path",
+          "points": [
+            [
+              15,
+              4
+            ],
+            [
+              15,
+              95
+            ]
+          ],
+          "style": {
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "sixteenth_flag1",
+          "type": "path",
+          "points": [
+            [
+              15,
+              95
+            ],
+            [
+              29,
+              79
+            ],
+            [
+              39,
+              60
+            ],
+            [
+              35,
+              44
+            ]
+          ],
+          "smooth": true,
+          "style": {
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "sixteenth_flag2",
+          "type": "path",
+          "points": [
+            [
+              15,
+              77
+            ],
+            [
+              29,
+              61
+            ],
+            [
+              39,
+              42
+            ],
+            [
+              35,
+              26
+            ]
+          ],
+          "smooth": true,
+          "style": {
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "sixteenth_pic",
+          "type": "group",
+          "members": [
+            "sixteenth_oval",
+            "sixteenth_stem",
+            "sixteenth_flag1",
+            "sixteenth_flag2"
+          ]
+        },
+        {
+          "id": "sixteenth_name",
+          "type": "text",
+          "text": "sixteenth · ¼ beat",
+          "font_size": 24,
+          "at": {
+            "ref": "sixteenth_pic",
+            "side": "below",
+            "gap": 16
+          }
+        },
+        {
+          "id": "sixteenth",
+          "type": "group",
+          "members": [
+            "sixteenth_pic",
+            "sixteenth_name"
+          ]
+        },
+        {
+          "id": "values",
+          "type": "group",
+          "members": [
+            "whole",
+            "half",
+            "quarter",
+            "eighth",
+            "sixteenth"
+          ],
+          "layout": "grid",
+          "gap": 90,
+          "fit": "full",
+          "walk": "zoom"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Five shapes, each half the last",
+            "subtitle": "how a score says how long"
+          },
+          "speak": "Before a note tells you its pitch, its shape tells you how long to hold it. Five shapes do most of the work."
+        },
+        {
+          "draw": [
+            "whole"
+          ],
+          "speak": "The whole note: an open oval, held for four beats — a full bar of ordinary four-four time."
+        },
+        {
+          "draw": [
+            "half"
+          ],
+          "speak": "Give it a stem and it lasts half as long: two beats."
+        },
+        {
+          "draw": [
+            "quarter"
+          ],
+          "speak": "Fill the head in, and halve it again: one beat, the one you tap your foot to."
+        },
+        {
+          "draw": [
+            "eighth"
+          ],
+          "speak": "A flag on the stem halves it once more: half a beat."
+        },
+        {
+          "draw": [
+            "sixteenth"
+          ],
+          "speak": "Two flags, a quarter of a beat. Every new mark says the same thing: halve it."
+        },
+        {
+          "highlight": {
+            "target": [
+              "whole",
+              "sixteenth"
+            ],
+            "effect": "glow"
+          },
+          "speak": "So one whole note lasts as long as sixteen of these."
+        },
+        {
+          "focus": {
+            "target": [
+              "whole"
+            ]
+          },
+          "speak": "Oddly, the British still call the whole note a semibreve — half a short note. Medieval music had longer notes still, and this one was once the short one."
+        },
+        {
+          "quiz": {
+            "question": "In four-four time, which note lasts exactly one beat?",
+            "choices": [
+              "Whole",
+              "Half",
+              "Quarter",
+              "Eighth"
+            ],
+            "correct": 3,
+            "right": "The quarter note — a filled head on a stem, one beat.",
+            "wrong": "Count the halvings from the whole note's four beats: half is two, quarter is one."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why doesn't the Moon fall down onto the Earth?",
+    "spec": {
+      "title": "Why doesn't the Moon fall down?",
+      "elements": [
+        {
+          "id": "earth",
+          "type": "shape",
+          "shape": "circle",
+          "x": 500,
+          "y": 345,
+          "radius": 170,
+          "style": {
+            "fill": "#cfe3ee"
+          }
+        },
+        {
+          "id": "mountain",
+          "type": "polygon",
+          "points": [
+            [
+              470,
+              511
+            ],
+            [
+              500,
+              550
+            ],
+            [
+              530,
+              511
+            ]
+          ],
+          "style": {
+            "fill": "#b9b2a4"
+          }
+        },
+        {
+          "id": "short_path",
+          "type": "path",
+          "points": [
+            [
+              500,
+              550
+            ],
+            [
+              530,
+              553
+            ],
+            [
+              552,
+              537
+            ],
+            [
+              552.5,
+              506.7
+            ]
+          ],
+          "smooth": true,
+          "style": {
+            "color": "#c7702e",
+            "stroke_width": 3,
+            "dash": true
+          }
+        },
+        {
+          "id": "short_label",
+          "type": "label",
+          "text": "falls short",
+          "attach_to": "short_path",
+          "side": "right",
+          "style": {
+            "color": "#c7702e"
+          }
+        },
+        {
+          "id": "short",
+          "type": "group",
+          "members": [
+            "short_path",
+            "short_label"
+          ]
+        },
+        {
+          "id": "far_path",
+          "type": "path",
+          "points": [
+            [
+              500,
+              550
+            ],
+            [
+              600,
+              553
+            ],
+            [
+              668,
+              507
+            ],
+            [
+              700,
+              445
+            ],
+            [
+              661.7,
+              397.5
+            ]
+          ],
+          "smooth": true,
+          "style": {
+            "color": "#c7702e",
+            "stroke_width": 3,
+            "dash": true
+          }
+        },
+        {
+          "id": "far_label",
+          "type": "label",
+          "text": "falls farther",
+          "attach_to": "far_path",
+          "side": "right",
+          "style": {
+            "color": "#c7702e"
+          }
+        },
+        {
+          "id": "far",
+          "type": "group",
+          "members": [
+            "far_path",
+            "far_label"
+          ]
+        },
+        {
+          "id": "orbit_path",
+          "type": "ellipse",
+          "x": 500,
+          "y": 345,
+          "rx": 205,
+          "ry": 205,
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 3,
+            "dash": true
+          }
+        },
+        {
+          "id": "orbit_label",
+          "type": "text",
+          "text": "falls forever",
+          "font_size": 22,
+          "at": {
+            "ref": "orbit_path",
+            "side": "left",
+            "gap": 10
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "orbit",
+          "type": "group",
+          "members": [
+            "orbit_path",
+            "orbit_label"
+          ]
+        },
+        {
+          "id": "escape_path",
+          "type": "path",
+          "points": [
+            [
+              500,
+              550
+            ],
+            [
+              640,
+              548
+            ],
+            [
+              760,
+              518
+            ],
+            [
+              870,
+              460
+            ]
+          ],
+          "smooth": true,
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3,
+            "dash": true
+          }
+        },
+        {
+          "id": "escape_label",
+          "type": "text",
+          "text": "never comes back",
+          "font_size": 22,
+          "at": {
+            "ref": "escape_path",
+            "side": "above",
+            "gap": 10
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "escape",
+          "type": "group",
+          "members": [
+            "escape_path",
+            "escape_label"
+          ]
+        },
+        {
+          "id": "shots",
+          "type": "group",
+          "members": [
+            "short",
+            "far",
+            "orbit",
+            "escape"
+          ],
+          "walk": "replace"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Why doesn't the Moon fall down?",
+            "subtitle": "Newton's cannon"
+          },
+          "speak": "The Moon is falling towards the Earth right now. Newton worked out why it never lands, with an imaginary cannon."
+        },
+        {
+          "draw": [
+            "earth",
+            "mountain"
+          ],
+          "speak": "Put a cannon on a mountain so tall it pokes above the air, and fire it sideways."
+        },
+        {
+          "draw": [
+            "short"
+          ],
+          "speak": "A gentle shot curves down and lands close by."
+        },
+        {
+          "draw": [
+            "far"
+          ],
+          "speak": "Fire harder and it lands farther away — and by now the ground has begun to curve away beneath it."
+        },
+        {
+          "draw": [
+            "orbit"
+          ],
+          "speak": "At about eight kilometres a second, the ground curves away exactly as fast as the ball falls. It falls forever and never lands: an orbit."
+        },
+        {
+          "draw": [
+            "escape"
+          ],
+          "speak": "Faster still, past eleven kilometres a second, and it falls too slowly ever to come back."
+        },
+        {
+          "focus": {
+            "target": [
+              "orbit",
+              "escape"
+            ]
+          },
+          "speak": "Every orbit lies between these two — the Moon's, and the space station's, which is falling around the Earth at nearly eight kilometres a second."
+        },
+        {
+          "highlight": {
+            "target": [
+              "orbit_path"
+            ],
+            "effect": "glow",
+            "color": "#2f6b8f"
+          },
+          "speak": "So the Moon does fall. It is just moving sideways fast enough to keep missing."
+        },
+        {
+          "quiz": {
+            "question": "Why doesn't the Moon crash into the Earth?",
+            "choices": [
+              "It moves sideways fast enough to keep missing",
+              "Gravity stops at that distance",
+              "The air holds it up"
+            ],
+            "correct": 1,
+            "right": "It falls all the time, but its sideways speed carries it past the curve of the Earth before it can land.",
+            "wrong": "Gravity reaches the Moon — that is why it curves at all. It keeps missing because it moves sideways so fast."
+          }
+        }
+      ]
+    }
   }
 ]
