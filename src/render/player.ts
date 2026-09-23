@@ -10,6 +10,7 @@ import { moveFrame, morphFrame, transformFrame } from "./tween";
 import { overridesKey, type LayoutOverrides } from "../layout/posed";
 import { answersMatch, AUTO_NAMESPACE, subVars } from "../spec/answers";
 import { notationBeats } from "../spec/notation";
+import { ACTIVITY_QUESTIONS } from "../spec/types";
 import type { LayoutResult } from "../layout/layout";
 import { heldFrom, sceneAt } from "./plan";
 import { breathAfterMs } from "./breath";
@@ -952,7 +953,19 @@ export class Player {
 
   private async runStep(index: number, signal: AbortSignal): Promise<void> {
     const step = this.plan.steps[index];
-    if (step.kind === "explore" && (this.skipQuestions || this.autoAnswers || !this.exploreGate)) return;
+    if (step.kind === "explore" && (this.skipQuestions || this.autoAnswers || !this.exploreGate)) {
+      // Nobody is there to play (a movie, questions off): stand in the way a
+      // movie answers an ask — as a perfect viewer — so later {x} lines read
+      // naturally: full marks for an activity, no melody for a composition.
+      if (step.store) {
+        const k = step.store.toLowerCase();
+        if (step.activity !== undefined) {
+          this.vars.set(k, String(ACTIVITY_QUESTIONS));
+          this.vars.set(`${k}.total`, String(ACTIVITY_QUESTIONS));
+        } else this.vars.set(k, "");
+      }
+      return;
+    }
     if (this.skipQuestions && (step.kind === "quiz" || step.kind === "ask")) {
       // Preference: no question, no narration, no gate — but a collect-ask
       // still stores its default so later {var} lines keep working.

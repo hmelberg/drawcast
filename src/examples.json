@@ -28735,5 +28735,494 @@
         }
       ]
     }
+  },
+  {
+    "request": "Why do cellos and tubas read a different clef?",
+    "spec": {
+      "title": "The bass clef",
+      "template": "note_sheet",
+      "params": {
+        "clef": "bass",
+        "notes": "C2:q E2:q G2:q C3:q E3:q G3:q C4:h",
+        "sound": true,
+        "labels": true,
+        "time_top": 0
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Why a second clef?",
+            "subtitle": "low notes need their own staff"
+          },
+          "speak": "A cello or a tuba plays notes far below the treble staff. Written there, they would hang from a ladder of extra lines."
+        },
+        {
+          "draw": [
+            "staff",
+            "clef"
+          ],
+          "speak": "So low instruments use the bass clef. Its two dots sit either side of the fourth line: that line is F, below middle C."
+        },
+        {
+          "draw": [
+            "note_0",
+            "note_1",
+            "note_2",
+            "note_3",
+            "note_4",
+            "note_5",
+            "note_6"
+          ],
+          "speak": "Up a C major chord, from deep C to middle C — every note sits comfortably on the staff."
+        },
+        {
+          "draw": [
+            "label_0",
+            "label_1",
+            "label_2",
+            "label_3",
+            "label_4",
+            "label_5",
+            "label_6"
+          ],
+          "parallel": true,
+          "speak": "And middle C, at the top, is the same note the treble staff writes on a ledger line below it — the two staves meet there."
+        },
+        {
+          "highlight": {
+            "target": [
+              "clef"
+            ],
+            "effect": "glow"
+          },
+          "speak": "The clefs are letters in disguise: the treble clef is a curly G, and this one is an old-fashioned F."
+        },
+        {
+          "quiz": {
+            "question": "Which letter does the bass clef's line mark?",
+            "choices": [
+              "G",
+              "F",
+              "C"
+            ],
+            "correct": 2,
+            "right": "F — the two dots surround the F line, below middle C.",
+            "wrong": "The treble clef marks G. The bass clef's two dots surround F."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "What do the two numbers at the start of a piece of music mean?",
+    "spec": {
+      "title": "Two numbers, two dances",
+      "elements": [
+        {
+          "id": "four_sym",
+          "type": "music",
+          "symbol": "time",
+          "time": "4/4",
+          "x": 0,
+          "y": 0,
+          "size": 40
+        },
+        {
+          "id": "four_name",
+          "type": "text",
+          "text": "4/4: four beats",
+          "font_size": 24,
+          "at": {
+            "ref": "four_sym",
+            "side": "below",
+            "gap": 22
+          }
+        },
+        {
+          "id": "four",
+          "type": "group",
+          "members": [
+            "four_sym",
+            "four_name"
+          ]
+        },
+        {
+          "id": "three_sym",
+          "type": "music",
+          "symbol": "time",
+          "time": "3/4",
+          "x": 0,
+          "y": 0,
+          "size": 40
+        },
+        {
+          "id": "three_name",
+          "type": "text",
+          "text": "3/4: three beats",
+          "font_size": 24,
+          "at": {
+            "ref": "three_sym",
+            "side": "below",
+            "gap": 22
+          }
+        },
+        {
+          "id": "three",
+          "type": "group",
+          "members": [
+            "three_sym",
+            "three_name"
+          ]
+        },
+        {
+          "id": "common_sym",
+          "type": "music",
+          "symbol": "common_time",
+          "x": 0,
+          "y": 0,
+          "size": 40
+        },
+        {
+          "id": "common_name",
+          "type": "text",
+          "text": "C: the same as 4/4",
+          "font_size": 24,
+          "at": {
+            "ref": "common_sym",
+            "side": "below",
+            "gap": 22
+          }
+        },
+        {
+          "id": "common",
+          "type": "group",
+          "members": [
+            "common_sym",
+            "common_name"
+          ]
+        },
+        {
+          "id": "meters",
+          "type": "group",
+          "members": [
+            "four",
+            "three",
+            "common"
+          ],
+          "layout": "grid",
+          "gap": 90,
+          "fit": "full",
+          "walk": true
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Two numbers, two dances",
+            "subtitle": "the time signature"
+          },
+          "speak": "At the start of almost every piece of music sit two stacked numbers. They tell you how to feel the beat before you hear a note."
+        },
+        {
+          "draw": [
+            "four"
+          ],
+          "speak": "Four over four: four beats in every bar, each a quarter note long. Count it: one, two, three, four."
+        },
+        {
+          "play": "C3:q E4+G4:q C3:q E4+G4:q C3:q E4+G4:q C3:q E4+G4:q",
+          "instrument": "piano",
+          "tempo": 110,
+          "speak": "A march — left, right, left, right."
+        },
+        {
+          "draw": [
+            "three"
+          ],
+          "speak": "Change the top number to three, and every bar has three beats."
+        },
+        {
+          "play": "C3:q E4+G4:q E4+G4:q C3:q E4+G4:q E4+G4:q",
+          "instrument": "piano",
+          "tempo": 130,
+          "speak": "Now it sways: ONE two three, ONE two three. That is a waltz."
+        },
+        {
+          "draw": [
+            "common"
+          ],
+          "speak": "Sometimes four-four is written as a C. It looks like C for common time — but it is really a broken circle from medieval music, where a full circle meant three beats and a broken one meant two."
+        },
+        {
+          "highlight": {
+            "target": [
+              "four_sym",
+              "three_sym"
+            ],
+            "effect": "glow"
+          },
+          "speak": "The top number counts the beats in a bar; the bottom one says which note gets one beat."
+        },
+        {
+          "quiz": {
+            "question": "Which time signature makes a waltz?",
+            "choices": [
+              "4/4",
+              "3/4",
+              "2/2"
+            ],
+            "correct": 2,
+            "right": "Three-four: three beats a bar — ONE two three.",
+            "wrong": "A waltz sways in threes: three-four, three beats in every bar."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "How do I read the notes on the treble staff?",
+    "spec": {
+      "title": "Reading the treble staff",
+      "template": "note_sheet",
+      "params": {
+        "notes": "E4:q G4:q B4:q D5:q F5:q F4:q A4:q C5:q E5:q",
+        "sound": true,
+        "labels": true,
+        "time_top": 0
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Reading the treble staff",
+            "subtitle": "two sentences do it"
+          },
+          "speak": "Reading music feels like a secret code. For the treble staff, two short sentences are the whole key."
+        },
+        {
+          "draw": [
+            "staff",
+            "clef"
+          ],
+          "speak": "The treble clef curls around the second line from the bottom — that line is G, which is why the clef is also called the G clef."
+        },
+        {
+          "draw": [
+            "note_0",
+            "note_1",
+            "note_2",
+            "note_3",
+            "note_4"
+          ],
+          "speak": "Now the five lines, from the bottom up."
+        },
+        {
+          "draw": [
+            "label_0",
+            "label_1",
+            "label_2",
+            "label_3",
+            "label_4"
+          ],
+          "parallel": true,
+          "speak": "E, G, B, D, F — Every Good Boy Deserves Fruit."
+        },
+        {
+          "draw": [
+            "note_5",
+            "note_6",
+            "note_7",
+            "note_8"
+          ],
+          "speak": "And the four spaces between them."
+        },
+        {
+          "draw": [
+            "label_5",
+            "label_6",
+            "label_7",
+            "label_8"
+          ],
+          "parallel": true,
+          "speak": "F, A, C, E — the spaces spell a word: FACE."
+        },
+        {
+          "explore": {
+            "activity": "staff_find",
+            "store": "read"
+          },
+          "speak": "Your turn: find five notes on the staff. Say the sentences under your breath."
+        },
+        {
+          "speak": "You found {read} of {read.total}. Two sentences, and every note on the staff has a name."
+        }
+      ]
+    }
+  },
+  {
+    "request": "What do the sharp, flat and natural signs do in music?",
+    "spec": {
+      "title": "Sharp, flat, natural",
+      "elements": [
+        {
+          "id": "sharp_sym",
+          "type": "music",
+          "symbol": "sharp",
+          "x": 0,
+          "y": 0,
+          "size": 40
+        },
+        {
+          "id": "sharp_name",
+          "type": "text",
+          "text": "sharp: a half step up",
+          "font_size": 24,
+          "at": {
+            "ref": "sharp_sym",
+            "side": "below",
+            "gap": 22
+          }
+        },
+        {
+          "id": "sharp_sign",
+          "type": "group",
+          "members": [
+            "sharp_sym",
+            "sharp_name"
+          ]
+        },
+        {
+          "id": "flat_sym",
+          "type": "music",
+          "symbol": "flat",
+          "x": 0,
+          "y": 0,
+          "size": 40
+        },
+        {
+          "id": "flat_name",
+          "type": "text",
+          "text": "flat: a half step down",
+          "font_size": 24,
+          "at": {
+            "ref": "flat_sym",
+            "side": "below",
+            "gap": 22
+          }
+        },
+        {
+          "id": "flat_sign",
+          "type": "group",
+          "members": [
+            "flat_sym",
+            "flat_name"
+          ]
+        },
+        {
+          "id": "natural_sym",
+          "type": "music",
+          "symbol": "natural",
+          "x": 0,
+          "y": 0,
+          "size": 40
+        },
+        {
+          "id": "natural_name",
+          "type": "text",
+          "text": "natural: back to plain",
+          "font_size": 24,
+          "at": {
+            "ref": "natural_sym",
+            "side": "below",
+            "gap": 22
+          }
+        },
+        {
+          "id": "natural_sign",
+          "type": "group",
+          "members": [
+            "natural_sym",
+            "natural_name"
+          ]
+        },
+        {
+          "id": "signs",
+          "type": "group",
+          "members": [
+            "sharp_sign",
+            "flat_sign",
+            "natural_sign"
+          ],
+          "layout": "grid",
+          "gap": 110,
+          "fit": "full",
+          "walk": true
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Sharp, flat, natural",
+            "subtitle": "three small signs"
+          },
+          "speak": "Three small signs in front of a note change it. Listen to what each one does."
+        },
+        {
+          "draw": [
+            "sharp_sign"
+          ],
+          "speak": "A sharp raises a note by the smallest step on a piano — from C to the black key just above it."
+        },
+        {
+          "play": "C4:h C#4:h",
+          "instrument": "piano",
+          "tempo": 80
+        },
+        {
+          "draw": [
+            "flat_sign"
+          ],
+          "speak": "A flat lowers it by the same half step — E down to the black key below."
+        },
+        {
+          "play": "E4:h Eb4:h",
+          "instrument": "piano",
+          "tempo": 80
+        },
+        {
+          "draw": [
+            "natural_sign"
+          ],
+          "speak": "And a natural cancels either one: the note goes back to its white key."
+        },
+        {
+          "play": "F#4:h F4:h",
+          "instrument": "piano",
+          "tempo": 80
+        },
+        {
+          "highlight": {
+            "target": [
+              "sharp_sym",
+              "natural_sym"
+            ],
+            "effect": "glow"
+          },
+          "speak": "The shapes are old. Medieval scribes wrote B two ways: a round b for the low B, a square one for the high B — the round b became the flat, the square one the natural and the sharp."
+        },
+        {
+          "quiz": {
+            "question": "A sharp in front of C sends you to…",
+            "choices": [
+              "the black key just above C",
+              "the white key D",
+              "the black key just below C"
+            ],
+            "correct": 1,
+            "right": "The black key just above C — a sharp raises by a half step, the smallest step on a piano.",
+            "wrong": "A sharp raises by a half step: the very next key up, which from C is the black key."
+          }
+        }
+      ]
+    }
   }
 ]

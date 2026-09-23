@@ -6,6 +6,19 @@ to this file as "notes". Dated entries, newest first. When an item
 graduates into a spec or the roadmap, note that on the entry rather than
 deleting it.
 
+## 2026-09-24 — An element id that is a notation keyword does not round-trip
+
+Found adding the sharp/flat/natural example: a group with the id `flat`
+prints as `group flat members [...]`, and the author-notation parser reads
+`flat` as the curve keyword (`direction: flat`), so the spec comes back as
+an unnamed group with a direction. The bundled example renames its cells
+(`flat_sign`); the round-trip test over the corpus caught it. Any cast can
+hit this — a generated one naming a part `flat`, `steep`, `linear`, `up`…
+Options, none chosen: the printer quotes an id that collides with a
+keyword; or the parser takes the word right after an element head as the
+id, always. The second is the cleaner rule if nothing depends on the
+current reading.
+
 ## 2026-09-23 — Structure-derived motion: candidates after `walk`
 
 The principle (STYLE.md 2026-09-23): one field on the content's structure,

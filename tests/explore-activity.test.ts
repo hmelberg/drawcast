@@ -89,3 +89,17 @@ describe("the staff and ear drills (design 2026-09-24-music §6.1)", () => {
     expect(controls).toMatch(/staffPitchAt\(stavesOf\(layout\.drawables/);
   });
 });
+
+describe("a movie stands in for the viewer (pin)", () => {
+  test("a skipped explore with store keeps full marks for an activity and an empty melody otherwise", () => {
+    const player = readFileSync(new URL("../src/render/player.ts", import.meta.url), "utf8");
+    const at = player.indexOf('if (step.kind === "explore" && (this.skipQuestions || this.autoAnswers || !this.exploreGate))');
+    const branch = player.slice(at, at + 900);
+    expect(branch).toMatch(/this\.vars\.set\(k, String\(ACTIVITY_QUESTIONS\)\)/);
+    expect(branch).toMatch(/this\.vars\.set\(`\$\{k\}\.total`, String\(ACTIVITY_QUESTIONS\)\)/);
+    expect(branch).toMatch(/else this\.vars\.set\(k, ""\)/);
+    // The same number the drill loop asks.
+    const quiz = readFileSync(new URL("../src/ui/quiz.ts", import.meta.url), "utf8");
+    expect(quiz).toMatch(/const QUIZ_LEN = ACTIVITY_QUESTIONS;/);
+  });
+});

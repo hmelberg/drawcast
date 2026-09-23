@@ -658,6 +658,10 @@ export const BUILTIN_WIDGETS = ["click", "piano", "chess", "code", "drag", "conn
 
 /** The named activities a figure can offer (ui/quiz-model.ts activitiesFor
  *  says which ones each figure has) — what `explore.activity` may name. */
+/** Questions in one round of a drill (ui/quiz.ts) — and the full marks a
+ *  movie stands in for an explore beat's stored score. */
+export const ACTIVITY_QUESTIONS = 5;
+
 export const ACTIVITY_IDS = ["square_quiz", "openings_drill", "vs_computer", "note_quiz", "ear_key", "staff_find", "staff_name", "ear_staff", "element_quiz", "group_quiz", "parts_quiz"] as const;
 
 export interface AskArgs {

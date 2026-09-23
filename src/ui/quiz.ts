@@ -12,6 +12,7 @@
 // all correct, without the loop knowing anything about chemistry.
 
 import type { RenderHandle } from "../render";
+import { ACTIVITY_QUESTIONS } from "../spec/types";
 import {
   chessSquareAt,
   chessSquareBox,
@@ -38,7 +39,7 @@ import { chessQuizTargets, periodicQuizTargets, pianoNaturals, pianoQuizTargets,
 import { staffPitchAt, staffYOf, stavesOf, type Staff } from "./staffplay-model";
 import { withOverrides } from "../render/params";
 
-const QUIZ_LEN = 5;
+const QUIZ_LEN = ACTIVITY_QUESTIONS;
 const RIGHT_LINGER_MS = 700;
 const WRONG_LINGER_MS = 1500;
 
