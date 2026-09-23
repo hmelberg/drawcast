@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeAll, beforeEach, describe, expect, test } from "vitest";
 import physicsYaml from "../src/scenes/packs/physics.yaml?raw";
 import chemistryYaml from "../src/scenes/packs/chemistry.yaml?raw";
 import biologyYaml from "../src/scenes/packs/biology.yaml?raw";
@@ -2851,6 +2851,10 @@ describe("hta pack", () => {
 
 describe("music pack", () => {
   beforeEach(() => unregisterPack("music"));
+  // note_sheet draws its symbols from the music font (design 2026-09-24).
+  beforeAll(async () => {
+    await ensureEngines(["music"]);
+  });
 
   const TEMPLATE_IDS = ["note_sheet", "piano_keys", "violin_anatomy"];
 
@@ -2891,10 +2895,12 @@ describe("music pack", () => {
     registerPack("music", musicYaml);
     const r = scenes.note_sheet.layout!({ notes: "C4:q D4:q E4:q F4:q G4:h A4:h", time_top: 4 });
     const flat = flattenDrawables(r.drawables);
-    const q = flat.find((d) => d.id === "note_0__h0") as { style: { fill?: string } };
-    const h = flat.find((d) => d.id === "note_4__h0") as { style: { fill?: string } };
-    expect(q.style.fill).toBeDefined();
-    expect(h.style.fill).toBeUndefined();
+    // Heads are music-font glyphs: a quarter's head is solid, a half's has its counter.
+    const q = flat.find((d) => d.id === "note_0__h0") as { kind: string; holes?: unknown[] };
+    const h = flat.find((d) => d.id === "note_4__h0") as { kind: string; holes?: unknown[] };
+    expect(q.kind).toBe("area");
+    expect(q.holes ?? []).toHaveLength(0);
+    expect(h.holes?.length ?? 0).toBeGreaterThan(0);
     const bars = flat.filter((d) => d.id.startsWith("bar_"));
     expect(bars.length).toBe(1); // after four quarter beats, once — the final bar is the edge
   });
@@ -2918,6 +2924,30 @@ describe("music pack", () => {
     const plainIds = flattenDrawables(plain.drawables).map((d) => d.id);
     expect(plainIds).not.toContain("keys");
     expect(plainIds).not.toContain("key_0");
+  });
+
+  test("note_sheet bass clef: G2 on the bottom line, the F clef drawn from the font", () => {
+    registerPack("music", musicYaml);
+    const r = scenes.note_sheet.layout!({ clef: "bass", notes: "G2:q B2:q D3:q" });
+    const y = (id: string) => (r.anchors[id] as [number, number])[1];
+    expect(y("note_1")).toBeCloseTo(y("note_0") + 26, 6); // one line up
+    expect(y("note_2")).toBeCloseTo(y("note_0") + 2 * 26, 6);
+    const flat = flattenDrawables(r.drawables);
+    expect(flat.find((d) => d.id === "clef")?.kind).toBe("area");
+    expect(flat.filter((d) => d.id.startsWith("note_0__lg") || d.id.startsWith("note_0__lu"))).toHaveLength(0);
+  });
+
+  test("note_sheet grand staff: two staves and a brace, the hands lined up by beat", () => {
+    registerPack("music", musicYaml);
+    const r = scenes.note_sheet.layout!({ clef: "grand", notes: "E4:q F4:q G4:h", bass_notes: "C3:h G2:h" });
+    const ids = flattenDrawables(r.drawables).map((d) => d.id);
+    for (const id of ["staff", "bass_staff", "clef", "bass_clef", "brace", "bass_note_0", "bass_note_1"]) expect(ids).toContain(id);
+    const x = (id: string) => (r.anchors[id] as [number, number])[0];
+    // Beat 0 in both hands; the bass's second note (beat 2) sits over the treble's third (beat 2).
+    expect(x("bass_note_0")).toBeCloseTo(x("note_0"), 6);
+    expect(x("bass_note_1")).toBeCloseTo(x("note_2"), 6);
+    // The bass staff sits below the treble one.
+    expect((r.anchors.bass_staff as [number, number])[1]).toBeLessThan((r.anchors.staff as [number, number])[1]);
   });
 
   test("piano_keys: two octaves have 14 white and 10 black keys; highlights follow the given order and fold flats", () => {

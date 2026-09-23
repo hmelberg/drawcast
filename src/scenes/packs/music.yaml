@@ -7,6 +7,7 @@ title: Note sheet (staff notation)
 version: 1
 kit: 3
 status: ready
+engines: [music]
 description: >-
   A treble-clef staff with notes computed from a simple notation string —
   "C4:q D4:q E4:h" (pitch letter + optional #/b + octave, duration w/h/q/e/s
@@ -40,12 +41,24 @@ params:
       description: "Draw a compact piano under the staff; each sounding note also gets its own key-mark element key_<i> — reveal the notes, press the keys (default false; suits the C4-C6 range)."
     labels:
       type: boolean
-      description: "Letter names under the notes (default true)."
+      description: "Letter names under the notes (default true; false on a grand staff unless set)."
+    clef:
+      type: string
+      enum: [treble, bass, grand]
+      description: "treble (default); bass for low notes (comfortable C2-E4); grand = treble over bass joined by a brace, for piano music."
+    bass_notes:
+      type: string
+      description: "Grand staff only: the bass staff's notes, the same notation as `notes`, lined up with them by beat. Up to 16 tokens."
     title:
       type: string
 element_ids:
   staff: the five staff lines (a group)
-  clef: the treble clef
+  clef: the clef (treble, or bass on a bass staff; the treble one on a grand staff)
+  bass_staff: the lower staff's five lines (grand staff)
+  bass_clef: the bass clef (grand staff)
+  brace: the brace joining the two staves (grand staff)
+  bass_note_<i>: the i-th bass-staff token (grand staff)
+  bass_key_<i>: the key mark for bass token i (grand staff with keyboard)
   keys: the compact piano below the staff (a group, when keyboard)
   key_<i>: the key mark for token i (a group, when keyboard) — press these in time with the notes
   note_<i>: the i-th token — heads, stem, flag, ledger lines (a group; rests too)
@@ -60,43 +73,78 @@ examples:
     params:
       notes: "E4:q E4:q F4:q G4:q G4:q F4:q E4:q D4:q C4:h C4+E4+G4:h"
       title: "Ode to Joy (opening)"
+  - request: "How do the two hands share a piano score?"
+    params:
+      clef: grand
+      notes: "E4:q E4:q F4:q G4:q G4:q F4:q E4:q D4:q"
+      bass_notes: "C3:h G2:h C3:h G2:h"
+      title: "Two hands, one score"
 layout: |
-  const C = kit.COLORS, MS = kit.SKETCH_MS;
-  let notation = typeof params.notes === "string" && params.notes.trim() !== "" ? params.notes : "C4:q D4:q E4:q F4:q G4:q A4:q B4:q C5:q";
+  const C = kit.COLORS, MS = kit.SKETCH_MS, M = engines.music;
+  const clef = params.clef === "bass" || params.clef === "grand" ? params.clef : "treble";
+  const grand = clef === "grand";
+  let notation = typeof params.notes === "string" && params.notes.trim() !== "" ? params.notes : (clef === "bass" ? "C3:q D3:q E3:q F3:q G3:q A3:q B3:q C4:q" : "C4:q D4:q E4:q F4:q G4:q A4:q B4:q C5:q");
+  let bassNotation = typeof params.bass_notes === "string" ? params.bass_notes : "";
   let timeTopDefault = 4;
   if (typeof params.abc === "string" && params.abc.trim() !== "") {
     const tune = kit.parseABC(params.abc);
     if (tune.voices.length > 0) notation = tune.voices[0].notes;
+    if (grand && tune.voices.length > 1 && bassNotation === "") bassNotation = tune.voices[1].notes;
     if (tune.meterTop) timeTopDefault = tune.meterTop;
   }
   const tokens = kit.parseNotes(notation).slice(0, 16);
+  const bassTokens = grand ? kit.parseNotes(bassNotation).slice(0, 16) : [];
   const timeTop = Number.isFinite(params.time_top) ? Math.max(0, Math.min(6, Math.round(params.time_top))) : timeTopDefault;
-  const wantLabels = params.labels !== false;
+  const wantLabels = grand ? params.labels === true : params.labels !== false;
   const wantKeyboard = params.keyboard === true;
 
   const drawables = [], labels = [], anchors = {}, order = [];
   const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
+  // A glyph from the music font as an exact filled shape (never stroked into a blob).
+  const glyph = (id, g) => kit.area(id, g.pts, C.ink, { precise: true, ...(g.holes ? { holes: g.holes } : {}), ms: MS.dot });
 
-  // Staff: five lines, E4 on the bottom. One diatonic step = half a gap.
-  // With the keyboard on, the staff moves up to make room below it.
-  const X0 = 130, X1 = 890, Y_E4 = wantKeyboard ? 430 : 340, GAP = 26, STEP = GAP / 2;
-  const staffChildren = [];
-  for (let i = 0; i < 5; i++) {
-    staffChildren.push(kit.stroke("staff__l" + i, [[X0, Y_E4 + i * GAP], [X1, Y_E4 + i * GAP]], { strokeWidth: 2.5, ms: MS.guides }));
+  // The staves. A staff is its bottom line, its clef and the diatonic number
+  // of that bottom line (octave*7 + letter): E4 = 30 for treble, G2 = 18 for
+  // bass. One diatonic step = half a gap. A grand staff is two, joined by a
+  // brace; with the keyboard on, everything moves up and a grand staff
+  // tightens its gap so both hands and the keys still fit.
+  const X0 = 130, X1 = 890;
+  // A crowded line gets a smaller staff, so a flag or a sharp never runs into
+  // the next note: about 2.4 staff spaces per note is what a head, its flag
+  // and a little air need. A grand staff with the keys is 20 at most.
+  const nDense = Math.max(1, tokens.length, bassTokens.length);
+  const GAP = Math.max(16, Math.min(grand && wantKeyboard ? 20 : 26, (X1 - 240) / nDense / 2.4)), STEP = GAP / 2;
+  const staves = [];
+  if (grand) {
+    const yT = wantKeyboard ? 560 : 460;
+    staves.push({ key: "treble", bottom: yT, ref: 30, tokens, prefix: "note_", keyPrefix: "key_", labelPrefix: "label_", staffId: "staff", clefId: "clef" });
+    staves.push({ key: "bass", bottom: yT - 4 * GAP - 3 * GAP, ref: 18, tokens: bassTokens, prefix: "bass_note_", keyPrefix: "bass_key_", labelPrefix: "bass_label_", staffId: "bass_staff", clefId: "bass_clef" });
+  } else {
+    const yB = wantKeyboard ? 430 : 340;
+    staves.push({ key: clef, bottom: yB, ref: clef === "bass" ? 18 : 30, tokens, prefix: "note_", keyPrefix: "key_", labelPrefix: "label_", staffId: "staff", clefId: "clef" });
   }
-  push(kit.group("staff", staffChildren));
-  anchors.staff = [(X0 + X1) / 2, Y_E4 + 2 * GAP];
-
-  // A hand-drawn treble clef: spine, top curl, and the loop around the G line.
-  const G_LINE = Y_E4 + GAP;
-  const dy = Y_E4 - 340; // the clef's control points were drawn for Y_E4 = 340
-  push(kit.stroke("clef", kit.smooth([
-    [150, 306 + dy], [160, 296 + dy], [170, 310 + dy], [168, 350 + dy], [166, 420 + dy], [164, 472 + dy],
-    [156, 486 + dy], [148, 472 + dy], [156, 448 + dy], [172, 416 + dy], [178, 384 + dy], [172, 356 + dy],
-    [156, 344 + dy], [142, 358 + dy], [144, 380 + dy], [158, 390 + dy], [172, 382 + dy],
-  ], 8), { strokeWidth: 3.5, ms: MS.stroke }));
-  anchors.clef = [160, G_LINE];
+  for (const st of staves) {
+    const lines = [];
+    for (let i = 0; i < 5; i++) lines.push(kit.stroke(st.staffId + "__l" + i, [[X0, st.bottom + i * GAP], [X1, st.bottom + i * GAP]], { strokeWidth: 2.5, ms: MS.guides }));
+    push(kit.group(st.staffId, lines));
+    anchors[st.staffId] = [(X0 + X1) / 2, st.bottom + 2 * GAP];
+    // The clef's origin sits on its reference line: G on the second line, F on the fourth.
+    const refLine = st.key === "bass" ? st.bottom + 3 * GAP : st.bottom + GAP;
+    push(glyph(st.clefId, M.glyphAt(st.key === "bass" ? "fClef" : "gClef", [X0 + 14, refLine], GAP)));
+    anchors[st.clefId] = [X0 + 14 + GAP, refLine];
+  }
+  if (grand) {
+    const top = staves[0].bottom + 4 * GAP, bottom = staves[1].bottom;
+    const [bx0, by0, bx1, by1] = M.bboxOf("brace");
+    // The brace glyph is one staff tall at one staff space; scale it to span both staves.
+    const k = (top - bottom) / ((by1 - by0) * GAP);
+    const g = M.glyphAt("brace", [0, 0], GAP * k);
+    const shift = (pt) => [X0 - 8 - (bx1 * GAP * k) + pt[0], bottom - by0 * GAP * k + pt[1]];
+    push(glyph("brace", { pts: g.pts.map(shift), ...(g.holes ? { holes: g.holes.map((h) => h.map(shift)) } : {}) }));
+    push(kit.stroke("brace__line", [[X0, bottom], [X0, top]], { strokeWidth: 2.5, ms: MS.guides }));
+    anchors.brace = [X0 - 12, (top + bottom) / 2];
+  }
 
   // Compact keyboard under the staff (keyboard: true). Sized to the tune's
   // octave span (max two), and keyMarks() hands each note its key-press
@@ -107,13 +155,14 @@ layout: |
     const WHITE = ["C", "D", "E", "F", "G", "A", "B"];
     const HAS_SHARP = { C: true, D: true, E: false, F: true, G: true, A: true, B: false };
     let lo = 9, hi = 0;
-    for (const tok of tokens) for (const p of tok.pitches) {
+    for (const tok of [...tokens, ...bassTokens]) for (const p of tok.pitches) {
       const o = Number(p[p.length - 1]);
       lo = Math.min(lo, o); hi = Math.max(hi, o);
     }
     if (lo > hi) { lo = 4; hi = 4; }
     const startOct = Math.min(lo, 6);
-    const span = Math.max(1, Math.min(2, hi - startOct + 1));
+    // Two octaves at most on one staff; a grand staff spans both hands, three.
+    const span = Math.max(1, Math.min(grand ? 3 : 2, hi - startOct + 1));
     const nWhite = span * 7;
     const KW = Math.min(54, 740 / nWhite);
     const KX0 = (1000 - nWhite * KW) / 2;
@@ -160,95 +209,94 @@ layout: |
     };
   }
 
-  // Diatonic position: octave*7 + letter index; E4 = 30 sits on the bottom line.
+  // Diatonic position: octave*7 + letter index.
   const LETTER_DIAT = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
-  const diatOf = (pitch) => {
-    const letter = pitch[0];
-    const octave = Number(pitch[pitch.length - 1]);
-    return octave * 7 + LETTER_DIAT[letter];
-  };
-  const yOf = (pitch) => Y_E4 + (diatOf(pitch) - 30) * STEP;
+  const diatOf = (pitch) => Number(pitch[pitch.length - 1]) * 7 + LETTER_DIAT[pitch[0]];
 
-  const n = tokens.length;
-  const advance = Math.max(48, Math.min(84, (X1 - 240) / Math.max(1, n)));
-  const MID_Y = Y_E4 + 2 * GAP; // the B4 middle line
-  let beatsSoFar = 0;
-  let barCount = 0;
+  // Where each token goes across. One staff: evenly by index, as always. A
+  // grand staff: by beat, so what both hands play at once lines up.
+  const totalBeats = Math.max(1, ...staves.map((st) => st.tokens.reduce((a, t) => a + t.beats, 0)));
+  const nMax = Math.max(1, ...staves.map((st) => st.tokens.length));
+  const advance = Math.max(48, Math.min(84, (X1 - 240) / nMax));
+  const beatW = Math.max(24, Math.min(84, (X1 - 240) / totalBeats));
+  const xOf = (i, beatAt) => (grand ? 225 + beatAt * beatW : 225 + i * advance);
+  const headHalf = (M.bboxOf("noteheadBlack")[2] / 2) * GAP;
+  const ledgerHalf = headHalf + M.defaults.legerLineExtension * GAP;
+  const stemW = Math.max(2.5, M.defaults.stemThickness * GAP);
 
-  tokens.forEach((tok, i) => {
-    const x = 225 + i * advance;
-    const id = "note_" + i;
-    const children = [];
-    if (tok.pitches.length === 0) {
-      // Rest: half/whole = a block on/under the middle line; shorter = a hook.
-      if (tok.beats >= 2) {
-        const onTop = tok.beats >= 4;
-        const yr = MID_Y + (onTop ? -8 : 0);
-        children.push(kit.stroke(id + "__rest", [[x - 11, yr], [x + 11, yr], [x + 11, yr + 8], [x - 11, yr + 8]], { closed: true, fill: C.ink, ms: MS.dot }));
+  for (const st of staves) {
+    const yOf = (pitch) => st.bottom + (diatOf(pitch) - st.ref) * STEP;
+    const MID_Y = st.bottom + 2 * GAP;
+    let beatsSoFar = 0;
+    let barCount = 0;
+    st.tokens.forEach((tok, i) => {
+      const x = xOf(i, beatsSoFar);
+      const id = st.prefix + i;
+      const children = [];
+      const { value, dots } = M.valueOf(tok.beats);
+      if (tok.pitches.length === 0) {
+        // Rests: a whole rest hangs from the fourth line, a half sits on the
+        // middle one, the rest are centred on the middle line.
+        const restY = value === "whole" ? st.bottom + 3 * GAP : MID_Y;
+        const name = M.restOf(value);
+        const [rx0, , rx1] = M.bboxOf(name);
+        children.push(glyph(id + "__rest", M.glyphAt(name, [x - ((rx0 + rx1) / 2) * GAP, restY], GAP)));
+        anchors[id] = [x, MID_Y];
       } else {
-        children.push(kit.stroke(id + "__rest", kit.smooth([[x - 6, MID_Y + 16], [x + 5, MID_Y + 4], [x - 4, MID_Y - 4], [x + 6, MID_Y - 16]], 6), { strokeWidth: 3, ms: MS.dot }));
-      }
-      anchors[id] = [x, MID_Y];
-    } else {
-      const ys = tok.pitches.map(yOf);
-      const yLo = Math.min(...ys), yHi = Math.max(...ys);
-      // Ledger lines: line positions beyond the staff that this note reaches.
-      for (let ly = Y_E4 - GAP; ly >= yLo - STEP; ly -= GAP) {
-        children.push(kit.stroke(id + "__lg" + ly, [[x - 20, ly], [x + 20, ly]], { strokeWidth: 2.5, ms: MS.dot }));
-      }
-      for (let ly = Y_E4 + 5 * GAP; ly <= yHi + STEP; ly += GAP) {
-        children.push(kit.stroke(id + "__lu" + ly, [[x - 20, ly], [x + 20, ly]], { strokeWidth: 2.5, ms: MS.dot }));
-      }
-      const filled = tok.beats < 2;
-      const dotted = [3, 1.5, 0.75, 0.375].some((b) => Math.abs(tok.beats - b) < 1e-6);
-      tok.pitches.forEach((p, k) => {
-        const y = yOf(p);
-        children.push(kit.stroke(id + "__h" + k, kit.ellipse([x, y], 12, 9, 20), { closed: true, strokeWidth: 3, ...(filled ? { fill: C.ink } : {}), ms: MS.dot }));
-        if (p.includes("#")) {
-          children.push(kit.text(id + "__acc" + k, [x - 27, y], "#", { fontSize: 22 }));
+        const ys = tok.pitches.map(yOf);
+        const yLo = Math.min(...ys), yHi = Math.max(...ys);
+        // Ledger lines: line positions beyond the staff that this note reaches.
+        for (let ly = st.bottom - GAP; ly >= yLo - STEP; ly -= GAP) {
+          children.push(kit.stroke(id + "__lg" + ly, [[x - ledgerHalf, ly], [x + ledgerHalf, ly]], { strokeWidth: 2.5, ms: MS.dot }));
         }
-        if (dotted) {
-          children.push(kit.stroke(id + "__dot" + k, kit.ellipse([x + 21, y + 5], 3, 3, 8), { closed: true, fill: C.ink, ms: 60 }));
+        for (let ly = st.bottom + 5 * GAP; ly <= yHi + STEP; ly += GAP) {
+          children.push(kit.stroke(id + "__lu" + ly, [[x - ledgerHalf, ly], [x + ledgerHalf, ly]], { strokeWidth: 2.5, ms: MS.dot }));
         }
-      });
-      if (tok.beats < 4) {
-        // Stem: up from the right side when the top head sits low, else down-left.
+        // Stem up when the chord sits low on its staff; it starts at the
+        // font's anchor on the outermost head and runs past the others.
         const up = (yLo + yHi) / 2 < MID_Y;
-        const sx = up ? x + 11 : x - 11;
-        const sy0 = up ? yLo : yHi;
-        const sy1 = up ? yHi + 56 : yLo - 56;
-        children.push(kit.stroke(id + "__stem", [[sx, sy0], [sx, sy1]], { strokeWidth: 2.5, ms: MS.dot }));
-        if (tok.beats <= 0.5) {
-          children.push(kit.stroke(id + "__flag", kit.smooth([[sx, sy1], [sx + 14, sy1 - (up ? 14 : -14)], [sx + 10, sy1 - (up ? 30 : -30)]], 6), { strokeWidth: 2.5, ms: MS.dot }));
+        const anchorY = up ? yLo : yHi;
+        const span = (yHi - yLo) / GAP;
+        const nt = M.note(value, [x, anchorY], GAP, { stem: up ? "up" : "down", stemLength: 3.5 + span });
+        tok.pitches.forEach((p, k) => {
+          const y = yOf(p);
+          children.push(glyph(id + "__h" + k, y === anchorY ? nt.head : M.glyphCentered(M.headOf(value), [x, y], GAP)));
+          if (p.includes("#")) children.push(glyph(id + "__acc" + k, M.glyphCentered("accidentalSharp", [x - headHalf - 0.9 * GAP, y], GAP)));
+          // A dot sits in a space: a head on a line moves its dot up half a gap.
+          const onLine = (diatOf(p) - st.ref) % 2 === 0;
+          for (let d = 0; d < dots; d++) {
+            children.push(glyph(id + "__dot" + k + "_" + d, M.glyphCentered("augmentationDot", [x + headHalf + (0.55 + d * 0.6) * GAP, y + (onLine ? STEP : 0)], GAP)));
+          }
+        });
+        if (nt.stem) children.push(kit.stroke(id + "__stem", [nt.stem.from, nt.stem.to], { strokeWidth: stemW, ms: MS.dot }));
+        if (nt.flag) children.push(glyph(id + "__flag", nt.flag));
+        anchors[id] = [x, ys[0]];
+        const marks = keyMarks(st.keyPrefix + i, tok.pitches);
+        if (marks.length > 0) {
+          push(kit.group(st.keyPrefix + i, marks));
+          anchors[st.keyPrefix + i] = [500, 210];
         }
-        if (tok.beats <= 0.25) {
-          children.push(kit.stroke(id + "__flag2", kit.smooth([[sx, sy1 - (up ? 12 : -12)], [sx + 13, sy1 - (up ? 26 : -26)], [sx + 9, sy1 - (up ? 40 : -40)]], 6), { strokeWidth: 2.5, ms: MS.dot }));
+        if (wantLabels) {
+          const labelY = st.bottom - 68;
+          const name = tok.pitches.map((p) => p.replace(/\d/g, "")).join("-");
+          push(kit.text(st.labelPrefix + i, [x, labelY], name, { fontSize: 18, color: C.guide }));
+          anchors[st.labelPrefix + i] = [x, labelY];
+          attached[id] = [st.labelPrefix + i];
         }
       }
-      anchors[id] = [x, ys[0]];
-      const marks = keyMarks("key_" + i, tok.pitches);
-      if (marks.length > 0) {
-        push(kit.group("key_" + i, marks));
-        anchors["key_" + i] = [500, 210];
-      }
-      if (wantLabels) {
-        const labelY = wantKeyboard ? 362 : 272;
-        const name = tok.pitches.map((p) => p.replace(/\d/g, "")).join("-");
-        push(kit.text("label_" + i, [x, labelY], name, { fontSize: 18, color: C.guide }));
-        anchors["label_" + i] = [x, labelY];
-        attached["note_" + i] = ["label_" + i];
-      }
-    }
-    push(kit.group(id, children));
+      push(kit.group(id, children));
 
-    beatsSoFar += tok.beats;
-    if (timeTop > 0 && i < n - 1 && Math.abs(beatsSoFar % timeTop) < 1e-9) {
-      const bx = x + advance / 2;
-      const bid = "bar_" + barCount++;
-      push(kit.stroke(bid, [[bx, Y_E4], [bx, Y_E4 + 4 * GAP]], { strokeWidth: 3, ms: MS.dot }));
-      anchors[bid] = [bx, MID_Y];
-    }
-  });
+      beatsSoFar += tok.beats;
+      // Bar lines follow the upper staff and, on a grand staff, run through both.
+      if (st === staves[0] && timeTop > 0 && i < st.tokens.length - 1 && Math.abs(beatsSoFar % timeTop) < 1e-9) {
+        const bx = grand ? xOf(0, beatsSoFar) - beatW / 2 : x + advance / 2;
+        const bid = "bar_" + barCount++;
+        const lowY = grand ? staves[1].bottom : st.bottom;
+        push(kit.stroke(bid, [[bx, lowY], [bx, st.bottom + 4 * GAP]], { strokeWidth: 3, ms: MS.dot }));
+        anchors[bid] = [bx, MID_Y];
+      }
+    });
+  }
 
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [500, wantKeyboard ? 700 : 640], params.title, { fontSize: 30 }));

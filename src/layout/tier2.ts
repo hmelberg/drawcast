@@ -39,7 +39,8 @@ import { resolveDrawOpts, resolveStyle } from "./resolve";
 import { catmullRom, catmullRomClosed } from "./smooth";
 import { decodeIcon, decodePhoto, decodeSourceImage, decodeTrace } from "../spec/trace";
 import { obstacleBoxes, wrapText, type LabelRequest } from "./labels";
-import { currentMathFontName, enginesLoaded, getLoadedEngines, type MathJaxEngine } from "../scenes/engines";
+import { currentMathFontName, enginesLoaded, getLoadedEngines, type MathJaxEngine, type MusicEngine } from "../scenes/engines";
+import { musicDrawables } from "./music";
 import { linkKindOf } from "../ui/link-model";
 import type { LintIssue } from "../lint/lint";
 import type { ElementType, EndRef, PointRef, SpecElement } from "../spec/types";
@@ -49,7 +50,7 @@ import type { TemplateFit } from "./template-fit";
 
 /** The types the auto-row places: the ones that own a free x/y and would
  *  otherwise fall back to the middle of the canvas. */
-const AUTO_ROW_TYPES = new Set<ElementType>(["text", "shape", "math", "image", "icon", "portrait", "polygon", "sector", "arc", "ellipse"]);
+const AUTO_ROW_TYPES = new Set<ElementType>(["text", "shape", "math", "image", "icon", "portrait", "polygon", "sector", "arc", "ellipse", "music"]);
 
 /**
  * One piece's geometry (currently only `pieces: {of: "sectors"}`), keyed by
@@ -594,6 +595,22 @@ export function layoutElements(
       case "measure":
         drawables.push(...measureDrawables(el, ctx));
         break;
+      case "music": {
+        const center = originOr(el, ctx, [CANVAS.w / 2, CANVAS.h / 2]);
+        if (!enginesLoaded(["music"])) {
+          ctx.warnings.push(`music "${el.id}": music engine not loaded — skipped`);
+          break;
+        }
+        const laid = musicDrawables(el, getLoadedEngines(["music"]).music as MusicEngine, center);
+        if (!laid) {
+          issues.push({ rule: "placement", ids: [el.id], severity: "error", message: `music "${el.id}": unknown symbol "${el.symbol}"` });
+          break;
+        }
+        drawables.push(...laid.drawables);
+        ctx.anchors[el.id] = center;
+        ctx.namedAnchors[el.id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(laid.box, n)]));
+        break;
+      }
       case "ellipse":
         drawables.push(...ellipseDrawables(el, ctx));
         break;

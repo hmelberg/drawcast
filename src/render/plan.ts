@@ -36,7 +36,7 @@ export type PlanStep = (
   | { kind: "pause"; seconds: number }
   | { kind: "wait" }
   | { kind: "label"; name: string }
-  | { kind: "explore"; params?: string[]; code?: string; game?: string; anatomy?: boolean; space?: boolean }
+  | { kind: "explore"; params?: string[]; code?: string; game?: string; anatomy?: boolean; space?: boolean; activity?: string; store?: string }
   /** A sweep (spec 2026-09-15 §4): the code element runs once per value map,
    *  every control named in each, the whole series inside `seconds`. `demo` =
    *  the explore beat's own seeded walk, played just before its gate. */
@@ -942,6 +942,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.explore.game !== undefined ? { game: cmd.explore.game } : {}),
         ...(cmd.explore.anatomy !== undefined ? { anatomy: cmd.explore.anatomy } : {}),
         ...(cmd.explore.space !== undefined ? { space: cmd.explore.space } : {}),
+        ...(cmd.explore.activity !== undefined ? { activity: cmd.explore.activity } : {}),
+        ...(cmd.explore.store !== undefined ? { store: cmd.explore.store } : {}),
       });
       if (cmd.explore.game !== undefined && !known.has(cmd.explore.game)) warnings.push(`explore game: "${cmd.explore.game}" is not an element in this drawcast`);
     } else if (cmd.if !== undefined) {

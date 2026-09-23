@@ -7,6 +7,7 @@
 // free play and the piano stand down automatically while it runs.
 
 import type { RenderHandle } from "../render";
+import type { ActivityClose } from "./quiz";
 import { chessSquareBox } from "../render/widgets";
 import { clientPointFor, h } from "./dom";
 import { attachChessDrag } from "./chess-drag";
@@ -25,7 +26,7 @@ interface ChessGame extends ChessLike {
   turn(): "w" | "b";
 }
 
-export function mountChessVs(stage: HTMLElement, hd: RenderHandle): void {
+export function mountChessVs(stage: HTMLElement, hd: RenderHandle, onClose?: ActivityClose): void {
   stage.querySelector(".cs-quizgate, .cs-vsgate, .cs-drillgate")?.remove();
   // The board the viewer pressed the pill on — turned with ⇅ or not — is the
   // board they play on. Fixed for the session: the tray is shut while it runs.
@@ -54,6 +55,7 @@ export function mountChessVs(stage: HTMLElement, hd: RenderHandle): void {
     hd.timeline.callbacks.onStep = prevOnStep;
     stage.classList.remove("cs-exploring");
     gate.remove();
+    onClose?.(null);
     // ✕ hands the lesson's position back; play/scrub already settle it.
     if (restore) hd.timeline.renderUpTo(hd.timeline.position);
   };

@@ -10,8 +10,8 @@
 // Example: "C4:q D4:q E4:q F4:q G4:h  R:q  G4+B4+D5:w"
 
 /** The play command's synthesized instruments (recipes live in render/tones.ts). */
-export type Instrument = "tone" | "piano" | "organ" | "pluck" | "bell";
-export const INSTRUMENTS: readonly Instrument[] = ["tone", "piano", "organ", "pluck", "bell"];
+export type Instrument = "tone" | "piano" | "organ" | "pluck" | "bell" | "strings" | "flute" | "marimba";
+export const INSTRUMENTS: readonly Instrument[] = ["tone", "piano", "organ", "pluck", "bell", "strings", "flute", "marimba"];
 
 /** One channel of a play command: its own notes and (optionally) instrument. */
 export interface PlayVoice {

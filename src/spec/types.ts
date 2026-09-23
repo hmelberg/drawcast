@@ -39,7 +39,8 @@ export type ElementType =
   | "math"
   | "image"
   | "icon"
-  | "inset";
+  | "inset"
+  | "music";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -155,6 +156,14 @@ export interface SpecElement {
   gap?: number;
   /** layout grid: members per row. */
   columns?: number;
+  /** music: which symbol (MUSIC_SYMBOLS) — a note, a rest, a clef, an accidental, a dynamic. */
+  symbol?: string;
+  /** music: a note's stem direction (default up). */
+  stem?: "up" | "down";
+  /** music: augmentation dots on a note, 0–2. */
+  dots?: number;
+  /** music: the time signature for symbol "time", e.g. "3/4". */
+  time?: string;
   /** group: the members are peers walked one at a time — drawing the next
    *  steps the ones already shown back, a command across several brings
    *  them back (spec/walk.ts expands it into ordinary commands). true or
@@ -611,7 +620,10 @@ export interface Command {
    *  map's sky. On a script with controls the beat first plays a demo of the
    *  knobs (a seeded walk, or `play`'s planned sweep) and the movie keeps the
    *  beat; without controls it stays app-only and the movie skips it whole. */
-  explore?: { params?: string[]; code?: string; game?: string; anatomy?: boolean; space?: boolean; play?: PlayArgs | false };
+  /** activity: start that named activity (a drill, play-the-computer) on the
+   *  figure; store: keep what the viewer made — an activity's score as
+   *  {<store>} and {<store>.total}, a composed melody as {<store>}. */
+  explore?: { params?: string[]; code?: string; game?: string; anatomy?: boolean; space?: boolean; play?: PlayArgs | false; activity?: string; store?: string };
   /** Conditional jump on a stored ask answer. Live viewers only; movies stay linear. */
   if?: IfArgs;
 }
@@ -631,7 +643,22 @@ export interface IfArgs {
 }
 
 /** The answer devices the app builds in; `ask.widget` may also name the spec's own template when that template carries a widget body. */
+/** The `music` element's symbols, friendly names for SMuFL glyphs (scenes/music/symbols.ts). */
+export const MUSIC_SYMBOLS = [
+  "whole_note", "half_note", "quarter_note", "eighth_note", "sixteenth_note",
+  "whole_rest", "half_rest", "quarter_rest", "eighth_rest", "sixteenth_rest",
+  "treble_clef", "bass_clef", "alto_clef",
+  "sharp", "flat", "natural", "double_sharp", "double_flat",
+  "fermata", "segno", "coda", "repeat_start", "repeat_end",
+  "p", "mp", "mf", "f", "ff",
+  "common_time", "cut_time", "time",
+] as const;
+
 export const BUILTIN_WIDGETS = ["click", "piano", "chess", "code", "drag", "connect"] as const;
+
+/** The named activities a figure can offer (ui/quiz-model.ts activitiesFor
+ *  says which ones each figure has) — what `explore.activity` may name. */
+export const ACTIVITY_IDS = ["square_quiz", "openings_drill", "vs_computer", "note_quiz", "element_quiz", "group_quiz", "parts_quiz"] as const;
 
 export interface AskArgs {
   /** The question, spoken aloud and shown as the caption (a paired speak overrides the spoken line). */

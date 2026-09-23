@@ -67,6 +67,31 @@ const RECIPES: Record<Instrument, Recipe> = {
     decayFrac: 0.8,
     gain: 0.26,
   },
+  // A bowed string: a slow swell, rich but not buzzy — the triangle carries
+  // the body, a quiet sawtooth the bow's edge (no filter stage to tame more).
+  strings: {
+    layers: [["triangle", 1, 1], ["sawtooth", 1, 0.18], ["sine", 2, 0.25]],
+    attack: 0.12,
+    shape: "sustain",
+    decayFrac: 1,
+    gain: 0.16,
+  },
+  // Nearly a pure tone, a breath of the second and third harmonic.
+  flute: {
+    layers: [["sine", 1, 1], ["sine", 2, 0.12], ["sine", 3, 0.05]],
+    attack: 0.06,
+    shape: "sustain",
+    decayFrac: 1,
+    gain: 0.24,
+  },
+  // A struck bar: short decay, and the fourth partial a tuned bar is cut for.
+  marimba: {
+    layers: [["sine", 1, 1], ["sine", 4, 0.22], ["sine", 10, 0.05]],
+    attack: 0.002,
+    shape: "decay",
+    decayFrac: 0.18,
+    gain: 0.34,
+  },
 };
 
 export class WebAudioTones implements ToneLike {

@@ -168,7 +168,9 @@ export class Player {
    * embeds, bare players), the WHOLE step — narration included — is skipped:
    * an exploration invitation with nothing to explore is a dangling intro.
    */
-  exploreGate: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "explore" }>) => Promise<void>) | null = null;
+  /** Resolves when the viewer continues — with the vars the beat's `store`
+   *  keeps (an activity's score, a composed melody), or nothing. */
+  exploreGate: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "explore" }>) => Promise<Record<string, string> | void>) | null = null;
 
   /** Responses collected by ask commands with store — {name} in later
    *  narration interpolates from here. Keys are lowercased. */
@@ -1119,7 +1121,10 @@ export class Player {
       case "explore": {
         await this.narrationBarrier();
         if (signal.aborted) return;
-        if (this.exploreGate) await this.exploreGate(signal, step);
+        if (this.exploreGate) {
+          const kept = await this.exploreGate(signal, step);
+          if (kept && !signal.aborted) for (const [k, v] of Object.entries(kept)) this.vars.set(k.toLowerCase(), v);
+        }
         return;
       }
       case "if": {

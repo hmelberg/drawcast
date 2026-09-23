@@ -96,7 +96,7 @@ describe("tray controls (pins)", () => {
   });
   test("the explore beat on a pane: controls script holds the run with the tray SHUT: pause, hook Continue, no open()", () => {
     const i = src.indexOf("hd.timeline.exploreGate =");
-    const region = src.slice(i, i + 5000);
+    const region = src.slice(i, i + 7000);
     // The decision itself is tray-model's exploreSurface (2026-09-18; unit-
     // tested there): "shut" for a pane: controls script, "card" for a script
     // named alone and for a beat naming nothing (2026-09-23), "tray" only
@@ -109,7 +109,7 @@ describe("tray controls (pins)", () => {
   });
   test("a shut explore gate puts a Continue pill on the figure, and every way out takes it down", () => {
     const i = src.indexOf("hd.timeline.exploreGate =");
-    const region = src.slice(i, i + 5000);
+    const region = src.slice(i, i + 7000);
     expect(region).toMatch(/if \(shut\) \{[\s\S]{0,900}showGatePill\(\);/);
     const cont = src.slice(src.indexOf("const continueNow"), src.indexOf("const continueNow") + 1200);
     expect(cont).toMatch(/removeGatePill\(\);/);
@@ -119,7 +119,7 @@ describe("tray controls (pins)", () => {
   });
   test("the explore beat on a script named alone mounts the CARD on its pane, tray shut: openInPlace, remembered for ⊕ and ✕, paused (ruling 2026-09-18)", () => {
     const i = src.indexOf("hd.timeline.exploreGate =");
-    const region = src.slice(i, i + 5000);
+    const region = src.slice(i, i + 7000);
     expect(region).toMatch(/if \(target && openInPlace\(target\)\) \{\s*gatedCode = target\.id;\s*gatedCard = target\.id;\s*hd\.timeline\.pause\(\);\s*return;/);
     // The card's ✕ (its onClose) is Continue while the gate holds — and
     // continueNow takes the gate down BEFORE closing the cards, so that
@@ -153,7 +153,7 @@ describe("tray controls (pins)", () => {
   });
   test("the shut-tray gate hides the centred ▶ with a class of its own: on while it holds, off on Continue and on abort (fix round 1)", () => {
     const i = src.indexOf("hd.timeline.exploreGate =");
-    const region = src.slice(i, i + 5000);
+    const region = src.slice(i, i + 7000);
     expect(region).toMatch(/if \(shut\) \{[\s\S]{0,500}classList\.add\("cs-gated"\)/);
     // From `const shut`, so the GAME gate's own onAbort a few lines above
     // (which closes the emulator) cannot stand in for the explore one.

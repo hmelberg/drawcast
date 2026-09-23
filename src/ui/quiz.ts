@@ -93,7 +93,11 @@ function sceneNamesFor(hd: RenderHandle): { id: string; name: string }[] {
   return out;
 }
 
-export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activity): void {
+/** Called once when an activity closes — with its score when the viewer
+ *  finished at least one round, null when they left early (or it has no score). */
+export type ActivityClose = (result: { score: number; total: number } | null) => void;
+
+export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activity, onClose?: ActivityClose): void {
   stage.querySelector(".cs-quizgate, .cs-vsgate, .cs-drillgate")?.remove();
   const kind = activity.kind;
   const flip = hd.spec.params?.["flip"] === true;
@@ -135,6 +139,8 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
   let timer = 0;
   let dead = false;
 
+  /** The last finished round's score — what an explore beat that started the drill keeps. */
+  let finished: { score: number; total: number } | null = null;
   const teardown = (): void => {
     if (dead) return;
     dead = true;
@@ -144,6 +150,7 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
     showNames();
     stage.classList.remove("cs-exploring");
     gate.remove();
+    onClose?.(finished);
   };
 
   // Any honest timeline movement ends the drill — play resumes the movie,
@@ -225,6 +232,7 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
   };
 
   const showFinal = (): void => {
+    finished = { score, total: questions.length };
     clearMarks();
     showNames(); // the score is read with the names back on
     hint.textContent = `🎯 ${score}/${questions.length}${score === questions.length ? " — perfect!" : ""}`;

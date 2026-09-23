@@ -33,8 +33,9 @@ import type { BodiesTable, SpaceEngine } from "./space/types";
 export type { SpaceEngine } from "./space/types";
 import type { ConstellationTable, SkyEngine, StarTable } from "./space/sky-types";
 export type { SkyEngine } from "./space/sky-types";
+export type { MusicGeometry as MusicEngine } from "./music/geometry";
 
-export const KNOWN_ENGINES = ["smilesdrawer", "mathjax", "chess", "geo", "anatomy", "elements", "space", "sky"] as const;
+export const KNOWN_ENGINES = ["smilesdrawer", "mathjax", "chess", "geo", "anatomy", "elements", "space", "sky", "music"] as const;
 
 export interface NormalizedMolecule {
   atoms: { x: number; y: number; element: string }[];
@@ -836,6 +837,16 @@ async function loadSky(): Promise<SkyEngine> {
   return makeSkyEngine(starsMod.default as unknown as StarTable, consMod.default as unknown as ConstellationTable);
 }
 
+/**
+ * Music symbols (design 2026-09-24-music-notation-and-staff §4): SMuFL glyph
+ * outlines and their stem anchors, ~59 KB of JSON, fetched only by a figure
+ * that draws music — a note_sheet or a `music` element.
+ */
+async function loadMusic(): Promise<import("./music/geometry").MusicGeometry> {
+  const [geom, data] = await Promise.all([import("./music/geometry"), import("./music/glyphs.json")]);
+  return geom.musicGeometry((data as { default?: unknown }).default as import("./music/geometry").GlyphSet ?? (data as unknown as import("./music/geometry").GlyphSet));
+}
+
 export const ENGINE_DEFS: Record<string, { load: () => Promise<unknown> }> = {
   smilesdrawer: { load: loadSmilesDrawer },
   mathjax: { load: loadMathJax },
@@ -845,6 +856,7 @@ export const ENGINE_DEFS: Record<string, { load: () => Promise<unknown> }> = {
   elements: { load: loadElements },
   space: { load: loadSpace },
   sky: { load: loadSky },
+  music: { load: loadMusic },
 };
 
 const cache = new Map<string, unknown>();
@@ -891,7 +903,8 @@ export async function ensureEnginesForTemplate(id: string): Promise<void> {
 export function enginesForSpec(spec: Partial<Spec>): string[] {
   const els = Array.isArray(spec?.elements) ? spec.elements : [];
   const needsMath = els.some((el) => el && (el.type === "math" || typeof el.tex === "string"));
-  return needsMath ? ["mathjax"] : [];
+  const needsMusic = els.some((el) => el && el.type === "music");
+  return [...(needsMath ? ["mathjax"] : []), ...(needsMusic ? ["music"] : [])];
 }
 
 export async function ensureEnginesForSpecs(specs: Partial<Spec>[]): Promise<void> {

@@ -14,7 +14,7 @@ import type { OnDemandRun } from "./on-demand-run";
 import type { describeTemplateFor } from "./on-demand";
 import type { TemplateDoc } from "../scenes/doc";
 import { ensureEnginesForSpecs } from "../scenes/engines";
-import { specSchema, validateSpec, CODE_ONLY_ELEMENT_PROPS, SOUND_ONLY_COMMAND_PROPS } from "../spec/schema";
+import { specSchema, validateSpec, CODE_ONLY_ELEMENT_PROPS, SOUND_ONLY_COMMAND_PROPS, SOUND_ONLY_ELEMENT_PROPS } from "../spec/schema";
 import { paramsWithAssets } from "../spec/assets";
 import { attachSeedCredit, type SeedBlock } from "./seed";
 import { visualRepairMessages, wantsVisualRepair } from "./visual";
@@ -136,6 +136,9 @@ export function apiSchema(opts: { code?: boolean; sound?: boolean } = {}): objec
   if (opts.sound === false) {
     const cmd = props.commands.items.properties;
     for (const k of SOUND_ONLY_COMMAND_PROPS) delete cmd[k];
+    const el = props.elements.items.properties;
+    for (const k of SOUND_ONLY_ELEMENT_PROPS) delete el[k];
+    el.type.enum = el.type.enum.filter((t: string) => t !== "music");
   }
   return copy;
 }

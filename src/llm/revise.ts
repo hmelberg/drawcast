@@ -210,7 +210,9 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
   // this point is ever reached — so only elements/commands need guarding.)
   const specs = itemsOf(parsedNow.playlist).map((i) => i.spec);
   const wantCode = wantsCode(instruction) || specs.some((s) => Array.isArray(s.elements) && s.elements.some((e) => e?.type === "code"));
-  const wantSound = wantsSound(instruction) || specs.some((s) => Array.isArray(s.commands) && s.commands.some((c) => c?.play !== undefined));
+  const wantSound =
+    wantsSound(instruction) ||
+    specs.some((s) => (Array.isArray(s.commands) && s.commands.some((c) => c?.play !== undefined)) || (Array.isArray(s.elements) && s.elements.some((e) => e?.type === "music")));
   const blocks = buildSystemBlocks(cfg.variant.source, {
     schema: apiSchema({ code: wantCode, sound: wantSound }),
     catalog: catalog.stable,

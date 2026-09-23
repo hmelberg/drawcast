@@ -11,6 +11,7 @@
 // position back and play/scrub tear the session down on their own.
 
 import type { RenderHandle } from "../render";
+import type { ActivityClose } from "./quiz";
 import { chessSquareBox } from "../render/widgets";
 import { clientPointFor, h } from "./dom";
 import { attachChessDrag } from "./chess-drag";
@@ -27,7 +28,7 @@ interface DrillGame extends ChessLike {
 
 type Plies = ReturnType<typeof plyList>;
 
-export function mountChessDrill(stage: HTMLElement, hd: RenderHandle): void {
+export function mountChessDrill(stage: HTMLElement, hd: RenderHandle, onClose?: ActivityClose): void {
   stage.querySelector(".cs-quizgate, .cs-vsgate, .cs-drillgate")?.remove();
 
   const gate = h("div", { class: "cs-figgate cs-drillgate" });
@@ -65,6 +66,7 @@ export function mountChessDrill(stage: HTMLElement, hd: RenderHandle): void {
     hd.timeline.callbacks.onStep = prevOnStep;
     stage.classList.remove("cs-exploring");
     gate.remove();
+    onClose?.(null);
     // ✕ hands the lesson's position back; play/scrub already settle it. This
     // also un-does the `flip` override paint() applies below — renderUpTo
     // recommits the boundary's own (unflipped, or however-authored) params.

@@ -471,7 +471,15 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // necessary"): an explore beat naming nothing on a figure played ON leaves
 // the figure live, tray shut. One clause in the prompt's explore bullet
 // (+143) and in the schema's explore description (+104). 212371 -> 212618.
-const BASELINE_SYSTEM_CHARS = 212618;
+// Re-pinned UP 2026-09-24 (music round 1 + explore.activity, design
+// 2026-09-24-music-notation-and-staff): the `music` element and its four
+// properties, three instruments, `explore.activity`/`store`, and one clause
+// in the explore bullet. This measure embeds the FULL schema; what an
+// ordinary (non-music) request pays is less — the sound gate withholds the
+// music element and the play keys: the gated schema went 78372 -> 78903
+// (+531, the explore.activity/store descriptions, which serve chess and the
+// periodic table too). 212618 -> 214190.
+const BASELINE_SYSTEM_CHARS = 214190;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -497,7 +505,8 @@ const BASELINE_SYSTEM_CHARS = 212618;
 // Re-pinned UP 2026-09-23 (walk): the group's `walk` field. 79584 -> 79881.
 // Re-pinned UP 2026-09-23 (walk modes): walk "zoom"/"replace", camera zoom "fit". 79881 -> 80251.
 // Re-pinned UP 2026-09-24 (explore on screen): the explore description's clause. 80251 -> 80355.
-const BASELINE_SCHEMA_CHARS = 80355;
+// Re-pinned UP 2026-09-24 (music round 1 + explore.activity): see the system note. 80355 -> 81775.
+const BASELINE_SCHEMA_CHARS = 81775;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

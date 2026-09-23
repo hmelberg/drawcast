@@ -1394,7 +1394,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   // The explore verb: the storyboard opens this tray itself and waits for
   // Continue. Abort (a scrub) resolves and tidies up — the gate contract.
   hd.timeline.exploreGate = (signal, step) =>
-    new Promise<void>((resolve) => {
+    new Promise<Record<string, string> | void>((resolve) => {
       if (step.game !== undefined) {
         // "Now you play": the emulator opens, the lesson waits, and closing
         // the emulator — ✕, Escape, the scrim — is Continue. A scrub aborts.
@@ -1412,6 +1412,33 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
           signal.removeEventListener("abort", onAbort);
           resolve();
         }
+        return;
+      }
+      if (step.activity !== undefined) {
+        // "Your turn": the named activity opens straight on the figure — the
+        // tray stays shut (ruling 2026-09-23) — and closing it is Continue,
+        // the way the emulator's close is for a game. Its score, when the
+        // beat asks to keep it, comes back as {<store>} and {<store>.total}.
+        const act = activitiesFor(interactions, partsCount).find((a) => a.id === step.activity);
+        if (!act || !stage) return resolve(); // the lint names the offered ids at authoring time
+        let settled = false;
+        const done = (result: { score: number; total: number } | null): void => {
+          if (settled) return;
+          settled = true;
+          signal.removeEventListener("abort", onAbort);
+          const aborted = signal.aborted;
+          resolve(step.store && result ? { [step.store]: String(result.score), [`${step.store}.total`]: String(result.total) } : undefined);
+          // A scrub aborted the gate and owns the timeline; otherwise the lesson goes on.
+          if (!aborted && hd.timeline.state === "paused") void hd.timeline.play();
+        };
+        // A scrub moves the timeline, which tears the activity down itself
+        // (its own onState/onStep watch) and lands here through onClose.
+        const onAbort = (): void => done(null);
+        signal.addEventListener("abort", onAbort);
+        hd.timeline.pause();
+        if (act.id === "vs_computer") mountChessVs(stage, hd, done);
+        else if (act.id === "openings_drill") mountChessDrill(stage, hd, done);
+        else mountQuiz(stage, hd, act, done);
         return;
       }
       // Which surface the beat opens (tray-model's exploreSurface): a

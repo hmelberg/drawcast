@@ -27986,22 +27986,12 @@
       "title": "Five shapes, each half the last",
       "elements": [
         {
-          "id": "whole_oval",
-          "type": "ellipse",
+          "id": "whole_pic",
+          "type": "music",
+          "symbol": "whole_note",
           "x": 0,
           "y": 0,
-          "rx": 20,
-          "ry": 13,
-          "style": {
-            "stroke_width": 3
-          }
-        },
-        {
-          "id": "whole_pic",
-          "type": "group",
-          "members": [
-            "whole_oval"
-          ]
+          "size": 30
         },
         {
           "id": "whole_name",
@@ -28023,41 +28013,12 @@
           ]
         },
         {
-          "id": "half_oval",
-          "type": "ellipse",
+          "id": "half_pic",
+          "type": "music",
+          "symbol": "half_note",
           "x": 0,
           "y": 0,
-          "rx": 17,
-          "ry": 12,
-          "rotation": 25,
-          "style": {
-            "stroke_width": 3
-          }
-        },
-        {
-          "id": "half_stem",
-          "type": "path",
-          "points": [
-            [
-              15,
-              4
-            ],
-            [
-              15,
-              95
-            ]
-          ],
-          "style": {
-            "stroke_width": 3
-          }
-        },
-        {
-          "id": "half_pic",
-          "type": "group",
-          "members": [
-            "half_oval",
-            "half_stem"
-          ]
+          "size": 30
         },
         {
           "id": "half_name",
@@ -28079,41 +28040,12 @@
           ]
         },
         {
-          "id": "quarter_oval",
-          "type": "ellipse",
+          "id": "quarter_pic",
+          "type": "music",
+          "symbol": "quarter_note",
           "x": 0,
           "y": 0,
-          "rx": 17,
-          "ry": 12,
-          "rotation": 25,
-          "style": {
-            "fill": "#3a3a3a"
-          }
-        },
-        {
-          "id": "quarter_stem",
-          "type": "path",
-          "points": [
-            [
-              15,
-              4
-            ],
-            [
-              15,
-              95
-            ]
-          ],
-          "style": {
-            "stroke_width": 3
-          }
-        },
-        {
-          "id": "quarter_pic",
-          "type": "group",
-          "members": [
-            "quarter_oval",
-            "quarter_stem"
-          ]
+          "size": 30
         },
         {
           "id": "quarter_name",
@@ -28135,68 +28067,12 @@
           ]
         },
         {
-          "id": "eighth_oval",
-          "type": "ellipse",
+          "id": "eighth_pic",
+          "type": "music",
+          "symbol": "eighth_note",
           "x": 0,
           "y": 0,
-          "rx": 17,
-          "ry": 12,
-          "rotation": 25,
-          "style": {
-            "fill": "#3a3a3a"
-          }
-        },
-        {
-          "id": "eighth_stem",
-          "type": "path",
-          "points": [
-            [
-              15,
-              4
-            ],
-            [
-              15,
-              95
-            ]
-          ],
-          "style": {
-            "stroke_width": 3
-          }
-        },
-        {
-          "id": "eighth_flag",
-          "type": "path",
-          "points": [
-            [
-              15,
-              95
-            ],
-            [
-              29,
-              79
-            ],
-            [
-              39,
-              60
-            ],
-            [
-              35,
-              44
-            ]
-          ],
-          "smooth": true,
-          "style": {
-            "stroke_width": 3
-          }
-        },
-        {
-          "id": "eighth_pic",
-          "type": "group",
-          "members": [
-            "eighth_oval",
-            "eighth_stem",
-            "eighth_flag"
-          ]
+          "size": 30
         },
         {
           "id": "eighth_name",
@@ -28218,95 +28094,12 @@
           ]
         },
         {
-          "id": "sixteenth_oval",
-          "type": "ellipse",
+          "id": "sixteenth_pic",
+          "type": "music",
+          "symbol": "sixteenth_note",
           "x": 0,
           "y": 0,
-          "rx": 17,
-          "ry": 12,
-          "rotation": 25,
-          "style": {
-            "fill": "#3a3a3a"
-          }
-        },
-        {
-          "id": "sixteenth_stem",
-          "type": "path",
-          "points": [
-            [
-              15,
-              4
-            ],
-            [
-              15,
-              95
-            ]
-          ],
-          "style": {
-            "stroke_width": 3
-          }
-        },
-        {
-          "id": "sixteenth_flag1",
-          "type": "path",
-          "points": [
-            [
-              15,
-              95
-            ],
-            [
-              29,
-              79
-            ],
-            [
-              39,
-              60
-            ],
-            [
-              35,
-              44
-            ]
-          ],
-          "smooth": true,
-          "style": {
-            "stroke_width": 3
-          }
-        },
-        {
-          "id": "sixteenth_flag2",
-          "type": "path",
-          "points": [
-            [
-              15,
-              77
-            ],
-            [
-              29,
-              61
-            ],
-            [
-              39,
-              42
-            ],
-            [
-              35,
-              26
-            ]
-          ],
-          "smooth": true,
-          "style": {
-            "stroke_width": 3
-          }
-        },
-        {
-          "id": "sixteenth_pic",
-          "type": "group",
-          "members": [
-            "sixteenth_oval",
-            "sixteenth_stem",
-            "sixteenth_flag1",
-            "sixteenth_flag2"
-          ]
+          "size": 30
         },
         {
           "id": "sixteenth_name",
@@ -28715,6 +28508,112 @@
             "correct": 1,
             "right": "It falls all the time, but its sideways speed carries it past the curve of the Earth before it can land.",
             "wrong": "Gravity reaches the Moon — that is why it curves at all. It keeps missing because it moves sideways so fast."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "How do the two hands share a piano score?",
+    "spec": {
+      "title": "Two hands, one score",
+      "template": "note_sheet",
+      "params": {
+        "clef": "grand",
+        "notes": "E4:q E4:q F4:q G4:q G4:q F4:q E4:q D4:q",
+        "bass_notes": "C3:h G2:h C3:h G2:h"
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Two hands, one score",
+            "subtitle": "how piano music is written"
+          },
+          "speak": "A piano has one keyboard, but its music is written on two staves at once. Why two?"
+        },
+        {
+          "draw": [
+            "staff",
+            "clef"
+          ],
+          "speak": "The top staff, with the treble clef, is for the higher notes — mostly the right hand."
+        },
+        {
+          "draw": [
+            "bass_staff",
+            "bass_clef",
+            "brace"
+          ],
+          "speak": "The bottom staff, with the bass clef, is for the low notes — the left hand. The brace says: read these two together."
+        },
+        {
+          "play": "E4:q E4:q F4:q G4:q G4:q F4:q E4:q D4:q",
+          "instrument": "piano",
+          "tempo": 96,
+          "reveal": [
+            "note_0",
+            "note_1",
+            "note_2",
+            "note_3",
+            "note_4",
+            "note_5",
+            "note_6",
+            "note_7"
+          ],
+          "speak": "The right hand plays the tune."
+        },
+        {
+          "play": "C3:h G2:h C3:h G2:h",
+          "instrument": "piano",
+          "tempo": 96,
+          "reveal": [
+            "bass_note_0",
+            "bass_note_1",
+            "bass_note_2",
+            "bass_note_3"
+          ],
+          "speak": "The left hand holds long, low notes underneath."
+        },
+        {
+          "draw": [
+            "bar_0"
+          ],
+          "speak": "Notes stacked straight above one another are played at the same moment — that is why the two staves line up by beat."
+        },
+        {
+          "play": [
+            {
+              "notes": "E4:q E4:q F4:q G4:q G4:q F4:q E4:q D4:q",
+              "instrument": "piano"
+            },
+            {
+              "notes": "C3:h G2:h C3:h G2:h",
+              "instrument": "piano"
+            }
+          ],
+          "tempo": 96,
+          "speak": "Both hands together."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bass_note_0",
+              "note_0"
+            ],
+            "effect": "glow"
+          },
+          "speak": "One staff alone could not hold both: the tune and the bass lie more than an octave apart, and would need a ladder of extra lines between them."
+        },
+        {
+          "quiz": {
+            "question": "Which staff holds the left hand's low notes?",
+            "choices": [
+              "The top one, with the treble clef",
+              "The bottom one, with the bass clef"
+            ],
+            "correct": 2,
+            "right": "The bottom staff: the bass clef marks the low notes, usually the left hand.",
+            "wrong": "The treble clef is for the high notes. Low notes go on the bass staff below."
           }
         }
       ]

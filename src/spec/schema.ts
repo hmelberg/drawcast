@@ -8,14 +8,14 @@
 
 import AjvModule, { type ValidateFunction } from "ajv";
 import { ASSET_MAX_BYTES, assetBytes, assetRef, formatAssetSize, isDataAsset, paramAssetRefs, resolveAssetRefs, resolveParamAssetRefs } from "./assets";
-import { BUILTIN_WIDGETS, SIDE_VALUES, type Command, type Spec, type SpecElement } from "./types";
+import { BUILTIN_WIDGETS, SIDE_VALUES, type Command, type Spec, type SpecElement, ACTIVITY_IDS, MUSIC_SYMBOLS } from "./types";
 import { isReservedVar } from "./answers";
 import { SUB_SUFFIXES } from "../layout/model";
 import { UNIVERSAL_ANCHORS } from "../layout/anchors";
 import { isFitName } from "../layout/regions";
 import { C64_PROGRAMS } from "../code/c64-catalogue";
 import { LANGUAGES, isLanguage } from "../code/languages";
-import { notationBeats } from "./notation";
+import { notationBeats, INSTRUMENTS } from "./notation";
 import { varNameErrors } from "./vars";
 import { parseABC } from "./abc";
 import { DATA_TOKEN_RE, MALFORMED_TOKEN_RE, scanDataTokens } from "../code/tokens";
@@ -135,7 +135,7 @@ const elementSchema = {
       enum: [
         "axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code",
         "sector", "arc", "polygon", "pieces", "angle", "measure", "ellipse", "line",
-        "group", "math", "image", "icon", "inset",
+        "group", "math", "image", "icon", "inset", "music",
       ],
     },
     // axes
@@ -266,7 +266,11 @@ const elementSchema = {
       description: "group: scale and centre the members into this region or box (aspect kept).",
     },
     tex: { type: "string", description: "math: LaTeX, drawn as handwriting. label: LaTeX instead of text." },
-    size: { type: "number", description: "math: font size, the same units as text font_size (default 28, a label's size). Leave it out: every formula on a page shares one size; at most a headline formula may take 34. icon: box size in logical units (default 100)." },
+    size: { type: "number", description: "math: font size, the same units as text font_size (default 28, a label's size). Leave it out: every formula on a page shares one size; at most a headline formula may take 34. icon: box size in logical units (default 100). music: one staff space in logical units (default 26)." },
+    symbol: { type: "string", enum: [...MUSIC_SYMBOLS], description: "music: the symbol, drawn from a real music font — notes join their stems exactly. x/y is its centre (a note's head)." },
+    stem: { type: "string", enum: ["up", "down"], description: "music: a note's stem direction (default up)." },
+    dots: { type: "integer", minimum: 0, maximum: 2, description: "music: dots after a note (each adds half)." },
+    time: { type: "string", description: "music: the time signature for symbol time, e.g. \"3/4\"." },
     colors: { type: "object", additionalProperties: { type: "string" }, description: 'math: colour per term, a TeX snippet → colour ({"x": "#2f6b8f", "\\\\Delta C": "#b5482e"}); every occurrence.' },
     set: { type: "string", description: "icon: icon set prefix (lucide, tabler, ph, heroicons, material-symbols; fa6-solid, twemoji as CC BY)." },
     credit: { type: "string", description: "image/icon: attribution (machine-written; copy VERBATIM if present)." },
@@ -493,6 +497,10 @@ export const CODE_ONLY_ELEMENT_PROPS = [
  * Design §3.3.
  */
 export const SOUND_ONLY_COMMAND_PROPS = ["play", "instrument", "tempo", "press", "reveal"] as const;
+/** The `music` element's own properties — withheld with the element itself
+ *  from a request about neither sound nor music (their descriptions begin
+ *  "music:", which is what tests/schema-gate.test.ts derives the list from). */
+export const SOUND_ONLY_ELEMENT_PROPS = ["symbol", "stem", "dots", "time"] as const;
 
 const idListSchema = (description: string) => ({
   type: "array",
@@ -649,6 +657,12 @@ const commandSchema = {
           description:
             "On an anatomy figure: open the Body section of the explore tray — click a part to zoom into its region, breadcrumbs back, pills for layer, systems and names — and wait for Continue. The authored 'look around the body yourself' moment. App only; movies skip the beat.",
         },
+        activity: {
+          type: "string",
+          description:
+            "Start this named activity straight on the figure and wait until the viewer closes it: note_quiz (piano), square_quiz, openings_drill, vs_computer (chess), element_quiz, group_quiz (periodic table), parts_quiz (any figure with named parts). The tray stays shut. App only; movies skip the beat.",
+        },
+        store: { type: "string", description: "Keep what the viewer made under this name: an activity's score as {<store>} and {<store>.total}." },
         space: {
           type: "boolean",
           description:
@@ -996,7 +1010,7 @@ const commandSchema = {
             type: "object",
             properties: {
               notes: { type: "string", description: "Notation string for this voice." },
-              instrument: { type: "string", enum: ["tone", "piano", "organ", "pluck", "bell"] },
+              instrument: { type: "string", enum: [...INSTRUMENTS] },
             },
             required: ["notes"],
             additionalProperties: false,
@@ -1018,7 +1032,7 @@ const commandSchema = {
     tempo: { type: "number", description: "With play: beats per minute, 30-300 (default 100)." },
     instrument: {
       type: "string",
-      enum: ["tone", "piano", "organ", "pluck", "bell"],
+      enum: [...INSTRUMENTS],
       description: "With play: the synthesized instrument (default tone; array voices can override per voice).",
     },
     reveal: idListSchema(
@@ -1563,6 +1577,9 @@ function semanticErrors(spec: Spec): string[] {
       if (cmd.explore.space !== undefined && typeof cmd.explore.space !== "boolean") {
         errors.push(`commands[${i}]: explore.space must be true or false`);
       }
+      if (cmd.explore.activity !== undefined && !(ACTIVITY_IDS as readonly string[]).includes(cmd.explore.activity)) {
+        errors.push(`commands[${i}]: explore.activity "${cmd.explore.activity}" is not an activity — one of ${ACTIVITY_IDS.join(", ")}`);
+      }
     }
     if (verb === "play") {
       const p = cmd.play!;
@@ -1773,6 +1790,10 @@ function elementErrors(el: SpecElement): string[] {
       break;
     case "measure":
       need(el.of !== undefined || (el.from !== undefined && el.to !== undefined), "needs of, or from and to");
+      break;
+    case "music":
+      need(typeof el.symbol === "string", "needs symbol");
+      if (el.symbol === "time") need(typeof el.time === "string" && /^\d{1,2}\/\d{1,2}$/.test(el.time), 'symbol time needs time, e.g. "3/4"');
       break;
     case "ellipse":
       need(typeof el.rx === "number" && typeof el.ry === "number", "needs rx and ry");
