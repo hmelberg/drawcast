@@ -74,10 +74,9 @@ import { registerContinue } from "./control-press";
 import { attachCodeTyping, type CodeTyping } from "./code-typing";
 import { activitiesFor } from "./quiz-model";
 import { MIN_PARTS } from "./parts-model";
-import { mountQuiz, partsFor } from "./quiz";
-import { mountChessVs } from "./chessvs";
-import { mountChessDrill } from "./chessdrill";
+import { partsFor } from "./quiz";
 import { composedOn } from "./staffplay";
+import { attachActivityCard, startActivity } from "./activities";
 import { boardFlip, clearViewerFlip, readShowLegalMoves, setShowLegalMoves, setViewerFlip } from "./chess-prefs";
 import { applyControls, parseControls, type ControlSpec, type ControlValue } from "../code/controls";
 import { debounceMs, nextValues } from "./controls-model";
@@ -844,9 +843,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         pill.addEventListener("click", () => {
           restore(); // the session runs on the honest boundary
           close();
-          if (a.id === "vs_computer") mountChessVs(stage, hd);
-          else if (a.id === "openings_drill") mountChessDrill(stage, hd);
-          else mountQuiz(stage, hd, a);
+          startActivity(stage, hd, a);
         });
         row.appendChild(pill);
       }
@@ -1303,6 +1300,11 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     e.preventDefault();
     if (tray.hidden) open();
   });
+  // …unless the figure offers activities: then the right-click (or a
+  // long-press) opens the figure's own card at the pointer first — its
+  // activities on the figure, the tray one click further (design
+  // 2026-09-24-music §6.4). Capture phase, so it answers before the tray.
+  if (stage) attachActivityCard(stage, hd, activitiesFor(interactions, partsCount), () => trayBtn.click());
 
   // The screen is an OBJECT (spec §13): while paused, a click on a code panel
   // does that object's natural action — it opens its editor. The info card
@@ -1437,9 +1439,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         const onAbort = (): void => done(null);
         signal.addEventListener("abort", onAbort);
         hd.timeline.pause();
-        if (act.id === "vs_computer") mountChessVs(stage, hd, done);
-        else if (act.id === "openings_drill") mountChessDrill(stage, hd, done);
-        else mountQuiz(stage, hd, act, done);
+        startActivity(stage, hd, act, done);
         return;
       }
       // Which surface the beat opens (tray-model's exploreSurface): a

@@ -654,11 +654,11 @@ export const MUSIC_SYMBOLS = [
   "common_time", "cut_time", "time",
 ] as const;
 
-export const BUILTIN_WIDGETS = ["click", "piano", "chess", "code", "drag", "connect"] as const;
+export const BUILTIN_WIDGETS = ["click", "piano", "chess", "code", "drag", "connect", "staff"] as const;
 
 /** The named activities a figure can offer (ui/quiz-model.ts activitiesFor
  *  says which ones each figure has) — what `explore.activity` may name. */
-export const ACTIVITY_IDS = ["square_quiz", "openings_drill", "vs_computer", "note_quiz", "element_quiz", "group_quiz", "parts_quiz"] as const;
+export const ACTIVITY_IDS = ["square_quiz", "openings_drill", "vs_computer", "note_quiz", "ear_key", "staff_find", "staff_name", "ear_staff", "element_quiz", "group_quiz", "parts_quiz"] as const;
 
 export interface AskArgs {
   /** The question, spoken aloud and shown as the caption (a paired speak overrides the spoken line). */

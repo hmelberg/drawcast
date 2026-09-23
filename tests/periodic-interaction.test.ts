@@ -46,7 +46,7 @@ describe("the interaction is declared, not sniffed", () => {
   test("it brings two drills, and leaves the other instruments' pills alone", () => {
     expect(activitiesFor(["periodic"]).map((a) => a.id)).toEqual(["element_quiz", "group_quiz"]);
     expect(activitiesFor(["periodic"]).every((a) => a.kind === "periodic")).toBe(true);
-    expect(activitiesFor(["piano"]).map((a) => a.id)).toEqual(["note_quiz"]);
+    expect(activitiesFor(["piano"]).map((a) => a.id)).toEqual(["note_quiz", "ear_key"]);
     expect(activitiesFor([]).length).toBe(0);
   });
 });

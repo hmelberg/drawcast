@@ -1310,6 +1310,29 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-staffrow-btn.on { background: var(--ink); color: var(--surface); }
 .cs-staffrow-inst { font-size: var(--text-sm); }
 .cs-staffrow-note { font-size: var(--text-sm); padding: 0 0.3rem; }
+/* Staff drills: the note shown for Name the note, the letter answers, hear again. */
+.cs-figgate-mark.cs-staffq {
+  width: 1.1rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  background: var(--ink);
+  border: none;
+  box-shadow: none;
+  margin: 0; /* the base mark centres by margin; this one by its transform */
+  animation: none;
+  transform: translate(-50%, -50%) rotate(-20deg);
+}
+/* At the top of the figure: the drill's hint pill owns the bottom corner. */
+.cs-quiz-letters {
+  position: absolute;
+  left: 50%;
+  top: 0.8rem;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.3rem;
+}
+.cs-quiz-letter { min-width: 2.1rem; }
+.cs-quiz-hear { position: absolute; left: 0.8rem; top: 0.8rem; }
 /* A shut explore gate's Continue: top right, clear of the caption band that
    carries the invitation, over a figure the viewer is busy clicking. */
 .cs-explore-continue {

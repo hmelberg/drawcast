@@ -11,6 +11,8 @@
 // portrait pipeline already uses for the image itself.
 
 import type { RenderHandle } from "../render";
+import { activityButtons } from "./activities";
+import { activitiesFor } from "./quiz-model";
 import { sceneAt } from "../render/plan";
 import { wikiSummaryUrl } from "../render/portrait";
 import { chessSquareAt, periodicSymbols, pianoKeyAt, pianoOctaves } from "../render/widgets";
@@ -265,6 +267,10 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost
       e.preventDefault();
       e.stopPropagation();
     });
+
+    // The figure's activities come first (design 2026-09-24-music §6.4): a
+    // periodic cell's card offers the table's drills, as the tray does.
+    for (const b of activityButtons(stage, hd, activitiesFor(interactions, 0), closeCard)) actions.appendChild(b);
 
     // Authored links first (the author's intent), then Read more, then the
     // zero-authoring Search. YouTube and PDF open the modal surface; wiki

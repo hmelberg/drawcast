@@ -6426,6 +6426,10 @@
           "draw": [
             "title"
           ]
+        },
+        {
+          "explore": {},
+          "speak": "Now try it yourself: press C, E and G — then move all three fingers up one key and hear the mood change."
         }
       ]
     }
@@ -28677,6 +28681,75 @@
         },
         {
           "speak": "A tune that comes home to the note it started from sounds finished — that pull back to C is what musicians call the tonic."
+        }
+      ]
+    }
+  },
+  {
+    "request": "How do musicians hear where a note goes on the staff?",
+    "spec": {
+      "title": "Can you hear where a note goes?",
+      "template": "note_sheet",
+      "params": {
+        "notes": "C4:h G4:h",
+        "labels": false,
+        "time_top": 0
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Can you hear where a note goes?",
+            "subtitle": "ears to eyes"
+          },
+          "speak": "Musicians can often write down a tune they hear. It starts with one skill: hearing how high a note is."
+        },
+        {
+          "draw": [
+            "staff",
+            "clef"
+          ],
+          "speak": "Higher notes sit higher on the staff; lower notes lower. Each step up is one line or one space."
+        },
+        {
+          "play": "C4:h",
+          "instrument": "piano",
+          "reveal": [
+            "note_0"
+          ],
+          "speak": "This is middle C, on its own little line under the staff."
+        },
+        {
+          "play": "G4:h",
+          "instrument": "piano",
+          "reveal": [
+            "note_1"
+          ],
+          "speak": "And this is G — five steps higher, and it sounds it."
+        },
+        {
+          "play": "E4:h",
+          "instrument": "piano",
+          "speak": "Now just listen."
+        },
+        {
+          "ask": {
+            "question": "Where does that note go? Click it on the staff.",
+            "widget": "staff",
+            "answer": "E4",
+            "right": "E — the bottom line, between the C and the G.",
+            "wrong": "It was E, on the bottom line: higher than C, lower than G.",
+            "default": "E4"
+          }
+        },
+        {
+          "explore": {
+            "activity": "ear_staff",
+            "store": "ears"
+          },
+          "speak": "Five more, and you choose. Press the speaker to hear a note again."
+        },
+        {
+          "speak": "You placed {ears} of {ears.total}. Every musician's ear is trained exactly this way — one note at a time."
         }
       ]
     }

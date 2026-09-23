@@ -1052,6 +1052,8 @@ export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIs
     flagVars(c.ask?.wrong, `commands[${i}].ask.wrong`);
     if (c.ask?.store) stored.add(c.ask.store.toLowerCase());
     if (c.quiz?.store) stored.add(c.quiz.store.toLowerCase());
+    // An explore beat keeps an activity's score ({x}, {x.total}) or a composed melody.
+    if (c.explore?.store) stored.add(c.explore.store.toLowerCase());
     if (c.run !== undefined) checkSweep(i, "run", c.run.code, c.run);
     if (c.explore?.play !== undefined && c.explore.play !== false) checkSweep(i, "explore.play", c.explore.code, c.explore.play);
   });

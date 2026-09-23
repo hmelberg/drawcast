@@ -15,7 +15,7 @@ const player = readFileSync(new URL("../src/render/player.ts", import.meta.url),
 describe("the activity ids", () => {
   test("every activity a figure can offer is one explore.activity may name", () => {
     const offered = new Set(
-      [["chess"], ["piano"], ["periodic"], []].flatMap((k) => activitiesFor(k, 99).map((a) => a.id)),
+      [["chess"], ["piano"], ["periodic"], ["staff"], []].flatMap((k) => activitiesFor(k, 99).map((a) => a.id)),
     );
     for (const id of offered) expect(ACTIVITY_IDS as readonly string[]).toContain(id);
     for (const id of ACTIVITY_IDS) expect(offered.has(id)).toBe(true);
@@ -44,7 +44,7 @@ describe("the gate (pins)", () => {
   test("an activity beat mounts the activity on the figure with the tray shut, and its close continues", () => {
     const branch = gate.slice(gate.indexOf("if (step.activity !== undefined)"), gate.indexOf("// Which surface the beat opens"));
     expect(branch).toMatch(/activitiesFor\(interactions, partsCount\)\.find/);
-    expect(branch).toMatch(/mountQuiz\(stage, hd, act, done\)/);
+    expect(branch).toMatch(/startActivity\(stage, hd, act, done\)/);
     expect(branch).not.toMatch(/open\(\{/);
     expect(branch).toMatch(/void hd\.timeline\.play\(\)/);
     expect(branch).toMatch(/\[`\$\{step\.store\}\.total`\]/);
@@ -53,5 +53,39 @@ describe("the gate (pins)", () => {
   test("the player keeps what the gate hands back as vars", () => {
     expect(player).toMatch(/const kept = await this\.exploreGate\(signal, step\);/);
     expect(player).toMatch(/this\.vars\.set\(k\.toLowerCase\(\), v\)/);
+  });
+});
+
+import { staffQuizTargets, pianoNaturals } from "../src/ui/quiz-model";
+
+describe("the staff and ear drills (design 2026-09-24-music §6.1)", () => {
+  test("a staff figure offers find, name and hear; a piano adds hear-the-key", () => {
+    expect(activitiesFor(["staff"]).map((a) => a.id)).toEqual(["staff_find", "staff_name", "ear_staff"]);
+    expect(activitiesFor(["piano"]).map((a) => a.id)).toEqual(["note_quiz", "ear_key"]);
+  });
+
+  test("staff targets are distinct natural notes the staff shows well, each with its staff", () => {
+    let seed = 7;
+    const rng = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const t = staffQuizTargets(5, [{ id: "staff", ref: 30 }], rng);
+    expect(t).toHaveLength(5);
+    expect(new Set(t.map((q) => q.pitch)).size).toBe(5);
+    for (const q of t) {
+      expect(q.pitch).toMatch(/^[A-G][45]$/); // C4–G5 on a treble staff
+      expect(q.staffId).toBe("staff");
+    }
+    // A grand staff asks on both.
+    const both = staffQuizTargets(25, [{ id: "staff", ref: 30 }, { id: "bass_staff", ref: 18 }], rng);
+    expect(new Set(both.map((q) => q.staffId)).size).toBe(2);
+  });
+
+  test("the ear drill on a piano plays only natural notes", () => {
+    for (const n of pianoNaturals(2)) expect(n).not.toContain("#");
+  });
+
+  test("ask answers on the staff (pin)", () => {
+    const controls = readFileSync(new URL("../src/ui/controls.ts", import.meta.url), "utf8");
+    expect(controls).toMatch(/step\.widget === "staff"\s*\?\s*staffGate\(signal, step\)/);
+    expect(controls).toMatch(/staffPitchAt\(stavesOf\(layout\.drawables/);
   });
 });

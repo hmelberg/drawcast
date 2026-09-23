@@ -23,8 +23,12 @@ describe("the Drill openings pill", () => {
   });
 
   test("the tray routes it — a pill nothing mounts is a dead button", () => {
+    // Every door (tray pill, explore.activity, the right-click card) starts an
+    // activity through ui/activities.ts's startActivity (design 2026-09-24-music §6.4).
     const tray = readFileSync(new URL("../src/ui/tray.ts", import.meta.url), "utf8");
-    expect(tray).toContain("openings_drill");
-    expect(tray).toContain("mountChessDrill");
+    const acts = readFileSync(new URL("../src/ui/activities.ts", import.meta.url), "utf8");
+    expect(tray).toContain("startActivity(stage, hd, a)");
+    expect(acts).toContain("openings_drill");
+    expect(acts).toContain("mountChessDrill");
   });
 });

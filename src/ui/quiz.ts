@@ -34,7 +34,9 @@ import { scenes } from "../scenes/registry";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import { hitElement } from "./hit";
 import { partsOf, partsQuizTargets, type Part } from "./parts-model";
-import { chessQuizTargets, periodicQuizTargets, pianoQuizTargets, quizPrompt, type Activity } from "./quiz-model";
+import { chessQuizTargets, periodicQuizTargets, pianoNaturals, pianoQuizTargets, quizPrompt, staffQuizTargets, type Activity } from "./quiz-model";
+import { staffPitchAt, staffYOf, stavesOf, type Staff } from "./staffplay-model";
+import { withOverrides } from "../render/params";
 
 const QUIZ_LEN = 5;
 const RIGHT_LINGER_MS = 700;
@@ -45,6 +47,12 @@ interface Question {
   prompt: string;
   accepts: string[];
   reveal: string[];
+  /** A note to PLAY when the question is asked (the ear drills). */
+  sound?: string;
+  /** Staff drills: which staff the answer lives on (a grand staff has two). */
+  staffId?: string;
+  /** Answered by choosing one of these, not by a click on the figure (Name the note). */
+  choices?: string[];
 }
 
 /**
@@ -127,6 +135,14 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
     hiddenNames = [];
   };
 
+  // The staff drills' data space: the staves as drawn right now.
+  const staves: Staff[] =
+    kind === "staff"
+      ? stavesOf((hd.timeline.paintedLayout() ?? hd.layout).drawables, withOverrides(hd.spec.params, sceneAt(hd.plan, hd.timeline.position).params)["clef"])
+      : [];
+  const staffBy = (id: string | undefined): Staff | undefined => staves.find((st) => st.id === id) ?? staves[0];
+  const ear = activity.id === "ear_key" || activity.id === "ear_staff";
+
   const gate = h("div", { class: "cs-figgate cs-quizgate" });
   const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" });
   const closeBtn = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip", title: "Close the quiz" }, "✕");
@@ -181,7 +197,14 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
 
   /** Where one answer lives on the figure, in logical units. */
   const boxFor = (answer: string): BBox | null =>
-    kind === "parts"
+    kind === "staff"
+      ? (() => {
+          const st = staffBy(questions[i]?.staffId);
+          if (!st) return null;
+          const y = staffYOf(st, answer);
+          return { x: (st.x0 + st.x1) / 2 - st.gap, y: y - st.gap / 2, w: 2 * st.gap, h: st.gap };
+        })()
+      : kind === "parts"
       ? (partById.get(answer)?.box ?? null)
       : kind === "chess"
         ? chessSquareBox(flip, answer)
@@ -193,7 +216,9 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
    *  smallest askable part whose outline (or box) contains the click — the
    *  click ask's own rule, with the same fat-finger slop. */
   const hitAt = (p: [number, number]): string | null =>
-    kind === "parts"
+    kind === "staff"
+      ? (staffPitchAt(staves, p)?.pitch ?? null)
+      : kind === "parts"
       ? hitElement(new Map(askable.map((q) => [q.id, q.box])), p, 18, rings)
       : kind === "chess"
         ? chessSquareAt(flip, p)
@@ -229,7 +254,43 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
     // units off an emoji is a trap waiting for a two-glyph label.
     const icon = activity.label.split(" ")[0];
     hint.textContent = `${icon} ${questions[i].prompt} · ${i + 1}/${questions.length}`;
+    const q = questions[i];
+    if (q.sound) soundNote(q.sound);
+    // Name the note: the note is SHOWN on the staff, and the answer is a letter.
+    if (q.choices) {
+      const box = boxFor(q.reveal[0]);
+      const c = box && clientPointFor(stage, [box.x + box.w / 2, box.y + box.h / 2]);
+      if (c) {
+        const m = h("span", { class: "cs-figgate-mark cs-staffq" });
+        m.style.left = `${c[0]}px`;
+        m.style.top = `${c[1]}px`;
+        gate.appendChild(m);
+      }
+    }
+    letters.hidden = !q.choices;
   };
+
+  // Name the note's answer buttons, one per letter.
+  const letters = h("div", { class: "cs-quiz-letters", hidden: "" });
+  for (const L of "CDEFGAB") {
+    const b = h("button", { class: "cs-cardgate-pill cs-quiz-letter" }, L);
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      answer(L, e.clientX, e.clientY);
+    });
+    letters.appendChild(b);
+  }
+  gate.appendChild(letters);
+  // The ear drills: hear it again.
+  if (ear) {
+    const again = h("button", { class: "cs-cardgate-pill cs-quiz-hear", title: "Hear it again" }, "🔊");
+    again.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const q = questions[i];
+      if (q?.sound && !waiting) soundNote(q.sound);
+    });
+    gate.appendChild(again);
+  }
 
   const showFinal = (): void => {
     finished = { score, total: questions.length };
@@ -273,8 +334,18 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
         : kind === "chess"
           ? chessQuizTargets(QUIZ_LEN).map((sq) => ({ prompt: quizPrompt("chess", sq), accepts: [sq], reveal: [sq] }))
           : kind === "piano"
-            ? pianoQuizTargets(QUIZ_LEN, octaves).map((n) => ({ prompt: quizPrompt("piano", n), accepts: [n], reveal: [n] }))
-            : periodicQuizTargets(activity.id, QUIZ_LEN, drawnElements());
+            ? activity.id === "ear_key"
+              ? pianoQuizTargets(QUIZ_LEN * 3, octaves).filter((n) => pianoNaturals(octaves).includes(n)).slice(0, QUIZ_LEN).map((n) => ({ prompt: "Which key did you hear?", accepts: [n], reveal: [n], sound: n }))
+              : pianoQuizTargets(QUIZ_LEN, octaves).map((n) => ({ prompt: quizPrompt("piano", n), accepts: [n], reveal: [n] }))
+            : kind === "staff"
+              ? staffQuizTargets(QUIZ_LEN, staves).map(({ pitch, staffId }) =>
+                  activity.id === "staff_name"
+                    ? { prompt: "Which note is this?", accepts: [pitch[0]], reveal: [pitch], staffId, choices: [..."CDEFGAB"] }
+                    : activity.id === "ear_staff"
+                      ? { prompt: "Which note did you hear? Click it on the staff", accepts: [pitch], reveal: [pitch], staffId, sound: pitch }
+                      : { prompt: `Click where ${pitch} goes`, accepts: [pitch], reveal: [pitch], staffId },
+                )
+              : periodicQuizTargets(activity.id, QUIZ_LEN, drawnElements());
     i = 0;
     score = 0;
     if (questions.length === 0) {
@@ -289,19 +360,14 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
     ask();
   };
 
-  gate.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (e.target instanceof Element && e.target.closest("button")) return;
+  function answer(hit: string, clientX: number, clientY: number): void {
     if (waiting || dead || questions.length === 0) return;
-    const p = logicalPoint(stage, e);
-    const hit = p && hitAt(p);
-    if (!hit) return; // off the instrument: not an answer
     waiting = true;
     const right = questions[i].accepts.includes(hit);
-    markAt(e.clientX, e.clientY, right ? "" : "wrong");
+    markAt(clientX, clientY, right ? "" : "wrong");
     if (right) {
       score++;
-      if (kind === "piano") soundNote(questions[i].accepts[0]);
+      if (kind === "piano" || kind === "staff") soundNote(questions[i].reveal[0]);
     } else {
       revealTarget();
     }
@@ -313,6 +379,16 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
       },
       right ? RIGHT_LINGER_MS : WRONG_LINGER_MS,
     );
+  }
+
+  gate.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (e.target instanceof Element && e.target.closest("button")) return;
+    if (questions[i]?.choices) return; // answered with the letters
+    const p = logicalPoint(stage, e);
+    const hit = p && hitAt(p);
+    if (!hit) return; // off the instrument: not an answer
+    answer(hit, e.clientX, e.clientY);
   });
 
   closeBtn.addEventListener("click", (e) => {

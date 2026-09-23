@@ -18,6 +18,8 @@ import type { VoiceOption } from "../render/voices";
 import { CONTROL_SELECTOR, gateIsOpen } from "./gates";
 import { attachChessPlay } from "./chessplay";
 import { attachStaffPlay } from "./staffplay";
+import { attachLongPress } from "./activities";
+import { staffPitchAt, stavesOf } from "./staffplay-model";
 import { attachChessDrag } from "./chess-drag";
 import { toggleFullscreen } from "./fullscreen";
 import { dragGateFor } from "./drag-gate";
@@ -240,6 +242,70 @@ export function mountKeyGuide(stage: HTMLElement, octaves: 1 | 2): () => void {
   }
   stage.appendChild(guide);
   return () => guide.remove();
+}
+
+/**
+ * The staff widget's gate (design 2026-09-24-music §6.2): a click on a
+ * note_sheet's staff resolves the PITCH under it — the nearest line or space
+ * — and sounds it; the mark says right or wrong, like the piano's.
+ */
+function staffGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
+  return (signal, step) =>
+    new Promise<string | null>((resolve) => {
+      stage.querySelector(".cs-figgate")?.remove();
+      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "Click the note on the staff \u25b8");
+      const gate = h("div", { class: "cs-figgate" }, hint);
+      let settled = false;
+      const remove = (): void => {
+        signal.removeEventListener("abort", onAbort);
+        gate.remove();
+      };
+      const onAbort = (): void => {
+        remove();
+        if (!settled) {
+          settled = true;
+          resolve(null);
+        }
+      };
+      gate.addEventListener("click", (e) => e.stopPropagation());
+      gate.addEventListener("pointerdown", (e) => {
+        e.stopPropagation();
+        if (settled) return;
+        const p = logicalPoint(stage, e);
+        if (!p) return;
+        const layout = hd.timeline.paintedLayout() ?? hd.layout;
+        const hit = staffPitchAt(stavesOf(layout.drawables, hd.spec.params?.["clef"]), p);
+        if (!hit) return; // off the staff: keep waiting
+        settled = true;
+        try {
+          hd.timeline.tones?.play([{ notes: `${hit.pitch}:q` }], 160);
+        } catch {
+          /* silent */
+        }
+        const ok = step.answer !== undefined && answersMatch(hit.pitch, step.answer);
+        const gr = gate.getBoundingClientRect();
+        const mark = h("span", { class: `cs-figgate-mark ${ok ? "right" : "wrong"}` });
+        mark.style.left = `${e.clientX - gr.left}px`;
+        mark.style.top = `${e.clientY - gr.top}px`;
+        gate.appendChild(mark);
+        hint.remove();
+        window.setTimeout(remove, CARD_LINGER_MS);
+        resolve(hit.pitch);
+      });
+      if (!step.required) {
+        const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip" }, "Skip \u25b8");
+        skip.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (settled) return;
+          settled = true;
+          remove();
+          resolve(null);
+        });
+        gate.appendChild(skip);
+      }
+      signal.addEventListener("abort", onAbort);
+      stage.appendChild(gate);
+    });
 }
 
 /**
@@ -1031,6 +1097,7 @@ export function attachPlayerControls(
   const textGate = askGateFor(stage);
   const figureGate = figureGateFor(stage, hd);
   const pianoGate = pianoGateFor(stage, hd);
+  const staffGate = staffGateFor(stage, hd);
   const chessGate = chessGateFor(stage, hd);
   const dragGate = dragGateFor(stage, hd);
   const connectGate = connectGateFor(stage, hd);
@@ -1050,6 +1117,8 @@ export function attachPlayerControls(
         ? connectGate(signal, step)
       : step.widget === "piano"
         ? pianoGate(signal, step)
+      : step.widget === "staff"
+        ? staffGate(signal, step)
         : step.widget === "chess"
           ? chessGate(signal, step)
           : // The code widget's gate is the PANEL's own editor, so it lives
@@ -1069,6 +1138,7 @@ export function attachPlayerControls(
   if (interactions.includes("chess")) attachChessPlay(stage, hd);
   if (interactions.includes("staff")) attachStaffPlay(stage, hd);
   attachInfoCards(stage, hd, widgetHost); // no-op unless the spec carries card elements
+  attachLongPress(stage); // touch: a long press is the right-click every card and the tray answer
   attachInsetZoom(stage, hd); // no-op unless the spec carries insets with a picture
   attachPanelView(stage, hd); // no-op unless the figure draws a code panel
   if (interactions.includes("piano")) {

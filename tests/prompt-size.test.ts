@@ -483,7 +483,11 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // `explore.store`'s description now also says a note_sheet keeps the
 // composed melody, played back with {"play": "{<store>}"}. +102 on the
 // schema and so on this measure. 214190 -> 214292.
-const BASELINE_SYSTEM_CHARS = 214292;
+// Re-pinned UP 2026-09-24 (music round 3, activities): explore.activity's
+// list names the four new drills (ear_key, staff_find, staff_name,
+// ear_staff), and the ask device list gains `staff`. +180 on the
+// schema, the same here. 214292 -> 214472.
+const BASELINE_SYSTEM_CHARS = 214472;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -511,7 +515,8 @@ const BASELINE_SYSTEM_CHARS = 214292;
 // Re-pinned UP 2026-09-24 (explore on screen): the explore description's clause. 80251 -> 80355.
 // Re-pinned UP 2026-09-24 (music round 1 + explore.activity): see the system note. 80355 -> 81775.
 // Re-pinned UP 2026-09-24 (music round 2): explore.store names the composed melody. 81775 -> 81877.
-const BASELINE_SCHEMA_CHARS = 81877;
+// Re-pinned UP 2026-09-24 (music round 3): the new drills and the staff device. 81877 -> 82057.
+const BASELINE_SCHEMA_CHARS = 82057;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

@@ -1233,7 +1233,7 @@ export class Player {
           // the pointer taps the answer element (SVG — it exports), then the
           // auto answer stands. A piano answer also SOUNDS (tones route into
           // the export's recording).
-          if (step.widget === "piano" && step.answer !== undefined && this.tones) {
+          if ((step.widget === "piano" || step.widget === "staff") && step.answer !== undefined && this.tones) {
             try {
               this.tones.play([{ notes: `${step.answer}:q` }], 160, signal);
             } catch {

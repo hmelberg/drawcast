@@ -431,3 +431,26 @@ frames harness (and the player for interactive parts), and a commit.
 - Checked live in the editor's preview: a bare explore holds with the tray
   shut and the Continue pill up; a staff click and a key press each write
   a note after the authored line.
+
+### Round 3 (2026-09-24)
+
+- Drills in the existing loop (`ui/quiz.ts`), a new kind `staff`:
+  `staff_find` (click where G4 goes), `staff_name` (a note shown on the
+  staff, seven letter buttons at the top of the figure), `ear_staff` (hear
+  it, click it; 🔊 plays it again); the piano gains `ear_key`. Targets are
+  natural notes from two steps below a staff to two above it, on either
+  staff of a grand staff.
+- `ask` with `widget: "staff"`: the pitch under the click, sounded and
+  marked. Movies sound the answer; the pointer demo that TAPS the answer
+  on the staff (the piano has one) is not built.
+- One starter for every door (`ui/activities.ts` `startActivity`): the
+  tray's pills, `explore.activity`, and cards. A right-click (or a touch
+  long-press, which now sends the same event) on a figure that offers
+  activities opens a small "Try it" card AT the pointer — the drills, and
+  "⊕ All controls" for the tray; info cards (a periodic cell's) list the
+  figure's activities too.
+- The stored-name lint knows `explore.store`.
+- Checked live: `explore activity staff_name store drill` opens the drill
+  on the figure with the tray shut; the right-click card on the staff
+  lists the three drills and starts one; "Click where E4 goes" accepts a
+  click on the bottom line.

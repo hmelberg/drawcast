@@ -12,7 +12,7 @@ import type { ChemElement, ElementCategory } from "../scenes/elements/types";
  *  (and, by construction, reachable from right-click, which opens the tray:
  *  two doors, one registry — spec §13's scheduled convergence). */
 export interface Activity {
-  kind: "chess" | "piano" | "periodic" | "parts";
+  kind: "chess" | "piano" | "periodic" | "parts" | "staff";
   id: string;
   label: string;
 }
@@ -34,7 +34,17 @@ export function activitiesFor(interactions: readonly string[], partsCount = 0): 
     out.push({ kind: "chess", id: "openings_drill", label: "📖 Drill openings" });
     out.push({ kind: "chess", id: "vs_computer", label: "♟ Play the computer" });
   }
-  if (interactions.includes("piano")) out.push({ kind: "piano", id: "note_quiz", label: "🎯 Find the note" });
+  if (interactions.includes("piano")) {
+    out.push({ kind: "piano", id: "note_quiz", label: "🎯 Find the note" });
+    out.push({ kind: "piano", id: "ear_key", label: "👂 Which key did you hear?" });
+  }
+  // The staff (design 2026-09-24-music §6.1): find a note on it, name one
+  // shown on it, and hear one and find it.
+  if (interactions.includes("staff")) {
+    out.push({ kind: "staff", id: "staff_find", label: "🎯 Find the note on the staff" });
+    out.push({ kind: "staff", id: "staff_name", label: "🔤 Name the note" });
+    out.push({ kind: "staff", id: "ear_staff", label: "👂 Which note did you hear?" });
+  }
   if (interactions.includes("periodic")) {
     out.push({ kind: "periodic", id: "element_quiz", label: "🎯 Find the element" });
     out.push({ kind: "periodic", id: "group_quiz", label: "🔎 Find the family" });
@@ -67,6 +77,21 @@ export function chessQuizTargets(n: number, rng: () => number = Math.random): st
 /** Distinct random notes drawn on this keyboard — the note-finding drill. */
 export function pianoQuizTargets(n: number, octaves: 1 | 2, rng: () => number = Math.random): string[] {
   return sample(pianoNotes(octaves), n, rng);
+}
+
+/** Distinct random natural notes a staff shows well — from two steps below
+ *  its bottom line to two above its top (C4–G5 on a treble staff), on
+ *  whichever of its staves (a grand staff has two). */
+export function staffQuizTargets(n: number, staves: { id: string; ref: number }[], rng: () => number = Math.random): { pitch: string; staffId: string }[] {
+  const pool: { pitch: string; staffId: string }[] = [];
+  for (const s of staves) for (let d = s.ref - 2; d <= s.ref + 10; d++) pool.push({ pitch: `${"CDEFGAB"[((d % 7) + 7) % 7]}${Math.floor(d / 7)}`, staffId: s.id });
+  const seen = new Set<string>();
+  return sample(pool, pool.length, rng).filter((q) => (seen.has(q.pitch) ? false : (seen.add(q.pitch), true))).slice(0, n);
+}
+
+/** Natural notes of the drawn piano — what an ear drill plays (sharps are a later level). */
+export function pianoNaturals(octaves: 1 | 2): string[] {
+  return pianoNotes(octaves).filter((n) => !n.includes("#"));
 }
 
 /** The question line for one target ("♯" for humans, "#" stays on the wire). */

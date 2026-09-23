@@ -71,7 +71,7 @@ describe("activitiesFor: a declaration alone must not cost the generic drill", (
     expect(activitiesFor(["space"], 9).map((a) => a.id)).toEqual(["parts_quiz"]);
   });
   it("still gives a bespoke kind its own activities and no generic one", () => {
-    expect(activitiesFor(["piano"], 30).map((a) => a.id)).toEqual(["note_quiz"]);
+    expect(activitiesFor(["piano"], 30).map((a) => a.id)).toEqual(["note_quiz", "ear_key"]);
   });
   it("gives nothing to a figure with too few parts", () => {
     expect(activitiesFor(["sky"], 2)).toEqual([]);
