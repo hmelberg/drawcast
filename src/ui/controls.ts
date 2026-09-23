@@ -20,6 +20,7 @@ import { attachChessPlay } from "./chessplay";
 import { attachStaffPlay } from "./staffplay";
 import { attachLongPress } from "./activities";
 import { staffPitchAt, stavesOf } from "./staffplay-model";
+import { staffFor, writeStaffNote } from "./staff-reveal";
 import { attachChessDrag } from "./chess-drag";
 import { toggleFullscreen } from "./fullscreen";
 import { dragGateFor } from "./drag-gate";
@@ -244,6 +245,9 @@ export function mountKeyGuide(stage: HTMLElement, octaves: 1 | 2): () => void {
   return () => guide.remove();
 }
 
+/** How long a staff answer stays written — through the right/wrong line. */
+const ANSWER_NOTE_MS = 4000;
+
 /**
  * The staff widget's gate (design 2026-09-24-music §6.2): a click on a
  * note_sheet's staff resolves the PITCH under it — the nearest line or space
@@ -274,15 +278,35 @@ function staffGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSigna
         const p = logicalPoint(stage, e);
         if (!p) return;
         const layout = hd.timeline.paintedLayout() ?? hd.layout;
-        const hit = staffPitchAt(stavesOf(layout.drawables, hd.spec.params?.["clef"]), p);
+        const staves = stavesOf(layout.drawables, hd.spec.params?.["clef"]);
+        const hit = staffPitchAt(staves, p);
         if (!hit) return; // off the staff: keep waiting
         settled = true;
-        try {
-          hd.timeline.tones?.play([{ notes: `${hit.pitch}:q` }], 160);
-        } catch {
-          /* silent */
-        }
         const ok = step.answer !== undefined && answersMatch(hit.pitch, step.answer);
+        const play = (note: string): void => {
+          try {
+            hd.timeline.tones?.play([{ notes: `${note}:q` }], 160);
+          } catch {
+            /* silent */
+          }
+        };
+        // Write the answer on the staff where the viewer clicked (design
+        // 2026-09-24-music, asked for by Hans): the right note in ink, a wrong
+        // guess faint and red beside it; hear the guess, then the answer. It
+        // stays while the right/wrong line is spoken.
+        const answer = step.answer !== undefined ? step.answer.trim().toUpperCase() : hit.pitch;
+        const st = staffFor(staves, answer, hit.staff.id);
+        const x = st ? Math.min(st.x1 - 3 * st.gap, Math.max(st.x0 + 4 * st.gap, p[0])) : p[0];
+        const unwrite: (() => void)[] = [];
+        if (st && /^[A-G]#?\d$/.test(answer)) {
+          // The guess where the click was (under its red mark), the answer just to its right.
+          const wrong = !ok && step.answer !== undefined;
+          if (wrong) unwrite.push(writeStaffNote(stage, hit.staff, hit.pitch, x, "guess"));
+          unwrite.push(writeStaffNote(stage, st, answer, wrong ? x + 1.8 * st.gap : x, "answer"));
+        }
+        window.setTimeout(() => unwrite.forEach((un) => un()), ANSWER_NOTE_MS);
+        play(hit.pitch);
+        if (!ok && step.answer !== undefined) window.setTimeout(() => play(answer), 450);
         const gr = gate.getBoundingClientRect();
         const mark = h("span", { class: `cs-figgate-mark ${ok ? "right" : "wrong"}` });
         mark.style.left = `${e.clientX - gr.left}px`;

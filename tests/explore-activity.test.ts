@@ -86,7 +86,8 @@ describe("the staff and ear drills (design 2026-09-24-music §6.1)", () => {
   test("ask answers on the staff (pin)", () => {
     const controls = readFileSync(new URL("../src/ui/controls.ts", import.meta.url), "utf8");
     expect(controls).toMatch(/step\.widget === "staff"\s*\?\s*staffGate\(signal, step\)/);
-    expect(controls).toMatch(/staffPitchAt\(stavesOf\(layout\.drawables/);
+    expect(controls).toMatch(/const staves = stavesOf\(layout\.drawables/);
+    expect(controls).toMatch(/const hit = staffPitchAt\(staves, p\);/);
   });
 });
 
@@ -101,5 +102,32 @@ describe("a movie stands in for the viewer (pin)", () => {
     // The same number the drill loop asks.
     const quiz = readFileSync(new URL("../src/ui/quiz.ts", import.meta.url), "utf8");
     expect(quiz).toMatch(/const QUIZ_LEN = ACTIVITY_QUESTIONS;/);
+  });
+});
+
+describe("a staff answer is written on the staff (pins)", () => {
+  const quiz = readFileSync(new URL("../src/ui/quiz.ts", import.meta.url), "utf8");
+  const controls = readFileSync(new URL("../src/ui/controls.ts", import.meta.url), "utf8");
+  const reveal = readFileSync(new URL("../src/ui/staff-reveal.ts", import.meta.url), "utf8");
+
+  test("the drill writes the right note where the viewer clicked, and a wrong guess beside it", () => {
+    expect(quiz).toMatch(/if \(!right\) written\.push\(writeStaffNote\(stage, st, hit, x, "guess"\)\)/);
+    expect(quiz).toMatch(/written\.push\(writeStaffNote\(stage, st, q\.reveal\[0\], right \? x : x \+ 1\.8 \* st\.gap, "answer"\)\)/);
+    // …and clears them when the question moves on or the drill ends.
+    expect(quiz).toMatch(/for \(const un of written\) un\(\);/);
+    // Name the note shows a real note, not a dot.
+    expect(quiz).toMatch(/written\.push\(writeStaffNote\(stage, st, q\.reveal\[0\], \(st\.x0 \+ st\.x1\) \/ 2, "answer"\)\)/);
+  });
+
+  test("the ask gate does the same, and the note stays through the spoken line", () => {
+    expect(controls).toMatch(/if \(wrong\) unwrite\.push\(writeStaffNote\(stage, hit\.staff, hit\.pitch, x, "guess"\)\)/);
+    expect(controls).toMatch(/unwrite\.push\(writeStaffNote\(stage, st, answer, wrong \? x \+ 1\.8 \* st\.gap : x, "answer"\)\)/);
+    expect(controls).toMatch(/window\.setTimeout\(\(\) => unwrite\.forEach\(\(un\) => un\(\)\), ANSWER_NOTE_MS\)/);
+  });
+
+  test("the written note is the music font's own — head, stem, ledger lines, a sharp", () => {
+    expect(reveal).toMatch(/music\.note\("quarter", \[x, y\], sp/);
+    expect(reveal).toMatch(/accidentalSharp/);
+    expect(reveal).toMatch(/legerLineExtension/);
   });
 });

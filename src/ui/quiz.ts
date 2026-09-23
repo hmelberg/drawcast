@@ -37,6 +37,7 @@ import { hitElement } from "./hit";
 import { partsOf, partsQuizTargets, type Part } from "./parts-model";
 import { chessQuizTargets, periodicQuizTargets, pianoNaturals, pianoQuizTargets, quizPrompt, staffQuizTargets, type Activity } from "./quiz-model";
 import { staffPitchAt, staffYOf, stavesOf, type Staff } from "./staffplay-model";
+import { staffFor, writeStaffNote } from "./staff-reveal";
 import { withOverrides } from "../render/params";
 
 const QUIZ_LEN = ACTIVITY_QUESTIONS;
@@ -165,6 +166,8 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
     hd.timeline.callbacks.onState = prevOnState;
     hd.timeline.callbacks.onStep = prevOnStep;
     showNames();
+    for (const un of written) un();
+    written = [];
     stage.classList.remove("cs-exploring");
     gate.remove();
     onClose?.(finished);
@@ -184,8 +187,12 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
     teardown();
   };
 
+  /** Notes written on the staff for this question (ui/staff-reveal.ts). */
+  let written: (() => void)[] = [];
   const clearMarks = (): void => {
     for (const m of gate.querySelectorAll(".cs-figgate-mark")) m.remove();
+    for (const un of written) un();
+    written = [];
   };
 
   const markAt = (clientX: number, clientY: number, cls: string): void => {
@@ -259,14 +266,9 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
     if (q.sound) soundNote(q.sound);
     // Name the note: the note is SHOWN on the staff, and the answer is a letter.
     if (q.choices) {
-      const box = boxFor(q.reveal[0]);
-      const c = box && clientPointFor(stage, [box.x + box.w / 2, box.y + box.h / 2]);
-      if (c) {
-        const m = h("span", { class: "cs-figgate-mark cs-staffq" });
-        m.style.left = `${c[0]}px`;
-        m.style.top = `${c[1]}px`;
-        gate.appendChild(m);
-      }
+      // The note is WRITTEN on the staff, a real notehead from the music font.
+      const st = staffFor(staves, q.reveal[0], q.staffId);
+      if (st) written.push(writeStaffNote(stage, st, q.reveal[0], (st.x0 + st.x1) / 2, "answer"));
     }
     letters.hidden = !q.choices;
   };
@@ -366,9 +368,29 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
     waiting = true;
     const right = questions[i].accepts.includes(hit);
     markAt(clientX, clientY, right ? "" : "wrong");
-    if (right) {
+    const q = questions[i];
+    if (kind === "staff" && !q.choices) {
+      // Write the answer on the staff where the viewer clicked — and a wrong
+      // guess beside it, faint and red, so the distance shows. Hear the guess,
+      // then the right note.
+      const st = staffFor(staves, q.reveal[0], q.staffId);
+      const p = logicalPoint(stage, { clientX, clientY } as MouseEvent);
+      if (st && p) {
+        const x = Math.min(st.x1 - 3 * st.gap, Math.max(st.x0 + 4 * st.gap, p[0]));
+        // The guess sits where the click was (under its red mark); the answer
+        // just to its right.
+        if (!right) written.push(writeStaffNote(stage, st, hit, x, "guess"));
+        written.push(writeStaffNote(stage, st, q.reveal[0], right ? x : x + 1.8 * st.gap, "answer"));
+      }
+      if (right) soundNote(q.reveal[0]);
+      else {
+        soundNote(hit);
+        window.setTimeout(() => soundNote(q.reveal[0]), 450);
+      }
+      if (right) score++;
+    } else if (right) {
       score++;
-      if (kind === "piano" || kind === "staff") soundNote(questions[i].reveal[0]);
+      if (kind === "piano" || kind === "staff") soundNote(q.reveal[0]);
     } else {
       revealTarget();
     }
