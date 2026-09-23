@@ -40,21 +40,8 @@ function crossCentre(band: number, own: number, align: SlotOpts["align"]): numbe
 export function slotCentres(layout: GroupLayout, sizes: Size[], opts: SlotOpts = {}): Pt[] {
   if (sizes.length === 0) return [];
   const gap = opts.gap ?? DEFAULT_GAP;
-  const columns = layout === "grid" ? Math.max(1, opts.columns ?? Math.ceil(Math.sqrt(sizes.length))) : layout === "row" ? sizes.length : 1;
-
-  // Row by row, top row first — the order a reader expects.
-  const rows: Size[][] = [];
-  for (let i = 0; i < sizes.length; i += columns) rows.push(sizes.slice(i, i + columns));
-
-  const rowHeights = rows.map((r) => Math.max(...r.map((s) => s.h)));
-  const totalH = rowHeights.reduce((a, b) => a + b, 0) + gap * (rows.length - 1);
-
-  // The widest row sets the assembly's width; a narrower row is placed within
-  // it. For a COLUMN that IS the cross axis — a narrow box among wide ones is
-  // centred, or pushed to one side by `align` — so alignment follows the
-  // layout's cross axis rather than always meaning the same direction.
-  const rowWidths = rows.map((r) => r.reduce((a, s) => a + s.w, 0) + gap * (r.length - 1));
-  const totalW = Math.max(...rowWidths);
+  const columns = columnsOf(layout, sizes.length, opts.columns);
+  const { rows, rowHeights, rowWidths, totalW, totalH } = assemble(sizes, columns, gap);
 
   const out: Pt[] = [];
   let top = totalH; // y of the current row's top edge, counting down
@@ -77,6 +64,69 @@ export function slotCentres(layout: GroupLayout, sizes: Size[], opts: SlotOpts =
   // A column is a grid one wide; a row is a grid as wide as it is long. Both
   // fall out of the loop above, so there is one placement rule, not three.
   return out;
+}
+
+/** How many members go on one line: a row is all of them, a column one, a
+ *  grid what it was told — or ⌈√n⌉ when nobody chose (the caller that knows
+ *  the region, tier-2's layoutGroup, chooses with bestColumns instead). */
+function columnsOf(layout: GroupLayout, n: number, columns: number | undefined): number {
+  if (layout === "row") return n;
+  if (layout === "column") return 1;
+  return Math.max(1, columns ?? Math.ceil(Math.sqrt(n)));
+}
+
+/** The arrangement's lines and its overall size, `columns` members a line. */
+function assemble(sizes: Size[], columns: number, gap: number) {
+  // Row by row, top row first — the order a reader expects.
+  const rows: Size[][] = [];
+  for (let i = 0; i < sizes.length; i += columns) rows.push(sizes.slice(i, i + columns));
+
+  const rowHeights = rows.map((r) => Math.max(...r.map((s) => s.h)));
+  const totalH = rowHeights.reduce((a, b) => a + b, 0) + gap * (rows.length - 1);
+
+  // The widest row sets the assembly's width; a narrower row is placed within
+  // it. For a COLUMN that IS the cross axis — a narrow box among wide ones is
+  // centred, or pushed to one side by `align` — so alignment follows the
+  // layout's cross axis rather than always meaning the same direction.
+  const rowWidths = rows.map((r) => r.reduce((a, s) => a + s.w, 0) + gap * (r.length - 1));
+  const totalW = Math.max(...rowWidths);
+  return { rows, rowHeights, rowWidths, totalW, totalH };
+}
+
+/**
+ * The scale at which an arrangement fits `region`, capped at 1: once every
+ * member shows at the size it was built, a larger scale buys nothing, and the
+ * choice should go to the arrangement that reads most naturally instead.
+ */
+export function arrangementScale(layout: GroupLayout, sizes: Size[], region: Size, opts: SlotOpts = {}): number {
+  if (sizes.length === 0) return 1;
+  const { totalW, totalH } = assemble(sizes, columnsOf(layout, sizes.length, opts.columns), opts.gap ?? DEFAULT_GAP);
+  return Math.min(1, region.w / totalW, region.h / totalH);
+}
+
+/**
+ * The column count that shows the members largest in `region` — which is
+ * how a grid with no `columns` decides. One rule, not a table of thresholds:
+ * a row while the members fit at their own size, then 2 × 2, 3 × 2, 3 × 3 as
+ * pictures stop fitting, and a single column (a list) for wide, flat items.
+ * Equal scales (within 2 %) go to the fewest empty slots, then to a single
+ * line (a row or a column reads in one direction), then to more columns.
+ */
+export function bestColumns(sizes: Size[], region: Size, gap = DEFAULT_GAP): number {
+  const n = sizes.length;
+  if (n <= 1) return 1;
+  let best = { c: n, s: -1, empty: 0, line: true };
+  for (let c = n; c >= 1; c--) {
+    const rows = Math.ceil(n / c);
+    const s = arrangementScale("grid", sizes, region, { gap, columns: c });
+    const cand = { c, s, empty: c * rows - n, line: c === n || c === 1 };
+    const better =
+      cand.s > best.s * 1.02 ||
+      (cand.s >= best.s / 1.02 &&
+        (cand.empty < best.empty || (cand.empty === best.empty && cand.line && !best.line)));
+    if (better) best = cand;
+  }
+  return best.c;
 }
 
 const NODE_FONT = 24;

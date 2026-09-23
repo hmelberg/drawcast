@@ -12,7 +12,7 @@ import { UNIVERSAL_ANCHORS, boxAnchor, isUniversalAnchor, polygonAnchors, polyli
 import { boxOfId, unionBoxes } from "./boxes";
 import { fitTransform, ownBBox, pickSide, placementOrder, refBBox, relAt, relativeDelta, scaleDrawables, shiftDrawables, shiftPoints } from "./place";
 import { autoRow, placeDelta } from "./places";
-import { naturalNodeSize, slotCentres, type GroupLayout } from "./group-layout";
+import { arrangementScale, bestColumns, DEFAULT_GAP, naturalNodeSize, slotCentres, type GroupLayout } from "./group-layout";
 import { columnSlots, fitPicture, isDefaultColumn, INSET_MAX, INSET_W } from "./inset";
 import { fitRegion, isFitName } from "./regions";
 import {
@@ -866,6 +866,9 @@ function transformOwned(
   for (const req of labels) if (belongs(req.id)) req.anchor = map(req.anchor);
 }
 
+/** How much larger a grid must show a written row's members before the row warns. */
+const LAYOUT_SHAPE_RATIO = 1.25;
+
 /**
  * Arrange a group's members — a row, a column, a grid — by translating each
  * one from where it was emitted to the slot the arrangement gives it. The
@@ -887,11 +890,32 @@ function layoutGroup(
     return null;
   }
   const boxes = members.map((m) => boxOfId(all, m, measure, ctx.groups, ctx.pieceGroups)!);
-  const centres = slotCentres(el.layout as GroupLayout, boxes.map((b) => ({ w: b.w, h: b.h })), {
-    gap: el.gap,
-    columns: el.columns,
-    align: el.align,
-  });
+  const sizes = boxes.map((b) => ({ w: b.w, h: b.h }));
+  const layout = el.layout as GroupLayout;
+  // The region the arrangement will be seen in: its fit box, or the page's
+  // full band when it is not fitted. A grid nobody gave `columns` takes the
+  // count that shows its members largest there.
+  const region = (isFitName(el.fit) ? fitRegion(el.fit) : (el.fit as BBox | undefined)) ?? fitRegion("full");
+  const gap = el.gap ?? DEFAULT_GAP;
+  const columns = layout === "grid" && el.columns === undefined && region.w > 0 && region.h > 0 ? bestColumns(sizes, region, gap) : el.columns;
+  // A written row or column of four or more peers that would read much
+  // larger as a grid: say so. A warning only — a chain of steps is a row on
+  // purpose — so it rides along with a repair and never starts one.
+  if (layout !== "grid" && members.length >= 4 && region.w > 0 && region.h > 0) {
+    const asWritten = arrangementScale(layout, sizes, region, { gap });
+    const c = bestColumns(sizes, region, gap);
+    const asGrid = arrangementScale("grid", sizes, region, { gap, columns: c });
+    if (asGrid >= asWritten * LAYOUT_SHAPE_RATIO) {
+      const rows = Math.ceil(members.length / c);
+      issues.push({
+        rule: "layout-shape",
+        ids: [el.id],
+        severity: "warn",
+        message: `group "${el.id}": a ${layout} of ${members.length} shows each member at ${Math.round(asWritten * 100)} % — as a grid (${c} × ${rows}) they would show at ${Math.round(asGrid * 100)} %; if they are peers rather than a sequence, write "layout": "grid" with no columns`,
+      });
+    }
+  }
+  const centres = slotCentres(layout, sizes, { gap: el.gap, columns, align: el.align });
   // The arrangement is computed in its own coordinates; put its centre where
   // the members already were, so nothing jumps across the canvas.
   const before = unionBoxes(boxes)!;

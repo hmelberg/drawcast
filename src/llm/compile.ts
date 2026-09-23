@@ -372,6 +372,7 @@ export const PEDAGOGY_RUBRIC = `The spec is structurally correct and renders cle
 6. INTELLIGENT VIEWER — no words spent on the self-evident; the emphasis lands on the non-intuitive.
 7. MOMENTS MARKED — highlight/focus/annotation sit at the moments of meaning (the reveal, the contrast), never as decoration.
 8. NAMED PARTS — if the figure is a thing rather than a plot, its parts are named elements the narration points at, not anonymous strokes.
+9. WALKED LIST — peers (kinds of bridge, types of cell) drawn one at a time: the one just explained fades to 0.3 in its own beat before the next is drawn, and all are restored (to: 1) before anything compares across them. Never fade a part the narration still builds on.
 If the spec already does all of this, reply with exactly {"unchanged": true} and nothing else. Otherwise return the improved COMPLETE spec — SAME template, params and figure; better narration, ordering and staging — as minified JSON.`;
 
 /**

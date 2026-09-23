@@ -6,6 +6,27 @@ to this file as "notes". Dated entries, newest first. When an item
 graduates into a spec or the roadmap, note that on the entry rather than
 deleting it.
 
+## 2026-09-23 — A dock: finished drawings shrink aside for the next one
+
+Raised by Hans alongside the gallery ruling (STYLE.md 2026-09-23): the inset
+element already puts a PAGE in the corner; the same for drawings on the page
+itself. Walking five bridges, each would be drawn large, explained, and then
+shrink into a strip at the side while the next gets the whole stage; at the
+end they come out of the dock into a grid for the comparison.
+
+Why not insets: docked items stay live elements with their own ids, so
+`highlight`, `point` and `arrange` keep working on them; an inset is a
+picture. Parts that exist: `move` scales, a template's `animate box`
+shrinks a figure into a half, the inset column reserves a right-hand strip
+and divides stroke width and roughness by the scale. Missing: a named dock
+whose space is reserved from the start, a way to say `move X to the dock`,
+and arranging the items back out of it.
+
+Not built. Grid + fade (shipped the same day) does most of the job without
+it — the one thing the dock adds is size for the current item. Try first:
+a throwaway cast of the bridges with today's `move` + `scale` to fixed
+corner coordinates, to judge the pacing before designing any syntax.
+
 ## 2026-09-20 — The caption band sits on the x-axis label
 
 Seen for the first time by looking, not by linting: at the end of the

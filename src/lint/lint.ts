@@ -103,6 +103,8 @@ export interface LintIssue {
     | "connect"
     /** relative placement: an unknown at.ref, or a cycle through at.ref/attach_to/members */
     | "placement"
+    /** a written row or column of four or more members that a grid would show much larger — warns, never blocks */
+    | "layout-shape"
     /** a group element whose members resolve to nothing */
     | "group-empty"
     /** a bind expression that cannot be evaluated: unknown var, non-numeric field, bad expression */

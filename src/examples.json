@@ -26462,5 +26462,1634 @@
     "title": "A tax's deadweight loss — Opus 5",
     "specimen": true,
     "playlist": "# The Triangle a Tax Leaves Behind\n\n## The lost trades\nlevel: basic\nuse: supply_demand\nwith: {\"x_label\":\"Q (tons of coffee)\",\"y_label\":\"P (price per ton)\",\"demand\":{\"curvature\":\"linear\",\"elasticity\":1,\"label\":\"D\"},\"supply\":{\"curvature\":\"linear\",\"elasticity\":1,\"label\":\"S\"},\"equilibrium\":{\"show\":true,\"guides\":true,\"label\":\"E\",\"p_label\":\"P* = 50\",\"q_label\":\"Q* = 50\"},\"tax\":{\"amount\":10,\"side\":\"seller\",\"kind\":\"per_unit\",\"label\":\"S + tax\"},\"regions\":[\"government_revenue\",\"deadweight_loss\"]}\n\n    region gains x_from 0 x_to 50 between [\"demand_curve\",\"supply_curve\"] style.fill #87a878 style.opacity 0.22 hidden true\n    label lab_pb \"P_b = 55\" left #2f6b8f attach_to price_buyers_point hidden true\n    label lab_ps \"P_s = 45\" left #b5482e attach_to price_sellers_point hidden true\n    label lab_R \"R = 450\" left attach_to wedge_region hidden true\n    label lab_dwl \"DWL = 25\" right attach_to dwl_region hidden true\n\n    hide label_wedge label_DWL label_Pb label_Ps\n\nA tax raises money, but it also destroys value that nobody ends up holding — over three figures we'll measure exactly how much, and why it grows faster than the tax itself.\n    draw axes\n\nHere is a market for coffee beans: demand sloping down, supply sloping up, meeting at a price of 50 and 50 tons traded.\n    draw demand_curve label_D supply_curve label_S equilibrium_point guide_lines label_E label_Pstar label_Qstar\n\nEvery trade left of that crossing is worth doing — the buyer values the bean above what it costs the seller to grow it.\n    draw gains\n\n    pause 0.4\n\nNow the government puts a tax of 10 on each ton, driving a wedge between what buyers pay and what sellers keep.\n    draw tax_supply_curve label_S_tax\n\nBuyers end up paying 55, sellers end up keeping 45, and the quantity traded falls from 50 tons to 45.\n    draw tax_equilibrium_point tax_guide_lines price_buyers_point lab_pb price_sellers_point lab_ps\n\nOn those 45 surviving tons the government collects 10 each — this rectangle, 450. That money changed hands; it did not vanish.\n    draw wedge_region lab_R\n\nThe five tons that disappeared are the interesting part.\n    draw dwl_region lab_dwl\n\n    pause 0.4\n\n    camera center.ref dwl_region zoom 1.8\n\nTake the 46th ton: a buyer who valued it at 54, a seller who could make it for 46 — eight units of gain sitting on the table.\n    dot pt_buyer #2f6b8f at.on demand_curve at.x 46\n    dot pt_seller #b5482e at.on supply_curve at.x 46\n    arrow gap pt_seller -> pt_buyer #8a5fa8\n    label lab_buyer \"buyer values 54\" above-right #2f6b8f attach_to pt_buyer\n    label lab_seller \"seller costs 46\" below-right #b5482e attach_to pt_seller\n    label lab_gap \"gain of 8 — nobody gets it\" right #8a5fa8 attach_to gap\n\nThe buyer won't pay 55 for something worth 54 to her; the seller won't grow it for the 45 he'd keep. So the trade dies.\n    highlight lab_pb lab_ps effect glow\n\n    camera reset true\n\nAnd the treasury collects nothing on it — a tax only earns on the trades that still happen.\n    point at.ref wedge_region gesture circle\n\nThat triangle is the whole loss: gains that existed, were destroyed, and reappeared in no one's pocket.\n    focus dwl_region lab_dwl\n\nYou can now see deadweight loss for what it is — not money taken, but handshakes prevented.\n    mark mark around lab_dwl kind box\n    delivery grave\n\n## Why it squares\n    path ax_l_x #8f887c points [[70,120],[510,120]] hidden true\n    path ax_l_y #8f887c points [[70,120],[70,600]] hidden true\n    label lab_q \"Tons\" below attach_to ax_l_x font_size 20 hidden true\n    label lab_p \"Price\" above attach_to ax_l_y font_size 20 hidden true\n    path demand #b5482e points [[70,580],[490,304]] style.opacity 0.6 hidden true\n    label lab_D \"D\" below-right #b5482e attach_to demand font_size 22 hidden true\n    path supply #2f6b8f points [[70,120],[490,396]] style.opacity 0.6 hidden true\n    label lab_S \"S\" above-right #2f6b8f attach_to supply font_size 22 hidden true\n    shape eq shape circle x 420 y 350 radius 7 style.fill #3d3833 hidden true\n    label lab_E \"E\" right attach_to eq font_size 22 hidden true\n    path guide45 dashed #8f887c points [[385,120],[385,327]] hidden true\n    label lab_q45 \"45\" below attach_to guide45 font_size 20 hidden true\n    path wedge10 #3d3833 points [[385,327],[385,373]] style.stroke_width 2 hidden true\n    polygon tri10 #b5482e points [[385,373],[385,327],[420,350]] style.fill #c96567 style.opacity 0.5 hidden true\n    label lab_dwl10 \"DWL = 25\" above-right #b5482e attach_to tri10 font_size 20 hidden true\n    path guide40 dashed #8f887c points [[350,120],[350,304]] hidden true\n    label lab_q40 \"40\" below attach_to guide40 font_size 20 hidden true\n    path wedge20 #3d3833 points [[350,304],[350,396]] style.stroke_width 2 hidden true\n    label lab_pb \"buyers pay 60\" above-right attach_to wedge20 font_size 19 hidden true\n    label lab_ps \"sellers keep 40\" below-left attach_to wedge20 font_size 19 hidden true\n\nNow that we have seen the triangle as trades that never happen, watch it when the tax doubles.\n    draw ax_l_x ax_l_y lab_q lab_p demand lab_D supply lab_S eq lab_E\n\n    draw guide45 lab_q45 wedge10 tri10 lab_dwl10\n\nRaise the tax from 10 to 20: buyers pay 60, sellers keep 40, and trade falls to 40 tons.\n    draw wedge20 lab_pb lab_ps guide40 lab_q40\n\nThe triangle didn't just get taller — its base doubled too, because twice as many trades now fail.\n    polygon tri20 #b5482e points [[350,396],[350,304],[420,350]] style.fill #c96567 style.opacity 0.5\n    arrow arrow_base #8a5fa8 from.x 352 from.y 350 to.x 418 to.y 350\n    label lab_base \"base = lost trades\" below #8a5fa8 attach_to arrow_base font_size 18\n\nTwo dimensions growing at once: the loss goes from 25 to 100. Double the tax, quadruple the damage.\n    arrow arrow_height #8a5fa8 from.x 350 from.y 306 to.x 350 to.y 394\n    label lab_height \"height = t\" left #8a5fa8 attach_to arrow_height font_size 18\n    label lab_dwl20 \"DWL = 100\" above #b5482e attach_to tri20 font_size 20\n    delivery grave\n\n    pause 0.4\n\nPush on to 30 and the loss is 225; at a tax of 50 it is 625.\n    path guide35 dashed #8f887c points [[315,120],[315,281]]\n    label lab_q35 \"35\" below attach_to guide35 font_size 20\n    path wedge30 #3d3833 points [[315,281],[315,419]] style.stroke_width 2\n    polygon tri30 #b5482e points [[315,419],[315,281],[420,350]] style.fill #c96567 style.opacity 0.45\n    label lab_dwl30 \"DWL = 225\" above-left #b5482e attach_to tri30 font_size 20\n\nThe reason lives in the last trade killed each time.\n    highlight wedge10 wedge20 wedge30 effect glow\n\nThe very first unit of tax kills a trade that was barely worth making — buyer value and seller cost almost equal, gain almost nothing.\n    path first_trade #8a5fa8 points [[414,343],[414,357]] style.stroke_width 4\n    label lab_first \"surplus ≈ 0\" below-right #8a5fa8 attach_to first_trade font_size 19\n\nBut when the tax already stands at 30, the next trade to die was carrying 30 of surplus with it.\n    label lab_last \"surplus = 30\" below #8a5fa8 attach_to wedge30 font_size 19\n\nEach extra dollar of tax knocks out roughly the same number of trades here — it just knocks out steadily more valuable ones.\n    highlight guide45 guide40 guide35 effect pulse\n\n    path ax_r_x #8f887c points [[600,150],[960,150]]\n    path ax_r_y #8f887c points [[600,150],[600,620]]\n    label lab_t \"tax t\" below attach_to ax_r_x font_size 20\n\nPlot the loss against the tax and you get this parabola: nearly flat at the start, brutally steep later.\n    path curve_dwl smooth #b5482e points [[600,150],[650,159],[700,184],[750,226],[800,286],[850,362],[900,456],[950,566]] style.stroke_width 2\n    label lab_dwlc \"DWL(t)\" above #b5482e attach_to curve_dwl font_size 21\n\nRevenue beside it does something else entirely — it climbs, bends over, and peaks at a tax of 50, where the shrinking market finally outruns the higher rate.\n    path curve_rev smooth #2f6b8f points [[600,150],[650,303],[700,422],[750,507],[800,558],[850,575],[900,558],[950,507]] style.stroke_width 2\n    path peak_line dashed #8f887c points [[850,150],[850,575]]\n    label lab_t50 \"t = 50\" below attach_to peak_line font_size 19\n    shape dot_peak #2f6b8f shape circle x 850 y 575 radius 7 style.fill #2f6b8f\n    label lab_revc \"R(t)\" above #2f6b8f attach_to dot_peak font_size 21\n\nSo the same tax is cheap at low rates and ruinous at high ones: at a tax of 10, society burns about 6 cents per dollar raised; at 50, it burns fifty.\n    shape dot10 #b5482e shape circle x 650 y 159 radius 7 style.fill #b5482e\n    label lab_dot10 \"6¢ per dollar raised\" above-right #b5482e attach_to dot10 font_size 18\n    shape dot50 #b5482e shape circle x 850 y 362 radius 7 style.fill #b5482e\n    label lab_dot50 \"50¢ per dollar raised\" below-right #b5482e attach_to dot50 font_size 18\n    delivery grave\n\n## DWL = t²/4\n    path m_ax #8f887c points [[600,734],[600,470],[864,470]] hidden true\n    path m_d #b5482e points [[600,710],[840,470]] hidden true\n    path m_s #2f6b8f points [[600,470],[840,710]] hidden true\n    label m_lab_D \"D\" below-right #b5482e attach_to m_d hidden true\n    label m_lab_S \"S\" above-left #2f6b8f attach_to m_s hidden true\n    shape m_e shape circle x 720 y 590 radius 6 style.fill #3d3833 hidden true\n    polygon m_rect #8f887c points [[600,566],[696,566],[696,614],[600,614]] style.fill #f2c14e hidden true\n    polygon m_tri #b5482e points [[696,614],[696,566],[720,590]] style.fill #c96567 hidden true\n    label m_lab_h \"height t\" left #8a5fa8 attach_to m_tri font_size 20 hidden true\n    label m_lab_b \"base t/2\" below #8a5fa8 attach_to m_tri font_size 20 hidden true\n    math eq1 tex \"Q_d = 100 - P \\\\qquad Q_s = P\" x 150 y 690 in deriv hidden true\n    math eq2 tex \"P^{*} = 50, \\\\quad Q^{*} = 50\" x 150 y 640 in deriv hidden true\n    math eq3 tex \"P_s = P_b - t\" colors.t #8a5fa8 x 150 y 590 in deriv hidden true\n    math eq4 tex \"100 - P_b = P_b - t\" colors.t #8a5fa8 x 150 y 540 in deriv hidden true\n    math eq5 tex \"P_b = \\\\frac{100+t}{2}, \\\\quad P_s = \\\\frac{100-t}{2}\" colors.t #8a5fa8 x 150 y 480 in deriv hidden true\n    math eq6 tex \"Q(t) = \\\\frac{100-t}{2}\" colors.t #8a5fa8 x 150 y 420 in deriv hidden true\n    math eq7 tex \"\\\\Delta Q = 50 - Q(t) = \\\\frac{t}{2}\" colors.t #8a5fa8 x 150 y 360 in deriv hidden true\n    math eq8 tex \"\\\\mathrm{DWL}(t) = \\\\frac{1}{2}\\\\, t \\\\cdot \\\\frac{t}{2} = \\\\frac{t^{2}}{4}\" colors.t #8a5fa8 x 150 y 300 in deriv hidden true\n    column deriv gap 18 align start fit.h 650 fit.w 430 fit.x 45 fit.y 70 hidden true\n    mark box_dq around eq7 kind box hidden true\n    mark circ_dwl around eq8 kind circle hidden true\n    math tab tex \"\\\\begin{array}{c|c} t & \\\\mathrm{DWL} \\\\\\\\ \\\\hline 10 & 25 \\\\\\\\ 20 & 100 \\\\\\\\ 50 & 625 \\\\\\\\ 100 & 2500 \\\\end{array}\" x 620 y 350 hidden true\n    math req tex \"R(t) = \\\\frac{t(100-t)}{2}\\\\;\\\\; \\\\text{max at } t = 50\" x 750 y 225 hidden true\n    polygon c1 #b5482e points [[0,0],[50,0],[0,50]] style.fill #c96567 hidden true\n    polygon c2 #b5482e points [[90,0],[115,0],[90,25]] style.fill #c96567 hidden true\n    polygon c3 #b5482e points [[140,0],[165,0],[140,25]] style.fill #c96567 hidden true\n    group comp members [\"c1\",\"c2\",\"c3\"] fit.h 80 fit.w 400 fit.x 545 fit.y 108 hidden true\n    label c_lab1 \"one market, t = 20 → loss 100, rev 800\" below attach_to c1 font_size 19 hidden true\n    label c_lab2 \"two markets at t = 10 → loss 25 each, rev 900\" below attach_to c3 font_size 19 hidden true\n\nNow that we have seen the square appear in the numbers, let's pull it out of the algebra.\n    draw m_ax m_d m_s m_lab_D m_lab_S\n\nDemand: Q = 100 minus P. Supply: Q = P. Straight lines, chosen only so the arithmetic stays visible.\n    draw eq1\n\nWith no tax, 100 minus P equals P gives a price of 50 and a quantity of 50.\n    draw eq2 m_e\n\n    pause 0.3\n\nAdd a tax t: buyers pay P b, sellers keep P s, and the two differ by exactly t.\n    draw eq3 m_rect\n\nQuantity demanded equals quantity supplied, so 100 minus P b equals P b minus t.\n    draw eq4\n\nThat gives P b as 100 plus t over two, P s as 100 minus t over two, and a traded quantity of 100 minus t over two.\n    draw eq5 eq6\n\nSubtract from the old 50 and the trades destroyed are delta Q equals t over two — every extra unit of tax kills half a ton.\n    draw eq7 box_dq\n\nThe triangle has height t and base t over two, and half their product is the loss.\n    draw m_tri m_lab_h m_lab_b\n\nDWL of t equals t squared over four. There is the square, written out.\n    draw eq8 circ_dwl delivery grave\n\n    pause 0.4\n\nCheck it: 10 gives 25, 20 gives 100, 50 gives 625 — and a tax of 100 gives 2500, which is the entire surplus this market ever had, collected as revenue of zero.\n    draw tab\n\nRevenue meanwhile is t times 100 minus t, over two — the hump that tops out at t equals 50.\n    draw req\n\nAnd because loss goes with the square, splitting a tax beats concentrating it: one market taxed at 20 destroys 100 and raises 800, while two similar markets taxed at 10 destroy 25 each and raise 900.\n    draw c1 c2 c3 c_lab1 c_lab2\n\nBroad base, low rate is not a slogan — it is t squared divided by four.\n    highlight eq8 effect glow\n\nYou can now read any tax as three objects at once: a rectangle that changes hands, a triangle that disappears, and a square that decides how fast that triangle grows.\n    focus m_rect m_tri eq8 delivery grave\n"
+  },
+  {
+    "request": "Why do bridges come in so many different shapes?",
+    "spec": {
+      "title": "Why bridges look so different",
+      "elements": [
+        {
+          "id": "beam_pier_l",
+          "type": "shape",
+          "shape": "rect",
+          "x": 20,
+          "y": 30,
+          "width": 16,
+          "height": 60
+        },
+        {
+          "id": "beam_pier_r",
+          "type": "shape",
+          "shape": "rect",
+          "x": 200,
+          "y": 30,
+          "width": 16,
+          "height": 60
+        },
+        {
+          "id": "beam_top",
+          "type": "path",
+          "points": [
+            [
+              0,
+              72
+            ],
+            [
+              220,
+              72
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "beam_bottom",
+          "type": "path",
+          "points": [
+            [
+              0,
+              60
+            ],
+            [
+              220,
+              60
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "beam_pic",
+          "type": "group",
+          "members": [
+            "beam_pier_l",
+            "beam_pier_r",
+            "beam_top",
+            "beam_bottom"
+          ]
+        },
+        {
+          "id": "arch_curve",
+          "type": "arc",
+          "x": 110,
+          "y": -40,
+          "radius": 110,
+          "start": 20,
+          "end": 160,
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "arch_deck",
+          "type": "path",
+          "points": [
+            [
+              0,
+              82
+            ],
+            [
+              220,
+              82
+            ]
+          ],
+          "style": {
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "arch_post_l",
+          "type": "path",
+          "points": [
+            [
+              50,
+              52.2
+            ],
+            [
+              50,
+              82
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "arch_post_r",
+          "type": "path",
+          "points": [
+            [
+              170,
+              52.2
+            ],
+            [
+              170,
+              82
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "arch_posts",
+          "type": "group",
+          "members": [
+            "arch_post_l",
+            "arch_post_r"
+          ]
+        },
+        {
+          "id": "arch_pic",
+          "type": "group",
+          "members": [
+            "arch_curve",
+            "arch_deck",
+            "arch_post_l",
+            "arch_post_r"
+          ]
+        },
+        {
+          "id": "truss_top",
+          "type": "path",
+          "points": [
+            [
+              27.5,
+              85
+            ],
+            [
+              192.5,
+              85
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "truss_bottom",
+          "type": "path",
+          "points": [
+            [
+              0,
+              40
+            ],
+            [
+              220,
+              40
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "truss_d1",
+          "type": "path",
+          "points": [
+            [
+              0,
+              40
+            ],
+            [
+              27.5,
+              85
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "truss_d2",
+          "type": "path",
+          "points": [
+            [
+              27.5,
+              85
+            ],
+            [
+              55,
+              40
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "truss_d3",
+          "type": "path",
+          "points": [
+            [
+              55,
+              40
+            ],
+            [
+              82.5,
+              85
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "truss_d4",
+          "type": "path",
+          "points": [
+            [
+              82.5,
+              85
+            ],
+            [
+              110,
+              40
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "truss_d5",
+          "type": "path",
+          "points": [
+            [
+              110,
+              40
+            ],
+            [
+              137.5,
+              85
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "truss_d6",
+          "type": "path",
+          "points": [
+            [
+              137.5,
+              85
+            ],
+            [
+              165,
+              40
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "truss_d7",
+          "type": "path",
+          "points": [
+            [
+              165,
+              40
+            ],
+            [
+              192.5,
+              85
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "truss_d8",
+          "type": "path",
+          "points": [
+            [
+              192.5,
+              85
+            ],
+            [
+              220,
+              40
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "truss_pier_l",
+          "type": "shape",
+          "shape": "rect",
+          "x": 8,
+          "y": 20,
+          "width": 16,
+          "height": 40
+        },
+        {
+          "id": "truss_pier_r",
+          "type": "shape",
+          "shape": "rect",
+          "x": 212,
+          "y": 20,
+          "width": 16,
+          "height": 40
+        },
+        {
+          "id": "truss_diag_c",
+          "type": "group",
+          "members": [
+            "truss_d1",
+            "truss_d3",
+            "truss_d6",
+            "truss_d8"
+          ]
+        },
+        {
+          "id": "truss_diag_t",
+          "type": "group",
+          "members": [
+            "truss_d2",
+            "truss_d4",
+            "truss_d5",
+            "truss_d7"
+          ]
+        },
+        {
+          "id": "truss_pic",
+          "type": "group",
+          "members": [
+            "truss_pier_l",
+            "truss_pier_r",
+            "truss_bottom",
+            "truss_top",
+            "truss_d1",
+            "truss_d2",
+            "truss_d3",
+            "truss_d4",
+            "truss_d5",
+            "truss_d6",
+            "truss_d7",
+            "truss_d8"
+          ]
+        },
+        {
+          "id": "susp_tower_l",
+          "type": "shape",
+          "shape": "rect",
+          "x": 45,
+          "y": 75,
+          "width": 14,
+          "height": 150,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "susp_tower_r",
+          "type": "shape",
+          "shape": "rect",
+          "x": 175,
+          "y": 75,
+          "width": 14,
+          "height": 150,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "susp_deck",
+          "type": "path",
+          "points": [
+            [
+              0,
+              50
+            ],
+            [
+              220,
+              50
+            ]
+          ],
+          "style": {
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "susp_cable",
+          "type": "path",
+          "points": [
+            [
+              45,
+              150
+            ],
+            [
+              77,
+              95
+            ],
+            [
+              110,
+              64
+            ],
+            [
+              143,
+              95
+            ],
+            [
+              175,
+              150
+            ]
+          ],
+          "smooth": true,
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "susp_back_l",
+          "type": "path",
+          "points": [
+            [
+              0,
+              52
+            ],
+            [
+              45,
+              150
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "susp_back_r",
+          "type": "path",
+          "points": [
+            [
+              175,
+              150
+            ],
+            [
+              220,
+              52
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "susp_h1",
+          "type": "path",
+          "points": [
+            [
+              77,
+              95
+            ],
+            [
+              77,
+              50
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 2
+          }
+        },
+        {
+          "id": "susp_h2",
+          "type": "path",
+          "points": [
+            [
+              110,
+              64
+            ],
+            [
+              110,
+              50
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 2
+          }
+        },
+        {
+          "id": "susp_h3",
+          "type": "path",
+          "points": [
+            [
+              143,
+              95
+            ],
+            [
+              143,
+              50
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 2
+          }
+        },
+        {
+          "id": "susp_pull",
+          "type": "group",
+          "members": [
+            "susp_cable",
+            "susp_back_l",
+            "susp_back_r",
+            "susp_h1",
+            "susp_h2",
+            "susp_h3"
+          ]
+        },
+        {
+          "id": "susp_towers",
+          "type": "group",
+          "members": [
+            "susp_tower_l",
+            "susp_tower_r"
+          ]
+        },
+        {
+          "id": "susp_pic",
+          "type": "group",
+          "members": [
+            "susp_tower_l",
+            "susp_tower_r",
+            "susp_deck",
+            "susp_cable",
+            "susp_back_l",
+            "susp_back_r",
+            "susp_h1",
+            "susp_h2",
+            "susp_h3"
+          ]
+        },
+        {
+          "id": "cs_tower",
+          "type": "shape",
+          "shape": "rect",
+          "x": 110,
+          "y": 100,
+          "width": 14,
+          "height": 200,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "cs_deck",
+          "type": "path",
+          "points": [
+            [
+              0,
+              50
+            ],
+            [
+              220,
+              50
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "cs_stay1",
+          "type": "path",
+          "points": [
+            [
+              110,
+              190
+            ],
+            [
+              12,
+              50
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 2
+          }
+        },
+        {
+          "id": "cs_stay2",
+          "type": "path",
+          "points": [
+            [
+              110,
+              176
+            ],
+            [
+              52,
+              50
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 2
+          }
+        },
+        {
+          "id": "cs_stay3",
+          "type": "path",
+          "points": [
+            [
+              110,
+              176
+            ],
+            [
+              168,
+              50
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 2
+          }
+        },
+        {
+          "id": "cs_stay4",
+          "type": "path",
+          "points": [
+            [
+              110,
+              190
+            ],
+            [
+              208,
+              50
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 2
+          }
+        },
+        {
+          "id": "cs_stays",
+          "type": "group",
+          "members": [
+            "cs_stay1",
+            "cs_stay2",
+            "cs_stay3",
+            "cs_stay4"
+          ]
+        },
+        {
+          "id": "cs_pic",
+          "type": "group",
+          "members": [
+            "cs_tower",
+            "cs_deck",
+            "cs_stay1",
+            "cs_stay2",
+            "cs_stay3",
+            "cs_stay4"
+          ]
+        },
+        {
+          "id": "beam_name",
+          "type": "text",
+          "text": "Beam",
+          "font_size": 26,
+          "at": {
+            "ref": "beam_pic",
+            "side": "below",
+            "gap": 14
+          }
+        },
+        {
+          "id": "beam",
+          "type": "group",
+          "members": [
+            "beam_pic",
+            "beam_name"
+          ]
+        },
+        {
+          "id": "arch_name",
+          "type": "text",
+          "text": "Arch",
+          "font_size": 26,
+          "at": {
+            "ref": "arch_pic",
+            "side": "below",
+            "gap": 14
+          }
+        },
+        {
+          "id": "arch",
+          "type": "group",
+          "members": [
+            "arch_pic",
+            "arch_name"
+          ]
+        },
+        {
+          "id": "truss_name",
+          "type": "text",
+          "text": "Truss",
+          "font_size": 26,
+          "at": {
+            "ref": "truss_pic",
+            "side": "below",
+            "gap": 14
+          }
+        },
+        {
+          "id": "truss",
+          "type": "group",
+          "members": [
+            "truss_pic",
+            "truss_name"
+          ]
+        },
+        {
+          "id": "susp_name",
+          "type": "text",
+          "text": "Suspension",
+          "font_size": 26,
+          "at": {
+            "ref": "susp_pic",
+            "side": "below",
+            "gap": 14
+          }
+        },
+        {
+          "id": "susp",
+          "type": "group",
+          "members": [
+            "susp_pic",
+            "susp_name"
+          ]
+        },
+        {
+          "id": "cs_name",
+          "type": "text",
+          "text": "Cable-stayed",
+          "font_size": 26,
+          "at": {
+            "ref": "cs_pic",
+            "side": "below",
+            "gap": 14
+          }
+        },
+        {
+          "id": "cs",
+          "type": "group",
+          "members": [
+            "cs_pic",
+            "cs_name"
+          ]
+        },
+        {
+          "id": "key_c",
+          "type": "text",
+          "text": "blue: squeezed",
+          "font_size": 26,
+          "x": 0,
+          "y": 40,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "key_t",
+          "type": "text",
+          "text": "red: stretched",
+          "font_size": 26,
+          "at": {
+            "ref": "key_c",
+            "side": "below",
+            "gap": 10
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "key",
+          "type": "group",
+          "members": [
+            "key_c",
+            "key_t"
+          ]
+        },
+        {
+          "id": "gallery",
+          "type": "group",
+          "members": [
+            "beam",
+            "arch",
+            "truss",
+            "susp",
+            "cs",
+            "key"
+          ],
+          "layout": "grid",
+          "gap": 70,
+          "fit": "full"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Why bridges look so different",
+            "subtitle": "one load, five answers"
+          },
+          "speak": "Every bridge has the same job: carry a load across a gap without breaking. The shapes differ because materials break in different ways."
+        },
+        {
+          "draw": [
+            "beam_pier_l",
+            "beam_pier_r",
+            "beam_name"
+          ],
+          "speak": "Start with the simplest: a plank laid across two piers."
+        },
+        {
+          "draw": [
+            "beam_top",
+            "beam_bottom",
+            "key"
+          ],
+          "speak": "Load the middle and it sags. The top of the plank is squeezed — that is compression, in blue — and the underside is stretched — tension, in red."
+        },
+        {
+          "highlight": {
+            "target": [
+              "beam_bottom"
+            ],
+            "effect": "glow",
+            "color": "#b5482e"
+          },
+          "speak": "Stone takes a squeeze well but cracks when stretched, so a stone beam can only ever be short."
+        },
+        {
+          "fade": {
+            "target": [
+              "beam"
+            ],
+            "to": 0.3
+          }
+        },
+        {
+          "draw": [
+            "arch"
+          ],
+          "speak": "The Romans' answer was to curve the load into an arch."
+        },
+        {
+          "highlight": {
+            "target": [
+              "arch_curve",
+              "arch_posts"
+            ],
+            "effect": "glow",
+            "color": "#2f6b8f"
+          },
+          "speak": "Now every stone is pushed against its neighbours and none is pulled apart. All blue — exactly what stone is good at."
+        },
+        {
+          "fade": {
+            "target": [
+              "arch"
+            ],
+            "to": 0.3
+          }
+        },
+        {
+          "draw": [
+            "truss"
+          ],
+          "speak": "Iron and steel handle both kinds of force, so engineers could return to a straight beam — built as triangles."
+        },
+        {
+          "highlight": {
+            "target": [
+              "truss_top",
+              "truss_bottom"
+            ],
+            "effect": "glow"
+          },
+          "speak": "The top chord is squeezed and the bottom chord stretched, just like the plank, but with most of the material taken out; the diagonals alternate between the two."
+        },
+        {
+          "fade": {
+            "target": [
+              "truss"
+            ],
+            "to": 0.3
+          }
+        },
+        {
+          "draw": [
+            "susp"
+          ],
+          "speak": "Go further and hang the road from a cable slung between two towers."
+        },
+        {
+          "highlight": {
+            "target": [
+              "susp_pull"
+            ],
+            "effect": "glow",
+            "color": "#b5482e"
+          },
+          "speak": "The cable only pulls, which steel wire does better than anything, and the towers only push. That split is how the Golden Gate's main span reaches more than twelve hundred metres."
+        },
+        {
+          "fade": {
+            "target": [
+              "susp"
+            ],
+            "to": 0.3
+          }
+        },
+        {
+          "draw": [
+            "cs"
+          ],
+          "speak": "The cable-stayed bridge runs straight cables from a tower down to the deck."
+        },
+        {
+          "highlight": {
+            "target": [
+              "cs_deck"
+            ],
+            "effect": "glow",
+            "color": "#2f6b8f"
+          },
+          "speak": "The stays pull, the tower pushes — and because every stay tugs the deck towards the tower, the deck itself is squeezed. France's Millau Viaduct, the tallest bridge in the world, is built this way."
+        },
+        {
+          "fade": {
+            "target": [
+              "beam",
+              "arch",
+              "truss",
+              "susp",
+              "cs"
+            ],
+            "to": 1
+          },
+          "speak": "Now put all five side by side."
+        },
+        {
+          "highlight": {
+            "target": [
+              "beam_top",
+              "arch_curve",
+              "arch_posts",
+              "truss_top",
+              "truss_diag_c",
+              "susp_towers",
+              "cs_tower",
+              "cs_deck"
+            ],
+            "effect": "glow",
+            "color": "#2f6b8f"
+          },
+          "speak": "Every design sends part of the load through something that is squeezed."
+        },
+        {
+          "highlight": {
+            "target": [
+              "beam_bottom",
+              "truss_bottom",
+              "truss_diag_t",
+              "susp_pull",
+              "cs_stays"
+            ],
+            "effect": "glow",
+            "color": "#b5482e"
+          },
+          "speak": "And all but one pair it with something stretched. The arch has no red at all."
+        },
+        {
+          "focus": {
+            "target": [
+              "arch",
+              "susp"
+            ]
+          },
+          "speak": "Those two are mirror images. Robert Hooke put it in 1675: as a hanging chain hangs, so, turned upside down, the rigid arch will stand."
+        },
+        {
+          "quiz": {
+            "question": "Which of the five uses no tension at all?",
+            "choices": [
+              "Beam",
+              "Arch",
+              "Truss",
+              "Suspension"
+            ],
+            "correct": 2,
+            "right": "The arch — curving the load means every stone is squeezed and none is stretched.",
+            "wrong": "That one has red in it — something is stretched. Look for the bridge with only blue."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why are floor tiles squares or hexagons, but never pentagons?",
+    "spec": {
+      "title": "Which shapes can tile a floor?",
+      "elements": [
+        {
+          "id": "tri_pic",
+          "type": "polygon",
+          "sides": 3,
+          "radius": 80,
+          "x": 0,
+          "y": 0,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "tri_name",
+          "type": "text",
+          "text": "triangle · 60°",
+          "font_size": 26,
+          "at": {
+            "ref": "tri_pic",
+            "side": "below",
+            "gap": 14
+          }
+        },
+        {
+          "id": "tri",
+          "type": "group",
+          "members": [
+            "tri_pic",
+            "tri_name"
+          ]
+        },
+        {
+          "id": "sq_pic",
+          "type": "polygon",
+          "sides": 4,
+          "radius": 80,
+          "x": 0,
+          "y": 0,
+          "rotation": 45,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "sq_name",
+          "type": "text",
+          "text": "square · 90°",
+          "font_size": 26,
+          "at": {
+            "ref": "sq_pic",
+            "side": "below",
+            "gap": 14
+          }
+        },
+        {
+          "id": "sq",
+          "type": "group",
+          "members": [
+            "sq_pic",
+            "sq_name"
+          ]
+        },
+        {
+          "id": "pent_pic",
+          "type": "polygon",
+          "sides": 5,
+          "radius": 80,
+          "x": 0,
+          "y": 0,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "pent_name",
+          "type": "text",
+          "text": "pentagon · 108°",
+          "font_size": 26,
+          "at": {
+            "ref": "pent_pic",
+            "side": "below",
+            "gap": 14
+          }
+        },
+        {
+          "id": "pent",
+          "type": "group",
+          "members": [
+            "pent_pic",
+            "pent_name"
+          ]
+        },
+        {
+          "id": "hex_pic",
+          "type": "polygon",
+          "sides": 6,
+          "radius": 80,
+          "x": 0,
+          "y": 0,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "hex_name",
+          "type": "text",
+          "text": "hexagon · 120°",
+          "font_size": 26,
+          "at": {
+            "ref": "hex_pic",
+            "side": "below",
+            "gap": 14
+          }
+        },
+        {
+          "id": "hex",
+          "type": "group",
+          "members": [
+            "hex_pic",
+            "hex_name"
+          ]
+        },
+        {
+          "id": "hept_pic",
+          "type": "polygon",
+          "sides": 7,
+          "radius": 80,
+          "x": 0,
+          "y": 0,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "hept_name",
+          "type": "text",
+          "text": "heptagon · 128.6°",
+          "font_size": 26,
+          "at": {
+            "ref": "hept_pic",
+            "side": "below",
+            "gap": 14
+          }
+        },
+        {
+          "id": "hept",
+          "type": "group",
+          "members": [
+            "hept_pic",
+            "hept_name"
+          ]
+        },
+        {
+          "id": "oct_pic",
+          "type": "polygon",
+          "sides": 8,
+          "radius": 80,
+          "x": 0,
+          "y": 0,
+          "rotation": 22.5,
+          "style": {
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "oct_name",
+          "type": "text",
+          "text": "octagon · 135°",
+          "font_size": 26,
+          "at": {
+            "ref": "oct_pic",
+            "side": "below",
+            "gap": 14
+          }
+        },
+        {
+          "id": "oct",
+          "type": "group",
+          "members": [
+            "oct_pic",
+            "oct_name"
+          ]
+        },
+        {
+          "id": "shelf",
+          "type": "group",
+          "members": [
+            "tri",
+            "sq",
+            "pent",
+            "hex",
+            "hept",
+            "oct"
+          ],
+          "layout": "grid",
+          "gap": 60,
+          "fit": "full"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Which shapes can tile a floor?",
+            "subtitle": "and why bees chose one"
+          },
+          "speak": "Bathroom floors use squares and honeycombs use hexagons. Nobody tiles a floor with regular pentagons. Why not?"
+        },
+        {
+          "draw": [
+            "tri"
+          ],
+          "speak": "Wherever tiles meet at a corner, their angles must add up to one full turn, 360 degrees. A triangle's corner is 60, and six of them close the circle exactly."
+        },
+        {
+          "fade": {
+            "target": [
+              "tri"
+            ],
+            "to": 0.3
+          }
+        },
+        {
+          "draw": [
+            "sq"
+          ],
+          "speak": "A square's corner is 90: four of them fit."
+        },
+        {
+          "fade": {
+            "target": [
+              "sq"
+            ],
+            "to": 0.3
+          }
+        },
+        {
+          "draw": [
+            "pent"
+          ],
+          "speak": "A pentagon's corner is 108. Three make 324 and leave a gap; four would overlap. No floor."
+        },
+        {
+          "fade": {
+            "target": [
+              "pent"
+            ],
+            "to": 0.3
+          }
+        },
+        {
+          "draw": [
+            "hex"
+          ],
+          "speak": "A hexagon's corner is 120, and three fit exactly."
+        },
+        {
+          "fade": {
+            "target": [
+              "hex"
+            ],
+            "to": 0.3
+          }
+        },
+        {
+          "draw": [
+            "hept"
+          ],
+          "speak": "Seven sides give about 128.6 degrees: two corners are too few, three too many."
+        },
+        {
+          "fade": {
+            "target": [
+              "hept"
+            ],
+            "to": 0.3
+          }
+        },
+        {
+          "draw": [
+            "oct"
+          ],
+          "speak": "Eight give 135 — the same problem, which is why an octagon floor always needs little squares in the gaps."
+        },
+        {
+          "fade": {
+            "target": [
+              "tri",
+              "sq",
+              "pent",
+              "hex",
+              "hept",
+              "oct"
+            ],
+            "to": 1
+          },
+          "speak": "Now look at all six together."
+        },
+        {
+          "focus": {
+            "target": [
+              "tri",
+              "sq",
+              "hex"
+            ]
+          },
+          "speak": "Only three regular shapes tile a floor on their own, because only 60, 90 and 120 go into 360 a whole number of times. Past six sides every corner is wider than 120, so no whole number of them can make a full turn."
+        },
+        {
+          "highlight": {
+            "target": [
+              "hex_pic"
+            ],
+            "effect": "glow",
+            "color": "#4a7c59"
+          },
+          "speak": "And of those three, the hexagon walls off an area with the least edge. Thomas Hales proved it in 1999; bees had been saving wax that way for millions of years."
+        },
+        {
+          "quiz": {
+            "question": "Why can't regular pentagons tile a floor?",
+            "choices": [
+              "Their 108° corners don't go into 360°",
+              "They have an odd number of sides",
+              "Their sides are too short"
+            ],
+            "correct": 1,
+            "right": "Three corners make 324° and four make 432° — no whole number of them makes a full turn.",
+            "wrong": "Triangles have an odd number of sides and tile perfectly; it is the corner angle that decides."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why does gravity rule the universe if it's the weakest force?",
+    "spec": {
+      "title": "Four forces run everything",
+      "elements": [
+        {
+          "id": "strong_name",
+          "type": "node",
+          "shape": "rect",
+          "text": "Strong",
+          "width": 250,
+          "style": {
+            "color": "#c7702e"
+          }
+        },
+        {
+          "id": "strong_line",
+          "type": "text",
+          "text": "holds the nucleus together",
+          "font_size": 26,
+          "at": {
+            "ref": "strong_name",
+            "side": "right",
+            "gap": 24
+          }
+        },
+        {
+          "id": "strong",
+          "type": "group",
+          "members": [
+            "strong_name",
+            "strong_line"
+          ]
+        },
+        {
+          "id": "em_name",
+          "type": "node",
+          "shape": "rect",
+          "text": "Electromagnetic",
+          "width": 250,
+          "style": {
+            "color": "#6a4c93"
+          }
+        },
+        {
+          "id": "em_line",
+          "type": "text",
+          "text": "light, chemistry, the push of a hand",
+          "font_size": 26,
+          "at": {
+            "ref": "em_name",
+            "side": "right",
+            "gap": 24
+          }
+        },
+        {
+          "id": "em",
+          "type": "group",
+          "members": [
+            "em_name",
+            "em_line"
+          ]
+        },
+        {
+          "id": "weak_name",
+          "type": "node",
+          "shape": "rect",
+          "text": "Weak",
+          "width": 250,
+          "style": {
+            "color": "#c7702e"
+          }
+        },
+        {
+          "id": "weak_line",
+          "type": "text",
+          "text": "turns protons into neutrons in the Sun",
+          "font_size": 26,
+          "at": {
+            "ref": "weak_name",
+            "side": "right",
+            "gap": 24
+          }
+        },
+        {
+          "id": "weak",
+          "type": "group",
+          "members": [
+            "weak_name",
+            "weak_line"
+          ]
+        },
+        {
+          "id": "grav_name",
+          "type": "node",
+          "shape": "rect",
+          "text": "Gravity",
+          "width": 250,
+          "style": {
+            "color": "#6a4c93"
+          }
+        },
+        {
+          "id": "grav_line",
+          "type": "text",
+          "text": "the weakest of all, and it only attracts",
+          "font_size": 26,
+          "at": {
+            "ref": "grav_name",
+            "side": "right",
+            "gap": 24
+          }
+        },
+        {
+          "id": "grav",
+          "type": "group",
+          "members": [
+            "grav_name",
+            "grav_line"
+          ]
+        },
+        {
+          "id": "forces",
+          "type": "group",
+          "members": [
+            "strong",
+            "em",
+            "weak",
+            "grav"
+          ],
+          "layout": "grid",
+          "gap": 36,
+          "fit": "full"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Four forces run everything",
+            "subtitle": "and the weakest rules the sky"
+          },
+          "speak": "Physicists count just four forces behind everything that happens. Here they are, strongest first."
+        },
+        {
+          "draw": [
+            "strong"
+          ],
+          "speak": "The strong force holds the nucleus together, against the protons' electric push. It is the strongest, but it reaches barely across one nucleus — orange marks a short reach."
+        },
+        {
+          "fade": {
+            "target": [
+              "strong"
+            ],
+            "to": 0.3
+          }
+        },
+        {
+          "draw": [
+            "em"
+          ],
+          "speak": "Electromagnetism is light, every chemical bond, and the reason your hand does not pass through a table. Purple: it reaches without limit."
+        },
+        {
+          "fade": {
+            "target": [
+              "em"
+            ],
+            "to": 0.3
+          }
+        },
+        {
+          "draw": [
+            "weak"
+          ],
+          "speak": "The weak force can turn one particle into another. Without it the Sun could not start fusing: its first step turns a proton into a neutron."
+        },
+        {
+          "fade": {
+            "target": [
+              "weak"
+            ],
+            "to": 0.3
+          }
+        },
+        {
+          "draw": [
+            "grav"
+          ],
+          "speak": "And gravity — so feeble that a fridge magnet beats the pull of the whole Earth. Next to the strong force it is weaker by a factor of ten to the thirty-eight."
+        },
+        {
+          "fade": {
+            "target": [
+              "strong",
+              "em",
+              "weak",
+              "grav"
+            ],
+            "to": 1
+          },
+          "speak": "So why does the weakest force hold planets in orbit and whole galaxies together?"
+        },
+        {
+          "focus": {
+            "target": [
+              "strong",
+              "weak"
+            ]
+          },
+          "speak": "The two strong ones reach no further than a nucleus, so beyond an atom they simply vanish."
+        },
+        {
+          "focus": {
+            "target": [
+              "em",
+              "grav"
+            ]
+          },
+          "speak": "Of the two with endless reach, electric charges come as plus and minus and cancel, so a planet is almost perfectly neutral. Mass only ever adds up. Pile up a planet's worth, and the weakest force is the only one left pulling."
+        },
+        {
+          "quiz": {
+            "question": "Why does gravity, the weakest force, dominate the motion of planets?",
+            "choices": [
+              "It only attracts, so it adds up",
+              "It is strongest at long distances",
+              "Planets carry no mass"
+            ],
+            "correct": 1,
+            "right": "Charges cancel and the nuclear forces stop at the nucleus, but mass only adds up — so on a planet's scale gravity is what is left.",
+            "wrong": "Gravity is not stronger far away. What matters is that it never cancels: mass only adds up."
+          }
+        }
+      ]
+    }
   }
 ]

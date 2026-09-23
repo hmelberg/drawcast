@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { DEFAULT_GAP, naturalNodeSize, slotCentres } from "../src/layout/group-layout";
+import { bestColumns, DEFAULT_GAP, naturalNodeSize, slotCentres } from "../src/layout/group-layout";
 
 const size = (w: number, h: number) => ({ w, h });
 
@@ -40,6 +40,42 @@ describe("slot centres", () => {
 
   test("no members is no slots", () => {
     expect(slotCentres("row", [])).toEqual([]);
+  });
+});
+
+describe("how many columns a grid takes when it is not told", () => {
+  const FULL = { w: 880, h: 560 };
+  const squares = (n: number, side = 200) => Array.from({ length: n }, () => size(side, side));
+
+  test("a row while the members fit at their own size", () => {
+    expect(bestColumns(squares(3), FULL)).toBe(3);
+    expect(bestColumns(Array.from({ length: 4 }, () => size(130, 62)), FULL)).toBe(4);
+  });
+
+  test("four pictures that no longer fit in a row make two by two", () => {
+    expect(bestColumns(squares(4), FULL)).toBe(2);
+  });
+
+  test("five pictures make three over two — the bridge gallery", () => {
+    expect(bestColumns(squares(5), FULL, 60)).toBe(3);
+  });
+
+  test("nine make three by three", () => {
+    expect(bestColumns(squares(9, 150), FULL)).toBe(3);
+  });
+
+  test("wide, flat items stack into a list", () => {
+    expect(bestColumns(Array.from({ length: 5 }, () => size(300, 60)), FULL)).toBe(1);
+  });
+
+  test("the region's shape decides: a tall narrow region takes fewer columns", () => {
+    expect(bestColumns(squares(4), { w: 420, h: 560 })).toBeLessThanOrEqual(2);
+    expect(bestColumns(squares(6), { w: 420, h: 560 })).toBe(2);
+  });
+
+  test("one member is one column; none is one column", () => {
+    expect(bestColumns([size(80, 20)], FULL)).toBe(1);
+    expect(bestColumns([], FULL)).toBe(1);
   });
 });
 
@@ -185,5 +221,53 @@ describe("a structure with no coordinates anywhere", () => {
       expect(later.get(id)!.x).toBeCloseTo(together.get(id)!.x, 5);
       expect(later.get(id)!.y).toBeCloseTo(together.get(id)!.y, 5);
     }
+  });
+});
+
+describe("a gallery with no columns written", () => {
+  // Five pictures of 200 × 200, built anywhere; the engine lays them out.
+  const pic = (id: string, x: number) => ({ id, type: "shape" as const, shape: "rect" as const, x, y: 300, width: 200, height: 200 });
+  const gallery = (layout: "grid" | "row", fit?: "full" | "left"): Spec => ({
+    elements: [
+      ...["p1", "p2", "p3", "p4", "p5"].map((id, i) => pic(id, 100 + i * 10)),
+      { id: "g", type: "group", members: ["p1", "p2", "p3", "p4", "p5"], layout, gap: 60, ...(fit ? { fit } : {}) },
+    ],
+    commands: [{ draw: ["g"] }],
+  });
+
+  test("a grid with no columns lays five pictures out three over two", () => {
+    const b = elementBBoxes(layoutSpec(gallery("grid", "full")));
+    expect(b.get("p1")!.y).toBeCloseTo(b.get("p3")!.y, 0);
+    expect(b.get("p4")!.y).toBeLessThan(b.get("p1")!.y);
+    expect(b.get("p4")!.x).toBeCloseTo(b.get("p1")!.x, 0);
+  });
+
+  test("the grid shows each picture larger than the row would", () => {
+    const grid = elementBBoxes(layoutSpec(gallery("grid", "full"))).get("p1")!;
+    const row = elementBBoxes(layoutSpec(gallery("row", "full"))).get("p1")!;
+    expect(grid.w).toBeGreaterThan(row.w * 1.3);
+  });
+
+  test("an explicit row of five pictures warns that a grid would read larger", () => {
+    const issues = layoutSpec(gallery("row", "full")).issues.filter((i) => i.rule === "layout-shape");
+    expect(issues).toHaveLength(1);
+    expect(issues[0].severity).toBe("warn");
+    expect(issues[0].message).toContain("grid");
+  });
+
+  test("a row that fits, and a grid, say nothing", () => {
+    expect(layoutSpec(gallery("grid", "full")).issues.filter((i) => i.rule === "layout-shape")).toEqual([]);
+    const three: Spec = {
+      elements: [pic("p1", 100), pic("p2", 110), pic("p3", 120), { id: "g", type: "group", members: ["p1", "p2", "p3"], layout: "row", fit: "full" }],
+      commands: [{ draw: ["g"] }],
+    };
+    expect(layoutSpec(three).issues.filter((i) => i.rule === "layout-shape")).toEqual([]);
+  });
+
+  test("written columns still win", () => {
+    const spec = gallery("grid", "full");
+    spec.elements![5].columns = 5;
+    const b = elementBBoxes(layoutSpec(spec));
+    expect(b.get("p5")!.y).toBeCloseTo(b.get("p1")!.y, 0);
   });
 });

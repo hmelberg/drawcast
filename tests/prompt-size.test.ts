@@ -447,7 +447,15 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // for a script with controls. 209730 -> 210300.
 // Re-pinned UP 2026-09-23 (knobs pane): the `pane` description and the code
 // prompt say the drawn controls sit under the output by default. 210300 -> 210330.
-const BASELINE_SYSTEM_CHARS = 210330;
+// Re-pinned UP 2026-09-23 (galleries): a live Sonnet "overview of bridge
+// designs" put five bridges in one `row` fitted to the full band — each at
+// ~0.7×, two thirds of the page empty, four labels per bridge. Rule 3 now
+// says a grid with no `columns` picks its own count, that four or more peers
+// are a grid, and that a category every peer shares is a colour; the `fade`
+// bullet teaches the list walk (fade the last one, restore before
+// comparing). Schema: `columns` and the `group` layout sentence say it may
+// be left out (+135, embedded verbatim). 210330 -> 211437.
+const BASELINE_SYSTEM_CHARS = 211437;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -468,7 +476,9 @@ const BASELINE_SYSTEM_CHARS = 210330;
 // Re-pinned UP 2026-09-23: `show` says a script with controls defaults to
 // below (output on top, code under it). 79310 -> 79419.
 // Re-pinned UP 2026-09-23 (knobs pane): `pane` says under the output by default. 79419 -> 79449.
-const BASELINE_SCHEMA_CHARS = 79449;
+// Re-pinned UP 2026-09-23 (galleries): `columns`, and the `group` layout
+// sentence, say it may be left out. 79449 -> 79584.
+const BASELINE_SCHEMA_CHARS = 79584;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

@@ -21,6 +21,50 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-23 — A gallery of peers: a grid, walked with a fade
+
+Hans, on a Sonnet cast for "an overview of different bridge designs": "It is
+not bad, but, it seems a little squeezed. The elements are close together and
+a little messy. Maybe such "lists" should be in a list of rows as opposed to
+all in one row (or some compromise if we have lots of categories, rows in
+columns?)". Then: "fading might be a good rule when we go over lists (and we
+can always zoom back and unfade if we want to make a contrast or compare
+later)", and "the rule is that three could be in a row, more list, and at
+some point grid".
+
+**Distillation.** Three rules and one mechanism:
+
+1. **The shape of the arrangement follows the items, not a count.** Five
+   bridges in one `row` fitted to the page showed each at ~0.7× with two
+   thirds of the page empty. A row while the items fit at their own size;
+   pictures that stop fitting become a grid (2×2, 3×2, 3×3); wide, flat
+   items — a name and a line of text — become a list. Past about nine,
+   split across pages. Hans's "three in a row, then list, then grid" is this
+   rule for flat items; for roughly square pictures the list is the worst of
+   the three (0.6× for four bridges against 1.2× as 2×2).
+2. **Walk a list with a fade.** Fade the item just explained to ~0.3 before
+   the next is drawn, so one thing is at full ink and the rest are context;
+   restore them all before comparing across them, or `focus` two to
+   contrast.
+3. **A category every item shares is a colour, not a repeated label.**
+   "compression"/"tension" written into all five bridges was most of the
+   mess; blue and red on the parts themselves, named once, says it.
+
+Mechanism: a `grid` with no `columns` picks the count that shows its members
+largest in its fit region (capped at their own size, so a row still wins
+while it fits); a written row or column of four or more that a grid would
+show 1.25× larger warns (`layout-shape`).
+
+Status: shipped 2026-09-23 — `bestColumns` in `src/layout/group-layout.ts`,
+rule 3 and the `fade` bullet in `compiler-v1.md`, item 9 (WALKED LIST) of
+the pedagogy rubric (`PEDAGOGY_RUBRIC` in `src/llm/compile.ts` — a live
+Sonnet run grid-laid both galleries it made but faded neither, so the prompt
+sentence alone was not enough), and three bundled
+examples: the bridges (3 + 2 with the colour key as the sixth cell), regular
+polygons that tile (3 × 2), the four forces (a list). The dock — finished
+items shrinking into a strip so the current one gets the whole stage — is
+parked in NOTES.md.
+
 ### 2026-09-19 — Emphasis should land and STAY, not breathe through the sentence
 
 Hans: "in drawcast, the we use the pulsating highlight (glow?) it often keep

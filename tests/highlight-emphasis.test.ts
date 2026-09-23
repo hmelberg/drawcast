@@ -159,3 +159,48 @@ describe("the hand-drawn ring follows the same level", () => {
     }
   });
 });
+
+// A list walked one item at a time fades each finished item to ~0.3 (the
+// compiler prompt's walk rule). A later highlight on a faded item must still
+// land at full strength: the echo lives on the overlay, outside the fade
+// wrapper the item's own ink sits under, so the fade never reaches it.
+describe("a highlight on faded ink", () => {
+  /** The product of every opacity from `n` up to the root — what SVG composites. */
+  const composited = (n: FakeNode): number => {
+    let acc = 1;
+    for (let p: FakeNode | null = n; p; p = p.parentNode) {
+      const v = p.style.opacity ?? p.getAttribute("opacity");
+      if (v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v))) acc *= Number(v);
+    }
+    return acc;
+  };
+
+  for (const effect of ["glow", "pulse"] as const) {
+    test(`a ${effect} on an element faded to 0.25 shows at full strength`, async () => {
+      const { restore, doc } = installMiniDom();
+      try {
+        const layout = layoutSpec(SPEC as never, heuristicMeasure);
+        const container = new FakeNode("div", doc as never);
+        const r = await rendererFor("clean").mount(layout, SPEC as never, container as never);
+        for (const el of r.elements.values()) el.finish();
+        r.elements.get("curve")!.setOpacity!(0.25);
+        r.effects!.setHighlight(["curve"], effect, 1, null);
+        const shown = echoes(container);
+        expect(shown.length).toBeGreaterThan(0);
+        for (const n of shown) expect(composited(n)).toBeCloseTo(1, 6);
+        // …while the element's own ink really is faded.
+        const own: FakeNode[] = [];
+        const walk = (n: FakeNode) => {
+          if (n.dataset.leafId === "curve" && !shown.some((e) => e === n)) own.push(n);
+          n.children.forEach(walk);
+        };
+        const svg = container.children[0];
+        svg.children.slice(0, -1).forEach(walk);
+        expect(own.length).toBeGreaterThan(0);
+        expect(composited(own[0])).toBeCloseTo(0.25, 6);
+      } finally {
+        restore();
+      }
+    });
+  }
+});

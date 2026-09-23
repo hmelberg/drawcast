@@ -248,10 +248,10 @@ const elementSchema = {
       type: "string",
       enum: ["row", "column", "grid"],
       description:
-        "group: ARRANGE the members — \"row\" side by side, \"column\" stacked, \"grid\" `columns` wide. Every position is computed from the members' own sizes, so a structure of boxes needs NO x/y anywhere: declare the parts, wrap them in a group with a layout, and join them with arrows. Boxes in a laid-out group are given one size (the largest needed) so the row reads as a row. `gap` (default 40) spaces them, `align` (center/start/end) sets the cross axis. Combine with `fit` to scale the finished arrangement into a region.",
+        "group: ARRANGE the members — \"row\" side by side, \"column\" stacked, \"grid\" `columns` wide, or, with no `columns`, as wide as shows the members largest. Every position is computed from the members' own sizes, so a structure of boxes needs NO x/y anywhere: declare the parts, wrap them in a group with a layout, and join them with arrows. Boxes in a laid-out group are given one size (the largest needed) so the row reads as a row. `gap` (default 40) spaces them, `align` (center/start/end) sets the cross axis. Combine with `fit` to scale the finished arrangement into a region.",
     },
     gap: { type: "number", description: "group layout: space between neighbours, logical units (default 40)." },
-    columns: { type: "integer", minimum: 1, description: "group layout grid: members per row." },
+    columns: { type: "integer", minimum: 1, description: "group layout grid: members per row. Leave it out and the grid picks the count that shows the members largest." },
     align: { type: "string", enum: ["center", "start", "end"], description: "group layout: cross-axis alignment (default center)." },
     equalize: { type: "boolean", description: "group layout: one size for every member that draws a border (default true)." },
     fit: {
