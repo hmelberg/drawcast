@@ -28618,5 +28618,67 @@
         }
       ]
     }
+  },
+  {
+    "request": "Can I write the end of a melody myself?",
+    "spec": {
+      "title": "Finish the tune",
+      "template": "note_sheet",
+      "params": {
+        "notes": "C4:q D4:q E4:q F4:q",
+        "keyboard": true,
+        "labels": false
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Finish the tune",
+            "subtitle": "your turn on the staff"
+          },
+          "speak": "Every melody is a question and an answer. I'll ask the question; you write the answer."
+        },
+        {
+          "draw": [
+            "staff",
+            "clef",
+            "keys"
+          ],
+          "speak": "A staff, and a keyboard under it: each line and space of the staff is one white key."
+        },
+        {
+          "play": "C4:q D4:q E4:q F4:q",
+          "instrument": "piano",
+          "tempo": 100,
+          "reveal": [
+            "note_0",
+            "note_1",
+            "note_2",
+            "note_3"
+          ],
+          "press": [
+            "key_0",
+            "key_1",
+            "key_2",
+            "key_3"
+          ],
+          "speak": "Four notes climbing, one step at a time — it sounds unfinished, like a question."
+        },
+        {
+          "explore": {
+            "store": "melody"
+          },
+          "speak": "Your turn. Click the staff to the right of my notes, or press the keys, and write four notes that sound like an answer. Try ending on C. Then press Continue."
+        },
+        {
+          "play": "{melody}",
+          "instrument": "piano",
+          "tempo": 100,
+          "speak": "Here is the whole line, question and answer."
+        },
+        {
+          "speak": "A tune that comes home to the note it started from sounds finished — that pull back to C is what musicians call the tonic."
+        }
+      ]
+    }
   }
 ]

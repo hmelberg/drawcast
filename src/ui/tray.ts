@@ -77,6 +77,7 @@ import { MIN_PARTS } from "./parts-model";
 import { mountQuiz, partsFor } from "./quiz";
 import { mountChessVs } from "./chessvs";
 import { mountChessDrill } from "./chessdrill";
+import { composedOn } from "./staffplay";
 import { boardFlip, clearViewerFlip, readShowLegalMoves, setShowLegalMoves, setViewerFlip } from "./chess-prefs";
 import { applyControls, parseControls, type ControlSpec, type ControlValue } from "../code/controls";
 import { debounceMs, nextValues } from "./controls-model";
@@ -1453,7 +1454,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       // browsers live in the tray, so they do not count).
       const onFigure =
         (hd.spec.template !== undefined && scenes[hd.spec.template]?.manifest.widget === true) ||
-        interactions.some((k) => k === "piano" || k === "chess" || k === "periodic");
+        interactions.some((k) => k === "piano" || k === "chess" || k === "periodic" || k === "staff");
       const surface = exploreSurface(
         step,
         editable.map((e) => ({ id: e.id, ...(e.pane !== undefined ? { pane: e.pane } : {}) })),
@@ -1474,7 +1475,10 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       signal.addEventListener("abort", onAbort);
       gateResolve = () => {
         signal.removeEventListener("abort", onAbort);
-        resolve();
+        // `store` keeps what the viewer composed on a staff (design
+        // 2026-09-24-music §5.2) — read before Continue's repaint drops it.
+        const kept = step.store && stage ? composedOn(stage) : null;
+        resolve(step.store && kept !== null ? { [step.store]: kept } : undefined);
       };
       // Remember the beat's own script id while the gate holds: it is what ⊕
       // needs to open THIS tray gated (see trayBtn) instead of aborting the

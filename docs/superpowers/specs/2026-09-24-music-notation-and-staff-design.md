@@ -409,3 +409,25 @@ frames harness (and the player for interactive parts), and a commit.
   `{<store>}`/`{<store>.total}` rather than folded into `{score}`, which
   counts one right/wrong per question; the three instruments (§7.2).
 - The "preview ran past the gate" worry (§6.3) was a malformed test cast.
+
+### Round 2 (2026-09-24)
+
+- `interactions: [staff]` on note_sheet; `ui/staffplay.ts` (stage) and
+  `ui/staffplay-model.ts` (pure: staves read off the drawn lines, pitch
+  under a point, the note_sheet keyboard's keys, the draft). Composing is a
+  `notes` preview with a hidden `draft_from` (and `bass_draft_from`) that
+  paints the viewer's notes in the accent ink — Continue discards it like
+  any free play; `explore.store` keeps it.
+- Keys: 1–5 durations, 0 rest, ⌫ undo, ↵ plays what is written — NOT space
+  (§5.2 said space): space already resumes the lesson, which would discard
+  the draft.
+- The control row's duration and rest icons are drawn from the music font
+  (the Unicode music characters are missing from the text fonts and
+  rendered as ≡). Its top edge sits just under the letter names, scaled to
+  the stage; on a small stage it overlaps the keys' top edge a little.
+- `play` accepts a stored answer (`{"play": "{melody}"}`): validation and
+  the planner let a `{…}` voice through, the player fills it in and times
+  the step by what it became.
+- Checked live in the editor's preview: a bare explore holds with the tray
+  shut and the Continue pill up; a staff click and a key press each write
+  a note after the authored line.

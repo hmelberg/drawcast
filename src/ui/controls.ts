@@ -17,6 +17,7 @@ import type { SubtitleLanguage } from "../spec/subtitles";
 import type { VoiceOption } from "../render/voices";
 import { CONTROL_SELECTOR, gateIsOpen } from "./gates";
 import { attachChessPlay } from "./chessplay";
+import { attachStaffPlay } from "./staffplay";
 import { attachChessDrag } from "./chess-drag";
 import { toggleFullscreen } from "./fullscreen";
 import { dragGateFor } from "./drag-gate";
@@ -1066,6 +1067,7 @@ export function attachPlayerControls(
   // their own overlay and are left alone.
   const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
   if (interactions.includes("chess")) attachChessPlay(stage, hd);
+  if (interactions.includes("staff")) attachStaffPlay(stage, hd);
   attachInfoCards(stage, hd, widgetHost); // no-op unless the spec carries card elements
   attachInsetZoom(stage, hd); // no-op unless the spec carries insets with a picture
   attachPanelView(stage, hd); // no-op unless the figure draws a code panel

@@ -1276,6 +1276,40 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   box-shadow: 2px 2px 0 rgba(61, 56, 51, 0.25);
   animation: waitgate-nudge 1.6s ease-in-out infinite;
 }
+/* The staff's compose row (ui/staffplay.ts): under the staff, on the figure. */
+.cs-staffrow {
+  position: absolute;
+  transform: translate(-50%, 0);
+  transform-origin: top center;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.45rem;
+  background: var(--surface);
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  box-shadow: 2px 2px 0 rgba(61, 56, 51, 0.2);
+  font-family: var(--sketch-font);
+}
+.cs-staffrow-btn {
+  min-width: 1.7rem;
+  height: 1.7rem;
+  padding: 0.15rem;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: 1.05rem;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.cs-staffrow-icon { height: 1.25rem; width: auto; }
+.cs-staffrow-btn.on { background: var(--ink); color: var(--surface); }
+.cs-staffrow-inst { font-size: var(--text-sm); }
+.cs-staffrow-note { font-size: var(--text-sm); padding: 0 0.3rem; }
 /* A shut explore gate's Continue: top right, clear of the caption band that
    carries the invitation, over a figure the viewer is busy clicking. */
 .cs-explore-continue {

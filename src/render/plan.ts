@@ -1883,7 +1883,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       const voices: PlayVoice[] = raw
         .filter((v) => v && typeof v.notes === "string")
         .map((v) => ({ notes: v.notes, instrument: v.instrument ?? cmd.instrument }))
-        .filter((v) => notationBeats(v.notes) > 0)
+        // A voice written as a stored answer ("{melody}") is filled in by
+        // the player at play time; it passes here unread.
+        .filter((v) => notationBeats(v.notes) > 0 || v.notes.includes("{"))
         .slice(0, 4);
       if (voices.length === 0) {
         warnings.push("play command with no readable notes skipped");
@@ -1891,7 +1893,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         if (cmd.speak !== undefined) pushStep({ kind: "speak", text: cmd.speak, blocking: true, speaker: cmd.voice, delivery: cmd.delivery });
         continue;
       }
-      const beats = Math.max(...voices.map((v) => notationBeats(v.notes)));
+      const beats = Math.max(1e-6, ...voices.map((v) => notationBeats(v.notes)));
       // reveal/press: id k tracks the k-th sounding note (rest-skipping) of
       // the FIRST voice — reveal appears at its start and stays; press
       // appears at its start and vanishes at its end (the key comes back

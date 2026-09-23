@@ -8,6 +8,7 @@ version: 1
 kit: 3
 status: ready
 engines: [music]
+interactions: [staff]
 description: >-
   A treble-clef staff with notes computed from a simple notation string —
   "C4:q D4:q E4:h" (pitch letter + optional #/b + octave, duration w/h/q/e/s
@@ -102,7 +103,10 @@ layout: |
   const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
   // A glyph from the music font as an exact filled shape (never stroked into a blob).
-  const glyph = (id, g) => kit.area(id, g.pts, C.ink, { precise: true, ...(g.holes ? { holes: g.holes } : {}), ms: MS.dot });
+  const glyph = (id, g, color) => kit.area(id, g.pts, color || C.ink, { precise: true, ...(g.holes ? { holes: g.holes } : {}), ms: MS.dot });
+  // What the viewer composed while paused (ui/staffplay.ts) is drawn in the
+  // accent ink from token `draft_from` on — a preview param, never authored.
+  const draftFrom = { treble: params.draft_from, bass: params.bass_draft_from };
 
   // The staves. A staff is its bottom line, its clef and the diatonic number
   // of that bottom line (octave*7 + letter): E4 = 30 for treble, G2 = 18 for
@@ -229,10 +233,12 @@ layout: |
     const MID_Y = st.bottom + 2 * GAP;
     let beatsSoFar = 0;
     let barCount = 0;
+    const from = grand && st.key === "bass" ? draftFrom.bass : draftFrom.treble;
     st.tokens.forEach((tok, i) => {
       const x = xOf(i, beatsSoFar);
       const id = st.prefix + i;
       const children = [];
+      const ink = Number.isInteger(from) && i >= from ? C.accent : C.ink;
       const { value, dots } = M.valueOf(tok.beats);
       if (tok.pitches.length === 0) {
         // Rests: a whole rest hangs from the fourth line, a half sits on the
@@ -240,17 +246,17 @@ layout: |
         const restY = value === "whole" ? st.bottom + 3 * GAP : MID_Y;
         const name = M.restOf(value);
         const [rx0, , rx1] = M.bboxOf(name);
-        children.push(glyph(id + "__rest", M.glyphAt(name, [x - ((rx0 + rx1) / 2) * GAP, restY], GAP)));
+        children.push(glyph(id + "__rest", M.glyphAt(name, [x - ((rx0 + rx1) / 2) * GAP, restY], GAP), ink));
         anchors[id] = [x, MID_Y];
       } else {
         const ys = tok.pitches.map(yOf);
         const yLo = Math.min(...ys), yHi = Math.max(...ys);
         // Ledger lines: line positions beyond the staff that this note reaches.
         for (let ly = st.bottom - GAP; ly >= yLo - STEP; ly -= GAP) {
-          children.push(kit.stroke(id + "__lg" + ly, [[x - ledgerHalf, ly], [x + ledgerHalf, ly]], { strokeWidth: 2.5, ms: MS.dot }));
+          children.push(kit.stroke(id + "__lg" + ly, [[x - ledgerHalf, ly], [x + ledgerHalf, ly]], { strokeWidth: 2.5, ms: MS.dot, color: ink }));
         }
         for (let ly = st.bottom + 5 * GAP; ly <= yHi + STEP; ly += GAP) {
-          children.push(kit.stroke(id + "__lu" + ly, [[x - ledgerHalf, ly], [x + ledgerHalf, ly]], { strokeWidth: 2.5, ms: MS.dot }));
+          children.push(kit.stroke(id + "__lu" + ly, [[x - ledgerHalf, ly], [x + ledgerHalf, ly]], { strokeWidth: 2.5, ms: MS.dot, color: ink }));
         }
         // Stem up when the chord sits low on its staff; it starts at the
         // font's anchor on the outermost head and runs past the others.
@@ -260,16 +266,16 @@ layout: |
         const nt = M.note(value, [x, anchorY], GAP, { stem: up ? "up" : "down", stemLength: 3.5 + span });
         tok.pitches.forEach((p, k) => {
           const y = yOf(p);
-          children.push(glyph(id + "__h" + k, y === anchorY ? nt.head : M.glyphCentered(M.headOf(value), [x, y], GAP)));
-          if (p.includes("#")) children.push(glyph(id + "__acc" + k, M.glyphCentered("accidentalSharp", [x - headHalf - 0.9 * GAP, y], GAP)));
+          children.push(glyph(id + "__h" + k, y === anchorY ? nt.head : M.glyphCentered(M.headOf(value), [x, y], GAP), ink));
+          if (p.includes("#")) children.push(glyph(id + "__acc" + k, M.glyphCentered("accidentalSharp", [x - headHalf - 0.9 * GAP, y], GAP), ink));
           // A dot sits in a space: a head on a line moves its dot up half a gap.
           const onLine = (diatOf(p) - st.ref) % 2 === 0;
           for (let d = 0; d < dots; d++) {
-            children.push(glyph(id + "__dot" + k + "_" + d, M.glyphCentered("augmentationDot", [x + headHalf + (0.55 + d * 0.6) * GAP, y + (onLine ? STEP : 0)], GAP)));
+            children.push(glyph(id + "__dot" + k + "_" + d, M.glyphCentered("augmentationDot", [x + headHalf + (0.55 + d * 0.6) * GAP, y + (onLine ? STEP : 0)], GAP), ink));
           }
         });
-        if (nt.stem) children.push(kit.stroke(id + "__stem", [nt.stem.from, nt.stem.to], { strokeWidth: stemW, ms: MS.dot }));
-        if (nt.flag) children.push(glyph(id + "__flag", nt.flag));
+        if (nt.stem) children.push(kit.stroke(id + "__stem", [nt.stem.from, nt.stem.to], { strokeWidth: stemW, ms: MS.dot, color: ink }));
+        if (nt.flag) children.push(glyph(id + "__flag", nt.flag, ink));
         anchors[id] = [x, ys[0]];
         const marks = keyMarks(st.keyPrefix + i, tok.pitches);
         if (marks.length > 0) {

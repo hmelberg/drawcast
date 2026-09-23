@@ -9,6 +9,7 @@ import type { MeasureFollow, MorphItem, Plan, PlanStep, SceneState, TrailProgres
 import { moveFrame, morphFrame, transformFrame } from "./tween";
 import { overridesKey, type LayoutOverrides } from "../layout/posed";
 import { answersMatch, AUTO_NAMESPACE, subVars } from "../spec/answers";
+import { notationBeats } from "../spec/notation";
 import type { LayoutResult } from "../layout/layout";
 import { heldFrom, sceneAt } from "./plan";
 import { breathAfterMs } from "./breath";
@@ -1025,8 +1026,14 @@ export class Player {
         // Notes are scheduled on the audio clock; the WAIT runs on the frame
         // clock (worker-driven in export), so background tabs can't desync.
         // Tempo scales with the live speed so audio and wait stay aligned.
-        if (this.mode === "narrated") this.tones?.play(step.voices, step.tempo * this.speedVal, signal);
-        if (step.press.length === 0 && step.reveal.length === 0) return this.waitScaled(step.seconds * 1000, signal);
+        // A voice written as "{melody}" is what the viewer composed and a
+        // `store` kept (design 2026-09-24-music §5.2): filled in now, and the
+        // step lasts as long as what it turned out to be.
+        const filled = step.voices.some((v) => v.notes.includes("{"));
+        const voices = filled ? step.voices.map((v) => ({ ...v, notes: subVars(v.notes, this.vars) })).filter((v) => notationBeats(v.notes) > 0) : step.voices;
+        const seconds = filled ? (Math.max(0, ...voices.map((v) => notationBeats(v.notes))) * 60) / step.tempo : step.seconds;
+        if (this.mode === "narrated" && voices.length > 0) this.tones?.play(voices, step.tempo * this.speedVal, signal);
+        if (step.press.length === 0 && step.reveal.length === 0) return this.waitScaled(seconds * 1000, signal);
         // reveal[k] appears at its note's start and stays; press[k] goes
         // down at its note's start and back up at its end — all driven off
         // the same progress clock as the wait, so audio and ink stay locked.

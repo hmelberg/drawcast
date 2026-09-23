@@ -662,7 +662,7 @@ const commandSchema = {
           description:
             "Start this named activity straight on the figure and wait until the viewer closes it: note_quiz (piano), square_quiz, openings_drill, vs_computer (chess), element_quiz, group_quiz (periodic table), parts_quiz (any figure with named parts). The tray stays shut. App only; movies skip the beat.",
         },
-        store: { type: "string", description: "Keep what the viewer made under this name: an activity's score as {<store>} and {<store>.total}." },
+        store: { type: "string", description: "Keep what the viewer made under this name: an activity's score as {<store>} and {<store>.total}; on a note_sheet, the melody they composed as {<store>} — play it back with {\"play\": \"{<store>}\"}." },
         space: {
           type: "boolean",
           description:
@@ -1584,7 +1584,8 @@ function semanticErrors(spec: Spec): string[] {
     if (verb === "play") {
       const p = cmd.play!;
       const voices = typeof p === "string" ? [{ notes: p }] : Array.isArray(p) ? p : parseABC(p.abc).voices;
-      if (!voices.some((v) => notationBeats(v.notes) > 0)) {
+      // "{melody}" — a stored answer, filled in at play time — is not checked here.
+      if (!voices.some((v) => notationBeats(v.notes) > 0 || (typeof v.notes === "string" && v.notes.includes("{")))) {
         errors.push(`commands[${i}]: play has no readable notes — notation is space-separated "C4:q E4:q G4+C5:h" (pitch+octave, optional :w/h/q/e/s duration, R for rests), or a tune in {abc: "..."}`);
       }
       if (cmd.tempo !== undefined && (typeof cmd.tempo !== "number" || cmd.tempo < 30 || cmd.tempo > 300)) {

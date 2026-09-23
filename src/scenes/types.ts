@@ -47,7 +47,7 @@ export interface SceneLayout {
 
 /** Intrinsic interactions a template can declare (interactivity spec §6):
  *  the ⊕/tray and the context menu read this one source — never sniff. */
-export const KNOWN_INTERACTIONS = ["piano", "chess", "periodic", "space", "sky"] as const;
+export const KNOWN_INTERACTIONS = ["piano", "chess", "periodic", "space", "sky", "staff"] as const;
 export type InteractionKind = (typeof KNOWN_INTERACTIONS)[number];
 
 /** Explore-tray sections a template can carry; each rides on the engine
