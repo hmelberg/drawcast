@@ -28,7 +28,7 @@ import { itemsOf, parsePlaylistText } from "../playlist/playlist";
 import { render } from "../render";
 import { splitVarOverrides, withOverrides } from "../render/params";
 import { makeBrowserMeasure } from "../render/svg-backend";
-import { expandCards } from "../spec/card";
+import { expandSpec } from "../spec/expand";
 import { validateSpec } from "../spec/schema";
 import type { Spec } from "../spec/types";
 import { ensureEnginesForSpecs } from "../scenes/engines";
@@ -160,7 +160,7 @@ function speakBetween(steps: { kind: string; text?: string }[], from: number, to
 /** Mount a spec off-screen, walk every boundary, and report what broke. */
 async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
   const validation = validateSpec(spec);
-  const expanded = expandCards(spec);
+  const expanded = expandSpec(spec);
   const report: PartReport = {
     title: spec.title ?? "(untitled)",
     template: spec.template,

@@ -455,7 +455,13 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // bullet teaches the list walk (fade the last one, restore before
 // comparing). Schema: `columns` and the `group` layout sentence say it may
 // be left out (+135, embedded verbatim). 210330 -> 211437.
-const BASELINE_SYSTEM_CHARS = 211437;
+// Re-pinned UP 2026-09-23 (walk): a live run still wrote the list walk's
+// fades in only one gallery of two, so the walk became a field — `walk: true`
+// on the group, expanded into those fades by spec/walk.ts. The schema gains
+// its description (+297); the prompt's hand-written-fade instructions shrink
+// to one sentence in rule 3 and a pointer in the fade bullet (−26).
+// 211437 -> 211708.
+const BASELINE_SYSTEM_CHARS = 211708;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -478,7 +484,8 @@ const BASELINE_SYSTEM_CHARS = 211437;
 // Re-pinned UP 2026-09-23 (knobs pane): `pane` says under the output by default. 79419 -> 79449.
 // Re-pinned UP 2026-09-23 (galleries): `columns`, and the `group` layout
 // sentence, say it may be left out. 79449 -> 79584.
-const BASELINE_SCHEMA_CHARS = 79584;
+// Re-pinned UP 2026-09-23 (walk): the group's `walk` field. 79584 -> 79881.
+const BASELINE_SCHEMA_CHARS = 79881;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

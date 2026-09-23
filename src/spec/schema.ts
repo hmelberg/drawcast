@@ -252,6 +252,7 @@ const elementSchema = {
     },
     gap: { type: "number", description: "group layout: space between neighbours, logical units (default 40)." },
     columns: { type: "integer", minimum: 1, description: "group layout grid: members per row. Leave it out and the grid picks the count that shows the members largest." },
+    walk: { type: "boolean", description: "group: the members are peers the narration goes through one at a time (kinds of bridge, types of cell). Drawing the next fades the ones already shown; a command across two or more members, or the group, brings them all back. Replaces writing those fades." },
     align: { type: "string", enum: ["center", "start", "end"], description: "group layout: cross-axis alignment (default center)." },
     equalize: { type: "boolean", description: "group layout: one size for every member that draws a border (default true)." },
     fit: {
@@ -1658,6 +1659,9 @@ function elementErrors(el: SpecElement): string[] {
   }
   if (el.layout !== undefined && el.type !== "group") {
     errs.push(`element "${el.id}": layout is a group's field — wrap the parts in a group to arrange them`);
+  }
+  if (el.walk !== undefined && el.type !== "group") {
+    errs.push(`element "${el.id}": walk is a group's field — put the peers in a group and give it walk: true`);
   }
   switch (el.type) {
     case "curve":

@@ -15,7 +15,7 @@ import { buildSystemBlocks, stripFence, styleBlock, systemBlocks, wantsCode, wan
 import { validateSpec } from "../spec/schema";
 import { hoistPortraitStrokes, noteForDescribed, restorePortraitStrokes } from "./hoist";
 import { layoutSpec } from "../layout/layout";
-import { expandCards } from "../spec/card";
+import { expandSpec } from "../spec/expand";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
 import { lintCommands, questionNames, lintReportText, type LintIssue } from "../lint/lint";
 import { questionCount } from "../playlist/carry";
@@ -83,7 +83,7 @@ export function checkPlaylist(playlist: Playlist, measure: MeasureFn = heuristic
       continue;
     }
     try {
-      const expanded = expandCards(item.spec);
+      const expanded = expandSpec(item.spec);
       lintIssues.push(...layoutSpec(expanded, measure).issues);
       lintIssues.push(...lintCommands(expanded, { knownVars: known, questionOffset: offset }));
       for (const q of questionNames(item.spec)) if (q.store) known.add(q.store.toLowerCase());

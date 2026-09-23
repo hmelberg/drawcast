@@ -20,7 +20,7 @@ import { attachSeedCredit, type SeedBlock } from "./seed";
 import { visualRepairMessages, wantsVisualRepair } from "./visual";
 import type { Spec } from "../spec/types";
 import { layoutSpec } from "../layout/layout";
-import { expandCards } from "../spec/card";
+import { expandSpec } from "../spec/expand";
 import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { codeExecutionErrors, type CodeCheckOutcome } from "../code/check";
@@ -372,7 +372,7 @@ export const PEDAGOGY_RUBRIC = `The spec is structurally correct and renders cle
 6. INTELLIGENT VIEWER — no words spent on the self-evident; the emphasis lands on the non-intuitive.
 7. MOMENTS MARKED — highlight/focus/annotation sit at the moments of meaning (the reveal, the contrast), never as decoration.
 8. NAMED PARTS — if the figure is a thing rather than a plot, its parts are named elements the narration points at, not anonymous strokes.
-9. WALKED LIST — peers (kinds of bridge, types of cell) drawn one at a time: the one just explained fades to 0.3 in its own beat before the next is drawn, and all are restored (to: 1) before anything compares across them. Never fade a part the narration still builds on.
+9. WALKED LIST — peers (kinds of bridge, types of cell) drawn one at a time sit in a group with "walk": true, so each explained one fades as the next arrives and all come back for a comparison. Not for parts the narration still builds on (a chain of steps, a mechanism).
 If the spec already does all of this, reply with exactly {"unchanged": true} and nothing else. Otherwise return the improved COMPLETE spec — SAME template, params and figure; better narration, ordering and staging — as minified JSON.`;
 
 /**
@@ -596,7 +596,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
           validation.errors.push(`engine load failed: ${(err as Error).message}`);
         });
         try {
-          lintIssues = [...layoutSpec(expandCards(best), measure).issues, ...lintCommands(expandCards(best))];
+          lintIssues = [...layoutSpec(expandSpec(best), measure).issues, ...lintCommands(expandSpec(best))];
         } catch (err) {
           lintIssues = [];
           validation.errors.push(`layout failed: ${(err as Error).message}`);
@@ -694,7 +694,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   // closure (it needs `measure`, which only exists inside this function).
   const lintOf = (spec: Spec): LintIssue[] | null => {
     try {
-      const expanded = expandCards(spec);
+      const expanded = expandSpec(spec);
       return [...layoutSpec(expanded, measure).issues, ...lintCommands(expanded)];
     } catch {
       return null;

@@ -26,7 +26,7 @@ import { resolveCode } from "./code";
 import { resolvedRenderSpec } from "./resolve";
 import { scenes } from "../scenes/registry";
 import { widgetDemoFor } from "./widget-demo";
-import { expandCards } from "../spec/card";
+import { expandSpec } from "../spec/expand";
 import { resolveSources } from "./source";
 import { resolveImages } from "./image";
 import { resolveIcons } from "./icon";
@@ -251,7 +251,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // A `card` beat (spec/card.ts) becomes its elements and commands here, so
   // layout, plan and lint below never see the verb — the same expansion the
   // compile-time lint applies.
-  spec = expandCards(spec);
+  spec = expandSpec(spec);
   // Sketchy is the app's default look — and the default CHART style follows
   // it (a machine-ruled plot in a hand-drawn figure was the one bit of ink
   // that did not come from the app's own hand). Resolved once here, then
@@ -303,7 +303,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
       measureFor: (ts) => scaledMeasure(makeBrowserMeasure({ family: fontStack(ts.family), weight: ts.weight }), ts.scale),
       prepare: async (source) => {
         await ensureEnginesForSpecs([source]);
-        const resolved = await resolvedRenderSpec(expandCards(source), { resolvePortraits, resolveSources, resolveCode, resolveImages, resolveIcons, contactEmail: contactEmail(), style });
+        const resolved = await resolvedRenderSpec(expandSpec(source), { resolvePortraits, resolveSources, resolveCode, resolveImages, resolveIcons, contactEmail: contactEmail(), style });
         const ts = effectiveTextStyle(resolved);
         await ensureMathFont(ts.mathFont).catch(() => undefined);
         return withTextStyle(resolved, ts);

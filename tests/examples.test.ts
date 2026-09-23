@@ -11,7 +11,7 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 import { scenes } from "../src/scenes/registry";
 import { flattenDrawables } from "../src/layout/model";
 import { validateSpec } from "../src/spec/schema";
-import { expandCards } from "../src/spec/card";
+import { expandSpec } from "../src/spec/expand";
 import { domainMapping, elementBBoxes, layoutSpec } from "../src/layout/layout";
 import { heuristicMeasure } from "../src/layout/measure";
 import { planCommands } from "../src/render/plan";
@@ -70,9 +70,9 @@ const deferredInsetResolves: DeferredInsetResolve[] = [];
  *  else, not skipped). Only a playlist item can have siblings; a single-spec
  *  example is unchanged. */
 function specsOf(ex: BundledExample): Spec[] {
-  if (ex.spec) return [expandCards(ex.spec)];
+  if (ex.spec) return [expandSpec(ex.spec)];
   if (ex.playlist) {
-    const items = itemsOf(parsePlaylistText(ex.playlist)).map((it) => ({ ...it, spec: expandCards(it.spec) }));
+    const items = itemsOf(parsePlaylistText(ex.playlist)).map((it) => ({ ...it, spec: expandSpec(it.spec) }));
     const siblings = items.map((it) => it.spec);
     return items.map((it, i) => {
       if (!(it.spec.elements ?? []).some((e) => e.type === "inset")) return it.spec;

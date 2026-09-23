@@ -26,11 +26,11 @@ describe("peers are a grid that picks its own columns", () => {
   });
 });
 
-describe("walking a list fades the one just explained", () => {
-  test("the fade bullet teaches the walk, the restore, and where not to use it", () => {
-    expect(compilerV1).toMatch(/Walking a list of peers one at a time[^.]*fade the one just explained to 0\.3/);
-    expect(compilerV1).toMatch(/restore them all \(`to: 1`\)/);
-    expect(compilerV1).toMatch(/never fade a part the narration still builds on/);
+describe("walking a list is a field on the group", () => {
+  test("rule 3 teaches walk: true, what it does, and not to hand-write the fades", () => {
+    expect(compilerV1).toMatch(/ONE AT A TIME get `"walk": true` on their group/);
+    expect(compilerV1).toMatch(/brings them all back — never write those fades yourself/);
+    expect(compilerV1).toMatch(/Walking a list of peers is `"walk": true`/);
   });
 });
 
@@ -38,10 +38,9 @@ describe("the pedagogy pass checks the walk", () => {
   // A live Sonnet run (2026-09-23) put two galleries in a grid as taught but
   // faded neither: one prompt sentence was not enough, so the teacher's
   // re-read that runs on every generation holds the spec against it too.
-  test("the rubric names the walked list, the restore, and the exception", async () => {
+  test("the rubric names the walked list, the field, and the exception", async () => {
     const { PEDAGOGY_RUBRIC } = await import("../src/llm/compile");
-    expect(PEDAGOGY_RUBRIC).toMatch(/WALKED LIST[^\n]*fades to 0\.3/);
-    expect(PEDAGOGY_RUBRIC).toMatch(/restored \(to: 1\) before anything compares/);
-    expect(PEDAGOGY_RUBRIC).toMatch(/Never fade a part the narration still builds on/);
+    expect(PEDAGOGY_RUBRIC).toMatch(/WALKED LIST[^\n]*"walk": true/);
+    expect(PEDAGOGY_RUBRIC).toMatch(/Not for parts the narration still builds on/);
   });
 });

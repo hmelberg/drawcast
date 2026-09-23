@@ -155,6 +155,10 @@ export interface SpecElement {
   gap?: number;
   /** layout grid: members per row. */
   columns?: number;
+  /** group: the members are peers walked one at a time — drawing the next
+   *  fades the ones already shown, a command across several brings them all
+   *  back (spec/walk.ts expands it into ordinary fades). */
+  walk?: boolean;
   /** layout: alignment across the arrangement's cross axis (default center). */
   align?: "center" | "start" | "end";
   /** layout: give every member that draws a border the same size, the largest

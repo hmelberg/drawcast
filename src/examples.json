@@ -27315,6 +27315,18 @@
           "layout": "grid",
           "gap": 70,
           "fit": "full"
+        },
+        {
+          "id": "bridges",
+          "type": "group",
+          "members": [
+            "beam",
+            "arch",
+            "truss",
+            "susp",
+            "cs"
+          ],
+          "walk": true
         }
       ],
       "commands": [
@@ -27352,14 +27364,6 @@
           "speak": "Stone takes a squeeze well but cracks when stretched, so a stone beam can only ever be short."
         },
         {
-          "fade": {
-            "target": [
-              "beam"
-            ],
-            "to": 0.3
-          }
-        },
-        {
           "draw": [
             "arch"
           ],
@@ -27375,14 +27379,6 @@
             "color": "#2f6b8f"
           },
           "speak": "Now every stone is pushed against its neighbours and none is pulled apart. All blue — exactly what stone is good at."
-        },
-        {
-          "fade": {
-            "target": [
-              "arch"
-            ],
-            "to": 0.3
-          }
         },
         {
           "draw": [
@@ -27401,14 +27397,6 @@
           "speak": "The top chord is squeezed and the bottom chord stretched, just like the plank, but with most of the material taken out; the diagonals alternate between the two."
         },
         {
-          "fade": {
-            "target": [
-              "truss"
-            ],
-            "to": 0.3
-          }
-        },
-        {
           "draw": [
             "susp"
           ],
@@ -27423,14 +27411,6 @@
             "color": "#b5482e"
           },
           "speak": "The cable only pulls, which steel wire does better than anything, and the towers only push. That split is how the Golden Gate's main span reaches more than twelve hundred metres."
-        },
-        {
-          "fade": {
-            "target": [
-              "susp"
-            ],
-            "to": 0.3
-          }
         },
         {
           "draw": [
@@ -27449,19 +27429,6 @@
           "speak": "The stays pull, the tower pushes — and because every stay tugs the deck towards the tower, the deck itself is squeezed. France's Millau Viaduct, the tallest bridge in the world, is built this way."
         },
         {
-          "fade": {
-            "target": [
-              "beam",
-              "arch",
-              "truss",
-              "susp",
-              "cs"
-            ],
-            "to": 1
-          },
-          "speak": "Now put all five side by side."
-        },
-        {
           "highlight": {
             "target": [
               "beam_top",
@@ -27476,7 +27443,7 @@
             "effect": "glow",
             "color": "#2f6b8f"
           },
-          "speak": "Every design sends part of the load through something that is squeezed."
+          "speak": "Now put all five side by side. Every design sends part of the load through something that is squeezed."
         },
         {
           "highlight": {
@@ -27718,7 +27685,8 @@
           ],
           "layout": "grid",
           "gap": 60,
-          "fit": "full"
+          "fit": "full",
+          "walk": true
         }
       ],
       "commands": [
@@ -27736,26 +27704,10 @@
           "speak": "Wherever tiles meet at a corner, their angles must add up to one full turn, 360 degrees. A triangle's corner is 60, and six of them close the circle exactly."
         },
         {
-          "fade": {
-            "target": [
-              "tri"
-            ],
-            "to": 0.3
-          }
-        },
-        {
           "draw": [
             "sq"
           ],
           "speak": "A square's corner is 90: four of them fit."
-        },
-        {
-          "fade": {
-            "target": [
-              "sq"
-            ],
-            "to": 0.3
-          }
         },
         {
           "draw": [
@@ -27764,26 +27716,10 @@
           "speak": "A pentagon's corner is 108. Three make 324 and leave a gap; four would overlap. No floor."
         },
         {
-          "fade": {
-            "target": [
-              "pent"
-            ],
-            "to": 0.3
-          }
-        },
-        {
           "draw": [
             "hex"
           ],
           "speak": "A hexagon's corner is 120, and three fit exactly."
-        },
-        {
-          "fade": {
-            "target": [
-              "hex"
-            ],
-            "to": 0.3
-          }
         },
         {
           "draw": [
@@ -27792,32 +27728,10 @@
           "speak": "Seven sides give about 128.6 degrees: two corners are too few, three too many."
         },
         {
-          "fade": {
-            "target": [
-              "hept"
-            ],
-            "to": 0.3
-          }
-        },
-        {
           "draw": [
             "oct"
           ],
           "speak": "Eight give 135 — the same problem, which is why an octagon floor always needs little squares in the gaps."
-        },
-        {
-          "fade": {
-            "target": [
-              "tri",
-              "sq",
-              "pent",
-              "hex",
-              "hept",
-              "oct"
-            ],
-            "to": 1
-          },
-          "speak": "Now look at all six together."
         },
         {
           "focus": {
@@ -27827,7 +27741,7 @@
               "hex"
             ]
           },
-          "speak": "Only three regular shapes tile a floor on their own, because only 60, 90 and 120 go into 360 a whole number of times. Past six sides every corner is wider than 120, so no whole number of them can make a full turn."
+          "speak": "Now all six together. Only three regular shapes tile a floor on their own, because only 60, 90 and 120 go into 360 a whole number of times. Past six sides every corner is wider than 120, so no whole number of them can make a full turn."
         },
         {
           "highlight": {
@@ -27987,7 +27901,8 @@
           ],
           "layout": "grid",
           "gap": 36,
-          "fit": "full"
+          "fit": "full",
+          "walk": true
         }
       ],
       "commands": [
@@ -28005,26 +27920,10 @@
           "speak": "The strong force holds the nucleus together, against the protons' electric push. It is the strongest, but it reaches barely across one nucleus — orange marks a short reach."
         },
         {
-          "fade": {
-            "target": [
-              "strong"
-            ],
-            "to": 0.3
-          }
-        },
-        {
           "draw": [
             "em"
           ],
           "speak": "Electromagnetism is light, every chemical bond, and the reason your hand does not pass through a table. Purple: it reaches without limit."
-        },
-        {
-          "fade": {
-            "target": [
-              "em"
-            ],
-            "to": 0.3
-          }
         },
         {
           "draw": [
@@ -28033,28 +27932,17 @@
           "speak": "The weak force can turn one particle into another. Without it the Sun could not start fusing: its first step turns a proton into a neutron."
         },
         {
-          "fade": {
-            "target": [
-              "weak"
-            ],
-            "to": 0.3
-          }
-        },
-        {
           "draw": [
             "grav"
           ],
           "speak": "And gravity — so feeble that a fridge magnet beats the pull of the whole Earth. Next to the strong force it is weaker by a factor of ten to the thirty-eight."
         },
         {
-          "fade": {
+          "highlight": {
             "target": [
-              "strong",
-              "em",
-              "weak",
-              "grav"
+              "forces"
             ],
-            "to": 1
+            "effect": "pulse"
           },
           "speak": "So why does the weakest force hold planets in orbit and whole galaxies together?"
         },

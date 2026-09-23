@@ -65,6 +65,14 @@ polygons that tile (3 × 2), the four forces (a list). The dock — finished
 items shrinking into a strip so the current one gets the whole stage — is
 parked in NOTES.md.
 
+Later the same day: rubric item 9 got one gallery of two to fade, so the walk
+became a field — `"walk": true` on the group of peers, expanded into the same
+fades before layout by `src/spec/walk.ts` (via `expandSpec`, next to cards).
+Drawing the next peer fades the ones already shown; a command across two or
+more, or the group itself, restores them all; going back to one faded peer
+restores it and sets the current one back; the author's own fade wins. The
+three examples now carry the field instead of hand-written fades.
+
 ### 2026-09-19 — Emphasis should land and STAY, not breathe through the sentence
 
 Hans: "in drawcast, the we use the pulsating highlight (glow?) it often keep
