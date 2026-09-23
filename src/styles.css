@@ -1276,6 +1276,15 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   box-shadow: 2px 2px 0 rgba(61, 56, 51, 0.25);
   animation: waitgate-nudge 1.6s ease-in-out infinite;
 }
+/* A shut explore gate's Continue: top right, clear of the caption band that
+   carries the invitation, over a figure the viewer is busy clicking. */
+.cs-explore-continue {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  z-index: 6;
+  cursor: pointer;
+}
 @keyframes waitgate-nudge {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }

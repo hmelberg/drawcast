@@ -182,8 +182,26 @@ describe("exploreSurface — where an authored explore beat puts the viewer", ()
     expect(exploreSurface({ code: "knobs" }, scripts)).toBe("shut");
   });
 
-  test("params alone, the body, the sky, or no beat detail at all is the tray, as before", () => {
-    expect(exploreSurface({}, scripts)).toBe("tray");
+  // Ruling 2026-09-23 (Hans): a cast that pauses to hand over must not open
+  // the tray unless what it asks for lives only there — "visually ugly — do
+  // it only if it is necessary". A beat naming nothing asks the viewer to
+  // try the FIGURE (press the piano, drag the parts): everything shut.
+  test("a beat naming nothing on a figure you can play holds the run with everything shut", () => {
+    expect(exploreSurface({}, scripts, { onFigure: true, sliders: false })).toBe("shut");
+    // …even when the figure also has sliders: the figure is what to try.
+    expect(exploreSurface({}, scripts, { onFigure: true, sliders: true })).toBe("shut");
+  });
+
+  test("a beat naming nothing where the only thing to try is sliders still opens them (params default: all)", () => {
+    expect(exploreSurface({}, scripts, { onFigure: false, sliders: true })).toBe("tray");
+  });
+
+  test("a beat naming nothing on a figure with nothing to try holds shut — a tray of nothing is no better", () => {
+    expect(exploreSurface({}, scripts, { onFigure: false, sliders: false })).toBe("shut");
+    expect(exploreSurface({}, scripts)).toBe("shut");
+  });
+
+  test("params, the body or the sky live only in the tray, so they still open it", () => {
     expect(exploreSurface({ params: ["n"] }, scripts)).toBe("tray");
     expect(exploreSurface({ anatomy: true }, scripts)).toBe("tray");
     expect(exploreSurface({ space: true }, scripts)).toBe("tray");

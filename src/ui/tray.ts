@@ -530,7 +530,27 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
 
   /** Continue ▶ — the same action from the tray's button and from a card's:
    *  settle the honest geometry, let a parked explore run on, or play. */
+  // A shut explore gate's own way on: a pill on the figure. The bar's ▶ and
+  // a click on the background are Continue too, but neither says so — and
+  // on a figure the viewer is invited to click, a pill is the one thing
+  // that plainly means "I am done".
+  let gatePill: HTMLElement | null = null;
+  const removeGatePill = (): void => {
+    gatePill?.remove();
+    gatePill = null;
+  };
+  const showGatePill = (): void => {
+    if (!stage || gatePill) return;
+    gatePill = h("button", { class: "cs-waitgate-pill cs-explore-continue", title: "Continue" }, "Continue \u25b8");
+    gatePill.addEventListener("click", (e) => {
+      e.stopPropagation();
+      continueNow();
+    });
+    stage.appendChild(gatePill);
+  };
+
   const continueNow = (): void => {
+    removeGatePill();
     clearViewerFlip(hd); // the lesson goes on, and it faces its own way
     // The gate comes down BEFORE the cards close: a gated card's onClose
     // re-enters here (its ✕ is Continue) and must find nothing left to resolve.
@@ -1401,9 +1421,20 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       // click on the figure outside the panel, through the registry hook. A
       // script named alone gets its CARD on the pane, tray shut likewise
       // (ruling 2026-09-18). Everything else is the gated tray.
-      const surface = exploreSurface(step, editable.map((e) => ({ id: e.id, ...(e.pane !== undefined ? { pane: e.pane } : {}) })));
+      // Something to do ON the figure: a widget body, or a declared
+      // interaction played on the drawing itself (the space and sky
+      // browsers live in the tray, so they do not count).
+      const onFigure =
+        (hd.spec.template !== undefined && scenes[hd.spec.template]?.manifest.widget === true) ||
+        interactions.some((k) => k === "piano" || k === "chess" || k === "periodic");
+      const surface = exploreSurface(
+        step,
+        editable.map((e) => ({ id: e.id, ...(e.pane !== undefined ? { pane: e.pane } : {}) })),
+        { onFigure, sliders: liveSliders(hd).length > 0 },
+      );
       const shut = surface === "shut";
       const onAbort = (): void => {
+        removeGatePill();
         gateResolve = null;
         gatedCode = null;
         gatedCard = null;
@@ -1431,6 +1462,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         // being offered. Its own class — `cs-exploring` freezes stage
         // clicks, and here the figure click IS Continue.
         stage?.classList.add("cs-gated");
+        showGatePill();
       }
       if (shut) return;
       // The card, where the script is drawn: the same freeze and guard the

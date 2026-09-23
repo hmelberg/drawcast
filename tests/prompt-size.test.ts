@@ -466,7 +466,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // "replace" (alternatives erase each other — the 2026-09-12 contrast rule),
 // and `camera.zoom` gains "fit". Schema +370 (walk's anyOf and description,
 // zoom's), prompt +293 (one sentence each in rule 3). 211708 -> 212371.
-const BASELINE_SYSTEM_CHARS = 212371;
+// Re-pinned UP 2026-09-24 (explore on screen, Hans: opening the tray when a
+// cast pauses to hand over is "visually ugly — do it only if it is
+// necessary"): an explore beat naming nothing on a figure played ON leaves
+// the figure live, tray shut. One clause in the prompt's explore bullet
+// (+143) and in the schema's explore description (+104). 212371 -> 212618.
+const BASELINE_SYSTEM_CHARS = 212618;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -491,7 +496,8 @@ const BASELINE_SYSTEM_CHARS = 212371;
 // sentence, say it may be left out. 79449 -> 79584.
 // Re-pinned UP 2026-09-23 (walk): the group's `walk` field. 79584 -> 79881.
 // Re-pinned UP 2026-09-23 (walk modes): walk "zoom"/"replace", camera zoom "fit". 79881 -> 80251.
-const BASELINE_SCHEMA_CHARS = 80251;
+// Re-pinned UP 2026-09-24 (explore on screen): the explore description's clause. 80251 -> 80355.
+const BASELINE_SCHEMA_CHARS = 80355;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

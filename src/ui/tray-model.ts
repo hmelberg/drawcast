@@ -250,17 +250,31 @@ export type ExploreSurface = "card" | "tray" | "shut";
  * (spec 2026-09-15 §3.3). A script that is not on screen (an unknown id, or
  * `show: none`) falls to the tray, whose text area needs no geometry.
  *
+ * A beat that names NOTHING asks the viewer to try the figure itself —
+ * press the piano, drag the parts, click the board — so on a figure that
+ * has something to do ON it the run holds with everything shut (ruling
+ * 2026-09-23, Hans: opening the tray when a cast pauses to hand over is
+ * "visually ugly — do it only if it is necessary"). The tray opens only for
+ * what lives there alone: template knobs (a bare beat on a figure whose ONLY
+ * interaction is its sliders still means "try the numbers" — `params`
+ * defaults to all), the body and sky browsers, a script with no pane.
+ *
  * Pure: which surface a beat opens is the decision worth pinning in a node
  * test; mounting it is the tray's DOM work.
  */
 export function exploreSurface(
   step: { code?: string; params?: string[]; anatomy?: boolean; space?: boolean },
   scripts: { id: string; pane?: string }[],
+  figure: { onFigure: boolean; sliders: boolean } = { onFigure: false, sliders: false },
 ): ExploreSurface {
-  if (step.code === undefined) return "tray";
+  const trayOnly = step.params !== undefined || step.anatomy === true || step.space === true;
+  if (step.code === undefined) {
+    if (trayOnly) return "tray";
+    return !figure.onFigure && figure.sliders ? "tray" : "shut";
+  }
   const el = scripts.find((s) => s.id === step.code);
   if (!el) return "tray";
   if (el.pane === "controls") return "shut";
-  if (step.params !== undefined || step.anatomy === true || step.space === true) return "tray";
+  if (trayOnly) return "tray";
   return "card";
 }
