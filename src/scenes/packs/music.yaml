@@ -50,6 +50,9 @@ params:
     bass_notes:
       type: string
       description: "Grand staff only: the bass staff's notes, the same notation as `notes`, lined up with them by beat. Up to 16 tokens."
+    sound:
+      type: boolean
+      description: "The notes sound as they are drawn: a draw of note_<i> ids plays exactly those notes, each appearing (and its key going down) as it sounds, with the beat's sentence over them. Write no play for them yourself."
     title:
       type: string
 element_ids:

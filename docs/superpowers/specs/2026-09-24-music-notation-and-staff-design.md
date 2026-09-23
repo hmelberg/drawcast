@@ -454,3 +454,17 @@ frames harness (and the player for interactive parts), and a commit.
   on the figure with the tray shut; the right-click card on the staff
   lists the three drills and starts one; "Click where E4 goes" accepts a
   click on the bottom line.
+
+### Round 4 (2026-09-24)
+
+- `sound: true` on note_sheet, expanded before layout by `spec/sound.ts`
+  (in `expandSpec`, between cards and walks): a draw of note ids becomes a
+  play of exactly those tokens with `reveal` (and `press` with the
+  keyboard); rests, the staff and a grand staff's other hand are drawn
+  quietly at the start of the beat; the beat's sentence rides the play.
+  The author wins: a cast with its own play + reveal/press is untouched
+  (instead of the lint warning §9 planned — nothing to warn about when
+  the hand-written choreography simply takes over).
+- The instruments (§7.2) shipped in round 1.
+- Example: Twinkle moved to `sound: true` — its one hand-written play with
+  fourteen reveal and fourteen press ids became a draw of fourteen notes.

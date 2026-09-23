@@ -6445,7 +6445,8 @@
       "params": {
         "abc": "X:1\nT:Twinkle, Twinkle\nM:4/4\nL:1/4\nQ:1/4=120\nK:C\nC C G G | A A G2 | F F E E | D D C2 |",
         "keyboard": true,
-        "title": "Twinkle, Twinkle, Little Star"
+        "title": "Twinkle, Twinkle, Little Star",
+        "sound": true
       },
       "commands": [
         {
@@ -6457,10 +6458,7 @@
           "speak": "Nearly every folk tune on the internet lives in a plain text format called ABC — a handful of typed lines. Watch six of them become sheet music, piano keys, and sound, all at once."
         },
         {
-          "play": {
-            "abc": "M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC C G G | A A G2 | F F E E | D D C2 |"
-          },
-          "reveal": [
+          "draw": [
             "note_0",
             "note_1",
             "note_2",
@@ -6475,22 +6473,6 @@
             "note_11",
             "note_12",
             "note_13"
-          ],
-          "press": [
-            "key_0",
-            "key_1",
-            "key_2",
-            "key_3",
-            "key_4",
-            "key_5",
-            "key_6",
-            "key_7",
-            "key_8",
-            "key_9",
-            "key_10",
-            "key_11",
-            "key_12",
-            "key_13"
           ],
           "speak": "Twinkle, Twinkle, Little Star — every note lands on the staff to stay, while below it each piano key goes down and comes back up, exactly in time."
         },
