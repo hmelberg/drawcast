@@ -21,6 +21,30 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-24 — A quick heading, then straight to ink
+
+Hans: "many presentations now have a chapter like zoom from page. I wonder
+if this takes too much time for short drawcasts. Instead, maybe the default
+should be a heading, centralized on top of the page and underlined? I am
+happy to have it animated a bit too (zoom from large to smaller? if
+possible, quite quickly) And try to get quickly to a drawing or an
+animation or some event. Do not speak much (or almost anything) before the
+first drawing."
+
+Distilled: the opening is a heading, not a scene. The card (2026-09-16)
+cost 5–8 seconds — a title sketched mid-canvas, a subtitle, a 1.6 s
+push-in, an erase, a reset — under a full opening sentence, before any
+figure. Now `card` defaults to a heading centred at the top, underlined,
+that zooms from large into place in under a second and STAYS; its speak is
+a few words or none; the next beat is a drawing, and the hook rides that
+first ink. The old card is `"style": "center"`, for a long lecture.
+
+Status: shipped 2026-09-24 (`spec/card.ts` headingElements, the prompt's
+opening rule and card bullet). The twelve examples added that day follow
+it (the hook moved onto the first drawing); the economics course and the
+playlist example keep `style: "center"` — their subtitles belong to that
+style — until Hans says otherwise.
+
 ### 2026-09-23 — Motion that follows from the structure, not from commands
 
 Hans: "It is a good general pattern that we introduce interactions and

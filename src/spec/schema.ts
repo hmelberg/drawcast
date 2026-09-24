@@ -768,10 +768,11 @@ const commandSchema = {
     card: {
       type: "object",
       description:
-        "A disappearing heading: the title is sketched in the middle of the canvas over an underline, the camera pushes in a little, then it is un-drawn and the view resets — the TV-style opening, as one beat. Put the paired speak on it to read the title aloud. The permanent alternative is an ordinary text element drawn on the first beat.",
+        "The opening heading: centred at the top of the page, underlined, zooming quickly from large to its size, and it stays — then get straight to the first drawing. Keep its speak to a few words, or none. style \"center\" is the slower TV-style card for a long lecture: sketched mid-canvas with a subtitle, a push-in, then un-drawn.",
       properties: {
         title: { type: "string", description: "The heading." },
-        subtitle: { type: "string", description: "A quieter line under it." },
+        subtitle: { type: "string", description: "A quieter line under it (style center only)." },
+        style: { type: "string", enum: ["heading", "center"], description: "heading (default) or center." },
       },
       required: ["title"],
       additionalProperties: false,

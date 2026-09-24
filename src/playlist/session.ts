@@ -11,6 +11,7 @@
 // many pages should feel like ONE drawcast, and the panel already lists them).
 
 import { render, type RenderHandle, type RenderStyle } from "../render";
+import { expandSpec } from "../spec/expand";
 import type { TextOverride } from "../layout/text-style";
 import { speechKey, type SpeakLine } from "../render/delivery";
 import type { AnswerEvent, PlaybackMode, PlayerState } from "../render/player";
@@ -344,6 +345,28 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
 
   let idx = 0;
 
+  // The whole cast's step count, part by part, for the global counter: an
+  // estimate from each part's own commands (one step per command, plus the
+  // knob demo an explore on a script with controls plays first — measured to
+  // match the planner on the bundled corpus), replaced by the part's exact
+  // count once it has been mounted.
+  const stepCounts = items.map((it) => {
+    const cmds = expandSpec(it.spec).commands ?? [];
+    return cmds.length + cmds.filter((c) => c.explore?.code !== undefined && c.explore.play !== false).length;
+  });
+  const stepsBefore = (i: number): number => stepCounts.slice(0, Math.max(0, i)).reduce((a, b) => a + b, 0);
+  const progress: NonNullable<ControlsOptions["progress"]> = {
+    offset: () => stepsBefore(idx),
+    total: () => stepCounts.reduce((a, b) => a + b, 0),
+    seek: (g) => {
+      let i = 0;
+      while (i < items.length - 1 && g > stepsBefore(i + 1)) i++;
+      const local = Math.max(0, Math.min(stepCounts[i], g - stepsBefore(i)));
+      if (i === idx && handle) handle.timeline.renderUpTo(local);
+      else void jump(i, false).then(() => handle?.timeline.renderUpTo(local));
+    },
+  };
+
   /** The multi-item control options: the editor's beforePlay (opts.controls)
    *  keeps first refusal on both hooks; the pure rules live in nav-model.ts. */
   const navOpts: ControlsOptions = {
@@ -506,8 +529,10 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     }
     handle = hd;
     shownSpec = items[i].spec;
+    stepCounts[i] = hd.timeline.totalSteps; // exact, now that it is planned
     attachPlayerControls(host, hd, prefs, {
       ...navOpts,
+      progress,
       trailing: [panelBtn, ...(opts.controls?.trailing ?? [])],
     });
     applyCaptions(hd);
@@ -697,6 +722,8 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     handle = hd;
     attachPlayerControls(host, hd, prefs, {
       ...navOpts,
+      // The title page stands before part 1: the counter reads 0 of the whole.
+      progress: { ...progress, offset: () => 0, pinned: true },
       trailing: [panelBtn, ...(opts.controls?.trailing ?? [])],
     });
     applyCaptions(hd);

@@ -43,6 +43,14 @@ export interface PlaybackPrefs {
 }
 
 export interface ControlsOptions {
+  /**
+   * A multi-part cast's place in the WHOLE (Hans 2026-09-24: "Could it be
+   * global? the number of the page within the whole, not just the
+   * chapter"): the steps before this part, all steps, and a seek to a global
+   * step (which may land in another part). Without it the counter and the
+   * bar are this part's own.
+   */
+  progress?: { offset(): number; total(): number; seek(globalStep: number): void; pinned?: boolean };
   /** Focus mode hook: the host fades its chrome while playing. */
   onPlayingChange?(playing: boolean): void;
   /** Enables the mute button (mute keeps narration timing, volume 0). */
@@ -755,7 +763,13 @@ export function attachPlayerControls(
   const fwdBtn = h("button", { class: "cs-bar-btn", title: "Step forward one command" }, icon("next"));
   const progressFill = h("div", { class: "cs-progress-fill" });
   const progress = h("div", { class: "cs-progress", title: "Seek (per command)" }, progressFill);
-  const stepInd = h("span", { class: "step-indicator" }, `0/${total}`);
+  // The counter and the bar count the whole cast when the session says where
+  // this part sits in it; else this part's own steps.
+  const globalTotal = (): number => (opts.progress ? opts.progress.total() : total);
+  // `pinned`: a page that is not one of the counted steps (a playlist's
+  // title page) shows where the whole stands — 0 — not its own animation.
+  const globalDone = (done: number): number => (opts.progress ? opts.progress.offset() + (opts.progress.pinned ? 0 : done) : done);
+  const stepInd = h("span", { class: "step-indicator" }, `${globalDone(0)}/${globalTotal()}`);
   const modeSel = h("select", { class: "cs-bar-select", title: "Playback mode" });
   for (const m of ["narrated", "silent", "instant"]) modeSel.appendChild(h("option", { value: m }, m));
   modeSel.value = prefs.mode;
@@ -1307,7 +1321,8 @@ export function attachPlayerControls(
   progress.addEventListener("click", (e) => {
     e.stopPropagation();
     const rect = progress.getBoundingClientRect();
-    hd.timeline.renderUpTo(seekStep(e.clientX, rect.left, rect.width, total));
+    if (opts.progress) opts.progress.seek(seekStep(e.clientX, rect.left, rect.width, globalTotal()));
+    else hd.timeline.renderUpTo(seekStep(e.clientX, rect.left, rect.width, total));
   });
   // Hover-scrub preview (C7/D6.4): the chip names the step a click would land
   // on, riding above the cursor. Child of the bar, not the track — the track
@@ -1317,7 +1332,7 @@ export function attachPlayerControls(
   bar.appendChild(seekPreview);
   progress.addEventListener("pointermove", (e) => {
     const rect = progress.getBoundingClientRect();
-    seekPreview.textContent = `${seekStep(e.clientX, rect.left, rect.width, total)}/${total}`;
+    seekPreview.textContent = `${seekStep(e.clientX, rect.left, rect.width, globalTotal())}/${globalTotal()}`;
     seekPreview.style.left = `${e.clientX - bar.getBoundingClientRect().left}px`;
     seekPreview.hidden = false;
   });
@@ -1345,8 +1360,9 @@ export function attachPlayerControls(
     },
     onStep: (done) => {
       prev.onStep?.(done, total);
-      stepInd.textContent = `${done}/${total}`;
-      progressFill.style.width = `${total > 0 ? (done / total) * 100 : 0}%`;
+      const g = globalDone(done), T = globalTotal();
+      stepInd.textContent = `${g}/${T}`;
+      progressFill.style.width = `${T > 0 ? (g / T) * 100 : 0}%`;
     },
   };
 

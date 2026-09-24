@@ -459,10 +459,14 @@ export interface CameraArgs {
 }
 
 export interface CardArgs {
-  /** The heading, sketched in the middle of the canvas over an underline. */
+  /** The heading. */
   title: string;
-  /** A quieter line under it. */
+  /** A quieter line under it (the centre style only — the top heading has no room for one). */
   subtitle?: string;
+  /** "heading" (default): centred at the top, underlined, zooming quickly
+   *  from large to its size, and it STAYS. "center": the slower TV-style
+   *  card — sketched mid-canvas, a push-in, then un-drawn. */
+  style?: "heading" | "center";
 }
 
 export interface FocusArgs {

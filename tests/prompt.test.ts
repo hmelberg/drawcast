@@ -37,10 +37,18 @@ describe("compiler prompt style rules", () => {
   test("opens with a heading — the title field is page furniture, the canvas carries a heading only if drawn (title-below-player, 2026-09-16)", () => {
     expect(compilerV1).toContain("the title counts as something");
     expect(compilerV1).toContain("shown UNDER the player");
-    expect(compilerV1).toContain("never inside the frame");
-    expect(compilerV1).toContain("a `card` beat");
     expect(compilerV1).toMatch(/^- `card`: /m);
     expect(compilerV1).toContain("Speaking and drawing are not turns");
+  });
+
+  // Hans 2026-09-24: the TV card "takes too much time for short drawcasts";
+  // the default is a quick heading that stays, and the first ink comes next.
+  test("the default opening is a quick top heading, a few words at most, then straight to a drawing", () => {
+    expect(compilerV1).toMatch(/Open with a `card` heading/);
+    expect(compilerV1).toMatch(/centred at the top, underlined, zooming quickly into place, and it stays/);
+    expect(compilerV1).toMatch(/make the NEXT beat a drawing/);
+    expect(compilerV1).toMatch(/No standalone `speak` before the first drawing/);
+    expect(compilerV1).toMatch(/`"style": "center"` is the slower TV-style card/);
   });
 
   test("says which element a photo is, on both bullets that could be picked (B2)", () => {

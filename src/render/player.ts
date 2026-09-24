@@ -521,6 +521,15 @@ export class Player {
    */
   showPoster(): void {
     this.renderUpTo(this.plan.steps.length);
+    // The poster is the FINISHED drawing (Hans 2026-09-24: "the first page is
+    // supposed to be the final drawing"): what the cast leaves on the page,
+    // the whole page in view and at full strength — not the end's camera on
+    // one detail (a zoom walk, a close-up that never pulled back) nor the
+    // shadow a walk or a fade left the earlier items in. Erased things stay
+    // erased: that was the author's choice. Playing moves on from here as
+    // from any boundary.
+    const end = this.stateAt(this.plan.steps.length);
+    this.applyScene({ ...end, camera: null, opacities: {} });
     this.showCaption("");
   }
 

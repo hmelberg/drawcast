@@ -25287,7 +25287,8 @@
         {
           "card": {
             "title": "What a hospital really costs",
-            "subtitle": "Scarcity and choice"
+            "subtitle": "Scarcity and choice",
+            "style": "center"
           },
           "speak": "A new hospital comes with an invoice. An economist will tell you the invoice is not the cost."
         },
@@ -25401,7 +25402,8 @@
         {
           "card": {
             "title": "The price nobody decides",
-            "subtitle": "How a market clears"
+            "subtitle": "How a market clears",
+            "style": "center"
           },
           "speak": "Nobody in this city sets the rent. No committee meets, no minister signs anything — and yet there is a going rate."
         },
@@ -25535,7 +25537,8 @@
         {
           "card": {
             "title": "Who really pays a tax",
-            "subtitle": "Taxes, prices and lost trades"
+            "subtitle": "Taxes, prices and lost trades",
+            "style": "center"
           },
           "speak": "The tax on a pack of cigarettes is collected from the shop. The shop, it turns out, is not who pays it."
         },
@@ -25693,7 +25696,8 @@
         {
           "card": {
             "title": "Where the profit goes",
-            "subtitle": "Firms, costs and competition"
+            "subtitle": "Firms, costs and competition",
+            "style": "center"
           },
           "speak": "A bakery opens in a town that had none, and for a year it prints money. Then, reliably, it stops."
         },
@@ -25811,7 +25815,8 @@
         {
           "card": {
             "title": "When the economy falls short",
-            "subtitle": "Booms, slumps and policy"
+            "subtitle": "Booms, slumps and policy",
+            "style": "center"
           },
           "speak": "In a recession the factories still stand, the workers still know their jobs, and nothing has been bombed. Something else has gone missing."
         },
@@ -26441,7 +26446,7 @@
     "request": "Explain how a tax creates a deadweight loss (take care to give an intuitive explanation of the deatweight loss)\nand how this loss increases non-linearily as the tax increases and also show a simple mathematical example that demonstrates and expresses the deadweight loss as a function of the tax. #parts=3",
     "title": "A tax's deadweight loss — Sonnet 5",
     "specimen": true,
-    "playlist": "# How a Tax Creates a Deadweight Loss\n\n## The Wedge and the Lost Trades\nuse: supply_demand\nwith: {\"demand\":{},\"supply\":{},\"equilibrium\":{\"show\":true,\"guides\":true,\"label\":\"E0\",\"q_label\":\"Q0\",\"p_label\":\"P0\"},\"tax\":{\"amount\":20,\"side\":\"seller\",\"label\":\"S + t\"},\"regions\":[\"government_revenue\",\"deadweight_loss\"]}\n\n    arrow gap_arrow price_sellers_point -> price_buyers_point #8f887c hidden true\n    label label_t \"t\" left attach_to gap_arrow hidden true\n    label label_Q1 \"Q1\" below attach_to tax_equilibrium_point hidden true\n\nEvery tax on a good does one simple thing: it splits one price into two — what the buyer pays, and what the seller keeps.\n    draw axes\n\nHere is a market before any tax: the upward supply curve S, the downward demand curve D, crossing at price P0 and quantity Q0.\n    draw demand_curve label_D supply_curve label_S equilibrium_point guide_lines label_E label_Pstar label_Qstar\n\n    pause 0.3\n\nThat crossing point is where every trade that helps both sides actually happens — nobody who would gain from trading is left out.\n    point at.ref equilibrium_point gesture circle\n\nNow a tax of size t enters: the buyer's price Pb rises above the seller's price Ps by exactly t.\n    draw tax_supply_curve label_S_tax price_buyers_point label_Pb price_sellers_point label_Ps gap_arrow label_t\n\n    pause 0.3\n\nQuantity falls from Q0 to Q1, because at the new prices fewer trades clear both sides at once.\n    draw tax_equilibrium_point tax_guide_lines label_Q1\n\nThe government collects tax revenue equal to t times Q1 — that shaded rectangle.\n    draw wedge_region label_wedge\n\n    pause 0.3\n\nBut look at the sliver between Q1 and Q0: those are trades where a buyer would have paid more than a seller needed to accept.\n    draw dwl_region\n\nNobody captures that value anymore — not the buyer, not the seller, not the government. That triangle is pure loss.\n    draw label_DWL\n\n    pause 0.3\n\nThis is the deadweight loss: not money taken from people, but value that simply stops being created.\n    highlight dwl_region effect glow\n\nNext, we ask what happens to that triangle as the tax grows.\n    point at.ref dwl_region gesture underline\n\n## Loss Grows Faster Than the Tax\nuse: supply_demand\nwith: {\"demand\":{},\"supply\":{},\"equilibrium\":{\"show\":true},\"tax\":{\"amount\":12,\"label\":\"S + tax\"},\"regions\":[\"deadweight_loss\"]}\n\n    draw axes demand_curve label_D supply_curve label_S equilibrium_point guide_lines label_E label_Pstar label_Qstar\n\n    pause 0.3\n\nNow that we have seen the triangle appear, watch what happens when the tax itself gets bigger.\n    draw tax_supply_curve label_S_tax tax_equilibrium_point tax_guide_lines price_buyers_point label_Pb price_sellers_point label_Ps dwl_region label_DWL\n\n    pause 0.3\n\nWith a small tax t1, the wedge between Pb and Ps is short, and quantity barely moves — the triangle is thin.\n    highlight dwl_region price_buyers_point price_sellers_point effect glow\n\nDouble the tax to t2, and two things happen at once.\n    point at.ref tax_equilibrium_point gesture circle\n\nThe height of the triangle doubles, because the gap between Pb and Ps is exactly the tax.\n    animate {\"tax.amount\":24} duration 3\n\nBut the base also grows, because a bigger price gap pushes quantity down further along both curves.\n    highlight equilibrium_point tax_equilibrium_point effect circle\n\nArea is base times height divided by two — so when both dimensions grow with the tax, the area grows with the tax squared.\n    math dwl_formula top-right tex \"\\\\text{DWL}=\\\\tfrac{1}{2}\\\\,t\\\\,\\\\Delta Q\\\\;\\\\propto\\\\;t^2\" colors {\"t\":\"#b5482e\",\"\\\\Delta Q\":\"#2f6b8f\"}\n\nDouble the tax, and the lost value roughly quadruples; triple it, and the loss grows ninefold.\n    animate {\"tax.amount\":36} duration 3\n\nThis is why economists treat a modest tax as cheap in efficiency terms, and a steep one as expensive out of proportion to its size.\n    highlight dwl_region effect glow\n\nThe shape of the curves you drew in the first figure already contained this — we just have not yet put numbers on it.\n    point at.ref demand_curve gesture underline\n\n## A Formula You Can Compute\ndomain: {\"x\":[0,4],\"y\":[0,4]}\n\n    math eq_demand center tex \"P = 10 - Q\" in derivation hidden true\n    math eq_supply center tex \"P = Q\" in derivation hidden true\n    math eq_eq0 center tex \"Q_0 = 5,\\\\quad P_0 = 5\" in derivation hidden true\n    math eq_tax_setup center tex \"P_b = 10-Q_1,\\\\quad P_s = Q_1,\\\\quad P_b-P_s=t\" colors.t #b5482e in derivation hidden true\n    math eq_q1 center tex \"Q_1 = \\\\frac{10-t}{2}\" colors.t #b5482e in derivation hidden true\n    math eq_dwl_formula center tex \"DWL = \\\\frac{1}{2}\\\\cdot t\\\\cdot(Q_0-Q_1)\" size 32 colors.DWL #8a5fa8 colors.t #b5482e in derivation hidden true\n    math eq_example center tex \"t=1:\\\\ DWL=0.25 \\\\qquad t=2:\\\\ DWL=1\" colors.DWL #8a5fa8 colors.t #b5482e in derivation hidden true\n    column derivation gap 34 fit left hidden true\n    axes graph_axes x_label \"t (tax)\" y_label DWL hidden true\n    curve curve_dwl #8a5fa8 expr x*x/4 hidden true\n    label label_curve above attach_to curve_dwl tex DWL(t)=\\frac{t^2}{4} colors.DWL #8a5fa8 colors.t #b5482e hidden true\n    dot point_t1 #8a5fa8 at.x 1 at.y 0.25 guides true hidden true\n    label label_t1 \"$0.25\" above attach_to point_t1 hidden true\n    dot point_t2 #8a5fa8 at.x 2 at.y 1 guides true hidden true\n    label label_t2 \"$1\" above attach_to point_t2 hidden true\n    group graph members [\"graph_axes\",\"curve_dwl\",\"label_curve\",\"point_t1\",\"label_t1\",\"point_t2\",\"label_t2\"] fit right hidden true\n\nNow that we know the loss grows with the square of the tax, here is a case where we can compute it exactly.\n    card title \"A Formula You Can Compute\"\n\nTake a demand curve P = 10 − Q and a supply curve P = Q — nothing exotic, just two straight lines.\n    draw eq_demand eq_supply parallel true\n\nWithout any tax they cross at Q0 = 5 and P0 = 5: that is the untaxed equilibrium.\n    draw eq_eq0\n\nPut a tax t between buyer and seller: the buyer pays Pb = 10 − Q1, the seller receives Ps = Q1, and Pb − Ps = t.\n    draw eq_tax_setup\n\nSolving that gives the new quantity: Q1 = (10 − t) / 2.\n    draw eq_q1\n\nThe deadweight loss is the triangle's area: one half times its height t times its base, Q0 minus Q1.\n    draw eq_dwl_formula\n\nSubstitute Q1 in, and the algebra collapses to a strikingly simple result: DWL = t² / 4.\n    morph eq_dwl_formula tex \"DWL = \\\\frac{t^2}{4}\"\n\nA one-dollar tax costs a quarter of a dollar in lost value; a two-dollar tax costs a full dollar — four times as much for twice the tax.\n    draw eq_example\n\n    draw graph_axes\n\nPlot DWL against t and you get a parabola, not a line — the curve itself is the proof of what we saw in the last part.\n    draw curve_dwl label_curve point_t1 label_t1 point_t2 label_t2\n\nThat is the whole arc: a tax splits one price into two, the gap between them cancels trades that would have paid off, and because both sides of that lost region grow with the tax, the loss itself compounds — visible now as the widening curve on this page.\n    highlight curve_dwl eq_dwl_formula effect glow\n"
+    "playlist": "# How a Tax Creates a Deadweight Loss\n\n## The Wedge and the Lost Trades\nuse: supply_demand\nwith: {\"demand\":{},\"supply\":{},\"equilibrium\":{\"show\":true,\"guides\":true,\"label\":\"E0\",\"q_label\":\"Q0\",\"p_label\":\"P0\"},\"tax\":{\"amount\":20,\"side\":\"seller\",\"label\":\"S + t\"},\"regions\":[\"government_revenue\",\"deadweight_loss\"]}\n\n    arrow gap_arrow price_sellers_point -> price_buyers_point #8f887c hidden true\n    label label_t \"t\" left attach_to gap_arrow hidden true\n    label label_Q1 \"Q1\" below attach_to tax_equilibrium_point hidden true\n\nEvery tax on a good does one simple thing: it splits one price into two — what the buyer pays, and what the seller keeps.\n    draw axes\n\nHere is a market before any tax: the upward supply curve S, the downward demand curve D, crossing at price P0 and quantity Q0.\n    draw demand_curve label_D supply_curve label_S equilibrium_point guide_lines label_E label_Pstar label_Qstar\n\n    pause 0.3\n\nThat crossing point is where every trade that helps both sides actually happens — nobody who would gain from trading is left out.\n    point at.ref equilibrium_point gesture circle\n\nNow a tax of size t enters: the buyer's price Pb rises above the seller's price Ps by exactly t.\n    draw tax_supply_curve label_S_tax price_buyers_point label_Pb price_sellers_point label_Ps gap_arrow label_t\n\n    pause 0.3\n\nQuantity falls from Q0 to Q1, because at the new prices fewer trades clear both sides at once.\n    draw tax_equilibrium_point tax_guide_lines label_Q1\n\nThe government collects tax revenue equal to t times Q1 — that shaded rectangle.\n    draw wedge_region label_wedge\n\n    pause 0.3\n\nBut look at the sliver between Q1 and Q0: those are trades where a buyer would have paid more than a seller needed to accept.\n    draw dwl_region\n\nNobody captures that value anymore — not the buyer, not the seller, not the government. That triangle is pure loss.\n    draw label_DWL\n\n    pause 0.3\n\nThis is the deadweight loss: not money taken from people, but value that simply stops being created.\n    highlight dwl_region effect glow\n\nNext, we ask what happens to that triangle as the tax grows.\n    point at.ref dwl_region gesture underline\n\n## Loss Grows Faster Than the Tax\nuse: supply_demand\nwith: {\"demand\":{},\"supply\":{},\"equilibrium\":{\"show\":true},\"tax\":{\"amount\":12,\"label\":\"S + tax\"},\"regions\":[\"deadweight_loss\"]}\n\n    draw axes demand_curve label_D supply_curve label_S equilibrium_point guide_lines label_E label_Pstar label_Qstar\n\n    pause 0.3\n\nNow that we have seen the triangle appear, watch what happens when the tax itself gets bigger.\n    draw tax_supply_curve label_S_tax tax_equilibrium_point tax_guide_lines price_buyers_point label_Pb price_sellers_point label_Ps dwl_region label_DWL\n\n    pause 0.3\n\nWith a small tax t1, the wedge between Pb and Ps is short, and quantity barely moves — the triangle is thin.\n    highlight dwl_region price_buyers_point price_sellers_point effect glow\n\nDouble the tax to t2, and two things happen at once.\n    point at.ref tax_equilibrium_point gesture circle\n\nThe height of the triangle doubles, because the gap between Pb and Ps is exactly the tax.\n    animate {\"tax.amount\":24} duration 3\n\nBut the base also grows, because a bigger price gap pushes quantity down further along both curves.\n    highlight equilibrium_point tax_equilibrium_point effect circle\n\nArea is base times height divided by two — so when both dimensions grow with the tax, the area grows with the tax squared.\n    math dwl_formula top-right tex \"\\\\text{DWL}=\\\\tfrac{1}{2}\\\\,t\\\\,\\\\Delta Q\\\\;\\\\propto\\\\;t^2\" colors {\"t\":\"#b5482e\",\"\\\\Delta Q\":\"#2f6b8f\"}\n\nDouble the tax, and the lost value roughly quadruples; triple it, and the loss grows ninefold.\n    animate {\"tax.amount\":36} duration 3\n\nThis is why economists treat a modest tax as cheap in efficiency terms, and a steep one as expensive out of proportion to its size.\n    highlight dwl_region effect glow\n\nThe shape of the curves you drew in the first figure already contained this — we just have not yet put numbers on it.\n    point at.ref demand_curve gesture underline\n\n## A Formula You Can Compute\ndomain: {\"x\":[0,4],\"y\":[0,4]}\n\n    math eq_demand center tex \"P = 10 - Q\" in derivation hidden true\n    math eq_supply center tex \"P = Q\" in derivation hidden true\n    math eq_eq0 center tex \"Q_0 = 5,\\\\quad P_0 = 5\" in derivation hidden true\n    math eq_tax_setup center tex \"P_b = 10-Q_1,\\\\quad P_s = Q_1,\\\\quad P_b-P_s=t\" colors.t #b5482e in derivation hidden true\n    math eq_q1 center tex \"Q_1 = \\\\frac{10-t}{2}\" colors.t #b5482e in derivation hidden true\n    math eq_dwl_formula center tex \"DWL = \\\\frac{1}{2}\\\\cdot t\\\\cdot(Q_0-Q_1)\" size 32 colors.DWL #8a5fa8 colors.t #b5482e in derivation hidden true\n    math eq_example center tex \"t=1:\\\\ DWL=0.25 \\\\qquad t=2:\\\\ DWL=1\" colors.DWL #8a5fa8 colors.t #b5482e in derivation hidden true\n    column derivation gap 34 fit left hidden true\n    axes graph_axes x_label \"t (tax)\" y_label DWL hidden true\n    curve curve_dwl #8a5fa8 expr x*x/4 hidden true\n    label label_curve above attach_to curve_dwl tex DWL(t)=\\frac{t^2}{4} colors.DWL #8a5fa8 colors.t #b5482e hidden true\n    dot point_t1 #8a5fa8 at.x 1 at.y 0.25 guides true hidden true\n    label label_t1 \"$0.25\" above attach_to point_t1 hidden true\n    dot point_t2 #8a5fa8 at.x 2 at.y 1 guides true hidden true\n    label label_t2 \"$1\" above attach_to point_t2 hidden true\n    group graph members [\"graph_axes\",\"curve_dwl\",\"label_curve\",\"point_t1\",\"label_t1\",\"point_t2\",\"label_t2\"] fit right hidden true\n\nNow that we know the loss grows with the square of the tax, here is a case where we can compute it exactly.\n    card title \"A Formula You Can Compute\" style center\n\nTake a demand curve P = 10 − Q and a supply curve P = Q — nothing exotic, just two straight lines.\n    draw eq_demand eq_supply parallel true\n\nWithout any tax they cross at Q0 = 5 and P0 = 5: that is the untaxed equilibrium.\n    draw eq_eq0\n\nPut a tax t between buyer and seller: the buyer pays Pb = 10 − Q1, the seller receives Ps = Q1, and Pb − Ps = t.\n    draw eq_tax_setup\n\nSolving that gives the new quantity: Q1 = (10 − t) / 2.\n    draw eq_q1\n\nThe deadweight loss is the triangle's area: one half times its height t times its base, Q0 minus Q1.\n    draw eq_dwl_formula\n\nSubstitute Q1 in, and the algebra collapses to a strikingly simple result: DWL = t² / 4.\n    morph eq_dwl_formula tex \"DWL = \\\\frac{t^2}{4}\"\n\nA one-dollar tax costs a quarter of a dollar in lost value; a two-dollar tax costs a full dollar — four times as much for twice the tax.\n    draw eq_example\n\n    draw graph_axes\n\nPlot DWL against t and you get a parabola, not a line — the curve itself is the proof of what we saw in the last part.\n    draw curve_dwl label_curve point_t1 label_t1 point_t2 label_t2\n\nThat is the whole arc: a tax splits one price into two, the gap between them cancels trades that would have paid off, and because both sides of that lost region grow with the tax, the loss itself compounds — visible now as the widening curve on this page.\n    highlight curve_dwl eq_dwl_formula effect glow\n"
   },
   {
     "request": "Explain how a tax creates a deadweight loss (take care to give an intuitive explanation of the deatweight loss)\nand how this loss increases non-linearily as the tax increases and also show a simple mathematical example that demonstrates and expresses the deadweight loss as a function of the tax. #parts=3",
@@ -27318,10 +27323,8 @@
       "commands": [
         {
           "card": {
-            "title": "Why bridges look so different",
-            "subtitle": "one load, five answers"
-          },
-          "speak": "Every bridge has the same job: carry a load across a gap without breaking. The shapes differ because materials break in different ways."
+            "title": "Why bridges look so different"
+          }
         },
         {
           "draw": [
@@ -27329,7 +27332,7 @@
             "beam_pier_r",
             "beam_name"
           ],
-          "speak": "Start with the simplest: a plank laid across two piers."
+          "speak": "Every bridge has the same job: carry a load across a gap without breaking. The shapes differ because materials break in different ways. Start with the simplest: a plank laid across two piers."
         },
         {
           "draw": [
@@ -27678,16 +27681,14 @@
       "commands": [
         {
           "card": {
-            "title": "Which shapes can tile a floor?",
-            "subtitle": "and why bees chose one"
-          },
-          "speak": "Bathroom floors use squares and honeycombs use hexagons. Nobody tiles a floor with regular pentagons. Why not?"
+            "title": "Which shapes can tile a floor?"
+          }
         },
         {
           "draw": [
             "tri"
           ],
-          "speak": "Wherever tiles meet at a corner, their angles must add up to one full turn, 360 degrees. A triangle's corner is 60, and six of them close the circle exactly."
+          "speak": "Bathroom floors use squares and honeycombs use hexagons. Nobody tiles a floor with regular pentagons. Why not? Wherever tiles meet at a corner, their angles must add up to one full turn, 360 degrees. A triangle's corner is 60, and six of them close the circle exactly."
         },
         {
           "draw": [
@@ -27894,16 +27895,14 @@
       "commands": [
         {
           "card": {
-            "title": "Four forces run everything",
-            "subtitle": "and the weakest rules the sky"
-          },
-          "speak": "Physicists count just four forces behind everything that happens. Here they are, strongest first."
+            "title": "Four forces run everything"
+          }
         },
         {
           "draw": [
             "strong"
           ],
-          "speak": "The strong force holds the nucleus together, against the protons' electric push. It is the strongest, but it reaches barely across one nucleus — orange marks a short reach."
+          "speak": "Physicists count just four forces behind everything that happens. Here they are, strongest first. The strong force holds the nucleus together, against the protons' electric push. It is the strongest, but it reaches barely across one nucleus — orange marks a short reach."
         },
         {
           "draw": [
@@ -28125,16 +28124,14 @@
       "commands": [
         {
           "card": {
-            "title": "Five shapes, each half the last",
-            "subtitle": "how a score says how long"
-          },
-          "speak": "Before a note tells you its pitch, its shape tells you how long to hold it. Five shapes do most of the work."
+            "title": "Five shapes, each half the last"
+          }
         },
         {
           "draw": [
             "whole"
           ],
-          "speak": "The whole note: an open oval, held for four beats — a full bar of ordinary four-four time."
+          "speak": "Before a note tells you its pitch, its shape tells you how long to hold it. Five shapes do most of the work. The whole note: an open oval, held for four beats — a full bar of ordinary four-four time."
         },
         {
           "draw": [
@@ -28428,17 +28425,15 @@
       "commands": [
         {
           "card": {
-            "title": "Why doesn't the Moon fall down?",
-            "subtitle": "Newton's cannon"
-          },
-          "speak": "The Moon is falling towards the Earth right now. Newton worked out why it never lands, with an imaginary cannon."
+            "title": "Why doesn't the Moon fall down?"
+          }
         },
         {
           "draw": [
             "earth",
             "mountain"
           ],
-          "speak": "Put a cannon on a mountain so tall it pokes above the air, and fire it sideways."
+          "speak": "The Moon is falling towards the Earth right now. Newton worked out why it never lands, with an imaginary cannon. Put a cannon on a mountain so tall it pokes above the air, and fire it sideways."
         },
         {
           "draw": [
@@ -28512,17 +28507,15 @@
       "commands": [
         {
           "card": {
-            "title": "Two hands, one score",
-            "subtitle": "how piano music is written"
-          },
-          "speak": "A piano has one keyboard, but its music is written on two staves at once. Why two?"
+            "title": "Two hands, one score"
+          }
         },
         {
           "draw": [
             "staff",
             "clef"
           ],
-          "speak": "The top staff, with the treble clef, is for the higher notes — mostly the right hand."
+          "speak": "A piano has one keyboard, but its music is written on two staves at once. Why two? The top staff, with the treble clef, is for the higher notes — mostly the right hand."
         },
         {
           "draw": [
@@ -28618,10 +28611,8 @@
       "commands": [
         {
           "card": {
-            "title": "Finish the tune",
-            "subtitle": "your turn on the staff"
-          },
-          "speak": "Every melody is a question and an answer. I'll ask the question; you write the answer."
+            "title": "Finish the tune"
+          }
         },
         {
           "draw": [
@@ -28629,7 +28620,7 @@
             "clef",
             "keys"
           ],
-          "speak": "A staff, and a keyboard under it: each line and space of the staff is one white key."
+          "speak": "Every melody is a question and an answer. I'll ask the question; you write the answer. A staff, and a keyboard under it: each line and space of the staff is one white key."
         },
         {
           "play": "C4:q D4:q E4:q F4:q",
@@ -28680,17 +28671,15 @@
       "commands": [
         {
           "card": {
-            "title": "Can you hear where a note goes?",
-            "subtitle": "ears to eyes"
-          },
-          "speak": "Musicians can often write down a tune they hear. It starts with one skill: hearing how high a note is."
+            "title": "Can you hear where a note goes?"
+          }
         },
         {
           "draw": [
             "staff",
             "clef"
           ],
-          "speak": "Higher notes sit higher on the staff; lower notes lower. Each step up is one line or one space."
+          "speak": "Musicians can often write down a tune they hear. It starts with one skill: hearing how high a note is. Higher notes sit higher on the staff; lower notes lower. Each step up is one line or one space."
         },
         {
           "play": "C4:h",
@@ -28751,17 +28740,15 @@
       "commands": [
         {
           "card": {
-            "title": "Why a second clef?",
-            "subtitle": "low notes need their own staff"
-          },
-          "speak": "A cello or a tuba plays notes far below the treble staff. Written there, they would hang from a ladder of extra lines."
+            "title": "Why a second clef?"
+          }
         },
         {
           "draw": [
             "staff",
             "clef"
           ],
-          "speak": "So low instruments use the bass clef. Its two dots sit either side of the fourth line: that line is F, below middle C."
+          "speak": "A cello or a tuba plays notes far below the treble staff. Written there, they would hang from a ladder of extra lines. So low instruments use the bass clef. Its two dots sit either side of the fourth line: that line is F, below middle C."
         },
         {
           "draw": [
@@ -28918,16 +28905,14 @@
       "commands": [
         {
           "card": {
-            "title": "Two numbers, two dances",
-            "subtitle": "the time signature"
-          },
-          "speak": "At the start of almost every piece of music sit two stacked numbers. They tell you how to feel the beat before you hear a note."
+            "title": "Two numbers, two dances"
+          }
         },
         {
           "draw": [
             "four"
           ],
-          "speak": "Four over four: four beats in every bar, each a quarter note long. Count it: one, two, three, four."
+          "speak": "At the start of almost every piece of music sit two stacked numbers. They tell you how to feel the beat before you hear a note. Four over four: four beats in every bar, each a quarter note long. Count it: one, two, three, four."
         },
         {
           "play": "C3:q E4+G4:q C3:q E4+G4:q C3:q E4+G4:q C3:q E4+G4:q",
@@ -28993,17 +28978,15 @@
       "commands": [
         {
           "card": {
-            "title": "Reading the treble staff",
-            "subtitle": "two sentences do it"
-          },
-          "speak": "Reading music feels like a secret code. For the treble staff, two short sentences are the whole key."
+            "title": "Reading the treble staff"
+          }
         },
         {
           "draw": [
             "staff",
             "clef"
           ],
-          "speak": "The treble clef curls around the second line from the bottom — that line is G, which is why the clef is also called the G clef."
+          "speak": "Reading music feels like a secret code. For the treble staff, two short sentences are the whole key. The treble clef curls around the second line from the bottom — that line is G, which is why the clef is also called the G clef."
         },
         {
           "draw": [
@@ -29161,16 +29144,14 @@
       "commands": [
         {
           "card": {
-            "title": "Sharp, flat, natural",
-            "subtitle": "three small signs"
-          },
-          "speak": "Three small signs in front of a note change it. Listen to what each one does."
+            "title": "Sharp, flat, natural"
+          }
         },
         {
           "draw": [
             "sharp_sign"
           ],
-          "speak": "A sharp raises a note by the smallest step on a piano — from C to the black key just above it."
+          "speak": "Three small signs in front of a note change it. Listen to what each one does. A sharp raises a note by the smallest step on a piano — from C to the black key just above it."
         },
         {
           "play": "C4:h C#4:h",

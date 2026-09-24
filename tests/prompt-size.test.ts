@@ -487,7 +487,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // list names the four new drills (ear_key, staff_find, staff_name,
 // ear_staff), and the ask device list gains `staff`. +180 on the
 // schema, the same here. 214292 -> 214472.
-const BASELINE_SYSTEM_CHARS = 214472;
+// Re-pinned 2026-09-24 (the quick heading, Hans: the TV card "takes too
+// much time for short drawcasts"): card's default is a top heading that
+// zooms quickly into place and stays; the opening rule says so and asks for
+// the first drawing on the next beat; card gains `style` (center = the old
+// card). Schema +115, system +162. 214472 -> 214634.
+const BASELINE_SYSTEM_CHARS = 214634;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -516,7 +521,8 @@ const BASELINE_SYSTEM_CHARS = 214472;
 // Re-pinned UP 2026-09-24 (music round 1 + explore.activity): see the system note. 80355 -> 81775.
 // Re-pinned UP 2026-09-24 (music round 2): explore.store names the composed melody. 81775 -> 81877.
 // Re-pinned UP 2026-09-24 (music round 3): the new drills and the staff device. 81877 -> 82057.
-const BASELINE_SCHEMA_CHARS = 82057;
+// Re-pinned 2026-09-24 (the quick heading): card's description and its `style`. 82057 -> 82172.
+const BASELINE_SCHEMA_CHARS = 82172;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

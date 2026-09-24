@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { cardElements, expandCards, titleFont } from "../src/spec/card";
+import { cardElements, expandCards, headingFont, HEADING_Y, titleFont } from "../src/spec/card";
 import { validateSpec } from "../src/spec/schema";
 import type { Spec } from "../src/spec/types";
 
@@ -17,8 +17,8 @@ describe("expandCards", () => {
     expect(expandCards(spec)).toBe(spec);
   });
 
-  test("a card becomes title + underline elements and draw, push-in, erase, reset beats — the paired speak stays on the draw", () => {
-    const out = expandCards(cast([{ card: { title: "Markov models" }, speak: "Markov models." }, { draw: ["a"] }], [{ id: "a", type: "text", text: "A", x: 1, y: 2 }]));
+  test("the centre style (the slower TV card): title + underline, draw, push-in, erase, reset — the paired speak stays on the draw", () => {
+    const out = expandCards(cast([{ card: { title: "Markov models", style: "center" }, speak: "Markov models." }, { draw: ["a"] }], [{ id: "a", type: "text", text: "A", x: 1, y: 2 }]));
     const ids = (out.elements ?? []).map((e) => e.id);
     expect(ids).toEqual(["a", "card_1_title", "card_1_line"]);
     expect((out.elements ?? []).find((e) => e.id === "card_1_title")).toMatchObject({ type: "text", text: "Markov models", draw: { mode: "sketch" } });
@@ -31,13 +31,43 @@ describe("expandCards", () => {
     expect(cmds.some((c) => c.card !== undefined)).toBe(false);
   });
 
-  test("a subtitle is its own element and its own beat, after the title", () => {
-    const out = expandCards(cast([{ card: { title: "T", subtitle: "S" } }]));
+  test("in the centre style, a subtitle is its own element and its own beat, after the title", () => {
+    const out = expandCards(cast([{ card: { title: "T", subtitle: "S", style: "center" } }]));
     expect((out.elements ?? []).map((e) => e.id)).toEqual(["card_1_title", "card_1_line", "card_1_subtitle"]);
     const cmds = out.commands ?? [];
     expect(cmds[0]).toEqual({ draw: ["card_1_title", "card_1_line"] });
     expect(cmds[1]).toEqual({ draw: ["card_1_subtitle"] });
     expect(cmds[3].erase).toEqual(["card_1_title", "card_1_line", "card_1_subtitle"]);
+  });
+
+  // Hans 2026-09-24: the TV card "takes too much time for short drawcasts".
+  // The default is a heading centred at the top, underlined, zooming quickly
+  // from large to its size — and it stays.
+  test("the default is a top heading: camera close on it, drawn, pulled back with the words — and it stays", () => {
+    const out = expandCards(cast([{ card: { title: "Why bridges look different" }, speak: "Bridges." }, { draw: ["a"] }], [{ id: "a", type: "text", text: "A", x: 1, y: 2 }]));
+    const title = (out.elements ?? []).find((e) => e.id === "card_1_title")!;
+    expect(title).toMatchObject({ type: "text", text: "Why bridges look different", x: 500, y: HEADING_Y });
+    expect((out.elements ?? []).find((e) => e.id === "card_1_line")).toBeDefined();
+    const cmds = out.commands ?? [];
+    expect(cmds[0].camera).toMatchObject({ center: { ref: "card_1_title" }, zoom: 1.8 });
+    expect(cmds[1]).toEqual({ draw: ["card_1_title", "card_1_line"], parallel: true });
+    expect(cmds[2]).toEqual({ speak: "Bridges.", camera: { reset: true, duration: 0.6 } });
+    expect(cmds[3]).toEqual({ draw: ["a"] });
+    // Stays: nothing erases it.
+    expect(cmds.some((c) => c.erase !== undefined)).toBe(false);
+  });
+
+  test("the heading is quick: under a second of animation before the first drawing", () => {
+    const out = expandCards(cast([{ card: { title: "T" } }]));
+    const title = (out.elements ?? []).find((e) => e.id === "card_1_title")!;
+    const secs = (title.draw as { duration: number }).duration + 0.6 + 0.01;
+    expect(secs).toBeLessThan(1);
+  });
+
+  test("the heading sits above the band figures are fitted into, and a long title shrinks", () => {
+    expect(HEADING_Y - 36).toBeGreaterThan(655);
+    expect(HEADING_Y + 36 * 0.4).toBeLessThan(750);
+    expect(headingFont("A very long heading that goes on and on across the page")).toBeLessThan(headingFont("Short"));
   });
 
   test("two cards get distinct ids, and the expansion validates against the schema", () => {
