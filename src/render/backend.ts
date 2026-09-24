@@ -69,9 +69,12 @@ export interface BackendEffects {
    * time (render/emphasis.ts: three throbs, then a hold for the length of the
    * sentence, then a release) belongs to the Player, which samples it per
    * frame. box is the logical-units union box of the targets (circle effect).
+   * elapsedMs is the time since the emphasis began, for what is WRITTEN on
+   * rather than faded in (glow's band and marker); absent during the release,
+   * which only fades what has been written.
    * Nothing here ends the emphasis: endHighlight does.
    */
-  setHighlight(ids: string[], effect: HighlightEffect, level: number, box: BBox | null, color?: string): void;
+  setHighlight(ids: string[], effect: HighlightEffect, level: number, box: BBox | null, color?: string, elapsedMs?: number): void;
   /** Remove any leftover emphasis for these ids (abort/scrub safety). */
   endHighlight(ids: string[]): void;
   /**

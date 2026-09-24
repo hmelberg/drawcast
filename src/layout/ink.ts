@@ -111,3 +111,33 @@ export function softAlpha(color: string, ground = FIGURE_GROUND): number {
   softCache.set(key, a);
   return a;
 }
+
+/**
+ * How far apart two colours LOOK — the "redmean" weighted RGB distance, which
+ * tracks perception well enough to answer the one question emphasis asks:
+ * would this colour read as the same ink as that one? 0 = identical; the
+ * palette's own neighbours sit around 200–400. Non-hex input answers Infinity
+ * (never "the same"), so a named or rgba() colour is simply left alone.
+ */
+export function colorDistance(a: string, b: string): number {
+  const hex = /^#[0-9a-fA-F]{6}$/;
+  if (!hex.test(a) || !hex.test(b)) return Infinity;
+  const [r1, g1, b1] = [0, 1, 2].map((i) => channel(a, i));
+  const [r2, g2, b2] = [0, 1, 2].map((i) => channel(b, i));
+  const rm = (r1 + r2) / 2;
+  return Math.sqrt((2 + rm / 256) * (r1 - r2) ** 2 + 4 * (g1 - g2) ** 2 + (2 + (255 - rm) / 256) * (b1 - b2) ** 2);
+}
+
+/**
+ * Below this distance two inks read as one: a blue emphasis on a blue curve,
+ * the marker's yellow behind a code number that is itself that yellow
+ * (Hans, 2026-09-24: "same color problem"). Picked on the highlight bench:
+ * the highlight red and demand (44) are one red on paper, and so are
+ * shifted's orange and the marker yellow (134); red against supply's blue is
+ * well clear (>400).
+ */
+export const SAME_INK = 150;
+
+export function readsAsSame(a: string, b: string): boolean {
+  return colorDistance(a, b) < SAME_INK;
+}

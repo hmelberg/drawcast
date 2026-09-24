@@ -84,7 +84,7 @@ per-learner timeline, and CSV export. Specs:
 
 A spec is elements + a storyboard of commands. Narration: `speak` (with
 `blocking:false` to talk while gesturing). Drawing: `draw`, `pause`. Gesture
-verbs: `highlight` (pulse/circle/glow), `point` (laser pointer), `move`
+verbs: `highlight` (glow/circle/pulse), `point` (laser pointer), `move`
 (translate with easing/path), `show`/`hide`/`erase`, `clear`, `camera`
 (zoom/pan). The planner precomputes scene state at every step boundary, so
 step-back and seeking are exact.

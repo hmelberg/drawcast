@@ -82,6 +82,13 @@ export interface StrokeDrawable extends BaseDrawable {
   headSize?: number;
   /** Lets backends draw a true circle/rect instead of the sampled polyline. */
   shapeHint?: ShapeHint;
+  /**
+   * Draw as ONE exact round-capped path in both render styles — no rough.js
+   * wobble, no double stroke. A code pane's marker: a thick precise stroke
+   * with round caps IS a rounded box, revealed by the same pen-travel dash
+   * as any stroke, and it lands exactly on the monospace grid.
+   */
+  precise?: boolean;
 }
 
 export interface AreaDrawable extends BaseDrawable {
@@ -131,9 +138,26 @@ export interface TextDrawable extends BaseDrawable {
    * never the output pane, table cells, or marks.
    */
   runs?: { text: string; color?: string }[][];
+  /**
+   * false: no paper halo. The halo keeps a label legible where it grazes a
+   * stroke; a code pane's rows sit on their own field where nothing crosses
+   * them, and there the halo only punches a cream outline round every glyph
+   * into the marker drawn beneath (Hans, 2026-09-24: "letters have a white
+   * line around").
+   */
+  halo?: false;
 }
 
 export const LINE_HEIGHT = 1.25;
+
+/**
+ * Mono glyph advance as a fraction of font size — fixed-pitch, so exact
+ * enough to lay out without a browser measurer (deterministic in node). The
+ * renderer makes it TRUE: svg-backend letter-spaces mono text to this pitch
+ * whatever the machine's code font measures, so a code mark placed by column
+ * lands on its characters.
+ */
+export const CHAR_W = 0.62;
 
 export interface GroupDrawable extends BaseDrawable {
   kind: "group";

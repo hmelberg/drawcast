@@ -25,7 +25,7 @@ import type { ControlValue } from "../code/controls";
 import { cueStartMs } from "./cue";
 import { stripLangMarks } from "./lang-spans";
 import { SpeechManager, type SpeechLike } from "./speech";
-import { EMPHASIS_FIRST_PEAK_MS, EMPHASIS_HOLD_AT_MS, EMPHASIS_ONE_SWELL_MS, EMPHASIS_RELEASE_MS, emphasisLevel, releaseLevel, swellLevel } from "./emphasis";
+import { EMPHASIS_EASE_MS, EMPHASIS_FIRST_PEAK_MS, EMPHASIS_HOLD_AT_MS, EMPHASIS_ONE_SWELL_MS, EMPHASIS_RELEASE_MS, easeInLevel, emphasisLevel, releaseLevel, swellLevel } from "./emphasis";
 import { translateCaption, type SubtitleTrack } from "../spec/subtitles";
 import type { ToneLike } from "./tones";
 import { isIdentity, type Turn } from "./pose";
@@ -822,7 +822,7 @@ export class Player {
     if (!effects || ids.length === 0) return;
     const ac = new AbortController();
     try {
-      await this.progress(ms, ac.signal, (t) => effects.setHighlight(ids, "glow", swellLevel(t), null, color));
+      await this.progress(ms, ac.signal, (t) => effects.setHighlight(ids, "glow", swellLevel(t), null, color, t * ms));
     } finally {
       effects.endHighlight(ids);
     }
@@ -1431,18 +1431,20 @@ export class Player {
             return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
           }),
         );
-        const paint = (level: number) => effects.setHighlight(step.ids, step.effect, level, box, step.color);
+        const paint = (level: number, elapsedMs?: number) => effects.setHighlight(step.ids, step.effect, level, box, step.color, elapsedMs);
+        // pulse throbs three times before the hold; everything else eases in once.
+        const curve = step.effect === "pulse" ? "throb" : "ease";
         try {
           if (step.untilNarrationEnd && this.narrationVoice) {
-            // Emphasis-while-speaking: three throbs, then held at full for the
-            // rest of the sentence, released the moment the voice stops.
-            await this.emphasize(signal, paint, this.narrationVoice);
+            // Emphasis-while-speaking: in, then held at full for the rest of
+            // the sentence, released the moment the voice stops.
+            await this.emphasize(signal, paint, this.narrationVoice, 1, curve);
           } else {
             // An explicit duration is the whole effect, release included: the
             // throbs compress to fit when there is less room than they want.
             const swellMs = Math.max(1, step.seconds * 1000 - EMPHASIS_RELEASE_MS);
-            const rate = Math.max(1, EMPHASIS_HOLD_AT_MS / swellMs);
-            await this.emphasize(signal, paint, this.waitScaled(swellMs, signal), rate);
+            const rate = curve === "throb" ? Math.max(1, EMPHASIS_HOLD_AT_MS / swellMs) : 1;
+            await this.emphasize(signal, paint, this.waitScaled(swellMs, signal), rate, curve);
           }
         } finally {
           effects.endHighlight(step.ids);
@@ -1855,9 +1857,15 @@ export class Player {
     }
     const done = work();
     try {
-      await this.emphasize(signal, (level) => {
-        for (const g of live) effects.setHighlight(g.ids, "glow", level, null, g.color);
-      }, done);
+      await this.emphasize(
+        signal,
+        (level, elapsedMs) => {
+          for (const g of live) effects.setHighlight(g.ids, "glow", level, null, g.color, elapsedMs);
+        },
+        done,
+        1,
+        "ease",
+      );
     } finally {
       for (const g of live) effects.endHighlight(g.ids);
     }
@@ -1897,7 +1905,13 @@ export class Player {
    * an explicit duration; the floor at the first peak keeps even an instant
    * emphasis visible.
    */
-  private async emphasize(signal: AbortSignal, paint: (level: number) => void, until: Promise<unknown>, rate = 1): Promise<void> {
+  private async emphasize(
+    signal: AbortSignal,
+    paint: (level: number, elapsedMs?: number) => void,
+    until: Promise<unknown>,
+    rate = 1,
+    curve: "throb" | "ease" = "throb",
+  ): Promise<void> {
     let running = true;
     void until.then(
       () => (running = false),
@@ -1906,11 +1920,12 @@ export class Player {
     let level = 0;
     await this.frames(signal, (elapsed) => {
       const at = elapsed * rate;
-      level = emphasisLevel(at);
-      paint(level);
-      return running || at < EMPHASIS_FIRST_PEAK_MS;
+      level = curve === "throb" ? emphasisLevel(at) : easeInLevel(at);
+      paint(level, elapsed);
+      return running || at < (curve === "throb" ? EMPHASIS_FIRST_PEAK_MS : EMPHASIS_EASE_MS);
     });
     if (signal.aborted) return;
+    // No elapsed time in the release: a band or marker stays as written and only fades.
     await this.progress(EMPHASIS_RELEASE_MS, signal, (t) => paint(releaseLevel(level, t)));
   }
 

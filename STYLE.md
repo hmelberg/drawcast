@@ -123,6 +123,38 @@ more, or the group itself, restores them all; going back to one faded peer
 restores it and sets the current one back; the author's own fade wins. The
 three examples now carry the field instead of hand-written fades.
 
+### 2026-09-24 — Emphasis should suit what it lights, and never look like neon
+
+Hans: "I think the glow command produce ugly output … it looks a bit like a
+cheap neon sign with an ugly halo that lights up in an ugly way." And of the
+code marker: "It looks weak, partly because letters (I think) have a white
+line around." Compared on a bench of the engine's own ink (today's effects
+beside prototypes, one clock): "tint on thin curve is not very distinct",
+"retracing did not really show (same color problem)", "both swipe and
+rounded are good. use the one that is easiest and most accurate", "yellow
+band, go ahead" — and on the ~80 examples that use glow: revise the effect,
+keep the command.
+
+Distillation: emphasis is a highlighter, not a light source. A halo says
+"this thing is glowing", which is a property of the thing; a marker says
+"look here", which is the teacher's. What a highlighter looks like depends on
+what it lies on: a band under a line (a recoloured 2 px line is still 2 px —
+colour alone never carries on a thin stroke), a box behind a line of code,
+the ink itself turning red on a formula or a word. And the pen and what it
+marks must never share a colour — a blue emphasis on a blue curve, the marker
+yellow over a code number that is itself that yellow — so the default colour
+steps aside when it would read as the target's own ink.
+
+Status: shipped 2026-09-24. `glow` is the default effect and is resolved per
+leaf in svg-backend (`glowKindOf`): band under strokes, marker behind mono
+rows, tint on the rest; one 250 ms ease-in instead of three throbs, the pen
+written on over 700 ms. `pulse` keeps the throbbing recolour for when a flash
+is the point. Code panes lost the text halo on their rows; a `marks` marker is
+one precise round-capped stroke (a rounded box) at 60 %, placed on the CHAR_W
+grid that mono text is now letter-spaced to; characters under it that read as
+the marker's yellow go to ink (`inkUnderMark`). `readsAsSame` (layout/ink.ts)
+is the one test of "same colour", and an explicit `color` is never switched.
+
 ### 2026-09-19 — Emphasis should land and STAY, not breathe through the sentence
 
 Hans: "in drawcast, the we use the pulsating highlight (glow?) it often keep

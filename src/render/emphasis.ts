@@ -52,3 +52,25 @@ export function releaseLevel(from: number, t: number): number {
   const u = Math.min(Math.max(t, 0), 1);
   return from * (0.5 + 0.5 * Math.cos(Math.PI * u));
 }
+
+/**
+ * glow, circle — everything but pulse: ONE ease-in to full, then the hold.
+ * The three throbs read as a tube flickering on (Hans, 2026-09-24: "a cheap
+ * neon sign"); pulse keeps them for whoever asks for exactly that.
+ */
+export const EMPHASIS_EASE_MS = 250;
+
+/** Intensity 0–1 at `elapsedMs` for the eased effects: a cubic ease-out to full, then 1. */
+export function easeInLevel(elapsedMs: number): number {
+  const u = Math.min(Math.max(elapsedMs / EMPHASIS_EASE_MS, 0), 1);
+  return 1 - Math.pow(1 - u, 3);
+}
+
+/** How long a glow's band or marker takes to be written on, left to right. */
+export const EMPHASIS_WRITE_MS = 700;
+
+/** How much of a band or marker is written at `elapsedMs` — eased, and never more than all of it. */
+export function writtenAt(elapsedMs: number): number {
+  const u = Math.min(Math.max(elapsedMs / EMPHASIS_WRITE_MS, 0), 1);
+  return 1 - Math.pow(1 - u, 3);
+}

@@ -8,6 +8,10 @@ import type { RoughSVG } from "roughjs/bin/svg";
 import type { Options as RoughOptions } from "roughjs/bin/core";
 import { CANVAS, toSvgY } from "../layout/canvas";
 import {
+  CHAR_W,
+  COLORS,
+  INK,
+  LINE_HEIGHT,
   drawablesForId,
   leafDrawables,
   type AreaDrawable,
@@ -17,7 +21,8 @@ import {
   type Pt,
   type StrokeDrawable,
 } from "../layout/model";
-import { FIGURE_GROUND } from "../layout/ink";
+import { FIGURE_GROUND, readsAsSame } from "../layout/ink";
+import { writtenAt } from "./emphasis";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
 import type { LayoutResult } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
@@ -348,6 +353,25 @@ function appendRuns(parent: SVGTextElement | SVGTSpanElement, runs: { text: stri
   }
 }
 
+let monoAdvance: number | null | undefined;
+/** The code font's real advance per em, measured once; null where there is
+ *  no canvas to measure with (node tests) — the text is then left alone. */
+function monoAdvanceEm(): number | null {
+  if (monoAdvance !== undefined) return monoAdvance;
+  monoAdvance = null;
+  try {
+    const ctx = document.createElement("canvas").getContext?.("2d");
+    if (ctx) {
+      ctx.font = `100px ${MONO_FONT}`;
+      const w = ctx.measureText("0000000000").width;
+      if (w > 0) monoAdvance = w / 1000;
+    }
+  } catch {
+    monoAdvance = null;
+  }
+  return monoAdvance;
+}
+
 function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>): SVGGElement {
   const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
   g.dataset.leafId = d.id;
@@ -361,7 +385,8 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
     // (the label solver treats strokes as soft obstacles).
     // …but not on a Commodore screen: there the halo was a cream outline
     // around every glyph (Hans, 2026-09-06), and a screen has no paper.
-    if (d.font !== "c64") {
+    // …nor on a code pane's own field (TextDrawable.halo).
+    if (d.font !== "c64" && d.halo !== false) {
       t.setAttribute("paint-order", "stroke");
       t.setAttribute("stroke", FIGURE_GROUND);
       t.setAttribute("stroke-width", "5");
@@ -373,6 +398,14 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
     // meaning if SVG collapses the leading spaces of an indented line.
     // SVG2 renderers take this from CSS, not the legacy xml:space.
     if (d.font === "mono" || d.font === "c64") t.style.whiteSpace = "pre";
+    // Layout places everything in a code pane — its width, a mark's column —
+    // on a CHAR_W grid; the font's own advance is whatever the machine has
+    // (Menlo 0.602 em). Letter-spacing closes the gap, so a mark sits on its
+    // characters however far along the line they are.
+    if (d.font === "mono") {
+      const adv = monoAdvanceEm();
+      if (adv !== null && Math.abs(adv - CHAR_W) > 0.001) t.setAttribute("letter-spacing", ((CHAR_W - adv) * d.fontSize).toFixed(3));
+    }
     if (d.weight === "bold") t.setAttribute("font-weight", "bold");
     t.setAttribute("text-anchor", d.anchor === "middle" ? "middle" : d.anchor);
     t.setAttribute("dominant-baseline", "central");
@@ -412,7 +445,7 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
     g.appendChild(img);
     return g;
   }
-  if (!rc) {
+  if (!rc || (d.kind === "stroke" && d.precise)) {
     drawLeafClean(g, d);
     return g;
   }
@@ -990,8 +1023,14 @@ function nudgeTextsIntoCanvas(svg: SVGSVGElement): void {
 const HIGHLIGHT_COLOR = "#cf4632";
 const LASER_COLOR = "#d33827";
 
-/** Colored echo of an element's rendered nodes, used by pulse/glow. */
-function emphasisClone(g: SVGGElement, color: string, glow: boolean): SVGGElement {
+/**
+ * Coloured echo of an element's rendered nodes — pulse's whole effect, and
+ * glow's tint on glyphs, text and areas. No halo of its own: the old glow put
+ * a 4 px + 14 px drop-shadow here, which on a letter was wider than the
+ * letter (Hans, 2026-09-24: "a cheap neon sign"). An echoed text also drops
+ * its paper halo, which would otherwise paint over its neighbours.
+ */
+function emphasisClone(g: SVGGElement, color: string): SVGGElement {
   const c = g.cloneNode(true) as SVGGElement;
   c.removeAttribute("opacity");
   c.style.opacity = "0";
@@ -1013,16 +1052,83 @@ function emphasisClone(g: SVGGElement, color: string, glow: boolean): SVGGElemen
     const w = parseFloat(p.getAttribute("stroke-width") ?? "3") || 3;
     p.setAttribute("stroke-width", String(w + 1.5));
   }
-  for (const t of Array.from(c.querySelectorAll("text"))) t.setAttribute("fill", color);
+  for (const t of Array.from(c.querySelectorAll("text"))) {
+    t.setAttribute("fill", color);
+    t.removeAttribute("stroke");
+  }
   // A code line's coloured runs (layout/model.ts TextDrawable.runs) sit on
   // nested tspans with their OWN `fill` — which, unlike the ancestor
   // <text>'s, is not overwritten above and would otherwise win, leaving the
   // emphasis echo rainbow-tinted instead of a flat highlight colour.
   for (const s of Array.from(c.querySelectorAll("tspan"))) s.removeAttribute("fill");
-  // Two layers, not one: the tight halo is what makes a thin stroke read as
-  // lit at all, the wide one is what carries the emphasis across the frame.
-  if (glow) c.style.filter = `drop-shadow(0 0 4px ${color}) drop-shadow(0 0 14px ${color})`;
   return c;
+}
+
+/** The marker yellow — COLORS.region1, the same pen as a code pane's marks. */
+const MARKER_COLOR = COLORS.region1;
+/** Glow's band along a stroke: wide enough to read as a highlighter pass on a 2–3 px line. */
+const BAND_WIDTH = 20;
+/** Strength of a band or marker: the yellow at 60 %; a colour the caller chose
+ *  (the answer green, say) at 35 %, since a saturated band that strong drowns the ink. */
+const BAND_ALPHA = 0.6;
+const BAND_ALPHA_COLORED = 0.35;
+/** Where an emphasis colour reads as the target's own ink, the next of these that does not. */
+const EMPHASIS_FALLBACKS = [HIGHLIGHT_COLOR, COLORS.supply, COLORS.accent];
+
+/**
+ * The colour to emphasise `own` ink with: `want`, unless the two read as one
+ * ink (a red highlight on a red curve, blue on blue) — then the first
+ * fallback that is neither the target's colour nor plain ink. Only the
+ * DEFAULT colour switches; a colour the spec asked for is kept as asked.
+ */
+export function emphasisColorFor(want: string, own: string | undefined, explicit: boolean): string {
+  if (explicit || !own || !readsAsSame(want, own)) return want;
+  return EMPHASIS_FALLBACKS.find((c) => !readsAsSame(c, own) && !readsAsSame(c, INK)) ?? want;
+}
+
+/** What glow does to one leaf: a band under a line, a marker behind a code row, or the ink recoloured. */
+export function glowKindOf(leaf: Exclude<Drawable, { kind: "group" }>): "band" | "marker" | "tint" {
+  if (leaf.kind === "text" && leaf.font === "mono") return "marker";
+  if (leaf.kind === "stroke" && leaf.pts.length >= 2 && !leaf.precise) return "band";
+  return "tint";
+}
+
+/** A thick round-capped path — band and marker alike — under the ink, posed like its leaf. */
+function penPath(d: string, color: string, width: number, alpha: number, pose: string | null): SVGPathElement {
+  const p = document.createElementNS(SVG_NS, "path") as SVGPathElement;
+  p.setAttribute("d", d);
+  p.setAttribute("fill", "none");
+  p.setAttribute("stroke", color);
+  p.setAttribute("stroke-width", String(width));
+  p.setAttribute("stroke-opacity", String(alpha));
+  p.setAttribute("stroke-linecap", "round");
+  p.setAttribute("stroke-linejoin", "round");
+  p.style.pointerEvents = "none";
+  if (pose) p.setAttribute("transform", pose);
+  return p;
+}
+
+/**
+ * The marker behind a code row: one round-capped band per drawn row, from its
+ * first non-blank character to its last, on the same CHAR_W grid the row's
+ * letters are spaced to. Anchor-start rows only — a code pane's are.
+ */
+function markerRowsPath(leaf: Extract<Drawable, { kind: "text" }>): { d: string; width: number } | null {
+  const rows = leaf.lines ?? [leaf.text];
+  const fs = leaf.fontSize;
+  const width = fs * 1.1;
+  const cap = width / 2;
+  const segs: string[] = [];
+  rows.forEach((row, i) => {
+    const first = row.search(/\S/);
+    if (first < 0) return;
+    const last = row.trimEnd().length;
+    const y = toSvgY(leaf.pos[1] + ((rows.length - 1) / 2 - i) * LINE_HEIGHT * fs);
+    const x0 = leaf.pos[0] + first * CHAR_W * fs - 0.25 * fs + cap;
+    const x1 = Math.max(x0 + 0.5, leaf.pos[0] + last * CHAR_W * fs + 0.25 * fs - cap);
+    segs.push(`M${x0.toFixed(1)} ${y.toFixed(1)} L${x1.toFixed(1)} ${y.toFixed(1)}`);
+  });
+  return segs.length > 0 ? { d: segs.join(" "), width } : null;
 }
 
 function ellipseRingPath(box: BBox, color: string, rc: RoughSVG | null): SVGGElement {
@@ -1046,15 +1152,21 @@ function ellipseRingPath(box: BBox, color: string, rc: RoughSVG | null): SVGGEle
 }
 
 interface HighlightNodes {
-  nodes: SVGGElement[];
+  /** Everything that follows the level's opacity (echoes, the ring, bands, markers). */
+  nodes: (SVGGElement | SVGPathElement)[];
   ringPaths: { el: SVGPathElement; len: number }[];
   /** How much of the ring has been written — the highest level it has seen. */
   drawn: number;
+  /** glow's bands and markers, written on left to right. */
+  penPaths: { el: SVGPathElement; len: number }[];
+  /** How much of them has been written — never unwrites, like the ring. */
+  written: number;
 }
 
 function makeEffects(
   svg: SVGSVGElement,
   overlay: SVGGElement,
+  underlay: SVGGElement,
   leafNodes: Map<string, { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }> }[]>,
   rc: RoughSVG | null,
 ): BackendEffects {
@@ -1083,16 +1195,15 @@ function makeEffects(
      * the player release exactly when the voice stops rather than at the end
      * of whatever cycle it happened to be in.
      */
-    setHighlight(ids: string[], effect: HighlightEffect, level: number, box: BBox | null, color?: string): void {
-      const col = color ?? HIGHLIGHT_COLOR;
+    setHighlight(ids: string[], effect: HighlightEffect, level: number, box: BBox | null, color?: string, elapsedMs?: number): void {
       const key = keyOf(ids);
-      // A circle without a box degrades to a pulse.
-      const kind: HighlightEffect = effect === "circle" && !box ? "pulse" : effect;
+      // A circle without a box degrades to a glow.
+      const kind: HighlightEffect = effect === "circle" && !box ? "glow" : effect;
       let st = active.get(key);
       if (!st) {
-        st = { nodes: [], ringPaths: [], drawn: 0 };
+        st = { nodes: [], ringPaths: [], drawn: 0, penPaths: [], written: 0 };
         if (kind === "circle") {
-          const ring = ellipseRingPath(box!, col, rc);
+          const ring = ellipseRingPath(box!, color ?? HIGHLIGHT_COLOR, rc);
           overlay.appendChild(ring);
           st.nodes.push(ring);
           for (const p of Array.from(ring.querySelectorAll("path"))) {
@@ -1103,10 +1214,50 @@ function makeEffects(
           }
         } else {
           for (const id of ids) {
-            for (const { g } of leafNodes.get(id) ?? []) {
-              const clone = emphasisClone(g, col, kind === "glow");
-              overlay.appendChild(clone);
-              st.nodes.push(clone);
+            for (const { g, leaf } of leafNodes.get(id) ?? []) {
+              const own = leaf.kind === "image" ? undefined : leaf.style.color;
+              const glow = kind === "glow" ? glowKindOf(leaf) : "tint";
+              if (glow === "tint") {
+                const clone = emphasisClone(g, emphasisColorFor(color ?? HIGHLIGHT_COLOR, own, color !== undefined));
+                overlay.appendChild(clone);
+                st.nodes.push(clone);
+                continue;
+              }
+              // band / marker: a highlighter pen UNDER the ink (the underlay
+              // sits between the area layer and the strokes), so the line or
+              // the letters stay exactly as they were, only lit from beneath.
+              const pen = color ?? MARKER_COLOR;
+              const alpha = color === undefined ? BAND_ALPHA : BAND_ALPHA_COLORED;
+              const pose = g.getAttribute("transform");
+              let path: SVGPathElement | null = null;
+              if (glow === "band" && leaf.kind === "stroke") {
+                path = penPath(pathFromPts(leaf.pts, leaf.closed), emphasisColorFor(pen, own, color !== undefined), BAND_WIDTH, alpha, pose);
+              } else if (glow === "marker" && leaf.kind === "text") {
+                const m = markerRowsPath(leaf);
+                if (m) path = penPath(m.d, pen, m.width, alpha, pose);
+                // A code number is the marker's own yellow: re-ink whatever
+                // reads as the pen, on an echo over the row, so it does not
+                // vanish into the box.
+                const sameAsPen = Array.from(g.querySelectorAll("tspan")).filter((t) => readsAsSame(t.getAttribute("fill") ?? "", pen));
+                if (sameAsPen.length > 0) {
+                  const echo = g.cloneNode(true) as SVGGElement;
+                  echo.removeAttribute("opacity");
+                  echo.style.opacity = "0";
+                  echo.style.pointerEvents = "none";
+                  for (const t of Array.from(echo.querySelectorAll("tspan"))) {
+                    if (readsAsSame(t.getAttribute("fill") ?? "", pen)) t.setAttribute("fill", INK);
+                  }
+                  overlay.appendChild(echo);
+                  st.nodes.push(echo);
+                }
+              }
+              if (!path) continue;
+              underlay.appendChild(path);
+              st.nodes.push(path);
+              const len = path.getTotalLength();
+              path.style.strokeDasharray = `${len}`;
+              path.style.strokeDashoffset = `${len}`;
+              st.penPaths.push({ el: path, len });
             }
           }
         }
@@ -1118,6 +1269,12 @@ function makeEffects(
         // a pen stroke does not unwrite itself when the throb dips.
         st.drawn = Math.max(st.drawn, a);
         for (const { el, len } of st.ringPaths) el.style.strokeDashoffset = `${len * (1 - st.drawn)}`;
+      }
+      if (st.penPaths.length > 0) {
+        // Written by the clock when there is one, by the level otherwise (a
+        // widget's one-shot swell); either way it never unwrites.
+        st.written = Math.max(st.written, elapsedMs !== undefined ? writtenAt(elapsedMs) : a);
+        for (const { el, len } of st.penPaths) el.style.strokeDashoffset = `${len * (1 - st.written)}`;
       }
       st.nodes.forEach((n) => (n.style.opacity = String(a)));
     },
@@ -1269,7 +1426,12 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
         }
         return id;
       };
-      svg.append(defs, layers[0], layers[1], layers[2], layers[3], overlay);
+      // glow's highlighter pens (a band along a line, the marker behind a
+      // code row) go UNDER the ink but over the area layer — a region, a
+      // code pane's own field — so the ink they light stays exactly as drawn.
+      const underlay = document.createElementNS(SVG_NS, "g") as SVGGElement;
+      underlay.setAttribute("class", "cs-underlay");
+      svg.append(defs, layers[0], underlay, layers[1], layers[2], layers[3], overlay);
 
       // Paint order: z layer, then IR order within the layer. Extracted so
       // swapGeometry/remount can rebuild nodes for a new layout without
@@ -1364,7 +1526,7 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
 
       return {
         elements,
-        effects: makeEffects(svg, overlay, leafNodes, rc),
+        effects: makeEffects(svg, overlay, underlay, leafNodes, rc),
         destroy: () => svg.remove(),
         // A tween frame runs every rAF tick, so it rebuilds nodes and attaches
         // NO handles — no getTotalLength, no prepare/setProgress. That is only

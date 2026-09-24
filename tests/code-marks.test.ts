@@ -5,7 +5,7 @@
 
 import { describe, expect, test } from "vitest";
 import { layoutSpec } from "../src/layout/layout";
-import { CHAR_W, findMarkRow, normalizeMarks } from "../src/layout/code";
+import { CHAR_W, findMarkRow, inkUnderMark, normalizeMarks } from "../src/layout/code";
 import { heuristicMeasure } from "../src/layout/measure";
 import { flattenDrawables, COLORS, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
 import { chartPrelude, defaultChartStyle } from "../src/code/chart-style";
@@ -41,20 +41,40 @@ describe("what a mark asks for", () => {
 });
 
 describe("where the pen goes", () => {
-  test("a mark covers exactly its characters, on its own line", () => {
+  test("a mark is a rounded box over exactly its characters, on its own line", () => {
     const m = strokeOf({ marks: ["np.random.default_rng(7)"] }, "sim_mark_1");
     const line2 = flattenDrawables(lay({ marks: ["np.random.default_rng(7)"] }).drawables).find((d) => d.id === "sim_line_2") as TextDrawable;
     const fontSize = 17;
-    // Starts at the phrase's column (6: "rng = "), one 0.15 em overshoot each side.
-    expect(m.pts[0][0]).toBeCloseTo(line2.pos[0] + 6 * CHAR_W * fontSize - fontSize * 0.15, 5);
-    expect(m.pts[1][0] - m.pts[0][0]).toBeCloseTo(24 * CHAR_W * fontSize + 2 * fontSize * 0.15, 5);
+    const band = fontSize * 1.1;
+    // The box's OUTER edges — the stroke's ends plus its round caps — sit a
+    // quarter em outside the phrase's characters (column 6: "rng = ").
+    expect(m.pts[0][0] - band / 2).toBeCloseTo(line2.pos[0] + 6 * CHAR_W * fontSize - fontSize * 0.25, 5);
+    expect(m.pts[1][0] + band / 2).toBeCloseTo(line2.pos[0] + 30 * CHAR_W * fontSize + fontSize * 0.25, 5);
     // Centred on the line's own row (the rows are drawn with a central
-    // baseline, so the text's y IS the glyph centre), a band the height of
-    // the glyphs.
+    // baseline, so the text's y IS the glyph centre), most of the row tall.
     expect(m.pts[0][1]).toBeCloseTo(line2.pos[1], 5);
-    expect(m.style.strokeWidth).toBeCloseTo(fontSize * 0.95, 5);
+    expect(m.style.strokeWidth).toBeCloseTo(band, 5);
     expect(m.style.color).toBe(COLORS.region1);
-    expect(m.style.opacity).toBeCloseTo(0.42, 5);
+    expect(m.style.opacity).toBeCloseTo(0.6, 5);
+    // Exact in both render styles: round caps are what make the stroke a box.
+    expect(m.precise).toBe(true);
+  });
+
+  test("a code row carries no paper halo — nothing crosses it, and the halo cut holes in the marker", () => {
+    const line2 = flattenDrawables(lay({}).drawables).find((d) => d.id === "sim_line_2") as TextDrawable;
+    expect(line2.halo).toBe(false);
+  });
+
+  test("a number under the marker goes to ink — it is coloured the marker's own yellow", () => {
+    const l = lay({ marks: ["default_rng(7)"] });
+    const line2 = flattenDrawables(l.drawables).find((d) => d.id === "sim_line_2") as TextDrawable;
+    const runs = line2.runs![0];
+    expect(runs.map((r) => r.text).join("")).toBe("rng = np.random.default_rng(7)");
+    const seven = runs.find((r) => r.text === "7")!;
+    expect(seven.color).toBeUndefined();
+    // Unmarked, the same number keeps its colour.
+    const plain = (flattenDrawables(lay({}).drawables).find((d) => d.id === "sim_line_2") as TextDrawable).runs![0];
+    expect(plain.find((r) => r.text === "7")!.color).toBe(COLORS.region1);
   });
 
   test("strike and underline are the same span, drawn as lines", () => {
@@ -215,5 +235,21 @@ describe("a mark under its own line is not an overlap", () => {
   test("the label-on-stroke lint stands aside for `<id>_mark_k` under `<id>_line_n`", () => {
     const l = lay({ marks: ["rng = np.random.default_rng(7)"] });
     expect(l.issues.filter((i) => i.message.includes("sits on stroke") && i.message.includes("_mark_"))).toEqual([]);
+  });
+});
+
+describe("inkUnderMark", () => {
+  test("splits a run at the mark's edges and re-inks only what reads as the marker", () => {
+    const runs = [{ text: "x = " }, { text: "123", color: COLORS.region1 }, { text: " + " }, { text: "45", color: COLORS.region1 }, { text: "abc", color: COLORS.supply }];
+    const out = inkUnderMark(runs, 5, 9, COLORS.region1);
+    expect(out.map((r) => r.text).join("")).toBe("x = 123 + 45abc");
+    expect(out).toEqual([
+      { text: "x = " },
+      { text: "1", color: COLORS.region1 },
+      { text: "23" },
+      { text: " + " },
+      { text: "45" },
+      { text: "abc", color: COLORS.supply },
+    ]);
   });
 });

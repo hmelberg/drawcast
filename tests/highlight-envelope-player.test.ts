@@ -1,5 +1,5 @@
 // The player is what gives a narrated highlight its shape in TIME: it samples
-// render/emphasis.ts every frame, so the element throbs three times, then
+// render/emphasis.ts every frame, so a glow eases in once and a pulse throbs three times, then
 // HOLDS at full for the rest of the sentence, then releases when the voice
 // stops. The old loop repeated a 1.5 s swell instead — five of them on a
 // median line — and could only notice the voice at a cycle boundary, so it
@@ -9,7 +9,7 @@ import { describe, expect, test } from "vitest";
 import { planCommands } from "../src/render/plan";
 import { Player } from "../src/render/player";
 import { SpeechManager } from "../src/render/speech";
-import { EMPHASIS_HOLD_AT_MS, EMPHASIS_RELEASE_MS, EMPHASIS_SWELL_MS } from "../src/render/emphasis";
+import { EMPHASIS_EASE_MS, EMPHASIS_HOLD_AT_MS, EMPHASIS_RELEASE_MS, EMPHASIS_SWELL_MS } from "../src/render/emphasis";
 import type { Command } from "../src/spec/types";
 
 globalThis.requestAnimationFrame ??= ((cb: FrameRequestCallback) =>
@@ -49,14 +49,35 @@ const recorder = () => {
 const peaks = (levels: number[]) => levels.filter((v, i) => i > 0 && i < levels.length - 1 && v > levels[i - 1] && v >= levels[i + 1]);
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-function narratedGlow(rec: ReturnType<typeof recorder>, speech: StubSpeech) {
-  const plan = planCommands([{ draw: ["t"] }, { highlight: { target: ["t"], effect: "glow" }, speak: "about this curve" }] as Command[], ["t"], {
+function narrated(rec: ReturnType<typeof recorder>, speech: StubSpeech, effect?: "pulse" | "glow") {
+  const plan = planCommands([{ draw: ["t"] }, { highlight: { target: ["t"], ...(effect ? { effect } : {}) }, speak: "about this curve" }] as Command[], ["t"], {
     bboxOf: () => ({ x: 0, y: 0, w: 10, h: 10 }),
   });
   return new Player(plan, new Map(), speech, null, { mode: "narrated", breath: false, effects: rec.effects as never });
 }
+/** pulse is the effect that keeps the three throbs (glow eases in once — below). */
+const narratedGlow = (rec: ReturnType<typeof recorder>, speech: StubSpeech) => narrated(rec, speech, "pulse");
 
-describe("a narrated highlight throbs three times, then holds", () => {
+describe("glow — the default — eases in once and holds, no throbs", () => {
+  for (const effect of ["glow", undefined] as const) {
+    test(`${effect ?? "no effect"}: rises straight to full within the ease and stays there`, async () => {
+      const rec = recorder();
+      const speech = new StubSpeech();
+      const player = narrated(rec, speech, effect);
+      const done = player.play();
+      await wait(EMPHASIS_EASE_MS + 400);
+      // Never dips: every frame at least the one before (a throb would fall back).
+      for (let i = 1; i < rec.levels.length; i++) expect(rec.levels[i]).toBeGreaterThanOrEqual(rec.levels[i - 1]);
+      expect(rec.levels[rec.levels.length - 1]).toBe(1);
+      speech.finish();
+      await done;
+      expect(rec.levels[rec.levels.length - 1]).toBeCloseTo(0, 3);
+      expect(rec.ended).toContainEqual(["t"]);
+    });
+  }
+});
+
+describe("a narrated pulse throbs three times, then holds", () => {
   test("it reaches and stays at full strength while the voice runs", async () => {
     const rec = recorder();
     const speech = new StubSpeech();

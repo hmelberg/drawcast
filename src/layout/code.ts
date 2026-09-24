@@ -29,7 +29,7 @@ import { tokenColor, tokenizeLine } from "../code/highlight";
 import { controlsPane, controlsPaneHeight } from "./code-controls-pane";
 import { c64ScreenDrawables, isC64Screen } from "./c64-screen";
 import { decodeCodeResult, type CodeTable } from "../code/envelope";
-import { FIGURE_GROUND } from "./ink";
+import { FIGURE_GROUND, readsAsSame } from "./ink";
 import { CANVAS } from "./canvas";
 import {
   COLORS,
@@ -45,11 +45,11 @@ import type { BBox } from "./geometry";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
 import type { SpecElement } from "../spec/types";
 
-/** Mono glyph advance as a fraction of font size — fixed-pitch, so exact
- *  enough to lay out without a browser measurer (deterministic in node). */
-/** Monospace advance as a fraction of the font size — the wrapper measures
- *  with it, and so does the figure split when it sizes a panel to its script. */
-export const CHAR_W = 0.62;
+/** Monospace advance as a fraction of the font size (defined in model.ts,
+ *  where the renderer reads it too) — the wrapper measures with it, and so
+ *  does the figure split when it sizes a panel to its script. */
+export { CHAR_W } from "./model";
+import { CHAR_W } from "./model";
 /** Vertical advance per wrapped row (matches drawLeaf's tspan spacing). */
 const ROW_H = 1.25;
 /** Layout's own cap on drawn table rows (the harvest already caps at 30). */
@@ -63,6 +63,36 @@ export const LINE_PITCH = ROW_H + LINE_GAP;
 export const PAD = 16;
 /** Typing speed of the `type` draw mode, characters per second. */
 export const TYPE_CPS = 28;
+
+/** The marker box's height as a fraction of the font size — most of the
+ *  1.25 em row pitch, so marks on neighbouring rows never touch. */
+const MARK_BAND = 1.1;
+
+/**
+ * A row's coloured runs with the characters [col, col + len) re-inked: any
+ * run there whose colour reads as `under` (the marker's) loses its colour and
+ * falls back to the row's own ink. Runs are split at the edges; the texts
+ * still concatenate to the row exactly (the TextDrawable.runs invariant).
+ */
+export function inkUnderMark(runs: { text: string; color?: string }[], col: number, len: number, under: string): { text: string; color?: string }[] {
+  const out: { text: string; color?: string }[] = [];
+  let at = 0;
+  for (const r of runs) {
+    const a = at;
+    const b = at + r.text.length;
+    at = b;
+    if (!r.color || !readsAsSame(r.color, under) || b <= col || a >= col + len) {
+      out.push(r);
+      continue;
+    }
+    const s = Math.max(col, a) - a;
+    const e = Math.min(col + len, b) - a;
+    if (s > 0) out.push({ text: r.text.slice(0, s), color: r.color });
+    out.push({ text: r.text.slice(s, e) });
+    if (e < r.text.length) out.push({ text: r.text.slice(e), color: r.color });
+  }
+  return out;
+}
 
 /** One highlighter pass over the code: the drawn text to cover, and how. */
 export interface CodeMark {
@@ -755,6 +785,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
         fontSize,
         anchor: "start",
         font: "mono",
+        halo: false,
         z: Z_TEXT,
         style: resolveStyle(el.style, {}),
         // Typed lines take as long as their characters at 28 per second (a
@@ -772,9 +803,14 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
     // scrubs, erases and exports like every other stroke. Geometry is exact
     // because the pane is monospace: column × CHAR_W is the x, and the row's
     // own centre is the y (tspans sit ROW_H apart around the block's centre,
-    // svg-backend.ts). A hair of padding each side absorbs the difference
-    // between CHAR_W and the real font's advance — and a marker overshoots
-    // anyway, which is what makes it read as a hand.
+    // svg-backend.ts), and svg-backend letter-spaces mono text to CHAR_W so
+    // the column arithmetic holds on any machine's code font.
+    //
+    // The marker is a rounded box: ONE precise stroke as tall as the row,
+    // round caps for the rounded ends, revealed by the pen-travel dash. It
+    // used to be a rough 0.95 em swipe at 42 % that the letters' paper halo
+    // cut apart (Hans, 2026-09-24: "looks weak"); the rows lost their halo
+    // and the box went to 60 %.
     const markIds: string[] = [];
     normalizeMarks(el.marks).forEach((m, k) => {
       const id = `${el.id}_mark_${k + 1}`;
@@ -800,8 +836,25 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       const rows = block.rows.length;
       const rowY = codeTop - block.center + ((rows - 1) / 2 - hit.row) * ROW_H * fontSize;
       const pad = fontSize * 0.15;
-      const x0m = codeX + PAD + hit.col * CHAR_W * fontSize - pad;
-      const x1m = x0m + m.text.length * CHAR_W * fontSize + 2 * pad;
+      let x0m = codeX + PAD + hit.col * CHAR_W * fontSize - pad;
+      let x1m = x0m + m.text.length * CHAR_W * fontSize + 2 * pad;
+      if (m.kind === "mark") {
+        // The box's outer edges sit a quarter em outside the characters; the
+        // round caps (radius = half the band) supply that much of it, so the
+        // stroke's own ends are pulled in by the cap.
+        const cap = (fontSize * MARK_BAND) / 2;
+        const left = codeX + PAD + hit.col * CHAR_W * fontSize - fontSize * 0.25 + cap;
+        const right = codeX + PAD + (hit.col + m.text.length) * CHAR_W * fontSize + fontSize * 0.25 - cap;
+        x0m = left;
+        x1m = Math.max(right, left + 0.5);
+        // A code number is coloured the marker's own yellow: under the box
+        // it would vanish. Whatever reads as the marker's ink goes to plain
+        // ink for the characters the box covers.
+        const line = out.find((d) => d.id === `${el.id}_line_${hit.block + 1}`);
+        if (line?.kind === "text" && line.runs?.[hit.row]) {
+          line.runs[hit.row] = inkUnderMark(line.runs[hit.row], hit.col, m.text.length, COLORS.region1);
+        }
+      }
       // rowY is the row's CENTRE, not its baseline: the rows are drawn with
       // dominant-baseline "central" around the block's centre (svg-backend),
       // so the glyph body straddles rowY. The band and the strike sit on it.
@@ -814,7 +867,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
           ? { y: rowY - fontSize * 0.45, width: 2.5, color: COLORS.demand, opacity: 1 }
           : m.kind === "strike"
             ? { y: rowY, width: 2.5, color: COLORS.regionLoss, opacity: 1 }
-            : { y: rowY, width: fontSize * 0.95, color: COLORS.region1, opacity: 0.42 };
+            : { y: rowY, width: fontSize * MARK_BAND, color: COLORS.region1, opacity: 0.6 };
       ctx.anchors[id] = [(x0m + x1m) / 2, geom.y];
       out.push({
         id,
@@ -825,6 +878,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
         ],
         z: m.kind === "mark" ? Z_AREA : Z_STROKE, // a marker goes UNDER the letters
         style: resolveStyle(el.style, { color: geom.color, strokeWidth: geom.width, opacity: geom.opacity, roughness: 0.6 }),
+        ...(m.kind === "mark" ? { precise: true } : {}),
         // The reveal IS the pen travelling left to right (the source element's
         // highlighter, same dash-offset trick).
         drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: Math.max(320, Math.min(1500, (x1m - x0m) * 7)) }),
@@ -891,6 +945,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
           fontSize,
           anchor: "start",
           font: outFont, // the typewriter; no `font` at all would be the sketch hand (layout/model.ts:111)
+          halo: false,
           z: Z_TEXT,
           style: resolveStyle(el.style, outRows[i]?.color ? { color: outRows[i].color } : {}),
           drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
