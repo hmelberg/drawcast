@@ -43,6 +43,14 @@ import { withOverrides } from "../render/params";
 const QUIZ_LEN = ACTIVITY_QUESTIONS;
 const RIGHT_LINGER_MS = 700;
 const WRONG_LINGER_MS = 1500;
+// The ear drills need air between an answer and the next question: at 700 ms
+// the confirming note and the next question's note ran together (Hans: "the
+// first time works, but … play old and new sound too close"). The answer
+// lingers longer, the staff clears, and only then does the new note sound.
+const EAR_RIGHT_LINGER_MS = 1300;
+const EAR_WRONG_LINGER_MS = 2100;
+/** After the staff clears, before the next ear question sounds. */
+const EAR_QUESTION_DELAY_MS = 500;
 
 /** One question: what to ask, what counts, and what a miss should reveal. */
 interface Question {
@@ -155,6 +163,8 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
   let score = 0;
   let waiting = false; // the linger between questions ignores clicks
   let timer = 0;
+  /** The ear drills' delayed question sound (EAR_QUESTION_DELAY_MS). */
+  let soundTimer = 0;
   let dead = false;
 
   /** The last finished round's score — what an explore beat that started the drill keeps. */
@@ -163,6 +173,7 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
     if (dead) return;
     dead = true;
     window.clearTimeout(timer);
+    window.clearTimeout(soundTimer);
     hd.timeline.callbacks.onState = prevOnState;
     hd.timeline.callbacks.onStep = prevOnStep;
     showNames();
@@ -249,7 +260,9 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
 
   const soundNote = (note: string): void => {
     try {
-      hd.timeline.tones?.play([{ notes: `${note}:q` }], 160);
+      // An ear question is a note to LISTEN to: a half note on the piano,
+      // not the short plain tone a click confirmation uses.
+      hd.timeline.tones?.play([{ notes: ear ? `${note}:h` : `${note}:q`, instrument: ear ? "piano" : "tone" }], ear ? 100 : 160);
     } catch {
       /* silent */
     }
@@ -263,7 +276,22 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
     const icon = activity.label.split(" ")[0];
     hint.textContent = `${icon} ${questions[i].prompt} · ${i + 1}/${questions.length}`;
     const q = questions[i];
-    if (q.sound) soundNote(q.sound);
+    // The first question sounds at once; later ones after the staff has
+    // cleared, so the new note is never heard as the last answer's echo.
+    if (q.sound) {
+      if (i === 0) soundNote(q.sound);
+      else {
+        // No answer before there is something to answer: clicks wait for the note.
+        waiting = true;
+        const asked = i;
+        window.clearTimeout(soundTimer);
+        soundTimer = window.setTimeout(() => {
+          if (dead || i !== asked) return;
+          soundNote(q.sound!);
+          waiting = false;
+        }, EAR_QUESTION_DELAY_MS);
+      }
+    }
     // Name the note: the note is SHOWN on the staff, and the answer is a letter.
     if (q.choices) {
       // The note is WRITTEN on the staff, a real notehead from the music font.
@@ -400,7 +428,7 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
         if (i >= questions.length) showFinal();
         else ask();
       },
-      right ? RIGHT_LINGER_MS : WRONG_LINGER_MS,
+      ear ? (right ? EAR_RIGHT_LINGER_MS : EAR_WRONG_LINGER_MS) : right ? RIGHT_LINGER_MS : WRONG_LINGER_MS,
     );
   }
 

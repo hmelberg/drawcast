@@ -131,3 +131,20 @@ describe("a staff answer is written on the staff (pins)", () => {
     expect(reveal).toMatch(/legerLineExtension/);
   });
 });
+
+describe("the ear drills leave air between an answer and the next question (pins)", () => {
+  // Hans: "the first time works, but … play old and new sound too close".
+  // Measured after the fix: the next question's note sounds ~1 s after the
+  // answer's note ends (wrong) and ~0.6 s after a confirmation (right).
+  const quiz = readFileSync(new URL("../src/ui/quiz.ts", import.meta.url), "utf8");
+  test("longer lingers, a delay before the new note, and no answer before it sounds", () => {
+    expect(quiz).toMatch(/const EAR_RIGHT_LINGER_MS = 1300;/);
+    expect(quiz).toMatch(/const EAR_WRONG_LINGER_MS = 2100;/);
+    expect(quiz).toMatch(/const EAR_QUESTION_DELAY_MS = 500;/);
+    expect(quiz).toMatch(/waiting = true;\s*const asked = i;/);
+    expect(quiz).toMatch(/window\.clearTimeout\(soundTimer\);/);
+  });
+  test("an ear question is a half note on the piano", () => {
+    expect(quiz).toMatch(/notes: ear \? `\$\{note\}:h` : `\$\{note\}:q`, instrument: ear \? "piano" : "tone"/);
+  });
+});
