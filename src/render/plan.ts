@@ -80,6 +80,8 @@ export type PlanStep = (
       effect: HighlightEffect;
       seconds: number;
       color?: string;
+      /** Only this piece of the targets (layout/highlight-part.ts). */
+      part?: string;
       /** Narrated with no explicit duration: pulse in cycles until the voice ends. */
       untilNarrationEnd?: boolean;
     }
@@ -1098,6 +1100,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         effect: cmd.highlight.effect ?? "glow",
         seconds: cmd.highlight.duration ?? 1.5,
         color: cmd.highlight.color,
+        ...(cmd.highlight.part ? { part: cmd.highlight.part } : {}),
         ...(cmd.highlight.duration === undefined && currentNarration !== undefined ? { untilNarrationEnd: true } : {}),
       });
     } else if (cmd.focus !== undefined) {

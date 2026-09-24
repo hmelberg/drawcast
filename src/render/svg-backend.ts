@@ -23,6 +23,7 @@ import {
 } from "../layout/model";
 import { FIGURE_GROUND, readsAsSame } from "../layout/ink";
 import { writtenAt } from "./emphasis";
+import { findPart, rowOffset, textRows, type PartHit } from "../layout/highlight-part";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
 import type { LayoutResult } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
@@ -1113,16 +1114,17 @@ function penPath(d: string, color: string, width: number, alpha: number, pose: s
  * first non-blank character to its last, on the same CHAR_W grid the row's
  * letters are spaced to. Anchor-start rows only — a code pane's are.
  */
-function markerRowsPath(leaf: Extract<Drawable, { kind: "text" }>): { d: string; width: number } | null {
+function markerRowsPath(leaf: Extract<Drawable, { kind: "text" }>, piece?: { row: number; col: number; len: number }): { d: string; width: number } | null {
   const rows = leaf.lines ?? [leaf.text];
   const fs = leaf.fontSize;
   const width = fs * 1.1;
   const cap = width / 2;
   const segs: string[] = [];
   rows.forEach((row, i) => {
-    const first = row.search(/\S/);
+    if (piece && piece.row !== i) return;
+    const first = piece ? piece.col : row.search(/\S/);
     if (first < 0) return;
-    const last = row.trimEnd().length;
+    const last = piece ? piece.col + piece.len : row.trimEnd().length;
     const y = toSvgY(leaf.pos[1] + ((rows.length - 1) / 2 - i) * LINE_HEIGHT * fs);
     const x0 = leaf.pos[0] + first * CHAR_W * fs - 0.25 * fs + cap;
     const x1 = Math.max(x0 + 0.5, leaf.pos[0] + last * CHAR_W * fs + 0.25 * fs - cap);
@@ -1131,15 +1133,37 @@ function markerRowsPath(leaf: Extract<Drawable, { kind: "text" }>): { d: string;
   return segs.length > 0 ? { d: segs.join(" "), width } : null;
 }
 
-function ellipseRingPath(box: BBox, color: string, rc: RoughSVG | null): SVGGElement {
+/** A box in SVG coordinates (y down, y = the top edge) — what ring and underline are drawn around. */
+interface SvgBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const svgBoxOf = (b: BBox): SvgBox => ({ x: b.x, y: toSvgY(b.y + b.h), w: b.w, h: b.h });
+
+function unionSvgBoxes(boxes: SvgBox[]): SvgBox | null {
+  if (boxes.length === 0) return null;
+  const x0 = Math.min(...boxes.map((b) => b.x));
+  const y0 = Math.min(...boxes.map((b) => b.y));
+  const x1 = Math.max(...boxes.map((b) => b.x + b.w));
+  const y1 = Math.max(...boxes.map((b) => b.y + b.h));
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
+/** The hand-drawn ring round a box. A whole element gets room (22/18); a
+ *  part sits among its neighbours and gets a tight ring (12/9) that does not
+ *  swallow them. */
+function ellipseRingPath(box: SvgBox, color: string, rc: RoughSVG | null, tight = false): SVGGElement {
   const cx = box.x + box.w / 2;
-  const cy = toSvgY(box.y + box.h / 2);
-  const rx = box.w / 2 + 22;
-  const ry = box.h / 2 + 18;
+  const cy = box.y + box.h / 2;
+  const rx = box.w / 2 + (tight ? 12 : 22);
+  const ry = box.h / 2 + (tight ? 9 : 18);
   const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
   g.style.pointerEvents = "none";
   if (rc) {
-    g.appendChild(rc.ellipse(cx, cy, rx * 2, ry * 2, { stroke: color, strokeWidth: 3.5, roughness: 1.6, fill: undefined, seed: 7 }));
+    g.appendChild(rc.ellipse(cx, cy, rx * 2, ry * 2, { stroke: color, strokeWidth: 3.5, roughness: tight ? 1.2 : 1.6, fill: undefined, seed: 7 }));
   } else {
     const p = document.createElementNS(SVG_NS, "path");
     p.setAttribute("d", `M${cx - rx} ${cy} A${rx} ${ry} 0 1 0 ${cx + rx} ${cy} A${rx} ${ry} 0 1 0 ${cx - rx} ${cy}`);
@@ -1149,6 +1173,121 @@ function ellipseRingPath(box: BBox, color: string, rc: RoughSVG | null): SVGGEle
     g.appendChild(p);
   }
   return g;
+}
+
+/** The pen line under a box — `underline`, written on left to right. */
+function underlinePath(box: SvgBox, color: string, rc: RoughSVG | null): SVGGElement {
+  const y = box.y + box.h + 5;
+  const x0 = box.x - 3;
+  const x1 = box.x + box.w + 3;
+  const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  g.style.pointerEvents = "none";
+  if (rc) {
+    g.appendChild(rc.line(x0, y, x1, y, { stroke: color, strokeWidth: 3, roughness: 1, bowing: 1.2, seed: 5 }));
+  } else {
+    g.appendChild(plainPath(`M${x0.toFixed(1)} ${y.toFixed(1)} L${x1.toFixed(1)} ${y.toFixed(1)}`, { color, strokeWidth: 3 }));
+  }
+  for (const p of Array.from(g.querySelectorAll("path"))) p.setAttribute("stroke-linecap", "round");
+  return g;
+}
+
+/**
+ * Where a run of characters sits on one row of a text leaf, in SVG
+ * coordinates before the leaf's pose. Mono text is exact (the CHAR_W grid
+ * it is letter-spaced to); other text asks the browser for the glyphs'
+ * extents, and without one (node tests) estimates half an em per character.
+ */
+function textPieceBox(g: SVGGElement, leaf: Extract<Drawable, { kind: "text" }>, row: number, col: number, len: number): SvgBox {
+  const rows = textRows(leaf);
+  const fs = leaf.fontSize;
+  const text = g.querySelector("text") as SVGTextElement | null;
+  if (leaf.font !== "mono" && text && typeof text.getExtentOfChar === "function") {
+    try {
+      const at = rowOffset(rows, row, col);
+      const a = text.getExtentOfChar(at);
+      const b = text.getExtentOfChar(at + len - 1);
+      const m = text.transform?.baseVal?.consolidate?.()?.matrix;
+      const dx = m ? m.e : 0;
+      const dy = m ? m.f : 0;
+      const top = Math.min(a.y, b.y);
+      const bottom = Math.max(a.y + a.height, b.y + b.height);
+      if (b.x + b.width > a.x) return { x: a.x + dx, y: top + dy, w: b.x + b.width - a.x, h: bottom - top };
+    } catch {
+      // fall through to the estimate
+    }
+  }
+  const charW = (leaf.font === "mono" ? CHAR_W : 0.5) * fs;
+  const rowW = rows[row].length * charW;
+  const left = leaf.pos[0] - (leaf.anchor === "middle" ? rowW / 2 : leaf.anchor === "end" ? rowW : 0);
+  const cy = toSvgY(leaf.pos[1] + ((rows.length - 1) / 2 - row) * LINE_HEIGHT * fs);
+  return { x: left + col * charW, y: cy - 0.55 * fs, w: len * charW, h: 1.1 * fs };
+}
+
+/** A leaf's ink as an SVG box, before its pose — the whole of it, or one text piece. */
+function pieceBox(g: SVGGElement, leaf: Exclude<Drawable, { kind: "group" }>, hit?: Extract<PartHit, { kind: "text" }>): SvgBox | null {
+  if (leaf.kind === "text") {
+    if (hit) return textPieceBox(g, leaf, hit.row, hit.col, hit.len);
+    const rows = textRows(leaf);
+    return unionSvgBoxes(rows.map((r, i) => textPieceBox(g, leaf, i, 0, r.length)));
+  }
+  if (leaf.kind === "image") return { x: leaf.pos[0] - leaf.w / 2, y: toSvgY(leaf.pos[1] + leaf.h / 2), w: leaf.w, h: leaf.h };
+  if (leaf.pts.length === 0) return null;
+  const xs = leaf.pts.map((p) => p[0]);
+  const ys = leaf.pts.map((p) => p[1]);
+  const x0 = Math.min(...xs);
+  const y1 = Math.max(...ys);
+  return { x: x0, y: toSvgY(y1), w: Math.max(...xs) - x0, h: y1 - Math.min(...ys) };
+}
+
+/**
+ * An emphasis echo of ONE run of a text leaf's characters: the clone is the
+ * whole text, recoloured, with everything outside [start, end) made
+ * invisible, so it lies on the original and lights just the piece. Works on
+ * the "holders" — the elements that carry text directly (the <text>, a row,
+ * a coloured run) — which spell the rows end to end (rowOffset).
+ */
+function rangeClone(g: SVGGElement, color: string, start: number, end: number): SVGGElement {
+  const c = g.cloneNode(true) as SVGGElement;
+  c.removeAttribute("opacity");
+  c.style.opacity = "0";
+  c.style.pointerEvents = "none";
+  const holders: Element[] = [];
+  const walk = (el: Element) => {
+    if (el.children.length === 0) holders.push(el);
+    else Array.from(el.children).forEach(walk);
+  };
+  for (const t of Array.from(c.querySelectorAll("text"))) {
+    t.setAttribute("fill", color);
+    t.removeAttribute("stroke");
+    walk(t);
+  }
+  let at = 0;
+  for (const h of holders) {
+    const txt = h.textContent ?? "";
+    const a = at;
+    const b = at + txt.length;
+    at = b;
+    if (h.tagName.toLowerCase() === "tspan") h.removeAttribute("fill");
+    if (b <= start || a >= end) {
+      h.setAttribute("fill-opacity", "0");
+      continue;
+    }
+    if (a >= start && b <= end) continue;
+    const i = Math.max(start, a) - a;
+    const j = Math.min(end, b) - a;
+    h.textContent = "";
+    const piece = (t: string, hidden: boolean) => {
+      if (t === "") return;
+      const sp = document.createElementNS(SVG_NS, "tspan");
+      sp.textContent = t;
+      if (hidden) sp.setAttribute("fill-opacity", "0");
+      h.appendChild(sp);
+    };
+    piece(txt.slice(0, i), true);
+    piece(txt.slice(i, j), false);
+    piece(txt.slice(j), true);
+  }
+  return c;
 }
 
 interface HighlightNodes {
@@ -1195,76 +1334,103 @@ function makeEffects(
      * the player release exactly when the voice stops rather than at the end
      * of whatever cycle it happened to be in.
      */
-    setHighlight(ids: string[], effect: HighlightEffect, level: number, box: BBox | null, color?: string, elapsedMs?: number): void {
+    setHighlight(ids: string[], effect: HighlightEffect, level: number, box: BBox | null, color?: string, elapsedMs?: number, part?: string): void {
       const key = keyOf(ids);
-      // A circle without a box degrades to a glow.
-      const kind: HighlightEffect = effect === "circle" && !box ? "glow" : effect;
       let st = active.get(key);
       if (!st) {
         st = { nodes: [], ringPaths: [], drawn: 0, penPaths: [], written: 0 };
-        if (kind === "circle") {
-          const ring = ellipseRingPath(box!, color ?? HIGHLIGHT_COLOR, rc);
-          overlay.appendChild(ring);
-          st.nodes.push(ring);
-          for (const p of Array.from(ring.querySelectorAll("path"))) {
-            const len = p.getTotalLength();
-            p.style.strokeDasharray = `${len}`;
-            p.style.strokeDashoffset = `${len}`;
-            st.ringPaths.push({ el: p, len });
+        const entries = ids.flatMap((id) => leafNodes.get(id) ?? []);
+        // `part` narrows the emphasis to a piece of the targets; one that
+        // names nothing leaves the whole target lit (lint says why).
+        const hits = part ? findPart(entries.map((e) => e.leaf), part) : [];
+        const glyphHits = new Set(hits.flatMap((h) => (h.kind === "glyphs" ? h.leafIds : [])));
+        const textHits = new Map(hits.flatMap((h) => (h.kind === "text" ? [[h.leafId, h] as const] : [])));
+        const narrowed = hits.length > 0;
+        const lit = narrowed ? entries.filter((e) => glyphHits.has(e.leaf.id) || textHits.has(e.leaf.id)) : entries;
+        const writeOn = (el: SVGPathElement, into: { el: SVGPathElement; len: number }[]) => {
+          const len = el.getTotalLength();
+          el.style.strokeDasharray = `${len}`;
+          el.style.strokeDashoffset = `${len}`;
+          into.push({ el, len });
+        };
+
+        if (effect === "circle" || effect === "underline") {
+          // Around (or under) the piece when there is one — measured on the
+          // leaves and posed like them — else the targets' own layout box.
+          let around: SvgBox | null = null;
+          let pose: string | null = null;
+          if (narrowed) {
+            around = unionSvgBoxes(lit.flatMap((e) => pieceBox(e.g, e.leaf, textHits.get(e.leaf.id)) ?? []));
+            pose = lit[0]?.g.getAttribute("transform") ?? null;
+          } else if (box) {
+            around = svgBoxOf(box);
+          } else {
+            around = unionSvgBoxes(entries.flatMap((e) => pieceBox(e.g, e.leaf) ?? []));
+            pose = entries[0]?.g.getAttribute("transform") ?? null;
+          }
+          if (around) {
+            const pen = color ?? HIGHLIGHT_COLOR;
+            const mark = effect === "circle" ? ellipseRingPath(around, pen, rc, narrowed) : underlinePath(around, pen, rc);
+            if (pose) mark.setAttribute("transform", pose);
+            overlay.appendChild(mark);
+            st.nodes.push(mark);
+            // The ring is written by the level (it always has been); the
+            // underline by the clock, like glow's pens.
+            for (const p of Array.from(mark.querySelectorAll("path"))) writeOn(p as SVGPathElement, effect === "circle" ? st.ringPaths : st.penPaths);
           }
         } else {
-          for (const id of ids) {
-            for (const { g, leaf } of leafNodes.get(id) ?? []) {
-              const own = leaf.kind === "image" ? undefined : leaf.style.color;
-              const glow = kind === "glow" ? glowKindOf(leaf) : "tint";
-              if (glow === "tint") {
-                const clone = emphasisClone(g, emphasisColorFor(color ?? HIGHLIGHT_COLOR, own, color !== undefined));
-                overlay.appendChild(clone);
-                st.nodes.push(clone);
-                continue;
-              }
-              // band / marker: a highlighter pen UNDER the ink (the underlay
-              // sits between the area layer and the strokes), so the line or
-              // the letters stay exactly as they were, only lit from beneath.
-              const pen = color ?? MARKER_COLOR;
-              const alpha = color === undefined ? BAND_ALPHA : BAND_ALPHA_COLORED;
-              const pose = g.getAttribute("transform");
-              let path: SVGPathElement | null = null;
-              if (glow === "band" && leaf.kind === "stroke") {
-                path = penPath(pathFromPts(leaf.pts, leaf.closed), emphasisColorFor(pen, own, color !== undefined), BAND_WIDTH, alpha, pose);
-              } else if (glow === "marker" && leaf.kind === "text") {
-                const m = markerRowsPath(leaf);
-                if (m) path = penPath(m.d, pen, m.width, alpha, pose);
-                // A code number is the marker's own yellow: re-ink whatever
-                // reads as the pen, on an echo over the row, so it does not
-                // vanish into the box.
-                const sameAsPen = Array.from(g.querySelectorAll("tspan")).filter((t) => readsAsSame(t.getAttribute("fill") ?? "", pen));
-                if (sameAsPen.length > 0) {
-                  const echo = g.cloneNode(true) as SVGGElement;
-                  echo.removeAttribute("opacity");
-                  echo.style.opacity = "0";
-                  echo.style.pointerEvents = "none";
-                  for (const t of Array.from(echo.querySelectorAll("tspan"))) {
-                    if (readsAsSame(t.getAttribute("fill") ?? "", pen)) t.setAttribute("fill", INK);
-                  }
-                  overlay.appendChild(echo);
-                  st.nodes.push(echo);
-                }
-              }
-              if (!path) continue;
-              underlay.appendChild(path);
-              st.nodes.push(path);
-              const len = path.getTotalLength();
-              path.style.strokeDasharray = `${len}`;
-              path.style.strokeDashoffset = `${len}`;
-              st.penPaths.push({ el: path, len });
+          for (const { g, leaf } of lit) {
+            const own = leaf.kind === "image" ? undefined : leaf.style.color;
+            const hit = textHits.get(leaf.id);
+            const glow = effect === "glow" ? glowKindOf(leaf) : "tint";
+            if (glow === "tint") {
+              const tint = emphasisColorFor(color ?? HIGHLIGHT_COLOR, own, color !== undefined);
+              const clone =
+                hit && leaf.kind === "text"
+                  ? rangeClone(g, tint, rowOffset(textRows(leaf), hit.row, hit.col), rowOffset(textRows(leaf), hit.row, hit.col) + hit.len)
+                  : emphasisClone(g, tint);
+              overlay.appendChild(clone);
+              st.nodes.push(clone);
+              continue;
             }
+            // band / marker: a highlighter pen UNDER the ink (the underlay
+            // sits between the area layer and the strokes), so the line or
+            // the letters stay exactly as they were, only lit from beneath.
+            const pen = color ?? MARKER_COLOR;
+            const alpha = color === undefined ? BAND_ALPHA : BAND_ALPHA_COLORED;
+            const pose = g.getAttribute("transform");
+            let path: SVGPathElement | null = null;
+            if (glow === "band" && leaf.kind === "stroke") {
+              path = penPath(pathFromPts(leaf.pts, leaf.closed), emphasisColorFor(pen, own, color !== undefined), BAND_WIDTH, alpha, pose);
+            } else if (glow === "marker" && leaf.kind === "text") {
+              const m = markerRowsPath(leaf, hit);
+              if (m) path = penPath(m.d, pen, m.width, alpha, pose);
+              // A code number is the marker's own yellow: re-ink whatever
+              // reads as the pen, on an echo over the row, so it does not
+              // vanish into the box.
+              const sameAsPen = Array.from(g.querySelectorAll("tspan")).filter((t) => readsAsSame(t.getAttribute("fill") ?? "", pen));
+              if (sameAsPen.length > 0) {
+                const echo = g.cloneNode(true) as SVGGElement;
+                echo.removeAttribute("opacity");
+                echo.style.opacity = "0";
+                echo.style.pointerEvents = "none";
+                for (const t of Array.from(echo.querySelectorAll("tspan"))) {
+                  if (readsAsSame(t.getAttribute("fill") ?? "", pen)) t.setAttribute("fill", INK);
+                }
+                overlay.appendChild(echo);
+                st.nodes.push(echo);
+              }
+            }
+            if (!path) continue;
+            underlay.appendChild(path);
+            st.nodes.push(path);
+            writeOn(path, st.penPaths);
           }
         }
         active.set(key, st);
       }
       const a = Math.min(Math.max(level, 0), 1);
-      if (kind === "circle") {
+      if (st.ringPaths.length > 0) {
         // The ring is written ON by the rising level and then stays written:
         // a pen stroke does not unwrite itself when the throb dips.
         st.drawn = Math.max(st.drawn, a);

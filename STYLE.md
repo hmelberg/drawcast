@@ -154,6 +154,12 @@ one precise round-capped stroke (a rounded box) at 60 %, placed on the CHAR_W
 grid that mono text is now letter-spaced to; characters under it that read as
 the marker's yellow go to ink (`inkUnderMark`). `readsAsSame` (layout/ink.ts)
 is the one test of "same colour", and an explicit `color` is never switched.
+The same day `highlight` gained `part` — one piece of the target: a formula
+term as TeX (matched against each glyph's token chain, AreaDrawable.tex, as
+`math.colors` is), or a verbatim phrase of a label or code line
+(layout/highlight-part.ts) — and the `underline` effect; circle and
+underline are drawn round the part, not the element. A part that names
+nothing lights the whole target, and lint says so (`highlight-part`).
 
 ### 2026-09-19 — Emphasis should land and STAY, not breathe through the sentence
 

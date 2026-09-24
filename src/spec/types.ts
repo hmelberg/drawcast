@@ -315,12 +315,14 @@ export interface SpecElement {
 }
 
 export type Easing = "linear" | "ease-in" | "ease-out" | "ease-in-out";
-export type HighlightEffect = "pulse" | "circle" | "glow";
+export type HighlightEffect = "pulse" | "circle" | "glow" | "underline";
 export type PointGesture = "tap" | "circle" | "underline";
 
 export interface HighlightArgs {
   target: string[] | string;
   effect?: HighlightEffect;
+  /** Only this piece of the target: TeX for a formula ("t_r", "\\dfrac{v^2}{2a}"), verbatim text for a label or a code line. */
+  part?: string;
   /** seconds */
   duration?: number;
   color?: string;

@@ -783,7 +783,8 @@ const commandSchema = {
         "Temporarily emphasize visible elements, then return to normal. With a paired speak and no duration it LIGHTS UP AND HOLDS for the rest of the sentence, releasing as the voice ends — the way to talk about one specific element (a curve, an equilibrium) while it is lit.",
       properties: {
         target: idListSchema("Element ids to emphasize."),
-        effect: { type: "string", enum: ["glow", "circle", "pulse"], description: "glow (default) = suits the target: a yellow band under a line, a marker behind a code line, red ink on a formula, text or shape; circle = a hand-drawn ring; pulse = red ink that throbs three times first. color replaces the red/yellow." },
+        effect: { type: "string", enum: ["glow", "circle", "underline", "pulse"], description: "glow (default) = suits the target: a yellow band under a line, a marker behind a code line, red ink on a formula, text or shape; circle = a hand-drawn ring; underline = a pen line under it; pulse = red ink that throbs three times first. color replaces the red/yellow." },
+        part: { type: "string", description: "Only this piece: a formula term as TeX (\"t_r\"), or verbatim text of a label or code line." },
         duration: { type: "number", description: "Seconds. Omit with a paired speak to let the effect last the whole sentence (default 1.5 otherwise)." },
         color: { type: "string", description: "Emphasis color, CSS color string." },
       },

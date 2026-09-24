@@ -1431,7 +1431,7 @@ export class Player {
             return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
           }),
         );
-        const paint = (level: number, elapsedMs?: number) => effects.setHighlight(step.ids, step.effect, level, box, step.color, elapsedMs);
+        const paint = (level: number, elapsedMs?: number) => effects.setHighlight(step.ids, step.effect, level, box, step.color, elapsedMs, step.part);
         // pulse throbs three times before the hold; everything else eases in once.
         const curve = step.effect === "pulse" ? "throb" : "ease";
         try {

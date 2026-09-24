@@ -111,6 +111,12 @@ export interface AreaDrawable extends BaseDrawable {
    * as grain and blur under the hand-drawn region fill.
    */
   precise?: boolean;
+  /**
+   * A formula glyph's TeX token chain, innermost first (the `t` of `t_r`:
+   * "t", "t_r", …) — what `highlight.part` matches against, the same way
+   * `math.colors` does (layout/highlight-part.ts).
+   */
+  tex?: string[];
 }
 
 export interface TextDrawable extends BaseDrawable {

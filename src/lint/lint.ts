@@ -12,6 +12,7 @@ import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox, type BBox }
 import { drawablesForId, leafDrawables, type Drawable, type GroupDrawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
 import type { LeafDrawable } from "../layout/posed";
 import { mathBox } from "../layout/labels";
+import { findPart } from "../layout/highlight-part";
 import type { MeasureFn } from "../layout/measure";
 import { BUILTIN_WIDGETS } from "../spec/types";
 import { pacedDurations } from "../render/pacing";
@@ -126,7 +127,9 @@ export interface LintIssue {
     /** an ask bound to the spec's template, whose document has no widget body */
     | "widget"
     /** a draw naming an id the template DECLARES (element_ids) but did not draw under these params — a region without its `regions` entry, say */
-    | "template-id-off";
+    | "template-id-off"
+    /** a highlight `part` that names no glyph or text in its targets (the whole target lights instead) */
+    | "highlight-part";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -410,6 +413,23 @@ export function lintLayoutDetailed(
         rule: "font-too-small",
         ids: [t.id],
         message: `text "${t.id}" has font size ${t.fontSize} (< ${FONT_FLOOR} logical units — unreadable)`,
+        severity: "warn",
+      });
+    }
+  }
+
+  // A highlight `part` that names nothing lights the whole target instead
+  // (render/svg-backend) — the author meant a piece, so say which was missed.
+  for (const cmd of commands ?? []) {
+    const h = cmd.highlight;
+    if (!h?.part) continue;
+    const targets = (Array.isArray(h.target) ? h.target : [h.target]).flatMap((id) => expandId?.(id) ?? [id]);
+    const pieces = targets.flatMap((id) => leafDrawables(drawablesForId(drawables, id)));
+    if (pieces.length > 0 && findPart(pieces, h.part).length === 0) {
+      issues.push({
+        rule: "highlight-part",
+        ids: targets,
+        message: `highlight part "${h.part}" is not in ${targets.join(", ")} — the whole target lights instead (a formula's part is the TeX of a term as its tex writes it; text is verbatim)`,
         severity: "warn",
       });
     }

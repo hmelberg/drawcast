@@ -71,10 +71,12 @@ export interface BackendEffects {
    * frame. box is the logical-units union box of the targets (circle effect).
    * elapsedMs is the time since the emphasis began, for what is WRITTEN on
    * rather than faded in (glow's band and marker); absent during the release,
-   * which only fades what has been written.
+   * which only fades what has been written. part narrows the emphasis to one
+   * piece of the targets (layout/highlight-part.ts) — a formula's term, a
+   * phrase of a label or a code row; one that names nothing is ignored.
    * Nothing here ends the emphasis: endHighlight does.
    */
-  setHighlight(ids: string[], effect: HighlightEffect, level: number, box: BBox | null, color?: string, elapsedMs?: number): void;
+  setHighlight(ids: string[], effect: HighlightEffect, level: number, box: BBox | null, color?: string, elapsedMs?: number, part?: string): void;
   /** Remove any leftover emphasis for these ids (abort/scrub safety). */
   endHighlight(ids: string[]): void;
   /**

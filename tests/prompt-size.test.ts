@@ -492,7 +492,13 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // zooms quickly into place and stays; the opening rule says so and asks for
 // the first drawing on the next beat; card gains `style` (center = the old
 // card). Schema +115, system +162. 214472 -> 214634.
-const BASELINE_SYSTEM_CHARS = 214634;
+// Re-pinned UP 2026-09-24 (emphasis as a highlighter, Hans: glow looked
+// like "a cheap neon sign"; highlight "one character, or the whole
+// equations, or a line, or part of a line"): glow is the default and the
+// schema/prompt say what it does per target; highlight gains `part` and the
+// `underline` effect. The glow rewording itself fit the old pin; part and
+// underline are the growth. 214634 -> 214895.
+const BASELINE_SYSTEM_CHARS = 214895;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -522,7 +528,8 @@ const BASELINE_SYSTEM_CHARS = 214634;
 // Re-pinned UP 2026-09-24 (music round 2): explore.store names the composed melody. 81775 -> 81877.
 // Re-pinned UP 2026-09-24 (music round 3): the new drills and the staff device. 81877 -> 82057.
 // Re-pinned 2026-09-24 (the quick heading): card's description and its `style`. 82057 -> 82172.
-const BASELINE_SCHEMA_CHARS = 82172;
+// Re-pinned UP 2026-09-24 (emphasis as a highlighter): highlight `part` and `underline`. 82172 -> 82329.
+const BASELINE_SCHEMA_CHARS = 82329;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in
