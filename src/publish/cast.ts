@@ -81,6 +81,15 @@ export interface CastPlanArgs {
   castsDir: string;
   viewerBase: string;
   index: CastIndex;
+  /** The poster PNG (export/snapshot.ts posterPng), committed beside the
+   *  cast as `<slug>.png` — the viewer shows it while the cast loads. */
+  poster?: Uint8Array | null;
+}
+
+/** Where a cast's poster lives: beside it, `.png` for `.yaml` (the viewer
+ *  derives the same path from the link it was given). */
+export function posterPathFor(castPath: string): string {
+  return castPath.replace(/\.ya?ml$/i, "") + ".png";
 }
 
 export function castHref(base: string, owner: string, repo: string, path: string): string {
@@ -125,6 +134,7 @@ export function buildCastPlan(args: CastPlanArgs): CastPlan {
   // shape, though — a repo we publish into a SUBFOLDER of may be someone's
   // Jekyll site, and this file at its root would break it.
   if (castsDir === "") files.push({ path: ".nojekyll", content: "" });
+  if (args.poster) files.push({ path: posterPathFor(path), content: "", bytes: args.poster });
 
   return {
     slug,
@@ -188,6 +198,7 @@ export interface CastPublishArgs {
   token: string;
   castsDir: string;
   viewerBase: string;
+  poster?: Uint8Array | null;
   fetchImpl?: typeof fetch;
 }
 

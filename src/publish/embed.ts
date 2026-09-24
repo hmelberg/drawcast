@@ -64,3 +64,28 @@ export async function embeddedPlaylist(playlist: Playlist, deps: EmbedDeps): Pro
   );
   return playlistWithSpecs(playlist, specs);
 }
+
+/**
+ * A playlist whose items CARRY the author's own templates (2026-09-24). A
+ * cast drawn on a "My templates" template renders only in a browser that has
+ * that template — the author's — so a published copy must bring it along in
+ * `spec.templates`, the way an on-demand template already travels. `docOf`
+ * answers the stored doc for an id this browser authored (null for built-ins
+ * and pack templates, which every viewer has). Each item carries its own
+ * copy: a part is sometimes played alone. An item that already carries the
+ * doc is left alone. The input
+ * is never touched; the same object comes back when nothing is missing.
+ */
+export function withAuthoredTemplates(playlist: Playlist, docOf: (id: string) => { template: string } | null): Playlist {
+  let changed = false;
+  const out = itemsOf(playlist).map(({ spec: s }) => {
+    const id = s.template;
+    if (typeof id !== "string") return s;
+    if (Array.isArray(s.templates) && s.templates.some((t) => t?.template === id)) return s;
+    const doc = docOf(id);
+    if (!doc) return s;
+    changed = true;
+    return { ...s, templates: [...(Array.isArray(s.templates) ? s.templates : []), structuredClone(doc)] } as Spec;
+  });
+  return changed ? playlistWithSpecs(playlist, out) : playlist;
+}

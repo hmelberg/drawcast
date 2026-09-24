@@ -48,7 +48,8 @@ const DOORLESS: Record<Exclude<Awaited<ReturnType<typeof registerName>>, "ok">, 
   pay: "unregistered",
 };
 import { parseRepo, readFile } from "../publish/github";
-import { embeddedPlaylist } from "../publish/embed";
+import { embeddedPlaylist, withAuthoredTemplates } from "../publish/embed";
+import { myTemplateDoc } from "../scenes/my-templates";
 import { resolvePortraits } from "../render/portrait";
 import { resolveSources } from "../render/source";
 import { resolveImages } from "../render/image";
@@ -1031,10 +1032,12 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       const yamlFor = (index: number): string | null => {
         const yaml = embeddedFor(index);
         if (yaml === null) return yaml;
-        if (!commentsMeta && countViews !== false) return yaml;
         const parsed = parsePlaylistText(yaml);
-        if (commentsMeta) parsed.meta.comments = commentsMeta;
-        return formatPlaylist(applyViewsFlag(parsed, countViews !== false), "yaml");
+        // The author's own templates travel with each lecture (2026-09-24).
+        const carried = withAuthoredTemplates(parsed, myTemplateDoc);
+        if (!commentsMeta && countViews !== false && carried === parsed) return yaml;
+        if (commentsMeta) carried.meta.comments = commentsMeta;
+        return formatPlaylist(applyViewsFlag(carried, countViews !== false), "yaml");
       };
       const baked = bake ? await bakeLectures(course, yamlFor, controller.signal) : null;
       const publishText = (index: number): string | null => baked?.get(index) ?? yamlFor(index);

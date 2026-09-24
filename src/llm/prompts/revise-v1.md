@@ -84,7 +84,7 @@ A document is one page or many:
 - **Document settings sit above the first page and belong to the document, never
   to a page**: `prompt:` (the founding request — provenance, keep it verbatim,
   it is not the instruction you are applying now), `subtitle:`, `advance:`,
-  `gap:`, `transitions:`, `next:`, `enroll:`, `comments:`, `views:`. None of
+  `gap:`, `transitions:`, `next:`, `enroll:`, `comments:`, `views:`, `poster:`. None of
   them is a field of a spec: written inside a page, they make it invalid.
 
 If the document you were given is JSON, or a `---`-separated YAML stream, keep

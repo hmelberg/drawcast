@@ -10,6 +10,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <!-- Before any script (2026-09-24): a pen drawing a line, so a shared link
+         never opens on a blank page while the app downloads. entry.ts hands
+         it to whatever boots (the viewer keeps one like it in its loading
+         line); styles are inline because styles.css arrives with the JS. -->
+    <style>
+      #boot { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.4rem; color: #6f685c; font: 1.2rem "Patrick Hand", system-ui, sans-serif; background: #efe9da; }
+      @media (prefers-color-scheme: dark) { #boot { color: #a49b8b; background: #1c1a17; } }
+      .dc-loader path { stroke-dasharray: 180; animation: dc-pen 1.8s ease-in-out infinite; }
+      @keyframes dc-pen { 0% { stroke-dashoffset: 180; } 55% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -180; } }
+    </style>
+    <div id="boot" role="status">
+      <svg class="dc-loader" width="120" height="40" viewBox="0 0 140 40" aria-hidden="true"><path d="M8 26 C 26 6, 42 36, 60 20 S 96 4, 112 22 S 128 30, 134 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" /></svg>
+      <span>Loading…</span>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/entry.ts"></script>
   </body>

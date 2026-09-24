@@ -200,6 +200,13 @@ export function upsertCourse(manifest: Manifest, entry: CourseEntry): Manifest {
 export interface PublishFile {
   path: string;
   content: string;
+  /** A binary file (a cast's poster PNG): these bytes are the file, and
+   *  `content` is ignored. */
+  bytes?: Uint8Array;
+}
+
+function fileBytes(f: PublishFile): Uint8Array {
+  return f.bytes ?? new TextEncoder().encode(f.content);
 }
 
 /**
@@ -249,8 +256,8 @@ const MODE_FILE = "100644";
  * of levels deep — which it reports as "too much recursion", not as a memory
  * error. 32k at a time keeps the concatenation count in the dozens.
  */
-function toBase64(text: string): string {
-  const bytes = new TextEncoder().encode(text);
+function toBase64(text: string | Uint8Array): string {
+  const bytes = typeof text === "string" ? new TextEncoder().encode(text) : text;
   const CHUNK = 0x8000;
   const parts: string[] = [];
   for (let i = 0; i < bytes.length; i += CHUNK) {
@@ -288,8 +295,8 @@ async function readHead(
  * which is how a republish can tell an unchanged lecture from a changed one
  * without downloading it. A baked lecture is megabytes; its SHA is 40 bytes.
  */
-export async function gitBlobSha(content: string): Promise<string> {
-  const body = new TextEncoder().encode(content);
+export async function gitBlobSha(content: string | Uint8Array): Promise<string> {
+  const body = typeof content === "string" ? new TextEncoder().encode(content) : content;
   const header = new TextEncoder().encode(`blob ${body.length}\0`);
   const buf = new Uint8Array(header.length + body.length);
   buf.set(header);
@@ -355,7 +362,7 @@ export async function commitFiles(
     // rather than making the user seed the repo by hand.
     await call(fetchImpl, token, "PUT", `${base}/contents/${encodePath(files[0].path)}`, {
       message,
-      content: toBase64(files[0].content),
+      content: toBase64(fileBytes(files[0])),
       branch,
     });
     state = await readHead(fetchImpl, token, base, branch);
@@ -382,7 +389,7 @@ export async function commitFiles(
   // from the plan's file list, so dropping an unchanged lecture there would
   // delete it from the repository instead of leaving it alone.
   const remote = await remoteBlobShas(fetchImpl, token, base, state.baseTree);
-  const local = await Promise.all(files.map((f) => gitBlobSha(f.content)));
+  const local = await Promise.all(files.map((f) => gitBlobSha(fileBytes(f))));
   const unchanged = files.map((f, i) => remote.get(f.path) === local[i]);
   const sending = files.filter((_, i) => !unchanged[i]);
 
@@ -391,13 +398,13 @@ export async function commitFiles(
     onUpload?.(i, sending.length);
     try {
       const blob = await call<{ sha: string }>(fetchImpl, token, "POST", `${base}/git/blobs`, {
-        content: toBase64(f.content),
+        content: toBase64(fileBytes(f)),
         encoding: "base64",
       });
       blobShas.push(blob.sha);
     } catch (err) {
       // Name the file: "NetworkError" with no noun cost a console excavation.
-      const mb = (f.content.length / 1_048_576).toFixed(1);
+      const mb = (fileBytes(f).length / 1_048_576).toFixed(1);
       throw new PublishError(`Uploading "${f.path}" (${mb} MB): ${(err as Error).message}`, (err as PublishError).status);
     }
   }

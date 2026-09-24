@@ -18,11 +18,13 @@ import type { Spec } from "../src/spec/types";
 const viewer = readFileSync(new URL("../src/viewer.ts", import.meta.url), "utf8");
 
 describe("the standalone viewer and pack templates", () => {
-  test("viewer.ts registers every pack before it mounts", () => {
-    expect(viewer).toMatch(/ensureEnabledPacks\(Object\.keys\(PACK_DEFS\)\)/);
-    // Awaited before the playlist mounts, not fired and forgotten.
-    expect(viewer.indexOf("ensureEnabledPacks")).toBeGreaterThan(0);
-    expect(viewer).toMatch(/await\s+(packsReady|ensureEnabledPacks)/);
+  test("viewer.ts registers the packs the cast needs (every pack when unsure) before it mounts", () => {
+    // 2026-09-24: the cast first, then only its packs, in parallel — and
+    // every pack when a template's pack is unknown.
+    expect(viewer).toMatch(/await ensurePacksParallel\(needPacks \?\? Object\.keys\(PACK_DEFS\)\)/);
+    // Awaited before the playlist mounts, and before the unknown-template check.
+    expect(viewer.indexOf("ensurePacksParallel(needPacks")).toBeLessThan(viewer.indexOf("mountPlaylist("));
+    expect(viewer.indexOf("ensurePacksParallel(needPacks")).toBeLessThan(viewer.indexOf("does not know"));
   });
 
   test("viewer.ts refuses an unknown template loudly instead of mounting a blank page", () => {

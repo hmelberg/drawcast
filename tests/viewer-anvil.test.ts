@@ -241,7 +241,7 @@ describe("runViewer takes the fourth source through the same door as the others"
     expect(viewer).toMatch(/playlist\.meta\.comments && req\.gh/);
   });
   test("the loading line names the server", () => {
-    expect(viewer).toMatch(/Loading drawing from the drawcast server/);
+    expect(viewer).toMatch(/From the drawcast server/);
   });
   test("a lost narration is said once, in the meta row where the view count lives", () => {
     // The row's children, in order: the title (player round), the count, the note.

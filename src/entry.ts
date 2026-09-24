@@ -27,17 +27,26 @@ async function boot(): Promise<void> {
     fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
   );
   const hash = location.hash;
+  // index.html's pen-stroke loader covers the download; whatever boots now
+  // draws its own page (the viewer its own loading line).
+  const doneBooting = (): void => document.getElementById("boot")?.remove();
   if (/[#&](gdoc|gh|gdrive|anvil)[=-]/.test(hash)) {
     const { parseViewerHash, runViewer, showUnplayable } = await import("./viewer");
+    doneBooting();
     const req = parseViewerHash(hash);
     // A refused hash is a message, never a silent blank page.
     if (req) await runViewer(req);
     else showUnplayable();
   } else if (isNameHash(hash)) {
     const { runNamed } = await import("./viewer");
+    doneBooting();
     await runNamed(hash);
   } else {
-    await import("./main");
+    try {
+      await import("./main");
+    } finally {
+      doneBooting();
+    }
   }
 }
 

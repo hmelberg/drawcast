@@ -3,7 +3,7 @@
 // authoring pipeline (llm/author.ts) both go through here.
 
 import { loadMyTemplates } from "../store";
-import { parseTemplateDoc } from "./doc";
+import { parseTemplateDoc, type TemplateDoc } from "./doc";
 import { registerTemplateDoc, scenes } from "./registry";
 
 /** Ids owned by the user this session. Only these may be re-registered or removed. */
@@ -44,4 +44,15 @@ export function registerMyTemplatesAtStartup(): { id: string; ok: boolean; error
     const r = registerUserTemplateYaml(t.yaml);
     return { id: r.id ?? t.id, ok: r.ok, errors: r.errors };
   });
+}
+
+/** The stored doc of a template this browser authored, for a published copy
+ *  to carry (publish/embed.ts withAuthoredTemplates); null for anything else. */
+export function myTemplateDoc(id: string): TemplateDoc | null {
+  if (!userIds.has(id)) return null;
+  for (const t of loadMyTemplates()) {
+    const doc = parseTemplateDoc(t.yaml).doc;
+    if (doc?.template === id) return doc;
+  }
+  return null;
 }

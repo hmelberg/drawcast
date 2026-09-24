@@ -21,7 +21,7 @@ import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/au
 import { reviseDocument, type ReviseOutcome } from "./llm/revise";
 import { withNotes } from "./llm/hoist";
 import { atNewest, currentVersion, emptyStack, pushManualEdit, pushVersion, restoreViewed, seedStack, viewAt, type Stack } from "./history";
-import { registerMyTemplatesAtStartup, registerUserTemplateYaml, unregisterUserTemplate } from "./scenes/my-templates";
+import { myTemplateDoc, registerMyTemplatesAtStartup, registerUserTemplateYaml, unregisterUserTemplate } from "./scenes/my-templates";
 import { PACK_DEFS, ensureEnabledPacks, packTemplateIds, parsePack, unregisterPack } from "./scenes/packs";
 import { looksLikeAnthropicKey, redeemPassword } from "./keys";
 import {
@@ -75,7 +75,7 @@ import { mountPlaylist, playlistSpeakLines, type SessionHandle } from "./playlis
 import { appendRecord, localRecordStorage } from "./render/record";
 import { applyViewsFlag } from "./views";
 import { exportVideo, narrationLanguage, type ExportResult } from "./export/video";
-import { snapshotPng } from "./export/snapshot";
+import { authorPosterPng, posterPng, snapshotPng } from "./export/snapshot";
 import { LANGUAGES, languageLabel } from "./export/tts";
 import { subtitleLanguages } from "./spec/subtitles";
 import { bakedAudioFor, type BakedAudio } from "./playlist/audio";
@@ -89,7 +89,7 @@ import { isPayable, normalizeName, paidInHash, registerName, startNamePayment } 
 import { DEFAULT_ENROLL_API } from "./learn";
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
-import { embeddedPlaylist, type EmbedDeps } from "./publish/embed";
+import { embeddedPlaylist, withAuthoredTemplates, type EmbedDeps } from "./publish/embed";
 import { resolvePortraits } from "./render/portrait";
 import { resolveIcons } from "./render/icon";
 import { resolveImages } from "./render/image";
@@ -4539,6 +4539,24 @@ importInput.addEventListener("change", () => {
  * Iconify glyphs among them, or the published page would re-fetch them in
  * every viewer's browser (spec §3.5, §3.6).
  */
+/**
+ * The poster committed beside a published cast (2026-09-24): the author's
+ * `poster:` image when it can be fetched, else the first part's finished
+ * drawing. The viewer shows it while the cast loads. Null on any failure —
+ * never a reason to stop a publish.
+ */
+async function publishedPoster(text: string): Promise<Uint8Array | null> {
+  try {
+    const playlist = parsePlaylistText(text);
+    const own = playlist.meta.poster ? await authorPosterPng(playlist.meta.poster) : null;
+    if (own) return own;
+    const first = itemsOf(playlist)[0];
+    return first ? await posterPng(first.spec) : null;
+  } catch {
+    return null;
+  }
+}
+
 function embedDeps(): EmbedDeps {
   return { resolvePortraits, resolveSources, resolveImages, resolveIcons, contactEmail: settings.contactEmail };
 }
@@ -4576,6 +4594,9 @@ async function publishTextFor(
     };
   }
   source = applyViewsFlag(source, countViews);
+  // The author's own templates travel with the published copy — a viewer
+  // has none of them (2026-09-24).
+  source = withAuthoredTemplates(source, myTemplateDoc);
   const plain = formatPlaylist(source, "yaml");
   if (!bake) return plain;
   const apiKey = getTtsKey();
@@ -4645,9 +4666,13 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
   try {
     setStatus("Publishing to GitHub…");
     const text = await publishTextFor(ac.signal, bake, embedImages, allowComments, countViews !== false);
+    setStatus("Drawing the poster…");
+    const poster = await publishedPoster(text);
+    setStatus("Publishing to GitHub…");
     const out = await publishCast({
       title: doc.title,
       text,
+      poster,
       slug,
       previousSlug: doc.publishedAs,
       repo,

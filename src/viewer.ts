@@ -14,6 +14,7 @@ import { type RenderStyle } from "./render";
 import { CloudSpeech } from "./export/tts";
 import { bakeClipStore } from "./export/bake-cache";
 import { h } from "./ui/dom";
+import { posterPathFor } from "./publish/cast";
 import { icon } from "./ui/icons";
 import { playerMeta } from "./ui/player-meta";
 import { attachParamsTray } from "./ui/tray";
@@ -31,7 +32,8 @@ import { appendRecord, localRecordStorage, markSent, readHandIn, writeHandIn, ty
 import { bakedAudioFor } from "./playlist/audio";
 import { validateSpec } from "./spec/schema";
 import { getTtsKey, loadSettings, saveSettings } from "./store";
-import { ensureEnabledPacks, PACK_DEFS } from "./scenes/packs";
+import { ensurePacksParallel, packsForSpecs, PACK_DEFS } from "./scenes/packs";
+import { registerCastTemplates } from "./scenes/cast-templates";
 import { scenes } from "./scenes/registry";
 import { pickerKey } from "./google/auth";
 
@@ -545,17 +547,27 @@ function shareButton(): HTMLButtonElement {
 export async function runViewer(req: ViewerRequest): Promise<void> {
   document.body.classList.add("viewer-body");
   const app = document.getElementById("app")!;
+  // The loading line: index.html's pen stroke carried on (the same markup),
+  // then "Loading…" — where from is the tooltip, not the headline.
   const status = h(
     "div",
-    { class: "viewer-status" },
-    req.anvil
-      ? "Loading drawing from the drawcast server…"
-      : req.gh
-        ? "Loading drawing from GitHub…"
-        : req.driveId
-          ? "Loading drawing from Google Drive…"
-          : "Loading drawing from Google Doc…",
+    {
+      class: "viewer-status",
+      role: "status",
+      title: req.anvil ? "From the drawcast server" : req.gh ? "From GitHub" : req.driveId ? "From Google Drive" : "From a Google Doc",
+    },
+    loaderSvg(),
+    "Loading…",
   );
+  // The poster (2026-09-24): a GitHub cast's `<slug>.png` beside it —
+  // published with it, the finished drawing or the author's picture —
+  // requested at once, alongside the cast, and shown dimmed until the
+  // figure mounts. No poster (older casts, other sources) is simply no
+  // picture: the line above is the page.
+  const poster = h("img", { class: "viewer-poster", alt: "", "aria-hidden": "true" });
+  poster.addEventListener("load", () => poster.classList.add("ready"));
+  poster.addEventListener("error", () => poster.classList.remove("ready"));
+  if (req.gh) poster.src = rawUrlFor({ ...req.gh, path: posterPathFor(req.gh.path) });
   // The same frame the app's player mounts into, by the same class: the
   // fullscreen rules are written against it, and a viewer-only copy of them
   // would be a copy nobody remembers to keep in step (it wasn't). The page
@@ -564,7 +576,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   // fetched — the loading line sits inside it and steps aside when the
   // figure mounts — and everything ABOUT the drawcast (title, count, share,
   // comments) below it as page furniture.
-  const figureHost = h("div", { class: "player-figure" }, status);
+  const figureHost = h("div", { class: "player-figure" }, poster, status);
   const shareBtn = shareButton();
   const viewsEl = h("span", { class: "viewer-views" });
   // The one line a lost narration gets (server casts): the same row as the
@@ -575,15 +587,6 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   app.append(h("div", { class: "viewer-wrap" }, figureHost, meta.root));
 
   try {
-    // Pack templates register BEFORE anything lays out — the viewer was the
-    // one entry point that skipped this (main.ts, compiler.ts and
-    // engine-render.ts all do it), so a published cast on a pack template
-    // (rd_plot, ppf, did_trends…) silently fell through to its loose
-    // elements: voice and captions over a blank canvas (Hans's live bug,
-    // 2026-09-02). ALL packs, not a settings list: the viewer renders other
-    // people's content, and the AUTHOR's template choice must not depend on
-    // what this browser happens to have enabled. Bundled yaml — no network.
-    await ensureEnabledPacks(Object.keys(PACK_DEFS));
     let audioNote = "";
     const text = req.anvil
       ? await fetchAnvilText(req.anvil, fetch, (why) => {
@@ -597,6 +600,18 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     const playlist = parsePlaylistText(text);
     const items = itemsOf(playlist);
     if (items.length === 0) throw new Error("The document contains no drawable items.");
+    // Templates register BEFORE anything lays out (Hans's live bug,
+    // 2026-09-02: a pack template not registered fell through to a blank
+    // canvas). First the templates the cast CARRIES — an authored template
+    // travels inside the published copy — so the check below knows them.
+    // Then the packs: only the ones this cast's templates come from
+    // (2026-09-24 — all 18 used to load one after another before the text
+    // was even fetched, a round trip each); every pack, in parallel, when a
+    // template's pack is unknown. The author's choice, never this browser's
+    // settings, decides what loads.
+    for (const item of items) registerCastTemplates(item.spec);
+    const needPacks = packsForSpecs(items.map((i) => i.spec), (id) => scenes[id] !== undefined);
+    await ensurePacksParallel(needPacks ?? Object.keys(PACK_DEFS));
     for (const item of items) {
       const validation = validateSpec(item.spec);
       if (!validation.ok) {
@@ -611,6 +626,9 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
         throw new Error(`This drawcast uses the template "${tpl}", which this viewer does not know — it may come from a newer app or a remote pack.`);
       }
     }
+    // An author's own poster: the picture for a cast with no poster file
+    // beside it (a server cast, one published before posters).
+    if (playlist.meta.poster && !poster.classList.contains("ready")) poster.src = playlist.meta.poster;
     const title = playlist.meta.title ?? items[0].spec.title;
     if (title) {
       meta.setTitle(title);
@@ -799,6 +817,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       advanceOverride: req.advance,
     });
     status.remove();
+    poster.remove();
     // Comments (C1): only when the published file asked for them, and only on
     // a GitHub-published cast — data-repo comes from this page's own URL.
     if (playlist.meta.comments && req.gh) {
@@ -829,7 +848,17 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       app.replaceChildren(deniedDoor(req.anvil.cast, err.status));
       return;
     }
+    poster.remove();
     status.textContent = (err as Error).message;
     status.classList.add("error");
   }
+}
+
+/** The pen-stroke loader — the same markup as index.html's, which shows
+ *  before any script and is removed when the viewer takes over. */
+function loaderSvg(): SVGSVGElement {
+  const t = document.createElement("template");
+  t.innerHTML =
+    '<svg class="dc-loader" width="120" height="40" viewBox="0 0 140 40" aria-hidden="true"><path d="M8 26 C 26 6, 42 36, 60 20 S 96 4, 112 22 S 128 30, 134 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" /></svg>';
+  return t.content.firstElementChild as SVGSVGElement;
 }

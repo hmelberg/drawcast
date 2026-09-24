@@ -80,7 +80,7 @@ export const SETTING_KEYS = [
   // page
   "lang", "voice", "level", "record", "canvas", "domain", "vars", "text", "zoom_from", "use", "with", "chapter",
   // playlist (before the first page)
-  "subtitle", "advance", "gap", "transitions", "next", "enroll", "prompt", "comments", "views",
+  "subtitle", "advance", "gap", "transitions", "next", "enroll", "prompt", "comments", "views", "poster",
 ] as const;
 
 const SETTING_RE = new RegExp(`^(${SETTING_KEYS.join("|")}):(?:\\s+(.*))?$`);

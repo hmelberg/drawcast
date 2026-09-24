@@ -126,6 +126,53 @@ export const PACK_DEFS: Record<string, PackDef> = {
   },
 };
 
+
+/**
+ * Which templates each pack registers — known WITHOUT loading the packs, so
+ * a published cast's viewer fetches only the packs its templates come from
+ * (usually one, often none) instead of all of them one after another.
+ * tests/pack-template-map.test.ts keeps this list in step with the YAML.
+ */
+export const PACK_TEMPLATES: Record<string, string[]> = {
+  physics: ["bicycle_drivetrain", "circuit_diagram", "hydraulic_press", "projectile_motion", "ray_diagram", "wave_diagram"],
+  chemistry: ["energy_diagram", "lab_apparatus", "lewis_dot", "molecule", "periodic_table", "reaction_scheme"],
+  biology: ["dna_helix", "flower_anatomy", "food_web", "membrane_bilayer", "pathway", "phylo_tree", "punnett_square", "water_cycle"],
+  economics: ["firm_cost_curves", "game_tree", "indifference_budget", "payoff_matrix", "ppf"],
+  evidence: ["causal_dag", "distribution_curve", "forest_plot", "sir_compartments", "survival_curve"],
+  mathlogic: ["argument_map", "circle_sectors", "equation_steps", "geometry_figure", "number_line", "plot3d", "riemann_sum", "tangent_secant", "truth_table", "unit_circle", "venn_diagram"],
+  medicine: ["ecg_strip", "heart_circulation", "icon_array", "nephron", "neuron", "pk_curve", "pv_loop", "screening_timeline"],
+  anatomy: ["anatomy"],
+  macro: ["ad_as", "is_lm", "solow_growth"],
+  empirics: ["binscatter", "did_trends", "event_study", "lorenz_curve", "rd_plot"],
+  hta: ["ceac", "tornado_diagram"],
+  music: ["note_sheet", "piano_keys", "violin_anatomy"],
+  stats: ["bayes_tree", "ci_dance", "galton_board", "sampling_dist"],
+  games: ["chess_board"],
+  maps: ["world_map"],
+  data: ["bar_chart", "bar_race", "data_table", "heatmap", "line_chart", "scatter_plot"],
+  space: ["sky_map", "solar_system"],
+  widgets: ["bubble_sort", "logic_gates", "morse_key", "tictactoe", "tower_of_hanoi", "xylophone"],
+};
+
+/**
+ * The packs a set of specs needs: the pack of each `template` that is not
+ * already registered (a built-in) and not carried by a spec itself
+ * (`spec.templates`). Null when some template is in no pack we know — the
+ * caller then loads every pack, as before.
+ */
+export function packsForSpecs(specs: { template?: unknown; templates?: unknown }[], isRegistered: (id: string) => boolean): string[] | null {
+  const carried = new Set<string>();
+  for (const s of specs) if (Array.isArray(s.templates)) for (const t of s.templates) if (t && typeof (t as { template?: unknown }).template === "string") carried.add((t as { template: string }).template);
+  const need = new Set<string>();
+  for (const s of specs) {
+    const id = typeof s.template === "string" ? s.template : null;
+    if (id === null || isRegistered(id) || carried.has(id)) continue;
+    const pack = Object.keys(PACK_TEMPLATES).find((p) => PACK_TEMPLATES[p].includes(id));
+    if (!pack) return null;
+    need.add(pack);
+  }
+  return [...need];
+}
 /**
  * Bundled packs that stay off by default (DEFAULT_SETTINGS.enabledPacks does
  * NOT include them, and tests/pack-defaults.test.ts pins that). These are
@@ -250,6 +297,16 @@ export interface EnsurePackResult {
 }
 
 /** Load + register every listed pack (skipping already-registered ones). */
+/**
+ * ensureEnabledPacks with the downloads in PARALLEL: every pack's chunk is
+ * requested at once, then each registers in order. The viewer's fallback
+ * when it cannot tell which packs a cast needs.
+ */
+export async function ensurePacksParallel(ids: string[]): Promise<EnsurePackResult[]> {
+  await Promise.all(ids.map((id) => PACK_DEFS[id]?.load().catch(() => undefined)));
+  return ensureEnabledPacks(ids); // the chunks are cached now: registration only
+}
+
 export async function ensureEnabledPacks(ids: string[]): Promise<EnsurePackResult[]> {
   const out: EnsurePackResult[] = [];
   for (const id of ids) {

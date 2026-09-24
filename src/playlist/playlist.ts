@@ -61,6 +61,12 @@ export interface PlaylistMeta {
    * came from this very app.
    */
   enroll?: string;
+  /**
+   * The image a viewer sees while the cast loads (2026-09-24): a URL (or a
+   * data URL) of the author's own picture. Publish bakes it into the poster
+   * PNG beside the cast; without it the poster is the finished drawing.
+   */
+  poster?: string;
   /** How playback continues after an item: wait for a click, or auto after gap seconds. */
   advance: "click" | "auto";
   gap: number;
@@ -157,6 +163,7 @@ function readMeta(raw: Record<string, unknown>, warnings: string[]): PlaylistMet
     }
   }
   if (typeof raw.enroll === "string") meta.enroll = raw.enroll;
+  if (typeof raw.poster === "string") meta.poster = raw.poster;
   if (isPlainObject(raw.comments)) {
     const c = raw.comments;
     if (typeof c.repoId === "string" && typeof c.categoryId === "string") {
@@ -189,7 +196,7 @@ function readMeta(raw: Record<string, unknown>, warnings: string[]): PlaylistMet
  * they are lifted to where they belong rather than left to sink the page.
  * Same set as the script parser's META_SETTINGS (spec/script/parse.ts).
  */
-const DOC_SETTINGS = ["subtitle", "prompt", "advance", "gap", "transitions", "next", "enroll", "comments", "views"] as const;
+const DOC_SETTINGS = ["subtitle", "prompt", "advance", "gap", "transitions", "next", "enroll", "comments", "views", "poster"] as const;
 
 /** Move any document settings off a page spec; null when it carried none. */
 function takeDocSettings(spec: Record<string, unknown>): Record<string, unknown> | null {
@@ -391,6 +398,7 @@ export function isSingle(playlist: Playlist): boolean {
     playlist.meta.views === undefined &&
     playlist.meta.next === undefined &&
     playlist.meta.enroll === undefined &&
+    playlist.meta.poster === undefined &&
     playlist.meta.advance === DEFAULT_META.advance &&
     playlist.meta.gap === DEFAULT_META.gap &&
     playlist.meta.transitions === DEFAULT_META.transitions
@@ -432,6 +440,7 @@ export function formatPlaylist(playlist: Playlist, format: SpecFormat): string {
   if (playlist.meta.views !== undefined) header.views = playlist.meta.views;
   if (playlist.meta.next !== undefined) header.next = playlist.meta.next;
   if (playlist.meta.enroll !== undefined) header.enroll = playlist.meta.enroll;
+  if (playlist.meta.poster !== undefined) header.poster = playlist.meta.poster;
   if (playlist.meta.advance !== DEFAULT_META.advance) header.advance = playlist.meta.advance;
   if (playlist.meta.gap !== DEFAULT_META.gap) header.gap = playlist.meta.gap;
   if (playlist.meta.transitions !== DEFAULT_META.transitions) header.transitions = playlist.meta.transitions;

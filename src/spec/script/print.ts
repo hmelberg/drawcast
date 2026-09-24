@@ -403,7 +403,7 @@ export function printScriptPage(spec: Spec): string {
 }
 
 /** Playlist-level settings, in the order they print. */
-const META_ORDER = ["subtitle", "prompt", "comments", "views", "next", "enroll", "advance", "gap", "transitions"];
+const META_ORDER = ["subtitle", "prompt", "comments", "views", "next", "enroll", "poster", "advance", "gap", "transitions"];
 
 export function printScriptPages(meta: Record<string, unknown>, pages: { spec: Spec }[]): string {
   const multi = pages.length > 1;

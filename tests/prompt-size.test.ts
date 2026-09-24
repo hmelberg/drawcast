@@ -544,7 +544,10 @@ const BASELINE_SCHEMA_CHARS = 82172;
 // produces a span that is silently spoken aloud instead of firing. Added
 // half a clause saying so; the bullet's own concrete example was already
 // correct. 5246 -> 5372.
-const BASELINE_REVISE_CHARS = 5372;
+// Re-pinned UP 2026-09-24 (loading poster): `poster:` joined the document
+// settings, and the card lists every one (tests/revise.test.ts) so a revise
+// never writes it inside a page. 5372 -> 5383.
+const BASELINE_REVISE_CHARS = 5383;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

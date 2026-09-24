@@ -62,7 +62,7 @@ describe("the viewer's frame has its shape before the figure mounts", () => {
   });
 
   test("the loading line waits inside the frame and steps aside for the figure", () => {
-    expect(run).toMatch(/h\("div", \{ class: "player-figure" \}, status\)/);
+    expect(run).toMatch(/h\("div", \{ class: "player-figure" \}, poster, status\)/);
     expect(rulesMatching(/^\.viewer-body \.player-figure:not\(:is\(:fullscreen, \.cs-faux-fs\)\):has\(\.cs-figure\) > \.viewer-status$/)[0]).toMatch(/display:\s*none/);
   });
 });
