@@ -161,7 +161,23 @@ what the drawcast is about, and one narrated line after a quiz answer.
    tool returns, so read after a short pause, and use a new file name per
    shot.)
 
-## Hans's feedback on the pilot (2026-09-25)
+## Small fixes applied after batch 2
+
+- `plot3d`: set ids `axes` and `surface` (no more 24-id draw lists); its
+  element list now says one of surface / curve / points is drawn.
+- `molecule_3d`: set id `molecule`; the playlist-for-a-second-angle advice
+  removed; the model drawn 25 % larger and 60 higher; the caption is fixed
+  text above the narration band (the label solver slid it into the band).
+- `ring_molecule`: `ring_center` removed from the element list (it was an
+  anchor no gesture could find); `ring` documents that its centre is the
+  gesture target; ring and name moved up out of the band.
+- `free_body`: arrow length proportional to magnitude (was 95 + 150·m, so a
+  component looked nearly as big as its force); the incline 50 higher.
+- A `colors` key is only checked against the element's own `tex`, not
+  after a morph that substitutes the term (Euler's θ → π keeps its colour).
+- Prompt pin +50 (the catalog's ring_molecule entry).
+
+ (2026-09-25)
 
 - Better. But openings still jump in without saying what the drawcast is
   about: fixed in all eight (the first line names the question), and in the

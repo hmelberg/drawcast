@@ -546,7 +546,11 @@ export function layoutElements(
           issues.push({ rule: "math", ids: [el.id], severity: "error", message: `math "${el.id}": ${(err as Error).message}` });
           break;
         }
-        for (const key of laid.unusedColors) ctx.warnings.push(`math "${el.id}": colors key "${key}" matches nothing`);
+        // Checked against the element's own `tex` only: a morph that SUBSTITUTES a
+        // term (θ → π) is the point of a derivation, so a key the new formula no
+        // longer has is not a mistake (2026-09-25 example revisions).
+        const morphed = ctx.overrides.math?.[el.id] !== undefined;
+        if (!morphed) for (const key of laid.unusedColors) ctx.warnings.push(`math "${el.id}": colors key "${key}" matches nothing`);
         drawables.push(...laid.drawables);
         ctx.anchors[el.id] = [laid.box.x + laid.box.w / 2, laid.box.y + laid.box.h / 2];
         ctx.namedAnchors[el.id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(laid.box, n)]));

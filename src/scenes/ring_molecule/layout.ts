@@ -28,7 +28,9 @@ export interface RingMoleculeParams {
   name?: string;
 }
 
-const CX = 500, CY = 400, R = 170;
+// CY 420 and the name 60 under the ring (was 400 / 78): the caption stays
+// above the narration band, the bottom ~15% of the stage while a line plays.
+const CX = 500, CY = 420, R = 170;
 const ATOM_GAP = 26;
 
 export function layoutRingMolecule(params: RingMoleculeParams): SceneLayout {
@@ -149,7 +151,7 @@ export function layoutRingMolecule(params: RingMoleculeParams): SceneLayout {
   if (params.name) {
     labels.push({
       id: "molecule_name",
-      anchor: [CX, CY - R - 78],
+      anchor: [CX, CY - R - 60],
       side: "below",
       text: params.name,
       fontSize: 30,

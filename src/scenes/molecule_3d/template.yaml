@@ -13,8 +13,7 @@ description: >-
   Choose this scene for requests about molecular SHAPE — tetrahedral geometry,
   bond angles, VSEPR, "show methane in 3D", lone-pair geometry discussions.
   For flat structural formulas of arbitrary molecules use the chemistry pack's
-  molecule template instead. A playlist can show the same molecule from a
-  second angle by using different azimuth/elevation in the next part.
+  molecule template instead.
   Rotate the whole molecule smoothly with the animate command: {"animate":
   {"azimuth": 240}, "duration": 3} (write the starting azimuth in params).
 params:
@@ -37,6 +36,7 @@ params:
       type: string
       description: "Caption, e.g. \"Methane CH₄ — tetrahedral, 109.5°\". A sensible default is provided per molecule."
 element_ids:
+  molecule: "SET — the whole model in one id (spheres, sticks, symbols, shadow), e.g. draw [molecule]"
   atom_0: the central atom's sphere
   atom_<i>: the outer atoms' spheres (i = 1…)
   bond_<i> / bond_<i>__f: the two depth-sorted halves of each stick
@@ -115,22 +115,31 @@ layout: |
     });
   });
   const projected = kit.project3d(
-    { azimuth: params.azimuth ?? 32, elevation: params.elevation ?? 16, distance: 4.6, fov: 640, cy: 410, fade: 0.45 },
+    { azimuth: params.azimuth ?? 32, elevation: params.elevation ?? 16, distance: 4.6, fov: 800, cy: 470, fade: 0.45 },
     prims,
   );
   const lowestY = Math.min(...Object.values(projected.anchors).map((p) => p[1]));
   const shadow = kit.stroke("ground_shadow", kit.ellipse([500, lowestY - 48], 150, 26), {
     closed: true, color: kit.COLORS.guide, strokeWidth: 2, dash: true, opacity: 0.4, ms: kit.SKETCH_MS.guides,
   });
-  const labels = [kit.label("caption", [500, 120], "below", params.name ?? preset.caption, { fontSize: 28 })];
+  // Above the narration band (bottom ~15% of the stage while a line is
+  // spoken): at y 120 the caption sat under it for the whole cast.
+  // kit.text, not kit.label: the caption names the whole figure, not a part,
+  // and the label solver was sliding it down-right into the band.
+  const caption = kit.text("caption", [500, 185], params.name ?? preset.caption, { fontSize: 28 });
+  const labels = [];
   // Each symbol is its atom's own name: it fades, moves and stays lit with it
   // (scenes/types.ts `attached`).
   const attached = {};
   if (showLabels) preset.atoms.forEach((a, i) => { attached["atom_" + i] = ["label_" + i]; });
+  // `molecule`: the whole ball-and-stick model in one id (scenes/types.ts
+  // `groups`) — spheres, sticks, symbols and the shadow — so a cast that is
+  // about the shape draws it with `draw: ["molecule"]`, not sixteen ids.
   return {
-    drawables: [shadow, ...projected.drawables],
+    drawables: [shadow, ...projected.drawables, caption],
     labels,
     anchors: projected.anchors,
     order: ["ground_shadow", ...projected.order, "caption"],
     attached,
+    groups: { molecule: ["ground_shadow", ...projected.order] },
   };

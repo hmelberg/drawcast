@@ -12,14 +12,14 @@
             "id": "gravity",
             "label": "mg",
             "angle_deg": 270,
-            "magnitude": 0.4,
+            "magnitude": 0.6,
             "color": "red"
           },
           {
             "id": "along",
             "label": "mg sin θ",
             "angle_deg": 210,
-            "magnitude": 0.2,
+            "magnitude": 0.3,
             "color": "red",
             "dash": true
           },
@@ -27,7 +27,7 @@
             "id": "into",
             "label": "mg cos θ",
             "angle_deg": 300,
-            "magnitude": 0.35,
+            "magnitude": 0.52,
             "color": "red",
             "dash": true
           },
@@ -35,14 +35,14 @@
             "id": "normal",
             "label": "N",
             "angle_deg": 120,
-            "magnitude": 0.35,
+            "magnitude": 0.52,
             "color": "blue"
           },
           {
             "id": "friction",
             "label": "f",
             "angle_deg": 30,
-            "magnitude": 0.2,
+            "magnitude": 0.3,
             "color": "gray"
           }
         ]
@@ -4343,7 +4343,10 @@
           "tex": "e^{i\\theta}=\\cos\\theta+i\\sin\\theta",
           "x": 790,
           "y": 600,
-          "size": 34
+          "size": 34,
+          "colors": {
+            "\\theta": "#b5482e"
+          }
         },
         {
           "id": "readout",
@@ -4611,41 +4614,13 @@
         },
         {
           "draw": [
-            "axis_x",
-            "axis_y",
-            "axis_z",
-            "axis_x_label",
-            "axis_y_label",
-            "axis_z_label"
+            "axes"
           ],
           "speak": "A saddle point is a spot where a surface is perfectly flat, yet neither a peak nor a pit. Here is the classic one."
         },
         {
           "draw": [
-            "wire_row_0",
-            "wire_col_0",
-            "wire_row_1",
-            "wire_col_1",
-            "wire_row_2",
-            "wire_col_2",
-            "wire_row_3",
-            "wire_col_3",
-            "wire_row_4",
-            "wire_col_4",
-            "wire_row_5",
-            "wire_col_5",
-            "wire_row_6",
-            "wire_col_6",
-            "wire_row_7",
-            "wire_col_7",
-            "wire_row_8",
-            "wire_col_8",
-            "wire_row_9",
-            "wire_col_9",
-            "wire_row_10",
-            "wire_col_10",
-            "wire_row_11",
-            "wire_col_11"
+            "surface"
           ],
           "speak": "z equals x squared minus y squared. Along x it curves up; along y it curves down — the shape of a horse's saddle."
         },
@@ -4729,12 +4704,7 @@
         },
         {
           "draw": [
-            "axis_x",
-            "axis_y",
-            "axis_z",
-            "axis_x_label",
-            "axis_y_label",
-            "axis_z_label"
+            "axes"
           ],
           "speak": "A helix is the shape of a spring, a screw thread and DNA. What exactly is it?"
         },

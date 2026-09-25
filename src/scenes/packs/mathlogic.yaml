@@ -1261,10 +1261,12 @@ params:
     title:
       type: string
 element_ids:
+  axes: "SET — the three axes and their letters in one id, e.g. draw [axes]"
+  surface: "SET — every wireframe line of the surface in one id, e.g. draw [surface]; present when a surface is drawn"
   axis_x / axis_y / axis_z: the three coordinate axes (arrows from the origin), with axis_x_label / axis_y_label / axis_z_label alongside their tips
   wire_row_<i> / wire_col_<i>: the surface's row/column wireframe polylines (i = 0…grid_n-1), present when a surface is drawn
   curve: the parametric curve's single polyline, present when a curve is drawn
-  pt_<i> / pt_label_<i>: a point's marker sphere and its label (label present only when given), present when points are drawn
+  pt_<i> / pt_label_<i>: "a point's marker sphere and its label (label present only when given) — ONLY when there is no surface and no curve; one of the three is drawn, surface first, then curve, then points"
   title: the figure title, when set
 examples:
   - request: "Show the saddle surface z = x squared minus y squared in 3D."
@@ -1549,7 +1551,16 @@ layout: |
     order = order.concat(["title"]);
   }
 
-  return { drawables, labels, anchors, order, attached };
+  // Sets (scenes/types.ts `groups`): `draw: ["axes"]` for the three arrows and
+  // their letters, `draw: ["surface"]` for every wireframe line — so a cast
+  // never lists twenty-four wire ids (the 2026-09-25 example revisions).
+  const groups = {
+    axes: order.filter((id) => /^axis_[xyz](_label)?$/.test(id)),
+  };
+  const wires = order.filter((id) => /^wire_(row|col)_\d+$/.test(id));
+  if (wires.length > 0) groups.surface = wires;
+
+  return { drawables, labels, anchors, order, attached, groups };
 ---
 template: circle_sectors
 title: Circle cut into sectors → the πr² rectangle

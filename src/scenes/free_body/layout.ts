@@ -89,7 +89,9 @@ export function layoutFreeBody(params: FreeBodyParams): SceneLayout {
     center = [500, groundY + half + 4];
   } else {
     // Incline rising to the right: base corner at left.
-    const x0 = 170, x1 = 830, baseY = 170;
+    // baseY 220 (was 170): a downward force from the body must end above the
+    // narration band, or gravity's label is read through the captions.
+    const x0 = 170, x1 = 830, baseY = 220;
     const rise = Math.min((x1 - x0) * Math.tan(th), 430);
     const apex: Pt = [x1, baseY + rise];
     push({
@@ -172,10 +174,14 @@ export function layoutFreeBody(params: FreeBodyParams): SceneLayout {
   }
 
   // Forces.
+  const ARROW_PER_UNIT = 245;
   const forces = params.forces ?? [];
   forces.forEach((f, i) => {
     const id = `force_${f.id ?? i}`;
-    const len = 95 + 150 * Math.max(0.15, Math.min(1, f.magnitude ?? 0.7));
+    // Length PROPORTIONAL to magnitude: the old 95 + 150·m drew a force of
+    // 0.4 at 70 % of one of 0.8, so a component looked nearly as big as the
+    // force it is a part of (2026-09-25 example revisions).
+    const len = ARROW_PER_UNIT * Math.max(0.12, Math.min(1, f.magnitude ?? 0.7));
     const a = rad(f.angle_deg);
     const from: Pt = [center[0] + Math.cos(a) * (half + 4), center[1] + Math.sin(a) * (half + 4)];
     const to: Pt = [center[0] + Math.cos(a) * (half + 4 + len), center[1] + Math.sin(a) * (half + 4 + len)];
@@ -195,7 +201,7 @@ export function layoutFreeBody(params: FreeBodyParams): SceneLayout {
   // Net force (dashed, accent).
   if (params.net_force) {
     const n = params.net_force;
-    const len = 95 + 150 * Math.max(0.15, Math.min(1, n.magnitude ?? 0.85));
+    const len = ARROW_PER_UNIT * Math.max(0.12, Math.min(1, n.magnitude ?? 0.85));
     const a = rad(n.angle_deg);
     const to: Pt = [center[0] + Math.cos(a) * (half + 4 + len), center[1] + Math.sin(a) * (half + 4 + len)];
     push({

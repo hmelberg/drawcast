@@ -505,7 +505,11 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // first line to say what the drawcast is about before the hook ("a
 // tendency … to jump into things without briefly saying what the specific
 // drawcast is about"). +148. 214895 -> 215185.
-const BASELINE_SYSTEM_CHARS = 215185;
+// Re-pinned UP 2026-09-25 (example revisions, batch-2 fixes): the default
+// catalog's ring_molecule entry says its centre is reached through `ring`
+// (the documented `ring_center` was an anchor no gesture could find). +50.
+// 215185 -> 215235.
+const BASELINE_SYSTEM_CHARS = 215235;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
