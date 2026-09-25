@@ -800,6 +800,28 @@ export function layoutElements(
     }
   }
 
+  // A label attached to an OUTLINE (a path, shape, polygon or ellipse) with
+  // a side the author chose goes on that side of the outline's box, not
+  // beside one of its points: the anchor of a path is its middle vertex and
+  // of a shape its centre, so "above" a concave path or a large ellipse
+  // started the search inside the shape and the label landed on it or in a
+  // notch, whatever side was asked — reported in four revision rounds, and
+  // every agent fell back to a positioned `text` (2026-09-25). The box is
+  // taken from the final drawables, after groups have moved their members.
+  const OUTLINE_TYPES = new Set<ElementType>(["path", "shape", "polygon", "ellipse"]);
+  const SIDE_ANCHOR: Record<string, string> = {
+    above: "top", below: "bottom", left: "left", right: "right",
+    "above-left": "top_left", "above-right": "top_right", "below-left": "bottom_left", "below-right": "bottom_right",
+  };
+  for (const req of labels) {
+    const src = byIdForLayout.get(req.id);
+    if (!src || src.type !== "label" || src.side === undefined || src.attach_to === undefined) continue;
+    const target = byIdForLayout.get(src.attach_to);
+    if (!target || !OUTLINE_TYPES.has(target.type)) continue;
+    const box = boxOfId(drawables, target.id, measure, ctx.groups, ctx.pieceGroups);
+    if (box && box.w > 0 && box.h > 0) req.anchor = boxAnchor(box, SIDE_ANCHOR[src.side] ?? "center");
+  }
+
   return {
     drawables,
     labels,
