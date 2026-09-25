@@ -532,7 +532,7 @@ layout: |
 template: lorenz_curve
 title: Lorenz curve & Gini
 version: 1
-kit: 2
+kit: 11
 status: ready
 description: >-
   A Lorenz curve: cumulative share of income against cumulative share of
@@ -648,7 +648,7 @@ layout: |
     label("label_lorenz2", [X(0.78), Y(L2(0.78))], "below", name2, C.accent, 17);
   }
 
-  push(kit.text("gini_caption", [X(0.8), Y(0.14)], "Gini = " + gini.toFixed(2), { fontSize: 21 }));
+  push(kit.text("gini_caption", [X(0.8), Y(0.14)], "Gini = " + kit.num(gini, 2), { fontSize: 21 }));
   anchors.gini_caption = [X(0.8), Y(0.14)];
 
   if (typeof params.title === "string" && params.title.trim() !== "") {

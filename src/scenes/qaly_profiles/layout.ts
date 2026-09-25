@@ -6,6 +6,7 @@
 // (area under a curve = QALYs, so shading carries the meaning).
 
 import { linearScale, plotArea } from "../../layout/canvas";
+import { kit } from "../kit";
 import { centroid } from "../../layout/geometry";
 import { makeAxes } from "../../layout/axes";
 import {
@@ -405,7 +406,7 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
       // The arithmetic in the open: a shortfall is only credible if you can see
       // the two remaining-QALY figures it was subtracted from. Kept to three
       // SHORT lines — a wide one crosses whatever curve happens to be low.
-      const q = (v: number) => v.toFixed(1);
+      const q = (v: number) => kit.num(v, 1);
       const show = sf.show ?? "both";
       const noteLines = [
         sf.label ?? "Health lost to the disease",

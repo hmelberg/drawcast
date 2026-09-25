@@ -206,7 +206,7 @@ layout: |
 template: unit_circle
 title: Unit circle (sine and cosine)
 version: 1
-kit: 2
+kit: 11
 status: ready
 description: >-
   The unit circle: a radius to a point at the given angle, with its sine
@@ -323,7 +323,8 @@ layout: |
     attached["angle_arc"] = [...(attached["angle_arc"] ?? []), "angle_label"];
   }
   if (showSet.has("coords")) {
-    const text = "(" + cosV.toFixed(2) + ", " + sinV.toFixed(2) + ")";
+    // A decimal comma needs a semicolon between the coordinates: (0,87; 0,50).
+    const text = "(" + kit.num(cosV, 2) + (kit.num(0.5, 1).includes(",") ? "; " : ", ") + kit.num(sinV, 2) + ")";
     const dx = cosV >= 0 ? 1 : -1, dy = sinV >= 0 ? 1 : -1;
     label("coords_label", point, sideFromDir(dx, dy), text, C.ink, 19);
   }

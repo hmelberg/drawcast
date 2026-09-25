@@ -644,7 +644,7 @@ layout: |
 template: screening_timeline
 title: Screening timeline (natural history)
 version: 1
-kit: 2
+kit: 11
 status: ready
 description: >-
   The natural history of a disease on a timeline — biological onset, the
@@ -770,7 +770,7 @@ layout: |
     // symptoms and death span the full height, so the only collision-free
     // band is BETWEEN them — center the caption there deliberately.
     const capX = compare ? (X(symptoms) + X(death)) / 2 : X((row.dx + death) / 2);
-    push(kit.text("label_survival_" + r, [capX, by - 24], "Survival: " + (death - row.dx).toFixed(1) + " " + unit, { fontSize: 19, color: row.color }));
+    push(kit.text("label_survival_" + r, [capX, by - 24], "Survival: " + kit.num((death - row.dx), 1) + " " + unit, { fontSize: 19, color: row.color }));
   });
 
   label("label_onset", [X(onset), rows[0].y + 8], "above", "Onset", C.ink, 19);

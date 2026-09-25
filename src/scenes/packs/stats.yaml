@@ -5,7 +5,7 @@ description: Natural-frequency Bayes trees, Galton boards, the central limit the
 template: bayes_tree
 title: Bayes tree (natural frequencies)
 version: 1
-kit: 2
+kit: 11
 status: ready
 description: >-
   A natural-frequency tree, the Gigerenzer-style antidote to base-rate
@@ -83,7 +83,7 @@ layout: |
   // Enough decimals to stay a NUMBER: a 1-in-10,000 prevalence is exactly the
   // case this tree exists for, and one decimal renders that branch "0.0%",
   // which reads as a broken figure rather than a rare disease.
-  const pct = (x) => { const p = x * 100; return (p > 0 && p < 0.1 ? p.toFixed(2) : p < 1 ? p.toFixed(1) : Math.round(p)) + "%"; };
+  const pct = (x) => { const p = x * 100; return (p > 0 && p < 0.1 ? kit.num(p, 2) : p < 1 ? kit.num(p, 1) : Math.round(p)) + "%"; };
 
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
@@ -260,7 +260,7 @@ layout: |
 template: sampling_dist
 title: Sampling distribution (CLT)
 version: 1
-kit: 2
+kit: 11
 status: ready
 description: >-
   The central limit theorem as two stacked panels: any population
@@ -388,7 +388,7 @@ layout: |
   // The number that reacts to n: a measurement bracket at mu +/- one standard
   // error with its width spelled out. Layout re-runs per animate frame, so
   // both the bracket and the number tighten live as n grows.
-  const seTxt = "\u00b1 " + (se >= 1 ? se.toFixed(1) : se.toFixed(2));
+  const seTxt = "\u00b1 " + (se >= 1 ? kit.num(se, 1) : kit.num(se, 2));
   const bY = BOT.y0 + 12;
   push(kit.stroke("se_bracket", [[X(mu - se), bY + 8], [X(mu - se), bY], [X(mu + se), bY], [X(mu + se), bY + 8]], { color: C.demand, strokeWidth: 2.5, ms: MS.guides }));
   anchors.se_bracket = [X(mu), bY];

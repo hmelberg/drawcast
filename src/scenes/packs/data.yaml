@@ -5,7 +5,7 @@ description: Bar charts and tables drawn from data — typed by the author or co
 template: bar_chart
 title: Bar chart
 version: 2
-kit: 5
+kit: 11
 status: ready
 description: >-
   A bar chart from data: categories along the x axis, one bar per category
@@ -238,7 +238,7 @@ layout: |
   for (const s of series) for (const st of s.stages) for (const v of st) {
     if (typeof v === "number" && !Number.isInteger(v)) dec = Math.min(2, Math.max(dec, (String(v).split(".")[1] || "").length));
   }
-  const fmt = (v) => (dec === 0 ? String(Math.round(v)) : v.toFixed(dec));
+  const fmt = (v) => (dec === 0 ? String(Math.round(v)) : kit.num(v, dec));
 
   const drawables = [], labelReqs = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
@@ -377,7 +377,7 @@ layout: |
 template: data_table
 title: Data table
 version: 1
-kit: 5
+kit: 11
 status: ready
 description: >-
   A ruled table from data: a header row over an ink rule, then one drawable
@@ -468,7 +468,7 @@ layout: |
     .slice(0, 8);
   const rowsIn = Array.isArray(params.rows) ? params.rows : data && Array.isArray(data.rows) ? data.rows : [];
   const dec = clamp(Math.round(num(params.decimals, 2)), 0, 6);
-  const cell = (c) => (c === null || c === undefined ? "" : typeof c === "number" ? (Number.isInteger(c) ? String(c) : c.toFixed(dec)) : String(c));
+  const cell = (c) => (c === null || c === undefined ? "" : typeof c === "number" ? (Number.isInteger(c) ? String(c) : kit.num(c, dec)) : String(c));
   const rows = rowsIn.filter(Array.isArray).map((r) => columns.map((_, j) => cell(r[j])));
   const fontSize = clamp(num(params.font_size, 20), 12, 30);
   const rowH = fontSize * 1.6;
@@ -530,7 +530,7 @@ layout: |
 template: line_chart
 title: Line chart
 version: 5
-kit: 6
+kit: 11
 status: ready
 description: >-
   A line chart from data: one or more series over a numeric or categorical
@@ -992,7 +992,7 @@ layout: |
   if (xlim) xVals.push(xlim[0], xlim[1]);
   let decX = digits(xVals);
   if (!Number.isInteger(xMin) || !Number.isInteger(xMax)) decX = Math.min(2, Math.max(decX, 1));
-  const fmtAxis = (dec) => (v) => (Number.isInteger(v) ? String(Math.round(v)) : v.toFixed(dec));
+  const fmtAxis = (dec) => (v) => (Number.isInteger(v) ? String(Math.round(v)) : kit.num(v, dec));
   const fmtX = fmtAxis(decX), fmtY = fmtAxis(decY);
   // Slope layout: two inset columns instead of a continuous x scale. pad is
   // how far each column sits in from the plot edge — wide enough for the
@@ -1463,7 +1463,7 @@ layout: |
 template: scatter_plot
 title: Scatter plot
 version: 1
-kit: 5
+kit: 11
 status: ready
 description: >-
   A scatter plot from data: one dot per (x, y) pair, optional per-point
@@ -1641,7 +1641,7 @@ layout: |
   if (xlim) xVals.push(xlim[0], xlim[1]);
   let decX = digits(xVals);
   if (!Number.isInteger(xMin) || !Number.isInteger(xMax)) decX = Math.min(2, Math.max(decX, 1));
-  const fmtAxis = (dec) => (v) => (Number.isInteger(v) ? String(Math.round(v)) : v.toFixed(dec));
+  const fmtAxis = (dec) => (v) => (Number.isInteger(v) ? String(Math.round(v)) : kit.num(v, dec));
   const fmtX = fmtAxis(decX), fmtY = fmtAxis(decY);
 
   const drawables = [], labelReqs = [], anchors = {}, order = [];
@@ -1771,7 +1771,7 @@ layout: |
   }
 
   if (fit) {
-    const eq = "y = " + fit.slope.toFixed(2) + "x " + (fit.intercept < 0 ? "- " : "+ ") + Math.abs(fit.intercept).toFixed(2);
+    const eq = "y = " + kit.num(fit.slope, 2) + "x " + (fit.intercept < 0 ? "- " : "+ ") + kit.num(Math.abs(fit.intercept), 2);
     // Finding I1: CLIP the line to the plot rectangle, never clamp its
     // endpoints — clamping kept each endpoint's x and moved its y, quietly
     // drawing a different slope from the one the caption states (a ylim of
@@ -1857,7 +1857,7 @@ layout: |
 template: bar_race
 title: Bar chart race
 version: 2
-kit: 6
+kit: 11
 status: ready
 description: >-
   A bar chart race: one horizontal bar per racer, the rows REORDERING as the
@@ -2267,7 +2267,7 @@ layout: |
     }
   }
   const tickDec = tickStep >= 1 ? 0 : Math.min(4, Math.ceil(-Math.log10(tickStep || 1)));
-  const fmtTick = (v) => (tickDec === 0 ? String(Math.round(v)) : v.toFixed(tickDec));
+  const fmtTick = (v) => (tickDec === 0 ? String(Math.round(v)) : kit.num(v, tickDec));
 
   // Value labels carry the data's own precision (at most 2 decimals), exactly
   // as bar_chart does, unless `decimals` says otherwise.
@@ -2279,7 +2279,7 @@ layout: |
     }
   }
   dec = clamp(dec, 0, 4);
-  const fmtVal = (v) => (dec === 0 ? String(Math.round(v)) : v.toFixed(dec));
+  const fmtVal = (v) => (dec === 0 ? String(Math.round(v)) : kit.num(v, dec));
 
   // A body cannot raise a lint issue (SceneLayout has no warning channel), so
   // a refusal is DRAWN: a short note under the id "note", the same convention
@@ -2611,7 +2611,7 @@ layout: |
 template: heatmap
 title: Heatmap / matrix
 version: 1
-kit: 7
+kit: 11
 status: ready
 description: >-
   A heatmap: a grid of cells whose FILL DENSITY is the number — one row
@@ -2953,7 +2953,7 @@ layout: |
     }
   }
   dec = clamp(dec, 0, 4);
-  const fmt = (v) => (dec === 0 ? String(Math.round(v)) : v.toFixed(dec));
+  const fmt = (v) => (dec === 0 ? String(Math.round(v)) : kit.num(v, dec));
 
   const grid = { x0: plot.x0, y0: plot.y0, x1: plot.x1, y1: plot.y1 - NOTE_ROW - HEAD_ROW };
   // Row names live in the lane left of the grid, right-justified at its edge —

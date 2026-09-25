@@ -186,7 +186,7 @@ layout: |
 template: forest_plot
 title: Forest plot (meta-analysis)
 version: 2
-kit: 2
+kit: 11
 status: ready
 accepts_data: true
 description: >-
@@ -350,7 +350,7 @@ layout: |
     push(kit.stroke("study_" + i, kit.polygon([estPx, y], halfSize, 4, Math.PI / 4), { closed: true, color: C.ink, fill: C.ink, strokeWidth: 2, ms: MS.dot }));
     anchors["study_" + i] = [estPx, y];
     push(kit.text("study_label_" + i, [LABEL_X, y], s.label, { fontSize: 19, anchor: "end" }));
-    const estText = s.waiting ? PENDING_TEXT : s.est.toFixed(2) + " [" + s.lo.toFixed(2) + ", " + s.hi.toFixed(2) + "]";
+    const estText = s.waiting ? PENDING_TEXT : kit.num(s.est, 2) + " [" + kit.num(s.lo, 2) + (kit.num(0.5, 1).includes(",") ? "; " : ", ") + kit.num(s.hi, 2) + "]";
     push(kit.text("est_label_" + i, [EST_X, y], estText, { fontSize: 17, anchor: "start" }));
   });
 
@@ -359,7 +359,7 @@ layout: |
     const halfH = 15;
     push(kit.stroke("pooled", [[loPx, POOLED_Y], [estPx, POOLED_Y + halfH], [hiPx, POOLED_Y], [estPx, POOLED_Y - halfH]], { closed: true, color: C.accent, fill: C.accent, strokeWidth: 2.5, ms: MS.dot }));
     anchors.pooled = [estPx, POOLED_Y];
-    const estStr = pooledIn.waiting ? PENDING_TEXT : pooledIn.est.toFixed(2) + " [" + pooledIn.lo.toFixed(2) + ", " + pooledIn.hi.toFixed(2) + "]";
+    const estStr = pooledIn.waiting ? PENDING_TEXT : kit.num(pooledIn.est, 2) + " [" + kit.num(pooledIn.lo, 2) + (kit.num(0.5, 1).includes(",") ? "; " : ", ") + kit.num(pooledIn.hi, 2) + "]";
     push(kit.group("pooled_label", [
       kit.text("pooled_label__name", [LABEL_X, POOLED_Y], "Pooled", { fontSize: 19, anchor: "end", color: C.accent }),
       kit.text("pooled_label__stats", [EST_X, POOLED_Y], estStr, { fontSize: 17, anchor: "start", color: C.accent }),
@@ -373,11 +373,11 @@ layout: |
   const axisChildren = [
     kit.stroke("axis__line", [[PLOT.x0 - 15, AXIS_Y], [PLOT.x1 + 15, AXIS_Y]], { color: C.ink, strokeWidth: 3, ms: MS.axis }),
     kit.stroke("axis__tick_min", [[PLOT.x0, AXIS_Y - 8], [PLOT.x0, AXIS_Y + 8]], { color: C.guide, strokeWidth: 2, ms: MS.stroke }),
-    kit.text("axis__tick_min_label", [PLOT.x0, AXIS_Y - 26], minOriginal.toFixed(2), { fontSize: 16, color: C.guide }),
+    kit.text("axis__tick_min_label", [PLOT.x0, AXIS_Y - 26], kit.num(minOriginal, 2), { fontSize: 16, color: C.guide }),
     kit.stroke("axis__tick_null", [[nullPx, AXIS_Y - 8], [nullPx, AXIS_Y + 8]], { color: C.guide, strokeWidth: 2, ms: MS.stroke }),
     kit.text("axis__tick_null_label", [nullPx, AXIS_Y - 26], String(nullVal), { fontSize: 16, color: C.guide }),
     kit.stroke("axis__tick_max", [[PLOT.x1, AXIS_Y - 8], [PLOT.x1, AXIS_Y + 8]], { color: C.guide, strokeWidth: 2, ms: MS.stroke }),
-    kit.text("axis__tick_max_label", [PLOT.x1, AXIS_Y - 26], maxOriginal.toFixed(2), { fontSize: 16, color: C.guide }),
+    kit.text("axis__tick_max_label", [PLOT.x1, AXIS_Y - 26], kit.num(maxOriginal, 2), { fontSize: 16, color: C.guide }),
     kit.text("axis__caption", [(PLOT.x0 + PLOT.x1) / 2, AXIS_Y - 52], measure + (isLog ? " (log scale)" : " (linear scale)"), { fontSize: 17, color: C.guide }),
   ];
   push(kit.group("axis", axisChildren));
