@@ -10384,7 +10384,7 @@
     }
   },
   {
-    "request": "Walk me through a normal ECG.",
+    "request": "How do you read a normal ECG?",
     "packs": [
       "medicine"
     ],
@@ -10393,20 +10393,90 @@
       "template": "ecg_strip",
       "params": {
         "rhythm": "normal",
-        "title": "Normal sinus rhythm"
+        "rate": 75,
+        "seconds": 3
       },
+      "elements": [
+        {
+          "id": "rr",
+          "type": "arrow",
+          "from": {
+            "x": 199,
+            "y": 562
+          },
+          "to": {
+            "x": 431,
+            "y": 562
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "rr_t",
+          "type": "text",
+          "text": "4 squares = 0.8 s",
+          "x": 315,
+          "y": 594,
+          "font_size": 22,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "pr",
+          "type": "arrow",
+          "from": {
+            "x": 367,
+            "y": 316
+          },
+          "to": {
+            "x": 419,
+            "y": 316
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "pr_t",
+          "type": "text",
+          "text": "the pause: under 0.2 s",
+          "x": 420,
+          "y": 284,
+          "font_size": 22,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        }
+      ],
       "commands": [
+        {
+          "card": {
+            "title": "Reading a normal ECG"
+          }
+        },
         {
           "draw": [
             "grid"
           ],
-          "speak": "An E C G is drawn on graph paper — every small square is a fifth of a second."
+          "speak": "How do you read an ECG? It draws the heart's electrical signal over time, and each bump is one step of a heartbeat."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 138,
+              "y": 345
+            },
+            "gesture": "underline"
+          },
+          "speak": "Time runs to the right. Each square is a fifth of a second, so five squares make one second."
         },
         {
           "draw": [
             "trace"
           ],
-          "speak": "Here is one normal heartbeat after another, about seventy-five per minute."
+          "speak": "Here are three seconds of a healthy heart. The same shape repeats with every beat."
         },
         {
           "pause": 0.3
@@ -10415,55 +10485,141 @@
           "draw": [
             "label_p"
           ],
-          "speak": "The little P wave comes first: the atria contracting."
+          "speak": "First the small P wave: the electrical signal spreading across the two atria, the upper chambers, which makes them squeeze."
         },
         {
           "draw": [
             "label_qrs"
           ],
-          "speak": "Then the tall spike — the QRS complex — as the ventricles fire."
+          "speak": "Then the tall spike, the QRS complex: the signal racing through the two ventricles, the main pumps."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 199,
+              "y": 480
+            },
+            "gesture": "circle"
+          },
+          "speak": "It is tall because the ventricles hold far more muscle than the atria, and more muscle firing makes a bigger signal."
         },
         {
           "draw": [
             "label_t"
           ],
-          "speak": "And the T wave: the ventricles resetting for the next beat."
+          "speak": "Last, the T wave: the ventricles recharging for the next beat. Their squeeze happens between the spike and the T."
+        },
+        {
+          "camera": {
+            "center": {
+              "x": 400,
+              "y": 420
+            },
+            "zoom": 2
+          },
+          "speak": "Now the part that looks like nothing: the flat line between P and the spike."
         },
         {
           "draw": [
-            "rate_label",
-            "title"
+            "pr",
+            "pr_t"
           ],
-          "speak": "P, QRS, T — repeated steadily. That is sinus rhythm."
+          "speak": "It is a deliberate pause, less than one square long."
+        },
+        {
+          "highlight": {
+            "target": [
+              "pr"
+            ]
+          },
+          "speak": "The signal is held at the AV node, the only gate from atria to ventricles, so the atria can finish topping up the ventricles first."
+        },
+        {
+          "camera": {
+            "reset": true
+          }
+        },
+        {
+          "draw": [
+            "rr",
+            "rr_t"
+          ],
+          "speak": "To get the rate, count the squares between two spikes: four, which is 0.8 seconds per beat."
+        },
+        {
+          "draw": [
+            "rate_label"
+          ],
+          "speak": "Three hundred divided by four squares gives seventy-five beats a minute: a normal resting rate."
+        },
+        {
+          "highlight": {
+            "target": [
+              "trace"
+            ]
+          },
+          "speak": "So a normal beat is a sequence: atria, pause, ventricles, recovery. Every rhythm disorder is one of those steps going wrong."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 431,
+              "y": 480
+            },
+            "gesture": "tap"
+          },
+          "speak": "Willem Einthoven recorded the first clear ECGs in the early 1900s, named the waves P to T, and won the 1924 Nobel Prize."
+        },
+        {
+          "quiz": {
+            "question": "On another ECG the flat line between P and QRS is 0.3 seconds long. Where is the signal delayed?",
+            "choices": [
+              "In the atria",
+              "At the AV node",
+              "In the ventricles"
+            ],
+            "correct": 2,
+            "right": "At the AV node: that flat stretch is the signal waiting at the gate, so a longer one means a slow gate — first-degree heart block."
+          }
         }
       ]
     }
   },
   {
-    "request": "Explain how blood flows through the heart and lungs.",
+    "request": "How does blood flow through the heart and lungs?",
     "packs": [
       "medicine"
     ],
     "spec": {
-      "title": "The double circulation",
+      "title": "Two pumps in one heart",
       "template": "heart_circulation",
       "params": {
-        "title": "The double circulation"
+        "box": {
+          "x": 40,
+          "y": 145,
+          "w": 920,
+          "h": 535
+        }
       },
       "commands": [
+        {
+          "card": {
+            "title": "Two pumps in one heart"
+          }
+        },
         {
           "draw": [
             "body",
             "lungs"
           ],
-          "speak": "Two destinations: the body below, the lungs above."
+          "speak": "How does blood travel through the heart and lungs? It runs two loops: one to the lungs to pick up oxygen, one to the body to deliver it."
         },
         {
           "draw": [
             "heart",
             "walls"
           ],
-          "speak": "Between them sits the heart — four chambers, two on each side of a solid wall."
+          "speak": "The heart sits between them: four chambers, with a solid wall down the middle that makes it two pumps."
         },
         {
           "draw": [
@@ -10473,7 +10629,7 @@
             "label_ra",
             "label_rv"
           ],
-          "speak": "The right side handles blue, oxygen-poor blood."
+          "speak": "The heart's right side is drawn on your left, as if it faces you. It handles oxygen-poor blood, shown blue."
         },
         {
           "draw": [
@@ -10483,7 +10639,7 @@
             "label_la",
             "label_lv"
           ],
-          "speak": "The left side handles red, oxygen-rich blood."
+          "speak": "The left side handles oxygen-rich blood, shown red. The wall keeps the two apart."
         },
         {
           "pause": 0.3
@@ -10493,68 +10649,230 @@
             "vein_in",
             "label_vc"
           ],
-          "speak": "Used blood returns from the body into the right atrium."
+          "speak": "Used blood comes back from the body through the vena cava into the right atrium, a holding chamber."
         },
         {
           "draw": [
             "ra_rv"
           ],
-          "speak": "It drops into the right ventricle."
+          "speak": "It passes through a valve into the right ventricle, the pump."
         },
         {
           "draw": [
             "pulm_artery",
             "label_pa"
           ],
-          "speak": "From there it is pumped up to the lungs to collect oxygen."
+          "speak": "That sends it up the pulmonary artery to the lungs. It is an artery because it leaves the heart, even though its blood is oxygen-poor."
         },
         {
           "draw": [
             "pulm_vein",
             "label_pv"
           ],
-          "speak": "Fresh red blood flows back into the left atrium."
+          "speak": "In the lungs the blood drops carbon dioxide, picks up oxygen, and returns red through the pulmonary veins to the left atrium."
         },
         {
           "draw": [
             "la_lv"
           ],
-          "speak": "It fills the powerful left ventricle."
+          "speak": "From there it fills the left ventricle."
         },
         {
           "draw": [
             "aorta",
             "label_ao"
           ],
-          "speak": "And it is driven out through the aorta to the whole body."
+          "speak": "That drives it out through the aorta to every organ, and back round to the right side again."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "Two loops through one pump — that is the double circulation."
+          "flow": {
+            "along": [
+              "vein_in",
+              "ra_rv",
+              "pulm_artery",
+              "pulm_vein",
+              "la_lv",
+              "aorta"
+            ]
+          },
+          "speak": "A figure of eight. At rest each side moves about five litres a minute — roughly all the blood you have."
+        },
+        {
+          "highlight": {
+            "target": [
+              "lv"
+            ]
+          },
+          "speak": "Same volume, very different push. The left ventricle drives blood round the whole body at about 120 millimetres of mercury."
+        },
+        {
+          "highlight": {
+            "target": [
+              "rv"
+            ]
+          },
+          "speak": "The right needs only about 25 for the lungs. Their vessels are short and delicate, and high pressure would flood them with fluid."
+        },
+        {
+          "highlight": {
+            "target": [
+              "walls"
+            ]
+          },
+          "speak": "So the left ventricle's wall grows about three times thicker than the right's."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "lungs"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Why two pumps at all? A fish has one: it pumps blood through its gills and on to the body, and most of the push is lost in the gills."
+        },
+        {
+          "highlight": {
+            "target": [
+              "left_fill"
+            ]
+          },
+          "speak": "Our second pump gives blood a fresh, strong push after the lungs. Two pumps side by side: equal in volume, unequal in force."
+        },
+        {
+          "quiz": {
+            "question": "The right ventricle pumps five litres a minute. How much does the left pump?",
+            "choices": [
+              "About 5 litres",
+              "About 25 litres",
+              "About 1 litre"
+            ],
+            "correct": 1,
+            "right": "About five litres: every drop passes through both loops in turn, so both sides move the same volume — the left just pushes harder."
+          }
         }
       ]
     }
   },
   {
-    "request": "Draw a neuron and show how the signal travels.",
+    "request": "How does a signal travel along a nerve cell?",
     "packs": [
       "medicine"
     ],
     "spec": {
-      "title": "The neuron",
+      "title": "How a nerve signal travels",
       "template": "neuron",
-      "params": {
-        "title": "The neuron"
-      },
+      "params": {},
+      "elements": [
+        {
+          "id": "thr",
+          "type": "path",
+          "points": [
+            [
+              300,
+              215
+            ],
+            [
+              610,
+              215
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "dash": true
+          }
+        },
+        {
+          "id": "v_thr",
+          "type": "text",
+          "text": "threshold −55 mV",
+          "x": 725,
+          "y": 217,
+          "font_size": 20,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "ap",
+          "type": "path",
+          "smooth": true,
+          "points": [
+            [
+              300,
+              200
+            ],
+            [
+              375,
+              200
+            ],
+            [
+              392,
+              216
+            ],
+            [
+              408,
+              300
+            ],
+            [
+              424,
+              216
+            ],
+            [
+              440,
+              190
+            ],
+            [
+              475,
+              196
+            ],
+            [
+              530,
+              200
+            ],
+            [
+              610,
+              200
+            ]
+          ],
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "v_rest",
+          "type": "text",
+          "text": "−70 mV",
+          "x": 240,
+          "y": 200,
+          "font_size": 20,
+          "style": {
+            "color": "#3d3833"
+          }
+        },
+        {
+          "id": "v_peak",
+          "type": "text",
+          "text": "+30 mV",
+          "x": 480,
+          "y": 295,
+          "font_size": 20,
+          "style": {
+            "color": "#b5482e"
+          }
+        }
+      ],
       "commands": [
+        {
+          "card": {
+            "title": "How a nerve signal travels"
+          }
+        },
         {
           "draw": [
             "dendrites",
             "label_dendrites"
           ],
-          "speak": "A neuron listens with its dendrites — branching antennas for incoming signals."
+          "speak": "How does a signal travel along a nerve cell? It starts at the dendrites, the branches that collect messages from other cells."
         },
         {
           "draw": [
@@ -10562,55 +10880,110 @@
             "nucleus",
             "label_soma"
           ],
-          "speak": "The signals meet in the cell body, where the neuron decides whether to fire."
+          "speak": "The cell body adds them up. At rest its inside sits at minus seventy millivolts, charged like a tiny battery."
         },
         {
-          "pause": 0.3
+          "draw": [
+            "v_rest"
+          ],
+          "speak": "That is the resting level."
+        },
+        {
+          "draw": [
+            "thr",
+            "v_thr"
+          ],
+          "speak": "If the inputs lift it to about minus fifty-five, the threshold, the neuron fires. Below that, nothing is sent at all."
+        },
+        {
+          "draw": [
+            "ap",
+            "v_peak"
+          ],
+          "speak": "Firing means sodium channels open, sodium ions rush in, and the inside flips to about plus thirty, for roughly a millisecond."
+        },
+        {
+          "pause": 0.4
         },
         {
           "draw": [
             "axon",
             "label_axon"
           ],
-          "speak": "When it fires, the impulse races down a single long cable: the axon."
+          "speak": "That spike happens first where the axon begins: the long output cable."
         },
         {
-          "draw": [
-            "myelin",
-            "label_myelin"
-          ],
-          "speak": "Fatty myelin sheaths insulate the cable in segments."
+          "flow": {
+            "along": [
+              "axon"
+            ]
+          },
+          "speak": "The inrush of charge lifts the next patch of membrane past threshold, so it fires too, then the next — like a fuse burning along."
         },
         {
-          "draw": [
-            "label_node"
-          ],
-          "speak": "The signal leaps from gap to gap — the nodes of Ranvier — which makes it fast."
+          "highlight": {
+            "target": [
+              "axon"
+            ]
+          },
+          "speak": "A current in a wire fades with distance. This signal doesn't: every patch rebuilds it to full size, so it arrives as strong as it left."
         },
         {
           "draw": [
             "impulse",
             "label_impulse"
           ],
-          "speak": "It travels one way only: from the cell body toward the terminals."
+          "speak": "And it runs one way only. A patch that has just fired needs a moment to reset, so the wave cannot turn back."
+        },
+        {
+          "draw": [
+            "myelin",
+            "label_myelin",
+            "label_node"
+          ],
+          "speak": "Myelin wraps the axon in insulation. The spike is rebuilt only at the gaps, the nodes, and leaps between them, which is far faster."
         },
         {
           "draw": [
             "terminals",
             "label_terminals"
           ],
-          "speak": "At the axon terminals the message is handed on to the next cell."
+          "speak": "At the terminals it releases chemical messengers that pass it to the next cell."
         },
         {
-          "draw": [
-            "title"
-          ]
+          "highlight": {
+            "target": [
+              "ap"
+            ]
+          },
+          "speak": "Every spike is the same size. So how does a neuron say 'stronger'? It fires more often: a light touch, a few spikes a second; a firm press, many more."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "axon"
+            },
+            "gesture": "underline"
+          },
+          "speak": "Alan Hodgkin and Andrew Huxley worked this out in 1952, in a squid's giant axon, nearly a millimetre thick. It won them a Nobel Prize."
+        },
+        {
+          "quiz": {
+            "question": "You press harder on your fingertip. What changes in the signal its nerve sends?",
+            "choices": [
+              "The spikes get bigger",
+              "There are more spikes per second",
+              "The spikes travel faster"
+            ],
+            "correct": 2,
+            "right": "More spikes per second: each spike is all or nothing, always the same size and speed, so strength is sent as how often it fires."
+          }
         }
       ]
     }
   },
   {
-    "request": "Why can screening look better than it is? Show lead-time bias.",
+    "request": "Why can screening look better than it is?",
     "packs": [
       "medicine"
     ],
@@ -10618,42 +10991,52 @@
       "title": "Lead-time bias",
       "template": "screening_timeline",
       "params": {
-        "title": "Lead-time bias"
+        "onset": 1,
+        "detectable": 2.5,
+        "symptoms": 5.5,
+        "death": 8.5,
+        "screen_at": 3,
+        "box": {
+          "x": 50,
+          "y": 165,
+          "w": 900,
+          "h": 490
+        }
       },
       "commands": [
+        {
+          "card": {
+            "title": "Lead-time bias"
+          }
+        },
         {
           "draw": [
             "axis"
           ],
-          "speak": "Screening can double measured survival without giving anyone a single extra day — this timeline shows the trick."
+          "speak": "Why can screening look better than it is? Survival is counted from the day of diagnosis, and screening moves that day. One patient's timeline shows how."
         },
         {
           "draw": [
             "row_label_0",
-            "row_0"
-          ],
-          "speak": "Follow the same patient twice: first, life without screening."
-        },
-        {
-          "draw": [
+            "row_0",
             "onset_0",
             "label_onset"
           ],
-          "speak": "The disease begins here, silently."
+          "speak": "First, life without screening. A cancer starts at year one, silently."
         },
         {
           "draw": [
             "detectable_0",
             "label_detectable"
           ],
-          "speak": "Soon a test could find it — but nobody is looking."
+          "speak": "By year two and a half a test could find it, but nobody is testing."
         },
         {
           "draw": [
             "dx_0",
             "label_dx_0"
           ],
-          "speak": "It is diagnosed only when symptoms appear."
+          "speak": "Symptoms appear at year five and a half, and that is when it is diagnosed."
         },
         {
           "draw": [
@@ -10662,7 +11045,7 @@
             "survival_0",
             "label_survival_0"
           ],
-          "speak": "From diagnosis to death, this patient survives three years."
+          "speak": "The patient dies at year eight and a half. Survival, counted from diagnosis: three years."
         },
         {
           "pause": 0.4
@@ -10674,14 +11057,14 @@
             "onset_1",
             "detectable_1"
           ],
-          "speak": "Now the same patient, the same disease — with screening."
+          "speak": "Now the same patient and the same cancer, but screened."
         },
         {
           "draw": [
             "dx_1",
             "label_dx_1"
           ],
-          "speak": "A screening test catches it two years earlier."
+          "speak": "A test at year three finds it, two and a half years before any symptom."
         },
         {
           "draw": [
@@ -10689,27 +11072,58 @@
             "sympt_guide",
             "death_guide"
           ],
-          "speak": "But look at the dashed lines: symptoms and death arrive at exactly the same moments as before."
+          "speak": "Suppose treating it early changes nothing. Death still comes at eight and a half, and the dashed line shows the very same moment."
         },
         {
           "draw": [
             "survival_1",
             "label_survival_1"
           ],
-          "speak": "Measured survival jumps from three years to five — yet nobody lived a single day longer."
+          "speak": "Now survival is five and a half years. This patient counts as a five-year survivor, and died on the same day."
         },
         {
           "draw": [
             "lead_time",
             "label_lead"
           ],
-          "speak": "The difference is only a head start on the stopwatch: the lead time."
+          "speak": "The gain is only lead time: the stopwatch started earlier, and the finish line never moved."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "Lead-time bias — why survival statistics can flatter screening."
+          "highlight": {
+            "target": [
+              "death_guide"
+            ]
+          },
+          "speak": "So the honest test is deaths, not survival. In a trial, do fewer screened people die of the cancer than unscreened people?"
+        },
+        {
+          "highlight": {
+            "target": [
+              "label_survival_1"
+            ]
+          },
+          "speak": "The Mayo Lung Project, begun in the 1970s, screened smokers with chest X-rays. Lung-cancer survival rose, yet lung-cancer deaths did not fall."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "death_1"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Screening can save lives, but only when finding it early moves this cross. Only a count of deaths can show that it did."
+        },
+        {
+          "quiz": {
+            "question": "A new screening test raises five-year survival from 40% to 70%. What does that prove?",
+            "choices": [
+              "It saves lives",
+              "Nothing yet: diagnosis may simply come earlier",
+              "Early treatment works better"
+            ],
+            "correct": 2,
+            "right": "Nothing yet: an earlier diagnosis lengthens survival even when death doesn't move. Only fewer deaths in a trial shows that screening saves lives."
+          }
         }
       ]
     }
@@ -10797,45 +11211,143 @@
       "template": "ecg_strip",
       "params": {
         "rhythm": "afib",
-        "title": "Atrial fibrillation"
+        "rate": 110,
+        "seconds": 6
       },
+      "elements": [
+        {
+          "id": "risk",
+          "type": "text",
+          "text": "stroke risk: about 5 times higher",
+          "x": 500,
+          "y": 620,
+          "font_size": 24,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "thin",
+          "type": "text",
+          "text": "blood thinners: about 2 in 3 of those strokes prevented",
+          "x": 500,
+          "y": 585,
+          "font_size": 22,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        }
+      ],
       "commands": [
+        {
+          "card": {
+            "title": "Atrial fibrillation"
+          }
+        },
         {
           "draw": [
             "grid"
           ],
-          "speak": "Put two fingers on your wrist. Would you notice if your heart had lost its conductor? Here is what that looks like on paper."
+          "speak": "What does atrial fibrillation look like, and why does it matter? It is the commonest lasting heart-rhythm disorder, and an ECG shows it at a glance."
         },
         {
           "draw": [
             "trace"
           ],
-          "speak": "This is atrial fibrillation. Watch the spikes: they land at random — no two gaps alike."
+          "speak": "Six seconds of it. Each spike is the ventricles beating, but the gaps between spikes keep changing: no two are alike."
         },
         {
           "pause": 0.3
         },
         {
+          "point": {
+            "at": {
+              "x": 272,
+              "y": 405
+            },
+            "gesture": "circle"
+          },
+          "speak": "In a normal heart a small P wave sits before every spike: the atria firing in step. Here there is none."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 640,
+              "y": 390
+            },
+            "gesture": "underline"
+          },
+          "speak": "Instead the baseline shivers. The atria fire in chaos, some 300 to 600 times a minute, too disorganised to squeeze."
+        },
+        {
           "highlight": {
             "target": [
               "trace"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "And something is missing. There is no small P wave before each spike, because the atria are not beating at all — they are quivering, hundreds of times a minute."
+          "speak": "All that chaos hits the AV node, the gate to the ventricles. It lets through only some impulses, at uneven moments, so the spikes land unevenly."
         },
         {
           "draw": [
             "rate_label"
           ],
-          "speak": "Doctors call this pulse irregularly irregular: chaos with no pattern to find."
+          "speak": "Count the spikes in these six seconds: eleven. Times ten gives about 110 beats a minute."
+        },
+        {
+          "highlight": {
+            "target": [
+              "rate_label"
+            ],
+            "part": "irregularly irregular"
+          },
+          "speak": "Doctors call the pulse irregularly irregular: even the irregularity never repeats. Two fingers on the wrist can often feel it."
+        },
+        {
+          "animate": {
+            "rate": 70
+          },
+          "duration": 4,
+          "speak": "A common treatment slows the gate with drugs. The spikes spread out to about seventy a minute."
+        },
+        {
+          "highlight": {
+            "target": [
+              "trace"
+            ]
+          },
+          "speak": "But they are still uneven, and there are still no P waves. The atria keep quivering."
         },
         {
           "draw": [
-            "title"
+            "risk"
           ],
-          "speak": "The surprise: many people feel nothing at all. But blood pooling in the quivering atria can clot — which is why this quiet rhythm is a leading cause of stroke.",
-          "delivery": "grave"
+          "speak": "Quivering atria don't squeeze, so blood lingers in a small pouch of the left atrium and can clot. A clot that escapes can lodge in the brain."
+        },
+        {
+          "highlight": {
+            "target": [
+              "risk"
+            ]
+          },
+          "speak": "That is why atrial fibrillation makes a stroke about five times more likely — even in the many people who feel nothing at all."
+        },
+        {
+          "draw": [
+            "thin"
+          ],
+          "speak": "So a key treatment isn't about the rhythm: blood thinners prevent about two in three of those strokes."
+        },
+        {
+          "quiz": {
+            "question": "The drug slows the heart to seventy a minute. Is the stroke risk gone?",
+            "choices": [
+              "Yes, the rate is normal now",
+              "No, the atria still quiver",
+              "Yes, if the pulse feels regular"
+            ],
+            "correct": 2,
+            "right": "No: slowing the gate doesn't restore the atria's beat, so blood can still pool and clot — that risk needs its own treatment."
+          }
         }
       ]
     }
@@ -11594,73 +12106,135 @@
     }
   },
   {
-    "request": "Show what government spending does to interest rates in the IS-LM model.",
+    "request": "Why doesn't extra government spending raise output by the full amount?",
     "packs": [
       "macro"
     ],
     "spec": {
-      "title": "IS-LM and fiscal policy",
+      "title": "Crowding out in IS-LM",
       "template": "is_lm",
+      "params": {
+        "is_shift": 20
+      },
       "elements": [
         {
-          "id": "portrait_1",
+          "id": "hicks",
           "type": "portrait",
           "of": "John Hicks",
-          "x": 240,
-          "y": 250,
-          "width": 140
+          "cameo": true
         }
       ],
-      "params": {
-        "is_shift": 20,
-        "title": "A fiscal expansion"
-      },
       "commands": [
+        {
+          "card": {
+            "title": "Where does the stimulus go?"
+          }
+        },
         {
           "draw": [
             "axes"
           ],
-          "speak": "When a government spends big, does the economy grow, or do interest rates just rise? This diagram answers: both — and says how much of each."
+          "speak": "Why doesn't extra government spending raise output by the full amount? The IS-LM diagram tracks output and the interest rate together, and shows where the rest goes."
         },
         {
           "draw": [
             "is_curve"
           ],
-          "speak": "The IS curve collects every combination of output and interest rate where the goods market balances — lower rates, more investment, more output."
+          "speak": "The IS curve is the goods market. Lower interest rates make borrowing to invest cheaper, so the lower the rate, the more output is bought."
         },
         {
           "draw": [
             "lm_curve"
           ],
-          "speak": "The LM curve does the same for money: more output means more demand for money, pushing rates up."
+          "speak": "The LM curve is the money market. More output means more payments and more demand for money; with the money supply fixed, the rate must rise."
         },
         {
           "draw": [
             "eq"
           ],
-          "speak": "Where they cross, both markets clear at once."
+          "speak": "They cross here: output of fifty-seven billion dollars a year, at an interest rate of four and a half percent."
         },
         {
-          "pause": 0.3
+          "pause": 0.4
+        },
+        {
+          "highlight": {
+            "target": [
+              "is_curve"
+            ]
+          },
+          "speak": "Now the government spends more on roads and schools, and the contractors it pays spend part of their new income in turn."
         },
         {
           "draw": [
             "is_shifted"
           ],
-          "speak": "Now the government spends: the IS curve slides right."
+          "speak": "At any given interest rate, that spending and the incomes it creates would add twenty billion of output. IS shifts twenty to the right."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 653,
+              "y": 323
+            },
+            "gesture": "tap"
+          },
+          "speak": "If the rate stayed at four and a half percent, output would rise the full twenty billion, out to here."
+        },
+        {
+          "highlight": {
+            "target": [
+              "lm_curve"
+            ]
+          },
+          "speak": "But more output needs more money for payments, and the central bank hasn't printed any. Borrowers compete for it, and the rate climbs."
         },
         {
           "draw": [
             "eq2"
           ],
-          "speak": "Output rises — but climbing along the LM curve, so interest rates rise too, crowding out some private investment on the way."
+          "speak": "The economy settles here instead: output of sixty-seven billion, up only ten, with the rate at five point two percent."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "eq2"
+            },
+            "gesture": "circle"
+          },
+          "speak": "The missing nine or ten billion is crowding out: at the higher rate, firms and households skip investments they would have made."
+        },
+        {
+          "highlight": {
+            "target": [
+              "is_shifted"
+            ]
+          },
+          "speak": "So the state's spending did not add to private spending; it partly replaced it. About half the stimulus here became output, half became a higher rate."
         },
         {
           "draw": [
-            "title",
-            "portrait_1"
+            "hicks"
           ],
-          "speak": "A curiosity: the most famous Keynesian diagram was never drawn by Keynes — John Hicks sketched it in 1937 to summarize him, and the summary conquered the textbooks."
+          "speak": "Keynes never drew this diagram. John Hicks did, in 1937, to summarise Keynes's General Theory, and the summary is what generations of students learned."
+        },
+        {
+          "erase": [
+            "hicks"
+          ],
+          "speak": "The lesson is that a stimulus is only as strong as the interest rate lets it be, which is why fiscal and monetary policy are judged together."
+        },
+        {
+          "quiz": {
+            "question": "Suppose the central bank holds the rate at 4.5% by supplying whatever money is demanded. How much does output rise?",
+            "choices": [
+              "About 10 billion",
+              "The full 20 billion",
+              "Nothing"
+            ],
+            "correct": 2,
+            "right": "The full twenty billion: crowding out works through the rising rate, so if the rate cannot rise, no private investment is pushed aside."
+          }
         }
       ]
     }
@@ -11671,65 +12245,125 @@
       "macro"
     ],
     "spec": {
-      "title": "The Solow model",
+      "title": "Saving and growth in the Solow model",
       "template": "solow_growth",
       "params": {
         "savings": 0.3,
-        "show_consumption": true,
-        "title": "The Solow model"
+        "depreciation": 0.15,
+        "alpha": 0.33,
+        "show_consumption": true
       },
       "commands": [
+        {
+          "card": {
+            "title": "Does saving buy growth?"
+          }
+        },
         {
           "draw": [
             "axes"
           ],
-          "speak": "Save more, invest more, grow richer forever — it sounds obvious. The Solow model says: only half right, and the half that fails is the interesting one."
+          "speak": "Does a country that saves more grow faster forever? The Solow model says no, and shows why. Along the bottom, machines per worker; up the side, output per worker."
         },
         {
           "draw": [
             "output"
           ],
-          "speak": "Output per worker rises with capital per worker — but flattens, because each extra machine helps less than the last."
+          "speak": "More machines per worker means more output, but each extra machine adds less than the last, so the curve flattens."
         },
         {
           "draw": [
             "savings_curve"
           ],
-          "speak": "A fixed slice of output is saved and invested — the same curve, scaled down."
+          "speak": "This country saves thirty percent of its output and invests it in new machines: the same curve, scaled down to thirty percent."
         },
         {
           "draw": [
             "breakeven"
           ],
-          "speak": "Meanwhile depreciation and population growth eat capital at a steady rate — a straight line that never flattens."
-        },
-        {
-          "pause": 0.3
+          "speak": "Meanwhile machines wear out and new workers need equipping. Just standing still costs a fixed share of the capital: a straight line that never flattens."
         },
         {
           "draw": [
             "steady"
           ],
-          "speak": "Where saving just covers the erosion, capital stops growing: the steady state. Beyond it, the straight line outruns the flattening curve — always."
+          "speak": "Where saving just covers that cost, capital per worker stops growing: the steady state. Left of it, saving wins and capital builds; right of it, wear wins."
         },
         {
           "draw": [
             "consumption_arrow"
           ],
-          "speak": "What's left between output and saving is consumption — what the machines are ultimately for."
+          "speak": "Whatever isn't saved is consumed: the gap between output and saving, which is what the machines are for."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "So saving more buys a richer steady state, not faster growth forever. In the long run, only new ideas — better technology — keep growth alive.",
-          "delivery": "grave"
+          "pause": 0.4
+        },
+        {
+          "animate": {
+            "savings": 0.4
+          },
+          "duration": 3,
+          "speak": "Now the country saves forty percent instead. The saving curve lifts, and the steady state slides right."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 331,
+              "y": 222
+            },
+            "gesture": "tap"
+          },
+          "speak": "At the old capital level, saving now outruns the wear by this gap, so capital, and output with it, grow again."
+        },
+        {
+          "highlight": {
+            "target": [
+              "steady"
+            ]
+          },
+          "speak": "But the gap narrows as capital piles up, and closes at the new steady state. Growth speeds up for a while, then falls back to where it was."
+        },
+        {
+          "highlight": {
+            "target": [
+              "output"
+            ]
+          },
+          "speak": "What saving buys is a higher level: output per worker ends about fifteen percent higher. A one-time step up, not a faster pace forever."
+        },
+        {
+          "highlight": {
+            "target": [
+              "consumption_arrow"
+            ]
+          },
+          "speak": "Not even more to eat: at forty percent, the bigger output minus the bigger saving leaves slightly less consumption per worker than before."
+        },
+        {
+          "highlight": {
+            "target": [
+              "breakeven"
+            ]
+          },
+          "speak": "So what keeps growth going? Only better technology, which lifts the whole output curve. Solow found in 1957 that it explained about seven-eighths of American growth per worker-hour."
+        },
+        {
+          "quiz": {
+            "question": "A country raises its saving rate from 30% to 40%. In the long run, what happens to its growth rate?",
+            "choices": [
+              "Permanently higher",
+              "Higher for a while, then back",
+              "Permanently lower"
+            ],
+            "correct": 2,
+            "right": "Higher for a while, then back: capital builds until wear catches up with the larger saving. The level of output rises; the long-run growth rate does not."
+          }
         }
       ]
     }
   },
   {
-    "request": "Why do threats so often fail? Solve the entry game.",
+    "request": "Why do threats so often fail to deter?",
     "packs": [
       "economics"
     ],
@@ -11737,143 +12371,294 @@
       "title": "The entry game",
       "template": "game_tree",
       "params": {
-        "solve": true,
-        "title": "The entry game"
+        "players": [
+          "Newcomer",
+          "Incumbent"
+        ],
+        "root": {
+          "player": 0,
+          "actions": [
+            {
+              "label": "Stay out",
+              "payoffs": [
+                0,
+                10
+              ]
+            },
+            {
+              "label": "Enter",
+              "player": 1,
+              "actions": [
+                {
+                  "label": "Share",
+                  "payoffs": [
+                    3,
+                    5
+                  ]
+                },
+                {
+                  "label": "Fare war",
+                  "payoffs": [
+                    -2,
+                    2
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "solve": true
       },
       "commands": [
+        {
+          "card": {
+            "title": "Empty threats"
+          }
+        },
         {
           "draw": [
             "legend",
             "node_r"
           ],
-          "speak": "A monopolist growls: enter my market and I'll start a price war. Scary — until you draw the game and read it backwards."
+          "speak": "When is a threat worth believing? A game tree answers by reading the game backwards. A budget airline is deciding whether to fly a route one carrier has alone."
         },
         {
           "draw": [
             "edge_0",
             "payoff_0"
           ],
-          "speak": "The entrant can stay out: nothing gained, and the incumbent keeps its comfortable two."
+          "speak": "Stay out, and nothing changes: the newcomer earns zero, the incumbent keeps its monopoly profit of ten million dollars a year."
         },
         {
           "draw": [
             "edge_1",
             "node_1"
           ],
-          "speak": "Or enter — handing the next move to the incumbent."
-        },
-        {
-          "draw": [
-            "edge_1_0",
-            "payoff_1_0"
-          ],
-          "speak": "Fight, and the price war costs BOTH of them — minus one each."
+          "speak": "Enter, and the next move is the incumbent's."
         },
         {
           "draw": [
             "edge_1_1",
             "payoff_1_1"
           ],
-          "speak": "Accommodate, and they share the market at one apiece."
+          "speak": "It has threatened a fare war: fares below cost, the newcomer losing two million, and the incumbent's own profit crushed to two."
         },
         {
-          "pause": 0.3
+          "draw": [
+            "edge_1_0",
+            "payoff_1_0"
+          ],
+          "speak": "Or it can share the route: five million to the incumbent, three to the newcomer after its start-up costs."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "highlight": {
+            "target": [
+              "edge_1_1"
+            ]
+          },
+          "speak": "If the newcomer believes the threat, staying out is right: zero beats losing two, and the incumbent keeps its ten. The threat works, if believed."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "node_1"
+            },
+            "gesture": "circle"
+          },
+          "speak": "So start at the end instead. Suppose the newcomer is already flying the route. The incumbent now picks between two million from a war and five from sharing."
         },
         {
           "draw": [
             "solution"
           ],
-          "speak": "Now read backwards from the end: if entry ever happens, the incumbent prefers one to minus one — it accommodates. Knowing that, the entrant walks in. The war never comes.",
-          "delivery": "grave"
+          "speak": "It shares. Knowing that, the newcomer enters and earns three. The fare war never comes."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "The threat failed because carrying it out would hurt the threatener — backward induction calls that bluff. Credible deterrence needs commitment, not growling."
+          "highlight": {
+            "target": [
+              "payoff_1_1"
+            ]
+          },
+          "speak": "The threat was empty: carrying it out would hurt the threatener more than giving in. Only a threat you would want to carry out, when the moment comes, is credible."
+        },
+        {
+          "highlight": {
+            "target": [
+              "solution"
+            ]
+          },
+          "speak": "Reinhard Selten made this precise in 1965 as subgame perfection: a plan must be best at every point it could reach. He shared the 1994 Nobel prize."
+        },
+        {
+          "highlight": {
+            "target": [
+              "edge_1_1"
+            ]
+          },
+          "speak": "So real deterrence is commitment: spare planes bought in advance, fare-matching promises in writing, anything that makes fighting pay once the newcomer is in."
+        },
+        {
+          "quiz": {
+            "question": "Which change would make the incumbent's threat of a fare war credible?",
+            "choices": [
+              "Announcing it more loudly",
+              "Making a fare war pay it more than sharing",
+              "Raising the newcomer's start-up costs"
+            ],
+            "correct": 2,
+            "right": "Only a change to the incumbent's own payoffs: if fighting beats sharing once entry has happened, the newcomer, reading backwards, stays out."
+          }
         }
       ]
     }
   },
   {
-    "request": "Is the new drug worth its price? Show the acceptability curve.",
+    "request": "What does a cost-effectiveness acceptability curve tell you, and what doesn't it?",
     "packs": [
       "hta"
     ],
     "spec": {
-      "title": "The acceptability curve",
+      "title": "Reading an acceptability curve",
       "template": "ceac",
       "params": {
         "strategies": [
           {
             "label": "New drug",
-            "midpoint": 50
+            "midpoint": 50,
+            "width": 12
           },
           {
             "label": "Standard care",
             "midpoint": 50,
+            "width": 12,
             "rising": false
           }
         ],
         "thresholds": [
           30,
-          50
+          40
         ],
-        "title": "An expensive drug"
+        "x_max": 100
       },
       "commands": [
+        {
+          "card": {
+            "title": "Reading an acceptability curve"
+          }
+        },
         {
           "draw": [
             "axes"
           ],
-          "speak": "Is the new drug worth it? Committees want a yes or a no — this curve insists the honest answer is a probability that depends on the price of health."
+          "speak": "What does an acceptability curve tell a committee, and what doesn't it? Along the bottom: what we would pay for one quality-adjusted life year, up to a hundred thousand dollars."
         },
         {
-          "draw": [
-            "half_line"
-          ],
-          "speak": "Every input — effect, cost, side effects — is uncertain, so the analysis is run thousands of times with the dice rolled each time."
+          "point": {
+            "at": {
+              "ref": "axes"
+            },
+            "gesture": "tap"
+          },
+          "speak": "Take a new drug against standard care. Its effect, costs and quality of life are uncertain, so the model runs a thousand times, each with fresh draws of every input."
         },
         {
           "draw": [
             "curve_0",
             "curve_label_0"
           ],
-          "speak": "The curve reads: at each willingness to pay per healthy year, in what share of those runs does the new drug win?"
+          "speak": "At each price, a run is a win when the drug's extra QALYs, valued at that price, outweigh its extra cost. The curve is the share of wins."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 150,
+              "y": 145
+            },
+            "gesture": "tap"
+          },
+          "speak": "At zero it is just the chance the drug is cheaper: almost never. Far to the right, it nears the chance it adds any health at all."
         },
         {
           "draw": [
             "curve_1",
             "curve_label_1"
           ],
-          "speak": "Standard care holds the mirror image."
-        },
-        {
-          "pause": 0.3
+          "speak": "With only two options, standard care is the mirror image: in every run, one or the other wins."
         },
         {
           "draw": [
             "threshold_0"
           ],
-          "speak": "At thirty thousand per healthy year — a common benchmark — the new drug wins in well under half the runs."
+          "speak": "At thirty thousand dollars per QALY, the drug wins in only about one run in six."
+        },
+        {
+          "draw": [
+            "half_line"
+          ],
+          "speak": "The curves cross the half-way line at fifty thousand: there, the drug is as likely as not to be good value."
         },
         {
           "draw": [
             "threshold_1"
           ],
-          "speak": "Only near fifty thousand does it become the better bet more often than not."
+          "speak": "That crossing is not the ICER. Average extra cost over average extra QALYs gives forty thousand here."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "So the same drug is a poor buy in one country and a fair one in another — the evidence didn't change, the price of health did."
+          "highlight": {
+            "target": [
+              "threshold_1"
+            ]
+          },
+          "speak": "A few runs where the drug works very well pull the averages up, so at its own ICER the drug wins in only thirty percent of runs."
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve_0"
+            ]
+          },
+          "speak": "Above forty thousand, the drug's expected net benefit is positive, so it is the better choice on average, even where it wins less than half the runs."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve_0",
+              "curve_1"
+            ]
+          },
+          "speak": "So the curve measures how sure we can be, not what to choose: the chance the choice turns out wrong, and whether more research could be worth paying for."
+        },
+        {
+          "highlight": {
+            "target": [
+              "half_line"
+            ]
+          },
+          "speak": "Van Hout and colleagues proposed the curve in 1994, as a way to show uncertainty about a cost-effectiveness ratio without confidence intervals that break down."
+        },
+        {
+          "quiz": {
+            "question": "At $45,000 per QALY the drug wins in 40% of runs, and its ICER is $40,000. What should a committee aiming for the most health do?",
+            "choices": [
+              "Reject it: under 50%",
+              "Adopt it: expected net benefit is positive",
+              "Wait until it passes 50%"
+            ],
+            "correct": 2,
+            "right": "Adopt it: above the ICER the expected net benefit is positive. The curve says how uncertain that choice is, not which choice is best."
+          }
         }
       ]
     }
   },
   {
-    "request": "Which uncertain number should we worry about most? Draw a tornado diagram.",
+    "request": "What does a tornado diagram show, and what does it miss?",
     "packs": [
       "hta"
     ],
@@ -11881,29 +12666,73 @@
       "title": "The tornado diagram",
       "template": "tornado_diagram",
       "params": {
-        "title": "What drives the result?"
+        "base": 8,
+        "x_label": "Net benefit per patient ($1000s)",
+        "show_values": true,
+        "bars": [
+          {
+            "label": "Treatment effect",
+            "low": -20,
+            "high": 35
+          },
+          {
+            "label": "Drug price",
+            "low": 2,
+            "high": 14
+          },
+          {
+            "label": "Quality of life",
+            "low": 3,
+            "high": 13
+          },
+          {
+            "label": "Discount rate",
+            "low": 6,
+            "high": 11
+          },
+          {
+            "label": "Admin cost",
+            "low": 7,
+            "high": 9
+          }
+        ]
       },
       "commands": [
+        {
+          "card": {
+            "title": "What a tornado diagram shows"
+          }
+        },
         {
           "draw": [
             "axes",
             "base_line"
           ],
-          "speak": "A cost-effectiveness result rests on a dozen uncertain numbers. Before trusting it — or funding another study — ask which of them can actually overturn it."
+          "speak": "Which uncertain input could overturn a cost-effectiveness result? A tornado diagram ranks them. Here, a new drug's net benefit: eight thousand dollars per patient in the base case."
         },
         {
           "draw": [
             "bar_label_0",
             "bar_0"
           ],
-          "speak": "Take each parameter in turn, push it from its lowest plausible value to its highest, and record how far the result swings. The effect estimate swings it enormously — both ways across the base case."
+          "speak": "Move one input alone, the treatment effect, from its lowest plausible value to its highest, holding every other input at its base value."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 507,
+              "y": 580
+            },
+            "gesture": "tap"
+          },
+          "speak": "Net benefit swings from minus twenty thousand to plus thirty-five. Left of about here it drops below zero, and the drug is no longer worth its cost."
         },
         {
           "draw": [
             "bar_label_1",
             "bar_1"
           ],
-          "speak": "The drug's price matters too."
+          "speak": "Then the drug's price, alone: from two thousand to fourteen. A wide swing, but it never goes below zero."
         },
         {
           "draw": [
@@ -11914,25 +12743,87 @@
             "bar_label_4",
             "bar_4"
           ],
-          "speak": "And then the swings shrink fast — utility weights, discount rates, admin costs barely move it. Sorted widest first, the bars form the tornado."
-        },
-        {
-          "pause": 0.3
+          "speak": "Then each remaining input in turn. Sorted widest first, the bars narrow like a funnel: the tornado."
         },
         {
           "highlight": {
             "target": [
               "bar_0"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "The near-universal surprise: one or two bars dominate everything. Most of the uncertainty budget lives at the top of the funnel."
+          "speak": "So the effect estimate is the one input that can overturn the decision on its own: the first place to look for better evidence."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "So read tornados before commissioning research: the top bar tells you which study is worth paying for."
+          "pause": 0.4
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "bar_1",
+              "anchor": "left"
+            },
+            "gesture": "tap"
+          },
+          "speak": "But every bar froze the other inputs. Take the high price, which costs six thousand…"
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "bar_2",
+              "anchor": "left"
+            },
+            "gesture": "tap"
+          },
+          "speak": "…together with the low quality of life, which costs five. Eight minus six minus five: roughly minus three."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_1",
+              "bar_2"
+            ]
+          },
+          "speak": "Neither bar crosses zero, yet together they flip the decision. And if two inputs move together, correlated, the diagram cannot show that either."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_4"
+            ]
+          },
+          "speak": "Nor does a bar say how likely its ends are: its width is set by the range someone chose. A generous range makes a minor input look important."
+        },
+        {
+          "highlight": {
+            "target": [
+              "axes"
+            ]
+          },
+          "speak": "That is why agencies such as NICE ask for a probabilistic analysis, drawing all the inputs at once, and not one-way ranges alone."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_0",
+              "bar_1",
+              "bar_2",
+              "bar_3",
+              "bar_4"
+            ]
+          },
+          "speak": "A tornado ranks what matters one input at a time: a good guide to where to look, blind to how uncertainties combine."
+        },
+        {
+          "quiz": {
+            "question": "Two inputs' bars both stay above zero. Can they together flip the decision?",
+            "choices": [
+              "No: neither crosses zero",
+              "Yes: each bar varies one input alone",
+              "Only if they are the top two bars"
+            ],
+            "correct": 2,
+            "right": "Yes: each bar holds every other input at its base value, so combinations, and correlations, are exactly what a tornado cannot show."
+          }
         }
       ]
     }

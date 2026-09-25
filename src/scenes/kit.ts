@@ -805,7 +805,12 @@ export const kit: SceneKit = {
     return segs;
   },
   jitter(i) {
-    return Math.sin(i * 12.9898 + 4.1414) % 1;
+    // A hash, not a sine: sin(12.9898·i) % 1 is a smooth wave sampled at the
+    // integers, so neighbouring values drifted together — atrial fibrillation's
+    // "irregularly irregular" beats came out as a steadily slowing rhythm
+    // (2026-09-25 example revisions). Same range, -1..1, as before.
+    const h = Math.sin(i * 12.9898 + 4.1414) * 43758.5453;
+    return 2 * (h - Math.floor(h)) - 1;
   },
 
   parseSS(s) {

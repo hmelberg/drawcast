@@ -815,7 +815,9 @@ layout: |
 
   // Positions: leaves get evenly spaced vertical slots (top-down in action
   // order), internal nodes sit at the mean of their children.
-  const X0 = 160, XSTEP = 225, YTOP = 620, YBOT = 170;
+  // 210–600: the lowest leaf's payoff box clears the narration band and the
+  // top one stays under the card heading (2026-09-25 example revisions).
+  const X0 = 160, XSTEP = 225, YTOP = 600, YBOT = 210;
   let nLeaves = 0;
   const countLeaves = (n) => { for (const a of n.actions) { if (a.node) countLeaves(a.node); else nLeaves++; } };
   countLeaves(root);
@@ -909,10 +911,10 @@ layout: |
   walk(root, "node_r", "");
 
   push(kit.group("legend", [
-    kit.text("legend__1", [150, 700], "1 = " + players[0], { fontSize: 18, anchor: "start", color: C.demand }),
-    kit.text("legend__2", [150, 672], "2 = " + players[1], { fontSize: 18, anchor: "start", color: C.supply }),
+    kit.text("legend__1", [150, 640], "1 = " + players[0], { fontSize: 18, anchor: "start", color: C.demand }),
+    kit.text("legend__2", [150, 614], "2 = " + players[1], { fontSize: 18, anchor: "start", color: C.supply }),
   ]));
-  anchors.legend = [150, 700];
+  anchors.legend = [150, 640];
 
   if (doSolve && solutionChildren.length > 0) {
     push(kit.group("solution", solutionChildren));
