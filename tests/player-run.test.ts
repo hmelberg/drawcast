@@ -141,6 +141,19 @@ describe("player: run", () => {
       expect(patches.get("sim")?.values.beta).toBe(0.4);
     });
 
+    test("the late answer's re-mount is shown, not left hidden (2026-09-25: a blank page)", async () => {
+      const { player, patches } = make(NEVER);
+      // The commit after the answer mounts a FRESH element, hidden until the
+      // scene says otherwise — exactly what a real re-layout does.
+      const fresh = { finished: 0, hidden: 0, finish() { this.finished++; }, hide() { this.hidden++; }, setOffset() {}, setOpacity() {} };
+      player.reprojector!.commit = () => new Map([["sim", fresh as never]]);
+      player.renderUpTo(3);
+      await tick();
+      await tick();
+      expect(patches.get("sim")?.values.beta).toBe(0.4);
+      expect(fresh.finished).toBeGreaterThan(0); // `sim` is drawn at boundary 3
+    });
+
     test("with no runner it leaves the authored script alone", async () => {
       const { player, patches } = make(NEVER);
       player.sweepRunner = null;

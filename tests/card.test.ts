@@ -109,7 +109,7 @@ describe("headingZoom (2026-09-25)", () => {
     const z = headingZoom(long);
     expect(z).toBeLessThan(1.8);
     // The estimated width at that zoom fits the 1000-unit view.
-    expect(0.48 * headingFont(long) * long.length * z).toBeLessThanOrEqual(940);
+    expect(0.54 * headingFont(long) * long.length * z).toBeLessThanOrEqual(920);
     expect(headingZoom("x".repeat(200))).toBe(1);
   });
 });

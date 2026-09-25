@@ -728,7 +728,14 @@ export class Player {
           if (this.completed !== n) return;
           if (this.patchHistory.get(step.code)?.some((e) => e.step === i)) return;
           this.pushCodePatch(step.code, { ...patch, values }, i);
-          this.applyKey(this.stateAt(this.completed));
+          // The commit mounts fresh elements, hidden until told otherwise:
+          // the scene's visibility must be applied again, as jumpTo does, or
+          // the whole page — heading and all — stays blank (2026-09-25: every
+          // scrub past an uncached run, and every frames-harness end frame of
+          // a cast with a run).
+          const scene = this.stateAt(this.completed);
+          this.applyKey(scene);
+          this.applyScene(scene);
         },
         () => {
           /* a script that will not run leaves the authored figure standing */

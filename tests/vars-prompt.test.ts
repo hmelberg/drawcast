@@ -5,6 +5,7 @@ import { domainMapping, elementBBoxes, layoutSpec } from "../src/layout/layout";
 import { planCommands, type PlanStep } from "../src/render/plan";
 import { planOptionsFor } from "../src/render/index";
 import type { Spec } from "../src/spec/types";
+import { expandSpec } from "../src/spec/expand";
 
 const prompt = readFileSync("src/llm/prompts/compiler-v1.md", "utf8");
 
@@ -51,7 +52,7 @@ describe("the prompt teaches vars and holding definitions (design 2026-09-10)", 
   test("the four examples use the machinery: var animates, relayout moves", () => {
     const ex = examples as (Ex & { spec?: Spec })[];
     const plan = (request: string) => {
-      const spec = ex.find((e) => e.request === request)!.spec!;
+      const spec = expandSpec(ex.find((e) => e.request === request)!.spec!);
       const layout = layoutSpec(spec);
       const bboxes = elementBBoxes(layout);
       return planCommands(spec.commands, layout.order, {

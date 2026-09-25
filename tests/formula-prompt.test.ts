@@ -5,6 +5,7 @@ import { domainMapping, elementBBoxes, layoutSpec } from "../src/layout/layout";
 import { planCommands, type PlanStep } from "../src/render/plan";
 import { planOptionsFor } from "../src/render/index";
 import type { Spec } from "../src/spec/types";
+import { expandSpec } from "../src/spec/expand";
 
 const prompt = readFileSync("src/llm/prompts/compiler-v1.md", "utf8");
 
@@ -77,7 +78,8 @@ describe("the prompt teaches morph.tex, copy, colors and the parametric curve (d
   test("the three examples use the machinery: two morph.tex + two copy in the derivation, one morph.tex in the ICER, one animate on vars.s in the circle", () => {
     const ex = examples as (Ex & { spec?: Spec })[];
     const plan = (request: string) => {
-      const spec = ex.find((e) => e.request === request)!.spec!;
+      // Expanded as render() does: an example's opening `card` is sugar.
+      const spec = expandSpec(ex.find((e) => e.request === request)!.spec!);
       const layout = layoutSpec(spec);
       const bboxes = elementBBoxes(layout);
       return planCommands(spec.commands, layout.order, {

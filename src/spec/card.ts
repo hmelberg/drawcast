@@ -28,13 +28,13 @@ export function headingFont(text: string): number {
 export const HEADING_Y = 726;
 
 /** How close the heading's push-in starts: 1.8×, or less for a long title,
- *  so the words fill about 94 % of the view instead of running off its sides
+ *  so the words fill about 92 % of the view instead of running off its sides
  *  (a 34-character title at 1.8× was cut at both ends, 2026-09-25). The
  *  width is estimated like the underline's — about half the font size per
  *  character — never measured. */
 export function headingZoom(title: string): number {
-  const width = 0.48 * headingFont(title) * Math.max(1, title.length);
-  return Math.max(1, Math.min(1.8, Math.floor((940 / width) * 100) / 100));
+  const width = 0.54 * headingFont(title) * Math.max(1, title.length);
+  return Math.max(1, Math.min(1.8, Math.floor((920 / width) * 100) / 100));
 }
 
 /**

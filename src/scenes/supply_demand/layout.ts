@@ -475,13 +475,16 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     push({
       id: `${kind}_guides`,
       kind: "stroke",
+      // One polyline for both guides, so it runs up one, along the price
+      // line (which already draws that stretch) and down the other. Joined
+      // top-to-bottom-then-top it drew a dashed diagonal from (qa, 0) to
+      // (qb, p) across the plot (2026-09-25).
       pts: ctx.toLogical([
-        [qa, p],
         [qa, 0],
-      ]).concat(ctx.toLogical([
+        [qa, p],
         [qb, p],
         [qb, 0],
-      ])),
+      ]),
       z: Z_STROKE,
       style: defaultStyle({ color: COLORS.guide, strokeWidth: 2.5, dash: true, roughness: 0.9 }),
       drawOpts: defaultDrawOpts("sketch", SKETCH_MS.guides),
