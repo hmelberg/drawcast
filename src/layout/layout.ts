@@ -349,6 +349,7 @@ export function layoutSpec(
   const composed = (a: string, b: string) =>
     marks(a, b) || marks(b, a) || Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
   const layoutIssues = lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], composed);
+  layoutIssues.push(...headingIntrusions(drawables, measure));
   const atDraw = codeEl && !opts.skipDrawBeatLint ? paramsAtFirstDraw(rawSpec, codeEl.id) : null;
   if (!codeEl || atDraw === null) {
     issues.push(...layoutIssues);
@@ -547,3 +548,41 @@ export function inverseDomainMapping(domain: Spec["domain"], fit?: TemplateFit):
   return ([x, y]) => [ix((x - dx) / s), iy((y - dy) / s)];
 }
 
+/**
+ * The card's heading (the top strip, `card_<n>_title` over `card_<n>_line`)
+ * belongs to the heading alone: a figure that reaches up into it — a lung
+ * outline through the underline — passed every other rule, because a stroke
+ * only GRAZING a text's box is allowed by design and stroke–stroke is never
+ * checked (2026-09-25 example revisions). Leaves of other drawables that rise
+ * above the underline within the heading's width are reported.
+ */
+function headingIntrusions(drawables: Drawable[], measure: MeasureFn): LintIssue[] {
+  // The top heading only (its underline sits near the top edge); the TV-style
+  // centre card is sketched mid-canvas and erased again.
+  const lines = drawables.filter((d) => /^card_\d+_line$/.test(d.id) && d.kind === "stroke" && d.pts.every((p) => p[1] > 600));
+  if (lines.length === 0) return [];
+  const prefix = lines[0].id.replace(/_line$/, "");
+  const title = drawables.find((d) => d.id === `${prefix}_title`);
+  if (!title || title.kind !== "text") return [];
+  const underline = Math.min(...lines.flatMap((d) => (d.kind === "stroke" ? d.pts.map((p) => p[1]) : [])));
+  const tb = bboxOfText(title, measure);
+  const inStrip = (x: number, y: number) => y > underline + 2 && x > tb.x && x < tb.x + tb.w;
+  const issues: LintIssue[] = [];
+  for (const d of drawables) {
+    if (/^card_\d+_/.test(d.id)) continue;
+    let hit: [number, number] | null = null;
+    for (const leaf of leafDrawables([d])) {
+      if (leaf.kind === "stroke" || leaf.kind === "area") {
+        const p = leaf.pts.find(([x, y]) => inStrip(x, y));
+        if (p) { hit = p; break; }
+      } else if (leaf.kind === "text") {
+        const b = bboxOfText(leaf, measure);
+        if (b.y + b.h > underline + 2 && b.x + b.w > tb.x && b.x < tb.x + tb.w) { hit = [b.x, b.y + b.h]; break; }
+      }
+    }
+    if (hit) {
+      issues.push({ rule: "heading-intrusion", ids: [d.id], message: `"${d.id}" reaches into the card heading (y ${Math.round(hit[1])}, above its underline at ${Math.round(underline)}) — fit the figure lower (a template's params.box, or a lower position)`, severity: "warn" });
+    }
+  }
+  return issues;
+}

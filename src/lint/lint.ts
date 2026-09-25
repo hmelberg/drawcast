@@ -132,7 +132,8 @@ export interface LintIssue {
     | "template-id-off"
     /** a highlight `part` that names no glyph or text in its targets (the whole target lights instead) */
     | "highlight-part"
-    | "id-keyword";
+    | "id-keyword"
+    | "heading-intrusion";
   ids: string[];
   message: string;
   severity: "warn" | "error";

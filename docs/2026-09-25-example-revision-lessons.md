@@ -316,7 +316,9 @@ inconclusive trials pool to a clear answer; weight = 1/SE²), #28 confounder
   punishing the derivation idiom. **Fixed**: a part found in a formula the
   target was morphed into earlier is accepted.
 - **Heading overlap is not linted**: #68's lungs ran through the card heading
-  and every lint passed. Caught by eye; the template got a `box`.
+  and every lint passed. Caught by eye; the template got a `box`. **Fixed**: lint
+  rule `heading-intrusion` reports any leaf that rises above the top
+  heading's underline within its width (tests/heading-intrusion.test.ts).
 - **`params.box` is the general fix for a template that strays** into the
   band or heading (heart_circulation, screening_timeline, rd_plot) — but
   freehand overlays at fixed coordinates don't follow it.
