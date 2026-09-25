@@ -1005,11 +1005,14 @@ export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIs
   const cmds = spec.commands ?? [];
   const issues: LintIssue[] = [...lintSources(spec), ...lintCode(spec), ...lintWidget(spec), ...lintMathSizes(spec), ...lintCurveExprs(spec)];
 
+  // Keys of a positioned element's `at` ("gap 12") read as fields too: an
+  // element called gap lost its id on the round trip.
+  const AT_KEYS = new Set(["gap", "offset"]);
   // An id that is a side, place, flag or colour word ("right", "top-left",
   // "flat", "red") is read as that word by the script format, so the element loses its id on the way through
   // the editor (found by the round-trip test on a revised example, 2026-09-25).
   for (const el of spec.elements ?? []) {
-    if (SIDE_WORDS.has(el.id) || PLACE_WORDS.has(el.id) || el.id in FLAGS || COLOR_WORDS.has(el.id)) {
+    if (SIDE_WORDS.has(el.id) || PLACE_WORDS.has(el.id) || el.id in FLAGS || COLOR_WORDS.has(el.id) || AT_KEYS.has(el.id)) {
       issues.push({ rule: "id-keyword", ids: [el.id], message: `element id "${el.id}" is a word the script format reads as a side, place, flag or colour — rename it (e.g. "${el.id}_note")`, severity: "warn" });
     }
   }

@@ -3280,88 +3280,194 @@
     }
   },
   {
-    "request": "Draw a timeline of a research project.",
+    "request": "Why do research projects almost always take longer than planned?",
+    "packs": [
+      "data"
+    ],
     "spec": {
-      "title": "Research project timeline",
-      "template": "timeline",
+      "title": "Why projects overrun",
+      "template": "bar_chart",
       "params": {
-        "title": "Research project timeline",
-        "start_label": "Project start",
-        "end_label": "Today",
-        "milestones": [
+        "labels": [
+          "Plan",
+          "Actual"
+        ],
+        "stacked": true,
+        "value_labels": true,
+        "series": [
           {
-            "label": "Protocol approved"
+            "name": "Ethics approval",
+            "values": [
+              [
+                2,
+                2
+              ],
+              [
+                2,
+                5
+              ],
+              [
+                2,
+                5
+              ]
+            ]
           },
           {
-            "label": "Data collection"
+            "name": "Data collection",
+            "values": [
+              [
+                5,
+                5
+              ],
+              [
+                5,
+                9
+              ],
+              [
+                5,
+                9
+              ]
+            ]
           },
           {
-            "label": "Analysis"
+            "name": "Analysis",
+            "values": [
+              [
+                3,
+                3
+              ],
+              [
+                3,
+                3
+              ],
+              [
+                3,
+                4
+              ]
+            ]
           },
           {
-            "label": "Manuscript submitted",
-            "emphasize": true
+            "name": "Writing & review",
+            "values": [
+              [
+                2,
+                2
+              ],
+              [
+                2,
+                2
+              ],
+              [
+                2,
+                6
+              ]
+            ]
           }
-        ]
+        ],
+        "stage": 0,
+        "ylim": [
+          0,
+          26
+        ],
+        "y_label": "Months",
+        "box": {
+          "x": 150,
+          "y": 200,
+          "w": 640,
+          "h": 450
+        }
       },
       "commands": [
         {
-          "speak": "Here's how a typical research project unfolds, from kickoff to publication."
+          "card": {
+            "title": "Why projects overrun"
+          }
         },
         {
           "draw": [
-            "line"
+            "axes",
+            "bar_1"
           ],
-          "speak": "The timeline runs from the project's start to where things stand today."
-        },
-        {
-          "pause": 0.3
+          "speak": "Why do research projects nearly always run late, even when planned with care? Here is a typical plan: twelve months, in four steps."
         },
         {
           "draw": [
-            "dot_0",
-            "label_0"
+            "legend"
           ],
-          "speak": "First, the protocol is approved and the team is ready to begin."
-        },
-        {
-          "pause": 0.3
+          "speak": "Two months for ethics approval, five to collect data, three to analyse, two to write up."
         },
         {
           "draw": [
-            "dot_1",
-            "label_1"
+            "bar_2"
           ],
-          "speak": "Then data collection — usually the longest stretch."
+          "speak": "The team expects the real project to look exactly like the plan. Each step was estimated honestly, by people who know the work."
         },
         {
-          "pause": 0.3
+          "animate": {
+            "stage": 1
+          },
+          "duration": 3,
+          "speak": "Then the ethics committee asks for changes, and recruiting patients runs slow. The first two steps take fourteen months instead of seven."
         },
         {
-          "draw": [
-            "dot_2",
-            "label_2"
-          ],
-          "speak": "The analysis is where the findings actually take shape."
+          "highlight": {
+            "target": [
+              "bar_2"
+            ]
+          },
+          "speak": "Nobody planned those delays, because a plan lists the steps as they go when they go right. The things that go wrong are not in the list."
         },
         {
-          "pause": 0.3
+          "animate": {
+            "stage": 2
+          },
+          "duration": 3,
+          "speak": "Analysis turns up a coding error; the journal asks for revisions. Twenty-four months in all, double the plan."
         },
         {
-          "draw": [
-            "dot_3",
-            "label_3"
-          ],
-          "speak": "And finally, the manuscript goes out for submission."
+          "point": {
+            "at": {
+              "ref": "bar_1"
+            },
+            "gesture": "underline"
+          },
+          "speak": "Why don't the early steps make up for it? A step can finish a little early, but it can run very late. Delays add; they seldom cancel."
         },
         {
-          "pause": 0.3
+          "highlight": {
+            "target": [
+              "bar_1"
+            ]
+          },
+          "speak": "Daniel Kahneman and Amos Tversky named this the planning fallacy in 1979: we forecast from the plan, not from how such projects usually go."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "Four milestones, one straight line from question to publication."
+          "highlight": {
+            "target": [
+              "bar_2"
+            ]
+          },
+          "speak": "In one study, students guessed they'd finish their thesis in about 34 days, and 49 at worst. They took about 55: later than their own worst case."
+        },
+        {
+          "highlight": {
+            "target": [
+              "axes"
+            ]
+          },
+          "speak": "So the useful question isn't how long each of your steps will take. It's how long projects like yours have actually taken."
+        },
+        {
+          "quiz": {
+            "question": "Your team wants a realistic time estimate. What helps most?",
+            "choices": [
+              "Planning each step in more detail",
+              "Checking how long similar projects took",
+              "Asking each member for a careful guess"
+            ],
+            "correct": 2,
+            "right": "Similar projects: their real durations already include the delays nobody plans for, while more detail only makes the best case look surer."
+          }
         }
       ]
     }
@@ -9756,53 +9862,164 @@
     }
   },
   {
-    "request": "Show a titration setup with a pink indicator.",
+    "request": "How does a titration measure how much acid is in a solution?",
     "packs": [
       "chemistry"
     ],
     "spec": {
-      "title": "A titration setup",
+      "title": "How a titration counts acid",
       "template": "lab_apparatus",
       "params": {
         "setup": "titration",
         "indicator_color": "pink",
         "labels": [
-          "Burette",
-          "Flask"
+          "NaOH, 0.100 M",
+          "25.0 mL HCl"
         ]
       },
+      "elements": [
+        {
+          "id": "rx",
+          "type": "math",
+          "tex": "\\mathrm{H^+} + \\mathrm{OH^-} \\to \\mathrm{H_2O}",
+          "x": 790,
+          "y": 600
+        },
+        {
+          "id": "eq1",
+          "type": "math",
+          "tex": "n_{base} = 0.100 \\times 0.0200 = 0.00200",
+          "x": 790,
+          "y": 470,
+          "colors": {
+            "n_{base}": "#2f6b8f"
+          }
+        },
+        {
+          "id": "eq2",
+          "type": "math",
+          "tex": "n_{acid} = n_{base}",
+          "x": 790,
+          "y": 380,
+          "colors": {
+            "n_{acid}": "#b5482e",
+            "n_{base}": "#2f6b8f"
+          }
+        },
+        {
+          "id": "eq3",
+          "type": "math",
+          "tex": "c_{acid} = \\frac{0.00200}{0.0250} = 0.0800",
+          "x": 790,
+          "y": 270,
+          "colors": {
+            "c_{acid}": "#b5482e"
+          }
+        },
+        {
+          "id": "box3",
+          "type": "annotation",
+          "target": [
+            "eq3"
+          ],
+          "kind": "box"
+        }
+      ],
       "commands": [
         {
-          "speak": "Titration measures exactly how much of one solution it takes to react with another."
+          "card": {
+            "title": "How a titration counts acid"
+          }
         },
         {
           "draw": [
-            "stand"
+            "stand",
+            "app_1",
+            "label_1"
           ],
-          "speak": "A retort stand holds everything steady."
+          "speak": "A titration finds how strong an acid is by counting how much base it takes to cancel it. In the flask: 25.0 millilitres of hydrochloric acid, strength unknown."
         },
         {
           "draw": [
             "app_0",
             "label_0"
           ],
-          "speak": "The burette, clamped above, delivers titrant one measured drop at a time."
+          "speak": "Above it, a burette of sodium hydroxide, a base of known strength: 0.100 moles per litre, with every millilitre read off its scale."
         },
         {
           "draw": [
-            "app_1",
-            "label_1"
+            "rx"
           ],
-          "speak": "Below it sits the flask, holding the solution being tested."
+          "speak": "Each hydroxide ion from the base cancels one hydrogen ion from the acid, making water. One for one."
         },
         {
-          "pause": 0.3
+          "highlight": {
+            "target": [
+              "app_1"
+            ]
+          },
+          "speak": "Drop by drop, the acid is used up, and the flask looks exactly the same throughout. So how do you know when to stop?"
         },
         {
           "draw": [
             "liquid"
           ],
-          "speak": "A few drops of indicator turn the solution pink right at the endpoint — the signal to stop adding titrant."
+          "speak": "A few drops of phenolphthalein went in first: colourless in acid, pink once base is left over. At 20.0 millilitres, a single drop turns the flask pink."
+        },
+        {
+          "highlight": {
+            "target": [
+              "liquid"
+            ]
+          },
+          "speak": "Why one drop? At that point almost no acid is left to soak up base, so one drop swings the pH by several units at once."
+        },
+        {
+          "draw": [
+            "eq1"
+          ],
+          "speak": "The burette tells how much base went in: 0.100 moles per litre times 0.0200 litres is 0.00200 moles."
+        },
+        {
+          "draw": [
+            "eq2"
+          ],
+          "speak": "One for one, so the flask held exactly 0.00200 moles of acid."
+        },
+        {
+          "draw": [
+            "eq3",
+            "box3"
+          ],
+          "speak": "Spread over 25.0 millilitres, that is 0.0800 moles per litre: the unknown, found."
+        },
+        {
+          "highlight": {
+            "target": [
+              "label_0"
+            ]
+          },
+          "speak": "The pink measures nothing by itself. It only marks the moment; the burette does the counting."
+        },
+        {
+          "highlight": {
+            "target": [
+              "liquid"
+            ]
+          },
+          "speak": "Phenolphthalein had a second career, too: for decades it was the active ingredient in common laxatives."
+        },
+        {
+          "quiz": {
+            "question": "You fill the flask with 50.0 mL of the same acid instead. When does it turn pink?",
+            "choices": [
+              "At 20.0 mL",
+              "At 40.0 mL",
+              "At 10.0 mL"
+            ],
+            "correct": 2,
+            "right": "At 40.0 millilitres: twice the acid takes twice the base, and the strength you calculate, 0.0800 moles per litre, comes out the same."
+          }
         }
       ]
     }
@@ -9965,13 +10182,13 @@
     "playlist": "playlist:\n  title: Three openings that start the same\n---\ntitle: The Vienna Game\ntemplate: chess_board\nparams:\n  moves: [e4, e5, Nc3]\n  plies_shown: 0\n  coords: false\ncommands:\n  - draw: [board, sq_b8, sq_d8, sq_f8, sq_h8, sq_a7, sq_c7, sq_e7, sq_g7, sq_b6, sq_d6, sq_f6, sq_h6, sq_a5, sq_c5, sq_e5, sq_g5, sq_b4, sq_d4, sq_f4, sq_h4, sq_a3, sq_c3, sq_e3, sq_g3, sq_b2, sq_d2, sq_f2, sq_h2, sq_a1, sq_c1, sq_e1, sq_g1, piece_a1, piece_a2, piece_a7, piece_a8, piece_b1, piece_b2, piece_b7, piece_b8, piece_c1, piece_c2, piece_c3, piece_c7, piece_c8, piece_d1, piece_d2, piece_d7, piece_d8, piece_e1, piece_e2, piece_e4, piece_e5, piece_e7, piece_e8, piece_f1, piece_f2, piece_f7, piece_f8, piece_g1, piece_g2, piece_g7, piece_g8, piece_h1, piece_h2, piece_h7, piece_h8, move_arrow]\n    speak: \"Almost every game of chess opens as an argument about the middle of the board — and for two moves, all three of these openings make exactly the same argument.\"\n  - animate: { plies_shown: 1 }\n    duration: 1.3\n    speak: \"1. e4 — White takes the centre.\"\n  - animate: { plies_shown: 2 }\n    duration: 1.3\n    speak: \"e5 — Black takes just as much of it. So far, nothing separates them.\"\n  - animate: { plies_shown: 3 }\n    duration: 1.6\n    speak: \"Here is the first parting. The Vienna Game brings this knight to c3, where it guards the e4 pawn.\"\n  - point: { at: { ref: piece_c3 }, gesture: circle }\n    speak: \"It is the patient one of the three: it defends before it attacks, and keeps the other knight free to choose later.\"\n---\ntitle: The Italian Game\ntemplate: chess_board\nparams:\n  moves: [e4, e5, Nf3, Nc6, Bc4]\n  plies_shown: 0\n  coords: false\n  arrows:\n    - { from: c4, to: f7 }\n  highlights: [f7]\ncommands:\n  - draw: [board, sq_b8, sq_d8, sq_f8, sq_h8, sq_a7, sq_c7, sq_e7, sq_g7, sq_b6, sq_d6, sq_f6, sq_h6, sq_a5, sq_c5, sq_e5, sq_g5, sq_b4, sq_d4, sq_f4, sq_h4, sq_a3, sq_c3, sq_e3, sq_g3, sq_b2, sq_d2, sq_f2, sq_h2, sq_a1, sq_c1, sq_e1, sq_g1, piece_a1, piece_a2, piece_a7, piece_a8, piece_b1, piece_b2, piece_b7, piece_b8, piece_c1, piece_c2, piece_c4, piece_c6, piece_c7, piece_c8, piece_d1, piece_d2, piece_d7, piece_d8, piece_e1, piece_e2, piece_e4, piece_e5, piece_e7, piece_e8, piece_f1, piece_f2, piece_f3, piece_f7, piece_f8, piece_g1, piece_g2, piece_g7, piece_g8, piece_h1, piece_h2, piece_h7, piece_h8, move_arrow]\n    speak: \"The same two pawns, the same argument — but now watch the other knight.\"\n  - animate: { plies_shown: 2 }\n    duration: 1.8\n    speak: \"1. e4 e5, exactly as before.\"\n  - animate: { plies_shown: 3 }\n    duration: 1.3\n    speak: \"Nf3 — this knight attacks e5 rather than defending e4. The Vienna guarded; this one asks a question.\"\n  - animate: { plies_shown: 4 }\n    duration: 1.3\n    speak: \"Nc6 — and Black answers it, defending the pawn.\"\n  - animate: { plies_shown: 5 }\n    duration: 1.6\n    speak: \"Now the Italian Game shows itself: the bishop steps out to c4.\"\n  - draw: [hl_f7, arrow_0]\n    speak: \"It is aiming at f7 — the one square in Black's camp that nothing defends but the king himself.\"\n---\ntitle: The Ruy Lopez\ntemplate: chess_board\nparams:\n  moves: [e4, e5, Nf3, Nc6, Bb5]\n  plies_shown: 0\n  coords: false\n  arrows:\n    - { from: b5, to: c6 }\ncommands:\n  - draw: [board, sq_b8, sq_d8, sq_f8, sq_h8, sq_a7, sq_c7, sq_e7, sq_g7, sq_b6, sq_d6, sq_f6, sq_h6, sq_a5, sq_c5, sq_e5, sq_g5, sq_b4, sq_d4, sq_f4, sq_h4, sq_a3, sq_c3, sq_e3, sq_g3, sq_b2, sq_d2, sq_f2, sq_h2, sq_a1, sq_c1, sq_e1, sq_g1, piece_a1, piece_a2, piece_a7, piece_a8, piece_b1, piece_b2, piece_b5, piece_b7, piece_b8, piece_c1, piece_c2, piece_c6, piece_c7, piece_c8, piece_d1, piece_d2, piece_d7, piece_d8, piece_e1, piece_e2, piece_e4, piece_e5, piece_e7, piece_e8, piece_f1, piece_f2, piece_f3, piece_f7, piece_f8, piece_g1, piece_g2, piece_g7, piece_g8, piece_h1, piece_h2, piece_h7, piece_h8, move_arrow]\n    speak: \"One bishop move later than the last opening parted, this one parts too — and everything up to that point is the Italian's own road.\"\n  - animate: { plies_shown: 4 }\n    duration: 2.2\n    speak: \"1. e4 e5 2. Nf3 Nc6 — identical, move for move.\"\n  - animate: { plies_shown: 5 }\n    duration: 1.6\n    speak: \"Bb5. The bishop takes the other diagonal, and the opening has a different name: the Ruy Lopez.\"\n  - draw: [arrow_0]\n    speak: \"It attacks the knight on c6 — and that knight is what holds e5 up. Rather than aiming at the weak square, it leans on the piece defending the strong one.\"\n---\ntitle: Now you play them\ntemplate: chess_board\nparams:\n  coords: false\n  openings:\n    - { name: Vienna Game, eco: C25, side: white, moves: [e4, e5, Nc3], idea: \"Guard the centre first, and keep the other knight's options open.\" }\n    - { name: Italian Game, eco: C50, side: white, moves: [e4, e5, Nf3, Nc6, Bc4], idea: \"The bishop aims at f7, the square only the king defends.\" }\n    - { name: Ruy Lopez, eco: C60, side: white, moves: [e4, e5, Nf3, Nc6, Bb5], idea: \"Lean on the knight that defends e5, rather than on e5 itself.\" }\ncommands:\n  - draw: [board, sq_b8, sq_d8, sq_f8, sq_h8, sq_a7, sq_c7, sq_e7, sq_g7, sq_b6, sq_d6, sq_f6, sq_h6, sq_a5, sq_c5, sq_e5, sq_g5, sq_b4, sq_d4, sq_f4, sq_h4, sq_a3, sq_c3, sq_e3, sq_g3, sq_b2, sq_d2, sq_f2, sq_h2, sq_a1, sq_c1, sq_e1, sq_g1, piece_a1, piece_a2, piece_a7, piece_a8, piece_b1, piece_b2, piece_b7, piece_b8, piece_c1, piece_c2, piece_c7, piece_c8, piece_d1, piece_d2, piece_d7, piece_d8, piece_e1, piece_e2, piece_e7, piece_e8, piece_f1, piece_f2, piece_f7, piece_f8, piece_g1, piece_g2, piece_g7, piece_g8, piece_h1, piece_h2, piece_h7, piece_h8]\n    speak: \"Three openings, one starting position, and three different moments where they walk away from each other.\"\n  - speak: \"Knowing that is not the same as playing it. Pause here, and under the board you will find Drill openings — it will ask you for these three, and nothing else.\"\n  - speak: \"Play a wrong move and it will tell you which of the other two you have just wandered into. That is the whole trick: these three feel alike until you have to choose.\"\n"
   },
   {
-    "request": "Where are the Nordic countries?",
-    "title": "The Nordic countries",
+    "request": "What is the difference between the Nordic countries and Scandinavia?",
+    "title": "Nordic or Scandinavian?",
     "packs": [
       "maps"
     ],
     "spec": {
-      "title": "The Nordic countries",
+      "title": "Nordic or Scandinavian?",
       "template": "world_map",
       "params": {
         "focus": [
@@ -9980,9 +10197,6 @@
           "Denmark",
           "Finland",
           "Iceland"
-        ],
-        "highlight": [
-          "Norway"
         ],
         "markers": [
           {
@@ -10021,11 +10235,73 @@
             "label": "Reykjavik"
           }
         ],
-        "title": "The Nordic countries"
+        "box": {
+          "x": 60,
+          "y": 160,
+          "w": 880,
+          "h": 510
+        }
       },
+      "elements": [
+        {
+          "id": "w_oslo",
+          "type": "label",
+          "attach_to": "marker_0",
+          "side": "left",
+          "text": "takk",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "w_sto",
+          "type": "label",
+          "attach_to": "marker_1",
+          "side": "right",
+          "text": "tack",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "w_cph",
+          "type": "text",
+          "at": {
+            "ref": "marker_2",
+            "side": "below-right",
+            "gap": 4
+          },
+          "text": "tak",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "w_hel",
+          "type": "label",
+          "attach_to": "marker_3",
+          "side": "right",
+          "text": "kiitos",
+          "style": {
+            "color": "#d0865f"
+          }
+        },
+        {
+          "id": "w_rey",
+          "type": "label",
+          "attach_to": "marker_4",
+          "side": "below",
+          "text": "takk",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "Let's find the Nordic countries — Norway, Sweden, Denmark, Finland and Iceland."
+          "card": {
+            "title": "Nordic or Scandinavian?"
+          }
         },
         {
           "draw": [
@@ -10036,43 +10312,119 @@
             "country_finland",
             "country_iceland"
           ],
-          "speak": "Here they are, cropped in from the world map so they fill the frame."
+          "speak": "Are the Nordic countries the same as Scandinavia? Not quite, and the difference shows what each word is about. These five are the Nordic countries."
         },
         {
-          "pause": 0.3
+          "highlight": {
+            "target": [
+              "country_norway",
+              "country_sweden",
+              "country_denmark"
+            ]
+          },
+          "speak": "Scandinavia, in the strict sense, is only these three: Norway, Sweden and Denmark."
         },
         {
-          "draw": [
-            "hl_norway"
-          ],
-          "speak": "Norway traces the western coast, its fjord-cut edge shading in."
+          "point": {
+            "at": {
+              "ref": "country_denmark"
+            },
+            "gesture": "circle"
+          },
+          "speak": "It can't be geography: Denmark isn't on the Scandinavian Peninsula at all, while a corner of northern Finland is."
         },
         {
-          "pause": 0.3
+          "camera": {
+            "center": {
+              "ref": "marker_1"
+            },
+            "zoom": 1.5
+          }
         },
         {
           "draw": [
             "marker_0",
             "marker_label_0",
+            "w_oslo",
             "marker_1",
             "marker_label_1",
+            "w_sto",
             "marker_2",
             "marker_label_2",
-            "marker_3",
-            "marker_label_3",
-            "marker_4",
-            "marker_label_4"
+            "w_cph"
           ],
-          "speak": "Their capitals: Oslo, Stockholm, Copenhagen, Helsinki and Reykjavik."
+          "speak": "Listen instead. 'Thank you' in Oslo, Stockholm and Copenhagen: [norwegian:takk], [swedish:tack], [danish:tak]."
         },
         {
-          "pause": 0.3
+          "highlight": {
+            "target": [
+              "w_oslo",
+              "w_sto",
+              "w_cph"
+            ]
+          },
+          "speak": "Three close cousins from one North Germanic root: a Norwegian, a Swede and a Dane can mostly follow each other, each speaking their own language."
         },
         {
           "draw": [
-            "title"
+            "marker_3",
+            "marker_label_3",
+            "w_hel"
           ],
-          "speak": "Five countries, one shared region at the top of Europe."
+          "speak": "In Helsinki it's [finnish:kiitos]. Finnish isn't Germanic at all: it's a Uralic language, kin to Estonian and, distantly, Hungarian."
+        },
+        {
+          "highlight": {
+            "target": [
+              "country_finland"
+            ]
+          },
+          "speak": "Yet Finland is Nordic: six centuries inside the Swedish realm, until 1809, and Swedish is still an official language there."
+        },
+        {
+          "camera": {
+            "reset": true
+          }
+        },
+        {
+          "draw": [
+            "marker_4",
+            "marker_label_4",
+            "w_rey"
+          ],
+          "speak": "In Reykjavik it's [is-IS:takk] again. Iceland was settled from Norway in the late 800s, and Icelanders can still read their medieval sagas."
+        },
+        {
+          "highlight": {
+            "target": [
+              "country_iceland"
+            ]
+          },
+          "speak": "So by language Iceland is Scandinavian, and many count it; the strict sense keeps the word for the three old kingdoms."
+        },
+        {
+          "highlight": {
+            "target": [
+              "country_norway",
+              "country_sweden",
+              "country_denmark",
+              "country_finland",
+              "country_iceland"
+            ]
+          },
+          "speak": "Scandinavian names a family of languages; Nordic names a shared history. All five flags carry the same off-centre cross, borrowed from Denmark's."
+        },
+        {
+          "quiz": {
+            "question": "Is Finland Scandinavian, Nordic, or both?",
+            "choices": [
+              "Nordic, but not Scandinavian",
+              "Both",
+              "Neither"
+            ],
+            "correct": 1,
+            "right": "Nordic but not Scandinavian: Finnish is a Uralic language, not a Scandinavian one, but six centuries under Sweden make Finland part of the Nordic family."
+          }
         }
       ]
     }
@@ -16967,97 +17319,310 @@
     "playlist": "playlist:\n  title: Where the bell curve comes from\n  advance: auto\n  gap: 1\n---\ntitle: The Galton board\ntemplate: galton_board\nparams:\n  rows: 8\n  show_path: true\n  show_curve: true\n  box: { x: 40, y: 200, w: 920, h: 440 }\ncommands:\n  - card: { title: \"Where the bell curve comes from\" }\n  - draw: [pegs]\n    speak: \"Why does the bell curve turn up everywhere, from heights to measurement errors? A board of pegs shows where it comes from. Each ball meets eight rows.\"\n  - draw: [path]\n    speak: \"At every peg it bounces left or right, a coin toss each time. This ball went right five times and left three.\"\n  - draw: [bin_4, bin_3, bin_5, bin_2, bin_6, bin_1, bin_7, bin_0, bin_8]\n    speak: \"Let thousands fall, and the bins fill into a shape: tall in the middle, thin at the edges. Every single time.\"\n  - focus: { target: [bin_0] }\n    speak: \"Only one path ends in the far-left bin: left, eight times in a row. That is one path out of 256.\"\n  - focus: { target: [bin_4] }\n    speak: \"The middle bin is reached by any four lefts and four rights, in any order: seventy different paths. So it gets seventy times the balls.\"\n  - highlight: { target: [pegs] }\n    speak: \"The pegs favour neither side, and no ball is steered. There are simply far more ways to land in the middle than at the edge.\"\n  - draw: [curve]\n    speak: \"Add up many small, independent pushes, and the total follows this smooth bell: the normal distribution.\"\n---\ntitle: The bell curve\ntemplate: distribution_curve\nzoom_from: bin_4\nparams:\n  shade: { from: 2, side: two, label: \"2.3% in each tail\" }\n  box: { x: 40, y: 150, w: 920, h: 520 }\nelements:\n  - { id: portrait_1, type: portrait, of: Francis Galton, x: 838, y: 545, width: 130 }\ncommands:\n  - draw: [axis, curve]\n    speak: \"Up close, the shape of those bins is the normal curve: the smooth limit of many coin tosses added together.\"\n  - draw: [mean_line]\n    speak: \"It is symmetric about its mean, which on the board is the spot straight under the drop.\"\n  - draw: [sd_tick_0, sd_tick_1, sd_tick_2, sd_tick_3]\n    speak: \"Its width is measured in standard deviations. About two thirds of the balls land within one of the mean…\"\n  - draw: [shade, shade2, shade_label]\n    parallel: true\n    speak: \"…and about 95 percent within two. Beyond two, each tail holds just over two percent.\"\n  - highlight: { target: [curve] }\n    speak: \"The recipe is adding. When small effects multiply instead, as interest does on wealth, the result is lopsided, which is why incomes are not bell-shaped.\"\n  - draw: [portrait_1]\n    speak: \"Francis Galton built the board in the 1870s. He wrote that the Greeks would have made this law a god, had they known of it.\"\n  - quiz:\n      question: \"Why do so few balls land in the far-left bin?\"\n      choices: [\"Only one of the 256 paths leads there\", \"The pegs push balls toward the middle\", \"The edge bins are harder to reach through the gaps\"]\n      correct: 1\n      right: \"Only one path, eight lefts in a row, leads there, while seventy lead to the middle. Every peg is a fair coin toss.\"\n"
   },
   {
-    "request": "How long did Darwin sit on his theory? Show me the timeline.",
+    "request": "Why did Darwin wait twenty years to publish his theory?",
     "spec": {
-      "title": "Darwin's long fuse",
-      "template": "timeline",
-      "params": {
-        "title": "Darwin's long fuse",
-        "milestones": [
-          {
-            "label": "Beagle voyage",
-            "sublabel": "1831-36"
-          },
-          {
-            "label": "\"I think\" notebook",
-            "sublabel": "1837"
-          },
-          {
-            "label": "Wallace's letter",
-            "sublabel": "1858"
-          },
-          {
-            "label": "On the Origin of Species",
-            "sublabel": "1859",
-            "emphasize": true
-          }
+      "title": "Darwin's twenty-year wait",
+      "domain": {
+        "x": [
+          1829,
+          1865
+        ],
+        "y": [
+          0,
+          10
         ]
       },
       "elements": [
         {
-          "id": "portrait_1",
+          "id": "darwin",
           "type": "portrait",
           "of": "Charles Darwin",
-          "x": 160,
-          "y": 560,
-          "width": 160
+          "cameo": true
+        },
+        {
+          "id": "tl",
+          "type": "arrow",
+          "from": {
+            "x": 1829.5,
+            "y": 4
+          },
+          "to": {
+            "x": 1864,
+            "y": 4
+          },
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "beagle",
+          "type": "curve",
+          "expr": "4",
+          "x_from": 1831.9,
+          "x_to": 1836.8,
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 8
+          }
+        },
+        {
+          "id": "l_beagle",
+          "type": "text",
+          "at": {
+            "ref": "beagle",
+            "side": "above",
+            "gap": 12
+          },
+          "text": "Beagle, 1831–36",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "p_idea",
+          "type": "point",
+          "at": {
+            "x": 1838,
+            "y": 4
+          }
+        },
+        {
+          "id": "l_idea",
+          "type": "text",
+          "at": {
+            "ref": "p_idea",
+            "side": "below",
+            "gap": 12
+          },
+          "text": "1838: the idea"
+        },
+        {
+          "id": "p_origin",
+          "type": "point",
+          "at": {
+            "x": 1859.9,
+            "y": 4
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "l_origin",
+          "type": "text",
+          "at": {
+            "ref": "p_origin",
+            "side": "above",
+            "gap": 12
+          },
+          "text": "1859: the Origin",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "span",
+          "type": "arrow",
+          "from": {
+            "x": 1838,
+            "y": 6.5
+          },
+          "to": {
+            "x": 1859.9,
+            "y": 6.5
+          },
+          "style": {
+            "color": "#b5482e",
+            "dash": true
+          }
+        },
+        {
+          "id": "l_span",
+          "type": "text",
+          "at": {
+            "ref": "span",
+            "side": "above",
+            "gap": 12
+          },
+          "text": "21 years",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "p_essay",
+          "type": "point",
+          "at": {
+            "x": 1844.5,
+            "y": 4
+          },
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "l_essay",
+          "type": "text",
+          "at": {
+            "ref": "p_essay",
+            "side": "above",
+            "gap": 12
+          },
+          "text": "1844: the essay",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "barn",
+          "type": "curve",
+          "expr": "4",
+          "x_from": 1846,
+          "x_to": 1854,
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 8
+          }
+        },
+        {
+          "id": "l_barn",
+          "type": "text",
+          "at": {
+            "ref": "barn",
+            "side": "below",
+            "gap": 12
+          },
+          "text": "1846–54: barnacles",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "p_wallace",
+          "type": "point",
+          "at": {
+            "x": 1858.5,
+            "y": 4
+          }
+        },
+        {
+          "id": "l_wallace",
+          "type": "text",
+          "at": {
+            "ref": "p_wallace",
+            "side": "below",
+            "gap": 52
+          },
+          "text": "1858: Wallace"
         }
       ],
       "commands": [
         {
-          "draw": [
-            "portrait_1"
-          ],
-          "speak": "Charles Darwin had the most dangerous idea in biology - and then kept it in a drawer. Let's count the years."
+          "card": {
+            "title": "Darwin's twenty-year wait"
+          }
         },
         {
           "draw": [
-            "line",
-            "dot_0",
-            "label_0"
+            "darwin"
           ],
-          "speak": "The voyage of the Beagle, 1831: five years of finches, fossils and growing doubts."
+          "speak": "Charles Darwin had natural selection worked out by 1838, and published it in 1859. Why did biology's most famous idea wait twenty years?"
+        },
+        {
+          "erase": [
+            "darwin"
+          ]
         },
         {
           "draw": [
-            "dot_1",
-            "label_1"
+            "tl",
+            "beagle",
+            "l_beagle"
           ],
-          "speak": "By 1837 he sketches a branching tree in a private notebook and writes two words above it: I think."
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
-            "dot_2",
-            "label_2"
-          ],
-          "speak": "Then - almost nothing, for two decades. He knew what the idea would unleash. What finally moved him was a letter from Alfred Russel Wallace, who had reached the same conclusion on his own.",
-          "delivery": "grave"
+          "speak": "Here are those years to scale. First the Beagle's voyage round the world, 1831 to 1836: finches, fossils, and growing doubts that species are fixed."
         },
         {
           "draw": [
-            "dot_3",
-            "label_3"
+            "p_idea",
+            "l_idea"
           ],
-          "speak": "On the Origin of Species appeared in 1859 - twenty-two years after those two words in the notebook."
+          "speak": "Home in 1837, he sketched a branching tree in a notebook under the words 'I think'. A year later, reading Malthus, he had the mechanism."
+        },
+        {
+          "draw": [
+            "p_origin",
+            "l_origin"
+          ],
+          "speak": "The book, On the Origin of Species, came out in November 1859."
+        },
+        {
+          "draw": [
+            "span",
+            "l_span"
+          ],
+          "speak": "Twenty-one years apart: most of the line. The usual story is that he feared the scandal, and hid the idea in a drawer."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "p_essay",
+            "l_essay"
+          ],
+          "speak": "But the drawer was full. By 1844 he had written the theory out as a long essay, with a letter asking his wife Emma to publish it if he died."
+        },
+        {
+          "draw": [
+            "barn",
+            "l_barn"
+          ],
+          "speak": "Then eight years on barnacles, 1846 to 1854: the expert standing, and the habit of patient evidence, that a heretical claim would need."
+        },
+        {
+          "draw": [
+            "p_wallace",
+            "l_wallace"
+          ],
+          "speak": "In June 1858, deep in a huge book on species, he opened a letter from Alfred Russel Wallace in the Malay Archipelago. It described the same idea."
         },
         {
           "highlight": {
             "target": [
-              "label_1",
-              "label_2"
-            ],
-            "effect": "glow"
+              "p_wallace",
+              "p_origin"
+            ]
           },
-          "speak": "The remarkable part is the gap: the most famous book in biology waited twenty years, and might have waited longer if a rival hadn't forced the drawer open."
+          "speak": "Within two weeks both men's papers were read together in London, and the Origin, which Darwin called a mere abstract, followed the next year."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "Great ideas are not always rushed to print."
+          "highlight": {
+            "target": [
+              "span"
+            ]
+          },
+          "speak": "So the idea was finished early. What filled the gap was evidence, and what ended it was a rival."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "l_span"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Historians still argue over his motives, and some doubt it was a delay at all: for a naturalist then, twenty years of evidence was simply thoroughness."
+        },
+        {
+          "quiz": {
+            "question": "How much of his theory had Darwin written down by 1844?",
+            "choices": [
+              "Nothing: it was all in his head",
+              "A long essay setting it out",
+              "The finished Origin"
+            ],
+            "correct": 2,
+            "right": "A long essay, with instructions to publish it if he died: the gap was not an empty drawer but twenty years of gathering evidence."
+          }
         }
       ]
     }
@@ -17954,7 +18519,7 @@
       },
       "elements": [
         {
-          "id": "gap",
+          "id": "shortage",
           "type": "path",
           "points": [
             [
@@ -18041,7 +18606,7 @@
         },
         {
           "draw": [
-            "gap",
+            "shortage",
             "wish",
             "l_wish"
           ],
@@ -18068,7 +18633,7 @@
         },
         {
           "erase": [
-            "gap",
+            "shortage",
             "wish",
             "l_wish"
           ],
@@ -18738,101 +19303,235 @@
     "title": "Malthus's two lines",
     "spec": {
       "title": "Malthus's two lines",
-      "template": "generic_axes_diagram",
-      "params": {
-        "x_label": "Time",
-        "y_label": "Amount",
-        "curves": [
-          {
-            "id": "population",
-            "label": "Population",
-            "expression": "3*exp(0.035*x)",
-            "color": "demand"
-          },
-          {
-            "id": "food",
-            "label": "Food",
-            "expression": "12 + 0.6*x",
-            "color": "supply"
-          }
+      "domain": {
+        "x": [
+          0,
+          100
         ],
-        "points": [
-          {
-            "x": 88,
-            "y": 65,
-            "label": "Famine"
-          }
+        "y": [
+          -2.5,
+          20
         ]
       },
+      "vars": {
+        "m": 0
+      },
       "elements": [
+        {
+          "id": "ax",
+          "type": "axes",
+          "x_label": "Years",
+          "y_label": "Times today's amount"
+        },
+        {
+          "id": "food",
+          "type": "curve",
+          "expr": "1 + x/25 + m*(2^(x/25)*(1 + x/500) - 1 - x/25)",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "l_food",
+          "type": "label",
+          "attach_to": "food",
+          "side": "below",
+          "text": "Food",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "pop",
+          "type": "curve",
+          "expr": "2^(x/25)",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "l_pop",
+          "type": "label",
+          "attach_to": "pop",
+          "side": "left",
+          "text": "People",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "short",
+          "type": "region",
+          "between": [
+            "pop",
+            "food"
+          ],
+          "x_from": 25,
+          "x_to": 100,
+          "style": {
+            "fill": "#c96567"
+          }
+        },
+        {
+          "id": "p16",
+          "type": "point",
+          "at": {
+            "x": 100,
+            "y": 16
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "l16",
+          "type": "label",
+          "attach_to": "p16",
+          "side": "left",
+          "text": "16",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "p5",
+          "type": "point",
+          "at": {
+            "x": 100,
+            "y": 5
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "l5",
+          "type": "label",
+          "attach_to": "p5",
+          "side": "above",
+          "text": "5",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
         {
           "id": "essay",
           "type": "source",
           "of": "An Essay on the Principle of Population",
-          "x": 245,
-          "y": 520,
-          "width": 170
+          "x": 330,
+          "y": 480,
+          "width": 160
         }
       ],
       "commands": [
         {
+          "card": {
+            "title": "Malthus's two lines"
+          }
+        },
+        {
           "draw": [
-            "axes",
-            "x_label",
-            "y_label"
+            "ax",
+            "essay"
           ],
-          "speak": "Malthus, writing in 1798, put two quantities on one pair of axes."
+          "speak": "In 1798 Thomas Malthus argued that famine was not bad luck but arithmetic. Was he right? His Essay on the Principle of Population rests on two lines."
+        },
+        {
+          "draw": [
+            "pop",
+            "l_pop"
+          ],
+          "speak": "People grow by multiplication. The American colonies had been doubling every twenty-five years: two, four, eight, sixteen."
         },
         {
           "draw": [
             "food",
-            "label_food"
+            "l_food"
           ],
-          "speak": "Food, he argued, can only grow by addition — clear another field, drain another marsh. A straight line."
+          "speak": "Food, he argued, grows only by addition: clear another field, drain another marsh. The same amount more each generation."
         },
         {
           "draw": [
-            "population",
-            "label_population"
+            "short"
           ],
-          "speak": "People grow by multiplication: every couple that has four children doubles the next generation. A curve that bends upward."
-        },
-        {
-          "pause": 0.5
+          "speak": "Start them level, and the gap opens and never closes. Everyone above the food line must go without."
         },
         {
           "draw": [
-            "point_0",
-            "point_label_0"
+            "p16",
+            "l16",
+            "p5",
+            "l5"
           ],
-          "speak": "A line and a curve like that must meet, and after they meet there is not enough. Famine, he concluded, is not a policy failure but arithmetic.",
-          "delivery": "grave"
+          "parallel": true,
+          "speak": "After a century, sixteen times the people and five times the food. After two, his own figures: 256 to 9."
         },
         {
-          "draw": [
-            "essay"
+          "highlight": {
+            "target": [
+              "pop"
+            ]
+          },
+          "speak": "Any doubling, however slow, overtakes any straight line, however steep. So famine, or late marriage and fewer births, had to hold people back."
+        },
+        {
+          "erase": [
+            "short",
+            "p5",
+            "l5"
           ],
-          "speak": "The argument is his Essay on the Principle of Population — the book that got economics called the dismal science."
+          "speak": "The arithmetic holds. What broke was the straight line."
+        },
+        {
+          "animate": {
+            "m": 1
+          },
+          "duration": 4,
+          "speak": "Fertiliser, new crops and machines made food multiply too, and faster than people."
         },
         {
           "highlight": {
             "target": [
               "food"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "He was wrong for two centuries, and the mistake is in the straight line: fertiliser, new varieties and machinery made food grow by multiplication too."
+          "speak": "Since 1800 the world has grown from one billion people to eight, and food per head has still gone up."
         },
         {
-          "speak": "The arithmetic was never the weak part. The assumption about which curve food follows was."
+          "highlight": {
+            "target": [
+              "pop"
+            ]
+          },
+          "speak": "His other line bent as well: as people grew richer, they chose smaller families, and world population growth has been slowing since the late 1960s."
+        },
+        {
+          "highlight": {
+            "target": [
+              "essay"
+            ]
+          },
+          "speak": "The essay had one reader Malthus never expected: in 1838 Charles Darwin read it, and saw in its struggle for food the engine of natural selection."
+        },
+        {
+          "quiz": {
+            "question": "Suppose food rose by twice as much each generation, still by addition. Would that avoid Malthus's gap forever?",
+            "choices": [
+              "Yes, it keeps pace",
+              "No, only later",
+              "It depends on the start"
+            ],
+            "correct": 2,
+            "right": "No: a steeper straight line only moves the crossing later, because a doubling curve overtakes any line. Only food that multiplies keeps up."
+          }
         }
       ]
     }
   },
   {
-    "request": "Tell the story of the Broad Street pump, and show Snow's actual 1854 map: https://archive.org/details/dr_map-1-cf-chefins-lith-london-to-accompany-on-the-mode-of-communicat-13187008",
+    "request": "How did John Snow's map find the source of the 1854 cholera outbreak? Show his actual map: https://archive.org/details/dr_map-1-cf-chefins-lith-london-to-accompany-on-the-mode-of-communicat-13187008",
     "title": "The Broad Street pump",
-    "playlist": "playlist:\n  title: The Broad Street pump\n---\ntitle: Soho, autumn 1854\ntemplate: timeline\nparams:\n  title: \"Soho, autumn 1854\"\n  milestones:\n    - label: \"31 August\"\n      sublabel: \"Cholera breaks out in Soho\"\n    - label: \"Early September\"\n      sublabel: \"Snow collects the death records\"\n    - label: \"He maps them\"\n      sublabel: \"The deaths ring one pump\"\n      emphasize: true\n    - label: \"7 September\"\n      sublabel: \"He argues it to the parish board\"\n    - label: \"8 September\"\n      sublabel: \"The pump handle comes off\"\ncommands:\n  - draw: [title, line, dot_0, label_0]\n    speak: \"In the last days of August 1854, cholera broke out in a few streets of Soho, and within a week some five hundred people were dead.\"\n  - draw: [dot_1, label_1]\n    speak: \"The reigning theory was bad air. John Snow suspected the water — and to argue it he did something bad air could not be argued with: he went and collected the death records, address by address.\"\n  - draw: [dot_2, label_2]\n    speak: \"Then he drew each death as a short bar on the street where it happened.\"\n  - pause: 0.4\n  - draw: [dot_3, label_3, dot_4, label_4]\n    speak: \"The bars piled up around one water pump. On the seventh of September he took that to the parish board; the next day the handle came off.\"\n---\ntitle: The map itself\nzoom_from: dot_2\nelements:\n  - id: snow_map\n    type: source\n    of: \"Snow's cholera map, 1855\"\n    archive: dr_map-1-cf-chefins-lith-london-to-accompany-on-the-mode-of-communicat-13187008\n    x: 500\n    y: 400\n    width: 420\ncommands:\n  - draw: [snow_map]\n    speak: \"This is the map itself, from the 1855 edition of Snow's book.\"\n  - camera: { center: { ref: snow_map }, zoom: 1.8 }\n    speak: \"Every short black bar is one death, stacked against the address where it fell — and they crowd around one point near the middle, the pump on Broad Street.\"\n  - camera: { reset: true }\n    speak: \"No arrows, no legend, no statistics. The pattern is the whole argument, and anyone can check it against their own street.\"\n  - speak: \"The part the story usually leaves out: the outbreak was already falling when the handle came off, so pulling it saved fewer lives than the legend says. What the map really won was the argument — and that was worth far more than one pump.\"\n"
+    "playlist": "playlist:\n  title: The Broad Street pump\n---\ntitle: Soho, autumn 1854\ntemplate: timeline\nparams:\n  milestones:\n    - label: 31 August\n      sublabel: cholera breaks out\n    - label: Early September\n      sublabel: Snow lists the deaths\n    - label: He maps them\n      sublabel: one bar per death\n      emphasize: true\n    - label: 7 September\n      sublabel: to the parish board\n    - label: 8 September\n      sublabel: the handle comes off\ncommands:\n  - card:\n      title: The Broad Street pump\n  - draw:\n      - line\n      - dot_0\n      - label_0\n    speak: How did one map point at a single water pump, and change how we think cholera spreads? It starts on 31 August 1854, in a few streets of Soho.\n  - highlight:\n      target:\n        - dot_0\n    speak: Within ten days, some five hundred people nearby were dead.\n  - draw:\n      - dot_1\n      - label_1\n    speak: Most doctors blamed miasma, a poisonous bad air. John Snow suspected the water, and got the address of every death.\n  - draw:\n      - dot_2\n      - label_2\n    speak: Then he drew each death as a short black bar on the street where it happened.\n  - draw:\n      - dot_3\n      - label_3\n    speak: On 7 September he put the case to the local parish board.\n  - draw:\n      - dot_4\n      - label_4\n    speak: The next day, the handle of the Broad Street pump came off.\n---\ntitle: The map itself\nzoom_from: dot_2\nelements:\n  - id: snow_map\n    type: source\n    of: Snow's cholera map, 1855\n    archive: dr_map-1-cf-chefins-lith-london-to-accompany-on-the-mode-of-communicat-13187008\n    x: 290\n    'y': 410\n    width: 400\n  - id: brewery\n    type: node\n    shape: rect\n    width: 340\n    height: 70\n    x: 770\n    'y': 560\n    text: 'Brewery: 0 of 70 died'\n  - id: workhouse\n    type: node\n    shape: rect\n    width: 340\n    height: 70\n    at:\n      ref: brewery\n      side: below\n      gap: 50\n    text: 'Workhouse: 5 of 535'\n  - id: widow\n    type: node\n    shape: rect\n    width: 340\n    height: 70\n    at:\n      ref: workhouse\n      side: below\n      gap: 50\n    text: 'Hampstead: she died'\n  - id: cases\n    type: group\n    members:\n      - brewery\n      - workhouse\n      - widow\n    walk: true\ncommands:\n  - draw:\n      - snow_map\n    speak: This is the map itself, from the 1855 edition of Snow's book on cholera.\n  - camera:\n      center:\n        ref: snow_map\n      zoom: 1.8\n    speak: 'Every black bar is one death, stacked at its address, and the stacks crowd round one point near the middle: the Broad Street pump.'\n  - camera:\n      reset: true\n    speak: 'But a cluster alone fits bad air too: the air near the pump was as foul as its water. What settled it were the exceptions.'\n  - draw:\n      - brewery\n    speak: 'A brewery stood yards from the pump. Of its seventy or so workers, none died: they drank beer, and the brewery had its own well.'\n  - draw:\n      - workhouse\n    speak: The workhouse nearby held 535 people, and only five died. It had its own well too.\n  - draw:\n      - widow\n    speak: And a widow in Hampstead, miles away, died of cholera. She liked the taste of Broad Street water, and had it carried to her.\n  - highlight:\n      target:\n        - cases\n    speak: 'Same air, other water: spared. Other air, same water: dead. The exceptions turn a cluster into a cause.'\n  - highlight:\n      target:\n        - snow_map\n    speak: 'The legend leaves out one thing: the outbreak was already fading when the handle came off. What the map won was the argument.'\n  - quiz:\n      question: Which finding best shows it was the water, not the air?\n      choices:\n        - Deaths crowded round the pump\n        - The brewery men nearby were spared\n        - Deaths fell after the handle came off\n      correct: 2\n      right: 'The spared brewery men: they breathed the same air as their neighbours but drank other water. A cluster fits bad air too, and the outbreak was already fading.'\n"
   },
   {
     "request": "What is a derivative, really? Link Grant Sanderson's calculus video: https://www.youtube.com/watch?v=WUvTyaaNkzM",
@@ -36658,7 +37357,7 @@
   {
     "request": "Why does coffee go cold in a mug in an hour but stay hot in a flask all day?",
     "title": "The flask that only subtracts",
-    "playlist": "playlist:\n  title: The flask that only subtracts\n---\ntitle: Three ways out\nelements:\n  - { id: mug, type: path, closed: true, points: [[310, 170], [490, 170], [510, 480], [290, 480]] }\n  - { id: brew, type: path, closed: true, points: [[318, 178], [482, 178], [497, 430], [303, 430]], style: { fill: \"#d0865f\" } }\n  - { id: a_cond, type: arrow, from: { x: 515, y: 280 }, to: { x: 700, y: 280 }, style: { color: \"#b5482e\" } }\n  - { id: lab_cond, type: label, text: Conduction, attach_to: a_cond, side: right, style: { color: \"#b5482e\" } }\n  - { id: a_conv, type: arrow, from: { x: 400, y: 500 }, to: { x: 400, y: 650 }, style: { color: \"#b5482e\" } }\n  - { id: lab_conv, type: label, text: Convection, attach_to: a_conv, side: left, style: { color: \"#b5482e\" } }\n  - { id: a_rad, type: arrow, from: { x: 520, y: 420 }, to: { x: 675, y: 530 }, style: { color: \"#b5482e\" } }\n  - { id: lab_rad, type: label, text: Radiation, attach_to: a_rad, side: right, style: { color: \"#b5482e\" } }\ncommands:\n  - draw: [mug]\n    speak: \"Coffee poured at ninety degrees is undrinkably hot; in an open mug it is lukewarm within the hour.\"\n  - draw: [brew]\n    speak: \"In a flask the same coffee is still hot at supper — and the flask has no power, no battery, nothing added.\"\n  - draw: [a_cond, lab_cond]\n    speak: \"So whatever it does, it does by closing the ways heat leaves. Conduction is the first: heat walks out through the ceramic, molecule bumping molecule.\"\n  - draw: [a_conv, lab_conv]\n    speak: \"Convection is the second, off the top: warm air lifts away, and every gram of water that evaporates carries off the energy it took to boil it.\"\n  - draw: [a_rad, lab_rad]\n    speak: \"The third is radiation — anything warmer than its surroundings glows in the infrared, coffee and hand alike.\"\n  - highlight: { target: [a_conv], effect: glow }\n    speak: \"The open top is the widest door, which is why a saucer laid over the cup does more than it looks like it should.\"\n  - point: { at: { ref: mug }, gesture: circle }\n    speak: \"None of this is a fault in the mug. All three are simply what physics does to anything warm.\"\n  - focus: { target: [a_cond, a_conv, a_rad] }\n    speak: \"Three doors, then — and a flask cannot add heat, so the only thing it can possibly do is shut them.\"\n---\ntitle: How the flask shuts them\nelements:\n  - { id: outer, type: path, closed: true, points: [[300, 150], [640, 150], [640, 620], [300, 620]] }\n  - { id: inner, type: path, closed: true, points: [[350, 195], [590, 195], [590, 620], [350, 620]] }\n  - { id: brew2, type: path, closed: true, points: [[358, 203], [582, 203], [582, 555], [358, 555]], style: { fill: \"#d0865f\" } }\n  - { id: gap, type: shape, shape: rect, x: 615, y: 470, width: 42, height: 190, style: { color: \"#2f6b8f\", dash: true } }\n  - { id: lab_vac, type: label, text: Vacuum, attach_to: gap, side: right, style: { color: \"#2f6b8f\" } }\n  - { id: silver_in, type: path, points: [[592, 350], [592, 210]], style: { color: \"#2f6b8f\" } }\n  - { id: silver_in_l, type: path, points: [[348, 350], [348, 210]], style: { color: \"#2f6b8f\" } }\n  - { id: silver_out_l, type: path, points: [[302, 350], [302, 210]], style: { color: \"#2f6b8f\" } }\n  - { id: silver_out, type: path, points: [[638, 350], [638, 210]], style: { color: \"#2f6b8f\" } }\n  - { id: lab_sil, type: label, text: Silvered, attach_to: silver_out, side: right, style: { color: \"#2f6b8f\" } }\n  - { id: stopper, type: shape, shape: rect, x: 470, y: 650, width: 260, height: 60, style: { color: \"#2f6b8f\" } }\n  - { id: lab_stopper, type: label, text: Stopper, attach_to: stopper, side: above, style: { color: \"#2f6b8f\" } }\ncommands:\n  - draw: [outer]\n    speak: \"Now that the three doors have names, here is what the flask does to them: it is two bottles, one inside the other.\"\n  - draw: [inner, brew2]\n    speak: \"The coffee only ever touches the inner one.\"\n  - draw: [gap, lab_vac]\n    speak: \"The air between them is pumped out. With almost nothing left in that gap there is nothing to conduct heat across it and nothing to circulate — one emptiness closes two of the three doors.\"\n  - draw: [silver_in, silver_out, silver_in_l, silver_out_l, lab_sil]\n    speak: \"Radiation crosses a vacuum perfectly happily, so both facing surfaces are silvered: infrared arrives at a mirror and is sent straight back into the coffee.\"\n  - draw: [stopper, lab_stopper]\n    speak: \"And the stopper seals the top, where the steam was leaving.\"\n  - focus: { target: [outer, inner] }\n    speak: \"James Dewar built the first one of these in 1892, to hold gases he had just learned to liquefy — and never patented it.\"\n  - point: { at: { ref: outer }, gesture: circle }\n    speak: \"A glassblower who had made flasks for his laboratory put it on the market as the Thermos; Dewar went to court over it and lost.\"\n  - highlight: { target: [gap, silver_in, silver_out, stopper], effect: glow }\n    speak: \"Three ways out, three of them closed, and not one watt spent doing it.\"\n---\ntitle: What is left\ntemplate: generic_axes_diagram\nparams:\n  title: Coffee, cooling\n  x_label: Time\n  y_label: Temperature\n  curves:\n    - { expression: \"20 + 70*exp(-x/4)\", label: Mug, color: demand }\n    - { expression: \"20 + 70*exp(-x/140)\", label: Flask, color: supply }\n  points:\n    - { x: 8, y: 29.5, label: \"30 °C after 1 hour\" }\n    - { x: 50, y: 69, label: \"69 °C after 6 hours\" }\nelements:\n  - { id: flask_pic, type: inset, of: How the flask shuts them }\ncommands:\n  - draw: [flask_pic]\n    speak: \"Now that the doors are shut, watch what the two vessels actually do.\"\n  - draw: [title, axes, x_label, y_label]\n  - draw: [curve_0, label_curve_0]\n    speak: \"Ninety degrees in an open mug: the curve falls off a cliff, because all three doors are wide open.\"\n  - draw: [point_0, point_label_0]\n    speak: \"An hour in, it is down to thirty degrees — barely warm.\"\n  - draw: [curve_1, label_curve_1]\n    speak: \"The flask starts at the same ninety and takes all day to do what the mug did in an hour.\"\n  - draw: [point_1, point_label_1]\n    speak: \"Six hours later it is still at sixty-nine.\"\n  - highlight: { target: [curve_1], effect: glow }\n    speak: \"But look at the slope: it does fall. A perfect flask would be a flat line, and this is not one.\"\n  - move: { target: flask_pic, scale: 4, to: { x: 480, y: 400 } }\n  - focus: { target: [flask_pic] }\n    speak: \"The two bottles have to meet somewhere, and they meet at the neck — a ring of glass that conducts, under a stopper that is not a vacuum.\"\n  - point: { at: { ref: flask_pic, anchor: stopper } }\n  - move: { target: flask_pic, scale: 0.25, to: { x: 900, y: 670 } }\n  - highlight: { target: [curve_0, curve_1], effect: glow }\n    speak: \"So a flask never keeps anything hot. It only makes the way out long — and that alone turns one hour into a day.\"\n"
+    "playlist": "playlist:\n  title: The flask that only subtracts\n---\ntitle: Three ways out\nelements:\n  - { id: mug, type: path, closed: true, points: [[310, 170], [490, 170], [510, 480], [290, 480]] }\n  - { id: brew, type: path, closed: true, points: [[318, 178], [482, 178], [497, 430], [303, 430]], style: { fill: \"#d0865f\" } }\n  - { id: a_cond, type: arrow, from: { x: 515, y: 280 }, to: { x: 700, y: 280 }, style: { color: \"#b5482e\" } }\n  - { id: lab_cond, type: label, text: Conduction, attach_to: a_cond, side: right, style: { color: \"#b5482e\" } }\n  - { id: a_conv, type: arrow, from: { x: 400, y: 500 }, to: { x: 400, y: 650 }, style: { color: \"#b5482e\" } }\n  - { id: lab_conv, type: label, text: Convection, attach_to: a_conv, side: left, style: { color: \"#b5482e\" } }\n  - { id: a_rad, type: arrow, from: { x: 520, y: 420 }, to: { x: 675, y: 530 }, style: { color: \"#b5482e\" } }\n  - { id: lab_rad, type: label, text: Radiation, attach_to: a_rad, side: right, style: { color: \"#b5482e\" } }\ncommands:\n  - draw: [mug]\n    speak: \"Coffee poured at ninety degrees is undrinkably hot; in an open mug it is lukewarm within the hour.\"\n  - draw: [brew]\n    speak: \"In a flask the same coffee is still hot at supper — and the flask has no power, no battery, nothing added.\"\n  - draw: [a_cond, lab_cond]\n    speak: \"So whatever it does, it does by closing the ways heat leaves. Conduction is the first: heat walks out through the ceramic, molecule bumping molecule.\"\n  - draw: [a_conv, lab_conv]\n    speak: \"Convection is the second, off the top: warm air lifts away, and every gram of water that evaporates carries off the energy it took to boil it.\"\n  - draw: [a_rad, lab_rad]\n    speak: \"The third is radiation — anything warmer than its surroundings glows in the infrared, coffee and hand alike.\"\n  - highlight: { target: [a_conv], effect: glow }\n    speak: \"The open top is the widest door, which is why a saucer laid over the cup does more than it looks like it should.\"\n  - point: { at: { ref: mug }, gesture: circle }\n    speak: \"None of this is a fault in the mug. All three are simply what physics does to anything warm.\"\n  - focus: { target: [a_cond, a_conv, a_rad] }\n    speak: \"Three doors, then — and a flask cannot add heat, so the only thing it can possibly do is shut them.\"\n---\ntitle: How the flask shuts them\nelements:\n  - { id: outer, type: path, closed: true, points: [[300, 150], [640, 150], [640, 620], [300, 620]] }\n  - { id: inner, type: path, closed: true, points: [[350, 195], [590, 195], [590, 620], [350, 620]] }\n  - { id: brew2, type: path, closed: true, points: [[358, 203], [582, 203], [582, 555], [358, 555]], style: { fill: \"#d0865f\" } }\n  - { id: vacuum_gap, type: shape, shape: rect, x: 615, y: 470, width: 42, height: 190, style: { color: \"#2f6b8f\", dash: true } }\n  - { id: lab_vac, type: label, text: Vacuum, attach_to: vacuum_gap, side: right, style: { color: \"#2f6b8f\" } }\n  - { id: silver_in, type: path, points: [[592, 350], [592, 210]], style: { color: \"#2f6b8f\" } }\n  - { id: silver_in_l, type: path, points: [[348, 350], [348, 210]], style: { color: \"#2f6b8f\" } }\n  - { id: silver_out_l, type: path, points: [[302, 350], [302, 210]], style: { color: \"#2f6b8f\" } }\n  - { id: silver_out, type: path, points: [[638, 350], [638, 210]], style: { color: \"#2f6b8f\" } }\n  - { id: lab_sil, type: label, text: Silvered, attach_to: silver_out, side: right, style: { color: \"#2f6b8f\" } }\n  - { id: stopper, type: shape, shape: rect, x: 470, y: 650, width: 260, height: 60, style: { color: \"#2f6b8f\" } }\n  - { id: lab_stopper, type: label, text: Stopper, attach_to: stopper, side: above, style: { color: \"#2f6b8f\" } }\ncommands:\n  - draw: [outer]\n    speak: \"Now that the three doors have names, here is what the flask does to them: it is two bottles, one inside the other.\"\n  - draw: [inner, brew2]\n    speak: \"The coffee only ever touches the inner one.\"\n  - draw: [vacuum_gap, lab_vac]\n    speak: \"The air between them is pumped out. With almost nothing left in that gap there is nothing to conduct heat across it and nothing to circulate — one emptiness closes two of the three doors.\"\n  - draw: [silver_in, silver_out, silver_in_l, silver_out_l, lab_sil]\n    speak: \"Radiation crosses a vacuum perfectly happily, so both facing surfaces are silvered: infrared arrives at a mirror and is sent straight back into the coffee.\"\n  - draw: [stopper, lab_stopper]\n    speak: \"And the stopper seals the top, where the steam was leaving.\"\n  - focus: { target: [outer, inner] }\n    speak: \"James Dewar built the first one of these in 1892, to hold gases he had just learned to liquefy — and never patented it.\"\n  - point: { at: { ref: outer }, gesture: circle }\n    speak: \"A glassblower who had made flasks for his laboratory put it on the market as the Thermos; Dewar went to court over it and lost.\"\n  - highlight: { target: [vacuum_gap, silver_in, silver_out, stopper], effect: glow }\n    speak: \"Three ways out, three of them closed, and not one watt spent doing it.\"\n---\ntitle: What is left\ntemplate: generic_axes_diagram\nparams:\n  title: Coffee, cooling\n  x_label: Time\n  y_label: Temperature\n  curves:\n    - { expression: \"20 + 70*exp(-x/4)\", label: Mug, color: demand }\n    - { expression: \"20 + 70*exp(-x/140)\", label: Flask, color: supply }\n  points:\n    - { x: 8, y: 29.5, label: \"30 °C after 1 hour\" }\n    - { x: 50, y: 69, label: \"69 °C after 6 hours\" }\nelements:\n  - { id: flask_pic, type: inset, of: How the flask shuts them }\ncommands:\n  - draw: [flask_pic]\n    speak: \"Now that the doors are shut, watch what the two vessels actually do.\"\n  - draw: [title, axes, x_label, y_label]\n  - draw: [curve_0, label_curve_0]\n    speak: \"Ninety degrees in an open mug: the curve falls off a cliff, because all three doors are wide open.\"\n  - draw: [point_0, point_label_0]\n    speak: \"An hour in, it is down to thirty degrees — barely warm.\"\n  - draw: [curve_1, label_curve_1]\n    speak: \"The flask starts at the same ninety and takes all day to do what the mug did in an hour.\"\n  - draw: [point_1, point_label_1]\n    speak: \"Six hours later it is still at sixty-nine.\"\n  - highlight: { target: [curve_1], effect: glow }\n    speak: \"But look at the slope: it does fall. A perfect flask would be a flat line, and this is not one.\"\n  - move: { target: flask_pic, scale: 4, to: { x: 480, y: 400 } }\n  - focus: { target: [flask_pic] }\n    speak: \"The two bottles have to meet somewhere, and they meet at the neck — a ring of glass that conducts, under a stopper that is not a vacuum.\"\n  - point: { at: { ref: flask_pic, anchor: stopper } }\n  - move: { target: flask_pic, scale: 0.25, to: { x: 900, y: 670 } }\n  - highlight: { target: [curve_0, curve_1], effect: glow }\n    speak: \"So a flask never keeps anything hot. It only makes the way out long — and that alone turns one hour into a day.\"\n"
   },
   {
     "request": "What does it actually cost a country to build more hospitals?",

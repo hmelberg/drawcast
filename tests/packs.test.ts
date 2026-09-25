@@ -2227,9 +2227,15 @@ describe("maps pack", () => {
     registerPack("maps", mapsYaml);
     const res = layoutSpec({ template: "world_map", params: { focus: ["Norway", "Sweden"], highlight: ["Norway"] }, elements: [] } as never);
     inBounds(res);
-    const area = res.drawables.find((d) => d.id === "hl_norway");
-    expect(area).toBeDefined();
-    expect(area!.kind).toBe("area");
+    const hl = res.drawables.find((d) => d.id === "hl_norway");
+    expect(hl).toBeDefined();
+    // Every part of the country is filled (Norway is mainland + Svalbard):
+    // the fill used to be ring 0 only, which for Norway is Svalbard.
+    const leaves = hl!.kind === "group" ? (hl as { children: { kind: string; pts: [number, number][] }[] }).children : [hl as unknown as { kind: string; pts: [number, number][] }];
+    expect(leaves.every((l) => l.kind === "area")).toBe(true);
+    const span = (pts: [number, number][]) => Math.max(...pts.map((p) => p[1])) - Math.min(...pts.map((p) => p[1]));
+    const tallest = Math.max(...leaves.map((l) => span(l.pts)));
+    expect(tallest).toBeGreaterThan(100); // the long mainland, not a small island
   });
 
   test("an unknown country name in focus yields a missing_note drawable naming it", async () => {
@@ -2462,11 +2468,16 @@ describe("maps pack", () => {
     registerPack("maps", mapsYaml);
     const res = scenes.world_map.layout!({ focus: ["Norway"], highlight: ["Norway"] });
     const flat = flattenDrawables(res.drawables);
-    const outline = flat.find((d) => d.id === "country_norway__ring0") as { pts: [number, number][] };
-    const highlight = flat.find((d) => d.id === "hl_norway") as { pts: [number, number][] };
-    expect(outline).toBeDefined();
-    expect(highlight).toBeDefined();
-    expect(highlight.pts).toEqual(outline.pts);
+    // Every ring's fill is that ring's outline, exactly (the fill now covers
+    // all of a country's rings, not ring 0 alone — 2026-09-25).
+    const outlines = flat.filter((d) => /^country_norway__ring\d+$/.test(d.id)) as { id: string; pts: [number, number][] }[];
+    expect(outlines.length).toBeGreaterThan(0);
+    for (const o of outlines) {
+      const k = o.id.replace("country_norway__ring", "");
+      const fill = flat.find((d) => d.id === (outlines.length === 1 ? "hl_norway" : `hl_norway__${k}`)) as { pts: [number, number][] } | undefined;
+      expect(fill, o.id).toBeDefined();
+      expect(fill!.pts).toEqual(o.pts);
+    }
   });
 });
 

@@ -52,7 +52,7 @@ params:
       type: string
 element_ids:
   country_<slug>: a drawn country's outline (one group of ring strokes per country; slug = the dataset's own name, lowercased, non-alphanumeric runs -> "_")
-  hl_<slug>: a highlighted country's low-opacity area fill (its outer ring)
+  hl_<slug>: a highlighted country's low-opacity area fill (every part of it — mainland and islands)
   marker_<i>: a small dot at markers[i]'s exact `at` position or its `country`'s centroid, absent when that marker is unresolved or outside the cropped view
   marker_label_<i>: markers[i]'s label, absent under the same conditions as marker_<i>
   graticule: a light frame around the map, present in focus mode only
@@ -269,7 +269,12 @@ layout: |
     // The SAME smoothed ring the outline loop above drew (memoized in
     // smoothedRings) — never a separately-smoothed copy, or the fill would
     // trace slightly different geometry than its own outline (a halo).
-    push(kit.area(id, smoothedRings(shape)[0].map(off), C.region2, { opacity: 0.3 }));
+    // EVERY ring, as the outline has: ring 0 is not the mainland for every
+    // country (Norway's is Svalbard), so a one-ring fill lit the wrong land
+    // (2026-09-25 example revisions).
+    const rings = smoothedRings(shape);
+    if (rings.length === 1) push(kit.area(id, rings[0].map(off), C.region2, { opacity: 0.3 }));
+    else push(kit.group(id, rings.map((r, k) => kit.area(id + "__" + k, r.map(off), C.region2, { opacity: 0.3 }))));
     const c = centroids[shape.name];
     if (c) anchors[id] = off(c);
   }
