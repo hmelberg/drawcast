@@ -27,6 +27,16 @@ export function headingFont(text: string): number {
  *  into (y 95–655), just under the canvas edge (750). */
 export const HEADING_Y = 726;
 
+/** How close the heading's push-in starts: 1.8×, or less for a long title,
+ *  so the words fill about 94 % of the view instead of running off its sides
+ *  (a 34-character title at 1.8× was cut at both ends, 2026-09-25). The
+ *  width is estimated like the underline's — about half the font size per
+ *  character — never measured. */
+export function headingZoom(title: string): number {
+  const width = 0.48 * headingFont(title) * Math.max(1, title.length);
+  return Math.max(1, Math.min(1.8, Math.floor((940 / width) * 100) / 100));
+}
+
 /**
  * The top heading (the default card, Hans 2026-09-24): the title centred at
  * the top of the page over an underline as wide as the words — it STAYS as
@@ -89,7 +99,7 @@ export function expandCards(spec: Spec): Spec {
       // the cast gets straight to its first drawing.
       const els = headingElements(card.title, prefix);
       elements.push(...els);
-      out.push({ camera: { center: { ref: `${prefix}_title` }, zoom: 1.8, duration: 0.01 } });
+      out.push({ camera: { center: { ref: `${prefix}_title` }, zoom: headingZoom(card.title), duration: 0.01 } });
       out.push({ draw: els.map((e) => e.id), parallel: true });
       out.push({ ...rest, camera: { reset: true, duration: 0.6 } });
       continue;

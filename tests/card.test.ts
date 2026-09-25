@@ -100,3 +100,16 @@ describe("cardElements / titleFont", () => {
     expect(cardElements("T", "S", "tp").map((e) => e.id)).toEqual(["tp_title", "tp_line", "tp_subtitle"]);
   });
 });
+
+describe("headingZoom (2026-09-25)", () => {
+  test("a short title starts at 1.8×; a long one starts wider so its ends stay in view", async () => {
+    const { headingZoom, headingFont } = await import("../src/spec/card");
+    expect(headingZoom("Why bridges look different")).toBe(1.8);
+    const long = "Why the acceptability curve slopes";
+    const z = headingZoom(long);
+    expect(z).toBeLessThan(1.8);
+    // The estimated width at that zoom fits the 1000-unit view.
+    expect(0.48 * headingFont(long) * long.length * z).toBeLessThanOrEqual(940);
+    expect(headingZoom("x".repeat(200))).toBe(1);
+  });
+});

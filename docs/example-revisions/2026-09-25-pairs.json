@@ -112,6 +112,13 @@
     "kind_after": "two_by_two_table"
   },
   {
+    "index": 17,
+    "before_request": "Draw a timeline of a research project.",
+    "after_request": "Why do research projects almost always take longer than planned?",
+    "kind_before": "timeline",
+    "kind_after": "bar_chart"
+  },
+  {
     "index": 18,
     "before_request": "Draw a production function with diminishing returns.",
     "after_request": "Why does each extra worker add less than the one before?",
@@ -320,6 +327,27 @@
     "after_request": "Why is a water molecule bent?",
     "kind_before": "lewis_dot",
     "kind_after": "lewis_dot"
+  },
+  {
+    "index": 49,
+    "before_request": "Show a titration setup with a pink indicator.",
+    "after_request": "How does a titration measure how much acid is in a solution?",
+    "kind_before": "lab_apparatus",
+    "kind_after": "lab_apparatus"
+  },
+  {
+    "index": 50,
+    "before_request": "Why is Scholar's Mate so hard to see coming?",
+    "after_request": "Why is Scholar's Mate so hard to see coming?",
+    "kind_before": "chess_board",
+    "kind_after": "chess_board"
+  },
+  {
+    "index": 52,
+    "before_request": "Where are the Nordic countries?",
+    "after_request": "What is the difference between the Nordic countries and Scandinavia?",
+    "kind_before": "world_map",
+    "kind_after": "world_map"
   },
   {
     "index": 53,
@@ -546,6 +574,13 @@
     "kind_after": "playlist"
   },
   {
+    "index": 90,
+    "before_request": "How long did Darwin sit on his theory? Show me the timeline.",
+    "after_request": "Why did Darwin wait twenty years to publish his theory?",
+    "kind_before": "timeline",
+    "kind_after": "freehand"
+  },
+  {
     "index": 91,
     "before_request": "Explain comparative advantage, with a portrait of David Ricardo.",
     "after_request": "Why should a country that is better at everything still trade? Explain comparative advantage, with a portrait of David Ricardo.",
@@ -595,11 +630,39 @@
     "kind_after": "piano_keys"
   },
   {
+    "index": 98,
+    "before_request": "Set up Scholar's Mate one move early and let me deliver the checkmate myself.",
+    "after_request": "Can I find the checkmate in Scholar's Mate myself?",
+    "kind_before": "chess_board",
+    "kind_after": "chess_board"
+  },
+  {
+    "index": 99,
+    "before_request": "Show the Italian Game opening, then let me play on from there.",
+    "after_request": "What is the Italian Game, and why is it a good first opening?",
+    "kind_before": "chess_board",
+    "kind_after": "chess_board"
+  },
+  {
     "index": 101,
     "before_request": "Explain what attention does that recurrence could not — and quote the paper's own sentence for it: https://arxiv.org/abs/1706.03762",
     "after_request": "What can attention do that recurrence could not? Quote the paper's own sentence for it: https://arxiv.org/abs/1706.03762",
     "kind_before": "freehand",
     "kind_after": "freehand"
+  },
+  {
+    "index": 102,
+    "before_request": "Why did Malthus think population growth must end in famine, and was he right?",
+    "after_request": "Why did Malthus think population growth must end in famine, and was he right?",
+    "kind_before": "generic_axes_diagram",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 103,
+    "before_request": "Tell the story of the Broad Street pump, and show Snow's actual 1854 map: https://archive.org/details/dr_map-1-cf-chefins-lith-london-to-accompany-on-the-mode-of-communicat-13187008",
+    "after_request": "How did John Snow's map find the source of the 1854 cholera outbreak? Show his actual map: https://archive.org/details/dr_map-1-cf-chefins-lith-london-to-accompany-on-the-mode-of-communicat-13187008",
+    "kind_before": "playlist",
+    "kind_after": "playlist"
   },
   {
     "index": 104,
@@ -630,10 +693,801 @@
     "kind_after": "wave_diagram"
   },
   {
+    "index": 108,
+    "before_request": "Step through a tiny Python simulation: 200 random draws, their mean, and a histogram",
+    "after_request": "How many random draws does it take before their average can be trusted? A Python simulation, stepped line by line",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 109,
+    "before_request": "Flip a fair coin 500 times in Python and just show the share of heads",
+    "after_request": "How close to half should 500 flips of a fair coin land? Flip them in Python and show just the output",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 110,
+    "before_request": "Show compound growth of 100 at 2 percent versus 7 percent over 50 years, stepping through the Python code",
+    "after_request": "Why does compound growth curve upward when the rate never changes? 100 at 2 and 7 percent for 50 years, stepped through in Python",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 111,
+    "before_request": "Build a bar chart live in Python: how many primes there are below 10, 20, 30, 40 and 50, adding the bars as you go",
+    "after_request": "Why do the primes thin out? Count them in Python below 10, 20, 30, 40 and 50, adding the bars as you go",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 112,
+    "before_request": "Compare compound growth at 2, 5 and 8 percent by adding one curve at a time to the same chart",
+    "after_request": "Does each extra point of interest add the same over fifty years? Compare 2, 5 and 8 percent, adding one curve at a time in Python",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 113,
+    "before_request": "Make a small pandas table of Norwegian cities and their rainfall and show it sorted",
+    "after_request": "Which Norwegian city gets the most rain, and why that one? A small pandas table, sorted",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 114,
+    "before_request": "Use plotly express in Python to chart GDP per person for the Nordic countries",
+    "after_request": "How far apart are the Nordic countries in GDP per person? Chart it with plotly express in Python",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 115,
+    "before_request": "Show Norway, Sweden and Denmark's GDP per capita in 2010, then animate it forward to 2020.",
+    "after_request": "Did Norway get poorer between 2010 and 2020, as its GDP per head in dollars suggests?",
+    "kind_before": "bar_chart",
+    "kind_after": "bar_chart"
+  },
+  {
+    "index": 116,
+    "before_request": "Race the four biggest economies from 1990 to 2020 as a bar chart race.",
+    "after_request": "How did China overtake Japan and Germany between 1990 and 2020?",
+    "kind_before": "bar_race",
+    "kind_after": "bar_race"
+  },
+  {
+    "index": 117,
+    "before_request": "A table showing 100 growing at 2 percent versus 7 percent, decade by decade, revealed one row at a time",
+    "after_request": "When 100 grows at 2 percent and at 7 percent, how fast does the gap between them grow?",
+    "kind_before": "data_table",
+    "kind_after": "data_table"
+  },
+  {
+    "index": 118,
+    "before_request": "Show GDP per capita for Norway, Sweden and Denmark in 2010 and 2020, computing the numbers in Python and animating the change",
+    "after_request": "What is the difference between GDP per head in current and in constant dollars? Compute Norway, Sweden and Denmark in Python, 2010 against 2020.",
+    "kind_before": "bar_chart",
+    "kind_after": "bar_chart"
+  },
+  {
+    "index": 119,
+    "before_request": "Replay the compounding example with a bar chart drawn from the numbers Python computes: 100 at 2 percent, then the same bars at 7 percent",
+    "after_request": "Why does 7 percent interest end with eleven times as much money as 2 percent, not three and a half times? Compute the bars in Python.",
+    "kind_before": "bar_chart",
+    "kind_after": "bar_chart"
+  },
+  {
+    "index": 120,
+    "before_request": "Show the central limit theorem by averaging dice: one die, two dice, ten dice",
+    "after_request": "Why does averaging dice produce a bell curve?",
+    "kind_before": "bar_chart",
+    "kind_after": "bar_chart"
+  },
+  {
+    "index": 121,
+    "before_request": "Simpson's paradox with the kidney stone data: a treatment that wins on small stones and on large stones, yet loses overall",
+    "after_request": "How can a kidney-stone treatment win on small stones and on large stones, yet lose overall?",
+    "kind_before": "data_table",
+    "kind_after": "data_table"
+  },
+  {
+    "index": 122,
+    "before_request": "Replay the compounding example as two curves drawn from the numbers Python computes: 100 at 2 percent and at 7 percent, year by year",
+    "after_request": "Why does 7 percent interest end up worth eleven times more than 2 percent, not three and a half?",
+    "kind_before": "line_chart",
+    "kind_after": "line_chart"
+  },
+  {
+    "index": 123,
+    "before_request": "Flatten the curve: an epidemic with and without distancing, computed with a simple SIR model",
+    "after_request": "What does 'flattening the curve' actually change in an epidemic?",
+    "kind_before": "line_chart",
+    "kind_after": "line_chart"
+  },
+  {
+    "index": 124,
+    "before_request": "Anscombe's quartet: three datasets with the same regression line, morphing from one to the next",
+    "after_request": "Why look at a scatter plot when the summary statistics already agree? Anscombe's quartet",
+    "kind_before": "scatter_plot",
+    "kind_after": "scatter_plot"
+  },
+  {
+    "index": 125,
+    "before_request": "Simulate how exam scores rise with hours studied, and fit the line in Python",
+    "after_request": "If students who study more score higher, does studying cause the higher scores? A simulation in Python",
+    "kind_before": "scatter_plot",
+    "kind_after": "scatter_plot"
+  },
+  {
+    "index": 126,
+    "before_request": "A correlation matrix of four health variables, revealed row by row.",
+    "after_request": "How do you read a correlation matrix, and what do its warm and cool cells mean?",
+    "kind_before": "heatmap",
+    "kind_after": "heatmap"
+  },
+  {
+    "index": 127,
+    "before_request": "Compute a correlation matrix with pandas and show it next to the code.",
+    "after_request": "Does a strong correlation mean a big effect? A correlation matrix computed with pandas",
+    "kind_before": "heatmap",
+    "kind_after": "heatmap"
+  },
+  {
+    "index": 128,
+    "before_request": "In R with ggplot2: 200 random draws, their mean, and a histogram, stepped line by line",
+    "after_request": "Why do most people earn less than the average? Simulate 200 incomes in R with ggplot2 and compare the mean with the median",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 129,
+    "before_request": "In light Python (Brython): a small pandas table with a computed share, sorted, and a plotly express bar chart",
+    "after_request": "What does sorting a sales table by share reveal? In light Python (Brython): a pandas table with a computed and a running share, and a plotly express bar chart",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 130,
+    "before_request": "In minimal Python (MicroPython): compound interest over five years, printed year by year, with the total growth as the last line",
+    "after_request": "In minimal Python (MicroPython): if interest is added more and more often, does a year's growth grow without limit?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 131,
+    "before_request": "Shade the rejection region of a two-sided test at five percent, with the critical value computed in Python",
+    "after_request": "Why is the cutoff for a two-sided test at five percent 1.96, not 1.645? The critical values computed in Python",
+    "kind_before": "distribution_curve",
+    "kind_after": "distribution_curve"
+  },
+  {
+    "index": 132,
+    "before_request": "Pool four trials of a treatment's risk ratio in Python and draw the forest plot from the computed pooled estimate",
+    "after_request": "What should a meta-analysis do when its trials disagree? Four trials pooled in Python, with and without random effects",
+    "kind_before": "forest_plot",
+    "kind_after": "forest_plot"
+  },
+  {
+    "index": 133,
+    "before_request": "Compute Kaplan-Meier survival for a treated and a control arm from the death counts, and draw the two curves",
+    "after_request": "What does 'median survival not reached' mean, and what can a survival curve say instead? Kaplan-Meier computed from the death counts",
+    "kind_before": "survival_curve",
+    "kind_after": "survival_curve"
+  },
+  {
+    "index": 134,
+    "before_request": "Run a probabilistic sensitivity analysis in Python and let it place the crossing on the acceptability curve",
+    "after_request": "Why is a cost-effectiveness acceptability curve a slope and not a yes-or-no?",
+    "kind_before": "ceac",
+    "kind_after": "ceac"
+  },
+  {
+    "index": 135,
+    "before_request": "Compute the difference-in-differences estimate for the New Jersey minimum wage in Python and size the divergence with it",
+    "after_request": "Did New Jersey's 1992 minimum-wage rise cost jobs, and how does difference-in-differences answer that?",
+    "kind_before": "did_trends",
+    "kind_after": "line_chart"
+  },
+  {
+    "index": 136,
+    "before_request": "Estimate the post-reform effect and its standard error in Python, then plot the event study with those numbers",
+    "after_request": "Why estimate a reform's effect quarter by quarter instead of as one before-and-after number?",
+    "kind_before": "event_study",
+    "kind_after": "event_study"
+  },
+  {
+    "index": 137,
+    "before_request": "Flattening the curve, computed in R: an SIR model run at two reproduction numbers, drawn as an animated line chart",
+    "after_request": "Why does an epidemic wave turn around before everyone is infected? An SIR model in R",
+    "kind_before": "line_chart",
+    "kind_after": "line_chart"
+  },
+  {
+    "index": 138,
+    "before_request": "Hours studied against exam score, in R: simulate twelve students, fit a line with lm, and hand the slope to a scatter plot",
+    "after_request": "How far can you trust a fitted line? Children's heights fitted with lm in R",
+    "kind_before": "scatter_plot",
+    "kind_after": "scatter_plot"
+  },
+  {
+    "index": 139,
+    "before_request": "Hours studied against exam score in light Python: a pandas frame, a statsmodels OLS fit, and the slope handed to a scatter plot",
+    "after_request": "How much does a fitted line actually explain? R squared for runners, with statsmodels in light Python",
+    "kind_before": "scatter_plot",
+    "kind_after": "scatter_plot"
+  },
+  {
+    "index": 140,
+    "before_request": "In light Python: a hundred random draws, then ten thousand, as two matplotlib histograms shown one after the other",
+    "after_request": "In light Python: why does a histogram of a hundred random draws look so lumpy, and how many draws smooth it? A hundred, then ten thousand, as two matplotlib histograms",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 141,
+    "before_request": "Fibonacci and the golden ratio in minimal Python: compute the ratio of consecutive terms and draw how it settles",
+    "after_request": "Why do the ratios of Fibonacci numbers settle on the golden ratio? A minimal Python computes them",
+    "kind_before": "line_chart",
+    "kind_after": "line_chart"
+  },
+  {
+    "index": 142,
+    "before_request": "Screening arithmetic in minimal Python: sensitivity, specificity and prevalence turned into the chance a positive test is right, as a table",
+    "after_request": "Screening arithmetic in minimal Python (MicroPython): how likely is a positive test to be right, and what does a second positive add?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 143,
+    "before_request": "Race eight simulated funds with identical expected returns over twenty years, standing the bars up as columns",
+    "after_request": "If eight funds have exactly the same odds, why does one still end up far ahead?",
+    "kind_before": "bar_race",
+    "kind_after": "bar_race"
+  },
+  {
+    "index": 144,
+    "before_request": "A bar chart race with twenty simulated players but only eight places on the scoreboard",
+    "after_request": "Twenty players, eight places on the scoreboard: when does the leaderboard start showing who is actually good?",
+    "kind_before": "bar_race",
+    "kind_after": "bar_race"
+  },
+  {
+    "index": 145,
+    "before_request": "Race a hundred kroner compounding at four different rates for thirty years, keeping the rows in the same order",
+    "after_request": "In a bar chart race of 100 kroner growing at 1, 3, 5 and 7 percent, why do the slow bars seem to shrink?",
+    "kind_before": "bar_race",
+    "kind_after": "bar_race"
+  },
+  {
+    "index": 146,
+    "before_request": "A bar chart race where products launch in different years and one is discontinued partway through",
+    "after_request": "How should a bar chart race show a product that hasn't launched yet, or has been shut down?",
+    "kind_before": "bar_race",
+    "kind_after": "bar_race"
+  },
+  {
+    "index": 147,
+    "before_request": "A line race over a rolling twelve-month window: four regions' epidemic waves, computed with an SIR model",
+    "after_request": "What does a rolling window hide in a line race? Four regions' epidemic waves, computed with an SIR model",
+    "kind_before": "line_chart",
+    "kind_after": "line_chart"
+  },
+  {
+    "index": 148,
+    "before_request": "Line race: five urns growing by preferential attachment, showing the shares fan out from an identical start",
+    "after_request": "Why do five urns that start identical end up so unequal? A line race of preferential attachment",
+    "kind_before": "line_chart",
+    "kind_after": "line_chart"
+  },
+  {
+    "index": 149,
+    "before_request": "Show how a correlation matrix settles down as the sample grows: n = 20, 50, 200, 1000",
+    "after_request": "Why does a correlation need a big sample? A correlation matrix settling as n grows from 20 to 1000",
+    "kind_before": "heatmap",
+    "kind_after": "heatmap"
+  },
+  {
+    "index": 150,
+    "before_request": "Show how Norwegian health spending splits between curative care, long-term care and medicines, and how that split changed from 2005 to 2023",
+    "after_request": "Did Norway's health spending really double between 2007 and 2019, and what is it spent on?",
+    "kind_before": "bar_chart",
+    "kind_after": "bar_chart"
+  },
+  {
+    "index": 151,
+    "before_request": "Slope chart of Norwegian life expectancy in 2019 against 2021, coloured by whether it rose or fell",
+    "after_request": "Did life expectancy in Norway fall during the pandemic? A slope chart of 2019 against 2021",
+    "kind_before": "line_chart",
+    "kind_after": "line_chart"
+  },
+  {
+    "index": 152,
+    "before_request": "Type a short Python script on a laptop, line by line, and show what it prints: day-on-day price changes",
+    "after_request": "How can a price rise 11 percent a day on average and still end where it started? Type a short Python script on a laptop, line by line",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 153,
+    "before_request": "Compounding at two rates as bars fed by a light Python script, then hand the viewer the script to change the rates and run it",
+    "after_request": "How much does a 1 percent yearly fee cost over fifty years of compounding? Let me change the fee myself in the script.",
+    "kind_before": "bar_chart",
+    "kind_after": "bar_chart"
+  },
+  {
+    "index": 154,
+    "before_request": "Flip a coin five hundred times in light Python and plot the running share of heads — the plot above the code on the screen, typed line by line",
+    "after_request": "Does a fair coin even out? Flip it five hundred times in light Python and plot the share of heads, then heads minus tails — the plots above the code, typed line by line",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 155,
+    "before_request": "Show the same script on five different machines: a tube monitor, a home computer, a flat screen, a laptop, and bare paper",
+    "after_request": "Why does a script of random coin flips draw the same curve on every computer?",
+    "kind_before": "playlist",
+    "kind_after": "playlist"
+  },
+  {
+    "index": 156,
+    "before_request": "Teach the first microdata script: build a dataset, import two variables, and summarise women's wages",
+    "after_request": "How do you ask microdata.no a question when you may never see anyone's data?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 157,
+    "before_request": "Show a Commodore 64 switched on, tell what made it the best-selling computer ever, and let me play a game on it",
+    "after_request": "Why did the Commodore 64 outsell every other computer model?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 158,
+    "before_request": "Type your first Commodore 64 BASIC program on the machine: clear the screen, print a line five times, turn the border black — then let me play a lander written in ten lines",
+    "after_request": "How do you write your first program on a Commodore 64?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 159,
+    "before_request": "Talk to a Commodore 64 in immediate mode: ask it a sum, change the border and the background colour, and print a word in another colour",
+    "after_request": "What is immediate mode on a Commodore 64, and how is it different from a program?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 160,
+    "before_request": "Where is the liver? Show me the body so I can point at it.",
+    "after_request": "Where exactly is the liver?",
+    "kind_before": "anatomy",
+    "kind_after": "anatomy"
+  },
+  {
+    "index": 161,
+    "before_request": "Zoom inn på buken og fortell hva som er der.",
+    "after_request": "Hva ligger egentlig inne i buken?",
+    "kind_before": "anatomy",
+    "kind_after": "anatomy"
+  },
+  {
+    "index": 162,
+    "before_request": "Show a skeleton with a broken thigh bone and ask what is wrong.",
+    "after_request": "Why is a broken thigh bone so serious?",
+    "kind_before": "anatomy",
+    "kind_after": "anatomy"
+  },
+  {
+    "index": 163,
+    "before_request": "Quiz me on the joints of the leg.",
+    "after_request": "Which joints does the leg bend at, and which bones meet in each?",
+    "kind_before": "anatomy",
+    "kind_after": "anatomy"
+  },
+  {
+    "index": 164,
+    "before_request": "Show the human body with its organs, and name them.",
+    "after_request": "What are the main organs, and where does each one sit?",
+    "kind_before": "anatomy",
+    "kind_after": "anatomy"
+  },
+  {
+    "index": 165,
+    "before_request": "What lies behind the intestines?",
+    "after_request": "What lies behind the intestines?",
+    "kind_before": "anatomy",
+    "kind_after": "anatomy"
+  },
+  {
+    "index": 166,
+    "before_request": "Lær meg de latinske navnene på knoklene i beinet.",
+    "after_request": "Hva heter knoklene i beinet på latin, og hva betyr navnene?",
+    "kind_before": "anatomy",
+    "kind_after": "anatomy"
+  },
+  {
+    "index": 167,
+    "before_request": "Draw the skeleton in plain ink and quiz me on it.",
+    "after_request": "Where are the 206 bones of the skeleton?",
+    "kind_before": "anatomy",
+    "kind_after": "anatomy"
+  },
+  {
+    "index": 168,
+    "before_request": "Zoom inn på hånden og vis knoklene.",
+    "after_request": "Hvorfor har hånden så mange knokler?",
+    "kind_before": "anatomy",
+    "kind_after": "anatomy"
+  },
+  {
+    "index": 169,
+    "before_request": "Let me explore the body myself.",
+    "after_request": "What's where inside the body?",
+    "kind_before": "anatomy",
+    "kind_after": "anatomy"
+  },
+  {
+    "index": 170,
+    "before_request": "Show the heart between the lungs, and let me see it in 3D.",
+    "after_request": "Where exactly does the heart sit in the chest?",
+    "kind_before": "anatomy",
+    "kind_after": "anatomy"
+  },
+  {
+    "index": 171,
+    "before_request": "Let me place the organs myself.",
+    "after_request": "Where do the heart, liver and stomach sit?",
+    "kind_before": "anatomy",
+    "kind_after": "anatomy"
+  },
+  {
+    "index": 172,
+    "before_request": "Let me put the Nordic names on the map.",
+    "after_request": "How do you tell the Nordic countries apart on a map?",
+    "kind_before": "world_map",
+    "kind_after": "world_map"
+  },
+  {
+    "index": 176,
+    "before_request": "Which one is Mars?",
+    "after_request": "Which one is Mars?",
+    "kind_before": "solar_system",
+    "kind_after": "solar_system"
+  },
+  {
+    "index": 177,
+    "before_request": "How big is Jupiter?",
+    "after_request": "How big is Jupiter?",
+    "kind_before": "solar_system",
+    "kind_after": "solar_system"
+  },
+  {
+    "index": 178,
+    "before_request": "Why are the inner planets small and the outer ones huge?",
+    "after_request": "Why are the inner planets small and the outer ones huge?",
+    "kind_before": "solar_system",
+    "kind_after": "solar_system"
+  },
+  {
+    "index": 179,
+    "before_request": "Where are the planets today?",
+    "after_request": "Why does Earth catch up with Mars only every two years?",
+    "kind_before": "solar_system",
+    "kind_after": "solar_system"
+  },
+  {
+    "index": 180,
+    "before_request": "How did Jupiter's moons show the Earth is not the centre?",
+    "after_request": "How did Jupiter's moons show the Earth is not the centre?",
+    "kind_before": "solar_system",
+    "kind_after": "solar_system"
+  },
+  {
+    "index": 181,
+    "before_request": "Why does the sky turn?",
+    "after_request": "Why does the sky turn?",
+    "kind_before": "sky_map",
+    "kind_after": "sky_map"
+  },
+  {
+    "index": 182,
+    "before_request": "Why can't I see the winter stars in summer?",
+    "after_request": "Why can't I see the winter stars in summer?",
+    "kind_before": "sky_map",
+    "kind_after": "sky_map"
+  },
+  {
+    "index": 183,
+    "before_request": "Which constellation is this?",
+    "after_request": "Are the stars of a constellation really close together?",
+    "kind_before": "sky_map",
+    "kind_after": "sky_map"
+  },
+  {
+    "index": 184,
+    "before_request": "Hvilket stjernebilde er dette?",
+    "after_request": "Er Karlsvogna et eget stjernebilde?",
+    "kind_before": "sky_map",
+    "kind_after": "sky_map"
+  },
+  {
+    "index": 185,
+    "before_request": "Do I know Orion well enough to draw it?",
+    "after_request": "Do I know Orion well enough to draw it?",
+    "kind_before": "sky_map",
+    "kind_after": "sky_map"
+  },
+  {
+    "index": 186,
+    "before_request": "Hvordan finner jeg Kassiopeia?",
+    "after_request": "Hvordan kjenner jeg igjen Kassiopeia?",
+    "kind_before": "sky_map",
+    "kind_after": "sky_map"
+  },
+  {
+    "index": 187,
+    "before_request": "Why doesn't Jupiter twinkle when the stars do?",
+    "after_request": "Why doesn't Jupiter twinkle when the stars do?",
+    "kind_before": "sky_map",
+    "kind_after": "sky_map"
+  },
+  {
+    "index": 188,
+    "before_request": "Explain how bicycle gears work: why a small rear cog makes pedalling harder but faster, and a big one easier but slower.",
+    "after_request": "Why does a small rear cog make pedalling harder but faster, and a big one easier but slower?",
+    "kind_before": "bicycle_drivetrain",
+    "kind_after": "bicycle_drivetrain"
+  },
+  {
+    "index": 189,
+    "before_request": "Show the parts of a violin and explain what each part does for the sound.",
+    "after_request": "Does a violin's sound come from its strings or from its wooden body?",
+    "kind_before": "violin_anatomy",
+    "kind_after": "violin_anatomy"
+  },
+  {
+    "index": 190,
+    "before_request": "Explain the water cycle: evaporation, condensation, precipitation and collection.",
+    "after_request": "Why is rain fresh when most of it starts in the salty sea?",
+    "kind_before": "water_cycle",
+    "kind_after": "water_cycle"
+  },
+  {
+    "index": 191,
+    "before_request": "Show the parts of a flower and explain how pollination leads to a seed.",
+    "after_request": "How does pollination turn a flower into a seed?",
+    "kind_before": "flower_anatomy",
+    "kind_after": "flower_anatomy"
+  },
+  {
+    "index": 192,
+    "before_request": "Explain a hydraulic press: why a small force on a small piston can lift a heavy load on a big piston.",
+    "after_request": "How can a small push on a hydraulic press lift a heavy load?",
+    "kind_before": "hydraulic_press",
+    "kind_after": "hydraulic_press"
+  },
+  {
+    "index": 193,
+    "before_request": "Hvorfor er arealet av en sirkel πr²?",
+    "after_request": "Hvorfor er det samme π i omkretsen 2πr og i arealet πr²?",
+    "kind_before": "circle_sectors",
+    "kind_after": "circle_sectors"
+  },
+  {
+    "index": 194,
+    "before_request": "Vis med kakestykker at en sirkel kan legges om til nesten et rektangel (fri tegning, uten mal).",
+    "after_request": "Hvordan kan kakestykker vise at arealet av en sirkel er πr²?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 195,
+    "before_request": "Hvorfor er arealet av et parallellogram grunnlinje ganger høyde?",
+    "after_request": "Hvorfor er arealet av et parallellogram grunnlinje ganger høyde?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 196,
+    "before_request": "Vis hva som skjer med en trekant når den forstørres til det dobbelte fra ett hjørne (formlikhet).",
+    "after_request": "Hva skjer med arealet når en trekant forstørres til det dobbelte?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 197,
+    "before_request": "Vis at vinklene i en trekant til sammen er 180 grader.",
+    "after_request": "Hvorfor er vinklene i en trekant alltid 180 grader til sammen?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 198,
+    "before_request": "Forklar brøken tre åttedeler med en pizza.",
+    "after_request": "Hva betyr brøken tre åttedeler?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 199,
+    "before_request": "Vis hvordan en vektstang balanserer: kraft ganger arm.",
+    "after_request": "Hvordan kan ett kilo holde to kilo i balanse på en vektstang?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 200,
+    "before_request": "Vis på en klokke hva som skjer med viserne på et kvarter og en halvtime.",
+    "after_request": "Hvorfor står ikke timeviseren på tolv når klokka er halv ett?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 201,
+    "before_request": "Hvorfor bygger bier cellene som sekskanter? Vis at sekskanter fyller planet.",
+    "after_request": "Hvorfor bygger bier cellene som sekskanter?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 202,
+    "before_request": "Hvorfor er 3 ganger 4 det samme som 4 ganger 3?",
+    "after_request": "Hvorfor er 3 ganger 4 det samme som 4 ganger 3?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 203,
+    "before_request": "Vis at 2/4 er det samme som 1/2.",
+    "after_request": "Hvorfor er 2/4 det samme som 1/2?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 204,
+    "before_request": "Hvordan legger man sammen to vektorer?",
+    "after_request": "Hvordan legger man sammen to vektorer?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 205,
+    "before_request": "Hvorfor er arealet av en trekant halvparten av grunnlinje ganger høyde?",
+    "after_request": "Hvorfor er arealet av en trekant halvparten av grunnlinje ganger høyde?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 206,
+    "before_request": "Hvilken vei går et punkt på et hjul som ruller?",
+    "after_request": "Hvilken vei går et punkt på et hjul som ruller?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 207,
+    "before_request": "Hvordan henger husholdninger og bedrifter sammen i økonomien?",
+    "after_request": "Hvordan henger husholdninger og bedrifter sammen i økonomien?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 209,
+    "before_request": "Hvorfor forandrer ikke arealet seg når et parallellogram skjæres?",
+    "after_request": "Hvorfor forandrer ikke arealet seg når et parallellogram skjeves?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 212,
+    "before_request": "Hvorfor er arealet av en sirkel πr², ringversjonen?",
+    "after_request": "Hvorfor er arealet av en sirkel πr²? Et bevis med ringer",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 213,
+    "before_request": "Hvorfor er arealet av en regulær mangekant halve omkretsen ganger apotemet?",
+    "after_request": "Hvorfor er arealet av en regulær mangekant halve omkretsen ganger apotemet?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 214,
+    "before_request": "Hvorfor er 1/2 + 1/4 + 1/8 + … = 1?",
+    "after_request": "Hvorfor er 1/2 + 1/4 + 1/8 + … = 1?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 215,
+    "before_request": "Hva skjer med arealet når sidene dobles?",
+    "after_request": "Hva skjer med arealet når sidene dobles?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 216,
+    "before_request": "Hvorfor er en ytre vinkel lik summen av de to motstående indre?",
+    "after_request": "Hvorfor er en ytre vinkel lik summen av de to motstående indre?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 217,
+    "before_request": "Hva er en ellipse?",
+    "after_request": "Hva er en ellipse?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 251,
+    "before_request": "Teach Morse code and let me send SOS.",
+    "after_request": "How does Morse code spell letters with just two signals — and can I send SOS?",
+    "kind_before": "morse_key",
+    "kind_after": "morse_key"
+  },
+  {
+    "index": 252,
+    "before_request": "The Tower of Hanoi puzzle with three disks.",
+    "after_request": "Why does the Tower of Hanoi take 2^n − 1 moves?",
+    "kind_before": "tower_of_hanoi",
+    "kind_after": "tower_of_hanoi"
+  },
+  {
+    "index": 256,
+    "before_request": "Tic-tac-toe against the computer.",
+    "after_request": "Why does tic-tac-toe always end in a draw?",
+    "kind_before": "tictactoe",
+    "kind_after": "tictactoe"
+  },
+  {
+    "index": 260,
+    "before_request": "How does turning beta and gamma change the epidemic curve?",
+    "after_request": "How does turning beta and gamma change the epidemic curve?",
+    "kind_before": "sir_compartments",
+    "kind_after": "sir_compartments"
+  },
+  {
     "index": 267,
     "before_request": "How does exponential growth differ from logistic growth over the same years?",
     "after_request": "How does exponential growth differ from logistic growth over the same years?",
     "kind_before": "playlist",
     "kind_after": "playlist"
+  },
+  {
+    "index": 270,
+    "before_request": "Why does coffee go cold in a mug in an hour but stay hot in a flask all day?",
+    "after_request": "Why does coffee go cold in a mug in an hour but stay hot in a flask all day?",
+    "kind_before": "playlist",
+    "kind_after": "playlist"
+  },
+  {
+    "index": 273,
+    "before_request": "A tax is collected from sellers, so why do buyers end up paying part of it?",
+    "after_request": "A tax is collected from sellers, so why do buyers end up paying part of it?",
+    "kind_before": "supply_demand",
+    "kind_after": "supply_demand"
+  },
+  {
+    "index": 274,
+    "before_request": "Why does competition leave a firm no profit at all?",
+    "after_request": "Why does competition leave a firm no profit at all?",
+    "kind_before": "firm_cost_curves",
+    "kind_after": "firm_cost_curves"
+  },
+  {
+    "index": 275,
+    "before_request": "Where does a recession come from, and what can a government actually do about it?",
+    "after_request": "Where does a recession come from, and what can a government actually do about it?",
+    "kind_before": "ad_as",
+    "kind_after": "ad_as"
+  },
+  {
+    "index": 278,
+    "before_request": "Hva skjer med et søk i en søkemotor?",
+    "after_request": "Hva skjer med et søk i en søkemotor?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
   }
 ]

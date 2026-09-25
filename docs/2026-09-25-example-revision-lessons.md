@@ -472,6 +472,65 @@ inconclusive trials pool to a clear answer; weight = 1/SE²), #28 confounder
   doubling ×2) and gave each a different mechanism. A bundled set should
   not teach the same point twice.
 
+## Round 9 lessons (37 examples: data charts, HTA/econ, sky maps, school physics and anatomy)
+
+- **Fixed this round**: heatmap cut its widest row name ("Income" → "Inco…",
+  "Blood pressu…") in a lane sized for exactly that name — floating-point
+  arithmetic on the lane's edges left it a hair short; `fitText` now has half
+  a unit of slack (tests/heatmap-names.test.ts). The top heading's push-in
+  started at 1.8× whatever the title's length, so a 34-character title ran off
+  both sides of the first frame; `headingZoom` now picks the zoom that keeps
+  the words in view (13 bundled titles start wider). #273 left the
+  PENDING_ANIMATE_LINT set, which is now empty: its elasticities were chosen
+  so every animated state lints clean, and `label_wedge` is erased before the
+  second animate.
+- **Default template frames leave the free band** (the fifth round running):
+  bicycle_drivetrain (ratio caption y 46), hydraulic_press (ground y 105,
+  equations y 681), violin_anatomy, water_cycle, flower_anatomy and sky_map's
+  focus portrait (y 80–700) all needed `params.box`; bar_race has no box at
+  all, so a vertical race's axis caption sits in the heading and #143 dropped
+  its `x_label`; forest_plot, ceac and survival_curve keep their axes at y ≈
+  110–130, where the captions cover them. This is the "templates should fit
+  y 150–690 by default" major item — `kit.plotArea` and the shared frames.
+- **The Node gate lays out token-fed templates at placeholder values** (ceac
+  midpoint 30, event_study effect +1, scatter y = 0): data-dependent ids are
+  "not drawn" (survival_curve `median_line`), labels collide with a
+  placeholder fit caption, and freehand overlays cannot sit next to the real
+  geometry. Only the browser harness sees the real figure. The gate should
+  resolve tokens (run the script in Node where it can) or skip checks that
+  depend on data.
+- **Templates that cannot draw the true data**: did_trends always puts the
+  treated group above a rising control, so Card and Krueger's real numbers
+  (New Jersey below Pennsylvania, Pennsylvania falling) needed a line_chart
+  slope chart; ceac is always a logistic 0→1; forest_plot has one pooled
+  diamond (fixed vs random effects needs a second, hand-placed);
+  distribution_curve cannot mark a second cutoff; line_chart's slope columns
+  cannot change label per stage; bar_race interpolates linearly, so an
+  overtake between decade stages is drawn years early (narration must not
+  date it).
+- **sky_map**: focus portraits draw small figures small (zoomMax 6 — the W is
+  a quarter of the frame; a camera zoom rescued it); unmentioned parts
+  (planets in the crop, the chart's `stars`, constellation names) are swept
+  in by the final implicit draw; the connect lint rejects "turn the sky, then
+  ask" unless the figure is drawn again after the animate (honest, but the
+  prompt should say it); a portrait "upright" on the chart is upside down to
+  someone facing north.
+- **Engine**: a `label` attached to a polygon lands inside it (a label's own
+  shape is not an obstacle — third report); a `point` with `at: {x, y}` on a
+  template page reads domain units; an `annotation` box round two lines of a
+  boxed template overlaps the neighbour when box compresses line spacing;
+  heatmap nulls pop at the end of a tween instead of fading.
+- **Drawcasts**: a quiz question over ~12 words makes a three-line caption
+  that covers low template text; card titles over ~30 characters are long
+  for the heading even with the new zoom. Topic overlap again: four data
+  examples used a scatter with a fit, three on the same hours-vs-score data,
+  and each got a distinct reading (scale, spread vs effect, sampling noise
+  in r, extrapolation, R²).
+- **Process**: two tests pin examples by their text (`/five urns/`, a
+  `label_top` example must say "name"/"label"), so renaming a request can fail
+  an unrelated test; apply.cjs cannot follow a request renamed twice. Both go
+  in the brief.
+
 ## Hans's feedback on the pilot (2026-09-25)
 
 - Better. But openings still jump in without saying what the drawcast is

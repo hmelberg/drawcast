@@ -2928,10 +2928,13 @@ layout: |
   const showNames = nameFit >= FONT_FLOOR;
   const SIZE = clamp(nameFit, FONT_FLOOR, SIZE_MAX);
   const HEAD_ROW = SIZE * 1.25 + 10;                 // the column-name band above the grid
+  // Half a unit of slack: the name lane is sized to the widest name exactly,
+  // and x0 + w + gap − gap − x0 can land a hair under w, which cut "Income"
+  // to "Inco…" in a lane made for it (2026-09-25).
   const fitText = (s, maxW, size) => {
-    if (kit.textWidth(s, size) <= maxW) return s;
+    if (kit.textWidth(s, size) <= maxW + 0.5) return s;
     let out = s;
-    while (out.length > 1 && kit.textWidth(out + "…", size) > maxW) out = out.slice(0, -1);
+    while (out.length > 1 && kit.textWidth(out + "…", size) > maxW + 0.5) out = out.slice(0, -1);
     return out.replace(/\s+$/, "") + "…";
   };
   const nameOf = (i) => (rowNames[i] !== undefined ? rowNames[i] : String(i + 1));
