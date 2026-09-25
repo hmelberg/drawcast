@@ -438,6 +438,10 @@ function tableDrawables(
   return { drawables, height: gridH };
 }
 
+/** The band a code panel keeps to: under the card heading, over the captions. */
+const FREE_TOP = 690;
+const FREE_BOTTOM = 130;
+
 export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // A Commodore 64 is a screen, not a panel (layout/c64-screen.ts).
   if (isC64Screen(el)) return c64ScreenDrawables(el, ctx);
@@ -570,7 +574,12 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // "this happened on a computer".
   const frame: CodeFrame = el.frame ?? "none";
   const chrome = frameSpace(frame);
-  const maxH = CANVAS.h - 40 - chrome.above - chrome.below; // breathing room top+bottom
+  // The free band: below the card heading's underline (y ≈ 690) and above
+  // the narration captions (the bottom ~15 %). A panel that grew with its
+  // output used to reach both — a chart's printed first line in the heading,
+  // its sliders under the captions (#257–#259, 2026-09-25) — and the Node
+  // gate never saw it, since it does not run the script.
+  const maxH = FREE_TOP - FREE_BOTTOM - chrome.above - chrome.below;
   // Stacked panes share the height: the code pane (or its window) is fixed
   // and the output gets what remains. Side by side, each pane has it all.
   const outBudget = showOut ? Math.max(0, maxH - 2 * PAD - (stacked ? codeContentH + paneGap : 0)) : 0;
@@ -660,11 +669,10 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // top off the top edge — and, when there is slack, to clear the narration
   // band at the bottom rather than stand its foot behind it.
   let yTop = cy + (h + chrome.above + chrome.below) / 2 - chrome.above;
-  const CAPTION_H = 64;
-  const overTop = yTop + chrome.above - (CANVAS.h - 8);
+  const overTop = yTop + chrome.above - FREE_TOP;
   if (overTop > 0) yTop -= overTop;
-  const underBottom = CAPTION_H - (yTop - h - chrome.below);
-  if (underBottom > 0) yTop += Math.max(0, Math.min(underBottom, CANVAS.h - 8 - (yTop + chrome.above)));
+  const underBottom = FREE_BOTTOM - (yTop - h - chrome.below);
+  if (underBottom > 0) yTop += Math.max(0, Math.min(underBottom, FREE_TOP - (yTop + chrome.above)));
   const rect: Pt[] = [
     [x0, yTop - h],
     [x0 + w, yTop - h],
