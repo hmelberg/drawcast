@@ -93,7 +93,7 @@ const FIGURE_CSS = `
    dark fill in the caption's strip) the paper halo would make pale patches:
    those captions take a dark band with light letters, the one style that
    reads on any ground. Only as an overlay — below the drawing it is paper. */
-.cs-stage:not(.cs-caption-below) .cs-caption.cs-caption-dark {
+.cs-stage:not(.cs-caption-below):not(.cs-caption-strip) .cs-caption.cs-caption-dark {
   color: #fbf8f1;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
   background: rgba(24, 20, 16, 0.72);
@@ -103,9 +103,13 @@ const FIGURE_CSS = `
    drawing keeps its 4 : 3 at the top — so the svg never letterboxes and a
    click maps exactly — and the words sit on the paper under it, in ink,
    with no band to cover anything. */
-.cs-caption-below { display: flex; flex-direction: column; justify-content: flex-start; }
+.cs-caption-below, .cs-caption-strip { display: flex; flex-direction: column; justify-content: flex-start; }
 .cs-caption-below .cs-svg { height: auto; aspect-ratio: 4 / 3; flex: none; }
-.cs-caption-below .cs-caption {
+/* No room below, subtitles on, and something to read where they would sit
+   (render/caption-place.ts): the drawing shrinks — still 4 : 3, centred —
+   to leave a two-line strip, and the words go there instead of over it. */
+.cs-caption-strip .cs-svg { height: var(--cs-fig-h); width: calc(var(--cs-fig-h) * 4 / 3); max-width: 100%; margin: 0 auto; flex: none; }
+.cs-caption-below .cs-caption, .cs-caption-strip .cs-caption {
   position: static;
   flex: none;
   /* The caption is the stage's first child (it is there before the svg is

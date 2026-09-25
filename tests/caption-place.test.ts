@@ -1,7 +1,7 @@
 // Subtitles below the drawing when the stage has room, over it when not
 // (render/caption-place.ts, Hans 2026-09-25).
 import { describe, expect, test } from "vitest";
-import { captionBelow } from "../src/render/caption-place";
+import { captionBelow, captionMode } from "../src/render/caption-place";
 
 const STRIP = 60; // two lines
 
@@ -24,5 +24,20 @@ describe("captionBelow", () => {
   });
   test("an unmeasured stage keeps what it had", () => {
     expect(captionBelow({ w: 0, h: 0 }, STRIP, true)).toBe(true);
+  });
+});
+
+describe("captionMode: below, a reserved strip, or over the drawing", () => {
+  const laptop = { w: 800, h: 600 }; // an exact 4:3 card: no room below
+  test("room below wins, whatever else holds", () => {
+    expect(captionMode({ w: 390, h: 700 }, STRIP, { was: "overlay", ccOn: true, needsStrip: true }).mode).toBe("below");
+  });
+  test("no room, CC on, something to read in the strip → the drawing shrinks for a strip", () => {
+    const m = captionMode(laptop, STRIP, { was: "overlay", ccOn: true, needsStrip: true });
+    expect(m).toEqual({ mode: "strip", figH: 540 });
+  });
+  test("…but not with CC off, nor for a cast with nothing there", () => {
+    expect(captionMode(laptop, STRIP, { was: "strip", ccOn: false, needsStrip: true }).mode).toBe("overlay");
+    expect(captionMode(laptop, STRIP, { was: "overlay", ccOn: true, needsStrip: false }).mode).toBe("overlay");
   });
 });

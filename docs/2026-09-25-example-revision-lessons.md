@@ -73,6 +73,13 @@ band rule for authors at all:
   upright, a tall window, fullscreen on a tall screen — decided from the
   stage's box on resize, with hysteresis), and over it otherwise; the
   overlay is now a band as wide as its words, not a full-width gradient.
+- Over the drawing the words are WRITTEN on it (ink in a paper halo, like
+  its labels); over something dark (a photo, a C64 screen, a solid dark
+  fill in the strip) that line takes a dark band instead.
+- With subtitles on and no room below, a cast that has something to read
+  in the caption's strip (62 of 287 single-page examples — mostly axis
+  captions) shrinks its drawing for a two-line strip of its own; the rest
+  keep full size. Decided once per cast and on resize/CC toggle only.
 - The "keep content above y ≈ 150" rule is gone from the brief and the
   template-author prompt; no caption-band lint.
 

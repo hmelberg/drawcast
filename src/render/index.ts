@@ -7,7 +7,7 @@ import { drawablesForId, leafDrawables, type Pt } from "../layout/model";
 import type { LintIssue } from "../lint/lint";
 import type { Spec, SpecElement } from "../spec/types";
 import { placeCaption } from "./caption-place";
-import { darkUnderCaption } from "./caption-dark";
+import { contentUnderCaption, darkUnderCaption } from "./caption-dark";
 import { ensureFigureStyles } from "./figure-style";
 import { splitVarOverrides, withNewIdsVisible, withOverrides } from "./params";
 import { controlsOfFor, planCommands, type Plan, type PlanOptions } from "./plan";
@@ -295,7 +295,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   figure.appendChild(stage);
   container.appendChild(figure);
   // Below the drawing when the stage has room, over it when not (caption-place.ts).
-  const stopCaptionPlace = placeCaption(stage, caption);
+  const captionPlacer = placeCaption(stage, caption);
 
   // One text style for the whole figure (layout/text-style.ts): measured at
   // the size it will be drawn, then stamped on the drawables. The HTML text
@@ -506,6 +506,9 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   player.sweepRunner = sweepRunner;
   // Words written over dark ground (a photo, a C64 screen) take the band.
   const darkIds = darkUnderCaption(mountedLayout.drawables);
+  // …and a cast with words or markers in that strip keeps them uncovered:
+  // with CC on and no room below, the drawing shrinks for a strip of its own.
+  captionPlacer.setNeedsStrip(contentUnderCaption(mountedLayout.drawables));
   if (darkIds.size > 0) player.captionOnDark = (visible) => visible.some((id) => darkIds.has(id));
   // …and the cache is filled while the viewer watches the opening: every run
   // step's value maps, once, when the drawcast first starts playing. By the
@@ -542,7 +545,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     lint: () => layout.issues,
     update: async (diff) => {
       disposed = true;
-      stopCaptionPlace();
+      captionPlacer.dispose();
       player.dispose();
       mounted.destroy();
       figure.remove();
@@ -552,7 +555,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     },
     destroy: () => {
       disposed = true;
-      stopCaptionPlace();
+      captionPlacer.dispose();
       player.dispose();
       mounted.destroy();
       figure.remove();

@@ -56,3 +56,31 @@ export function darkUnderCaption(drawables: Drawable[]): Set<string> {
   }
   return out;
 }
+
+/** How high the words' strip reaches when it is reserved: two lines. */
+export const CAPTION_STRIP_TWO = 85;
+
+/**
+ * Does anything the viewer must READ or find lie in the bottom strip a
+ * caption would cover — text, a formula, a picture, a small marker? Then,
+ * with subtitles on and no room below the drawing, the player shrinks the
+ * drawing a little and writes the words in a strip of their own (Hans,
+ * 2026-09-25) rather than over it. Decided once per cast: lines and fills
+ * passing under the words do not count, and nothing jumps mid-cast.
+ */
+export function contentUnderCaption(drawables: Drawable[]): boolean {
+  const low = (y: number | null) => y !== null && y < CAPTION_STRIP_TWO;
+  const walk = (ds: Drawable[]): boolean =>
+    ds.some((d) => {
+      if (d.kind === "group") {
+        // A formula is words: its glyph rings count as text.
+        if (d.role === "math") return d.children.some((c) => (c.kind === "area" || c.kind === "stroke") && c.pts.length > 0 && low(bboxOfPts(c.pts).y)) || walk(d.children);
+        return walk(d.children);
+      }
+      if (d.kind === "text") return d.text.trim() !== "" && low(d.pos[1] - d.fontSize * 0.6);
+      if (d.kind === "image") return low(lowY(d));
+      if (d.kind === "stroke" && d.shapeHint?.type === "circle" && d.shapeHint.r <= 14) return low(d.shapeHint.c[1] - d.shapeHint.r);
+      return false;
+    });
+  return walk(drawables);
+}
