@@ -10060,58 +10060,66 @@
       },
       "commands": [
         {
+          "card": {
+            "title": "Scholar's Mate"
+          }
+        },
+        {
           "draw": [
             "position"
           ],
-          "speak": "Here's the opening position — a fresh game of chess."
+          "speak": "Scholar's Mate wins a game of chess in four moves. Why do so many players walk straight into it? It starts from the opening position."
         },
         {
           "animate": {
             "plies_shown": 1
           },
           "duration": 1.3,
-          "speak": "1. e4 — White opens with the king's pawn."
+          "speak": "e4: White's king pawn steps forward, and opens a door for the queen and the king's bishop at once."
         },
         {
           "animate": {
             "plies_shown": 2
           },
           "duration": 1.3,
-          "speak": "e5 — Black mirrors it."
+          "speak": "e5: Black mirrors it."
         },
         {
           "animate": {
             "plies_shown": 3
           },
           "duration": 1.3,
-          "speak": "Bc4 — the bishop steps out, and this looks like an ordinary developing move."
+          "speak": "Bishop to c4 looks like ordinary development, a piece stepping toward the centre."
         },
         {
           "draw": [
             "hl_f7",
             "arrow_0"
           ],
-          "speak": "It isn't. It is aiming at f7 — the one square in Black's camp that nothing defends but the king himself."
+          "speak": "But it aims at f7, the one square in Black's camp that only the king defends."
         },
         {
           "animate": {
             "plies_shown": 4
           },
           "duration": 1.3,
-          "speak": "Nc6 — Black develops a knight and defends e5, watching the centre rather than the corner."
+          "speak": "Knight to c6: Black develops and guards the pawn on e5, watching the centre rather than the corner."
         },
         {
           "animate": {
             "plies_shown": 5
           },
           "duration": 1.3,
-          "speak": "Qh5 — and the queen swings across to aim at that very same square."
+          "speak": "Then the queen swings out to h5, aimed at that same square."
         },
         {
           "draw": [
             "arrow_1"
           ],
-          "speak": "Two attackers on f7 now, and one defender."
+          "speak": "Count them: two attackers on f7, one defender. On a square, the side with more pieces bearing on it wins it."
+        },
+        {
+          "pause": 0.4
         },
         {
           "move": {
@@ -10122,7 +10130,7 @@
             "ghost": true,
             "duration": 0.8
           },
-          "speak": "Black has one tidy answer: g6, stepping into the queen's path and sending her home."
+          "speak": "One pawn move would do it: g6 cuts the queen's line to f7 and chases her away."
         },
         {
           "move": {
@@ -10139,27 +10147,20 @@
             "plies_shown": 6
           },
           "duration": 1.3,
-          "speak": "Nf6 instead — attacking the queen, and answering the wrong threat."
-        },
-        {
-          "erase": [
-            "arrow_1"
-          ],
-          "speak": "She was never going home."
+          "speak": "Knight to f6 instead, attacking the queen. It feels active, and it answers the wrong threat."
         },
         {
           "animate": {
             "plies_shown": 7
           },
           "duration": 1.6,
-          "speak": "Qxf7 — checkmate."
+          "speak": "Queen takes f7: checkmate."
         },
         {
           "highlight": {
-            "target": "arrow_0",
-            "effect": "glow"
+            "target": "piece_c4"
           },
-          "speak": "The king cannot take her, because the bishop has been guarding that square since move three."
+          "speak": "The king cannot take her back, because the bishop has guarded that square since move three."
         },
         {
           "point": {
@@ -10168,7 +10169,25 @@
             },
             "gesture": "circle"
           },
-          "speak": "One weak square, attacked twice and defended once — that is the whole of Scholar's Mate, and why it catches people."
+          "speak": "So the trap is arithmetic on one square. Black watched the queen, when what mattered was how many pieces bore on f7."
+        },
+        {
+          "highlight": {
+            "target": "piece_f7"
+          },
+          "speak": "There is a faster mate still: Fool's Mate takes two moves, and there it is Black's queen that delivers it."
+        },
+        {
+          "quiz": {
+            "question": "After Qh5, Black plays Qe7 instead of Nf6. Is f7 still lost?",
+            "choices": [
+              "Yes, Qxf7 is still mate",
+              "No: two attackers now meet two defenders",
+              "Only if White brings a knight first"
+            ],
+            "correct": 2,
+            "right": "No: the queen on e7 also guards f7, so Qxf7 is answered by Qxf7, and White ends a bishop down for a pawn."
+          }
         }
       ]
     }
@@ -18803,7 +18822,7 @@
     }
   },
   {
-    "request": "Set up Scholar's Mate one move early and let me deliver the checkmate myself.",
+    "request": "Can I find the checkmate in Scholar's Mate myself?",
     "title": "Deliver the mate",
     "packs": [
       "games"
@@ -18821,14 +18840,50 @@
           "Nf6",
           "Qxf7#"
         ],
-        "plies_shown": 6
+        "plies_shown": 6,
+        "arrows": [
+          {
+            "from": "c4",
+            "to": "f7"
+          },
+          {
+            "from": "h5",
+            "to": "f7"
+          }
+        ]
       },
       "commands": [
+        {
+          "card": {
+            "title": "Deliver the mate"
+          }
+        },
         {
           "draw": [
             "position"
           ],
-          "speak": "White has played the Scholar's Mate setup — queen on h5, bishop on c4 — and Black just developed a knight."
+          "speak": "A puzzle: White has one move that ends this game at once. After three moves each, Black has just played knight to f6."
+        },
+        {
+          "highlight": {
+            "target": "piece_h5"
+          },
+          "speak": "White's queen stands on h5, and that knight is attacking her."
+        },
+        {
+          "highlight": {
+            "target": "piece_c4"
+          },
+          "speak": "White's bishop on c4 has been waiting since move three, aimed along the diagonal toward Black's king."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "piece_e8"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Most players look first at the queen in danger. Look at the king instead: which square beside him does nobody else defend?"
         },
         {
           "pause": 0.3
@@ -18838,8 +18893,8 @@
             "question": "One move wins the game. Click the queen, then the square she takes.",
             "answer": "h5f7",
             "widget": "chess",
-            "right": "Queen takes f7 — the weakest square on the board, defended only by the king.",
-            "wrong": "Not that — look at f7: only the king defends it, and your queen and bishop both attack it.",
+            "right": "Queen takes f7: the queen and the bishop both hit it, and only the king defends it.",
+            "wrong": "Saving the queen isn't the point. Count the attackers on each square next to Black's king.",
             "retry": true
           }
         },
@@ -18848,13 +18903,54 @@
             "plies_shown": 7
           },
           "duration": 1.2,
-          "speak": "Checkmate. The king cannot take — the bishop on c4 guards your queen."
+          "speak": "Checkmate. The king cannot take the queen, because the bishop guards her."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "sq_e7"
+            },
+            "gesture": "tap"
+          },
+          "speak": "And he cannot run: the queen covers e7, and his own pieces fill his other squares."
+        },
+        {
+          "draw": [
+            "arrow_0",
+            "arrow_1"
+          ],
+          "parallel": true,
+          "speak": "Two lines meeting on a square only the king guards: that is the pattern to spot, from either side of the board."
+        },
+        {
+          "highlight": {
+            "target": "piece_f6"
+          },
+          "speak": "The knight's attack on the queen was real, and it didn't matter. A threat of mate outranks a threat to a piece."
+        },
+        {
+          "highlight": {
+            "target": "piece_f7"
+          },
+          "speak": "German players call it the [german:Schäfermatt], the shepherd's mate."
+        },
+        {
+          "quiz": {
+            "question": "Rewind one move: Black to play after Qh5. Which move keeps f7?",
+            "choices": [
+              "Nf6, attacking the queen",
+              "g6, blocking her path",
+              "a6, waiting"
+            ],
+            "correct": 2,
+            "right": "g6: it stands between the queen and f7, so only the bishop still attacks the square, and the king holds it."
+          }
         }
       ]
     }
   },
   {
-    "request": "Show the Italian Game opening, then let me play on from there.",
+    "request": "What is the Italian Game, and why is it a good first opening?",
     "title": "The Italian Game — your move",
     "packs": [
       "games"
@@ -18870,44 +18966,178 @@
           "Nc6",
           "Bc4"
         ],
-        "plies_shown": 0
+        "plies_shown": 0,
+        "highlights": [
+          "f1",
+          "g1"
+        ],
+        "arrows": [
+          {
+            "from": "c4",
+            "to": "f7"
+          }
+        ],
+        "openings": [
+          {
+            "name": "Italian Game",
+            "eco": "C50",
+            "moves": [
+              "e4",
+              "e5",
+              "Nf3",
+              "Nc6",
+              "Bc4"
+            ],
+            "idea": "The bishop aims at f7, and White can castle next move."
+          },
+          {
+            "name": "Ruy Lopez",
+            "eco": "C60",
+            "moves": [
+              "e4",
+              "e5",
+              "Nf3",
+              "Nc6",
+              "Bb5"
+            ],
+            "idea": "The bishop pressures the knight that guards e5."
+          },
+          {
+            "name": "Scotch Game",
+            "eco": "C45",
+            "moves": [
+              "e4",
+              "e5",
+              "Nf3",
+              "Nc6",
+              "d4"
+            ],
+            "idea": "White opens the centre at once."
+          }
+        ]
       },
       "commands": [
         {
-          "speak": "The Italian Game is four centuries old and still the first opening every player should learn — watch it build, then take the board yourself."
+          "card": {
+            "title": "The Italian Game"
+          }
         },
         {
           "draw": [
             "position"
           ],
-          "speak": "The starting position: sixteen pieces a side, and a fight for the four center squares about to begin."
+          "speak": "The Italian Game is one of the oldest chess openings, and a good first one to learn. Why? Every move in it does real work."
         },
         {
           "animate": {
             "plies_shown": 2
           },
           "duration": 1.6,
-          "speak": "Both sides stake the center at once — pawn to e4, pawn to e5."
+          "speak": "Both sides stake the centre at once: pawn to e4, pawn to e5."
+        },
+        {
+          "move": {
+            "target": "piece_d1",
+            "to": {
+              "ref": "sq_h5"
+            },
+            "ghost": true,
+            "duration": 0.8
+          },
+          "speak": "White's queen could leap out to h5 now. But Black's knights would chase her, and every retreat is a move thrown away."
+        },
+        {
+          "move": {
+            "target": "piece_d1",
+            "to": {
+              "ref": "sq_d1"
+            },
+            "duration": 0.6
+          },
+          "speak": "So the queen stays home, and the lighter pieces come first."
+        },
+        {
+          "animate": {
+            "plies_shown": 3
+          },
+          "duration": 1.4,
+          "speak": "Knight to f3 develops a piece and attacks the pawn on e5."
         },
         {
           "animate": {
             "plies_shown": 4
           },
-          "duration": 1.6,
-          "speak": "Knights before bishops: White's knight attacks the e5 pawn, and Black's knight steps up to defend it."
+          "duration": 1.4,
+          "speak": "So Black's reply is forced to be useful too: knight to c6, developing and defending."
         },
         {
           "animate": {
             "plies_shown": 5
           },
-          "duration": 1.2,
-          "speak": "And the Italian move itself — bishop to c4, aiming straight at f7, the one square only the king defends."
+          "duration": 1.4,
+          "speak": "Then the Italian move itself: bishop to c4."
         },
         {
-          "pause": 0.3
+          "draw": [
+            "arrow_0"
+          ],
+          "speak": "It aims at f7, the one square near Black's king that only the king defends."
         },
         {
-          "speak": "That's the Italian Game. Now it's your board: pause and move the pieces to try continuations — or open the plus button for a square-naming quiz, or a full game against the computer."
+          "camera": {
+            "center": {
+              "ref": "sq_f2"
+            },
+            "zoom": 1.6
+          },
+          "speak": "And look at what the knight and bishop left behind."
+        },
+        {
+          "draw": [
+            "hl_f1",
+            "hl_g1"
+          ],
+          "parallel": true,
+          "speak": "Two empty squares between king and rook: White can castle next move and tuck the king away."
+        },
+        {
+          "camera": {
+            "reset": true
+          }
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "piece_c4"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Three moves: the centre claimed, two pieces out, a target chosen, and the king ready to hide. None of them wasted."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "sq_c5"
+            },
+            "gesture": "tap"
+          },
+          "speak": "If Black answers bishop to c5, it becomes the [italian:Giuoco Piano], Italian for the quiet game."
+        },
+        {
+          "quiz": {
+            "question": "Why not bring the queen out on move two?",
+            "choices": [
+              "Black's pieces chase her and gain moves",
+              "The queen may not move before castling",
+              "She must guard the king"
+            ],
+            "correct": 1,
+            "right": "Black's pieces chase her and gain moves: each attack also develops a black piece, while White spends the move retreating."
+          }
+        },
+        {
+          "explore": {},
+          "speak": "Your board now: move either side and try a continuation. The plus button drills this opening and two neighbours."
         }
       ]
     }
@@ -21359,12 +21589,12 @@
     }
   },
   {
-    "request": "Replay the compounding example as two curves drawn from the numbers Python computes: 100 at 2 percent and at 7 percent, year by year",
+    "request": "Why does 7 percent interest end up worth eleven times more than 2 percent, not three and a half?",
     "packs": [
       "data"
     ],
     "spec": {
-      "title": "Compounding, as curves",
+      "title": "Why compounding runs away",
       "template": "line_chart",
       "params": {
         "x": "{calc.years}",
@@ -21374,7 +21604,11 @@
             "values": "{calc.low}"
           },
           {
-            "name": "7 %",
+            "name": "7 % added",
+            "values": "{calc.simple}"
+          },
+          {
+            "name": "7 % compound",
             "values": "{calc.high}"
           }
         ],
@@ -21386,9 +21620,9 @@
         "x_label": "Years",
         "box": {
           "x": 470,
-          "y": 95,
-          "w": 460,
-          "h": 560
+          "y": 160,
+          "w": 400,
+          "h": 470
         }
       },
       "elements": [
@@ -21397,21 +21631,27 @@
           "type": "code",
           "language": "python",
           "show": "code",
-          "x": 225,
-          "y": 400,
-          "width": 410,
           "font_size": 15,
-          "code": "years = list(range(0, 51))\nlow = [100 * 1.02 ** y for y in years]\nhigh = [100 * 1.07 ** y for y in years]"
+          "code": "years = list(range(51))\nlow = [100 * 1.02 ** y for y in years]\nhigh = [100 * 1.07 ** y for y in years]\nsimple = [100 + 7 * y for y in years]",
+          "marks": [
+            "1.07 ** y",
+            "100 + 7 * y"
+          ]
         }
       ],
       "commands": [
+        {
+          "card": {
+            "title": "Why compounding runs away"
+          }
+        },
         {
           "draw": [
             "calc",
             "calc_line_1"
           ],
           "parallel": true,
-          "speak": "Fifty-one years, one per point."
+          "speak": "Why does seven percent a year end up eleven times richer than two percent, when the rate is only three and a half times higher? Fifty years, one per point."
         },
         {
           "draw": [
@@ -21419,36 +21659,96 @@
             "calc_line_3"
           ],
           "parallel": true,
-          "speak": "Two lines of Python: the same hundred at two percent and at seven."
+          "speak": "The same hundred dollars, grown at two percent and at seven."
+        },
+        {
+          "draw": [
+            "calc_mark_1"
+          ],
+          "speak": "The rate sits in the exponent: fifty multiplications by 1.07, each on top of the last year's total."
         },
         {
           "draw": [
             "axes",
             "line_1"
           ],
+          "speak": "At two percent the curve looks almost straight: two hundred and sixty-nine after fifty years."
+        },
+        {
+          "draw": [
+            "calc_line_4",
+            "calc_mark_2"
+          ],
           "parallel": true,
-          "speak": "At two percent the curve is almost a straight line: two hundred and sixty-nine after fifty years."
+          "speak": "For contrast, simply adding seven dollars a year, never earning on the gains."
         },
         {
           "draw": [
             "line_2"
           ],
-          "speak": "At seven percent it bends upward and keeps bending: nearly three thousand."
+          "speak": "That is a straight line to four hundred and fifty: seven a year, fifty times, no surprises."
+        },
+        {
+          "draw": [
+            "line_3"
+          ],
+          "speak": "Compounding at seven bends away from it, to 2,946. The whole gap between the two lines is interest earned on interest."
+        },
+        {
+          "erase": [
+            "line_2"
+          ]
         },
         {
           "highlight": {
             "target": [
-              "line_2"
+              "line_3"
             ]
           },
-          "delivery": "grave",
-          "speak": "That bend is compounding. The rate is three and a half times higher; the money is eleven times more."
+          "speak": "Read it decade by decade: 197, 387, 761, 1,497, 2,946. Every ten years, roughly double."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "line_3"
+            },
+            "gesture": "underline"
+          },
+          "speak": "So the last decade alone adds 1,450 dollars: more than the first forty years together."
+        },
+        {
+          "highlight": {
+            "target": [
+              "line_1"
+            ]
+          },
+          "speak": "Don't misread the flat-looking line: two percent also doubles, just every thirty-five years. On this scale the big numbers squash the small ones."
+        },
+        {
+          "highlight": {
+            "target": [
+              "calc_line_3"
+            ]
+          },
+          "speak": "The shortcut — seventy-two divided by the rate gives the doubling time — is already in Luca Pacioli's arithmetic book of 1494."
+        },
+        {
+          "quiz": {
+            "question": "At 7 %, how long does 1,500 dollars take to grow to 3,000?",
+            "choices": [
+              "About 10 years",
+              "About 20 years",
+              "About 40 years"
+            ],
+            "correct": 1,
+            "right": "About ten years: at seven percent every doubling takes ten years, whether it starts from 100 dollars or from 1,500."
+          }
         }
       ]
     }
   },
   {
-    "request": "Flatten the curve: an epidemic with and without distancing, computed with a simple SIR model",
+    "request": "What does 'flattening the curve' actually change in an epidemic?",
     "packs": [
       "data"
     ],
@@ -21459,14 +21759,27 @@
         "x": "{sir.days}",
         "series": [
           {
-            "name": "Infected",
+            "name": "Ill at once",
             "values": "{sir.frames}"
+          },
+          {
+            "name": "Care limit",
+            "values": "{sir.limit}"
           }
         ],
         "stage": 0,
-        "y_label": "Share infected",
+        "ylim": [
+          0,
+          0.3
+        ],
+        "y_label": "Share of people ill",
         "x_label": "Days",
-        "title": "Flattening the curve"
+        "box": {
+          "x": 110,
+          "y": 160,
+          "w": 700,
+          "h": 470
+        }
       },
       "elements": [
         {
@@ -21474,30 +21787,40 @@
           "type": "code",
           "language": "python",
           "show": "none",
-          "code": "def sir(r0, days=160, gamma=0.1):\n    s, i, out = 0.999, 0.001, []\n    for d in range(days):\n        out.append(round(i, 4))\n        new = r0 * gamma * s * i\n        s, i = s - new, i + new - gamma * i\n    return out\ndays = list(range(160))\nframes = [sir(2.5), sir(1.4)]"
+          "code": "def sir(r0, days=300, gamma=0.1):\n    s, i, out = 0.999, 0.001, []\n    for d in range(days):\n        out.append(round(i, 4))\n        new = r0 * gamma * s * i\n        s, i = s - new, i + new - gamma * i\n    return out\ndays = list(range(300))\nframes = [sir(2.5), sir(1.4)]\nlimit = [0.1] * 300"
         }
       ],
       "commands": [
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "Same virus, same population. The only thing that changes is how many people each case infects."
+          "card": {
+            "title": "Flattening the curve"
+          }
         },
         {
           "draw": [
-            "axes",
+            "axes"
+          ],
+          "speak": "What does flattening the curve actually change? The same virus in the same town, simulated with the simplest epidemic model there is."
+        },
+        {
+          "draw": [
             "line_1"
           ],
-          "parallel": true,
-          "speak": "With every case infecting two and a half others, the wave peaks early and high: nearly a quarter of the population sick at once."
+          "speak": "When each case infects two and a half others, the wave peaks on day 51 with a quarter of the town ill at once."
         },
         {
-          "animate": {
-            "stage": 1
+          "highlight": {
+            "target": [
+              "axes"
+            ]
           },
-          "duration": 4,
-          "speak": "Bring that down to one point four, and the same wave spreads out: later, lower, longer."
+          "speak": "Read the height carefully: it counts people ill on that day, not people who have ever been ill."
+        },
+        {
+          "draw": [
+            "line_2"
+          ],
+          "speak": "Now a line for what the hospitals can handle: one person in ten ill at once, a made-up level for the picture."
         },
         {
           "highlight": {
@@ -21505,13 +21828,73 @@
               "line_1"
             ]
           },
-          "speak": "Fewer people are sick at the same time. That is the whole point of flattening the curve: not fewer cases, but room to treat them."
+          "speak": "The tall wave stays above it for more than five weeks: more patients than beds, and people who could have been treated are not."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "line_1"
+            },
+            "gesture": "underline"
+          },
+          "speak": "The area under the curve counts all the sickness: in this wave, ninety percent of the town falls ill at some point."
+        },
+        {
+          "animate": {
+            "stage": 1
+          },
+          "duration": 4,
+          "speak": "Cut contacts until each case infects 1.4 others. The same wave comes later, lower and longer."
+        },
+        {
+          "highlight": {
+            "target": [
+              "line_1"
+            ]
+          },
+          "speak": "Its peak is under five percent, on day 133, and it never crosses the line."
+        },
+        {
+          "highlight": {
+            "target": [
+              "line_1"
+            ]
+          },
+          "speak": "Its area shrank too: about half the town is infected in the slow wave, against ninety percent in the fast one."
+        },
+        {
+          "highlight": {
+            "target": [
+              "axes"
+            ]
+          },
+          "speak": "But half the town is still susceptible, so lifting the distancing too early can start a second wave."
+        },
+        {
+          "highlight": {
+            "target": [
+              "line_2"
+            ]
+          },
+          "speak": "In 1918 Philadelphia held a war-bond parade while St. Louis closed its schools and theatres; Philadelphia's death rate peaked far higher."
+        },
+        {
+          "quiz": {
+            "question": "What does the height of this curve show on day 60?",
+            "choices": [
+              "How many have ever been ill",
+              "How many are ill that day",
+              "How many new cases that day"
+            ],
+            "correct": 2,
+            "right": "How many are ill that day: the height is people ill at once, which is what hospitals must cope with; the total is the area."
+          }
         }
       ]
     }
   },
   {
-    "request": "Anscombe's quartet: three datasets with the same regression line, morphing from one to the next",
+    "request": "Why look at a scatter plot when the summary statistics already agree? Anscombe's quartet",
     "packs": [
       "data"
     ],
@@ -21583,37 +21966,56 @@
           0,
           14
         ],
-        "title": "Same line, different data"
+        "x_label": "x",
+        "y_label": "y",
+        "box": {
+          "x": 150,
+          "y": 160,
+          "w": 700,
+          "h": 470
+        }
       },
       "commands": [
         {
+          "card": {
+            "title": "Same line, different data"
+          }
+        },
+        {
           "draw": [
-            "title",
             "axes",
             "points"
           ],
-          "parallel": true,
-          "speak": "Eleven points. They look like a cloud with a trend."
+          "speak": "Why plot data when the summary numbers already agree? Eleven points, from a paper the statistician Francis Anscombe published in 1973."
         },
         {
           "draw": [
             "fit_line"
           ],
-          "speak": "The regression line: y equals three plus half of x. Nothing surprising."
+          "speak": "The least-squares line: y equals three plus half of x. The correlation is 0.82, a respectable trend."
+        },
+        {
+          "highlight": {
+            "target": [
+              "points"
+            ]
+          },
+          "speak": "Read it as the line intends: a noisy cloud, points scattered evenly above and below."
         },
         {
           "animate": {
             "stage": 1
           },
           "duration": 3,
-          "speak": "Now watch the points move to Anscombe's second dataset. A perfect curve, no noise at all. The line does not move."
+          "speak": "Now the points move to Anscombe's second set. Same means, same line, same correlation, to two decimals."
         },
         {
-          "animate": {
-            "stage": 2
+          "highlight": {
+            "target": [
+              "points"
+            ]
           },
-          "duration": 3,
-          "speak": "And the third: a straight line with one outlier dragging the fit. Same slope, same intercept."
+          "speak": "But there is no noise at all: the points lie on a smooth arch that rises and falls."
         },
         {
           "highlight": {
@@ -21621,14 +22023,55 @@
               "fit_line"
             ]
           },
-          "delivery": "grave",
-          "speak": "Three stories the summary statistics cannot tell apart. Always look at the points."
+          "speak": "A straight line is simply the wrong shape here: too low in the middle, too high at both ends."
+        },
+        {
+          "animate": {
+            "stage": 2
+          },
+          "duration": 3,
+          "speak": "The third set: ten points on an exact straight line, and one far above it, at x equals thirteen."
+        },
+        {
+          "highlight": {
+            "target": [
+              "fit_line"
+            ]
+          },
+          "speak": "That single point tilts the fit. Without it, the other ten give a slope of 0.35, not 0.5."
+        },
+        {
+          "animate": {
+            "stage": 0
+          },
+          "duration": 3,
+          "speak": "A noisy trend, a curve, an outlier: the summary numbers cannot tell them apart. The picture can."
+        },
+        {
+          "highlight": {
+            "target": [
+              "axes"
+            ]
+          },
+          "speak": "Anscombe had a fourth set: ten points stacked at one x, and a single point far to the right that makes the whole slope."
+        },
+        {
+          "quiz": {
+            "question": "Two datasets share the same means, fitted line and correlation. What do you know about their shape?",
+            "choices": [
+              "They look alike",
+              "Nothing yet: plot them",
+              "Both are linear"
+            ],
+            "correct": 2,
+            "right": "Nothing yet: Anscombe's sets share all those numbers while one is a curve and one has an outlier. Only the plot shows the shape."
+          }
         }
       ]
     }
   },
   {
-    "request": "Simulate how exam scores rise with hours studied, and fit the line in Python",
+    "request": "If students who study more score higher, does studying cause the higher scores? A simulation in Python",
     "packs": [
       "data"
     ],
@@ -21651,6 +22094,7 @@
           12
         ],
         "y": "{sim.scores}",
+        "stage": 0,
         "fit": "{sim.fit}",
         "ylim": [
           0,
@@ -21659,10 +22103,10 @@
         "x_label": "Hours studied",
         "y_label": "Score",
         "box": {
-          "x": 470,
-          "y": 95,
-          "w": 460,
-          "h": 560
+          "x": 480,
+          "y": 160,
+          "w": 400,
+          "h": 470
         }
       },
       "elements": [
@@ -21671,14 +22115,20 @@
           "type": "code",
           "language": "python",
           "show": "code",
-          "x": 225,
-          "y": 400,
-          "width": 410,
           "font_size": 15,
-          "code": "import numpy as np\nrng = np.random.default_rng(11)\nhours = np.arange(1, 13)\nscores = 40 + 4 * hours + rng.normal(0, 6, 12)\nscores = np.clip(scores, 0, 100).round(1)\nslope, intercept = np.polyfit(hours, scores, 1)\nfit = [round(float(slope), 2), round(float(intercept), 2)]"
+          "code": "import numpy as np\nrng = np.random.default_rng(11)\nhours = np.arange(1, 13)\n# world A: each hour adds 4 points\na = 40 + 4 * hours + rng.normal(0, 6, 12)\n# world B: keenness drives hours AND scores\nkeen = hours + rng.normal(0, 1.5, 12)\nb = 40 + 4 * keen + rng.normal(0, 6, 12)\nscores = [a.round(1).tolist(), b.round(1).tolist()]\nslope, icpt = np.polyfit(hours, a, 1)\nfit = [round(float(slope), 2), round(float(icpt), 2)]",
+          "marks": [
+            "4 * hours",
+            "4 * keen"
+          ]
         }
       ],
       "commands": [
+        {
+          "card": {
+            "title": "Hours and scores"
+          }
+        },
         {
           "draw": [
             "sim",
@@ -21687,7 +22137,7 @@
             "sim_line_3"
           ],
           "parallel": true,
-          "speak": "Twelve students, one to twelve hours of study."
+          "speak": "Students who study more score higher, but does the studying cause it? Twelve made-up students, one to twelve hours each."
         },
         {
           "draw": [
@@ -21695,20 +22145,19 @@
             "sim_line_5"
           ],
           "parallel": true,
-          "speak": "Scores rise with hours, plus some noise: nobody's brain is a formula."
+          "speak": "In world A we build the answer in: each hour adds four points, plus noise, because nobody's brain is a formula."
         },
         {
           "draw": [
             "axes",
             "points"
           ],
-          "parallel": true,
-          "speak": "Here they are. The trend is visible, the scatter is real."
+          "speak": "One dot per student. The trend is clear, and so is the scatter around it."
         },
         {
           "draw": [
-            "sim_line_6",
-            "sim_line_7"
+            "sim_line_10",
+            "sim_line_11"
           ],
           "parallel": true,
           "speak": "Two lines of numpy fit the least-squares line and hand its slope and intercept to the chart."
@@ -21717,7 +22166,61 @@
           "draw": [
             "fit_line"
           ],
-          "speak": "Roughly four points per hour. The line is computed by the script; the chart just draws it."
+          "speak": "The slope is the reading: about four points per extra hour, close to the four we built in."
+        },
+        {
+          "draw": [
+            "sim_line_6",
+            "sim_line_7",
+            "sim_line_8"
+          ],
+          "parallel": true,
+          "speak": "World B is different. Keen students both study more and score higher; the hours themselves add nothing."
+        },
+        {
+          "draw": [
+            "sim_mark_2"
+          ],
+          "speak": "The four points now ride on keenness; hours merely travel along with it."
+        },
+        {
+          "draw": [
+            "sim_line_9"
+          ],
+          "speak": "Both worlds go to the chart as two stages."
+        },
+        {
+          "animate": {
+            "stage": 1
+          },
+          "duration": 3,
+          "speak": "Here is world B. The dots move, but the cloud tells the same story."
+        },
+        {
+          "highlight": {
+            "target": [
+              "fit_line"
+            ]
+          },
+          "speak": "The world A line still runs right through it. From the dots alone you cannot tell which world you are in."
+        },
+        {
+          "draw": [
+            "sim_mark_1"
+          ],
+          "speak": "Only an experiment settles it: assign some students extra hours at random, and see whether their scores move."
+        },
+        {
+          "quiz": {
+            "question": "In world B, a student is made to study two extra hours. What happens to their expected score?",
+            "choices": [
+              "Up about 8 points",
+              "Up about 4 points",
+              "No change"
+            ],
+            "correct": 3,
+            "right": "No change: in world B keenness drives both, so forcing extra hours leaves the score where it was, although the chart shows the same slope."
+          }
         }
       ]
     }
@@ -22503,26 +23006,34 @@
     }
   },
   {
-    "request": "Flattening the curve, computed in R: an SIR model run at two reproduction numbers, drawn as an animated line chart",
+    "request": "Why does an epidemic wave turn around before everyone is infected? An SIR model in R",
     "spec": {
-      "title": "Flattening the curve, in R",
+      "title": "Why an epidemic wave turns",
       "template": "line_chart",
       "params": {
         "x": "{sir.days}",
         "series": [
           {
-            "name": "Infected",
-            "values": "{sir.frames}"
+            "name": "Ill",
+            "values": "{sir.ill}"
+          },
+          {
+            "name": "Susceptible",
+            "values": "{sir.sus}"
           }
         ],
         "stage": 0,
-        "y_label": "Share infected",
+        "ylim": [
+          0,
+          1
+        ],
+        "y_label": "Share of people",
         "x_label": "Days",
         "box": {
-          "x": 470,
-          "y": 95,
-          "w": 460,
-          "h": 560
+          "x": 480,
+          "y": 160,
+          "w": 340,
+          "h": 470
         }
       },
       "elements": [
@@ -22531,48 +23042,130 @@
           "type": "code",
           "language": "r",
           "show": "code",
-          "code": "sir <- function(r0, days = 160, gamma = 0.1) {\n  s <- 0.999; i <- 0.001; out <- numeric(days)\n  for (d in seq_len(days)) {\n    out[d] <- round(i, 4)\n    new <- r0 * gamma * s * i\n    s <- s - new; i <- i + new - gamma * i\n  }\n  out\n}\ndays <- 0:159\nframes <- list(sir(2.5), sir(1.4))"
+          "font_size": 15,
+          "code": "sir <- function(r0, days = 250, gamma = 0.1) {\n  s <- 0.999; i <- 0.001\n  S <- I <- numeric(days)\n  for (d in seq_len(days)) {\n    S[d] <- round(s, 4); I[d] <- round(i, 4)\n    new <- r0 * gamma * s * i\n    s <- s - new\n    i <- i + new - gamma * i\n  }\n  list(S = S, I = I)\n}\na <- sir(2.5); b <- sir(1.4)\ndays <- 0:249\nsus <- list(a$S, b$S); ill <- list(a$I, b$I)",
+          "marks": [
+            "r0 * gamma * s * i",
+            "gamma * i"
+          ]
         }
       ],
       "commands": [
+        {
+          "card": {
+            "title": "Why an epidemic wave turns"
+          }
+        },
         {
           "draw": [
             "sir",
             "sir_line_1",
             "sir_line_2",
-            "sir_line_3",
-            "sir_line_4",
-            "sir_line_5",
-            "sir_line_6",
-            "sir_line_7",
-            "sir_line_8",
-            "sir_line_9"
+            "sir_line_3"
           ],
           "parallel": true,
-          "speak": "An epidemic in nine lines of R: each day, infections move people from susceptible to infected, and recovery moves them out again."
+          "speak": "Why does an epidemic wave turn around while many people are still uninfected? A model in R: almost everyone starts susceptible, one in a thousand ill."
         },
         {
           "draw": [
-            "sir_line_10",
-            "sir_line_11"
+            "sir_line_4",
+            "sir_line_5",
+            "sir_line_6"
           ],
           "parallel": true,
-          "speak": "A hundred and sixty days, run twice: once with each case infecting two and a half others, once with one point four."
+          "speak": "Each day, new infections are made where the ill meet the susceptible…"
+        },
+        {
+          "draw": [
+            "sir_mark_1"
+          ],
+          "speak": "…so they grow with both shares at once: fewer susceptibles, fewer new cases, however many are ill."
+        },
+        {
+          "draw": [
+            "sir_line_7",
+            "sir_line_8",
+            "sir_mark_2"
+          ],
+          "parallel": true,
+          "speak": "And a tenth of the ill recover each day, leaving the game."
+        },
+        {
+          "draw": [
+            "sir_line_9",
+            "sir_line_10",
+            "sir_line_11",
+            "sir_line_12",
+            "sir_line_13",
+            "sir_line_14"
+          ],
+          "parallel": true,
+          "speak": "Run it for 250 days with each case infecting 2.5 others, then with 1.4."
         },
         {
           "draw": [
             "axes",
+            "line_2"
+          ],
+          "speak": "The susceptible share falls, fast at first, as the virus uses people up."
+        },
+        {
+          "draw": [
             "line_1"
           ],
-          "parallel": true,
-          "speak": "At two and a half the wave peaks early and high: nearly a quarter of the population sick at once."
+          "speak": "The ill share rises into a wave that peaks on day 51, with nearly a quarter ill at once."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "line_2"
+            },
+            "gesture": "tap"
+          },
+          "speak": "Read the two lines together: at the peak, the susceptible share has fallen to forty percent."
+        },
+        {
+          "highlight": {
+            "target": [
+              "sir_mark_1"
+            ]
+          },
+          "speak": "That is one over 2.5. Each case now meets so few susceptibles that it infects exactly one other: fewer than one, and the wave must shrink."
         },
         {
           "animate": {
             "stage": 1
           },
           "duration": 4,
-          "speak": "Bring that down to one point four, and the same wave spreads out: later, lower, longer."
+          "speak": "At 1.4 the wave turns much earlier, while seventy-one percent are still susceptible: one over 1.4."
+        },
+        {
+          "highlight": {
+            "target": [
+              "line_1"
+            ]
+          },
+          "speak": "A wave ends not because the virus weakens, but because each case finds too few people left to infect."
+        },
+        {
+          "highlight": {
+            "target": [
+              "sir_line_1"
+            ]
+          },
+          "speak": "Kermack and McKendrick published this model in 1927, with this threshold at its heart."
+        },
+        {
+          "quiz": {
+            "question": "A virus spreads with each case infecting 4 others. At what susceptible share does its wave peak?",
+            "choices": [
+              "75 %",
+              "25 %",
+              "4 %"
+            ],
+            "correct": 2,
+            "right": "Twenty-five percent: one over four. Below that, each case infects fewer than one other, so the wave shrinks."
+          }
         }
       ]
     }
@@ -22814,7 +23407,7 @@
     }
   },
   {
-    "request": "Fibonacci and the golden ratio in minimal Python: compute the ratio of consecutive terms and draw how it settles",
+    "request": "Why do the ratios of Fibonacci numbers settle on the golden ratio? A minimal Python computes them",
     "spec": {
       "title": "Fibonacci and the golden ratio",
       "template": "line_chart",
@@ -22822,7 +23415,7 @@
         "x": "{fib.n}",
         "series": [
           {
-            "name": "F(n+1) / F(n)",
+            "name": "ratio",
             "values": "{fib.ratios}"
           }
         ],
@@ -22830,13 +23423,14 @@
           1.4,
           2.1
         ],
-        "y_label": "Ratio",
+        "points": true,
+        "y_label": "F(n+1) / F(n)",
         "x_label": "n",
         "box": {
           "x": 470,
-          "y": 95,
-          "w": 460,
-          "h": 560
+          "y": 160,
+          "w": 400,
+          "h": 470
         }
       },
       "elements": [
@@ -22845,10 +23439,23 @@
           "type": "code",
           "language": "micropython",
           "show": "code",
+          "y": 360,
           "code": "a, b = 1, 1\nn, ratios = [], []\nfor i in range(2, 16):\n    a, b = b, a + b\n    n.append(i)\n    ratios.append(round(b / a, 4))"
+        },
+        {
+          "id": "rule",
+          "type": "math",
+          "tex": "r' = 1 + \\frac{1}{r}",
+          "x": 215,
+          "y": 580
         }
       ],
       "commands": [
+        {
+          "card": {
+            "title": "Fibonacci and the golden ratio"
+          }
+        },
         {
           "draw": [
             "fib",
@@ -22856,25 +23463,87 @@
             "fib_line_2"
           ],
           "parallel": true,
-          "speak": "Two ones to start, and two empty lists, in a Python that weighs half a megabyte."
+          "speak": "Why do neighbouring Fibonacci numbers settle into one odd ratio, 1.618? Two ones to start, in MicroPython, a Python small enough for a microcontroller."
         },
         {
           "draw": [
             "fib_line_3",
-            "fib_line_4",
+            "fib_line_4"
+          ],
+          "parallel": true,
+          "speak": "Each step slides the pair along: one and two, two and three, three and five, the new number always the sum of the last two."
+        },
+        {
+          "draw": [
             "fib_line_5",
             "fib_line_6"
           ],
           "parallel": true,
-          "speak": "Each step adds the last two numbers and records the ratio between them."
+          "speak": "And it records the new number divided by the one before."
         },
         {
           "draw": [
             "axes",
             "line_1"
           ],
-          "parallel": true,
-          "speak": "The ratio jumps, overshoots, and settles: one point six one eight, the golden ratio."
+          "speak": "The ratios: two, then one and a half, 1.67, 1.6, 1.625. They jump above and below, closing in."
+        },
+        {
+          "highlight": {
+            "target": [
+              "axes"
+            ]
+          },
+          "speak": "Mind the axis: it starts at 1.4, not zero, so the wobble looks big. By the tenth step it is in the fourth decimal."
+        },
+        {
+          "draw": [
+            "rule"
+          ],
+          "speak": "Why the zigzag? The next ratio is b plus a, over b: one plus one over the last ratio."
+        },
+        {
+          "highlight": {
+            "target": [
+              "rule"
+            ],
+            "part": "\\frac{1}{r}"
+          },
+          "speak": "A ratio that is too big makes one over it too small, so the next ratio undershoots, and each miss is smaller than the last."
+        },
+        {
+          "morph": {
+            "target": "rule",
+            "tex": "\\varphi = 1 + \\frac{1}{\\varphi}"
+          },
+          "speak": "The zigzag stops only at a number the rule gives back unchanged."
+        },
+        {
+          "morph": {
+            "target": "rule",
+            "tex": "\\varphi = \\frac{1+\\sqrt{5}}{2} \\approx 1.618"
+          },
+          "speak": "Multiply through and phi squared equals phi plus one, whose positive root is one plus root five, over two: the golden ratio."
+        },
+        {
+          "highlight": {
+            "target": [
+              "line_1"
+            ]
+          },
+          "speak": "Fibonacci posed the sequence in 1202 as a puzzle about breeding rabbits; the golden ratio hiding in it was noticed only centuries later."
+        },
+        {
+          "quiz": {
+            "question": "Start with 3 and 10 instead of 1 and 1. Where does the ratio settle?",
+            "choices": [
+              "At 10 / 3",
+              "At 1.618",
+              "It never settles"
+            ],
+            "correct": 2,
+            "right": "At 1.618: the rule, one plus one over the last ratio, never looks at the starting pair, so every start zigzags to the same number."
+          }
         }
       ]
     }
@@ -24513,7 +25182,7 @@
     }
   },
   {
-    "request": "Where is the liver? Show me the body so I can point at it.",
+    "request": "Where exactly is the liver?",
     "packs": [
       "anatomy"
     ],
@@ -24525,38 +25194,67 @@
           "viscera"
         ],
         "detail": 2,
-        "labels": "none"
+        "focus": [
+          "thorax",
+          "abdomen",
+          "urinary"
+        ],
+        "labels": "none",
+        "box": {
+          "x": 40,
+          "y": 150,
+          "w": 920,
+          "h": 520
+        }
       },
       "commands": [
         {
-          "draw": [
-            "body_outline"
-          ],
-          "speak": "A body, seen from the front."
+          "card": {
+            "title": "Where is the liver?"
+          }
         },
         {
           "draw": [
-            "brain",
+            "frame",
+            "body_outline"
+          ],
+          "speak": "Where exactly is the liver? Higher, and further to one side, than most people point. Here is a torso facing you, the way a doctor sees a patient."
+        },
+        {
+          "draw": [
             "trachea",
+            "esophagus",
             "lung_right",
             "lung_left",
-            "heart"
+            "heart",
+            "aorta"
           ],
-          "speak": "The chest: two lungs around the heart, the windpipe above."
+          "speak": "The chest first: the windpipe, two lungs, and the heart between them, tipped toward the body's left."
+        },
+        {
+          "highlight": {
+            "target": [
+              "lung_right"
+            ]
+          },
+          "speak": "This is the RIGHT lung, although it sits on your left: the body faces you, so its right is your left. Every anatomy picture works this way."
         },
         {
           "draw": [
             "liver",
+            "gallbladder",
             "stomach",
             "spleen",
             "pancreas",
             "kidney_right",
             "kidney_left",
+            "adrenal_right",
+            "adrenal_left",
             "small_intestine",
             "large_intestine",
             "bladder"
           ],
-          "speak": "And the belly — nothing named yet."
+          "speak": "Below the chest, the organs of the belly — none of them named yet."
         },
         {
           "highlight": {
@@ -24564,23 +25262,68 @@
               "stomach"
             ]
           },
-          "speak": "One of them is the stomach, high on the body's left, just under the heart."
+          "speak": "One is the stomach, high on the body's left, just below the heart and tucked under the lower ribs."
         },
         {
           "ask": {
             "question": "Click on the liver.",
             "widget": "click",
             "answer": "liver",
-            "intro": "Now the largest gland you have.",
-            "right": "The liver fills the space under the right ribs — about a kilo and a half of it.",
-            "wrong": "Look under the ribs on the body's own right, which is your left as you face it."
+            "intro": "The liver lies opposite the stomach.",
+            "right": "The liver: the big wedge under the body's right ribs, which is your left as you face it.",
+            "wrong": "It sits directly under the right lung — the one on your left."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "liver"
+            ]
+          },
+          "speak": "It is the heaviest organ inside you, about one and a half kilos, and its top rises under the ribs to about the fifth rib."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "liver"
+            },
+            "gesture": "underline"
+          },
+          "speak": "Only the thin dome of the diaphragm separates it from the right lung, so each deep breath pushes it down, and a doctor can feel its edge."
+        },
+        {
+          "highlight": {
+            "target": [
+              "small_intestine"
+            ]
+          },
+          "speak": "Most people point here, above the navel. That is small intestine: the liver sits higher, almost all of it hidden behind the ribs."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "liver"
+            },
+            "gesture": "circle"
+          },
+          "speak": "It is also the organ that grows back: remove up to two thirds, and the rest regrows to nearly full size within months."
+        },
+        {
+          "quiz": {
+            "question": "A patient facing you says it hurts under her right ribs. On which side of YOUR view is that?",
+            "choices": [
+              "My left",
+              "My right"
+            ],
+            "correct": 1,
+            "right": "Your left: she faces you, so her right side is on your left — and under those ribs lies her liver."
           }
         }
       ]
     }
   },
   {
-    "request": "Zoom inn på buken og fortell hva som er der.",
+    "request": "Hva ligger egentlig inne i buken?",
     "packs": [
       "anatomy"
     ],
@@ -24602,57 +25345,114 @@
         ],
         "labels": "focus",
         "names": "nb",
-        "detail": 2
+        "detail": 2,
+        "box": {
+          "x": 40,
+          "y": 150,
+          "w": 920,
+          "h": 520
+        }
       },
       "commands": [
         {
+          "card": {
+            "title": "Inne i buken"
+          }
+        },
+        {
           "draw": [
             "frame",
+            "body_outline"
+          ],
+          "speak": "Hva ligger egentlig i buken? Mest fordøyelse — og hvor hvert organ ligger, avgjør hvor det gjør vondt. Vi zoomer inn under ribbeina."
+        },
+        {
+          "draw": [
             "liver",
-            "label_liver",
+            "label_liver"
+          ],
+          "speak": "Øverst på kroppens høyre side, til venstre for deg, ligger leveren: omtrent halvannen kilo, det største organet i buken."
+        },
+        {
+          "draw": [
+            "gallbladder",
+            "label_gallbladder"
+          ],
+          "speak": "Under den henger galleblæren, som samler galle til neste fete måltid."
+        },
+        {
+          "draw": [
             "stomach",
             "label_stomach"
           ],
-          "speak": "Vi zoomer inn på buken. Leveren ligger på kroppens høyre side, magesekken på venstre."
+          "speak": "Magesekken ligger oppunder ribbeina på venstre side — mye høyere enn der folk tar seg til magen."
         },
         {
           "draw": [
             "spleen",
             "label_spleen"
           ],
-          "speak": "Bak magesekken, oppunder ribbeina, ligger milten."
+          "speak": "Bak og til venstre for den ligger milten, omtrent på størrelse med en knyttneve, skjermet av de nederste ribbeina."
         },
         {
           "draw": [
             "pancreas",
-            "label_pancreas",
-            "small_intestine",
-            "large_intestine",
-            "gallbladder"
+            "label_pancreas"
           ],
-          "speak": "Bukspyttkjertelen ligger på tvers bakerst i buken, halvt skjult av alt som ligger foran."
+          "speak": "Bukspyttkjertelen ligger på tvers helt bakerst, stiplet fordi magesekken skjuler den."
+        },
+        {
+          "draw": [
+            "small_intestine",
+            "label_small_intestine"
+          ],
+          "speak": "Tynntarmen fyller midten: flere meter lagt i slynger, og her tas det meste av næringen opp."
+        },
+        {
+          "draw": [
+            "large_intestine",
+            "label_large_intestine"
+          ],
+          "speak": "Tykktarmen går rundt den som en ramme: opp på høyre side, tvers over, og ned på venstre."
+        },
+        {
+          "highlight": {
+            "target": [
+              "small_intestine"
+            ]
+          },
+          "speak": "Så «vondt i magen» rett over navlen er sjelden magesekken. Der ligger tarmene."
+        },
+        {
+          "focus": {
+            "target": [
+              "pancreas"
+            ]
+          },
+          "speak": "Bukspyttkjertelen ligger så skjult at sykdom der ofte merkes sent — og smerten kjennes gjerne i ryggen."
         },
         {
           "quiz": {
-            "question": "Hvilket av disse ligger på kroppens VENSTRE side?",
+            "question": "Hvilket av disse organene ligger nærmest ryggen?",
             "choices": [
               "Leveren",
-              "Milten"
+              "Bukspyttkjertelen",
+              "Tynntarmen"
             ],
             "correct": 2,
-            "right": "Milten ligger til venstre; leveren fyller høyre side under ribbeina."
+            "right": "Bukspyttkjertelen: den ligger bakerst, bak magesekken — derfor er den stiplet, og derfor stråler smerten ofte mot ryggen."
           }
         }
       ]
     }
   },
   {
-    "request": "Show a skeleton with a broken thigh bone and ask what is wrong.",
+    "request": "Why is a broken thigh bone so serious?",
     "packs": [
       "anatomy"
     ],
     "spec": {
-      "title": "Something is broken",
+      "title": "A broken thigh bone",
       "template": "anatomy",
       "params": {
         "systems": [
@@ -24666,9 +25466,20 @@
             "condition": "fracture",
             "severity": "severe"
           }
-        ]
+        ],
+        "box": {
+          "x": 40,
+          "y": 150,
+          "w": 920,
+          "h": 520
+        }
       },
       "commands": [
+        {
+          "card": {
+            "title": "A broken thigh bone"
+          }
+        },
         {
           "draw": [
             "body_outline",
@@ -24678,7 +25489,7 @@
             "pelvis",
             "shoulder_girdle"
           ],
-          "speak": "A skeleton, seen from the front: skull, spine, rib cage, pelvis."
+          "speak": "Why is a broken thigh bone an emergency? Start with a skeleton from the front: skull, spine, rib cage and pelvis."
         },
         {
           "draw": [
@@ -24687,7 +25498,13 @@
             "hand_left",
             "upper_arm_right",
             "forearm_right",
-            "hand_right",
+            "hand_right"
+          ],
+          "parallel": true,
+          "speak": "The arms hang from the shoulder girdle."
+        },
+        {
+          "draw": [
             "thigh_left",
             "lower_leg_left",
             "foot_left",
@@ -24695,39 +25512,85 @@
             "lower_leg_right",
             "foot_right"
           ],
-          "speak": "Arms and legs."
+          "parallel": true,
+          "speak": "The legs stand on the pelvis. Each thigh holds one bone, the femur — the longest in the body, about a quarter of your height."
         },
         {
           "draw": [
             "finding_thigh_left"
           ],
-          "speak": "One thing here is not as it should be."
-        },
-        {
-          "quiz": {
-            "question": "What has happened?",
-            "choices": [
-              "The thigh bone is fractured",
-              "The hip is dislocated",
-              "Nothing is wrong"
-            ],
-            "correct": 1,
-            "right": "The femur is fractured — the break runs straight across the shaft of the thigh bone."
-          }
+          "speak": "In this skeleton, one bone is broken."
         },
         {
           "ask": {
             "question": "Click on the broken bone.",
             "widget": "click",
             "answer": "thigh_left",
-            "right": "That is the femur, the longest and strongest bone you have — which is why breaking it takes so much force."
+            "right": "The left femur: a jagged break runs straight across the middle of its shaft.",
+            "wrong": "Look for the jagged red line — it is on one of the legs."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "thigh_left"
+            ]
+          },
+          "speak": "It is the body's left thigh, on your right. Snapping the shaft of the strongest bone takes great force: a car crash, a fall from a height."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "finding_thigh_left"
+            },
+            "gesture": "circle"
+          },
+          "speak": "And the thigh hides blood: a broken shaft can bleed a litre or more into the muscle, with no wound on the skin."
+        },
+        {
+          "highlight": {
+            "target": [
+              "thigh_left",
+              "lower_leg_left"
+            ]
+          },
+          "speak": "The big thigh muscles then pull the two ends past each other, so the leg looks shorter — which is why a traction splint pulls it back out to length."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "thigh_left",
+              "anchor": "top"
+            },
+            "gesture": "tap"
+          },
+          "speak": "Far more often the femur breaks up here instead, at its neck just below the hip: the broken hip of an older person after a simple fall."
+        },
+        {
+          "highlight": {
+            "target": [
+              "pelvis"
+            ]
+          },
+          "speak": "So a broken hip is usually not the pelvis at all. It is the top of the thigh bone, thinned by osteoporosis."
+        },
+        {
+          "quiz": {
+            "question": "An 85-year-old falls and breaks her hip. Which bone is usually broken?",
+            "choices": [
+              "The femur",
+              "The pelvis",
+              "The spine"
+            ],
+            "correct": 1,
+            "right": "The femur: a broken hip is usually a break in the neck of the thigh bone, just below the ball of the hip joint."
           }
         }
       ]
     }
   },
   {
-    "request": "Quiz me on the joints of the leg.",
+    "request": "Which joints does the leg bend at, and which bones meet in each?",
     "packs": [
       "anatomy"
     ],
@@ -24742,21 +25605,48 @@
         "focus": [
           "leg_left"
         ],
-        "labels": "none"
+        "labels": "none",
+        "box": {
+          "x": 40,
+          "y": 150,
+          "w": 920,
+          "h": 520
+        }
       },
       "commands": [
         {
+          "card": {
+            "title": "The joints of the leg"
+          }
+        },
+        {
           "draw": [
             "frame",
-            "femur_left",
-            "patella_left",
+            "body_outline",
+            "femur_left"
+          ],
+          "speak": "The leg bends at three joints, and each is built for a different job. Here is the left leg from the hip down; first the thigh bone, the femur."
+        },
+        {
+          "draw": [
             "tibia_left",
-            "fibula_left",
+            "fibula_left"
+          ],
+          "speak": "Below it, two bones: the thick tibia, the shin, on the inside, and the thin fibula along the outside."
+        },
+        {
+          "draw": [
+            "patella_left"
+          ],
+          "speak": "In front of the knee rides the kneecap, the patella — a bone that grows inside the tendon of the thigh muscle."
+        },
+        {
+          "draw": [
             "tarsals_left",
             "metatarsals_left",
             "phalanges_foot_left"
           ],
-          "speak": "The left leg: thigh bone, kneecap, shin and calf bones, and the foot."
+          "speak": "Then the foot: seven tarsal bones, the five long metatarsals, and the toes."
         },
         {
           "draw": [
@@ -24764,14 +25654,16 @@
             "knee_left",
             "ankle_left"
           ],
-          "speak": "Three joints connect them. Find each one."
+          "parallel": true,
+          "speak": "Three joints join these bones, ringed in red. Which is which?"
         },
         {
           "ask": {
             "question": "Click on the knee.",
             "widget": "click",
             "answer": "knee_left",
-            "right": "The knee — where the femur meets the tibia, with the patella riding in front."
+            "right": "The knee: the rounded end of the femur rolls on the flat top of the tibia, with the patella gliding in front.",
+            "wrong": "It is the joint the kneecap sits in front of."
           }
         },
         {
@@ -24779,7 +25671,8 @@
             "question": "Click on the ankle.",
             "widget": "click",
             "answer": "ankle_left",
-            "right": "The ankle — the tibia standing on the talus, the topmost of the tarsal bones."
+            "right": "The ankle: the tibia and the fibula grip the talus, the top bone of the foot, from both sides.",
+            "wrong": "It joins the leg to the foot."
           }
         },
         {
@@ -24787,14 +25680,51 @@
             "question": "Click on the hip.",
             "widget": "click",
             "answer": "hip_left",
-            "right": "The hip — the head of the femur sitting in the socket of the pelvis."
+            "right": "The hip: the ball at the top of the femur sits deep in a socket of the pelvis, so the thigh can swing every way."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "fibula_left"
+            ]
+          },
+          "speak": "The fibula stops just below the knee: it takes no part in the knee joint, and carries only a small share of the weight."
+        },
+        {
+          "highlight": {
+            "target": [
+              "ankle_left"
+            ]
+          },
+          "speak": "At the ankle it matters: its lower end is the knob on the outside of your ankle, the tibia's is the knob on the inside."
+        },
+        {
+          "highlight": {
+            "target": [
+              "fibula_left"
+            ],
+            "effect": "circle"
+          },
+          "speak": "Because it carries so little, surgeons can take a length of fibula to rebuild a jaw, and the patient still walks."
+        },
+        {
+          "quiz": {
+            "question": "Which bone of the lower leg takes no part in the knee joint?",
+            "choices": [
+              "The tibia",
+              "The fibula",
+              "Neither — both form the knee"
+            ],
+            "correct": 2,
+            "right": "The fibula: it ends just below the knee and joins in only at the ankle, as the outer ankle bone."
           }
         }
       ]
     }
   },
   {
-    "request": "Show the human body with its organs, and name them.",
+    "request": "What are the main organs, and where does each one sit?",
     "packs": [
       "anatomy"
     ],
@@ -24806,63 +25736,119 @@
           "viscera"
         ],
         "detail": 2,
-        "labels": "all"
+        "labels": "all",
+        "box": {
+          "x": 40,
+          "y": 150,
+          "w": 920,
+          "h": 520
+        }
       },
       "commands": [
+        {
+          "card": {
+            "title": "The body's organs"
+          }
+        },
         {
           "draw": [
             "body_outline",
             "brain",
-            "trachea",
-            "lung_right",
-            "lung_left",
-            "heart"
+            "label_brain"
           ],
-          "speak": "A body from the front. The chest: two lungs around the heart, the windpipe above."
+          "speak": "Which organs fill the body, and where does each one sit? A body facing you, so its right is your left — and at the top, the brain."
+        },
+        {
+          "draw": [
+            "trachea",
+            "label_trachea",
+            "lung_right",
+            "label_lung_right",
+            "lung_left",
+            "label_lung_left"
+          ],
+          "speak": "The chest is mostly lung: the windpipe splits in two to feed a right and a left lung."
+        },
+        {
+          "draw": [
+            "heart",
+            "label_heart"
+          ],
+          "speak": "Between them, the heart, tipped toward the body's left — which is why the left lung is the smaller of the two."
         },
         {
           "draw": [
             "liver",
-            "stomach",
-            "spleen",
-            "pancreas",
-            "kidney_right",
-            "kidney_left",
-            "small_intestine",
-            "large_intestine",
-            "bladder"
+            "label_liver"
           ],
-          "speak": "The belly: liver to the right, stomach to the left, the gut in the middle, kidneys behind, bladder at the bottom."
+          "speak": "Under the ribs on the body's right, the liver, the largest organ inside you."
         },
         {
           "draw": [
-            "label_brain",
-            "label_lung_right",
-            "label_lung_left",
-            "label_heart",
-            "label_trachea",
-            "label_liver",
+            "stomach",
             "label_stomach",
-            "label_spleen",
-            "label_pancreas",
-            "label_kidney_right",
-            "label_kidney_left",
+            "spleen",
+            "label_spleen"
+          ],
+          "speak": "Opposite it, the stomach, and further back the spleen, which filters worn-out red cells from the blood."
+        },
+        {
+          "draw": [
+            "small_intestine",
             "label_small_intestine",
-            "label_large_intestine",
+            "large_intestine",
+            "label_large_intestine"
+          ],
+          "speak": "Below, the gut: the small intestine coiled in the middle, the large intestine framing it on three sides."
+        },
+        {
+          "draw": [
+            "pancreas",
+            "label_pancreas",
+            "kidney_right",
+            "label_kidney_right",
+            "kidney_left",
+            "label_kidney_left"
+          ],
+          "speak": "Behind the gut, dashed because they are hidden: the pancreas lying across, and a kidney on each side of the spine."
+        },
+        {
+          "draw": [
+            "bladder",
             "label_bladder"
           ],
-          "speak": "And their names, the way an anatomical plate would give them."
+          "speak": "At the bottom, the bladder, which collects what the kidneys make."
+        },
+        {
+          "highlight": {
+            "target": [
+              "kidney_right",
+              "kidney_left"
+            ]
+          },
+          "speak": "Those two small kidneys filter about 180 litres of fluid out of the blood every day, and return all but a litre or two."
+        },
+        {
+          "focus": {
+            "target": [
+              "pancreas",
+              "kidney_right",
+              "kidney_left",
+              "spleen"
+            ]
+          },
+          "speak": "So a front view is a stack: the organs you see first sit in front, and some of the busiest ones hide behind them."
         },
         {
           "quiz": {
-            "question": "Which organ lies highest in the belly on the body's right?",
+            "question": "Which lung is the smaller one?",
             "choices": [
-              "The liver",
-              "The spleen",
-              "The bladder"
+              "The left",
+              "The right",
+              "They are the same size"
             ],
             "correct": 1,
-            "right": "The liver — tucked up under the right ribs, the largest gland in the body."
+            "right": "The left: the heart leans toward the body's left and takes up room, so the left lung has two lobes to the right's three."
           }
         }
       ]
@@ -24880,63 +25866,144 @@
         "systems": [
           "viscera"
         ],
-        "detail": 2,
-        "labels": "none"
+        "detail": 3,
+        "focus": [
+          "thorax",
+          "abdomen",
+          "urinary"
+        ],
+        "labels": "none",
+        "box": {
+          "x": 40,
+          "y": 150,
+          "w": 920,
+          "h": 520
+        }
       },
       "commands": [
         {
+          "card": {
+            "title": "What lies behind the gut"
+          }
+        },
+        {
           "draw": [
+            "frame",
             "body_outline",
+            "trachea",
+            "esophagus",
             "lung_right",
             "lung_left",
-            "heart",
+            "heart"
+          ],
+          "speak": "What lies behind the intestines? A second, hidden layer of organs — which is why kidney pain is felt in the back. A torso, facing you."
+        },
+        {
+          "draw": [
             "liver",
+            "gallbladder",
             "stomach",
             "small_intestine",
             "large_intestine",
             "bladder"
           ],
-          "speak": "Seen from the front, the gut, the liver and the stomach fill the belly."
+          "speak": "In front, filling the belly: the liver, the stomach, the coils of the gut, and the bladder low down."
         },
         {
           "draw": [
             "kidney_right",
             "kidney_left",
-            "spleen",
-            "pancreas"
+            "adrenal_right",
+            "adrenal_left"
           ],
-          "speak": "Behind them, drawn with a broken line because they are hidden, lie four more organs."
+          "speak": "Behind them, dashed because hidden: a kidney on each side of the spine, each capped by a small adrenal gland."
         },
         {
-          "quiz": {
-            "question": "Which pair sits behind the gut, either side of the spine?",
-            "choices": [
-              "The lungs",
-              "The kidneys",
-              "The adrenal glands only"
-            ],
-            "correct": 2,
-            "right": "The kidneys — retroperitoneal, at the level of the lowest ribs."
-          }
+          "draw": [
+            "pancreas",
+            "aorta",
+            "spleen"
+          ],
+          "speak": "Also at the back: the pancreas lying across, the aorta running down the middle, and the spleen, far back on the left."
+        },
+        {
+          "erase": [
+            "liver",
+            "gallbladder",
+            "stomach",
+            "small_intestine",
+            "large_intestine"
+          ],
+          "speak": "Lift the front layer away, and the hidden layer lies flat against the back wall of the belly."
+        },
+        {
+          "highlight": {
+            "target": [
+              "kidney_right",
+              "kidney_left",
+              "pancreas"
+            ]
+          },
+          "speak": "These lie behind the belly's lining, the peritoneum — retroperitoneal — so a surgeon can reach a kidney from the back without opening the belly."
         },
         {
           "ask": {
             "question": "Click on the left kidney.",
             "widget": "click",
             "answer": "kidney_left",
-            "right": "That is the left kidney, a little higher than the right one, which the liver pushes down."
+            "right": "The body's left kidney — on your right, because the body faces you.",
+            "wrong": "The body's left is on your right."
+          }
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "kidney_right"
+            },
+            "gesture": "circle"
+          },
+          "speak": "The right kidney sits a little lower than the left: the liver, above it, takes the room."
+        },
+        {
+          "highlight": {
+            "target": [
+              "spleen"
+            ]
+          },
+          "speak": "The spleen lies just as far back, but inside the lining, tethered to the stomach — so it is not one of them."
+        },
+        {
+          "show": [
+            "liver",
+            "gallbladder",
+            "stomach",
+            "small_intestine",
+            "large_intestine"
+          ],
+          "speak": "Put the front layer back, and the kidneys vanish behind the gut. A doctor checks them by tapping the back, just below the lowest ribs."
+        },
+        {
+          "quiz": {
+            "question": "Where is kidney pain usually felt?",
+            "choices": [
+              "In the back, below the ribs",
+              "Around the navel",
+              "Low in the front of the belly"
+            ],
+            "correct": 1,
+            "right": "In the back, below the ribs: the kidneys lie behind the gut, against the back wall, either side of the spine."
           }
         }
       ]
     }
   },
   {
-    "request": "Lær meg de latinske navnene på knoklene i beinet.",
+    "request": "Hva heter knoklene i beinet på latin, og hva betyr navnene?",
     "packs": [
       "anatomy"
     ],
     "spec": {
-      "title": "Latinske navn",
+      "title": "Beinets knokler på latin",
       "template": "anatomy",
       "params": {
         "systems": [
@@ -24947,63 +26014,147 @@
           "leg_left"
         ],
         "labels": "all",
-        "names": "la"
+        "names": "la",
+        "box": {
+          "x": 40,
+          "y": 150,
+          "w": 920,
+          "h": 530
+        }
       },
       "commands": [
         {
-          "draw": [
-            "frame",
-            "femur_left",
-            "label_femur_left"
-          ],
-          "speak": "Lårbeinet heter os femoris, kroppens lengste knokkel."
+          "card": {
+            "title": "Beinets knokler på latin"
+          }
         },
         {
           "draw": [
-            "patella_left",
-            "label_patella_left",
-            "tibia_left",
-            "label_tibia_left",
-            "fibula_left",
-            "label_fibula_left"
+            "frame",
+            "body_outline",
+            "hip_left",
+            "label_hip_left",
+            "femur_left",
+            "label_femur_left"
           ],
-          "speak": "Kneskålen er patella, skinnebeinet tibia og det tynne leggbeinet fibula."
+          "speak": "Leger over hele verden bruker de latinske navnene på knoklene i beinet, og de fleste er små bilder. Øverst: os femoris."
+        },
+        {
+          "highlight": {
+            "target": [
+              "femur_left"
+            ]
+          },
+          "speak": "Os betyr knokkel, femur betyr lår, og sinister betyr venstre. Lårbeinet er kroppens lengste knokkel, omtrent en firedel av høyden din."
+        },
+        {
+          "draw": [
+            "knee_left",
+            "label_knee_left",
+            "patella_left",
+            "label_patella_left"
+          ],
+          "speak": "Foran kneet ligger patella, «den lille skåla» — nøyaktig samme bilde som det norske ordet kneskål."
+        },
+        {
+          "draw": [
+            "tibia_left",
+            "label_tibia_left"
+          ],
+          "speak": "Skinnebeinet heter tibia, og det bærer nesten hele vekten din ned mot foten. På latin betyr tibia også fløyte."
+        },
+        {
+          "draw": [
+            "fibula_left",
+            "label_fibula_left",
+            "ankle_left",
+            "label_ankle_left"
+          ],
+          "speak": "Ved siden av ligger fibula, det tynne leggbeinet. Fibula betyr spenne: det ligger langs tibia som nåla i en romersk brosje."
+        },
+        {
+          "highlight": {
+            "target": [
+              "fibula_left"
+            ]
+          },
+          "speak": "Fibula bærer lite vekt. Den holder fast muskler, og nederst danner den yttersiden av ankelen."
         },
         {
           "draw": [
             "tarsals_left",
-            "metatarsals_left",
-            "phalanges_foot_left",
-            "hip_left",
-            "knee_left",
-            "ankle_left"
+            "label_tarsals_left"
           ],
-          "speak": "Fotrotsbeina heter ossa tarsi, mellomfotsbeina ossa metatarsi, og tåbeina phalanges pedis."
+          "speak": "I foten: ossa tarsi, sju fotrotsbein. Det største av dem er hælbeinet."
+        },
+        {
+          "draw": [
+            "metatarsals_left",
+            "label_metatarsals_left"
+          ],
+          "speak": "Så ossa metatarsi, fem mellomfotsbein. Meta betyr bortenfor — bortenfor fotroten."
+        },
+        {
+          "draw": [
+            "phalanges_foot_left",
+            "label_phalanges_foot_left"
+          ],
+          "speak": "Ytterst phalanges, fjorten tåbein. En falanks var en gresk slaglinje, soldater på rad — slik tærne står."
+        },
+        {
+          "highlight": {
+            "target": [
+              "femur_left",
+              "patella_left",
+              "tibia_left",
+              "fibula_left",
+              "tarsals_left",
+              "metatarsals_left",
+              "phalanges_foot_left"
+            ]
+          },
+          "speak": "Tell sammen: fire lange knokler, sju, fem og fjorten. Tretti knokler i hvert bein, fra hofta og ned."
+        },
+        {
+          "highlight": {
+            "target": [
+              "label_femur_left",
+              "label_patella_left",
+              "label_tibia_left",
+              "label_fibula_left"
+            ]
+          },
+          "speak": "Navnene er altså ikke pugg, men beskrivelser: lår, liten skål, fløyte, spenne og slaglinje."
         },
         {
           "ask": {
-            "question": "Hva heter lårbeinet på latin?",
-            "answer": "Os femoris",
-            "right": "Os femoris — femur er lår."
+            "question": "Hva heter skinnebeinet på latin?",
+            "answer": "Tibia",
+            "right": "Tibia — det samme ordet som fløyte."
           }
         },
         {
-          "ask": {
-            "question": "Og skinnebeinet?",
-            "answer": "Tibia",
-            "right": "Tibia, det bærende beinet i leggen."
+          "quiz": {
+            "question": "Hvilken av de to knoklene i leggen bærer vekten din?",
+            "choices": [
+              "Tibia",
+              "Fibula",
+              "Begge like mye"
+            ],
+            "correct": 1,
+            "right": "Tibia: den tykke skinnebeinsknokkelen bærer nesten alt, mens den tynne fibula mest holder muskler og ankelen."
           }
         }
       ]
     }
   },
   {
-    "request": "Draw the skeleton in plain ink and quiz me on it.",
+    "request": "Where are the 206 bones of the skeleton?",
     "packs": [
       "anatomy"
     ],
     "spec": {
-      "title": "The skeleton in ink",
+      "title": "Where the 206 bones are",
       "template": "anatomy",
       "params": {
         "systems": [
@@ -25012,86 +26163,161 @@
         "detail": 2,
         "color": "mono",
         "outline": "line",
-        "labels": "none"
+        "labels": "none",
+        "box": {
+          "x": 40,
+          "y": 150,
+          "w": 920,
+          "h": 530
+        }
       },
       "commands": [
+        {
+          "card": {
+            "title": "Where the 206 bones are"
+          }
+        },
         {
           "draw": [
             "body_outline",
             "cranium",
             "mandible",
+            "jaw"
+          ],
+          "speak": "An adult skeleton has 206 bones, and this drawcast asks where they are. At the top, the skull, with the lower jaw hinged beneath it."
+        },
+        {
+          "draw": [
             "cervical_vertebrae",
             "thoracic_vertebrae",
             "lumbar_vertebrae",
-            "sacrum",
+            "sacrum"
+          ],
+          "speak": "Down the middle runs the spine: seven neck vertebrae, twelve in the chest, five in the lower back, then the sacrum."
+        },
+        {
+          "draw": [
             "ribs",
             "sternum"
           ],
-          "speak": "The axial skeleton: skull, spine, rib cage, in plain ink."
+          "speak": "Twelve pairs of ribs hang from the chest vertebrae, and most of them meet in front at the breastbone, the sternum."
+        },
+        {
+          "highlight": {
+            "target": [
+              "cranium",
+              "mandible",
+              "cervical_vertebrae",
+              "thoracic_vertebrae",
+              "lumbar_vertebrae",
+              "sacrum",
+              "ribs",
+              "sternum"
+            ]
+          },
+          "speak": "That central column is the axial skeleton: eighty bones that protect the brain, the spinal cord and the heart."
         },
         {
           "draw": [
             "clavicle_left",
             "clavicle_right",
             "scapula_left",
-            "scapula_right",
+            "scapula_right"
+          ],
+          "speak": "The arms hang from a ring of four bones: two collarbones in front, two shoulder blades behind."
+        },
+        {
+          "draw": [
+            "shoulder_left",
+            "shoulder_right",
             "humerus_left",
             "humerus_right",
+            "elbow_left",
+            "elbow_right",
             "radius_left",
             "ulna_left",
             "radius_right",
             "ulna_right",
-            "hand_left",
-            "hand_right"
+            "wrist_left",
+            "wrist_right"
           ],
-          "speak": "The arms hang from the shoulder girdle."
+          "speak": "One bone in the upper arm, two in the forearm — so the forearm can twist."
         },
         {
           "draw": [
             "hip_bones",
+            "hip_left",
+            "hip_right",
             "femur_left",
             "femur_right",
+            "knee_left",
+            "knee_right",
             "patella_left",
             "patella_right",
             "tibia_left",
             "fibula_left",
             "tibia_right",
             "fibula_right",
+            "ankle_left",
+            "ankle_right"
+          ],
+          "speak": "The legs hang from the pelvis in the same pattern: one thigh bone, then two in the lower leg."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "hand_left",
+            "hand_right"
+          ],
+          "speak": "Now the hands. Each one holds 27 bones: eight in the wrist, five in the palm, fourteen in the fingers."
+        },
+        {
+          "draw": [
             "foot_left",
             "foot_right"
           ],
-          "speak": "And the legs from the pelvis."
+          "speak": "And each foot holds 26, built on the same plan."
         },
         {
-          "quiz": {
-            "question": "How many bones does one hand have?",
-            "choices": [
-              "14",
-              "27",
-              "52"
-            ],
-            "correct": 2,
-            "right": "27 — eight carpals, five metacarpals and fourteen phalanges."
-          }
+          "highlight": {
+            "target": [
+              "sacrum"
+            ]
+          },
+          "speak": "A newborn has around 300 bones; many fuse as it grows. This sacrum began as five separate vertebrae."
         },
         {
           "ask": {
-            "question": "Click on the sternum.",
+            "question": "Click on the bone where the ribs meet in front.",
             "widget": "click",
             "answer": "sternum",
-            "right": "The sternum, the breastbone, where the ribs meet in front."
+            "right": "The sternum, the breastbone: the upper ribs join it through cartilage."
+          }
+        },
+        {
+          "quiz": {
+            "question": "Roughly what share of the 206 bones sit in the hands and feet?",
+            "choices": [
+              "About a tenth",
+              "About a quarter",
+              "More than half"
+            ],
+            "correct": 3,
+            "right": "More than half: 27 in each hand and 26 in each foot make 106 of the 206."
           }
         }
       ]
     }
   },
   {
-    "request": "Zoom inn på hånden og vis knoklene.",
+    "request": "Hvorfor har hånden så mange knokler?",
     "packs": [
       "anatomy"
     ],
     "spec": {
-      "title": "Inne i hånden",
+      "title": "Knoklene i hånden",
       "template": "anatomy",
       "params": {
         "systems": [
@@ -25102,114 +26328,238 @@
         ],
         "labels": "focus",
         "names": "nb",
-        "detail": 2
+        "detail": 2,
+        "box": {
+          "x": 40,
+          "y": 150,
+          "w": 920,
+          "h": 530
+        }
       },
       "commands": [
         {
+          "card": {
+            "title": "Knoklene i hånden"
+          }
+        },
+        {
           "draw": [
             "frame",
+            "body_outline",
             "carpals_left",
             "label_carpals_left"
           ],
-          "speak": "Håndrotsbeina, åtte små knokler i to rader."
+          "speak": "Hånden har 27 knokler, og her ser vi hvorfor den trenger så mange. Nærmest armen: åtte små håndrotsbein i to rader."
+        },
+        {
+          "highlight": {
+            "target": [
+              "carpals_left"
+            ]
+          },
+          "speak": "De glir mot hverandre, så håndleddet kan bøye seg i alle retninger. Båtbeinet her er det som oftest brekker når man tar seg for."
         },
         {
           "draw": [
             "metacarpals_left",
             "label_metacarpals_left"
           ],
-          "speak": "Så de fem mellomhåndsbeina."
+          "speak": "Så fem mellomhåndsbein, ett for hver finger. Sammen danner de håndflaten."
         },
         {
           "draw": [
             "phalanges_hand_left",
             "label_phalanges_hand_left"
           ],
-          "speak": "Og fingerbeina, tre i hver finger, to i tommelen."
+          "speak": "Ytterst fingerbeina: tre i hver finger, men bare to i tommelen. Fjorten til sammen."
+        },
+        {
+          "highlight": {
+            "target": [
+              "carpals_left",
+              "metacarpals_left",
+              "phalanges_hand_left"
+            ]
+          },
+          "speak": "Åtte, fem og fjorten: 27. De to hendene har altså over en firedel av kroppens 206 knokler."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "phalanges_hand_left"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Hvert fingerbein er et ledd til. Derfor kan hånden forme seg rundt en blyant, en ball eller et håndtak."
+        },
+        {
+          "highlight": {
+            "target": [
+              "metacarpals_left"
+            ]
+          },
+          "speak": "Foten har nesten like mange knokler, men kan ikke gripe. Forskjellen sitter ved roten av tommelen."
+        },
+        {
+          "highlight": {
+            "target": [
+              "carpals_left"
+            ]
+          },
+          "speak": "Tommelens mellomhåndsbein møter håndroten i et sadelledd, som lar tommelen dreie over og møte hver fingertupp."
         },
         {
           "ask": {
-            "question": "Klikk på håndrotsbeina.",
+            "question": "Klikk på knoklene der båtbeinet sitter.",
             "widget": "click",
             "answer": "carpals_left",
-            "right": "Håndrotsbeina — de ligger i håndleddet, mellom underarmen og mellomhånden."
+            "right": "Håndrotsbeina, i håndleddet mellom underarmen og mellomhånden. Båtbeinet er ett av de åtte."
           }
         },
         {
-          "ask": {
-            "question": "Klikk på fingerbeina.",
-            "widget": "click",
-            "answer": "phalanges_hand_left",
-            "right": "Fingerbeina, phalanges — fjorten i alt."
+          "quiz": {
+            "question": "Hvor sitter bevegelsen som lar tommelen møte lillefingeren?",
+            "choices": [
+              "I tommelens ytterste ledd",
+              "Ved roten, mellom håndrot og mellomhånd",
+              "Mellom underarmen og håndroten"
+            ],
+            "correct": 2,
+            "right": "Ved roten: tommelens mellomhåndsbein sitter i et sadelledd mot håndroten og kan dreie tommelen inn mot fingrene."
           }
         }
       ]
     }
   },
   {
-    "request": "Let me explore the body myself.",
+    "request": "What's where inside the body?",
     "packs": [
       "anatomy"
     ],
     "spec": {
-      "title": "Explore the body",
+      "title": "What's where inside you",
       "template": "anatomy",
       "params": {
         "systems": [
           "viscera"
         ],
         "detail": 2,
-        "labels": "none"
+        "labels": "none",
+        "box": {
+          "x": 40,
+          "y": 150,
+          "w": 920,
+          "h": 530
+        }
       },
       "commands": [
         {
+          "card": {
+            "title": "What's where inside you"
+          }
+        },
+        {
           "draw": [
             "body_outline",
-            "brain",
+            "brain"
+          ],
+          "speak": "Your organs are packed in layers, front to back, and this drawcast maps where each one sits. The brain has the skull to itself."
+        },
+        {
+          "draw": [
             "trachea",
             "lung_right",
-            "lung_left",
-            "heart",
-            "liver",
+            "lung_left"
+          ],
+          "speak": "In the chest, the windpipe comes down the middle and branches into two lungs, which fill most of the rib cage."
+        },
+        {
+          "draw": [
+            "heart"
+          ],
+          "speak": "The heart sits between them, behind the breastbone, its tip pointing to the left."
+        },
+        {
+          "draw": [
+            "liver"
+          ],
+          "speak": "Below the lungs, a sheet of muscle, the diaphragm, closes off the chest. Right under it, on the body's right, lies the liver."
+        },
+        {
+          "draw": [
             "stomach",
-            "spleen",
+            "spleen"
+          ],
+          "speak": "On the left, the stomach, and tucked behind it, against the ribs, the spleen."
+        },
+        {
+          "draw": [
             "pancreas",
             "kidney_right",
-            "kidney_left",
+            "kidney_left"
+          ],
+          "speak": "Dashed lines mean further back. The pancreas lies behind the stomach, and the kidneys sit against the back wall, either side of the spine."
+        },
+        {
+          "draw": [
             "small_intestine",
-            "large_intestine",
+            "large_intestine"
+          ],
+          "speak": "In front of them all hangs the gut: the coiled small intestine, framed on three sides by the large intestine."
+        },
+        {
+          "draw": [
             "bladder"
           ],
-          "speak": "Here is the body with its organs in place. Nothing is named yet — that is your job."
+          "speak": "And lowest of all, behind the pubic bone, the bladder."
+        },
+        {
+          "highlight": {
+            "target": [
+              "kidney_right",
+              "kidney_left"
+            ]
+          },
+          "speak": "The kidneys sit higher than most people guess: under the lowest ribs, the right one a little lower, pushed down by the liver."
+        },
+        {
+          "highlight": {
+            "target": [
+              "kidney_right",
+              "kidney_left"
+            ],
+            "effect": "pulse"
+          },
+          "speak": "Hidden back there, the two of them filter about 180 litres of blood plasma a day."
         },
         {
           "explore": {
             "anatomy": true
           },
-          "speak": "Click anything you are curious about to zoom in, click again to see its name, and use the crumbs to come back. Press Continue when you are done."
+          "speak": "Now click any organ to zoom in and see its name, and use the crumbs to come back. Press Continue when you are done."
         },
         {
           "quiz": {
-            "question": "Which organ lies behind the stomach, tucked against the back wall?",
+            "question": "Where do the kidneys sit?",
             "choices": [
-              "The liver",
-              "The pancreas",
-              "The bladder"
+              "Low in the belly, near the hips",
+              "At the back, under the lowest ribs",
+              "In front of the stomach"
             ],
-            "correct": 1,
-            "right": "The pancreas — behind the stomach, in front of the spine. Switch to Behind in the tray to see it clear of the stomach."
+            "correct": 2,
+            "right": "At the back, under the lowest ribs — behind the gut, one either side of the spine."
           }
         }
       ]
     }
   },
   {
-    "request": "Show the heart between the lungs, and let me see it in 3D.",
+    "request": "Where exactly does the heart sit in the chest?",
     "packs": [
       "anatomy"
     ],
     "spec": {
-      "title": "See it in 3D",
+      "title": "Where the heart sits",
       "template": "anatomy",
       "params": {
         "systems": [
@@ -25222,32 +26572,44 @@
         "labels": "focus",
         "highlight": [
           "heart"
-        ]
+        ],
+        "box": {
+          "x": 40,
+          "y": 150,
+          "w": 920,
+          "h": 530
+        }
       },
       "commands": [
         {
+          "card": {
+            "title": "Where the heart sits"
+          }
+        },
+        {
           "draw": [
             "frame",
+            "body_outline",
             "lung_right",
             "label_lung_right",
             "lung_left",
             "label_lung_left"
           ],
-          "speak": "Two lungs, one on each side of the chest — the right one a little larger, the left one leaving room."
-        },
-        {
-          "draw": [
-            "heart",
-            "label_heart"
-          ],
-          "speak": "Room for the heart, which sits between them, tilted a little to the left."
+          "speak": "Where in the chest is the heart? Start with the two lungs that flank it, filling most of the rib cage."
         },
         {
           "draw": [
             "trachea",
             "label_trachea"
           ],
-          "speak": "The windpipe comes down from above and splits into the two lungs."
+          "speak": "The windpipe comes down the midline and splits into one branch for each lung."
+        },
+        {
+          "draw": [
+            "heart",
+            "label_heart"
+          ],
+          "speak": "Between the lungs, right behind the breastbone, sits the heart — not on the left, but in the middle."
         },
         {
           "highlight": {
@@ -25255,49 +26617,147 @@
               "heart"
             ]
           },
-          "speak": "Everything here has a front and a back: the heart leans forward, the great vessels leave it behind and above."
+          "speak": "It is tipped: its broad base up and to the right, its tip down and to the left. About two thirds of it lies left of the midline."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "heart",
+              "anchor": "bottom_right"
+            },
+            "gesture": "tap"
+          },
+          "speak": "That tip, low on the left, is where you feel it beat — which is why the heart seems to be on the left."
+        },
+        {
+          "highlight": {
+            "target": [
+              "lung_left"
+            ]
+          },
+          "speak": "The left lung makes room for it: a notch is carved out for the heart, and it has two lobes to the right lung's three."
+        },
+        {
+          "draw": [
+            "esophagus",
+            "label_esophagus",
+            "aorta",
+            "label_aorta"
+          ],
+          "speak": "Dashed, because they lie behind: the gullet, and the aorta, which arches over and runs down along the spine."
+        },
+        {
+          "focus": {
+            "target": [
+              "heart",
+              "lung_left",
+              "lung_right"
+            ]
+          },
+          "speak": "So the heart is a middle organ that leans left, and the lungs are shaped around that lean."
+        },
+        {
+          "highlight": {
+            "target": [
+              "heart"
+            ],
+            "effect": "circle"
+          },
+          "speak": "In roughly one person in ten thousand the whole picture is mirrored, and the heart points right. That is called dextrocardia."
         },
         {
           "quiz": {
-            "question": "Which lung is the larger one?",
+            "question": "Where is the heart?",
             "choices": [
-              "The right lung",
-              "The left lung",
-              "They are the same"
+              "On the left side of the chest",
+              "In the middle, tipped to the left",
+              "Behind the left lung"
             ],
-            "correct": 1,
-            "right": "The right — the heart takes part of the left side of the chest."
+            "correct": 2,
+            "right": "In the middle, behind the breastbone, with its tip turned left — about two thirds of it left of the midline."
           }
         },
         {
-          "speak": "A drawing shows the front. The 3D button under the figure shows the same body from any side — turn it, and peel the front away, layer by layer, until the heart sits alone in its place."
+          "speak": "The 3D button under the figure turns this chest round and peels it layer by layer, so the heart's lean shows from the side."
         }
       ]
     }
   },
   {
-    "request": "Let me place the organs myself.",
+    "request": "Where do the heart, liver and stomach sit?",
     "packs": [
       "anatomy"
     ],
     "spec": {
-      "title": "Place the organs",
+      "title": "Place three organs",
       "template": "anatomy",
       "params": {
         "systems": [
-          "viscera"
+          "viscera",
+          "skeleton"
         ],
         "detail": 2,
-        "labels": "none"
+        "focus": [
+          "thorax",
+          "abdomen",
+          "rib_cage",
+          "pelvis"
+        ],
+        "labels": "none",
+        "box": {
+          "x": 40,
+          "y": 150,
+          "w": 920,
+          "h": 530
+        }
       },
       "commands": [
         {
+          "card": {
+            "title": "Place three organs"
+          }
+        },
+        {
           "draw": [
+            "frame",
             "body_outline",
+            "ribs",
+            "sternum",
+            "hip_bones"
+          ],
+          "speak": "Where do the heart, the liver and the stomach sit? You will place them yourself, and the bones of the trunk are your map."
+        },
+        {
+          "highlight": {
+            "target": [
+              "ribs"
+            ]
+          },
+          "speak": "Look how low the rib cage reaches: its lower edge arches well below the chest, over the top of the belly."
+        },
+        {
+          "draw": [
+            "trachea",
             "lung_right",
             "lung_left"
           ],
-          "speak": "A body, and its two lungs. Three organs are missing."
+          "speak": "The lungs fill the upper part of the cage, one on each side of the windpipe."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "sternum"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Between them, behind the breastbone, a space is left open."
+        },
+        {
+          "draw": [
+            "small_intestine",
+            "large_intestine"
+          ],
+          "speak": "Below the ribs the gut fills the belly: the coiled small intestine, framed on three sides by the large intestine."
         },
         {
           "ask": {
@@ -25317,17 +26777,49 @@
                 "label": "Stomach"
               }
             ],
-            "right": "The heart between the lungs, a little to the left; the liver under the right ribs; the stomach to the left, just below the heart.",
-            "wrong": "Feel for the ribs: the heart sits between the lungs, the liver just under them on the body's right."
+            "right": "The heart between the lungs, tipped to the body's left; the liver under the body's right ribs; the stomach under its left ribs, just below the heart.",
+            "wrong": "Use the ribs: all three sit behind them."
           }
         },
         {
+          "highlight": {
+            "target": [
+              "liver",
+              "stomach"
+            ]
+          },
+          "speak": "Liver and stomach both sit mostly inside the rib cage. The ribs guard the top floor of the belly, not only the lungs."
+        },
+        {
           "draw": [
-            "small_intestine",
-            "large_intestine",
-            "bladder"
+            "gallbladder",
+            "esophagus",
+            "aorta",
+            "pancreas",
+            "spleen"
           ],
-          "speak": "Below them the gut fills the belly, and the bladder sits at the bottom."
+          "speak": "Dashed, further back: the gullet and the aorta, the pancreas, and the spleen against the left ribs. The gallbladder hangs under the liver."
+        },
+        {
+          "highlight": {
+            "target": [
+              "liver",
+              "spleen"
+            ]
+          },
+          "speak": "That protection has a price: a broken lower rib can tear the liver on the right, or the spleen on the left."
+        },
+        {
+          "quiz": {
+            "question": "When you point to your 'stomach' at the navel, what is mostly there?",
+            "choices": [
+              "The stomach",
+              "The small intestine",
+              "The liver"
+            ],
+            "correct": 2,
+            "right": "Mostly small intestine — the stomach itself sits higher, under the left ribs."
+          }
         }
       ]
     }
@@ -25801,7 +27293,7 @@
       "space"
     ],
     "spec": {
-      "title": "Find Mars",
+      "title": "Finding Mars",
       "template": "solar_system",
       "params": {
         "view": "top",
@@ -25810,6 +27302,11 @@
         "names": "none"
       },
       "commands": [
+        {
+          "card": {
+            "title": "Finding Mars"
+          }
+        },
         {
           "draw": [
             "sun",
@@ -25823,7 +27320,7 @@
             "orbit_neptune",
             "scale_note"
           ],
-          "speak": "The Sun, and eight orbits around it, seen from above. Not to scale — no drawing on one page can be."
+          "speak": "Which of the planets is Mars? Count outward from the Sun. Here are all eight orbits seen from above, evenly spaced — not to scale."
         },
         {
           "draw": [
@@ -25832,7 +27329,8 @@
             "earth",
             "mars"
           ],
-          "speak": "Four small rocky planets keep close to the Sun."
+          "parallel": true,
+          "speak": "Four small rocky planets keep close: the nearest circles 58 million kilometres from the Sun, the fourth 228 million."
         },
         {
           "draw": [
@@ -25841,15 +27339,61 @@
             "uranus",
             "neptune"
           ],
-          "speak": "Four giants keep their distance. Every planet sits where it really was on the day this was drawn."
+          "parallel": true,
+          "speak": "Then four giants, far out: Jupiter at 778 million kilometres, Neptune at four and a half billion."
+        },
+        {
+          "highlight": {
+            "target": [
+              "earth"
+            ]
+          },
+          "speak": "We live on the third. Every planet sits where it really was on the sixth of September 2026."
         },
         {
           "ask": {
             "question": "Which one is Mars?",
             "widget": "click",
             "answer": "mars",
-            "right": "Mars — the fourth planet out, on the orbit just outside Earth's.",
-            "wrong": "Count outward from the Sun: Mercury, Venus, Earth — and the next orbit is Mars."
+            "right": "Mars is the fourth out, on the orbit just outside ours — the last of the small rocky planets.",
+            "wrong": "Count out from the Sun: Mercury, Venus, Earth — then one more."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "mars"
+            ]
+          },
+          "speak": "Mars is about half Earth's width, and red because its dust is rich in iron oxide — rust."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "orbit_mars"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Its orbit lies outside ours. So when Earth passes between the Sun and Mars, Mars stands opposite the Sun, up all night."
+        },
+        {
+          "highlight": {
+            "target": [
+              "venus"
+            ]
+          },
+          "speak": "Venus, inside our orbit, can never do that: seen from Earth it always stays near the Sun."
+        },
+        {
+          "quiz": {
+            "question": "Which planet can you see high in the south at midnight?",
+            "choices": [
+              "Venus",
+              "Mars",
+              "Both of them"
+            ],
+            "correct": 2,
+            "right": "Mars: its orbit is outside ours, so it can stand opposite the Sun. Venus, inside, is only ever an evening or a morning star."
           }
         }
       ]
@@ -25870,13 +27414,25 @@
       },
       "commands": [
         {
+          "card": {
+            "title": "How big is Jupiter?"
+          }
+        },
+        {
           "draw": [
             "sun",
             "label_sun",
             "scale_note",
             "scale_bar"
           ],
-          "speak": "Sizes to scale this time. The Sun is so large that only its edge fits on the page."
+          "speak": "How big is Jupiter, really? Here the planets are drawn at their true sizes — and the Sun is so large that only its edge fits."
+        },
+        {
+          "draw": [
+            "earth",
+            "label_earth"
+          ],
+          "speak": "Earth: 12,700 kilometres across, a dot beside a Sun that is 109 Earths wide."
         },
         {
           "draw": [
@@ -25884,41 +27440,69 @@
             "label_mercury",
             "venus",
             "label_venus",
-            "earth",
-            "label_earth",
             "mars",
             "label_mars"
           ],
-          "speak": "The four rocky planets are specks beside it — Earth is a dot a hundredth of the Sun's width."
+          "speak": "The other rocky planets are smaller still: Venus nearly Earth's twin, Mars half as wide, Mercury less."
         },
         {
           "draw": [
             "jupiter",
             "label_jupiter"
           ],
-          "speak": "Jupiter: eleven Earths across, and heavier than all the other planets put together."
+          "speak": "Jupiter: 143,000 kilometres across — eleven Earths side by side."
+        },
+        {
+          "highlight": {
+            "target": [
+              "jupiter"
+            ]
+          },
+          "speak": "Eleven times wider is also eleven times taller and eleven times deeper, so about 1,300 Earths would fit inside it."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "earth"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Yet it weighs only 318 Earths. It is mostly hydrogen and helium, a quarter as dense as our rock and iron."
+        },
+        {
+          "highlight": {
+            "target": [
+              "jupiter"
+            ]
+          },
+          "speak": "Even so, it is two and a half times as heavy as all the other planets put together."
         },
         {
           "draw": [
             "saturn",
-            "label_saturn",
+            "label_saturn"
+          ],
+          "speak": "Saturn, nine and a half Earths across, is lighter still — less dense than water."
+        },
+        {
+          "draw": [
             "uranus",
             "label_uranus",
             "neptune",
             "label_neptune"
           ],
-          "speak": "Saturn with its rings, then the two ice giants, Uranus and Neptune — near twins."
+          "speak": "Then the two ice giants, Uranus and Neptune, each about four Earths across."
         },
         {
           "quiz": {
-            "question": "Which of the two ice giants is larger?",
+            "question": "Uranus is four Earths across. About how many Earths would fit inside it?",
             "choices": [
-              "Uranus",
-              "Neptune",
-              "They are the same size"
+              "4",
+              "16",
+              "64"
             ],
-            "correct": 1,
-            "right": "Uranus, by a whisker — 25 400 kilometres in radius to Neptune's 24 600. Neptune is the heavier one, though."
+            "correct": 3,
+            "right": "About 64: four times wider, four times taller and four times deeper — four cubed."
           }
         }
       ]
@@ -25930,7 +27514,7 @@
       "space"
     ],
     "spec": {
-      "title": "Rock near the Sun, gas far from it",
+      "title": "Rock near the Sun, giants far out",
       "template": "solar_system",
       "params": {
         "view": "row",
@@ -25938,7 +27522,42 @@
         "date": "2026-09-06",
         "names": "none"
       },
+      "elements": [
+        {
+          "id": "frost",
+          "type": "path",
+          "points": [
+            [
+              467,
+              190
+            ],
+            [
+              467,
+              590
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "dash": true
+          }
+        },
+        {
+          "id": "frost_label",
+          "type": "label",
+          "attach_to": "frost",
+          "side": "above",
+          "text": "frost line",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        }
+      ],
       "commands": [
+        {
+          "card": {
+            "title": "Rock near the Sun, giants far out"
+          }
+        },
         {
           "draw": [
             "sun",
@@ -25952,12 +27571,12 @@
             "neptune",
             "scale_note"
           ],
-          "speak": "The Sun and its eight planets in a line, closest first, names left off. Look at the split: four small, then four huge, and nothing in between."
+          "speak": "Why are the four planets nearest the Sun small, and the four beyond them giants? Here they are in a row, closest first, sizes squeezed to fit."
         },
         {
           "ask": {
             "question": "Drag each name onto its planet.",
-            "intro": "Close to the young Sun it was too hot for ice to survive, so there was only rock and metal to build with — and there is not much of either. Further out ice lasted, there was far more of it, and those four grew heavy enough to hold on to gas as well.",
+            "intro": "First, which is which?",
             "widget": "drag",
             "items": [
               {
@@ -25994,20 +27613,97 @@
               }
             ],
             "tolerance": 1,
-            "right": "Mercury, Venus, Earth, Mars, then Jupiter, Saturn, Uranus and Neptune. The line where ice could survive falls between Mars and Jupiter — and so does the split between small and huge.",
-            "wrong": "The four rocky ones come first, small and close to the Sun; the four giants follow, and Saturn is the one with the ring."
+            "right": "Mercury, Venus, Earth and Mars, then Jupiter, Saturn, Uranus and Neptune.",
+            "wrong": "The four small ones come first; Saturn is the one with the ring."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "mercury",
+              "venus",
+              "earth",
+              "mars"
+            ]
+          },
+          "speak": "Earth is the heaviest of the inner four. Jupiter weighs 318 Earths, and even the lightest giant, Uranus, weighs about fifteen."
+        },
+        {
+          "draw": [
+            "frost",
+            "frost_label"
+          ],
+          "speak": "The split is about temperature. In the young Sun's disc of gas and dust, beyond about here it was cold enough for water to freeze."
+        },
+        {
+          "highlight": {
+            "target": [
+              "mercury",
+              "venus",
+              "earth",
+              "mars"
+            ]
+          },
+          "speak": "Inside that line only rock and metal could be solid, and there was little of either. The planets built from them stayed small."
+        },
+        {
+          "highlight": {
+            "target": [
+              "jupiter",
+              "saturn",
+              "uranus",
+              "neptune"
+            ]
+          },
+          "speak": "Outside it, ice joined the rock, and there was more ice than rock. Solid cores grew to around ten Earths."
+        },
+        {
+          "highlight": {
+            "target": [
+              "jupiter"
+            ]
+          },
+          "speak": "A core that heavy pulls in the hydrogen and helium around it — ninety-eight percent of the disc. That is how the giants got huge."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "mercury"
+            },
+            "gesture": "tap"
+          },
+          "speak": "Other stars break the pattern: the first planet found round a Sun-like star, in 1995, is a giant orbiting far closer in than Mercury."
+        },
+        {
+          "highlight": {
+            "target": [
+              "frost"
+            ]
+          },
+          "speak": "It most likely formed out past its star's frost line, then drifted inward."
+        },
+        {
+          "quiz": {
+            "question": "Why couldn't a giant grow where Earth is?",
+            "choices": [
+              "Too little solid material for a big core",
+              "There was no gas that close to the Sun",
+              "The Sun's gravity tore big planets apart"
+            ],
+            "correct": 1,
+            "right": "Too little solid stuff: inside the frost line only rock and metal were solid — never enough for a core that could grab the gas."
           }
         }
       ]
     }
   },
   {
-    "request": "Where are the planets today?",
+    "request": "Why does Earth catch up with Mars only every two years?",
     "packs": [
       "space"
     ],
     "spec": {
-      "title": "The inner planets, moving",
+      "title": "Earth laps Mars",
       "template": "solar_system",
       "params": {
         "view": "top",
@@ -26015,10 +27711,15 @@
         "bodies": [
           "inner"
         ],
-        "date": "2026-10-09",
+        "date": "2025-01-16",
         "days": 0
       },
       "commands": [
+        {
+          "card": {
+            "title": "Earth laps Mars"
+          }
+        },
         {
           "draw": [
             "sun",
@@ -26030,7 +27731,7 @@
             "scale_note",
             "scale_bar"
           ],
-          "speak": "The four inner orbits with the distances to scale: Mars is half again as far from the Sun as Earth."
+          "speak": "Mars comes close to Earth only once every two years or so. Why so rarely? Here are the four inner orbits, with their distances to scale."
         },
         {
           "draw": [
@@ -26043,15 +27744,60 @@
             "mars",
             "label_mars"
           ],
-          "speak": "And the planets where they stood on the ninth of October 2026."
+          "speak": "The sixteenth of January 2025: Earth passes between the Sun and Mars, and Mars is near its closest and at its brightest."
+        },
+        {
+          "highlight": {
+            "target": [
+              "earth"
+            ]
+          },
+          "speak": "Earth goes round the Sun in 365 days."
+        },
+        {
+          "highlight": {
+            "target": [
+              "mars"
+            ]
+          },
+          "speak": "Mars, half as far out again, has a longer track and moves slower along it: one lap takes 687 days."
         },
         {
           "animate": {
-            "days": 687
+            "days": 365
           },
-          "duration": 8,
+          "duration": 5,
           "easing": "linear",
-          "speak": "Now let time run: 687 days, one Martian year. Mars goes round once — and Earth, on the inside track, goes round almost twice and laps it."
+          "speak": "Run one year. Earth is back where it started — but Mars has gone only a little over halfway round."
+        },
+        {
+          "animate": {
+            "days": 764
+          },
+          "duration": 6,
+          "easing": "linear",
+          "speak": "So Earth has to chase it round the far side. It catches up thirteen months later, on the nineteenth of February 2027."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "mars"
+            },
+            "gesture": "circle"
+          },
+          "speak": "On average the chase takes 780 days, two years and two months — which is why missions to Mars launch in windows 26 months apart."
+        },
+        {
+          "quiz": {
+            "question": "Jupiter takes twelve years to go round. How often does Earth catch up with it?",
+            "choices": [
+              "Every twelve years",
+              "Just over once a year",
+              "Every two years"
+            ],
+            "correct": 2,
+            "right": "Just over once a year: Jupiter barely moves in a year, so Earth needs only 399 days to lap it. The slower the planet, the sooner we catch it."
+          }
         }
       ]
     }
@@ -26069,9 +27815,21 @@
         "moons": [
           "jupiter"
         ],
-        "date": "2026-09-09"
+        "date": "2026-09-09",
+        "days": 0,
+        "box": {
+          "x": 0,
+          "y": 40,
+          "w": 1000,
+          "h": 640
+        }
       },
       "commands": [
+        {
+          "card": {
+            "title": "Four moons that don't circle us"
+          }
+        },
         {
           "draw": [
             "frame",
@@ -26080,29 +27838,64 @@
             "axis",
             "scale_note"
           ],
-          "speak": "Jupiter, close up. In 1610 Galileo turned a new telescope on it and found four small lights beside it that shifted from one night to the next."
+          "speak": "How did four small moons of Jupiter shake the idea that everything circles the Earth? In January 1610 Galileo turned his new telescope on Jupiter."
         },
         {
           "draw": [
             "orbit_io",
             "io",
-            "label_io",
+            "label_io"
+          ],
+          "speak": "Beside it he saw small lights that shifted from night to night. The nearest, Io, goes round Jupiter in 1.8 days."
+        },
+        {
+          "draw": [
             "orbit_europa",
             "europa",
             "label_europa"
           ],
-          "speak": "Io and Europa, the two inner ones — volcanic Io, and Europa with an ocean under its ice."
+          "speak": "Europa, further out, takes 3.6 days."
         },
         {
           "draw": [
             "orbit_ganymede",
             "ganymede",
-            "label_ganymede",
+            "label_ganymede"
+          ],
+          "speak": "Ganymede takes 7.2 days — the largest moon in the solar system, wider than the planet Mercury."
+        },
+        {
+          "draw": [
             "orbit_callisto",
             "callisto",
             "label_callisto"
           ],
-          "speak": "Then Ganymede, the largest moon in the solar system, and Callisto, cratered and quiet. Four bodies plainly circling Jupiter and not us — the first things anyone had seen going round another planet."
+          "speak": "Callisto, the outermost, takes almost 17 days, nearly two million kilometres from Jupiter."
+        },
+        {
+          "animate": {
+            "days": 7.155
+          },
+          "duration": 8,
+          "easing": "linear",
+          "speak": "Run one week: Ganymede goes round once, Europa twice, Io four times — the three are locked in step."
+        },
+        {
+          "highlight": {
+            "target": [
+              "jupiter"
+            ]
+          },
+          "speak": "The old picture put Earth at the centre of every motion in the sky. Here were four bodies plainly circling something else."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "callisto"
+            },
+            "gesture": "circle"
+          },
+          "speak": "They also answered an objection: if the Earth moved, wouldn't it leave its Moon behind? Jupiter moves, and keeps all four."
         },
         {
           "explore": {
@@ -26112,15 +27905,14 @@
         },
         {
           "quiz": {
-            "question": "Which of the four is the largest?",
+            "question": "What did Jupiter's moons prove?",
             "choices": [
-              "Io",
-              "Europa",
-              "Ganymede",
-              "Callisto"
+              "That the Earth goes round the Sun",
+              "That not everything goes round the Earth",
+              "That Jupiter is bigger than the Earth"
             ],
-            "correct": 3,
-            "right": "Ganymede — larger than the planet Mercury."
+            "correct": 2,
+            "right": "Not everything goes round the Earth: four moons plainly circle Jupiter. That broke the old picture, without yet proving the Earth moves."
           }
         }
       ]
@@ -26140,12 +27932,29 @@
         "lon": 10.75,
         "place": "Oslo",
         "mark": [
-          "Polaris"
+          "Polaris",
+          "Ursa Major"
         ],
         "hours": 0,
-        "constellations": "none"
+        "constellations": "lines",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 900,
+          "h": 685
+        }
       },
       "commands": [
+        {
+          "card": {
+            "title": "Why the sky turns"
+          }
+        },
+        {
+          "hide": [
+            "figures"
+          ]
+        },
         {
           "draw": [
             "horizon",
@@ -26155,7 +27964,15 @@
             "compass_w",
             "place_label"
           ],
-          "speak": "The rim of this circle is the horizon all the way round you, and the middle is straight up. North is at the top — and east is on the left, because you are looking at a chart held over your head rather than a map of the ground."
+          "speak": "Why does the whole sky wheel round during the night? First, a chart of it: the rim is your horizon all round, the middle straight overhead."
+        },
+        {
+          "highlight": {
+            "target": [
+              "compass_e"
+            ]
+          },
+          "speak": "North is at the top and east on the left, because this is a chart held over your head, not a map of the ground."
         },
         {
           "draw": [
@@ -26164,14 +27981,28 @@
             "label_saturn",
             "sky_note"
           ],
-          "speak": "Oslo, a quarter to nine on a September evening. Every star bright enough to see on a clear night out of town, where it really was — and low in the east, one point that is not a star at all."
+          "speak": "Oslo on a September evening: every star you could see from a dark spot, where it really was — and low in the east, Saturn."
         },
         {
           "draw": [
             "polaris",
             "label_polaris"
           ],
-          "speak": "One star sits almost still: Polaris, nearly straight above the Earth's axis, and as high above your horizon as your latitude — sixty degrees, here."
+          "speak": "One star barely moves: Polaris, less than a degree from the point in the sky that Earth's axis aims at."
+        },
+        {
+          "highlight": {
+            "target": [
+              "polaris"
+            ]
+          },
+          "speak": "It stands as high above your horizon as you are north of the equator: sixty degrees up, here in Oslo."
+        },
+        {
+          "draw": [
+            "con_uma"
+          ],
+          "speak": "Near it, the Great Bear, whose seven brightest stars make the Plough."
         },
         {
           "animate": {
@@ -26179,7 +28010,33 @@
           },
           "duration": 8,
           "easing": "linear",
-          "speak": "Now let six hours run. Nothing out there moved: the ground you are standing on turned a quarter of a circle, and the whole sky wheels around the one point the axis is pointing at."
+          "speak": "Now let six hours run. Nothing out there moves: the ground under you turns fifteen degrees an hour, and carries you round."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "saturn"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Saturn has crossed to the south, and in the east the Moon, Mars and Jupiter have come up."
+        },
+        {
+          "highlight": {
+            "target": [
+              "con_uma"
+            ]
+          },
+          "speak": "The whole sky wheels about the pole. The Plough is so close to it that from Oslo it never sets — it circles all night, every night."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "polaris"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Polaris won't always be the pole star: Earth's axis slowly wobbles, and in about 12,000 years it will point near Vega."
         },
         {
           "quiz": {
@@ -26190,7 +28047,7 @@
               "On the horizon"
             ],
             "correct": 3,
-            "right": "On the horizon — the pole star stands as many degrees up as you are north, and at the equator that is nothing."
+            "right": "On the horizon: the pole star stands as many degrees up as you are north, and at the equator that is none."
           }
         }
       ]
@@ -26211,9 +28068,20 @@
           "Orion"
         ],
         "names": "la",
-        "days": 0
+        "days": 0,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 900,
+          "h": 685
+        }
       },
       "commands": [
+        {
+          "card": {
+            "title": "Where Orion goes in summer"
+          }
+        },
         {
           "draw": [
             "horizon",
@@ -26221,37 +28089,74 @@
             "compass_e",
             "compass_s",
             "compass_w",
-            "stars",
-            "figures",
             "place_label"
           ],
-          "speak": "A quarter to ten in the evening, the night before the winter solstice, and this is the whole sky over Oslo — the rim is the horizon, the middle is straight up."
+          "speak": "Why do the winter constellations vanish from summer nights? Here is the sky over Oslo on a December evening, the night before the winter solstice."
+        },
+        {
+          "draw": [
+            "stars",
+            "figures",
+            "moon",
+            "label_moon",
+            "mars",
+            "label_mars",
+            "jupiter",
+            "label_jupiter",
+            "saturn",
+            "label_saturn",
+            "sky_note"
+          ],
+          "speak": "Every star above the horizon, the constellation shapes traced in, and the Moon and three planets among them."
         },
         {
           "draw": [
             "con_ori",
             "label_con_ori"
           ],
-          "speak": "Orion is the winter shape everyone knows among all those traced overhead: three stars in a row with a bright one above and below. Every December evening it climbs the eastern sky and stays up long after midnight."
+          "speak": "Low in the south-east, Orion: three stars in a row for a belt, one bright star above it and one below."
+        },
+        {
+          "animate": {
+            "days": 30
+          },
+          "duration": 4,
+          "speak": "Keep the clock at the same hour and let a month pass. Orion has swung round towards the south: the whole sky is running two hours ahead."
+        },
+        {
+          "highlight": {
+            "target": [
+              "con_ori"
+            ]
+          },
+          "speak": "Each day Earth moves a degree along its orbit, so the stars come round about four minutes earlier every night — two hours a month."
         },
         {
           "animate": {
             "days": 182
           },
-          "duration": 9,
+          "duration": 8,
           "easing": "linear",
-          "speak": "Now hold the hour still and let half a year go by. The Earth carries you round the far side of its orbit, so at nine in the evening your night side is pointing the opposite way — and Orion is out there in broad daylight, behind the Sun."
+          "speak": "Now half a year: twelve hours ahead. By this hour in June Orion has already set: it is up only while the Sun is."
+        },
+        {
+          "highlight": {
+            "target": [
+              "horizon"
+            ]
+          },
+          "speak": "And a June night in Oslo barely gets dark at all: at midnight the Sun is less than seven degrees below the horizon."
         },
         {
           "quiz": {
-            "question": "Why is Orion missing in June?",
+            "question": "Why is Orion missing from the June night sky?",
             "choices": [
-              "It has moved to another part of the galaxy",
+              "It has moved to another part of space",
               "It is above the horizon only in daytime",
               "It is too faint in summer"
             ],
             "correct": 2,
-            "right": "It is up in the daytime. Nothing out there moved — we did, half an orbit's worth, and the night now faces the other way."
+            "right": "It is up in the daytime. Nothing out there moved: Earth went half way round the Sun, and our night now faces the other way."
           }
         }
       ]
@@ -36380,7 +38285,7 @@
     "playlist": "playlist:\n  title: 'Discounting: the future, shrunk'\n---\ntitle: Why the future shrinks\ndomain:\n  x: [0, 50]\n  y: [0, 1]\nelements:\n  - id: axes\n    type: axes\n    x_label: years\n    y_label: \"value today\"\n  - id: shrink\n    type: curve\n    expr: \"1/(1.04)^x\"\n    x_from: 0\n    x_to: 50\n  - id: shrink_label\n    type: label\n    text: \"4 % a year\"\n    attach_to: shrink\n    side: above\ncommands:\n  - draw: [axes]\n    speak: \"Years along the bottom; what a future gain is worth today, up the side.\"\n  - pause: 0.3\n  - draw: [shrink, shrink_label]\n    speak: \"Each year the value is divided by the same number again — not subtracted, divided — so it shrinks geometrically, never in a straight line.\"\n  - highlight: { target: [shrink], effect: glow }\n    speak: \"That is why a gain thirty years out is worth so little today: the same small loss, compounding, year after year.\"\n---\ntitle: 'Discounting: the future, shrunk'\nelements:\n  - id: dc\n    type: code\n    language: r\n    show: left\n    width: 900\n    pane: controls\n    controls: [rate, horizon]\n    code: |-\n      library(ggplot2)\n      rate <- Slider(0, 0.10, step = 0.005, default = 0.04, label = \"Discount rate\")\n      horizon <- c(5, 50)\n      years <- 0:horizon\n      value <- 1 / (1 + rate)^years\n      cat(\"one unit in\", horizon, \"years is worth\", round(value[horizon + 1], 3), \"today\\n\")\n      ggplot(data.frame(years, value), aes(years, value)) + geom_line() + geom_hline(yintercept = 0.5, linetype = \"dashed\")\ncommands:\n  - draw: [dc, dc_ctl_rate]\n    parallel: true\n    speak: \"The same idea, now as knobs: the discount rate itself.\"\n  - pause: 0.3\n  - draw: [dc_ctl_horizon]\n    speak: \"And how far into the future the gain arrives.\"\n  - draw: [dc_out]\n    delivery: grave\n    speak: \"At today's four percent, a gain twenty years away is already worth less than half of one arriving now.\"\n  - explore: { code: dc }\n    speak: \"Set the rate to zero and the curve goes flat: every year counts the same. Set it to ten percent and the future all but vanishes.\"\n"
   },
   {
-    "request": "Teach Morse code and let me send SOS.",
+    "request": "How does Morse code spell letters with just two signals — and can I send SOS?",
     "packs": [
       "widgets"
     ],
@@ -36388,20 +38293,90 @@
       "title": "Sending SOS",
       "template": "morse_key",
       "params": {
-        "word": "SOS"
+        "word": "SOS",
+        "box": {
+          "x": 0,
+          "y": 95,
+          "w": 1000,
+          "h": 595
+        }
       },
       "commands": [
         {
-          "draw": [
+          "hide": [
             "title"
-          ],
-          "speak": "Morse code spells letters with two sounds: a short dot and a long dash."
+          ]
+        },
+        {
+          "card": {
+            "title": "How Morse code works"
+          }
         },
         {
           "draw": [
             "chart"
           ],
-          "speak": "Every letter has its own pattern. S is three dots; O is three dashes."
+          "speak": "Morse code spells every letter with just two signals, a short dot and a long dash. So which letter gets which pattern?"
+        },
+        {
+          "camera": {
+            "center": {
+              "ref": "chart"
+            },
+            "zoom": 1.7
+          },
+          "speak": "Each letter gets its own pattern of one to four signals."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 215.5,
+              "y": 566.5
+            },
+            "gesture": "circle"
+          },
+          "speak": "E, the commonest letter in English, is a single dot."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 784.5,
+              "y": 474.4
+            },
+            "gesture": "circle"
+          },
+          "speak": "T, the second commonest, is a single dash."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 215.5,
+              "y": 474.4
+            },
+            "gesture": "circle"
+          },
+          "speak": "Q, which you rarely need, takes four: dash, dash, dot, dash."
+        },
+        {
+          "highlight": {
+            "target": "chart"
+          },
+          "speak": "The shortest patterns went to the letters used most, so an ordinary message needs far fewer signals than alphabetical order would give."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 594.8,
+              "y": 474.4
+            },
+            "gesture": "underline"
+          },
+          "speak": "The red rows are the word we'll send. S is three dots, and O is three dashes."
+        },
+        {
+          "camera": {
+            "reset": true
+          }
         },
         {
           "draw": [
@@ -36411,36 +38386,69 @@
             "key_send",
             "hint"
           ],
-          "speak": "A telegraph key sends them. Here it is as four pads: dot, dash, the gap pad ends a letter, and send delivers the message — or hold the space bar: short for a dot, long for a dash; Enter ends a letter, Enter again sends."
+          "speak": "To send, use the four pads: dot, dash, gap to end a letter, and send. Or hold the space bar, briefly for a dot."
         },
         {
           "draw": [
             "signal",
             "decoded"
-          ]
+          ],
+          "speak": "What you send appears as a strip, with the letters it decodes to above it."
         },
         {
           "point": {
             "at": {
-              "ref": "key_dot"
-            }
+              "ref": "key_dash"
+            },
+            "gesture": "circle"
           },
-          "speak": "Tap the dot pad three times for S, the gap, then the dash pad three times for O."
+          "speak": "A dash lasts three dots, so the ear tells them apart by length alone."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "key_gap"
+            },
+            "gesture": "circle"
+          },
+          "speak": "The gap is a signal too: without it, three dots and three dashes are just six sounds the listener must split somewhere."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 594.8,
+              "y": 505.1
+            },
+            "gesture": "circle"
+          },
+          "speak": "SOS stands for nothing. It was adopted in 1906 because three dots, three dashes, three dots is easy to send and hard to mistake."
         },
         {
           "ask": {
             "question": "Send SOS on the key.",
             "widget": "morse_key",
             "answer": "SOS",
-            "right": "Three short, three long, three short — the signal every radio operator knows.",
-            "wrong": "Not quite — end each letter with gap, then press send."
+            "right": "Three short, three long, three short: nine signals, each letter closed with a gap.",
+            "wrong": "End each letter with the gap pad, then press send."
+          }
+        },
+        {
+          "quiz": {
+            "question": "Why is E a single dot?",
+            "choices": [
+              "It is the commonest letter",
+              "The codes follow the alphabet",
+              "Vowels are always dots"
+            ],
+            "correct": 1,
+            "right": "It is the commonest letter in English: short codes for frequent letters make every message quicker to send."
           }
         }
       ]
     }
   },
   {
-    "request": "The Tower of Hanoi puzzle with three disks.",
+    "request": "Why does the Tower of Hanoi take 2^n − 1 moves?",
     "packs": [
       "widgets"
     ],
@@ -36448,14 +38456,40 @@
       "title": "The Tower of Hanoi",
       "template": "tower_of_hanoi",
       "params": {
-        "disks": 3
+        "disks": 3,
+        "box": {
+          "x": 0,
+          "y": 140,
+          "w": 1000,
+          "h": 550
+        }
       },
+      "elements": [
+        {
+          "id": "rec",
+          "type": "math",
+          "tex": "M_n = {2M_{n-1}} + 1",
+          "x": 500,
+          "y": 560
+        },
+        {
+          "id": "seq",
+          "type": "math",
+          "tex": "M_n = 2^n - 1",
+          "x": 500,
+          "y": 470
+        }
+      ],
       "commands": [
         {
-          "draw": [
+          "hide": [
             "title"
-          ],
-          "speak": "Three pegs, three disks, one rule: never put a larger disk on a smaller one."
+          ]
+        },
+        {
+          "card": {
+            "title": "The Tower of Hanoi"
+          }
         },
         {
           "draw": [
@@ -36466,21 +38500,120 @@
             "disk_2",
             "disk_1"
           ],
-          "speak": "Move the whole tower from the left peg to the right, one disk at a time. The top disk of a peg can be dragged across to another peg, or clicked and then set down with a click on the peg."
+          "speak": "The Tower of Hanoi asks how few moves shift a whole tower to the right peg. The rules: one disk at a time, never a larger on a smaller."
+        },
+        {
+          "highlight": {
+            "target": "disk_3"
+          },
+          "speak": "Take three disks. Before the biggest can move anywhere, what has to be true?"
+        },
+        {
+          "move": {
+            "target": [
+              "disk_1",
+              "disk_2"
+            ],
+            "by": [
+              233.2,
+              -20
+            ],
+            "duration": 1.2
+          },
+          "speak": "Both disks above it must be out of the way, stacked on the middle peg. That is a two-disk tower, moved: three moves."
+        },
+        {
+          "move": {
+            "target": "disk_3",
+            "by": [
+              466.4,
+              0
+            ],
+            "duration": 1
+          },
+          "speak": "Then the big disk crosses, in one move."
+        },
+        {
+          "move": {
+            "target": [
+              "disk_1",
+              "disk_2"
+            ],
+            "by": [
+              233.2,
+              20
+            ],
+            "duration": 1.2
+          },
+          "speak": "And the two-disk tower moves again, onto it: three more. Three, one, three: seven."
+        },
+        {
+          "draw": [
+            "rec"
+          ],
+          "speak": "The same holds for any size: to move n disks, move the tower above the biggest twice, plus one move for the biggest."
+        },
+        {
+          "highlight": {
+            "target": "rec",
+            "part": "{2M_{n-1}}"
+          },
+          "speak": "That twice is the whole story. Each extra disk doubles the work, and adds one."
+        },
+        {
+          "draw": [
+            "seq"
+          ],
+          "speak": "One, three, seven, fifteen, thirty-one: always one less than a power of two. A guess of two more per disk would say nine for four disks; it takes fifteen."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "seq"
+            },
+            "gesture": "underline"
+          },
+          "speak": "Édouard Lucas sold the puzzle in 1883 with a legend of monks moving sixty-four disks. At a move a second, that takes about 585 billion years."
+        },
+        {
+          "move": {
+            "target": [
+              "disk_1",
+              "disk_2",
+              "disk_3"
+            ],
+            "by": [
+              -466.4,
+              0
+            ],
+            "duration": 1
+          },
+          "speak": "Back to the start. Now it's your tower."
         },
         {
           "draw": [
             "counter"
-          ],
-          "speak": "With three disks the fewest moves is seven — two to the power of three, minus one."
+          ]
         },
         {
           "ask": {
-            "question": "Move the tower to the right peg.",
+            "question": "Move the tower to the right peg. Can you do it in seven?",
             "widget": "tower_of_hanoi",
             "answer": "solved",
-            "right": "Solved. Notice the pattern: move the smaller tower aside, the big disk over, the smaller tower back on top.",
-            "wrong": "Keep going — drag the top disk onto another peg, or click the disk and then the peg."
+            "right": "Solved. Seven is the fewest: the small pair aside in three, the big disk over, the pair back on top in three.",
+            "wrong": "Get the top two onto the middle peg first; that frees the big disk."
+          }
+        },
+        {
+          "quiz": {
+            "question": "Five disks take 31 moves. How many does six take?",
+            "choices": [
+              "33",
+              "36",
+              "63"
+            ],
+            "correct": 3,
+            "right": "63: the five-disk tower moves twice, 31 moves each, plus one move for the biggest disk."
           }
         }
       ]
@@ -36646,20 +38779,349 @@
     }
   },
   {
-    "request": "Tic-tac-toe against the computer.",
+    "request": "Why does tic-tac-toe always end in a draw?",
     "packs": [
       "widgets"
     ],
     "spec": {
       "title": "Tic-tac-toe",
       "template": "tictactoe",
-      "params": {},
+      "params": {
+        "box": {
+          "x": 520,
+          "y": 150,
+          "w": 440,
+          "h": 520
+        }
+      },
+      "elements": [
+        {
+          "id": "lv_1",
+          "type": "path",
+          "points": [
+            [
+              200,
+              220
+            ],
+            [
+              200,
+              550
+            ]
+          ],
+          "style": {
+            "color": "#3d3833"
+          }
+        },
+        {
+          "id": "lv_2",
+          "type": "path",
+          "points": [
+            [
+              310,
+              220
+            ],
+            [
+              310,
+              550
+            ]
+          ],
+          "style": {
+            "color": "#3d3833"
+          }
+        },
+        {
+          "id": "lh_1",
+          "type": "path",
+          "points": [
+            [
+              90,
+              330
+            ],
+            [
+              420,
+              330
+            ]
+          ],
+          "style": {
+            "color": "#3d3833"
+          }
+        },
+        {
+          "id": "lh_2",
+          "type": "path",
+          "points": [
+            [
+              90,
+              440
+            ],
+            [
+              420,
+              440
+            ]
+          ],
+          "style": {
+            "color": "#3d3833"
+          }
+        },
+        {
+          "id": "lesson",
+          "type": "group",
+          "members": [
+            "lv_1",
+            "lv_2",
+            "lh_1",
+            "lh_2"
+          ]
+        },
+        {
+          "id": "mx_0",
+          "type": "text",
+          "text": "X",
+          "x": 145,
+          "y": 495,
+          "font_size": 56,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "mo_4",
+          "type": "text",
+          "text": "O",
+          "x": 255,
+          "y": 385,
+          "font_size": 56,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "mx_8",
+          "type": "text",
+          "text": "X",
+          "x": 365,
+          "y": 275,
+          "font_size": 56,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "mo_2",
+          "type": "text",
+          "text": "O",
+          "x": 365,
+          "y": 495,
+          "font_size": 56,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "mx_6",
+          "type": "text",
+          "text": "X",
+          "x": 145,
+          "y": 275,
+          "font_size": 56,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "mo_7",
+          "type": "text",
+          "text": "O",
+          "x": 255,
+          "y": 275,
+          "font_size": 56,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "mx_3",
+          "type": "text",
+          "text": "X",
+          "x": 145,
+          "y": 385,
+          "font_size": 56,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "mo_1",
+          "type": "text",
+          "text": "O",
+          "x": 255,
+          "y": 495,
+          "font_size": 56,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "mx_7",
+          "type": "text",
+          "text": "X",
+          "x": 255,
+          "y": 275,
+          "font_size": 56,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "fork_a",
+          "type": "path",
+          "points": [
+            [
+              74,
+              224
+            ],
+            [
+              74,
+              546
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "dash": true
+          }
+        },
+        {
+          "id": "fork_b",
+          "type": "path",
+          "points": [
+            [
+              94,
+              204
+            ],
+            [
+              416,
+              204
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "dash": true
+          }
+        }
+      ],
       "commands": [
         {
-          "draw": [
+          "hide": [
             "title"
+          ]
+        },
+        {
+          "card": {
+            "title": "Why tic-tac-toe is a draw"
+          }
+        },
+        {
+          "draw": [
+            "lesson"
           ],
-          "speak": "Tic-tac-toe: three in a row wins — and when both players are careful, nobody ever gets it."
+          "speak": "Tic-tac-toe between two careful players always ends in a draw. Why can't the first player force a win? Watch one game."
+        },
+        {
+          "draw": [
+            "mx_0"
+          ],
+          "speak": "X opens in a corner."
+        },
+        {
+          "draw": [
+            "mo_4"
+          ],
+          "speak": "O takes the centre, the square on four of the eight lines."
+        },
+        {
+          "draw": [
+            "mx_8"
+          ],
+          "speak": "X takes the opposite corner."
+        },
+        {
+          "draw": [
+            "mo_2"
+          ],
+          "speak": "O takes another corner. It looks natural, and it loses."
+        },
+        {
+          "draw": [
+            "mx_6"
+          ],
+          "speak": "O now threatens the diagonal, so X must block in the bottom corner. And that one block makes two threats."
+        },
+        {
+          "draw": [
+            "fork_a",
+            "fork_b"
+          ],
+          "parallel": true,
+          "speak": "Up the left side and along the bottom: a fork. O can block only one of them."
+        },
+        {
+          "draw": [
+            "mo_7"
+          ],
+          "speak": "O blocks the bottom row."
+        },
+        {
+          "draw": [
+            "mx_3"
+          ],
+          "speak": "X completes the left column and wins."
+        },
+        {
+          "highlight": {
+            "target": [
+              "fork_a",
+              "fork_b"
+            ]
+          },
+          "speak": "Every win in this game comes from a fork, because a single threat can always be blocked."
+        },
+        {
+          "erase": [
+            "mo_2",
+            "mx_6",
+            "fork_a",
+            "fork_b",
+            "mo_7",
+            "mx_3"
+          ],
+          "speak": "So rewind to O's second move."
+        },
+        {
+          "draw": [
+            "mo_1"
+          ],
+          "speak": "This time O plays an edge, and makes a threat of its own, down the middle column."
+        },
+        {
+          "draw": [
+            "mx_7"
+          ],
+          "speak": "X must block at the bottom. A player busy blocking never gets the free move a fork needs."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "mo_4"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Answer threat with threat, and the board fills up with no winner. Every opening goes that way under perfect play."
+        },
+        {
+          "highlight": {
+            "target": "lesson"
+          },
+          "speak": "In 1952 Sandy Douglas put noughts and crosses on Cambridge's EDSAC computer: one of the first video games."
         },
         {
           "draw": [
@@ -36672,23 +39134,30 @@
             "cell_5",
             "cell_6",
             "cell_7",
-            "cell_8"
-          ],
-          "speak": "Nine squares. You are X and you move first; the computer is O."
-        },
-        {
-          "draw": [
+            "cell_8",
             "status"
           ],
-          "speak": "The computer follows one fixed rule, in this order: take a winning square, else block yours, else the centre, else a corner. It never misses a win or a block in front of it — but it cannot see a fork coming."
+          "speak": "Your board: you are X. The computer plays win, block, centre, then the first free corner: the rule that just lost."
         },
         {
           "ask": {
-            "question": "Play a game. Can you hold it to a draw?",
+            "question": "Play a game. Hold at least a draw, or find the fork.",
             "widget": "tictactoe",
             "answer": "draw",
-            "right": "A draw — which is the best either side can force. Answer every threat and there is nothing left to win with.",
-            "wrong": "The computer got that game. Press Continue, and open on a corner next time — two corners on one diagonal make a fork its rule cannot see."
+            "right": "Held. Against a perfect defender nobody does better than a draw; against this rule, corner then opposite corner wins.",
+            "wrong": "O got three in a row. Block its threat before building your own."
+          }
+        },
+        {
+          "quiz": {
+            "question": "X holds two opposite corners, O the centre. Where should O play?",
+            "choices": [
+              "Another corner",
+              "An edge",
+              "It doesn't matter"
+            ],
+            "correct": 2,
+            "right": "An edge: it makes a threat X must block, so X never gets the free move a fork needs."
           }
         }
       ]

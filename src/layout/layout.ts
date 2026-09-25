@@ -349,7 +349,7 @@ export function layoutSpec(
   const composed = (a: string, b: string) =>
     marks(a, b) || marks(b, a) || Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
   const layoutIssues = lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], composed);
-  layoutIssues.push(...headingIntrusions(drawables, measure));
+  layoutIssues.push(...headingIntrusions(drawables, measure, spec.commands));
   const atDraw = codeEl && !opts.skipDrawBeatLint ? paramsAtFirstDraw(rawSpec, codeEl.id) : null;
   if (!codeEl || atDraw === null) {
     issues.push(...layoutIssues);
@@ -556,7 +556,7 @@ export function inverseDomainMapping(domain: Spec["domain"], fit?: TemplateFit):
  * checked (2026-09-25 example revisions). Leaves of other drawables that rise
  * above the underline within the heading's width are reported.
  */
-function headingIntrusions(drawables: Drawable[], measure: MeasureFn): LintIssue[] {
+function headingIntrusions(drawables: Drawable[], measure: MeasureFn, commands?: Spec["commands"]): LintIssue[] {
   // The top heading only (its underline sits near the top edge); the TV-style
   // centre card is sketched mid-canvas and erased again.
   const lines = drawables.filter((d) => /^card_\d+_line$/.test(d.id) && d.kind === "stroke" && d.pts.every((p) => p[1] > 600));
@@ -567,9 +567,12 @@ function headingIntrusions(drawables: Drawable[], measure: MeasureFn): LintIssue
   const underline = Math.min(...lines.flatMap((d) => (d.kind === "stroke" ? d.pts.map((p) => p[1]) : [])));
   const tb = bboxOfText(title, measure);
   const inStrip = (x: number, y: number) => y > underline + 2 && x > tb.x && x < tb.x + tb.w;
+  // Only what is on screen WITH the heading: a template's own title that the
+  // cast hides before the card never shares the strip with it.
+  const together = coVisible(commands, drawables.map((d) => d.id));
   const issues: LintIssue[] = [];
   for (const d of drawables) {
-    if (/^card_\d+_/.test(d.id)) continue;
+    if (/^card_\d+_/.test(d.id) || !together(title.id, d.id)) continue;
     let hit: [number, number] | null = null;
     for (const leaf of leafDrawables([d])) {
       if (leaf.kind === "stroke" || leaf.kind === "area") {

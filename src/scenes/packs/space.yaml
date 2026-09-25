@@ -335,7 +335,10 @@ layout: |
     // until its box really is clear of every name already written.
     if (names !== "none") {
       const texts = sats.map(nameOf);
-      const widths = texts.map((t) => kit.textWidth(t, LABEL_PX));
+      // kit.textWidth is the heuristic; the browser's real glyphs run a little
+      // wider, so neighbours placed edge to edge overlapped on screen (Mercury
+      // and Earth at true sizes). A 12 % margin keeps them apart.
+      const widths = texts.map((t) => kit.textWidth(t, LABEL_PX) * 1.12);
       const tiers = eng.labelTiers(xs, widths, 6);
       // The captions are on the list from the start, the way they are in the
       // view below: they are pushed at the end but their boxes are fixed

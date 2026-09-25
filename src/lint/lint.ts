@@ -399,7 +399,10 @@ export function lintLayoutDetailed(
   const issues: LintIssue[] = [...lintCueTiming(drawables, commands ?? [], expandId)];
   const exempt: LintIssue[] = [];
   const leaves = lintableLeaves(drawables);
-  const texts = leaves.filter((d): d is TextDrawable => d.kind === "text");
+  // An empty text (a template's blank cell mark, waiting for a move) has no
+  // ink to collide with — tictactoe's cells were reported against every
+  // stroke through a cell centre (2026-09-25).
+  const texts = leaves.filter((d): d is TextDrawable => d.kind === "text" && d.text.trim() !== "");
   const strokes = leaves.filter((d): d is StrokeDrawable => d.kind === "stroke");
   // Leaf → owning top-level element, for the co-visibility exemption.
   const owner = new Map<string, string>();

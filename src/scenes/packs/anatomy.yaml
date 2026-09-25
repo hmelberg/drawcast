@@ -210,7 +210,9 @@ layout: |
     const mx = (bx1 - bx0) * 0.14 + 20, my = (by1 - by0) * 0.14 + 20;
     bx0 -= mx; bx1 += mx; by0 -= my; by1 += my;
   }
-  const FRAME = { x0: 60, y0: 70, x1: 940, y1: 700 };
+  // y 150–685: clear of the narration band below and the card heading above
+  // (was 70–700; every revised example needed a box — 2026-09-25).
+  const FRAME = { x0: 60, y0: 150, x1: 940, y1: 685 };
   const k = Math.min((FRAME.x1 - FRAME.x0) / (bx1 - bx0), (FRAME.y1 - FRAME.y0) / (by1 - by0));
   const cx = (FRAME.x0 + FRAME.x1) / 2, cy = (FRAME.y0 + FRAME.y1) / 2;
   const P = ([x, y]) => [cx + (x - (bx0 + bx1) / 2) * k, cy - (y - (by0 + by1) / 2) * k];

@@ -24,4 +24,11 @@ describe("heading-intrusion", () => {
   test("a tall stroke off to the side of the heading's words is not", () => {
     expect(intrusions(withPath(740, 60))).toEqual([]);
   });
+  test("an element hidden before the card never shares the strip with it", () => {
+    const spec = expandSpec({
+      elements: [{ id: "old_title", type: "text", text: "Tic-tac-toe", x: 500, y: 715 }],
+      commands: [{ hide: ["old_title"] }, { card: { title: "Why tic-tac-toe is a draw" } }],
+    } as Spec);
+    expect(intrusions(spec)).toEqual([]);
+  });
 });
