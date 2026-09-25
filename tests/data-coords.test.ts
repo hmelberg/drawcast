@@ -93,7 +93,7 @@ describe("a move is in the units of what it moves", () => {
 
 describe("a verb's point in data units", () => {
   test("point.at {data} on a template page", () => {
-    const spec = { ...surv({}, []), commands: [{ point: { at: { data: [4, 1] } } }] };
+    const spec = { ...surv({}, []), commands: [{ point: { at: { data: [4, 1] } } }] } as unknown as Spec;
     const l = layoutSpec(spec as Spec, heuristicMeasure);
     const p = planCommands(spec.commands as never, l.order, { ...planOptionsFor(spec as Spec, l) });
     const step = p.steps.find((s) => s.kind === "point") as { x: number; y: number };

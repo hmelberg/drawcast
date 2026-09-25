@@ -514,7 +514,8 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // template title drew a second one. +43. 215235 -> 215278.
 // Re-pinned UP 2026-09-25 (axes cross at the origin): the axes `cross` field. +190. 215278 -> 215468.
 // Re-pinned UP 2026-09-25 (one coordinate rule; {data} on template axes): the Units paragraph and the data forms. +1924. 215468 -> 217392.
-const BASELINE_SYSTEM_CHARS = 217392;
+// Re-pinned UP 2026-09-25 (a derivation as a structure): math `steps` and the `step` verb. +1683. 217392 -> 219075.
+const BASELINE_SYSTEM_CHARS = 219075;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -547,7 +548,8 @@ const BASELINE_SYSTEM_CHARS = 217392;
 // Re-pinned UP 2026-09-24 (emphasis as a highlighter): highlight `part` and `underline`. 82172 -> 82329.
 // Re-pinned UP 2026-09-25: the axes `cross` field. 82329 -> 82481.
 // Re-pinned UP 2026-09-25: `data` on at / end refs / verb points, and path `data: true`. 82481 -> 83685.
-const BASELINE_SCHEMA_CHARS = 83685;
+// Re-pinned UP 2026-09-25: math steps / step_gap / note_dx and the step command. 83685 -> 84874.
+const BASELINE_SCHEMA_CHARS = 84874;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

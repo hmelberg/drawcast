@@ -145,6 +145,12 @@ export interface SpecElement {
   shape?: "decision" | "chance" | "terminal" | "rect" | "circle" | "triangle" | "person";
   // tier-3 raw coordinates (logical units)
   points?: [number, number][];
+  /** math: the lines of a derivation that follow `tex`, written one per `step` beat (spec/derive.ts). */
+  steps?: (string | { tex: string; note?: string })[];
+  /** math with steps: canvas units between lines (default ≈ 3.2 × size). */
+  step_gap?: number;
+  /** math with steps: where the notes' column starts, canvas units right of the formula's centre (default 220). */
+  note_dx?: number;
   /** path/polygon: `points` are in DATA units (the page's domain, or the template's axes). */
   data?: boolean;
   closed?: boolean;
@@ -572,6 +578,8 @@ export interface Command {
   morph?: MorphArgs;
   /** Clone an element under a new id, visible where the source now stands. */
   copy?: CopyArgs;
+  /** Write the next line of a math element's `steps` (spec/derive.ts). */
+  step?: string | { target: string; in_place?: boolean; duration?: number };
   /** Dots or dashes streaming along strokes while the sentence lands. */
   flow?: FlowArgs;
   /** Keep a faded copy of what is about to be drawn over, in place. */

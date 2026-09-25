@@ -45,7 +45,7 @@ export const TARGET_VERBS = new Set(Object.keys(TARGET_FIELD));
 /** Verbs whose whole argument set is an object with no positional part. */
 export const OBJECT_VERBS = new Set(["point", "copy", "camera", "card", "clear", "quiz", "ask", "run", "explore", "if"]);
 /** Verbs and beat modifiers that take one value (or stand alone). */
-export const SCALAR_VERBS = new Set(["pause", "wait", "animate", "play"]);
+export const SCALAR_VERBS = new Set(["pause", "wait", "animate", "play", "step"]);
 
 /**
  * Fields that ride ALONG with a verb rather than being one: they belong to
@@ -76,8 +76,11 @@ const ARG_KEYS = new Map<string, Set<string>>();
 function argKeys(head: string): Set<string> {
   let keys = ARG_KEYS.get(head);
   if (!keys) {
-    const props = (specSchema as unknown as { properties: { commands: { items: { properties: Record<string, { properties?: Record<string, unknown> }> } } } })
-      .properties.commands.items.properties[head]?.properties;
+    const verb = (specSchema as unknown as { properties: { commands: { items: { properties: Record<string, { properties?: Record<string, unknown>; oneOf?: { properties?: Record<string, unknown> }[] }> } } } })
+      .properties.commands.items.properties[head];
+    // A verb that is a name OR an object (`step`) keeps its fields in the
+    // object branch of its oneOf.
+    const props = verb?.properties ?? verb?.oneOf?.find((v) => v.properties)?.properties;
     keys = new Set<string>(props ? Object.keys(props) : []);
     ARG_KEYS.set(head, keys);
   }

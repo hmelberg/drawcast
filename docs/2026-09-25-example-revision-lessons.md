@@ -44,7 +44,24 @@ lists every one, old request → new, form before → after.
   the heading's push-in fits long titles; supply_demand's dashed diagonal;
   `{var}` readouts and measures write decimal commas in Norwegian casts.
 
-**Needs a decision (Hans)** — each would change many figures at once:
+**Done after Hans's go-ahead (2, 3 and 5):**
+
+- **One coordinate rule** (decision 2), without breaking the 134 chart
+  coordinates the examples rely on: a bare `{x, y}` is canvas units except
+  the chart's own things on a page with a `domain`; `{"data": [x, y]}` is
+  data units anywhere; a `move`/`morph.to` is in the units of what it moves;
+  a point with no domain reads canvas units. The prompt has one "Units"
+  paragraph.
+- **Template axes** (decision 3): 26 chart templates report their data
+  frame, so `{data: [x, y]}` — and `data: true` paths, freehand curves and
+  regions — land on the template's own axes and follow `params.box`. #133's
+  hand-computed area is now written in months and survival.
+- **A derivation as a structure** (decision 5): `math` `steps` + one
+  `{"step": "eq"}` beat per line (copy, move one line down, morph, with an
+  optional note); `in_place` for a substitution. #37, #211, #233, #240 and
+  #261 converted; the script format reads and writes it.
+
+**Still open** — each would change many figures at once:
 
 1. **The caption band.** Measured after the revision: 79 of 287 single-page
    examples still put ink below y 112, where the narration captions sit —

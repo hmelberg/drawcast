@@ -112,3 +112,14 @@ describe("the data coordinate forms survive the round trip (2026-09-25)", () => 
     expect(check([spec])).toEqual({ broken: [], unstable: [] });
   });
 });
+
+describe("a derivation survives the round trip (2026-09-25)", () => {
+  test("math steps (strings and {tex, note}), step by name and step in place", () => {
+    const spec = {
+      title: "derivation",
+      elements: [{ id: "eq", type: "math", tex: "2x + 3 = 11", x: 300, y: 560, steps: ["2x = 8", { tex: "x = 4", note: "halve both sides" }], step_gap: 100 }],
+      commands: [{ draw: ["eq"] }, { step: "eq", speak: "Take three." }, { step: { target: "eq", in_place: true, duration: 2 } }],
+    } as unknown as Spec;
+    expect(check([spec])).toEqual({ broken: [], unstable: [] });
+  });
+});

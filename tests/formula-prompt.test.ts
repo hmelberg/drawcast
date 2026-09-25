@@ -26,7 +26,9 @@ describe("the prompt teaches morph.tex, copy, colors and the parametric curve (d
     expect(prompt).toContain('their new place, the rest fades out and in; write the whole new formula.');
     // (c) a `copy` gesture-verb line, right after `keep`.
     expect(prompt).toContain('`copy`: `{"copy": {"target": "eq", "as": "eq2"}, "speak": "Keep the line and work on a copy."}`');
-    expect(prompt).toContain('the derivation idiom is copy the line, move the copy down, morph its TeX');
+    // A derivation is `steps` + `step` since 2026-09-25 (spec/derive.ts).
+    expect(prompt).toContain('`step` — a DERIVATION');
+    expect(prompt).toContain('For the lines of a derivation, use `steps`/`step` above.');
     expect(prompt).toContain('(`keep` is the choice when the original should fade instead)');
     // `copy` was already in the verb list (Task 5) — never duplicated. Counted
     // against the `## Verbs` catalogue since the restructure: the old count was
@@ -49,11 +51,14 @@ describe("the prompt teaches morph.tex, copy, colors and the parametric curve (d
     expect(icer, "the ICER example is missing").toBeDefined();
     expect(circle, "the circle example is missing").toBeDefined();
 
-    // The derivation: a math element with colors on x, and two copy commands.
+    // The derivation: a math element with colors on x and two `steps`, each
+    // written by a `step` beat (the copy → move → morph idiom as a
+    // structure, 2026-09-25; the plan below still sees two copies and two
+    // morphs).
     const eq = derivation!.spec!.elements!.find((e) => e.type === "math");
     expect(eq?.colors).toMatchObject({ x: expect.any(String) });
-    expect(derivation!.spec!.commands!.filter((c) => c.copy)).toHaveLength(2);
-    expect(derivation!.spec!.commands!.filter((c) => (c.morph as { tex?: string } | undefined)?.tex)).toHaveLength(2);
+    expect(eq?.steps).toHaveLength(2);
+    expect(derivation!.spec!.commands!.filter((c) => c.step === eq!.id)).toHaveLength(2);
 
     // The ICER: colors on both sides of the math element, one morph.tex.
     const icerEq = icer!.spec!.elements!.find((e) => e.type === "math");

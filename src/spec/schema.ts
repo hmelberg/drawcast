@@ -275,6 +275,13 @@ const elementSchema = {
     stem: { type: "string", enum: ["up", "down"], description: "music: a note's stem direction (default up)." },
     dots: { type: "integer", minimum: 0, maximum: 2, description: "music: dots after a note (each adds half)." },
     time: { type: "string", description: "music: the time signature for symbol time, e.g. \"3/4\"." },
+    steps: {
+      type: "array",
+      items: { oneOf: [{ type: "string" }, { type: "object", properties: { tex: { type: "string" }, note: { type: "string" } }, required: ["tex"], additionalProperties: false }] },
+      description: 'math: a DERIVATION — the lines after `tex`, each written by one {"step": id} beat (copied down, morphed glyph by glyph); {"tex", "note"} adds a note beside the line. Lines are <id>_2, <id>_3, …; notes <id>_2_note.',
+    },
+    step_gap: { type: "number", description: "math with steps: canvas units between lines (default ≈ 3.2 × size)." },
+    note_dx: { type: "number", description: "math with steps: the notes' column, canvas units right of the formula's centre (default 220)." },
     colors: { type: "object", additionalProperties: { type: "string" }, description: 'math: colour per term, a TeX snippet → colour ({"x": "#2f6b8f", "\\\\Delta C": "#b5482e"}); every occurrence.' },
     set: { type: "string", description: "icon: icon set prefix (lucide, tabler, ph, heroicons, material-symbols; fa6-solid, twemoji as CC BY)." },
     credit: { type: "string", description: "image/icon: attribution (machine-written; copy VERBATIM if present)." },
@@ -928,6 +935,13 @@ const commandSchema = {
       },
       required: ["target"],
       additionalProperties: false,
+    },
+    step: {
+      description: 'Write the next line of a math element\'s `steps`: {"step": "eq", "speak": "…"} — the last line is copied one line down and morphs into the next TeX while the sentence plays. {"step": {"target": "eq", "in_place": true}} rewrites the current line instead (a substitution).',
+      oneOf: [
+        { type: "string" },
+        { type: "object", properties: { target: { type: "string" }, in_place: { type: "boolean" }, duration: { type: "number" } }, required: ["target"], additionalProperties: false },
+      ],
     },
     copy: {
       type: "object",
