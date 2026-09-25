@@ -1,10 +1,45 @@
 [
   {
+    "index": 0,
+    "before_request": "Show the forces on a crate resting on a ramp.",
+    "after_request": "Why doesn't a crate slide down a ramp?",
+    "kind_before": "free_body",
+    "kind_after": "free_body"
+  },
+  {
+    "index": 1,
+    "before_request": "Draw a benzene ring.",
+    "after_request": "Why is benzene so stable?",
+    "kind_before": "ring_molecule",
+    "kind_after": "ring_molecule"
+  },
+  {
     "index": 3,
     "before_request": "Show methane in 3D so the tetrahedral shape is clear.",
     "after_request": "Why isn't methane flat?",
     "kind_before": "playlist",
     "kind_after": "molecule_3d"
+  },
+  {
+    "index": 18,
+    "before_request": "Draw a production function with diminishing returns.",
+    "after_request": "Why does each extra worker add less than the one before?",
+    "kind_before": "generic_axes_diagram",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 31,
+    "before_request": "Draw a Venn diagram of two sets and shade their intersection.",
+    "after_request": "What do 'and' and 'or' mean in a Venn diagram?",
+    "kind_before": "venn_diagram",
+    "kind_after": "venn_diagram"
+  },
+  {
+    "index": 33,
+    "before_request": "Show the solution to x is greater than 1 on a number line.",
+    "after_request": "Why is x > 1 drawn with an open circle?",
+    "kind_before": "number_line",
+    "kind_after": "number_line"
   },
   {
     "index": 37,
@@ -33,6 +68,27 @@
     "after_request": "What does Bayes' theorem actually do?",
     "kind_before": "equation_steps",
     "kind_after": "equation_steps"
+  },
+  {
+    "index": 41,
+    "before_request": "Show the saddle surface z = x squared minus y squared, and walk around it in 3D.",
+    "after_request": "What is a saddle point?",
+    "kind_before": "plot3d",
+    "kind_after": "plot3d"
+  },
+  {
+    "index": 42,
+    "before_request": "Draw a 3D helix.",
+    "after_request": "What is a helix?",
+    "kind_before": "plot3d",
+    "kind_after": "plot3d"
+  },
+  {
+    "index": 48,
+    "before_request": "Draw the Lewis structure of water.",
+    "after_request": "Why is a water molecule bent?",
+    "kind_before": "lewis_dot",
+    "kind_after": "lewis_dot"
   },
   {
     "index": 53,

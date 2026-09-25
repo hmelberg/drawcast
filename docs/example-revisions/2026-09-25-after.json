@@ -1,8 +1,8 @@
 [
   {
-    "request": "Show the forces on a crate resting on a ramp.",
+    "request": "Why doesn't a crate slide down a ramp?",
     "spec": {
-      "title": "Forces on a ramp",
+      "title": "Why the crate stays put",
       "template": "free_body",
       "params": {
         "body": "box",
@@ -10,125 +10,196 @@
         "forces": [
           {
             "id": "gravity",
-            "label": "F_g = mg",
+            "label": "mg",
             "angle_deg": 270,
-            "magnitude": 0.8,
+            "magnitude": 0.4,
             "color": "red"
+          },
+          {
+            "id": "along",
+            "label": "mg sin θ",
+            "angle_deg": 210,
+            "magnitude": 0.2,
+            "color": "red",
+            "dash": true
+          },
+          {
+            "id": "into",
+            "label": "mg cos θ",
+            "angle_deg": 300,
+            "magnitude": 0.35,
+            "color": "red",
+            "dash": true
           },
           {
             "id": "normal",
             "label": "N",
             "angle_deg": 120,
-            "magnitude": 0.65,
+            "magnitude": 0.35,
             "color": "blue"
           },
           {
             "id": "friction",
             "label": "f",
             "angle_deg": 30,
-            "magnitude": 0.4,
+            "magnitude": 0.2,
             "color": "gray"
           }
         ]
       },
       "commands": [
         {
-          "speak": "Let's find every force acting on a crate resting on a ramp."
+          "card": {
+            "title": "Why the crate stays put"
+          }
         },
         {
           "draw": [
             "incline",
             "ground_hatch",
             "angle_arc",
-            "label_angle"
-          ],
-          "speak": "The ramp rises at thirty degrees."
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
+            "label_angle",
             "body"
           ],
-          "speak": "Here is the crate, sitting still on the slope."
-        },
-        {
-          "pause": 0.3
+          "speak": "A crate sits on a ramp and doesn't slide. Gravity pulls on it all the time, so what holds it still? Every force on it, one at a time."
         },
         {
           "draw": [
             "force_gravity",
             "label_gravity"
           ],
-          "speak": "Gravity pulls it straight down, no matter how the ramp tilts."
+          "speak": "Gravity pulls straight down, however the ramp tilts."
         },
         {
-          "pause": 0.3
+          "draw": [
+            "force_along",
+            "label_along",
+            "force_into",
+            "label_into"
+          ],
+          "parallel": true,
+          "speak": "Split it in two: one part presses the crate into the ramp, the other pulls it down along the slope."
+        },
+        {
+          "pause": 0.4
         },
         {
           "draw": [
             "force_normal",
             "label_normal"
           ],
-          "speak": "The ramp pushes back at a right angle to its surface — the normal force."
-        },
-        {
-          "pause": 0.3
+          "speak": "The ramp pushes back against the first part — the normal force, at a right angle to the surface."
         },
         {
           "draw": [
             "force_friction",
             "label_friction"
           ],
-          "speak": "And friction acts up the slope, holding the crate against sliding."
+          "speak": "Friction pulls up the slope, matching the second part exactly. Every force has a partner, so nothing moves."
         },
         {
-          "pause": 0.5
+          "highlight": {
+            "target": [
+              "force_along",
+              "force_friction"
+            ]
+          },
+          "speak": "Tilt the ramp steeper, and the downhill part, m g sine theta, grows — until friction can't keep up, and the crate slides."
         },
         {
-          "speak": "Because the crate is at rest, these three forces balance exactly."
+          "highlight": {
+            "target": [
+              "force_friction"
+            ]
+          },
+          "speak": "Friction can only grow so far: Guillaume Amontons found in 1699 that its limit is a fixed fraction of the normal force."
+        },
+        {
+          "quiz": {
+            "question": "The ramp is made steeper. What happens to the normal force?",
+            "choices": [
+              "It shrinks",
+              "It grows",
+              "It stays the same"
+            ],
+            "correct": 1,
+            "right": "It shrinks: less of gravity presses into a steeper ramp — m g cos theta falls as theta grows."
+          }
         }
       ]
     }
   },
   {
-    "request": "Draw a benzene ring.",
+    "request": "Why is benzene so stable?",
     "spec": {
-      "title": "Benzene",
+      "title": "Why benzene is special",
       "template": "ring_molecule",
       "params": {
         "ring_size": 6,
-        "aromatic": true,
-        "name": "Benzene C₆H₆"
+        "aromatic": true
       },
       "commands": [
         {
-          "speak": "This is benzene, the simplest aromatic ring."
+          "card": {
+            "title": "Why benzene is special"
+          }
         },
         {
           "draw": [
             "ring"
           ],
-          "speak": "Six carbon atoms form a perfect hexagon — every unlabeled corner is a carbon."
-        },
-        {
-          "pause": 0.3
+          "speak": "Benzene is one of chemistry's most stable rings, and its usual drawing hides why. Six carbons, one at each corner, each with a hydrogen."
         },
         {
           "draw": [
             "double_bonds"
           ],
-          "speak": "The inner lines mark alternating double bonds — in reality the electrons are shared evenly around the whole ring."
+          "speak": "The usual sketch alternates single and double bonds. Double bonds are shorter, so this ring should have long sides and short sides."
         },
         {
-          "pause": 0.3
+          "highlight": {
+            "target": [
+              "ring"
+            ]
+          },
+          "speak": "But measured, all six bonds are exactly the same length — in between a single and a double."
         },
         {
-          "draw": [
-            "molecule_name"
-          ],
-          "speak": "That shared electron cloud is what makes benzene unusually stable."
+          "point": {
+            "at": {
+              "ref": "ring"
+            },
+            "gesture": "circle"
+          },
+          "speak": "The six shared electrons aren't parked in three bonds. They spread around the whole ring, which is why many chemists draw a circle inside instead."
+        },
+        {
+          "highlight": {
+            "target": [
+              "double_bonds"
+            ]
+          },
+          "speak": "Spreading out lowers their energy. Adding hydrogen to benzene releases far less heat than three ordinary double bonds would — that missing energy is the extra stability."
+        },
+        {
+          "highlight": {
+            "target": [
+              "ring"
+            ]
+          },
+          "speak": "August Kekulé said the ring shape came to him in 1865, in a daydream of a snake biting its own tail."
+        },
+        {
+          "quiz": {
+            "question": "Why are all six bonds in benzene the same length?",
+            "choices": [
+              "The electrons are shared around the whole ring",
+              "The double bonds swap places too fast to see",
+              "Carbon can only form single bonds"
+            ],
+            "correct": 1,
+            "right": "The electrons are shared around the whole ring, so every bond is the same: part single, part double."
+          }
         }
       ]
     }
@@ -1597,51 +1668,294 @@
     }
   },
   {
-    "request": "Draw a production function with diminishing returns.",
+    "request": "Why does each extra worker add less than the one before?",
     "spec": {
-      "title": "Diminishing returns to labor",
-      "template": "generic_axes_diagram",
-      "params": {
-        "title": "Diminishing returns to labor",
-        "x_label": "Labor (L)",
-        "y_label": "Output (Q)",
-        "curves": [
-          {
-            "shape": "concave_down",
-            "label": "Q = f(L)"
-          }
+      "title": "Diminishing returns, in a bakery",
+      "domain": {
+        "x": [
+          0,
+          10
+        ],
+        "y": [
+          0,
+          110
         ]
       },
+      "elements": [
+        {
+          "id": "ax",
+          "type": "axes",
+          "x_label": "Bakers",
+          "y_label": "Loaves a day"
+        },
+        {
+          "id": "q",
+          "type": "curve",
+          "expr": "100*(1-exp(-0.3*x))",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "lin",
+          "type": "curve",
+          "expr": "25.92*x",
+          "x_from": 0,
+          "x_to": 4,
+          "style": {
+            "color": "#8f887c",
+            "dash": true
+          }
+        },
+        {
+          "id": "l_lin",
+          "type": "label",
+          "attach_to": "lin",
+          "side": "left",
+          "text": "if each added the same",
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "r1",
+          "type": "arrow",
+          "from": {
+            "x": 1,
+            "y": 0
+          },
+          "to": {
+            "x": 1,
+            "y": 25.92
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "r2",
+          "type": "arrow",
+          "from": {
+            "x": 2,
+            "y": 25.92
+          },
+          "to": {
+            "x": 2,
+            "y": 45.12
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "r3",
+          "type": "arrow",
+          "from": {
+            "x": 3,
+            "y": 45.12
+          },
+          "to": {
+            "x": 3,
+            "y": 59.34
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "r4",
+          "type": "arrow",
+          "from": {
+            "x": 4,
+            "y": 59.34
+          },
+          "to": {
+            "x": 4,
+            "y": 69.88
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "r5",
+          "type": "arrow",
+          "from": {
+            "x": 5,
+            "y": 69.88
+          },
+          "to": {
+            "x": 5,
+            "y": 77.69
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "t2",
+          "type": "curve",
+          "expr": "25.92",
+          "x_from": 1,
+          "x_to": 2,
+          "style": {
+            "color": "#b5482e",
+            "dash": true
+          }
+        },
+        {
+          "id": "t3",
+          "type": "curve",
+          "expr": "45.12",
+          "x_from": 2,
+          "x_to": 3,
+          "style": {
+            "color": "#b5482e",
+            "dash": true
+          }
+        },
+        {
+          "id": "t4",
+          "type": "curve",
+          "expr": "59.34",
+          "x_from": 3,
+          "x_to": 4,
+          "style": {
+            "color": "#b5482e",
+            "dash": true
+          }
+        },
+        {
+          "id": "t5",
+          "type": "curve",
+          "expr": "69.88",
+          "x_from": 4,
+          "x_to": 5,
+          "style": {
+            "color": "#b5482e",
+            "dash": true
+          }
+        },
+        {
+          "id": "l_r1",
+          "type": "label",
+          "attach_to": "r1",
+          "side": "right",
+          "text": "+26",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "l_r5",
+          "type": "label",
+          "attach_to": "r5",
+          "side": "right",
+          "text": "+8",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "risers",
+          "type": "group",
+          "members": [
+            "r1",
+            "r2",
+            "r3",
+            "r4",
+            "r5",
+            "t2",
+            "t3",
+            "t4",
+            "t5"
+          ]
+        }
+      ],
       "commands": [
         {
-          "speak": "As you add more labor to a fixed amount of capital, output keeps rising — but each extra worker adds less than the last."
+          "card": {
+            "title": "Diminishing returns"
+          }
         },
         {
           "draw": [
-            "axes",
-            "x_label",
-            "y_label"
+            "ax"
           ],
-          "speak": "Labor along the bottom, total output up the side."
-        },
-        {
-          "pause": 0.3
+          "speak": "Why does each extra worker add less than the one before? Economists call it diminishing returns. Take a bakery with one oven."
         },
         {
           "draw": [
-            "curve_0",
-            "label_curve_0"
+            "q"
           ],
-          "speak": "The production function climbs steeply at first, then flattens out."
-        },
-        {
-          "pause": 0.3
+          "speak": "Hire bakers one by one, and the loaves per day climb — but the curve bends over."
         },
         {
           "draw": [
-            "title"
+            "lin",
+            "l_lin"
           ],
-          "speak": "That flattening is diminishing returns: the curve is concave, even though output never falls."
+          "speak": "If every baker added the same, output would climb on this straight line instead."
+        },
+        {
+          "draw": [
+            "r1",
+            "l_r1"
+          ],
+          "speak": "The first baker, alone, makes twenty-six loaves a day."
+        },
+        {
+          "draw": [
+            "t2",
+            "r2",
+            "t3",
+            "r3",
+            "t4",
+            "r4"
+          ],
+          "speak": "The next ones add nineteen, then fourteen, then eleven."
+        },
+        {
+          "draw": [
+            "t5",
+            "r5",
+            "l_r5"
+          ],
+          "speak": "The fifth adds only eight."
+        },
+        {
+          "erase": [
+            "lin",
+            "l_lin"
+          ]
+        },
+        {
+          "highlight": {
+            "target": [
+              "risers"
+            ]
+          },
+          "speak": "Nobody got lazier. Each new baker shares the same oven and the same counter, so each has less to work with, and adds less."
+        },
+        {
+          "highlight": {
+            "target": [
+              "q"
+            ]
+          },
+          "speak": "Economists first saw this on farms: in 1815, David Ricardo and Thomas Malthus argued that more labour on the same land yields less and less."
+        },
+        {
+          "quiz": {
+            "question": "The bakery swaps its oven for one twice the size. What happens to the fifth baker's extra loaves?",
+            "choices": [
+              "They rise",
+              "They fall",
+              "They stay at eight"
+            ],
+            "correct": 1,
+            "right": "They rise: the returns diminish because the oven is fixed, so a bigger oven gives every extra baker more to work with."
+          }
         }
       ]
     }
@@ -2879,62 +3193,103 @@
     }
   },
   {
-    "request": "Draw a Venn diagram of two sets and shade their intersection.",
+    "request": "What do 'and' and 'or' mean in a Venn diagram?",
     "packs": [
       "mathlogic"
     ],
     "spec": {
-      "title": "Two sets and their intersection",
+      "title": "And, or, and the overlap",
       "template": "venn_diagram",
       "params": {
         "sets": [
           {
-            "label": "A"
+            "label": "Coffee",
+            "only_label": "22"
           },
           {
-            "label": "B"
+            "label": "Tea",
+            "only_label": "12"
           }
         ],
-        "shade": [
-          "ab"
-        ],
         "overlap_labels": {
-          "ab": "A ∩ B"
-        }
+          "ab": "8"
+        },
+        "shade": [
+          "ab",
+          "a",
+          "b"
+        ]
       },
       "commands": [
         {
-          "speak": "Let's look at two overlapping sets."
+          "card": {
+            "title": "And, or, and the overlap"
+          }
         },
         {
           "draw": [
             "universe"
           ],
-          "speak": "Everything inside this box is our universe — everything we're considering."
+          "speak": "A Venn diagram sorts things into groups, and it settles what 'and' and 'or' really mean. The box is everyone in one office."
         },
         {
           "draw": [
             "set_0",
             "set_label_0"
           ],
-          "speak": "This circle is set A."
+          "speak": "This circle holds the thirty who drink coffee."
         },
         {
           "draw": [
             "set_1",
             "set_label_1"
           ],
-          "speak": "And this one is set B."
-        },
-        {
-          "pause": 0.3
+          "speak": "This one, the twenty who drink tea. The circles overlap, because some people drink both."
         },
         {
           "draw": [
             "shade_ab",
             "region_label_ab"
           ],
-          "speak": "Where they overlap is A intersect B — elements that belong to both sets."
+          "speak": "Eight drink both. Coffee AND tea means only this middle region."
+        },
+        {
+          "draw": [
+            "shade_a",
+            "shade_b",
+            "region_label_a",
+            "region_label_b"
+          ],
+          "parallel": true,
+          "speak": "Coffee OR tea means any of the three regions: twenty-two only coffee, twelve only tea, and the eight in the middle."
+        },
+        {
+          "highlight": {
+            "target": [
+              "shade_ab"
+            ]
+          },
+          "speak": "So how many drink coffee or tea? Not thirty plus twenty: the eight sit in both circles, so adding the circles counts them twice."
+        },
+        {
+          "highlight": {
+            "target": [
+              "universe"
+            ]
+          },
+          "speak": "Take them off once: fifty minus eight, forty-two. John Venn drew these diagrams in 1880 to make exactly this kind of logic visible."
+        },
+        {
+          "quiz": {
+            "question": "15 people play football, 10 play chess, and 4 do both. How many play at least one?",
+            "choices": [
+              "25",
+              "21",
+              "29"
+            ],
+            "correct": 2,
+            "right": "Twenty-one: fifteen plus ten counts the four who do both twice, so take them off once."
+          }
         }
       ]
     }
@@ -3008,12 +3363,12 @@
     }
   },
   {
-    "request": "Show the solution to x is greater than 1 on a number line.",
+    "request": "Why is x > 1 drawn with an open circle?",
     "packs": [
       "mathlogic"
     ],
     "spec": {
-      "title": "Solving x > 1",
+      "title": "x > 1, and the hole at 1",
       "template": "number_line",
       "params": {
         "min": 0,
@@ -3036,7 +3391,9 @@
       },
       "commands": [
         {
-          "speak": "Let's solve x is greater than 1 on a number line."
+          "card": {
+            "title": "Why the circle is open"
+          }
         },
         {
           "draw": [
@@ -3048,21 +3405,53 @@
             "tick_4",
             "tick_5"
           ],
-          "speak": "Here's our number line, from zero to five."
+          "speak": "An inequality like x greater than one has infinitely many solutions. A number line shows them all at once — with one odd detail."
         },
         {
           "draw": [
-            "pt_0",
-            "pt_0_label"
+            "pt_0"
           ],
-          "speak": "At 1, we draw an open circle, since x can't equal 1 itself — just be greater than it."
+          "speak": "Start at one. Is one itself a solution? No: one is not greater than one. So the circle is left open, a hole."
         },
         {
           "draw": [
-            "interval_0",
-            "interval_0_label"
+            "interval_0"
           ],
-          "speak": "Everything to the right is shaded: every value greater than 1 solves the inequality."
+          "speak": "Everything to the right is shaded: two, three, one and a half, one point zero zero one — and on past five, forever."
+        },
+        {
+          "camera": {
+            "center": {
+              "ref": "pt_0"
+            },
+            "zoom": 3
+          },
+          "speak": "Why a hole, not a dot on the first solution? There is no first solution: name any number just above one, and there is a smaller one still above one."
+        },
+        {
+          "camera": {
+            "reset": true
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "interval_0"
+            ]
+          },
+          "speak": "Write x greater than or equal to one instead, and the circle is filled: now one itself belongs. The symbols are Thomas Harriot's, printed in 1631."
+        },
+        {
+          "quiz": {
+            "question": "How do you draw x ≤ 3?",
+            "choices": [
+              "A filled dot at 3, shaded to the left",
+              "An open circle at 3, shaded to the left",
+              "A filled dot at 3, shaded to the right"
+            ],
+            "correct": 1,
+            "right": "A filled dot at 3, shaded to the left: 3 itself belongs, and so does everything smaller."
+          }
         }
       ]
     }
@@ -4203,12 +4592,12 @@
     }
   },
   {
-    "request": "Show the saddle surface z = x squared minus y squared, and walk around it in 3D.",
+    "request": "What is a saddle point?",
     "packs": [
       "mathlogic"
     ],
     "spec": {
-      "title": "The saddle surface z = x² − y²",
+      "title": "A saddle point",
       "template": "plot3d",
       "params": {
         "surface": "x^2 - y^2",
@@ -4216,7 +4605,9 @@
       },
       "commands": [
         {
-          "speak": "A wireframe lets us see a 3D surface without it hiding what's behind it."
+          "card": {
+            "title": "What a saddle point is"
+          }
         },
         {
           "draw": [
@@ -4227,82 +4618,114 @@
             "axis_y_label",
             "axis_z_label"
           ],
-          "speak": "Here are the x, y and z axes."
-        },
-        {
-          "pause": 0.3
+          "speak": "A saddle point is a spot where a surface is perfectly flat, yet neither a peak nor a pit. Here is the classic one."
         },
         {
           "draw": [
             "wire_row_0",
-            "wire_row_1",
-            "wire_row_2",
-            "wire_row_3",
-            "wire_row_4",
-            "wire_row_5",
-            "wire_row_6",
-            "wire_row_7",
-            "wire_row_8",
-            "wire_row_9",
-            "wire_row_10",
-            "wire_row_11",
             "wire_col_0",
+            "wire_row_1",
             "wire_col_1",
+            "wire_row_2",
             "wire_col_2",
+            "wire_row_3",
             "wire_col_3",
+            "wire_row_4",
             "wire_col_4",
+            "wire_row_5",
             "wire_col_5",
+            "wire_row_6",
             "wire_col_6",
+            "wire_row_7",
             "wire_col_7",
+            "wire_row_8",
             "wire_col_8",
+            "wire_row_9",
             "wire_col_9",
+            "wire_row_10",
             "wire_col_10",
+            "wire_row_11",
             "wire_col_11"
           ],
-          "speak": "This is the saddle surface z equals x squared minus y squared — it curves up along one direction and down along the other."
+          "speak": "z equals x squared minus y squared. Along x it curves up; along y it curves down — the shape of a horse's saddle."
         },
         {
-          "pause": 0.3
+          "point": {
+            "at": {
+              "ref": "axis_z",
+              "anchor": "bottom"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Right in the middle, the surface is level in every direction."
         },
         {
           "animate": {
             "azimuth_deg": 95
           },
-          "duration": 1.8,
-          "speak": "From this side, the surface rises on both arms toward us."
+          "duration": 2.5,
+          "speak": "Walk around it. Along one direction, the middle is the lowest point of the curve…"
         },
         {
           "animate": {
             "azimuth_deg": 155
           },
-          "duration": 1.8,
-          "speak": "Now watch the ridge become a valley as we come around to the other side."
+          "duration": 2.5,
+          "speak": "…and along the other, it is the highest. A ball placed there would balance, then roll off at the slightest nudge."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "axis_z",
+              "anchor": "bottom"
+            },
+            "gesture": "tap"
+          },
+          "speak": "That matters when a computer searches for the lowest point of a surface, as when a machine-learning model is trained."
+        },
+        {
+          "speak": "In many dimensions, saddles like this far outnumber true bottoms, and a search can stall on one."
+        },
+        {
+          "quiz": {
+            "question": "At a saddle point the surface is flat in every direction. Is it a minimum?",
+            "choices": [
+              "Yes",
+              "No: it is a minimum one way and a maximum the other",
+              "Only when seen from above"
+            ],
+            "correct": 2,
+            "right": "No: along one direction it is the bottom of a valley, along the other the top of a ridge."
+          }
         }
       ]
     }
   },
   {
-    "request": "Draw a 3D helix.",
+    "request": "What is a helix?",
     "packs": [
       "mathlogic"
     ],
     "spec": {
-      "title": "A helix in 3D",
+      "title": "A helix: a circle that climbs",
       "template": "plot3d",
       "params": {
         "curve": {
           "x_expr": "cos(t)",
           "y_expr": "sin(t)",
-          "z_expr": "t/6",
+          "z_expr": "t/10",
           "t_min": 0,
-          "t_max": 37.69911184307752,
+          "t_max": 18.84955592153876,
           "samples": 200
         },
-        "azimuth_deg": 35
+        "azimuth_deg": 35,
+        "elevation_deg": 22
       },
       "commands": [
         {
-          "speak": "A helix is a curve that spirals steadily upward, like a spring or a strand of DNA's backbone."
+          "card": {
+            "title": "What a helix is"
+          }
         },
         {
           "draw": [
@@ -4313,23 +4736,55 @@
             "axis_y_label",
             "axis_z_label"
           ],
-          "speak": "Here are the x, y and z axes."
+          "speak": "A helix is the shape of a spring, a screw thread and DNA. What exactly is it?"
         },
         {
           "draw": [
             "curve"
           ],
-          "speak": "As the angle t sweeps around and around, x is cosine t, y is sine t, and z climbs steadily as t over six."
-        },
-        {
-          "pause": 0.3
+          "speak": "Go round a circle, and climb steadily while you do: x is cosine t, y is sine t, and z rises as t over ten."
         },
         {
           "animate": {
-            "azimuth_deg": 155
+            "elevation_deg": 85
           },
           "duration": 3,
-          "speak": "Let's orbit around it to see the spiral from every side."
+          "speak": "Look straight down the axis, and the climb disappears: all you see is the circle."
+        },
+        {
+          "animate": {
+            "elevation_deg": 0
+          },
+          "duration": 3,
+          "speak": "Look from the side, and the circle disappears instead: what is left is a wave."
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve"
+            ]
+          },
+          "speak": "So a helix is a circle and a climb at once. It turns up wherever something turns while moving forward: a drill bit, a climbing vine."
+        },
+        {
+          "animate": {
+            "elevation_deg": 22,
+            "azimuth_deg": 125
+          },
+          "duration": 3,
+          "speak": "In 1953, DNA's helix was read from Rosalind Franklin's X-ray photograph, whose X-shaped pattern is the mark of a helix seen side-on."
+        },
+        {
+          "quiz": {
+            "question": "Looking straight down a helix's axis, what do you see?",
+            "choices": [
+              "A circle",
+              "A straight line",
+              "A wave"
+            ],
+            "correct": 1,
+            "right": "A circle: from above, the steady climb is invisible, and only the turning is left."
+          }
         }
       ]
     }
@@ -4647,25 +5102,27 @@
     }
   },
   {
-    "request": "Draw the Lewis structure of water.",
+    "request": "Why is a water molecule bent?",
     "packs": [
       "chemistry"
     ],
     "spec": {
-      "title": "Lewis structure of water",
+      "title": "Why water is bent",
       "template": "lewis_dot",
       "params": {
         "molecule": "H2O"
       },
       "commands": [
         {
-          "speak": "Water's Lewis structure shows exactly how its electrons are shared and held."
+          "card": {
+            "title": "Why water is bent"
+          }
         },
         {
           "draw": [
             "atom_0"
           ],
-          "speak": "Oxygen sits at the center, with six valence electrons of its own."
+          "speak": "Why is a water molecule bent, not straight? Its Lewis structure, a bookkeeping of electrons, holds the answer. Oxygen brings six outer electrons."
         },
         {
           "draw": [
@@ -4674,14 +5131,66 @@
             "bond_0",
             "bond_1"
           ],
-          "speak": "It forms one single bond with each hydrogen, sharing one electron pair per bond."
+          "speak": "Each hydrogen shares one pair with it: two bonds."
         },
         {
           "draw": [
             "lp_0_0",
             "lp_0_1"
           ],
-          "speak": "That leaves oxygen with two lone pairs of its own — electrons that aren't shared, and the reason water's shape is bent rather than straight."
+          "speak": "That leaves two pairs on oxygen that belong to no bond — lone pairs. Now oxygen has eight around it, a full shell."
+        },
+        {
+          "camera": {
+            "center": {
+              "ref": "atom_0"
+            },
+            "zoom": 2.2
+          },
+          "speak": "The drawing is flat, but those four pairs repel each other in three dimensions, and spread to the corners of a tetrahedron, like methane's bonds."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bond_0",
+              "bond_1"
+            ]
+          },
+          "speak": "Two corners hold hydrogens and two hold lone pairs, so the molecule is bent, at about a hundred and four degrees."
+        },
+        {
+          "highlight": {
+            "target": [
+              "atom_0"
+            ]
+          },
+          "speak": "Carbon dioxide has no lone pairs on its carbon, and it is dead straight."
+        },
+        {
+          "highlight": {
+            "target": [
+              "lp_0_0",
+              "lp_0_1"
+            ]
+          },
+          "speak": "The bend is why water is polar: its oxygen end slightly negative, its hydrogen end slightly positive. That is why water dissolves salt and clings together as a liquid."
+        },
+        {
+          "camera": {
+            "reset": true
+          }
+        },
+        {
+          "quiz": {
+            "question": "Carbon dioxide has no lone pairs on its central carbon. What shape is it?",
+            "choices": [
+              "Straight",
+              "Bent",
+              "Tetrahedral"
+            ],
+            "correct": 1,
+            "right": "Straight: with only its two bonds to place, carbon puts them on opposite sides."
+          }
         }
       ]
     }

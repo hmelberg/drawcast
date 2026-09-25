@@ -55,6 +55,22 @@ against `frames.html?index=37`.
 All pass `tests/examples.test.ts` and the frame harness's browser lint, and
 each was looked at in the harness (silently: the harness plays no sound).
 
+## Revised — batch 2 (8 more)
+
+Same checklist, plus Hans's two rules from the pilot: the first line says
+what the drawcast is about, and one narrated line after a quiz answer.
+
+| # | Old request | New request | Form | What changed |
+|---|---|---|---|---|
+| 0 | Show the forces on a crate resting on a ramp. | Why doesn't a crate slide down a ramp? | free_body | gravity split into its two dashed parts, each balanced by one force; what a steeper ramp does; Amontons; quiz on the normal force |
+| 1 | Draw a benzene ring. | Why is benzene so stable? | ring_molecule | the alternating-bond sketch shown, then contradicted (all six bonds equal); the shared electrons circled; the missing heat of hydrogenation; Kekulé |
+| 18 | Draw a production function with diminishing returns. | Why does each extra worker add less than the one before? | generic_axes_diagram → freehand | a bakery with one oven: each baker's gain drawn as a step (+26 … +8), the straight line of equal gains drawn and erased; why (the fixed oven); Ricardo/Malthus 1815; quiz: a bigger oven |
+| 31 | Draw a Venn diagram of two sets and shade their intersection. | What do 'and' and 'or' mean in a Venn diagram? | venn_diagram | coffee and tea drinkers with counts; and = the middle, or = any of the three; why the overlap is subtracted once; Venn 1880; quiz on inclusion-exclusion |
+| 33 | Show the solution to x is greater than 1 on a number line. | Why is x > 1 drawn with an open circle? | number_line | the hole explained: there is no first number above 1; camera zooms onto the hole; ≥ as the contrast; Harriot's symbols |
+| 48 | Draw the Lewis structure of water. | Why is a water molecule bent? | lewis_dot | electron count → four pairs → tetrahedron → bent; CO₂ as the straight contrast; why the bend matters (polarity); camera zooms onto the molecule |
+| 41 | Show the saddle surface …, and walk around it in 3D. | What is a saddle point? | plot3d | flat in every direction yet neither top nor bottom, shown by walking round it; why it matters (optimisation stalls) |
+| 42 | Draw a 3D helix. | What is a helix? | plot3d | a circle plus a climb: seen from above a circle, from the side a wave (elevation animated); 3 turns instead of 12 so both views read; Franklin's photo 51 |
+
 ## Engine
 
 1. **`equation_steps` glyphs carried no TeX chain**, so `highlight.part` on a
@@ -126,13 +142,24 @@ each was looked at in the harness (silently: the harness plays no sound).
    is a heading only; a short `subtitle` under it (the question, in the
    hand, smaller) would make the topic visible for the whole cast, not just
    spoken once. (The `style: "center"` card already has a subtitle; the top
-   heading does not.)
+   heading does not.) Hans: not now, maybe later.
 6. **`equation_steps` `size` (built, opt-in).** Default 30 is unchanged;
    `size: 40–48` for a derivation that is the whole figure, with notes and
    gaps scaled and all steps shifted left together when a wide step's note
    would otherwise be pushed onto the formula (it did at 44, and lint did
    not see it — glyph/text overlap inside a template goes unlinted).
    Awaiting Hans's call on whether the examples should use it.
+
+7. **Zoom to the detail a sentence is about.** Batch 2 used `camera` zooms
+   by hand (the hole on the number line, the lone pairs) because the
+   template drew the detail too small. Like `walk: "zoom"`, a `highlight` on
+   a target smaller than some fraction of the canvas could frame it on its
+   own, so the author never writes the camera move.
+8. **The frame harness only shows resting frames**, so camera zooms (and
+   anything else between animates) are never seen. Showing every narrated
+   beat would catch them. (Also: screenshots are written a moment after the
+   tool returns, so read after a short pause, and use a new file name per
+   shot.)
 
 ## Hans's feedback on the pilot (2026-09-25)
 
@@ -146,6 +173,37 @@ each was looked at in the harness (silently: the harness plays no sound).
 - Size: shown E = mc² at 30 vs 44 (`size` param, opt-in); undecided.
 
 ## Template improvements
+
+**The main finding of batch 2: several templates draw at a fixed small
+scale.** `equation_steps` (size 30), `lewis_dot` (geometry hard-coded at about
+±110 units), `number_line` (a thin strip, small numerals), `plot3d` (190 units
+per reach, whatever the camera distance), `molecule_3d` and `ring_molecule`
+all leave most of the canvas empty. The thing the explanation is about (a
+lone pair, the hole at 1, the saddle) ends up a speck. The examples work
+around it with camera zooms, which is a patch. One rule for all of them
+would fix it: fit the figure to the free band (about y 150–690, clear of
+the heading and the caption band), the way freehand `fit` already does.
+
+- **Template docs promise ids that don't exist.** `ring_molecule` lists
+  `ring_center` "for gestures", but it is a layout anchor, so `point` can't
+  find it. `plot3d` lists `pt_<i>`, but draws only one of surface, curve or
+  points ("surface wins"), which the element list doesn't say. An LLM reads
+  these lists as a contract. Test idea: for each template, lay out its
+  manifest examples and check that every documented id pattern appears in
+  at least one of them.
+- **plot3d**: allow points (and a curve) on top of a surface. Marking the
+  saddle point or tracing a path over a surface is the natural teaching move,
+  and today it's impossible.
+- **venn_diagram**: the shading is "approximate": small blobs inside each
+  region, not the region filled. "Or = everything shaded" can't be shown.
+  Regions need exact shading (clip the circles).
+- **free_body**: arrows have a minimum length (lowering `magnitude` below
+  about 0.5 changes nothing), and the incline sits low, so a downward
+  force's label (gravity's `mg`) lands in the caption band.
+- **Built-in captions at the bottom** (`ring_molecule`'s `name`,
+  `molecule_3d`'s caption) sit under the narration band for the whole cast.
+  Either place them above the band or leave the caption to the cast.
+
 
 - **equation_steps**: glyphs now carry their TeX (fixed). Still missing:
   (a) steps that *morph* from one to the next, since a derivation is where
