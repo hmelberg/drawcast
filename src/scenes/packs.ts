@@ -118,6 +118,12 @@ export const PACK_DEFS: Record<string, PackDef> = {
     description: "The solar system: the Sun, planets, dwarf planets and moons drawn for a date at a chosen scale, every body clickable by name — and the night sky over a place at a moment, stars, planets and the Moon's phase.",
     load: async () => (await import("./packs/space.yaml?raw")).default,
   },
+  isometric: {
+    id: "isometric",
+    title: "2.5D & isometric",
+    description: "Isometric layer stacks, named blocks on a floor with links between them, and textbook 3D solids with dashed hidden edges and dimension labels — flat drawings that read as depth.",
+    load: async () => (await import("./packs/isometric.yaml?raw")).default,
+  },
   widgets: {
     id: "widgets",
     title: "Widgets",
@@ -151,6 +157,7 @@ export const PACK_TEMPLATES: Record<string, string[]> = {
   maps: ["world_map"],
   data: ["bar_chart", "bar_race", "data_table", "heatmap", "line_chart", "scatter_plot"],
   space: ["sky_map", "solar_system"],
+  isometric: ["geometric_solids", "isometric_blocks", "layer_stack"],
   widgets: ["bubble_sort", "logic_gates", "morse_key", "tictactoe", "tower_of_hanoi", "xylophone"],
 };
 

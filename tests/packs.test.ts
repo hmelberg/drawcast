@@ -14,6 +14,7 @@ import musicYaml from "../src/scenes/packs/music.yaml?raw";
 import statsYaml from "../src/scenes/packs/stats.yaml?raw";
 import mapsYaml from "../src/scenes/packs/maps.yaml?raw";
 import dataYaml from "../src/scenes/packs/data.yaml?raw";
+import isometricYaml from "../src/scenes/packs/isometric.yaml?raw";
 import { parsePack, registerPack, unregisterPack, isPackTemplateId, packTemplateIds, ensureEnabledPacks, PACK_DEFS, DEFAULT_OFF_PACKS } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
@@ -3109,6 +3110,49 @@ describe("data pack", () => {
       const a = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
       const b = scenes[tid].layout!(scenes[tid].manifest.examples[0].params);
       expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    }
+  });
+});
+
+describe("isometric pack", () => {
+  beforeEach(() => unregisterPack("isometric"));
+
+  const TEMPLATE_IDS = ["layer_stack", "isometric_blocks", "geometric_solids"];
+
+  test("registers all three templates", () => {
+    const r = registerPack("isometric", isometricYaml);
+    expect(r).toMatchObject({ ok: true, templateIds: TEMPLATE_IDS });
+  });
+
+  // Stricter than most packs: zero lint issues at any severity. The blocks
+  // template places names by the lint's own label-on-stroke test, so its
+  // examples must come out clean, warnings included.
+  test("every isometric example renders in bounds with no lint issue at all, deterministically", () => {
+    registerPack("isometric", isometricYaml);
+    for (const tid of TEMPLATE_IDS) {
+      for (const ex of scenes[tid].manifest.examples) {
+        const spec = { template: tid, params: ex.params, elements: [] } as never;
+        const res = layoutSpec(spec);
+        expect(res.warnings, `${tid}: ${ex.request}`).toEqual([]);
+        expect(res.issues.map((i) => `[${i.severity}] ${i.message}`), `${tid}: ${ex.request}`).toEqual([]);
+        for (const d of flattenDrawables(res.drawables)) {
+          const pts = d.kind === "stroke" || d.kind === "area" ? d.pts : d.kind === "text" ? [d.pos] : [];
+          for (const [x, y] of pts) {
+            expect(Number.isFinite(x) && Number.isFinite(y), `${tid} ${d.id}`).toBe(true);
+            expect(x >= -2 && x <= 1002 && y >= -2 && y <= 752, `${tid} ${d.id} at ${x},${y}`).toBe(true);
+          }
+        }
+        expect(JSON.stringify(layoutSpec(spec).drawables)).toBe(JSON.stringify(res.drawables));
+      }
+    }
+  });
+
+  test("odd params still lay out finite: no layers, no blocks, an unknown solid", () => {
+    registerPack("isometric", isometricYaml);
+    for (const [tid, params] of [["layer_stack", {}], ["isometric_blocks", {}], ["geometric_solids", { solid: "dodecahedron" }]] as const) {
+      const res = layoutSpec({ template: tid, params, elements: [] } as never);
+      expect(res.issues.filter((i) => i.severity === "error"), tid).toEqual([]);
+      for (const d of flattenDrawables(res.drawables)) if (d.kind === "stroke" || d.kind === "area") for (const [x, y] of d.pts) expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
     }
   });
 });
