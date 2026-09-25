@@ -381,6 +381,52 @@ inconclusive trials pool to a clear answer; weight = 1/SE²), #28 confounder
 - **Prompt**: the source rule says "exactly ONE reference", but #101 carries
   `of` and `url` and works — the rule and the exemplar disagree.
 
+## Round 7 lessons (September examples: anatomy, space, chess/puzzles, code-fed charts, bar charts)
+
+- **Fixed this round**: anatomy's default frame (y 150–685); solar_system
+  row labels reserve 12 % more width (the heuristic under-measures real
+  glyphs, so neighbours overlapped only in the browser); lint ignores
+  empty-text labels (tictactoe's blank cells); heading-intrusion only
+  counts what is on screen with the heading.
+- **Code-fed examples are never laid out by the Node gate** (token-fed
+  params stay unresolved there), so their real charts — end-name
+  collisions, the real y-range, overlap with the code panel — are only
+  seen in the browser harness, which does run Pyodide/webR. A code mark
+  fails when the panel wraps its line; the warning should say "wrapped".
+- **A template's fixed geometry blocks `box`** when widgets depend on it:
+  chess_board's 620-unit board puts ranks 1–2 under the captions, but the
+  chess ask and free play click fixed squares (widgets.ts CH_X0/CH_Y0), so
+  a fitted board would break clicking. Widgets should read the fitted
+  geometry.
+- **`params.box` scales the template but not the author's numbers**:
+  `move.by` on template parts (Hanoi's disks) and overlays at fixed
+  coordinates must be multiplied by the fit scale by hand. Exposing the
+  fit transform (or template-coordinate `at`) is the fix — the third round
+  running this came up.
+- **Templates without an animatable state cannot show a worked solution**:
+  tower_of_hanoi and tictactoe hold strings (`pegs`, `board`), so an
+  optimal solution or a sample game is hand-placed moves or a second,
+  freehand board. A `step`/`stage` param that plays the solution would make
+  it one animate.
+- **Group members advertised as ids are not addressable**: morse_key's
+  `chart_<letter>` (and earlier reaction_scheme's members) report "unknown
+  id" to highlight/focus. Either the engine resolves template group members
+  or the manifests stop listing them.
+- **Anatomy**: labels under `focus` go through the ordinary solver and
+  collide (only the browser saw it); whole-body figures leave organs a speck
+  (a "trunk" crop is needed); the spleen is drawn dashed with the
+  retroperitoneal organs although it is intraperitoneal — examples correct
+  it in narration; no ids for sub-parts (thumb, scaphoid, heart apex); a
+  typed `ask` cannot accept alternative answers ("femur" / "os femoris").
+- **Space**: sky_map's compass N reaches the heading; `mark` works only with
+  constellation lines on; `place_label` shows local mean solar time (20:43
+  for 22:00 CEST) — narration giving clock time contradicts it; bodies that
+  rise during an animate pop in via the implicit final draw; solar_system
+  cannot mark a zone (frost line, habitable zone) — `marks: [{at_au}]`.
+- **Charts**: line_chart has no reference-line style (a threshold drawn as
+  a data series) and no log scale; line_chart/scatter_plot have no
+  per-point ids, so the peak or the Anscombe outlier cannot be pointed at.
+
 ## Hans's feedback on the pilot (2026-09-25)
 
 - Better. But openings still jump in without saying what the drawcast is
