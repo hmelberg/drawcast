@@ -54686,11 +54686,6 @@
       ],
       "commands": [
         {
-          "hide": [
-            "title"
-          ]
-        },
-        {
           "card": {
             "title": "What an XOR gate is for"
           }
@@ -54849,11 +54844,6 @@
         }
       ],
       "commands": [
-        {
-          "hide": [
-            "title"
-          ]
-        },
         {
           "card": {
             "title": "Why short bars ring high"
@@ -55018,7 +55008,6 @@
       "commands": [
         {
           "hide": [
-            "title",
             "hint",
             "counter"
           ]

@@ -315,13 +315,16 @@ params:
     b:
       type: boolean
       description: "Input B on/off — the widget sets this; default false."
+    title:
+      type: string
+      description: "Heading above the gate — none unless given (a cast's card is its heading)."
 element_ids:
   switch_a: input A's switch pad (tap to flip)
   switch_b: input B's switch pad (tap to flip)
   gate: the gate body with its name
   bulb: the output bulb (lit when the output is 1)
   wires: the wiring (a group)
-  title: the title
+  title: the heading, when `title` is given
 examples:
   - request: "What does an XOR gate do?"
     params: { gate: "XOR" }
@@ -334,7 +337,7 @@ layout: |
   const out = gate === "AND" ? a && b : gate === "OR" ? a || b : gate === "XOR" ? a !== b : !(a && b);
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
-  push(kit.text("title", [500, 700], gate + " gate", { fontSize: 30 }));
+  if (typeof params.title === "string" && params.title.trim() !== "") push(kit.text("title", [500, 700], params.title, { fontSize: 30 }));
   push(kit.pad("switch_a", [180, 460], "A = " + (a ? 1 : 0), { w: 150, h: 64 }, { fill: a ? C.series[2] : undefined }));
   push(kit.pad("switch_b", [180, 300], "B = " + (b ? 1 : 0), { w: 150, h: 64 }, { fill: b ? C.series[2] : undefined }));
   push(kit.group("wires", [
@@ -402,7 +405,7 @@ params:
   properties:
     title:
       type: string
-      description: "Heading above the bars (default \"Xylophone\")."
+      description: "Heading above the bars — none unless given (a cast's card is its heading)."
     played:
       type: string
       description: "Notes played so far, space separated (e.g. \"C4 E4 G4\") — the widget sets this; leave empty."
@@ -418,7 +421,7 @@ element_ids:
   key_done: the done pad (tap to deliver the tune)
   played: the line of notes played so far
   hint: the keyboard hint line, drawn with the pads
-  title: the title
+  title: the heading, when `title` is given
 examples:
   - request: "A xylophone I can play."
     params: {}
@@ -429,8 +432,9 @@ layout: |
   const NOTES = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
-  const title = typeof params.title === "string" && params.title.trim() !== "" ? params.title : "Xylophone";
-  push(kit.text("title", [500, 700], title, { fontSize: 30 }));
+  // No default heading: a cast opens with its own card, and a second title
+  // under it had to be hidden by hand in every example (2026-09-25).
+  if (typeof params.title === "string" && params.title.trim() !== "") push(kit.text("title", [500, 700], params.title, { fontSize: 30 }));
   push(kit.text("played", [500, 630], params.played ?? "", { fontSize: 34, color: C.demand }));
   push(kit.text("hint", [500, 582], "keys 1 to 8 play the bars · enter delivers the tune", { fontSize: 16, color: C.guide }));
   const BASE = 170;
@@ -512,11 +516,14 @@ params:
     swaps:
       type: integer
       description: "Swaps made so far — the widget sets this; leave empty."
+    title:
+      type: string
+      description: "Heading above the bars — none unless given (a cast's card is its heading)."
 element_ids:
   bar_0: the leftmost bar (one bar_<i> per value — bar_0 … bar_<n−1> — labelled with its value)
   counter: the swap counter
   hint: the line that states the neighbours-only rule
-  title: the title
+  title: the heading, when `title` is given
 examples:
   - request: "Sort six bars the way bubble sort does."
     params: { values: [5, 2, 8, 1, 9, 3] }
@@ -534,7 +541,7 @@ layout: |
   const ranked = values.slice().sort((a, b) => a - b);
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
-  push(kit.text("title", [500, 700], "Bubble sort", { fontSize: 30 }));
+  if (typeof params.title === "string" && params.title.trim() !== "") push(kit.text("title", [500, 700], params.title, { fontSize: 30 }));
   push(kit.text("counter", [500, 645], "swaps: " + (Number.isInteger(params.swaps) ? params.swaps : 0), { fontSize: 22, color: C.guide }));
   push(kit.text("hint", [500, 600], "drag a bar onto a NEIGHBOUR — or click both — to swap them", { fontSize: 16, color: C.guide }));
   const BASE = 150, PITCH = 820 / n, W = Math.min(120, PITCH - 22);
