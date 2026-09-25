@@ -133,7 +133,7 @@ function bundledCast(index: number): Cast {
 }
 
 /** Boundaries the viewer rests at, with why. */
-function restingFrames(plan: { steps: { kind: string }[]; states: { params: Record<string, number> }[] }): { at: number; changed: string }[] {
+function restingFrames(plan: { steps: { kind: string; text?: string; narration?: string }[]; states: { params: Record<string, number> }[] }, everyBeat = false): { at: number; changed: string }[] {
   const out: { at: number; changed: string }[] = [];
   const firstDraw = plan.steps.findIndex((s) => s.kind === "draw");
   if (firstDraw >= 0) out.push({ at: firstDraw + 1, changed: "first ink" });
@@ -148,6 +148,18 @@ function restingFrames(plan: { steps: { kind: string }[]; states: { params: Reco
     }
   });
   if (plan.steps.length > 0) out.push({ at: plan.steps.length, changed: "end" });
+  // Every beat (?beats=all): a frame after each narrated line — what the
+  // viewer sees while it is spoken (added last, so a boundary that is also
+  // first ink, an animate or the end keeps that name). Resting frames alone never show a camera
+  // zoom, the middle of a derivation or a label placed and later erased,
+  // which is where layouts break (the ledger's feature ideas 2 and 8; two
+  // agents built their own truncation hacks for it, 2026-09-25).
+  if (everyBeat) {
+    plan.steps.forEach((s, i) => {
+      const line = s.kind === "speak" ? s.text : s.narration;
+      if (line) out.push({ at: i + 1, changed: `beat “${line.length > 40 ? line.slice(0, 39) + "…" : line}”` });
+    });
+  }
   // Dedupe by boundary, keeping the first reason given for it.
   const seen = new Set<number>();
   return out.filter((f) => (seen.has(f.at) ? false : (seen.add(f.at), true))).sort((a, b) => a.at - b.at);
@@ -156,6 +168,10 @@ function restingFrames(plan: { steps: { kind: string }[]; states: { params: Reco
 function speakBetween(steps: { kind: string; text?: string }[], from: number, to: number): string[] {
   return steps.slice(from, to).flatMap((s) => (s.kind === "speak" && s.text ? [s.text] : []));
 }
+
+/** Whether this run shows every narrated beat, not just the resting frames. */
+let everyBeatFlag = new URLSearchParams(location.search).get("beats") === "all";
+const everyBeat = () => everyBeatFlag;
 
 /** Mount a spec off-screen, walk every boundary, and report what broke. */
 async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
@@ -173,7 +189,7 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
   const hd = await render(spec, host, { mode: "silent" });
   try {
     report.planWarnings = hd.plan.warnings;
-    const frames = restingFrames(hd.plan);
+    const frames = restingFrames(hd.plan as never, everyBeat());
     // Does it play at all? Step every boundary, not just the resting ones —
     // an exception halfway through a cast is invisible to any lint.
     for (let n = 0; n <= hd.plan.steps.length; n++) {
@@ -322,7 +338,7 @@ async function show(cast: Cast): Promise<CastReport> {
 
 const header = h("header");
 header.append(h("h1", {}, "drawcast frames (dev)"));
-const hint = h("span", { class: "hint" }, "?index=<n> · ?cast=<url> · or paste a spec / {request, spec} / playlist YAML and press ⌘⏎");
+const hint = h("span", { class: "hint" }, "?index=<n> · ?cast=<url> · &beats=all · or paste a spec / {request, spec} / playlist YAML and press ⌘⏎");
 header.append(hint);
 const box = h("textarea", { placeholder: "paste a cast here, then ⌘⏎ / Ctrl+⏎" });
 header.append(box);
@@ -353,10 +369,11 @@ box.addEventListener("keydown", (e) => {
  */
 declare global {
   interface Window {
-    __frames: (input?: { index?: number; cast?: string; text?: string }) => Promise<CastReport>;
+    __frames: (input?: { index?: number; cast?: string; text?: string; beats?: "all" | "resting" }) => Promise<CastReport>;
   }
 }
 window.__frames = async (input) => {
+  if (input?.beats !== undefined) everyBeatFlag = input.beats === "all";
   if (input?.text !== undefined) return run(parseCastText(input.text, "passed in"));
   if (input?.index !== undefined) return run(bundledCast(input.index));
   if (input?.cast !== undefined) {
