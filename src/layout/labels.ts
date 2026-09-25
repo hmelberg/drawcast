@@ -82,6 +82,9 @@ export interface Obstacle {
   solid: boolean;
   /** The drawable this box came from, so a label can ignore its own (see LabelRequest.ignore). */
   id?: string;
+  /** For a stroke piece: the segment itself, so a candidate can ask what the
+   *  lint asks — does a line cross the label's core? */
+  seg?: [Pt, Pt];
 }
 
 /** The ink box of a math group: the union of its glyph rings. Null for empty TeX. */
@@ -135,7 +138,7 @@ export function obstacleBoxes(drawables: Drawable[], measure: MeasureFn): Obstac
           for (let k = 0; k < steps; k++) {
             const p0: Pt = [a[0] + ((b[0] - a[0]) * k) / steps, a[1] + ((b[1] - a[1]) * k) / steps];
             const p1: Pt = [a[0] + ((b[0] - a[0]) * (k + 1)) / steps, a[1] + ((b[1] - a[1]) * (k + 1)) / steps];
-            obstacles.push({ box: expandBox(bboxOfPts([p0, p1]), pad), solid: false, id: d.id });
+            obstacles.push({ box: expandBox(bboxOfPts([p0, p1]), pad), solid: false, id: d.id, seg: [p0, p1] });
           }
         }
       }
@@ -214,6 +217,26 @@ function overlapArea(a: BBox, b: BBox): number {
   return w > 0 && h > 0 ? w * h : 0;
 }
 
+/** The label's core — the box the label–stroke lint measures (lint.ts): a
+ *  line through it threatens legibility, a graze of the edge does not. */
+function coreOf(b: BBox): BBox {
+  return { x: b.x + b.w * 0.2, y: b.y + b.h * 0.25, w: b.w * 0.6, h: b.h * 0.5 };
+}
+
+function segmentHitsBox([a, b]: [Pt, Pt], r: BBox): boolean {
+  const inside = (p: Pt) => p[0] >= r.x && p[0] <= r.x + r.w && p[1] >= r.y && p[1] <= r.y + r.h;
+  if (inside(a) || inside(b)) return true;
+  const cross = (p: Pt, q: Pt, u: Pt, v: Pt) => {
+    const d = (q[0] - p[0]) * (v[1] - u[1]) - (q[1] - p[1]) * (v[0] - u[0]);
+    if (d === 0) return false;
+    const t = ((u[0] - p[0]) * (v[1] - u[1]) - (u[1] - p[1]) * (v[0] - u[0])) / d;
+    const w = ((u[0] - p[0]) * (q[1] - p[1]) - (u[1] - p[1]) * (q[0] - p[0])) / d;
+    return t >= 0 && t <= 1 && w >= 0 && w <= 1;
+  };
+  const c: Pt[] = [[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h]];
+  return c.some((p, i) => cross(a, b, p, c[(i + 1) % 4]));
+}
+
 /** Rings 0..NEAR_RINGS-1 count as "near the anchor" — no leader needed there. */
 const NEAR_RINGS = 2;
 
@@ -242,6 +265,16 @@ export function placeLabels(
 
     let chosen: { box: BBox; ringIndex: number } | null = null;
     let softNear: { box: BBox; ringIndex: number; penalty: number } | null = null;
+    /** The nearest spot no line crosses the core of, however much it grazes. */
+    let coreClean: { box: BBox; ringIndex: number; penalty: number } | null = null;
+    // A line through the label's core is what the label–stroke lint reports;
+    // the solver used to accept it near the anchor ("grazing beats exile")
+    // and the lint then blamed the author (ledger, Engine #4: labels on
+    // curves, on the y-axis). Near spots must now leave the core clear.
+    const crossed = (box: BBox) => {
+      const core = coreOf(box);
+      return inPlay.some((o) => !o.solid && o.seg !== undefined && segmentHitsBox(o.seg, core));
+    };
     if (!pin) {
       outer: for (const [ringIndex, r] of rings.entries()) {
         for (const side of sides) {
@@ -251,6 +284,10 @@ export function placeLabels(
           if (penalty === 0) {
             chosen = { box, ringIndex };
             break outer;
+          }
+          if (crossed(box)) continue;
+          if (coreClean === null || ringIndex < coreClean.ringIndex || (ringIndex === coreClean.ringIndex && penalty < coreClean.penalty)) {
+            coreClean = { box, ringIndex, penalty };
           }
           if (ringIndex < NEAR_RINGS && (softNear === null || penalty < softNear.penalty)) {
             softNear = { box, ringIndex, penalty };
@@ -268,7 +305,7 @@ export function placeLabels(
     // Nothing fits anywhere: keep the preferred spot and let lint report it.
     const finalBox = pin
       ? clampToCanvas({ x: req.anchor[0] + pin.d[0] - w / 2, y: req.anchor[1] + pin.d[1] - h / 2, w, h })
-      : (chosen?.box ?? clampToCanvas(candidateBox(req.anchor, req.side, rings[0], w, h)));
+      : (chosen?.box ?? coreClean?.box ?? clampToCanvas(candidateBox(req.anchor, req.side, rings[0], w, h)));
     // Pinned or not, the spot is taken: labels solved after this one avoid it.
     blocked.push({ box: finalBox, solid: true });
 
@@ -288,7 +325,8 @@ export function placeLabels(
     void bboxOfText(text, measure);
 
     let leader: StrokeDrawable | undefined;
-    const wantsLeader = pin ? pin.leader : !!chosen && chosen.ringIndex >= 2;
+    const used = chosen ?? coreClean;
+    const wantsLeader = pin ? pin.leader : !!used && used.ringIndex >= 2;
     if (wantsLeader) {
       // Displaced far: draw a thin leader from the anchor toward the label edge.
       const cx = finalBox.x + finalBox.w / 2;
