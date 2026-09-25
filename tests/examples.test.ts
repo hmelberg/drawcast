@@ -206,6 +206,40 @@ describe("bundled examples stay exemplary", () => {
     expect(templateParamErrors(spec.template, spec.params ?? {})).toEqual([]);
   });
 
+  // A template param the storyboard animates (a demand shift, a threshold, a
+  // camera angle) is a promise about the frame the viewer then sits on: that
+  // frame must lint as cleanly as the first, warnings included. The planning
+  // test above only asks the posed layout for errors; the frames harness
+  // found an E label pushed onto its guides after an AD shift that this gate
+  // passed (2026-09-25 example revisions).
+  // Examples this check found colliding when it was added, awaiting their
+  // revision in the example-revision batches (docs/2026-09-25-example-revision-
+  // lessons.md). The list only shrinks; a new entry is a regression.
+  const PENDING_ANIMATE_LINT = new Set([
+    "Why are averages always bell-shaped, even when the data isn't?",
+    "Explain how bicycle gears work: why a small rear cog makes pedalling harder but faster, and a big one easier but slower.",
+    "A tax is collected from sellers, so why do buyers end up paying part of it?",
+  ]);
+  test.each(cases)("%s — every template param state the storyboard animates to lints clean", (req, spec) => {
+    if (!spec.template || PENDING_ANIMATE_LINT.has(req)) return;
+    const varNames = new Set(Object.keys(spec.vars ?? {}));
+    let overrides: Record<string, number> = {};
+    for (const cmd of (spec.commands ?? []) as Command[]) {
+      if (!cmd.animate) continue;
+      const next = { ...overrides };
+      let touched = false;
+      for (const [k, v] of Object.entries(cmd.animate)) {
+        if (typeof v !== "number" || k === "stage" || varNames.has(k)) continue;
+        next[k] = v;
+        touched = true;
+      }
+      if (!touched) continue;
+      overrides = next;
+      const at = layoutSpec({ ...spec, params: withOverrides(spec.params, overrides) }, undefined, undefined, undefined, { skipDrawBeatLint: true });
+      expect(at.issues.map((i) => `[${i.severity}] ${i.message}`), JSON.stringify(overrides)).toEqual([]);
+    }
+  });
+
   // An animate target is a promise about a LATER frame: the tests above only
   // ever see stage 0. A figure that lints clean at rest and collides halfway
   // through its own animation is exactly the defect an example must not model.

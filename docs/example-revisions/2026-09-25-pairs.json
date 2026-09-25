@@ -14,6 +14,13 @@
     "kind_after": "ring_molecule"
   },
   {
+    "index": 2,
+    "before_request": "Show a protein's secondary structure.",
+    "after_request": "Why do proteins fold into helices and sheets?",
+    "kind_before": "protein_secondary",
+    "kind_after": "protein_secondary"
+  },
+  {
     "index": 3,
     "before_request": "Show methane in 3D so the tetrahedral shape is clear.",
     "after_request": "Why isn't methane flat?",
@@ -21,11 +28,88 @@
     "kind_after": "molecule_3d"
   },
   {
+    "index": 5,
+    "before_request": "Show demand shifting right and animate the new equilibrium.",
+    "after_request": "What happens to price and quantity when demand shifts right?",
+    "kind_before": "supply_demand",
+    "kind_after": "supply_demand"
+  },
+  {
+    "index": 6,
+    "before_request": "Draw a decision tree comparing surgery with medication, with probabilities and QALYs.",
+    "after_request": "How does a decision tree choose between surgery and medication?",
+    "kind_before": "decision_tree",
+    "kind_after": "decision_tree"
+  },
+  {
+    "index": 7,
+    "before_request": "Show the QALYs gained from a treatment compared with no treatment.",
+    "after_request": "What does 'QALYs gained' by a treatment actually measure?",
+    "kind_before": "qaly_profiles",
+    "kind_after": "qaly_profiles"
+  },
+  {
+    "index": 8,
+    "before_request": "Explain what mitochondria do.",
+    "after_request": "What do mitochondria actually do?",
+    "kind_before": "cell_diagram",
+    "kind_after": "cell_diagram"
+  },
+  {
+    "index": 11,
+    "before_request": "Draw the DNA double helix and explain base pairing.",
+    "after_request": "Why does DNA pair A with T and C with G?",
+    "kind_before": "dna_helix",
+    "kind_after": "dna_helix"
+  },
+  {
+    "index": 13,
+    "before_request": "Draw the combustion of methane.",
+    "after_request": "How much oxygen does burning methane use, and what comes out?",
+    "kind_before": "reaction_scheme",
+    "kind_after": "reaction_scheme"
+  },
+  {
     "index": 18,
     "before_request": "Draw a production function with diminishing returns.",
     "after_request": "Why does each extra worker add less than the one before?",
     "kind_before": "generic_axes_diagram",
     "kind_after": "freehand"
+  },
+  {
+    "index": 19,
+    "before_request": "Draw a three-state Markov model: Well, Sick, Dead.",
+    "after_request": "How does a Markov model follow patients through the years?",
+    "kind_before": "markov_model",
+    "kind_after": "markov_model"
+  },
+  {
+    "index": 20,
+    "before_request": "Show two treatments on a cost-effectiveness plane with a WTP threshold of 30,000 per QALY.",
+    "after_request": "How do you read a cost-effectiveness plane?",
+    "kind_before": "cost_effectiveness_plane",
+    "kind_after": "cost_effectiveness_plane"
+  },
+  {
+    "index": 22,
+    "before_request": "Show how a consumer chooses the bundle that maximizes their utility.",
+    "after_request": "How do you get the most out of a fixed budget?",
+    "kind_before": "indifference_budget",
+    "kind_after": "indifference_budget"
+  },
+  {
+    "index": 24,
+    "before_request": "Show the deadweight loss created by a monopoly.",
+    "after_request": "What does a monopoly cost, beyond high prices?",
+    "kind_before": "firm_cost_curves",
+    "kind_after": "firm_cost_curves"
+  },
+  {
+    "index": 25,
+    "before_request": "Show aggregate demand shifting right and animate the new equilibrium.",
+    "after_request": "When a whole economy spends more, why doesn't it just produce more?",
+    "kind_before": "ad_as",
+    "kind_after": "ad_as"
   },
   {
     "index": 31,

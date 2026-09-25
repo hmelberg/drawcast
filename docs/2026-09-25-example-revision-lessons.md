@@ -71,6 +71,25 @@ what the drawcast is about, and one narrated line after a quiz answer.
 | 41 | Show the saddle surface …, and walk around it in 3D. | What is a saddle point? | plot3d | flat in every direction yet neither top nor bottom, shown by walking round it; why it matters (optimisation stalls) |
 | 42 | Draw a 3D helix. | What is a helix? | plot3d | a circle plus a climb: seen from above a circle, from the side a wave (elevation animated); 3 turns instead of 12 so both views read; Franklin's photo 51 |
 
+## Revised — round 3 (12, by three parallel agents in worktrees)
+
+| # | New request | Template kept | Core of the explanation |
+|---|---|---|---|
+| 2 | Why do proteins fold into helices and sheets? | protein_secondary + freehand | backbone H-bonds (i→i+4) drawn as beads; any sequence can form them; Pauling 1951 |
+| 8 | What do mitochondria actually do? | cell_diagram | 2 ATP without oxygen vs ~30 with; the proton dam and spinning ATP synthase; oxygen ends as water |
+| 11 | Why does DNA pair A with T and C with G? | dna_helix + letter rows | big-with-small keeps every rung one width; unzip and rebuild; Chargaff-style quiz |
+| 13 | How much oxygen does burning methane use, and what comes out? | reaction_scheme + math | balancing by morph; mass tallies; 1 kg gas → 2.75 kg CO₂ |
+| 5 | What happens to price and quantity when demand shifts right? | supply_demand | Valentine's roses; only half the extra demand is served; steep supply makes it all price |
+| 22 | How do you get the most out of a fixed budget? | indifference_budget | $60, coffee and sandwiches; the tangency; a price rise slides the mix |
+| 24 | What does a monopoly cost, beyond high prices? | firm_cost_curves | the only ferry; MR worked in numbers; transfer vs the deadweight triangle |
+| 25 | When a whole economy spends more, why doesn't it just produce more? | ad_as | the naive "all output" guess; half output, half prices; long run buys prices |
+| 6 | How does a decision tree choose between surgery and medication? | decision_tree | best vs worst case disagree; fold-back 8.1 vs 7.4 QALYs; switch point p ≈ 0.27 |
+| 7 | What does 'QALYs gained' by a treatment actually measure? | qaly_profiles | exact areas; better years vs extra years; Zeckhauser & Shepard 1976 |
+| 19 | How does a Markov model follow patients through the years? | markov_model | a cohort of 1000 traced with var-bound counts; no memory; discounting |
+| 20 | How do you read a cost-effectiveness plane? | cost_effectiveness_plane | ICER as slope; threshold animated; judge against the next best, not doing nothing |
+
+All twelve are lint-clean in the browser harness (not only in the Node gate).
+
 ## Engine
 
 1. **`equation_steps` glyphs carried no TeX chain**, so `highlight.part` on a

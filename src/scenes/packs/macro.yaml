@@ -375,7 +375,10 @@ layout: |
   push(kit.stroke("guides", [[plot.x0, eqL[1]], eqL, [eqL[0], plot.y0]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }));
   push(kit.stroke("eq", [eqL], { shapeHint: { type: "circle", c: eqL, r: 7 }, strokeWidth: 3, fill: C.ink, ms: MS.dot }));
   anchors.eq = eqL;
-  label("label_eq", eqL, "above-right", "E", C.ink, 22);
+  // "right": the gap between AD (falling) and AS (rising). "above-right" is
+  // where a shifted AD′ and E′ land, and the solver then pushed E onto the
+  // guide (2026-09-25 example revisions).
+  label("label_eq", eqL, "above", "E", C.ink, 22);
 
   if (showLras) {
     const lrasX = sx(eqX);
@@ -397,7 +400,9 @@ layout: |
       label("label_ad_shifted", anchors.ad_shifted, "right", "AD′", C.shifted, 20);
       eqX2 = (100 + dx) / 2;
       eqY2 = eqX2;
-      const midBase = adPts[Math.floor(adPts.length / 2)];
+      // Along the curve, not at its middle: the middle sample IS the equilibrium,
+      // and an arrow from E left E's label nowhere to go but onto the guides.
+      const midBase = adPts[Math.floor(adPts.length * 0.72)];
       const midShift = [midBase[0] + dx, midBase[1]];
       push(kit.stroke("shift_arrow", [[sx(midBase[0]), sy(midBase[1])], [sx(midShift[0]), sy(midShift[1])]], Object.assign({ color: C.guide, strokeWidth: 3, ms: MS.arrow }, Math.abs(dx) >= 2 ? { arrowhead: "end" } : {})));
     } else {
@@ -408,7 +413,7 @@ layout: |
       label("label_as_shifted", anchors.as_shifted, "right", "AS′", C.shifted, 20);
       eqX2 = (100 + dx) / 2;
       eqY2 = eqX2 - dx;
-      const midBase = asPts[Math.floor(asPts.length / 2)];
+      const midBase = asPts[Math.floor(asPts.length * 0.72)];
       const midShift = [midBase[0] + dx, midBase[1]];
       push(kit.stroke("shift_arrow", [[sx(midBase[0]), sy(midBase[1])], [sx(midShift[0]), sy(midShift[1])]], Object.assign({ color: C.guide, strokeWidth: 3, ms: MS.arrow }, Math.abs(dx) >= 2 ? { arrowhead: "end" } : {})));
     }

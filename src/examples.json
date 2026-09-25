@@ -205,62 +205,505 @@
     }
   },
   {
-    "request": "Show a protein's secondary structure.",
+    "request": "Why do proteins fold into helices and sheets?",
     "spec": {
-      "title": "Protein secondary structure",
+      "title": "Helices and sheets",
       "template": "protein_secondary",
       "params": {
-        "ss": "CCHHHHHHCCEEEEECC"
+        "segments": [
+          {
+            "kind": "loop"
+          },
+          {
+            "kind": "helix",
+            "label": "α-helix"
+          },
+          {
+            "kind": "loop"
+          },
+          {
+            "kind": "sheet",
+            "label": "β-strand"
+          },
+          {
+            "kind": "loop"
+          },
+          {
+            "kind": "sheet"
+          },
+          {
+            "kind": "loop"
+          }
+        ]
       },
+      "elements": [
+        {
+          "id": "bd1",
+          "type": "shape",
+          "shape": "circle",
+          "x": 220,
+          "y": 575,
+          "radius": 18,
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "bd2",
+          "type": "shape",
+          "shape": "circle",
+          "x": 290,
+          "y": 575,
+          "radius": 18,
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "bd3",
+          "type": "shape",
+          "shape": "circle",
+          "x": 360,
+          "y": 575,
+          "radius": 18,
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "bd4",
+          "type": "shape",
+          "shape": "circle",
+          "x": 430,
+          "y": 575,
+          "radius": 18,
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "bd5",
+          "type": "shape",
+          "shape": "circle",
+          "x": 500,
+          "y": 575,
+          "radius": 18,
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "bd6",
+          "type": "shape",
+          "shape": "circle",
+          "x": 570,
+          "y": 575,
+          "radius": 18,
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "bd7",
+          "type": "shape",
+          "shape": "circle",
+          "x": 640,
+          "y": 575,
+          "radius": 18,
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "bd8",
+          "type": "shape",
+          "shape": "circle",
+          "x": 710,
+          "y": 575,
+          "radius": 18,
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "bd9",
+          "type": "shape",
+          "shape": "circle",
+          "x": 780,
+          "y": 575,
+          "radius": 18,
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "hb1",
+          "type": "path",
+          "smooth": true,
+          "points": [
+            [
+              220,
+              592
+            ],
+            [
+              360,
+              640
+            ],
+            [
+              500,
+              592
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "dash": true,
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "hb2",
+          "type": "path",
+          "smooth": true,
+          "points": [
+            [
+              290,
+              558
+            ],
+            [
+              430,
+              515
+            ],
+            [
+              570,
+              558
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "dash": true,
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "l_hb1",
+          "type": "label",
+          "attach_to": "hb1",
+          "side": "above",
+          "text": "1 grabs 5",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "helix_row",
+          "type": "group",
+          "members": [
+            "bd1",
+            "bd2",
+            "bd3",
+            "bd4",
+            "bd5",
+            "bd6",
+            "bd7",
+            "bd8",
+            "bd9"
+          ]
+        },
+        {
+          "id": "helix_model",
+          "type": "group",
+          "members": [
+            "helix_row",
+            "hb1",
+            "hb2",
+            "l_hb1"
+          ]
+        },
+        {
+          "id": "sa",
+          "type": "arrow",
+          "from": {
+            "x": 320,
+            "y": 635
+          },
+          "to": {
+            "x": 680,
+            "y": 635
+          },
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "sb",
+          "type": "arrow",
+          "from": {
+            "x": 680,
+            "y": 535
+          },
+          "to": {
+            "x": 320,
+            "y": 535
+          },
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "sr0",
+          "type": "path",
+          "points": [
+            [
+              360,
+              617
+            ],
+            [
+              360,
+              553
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "dash": true,
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "sr1",
+          "type": "path",
+          "points": [
+            [
+              430,
+              617
+            ],
+            [
+              430,
+              553
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "dash": true,
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "sr2",
+          "type": "path",
+          "points": [
+            [
+              500,
+              617
+            ],
+            [
+              500,
+              553
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "dash": true,
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "sr3",
+          "type": "path",
+          "points": [
+            [
+              570,
+              617
+            ],
+            [
+              570,
+              553
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "dash": true,
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "sr4",
+          "type": "path",
+          "points": [
+            [
+              640,
+              617
+            ],
+            [
+              640,
+              553
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "dash": true,
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "ladder",
+          "type": "group",
+          "members": [
+            "sr0",
+            "sr1",
+            "sr2",
+            "sr3",
+            "sr4"
+          ]
+        },
+        {
+          "id": "sheet_model",
+          "type": "group",
+          "members": [
+            "sa",
+            "sb",
+            "ladder"
+          ]
+        },
+        {
+          "id": "models",
+          "type": "group",
+          "members": [
+            "helix_model",
+            "sheet_model"
+          ],
+          "walk": "replace"
+        }
+      ],
       "commands": [
         {
-          "speak": "A protein chain folds into a few recurring local shapes — its secondary structure."
+          "card": {
+            "title": "Helices and sheets"
+          }
         },
         {
           "draw": [
             "n_term",
-            "seg_0"
-          ],
-          "speak": "Reading from the N terminus, the chain starts as a flexible loop."
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
+            "seg_0",
             "seg_1",
             "label_1"
           ],
-          "speak": "Then it coils into an alpha helix, held together by hydrogen bonds along the backbone."
-        },
-        {
-          "pause": 0.3
+          "speak": "Why does almost every protein fold into the same two shapes, helices and sheets? This chain, read from its N end, starts with a helix."
         },
         {
           "draw": [
-            "seg_2"
-          ],
-          "speak": "Another short loop turns the chain around."
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
+            "seg_2",
             "seg_3",
-            "label_3"
+            "label_3",
+            "seg_4",
+            "seg_5"
           ],
-          "speak": "Here it stretches out into a beta strand, drawn as a flat arrow."
-        },
-        {
-          "pause": 0.3
+          "speak": "Then it stretches out flat into beta strands, drawn as arrows: two here, with a tight turn between them."
         },
         {
           "draw": [
-            "seg_4",
+            "seg_6",
             "c_term"
           ],
-          "speak": "And a final loop carries the chain to the C terminus."
+          "speak": "A protein works by its shape, and these two are the bricks most shapes are built from."
+        },
+        {
+          "highlight": {
+            "target": [
+              "seg_1",
+              "seg_3"
+            ]
+          },
+          "speak": "The puzzle: chains are strung from twenty kinds of amino acid in endless orders, yet these same two shapes turn up nearly everywhere."
+        },
+        {
+          "draw": [
+            "helix_row"
+          ],
+          "speak": "Unroll a helix into its amino acids. Each has the same backbone: an oxygen on one side, an N–H hydrogen on the other."
+        },
+        {
+          "draw": [
+            "hb1",
+            "l_hb1"
+          ],
+          "speak": "In a helix, the oxygen of amino acid one grabs the hydrogen of amino acid five: a hydrogen bond, four places along."
+        },
+        {
+          "draw": [
+            "hb2"
+          ],
+          "speak": "Two grabs six, three grabs seven, and so on. Each bond tugs the chain round, one turn for every three point six amino acids."
+        },
+        {
+          "highlight": {
+            "target": [
+              "hb1",
+              "hb2"
+            ]
+          },
+          "speak": "Those bonds belong to the backbone, which every amino acid has. So almost any sequence can wind into a helix."
+        },
+        {
+          "draw": [
+            "sa"
+          ],
+          "speak": "A strand is the opposite: stretched nearly straight, so its oxygens and hydrogens point out sideways instead of along the chain."
+        },
+        {
+          "draw": [
+            "sb",
+            "ladder"
+          ],
+          "speak": "Lay a second strand beside it, running the other way, and the same bonds join them like ladder rungs: a flat sheet."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "seg_4"
+            },
+            "gesture": "circle"
+          },
+          "speak": "That is what this tight turn is for: the chain folds back, and its two strands lie side by side and pair up."
+        },
+        {
+          "highlight": {
+            "target": [
+              "label_1"
+            ]
+          },
+          "speak": "Linus Pauling worked out the alpha helix in 1951 from the geometry of the backbone alone."
+        },
+        {
+          "highlight": {
+            "target": [
+              "seg_1",
+              "seg_3"
+            ]
+          },
+          "speak": "You can feel the difference: the keratin in hair is mostly helices, which can stretch, and silk is mostly sheets, already stretched out."
+        },
+        {
+          "quiz": {
+            "question": "What holds an alpha helix together?",
+            "choices": [
+              "Bonds between the side chains",
+              "Hydrogen bonds along the backbone, four amino acids apart",
+              "Bonds to a second protein chain"
+            ],
+            "correct": 2,
+            "right": "Hydrogen bonds along the backbone: each oxygen grabs the hydrogen four amino acids ahead, and every amino acid has that backbone."
+          }
         }
       ]
     }
@@ -421,13 +864,22 @@
     }
   },
   {
-    "request": "Show demand shifting right and animate the new equilibrium.",
+    "request": "What happens to price and quantity when demand shifts right?",
     "spec": {
-      "title": "Demand shift, animated",
+      "title": "Valentine's roses",
       "template": "supply_demand",
       "params": {
-        "demand": {
-          "steepness": 1
+        "x_label": "Roses sold per day",
+        "y_label": "Price per rose",
+        "demand": {},
+        "supply": {
+          "elasticity": 1
+        },
+        "equilibrium": {
+          "show": true,
+          "guides": true,
+          "p_label": "$2.00",
+          "q_label": "1,000"
         },
         "demand_shift": {
           "amount": 0
@@ -435,36 +887,29 @@
       },
       "commands": [
         {
-          "speak": "Let's watch a market adjust when demand shifts."
+          "card": {
+            "title": "When demand jumps"
+          }
         },
         {
           "draw": [
             "axes"
           ],
-          "speak": "Quantity sits on the horizontal axis, price on the vertical."
-        },
-        {
-          "pause": 0.3
+          "speak": "What happens to a market when demand shifts right? Take roses in one city: how many the florists sell a day, and the price of one rose."
         },
         {
           "draw": [
             "demand_curve",
             "label_D"
           ],
-          "speak": "This downward-sloping line is demand: as price falls, buyers want more."
-        },
-        {
-          "pause": 0.3
+          "speak": "Demand slopes down: the cheaper a rose, the more of them people buy."
         },
         {
           "draw": [
             "supply_curve",
             "label_S"
           ],
-          "speak": "This upward-sloping line is supply: higher prices draw out more sellers."
-        },
-        {
-          "pause": 0.3
+          "speak": "Supply slopes up: at a higher price, it pays growers and florists to bring more roses in."
         },
         {
           "draw": [
@@ -474,10 +919,10 @@
             "label_Pstar",
             "label_Qstar"
           ],
-          "speak": "Where the two lines cross is equilibrium — the price and quantity the market settles on."
+          "speak": "In an ordinary week they meet here: two dollars a rose, and a thousand roses a day."
         },
         {
-          "pause": 0.3
+          "pause": 0.4
         },
         {
           "draw": [
@@ -485,10 +930,32 @@
             "label_D_shift",
             "demand_shift_arrow"
           ],
-          "speak": "Here's a copy of the demand curve — right now it sits exactly on top of the original."
+          "speak": "Then Valentine's week arrives. Here is a copy of demand, for now lying exactly on the old one."
         },
         {
-          "pause": 0.3
+          "animate": {
+            "demand_shift.amount": 20
+          },
+          "duration": 3,
+          "speak": "At every price, buyers now want four hundred more roses a day, so the whole demand curve slides right."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 679,
+              "y": 385
+            },
+            "gesture": "tap"
+          },
+          "speak": "The tempting guess: four hundred more roses sold, out to here, still at two dollars each."
+        },
+        {
+          "highlight": {
+            "target": [
+              "supply_curve"
+            ]
+          },
+          "speak": "But at two dollars, florists still offer only a thousand. Four hundred buyers find nothing, and the price gets bid up."
         },
         {
           "draw": [
@@ -498,77 +965,104 @@
             "label_P_shift",
             "label_Q_shift"
           ],
-          "speak": "Its equilibrium starts right where today's market already clears."
+          "speak": "The market settles here instead: about two dollars thirty-five a rose, and twelve hundred sold."
         },
         {
-          "pause": 0.5
+          "point": {
+            "at": {
+              "ref": "shift_equilibrium_point"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Only half the extra demand gets served. The higher price does two jobs: it talks some buyers out of it, and brings more roses in."
         },
         {
           "animate": {
-            "demand_shift.amount": 22
+            "supply.elasticity": 0.15
           },
           "duration": 3,
-          "speak": "Now incomes rise — at every price, buyers want more, so the whole curve slides to the right."
-        },
-        {
-          "pause": 0.3
+          "speak": "How it splits depends on supply. Most roses sold in America are grown in Colombia and Ecuador, planted months ahead, so a week's notice adds few."
         },
         {
           "highlight": {
             "target": [
-              "equilibrium_point",
               "shift_equilibrium_point"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "Where it crosses supply, both price and quantity have risen — compare the old and new equilibrium."
+          "speak": "With supply this steep, the same jump in demand turns almost entirely into price: barely more roses, each one much dearer."
+        },
+        {
+          "highlight": {
+            "target": [
+              "shift_guide_lines"
+            ]
+          },
+          "speak": "So the Valentine's price rise is not greed stepping in. It is how a market shares out the roses it has, and calls for more."
+        },
+        {
+          "quiz": {
+            "question": "Suppose not one extra rose could reach the city in Valentine's week. What does the jump in demand do?",
+            "choices": [
+              "Raises the price only",
+              "Raises sales only",
+              "Raises both"
+            ],
+            "correct": 1,
+            "right": "Only the price rises: with the roses fixed at a thousand, the price must climb until buyers want exactly the roses there are."
+          }
         }
       ]
     }
   },
   {
-    "request": "Draw a decision tree comparing surgery with medication, with probabilities and QALYs.",
+    "request": "How does a decision tree choose between surgery and medication?",
     "spec": {
       "title": "Surgery or medication?",
       "template": "decision_tree",
       "params": {
+        "box": {
+          "x": 20,
+          "y": 225,
+          "w": 960,
+          "h": 450
+        },
         "root": {
           "id": "choice",
           "type": "decision",
-          "label": "Treatment choice",
+          "label": "Treatment",
           "children": [
             {
-              "label": "Surgery",
+              "label": "",
               "node": {
                 "id": "surgery",
                 "type": "chance",
                 "label": "Surgery",
                 "children": [
                   {
-                    "label": "Success",
-                    "probability": 0.9,
+                    "label": "Works",
+                    "probability": 0.85,
                     "node": {
                       "id": "s_ok",
                       "type": "terminal",
-                      "label": "Full recovery",
-                      "payoff": 9.5
+                      "label": "Cured",
+                      "payoff": 9
                     }
                   },
                   {
                     "label": "Complication",
-                    "probability": 0.1,
+                    "probability": 0.15,
                     "node": {
                       "id": "s_bad",
                       "type": "terminal",
                       "label": "Complication",
-                      "payoff": 4
+                      "payoff": 3
                     }
                   }
                 ]
               }
             },
             {
-              "label": "Medication",
+              "label": "",
               "node": {
                 "id": "med",
                 "type": "chance",
@@ -581,7 +1075,7 @@
                       "id": "m_ok",
                       "type": "terminal",
                       "label": "Controlled",
-                      "payoff": 7.5
+                      "payoff": 8
                     }
                   },
                   {
@@ -591,7 +1085,7 @@
                       "id": "m_bad",
                       "type": "terminal",
                       "label": "Still ill",
-                      "payoff": 5
+                      "payoff": 6
                     }
                   }
                 ]
@@ -600,31 +1094,58 @@
           ]
         }
       },
+      "elements": [
+        {
+          "id": "ev_surgery",
+          "type": "label",
+          "attach_to": "node_surgery",
+          "side": "below-left",
+          "text": "8.1 QALYs",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "ev_med",
+          "type": "label",
+          "attach_to": "node_med",
+          "side": "below",
+          "text": "7.4 QALYs",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "threshold",
+          "type": "math",
+          "tex": "9(1-p) + 3p = 7.4 \\;\\Rightarrow\\; p \\approx 0.27",
+          "x": 500,
+          "y": 180,
+          "colors": {
+            "p": "#b5482e"
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "Let's work out which treatment we should expect to give the patient more good years."
+          "card": {
+            "title": "Surgery or medication?"
+          }
         },
         {
           "draw": [
             "node_choice",
             "label_choice"
           ],
-          "speak": "The square is the choice we control: surgery or medication."
-        },
-        {
-          "pause": 0.3
+          "speak": "A decision tree picks a treatment when every option is a gamble. Here, the same disease can be operated on or treated with tablets."
         },
         {
           "draw": [
             "edge_choice_surgery",
-            "branchlabel_choice_surgery",
             "node_surgery",
             "label_surgery"
           ],
-          "speak": "Take surgery first. The circle means what happens next is chance, not choice."
-        },
-        {
-          "pause": 0.3
+          "speak": "The square is the choice we make. Choose surgery, and we reach a circle: from here on, chance decides."
         },
         {
           "draw": [
@@ -634,7 +1155,7 @@
             "label_s_ok",
             "payoff_s_ok"
           ],
-          "speak": "Nine times in ten it works, and the patient gains nine and a half quality-adjusted life years."
+          "speak": "Eighty-five times in a hundred the operation works, and the patient can expect nine quality-adjusted life years."
         },
         {
           "draw": [
@@ -644,22 +1165,18 @@
             "label_s_bad",
             "payoff_s_bad"
           ],
-          "speak": "One time in ten there's a complication, and only four."
+          "speak": "Fifteen times in a hundred there is a serious complication, and only three."
         },
         {
-          "pause": 0.5
+          "pause": 0.4
         },
         {
           "draw": [
             "edge_choice_med",
-            "branchlabel_choice_med",
             "node_med",
             "label_med"
           ],
-          "speak": "Medication is a gamble too, just a gentler one."
-        },
-        {
-          "pause": 0.3
+          "speak": "Medication is a gamble too, only a milder one."
         },
         {
           "draw": [
@@ -674,44 +1191,105 @@
             "label_m_bad",
             "payoff_m_bad"
           ],
-          "speak": "Seven times in ten the disease is controlled at seven and a half years; otherwise five."
-        },
-        {
-          "pause": 0.5
-        },
-        {
-          "highlight": {
-            "target": [
-              "node_surgery"
-            ],
-            "effect": "glow"
-          },
-          "speak": "Now fold the tree back: nine point five times nought point nine, plus four times nought point one, is eight point nine five for surgery."
-        },
-        {
-          "highlight": {
-            "target": [
-              "node_med"
-            ],
-            "effect": "glow"
-          },
-          "speak": "The same sum for medication gives six point seven five."
+          "speak": "Seven in ten are well controlled, at eight QALYs; the other three in ten get six."
         },
         {
           "pause": 0.4
         },
         {
-          "speak": "Surgery wins on expected QALYs — and that number, not the best case, is what we weigh against its cost."
+          "highlight": {
+            "target": [
+              "payoff_s_ok",
+              "payoff_m_ok"
+            ]
+          },
+          "speak": "Compare the best cases and surgery wins, nine to eight."
+        },
+        {
+          "highlight": {
+            "target": [
+              "payoff_s_bad",
+              "payoff_m_bad"
+            ]
+          },
+          "speak": "Compare the worst cases and medication wins, six to three. Neither comparison is the answer."
+        },
+        {
+          "draw": [
+            "ev_surgery"
+          ],
+          "speak": "Instead, fold the tree back: weight each ending by its chance. Nine times 0.85 plus three times 0.15 gives surgery 8.1 expected QALYs."
+        },
+        {
+          "draw": [
+            "ev_med"
+          ],
+          "speak": "Eight times 0.7 plus six times 0.3 gives medication 7.4."
+        },
+        {
+          "highlight": {
+            "target": [
+              "ev_surgery"
+            ]
+          },
+          "speak": "Surgery, by 0.7 QALYs a patient, even though about one patient in seven ends up worse off than on tablets."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "threshold"
+          ],
+          "speak": "How safe is that verdict? Let the complication risk be p. Surgery keeps winning until p passes about 0.27."
+        },
+        {
+          "highlight": {
+            "target": [
+              "threshold"
+            ],
+            "part": "0.27"
+          },
+          "speak": "So the question for the evidence is not the average risk, but whether it could plausibly be above one in four."
+        },
+        {
+          "highlight": {
+            "target": [
+              "node_surgery",
+              "node_med"
+            ]
+          },
+          "speak": "Costs fold back the same way. The difference in expected cost, over these 0.7 QALYs, is the price of each QALY gained."
+        },
+        {
+          "quiz": {
+            "question": "The complication risk turns out to be 0.2, not 0.15. Which option does the tree now pick?",
+            "choices": [
+              "Surgery",
+              "Medication",
+              "It depends on the best case"
+            ],
+            "correct": 1,
+            "right": "Still surgery: nine times 0.8 plus three times 0.2 is 7.8, above medication's 7.4. The switch comes only past about 0.27."
+          }
         }
       ]
     }
   },
   {
-    "request": "Show the QALYs gained from a treatment compared with no treatment.",
+    "request": "What does 'QALYs gained' by a treatment actually measure?",
     "spec": {
-      "title": "QALYs gained",
+      "title": "What a QALY gained measures",
       "template": "qaly_profiles",
       "params": {
+        "box": {
+          "x": 20,
+          "y": 130,
+          "w": 960,
+          "h": 560
+        },
+        "x_label": "Years since diagnosis",
+        "x_max": 14,
         "profiles": [
           {
             "id": "without",
@@ -719,23 +1297,14 @@
             "waypoints": [
               {
                 "t": 0,
-                "u": 0.92
+                "u": 0.6
               },
               {
-                "t": 45,
-                "u": 0.85
-              },
-              {
-                "t": 45,
-                "u": 0.4,
-                "step": true
-              },
-              {
-                "t": 65,
-                "u": 0.28
+                "t": 6,
+                "u": 0.4
               }
             ],
-            "death_at": 70
+            "death_at": 8
           },
           {
             "id": "with",
@@ -743,27 +1312,18 @@
             "waypoints": [
               {
                 "t": 0,
-                "u": 0.92
+                "u": 0.4
               },
               {
-                "t": 45,
-                "u": 0.85
+                "t": 1,
+                "u": 0.7
               },
               {
-                "t": 45,
-                "u": 0.25,
-                "step": true
-              },
-              {
-                "t": 48,
-                "u": 0.75
-              },
-              {
-                "t": 75,
-                "u": 0.6
+                "t": 8,
+                "u": 0.5
               }
             ],
-            "death_at": 82
+            "death_at": 12
           }
         ],
         "shade_between": {
@@ -771,26 +1331,44 @@
           "b": "without"
         }
       },
+      "elements": [
+        {
+          "id": "extra",
+          "type": "math",
+          "tex": "4 \\text{ years} \\times 0.5 = 2 \\text{ QALYs}",
+          "x": 700,
+          "y": 560
+        }
+      ],
       "commands": [
         {
-          "speak": "A QALY is a year of life weighted by how good that year is. Let's see what a treatment buys."
+          "card": {
+            "title": "What a QALY gained measures"
+          }
         },
         {
           "draw": [
             "axes",
-            "full_health_line"
+            "full_health_line",
+            "tick_one",
+            "tick_zero"
           ],
-          "speak": "Age runs across, quality of life up: one is perfect health, zero is death."
-        },
-        {
-          "pause": 0.3
+          "speak": "Health technology assessment counts what a treatment does in QALYs gained. Here is what that number is. Time runs across; quality runs up, from zero, dead, to one, full health."
         },
         {
           "draw": [
             "curve_without",
             "label_without"
           ],
-          "speak": "Without treatment, this patient falls ill at forty-five and declines until seventy."
+          "speak": "A patient has just been diagnosed. Without treatment, quality of life starts at 0.6, declines, and the patient dies after eight years."
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve_without"
+            ]
+          },
+          "speak": "Each year counts by its quality: a year at 0.6 is 0.6 of a healthy year. The area under the curve, 3.8 here, is the QALYs left."
         },
         {
           "pause": 0.3
@@ -800,50 +1378,81 @@
             "curve_with",
             "label_with"
           ],
-          "speak": "With treatment the story changes — but look closely at what happens first."
-        },
-        {
-          "pause": 0.3
+          "speak": "With treatment, the first months are worse: side effects push quality down to 0.4. Then it rises to 0.7, and the patient lives twelve years."
         },
         {
           "draw": [
             "loss_regions",
             "label_loss"
           ],
-          "speak": "The red sliver is real: the first months of treatment are worse than no treatment at all."
-        },
-        {
-          "pause": 0.4
+          "speak": "That dip is a real loss, shaded red. For a few months the treated patient is worse off than the untreated one."
         },
         {
           "draw": [
             "gain_regions",
             "label_gain"
           ],
-          "speak": "Then the patient recovers to a better level, and lives twelve years longer."
+          "speak": "The green is the gain, and it comes in two kinds."
         },
         {
-          "pause": 0.3
+          "focus": {
+            "target": [
+              "gain_regions",
+              "curve_with"
+            ]
+          },
+          "speak": "For the first eight years, better years: net of the red dip, almost one QALY."
+        },
+        {
+          "draw": [
+            "extra"
+          ],
+          "speak": "After that, extra years. But they are lived at quality 0.5, so four extra years count as two QALYs, not four."
         },
         {
           "highlight": {
             "target": [
               "gain_regions"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "The green area minus the red one is the QALYs gained — the whole benefit in a single number."
+          "speak": "Together, about three QALYs gained: 6.75 with treatment against 3.8 without. Divide the extra cost by that area, and you have the price per QALY."
         },
         {
-          "speak": "Divide the cost of the treatment by that area and you have the cost per QALY."
+          "highlight": {
+            "target": [
+              "extra"
+            ],
+            "part": "0.5"
+          },
+          "speak": "So a QALY gained is never just years added: easing pain for years can gain as much as extending life."
+        },
+        {
+          "highlight": {
+            "target": [
+              "axes"
+            ]
+          },
+          "speak": "The name was coined in 1976 by the economists Richard Zeckhauser and Donald Shepard."
+        },
+        {
+          "quiz": {
+            "question": "A drug adds four years of life, all lived at quality 0.25. How many QALYs does it add?",
+            "choices": [
+              "Four",
+              "One",
+              "A quarter"
+            ],
+            "correct": 2,
+            "right": "One: four years times 0.25. A QALY weighs every year by how good it is."
+          }
         }
       ]
     }
   },
   {
-    "request": "Explain what mitochondria do.",
+    "request": "What do mitochondria actually do?",
     "spec": {
-      "title": "Mitochondria",
+      "title": "What mitochondria do",
       "template": "cell_diagram",
       "params": {
         "organelles": [
@@ -852,9 +1461,46 @@
         ],
         "labels": true
       },
+      "elements": [
+        {
+          "id": "glu",
+          "type": "text",
+          "text": "glucose",
+          "x": 330,
+          "y": 285,
+          "font_size": 28,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "atp2",
+          "type": "text",
+          "text": "→ 2 ATP",
+          "x": 480,
+          "y": 285,
+          "font_size": 28,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "atp30",
+          "type": "text",
+          "text": "+ O₂ → 30 ATP",
+          "x": 320,
+          "y": 568,
+          "font_size": 28,
+          "style": {
+            "color": "#b5482e"
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "Let's find the part of the cell that turns food into usable energy."
+          "card": {
+            "title": "What mitochondria do"
+          }
         },
         {
           "draw": [
@@ -863,10 +1509,7 @@
             "cytoplasm",
             "label_membrane"
           ],
-          "speak": "Here's an animal cell, wrapped in a double-layered membrane."
-        },
-        {
-          "pause": 0.3
+          "speak": "What do mitochondria actually do? They turn food into the one fuel a cell can spend, a molecule called ATP. Here is an animal cell."
         },
         {
           "draw": [
@@ -875,41 +1518,105 @@
             "nucleolus",
             "label_nucleus"
           ],
-          "speak": "The nucleus holds the instructions — but it doesn't power anything."
+          "speak": "The nucleus holds the instructions, but everything the cell does, building, moving, pumping, is paid for in ATP."
         },
         {
-          "pause": 0.3
+          "draw": [
+            "glu"
+          ],
+          "speak": "Follow one molecule of sugar, glucose, arriving from your last meal."
+        },
+        {
+          "draw": [
+            "atp2"
+          ],
+          "speak": "Out here in the cytoplasm, the cell can split it without any oxygen, and earn just two ATP."
         },
         {
           "draw": [
             "mito",
             "label_mito"
           ],
-          "speak": "This bean-shaped compartment is a mitochondrion, and this is where the energy comes from."
+          "speak": "The pieces then go into this bean-shaped compartment: a mitochondrion."
         },
         {
-          "pause": 0.3
+          "draw": [
+            "atp30"
+          ],
+          "speak": "Inside, burned with oxygen all the way to carbon dioxide and water, the same glucose yields about thirty ATP."
+        },
+        {
+          "highlight": {
+            "target": [
+              "atp2",
+              "atp30"
+            ]
+          },
+          "speak": "Fifteen times as much. That gap is why you breathe: without oxygen, a cell is stuck with the two."
+        },
+        {
+          "camera": {
+            "center": {
+              "ref": "mito"
+            },
+            "zoom": 2.2
+          }
         },
         {
           "draw": [
             "cristae"
           ],
-          "speak": "Its inner membrane folds back and forth into ridges called cristae."
-        },
-        {
-          "pause": 0.3
+          "speak": "The trick is in its inner membrane, folded back and forth into ridges called cristae."
         },
         {
           "highlight": {
             "target": [
               "cristae"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "Those folds pack a huge working surface into a tiny space — and the energy reactions happen on that surface."
+          "speak": "On those folds, electrons from food pass down a chain of proteins, pumping protons across the membrane like water behind a dam."
         },
         {
-          "speak": "More folds mean more power, which is why a heart muscle cell is crowded with mitochondria."
+          "point": {
+            "at": {
+              "ref": "cristae"
+            },
+            "gesture": "circle"
+          },
+          "speak": "The protons flow back through a tiny turbine, ATP synthase, that really spins; each turn makes ATP. More folds hold more turbines."
+        },
+        {
+          "camera": {
+            "reset": true
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "mito"
+            ]
+          },
+          "speak": "A mitochondrion even has its own DNA: it descends from a bacterium that moved into another cell over a billion years ago."
+        },
+        {
+          "highlight": {
+            "target": [
+              "atp30"
+            ]
+          },
+          "speak": "So a cell that works hard carries many. In heart muscle, which never rests, mitochondria fill about a third of each cell."
+        },
+        {
+          "quiz": {
+            "question": "The oxygen you breathe in: where does it end up?",
+            "choices": [
+              "In the carbon dioxide you breathe out",
+              "In water, made in the mitochondria",
+              "Inside the ATP"
+            ],
+            "correct": 2,
+            "right": "In water: at the end of the chain, oxygen takes up the spent electrons with hydrogen. The carbon dioxide comes from the food."
+          }
         }
       ]
     }
@@ -1108,62 +1815,279 @@
     }
   },
   {
-    "request": "Draw the DNA double helix and explain base pairing.",
+    "request": "Why does DNA pair A with T and C with G?",
     "packs": [
       "biology"
     ],
     "spec": {
-      "title": "The double helix",
+      "title": "Base pairing, the copying rule",
       "template": "dna_helix",
       "params": {
         "turns": 2,
         "show_base_pairs": true,
         "labels": true
       },
+      "elements": [
+        {
+          "id": "a0",
+          "type": "text",
+          "text": "A",
+          "x": 350,
+          "y": 615,
+          "font_size": 34,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "a1",
+          "type": "text",
+          "text": "T",
+          "x": 410,
+          "y": 615,
+          "font_size": 34,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "a2",
+          "type": "text",
+          "text": "G",
+          "x": 470,
+          "y": 615,
+          "font_size": 34,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "a3",
+          "type": "text",
+          "text": "C",
+          "x": 530,
+          "y": 615,
+          "font_size": 34,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "a4",
+          "type": "text",
+          "text": "C",
+          "x": 590,
+          "y": 615,
+          "font_size": 34,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "a5",
+          "type": "text",
+          "text": "A",
+          "x": 650,
+          "y": 615,
+          "font_size": 34,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "b0",
+          "type": "text",
+          "text": "T",
+          "x": 350,
+          "y": 545,
+          "font_size": 34,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "b1",
+          "type": "text",
+          "text": "A",
+          "x": 410,
+          "y": 545,
+          "font_size": 34,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "b2",
+          "type": "text",
+          "text": "C",
+          "x": 470,
+          "y": 545,
+          "font_size": 34,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "b3",
+          "type": "text",
+          "text": "G",
+          "x": 530,
+          "y": 545,
+          "font_size": 34,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "b4",
+          "type": "text",
+          "text": "G",
+          "x": 590,
+          "y": 545,
+          "font_size": 34,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "b5",
+          "type": "text",
+          "text": "T",
+          "x": 650,
+          "y": 545,
+          "font_size": 34,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "top_row",
+          "type": "group",
+          "members": [
+            "a0",
+            "a1",
+            "a2",
+            "a3",
+            "a4",
+            "a5"
+          ]
+        },
+        {
+          "id": "bottom_row",
+          "type": "group",
+          "members": [
+            "b0",
+            "b1",
+            "b2",
+            "b3",
+            "b4",
+            "b5"
+          ]
+        }
+      ],
       "commands": [
         {
-          "speak": "DNA stores your genetic instructions in a shape worth drawing carefully."
+          "card": {
+            "title": "Base pairing"
+          }
         },
         {
           "draw": [
             "strand_a"
           ],
-          "speak": "One strand of sugar and phosphate winds through space like a spiral staircase rail."
-        },
-        {
-          "pause": 0.3
+          "speak": "Why does DNA always pair A with T, and C with G? Because that rule lets a cell copy its DNA. Start with one strand."
         },
         {
           "draw": [
             "strand_b",
             "label_backbone"
           ],
-          "speak": "A second rail runs alongside it, half a turn out of step."
-        },
-        {
-          "pause": 0.3
+          "speak": "A second strand winds around it. Each is a backbone of sugar and phosphate: the two rails of a twisted ladder."
         },
         {
           "draw": [
             "rungs",
             "label_basepair"
           ],
-          "speak": "Between them sit the base pairs: A always with T, C always with G."
+          "speak": "The rungs are bases, one from each strand, meeting in the middle. There are four kinds: A, T, C and G."
         },
         {
-          "pause": 0.3
+          "draw": [
+            "top_row"
+          ],
+          "speak": "Unroll a short stretch of the ladder. Along the top strand it reads A, T, G, C, C, A."
+        },
+        {
+          "draw": [
+            "bottom_row"
+          ],
+          "speak": "Across from every A sits a T, across from every G a C, and never anything else."
         },
         {
           "highlight": {
             "target": [
               "rungs"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "Each rung is one letter of the code, and the pairing rule means either rail alone can rebuild the other."
+          "speak": "Size, first. A and G are big, with two rings; T and C are small, with one. Big with small always spans the same width."
         },
         {
-          "speak": "That is why the helix can be unzipped and copied — the shape is the mechanism."
+          "point": {
+            "at": {
+              "ref": "rungs"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Two big ones would bulge the ladder, two small ones pinch it. And A holds T by two hydrogen bonds, G holds C by three."
+        },
+        {
+          "erase": [
+            "bottom_row"
+          ],
+          "speak": "Now unzip the ladder. Those bonds are weak, so the strands part, and the bottom strand's letters are gone."
+        },
+        {
+          "draw": [
+            "bottom_row"
+          ],
+          "speak": "But nothing is lost: the top strand dictates every partner, so the cell rebuilds the missing strand letter for letter."
+        },
+        {
+          "highlight": {
+            "target": [
+              "top_row"
+            ]
+          },
+          "speak": "Watson and Crick saw this at once, and ended their 1953 paper coyly:"
+        },
+        {
+          "highlight": {
+            "target": [
+              "bottom_row"
+            ]
+          },
+          "speak": "'It has not escaped our notice that the specific pairing we have postulated immediately suggests a possible copying mechanism.'"
+        },
+        {
+          "highlight": {
+            "target": [
+              "strand_a",
+              "strand_b"
+            ]
+          },
+          "speak": "So the pairing rule is a copying rule: each strand carries the other. That is how your three billion letters are copied at every cell division."
+        },
+        {
+          "quiz": {
+            "question": "A sample of DNA is 30% A. What share is G?",
+            "choices": [
+              "30%",
+              "20%",
+              "70%"
+            ],
+            "correct": 2,
+            "right": "Twenty per cent: every A has a T, so T is thirty too, and the remaining forty is split evenly between G and C."
+          }
         }
       ]
     }
@@ -1249,12 +2173,12 @@
     }
   },
   {
-    "request": "Draw the combustion of methane.",
+    "request": "How much oxygen does burning methane use, and what comes out?",
     "packs": [
       "chemistry"
     ],
     "spec": {
-      "title": "Burning methane",
+      "title": "Burning methane, atom by atom",
       "template": "reaction_scheme",
       "params": {
         "reactants": [
@@ -1267,53 +2191,168 @@
         ],
         "over": "Δ"
       },
+      "elements": [
+        {
+          "id": "guess",
+          "type": "math",
+          "tex": "\\mathrm{CH_4} + \\mathrm{O_2} \\to \\mathrm{CO_2} + \\mathrm{H_2O}",
+          "x": 500,
+          "y": 560,
+          "size": 34
+        },
+        {
+          "id": "n_left",
+          "type": "text",
+          "text": "1 C, 4 H, 4 O",
+          "x": 274,
+          "y": 335,
+          "font_size": 26
+        },
+        {
+          "id": "n_right",
+          "type": "text",
+          "text": "1 C, 4 H, 4 O",
+          "x": 716,
+          "y": 335,
+          "font_size": 26
+        },
+        {
+          "id": "m_left",
+          "type": "text",
+          "text": "16 g + 64 g = 80 g",
+          "x": 274,
+          "y": 475,
+          "font_size": 26,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "m_right",
+          "type": "text",
+          "text": "44 g + 36 g = 80 g",
+          "x": 716,
+          "y": 475,
+          "font_size": 26,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "When natural gas burns, atoms are rearranged — never created or destroyed. Let's check that."
+          "card": {
+            "title": "Burning methane"
+          }
         },
         {
           "draw": [
-            "reactants"
+            "guess"
           ],
-          "speak": "We start with one methane molecule and two oxygen molecules."
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
-            "arrow",
-            "label_over"
-          ],
-          "speak": "A spark supplies the heat that gets the reaction going."
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
-            "products"
-          ],
-          "speak": "Out comes carbon dioxide and two waters."
-        },
-        {
-          "pause": 0.4
+          "speak": "When natural gas burns, how much oxygen does it use, and what comes out? A first guess: methane plus oxygen gives carbon dioxide plus water."
         },
         {
           "highlight": {
             "target": [
-              "reactants",
-              "products"
-            ],
-            "effect": "glow"
+              "guess"
+            ]
           },
-          "speak": "Now count: one carbon each side, four hydrogens each side, four oxygens each side."
+          "speak": "Count the hydrogens: four go in, inside methane, but only two come out, in one water."
         },
         {
-          "pause": 0.3
+          "morph": {
+            "target": "guess",
+            "tex": "\\mathrm{CH_4} + \\mathrm{O_2} \\to \\mathrm{CO_2} + 2\\,\\mathrm{H_2O}"
+          },
+          "speak": "Atoms are never made or destroyed, so add a second water: four hydrogens in, four out."
         },
         {
-          "speak": "That balance is what makes it an equation rather than a story — and it is why the coefficients cannot be chosen freely."
+          "highlight": {
+            "target": [
+              "guess"
+            ]
+          },
+          "speak": "Now count oxygen. Two go in, but four come out: two in the carbon dioxide, and one in each water."
+        },
+        {
+          "morph": {
+            "target": "guess",
+            "tex": "\\mathrm{CH_4} + 2\\,\\mathrm{O_2} \\to \\mathrm{CO_2} + 2\\,\\mathrm{H_2O}"
+          },
+          "speak": "So each methane needs two oxygen molecules. That is the whole of balancing: counting until both sides agree."
+        },
+        {
+          "erase": [
+            "guess"
+          ]
+        },
+        {
+          "draw": [
+            "reactants",
+            "arrow",
+            "label_over",
+            "products"
+          ],
+          "speak": "Written out as chemists do, with a delta over the arrow for the heat that sets it going."
+        },
+        {
+          "draw": [
+            "n_left",
+            "n_right"
+          ],
+          "parallel": true,
+          "speak": "One carbon, four hydrogens and four oxygens on each side: the same atoms, only partnered differently."
+        },
+        {
+          "draw": [
+            "m_left"
+          ],
+          "speak": "Now weigh it, per mole: sixteen grams of methane burns with sixty-four grams of oxygen."
+        },
+        {
+          "draw": [
+            "m_right"
+          ],
+          "speak": "Out come forty-four grams of carbon dioxide and thirty-six of water: eighty grams in, eighty out."
+        },
+        {
+          "highlight": {
+            "target": [
+              "m_left"
+            ],
+            "part": "64 g"
+          },
+          "speak": "The surprise is how small the fuel is. Four-fifths of what burns is oxygen, taken from the air."
+        },
+        {
+          "highlight": {
+            "target": [
+              "m_right"
+            ],
+            "part": "44 g"
+          },
+          "speak": "So a kilogram of gas makes two and three-quarter kilograms of carbon dioxide: most of its weight is borrowed oxygen."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "arrow"
+            },
+            "gesture": "underline"
+          },
+          "speak": "Antoine Lavoisier showed this in the 1770s by weighing reactions in sealed vessels: burning moves mass around, but never destroys it."
+        },
+        {
+          "quiz": {
+            "question": "A stove burns 1 kg of methane. How much carbon dioxide comes out?",
+            "choices": [
+              "Less than 1 kg: the gas burns away",
+              "Exactly 1 kg",
+              "About 2.75 kg"
+            ],
+            "correct": 3,
+            "right": "About 2.75 kilograms: each carbon leaves with two oxygen atoms from the air, and those outweigh the methane."
+          }
         }
       ]
     }
@@ -1961,12 +3000,16 @@
     }
   },
   {
-    "request": "Draw a three-state Markov model: Well, Sick, Dead.",
+    "request": "How does a Markov model follow patients through the years?",
     "spec": {
-      "title": "Three-state Markov model",
+      "title": "How a Markov model runs",
       "template": "markov_model",
+      "vars": {
+        "w": 1000,
+        "s": 0,
+        "d": 0
+      },
       "params": {
-        "title": "Three-state Markov model",
         "states": [
           "Well",
           "Sick",
@@ -1995,13 +3038,62 @@
           }
         ],
         "self_loops": [
-          "Well",
-          "Sick"
+          {
+            "state": "Well",
+            "label": "0.89"
+          },
+          {
+            "state": "Sick",
+            "label": "0.65"
+          }
         ]
       },
+      "elements": [
+        {
+          "id": "n_well",
+          "type": "label",
+          "attach_to": "state_well",
+          "side": "left",
+          "text": "{w:0}",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "n_sick",
+          "type": "label",
+          "attach_to": "state_sick",
+          "side": "right",
+          "text": "{s:0}",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "n_dead",
+          "type": "label",
+          "attach_to": "state_dead",
+          "side": "below",
+          "text": "{d:0}",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "counts",
+          "type": "group",
+          "members": [
+            "n_well",
+            "n_sick",
+            "n_dead"
+          ]
+        }
+      ],
       "commands": [
         {
-          "speak": "A Markov model follows people between health states over repeated cycles."
+          "card": {
+            "title": "How a Markov model runs"
+          }
         },
         {
           "draw": [
@@ -2013,41 +3105,21 @@
             "state_label_dead"
           ],
           "parallel": true,
-          "speak": "Three states: well, sick, and dead."
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
-            "loop_well",
-            "loop_sick"
-          ],
-          "parallel": true,
-          "speak": "Well and sick are both transient — you can stay in either from one cycle to the next."
-        },
-        {
-          "pause": 0.3
+          "speak": "A Markov model follows a group of patients over years, as illness comes, goes and returns. First, it sorts everyone into a few health states."
         },
         {
           "draw": [
             "t_0",
             "t_label_0"
           ],
-          "speak": "Ten percent of the time, someone well becomes sick."
-        },
-        {
-          "pause": 0.3
+          "speak": "Each cycle, here a year, people may move. Ten percent of the well fall sick."
         },
         {
           "draw": [
             "t_1",
             "t_label_1"
           ],
-          "speak": "And thirty percent of the time, someone sick recovers to well."
-        },
-        {
-          "pause": 0.3
+          "speak": "Thirty percent of the sick recover."
         },
         {
           "draw": [
@@ -2057,7 +3129,85 @@
             "t_label_3"
           ],
           "parallel": true,
-          "speak": "Both states can also lead to death, at their own separate rates."
+          "speak": "And some die: five percent of the sick each year, one percent of the well."
+        },
+        {
+          "draw": [
+            "loop_well",
+            "loop_label_well",
+            "loop_sick",
+            "loop_label_sick"
+          ],
+          "parallel": true,
+          "speak": "Everyone else stays put. The loops hold what's left, so each state's arrows add up to one."
+        },
+        {
+          "highlight": {
+            "target": [
+              "state_dead"
+            ]
+          },
+          "speak": "Dead has no way out. It is absorbing, and in the end the whole cohort arrives there."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "counts"
+          ],
+          "speak": "Now run it. Start a thousand people, all well."
+        },
+        {
+          "flow": {
+            "along": [
+              "t_0",
+              "t_3"
+            ]
+          },
+          "speak": "In the first cycle, a hundred fall sick and ten die."
+        },
+        {
+          "animate": {
+            "w": 890,
+            "s": 100,
+            "d": 10
+          },
+          "duration": 2.5,
+          "speak": "That leaves 890 well, 100 sick, 10 dead."
+        },
+        {
+          "flow": {
+            "along": [
+              "t_1"
+            ]
+          },
+          "speak": "In the second cycle the sick feed back: thirty of them recover."
+        },
+        {
+          "animate": {
+            "w": 822,
+            "s": 154,
+            "d": 24
+          },
+          "duration": 2.5,
+          "speak": "Now 822 well, 154 sick, 24 dead."
+        },
+        {
+          "highlight": {
+            "target": [
+              "counts"
+            ]
+          },
+          "speak": "Weight each state by its quality, say 0.9 well and 0.5 sick, and every cycle yields QALYs: 851 in the first year."
+        },
+        {
+          "highlight": {
+            "target": [
+              "t_0"
+            ]
+          },
+          "speak": "Run it for a lifetime, discounting later years, at 3.5 percent in England. Rerun with a drug that lowers these ten percent, and the difference is the QALYs gained."
         },
         {
           "pause": 0.4
@@ -2065,31 +3215,53 @@
         {
           "highlight": {
             "target": [
-              "state_dead"
-            ],
-            "effect": "glow"
+              "state_sick"
+            ]
           },
-          "speak": "Death is absorbing: once you arrive, no arrow leads back out."
+          "speak": "The catch is the model's lack of memory. Sick for ten years or since yesterday, everyone here faces the same five percent."
         },
         {
-          "pause": 0.3
+          "highlight": {
+            "target": [
+              "t_1",
+              "t_0"
+            ]
+          },
+          "speak": "And someone who recovered falls sick again as easily as someone never ill. When history matters, modellers add extra states to remember it."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "That's the whole cycle: well, sick, and the one state nobody leaves."
+          "highlight": {
+            "target": [
+              "t_label_0",
+              "t_label_1"
+            ]
+          },
+          "speak": "Andrey Markov invented these chains in 1906, and in 1913 tested them on the vowels and consonants of Pushkin's Eugene Onegin."
+        },
+        {
+          "quiz": {
+            "question": "Two sick patients: one ill for ten years, one since last month. In this model, who is likelier to die next year?",
+            "choices": [
+              "The one ill for ten years",
+              "The newly ill one",
+              "Equally likely"
+            ],
+            "correct": 3,
+            "right": "Equally likely: a Markov model knows only the current state, so both face the same five percent."
+          }
         }
       ]
     }
   },
   {
-    "request": "Show two treatments on a cost-effectiveness plane with a WTP threshold of 30,000 per QALY.",
+    "request": "How do you read a cost-effectiveness plane?",
     "spec": {
-      "title": "Two treatments vs. standard care",
+      "title": "Reading a cost-effectiveness plane",
       "template": "cost_effectiveness_plane",
       "params": {
-        "title": "Two treatments vs. standard care",
+        "x_label": "Extra QALYs",
+        "y_label": "Extra cost (£)",
+        "quadrant_labels": false,
         "wtp_threshold": 30000,
         "points": [
           {
@@ -2105,9 +3277,69 @@
           }
         ]
       },
+      "elements": [
+        {
+          "id": "q_win",
+          "type": "text",
+          "text": "cheaper and better: wins",
+          "x": 790,
+          "y": 190,
+          "font_size": 20,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "q_lose",
+          "type": "text",
+          "text": "dearer and worse: loses",
+          "x": 210,
+          "y": 650,
+          "font_size": 20,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "icer",
+          "type": "math",
+          "tex": "\\text{ICER} = \\frac{\\Delta C}{\\Delta E} = \\frac{8000}{0.4} = 20\\,000",
+          "x": 290,
+          "y": 570,
+          "colors": {
+            "\\Delta C": "#b5482e",
+            "\\Delta E": "#2f6b8f"
+          }
+        },
+        {
+          "id": "step",
+          "type": "arrow",
+          "from": {
+            "ref": "pt_0"
+          },
+          "to": {
+            "ref": "pt_1"
+          },
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "step_icer",
+          "type": "math",
+          "tex": "\\frac{24\\,000}{0.3} = {80\\,000}",
+          "x": 290,
+          "y": 480,
+          "colors": {
+            "80\\,000": "#8a5fa8"
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "A cost-effectiveness plane compares treatments by both their cost and their effect at once."
+          "card": {
+            "title": "The cost-effectiveness plane"
+          }
         },
         {
           "draw": [
@@ -2115,59 +3347,112 @@
             "y_axis"
           ],
           "parallel": true,
-          "speak": "Effect runs left to right, cost runs bottom to top, both zeroed on the comparator."
-        },
-        {
-          "pause": 0.3
+          "speak": "A cost-effectiveness plane shows whether a new treatment is worth its price. Standard care sits at the centre; extra QALYs run right, extra cost runs up."
         },
         {
           "draw": [
-            "q_ne",
-            "q_nw",
-            "q_se",
-            "q_sw"
+            "q_win",
+            "q_lose"
           ],
           "parallel": true,
-          "speak": "Each quadrant tells a different story: costing more or less, working better or worse."
+          "speak": "Two corners are easy. Cheaper and better, down and right, simply wins. Dearer and worse, up and left, simply loses."
         },
         {
-          "pause": 0.3
-        },
-        {
-          "draw": [
-            "wtp_line",
-            "wtp_label"
-          ],
-          "speak": "This dashed line is what we're willing to pay: thirty thousand per QALY gained."
-        },
-        {
-          "pause": 0.3
+          "point": {
+            "at": {
+              "x": 700,
+              "y": 560
+            },
+            "gesture": "circle"
+          },
+          "speak": "The hard cases are up and right: better, but at a price."
         },
         {
           "draw": [
             "pt_0",
             "pt_label_0"
           ],
-          "speak": "The new drug adds a little effect for a modest cost — well under the threshold."
+          "speak": "Like this new drug: 0.4 QALYs more per patient, for eight thousand pounds more."
         },
         {
-          "pause": 0.3
+          "draw": [
+            "icer"
+          ],
+          "speak": "Its incremental cost-effectiveness ratio, the ICER, is extra cost over extra effect: twenty thousand pounds per QALY gained."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "pt_0"
+            },
+            "gesture": "circle"
+          },
+          "speak": "On the plane, that ratio is the slope of a line from the centre to the dot."
+        },
+        {
+          "draw": [
+            "wtp_line",
+            "wtp_label"
+          ],
+          "speak": "The dashed line is what the payer will pay: thirty thousand pounds per QALY. A dot below it is cost-effective."
+        },
+        {
+          "highlight": {
+            "target": [
+              "wtp_line"
+            ]
+          },
+          "speak": "Say the health service will pay up to thirty thousand pounds per QALY: England's NICE uses a threshold of this kind."
         },
         {
           "draw": [
             "pt_1",
             "pt_label_1"
           ],
-          "speak": "Surgery adds more effect, but costs far more than the threshold allows."
+          "speak": "Surgery gains more, 0.7 QALYs, but costs thirty-two thousand more: about forty-six thousand per QALY, above the line."
         },
         {
-          "pause": 0.3
+          "pause": 0.4
+        },
+        {
+          "animate": {
+            "wtp_threshold": 50000
+          },
+          "duration": 3,
+          "speak": "Suppose the payer would pay fifty thousand. The line swings up, and surgery falls under it."
         },
         {
           "draw": [
-            "title"
+            "step"
           ],
-          "speak": "Same plane, two very different value propositions."
+          "speak": "Yet surgery should still lose. The real choice is between the two: going from the drug to surgery adds 0.3 QALYs for twenty-four thousand pounds."
+        },
+        {
+          "draw": [
+            "step_icer"
+          ],
+          "speak": "That is eighty thousand pounds for each extra QALY, far above even fifty thousand."
+        },
+        {
+          "highlight": {
+            "target": [
+              "step_icer"
+            ],
+            "part": "80\\,000"
+          },
+          "speak": "So each option is judged against the next best one, not against doing nothing: the drug is the choice."
+        },
+        {
+          "quiz": {
+            "question": "At £50,000 per QALY, surgery lies below the line. Should the payer choose it over the new drug?",
+            "choices": [
+              "Yes, it is below the line",
+              "No, its extra QALYs over the drug cost too much",
+              "Yes, it gains the most QALYs"
+            ],
+            "correct": 2,
+            "right": "No: against the drug, surgery's extra 0.3 QALYs cost £80,000 each, well above £50,000."
+          }
         }
       ]
     }
@@ -2285,72 +3570,77 @@
     }
   },
   {
-    "request": "Show how a consumer chooses the bundle that maximizes their utility.",
+    "request": "How do you get the most out of a fixed budget?",
     "packs": [
       "economics"
     ],
     "spec": {
-      "title": "Finding the consumer's optimum",
+      "title": "The best mix on a budget",
       "template": "indifference_budget",
       "params": {
-        "income": 100,
-        "price_x": 2,
-        "price_y": 1,
-        "x_good": "Coffee",
-        "y_good": "Books"
+        "income": 60,
+        "price_x": 3,
+        "price_y": 6,
+        "x_good": "Coffees",
+        "y_good": "Sandwiches"
       },
       "commands": [
         {
-          "speak": "A consumer has a fixed budget and two things to spend it on. Let's find the combination that makes them happiest."
+          "card": {
+            "title": "The best mix on a budget"
+          }
         },
         {
           "draw": [
             "axes"
           ],
-          "speak": "Coffee along the bottom, books up the side."
-        },
-        {
-          "pause": 0.3
+          "speak": "How do you get the most out of a fixed budget? Take a student with sixty dollars a week for coffee, at three dollars, and sandwiches, at six."
         },
         {
           "draw": [
             "budget_line",
             "label_budget"
           ],
-          "speak": "The budget line marks every combination they can just afford."
-        },
-        {
-          "pause": 0.3
+          "speak": "All on coffee buys twenty cups; all on sandwiches, ten. The budget line joins every mix that costs exactly sixty dollars."
         },
         {
           "draw": [
             "ic_1",
             "label_ic_1"
           ],
-          "speak": "This lower curve is attainable, but there's room to do better without spending more."
+          "speak": "This curve joins mixes the student likes equally well: fewer coffees, made up for by more sandwiches."
         },
         {
-          "pause": 0.3
+          "point": {
+            "at": {
+              "ref": "budget_line",
+              "anchor": "bottom_right"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Twenty coffees and no lunch is affordable, but it sits low: the twentieth coffee adds little, while a first sandwich would add a lot."
         },
         {
-          "draw": [
-            "ic_2",
-            "label_ic_2"
-          ],
-          "speak": "This curve just touches the budget line — every point on it gives the same satisfaction."
-        },
-        {
-          "pause": 0.3
+          "highlight": {
+            "target": [
+              "ic_1"
+            ]
+          },
+          "speak": "Wherever the budget line cuts through a curve like this one, sliding along the line toward the middle reaches mixes the student likes more."
         },
         {
           "draw": [
             "ic_3",
             "label_ic_3"
           ],
-          "speak": "This higher curve would feel even better, but it's out of reach at this budget."
+          "speak": "This higher curve would be better still, but every mix on it costs more than sixty dollars."
         },
         {
-          "pause": 0.4
+          "draw": [
+            "ic_2",
+            "label_ic_2"
+          ],
+          "speak": "The best reachable curve is the one that does not cut the line at all, but just touches it."
         },
         {
           "draw": [
@@ -2359,16 +3649,54 @@
             "guide_y",
             "optimum_label"
           ],
-          "speak": "The optimum sits exactly where the budget line just touches the highest curve they can reach."
+          "speak": "It touches at ten coffees and five sandwiches: thirty dollars on each."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "highlight": {
+            "target": [
+              "ic_2",
+              "budget_line"
+            ]
+          },
+          "speak": "At the touch, the curve runs parallel to the line: the student would swap one sandwich for two coffees, exactly the swap the prices offer."
         },
         {
           "highlight": {
             "target": [
               "optimum"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "Move spending either direction from that point, and total satisfaction only falls."
+          "speak": "Put another way, the last dollar on coffee pleases as much as the last dollar on sandwiches. If it didn't, moving a dollar across would help."
+        },
+        {
+          "animate": {
+            "price_x": 5
+          },
+          "duration": 3,
+          "speak": "Now coffee goes up to five dollars. The line swings in, and the best mix slides to six cups."
+        },
+        {
+          "highlight": {
+            "target": [
+              "ic_2"
+            ]
+          },
+          "speak": "Francis Edgeworth drew the first indifference curves in 1881, in a book with the unlikely title Mathematical Psychics."
+        },
+        {
+          "quiz": {
+            "question": "At the student's best mix, which is true?",
+            "choices": [
+              "Equal numbers of each good",
+              "The last dollar on each pleases equally",
+              "As much of the favourite as possible"
+            ],
+            "correct": 2,
+            "right": "The last dollar on each pleases equally: if coffee did better, moving a dollar to coffee would reach a higher curve."
+          }
         }
       ]
     }
@@ -2511,102 +3839,139 @@
     }
   },
   {
-    "request": "Show the deadweight loss created by a monopoly.",
+    "request": "What does a monopoly cost, beyond high prices?",
     "packs": [
       "economics"
     ],
     "spec": {
-      "title": "Monopoly and deadweight loss",
+      "title": "The only ferry",
       "template": "firm_cost_curves",
       "params": {
         "mode": "monopoly",
+        "show": [
+          "demand",
+          "mr",
+          "mc"
+        ],
         "shade": "deadweight"
       },
       "commands": [
         {
-          "speak": "A monopolist restricts output to raise its price — and that costs society more than it gains the firm. Let's see the loss."
+          "card": {
+            "title": "What a monopoly costs"
+          }
         },
         {
           "draw": [
             "axes"
           ],
-          "speak": "Quantity runs along the bottom, price and cost up the side."
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
-            "mc",
-            "label_mc"
-          ],
-          "speak": "This rising curve is marginal cost — what one more unit costs to produce."
-        },
-        {
-          "draw": [
-            "atc",
-            "label_atc"
-          ],
-          "speak": "This is average total cost, fixed costs and all, spread over output."
-        },
-        {
-          "pause": 0.3
+          "speak": "What does a monopoly cost us, beyond high prices? Take the only ferry to an island: tickets a day along the bottom, dollars up the side."
         },
         {
           "draw": [
             "demand",
             "label_demand"
           ],
-          "speak": "Demand shows what price the market will bear at each quantity."
+          "speak": "Demand: at ninety dollars nobody sails, and every dollar off the fare brings more passengers."
+        },
+        {
+          "draw": [
+            "mc",
+            "label_mc"
+          ],
+          "speak": "Marginal cost is what one more passenger costs to carry: cheap at first, then dearer as extra sailings need overtime crews."
         },
         {
           "draw": [
             "mr",
             "label_mr"
           ],
-          "speak": "Marginal revenue falls twice as fast — selling one more unit means a lower price on every unit sold."
+          "speak": "A sole seller must cut the fare for everyone to fill more seats, so each extra ticket earns less than its fare. That is marginal revenue."
+        },
+        {
+          "draw": [
+            "q_star",
+            "label_q_star",
+            "p_star",
+            "label_p_star"
+          ],
+          "speak": "The ferry sells up to where marginal revenue meets marginal cost: about 4,300 tickets a day, at fifty-six dollars each."
         },
         {
           "pause": 0.4
         },
         {
-          "draw": [
-            "q_star",
-            "p_star",
-            "label_q_star",
-            "label_p_star"
-          ],
-          "speak": "The monopolist produces where marginal revenue equals marginal cost, then charges whatever price demand allows at that quantity."
+          "point": {
+            "at": {
+              "ref": "q_star"
+            },
+            "gesture": "tap"
+          },
+          "speak": "Why not sell a hundred more tickets, at fifty-five dollars? They bring in $5,500, but the fare falls for all 4,300 passengers."
         },
         {
-          "pause": 0.3
+          "highlight": {
+            "target": [
+              "mr",
+              "mc"
+            ]
+          },
+          "speak": "Eighty cents off 4,300 fares is about $3,400. That leaves about twenty-one dollars a ticket, just what carrying them costs. Not worth it."
         },
         {
           "draw": [
             "shade",
             "label_shade"
           ],
-          "speak": "A competitive market would have kept producing further, out to where price equals marginal cost."
+          "speak": "Competing ferries would keep sailing out to where the fare meets marginal cost: about 5,400 passengers, at around forty-seven dollars."
         },
         {
           "highlight": {
             "target": [
               "shade"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "This triangle is the deadweight loss: trades that would have benefited both buyer and seller, but never happen."
+          "speak": "The eleven hundred passengers in between would each pay more than their crossing costs. The trips are worth making, and nobody makes them."
+        },
+        {
+          "highlight": {
+            "target": [
+              "p_star"
+            ]
+          },
+          "speak": "The high fare itself mostly moves money from passengers to the owner. The triangle is different: value that nobody gets at all."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "shade"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Economists call these Harberger triangles, after Arnold Harberger, who measured them across American industry in 1954 and found them surprisingly small."
+        },
+        {
+          "quiz": {
+            "question": "Suppose the ferry could charge each passenger exactly what they would pay. What happens to the deadweight loss?",
+            "choices": [
+              "It grows",
+              "It vanishes",
+              "It stays the same"
+            ],
+            "correct": 2,
+            "right": "It vanishes: a cheaper ticket no longer lowers everyone else's fare, so the ferry carries every passenger worth more than the trip costs, and keeps the gain."
+          }
         }
       ]
     }
   },
   {
-    "request": "Show aggregate demand shifting right and animate the new equilibrium.",
+    "request": "When a whole economy spends more, why doesn't it just produce more?",
     "packs": [
       "macro"
     ],
     "spec": {
-      "title": "An aggregate demand shock, animated",
+      "title": "More spending, more output?",
       "template": "ad_as",
       "params": {
         "shift": {
@@ -2617,36 +3982,29 @@
       },
       "commands": [
         {
-          "speak": "Let's watch the economy adjust when aggregate demand rises."
+          "card": {
+            "title": "More spending, more output?"
+          }
         },
         {
           "draw": [
             "axes"
           ],
-          "speak": "Real GDP along the bottom, the price level up the side."
-        },
-        {
-          "pause": 0.3
+          "speak": "When a whole economy spends more, does it simply produce more? Take one that makes a thousand billion dollars of goods a year, at a price level of 100."
         },
         {
           "draw": [
             "ad",
             "label_ad"
           ],
-          "speak": "This downward-sloping line is aggregate demand."
-        },
-        {
-          "pause": 0.3
+          "speak": "Aggregate demand is all the spending there is. The lower the price level, the more that spending buys."
         },
         {
           "draw": [
             "as",
             "label_as"
           ],
-          "speak": "This upward-sloping line is aggregate supply."
-        },
-        {
-          "pause": 0.3
+          "speak": "Aggregate supply is what firms produce. They turn out more only if prices rise enough to cover dearer overtime and materials."
         },
         {
           "draw": [
@@ -2654,10 +4012,18 @@
             "guides",
             "label_eq"
           ],
-          "speak": "Where they cross is the economy's equilibrium — its price level and output today."
+          "speak": "The two cross at a thousand billion dollars of output and a price level of 100."
         },
         {
-          "pause": 0.3
+          "highlight": {
+            "target": [
+              "guides"
+            ]
+          },
+          "speak": "Suppose that is also full capacity: everyone who wants a job has one. Economists call it potential output."
+        },
+        {
+          "pause": 0.4
         },
         {
           "draw": [
@@ -2665,40 +4031,68 @@
             "label_ad_shifted",
             "shift_arrow"
           ],
-          "speak": "Here's a copy of aggregate demand — right now it sits exactly on top of the original."
+          "speak": "Now the government spends two hundred billion more a year. Here is a copy of demand, for now lying exactly on the old one."
         },
         {
-          "pause": 0.3
+          "animate": {
+            "shift.amount": 14
+          },
+          "duration": 3,
+          "speak": "At every price level, spending rises by two hundred billion, and the demand curve slides right."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 606,
+              "y": 385
+            },
+            "gesture": "tap"
+          },
+          "speak": "If prices stayed put, output would rise by the full two hundred billion, out to here."
         },
         {
           "draw": [
             "eq_new",
             "label_eq_new"
           ],
-          "speak": "Its equilibrium starts right on top of today's."
+          "speak": "But firms produce more only at higher prices. The economy lands here: output up a hundred billion, and prices up ten percent."
         },
         {
-          "pause": 0.5
-        },
-        {
-          "animate": {
-            "shift.amount": 24
+          "point": {
+            "at": {
+              "ref": "eq_new"
+            },
+            "gesture": "circle"
           },
-          "duration": 3,
-          "speak": "Now suppose spending rises across the economy — the whole AD curve slides to the right."
-        },
-        {
-          "pause": 0.3
+          "speak": "And that extra hundred billion lies beyond full capacity. Workers are scarce, overtime is everywhere, and it cannot last."
         },
         {
           "highlight": {
             "target": [
-              "eq",
-              "eq_new"
-            ],
-            "effect": "glow"
+              "guides"
+            ]
           },
-          "speak": "Compare old and new: both output and the price level have risen — the signature of a demand-driven expansion."
+          "speak": "As wages catch up, supply pulls back until output returns to potential. In the long run the extra spending buys higher prices, not more goods."
+        },
+        {
+          "highlight": {
+            "target": [
+              "ad_shifted"
+            ]
+          },
+          "speak": "After the spending surge of 2021, US inflation reached 9.1 percent in June 2022, a forty-year high. Economists still argue how much of it demand caused."
+        },
+        {
+          "quiz": {
+            "question": "In the long run, what does the extra two hundred billion of spending buy?",
+            "choices": [
+              "$200 billion more output",
+              "$100 billion more output",
+              "Higher prices, the same output"
+            ],
+            "correct": 3,
+            "right": "Higher prices: output cannot stay beyond potential, so once wages catch up, the extra spending ends up raising prices rather than production."
+          }
         }
       ]
     }

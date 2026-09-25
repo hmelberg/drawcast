@@ -806,7 +806,7 @@ const commandSchema = {
       type: "object",
       description: "A laser pointer travels to the target and gestures at it, then disappears. Combine with speak blocking:false to talk while pointing.",
       properties: {
-        at: endRefSchema,
+        at: { ...endRefSchema, description: "Where: {\"ref\": id, \"anchor\": name} or {\"x\": …, \"y\": …} — an object, not [x, y]." },
         gesture: { type: "string", enum: ["tap", "circle", "underline"], description: "tap = dip at the spot (default); circle = trace a ring around it; underline = sweep beneath it." },
         duration: { type: "number", description: "Seconds (default 2)." },
       },
