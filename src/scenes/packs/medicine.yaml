@@ -985,7 +985,7 @@ layout: |
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [540, 708], params.title, { fontSize: 30 }));
   }
-  return { drawables, labels, anchors, order, attached };
+  return { drawables, labels, anchors, order, attached, frame: { x: [0, tmax], y: [0, yTop], box: plot } };
 ---
 template: pv_loop
 title: Cardiac pressure-volume loop
@@ -1179,7 +1179,7 @@ layout: |
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [500, 700], params.title, { fontSize: 30 }));
   }
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, frame: { x: [0, 170], y: [0, 160], box: plot } };
 ---
 template: nephron
 title: Nephron

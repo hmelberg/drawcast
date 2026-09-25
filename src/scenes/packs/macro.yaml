@@ -130,7 +130,7 @@ layout: |
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [540, 700], params.title, { fontSize: 30 }));
   }
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, frame: { x: [0, 110], y: [0, 11], box: plot } };
 ---
 template: solow_growth
 title: Solow growth model
@@ -268,7 +268,7 @@ layout: |
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [540, 700], params.title, { fontSize: 30 }));
   }
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, frame: { x: [0, kMax * 1.05], y: [0, yMax], box: plot } };
 ---
 template: ad_as
 title: Aggregate demand - aggregate supply
@@ -423,4 +423,4 @@ layout: |
     label("label_eq_new", eq2L, "below-right", "E′", C.shifted, 20);
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, frame: { x: [0, 100], y: [0, 100], box: plot } };

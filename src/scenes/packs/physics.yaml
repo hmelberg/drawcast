@@ -499,7 +499,7 @@ layout: |
     order.push("apex_label");
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, frame: { x: [0, 1], y: [0, 1], box: { x0: X0, y0: groundY, x1: X0 + S, y1: groundY + S } } };
 ---
 template: bicycle_drivetrain
 title: Bicycle drivetrain & gear ratio

@@ -512,5 +512,5 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
     }
   }
 
-  return { drawables, labels, anchors, order, curveSamples, attached };
+  return { drawables, labels, anchors, order, curveSamples, attached, frame: { x: [0, tMax], y: [0, 1.06], box: plot } };
 }

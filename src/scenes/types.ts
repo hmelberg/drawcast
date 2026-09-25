@@ -9,6 +9,14 @@ export interface SceneLayout {
   drawables: Drawable[];
   labels: LabelRequest[];
   anchors: Record<string, Pt>;
+  /**
+   * The chart's data coordinates, when the template draws one: its x and y
+   * ranges and the canvas box they fill (before any params.box fit). With
+   * it, `{data: [x, y]}` in a cast lands on the template's own axes — an
+   * overlay the author no longer has to compute against the template's
+   * private plot constants (2026-09-25). Linear axes only.
+   */
+  frame?: { x: [number, number]; y: [number, number]; box: { x0: number; y0: number; x1: number; y1: number } };
   /** Natural draw order for elements not mentioned in any command. */
   order: string[];
   /**

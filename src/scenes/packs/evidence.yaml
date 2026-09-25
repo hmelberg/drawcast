@@ -181,7 +181,7 @@ layout: |
     push(kit.text("title", [(plot.x0 + plot.x1) / 2, plot.y1 + 68], params.title, { fontSize: 30 }));
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, ...(arms.every((a) => Array.isArray(a.survival)) ? { frame: { x: [0, xDomainMax], y: [0, 1], box: plot } } : {}) };
 ---
 template: forest_plot
 title: Forest plot (meta-analysis)
@@ -888,4 +888,4 @@ layout: |
     push(kit.text("title", [(plot.x0 + plot.x1) / 2, plot.y1 + 70], params.title, { fontSize: 30 }));
   }
 
-  return { drawables, labels, anchors, order, attached };
+  return { drawables, labels, anchors, order, attached, frame: { x: [-MEAN_X / S, (100 - MEAN_X) / S], y: [0, 1], box: plot } };

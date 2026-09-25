@@ -1796,7 +1796,7 @@ layout: |-
     anchors.sum_label = [tx + 60, ty];
     anchors.exact_label = [tx + 60, ty - 40];
   }
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, frame: { x: [x0, x1], y: [0, yTop], box: plot } };
 ---
 template: tangent_secant
 title: Secant → tangent (the derivative)
@@ -1928,4 +1928,4 @@ layout: |-
   push(kit.text("derivative_label", [tx, ty - 40], "f′(" + fmt(xa) + ") = " + deriv.toFixed(2), { fontSize: 26, color: C.demand, anchor: "start" }));
   anchors.slope_label = [tx + 60, ty];
   anchors.derivative_label = [tx + 60, ty - 40];
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, frame: { x: [x0, x0 + span], y: [0, yTop], box: plot } };

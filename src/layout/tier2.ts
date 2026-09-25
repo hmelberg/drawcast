@@ -1,7 +1,7 @@
 // Tier-2/3 layout: turns semantic elements into Drawables. The LLM never
 // places anything here except tier-3 escape-hatch coordinates.
 
-import { CANVAS, linearScale, plotArea, type PlotArea } from "./canvas";
+import { CANVAS, linearScale, plotArea, type DataFrame, type PlotArea } from "./canvas";
 import { makeAxes } from "./axes";
 import { interpolateAtX, intersectPolylines, qualitativeShape, sampleExpression, sampleParametric } from "./curves";
 import { centroid, type BBox } from "./geometry";
@@ -225,13 +225,18 @@ export function layoutElements(
    *  seedDrawables: the template's drawables, so `at.ref` can name a template id.
    *  vars: the spec's top-level numbers (spec/vars.ts).
    *  overrides: poses and morphed shapes the definitional references read (posed.ts). */
-  opts: { measure?: MeasureFn; seedDrawables?: Drawable[]; vars?: Vars; overrides?: LayoutOverrides; fit?: TemplateFit; decimalComma?: boolean } = {},
+  opts: { measure?: MeasureFn; seedDrawables?: Drawable[]; vars?: Vars; overrides?: LayoutOverrides; fit?: TemplateFit; decimalComma?: boolean; frame?: DataFrame } = {},
 ): Tier2Result {
   const measure = opts.measure ?? heuristicMeasure;
   const vars = opts.vars ?? {};
-  const plot = plotArea();
-  const domainX: [number, number] = domain?.x ?? [0, 100];
-  const domainY: [number, number] = domain?.y ?? [0, 100];
+  // A template's own frame stands in for a missing `domain`: curves, regions
+  // and `{data: [x, y]}` then land on the template's axes. It does NOT make
+  // the domain "declared" — a bare {x, y} on a template page stays canvas
+  // units, as it always was (2026-09-25).
+  const tFrame = domain ? undefined : opts.frame;
+  const plot = tFrame ? { ...tFrame.box } : plotArea();
+  const domainX: [number, number] = domain?.x ?? tFrame?.x ?? [0, 100];
+  const domainY: [number, number] = domain?.y ?? tFrame?.y ?? [0, 100];
   const fs = opts.fit?.s ?? 1, fdx = opts.fit?.dx ?? 0, fdy = opts.fit?.dy ?? 0;
   const plotFit: PlotArea = opts.fit
     ? { x0: plot.x0 * fs + fdx, x1: plot.x1 * fs + fdx, y0: plot.y0 * fs + fdy, y1: plot.y1 * fs + fdy }
@@ -442,7 +447,7 @@ export function layoutElements(
   }
   const labels: LabelRequest[] = [];
   for (const raw of emitOrder) {
-    const el = bound(raw);
+    const el = inCanvasUnits(bound(raw), ctx);
     const start = drawables.length;
     switch (el.type) {
       case "axes":
@@ -1021,6 +1026,29 @@ function fitGroup(
 }
 
 /**
+ * The data forms, turned into canvas units before an element is emitted:
+ * `at: {data: [x, y]}` on anything but a point (a point keeps its domain
+ * coordinates and is mapped as it draws), and a path's or polygon's
+ * `points` with `data: true`. Both go through the page's frame — its domain,
+ * or a template's own axes — with the template fit applied (2026-09-25).
+ */
+function inCanvasUnits(el: SpecElement, ctx: Ctx): SpecElement {
+  let out = el;
+  const at = el.at;
+  if (el.type !== "point" && at && !Array.isArray(at) && Array.isArray(at.data) && at.data.length === 2) {
+    const { data, ...rest } = at;
+    const [x, y] = [ctx.sx(data[0]), ctx.sy(data[1])];
+    const keep = Object.keys(rest).length > 0 ? rest : undefined;
+    out = { ...out, x, y, at: keep };
+    if (!keep) delete (out as { at?: unknown }).at;
+  }
+  if (el.data === true && Array.isArray(el.points)) {
+    out = { ...out, points: el.points.map(([x, y]) => [ctx.sx(x), ctx.sy(y)] as [number, number]) };
+  }
+  return out;
+}
+
+/**
  * Where an element builds itself: the ORIGIN when `at.ref` places it
  * relative to another element (the post-emit shift in pass 3 then moves the
  * finished drawables into place), otherwise its own x/y or the fallback.
@@ -1142,7 +1170,11 @@ function resolvePointDomain(el: SpecElement, ctx: Ctx): Pt | null {
     }
     return [at.x, y];
   }
-  if (at.x !== undefined && at.y !== undefined) return [at.x, at.y];
+  if (Array.isArray(at.data) && at.data.length === 2) return [at.data[0], at.data[1]];
+  // A bare {x, y} is the domain's on a page that declares one; with no
+  // domain it is canvas units — it used to read a silent default 0–100
+  // domain, so {x: 600, y: 600} landed five canvases away (2026-09-25).
+  if (at.x !== undefined && at.y !== undefined) return ctx.domainDeclared ? [at.x, at.y] : [ctx.ix(at.x), ctx.iy(at.y)];
   if (at.ref !== undefined || at.anchor !== undefined) {
     // Defensive: validateSpec already rejects this shape on a point (at is a
     // shared property — angle reuses it for a {ref, anchor} vertex), but a
@@ -1379,7 +1411,7 @@ interface ResolvedEnd {
   anchored: boolean;
 }
 
-function resolveEnd(end: { ref?: string; x?: number; y?: number; anchor?: string } | undefined, ctx: Ctx): ResolvedEnd | null {
+function resolveEnd(end: { ref?: string; x?: number; y?: number; anchor?: string; data?: [number, number] } | undefined, ctx: Ctx): ResolvedEnd | null {
   if (!end) return null;
   if (end.ref) {
     // Definitional readers see the posed view (design 2026-09-10 §2.5).
@@ -1412,6 +1444,7 @@ function resolveEnd(end: { ref?: string; x?: number; y?: number; anchor?: string
     ctx.warnings.push(`arrow/edge endpoint: "${end.ref}" has no anchor "${end.anchor}" — using its plain anchor`);
     return { pt: a, anchored: false };
   }
+  if (Array.isArray(end.data) && end.data.length === 2) return { pt: [ctx.sx(end.data[0]), ctx.sy(end.data[1])], anchored: false };
   if (end.x !== undefined && end.y !== undefined) {
     return { pt: ctx.domainDeclared ? [ctx.sx(end.x), ctx.sy(end.y)] : [end.x, end.y], anchored: false };
   }

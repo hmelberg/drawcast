@@ -278,6 +278,10 @@ export interface PlanOptions {
   toLogical?: (p: Pt) => Pt;
   /** Domain-delta → logical-delta mapping for move.by / move.path. */
   deltaToLogical?: (d: Pt) => Pt;
+  /** `{data: [x, y]}` → logical: the page's data frame (its domain, or a template's axes). */
+  dataToLogical?: (p: Pt) => Pt;
+  /** Whether a move of this id is in domain units (a point, curve, arrow on a page with a domain). Default: every id, when a domain mapping is given. */
+  inDataUnits?: (id: string) => boolean;
   /** Ids that ride along with an element's translation: its attached labels and their leaders. */
   attachedTo?: (id: string) => string[];
   /** The spec's `params` when the spec has a template; null/undefined = no template (animate then needs a var). */
@@ -351,6 +355,19 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   let bboxOf = opts.bboxOf ?? (() => null);
   const toLogical = opts.toLogical ?? ((p: Pt) => p);
   const deltaToLogical = opts.deltaToLogical ?? ((d: Pt) => d);
+  const dataToLogical = opts.dataToLogical ?? toLogical;
+  /** `{data: [x, y]}` anywhere a verb takes a point: the page's data frame. */
+  const dataOf = (p: unknown): Pt | null => {
+    const d = (p as { data?: unknown } | null | undefined)?.data;
+    return Array.isArray(d) && d.length === 2 ? dataToLogical(d as Pt) : null;
+  };
+  /** A move's (or morph.to's) units follow what it moves: domain units only
+   *  when EVERY target lives in the domain (inDataUnits); without that
+   *  option, the page's units as before. */
+  const unitsFor = (ids: string[]) => {
+    const data = !opts.inDataUnits || (ids.length > 0 && ids.every((id) => opts.inDataUnits!(id)));
+    return { delta: data ? deltaToLogical : (d: Pt) => d, point: data ? toLogical : (p: Pt) => p };
+  };
 
   const known = new Set(allIds);
   const steps: PlanStep[] = [];
@@ -664,6 +681,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const resolvePoint = (p: PointRef | undefined, self: string | undefined, verb: string): Pt | null => {
     if (p === undefined) return null;
     if (Array.isArray(p)) return toLogical(p as Pt);
+    const fromData = dataOf(p);
+    if (fromData) return fromData;
     const r = p as EndRef;
     if (r.ref === undefined && r.anchor === undefined && r.x !== undefined && r.y !== undefined) return toLogical([r.x, r.y]);
     const id = r.ref ?? self;
@@ -1159,6 +1178,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
             y = CANVAS.h / 2;
           }
         }
+      } else if (dataOf(at)) {
+        [x, y] = dataOf(at)!;
       } else if (at?.x !== undefined && at?.y !== undefined) {
         [x, y] = toLogical([at.x, at.y]);
       } else {
@@ -1219,7 +1240,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       if (!hasRotate && !hasTo && !hasScale) {
         // Plain translation, possibly along waypoints: the move step as before, followers included.
         const rawPath = hasPath ? cmd.move.path! : [cmd.move.by!];
-        const path = rawPath.map((d) => deltaToLogical(d as Pt));
+        const path = rawPath.map((d) => unitsFor(ids).delta(d as Pt));
         const [fx, fy] = path[path.length - 1];
         const moving = [...new Set([...ids, ...ids.flatMap(followers)])];
         const bases = Object.fromEntries(ids.map((id) => [id, offsets[id] ?? [0, 0]]));
@@ -1241,7 +1262,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           // Only a move that TAKES it off: something already off the canvas
           // before the move is a placement problem, reported elsewhere.
           if (off(cx, cy) && !off(b.x + b.w / 2 + bx, b.y + b.h / 2 + by)) {
-            const unitNote = opts.deltaToLogical ? " — on a page with a domain, move.by is in domain units" : "";
+            const unitNote = opts.deltaToLogical && unitsFor(ids).delta !== deltaToLogical ? "" : opts.deltaToLogical ? " — on a page with a domain, a point, curve or arrow moves in domain units" : "";
             warnings.push(`move "${id}" ends off the canvas (its centre at ${Math.round(cx)}, ${Math.round(cy)})${unitNote}`);
           }
         }
@@ -1315,9 +1336,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
               if (dest && from) delta = [dest[0] - from[0], dest[1] - from[1]];
             }
           } else if (hasBy) {
-            delta = deltaToLogical(cmd.move.by as Pt);
+            delta = unitsFor(ids).delta(cmd.move.by as Pt);
           } else if (hasPath) {
-            delta = deltaToLogical(cmd.move.path![cmd.move.path!.length - 1] as Pt);
+            delta = unitsFor(ids).delta(cmd.move.path![cmd.move.path!.length - 1] as Pt);
           }
           offset = [offset[0] + delta[0], offset[1] + delta[1]];
           let pivotNow: Pt;
@@ -1606,7 +1627,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           }
           shapes[id] = next;
         } else {
-          const ring = refRing ?? { pts: (cmd.morph.to as [number, number][]).map((p) => toLogical(p as Pt)), closed: true };
+          const ring = refRing ?? { pts: (cmd.morph.to as [number, number][]).map((p) => unitsFor([id]).point(p as Pt)), closed: true };
           for (const l of leaves) {
             const pair = morphPair(l.pts, l.closed, ring.pts.map(inv), refRing ? refRing.closed : l.closed);
             leafItems.push({ leafId: l.leafId, from: pair.from, to: pair.to });
@@ -1738,6 +1759,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
               if (p) [cx, cy] = p;
             }
           }
+        } else if (dataOf(center)) {
+          [cx, cy] = dataOf(center)!;
         } else if (center?.x !== undefined && center?.y !== undefined) {
           [cx, cy] = toLogical([center.x, center.y]);
         }

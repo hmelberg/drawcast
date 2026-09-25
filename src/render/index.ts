@@ -119,10 +119,13 @@ function contactEmail(): string {
  * command-addressable ids), so `draw`/`arrange` naming just the parent
  * silently drops as an unknown id instead of expanding.
  */
+/** Elements that live in a page's domain: they move in its units. */
+const DATA_KINDS = new Set<string>(["point", "curve", "region", "arrow", "edge", "line", "axes"]);
+
 export function planOptionsFor(
   spec: Spec,
   layout: LayoutResult,
-): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds" | "mathOf" | "isElement" | "controlsOf"> {
+): Pick<PlanOptions, "attachedTo" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds" | "mathOf" | "isElement" | "controlsOf" | "dataToLogical" | "inDataUnits"> {
   // Definitions hold (design 2026-09-10 §2.5): what is defined in terms of
   // what. A source that is a group or a pieces cut is moved through its
   // members (the planner expands it), so its dependents are attached to every
@@ -158,6 +161,19 @@ export function planOptionsFor(
       return el?.type === "math" && typeof el.tex === "string" ? el.tex : null;
     },
     isElement: (id) => spec.elements?.some((e) => e.id === id) ?? false,
+    // `{data: [x, y]}` in a command: the page's frame — its domain, or a
+    // chart template's own axes — with the template fit applied.
+    ...(layout.frame ? { dataToLogical: domainMapping(layout.frame, layout.fit).toLogical } : {}),
+    // A move (and morph.to) is in the units of what it moves: on a page with
+    // a domain, a point, a curve or an arrow moves in domain units, anything
+    // else — text, a formula, a shape, a path — in canvas units. The page's
+    // units used to apply to everything, so a formula copy moved "55 down"
+    // travelled 319 (2026-09-25).
+    inDataUnits: (id) => {
+      if (!spec.domain) return false;
+      const el = spec.elements?.find((e) => e.id === id);
+      return !!el && DATA_KINDS.has(el.type);
+    },
     pieceOf: (id) => layout.pieces[id] ?? null,
     measureOf: (id) => layout.measures[id] ?? null,
     // Which measures read this element: the one that measures it outright, and

@@ -372,7 +372,7 @@ layout: |
     push(kit.text("title", [(plot.x0 + plot.x1) / 2, ty], title, { fontSize: 30 }));
     anchors.title = [(plot.x0 + plot.x1) / 2, ty];
   }
-  return { drawables, labels: labelReqs, anchors, order };
+  return { drawables, labels: labelReqs, anchors, order, frame: { x: [-0.5, Math.max(1, n) - 0.5], y: [yMin, yMax], box: plot } };
 ---
 template: data_table
 title: Data table
@@ -1458,7 +1458,7 @@ layout: |
     push(kit.text("title", [(plot.x0 + plot.x1) / 2, ty], title, { fontSize: 30 }));
     anchors.title = [(plot.x0 + plot.x1) / 2, ty];
   }
-  return { drawables, labels: labelReqs, anchors, order };
+  return { drawables, labels: labelReqs, anchors, order, frame: { x: xCat ? [-0.5, Math.max(1, n) - 0.5] : [xMin, xMax], y: [yMin, yMax], box: plot } };
 ---
 template: scatter_plot
 title: Scatter plot
@@ -1852,7 +1852,7 @@ layout: |
     push(kit.text("title", titleAt, title, { fontSize: 30 }));
     anchors.title = titleAt;
   }
-  return { drawables, labels: labelReqs, anchors, order };
+  return { drawables, labels: labelReqs, anchors, order, frame: { x: [xMin, xMax], y: [yMin, yMax], box: plot } };
 ---
 template: bar_race
 title: Bar chart race

@@ -241,7 +241,7 @@ export function layoutGenericAxes(params: GenericAxesParams): SceneLayout {
     push(kit.text("title", [(plot.x0 + plot.x1) / 2, plot.y1 + 30], params.title, { fontSize: 30 }));
   }
 
-  return { drawables, labels, anchors, order, curveSamples, attached };
+  return { drawables, labels, anchors, order, curveSamples, attached, frame: { x: [0, 100], y: [0, 100], box: plot } };
 }
 
 function guideLine(id: string, pts: Pt[]): Drawable {

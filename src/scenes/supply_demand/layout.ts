@@ -446,7 +446,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     }
   }
 
-  return { drawables, labels, anchors, order, curveSamples, attached };
+  return { drawables, labels, anchors, order, curveSamples, attached, frame: { x: [0, 100], y: [0, 100], box: plot } };
 
   function addPriceLine(kind: "ceiling" | "floor", p: number, text: string) {
     const pts = ctx.toLogical([

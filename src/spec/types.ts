@@ -81,6 +81,8 @@ export interface EndRef {
   y?: number;
   /** A named point on ref (default center) — see PointRef's anchor names. */
   anchor?: string;
+  /** [x, y] in DATA units: the page's domain, or a template page's own axes. */
+  data?: [number, number];
 }
 
 /** A point a verb takes: [x, y] (domain units when a domain is declared, else logical) or a named point on an element. */
@@ -113,7 +115,7 @@ export interface SpecElement {
   t_to?: number;
   // point / angle / relative placement
   /** Where the element goes. point: `{x, y}` or `intersection_of`. Any coordinate-placed element: `{ref, side?, gap?, anchor?, offset?}` — placed relative to another element's box (side: outside it, gap units away; anchor: a named point on it) — or `{place}`, a named spot on the canvas itself. Never together with x/y. */
-  at?: { x?: number; y?: number; on?: string; intersection_of?: string[]; ref?: string; anchor?: string; side?: Side; gap?: number; offset?: [number, number]; place?: UniversalAnchor } | [number, number];
+  at?: { x?: number; y?: number; data?: [number, number]; on?: string; intersection_of?: string[]; ref?: string; anchor?: string; side?: Side; gap?: number; offset?: [number, number]; place?: UniversalAnchor } | [number, number];
   /** `{field: expr}` — numeric fields (or dot paths to numbers, `at.x`) computed from the spec's vars at layout time (design 2026-09-10 §2.2). */
   bind?: Record<string, string>;
   /** Own landing point when placed with at (default: the side opposite at.side, else center). Same convention as move. */
@@ -143,6 +145,8 @@ export interface SpecElement {
   shape?: "decision" | "chance" | "terminal" | "rect" | "circle" | "triangle" | "person";
   // tier-3 raw coordinates (logical units)
   points?: [number, number][];
+  /** path/polygon: `points` are in DATA units (the page's domain, or the template's axes). */
+  data?: boolean;
   closed?: boolean;
   /** path: Catmull-Rom through the points. */
   smooth?: boolean;

@@ -141,7 +141,7 @@ layout: |
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [540, 700], params.title, { fontSize: 30 }));
   }
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, frame: { x: [0, xMax * 1.04], y: [0, 1], box: plot } };
 ---
 template: tornado_diagram
 title: Tornado diagram

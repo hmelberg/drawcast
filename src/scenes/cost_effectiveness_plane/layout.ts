@@ -210,5 +210,5 @@ export function layoutCostEffectivenessPlane(params: CEParams): SceneLayout {
     push(kit.text("title", [CX, CY + HALF_H + 40], params.title, { fontSize: 30 }));
   }
 
-  return { drawables, labels, anchors, order, attached };
+  return { drawables, labels, anchors, order, attached, frame: { x: [-xMax, xMax], y: [-yMax, yMax], box: { x0: CX - HALF_W, y0: CY - HALF_H, x1: CX + HALF_W, y1: CY + HALF_H } } };
 }

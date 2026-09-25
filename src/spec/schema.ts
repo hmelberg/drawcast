@@ -81,7 +81,7 @@ const SHARED_DEFS = {
       { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
       {
         type: "object",
-        properties: { ref: { type: "string" }, anchor: { type: "string" }, x: { type: "number" }, y: { type: "number" } },
+        properties: { ref: { type: "string" }, anchor: { type: "string" }, x: { type: "number" }, y: { type: "number" }, data: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "[x, y] in data units — the page's domain, or a template's own axes." } },
         additionalProperties: false,
       },
     ],
@@ -100,6 +100,7 @@ const SHARED_DEFS = {
       x: { type: "number" },
       y: { type: "number" },
       anchor: { type: "string", description: `A named point ON ref instead of its centre — e.g. {"ref": "tri", "anchor": "vertex_1"}: ${ANCHOR_NAMES}.` },
+      data: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "[x, y] in data units — the page's domain, or a template's own axes." },
     },
     additionalProperties: false,
   },
@@ -107,13 +108,13 @@ const SHARED_DEFS = {
 
 const endRefSchema = {
   allOf: [{ $ref: "#/$defs/end_ref" }],
-  description: "Arrow/edge endpoint: set ref to an element id, OR x+y coordinates (domain coordinates if a domain is declared, else logical).",
+  description: "Arrow/edge endpoint: set ref to an element id, OR x+y (domain units if a domain is declared, else canvas), OR data: [x, y] (data units — also a template's axes).",
 };
 
 /** A point a verb takes: [x, y], or a named point on an element so the model never computes it. */
 const pointRefSchema = (what: string) => ({
   allOf: [{ $ref: "#/$defs/point_ref" }],
-  description: `${what} — [x, y] (domain units when a domain is declared, else logical), or {"ref": id, "anchor": name} for a point ON an element so you never compute it: ${ANCHOR_NAMES}.`,
+  description: `${what} — [x, y] (domain units when a domain is declared, else canvas), {"data": [x, y]}, or {"ref": id, "anchor": name} for a point ON an element so you never compute it: ${ANCHOR_NAMES}.`,
 });
 
 /** A verb's ghost option: true (every target), a list of ids, or {of, opacity}. */
@@ -161,6 +162,7 @@ const elementSchema = {
           properties: {
             x: { type: "number" },
             y: { type: "number" },
+            data: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "[x, y] in data units — the page's domain, or a template's own axes." },
             intersection_of: { type: "array", items: { type: "string" }, description: "Two curve ids (your own or a scene template's); the point is their intersection." },
             on: { type: "string", description: "point: the curve this point sits on at x (y is read off it)." },
             ref: { type: "string" },
@@ -241,7 +243,8 @@ const elementSchema = {
       description: "node/shape: decision=square, chance=circle, terminal=triangle (health-economics conventions); person = stick figure. x/y is the CENTRE of a node or shape, and width/height (circle: width = diameter) are honoured.",
     },
     // tier-3 raw
-    points: { type: "array", items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, description: "path: polyline points in logical coordinates (y-up)." },
+    points: { type: "array", items: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 }, description: "path: polyline points in logical coordinates (y-up) — in data units with `data: true`." },
+    data: { type: "boolean", description: "path/polygon: the points are in DATA units (the page's domain, or a template's own axes) — an overlay that lands on the chart it annotates." },
     closed: { type: "boolean", description: "path: close the polyline." },
     smooth: { type: "boolean", description: "path: smooth curve through the points (Catmull-Rom)." },
     members: { type: "array", items: { type: "string" }, minItems: 1, description: "group: element ids that form one thing; draw/move/highlight the group id to act on all." },

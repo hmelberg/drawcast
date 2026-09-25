@@ -94,3 +94,21 @@ describe("the round trip over the scene packs", () => {
     expect(count).toBeGreaterThan(0);
   });
 });
+
+describe("the data coordinate forms survive the round trip (2026-09-25)", () => {
+  test("at {data}, arrow ends {data}, path data: true, verb points {data}", () => {
+    const spec = {
+      title: "data forms",
+      template: "survival_curve",
+      params: { arms: [{ label: "A", survival: [1, 0.8, 0.6] }] },
+      elements: [
+        { id: "note", type: "text", text: "half", at: { data: [1, 0.5] } },
+        { id: "mark", type: "point", at: { data: [2, 0.6] } },
+        { id: "arr", type: "arrow", from: { data: [0, 0] }, to: { data: [2, 0.6] } },
+        { id: "band", type: "path", data: true, points: [[0, 0.5], [2, 0.5]] },
+      ],
+      commands: [{ draw: ["note", "mark", "arr", "band"] }, { point: { at: { data: [1, 0.8] } } }, { camera: { center: { data: [1, 0.5] }, zoom: 1.5 } }],
+    } as unknown as Spec;
+    expect(check([spec])).toEqual({ broken: [], unstable: [] });
+  });
+});

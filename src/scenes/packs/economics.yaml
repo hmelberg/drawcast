@@ -140,7 +140,7 @@ layout: |
     attached["optimum"] = [...(attached["optimum"] ?? []), "optimum_label"];
   }
 
-  return { drawables, labels, anchors, order, attached };
+  return { drawables, labels, anchors, order, attached, frame: { x: [0, worldXMax], y: [0, worldYMax], box: plot } };
 ---
 template: ppf
 title: Production possibilities frontier
@@ -329,7 +329,7 @@ layout: |
     attached["optimum"] = [...(attached["optimum"] ?? []), "optimum_label"];
   }
 
-  return { drawables, labels, anchors, order, attached };
+  return { drawables, labels, anchors, order, attached, frame: { x: [0, worldMax], y: [0, worldMax], box: plot } };
 ---
 template: firm_cost_curves
 title: Firm cost curves (competition & monopoly)
@@ -518,7 +518,7 @@ layout: |
     label("label_shade", anchors.shade, "above", "Deadweight loss", C.regionLoss, 20);
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, frame: { x: [0, 100], y: [0, 100], box: plot } };
 ---
 template: payoff_matrix
 title: Payoff matrix (2x2 game)

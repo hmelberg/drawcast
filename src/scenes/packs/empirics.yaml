@@ -140,7 +140,7 @@ layout: |
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [540, 700], params.title, { fontSize: 30 }));
   }
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, frame: { x: [-nPre - 0.5, nPost - nPre - 0.5], y: [mid - span / 2, mid + span / 2], box: plot } };
 ---
 template: did_trends
 title: Difference-in-differences trends
@@ -294,7 +294,7 @@ layout: |
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [540, 700], params.title, { fontSize: 30 }));
   }
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, frame: { x: [0, 10.4], y: [mid - span / 2, mid + span / 2], box: plot } };
 ---
 template: rd_plot
 title: Regression discontinuity plot
@@ -419,7 +419,7 @@ layout: |
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [540, 700], params.title, { fontSize: 30 }));
   }
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, frame: { x: [-10, 10.5], y: [mid - span / 2, mid + span / 2], box: plot } };
 ---
 template: binscatter
 title: Binned scatter plot
@@ -527,7 +527,7 @@ layout: |
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [540, 700], params.title, { fontSize: 30 }));
   }
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, frame: { x: [0, 10.4], y: [mid - span / 2, mid + span / 2], box: plot } };
 ---
 template: lorenz_curve
 title: Lorenz curve & Gini
@@ -654,4 +654,4 @@ layout: |
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [500, 700], params.title, { fontSize: 30 }));
   }
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, frame: { x: [0, 1], y: [0, 1], box: plot } };

@@ -23,7 +23,7 @@ import { hasDefaultColumnInsets, INSET_MAIN } from "./inset";
 import type { LayoutOverrides } from "./posed";
 import { heuristicMeasure, type MeasureFn } from "./measure";
 import { drawablesForId, leafDrawables, type Drawable, type Pt } from "./model";
-import { linearScale, plotArea } from "./canvas";
+import { frameToCanvas, linearScale, plotArea, type DataFrame } from "./canvas";
 import { figureSplit } from "./figure-split";
 import { fitSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
 import type { SceneLayout } from "../scenes/types";
@@ -70,6 +70,10 @@ export interface LayoutResult {
   /** The template's fit into its box (spec/2026-09-15-template-box): absent
    *  when no box was in play or the template laid itself out in one. */
   fit?: TemplateFit;
+  /** The page's data coordinates — the spec's `domain` on the default plot
+   *  area, else a chart template's own (SceneLayout.frame). What
+   *  `{data: [x, y]}` means, in layout and plan alike. */
+  frame?: DataFrame;
 }
 
 /**
@@ -148,6 +152,7 @@ export function layoutSpec(
   let seedAnchors: Record<string, Pt> = {};
   let seedCurveSamples: Record<string, Pt[]> = {};
   let templateIds: string[] = [];
+  let templateFrame: DataFrame | undefined;
 
   if (spec.template) {
     const scene = scenes[spec.template];
@@ -196,10 +201,11 @@ export function layoutSpec(
         labelRequests.push(...sceneLayout.labels);
         order.push(...sceneLayout.order);
         seedAnchors = sceneLayout.anchors;
+        if (sceneLayout.frame) templateFrame = sceneLayout.frame;
         // Scene curves arrive in logical coordinates; tier-2 thinks in the
         // spec's domain (default 0–100), so map them back before seeding.
         if (sceneLayout.curveSamples) {
-          const inv = inverseDomainMapping(spec.domain, fit);
+          const inv = inverseDomainMapping(spec.domain ?? templateFrame, fit);
           seedCurveSamples = Object.fromEntries(
             Object.entries(sceneLayout.curveSamples).map(([id, pts]) => [id, pts.map(inv)]),
           );
@@ -216,7 +222,7 @@ export function layoutSpec(
     // Norwegian cast. spec.lang when set, else the narration's own sniff.
     const spoken = (spec.commands ?? []).map((c) => c.speak ?? "").join(" ");
     const decimalComma = usesDecimalComma(spec.lang, spoken.trim() ? detectLang(spoken) : undefined);
-    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples, { measure, seedDrawables: [...drawables], vars: spec.vars, overrides, fit, decimalComma });
+    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples, { measure, seedDrawables: [...drawables], vars: spec.vars, overrides, fit, decimalComma, frame: templateFrame });
     drawables.push(...tier2.drawables);
     labelRequests.push(...tier2.labels);
     warnings.push(...tier2.warnings);
@@ -371,7 +377,17 @@ export function layoutSpec(
     // carries the template's/tier-2's warnings (same spec, same elements) —
     // the draw-beat layout would only repeat them under a moved box.
   }
-  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, attached, fitGroups, namedAnchors, measures, labelPins, ...(fit ? { fit } : {}) };
+  const frame = pageFrame(spec.domain, templateFrame);
+  // `{data: [x, y]}` on a template page means the template's own axes — and
+  // a template that draws none reports no frame, so the data would silently
+  // read a 0–100 domain. Say so (unless the params still wait on a script:
+  // a code-fed chart reports its frame only once its data is real).
+  if (spec.template && !frame && hasTemplate) {
+    const usesData = /"data":\s*(\[|true)/.test(JSON.stringify({ e: spec.elements ?? [], c: spec.commands ?? [] }));
+    const waiting = /"\{[A-Za-z_][\w]*\.[^"]*\}"/.test(JSON.stringify(spec.params ?? {}));
+    if (usesData && !waiting) warnings.push(`template "${spec.template}" has no data axes — {data: [x, y]} reads a 0–100 domain on the plot area; place overlays with at.ref/anchor instead`);
+  }
+  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, attached, fitGroups, namedAnchors, measures, labelPins, ...(fit ? { fit } : {}), ...(frame ? { frame } : {}) };
 }
 
 /** Does this template lay itself out in a `box` param? Five data templates
@@ -525,32 +541,40 @@ export function elementRings(layout: Pick<LayoutResult, "drawables" | "order">):
  *  where the template's axes WERE; the fit says where they are now.
  *  No domain: coordinates are canvas coordinates and never follow a
  *  template's fit (tier-3 rule). */
-export function domainMapping(domain: Spec["domain"], fit?: TemplateFit): { toLogical: (p: Pt) => Pt; deltaToLogical: (d: Pt) => Pt } {
+/** The page's data frame: the spec's `domain` on the default plot area, else a template's own. */
+export function pageFrame(domain: Spec["domain"], templateFrame?: DataFrame): DataFrame | undefined {
+  if (domain) return { x: domain.x ?? [0, 100], y: domain.y ?? [0, 100], box: plotArea() };
+  return templateFrame;
+}
+
+const isFrame = (d: Spec["domain"] | DataFrame | undefined): d is DataFrame => !!d && "box" in d;
+
+/**
+ * Data → logical for the planner's positions, fit included. Given a spec
+ * `domain` (or a frame built from one) — or a template's frame, for the
+ * `{data: [x, y]}` form. Nothing given: logical in, logical out.
+ */
+export function domainMapping(domain: Spec["domain"] | DataFrame | undefined, fit?: TemplateFit): { toLogical: (p: Pt) => Pt; deltaToLogical: (d: Pt) => Pt } {
   if (!domain) return { toLogical: (p) => p, deltaToLogical: (d) => d };
+  const f: DataFrame = isFrame(domain) ? domain : { x: domain.x ?? [0, 100], y: domain.y ?? [0, 100], box: plotArea() };
   const s = fit?.s ?? 1, dx = fit?.dx ?? 0, dy = fit?.dy ?? 0;
   const post = ([x, y]: Pt): Pt => [x * s + dx, y * s + dy];
   const postDelta = ([a, b]: Pt): Pt => [a * s, b * s];
-  const plot = plotArea();
-  const dX = domain.x ?? [0, 100];
-  const dY = domain.y ?? [0, 100];
-  const sx = linearScale(dX, [plot.x0, plot.x1]);
-  const sy = linearScale(dY, [plot.y0, plot.y1]);
-  const fx = (plot.x1 - plot.x0) / (dX[1] - dX[0] || 1);
-  const fy = (plot.y1 - plot.y0) / (dY[1] - dY[0] || 1);
+  const map = frameToCanvas(f);
+  const fx = (f.box.x1 - f.box.x0) / (f.x[1] - f.x[0] || 1);
+  const fy = (f.box.y1 - f.box.y0) / (f.y[1] - f.y[0] || 1);
   return {
-    toLogical: ([x, y]) => post([sx(x), sy(y)]),
+    toLogical: (p) => post(map(p)),
     deltaToLogical: ([a, b]) => postDelta([a * fx, b * fy]),
   };
 }
 
-/** Logical canvas → spec domain (the inverse of domainMapping, fit included). */
-export function inverseDomainMapping(domain: Spec["domain"], fit?: TemplateFit): (p: Pt) => Pt {
+/** Logical canvas → data (the inverse of domainMapping, fit included). */
+export function inverseDomainMapping(domain: Spec["domain"] | DataFrame | undefined, fit?: TemplateFit): (p: Pt) => Pt {
   const s = fit?.s ?? 1, dx = fit?.dx ?? 0, dy = fit?.dy ?? 0;
-  const plot = plotArea();
-  const dX = domain?.x ?? [0, 100];
-  const dY = domain?.y ?? [0, 100];
-  const ix = linearScale([plot.x0, plot.x1], dX);
-  const iy = linearScale([plot.y0, plot.y1], dY);
+  const f: DataFrame = isFrame(domain) ? domain : { x: domain?.x ?? [0, 100], y: domain?.y ?? [0, 100], box: plotArea() };
+  const ix = linearScale([f.box.x0, f.box.x1], f.x);
+  const iy = linearScale([f.box.y0, f.box.y1], f.y);
   return ([x, y]) => [ix((x - dx) / s), iy((y - dy) / s)];
 }
 

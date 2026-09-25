@@ -21,6 +21,26 @@ export interface PlotArea {
   y1: number;
 }
 
+/**
+ * A page's data coordinates: the domain ranges and the canvas box they fill.
+ * A spec's `domain` makes one on the default plot area; a template that
+ * draws a chart reports its own (SceneLayout.frame), so `{data: [x, y]}` —
+ * and curves and regions on a template page with no domain — land on the
+ * template's axes (2026-09-25).
+ */
+export interface DataFrame {
+  x: [number, number];
+  y: [number, number];
+  box: PlotArea;
+}
+
+/** The linear data → canvas map of a frame, before any template fit. */
+export function frameToCanvas(f: DataFrame): (p: [number, number]) => [number, number] {
+  const sx = linearScale(f.x, [f.box.x0, f.box.x1]);
+  const sy = linearScale(f.y, [f.box.y0, f.box.y1]);
+  return ([x, y]) => [sx(x), sy(y)];
+}
+
 export function plotArea(): PlotArea {
   return {
     x0: PLOT_MARGIN.left,

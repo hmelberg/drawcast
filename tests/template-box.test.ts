@@ -116,8 +116,15 @@ describe("template box — domain coordinates follow the fit", () => {
   // placement and deliberately do not follow the fit — that is how a note
   // sits beside a fitted template — while domain-unit placement (point,
   // curves, regions) follows the figure.
-  test("a freehand point at domain (50, 50) lands at the fitted image of the plot centre", () => {
-    const r = layoutSpec(sir({ box: "left" }, [{ id: "t", type: "point", at: { x: 50, y: 50 } }]));
+  test("a bare {x, y} point on a page with no domain is canvas units (2026-09-25)", () => {
+    const r = layoutSpec(sir({ box: "left" }, [{ id: "t", type: "point", at: { x: 400, y: 300 } }]));
+    const b = elementBBoxes(r).get("t")!;
+    expect(b.x + b.w / 2).toBeCloseTo(400, 0);
+    expect(b.y + b.h / 2).toBeCloseTo(300, 0);
+  });
+
+  test("a freehand point at data (50, 50) lands at the fitted image of the plot centre", () => {
+    const r = layoutSpec(sir({ box: "left" }, [{ id: "t", type: "point", at: { data: [50, 50] } }]));
     const { s, dx, dy } = r.fit!;
     const plot = plotArea();
     const cx = (plot.x0 + plot.x1) / 2, cy = (plot.y0 + plot.y1) / 2;
