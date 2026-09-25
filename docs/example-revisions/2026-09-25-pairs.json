@@ -56,6 +56,20 @@
     "kind_after": "cell_diagram"
   },
   {
+    "index": 9,
+    "before_request": "Show why a magnifying glass makes a virtual image.",
+    "after_request": "How does a magnifying glass make things look bigger?",
+    "kind_before": "ray_diagram",
+    "kind_after": "ray_diagram"
+  },
+  {
+    "index": 10,
+    "before_request": "Show how a catalyst lowers the activation energy.",
+    "after_request": "How does a catalyst speed up a reaction without being used up?",
+    "kind_before": "energy_diagram",
+    "kind_after": "energy_diagram"
+  },
+  {
     "index": 11,
     "before_request": "Draw the DNA double helix and explain base pairing.",
     "after_request": "Why does DNA pair A with T and C with G?",
@@ -63,11 +77,39 @@
     "kind_after": "dna_helix"
   },
   {
+    "index": 12,
+    "before_request": "Explain what wavelength and amplitude mean.",
+    "after_request": "What do a wave's wavelength and amplitude actually measure?",
+    "kind_before": "wave_diagram",
+    "kind_after": "freehand"
+  },
+  {
     "index": 13,
     "before_request": "Draw the combustion of methane.",
     "after_request": "How much oxygen does burning methane use, and what comes out?",
     "kind_before": "reaction_scheme",
     "kind_after": "reaction_scheme"
+  },
+  {
+    "index": 14,
+    "before_request": "Compare diffusion and active transport across a cell membrane.",
+    "after_request": "Why does moving some things across a cell membrane cost energy and others not?",
+    "kind_before": "membrane_bilayer",
+    "kind_after": "membrane_bilayer"
+  },
+  {
+    "index": 15,
+    "before_request": "How are humans, chimps, mice, rats and chickens related?",
+    "after_request": "How are humans, chimps, mice, rats and chickens related?",
+    "kind_before": "phylo_tree",
+    "kind_after": "phylo_tree"
+  },
+  {
+    "index": 16,
+    "before_request": "Show sensitivity and specificity in a 2×2 test-versus-disease table.",
+    "after_request": "What do sensitivity and specificity actually measure?",
+    "kind_before": "two_by_two_table",
+    "kind_after": "two_by_two_table"
   },
   {
     "index": 18,
@@ -112,6 +154,34 @@
     "kind_after": "ad_as"
   },
   {
+    "index": 26,
+    "before_request": "Compare survival on treatment versus control.",
+    "after_request": "How do you read a survival curve and a hazard ratio?",
+    "kind_before": "survival_curve",
+    "kind_after": "survival_curve"
+  },
+  {
+    "index": 27,
+    "before_request": "Draw a meta-analysis forest plot pooling four studies.",
+    "after_request": "How can four inconclusive trials add up to a clear answer?",
+    "kind_before": "forest_plot",
+    "kind_after": "forest_plot"
+  },
+  {
+    "index": 28,
+    "before_request": "Show how a confounder biases the effect of coffee on heart disease.",
+    "after_request": "What is a confounder, and what does adjusting for it do?",
+    "kind_before": "causal_dag",
+    "kind_after": "causal_dag"
+  },
+  {
+    "index": 30,
+    "before_request": "Explain a p-value cutoff of 0.05, two-sided.",
+    "after_request": "What does p < 0.05 actually tell you?",
+    "kind_before": "distribution_curve",
+    "kind_after": "distribution_curve"
+  },
+  {
     "index": 31,
     "before_request": "Draw a Venn diagram of two sets and shade their intersection.",
     "after_request": "What do 'and' and 'or' mean in a Venn diagram?",
@@ -119,11 +189,39 @@
     "kind_after": "venn_diagram"
   },
   {
+    "index": 32,
+    "before_request": "Show the unit circle at a 30 degree angle, and animate it sweeping forward to 330 degrees.",
+    "after_request": "How can an angle bigger than 90 degrees have a sine?",
+    "kind_before": "unit_circle",
+    "kind_after": "unit_circle"
+  },
+  {
     "index": 33,
     "before_request": "Show the solution to x is greater than 1 on a number line.",
     "after_request": "Why is x > 1 drawn with an open circle?",
     "kind_before": "number_line",
     "kind_after": "number_line"
+  },
+  {
+    "index": 34,
+    "before_request": "Prove Thales' theorem: an angle inscribed in a semicircle is a right angle.",
+    "after_request": "Why is an angle in a semicircle always a right angle?",
+    "kind_before": "geometry_figure",
+    "kind_after": "geometry_figure"
+  },
+  {
+    "index": 35,
+    "before_request": "Make a truth table for (A AND B) OR NOT A.",
+    "after_request": "What does (A AND B) OR NOT A really say?",
+    "kind_before": "truth_table",
+    "kind_after": "truth_table"
+  },
+  {
+    "index": 36,
+    "before_request": "Draw a modus ponens argument map: if it rains the ground gets wet, and it is raining, so the ground is wet.",
+    "after_request": "Why does modus ponens work, when a similar-looking argument fails?",
+    "kind_before": "argument_map",
+    "kind_after": "argument_map"
   },
   {
     "index": 37,
@@ -166,6 +264,41 @@
     "after_request": "What is a helix?",
     "kind_before": "plot3d",
     "kind_after": "plot3d"
+  },
+  {
+    "index": 43,
+    "before_request": "Draw a series circuit with a battery, a bulb and a switch.",
+    "after_request": "Does the current get used up as it goes round a series circuit?",
+    "kind_before": "circuit_diagram",
+    "kind_after": "circuit_diagram"
+  },
+  {
+    "index": 44,
+    "before_request": "Show projectile motion at 45 degrees.",
+    "after_request": "Why does a launch at 45 degrees go the farthest?",
+    "kind_before": "projectile_motion",
+    "kind_after": "projectile_motion"
+  },
+  {
+    "index": 45,
+    "before_request": "Draw the MAPK-style pathway EGFR to RAS to ERK, with p53 inhibiting the cell cycle.",
+    "after_request": "How does a growth signal tell a cell to divide, and how does cancer jam it on?",
+    "kind_before": "pathway",
+    "kind_after": "pathway"
+  },
+  {
+    "index": 46,
+    "before_request": "Cross two heterozygous parents in a Punnett square.",
+    "after_request": "If both parents carry cystic fibrosis, what are the chances for their child?",
+    "kind_before": "punnett_square",
+    "kind_after": "punnett_square"
+  },
+  {
+    "index": 47,
+    "before_request": "Draw a food web with grass, rabbits, mice, foxes and hawks.",
+    "after_request": "What does a food web show, and what happens when one species disappears?",
+    "kind_before": "food_web",
+    "kind_after": "food_web"
   },
   {
     "index": 48,

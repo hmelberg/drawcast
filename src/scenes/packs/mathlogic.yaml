@@ -700,6 +700,8 @@ element_ids:
   grid: the table's grid lines
   grid__c<r>_<c>: each cell's value text ("T"/"F"), r/c 0-indexed, the last column being the expression's result
   expr_header: the header above the result column, showing the expression
+  var_headers: the variables' column headers (one group)
+  true_row_<r>: the tint behind row r when its result is true
   title: figure title, when set
 examples:
   - request: "Make a truth table for (A AND B) OR NOT A."

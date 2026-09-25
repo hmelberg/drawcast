@@ -187,3 +187,14 @@ describe("plan and lint", () => {
     expect(issues("v\\,t_r")).toHaveLength(1);
   });
 });
+
+describe("termTex — a term as a person names it (2026-09-25)", () => {
+  test("whitespace and whole-term braces do not count; inner structure does", async () => {
+    const { termTex } = await import("../src/layout/math-morph");
+    expect(termTex("\\sin 2\\theta")).toBe(termTex("\\sin2\\theta"));
+    expect(termTex("{t/t_{1/2}}")).toBe(termTex("t/t_{1/2}"));
+    expect(termTex("{P(A)}")).toBe("P(A)");
+    expect(termTex("{a}+{b}")).toBe("{a}+{b}");
+    expect(termTex("x^2")).not.toBe(termTex("x_2"));
+  });
+});

@@ -56,8 +56,8 @@ element_ids:
 examples:
   - request: "Draw a cell membrane with a channel protein."
     params: { proteins: ["channel"] }
-  - request: "Show diffusion of O₂ through a membrane channel."
-    params: { proteins: ["channel"], transports: [{ species: "O₂", mode: "diffusion", direction: "in" }] }
+  - request: "How does oxygen get into a cell?"
+    params: { transports: [{ species: "O₂", mode: "diffusion", direction: "in" }] }
 layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const widthUnits = Math.min(12, Math.max(4, Math.round(params.width_units ?? 8)));
@@ -287,7 +287,7 @@ params:
   properties:
     newick:
       type: string
-      description: "Newick tree string, e.g. \"((Human,Chimp),(Mouse,Rat),Chicken);\". Branch lengths are parsed but ignored — layout is depth-proportional."
+      description: "Newick tree string, e.g. \"(((Human,Chimp),(Mouse,Rat)),Chicken);\". Branch lengths are parsed but ignored — layout is depth-proportional."
     title:
       type: string
       description: "Caption above the tree."
@@ -303,7 +303,9 @@ examples:
 layout: |
   const newick = typeof params.newick === "string" && params.newick.trim() !== ""
     ? params.newick
-    : "((Human,Chimp),(Mouse,Rat),Chicken);";
+    // Mammals first, then the bird: the old three-way root put rodents no
+    // closer to primates than to chickens.
+    : "(((Human,Chimp),(Mouse,Rat)),Chicken);";
 
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
@@ -396,9 +398,9 @@ params:
     edges:
       type: string
       description: >-
-        kit.parseEdgeList notation: "EGFR -> RAS; RAS -> ERK; p53 -| cell
-        cycle" (-> activates, -| inhibits, => converts). Default: a
-        3-node MAPK-style cascade.
+        kit.parseEdgeList notation: "EGFR -> RAS; RAS -> RAF; NF1 -| RAS"
+        (-> activates, -| inhibits, => converts). Default: the
+        EGFR → RAS → RAF → MEK → ERK growth-signal cascade.
     node_types:
       type: object
       additionalProperties:
@@ -416,10 +418,9 @@ element_ids:
   edge_<i>: the i-th parsed edge's connector (arrow, bar, or dashed arrow)
   title: figure title, when set
 examples:
-  - request: "Draw the MAPK-style pathway EGFR to RAS to ERK, with p53 inhibiting the cell cycle."
+  - request: "How does a growth signal travel from EGFR to ERK, and what switches it off?"
     params:
-      edges: "EGFR -> RAS; RAS -> ERK; p53 -| cell cycle"
-      title: "A simplified MAPK cascade"
+      edges: "EGFR -> RAS; RAS -> RAF; RAF -> MEK; MEK -> ERK; NF1 -| RAS"
   - request: "Draw a metabolic pathway converting glucose to pyruvate, activated by insulin."
     params:
       edges: "insulin -> glycolysis; glucose => pyruvate"
@@ -434,7 +435,9 @@ layout: |
 
   const edgesStr = typeof params.edges === "string" && params.edges.trim() !== ""
     ? params.edges
-    : "EGFR -> RAS; RAS -> ERK; p53 -| cell cycle";
+    // The real relay, in order (RAS does not activate ERK directly, and p53
+    // belongs to a different, DNA-damage pathway — the old default taught both).
+    : "EGFR -> RAS; RAS -> RAF; RAF -> MEK; MEK -> ERK";
   const parsed = kit.parseEdgeList(edgesStr).slice(0, 24);
 
   const nodeNames = [];
@@ -656,7 +659,8 @@ layout: |
     order.push("ratio");
   }
 
-  drawables.push(kit.text("parent1_label", [CX, Y0 + H + 105], "Parent 1 (" + parent1 + ")", { fontSize: 22, color: C.guide }));
+  // +145, not +105: at +105 it sat on the column headers' row ("F Parent 1 (Ff) f").
+  drawables.push(kit.text("parent1_label", [CX, Y0 + H + 145], "Parent 1 (" + parent1 + ")", { fontSize: 22, color: C.guide }));
   order.push("parent1_label");
   drawables.push(kit.text("parent2_label", [X0 - 105, CY], "Parent 2 (" + parent2 + ")", { fontSize: 22, color: C.guide, anchor: "end" }));
   order.push("parent2_label");
@@ -717,7 +721,8 @@ layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   function slugify(name) { return String(name).toLowerCase().replace(/[^a-z0-9]/g, "_") || "n"; }
   const LEVELS = ["producer", "primary", "secondary", "apex"];
-  const LEVEL_Y = { producer: 140, primary: 320, secondary: 480, apex: 630 };
+  // Producers at 175 (was 140): the bottom band sat under the narration captions.
+  const LEVEL_Y = { producer: 175, primary: 335, secondary: 490, apex: 635 };
   const LEVEL_COLOR = { producer: C.region2, primary: C.accent, secondary: C.demand, apex: C.regionLoss };
   const LEVEL_TITLE = { producer: "Producers", primary: "Primary consumers", secondary: "Secondary consumers", apex: "Apex predators" };
 

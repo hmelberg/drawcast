@@ -1622,32 +1622,31 @@
     }
   },
   {
-    "request": "Show why a magnifying glass makes a virtual image.",
+    "request": "How does a magnifying glass make things look bigger?",
     "packs": [
       "physics"
     ],
     "spec": {
-      "title": "A magnifying glass",
+      "title": "How a magnifying glass works",
       "template": "ray_diagram",
       "params": {
-        "focal_length": 12,
-        "object_distance": 7,
-        "object_height": 5,
+        "focal_length": 10,
+        "object_distance": 7.5,
+        "object_height": 4,
         "show_labels": true
       },
       "commands": [
         {
-          "speak": "A magnifying glass makes things look bigger — let's see where that bigger picture actually is."
+          "card": {
+            "title": "How a magnifier works"
+          }
         },
         {
           "draw": [
             "axis",
             "lens"
           ],
-          "speak": "Here's the lens, seen edge-on, with the optical axis running through its centre."
-        },
-        {
-          "pause": 0.3
+          "speak": "How does a magnifying glass make a letter look bigger, and where is the bigger letter? Here is the lens, edge-on."
         },
         {
           "draw": [
@@ -1656,71 +1655,116 @@
             "label_left",
             "label_right"
           ],
-          "speak": "Each F marks a focal point, twelve centimetres out on either side."
-        },
-        {
-          "pause": 0.3
+          "parallel": true,
+          "speak": "Its focal length is ten centimetres: parallel light meets at F, ten centimetres out on either side."
         },
         {
           "draw": [
             "object",
             "label_object"
           ],
-          "speak": "Now put the object just seven centimetres away — closer than the focal point."
-        },
-        {
-          "pause": 0.3
+          "speak": "Hold a small letter 7.5 centimetres away, just inside the focal length."
         },
         {
           "draw": [
             "ray_parallel"
           ],
-          "speak": "One ray leaves the tip parallel to the axis, and the lens bends it through the far focal point."
+          "speak": "A ray leaving the top of the letter parallel to the axis is bent through the far F."
         },
         {
           "draw": [
             "ray_center"
           ],
-          "speak": "A second goes straight through the centre, undeflected."
+          "speak": "A ray through the centre of the lens goes straight on."
         },
         {
-          "pause": 0.4
-        },
-        {
-          "speak": "Notice the problem: after the lens the two rays spread apart. They never cross, so there is no picture to catch on a screen."
+          "point": {
+            "at": {
+              "ref": "ray_parallel"
+            },
+            "gesture": "underline"
+          },
+          "speak": "Past the lens these two rays spread apart. They never meet, so there is no picture on this side for a screen to catch."
         },
         {
           "draw": [
             "ray_parallel_ext",
             "ray_center_ext"
           ],
-          "speak": "So we trace them backwards instead, dashed, to where they seem to come from."
-        },
-        {
-          "pause": 0.3
+          "parallel": true,
+          "speak": "But your eye can't know the rays were bent. It traces them straight back, to where they seem to come from."
         },
         {
           "draw": [
             "image",
             "label_image"
           ],
-          "speak": "There they meet: an upright, magnified, virtual image — behind the glass, on the same side as the object."
+          "speak": "They seem to come from here: an upright letter thirty centimetres behind the glass, four times as tall. A virtual image."
         },
         {
           "highlight": {
             "target": [
-              "image",
-              "object"
-            ],
-            "effect": "glow"
+              "image"
+            ]
           },
-          "speak": "That is the whole trick of a magnifying glass: your eye is fooled into seeing this larger version."
+          "speak": "Four times as tall, but four times as far away: it fills the same angle as the letter itself, seen from 7.5 centimetres."
+        },
+        {
+          "highlight": {
+            "target": [
+              "object"
+            ]
+          },
+          "speak": "That is the trick. Your bare eye can't focus closer than about twenty-five centimetres, where the letter looks small."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "image"
+            },
+            "gesture": "circle"
+          },
+          "speak": "The lens moves the image out past that limit, so you see the letter sharp as if from 7.5 centimetres: over three times bigger."
+        },
+        {
+          "animate": {
+            "object_distance": 8.5
+          },
+          "duration": 3,
+          "speak": "Slide the letter out to 8.5 centimetres: the image is now nearly seven times the letter's height, but 57 centimetres away."
+        },
+        {
+          "animate": {
+            "object_distance": 7.5
+          },
+          "duration": 2.5,
+          "speak": "Height over distance hardly changes. What magnifies is getting close; the lens only makes close focusable."
+        },
+        {
+          "highlight": {
+            "target": [
+              "lens"
+            ]
+          },
+          "speak": "The near point creeps outward with age, which is why people past about forty start holding menus at arm's length."
+        },
+        {
+          "quiz": {
+            "question": "A stronger magnifier has a shorter focal length. Why does it magnify more?",
+            "choices": [
+              "It lets you hold the object closer and still see it sharp",
+              "It makes the image taller at the same distance",
+              "It lets more light into your eye"
+            ],
+            "correct": 1,
+            "right": "It lets you hold the object closer: a shorter focal length puts the letter nearer your eye while its image stays far enough away to focus."
+          }
         }
       ]
     }
   },
   {
-    "request": "Show how a catalyst lowers the activation energy.",
+    "request": "How does a catalyst speed up a reaction without being used up?",
     "packs": [
       "chemistry"
     ],
@@ -1732,84 +1776,139 @@
         "product_level": 1,
         "activation_energy": 6,
         "catalyzed": true,
-        "labels": true
+        "labels": true,
+        "box": {
+          "x": 40,
+          "y": 175,
+          "w": 920,
+          "h": 505
+        }
       },
+      "elements": [
+        {
+          "id": "k",
+          "type": "math",
+          "tex": "\\text{rate} \\propto e^{-E_a/RT}",
+          "x": 790,
+          "y": 560,
+          "size": 34,
+          "colors": {
+            "E_a": "#2f6b8f"
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "A catalyst speeds a reaction up without being used up. Let's see how, on an energy diagram."
+          "card": {
+            "title": "What a catalyst does"
+          }
         },
         {
           "draw": [
             "axes"
           ],
-          "speak": "Energy runs up the side; across the bottom is the progress of the reaction."
-        },
-        {
-          "pause": 0.3
+          "speak": "How can a catalyst speed a reaction up a million-fold and come out unchanged? Energy runs up, the reaction's progress across."
         },
         {
           "draw": [
             "reactant_line",
             "label_reactants"
           ],
-          "speak": "We start here, with the reactants."
+          "speak": "Start with hydrogen peroxide, which breaks down into water and oxygen."
         },
         {
           "draw": [
             "product_line",
             "label_products"
           ],
-          "speak": "And we end lower down, with the products — energy is released."
-        },
-        {
-          "pause": 0.3
+          "speak": "The products sit lower: breaking down releases energy. So why does a bottle of peroxide keep for months?"
         },
         {
           "draw": [
             "curve"
           ],
-          "speak": "But the molecules cannot slide straight down: first they must climb over this hump."
-        },
-        {
-          "pause": 0.3
+          "speak": "Because bonds must stretch and break before new ones form: first the molecules climb over this hump."
         },
         {
           "draw": [
             "ea_arrow",
             "label_ea"
           ],
-          "speak": "That climb is the activation energy — the reason a mixture can sit unreacted for years."
+          "speak": "That climb is the activation energy. At room temperature only the rare molecule, jostled hard enough, gets over."
         },
         {
-          "pause": 0.5
+          "point": {
+            "at": {
+              "ref": "ea_arrow"
+            },
+            "gesture": "tap"
+          },
+          "speak": "Heating would push more molecules over the same hump. A catalyst does something else."
         },
         {
           "draw": [
             "curve_catalyzed"
           ],
-          "speak": "A catalyst opens a different route over the barrier, a lower one."
+          "speak": "It opens another route with a lower pass. Catalase in your blood is one, which is why peroxide fizzes on a cut."
         },
         {
-          "pause": 0.3
+          "draw": [
+            "k"
+          ],
+          "speak": "The rate depends on the barrier exponentially: at room temperature, every 5.7 kilojoules per mole taken off makes it ten times faster."
         },
         {
           "highlight": {
             "target": [
-              "curve_catalyzed"
+              "k"
             ],
-            "effect": "glow"
+            "part": "E_a"
           },
-          "speak": "Now far more molecules have enough energy to get across, so the reaction runs much faster."
+          "speak": "So halving a barrier of eighty kilojoules to forty is seven of those steps: about ten million times faster."
         },
         {
           "draw": [
             "dh_arrow",
             "label_dh"
           ],
-          "speak": "And look what did not change: the drop from reactants to products is exactly the same."
+          "speak": "What does not change is the drop from reactants to products. Same start, same finish, same energy released."
         },
         {
-          "speak": "A catalyst changes the road, never the destination."
+          "point": {
+            "at": {
+              "ref": "curve_catalyzed"
+            },
+            "gesture": "underline"
+          },
+          "speak": "And the pass is just as much lower from the far side: the catalyst speeds the reverse reaction by the same factor."
+        },
+        {
+          "highlight": {
+            "target": [
+              "product_line"
+            ]
+          },
+          "speak": "So it can't change how much product you end up with, only how quickly you get there."
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve_catalyzed"
+            ]
+          },
+          "speak": "Catalase is among the fastest enzymes known: one molecule can break down millions of peroxide molecules every second."
+        },
+        {
+          "quiz": {
+            "question": "A catalyst is added to a reaction already at equilibrium. What happens to the amount of product?",
+            "choices": [
+              "More product forms",
+              "It stays the same",
+              "Some product turns back into reactant"
+            ],
+            "correct": 2,
+            "right": "It stays the same: the lower pass speeds the forward and the reverse reaction alike, so the balance between them does not move."
+          }
         }
       ]
     }
@@ -2093,81 +2192,248 @@
     }
   },
   {
-    "request": "Explain what wavelength and amplitude mean.",
-    "packs": [
-      "physics"
-    ],
+    "request": "What do a wave's wavelength and amplitude actually measure?",
     "spec": {
       "title": "Wavelength and amplitude",
-      "template": "wave_diagram",
-      "params": {
-        "amplitude": 5,
-        "cycles": 3,
-        "label_parts": true
+      "domain": {
+        "x": [
+          0,
+          200
+        ],
+        "y": [
+          -2.2,
+          2.8
+        ]
       },
+      "vars": {
+        "A": 1,
+        "L": 78
+      },
+      "elements": [
+        {
+          "id": "rest",
+          "type": "curve",
+          "expr": "0",
+          "style": {
+            "color": "#8f887c",
+            "dash": true
+          }
+        },
+        {
+          "id": "l_rest",
+          "type": "label",
+          "attach_to": "rest",
+          "side": "below",
+          "text": "still air",
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "wave",
+          "type": "curve",
+          "expr": "A*sin(2*pi*x/L)",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "c1",
+          "type": "point",
+          "at": {
+            "x": 19.5,
+            "on": "wave"
+          },
+          "bind": {
+            "at.x": "L/4"
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "c2",
+          "type": "point",
+          "at": {
+            "x": 97.5,
+            "on": "wave"
+          },
+          "bind": {
+            "at.x": "5*L/4"
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "z2",
+          "type": "point",
+          "at": {
+            "x": 97.5,
+            "y": 0
+          },
+          "bind": {
+            "at.x": "5*L/4"
+          },
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "wl",
+          "type": "measure",
+          "from": {
+            "ref": "c1"
+          },
+          "to": {
+            "ref": "c2"
+          },
+          "label": "λ = {value}",
+          "unit": "cm",
+          "scale": 4.05,
+          "decimals": 0,
+          "side": "above",
+          "offset": 30,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "amp",
+          "type": "arrow",
+          "from": {
+            "ref": "z2"
+          },
+          "to": {
+            "ref": "c2"
+          },
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "label_amp",
+          "type": "label",
+          "attach_to": "amp",
+          "side": "right",
+          "text": "amplitude",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "vfl",
+          "type": "math",
+          "tex": "343\\ \\text{m/s} = 440\\ \\text{Hz} \\times 0.78\\ \\text{m}",
+          "x": 640,
+          "y": 640
+        }
+      ],
       "commands": [
         {
-          "speak": "Two numbers describe almost any wave. Let's read them straight off the picture."
+          "card": {
+            "title": "Wavelength and amplitude"
+          }
         },
         {
           "draw": [
-            "axis"
+            "rest",
+            "l_rest"
           ],
-          "speak": "This line is the resting position — where the water, or the air, sits undisturbed."
-        },
-        {
-          "pause": 0.3
+          "speak": "Two lengths describe a wave: its wavelength and its amplitude. Here they are for a sound, the note A, 440 hertz, from a speaker."
         },
         {
           "draw": [
             "wave"
           ],
-          "speak": "The wave rises above it and dips below it, over and over."
-        },
-        {
-          "pause": 0.3
+          "speak": "Sound is air squeezed and stretched in turn. Frozen for an instant: above the line, the air is squeezed; below it, stretched."
         },
         {
           "draw": [
-            "label_crest",
-            "label_trough"
-          ],
-          "speak": "The high points are crests, the low points troughs."
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
-            "amp_arrow",
-            "label_amp"
-          ],
-          "speak": "Amplitude is the height from rest up to a crest — how strong the wave is. Louder sound, taller amplitude."
-        },
-        {
-          "pause": 0.4
-        },
-        {
-          "draw": [
-            "wl_arrow",
+            "c1",
+            "c2",
+            "wl",
             "label_wl"
           ],
-          "speak": "Wavelength is the distance from one crest to the next — the length of one full repeat."
+          "speak": "Wavelength is the distance from one crest to the next. For this note, seventy-eight centimetres."
         },
         {
-          "pause": 0.3
+          "draw": [
+            "z2",
+            "amp",
+            "label_amp"
+          ],
+          "speak": "Amplitude is how far a crest rises above still air: how hard the air is squeezed. That is what you hear as loudness."
+        },
+        {
+          "animate": {
+            "A": 1.5
+          },
+          "duration": 2.5,
+          "speak": "Turn the volume up and only the amplitude grows. The crests stay seventy-eight centimetres apart: still the same note."
+        },
+        {
+          "animate": {
+            "A": 1
+          },
+          "duration": 1.5
+        },
+        {
+          "erase": [
+            "amp",
+            "label_amp",
+            "z2"
+          ]
+        },
+        {
+          "draw": [
+            "vfl"
+          ],
+          "speak": "Why 78? Sound crosses air at 343 metres a second, and 440 crests leave the speaker each second."
         },
         {
           "highlight": {
             "target": [
-              "wl_arrow"
+              "vfl"
             ],
-            "effect": "glow"
+            "part": "0.78"
           },
-          "speak": "Squeeze the wavelength and the wave repeats more often each second: that is a higher frequency, and a higher pitch."
+          "speak": "Spread over 343 metres, that puts the crests 78 centimetres apart."
         },
         {
-          "speak": "Amplitude is how big, wavelength is how often — and they are independent of each other."
+          "animate": {
+            "L": 39
+          },
+          "duration": 3,
+          "speak": "Play the A an octave up, 880 hertz: twice as many crests a second at the same speed, so they crowd in half as far apart."
+        },
+        {
+          "morph": {
+            "target": "vfl",
+            "tex": "343\\ \\text{m/s} = 880\\ \\text{Hz} \\times 0.39\\ \\text{m}",
+            "duration": 1.5
+          },
+          "speak": "Thirty-nine centimetres. The wave doesn't choose its wavelength: the air sets the speed, the source sets the frequency."
+        },
+        {
+          "highlight": {
+            "target": [
+              "wl"
+            ]
+          },
+          "speak": "Across what you can hear, from 20 hertz to 20,000, the wavelength runs from seventeen metres down to under two centimetres."
+        },
+        {
+          "quiz": {
+            "question": "You sing the same note, but louder. What happens to its wavelength?",
+            "choices": [
+              "It gets longer",
+              "It gets shorter",
+              "It stays the same"
+            ],
+            "correct": 3,
+            "right": "It stays the same: loudness is amplitude, and the wavelength is fixed by the note's frequency and the speed of sound."
+          }
         }
       ]
     }
@@ -2358,12 +2624,12 @@
     }
   },
   {
-    "request": "Compare diffusion and active transport across a cell membrane.",
+    "request": "Why does moving some things across a cell membrane cost energy and others not?",
     "packs": [
       "biology"
     ],
     "spec": {
-      "title": "Two ways across a membrane",
+      "title": "Downhill and uphill",
       "template": "membrane_bilayer",
       "params": {
         "proteins": [
@@ -2372,9 +2638,9 @@
         ],
         "transports": [
           {
-            "species": "O₂",
+            "species": "K⁺",
             "mode": "diffusion",
-            "direction": "in"
+            "direction": "out"
           },
           {
             "species": "Na⁺",
@@ -2382,66 +2648,223 @@
             "direction": "out"
           }
         ],
-        "labels": true
+        "labels": false
       },
+      "vars": {
+        "na": 12
+      },
+      "elements": [
+        {
+          "id": "side_out",
+          "type": "text",
+          "text": "outside",
+          "x": 150,
+          "y": 600,
+          "font_size": 24,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "side_in",
+          "type": "text",
+          "text": "inside",
+          "x": 150,
+          "y": 195,
+          "font_size": 24,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "k_out",
+          "type": "text",
+          "text": "K⁺ 5 mM",
+          "x": 444,
+          "y": 570,
+          "font_size": 24,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "k_in",
+          "type": "text",
+          "text": "K⁺ 140 mM",
+          "x": 444,
+          "y": 195,
+          "font_size": 24,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "na_out",
+          "type": "text",
+          "text": "Na⁺ 145 mM",
+          "x": 667,
+          "y": 570,
+          "font_size": 24,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "na_in",
+          "type": "text",
+          "text": "Na⁺ {na} mM",
+          "x": 667,
+          "y": 190,
+          "font_size": 24,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "name_ch",
+          "type": "text",
+          "text": "channel",
+          "x": 444,
+          "y": 632,
+          "font_size": 22,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "name_pump",
+          "type": "text",
+          "text": "pump",
+          "x": 667,
+          "y": 632,
+          "font_size": 22,
+          "style": {
+            "color": "#b5482e"
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "Some things drift into a cell for free. Others have to be pushed, and pushing costs energy."
+          "card": {
+            "title": "Downhill and uphill"
+          }
         },
         {
           "draw": [
             "lipids"
           ],
-          "speak": "The membrane is two rows of phospholipids: water-loving heads facing out, oily tails meeting in the middle."
+          "speak": "Why do some things cross a cell membrane for free, while others cost energy? First the membrane: a double sheet of fat molecules, oily in the middle."
+        },
+        {
+          "draw": [
+            "side_out",
+            "side_in"
+          ],
+          "parallel": true,
+          "speak": "Above it is the fluid outside a nerve cell, below it the cell's inside. Charged ions like potassium and sodium cannot slip through the oily core."
+        },
+        {
+          "draw": [
+            "k_in",
+            "k_out"
+          ],
+          "speak": "Potassium is crowded inside: about 140 millimolar, against only 5 outside."
+        },
+        {
+          "draw": [
+            "protein_0",
+            "name_ch"
+          ],
+          "speak": "A channel protein opens a watery pore through the fat."
+        },
+        {
+          "draw": [
+            "transport_0"
+          ],
+          "speak": "So potassium leaks out through it, from crowded to sparse. That is diffusion: downhill, and random jostling pays for it."
         },
         {
           "pause": 0.4
         },
         {
           "draw": [
-            "protein_0",
-            "label_protein_0"
+            "na_out",
+            "na_in"
           ],
-          "speak": "This protein is a channel — an open pore through the oily middle."
-        },
-        {
-          "draw": [
-            "transport_0",
-            "label_transport_0"
-          ],
-          "speak": "Oxygen is plentiful outside and scarce inside, so it simply drifts down that difference. No energy needed."
-        },
-        {
-          "pause": 0.5
+          "speak": "Sodium is the other way round: about 145 outside, only 12 inside."
         },
         {
           "draw": [
             "protein_1",
-            "label_protein_1"
+            "name_pump"
           ],
-          "speak": "This one is a pump, and it works the other way round."
+          "speak": "Yet this protein, a pump, pushes sodium out, toward the side that already has more."
         },
         {
           "draw": [
-            "transport_1",
-            "label_transport_1"
+            "transport_1"
           ],
-          "speak": "It drives sodium out even though sodium is already scarcer outside — uphill, against the gradient."
-        },
-        {
-          "pause": 0.3
+          "speak": "That is uphill, like pumping water into a full tank, and every turn is paid for with ATP, the cell's energy currency."
         },
         {
           "highlight": {
             "target": [
               "transport_1"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "That is why the pump burns ATP: going downhill is free, going uphill is not."
+          "speak": "Each ATP throws out three sodium ions and carries two potassium ions back in, against both gradients at once."
         },
         {
-          "speak": "Same membrane, same direction of travel — the difference is whether the gradient helps you or fights you."
+          "animate": {
+            "na": 60
+          },
+          "duration": 3,
+          "speak": "Stop the pump, and sodium seeps back in through small leaks. The difference shrinks, and the cell runs down."
+        },
+        {
+          "animate": {
+            "na": 12
+          },
+          "duration": 3,
+          "speak": "Restart it, and the gradient is rebuilt. So the pump never rests: it keeps a battery charged."
+        },
+        {
+          "highlight": {
+            "target": [
+              "na_out",
+              "na_in"
+            ]
+          },
+          "speak": "And a nerve impulse spends that battery: sodium channels open and sodium rushes in, downhill, for free."
+        },
+        {
+          "highlight": {
+            "target": [
+              "protein_1"
+            ]
+          },
+          "speak": "Jens Skou found this pump in crab nerves in 1957. Forty years later it won him a Nobel Prize."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "transport_0"
+            },
+            "gesture": "underline"
+          },
+          "speak": "So the cost depends on the direction, not the molecule: with the gradient is free, against it takes energy."
+        },
+        {
+          "quiz": {
+            "question": "A cell moves a molecule from where there is less of it to where there is more. What must be doing it?",
+            "choices": [
+              "An open channel",
+              "A pump spending energy",
+              "Diffusion, if it is fast enough"
+            ],
+            "correct": 2,
+            "right": "A pump spending energy: diffusion only ever runs from more to less, so going the other way is uphill and needs ATP."
+          }
         }
       ]
     }
@@ -2452,14 +2875,62 @@
       "biology"
     ],
     "spec": {
-      "title": "A vertebrate cladogram",
+      "title": "Reading a tree of life",
       "template": "phylo_tree",
       "params": {
-        "newick": "((Human,Chimp),(Mouse,Rat),Chicken);"
+        "newick": "(((Human,Chimp),(Mouse,Rat)),((Chicken)));"
       },
+      "elements": [
+        {
+          "id": "ladder",
+          "type": "text",
+          "text": "chicken → mouse → chimp → human",
+          "x": 420,
+          "y": 400,
+          "font_size": 26,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "t_ape",
+          "type": "text",
+          "text": "6–7 million yrs",
+          "x": 656,
+          "y": 588,
+          "font_size": 20,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "t_mammal",
+          "type": "text",
+          "text": "~90 million yrs",
+          "x": 450,
+          "y": 478,
+          "font_size": 20,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "t_root",
+          "type": "text",
+          "text": "300+ million yrs",
+          "x": 243,
+          "y": 340,
+          "font_size": 20,
+          "style": {
+            "color": "#b5482e"
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "A family tree of species reads from the tips inwards. Let's read this one."
+          "card": {
+            "title": "Reading a tree of life"
+          }
         },
         {
           "draw": [
@@ -2469,152 +2940,341 @@
             "leaf_3",
             "leaf_4"
           ],
-          "speak": "Five living species sit at the tips — nobody here is descended from anybody else here."
+          "speak": "How are these five animals related, and is a mouse closer kin to you or to a chicken? A tree of descent answers it."
         },
         {
-          "pause": 0.4
+          "draw": [
+            "ladder"
+          ],
+          "speak": "The tempting picture is a ladder: chickens at the bottom, climbing through mice and chimps up to humans."
+        },
+        {
+          "erase": [
+            "ladder"
+          ],
+          "speak": "But evolution isn't a ladder. All five are alive today, and none of them descends from another."
         },
         {
           "draw": [
             "edges"
           ],
-          "speak": "Every fork behind them is a common ancestor that split into two lines."
+          "speak": "Instead, every fork is a common ancestor whose descendants split into two lines. To compare two tips, trace both back to where they meet."
         },
         {
-          "pause": 0.3
+          "pause": 0.4
         },
         {
           "highlight": {
             "target": [
               "leaf_0",
               "leaf_1"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "Human and chimp meet at the shallowest fork, so their shared ancestor is the most recent."
+          "speak": "Human and chimp meet at the youngest fork."
         },
         {
-          "pause": 0.3
+          "draw": [
+            "t_ape"
+          ],
+          "speak": "Their lines split only six or seven million years ago."
+        },
+        {
+          "highlight": {
+            "target": [
+              "leaf_2",
+              "leaf_3"
+            ]
+          },
+          "speak": "Mouse and rat, likewise, share a recent rodent ancestor."
+        },
+        {
+          "draw": [
+            "t_mammal"
+          ],
+          "speak": "Now trace a mouse and a human back. They meet in an early mammal, around ninety million years ago."
+        },
+        {
+          "draw": [
+            "t_root"
+          ],
+          "speak": "The chicken's line joins theirs only at the root, over three hundred million years back."
         },
         {
           "highlight": {
             "target": [
               "leaf_4"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "The chicken branches off deepest, further back in time than any of the others."
+          "speak": "So a mouse is far closer kin to you than to any chicken, however alike a mouse and a chicken may look beside you."
         },
         {
-          "speak": "Read the forks, not the drawing order: closeness on this tree means a more recent ancestor, not looking alike."
+          "move": {
+            "target": [
+              "leaf_0"
+            ],
+            "by": [
+              0,
+              -110
+            ],
+            "duration": 1.2
+          },
+          "speak": "Forks spin freely, like a mobile. Swap human and chimp…"
+        },
+        {
+          "move": {
+            "target": [
+              "leaf_1"
+            ],
+            "by": [
+              0,
+              110
+            ],
+            "duration": 1.2
+          },
+          "speak": "…and the tree says exactly the same thing. Read the forks, never the order of the names."
+        },
+        {
+          "highlight": {
+            "target": [
+              "leaf_0",
+              "leaf_1",
+              "leaf_2",
+              "leaf_3",
+              "leaf_4"
+            ]
+          },
+          "speak": "And no tip is more primitive: all five lines have been evolving for the same three hundred million years since the root."
+        },
+        {
+          "quiz": {
+            "question": "Which pair shares the more recent common ancestor?",
+            "choices": [
+              "Mouse and chicken, both small",
+              "Mouse and human",
+              "Both pairs equally"
+            ],
+            "correct": 2,
+            "right": "Mouse and human: their lines meet about ninety million years ago, while the chicken's joins only at the root, over three hundred million years ago."
+          }
         }
       ]
     }
   },
   {
-    "request": "Show sensitivity and specificity in a 2×2 test-versus-disease table.",
+    "request": "What do sensitivity and specificity actually measure?",
     "spec": {
       "title": "Sensitivity and specificity",
       "template": "two_by_two_table",
       "params": {
         "row_label": "Test result",
-        "col_label": "Disease status",
+        "col_label": "Really has the disease?",
         "row_values": [
           "Positive",
           "Negative"
         ],
         "col_values": [
-          "Present",
-          "Absent"
+          "Yes: 200",
+          "No: 800"
         ],
         "cells": [
           [
-            "TP",
-            "FP"
+            "180",
+            "40"
           ],
           [
-            "FN",
-            "TN"
+            "20",
+            "760"
+          ]
+        ],
+        "cell_notes": [
+          [
+            "true positive",
+            "false positive"
+          ],
+          [
+            "false negative",
+            "true negative"
           ]
         ]
       },
+      "elements": [
+        {
+          "id": "sens",
+          "type": "math",
+          "tex": "\\frac{180}{200} = 90\\%",
+          "x": 385,
+          "y": 172,
+          "colors": {
+            "180": "#b5482e"
+          }
+        },
+        {
+          "id": "l_sens",
+          "type": "text",
+          "at": {
+            "ref": "sens",
+            "side": "left",
+            "gap": 14
+          },
+          "text": "sensitivity",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "spec",
+          "type": "math",
+          "tex": "\\frac{760}{800} = 95\\%",
+          "x": 615,
+          "y": 172,
+          "colors": {
+            "760": "#2f6b8f"
+          }
+        },
+        {
+          "id": "l_spec",
+          "type": "text",
+          "at": {
+            "ref": "spec",
+            "side": "right",
+            "gap": 14
+          },
+          "text": "specificity",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "ppv",
+          "type": "math",
+          "tex": "\\frac{180}{220} = 82\\%",
+          "x": 865,
+          "y": 435,
+          "colors": {
+            "180": "#8a5fa8"
+          }
+        },
+        {
+          "id": "l_ppv",
+          "type": "label",
+          "attach_to": "ppv",
+          "side": "above",
+          "text": "positive and ill",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "Sensitivity and specificity both come from the same 2×2 table — test result against true disease status."
+          "card": {
+            "title": "Sensitivity and specificity"
+          }
         },
         {
           "draw": [
             "grid",
+            "row_title",
             "row_header_0",
             "row_header_1",
+            "col_title",
             "col_header_0",
-            "col_header_1",
-            "row_title",
-            "col_title"
+            "col_header_1"
           ],
-          "speak": "Rows are the test result; columns are whether the patient truly has the disease."
-        },
-        {
-          "pause": 0.3
+          "speak": "Sensitivity and specificity say how good a diagnostic test is, and they are easy to misread. Test a thousand people, and sort them two ways."
         },
         {
           "draw": [
             "cell_0_0"
           ],
-          "speak": "True positive — the test is positive, and the patient really has the disease."
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
-            "cell_0_1"
-          ],
-          "speak": "False positive — a positive test, but no disease."
-        },
-        {
-          "pause": 0.3
+          "speak": "Two hundred of them really have the disease. The test catches 180: true positives."
         },
         {
           "draw": [
             "cell_1_0"
           ],
-          "speak": "False negative — the test misses a real case."
-        },
-        {
-          "pause": 0.3
+          "speak": "It misses twenty: false negatives, sick people sent home reassured."
         },
         {
           "draw": [
             "cell_1_1"
           ],
-          "speak": "And true negative, where the test correctly clears a healthy patient."
+          "speak": "Of the 800 healthy people, 760 correctly test negative."
+        },
+        {
+          "draw": [
+            "cell_0_1"
+          ],
+          "speak": "Forty test positive anyway: false positives, healthy people told they may be ill."
         },
         {
           "pause": 0.4
+        },
+        {
+          "draw": [
+            "sens",
+            "l_sens"
+          ],
+          "speak": "Sensitivity reads down the sick column: of those who have the disease, how many does the test catch? 180 of 200, 90 percent."
+        },
+        {
+          "draw": [
+            "spec",
+            "l_spec"
+          ],
+          "speak": "Specificity reads down the healthy column: of those without it, how many does it clear? 760 of 800, 95 percent."
         },
         {
           "highlight": {
             "target": [
               "cell_0_0",
               "cell_1_0"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "Sensitivity looks at this whole disease-present column: true positives over true positives plus false negatives."
+          "speak": "Both are counted among people whose true state we already know. So they describe the test, whoever it is used on."
         },
         {
-          "pause": 0.3
+          "draw": [
+            "ppv",
+            "l_ppv"
+          ],
+          "speak": "A patient holding a positive result asks the other question, reading across the row: of 220 positives, 180 are ill, 82 percent."
+        },
+        {
+          "morph": {
+            "target": "ppv",
+            "tex": "\\frac{18}{67} = 27\\%"
+          },
+          "speak": "Use the same test where only 2 in 100 are ill, and that row turns: 18 true positives against 49 false, 27 percent."
         },
         {
           "highlight": {
             "target": [
-              "cell_1_1",
-              "cell_0_1"
-            ],
-            "effect": "glow"
+              "sens",
+              "spec"
+            ]
           },
-          "speak": "Specificity looks at the disease-absent column the same way: true negatives over true negatives plus false positives."
+          "speak": "Sensitivity and specificity have not moved. The row depends on how common the disease is; the columns do not."
+        },
+        {
+          "highlight": {
+            "target": [
+              "grid"
+            ]
+          },
+          "speak": "The two terms come from Jacob Yerushalmy, who in 1947 used them to compare how well doctors read chest X-rays for tuberculosis."
+        },
+        {
+          "quiz": {
+            "question": "The same test is used in a clinic where half the patients have the disease. What is its sensitivity?",
+            "choices": [
+              "Still 90%",
+              "Higher than 90%",
+              "Lower than 90%"
+            ],
+            "correct": 1,
+            "right": "Still 90 percent: sensitivity is counted only among the sick, so it does not depend on how many are sick. What changes is how often a positive is right."
+          }
         }
       ]
     }
@@ -4098,175 +4758,245 @@
     }
   },
   {
-    "request": "Compare survival on treatment versus control.",
+    "request": "How do you read a survival curve and a hazard ratio?",
     "packs": [
       "evidence"
     ],
     "spec": {
-      "title": "Kaplan-Meier survival: treatment vs control",
+      "title": "Reading a survival curve",
       "template": "survival_curve",
       "params": {
+        "time_label": "Years",
         "arms": [
           {
-            "label": "Treatment",
+            "label": "Drug",
             "survival": [
               1,
-              0.94,
-              0.85,
-              0.78,
-              0.72,
-              0.68
+              0.866,
+              0.75,
+              0.65,
+              0.5625,
+              0.487
             ]
           },
           {
             "label": "Control",
             "survival": [
               1,
-              0.82,
-              0.6,
-              0.44,
-              0.33,
-              0.25
+              0.75,
+              0.5625,
+              0.42,
+              0.316,
+              0.237
             ]
           }
         ],
         "censor_ticks": [
           {
             "arm": 0,
-            "at": 4
+            "at": 3
           }
-        ],
-        "title": "Survival by treatment arm"
+        ]
       },
+      "elements": [
+        {
+          "id": "km",
+          "type": "math",
+          "tex": "S(2) = 0.866 \\times 0.866 = 0.75",
+          "x": 330,
+          "y": 250
+        },
+        {
+          "id": "hr",
+          "type": "math",
+          "tex": "\\text{HR} = \\frac{\\text{death rate, drug}}{\\text{death rate, control}} = 0.5",
+          "x": 640,
+          "y": 600
+        }
+      ],
       "commands": [
         {
-          "speak": "Let's compare how long patients survive on treatment versus control."
+          "card": {
+            "title": "Reading a survival curve"
+          }
         },
         {
           "draw": [
             "axes"
           ],
-          "speak": "Time along the bottom, the proportion still surviving up the side."
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
-            "arm_0",
-            "arm_label_0"
-          ],
-          "speak": "This staircase is the treatment arm — each drop marks patients who didn't make it to the next checkpoint."
+          "speak": "A Kaplan–Meier curve shows how a trial's patients fare over time, and a hazard ratio sums up the gap between two of them."
         },
         {
           "draw": [
             "arm_1",
             "arm_label_1"
           ],
-          "speak": "This lower curve is the control arm — it falls faster and further."
+          "speak": "On control, a quarter of those alive die each year: 75 percent are left after one year, 56 after two."
         },
         {
-          "pause": 0.3
+          "draw": [
+            "arm_0",
+            "arm_label_0"
+          ],
+          "speak": "On the drug, 87 percent are alive after one year, 75 after two."
+        },
+        {
+          "draw": [
+            "km"
+          ],
+          "speak": "Each step multiplies. To be alive at year two you survive year one, 0.866, then year two given year one, 0.866 again."
         },
         {
           "draw": [
             "censor_0"
           ],
-          "speak": "This tick mark is a censored patient — one who left the study early, without an event."
+          "speak": "This tick is a patient who moved away at year three, still alive."
         },
         {
-          "pause": 0.3
+          "highlight": {
+            "target": [
+              "censor_0"
+            ]
+          },
+          "speak": "Patients join a trial at different times, so many can't be followed to the end. Counting deaths per arm would get them wrong."
+        },
+        {
+          "highlight": {
+            "target": [
+              "arm_0"
+            ]
+          },
+          "speak": "Kaplan–Meier counts this patient as alive while followed, then drops them from the later steps, as neither a death nor a survivor."
         },
         {
           "draw": [
             "median_line"
           ],
-          "speak": "Follow the dashed line at fifty percent survival: the control arm crosses it, giving its median survival time."
+          "speak": "Median survival is where a curve first falls to half: year three on control, year five on the drug."
+        },
+        {
+          "draw": [
+            "hr"
+          ],
+          "speak": "The hazard ratio compares death rates among those still alive. Here, at every moment, patients on the drug die at half the rate."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "arm_label_0"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Yet by year five, 51 percent have died on the drug, against 76 percent on control. Fewer, but not half as many."
         },
         {
           "highlight": {
             "target": [
-              "arm_0",
-              "arm_1"
+              "hr"
             ],
-            "effect": "glow"
+            "part": "0.5"
           },
-          "speak": "Treatment's curve stays clearly above control's the whole way through."
+          "speak": "A rate applies only to the living, and the drug keeps more people alive to be at risk. So the totals differ by less than the rates."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "The gap between the two curves is the treatment effect."
+          "highlight": {
+            "target": [
+              "axes"
+            ]
+          },
+          "speak": "Edward Kaplan and Paul Meier published the method in 1958. It became one of the most cited papers in all of statistics."
+        },
+        {
+          "quiz": {
+            "question": "A drug has a hazard ratio of 0.5 for death. What does that mean?",
+            "choices": [
+              "Half as many patients die",
+              "Among those still alive, the death rate is halved",
+              "The survival curve is twice as high"
+            ],
+            "correct": 2,
+            "right": "Among those still alive, the death rate is halved. Over five years here that means 51 versus 76 percent dead, not half as many."
+          }
         }
       ]
     }
   },
   {
-    "request": "Draw a meta-analysis forest plot pooling four studies.",
+    "request": "How can four inconclusive trials add up to a clear answer?",
     "packs": [
       "evidence"
     ],
     "spec": {
-      "title": "Pooling four trials in a forest plot",
+      "title": "Pooling four trials",
       "template": "forest_plot",
       "params": {
         "measure": "RR",
         "studies": [
           {
-            "label": "Anderson 2015",
+            "label": "Arnesen 2014",
+            "est": 0.78,
+            "lo": 0.55,
+            "hi": 1.1,
+            "weight": 3
+          },
+          {
+            "label": "Baptiste 2016",
             "est": 0.82,
-            "lo": 0.63,
-            "hi": 1.07,
+            "lo": 0.64,
+            "hi": 1.05,
             "weight": 6
           },
           {
-            "label": "Bianchi 2017",
-            "est": 0.71,
-            "lo": 0.55,
-            "hi": 0.92,
-            "weight": 8
+            "label": "Chen 2018",
+            "est": 0.7,
+            "lo": 0.45,
+            "hi": 1.09,
+            "weight": 2
           },
           {
-            "label": "Carter 2019",
-            "est": 0.9,
-            "lo": 0.68,
-            "hi": 1.19,
-            "weight": 5
-          },
-          {
-            "label": "Diallo 2021",
-            "est": 0.65,
-            "lo": 0.48,
-            "hi": 0.88,
-            "weight": 7
+            "label": "Dahl 2021",
+            "est": 0.86,
+            "lo": 0.71,
+            "hi": 1.04,
+            "weight": 10
           }
         ],
         "pooled": {
-          "est": 0.76,
-          "lo": 0.65,
-          "hi": 0.89
-        },
-        "title": "Risk of relapse: pooled analysis"
+          "est": 0.82,
+          "lo": 0.72,
+          "hi": 0.94
+        }
       },
+      "elements": [
+        {
+          "id": "votes",
+          "type": "text",
+          "text": "0 of 4 significant",
+          "x": 170,
+          "y": 245,
+          "font_size": 20,
+          "style": {
+            "color": "#b5482e"
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "Four trials tested the same treatment. Let's combine their evidence into one meta-analysis."
+          "card": {
+            "title": "Pooling four trials"
+          }
         },
         {
           "draw": [
             "axis"
           ],
-          "speak": "Risk ratio sits on a log scale, so equal fold-changes are equally spaced — one means no effect."
+          "speak": "A meta-analysis pools several trials into one estimate, and it can see what none of them could alone. Here, four trials of a drug against relapse."
         },
         {
           "draw": [
             "null_line"
           ],
-          "speak": "This dashed line marks a risk ratio of one: no difference between treatment and control."
-        },
-        {
-          "pause": 0.3
+          "speak": "Each reports a risk ratio: the risk of relapse on the drug over the risk on placebo. Left of this line at 1, the drug helps."
         },
         {
           "draw": [
@@ -4275,70 +5005,116 @@
             "study_label_0",
             "est_label_0"
           ],
-          "speak": "Anderson's trial found a risk ratio below one, but its interval crosses the line — not significant on its own."
+          "speak": "Arnesen found 0.78, 22 percent fewer relapses. But the interval, 0.55 to 1.10, crosses 1: no effect can't be ruled out."
         },
         {
           "draw": [
             "ci_1",
             "study_1",
             "study_label_1",
-            "est_label_1"
-          ],
-          "speak": "Bianchi's larger trial — the bigger square — found a clearer reduction in risk."
-        },
-        {
-          "draw": [
+            "est_label_1",
             "ci_2",
             "study_2",
             "study_label_2",
-            "est_label_2"
-          ],
-          "speak": "Carter's trial leans the same direction but is smaller and less precise."
-        },
-        {
-          "draw": [
+            "est_label_2",
             "ci_3",
             "study_3",
             "study_label_3",
             "est_label_3"
           ],
-          "speak": "Diallo's trial shows the strongest effect."
+          "speak": "The other three look alike: every estimate below 1, every interval crossing it."
+        },
+        {
+          "draw": [
+            "votes"
+          ],
+          "speak": "Count votes, and the drug fails four times."
         },
         {
           "pause": 0.4
+        },
+        {
+          "highlight": {
+            "target": [
+              "study_0",
+              "study_1",
+              "study_2",
+              "study_3"
+            ]
+          },
+          "speak": "But the squares differ in size. Each trial is weighted by its precision, one over the square of its standard error."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "ci_2"
+            },
+            "gesture": "underline"
+          },
+          "speak": "Chen's interval is more than twice as wide as Dahl's, so it gets about a fifth of the weight: 9 percent against 48."
+        },
+        {
+          "highlight": {
+            "target": [
+              "ci_0",
+              "ci_1",
+              "ci_2",
+              "ci_3"
+            ]
+          },
+          "speak": "The four disagree no more than chance would make them, so it is fair to treat them as estimates of one effect."
         },
         {
           "draw": [
             "pooled",
             "pooled_label"
           ],
-          "speak": "Pooling all four — weighting the larger trials more — gives this diamond, spanning the pooled confidence interval."
+          "speak": "The weighted average of their log risk ratios gives the diamond: 0.82, with an interval from 0.72 to 0.94."
         },
         {
           "highlight": {
             "target": [
               "pooled"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "The whole diamond sits left of the null line: together, the evidence supports a real reduction in risk."
+          "speak": "The whole diamond sits left of 1. Pooling adds up the trials' information, and the interval shrinks until it clears the line."
         },
         {
-          "draw": [
-            "title"
+          "erase": [
+            "votes"
           ],
-          "speak": "Every trial, and the pooled estimate, in one figure."
+          "speak": "So the vote count was wrong. Not significant meant too small to tell, not no effect."
+        },
+        {
+          "highlight": {
+            "target": [
+              "null_line"
+            ]
+          },
+          "speak": "The Cochrane Collaboration's logo is a forest plot like this: trials of steroids before premature birth, which together showed they save babies' lives."
+        },
+        {
+          "quiz": {
+            "question": "Three small trials of another drug all find risk ratios near 0.8, none significant. What should you conclude?",
+            "choices": [
+              "The drug doesn't work",
+              "Pool them: together they may show an effect",
+              "Nothing, until one large trial is run"
+            ],
+            "correct": 2,
+            "right": "Pool them: not significant means each was too small to tell, and their pooled information may be enough to settle it."
+          }
         }
       ]
     }
   },
   {
-    "request": "Show how a confounder biases the effect of coffee on heart disease.",
+    "request": "What is a confounder, and what does adjusting for it do?",
     "packs": [
       "evidence"
     ],
     "spec": {
-      "title": "Confounding in a causal DAG",
+      "title": "What a confounder does",
       "template": "causal_dag",
       "params": {
         "nodes": [
@@ -4351,70 +5127,138 @@
             "role": "outcome"
           },
           {
-            "name": "Stress",
+            "name": "Smoking",
             "role": "confounder"
           }
         ],
-        "edges": "Coffee -> Heart disease; Stress -> Coffee; Stress -> Heart disease",
-        "highlight_backdoor": true,
-        "title": "Confounding by stress"
+        "edges": "Coffee -> Heart disease; Smoking -> Coffee; Smoking -> Heart disease",
+        "highlight_backdoor": true
       },
+      "elements": [
+        {
+          "id": "crude",
+          "type": "math",
+          "tex": "\\text{all: } \\frac{14\\%}{8\\%} = 1.75",
+          "x": 500,
+          "y": 300
+        },
+        {
+          "id": "strata",
+          "type": "math",
+          "tex": "\\text{smokers: } \\frac{20\\%}{20\\%} = {1} \\qquad \\text{non-smokers: } \\frac{5\\%}{5\\%} = {1}",
+          "x": 500,
+          "y": 222,
+          "colors": {
+            "{1}": "#2f6b8f"
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "Coffee drinkers often have worse heart-disease outcomes — but is coffee really the cause?"
+          "card": {
+            "title": "What a confounder does"
+          }
         },
         {
           "draw": [
-            "node_coffee"
-          ],
-          "speak": "Here's our exposure: coffee consumption."
-        },
-        {
-          "draw": [
+            "node_coffee",
             "node_heart_disease"
           ],
-          "speak": "And our outcome: heart disease."
+          "parallel": true,
+          "speak": "A confounder makes two things look linked when one doesn't cause the other. Here is how, and what adjusting for it does, with coffee and heart disease."
+        },
+        {
+          "draw": [
+            "crude"
+          ],
+          "speak": "In a study, 14 percent of coffee drinkers get heart disease within ten years, against 8 percent of non-drinkers: a risk ratio of 1.75."
         },
         {
           "draw": [
             "edge_0"
           ],
-          "speak": "The naive story is a direct arrow from coffee straight to heart disease."
-        },
-        {
-          "pause": 0.3
+          "speak": "The tempting reading is this arrow: coffee raises the risk by three quarters."
         },
         {
           "draw": [
-            "node_stress"
+            "node_smoking"
           ],
-          "speak": "But stress causes people to drink more coffee — and stress itself raises heart-disease risk."
+          "speak": "But coffee drinkers smoke more. Here, 60 percent of them smoke, against 20 percent of non-drinkers."
         },
         {
           "draw": [
             "edge_1",
             "edge_2"
           ],
-          "speak": "Stress points to BOTH coffee and heart disease — that's a classic confounder."
+          "parallel": true,
+          "speak": "Smoking goes with the coffee, and it causes heart disease. A common cause of both is what makes it a confounder."
         },
         {
-          "pause": 0.3
+          "flow": {
+            "along": [
+              "edge_2"
+            ]
+          },
+          "speak": "Smokers bring their higher risk into the coffee group. That path, round the back through smoking, carries a link without any effect of coffee."
+        },
+        {
+          "draw": [
+            "strata"
+          ],
+          "speak": "Adjusting means comparing like with like. Among smokers, 20 percent get heart disease, coffee or not. Among non-smokers, 5 percent."
         },
         {
           "highlight": {
             "target": [
+              "strata"
+            ]
+          },
+          "speak": "Within each group the risk ratio is 1. The whole 1.75 came from mixing groups with different shares of smokers."
+        },
+        {
+          "fade": {
+            "target": [
               "edge_1",
               "edge_2"
             ],
-            "effect": "glow"
+            "to": 0.25
           },
-          "speak": "These two tinted arrows are the backdoor path: stress creates an association between coffee and heart disease even if coffee does nothing at all."
+          "speak": "Holding smoking fixed closes the back door: within a group, smoking can no longer differ between drinkers and non-drinkers."
         },
         {
-          "draw": [
-            "title"
+          "erase": [
+            "edge_0"
           ],
-          "speak": "Without adjusting for stress, we'd wrongly blame the coffee."
+          "speak": "What remains is the arrow we set out to test, and in this example it was never there."
+        },
+        {
+          "highlight": {
+            "target": [
+              "node_smoking"
+            ]
+          },
+          "speak": "Coffee really was suspected this way in the 1970s. Heavy coffee drinkers smoked more, and studies that ignored smoking overstated the link."
+        },
+        {
+          "highlight": {
+            "target": [
+              "node_coffee",
+              "node_heart_disease"
+            ]
+          },
+          "speak": "Adjusting closes every path through the factor held fixed, so it helps only when that path is a back door."
+        },
+        {
+          "quiz": {
+            "question": "Suppose coffee raised blood pressure, and high blood pressure caused heart disease. Should the study adjust for blood pressure?",
+            "choices": [
+              "Yes, adjust for every risk factor",
+              "No, it lies on coffee's own path",
+              "Only if it is measured well"
+            ],
+            "correct": 2,
+            "right": "No: blood pressure would be a step on coffee's own path, so holding it fixed would block the very effect the study wants to measure."
+          }
         }
       ]
     }
@@ -4510,37 +5354,90 @@
     }
   },
   {
-    "request": "Explain a p-value cutoff of 0.05, two-sided.",
+    "request": "What does p < 0.05 actually tell you?",
     "packs": [
       "evidence"
     ],
     "spec": {
-      "title": "Two-sided significance at 0.05",
+      "title": "What p < 0.05 means",
       "template": "distribution_curve",
       "params": {
+        "mean_label": "0",
+        "sd_label": " SE",
         "shade": {
           "from": 1.96,
-          "side": "two",
-          "label": "2.5% each tail"
-        },
-        "title": "Two-sided significance at α = 0.05"
+          "side": "two"
+        }
       },
+      "elements": [
+        {
+          "id": "obs",
+          "type": "arrow",
+          "from": {
+            "x": 773,
+            "y": 330
+          },
+          "to": {
+            "x": 773,
+            "y": 170
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "l_obs",
+          "type": "text",
+          "at": {
+            "ref": "obs",
+            "side": "above",
+            "gap": 10,
+            "offset": [
+              70,
+              0
+            ]
+          },
+          "text": "drug: 5 mmHg lower",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "wrong",
+          "type": "math",
+          "tex": "P(\\text{no effect} \\mid \\text{data}) = 1.2\\%",
+          "x": 230,
+          "y": 480
+        },
+        {
+          "id": "correct_reading",
+          "type": "math",
+          "tex": "P(\\text{data} \\mid \\text{no effect}) = 1.2\\%",
+          "x": 790,
+          "y": 480,
+          "colors": {
+            "1.2": "#b5482e"
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "A p-value cutoff of 0.05, two-sided, means we split five percent of the area between both tails of the curve."
+          "card": {
+            "title": "What p < 0.05 means"
+          }
         },
         {
           "draw": [
             "axis",
             "curve"
           ],
-          "speak": "This is the normal distribution of a test statistic under the null hypothesis — no real effect."
+          "speak": "p below 0.05 is research's most common verdict, and its most misread. This curve shows what it does and doesn't say."
         },
         {
           "draw": [
             "mean_line"
           ],
-          "speak": "Its center, the mean, is where we'd expect the statistic to land if nothing were going on."
+          "speak": "A blood-pressure drug is tested against placebo. If the drug did nothing, the gap between the groups would still wobble around zero, by chance."
         },
         {
           "draw": [
@@ -4549,39 +5446,89 @@
             "sd_tick_2",
             "sd_tick_3"
           ],
-          "speak": "Marked here in standard deviations from that center."
-        },
-        {
-          "pause": 0.3
+          "parallel": true,
+          "speak": "With this trial's size, the wobble has a standard error of 2 millimetres. Most results land within two of these steps."
         },
         {
           "draw": [
             "shade",
-            "shade2"
+            "shade2",
+            "shade_label"
           ],
-          "speak": "We shade the most extreme five percent — two and a half percent in each tail, beyond about 1.96 standard deviations."
+          "speak": "Before the trial, mark the five percent most extreme results a useless drug could produce: beyond 1.96 steps, 2.5 percent in each tail."
         },
         {
           "draw": [
-            "shade_label"
+            "obs",
+            "l_obs"
           ],
-          "speak": "A result landing in either shaded region is considered too unlikely to happen by chance alone."
+          "speak": "The trial finds blood pressure 5 millimetres lower on the drug: 2.5 standard errors from zero, inside the shaded region."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "animate": {
+            "shade.from": 2.5
+          },
+          "duration": 3,
+          "speak": "The p-value is the area beyond the result itself: if the drug did nothing, results this extreme would come up 1.2 percent of the time."
+        },
+        {
+          "highlight": {
+            "target": [
+              "shade2"
+            ]
+          },
+          "speak": "Both tails count, because a drug raising pressure by 5 would have been just as surprising. That is what two-sided means."
+        },
+        {
+          "draw": [
+            "correct_reading"
+          ],
+          "speak": "So the p-value is the chance of data this extreme, given no effect."
+        },
+        {
+          "draw": [
+            "wrong"
+          ],
+          "speak": "The common misreading flips it: a 1.2 percent chance that the drug does nothing, given the data."
+        },
+        {
+          "morph": {
+            "target": "wrong",
+            "tex": "P(\\text{no effect} \\mid \\text{data}) \\ne 1.2\\%"
+          },
+          "speak": "That is a different number. It depends on how likely the drug was to work before the trial, which the p-value never uses."
+        },
+        {
+          "highlight": {
+            "target": [
+              "obs"
+            ]
+          },
+          "speak": "Nor does it measure size: a trial of many thousands could make a trivial half-millimetre drop just as significant."
         },
         {
           "highlight": {
             "target": [
               "shade",
               "shade2"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "Land in the white middle, and we fail to reject the null. Land in the shade, and we call it significant."
+          "speak": "The 0.05 line itself is a convention. Ronald Fisher suggested it in 1925 as a convenient limit for judging a result, not a law."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "Same logic underlies almost every significance test in this field."
+          "quiz": {
+            "question": "A trial reports p = 0.012. Which statement is right?",
+            "choices": [
+              "There is a 1.2% chance the drug does nothing",
+              "If the drug did nothing, results this extreme would occur 1.2% of the time",
+              "The drug lowers blood pressure a lot"
+            ],
+            "correct": 2,
+            "right": "If the drug did nothing, results this extreme would occur 1.2 percent of the time. The p-value assumes no effect; it cannot give the chance of no effect, or its size."
+          }
         }
       ]
     }
@@ -4689,19 +5636,104 @@
     }
   },
   {
-    "request": "Show the unit circle at a 30 degree angle, and animate it sweeping forward to 330 degrees.",
+    "request": "How can an angle bigger than 90 degrees have a sine?",
     "packs": [
       "mathlogic"
     ],
     "spec": {
-      "title": "The unit circle at 30°",
+      "title": "Sine and cosine on the unit circle",
       "template": "unit_circle",
       "params": {
         "angle_deg": 30
       },
+      "elements": [
+        {
+          "id": "mirror_r",
+          "type": "path",
+          "points": [
+            [
+              500,
+              380
+            ],
+            [
+              707.8460969082653,
+              260
+            ]
+          ],
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 3.5
+          }
+        },
+        {
+          "id": "l_mirror",
+          "type": "label",
+          "attach_to": "mirror_r",
+          "side": "below-left",
+          "text": "1",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "apex",
+          "type": "angle",
+          "at": [
+            500,
+            380
+          ],
+          "from": 330,
+          "to": 30,
+          "radius": 80,
+          "label": false,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "chord",
+          "type": "path",
+          "points": [
+            [
+              707.8460969082653,
+              500
+            ],
+            [
+              707.8460969082653,
+              260
+            ]
+          ],
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 3.5,
+            "dash": true
+          }
+        },
+        {
+          "id": "l_chord",
+          "type": "label",
+          "attach_to": "chord",
+          "side": "right",
+          "text": "1",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "mirror",
+          "type": "group",
+          "members": [
+            "mirror_r",
+            "l_mirror",
+            "apex"
+          ]
+        }
+      ],
       "commands": [
         {
-          "speak": "Let's explore the unit circle."
+          "card": {
+            "title": "Sine beyond the triangle"
+          }
         },
         {
           "draw": [
@@ -4709,49 +5741,121 @@
             "y_axis",
             "circle"
           ],
-          "speak": "Here's a circle of radius one, centered at the origin."
+          "speak": "How can 150 degrees have a sine, when no right triangle has such an angle? The unit circle answers it: a circle of radius one."
         },
         {
           "draw": [
             "radius",
-            "point"
-          ],
-          "speak": "This radius reaches out to a point on the circle, at an angle of 30 degrees."
-        },
-        {
-          "draw": [
+            "point",
             "angle_arc",
             "angle_label"
           ],
-          "speak": "That's the angle theta, measured from the positive x-axis."
+          "speak": "Turn a radius thirty degrees up from the positive x-axis. Its tip is a point on the circle."
         },
         {
           "draw": [
             "cos_line"
           ],
-          "speak": "The horizontal distance to the point is its cosine."
+          "speak": "It makes a right triangle whose long side is one. So cosine, adjacent over one, is simply how far across the point sits."
         },
         {
           "draw": [
             "sin_line"
           ],
-          "speak": "And the vertical distance is its sine."
+          "speak": "And sine, opposite over one, is how far up it sits. Sine and cosine are the point's two coordinates."
         },
         {
           "draw": [
             "coords_label"
           ],
-          "speak": "Together they give the point's exact coordinates."
+          "speak": "For thirty degrees: 0.87 across, and exactly 0.5 up."
         },
         {
-          "pause": 0.3
+          "highlight": {
+            "target": [
+              "sin_line"
+            ]
+          },
+          "speak": "Exactly one half, while the sine of thirty-one degrees is a messy 0.515. Why is thirty so tidy?"
+        },
+        {
+          "draw": [
+            "mirror"
+          ],
+          "speak": "Mirror the radius below the axis, to minus thirty. Two radii of length one, with sixty degrees between them."
+        },
+        {
+          "draw": [
+            "chord",
+            "l_chord"
+          ],
+          "speak": "Their triangle has two equal sides around sixty degrees, so its other two angles are sixty too: it is equilateral, and this chord is also one."
+        },
+        {
+          "highlight": {
+            "target": [
+              "sin_line"
+            ]
+          },
+          "speak": "The sine is the upper half of that chord: exactly one half."
+        },
+        {
+          "highlight": {
+            "target": [
+              "chord"
+            ]
+          },
+          "speak": "The name remembers this. Indian astronomers called the sine a half-chord, and a mistranslation through Arabic turned it into the Latin sinus, a fold."
+        },
+        {
+          "erase": [
+            "mirror",
+            "chord",
+            "l_chord"
+          ],
+          "speak": "Now keep turning, past ninety degrees, where the triangle definitions give up."
+        },
+        {
+          "animate": {
+            "angle_deg": 150
+          },
+          "duration": 3,
+          "speak": "At 150 degrees the point has swung to the left. Its cosine is now negative, minus 0.87."
+        },
+        {
+          "highlight": {
+            "target": [
+              "sin_line"
+            ]
+          },
+          "speak": "But its height is still one half: the sine of 150 equals the sine of 30, mirrored across the vertical axis."
         },
         {
           "animate": {
             "angle_deg": 330
           },
-          "duration": 3,
-          "speak": "Watch as the angle sweeps forward, almost all the way around the circle, to 330 degrees."
+          "duration": 4,
+          "speak": "Sweep on to 330 degrees, where the mirror radius stood: now the point hangs half a unit below the axis, a sine of minus one half."
+        },
+        {
+          "highlight": {
+            "target": [
+              "point"
+            ]
+          },
+          "speak": "So sine and cosine are not really triangle ratios. They are where a turning point sits, and that works for any angle at all."
+        },
+        {
+          "quiz": {
+            "question": "What is the sine of 210 degrees?",
+            "choices": [
+              "0.5",
+              "−0.5",
+              "−0.87"
+            ],
+            "correct": 2,
+            "right": "Minus one half: 210 is thirty degrees past the negative x-axis, so the point sits half a unit below the axis."
+          }
         }
       ]
     }
@@ -4851,7 +5955,7 @@
     }
   },
   {
-    "request": "Prove Thales' theorem: an angle inscribed in a semicircle is a right angle.",
+    "request": "Why is an angle in a semicircle always a right angle?",
     "packs": [
       "mathlogic"
     ],
@@ -4869,54 +5973,440 @@
           "90°"
         ]
       },
+      "elements": [
+        {
+          "id": "centre",
+          "type": "shape",
+          "shape": "circle",
+          "x": 500,
+          "y": 375,
+          "radius": 6,
+          "style": {
+            "color": "#8a5fa8",
+            "fill": "#8a5fa8"
+          }
+        },
+        {
+          "id": "l_centre",
+          "type": "label",
+          "attach_to": "centre",
+          "side": "below",
+          "text": "O",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "rc",
+          "type": "path",
+          "points": [
+            [
+              500,
+              375
+            ],
+            [
+              358.59,
+              543.53
+            ]
+          ],
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 3.5
+          }
+        },
+        {
+          "id": "l_rc",
+          "type": "text",
+          "text": "r",
+          "x": 437,
+          "y": 425,
+          "font_size": 26,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "ra",
+          "type": "path",
+          "points": [
+            [
+              500,
+              375
+            ],
+            [
+              280,
+              375
+            ]
+          ],
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 3.5
+          }
+        },
+        {
+          "id": "l_ra",
+          "type": "text",
+          "text": "r",
+          "x": 400,
+          "y": 352,
+          "font_size": 26,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "rb",
+          "type": "path",
+          "points": [
+            [
+              500,
+              375
+            ],
+            [
+              720,
+              375
+            ]
+          ],
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 3.5
+          }
+        },
+        {
+          "id": "l_rb",
+          "type": "text",
+          "text": "r",
+          "x": 600,
+          "y": 352,
+          "font_size": 26,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "a_A",
+          "type": "angle",
+          "at": [
+            280,
+            375
+          ],
+          "from": 0,
+          "to": 65,
+          "radius": 55,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "a_CA",
+          "type": "angle",
+          "at": [
+            358.59,
+            543.53
+          ],
+          "from": 245,
+          "to": 310,
+          "radius": 60,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "a_B",
+          "type": "angle",
+          "at": [
+            720,
+            375
+          ],
+          "from": 155,
+          "to": 180,
+          "radius": 75,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "a_CB",
+          "type": "angle",
+          "at": [
+            358.59,
+            543.53
+          ],
+          "from": 310,
+          "to": 335,
+          "radius": 95,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "sum",
+          "type": "math",
+          "tex": "2\\alpha+2\\beta=180^\\circ",
+          "x": 850,
+          "y": 600,
+          "size": 34,
+          "colors": {
+            "\\alpha": "#b5482e",
+            "\\beta": "#2f6b8f"
+          }
+        },
+        {
+          "id": "c2_a",
+          "type": "path",
+          "points": [
+            [
+              280,
+              375
+            ],
+            [
+              610,
+              565.53
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "stroke_width": 3,
+            "dash": true
+          }
+        },
+        {
+          "id": "c2_b",
+          "type": "path",
+          "points": [
+            [
+              610,
+              565.53
+            ],
+            [
+              720,
+              375
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "stroke_width": 3,
+            "dash": true
+          }
+        },
+        {
+          "id": "a_C2",
+          "type": "angle",
+          "at": [
+            610,
+            565.53
+          ],
+          "from": 210,
+          "to": 300,
+          "radius": 34,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "other_c",
+          "type": "group",
+          "members": [
+            "c2_a",
+            "c2_b",
+            "a_C2"
+          ]
+        },
+        {
+          "id": "d_a",
+          "type": "path",
+          "points": [
+            [
+              280,
+              375
+            ],
+            [
+              500,
+              480
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3,
+            "dash": true
+          }
+        },
+        {
+          "id": "d_b",
+          "type": "path",
+          "points": [
+            [
+              500,
+              480
+            ],
+            [
+              720,
+              375
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3,
+            "dash": true
+          }
+        },
+        {
+          "id": "a_D",
+          "type": "angle",
+          "at": [
+            500,
+            480
+          ],
+          "from": 203.4,
+          "to": 336.6,
+          "radius": 34,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "inside",
+          "type": "group",
+          "members": [
+            "d_a",
+            "d_b",
+            "a_D"
+          ]
+        }
+      ],
       "commands": [
         {
-          "speak": "Let's prove Thales' theorem."
+          "card": {
+            "title": "Thales' theorem"
+          }
         },
         {
           "draw": [
-            "circle"
-          ],
-          "speak": "Take any circle, and draw a diameter across it."
-        },
-        {
-          "draw": [
-            "side_0"
-          ],
-          "speak": "This is the diameter, from A to B."
-        },
-        {
-          "draw": [
+            "circle",
+            "side_0",
             "vertex_label_1",
             "vertex_label_2"
           ],
-          "speak": "Label its two ends A and B."
+          "speak": "Why is an angle drawn in a semicircle always exactly ninety degrees? Start with a circle and a diameter from A to B."
         },
         {
           "draw": [
-            "side_1",
             "side_2",
+            "side_1",
             "vertex_label_0"
           ],
-          "speak": "Now pick any point C on the circle, and connect it to both ends of the diameter."
+          "speak": "Pick a point C on the circle and join it to both ends. Wherever C sits, this angle measures ninety degrees. But why?"
+        },
+        {
+          "draw": [
+            "centre",
+            "l_centre",
+            "rc",
+            "l_rc"
+          ],
+          "speak": "The key is the centre, O. Draw one more line, from O to C: it is a radius."
+        },
+        {
+          "draw": [
+            "ra",
+            "l_ra",
+            "rb",
+            "l_rb"
+          ],
+          "speak": "O A and O B are radii too. Three equal lengths, and they split the big triangle into two smaller ones."
+        },
+        {
+          "focus": {
+            "target": [
+              "ra",
+              "rc",
+              "side_2",
+              "l_ra",
+              "l_rc"
+            ]
+          },
+          "speak": "Take the left one, A O C. Two of its sides are radii, so it is isosceles."
+        },
+        {
+          "draw": [
+            "a_A",
+            "a_CA"
+          ],
+          "speak": "An isosceles triangle has equal base angles: here sixty-five degrees at A, and the same sixty-five at C. Call it alpha."
+        },
+        {
+          "draw": [
+            "a_B",
+            "a_CB"
+          ],
+          "speak": "The right one, B O C, is isosceles too: twenty-five degrees at B and twenty-five at C. Call it beta."
+        },
+        {
+          "draw": [
+            "sum"
+          ],
+          "speak": "Now the whole triangle A B C. Its angles are alpha at A, beta at B, and alpha plus beta at C, and they add to 180."
+        },
+        {
+          "morph": {
+            "target": "sum",
+            "tex": "\\alpha+\\beta=90^\\circ",
+            "duration": 1.5
+          },
+          "speak": "Halve both sides: alpha plus beta is ninety. And alpha plus beta is exactly the angle at C."
         },
         {
           "draw": [
             "angle_0",
             "angle_label_0"
           ],
-          "speak": "No matter where C sits on the circle, the angle at C is always a right angle — that's Thales' theorem."
+          "speak": "So the angle at C is a right angle, forced by nothing more than three equal radii."
+        },
+        {
+          "draw": [
+            "other_c"
+          ],
+          "speak": "Move C anywhere else on the circle and the base angles change, but they always pair up the same way: ninety again."
+        },
+        {
+          "erase": [
+            "other_c"
+          ]
+        },
+        {
+          "draw": [
+            "inside"
+          ],
+          "speak": "Off the circle, it fails. From a point inside, the diameter looks wider: 133 degrees here, and a point outside sees less than ninety."
+        },
+        {
+          "erase": [
+            "inside"
+          ],
+          "speak": "The story goes that Thales, around 600 BC, sacrificed an ox when he found this: it is among the first theorems anyone is said to have proved."
+        },
+        {
+          "quiz": {
+            "question": "C moves so that its angle at A becomes 40°. What is the angle at B?",
+            "choices": [
+              "40°",
+              "50°",
+              "90°"
+            ],
+            "correct": 2,
+            "right": "Fifty degrees: the base angles still pair up at C, so the angles at A and B add to ninety wherever C sits."
+          }
         }
       ]
     }
   },
   {
-    "request": "Make a truth table for (A AND B) OR NOT A.",
+    "request": "What does (A AND B) OR NOT A really say?",
     "packs": [
       "mathlogic"
     ],
     "spec": {
-      "title": "Truth table: (A AND B) OR NOT A",
+      "title": "(A and B) or not A",
       "template": "truth_table",
       "params": {
         "variables": [
@@ -4925,9 +6415,87 @@
         ],
         "expression": "(A AND B) OR NOT A"
       },
+      "elements": [
+        {
+          "id": "impl_header",
+          "type": "text",
+          "text": "A → B",
+          "x": 850,
+          "y": 494,
+          "font_size": 22,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "impl_0",
+          "type": "text",
+          "text": "T",
+          "x": 850,
+          "y": 420,
+          "font_size": 26,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "impl_1",
+          "type": "text",
+          "text": "T",
+          "x": 850,
+          "y": 340,
+          "font_size": 26,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "impl_2",
+          "type": "text",
+          "text": "F",
+          "x": 850,
+          "y": 260,
+          "font_size": 26,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "impl_3",
+          "type": "text",
+          "text": "T",
+          "x": 850,
+          "y": 180,
+          "font_size": 26,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "impl_col",
+          "type": "group",
+          "members": [
+            "impl_header",
+            "impl_0",
+            "impl_1",
+            "impl_2",
+            "impl_3"
+          ]
+        },
+        {
+          "id": "eq",
+          "type": "math",
+          "tex": "(A\\land B)\\lor\\neg A",
+          "x": 500,
+          "y": 600,
+          "size": 34
+        }
+      ],
       "commands": [
         {
-          "speak": "Let's build a truth table for (A and B) or not A."
+          "card": {
+            "title": "(A and B) or not A"
+          }
         },
         {
           "draw": [
@@ -4935,7 +6503,7 @@
             "var_headers",
             "expr_header"
           ],
-          "speak": "Two variables, A and B — and here's our expression as the header."
+          "speak": "What does 'A and B, or not A' actually say? A truth table checks every case, and it turns out to say something much shorter."
         },
         {
           "draw": [
@@ -4948,45 +6516,113 @@
             "grid__c3_0",
             "grid__c3_1"
           ],
-          "speak": "Every combination of true and false for A and B, one row each."
+          "parallel": true,
+          "speak": "Two variables give four cases: A true or false, B true or false, one row each."
+        },
+        {
+          "highlight": {
+            "target": [
+              "var_headers"
+            ]
+          },
+          "speak": "Make it concrete. A: it is a weekday. B: the alarm rings."
         },
         {
           "draw": [
             "grid__c0_2",
-            "true_row_0"
+            "grid__c1_2"
           ],
-          "speak": "When A and B are both false, A and B is false — but not A is true, so the whole expression is true."
-        },
-        {
-          "draw": [
-            "grid__c1_2",
-            "true_row_1"
-          ],
-          "speak": "Same story here."
+          "speak": "When A is false, not A is true, so the whole thing is true whatever B does. On a Sunday, anything goes."
         },
         {
           "draw": [
             "grid__c2_2"
           ],
-          "speak": "But when A is true and B is false, both halves fail, and the expression is false."
+          "speak": "When A is true, not A drops out and only A and B is left. A weekday with no alarm: false."
         },
         {
           "draw": [
-            "grid__c3_2",
+            "grid__c3_2"
+          ],
+          "speak": "A weekday with the alarm: A and B holds, true."
+        },
+        {
+          "draw": [
+            "true_row_0",
+            "true_row_1",
             "true_row_3"
           ],
-          "speak": "And when both are true, A and B alone makes it true."
+          "parallel": true,
+          "speak": "Three trues and one false. The only way to break it is A true and B false."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "grid__c2_2"
+            },
+            "gesture": "circle"
+          },
+          "speak": "And that is exactly how you break the rule 'if it is a weekday, the alarm rings'."
+        },
+        {
+          "draw": [
+            "impl_col"
+          ],
+          "speak": "So the formula is 'if A then B', written A arrow B. Its column matches, row for row."
+        },
+        {
+          "draw": [
+            "eq"
+          ],
+          "speak": "Why the 'A and' adds nothing: not A already covers every row where A is false."
+        },
+        {
+          "morph": {
+            "target": "eq",
+            "tex": "B\\lor\\neg A",
+            "duration": 1.5
+          },
+          "speak": "And where A is true, A and B is just B. So the formula shrinks to B or not A."
+        },
+        {
+          "highlight": {
+            "target": [
+              "grid__c0_2",
+              "grid__c1_2"
+            ]
+          },
+          "speak": "The surprise is these two rows: 'if A then B' counts as kept whenever A is false. Logicians call that vacuously true."
+        },
+        {
+          "highlight": {
+            "target": [
+              "grid"
+            ]
+          },
+          "speak": "Tables like this were popularised in 1921, by Wittgenstein's Tractatus and, independently, by Emil Post."
+        },
+        {
+          "quiz": {
+            "question": "The rule: 'if it is a weekday, the alarm rings.' On Sunday it stays silent. Is the rule broken?",
+            "choices": [
+              "Yes, broken",
+              "No, kept",
+              "Neither: it can't be judged"
+            ],
+            "correct": 2,
+            "right": "Kept: with A false, not A is true, so the formula is true. Only a silent weekday breaks the rule."
+          }
         }
       ]
     }
   },
   {
-    "request": "Draw a modus ponens argument map: if it rains the ground gets wet, and it is raining, so the ground is wet.",
+    "request": "Why does modus ponens work, when a similar-looking argument fails?",
     "packs": [
       "mathlogic"
     ],
     "spec": {
-      "title": "Modus ponens",
+      "title": "Modus ponens, and its evil twin",
       "template": "argument_map",
       "params": {
         "conclusion": "The ground is wet.",
@@ -4999,35 +6635,197 @@
           }
         ]
       },
+      "elements": [
+        {
+          "id": "form_ok",
+          "type": "math",
+          "tex": "P\\to Q,\\ P\\ \\therefore\\ Q",
+          "x": 170,
+          "y": 470,
+          "colors": {
+            "Q": "#2f6b8f"
+          }
+        },
+        {
+          "id": "wet_premise",
+          "type": "node",
+          "shape": "rect",
+          "text": "The ground is wet.",
+          "x": 675,
+          "y": 190
+        },
+        {
+          "id": "rained",
+          "type": "text",
+          "text": "It rained.",
+          "x": 500,
+          "y": 600,
+          "font_size": 22,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "bad_link",
+          "type": "arrow",
+          "from": {
+            "x": 655,
+            "y": 222
+          },
+          "to": {
+            "x": 560,
+            "y": 560
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "form_bad",
+          "type": "math",
+          "tex": "P\\to Q,\\ Q\\ \\therefore\\ P",
+          "x": 170,
+          "y": 380,
+          "colors": {
+            "P": "#b5482e"
+          }
+        },
+        {
+          "id": "sprinkler",
+          "type": "node",
+          "shape": "rect",
+          "text": "The sprinkler was on.",
+          "x": 830,
+          "y": 420,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "spr_link",
+          "type": "arrow",
+          "from": {
+            "x": 810,
+            "y": 390
+          },
+          "to": {
+            "x": 735,
+            "y": 222
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "Let's map out a classic argument: modus ponens."
+          "card": {
+            "title": "Modus ponens"
+          }
         },
         {
           "draw": [
             "premise_0"
           ],
-          "speak": "Our first premise: if it rains, the ground gets wet."
+          "speak": "When does a conclusion follow for certain, and when does it only look as if it does? Start with a rule: if it rains, the ground gets wet."
         },
         {
           "draw": [
             "premise_1"
           ],
-          "speak": "Our second premise: it is raining."
+          "speak": "Second premise: it is raining."
         },
         {
           "draw": [
             "conclusion_box",
             "conclusion_text_0"
           ],
-          "speak": "So we conclude: the ground is wet."
+          "speak": "Then the ground is wet. There is no way out: the rain is here, and the rule turns rain into wet ground."
         },
         {
           "draw": [
             "link_0",
             "link_1"
           ],
-          "speak": "Both premises support the conclusion — together, they guarantee it."
+          "speak": "Neither premise does it alone; together they force it. That is what valid means: true premises cannot give a false conclusion."
+        },
+        {
+          "draw": [
+            "form_ok"
+          ],
+          "speak": "Only the shape matters: if P then Q, and P, so Q. Its Latin name, modus ponens, means the mode that affirms."
+        },
+        {
+          "erase": [
+            "premise_1",
+            "link_1",
+            "conclusion_text_0"
+          ],
+          "speak": "Now the tempting twin. Keep the same rule, but start from what you see instead."
+        },
+        {
+          "draw": [
+            "wet_premise"
+          ],
+          "speak": "You step outside, and the ground is wet."
+        },
+        {
+          "draw": [
+            "rained",
+            "bad_link"
+          ],
+          "speak": "So it rained? It feels just as solid, and it is the same rule and the same two sentences, only turned round."
+        },
+        {
+          "draw": [
+            "form_bad"
+          ],
+          "speak": "Its shape is if P then Q, and Q, so P. The premise now affirms the consequent, the Q, instead of the P."
+        },
+        {
+          "draw": [
+            "sprinkler",
+            "spr_link"
+          ],
+          "speak": "One counterexample breaks it: the sprinkler was on. Both premises are true, and yet it never rained."
+        },
+        {
+          "highlight": {
+            "target": [
+              "form_bad"
+            ],
+            "effect": "circle"
+          },
+          "speak": "So it is invalid. The rule says rain is enough for wet ground, not that rain is the only way to get it."
+        },
+        {
+          "highlight": {
+            "target": [
+              "form_ok",
+              "form_bad"
+            ]
+          },
+          "speak": "The difference is direction: the rule runs from P to Q, and only an argument that travels the same way is safe."
+        },
+        {
+          "highlight": {
+            "target": [
+              "form_bad"
+            ]
+          },
+          "speak": "People fall for it all the time: in Peter Wason's 1966 card puzzle, most people check for confirming cases instead of the one that could break the rule."
+        },
+        {
+          "quiz": {
+            "question": "If you have flu, you have a fever. Ana has a fever. Does it follow that she has flu?",
+            "choices": [
+              "Yes, it follows",
+              "No: affirming the consequent",
+              "Only if she has no cold"
+            ],
+            "correct": 2,
+            "right": "No: a fever has other causes, as wet ground has the sprinkler. Going from Q back to P is affirming the consequent."
+          }
         }
       ]
     }
@@ -6154,62 +7952,83 @@
     }
   },
   {
-    "request": "Draw a series circuit with a battery, a bulb and a switch.",
+    "request": "Does the current get used up as it goes round a series circuit?",
     "packs": [
       "physics"
     ],
     "spec": {
-      "title": "A simple series circuit",
+      "title": "Current in a series circuit",
       "template": "circuit_diagram",
       "params": {
         "topology": "series",
         "components": [
           {
-            "type": "battery"
+            "type": "battery",
+            "label": "9 V"
           },
           {
             "type": "bulb",
-            "label": "Lamp"
+            "label": "A: 30 Ω"
           },
           {
-            "type": "switch"
+            "type": "bulb",
+            "label": "B: 30 Ω"
           }
         ],
-        "show_current": true
+        "show_current": true,
+        "box": {
+          "x": 120,
+          "y": 190,
+          "w": 760,
+          "h": 430
+        }
       },
+      "elements": [
+        {
+          "id": "ohm",
+          "type": "math",
+          "tex": "I = \\frac{9\\ \\text{V}}{30\\ \\Omega} = 0.3\\ \\text{A}",
+          "x": 500,
+          "y": 430,
+          "colors": {
+            "I": "#b5482e"
+          }
+        },
+        {
+          "id": "share",
+          "type": "math",
+          "tex": "9\\ \\text{V} = 4.5\\ \\text{V} + 4.5\\ \\text{V}",
+          "x": 500,
+          "y": 320
+        }
+      ],
       "commands": [
         {
-          "speak": "Let's build a simple series circuit and watch the current flow around it."
+          "card": {
+            "title": "Current in a series circuit"
+          }
         },
         {
           "draw": [
-            "wire"
-          ],
-          "speak": "Here's the loop of wire the current will travel around."
-        },
-        {
-          "draw": [
+            "wire",
             "comp_0",
             "comp_label_0"
           ],
-          "speak": "The battery always sits in the bottom wire — it's what drives the current."
+          "speak": "Does current get used up as it goes round a circuit? Take a series circuit: one loop, no branches, driven by a nine-volt battery."
         },
         {
           "draw": [
             "comp_1",
             "comp_label_1"
           ],
-          "speak": "In series, the lamp is spliced right into the loop."
+          "speak": "The current passes through bulb A, thirty ohms…"
         },
         {
           "draw": [
             "comp_2",
             "comp_label_2"
           ],
-          "speak": "And so is the switch — open it, and the whole loop breaks."
-        },
-        {
-          "pause": 0.3
+          "speak": "…then bulb B, another thirty ohms, and back to the battery. There is no other way round."
         },
         {
           "draw": [
@@ -6218,161 +8037,574 @@
             "current_2",
             "current_3"
           ],
-          "speak": "Conventional current flows clockwise, out of the battery's positive terminal, through every component in turn, and back in the negative side."
+          "parallel": true,
+          "speak": "Current flows clockwise, out of the battery's plus terminal and round to its minus."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "comp_1"
+            },
+            "gesture": "circle"
+          },
+          "speak": "A common guess: bulb A, first in line, uses some of the current up, and B gets what is left."
+        },
+        {
+          "highlight": {
+            "target": [
+              "current_0",
+              "current_1",
+              "current_2",
+              "current_3"
+            ]
+          },
+          "speak": "It can't. Charge has nowhere else to go: every bit that passes A must pass B. The current is the same all the way round."
+        },
+        {
+          "draw": [
+            "ohm"
+          ],
+          "speak": "How big is it? One bulb alone would take nine volts over thirty ohms: 0.3 amps."
+        },
+        {
+          "morph": {
+            "target": "ohm",
+            "tex": "I = \\frac{9\\ \\text{V}}{30\\ \\Omega + 30\\ \\Omega} = 0.15\\ \\text{A}",
+            "duration": 1.5
+          },
+          "speak": "Two bulbs in a row resist twice as much: nine over sixty, 0.15 amps, through A and B alike."
+        },
+        {
+          "draw": [
+            "share"
+          ],
+          "speak": "What the bulbs share is the energy, not the current: each takes 4.5 of the battery's nine volts."
+        },
+        {
+          "highlight": {
+            "target": [
+              "comp_1",
+              "comp_2"
+            ]
+          },
+          "speak": "Half the current and half the voltage: each bulb gets a quarter of the power one bulb alone would, and glows dimmer."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "comp_2"
+            },
+            "gesture": "tap"
+          },
+          "speak": "Old Christmas lights were wired like this: one burnt-out bulb broke the only loop, and the whole string went dark."
+        },
+        {
+          "quiz": {
+            "question": "In this loop, a meter beside bulb A reads 0.15 amps. What would it read beside bulb B?",
+            "choices": [
+              "0.15 amps",
+              "Less than 0.15 amps",
+              "0.3 amps"
+            ],
+            "correct": 1,
+            "right": "0.15 amps: in a single loop every charge passes both bulbs, so the current is the same everywhere; only the energy is shared."
+          }
         }
       ]
     }
   },
   {
-    "request": "Show projectile motion at 45 degrees.",
+    "request": "Why does a launch at 45 degrees go the farthest?",
     "packs": [
       "physics"
     ],
     "spec": {
-      "title": "Projectile motion at 45°",
+      "title": "Why 45° goes farthest",
       "template": "projectile_motion",
       "params": {
-        "speed": 6,
-        "angle_deg": 45
+        "speed": 10,
+        "angle_deg": 45,
+        "show_components": true
       },
+      "domain": {
+        "x": [
+          0,
+          49.8462
+        ],
+        "y": [
+          -6.4615,
+          29.2308
+        ]
+      },
+      "vars": {
+        "a": 45
+      },
+      "elements": [
+        {
+          "id": "traj",
+          "type": "curve",
+          "expr": "x*tan(a*pi/180) - x^2/(80*cos(a*pi/180)^2)",
+          "x_from": 0,
+          "x_to": 40,
+          "bind": {
+            "x_to": "40*sin(2*a*pi/180)"
+          },
+          "style": {
+            "color": "#8a5fa8",
+            "dash": true
+          }
+        },
+        {
+          "id": "l_traj",
+          "type": "label",
+          "attach_to": "traj",
+          "side": "above",
+          "text": "{a:0}°",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "land",
+          "type": "point",
+          "at": {
+            "x": 40,
+            "y": 0
+          },
+          "bind": {
+            "at.x": "40*sin(2*a*pi/180)"
+          },
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "range",
+          "type": "math",
+          "tex": "R = \\frac{v^2\\,{\\sin 2\\theta}}{g}",
+          "x": 760,
+          "y": 590,
+          "colors": {
+            "\\theta": "#8a5fa8"
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "Let's launch a projectile and trace out its path."
+          "card": {
+            "title": "Why 45° goes farthest"
+          }
         },
         {
           "draw": [
-            "ground"
-          ],
-          "speak": "Here's the ground it launches from and lands on."
-        },
-        {
-          "draw": [
+            "ground",
             "path"
           ],
-          "speak": "Ignoring air resistance, gravity bends its path into a perfect parabola."
+          "speak": "At a fixed speed, the launch angle alone decides how far a ball goes. Why is 45 degrees best? Here, 20 metres a second, at 45."
         },
         {
           "draw": [
-            "v0"
+            "v0",
+            "vx_0",
+            "vy_0"
           ],
-          "speak": "It leaves the ground at this velocity, angled up and to the right."
+          "speak": "Split the launch velocity in two: about fourteen metres a second across, and fourteen up."
         },
         {
           "draw": [
             "v_apex",
             "apex_label"
           ],
-          "speak": "At the very top, all the vertical motion is gone — the velocity is purely horizontal."
+          "speak": "Gravity takes 10 metres a second off the upward part every second. At the top, 1.4 seconds in, only the 14 across is left."
         },
         {
           "draw": [
-            "v_land"
+            "v_land",
+            "vx_1",
+            "vy_1"
           ],
-          "speak": "By the time it lands, it's moving just as fast as it launched, mirrored below the horizontal."
+          "speak": "It lands 2.8 seconds after launch, as fast as it left, the upward part now pointing down."
         },
         {
-          "pause": 0.3
+          "highlight": {
+            "target": [
+              "path"
+            ]
+          },
+          "speak": "The range is the speed across times the time in the air: fourteen times 2.8, about forty metres."
+        },
+        {
+          "fade": {
+            "target": [
+              "v0",
+              "vx_0",
+              "vy_0",
+              "v_apex",
+              "apex_label",
+              "v_land",
+              "vx_1",
+              "vy_1"
+            ],
+            "to": 0.25
+          }
+        },
+        {
+          "draw": [
+            "traj",
+            "l_traj",
+            "land"
+          ],
+          "speak": "The angle trades one against the other. Keep the speed, and tilt the launch."
         },
         {
           "animate": {
-            "angle_deg": 68
+            "a": 70
           },
           "duration": 3,
-          "speak": "Now watch what happens as we steepen the launch angle: the same speed sends it higher, but not as far."
+          "speak": "At seventy degrees it climbs high and stays up longer, but crawls across: it lands at about twenty-six metres."
+        },
+        {
+          "animate": {
+            "a": 20
+          },
+          "duration": 5,
+          "easing": "linear",
+          "speak": "Now lower it. At 45 the range peaks, then shrinks again: at 20 degrees it races across but drops within 1.4 seconds."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "land"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Twenty-six metres again, the same spot. Any two angles that add up to ninety land together."
+        },
+        {
+          "draw": [
+            "range"
+          ],
+          "speak": "In a formula, the range goes with sine of twice the angle, which peaks at ninety, when the angle is forty-five."
+        },
+        {
+          "highlight": {
+            "target": [
+              "range"
+            ],
+            "part": "\\sin2\\theta"
+          },
+          "speak": "Galileo proved both results in 1638: forty-five goes farthest, and angles equally above and below it land together."
+        },
+        {
+          "highlight": {
+            "target": [
+              "path"
+            ]
+          },
+          "speak": "Real air drags hardest on long, high flights, so outside the textbook the best angle is somewhat lower."
+        },
+        {
+          "quiz": {
+            "question": "At this speed, a ball launched at 30° lands 35 metres away. Which other angle lands at the same spot?",
+            "choices": [
+              "60°",
+              "45°",
+              "15°"
+            ],
+            "correct": 1,
+            "right": "Sixty degrees: thirty and sixty add up to ninety, so what one angle gains in time aloft the other gains in speed across."
+          }
         }
       ]
     }
   },
   {
-    "request": "Draw the MAPK-style pathway EGFR to RAS to ERK, with p53 inhibiting the cell cycle.",
+    "request": "How does a growth signal tell a cell to divide, and how does cancer jam it on?",
     "packs": [
       "biology"
     ],
     "spec": {
-      "title": "A simplified MAPK cascade",
+      "title": "A growth signal's relay",
       "template": "pathway",
       "params": {
-        "edges": "EGFR -> RAS; RAS -> ERK; p53 -| cell cycle",
-        "title": "A simplified MAPK cascade"
+        "edges": "NF1 -| RAS; EGFR -> RAS; RAS -> RAF; RAF -> MEK; MEK -> ERK"
       },
+      "elements": [
+        {
+          "id": "sig_arrow",
+          "type": "arrow",
+          "from": {
+            "x": 188,
+            "y": 625
+          },
+          "to": {
+            "x": 188,
+            "y": 568
+          },
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "sig_text",
+          "type": "text",
+          "text": "EGF, a growth signal",
+          "x": 250,
+          "y": 650,
+          "font_size": 24,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "div_arrow",
+          "type": "arrow",
+          "from": {
+            "x": 812,
+            "y": 335
+          },
+          "to": {
+            "x": 812,
+            "y": 250
+          },
+          "style": {
+            "color": "#3d3833",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "div_text",
+          "type": "text",
+          "text": "divide",
+          "x": 812,
+          "y": 222,
+          "font_size": 26,
+          "style": {
+            "color": "#3d3833"
+          }
+        },
+        {
+          "id": "stuck",
+          "type": "text",
+          "text": "stuck ON",
+          "x": 344,
+          "y": 300,
+          "font_size": 24,
+          "style": {
+            "color": "#b5482e"
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "Cells relay outside signals inward through chains of proteins that switch each other on or off."
+          "card": {
+            "title": "A growth signal's relay"
+          }
+        },
+        {
+          "draw": [
+            "sig_text",
+            "sig_arrow"
+          ],
+          "speak": "How does a signal outside a cell tell it to divide, and how does cancer fake that signal? It starts with a growth factor, EGF."
         },
         {
           "draw": [
             "node_egfr",
             "node_label_egfr"
           ],
-          "speak": "It starts at the cell surface, with a receptor like EGFR."
-        },
-        {
-          "draw": [
-            "edge_0",
-            "node_ras",
-            "node_label_ras"
-          ],
-          "speak": "EGFR activates RAS, the next protein in the chain."
+          "speak": "EGF docks on its receptor, EGFR, which spans the cell membrane and switches on at its inner end."
         },
         {
           "draw": [
             "edge_1",
+            "node_ras",
+            "node_label_ras"
+          ],
+          "speak": "The receptor flips on RAS, a molecular switch: on while it holds a molecule called GTP, off once it has cut that to GDP."
+        },
+        {
+          "draw": [
+            "edge_2",
+            "node_raf",
+            "node_label_raf",
+            "edge_3",
+            "node_mek",
+            "node_label_mek"
+          ],
+          "speak": "Active RAS starts a relay of kinases: RAF switches on MEK, each by tagging the next with phosphate."
+        },
+        {
+          "draw": [
+            "edge_4",
             "node_erk",
             "node_label_erk"
           ],
-          "speak": "RAS in turn activates ERK, which goes on to switch on genes for cell division."
+          "speak": "MEK switches on ERK, the last runner."
         },
         {
           "draw": [
-            "node_p53",
-            "node_label_p53",
-            "edge_2",
-            "node_cell_cycle",
-            "node_label_cell_cycle"
+            "div_arrow",
+            "div_text"
           ],
-          "speak": "Meanwhile p53, the cell's damage sensor, can inhibit the cell cycle directly — the bar-headed arrow means 'blocks', not 'activates'."
+          "speak": "ERK enters the nucleus and turns on the genes for cell division. Signal in, division out."
+        },
+        {
+          "pause": 0.4
         },
         {
           "draw": [
-            "title"
+            "node_nf1",
+            "node_label_nf1",
+            "edge_0"
           ],
-          "speak": "Together, this is a simplified MAPK cascade — one of the most common signaling motifs in biology."
+          "speak": "Just as vital is the off switch. Proteins like NF1 make RAS cut its GTP quickly, so division stops when the signal stops."
+        },
+        {
+          "highlight": {
+            "target": [
+              "edge_0"
+            ]
+          },
+          "speak": "The flat bar means 'turns off', where an arrow means 'turns on'."
+        },
+        {
+          "draw": [
+            "stuck"
+          ],
+          "speak": "Now the cancer. Change one amino acid in RAS, famously number twelve, and NF1 can no longer switch it off."
+        },
+        {
+          "erase": [
+            "sig_arrow",
+            "sig_text"
+          ],
+          "speak": "Take the growth signal away entirely…"
+        },
+        {
+          "flow": {
+            "along": [
+              "edge_2",
+              "edge_3",
+              "edge_4"
+            ]
+          },
+          "speak": "…and the relay keeps firing anyway. The cell hears 'divide' with nobody asking."
+        },
+        {
+          "highlight": {
+            "target": [
+              "node_ras"
+            ]
+          },
+          "speak": "Mutant RAS is among the commonest drivers of cancer: over ninety percent of pancreatic cancers carry a mutant KRAS gene."
+        },
+        {
+          "highlight": {
+            "target": [
+              "div_text"
+            ]
+          },
+          "speak": "So this cancer adds no new signal. It breaks an off switch, like an accelerator jammed to the floor."
+        },
+        {
+          "quiz": {
+            "question": "A tumour's RAS is stuck on. Which drug target could still stop the relay?",
+            "choices": [
+              "EGFR, the receptor",
+              "MEK, further along",
+              "NF1, the off switch"
+            ],
+            "correct": 2,
+            "right": "MEK: it lies after RAS, so blocking it cuts the relay. Blocking the receptor does nothing, which is why EGFR drugs fail in colon cancers with mutant KRAS."
+          }
         }
       ]
     }
   },
   {
-    "request": "Cross two heterozygous parents in a Punnett square.",
+    "request": "If both parents carry cystic fibrosis, what are the chances for their child?",
     "packs": [
       "biology"
     ],
     "spec": {
-      "title": "A monohybrid cross",
+      "title": "Two carriers, one child",
       "template": "punnett_square",
       "params": {
-        "parent1": "Aa",
-        "parent2": "Aa"
+        "parent1": "Ff",
+        "parent2": "Ff",
+        "highlight": "recessive",
+        "trait": {
+          "dominant": "no CF",
+          "recessive": "CF"
+        }
       },
+      "elements": [
+        {
+          "id": "carriers",
+          "type": "text",
+          "text": "carriers: 2 of 3",
+          "x": 830,
+          "y": 390,
+          "font_size": 24,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "p1",
+          "type": "text",
+          "text": "Parent 1 (Ff)",
+          "x": 500,
+          "y": 660,
+          "font_size": 22,
+          "style": {
+            "color": "#8f887c"
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "Let's cross two heterozygous parents and predict their offspring."
+          "hide": [
+            "parent1_label"
+          ]
+        },
+        {
+          "card": {
+            "title": "Two carriers, one child"
+          }
         },
         {
           "draw": [
             "grid"
           ],
-          "speak": "A Punnett square lays out every possible combination of the parents' alleles."
+          "speak": "When both parents carry a hidden recessive gene, what are the odds for their child? A Punnett square works it out. Take cystic fibrosis."
         },
         {
           "draw": [
+            "p1",
             "grid__ch0",
-            "grid__ch1",
-            "grid__rh0",
-            "grid__rh1",
-            "parent1_label",
-            "parent2_label"
+            "grid__ch1"
           ],
-          "speak": "Each parent is heterozygous, Aa, so each contributes either an A gamete or an a gamete."
+          "speak": "Everyone has two copies of the CF gene. This parent has one working copy, big F, and one broken copy, small f."
+        },
+        {
+          "draw": [
+            "parent2_label",
+            "grid__rh0",
+            "grid__rh1"
+          ],
+          "speak": "One working copy is enough, so the parent is healthy: a carrier. The other parent is a carrier too."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "grid__ch1"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Each egg or sperm gets just one of the two copies, a coin toss between F and f."
         },
         {
           "draw": [
@@ -6381,38 +8613,160 @@
             "grid__c1_0",
             "grid__c1_1"
           ],
-          "speak": "Combining them gives four possible offspring genotypes: AA, Aa, Aa, and aa."
-        },
-        {
-          "pause": 0.3
+          "parallel": true,
+          "speak": "Every pairing is equally likely, so the four boxes are four equal chances for one child."
         },
         {
           "draw": [
             "hl_1_1"
           ],
-          "speak": "Only the aa offspring shows the recessive trait — every other combination carries at least one dominant allele."
+          "speak": "Only small f with small f, no working copy at all, gives cystic fibrosis. One box in four."
         },
         {
           "draw": [
             "ratio"
           ],
-          "speak": "That's the classic 3 to 1 ratio of dominant to recessive phenotypes."
+          "speak": "So each child has a three in four chance of no CF, and a one in four chance of CF."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "highlight": {
+            "target": [
+              "grid__c0_1",
+              "grid__c1_0"
+            ]
+          },
+          "speak": "The surprise hides in the three unaffected boxes: two of them are F small f."
+        },
+        {
+          "draw": [
+            "carriers"
+          ],
+          "speak": "So two out of three healthy children are carriers themselves, just like their parents."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "hl_1_1"
+            },
+            "gesture": "circle"
+          },
+          "speak": "And the odds belong to each child, not to the family. A coin has no memory: four children could all have CF, or none."
+        },
+        {
+          "highlight": {
+            "target": [
+              "p1",
+              "parent2_label"
+            ]
+          },
+          "speak": "About one in 25 people of European descent carries a CF gene, almost always without knowing it."
+        },
+        {
+          "highlight": {
+            "target": [
+              "carriers"
+            ]
+          },
+          "speak": "That is how a recessive disease hides for generations, passed on silently by carriers, until two of them have a child together."
+        },
+        {
+          "quiz": {
+            "question": "Two carriers' first child has cystic fibrosis. What are the odds for their second child?",
+            "choices": [
+              "1 in 4",
+              "Lower: the unlucky box is used up",
+              "1 in 2"
+            ],
+            "correct": 1,
+            "right": "One in four: each child is a fresh draw of one copy from each parent, so the square starts over every time."
+          }
         }
       ]
     }
   },
   {
-    "request": "Draw a food web with grass, rabbits, mice, foxes and hawks.",
+    "request": "What does a food web show, and what happens when one species disappears?",
     "packs": [
       "biology"
     ],
     "spec": {
-      "title": "A grassland food web",
+      "title": "A kelp forest food web",
       "template": "food_web",
-      "params": {},
+      "params": {
+        "organisms": [
+          {
+            "name": "Kelp",
+            "level": "producer"
+          },
+          {
+            "name": "Plankton",
+            "level": "producer"
+          },
+          {
+            "name": "Sea urchin",
+            "level": "primary"
+          },
+          {
+            "name": "Abalone",
+            "level": "primary"
+          },
+          {
+            "name": "Mussel",
+            "level": "primary"
+          },
+          {
+            "name": "Sea otter",
+            "level": "secondary"
+          },
+          {
+            "name": "Sea star",
+            "level": "secondary"
+          },
+          {
+            "name": "Orca",
+            "level": "apex"
+          }
+        ],
+        "links": "Kelp -> Sea urchin; Kelp -> Abalone; Plankton -> Mussel; Sea urchin -> Sea otter; Abalone -> Sea otter; Mussel -> Sea otter; Sea urchin -> Sea star; Mussel -> Sea star; Sea otter -> Orca"
+      },
+      "elements": [
+        {
+          "id": "cascade",
+          "type": "arrow",
+          "from": {
+            "x": 345,
+            "y": 470
+          },
+          "to": {
+            "x": 345,
+            "y": 165
+          },
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 4,
+            "dash": true
+          }
+        },
+        {
+          "id": "barren",
+          "type": "text",
+          "text": "→ urchin barren",
+          "x": 640,
+          "y": 190,
+          "font_size": 22,
+          "style": {
+            "color": "#b5482e"
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "Energy flows up through an ecosystem in a food web, from producers to predators."
+          "card": {
+            "title": "A kelp forest food web"
+          }
         },
         {
           "draw": [
@@ -6421,46 +8775,123 @@
             "band_label_2",
             "band_label_3"
           ],
-          "speak": "We'll lay it out in bands: producers at the bottom, rising through primary and secondary consumers to apex predators at the top."
+          "speak": "What does a food web show, and what happens when one species disappears? Take a kelp forest off the coast of Alaska."
         },
         {
           "draw": [
-            "org_grass"
+            "org_kelp",
+            "org_plankton"
           ],
-          "speak": "Grass is a producer — it makes its own energy from sunlight."
+          "speak": "At the bottom are the producers: giant kelp and drifting plankton algae, making food from sunlight."
         },
         {
           "draw": [
-            "org_rabbit",
-            "org_mouse"
-          ],
-          "speak": "Rabbits and mice are primary consumers: they eat the grass."
-        },
-        {
-          "draw": [
-            "org_fox"
-          ],
-          "speak": "A fox is a secondary consumer, eating the rabbits and mice."
-        },
-        {
-          "draw": [
-            "org_hawk"
-          ],
-          "speak": "And a hawk sits at the top as an apex predator."
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
+            "org_sea_urchin",
+            "org_abalone",
+            "org_mussel",
             "link_0",
             "link_1",
-            "link_2",
+            "link_2"
+          ],
+          "speak": "Grazers eat them: urchins and abalone chew kelp, mussels filter plankton. Each arrow runs from the eaten to the eater."
+        },
+        {
+          "draw": [
+            "org_sea_otter",
+            "org_sea_star",
             "link_3",
             "link_4",
-            "link_5"
+            "link_5",
+            "link_6",
+            "link_7"
           ],
-          "speak": "Each arrow points from prey to predator — from what's eaten, up to what eats it."
+          "speak": "Sea otters and sea stars eat the grazers. An otter has no blubber and eats about a quarter of its weight every day."
+        },
+        {
+          "draw": [
+            "org_orca",
+            "link_8"
+          ],
+          "speak": "At the top, orcas, which mostly hunt seals and fish, and now and then an otter."
+        },
+        {
+          "flow": {
+            "along": [
+              "link_0",
+              "link_3",
+              "link_8"
+            ]
+          },
+          "speak": "Read upward, the arrows carry energy: kelp to urchin, urchin to otter, otter to orca."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "fade": {
+            "target": [
+              "org_sea_otter",
+              "link_3",
+              "link_4",
+              "link_5",
+              "link_8"
+            ],
+            "to": 0.2
+          },
+          "speak": "Now take the otters away. You might expect only their prey to notice."
+        },
+        {
+          "highlight": {
+            "target": [
+              "org_sea_urchin"
+            ]
+          },
+          "speak": "And at first they do: freed from otters, the urchins multiply."
+        },
+        {
+          "draw": [
+            "barren"
+          ],
+          "speak": "But urchins eat kelp. Whole forests are grazed down to bare rock, called urchin barrens."
+        },
+        {
+          "draw": [
+            "cascade"
+          ],
+          "speak": "So the otter protects kelp it never eats. The effect runs down the arrows, two levels: a trophic cascade."
+        },
+        {
+          "highlight": {
+            "target": [
+              "org_orca"
+            ]
+          },
+          "speak": "This happened in the Aleutian Islands in the 1990s: orcas apparently turned to eating otters, otters crashed, urchins boomed, and the kelp went."
+        },
+        {
+          "fade": {
+            "target": [
+              "org_sea_otter",
+              "link_3",
+              "link_4",
+              "link_5",
+              "link_8"
+            ],
+            "to": 1
+          },
+          "speak": "So a food web is more than a menu. Each level holds the one below in check: more orcas, fewer otters, more urchins, less kelp."
+        },
+        {
+          "quiz": {
+            "question": "If orcas stopped hunting otters, what would happen to the kelp?",
+            "choices": [
+              "Less kelp: more predators overall",
+              "More kelp",
+              "No change: orcas never eat kelp"
+            ],
+            "correct": 2,
+            "right": "More kelp: the otters recover, eat the urchins, and fewer urchins graze the kelp. Each level flips the one below it."
+          }
         }
       ]
     }

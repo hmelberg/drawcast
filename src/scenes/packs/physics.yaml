@@ -15,7 +15,8 @@ description: >-
   inside. Choose this scene for ANY request about lenses, ray diagrams, image
   formation, real vs virtual images, magnification, or "what happens when the
   object moves inside the focal length". Vary focal_length and object_distance
-  and the figure re-derives itself.
+  and the figure re-derives itself — rescaled to fit on every frame, so
+  compare the image WITH the object, not with its earlier size on screen.
 params:
   type: object
   properties:
@@ -383,7 +384,9 @@ description: >-
   one smoothly and the whole parabola, apex and vectors re-derive themselves
   frame by frame. Choose this scene for ANY request about projectile motion,
   trajectory, range, a launch angle, time of flight, or the height/velocity
-  of a thrown or fired object (ignoring air resistance).
+  of a thrown or fired object (ignoring air resistance). The figure is
+  rescaled to fit on every frame, so an animated angle changes the arc's
+  shape but not its drawn width — say "shape", not "goes less far".
 params:
   type: object
   properties:

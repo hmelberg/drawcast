@@ -6,12 +6,14 @@ export function normalizeTex(s: string): string {
   return s.replace(/\s+/g, " ").trim();
 }
 
-/** A TERM as a person names it, for `colors` and `highlight.part`: normalised,
- *  and without braces that wrap the whole of it — MathJax keeps a group's
+/** A TERM as a person names it, for `colors` and `highlight.part`: without
+ *  whitespace, and without braces that wrap the whole of it — MathJax keeps a group's
  *  braces in its chain (an exponent is `{t/t_{1/2}}`), but nobody writes them
  *  when they name the exponent. */
 export function termTex(s: string): string {
-  let t = normalizeTex(s);
+  // Whitespace is not part of a term: MathJax's chain spells \sin 2\theta as
+  // "\sin2\theta", so a part written the way people type it must match.
+  let t = normalizeTex(s).replace(/\s+/g, "");
   while (t.startsWith("{") && t.endsWith("}")) {
     let depth = 0;
     let wraps = true;

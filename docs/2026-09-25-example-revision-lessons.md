@@ -90,6 +90,28 @@ what the drawcast is about, and one narrated line after a quiz answer.
 
 All twelve are lint-clean in the browser harness (not only in the Node gate).
 
+## Revised — round 4 (19, four parallel agents)
+
+Physics: #9 magnifier (the image is 4× taller AND 4× farther; what magnifies
+is focusing close), #10 catalyst (a lower pass both ways, so equilibrium
+stays), #12 wavelength and amplitude (freehand with vars: louder changes
+only amplitude; the octave halves λ), #43 series circuit (the current is not
+used up; two bulbs 0.15 A each), #44 45° (a var-driven arc sweeps 70°→20°
+and the range visibly peaks). Biology: #14 membrane (K⁺ leaks, the Na⁺/K⁺
+pump charges a battery — the old one sent O₂ through a channel), #15 tree
+of life (the tree corrected; forks rotate; no tip is "more primitive"), #45
+growth signal (EGFR→RAS→RAF→MEK→ERK, NF1 off switch, stuck-on KRAS — the
+old one put p53 in the MAPK cascade), #46 CF carriers (2 of 3 healthy
+children carry; each child starts fresh), #47 kelp forest (otters, urchins,
+orcas: a trophic cascade). Statistics: #16 sensitivity/specificity (read
+down a column vs across a row; prevalence changes PPV), #26 survival and
+HR (censoring; HR 0.5 is not "half die"), #27 forest plot (four
+inconclusive trials pool to a clear answer; weight = 1/SE²), #28 confounder
+(smoking; strata RR 1; over-adjusting a mediator), #30 p < 0.05 (P(data|H0)
+≠ P(H0|data); Fisher 1925). Maths and logic: #32 sine beyond 90° (sin 30° =
+½ from the equilateral mirror), #34 Thales (the two isosceles triangles),
+#35 (A∧B)∨¬A = "if A then B", #36 modus ponens vs affirming the consequent.
+
 ## Engine
 
 1. **`equation_steps` glyphs carried no TeX chain**, so `highlight.part` on a
