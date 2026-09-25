@@ -216,7 +216,6 @@ describe("bundled examples stay exemplary", () => {
   // revision in the example-revision batches (docs/2026-09-25-example-revision-
   // lessons.md). The list only shrinks; a new entry is a regression.
   const PENDING_ANIMATE_LINT = new Set([
-    "Why are averages always bell-shaped, even when the data isn't?",
     "Explain how bicycle gears work: why a small rear cog makes pedalling harder but faster, and a big one easier but slower.",
     "A tax is collected from sellers, so why do buyers end up paying part of it?",
   ]);

@@ -4118,7 +4118,7 @@
     }
   },
   {
-    "request": "Draw the prisoner's dilemma and show the Nash equilibrium.",
+    "request": "Why do both prisoners confess in the prisoner's dilemma, and how can they escape it?",
     "packs": [
       "economics"
     ],
@@ -4129,40 +4129,91 @@
         "row_player": "Suspect A",
         "col_player": "Suspect B",
         "row_strategies": [
-          "Cooperate",
-          "Defect"
+          "Stay silent",
+          "Confess"
         ],
         "col_strategies": [
-          "Cooperate",
-          "Defect"
+          "Stay silent",
+          "Confess"
         ],
         "payoffs": [
           [
             [
-              3,
-              3
+              -1,
+              -1
             ],
             [
-              0,
-              5
+              -10,
+              0
             ]
           ],
           [
             [
-              5,
-              0
+              0,
+              -10
             ],
             [
-              1,
-              1
+              -5,
+              -5
             ]
           ]
         ],
-        "title": "Prisoner's Dilemma"
+        "box": {
+          "x": 10,
+          "y": 150,
+          "w": 650,
+          "h": 520
+        }
       },
+      "elements": [
+        {
+          "id": "r1",
+          "type": "node",
+          "shape": "rect",
+          "text": "Round 1: both silent"
+        },
+        {
+          "id": "r2",
+          "type": "node",
+          "shape": "rect",
+          "text": "Round 2: B confesses"
+        },
+        {
+          "id": "r3",
+          "type": "node",
+          "shape": "rect",
+          "text": "Round 3: A confesses"
+        },
+        {
+          "id": "r4",
+          "type": "node",
+          "shape": "rect",
+          "text": "Round 4: both silent"
+        },
+        {
+          "id": "rounds",
+          "type": "group",
+          "members": [
+            "r1",
+            "r2",
+            "r3",
+            "r4"
+          ],
+          "layout": "column",
+          "gap": 60,
+          "fit": {
+            "x": 680,
+            "y": 190,
+            "w": 300,
+            "h": 440
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "Two suspects are questioned separately. Let's see why they might both confess, even though staying silent would serve them better."
+          "card": {
+            "title": "The prisoner's dilemma"
+          }
         },
         {
           "draw": [
@@ -4174,19 +4225,13 @@
             "row_player_label",
             "col_player_label"
           ],
-          "speak": "Each suspect can cooperate with their partner by staying silent, or defect by confessing."
-        },
-        {
-          "pause": 0.3
+          "speak": "Why do two people end up worse off when each does what's best for them? The classic case: two suspects, questioned in separate rooms."
         },
         {
           "draw": [
             "cell_0_0"
           ],
-          "speak": "If both stay silent, they each get a light sentence — a payoff of three."
-        },
-        {
-          "pause": 0.3
+          "speak": "If both stay silent, the police can prove only a small crime: one year each. The numbers are years lost."
         },
         {
           "draw": [
@@ -4194,37 +4239,101 @@
             "cell_1_0"
           ],
           "parallel": true,
-          "speak": "But if one confesses while the other stays silent, the confessor goes free and the other takes the fall."
-        },
-        {
-          "pause": 0.3
+          "speak": "If one confesses and the other stays silent, the confessor walks free and the other gets ten years."
         },
         {
           "draw": [
             "cell_1_1"
           ],
-          "speak": "If both confess, they both do worse than if they had cooperated."
+          "speak": "If both confess, five years each."
         },
         {
           "pause": 0.4
         },
         {
-          "draw": [
-            "nash_1_1"
-          ],
-          "speak": "Look at the underlines: confessing is the best response no matter what the other suspect does."
+          "point": {
+            "at": {
+              "ref": "col_label_0"
+            },
+            "gesture": "underline"
+          },
+          "speak": "Take A's view. If B stays silent, confessing means walking free instead of one year."
         },
         {
-          "pause": 0.3
+          "point": {
+            "at": {
+              "ref": "col_label_1"
+            },
+            "gesture": "underline"
+          },
+          "speak": "If B confesses, confessing means five years instead of ten. Whatever B does, A does better by confessing."
         },
         {
           "highlight": {
             "target": [
+              "cell_1_0",
               "cell_1_1"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "That makes mutual confession the Nash equilibrium — even though silence would have left them both better off."
+          "speak": "B reasons the same way. The underlines mark each one's best reply: confessing, every time."
+        },
+        {
+          "draw": [
+            "nash_1_1"
+          ],
+          "speak": "So both confess and get five years — the Nash equilibrium — though silence would have cost them one year each."
+        },
+        {
+          "highlight": {
+            "target": [
+              "cell_0_0"
+            ]
+          },
+          "speak": "Why not promise each other silence? Alone in the room, breaking the promise still pays. Nothing in the table has changed."
+        },
+        {
+          "draw": [
+            "r1"
+          ],
+          "speak": "One way out: meet again and again, as firms, neighbours and countries do. Round one: both stay silent."
+        },
+        {
+          "draw": [
+            "r2"
+          ],
+          "speak": "Say B is tempted in round two and confesses. A plays tit for tat: start silent, then copy what the other did last round."
+        },
+        {
+          "draw": [
+            "r3"
+          ],
+          "speak": "Confess once, and you are punished the very next round."
+        },
+        {
+          "draw": [
+            "r4"
+          ],
+          "speak": "Go back to silence, and so does the other. Today's betrayal costs tomorrow's cooperation."
+        },
+        {
+          "highlight": {
+            "target": [
+              "rounds"
+            ]
+          },
+          "speak": "In Robert Axelrod's 1980 tournaments of computer strategies, this simplest one, sent in by Anatol Rapoport, won."
+        },
+        {
+          "quiz": {
+            "question": "The suspects meet once, but talk first and promise to stay silent. What happens?",
+            "choices": [
+              "Both stay silent",
+              "Each still does better by confessing",
+              "Only the one who promised first stays silent"
+            ],
+            "correct": 2,
+            "right": "Each still does better by confessing: a promise changes no number in the table, and in one meeting there is no next round to punish a betrayal."
+          }
         }
       ]
     }
@@ -5264,14 +5373,20 @@
     }
   },
   {
-    "request": "Draw an SEIR model of an epidemic with waning immunity.",
+    "request": "What happens to an epidemic when immunity wears off?",
     "packs": [
       "evidence"
     ],
     "spec": {
-      "title": "An SEIR epidemic model",
+      "title": "When immunity wears off",
       "template": "sir_compartments",
       "params": {
+        "box": {
+          "x": 40,
+          "y": 395,
+          "w": 920,
+          "h": 285
+        },
         "compartments": [
           "S",
           "E",
@@ -5289,9 +5404,603 @@
           "label": "Waning immunity"
         }
       },
+      "elements": [
+        {
+          "id": "ax_x",
+          "type": "arrow",
+          "from": {
+            "x": 120,
+            "y": 175
+          },
+          "to": {
+            "x": 905,
+            "y": 175
+          },
+          "style": {
+            "color": "#3d3833"
+          }
+        },
+        {
+          "id": "ax_y",
+          "type": "arrow",
+          "from": {
+            "x": 120,
+            "y": 175
+          },
+          "to": {
+            "x": 120,
+            "y": 380
+          },
+          "style": {
+            "color": "#3d3833"
+          }
+        },
+        {
+          "id": "ax_y_t",
+          "type": "label",
+          "attach_to": "ax_y",
+          "side": "right",
+          "text": "infectious"
+        },
+        {
+          "id": "ax_x_t",
+          "type": "label",
+          "attach_to": "ax_x",
+          "side": "right",
+          "text": "3 years"
+        },
+        {
+          "id": "burn",
+          "type": "path",
+          "smooth": true,
+          "points": [
+            [
+              125,
+              179.3
+            ],
+            [
+              131.9,
+              180.4
+            ],
+            [
+              138.9,
+              186
+            ],
+            [
+              145.8,
+              203.9
+            ],
+            [
+              152.8,
+              253.1
+            ],
+            [
+              159.7,
+              342.9
+            ],
+            [
+              166.6,
+              398.9
+            ],
+            [
+              173.6,
+              353.6
+            ],
+            [
+              180.5,
+              275.6
+            ],
+            [
+              187.5,
+              222.8
+            ],
+            [
+              194.4,
+              196.7
+            ],
+            [
+              201.3,
+              185.5
+            ],
+            [
+              208.3,
+              180.9
+            ],
+            [
+              215.2,
+              179.1
+            ],
+            [
+              222.2,
+              178.4
+            ],
+            [
+              229.1,
+              178.2
+            ],
+            [
+              236.1,
+              178.1
+            ],
+            [
+              243,
+              178
+            ],
+            [
+              249.9,
+              178
+            ],
+            [
+              256.9,
+              178
+            ],
+            [
+              263.8,
+              178
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "wane",
+          "type": "path",
+          "smooth": true,
+          "points": [
+            [
+              125,
+              179.3
+            ],
+            [
+              131.9,
+              180.4
+            ],
+            [
+              138.9,
+              186
+            ],
+            [
+              145.8,
+              203.9
+            ],
+            [
+              152.8,
+              253.2
+            ],
+            [
+              159.7,
+              343.7
+            ],
+            [
+              166.6,
+              401.8
+            ],
+            [
+              173.6,
+              359.4
+            ],
+            [
+              180.5,
+              283.7
+            ],
+            [
+              187.5,
+              231.2
+            ],
+            [
+              194.4,
+              204
+            ],
+            [
+              201.3,
+              191.2
+            ],
+            [
+              208.3,
+              185.1
+            ],
+            [
+              215.2,
+              182.1
+            ],
+            [
+              222.2,
+              180.6
+            ],
+            [
+              229.1,
+              179.7
+            ],
+            [
+              236.1,
+              179.2
+            ],
+            [
+              243,
+              178.9
+            ],
+            [
+              249.9,
+              178.8
+            ],
+            [
+              256.9,
+              178.6
+            ],
+            [
+              263.8,
+              178.6
+            ],
+            [
+              270.8,
+              178.5
+            ],
+            [
+              277.7,
+              178.5
+            ],
+            [
+              284.6,
+              178.6
+            ],
+            [
+              291.6,
+              178.6
+            ],
+            [
+              298.5,
+              178.7
+            ],
+            [
+              305.5,
+              178.8
+            ],
+            [
+              312.4,
+              178.9
+            ],
+            [
+              319.3,
+              179.2
+            ],
+            [
+              326.3,
+              179.5
+            ],
+            [
+              333.2,
+              180
+            ],
+            [
+              340.2,
+              180.7
+            ],
+            [
+              347.1,
+              181.7
+            ],
+            [
+              354,
+              183.2
+            ],
+            [
+              361,
+              185.5
+            ],
+            [
+              367.9,
+              188.7
+            ],
+            [
+              374.9,
+              193.2
+            ],
+            [
+              381.8,
+              199.3
+            ],
+            [
+              388.7,
+              206.7
+            ],
+            [
+              395.7,
+              214.5
+            ],
+            [
+              402.6,
+              221.2
+            ],
+            [
+              409.6,
+              224.8
+            ],
+            [
+              416.5,
+              224.4
+            ],
+            [
+              423.4,
+              220.5
+            ],
+            [
+              430.4,
+              214.6
+            ],
+            [
+              437.3,
+              208.1
+            ],
+            [
+              444.3,
+              202.2
+            ],
+            [
+              451.2,
+              197.4
+            ],
+            [
+              458.2,
+              193.6
+            ],
+            [
+              465.1,
+              190.7
+            ],
+            [
+              472,
+              188.6
+            ],
+            [
+              479,
+              187.1
+            ],
+            [
+              485.9,
+              186.1
+            ],
+            [
+              492.9,
+              185.3
+            ],
+            [
+              499.8,
+              184.9
+            ],
+            [
+              506.7,
+              184.6
+            ],
+            [
+              513.7,
+              184.6
+            ],
+            [
+              520.6,
+              184.7
+            ],
+            [
+              527.6,
+              185
+            ],
+            [
+              534.5,
+              185.5
+            ],
+            [
+              541.4,
+              186.1
+            ],
+            [
+              548.4,
+              187
+            ],
+            [
+              555.3,
+              188.1
+            ],
+            [
+              562.3,
+              189.4
+            ],
+            [
+              569.2,
+              191
+            ],
+            [
+              576.1,
+              192.8
+            ],
+            [
+              583.1,
+              194.8
+            ],
+            [
+              590,
+              196.8
+            ],
+            [
+              597,
+              198.8
+            ],
+            [
+              603.9,
+              200.5
+            ],
+            [
+              610.8,
+              201.8
+            ],
+            [
+              617.8,
+              202.5
+            ],
+            [
+              624.7,
+              202.6
+            ],
+            [
+              631.7,
+              202.2
+            ],
+            [
+              638.6,
+              201.2
+            ],
+            [
+              645.5,
+              199.9
+            ],
+            [
+              652.5,
+              198.4
+            ],
+            [
+              659.4,
+              196.9
+            ],
+            [
+              666.4,
+              195.5
+            ],
+            [
+              673.3,
+              194.1
+            ],
+            [
+              680.3,
+              193
+            ],
+            [
+              687.2,
+              192
+            ],
+            [
+              694.1,
+              191.2
+            ],
+            [
+              701.1,
+              190.6
+            ],
+            [
+              708,
+              190.2
+            ],
+            [
+              715,
+              189.9
+            ],
+            [
+              721.9,
+              189.8
+            ],
+            [
+              728.8,
+              189.9
+            ],
+            [
+              735.8,
+              190
+            ],
+            [
+              742.7,
+              190.3
+            ],
+            [
+              749.7,
+              190.7
+            ],
+            [
+              756.6,
+              191.2
+            ],
+            [
+              763.5,
+              191.8
+            ],
+            [
+              770.5,
+              192.5
+            ],
+            [
+              777.4,
+              193.2
+            ],
+            [
+              784.4,
+              193.9
+            ],
+            [
+              791.3,
+              194.6
+            ],
+            [
+              798.2,
+              195.3
+            ],
+            [
+              805.2,
+              195.9
+            ],
+            [
+              812.1,
+              196.3
+            ],
+            [
+              819.1,
+              196.6
+            ],
+            [
+              826,
+              196.8
+            ],
+            [
+              832.9,
+              196.8
+            ],
+            [
+              839.9,
+              196.6
+            ],
+            [
+              846.8,
+              196.4
+            ],
+            [
+              853.8,
+              196
+            ],
+            [
+              860.7,
+              195.5
+            ],
+            [
+              867.6,
+              195.1
+            ],
+            [
+              874.6,
+              194.6
+            ],
+            [
+              881.5,
+              194.1
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3
+          }
+        }
+      ],
       "commands": [
         {
-          "speak": "An SEIR model splits an epidemic into four stages people move through."
+          "card": {
+            "title": "When immunity wears off"
+          }
         },
         {
           "draw": [
@@ -5299,7 +6008,7 @@
             "box_code_s",
             "box_name_s"
           ],
-          "speak": "Everyone starts susceptible — able to catch the disease."
+          "speak": "What happens to an epidemic when immunity doesn't last? An SEIR model tracks it. Everyone starts here, susceptible: able to catch it."
         },
         {
           "draw": [
@@ -5309,7 +6018,7 @@
             "box_code_e",
             "box_name_e"
           ],
-          "speak": "Exposure moves people into the E box — infected, but not yet infectious themselves."
+          "speak": "Catching it moves you to E, exposed: infected, but not yet able to pass it on. The rate needs a susceptible to meet an infectious person."
         },
         {
           "draw": [
@@ -5319,7 +6028,7 @@
             "box_code_i",
             "box_name_i"
           ],
-          "speak": "After an incubation period, they become infectious and can spread the disease onward."
+          "speak": "After about five days of incubation you become infectious."
         },
         {
           "draw": [
@@ -5329,26 +6038,82 @@
             "box_code_r",
             "box_name_r"
           ],
-          "speak": "Eventually they recover."
+          "speak": "About a week later you recover, and for now you are immune."
         },
         {
-          "pause": 0.3
+          "draw": [
+            "ax_x",
+            "ax_y",
+            "ax_y_t",
+            "ax_x_t"
+          ]
+        },
+        {
+          "draw": [
+            "burn"
+          ],
+          "speak": "Take a disease where each case infects three others in a fresh population. If immunity lasts, infections surge, peak, and vanish."
+        },
+        {
+          "highlight": {
+            "target": [
+              "box_s"
+            ]
+          },
+          "speak": "It burns out because the S box empties: once more than two in three are immune, each case passes it to fewer than one other."
+        },
+        {
+          "pause": 0.4
         },
         {
           "draw": [
             "loop",
             "loop_label"
           ],
-          "speak": "This curved arrow is waning immunity — some recovered people slowly become susceptible again."
+          "speak": "Now let immunity fade after a year, on average. Recovered people leak back into S."
+        },
+        {
+          "draw": [
+            "wane"
+          ],
+          "speak": "The first wave looks the same. But S refills, and when the immune share slips below two in three, cases climb again."
         },
         {
           "highlight": {
             "target": [
-              "flow_1"
-            ],
-            "effect": "glow"
+              "wane"
+            ]
           },
-          "speak": "The rate of that exposed-to-infectious step is what makes an epidemic explosive or slow."
+          "speak": "Each wave is smaller, until infections settle at a level that never reaches zero. The disease has become endemic."
+        },
+        {
+          "focus": {
+            "target": [
+              "loop",
+              "flow_0"
+            ]
+          },
+          "speak": "At that level, new infections replace fading immunity exactly, which holds the immune share right at the threshold: two in three."
+        },
+        {
+          "highlight": {
+            "target": [
+              "loop"
+            ]
+          },
+          "speak": "The four common-cold coronaviruses behave like this: people followed for years were reinfected with the same virus, often about a year apart."
+        },
+        {
+          "quiz": {
+            "question": "In this model, what keeps the disease from ever dying out?",
+            "choices": [
+              "Fading immunity refilling S",
+              "The E box delaying cases",
+              "The virus mutating"
+            ],
+            "correct": 1,
+            "right": "Fading immunity: every recovered person who loses protection refills S, so the disease always finds someone new. The model has no mutation at all."
+          }
         }
       ]
     }
@@ -9909,7 +10674,7 @@
     }
   },
   {
-    "request": "Explain opportunity cost with a dialogue #qa",
+    "request": "What does a fish really cost an islander? Explain opportunity cost with a dialogue #qa",
     "packs": [
       "economics"
     ],
@@ -9917,101 +10682,339 @@
       "title": "Fish, coconuts, and opportunity cost",
       "template": "ppf",
       "params": {
-        "good_x": "Fish",
-        "good_y": "Coconuts",
+        "good_x": "Fish a day",
+        "good_y": "Coconuts a day",
+        "shade_attainable": false,
         "points": [
           {
-            "x_share": 0.3,
-            "label": "Mostly coconuts",
+            "x_share": 0,
+            "label": "50 coconuts, no fish",
             "kind": "efficient"
           },
           {
-            "x_share": 0.7,
-            "label": "More fish",
+            "x_share": 0.4097,
+            "label": "6 fish, 40 coconuts",
+            "kind": "efficient"
+          },
+          {
+            "x_share": 0.5903,
+            "label": "8 fish, 30 coconuts",
             "kind": "efficient"
           }
         ]
       },
+      "elements": [
+        {
+          "id": "guess",
+          "type": "path",
+          "points": [
+            [
+              120,
+              524.6
+            ],
+            [
+              720,
+              95
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "dash": true,
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "l_guess",
+          "type": "label",
+          "attach_to": "guess",
+          "side": "below",
+          "text": "5 coconuts per fish?",
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "t1",
+          "type": "path",
+          "points": [
+            [
+              120,
+              524.6
+            ],
+            [
+              480,
+              524.6
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "dash": true,
+            "stroke_width": 2.5
+          }
+        },
+        {
+          "id": "d1",
+          "type": "arrow",
+          "from": {
+            "x": 480,
+            "y": 524.6
+          },
+          "to": {
+            "x": 480,
+            "y": 438.7
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "l_d1",
+          "type": "label",
+          "attach_to": "d1",
+          "side": "right",
+          "text": "−10",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "t2",
+          "type": "path",
+          "points": [
+            [
+              480,
+              438.7
+            ],
+            [
+              600,
+              438.7
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "dash": true,
+            "stroke_width": 2.5
+          }
+        },
+        {
+          "id": "d2",
+          "type": "arrow",
+          "from": {
+            "x": 600,
+            "y": 438.7
+          },
+          "to": {
+            "x": 600,
+            "y": 352.8
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "l_d2",
+          "type": "label",
+          "attach_to": "d2",
+          "side": "right",
+          "text": "−10",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "t3",
+          "type": "path",
+          "points": [
+            [
+              600,
+              352.8
+            ],
+            [
+              720,
+              352.8
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "dash": true,
+            "stroke_width": 2.5
+          }
+        },
+        {
+          "id": "d3",
+          "type": "arrow",
+          "from": {
+            "x": 720,
+            "y": 352.8
+          },
+          "to": {
+            "x": 720,
+            "y": 125
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "l_d3",
+          "type": "text",
+          "text": "−30",
+          "x": 752,
+          "y": 230,
+          "font_size": 26,
+          "style": {
+            "color": "#b5482e"
+          }
+        }
+      ],
       "commands": [
+        {
+          "card": {
+            "title": "What does a fish cost?"
+          }
+        },
         {
           "draw": [
             "axes"
           ],
-          "speak": "Every economy has to choose how to split its hours between two things — let's see what that choice really costs.",
+          "speak": "Opportunity cost is what you give up to get something. Picture one islander, with each day split between fishing and picking coconuts.",
           "voice": "a"
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
-            "frontier"
-          ],
-          "speak": "This bowed curve is the production possibilities frontier: everything on it uses every hour of labor there is.",
-          "voice": "a"
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
-            "attainable"
-          ],
-          "speak": "Everything underneath is attainable; nothing above it is, not with the time we have.",
-          "voice": "a"
-        },
-        {
-          "pause": 0.3
         },
         {
           "draw": [
             "pt_0",
             "pt_label_0"
           ],
-          "speak": "Say we start here, spending most of our hours gathering coconuts.",
+          "speak": "A whole day in the trees brings fifty coconuts. A whole day fishing brings ten fish.",
+          "voice": "a"
+        },
+        {
+          "draw": [
+            "frontier"
+          ],
+          "speak": "This curve joins every best mix of the two: more of one always means less of the other.",
           "voice": "a"
         },
         {
           "point": {
             "at": {
-              "ref": "pt_0"
+              "ref": "frontier"
             },
-            "gesture": "circle"
+            "gesture": "underline"
           },
-          "speak": "So moving along the curve is free — we're not really giving anything up either way?",
+          "speak": "Fifty coconuts or ten fish. So a fish costs five coconuts — easy?",
           "voice": "b"
         },
         {
-          "pause": 0.3
+          "draw": [
+            "guess",
+            "l_guess"
+          ],
+          "speak": "That would be this straight line, the same swap every time. The real curve bows out above it.",
+          "voice": "a"
+        },
+        {
+          "pause": 0.4
         },
         {
           "draw": [
+            "t1",
+            "d1",
+            "l_d1",
             "pt_1",
             "pt_label_1"
           ],
-          "speak": "Watch what happens sliding toward more fishing instead: the coconut harvest has to fall — and that drop, the slope of the curve right here, is the opportunity cost of the extra fish.",
-          "voice": "a",
-          "delivery": "grave"
+          "speak": "Start fishing, and the first six fish cost only ten coconuts. Forty are still picked.",
+          "voice": "a"
         },
         {
           "point": {
             "at": {
-              "ref": "pt_1"
+              "ref": "d1"
+            },
+            "gesture": "tap"
+          },
+          "speak": "Ten coconuts for six fish? That's under two each — cheaper than my five.",
+          "voice": "b"
+        },
+        {
+          "draw": [
+            "t2",
+            "d2",
+            "l_d2",
+            "pt_2",
+            "pt_label_2"
+          ],
+          "speak": "The next two fish cost another ten coconuts: five each.",
+          "voice": "a"
+        },
+        {
+          "draw": [
+            "t3",
+            "d3",
+            "l_d3"
+          ],
+          "speak": "And the last two cost all thirty coconuts left — fifteen apiece.",
+          "voice": "a"
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "l_d3"
             },
             "gesture": "circle"
           },
-          "speak": "Oh — so it's not that moving along the curve is free, it's that every extra fish comes straight out of the coconut pile?",
+          "speak": "Oh — so a fish has no single price. Each one costs more than the last?",
           "voice": "b"
+        },
+        {
+          "erase": [
+            "guess",
+            "l_guess"
+          ],
+          "speak": "Yes. The first fish come from the easy shallows; the last mean hours out at sea, each hour taken from the trees.",
+          "voice": "a"
         },
         {
           "highlight": {
             "target": [
               "frontier"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "Exactly — the frontier's slope at any point is the opportunity cost of producing more of the other good.",
+          "speak": "That rising cost is why the curve bows. Its slope at any point is the price of one more fish, paid in coconuts.",
           "voice": "a"
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "pt_2"
+            },
+            "gesture": "circle"
+          },
+          "speak": "So the cost of my next fish is the coconuts I stop picking — and it depends on where I stand.",
+          "voice": "b"
+        },
+        {
+          "highlight": {
+            "target": [
+              "pt_1",
+              "pt_2"
+            ]
+          },
+          "speak": "Frédéric Bastiat, in 1850, called it what is not seen: the real cost of a choice is the thing you did not do.",
+          "voice": "a"
+        },
+        {
+          "quiz": {
+            "question": "The islander catches 8 fish and picks 30 coconuts. What do two more fish cost?",
+            "choices": [
+              "10 coconuts, five each",
+              "30 coconuts",
+              "Nothing: fish are free to catch"
+            ],
+            "correct": 2,
+            "right": "Thirty coconuts: the last two fish take every hour left in the trees, and the further along the curve, the dearer each fish."
+          }
         }
       ]
     }
@@ -10128,77 +11131,486 @@
     }
   },
   {
-    "request": "Explain how an epidemic spreads #fun",
+    "request": "How does an epidemic spread? #fun",
     "packs": [
       "evidence"
     ],
     "spec": {
       "title": "An epidemic, zombie edition",
       "template": "sir_compartments",
-      "params": {},
+      "params": {
+        "box": {
+          "x": 40,
+          "y": 400,
+          "w": 920,
+          "h": 280
+        },
+        "labels": [
+          "Un-bitten",
+          "Zombie",
+          "Removed"
+        ]
+      },
+      "elements": [
+        {
+          "id": "gens",
+          "type": "text",
+          "text": "1 → 2 → 4 → 8 → 16 → 32",
+          "x": 500,
+          "y": 270,
+          "font_size": 34,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "ax_x",
+          "type": "arrow",
+          "from": {
+            "x": 120,
+            "y": 175
+          },
+          "to": {
+            "x": 885,
+            "y": 175
+          },
+          "style": {
+            "color": "#3d3833"
+          }
+        },
+        {
+          "id": "ax_y",
+          "type": "arrow",
+          "from": {
+            "x": 120,
+            "y": 175
+          },
+          "to": {
+            "x": 120,
+            "y": 370
+          },
+          "style": {
+            "color": "#3d3833"
+          }
+        },
+        {
+          "id": "ax_y_t",
+          "type": "label",
+          "attach_to": "ax_y",
+          "side": "right",
+          "text": "zombies"
+        },
+        {
+          "id": "ax_x_t",
+          "type": "label",
+          "attach_to": "ax_x",
+          "side": "right",
+          "text": "4 months"
+        },
+        {
+          "id": "wave",
+          "type": "path",
+          "smooth": true,
+          "points": [
+            [
+              125,
+              178.1
+            ],
+            [
+              137.3,
+              178.2
+            ],
+            [
+              149.7,
+              178.2
+            ],
+            [
+              162,
+              178.4
+            ],
+            [
+              174.3,
+              178.5
+            ],
+            [
+              186.7,
+              178.8
+            ],
+            [
+              199,
+              179.2
+            ],
+            [
+              211.3,
+              179.7
+            ],
+            [
+              223.7,
+              180.5
+            ],
+            [
+              236,
+              181.8
+            ],
+            [
+              248.3,
+              183.6
+            ],
+            [
+              260.7,
+              186.2
+            ],
+            [
+              273,
+              190.1
+            ],
+            [
+              285.3,
+              195.6
+            ],
+            [
+              297.7,
+              203.3
+            ],
+            [
+              310,
+              214
+            ],
+            [
+              322.3,
+              228.1
+            ],
+            [
+              334.7,
+              246
+            ],
+            [
+              347,
+              267
+            ],
+            [
+              359.3,
+              289.7
+            ],
+            [
+              371.7,
+              311.3
+            ],
+            [
+              384,
+              328.7
+            ],
+            [
+              396.3,
+              339
+            ],
+            [
+              408.7,
+              341.2
+            ],
+            [
+              421,
+              335.8
+            ],
+            [
+              433.3,
+              324.3
+            ],
+            [
+              445.7,
+              309.2
+            ],
+            [
+              458,
+              292.4
+            ],
+            [
+              470.3,
+              275.6
+            ],
+            [
+              482.7,
+              259.9
+            ],
+            [
+              495,
+              245.7
+            ],
+            [
+              507.3,
+              233.4
+            ],
+            [
+              519.7,
+              223
+            ],
+            [
+              532,
+              214.3
+            ],
+            [
+              544.3,
+              207.1
+            ],
+            [
+              556.7,
+              201.3
+            ],
+            [
+              569,
+              196.5
+            ],
+            [
+              581.3,
+              192.7
+            ],
+            [
+              593.7,
+              189.7
+            ],
+            [
+              606,
+              187.3
+            ],
+            [
+              618.3,
+              185.3
+            ],
+            [
+              630.7,
+              183.8
+            ],
+            [
+              643,
+              182.6
+            ],
+            [
+              655.3,
+              181.6
+            ],
+            [
+              667.7,
+              180.8
+            ],
+            [
+              680,
+              180.2
+            ],
+            [
+              692.3,
+              179.8
+            ],
+            [
+              704.7,
+              179.4
+            ],
+            [
+              717,
+              179.1
+            ],
+            [
+              729.3,
+              178.9
+            ],
+            [
+              741.7,
+              178.7
+            ],
+            [
+              754,
+              178.5
+            ],
+            [
+              766.3,
+              178.4
+            ],
+            [
+              778.7,
+              178.3
+            ],
+            [
+              791,
+              178.3
+            ],
+            [
+              803.3,
+              178.2
+            ],
+            [
+              815.7,
+              178.2
+            ],
+            [
+              828,
+              178.1
+            ],
+            [
+              840.3,
+              178.1
+            ],
+            [
+              852.7,
+              178.1
+            ],
+            [
+              865,
+              178.1
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "peak_line",
+          "type": "path",
+          "points": [
+            [
+              408.7,
+              175
+            ],
+            [
+              408.7,
+              355
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "dash": true,
+            "stroke_width": 2
+          }
+        },
+        {
+          "id": "peak_t",
+          "type": "label",
+          "attach_to": "peak_line",
+          "side": "right",
+          "text": "half the town bitten",
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "final_t",
+          "type": "text",
+          "text": "by the end: 80% bitten",
+          "x": 690,
+          "y": 300,
+          "font_size": 24,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        }
+      ],
       "commands": [
+        {
+          "card": {
+            "title": "An epidemic, zombie edition"
+          }
+        },
         {
           "draw": [
             "box_s",
             "box_code_s",
             "box_name_s"
           ],
-          "speak": "Let's trace how an epidemic spreads — and, just for fun, let's say this one makes zombies."
-        },
-        {
-          "pause": 0.3
+          "speak": "How does an epidemic spread, and why does it stop? Take a town of ten thousand, and a zombie outbreak. Everyone starts un-bitten."
         },
         {
           "draw": [
             "flow_0",
-            "rate_0"
-          ],
-          "speak": "At rate beta, susceptible people get infected and cross over."
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
+            "rate_0",
             "box_i",
             "box_code_i",
             "box_name_i"
           ],
-          "speak": "Now they're infectious themselves, able to pass it on to anyone nearby."
-        },
-        {
-          "pause": 0.3
+          "speak": "A bite moves you across: now you are infectious, a zombie looking for others. Beta is how often a zombie meets someone and bites."
         },
         {
           "draw": [
             "flow_1",
-            "rate_1"
-          ],
-          "speak": "At rate gamma, infectious people recover — or are otherwise removed from the chain."
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
+            "rate_1",
             "box_r",
             "box_code_r",
             "box_name_r"
           ],
-          "speak": "And here's where they land: no longer susceptible, no longer infectious."
+          "speak": "After about five days each zombie is removed — cured, or chased out of town. Gamma is that rate. The removed can't be bitten again."
         },
         {
-          "pause": 0.4
+          "draw": [
+            "gens"
+          ],
+          "speak": "Each zombie bites two people before it is removed: R nought is two. So one becomes two, then four, eight, sixteen."
+        },
+        {
+          "erase": [
+            "gens"
+          ]
+        },
+        {
+          "draw": [
+            "ax_x",
+            "ax_y",
+            "ax_y_t",
+            "ax_x_t"
+          ]
+        },
+        {
+          "draw": [
+            "wave"
+          ],
+          "speak": "Over time, the zombie count shoots up, then turns and falls, though nobody fought back any harder."
+        },
+        {
+          "draw": [
+            "peak_line",
+            "peak_t"
+          ],
+          "speak": "It turns when half the town has been bitten."
         },
         {
           "highlight": {
             "target": [
-              "flow_0",
-              "flow_1"
-            ],
-            "effect": "glow"
+              "box_s"
+            ]
           },
-          "speak": "The two rates together set the reproduction number. With an R0 of 2, every zombie — every infectious case — bites, or infects, two more before it's stopped."
+          "speak": "Zombies still bite two people each, but now half those people are already bitten or removed. Each zombie makes only one new zombie."
+        },
+        {
+          "highlight": {
+            "target": [
+              "peak_line"
+            ]
+          },
+          "speak": "That's herd immunity: once one minus one over R nought are out of reach — here a half — each case replaces only itself, or less."
+        },
+        {
+          "draw": [
+            "final_t"
+          ],
+          "speak": "Yet it doesn't stop at half. The zombies still roaming keep biting on the way down, and about eighty percent are bitten by the end."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "wave"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Mathematicians in Ottawa really did publish a zombie epidemic model, in 2009: their advice was to strike hard and early."
+        },
+        {
+          "quiz": {
+            "question": "A faster zombie strain bites four people each. What share must be out of reach before it starts to fade?",
+            "choices": [
+              "A quarter",
+              "A half",
+              "Three quarters"
+            ],
+            "correct": 3,
+            "right": "Three quarters: with four bites each, a zombie must find only one un-bitten target in four — one minus one over four."
+          }
         }
       ]
     }
@@ -10311,12 +11723,12 @@
     }
   },
   {
-    "request": "Show what statins change for 100 people like me.",
+    "request": "What does a statin change for 100 people like me?",
     "packs": [
       "medicine"
     ],
     "spec": {
-      "title": "Statins for 100 people",
+      "title": "What a statin changes",
       "template": "icon_array",
       "params": {
         "groups": [
@@ -10326,59 +11738,138 @@
             "color": "demand"
           },
           {
-            "label": "Avoided (helped)",
+            "label": "Spared by the statin",
             "count": 2,
             "color": "supply"
           }
         ],
-        "rest_label": "No event either way",
-        "title": "What statins change for 100 people"
+        "rest_label": "No heart attack either way"
       },
+      "elements": [
+        {
+          "id": "rel",
+          "type": "math",
+          "tex": "\\frac{2}{10} = 20\\%",
+          "x": 850,
+          "y": 330
+        },
+        {
+          "id": "abs",
+          "type": "math",
+          "tex": "\\frac{2}{100} = 2\\%",
+          "x": 850,
+          "y": 230
+        }
+      ],
       "commands": [
         {
-          "speak": "Twenty percent fewer heart attacks — sounds impressive. Let's see what it really means for one hundred people."
+          "card": {
+            "title": "What a statin changes"
+          }
         },
         {
           "draw": [
             "rest",
-            "legend_rest"
-          ],
-          "speak": "Here are one hundred people. For ninety of them, the statin changes nothing — no heart attack either way."
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
             "group_0",
-            "legend_0"
+            "group_1"
           ],
-          "speak": "Eight would have a heart attack whether or not they take the pill."
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
-            "group_1",
-            "legend_1"
-          ],
-          "speak": "And these two are the entire benefit: two people in a hundred avoid a heart attack because of the statin."
+          "parallel": true,
+          "speak": "What does a statin actually change for you? Take a hundred people like you, each with a ten-in-a-hundred risk of a heart attack within ten years."
         },
         {
           "highlight": {
             "target": [
+              "group_0",
               "group_1"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "Two in one hundred — that is what twenty percent fewer looks like in absolute terms."
+          "speak": "Without the pill, ten of them will have one. In England, that ten percent risk is where doctors start offering a statin."
         },
         {
           "draw": [
-            "title"
+            "legend_0"
           ],
-          "speak": "Same drug, same data — but the icon array is the honest picture."
+          "speak": "Now all hundred take it for ten years. Eight still have a heart attack."
+        },
+        {
+          "draw": [
+            "legend_1"
+          ],
+          "speak": "Two are spared. Those two are the entire benefit."
+        },
+        {
+          "draw": [
+            "legend_rest"
+          ],
+          "speak": "The other ninety never had a heart attack coming, pill or no pill."
+        },
+        {
+          "draw": [
+            "rel"
+          ],
+          "speak": "The leaflet says twenty percent fewer heart attacks, and that is true: two out of the ten who would have had one."
+        },
+        {
+          "animate": {
+            "groups.1.count": 20
+          },
+          "duration": 2.5,
+          "speak": "But many people hear twenty percent as twenty people in a hundred saved. That would look like this."
+        },
+        {
+          "animate": {
+            "groups.1.count": 2
+          },
+          "duration": 2,
+          "speak": "The real picture is two."
+        },
+        {
+          "draw": [
+            "abs"
+          ],
+          "speak": "Two in a hundred is the absolute risk reduction. Turned around, fifty people take the pill for ten years so that one is spared."
+        },
+        {
+          "highlight": {
+            "target": [
+              "rest"
+            ]
+          },
+          "speak": "That number, fifty, is the number needed to treat — a measure proposed in 1988 by David Sackett and colleagues, to make exactly this visible."
+        },
+        {
+          "animate": {
+            "groups.0.count": 24,
+            "groups.1.count": 6
+          },
+          "duration": 3,
+          "speak": "The same twenty percent means more when your risk is higher. At thirty in a hundred, it spares six."
+        },
+        {
+          "morph": {
+            "target": "rel",
+            "tex": "\\frac{6}{30} = 20\\%"
+          },
+          "speak": "Six of the thirty: still twenty percent."
+        },
+        {
+          "morph": {
+            "target": "abs",
+            "tex": "\\frac{6}{100} = 6\\%"
+          },
+          "speak": "But six in a hundred, not two. The drug's relative effect travels with it; what it does for you depends on where you start."
+        },
+        {
+          "quiz": {
+            "question": "Your ten-year risk is 5 in 100. A statin cuts it by 20 percent. How many in 100 like you are spared?",
+            "choices": [
+              "1",
+              "5",
+              "20"
+            ],
+            "correct": 1,
+            "right": "One: twenty percent of five in a hundred is one in a hundred, so a hundred people take it for one to be spared."
+          }
         }
       ]
     }
@@ -11134,12 +12625,12 @@
       "medicine"
     ],
     "spec": {
-      "title": "The bacon headline",
+      "title": "Eighteen percent of what?",
       "template": "icon_array",
       "params": {
         "groups": [
           {
-            "label": "Cancer anyway",
+            "label": "Bowel cancer anyway",
             "count": 6,
             "color": "demand"
           },
@@ -11149,54 +12640,122 @@
             "color": "shifted"
           }
         ],
-        "rest_label": "No bowel cancer",
-        "title": "\"18% more cancer\" — among 100 people"
+        "rest_label": "No bowel cancer"
       },
+      "elements": [
+        {
+          "id": "rel",
+          "type": "math",
+          "tex": "\\frac{7}{6} \\approx 1.18",
+          "x": 850,
+          "y": 330
+        },
+        {
+          "id": "abs",
+          "type": "math",
+          "tex": "7 - 6 = 1",
+          "x": 850,
+          "y": 230
+        }
+      ],
       "commands": [
         {
-          "speak": "\"Daily bacon raises bowel-cancer risk by eighteen percent!\" Scary headline. Let's see what it actually means for one hundred people."
+          "card": {
+            "title": "Eighteen percent of what?"
+          }
         },
         {
           "draw": [
             "rest",
-            "legend_rest"
+            "group_0",
+            "group_1"
           ],
-          "speak": "Ninety-three of them will never get bowel cancer — bacon or no bacon."
-        },
-        {
-          "pause": 0.3
+          "parallel": true,
+          "speak": "Should 'bacon raises cancer risk by eighteen percent' scare you? That depends on a number the headline leaves out. Here are a hundred people."
         },
         {
           "draw": [
-            "group_0",
             "legend_0"
           ],
-          "speak": "Six would get it anyway, even if they never touched bacon in their lives."
+          "speak": "Among people who eat little processed meat, about six in a hundred get bowel cancer in their lifetime."
         },
         {
-          "pause": 0.3
+          "highlight": {
+            "target": [
+              "group_0"
+            ]
+          },
+          "speak": "That six is the number the headline left out: the starting risk."
         },
         {
           "draw": [
-            "group_1",
             "legend_1"
           ],
-          "speak": "And the whole eighteen percent? It is this one extra person."
+          "speak": "Now give all hundred fifty grams of processed meat every day — a couple of rashers of bacon. The count rises to about seven."
+        },
+        {
+          "draw": [
+            "legend_rest"
+          ],
+          "speak": "Ninety-three never get bowel cancer, bacon or no bacon."
+        },
+        {
+          "draw": [
+            "rel"
+          ],
+          "speak": "Seven against six is eighteen percent more. That's the relative risk, and it's the headline."
+        },
+        {
+          "draw": [
+            "abs"
+          ],
+          "speak": "Seven minus six is one person in a hundred. That's the absolute risk, and it's the one to weigh."
         },
         {
           "highlight": {
             "target": [
               "group_1"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "Eighteen percent of a small risk is a very small risk: one extra case in a hundred daily bacon eaters."
+          "speak": "Eighteen percent of a small risk is a small risk: for a daily bacon eater, about one more case in a hundred, over a lifetime."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "Relative risk writes the headlines. Absolute risk — one in a hundred — is what should make the decision."
+          "highlight": {
+            "target": [
+              "legend_0",
+              "legend_1"
+            ]
+          },
+          "speak": "In 2015 the World Health Organization's cancer agency put processed meat in its top group, beside tobacco."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "rel"
+            },
+            "gesture": "underline"
+          },
+          "speak": "That group ranks how sure the evidence is, not how big the risk. Smoking multiplies lung-cancer risk about twenty times; daily bacon, 1.18."
+        },
+        {
+          "highlight": {
+            "target": [
+              "rest"
+            ]
+          },
+          "speak": "So no panic. A real but small effect, and whether it's worth giving up your breakfast is yours to weigh."
+        },
+        {
+          "quiz": {
+            "question": "A rare cancer strikes 1 in 1,000 people. A food raises its risk by 50 percent. How many extra cases is that?",
+            "choices": [
+              "About 1 in 2,000",
+              "50 in 1,000",
+              "500 in 1,000"
+            ],
+            "correct": 1,
+            "right": "About one in two thousand: fifty percent of one in a thousand is half a case per thousand people."
+          }
         }
       ]
     }
@@ -12534,17 +14093,28 @@
     }
   },
   {
-    "request": "How much urine do your kidneys actually make? Follow one drop through the nephron.",
+    "request": "How much urine do your kidneys actually make?",
     "packs": [
       "medicine"
     ],
     "spec": {
-      "title": "The 180-litre day",
+      "title": "180 litres in, 1.5 out",
       "template": "nephron",
       "params": {
-        "title": "The 180-litre day"
+        "box": {
+          "x": 40,
+          "y": 150,
+          "w": 920,
+          "h": 525
+        },
+        "show_gradient": true
       },
       "commands": [
+        {
+          "card": {
+            "title": "180 litres in, 1.5 out"
+          }
+        },
         {
           "draw": [
             "afferent",
@@ -12552,46 +14122,53 @@
             "capsule",
             "label_glom"
           ],
-          "speak": "Here is a number to sit with: your kidneys filter one hundred and eighty litres a day — your entire blood plasma, sixty times over. This is where it pours in."
+          "speak": "How much urine do your kidneys make? About one and a half litres a day, but they start from far more. It starts in a glomerulus."
         },
         {
           "draw": [
             "efferent"
           ],
-          "speak": "Blood arrives under pressure, is sieved through this capillary tuft, and leaves — while the filtrate drips into the tubule."
+          "speak": "Blood pressure pushes plasma through this knot of capillaries. Cells and proteins stay in the blood; water, salt, sugar and waste fall into the capsule."
+        },
+        {
+          "highlight": {
+            "target": [
+              "glomerulus"
+            ]
+          },
+          "speak": "Your two million or so nephrons filter about a hundred and eighty litres a day: all your plasma, some sixty times over."
         },
         {
           "draw": [
             "proximal",
-            "label_proximal"
-          ],
-          "speak": "And immediately, the un-making begins. The proximal tubule grabs most of it straight back."
-        },
-        {
-          "draw": [
-            "arrow_0",
+            "label_proximal",
             "arrow_1",
             "arrow_2"
           ],
-          "speak": "All of the glucose. Most of the sodium. Most of the water."
-        },
-        {
-          "pause": 0.3
+          "speak": "So the rest of the tubule is about taking it back. The proximal tubule reclaims about two thirds of the water and salt at once."
         },
         {
           "draw": [
+            "arrow_0"
+          ],
+          "speak": "And normally all the glucose. When blood sugar runs too high, this step is swamped and sugar spills into the urine: diabetes mellitus means honey-sweet."
+        },
+        {
+          "draw": [
+            "gradient",
             "descending",
             "ascending",
             "label_henle"
           ],
-          "speak": "Then the hairpin: the loop of Henle dives deep into the salty medulla and climbs back out."
+          "speak": "Then the loop of Henle dives into the medulla, where the tissue grows saltier the deeper it goes."
         },
         {
           "draw": [
             "arrow_3",
             "arrow_4"
           ],
-          "speak": "Going down, water is drawn out; climbing up, salt is pumped out. That countercurrent trick is what lets you concentrate urine."
+          "parallel": true,
+          "speak": "Going down, water seeps out into that salt. Coming up, salt is pumped out but water can't follow — that is what keeps the deep tissue salty."
         },
         {
           "draw": [
@@ -12599,7 +14176,7 @@
             "label_distal",
             "arrow_5"
           ],
-          "speak": "The distal tubule fine-tunes the last of the sodium under hormonal control."
+          "speak": "The distal tubule trims the sodium, on orders from the hormone aldosterone."
         },
         {
           "draw": [
@@ -12607,19 +14184,52 @@
             "label_collecting",
             "arrow_6"
           ],
-          "speak": "And the collecting duct makes the final decision — how much water to keep — on orders from a hormone that answers to your thirst."
+          "speak": "The collecting duct runs back down through the salty zone. Antidiuretic hormone opens water channels here, and the salt pulls water out."
         },
         {
           "draw": [
             "urine_arrow",
             "label_urine"
           ],
-          "speak": "Of one hundred and eighty litres filtered, less than two actually leave. You brew a bathtub every day — and quietly un-brew ninety-nine percent of it."
+          "speak": "What's left is urine: about one and a half litres of the hundred and eighty. Over ninety-nine percent came back."
         },
         {
-          "draw": [
-            "title"
-          ]
+          "focus": {
+            "target": [
+              "glomerulus",
+              "capsule"
+            ]
+          },
+          "speak": "Why filter so much only to take it back? Because anything the tubule doesn't choose to reclaim — waste, toxins, drugs — leaves by default."
+        },
+        {
+          "highlight": {
+            "target": [
+              "collecting"
+            ]
+          },
+          "speak": "It also makes control fine. Keep ninety-nine percent of 180 litres and you pass 1.8; keep ninety-eight, and it doubles to 3.6."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "arrow_6"
+            },
+            "gesture": "circle"
+          },
+          "speak": "So your water balance is set here, by a percent or two of reabsorption, not by filtering less."
+        },
+        {
+          "quiz": {
+            "question": "You drink two extra litres of water. What mainly changes?",
+            "choices": [
+              "The glomerulus filters more",
+              "The collecting duct keeps less water",
+              "The proximal tubule stops taking back glucose"
+            ],
+            "correct": 2,
+            "right": "The collecting duct keeps less water: filtration stays near 180 litres, and with less antidiuretic hormone more of it is let go as urine."
+          }
         }
       ]
     }
@@ -14580,34 +16190,34 @@
       "title": "The C major scale",
       "template": "note_sheet",
       "params": {
-        "title": "The C major scale"
+        "notes": "C4:q D4:q E4:q F4:q G4:q A4:q B4:q C5:h",
+        "keyboard": true,
+        "sound": true,
+        "labels": true,
+        "time_top": 0
       },
       "commands": [
         {
+          "card": {
+            "title": "The C major scale"
+          }
+        },
+        {
           "draw": [
             "staff",
-            "clef"
+            "clef",
+            "keys"
           ],
-          "speak": "Music has a written language too — five lines and a curly key called the clef. Let's write the most famous scale of all onto it, and then listen to it."
+          "speak": "What is the C major scale, and why does it sound as it does? Eight notes from C up to C — on a piano, only the white keys."
         },
         {
           "draw": [
-            "note_0",
-            "label_0"
+            "note_0"
           ],
-          "speak": "Here is C — sitting on its own little ledger line just below the staff."
+          "speak": "It starts on middle C, on its own little ledger line below the staff."
         },
         {
-          "play": "C4:h",
-          "instrument": "piano",
-          "tempo": 100
-        },
-        {
-          "play": "C4:q D4:q E4:q F4:q G4:q A4:q B4:q C5:h",
-          "instrument": "piano",
-          "tempo": 130,
-          "reveal": [
-            "note_0",
+          "draw": [
             "note_1",
             "note_2",
             "note_3",
@@ -14616,21 +16226,78 @@
             "note_6",
             "note_7"
           ],
-          "speak": "Now listen and watch — each note appears the instant it sounds, climbing line to space to line."
+          "speak": "Then up, one step at a time — line, space, line, space — until C comes round again."
         },
         {
           "draw": [
+            "label_0",
             "label_1",
             "label_2",
             "label_3",
             "label_4",
             "label_5",
             "label_6",
-            "label_7",
-            "bar_0"
+            "label_7"
           ],
           "parallel": true,
-          "speak": "Name the steps and the staircase is complete: D, E, F, G, A, B — and C again."
+          "speak": "The names are the seven letters of the musical alphabet, then back to the start."
+        },
+        {
+          "show": [
+            "key_2",
+            "key_3"
+          ]
+        },
+        {
+          "play": "E4:h F4:h",
+          "instrument": "piano",
+          "tempo": 90,
+          "speak": "On the staff every step looks the same size. On the keyboard it isn't: between E and F there is no black key."
+        },
+        {
+          "hide": [
+            "key_2",
+            "key_3"
+          ]
+        },
+        {
+          "show": [
+            "key_6",
+            "key_7"
+          ]
+        },
+        {
+          "play": "B4:h C5:h",
+          "instrument": "piano",
+          "tempo": 90,
+          "speak": "B to C is the other gap with no black key. These two are half steps; every other step is a whole one."
+        },
+        {
+          "hide": [
+            "key_6",
+            "key_7"
+          ]
+        },
+        {
+          "highlight": {
+            "target": [
+              "label_0",
+              "label_1",
+              "label_2",
+              "label_3",
+              "label_4",
+              "label_5",
+              "label_6",
+              "label_7"
+            ]
+          },
+          "speak": "Whole, whole, half, whole, whole, whole, half: that pattern, not the letters, is what makes a scale major."
+        },
+        {
+          "play": "D4:q E4:q F4:q G4:q A4:q B4:q C5:q D5:h",
+          "instrument": "piano",
+          "tempo": 130,
+          "speak": "Start on D and keep to the white keys, and the half steps land elsewhere. The same keys now sound darker."
         },
         {
           "highlight": {
@@ -14640,7 +16307,7 @@
             ],
             "effect": "circle"
           },
-          "speak": "Now the surprise: the top C vibrates exactly twice as fast as the bottom one — five hundred twenty-three waves a second against two hundred sixty-two. Double the speed, same letter."
+          "speak": "The two Cs are the scale's frame. The top one vibrates exactly twice as fast: 523 times a second against 262."
         },
         {
           "play": [
@@ -14653,12 +16320,29 @@
           ],
           "instrument": "organ",
           "tempo": 90,
-          "speak": "Played together, they melt into one sound. That perfect two-to-one ratio is the octave — the foundation every scale hangs from."
+          "speak": "Played together they melt into one sound — the octave — which is why the two share a letter."
         },
         {
-          "draw": [
-            "title"
-          ]
+          "highlight": {
+            "target": [
+              "note_0",
+              "note_1",
+              "note_2"
+            ]
+          },
+          "speak": "Singers call the steps do, re, mi. Around 1025, Guido of Arezzo took them from a hymn whose lines each began one step higher."
+        },
+        {
+          "quiz": {
+            "question": "Which step of the C major scale is a half step?",
+            "choices": [
+              "C to D",
+              "E to F",
+              "G to A"
+            ],
+            "correct": 2,
+            "right": "E to F: there is no black key between them, so it is the smallest step a piano has."
+          }
         }
       ]
     }
@@ -14928,58 +16612,210 @@
     }
   },
   {
-    "request": "Why are averages always bell-shaped, even when the data isn't?",
+    "request": "Why are averages bell-shaped, even when the data isn't?",
     "packs": [
       "stats"
     ],
     "spec": {
-      "title": "The central limit theorem",
+      "title": "Why averages make a bell",
       "template": "sampling_dist",
       "params": {
         "shape": "skewed",
         "n": 4,
-        "title": "The central limit theorem"
+        "box": {
+          "x": 40,
+          "y": 150,
+          "w": 920,
+          "h": 530
+        }
       },
+      "elements": [
+        {
+          "id": "p1",
+          "type": "shape",
+          "shape": "circle",
+          "x": 239.6,
+          "y": 493.7,
+          "radius": 8,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e"
+          }
+        },
+        {
+          "id": "p2",
+          "type": "shape",
+          "shape": "circle",
+          "x": 303.2,
+          "y": 493.7,
+          "radius": 8,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e"
+          }
+        },
+        {
+          "id": "p3",
+          "type": "shape",
+          "shape": "circle",
+          "x": 366.8,
+          "y": 493.7,
+          "radius": 8,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e"
+          }
+        },
+        {
+          "id": "p6",
+          "type": "shape",
+          "shape": "circle",
+          "x": 557.7,
+          "y": 493.7,
+          "radius": 8,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e"
+          }
+        },
+        {
+          "id": "four",
+          "type": "group",
+          "members": [
+            "p1",
+            "p2",
+            "p3",
+            "p6"
+          ]
+        },
+        {
+          "id": "avg",
+          "type": "shape",
+          "shape": "circle",
+          "x": 366.8,
+          "y": 205.2,
+          "radius": 8,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e"
+          }
+        }
+      ],
       "commands": [
         {
-          "draw": [
-            "axes"
-          ],
-          "speak": "Here is the strangest reliable fact in statistics — the reason polls, lab results and quality control work at all."
+          "card": {
+            "title": "Why averages make a bell"
+          }
         },
         {
           "draw": [
-            "pop_curve",
+            "axes",
+            "pop_curve"
+          ],
+          "speak": "Why do averages come out bell-shaped when the data isn't? Take hospital stays: most patients leave within two or three days, a few stay a week or more."
+        },
+        {
+          "draw": [
             "pop_mean"
           ],
-          "speak": "Take a lopsided population: incomes, hospital costs, waiting times — a long tail to the right, nothing like a bell."
+          "speak": "The average stay is 2.7 days, pulled to the right of the peak by that long tail."
         },
         {
-          "pause": 0.3
+          "draw": [
+            "four"
+          ],
+          "parallel": true,
+          "speak": "Now pick four patients at random. Say they stayed one, two, three and six days."
+        },
+        {
+          "draw": [
+            "avg"
+          ],
+          "speak": "Their average, three days, becomes one dot on the lower line."
         },
         {
           "draw": [
             "samp_curve",
             "samp_mean",
-            "n_label",
-            "se_bracket",
-            "se_label"
+            "n_label"
           ],
-          "speak": "Now repeatedly draw small samples and plot only their AVERAGES. Already at four per sample, the lopsidedness is almost gone."
+          "speak": "Repeat that thousands of times, and the dots pile up into this: averages of four. Already close to a bell, centred on the same 2.7."
         },
         {
-          "animate": {
-            "n": 36
+          "erase": [
+            "four",
+            "avg"
+          ]
+        },
+        {
+          "point": {
+            "at": {
+              "x": 653.1,
+              "y": 497.7
+            },
+            "gesture": "circle"
           },
-          "duration": 3,
-          "speak": "Grow the samples and watch: the distribution of averages tightens around the true mean — a clean bell, born from a skewed world."
+          "speak": "The tail can't survive averaging: an average of seven days needs all four patients to be long stays at once, which almost never happens."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 347.7,
+              "y": 307.2
+            },
+            "gesture": "tap"
+          },
+          "speak": "An average near 2.7 can come from countless mixes of short and long stays. More ways in, a taller middle."
         },
         {
           "draw": [
-            "title"
+            "se_bracket",
+            "se_label"
           ],
-          "speak": "That is the central limit theorem: averages of almost anything are normal. The bell curve isn't in the data — it's in the averaging.",
-          "delivery": "grave"
+          "speak": "The bracket is the typical miss of an average of four: just under a day either way."
+        },
+        {
+          "animate": {
+            "n": 8
+          },
+          "duration": 4,
+          "speak": "Average eight patients instead, twice as many, and the bell narrows: the typical miss falls to about two thirds of a day."
+        },
+        {
+          "highlight": {
+            "target": [
+              "se_label"
+            ]
+          },
+          "speak": "Twice the patients, yet the miss shrank by under a third, not by half: precision grows only with the square root of the sample."
+        },
+        {
+          "highlight": {
+            "target": [
+              "pop_curve"
+            ]
+          },
+          "speak": "The patients themselves stay as lopsided as ever. The bell isn't in the data; it's in the averaging."
+        },
+        {
+          "highlight": {
+            "target": [
+              "samp_curve"
+            ]
+          },
+          "speak": "That is the central limit theorem, and it holds for almost any data with a finite spread. George Pólya named it in 1920: central to probability."
+        },
+        {
+          "quiz": {
+            "question": "Averages of four patients miss by about 0.9 days. How many patients halve that miss?",
+            "choices": [
+              "8",
+              "16",
+              "6"
+            ],
+            "correct": 2,
+            "right": "Sixteen: the miss shrinks with the square root of the sample, so halving it takes four times as many patients."
+          }
         }
       ]
     }
@@ -14990,29 +16826,57 @@
       "stats"
     ],
     "spec": {
-      "title": "The confidence-interval dance",
+      "title": "What 95% confidence means",
       "template": "ci_dance",
       "params": {
         "draws": 20,
         "confidence": 0.95,
-        "title": "What 95% really means"
+        "box": {
+          "x": 40,
+          "y": 150,
+          "w": 920,
+          "h": 490
+        }
       },
+      "elements": [
+        {
+          "id": "lab_true",
+          "type": "text",
+          "text": "true effect: 5",
+          "at": {
+            "ref": "true_line",
+            "anchor": "top"
+          },
+          "anchor": "bottom"
+        }
+      ],
       "commands": [
         {
-          "draw": [
-            "true_line"
-          ],
-          "speak": "Somewhere out there is the true value — fixed, unknown, and not going anywhere. Every study is an attempt to trap it."
+          "card": {
+            "title": "What 95% confidence means"
+          }
         },
         {
           "draw": [
-            "ci_0",
+            "true_line",
+            "lab_true"
+          ],
+          "speak": "What does '95 percent confidence' actually promise? Less than most people think. Suppose a pill truly lowers blood pressure by 5 points: this dashed line."
+        },
+        {
+          "draw": [
+            "ci_0"
+          ],
+          "speak": "Nobody gets to see that line. A trial measures some patients and reports an interval: here, 3.4 to 7.3 points."
+        },
+        {
+          "draw": [
             "ci_1",
             "ci_2",
             "ci_3",
             "ci_4"
           ],
-          "speak": "Each study catches a different sample, so each interval lands somewhere new — this is the dance."
+          "speak": "A second trial, with other patients, lands somewhere else, and so does the next. The truth stays put; the intervals move."
         },
         {
           "draw": [
@@ -15029,27 +16893,67 @@
             "ci_15",
             "ci_16",
             "ci_17",
-            "ci_18",
-            "ci_19"
+            "ci_18"
           ],
           "parallel": true,
-          "speak": "Run twenty studies and look at the pattern: most intervals straddle the dashed line."
+          "speak": "Run twenty trials, and most of the intervals straddle the dashed line…"
         },
         {
-          "pause": 0.3
+          "draw": [
+            "ci_19"
+          ],
+          "speak": "…but this one, from 2.1 to 4.6, misses it entirely. No mistake by its authors, just an unlucky sample."
         },
         {
           "draw": [
             "caption"
           ],
-          "speak": "Nineteen of twenty caught the truth. One — drawn in red — missed completely, through no fault of its authors."
+          "speak": "Nineteen of twenty caught the truth. That catch rate, over many repeats, is all that 95 percent means."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "So ninety-five percent describes the METHOD, not your interval: it's the long-run catch rate of the trap. Any single interval, including the one in the study you just read, may be the red one.",
-          "delivery": "grave"
+          "focus": {
+            "target": [
+              "ci_19"
+            ]
+          },
+          "speak": "From the inside, the red trial looks exactly like the others: its authors are just as confident, and wrong."
+        },
+        {
+          "highlight": {
+            "target": [
+              "true_line"
+            ]
+          },
+          "speak": "So the 95 percent belongs to the method, not to any one interval. Once computed, an interval either holds the 5 or it doesn't."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "ci_0"
+            },
+            "gesture": "underline"
+          },
+          "speak": "'A 95 percent chance the truth is in my interval' pictures the truth wandering. The truth is fixed; it's the intervals that wander."
+        },
+        {
+          "highlight": {
+            "target": [
+              "caption"
+            ]
+          },
+          "speak": "Jerzy Neyman introduced confidence intervals in the 1930s, and defined them exactly this way: by how often the method catches the truth."
+        },
+        {
+          "quiz": {
+            "question": "A trial reports a 95% interval of 2 to 8 points. What does the 95% describe?",
+            "choices": [
+              "How often the method's intervals catch the truth",
+              "The chance the true effect is between 2 and 8",
+              "The share of patients who improved by 2 to 8"
+            ],
+            "correct": 1,
+            "right": "The method: across many trials, 95 in 100 such intervals catch the true effect. This one either does or doesn't, and nobody can tell which."
+          }
         }
       ]
     }
@@ -15060,7 +16964,7 @@
       "stats",
       "evidence"
     ],
-    "playlist": "playlist:\n  title: Where the bell curve comes from\n  advance: auto\n  gap: 1\n---\ntitle: The Galton board\ntemplate: galton_board\nparams:\n  rows: 8\n  show_path: true\n  title: Pure chance, every bounce\ncommands:\n  - draw: [pegs]\n    speak: \"Drop thousands of balls through this forest of pegs. At every peg, a coin flip: left or right. Nothing could be more random.\"\n  - draw: [path]\n    speak: \"Watch one ball stumble down — eight accidents in a row.\"\n  - draw: [bin_4, bin_3, bin_5, bin_2, bin_6, bin_1, bin_7, bin_0, bin_8]\n    speak: \"Now let thousands fall. The bins fill — and out of pure randomness, a shape appears: tall in the middle, thin at the edges. Every single time.\"\n  - focus:\n      target: [bin_4, bin_3, bin_5]\n    speak: \"The middle dominates because there are many ways to bounce left-right-left-right — and only one way to bounce left every time.\"\n  - draw: [title]\n    speak: \"Let's zoom into that shape.\"\n---\ntitle: The bell curve\ntemplate: distribution_curve\nzoom_from: bin_4\nparams:\n  title: The normal distribution\nelements:\n  - { id: portrait_1, type: portrait, of: Francis Galton, x: 838, y: 545, width: 130 }\ncommands:\n  - draw: [axis, curve]\n    speak: \"Here it is up close: the normal distribution — the smooth limit of all those coin flips.\"\n  - draw: [mean_line]\n    speak: \"Symmetric around its mean...\"\n  - draw: [sd_tick_0, sd_tick_1, sd_tick_2, sd_tick_3]\n    speak: \"...with a spread measured in standard deviations.\"\n  - draw: [title, portrait_1]\n    speak: \"This is why the bell curve is everywhere: whenever many small independent accidents add up — measurement errors, heights, bounces — this shape emerges. Galton called it the law the Greeks would have deified.\"\n"
+    "playlist": "playlist:\n  title: Where the bell curve comes from\n  advance: auto\n  gap: 1\n---\ntitle: The Galton board\ntemplate: galton_board\nparams:\n  rows: 8\n  show_path: true\n  show_curve: true\n  box: { x: 40, y: 200, w: 920, h: 440 }\ncommands:\n  - card: { title: \"Where the bell curve comes from\" }\n  - draw: [pegs]\n    speak: \"Why does the bell curve turn up everywhere, from heights to measurement errors? A board of pegs shows where it comes from. Each ball meets eight rows.\"\n  - draw: [path]\n    speak: \"At every peg it bounces left or right, a coin toss each time. This ball went right five times and left three.\"\n  - draw: [bin_4, bin_3, bin_5, bin_2, bin_6, bin_1, bin_7, bin_0, bin_8]\n    speak: \"Let thousands fall, and the bins fill into a shape: tall in the middle, thin at the edges. Every single time.\"\n  - focus: { target: [bin_0] }\n    speak: \"Only one path ends in the far-left bin: left, eight times in a row. That is one path out of 256.\"\n  - focus: { target: [bin_4] }\n    speak: \"The middle bin is reached by any four lefts and four rights, in any order: seventy different paths. So it gets seventy times the balls.\"\n  - highlight: { target: [pegs] }\n    speak: \"The pegs favour neither side, and no ball is steered. There are simply far more ways to land in the middle than at the edge.\"\n  - draw: [curve]\n    speak: \"Add up many small, independent pushes, and the total follows this smooth bell: the normal distribution.\"\n---\ntitle: The bell curve\ntemplate: distribution_curve\nzoom_from: bin_4\nparams:\n  shade: { from: 2, side: two, label: \"2.3% in each tail\" }\n  box: { x: 40, y: 150, w: 920, h: 520 }\nelements:\n  - { id: portrait_1, type: portrait, of: Francis Galton, x: 838, y: 545, width: 130 }\ncommands:\n  - draw: [axis, curve]\n    speak: \"Up close, the shape of those bins is the normal curve: the smooth limit of many coin tosses added together.\"\n  - draw: [mean_line]\n    speak: \"It is symmetric about its mean, which on the board is the spot straight under the drop.\"\n  - draw: [sd_tick_0, sd_tick_1, sd_tick_2, sd_tick_3]\n    speak: \"Its width is measured in standard deviations. About two thirds of the balls land within one of the mean…\"\n  - draw: [shade, shade2, shade_label]\n    parallel: true\n    speak: \"…and about 95 percent within two. Beyond two, each tail holds just over two percent.\"\n  - highlight: { target: [curve] }\n    speak: \"The recipe is adding. When small effects multiply instead, as interest does on wealth, the result is lopsided, which is why incomes are not bell-shaped.\"\n  - draw: [portrait_1]\n    speak: \"Francis Galton built the board in the 1870s. He wrote that the Greeks would have made this law a god, had they known of it.\"\n  - quiz:\n      question: \"Why do so few balls land in the far-left bin?\"\n      choices: [\"Only one of the 256 paths leads there\", \"The pegs push balls toward the middle\", \"The edge bins are harder to reach through the gaps\"]\n      correct: 1\n      right: \"Only one path, eight lefts in a row, leads there, while seventy lead to the middle. Every peg is a fair coin toss.\"\n"
   },
   {
     "request": "How long did Darwin sit on his theory? Show me the timeline.",
@@ -15159,7 +17063,7 @@
     }
   },
   {
-    "request": "Explain comparative advantage, with a portrait of David Ricardo.",
+    "request": "Why should a country that is better at everything still trade? Explain comparative advantage, with a portrait of David Ricardo.",
     "spec": {
       "title": "Comparative advantage",
       "template": "two_by_two_table",
@@ -15183,8 +17087,7 @@
             "120",
             "100"
           ]
-        ],
-        "title": "Ricardo's own numbers (1817)"
+        ]
       },
       "elements": [
         {
@@ -15192,23 +17095,60 @@
           "type": "portrait",
           "of": "David Ricardo",
           "cameo": true
+        },
+        {
+          "id": "oc_pt",
+          "type": "text",
+          "text": "1 wine = 0.89 cloth",
+          "x": 868,
+          "y": 435,
+          "font_size": 22,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "oc_en",
+          "type": "text",
+          "text": "1 wine = 1.2 cloth",
+          "x": 868,
+          "y": 285,
+          "font_size": 22,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "gain",
+          "type": "math",
+          "tex": "\\text{Together: } +\\frac{1}{8}\\ \\text{wine},\\ +\\frac{1}{5}\\ \\text{cloth}",
+          "x": 500,
+          "y": 172,
+          "colors": {
+            "\\frac{1}{8}": "#2f6b8f",
+            "\\frac{1}{5}": "#2f6b8f"
+          }
         }
       ],
       "commands": [
         {
-          "speak": "In 1817, a retired London stockbroker posed a puzzle that still decides where your shirt and your wine come from: should a country that is better at EVERYTHING still trade?"
+          "card": {
+            "title": "Comparative advantage"
+          }
         },
         {
           "draw": [
             "portrait_1"
           ],
-          "speak": "The puzzler: David Ricardo — out of the market at forty-two with a fortune, about to invent modern trade theory."
+          "speak": "Why would a country that makes everything more cheaply still buy from abroad? The answer came in 1817, from David Ricardo."
+        },
+        {
+          "speak": "He was a stockbroker who grew rich on the London exchange, then turned to economics after reading Adam Smith on holiday in Bath."
         },
         {
           "erase": [
             "portrait_1"
-          ],
-          "speak": "He answered with two countries and two goods."
+          ]
         },
         {
           "draw": [
@@ -15220,65 +17160,99 @@
             "col_header_0",
             "col_header_1"
           ],
-          "speak": "Here are his own numbers: the hours of labour each country needs per unit."
+          "speak": "His example: two countries, two goods, and the hours of work each needs for one unit."
         },
         {
           "draw": [
             "cell_0_0",
             "cell_0_1"
           ],
-          "speak": "Portugal needs eighty hours for wine, ninety for cloth."
+          "speak": "Portugal needs eighty hours for a unit of wine, ninety for a unit of cloth."
         },
         {
           "draw": [
             "cell_1_0",
             "cell_1_1"
           ],
-          "speak": "England needs more for BOTH: one hundred twenty and one hundred. Portugal is simply better at everything — so common sense says England has nothing to offer."
+          "speak": "England needs more for both: a hundred and twenty, and a hundred. Portugal is better at everything."
         },
         {
-          "pause": 0.3
+          "point": {
+            "at": {
+              "ref": "cell_0_0"
+            },
+            "gesture": "circle"
+          },
+          "speak": "So why would Portugal buy anything from England? Because the real price of wine is the cloth you don't make."
+        },
+        {
+          "draw": [
+            "oc_pt"
+          ],
+          "speak": "In Portugal, eighty hours of wine could have made eight ninths of a cloth. Wine is cheap there."
+        },
+        {
+          "draw": [
+            "oc_en"
+          ],
+          "speak": "In England, a hundred and twenty hours of wine could have made one point two cloth. Wine is dear there — so cloth is relatively cheap."
         },
         {
           "focus": {
             "target": [
-              "cell_0_0",
+              "cell_0_1"
+            ]
+          },
+          "speak": "Now Portugal moves ninety hours out of cloth: one cloth less, and an eighth more than one wine."
+        },
+        {
+          "focus": {
+            "target": [
               "cell_1_0"
             ]
           },
-          "speak": "But look at the RATIOS, not the levels. In wine, Portugal needs a third fewer hours than England — a big edge."
+          "speak": "England moves a hundred and twenty hours out of wine: one wine less, and one point two cloth more."
         },
         {
-          "focus": {
-            "target": [
-              "cell_0_1",
-              "cell_1_1"
-            ]
-          },
-          "speak": "In cloth, the edge is tiny — ninety against one hundred."
+          "draw": [
+            "gain"
+          ],
+          "speak": "Same hours, same workers — and together they have more of both goods. Trade then shares the extra out."
         },
         {
           "highlight": {
             "target": [
-              "cell_0_0",
-              "cell_1_1"
-            ],
-            "effect": "circle"
+              "oc_pt",
+              "oc_en"
+            ]
           },
-          "speak": "So let each country do what it is RELATIVELY best at: Portugal makes the wine, England the cloth — and after trading, BOTH end up with more of both goods than they could make alone.",
-          "delivery": "grave"
+          "speak": "What counts is not who is faster, but who gives up less. Even a country worse at everything is relatively best at something."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "That is comparative advantage: trade follows relative, not absolute, ability. Even a country worse at everything is still relatively best at something - which is why everyone has something to sell."
+          "highlight": {
+            "target": [
+              "gain"
+            ]
+          },
+          "speak": "Asked for one idea in social science that is both true and not obvious, Paul Samuelson named this one."
+        },
+        {
+          "quiz": {
+            "question": "When would trade between the two countries gain nothing?",
+            "choices": [
+              "When one is better at both goods",
+              "When both give up the same cloth per wine",
+              "When one is worse at both goods"
+            ],
+            "correct": 2,
+            "right": "When both give up the same cloth per wine: with equal opportunity costs, no switch of hours makes more of anything."
+          }
         }
       ]
     }
   },
   {
-    "request": "Tell the story of Adam Smith's pin factory, and link his portrait to the book: https://en.wikipedia.org/wiki/The_Wealth_of_Nations and https://www.gutenberg.org/ebooks/3300",
+    "request": "What did Adam Smith see in a pin factory? Tell the story, and link his portrait to the book: https://en.wikipedia.org/wiki/The_Wealth_of_Nations and https://www.gutenberg.org/ebooks/3300",
     "title": "Smith's pin factory",
     "spec": {
       "title": "The division of labour",
@@ -15296,15 +17270,14 @@
         ],
         "cells": [
           [
-            "20",
-            "200"
+            "under 20",
+            "under 200"
           ],
           [
             "4,800",
             "48,000"
           ]
-        ],
-        "title": "Smith's pin factory (1776)"
+        ]
       },
       "elements": [
         {
@@ -15318,17 +17291,26 @@
             "https://en.wikipedia.org/wiki/The_Wealth_of_Nations",
             "https://www.gutenberg.org/ebooks/3300"
           ]
+        },
+        {
+          "id": "ratio",
+          "type": "math",
+          "tex": "48\\,000 \\div 200 = 240",
+          "x": 500,
+          "y": 172
         }
       ],
       "commands": [
         {
-          "speak": "In 1776 a Scottish professor visited a pin factory — and what he counted there became the most famous number in economics."
+          "card": {
+            "title": "Smith's pin factory"
+          }
         },
         {
           "draw": [
             "portrait_smith"
           ],
-          "speak": "Adam Smith, about to publish The Wealth of Nations — the book that begins, of all places, with pins."
+          "speak": "Why are some nations rich? Adam Smith's answer, in 1776, begins with an unlikely object: a pin."
         },
         {
           "draw": [
@@ -15340,81 +17322,135 @@
             "col_header_0",
             "col_header_1"
           ],
-          "speak": "Here is what he saw: two ways of running the same ten-man workshop."
+          "speak": "He compared two ways of running the same small workshop of ten men."
         },
         {
           "draw": [
             "cell_0_0",
             "cell_0_1"
           ],
-          "speak": "A worker doing every step himself — drawing the wire, cutting, sharpening, fitting the head — makes at best twenty pins a day. Ten of them: two hundred."
+          "speak": "A man doing every step himself — drawing the wire, cutting, pointing, fitting the head — could not make twenty pins a day. Perhaps not one."
         },
         {
           "draw": [
             "cell_1_0",
             "cell_1_1"
           ],
-          "speak": "Smith's factory split the work into eighteen small operations, one or two per man. The same ten workers now made forty-eight THOUSAND pins a day."
+          "speak": "Split the job into eighteen operations, two or three per man, and the ten made over forty-eight thousand a day."
         },
         {
-          "pause": 0.3
+          "draw": [
+            "ratio"
+          ],
+          "speak": "Same men, same wire, same day: at least two hundred and forty times as many pins."
+        },
+        {
+          "pause": 0.4
         },
         {
           "highlight": {
             "target": [
-              "cell_0_1",
-              "cell_1_1"
-            ],
-            "effect": "circle"
+              "cell_1_0"
+            ]
           },
-          "speak": "Two hundred against forty-eight thousand — a two-hundred-forty-fold gain from nothing but organizing the work differently.",
-          "delivery": "grave"
+          "speak": "Why? First, a man who only points pins gets very quick at pointing pins."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "That is the division of labour, the very first idea in the book. Pause and click Smith's portrait — its card opens The Wealth of Nations itself."
+          "point": {
+            "at": {
+              "ref": "cell_1_1"
+            },
+            "gesture": "tap"
+          },
+          "speak": "Second, nobody loses time walking from one task and tool to the next."
+        },
+        {
+          "highlight": {
+            "target": [
+              "cell_1_1"
+            ]
+          },
+          "speak": "Third, a job cut small enough is easy to hand to a machine. Smith called the whole thing the division of labour."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "ratio"
+            },
+            "gesture": "underline"
+          },
+          "speak": "But forty-eight thousand pins a day only pay if someone buys them. Smith's rule: the division of labour is limited by the extent of the market."
+        },
+        {
+          "highlight": {
+            "target": [
+              "portrait_smith"
+            ]
+          },
+          "speak": "From 2007 the Bank of England's twenty-pound note carried Smith and his pin factory. Click his portrait: its card opens the book itself."
+        },
+        {
+          "quiz": {
+            "question": "Why would a lone village of 200 people never build Smith's pin factory?",
+            "choices": [
+              "Its workers would be too slow",
+              "Nobody could use 48,000 pins a day",
+              "Pins need a machine it lacks"
+            ],
+            "correct": 2,
+            "right": "Nobody there could use forty-eight thousand pins a day: the division of labour only pays in a market big enough to buy what it makes."
+          }
         }
       ]
     }
   },
   {
-    "request": "Explain how a rise in demand moves the market price, and quiz me at the end.",
+    "request": "How does a rise in demand move the market price? Quiz me at the end.",
     "spec": {
-      "title": "Demand up, price up — quiz",
+      "title": "A heat wave and the price of fans",
       "template": "supply_demand",
       "params": {
+        "x_label": "Fans sold per week",
+        "y_label": "Price per fan",
+        "demand": {},
+        "supply": {
+          "elasticity": 1
+        },
+        "equilibrium": {
+          "show": true,
+          "guides": true,
+          "p_label": "$40",
+          "q_label": "1,000"
+        },
         "demand_shift": {
-          "amount": 25
+          "amount": 0
         }
       },
       "commands": [
         {
+          "card": {
+            "title": "When demand rises"
+          }
+        },
+        {
           "draw": [
             "axes"
           ],
-          "speak": "Let's build a market: quantity along the bottom, price up the side."
-        },
-        {
-          "pause": 0.3
+          "speak": "When people want more of something, what happens to its price, and to how much is sold? Take electric fans in one city, week by week."
         },
         {
           "draw": [
             "demand_curve",
             "label_D"
           ],
-          "speak": "Demand slopes down — cheaper means buyers want more."
+          "speak": "Demand slopes down: the cheaper a fan, the more people buy."
         },
         {
           "draw": [
             "supply_curve",
             "label_S"
           ],
-          "speak": "Supply slopes up — pricier means sellers offer more."
-        },
-        {
-          "pause": 0.3
+          "speak": "Supply slopes up: a higher price makes it worth shipping more fans to the city."
         },
         {
           "draw": [
@@ -15424,10 +17460,10 @@
             "label_Pstar",
             "label_Qstar"
           ],
-          "speak": "They cross at the equilibrium: the price the market settles on."
+          "speak": "In an ordinary week they meet here: forty dollars a fan, and a thousand sold."
         },
         {
-          "pause": 0.3
+          "pause": 0.4
         },
         {
           "label": "shift_explained"
@@ -15438,7 +17474,22 @@
             "label_D_shift",
             "demand_shift_arrow"
           ],
-          "speak": "Now demand rises — the whole curve steps to the right."
+          "speak": "Then a heat wave arrives. Here is a copy of demand, lying on the old curve for now."
+        },
+        {
+          "animate": {
+            "demand_shift.amount": 20
+          },
+          "duration": 3,
+          "speak": "At every price, people now want four hundred more fans a week, so the whole demand curve slides right."
+        },
+        {
+          "highlight": {
+            "target": [
+              "supply_curve"
+            ]
+          },
+          "speak": "But at forty dollars, the shops still have only a thousand fans. Buyers compete for them, and the price is bid up."
         },
         {
           "draw": [
@@ -15448,59 +17499,202 @@
             "label_P_shift",
             "label_Q_shift"
           ],
-          "speak": "The new crossing sits higher and further out: a higher price, and more traded."
+          "speak": "It settles here: about forty-seven dollars a fan, and some twelve hundred sold."
         },
         {
-          "pause": 0.3
+          "highlight": {
+            "target": [
+              "demand_shift_curve"
+            ]
+          },
+          "speak": "The dearer fans put some buyers off, but that is a slide along the new curve. Demand itself stays out as long as the heat does."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "shift_equilibrium_point"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Alfred Marshall compared supply and demand to the blades of scissors: asking which one sets the price is like asking which blade cuts."
         },
         {
           "quiz": {
-            "question": "So after demand rises, what happens to the equilibrium price?",
+            "intro": "Two quick questions.",
+            "question": "After demand rises, what happens to the equilibrium price?",
             "choices": [
               "It falls",
               "It stays the same",
               "It rises"
             ],
             "correct": 3,
-            "right": "The price rises — more buyers now compete for the same supply.",
-            "wrong": "Look at the new crossing: it sits higher than the old one.",
+            "right": "It rises: more buyers now compete for fans that the shops can only add at a higher price.",
+            "wrong": "Compare the new crossing with the old one.",
             "wrong_goto": "shift_explained"
           }
         },
         {
           "quiz": {
-            "question": "And the quantity traded — what does it do?",
+            "question": "The price has risen to $47. Does that push demand back to where it started?",
             "choices": [
-              "It falls",
-              "It stays the same",
-              "It rises"
+              "Yes, the curve shifts back left",
+              "No, buyers only move along the new curve"
             ],
-            "correct": 3,
-            "right": "Quantity rises too — the new crossing sits further out along the axis.",
-            "wrong": "Follow the new crossing down to the quantity axis: it sits further out."
+            "correct": 2,
+            "right": "No: a higher price moves buyers along the new demand curve. Only the heat ending would shift the curve back."
           }
         },
         {
-          "speak": "Demand up, price up — and you answered {score} of {score_total}. The crossing point tells the whole story."
+          "highlight": {
+            "target": [
+              "demand_shift_arrow"
+            ]
+          },
+          "speak": "You got {score} of {score_total}. A shift of the curve moves the price; a change in price only moves buyers along it."
         }
       ]
     }
   },
   {
-    "request": "Make a little personalized warm-up: ask my name, greet me, and quiz me on gold's chemical symbol with typing.",
+    "request": "Why is gold's chemical symbol Au? Make it a personalized warm-up: ask my name, greet me, and let me type the answer.",
     "spec": {
-      "title": "Hello, you",
+      "title": "Why gold is Au",
       "elements": [
         {
-          "id": "welcome",
+          "id": "q_gold",
           "type": "text",
-          "text": "Welcome!",
+          "text": "gold = ?",
           "x": 500,
-          "y": 420,
-          "font_size": 48
+          "y": 430,
+          "font_size": 56
+        },
+        {
+          "id": "t_au",
+          "type": "node",
+          "shape": "rect",
+          "text": "Au",
+          "style": {
+            "color": "#b8860b"
+          }
+        },
+        {
+          "id": "t_fe",
+          "type": "node",
+          "shape": "rect",
+          "text": "Fe"
+        },
+        {
+          "id": "t_ag",
+          "type": "node",
+          "shape": "rect",
+          "text": "Ag"
+        },
+        {
+          "id": "t_pb",
+          "type": "node",
+          "shape": "rect",
+          "text": "Pb"
+        },
+        {
+          "id": "symbols",
+          "type": "group",
+          "members": [
+            "t_au",
+            "t_fe",
+            "t_ag",
+            "t_pb"
+          ],
+          "layout": "row",
+          "gap": 90,
+          "walk": true,
+          "fit": {
+            "x": 60,
+            "y": 250,
+            "w": 880,
+            "h": 330
+          }
+        },
+        {
+          "id": "la_au",
+          "type": "label",
+          "attach_to": "t_au",
+          "side": "above",
+          "text": "aurum",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "en_au",
+          "type": "label",
+          "attach_to": "t_au",
+          "side": "below",
+          "text": "gold"
+        },
+        {
+          "id": "la_fe",
+          "type": "label",
+          "attach_to": "t_fe",
+          "side": "above",
+          "text": "ferrum",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "en_fe",
+          "type": "label",
+          "attach_to": "t_fe",
+          "side": "below",
+          "text": "iron"
+        },
+        {
+          "id": "la_ag",
+          "type": "label",
+          "attach_to": "t_ag",
+          "side": "above",
+          "text": "argentum",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "en_ag",
+          "type": "label",
+          "attach_to": "t_ag",
+          "side": "below",
+          "text": "silver"
+        },
+        {
+          "id": "la_pb",
+          "type": "label",
+          "attach_to": "t_pb",
+          "side": "above",
+          "text": "plumbum",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "en_pb",
+          "type": "label",
+          "attach_to": "t_pb",
+          "side": "below",
+          "text": "lead"
         }
       ],
       "commands": [
+        {
+          "card": {
+            "title": "Why gold is Au"
+          }
+        },
+        {
+          "draw": [
+            "q_gold"
+          ],
+          "speak": "A warm-up on chemical symbols, and why some share no letters with their English names — gold's above all. First, who am I talking to?"
+        },
         {
           "ask": {
             "question": "What should I call you?",
@@ -15509,70 +17703,176 @@
           }
         },
         {
-          "draw": [
-            "welcome"
-          ],
-          "speak": "Welcome, {name} — let's warm up with one quick question."
+          "highlight": {
+            "target": [
+              "q_gold"
+            ]
+          },
+          "speak": "Nice to meet you, {name}. Gold's symbol belongs where the question mark is. Do you know it?"
         },
         {
           "ask": {
-            "question": "Typing check: what is the chemical symbol for gold?",
+            "question": "Type gold's chemical symbol.",
             "answer": "Au",
-            "right": "Gold is Au — from the Latin aurum.",
-            "wrong": "Not quite — think Latin.",
-            "retry": true
+            "retry": true,
+            "right": "Au — and there is no U in gold.",
+            "wrong": "Think Latin, not English."
           }
         },
         {
-          "speak": "Nicely done, {name}. That's the spirit."
+          "erase": [
+            "q_gold"
+          ]
+        },
+        {
+          "draw": [
+            "t_au",
+            "la_au",
+            "en_au"
+          ],
+          "speak": "Au is short for aurum, the Romans' word for gold."
+        },
+        {
+          "draw": [
+            "t_fe",
+            "la_fe",
+            "en_fe"
+          ],
+          "speak": "Iron is Fe, from ferrum."
+        },
+        {
+          "draw": [
+            "t_ag",
+            "la_ag",
+            "en_ag"
+          ],
+          "speak": "Silver is Ag, from argentum."
+        },
+        {
+          "draw": [
+            "t_pb",
+            "la_pb",
+            "en_pb"
+          ],
+          "speak": "Lead is Pb, from plumbum — and a plumber is named after the lead pipes Roman plumbers laid."
+        },
+        {
+          "highlight": {
+            "target": [
+              "la_au",
+              "la_fe",
+              "la_ag",
+              "la_pb"
+            ]
+          },
+          "speak": "Why Latin? The Swedish chemist Jöns Jacob Berzelius set up letter symbols around 1813, and took them from Latin, then science's shared language."
+        },
+        {
+          "highlight": {
+            "target": [
+              "symbols"
+            ]
+          },
+          "speak": "So the symbols belong to no one's language: a chemist in Oslo, Tokyo or Lima writes gold the same way."
+        },
+        {
+          "quiz": {
+            "question": "Na is the symbol for which element?",
+            "choices": [
+              "Nitrogen",
+              "Sodium",
+              "Neon"
+            ],
+            "correct": 2,
+            "right": "Sodium: Na is from natrium, its Latin name. Nitrogen is N, and neon is Ne."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "t_au"
+            ]
+          },
+          "speak": "That's the warm-up, {name}. Next time a symbol looks odd, try its Latin name."
         }
       ]
     }
   },
   {
-    "request": "Let me pick my own sample size and watch the central limit theorem squeeze the averages.",
+    "request": "How much does a bigger sample tighten an average? Let me pick the sample size myself.",
     "packs": [
       "stats"
     ],
     "spec": {
-      "title": "Your own sample size",
+      "title": "Pick your own sample size",
       "template": "sampling_dist",
       "params": {
-        "shape": "skewed",
-        "n": 4
+        "shape": "bimodal",
+        "n": 4,
+        "box": {
+          "x": 40,
+          "y": 150,
+          "w": 920,
+          "h": 530
+        }
       },
       "commands": [
         {
-          "draw": [
-            "axes"
-          ],
-          "speak": "Averages behave better than the data they come from — and you are about to choose how much better."
+          "card": {
+            "title": "Pick your own sample size"
+          }
         },
         {
           "draw": [
-            "pop_curve",
+            "axes",
+            "pop_curve"
+          ],
+          "speak": "How much does a bigger sample tighten an average? You'll choose the size yourself. The data: scores on a ten-point test, in a class split in two."
+        },
+        {
+          "highlight": {
+            "target": [
+              "pop_curve"
+            ]
+          },
+          "speak": "One group scored around three, the other around seven: two humps, nothing like a bell."
+        },
+        {
+          "draw": [
             "pop_mean"
           ],
-          "speak": "The population is lopsided: a long tail to the right, nothing like a bell."
-        },
-        {
-          "pause": 0.3
+          "speak": "The class average is 4.8, a score almost nobody actually got."
         },
         {
           "draw": [
             "samp_curve",
             "samp_mean",
-            "n_label",
+            "n_label"
+          ],
+          "speak": "Now average four random students, over and over. The averages make one hump, not two, centred on the same 4.8."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 481.3,
+              "y": 307.2
+            },
+            "gesture": "tap"
+          },
+          "speak": "A three and a seven average to five, and four random students rarely all come from the same group."
+        },
+        {
+          "draw": [
             "se_bracket",
             "se_label"
           ],
-          "speak": "Plot only the averages of small samples — four per sample — and the lopsidedness already fades."
+          "speak": "The bracket is the typical miss of an average of four students: about one point either way."
         },
         {
           "ask": {
-            "question": "Your turn: how many observations behind each average? Type a number from 1 to 100.",
+            "question": "How many students behind each average? Type a number from 2 to 100.",
             "store": "n_choice",
-            "default": "36"
+            "default": "9"
           }
         },
         {
@@ -15580,7 +17880,15 @@
             "n": "{n_choice}"
           },
           "duration": 3,
-          "speak": "Watch the distribution of averages tighten to YOUR sample size — {n_choice} per average."
+          "speak": "Here are averages of {n_choice} students. Compare the bracket with its width at four."
+        },
+        {
+          "highlight": {
+            "target": [
+              "se_label"
+            ]
+          },
+          "speak": "Its width follows one rule: the class's spread, about 2.1 points, divided by the square root of the sample size."
         },
         {
           "explore": {
@@ -15588,45 +17896,130 @@
               "n"
             ]
           },
-          "speak": "Keep going — drag n yourself and watch the bracket trade width for sample size."
+          "speak": "Now drag n yourself. Try to halve the bracket you chose, and see how many more students it costs."
         },
         {
-          "speak": "Bigger samples, tighter bell: that is the central limit theorem working for you personally.",
-          "delivery": "grave"
+          "highlight": {
+            "target": [
+              "samp_mean"
+            ]
+          },
+          "speak": "Every size keeps the same centre. A bigger sample doesn't move the average; it only stops it wandering."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "se_bracket"
+            },
+            "gesture": "underline"
+          },
+          "speak": "The same square root is why a poll of a thousand people has a margin of error near three points, and four thousand only halve it."
+        },
+        {
+          "quiz": {
+            "question": "Averages of 25 students miss by about ± 0.42. What do averages of 100 miss by?",
+            "choices": [
+              "About ± 0.21",
+              "About ± 0.10",
+              "About ± 0.42"
+            ],
+            "correct": 1,
+            "right": "About ± 0.21: four times the students, and the square root of four is two, so the miss halves."
+          }
         }
       ]
     }
   },
   {
-    "request": "Show a demand shift and then have me point out the new equilibrium on the figure itself.",
+    "request": "Where does a market settle after demand rises? Let me click the new equilibrium on the figure.",
     "spec": {
-      "title": "Find it on the figure",
+      "title": "Find the new equilibrium",
       "template": "supply_demand",
       "params": {
+        "x_label": "Bikes sold per month",
+        "y_label": "Price per bike",
+        "demand": {},
+        "supply": {
+          "elasticity": 1
+        },
+        "equilibrium": {
+          "show": true,
+          "guides": true,
+          "p_label": "$400",
+          "q_label": "1,000"
+        },
         "demand_shift": {
           "amount": 25
         }
       },
+      "elements": [
+        {
+          "id": "gap",
+          "type": "path",
+          "points": [
+            [
+              517,
+              385
+            ],
+            [
+              719,
+              385
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "dash": true,
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "wish",
+          "type": "shape",
+          "shape": "circle",
+          "x": 719,
+          "y": 385,
+          "radius": 7,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e"
+          }
+        },
+        {
+          "id": "l_wish",
+          "type": "label",
+          "attach_to": "wish",
+          "side": "right",
+          "text": "1,500 wanted",
+          "style": {
+            "color": "#b5482e"
+          }
+        }
+      ],
       "commands": [
+        {
+          "card": {
+            "title": "Where does the market settle?"
+          }
+        },
         {
           "draw": [
             "axes"
           ],
-          "speak": "A market, and in a moment you will point at the answer yourself."
+          "speak": "When demand rises, where does a market end up? You'll find it yourself on this figure. The market: bicycles in one city, month by month."
         },
         {
           "draw": [
             "demand_curve",
             "label_D"
           ],
-          "speak": "Demand slopes down."
+          "speak": "Demand slopes down: cheaper bikes, more buyers."
         },
         {
           "draw": [
             "supply_curve",
             "label_S"
           ],
-          "speak": "Supply slopes up."
+          "speak": "Supply slopes up: a better price brings more bikes to the shops."
         },
         {
           "draw": [
@@ -15636,10 +18029,7 @@
             "label_Pstar",
             "label_Qstar"
           ],
-          "speak": "They cross at today's equilibrium."
-        },
-        {
-          "pause": 0.3
+          "speak": "Today they cross here: four hundred dollars a bike, a thousand sold a month."
         },
         {
           "draw": [
@@ -15647,94 +18037,202 @@
             "label_D_shift",
             "demand_shift_arrow"
           ],
-          "speak": "Now demand rises — the curve steps right."
+          "speak": "Then the city paints new bike lanes. At every price, people now want five hundred more bikes: demand steps right."
         },
         {
           "draw": [
-            "shift_equilibrium_point",
+            "gap",
+            "wish",
+            "l_wish"
+          ],
+          "speak": "At the old four hundred dollars, buyers now want fifteen hundred bikes. Shops still offer a thousand."
+        },
+        {
+          "draw": [
+            "shift_equilibrium_point"
+          ],
+          "speak": "And here the new demand curve crosses supply."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "ask": {
+            "intro": "Your turn.",
+            "question": "Click where the market settles after the shift.",
+            "answer": "shift_equilibrium_point",
+            "widget": "click",
+            "right": "Here, where new demand meets supply: the price climbs until buyers want just as many bikes as sellers offer.",
+            "wrong": "At four hundred dollars, sellers still offer only a thousand bikes."
+          }
+        },
+        {
+          "erase": [
+            "gap",
+            "wish",
+            "l_wish"
+          ],
+          "speak": "The fifteen hundred was only a wish: at that price, five hundred buyers would leave empty-handed."
+        },
+        {
+          "draw": [
             "shift_guide_lines",
             "label_E_shift",
             "label_P_shift",
             "label_Q_shift"
           ],
-          "speak": "Both crossings are on the board now."
+          "speak": "So they bid the price up, to about four hundred and ninety dollars, with some twelve hundred and fifty bikes sold."
         },
         {
-          "ask": {
-            "question": "Click on the NEW equilibrium — where the market settles after the shift.",
-            "answer": "shift_equilibrium_point",
-            "widget": "click",
-            "right": "That crossing — higher price, more traded — is the new equilibrium.",
-            "wrong": "Not that one — follow the shifted demand curve to where it meets supply."
+          "point": {
+            "at": {
+              "ref": "shift_equilibrium_point"
+            },
+            "gesture": "circle"
+          },
+          "speak": "That is what makes it an equilibrium: every buyer willing to pay the price gets a bike, and no shop is left with one unsold."
+        },
+        {
+          "highlight": {
+            "target": [
+              "demand_shift_curve",
+              "supply_curve"
+            ]
+          },
+          "speak": "Antoine Augustin Cournot drew the first demand curve in 1838. It took half a century before Alfred Marshall crossed it with supply."
+        },
+        {
+          "quiz": {
+            "question": "Why doesn't the price stop at $400 once demand has risen?",
+            "choices": [
+              "Sellers get greedy",
+              "Buyers who find no bike bid it up",
+              "The shops' costs go up"
+            ],
+            "correct": 2,
+            "right": "At four hundred dollars, five hundred buyers find no bike, and they bid the price up until demand and supply match again."
           }
-        },
-        {
-          "speak": "Pointing at it yourself beats being told — that crossing is the whole story."
         }
       ]
     }
   },
   {
-    "request": "Teach the C major chord on the piano and then let me press the third myself.",
+    "request": "What makes a chord major — and can I find the third myself?",
     "packs": [
       "music"
     ],
     "spec": {
-      "title": "Press the third",
+      "title": "What makes a chord major",
       "template": "piano_keys",
       "params": {
         "octaves": 1,
         "highlight": [
           "C4",
           "E4",
-          "G4"
+          "G4",
+          "Eb4"
         ],
         "caption": "C major = C + E + G"
       },
       "commands": [
         {
+          "card": {
+            "title": "What makes a chord major?"
+          }
+        },
+        {
           "draw": [
             "keys",
             "labels"
           ],
-          "speak": "One octave of piano — every white key wears its letter name."
+          "speak": "What makes C, E and G a major chord? The gaps between them — counted on every key, the black ones included."
         },
         {
-          "draw": [
+          "play": "C4:h",
+          "instrument": "piano",
+          "tempo": 100,
+          "reveal": [
             "highlight_0"
           ],
-          "speak": "A chord starts with its root. Here: C."
+          "speak": "A chord is built up from its root: here, C."
         },
         {
-          "draw": [
+          "play": "E4:h",
+          "instrument": "piano",
+          "tempo": 100,
+          "reveal": [
             "highlight_1"
           ],
-          "speak": "Add E, two letters up — musicians call it the third."
+          "speak": "Then E. Count the keys from C: C sharp, D, D sharp, E — four half steps. That gap is a major third."
         },
         {
-          "draw": [
+          "play": "G4:h",
+          "instrument": "piano",
+          "tempo": 100,
+          "reveal": [
             "highlight_2"
           ],
-          "speak": "And G, the fifth. C, E, G: a C major chord."
+          "speak": "Three more half steps up to G, the fifth — seven above the root."
+        },
+        {
+          "play": "C4+E4+G4:w",
+          "instrument": "piano",
+          "tempo": 80,
+          "speak": "Together: bright and settled. That is C major."
+        },
+        {
+          "play": "Eb4:h",
+          "instrument": "piano",
+          "tempo": 100,
+          "reveal": [
+            "highlight_3"
+          ],
+          "speak": "Now move the middle note down one key, to E flat: three half steps instead of four."
+        },
+        {
+          "play": "C4+Eb4+G4:w",
+          "instrument": "piano",
+          "tempo": 80,
+          "speak": "Same root, same fifth, and the chord turns sad: C minor. One key made the difference."
+        },
+        {
+          "erase": [
+            "highlight_3"
+          ],
+          "speak": "So the third decides the mood; the root and the fifth are shared by both."
         },
         {
           "draw": [
             "caption"
-          ]
+          ],
+          "speak": "A major chord, from any root: up four half steps, then three more."
+        },
+        {
+          "highlight": {
+            "target": [
+              "highlight_1"
+            ]
+          },
+          "speak": "A piano's E is a shade higher than a perfectly pure third. The tuning gives that up so every key sounds equally in tune."
         },
         {
           "ask": {
-            "intro": "Now you play.",
-            "question": "Click the E key on the piano — the third of the chord.",
-            "answer": "E4",
+            "intro": "Your turn, from a new root.",
+            "question": "G is the root. Press the third that makes G major.",
+            "answer": "B4",
             "widget": "piano",
-            "right": "E — and that sound is the third.",
-            "wrong": "Look for the key labeled E and click it.",
+            "right": "B — four half steps above G: G sharp, A, A sharp, B.",
+            "wrong": "Count every key up from G, black ones too, and stop at four.",
             "retry": true
           }
         },
         {
-          "speak": "Root, third, fifth — and your finger now knows where the third lives."
+          "highlight": {
+            "target": [
+              "highlight_2"
+            ]
+          },
+          "speak": "The same four half steps from any key make a major third — your fingers can now build a major chord anywhere."
         }
       ]
     }
@@ -15952,7 +18450,7 @@
     }
   },
   {
-    "request": "Explain what attention does that recurrence could not — and quote the paper's own sentence for it: https://arxiv.org/abs/1706.03762",
+    "request": "What can attention do that recurrence could not? Quote the paper's own sentence for it: https://arxiv.org/abs/1706.03762",
     "title": "Attention, in the paper's words",
     "spec": {
       "title": "Why attention replaced recurrence",
@@ -15961,33 +18459,50 @@
           "id": "w1",
           "type": "node",
           "shape": "circle",
-          "text": "The",
-          "x": 120,
-          "y": 175
+          "text": "Anna"
         },
         {
           "id": "w2",
           "type": "node",
           "shape": "circle",
-          "text": "animal",
-          "x": 300,
-          "y": 175
+          "text": "told"
         },
         {
           "id": "w3",
           "type": "node",
           "shape": "circle",
-          "text": "was",
-          "x": 480,
-          "y": 175
+          "text": "Ben"
         },
         {
           "id": "w4",
           "type": "node",
           "shape": "circle",
-          "text": "tired",
-          "x": 660,
-          "y": 175
+          "text": "she"
+        },
+        {
+          "id": "w5",
+          "type": "node",
+          "shape": "circle",
+          "text": "left"
+        },
+        {
+          "id": "sentence",
+          "type": "group",
+          "members": [
+            "w1",
+            "w2",
+            "w3",
+            "w4",
+            "w5"
+          ],
+          "layout": "row",
+          "gap": 45,
+          "fit": {
+            "x": 30,
+            "y": 300,
+            "w": 650,
+            "h": 150
+          }
         },
         {
           "id": "step1",
@@ -15997,6 +18512,9 @@
           },
           "to": {
             "ref": "w2"
+          },
+          "style": {
+            "color": "#8f887c"
           }
         },
         {
@@ -16007,6 +18525,9 @@
           },
           "to": {
             "ref": "w3"
+          },
+          "style": {
+            "color": "#8f887c"
           }
         },
         {
@@ -16017,10 +18538,50 @@
           },
           "to": {
             "ref": "w4"
+          },
+          "style": {
+            "color": "#8f887c"
           }
         },
         {
-          "id": "look1",
+          "id": "step4",
+          "type": "arrow",
+          "from": {
+            "ref": "w4"
+          },
+          "to": {
+            "ref": "w5"
+          },
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "queue",
+          "type": "group",
+          "members": [
+            "step1",
+            "step2",
+            "step3",
+            "step4"
+          ]
+        },
+        {
+          "id": "look_ben",
+          "type": "edge",
+          "from": {
+            "ref": "w3"
+          },
+          "to": {
+            "ref": "w4"
+          },
+          "curved": true,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "look_told",
           "type": "edge",
           "from": {
             "ref": "w2"
@@ -16034,21 +18595,7 @@
           }
         },
         {
-          "id": "look2",
-          "type": "edge",
-          "from": {
-            "ref": "w1"
-          },
-          "to": {
-            "ref": "w3"
-          },
-          "curved": true,
-          "style": {
-            "color": "#8a5fa8"
-          }
-        },
-        {
-          "id": "look3",
+          "id": "look_anna",
           "type": "edge",
           "from": {
             "ref": "w1"
@@ -16058,8 +18605,18 @@
           },
           "curved": true,
           "style": {
-            "color": "#8a5fa8"
+            "color": "#8a5fa8",
+            "stroke_width": 5
           }
+        },
+        {
+          "id": "looks",
+          "type": "group",
+          "members": [
+            "look_ben",
+            "look_told",
+            "look_anna"
+          ]
         },
         {
           "id": "paper",
@@ -16068,57 +18625,110 @@
           "url": "https://arxiv.org/abs/1706.03762",
           "page": 1,
           "quote": "dispensing with recurrence and convolutions entirely",
-          "x": 825,
-          "y": 500,
-          "width": 210
+          "x": 850,
+          "y": 520,
+          "width": 190
         }
       ],
       "commands": [
         {
-          "draw": [
-            "w1",
-            "w2",
-            "w3",
-            "w4"
-          ],
-          "parallel": true,
-          "speak": "Four words of one sentence."
+          "card": {
+            "title": "What attention changed"
+          }
         },
         {
           "draw": [
-            "step1",
-            "step2",
-            "step3"
+            "sentence"
           ],
-          "speak": "A recurrent network had to walk them in order: every word waited for the one before it, so a hundred-word sentence meant a hundred steps that could not be shared out."
+          "speak": "What could attention do that recurrence couldn't? Take a sentence: 'Anna told Ben she left.' To understand 'she', a network must find Anna."
+        },
+        {
+          "draw": [
+            "queue"
+          ],
+          "speak": "A recurrent network reads in order, carrying a running memory from word to word. Anna reaches 'she' only by passing through 'told' and 'Ben'."
+        },
+        {
+          "highlight": {
+            "target": [
+              "queue"
+            ]
+          },
+          "speak": "And each step waits for the one before, so a thousand-word text is a thousand steps in a row that no chip can share out."
         },
         {
           "pause": 0.4
         },
         {
           "draw": [
-            "look1",
-            "look2",
-            "look3"
+            "looks"
           ],
-          "parallel": true,
-          "speak": "Attention throws the queue away — every word looks straight at every other, so \"tired\" reaches \"animal\" in one hop instead of two."
+          "speak": "Attention drops the queue: 'she' looks directly at the other words and scores how relevant each one is."
+        },
+        {
+          "highlight": {
+            "target": [
+              "look_anna"
+            ]
+          },
+          "speak": "Anna scores highest, so her meaning flows straight into 'she': one hop, however far back she was named."
+        },
+        {
+          "focus": {
+            "target": [
+              "sentence"
+            ]
+          },
+          "speak": "Every word does this at the same time, so the whole sentence is computed in one parallel pass instead of a queue."
         },
         {
           "draw": [
             "paper"
           ],
-          "speak": "The 2017 paper that made this the default architecture said it in a single line of its abstract."
+          "speak": "The 2017 paper that made this the standard design said it in one line of its abstract:"
         },
         {
           "draw": [
             "paper_quote"
           ],
-          "speak": "Dispensing with recurrence and convolutions entirely.",
-          "delivery": "grave"
+          "speak": "dispensing with recurrence and convolutions entirely."
         },
         {
-          "speak": "And the words that mattered were \"dispensing with\". Attention was already in use alongside recurrence; taking the sequence OUT is what let the whole sentence be computed at once — the paper's real gift was not attention, it was parallelism."
+          "highlight": {
+            "target": [
+              "paper"
+            ]
+          },
+          "speak": "Attention itself wasn't new: it already helped recurrent translators. The bold step was removing the recurrence around it."
+        },
+        {
+          "highlight": {
+            "target": [
+              "looks"
+            ]
+          },
+          "speak": "The payoff was speed. The paper's largest model trained in three and a half days on eight GPUs, and its design became the T in GPT."
+        },
+        {
+          "focus": {
+            "target": [
+              "looks",
+              "sentence"
+            ]
+          },
+          "speak": "So the gift was less attention than parallelism: a model that reads a whole text at once can learn from vastly more of it."
+        },
+        {
+          "quiz": {
+            "question": "What did dropping recurrence buy the Transformer, above all?",
+            "choices": [
+              "Every word processed at once, in parallel",
+              "Attention, which did not exist before",
+              "No need for training data"
+            ],
+            "correct": 1,
+            "right": "Parallelism: with no word-by-word queue, every position is computed at the same time, so training on huge amounts of text became fast."
+          }
         }
       ]
     }
@@ -16225,42 +18835,36 @@
     "playlist": "playlist:\n  title: The Broad Street pump\n---\ntitle: Soho, autumn 1854\ntemplate: timeline\nparams:\n  title: \"Soho, autumn 1854\"\n  milestones:\n    - label: \"31 August\"\n      sublabel: \"Cholera breaks out in Soho\"\n    - label: \"Early September\"\n      sublabel: \"Snow collects the death records\"\n    - label: \"He maps them\"\n      sublabel: \"The deaths ring one pump\"\n      emphasize: true\n    - label: \"7 September\"\n      sublabel: \"He argues it to the parish board\"\n    - label: \"8 September\"\n      sublabel: \"The pump handle comes off\"\ncommands:\n  - draw: [title, line, dot_0, label_0]\n    speak: \"In the last days of August 1854, cholera broke out in a few streets of Soho, and within a week some five hundred people were dead.\"\n  - draw: [dot_1, label_1]\n    speak: \"The reigning theory was bad air. John Snow suspected the water — and to argue it he did something bad air could not be argued with: he went and collected the death records, address by address.\"\n  - draw: [dot_2, label_2]\n    speak: \"Then he drew each death as a short bar on the street where it happened.\"\n  - pause: 0.4\n  - draw: [dot_3, label_3, dot_4, label_4]\n    speak: \"The bars piled up around one water pump. On the seventh of September he took that to the parish board; the next day the handle came off.\"\n---\ntitle: The map itself\nzoom_from: dot_2\nelements:\n  - id: snow_map\n    type: source\n    of: \"Snow's cholera map, 1855\"\n    archive: dr_map-1-cf-chefins-lith-london-to-accompany-on-the-mode-of-communicat-13187008\n    x: 500\n    y: 400\n    width: 420\ncommands:\n  - draw: [snow_map]\n    speak: \"This is the map itself, from the 1855 edition of Snow's book.\"\n  - camera: { center: { ref: snow_map }, zoom: 1.8 }\n    speak: \"Every short black bar is one death, stacked against the address where it fell — and they crowd around one point near the middle, the pump on Broad Street.\"\n  - camera: { reset: true }\n    speak: \"No arrows, no legend, no statistics. The pattern is the whole argument, and anyone can check it against their own street.\"\n  - speak: \"The part the story usually leaves out: the outbreak was already falling when the handle came off, so pulling it saved fewer lives than the legend says. What the map really won was the argument — and that was worth far more than one pump.\"\n"
   },
   {
-    "request": "Show what a derivative actually is — the slope of the tangent — and link Grant Sanderson's calculus video: https://www.youtube.com/watch?v=WUvTyaaNkzM",
-    "title": "The derivative is a slope",
+    "request": "What is a derivative, really? Link Grant Sanderson's calculus video: https://www.youtube.com/watch?v=WUvTyaaNkzM",
+    "title": "The derivative is a limit of slopes",
+    "packs": [
+      "mathlogic"
+    ],
     "spec": {
       "title": "What a derivative is",
-      "template": "generic_axes_diagram",
+      "template": "tangent_secant",
       "params": {
-        "x_label": "x",
-        "y_label": "f(x)",
-        "curves": [
-          {
-            "id": "f",
-            "label": "f(x)",
-            "expression": "20 + 0.005*x*x",
-            "color": "ink"
-          },
-          {
-            "id": "tangent",
-            "expression": "0.4*x + 12",
-            "color": "accent"
-          }
-        ],
-        "points": [
-          {
-            "x": 40,
-            "y": 28,
-            "label": "one point"
-          }
-        ]
+        "expr": "5*x*x",
+        "x_from": 0,
+        "x_to": 4,
+        "at": 2,
+        "h": 2,
+        "x_label": "t (seconds)",
+        "y_label": "metres fallen",
+        "box": {
+          "x": 0,
+          "y": 125,
+          "w": 1000,
+          "h": 565
+        }
       },
       "elements": [
         {
-          "id": "slope",
+          "id": "video",
           "type": "label",
-          "text": "slope = 0.4",
-          "attach_to": "tangent",
-          "side": "below-right",
+          "text": "Grant Sanderson's video",
+          "attach_to": "derivative_label",
+          "side": "below",
           "link": [
             "https://www.youtube.com/watch?v=WUvTyaaNkzM"
           ]
@@ -16268,49 +18872,137 @@
       ],
       "commands": [
         {
+          "card": {
+            "title": "What is a derivative?"
+          }
+        },
+        {
           "draw": [
             "axes",
             "x_label",
             "y_label",
-            "f",
-            "label_f"
+            "curve"
           ],
-          "speak": "Here is a curve — anything whose value changes as x moves."
+          "speak": "A derivative is the rate of change at one instant — which sounds impossible. Take a dropped stone: after t seconds it has fallen five t squared metres."
         },
         {
           "draw": [
-            "point_0",
-            "point_label_0"
+            "point_a"
           ],
-          "speak": "Now pick a single point on it and ask how fast the curve is rising THERE. The question sounds broken: a rate of change needs two points, and we have one."
-        },
-        {
-          "pause": 0.4
+          "speak": "Two seconds in, it has fallen twenty metres. How fast is it moving at exactly that moment?"
         },
         {
           "draw": [
-            "tangent"
+            "point_b",
+            "secant"
           ],
-          "speak": "The trick is to draw the one straight line that grazes the curve at that point without cutting through it."
+          "speak": "Speed needs two moments. At four seconds it has fallen eighty metres, and the line through both points has a slope…"
         },
         {
           "draw": [
-            "slope"
+            "run",
+            "rise"
           ],
-          "speak": "The derivative is simply that line's slope — four tenths here: nudge x forward by one, and the line climbs by 0.4."
+          "speak": "…of sixty metres fallen over two seconds…"
+        },
+        {
+          "show": [
+            "label_dx",
+            "label_dy"
+          ]
+        },
+        {
+          "draw": [
+            "slope_label"
+          ],
+          "speak": "…which is thirty metres a second, on average."
         },
         {
           "highlight": {
             "target": [
-              "tangent"
-            ],
-            "effect": "glow"
+              "secant"
+            ]
           },
-          "speak": "Which is why a derivative is a number, not a shape: the whole curve at that point has been replaced by one straight line, and all we kept is how steep it was.",
-          "delivery": "grave"
+          "speak": "But the stone kept speeding up after two seconds, so thirty is too fast for the moment we asked about."
         },
         {
-          "speak": "Pause and click the slope label — its card opens Grant Sanderson's calculus series, where that grazing line gets built from scratch."
+          "animate": {
+            "h": 1
+          },
+          "duration": 3,
+          "speak": "Close the gap to one second: twenty-five metres more, so twenty-five metres a second."
+        },
+        {
+          "erase": [
+            "label_dx",
+            "label_dy"
+          ]
+        },
+        {
+          "animate": {
+            "h": 0.01
+          },
+          "duration": 5,
+          "speak": "Shrink it further — a tenth, a hundredth of a second — and the slope stops changing, closing in on twenty."
+        },
+        {
+          "draw": [
+            "tangent",
+            "derivative_label"
+          ],
+          "speak": "That limit is the derivative: twenty metres a second, the slope of the tangent — the line that just grazes the curve at two seconds."
+        },
+        {
+          "highlight": {
+            "target": [
+              "point_a"
+            ],
+            "effect": "circle"
+          },
+          "speak": "Why not set the gap to zero? Then the stone falls zero metres in zero seconds, and zero over zero says nothing."
+        },
+        {
+          "highlight": {
+            "target": [
+              "derivative_label"
+            ]
+          },
+          "speak": "So the derivative is not a slope measured at one point, but the number the slopes head for as the gap shrinks."
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve"
+            ]
+          },
+          "speak": "A speedometer shows exactly this: never distance over a whole trip, only where that ratio is heading right now."
+        },
+        {
+          "highlight": {
+            "target": [
+              "derivative_label"
+            ],
+            "part": "f′(2)"
+          },
+          "speak": "Newton wrote a dot over the letter, Leibniz wrote d y over d x, and this prime is Lagrange's — three names for one limit."
+        },
+        {
+          "draw": [
+            "video"
+          ],
+          "speak": "Click this label for Grant Sanderson's video, which builds the same limit from scratch."
+        },
+        {
+          "quiz": {
+            "question": "From 2 s to 4 s the stone averages 30 m/s. Its speed at exactly 2 s is…",
+            "choices": [
+              "30 m/s",
+              "less than 30 m/s",
+              "zero — an instant has no speed"
+            ],
+            "correct": 2,
+            "right": "Less — twenty metres a second: the stone speeds up, so any stretch after two seconds averages more than its speed at two."
+          }
         }
       ]
     }
@@ -16326,16 +19018,15 @@
         "prevalence": 0.0001,
         "sensitivity": 0.9,
         "specificity": 0.99,
-        "condition": "the disease",
-        "title": "100,000 people, a 1-in-10,000 disease"
+        "condition": "the disease"
       },
       "elements": [
         {
           "id": "deceivers",
           "type": "label",
           "text": "Healthy but flagged",
-          "attach_to": "fp",
-          "side": "below",
+          "attach_to": "edge_fp",
+          "side": "left",
           "link": [
             "https://www.youtube.com/watch?v=HZGCoVF3YvM"
           ]
@@ -16343,10 +19034,15 @@
       ],
       "commands": [
         {
+          "card": {
+            "title": "A good test, a rare disease"
+          }
+        },
+        {
           "draw": [
             "root"
           ],
-          "speak": "Start with a hundred thousand people, and follow them instead of arguing about percentages."
+          "speak": "Should a positive on a very good test make you panic? It depends on how rare the disease is. Follow a hundred thousand people instead of percentages."
         },
         {
           "draw": [
@@ -16355,7 +19051,7 @@
             "edge_healthy",
             "healthy"
           ],
-          "speak": "The disease hits one in ten thousand, so ten of them have it and ninety-nine thousand nine hundred and ninety do not."
+          "speak": "The disease hits one in ten thousand: ten of them have it, and ninety-nine thousand nine hundred and ninety do not."
         },
         {
           "draw": [
@@ -16364,7 +19060,7 @@
             "edge_fn",
             "fn"
           ],
-          "speak": "The test catches ninety per cent of real cases: nine of the ten sick people test positive, and one slips through."
+          "speak": "The test catches ninety percent of real cases: nine of the ten test positive, and one is missed."
         },
         {
           "draw": [
@@ -16373,7 +19069,7 @@
             "edge_tn",
             "tn"
           ],
-          "speak": "It false-alarms just one time in a hundred — which sounds tiny, until you notice it is one per cent of a very large number."
+          "speak": "It false-alarms one time in a hundred. Small — but one percent of almost a hundred thousand is a thousand people."
         },
         {
           "draw": [
@@ -16382,29 +19078,86 @@
           "speak": "A thousand healthy people are told they might be sick."
         },
         {
-          "pause": 0.4
+          "highlight": {
+            "target": [
+              "tp",
+              "fp"
+            ]
+          },
+          "speak": "Everyone with a positive result stands in one of these two boxes: nine sick, a thousand healthy."
         },
         {
           "draw": [
             "ppv_box"
           ],
-          "speak": "So a positive result puts you in a group of one thousand and nine, of whom nine are actually sick. Under one per cent.",
+          "speak": "So a positive puts you among one thousand and nine people, of whom nine are sick. Under one percent.",
           "delivery": "grave"
         },
         {
           "highlight": {
             "target": [
-              "fp"
-            ],
-            "effect": "glow"
+              "root"
+            ]
           },
-          "speak": "Nothing is wrong with the test. The rare thing simply stays rare after the evidence arrives — and click that label for the geometric picture of why."
+          "speak": "The test didn't fail. Your chance rose about ninety-fold, from one in ten thousand to nearly one in a hundred. It just started very low."
+        },
+        {
+          "animate": {
+            "prevalence": 0.01
+          },
+          "duration": 3,
+          "speak": "Now say you went to the doctor with symptoms, and one in a hundred people like you has the disease. Same test."
+        },
+        {
+          "highlight": {
+            "target": [
+              "tp",
+              "fp"
+            ]
+          },
+          "speak": "Nine hundred true positives now face nine hundred and ninety false ones. The same positive means nearly even odds."
+        },
+        {
+          "animate": {
+            "prevalence": 0.0001
+          },
+          "duration": 2.5,
+          "speak": "Back to one in ten thousand. What a positive result means depends on who takes the test."
+        },
+        {
+          "highlight": {
+            "target": [
+              "ppv_box"
+            ]
+          },
+          "speak": "When Gerd Gigerenzer gave doctors counts like these instead of percentages, far more of them got this question right."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "deceivers"
+            },
+            "gesture": "tap"
+          },
+          "speak": "Click this label for 3Blue1Brown's picture of why."
+        },
+        {
+          "quiz": {
+            "question": "With this 1-in-10,000 disease, you test positive on two independent tests. Roughly what is your chance now?",
+            "choices": [
+              "Still under 1 percent",
+              "Close to half",
+              "Over 99 percent"
+            ],
+            "correct": 2,
+            "right": "Close to half: after one positive you are one of 1,009 with nine sick; a second test keeps about eight of them against ten false alarms."
+          }
         }
       ]
     }
   },
   {
-    "request": "Show Simpson's paradox: a drug that helps every group but looks harmful overall. Link the article: https://en.wikipedia.org/wiki/Simpson%27s_paradox",
+    "request": "How can a drug help every group of patients yet look harmful overall? Link the article: https://en.wikipedia.org/wiki/Simpson%27s_paradox",
     "title": "When the trend reverses",
     "spec": {
       "title": "Simpson's paradox",
@@ -16422,13 +19175,145 @@
         {
           "id": "axes",
           "type": "axes",
-          "x_label": "Dose given",
-          "y_label": "Recovery"
+          "x_label": "Dose (mg)",
+          "y_label": "Recovery score"
+        },
+        {
+          "id": "m1",
+          "type": "point",
+          "at": {
+            "x": 12,
+            "y": 55
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "m2",
+          "type": "point",
+          "at": {
+            "x": 20,
+            "y": 61
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "m3",
+          "type": "point",
+          "at": {
+            "x": 28,
+            "y": 61
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "m4",
+          "type": "point",
+          "at": {
+            "x": 35,
+            "y": 67
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "m5",
+          "type": "point",
+          "at": {
+            "x": 43,
+            "y": 67
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "s1",
+          "type": "point",
+          "at": {
+            "x": 57,
+            "y": 25
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "s2",
+          "type": "point",
+          "at": {
+            "x": 65,
+            "y": 31
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "s3",
+          "type": "point",
+          "at": {
+            "x": 72,
+            "y": 31
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "s4",
+          "type": "point",
+          "at": {
+            "x": 80,
+            "y": 37
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "s5",
+          "type": "point",
+          "at": {
+            "x": 88,
+            "y": 37
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "mild_pts",
+          "type": "group",
+          "members": [
+            "m1",
+            "m2",
+            "m3",
+            "m4",
+            "m5"
+          ]
+        },
+        {
+          "id": "severe_pts",
+          "type": "group",
+          "members": [
+            "s1",
+            "s2",
+            "s3",
+            "s4",
+            "s5"
+          ]
         },
         {
           "id": "mild",
           "type": "curve",
-          "expr": "51 + 0.4*x",
+          "expr": "51.48 + 0.388*x",
           "x_from": 10,
           "x_to": 45,
           "style": {
@@ -16438,7 +19323,7 @@
         {
           "id": "severe",
           "type": "curve",
-          "expr": "3 + 0.4*x",
+          "expr": "3.93 + 0.390*x",
           "x_from": 55,
           "x_to": 90,
           "style": {
@@ -16448,7 +19333,7 @@
         {
           "id": "pooled",
           "type": "curve",
-          "expr": "80.3 - 0.667*x",
+          "expr": "70.56 - 0.467*x",
           "x_from": 10,
           "x_to": 90,
           "style": {
@@ -16461,14 +19346,20 @@
           "type": "label",
           "text": "Mild cases",
           "attach_to": "mild",
-          "side": "above-left"
+          "side": "above-left",
+          "style": {
+            "color": "#2f6b8f"
+          }
         },
         {
           "id": "lab_severe",
           "type": "label",
           "text": "Severe cases",
           "attach_to": "severe",
-          "side": "above-left"
+          "side": "above-left",
+          "style": {
+            "color": "#b5482e"
+          }
         },
         {
           "id": "lab_pooled",
@@ -16476,6 +19367,9 @@
           "text": "Everyone, pooled",
           "attach_to": "pooled",
           "side": "below-left",
+          "style": {
+            "color": "#8a5fa8"
+          },
           "link": [
             "https://en.wikipedia.org/wiki/Simpson%27s_paradox"
           ]
@@ -16483,24 +19377,31 @@
       ],
       "commands": [
         {
+          "card": {
+            "title": "Simpson's paradox"
+          }
+        },
+        {
           "draw": [
             "axes"
           ],
-          "speak": "One drug, given at different doses, and we record how well people recover."
+          "speak": "How can a drug help every group of patients, yet look harmful when you add them up? That's Simpson's paradox. Here, ten patients: dose against recovery."
         },
         {
           "draw": [
+            "mild_pts",
             "mild",
             "lab_mild"
           ],
-          "speak": "Among the mild cases, the pattern is clean: the more they were given, the better they did."
+          "speak": "Five mild cases got low doses. Among them, every extra ten milligrams bought about four points of recovery."
         },
         {
           "draw": [
+            "severe_pts",
             "severe",
             "lab_severe"
           ],
-          "speak": "Among the severe cases, the same again — lower down the chart, because they start sicker, but rising just as clearly."
+          "speak": "Five severe cases got high doses. They start lower, because they are sicker, but gain the same four points per ten milligrams."
         },
         {
           "pause": 0.5
@@ -16510,100 +19411,269 @@
             "pooled",
             "lab_pooled"
           ],
-          "speak": "Now throw both groups into one pile and fit a single line. It runs the other way: more dose, worse recovery.",
-          "delivery": "grave"
+          "speak": "Now ignore who was sick and fit one line through all ten. It slopes down: more drug, worse recovery."
         },
         {
           "highlight": {
             "target": [
               "pooled"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "Nothing in the data changed. The pooled line is steered by WHO got the high doses — the severe cases, who were going to do worse whatever they were given."
+          "speak": "Nothing in the data changed. This line compares low-dose mild patients with high-dose severe ones."
         },
         {
           "point": {
             "at": {
-              "ref": "severe"
+              "ref": "severe_pts"
             },
             "gesture": "circle"
           },
-          "speak": "That is Simpson's paradox: severity is doing the work, and pooling hides it. Pause and click the pooled line — its card carries the Wikipedia summary."
+          "speak": "The drop from one cloud to the other is severity, not dose. Doctors gave the sickest the most drug, and the pooled line blames the drug."
         },
         {
-          "speak": "The lesson is not that averages lie. It is that an average over a mixture answers a question nobody asked."
+          "focus": {
+            "target": [
+              "mild",
+              "severe"
+            ]
+          },
+          "speak": "Which to believe? The numbers can't say. The story of how doses were chosen says compare like with like: within each group, the drug helps."
+        },
+        {
+          "highlight": {
+            "target": [
+              "severe_pts",
+              "mild_pts"
+            ]
+          },
+          "speak": "It happens with real data: in a 1986 study of kidney-stone surgery, open surgery did better on small stones and on large ones, yet worse overall."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "lab_pooled"
+            },
+            "gesture": "underline"
+          },
+          "speak": "It had been given more of the hard cases. Click the pooled line for the article."
+        },
+        {
+          "highlight": {
+            "target": [
+              "mild",
+              "severe"
+            ]
+          },
+          "speak": "An average over a mix of patients answers a question about the mix, not about the drug."
+        },
+        {
+          "quiz": {
+            "question": "Sicker patients get more of a drug, and pooled data show high doses doing worse. What should you check first?",
+            "choices": [
+              "The dose effect within each severity group",
+              "Whether the pooled line is steep",
+              "Whether high doses were stopped"
+            ],
+            "correct": 1,
+            "right": "Compare like with like: within each severity group, higher doses did better. The pooled slope mixes the drug's effect with how sick people were."
+          }
         }
       ]
     }
   },
   {
-    "request": "Show how two waves cancel, and put 3Blue1Brown's Fourier video on the slide: https://www.youtube.com/watch?v=spUNpyF58BY",
+    "request": "How can two sounds add up to silence? Put 3Blue1Brown's Fourier video on the slide: https://www.youtube.com/watch?v=spUNpyF58BY",
     "title": "Waves that cancel",
     "spec": {
-      "title": "Two waves, out of step",
+      "title": "How two sounds make silence",
       "template": "wave_diagram",
       "params": {
         "amplitude": 3,
         "cycles": 3,
-        "second_wave_phase_deg": 180,
-        "label_parts": true
+        "second_wave_phase_deg": 0,
+        "label_parts": false
+      },
+      "domain": {
+        "x": [
+          0,
+          3.0375
+        ],
+        "y": [
+          95,
+          675
+        ]
+      },
+      "vars": {
+        "p": 0
       },
       "elements": [
+        {
+          "id": "sum",
+          "type": "curve",
+          "expr": "375 + 66*(sin(2*pi*(x+0.1125)) + sin(2*pi*(x+0.1125) - p*pi/180))",
+          "x_to": 2.8875,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "l_wave",
+          "type": "text",
+          "text": "the hum",
+          "x": 0,
+          "y": 0,
+          "font_size": 24,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "l_wave2",
+          "type": "text",
+          "text": "- - the headphones' wave",
+          "x": 0,
+          "y": 0,
+          "font_size": 24,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "l_sum",
+          "type": "text",
+          "text": "what you hear: the sum",
+          "x": 0,
+          "y": 0,
+          "font_size": 24,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "legend",
+          "type": "group",
+          "members": [
+            "l_wave",
+            "l_wave2",
+            "l_sum"
+          ],
+          "layout": "column",
+          "gap": 14,
+          "align": "start",
+          "fit": {
+            "x": 60,
+            "y": 525,
+            "w": 380,
+            "h": 140
+          }
+        },
         {
           "id": "deeper",
           "type": "source",
           "url": "https://www.youtube.com/watch?v=spUNpyF58BY",
-          "x": 828,
-          "y": 648,
-          "width": 250
+          "x": 820,
+          "y": 590,
+          "width": 220
         }
       ],
       "commands": [
         {
+          "card": {
+            "title": "How can two sounds make silence?"
+          }
+        },
+        {
           "draw": [
             "axis",
-            "wave"
+            "wave",
+            "l_wave"
           ],
-          "speak": "One wave: a disturbance travelling along, rising and falling in a fixed rhythm."
+          "speak": "How can two sounds add up to silence? Noise-cancelling headphones do it. Here is a steady hum: air pressure rising and falling, a hundred times a second."
         },
         {
           "draw": [
-            "amp_arrow",
-            "label_amp",
-            "wl_arrow",
-            "label_wl"
+            "wave2",
+            "l_wave2"
           ],
-          "speak": "Its two measurements are how tall it swings and how far apart the crests are."
+          "speak": "The headphones play a second wave of their own. Suppose it is an exact copy, in step with the hum."
         },
         {
           "draw": [
-            "wave2"
+            "sum",
+            "l_sum"
           ],
-          "speak": "Now send a second wave down the same line, half a wavelength behind — every crest of one lands on a trough of the other."
+          "speak": "Sound waves add point by point: crest on crest, trough on trough. The sum swings twice as far — louder, not quieter."
         },
         {
           "pause": 0.4
+        },
+        {
+          "animate": {
+            "second_wave_phase_deg": 180,
+            "p": 180
+          },
+          "duration": 5,
+          "speak": "Now delay the copy by half a wave. For a hundred-hertz hum that is five thousandths of a second."
+        },
+        {
+          "highlight": {
+            "target": [
+              "sum"
+            ]
+          },
+          "speak": "Every crest now meets a trough of the same size, and the sum is flat: the air at your ear barely moves."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "wave"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Here the hum pushes the air up, and at the same instant the copy pulls it down by exactly as much."
+        },
+        {
+          "highlight": {
+            "target": [
+              "wave2"
+            ]
+          },
+          "speak": "Real headphones flip the sound upside down rather than delay it: a microphone hears the hum, and the speaker plays its mirror image."
         },
         {
           "highlight": {
             "target": [
               "wave",
               "wave2"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "Add them point by point and they annihilate: two disturbances, and the medium sits perfectly still.",
-          "delivery": "grave"
+          "speak": "That works best on steady, low sounds like an engine's drone — a voice changes too fast to be matched in time."
         },
         {
           "draw": [
             "deeper"
           ],
-          "speak": "Which is the whole trick behind Fourier's idea, run backwards — if waves add like this, then any messy signal can be taken APART into simple ones."
+          "speak": "Any sound is a sum of simple waves like these — Fourier's idea. 3Blue1Brown's video shows how to take a sound apart into them."
         },
         {
-          "speak": "Pause and click the still to watch that pulling-apart happen."
+          "highlight": {
+            "target": [
+              "deeper"
+            ]
+          },
+          "speak": "Click the still to watch it."
+        },
+        {
+          "quiz": {
+            "question": "A delay of 5 thousandths of a second silences a 100 Hz hum. What does the same delay do to a 200 Hz hum?",
+            "choices": [
+              "Silences it too",
+              "Makes it louder",
+              "Halves it"
+            ],
+            "correct": 2,
+            "right": "Louder: at 200 hertz, five thousandths of a second is a whole wave, so crest lands on crest again."
+          }
         }
       ]
     }

@@ -107,26 +107,29 @@ layout: |
   };
 
   box("root", 500, 620, pop, "people", C.ink, 230);
-  edge("edge_sick", [455, 578], [310, 472], pct(prev), C.demand);
-  edge("edge_healthy", [545, 578], [690, 472], pct(1 - prev), C.supply);
-  box("sick", 285, 430, sick, "have " + condition, C.demand);
-  box("healthy", 715, 430, healthy, "do not", C.supply);
-  edge("edge_tp", [230, 388], [175, 282], pct(sens) + " +", C.demand);
-  edge("edge_fn", [340, 388], [395, 282], pct(1 - sens) + " −", C.guide);
-  edge("edge_fp", [660, 388], [605, 282], pct(1 - spec) + " +", C.accent);
-  edge("edge_tn", [770, 388], [825, 282], pct(spec) + " −", C.supply);
-  box("tp", 160, 240, tp, "sick, test +", C.demand, 175);
-  box("fn", 390, 240, fn, "sick, test −", C.guide, 175);
-  box("fp", 610, 240, fp, "healthy, test +", C.accent, 175);
-  box("tn", 840, 240, tn, "healthy, test −", C.supply, 175);
+  // Rows at 620 / 450 / 290 and the punchline box at 152–230 (were 430 / 240
+  // and 60–138): the box — the whole point — sat under the narration captions
+  // (2026-09-25 example revisions).
+  edge("edge_sick", [455, 578], [310, 492], pct(prev), C.demand);
+  edge("edge_healthy", [545, 578], [690, 492], pct(1 - prev), C.supply);
+  box("sick", 285, 450, sick, "have " + condition, C.demand);
+  box("healthy", 715, 450, healthy, "do not", C.supply);
+  edge("edge_tp", [230, 408], [175, 332], pct(sens) + " +", C.demand);
+  edge("edge_fn", [340, 408], [395, 332], pct(1 - sens) + " −", C.guide);
+  edge("edge_fp", [660, 408], [605, 332], pct(1 - spec) + " +", C.accent);
+  edge("edge_tn", [770, 408], [825, 332], pct(spec) + " −", C.supply);
+  box("tp", 160, 290, tp, "sick, test +", C.demand, 175);
+  box("fn", 390, 290, fn, "sick, test −", C.guide, 175);
+  box("fp", 610, 290, fp, "healthy, test +", C.accent, 175);
+  box("tn", 840, 290, tn, "healthy, test −", C.supply, 175);
 
   push(kit.group("ppv_box", [
-    kit.area("ppv__bg", [[240, 60], [760, 60], [760, 138], [240, 138]], C.region1, { opacity: 0.3 }),
-    kit.stroke("ppv__r", [[240, 60], [760, 60], [760, 138], [240, 138]], { closed: true, strokeWidth: 3, ms: MS.node }),
-    kit.text("ppv__t1", [500, 112], "Of the " + (tp + fp) + " positives, only " + tp + " are sick", { fontSize: 21 }),
-    kit.text("ppv__t2", [500, 82], "P(sick | positive) = " + pct(ppv), { fontSize: 23, color: C.demand }),
+    kit.area("ppv__bg", [[240, 152], [760, 152], [760, 230], [240, 230]], C.region1, { opacity: 0.3 }),
+    kit.stroke("ppv__r", [[240, 152], [760, 152], [760, 230], [240, 230]], { closed: true, strokeWidth: 3, ms: MS.node }),
+    kit.text("ppv__t1", [500, 204], "Of the " + (tp + fp) + " positives, only " + tp + " are sick", { fontSize: 21 }),
+    kit.text("ppv__t2", [500, 174], "P(sick | positive) = " + pct(ppv), { fontSize: 23, color: C.demand }),
   ]));
-  anchors.ppv_box = [500, 99];
+  anchors.ppv_box = [500, 191];
 
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [500, 712], params.title, { fontSize: 28 }));

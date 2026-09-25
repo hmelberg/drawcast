@@ -133,6 +133,13 @@
     "kind_after": "cost_effectiveness_plane"
   },
   {
+    "index": 21,
+    "before_request": "Draw the prisoner's dilemma and show the Nash equilibrium.",
+    "after_request": "Why do both prisoners confess in the prisoner's dilemma, and how can they escape it?",
+    "kind_before": "payoff_matrix",
+    "kind_after": "payoff_matrix"
+  },
+  {
     "index": 22,
     "before_request": "Show how a consumer chooses the bundle that maximizes their utility.",
     "after_request": "How do you get the most out of a fixed budget?",
@@ -173,6 +180,13 @@
     "after_request": "What is a confounder, and what does adjusting for it do?",
     "kind_before": "causal_dag",
     "kind_after": "causal_dag"
+  },
+  {
+    "index": 29,
+    "before_request": "Draw an SEIR model of an epidemic with waning immunity.",
+    "after_request": "What happens to an epidemic when immunity wears off?",
+    "kind_before": "sir_compartments",
+    "kind_after": "sir_compartments"
   },
   {
     "index": 30,
@@ -329,6 +343,27 @@
     "kind_after": "freehand"
   },
   {
+    "index": 56,
+    "before_request": "Explain opportunity cost with a dialogue #qa",
+    "after_request": "What does a fish really cost an islander? Explain opportunity cost with a dialogue #qa",
+    "kind_before": "ppf",
+    "kind_after": "ppf"
+  },
+  {
+    "index": 58,
+    "before_request": "Explain how an epidemic spreads #fun",
+    "after_request": "How does an epidemic spread? #fun",
+    "kind_before": "sir_compartments",
+    "kind_after": "sir_compartments"
+  },
+  {
+    "index": 60,
+    "before_request": "Show what statins change for 100 people like me.",
+    "after_request": "What does a statin change for 100 people like me?",
+    "kind_before": "icon_array",
+    "kind_after": "icon_array"
+  },
+  {
     "index": 61,
     "before_request": "Walk me through a normal ECG.",
     "after_request": "How do you read a normal ECG?",
@@ -355,6 +390,13 @@
     "after_request": "Why can screening look better than it is?",
     "kind_before": "screening_timeline",
     "kind_after": "screening_timeline"
+  },
+  {
+    "index": 65,
+    "before_request": "Bacon raises cancer risk by 18 percent — should I panic?",
+    "after_request": "Bacon raises cancer risk by 18 percent — should I panic?",
+    "kind_before": "icon_array",
+    "kind_after": "icon_array"
   },
   {
     "index": 66,
@@ -397,6 +439,13 @@
     "after_request": "What does heart failure do to the heart's pressure-volume loop?",
     "kind_before": "pv_loop",
     "kind_after": "pv_loop"
+  },
+  {
+    "index": 72,
+    "before_request": "How much urine do your kidneys actually make? Follow one drop through the nephron.",
+    "after_request": "How much urine do your kidneys actually make?",
+    "kind_before": "nephron",
+    "kind_after": "nephron"
   },
   {
     "index": 73,
@@ -467,6 +516,118 @@
     "after_request": "What does a tornado diagram show, and what does it miss?",
     "kind_before": "tornado_diagram",
     "kind_after": "tornado_diagram"
+  },
+  {
+    "index": 83,
+    "before_request": "What does the C major scale look like — and sound like?",
+    "after_request": "What does the C major scale look like — and sound like?",
+    "kind_before": "note_sheet",
+    "kind_after": "note_sheet"
+  },
+  {
+    "index": 87,
+    "before_request": "Why are averages always bell-shaped, even when the data isn't?",
+    "after_request": "Why are averages bell-shaped, even when the data isn't?",
+    "kind_before": "sampling_dist",
+    "kind_after": "sampling_dist"
+  },
+  {
+    "index": 88,
+    "before_request": "What does 95 percent confidence actually mean?",
+    "after_request": "What does 95 percent confidence actually mean?",
+    "kind_before": "ci_dance",
+    "kind_after": "ci_dance"
+  },
+  {
+    "index": 89,
+    "before_request": "Where does the bell curve come from? Show me with a Galton board.",
+    "after_request": "Where does the bell curve come from? Show me with a Galton board.",
+    "kind_before": "playlist",
+    "kind_after": "playlist"
+  },
+  {
+    "index": 91,
+    "before_request": "Explain comparative advantage, with a portrait of David Ricardo.",
+    "after_request": "Why should a country that is better at everything still trade? Explain comparative advantage, with a portrait of David Ricardo.",
+    "kind_before": "two_by_two_table",
+    "kind_after": "two_by_two_table"
+  },
+  {
+    "index": 92,
+    "before_request": "Tell the story of Adam Smith's pin factory, and link his portrait to the book: https://en.wikipedia.org/wiki/The_Wealth_of_Nations and https://www.gutenberg.org/ebooks/3300",
+    "after_request": "What did Adam Smith see in a pin factory? Tell the story, and link his portrait to the book: https://en.wikipedia.org/wiki/The_Wealth_of_Nations and https://www.gutenberg.org/ebooks/3300",
+    "kind_before": "two_by_two_table",
+    "kind_after": "two_by_two_table"
+  },
+  {
+    "index": 93,
+    "before_request": "Explain how a rise in demand moves the market price, and quiz me at the end.",
+    "after_request": "How does a rise in demand move the market price? Quiz me at the end.",
+    "kind_before": "supply_demand",
+    "kind_after": "supply_demand"
+  },
+  {
+    "index": 94,
+    "before_request": "Make a little personalized warm-up: ask my name, greet me, and quiz me on gold's chemical symbol with typing.",
+    "after_request": "Why is gold's chemical symbol Au? Make it a personalized warm-up: ask my name, greet me, and let me type the answer.",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 95,
+    "before_request": "Let me pick my own sample size and watch the central limit theorem squeeze the averages.",
+    "after_request": "How much does a bigger sample tighten an average? Let me pick the sample size myself.",
+    "kind_before": "sampling_dist",
+    "kind_after": "sampling_dist"
+  },
+  {
+    "index": 96,
+    "before_request": "Show a demand shift and then have me point out the new equilibrium on the figure itself.",
+    "after_request": "Where does a market settle after demand rises? Let me click the new equilibrium on the figure.",
+    "kind_before": "supply_demand",
+    "kind_after": "supply_demand"
+  },
+  {
+    "index": 97,
+    "before_request": "Teach the C major chord on the piano and then let me press the third myself.",
+    "after_request": "What makes a chord major — and can I find the third myself?",
+    "kind_before": "piano_keys",
+    "kind_after": "piano_keys"
+  },
+  {
+    "index": 101,
+    "before_request": "Explain what attention does that recurrence could not — and quote the paper's own sentence for it: https://arxiv.org/abs/1706.03762",
+    "after_request": "What can attention do that recurrence could not? Quote the paper's own sentence for it: https://arxiv.org/abs/1706.03762",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 104,
+    "before_request": "Show what a derivative actually is — the slope of the tangent — and link Grant Sanderson's calculus video: https://www.youtube.com/watch?v=WUvTyaaNkzM",
+    "after_request": "What is a derivative, really? Link Grant Sanderson's calculus video: https://www.youtube.com/watch?v=WUvTyaaNkzM",
+    "kind_before": "generic_axes_diagram",
+    "kind_after": "tangent_secant"
+  },
+  {
+    "index": 105,
+    "before_request": "A disease hits 1 in 10,000. The test catches 90% of cases and false-alarms only 1% of the time. I tested positive — should I panic? Add 3Blue1Brown's Bayes video: https://www.youtube.com/watch?v=HZGCoVF3YvM",
+    "after_request": "A disease hits 1 in 10,000. The test catches 90% of cases and false-alarms only 1% of the time. I tested positive — should I panic? Add 3Blue1Brown's Bayes video: https://www.youtube.com/watch?v=HZGCoVF3YvM",
+    "kind_before": "bayes_tree",
+    "kind_after": "bayes_tree"
+  },
+  {
+    "index": 106,
+    "before_request": "Show Simpson's paradox: a drug that helps every group but looks harmful overall. Link the article: https://en.wikipedia.org/wiki/Simpson%27s_paradox",
+    "after_request": "How can a drug help every group of patients yet look harmful overall? Link the article: https://en.wikipedia.org/wiki/Simpson%27s_paradox",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 107,
+    "before_request": "Show how two waves cancel, and put 3Blue1Brown's Fourier video on the slide: https://www.youtube.com/watch?v=spUNpyF58BY",
+    "after_request": "How can two sounds add up to silence? Put 3Blue1Brown's Fourier video on the slide: https://www.youtube.com/watch?v=spUNpyF58BY",
+    "kind_before": "wave_diagram",
+    "kind_after": "wave_diagram"
   },
   {
     "index": 267,

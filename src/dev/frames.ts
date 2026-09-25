@@ -187,7 +187,12 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
     for (const frame of frames) {
       const params = hd.plan.states[frame.at - 1]?.params ?? {};
       const at = specAt(expanded, params);
-      const layout = layoutSpec(at, measure);
+      // A posed frame skips the draw-beat lints, as tests/examples.test.ts does:
+      // template-id-off asks whether EVERY draw's id exists in THIS state, so a
+      // label a template drops at small h (tangent_secant's Δx) was reported
+      // at the end frame although it was drawn, correctly, while it existed.
+      const posed = Object.keys(params).length > 0;
+      const layout = layoutSpec(at, measure, undefined, undefined, posed ? { skipDrawBeatLint: true } : undefined);
       const boxes = elementBBoxes(layout, measure);
       // What the viewer can actually see at this boundary. An overlap between
       // an element that is drawn and one that is not (a label erased two beats
