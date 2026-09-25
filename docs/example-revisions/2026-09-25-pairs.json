@@ -28,6 +28,13 @@
     "kind_after": "molecule_3d"
   },
   {
+    "index": 4,
+    "before_request": "Draw the structure of aspirin.",
+    "after_request": "What does the acetyl group on aspirin actually do?",
+    "kind_before": "molecule",
+    "kind_after": "molecule"
+  },
+  {
     "index": 5,
     "before_request": "Show demand shifting right and animate the new equilibrium.",
     "after_request": "What happens to price and quantity when demand shifts right?",
@@ -152,6 +159,13 @@
     "after_request": "How do you get the most out of a fixed budget?",
     "kind_before": "indifference_budget",
     "kind_after": "indifference_budget"
+  },
+  {
+    "index": 23,
+    "before_request": "Draw a production possibilities frontier with an unattainable combination of goods.",
+    "after_request": "What does it mean for an economy to be efficient, and what can it not reach?",
+    "kind_before": "ppf",
+    "kind_after": "ppf"
   },
   {
     "index": 24,
@@ -343,6 +357,13 @@
     "kind_after": "chess_board"
   },
   {
+    "index": 51,
+    "before_request": "Three chess openings all begin 1.e4 e5 — where do they part company?",
+    "after_request": "Three chess openings all begin 1.e4 e5 — where do they part company?",
+    "kind_before": "playlist",
+    "kind_after": "chess_board"
+  },
+  {
     "index": 52,
     "before_request": "Where are the Nordic countries?",
     "after_request": "What is the difference between the Nordic countries and Scandinavia?",
@@ -378,11 +399,25 @@
     "kind_after": "ppf"
   },
   {
+    "index": 57,
+    "before_request": "Does raising the minimum wage help workers? #debate",
+    "after_request": "Does raising the minimum wage help low-paid workers, or cost them jobs? #debate",
+    "kind_before": "supply_demand",
+    "kind_after": "supply_demand"
+  },
+  {
     "index": 58,
     "before_request": "Explain how an epidemic spreads #fun",
     "after_request": "How does an epidemic spread? #fun",
     "kind_before": "sir_compartments",
     "kind_after": "sir_compartments"
+  },
+  {
+    "index": 59,
+    "before_request": "Tell the story of the Phillips curve #story #human #male",
+    "after_request": "How did the Phillips curve rise, and why did it break? #story #human #male",
+    "kind_before": "generic_axes_diagram",
+    "kind_after": "freehand"
   },
   {
     "index": 60,
@@ -553,6 +588,27 @@
     "kind_after": "note_sheet"
   },
   {
+    "index": 84,
+    "before_request": "Why does a major chord sound so good? Show it on the piano.",
+    "after_request": "Why does a major chord sound so good?",
+    "kind_before": "piano_keys",
+    "kind_after": "piano_keys"
+  },
+  {
+    "index": 85,
+    "before_request": "Play Twinkle Twinkle from ABC notation.",
+    "after_request": "How does ABC notation write a tune like Twinkle, Twinkle as text?",
+    "kind_before": "note_sheet",
+    "kind_after": "note_sheet"
+  },
+  {
+    "index": 86,
+    "before_request": "I tested positive on a 90 percent accurate test. Do I have the disease?",
+    "after_request": "I tested positive on a 90 percent accurate test. Do I have the disease?",
+    "kind_before": "bayes_tree",
+    "kind_after": "bayes_tree"
+  },
+  {
     "index": 87,
     "before_request": "Why are averages always bell-shaped, even when the data isn't?",
     "after_request": "Why are averages bell-shaped, even when the data isn't?",
@@ -642,6 +698,13 @@
     "after_request": "What is the Italian Game, and why is it a good first opening?",
     "kind_before": "chess_board",
     "kind_after": "chess_board"
+  },
+  {
+    "index": 100,
+    "before_request": "Why are most published research findings false? Show the base-rate arithmetic, and put the paper itself on the slide: https://doi.org/10.1371/journal.pmed.0020124",
+    "after_request": "Why are most published research findings false? Show the base-rate arithmetic, and put the paper itself on the slide: https://doi.org/10.1371/journal.pmed.0020124",
+    "kind_before": "two_by_two_table",
+    "kind_after": "two_by_two_table"
   },
   {
     "index": 101,
@@ -1148,6 +1211,27 @@
     "kind_after": "world_map"
   },
   {
+    "index": 173,
+    "before_request": "Let me find C, E and G on the keyboard.",
+    "after_request": "How do you find C, E and G on a piano keyboard?",
+    "kind_before": "piano_keys",
+    "kind_after": "piano_keys"
+  },
+  {
+    "index": 174,
+    "before_request": "Show me the periodic table and explain how it is organised.",
+    "after_request": "Why is the periodic table shaped the way it is?",
+    "kind_before": "periodic_table",
+    "kind_after": "periodic_table"
+  },
+  {
+    "index": 175,
+    "before_request": "Hvorfor heter jern Fe?",
+    "after_request": "Hvorfor heter jern Fe?",
+    "kind_before": "periodic_table",
+    "kind_after": "periodic_table"
+  },
+  {
     "index": 176,
     "before_request": "Which one is Mars?",
     "after_request": "Which one is Mars?",
@@ -1372,11 +1456,32 @@
     "kind_after": "freehand"
   },
   {
+    "index": 208,
+    "before_request": "Hva skjer med en figur når den speiles?",
+    "after_request": "Hva skjer med en figur når den speiles?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
     "index": 209,
     "before_request": "Hvorfor forandrer ikke arealet seg når et parallellogram skjæres?",
     "after_request": "Hvorfor forandrer ikke arealet seg når et parallellogram skjeves?",
     "kind_before": "freehand",
     "kind_after": "freehand"
+  },
+  {
+    "index": 210,
+    "before_request": "Hva er egentlig et integral?",
+    "after_request": "Hva er egentlig et integral?",
+    "kind_before": "riemann_sum",
+    "kind_after": "riemann_sum"
+  },
+  {
+    "index": 211,
+    "before_request": "Hva er den deriverte?",
+    "after_request": "Hva er den deriverte?",
+    "kind_before": "tangent_secant",
+    "kind_after": "tangent_secant"
   },
   {
     "index": 212,
@@ -1421,6 +1526,237 @@
     "kind_after": "freehand"
   },
   {
+    "index": 218,
+    "before_request": "Hva er delene i en symaskin, og hva gjør de?",
+    "after_request": "Hvordan lager en symaskin et sting når nåla aldri slipper tråden?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 219,
+    "before_request": "How does a lock and key open a door?",
+    "after_request": "How does a lock and key open a door?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 220,
+    "before_request": "Hvorfor blir bremselengden fire ganger så lang når farten dobles? Vis formelen.",
+    "after_request": "Hvorfor blir bremselengden fire ganger så lang når farten dobles?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 221,
+    "before_request": "What does E = mc² actually say? Show me the curve it comes from.",
+    "after_request": "What does E = mc² actually say? Show me the curve it comes from.",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 222,
+    "before_request": "Hvorfor er nordlyset grønt?",
+    "after_request": "Hvorfor er nordlyset grønt?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 223,
+    "before_request": "Why is the Eiffel Tower shaped like that?",
+    "after_request": "Why is the Eiffel Tower shaped like that?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 224,
+    "before_request": "Hvordan ser Stortinget ut, og hvorfor er det bygget slik?",
+    "after_request": "Hvorfor har Stortinget en rund bue midt på fasaden?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 225,
+    "before_request": "Hvorfor blir renters rente så stor? Vis formelen ved kurven.",
+    "after_request": "Hvorfor blir renters rente så stor?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 226,
+    "before_request": "Hvorfor har en bikube sekskanter? Vis et ekte bilde og skissen.",
+    "after_request": "Hvorfor har en bikube sekskanter? Vis et ekte bilde og skissen.",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 227,
+    "before_request": "Hvorfor ligger de gamle fabrikkene ved elva?",
+    "after_request": "Hvorfor ligger de gamle fabrikkene ved elva?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 228,
+    "before_request": "Why does a vaccine protect people who never got it?",
+    "after_request": "Why does a vaccine protect people who never got it?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 229,
+    "before_request": "Why does a higher frequency squeeze the wave?",
+    "after_request": "Why does a higher frequency squeeze the wave?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 230,
+    "before_request": "What is the tangent at a point, and how does it turn as the point slides?",
+    "after_request": "What is the tangent at a point, and how does it turn as the point slides?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 231,
+    "before_request": "Does the equilibrium follow when demand shifts?",
+    "after_request": "Does the equilibrium follow when demand shifts?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 232,
+    "before_request": "What happens to the angle when one arm turns?",
+    "after_request": "What happens to the angle when one arm turns?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 233,
+    "before_request": "How do you solve 2x + 3 = 11?",
+    "after_request": "How do you solve 2x + 3 = 11?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 234,
+    "before_request": "What does the ICER compare?",
+    "after_request": "What does the ICER compare?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 235,
+    "before_request": "Why do cos and sin draw a circle?",
+    "after_request": "Why do cos and sin draw a circle?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 236,
+    "before_request": "Why is a life-year gained in thirty years worth so little today?",
+    "after_request": "Why is a life-year gained in thirty years worth so little today?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 237,
+    "before_request": "Do people live longer if the cancer is found earlier?",
+    "after_request": "Do people live longer if the cancer is found earlier?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 238,
+    "before_request": "How can a calculator work out sin(1.2) with nothing but plus and times?",
+    "after_request": "How can a calculator work out sin(1.2) with nothing but plus and times?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 239,
+    "before_request": "How could anyone see whether two tones were in tune, a century before electronic tuners?",
+    "after_request": "How could anyone see whether two tones were in tune, a century before electronic tuners?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 240,
+    "before_request": "Can a treatment be better for mild cases, better for severe cases, and still lose overall?",
+    "after_request": "Can a treatment be better for mild cases, better for severe cases, and still lose overall?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 241,
+    "before_request": "The test is 99% accurate and mine came back positive. Am I probably ill?",
+    "after_request": "The test is 99% accurate and mine came back positive. Am I probably ill?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 242,
+    "before_request": "Why is the production possibilities frontier bowed outward and not a straight line?",
+    "after_request": "Why is the production possibilities frontier bowed outward and not a straight line?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 243,
+    "before_request": "Why can a heat pump deliver more heat than the electricity it uses?",
+    "after_request": "Why can a heat pump deliver more heat than the electricity it uses?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 244,
+    "before_request": "Why does a bigger sample make a poll more accurate — and why doesn't the size of the country matter?",
+    "after_request": "Why does a bigger sample make a poll more accurate — and why doesn't the size of the country matter?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 245,
+    "before_request": "Hvorfor blir ventetiden hos legen så mye lengre når kontoret er nesten fullbooket?",
+    "after_request": "Hvorfor blir ventetiden hos legen så mye lengre når kontoret er nesten fullbooket?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 246,
+    "before_request": "Why does an epidemic peak and then fade, even when nobody was immune at the start?",
+    "after_request": "Why does an epidemic peak and then fade, even when nobody was immune at the start?",
+    "kind_before": "playlist",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 247,
+    "before_request": "What does a sampling distribution look like if I only have one sample? Can I bootstrap it in R?",
+    "after_request": "What does a sampling distribution look like if I only have one sample? Can I bootstrap it in R?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 248,
+    "before_request": "How does a Markov cohort model turn two yearly risks into a picture of a whole population over time?",
+    "after_request": "How does a Markov cohort model turn two yearly risks into a picture of a whole population over time?",
+    "kind_before": "playlist",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 249,
+    "before_request": "Why do health economists draw a cloud of dots instead of one number when they compare two treatments?",
+    "after_request": "Why do health economists draw a cloud of dots instead of one number when they compare two treatments?",
+    "kind_before": "playlist",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 250,
+    "before_request": "How much is a health gain worth today if it only arrives in twenty years?",
+    "after_request": "How much is a health gain worth today if it only arrives decades later?",
+    "kind_before": "playlist",
+    "kind_after": "freehand"
+  },
+  {
     "index": 251,
     "before_request": "Teach Morse code and let me send SOS.",
     "after_request": "How does Morse code spell letters with just two signals — and can I send SOS?",
@@ -1435,11 +1771,53 @@
     "kind_after": "tower_of_hanoi"
   },
   {
+    "index": 253,
+    "before_request": "How an XOR gate works.",
+    "after_request": "What is an XOR gate for?",
+    "kind_before": "logic_gates",
+    "kind_after": "logic_gates"
+  },
+  {
+    "index": 254,
+    "before_request": "A xylophone I can play.",
+    "after_request": "Why do the shorter bars of a xylophone sound higher?",
+    "kind_before": "xylophone",
+    "kind_after": "xylophone"
+  },
+  {
+    "index": 255,
+    "before_request": "Sort the bars like bubble sort.",
+    "after_request": "Why is bubble sort so slow?",
+    "kind_before": "bubble_sort",
+    "kind_after": "bubble_sort"
+  },
+  {
     "index": 256,
     "before_request": "Tic-tac-toe against the computer.",
     "after_request": "Why does tic-tac-toe always end in a draw?",
     "kind_before": "tictactoe",
     "kind_after": "tictactoe"
+  },
+  {
+    "index": 257,
+    "before_request": "Why does a disease with a higher R0 need so many more people vaccinated before it stops spreading?",
+    "after_request": "Why does a disease with a higher R0 need so many more people vaccinated before it stops spreading?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 258,
+    "before_request": "Hvorfor gir en god test så mange falske alarmer når sykdommen er sjelden?",
+    "after_request": "Hvorfor gir en god test så mange falske alarmer når sykdommen er sjelden?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 259,
+    "before_request": "Why does a trial with forty patients so often miss a real effect that a trial with four hundred finds every time?",
+    "after_request": "Why does a trial with forty patients so often miss a real effect that a trial with four hundred finds every time?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
   },
   {
     "index": 260,
@@ -1449,6 +1827,48 @@
     "kind_after": "sir_compartments"
   },
   {
+    "index": 261,
+    "before_request": "Why is the regression slope the covariance divided by the variance?",
+    "after_request": "Why is the regression slope the covariance divided by the variance?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 262,
+    "before_request": "What do μ and σ do in the normal distribution's formula?",
+    "after_request": "What do μ and σ do in the normal distribution's formula?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 263,
+    "before_request": "Why are future QALYs discounted?",
+    "after_request": "Why are future QALYs discounted?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 264,
+    "before_request": "Hvordan henger gjennomsnitt og standardavvik sammen?",
+    "after_request": "Hvordan henger gjennomsnitt og standardavvik sammen?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 265,
+    "before_request": "Can a three-state Markov model show me where a cohort ends up, and what drives it?",
+    "after_request": "Can a three-state Markov model show me where a cohort ends up, and what drives it?",
+    "kind_before": "playlist",
+    "kind_after": "markov_model"
+  },
+  {
+    "index": 266,
+    "before_request": "Where does the vertex of a parabola come from, and what does it look like?",
+    "after_request": "Where does the vertex of a parabola come from?",
+    "kind_before": "playlist",
+    "kind_after": "freehand"
+  },
+  {
     "index": 267,
     "before_request": "How does exponential growth differ from logistic growth over the same years?",
     "after_request": "How does exponential growth differ from logistic growth over the same years?",
@@ -1456,11 +1876,39 @@
     "kind_after": "playlist"
   },
   {
+    "index": 268,
+    "before_request": "Why does the same drug look cost-effective in one country and not in another?",
+    "after_request": "Why does the same drug look cost-effective in one country and not in another?",
+    "kind_before": "playlist",
+    "kind_after": "cost_effectiveness_plane"
+  },
+  {
+    "index": 269,
+    "before_request": "Hvorfor kan arbeidsledigheten falle uten at noen har fått jobb?",
+    "after_request": "Hvorfor kan arbeidsledigheten falle uten at noen har fått jobb?",
+    "kind_before": "playlist",
+    "kind_after": "icon_array"
+  },
+  {
     "index": 270,
     "before_request": "Why does coffee go cold in a mug in an hour but stay hot in a flask all day?",
     "after_request": "Why does coffee go cold in a mug in an hour but stay hot in a flask all day?",
     "kind_before": "playlist",
     "kind_after": "playlist"
+  },
+  {
+    "index": 271,
+    "before_request": "What does it actually cost a country to build more hospitals?",
+    "after_request": "What does it actually cost a country to build more hospitals?",
+    "kind_before": "ppf",
+    "kind_after": "ppf"
+  },
+  {
+    "index": 272,
+    "before_request": "If nobody sets the price, how does a market end up with one?",
+    "after_request": "If nobody sets the price, how does a market end up with one?",
+    "kind_before": "supply_demand",
+    "kind_after": "supply_demand"
   },
   {
     "index": 273,
@@ -1484,9 +1932,114 @@
     "kind_after": "ad_as"
   },
   {
+    "index": 276,
+    "before_request": "Hvorfor sprekker en boble, når alle vet at prisen er for høy?",
+    "after_request": "Hvorfor sprekker en boble, når alle vet at prisen er for høy?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 277,
+    "before_request": "Hvordan blir en lov til i Norge?",
+    "after_request": "Hvordan blir en lov til i Norge?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
     "index": 278,
     "before_request": "Hva skjer med et søk i en søkemotor?",
     "after_request": "Hva skjer med et søk i en søkemotor?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 279,
+    "before_request": "Hvorfor faller ikke en fallskjermhopper fortere og fortere hele veien ned?",
+    "after_request": "Hvorfor faller ikke en fallskjermhopper fortere og fortere hele veien ned?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 283,
+    "before_request": "Why do bridges come in so many different shapes?",
+    "after_request": "Why do bridges come in so many different shapes?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 284,
+    "before_request": "Why are floor tiles squares or hexagons, but never pentagons?",
+    "after_request": "Why are floor tiles squares or hexagons, but never pentagons?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 285,
+    "before_request": "Why does gravity rule the universe if it's the weakest force?",
+    "after_request": "Why does gravity rule the universe if it's the weakest force?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 286,
+    "before_request": "How long does each kind of note last in music?",
+    "after_request": "How long does each kind of note last in music?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 287,
+    "before_request": "Why doesn't the Moon fall down onto the Earth?",
+    "after_request": "Why doesn't the Moon fall down onto the Earth?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 288,
+    "before_request": "How do the two hands share a piano score?",
+    "after_request": "How do the two hands share a piano score?",
+    "kind_before": "note_sheet",
+    "kind_after": "note_sheet"
+  },
+  {
+    "index": 289,
+    "before_request": "Can I write the end of a melody myself?",
+    "after_request": "Can I write the end of a melody myself?",
+    "kind_before": "note_sheet",
+    "kind_after": "note_sheet"
+  },
+  {
+    "index": 290,
+    "before_request": "How do musicians hear where a note goes on the staff?",
+    "after_request": "How do musicians hear where a note goes on the staff?",
+    "kind_before": "note_sheet",
+    "kind_after": "note_sheet"
+  },
+  {
+    "index": 291,
+    "before_request": "Why do cellos and tubas read a different clef?",
+    "after_request": "Why do cellos and tubas read a different clef?",
+    "kind_before": "note_sheet",
+    "kind_after": "note_sheet"
+  },
+  {
+    "index": 292,
+    "before_request": "What do the two numbers at the start of a piece of music mean?",
+    "after_request": "What do the two numbers at the start of a piece of music mean?",
+    "kind_before": "freehand",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 293,
+    "before_request": "How do I read the notes on the treble staff?",
+    "after_request": "How do I read the notes on the treble staff?",
+    "kind_before": "note_sheet",
+    "kind_after": "note_sheet"
+  },
+  {
+    "index": 294,
+    "before_request": "What do the sharp, flat and natural signs do in music?",
+    "after_request": "What do the sharp, flat and natural signs do in music?",
     "kind_before": "freehand",
     "kind_after": "freehand"
   }

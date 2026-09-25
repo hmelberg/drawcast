@@ -40,7 +40,7 @@ element_ids:
 examples:
   - request: "Draw benzene."
     params: { smiles: "c1ccccc1", name: "Benzene" }
-  - request: "Draw the structure of aspirin."
+  - request: "What does the aspirin molecule look like?"
     params: { smiles: "CC(=O)Oc1ccccc1C(=O)O", name: "Aspirin" }
   - request: "Draw ethene."
     params: { smiles: "C=C", name: "Ethene" }

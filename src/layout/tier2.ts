@@ -1043,7 +1043,7 @@ function samplesOf(ctx: Ctx, id: string): Pt[] | undefined {
 
 /** `{name}` tokens in drawn text (design 2026-09-10 §2.1); an unknown name stays as written and warns, so a typo shows on the canvas. */
 function withVars(text: string, el: SpecElement, ctx: Ctx): string {
-  const r = interpolateVars(text, ctx.vars);
+  const r = interpolateVars(text, ctx.vars, ctx.decimalComma);
   for (const name of r.unknown) ctx.warnings.push(`${el.type} "${el.id}": text names {${name}}, which is not one of the vars — left as written`);
   return r.text;
 }

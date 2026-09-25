@@ -323,7 +323,7 @@ element_ids:
   wires: the wiring (a group)
   title: the title
 examples:
-  - request: "How an XOR gate works."
+  - request: "What does an XOR gate do?"
     params: { gate: "XOR" }
   - request: "Show an AND gate with two switches and a bulb."
     params: { gate: "AND" }

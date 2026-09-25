@@ -25,3 +25,13 @@ describe("measure decimal separator", () => {
     expect(labelOf(withSpeech("The side is 8.7 cm long.", "de"))).toBe("a = 8,7 cm");
   });
 });
+
+describe("{var} text in a Norwegian cast (2026-09-25)", () => {
+  test("a var readout writes a decimal comma, as measure does", async () => {
+    const { interpolateVars } = await import("../src/spec/vars");
+    expect(interpolateVars("{v} mc²", { v: 2.29 }, true).text).toBe("2,3 mc²");
+    expect(interpolateVars("{v:2}", { v: 2.29 }, true).text).toBe("2,29");
+    expect(interpolateVars("{v}", { v: 2.29 }).text).toBe("2.3");
+    expect(interpolateVars("{v}", { v: 150.4 }, true).text).toBe("150");
+  });
+});

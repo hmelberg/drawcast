@@ -40,23 +40,25 @@ export function exprVariables(vars?: Vars): string[] {
 }
 
 /** The measure rule (layout/measures.ts formatMeasure): ≥ 100 → no decimals, else one, a trailing .0 dropped; explicit decimals kept as written. */
-export function formatVar(value: number, decimals?: number): string {
-  if (decimals !== undefined) return value.toFixed(decimals);
-  const d = Math.abs(value) >= 100 ? 0 : 1;
-  return value.toFixed(d).replace(/\.0$/, "");
+export function formatVar(value: number, decimals?: number, decimalComma = false): string {
+  const d = decimals !== undefined ? decimals : Math.abs(value) >= 100 ? 0 : 1;
+  const s = decimals !== undefined ? value.toFixed(d) : value.toFixed(d).replace(/\.0$/, "");
+  // The figure writes a number the way the voice reads it: 2,3 in a
+  // Norwegian cast, as `measure` does (2026-09-25).
+  return decimalComma ? s.replace(".", ",") : s;
 }
 
 const TOKEN = /\{([a-zA-Z_][a-zA-Z_0-9]*)(?::(\d))?\}/g;
 
 /** `{f}` / `{f:2}` → the var's value; an unknown name is left as written and returned in `unknown`. */
-export function interpolateVars(text: string, vars: Vars): { text: string; unknown: string[] } {
+export function interpolateVars(text: string, vars: Vars, decimalComma = false): { text: string; unknown: string[] } {
   const unknown: string[] = [];
   const out = text.replace(TOKEN, (whole, name: string, decimals: string | undefined) => {
     if (!Object.prototype.hasOwnProperty.call(vars, name)) {
       if (!unknown.includes(name)) unknown.push(name);
       return whole;
     }
-    return formatVar(vars[name], decimals === undefined ? undefined : Number(decimals));
+    return formatVar(vars[name], decimals === undefined ? undefined : Number(decimals), decimalComma);
   });
   return { text: out, unknown };
 }

@@ -531,6 +531,68 @@ inconclusive trials pool to a clear answer; weight = 1/SE²), #28 confounder
   an unrelated test; apply.cjs cannot follow a request renamed twice. Both go
   in the brief.
 
+## Round 10 lessons (the last 79 examples: music, school maths, health economics, statistics, economics, physics, chemistry and the rest)
+
+- **Fixed this round**: a scrub past a `run` whose result was not cached
+  re-mounted the figure when the answer arrived but never re-applied the
+  scene, so the whole page — heading included — stayed blank. That is why
+  every code example with a `run` had a blank end frame in the harness since
+  round 8 (the agents reported "the harness draws nothing for code
+  examples"); it was a player bug, and a viewer scrubbing forward saw it too.
+  supply_demand's surplus/shortage guides drew a dashed diagonal across every
+  price floor and ceiling (one polyline joining two verticals the wrong way
+  round). The heading push-in's width estimate was low (0.48 → 0.54 em a
+  character). Two prompt tests planned examples without expanding the
+  opening `card`. The molecule and logic_gates manifests' example requests
+  were errands ("Draw the structure of aspirin.") — now questions. `{var}`
+  readouts in drawn text print a decimal comma in Norwegian casts, as
+  `measure` already did.
+- **Code panels grow with their output**, now seen for real since the blank
+  frames are fixed: #257, #258 and #259 (`pane: "controls"` with a chart)
+  reached the heading until narrowed by hand (width 500–640). The Node gate
+  never sees it (it does not run the script). A height cap that scales the
+  figure to fit y 150–690 is the fix — major item.
+- **Freehand charts share the chart-floor problem**: `axes` fill a fixed plot
+  box (x 120–930, y 95–675), so x-axis captions sit under the narration and
+  a chart cannot share the page with other content (#248 padded its domain
+  to make room). Freehand `fit: "full"` puts a grid's bottom row in the band
+  too (#286, #294). Both belong to the "fit the free band" major item.
+- **Coordinates are inconsistent on a page with a `domain`**: `arrow` from/to
+  and `move.by` read domain units while `node`, `text`, `path` and `shape`
+  read logical ones; a copy/move derivation on a charted page flew
+  off-canvas (55 "units" became 319). Tier-2 `point at: {x, y}` without a
+  domain reads 0–100. One rule (logical unless `on:`/`data:` says otherwise)
+  would remove a whole class of mistakes.
+- **Labels on shapes**: attached to a concave path, an ellipse, a polygon or a
+  horizontal wave, `side` is ignored and the label lands inside or on the
+  stroke — the fourth round reporting it; every agent fell back to
+  positioned `text`, the anti-pattern the prompt names.
+- **Templates**: xylophone, bubble_sort and logic_gates always draw a
+  `title` (needs `hide` under a card); piano_keys colours highlights by
+  index, not role; periodic_table cannot be boxed below scale 1 (its
+  "89–103" placeholder hits Rf) and prints masses with a decimal point in
+  Norwegian; tangent_secant and riemann_sum print English text with decimal
+  points in Norwegian casts; molecule's atoms are not addressable;
+  markov_model's skip arc label collides with a bowed reverse pair;
+  cost_effectiveness_plane is centred on zero; two_by_two_table has no
+  totals; a `ghost` outlives the piece that moved home.
+- **Unconfirmed**: an agent saw `copy` products vanish after a later var
+  `animate` in the harness (#266 before revision). A minimal cast (copy,
+  move, morph, then animate a var) keeps the copy; not reproduced.
+- **Topic density is now the main content risk**: the base rate is taught
+  seven times (#16, #86, #100, #105, #142, #241, #258), Simpson three,
+  discounting three, SIR five, supply-and-demand shifts four, hexagons three.
+  Every one now has a distinct point, but the set leans hard on a few ideas
+  — worth pruning or merging when the examples are next curated.
+- **Tests pin examples by their words**: #229 by three tests (vars, a bound
+  dot, two animates, no `math` since curve-sampling loads no MathJax), #222
+  by its top-level title, #226 and #231 by request and structure, #234 by
+  request. A revision that renames or restructures them fails an unrelated
+  test. Pinning by an explicit marker (an `id` field on the example) would
+  decouple them.
+- **Every-beat frames**: two agents built their own "show me beat N" hacks
+  (truncated casts, dummy animates). The harness should offer it.
+
 ## Hans's feedback on the pilot (2026-09-25)
 
 - Better. But openings still jump in without saying what the drawcast is
