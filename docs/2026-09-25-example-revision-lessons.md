@@ -427,6 +427,51 @@ inconclusive trials pool to a clear answer; weight = 1/SE²), #28 confounder
   a data series) and no log scale; line_chart/scatter_plot have no
   per-point ids, so the peak or the Anscombe outlier cannot be pointed at.
 
+## Round 8 lessons (42 examples: code in five runtimes, the C64, Norwegian school maths)
+
+- **Fixed this round**: multi-figure code slides get an opaque ground, so a
+  later figure covers the earlier one (transparent PNGs showed both sets of
+  axes); the code-split figure band is y 160–640 (was 95–655: floor in the
+  captions, y caption against the heading); the examples gate now also
+  demands no layout WARNINGS at rest (tests/molecule3d.test.ts checked them
+  and the gate did not — a code mark on a wrapped line passed one and
+  failed the other); two marks shortened so they stay on one wrapped
+  segment; #155 kept byte-identical with docs/demos/frames.yaml (a test
+  enforces it — the brief now needs to say so).
+- **Code panels grow with their output** (figures, long logs) to nearly the
+  full canvas height, whatever width/y is given, and the Node gate never
+  runs the script, so it sees a short panel: the grown panel covers the
+  card heading and puts code lines under the captions, unlinted. A height
+  cap, or heading-intrusion over code chrome at browser time, would fix it.
+- **Runtime notes for the prompt**: Brython needs `plt.show()` per stage for
+  multiple figures; `plt.hist(bins=…)` becomes plotly `nbinsx` (a maximum);
+  MicroPython dicts do not keep order — suggest `pd.DataFrame(rows,
+  columns=[…])`; `<id>_out` still holds stdout in figures mode but has no beat
+  of its own; DataFrame headers are cut to the value width; the BASIC
+  interpreter cannot mix immediate and numbered lines in one element.
+- **Geometry engine**: an `angle` turned by `move.rotate` turns its degree
+  text upside down (the prompt says text never rotates); labels and
+  measures are linted at their pre-move/pre-morph positions for the whole
+  cast (a later-moving label collides with things never on screen with
+  it); a measure on a polygon misreads mid-morph; a measure scaled by
+  `move.scale` scales its offset too; an area measure's label sits at the
+  box centre (on a right triangle's hypotenuse); `copy` cannot copy a
+  ghost, and copies lose polygon anchors; labels attached to sector pieces
+  pile up after `arrange fan`; a label's own shape is not an obstacle, so
+  `side: "above"` on a wide polygon lands inside it; `measure` prints a
+  decimal point in Norwegian casts ("8.7" while the voice says "8,7") and
+  defaults to one decimal; `pieces` share one fill (no alternating slices);
+  `halving`'s rest piece cannot be styled as the hole; `animate.trail` does
+  not work in the Node gate and is lost by the script round trip, and a
+  nested group's members come back reordered.
+- **A structural idiom worth teaching**: bind polygon vertices to a var
+  (`bind: {"points.2.0": …}`) with a live `measure`, and the area stays
+  fixed while the shape shears — #205 and #209 use it; the prompt could.
+- **Topic overlap is a real risk in big batches**: several agents found
+  neighbouring examples on the same idea (compounding ×4, shear ×2,
+  doubling ×2) and gave each a different mechanism. A bundled set should
+  not teach the same point twice.
+
 ## Hans's feedback on the pilot (2026-09-25)
 
 - Better. But openings still jump in without saying what the drawcast is

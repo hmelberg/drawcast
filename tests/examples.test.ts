@@ -185,7 +185,12 @@ describe("bundled examples stay exemplary", () => {
   // these are the figures the app shows off and the model imitates, so a
   // cosmetic warning — a label sitting on a stroke, say — is a defect here.
   test.each(cases)("%s — lays out with no lint issue at all, not even a warning", (_req, spec) => {
-    expect(layoutSpec(spec).issues.map((i) => `[${i.severity}] ${i.message}`)).toEqual([]);
+    const l = layoutSpec(spec);
+    expect(l.issues.map((i) => `[${i.severity}] ${i.message}`)).toEqual([]);
+    // Layout WARNINGS too (a code mark that no drawn line carries, an unknown
+    // attach_to…): tests/molecule3d.test.ts checked them and this gate did not,
+    // so a revised example passed here and failed there (2026-09-25).
+    expect(l.warnings).toEqual([]);
   });
 
   test.each(cases)("%s — no command-level lint issue (slow-start / talky-stretch)", (_req, spec) => {

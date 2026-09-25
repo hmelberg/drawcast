@@ -422,8 +422,12 @@ describe("code element — multi-figure beats", () => {
   test("a run with several figures mints <id>_fig_N beats sharing one slot", () => {
     const l = layoutSpec(codeSpec({ show: "output", figures: 2 }, TWO), heuristicMeasure);
     const flat = flattenDrawables(l.drawables);
-    const f1 = flat.find((d) => d.id === "c1_fig_1") as ImageDrawable;
-    const f2 = flat.find((d) => d.id === "c1_fig_2") as ImageDrawable;
+    // Each slide is a group: an opaque ground under the image, so a later
+    // slide covers an earlier one instead of showing it through (2026-09-25).
+    expect(flat.find((d) => d.id === "c1_fig_1")?.kind).toBe("group");
+    expect(flat.find((d) => d.id === "c1_fig_1__ground")?.kind).toBe("area");
+    const f1 = flat.find((d) => d.id === "c1_fig_1__img") as ImageDrawable;
+    const f2 = flat.find((d) => d.id === "c1_fig_2__img") as ImageDrawable;
     expect(f1.kind).toBe("image");
     expect(f2.href).toBe("data:image/png;base64,BB");
     expect(f1.pos).toEqual(f2.pos); // one shared slot — slides, not a stack

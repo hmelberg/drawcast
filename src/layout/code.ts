@@ -1000,17 +1000,39 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       ctx.anchors[id] = slotCenter;
       const f = showOut ? rawFigures[k] : undefined;
       if (f) {
+        // Each slide on its own opaque ground: the figures are transparent
+        // PNGs, so without it a later slide showed the earlier one through it
+        // (two sets of axes at once) and "a plain draw replaces" was untrue.
+        const [sx, sy] = slotCenter, hw = figWidths[k] / 2, hh = figHeights[k] / 2;
         out.push({
           id,
-          kind: "image",
-          href: f.href,
-          pos: slotCenter,
-          w: figWidths[k],
-          h: figHeights[k],
+          kind: "group",
           z: Z_STROKE,
-          style: resolveStyle(undefined, {}),
-          reveal: el.reveal ?? "fade",
+          style: defaultStyle(),
           drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 900 }),
+          children: [
+            {
+              id: `${id}__ground`,
+              kind: "area",
+              pts: [[sx - hw, sy - hh], [sx + hw, sy - hh], [sx + hw, sy + hh], [sx - hw, sy + hh]],
+              precise: true,
+              z: Z_STROKE,
+              style: resolveStyle(undefined, { fill: FIGURE_GROUND, opacity: 1, strokeWidth: 0 }),
+              drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
+            },
+            {
+              id: `${id}__img`,
+              kind: "image",
+              href: f.href,
+              pos: slotCenter,
+              w: figWidths[k],
+              h: figHeights[k],
+              z: Z_STROKE,
+              style: resolveStyle(undefined, {}),
+              reveal: el.reveal ?? "fade",
+              drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 900 }),
+            },
+          ],
         });
       } else {
         out.push({

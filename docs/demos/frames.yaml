@@ -12,6 +12,8 @@ elements:
     frame: crt
     draw:
       mode: type
+    marks:
+      - "random.seed(7)"
     code: |
       import random
       import matplotlib.pyplot as plt
@@ -23,13 +25,18 @@ elements:
       _ = plt.plot(share)
       _ = plt.plot([0.5] * 400)
 commands:
-  - draw: [p, p_line_1, p_line_2, p_line_3, p_line_4]
+  - card: { title: "Five frames, one script", style: center, subtitle: "the same seed on every machine" }
+  - draw: [p, p_line_1, p_line_2]
     parallel: true
-    speak: An old tube monitor, drawn in ink — and a coin about to be flipped four hundred times.
-  - draw: [p_line_5, p_line_6, p_line_7, p_line_8, p_line_9]
-    speak: Every flip adds a head or nothing, and the running share is stored after each one.
+    speak: "Why does a script of random coin flips draw the same curve on every computer? Here it is on an old tube monitor."
+  - draw: [p_line_3, p_mark_1]
+    speak: "This line is why. A computer's random numbers come from a recipe, and the seed is the point where the recipe starts."
+  - draw: [p_line_4, p_line_5, p_line_6, p_line_7]
+    speak: "Four hundred flips. Each adds a head or nothing, and after every flip the script stores the share of heads so far."
+  - draw: [p_line_8, p_line_9]
+    speak: "Then it plots that share, beside a flat line at one half."
   - draw: [p_out]
-    speak: The first flips swing wildly; by four hundred the share has settled near a half.
+    speak: "The first flips swing wildly. By four hundred, the share has settled close to a half."
 ---
 title: On a home computer
 elements:
@@ -53,13 +60,13 @@ elements:
       _ = plt.plot(share)
       _ = plt.plot([0.5] * 400)
 commands:
-  - draw: [p, p_line_1, p_line_2, p_line_3, p_line_4]
+  - draw: [p, p_line_1, p_line_2, p_line_3, p_line_4, p_line_5, p_line_6, p_line_7, p_line_8, p_line_9]
     parallel: true
-    speak: The tube standing on a keyboard, the way a desk looked in 1982.
-  - draw: [p_line_5, p_line_6, p_line_7, p_line_8, p_line_9]
-    speak: Every flip adds a head or nothing, and the running share is stored after each one.
+    speak: "The same script on a tube standing on a home-computer keyboard, the way a desk looked in 1982."
   - draw: [p_out]
-    speak: Pause here and press the buttons on the chin — they work. The round one is the power.
+    speak: "And the same curve, wiggle for wiggle. The machine changed; the recipe and its seed did not."
+  - point: { at: { ref: p }, gesture: tap }
+    speak: "Pause here and press the buttons on the chin: they work. The round one blanks the picture."
 ---
 title: On a flat screen
 elements:
@@ -83,13 +90,11 @@ elements:
       _ = plt.plot(share)
       _ = plt.plot([0.5] * 400)
 commands:
-  - draw: [p, p_line_1, p_line_2, p_line_3, p_line_4]
+  - draw: [p, p_line_1, p_line_2, p_line_3, p_line_4, p_line_5, p_line_6, p_line_7, p_line_8, p_line_9]
     parallel: true
-    speak: The same script, on the flat display — one rounded shell, a chin, and no stand.
-  - draw: [p_line_5, p_line_6, p_line_7, p_line_8, p_line_9]
-    speak: Every flip adds a head or nothing, and the running share is stored after each one.
+    speak: "On a flat display now: one rounded shell, a chin, and no stand."
   - draw: [p_out]
-    speak: The picture gets the height the foot used to take.
+    speak: "Seed seven in, the same four hundred flips out, on any computer that runs it."
 ---
 title: On a laptop
 elements:
@@ -102,10 +107,12 @@ elements:
     frame: laptop
     draw:
       mode: type
+    marks:
+      - "random.seed(8)"
     code: |
       import random
       import matplotlib.pyplot as plt
-      random.seed(7)
+      random.seed(8)
       heads, share = 0, []
       for i in range(1, 401):
           heads += 1 if random.random() < 0.5 else 0
@@ -113,13 +120,15 @@ elements:
       _ = plt.plot(share)
       _ = plt.plot([0.5] * 400)
 commands:
-  - draw: [p, p_line_1, p_line_2, p_line_3, p_line_4]
+  - draw: [p, p_line_1, p_line_2, p_line_3, p_line_4, p_line_5, p_line_6, p_line_7, p_line_8, p_line_9]
     parallel: true
-    speak: And the same display over a keyboard.
-  - draw: [p_line_5, p_line_6, p_line_7, p_line_8, p_line_9]
-    speak: Every flip adds a head or nothing, and the running share is stored after each one.
+    speak: "On a laptop, with one change to the script."
+  - draw: [p_mark_1]
+    speak: "The seed is now eight, so the recipe starts somewhere else."
   - draw: [p_out]
-    speak: Three frames, one script — the chrome is the lesson's choice, never the default.
+    speak: "A different run of luck, so the early wiggles differ. Yet by four hundred flips the share is close to a half again."
+  - highlight: { target: [p_out] }
+    speak: "That is the split. The seed fixes every single flip; the settling toward a half is the law of large numbers, and no seed changes it."
 ---
 title: On bare paper
 elements:
@@ -142,10 +151,15 @@ elements:
       _ = plt.plot(share)
       _ = plt.plot([0.5] * 400)
 commands:
-  - draw: [p, p_line_1, p_line_2, p_line_3, p_line_4]
+  - draw: [p, p_line_1, p_line_2, p_line_3, p_line_4, p_line_5, p_line_6, p_line_7, p_line_8, p_line_9]
     parallel: true
-    speak: And with no frame at all — the default.
-  - draw: [p_line_5, p_line_6, p_line_7, p_line_8, p_line_9]
-    speak: Every flip adds a head or nothing, and the running share is stored after each one.
+    speak: "And with no frame at all, the default: plain paper, and seed seven again."
   - draw: [p_out]
-    speak: Nothing around the code but the paper it is written on — and the plus button still hides the code or the output, because that is the panel's doing, not the frame's.
+    speak: "The first curve, exactly. The frame is costume; what a script computes depends only on its code and its seed."
+  - highlight: { target: [p_line_3] }
+    speak: "Standard Python's recipe is the Mersenne Twister, from the late 1990s. Its sequence only repeats after two to the power 19,937, minus one, numbers."
+  - quiz:
+      question: "You delete the seed line and run the script twice. What happens?"
+      choices: ["The same curve both times", "Two different curves, both settling near a half", "The curve stops settling near a half"]
+      correct: 2
+      right: "Two different curves: without a seed, Python starts its recipe somewhere new each run, but four hundred flips still settle near a half."
