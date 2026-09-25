@@ -1087,8 +1087,10 @@ export function emphasisColorFor(want: string, own: string | undefined, explicit
   return EMPHASIS_FALLBACKS.find((c) => !readsAsSame(c, own) && !readsAsSame(c, INK)) ?? want;
 }
 
-/** What glow does to one leaf: a band under a line, a marker behind a code row, or the ink recoloured. */
-export function glowKindOf(leaf: Exclude<Drawable, { kind: "group" }>): "band" | "marker" | "tint" {
+/** What glow does to one leaf: a band under a line, a marker behind a code row, the ink
+ *  recoloured — or nothing, for a solid's face, which its outline's bands light instead. */
+export function glowKindOf(leaf: Exclude<Drawable, { kind: "group" }>): "band" | "marker" | "tint" | "none" {
+  if (leaf.kind === "area" && leaf.surface) return "none";
   if (leaf.kind === "text" && leaf.font === "mono") return "marker";
   if (leaf.kind === "stroke" && leaf.pts.length >= 2 && !leaf.precise) return "band";
   return "tint";
@@ -1383,6 +1385,7 @@ function makeEffects(
             const own = leaf.kind === "image" ? undefined : leaf.style.color;
             const hit = textHits.get(leaf.id);
             const glow = effect === "glow" ? glowKindOf(leaf) : "tint";
+            if (glow === "none") continue;
             if (glow === "tint") {
               const tint = emphasisColorFor(color ?? HIGHLIGHT_COLOR, own, color !== undefined);
               const clone =

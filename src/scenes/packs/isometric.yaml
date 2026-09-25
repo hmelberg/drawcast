@@ -145,10 +145,14 @@ layout: |
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
+  // Solid faces: each face's fill becomes one exact opaque path (in the
+  // sketchy style too, so what stands behind stays hidden) and a `surface`,
+  // so a glow lights the outline instead of repainting the face on top.
+  const solidify = (d) => { if (d.kind === "group") d.children.forEach(solidify); else if (d.kind === "area") { d.precise = true; d.surface = true; } return d; };
   for (let i = n - 1; i >= 0; i--) {
     const fill = hIndex >= 0 && hIndex !== i ? C.guide : PALETTE[i % PALETTE.length];
     const out = kit.project3d(cam, [{ kind: "box3", id: "layer_" + i, c: [0, yOf(i), 0], size: [W, T, D], color: C.ink, fill }]);
-    push(kit.group("layer_" + i, out.drawables));
+    push(kit.group("layer_" + i, out.drawables.map(solidify)));
     anchors["layer_" + i] = proj([0, yOf(i) + T / 2, 0]);
   }
 
@@ -379,10 +383,14 @@ layout: |
     }
     return inside;
   };
+  // Solid faces: each face's fill becomes one exact opaque path (in the
+  // sketchy style too, so what stands behind stays hidden) and a `surface`,
+  // so a glow lights the outline instead of repainting the face on top.
+  const solidify = (d) => { if (d.kind === "group") d.children.forEach(solidify); else if (d.kind === "area") { d.precise = true; d.surface = true; } return d; };
   const hulls = {};
   for (const b of painted) {
     const out = kit.project3d(cam, [{ kind: "box3", id: "block_" + b.i, c: [b.x0 + b.w / 2, b.h / 2, b.z0 + b.d / 2], size: [b.w, b.h, b.d], color: C.ink, fill: b.fill }]);
-    push(kit.group("block_" + b.i, out.drawables));
+    push(kit.group("block_" + b.i, out.drawables.map(solidify)));
     const cs = [];
     for (const x of [b.x0, b.x0 + b.w]) for (const y of [0, b.h]) for (const z of [b.z0, b.z0 + b.d]) cs.push(proj([x, y, z]));
     hulls[b.i] = hullOf(cs);
