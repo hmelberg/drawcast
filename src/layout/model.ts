@@ -112,6 +112,14 @@ export interface AreaDrawable extends BaseDrawable {
    */
   precise?: boolean;
   /**
+   * An opaque face of a solid (an isometric block's side, drawn `precise`
+   * so what stands behind it stays hidden). A glow lights the solid through
+   * its outline strokes and leaves the face alone: the tint echo sits on the
+   * overlay, above every other element, so a tinted face would paint itself
+   * over whatever stands in front of it — a slab jumping out of its stack.
+   */
+  surface?: boolean;
+  /**
    * A formula glyph's TeX token chain, innermost first (the `t` of `t_r`:
    * "t", "t_r", …) — what `highlight.part` matches against, the same way
    * `math.colors` does (layout/highlight-part.ts).

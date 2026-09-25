@@ -199,6 +199,8 @@ describe("the emphasis colour steps aside when it would read as the target's own
     expect(glowKindOf({ id: "b", kind: "text", pos: [0, 0], text: "x = 1", fontSize: 17, anchor: "start", font: "mono", z: 2, style, drawOpts: draw })).toBe("marker");
     expect(glowKindOf({ id: "c", kind: "text", pos: [0, 0], text: "label", fontSize: 17, anchor: "start", z: 2, style, drawOpts: draw })).toBe("tint");
     expect(glowKindOf({ id: "d", kind: "area", pts: [[0, 0], [1, 0], [1, 1]], z: 0, style, drawOpts: draw })).toBe("tint");
+    // A solid's face: its outline's bands light it; a tint would paint it over what stands in front.
+    expect(glowKindOf({ id: "e", kind: "area", pts: [[0, 0], [1, 0], [1, 1]], precise: true, surface: true, z: 1, style, drawOpts: draw })).toBe("none");
   });
 });
 
