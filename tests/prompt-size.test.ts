@@ -509,7 +509,10 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // catalog's ring_molecule entry says its centre is reached through `ring`
 // (the documented `ring_center` was an anchor no gesture could find). +50.
 // 215185 -> 215235.
-const BASELINE_SYSTEM_CHARS = 215235;
+// Re-pinned UP 2026-09-25 (example revisions, round 3): the card rule says
+// to leave a template's own `title` unset — the card is the heading, and a
+// template title drew a second one. +43. 215235 -> 215278.
+const BASELINE_SYSTEM_CHARS = 215278;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

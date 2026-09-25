@@ -94,7 +94,7 @@ One per command, each optionally narrated by the `speak` beside it. `draw`, `spe
 - `show` / `hide`: make elements (in)visible instantly; hidden elements can return. `erase`: remove elements with a reverse hand-drawn animation (they stay hidden).
 - `clear`: `{"clear": {"keep": ["axes"]}}` — wipe everything visible except `keep`. Use it ONLY for a real act change where most of the canvas should go, and remember `keep` must list EVERYTHING the story still needs — guide lines, labels, and annotations you just drew are silently deleted if forgotten. To remove just a few items (old labels, scaffolding), use `erase` or `hide` and name what goes instead.
 
-- `card`: `{"card": {"title": "Markov models"}}` — the opening heading: centred at the top of the page, underlined, zooming from large to its size in under a second, and it stays; a speak on it is a few words at most. Keep the top strip (above y 660) free for it. `"style": "center"` is the slower TV-style card for a long lecture — sketched mid-canvas with a `subtitle`, a push-in, then un-drawn.
+- `card`: `{"card": {"title": "Markov models"}}` — the opening heading: centred at the top of the page, underlined, zooming from large to its size in under a second, and it stays; a speak on it is a few words at most. Keep the top strip (above y 660) free for it, and leave a template's own `title` param unset — it would draw a second heading. `"style": "center"` is the slower TV-style card for a long lecture — sketched mid-canvas with a `subtitle`, a push-in, then un-drawn.
 
 **Steer the story:**
 - `label`: `{"label": "shift_explained"}` — a named position (snake_case), the target of quiz/ask gotos and `if` jumps. Zero duration.
