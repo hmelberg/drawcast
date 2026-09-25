@@ -163,8 +163,8 @@ describe("shadeColor", () => {
   });
 });
 
-test("KIT_VERSION is 10 and constants ride on the kit", () => {
-  expect(KIT_VERSION).toBe(10);
+test("KIT_VERSION is 11 and constants ride on the kit", () => {
+  expect(KIT_VERSION).toBe(11);
   expect(kit.COLORS.series).toHaveLength(6);
   for (const c of kit.COLORS.series) expect(Object.values(kit.COLORS)).toContain(c);
   expect(Object.isFrozen(kit.COLORS.series)).toBe(true);
@@ -536,4 +536,16 @@ describe("kit v10: circle, rect, pad, MORSE", () => {
     expect(Object.keys(kit.MORSE)).toHaveLength(36);
     expect(Object.isFrozen(kit.MORSE)).toBe(true);
   });
+});
+
+test("kit.num and kit.say write in the cast's language (v11, 2026-09-25)", async () => {
+  const { setFigureLocale } = await import("../src/scenes/kit");
+  setFigureLocale({ lang: "nb", decimalComma: true });
+  expect(kit.num(8.72, 1)).toBe("8,7");
+  expect(kit.num(55.845)).toBe("55,845");
+  expect(kit.say({ en: "slope", nb: "stigning" })).toBe("stigning");
+  setFigureLocale({ lang: "de", decimalComma: true });
+  expect(kit.say({ en: "slope", nb: "stigning" })).toBe("slope");
+  setFigureLocale({ lang: "en", decimalComma: false });
+  expect(kit.num(8.72, 1)).toBe("8.7");
 });

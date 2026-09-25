@@ -41,7 +41,7 @@ import { FIGURE_GROUND, softAlpha } from "../layout/ink";
 import type { LabelRequest } from "../layout/labels";
 import type { Side } from "../spec/types";
 
-export const KIT_VERSION = 10; // v10: circle()/rect() point rings, pad() — a tappable labelled shape for widgets, MORSE table (widget bodies); v9: ball() — a shaded 2D disc (space); v8: smoothClosed() + roughness on stroke/area (anatomy); v7: GROUND (the figure's paper); v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
+export const KIT_VERSION = 11; // v11: num() and say() — numbers and words in the cast's language (2026-09-25); v10: circle()/rect() point rings, pad() — a tappable labelled shape for widgets, MORSE table (widget bodies); v9: ball() — a shaded 2D disc (space); v8: smoothClosed() + roughness on stroke/area (anatomy); v7: GROUND (the figure's paper); v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
 
 export interface StrokeOpts {
   closed?: boolean;
@@ -444,6 +444,19 @@ export interface SceneKit {
   pad(id: string, at: Pt, label: string, size: { r: number } | { w: number; h: number }, o?: { fontSize?: number; fill?: string; color?: string }): GroupDrawable;
   /** International Morse: letters A–Z and digits 0–9 → dots and dashes. Frozen. */
   MORSE: Readonly<Record<string, string>>;
+  /**
+   * A number written the way the cast's voice reads it: `num(8.7, 1)` is
+   * "8,7" in a Norwegian cast, "8.7" in an English one. `decimals` omitted:
+   * the number as it is, decimal mark swapped. Use it for every number a
+   * template WRITES on the figure (the layout sets the locale before the
+   * template runs — spec.lang, else the narration's own language).
+   */
+  num(v: number, decimals?: number): string;
+  /**
+   * A word in the cast's language: `say({en: "slope", nb: "stigning"})`.
+   * Falls back to English, then to the first entry.
+   */
+  say(words: Record<string, string>): string;
 }
 
 // ---- STAMPS data (unit box, x/y ∈ [-1,1], y-up) ----
@@ -592,6 +605,13 @@ function edgeTrimAmount(spec: EdgeTrim, ux: number, uy: number): number {
 // are frozen at their source in layout/model.ts and layout/canvas.ts) so a
 // body can never mutate a factory or a constant and poison later renders —
 // `kit.stroke = ...` or `kit.COLORS.ink = "red"` throws instead of sticking.
+/** The cast's language and decimal mark, set by layoutSpec before a
+ *  template runs (like the math font); read by kit.num / kit.say. */
+let figureLocale: { lang: string; decimalComma: boolean } = { lang: "en", decimalComma: false };
+export function setFigureLocale(l: { lang: string; decimalComma: boolean }): void {
+  figureLocale = { ...l };
+}
+
 export const kit: SceneKit = {
   stroke(id, pts, o = {}) {
     return {
@@ -1589,6 +1609,13 @@ export const kit: SceneKit = {
   },
   softAlpha,
   GROUND: FIGURE_GROUND,
+  num(v, decimals) {
+    const s = decimals === undefined ? String(v) : v.toFixed(decimals);
+    return figureLocale.decimalComma ? s.replace(".", ",") : s;
+  },
+  say(words) {
+    return words[figureLocale.lang] ?? words.en ?? Object.values(words)[0] ?? "";
+  },
 };
 
 Object.freeze(kit);

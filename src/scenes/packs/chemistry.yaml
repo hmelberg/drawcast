@@ -690,7 +690,7 @@ layout: |
 template: periodic_table
 title: The periodic table
 version: 1
-kit: 3
+kit: 11
 status: ready
 engines: [elements]
 interactions: [periodic]
@@ -1018,7 +1018,7 @@ layout: |
     // Print the mass at the precision the SOURCE has, never padded: "55.840"
     // claims a third decimal PubChem's 55.84 does not carry, and the true
     // value is 55.845 — a fabricated digit that happens to be wrong.
-    const massText = e.mass === null ? null : String(Math.round(e.mass * 1000) / 1000);
+    const massText = e.mass === null ? null : kit.num(Math.round(e.mass * 1000) / 1000);
 
     if (detail) {
       // The card: number, symbol, name, mass, configuration, down the middle.

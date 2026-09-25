@@ -1681,7 +1681,7 @@ layout: |-
 template: riemann_sum
 title: Riemann sum → the integral
 version: 1
-kit: 9
+kit: 11
 status: ready
 description: >-
   The area under a curve y = f(x) between a and b approximated by n
@@ -1751,7 +1751,7 @@ layout: |-
   const yTop = Math.max(1e-9, ...samples.map((p) => p[1]), 0) * 1.1;
   const sx = (x) => plot.x0 + ((x - x0) / (x1 - x0)) * (plot.x1 - plot.x0);
   const sy = (y) => plot.y0 + (Math.max(0, Math.min(y, yTop)) / yTop) * (plot.y1 - plot.y0);
-  const fmt = (v) => (Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : v.toFixed(1));
+  const fmt = (v) => (Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : kit.num(v, 1));
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
   push(kit.stroke("axes", [[plot.x0, plot.y1 + kit.AXIS_OVERHANG], [plot.x0, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { color: C.ink, strokeWidth: 3, ms: MS.axis }));
@@ -1791,8 +1791,8 @@ layout: |-
     const m = 2000;
     for (let i = 0; i < m; i++) { const x = a + ((b - a) * (i + 0.5)) / m; exact += Math.max(0, fx(x)) * ((b - a) / m); }
     const tx = plot.x0 + 24, ty = plot.y1 - 16;
-    push(kit.text("sum_label", [tx, ty], "Σ ≈ " + sum.toFixed(1) + "  (n = " + n + ")", { fontSize: 26, color: C.supply, anchor: "start" }));
-    push(kit.text("exact_label", [tx, ty - 40], "∫ ≈ " + exact.toFixed(1), { fontSize: 26, color: C.demand, anchor: "start" }));
+    push(kit.text("sum_label", [tx, ty], "Σ ≈ " + kit.num(sum, 1) + "  (n = " + n + ")", { fontSize: 26, color: C.supply, anchor: "start" }));
+    push(kit.text("exact_label", [tx, ty - 40], "∫ ≈ " + kit.num(exact, 1), { fontSize: 26, color: C.demand, anchor: "start" }));
     anchors.sum_label = [tx + 60, ty];
     anchors.exact_label = [tx + 60, ty - 40];
   }
@@ -1801,7 +1801,7 @@ layout: |-
 template: tangent_secant
 title: Secant → tangent (the derivative)
 version: 1
-kit: 9
+kit: 11
 status: ready
 description: >-
   A curve y = f(x) with a point A at x = at and a second point B at x = at + h,
@@ -1875,7 +1875,7 @@ layout: |-
   const yTop = Math.max(1e-9, ...samples.map((p) => p[1]), fx(xa), fx(xb), 0) * 1.1;
   const sx = (x) => plot.x0 + ((x - x0) / span) * (plot.x1 - plot.x0);
   const sy = (y) => plot.y0 + (Math.max(0, Math.min(y, yTop)) / yTop) * (plot.y1 - plot.y0);
-  const fmt = (v) => (Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : v.toFixed(2).replace(/0$/, ""));
+  const fmt = (v) => (Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : kit.num(Number(v.toFixed(2))));
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
   push(kit.stroke("axes", [[plot.x0, plot.y1 + kit.AXIS_OVERHANG], [plot.x0, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { color: C.ink, strokeWidth: 3, ms: MS.axis }));
@@ -1924,8 +1924,8 @@ layout: |-
   anchors.point_a = A;
   anchors.point_b = B;
   const tx = plot.x0 + 24, ty = plot.y1 - 16;
-  push(kit.text("slope_label", [tx, ty], "slope ≈ " + secSlope.toFixed(2), { fontSize: 26, color: C.supply, anchor: "start" }));
-  push(kit.text("derivative_label", [tx, ty - 40], "f′(" + fmt(xa) + ") = " + deriv.toFixed(2), { fontSize: 26, color: C.demand, anchor: "start" }));
+  push(kit.text("slope_label", [tx, ty], kit.say({ en: "slope", nb: "stigning", nn: "stigning", sv: "lutning", da: "hældning", de: "Steigung" }) + " ≈ " + kit.num(secSlope, 2), { fontSize: 26, color: C.supply, anchor: "start" }));
+  push(kit.text("derivative_label", [tx, ty - 40], "f′(" + fmt(xa) + ") = " + kit.num(deriv, 2), { fontSize: 26, color: C.demand, anchor: "start" }));
   anchors.slope_label = [tx + 60, ty];
   anchors.derivative_label = [tx + 60, ty - 40];
   return { drawables, labels, anchors, order, frame: { x: [x0, x0 + span], y: [0, yTop], box: plot } };

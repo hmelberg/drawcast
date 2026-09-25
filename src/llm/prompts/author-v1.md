@@ -64,6 +64,10 @@ Rules distilled from the built-in templates:
 5. A label placed INSIDE a shape should read at roughly 1/3 of that shape's
    height — the sketchy font renders thin at small sizes, and undersized
    text looks weak next to the shape's own bold, rough stroke.
+6. Every number the figure WRITES goes through `kit.num(v, decimals)` ("8,7"
+   in a Norwegian cast), and a word that must match the narration's language
+   through `kit.say({en: "slope", nb: "stigning"})` — never `toFixed` or an
+   English literal on the canvas.
 6. Never draw a title. The drawcast that uses your template supplies one;
    a drawn heading would double it.
 7. Keep the body COMPACT: at most ten parts, short helper functions, no

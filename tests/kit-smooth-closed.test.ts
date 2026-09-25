@@ -40,6 +40,6 @@ describe("roughness", () => {
   });
 
   test("the kit version says these exist", () => {
-    expect(KIT_VERSION).toBe(10);
+    expect(KIT_VERSION).toBeGreaterThanOrEqual(10);
   });
 });

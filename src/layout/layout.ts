@@ -12,6 +12,7 @@ import { coVisible, idsOf, lintLayout, FIT_SCALE_FLOOR, type LintIssue } from ".
 import { layoutElements, type PieceGeometry } from "./tier2";
 import { usesDecimalComma } from "./measures";
 import { detectLang } from "../render/speech";
+import { setFigureLocale } from "../scenes/kit";
 import type { MeasureSpec } from "./measures";
 import type { CodeWindow } from "./code";
 import { annotationDrawables, DEFAULT_FIT, padFor } from "./annotate";
@@ -154,6 +155,13 @@ export function layoutSpec(
   let templateIds: string[] = [];
   let templateFrame: DataFrame | undefined;
 
+  // The cast's language and decimal mark, for what a template WRITES on the
+  // figure (kit.num / kit.say): spec.lang, else the narration's own.
+  {
+    const spoken = (spec.commands ?? []).map((c) => c.speak ?? "").join(" ");
+    const sniffed = spoken.trim() ? detectLang(spoken) : undefined;
+    setFigureLocale({ lang: (spec.lang ?? sniffed ?? "en").toLowerCase().split("-")[0], decimalComma: usesDecimalComma(spec.lang, sniffed) });
+  }
   if (spec.template) {
     const scene = scenes[spec.template];
     if (!scene) {
