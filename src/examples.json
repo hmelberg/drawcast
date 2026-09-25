@@ -20996,12 +20996,12 @@
     }
   },
   {
-    "request": "Show Norway, Sweden and Denmark's GDP per capita in 2010, then animate it forward to 2020.",
+    "request": "Did Norway get poorer between 2010 and 2020, as its GDP per head in dollars suggests?",
     "packs": [
       "data"
     ],
     "spec": {
-      "title": "GDP per capita, 2010 → 2020",
+      "title": "Did Norway get poorer?",
       "template": "bar_chart",
       "params": {
         "labels": [
@@ -21011,41 +21011,50 @@
         ],
         "values": [
           [
-            87,
-            52,
+            90,
+            53,
             58
           ],
           [
-            67,
-            52,
+            71,
+            53,
             61
           ]
         ],
         "stage": 0,
         "value_labels": true,
-        "title": "GDP per capita, 2010 → 2020"
+        "ylim": [
+          0,
+          100
+        ],
+        "y_label": "Thousand US$ per person",
+        "box": {
+          "x": 190,
+          "y": 190,
+          "w": 700,
+          "h": 420
+        }
       },
       "commands": [
         {
-          "draw": [
-            "axes"
-          ],
-          "speak": "Norway, Sweden and Denmark all look wealthy from a distance — a decade tells a rougher story for one of them."
+          "card": {
+            "title": "Did Norway get poorer?"
+          }
         },
         {
           "draw": [
-            "bar_1",
+            "axes",
+            "bar_1"
+          ],
+          "speak": "Did Norway get poorer between 2010 and 2020? A chart of GDP per person seems to say so. In 2010, Norway: ninety thousand dollars a head."
+        },
+        {
+          "draw": [
             "bar_2",
             "bar_3"
           ],
           "parallel": true,
-          "speak": "2010: Norway near ninety thousand dollars a head, Sweden low fifties, Denmark high fifties."
-        },
-        {
-          "draw": [
-            "title"
-          ],
-          "speak": "Same three bars — now watch what ten years do to them."
+          "speak": "Sweden fifty-three thousand, Denmark fifty-eight. World Bank figures: each country's output per person, converted into US dollars."
         },
         {
           "pause": 0.4
@@ -21055,16 +21064,84 @@
             "stage": 1
           },
           "duration": 3,
-          "speak": "Sweden and Denmark barely move, but Norway drops hard — the oil price crash dragging it down."
+          "speak": "Now 2020. Sweden holds, Denmark creeps up, and Norway drops to seventy-one thousand: a fifth gone."
         },
         {
           "highlight": {
             "target": [
               "bar_1"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "From eighty-seven to sixty-seven thousand — a fifth of Norway's advantage gone in a single decade."
+          "speak": "But the bar is a dollar figure. Norway's output is counted in kroner, then converted at that year's exchange rate."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "bar_1"
+            },
+            "gesture": "underline"
+          },
+          "speak": "In 2010 a dollar cost six kroner; in 2020 over nine. The same kroner bought about a third fewer dollars."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "bar_1"
+            },
+            "gesture": "tap"
+          },
+          "speak": "Oil went from over a hundred dollars a barrel in 2014 to under thirty in early 2016, and the krone fell with it."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_1"
+            ]
+          },
+          "speak": "Counted in kroner and corrected for prices, output per Norwegian rose about five percent over the decade. The yardstick shrank, not the economy."
+        },
+        {
+          "animate": {
+            "ylim.0": 50
+          },
+          "duration": 3,
+          "speak": "The same chart can mislead a second way. Start the axis at fifty thousand instead of zero."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "bar_2"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Now Norway's bar looks seven times Sweden's, though its number is only a third larger."
+        },
+        {
+          "animate": {
+            "ylim.0": 0
+          },
+          "duration": 2,
+          "speak": "A bar's length is read as its value, so bars start at zero. Back at zero, the three are close neighbours."
+        },
+        {
+          "highlight": {
+            "target": [
+              "axes"
+            ]
+          },
+          "speak": "So ask two things of any money chart: which yardstick, and where does the axis start?"
+        },
+        {
+          "quiz": {
+            "question": "Norway's GDP per head in dollars fell a fifth, while real output in kroner rose. What happened?",
+            "choices": [
+              "Norway produced less",
+              "The krone lost value against the dollar",
+              "The chart's axis was cut"
+            ],
+            "correct": 2,
+            "right": "The krone fell: output per person grew a little, but each krone bought about a third fewer dollars, so the dollar bar shrank."
+          }
         }
       ]
     }
@@ -21252,12 +21329,12 @@
     }
   },
   {
-    "request": "Show GDP per capita for Norway, Sweden and Denmark in 2010 and 2020, computing the numbers in Python and animating the change",
+    "request": "What is the difference between GDP per head in current and in constant dollars? Compute Norway, Sweden and Denmark in Python, 2010 against 2020.",
     "packs": [
       "data"
     ],
     "spec": {
-      "title": "GDP per capita, 2010 → 2020",
+      "title": "Current or constant dollars?",
       "template": "bar_chart",
       "params": {
         "labels": [
@@ -21265,65 +21342,86 @@
           "Sweden",
           "Denmark"
         ],
-        "values": "{gdp.frames}",
+        "series": [
+          {
+            "name": "2010",
+            "values": "{gdp.y2010}"
+          },
+          {
+            "name": "2020",
+            "values": "{gdp.y2020}"
+          }
+        ],
         "stage": 0,
         "value_labels": true,
-        "y_label": "USD (thousands)",
+        "ylim": [
+          0,
+          100
+        ],
+        "y_label": "Thousand US$ per person",
         "box": {
-          "x": 470,
-          "y": 95,
-          "w": 470,
-          "h": 560
+          "x": 540,
+          "y": 200,
+          "w": 400,
+          "h": 400
         }
       },
       "elements": [
         {
           "id": "gdp",
           "type": "code",
-          "language": "python",
+          "language": "brython",
           "show": "code",
-          "x": 225,
-          "y": 400,
-          "width": 410,
-          "font_size": 15,
-          "code": "import pandas as pd\ndf = pd.DataFrame({\n    \"country\": [\"Norway\", \"Sweden\", \"Denmark\"],\n    \"y2010\": [87, 52, 58],\n    \"y2020\": [67, 52, 61]})\nframes = [df.y2010.tolist(), df.y2020.tolist()]"
+          "code": "import pandas as pd\ndf = pd.DataFrame({\n    \"country\": [\"Norway\", \"Sweden\", \"Denmark\"],\n    \"now_2010\": [90, 53, 58],\n    \"now_2020\": [71, 53, 61],\n    \"real_2010\": [75, 48, 51],\n    \"real_2020\": [78, 52, 56]})\ny2010 = [df.now_2010.tolist(), df.real_2010.tolist()]\ny2020 = [df.now_2020.tolist(), df.real_2020.tolist()]"
         }
       ],
       "commands": [
+        {
+          "card": {
+            "title": "Current or constant dollars?"
+          }
+        },
         {
           "draw": [
             "gdp",
             "gdp_line_1",
             "gdp_line_2",
-            "gdp_line_3",
-            "gdp_line_4",
-            "gdp_line_5"
+            "gdp_line_3"
           ],
           "parallel": true,
-          "speak": "Three countries, two years, one data frame."
+          "speak": "Current and constant dollars can tell opposite stories about one economy. Here is the World Bank's GDP per person for three countries."
         },
         {
           "draw": [
-            "gdp_line_6"
+            "gdp_line_4",
+            "gdp_line_5"
           ],
-          "speak": "Two lists of three numbers — that is all the chart needs."
+          "speak": "First in current dollars: each year's output converted at that year's exchange rate, in thousands."
+        },
+        {
+          "draw": [
+            "gdp_line_6",
+            "gdp_line_7"
+          ],
+          "speak": "Then in constant dollars: 2015's prices and exchange rates held fixed, so only the amount produced can change."
+        },
+        {
+          "draw": [
+            "gdp_line_8",
+            "gdp_line_9"
+          ],
+          "speak": "One list per year, current first and constant second. The chart plays them as two stages."
         },
         {
           "draw": [
             "axes",
+            "legend",
             "bar_1",
             "bar_2",
             "bar_3"
           ],
           "parallel": true,
-          "speak": "In 2010 Norway towered over its neighbours."
-        },
-        {
-          "animate": {
-            "stage": 1
-          },
-          "duration": 3,
-          "speak": "Ten years on, the oil price took the tower down while Denmark crept up."
+          "speak": "Current dollars first, 2010 beside 2020 for each country."
         },
         {
           "highlight": {
@@ -21331,18 +21429,71 @@
               "bar_1"
             ]
           },
-          "speak": "Same bars, same axes — only the numbers moved. That is what a chart drawn from data can do."
+          "speak": "Norway drops from ninety thousand to seventy-one. Read alone, that is a fifth of its output gone, while Sweden stands still."
+        },
+        {
+          "animate": {
+            "stage": 1
+          },
+          "duration": 3,
+          "speak": "Now the same bars in constant dollars. Norway's 2020 bar climbs past its 2010 bar."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_1"
+            ]
+          },
+          "speak": "Seventy-five thousand to seventy-eight: about five percent more per person. The fall was the krone, which lost a third of its dollar value."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_2",
+              "bar_3"
+            ]
+          },
+          "speak": "In real terms all three grew, Denmark the most, by about nine percent."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "legend"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Current dollars ask what a year's output would fetch in dollars that year. Constant dollars ask whether the country made more."
+        },
+        {
+          "highlight": {
+            "target": [
+              "axes"
+            ]
+          },
+          "speak": "Simon Kuznets, who built America's national accounts in the 1930s, warned Congress that such a number is not a measure of welfare either."
+        },
+        {
+          "quiz": {
+            "question": "A country's GDP per head in dollars falls 20 % while its currency loses 30 % against the dollar. What happened in its own currency?",
+            "choices": [
+              "Output fell by a fifth",
+              "Output rose",
+              "Nothing can be said"
+            ],
+            "correct": 2,
+            "right": "It rose: a currency thirty percent weaker would cut the dollar figure by thirty percent on its own, and it fell only twenty."
+          }
         }
       ]
     }
   },
   {
-    "request": "Replay the compounding example with a bar chart drawn from the numbers Python computes: 100 at 2 percent, then the same bars at 7 percent",
+    "request": "Why does 7 percent interest end with eleven times as much money as 2 percent, not three and a half times? Compute the bars in Python.",
     "packs": [
       "data"
     ],
     "spec": {
-      "title": "Compounding, drawn from the numbers",
+      "title": "Why compounding runs away",
       "template": "bar_chart",
       "params": {
         "labels": [
@@ -21360,43 +21511,43 @@
           3200
         ],
         "value_labels": true,
-        "y_label": "Value of 100",
+        "x_label": "Years",
+        "y_label": "Value of $100",
         "box": {
-          "x": 470,
-          "y": 95,
-          "w": 470,
-          "h": 560
+          "x": 540,
+          "y": 200,
+          "w": 400,
+          "h": 400
         }
       },
       "elements": [
         {
           "id": "calc",
           "type": "code",
-          "language": "python",
+          "language": "brython",
           "show": "code",
-          "x": 225,
-          "y": 400,
-          "width": 410,
-          "font_size": 15,
-          "code": "years = [0, 10, 20, 30, 40, 50]\nframes = [[round(100 * (1 + r) ** y) for y in years]\n          for r in (0.02, 0.07)]"
+          "code": "years = [0, 10, 20, 30, 40, 50]\nlow = [round(100 * 1.02 ** y) for y in years]\nsimple = [round(100 * (1 + 0.07 * y)) for y in years]\nhigh = [round(100 * 1.07 ** y) for y in years]\nframes = [low, simple, high]"
         }
       ],
       "commands": [
+        {
+          "card": {
+            "title": "Why compounding runs away"
+          }
+        },
         {
           "draw": [
             "calc",
             "calc_line_1"
           ],
           "parallel": true,
-          "speak": "Six checkpoints, a decade apart."
+          "speak": "Why does seven percent interest end with eleven times as much as two percent, not three and a half? Six checkpoints, a decade apart."
         },
         {
           "draw": [
-            "calc_line_2",
-            "calc_line_3"
+            "calc_line_2"
           ],
-          "parallel": true,
-          "speak": "One line of Python computes both worlds: the same hundred at two percent and at seven."
+          "speak": "First a hundred dollars at two percent, each year's interest added to the pot."
         },
         {
           "draw": [
@@ -21409,14 +21560,45 @@
             "bar_6"
           ],
           "parallel": true,
-          "speak": "At two percent the bars barely lean forward: a hundred becomes two hundred and sixty-nine in fifty years."
+          "speak": "The bars barely lean: a hundred becomes two hundred and sixty-nine in fifty years."
+        },
+        {
+          "draw": [
+            "calc_line_3"
+          ],
+          "speak": "Now the intuition most people carry: seven percent of the original hundred, seven dollars every year. That is simple interest."
         },
         {
           "animate": {
             "stage": 1
           },
           "duration": 3,
-          "speak": "Now the same bars at seven percent. They do not lean, they take off."
+          "speak": "Equal steps, seventy dollars a decade: four hundred and fifty after fifty years. Only about three and a half times the gain."
+        },
+        {
+          "draw": [
+            "calc_line_4",
+            "calc_line_5"
+          ],
+          "parallel": true,
+          "speak": "Real compounding pays seven percent on the whole pot, interest included."
+        },
+        {
+          "animate": {
+            "stage": 2
+          },
+          "duration": 3,
+          "speak": "The steps stop being equal. Each bar is roughly double the one before it."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_2",
+              "bar_3",
+              "bar_4"
+            ]
+          },
+          "speak": "About two hundred, four hundred, eight hundred: the ratio between decades stays fixed, so the gaps keep growing."
         },
         {
           "highlight": {
@@ -21424,39 +21606,82 @@
               "bar_6"
             ]
           },
-          "delivery": "grave",
-          "speak": "Two thousand nine hundred and forty-six against two hundred and sixty-nine. The rate is three and a half times higher; the money is eleven times more."
+          "speak": "Two thousand nine hundred and forty-six against two hundred and sixty-nine: three and a half times the rate, eleven times the money."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "bar_3"
+            },
+            "gesture": "tap"
+          },
+          "speak": "The rule of 72: seventy-two divided by the rate is the doubling time. At seven percent, about ten years."
+        },
+        {
+          "highlight": {
+            "target": [
+              "calc_line_4"
+            ]
+          },
+          "speak": "The rule is old. It already appears in Luca Pacioli's arithmetic book of 1494."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "bar_6"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Anything that grows on itself behaves like this: savings, debts, populations. Read such a chart by the doubling, not the step."
+        },
+        {
+          "quiz": {
+            "question": "At 7 % a year, compounded, about how long does $100 take to become $400?",
+            "choices": [
+              "About 20 years",
+              "About 43 years",
+              "About 57 years"
+            ],
+            "correct": 1,
+            "right": "About twenty: it doubles roughly every ten years, and four hundred is two doublings. Forty-three years would be simple interest."
+          }
         }
       ]
     }
   },
   {
-    "request": "Show the central limit theorem by averaging dice: one die, two dice, ten dice",
+    "request": "Why does averaging dice produce a bell curve?",
     "packs": [
       "data"
     ],
     "spec": {
-      "title": "The central limit theorem, one die at a time",
+      "title": "Where the bell curve comes from",
       "template": "bar_chart",
       "params": {
         "labels": [
           "1",
-          "",
+          "1.5",
           "2",
-          "",
+          "2.5",
           "3",
-          "",
+          "3.5",
           "4",
-          "",
+          "4.5",
           "5",
-          "",
+          "5.5",
           "6"
         ],
         "values": "{dice.frames}",
         "stage": 0,
         "gap": 0.15,
+        "x_label": "Average",
         "y_label": "Share of rolls",
-        "title": "The central limit theorem, one die at a time"
+        "box": {
+          "x": 110,
+          "y": 190,
+          "w": 800,
+          "h": 420
+        }
       },
       "elements": [
         {
@@ -21469,10 +21694,9 @@
       ],
       "commands": [
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "Nothing about a die is bell-shaped. Watch what averaging does to it."
+          "card": {
+            "title": "Where the bell curve comes from"
+          }
         },
         {
           "draw": [
@@ -21490,21 +21714,36 @@
             "bar_11"
           ],
           "parallel": true,
-          "speak": "One die: six equal spikes, a sixth each. Flat as a table."
+          "speak": "Why does the bell curve turn up everywhere, even from dice? Roll one die twenty thousand times: each face comes up a sixth of the time."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_1",
+              "bar_3",
+              "bar_5",
+              "bar_7",
+              "bar_9",
+              "bar_11"
+            ]
+          },
+          "speak": "Six equal spikes. Nothing about one die is bell-shaped."
         },
         {
           "animate": {
             "stage": 1
           },
           "duration": 3,
-          "speak": "Average two dice and the middle fills in: there are many ways to average three and a half, and only one way to average one."
+          "speak": "Now roll two dice and plot their average. The half-steps fill in, and the middle rises."
         },
         {
-          "animate": {
-            "stage": 2
+          "point": {
+            "at": {
+              "ref": "bar_1"
+            },
+            "gesture": "circle"
           },
-          "duration": 3,
-          "speak": "Average ten, and the spikes melt into a bell. The bell was never in the die. It comes from the averaging."
+          "speak": "An average of one needs a double one: one way out of thirty-six."
         },
         {
           "highlight": {
@@ -21512,7 +21751,69 @@
               "bar_6"
             ]
           },
-          "speak": "That is the central limit theorem: average enough of almost anything, and you get this shape."
+          "speak": "An average of three and a half has six ways: one and six, two and five, three and four, each either way round."
+        },
+        {
+          "animate": {
+            "stage": 2
+          },
+          "duration": 3,
+          "speak": "Average ten dice, and the triangle melts into a bell."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "bar_11"
+            },
+            "gesture": "circle"
+          },
+          "speak": "It narrows too. An extreme average needs all ten dice to agree, and that almost never happens."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_6"
+            ]
+          },
+          "speak": "A third of all averages now land in this one middle bar."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "bar_6"
+            },
+            "gesture": "tap"
+          },
+          "speak": "Abraham de Moivre found this curve in 1733, counting heads in long runs of coin tosses."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_1",
+              "bar_11"
+            ]
+          },
+          "speak": "The dice never changed: each still shows any face a sixth of the time. The bell belongs to the average, not the die."
+        },
+        {
+          "highlight": {
+            "target": [
+              "axes"
+            ]
+          },
+          "speak": "That is the central limit theorem: add many independent bits of chance, and a bell appears whatever each bit looked like."
+        },
+        {
+          "quiz": {
+            "question": "After averaging ten dice thousands of times, what is the chance a single die shows a six?",
+            "choices": [
+              "Still one in six",
+              "Less than one in six",
+              "It follows the bell"
+            ],
+            "correct": 1,
+            "right": "Still one in six: each die is as flat as ever. Only the average of many dice is bell-shaped."
+          }
         }
       ]
     }
@@ -24458,77 +24759,124 @@
     }
   },
   {
-    "request": "Show how Norwegian health spending splits between curative care, long-term care and medicines, and how that split changed from 2005 to 2023",
+    "request": "Did Norway's health spending really double between 2007 and 2019, and what is it spent on?",
     "packs": [
       "data"
     ],
     "spec": {
-      "title": "Where the health krone goes",
+      "title": "Did health spending double?",
       "template": "bar_chart",
       "params": {
         "labels": [
-          "2005",
+          "2007",
           "2011",
-          "2017",
-          "2023"
+          "2015",
+          "2019"
         ],
         "stacked": true,
         "value_labels": true,
+        "stage": 0,
         "series": [
           {
             "name": "Curative care",
             "values": [
-              81,
-              117.9,
-              160.4,
-              234.5
+              [
+                94.3,
+                117.9,
+                152,
+                175.8
+              ],
+              [
+                132.4,
+                138,
+                152,
+                156.6
+              ]
             ]
           },
           {
             "name": "Long-term care",
             "values": [
-              42.9,
-              69.1,
-              96.9,
-              126.1
+              [
+                49.5,
+                69.1,
+                87.6,
+                111.4
+              ],
+              [
+                72.6,
+                81.6,
+                87.6,
+                94.8
+              ]
             ]
           },
           {
             "name": "Medicines and goods",
             "values": [
-              24,
-              28.5,
-              37.2,
-              50.7
+              [
+                24.9,
+                28.5,
+                34.3,
+                38.5
+              ],
+              [
+                32.8,
+                34.6,
+                34.3,
+                35.8
+              ]
             ]
           },
           {
             "name": "Everything else",
             "values": [
-              18,
-              30,
-              45.4,
-              62.6
+              [
+                20.5,
+                30,
+                41.2,
+                49.8
+              ],
+              [
+                30.3,
+                34.4,
+                41.2,
+                44.4
+              ]
             ]
           }
         ],
-        "y_label": "Billion NOK, current prices",
-        "title": "Where the health krone goes"
+        "ylim": [
+          0,
+          480
+        ],
+        "y_label": "Billion NOK",
+        "box": {
+          "x": 110,
+          "y": 190,
+          "w": 800,
+          "h": 420
+        }
       },
       "commands": [
+        {
+          "card": {
+            "title": "Did health spending double?"
+          }
+        },
         {
           "draw": [
             "axes",
             "legend"
           ],
           "parallel": true,
-          "speak": "Norwegian health spending, from Statistics Norway's health accounts — table ten eight one four — at four points between 2005 and 2023, in current kroner, rounded to the nearest hundred million."
+          "speak": "Did Norway's health spending really double in twelve years? Statistics Norway's health accounts split it four ways."
         },
         {
           "draw": [
             "bar_1"
           ],
-          "speak": "In 2005 the country spent about a hundred and sixty-six billion kroner on health, and curative care took roughly forty-nine percent of it."
+          "speak": "2007: a hundred and eighty-nine billion kroner. Curative care, the hospitals and doctors, is half of it."
         },
         {
           "draw": [
@@ -24536,15 +24884,13 @@
             "bar_3"
           ],
           "parallel": true,
-          "speak": "By 2011 the total was about two hundred and forty-five billion. By 2017, about three hundred and forty."
+          "speak": "2011 and 2015: the stack keeps climbing."
         },
         {
           "draw": [
-            "bar_4",
-            "title"
+            "bar_4"
           ],
-          "parallel": true,
-          "speak": "And in 2023, about four hundred and seventy-four billion — very nearly three times the 2005 figure in current kroner."
+          "speak": "2019: three hundred and seventy-five billion. Nearly double, in twelve years."
         },
         {
           "highlight": {
@@ -24553,15 +24899,78 @@
               "bar_4"
             ]
           },
-          "speak": "Now look at the shape rather than the height. Curative care was about forty-nine percent of the total in 2005, and about forty-nine percent in 2023. Long-term care went from roughly twenty-six percent to twenty-seven."
+          "speak": "A stack also shows shares. Long-term care grew from about a quarter to thirty percent; medicines shrank from thirteen percent to ten."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "bar_4"
+            },
+            "gesture": "underline"
+          },
+          "speak": "But these are current kroner, and a krone in 2019 bought less care than one in 2007."
+        },
+        {
+          "animate": {
+            "stage": 1
+          },
+          "duration": 3,
+          "speak": "Here is the same spending in 2015 prices, with the rise in the price of care taken out."
         },
         {
           "highlight": {
             "target": [
-              "legend"
+              "bar_3"
             ]
           },
-          "speak": "Only one of the four fell as a share: medicines and other goods dispensed outside hospital, from about fourteen percent to about eleven. This is not a country changing its priorities. It is the same shape, three times bigger."
+          "speak": "2015 does not move: it is the year whose prices everything is now measured in."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "bar_1"
+            },
+            "gesture": "tap"
+          },
+          "speak": "2007 grows to two hundred and sixty-eight billion, and 2019 shrinks to three hundred and thirty-two. A quarter more, not double."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_2",
+              "bar_3"
+            ]
+          },
+          "speak": "Care got dearer much faster than prices in general. It is mostly wages, and nursing cannot be sped up like a factory: Baumol's cost disease."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "bar_4"
+            },
+            "gesture": "circle"
+          },
+          "speak": "And there were fourteen percent more Norwegians to care for. Per person, real spending rose about nine percent."
+        },
+        {
+          "highlight": {
+            "target": [
+              "axes"
+            ]
+          },
+          "speak": "Money over time needs two corrections before it means much: take out prices, then divide by people."
+        },
+        {
+          "quiz": {
+            "question": "Health spending in current kroner doubles in twelve years. What does that tell you about care per person?",
+            "choices": [
+              "It nearly doubled",
+              "Nothing yet: prices and population first",
+              "It fell"
+            ],
+            "correct": 2,
+            "right": "Nothing yet: in Norway prices took most of the doubling and population growth took more, leaving about nine percent more real care per person."
+          }
         }
       ]
     }
@@ -24722,9 +25131,9 @@
     }
   },
   {
-    "request": "Compounding at two rates as bars fed by a light Python script, then hand the viewer the script to change the rates and run it",
+    "request": "How much does a 1 percent yearly fee cost over fifty years of compounding? Let me change the fee myself in the script.",
     "spec": {
-      "title": "Change the rates yourself",
+      "title": "What a 1% fee costs",
       "template": "bar_chart",
       "params": {
         "labels": [
@@ -24742,12 +25151,13 @@
           3200
         ],
         "value_labels": true,
-        "y_label": "Value of 100",
+        "x_label": "Years",
+        "y_label": "Value of $100",
         "box": {
-          "x": 470,
-          "y": 95,
-          "w": 470,
-          "h": 560
+          "x": 540,
+          "y": 200,
+          "w": 400,
+          "h": 400
         }
       },
       "elements": [
@@ -24756,26 +25166,31 @@
           "type": "code",
           "language": "brython",
           "show": "code",
-          "code": "years = [0, 10, 20, 30, 40, 50]\nrates = (0.02, 0.07)\nframes = [[round(100 * (1 + r) ** y) for y in years]\n          for r in rates]"
+          "controls": [
+            "fee"
+          ],
+          "code": "years = [0, 10, 20, 30, 40, 50]\nfee = Slider(0, 3, step=0.25, default=1, label=\"Yearly fee, %\")\ngross = [round(100 * 1.07 ** y) for y in years]\nnet = [round(100 * (1.07 * (1 - fee / 100)) ** y) for y in years]\nframes = [gross, net]"
         }
       ],
       "commands": [
         {
-          "draw": [
-            "calc",
-            "calc_line_1",
-            "calc_line_2"
-          ],
-          "parallel": true,
-          "speak": "Six checkpoints a decade apart, and two rates: two percent and seven."
+          "card": {
+            "title": "What a 1% fee costs"
+          }
         },
         {
           "draw": [
-            "calc_line_3",
-            "calc_line_4"
+            "calc",
+            "calc_line_1"
           ],
           "parallel": true,
-          "speak": "One expression computes both worlds from the same hundred."
+          "speak": "How much can a one percent yearly fee cost? Follow a hundred dollars growing at seven percent a year for fifty years."
+        },
+        {
+          "draw": [
+            "calc_line_3"
+          ],
+          "speak": "Without a fee, the whole pot earns seven percent each year."
         },
         {
           "draw": [
@@ -24788,20 +25203,84 @@
             "bar_6"
           ],
           "parallel": true,
-          "speak": "At two percent the bars barely lean forward."
+          "speak": "It roughly doubles every decade: two thousand nine hundred and forty-six at the end."
+        },
+        {
+          "draw": [
+            "calc_line_2"
+          ],
+          "speak": "Now a fund keeps one percent of the savings every year. The fee is a slider you can move."
+        },
+        {
+          "draw": [
+            "calc_line_4",
+            "calc_line_5"
+          ],
+          "parallel": true,
+          "speak": "Each year the pot grows seven percent, then gives up one percent of itself."
         },
         {
           "animate": {
             "stage": 1
           },
           "duration": 3,
-          "speak": "At seven percent the same hundred is nearly three thousand after fifty years."
+          "speak": "Same money, same markets. After fifty years: one thousand seven hundred and eighty-two."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_6"
+            ]
+          },
+          "speak": "A fee of one percent a year took about two fifths of the final pot."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "bar_2"
+            },
+            "gesture": "underline"
+          },
+          "speak": "The fee compounds too: every dollar it takes early stops earning for all the years that follow."
+        },
+        {
+          "run": {
+            "code": "calc",
+            "values": {
+              "fee": {
+                "from": 0,
+                "to": 2,
+                "steps": 9
+              }
+            }
+          },
+          "speak": "Slide the fee from nothing to two percent, and the last bar sinks to about a third of the fee-free pot."
+        },
+        {
+          "highlight": {
+            "target": [
+              "calc_line_2"
+            ]
+          },
+          "speak": "This is why John Bogle started the first index fund for ordinary savers in 1976: to keep fees close to nothing."
         },
         {
           "explore": {
             "code": "calc"
           },
-          "speak": "Now change the rates yourself and run it — the bars follow your script."
+          "speak": "Now set the fee your own fund charges, and see what it costs by year fifty."
+        },
+        {
+          "quiz": {
+            "question": "A fund charges 1 % a year. Over 50 years at 7 %, about how much of the final pot does the fee take?",
+            "choices": [
+              "About 1 %",
+              "About 10 %",
+              "About 40 %"
+            ],
+            "correct": 3,
+            "right": "About forty percent: every dollar the fee takes stops compounding, so the loss grows with the savings."
+          }
         }
       ]
     }
