@@ -15,7 +15,7 @@ import type { LayoutResult } from "../layout/layout";
 import { heldFrom, sceneAt } from "./plan";
 import { breathAfterMs } from "./breath";
 import type { BackendEffects, RenderedElement } from "./backend";
-import { EASINGS, FULL_CANVAS_BOX, lerpBox, pointerPath, unionBoxes } from "./effects";
+import { EASINGS, FULL_CANVAS_BOX, FULL_VIEW_BOX, lerpBox, pointerPath, unionBoxes } from "./effects";
 import { lengthFractionAt } from "./trails";
 import { pacedDurations } from "./pacing";
 import type { BBox } from "../layout/geometry";
@@ -1678,8 +1678,8 @@ export class Player {
       case "camera": {
         if (!this.effects) return;
         const effects = this.effects;
-        const from = before.camera ?? FULL_CANVAS_BOX;
-        const to = step.box ?? FULL_CANVAS_BOX;
+        const from = before.camera ?? FULL_VIEW_BOX;
+        const to = step.box ?? FULL_VIEW_BOX;
         const ease = EASINGS["ease-in-out"];
         await this.progress(step.seconds * 1000, signal, (t) => effects.setCamera(t >= 1 ? step.box : lerpBox(from, to, ease(t))));
         return;
@@ -2013,7 +2013,7 @@ export class Player {
       w,
       h,
     };
-    const from = this.stateAt(this.completed).camera ?? FULL_CANVAS_BOX;
+    const from = this.stateAt(this.completed).camera ?? FULL_VIEW_BOX;
     const ease = EASINGS["ease-in-out"];
     await this.progress(opts.ms ?? 1600, ac.signal, (t) => effects.setCamera(lerpBox(from, to, ease(t))));
   }

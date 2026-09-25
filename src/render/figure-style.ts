@@ -6,6 +6,7 @@
 // self-contained outside drawcast while the app's variables still win inside.
 
 import { FIGURE_GROUND } from "../layout/ink";
+import { COLORS } from "../layout/model";
 
 /**
  * The subtitle band's ground (A6/D1). At 0.82 the band was nearly opaque ink
@@ -17,7 +18,6 @@ import { FIGURE_GROUND } from "../layout/ink";
 export const CAPTION_BAND = { ink: [24, 20, 16], alpha: 0.6 } as const;
 
 const BAND = `rgba(${CAPTION_BAND.ink.join(", ")}, ${CAPTION_BAND.alpha})`;
-const BAND_CLEAR = `rgba(${CAPTION_BAND.ink.join(", ")}, 0)`;
 
 /** Where the C64 face lives: the app's own copy first, drawcast's published
  *  one for a page that embeds the engine (the engine build ships no public
@@ -57,18 +57,25 @@ const FIGURE_CSS = `
    fullscreen and needs no separate rule there. */
 .cs-caption {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  /* As wide as its words, not the whole drawing (2026-09-25): a centred
+     band covers far less of the figure than a full-width gradient did, at
+     the same alpha — so the same measured contrast. */
+  left: 50%;
+  bottom: 0.4rem;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 1.2rem);
+  box-sizing: border-box;
+  border-radius: 6px;
   z-index: 5;
-  padding: 0.45rem 0.9rem 0.5rem;
+  padding: 0.3rem 0.8rem 0.35rem;
   font-family: var(--sketch-font, "Patrick Hand", "Segoe Print", "Comic Sans MS", cursive);
   font-size: calc(1.15rem * var(--cs-text-scale, 1));
   line-height: 1.35;
   text-align: center;
   color: #fbf8f1;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8), 0 0 6px rgba(0, 0, 0, 0.45);
-  background: linear-gradient(to top, ${BAND} 55%, ${BAND_CLEAR});
+  background: ${BAND};
   /* Selecting a phrase to look up is the one gesture the band answers; every
      other click belongs to the drawing underneath (see ui/caption.ts). */
   pointer-events: none;
@@ -77,6 +84,36 @@ const FIGURE_CSS = `
 }
 .cs-caption::selection,
 .cs-caption *::selection { background: rgba(181, 72, 46, 0.55); }
+/* Subtitles BELOW the drawing when the stage has room under it (Hans,
+   2026-09-25; render/caption-place.ts decides and sets the class): the
+   drawing keeps its 4 : 3 at the top — so the svg never letterboxes and a
+   click maps exactly — and the words sit on the paper under it, in ink,
+   with no band to cover anything. */
+.cs-caption-below { display: flex; flex-direction: column; justify-content: flex-start; }
+.cs-caption-below .cs-svg { height: auto; aspect-ratio: 4 / 3; flex: none; }
+.cs-caption-below .cs-caption {
+  position: static;
+  flex: none;
+  /* The caption is the stage's first child (it is there before the svg is
+     mounted); in the column it goes last. */
+  order: 1;
+  /* On bare paper the words need no extra size to carry over a drawing. */
+  font-size: calc(1.02rem * var(--cs-text-scale, 1));
+  transform: none;
+  width: auto;
+  max-width: none;
+  border-radius: 0;
+  padding: 0.35rem 0.9rem 0.4rem;
+  color: ${COLORS.ink};
+  text-shadow: none;
+  background: none;
+}
+/* A phone held upright shows the app's figure a little taller than 4 : 3 —
+   room for three lines of subtitles under the drawing (4 : 4.1) instead of over it.
+   Fullscreen and the viewer size the stage themselves and override this. */
+@media (max-width: 700px) and (orientation: portrait) {
+  .cs-stage { aspect-ratio: 4 / 4.1; }
+}
 /* The band goes away between beats rather than hanging over the drawing as an
    empty box — and CC off takes it away outright. Visibility rather than
    display: the video export reads this element's textContent every frame, and

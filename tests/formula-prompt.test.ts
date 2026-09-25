@@ -13,7 +13,7 @@ type Ex = {
   request: string;
   spec?: {
     vars?: Record<string, number>;
-    elements?: { id: string; type: string; colors?: Record<string, string>; x_expr?: string; y_expr?: string; bind?: Record<string, string> }[];
+    elements?: { id: string; type: string; colors?: Record<string, string>; x_expr?: string; y_expr?: string; bind?: Record<string, string>; steps?: unknown[] }[];
     commands?: Record<string, unknown>[];
   };
 };

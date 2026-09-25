@@ -2,7 +2,7 @@
 // interpolation (move), camera box interpolation, and the laser-pointer
 // trajectory. No DOM — the Player drives these against backend primitives.
 
-import { CANVAS } from "../layout/canvas";
+import { CANVAS, FULL_VIEW } from "../layout/canvas";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import type { Easing, PointGesture } from "../spec/types";
@@ -17,6 +17,8 @@ export const EASINGS: Record<Easing, EasingFn> = {
 };
 
 export const FULL_CANVAS_BOX: BBox = { x: 0, y: 0, w: CANVAS.w, h: CANVAS.h };
+/** The camera at rest: the canvas with its paper margin (layout/canvas.ts FULL_VIEW). */
+export const FULL_VIEW_BOX: BBox = { ...FULL_VIEW };
 
 /**
  * Position along a waypoint offset path at eased parameter t ∈ [0,1].

@@ -61,6 +61,19 @@ lists every one, old request → new, form before → after.
   optional note); `in_place` for a substitution. #37, #211, #233, #240 and
   #261 converted; the script format reads and writes it.
 
+**The caption band (decision 1), settled with Hans the same day** — no
+band rule for authors at all:
+
+- The player shows the canvas inside a paper margin (viewBox padded 30 ×
+  22.5, still 4 : 3), so a figure may use the whole canvas and never
+  touches the frame.
+- Subtitles go BELOW the drawing when the stage has room (a phone held
+  upright, a tall window, fullscreen on a tall screen — decided from the
+  stage's box on resize, with hysteresis), and over it otherwise; the
+  overlay is now a band as wide as its words, not a full-width gradient.
+- The "keep content above y ≈ 150" rule is gone from the brief and the
+  template-author prompt; no caption-band lint.
+
 **Still open** — each would change many figures at once:
 
 1. **The caption band.** Measured after the revision: 79 of 287 single-page

@@ -29,9 +29,9 @@ It must `return { drawables, labels, anchors, order }`, and may also return
 
 - No imports, no globals, no Math.random, no Date — everything comes through
   `kit` (frozen), and determinism is required: same params, identical output.
-- Canvas is 1000×750, y-UP (y=0 is the bottom). Keep all geometry within it,
-  and keep the drawing clear of the bottom 60 units: the app lays its
-  subtitle band there.
+- Canvas is 1000×750, y-UP (y=0 is the bottom). Keep all geometry within it;
+  the whole canvas is yours — the player shows it inside a margin of its own
+  and puts the subtitles below the drawing when there is room.
 - drawables: array from kit factories. labels: array from kit.label. anchors:
   { id: [x, y] } points for gestures. order: every drawable and label id, in
   natural draw order (this drives the narrated drawing sequence).
@@ -98,9 +98,7 @@ FUNCTION BODY>"`. It is the body of: new Function("kit"), and must
   through to the page untouched. A keyboard is a SHORTCUT, never the only way
   in: the pads must still do everything on their own (a phone has no
   keyboard), and the figure should SAY which key does what — a drawn hint line
-  beside or above the pads, clear of the caption band along the bottom of the
-  canvas (a three-line caption covers roughly 110 logical units), so the movie
-  shows it too.
+  beside or above the pads, so the movie shows it too.
 - `demo(scene, answer) -> effects` — the movie form: what the laser does to
   show the answer (taps as `{pointer: id}`, sounds beside them).
 - `judge(given, answer) -> boolean` — when the ask's answer needs more than

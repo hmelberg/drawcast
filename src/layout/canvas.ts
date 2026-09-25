@@ -5,6 +5,18 @@
 // bodies — see the matching note on COLORS in layout/model.ts.
 export const CANVAS = Object.freeze({ w: 1000, h: 750 } as const);
 
+/**
+ * The paper round the canvas (Hans, 2026-09-25): the player shows the
+ * 1000 × 750 canvas inside a slightly larger box, so a figure may use the
+ * whole canvas and still never touch the frame — a margin no author (or
+ * model) has to remember. 30 × 22.5 keeps the view exactly 4 : 3, so the
+ * svg never letterboxes and pointer mapping stays exact.
+ */
+export const VIEW_PAD = Object.freeze({ x: 30, y: 22.5 } as const);
+
+/** The un-zoomed view, logical y-up: the canvas and its paper. */
+export const FULL_VIEW = Object.freeze({ x: -VIEW_PAD.x, y: -VIEW_PAD.y, w: CANVAS.w + 2 * VIEW_PAD.x, h: CANVAS.h + 2 * VIEW_PAD.y } as const);
+
 /** Default plot-area margins (logical units) for diagrams with axes. */
 // top: the y arrow overshoots the plot by AXIS_OVERHANG (22) and the y-axis
 // caption sits above the arrowhead (a 28pt label box is 35 units) — 55 units

@@ -6,6 +6,7 @@ import { domainMapping, elementBBoxes, layoutSpec, type LayoutResult } from "../
 import { drawablesForId, leafDrawables, type Pt } from "../layout/model";
 import type { LintIssue } from "../lint/lint";
 import type { Spec, SpecElement } from "../spec/types";
+import { placeCaption } from "./caption-place";
 import { ensureFigureStyles } from "./figure-style";
 import { splitVarOverrides, withNewIdsVisible, withOverrides } from "./params";
 import { controlsOfFor, planCommands, type Plan, type PlanOptions } from "./plan";
@@ -292,6 +293,8 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   stage.appendChild(caption);
   figure.appendChild(stage);
   container.appendChild(figure);
+  // Below the drawing when the stage has room, over it when not (caption-place.ts).
+  const stopCaptionPlace = placeCaption(stage, caption);
 
   // One text style for the whole figure (layout/text-style.ts): measured at
   // the size it will be drawn, then stamped on the drawables. The HTML text
@@ -535,6 +538,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     lint: () => layout.issues,
     update: async (diff) => {
       disposed = true;
+      stopCaptionPlace();
       player.dispose();
       mounted.destroy();
       figure.remove();
@@ -544,6 +548,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     },
     destroy: () => {
       disposed = true;
+      stopCaptionPlace();
       player.dispose();
       mounted.destroy();
       figure.remove();

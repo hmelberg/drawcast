@@ -6,7 +6,7 @@ import type { TextFamily, TextWeight } from "../layout/text-style";
 import rough from "roughjs";
 import type { RoughSVG } from "roughjs/bin/svg";
 import type { Options as RoughOptions } from "roughjs/bin/core";
-import { CANVAS, toSvgY } from "../layout/canvas";
+import { CANVAS, FULL_VIEW, toSvgY } from "../layout/canvas";
 import {
   CHAR_W,
   COLORS,
@@ -1548,8 +1548,8 @@ function makeEffects(
     },
 
     setCamera(box: BBox | null): void {
-      if (!box) svg.setAttribute("viewBox", `0 0 ${CANVAS.w} ${CANVAS.h}`);
-      else svg.setAttribute("viewBox", `${box.x.toFixed(1)} ${toSvgY(box.y + box.h).toFixed(1)} ${box.w.toFixed(1)} ${box.h.toFixed(1)}`);
+      const b = box ?? FULL_VIEW;
+      svg.setAttribute("viewBox", `${b.x.toFixed(1)} ${toSvgY(b.y + b.h).toFixed(1)} ${b.w.toFixed(1)} ${b.h.toFixed(1)}`);
     },
   };
 }
@@ -1560,7 +1560,8 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
     label: opts.label,
     async mount(layout: LayoutResult, _spec, container: HTMLElement): Promise<MountResult> {
       const svg = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
-      svg.setAttribute("viewBox", `0 0 ${CANVAS.w} ${CANVAS.h}`);
+      // The canvas inside its paper margin (layout/canvas.ts VIEW_PAD).
+      svg.setAttribute("viewBox", `${FULL_VIEW.x} ${toSvgY(FULL_VIEW.y + FULL_VIEW.h)} ${FULL_VIEW.w} ${FULL_VIEW.h}`);
       svg.setAttribute("class", "cs-svg");
       const rc = opts.sketchy ? rough.svg(svg) : null;
 
