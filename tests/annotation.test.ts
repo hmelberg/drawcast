@@ -131,3 +131,30 @@ describe("annotation element — layout", () => {
     expect(leafDrawables(drawablesForId(layout.drawables, "m")).length).toBeGreaterThan(0);
   });
 });
+
+describe("annotation element — lint", () => {
+  // A cross over a rejected claim lies ON its target by design; the overlap
+  // rules must not report the mark against what it marks (2026-09-25).
+  test("a cross over its own target is not an overlap", () => {
+    const spec: Spec = {
+      elements: [
+        { id: "guess", type: "text", text: "CH4 + O2 -> CO2 + H2O", x: 500, y: 400 },
+        { id: "x_guess", type: "annotation", target: ["guess"], kind: "cross" },
+      ],
+      commands: [{ draw: ["guess"] }, { draw: ["x_guess"] }],
+    };
+    const issues = layoutSpec(spec).issues.filter((i) => i.rule.startsWith("overlap"));
+    expect(issues).toEqual([]);
+  });
+
+  test("a stroke that is NOT the mark still counts", () => {
+    const spec: Spec = {
+      elements: [
+        { id: "guess", type: "text", text: "CH4 + O2 -> CO2 + H2O", x: 500, y: 400 },
+        { id: "slash", type: "path", points: [[300, 380], [700, 420]] },
+      ],
+      commands: [{ draw: ["guess"] }, { draw: ["slash"] }],
+    };
+    expect(layoutSpec(spec).issues.some((i) => i.rule === "overlap-label-stroke")).toBe(true);
+  });
+});

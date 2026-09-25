@@ -339,8 +339,15 @@ export function layoutSpec(
   // member that owns it — the same ownership tier-2 scaled by — or the
   // exemption never fires for the parts an element mints.
   const ownsId = (m: string, id: string) => id === m || id.startsWith(`${m}_`) || (pieceGroups[m] ?? []).includes(id);
+  // An annotation lies ON what it marks by design (a cross over a rejected
+  // formula, a ring round an answer): mark and target are one composition,
+  // not an overlap (2026-09-25 example revisions).
+  const annotated: [string, string[]][] = (spec.elements ?? [])
+    .filter((e) => e.type === "annotation")
+    .map((e) => [e.id, (Array.isArray(e.target) ? e.target : e.target !== undefined ? [e.target] : []) as string[]]);
+  const marks = (x: string, y: string) => annotated.some(([id, ts]) => ownsId(id, x) && ts.some((t) => ownsId(t, y)));
   const composed = (a: string, b: string) =>
-    Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
+    marks(a, b) || marks(b, a) || Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
   const layoutIssues = lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], composed);
   const atDraw = codeEl && !opts.skipDrawBeatLint ? paramsAtFirstDraw(rawSpec, codeEl.id) : null;
   if (!codeEl || atDraw === null) {
