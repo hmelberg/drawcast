@@ -339,6 +339,50 @@ inconclusive trials pool to a clear answer; weight = 1/SE²), #28 confounder
   frames** came up again in every group.
 
 
+## Round 6 lessons (29 examples — the rest of August)
+
+- **Fixed this round**: bayes_tree's punchline box (P(sick | positive)) sat
+  in the caption band — rows tightened, box lifted to 152–230; #87's
+  animate collision (n 4 → 8) and its PENDING entry removed; the frames
+  harness no longer runs the draw-beat lint on posed frames (a label that a
+  template drops at small h was reported although it was drawn while it
+  existed — #211 was flagged for this).
+- **Demonstration features kept**: #qa dialogue (#56), a two-quiz test with
+  `wrong_goto` and `{score}` (#93), a click `ask` made a real choice with a
+  decoy dot (#96), portrait cameos (#91, #92), a stored-name `ask` (#94),
+  sound and the piano `ask` (#83, #97 — the third asked on a NEW root),
+  links and YouTube sources (#104, #105, #107), a playlist with a portrait
+  (#89).
+- **Factual repairs**: Smith's pin figures (18 operations, "two or three"
+  per man, under 20 pins alone); the prisoner's dilemma's escape via
+  repetition (Axelrod); the SIR overshoot past herd immunity.
+- **Engine**: a `text` in a laid-out group still needs x/y to validate
+  (the prompt says unpositioned elements are placed); "present large, then
+  `animate: {box}` to make room" is linted at the full-size state with the
+  later elements present, so the idiom the prompt teaches fails the gate;
+  arrows between stacked nodes cross the node text; a tier-2 `point` on a
+  template page reads domain units where a `path` reads logical ones;
+  labels on node outlines are not linted; an invalid label side ("top")
+  crashes placeLabels instead of failing validation; curved edges' bulge
+  side flips with from/to and their height cannot be set; `params.box`
+  leaves freehand overlays unmoved (#87 needed a hand-measured transform —
+  expose the fit transform); note_sheet's `sound: true` is silently
+  switched off by any hand-written `play` with press/reveal.
+- **Templates**: sampling_dist's ± label crosses the curve for most n, and
+  it draws a perfect bell even at n = 1–2 (dishonest for #95's "pick your
+  n"); ci_dance's width ignores `confidence` and its caption sits at y 62;
+  galton_board's ball path is fixed by the jitter hash (undocumented);
+  sir_compartments has no epidemic curve (waning, herd immunity and
+  overshoot need I(t) — drawn by hand from a simulation); nephron draws
+  small; wave_diagram has no sum curve; tangent_secant's text shrinks with
+  `box`; note_sheet cannot mark a key persistently; ppf has no intercept
+  units; payoff_matrix draws small and its best-reply marks have no ids;
+  two_by_two_table has no derived column.
+- **Prompt**: the source rule says "exactly ONE reference", but #101 carries
+  `of` and `url` and works — the rule and the exemplar disagree.
+
+## Hans's feedback on the pilot (2026-09-25)
+
 - Better. But openings still jump in without saying what the drawcast is
   about: fixed in all eight (the first line names the question), and in the
   prompt's opening rule.
