@@ -10,6 +10,84 @@ The file before any revision is kept as
 `docs/example-revisions/2026-09-25-before.json` (HEAD at 1a6939d), so the
 effect of the prompt and process changes can be measured against it later.
 
+## After the revision: the major changes made, and what needs Hans's decision
+
+All 292 non-specimen examples are revised (10 rounds; the three specimens
+#280–282 untouched by design). `docs/example-revisions/2026-09-25-pairs.json`
+lists every one, old request → new, form before → after.
+
+**Done the same night, from these notes** (each its own commit, tested):
+
+- **A blank page after any `run`** (player): a scrub past a run whose
+  result was not cached re-mounted the figure without re-applying the
+  scene. Every code example's end frame was blank in the harness since
+  round 8 — agents took it for a harness limit. Real viewers scrubbing
+  forward saw it too.
+- **`highlight.part` finds sibling runs**: `bx`, `-1`, `P(A)` inside
+  `P(B\mid A)\,P(A)`, `9\times10^{13}` — terms MathJax never groups. Engine #2.
+- **Code panels keep to the free band** (y 130–690): a chart's output no
+  longer pushes its first line into the heading or its sliders under the
+  captions.
+- **Axes cross at the origin** when the domain spans 0 (`cross: "corner"`
+  to opt out). Feature idea 3.
+- **A label on an outline goes on the side asked for** (path, shape,
+  polygon, ellipse): no more labels inside a notch or on a wave — the most
+  reported engine defect (four rounds).
+- **A move that carries its target off the canvas is a plan warning**, and
+  names domain units when the page has a domain.
+- **The frames harness shows every narrated beat** with `&beats=all`.
+  Feature ideas 2 and 8.
+- **xylophone, bubble_sort, logic_gates draw no default heading.**
+- **A manifest-ids test**: every documented template id must be drawn by
+  some example; today's conditional ones are listed and may only shrink.
+- Smaller, along the way: heatmap's widest row name no longer truncated;
+  the heading's push-in fits long titles; supply_demand's dashed diagonal;
+  `{var}` readouts and measures write decimal commas in Norwegian casts.
+
+**Needs a decision (Hans)** — each would change many figures at once:
+
+1. **The caption band.** Measured after the revision: 79 of 287 single-page
+   examples still put ink below y 112, where the narration captions sit —
+   almost all of it the shared plot area's floor (`PLOT_MARGIN.bottom = 95`,
+   the x-axis caption under it at y ≈ 44): 26 freehand charts and 53
+   template ones (supply_demand 6, bar_race 5, solar_system 5, chess 4,
+   line_chart 3, sky_map 3, …). Three ways out:
+   - **(a) Captions below the canvas** (player): nothing moves, every
+     figure is clear at once; the stage loses ~15 % of its height in a
+     fixed window and video export needs the same strip.
+   - **(b) Raise the plot floor to ~150** (and lower the top to ~95 so the
+     y-axis caption clears the heading): charts shrink ~15 % in height;
+     freehand overlays at logical coordinates (text, nodes beside a chart)
+     and the agents' hand-computed overlays on templates (#133's RMST area,
+     #132's second diamond, #87's transform) no longer line up and must be
+     re-checked — about 80 examples to re-screenshot.
+   - **(c) Fit the template's figure into the free band when a top card is
+     present** (the `params.box` machinery, automatically): templates only;
+     freehand charts keep the problem, and overlays drift as in (b).
+   I would pick (a) for the band and do (b)'s top half (the heading) —
+   captions over a figure are a player concern, and it frees every chart
+   template at once without touching a coordinate.
+2. **One coordinate rule on a page with a domain.** `arrow` from/to and
+   `move.by` read domain units; `node`, `text`, `path`, `shape` read
+   logical ones; `point.at {x, y}` without a domain reads 0–100. A move off
+   the canvas now warns, but the rule itself is the trap. Proposal: logical
+   everywhere unless the element says `on:`/`data:` — a breaking change for
+   casts that rely on domain `by`.
+3. **Expose a template's fit / plot transform** (template-coordinate `at`,
+   or `{data: [x, y]}` on a template page). Came up in five rounds: every
+   overlay on a chart template is hand arithmetic against the template's
+   private constants, and silently breaks if they change.
+4. **Topic density.** The base rate is taught seven times, SIR five,
+   discounting and hexagons three each, demand shifts four. Every one now
+   has a distinct point, but the set leans on few ideas; merging or
+   retiring some is a curation call.
+5. **A derivation structure** (`math` with `steps`) — feature idea 1 —
+   still the largest authoring saving left: every worked line costs
+   copy + move + morph and hand-picked offsets.
+6. **The Node gate lays out code-fed templates at placeholder values** — it
+   cannot see the real chart. Running Pyodide in the gate is heavy; a
+   cheaper step is skipping data-dependent id and label checks there.
+
 ## The checklist each revision is held to
 
 Taken from the compiler prompt and STYLE.md, the current advice on how to
