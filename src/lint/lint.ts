@@ -25,6 +25,7 @@ import { runValues } from "../render/sweep";
 import { pathsByCodeId, scanDataTokens } from "../code/tokens";
 import { connectKey } from "../render/widgets";
 import { CONNECT_MAX_EDGES } from "../ui/connect-model";
+import { PLACE_WORDS, SIDE_WORDS } from "../spec/script/sugar";
 
 /**
  * The shared traversal behind `lintableLeaves` and `flattenLintable`: a
@@ -129,7 +130,8 @@ export interface LintIssue {
     /** a draw naming an id the template DECLARES (element_ids) but did not draw under these params — a region without its `regions` entry, say */
     | "template-id-off"
     /** a highlight `part` that names no glyph or text in its targets (the whole target lights instead) */
-    | "highlight-part";
+    | "highlight-part"
+    | "id-keyword";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -990,6 +992,15 @@ function lintCurveExprs(spec: Spec): LintIssue[] {
 export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIssue[] {
   const cmds = spec.commands ?? [];
   const issues: LintIssue[] = [...lintSources(spec), ...lintCode(spec), ...lintWidget(spec), ...lintMathSizes(spec), ...lintCurveExprs(spec)];
+
+  // An id that is a side or place word ("right", "top-left") is read as that
+  // word by the script format, so the element loses its id on the way through
+  // the editor (found by the round-trip test on a revised example, 2026-09-25).
+  for (const el of spec.elements ?? []) {
+    if (SIDE_WORDS.has(el.id) || PLACE_WORDS.has(el.id)) {
+      issues.push({ rule: "id-keyword", ids: [el.id], message: `element id "${el.id}" is a position word the script format reads as a side or place — rename it (e.g. "${el.id}_note")`, severity: "warn" });
+    }
+  }
 
   // animate.box glides the figure into a region — but only when params has a
   // starting box (a name or a rectangle) to glide FROM. Without one it
