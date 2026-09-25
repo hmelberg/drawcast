@@ -1222,7 +1222,9 @@ export class Player {
         if (chosen === step.correct) {
           if (step.right) await this.speakLine(step.right, step, signal);
         } else if (chosen !== null) {
-          if (step.wrong) await this.speakLine(step.wrong, step, signal);
+          // `wrong` is a hint BEFORE the reveal; one that just repeats the
+          // reveal would say the same sentence twice (Hans 2026-09-25).
+          if (step.wrong && step.wrong.trim() !== reveal.trim()) await this.speakLine(step.wrong, step, signal);
           await this.speakLine(reveal, step, signal);
         } else {
           await this.speakLine(reveal, step, signal);

@@ -121,6 +121,30 @@ each was looked at in the harness (silently: the harness plays no sound).
    module. Add a cache-busting parameter (`&nocache=<time>`) or make the
    harness fetch the file itself.
 
+5. **The question under the heading.** Hans asks for the opening to say
+   what the drawcast is about, and "can even draw this". The default card
+   is a heading only; a short `subtitle` under it (the question, in the
+   hand, smaller) would make the topic visible for the whole cast, not just
+   spoken once. (The `style: "center"` card already has a subtitle; the top
+   heading does not.)
+6. **`equation_steps` `size` (built, opt-in).** Default 30 is unchanged;
+   `size: 40–48` for a derivation that is the whole figure, with notes and
+   gaps scaled and all steps shifted left together when a wide step's note
+   would otherwise be pushed onto the formula (it did at 44, and lint did
+   not see it — glyph/text overlap inside a template goes unlinted).
+   Awaiting Hans's call on whether the examples should use it.
+
+## Hans's feedback on the pilot (2026-09-25)
+
+- Better. But openings still jump in without saying what the drawcast is
+  about: fixed in all eight (the first line names the question), and in the
+  prompt's opening rule.
+- Both `wrong` and `right` were narrated after a wrong answer, and in the
+  eight they were the same sentence: `wrong` removed from them, the player
+  skips a `wrong` identical to the reveal, and the prompt's quiz rule says
+  `wrong` is a hint, never the answer again.
+- Size: shown E = mc² at 30 vs 44 (`size` param, opt-in); undecided.
+
 ## Template improvements
 
 - **equation_steps**: glyphs now carry their TeX (fixed). Still missing:

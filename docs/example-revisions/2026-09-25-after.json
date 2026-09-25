@@ -215,7 +215,7 @@
             "atom_0",
             "label_0"
           ],
-          "speak": "Textbooks often draw methane as a flat cross, with right angles between the bonds. The real molecule isn't flat. Carbon sits in the middle."
+          "speak": "What shape is a methane molecule, and why? Textbooks often draw it as a flat cross with right angles, but the real molecule isn't flat. Carbon sits in the middle."
         },
         {
           "draw": [
@@ -281,8 +281,7 @@
               "Gravity pulls one hydrogen down"
             ],
             "correct": 1,
-            "right": "They repel: four bonds get furthest apart at a tetrahedron's corners, 109.5° from each other.",
-            "wrong": "They repel: four bonds get furthest apart at a tetrahedron's corners, 109.5° from each other."
+            "right": "They repel: four bonds get furthest apart at a tetrahedron's corners, 109.5° from each other."
           }
         }
       ]
@@ -3439,7 +3438,16 @@
           "draw": [
             "eq"
           ],
-          "speak": "A number, squared, plus six times the number, makes sixteen. Which number? With x in two places, you can't simply undo the steps one by one."
+          "speak": "The quadratic formula solves any equation with x squared in it, and it comes from a picture. Take this one: x squared plus six x makes sixteen."
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq"
+            ],
+            "part": "x"
+          },
+          "speak": "With x in two places, you can't simply undo the steps one by one."
         },
         {
           "draw": [
@@ -3634,8 +3642,7 @@
               "None"
             ],
             "correct": 3,
-            "right": "None: the square would need an area of minus sixteen, and no real number squares to a negative.",
-            "wrong": "None: the square would need an area of minus sixteen, and no real number squares to a negative."
+            "right": "None: the square would need an area of minus sixteen, and no real number squares to a negative."
           }
         }
       ]
@@ -3679,7 +3686,7 @@
             "step_0",
             "note_0"
           ],
-          "speak": "Every second, the Sun turns about four million tonnes of its own mass into light."
+          "speak": "E equals m c squared says a little mass holds an enormous amount of energy. Here is why, and how much."
         },
         {
           "highlight": {
@@ -3687,7 +3694,7 @@
               "step_0"
             ]
           },
-          "speak": "Einstein's equation says how: mass and energy are the same thing, counted in different units, and c squared is the exchange rate."
+          "speak": "Every second the Sun turns four million tonnes of its mass into light. Mass and energy are one thing in different units, and c squared is the exchange rate."
         },
         {
           "highlight": {
@@ -3745,8 +3752,7 @@
               "The same"
             ],
             "correct": 1,
-            "right": "Twice as much: energy grows in step with mass — it is c that is squared, not m.",
-            "wrong": "Twice as much: energy grows in step with mass — it is c that is squared, not m."
+            "right": "Twice as much: energy grows in step with mass — it is c that is squared, not m."
           }
         }
       ]
@@ -3972,14 +3978,14 @@
           "draw": [
             "ax"
           ],
-          "speak": "e to the i pi, plus one, equals zero is often called the most beautiful equation in mathematics."
+          "speak": "Why does e to the i pi equal minus one? It sounds like nonsense, but it is a picture: half a turn around a circle."
         },
         {
           "draw": [
             "one",
             "l_one"
           ],
-          "speak": "It also looks like nonsense: what could an imaginary power mean? Start with the number one."
+          "speak": "It is often called the most beautiful equation in mathematics. Start with the number one."
         },
         {
           "draw": [
@@ -4063,8 +4069,7 @@
               "0"
             ],
             "correct": 2,
-            "right": "At 1: two pi is a full turn, which brings you back to where you started.",
-            "wrong": "At 1: two pi is a full turn, which brings you back to where you started."
+            "right": "At 1: two pi is a full turn, which brings you back to where you started."
           }
         }
       ]
@@ -4109,7 +4114,7 @@
             "step_0",
             "note_0"
           ],
-          "speak": "A test comes back positive, a witness says yes, an email says free. How much should the evidence move you?"
+          "speak": "Bayes' theorem is the rule for changing your mind when evidence arrives. A test comes back positive, an email says free: how much should that move you?"
         },
         {
           "highlight": {
@@ -4191,8 +4196,7 @@
               "Unchanged"
             ],
             "correct": 2,
-            "right": "Less likely: a smaller prior shrinks the numerator, so the same word is weaker evidence.",
-            "wrong": "Less likely: a smaller prior shrinks the numerator, so the same word is weaker evidence."
+            "right": "Less likely: a smaller prior shrinks the numerator, so the same word is weaker evidence."
           }
         }
       ]
@@ -5117,7 +5121,7 @@
           "draw": [
             "ax"
           ],
-          "speak": "Bacteria in a dish, a rumour, a new phone: at first, each grows faster the bigger it already is."
+          "speak": "Why does so much growth trace an S: slow, fast, then flat? Bacteria in a dish, a rumour, a new phone: each first grows faster the bigger it is."
         },
         {
           "draw": [
@@ -5187,8 +5191,7 @@
               "Just below the ceiling"
             ],
             "correct": 2,
-            "right": "Half way: there are enough to grow from, and still half the room left to grow into.",
-            "wrong": "Half way: there are enough to grow from, and still half the room left to grow into."
+            "right": "Half way: there are enough to grow from, and still half the room left to grow into."
           }
         }
       ]
@@ -5327,7 +5330,7 @@
           "draw": [
             "ax"
           ],
-          "speak": "A drug with a half-life of thirty hours: how long until it's gone?"
+          "speak": "A half-life says how fast something disappears, but not in the way most people think. Take a drug with a half-life of thirty hours: how long until it's gone?"
         },
         {
           "draw": [
@@ -5393,8 +5396,7 @@
               "A sixteenth"
             ],
             "correct": 3,
-            "right": "A sixteenth: 24 hours is four half-lives, and one half times itself four times is one sixteenth.",
-            "wrong": "A sixteenth: 24 hours is four half-lives, and one half times itself four times is one sixteenth."
+            "right": "A sixteenth: 24 hours is four half-lives, and one half times itself four times is one sixteenth."
           }
         }
       ]
@@ -5527,7 +5529,7 @@
             "d10",
             "l_d10"
           ],
-          "speak": "Stand close to a lamp and call its brightness a hundred. Step back to twice the distance: how bright now?"
+          "speak": "Light fades faster than you would guess as you step away, and the reason is geometry. Call a lamp's brightness a hundred up close. At twice the distance, how bright?"
         },
         {
           "draw": [
@@ -5596,8 +5598,7 @@
               "A ninth as bright"
             ],
             "correct": 3,
-            "right": "A ninth: three times the distance spreads the light over three squared, nine times, the area.",
-            "wrong": "A ninth: three times the distance spreads the light over three squared, nine times, the area."
+            "right": "A ninth: three times the distance spreads the light over three squared, nine times, the area."
           }
         }
       ]

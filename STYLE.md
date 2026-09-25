@@ -21,6 +21,29 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-25 — Say what it is about first; one line after a quiz answer
+
+Hans, on the eight revised examples: "maybe a tendency (as before) to jump
+into things without briefly saying what the specific drawcast is about (can
+even draw this if possible). Also you seem to narrate both things after a
+multiple choice question (the right and wrong) and I think you should only
+do one."
+
+Distilled: (1) the first line names the question the drawcast answers,
+in a clause, before the hook or the example: "The quadratic formula solves
+any equation with x squared in it, and it comes from a picture. Take this
+one…" — the viewer should never have to work out what the example is an
+example OF. This is the "announce" pass of 2026-09-12, kept short enough for
+the quick heading (2026-09-24). (2) After a wrong quiz answer the player
+speaks `wrong`, then `right` as the reveal. `wrong` is therefore a hint,
+never the answer again, and is left out when there is nothing to add; the
+player now skips a `wrong` identical to the reveal.
+
+Status: in the prompt (the opening rule and the quiz rule), and applied to
+the eight revised examples. "Can even draw this" is open: the top heading
+could carry the question as a small subtitle line (see the example-revision
+ledger's feature ideas).
+
 ### 2026-09-24 — A quick heading, then straight to ink
 
 Hans: "many presentations now have a chapter like zoom from page. I wonder

@@ -976,6 +976,11 @@ params:
       type: object
       additionalProperties: { type: string }
       description: "Colour per term: a TeX snippet → colour, e.g. {\"x\": \"#2f6b8f\"} — every occurrence, in every step."
+    size:
+      type: number
+      minimum: 20
+      maximum: 56
+      description: "Formula size (default 30, the body-text size). When the steps ARE the figure and nothing shares the page, 40–48 fills it; the notes and gaps grow with it."
   required: [steps]
 element_ids:
   step_<i>: steps[i]'s typeset glyphs (one group of filled shapes)
@@ -1069,7 +1074,12 @@ layout: |
   // fixed box height, so "2x = 8" (one row of glyphs) came out three times
   // the size of a step with a fraction (four rows). A row wider than the
   // canvas allows still shrinks to fit; nothing ever grows.
-  const SIZE = 30, GAP = 34, MAX_W = 900;
+  // `size` is opt-in: 30 is the body-text size every step has by default;
+  // a derivation that IS the figure may ask for more, and the gaps and the
+  // notes grow in proportion so the page keeps its proportions.
+  const SIZE = typeof params.size === "number" ? Math.min(56, Math.max(20, params.size)) : 30;
+  const K = SIZE / 30;
+  const GAP = 34 * K, MAX_W = 900;
   const unit = kit.mathUnit(SIZE);
   const fontSize = kit.mathSize(SIZE);
 
@@ -1106,6 +1116,33 @@ layout: |
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
+  // Notes hang off the right of their step. A step is centred on the page,
+  // so a wide step at a large size leaves its note no room and the clamp
+  // below would slide the note onto the formula. Shift EVERY step left by
+  // the same amount (they stay centred on one axis) until the widest
+  // step + note fits.
+  const NOTE_FS = Math.round(16 * K);
+  const noteLinesOf = (note) => {
+    const words = note.trim().split(/\s+/).filter(Boolean);
+    const out = [];
+    let cur = "";
+    for (const w of words) {
+      const cand = cur ? cur + " " + w : w;
+      if (cur && cand.length > 20) { out.push(cur); cur = w; } else cur = cand;
+    }
+    if (cur) out.push(cur);
+    return out;
+  };
+  const noteWidthOf = (lines) => Math.max(...lines.map((l) => l.length)) * NOTE_FS * 0.52;
+  let shift = 0;
+  steps.forEach((step, i) => {
+    if (typeof step.note !== "string" || step.note.trim() === "") return;
+    const r = rows[i];
+    const right = 500 + ((r.maxX - r.minX) / 2) * r.scale + 24 + noteWidthOf(noteLinesOf(step.note));
+    shift = Math.max(shift, right - 992);
+  });
+  const CX = 500 - Math.min(shift, 380);
+
   let cursor = topY;
   steps.forEach((step, i) => {
     const r = rows[i];
@@ -1114,7 +1151,7 @@ layout: |
     const rowMid = (top + bottom) / 2;
     const midX = (r.minX + r.maxX) / 2, midY = (r.minY + r.maxY) / 2;
     const scale = r.scale;
-    const tx = (x) => 500 + (x - midX) * scale;
+    const tx = (x) => CX + (x - midX) * scale;
     const ty = (y) => rowMid + (y - midY) * scale;
 
     const place = (ring) => simplifyRing(ring.map((p) => [tx(p[0]), ty(p[1])]));
@@ -1128,25 +1165,17 @@ layout: |
       return glyph;
     });
     push(kit.group("step_" + i, children));
-    anchors["step_" + i] = [500, rowMid];
+    anchors["step_" + i] = [CX, rowMid];
 
     if (typeof step.note === "string" && step.note.trim() !== "") {
       // Wrap and clamp: a wide step leaves little margin before the canvas
       // edge, and the note text length is arbitrary user input, so the note
       // both wraps at a modest character width AND has its x-position
       // clamped so its widest line never runs past the canvas.
-      const words = step.note.trim().split(/\s+/).filter(Boolean);
-      const maxChars = 20;
-      const lines = [];
-      let cur = "";
-      for (const w of words) {
-        const cand = cur ? cur + " " + w : w;
-        if (cur && cand.length > maxChars) { lines.push(cur); cur = w; } else cur = cand;
-      }
-      if (cur) lines.push(cur);
-      const noteFS = 16;
-      const lineW = Math.max(...lines.map((l) => l.length)) * noteFS * 0.52;
-      const naturalX = 500 + (r.maxX - midX) * scale + 24;
+      const lines = noteLinesOf(step.note);
+      const noteFS = NOTE_FS;
+      const lineW = noteWidthOf(lines);
+      const naturalX = CX + (r.maxX - midX) * scale + 24;
       const rightX = Math.min(naturalX, 992 - lineW);
       const noteChildren = lines.map((line, k) => kit.text("note_" + i + "__l" + k, [rightX, rowMid + (((lines.length - 1) / 2 - k) * (noteFS * 1.5))], line, { fontSize: noteFS, color: C.guide, anchor: "start" }));
       push(kit.group("note_" + i, noteChildren));

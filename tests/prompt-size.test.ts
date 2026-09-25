@@ -498,7 +498,14 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // schema/prompt say what it does per target; highlight gains `part` and the
 // `underline` effect. The glow rewording itself fit the old pin; part and
 // underline are the growth. 214634 -> 214895.
-const BASELINE_SYSTEM_CHARS = 214895;
+// Re-pinned UP 2026-09-25 (example revisions, Hans: "you seem to narrate
+// both things after a multiple choice question … only do one"): the quiz
+// rule says `wrong` is spoken BEFORE the reveal, so it is a hint, never the
+// answer again, and may be left out. +142. And the opening rule asks the
+// first line to say what the drawcast is about before the hook ("a
+// tendency … to jump into things without briefly saying what the specific
+// drawcast is about"). +148. 214895 -> 215185.
+const BASELINE_SYSTEM_CHARS = 215185;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
