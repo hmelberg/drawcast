@@ -218,7 +218,87 @@ inconclusive trials pool to a clear answer; weight = 1/SE²), #28 confounder
   after a morph that substitutes the term (Euler's θ → π keeps its colour).
 - Prompt pin +50 (the catalog's ring_molecule entry).
 
- (2026-09-25)
+## Round 3 lessons (from the agents' reports and the screenshots)
+
+- **The Node gate never linted the end state of an animated template param**
+  (only `stage` and vars), so the old AD–AS example ended with its E label on
+  the guides and passed. Fixed: a test lays out every param state an animate
+  reaches and demands no lint issue at all. It found three more existing
+  examples (#87 sampling_dist, #188 bicycle_drivetrain, #273 supply_demand),
+  listed as pending in the test until their batch.
+- **The browser lint and the Node lint disagree** (real vs heuristic text
+  metrics): only the frames harness saw several collisions. The screenshot
+  script flags any frame not "lint clean".
+- **ad_as**: the shift arrow started AT the equilibrium (the curve's middle
+  sample), leaving E's label nowhere to go but onto its guides. Fixed: the
+  arrow starts 72 % along the curve; E's label sits above.
+- **`attach_to` cannot name a template's group ids or group members**, and
+  many template group members cannot be drawn on their own
+  (reaction_scheme's `reactants_0`…). An LLM will reach for both.
+- **An `annotation` on its own target linted as an overlap** (a cross over a
+  formula). **Fixed**: an annotation and its targets count as one
+  composition in layout.ts (tests/annotation.test.ts).
+- **`point.at` takes an object, not `[x, y]`**, while the neighbouring point
+  schema advertises `[x, y]`. **Fixed**: its own description says so.
+- **Template gaps**: decision_tree has no expected value at chance nodes
+  (the fold-back is its whole point; `rollback: true`), no payoff units, and
+  a default layout into the caption band (**fixed**: margins 95/150);
+  qaly_profiles has no x_min and no totals; cost_effectiveness_plane puts
+  quadrant captions where a steep threshold exits, never shows the WTP
+  amount, rescales axes when a point animates; supply_demand / ad_as shift
+  arrows are not horizontal at the old price, labels P*′/Q*′ are fixed text,
+  no ticks; firm_cost_curves has no competitive-outcome marker;
+  indifference_budget strokes have no path anchors; protein_secondary and
+  dna_helix cannot show their mechanism (bonds i→i+4; letters on rungs,
+  unzip); cell_diagram fills the canvas to y ≈ 95.
+- **Chart floors at y ≈ 95** (every axes template) put the x-axis and the
+  lowest part of every curve in the caption band (NOTES 2026-09-20). A shared
+  plot floor at ≈ 150 would end it — a major item.
+- **A template `title` param and the card both draw a heading.** **Fixed**
+  in the prompt's card rule (leave a template's title unset).
+- **Parallel agents in worktrees work**: the symlinked node_modules needs a
+  vitest config with `server.fs.allow` on the main repo; one shared browser
+  cannot serve several agents, so the reviewer screenshots headlessly.
+
+## Round 4 lessons
+
+- **Templates taught wrong science through their own defaults and manifest
+  examples** (which the catalog feeds to the model): `pathway` defaulted to
+  "EGFR → RAS → ERK; p53 ⊣ cell cycle", `membrane_bilayer`'s example sent O₂
+  through a channel, `phylo_tree` defaulted to an unresolved root. **All
+  three fixed.** A sweep of every manifest example for truth is worth doing.
+- **Two templates rescale to fit on every frame** (`projectile_motion`,
+  `ray_diagram`), so an animate that should show "goes less far" shows the
+  same width; the old projectile example narrated a shrinking range over a
+  picture that did not shrink. Descriptions now say so; the real fix is a
+  fixed-scale option, or exposing the template's world→canvas map as a
+  `domain` so freehand overlays line up without hand-computed numbers.
+- **`highlight.part` / `colors` were whitespace-sensitive** (`\sin 2\theta`
+  vs MathJax's `\sin2\theta`). **Fixed**: `termTex` ignores whitespace.
+- **The script format lost an element whose id is a side word** (`right`),
+  caught by the round-trip test. **Fixed**: lint rule `id-keyword` (the
+  "lint §11" sugar.ts promised) warns on side/place-word ids; it found #267's
+  `left`/`right` insets, renamed. `circle`, `mark`, `grid` round-trip fine.
+- **`measure` labels don't read vars**, and a label without `{value}` gets
+  the number glued on silently ("amplitude116"); the scale must be computed
+  by hand as logical units per domain unit.
+- **No double-headed arrow** in the schema.
+- **Small template fixes applied**: punnett_square's parent-1 label off the
+  header row; food_web producers out of the caption band; truth_table's
+  `true_row_<r>` and `var_headers` documented.
+- **Template gaps**: circuit_diagram's switch is always open while current
+  flows; energy_diagram's Eₐ label crosses the catalysed hump;
+  geometry_figure's C is fixed at 130° (no animatable position, no centre
+  or radii ids); unit_circle and truth_table reach the caption band;
+  argument_map cannot swap a premise; causal_dag and forest_plot draw small;
+  distribution_curve has no `observed` marker and its labels sit far from
+  the tails; two_by_two_table has no box or totals; pathway nodes are fixed
+  width; food_web names over 10 characters overflow.
+- **Leaving a template element undrawn does not keep it off the canvas**
+  (the implicit final draw sweeps it in); `hide` before the card works but
+  delays first ink.
+
+## Hans's feedback on the pilot (2026-09-25)
 
 - Better. But openings still jump in without saying what the drawcast is
   about: fixed in all eight (the first line names the question), and in the
