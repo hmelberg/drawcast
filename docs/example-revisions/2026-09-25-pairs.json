@@ -1,0 +1,58 @@
+[
+  {
+    "index": 3,
+    "before_request": "Show methane in 3D so the tetrahedral shape is clear.",
+    "after_request": "Why isn't methane flat?",
+    "kind_before": "playlist",
+    "kind_after": "molecule_3d"
+  },
+  {
+    "index": 37,
+    "before_request": "Show the quadratic formula.",
+    "after_request": "Where does the quadratic formula come from?",
+    "kind_before": "equation_steps",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 38,
+    "before_request": "Explain E = mc^2.",
+    "after_request": "Why does a tiny bit of mass hold so much energy?",
+    "kind_before": "equation_steps",
+    "kind_after": "equation_steps"
+  },
+  {
+    "index": 39,
+    "before_request": "Show Euler's identity.",
+    "after_request": "Why does e to the i pi equal minus one?",
+    "kind_before": "equation_steps",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 40,
+    "before_request": "Explain Bayes' theorem.",
+    "after_request": "What does Bayes' theorem actually do?",
+    "kind_before": "equation_steps",
+    "kind_after": "equation_steps"
+  },
+  {
+    "index": 53,
+    "before_request": "Explain logistic growth: the equation and its S-curve.",
+    "after_request": "Why does so much growth follow an S-curve?",
+    "kind_before": "playlist",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 54,
+    "before_request": "Explain exponential decay and half-life: the equation and its curve.",
+    "after_request": "What does a half-life actually mean?",
+    "kind_before": "playlist",
+    "kind_after": "freehand"
+  },
+  {
+    "index": 55,
+    "before_request": "Explain the inverse-square law: the equation and its curve.",
+    "after_request": "Why does light fade so fast as you move away from it?",
+    "kind_before": "playlist",
+    "kind_after": "freehand"
+  }
+]

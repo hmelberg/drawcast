@@ -8,12 +8,13 @@
 //
 // A formula's glyphs carry their TeX token chain (AreaDrawable.tex, set by
 // layout/math.ts), and a part names a glyph when ANY entry of its chain is
-// that TeX — the same comparison `math.colors` uses (normalizeTex), so
+// that TeX — the same comparison `math.colors` uses (termTex: braces round
+// the whole term do not count), so
 // `"t_r"` lights both glyphs of tᵣ and `"\\dfrac{v^2}{2a}"` the whole
 // fraction. Every occurrence, as with colours. Text is plain verbatim: the
 // first occurrence on the DRAWN rows, as with a code element's `marks`.
 
-import { normalizeTex } from "./math-morph";
+import { termTex } from "./math-morph";
 import type { Drawable } from "./model";
 
 type Leaf = Exclude<Drawable, { kind: "group" }>;
@@ -37,8 +38,8 @@ export function textRows(leaf: Extract<Drawable, { kind: "text" }>): string[] {
 export function findPart(leaves: readonly Leaf[], part: string): PartHit[] {
   if (part.trim() === "") return [];
   const hits: PartHit[] = [];
-  const want = normalizeTex(part);
-  const glyphs = leaves.filter((l) => l.kind === "area" && l.tex?.some((t) => normalizeTex(t) === want)).map((l) => l.id);
+  const want = termTex(part);
+  const glyphs = leaves.filter((l) => l.kind === "area" && l.tex?.some((t) => termTex(t) === want)).map((l) => l.id);
   if (glyphs.length > 0) hits.push({ kind: "glyphs", leafIds: glyphs });
   for (const leaf of leaves) {
     if (leaf.kind !== "text") continue;

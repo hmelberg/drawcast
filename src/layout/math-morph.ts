@@ -6,12 +6,32 @@ export function normalizeTex(s: string): string {
   return s.replace(/\s+/g, " ").trim();
 }
 
+/** A TERM as a person names it, for `colors` and `highlight.part`: normalised,
+ *  and without braces that wrap the whole of it — MathJax keeps a group's
+ *  braces in its chain (an exponent is `{t/t_{1/2}}`), but nobody writes them
+ *  when they name the exponent. */
+export function termTex(s: string): string {
+  let t = normalizeTex(s);
+  while (t.startsWith("{") && t.endsWith("}")) {
+    let depth = 0;
+    let wraps = true;
+    for (let i = 0; i < t.length - 1; i++) {
+      if (t[i] === "{") depth++;
+      else if (t[i] === "}") depth--;
+      if (depth === 0) { wraps = false; break; }
+    }
+    if (!wraps) break;
+    t = t.slice(1, -1).trim();
+  }
+  return t;
+}
+
 /** The deepest entry of a token's latex chain (index 0 = its own) that equals a colour key. */
 export function colorFor(chain: string[], colors: Record<string, string> | undefined): string | null {
   if (!colors) return null;
-  const keys = new Map(Object.entries(colors).map(([k, v]) => [normalizeTex(k), v]));
+  const keys = new Map(Object.entries(colors).map(([k, v]) => [termTex(k), v]));
   for (const entry of chain) {
-    const hit = keys.get(normalizeTex(entry));
+    const hit = keys.get(termTex(entry));
     if (hit !== undefined) return hit;
   }
   return null;

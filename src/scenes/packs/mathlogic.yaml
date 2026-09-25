@@ -1121,7 +1121,11 @@ layout: |
     const children = r.outlines.map((o, j) => {
       const holes = (o.holes || []).map(place).filter((h) => h.length >= 3);
       const fill = kit.mathColorFor(o.token.chain, params.colors) ?? C.ink;
-      return kit.area("step_" + i + "__g" + j, place(o.pts), fill, { holes: holes, precise: true, ms: MS.text });
+      const glyph = kit.area("step_" + i + "__g" + j, place(o.pts), fill, { holes: holes, precise: true, ms: MS.text });
+      // The token chain, as a math element's glyphs carry it: what
+      // highlight.part matches, so a step's term can be lit alone.
+      glyph.tex = o.token.chain;
+      return glyph;
     });
     push(kit.group("step_" + i, children));
     anchors["step_" + i] = [500, rowMid];

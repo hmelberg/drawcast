@@ -10,7 +10,7 @@ import { simplifyPolyline } from "./geometry";
 import { Z_AREA, SKETCH_MS, type Drawable, type Pt } from "./model";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
 import type { MathJaxEngine, MathOutline } from "../scenes/engines";
-import { matchShapes, normalizeTex } from "./math-morph";
+import { matchShapes, termTex } from "./math-morph";
 import { morphPair } from "../render/morph";
 import type { SpecElement } from "../spec/types";
 
@@ -132,9 +132,9 @@ function unionBox(a: BBox, b: BBox): BBox {
  *  `colors` won — so callers can report the keys that never matched. */
 function matchedColorKey(chain: string[], colors: Record<string, string> | undefined): string | null {
   if (!colors) return null;
-  const byNorm = new Map(Object.keys(colors).map((k) => [normalizeTex(k), k] as const));
+  const byNorm = new Map(Object.keys(colors).map((k) => [termTex(k), k] as const));
   for (const entry of chain) {
-    const hit = byNorm.get(normalizeTex(entry));
+    const hit = byNorm.get(termTex(entry));
     if (hit !== undefined) return hit;
   }
   return null;
