@@ -7,6 +7,7 @@ import { drawablesForId, leafDrawables, type Pt } from "../layout/model";
 import type { LintIssue } from "../lint/lint";
 import type { Spec, SpecElement } from "../spec/types";
 import { placeCaption } from "./caption-place";
+import { darkUnderCaption } from "./caption-dark";
 import { ensureFigureStyles } from "./figure-style";
 import { splitVarOverrides, withNewIdsVisible, withOverrides } from "./params";
 import { controlsOfFor, planCommands, type Plan, type PlanOptions } from "./plan";
@@ -503,6 +504,9 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // runtime, same cache, and the same render style behind the chart default.
   const sweepRunner = sweepRunnerFor(authored, { style });
   player.sweepRunner = sweepRunner;
+  // Words written over dark ground (a photo, a C64 screen) take the band.
+  const darkIds = darkUnderCaption(mountedLayout.drawables);
+  if (darkIds.size > 0) player.captionOnDark = (visible) => visible.some((id) => darkIds.has(id));
   // …and the cache is filled while the viewer watches the opening: every run
   // step's value maps, once, when the drawcast first starts playing. By the
   // time the sweep arrives, each step is a cache read.

@@ -309,6 +309,8 @@ export class Player {
    * an animate: the drawcast keeps its shape, the figure just does not move.
    */
   sweepRunner: SweepRunner | null = null;
+  /** Whether a caption shown now would sit on dark ground (render/caption-dark.ts), given what is on screen; the caption then takes the band. */
+  captionOnDark: ((visible: readonly string[]) => boolean) | null = null;
   /**
    * id → the patches a `run` has left on that script, oldest first, one entry
    * per step that set one. A HISTORY, not a single value, because a script
@@ -961,6 +963,10 @@ export class Player {
     text = stripLangMarks(text);
     this.captionEl.textContent = text;
     this.captionEl.classList.toggle("cs-caption-empty", text === "");
+    // Written on the drawing, a caption over something dark (a photo, a C64
+    // screen) takes the band instead (figure-style.ts .cs-caption-dark).
+    const scene = this.plan.states[Math.min(this.completed, this.plan.states.length - 1)];
+    this.captionEl.classList.toggle("cs-caption-dark", text !== "" && !!this.captionOnDark && !!scene && this.captionOnDark(scene.visible));
   }
 
   private els(ids: string[]): RenderedElement[] {

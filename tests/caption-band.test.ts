@@ -1,28 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { CAPTION_BAND } from "../src/render/figure-style";
+import { CAPTION_TEXT } from "../src/render/figure-style";
 import { contrastRatio } from "./contrast";
 
-// Part 2a (A6/D1): the subtitle band lost visual weight (0.82 → lighter)
-// without losing legibility. The worst case for the white caption text is
-// the band over bare paper — nothing drawn beneath it — so that blend is
-// what must keep WCAG AA. Measured, not eyeballed: at 0.55 the blend reads
-// 3.86:1 (fails AA for this text size); 0.6 is the lightest alpha that
-// passes. Drift-tested in both directions so the band neither fades into
-// illegibility nor creeps back toward the wall of ink D1 complained about.
+// The subtitles over the drawing are written on it like its own labels
+// (Hans, 2026-09-25): ink letters, each in a halo of the paper colour, no
+// band. Under a letter the halo lays down paper, so the contrast that must
+// hold is ink against paper — the same pair the figure's own labels use.
+// (It replaced a 0.6-alpha dark band with white text, which this file used
+// to pin at ≥ 4.5 : 1.)
 
-const PAPER = [250, 246, 236]; // .cs-stage background = FIGURE_GROUND #faf6ec
-const TEXT = "#fbf8f1"; // .cs-caption color
-
-const hex = (c: number[]): string => `#${c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
-
-describe("subtitle band", () => {
-  it("keeps AA contrast for caption text over bare paper", () => {
-    const { ink, alpha } = CAPTION_BAND;
-    const blend = PAPER.map((p, i) => alpha * ink[i] + (1 - alpha) * p);
-    expect(contrastRatio(TEXT, hex(blend))).toBeGreaterThanOrEqual(4.5);
+describe("subtitles written on the drawing", () => {
+  it("ink on its paper halo keeps AA contrast", () => {
+    expect(contrastRatio(CAPTION_TEXT.ink, CAPTION_TEXT.halo)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("stays translucent — never back to the 0.82 wall of ink", () => {
-    expect(CAPTION_BAND.alpha).toBeLessThanOrEqual(0.65);
+  it("the halo is the figure's own paper, so it never reads as a box", () => {
+    expect(CAPTION_TEXT.halo.toLowerCase()).toBe("#faf6ec");
   });
 });

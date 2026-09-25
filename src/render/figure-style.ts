@@ -9,15 +9,21 @@ import { FIGURE_GROUND } from "../layout/ink";
 import { COLORS } from "../layout/model";
 
 /**
- * The subtitle band's ground (A6/D1). At 0.82 the band was nearly opaque ink
- * over the drawing; 0.6 is the lightest alpha whose blend over bare paper
- * still gives the caption text ≥ 4.5:1 (measured — tests/caption-band.test.ts
- * pins it), with a strengthened text shadow carrying the edge over busy
- * drawings. Exported so the drift test computes on the value the CSS uses.
+ * The subtitles over the drawing are WRITTEN on it, the way its own labels
+ * are (Hans, 2026-09-25): the figure's ink with a halo of its paper round
+ * every letter, no band. The drawing stays visible between the words and
+ * the halo clears just the strokes under each letter. It replaced a
+ * translucent dark band (alpha 0.6, white text) that hid everything under
+ * it. Exported so the contrast test reads the values the CSS uses.
  */
-export const CAPTION_BAND = { ink: [24, 20, 16], alpha: 0.6 } as const;
+export const CAPTION_TEXT = { ink: COLORS.ink, halo: FIGURE_GROUND } as const;
 
-const BAND = `rgba(${CAPTION_BAND.ink.join(", ")}, ${CAPTION_BAND.alpha})`;
+/** The halo: a ring of the paper colour at ±1.5 px, softened out to 6 px. */
+const HALO = [
+  ...[[1.5, 0], [-1.5, 0], [0, 1.5], [0, -1.5], [1.1, 1.1], [-1.1, 1.1], [1.1, -1.1], [-1.1, -1.1]].map(([x, y]) => `${x}px ${y}px 0 ${FIGURE_GROUND}`),
+  `0 0 3px ${FIGURE_GROUND}`,
+  `0 0 6px ${FIGURE_GROUND}`,
+].join(", ");
 
 /** Where the C64 face lives: the app's own copy first, drawcast's published
  *  one for a page that embeds the engine (the engine build ships no public
@@ -57,9 +63,8 @@ const FIGURE_CSS = `
    fullscreen and needs no separate rule there. */
 .cs-caption {
   position: absolute;
-  /* As wide as its words, not the whole drawing (2026-09-25): a centred
-     band covers far less of the figure than a full-width gradient did, at
-     the same alpha — so the same measured contrast. */
+  /* As wide as its words, centred: the box itself is invisible (the
+     letters carry their own halo), so this only bounds the lines. */
   left: 50%;
   bottom: 0.4rem;
   transform: translateX(-50%);
@@ -73,9 +78,9 @@ const FIGURE_CSS = `
   font-size: calc(1.15rem * var(--cs-text-scale, 1));
   line-height: 1.35;
   text-align: center;
-  color: #fbf8f1;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8), 0 0 6px rgba(0, 0, 0, 0.45);
-  background: ${BAND};
+  color: ${CAPTION_TEXT.ink};
+  text-shadow: ${HALO};
+  background: none;
   /* Selecting a phrase to look up is the one gesture the band answers; every
      other click belongs to the drawing underneath (see ui/caption.ts). */
   pointer-events: none;
@@ -84,6 +89,15 @@ const FIGURE_CSS = `
 }
 .cs-caption::selection,
 .cs-caption *::selection { background: rgba(181, 72, 46, 0.55); }
+/* Over dark ground (render/caption-dark.ts: a photo, a C64 screen, a solid
+   dark fill in the caption's strip) the paper halo would make pale patches:
+   those captions take a dark band with light letters, the one style that
+   reads on any ground. Only as an overlay — below the drawing it is paper. */
+.cs-stage:not(.cs-caption-below) .cs-caption.cs-caption-dark {
+  color: #fbf8f1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  background: rgba(24, 20, 16, 0.72);
+}
 /* Subtitles BELOW the drawing when the stage has room under it (Hans,
    2026-09-25; render/caption-place.ts decides and sets the class): the
    drawing keeps its 4 : 3 at the top — so the svg never letterboxes and a
