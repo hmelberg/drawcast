@@ -28,6 +28,7 @@ import { itemsOf, parsePlaylistText } from "../playlist/playlist";
 import { render } from "../render";
 import { splitVarOverrides, withOverrides } from "../render/params";
 import { makeBrowserMeasure } from "../render/svg-backend";
+import { resolveCode } from "../render/code";
 import { expandSpec } from "../spec/expand";
 import { validateSpec } from "../spec/schema";
 import type { Spec } from "../spec/types";
@@ -369,9 +370,32 @@ box.addEventListener("keydown", (e) => {
  */
 declare global {
   interface Window {
+    __stampCode: (index: number) => Promise<Record<string, string>>;
     __frames: (input?: { index?: number; cast?: string; text?: string; beats?: "all" | "resting" }) => Promise<CastReport>;
   }
 }
+/**
+ * The recorder's call (scripts/stamp-code-results.mjs): run a bundled
+ * example's scripts with the real runtimes, the way render() does, and hand
+ * back each code element's envelope — figures reduced to their size, the
+ * only thing layout reads — for the examples gate to lay out real data in
+ * Node (tests/fixtures/code-results.json).
+ */
+window.__stampCode = async (index) => {
+  const ex = (bundledExamples as { spec?: Spec }[])[index];
+  if (!ex?.spec) return {};
+  const clone = structuredClone(expandSpec(ex.spec));
+  await resolveCode(clone, { style: "sketchy" });
+  const out: Record<string, string> = {};
+  for (const el of clone.elements ?? []) {
+    if (el.type !== "code" || !el.code_result) continue;
+    const env = JSON.parse(el.code_result) as { figures?: { href: string; w: number; h: number }[] };
+    if (env.figures) env.figures = env.figures.map((f) => ({ ...f, href: "data:image/png;base64," }));
+    out[el.id] = JSON.stringify(env);
+  }
+  return out;
+};
+
 window.__frames = async (input) => {
   if (input?.beats !== undefined) everyBeatFlag = input.beats === "all";
   if (input?.text !== undefined) return run(parseCastText(input.text, "passed in"));

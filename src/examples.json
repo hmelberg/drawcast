@@ -30222,7 +30222,7 @@
           "show": "below",
           "lines": 6,
           "width": 960,
-          "font_size": 16,
+          "font_size": 14,
           "frame": "screen",
           "draw": {
             "mode": "type"
@@ -30591,6 +30591,13 @@
             "c64_mark_3"
           ],
           "speak": "A POKE writes one byte straight into a chip. This BASIC had no commands for graphics or sound, so POKE was how everyone reached the chips."
+        },
+        {
+          "erase": [
+            "c64_mark_1",
+            "c64_mark_2",
+            "c64_mark_3"
+          ]
         },
         {
           "draw": [

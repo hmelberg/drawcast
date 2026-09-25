@@ -7,6 +7,9 @@
 
 import { beforeAll, describe, expect, test } from "vitest";
 import bundledExamples from "../src/examples.json";
+import { readFileSync } from "node:fs";
+import { codeKey, hasCode } from "./helpers/code-key.mjs";
+import { resolveCode } from "../src/render/code";
 import fewshots from "../src/llm/prompts/fewshots.json";
 import { scenes } from "../src/scenes/registry";
 import { flattenDrawables } from "../src/layout/model";
@@ -86,6 +89,20 @@ function specsOf(ex: BundledExample): Spec[] {
 
 const cases = examples.flatMap((ex) => specsOf(ex).map((spec, i) => [`${ex.request}${i > 0 ? ` [part ${i + 1}]` : ""}`, spec] as const));
 
+/** Code examples laid out with what their scripts REALLY produced (ledger
+ *  decision 6): tests/fixtures/code-results.json, recorded in the browser by
+ *  scripts/stamp-code-results.mjs, is stamped onto each spec's code
+ *  elements in beforeAll and resolved by the same resolveCode render() uses
+ *  — which trusts a stamp that answers every data path and never runs a
+ *  script. Without it the gate saw placeholder charts: "{km.control}" left
+ *  as a string, a survival curve with two samples, ids that never existed. */
+const CODE_FIXTURE = JSON.parse(readFileSync(new URL("./fixtures/code-results.json", import.meta.url), "utf8")) as Record<string, { key: string; stamps: Record<string, string> }>;
+const staleCode: string[] = [];
+/** The params as AUTHORED, tokens and all, for the checks that read what the
+ *  author wrote (command lint: a data source is "used" by its "{id.path}"
+ *  tokens, which resolution replaces with values). */
+const authoredParams = new WeakMap<Spec, Spec["params"]>();
+
 /** `resolveInsetsSync` stores `picture` on an inset element for layout/plan
  *  to read — a render-time-only field the compiler-facing schema does not
  *  carry (render() itself only resolves insets AFTER validateSpec, never
@@ -119,9 +136,27 @@ beforeAll(async () => {
   // resolve the insets `specsOf` deferred — into the very spec objects
   // `cases` already holds, so every test below sees the resolved picture.
   for (const { spec, siblings, index } of deferredInsetResolves) resolveInsetsSync(spec, siblings, index, heuristicMeasure, planOptionsFor);
+  // The recorded script output, into the very specs `cases` holds.
+  for (const ex of examples) {
+    if (!ex.spec || !hasCode(ex.spec)) continue;
+    const rec = CODE_FIXTURE[ex.request];
+    if (!rec || rec.key !== codeKey(ex.spec)) {
+      staleCode.push(ex.request);
+      continue;
+    }
+    const spec = cases.find(([req]) => req === ex.request)?.[1];
+    if (!spec) continue;
+    authoredParams.set(spec, structuredClone(spec.params));
+    for (const el of spec.elements ?? []) if (el.type === "code" && rec.stamps[el.id]) el.code_result = rec.stamps[el.id];
+    await resolveCode(spec, { style: "sketchy" });
+  }
 });
 
 describe("bundled examples stay exemplary", () => {
+  test("every code example has fresh recorded script output (node scripts/stamp-code-results.mjs)", () => {
+    expect(staleCode).toEqual([]);
+  });
+
   test("every example carries either a spec or a playlist", () => {
     for (const ex of examples) expect(specsOf(ex).length, ex.request).toBeGreaterThan(0);
   });
@@ -194,7 +229,7 @@ describe("bundled examples stay exemplary", () => {
   });
 
   test.each(cases)("%s — no command-level lint issue (slow-start / talky-stretch)", (_req, spec) => {
-    expect(lintCommands(spec)).toEqual([]);
+    expect(lintCommands(authoredParams.has(spec) ? { ...spec, params: authoredParams.get(spec) } : spec)).toEqual([]);
   });
 
   test.each(cases)("%s — names a template that exists (or composes from elements)", (_req, spec) => {

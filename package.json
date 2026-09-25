@@ -17,7 +17,8 @@
     "build:sky": "node scripts/build-sky-data.mjs",
     "sanity:mdlib": "python3 scripts/mdlib-sanity.py",
     "selector:eval": "node scripts/selector-eval.mjs",
-    "eval:freehand": "node scripts/freehand-eval.mjs"
+    "eval:freehand": "node scripts/freehand-eval.mjs",
+    "stamp:code": "node scripts/stamp-code-results.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",

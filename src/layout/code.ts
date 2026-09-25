@@ -438,9 +438,12 @@ function tableDrawables(
   return { drawables, height: gridH };
 }
 
-/** The band a code panel keeps to: under the card heading, over the captions. */
+/** The band a code panel keeps to: under the card heading, clear of the
+ *  canvas floor. (It kept above y 130 for the overlaid captions until the
+ *  captions learned to go below the drawing or into a strip of their own
+ *  when text sits there, 2026-09-25.) */
 const FREE_TOP = 690;
-const FREE_BOTTOM = 130;
+const FREE_BOTTOM = 20;
 
 export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // A Commodore 64 is a screen, not a panel (layout/c64-screen.ts).
@@ -605,7 +608,9 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
     // oldest scroll away behind an ellipsis.
     const fit = truncateRows(outTextLines, stdoutBudget, fontSize, windowRows > 0 ? "tail" : "head");
     outRows = fit.rows;
-    if (fit.dropped > 0) truncated = true;
+    // A windowed panel is a terminal: the oldest rows scrolling away behind
+    // an ellipsis is what it is FOR, not output lost.
+    if (fit.dropped > 0 && windowRows === 0) truncated = true;
     outStack = stackLines(outRows.map((l) => [l.text]), fontSize);
 
     if (multiFig) {
@@ -619,7 +624,6 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       rawFigures.forEach((f) => {
         const naturalH = f.w > 0 ? figW * (f.h / f.w) : figW * 0.75;
         const fh = Math.min(naturalH, slotAvail);
-        if (fh < naturalH) truncated = true;
         figHeights.push(fh);
         figWidths.push(f.h > 0 ? fh * (f.w / f.h) : figW);
       });
@@ -633,7 +637,6 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
         const gapBefore = i > 0 || outStack.height > 0 ? fontSize * LINE_GAP : 0;
         const avail = Math.max(0, remaining - gapBefore);
         const fh = Math.min(naturalH, avail);
-        if (fh < naturalH) truncated = true;
         figHeights.push(fh);
         figWidths.push(f.h > 0 ? fh * (f.w / f.h) : figW);
         remaining = Math.max(0, remaining - gapBefore - fh);
@@ -660,8 +663,11 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // ---- panel geometry (y-up: yTop is the LARGER y) -------------------------
   const contentH = stacked ? codeContentH + paneGap + outContentH : Math.max(codeContentH, outContentH);
   const h = Math.min(maxH, Math.max(60, contentH + 2 * PAD));
+  // A figure scaled down to fit is the panel working (the chart keeps its
+  // aspect); only output that is LOST — printed lines dropped, or content
+  // taller than the panel even so — is worth a warning.
   if (truncated || contentH + 2 * PAD > maxH) {
-    ctx.warnings.push(`code "${el.id}": output was truncated/scaled to fit the panel within the canvas`);
+    ctx.warnings.push(`code "${el.id}": output was truncated to fit the panel within the canvas`);
   }
   const x0 = cx - w / 2;
   // The assembly (chrome included) centres on the element's y, then is nudged

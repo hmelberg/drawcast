@@ -123,7 +123,10 @@ layout: |
     const id = "threshold_" + i;
     push(kit.group(id, [
       kit.stroke(id + "__l", [[X(t), plot.y0], [X(t), plot.y1]], { color: C.shifted, dash: true, strokeWidth: 2.5, ms: MS.guides }),
-      kit.text(id + "__t", [X(t) + 7, plot.y1 - 12], "$" + Math.round(t) + "k", { fontSize: 17, anchor: "start", color: C.shifted }),
+      // Above the plot's top edge, not just under it: the curves climb to
+      // probability 1 exactly there, and a caption inside met them (#134's
+      // step curve, seen once the gate laid out the real PSA, 2026-09-25).
+      kit.text(id + "__t", [X(t) + 7, plot.y1 + 14], "$" + Math.round(t) + "k", { fontSize: 17, anchor: "start", color: C.shifted }),
     ]));
     anchors[id] = [X(t), (plot.y0 + plot.y1) / 2];
   });
