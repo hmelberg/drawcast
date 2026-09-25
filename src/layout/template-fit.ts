@@ -17,6 +17,7 @@
 // pinning the boundary fit into layoutSpec is the fix if a lesson shows it.
 
 import { FONT_FLOOR } from "../lint/lint";
+import { CANVAS } from "./canvas";
 import type { SceneLayout } from "../scenes/types";
 import { unionBBoxForId, unionBoxes } from "./boxes";
 import type { BBox } from "./geometry";
@@ -78,4 +79,58 @@ export function fitSceneLayout(scene: SceneLayout, box: BBox, measure: MeasureFn
     for (const k of Object.keys(scene.curveSamples)) scene.curveSamples[k] = scene.curveSamples[k].map(map);
   }
   return { s, dx, dy, box };
+}
+
+/** Where a template may grow into: the canvas under the card heading. */
+export const GROW_REGION: BBox = { x: 40, y: 40, w: 920, h: 645 };
+/** A template grows at most this much… */
+export const GROW_MAX = 2.5;
+/** …and only when it would gain at least this much (else it is left as drawn). */
+export const GROW_MIN = 1.2;
+/** Its words grow far less than its figure: a label at 1.8× would shout. */
+const TEXT_GROW_MAX = 1.4;
+
+function capGrownText(ds: Drawable[], s: number): void {
+  for (const d of ds) {
+    if (d.kind === "group") capGrownText(d.children, s);
+    else if (d.kind === "text") d.fontSize = Math.min(d.fontSize, (d.fontSize / s) * TEXT_GROW_MAX);
+  }
+}
+
+/**
+ * A template that draws small on a canvas it could fill — a Lewis structure
+ * at 4 % of it, an equation ladder at 16 % — is enlarged, uniformly, into
+ * GROW_REGION (ledger, "templates draw at a fixed small scale", every revision
+ * round). The figure grows up to 2.5×, its words at most 1.4× (so a label
+ * stays a label). Null — and nothing touched — when the gain would be under
+ * 1.2×. The caller decides WHETHER a page may grow (no box, no overlays at
+ * fixed coordinates, no widget with fixed hit geometry).
+ */
+export function growSceneLayout(scene: SceneLayout, measure: MeasureFn): TemplateFit | null {
+  const ids = [...new Set(scene.drawables.map((d) => d.id))];
+  const union = unionBoxes(ids.map((id) => unionBBoxForId(scene.drawables, id, measure)));
+  if (!union) return null;
+  // Never a rescue: ink already off the canvas is a broken template, and
+  // the lint that says so must still see it.
+  if (union.x < 0 || union.y < 0 || union.x + union.w > CANVAS.w || union.y + union.h > CANVAS.h) return null;
+  const padded: BBox = { x: union.x - FIT_PAD, y: union.y - FIT_PAD, w: union.w + 2 * FIT_PAD, h: union.h + 2 * FIT_PAD };
+  const t = fitTransform(padded, GROW_REGION);
+  if (t.s < GROW_MIN) return null;
+  const s = Math.min(t.s, GROW_MAX);
+  // Centred in the region at the capped scale.
+  const cx = GROW_REGION.x + GROW_REGION.w / 2, cy = GROW_REGION.y + GROW_REGION.h / 2;
+  const ux = padded.x + padded.w / 2, uy = padded.y + padded.h / 2;
+  const dx = cx - ux * s, dy = cy - uy * s;
+  const map = ([x, y]: Pt): Pt => [x * s + dx, y * s + dy];
+  scaleDrawables(scene.drawables, s, dx, dy);
+  capGrownText(scene.drawables, s);
+  for (const l of scene.labels) {
+    l.anchor = map(l.anchor);
+    l.fontSize = l.fontSize * Math.min(s, TEXT_GROW_MAX);
+  }
+  mapPoints(scene.anchors, map);
+  if (scene.curveSamples) {
+    for (const k of Object.keys(scene.curveSamples)) scene.curveSamples[k] = scene.curveSamples[k].map(map);
+  }
+  return { s, dx, dy, box: GROW_REGION };
 }

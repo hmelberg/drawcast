@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, test } from "vitest";
 import { layoutSpec, elementBBoxes, domainMapping, inverseDomainMapping } from "../src/layout/layout";
 import { fitRegion } from "../src/layout/regions";
+import { GROW_REGION } from "../src/layout/template-fit";
 import { flattenDrawables } from "../src/layout/model";
 import { plotArea } from "../src/layout/canvas";
 import { ensureEnabledPacks } from "../src/scenes/packs";
@@ -50,13 +51,14 @@ describe("template box — a template without a native box is fitted", () => {
 
   test("an invalid box is ignored with a warning, and the template keeps the canvas", () => {
     const r = layoutSpec(sir({ box: "middle" }));
-    expect(r.fit).toBeUndefined();
+    // Not fitted into any box — at most enlarged to fill the canvas (2026-09-25).
+    expect(r.fit === undefined || r.fit.box === GROW_REGION).toBe(true);
     expect(r.warnings.some((w) => /box .*"middle".*left, right, top, bottom, full/.test(w))).toBe(true);
   });
 
-  test("without a box and without a code element nothing is fitted", () => {
+  test("without a box and without a code element nothing is fitted into a box (a small figure may grow to fill the canvas)", () => {
     const r = layoutSpec(sir());
-    expect(r.fit).toBeUndefined();
+    expect(r.fit === undefined || r.fit.box === GROW_REGION).toBe(true);
     const all = [...elementBBoxes(r).values()];
     const x0 = Math.min(...all.map((b) => b.x)), x1 = Math.max(...all.map((b) => b.x + b.w));
     expect(x1 - x0).toBeGreaterThan(500); // the chain spans most of the canvas, as it always has
@@ -79,7 +81,7 @@ describe("template box — the split default reaches every template", () => {
 
   test("a data-only script (show: none) still leaves the template the whole canvas", () => {
     const r = layoutSpec(sir({}, [{ id: "feed", type: "code", language: "python", show: "none", code: CODE }]));
-    expect(r.fit).toBeUndefined();
+    expect(r.fit === undefined || r.fit.box === GROW_REGION).toBe(true);
   });
 
   test("a side-by-side (show: left) code panel cannot share the page — no invented box, the overlap lint reports it", () => {

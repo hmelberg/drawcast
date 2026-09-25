@@ -25,7 +25,7 @@ import { heuristicMeasure, type MeasureFn } from "./measure";
 import { drawablesForId, leafDrawables, type Drawable, type Pt } from "./model";
 import { frameToCanvas, linearScale, plotArea, type DataFrame } from "./canvas";
 import { figureSplit } from "./figure-split";
-import { fitSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
+import { fitSceneLayout, growSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
 import type { SceneLayout } from "../scenes/types";
 import { FIT_NAMES, isFitName } from "./regions";
 import { expandBoxAnimate, readParam, withOverrides } from "../render/params";
@@ -164,6 +164,7 @@ export function layoutSpec(
       try {
         const sceneLayout = scene.layout(spec.params ?? {});
         if (box && !native) fit = fitSceneLayout(sceneLayout, box, measure) ?? undefined;
+        else if (!box && !native && mayGrow(spec, scene.manifest)) fit = growSceneLayout(sceneLayout, measure) ?? undefined;
         if (fit && fit.s < FIT_SCALE_FLOOR) {
           const where = isFitName(rawBox) ? `"${rawBox}"` : JSON.stringify(fit.box);
           issues.push({
@@ -541,6 +542,35 @@ export function elementRings(layout: Pick<LayoutResult, "drawables" | "order">):
  *  where the template's axes WERE; the fit says where they are now.
  *  No domain: coordinates are canvas coordinates and never follow a
  *  template's fit (tier-3 rule). */
+/**
+ * May a template page be enlarged to fill the canvas (template-fit.ts
+ * growSceneLayout)? Not when something would stay behind: an overlay at
+ * fixed canvas coordinates (a text at x/y, a path's points, an arrow end at
+ * {x, y}) — the card's own heading aside; not a widget or an interactive
+ * figure, whose hit areas are fixed geometry; and not a page that animates
+ * the template's params, where a grown figure would breathe as its extent
+ * changes.
+ */
+function mayGrow(spec: Spec, manifest: { widget?: true; interactions?: unknown[]; grow?: boolean }): boolean {
+  if (manifest.grow === false || manifest.widget || (manifest.interactions?.length ?? 0) > 0) return false;
+  if ((spec.commands ?? []).some((c) => c.animate && Object.keys(c.animate).some((k) => !k.startsWith("vars.")))) return false;
+  const fixed = (p: unknown): boolean => {
+    if (!p || typeof p !== "object") return false;
+    if (Array.isArray(p)) return p.length === 2 && typeof p[0] === "number";
+    const o = p as { x?: unknown; y?: unknown; ref?: unknown; data?: unknown; on?: unknown };
+    return o.ref === undefined && o.data === undefined && o.on === undefined && typeof o.x === "number" && typeof o.y === "number";
+  };
+  for (const el of spec.elements ?? []) {
+    if (/^card_\d+_/.test(el.id) || el.type === "label" || el.type === "group") continue;
+    const at = el.at as { ref?: unknown; place?: unknown } | undefined;
+    const placedRel = !!at && !Array.isArray(at) && (at.ref !== undefined || at.place !== undefined);
+    if (!placedRel && (typeof el.x === "number" || typeof el.y === "number")) return false;
+    if (el.points && el.data !== true) return false;
+    if (fixed(el.from) || fixed(el.to) || fixed(el.at)) return false;
+  }
+  return true;
+}
+
 /** The page's data frame: the spec's `domain` on the default plot area, else a template's own. */
 export function pageFrame(domain: Spec["domain"], templateFrame?: DataFrame): DataFrame | undefined {
   if (domain) return { x: domain.x ?? [0, 100], y: domain.y ?? [0, 100], box: plotArea() };

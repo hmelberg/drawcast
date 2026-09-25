@@ -158,7 +158,7 @@ describe("relative placement: every failure path says what happened", () => {
 
   test("a template id that exports an anchor but no ink is a point to place against", () => {
     scenes.temp_placement_scene = {
-      manifest: { name: "temp_placement_scene", status: "ready", description: "test-only", params_schema: {}, element_ids: {}, examples: [] },
+      manifest: { name: "temp_placement_scene", status: "ready", description: "test-only", params_schema: {}, element_ids: {}, examples: [], grow: false },
       layout: () => ({
         drawables: [{ id: "ink", kind: "stroke" as const, pts: [[10, 10], [20, 20]] as [number, number][], z: 1, style: defaultStyle(), drawOpts: defaultDrawOpts("sketch") }],
         labels: [],

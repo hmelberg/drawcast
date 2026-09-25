@@ -80,6 +80,8 @@ export interface SceneManifest {
   accepts_data?: boolean;
   /** The explore-tray section this scene carries: the Body (anatomy engine) or the Space (space engine) panel. */
   explore?: ExploreKind;
+  /** false: never enlarge this template to fill the canvas (layout.ts mayGrow) — for a figure whose size is its meaning. */
+  grow?: boolean;
   /** True when the document carries a widget body: the figure is playable while paused. */
   widget?: true;
 }
