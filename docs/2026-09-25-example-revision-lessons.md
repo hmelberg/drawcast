@@ -83,6 +83,19 @@ band rule for authors at all:
 - The "keep content above y ≈ 150" rule is gone from the brief and the
   template-author prompt; no caption-band lint.
 
+**Then, in the order agreed with Hans:**
+
+- **Decision 6 — the gate sees real code output.** `npm run stamp:code`
+  records every code example's script output in the browser
+  (tests/fixtures/code-results.json); the gate lays those out, and fails
+  when a stamp is stale. It found four real issues (fixed).
+- **Small templates grow** to fill the canvas (up to 2.5×, words ≤ 1.4×)
+  when nothing would be left behind; six bundled examples grow.
+- **The label solver refuses a line through a label's core**, the lint's
+  own criterion (107 of 126 crowded cases fixed in a sweep).
+- **Templates write numbers and words in the cast's language** (kit v11:
+  `num`, `say`; 15 templates), with a semicolon between paired decimals.
+
 **Still open** — each would change many figures at once:
 
 1. **The caption band.** Measured after the revision: 79 of 287 single-page
