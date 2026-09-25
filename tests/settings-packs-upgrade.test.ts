@@ -87,4 +87,12 @@ describe("loadSettings pack upgrade", () => {
     expect(s.enabledPacks).not.toContain("games");
     expect(s.enabledPacks).not.toContain("maps");
   });
+
+  test("a browser that already ran the v7 upgrade gains the isometric pack", () => {
+    mem.set("drawcast.packsDefault.v7", "1");
+    const before = DEFAULT_SETTINGS.enabledPacks.filter((id) => id !== "isometric");
+    mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, enabledPacks: before }));
+
+    expect(loadSettings().enabledPacks).toContain("isometric");
+  });
 });

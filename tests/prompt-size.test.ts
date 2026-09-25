@@ -515,7 +515,8 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned UP 2026-09-25 (axes cross at the origin): the axes `cross` field. +190. 215278 -> 215468.
 // Re-pinned UP 2026-09-25 (one coordinate rule; {data} on template axes): the Units paragraph and the data forms. +1924. 215468 -> 217392.
 // Re-pinned UP 2026-09-25 (a derivation as a structure): math `steps` and the `step` verb. +1683. 217392 -> 219075.
-const BASELINE_SYSTEM_CHARS = 219075;
+// Re-pinned UP 2026-09-25 (isometric pack bundled and on by default): three catalog index lines. +230. 219075 -> 219305.
+const BASELINE_SYSTEM_CHARS = 219305;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
