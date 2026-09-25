@@ -30,8 +30,8 @@ It must `return { drawables, labels, anchors, order }`, and may also return
 - No imports, no globals, no Math.random, no Date — everything comes through
   `kit` (frozen), and determinism is required: same params, identical output.
 - Canvas is 1000×750, y-UP (y=0 is the bottom). Keep all geometry within it;
-  the whole canvas is yours — the player shows it inside a margin of its own
-  and puts the subtitles below the drawing when there is room.
+  the whole canvas is yours (leave a little breathing room at the edges) —
+  the player puts the subtitles below the drawing when there is room.
 - drawables: array from kit factories. labels: array from kit.label. anchors:
   { id: [x, y] } points for gestures. order: every drawable and label id, in
   natural draw order (this drives the narrated drawing sequence).

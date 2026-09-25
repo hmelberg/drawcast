@@ -64,9 +64,11 @@ lists every one, old request → new, form before → after.
 **The caption band (decision 1), settled with Hans the same day** — no
 band rule for authors at all:
 
-- The player shows the canvas inside a paper margin (viewBox padded 30 ×
-  22.5, still 4 : 3), so a figure may use the whole canvas and never
-  touches the frame.
+- A paper margin round the canvas (viewBox padded 30 × 22.5) was tried and
+  set back to none the same day: ~6 % smaller figures, a paper frame round
+  any figure with its own background, no full bleed — and the layout
+  defaults already keep most figures off the edge. `VIEW_PAD` keeps it one
+  constant away.
 - Subtitles go BELOW the drawing when the stage has room (a phone held
   upright, a tall window, fullscreen on a tall screen — decided from the
   stage's box on resize, with hysteresis), and over it otherwise; the

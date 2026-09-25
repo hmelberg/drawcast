@@ -6,13 +6,16 @@
 export const CANVAS = Object.freeze({ w: 1000, h: 750 } as const);
 
 /**
- * The paper round the canvas (Hans, 2026-09-25): the player shows the
- * 1000 × 750 canvas inside a slightly larger box, so a figure may use the
- * whole canvas and still never touch the frame — a margin no author (or
- * model) has to remember. 30 × 22.5 keeps the view exactly 4 : 3, so the
- * svg never letterboxes and pointer mapping stays exact.
+ * Paper round the canvas: the player can show the 1000 × 750 canvas inside
+ * a slightly larger box, a margin no author has to remember. Tried at
+ * 30 × 22.5 (Hans, 2026-09-25) and set back to none the same day: every
+ * figure drew ~6 % smaller, a figure with its own background got a paper
+ * frame, and nothing could bleed to the edge — while the layout defaults
+ * (plot area, fit, at.place) already keep most figures off it. Kept as a
+ * constant so a margin (or a per-cast one) is one change away; keep x : y
+ * at 4 : 3 so the view never letterboxes.
  */
-export const VIEW_PAD = Object.freeze({ x: 30, y: 22.5 } as const);
+export const VIEW_PAD = Object.freeze({ x: 0, y: 0 } as const);
 
 /** The un-zoomed view, logical y-up: the canvas and its paper. */
 export const FULL_VIEW = Object.freeze({ x: -VIEW_PAD.x, y: -VIEW_PAD.y, w: CANVAS.w + 2 * VIEW_PAD.x, h: CANVAS.h + 2 * VIEW_PAD.y } as const);
