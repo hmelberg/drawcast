@@ -36,7 +36,10 @@ export function hugWidth(code: string, fontSize: number): number {
   return Math.round(Math.min(CODE_HALF.width, Math.max(MIN_CODE_W, needed)));
 }
 /** Top and bottom of the figure's band when the split has to invent one. */
-const BAND = Object.freeze({ y: 95, h: 560 });
+// y 160–640: clear of the narration band below and the card heading above
+// (was 95–655: the chart's floor sat under the captions and its y-axis caption
+// against the heading — 2026-09-25 example revisions).
+const BAND = Object.freeze({ y: 160, h: 480 });
 /** Narrower than this and the leftover band is not worth calling a figure. */
 const MIN_FIGURE_W = 220;
 
