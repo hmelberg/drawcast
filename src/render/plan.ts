@@ -1227,6 +1227,24 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           const [ox, oy] = offsets[id] ?? [0, 0];
           offsets[id] = [ox + fx, oy + fy];
         }
+        // A translation that carries a target's centre off the canvas is
+        // almost always a unit slip: on a page with a `domain`, move.by is in
+        // DOMAIN units, so a derivation's "55 down" became 319 and the copy
+        // left the page with no lint to say so (2026-09-25).
+        for (const id of ids) {
+          const b = bboxOf(id);
+          if (!b) continue;
+          const [ox, oy] = offsets[id] ?? [0, 0];
+          const off = (x: number, y: number) => x < 0 || x > CANVAS.w || y < 0 || y > CANVAS.h;
+          const [bx, by] = bases[id] ?? [0, 0];
+          const cx = b.x + b.w / 2 + ox, cy = b.y + b.h / 2 + oy;
+          // Only a move that TAKES it off: something already off the canvas
+          // before the move is a placement problem, reported elsewhere.
+          if (off(cx, cy) && !off(b.x + b.w / 2 + bx, b.y + b.h / 2 + by)) {
+            const unitNote = opts.deltaToLogical ? " — on a page with a domain, move.by is in domain units" : "";
+            warnings.push(`move "${id}" ends off the canvas (its centre at ${Math.round(cx)}, ${Math.round(cy)})${unitNote}`);
+          }
+        }
         const stepTrails = mintTrail((id, u) => {
           const [px, py] = pathPosition(path, u);
           return { offset: [bases[id][0] + px, bases[id][1] + py], turn: turns[id] };

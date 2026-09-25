@@ -67,9 +67,9 @@ describe("copy", () => {
     expect(last.texItems).toEqual([{ id: "eq_copy_copy", from: "2x = 8", to: "x = 4" }]);
   });
   test("a copy of a source that has already moved is seeded at the source's current offset (review finding 2, 2026-09-10)", () => {
-    const plan = planCommands([{ draw: ["eq"] }, { move: { target: "eq", by: [0, -200] } }, { copy: { target: "eq" } }], ["eq"], opts);
+    const plan = planCommands([{ draw: ["eq"] }, { move: { target: "eq", by: [0, 200] } }, { copy: { target: "eq" } }], ["eq"], opts);
     expect(plan.warnings).toEqual([]);
-    expect(plan.states[2].offsets.eq_copy).toEqual([0, -200]);
+    expect(plan.states[2].offsets.eq_copy).toEqual([0, 200]);
   });
   test("an auto-named copy whose default name is already an element counts past it instead of replacing it (review finding 3, 2026-09-10)", () => {
     const takenOpts = { bboxOf: () => box, mathOf: (id: string) => (id === "eq" ? "2x + 3 = 11" : null), isElement: () => true, bboxesFor: () => () => box };
@@ -82,5 +82,17 @@ describe("copy", () => {
     const plan = planCommands([{ draw: ["kake"] }, { copy: { target: "kake" } }], ["kake", "kake_1", "kake_2"], piecesOpts);
     expect(plan.warnings).toContain('copy target "kake" is a pieces cut — copy its pieces instead');
     expect(plan.states[1].copies).toEqual({});
+  });
+});
+
+describe("a move that takes its target off the canvas (2026-09-25)", () => {
+  test("warns, and names domain units when the page has a domain", () => {
+    const plan = planCommands([{ draw: ["eq"] }, { move: { target: "eq", by: [0, -200] } }], ["eq"], opts);
+    expect(plan.warnings).toEqual(['move "eq" ends off the canvas (its centre at 200, -80)']);
+    const withDomain = planCommands([{ draw: ["eq"] }, { move: { target: "eq", by: [0, -40] } }], ["eq"], { ...opts, deltaToLogical: ([x, y]: [number, number]) => [x * 5.8, y * 5.8] as [number, number] });
+    expect(withDomain.warnings[0]).toMatch(/domain units/);
+  });
+  test("a move that stays on the canvas is quiet", () => {
+    expect(planCommands([{ draw: ["eq"] }, { move: { target: "eq", by: [300, 300] } }], ["eq"], opts).warnings).toEqual([]);
   });
 });
