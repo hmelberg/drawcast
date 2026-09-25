@@ -57,6 +57,29 @@ describe("findPart on a formula", () => {
   });
 });
 
+describe("findPart: a run of sibling terms (2026-09-25)", () => {
+  const leaves = (tex: string) => (mathDrawables({ id: "eq", type: "math", tex } as never, mj, 500, 375).drawables[0] as GroupDrawable).children as AreaDrawable[];
+  const ids = (tex: string, part: string) => {
+    const h = findPart(leaves(tex), part)[0];
+    return h && h.kind === "glyphs" ? h.leafIds : [];
+  };
+  test("terms MathJax never groups are found as a run of their siblings", () => {
+    expect(ids("y = bx - 1", "bx")).toEqual(["eq__g3", "eq__g4"]);
+    expect(ids("y = bx - 1", "-1")).toEqual(["eq__g5", "eq__g6"]);
+    expect(ids("P(B\\mid A)\\,P(A)", "P(A)")).toEqual(["eq__g6", "eq__g7", "eq__g8", "eq__g9"]);
+    expect(ids("E = 9\\times10^{13}\\,\\text{J}", "9\\times10^{13}")).toEqual(["eq__g3", "eq__g4", "eq__g5", "eq__g6", "eq__g7", "eq__g8"]);
+  });
+  test("spacing commands in the part or the tex do not matter", () => {
+    expect(ids(TEX, "v\\,t_r")).toEqual(["eq__g9", "eq__g10", "eq__g11"]);
+    expect(ids(TEX, "v t_r")).toEqual(["eq__g9", "eq__g10", "eq__g11"]);
+  });
+  test("a run must be whole siblings: half a node, or a run across parents, names nothing", () => {
+    expect(ids("y = bx - 1", "x -")).toEqual(["eq__g4", "eq__g5"]);
+    expect(ids(TEX, "a + v")).toEqual([]);
+    expect(ids("y = bx - 1", "bz")).toEqual([]);
+  });
+});
+
 describe("findPart on text", () => {
   const style = { color: COLORS.ink, strokeWidth: 2, opacity: 1, roughness: 1 } as never;
   const drawOpts = { mode: "sketch", duration: 400 } as never;
@@ -184,7 +207,8 @@ describe("plan and lint", () => {
       return lintLayout(l.drawables, heuristicMeasure, s.commands as Command[]).filter((i) => i.rule === "highlight-part");
     };
     expect(issues("t_r")).toEqual([]);
-    expect(issues("v\\,t_r")).toHaveLength(1);
+    expect(issues("v\\,t_r")).toEqual([]); // a sibling run (2026-09-25)
+    expect(issues("w_r")).toHaveLength(1);
   });
 
   test("a part of the formula a morph turned it into is not reported (2026-09-25)", () => {
