@@ -106,6 +106,8 @@ export interface Tier2Result {
 }
 
 interface Ctx {
+  /** Measures print a decimal comma (the cast's language writes 8,7). */
+  decimalComma?: boolean;
   sx: (v: number) => number;
   sy: (v: number) => number;
   domainX: [number, number];
@@ -223,7 +225,7 @@ export function layoutElements(
    *  seedDrawables: the template's drawables, so `at.ref` can name a template id.
    *  vars: the spec's top-level numbers (spec/vars.ts).
    *  overrides: poses and morphed shapes the definitional references read (posed.ts). */
-  opts: { measure?: MeasureFn; seedDrawables?: Drawable[]; vars?: Vars; overrides?: LayoutOverrides; fit?: TemplateFit } = {},
+  opts: { measure?: MeasureFn; seedDrawables?: Drawable[]; vars?: Vars; overrides?: LayoutOverrides; fit?: TemplateFit; decimalComma?: boolean } = {},
 ): Tier2Result {
   const measure = opts.measure ?? heuristicMeasure;
   const vars = opts.vars ?? {};
@@ -239,6 +241,7 @@ export function layoutElements(
   const ixStd = linearScale([plot.x0, plot.x1], domainX);
   const iyStd = linearScale([plot.y0, plot.y1], domainY);
   const ctx: Ctx = {
+    decimalComma: opts.decimalComma,
     sx: (v) => sxStd(v) * fs + fdx,
     sy: (v) => syStd(v) * fs + fdy,
     domainX,
@@ -2212,7 +2215,7 @@ function primaryRingSoFar(ctx: Ctx, id: string): { pts: Pt[]; closed: boolean; c
  * is given explicitly.
  */
 function measureDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
-  const format: M.MeasureFormat = { label: typeof el.label === "string" ? el.label : "{value}", unit: el.unit, scale: el.scale ?? 1, decimals: el.decimals };
+  const format: M.MeasureFormat = { label: typeof el.label === "string" ? el.label : "{value}", unit: el.unit, scale: el.scale ?? 1, decimals: el.decimals, decimalComma: ctx.decimalComma };
   const textId = `label_${el.id}`;
   const style = resolveStyle(el.style, { strokeWidth: 2 });
   const drawOpts = resolveDrawOpts(el.draw, { duration: SKETCH_MS.guides });

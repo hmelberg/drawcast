@@ -6,7 +6,9 @@ import { heuristicMeasure } from "./measure";
 import type { Pt } from "./model";
 
 export type MeasureWhat = "length" | "width" | "height" | "area" | "perimeter";
-export interface MeasureFormat { label: string; unit?: string; scale: number; decimals?: number }
+/** decimalComma: the cast's language writes 8,7, not 8.7 (Norwegian and most
+ *  of Europe) — the figure should agree with the voice (2026-09-25). */
+export interface MeasureFormat { label: string; unit?: string; scale: number; decimals?: number; decimalComma?: boolean }
 export type PointSource = { ref: string; anchor: string } | { pt: Pt };
 export interface MeasureSpec {
   of?: string;
@@ -73,7 +75,8 @@ export function formatMeasure(value: number, f: MeasureFormat): string {
   const decimals = f.decimals ?? (Math.abs(v) >= 100 ? 0 : 1);
   // Defaulted decimals drop a trailing ".0" — 60 beside 540, not 60.0 — while
   // 12.5 keeps its half; an explicit `decimals` is kept as written.
-  const num = f.decimals === undefined ? v.toFixed(decimals).replace(/\.0$/, "") : v.toFixed(decimals);
+  const dot = f.decimals === undefined ? v.toFixed(decimals).replace(/\.0$/, "") : v.toFixed(decimals);
+  const num = f.decimalComma ? dot.replace(".", ",") : dot;
   const text = f.label.includes("{value}") ? f.label.replace("{value}", num) : `${f.label}${num}`;
   return f.unit ? `${text} ${f.unit}` : text;
 }
@@ -120,4 +123,11 @@ export function dimensionLine(a: Pt, b: Pt, offset: number, side: "left" | "righ
   const clear = 16 + (Math.abs(nx) * textWidth) / 2;
   const textPos: Pt = [(A[0] + B[0]) / 2 + nx * clear, (A[1] + B[1]) / 2 + ny * clear];
   return { line: [A, B], ticks, textPos };
+}
+
+/** Languages that write a decimal COMMA (BCP-47 primary tags). */
+const COMMA_LANGS = new Set(["nb", "nn", "no", "da", "sv", "fi", "de", "fr", "es", "it", "pt", "nl", "pl", "ru", "cs", "tr", "is"]);
+export function usesDecimalComma(lang: string | undefined, sniffed: string | undefined): boolean {
+  const tag = (lang ?? sniffed ?? "en").toLowerCase().split("-")[0];
+  return COMMA_LANGS.has(tag);
 }

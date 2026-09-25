@@ -10,6 +10,8 @@ import { setMathFont, setMathHand } from "../scenes/engines";
 import type { Spec } from "../spec/types";
 import { coVisible, idsOf, lintLayout, FIT_SCALE_FLOOR, type LintIssue } from "../lint/lint";
 import { layoutElements, type PieceGeometry } from "./tier2";
+import { usesDecimalComma } from "./measures";
+import { detectLang } from "../render/speech";
 import type { MeasureSpec } from "./measures";
 import type { CodeWindow } from "./code";
 import { annotationDrawables, DEFAULT_FIT, padFor } from "./annotate";
@@ -210,7 +212,11 @@ export function layoutSpec(
 
   if (spec.elements && spec.elements.length > 0) {
     // `drawables` here is the template's output — an at.ref may name a template id.
-    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples, { measure, seedDrawables: [...drawables], vars: spec.vars, overrides, fit });
+    // The figure writes numbers the way the voice reads them: 8,7 in a
+    // Norwegian cast. spec.lang when set, else the narration's own sniff.
+    const spoken = (spec.commands ?? []).map((c) => c.speak ?? "").join(" ");
+    const decimalComma = usesDecimalComma(spec.lang, spoken.trim() ? detectLang(spoken) : undefined);
+    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples, { measure, seedDrawables: [...drawables], vars: spec.vars, overrides, fit, decimalComma });
     drawables.push(...tier2.drawables);
     labelRequests.push(...tier2.labels);
     warnings.push(...tier2.warnings);
