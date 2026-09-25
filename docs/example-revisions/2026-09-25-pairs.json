@@ -327,5 +327,152 @@
     "after_request": "Why does light fade so fast as you move away from it?",
     "kind_before": "playlist",
     "kind_after": "freehand"
+  },
+  {
+    "index": 61,
+    "before_request": "Walk me through a normal ECG.",
+    "after_request": "How do you read a normal ECG?",
+    "kind_before": "ecg_strip",
+    "kind_after": "ecg_strip"
+  },
+  {
+    "index": 62,
+    "before_request": "Explain how blood flows through the heart and lungs.",
+    "after_request": "How does blood flow through the heart and lungs?",
+    "kind_before": "heart_circulation",
+    "kind_after": "heart_circulation"
+  },
+  {
+    "index": 63,
+    "before_request": "Draw a neuron and show how the signal travels.",
+    "after_request": "How does a signal travel along a nerve cell?",
+    "kind_before": "neuron",
+    "kind_after": "neuron"
+  },
+  {
+    "index": 64,
+    "before_request": "Why can screening look better than it is? Show lead-time bias.",
+    "after_request": "Why can screening look better than it is?",
+    "kind_before": "screening_timeline",
+    "kind_after": "screening_timeline"
+  },
+  {
+    "index": 66,
+    "before_request": "What does atrial fibrillation actually look like?",
+    "after_request": "What does atrial fibrillation actually look like?",
+    "kind_before": "ecg_strip",
+    "kind_after": "ecg_strip"
+  },
+  {
+    "index": 67,
+    "before_request": "Show me third-degree heart block — and why it doesn't just stop the heart.",
+    "after_request": "Why doesn't third-degree heart block stop the heart?",
+    "kind_before": "ecg_strip",
+    "kind_after": "ecg_strip"
+  },
+  {
+    "index": 68,
+    "before_request": "Is a hole in the heart always a disaster?",
+    "after_request": "Is a hole in the heart always a disaster?",
+    "kind_before": "heart_circulation",
+    "kind_after": "heart_circulation"
+  },
+  {
+    "index": 69,
+    "before_request": "How fast is a thought? Show me the neuron's wiring.",
+    "after_request": "How fast does a nerve signal travel?",
+    "kind_before": "neuron",
+    "kind_after": "neuron"
+  },
+  {
+    "index": 70,
+    "before_request": "When does a twice-a-day pill actually reach its working level?",
+    "after_request": "When does a twice-a-day pill actually reach its working level?",
+    "kind_before": "pk_curve",
+    "kind_after": "pk_curve"
+  },
+  {
+    "index": 71,
+    "before_request": "Show me the pressure-volume loop — and what heart failure does to it.",
+    "after_request": "What does heart failure do to the heart's pressure-volume loop?",
+    "kind_before": "pv_loop",
+    "kind_after": "pv_loop"
+  },
+  {
+    "index": 73,
+    "before_request": "How do economists check whether a policy actually worked?",
+    "after_request": "How do you read an event-study plot, and why start on the left?",
+    "kind_before": "event_study",
+    "kind_after": "event_study"
+  },
+  {
+    "index": 74,
+    "before_request": "How do you measure the effect of something against what never happened?",
+    "after_request": "How does difference-in-differences measure a policy's effect against what never happened?",
+    "kind_before": "did_trends",
+    "kind_after": "did_trends"
+  },
+  {
+    "index": 75,
+    "before_request": "Why do arbitrary cutoffs make economists happy?",
+    "after_request": "How can an arbitrary cutoff reveal a causal effect?",
+    "kind_before": "rd_plot",
+    "kind_after": "rd_plot"
+  },
+  {
+    "index": 76,
+    "before_request": "Does more schooling really mean higher pay? Show me the data.",
+    "after_request": "Does more schooling really mean higher pay, and what does a binned scatter show and hide?",
+    "kind_before": "binscatter",
+    "kind_after": "binscatter"
+  },
+  {
+    "index": 77,
+    "before_request": "How can one number describe a whole country's inequality?",
+    "after_request": "What does the Gini coefficient measure, and what can one number not tell you?",
+    "kind_before": "lorenz_curve",
+    "kind_after": "lorenz_curve"
+  },
+  {
+    "index": 78,
+    "before_request": "Show what government spending does to interest rates in the IS-LM model.",
+    "after_request": "Why doesn't extra government spending raise output by the full amount?",
+    "kind_before": "is_lm",
+    "kind_after": "is_lm"
+  },
+  {
+    "index": 79,
+    "before_request": "If a country saves more, will it grow faster forever?",
+    "after_request": "If a country saves more, will it grow faster forever?",
+    "kind_before": "solow_growth",
+    "kind_after": "solow_growth"
+  },
+  {
+    "index": 80,
+    "before_request": "Why do threats so often fail? Solve the entry game.",
+    "after_request": "Why do threats so often fail to deter?",
+    "kind_before": "game_tree",
+    "kind_after": "game_tree"
+  },
+  {
+    "index": 81,
+    "before_request": "Is the new drug worth its price? Show the acceptability curve.",
+    "after_request": "What does a cost-effectiveness acceptability curve tell you, and what doesn't it?",
+    "kind_before": "ceac",
+    "kind_after": "ceac"
+  },
+  {
+    "index": 82,
+    "before_request": "Which uncertain number should we worry about most? Draw a tornado diagram.",
+    "after_request": "What does a tornado diagram show, and what does it miss?",
+    "kind_before": "tornado_diagram",
+    "kind_after": "tornado_diagram"
+  },
+  {
+    "index": 267,
+    "before_request": "How does exponential growth differ from logistic growth over the same years?",
+    "after_request": "How does exponential growth differ from logistic growth over the same years?",
+    "kind_before": "playlist",
+    "kind_after": "playlist"
   }
 ]

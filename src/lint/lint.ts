@@ -13,6 +13,7 @@ import { drawablesForId, leafDrawables, type Drawable, type GroupDrawable, type 
 import type { LeafDrawable } from "../layout/posed";
 import { mathBox } from "../layout/labels";
 import { findPart } from "../layout/highlight-part";
+import { termTex } from "../layout/math-morph";
 import type { MeasureFn } from "../layout/measure";
 import { BUILTIN_WIDGETS } from "../spec/types";
 import { pacedDurations } from "../render/pacing";
@@ -25,7 +26,7 @@ import { runValues } from "../render/sweep";
 import { pathsByCodeId, scanDataTokens } from "../code/tokens";
 import { connectKey } from "../render/widgets";
 import { CONNECT_MAX_EDGES } from "../ui/connect-model";
-import { PLACE_WORDS, SIDE_WORDS } from "../spec/script/sugar";
+import { COLOR_WORDS, FLAGS, PLACE_WORDS, SIDE_WORDS } from "../spec/script/sugar";
 
 /**
  * The shared traversal behind `lintableLeaves` and `flattenLintable`: a
@@ -422,10 +423,20 @@ export function lintLayoutDetailed(
 
   // A highlight `part` that names nothing lights the whole target instead
   // (render/svg-backend) — the author meant a piece, so say which was missed.
+  // The layout only has each formula's FIRST tex; a part that names a term of
+  // the formula a morph turned it into is checked against that tex instead
+  // (morph, then light a term, is the derivation idiom — 2026-09-25).
+  const morphedTo = new Map<string, string[]>();
   for (const cmd of commands ?? []) {
+    const m = cmd.morph;
+    if (m?.tex !== undefined) {
+      for (const id of Array.isArray(m.target) ? m.target : [m.target]) morphedTo.set(id, [...(morphedTo.get(id) ?? []), termTex(m.tex)]);
+    }
     const h = cmd.highlight;
     if (!h?.part) continue;
     const targets = (Array.isArray(h.target) ? h.target : [h.target]).flatMap((id) => expandId?.(id) ?? [id]);
+    const want = termTex(h.part);
+    if (targets.some((id) => (morphedTo.get(id) ?? []).some((t) => t.includes(want)))) continue;
     const pieces = targets.flatMap((id) => leafDrawables(drawablesForId(drawables, id)));
     if (pieces.length > 0 && findPart(pieces, h.part).length === 0) {
       issues.push({
@@ -993,12 +1004,12 @@ export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIs
   const cmds = spec.commands ?? [];
   const issues: LintIssue[] = [...lintSources(spec), ...lintCode(spec), ...lintWidget(spec), ...lintMathSizes(spec), ...lintCurveExprs(spec)];
 
-  // An id that is a side or place word ("right", "top-left") is read as that
-  // word by the script format, so the element loses its id on the way through
+  // An id that is a side, place, flag or colour word ("right", "top-left",
+  // "flat", "red") is read as that word by the script format, so the element loses its id on the way through
   // the editor (found by the round-trip test on a revised example, 2026-09-25).
   for (const el of spec.elements ?? []) {
-    if (SIDE_WORDS.has(el.id) || PLACE_WORDS.has(el.id)) {
-      issues.push({ rule: "id-keyword", ids: [el.id], message: `element id "${el.id}" is a position word the script format reads as a side or place — rename it (e.g. "${el.id}_note")`, severity: "warn" });
+    if (SIDE_WORDS.has(el.id) || PLACE_WORDS.has(el.id) || el.id in FLAGS || COLOR_WORDS.has(el.id)) {
+      issues.push({ rule: "id-keyword", ids: [el.id], message: `element id "${el.id}" is a word the script format reads as a side, place, flag or colour — rename it (e.g. "${el.id}_note")`, severity: "warn" });
     }
   }
 

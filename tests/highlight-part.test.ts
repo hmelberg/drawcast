@@ -186,6 +186,16 @@ describe("plan and lint", () => {
     expect(issues("t_r")).toEqual([]);
     expect(issues("v\\,t_r")).toHaveLength(1);
   });
+
+  test("a part of the formula a morph turned it into is not reported (2026-09-25)", () => {
+    const commands = [{ draw: ["eq"] }, { morph: { target: "eq", tex: "x = 2.5" } }, { highlight: { target: ["eq"], part: "2.5" } }];
+    const s = { elements: [{ id: "eq", type: "math", tex: "x + 1 = 3.5", x: 500, y: 375 }], commands };
+    const l = layoutSpec(s as never, heuristicMeasure);
+    expect(lintLayout(l.drawables, heuristicMeasure, commands as Command[]).filter((i) => i.rule === "highlight-part")).toEqual([]);
+    // …but a part in neither formula still is.
+    const bad = [{ draw: ["eq"] }, { morph: { target: "eq", tex: "x = 2.5" } }, { highlight: { target: ["eq"], part: "7" } }];
+    expect(lintLayout(l.drawables, heuristicMeasure, bad as Command[]).filter((i) => i.rule === "highlight-part")).toHaveLength(1);
+  });
 });
 
 describe("termTex — a term as a person names it (2026-09-25)", () => {

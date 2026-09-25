@@ -11227,7 +11227,7 @@
           }
         },
         {
-          "id": "thin",
+          "id": "thinners",
           "type": "text",
           "text": "blood thinners: about 2 in 3 of those strokes prevented",
           "x": 500,
@@ -11333,7 +11333,7 @@
         },
         {
           "draw": [
-            "thin"
+            "thinners"
           ],
           "speak": "So a key treatment isn't about the rhythm: blood thinners prevent about two in three of those strokes."
         },
@@ -11353,7 +11353,7 @@
     }
   },
   {
-    "request": "Show me third-degree heart block — and why it doesn't just stop the heart.",
+    "request": "Why doesn't third-degree heart block stop the heart?",
     "packs": [
       "medicine"
     ],
@@ -11361,43 +11361,407 @@
       "title": "The heart's spare pacemaker",
       "template": "ecg_strip",
       "params": {
-        "rhythm": "heart_block",
-        "title": "Third-degree heart block"
+        "rhythm": "heart_block"
       },
+      "elements": [
+        {
+          "id": "pm0",
+          "type": "path",
+          "points": [
+            [
+              100,
+              598
+            ],
+            [
+              100,
+              622
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "pm1",
+          "type": "path",
+          "points": [
+            [
+              197,
+              598
+            ],
+            [
+              197,
+              622
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "pm2",
+          "type": "path",
+          "points": [
+            [
+              294,
+              598
+            ],
+            [
+              294,
+              622
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "pm3",
+          "type": "path",
+          "points": [
+            [
+              390,
+              598
+            ],
+            [
+              390,
+              622
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "pm4",
+          "type": "path",
+          "points": [
+            [
+              487,
+              598
+            ],
+            [
+              487,
+              622
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "pm5",
+          "type": "path",
+          "points": [
+            [
+              584,
+              598
+            ],
+            [
+              584,
+              622
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "pm6",
+          "type": "path",
+          "points": [
+            [
+              680,
+              598
+            ],
+            [
+              680,
+              622
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "pm7",
+          "type": "path",
+          "points": [
+            [
+              777,
+              598
+            ],
+            [
+              777,
+              622
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "pm8",
+          "type": "path",
+          "points": [
+            [
+              874,
+              598
+            ],
+            [
+              874,
+              622
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "rm0",
+          "type": "path",
+          "points": [
+            [
+              139,
+              558
+            ],
+            [
+              139,
+              582
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "rm1",
+          "type": "path",
+          "points": [
+            [
+              357,
+              558
+            ],
+            [
+              357,
+              582
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "rm2",
+          "type": "path",
+          "points": [
+            [
+              574,
+              558
+            ],
+            [
+              574,
+              582
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "rm3",
+          "type": "path",
+          "points": [
+            [
+              792,
+              558
+            ],
+            [
+              792,
+              582
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "p_tag",
+          "type": "text",
+          "text": "P",
+          "x": 42,
+          "y": 610,
+          "font_size": 22,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "r_tag",
+          "type": "text",
+          "text": "QRS",
+          "x": 42,
+          "y": 570,
+          "font_size": 20,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "p_marks",
+          "type": "group",
+          "members": [
+            "p_tag",
+            "pm0",
+            "pm1",
+            "pm2",
+            "pm3",
+            "pm4",
+            "pm5",
+            "pm6",
+            "pm7",
+            "pm8"
+          ]
+        },
+        {
+          "id": "r_marks",
+          "type": "group",
+          "members": [
+            "r_tag",
+            "rm0",
+            "rm1",
+            "rm2",
+            "rm3"
+          ]
+        }
+      ],
       "commands": [
         {
-          "speak": "Here is a reassuring secret: your heart carries spare pacemakers. This is the rhythm that proves it."
+          "card": {
+            "title": "The heart's spare pacemaker"
+          }
         },
         {
           "draw": [
             "grid",
             "trace"
           ],
-          "speak": "In third-degree block, the electrical wiring between the atria and the ventricles is completely cut."
-        },
-        {
-          "pause": 0.3
+          "speak": "In third-degree heart block, the wire from the heart's upper chambers to its lower ones is cut. So why doesn't the heart simply stop?"
         },
         {
           "highlight": {
             "target": [
               "trace"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "Count the small P waves: the atria march on at ninety a minute. Now count the tall spikes: only forty. Two rhythms in one heart, each ignoring the other."
+          "speak": "Normally each beat starts up in the atria, drawing a small bump, the P wave, then crosses one narrow bridge to the ventricles: the tall spike."
+        },
+        {
+          "draw": [
+            "p_marks"
+          ],
+          "speak": "Mark every P wave: nine in six seconds, evenly spaced. The atria are beating at ninety a minute."
+        },
+        {
+          "draw": [
+            "r_marks"
+          ],
+          "speak": "Now every tall spike: only four, just as evenly spaced. The ventricles beat at forty."
         },
         {
           "draw": [
             "rate_label"
           ],
-          "speak": "Those slow spikes come from a backup pacemaker deep in the ventricles — it wakes up whenever no signal arrives from above."
+          "speak": "Two steady clocks in one heart, and neither listens to the other."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "Forty beats a minute is enough to stay alive — and exactly the finding that earns you an artificial pacemaker."
+          "pause": 0.4
+        },
+        {
+          "highlight": {
+            "target": [
+              "p_marks",
+              "r_marks"
+            ]
+          },
+          "speak": "In a healthy heart each spike answers a P wave, always about a sixth of a second behind it. Here the gap keeps changing."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 583,
+              "y": 405
+            },
+            "gesture": "circle"
+          },
+          "speak": "One P wave even lands inside a spike and vanishes: the atria fired, and nothing below heard it."
+        },
+        {
+          "highlight": {
+            "target": [
+              "r_marks"
+            ]
+          },
+          "speak": "So who drives the ventricles? A backup pacemaker below the break. Many heart cells can fire on their own; they are just slower."
+        },
+        {
+          "highlight": {
+            "target": [
+              "rate_label"
+            ],
+            "part": "40"
+          },
+          "speak": "The lower the backup sits, the slower it fires: forty to sixty a minute near the junction, twenty to forty deep in the ventricles."
+        },
+        {
+          "highlight": {
+            "target": [
+              "p_marks"
+            ]
+          },
+          "speak": "Normally they never get the chance: the faster signal from above sets them off before their own clocks run out. Cut the wire, and the next in line takes over."
+        },
+        {
+          "highlight": {
+            "target": [
+              "trace"
+            ]
+          },
+          "speak": "Forty beats a minute keeps you alive, but only just. People tire, get dizzy and faint, and the backup itself can falter."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "trace"
+            },
+            "gesture": "underline"
+          },
+          "speak": "In 1958 in Stockholm, Arne Larsson, fainting again and again from this block, received the first implanted pacemaker. He outlived both its inventors."
+        },
+        {
+          "quiz": {
+            "question": "A strip shows a heart rate of forty. What proves it is complete heart block?",
+            "choices": [
+              "The slow rate itself",
+              "P waves with no fixed gap to the spikes",
+              "Taller P waves than normal"
+            ],
+            "correct": 2,
+            "right": "P waves with no fixed gap to the spikes: a slow heart can be healthy, but atria and ventricles on separate clocks means no signal is crossing."
+          }
         }
       ]
     }
@@ -11412,76 +11776,193 @@
       "template": "heart_circulation",
       "params": {
         "defect": "septal_defect",
-        "title": "A hole in the heart"
+        "labels": false,
+        "box": {
+          "x": 40,
+          "y": 145,
+          "w": 920,
+          "h": 535
+        }
       },
+      "elements": [
+        {
+          "id": "p_rv",
+          "type": "text",
+          "text": "RV: 25 mmHg",
+          "x": 221,
+          "y": 356,
+          "font_size": 22,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "p_lv",
+          "type": "text",
+          "text": "LV: 120 mmHg",
+          "x": 779,
+          "y": 356,
+          "font_size": 22,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "fo",
+          "type": "arrow",
+          "from": {
+            "x": 483,
+            "y": 460
+          },
+          "to": {
+            "x": 557,
+            "y": 460
+          },
+          "style": {
+            "color": "#2f6b8f",
+            "dash": true
+          }
+        }
+      ],
       "commands": [
+        {
+          "card": {
+            "title": "A hole in the heart"
+          }
+        },
         {
           "draw": [
             "heart",
             "walls"
           ],
-          "speak": "A baby is born with a hole in the heart. It sounds terrifying — but here is the twist: before birth, every one of us had one, on purpose."
+          "speak": "A hole in the wall between the heart's two sides is one of the commonest defects babies are born with. Is it always a disaster? It depends on its size."
+        },
+        {
+          "draw": [
+            "lungs",
+            "body"
+          ]
         },
         {
           "draw": [
             "right_fill",
             "ra",
-            "rv"
+            "rv",
+            "vein_in",
+            "ra_rv",
+            "pulm_artery"
           ],
-          "speak": "The right side collects used, oxygen-poor blood."
+          "speak": "The right side collects used blood from the body and pumps it the short way, up to the lungs."
         },
         {
           "draw": [
             "left_fill",
             "la",
-            "lv"
-          ],
-          "speak": "The left side pumps fresh red blood out to the body. The wall between them keeps the two strictly apart."
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
-            "body",
-            "lungs",
-            "vein_in",
-            "ra_rv",
-            "pulm_artery",
+            "lv",
             "pulm_vein",
             "la_lv",
             "aorta"
           ],
-          "speak": "In the womb the lungs are folded away and useless, so a built-in door between the atria lets blood skip them. At the first breath, it slams shut."
+          "speak": "The left side takes the fresh blood back and pumps it hard, out to the whole body."
         },
         {
           "draw": [
-            "defect",
-            "label_defect"
+            "p_lv",
+            "p_rv"
           ],
-          "speak": "A septal defect is when a hole in the wall stays open — here, between the ventricles.",
-          "delivery": "grave"
+          "parallel": true,
+          "speak": "So the left ventricle squeezes to about 120 millimetres of mercury, the right to only about 25."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "defect"
+          ],
+          "speak": "Now open a hole in the wall between the ventricles. Blood takes the easy way: from 120 down to 25, left to right."
         },
         {
           "highlight": {
             "target": [
               "defect"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "The strong left side squirts blood back into the right, sending it round the lung loop again and again. That wasted round trip is why a large hole makes a child breathless and tired."
+          "speak": "The blood that leaks is the fresh red blood, so the child is not blue. It simply goes round the lungs a second time."
+        },
+        {
+          "flow": {
+            "along": [
+              "defect",
+              "pulm_artery",
+              "pulm_vein",
+              "la_lv"
+            ]
+          },
+          "speak": "Through a large hole, the lungs can get two or three times as much blood as the body, and the left ventricle pumps it all."
+        },
+        {
+          "highlight": {
+            "target": [
+              "lungs"
+            ]
+          },
+          "speak": "Flooded lungs make a baby breathe fast, sweat while feeding and grow slowly — often from a few weeks old, as the newborn's lung vessels relax."
+        },
+        {
+          "highlight": {
+            "target": [
+              "p_rv"
+            ]
+          },
+          "speak": "Left open for years, a large leak thickens the lung vessels until the right side's pressure rises and the flow can reverse. That is when a child turns blue."
+        },
+        {
+          "highlight": {
+            "target": [
+              "defect"
+            ]
+          },
+          "speak": "A small hole lets only a trickle through, often with a loud murmur, and does no harm. Many close by themselves; large ones are closed by surgery."
         },
         {
           "draw": [
-            "title"
+            "fo"
           ],
-          "speak": "The reassuring part: small holes often close on their own — and the rest can be patched."
+          "speak": "And before birth every one of us had a hole, between the atria, the foramen ovale. Blood crossed right to left, skipping lungs that were not yet breathing."
+        },
+        {
+          "erase": [
+            "fo"
+          ],
+          "speak": "With the first breaths the pressure on the left rises above the right, and pushes the hole's flap shut."
+        },
+        {
+          "highlight": {
+            "target": [
+              "p_lv",
+              "p_rv"
+            ]
+          },
+          "speak": "In about one adult in four it never fully seals. The higher left pressure holds the flap closed, and most never know."
+        },
+        {
+          "quiz": {
+            "question": "A newborn has a large hole between the ventricles. Why is the baby not blue?",
+            "choices": [
+              "The leak is fresh blood going left to right",
+              "The hole is too small to matter",
+              "The lungs make extra oxygen"
+            ],
+            "correct": 1,
+            "right": "The higher pressure on the left sends fresh, oxygen-rich blood to the right, so the cost is extra work for heart and lungs, not less oxygen."
+          }
         }
       ]
     }
   },
   {
-    "request": "How fast is a thought? Show me the neuron's wiring.",
+    "request": "How fast does a nerve signal travel?",
     "packs": [
       "medicine"
     ],
@@ -11489,67 +11970,215 @@
       "title": "A signal at 400 km/h",
       "template": "neuron",
       "params": {
-        "show_synapse": true,
-        "title": "A signal at 400 km/h"
+        "show_synapse": false
       },
+      "elements": [
+        {
+          "id": "sp_fast",
+          "type": "text",
+          "text": "body position: up to 120 m/s → 1 metre in 0.01 s",
+          "x": 560,
+          "y": 275,
+          "font_size": 22,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "sp_sharp",
+          "type": "text",
+          "text": "sharp pain: about 20 m/s → 0.05 s",
+          "x": 560,
+          "y": 237,
+          "font_size": 22,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "sp_ache",
+          "type": "text",
+          "text": "dull ache: about 1 m/s → a whole second",
+          "x": 560,
+          "y": 199,
+          "font_size": 22,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "speeds",
+          "type": "group",
+          "members": [
+            "sp_fast",
+            "sp_sharp",
+            "sp_ache"
+          ]
+        }
+      ],
       "commands": [
+        {
+          "card": {
+            "title": "A signal at 400 km/h"
+          }
+        },
         {
           "draw": [
             "soma",
             "nucleus",
-            "dendrites"
+            "dendrites",
+            "label_soma",
+            "label_dendrites"
           ],
-          "speak": "Stub your toe and you feel it almost at once — yet the message crosses more than a metre of living cable. How? Meet the neuron."
+          "speak": "How fast does a nerve signal travel? Anywhere from walking pace to four hundred kilometres an hour, depending on how the fibre is built. It starts in one nerve cell."
         },
         {
           "draw": [
             "axon",
             "label_axon"
           ],
-          "speak": "This single cell can stretch from your spinal cord all the way to your toe. One cell, over a metre long."
-        },
-        {
-          "pause": 0.3
-        },
-        {
-          "draw": [
-            "myelin",
-            "label_myelin"
-          ],
-          "speak": "The speed trick is this fatty insulation — myelin — wrapped around the cable in segments."
-        },
-        {
-          "draw": [
-            "label_node"
-          ],
-          "speak": "The impulse doesn't glide along. It jumps, gap to gap, node to node."
+          "speak": "Its axon is a single thin cable. The ones reaching from your lower spine to your toes are about a metre long."
         },
         {
           "draw": [
             "impulse",
             "label_impulse"
           ],
-          "speak": "Jumping, it reaches up to a hundred and twenty metres per second — over four hundred kilometres per hour. Without myelin, it would crawl at walking pace."
+          "speak": "The signal, an action potential, is a brief flip of voltage across the cable's membrane, rebuilt at every point it reaches."
+        },
+        {
+          "flow": {
+            "along": [
+              "axon"
+            ],
+            "speed": 40
+          },
+          "speak": "Along a bare axon it creeps, like a burning fuse: in a thin fibre, about a metre a second."
+        },
+        {
+          "draw": [
+            "myelin",
+            "label_myelin"
+          ],
+          "speak": "The fast fibres are wrapped in myelin, many layers of fatty membrane that insulate the cable."
+        },
+        {
+          "speak": "The signal is now rebuilt only at the bare gaps, the nodes of Ranvier, about a millimetre apart.",
+          "blocking": false
+        },
+        {
+          "point": {
+            "at": {
+              "x": 399,
+              "y": 400
+            },
+            "gesture": "tap"
+          }
+        },
+        {
+          "point": {
+            "at": {
+              "x": 507,
+              "y": 400
+            },
+            "gesture": "tap"
+          }
+        },
+        {
+          "point": {
+            "at": {
+              "x": 615,
+              "y": 400
+            },
+            "gesture": "tap"
+          }
+        },
+        {
+          "draw": [
+            "label_node"
+          ]
+        },
+        {
+          "flow": {
+            "along": [
+              "axon"
+            ],
+            "speed": 420
+          },
+          "speak": "Between them, current races through the insulated stretch, so the signal leaps node to node: up to a hundred and twenty metres a second."
         },
         {
           "draw": [
             "terminals",
             "label_terminals"
           ],
-          "speak": "At the end of the line the signal must cross to the next cell."
+          "speak": "At the end it must cross to the next cell as a chemical, which costs about half a millisecond at each crossing."
+        },
+        {
+          "pause": 0.4
         },
         {
           "draw": [
-            "synapse",
-            "label_synapse"
+            "sp_fast"
           ],
-          "speak": "And here electricity becomes chemistry: vesicles spill neurotransmitter across the gap, and the message travels on."
+          "speak": "Your sense of where your foot is rides the thickest wrapped fibres: a metre in a hundredth of a second."
         },
         {
           "draw": [
-            "title"
+            "sp_sharp"
           ],
-          "speak": "That is why the pain arrives before you have even looked down."
+          "speak": "Stub your toe, and the sharp jolt comes on thinly wrapped fibres, at about twenty metres a second."
+        },
+        {
+          "draw": [
+            "sp_ache"
+          ],
+          "speak": "The throbbing ache follows on bare fibres, at about a metre a second: it arrives a full second later."
+        },
+        {
+          "highlight": {
+            "target": [
+              "speeds"
+            ]
+          },
+          "speak": "Same toe, same metre: the fibre's wrapping and thickness make the difference between a hundredth of a second and a whole one."
+        },
+        {
+          "highlight": {
+            "target": [
+              "myelin"
+            ]
+          },
+          "speak": "In multiple sclerosis the immune system strips myelin in the brain and spinal cord; signals slow or fail, blurring sight or weakening a leg."
+        },
+        {
+          "highlight": {
+            "target": [
+              "axon"
+            ]
+          },
+          "speak": "In 1850 Hermann von Helmholtz first timed a nerve, in a frog's leg: about thirty metres a second. His teacher had thought it could never be measured."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "soma"
+            },
+            "gesture": "circle"
+          },
+          "speak": "So thought is not slowed by its wires: a simple reaction takes about a fifth of a second, most of it spent inside the brain."
+        },
+        {
+          "quiz": {
+            "question": "You stub your toe. Why does the throbbing ache arrive about a second after the sharp jolt?",
+            "choices": [
+              "It travels on bare, slower fibres",
+              "The brain holds it back",
+              "It has farther to go"
+            ],
+            "correct": 1,
+            "right": "It rides bare fibres at about a metre a second, while the sharp jolt takes wrapped ones at about twenty: same distance, different cable."
+          }
         }
       ]
     }
@@ -11567,20 +12196,27 @@
         "dose_interval": 12,
         "half_life": 12,
         "show_window": true,
-        "title": "Five half-lives to steady state"
+        "window_low": 1.7,
+        "window_high": 2.8,
+        "loading_dose": 1
       },
       "commands": [
+        {
+          "card": {
+            "title": "Five half-lives"
+          }
+        },
         {
           "draw": [
             "axes"
           ],
-          "speak": "You start a new pill, twice a day. When is the drug actually up and running? The answer is stranger than you'd guess."
+          "speak": "A pill taken twice a day doesn't reach its full level on day one. How long it takes is set by one number: the drug's half-life."
         },
         {
           "draw": [
             "window"
           ],
-          "speak": "The goal is this band — enough to work, not enough to harm: the therapeutic window."
+          "speak": "The target is this band: enough drug to work, not so much that it harms. Doctors call it the therapeutic window."
         },
         {
           "draw": [
@@ -11593,126 +12229,306 @@
             "dose_6",
             "dose_7"
           ],
-          "speak": "Each arrow is one dose, every twelve hours."
+          "parallel": true,
+          "speak": "Take one pill every twelve hours, of a drug whose half-life is also twelve hours."
         },
         {
           "draw": [
             "curve"
           ],
-          "speak": "Watch the level climb: every new dose lands on what is left of the old ones, so the sawtooth stacks higher — but by less each time."
+          "speak": "Each dose lands on what is left of the ones before, so the level climbs in a sawtooth."
         },
         {
-          "pause": 0.3
+          "point": {
+            "at": {
+              "x": 195,
+              "y": 278
+            },
+            "gesture": "circle"
+          },
+          "speak": "Twelve hours after the first pill, half of it is still in the blood when the second arrives. The first dip sits below the window."
+        },
+        {
+          "speak": "So each dip climbs: half the final level, then three quarters, seven eighths, fifteen sixteenths.",
+          "blocking": false
+        },
+        {
+          "point": {
+            "at": {
+              "x": 195,
+              "y": 278
+            },
+            "gesture": "tap"
+          }
+        },
+        {
+          "point": {
+            "at": {
+              "x": 281,
+              "y": 361
+            },
+            "gesture": "tap"
+          }
+        },
+        {
+          "point": {
+            "at": {
+              "x": 366,
+              "y": 403
+            },
+            "gesture": "tap"
+          }
+        },
+        {
+          "point": {
+            "at": {
+              "x": 451,
+              "y": 423
+            },
+            "gesture": "tap"
+          }
         },
         {
           "draw": [
             "ss_line",
             "label_ss"
           ],
-          "speak": "Until it levels off here, where each dose exactly replaces what is eliminated: steady state."
+          "speak": "Each step closes half the remaining gap. After five half-lives, sixty hours or two and a half days, it is within three percent of the plateau."
         },
         {
           "highlight": {
             "target": [
               "ss_line"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "Now the surprise: how long that takes depends only on the half-life — about five of them. A bigger dose buys a higher plateau, never a faster one."
+          "speak": "There each pill replaces exactly what the body cleared since the last one: in equals out. That is steady state."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "Only a loading dose cheats the clock — by jumping instead of climbing."
+          "pause": 0.4
+        },
+        {
+          "highlight": {
+            "target": [
+              "window"
+            ]
+          },
+          "speak": "A double pill each time doesn't get there sooner: every step still halves the gap. It only makes the plateau twice as high, above the window."
+        },
+        {
+          "highlight": {
+            "target": [
+              "dose_0",
+              "dose_1",
+              "dose_2",
+              "dose_3",
+              "dose_4"
+            ]
+          },
+          "speak": "Only the half-life sets the clock. A drug with a one-day half-life takes five days to settle, however it is dosed."
+        },
+        {
+          "animate": {
+            "loading_dose": 2
+          },
+          "duration": 3,
+          "speak": "The shortcut is a bigger first dose. Two pills at the start, once, and the level jumps almost straight to the plateau."
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve"
+            ]
+          },
+          "speak": "Amiodarone, a heart-rhythm drug, has a half-life of weeks. Started without loading doses, it would take months to reach its full effect."
+        },
+        {
+          "quiz": {
+            "question": "You double every dose of this twice-a-day pill. When is steady state reached?",
+            "choices": [
+              "In half the time",
+              "After the same two and a half days, twice as high",
+              "Never"
+            ],
+            "correct": 2,
+            "right": "After the same two and a half days: the half-life alone sets the pace, and a bigger dose only raises the plateau."
+          }
         }
       ]
     }
   },
   {
-    "request": "Show me the pressure-volume loop — and what heart failure does to it.",
+    "request": "What does heart failure do to the heart's pressure-volume loop?",
     "packs": [
       "medicine"
     ],
     "spec": {
-      "title": "One heartbeat, one joule",
+      "title": "Heart failure in one loop",
       "template": "pv_loop",
       "params": {
-        "contractility": 2,
+        "preload": 140,
+        "afterload": 80,
+        "contractility": 1.82,
         "show_espvr": true,
-        "show_sv": true,
-        "shade_work": true,
-        "title": "One heartbeat, one joule"
+        "shade_work": true
       },
+      "vars": {
+        "sv": 75,
+        "ef": 54,
+        "edp": 11
+      },
+      "elements": [
+        {
+          "id": "stats",
+          "type": "text",
+          "text": "stroke volume {sv:0} ml   ejection fraction {ef:0}%   filling {edp:0} mmHg",
+          "x": 560,
+          "y": 655,
+          "font_size": 20,
+          "style": {
+            "color": "#3d3833"
+          }
+        }
+      ],
       "commands": [
+        {
+          "card": {
+            "title": "Heart failure in one loop"
+          }
+        },
         {
           "draw": [
             "axes"
           ],
-          "speak": "Every heartbeat draws the same secret picture: volume across, pressure up. Cardiologists read whole diseases off this one loop."
+          "speak": "Heart failure changes one picture doctors draw of the heart's main pump, the left ventricle: its volume across, its pressure up, one lap per heartbeat."
         },
         {
           "draw": [
             "phase_fill"
           ],
-          "speak": "One: the ventricle fills quietly, at almost no pressure."
+          "speak": "One: the ventricle fills, from 65 to 140 millilitres, at almost no pressure."
         },
         {
           "draw": [
             "phase_ivc"
           ],
-          "speak": "Two: both valves slam shut, and pressure explodes with the volume frozen."
+          "speak": "Two: both valves are shut and the muscle squeezes. Pressure soars, but the volume can't change."
         },
         {
           "draw": [
             "phase_eject"
           ],
-          "speak": "Three: the aortic valve opens, and blood is ejected."
+          "speak": "Three: at 80 millimetres of mercury the aortic valve opens, and blood is thrown out."
         },
         {
           "draw": [
             "phase_ivr",
-            "legend",
-            "phase_nums"
+            "phase_nums",
+            "legend"
           ],
-          "speak": "Four: the valves close, pressure collapses, and the cycle restarts. Around this loop, once per beat, a hundred thousand times a day."
+          "speak": "Four: the valve shuts, the muscle relaxes, the pressure falls, and the next lap begins."
         },
         {
-          "pause": 0.3
+          "point": {
+            "at": {
+              "ref": "phase_fill"
+            },
+            "gesture": "underline"
+          },
+          "speak": "The loop's width is what one beat delivers, the stroke volume: 140 minus 65, seventy-five millilitres."
         },
         {
           "draw": [
-            "tick_esv",
-            "tick_edv",
-            "sv_arrow"
+            "stats"
           ],
-          "speak": "The loop's width is the stroke volume — what one beat actually delivers."
+          "speak": "Seventy-five out of 140 is 54 percent, the ejection fraction. A healthy heart ejects more than half of what it holds."
         },
         {
           "draw": [
             "work"
           ],
-          "speak": "And here is the quiet marvel: the loop's area is the work of one beat — about one joule. Over a day, that is enough energy to lift a car ten metres."
+          "speak": "The area is the work of one beat, about a joule. A hundred thousand beats a day would lift a car ten metres."
         },
         {
           "draw": [
             "espvr"
           ],
-          "speak": "This dashed line is the ventricle's strength ceiling: its contractility."
+          "speak": "This dashed line is the muscle's strength: the highest pressure it can reach at each volume. Every lap ends on it."
+        },
+        {
+          "pause": 0.4
         },
         {
           "animate": {
-            "contractility": 1.2
+            "contractility": 1.1,
+            "sv": 39,
+            "ef": 28
           },
           "duration": 3,
-          "speak": "Watch heart failure happen: the ceiling tilts down, and the loop narrows — every beat delivers less.",
+          "speak": "In heart failure the muscle weakens. The line tilts down, the ventricle can't empty as far, and each beat delivers under forty millilitres.",
           "delivery": "grave"
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "One loop, one joule — and a diagnosis at a glance."
+          "animate": {
+            "preload": 160,
+            "sv": 59,
+            "ef": 37,
+            "edp": 19
+          },
+          "duration": 3,
+          "speak": "The body fights back: the kidneys hold on to salt and water, the ventricle stretches to 160, and the stroke volume climbs back near sixty."
+        },
+        {
+          "highlight": {
+            "target": [
+              "stats"
+            ],
+            "part": "ejection fraction"
+          },
+          "speak": "Yet the ejection fraction has fallen from 54 to 37 percent. A bigger, weaker chamber can pump a fair amount and still be failing."
+        },
+        {
+          "camera": {
+            "center": {
+              "x": 560,
+              "y": 250
+            },
+            "zoom": 1.3
+          },
+          "speak": "The price is on the bottom edge, where the ventricle fills."
+        },
+        {
+          "highlight": {
+            "target": [
+              "phase_fill"
+            ]
+          },
+          "speak": "Its pressure has risen from about 11 to 19 millimetres, and that pressure backs up into the lungs."
+        },
+        {
+          "camera": {
+            "reset": true
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "stats"
+            ],
+            "part": "filling"
+          },
+          "speak": "That is why heart failure leaves people breathless, worst lying flat, and why water pills that shed the extra fluid bring quick relief."
+        },
+        {
+          "quiz": {
+            "question": "A patient's stroke volume is near normal. Can the ventricle still be failing?",
+            "choices": [
+              "No, output is what counts",
+              "Yes, if it is stretched and weak",
+              "Only if the pressure is low"
+            ],
+            "correct": 2,
+            "right": "Yes: a stretched, weakened ventricle can keep its stroke volume by filling to a larger volume, at a high filling pressure and a low ejection fraction."
+          }
         }
       ]
     }
@@ -11809,39 +12625,72 @@
     }
   },
   {
-    "request": "How do economists check whether a policy actually worked?",
+    "request": "How do you read an event-study plot, and why start on the left?",
     "packs": [
       "empirics"
     ],
     "spec": {
-      "title": "The event study",
+      "title": "Reading an event study",
       "template": "event_study",
       "params": {
-        "title": "An event study"
+        "periods_pre": 5,
+        "periods_post": 5,
+        "effect": 1.5,
+        "ci": 0.35,
+        "pre_trend": 0,
+        "y_label": "Bus trips vs 2018, %"
       },
+      "elements": [
+        {
+          "id": "ref_note",
+          "type": "text",
+          "text": "2018 = 0",
+          "at": {
+            "ref": "coef_4",
+            "side": "above-left",
+            "gap": 6
+          },
+          "font_size": 19,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "size_note",
+          "type": "math",
+          "tex": "\\approx +15\\%",
+          "x": 720,
+          "y": 600,
+          "style": {
+            "color": "#b5482e"
+          }
+        }
+      ],
       "commands": [
+        {
+          "card": {
+            "title": "Reading an event study"
+          }
+        },
         {
           "draw": [
             "axes",
             "zero_line"
           ],
-          "speak": "Every month a study claims some policy worked. Before believing one, economists look at a picture like this — and the part that matters is not where you'd think."
+          "speak": "An event-study plot shows what a policy did, year by year, and whether to believe it at all."
         },
         {
           "draw": [
             "treat_line"
           ],
-          "speak": "A policy switches on here."
+          "speak": "Say twelve cities made buses free in 2019, and forty similar cities did not. The dashed line is 2019."
         },
         {
           "draw": [
-            "coef_0",
-            "coef_1",
-            "coef_2",
-            "coef_3",
-            "coef_4"
+            "coef_4",
+            "ref_note"
           ],
-          "speak": "Each dot is the estimated difference between affected and unaffected groups in one period — whiskers for the uncertainty. Before the policy, the dots hug zero."
+          "speak": "Each dot is the gap in bus trips between the two groups, measured against their gap in 2018. So 2018 sits at zero by construction."
         },
         {
           "draw": [
@@ -11851,10 +12700,74 @@
             "coef_8",
             "coef_9"
           ],
-          "speak": "After it, they jump — and stay up."
+          "parallel": true,
+          "speak": "From 2019 the gap jumps, and it holds year after year."
         },
         {
-          "pause": 0.3
+          "draw": [
+            "size_note"
+          ],
+          "speak": "About fifteen percent more bus trips in the free-fare cities."
+        },
+        {
+          "highlight": {
+            "target": [
+              "coef_5",
+              "coef_6",
+              "coef_7",
+              "coef_8",
+              "coef_9"
+            ]
+          },
+          "speak": "The whiskers are 95 percent confidence intervals, and none after 2019 comes near zero."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "coef_0",
+            "coef_1",
+            "coef_2",
+            "coef_3"
+          ],
+          "parallel": true,
+          "speak": "Yet the right side counts only if the left is flat. Before 2019 there was no policy, so these gaps should sit at zero, and they do."
+        },
+        {
+          "highlight": {
+            "target": [
+              "coef_0",
+              "coef_1",
+              "coef_2",
+              "coef_3",
+              "coef_4"
+            ]
+          },
+          "speak": "That flatness backs the real assumption, parallel trends: without free buses, the gap would have stayed at zero after 2019 too."
+        },
+        {
+          "animate": {
+            "pre_trend": 0.25
+          },
+          "duration": 3,
+          "speak": "Suppose instead the free-fare cities had been gaining riders anyway, a little more each year."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "coef_5"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Then this jump could be that climb carrying on. The plot cannot tell the policy from momentum."
+        },
+        {
+          "animate": {
+            "ci": 0.9
+          },
+          "duration": 2.5,
+          "speak": "Now widen the whiskers, as a smaller sample would. Every one before 2019 crosses zero, so a pre-trend test passes."
         },
         {
           "highlight": {
@@ -11863,22 +12776,52 @@
               "coef_1",
               "coef_2",
               "coef_3"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "Here is the quiet surprise: the left half is the evidence. Flat pre-treatment dots say the groups were on the same path — so the jump can be pinned on the policy."
+          "speak": "Yet the climb is still there. A pre-trend that is not significant may only be too noisy to see."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "No flat left half, no causal claim. That is why referees look left before they look right."
+          "animate": {
+            "pre_trend": 0,
+            "ci": 0.35
+          },
+          "duration": 2.5,
+          "speak": "What earns belief is what we started with: dots flat on zero, with whiskers tight enough to have caught a trend."
+        },
+        {
+          "highlight": {
+            "target": [
+              "zero_line"
+            ]
+          },
+          "speak": "The method began in finance: in 1969 Fama, Fisher, Jensen and Roll traced share prices month by month around stock splits."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "coef_2"
+            },
+            "gesture": "underline"
+          },
+          "speak": "So read an event study from the left. The right side says how big the effect is; the left says whether to believe it."
+        },
+        {
+          "quiz": {
+            "question": "Every dot before the policy has a whisker that crosses zero. What does that establish?",
+            "choices": [
+              "The trends were parallel",
+              "Only that no pre-trend was detected",
+              "That the policy caused the jump"
+            ],
+            "correct": 2,
+            "right": "Only that no pre-trend was detected. Wide whiskers can hide a real trend, and the years after the policy are assumed to be parallel, never tested."
+          }
         }
       ]
     }
   },
   {
-    "request": "How do you measure the effect of something against what never happened?",
+    "request": "How does difference-in-differences measure a policy's effect against what never happened?",
     "packs": [
       "empirics"
     ],
@@ -11886,54 +12829,202 @@
       "title": "Difference-in-differences",
       "template": "did_trends",
       "params": {
-        "title": "Difference-in-differences"
+        "effect": 1.54,
+        "treat_at": 5,
+        "group_labels": [
+          "With scheme",
+          "Without"
+        ],
+        "y_label": "Hourly pay, $",
+        "show_counterfactual": true
       },
+      "elements": [
+        {
+          "id": "naive",
+          "type": "math",
+          "tex": "22 - 18 = 4",
+          "x": 300,
+          "y": 600
+        },
+        {
+          "id": "calc",
+          "type": "math",
+          "tex": "(22 - 18) - {(17.5 - 16)} = 2.5",
+          "x": 300,
+          "y": 535
+        },
+        {
+          "id": "strike_naive",
+          "type": "annotation",
+          "target": [
+            "naive"
+          ],
+          "kind": "strike"
+        },
+        {
+          "id": "alt",
+          "type": "path",
+          "smooth": true,
+          "points": [
+            [
+              471,
+              375.6
+            ],
+            [
+              541.2,
+              389.8
+            ],
+            [
+              611.3,
+              415.6
+            ],
+            [
+              681.5,
+              451.6
+            ],
+            [
+              751.7,
+              473.4
+            ],
+            [
+              821.9,
+              488.6
+            ]
+          ],
+          "style": {
+            "color": "#8a5fa8",
+            "dash": true,
+            "stroke_width": 3
+          }
+        }
+      ],
       "commands": [
         {
+          "card": {
+            "title": "Difference-in-differences"
+          }
+        },
+        {
           "draw": [
-            "axes"
+            "axes",
+            "treat_line"
           ],
-          "speak": "The effect of a policy is the gap between what happened and what would have happened without it. Half of that pair is unobservable — yet economists measure it anyway."
+          "speak": "Difference-in-differences measures what a policy did by borrowing the world without it from a group the policy missed."
+        },
+        {
+          "draw": [
+            "treated_line"
+          ],
+          "speak": "Say one region starts an apprenticeship scheme in 2020. Young workers' pay there goes from $18 an hour to $22 by 2025."
+        },
+        {
+          "draw": [
+            "naive"
+          ],
+          "speak": "Before and after, the scheme seems worth $4 an hour."
         },
         {
           "draw": [
             "control_line"
           ],
-          "speak": "Start with a group the policy never touched."
+          "speak": "But pay rose everywhere. In a similar region without the scheme it went from $16 to $17.50, with no scheme at all."
         },
         {
-          "draw": [
-            "treated_line",
-            "treat_line"
-          ],
-          "speak": "The treated group runs parallel to it — until the policy hits, and the two paths part ways."
-        },
-        {
-          "pause": 0.3
+          "highlight": {
+            "target": [
+              "treated_line",
+              "control_line"
+            ]
+          },
+          "speak": "Before 2020 the two lines run parallel. The scheme region was $2 ahead, but the two moved in step."
         },
         {
           "draw": [
             "counterfactual"
           ],
-          "speak": "Now the trick: borrow the control group's path to sketch the treated group's missing future — the dashed road not taken."
+          "speak": "The key assumption is that they would have kept moving in step: without the scheme, pay there would also have risen $1.50, to $19.50."
+        },
+        {
+          "highlight": {
+            "target": [
+              "counterfactual"
+            ]
+          },
+          "speak": "That dashed path is never observed. It is borrowed from the other region."
         },
         {
           "draw": [
             "effect_arrow"
           ],
-          "speak": "The gap between the dashed line and reality is the effect. The untouched group stands in for the world that never happened."
+          "speak": "The effect is the gap between what happened and that path: $22 minus $19.50."
         },
         {
           "draw": [
-            "title"
+            "calc"
           ],
-          "speak": "Difference-in-differences: subtract the change you'd have seen anyway from the change you saw."
+          "speak": "Two differences: the change with the scheme, minus the change without it. $2.50 an hour."
+        },
+        {
+          "draw": [
+            "strike_naive"
+          ],
+          "speak": "Not $4: before-and-after handed the scheme a rise that everyone got."
+        },
+        {
+          "highlight": {
+            "target": [
+              "calc"
+            ],
+            "part": "(17.5 - 16)"
+          },
+          "speak": "Subtracting changes, not levels, removes the $2 head start, which never moved, and the $1.50 rise both regions got anyway."
+        },
+        {
+          "draw": [
+            "alt"
+          ],
+          "speak": "But suppose the scheme region had been pulling ahead anyway, and would have reached $20.50. Then the effect is only $1.50."
+        },
+        {
+          "erase": [
+            "alt"
+          ],
+          "speak": "Nothing after 2020 can tell those two paths apart. Only the years before can make parallel trends believable."
+        },
+        {
+          "highlight": {
+            "target": [
+              "control_line"
+            ]
+          },
+          "speak": "John Snow used the idea in 1850s London: cholera deaths among customers of a water company that moved its intake upstream, against a company that did not."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "effect_arrow"
+            },
+            "gesture": "circle"
+          },
+          "speak": "So the groups need not be alike. They need to be groups that would have changed alike."
+        },
+        {
+          "quiz": {
+            "question": "Before the policy, pay in the treated region was $5 higher than in the control. Does that break difference-in-differences?",
+            "choices": [
+              "Yes: the groups must start at the same level",
+              "No: only their trends must match",
+              "Only if the gap is larger than the effect"
+            ],
+            "correct": 2,
+            "right": "No. A steady gap is subtracted away with the first differences; what breaks the method is a gap that would have changed without the policy."
+          }
         }
       ]
     }
   },
   {
-    "request": "Why do arbitrary cutoffs make economists happy?",
+    "request": "How can an arbitrary cutoff reveal a causal effect?",
     "packs": [
       "empirics"
     ],
@@ -11941,166 +13032,818 @@
       "title": "Regression discontinuity",
       "template": "rd_plot",
       "params": {
-        "title": "Regression discontinuity"
+        "jump": 2,
+        "slope": 0.22,
+        "curvature": 0.012,
+        "x_label": "Exam score, 75 to 95",
+        "cutoff_label": "85 points",
+        "box": {
+          "x": 30,
+          "y": 150,
+          "w": 620,
+          "h": 530
+        }
       },
+      "elements": [
+        {
+          "id": "hist_base",
+          "type": "path",
+          "points": [
+            [
+              675,
+              300
+            ],
+            [
+              955,
+              300
+            ]
+          ],
+          "style": {
+            "color": "#3d3833",
+            "stroke_width": 2.5
+          }
+        },
+        {
+          "id": "hist",
+          "type": "path",
+          "points": [
+            [
+              680,
+              300
+            ],
+            [
+              680,
+              450
+            ],
+            [
+              707,
+              450
+            ],
+            [
+              707,
+              446
+            ],
+            [
+              734,
+              446
+            ],
+            [
+              734,
+              441
+            ],
+            [
+              761,
+              441
+            ],
+            [
+              761,
+              436
+            ],
+            [
+              788,
+              436
+            ],
+            [
+              788,
+              431
+            ],
+            [
+              815,
+              431
+            ],
+            [
+              815,
+              426
+            ],
+            [
+              842,
+              426
+            ],
+            [
+              842,
+              420
+            ],
+            [
+              869,
+              420
+            ],
+            [
+              869,
+              413
+            ],
+            [
+              896,
+              413
+            ],
+            [
+              896,
+              406
+            ],
+            [
+              923,
+              406
+            ],
+            [
+              923,
+              398
+            ],
+            [
+              950,
+              398
+            ],
+            [
+              950,
+              300
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "hist_cut",
+          "type": "path",
+          "points": [
+            [
+              815,
+              290
+            ],
+            [
+              815,
+              520
+            ]
+          ],
+          "style": {
+            "color": "#d0865f",
+            "dash": true,
+            "stroke_width": 2
+          }
+        },
+        {
+          "id": "hist_title",
+          "type": "text",
+          "text": "Students at each score",
+          "x": 815,
+          "y": 555,
+          "font_size": 20
+        },
+        {
+          "id": "hist_85",
+          "type": "text",
+          "text": "85",
+          "x": 815,
+          "y": 272,
+          "font_size": 18,
+          "style": {
+            "color": "#d0865f"
+          }
+        },
+        {
+          "id": "heap",
+          "type": "path",
+          "points": [
+            [
+              788,
+              431
+            ],
+            [
+              788,
+              366
+            ],
+            [
+              815,
+              366
+            ],
+            [
+              815,
+              496
+            ],
+            [
+              842,
+              496
+            ],
+            [
+              842,
+              426
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "dash": true,
+            "stroke_width": 3.5
+          }
+        }
+      ],
       "commands": [
+        {
+          "card": {
+            "title": "Regression discontinuity"
+          }
+        },
         {
           "draw": [
             "axes",
             "cutoff_line"
           ],
-          "speak": "A scholarship at exactly 85 points. Medicine at exactly age 65. Arbitrary lines — and secretly, gifts to science."
+          "speak": "Regression discontinuity turns an arbitrary cutoff into something close to an experiment. Say every student who scores 85 or more on an exam wins a scholarship."
         },
         {
           "draw": [
             "dots_left"
           ],
-          "speak": "People just below the cutoff miss the treatment."
+          "speak": "Each dot is the share of students at a score who finish a degree. Without the scholarship, it climbs from 48 percent at 75 to 52 at 84."
         },
         {
           "draw": [
             "dots_right"
           ],
-          "speak": "People just above it get it. But someone at 84.9 and someone at 85.1 are, for all practical purposes, the same person."
+          "speak": "Above the line, with the scholarship, it runs from 60 percent at 85 to about 74 at 95."
         },
         {
-          "pause": 0.3
+          "point": {
+            "at": {
+              "ref": "dots_right"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Comparing all winners with all losers, 66 against 49 percent, mixes the scholarship with ability: a student on 95 would finish more often anyway."
         },
         {
           "draw": [
             "fit_left",
             "fit_right"
           ],
-          "speak": "So near the line, the cutoff has quietly run a randomized experiment — and any jump between the two fitted curves belongs to the treatment."
+          "speak": "So fit a line to each side and look only at the cutoff. Students on 84 and 85 differ by one point, and by the scholarship."
         },
         {
           "draw": [
             "jump_bracket"
           ],
-          "speak": "This gap is the effect — no laboratory required."
+          "speak": "The jump there, from 52 to 60 percent, is the scholarship's effect: 8 points, not the naive 17."
+        },
+        {
+          "highlight": {
+            "target": [
+              "cutoff_line"
+            ]
+          },
+          "speak": "That holds only if nothing else changes at 85, and if students cannot choose which side of the line they land on."
         },
         {
           "draw": [
-            "title"
+            "hist_base",
+            "hist",
+            "hist_cut",
+            "hist_title",
+            "hist_85"
           ],
-          "speak": "Regression discontinuity: causal evidence found lying around in bureaucratic rules."
+          "speak": "The check is to count students at each score. If nobody can steer their score, the count runs smoothly through 85."
+        },
+        {
+          "draw": [
+            "heap"
+          ],
+          "speak": "If teachers nudged 83s and 84s up to 85, there would be a hole below the line and a heap above it."
+        },
+        {
+          "highlight": {
+            "target": [
+              "heap"
+            ]
+          },
+          "speak": "Then those just above would be different students, pushed over by someone, and the jump would mix them up with the scholarship."
+        },
+        {
+          "erase": [
+            "heap"
+          ],
+          "speak": "Here the count is smooth: no sign of sorting at the line."
+        },
+        {
+          "highlight": {
+            "target": [
+              "jump_bracket"
+            ]
+          },
+          "speak": "The price of this cleanness: 8 points is the effect for students near 85. It says nothing sure about a student who scored 60."
+        },
+        {
+          "highlight": {
+            "target": [
+              "axes"
+            ]
+          },
+          "speak": "The design came from psychologists. Donald Thistlethwaite and Donald Campbell used it in 1960 on students just either side of a National Merit cutoff."
+        },
+        {
+          "quiz": {
+            "question": "The count of students shows a spike at exactly 85 and a gap at 84. What does that threaten?",
+            "choices": [
+              "Nothing: there are simply more winners",
+              "The comparison: students at 85 may differ from those at 84",
+              "Only the width of the confidence interval"
+            ],
+            "correct": 2,
+            "right": "The comparison. If some students were pushed over the line, those just above are no longer like those just below, so the jump mixes who they are with the scholarship."
+          }
         }
       ]
     }
   },
   {
-    "request": "Does more schooling really mean higher pay? Show me the data.",
+    "request": "Does more schooling really mean higher pay, and what does a binned scatter show and hide?",
     "packs": [
       "empirics"
     ],
     "spec": {
-      "title": "The education gradient",
+      "title": "Schooling and pay",
       "template": "binscatter",
       "params": {
+        "relationship": "linear_up",
+        "noise": 0.35,
         "x_label": "Years of schooling",
-        "y_label": "Log earnings",
-        "title": "The education gradient"
+        "y_label": "Log hourly pay"
       },
+      "elements": [
+        {
+          "id": "spread",
+          "type": "path",
+          "points": [
+            [
+              551,
+              288
+            ],
+            [
+              551,
+              512
+            ]
+          ],
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "spread_top",
+          "type": "path",
+          "points": [
+            [
+              541,
+              512
+            ],
+            [
+              561,
+              512
+            ]
+          ],
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "spread_bot",
+          "type": "path",
+          "points": [
+            [
+              541,
+              288
+            ],
+            [
+              561,
+              288
+            ]
+          ],
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "spread_note",
+          "type": "text",
+          "text": "2 in 3 people with 12 years",
+          "x": 390,
+          "y": 530,
+          "font_size": 20,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "ability_line",
+          "type": "path",
+          "points": [
+            [
+              120,
+              275
+            ],
+            [
+              870,
+              475
+            ]
+          ],
+          "style": {
+            "color": "#d0865f",
+            "dash": true,
+            "stroke_width": 3
+          }
+        }
+      ],
       "commands": [
+        {
+          "card": {
+            "title": "Schooling and pay"
+          }
+        },
         {
           "draw": [
             "axes"
           ],
-          "speak": "Does school pay? A dataset with a hundred thousand people should answer that — but plotted raw, it's an unreadable cloud."
+          "speak": "Does more schooling mean higher pay? A survey of a hundred thousand workers can answer it, but plotted person by person it is a shapeless cloud."
         },
         {
           "draw": [
             "dots"
           ],
-          "speak": "So economists bin: sort everyone by schooling, cut them into twenty equal groups, and plot each group's average. Twenty dots — and suddenly there's a shape."
+          "speak": "A binned scatter groups people by schooling and plots each group's average: one dot per year of schooling, each an average of thousands."
         },
         {
-          "pause": 0.3
+          "highlight": {
+            "target": [
+              "axes"
+            ],
+            "part": "Log hourly pay"
+          },
+          "speak": "Pay is on a log scale, so equal steps up mean equal percentage raises, not equal dollars."
         },
         {
           "draw": [
             "fit"
           ],
-          "speak": "The fitted line makes it precise: each extra year of schooling lines up with roughly the same percentage bump in earnings."
+          "speak": "The dots lie close to a straight line: each extra year goes with about 9 percent higher pay."
+        },
+        {
+          "highlight": {
+            "target": [
+              "fit"
+            ]
+          },
+          "speak": "The line is fitted to all hundred thousand people, not to the dots. The dots only show whether a straight line is fair."
+        },
+        {
+          "draw": [
+            "spread",
+            "spread_top",
+            "spread_bot",
+            "spread_note"
+          ],
+          "speak": "What the averages hide is the spread. Two in three people with exactly twelve years earn somewhere in this range."
+        },
+        {
+          "highlight": {
+            "target": [
+              "spread"
+            ]
+          },
+          "speak": "That spread is wider than the whole climb from twelve years to a degree. The dots are tight because averages are precise, not because people are alike."
+        },
+        {
+          "draw": [
+            "ability_line"
+          ],
+          "speak": "A binned scatter also cannot say why. If able people both stay longer in school and earn more, part of the slope is ability, and the causal line is flatter."
+        },
+        {
+          "erase": [
+            "ability_line"
+          ],
+          "speak": "Studies that compare twins, or use reforms that raised the school-leaving age, still find a sizeable return. So most of the slope seems to survive."
         },
         {
           "highlight": {
             "target": [
               "dots"
-            ],
-            "effect": "glow"
+            ]
           },
-          "speak": "The surprise is how much the averaging reveals: patterns invisible in a hundred thousand points appear in twenty."
+          "speak": "Across well over a hundred countries, one more year of schooling goes with roughly 9 percent higher pay on average."
         },
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "The binned scatter — the workhorse chart of modern applied economics."
+          "point": {
+            "at": {
+              "ref": "fit"
+            },
+            "gesture": "underline"
+          },
+          "speak": "So a binned scatter shows the shape of an average, sharply. It shows neither how much people vary around it, nor what caused it."
+        },
+        {
+          "quiz": {
+            "question": "Each dot sits close to the line. What does that tell you about people with twelve years of schooling?",
+            "choices": [
+              "Most earn close to the dot's value",
+              "Little: pay varies widely around each dot",
+              "Their pay is caused by their schooling"
+            ],
+            "correct": 2,
+            "right": "Little. A dot is an average of thousands, and people with the same schooling differ more than neighbouring dots do; a tight dot means a precise average, not similar people."
+          }
         }
       ]
     }
   },
   {
-    "request": "How can one number describe a whole country's inequality?",
+    "request": "What does the Gini coefficient measure, and what can one number not tell you?",
     "packs": [
       "empirics"
     ],
     "spec": {
-      "title": "Lorenz and Gini",
+      "title": "Lorenz curve and Gini",
       "template": "lorenz_curve",
       "params": {
         "gini": 0.27,
-        "compare_gini": 0.53,
-        "labels": [
-          "Norway",
-          "Brazil"
-        ],
-        "title": "Two countries, two curves"
+        "shade": true
       },
+      "elements": [
+        {
+          "id": "triangle",
+          "type": "polygon",
+          "points": [
+            [
+              210,
+              120
+            ],
+            [
+              760,
+              120
+            ],
+            [
+              760,
+              630
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "dash": true,
+            "stroke_width": 2
+          }
+        },
+        {
+          "id": "gini_def",
+          "type": "math",
+          "tex": "\\text{Gini} = \\frac{\\text{shaded}}{\\text{triangle}}",
+          "x": 350,
+          "y": 560
+        },
+        {
+          "id": "curve_b",
+          "type": "path",
+          "smooth": true,
+          "points": [
+            [
+              210,
+              120
+            ],
+            [
+              237.5,
+              135.9
+            ],
+            [
+              265,
+              151.7
+            ],
+            [
+              292.5,
+              167.6
+            ],
+            [
+              320,
+              183.5
+            ],
+            [
+              347.5,
+              199.4
+            ],
+            [
+              375,
+              215.3
+            ],
+            [
+              402.5,
+              231.4
+            ],
+            [
+              430,
+              247.7
+            ],
+            [
+              457.5,
+              264.3
+            ],
+            [
+              485,
+              281.6
+            ],
+            [
+              512.5,
+              299.8
+            ],
+            [
+              540,
+              319.3
+            ],
+            [
+              567.5,
+              340.7
+            ],
+            [
+              595,
+              364.7
+            ],
+            [
+              622.5,
+              392.2
+            ],
+            [
+              650,
+              424.3
+            ],
+            [
+              677.5,
+              462.3
+            ],
+            [
+              705,
+              507.9
+            ],
+            [
+              732.5,
+              563.1
+            ],
+            [
+              760,
+              630
+            ]
+          ],
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "label_a",
+          "type": "text",
+          "text": "Country A",
+          "x": 470,
+          "y": 188,
+          "font_size": 21,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "label_b",
+          "type": "text",
+          "text": "Country B",
+          "x": 698,
+          "y": 420,
+          "font_size": 21,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "gini_b",
+          "type": "text",
+          "text": "B: Gini = 0.27 too",
+          "x": 650,
+          "y": 150,
+          "font_size": 21,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        }
+      ],
       "commands": [
+        {
+          "card": {
+            "title": "Lorenz curve and Gini"
+          }
+        },
+        {
+          "hide": [
+            "label_lorenz"
+          ]
+        },
         {
           "draw": [
             "axes"
           ],
-          "speak": "Line up a country's people from poorest to richest and ask, as you walk the line: what share of all income have we passed so far?"
+          "speak": "The Gini coefficient squeezes a country's whole income distribution into one number. To see what it keeps and what it drops, start with a curve."
         },
         {
           "draw": [
             "equality",
             "label_equality"
           ],
-          "speak": "If everyone earned the same, the answer would climb along this diagonal — twenty percent of the people, twenty percent of the income."
+          "speak": "Line everyone up from poorest to richest, and plot the share of all income held by each share of the people. With equal incomes, that is this diagonal."
         },
         {
           "draw": [
             "lorenz",
-            "label_lorenz"
+            "label_a"
           ],
-          "speak": "A real country sags below it: in Norway, the poorer half holds well under half the income."
+          "speak": "A real distribution sags below it. In country A, the poorer half of people get 30 percent of the income, not 50."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 485,
+              "y": 273
+            },
+            "gesture": "tap"
+          },
+          "speak": "Here: half the people, 30 percent of the income."
         },
         {
           "draw": [
-            "lorenz2",
-            "label_lorenz2"
+            "triangle"
           ],
-          "speak": "And the deeper the sag, the more unequal the country — Brazil's curve hangs far lower."
-        },
-        {
-          "pause": 0.3
+          "speak": "Everything below the diagonal makes up this triangle, half of the square."
         },
         {
           "draw": [
             "gini_area",
-            "gini_caption"
+            "gini_def"
           ],
-          "speak": "The shaded area between diagonal and curve, as a share of the whole triangle, is the Gini coefficient — a nation's entire income distribution folded into one number between zero and one."
+          "speak": "The Gini is the share of that triangle lying between the diagonal and the curve."
         },
         {
           "draw": [
-            "title"
+            "gini_caption"
           ],
-          "speak": "Zero would be perfect equality; one, a single person with everything. Most countries live between 0.25 and 0.55."
+          "speak": "For A it is 0.27. Zero would be perfect equality; one, a single person holding everything."
+        },
+        {
+          "draw": [
+            "curve_b",
+            "label_b"
+          ],
+          "speak": "Now country B. Its poorest 40 percent get 25 percent of the income, against 20 percent in A."
+        },
+        {
+          "point": {
+            "at": {
+              "x": 705,
+              "y": 508
+            },
+            "gesture": "circle"
+          },
+          "speak": "But its richest tenth take 24 percent of the income, against 17 in A. The two curves cross."
+        },
+        {
+          "draw": [
+            "gini_b"
+          ],
+          "speak": "And B's Gini is also 0.27. What B's curve gains at the bottom it loses at the top, and the areas balance exactly."
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve_b",
+              "lorenz"
+            ]
+          },
+          "speak": "So which country is more unequal? When curves cross, it depends on whether you care more about the bottom or the top, and one number has chosen for you."
+        },
+        {
+          "highlight": {
+            "target": [
+              "lorenz"
+            ]
+          },
+          "speak": "Max Lorenz drew his curve in 1905, as a graduate student. Corrado Gini turned the idea into a single number in 1912."
+        },
+        {
+          "highlight": {
+            "target": [
+              "gini_def"
+            ]
+          },
+          "speak": "So a Gini is a fair summary only when curves do not cross. Otherwise, quote it with a share at each end."
+        },
+        {
+          "quiz": {
+            "question": "Two countries both have a Gini of 0.35. What follows?",
+            "choices": [
+              "Their poorest 40 percent get the same share",
+              "Nothing definite about any group's share",
+              "Their Lorenz curves are identical"
+            ],
+            "correct": 2,
+            "right": "Nothing definite. Equal areas can come from curves that cross, one kinder to the bottom, the other richer at the top."
+          }
         }
       ]
     }

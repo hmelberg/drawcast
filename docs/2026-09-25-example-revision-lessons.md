@@ -298,7 +298,44 @@ inconclusive trials pool to a clear answer; weight = 1/SE²), #28 confounder
   (the implicit final draw sweeps it in); `hide` before the card works but
   delays first ink.
 
-## Hans's feedback on the pilot (2026-09-25)
+## Round 5 lessons (20 examples: medicine, empirics, macro/games/HTA)
+
+- **Factual errors in the old examples, corrected**: a small ECG square is
+  0.04 s (the old one said a fifth of a second); the P wave is the signal
+  spreading across the atria; "everyone had a hole before birth" is true of
+  the atrial foramen ovale, not of the ventricular hole the figure drew.
+- **`kit.jitter` was a sampled sine**, so "random" template variation drifted
+  smoothly — atrial fibrillation looked like a slowing rhythm. **Fixed**: a
+  hash.
+- **game_tree** legend sat in the heading strip and the lowest leaf in the
+  caption band. **Fixed**.
+- **`id-keyword` widened**: flags (`flat`, `thin`, `steep`…) and colour words
+  break the script round trip too (#76's `flat`, #66's `thin`). The agents'
+  gate now includes tests/script-roundtrip.test.ts.
+- **`highlight.part` after a morph** was checked against the pre-morph tex,
+  punishing the derivation idiom. **Fixed**: a part found in a formula the
+  target was morphed into earlier is accepted.
+- **Heading overlap is not linted**: #68's lungs ran through the card heading
+  and every lint passed. Caught by eye; the template got a `box`.
+- **`params.box` is the general fix for a template that strays** into the
+  band or heading (heart_circulation, screening_timeline, rd_plot) — but
+  freehand overlays at fixed coordinates don't follow it.
+- **Template gaps**: ecg_strip has no ids for single beats, PR or R–R spans
+  (marks need hand-computed coordinates); heart_circulation has no atrial
+  defect option; neuron's `myelinated` cannot animate and its synapse inset
+  sits in the band; pv_loop's ESPVR caption and EDV tick collide under
+  normal/raised values and the EDPVR stiffness is fixed; is_lm cannot animate
+  a shift from 0 (labels collide at small shifts); tornado_diagram has no
+  zero/threshold line; ceac curves are always 0→1 logistic (real asymptotes
+  are P(ΔC<0) and P(ΔE>0)); solow_growth has no growth-over-time panel;
+  event_study gives the reference period a whisker and pre_trend does not
+  carry into the post period; did_trends has no non-parallel pre-trend knob;
+  rd_plot has no density panel (the McCrary check); binscatter always draws
+  20 bins and cannot show within-bin spread; lorenz_curve's curves can never
+  cross (L = p^a) and it ignores `labels` without `compare_gini`.
+- **The strike/cross overlap and the frames harness showing only resting
+  frames** came up again in every group.
+
 
 - Better. But openings still jump in without saying what the drawcast is
   about: fixed in all eight (the first line names the question), and in the
