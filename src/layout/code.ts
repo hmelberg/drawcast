@@ -30,7 +30,7 @@ import { controlsPane, controlsPaneHeight } from "./code-controls-pane";
 import { c64ScreenDrawables, isC64Screen } from "./c64-screen";
 import { decodeCodeResult, type CodeTable } from "../code/envelope";
 import { FIGURE_GROUND, readsAsSame } from "./ink";
-import { CANVAS } from "./canvas";
+
 import {
   COLORS,
   SKETCH_MS,

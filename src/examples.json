@@ -47705,7 +47705,8 @@
           "id": "ax",
           "type": "axes",
           "x_label": "time (milliseconds)",
-          "y_label": "pressure"
+          "y_label": "pressure",
+          "cross": "corner"
         },
         {
           "id": "wave",
@@ -50262,7 +50263,8 @@
           "id": "ax",
           "type": "axes",
           "x_label": "x",
-          "y_label": "y"
+          "y_label": "y",
+          "cross": "corner"
         },
         {
           "id": "s",

@@ -132,15 +132,23 @@ export function axisLabelPlacement(
 }
 
 /** L-shaped axes with arrowheads and axis labels, shared by scenes and tier 2. */
-export function makeAxes(id: string, plot: PlotArea, xLabel?: string, yLabel?: string): GroupDrawable {
+/**
+ * The axes. `origin` (logical coordinates) moves an axis onto a zero inside
+ * the domain — the maths convention: with a domain that spans 0 (a sine
+ * wave, the unit circle, any signed quantity) axes at the corner missed the
+ * origin, and a circle centred on (0, 0) floated beside them (2026-09-25).
+ */
+export function makeAxes(id: string, plot: PlotArea, xLabel?: string, yLabel?: string, origin?: { x?: number; y?: number }): GroupDrawable {
+  const ox = origin?.x ?? plot.x0;
+  const oy = origin?.y ?? plot.y0;
   const style = defaultStyle({ strokeWidth: 4, roughness: 1.1 });
   const children: (StrokeDrawable | TextDrawable)[] = [
     {
       id: `${id}_x`,
       kind: "stroke",
       pts: [
-        [plot.x0 - 6, plot.y0],
-        [plot.x1 + AXIS_OVERHANG, plot.y0],
+        [plot.x0 - 6, oy],
+        [plot.x1 + AXIS_OVERHANG, oy],
       ],
       arrowhead: "end",
       z: Z_STROKE,
@@ -151,8 +159,8 @@ export function makeAxes(id: string, plot: PlotArea, xLabel?: string, yLabel?: s
       id: `${id}_y`,
       kind: "stroke",
       pts: [
-        [plot.x0, plot.y0 - 6],
-        [plot.x0, plot.y1 + AXIS_OVERHANG],
+        [ox, plot.y0 - 6],
+        [ox, plot.y1 + AXIS_OVERHANG],
       ],
       arrowhead: "end",
       z: Z_STROKE,
@@ -165,7 +173,7 @@ export function makeAxes(id: string, plot: PlotArea, xLabel?: string, yLabel?: s
   // for the compromise it encodes; the strip under the axis stays free for
   // the quantity markings drawn at crossing points.
   if (xLabel) {
-    const { pos, anchor } = axisLabelPlacement("x", plot, xLabel, AXIS_LABEL_FONT);
+    const { pos, anchor } = axisLabelPlacement("x", { ...plot, y0: oy }, xLabel, AXIS_LABEL_FONT);
     children.push({
       id: `${id}_x_label`,
       kind: "text",
@@ -179,7 +187,7 @@ export function makeAxes(id: string, plot: PlotArea, xLabel?: string, yLabel?: s
     });
   }
   if (yLabel) {
-    const { pos, anchor } = axisLabelPlacement("y", plot, yLabel, AXIS_LABEL_FONT);
+    const { pos, anchor } = axisLabelPlacement("y", { ...plot, x0: ox }, yLabel, AXIS_LABEL_FONT);
     children.push({
       id: `${id}_y_label`,
       kind: "text",

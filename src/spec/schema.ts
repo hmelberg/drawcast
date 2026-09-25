@@ -141,6 +141,7 @@ const elementSchema = {
     // axes
     x_label: { type: "string", description: "axes: horizontal axis label." },
     y_label: { type: "string", description: "axes: vertical axis label." },
+    cross: { type: "string", enum: ["origin", "corner"], description: "axes: they cross at 0 when the domain contains it (default \"origin\"); \"corner\" keeps them at the plot's bottom-left." },
     // curve
     direction: { type: "string", enum: ["increasing", "decreasing", "flat", "vertical"], description: "curve: qualitative slope." },
     curvature: { type: "string", enum: ["linear", "convex", "concave"], description: "curve: qualitative curvature." },

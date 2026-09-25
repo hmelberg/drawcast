@@ -446,7 +446,16 @@ export function layoutElements(
     const start = drawables.length;
     switch (el.type) {
       case "axes":
-        drawables.push(makeAxes(el.id, plot, el.x_label, el.y_label));
+        {
+          // Crossing at the origin when the domain spans 0 (strictly — a
+          // domain that starts at 0 already has its origin in the corner).
+          const across = (d: [number, number]) => d[0] < 0 && d[1] > 0;
+          const origin = el.cross === "corner" ? undefined : {
+            x: across(ctx.domainX) ? linearScale(ctx.domainX, [plot.x0, plot.x1])(0) : undefined,
+            y: across(ctx.domainY) ? linearScale(ctx.domainY, [plot.y0, plot.y1])(0) : undefined,
+          };
+          drawables.push(makeAxes(el.id, plot, el.x_label, el.y_label, origin));
+        }
         // The axes DRAWING is not fitted here (item 2's finding — deferred,
         // the axes-only combination is Hans' to take further); this anchor is
         // what at.ref reads, and it must land where the fitted figure's

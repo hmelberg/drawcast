@@ -92,6 +92,8 @@ export interface SpecElement {
   // axes
   x_label?: string;
   y_label?: string;
+  /** axes: where the two axes meet — at the origin when the domain contains 0 (default), or at the plot's corner. */
+  cross?: "origin" | "corner";
   // curve (qualitative or explicit expression over the x domain)
   direction?: "increasing" | "decreasing" | "flat" | "vertical";
   curvature?: "linear" | "convex" | "concave";

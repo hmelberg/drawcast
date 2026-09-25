@@ -512,7 +512,8 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned UP 2026-09-25 (example revisions, round 3): the card rule says
 // to leave a template's own `title` unset — the card is the heading, and a
 // template title drew a second one. +43. 215235 -> 215278.
-const BASELINE_SYSTEM_CHARS = 215278;
+// Re-pinned UP 2026-09-25 (axes cross at the origin): the axes `cross` field. +190. 215278 -> 215468.
+const BASELINE_SYSTEM_CHARS = 215468;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -543,7 +544,8 @@ const BASELINE_SYSTEM_CHARS = 215278;
 // Re-pinned UP 2026-09-24 (music round 3): the new drills and the staff device. 81877 -> 82057.
 // Re-pinned 2026-09-24 (the quick heading): card's description and its `style`. 82057 -> 82172.
 // Re-pinned UP 2026-09-24 (emphasis as a highlighter): highlight `part` and `underline`. 82172 -> 82329.
-const BASELINE_SCHEMA_CHARS = 82329;
+// Re-pinned UP 2026-09-25: the axes `cross` field. 82329 -> 82481.
+const BASELINE_SCHEMA_CHARS = 82481;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

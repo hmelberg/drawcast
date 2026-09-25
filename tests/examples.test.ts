@@ -220,7 +220,7 @@ describe("bundled examples stay exemplary", () => {
   // Examples this check found colliding when it was added, awaiting their
   // revision in the example-revision batches (docs/2026-09-25-example-revision-
   // lessons.md). The list only shrinks; a new entry is a regression.
-  const PENDING_ANIMATE_LINT = new Set([
+  const PENDING_ANIMATE_LINT = new Set<string>([
   ]);
   test.each(cases)("%s — every template param state the storyboard animates to lints clean", (req, spec) => {
     if (!spec.template || PENDING_ANIMATE_LINT.has(req)) return;
