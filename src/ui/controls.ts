@@ -147,11 +147,13 @@ const CARD_LINGER_MS = 2600;
  * The quiz verb's gate: a centered card — question on top, one choice row per
  * option, Skip when the ask is not required. A pick colors the chosen and
  * correct rows and resolves the 0-based index IMMEDIATELY (so the feedback
- * line speaks while the colors are still showing); the card lingers a beat,
- * then removes itself. Skip and abort resolve null. Resolves on signal abort
- * so scrubbing and disposal are never blocked.
+ * line speaks while the colors are still showing). The answered card stays
+ * while the explanation plays and offers "Skip explanation" for that long —
+ * even on a required question (Hans 2026-09-26) — then removes itself. Skip
+ * and abort resolve null. Resolves on signal abort so scrubbing and disposal
+ * are never blocked.
  */
-export function quizGateFor(stage: HTMLElement): (signal: AbortSignal, step: QuizGateStep) => Promise<number | null> {
+export function quizGateFor(stage: HTMLElement, skipFeedback: () => void = () => undefined): (signal: AbortSignal, step: QuizGateStep) => Promise<number | null> {
   return (signal, step) =>
     new Promise<number | null>((resolve) => {
       // A lingering previous question makes way for this one.
@@ -171,6 +173,7 @@ export function quizGateFor(stage: HTMLElement): (signal: AbortSignal, step: Qui
           resolve(null);
         }
       };
+      const skip = h("button", { class: "cs-cardgate-pill skip" }, "Skip ▸") as HTMLButtonElement;
       const pills: HTMLButtonElement[] = step.choices.map((choice, i) => {
         const pill = h("button", { class: "cs-cardgate-pill" }, `${i + 1} · ${choice}`) as HTMLButtonElement;
         pill.addEventListener("click", (e) => {
@@ -180,23 +183,33 @@ export function quizGateFor(stage: HTMLElement): (signal: AbortSignal, step: Qui
           pill.classList.add(i === step.correct ? "right" : "wrong");
           pills[step.correct].classList.add("right");
           for (const p of pills) p.disabled = true;
-          window.setTimeout(remove, CARD_LINGER_MS);
+          // The card stays while the explanation plays (the player's feedback
+          // hook removes it when it ends); the linger is only the floor, and
+          // the backstop for a lesson with nothing to say after an answer.
+          gate.classList.add("cs-cardgate-answered");
+          skip.textContent = "Skip explanation ▸";
+          if (!skip.isConnected) card.appendChild(skip);
+          window.setTimeout(() => {
+            if (!gate.classList.contains("cs-cardgate-explaining")) remove();
+          }, CARD_LINGER_MS);
           resolve(i);
         });
         return pill;
       });
       choicesBox.append(...pills);
-      if (!step.required) {
-        const skip = h("button", { class: "cs-cardgate-pill skip" }, "Skip ▸");
-        skip.addEventListener("click", (e) => {
-          e.stopPropagation();
-          if (settled) return;
-          settled = true;
+      skip.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (settled) {
+          // After an answer: cut the explanation, not the lesson.
+          skipFeedback();
           remove();
-          resolve(null);
-        });
-        card.appendChild(skip);
-      }
+          return;
+        }
+        settled = true;
+        remove();
+        resolve(null);
+      });
+      if (!step.required) card.appendChild(skip);
       gate.addEventListener("click", (e) => e.stopPropagation());
       signal.addEventListener("abort", onAbort);
       stage.appendChild(gate);
@@ -1128,7 +1141,14 @@ export function attachPlayerControls(
   gateWatch.observe(stage, { childList: true });
 
   hd.timeline.inputGate = clickGate(stage);
-  hd.timeline.quizGate = quizGateFor(stage);
+  hd.timeline.quizGate = quizGateFor(stage, () => hd.timeline.skipFeedback());
+  // The answered card lives exactly as long as the explanation it offers to skip.
+  hd.timeline.feedbackHook = (active) => {
+    const answered = stage.querySelector(".cs-cardgate.cs-cardgate-answered");
+    if (!answered) return;
+    if (active) answered.classList.add("cs-cardgate-explaining");
+    else answered.remove();
+  };
   // The widget host is attached HERE, above the gate block, because a
   // template-bound ask's gate routes its clicks through it.
   const widgetHost = attachWidgetHost(stage, hd); // no-op unless the template carries a widget body

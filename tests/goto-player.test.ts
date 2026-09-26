@@ -80,7 +80,8 @@ describe("goto branching", () => {
     const player = makePlayer(REMEDIATION, speech);
     player.quizGate = async () => null;
     await player.play();
-    expect(speech.spoken).toEqual(["The shift moves the crossing.", "Which way?", "Up it goes.", "Done."]);
+    // (A live Skip skips the explanation too — Hans 2026-09-26 — so no reveal line.)
+    expect(speech.spoken).toEqual(["The shift moves the crossing.", "Which way?", "Done."]);
   });
 
   test("ask gotos work the same in check mode", async () => {

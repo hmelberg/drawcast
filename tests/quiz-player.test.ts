@@ -44,20 +44,35 @@ describe("the quiz action", () => {
     expect(speech.spoken).toEqual(["Which?", "No.", "Yes, two."]);
   });
 
-  test("skipped/auto (null): just the reveal line", async () => {
+  test("a live viewer's Skip skips the question AND its explanation (Hans 2026-09-26)", async () => {
     const speech = new RecordingSpeech();
     const player = makePlayer(ASK, speech);
     player.quizGate = async () => null;
     await player.play();
-    expect(speech.spoken).toEqual(["Which?", "Yes, two."]);
+    expect(speech.spoken).toEqual(["Which?"]);
   });
 
   test("without right, the reveal is the correct choice text", async () => {
     const speech = new RecordingSpeech();
     const player = makePlayer({ question: "Which?", choices: ["one", "two"], correct: 2 }, speech);
-    player.quizGate = async () => null;
+    player.quizGate = async () => 0; // a wrong answer is answered with the reveal
     await player.play();
     expect(speech.spoken).toEqual(["Which?", "two"]);
+  });
+
+  test("Skip explanation cuts the feedback after an answer, and the lesson goes on", async () => {
+    const speech = new RecordingSpeech();
+    const player = makePlayer({ ...ASK, wrong: "Count again." }, speech);
+    player.quizGate = async () => 0;
+    const seen: boolean[] = [];
+    player.feedbackHook = (active) => {
+      seen.push(active);
+      if (active) player.skipFeedback();
+    };
+    await player.play();
+    expect(player.state).toBe("done");
+    expect(speech.spoken).toEqual(["Which?"]);
+    expect(seen).toEqual([true, false]);
   });
 
   test("no gate at all: degrades to a hold + reveal, never deadlocks", async () => {

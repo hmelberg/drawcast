@@ -144,6 +144,19 @@ export class Player {
   inputGate: ((signal: AbortSignal) => Promise<void>) | null = null;
 
   /**
+   * Told when a quiz's spoken feedback starts (true) and ends (false), so the
+   * card can offer "Skip explanation" for exactly that long; `skipFeedback`
+   * cuts it short (Hans 2026-09-26: "even after we click on an answer, we
+   * should still be able to skip the explanation").
+   */
+  feedbackHook: ((active: boolean) => void) | null = null;
+  private feedbackCtl: AbortController | null = null;
+  /** Cut the current quiz feedback short; the lesson goes on from there. */
+  skipFeedback(): void {
+    this.feedbackCtl?.abort();
+  }
+
+  /**
    * Provider for the quiz verb, set by the controls layer (choice buttons) or
    * the exporter (auto-reveal beat). Resolves the 0-based chosen index, or
    * null for skipped/auto. Must resolve on signal abort. When unset, quiz
@@ -1232,16 +1245,37 @@ export class Player {
           });
         }
         const reveal = step.right ?? step.choices[step.correct];
+        // The feedback runs on its own signal, so the viewer can skip it
+        // without skipping what comes after.
+        const ctl = new AbortController();
+        this.feedbackCtl = ctl;
+        const fb = anySignal(signal, ctl.signal);
+        const lines: string[] = [];
         if (chosen === step.correct) {
-          if (step.right) await this.speakLine(step.right, step, signal);
+          if (step.right) lines.push(step.right);
         } else if (chosen !== null) {
           // `wrong` is a hint BEFORE the reveal; one that just repeats the
           // reveal would say the same sentence twice (Hans 2026-09-25).
-          if (step.wrong && step.wrong.trim() !== reveal.trim()) await this.speakLine(step.wrong, step, signal);
-          await this.speakLine(reveal, step, signal);
-        } else {
-          await this.speakLine(reveal, step, signal);
+          if (step.wrong && step.wrong.trim() !== reveal.trim()) lines.push(step.wrong);
+          lines.push(reveal);
+        } else if (!liveQuiz) {
+          // A movie or a gate-less player reveals the answer; a live viewer
+          // who pressed Skip skipped the question AND its explanation.
+          lines.push(reveal);
         }
+        if (lines.length > 0) {
+          if (liveQuiz) this.feedbackHook?.(true);
+          try {
+            for (const line of lines) {
+              if (fb.aborted) break;
+              await this.speakLine(line, step, fb);
+            }
+          } finally {
+            if (this.feedbackCtl === ctl) this.feedbackCtl = null;
+            if (liveQuiz) this.feedbackHook?.(false);
+          }
+        }
+        if (signal.aborted) return;
         if (!this.autoAnswers && this.quizGate !== null && chosen !== null) {
           const target = chosen === step.correct ? step.rightGoto : step.wrongGoto;
           if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
@@ -2031,4 +2065,16 @@ export class Player {
     const els = this.els([...this.stateAt(this.completed).visible]);
     await Promise.all(els.map((el) => this.animateRange(el, 1, 0, ms, ac.signal)));
   }
+}
+
+/** A signal that aborts when either does (AbortSignal.any, where the runtime has it). */
+function anySignal(a: AbortSignal, b: AbortSignal): AbortSignal {
+  const any = (AbortSignal as unknown as { any?: (s: AbortSignal[]) => AbortSignal }).any;
+  if (any) return any([a, b]);
+  const c = new AbortController();
+  const stop = () => c.abort();
+  if (a.aborted || b.aborted) c.abort();
+  a.addEventListener("abort", stop, { once: true });
+  b.addEventListener("abort", stop, { once: true });
+  return c.signal;
 }
