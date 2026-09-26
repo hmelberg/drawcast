@@ -1739,6 +1739,10 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
    It is placed here anyway, after cardable-through-gate, so the file reads
    in the same "later wins" order it would need if that ever changed. */
 .cs-figgate.cs-connectgate { cursor: crosshair; }
+/* Hovering what a live widget lets the viewer drag (a supply_demand curve,
+   a price line): the open hand before any press — after cardable, so a
+   curve that also carries a card still says "you can take this". */
+.cs-stage.cs-draggable { cursor: grab; }
 /* A widget part being pressed: a grab while held, and — once the press
    crosses DRAG_MIN and becomes a drag — a grabbing hand, even through an
    ask's own gate. Same reasoning as cardable's own through-gate rule

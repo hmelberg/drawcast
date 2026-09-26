@@ -17,6 +17,7 @@ import twoByTwoManifest from "./two_by_two_table/manifest.json";
 import timelineManifest from "./timeline/manifest.json";
 import genericAxesManifest from "./generic_axes_diagram/manifest.json";
 import { layoutSupplyDemand, type SupplyDemandParams } from "./supply_demand/layout";
+import { supplyDemandWidget } from "./supply_demand/widget";
 import { layoutDecisionTree, type DecisionTreeParams } from "./decision_tree/layout";
 import { layoutQalyProfiles, type QalyParams } from "./qaly_profiles/layout";
 import qalyManifest from "./qaly_profiles/manifest.json";
@@ -36,6 +37,10 @@ export const scenes: Record<string, SceneModule> = {
   supply_demand: {
     manifest: supplyDemandManifest as SceneManifest,
     layout: (params) => layoutSupplyDemand(params as SupplyDemandParams),
+    // Free play only (drag the curves, the price lines, the tax): the manifest
+    // carries no `widget: true`, because that flag also offers the figure as
+    // an ask's answer device, and this body answers nothing.
+    widget: supplyDemandWidget,
   },
   decision_tree: {
     manifest: decisionTreeManifest as SceneManifest,

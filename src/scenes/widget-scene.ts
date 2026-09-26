@@ -1,7 +1,7 @@
 // The scene a widget body reads (spec §2.2): the template's parts with their
 // boxes and outlines, the painted params, and the domain mappings. Pure —
 // built from a layout, never from the DOM.
-import { domainMapping, elementBBoxes, elementRings, inverseDomainMapping, type LayoutResult } from "../layout/layout";
+import { domainMapping, elementBBoxes, elementLines, elementRings, inverseDomainMapping, type LayoutResult } from "../layout/layout";
 import type { MeasureFn } from "../layout/measure";
 import type { Pt } from "../layout/model";
 import type { Spec } from "../spec/types";
@@ -39,13 +39,21 @@ export function buildWidgetScene(module: SceneModule, params: Record<string, unk
   const all = elementBBoxes(layout, opts.measure);
   const boxes = new Map([...all].filter(([id]) => ids.includes(id)));
   const rings = new Map([...elementRings(layout)].filter(([id]) => ids.includes(id)));
+  const lines = new Map([...elementLines(layout)].filter(([id]) => ids.includes(id)));
   const fit = opts.layout?.fit;
-  const fwd = domainMapping(opts.domain, fit);
-  const inv = opts.domain ? inverseDomainMapping(opts.domain, fit) : null;
+  // The spec's own domain first (what `{data: …}` means on the page, as
+  // layout.ts pageFrame decides); else a chart template's own frame, so a
+  // body on supply_demand's 0–100 axes reads the pointer in those units
+  // under any box or grow fit (2026-09-26). A template with no frame and a
+  // spec with no domain: null, as before.
+  const frame = opts.domain ?? own.frame;
+  const fwd = domainMapping(frame, fit);
+  const inv = frame ? inverseDomainMapping(frame, fit) : null;
   return {
     ids,
     boxes,
     rings,
+    lines,
     params,
     vars: opts.vars ?? {},
     toDomain: (p: Pt) => (inv ? inv(p) : null),

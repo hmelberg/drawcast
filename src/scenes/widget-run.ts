@@ -1,6 +1,6 @@
 // Stepping a widget body, and the node harness authors and the examples gate
 // run a click sequence through (spec §2.8). Nothing here touches the DOM.
-import { hitElement } from "../ui/hit";
+import { hitElement, nearestLine } from "../ui/hit";
 import type { Pt } from "../layout/model";
 import { validateEffects, type WidgetEffect } from "./widget-effects";
 import { buildWidgetScene, paramNamesOf, type WidgetSceneOpts } from "./widget-scene";
@@ -27,6 +27,18 @@ export const keyEvent = (key: string, ms: number): WidgetEvent => ({ type: "key"
 
 /** A drag for the harness and the tests: `id` dropped on `to` (null = blank paper). */
 export const dragEvent = (id: string, to: string | null, point: Pt = [0, 0]): WidgetEvent => ({ type: "drag", id, to, point, domain: null });
+
+/** A live drag for the harness and the tests (`live` bodies): `id` pressed at
+ *  `from`, the pointer now at `to` — logical points, mapped to the domain
+ *  through `scene` when one is given (as the host does). */
+export const dragMoveEvent = (id: string, from: Pt, to: Pt, scene?: WidgetScene): WidgetEvent => ({
+  type: "drag_move",
+  id,
+  from,
+  fromDomain: scene ? scene.toDomain(from) : null,
+  point: to,
+  domain: scene ? scene.toDomain(to) : null,
+});
 
 export interface WidgetRun {
   states: unknown[];
@@ -72,8 +84,8 @@ export function runWidget(module: SceneModule, params: Record<string, unknown>, 
     // A drag names TWO parts, and a typo in either is the same mistake the
     // string form reports: `to` may be null (blank paper) and may equal `id`
     // (dropped back where it was picked up), but neither may be invented.
-    if (ev.type === "drag") {
-      const unknown = [ev.id, ev.to].filter((id): id is string => id !== null && !scene!.ids.includes(id));
+    if (ev.type === "drag" || ev.type === "drag_move") {
+      const unknown = [ev.id, ev.type === "drag" ? ev.to : null].filter((id): id is string => id !== null && !scene!.ids.includes(id));
       if (unknown.length > 0) {
         for (const id of unknown) run.errors.push(`drag: "${id}" is not a part (${scene.ids.join(", ")})`);
         continue;
@@ -124,7 +136,27 @@ export function demoWidget(module: SceneModule, params: Record<string, unknown>,
  * legend dead to the viewer. `scene.ids` stays the full part list — a body
  * may still glow or point at a label it never gets clicks from.
  */
-export function partAt(scene: WidgetScene, p: [number, number], slop = 18): string | null {
+export function partAt(scene: WidgetScene, p: [number, number], slop = 18, parts?: readonly string[]): string | null {
+  if (parts) return partAmong(scene, p, slop, parts);
   const surface = new Map([...scene.boxes].filter(([id]) => scene.rings.has(id)));
   return hitElement(surface, p, slop, scene.rings);
+}
+
+/**
+ * A body that NAMES its parts (WidgetBody.parts): only those are its, and a
+ * part with no closed outline — a curve, a price line — is hit by distance to
+ * its strokes within the same slop (2026-09-26). Everything else stays the
+ * info card's: supply_demand's surplus regions have outlines, and a body
+ * that grabs curves must not take their cards away. A stroke within reach
+ * wins over an outline containing p: the curve IS the edge of the region
+ * beside it, and the thin thing is the one the viewer aimed at.
+ */
+function partAmong(scene: WidgetScene, p: Pt, slop: number, parts: readonly string[]): string | null {
+  const open = parts.filter((id) => scene.ids.includes(id) && !scene.rings.has(id));
+  const line = nearestLine(scene.lines, p, slop, open);
+  if (line !== null) return line;
+  const closed = new Set(parts.filter((id) => scene.rings.has(id)));
+  if (closed.size === 0) return null;
+  const surface = new Map([...scene.boxes].filter(([id]) => closed.has(id)));
+  return hitElement(surface, p, slop, new Map([...scene.rings].filter(([id]) => closed.has(id))));
 }

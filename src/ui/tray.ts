@@ -1453,7 +1453,9 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       // interaction played on the drawing itself (the space and sky
       // browsers live in the tray, so they do not count).
       const onFigure =
-        (hd.spec.template !== undefined && scenes[hd.spec.template]?.manifest.widget === true) ||
+        // The BODY, not the manifest flag: supply_demand's drags are free play
+        // with no `widget: true` (that flag offers asks), and they count.
+        (hd.spec.template !== undefined && scenes[hd.spec.template]?.widget !== undefined) ||
         interactions.some((k) => k === "piano" || k === "chess" || k === "periodic" || k === "staff");
       const surface = exploreSurface(
         step,

@@ -918,8 +918,12 @@ function lintWidget(spec: Spec): LintIssue[] {
   for (const cmd of spec.commands ?? []) {
     const w = cmd.ask?.widget;
     if (w === undefined || (BUILTIN_WIDGETS as readonly string[]).includes(w) || w !== spec.template) continue;
+    // The manifest flag too, not the body alone: a built-in's free-play body
+    // (supply_demand's drags) answers no question.
     if (!scenes[w]?.widget) {
       issues.push({ rule: "widget", ids: [], message: `ask widget: template "${w}" has no widget body — only a template document with a widget: body can answer an ask`, severity: "error" });
+    } else if (scenes[w]?.manifest.widget !== true) {
+      issues.push({ rule: "widget", ids: [], message: `ask widget: template "${w}" is free play only (the viewer can work it while paused, but it answers no ask) — use an explore beat, or a built-in device`, severity: "error" });
     }
   }
   return issues;

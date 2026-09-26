@@ -90,6 +90,9 @@ export interface SceneManifest {
 export interface SceneModule {
   manifest: SceneManifest;
   layout?: (params: Record<string, unknown>) => SceneLayout;
-  /** A fresh widget body per mount (the doc's `widget` function body, compiled once). */
+  /** A fresh widget body per mount (the doc's `widget` function body, compiled
+   *  once — or a built-in's, supply_demand's). A body WITHOUT `manifest.widget`
+   *  is free play only: the figure is workable while paused, but it is not
+   *  offered as an ask's answer device. */
   widget?: () => WidgetBody;
 }

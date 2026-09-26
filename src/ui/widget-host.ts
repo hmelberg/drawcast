@@ -3,7 +3,9 @@
 // persists past the preview. ONE gesture is tracked — press, move, release —
 // and read at the end (§2.2 addendum 2026-09-15b): a press that barely moved
 // is a click, one that moved is a drag, and the pressed part follows the
-// pointer as a ghost on the renderer's offset. The DOM-free core
+// pointer as a ghost on the renderer's offset — or, for a LIVE body
+// (2026-09-26), the figure itself recomputes under the pointer once a frame
+// through the tray's previewParams, and a tap passes through. The DOM-free core
 // (widgetHostFor) is what tests drive; the stage listeners (attachWidgetHost)
 // are source-pinned.
 import type { RenderHandle } from "../render";
@@ -16,7 +18,7 @@ import type { WidgetEffect } from "../scenes/widget-effects";
 import type { WidgetBody, WidgetEvent, WidgetScene } from "../scenes/widget-types";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { sceneAt } from "../render/plan";
-import { withNewIdsVisible } from "../render/params";
+import { withNewIdsVisible, withOverrides } from "../render/params";
 import { answersMatch } from "../spec/answers";
 import { overCaption } from "./caption";
 import { h, logicalPoint } from "./dom";
@@ -44,8 +46,10 @@ export interface WidgetHost {
   move(p: Pt): void;
   /** Read the gesture at release: "click" when it barely moved, "drag" when it
    *  did (the ghost is cleared BEFORE the event is delivered, so only the
-   *  body's own patch moves geometry for real); null when nothing was pressed. */
-  release(p: Pt): "click" | "drag" | null;
+   *  body's own patch moves geometry for real); null when nothing was pressed.
+   *  "pass" is a live body's tap: not its gesture, so the caller lets the
+   *  click go on to the card or the play toggle. */
+  release(p: Pt): "click" | "drag" | "pass" | null;
   /** Drop the gesture and its ghost without delivering anything (pointercancel). */
   cancel(): void;
   /** True once the live gesture has passed DRAG_MIN — the stage's cursor
@@ -57,8 +61,15 @@ export interface WidgetHost {
   keys: readonly string[];
   /** Deliver a released key: true when the body declared it (and ran). */
   keyPress(key: string, ms: number): boolean;
-  /** True when p is over a part (the cursor rule; no side effects). */
+  /** True when p is over a part (the cursor rule; no side effects). A live
+   *  body's parts are NOT "over" — a tap on them is the card's (see live). */
   over(p: Pt): boolean;
+  /** A live body only: true when p is on a part a press would grab — the
+   *  hover's grab hand (cs-draggable). Always false for other bodies. */
+  grabbable(p: Pt): boolean;
+  /** The body drags live (WidgetBody.live): the figure recomputes under the
+   *  pointer, a tap passes through. */
+  live: boolean;
   lastAnswer(): string | null;
   /** Subscribe to answer effects; returns the unsubscribe. */
   onAnswer(fn: (value: string) => void): () => void;
@@ -73,7 +84,19 @@ export interface WidgetHostDeps {
   /** The drag ghost: the renderer's per-element offset (the player's `nudge`
    *  in the app, a recorder in tests). (0, 0) puts the part back. */
   nudge?: (id: string, dx: number, dy: number) => void;
+  /** A live drag's frame clock: runs fn once, soon; returns its cancel.
+   *  requestAnimationFrame in the app, synchronous in tests. */
+  frame?: (fn: () => void) => () => void;
 }
+
+const animationFrame = (fn: () => void): (() => void) => {
+  if (typeof requestAnimationFrame === "function") {
+    const h = requestAnimationFrame(fn);
+    return () => cancelAnimationFrame(h);
+  }
+  const t = setTimeout(fn, 16);
+  return () => clearTimeout(t);
+};
 
 export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): WidgetHost | null {
   const template = hd.spec.template;
@@ -86,13 +109,20 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
   // The keys the body asked for: read once, from a probe body that is then
   // discarded (the host's own body still mounts on the first event). A body
   // that throws on construction simply wants no keys — clickAt says so too.
-  const declaredKeys: string[] = (() => {
+  // Its named parts and its live flag come off the same probe.
+  const probe: { keys: string[]; parts?: string[]; live: boolean } = (() => {
     try {
-      return module.widget!().keys ?? [];
+      const b = module.widget!();
+      return { keys: b.keys ?? [], ...(Array.isArray(b.parts) ? { parts: b.parts } : {}), live: b.live === true };
     } catch {
-      return [];
+      return { keys: [], live: false };
     }
   })();
+  const declaredKeys = probe.keys;
+  const live = probe.live;
+  const frame = deps.frame ?? animationFrame;
+  /** Which part a press at p takes: the body's named parts, else the surface. */
+  const hit = (sc: WidgetScene, p: Pt): string | null => partAt(sc, p, 18, probe.parts);
 
   let body: WidgetBody | null = null;
   let state: unknown;
@@ -105,9 +135,31 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
   let previewOrder: readonly string[] = [];
   /** The one pointer gesture in flight: the part pressed, where the press
    *  began, and whether it has passed DRAG_MIN (once past, it stays a drag). */
-  let gesture: { id: string; start: Pt; moved: boolean } | null = null;
+  let gesture: {
+    id: string;
+    start: Pt;
+    moved: boolean;
+    /** Live bodies: the scene as pressed (every drag_move maps against it),
+     *  the patches before the press (a cancel puts them back), and the
+     *  latest pointer waiting for its frame. */
+    scene: WidgetScene;
+    before: Record<string, unknown>;
+    pending: Pt | null;
+    unframe: (() => void) | null;
+  } | null = null;
 
-  const params = (): Record<string, unknown> => ({ ...(hd.spec.params ?? {}), ...hd.timeline.getParamOverrides(), ...patches });
+  // The params AT THIS BOUNDARY, as the tray reads them (tray.ts
+  // effectiveParams): what the author wrote, the storyboard's animate values
+  // so far, the viewer's var overrides — then the widget's own patches. The
+  // boundary layer matters the moment a cast animates what a body patches:
+  // a supply_demand lesson that has tweened the tax to 30 must be dragged
+  // FROM 30, not snapped back to the authored 18 on the first frame.
+  // (`vars.*` paths are the spec's vars, not template params — left out.)
+  const templatePaths = (o: Record<string, unknown>): Record<string, unknown> => Object.fromEntries(Object.entries(o).filter(([k]) => !k.startsWith("vars.")));
+  const params = (): Record<string, unknown> => ({
+    ...withOverrides(withOverrides(hd.spec.params, templatePaths(sceneAt(hd.plan, hd.timeline.position).params)), templatePaths(hd.timeline.getParamOverrides())),
+    ...patches,
+  });
 
   /** What the viewer can actually see right now: the paused boundary's own
    *  visible set, widened by the ids this widget's patches have revealed. */
@@ -130,6 +182,21 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
     return built;
   };
 
+  /** Make `next` the widget's patches and paint them — the tray's route
+   *  (previewParams), so intersections, guides and regions all recompute. */
+  const paint = (next: Record<string, unknown>): void => {
+    patches = next;
+    hd.timeline.previewParams(patches, { revealNew: true });
+    // The patched layout's own order: whatever it mints that the mounted
+    // layout never had is now painted (revealNew), so the host must count
+    // it as visible too or the widget could not click what it just drew.
+    try {
+      previewOrder = module.layout!(params()).order;
+    } catch {
+      previewOrder = [];
+    }
+  };
+
   const perform = (effects: WidgetEffect[], sc: WidgetScene): void => {
     for (const e of effects) {
       if (e.sound) {
@@ -139,18 +206,7 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
           else tones.play([{ notes: e.sound.notes }], e.sound.tempo ?? 120);
         }
       }
-      if (e.patch && Object.keys(e.patch).length > 0) {
-        patches = { ...patches, ...e.patch };
-        hd.timeline.previewParams(patches, { revealNew: true });
-        // The patched layout's own order: whatever it mints that the mounted
-        // layout never had is now painted (revealNew), so the host must count
-        // it as visible too or the widget could not click what it just drew.
-        try {
-          previewOrder = module.layout!(params()).order;
-        } catch {
-          previewOrder = [];
-        }
-      }
+      if (e.patch && Object.keys(e.patch).length > 0) paint({ ...patches, ...e.patch });
       if (e.glow) void hd.timeline.glow(e.glow, undefined, e.color);
       if (e.pointer) {
         const b = sc.boxes.get(e.pointer);
@@ -189,11 +245,36 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
     perform(r.effects, sc);
   };
 
+  /** A live drag's latest pointer, delivered against the press-time scene. */
+  const flush = (): void => {
+    const g = gesture;
+    if (!g) return;
+    g.unframe = null;
+    const p = g.pending;
+    g.pending = null;
+    if (!p) return;
+    run(g.scene, { type: "drag_move", id: g.id, from: g.start, fromDomain: g.scene.toDomain(g.start), point: p, domain: g.scene.toDomain(p) });
+  };
+  /** Forget the gesture and any frame it booked — nothing painted, nothing put back. */
+  const drop = (): void => {
+    gesture?.unframe?.();
+    gesture = null;
+  };
+
   const host: WidgetHost = {
     keys: Object.freeze(declaredKeys),
+    live,
     over(p) {
+      // A live body's parts are its only by DRAGGING; standing the card aside
+      // for them (infocard.ts targetAt) would make a tap on a named curve dead.
+      if (live) return false;
       const sc = scene();
-      return sc !== null && partAt(sc, p) !== null;
+      return sc !== null && hit(sc, p) !== null;
+    },
+    grabbable(p) {
+      if (!live) return false;
+      const sc = scene();
+      return sc !== null && hit(sc, p) !== null;
     },
     clickAt(p) {
       // The whole gesture in one point — the harness, the tests and anything
@@ -206,9 +287,9 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
       if (gesture) return false;
       const sc = scene();
       if (!sc) return false;
-      const id = partAt(sc, p);
+      const id = hit(sc, p);
       if (id === null) return false;
-      gesture = { id, start: p, moved: false };
+      gesture = { id, start: p, moved: false, scene: sc, before: patches, pending: null, unframe: null };
       return true;
     },
     move(p) {
@@ -217,12 +298,37 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
         dy = p[1] - gesture.start[1];
       if (!gesture.moved && Math.hypot(dx, dy) < DRAG_MIN) return;
       gesture.moved = true;
-      nudge(gesture.id, dx, dy);
+      if (!live) {
+        nudge(gesture.id, dx, dy);
+        return;
+      }
+      // Live: the figure itself follows, at most once a frame — a pointer
+      // reports far more often than a re-layout is worth painting.
+      gesture.pending = p;
+      if (!gesture.unframe) {
+        let ran = false;
+        const cancel = frame(() => {
+          ran = true;
+          flush();
+        });
+        // A synchronous clock (the tests') has already flushed.
+        if (!ran && gesture) gesture.unframe = cancel;
+      }
     },
     release(p) {
       if (!gesture) return null;
       const g = gesture;
-      gesture = null;
+      drop();
+      if (live) {
+        // A tap is not a live body's gesture: the caller lets its click go on.
+        if (!g.moved) return "pass";
+        // The last word is the release point itself, against the SAME
+        // press-time scene every drag_move used — so the final patch is the
+        // one the viewer was looking at, not one frame behind it.
+        const now = scene();
+        run(g.scene, { type: "drag", id: g.id, to: now ? hit(now, p) : null, point: p, domain: g.scene.toDomain(p), from: g.start, fromDomain: g.scene.toDomain(g.start) });
+        return "drag";
+      }
       // The ghost goes first — before the scene, before the event: the body's
       // patch is the only thing that may move geometry for real, and a part
       // left hanging on an offset nothing owns never finds its way back.
@@ -233,13 +339,19 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
         run(sc, { type: "click", id: g.id, point: g.start, domain: sc.toDomain(g.start) });
         return "click";
       }
-      run(sc, { type: "drag", id: g.id, to: partAt(sc, p), point: p, domain: sc.toDomain(p) });
+      run(sc, { type: "drag", id: g.id, to: hit(sc, p), point: p, domain: sc.toDomain(p), from: g.start, fromDomain: sc.toDomain(g.start) });
       return "drag";
     },
     cancel() {
       if (!gesture) return;
-      if (gesture.moved) nudge(gesture.id, 0, 0);
-      gesture = null;
+      const g = gesture;
+      drop();
+      if (!g.moved) return;
+      // A live drag has been painting for real: a cancelled one (the browser
+      // took the pointer, a drop on a button) puts back what was there before
+      // the press, as the ghost goes back for everyone else.
+      if (live) paint(g.before);
+      else nudge(g.id, 0, 0);
     },
     dragging: () => gesture?.moved === true,
     keyPress(key, ms) {
@@ -255,7 +367,10 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
       return () => listeners.delete(fn);
     },
     reset() {
-      this.cancel();
+      // Everything goes below, so a live drag in flight is simply dropped —
+      // painting its "before" now would dirty the geometry play is settling.
+      if (live) drop();
+      else this.cancel();
       body = null;
       state = undefined;
       patches = {};
@@ -316,6 +431,8 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
   // letting a drop on Skip both answer the question and skip it (review
   // 2026-09-15).
   let swallowClick = false;
+  /** The swallowed click follows a DRAG: stand every other listener down. */
+  let swallowAll = false;
   /** The pointer that owns the gesture; every other one is someone else's. */
   let activeId: number | null = null;
   /** The figure's own inline touch-action (a piano stage sets "none" for the
@@ -352,6 +469,7 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
     // the widget on a context menu and disarm a swallow a live press armed.
     if (!e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
     swallowClick = false; // whatever an earlier press armed, this click is new
+    swallowAll = false;
     if (blocked(e)) return;
     const p = logicalPoint(stage, e);
     if (!p || !host.press(p)) return;
@@ -406,8 +524,18 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
     // tell Skip from paper — the release point can.
     const dropped = document.elementFromPoint(e.clientX, e.clientY);
     const p = dropped instanceof Element && dropped.closest("button") !== null ? null : logicalPoint(stage, e);
-    if (p) host.release(p);
-    else host.cancel();
+    if (!p) {
+      host.cancel();
+      return;
+    }
+    const read = host.release(p);
+    // A live body's tap was never its gesture: the click goes on, to the
+    // part's card or the play toggle, exactly as if no widget were here.
+    if (read === "pass") swallowClick = false;
+    // A drag's click is nobody's — not even the info card's, whose own
+    // capture listener sits on this same stage (so a plain stopPropagation
+    // never reached it): a curve let go under the pointer is not a tap on it.
+    swallowAll = read === "drag";
   };
   stage.addEventListener("pointerup", (e) => end(e, false), true);
   stage.addEventListener("pointercancel", (e) => end(e, true), true);
@@ -430,8 +558,25 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
       swallowClick = false;
       e.stopPropagation();
       e.preventDefault();
+      // This listener is attached before the card's (controls.ts), so after a
+      // drag it can stand the card's same-stage listener down too.
+      if (swallowAll) e.stopImmediatePropagation();
     }
+    swallowAll = false;
   }, true);
+
+  // The hover's grab hand over what a live body lets the viewer drag (a
+  // curve is thin — without it nothing says it can be taken). Its own class,
+  // cs-draggable: cs-cardable stays the info card's sole toggle, and
+  // cs-grabbable/cs-grabbing stay the press's. Only a live body installs it.
+  if (host.live) {
+    stage.addEventListener("pointermove", (e) => {
+      if (activeId !== null) return; // a gesture's own classes rule
+      const p = blocked(e) ? null : logicalPoint(stage, e);
+      stage.classList.toggle("cs-draggable", p !== null && host.grabbable(p));
+    });
+    stage.addEventListener("pointerleave", () => stage.classList.remove("cs-draggable"));
+  }
 
   // Playback, a scrub or a step lands honest geometry — chain, never replace
   // (the tray and the info card hang their own logic on these callbacks).
@@ -449,6 +594,7 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
       // guard is what stops it from running its drop-on-a-control dance
       // against a gesture that is already gone.
       clearGrab();
+      stage.classList.remove("cs-draggable"); // the movie has nothing to grab
       activeId = null;
       stage.style.touchAction = priorTouchAction;
     }
