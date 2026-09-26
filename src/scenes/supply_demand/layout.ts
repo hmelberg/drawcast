@@ -1001,8 +1001,8 @@ function readoutName(k: ReadoutKey, v: Record<string, number>): string {
 function readoutColumn(requested: string[] | undefined, units: NonNullable<SupplyDemandParams["units"]>): ReadoutColumn | null {
   const keys = (requested ?? []).filter((k): k is ReadoutKey => (READOUT_KEYS as readonly string[]).includes(k));
   if (keys.length === 0) return null;
-  const FONT = 22;
-  const LINE = 30;
+  const FONT = 24;
+  const LINE = 32;
   const names = keys.flatMap((k) => [readoutName(k, {}), ...(k === "revenue" ? [readoutName(k, { revenue: -1 })] : [])]);
   const valueW = Math.max(...keys.map((k) => kit.textWidth(withUnit("0 000", VALUE_KIND[k] === "quantity" ? units.quantity_unit : units.price_unit), FONT)));
   const w = Math.max(...names.map((n) => kit.textWidth(n, FONT))) + 20 + valueW;
