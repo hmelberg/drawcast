@@ -828,7 +828,7 @@ export interface Spec {
    * My templates. The compiler never writes this field; the app does.
    */
   templates?: TemplateDoc[];
-  domain?: { x?: [number, number]; y?: [number, number] };
+  domain?: { x?: [number, number]; y?: [number, number]; box?: "left" | "right" | "top" | "bottom" | "full" | { x: number; y: number; w: number; h: number } };
   /** Top-level numbers (design 2026-09-10): read by curve `expr`, by `bind` expressions, as `{name}` in drawn text, and swept by animate. */
   vars?: Record<string, number>;
   /** Formal details for ids that are not spec elements (a template's parts), by id. */

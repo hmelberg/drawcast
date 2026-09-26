@@ -26,7 +26,7 @@ import { hasDefaultColumnInsets, INSET_MAIN } from "./inset";
 import type { LayoutOverrides } from "./posed";
 import { heuristicMeasure, type MeasureFn } from "./measure";
 import { drawablesForId, leafDrawables, type Drawable, type Pt } from "./model";
-import { frameToCanvas, linearScale, plotArea, type DataFrame } from "./canvas";
+import { domainPlot, frameToCanvas, linearScale, setHeadingFloor, type DataFrame } from "./canvas";
 import { figureSplit } from "./figure-split";
 import { fitSceneLayout, growSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
 import type { SceneLayout } from "../scenes/types";
@@ -173,7 +173,11 @@ export function layoutSpec(
       const w = measure(title.text as string, font).w;
       const underline = HEADING_Y - font * 0.82;
       setHeadingBox({ x: 500 - w / 2, y: underline, w, h: 750 - underline });
-    } else setHeadingBox(null);
+      setHeadingFloor(underline);
+    } else {
+      setHeadingBox(null);
+      setHeadingFloor(null);
+    }
   }
   if (spec.template) {
     const scene = scenes[spec.template];
@@ -594,7 +598,7 @@ function mayGrow(spec: Spec, manifest: { widget?: true; interactions?: unknown[]
 
 /** The page's data frame: the spec's `domain` on the default plot area, else a template's own. */
 export function pageFrame(domain: Spec["domain"], templateFrame?: DataFrame): DataFrame | undefined {
-  if (domain) return { x: domain.x ?? [0, 100], y: domain.y ?? [0, 100], box: plotArea() };
+  if (domain) return { x: domain.x ?? [0, 100], y: domain.y ?? [0, 100], box: domainPlot(domain) };
   return templateFrame;
 }
 
@@ -607,7 +611,7 @@ const isFrame = (d: Spec["domain"] | DataFrame | undefined): d is DataFrame => !
  */
 export function domainMapping(domain: Spec["domain"] | DataFrame | undefined, fit?: TemplateFit): { toLogical: (p: Pt) => Pt; deltaToLogical: (d: Pt) => Pt } {
   if (!domain) return { toLogical: (p) => p, deltaToLogical: (d) => d };
-  const f: DataFrame = isFrame(domain) ? domain : { x: domain.x ?? [0, 100], y: domain.y ?? [0, 100], box: plotArea() };
+  const f: DataFrame = isFrame(domain) ? domain : { x: domain.x ?? [0, 100], y: domain.y ?? [0, 100], box: domainPlot(domain) };
   const s = fit?.s ?? 1, dx = fit?.dx ?? 0, dy = fit?.dy ?? 0;
   const post = ([x, y]: Pt): Pt => [x * s + dx, y * s + dy];
   const postDelta = ([a, b]: Pt): Pt => [a * s, b * s];
@@ -623,7 +627,7 @@ export function domainMapping(domain: Spec["domain"] | DataFrame | undefined, fi
 /** Logical canvas → data (the inverse of domainMapping, fit included). */
 export function inverseDomainMapping(domain: Spec["domain"] | DataFrame | undefined, fit?: TemplateFit): (p: Pt) => Pt {
   const s = fit?.s ?? 1, dx = fit?.dx ?? 0, dy = fit?.dy ?? 0;
-  const f: DataFrame = isFrame(domain) ? domain : { x: domain?.x ?? [0, 100], y: domain?.y ?? [0, 100], box: plotArea() };
+  const f: DataFrame = isFrame(domain) ? domain : { x: domain?.x ?? [0, 100], y: domain?.y ?? [0, 100], box: domainPlot(domain) };
   const ix = linearScale([f.box.x0, f.box.x1], f.x);
   const iy = linearScale([f.box.y0, f.box.y1], f.y);
   return ([x, y]) => [ix((x - dx) / s), iy((y - dy) / s)];

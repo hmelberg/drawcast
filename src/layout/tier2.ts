@@ -1,7 +1,7 @@
 // Tier-2/3 layout: turns semantic elements into Drawables. The LLM never
 // places anything here except tier-3 escape-hatch coordinates.
 
-import { CANVAS, linearScale, plotArea, type DataFrame, type PlotArea } from "./canvas";
+import { CANVAS, domainPlot, linearScale, type DataFrame, type PlotArea } from "./canvas";
 import { makeAxes } from "./axes";
 import { interpolateAtX, intersectPolylines, qualitativeShape, sampleExpression, sampleParametric } from "./curves";
 import { centroid, type BBox } from "./geometry";
@@ -43,7 +43,7 @@ import { currentMathFontName, enginesLoaded, getLoadedEngines, type MathJaxEngin
 import { musicDrawables } from "./music";
 import { linkKindOf } from "../ui/link-model";
 import type { LintIssue } from "../lint/lint";
-import type { ElementType, EndRef, PointRef, SpecElement } from "../spec/types";
+import type { ElementType, EndRef, PointRef, Spec, SpecElement } from "../spec/types";
 import { evalBindings, interpolateVars, type Vars } from "../spec/vars";
 import { mapDrawable, poseMapOf, type LayoutOverrides } from "./posed";
 import type { TemplateFit } from "./template-fit";
@@ -223,7 +223,7 @@ function withCopies(elements: SpecElement[], copies: Record<string, string> | un
 
 export function layoutElements(
   elements: SpecElement[],
-  domain: { x?: [number, number]; y?: [number, number] } | undefined,
+  domain: Spec["domain"],
   seedAnchors: Record<string, Pt> = {},
   /** Scene curves (in the spec's domain space): valid region/intersection references. */
   seedCurveSamples: Record<string, Pt[]> = {},
@@ -240,7 +240,7 @@ export function layoutElements(
   // the domain "declared" — a bare {x, y} on a template page stays canvas
   // units, as it always was (2026-09-25).
   const tFrame = domain ? undefined : opts.frame;
-  const plot = tFrame ? { ...tFrame.box } : plotArea();
+  const plot = tFrame ? { ...tFrame.box } : domainPlot(domain);
   const domainX: [number, number] = domain?.x ?? tFrame?.x ?? [0, 100];
   const domainY: [number, number] = domain?.y ?? tFrame?.y ?? [0, 100];
   const fs = opts.fit?.s ?? 1, fdx = opts.fit?.dx ?? 0, fdy = opts.fit?.dy ?? 0;
@@ -1178,7 +1178,16 @@ function resolvePointDomain(el: SpecElement, ctx: Ctx): Pt | null {
       ctx.warnings.push(`point "${el.id}": at.on needs x`);
       return null;
     }
-    const y = interpolateAtX(samples, at.x);
+    // A curve is sampled a little inside the page's domain (its ink stops
+    // short of the axes), so a point asked for at the domain's own end — a
+    // sweep that starts at t = 0 — sits at the end of the ink, not off it.
+    const xs = samples.map((q) => q[0]);
+    const lo = Math.min(...xs), hi = Math.max(...xs);
+    // Only that inset (about 2 % a side): a point well past a curve that
+    // ends early (x_to) is still off it, and still warned about.
+    const eps = (hi - lo) * 0.03;
+    const xOn = at.x < lo && at.x >= lo - eps ? lo : at.x > hi && at.x <= hi + eps ? hi : at.x;
+    const y = interpolateAtX(samples, xOn);
     if (y === null) {
       ctx.warnings.push(`point "${el.id}": x = ${at.x} is outside curve "${at.on}"`);
       return null;
@@ -2497,9 +2506,9 @@ function lineDrawable(el: SpecElement, ctx: Ctx): Drawable | null {
   if (through.length >= 2) d = [through[1]![0] - P[0], through[1]![1] - P[1]];
   else if (typeof el.slope === "number") {
     // domain slope → logical: scale dy by the y-scale and dx by the x-scale
-    const plot = plotArea();
-    const kx = ctx.domainDeclared ? (plot.x1 - plot.x0) / (ctx.domainX[1] - ctx.domainX[0]) : 1;
-    const ky = ctx.domainDeclared ? (plot.y1 - plot.y0) / (ctx.domainY[1] - ctx.domainY[0]) : 1;
+    // (the page's own scales, so a boxed or fitted plot keeps its slopes)
+    const kx = ctx.domainDeclared ? ctx.sx(1) - ctx.sx(0) : 1;
+    const ky = ctx.domainDeclared ? ctx.sy(1) - ctx.sy(0) : 1;
     d = [kx, el.slope * ky];
   } else if (typeof el.angle === "number") d = [Math.cos(el.angle * DEG), Math.sin(el.angle * DEG)];
   else { ctx.warnings.push(`line "${el.id}": needs a second point, a slope or an angle`); return null; }

@@ -21,6 +21,28 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-26 — The thing beside its chart; the heading is not part of the plot
+
+Hans, on the falling ball: "This drawcast belongs to a class of explanations
+where it might be useful to have both a plot as well as an animation or a
+drawing of the event itself … distance it takes for a car to stop. Have an
+animated car stopping on the same page as a chart." And on "When demand
+rises": "the title line should be reserved … in this example it is visually a
+bit strange. The headline becomes part of the plot almost." Also: curves want
+both what they ARE in words ("speed of the ball") and, where useful, their
+formula — a formula explained, or kept in `details`.
+
+Distilled: (1) when a chart measures something that happens, draw the thing
+beside it and drive both from one var — `domain.box: "left"` gives the chart
+half the page, `bind` moves the thing and a point on the curve, one
+`animate` plays them together (the prompt's "Show the thing beside its
+chart"; the falling-ball few-shot). (2) With a card heading, every plot keeps
+its top 50 units under the underline (`plotArea()` reads the heading floor),
+so a chart never shares a line with the title. (3) The shift arrow stops
+short of both curves.
+
+Status: all three shipped the same day.
+
 ### 2026-09-26 — The why, the contrast, and the model against the world
 
 Hans, going through the few-shots (the examples every generation sees):

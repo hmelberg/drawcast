@@ -255,7 +255,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     push({
       id: `${kind}_shift_arrow`,
       kind: "stroke",
-      pts: shiftArrow(kind, base, dx, shift.arrow ?? "horizontal", ctx),
+      pts: clearOfCurves(shiftArrow(kind, base, dx, shift.arrow ?? "horizontal", ctx)),
       z: Z_STROKE,
       style: defaultStyle({ color: COLORS.guide, strokeWidth: 3 }),
       drawOpts: defaultDrawOpts("sketch", SKETCH_MS.arrow),
@@ -721,4 +721,22 @@ function shiftArrow(kind: "demand" | "supply", base: Pt[], dx: number, how: "hor
   // arrow on the old curve, which draws nothing.
   const mid = base[Math.floor(base.length / 2)];
   return ctx.toLogical([mid, mid]);
+}
+
+/**
+ * The arrow pulled back a little at both ends, so it starts just off the old
+ * curve and its head stops just short of the new one — touching both, it read
+ * as a third crossing line (Hans 2026-09-26: "a small gap … not a large gap,
+ * but some"). A short arrow keeps at least half its length.
+ */
+function clearOfCurves(pts: Pt[], gap = 12): Pt[] {
+  const [a, b] = [pts[0], pts[pts.length - 1]];
+  const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  if (len === 0) return pts;
+  const g = Math.min(gap, len / 4);
+  const [ux, uy] = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
+  return [
+    [a[0] + ux * g, a[1] + uy * g],
+    [b[0] - ux * g, b[1] - uy * g],
+  ];
 }

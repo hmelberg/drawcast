@@ -534,7 +534,14 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // ball's two formulas. 233124 -> 234525. (The same round found and fixed the
 // builder's string replacement: a `$` pattern in the schema had pasted the
 // prompt into itself, +54,000 — see prompt.ts.)
-const BASELINE_SYSTEM_CHARS = 234525;
+// Raised WITH HEADROOM 2026-09-26 (Hans: "increase the prompt size limit so
+// we do not have to adjust it every time we introduce something new in these
+// revisions"). Measured 236656 after this round's `domain.box` and the
+// "show the thing beside its chart" rule; the ceiling is set ~13k above it so
+// the example-revision rounds can land without a re-pin each time. It is
+// still a ceiling: a jump past it (like the +54,000 `$` bug this same day)
+// fails here. Tighten it again when the revision work settles.
+const BASELINE_SYSTEM_CHARS = 250000;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -569,7 +576,8 @@ const BASELINE_SYSTEM_CHARS = 234525;
 // Re-pinned UP 2026-09-25: `data` on at / end refs / verb points, and path `data: true`. 82481 -> 83685.
 // Re-pinned UP 2026-09-25: math steps / step_gap / note_dx and the step command. 83685 -> 84874.
 // Re-pinned UP 2026-09-26: `details` (element and spec-level) and `app_only`. 84874 -> 85834.
-const BASELINE_SCHEMA_CHARS = 85834;
+// Raised with headroom 2026-09-26 (same reason): measured 86227 with `domain.box`.
+const BASELINE_SCHEMA_CHARS = 90000;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in
@@ -595,7 +603,8 @@ const BASELINE_SCHEMA_CHARS = 85834;
 // settings, and the card lists every one (tests/revise.test.ts) so a revise
 // never writes it inside a page. 5372 -> 5383.
 // Re-pinned UP 2026-09-26: the `details:` page setting in the closed list. 5383 -> 5451.
-const BASELINE_REVISE_CHARS = 5451;
+// Raised with headroom 2026-09-26 (same reason): measured 5451.
+const BASELINE_REVISE_CHARS = 6000;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

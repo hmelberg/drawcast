@@ -53405,8 +53405,8 @@
           "id": "l_wtp",
           "type": "text",
           "text": "$50,000 per QALY",
-          "x": 830,
-          "y": 610,
+          "x": 900,
+          "y": 600,
           "font_size": 22,
           "style": {
             "color": "#8a5fa8"
