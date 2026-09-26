@@ -48,9 +48,11 @@ export function formatVar(value: number, decimals?: number, decimalComma = false
   return decimalComma ? s.replace(".", ",") : s;
 }
 
-const TOKEN = /\{([a-zA-Z_][a-zA-Z_0-9]*)(?::(\d))?\}/g;
+// One optional dotted part: `{market.dwl}` reads a template's computed value
+// (scenes/types.ts SceneLayout.values), which the caller merges into `vars`.
+const TOKEN = /\{([a-zA-Z_][a-zA-Z_0-9]*(?:\.[a-zA-Z_][a-zA-Z_0-9]*)?)(?::(\d))?\}/g;
 
-/** `{f}` / `{f:2}` → the var's value; an unknown name is left as written and returned in `unknown`. */
+/** `{f}` / `{f:2}` / `{market.dwl}` → the value; an unknown name is left as written and returned in `unknown`. */
 export function interpolateVars(text: string, vars: Vars, decimalComma = false): { text: string; unknown: string[] } {
   const unknown: string[] = [];
   const out = text.replace(TOKEN, (whole, name: string, decimals: string | undefined) => {

@@ -156,6 +156,7 @@ export function layoutSpec(
   let seedCurveSamples: Record<string, Pt[]> = {};
   let templateIds: string[] = [];
   let templateFrame: DataFrame | undefined;
+  let templateValues: Record<string, number> = {};
 
   // The cast's language and decimal mark, for what a template WRITES on the
   // figure (kit.num / kit.say): spec.lang, else the narration's own.
@@ -228,6 +229,9 @@ export function layoutSpec(
         order.push(...sceneLayout.order);
         seedAnchors = sceneLayout.anchors;
         if (sceneLayout.frame) templateFrame = sceneLayout.frame;
+        // The template's numbers, namespaced for `{market.dwl}` in drawn text.
+        const ns = TEMPLATE_VALUES_NAME[spec.template] ?? spec.template;
+        for (const [k, v] of Object.entries(sceneLayout.values ?? {})) templateValues[`${ns}.${k}`] = v;
         // Scene curves arrive in logical coordinates; tier-2 thinks in the
         // spec's domain (default 0–100), so map them back before seeding.
         if (sceneLayout.curveSamples) {
@@ -248,7 +252,7 @@ export function layoutSpec(
     // Norwegian cast. spec.lang when set, else the narration's own sniff.
     const spoken = (spec.commands ?? []).map((c) => c.speak ?? "").join(" ");
     const decimalComma = usesDecimalComma(spec.lang, spoken.trim() ? detectLang(spoken) : undefined);
-    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples, { measure, seedDrawables: [...drawables], vars: spec.vars, overrides, fit, decimalComma, frame: templateFrame });
+    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples, { measure, seedDrawables: [...drawables], vars: spec.vars, templateValues, overrides, fit, decimalComma, frame: templateFrame });
     drawables.push(...tier2.drawables);
     labelRequests.push(...tier2.labels);
     warnings.push(...tier2.warnings);
@@ -595,6 +599,11 @@ export function elementLines(layout: Pick<LayoutResult, "drawables" | "order">):
  * the template's params, where a grown figure would breathe as its extent
  * changes.
  */
+/** The token namespace a template's `values` are read under — the thing
+ *  they describe, where the template's name would read worse (`{market.dwl}`,
+ *  not `{supply_demand.dwl}`). Any other template: its own name. */
+const TEMPLATE_VALUES_NAME: Record<string, string> = { supply_demand: "market" };
+
 function mayGrow(spec: Spec, manifest: { widget?: true; interactions?: unknown[]; grow?: boolean }): boolean {
   if (manifest.grow === false || manifest.widget || (manifest.interactions?.length ?? 0) > 0) return false;
   if ((spec.commands ?? []).some((c) => c.animate && Object.keys(c.animate).some((k) => !k.startsWith("vars.")))) return false;

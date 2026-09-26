@@ -93,7 +93,7 @@
                 "maximum": 2.5
               }
             ],
-            "description": "Either a word (gentle=0.55, medium=1, steep=1.5) or a numeric factor k. Use a number when the value must animate, and give it a number in the base params too — an animate with no numeric start jumps straight to the target. The visible range ENDS at k ≈ 1.05, where the shape clips to the plot: every value above that draws the SAME curve, so `steep` ≈ `medium`. To make one curve read as markedly steeper, flatten the other instead."
+            "description": "Same as demand.steepness."
           },
           "curvature": {
             "type": "string",
@@ -197,13 +197,13 @@
               "right",
               "left"
             ],
-            "description": "Fallback used only when amount is not set (right = +15, left = -15)."
+            "description": "Same as demand_shift.direction."
           },
           "amount": {
             "type": "number",
             "minimum": -93,
             "maximum": 95,
-            "description": "Signed horizontal shift in domain units (0–100 axis). When set, wins over direction. 0 is legal: the shifted curve coincides exactly with the base curve — the canonical animate start state. Positive = right, negative = left."
+            "description": "Same as demand_shift.amount."
           },
           "label": {
             "type": "string",
@@ -216,7 +216,7 @@
               "vertical",
               "perpendicular"
             ],
-            "description": "horizontal (default): same price, more (less) wanted or offered. vertical: same quantity, a higher (lower) price. perpendicular: square to the old curve."
+            "description": "Same as demand_shift.arrow."
           }
         }
       },
@@ -311,6 +311,18 @@
           ]
         },
         "description": "Which areas to shade. NOTHING IS SHADED UNLESS LISTED HERE — ask for an area on the beat that explains it, not by default. Every area is computed against whichever intervention is set (tax, ceiling or floor), not against the untaxed market: with a tax, consumer surplus is measured from the price buyers actually pay. government_revenue is the tax wedge (a government COST when the amount is negative) and is skipped for a price control, where both sides face one price; transfer is the surplus a price control moves between the two sides, and is skipped for a tax. A binding ceiling's consumer surplus assumes efficient rationing — the buyers who value the good most are the ones who get it."
+      },
+      "units": {
+        "type": "object",
+        "description": "Real axes for readout and {market.*} only (all other params stay 0–100): {price: [0, 20], quantity: [0, 1000], price_unit: \"kr\", quantity_unit: \"flats\"}."
+      },
+      "readout": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "x-translate": false
+        },
+        "description": "Live numbers beside the plot, one line per key; they follow animate and sliders. Keys: price, quantity (equilibrium), price_new, quantity_new (after a shift), quantity_traded, price_buyers, price_sellers, qd, qs, shortage, surplus (price control), cs, ps, dwl, revenue (<0: subsidy cost), transfer. A text element reads the same as {market.dwl}."
       }
     }
   },
@@ -354,7 +366,9 @@
     "shortage_arrow / surplus_arrow": "double-headed arrow marking the gap",
     "label_shortage / label_surplus": "gap label",
     "cs_region / ps_region": "shaded consumer/producer surplus — only when \"consumer_surplus\" / \"producer_surplus\" is listed in `regions`; drawing either without that draws nothing at all",
-    "label_CS / label_PS": "their labels"
+    "label_CS / label_PS": "their labels",
+    "readout": "the readout panel (a set)",
+    "readout_<key>": "one readout line, e.g. readout_dwl"
   },
   "examples": [
     {
@@ -429,6 +443,29 @@
           "producer_surplus",
           "transfer",
           "deadweight_loss"
+        ]
+      }
+    },
+    {
+      "request": "What does a tax cost, in kroner?",
+      "params": {
+        "tax": {
+          "amount": 18
+        },
+        "units": {
+          "price": [
+            0,
+            20
+          ],
+          "quantity": [
+            0,
+            1000
+          ],
+          "price_unit": "kr"
+        },
+        "readout": [
+          "revenue",
+          "dwl"
         ]
       }
     }

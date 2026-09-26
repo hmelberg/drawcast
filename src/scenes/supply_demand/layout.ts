@@ -10,6 +10,7 @@ import {
   COLORS,
   Z_AREA,
   Z_STROKE,
+  Z_TEXT,
   SKETCH_MS,
   defaultDrawOpts,
   defaultStyle,
@@ -19,6 +20,7 @@ import {
 } from "../../layout/model";
 import type { LabelRequest } from "../../layout/labels";
 import type { SceneLayout } from "../types";
+import { kit } from "../kit";
 
 export interface CurveParams {
   steepness?: "gentle" | "medium" | "steep" | number;
@@ -61,7 +63,51 @@ export interface SupplyDemandParams {
   price_ceiling?: { level?: number; label?: string; show_shortage?: boolean };
   price_floor?: { level?: number; label?: string; show_surplus?: boolean };
   regions?: ("consumer_surplus" | "producer_surplus" | "deadweight_loss" | "government_revenue" | "transfer")[];
+  /** Real numbers for the 0–100 axes, for `values` and the readout only —
+   *  every other param stays on the 0–100 scale. */
+  units?: { price?: [number, number]; quantity?: [number, number]; price_unit?: string; quantity_unit?: string };
+  /** Which computed values to show as a small labelled panel (READOUT_KEYS). */
+  readout?: string[];
 }
+
+/**
+ * What a market lesson wants to SEE while the viewer changes the market (Hans
+ * 2026-09-26: "the numbers/results … some standard way to present them"). The
+ * keys of SceneLayout.values, and the lines a readout can show — in this
+ * order of meaning, not of drawing: the author's `readout` list sets that.
+ */
+export const READOUT_KEYS = [
+  "price", "quantity", "price_new", "quantity_new", "qd", "qs", "quantity_traded", "price_buyers", "price_sellers",
+  "cs", "ps", "dwl", "revenue", "transfer", "shortage", "surplus",
+] as const;
+type ReadoutKey = (typeof READOUT_KEYS)[number];
+
+/** What each value is measured in, so units can scale it and the readout suffix it. */
+const VALUE_KIND: Record<ReadoutKey, "price" | "quantity" | "area"> = {
+  price: "price", price_new: "price", price_buyers: "price", price_sellers: "price",
+  quantity: "quantity", quantity_new: "quantity", qd: "quantity", qs: "quantity", quantity_traded: "quantity", shortage: "quantity", surplus: "quantity",
+  cs: "area", ps: "area", dwl: "area", revenue: "area", transfer: "area",
+};
+
+/** The readout's line names: English, and Norwegian for a Norwegian cast (most of Hans's are). */
+const VALUE_NAME: Record<ReadoutKey, { en: string; nb: string }> = {
+  price: { en: "Price", nb: "Pris" },
+  quantity: { en: "Quantity", nb: "Mengde" },
+  price_new: { en: "New price", nb: "Ny pris" },
+  quantity_new: { en: "New quantity", nb: "Ny mengde" },
+  qd: { en: "Quantity demanded", nb: "Etterspurt mengde" },
+  qs: { en: "Quantity supplied", nb: "Tilbudt mengde" },
+  quantity_traded: { en: "Quantity traded", nb: "Omsatt mengde" },
+  price_buyers: { en: "Buyers pay", nb: "Kjøperne betaler" },
+  price_sellers: { en: "Sellers get", nb: "Selgerne får" },
+  cs: { en: "Consumer surplus", nb: "Konsumentoverskudd" },
+  ps: { en: "Producer surplus", nb: "Produsentoverskudd" },
+  dwl: { en: "Deadweight loss", nb: "Dødvektstap" },
+  revenue: { en: "Tax revenue", nb: "Skatteinntekter" },
+  transfer: { en: "Transfer", nb: "Overføring" },
+  shortage: { en: "Shortage", nb: "Mangel" },
+  surplus: { en: "Surplus", nb: "Overskudd" },
+};
 
 const D0 = 2;
 const D1 = 96; // usable slice of the 0–100 domain, keeps arrowheads clear
@@ -137,7 +183,14 @@ interface Intervention {
 }
 
 export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
-  const plot = plotArea();
+  // A readout gets its own column right of the plot, and the plot gives up
+  // that width. Inside the plot there is no corner a five-line panel can
+  // count on: the wedge right of the equilibrium is narrow, the top is where
+  // the taxed curve sweeps and the floor sits (checked on the frames harness,
+  // 2026-09-26). A narrower plot is still a market; a panel over E is not.
+  const readout = readoutColumn(params.readout, params.units ?? {});
+  const full = plotArea();
+  const plot = readout ? { ...full, x1: full.x1 - readout.w - READOUT_GAP } : full;
   const sx = linearScale([0, 100], [plot.x0, plot.x1]);
   const sy = linearScale([0, 100], [plot.y0, plot.y1]);
   const ctx: Ctx = { sx, sy, toLogical: (pts) => pts.map(([x, y]): Pt => [sx(x), sy(y)]) };
@@ -267,11 +320,15 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
   }
 
   // New equilibrium after a single shift: E' glides as the curve slides.
+  // Found even when the marker is hidden — the values still want it.
   const shifts = [params.demand_shift, params.supply_shift].filter(Boolean);
-  if (shifts.length === 1 && supplyPts && params.equilibrium?.show !== false) {
-    const eqS = params.demand_shift
-      ? intersectPolylines(shiftedDomain["demand_shift_curve"]!, supplyPts)
-      : intersectPolylines(demandPts, shiftedDomain["supply_shift_curve"]!);
+  const eqS =
+    shifts.length === 1 && supplyPts
+      ? params.demand_shift
+        ? intersectPolylines(shiftedDomain["demand_shift_curve"]!, supplyPts)
+        : intersectPolylines(demandPts, shiftedDomain["supply_shift_curve"]!)
+      : null;
+  if (params.equilibrium?.show !== false) {
     if (eqS) {
       const eqSL = ctx.toLogical([eqS])[0];
       push(guides("shift_guide_lines", eqS, ctx, plot));
@@ -355,10 +412,14 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
   // Price controls. Both resolve to the same Intervention as the tax: the
   // quantity actually traded is the SHORT side, and both sides face one price,
   // so the wedge rectangle is zero-height and Task 4 skips it automatically.
+  // The control as the VALUES see it: set whether or not it binds, so a
+  // readout line keeps its place (at zero) while a slider crosses equilibrium.
+  let control: { kind: "ceiling" | "floor"; binds: boolean; p: number } | null = null;
   if (params.price_ceiling && eq && supplyPts) {
     const pc = Math.max(2, Math.min(96, params.price_ceiling.level ?? eq[1] * 0.62));
     addPriceLine("ceiling", pc, params.price_ceiling.label ?? "Price ceiling");
     const binds = pc < eq[1];
+    control = { kind: "ceiling", binds, p: pc };
     const qs = binds ? solveForX(supplyPts, pc) : null;
     if (binds && qs !== null) {
       if (iv.kind === "none") iv = { kind: "ceiling", qTraded: qs, pBuyers: pc, pSellers: pc };
@@ -372,6 +433,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     const pf = Math.max(2, Math.min(96, params.price_floor.level ?? Math.min(eq[1] * 1.35, 92)));
     addPriceLine("floor", pf, params.price_floor.label ?? "Price floor");
     const binds = pf > eq[1];
+    if (!control) control = { kind: "floor", binds, p: pf };
     const qd = binds ? solveForX(demandPts, pf) : null;
     if (binds && qd !== null) {
       if (iv.kind === "none") iv = { kind: "floor", qTraded: qd, pBuyers: pf, pSellers: pf };
@@ -477,7 +539,62 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     }
   }
 
-  return { drawables, labels, anchors, order, curveSamples, attached, groups, frame: { x: [0, 100], y: [0, 100], box: plot } };
+  // The numbers behind the picture, in the author's units. Computed on every
+  // layout, so an animate or a slider drag carries them along frame by frame.
+  const values =
+    eq && supplyPts
+      ? marketValues({ demandPts, supplyPts, eq, eqNew: eqS, iv, taxed: iv.kind === "tax", control }, params.units)
+      : {};
+  if (readout) addReadout(readout, values);
+
+  return { drawables, labels, anchors, order, curveSamples, attached, groups, values, frame: { x: [0, 100], y: [0, 100], box: plot } };
+
+  /**
+   * The standard way to SHOW the numbers: one labelled line per key, names
+   * left and values right-aligned, in a column beside the plot. Each
+   * line is `readout_<key>` so a beat can draw or highlight it alone;
+   * `readout` names them all. A key with no value right now (a shortage with
+   * no ceiling) keeps its line with a dash, so ids never come and go
+   * between frames.
+   */
+  function addReadout(col: ReadoutColumn, v: Record<string, number>) {
+    const { keys, w, FONT, LINE } = col;
+    const units = params.units ?? {};
+    // Beside the plot, past the room its curve names take at the right end,
+    // centred on the plot's height — between S's name at the top and D's at
+    // the bottom.
+    const x0 = plot.x1 + READOUT_GAP;
+    const top = (plot.y0 + plot.y1) / 2 + (keys.length * LINE) / 2;
+    const box = { x0, x1: x0 + w, y1: top };
+    const members: string[] = [];
+    keys.forEach((k, i) => {
+      const id = `readout_${k}`;
+      const y = box.y1 - FONT * 0.9 - i * LINE;
+      const raw = v[k];
+      const text = raw === undefined ? "—" : formatValue(k === "revenue" ? Math.abs(raw) : raw, VALUE_KIND[k], units);
+      const line = (sub: string, pos: Pt, t: string, anchor: "start" | "end"): Drawable => ({
+        id: `${id}_${sub}`,
+        kind: "text",
+        pos,
+        text: t,
+        fontSize: FONT,
+        anchor,
+        z: Z_TEXT,
+        style: defaultStyle({ color: COLORS.ink }),
+        drawOpts: defaultDrawOpts("sketch", SKETCH_MS.text),
+      });
+      push({
+        id,
+        kind: "group",
+        children: [line("name", [box.x0, y], readoutName(k, v), "start"), line("value", [box.x1, y], text, "end")],
+        z: Z_TEXT,
+        style: defaultStyle({ color: COLORS.ink }),
+        drawOpts: defaultDrawOpts("sketch", SKETCH_MS.text),
+      });
+      members.push(id);
+    });
+    groups["readout"] = members;
+  }
 
   function addPriceLine(kind: "ceiling" | "floor", p: number, text: string) {
     const pts = ctx.toLogical([
@@ -749,4 +866,145 @@ function clearOfCurves(pts: Pt[], gap = 12): Pt[] {
     [a[0] + ux * g, a[1] + uy * g],
     [b[0] - ux * g, b[1] - uy * g],
   ];
+}
+
+/** A curve's height at q, continued straight along its end segment past the samples. */
+function heightAt(pts: Pt[], q: number): number {
+  const y = interpolateAtX(pts, q);
+  if (y !== null) return y;
+  const [a, b] = q < pts[0][0] ? [pts[0], pts[1]] : [pts[pts.length - 2], pts[pts.length - 1]];
+  return b[0] === a[0] ? a[1] : a[1] + ((b[1] - a[1]) * (q - a[0])) / (b[0] - a[0]);
+}
+
+/** ∫ f over [a, b] (trapezoids; exact for the straight curves most lessons use). */
+function integrate(f: (q: number) => number, a: number, b: number, n = 400): number {
+  if (!(b > a)) return 0;
+  const h = (b - a) / n;
+  let sum = (f(a) + f(b)) / 2;
+  for (let i = 1; i < n; i++) sum += f(a + i * h);
+  return sum * h;
+}
+
+/**
+ * The market's numbers (SceneLayout.values), in the author's units: prices
+ * and quantities mapped linearly from the 0–100 axes, areas in price ×
+ * quantity. Only keys that mean something for these params are present.
+ *
+ * The areas are measured from quantity 0, each curve continued straight to
+ * the axis over the thin strip left of where it is drawn — so a per-unit
+ * tax's revenue reads exactly t × Q and a straight line's surplus exactly
+ * ½ × base × height, the sums a viewer will check by hand. Where elasticity
+ * has pulled a curve's start well right of the axis, continuing it would be
+ * invention, and the areas start where the curves do (as the shading does).
+ */
+function marketValues(
+  m: {
+    demandPts: Pt[];
+    supplyPts: Pt[];
+    eq: Pt;
+    eqNew: Pt | null;
+    iv: Intervention;
+    taxed: boolean;
+    control: { kind: "ceiling" | "floor"; binds: boolean; p: number } | null;
+  },
+  units: SupplyDemandParams["units"] = {},
+): Record<string, number> {
+  const { demandPts: D, supplyPts: S, eq, iv } = m;
+  const [p0, p1] = validRange(units.price);
+  const [q0, q1] = validRange(units.quantity);
+  const P = (v: number) => p0 + ((p1 - p0) * v) / 100;
+  const Q = (v: number) => q0 + ((q1 - q0) * v) / 100;
+  const dQ = (v: number) => ((q1 - q0) * v) / 100;
+  const A = (v: number) => (((p1 - p0) * (q1 - q0)) / 10000) * v;
+
+  const start = Math.max(D[0][0], S[0][0]);
+  const lo = start <= D0 + 1e-6 ? 0 : start;
+  const traded = Math.max(0, iv.qTraded - lo);
+  const out: Record<string, number> = {
+    price: P(eq[1]),
+    quantity: Q(eq[0]),
+    quantity_traded: Q(iv.qTraded),
+    price_buyers: P(iv.pBuyers),
+    price_sellers: P(iv.pSellers),
+    cs: A(integrate((q) => heightAt(D, q) - iv.pBuyers, lo, iv.qTraded)),
+    ps: A(integrate((q) => iv.pSellers - heightAt(S, q), lo, iv.qTraded)),
+    dwl: A(Math.abs(integrate((q) => heightAt(D, q) - heightAt(S, q), Math.max(lo, Math.min(iv.qTraded, eq[0])), Math.max(lo, iv.qTraded, eq[0])))),
+  };
+  if (m.eqNew) {
+    out.price_new = P(m.eqNew[1]);
+    out.quantity_new = Q(m.eqNew[0]);
+  }
+  if (m.taxed) out.revenue = A((iv.pBuyers - iv.pSellers) * traded);
+  if (m.control) {
+    // Not binding: the market clears at equilibrium and the gap is zero —
+    // the line stays (at 0) while a slider carries the control across.
+    const p = m.control.binds ? m.control.p : eq[1];
+    const qd = m.control.binds ? solveForX(D, p) : eq[0];
+    const qs = m.control.binds ? solveForX(S, p) : eq[0];
+    if (qd !== null && qs !== null) {
+      out.qd = Q(qd);
+      out.qs = Q(qs);
+      if (m.control.kind === "ceiling") out.shortage = dQ(Math.max(0, qd - qs));
+      else out.surplus = dQ(Math.max(0, qs - qd));
+    }
+    out.transfer = A(Math.abs(eq[1] - p) * traded);
+  }
+  return out;
+}
+
+function validRange(r: [number, number] | undefined): [number, number] {
+  return Array.isArray(r) && r.length === 2 && r.every(Number.isFinite) && r[1] !== r[0] ? r : [0, 100];
+}
+
+/** Currency signs go in front ($12); every other unit after (12 kr, 400 flats). */
+function withUnit(num: string, unit: string | undefined): string {
+  if (!unit) return num;
+  return /^[$€£¥]$/.test(unit) ? `${unit}${num}` : `${num} ${unit}`;
+}
+
+/**
+ * A readout number: whole from 100 up, one decimal from 10, two below —
+ * trailing zeros dropped, thousands grouped, the cast's decimal mark (kit.num).
+ */
+function formatValue(v: number, kind: "price" | "quantity" | "area", units: NonNullable<SupplyDemandParams["units"]>): string {
+  const a = Math.abs(v);
+  const d = a >= 100 ? 0 : a >= 10 ? 1 : 2;
+  let fixed = v.toFixed(d);
+  if (Number(fixed) === 0) fixed = (0).toFixed(d); // no "-0"
+  const [int, frac] = (d > 0 ? fixed.replace(/\.?0+$/, "") : fixed).split(".");
+  const comma = kit.num(1.5, 1).includes(",");
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, comma ? " " : ",").replace("-", "−");
+  const num = frac ? `${grouped}${comma ? "," : "."}${frac}` : grouped;
+  return withUnit(num, kind === "quantity" ? units.quantity_unit : units.price_unit);
+}
+
+/** Room between the plot's right edge and the readout: the curve names (S, D′, "S + tax") sit there. */
+const READOUT_GAP = 66;
+
+interface ReadoutColumn {
+  keys: ReadoutKey[];
+  w: number;
+  FONT: number;
+  LINE: number;
+}
+
+function readoutName(k: ReadoutKey, v: Record<string, number>): string {
+  const n = k === "revenue" && (v.revenue ?? 0) < -1e-9 ? { en: "Subsidy cost", nb: "Subsidiekostnad" } : VALUE_NAME[k];
+  return kit.say({ ...n, nn: n.nb, no: n.nb });
+}
+
+/**
+ * The readout's keys (unknown ones dropped) and its width — fixed by the
+ * words and a WIDE number, never by this frame's digits: a width that
+ * followed the value would squeeze the plot back and forth mid-sweep.
+ */
+function readoutColumn(requested: string[] | undefined, units: NonNullable<SupplyDemandParams["units"]>): ReadoutColumn | null {
+  const keys = (requested ?? []).filter((k): k is ReadoutKey => (READOUT_KEYS as readonly string[]).includes(k));
+  if (keys.length === 0) return null;
+  const FONT = 22;
+  const LINE = 30;
+  const names = keys.flatMap((k) => [readoutName(k, {}), ...(k === "revenue" ? [readoutName(k, { revenue: -1 })] : [])]);
+  const valueW = Math.max(...keys.map((k) => kit.textWidth(withUnit("0 000", VALUE_KIND[k] === "quantity" ? units.quantity_unit : units.price_unit), FONT)));
+  const w = Math.max(...names.map((n) => kit.textWidth(n, FONT))) + 20 + valueW;
+  return { keys, w, FONT, LINE };
 }
