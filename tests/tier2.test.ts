@@ -166,8 +166,10 @@ describe("node width and height", () => {
     );
     const e = get(r.drawables, "e") as StrokeDrawable;
     const start = e.pts[0];
-    // The edge leaves the node at nodeRadius + 4 from its centre (half the diagonal for a rect).
-    expect(Math.hypot(start[0] - 250, start[1] - 250)).toBeCloseTo(Math.hypot(320, 250) / 2 + 4, 3);
+    // The edge leaves the rect where its line crosses the box's edge (+4):
+    // straight right, that is half the width — no longer half the diagonal,
+    // which overshot a wide box's top and bottom (2026-09-25).
+    expect(Math.hypot(start[0] - 250, start[1] - 250)).toBeCloseTo(320 / 2 + 4, 3);
   });
 });
 

@@ -126,6 +126,9 @@ interface Ctx {
    *  to read them. */
   parametric: Set<string>;
   nodeRadius: Map<string, number>;
+  /** Half-width and half-height of a rectangular node or shape: an arrow is
+   *  trimmed to where its line leaves the BOX, not to a circle round it. */
+  nodeBox: Map<string, [number, number]>;
   /** Positions computed for elements that gave none (the auto-row pass). */
   autoPlace: Record<string, Pt>;
   anchors: Record<string, Pt>;
@@ -256,6 +259,7 @@ export function layoutElements(
     curveSamples: new Map(Object.entries(seedCurveSamples)),
     parametric: new Set(),
     nodeRadius: new Map(),
+    nodeBox: new Map(),
     autoPlace: {},
     anchors: { ...seedAnchors },
     namedAnchors: {},
@@ -894,6 +898,9 @@ function transformOwned(
 
   scaleDrawables(all.filter((d) => belongs(d.id)), s, dx, dy);
   for (const id of Object.keys(ctx.anchors)) if (touched(id)) ctx.anchors[id] = map(ctx.anchors[id]);
+  // An arrow's trim follows the node's size (a fitted column shrinks its boxes).
+  for (const [id, r] of ctx.nodeRadius) if (belongs(id)) ctx.nodeRadius.set(id, r * s);
+  for (const [id, b] of ctx.nodeBox) if (belongs(id)) ctx.nodeBox.set(id, [b[0] * s, b[1] * s]);
   for (const id of Object.keys(ctx.namedAnchors)) {
     if (!touched(id)) continue;
     const na = ctx.namedAnchors[id];
@@ -1327,6 +1334,7 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     const w = el.width ?? (shape === "decision" ? 56 : Math.max(130, textW + 36));
     const h = el.height ?? (shape === "decision" ? 56 : 62);
     ctx.nodeRadius.set(el.id, Math.hypot(w, h) / 2);
+    ctx.nodeBox.set(el.id, [w / 2, h / 2]);
     out.push({
       id: el.id,
       kind: "stroke",
@@ -1477,8 +1485,29 @@ function connectorDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
   // exact, so it lands there with no further shrink.
   // A scaled source node is backed off by its scaled radius (review finding 8).
   const scaleOf = (ref: string): number => ctx.overrides.poses?.[ref]?.turn?.scale ?? 1;
-  const rFrom = fromRef?.ref && !fromEnd.anchored ? (ctx.nodeRadius.get(fromRef.ref) ?? 10) * scaleOf(fromRef.ref) + 4 : 0;
-  const rTo = toRef?.ref && !toEnd.anchored ? (ctx.nodeRadius.get(toRef.ref) ?? 10) * scaleOf(toRef.ref) + 4 : 0;
+  // A box is left where the line crosses its edge: half its diagonal (the old
+  // radius) overshot a wide, short box's top and bottom, so in a column of
+  // wide steps the two trimmed ends crossed and the arrow ran backwards
+  // through every box (#277, 2026-09-25).
+  const backOff = (ref: string): number => {
+    const box = ctx.nodeBox.get(ref);
+    const k = scaleOf(ref);
+    if (box) {
+      const tx = Math.abs(ux) > 1e-9 ? (box[0] * k) / Math.abs(ux) : Infinity;
+      const ty = Math.abs(uy) > 1e-9 ? (box[1] * k) / Math.abs(uy) : Infinity;
+      return Math.min(tx, ty) + 4;
+    }
+    return (ctx.nodeRadius.get(ref) ?? 10) * k + 4;
+  };
+  let rFrom = fromRef?.ref && !fromEnd.anchored ? backOff(fromRef.ref) : 0;
+  let rTo = toRef?.ref && !toEnd.anchored ? backOff(toRef.ref) : 0;
+  // Never past each other: two shapes that touch get a short arrow between
+  // their centres' midpoint, not one pointing the wrong way.
+  if (rFrom + rTo > dist - 8) {
+    const f = Math.max(0, dist - 8) / (rFrom + rTo || 1);
+    rFrom *= f;
+    rTo *= f;
+  }
   const a: Pt = [from[0] + ux * rFrom, from[1] + uy * rFrom];
   const b: Pt = [to[0] - ux * rTo, to[1] - uy * rTo];
   let pts: Pt[];
@@ -1517,6 +1546,7 @@ function shapeDrawable(el: SpecElement, ctx: Ctx): StrokeDrawable {
     const c = originOr(el, ctx, [CANVAS.w / 2, CANVAS.h / 2]);
     const r = el.radius ?? 40;
     ctx.anchors[el.id] = c;
+    ctx.nodeRadius.set(el.id, r);
     return { id: el.id, kind: "stroke", pts: [c], shapeHint: { type: "circle", c, r }, z: Z_STROKE, style, drawOpts };
   }
   // rect: x/y is the CENTRE, like every other element's x/y (node, text,
@@ -1526,6 +1556,7 @@ function shapeDrawable(el: SpecElement, ctx: Ctx): StrokeDrawable {
   const w = el.width ?? 160;
   const h = el.height ?? 100;
   ctx.anchors[el.id] = c;
+  ctx.nodeBox.set(el.id, [w / 2, h / 2]);
   return {
     id: el.id,
     kind: "stroke",
