@@ -9,7 +9,7 @@
 // Only keys that a script can NEVER write at column 0 count. A script says
 // its title with `#`, its template with `use:` and its params with `with:`,
 // so these belong to YAML and JSON alone. (`lang`, `vars`, `domain`,
-// `canvas`, `voice`, `level`, `record`, `zoom_from` and `details` are deliberately NOT
+// `canvas`, `voice`, `level`, `record`, `zoom_from`, `details` and `sources` are deliberately NOT
 // here: a script writes those under their own names.)
 export const SPEC_KEYS = [
   "title", "elements", "commands", "template", "params", "playlist",

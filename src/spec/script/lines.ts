@@ -78,7 +78,7 @@ function liftActions(text: string, line: number): { text: string; actions?: Inli
 
 export const SETTING_KEYS = [
   // page
-  "lang", "voice", "level", "record", "canvas", "domain", "vars", "text", "zoom_from", "use", "with", "details", "chapter",
+  "lang", "voice", "level", "record", "canvas", "domain", "vars", "text", "zoom_from", "use", "with", "details", "sources", "chapter",
   // playlist (before the first page)
   "subtitle", "advance", "gap", "transitions", "next", "enroll", "prompt", "comments", "views", "poster",
 ] as const;

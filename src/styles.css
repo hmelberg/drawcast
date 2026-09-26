@@ -1646,6 +1646,12 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-infocard.cs-infocard-wide { max-width: 340px; }
 .cs-infocard-details { font-size: var(--text-sm); line-height: 1.4; color: var(--ink); margin-top: 0.3rem; }
 .cs-infocard-details p { margin: 0 0 0.4rem; }
+/* A study behind an element (spec `sources`, element `cites`) — on its card and in the tray. */
+.cs-source { font-size: var(--text-sm); line-height: 1.35; margin-top: 0.4rem; }
+.cs-source-title a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line); }
+.cs-source-by { color: var(--muted); }
+.cs-source-finding { color: var(--ink); font-style: italic; }
+.cs-tray-sources { margin-top: 0.6rem; }
 .cs-details-display, .cs-details-display-slot { display: block; margin: 0.35rem auto; max-width: 100%; }
 .cs-details-math { display: inline; }
 .cs-details-tip {

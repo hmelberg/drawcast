@@ -29,6 +29,7 @@ import { cardTargets, meaningfulName, searchUrl, type CardTarget } from "./card-
 import { contextWords, matchWiki, selectedPhrase, type WikiCandidate } from "./wiki-match";
 import { linkActionsFor } from "./link-model";
 import { openMediaModal } from "./media-modal";
+import { sourceEntry } from "./source-view";
 import { h, logicalPoint } from "./dom";
 import { overCaption } from "./caption";
 import { gateIsOpen } from "./gates";
@@ -373,7 +374,10 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost
     // offered at all, and the card widens to hold a formula.
     const details = t.details ? h("div", { class: "cs-infocard-details" }) : null;
     if (details && t.details) renderDetails(details, t.details);
-    card = h("div", { class: `cs-infocard${details ? " cs-infocard-wide" : ""}` }, closeBtn, title, ...(details ? [details] : []), summary, actions);
+    // The studies behind the element, next: title (linked when the author
+    // knew a link), who and when, and what it found.
+    const cites = (t.cites ?? []).map((src) => sourceEntry(src, link));
+    card = h("div", { class: `cs-infocard${details ? " cs-infocard-wide" : ""}` }, closeBtn, title, ...(details ? [details] : []), ...cites, summary, actions);
     card.addEventListener("click", (e) => e.stopPropagation());
     card.addEventListener("contextmenu", (e) => {
       e.preventDefault();

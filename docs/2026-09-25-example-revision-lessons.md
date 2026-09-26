@@ -769,6 +769,20 @@ inconclusive trials pool to a clear answer; weight = 1/SE²), #28 confounder
 - **world_map's focus frame** (a dashed box round the crop, which read as a
   stray border open on one side) is gone from the template.
 
+## Sources (2026-09-26)
+
+- Casts that name a study now list it: spec-level `sources` (title,
+  authors, year, doi or url, finding), shown in the tray's Sources section;
+  an element with `cites` shows the study on its info card (the struck-out
+  claims in the minimum-wage cast link to the Seattle and 138-state
+  studies). Links only when certain; the prompt says so. Filled in for
+  minimum wage, zombies, New Jersey.
+- An annotation now carries its target's card: a strike through a claim
+  sat on it, was smaller, and swallowed the click.
+- Not built yet: an automatic sources page at the end with thumbnails
+  (the `source` element already resolves covers from a DOI); waiting for
+  Hans's view of the tray version.
+
 ## Template improvements
 
 **The main finding of batch 2: several templates draw at a fixed small

@@ -59,6 +59,21 @@ export const SIDE_VALUES = ["above", "below", "left", "right", "above-left", "ab
 
 export type Side = (typeof SIDE_VALUES)[number];
 
+/** One work the cast draws on (Hans 2026-09-26: "the sources you mention …
+ *  in the tray … the yes and no text could have links to the yes and no
+ *  study"). A link only when it was known — `doi` preferred, else `url`. */
+export interface SpecSource {
+  id: string;
+  title: string;
+  /** As cited: "Card and Krueger", "Jardim et al." */
+  authors?: string;
+  year?: number;
+  doi?: string;
+  url?: string;
+  /** What it found, in a few words — shown under the title. */
+  finding?: string;
+}
+
 export interface SpecStyle {
   color?: string;
   fill?: string;
@@ -134,6 +149,10 @@ export interface SpecElement {
    *  movie export ignores them). Canonical form: array of full https URLs
    *  (max 4) — normalizeSpec folds a bare string into a one-element array. */
   link?: string[] | string;
+  /** Ids of the spec's `sources` this element stands for — its info card
+   *  names them and links them (a claim on the canvas → the study behind it).
+   *  normalizeSpec folds a bare string into a one-element array. */
+  cites?: string[] | string;
   /** Formal detail offered on demand (hover, click, card) — never narrated or drawn. */
   details?: string;
   /** Live player only: stripped from a video export (spec/app-only.ts). */
@@ -838,6 +857,9 @@ export interface Spec {
   vars?: Record<string, number>;
   /** Formal details for ids that are not spec elements (a template's parts), by id. */
   details?: Record<string, string>;
+  /** The studies, reports and books the cast draws on — listed in the tray,
+   *  and on the info card of any element that `cites` one. */
+  sources?: SpecSource[];
   elements?: SpecElement[];
   commands?: Command[];
 }

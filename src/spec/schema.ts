@@ -215,6 +215,12 @@ const elementSchema = {
       description:
         "Resource links for this element (a paper, a video, a book) — shown on its info card in the live player; the video export ignores them. Full https URLs, COPIED VERBATIM from the user's request — NEVER invent, guess, or construct a URL (a fabricated DOI or video id looks exactly like a real one). The kind is auto-detected: YouTube plays embedded, Wikipedia shows a summary, .pdf opens a document view, anything else a new tab. On a label, the link also reaches the element it attach_to's.",
     },
+    cites: {
+      type: "array",
+      items: { type: "string" },
+      maxItems: 4,
+      description: "Ids of top-level `sources` this element stands for — a claim, a number or a finding on the canvas; its info card then names and links the study behind it.",
+    },
     details: {
       type: "string",
       description:
@@ -1142,6 +1148,26 @@ export const specSchema = {
       additionalProperties: { type: "string" },
       description: 'The element `details` for ids that are not your own elements — a TEMPLATE\'s parts: {"demand_curve": "Here demand is $Q = 100 - 2P$ …"}.',
     },
+    sources: {
+      type: "array",
+      maxItems: 8,
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          title: { type: "string", description: "The work's title." },
+          authors: { type: "string", description: 'As cited: "Card and Krueger", "Jardim et al."' },
+          year: { type: "integer" },
+          doi: { type: "string", description: "Bare DOI (10.…), only one you are certain of." },
+          url: { type: "string", description: "Full https URL, only one you are certain of — NEVER invent or construct one; leave it out instead." },
+          finding: { type: "string", description: "What it found, in under ten words." },
+        },
+        required: ["id", "title"],
+        additionalProperties: false,
+      },
+      description:
+        "The studies, reports and books the narration names (\"a University of Washington team found…\") — listed for the viewer in the tray, and linked from any element that `cites` one. Name every study you mention; a source without a link is still worth listing.",
+    },
     elements: { type: "array", items: elementSchema, description: "Tier-2/3 elements (also allowed alongside a template, for annotations)." },
     commands: {
       type: "array",
@@ -1259,6 +1285,7 @@ export function normalizeSpec(spec: unknown): unknown {
   for (const el of Array.isArray(clone.elements) ? clone.elements : []) {
     if (!el || typeof el !== "object") continue;
     if (el.link !== undefined) el.link = toList(el.link);
+    if (el.cites !== undefined) el.cites = toList(el.cites);
     // `at: "left"` is the short way to say `at: {place: "left"}`, and the
     // hyphenated spelling (the one a model reaches for by analogy with side
     // names) normalizes to the anchor spelling — so validation, layout and
@@ -1374,6 +1401,20 @@ function semanticErrors(spec: Spec): string[] {
 
   // A var named like a curve variable or a function could never be read.
   if (spec.vars !== undefined) errors.push(...varNameErrors(spec.vars));
+
+  // Sources: unique ids, real links, and every `cites` pointing at one.
+  const sourceIds = new Set<string>();
+  for (const src of spec.sources ?? []) {
+    if (sourceIds.has(src.id)) errors.push(`sources: id "${src.id}" is used twice`);
+    sourceIds.add(src.id);
+    if (src.url !== undefined && !/^https?:\/\//i.test(src.url)) errors.push(`sources.${src.id}: url "${src.url}" must be a full http(s) URL`);
+    if (src.doi !== undefined && !/^10\.\d{4,9}\/\S+$/.test(src.doi.replace(/^https?:\/\/(dx\.)?doi\.org\//i, ""))) errors.push(`sources.${src.id}: doi "${src.doi}" is not a DOI (10.xxxx/…)`);
+  }
+  for (const el of spec.elements ?? []) {
+    for (const c of Array.isArray(el.cites) ? el.cites : typeof el.cites === "string" ? [el.cites] : []) {
+      if (!sourceIds.has(c)) errors.push(`element "${el.id}" cites "${c}", which is not in sources`);
+    }
+  }
 
   if (!spec.template && !(spec.elements && spec.elements.length > 0)) {
     errors.push("spec has neither a template nor any elements — nothing to draw");

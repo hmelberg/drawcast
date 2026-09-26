@@ -34,6 +34,7 @@
 // below — spec 2026-09-15 §3). One state, one look; the host stands down
 // while the tray is open, so only one copy is live at a time.
 
+import { sourceEntry } from "./source-view";
 import type { RenderHandle } from "../render";
 import type { SpecElement } from "../spec/types";
 import { decodeCodeResult, runCode } from "../code/run";
@@ -182,7 +183,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     games.length === 0 &&
     !bodyTemplate &&
     !spaceTemplate &&
-    partsCount < MIN_PARTS
+    partsCount < MIN_PARTS &&
+    (hd.spec.sources?.length ?? 0) === 0
   )
     return;
 
@@ -1266,6 +1268,16 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         if (!body.hidden) area.focus();
       });
       tray.appendChild(h("div", { class: "cs-tray-script" }, toggle, body));
+    }
+    // The studies the cast draws on, last before Continue: reading, not controls.
+    const sources = hd.spec.sources ?? [];
+    if (sources.length > 0) {
+      const link = (href: string, label: string): HTMLElement => {
+        const a = h("a", { href, target: "_blank", rel: "noopener" }, label);
+        a.addEventListener("click", (e) => e.stopPropagation());
+        return a;
+      };
+      tray.appendChild(h("div", { class: "cs-tray-sources" }, h("div", { class: "cs-tray-label" }, "Sources"), ...sources.map((src) => sourceEntry(src, link))));
     }
     const continueBtn = h("button", { class: "cs-tray-continue" }, "Continue ▶");
     continueBtn.addEventListener("click", continueNow);

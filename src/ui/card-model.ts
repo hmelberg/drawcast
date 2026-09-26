@@ -8,7 +8,8 @@
 // element_ids docs are LLM-facing prose and their labels are symbols
 // ("D", "P*") — which meaningfulName screens out anyway.
 
-import type { Spec, SpecElement } from "../spec/types";
+import type { Spec, SpecElement, SpecSource } from "../spec/types";
+import { citedSources } from "./source-model";
 
 export interface CardTarget {
   id: string;
@@ -19,6 +20,8 @@ export interface CardTarget {
   /** Authored resource links (spec §13), merged from the element and any
    *  labels attached to it; deduped. */
   links: string[];
+  /** The spec's sources this element `cites` — named and linked on its card. */
+  cites?: SpecSource[];
   /** The authored formal detail (element `details`, or the spec's `details`
    *  map for a template part): shown first on the card, previewed on hover. */
   details?: string;
@@ -143,6 +146,26 @@ export function cardTargets(spec: Spec, layout: LayoutFacts | readonly string[] 
     if (el.type === "label" && typeof el.attach_to === "string") giveDetails(el.attach_to, el.details, own);
   }
   for (const [id, text] of Object.entries(spec.details ?? {})) giveDetails(id, text);
+
+  // A claim on the canvas carries the study behind it: an element that
+  // `cites` a source is a card element, whatever else it has.
+  for (const el of spec.elements ?? []) {
+    const cited = citedSources(spec, el.cites);
+    if (cited.length === 0 || !usable(el.id)) continue;
+    const own = TEXT_BEARING.has(el.type) && typeof el.text === "string" && el.text.trim() !== "" ? el.text.trim() : undefined;
+    const t = out.get(el.id) ?? ensure(el.id, own ?? el.id.replace(/_/g, " "));
+    t.cites = [...(t.cites ?? []), ...cited.filter((c) => !t.cites?.includes(c))];
+  }
+
+  // An annotation (the strike through a claim, the box round an answer) sits
+  // ON what it marks and is smaller, so the hit test lands on it: without
+  // this, striking "It always costs jobs" made the claim's card, and the
+  // study it cites, unreachable. The mark carries its target's card.
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "annotation" || !usable(el.id) || out.has(el.id)) continue;
+    const marked = (Array.isArray(el.target) ? el.target : [el.target]).find((id): id is string => typeof id === "string" && out.has(id));
+    if (marked) out.set(el.id, out.get(marked)!);
+  }
 
   // Command-addressable ids the LAYOUT minted for an element — a source's
   // highlighter sweeps (`<id>_quote`, `<id>_quote_2`, …) — carry their

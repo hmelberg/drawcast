@@ -17,7 +17,7 @@ const INDENT = "    ";
 const SETTING_ORDER: [keyof Spec, string][] = [
   ["lang", "lang"], ["voice", "voice"], ["level", "level"], ["record", "record"],
   ["canvas", "canvas"], ["domain", "domain"], ["vars", "vars"], ["text", "text"],
-  ["zoom_from", "zoom_from"], ["template", "use"], ["params", "with"], ["details", "details"],
+  ["zoom_from", "zoom_from"], ["template", "use"], ["params", "with"], ["details", "details"], ["sources", "sources"],
 ];
 
 /** Written by machines, read by nobody: they print last, so the readable part

@@ -12112,6 +12112,32 @@
           "show_surplus": true
         }
       },
+      "sources": [
+        {
+          "id": "seattle",
+          "title": "Minimum Wage Increases, Wages, and Low-Wage Employment: Evidence from Seattle",
+          "authors": "Jardim et al.",
+          "year": 2017,
+          "url": "https://www.nber.org/papers/w23532",
+          "finding": "Low-wage hours fell about 9%"
+        },
+        {
+          "id": "states",
+          "title": "The Effect of Minimum Wages on Low-Wage Jobs",
+          "authors": "Cengiz, Dube, Lindner and Zipperer",
+          "year": 2019,
+          "doi": "10.1093/qje/qjz014",
+          "finding": "138 rises: low-wage jobs barely changed"
+        },
+        {
+          "id": "cbo",
+          "title": "The Effects on Employment and Family Income of Increasing the Federal Minimum Wage",
+          "authors": "Congressional Budget Office",
+          "year": 2019,
+          "url": "https://www.cbo.gov/publication/55410",
+          "finding": "$15: 17 million raised, about 1.3 million jobs lost"
+        }
+      ],
       "elements": [
         {
           "id": "claim_a",
@@ -12122,7 +12148,10 @@
           "font_size": 24,
           "style": {
             "color": "#b5482e"
-          }
+          },
+          "cites": [
+            "seattle"
+          ]
         },
         {
           "id": "claim_b",
@@ -12133,7 +12162,10 @@
           "font_size": 24,
           "style": {
             "color": "#2f6b8f"
-          }
+          },
+          "cites": [
+            "states"
+          ]
         },
         {
           "id": "strike_a",
@@ -12297,6 +12329,15 @@
           "Removed"
         ]
       },
+      "sources": [
+        {
+          "id": "ottawa",
+          "title": "When Zombies Attack!: Mathematical Modelling of an Outbreak of Zombie Infection",
+          "authors": "Munz et al.",
+          "year": 2009,
+          "finding": "Strike hard and early"
+        }
+      ],
       "elements": [
         {
           "id": "gens",
@@ -27564,6 +27605,16 @@
           "h": 430
         }
       },
+      "sources": [
+        {
+          "id": "card_krueger",
+          "title": "Minimum Wages and Employment: A Case Study of the Fast Food Industry in New Jersey and Pennsylvania",
+          "authors": "Card and Krueger",
+          "year": 1993,
+          "doi": "10.3386/w4509",
+          "finding": "No job loss in New Jersey"
+        }
+      ],
       "elements": [
         {
           "id": "did",
@@ -27576,7 +27627,10 @@
           "id": "portrait_david_card",
           "type": "portrait",
           "of": "David Card",
-          "cameo": true
+          "cameo": true,
+          "cites": [
+            "card_krueger"
+          ]
         }
       ],
       "commands": [
