@@ -21,6 +21,33 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-26 — Announce a change before the figure makes it
+
+Hans, on "Should rents be capped?": "the curve should not change before you
+speak and say 'after ten years it looks different' … Right now it changes
+before you speak which leaves the listener confused (A general lesson)."
+Also: rotate or shift in the long run? And "the new curve seems to indicate
+that there are more supply at the same price after ten years. Is that
+correct?"
+
+What was wrong: the player's timing was fine (an animate waits for the
+previous line), but the first change — supply turning steep for "next
+year" — came before any sentence said the curve would change, under the
+words "supply hardly moves". The viewer saw three supply curves and was told
+what two of them meant.
+
+Distilled: say what will change and why; then change it under a sentence
+that names the change; keep the previous state as a ghost when the two are
+compared. On the economics: the long-run response to the capped rent is a
+movement along a flatter curve (a rotation about E); a shift is for what
+the rent does not capture (worse upkeep, fear of stricter caps) — the
+real-world complication after the model. Above P* the flatter curve does
+offer more; say so, and that the cap rules those rents out.
+
+Status: the rent-cap few-shot rebuilt that way (announce → steepen → ten
+years: why → flatten with the short-run ghost → the far side → S′ shifted
+left for upkeep and fear, Qs falling further); the rule in the prompt.
+
 ### 2026-09-26 — Say what we are doing and why; show the working, then put it away
 
 Hans, on "Operate, or wait?": "the example … is too brief. It should: Tell

@@ -1857,8 +1857,8 @@
           "id": "tag_short",
           "type": "text",
           "text": "Next year",
-          "x": 830,
-          "y": 470,
+          "x": 760,
+          "y": 630,
           "size": 26,
           "style": {
             "color": "#8a5fa8"
@@ -1868,12 +1868,81 @@
           "id": "tag_long",
           "type": "text",
           "text": "Ten years on",
-          "x": 830,
-          "y": 470,
+          "x": 760,
+          "y": 630,
           "size": 26,
           "style": {
             "color": "#8a5fa8"
           }
+        },
+        {
+          "id": "upkeep_S",
+          "type": "path",
+          "data": true,
+          "points": [
+            [
+              0,
+              30
+            ],
+            [
+              80,
+              70
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "dash": true,
+            "opacity": 0.8
+          }
+        },
+        {
+          "id": "upkeep_arrow",
+          "type": "arrow",
+          "from": {
+            "data": [
+              73,
+              63
+            ]
+          },
+          "to": {
+            "data": [
+              64,
+              63
+            ]
+          },
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "upkeep_qs",
+          "type": "arrow",
+          "from": {
+            "data": [
+              11,
+              27
+            ]
+          },
+          "to": {
+            "data": [
+              2.5,
+              27
+            ]
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "upkeep_label",
+          "type": "text",
+          "text": "S′: worse upkeep, fear of new caps",
+          "font_size": 22,
+          "style": {
+            "color": "#2f6b8f"
+          },
+          "x": 600,
+          "y": 550
         },
         {
           "id": "run",
@@ -1992,7 +2061,16 @@
           "draw": [
             "tag_short"
           ],
-          "speak": "And the size of that gap depends on time. Next year, the buildings are still there…",
+          "speak": "How big that gap gets depends on how long landlords have to respond. Take next year first.",
+          "voice": "a"
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "supply_curve"
+            }
+          },
+          "speak": "The buildings are still there, and a landlord can not make a flat vanish: whatever the rent, most stay for rent.",
           "voice": "a"
         },
         {
@@ -2000,14 +2078,32 @@
             "supply.elasticity": 0.15
           },
           "duration": 3,
-          "speak": "…so supply hardly moves, few flats disappear, and the cap mostly moves money from landlords to tenants.",
+          "speak": "So next year the supply curve is almost vertical, and the shortage is small.",
+          "voice": "a"
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "shortage_arrow"
+            }
+          },
+          "speak": "For now, the cap mostly moves money from landlords to tenants.",
           "voice": "a"
         },
         {
           "draw": [
             "tag_long"
           ],
-          "speak": "Ten years on, it's different.",
+          "speak": "Now give landlords ten years.",
+          "voice": "a"
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "label_Qs"
+            }
+          },
+          "speak": "At the capped rent, building to rent no longer pays; old flats get less upkeep or are sold off.",
           "voice": "a"
         },
         {
@@ -2015,7 +2111,51 @@
             "supply.elasticity": 1.35
           },
           "duration": 3,
-          "speak": "Building flats to rent pays less, old ones get less upkeep or are sold off, and the shortage grows.",
+          "ghost": [
+            "supply_curve"
+          ],
+          "speak": "So over ten years supply responds far more to the rent: the curve turns flatter than next year’s grey one.",
+          "voice": "a"
+        },
+        {
+          "highlight": {
+            "target": [
+              "shortage_arrow",
+              "label_shortage"
+            ]
+          },
+          "speak": "At the capped rent there are far fewer flats, and the shortage grows.",
+          "voice": "a"
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "label_S"
+            }
+          },
+          "speak": "Above the old rent it would be the other way round: more flats. But the cap rules those rents out.",
+          "voice": "a"
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "label_Qs"
+            }
+          },
+          "speak": "And that is the tidy model. In real life the remaining flats also get worse, and builders fear stricter caps.",
+          "voice": "a"
+        },
+        {
+          "draw": [
+            "upkeep_S",
+            "upkeep_arrow",
+            "upkeep_label",
+            "upkeep_qs"
+          ],
+          "speak": "That shifts supply left, on top of the turn: the real shortage is larger still.",
           "voice": "a"
         },
         {

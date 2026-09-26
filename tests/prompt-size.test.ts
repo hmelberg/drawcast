@@ -540,8 +540,9 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // "show the thing beside its chart" rule; the ceiling is set ~13k above it so
 // the example-revision rounds can land without a re-pin each time. It is
 // still a ceiling: a jump past it (like the +54,000 `$` bug this same day)
-// fails here. Tighten it again when the revision work settles.
-const BASELINE_SYSTEM_CHARS = 250000;
+// fails here. Tighten it again when the revision work settles. Raised to
+// 270000 at 252368 (2026-09-26: scratch cards, "announce a change first").
+const BASELINE_SYSTEM_CHARS = 270000;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
