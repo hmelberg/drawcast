@@ -1,13 +1,15 @@
 {
   "name": "markov_model",
   "status": "ready",
-  "description": "A state-transition (Markov) diagram: 2–6 health/process states as circles, transition arrows between them (with a probability/rate label), and self-loops for states that also \"stay\" (optionally captioned with the stay probability). Choose this for ANY request about a Markov model, a health-state transition diagram, or a cycle of states with probabilities of moving between them. All placement is computed for you: a ring for 3+ states or a horizontal row (layout \"chain\" — the classic textbook style for health-state models), self-loops aimed into each state's least crowded side, and arrows that bow around any state that sits in their way. A state that no transition ever leaves renders as absorbing (plain ink, no color) automatically.",
+  "description": "A state-transition (Markov) diagram: 2–6 health/process states as circles, transition arrows between them (with a probability/rate label), and self-loops for states that also \"stay\" (optionally captioned with the stay probability). Choose this for ANY request about a Markov model, a health-state transition diagram, or a cycle of states with probabilities of moving between them. All placement is computed for you: a ring for 3+ states or a horizontal row (layout \"chain\" — the classic textbook style for health-state models), self-loops aimed into each state's least crowded side, and arrows that bow around any state that sits in their way. A state that no transition ever leaves renders as absorbing (plain ink, no color) automatically. Give it `trace` to RUN the model: a cohort table beside the diagram (counts in each state year by year, QALY weight and cost of each state, the QALYs and cost each year yields, discounted lifetime totals, the average per person, and with `compare` a second option and its cost per QALY gained) — every number computed from the transition labels, so narrate the table's numbers rather than working them out.",
   "params_schema": {
     "type": "object",
     "properties": {
       "states": {
         "type": "array",
-        "items": { "type": "string" },
+        "items": {
+          "type": "string"
+        },
         "minItems": 2,
         "maxItems": 6,
         "description": "2–6 state names, in the order they should be laid out."
@@ -17,11 +19,21 @@
         "items": {
           "type": "object",
           "properties": {
-            "from": { "type": "string" },
-            "to": { "type": "string" },
-            "label": { "type": "string", "description": "Transition probability/rate caption, e.g. \"0.10\"." }
+            "from": {
+              "type": "string"
+            },
+            "to": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string",
+              "description": "Transition probability/rate caption, e.g. \"0.10\"."
+            }
           },
-          "required": ["from", "to"]
+          "required": [
+            "from",
+            "to"
+          ]
         },
         "description": "Directed transitions between states named in `states`."
       },
@@ -29,14 +41,23 @@
         "type": "array",
         "items": {
           "anyOf": [
-            { "type": "string" },
+            {
+              "type": "string"
+            },
             {
               "type": "object",
               "properties": {
-                "state": { "type": "string" },
-                "label": { "type": "string", "description": "Stay probability caption, e.g. \"0.89\"." }
+                "state": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string",
+                  "description": "Stay probability caption, e.g. \"0.89\"."
+                }
               },
-              "required": ["state"]
+              "required": [
+                "state"
+              ]
             }
           ]
         },
@@ -44,16 +65,112 @@
       },
       "layout": {
         "type": "string",
-        "enum": ["circle", "chain"],
+        "enum": [
+          "circle",
+          "chain"
+        ],
         "description": "Node arrangement. Default: circle for 3+ states, chain for exactly 2. Pick \"chain\" explicitly for the classic left-to-right row (e.g. Well → Sick → Dead) — skip-ahead transitions arc around the states between them."
       },
       "highlight_state": {
         "type": "string",
         "description": "One state name (must be in `states`) to highlight with a tinted halo behind it."
       },
-      "title": { "type": "string" }
+      "title": {
+        "type": "string"
+      },
+      "trace": {
+        "type": "object",
+        "description": "Run a cohort through the model and draw the table right of the diagram (the diagram moves left). Transition labels must be probabilities; each state's stay is what its arrows leave. At most 4 states.",
+        "properties": {
+          "start": {
+            "type": "number",
+            "description": "Cohort size, all in the first state (default 1000)."
+          },
+          "utility": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "QALY weight of a year in each state, in `states` order, e.g. [0.9, 0.5, 0]."
+          },
+          "cost": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "Cost of a year in each state, in `states` order."
+          },
+          "cycles": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4,
+            "description": "Year rows shown (default 2)."
+          },
+          "horizon": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "description": "Years the lifetime totals run (default 100)."
+          },
+          "discount": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 0.2,
+            "description": "Annual discount rate for the totals (default 0.035); year 1 is undiscounted."
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency symbol (default \"£\").",
+            "x-translate": false
+          },
+          "compare": {
+            "type": "object",
+            "description": "A second option, e.g. a drug: its name, the transitions it changes (same from/to, new label), and what it adds to a year's cost in each state.",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "transitions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "from",
+                    "to",
+                    "label"
+                  ]
+                }
+              },
+              "cost": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "description": "What the option adds to a year's cost in each state, in `states` order."
+              }
+            },
+            "required": [
+              "name"
+            ]
+          }
+        }
+      }
     },
-    "required": ["states", "transitions"]
+    "required": [
+      "states",
+      "transitions"
+    ]
   },
   "element_ids": {
     "state_<slug>": "the ellipse for one state (slug: the state name, lowercased, non-alphanumeric characters replaced with _)",
@@ -63,36 +180,89 @@
     "loop_<slug>": "the self-loop for a state named in `self_loops`",
     "loop_label_<slug>": "that loop's stay-probability caption, when its `self_loops` entry set a label",
     "hl_<slug>": "tinted halo behind the state named by `highlight_state` — present only when set",
-    "title": "figure title, when set"
+    "title": "figure title, when set",
+    "trace_head": "with trace: the table's header row (the state names, QALYs, Cost)",
+    "trace_utility": "with trace: the QALY weight of a year in each state",
+    "trace_cost": "with trace: the cost of a year in each state",
+    "trace_row_<k>": "with trace: row 0 the starting cohort; row k (1…cycles) the counts at the end of year k, with that year's QALYs and cost",
+    "trace_total": "with trace: the cohort's discounted lifetime QALYs and cost",
+    "trace_mean": "with trace: the same per person — the average",
+    "trace_compare": "with trace.compare: the second option's average QALYs and cost per person",
+    "trace_icer": "with trace.compare: the extra QALYs, the extra cost and the cost per QALY gained"
   },
   "examples": [
     {
       "request": "Draw a three-state Markov model: Well, Sick, Dead, with Well and Sick able to stay or transition, and Dead absorbing.",
       "params": {
         "title": "Three-state Markov model",
-        "states": ["Well", "Sick", "Dead"],
-        "transitions": [
-          { "from": "Well", "to": "Sick", "label": "0.10" },
-          { "from": "Sick", "to": "Well", "label": "0.30" },
-          { "from": "Sick", "to": "Dead", "label": "0.05" },
-          { "from": "Well", "to": "Dead", "label": "0.01" }
+        "states": [
+          "Well",
+          "Sick",
+          "Dead"
         ],
-        "self_loops": ["Well", "Sick"]
+        "transitions": [
+          {
+            "from": "Well",
+            "to": "Sick",
+            "label": "0.10"
+          },
+          {
+            "from": "Sick",
+            "to": "Well",
+            "label": "0.30"
+          },
+          {
+            "from": "Sick",
+            "to": "Dead",
+            "label": "0.05"
+          },
+          {
+            "from": "Well",
+            "to": "Dead",
+            "label": "0.01"
+          }
+        ],
+        "self_loops": [
+          "Well",
+          "Sick"
+        ]
       }
     },
     {
       "request": "Draw the classic Well–Sick–Dead Markov model as a left-to-right row, with stay probabilities on Well and Sick and a direct Well-to-Dead arrow.",
       "params": {
         "title": "Well–Sick–Dead",
-        "states": ["Well", "Sick", "Dead"],
+        "states": [
+          "Well",
+          "Sick",
+          "Dead"
+        ],
         "transitions": [
-          { "from": "Well", "to": "Sick", "label": "0.10" },
-          { "from": "Sick", "to": "Dead", "label": "0.05" },
-          { "from": "Well", "to": "Dead", "label": "0.01" }
+          {
+            "from": "Well",
+            "to": "Sick",
+            "label": "0.10"
+          },
+          {
+            "from": "Sick",
+            "to": "Dead",
+            "label": "0.05"
+          },
+          {
+            "from": "Well",
+            "to": "Dead",
+            "label": "0.01"
+          }
         ],
         "self_loops": [
-          { "state": "Well", "label": "0.89" },
-          { "state": "Sick", "label": "0.95" }
+          {
+            "state": "Well",
+            "label": "0.89"
+          },
+          {
+            "state": "Sick",
+            "label": "0.95"
+          }
         ],
         "layout": "chain"
       }
@@ -101,10 +271,21 @@
       "request": "Draw a two-state Markov chain for a machine that's either working or broken, with a repair rate and a breakdown rate.",
       "params": {
         "title": "Machine reliability",
-        "states": ["Working", "Broken"],
+        "states": [
+          "Working",
+          "Broken"
+        ],
         "transitions": [
-          { "from": "Working", "to": "Broken", "label": "0.08" },
-          { "from": "Broken", "to": "Working", "label": "0.6" }
+          {
+            "from": "Working",
+            "to": "Broken",
+            "label": "0.08"
+          },
+          {
+            "from": "Broken",
+            "to": "Working",
+            "label": "0.6"
+          }
         ],
         "layout": "chain",
         "highlight_state": "Broken"

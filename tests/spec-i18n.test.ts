@@ -155,7 +155,7 @@ describe("every bundled template's string params are classified", () => {
       decision_tree: [".root.label", ".root.children[].label"],
       free_body: [".body_label", ".forces[].label", ".net_force.label"],
       generic_axes_diagram: [".x_label", ".y_label", ".title", ".curves[].label", ".points[].label", ".vlines[].label", ".hlines[].label"],
-      markov_model: [".states[]", ".transitions[].from", ".transitions[].to", ".transitions[].label", ".highlight_state", ".title"],
+      markov_model: [".states[]", ".transitions[].from", ".transitions[].to", ".transitions[].label", ".highlight_state", ".title", ".trace.compare.name", ".trace.compare.transitions[].from", ".trace.compare.transitions[].to", ".trace.compare.transitions[].label"],
       protein_secondary: [".segments[].label", ".title"],
       qaly_profiles: [
         ".x_label",

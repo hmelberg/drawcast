@@ -605,7 +605,7 @@ export function elementLines(layout: Pick<LayoutResult, "drawables" | "order">):
 /** The token namespace a template's `values` are read under — the thing
  *  they describe, where the template's name would read worse (`{market.dwl}`,
  *  not `{supply_demand.dwl}`). Any other template: its own name. */
-const TEMPLATE_VALUES_NAME: Record<string, string> = { supply_demand: "market", qaly_profiles: "qaly" };
+const TEMPLATE_VALUES_NAME: Record<string, string> = { supply_demand: "market", qaly_profiles: "qaly", markov_model: "markov" };
 
 function mayGrow(spec: Spec, manifest: { widget?: true; interactions?: unknown[]; grow?: boolean }): boolean {
   if (manifest.grow === false || manifest.widget || (manifest.interactions?.length ?? 0) > 0) return false;

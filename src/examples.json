@@ -4135,11 +4135,6 @@
     "spec": {
       "title": "How a Markov model runs",
       "template": "markov_model",
-      "vars": {
-        "w": 1000,
-        "s": 0,
-        "d": 0
-      },
       "params": {
         "states": [
           "Well",
@@ -4177,48 +4172,38 @@
             "state": "Sick",
             "label": "0.65"
           }
-        ]
+        ],
+        "trace": {
+          "start": 1000,
+          "utility": [
+            0.9,
+            0.5,
+            0
+          ],
+          "cost": [
+            1000,
+            5000,
+            0
+          ],
+          "cycles": 2,
+          "compare": {
+            "name": "With drug",
+            "transitions": [
+              {
+                "from": "Well",
+                "to": "Sick",
+                "label": "0.05"
+              }
+            ],
+            "cost": [
+              1000,
+              1000,
+              0
+            ]
+          }
+        }
       },
       "elements": [
-        {
-          "id": "n_well",
-          "type": "label",
-          "attach_to": "state_well",
-          "side": "left",
-          "text": "{w:0}",
-          "style": {
-            "color": "#2f6b8f"
-          }
-        },
-        {
-          "id": "n_sick",
-          "type": "label",
-          "attach_to": "state_sick",
-          "side": "right",
-          "text": "{s:0}",
-          "style": {
-            "color": "#2f6b8f"
-          }
-        },
-        {
-          "id": "n_dead",
-          "type": "label",
-          "attach_to": "state_dead",
-          "side": "below",
-          "text": "{d:0}",
-          "style": {
-            "color": "#2f6b8f"
-          }
-        },
-        {
-          "id": "counts",
-          "type": "group",
-          "members": [
-            "n_well",
-            "n_sick",
-            "n_dead"
-          ]
-        },
         {
           "id": "portrait_andrey_markov",
           "type": "portrait",
@@ -4291,7 +4276,22 @@
         },
         {
           "draw": [
-            "counts"
+            "trace_head",
+            "trace_head_rule",
+            "trace_utility"
+          ],
+          "speak": "Each state also has a value. A year well counts as 0.9 of a healthy year, a year sick as 0.5, and dead as nothing."
+        },
+        {
+          "draw": [
+            "trace_cost"
+          ],
+          "speak": "And a cost: a thousand pounds a year for the well, five thousand for the sick."
+        },
+        {
+          "draw": [
+            "trace_rule_1",
+            "trace_row_0"
           ],
           "speak": "Now run it. Start a thousand people, all well."
         },
@@ -4302,16 +4302,21 @@
               "t_3"
             ]
           },
-          "speak": "In the first cycle, a hundred fall sick and ten die."
+          "speak": "In the first year, a hundred fall sick and ten die."
         },
         {
-          "animate": {
-            "w": 890,
-            "s": 100,
-            "d": 10
+          "draw": [
+            "trace_row_1"
+          ],
+          "speak": "That leaves 890 well, 100 sick and 10 dead."
+        },
+        {
+          "highlight": {
+            "target": [
+              "trace_row_1"
+            ]
           },
-          "duration": 2.5,
-          "speak": "That leaves 890 well, 100 sick, 10 dead."
+          "speak": "Weight them: 890 times 0.9, plus 100 times 0.5, is 851 QALYs. The year costs 1.39 million pounds."
         },
         {
           "flow": {
@@ -4319,24 +4324,31 @@
               "t_1"
             ]
           },
-          "speak": "In the second cycle the sick feed back: thirty of them recover."
+          "speak": "In the second year the sick feed back: thirty of them recover."
         },
         {
-          "animate": {
-            "w": 822,
-            "s": 154,
-            "d": 24
-          },
-          "duration": 2.5,
-          "speak": "Now 822 well, 154 sick, 24 dead."
+          "draw": [
+            "trace_row_2"
+          ],
+          "speak": "Now 822 well, 154 sick, 24 dead: 817 QALYs, 1.59 million pounds."
         },
         {
-          "highlight": {
-            "target": [
-              "counts"
-            ]
-          },
-          "speak": "Weight each state by its quality, say 0.9 well and 0.5 sick, and every cycle yields QALYs: 851 in the first year."
+          "draw": [
+            "trace_rule_2"
+          ],
+          "speak": "Keep going for a lifetime, counting later years for less: 3.5 percent a year, as in England."
+        },
+        {
+          "draw": [
+            "trace_total"
+          ],
+          "speak": "Add it all up: about 15,400 QALYs and 35.5 million pounds."
+        },
+        {
+          "draw": [
+            "trace_mean"
+          ],
+          "speak": "Divide by the thousand people: 15.4 QALYs and 35,500 pounds per person, on average."
         },
         {
           "highlight": {
@@ -4344,7 +4356,27 @@
               "t_0"
             ]
           },
-          "speak": "Run it for a lifetime, discounting later years, at 3.5 percent in England. Rerun with a drug that lowers these ten percent, and the difference is the QALYs gained."
+          "speak": "Now a drug that halves this ten percent, for a thousand pounds a year to everyone alive."
+        },
+        {
+          "draw": [
+            "trace_compare"
+          ],
+          "speak": "Run the same cohort again: 17.4 QALYs and 50,700 pounds per person."
+        },
+        {
+          "draw": [
+            "trace_icer"
+          ],
+          "speak": "So the drug buys 1.9 extra QALYs for 15,200 pounds: about 7,800 pounds per QALY."
+        },
+        {
+          "highlight": {
+            "target": [
+              "trace_icer"
+            ]
+          },
+          "speak": "That is the number a health service weighs against what it is willing to pay."
         },
         {
           "pause": 0.4
@@ -10993,7 +11025,6 @@
         },
         {
           "draw": [
-            "graticule",
             "country_norway",
             "country_sweden",
             "country_denmark",
@@ -33127,7 +33158,6 @@
         },
         {
           "draw": [
-            "graticule",
             "country_norway",
             "country_sweden",
             "country_finland",

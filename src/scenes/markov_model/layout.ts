@@ -48,6 +48,41 @@ export interface MarkovParams {
   /** One state name to highlight with a tinted halo. */
   highlight_state?: string;
   title?: string;
+  /** Run the model: a cohort table beside the diagram (see MarkovTrace). */
+  trace?: MarkovTrace;
+}
+
+/**
+ * A cohort run through the model, drawn as a table right of the diagram:
+ * how many are in each state year by year, what each state is worth (QALY
+ * weight) and costs, the QALYs and cost each year yields, the discounted
+ * lifetime totals, the average per person — and, with `compare`, the same for
+ * a second option and the cost per QALY gained. Every number is COMPUTED from
+ * the transition labels (read as probabilities; a state's stay is what its
+ * arrows leave), so the narration can quote the table and never has to do the
+ * arithmetic itself (Hans, 2026-09-26: "a table … which notes the number you
+ * speak of (as you speak) … and how this is used to calculate utility each
+ * year, total utility and finally average utility (and costs) so we can
+ * compare two treatments").
+ */
+export interface MarkovTrace {
+  /** Cohort size, all starting in the first state (default 1000). */
+  start?: number;
+  /** QALY weight of a year in each state, in `states` order (default 0). An
+   *  array, not a map by name: a translated cast renames the states. */
+  utility?: number[];
+  /** Cost of a year in each state, in `states` order (default 0). */
+  cost?: number[];
+  /** Year rows shown under the start row (default 2, at most 4). */
+  cycles?: number;
+  /** Years the lifetime totals run (default 100). */
+  horizon?: number;
+  /** Annual discount rate for the totals (default 0.035). */
+  discount?: number;
+  /** Currency symbol (default "£"). */
+  currency?: string;
+  /** A second option: its name, the transitions it changes, and what it adds to a year's cost in each state. */
+  compare?: { name: string; transitions?: MarkovTransition[]; cost?: number[] };
 }
 
 const BOX = { x: 140, y: 200, w: 720, h: 360 };
@@ -167,10 +202,14 @@ function chooseCurve(from: Pt, to: Pt, hasReverse: boolean, obstacles: Pt[], rx:
   return bestCurve;
 }
 
+/** The diagram's box when a trace table takes the right of the canvas. */
+const TRACED_BOX = { x: 80, y: 250, w: 280, h: 300 };
+
 export function layoutMarkovModel(params: MarkovParams): SceneLayout {
   const states = params.states.slice(0, 6);
   const style = params.layout ?? (states.length >= 3 ? "circle" : "chain");
-  const positions = kit.layoutNodes(states, params.transitions, { style, ...BOX });
+  const run = params.trace ? runTrace(states, params.transitions, params.trace) : null;
+  const positions = kit.layoutNodes(states, params.transitions, { style, ...(run ? TRACED_BOX : BOX) });
 
   // Crowded arrangements (a 5–6 state chain or ring) shrink every ellipse
   // together so neighbors keep clear air; roomy ones keep the full size.
@@ -337,8 +376,163 @@ export function layoutMarkovModel(params: MarkovParams): SceneLayout {
   });
 
   if (params.title) {
-    push(kit.text("title", [500, 650], params.title, { fontSize: 30 }));
+    push(kit.text("title", [run ? 250 : 500, 650], params.title, { fontSize: 30 }));
   }
 
-  return { drawables, labels, anchors, order };
+  if (run) traceTable(run, states, params.trace!, push, anchors);
+
+  return { drawables, labels, anchors, order, ...(run && { values: traceValues(run) }) };
+}
+
+/** The run's results for `{markov.<key>}` tokens in a cast's drawn text. */
+function traceValues(run: CohortRun): Record<string, number> {
+  const v: Record<string, number> = { qalys_total: run.total.qalys, cost_total: run.total.cost, qalys_mean: run.mean.qalys, cost_mean: run.mean.cost };
+  if (run.compare) {
+    const dq = run.compare.mean.qalys - run.mean.qalys, dc = run.compare.mean.cost - run.mean.cost;
+    Object.assign(v, { compare_qalys_mean: run.compare.mean.qalys, compare_cost_mean: run.compare.mean.cost, qalys_gained: dq, cost_added: dc });
+    if (dq > 0) v.cost_per_qaly = dc / dq;
+  }
+  return v;
+}
+
+/** A transition label read as a probability, or null. */
+function prob(label: string | undefined): number | null {
+  if (label === undefined) return null;
+  const v = Number(label.trim().replace(",", "."));
+  return Number.isFinite(v) && v >= 0 && v <= 1 ? v : null;
+}
+
+interface CohortRun {
+  /** Counts per state: row 0 is the start, row k the end of year k. */
+  rows: number[][];
+  qalys: number[];
+  costs: number[];
+  total: { qalys: number; cost: number };
+  mean: { qalys: number; cost: number };
+  compare?: { name: string; mean: { qalys: number; cost: number } };
+}
+
+/** The transition matrix, or null when a label is not a probability or a state's arrows leave more than all of it. */
+function matrix(states: string[], transitions: MarkovTransition[]): number[][] | null {
+  const m = states.map(() => states.map(() => 0));
+  for (const t of transitions) {
+    const i = states.indexOf(t.from), j = states.indexOf(t.to);
+    const p = prob(t.label);
+    if (i < 0 || j < 0 || i === j) continue;
+    if (p === null) return null;
+    m[i][j] = p;
+  }
+  for (let i = 0; i < states.length; i++) {
+    const out = m[i].reduce((a, b) => a + b, 0);
+    if (out > 1 + 1e-9) return null;
+    m[i][i] = 1 - out;
+  }
+  return m;
+}
+
+function cohort(states: string[], m: number[][], tr: MarkovTrace, extra: number[] = []): Omit<CohortRun, "compare"> {
+  const n0 = tr.start ?? 1000;
+  const horizon = Math.min(Math.max(tr.horizon ?? 100, 1), 500);
+  const r = tr.discount ?? 0.035;
+  const u = states.map((_, i) => tr.utility?.[i] ?? 0);
+  const c = states.map((_, i) => (tr.cost?.[i] ?? 0) + (extra[i] ?? 0));
+  let x = states.map((_, i) => (i === 0 ? n0 : 0));
+  const rows = [x], qalys: number[] = [], costs: number[] = [];
+  let tq = 0, tc = 0;
+  for (let t = 1; t <= horizon; t++) {
+    x = states.map((_, j) => x.reduce((sum, xi, i) => sum + xi * m[i][j], 0));
+    const q = x.reduce((sum, xi, i) => sum + xi * u[i], 0);
+    const k = x.reduce((sum, xi, i) => sum + xi * c[i], 0);
+    // Year 1 undiscounted: the first year's QALYs are the ones the table shows.
+    const f = 1 / Math.pow(1 + r, t - 1);
+    tq += q * f;
+    tc += k * f;
+    if (t <= 4) {
+      rows.push(x);
+      qalys.push(q);
+      costs.push(k);
+    }
+  }
+  return { rows, qalys, costs, total: { qalys: tq, cost: tc }, mean: { qalys: tq / n0, cost: tc / n0 } };
+}
+
+function runTrace(states: string[], transitions: MarkovTransition[], tr: MarkovTrace): CohortRun | null {
+  if (states.length > 4) return null; // six columns of counts do not fit beside the diagram
+  const m = matrix(states, transitions);
+  if (!m) return null;
+  const base = cohort(states, m, tr);
+  if (!tr.compare) return base;
+  const changed = transitions.map((t) => tr.compare!.transitions?.find((o) => o.from === t.from && o.to === t.to) ?? t);
+  const m2 = matrix(states, changed);
+  if (!m2) return base;
+  return { ...base, compare: { name: tr.compare.name, mean: cohort(states, m2, tr, tr.compare.cost).mean } };
+}
+
+/** Thousands separated; money in the currency, a cohort's millions as "£1.39m". */
+function fmtCount(v: number): string {
+  return Math.round(v).toLocaleString("en-GB");
+}
+function fmtMoney(v: number, cur: string): string {
+  const a = Math.abs(v);
+  const sign = v < 0 ? "−" : "";
+  if (a >= 1e6) return `${sign}${cur}${(a / 1e6).toFixed(a >= 1e7 ? 1 : 2)}m`;
+  if (a >= 1e4) return `${sign}${cur}${(Math.round(a / 100) * 100).toLocaleString("en-GB")}`;
+  return `${sign}${cur}${Math.round(a).toLocaleString("en-GB")}`;
+}
+
+/**
+ * The table, one drawable per row so a cast can write it in as it speaks:
+ * trace_head, trace_utility, trace_cost, trace_row_0 (the start) …
+ * trace_row_<cycles>, trace_total, trace_mean, and with compare
+ * trace_compare and trace_icer.
+ */
+function traceTable(run: CohortRun, states: string[], tr: MarkovTrace, push: (d: Drawable) => void, anchors: Record<string, Pt>): void {
+  const cur = tr.currency ?? "£";
+  const cycles = Math.min(Math.max(tr.cycles ?? 2, 1), 4);
+  const FS = 24;
+  const x0 = 420, x1 = 990;
+  const labelW = 100, qW = 88, cW = 108;
+  const stateW = (x1 - x0 - labelW - qW - cW) / states.length;
+  const colX = [...states.map((_, i) => x0 + labelW + stateW * (i + 0.5)), x1 - cW - qW / 2, x1 - cW / 2];
+  const ROW = 37;
+  let y = 632;
+  const rowOf = (id: string, label: string, cells: (string | null)[], o: { color?: string; bold?: boolean } = {}) => {
+    const kids: Drawable[] = [kit.text(`${id}__l`, [x0, y], label, { fontSize: FS - 4, anchor: "start", color: o.color ?? COLORS.guide })];
+    cells.forEach((c, i) => {
+      if (c !== null && c !== "") kids.push(kit.text(`${id}__c${i}`, [colX[i], y], c, { fontSize: FS, color: o.color ?? COLORS.ink }));
+    });
+    push(kit.group(id, kids));
+    anchors[id] = [(x0 + x1) / 2, y];
+    y -= ROW;
+  };
+  const rule = (id: string) => {
+    push(kit.stroke(id, [[x0, y + ROW / 2], [x1, y + ROW / 2]], { color: COLORS.guide, strokeWidth: 1.5, ms: SKETCH_MS.guides }));
+    y -= 8;
+  };
+  const blank = states.map(() => null);
+
+  rowOf("trace_head", "", [...states, "QALYs", "Cost"], { color: COLORS.ink });
+  rule("trace_head_rule");
+  rowOf("trace_utility", "QALYs/yr", [...states.map((_, i) => kit.num(tr.utility?.[i] ?? 0)), null, null], { color: COLORS.supply });
+  rowOf("trace_cost", "Cost/yr", [...states.map((_, i) => fmtMoney(tr.cost?.[i] ?? 0, cur)), null, null], { color: COLORS.supply });
+  rule("trace_rule_1");
+  rowOf("trace_row_0", "Start", [...run.rows[0].map(fmtCount), null, null]);
+  for (let k = 1; k <= cycles; k++) {
+    rowOf(`trace_row_${k}`, `Year ${k}`, [...run.rows[k].map(fmtCount), fmtCount(run.qalys[k - 1]), fmtMoney(run.costs[k - 1], cur)]);
+  }
+  rule("trace_rule_2");
+  rowOf("trace_total", "Lifetime", [...blank, fmtCount(run.total.qalys), fmtMoney(run.total.cost, cur)]);
+  rowOf("trace_mean", "Per person", [...blank, run.mean.qalys.toFixed(1), fmtMoney(run.mean.cost, cur)], { color: COLORS.demand });
+  if (run.compare) {
+    const c = run.compare;
+    rowOf("trace_compare", c.name, [...blank, c.mean.qalys.toFixed(1), fmtMoney(c.mean.cost, cur)], { color: COLORS.accent });
+    const dq = c.mean.qalys - run.mean.qalys, dc = c.mean.cost - run.mean.cost;
+    y -= 10;
+    const text =
+      dq > 0
+        ? `${dq.toFixed(1)} QALYs more for ${fmtMoney(dc, cur)}: ${fmtMoney(Math.round(dc / dq / 100) * 100, cur)} per QALY`
+        : `${Math.abs(dq).toFixed(1)} QALYs ${dq < 0 ? "fewer" : "more"}, ${fmtMoney(dc, cur)} in cost`;
+    push(kit.text("trace_icer", [(x0 + x1) / 2, y], text, { fontSize: FS, color: COLORS.accent }));
+    anchors.trace_icer = [(x0 + x1) / 2, y];
+  }
 }

@@ -750,6 +750,25 @@ inconclusive trials pool to a clear answer; weight = 1/SE²), #28 confounder
   decision tree's native margins were also rebalanced (left 85, right 230),
   and the example's box pulled in to 40…960.
 
+## Hans's review notes (2026-09-26, second batch): Markov, Bayes, Nordic
+
+- **A Markov model should show its run.** `markov_model` gained `trace`: the
+  template runs the cohort from the transition labels and draws a table right
+  of the diagram (counts per state per year, each state's QALY weight and
+  cost, the year's QALYs and cost, discounted lifetime totals, the average
+  per person, and with `compare` a second option and its cost per QALY). One
+  row id per row, so the table fills in as it is spoken. The numbers are
+  computed, so the narration quotes and never calculates. `utility`/`cost`
+  are arrays in `states` order: a map by state name would break when a cast
+  is translated. Lesson: where a figure implies arithmetic, the template
+  should do it.
+- **Descenders in formulas looked like subscripts** (the p of "spam", g):
+  the hand glyph was squashed as a whole to fit Fira's shallower descender,
+  pulling its bowl under the x-height. Now above and below the baseline are
+  fitted apart (math-hand.ts).
+- **world_map's focus frame** (a dashed box round the crop, which read as a
+  stray border open on one side) is gone from the template.
+
 ## Template improvements
 
 **The main finding of batch 2: several templates draw at a fixed small

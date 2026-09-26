@@ -175,8 +175,14 @@ export function handRingsFor(codepoint: number, firaRings: Ring[]): Ring[] | nul
   // (Fira ink that sits ON the baseline gives nothing to fit a hand's
   // slight undershoot to — a rounded bottom dips a hair under the line, and
   // that is a hand — so the bottom rule applies only where Fira descends.)
-  let sy = 1;
-  if (g.y1 > fy1 && fy1 > 0) sy = Math.min(sy, fy1 / g.y1);
-  if (g.y0 < fy0 && fy0 < 0) sy = Math.min(sy, fy0 / g.y0);
-  return g.rings.map((r) => r.map(([x, y]) => [x * sx + dx, y * sy] as [number, number]));
+  //
+  // Above and below the baseline are fitted APART. One factor for the whole
+  // glyph shrank a p or g's bowl along with its tail — the hand's descender
+  // is deeper than Fira's, so the squash pulled the bowl under the x-height
+  // and the letter read as a subscript (Hans, 2026-09-26: "P(spam) — the p
+  // is a bit strange … letters that go downwards, like p and g"). Now the
+  // tail alone is shortened and the bowl keeps the x-height.
+  const up = g.y1 > fy1 && fy1 > 0 ? fy1 / g.y1 : 1;
+  const down = g.y0 < fy0 && fy0 < 0 ? fy0 / g.y0 : 1;
+  return g.rings.map((r) => r.map(([x, y]) => [x * sx + dx, y * (y >= 0 ? up : down)] as [number, number]));
 }

@@ -2405,11 +2405,11 @@ describe("maps pack", () => {
     expect(res.drawables.some((d) => d.id === "missing_note")).toBe(false);
   });
 
-  test("focus mode draws a graticule frame; world mode ring strokes carry the guide color and duration", async () => {
+  test("focus mode draws no frame round the crop; world mode ring strokes carry the guide color and duration", async () => {
     await ensureEngines(["geo"]);
     registerPack("maps", mapsYaml);
     const focused = scenes.world_map.layout!({ focus: ["Norway"] });
-    expect(focused.drawables.some((d) => d.id === "graticule")).toBe(true);
+    expect(focused.drawables.some((d) => d.id === "graticule")).toBe(false);
 
     const world = scenes.world_map.layout!({});
     const oneRing = flattenDrawables(world.drawables).find((d) => d.kind === "stroke" && d.id.startsWith("country_")) as { style: { color: string }; drawOpts: { duration: number } };

@@ -55,7 +55,6 @@ element_ids:
   hl_<slug>: a highlighted country's low-opacity area fill (every part of it — mainland and islands)
   marker_<i>: a small dot at markers[i]'s exact `at` position or its `country`'s centroid, absent when that marker is unresolved or outside the cropped view
   marker_label_<i>: markers[i]'s label, absent under the same conditions as marker_<i>
-  graticule: a light frame around the map, present in focus mode only
   missing_note: "small guide text listing unrecognized country names (\"Unknown: X, Y\"), real-but-not-drawn highlight names (\"Not drawn: X, Y\"), and/or marker countries outside the cropped view (\"Outside view: X, Y\"), present only when there are any"
   title: figure title, when set
 examples:
@@ -198,14 +197,9 @@ layout: |
     }
   }
 
-  // Focus mode: a light frame marks the crop, since only a few countries
-  // float in an otherwise-empty box with no world context around them.
-  if (isFocus) {
-    const fx0 = FIT.x, fy0 = FIT.y, fx1 = FIT.x + FIT.w, fy1 = FIT.y + FIT.h;
-    push(kit.stroke("graticule", [[fx0, fy0], [fx1, fy0], [fx1, fy1], [fx0, fy1]], {
-      closed: true, color: C.guide, strokeWidth: 1.5, dash: true, ms: MS.guides,
-    }));
-  }
+  // No frame round a focus crop: a dashed box round a few floating
+  // countries read as a stray border (Hans, 2026-09-26: "a strange border of
+  // short lines on three sides … It should have none").
 
   // Country outlines. Iterate `shapes` (the engine's own dataset order) so
   // ids and draw order never depend on how the caller listed names.
