@@ -42,7 +42,7 @@ describe("sources", () => {
 
   test("a bare-string cites is folded to a list", () => {
     const s = normalizeSpec({ ...spec(), elements: [{ id: "c", type: "text", text: "Claim here", x: 1, y: 1, cites: "seattle" }] } as Spec);
-    expect(s.elements![0].cites).toEqual(["seattle"]);
+    expect((s as Spec).elements![0].cites).toEqual(["seattle"]);
   });
 
   test("links: a DOI resolves through doi.org, else the url; the byline is who and when", () => {

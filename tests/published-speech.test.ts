@@ -61,7 +61,7 @@ describe("a baked line plays from its clip", () => {
     const f = fakeClips([KEY]);
     const speech = new PublishedSpeech(new InnerSpeech(), f);
     await speech.speak(LINE, 2);
-    expect(f.play).toHaveBeenCalledWith(KEY, 2, undefined);
+    expect(f.play).toHaveBeenCalledWith(KEY, 2, undefined, undefined);
   });
 
   test("the same sentence in another voice is a different clip", async () => {

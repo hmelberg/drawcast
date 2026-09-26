@@ -532,6 +532,7 @@ export class CloudSpeech extends SpeechManager {
               done();
             });
             src.start();
+            opts?.onStart?.(buffer.duration * 1000);
           }),
       )
       .catch(() => super.speakOne(text, speedMultiplier, signal, opts)); // cloud hiccup → browser voice
@@ -621,6 +622,7 @@ export class BufferSpeech extends SpeechManager {
         done();
       });
       src.start();
+      opts?.onStart?.(buffer.duration * 1000);
     });
   }
 }

@@ -220,9 +220,13 @@ export class SpeechManager {
     // here keeps that chain from walking the regex three times a line.
     const runs = opts?.lang !== undefined ? [{ text }] : splitLangRuns(text);
     if (runs.length === 1 && runs[0].lang === undefined) return this.speakOne(runs[0].text, speedMultiplier, signal, opts);
+    // Several runs: the line starts with the first, and no one run's length is the line's.
+    let onStart = opts?.onStart ? () => opts.onStart!(null) : undefined;
     for (const run of runs) {
       if (signal?.aborted) return;
-      await this.speakOne(run.text, speedMultiplier, signal, run.lang === undefined ? opts : { ...opts, lang: run.lang });
+      const first = onStart;
+      onStart = undefined;
+      await this.speakOne(run.text, speedMultiplier, signal, { ...opts, ...(run.lang !== undefined && { lang: run.lang }), onStart: first && (() => first()) });
     }
   }
 
@@ -235,6 +239,7 @@ export class SpeechManager {
     const deliveryRate = d?.rate ?? 1;
     const estimate = SpeechManager.estimateMs(text) / (speedMultiplier * deliveryRate);
     if (!this.synth || signal?.aborted) {
+      if (!signal?.aborted) opts?.onStart?.(estimate);
       return abortableWait(estimate, signal);
     }
     const synth = this.synth;
@@ -272,6 +277,7 @@ export class SpeechManager {
       utterance.pitch = Math.min(2, Math.max(0, 1 + (d?.pitchSt ?? 0) * 0.06));
       utterance.volume = this.mutedFlag ? 0 : dbToGain(d?.gainDb ?? 0);
       utterance.onend = done;
+      utterance.onstart = () => opts?.onStart?.(null);
       utterance.onerror = () => {
         // fall back to the remaining reading-time estimate
         setTimeout(done, estimate);

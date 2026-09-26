@@ -16,6 +16,12 @@ export interface SpeakOpts {
    * speaks the document's language, which is every line that carries no mark.
    */
   lang?: string;
+  /**
+   * Called once, when the voice actually starts, with how long it will speak
+   * (ms) when the backend knows — a synthesized buffer, a published clip —
+   * or null (a browser voice). The caption pages its chunks against it.
+   */
+  onStart?: (durationMs: number | null) => void;
 }
 
 export interface SpeakLine {

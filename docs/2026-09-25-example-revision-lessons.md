@@ -783,6 +783,18 @@ inconclusive trials pool to a clear answer; weight = 1/SE²), #28 confounder
   (the `source` element already resolves covers from a DOI); waiting for
   Hans's view of the tray version.
 
+## Captions: two lines, paged as spoken (2026-09-26, Hans agreed)
+
+The caption band never shows more than two lines: a long line is split into
+pages (sentence, then clause, then word breaks; render/caption-chunks.ts)
+and each page comes up when the voice reaches it — by character share of
+the voice's duration (known for synthesized buffers and published clips;
+the reading estimate for a browser voice), on the player's frame clock so
+it pauses with playback and keeps step in the export. Scrolling was
+considered and rejected: moving text is harder to read. This settles the
+"caption band" decision at the top of the ledger: the band is a fixed two
+lines. The 30-word advice for beats still stands as good teaching.
+
 ## Template improvements
 
 **The main finding of batch 2: several templates draw at a fixed small

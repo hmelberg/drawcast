@@ -31,6 +31,7 @@ import type { ToneLike } from "./tones";
 import { isIdentity, type Turn } from "./pose";
 import { decodeFigures } from "./decode-figures";
 import { smoothstep } from "./sweep";
+import { chunkCaption, pageTimes } from "./caption-chunks";
 
 export type PlaybackMode = "narrated" | "silent" | "instant";
 export type PlayerState = "idle" | "playing" | "paused" | "done";
@@ -960,10 +961,56 @@ export class Player {
         speaker: step.narrationSpeaker,
         delivery: step.narrationDelivery,
         gender: this.narratorGender ?? undefined,
+        onStart: this.pagerFor(text),
       });
     } else {
-      await this.waitScaled(Math.min(1400, SpeechManager.estimateMs(text) * 0.4), signal);
+      const hold = Math.min(1400, SpeechManager.estimateMs(text) * 0.4);
+      this.pageCaption(hold / this.speedVal);
+      await this.waitScaled(hold, signal);
     }
+  }
+
+  /** The pages of the caption on screen (render/caption-chunks.ts), and a run counter that retires a pager. */
+  private captionPages: string[] = [""];
+  private pagerRun = 0;
+
+  /** How many characters two caption lines hold at the stage's present width. */
+  private captionBudget(): number {
+    const el = this.captionEl;
+    const w = el?.parentElement?.clientWidth ?? 0;
+    if (!el || !w || typeof getComputedStyle !== "function") return 90;
+    const fs = parseFloat(getComputedStyle(el).fontSize) || 18;
+    // Patrick Hand runs about 0.45 em a character; less the band's padding.
+    const perLine = Math.max(24, (w - 2.5 * fs) / (fs * 0.45));
+    return Math.floor(2 * perLine * 0.92);
+  }
+
+  /**
+   * Turn the caption's pages while the voice runs: page k comes up when the
+   * voice has said the pages before it, by their share of the characters of
+   * `durationMs`. On the player's frame clock, so it stops while paused and
+   * keeps step in an export; a new caption retires it.
+   */
+  private pageCaption(durationMs: number): void {
+    const run = ++this.pagerRun;
+    const at = pageTimes(this.captionPages, durationMs);
+    if (at.length === 0) return;
+    let t = 0;
+    let last = performance.now();
+    let shown = 0;
+    const tick = (now: number): void => {
+      if (run !== this.pagerRun) return;
+      if (!this.pausedFlag) t += now - last;
+      last = now;
+      while (shown < at.length && t >= at[shown]) this.showPage(++shown);
+      if (shown < at.length) this.raf(tick);
+    };
+    this.raf(tick);
+  }
+
+  /** `onStart` for a line's voice: page the caption over what it will take. */
+  private pagerFor(spoken: string): (durationMs: number | null) => void {
+    return (ms) => this.pageCaption(ms ?? SpeechManager.estimateMs(spoken) / this.speedVal);
   }
 
   private setCaption(text: string): void {
@@ -974,6 +1021,16 @@ export class Player {
     // track — so no path can forget it. (pronounce.ts draws the same line
     // from the other side: what is SAID is not what is written.)
     text = stripLangMarks(text);
+    // At most two lines on screen: a long line is shown page by page as it
+    // is said (pageCaption), never as a band over the lower third.
+    this.pagerRun++;
+    this.captionPages = chunkCaption(text, this.captionBudget());
+    this.showPage(0);
+  }
+
+  private showPage(k: number): void {
+    if (!this.captionEl) return;
+    const text = this.captionPages[k] ?? "";
     this.captionEl.textContent = text;
     this.captionEl.classList.toggle("cs-caption-empty", text === "");
     // Written on the drawing, a caption over something dark (a photo, a C64
@@ -1020,8 +1077,9 @@ export class Player {
               speaker: step.narrationSpeaker,
               delivery: step.narrationDelivery,
               gender: this.narratorGender ?? undefined,
+              onStart: this.pagerFor(narration),
             })
-          : this.waitScaled(Math.min(1400, SpeechManager.estimateMs(narration) * 0.4), signal);
+          : this.silentHold(narration, signal);
       this.narrationVoice = voice;
       try {
         // An action written inside the sentence waits for its moment. The
@@ -1055,12 +1113,13 @@ export class Player {
             speaker: step.speaker,
             delivery: step.delivery,
             gender: this.narratorGender ?? undefined,
+            onStart: this.pagerFor(text),
           });
           if (step.blocking) await spoken;
           else this.pendingSpeech = spoken;
         } else {
           // silent: hold the caption for a reading-time slice instead
-          const hold = this.waitScaled(Math.min(1400, SpeechManager.estimateMs(text) * 0.4), signal);
+          const hold = this.silentHold(text, signal);
           if (step.blocking) await hold;
           else this.pendingSpeech = hold;
         }
@@ -2004,6 +2063,13 @@ export class Player {
       };
       this.raf(tick);
     });
+  }
+
+  /** A silent player's reading beat for a line, its caption paged over it. */
+  private silentHold(text: string, signal: AbortSignal): Promise<void> {
+    const hold = Math.min(1400, SpeechManager.estimateMs(text) * 0.4);
+    this.pageCaption(hold / this.speedVal);
+    return this.waitScaled(hold, signal);
   }
 
   private waitScaled(ms: number, signal: AbortSignal): Promise<void> {

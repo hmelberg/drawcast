@@ -35,7 +35,7 @@ export interface Clip {
 export interface ClipSource {
   has(key: string): boolean;
   /** Play one clip to completion. Rejecting falls through to live speech. */
-  play(key: string, speedMultiplier: number, signal?: AbortSignal): Promise<void>;
+  play(key: string, speedMultiplier: number, signal?: AbortSignal, onStart?: (durationMs: number | null) => void): Promise<void>;
   stop(): void;
   setMuted(muted: boolean): void;
 }
@@ -118,7 +118,7 @@ export class PublishedSpeech extends SpeechManager {
     const key = speechKey({ text, speaker: opts?.speaker, delivery: opts?.delivery, gender: opts?.gender, lang: opts?.lang });
     if (!this.forceBrowser && this.clips.has(key)) {
       try {
-        await this.clips.play(key, speedMultiplier, signal);
+        await this.clips.play(key, speedMultiplier, signal, opts?.onStart);
         return;
       } catch {
         // A clip that will not decode or play is a missing clip: fall through

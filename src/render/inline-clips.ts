@@ -77,7 +77,7 @@ export function inlineClipSource(track: AudioTrack): ClipSource & { destroy(): v
   return {
     has: (key) => clips.has(key),
 
-    play(key, speedMultiplier, signal) {
+    play(key, speedMultiplier, signal, onStart) {
       return new Promise<void>((resolve, reject) => {
         if (signal?.aborted) return resolve();
         const audio = element();
@@ -110,6 +110,12 @@ export function inlineClipSource(track: AudioTrack): ClipSource & { destroy(): v
         // moments of the line are already at the right speed.
         audio.preservesPitch = true;
         audio.playbackRate = Math.min(4, Math.max(0.25, speedMultiplier));
+        // The clip's own length, at the rate it plays, once it is known.
+        audio.addEventListener(
+          "playing",
+          () => onStart?.(Number.isFinite(audio.duration) ? (audio.duration * 1000) / audio.playbackRate : null),
+          { once: true },
+        );
         audio.play().catch(onError);
       });
     },
