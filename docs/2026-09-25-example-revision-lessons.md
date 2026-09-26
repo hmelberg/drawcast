@@ -795,6 +795,17 @@ considered and rejected: moving text is harder to read. This settles the
 "caption band" decision at the top of the ledger: the band is a fixed two
 lines. The 30-word advice for beats still stands as good teaching.
 
+## heart_circulation redrawn (2026-09-26, Hans: "very ugly")
+
+One symmetric heart outline (atrial lobes, tapering to the apex) instead of
+an ellipse blob with a cross; a wash per side that fits it; septum straight,
+AV walls open at the valves; letters and names larger. The loops are routed
+so no vessel crosses another (vena cava up the left into the RA, pulmonary
+artery up beside the septum, pulmonary veins down into the LA, aorta out of
+the LV down the right). The old blue loop crossed itself. Ids unchanged;
+the hole-in-the-heart cast's own overlays (pressures, foramen ovale arrow)
+re-placed.
+
 ## Template improvements
 
 **The main finding of batch 2: several templates draw at a fixed small

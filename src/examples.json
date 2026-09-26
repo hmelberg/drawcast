@@ -14654,8 +14654,8 @@
           "id": "p_rv",
           "type": "text",
           "text": "RV: 25 mmHg",
-          "x": 221,
-          "y": 356,
+          "x": 172,
+          "y": 372,
           "font_size": 22,
           "style": {
             "color": "#2f6b8f"
@@ -14665,8 +14665,8 @@
           "id": "p_lv",
           "type": "text",
           "text": "LV: 120 mmHg",
-          "x": 779,
-          "y": 356,
+          "x": 800,
+          "y": 372,
           "font_size": 22,
           "style": {
             "color": "#b5482e"
@@ -14677,11 +14677,11 @@
           "type": "arrow",
           "from": {
             "x": 483,
-            "y": 460
+            "y": 470
           },
           "to": {
-            "x": 557,
-            "y": 460
+            "x": 540,
+            "y": 470
           },
           "style": {
             "color": "#2f6b8f",

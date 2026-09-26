@@ -376,6 +376,12 @@ examples:
       labels: false
       title: "Ventricular septal defect"
 layout: |
+  // Redrawn 2026-09-26 (Hans: "very ugly"): one symmetric heart outline, wide
+  // at the atria and tapering to the apex, a straight septum, the AV walls
+  // with open valves, a wash per chamber that fits the outline, and the two
+  // loops routed so no vessel crosses another — vena cava up the left into
+  // the RA, pulmonary artery up beside the septum to the lungs, pulmonary
+  // veins down into the LA, aorta out of the LV down the right to the body.
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const wantLabels = params.labels !== false;
   const showFlow = params.show_flow !== false;
@@ -388,92 +394,101 @@ layout: |
     labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
     order.push(id);
   };
-  const pushEdge = (id, from, to, o) => {
-    const e = kit.edgeArrow(id, from, to, o);
-    drawables.push(...e.drawables);
-    order.push(...e.order);
-    anchors[id] = to;
+  const flow = (id, pts, color, w) => {
+    push(kit.stroke(id, kit.smooth(pts, 10), { arrowhead: "end", color, strokeWidth: w ?? 5, ms: 1100 }));
+    anchors[id] = pts[Math.floor(pts.length / 2)];
   };
 
-  // Body below, lungs above, heart in the middle.
-  push(kit.group("body", [
-    kit.stroke("body__outline", kit.blob([500, 100], 195, 58, 0.05, 1), { closed: true, strokeWidth: 4, ms: MS.node }),
-    kit.text("body__caption", [500, 100], "Body", { fontSize: 32 }),
-  ]));
-  anchors.body = [500, 100];
-  push(kit.group("lungs", [
-    kit.stroke("lungs__outline", kit.blob([500, 650], 175, 62, 0.05, 2), { closed: true, strokeWidth: 4, ms: MS.node }),
-    kit.text("lungs__caption", [500, 650], "Lungs", { fontSize: 32 }),
-  ]));
-  anchors.lungs = [500, 650];
-
-  const HC = [500, 385], HRX = 180, HRY = 148;
-  push(kit.stroke("heart", kit.blob(HC, HRX, HRY, 0.04, 3), { closed: true, strokeWidth: 4.5, ms: MS.stroke }));
-  anchors.heart = HC;
-
-  // Washes: right heart (viewer's left) blue, left heart red.
-  const halfPts = (a0, a1) => {
-    const pts = [];
-    for (let i = 0; i <= 30; i++) {
-      const th = a0 + ((a1 - a0) * i) / 30;
-      pts.push([HC[0] + HRX * 0.9 * Math.cos(th), HC[1] + HRY * 0.9 * Math.sin(th)]);
+  // The heart's right half (the LEFT heart), top centre → apex; the other half mirrors it.
+  const TOP = 510, APEX = 176, AV = 380, MID = 500;
+  const half = kit.smooth([[MID, TOP - 16], [548, TOP + 4], [620, TOP + 12], [690, TOP - 4], [720, 462], [716, 390], [694, 312], [646, 246], [572, 200], [522, 182], [MID, APEX]], 10);
+  const mirror = (pts) => pts.map(([x, y]) => [2 * MID - x, y]);
+  const outline = [...half, ...mirror(half).reverse().slice(1)];
+  // Where the outline stands at height y, on the left heart's side.
+  const edgeAt = (y) => {
+    for (let i = 1; i < half.length; i++) {
+      const [x0, y0] = half[i - 1], [x1, y1] = half[i];
+      if ((y0 - y) * (y1 - y) <= 0 && y0 !== y1) return x0 + ((y - y0) / (y1 - y0)) * (x1 - x0);
     }
-    return pts;
+    return 716;
   };
-  push(kit.area("right_fill", halfPts(Math.PI * 0.53, Math.PI * 1.47), C.supply, { opacity: 0.15 }));
-  push(kit.area("left_fill", halfPts(-Math.PI * 0.47, Math.PI * 0.47), C.demand, { opacity: 0.15 }));
-  anchors.right_fill = [410, 385];
-  anchors.left_fill = [590, 385];
+  const xAV = edgeAt(AV);
 
-  // Septum + dividers. The septal hole sits at ventricle level (a VSD).
-  const wallChildren = [
-    kit.stroke("walls__div_l", [[332, 388], [497, 388]], { strokeWidth: 3, ms: MS.guides }),
-    kit.stroke("walls__div_r", [[503, 388], [668, 388]], { strokeWidth: 3, ms: MS.guides }),
-  ];
+  push(kit.group("body", [
+    kit.stroke("body__outline", kit.blob([500, 118], 215, 48, 0.04, 1), { closed: true, strokeWidth: 4, ms: MS.node }),
+    kit.text("body__caption", [500, 118], "Body", { fontSize: 34 }),
+  ]));
+  anchors.body = [500, 118];
+  push(kit.group("lungs", [
+    kit.stroke("lungs__outline", kit.blob([500, 624], 200, 46, 0.04, 2), { closed: true, strokeWidth: 4, ms: MS.node }),
+    kit.text("lungs__caption", [500, 624], "Lungs", { fontSize: 34 }),
+  ]));
+  anchors.lungs = [500, 624];
+
+  // Washes: one per side, each the half-outline closed along the septum.
+  push(kit.area("right_fill", [...mirror(half)], C.supply, { opacity: 0.16 }));
+  push(kit.area("left_fill", [...half], C.demand, { opacity: 0.16 }));
+  anchors.right_fill = [2 * MID - 610, 360];
+  anchors.left_fill = [610, 360];
+
+  push(kit.stroke("heart", outline, { closed: true, strokeWidth: 5, ms: MS.stroke }));
+  anchors.heart = [MID, 362];
+
+  // Septum (split round the hole when there is one) and the AV walls, each
+  // open where its valve lets blood down.
+  const VALVE = 24, VX_R = 2 * MID - 605, VX_L = 605;
+  const HOLE = [300, 336];
+  const walls = [];
   if (defect) {
-    wallChildren.push(kit.stroke("walls__septum_a", [[500, 362], [500, 521]], { strokeWidth: 4, ms: MS.guides }));
-    wallChildren.push(kit.stroke("walls__septum_b", [[500, 249], [500, 328]], { strokeWidth: 4, ms: MS.guides }));
+    walls.push(kit.stroke("walls__septum_a", [[MID, APEX + 4], [MID, HOLE[0]]], { strokeWidth: 6, ms: MS.guides }));
+    walls.push(kit.stroke("walls__septum_b", [[MID, HOLE[1]], [MID, TOP - 16]], { strokeWidth: 6, ms: MS.guides }));
   } else {
-    wallChildren.push(kit.stroke("walls__septum", [[500, 249], [500, 521]], { strokeWidth: 4, ms: MS.guides }));
+    walls.push(kit.stroke("walls__septum", [[MID, APEX + 4], [MID, TOP - 16]], { strokeWidth: 6, ms: MS.guides }));
   }
-  push(kit.group("walls", wallChildren));
-  anchors.walls = [500, 385];
+  walls.push(kit.stroke("walls__av_r1", [[2 * MID - xAV, AV], [VX_R - VALVE, AV]], { strokeWidth: 4, ms: MS.guides }));
+  walls.push(kit.stroke("walls__av_r2", [[VX_R + VALVE, AV], [MID - 44, AV]], { strokeWidth: 4, ms: MS.guides }));
+  walls.push(kit.stroke("walls__av_l1", [[MID, AV], [VX_L - VALVE, AV]], { strokeWidth: 4, ms: MS.guides }));
+  walls.push(kit.stroke("walls__av_l2", [[VX_L + VALVE, AV], [xAV, AV]], { strokeWidth: 4, ms: MS.guides }));
+  push(kit.group("walls", walls));
+  anchors.walls = [MID, 362];
 
-  push(kit.text("ra", [408, 472], "RA", { fontSize: 32, color: C.supply }));
-  push(kit.text("rv", [408, 294], "RV", { fontSize: 32, color: C.supply }));
-  push(kit.text("la", [592, 472], "LA", { fontSize: 32, color: C.demand }));
-  push(kit.text("lv", [592, 294], "LV", { fontSize: 32, color: C.demand }));
-  anchors.ra = [408, 472]; anchors.rv = [408, 294]; anchors.la = [592, 472]; anchors.lv = [592, 294];
+  const L = { ra: [VX_R - 4, 438], la: [VX_L + 4, 438], rv: [VX_R + 14, 322], lv: [VX_L - 14, 322] };
+  push(kit.text("ra", L.ra, "RA", { fontSize: 34, color: C.supply }));
+  push(kit.text("rv", L.rv, "RV", { fontSize: 34, color: C.supply }));
+  push(kit.text("la", L.la, "LA", { fontSize: 34, color: C.demand }));
+  push(kit.text("lv", L.lv, "LV", { fontSize: 34, color: C.demand }));
+  Object.assign(anchors, L);
 
-  // Full names are exactly-placed small texts INSIDE the chambers — a solver
-  // label would have nowhere collision-free to go in this crowded interior.
   if (wantLabels) {
-    push(kit.text("label_ra", [408, 434], "Right atrium", { fontSize: 15, color: C.supply }));
-    push(kit.text("label_rv", [408, 332], "Right ventricle", { fontSize: 15, color: C.supply }));
-    push(kit.text("label_la", [592, 434], "Left atrium", { fontSize: 15, color: C.demand }));
-    push(kit.text("label_lv", [592, 332], "Left ventricle", { fontSize: 15, color: C.demand }));
+    push(kit.text("label_ra", [L.ra[0] - 4, L.ra[1] + 40], "Right atrium", { fontSize: 17, color: C.supply }));
+    push(kit.text("label_rv", [L.rv[0], L.rv[1] - 42], "Right ventricle", { fontSize: 17, color: C.supply }));
+    push(kit.text("label_la", [L.la[0] + 4, L.la[1] + 40], "Left atrium", { fontSize: 17, color: C.demand }));
+    push(kit.text("label_lv", [L.lv[0], L.lv[1] - 42], "Left ventricle", { fontSize: 17, color: C.demand }));
   }
 
   if (showFlow) {
-    const FLOW = { strokeWidth: 5.5, ms: 1100 };
-    pushEdge("vein_in", [300, 118], [335, 448], { curve: 0.38, color: C.supply, strokeWidth: FLOW.strokeWidth, ms: FLOW.ms });
-    pushEdge("ra_rv", [408, 418], [408, 352], { color: C.supply, strokeWidth: FLOW.strokeWidth, ms: FLOW.ms });
-    pushEdge("pulm_artery", [352, 348], [425, 600], { curve: 0.3, color: C.supply, strokeWidth: FLOW.strokeWidth, ms: FLOW.ms });
-    pushEdge("pulm_vein", [575, 600], [645, 480], { curve: 0.35, color: C.demand, strokeWidth: FLOW.strokeWidth, ms: FLOW.ms });
-    pushEdge("la_lv", [592, 418], [592, 352], { color: C.demand, strokeWidth: FLOW.strokeWidth, ms: FLOW.ms });
-    pushEdge("aorta", [648, 340], [690, 122], { curve: 0.38, color: C.demand, strokeWidth: FLOW.strokeWidth, ms: FLOW.ms });
+    const xl = 2 * MID - edgeAt(450);
+    flow("vein_in", [[322, 146], [238, 200], [216, 320], [230, 420], [xl - 6, 450], [xl + 30, 450]], C.supply);
+    flow("ra_rv", [[VX_R, AV + 30], [VX_R, AV - 34]], C.supply, 4.5);
+    flow("pulm_artery", [[MID - 30, 340], [MID - 26, AV + 20], [MID - 26, TOP - 40], [MID - 34, TOP + 20], [448, 566], [414, 580]], C.supply);
+    flow("pulm_vein", [[586, 580], [660, 566], [682, TOP + 12], [672, TOP - 30]], C.demand);
+    flow("la_lv", [[VX_L, AV + 30], [VX_L, AV - 34]], C.demand, 4.5);
+    const xr = edgeAt(290);
+    flow("aorta", [[xr - 34, 292], [xr + 20, 280], [790, 230], [772, 168], [694, 144]], C.demand);
     if (wantLabels) {
-      label("label_vc", [191, 283], "left", "Vena cava", C.supply, 18);
-      label("label_pa", [312, 496], "left", "Pulmonary artery", C.supply, 18);
-      label("label_pv", [700, 545], "right", "Pulmonary vein", C.demand, 18);
-      label("label_ao", [752, 247], "right", "Aorta", C.demand, 18);
+      label("label_vc", [216, 320], "left", "Vena cava", C.supply, 20);
+      label("label_pa", [MID - 34, TOP + 26], "left", "Pulmonary artery", C.supply, 20);
+      label("label_pv", [682, TOP + 16], "right", "Pulmonary vein", C.demand, 20);
+      label("label_ao", [790, 230], "right", "Aorta", C.demand, 20);
       attached["aorta"] = [...(attached["aorta"] ?? []), "label_ao"];
     }
   }
 
   if (defect) {
-    pushEdge("defect", [548, 350], [452, 350], { color: C.accent, strokeWidth: 4.5, ms: MS.connector });
-    if (wantLabels) label("label_defect", [500, 240], "below", "Septal defect (shunt)", C.accent, 18);
+    const y = (HOLE[0] + HOLE[1]) / 2;
+    push(kit.stroke("defect", [[MID + 52, y], [MID - 52, y]], { arrowhead: "end", color: C.accent, strokeWidth: 5, ms: MS.connector }));
+    anchors.defect = [MID, y];
+    if (wantLabels) label("label_defect", [MID, APEX - 6], "below", "Septal defect (shunt)", C.accent, 20);
   }
 
   if (typeof params.title === "string" && params.title.trim() !== "") {
