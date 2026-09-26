@@ -639,7 +639,10 @@ describe("welfare regions", () => {
     // pre-existing vertex and shifts the label's centroid anchor.
     const free = layoutSupplyDemand({ regions: ["consumer_surplus"] });
     const onCurve = free.curveSamples!["demand_curve"].filter(([x]) => x <= free.anchors["equilibrium_point"][0]).length;
-    expect(areaPts(free, "cs_region").length).toBe(onCurve + 2);
+    // +3 since 2026-09-26: the areas start AT the price axis when the curves
+    // only stop short of it by the margin, so the curve's straight
+    // continuation adds one vertex there (Hans: the revenue stopped short).
+    expect(areaPts(free, "cs_region").length).toBe(onCurve + 3);
 
     // And a TAX figure keeps its old vertex count too, from the other side:
     // there the closing corner IS the curve's value at Q_t — the same
@@ -648,7 +651,7 @@ describe("welfare regions", () => {
     const taxed = layoutSupplyDemand({ tax: { amount: 18 }, regions: ["consumer_surplus"] });
     const qT = taxed.anchors["price_buyers_point"][0];
     const onCurveTaxed = taxed.curveSamples!["demand_curve"].filter(([x]) => x <= qT).length;
-    expect(areaPts(taxed, "cs_region").length).toBe(onCurveTaxed + 2);
+    expect(areaPts(taxed, "cs_region").length).toBe(onCurveTaxed + 3);
   });
 
   test("the wedge rectangle spans the two prices and ends at the traded quantity", () => {
@@ -677,10 +680,11 @@ describe("welfare regions", () => {
   // independently here — (P* − P_control) · (Q_short − D0) — from anchors
   // and curveSamples the regions block never touches, not read back off
   // transfer_region itself.
-  test("a price control has no wedge, and its transfer rectangle is pinned to (P* − P_control)·(Q_short − D0)", () => {
+  test("a price control has no wedge, and its transfer rectangle is pinned to (P* − P_control)·(Q_short − 0)", () => {
     const expectedTransferArea = (l: SceneLayout, controlPriceLogical: number, shortSideCurve: "supply_curve" | "demand_curve") => {
       const pStarLogical = l.anchors["equilibrium_point"][1];
-      const d0Logical = l.curveSamples!["demand_curve"][0][0]; // logical x of domain D0 — same for both curves
+      // From the price axis (quantity 0) since 2026-09-26 — every unit traded.
+      const d0Logical = l.frame!.box.x0;
       const qShortLogical = solveForX(l.curveSamples![shortSideCurve], controlPriceLogical);
       if (qShortLogical === null) throw new Error(`could not solve ${shortSideCurve} for the control price`);
       return Math.abs(pStarLogical - controlPriceLogical) * Math.abs(qShortLogical - d0Logical);

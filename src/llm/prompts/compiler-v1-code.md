@@ -1,7 +1,7 @@
 - **Five uses of a code element — decide which one the request means, then set only its fields:**
   1. **Compute** (numbers behind a template or your text): `show: "none"`; a template param reads `"{id.var}"`, your own text reads `{id.var}` inside its words. Nothing of the script is drawn.
   2. **Figure** (a chart or table no template draws): `show: "output"` (the default); `feel` defaults to drawcast — the chart in the drawing's hand.
-  3. **Interactive** (the viewer turns knobs): `controls` + control literals; knobs drawn on the canvas with `pane: "controls", show: "code"`, or in the ⊕ tray with `show: "output"`; `run` sweeps them inside the lesson, `explore: {code}` hands them over.
+  3. **Interactive** (the viewer turns knobs): `controls` + control literals; `pane: "controls"` draws the knobs under the script's own output (add `show: "code"` for the knobs alone, beside a template the script feeds), or leave them in the ⊕ tray with `show: "output"`; `run` sweeps them inside the lesson, `explore: {code}` hands them over.
   4. **Lesson about the code**: `show: "left" | "right" | "above" | "below"` (+ `lines`, `frame`); step `<id>_line_k` one per beat, `marks` over the phrase being explained, an `ask` with `code` for "now you write it"; `feel` defaults to native — it should look like the real tool.
   5. **Machine**: `language: "basic"`, or a `game` with `frame: "c64"`.
   Every script, hidden or shown, can be opened and edited by the viewer from the ⊕ tray — never show code only so it can be inspected. `feel: "drawcast" | "native"` overrides the chart's look for any use.

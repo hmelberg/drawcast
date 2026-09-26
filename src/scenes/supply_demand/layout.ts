@@ -480,7 +480,14 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     // demand curve's own start and PS the supply curve's own start and the
     // areas stop tiling as soon as the two elasticities differ, so the
     // welfare identity breaks by the width of the mismatch.
-    const qLeft = Math.max(D0, demandPts[0][0], supplyPts[0][0]);
+    // …and when both curves start at the plot's ordinary margin (D0 — they
+    // run to the axis in all but name), that shared edge IS the price axis:
+    // every area starts at quantity 0, each curve continued straight across
+    // the margin, as the readout's numbers are (Hans 2026-09-26: the tax
+    // revenue stopped short of the y axis). Only a curve that elasticity has
+    // pulled well right of the axis keeps its own start as the edge.
+    const qCurves = Math.max(D0, demandPts[0][0], supplyPts[0][0]);
+    const qLeft = qCurves <= D0 + 1e-9 ? 0 : qCurves;
     // Nothing to shade: the traded quantity is left of where both curves
     // exist (a ceiling on inelastic demand does this). Shading it anyway
     // shipped a zero-area two-point "area" that rendered as a bare line.
@@ -525,6 +532,8 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     // Zero-height for a price control, where both sides face one price, so
     // this skips itself without a branch on iv.kind.
     if (want.has("government_revenue") && shadeable && Math.abs(pBuyers - pSellers) > 0.5) {
+      // Revenue is the tax on every unit traded: from qLeft, which is the
+      // price axis itself in the ordinary case (see qLeft above).
       const pts = ctx.toLogical([[qLeft, pSellers], [qTraded, pSellers], [qTraded, pBuyers], [qLeft, pBuyers]]);
       push(area("wedge_region", pts, COLORS.accent));
       anchors["wedge_region"] = centroid(pts);
@@ -800,8 +809,9 @@ function spanFrom(pts: Pt[], x0: number, x1: number): Pt[] {
   const inner = pts.filter(([x]) => x >= x0 && x <= x1);
   const out = [...inner];
   if (!(inner.length > 0 && inner[0][0] - x0 < 1e-9)) {
-    const y0 = interpolateAtX(pts, x0);
-    if (y0 !== null) out.unshift([x0, y0]);
+    // heightAt continues the curve straight past its first sample: the
+    // areas may start at the axis, across the plot's thin margin.
+    out.unshift([x0, heightAt(pts, x0)]);
   }
   if (!(inner.length > 0 && x1 - inner[inner.length - 1][0] < 1e-9)) {
     const y1 = interpolateAtX(pts, x1);
