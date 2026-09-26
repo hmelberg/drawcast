@@ -861,11 +861,11 @@
           "points": [
             [
               70,
-              112
+              155
             ],
             [
               250,
-              112
+              155
             ]
           ]
         },
@@ -877,7 +877,7 @@
           "x": 110,
           "y": 600,
           "bind": {
-            "y": "600 - 7.35*t*t"
+            "y": "600 - 6.953*t*t"
           },
           "style": {
             "fill": "#8f887c",
@@ -892,7 +892,7 @@
           "x": 210,
           "y": 600,
           "bind": {
-            "y": "600 - 270*ln((exp(0.2333*t) + exp(-0.2333*t))/2)"
+            "y": "600 - 255.4*ln((exp(0.2333*t) + exp(-0.2333*t))/2)"
           },
           "style": {
             "fill": "#b5482e",
@@ -926,7 +926,7 @@
           "type": "text",
           "text": "{t} s",
           "x": 160,
-          "y": 80,
+          "y": 125,
           "size": 24
         },
         {
@@ -935,7 +935,7 @@
           "shape": "circle",
           "radius": 11,
           "x": 110,
-          "y": 592.6,
+          "y": 593,
           "style": {
             "color": "#8f887c",
             "fill": "#8f887c",
@@ -948,7 +948,7 @@
           "shape": "circle",
           "radius": 11,
           "x": 110,
-          "y": 570.6,
+          "y": 572.2,
           "style": {
             "color": "#8f887c",
             "fill": "#8f887c",
@@ -961,7 +961,7 @@
           "shape": "circle",
           "radius": 11,
           "x": 110,
-          "y": 533.9,
+          "y": 537.4,
           "style": {
             "color": "#8f887c",
             "fill": "#8f887c",
@@ -974,7 +974,7 @@
           "shape": "circle",
           "radius": 11,
           "x": 110,
-          "y": 482.4,
+          "y": 488.8,
           "style": {
             "color": "#8f887c",
             "fill": "#8f887c",
@@ -987,7 +987,7 @@
           "shape": "circle",
           "radius": 11,
           "x": 110,
-          "y": 416.2,
+          "y": 426.2,
           "style": {
             "color": "#8f887c",
             "fill": "#8f887c",
@@ -1000,7 +1000,7 @@
           "shape": "circle",
           "radius": 11,
           "x": 110,
-          "y": 335.4,
+          "y": 349.7,
           "style": {
             "color": "#8f887c",
             "fill": "#8f887c",
@@ -1013,7 +1013,7 @@
           "shape": "circle",
           "radius": 11,
           "x": 110,
-          "y": 239.9,
+          "y": 259.3,
           "style": {
             "color": "#8f887c",
             "fill": "#8f887c",
@@ -1026,7 +1026,7 @@
           "shape": "circle",
           "radius": 11,
           "x": 110,
-          "y": 129.6,
+          "y": 155,
           "style": {
             "color": "#8f887c",
             "fill": "#8f887c",
@@ -1039,7 +1039,7 @@
           "shape": "circle",
           "radius": 11,
           "x": 210,
-          "y": 592.7,
+          "y": 593.1,
           "style": {
             "color": "#b5482e",
             "fill": "#b5482e",
@@ -1052,7 +1052,7 @@
           "shape": "circle",
           "radius": 11,
           "x": 210,
-          "y": 571.6,
+          "y": 573.1,
           "style": {
             "color": "#b5482e",
             "fill": "#b5482e",
@@ -1065,7 +1065,7 @@
           "shape": "circle",
           "radius": 11,
           "x": 210,
-          "y": 538.7,
+          "y": 542,
           "style": {
             "color": "#b5482e",
             "fill": "#b5482e",
@@ -1078,7 +1078,7 @@
           "shape": "circle",
           "radius": 11,
           "x": 210,
-          "y": 496.4,
+          "y": 502,
           "style": {
             "color": "#b5482e",
             "fill": "#b5482e",
@@ -1091,7 +1091,7 @@
           "shape": "circle",
           "radius": 11,
           "x": 210,
-          "y": 447.2,
+          "y": 455.4,
           "style": {
             "color": "#b5482e",
             "fill": "#b5482e",
@@ -1104,7 +1104,7 @@
           "shape": "circle",
           "radius": 11,
           "x": 210,
-          "y": 393.3,
+          "y": 404.4,
           "style": {
             "color": "#b5482e",
             "fill": "#b5482e",
@@ -1117,7 +1117,7 @@
           "shape": "circle",
           "radius": 11,
           "x": 210,
-          "y": 336.1,
+          "y": 350.4,
           "style": {
             "color": "#b5482e",
             "fill": "#b5482e",
@@ -1130,7 +1130,7 @@
           "shape": "circle",
           "radius": 11,
           "x": 210,
-          "y": 276.8,
+          "y": 294.3,
           "style": {
             "color": "#b5482e",
             "fill": "#b5482e",
@@ -1226,7 +1226,7 @@
           "tex": "F = mg - kv^2",
           "size": 30,
           "x": 160,
-          "y": 40,
+          "y": 75,
           "details": "Newton’s second law for the falling ball: $$m\\,a = mg - k v^2$$ where $k$ depends on the ball’s size and shape and on the air’s density."
         }
       ],

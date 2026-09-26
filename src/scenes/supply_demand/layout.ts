@@ -68,6 +68,10 @@ export interface SupplyDemandParams {
   units?: { price?: [number, number]; quantity?: [number, number]; price_unit?: string; quantity_unit?: string };
   /** Which computed values to show as a small labelled panel (READOUT_KEYS). */
   readout?: string[];
+  /** "top" (default): rows above the plot, which gives up that height.
+   *  "inside": one column on a translucent panel in the plot's least busy
+   *  corner — the plot keeps its size, and the curves show through. */
+  readout_at?: "top" | "inside";
 }
 
 /**
@@ -95,9 +99,9 @@ const VALUE_NAME: Record<ReadoutKey, { en: string; nb: string }> = {
   quantity: { en: "Quantity", nb: "Mengde" },
   price_new: { en: "New price", nb: "Ny pris" },
   quantity_new: { en: "New quantity", nb: "Ny mengde" },
-  qd: { en: "Quantity demanded", nb: "Etterspurt mengde" },
-  qs: { en: "Quantity supplied", nb: "Tilbudt mengde" },
-  quantity_traded: { en: "Quantity traded", nb: "Omsatt mengde" },
+  qd: { en: "Demanded", nb: "Etterspurt" },
+  qs: { en: "Supplied", nb: "Tilbudt" },
+  quantity_traded: { en: "Traded", nb: "Omsatt" },
   price_buyers: { en: "Buyers pay", nb: "Kjøperne betaler" },
   price_sellers: { en: "Sellers get", nb: "Selgerne får" },
   cs: { en: "Consumer surplus", nb: "Konsumentoverskudd" },
@@ -191,8 +195,10 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
   // it half its width and made the market a tall strip — Hans: "the figure
   // becomes taller than wider". A strip costs a little height instead.
   const full = plotArea();
-  const readout = readoutRows(params.readout, params.units ?? {}, full.x1 - full.x0 - READOUT_CAPTION_ROOM);
-  const plot = readout ? { ...full, y1: full.y1 - readout.h } : full;
+  const inside = params.readout_at === "inside";
+  // Inside, one column (room 0): the panel should be narrow, not a slab.
+  const readout = readoutRows(params.readout, params.units ?? {}, inside ? 0 : full.x1 - full.x0 - READOUT_CAPTION_ROOM);
+  const plot = readout && !inside ? { ...full, y1: full.y1 - readout.h } : full;
   const sx = linearScale([0, 100], [plot.x0, plot.x1]);
   const sy = linearScale([0, 100], [plot.y0, plot.y1]);
   const ctx: Ctx = { sx, sy, toLogical: (pts) => pts.map(([x, y]): Pt => [sx(x), sy(y)]) };
@@ -395,7 +401,15 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
         // Every downstream point is read off `iv` from here on, not off the
         // raw qT/pB/pS locals: iv is the single source of truth Tasks 3 and 4
         // extend to price controls and welfare regions.
-        push(guides("tax_guide_lines", [iv.qTraded, iv.pBuyers], ctx, plot));
+        // Both prices get their line to the price axis (Hans 2026-09-26): the
+        // buyers' through the with-tax crossing, the sellers' at the same
+        // quantity — one id, so they are drawn, and read, together.
+        {
+          const buyers = guides("tax_guide_lines__buyers", [iv.qTraded, iv.pBuyers], ctx, plot);
+          const ps = ctx.toLogical([[iv.qTraded, iv.pSellers]])[0];
+          const sellers: StrokeDrawable = { ...buyers, id: "tax_guide_lines__sellers", pts: [[plot.x0, ps[1]], ps] };
+          push({ id: "tax_guide_lines", kind: "group", children: [buyers, sellers], z: Z_STROKE, style: buyers.style, drawOpts: buyers.drawOpts });
+        }
         const pbL = ctx.toLogical([[iv.qTraded, iv.pBuyers]])[0];
         const psL = ctx.toLogical([[iv.qTraded, iv.pSellers]])[0];
         push(dot("tax_equilibrium_point", pbL));
@@ -477,7 +491,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       const pts = ctx.toLogical(simplify([...upper, [qTraded, pBuyers], [qLeft, pBuyers]]));
       push(area("cs_region", pts, COLORS.region1));
       anchors["cs_region"] = centroid(pts);
-      label("label_CS", anchors["cs_region"], "above-right", "Consumer surplus", COLORS.ink, "cs_region");
+      label("label_CS", anchors["cs_region"], "center", "Consumer surplus", AREA_INK.cs, "cs_region");
     }
 
     if (want.has("producer_surplus") && shadeable) {
@@ -485,7 +499,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       const pts = ctx.toLogical(simplify([[qLeft, pSellers], [qTraded, pSellers], ...lower.reverse()]));
       push(area("ps_region", pts, COLORS.region2));
       anchors["ps_region"] = centroid(pts);
-      label("label_PS", anchors["ps_region"], "below-right", "Producer surplus", COLORS.ink, "ps_region");
+      label("label_PS", anchors["ps_region"], "center", "Producer surplus", AREA_INK.ps, "ps_region");
     }
 
     // qLeft clamps the interval here too — when qTraded is left of it the
@@ -504,7 +518,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
           drawOpts: defaultDrawOpts("sketch", SKETCH_MS.region),
         });
         anchors["dwl_region"] = centroid(pts);
-        label("label_DWL", anchors["dwl_region"], "right", "Deadweight loss", COLORS.regionLoss, "dwl_region");
+        label("label_DWL", anchors["dwl_region"], "center", "Deadweight loss", AREA_INK.dwl, "dwl_region");
       }
     }
 
@@ -519,18 +533,8 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       // untaxed guide_lines (at pStar) and its right edge grazes the with-tax
       // guides — label the wedge's upper band instead (between pStar and
       // pBuyers), the one strip a busy figure with both curves, both guide
-      // sets and a deadweight-loss region leaves clear.
-      label(
-        "label_wedge",
-        ctx.toLogical([[(qLeft + qTraded) / 2, (pStar + pBuyers) / 2]])[0],
-        "above",
-        // The readout's own words (VALUE_NAME), which are also shorter: at
-        // "Government revenue" the label outgrew a narrow wedge and landed on
-        // both curves (2026-09-26).
-        pBuyers > pSellers ? "Tax revenue" : "Subsidy cost",
-        COLORS.accent,
-        "wedge_region",
-      );
+      // sets and a deadweight-loss region leaves clear. Centred IN that band.
+      label("label_wedge", ctx.toLogical([[(qLeft + qTraded) / 2, (pStar + pBuyers) / 2]])[0], "center", pBuyers > pSellers ? "Tax revenue" : "Subsidy cost", COLORS.accent, "wedge_region");
     }
 
     // A transfer exists when both sides face ONE price (so there is no wedge)
@@ -540,7 +544,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       const pts = ctx.toLogical([[qLeft, pStar], [qTraded, pStar], [qTraded, pBuyers], [qLeft, pBuyers]]);
       push(area("transfer_region", pts, COLORS.accent));
       anchors["transfer_region"] = centroid(pts);
-      label("label_transfer", anchors["transfer_region"], "right", "Transfer", COLORS.accent, "transfer_region");
+      label("label_transfer", anchors["transfer_region"], "center", "Transfer", COLORS.accent, "transfer_region");
     }
   }
 
@@ -568,12 +572,55 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     // Right-aligned rows in the strip the plot gave up, top row first; the
     // y-axis name keeps the strip's left end.
     const members: string[] = [];
+    // Inside: a panel in the corner the curves cross least — a softer rule
+    // than "never over the figure" (Hans 2026-09-26): the paper is
+    // translucent, so what it covers still shows.
+    let right = full.x1;
+    let top = full.y1 + 6;
+    if (inside) {
+      const w = (items[0]?.w ?? 0) + 24;
+      const h = rows.h;
+      const corners: [number, number][] = [
+        [plot.x1 - 8, (plot.y0 + plot.y1) / 2 + h / 2], // right of E, between S and D
+        [plot.x1 - 8, plot.y1 - 8],
+        [plot.x0 + 16 + w, plot.y1 - 8],
+        [plot.x1 - 8, plot.y0 + 16 + h],
+      ];
+      // How much curve runs through a candidate panel: walked along every
+      // segment, since a straight curve is two points and would count as none.
+      const ink = (r: number, t: number): number => {
+        const box = { x0: r - w, x1: r, y0: t - h, y1: t };
+        let n = 0;
+        for (const pts of Object.values(curveSamples)) {
+          for (let i = 1; i < pts.length; i++) {
+            const [a, b] = [pts[i - 1], pts[i]];
+            const steps = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 6));
+            for (let k = 0; k <= steps; k++) {
+              const x = a[0] + ((b[0] - a[0]) * k) / steps;
+              const y = a[1] + ((b[1] - a[1]) * k) / steps;
+              if (x >= box.x0 && x <= box.x1 && y >= box.y0 && y <= box.y1) n++;
+            }
+          }
+        }
+        return n;
+      };
+      [right, top] = corners.reduce((best, c) => (ink(c[0], c[1]) < ink(best[0], best[1]) ? c : best));
+      const pts: Pt[] = [
+        [right - w, top - h],
+        [right, top - h],
+        [right, top + 4],
+        [right - w, top + 4],
+      ];
+      push({ id: "readout_panel", kind: "area", pts, z: Z_TEXT - 1, style: defaultStyle({ color: COLORS.guide, fill: COLORS.paper, opacity: 0.82, strokeWidth: 1 }), drawOpts: defaultDrawOpts("sketch", SKETCH_MS.text) });
+      members.push("readout_panel");
+      right -= 12;
+    }
     for (const it of items) {
       const k = it.key;
       const id = `readout_${k}`;
-      const x1 = full.x1 - it.right;
+      const x1 = right - it.right;
       const x0 = x1 - it.w;
-      const y = full.y1 + 6 - FONT * 0.9 - it.row * LINE;
+      const y = top - FONT * 0.9 - it.row * LINE;
       const raw = v[k];
       const text = raw === undefined ? "—" : formatValue(k === "revenue" ? Math.abs(raw) : raw, VALUE_KIND[k], units);
       const line = (sub: string, pos: Pt, t: string, anchor: "start" | "end"): Drawable => ({
@@ -716,6 +763,14 @@ function guides(id: string, domainPt: Pt, ctx: Ctx, plot: ReturnType<typeof plot
     drawOpts: defaultDrawOpts("sketch", SKETCH_MS.guides),
   };
 }
+
+/**
+ * An area's name is written INSIDE it, in its own colour (Hans 2026-09-26) —
+ * darkened where the fill itself is too pale to read as ink (the yellow and
+ * the green); the label solver falls back outside, with a leader, only when
+ * the area is too small or too crossed to hold the words.
+ */
+const AREA_INK = { cs: "#a07a10", ps: "#4d7a3f", dwl: "#a8454a" } as const;
 
 function area(id: string, pts: Pt[], color: string): Drawable {
   return {
@@ -1016,28 +1071,17 @@ function readoutRows(requested: string[] | undefined, units: NonNullable<SupplyD
     const valueW = kit.textWidth(withUnit("0 000", VALUE_KIND[k] === "quantity" ? units.quantity_unit : units.price_unit), FONT);
     return Math.max(...names.map((n) => kit.textWidth(n, FONT))) + 14 + valueW;
   };
-  // Greedy rows, then each row laid out from its right end.
-  const rows: { key: ReadoutKey; w: number }[][] = [[]];
-  let used = 0;
-  for (const k of keys) {
-    const w = width(k);
-    const need = (rows[rows.length - 1].length ? READOUT_ITEM_GAP : 0) + w;
-    if (rows[rows.length - 1].length > 0 && used + need > room) {
-      rows.push([]);
-      used = 0;
-    }
-    rows[rows.length - 1].push({ key: k, w });
-    used += (rows[rows.length - 1].length > 1 ? READOUT_ITEM_GAP : 0) + w;
-  }
-  const items: ReadoutRows["items"] = [];
-  rows.forEach((row, r) => {
-    let right = 0;
-    for (const it of [...row].reverse()) {
-      items.push({ key: it.key, w: it.w, row: r, right });
-      right += it.w + READOUT_ITEM_GAP;
-    }
+  // A GRID, not ragged rows (Hans 2026-09-26: "not aligned properly"): every
+  // cell as wide as the widest, so names start on one line and values end on
+  // another down every column; as many columns as the room holds, filled in
+  // the author's order, the whole grid set against the plot's right edge.
+  const w = Math.max(...keys.map(width));
+  const cols = Math.max(1, Math.min(keys.length, Math.floor((room + READOUT_ITEM_GAP) / (w + READOUT_ITEM_GAP))));
+  const rows = Math.ceil(keys.length / cols);
+  const items: ReadoutRows["items"] = keys.map((key, i) => {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    return { key, w, row, right: (cols - 1 - col) * (w + READOUT_ITEM_GAP) };
   });
-  // Keep the author's order for ids/drawing.
-  items.sort((a, b) => keys.indexOf(a.key) - keys.indexOf(b.key));
-  return { items, h: rows.length * LINE + 22, FONT, LINE };
+  return { items, h: rows * LINE + 22, FONT, LINE };
 }

@@ -21,6 +21,29 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-26 — Layout: established principles, aware of how it looks
+
+Hans, across several examples: readout numbers "not aligned properly";
+area names belong "inside the relevant area … the same color as the area …
+if it gets too crowded and it is outside, we may have to have lines from the
+text to the area"; the falling balls' drawing "is further down than the
+figure … it would probably be better if they were aligned"; "it is also ok
+to treat the screen a bit like a blackboard and sometimes a bit chaotic
+(even with overlays) … but when we have space we should be aware of sizes
+and placement and layout in general. Basically just use good and
+established principles for good layout and design."
+
+Distilled: alignment (shared edges and baselines: a drawing's ground on the
+chart's axis, a table in true columns), proximity (a name in or on what it
+names, a leader when it cannot be), consistency (the name in the thing's own
+colour), and space used on purpose — with overlap allowed where it helps
+(a translucent panel in an empty corner) rather than forbidden everywhere.
+
+Status: supply_demand area names centred in their areas in their colours
+(leader when displaced), the readout a true grid with shorter names and an
+`inside` panel option, both price guides for a tax; the falling-ball drawing
+aligned to the chart; the prompt's "Show the thing" bullet says to align.
+
 ### 2026-09-26 — Write it down as you say it: the figure as a memory aid
 
 Hans, on "Statistical power, one sample size at a time": "As you play or

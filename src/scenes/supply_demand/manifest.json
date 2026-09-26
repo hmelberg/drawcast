@@ -322,7 +322,15 @@
           "type": "string",
           "x-translate": false
         },
-        "description": "Live numbers beside the plot, one line per key; they follow animate and sliders. Keys: price, quantity (equilibrium), price_new, quantity_new (after a shift), quantity_traded, price_buyers, price_sellers, qd, qs, shortage, surplus (price control), cs, ps, dwl, revenue (<0: subsidy cost), transfer. A text element reads the same as {market.dwl}."
+        "description": "Live numbers above the plot. Keys: price, quantity, price_new, quantity_new, quantity_traded, price_buyers, price_sellers, qd, qs, shortage, surplus, cs, ps, dwl, revenue, transfer. Text reads them as {market.dwl}."
+      },
+      "readout_at": {
+        "type": "string",
+        "enum": [
+          "top",
+          "inside"
+        ],
+        "description": "top (default) or inside: a translucent panel in the emptiest corner."
       }
     }
   },

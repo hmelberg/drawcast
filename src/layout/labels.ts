@@ -29,10 +29,15 @@ import type { Side } from "../spec/types";
 
 export type { Side };
 
+/** Where a label goes relative to its anchor. "center" is ON the anchor —
+ *  an area's name inside the area (Hans 2026-09-26) — and falls back to the
+ *  eight sides, with a leader when it has to go far. */
+export type LabelSide = Side | "center";
+
 export interface LabelRequest {
   id: string;
   anchor: Pt;
-  side: Side;
+  side: LabelSide;
   text: string;
   fontSize: number;
   style: ResolvedStyle;
@@ -148,7 +153,8 @@ export function obstacleBoxes(drawables: Drawable[], measure: MeasureFn): Obstac
   return obstacles;
 }
 
-const DIRS: Record<Side, [number, number]> = {
+const DIRS: Record<LabelSide, [number, number]> = {
+  center: [0, 0],
   above: [0, 1],
   below: [0, -1],
   left: [-1, 0],
@@ -198,7 +204,7 @@ function wrapLines(text: string, fontSize: number, measure: MeasureFn): string[]
   return wrapText(text, fontSize, MAX_LABEL_WIDTH, measure);
 }
 
-function candidateBox(anchor: Pt, side: Side, r: number, w: number, h: number): BBox {
+function candidateBox(anchor: Pt, side: LabelSide, r: number, w: number, h: number): BBox {
   const [dx, dy] = DIRS[side];
   const cx = anchor[0] + dx * (r + (dx !== 0 ? w / 2 : 0));
   const cy = anchor[1] + dy * (r + (dy !== 0 ? h / 2 : 0));
@@ -255,7 +261,7 @@ export function placeLabels(
     const h = lines.length * req.fontSize * LINE_HEIGHT;
     const ignored = req.ignore && req.ignore.length > 0 ? new Set(req.ignore) : null;
     const inPlay = ignored ? blocked.filter((o) => o.id === undefined || !ignored.has(o.id)) : blocked;
-    const sides: Side[] = [req.side, ...FALLBACK_ORDER.filter((s) => s !== req.side)];
+    const sides: LabelSide[] = [req.side, ...FALLBACK_ORDER.filter((s) => s !== req.side)];
     const r0 = 10 + req.fontSize * 0.55;
     const rings = [1, 2.2, 3.6, 6, 9, 13].map((k) => r0 * k);
 
