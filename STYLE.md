@@ -21,6 +21,25 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-26 — Exaggerate: big areas, big changes, corner cases
+
+Hans, on "How severe is a disease?": "one of the areas is quite small. In
+explanation and in visual explanations in particular, it is often useful to
+have examples that are easy to understand visually and that means usually
+large areas (not always, sometimes a small area is natural and what we
+want!). In general corner solutions, making things exaggerated (using large
+changes) makes a point better than small changes."
+
+Distilled: choose the example's numbers for what they SHOW. A difference the
+eye has to hunt for teaches less than one it cannot miss; push the case
+toward the corner (a big tax, a patient who loses nearly everything) unless
+the smallness is itself the lesson. When two big areas would overlap, show
+them one at a time (hide/show) rather than shrinking one.
+
+Status: one sentence in the prompt's "Explain step by step, through an
+example" rule; the severity example rebuilt (Anna loses 30 of 48 QALYs,
+Bjørn 16.5 of 17), its two areas shown in turn.
+
 ### 2026-09-26 — The thing beside its chart; the heading is not part of the plot
 
 Hans, on the falling ball: "This drawcast belongs to a class of explanations

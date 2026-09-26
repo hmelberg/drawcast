@@ -370,6 +370,8 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
     // compared on one figure (a young one losing much, an old one losing
     // most of little). The first keeps the plain ids; the k-th gets `_k`.
     let leftNotes = 0;
+    /** Free paper under a patient's own path that a later note may share. */
+    const slots: { x: number; next: number }[] = [];
     const sfs = (Array.isArray(params.shortfall) ? params.shortfall : params.shortfall ? [params.shortfall] : []).slice(0, 3);
     sfs.forEach((sf, k) => {
       if (profiles.length === 0) return;
@@ -456,10 +458,17 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
         top = 0.15;
       } else if (sx(ends.get(target.id) ?? indexAge) - sx(indexAge) >= NOTE_W + 30) {
         noteX = sx(indexAge) + 14;
-        top = 0.42;
+        top = 0.5;
+        slots.push({ x: noteX, next: top - 0.26 });
+      } else if (slots.length > 0) {
+        // Under an earlier patient's path, below that patient's note.
+        const slot = slots[0];
+        noteX = slot.x;
+        top = slot.next;
+        slot.next -= 0.26;
       } else {
         noteX = plot.x0 + 24;
-        top = 0.42 - 0.3 * leftNotes++;
+        top = 0.5 - 0.26 * leftNotes++;
       }
       const noteColor = several ? target.color : COLORS.guide;
       push({
