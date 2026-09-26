@@ -76,6 +76,16 @@ export interface AxisLabelPlacementOpts {
   captionDrop?: boolean;
 }
 
+/** Beside the y arrow's tip: how far right of the axis a caption starts. */
+const Y_BESIDE_GAP = 14;
+
+/** The card heading's box (logical, y-up), set by layoutSpec for the page
+ *  being laid out; null when the page has no top heading. */
+let headingBox: { x: number; y: number; w: number; h: number } | null = null;
+export function setHeadingBox(b: { x: number; y: number; w: number; h: number } | null): void {
+  headingBox = b;
+}
+
 /**
  * Where an axis caption goes, as one rule shared by every axes-shaped scene
  * (B13). The compromise Hans stated: the caption must never steal plot space
@@ -121,14 +131,28 @@ export function axisLabelPlacement(
     return { pos: [tipX, y], anchor: "end", inline: false };
   }
   const tipY = plot.y1 + AXIS_OVERHANG;
-  return {
-    pos: [
-      Math.max(plot.x0, CANVAS_EDGE_MARGIN + w / 2),
-      Math.min(tipY + Y_LABEL_GAP + h / 2, CANVAS.h - CANVAS_EDGE_MARGIN - h / 2),
-    ],
-    anchor: "middle",
-    inline: false,
-  };
+  const above: [number, number] = [
+    Math.max(plot.x0, CANVAS_EDGE_MARGIN + w / 2),
+    Math.min(tipY + Y_LABEL_GAP + h / 2, CANVAS.h - CANVAS_EDGE_MARGIN - h / 2),
+  ];
+  // Above the arrow tip is the card heading's strip. When the caption would
+  // reach into the heading itself — a wide title, a long caption — it goes
+  // BESIDE the tip instead: right of the arrow, just under the underline
+  // (2026-09-25; the revision agents shortened captions by hand to dodge
+  // the heading-intrusion lint).
+  if (headingBox) {
+    const cap = { x: above[0] - w / 2, y: above[1] - h / 2, w, h };
+    const hb = headingBox;
+    const overlaps = cap.x < hb.x + hb.w + 6 && cap.x + cap.w > hb.x - 6 && cap.y + cap.h > hb.y - 4;
+    if (overlaps) {
+      return {
+        pos: [plot.x0 + Y_BESIDE_GAP, Math.min(tipY - h / 2, hb.y - 6 - h / 2)],
+        anchor: "start",
+        inline: false,
+      };
+    }
+  }
+  return { pos: above, anchor: "middle", inline: false };
 }
 
 /** L-shaped axes with arrowheads and axis labels, shared by scenes and tier 2. */

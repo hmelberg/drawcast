@@ -13,6 +13,8 @@ import { layoutElements, type PieceGeometry } from "./tier2";
 import { usesDecimalComma } from "./measures";
 import { detectLang } from "../render/speech";
 import { setFigureLocale } from "../scenes/kit";
+import { setHeadingBox } from "./axes";
+import { HEADING_Y } from "../spec/card";
 import type { MeasureSpec } from "./measures";
 import type { CodeWindow } from "./code";
 import { annotationDrawables, DEFAULT_FIT, padFor } from "./annotate";
@@ -161,6 +163,17 @@ export function layoutSpec(
     const spoken = (spec.commands ?? []).map((c) => c.speak ?? "").join(" ");
     const sniffed = spoken.trim() ? detectLang(spoken) : undefined;
     setFigureLocale({ lang: (spec.lang ?? sniffed ?? "en").toLowerCase().split("-")[0], decimalComma: usesDecimalComma(spec.lang, sniffed) });
+  }
+  // The card heading's box, for axis captions to keep out of (axes.ts):
+  // the title across the top, from its underline up.
+  {
+    const title = (spec.elements ?? []).find((e) => /^card_\d+_title$/.test(e.id) && e.y === HEADING_Y && typeof e.text === "string");
+    if (title) {
+      const font = typeof title.font_size === "number" ? title.font_size : 36;
+      const w = measure(title.text as string, font).w;
+      const underline = HEADING_Y - font * 0.82;
+      setHeadingBox({ x: 500 - w / 2, y: underline, w, h: 750 - underline });
+    } else setHeadingBox(null);
   }
   if (spec.template) {
     const scene = scenes[spec.template];
