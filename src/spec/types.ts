@@ -137,6 +137,8 @@ export interface SpecElement {
   details?: string;
   /** Live player only: stripped from a video export (spec/app-only.ts). */
   app_only?: boolean;
+  /** code: the chart's look — drawcast (the drawing's hand) or native (the library's own). */
+  feel?: "drawcast" | "native";
   // region
   between?: string[];
   // annotation

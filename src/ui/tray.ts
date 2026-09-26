@@ -36,7 +36,8 @@
 
 import type { RenderHandle } from "../render";
 import type { SpecElement } from "../spec/types";
-import { decodeCodeResult, defaultChartStyle, runCode } from "../code/run";
+import { decodeCodeResult, runCode } from "../code/run";
+import { chartFor } from "../code/chart-style";
 import { pathsByCodeId, scanDataTokens, substituteDataTokens, requestedTokens } from "../code/tokens";
 import { decodeFigures } from "../render/decode-figures";
 import { sceneAt } from "../render/plan";
@@ -147,12 +148,14 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   // paused). One declared source (interactivity spec §6), never sniffed.
   const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
   const playable = interactions.includes("piano");
-  // Every script ON SCREEN is editable while paused — no verb required. The
-  // screen is an interactive object, so the tray always offers it, and a
-  // click on the screen itself opens it (below); explore: { code } is the
-  // authored invitation, not what makes it possible.
+  // Every script is editable while paused — no verb required. One ON SCREEN
+  // also opens from a click on it (below); a hidden one (`show: "none"`, a
+  // calculation feeding a chart) is still in the tray, where "view the code"
+  // is always one press away and a change re-runs whatever it feeds (Hans
+  // 2026-09-26). explore: { code } is the authored invitation, not what
+  // makes it possible.
   const editable = (hd.spec.elements ?? []).filter(
-    (e) => e.type === "code" && e.show !== "none" && typeof e.code === "string" && typeof e.language === "string",
+    (e) => e.type === "code" && typeof e.code === "string" && typeof e.language === "string",
   );
   // A machine with a game on it: a paused click on its play mark starts the
   // emulator over the figure (ui/media-modal's surface, so it is app-only by
@@ -386,7 +389,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         // The viewer's own run must land in the look the figure is drawn in —
         // the same default the resolve pass used, or their chart would come
         // back ruled where the author's was sketched (and miss its cache).
-        chart: el.chart ?? defaultChartStyle(hd.style),
+        chart: chartFor(el, hd.style),
         paths,
         onStatus: (_phase, detail) => announce(el.id, (s) => s.status(detail)),
       });
@@ -1564,7 +1567,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
           const result = await runCode({
             language: el.language,
             code,
-            chart: el.chart ?? defaultChartStyle(hd.style), // the answer is drawn in the figure's own hand too
+            chart: chartFor(el, hd.style), // the answer is drawn in the figure's own hand too
             paths: askPaths(step.expect),
             onStatus: (_phase, detail) => announce(el.id, (s) => s.status(detail)),
           });

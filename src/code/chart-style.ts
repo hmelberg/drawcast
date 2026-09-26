@@ -15,7 +15,7 @@
 
 import { COLORS } from "../layout/model";
 
-export const CHART_STYLES = ["seaborn", "xkcd", "plain"] as const;
+export const CHART_STYLES = ["seaborn", "xkcd", "plain", "native"] as const;
 export type ChartStyle = (typeof CHART_STYLES)[number];
 
 /**
@@ -47,15 +47,39 @@ export function isChartStyle(x: unknown): x is ChartStyle {
   return typeof x === "string" && (CHART_STYLES as readonly string[]).includes(x);
 }
 
-/** Only these tiers have a real matplotlib to style. */
+/** Only these tiers have a real plotting library to style: matplotlib, and
+ *  R's ggplot (a theme per run, code/harvest-r.ts). */
 export function stylable(language: string): boolean {
-  return language === "python";
+  return language === "python" || language === "r";
 }
 
-/** A script that never mentions matplotlib pays nothing — importing it to set
+/** A script that never plots pays nothing — importing matplotlib to set
  *  rcParams would be the most expensive no-op in the app. */
-export function plots(code: string): boolean {
-  return /\b(matplotlib|pyplot|plt|seaborn|sns)\b/.test(code);
+export function plots(code: string, language = "python"): boolean {
+  return language === "r" ? /\b(ggplot|qplot)\b/.test(code) : /\b(matplotlib|pyplot|plt|seaborn|sns)\b/.test(code);
+}
+
+/** Whether the chart style changes what a run draws (and so its cache key). */
+export function styled(code: string, language: string): boolean {
+  return stylable(language) && plots(code, language);
+}
+
+/**
+ * The chart style a code element runs with — the ONE place it is decided
+ * (Hans 2026-09-26: "the user should be able to choose … in a tutorial we
+ * would like to keep the native R or Python feel; at other times the
+ * drawcast feel"). An explicit `chart` wins; then `look`; and with neither,
+ * a script whose CODE is on screen — a lesson — looks native, and any other
+ * (output only, knobs only, a calculation) looks like the drawing.
+ */
+export function chartFor(
+  el: { chart?: unknown; feel?: unknown; show?: unknown; pane?: unknown },
+  render?: "sketchy" | "clean",
+): ChartStyle {
+  if (isChartStyle(el.chart)) return el.chart;
+  const codeShown = ["left", "right", "above", "below", "code"].includes(String(el.show)) && el.pane !== "controls";
+  const feel = el.feel === "native" || el.feel === "drawcast" ? el.feel : codeShown ? "native" : "drawcast";
+  return feel === "native" ? "native" : defaultChartStyle(render);
 }
 
 /**
@@ -94,7 +118,10 @@ function fontLines(fontUrl: string | undefined): string[] {
  * origin's /fonts/…). The caller supplies it; see fontLines above.
  */
 export function chartPrelude(style: ChartStyle, code: string, language: string, opts: { fontUrl?: string } = {}): string {
-  if (!stylable(language) || !plots(code)) return "";
+  if (language !== "python" || !plots(code)) return "";
+  // Native: matplotlib's own defaults, and nothing of an earlier run's style
+  // (rcParams are global and outlive a run).
+  if (style === "native") return ["try:", "    import matplotlib as _m", "    _m.rcdefaults()", "except Exception:", "    pass"].join("\n");
   // The grid has to read on the figure's cream paper: matplotlib's own white
   // grid lines (what every seaborn style ships) would be invisible there, and
   // its black frame is heavier than anything else in the drawing.

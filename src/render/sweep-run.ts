@@ -5,7 +5,8 @@
 // patch application the render closure uses for both frames and commits.
 import type { Spec, SpecElement } from "../spec/types";
 import { applyControls, parseControls } from "../code/controls";
-import { defaultChartStyle, runCode } from "../code/run";
+import { runCode } from "../code/run";
+import { chartFor } from "../code/chart-style";
 import type { CodeResolveDeps } from "./code";
 import { pathsByCodeId, requestedTokens } from "../code/tokens";
 import type { Plan } from "./plan";
@@ -37,7 +38,7 @@ export function sweepRunnerFor(authored: Spec, deps: CodeResolveDeps = {}): Swee
     // The chart style resolves the same way the resolve pass resolves it, or
     // a swept figure would change its LOOK as well as its numbers halfway
     // through the sweep (and miss the cache the precompute filled).
-    const result = await runCode({ language: el.language, code, chart: el.chart ?? defaultChartStyle(deps.style), paths }, deps);
+    const result = await runCode({ language: el.language, code, chart: chartFor(el, deps.style), paths }, deps);
     // runCode NEVER throws — a boot failure, a timeout, a bug in the script
     // all come back as an ok:false envelope (src/code/run.ts:115-131). A
     // sweep must not paint one: the step that failed holds the PREVIOUS

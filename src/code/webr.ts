@@ -151,7 +151,7 @@ async function runOne(req: CodeRunRequest): Promise<CodeRunResult> {
         // .__code and .__paths as plain variables, and nothing of it leaks
         // into the global environment — a fresh namespace per run, so the
         // result cache stays order-independent.
-        env: { ".__code": req.code, ".__paths": paths.join("\n") },
+        env: { ".__code": req.code, ".__paths": paths.join("\n"), ".__look": req.chart === "native" ? "native" : "drawcast" },
         withAutoprint: false,
         captureStreams: true,
         captureConditions: true,

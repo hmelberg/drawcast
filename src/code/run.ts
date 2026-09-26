@@ -14,7 +14,7 @@
 
 import { STALE_CHUNK_MESSAGE, isStaleChunkError } from "../stale-chunk";
 import { cacheGet, cachePut } from "../render/portrait";
-import { chartPrelude, defaultChartStyle, type ChartStyle } from "./chart-style";
+import { defaultChartStyle, styled, type ChartStyle } from "./chart-style";
 import { CODE_VERSION, decodeCodeResult, type CodeRunResult } from "./envelope";
 import { RUNTIME_VERSION, cacheTag, isLanguage, type Language } from "./languages";
 import { perfSpan } from "./perf";
@@ -72,7 +72,7 @@ export function codeCacheKey(req: Pick<CodeRunRequest, "language" | "code" | "ch
   // defaultChartStyle(renderStyle)); the fallback is the app's own default
   // so a bare request and a sketchy render land on the SAME key.
   const chart = req.chart ?? defaultChartStyle(undefined);
-  const style = chartPrelude(chart, req.code, req.language) === "" ? "" : chart;
+  const style = styled(req.code, req.language) ? chart : "";
   return `c${CODE_VERSION}|${tag}|${style}|${hash(req.code)}|${req.code.length}|${hash(paths)}`;
 }
 

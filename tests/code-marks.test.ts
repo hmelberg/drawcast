@@ -211,17 +211,17 @@ describe("the xkcd chart writes in the app's own hand", () => {
 
 describe("every run site resolves the chart style from the drawing (pins)", () => {
   const sites: [string, RegExp][] = [
-    ["src/render/code.ts", /chart: el\.chart \?\? defaultChartStyle\(deps\.style\)/],
-    ["src/render/sweep-run.ts", /chart: el\.chart \?\? defaultChartStyle\(deps\.style\)/],
+    ["src/render/code.ts", /chart: chartFor\(el, deps\.style\)/],
+    ["src/render/sweep-run.ts", /chart: chartFor\(el, deps\.style\)/],
   ];
   for (const [file, re] of sites) {
-    test(`${file} runs with el.chart ?? defaultChartStyle(…)`, () => {
+    test(`${file} runs with chartFor(el, …) — chart, then feel, then the default`, () => {
       expect(readFileSync(file, "utf8")).toMatch(re);
     });
   }
   test("the tray's two runs (the editor's Run and an ask's Check) take it from the handle", () => {
     const src = readFileSync("src/ui/tray.ts", "utf8");
-    expect(src.match(/chart: el\.chart \?\? defaultChartStyle\(hd\.style\)/g)?.length).toBe(2);
+    expect(src.match(/chart: chartFor\(el, hd\.style\)/g)?.length).toBe(2);
   });
   test("render() resolves the style ONCE and hands it to the resolve pass and the sweep runner", () => {
     const src = readFileSync("src/render/index.ts", "utf8");

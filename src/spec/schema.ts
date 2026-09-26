@@ -427,9 +427,15 @@ const elementSchema = {
     },
     chart: {
       type: "string",
-      enum: ["seaborn", "xkcd", "plain"],
+      enum: ["seaborn", "xkcd", "plain", "native"],
       description:
         "code: how a matplotlib chart LOOKS — THE DEFAULT IS xkcd: matplotlib's hand-drawn wobble, lettered in the app's own handwriting, so the chart is drawn in the same hand as the rest of the figure. Force another: seaborn (a calm grid, the figure's own ink and series colours on the drawing's paper) or plain (matplotlib's own defaults). Only `language: \"python\"` has a real matplotlib to style; the light tiers draw their charts through an emulation and ignore it.",
+    },
+    feel: {
+      type: "string",
+      enum: ["drawcast", "native"],
+      description:
+        "code: how the script's CHART looks. drawcast: in the drawing's own ink, palette and paper (matplotlib hand-drawn, ggplot themed). native: the library's own defaults, as in an IDE — for a lesson ABOUT the code. Default: native when the code is on screen, drawcast otherwise. Printed output is always typewriter.",
     },
     game: {
       type: "string",
@@ -501,7 +507,7 @@ const elementSchema = {
  * is code. Design §3.3.
  */
 export const CODE_ONLY_ELEMENT_PROPS = [
-  "language", "code", "show", "lines", "frame", "figures", "chart",
+  "language", "code", "show", "lines", "frame", "figures", "chart", "feel",
   "game", "marks", "code_result", "code_src", "controls", "autorun", "pane",
 ] as const;
 

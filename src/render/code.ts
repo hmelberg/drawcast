@@ -10,7 +10,8 @@
 // clone's params — and applies the skip rule: a script whose output pane is
 // hidden and whose id no token names is never executed (its lines are text).
 
-import { decodeCodeResult, defaultChartStyle, runCode, type CodeRunDeps, type CodeRunResult } from "../code/run";
+import { decodeCodeResult, runCode, type CodeRunDeps, type CodeRunResult } from "../code/run";
+import { chartFor } from "../code/chart-style";
 import { pathsByCodeId, substituteDataTokens, requestedTokens } from "../code/tokens";
 import { withControlDefaults } from "../code/controls";
 import type { Spec, SpecElement } from "../spec/types";
@@ -86,7 +87,7 @@ export async function resolveCode(spec: Spec, deps: CodeResolveDeps = {}): Promi
       results.push({ id: el.id, ok: false, error: "code element needs language and code" });
       continue;
     }
-    const result = await runCode({ language: el.language, code: el.code, chart: el.chart ?? defaultChartStyle(deps.style), paths }, deps);
+    const result = await runCode({ language: el.language, code: el.code, chart: chartFor(el, deps.style), paths }, deps);
     el.code_result = JSON.stringify(result);
     results.push({ id: el.id, ok: result.ok, error: result.error });
   }

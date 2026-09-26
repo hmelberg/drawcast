@@ -21,6 +21,7 @@ export const R_DATA_CAP_ROWS = 200;
  *  the figure is fitted into the output pane. The hook runs when ggplot2
  *  loads, before any plot, and a script's own theme_set() still wins.
  *  The value is what the live smoke settled on (spec §5.4). */
+import { COLORS } from "../layout/model";
 export const GGPLOT_BASE_SIZE = 24;
 
 /** Attached with R, or part of it — never something to fetch from the
@@ -51,11 +52,36 @@ export function rPackagesIn(code: string): string[] {
 /** Runs once after webR.init(): library()/require() auto-install from the
  *  WebAssembly CRAN mirror, ggplot2 text scaled when it loads, a console
  *  width the output pane can hold. */
+// The drawcast look's ink, guide grey and series palette (layout/model.ts COLORS).
+const INK = COLORS.ink;
+const GUIDE = COLORS.guide;
+const SERIES = COLORS.series;
+const REGION = COLORS.region2;
+
 export const R_BOOT = String.raw`
 webr::shim_install()
-setHook(packageEvent("ggplot2", "onLoad"), function(...) {
-  ggplot2::theme_set(ggplot2::theme_gray(base_size = ${GGPLOT_BASE_SIZE}))
-})
+.__dc_look <- function(look) {
+  options(drawcast.look = look)
+  if (!("ggplot2" %in% loadedNamespaces())) return(invisible())
+  if (identical(look, "native")) {
+    ggplot2::theme_set(ggplot2::theme_gray(base_size = ${GGPLOT_BASE_SIZE}))
+    for (g in c("line", "point", "path")) ggplot2::update_geom_defaults(g, list(colour = "black"))
+    for (g in c("col", "bar")) ggplot2::update_geom_defaults(g, list(fill = "grey35"))
+    options(ggplot2.discrete.colour = NULL, ggplot2.discrete.fill = NULL)
+  } else {
+    ggplot2::theme_set(ggplot2::theme_minimal(base_size = ${GGPLOT_BASE_SIZE}) + ggplot2::theme(
+      text = ggplot2::element_text(colour = "${INK}"),
+      axis.text = ggplot2::element_text(colour = "${GUIDE}"),
+      panel.grid.major = ggplot2::element_line(colour = "#d8d2c4"),
+      panel.grid.minor = ggplot2::element_blank(),
+      plot.background = ggplot2::element_rect(fill = NA, colour = NA)))
+    for (g in c("line", "point", "path")) ggplot2::update_geom_defaults(g, list(colour = "${SERIES[0]}"))
+    for (g in c("col", "bar")) ggplot2::update_geom_defaults(g, list(fill = "${REGION}"))
+    options(ggplot2.discrete.colour = c(${SERIES.map((c) => `"${c}"`).join(", ")}), ggplot2.discrete.fill = c(${SERIES.map((c) => `"${c}"`).join(", ")}))
+  }
+  invisible()
+}
+setHook(packageEvent("ggplot2", "onLoad"), function(...) .__dc_look(getOption("drawcast.look", "drawcast")))
 options(width = 80)
 `;
 
@@ -67,6 +93,9 @@ options(width = 80)
  *  and messages collect into the stderr string, an error into the error
  *  string with its call, exactly like R's own "Error in f(x): msg". */
 export const R_WRAPPER = String.raw`
+# The chart look for THIS run (drawcast or native), set before the script so a
+# library(ggplot2) inside it, or ggplot2 already loaded, both pick it up.
+if (exists(".__dc_look") && exists(".__look")) .__dc_look(.__look)
 .__env <- new.env(parent = globalenv())
 .__err <- ""
 .__warn <- character(0)
