@@ -832,7 +832,7 @@ const commandSchema = {
       type: "object",
       description: "A laser pointer travels to the target and gestures at it, then disappears. Combine with speak blocking:false to talk while pointing.",
       properties: {
-        at: { ...endRefSchema, description: "Where: {\"ref\": id, \"anchor\": name} or {\"x\": …, \"y\": …} — an object, not [x, y]." },
+        at: { ...endRefSchema, description: "Where: {\"ref\": id, \"anchor\": name}, {\"x\": …, \"y\": …}, or {\"data\": [x, y]} for a spot on a chart — an object, not [x, y]." },
         gesture: { type: "string", enum: ["tap", "circle", "underline"], description: "tap = dip at the spot (default); circle = trace a ring around it; underline = sweep beneath it." },
         duration: { type: "number", description: "Seconds (default 2)." },
       },
@@ -1492,8 +1492,12 @@ function semanticErrors(spec: Spec): string[] {
     }
     if (verb === "point") {
       const at = cmd.point!.at;
-      if (!at || (at.ref === undefined && (at.x === undefined || at.y === undefined))) {
-        errors.push(`commands[${i}]: point.at needs ref (an element id) or x+y coordinates`);
+      // `{data: [x, y]}` is the documented way to point at a spot on a chart
+      // (the planner has read it since the one coordinate rule, 2026-09-25).
+      const data = (at as { data?: unknown } | undefined)?.data;
+      const hasData = Array.isArray(data) && data.length === 2 && data.every((v) => typeof v === "number");
+      if (!at || (at.ref === undefined && !hasData && (at.x === undefined || at.y === undefined))) {
+        errors.push(`commands[${i}]: point.at needs ref (an element id), x+y coordinates, or data: [x, y]`);
       }
     }
     if (verb === "camera" && !cmd.camera!.reset && cmd.camera!.center === undefined && cmd.camera!.zoom === undefined) {

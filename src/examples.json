@@ -64413,5 +64413,197 @@
   {
     "request": "What are the different ways a drawcast can use a piece of code?",
     "playlist": "playlist:\n  title: One script, five ways\n  advance: auto\n  gap: 1\n---\ntitle: 1 · Code you never see\ntemplate: bar_chart\nparams:\n  labels: [\"10\", \"100\", \"1,000\", \"10,000\"]\n  values: \"{coin.share}\"\n  ylim: [0, 100]\n  y_label: \"Heads (%)\"\n  x_label: \"Flips\"\n  box: { x: 60, y: 95, w: 620, h: 520 }\nelements:\n  - id: coin\n    type: code\n    language: r\n    show: none\n    code: |-\n      set.seed(42)\n      flips <- rbinom(10000, 1, 0.5)\n      n <- c(10, 100, 1000, 10000)\n      share <- sapply(n, function(k) round(100 * mean(flips[1:k]), 1))\n      first <- share[1]\n      last <- share[4]\n  - { id: note_first, type: text, text: \"10 flips: {coin.first}% heads\", x: 840, y: 480, font_size: 26 }\n  - { id: note_last, type: text, text: \"10,000 flips: {coin.last}%\", x: 840, y: 430, font_size: 26 }\ncommands:\n  - card: { title: \"One script, five ways\" }\n  - draw: [axes, bar_1, bar_2, bar_3, bar_4]\n    parallel: true\n    speak: \"The same small idea, how often a fair coin lands heads, used five ways. First, code you never see: R flips a coin ten thousand times and hands the numbers to an ordinary drawcast chart.\"\n  - draw: [note_first, note_last]\n    speak: \"Even the notes on the side are the script's numbers, written into the author's own text: ten flips gave eighty percent heads — a loaded coin, you might think — while ten thousand gave fifty.\"\n---\ntitle: 2 · A picture drawn by code\nelements:\n  - id: walk\n    type: code\n    language: r\n    show: output\n    width: 820\n    code: |-\n      library(ggplot2)\n      set.seed(3)\n      flips <- rbinom(2000, 1, 0.5)\n      df <- data.frame(n = seq_along(flips), share = cumsum(flips) / seq_along(flips))\n      ggplot(df, aes(n, share)) + geom_line() + geom_hline(yintercept = 0.5, linetype = \"dashed\") + labs(x = \"Flips\", y = \"Share of heads\")\ncommands:\n  - card: { title: \"A picture drawn by code\" }\n  - draw: [walk, walk_out]\n    speak: \"Second, a picture that is easier to make in code: the share of heads after every single flip. The code stays hidden, and the chart is drawn in drawcast's own ink and paper.\"\n  - highlight: { target: [walk_out] }\n    speak: \"Wild at first, then settling on one half. Anyone curious can still open the script from the tray.\"\n---\ntitle: 3 · Knobs to turn\nelements:\n  - id: knob\n    type: code\n    language: r\n    pane: controls\n    width: 820\n    controls: [p, n]\n    code: |-\n      library(ggplot2)\n      p <- Slider(0.1, 0.9, step = 0.05, default = 0.5, label = \"Chance of heads\")\n      n <- Slider(50, 2000, default = 500, label = \"Flips\")\n      set.seed(3)\n      flips <- rbinom(n, 1, p)\n      df <- data.frame(n = seq_along(flips), share = cumsum(flips) / seq_along(flips))\n      ggplot(df, aes(n, share)) + geom_line() + geom_hline(yintercept = p, linetype = \"dashed\") + ylim(0, 1) + labs(x = \"Flips\", y = \"Share of heads\")\ncommands:\n  - card: { title: \"Knobs to turn\" }\n  - draw: [knob, knob_out, knob_ctl_p, knob_ctl_n]\n    speak: \"Third, the same chart with knobs: the chance of heads, and the number of flips.\"\n  - run: { code: knob, values: { p: [0.5, 0.7] } }\n    speak: \"Bend the coin to seventy percent heads, and the share settles on seventy instead.\"\n  - explore: { code: knob }\n    speak: \"Your turn: try a very short run, and see how far from the truth it can land.\"\n---\ntitle: 4 · Reading the code\nelements:\n  - id: lesson\n    type: code\n    language: r\n    show: left\n    width: 900\n    marks: [\"cumsum(flips) / seq_along(flips)\"]\n    code: |-\n      library(ggplot2)\n      set.seed(3)\n      flips <- rbinom(200, 1, 0.5)\n      share <- cumsum(flips) / seq_along(flips)\n      df <- data.frame(n = seq_along(flips), share = share)\n      ggplot(df, aes(n, share)) + geom_line()\ncommands:\n  - card: { title: \"Reading the code\" }\n  - draw: [lesson, lesson_line_1, lesson_line_2]\n    parallel: true\n    speak: \"Fourth, a lesson about the code itself, so it keeps R's own look. Load the plotting package, and fix the random seed so the run can be repeated.\"\n  - draw: [lesson_line_3]\n    speak: \"rbinom flips two hundred coins: each a one for heads or a zero for tails.\"\n  - draw: [lesson_line_4]\n    speak: \"The running share: add up the heads so far, and divide by the number of flips so far.\"\n  - draw: [lesson_mark_1]\n    speak: \"cumsum is the running total; seq_along counts one, two, three, and so on.\"\n  - draw: [lesson_line_5, lesson_line_6]\n    speak: \"Put both in a table, and draw the line.\"\n  - draw: [lesson_out]\n    speak: \"And here it is, exactly as R draws it.\"\n  - explore: { code: lesson }\n    speak: \"Change two hundred to twenty, run it, and watch how rough a short run is.\"\n---\ntitle: 5 · The same idea in 1982\nelements:\n  - id: c64\n    type: code\n    language: basic\n    frame: c64\n    width: 620\n    code: |-\n      10 H=0\n      20 FOR I=1 TO 100\n      30 IF RND(1)<0.5 THEN H=H+1\n      40 NEXT I\n      50 PRINT \"HEADS IN 100:\";H\ncommands:\n  - card: { title: \"The same idea in 1982\" }\n  - draw: [c64, c64_line_1, c64_line_2, c64_line_3, c64_line_4, c64_line_5]\n    speak: \"Fifth, the same idea on a Commodore 64: flip a hundred coins in BASIC and count the heads.\"\n  - draw: [c64_out]\n    speak: \"The machine agrees: about half. Five uses, one idea — the code hidden, drawn, turned, read, or run on the machine itself.\"\n"
+  },
+  {
+    "request": "What does a treatment gain, measured in QALYs?",
+    "spec": {
+      "title": "What a treatment gains",
+      "lang": "en",
+      "template": "qaly_profiles",
+      "params": {
+        "lines": "straight",
+        "x_max": 26,
+        "x_label": "Years after diagnosis",
+        "profiles": [
+          {
+            "id": "without",
+            "label": "Without treatment",
+            "waypoints": [
+              {
+                "t": 0,
+                "u": 0.65
+              },
+              {
+                "t": 8,
+                "u": 0.4
+              }
+            ],
+            "death_at": 10
+          },
+          {
+            "id": "with",
+            "label": "With treatment",
+            "waypoints": [
+              {
+                "t": 0,
+                "u": 0.45
+              },
+              {
+                "t": 2,
+                "u": 0.75
+              },
+              {
+                "t": 20,
+                "u": 0.6
+              }
+            ],
+            "death_at": 24
+          }
+        ],
+        "shade_between": {
+          "a": "with",
+          "b": "without",
+          "gain_label": "QALYs gained",
+          "loss_label": "Side effects"
+        }
+      },
+      "elements": [
+        {
+          "id": "net_note",
+          "type": "text",
+          "text": "Net gain: {qaly.net} QALYs",
+          "x": 770,
+          "y": 560,
+          "font_size": 26,
+          "style": {
+            "color": "#4d7a3f"
+          }
+        }
+      ],
+      "details": {
+        "gain_regions": "A QALY is one year in full health. Each year counts by its quality: $$\\text{QALYs} = \\sum_{\\text{years}} \\text{quality} \\times \\text{time}$$ so the area between the two paths is the QALYs the treatment adds.",
+        "net_note": "Net gain = QALYs gained − QALYs lost to side effects. Cost per QALY = extra cost ÷ net gain: $$\\frac{£200{,}000}{10.7} \\approx £19{,}000$$"
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "What a treatment gains"
+          }
+        },
+        {
+          "draw": [
+            "axes",
+            "full_health_line",
+            "tick_one",
+            "tick_zero"
+          ],
+          "speak": "How do you measure what a treatment gives a patient? Health economists answer with an area. Take Kari, just diagnosed with cancer."
+        },
+        {
+          "draw": [
+            "curve_without",
+            "label_without"
+          ],
+          "speak": "Without treatment, her quality of life falls from 0.65, and she dies within ten years."
+        },
+        {
+          "draw": [
+            "curve_with",
+            "label_with"
+          ],
+          "speak": "With treatment she feels worse at first — the side effects — then better than before, and she lives twenty-four years."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "loss_regions",
+            "label_loss"
+          ],
+          "speak": "This red sliver is what the treatment costs her early on."
+        },
+        {
+          "draw": [
+            "gain_regions",
+            "label_gain"
+          ],
+          "speak": "And the green area is what it gives: every extra year counted by how good it is. That is what a quality-adjusted life year, a QALY, measures."
+        },
+        {
+          "point": {
+            "at": {
+              "data": [
+                5,
+                0.56
+              ]
+            },
+            "gesture": "circle"
+          },
+          "speak": "About two of them come from better years, while she would have been alive anyway…"
+        },
+        {
+          "point": {
+            "at": {
+              "data": [
+                17,
+                0.3
+              ]
+            },
+            "gesture": "circle"
+          },
+          "speak": "…and about nine from years she would not have had at all."
+        },
+        {
+          "draw": [
+            "net_note"
+          ],
+          "speak": "Gained minus lost: close to eleven QALYs."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "highlight": {
+            "target": [
+              "net_note"
+            ]
+          },
+          "speak": "Is that worth paying for? Say the treatment costs two hundred thousand pounds. That is about nineteen thousand pounds per QALY — inside the twenty to thirty thousand that England's NICE has long used as its yardstick."
+        },
+        {
+          "animate": {
+            "profiles.1.death_at": 14
+          },
+          "duration": 3,
+          "speak": "But suppose it only kept her alive for fourteen years."
+        },
+        {
+          "highlight": {
+            "target": [
+              "net_note"
+            ]
+          },
+          "speak": "The gain falls to about four and a half QALYs, and the same price becomes about forty-three thousand pounds per QALY. Same drug, same price: whether it is worth it depends on the area."
+        },
+        {
+          "animate": {
+            "profiles.1.death_at": 24
+          },
+          "duration": 2
+        },
+        {
+          "quiz": {
+            "question": "Which adds more QALYs?",
+            "choices": [
+              "One extra year in full health",
+              "Two extra years at quality 0.4"
+            ],
+            "correct": 1,
+            "right": "One year in full health is one QALY; two years at 0.4 are only 0.8."
+          }
+        }
+      ]
+    }
   }
 ]

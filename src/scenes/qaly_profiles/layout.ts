@@ -359,6 +359,7 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
   const wantsShortfall = params.shortfall !== null && params.shortfall !== undefined;
   const shortfalls: ShortfallResult[] = [];
   const lifetimes: number[] = [];
+  const gainValues: Record<string, number> = {};
   if (params.reference || wantsShortfall) {
     const ref = { ...DEFAULT_REFERENCE, ...(params.reference ?? {}) };
     const refSegments = buildSegments(ref);
@@ -590,6 +591,22 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
       const fa = fns.get(aId)!;
       const fb = fns.get(bId)!;
       const tEnd = Math.min(tMax, Math.max(ends.get(aId)!, ends.get(bId)!));
+      // The areas in QALYs, for {qaly.gain} / {qaly.loss} / {qaly.net}:
+      // midpoint sums, as computeShortfall does (steps stay honest).
+      {
+        const n = Math.max(400, Math.ceil(tEnd * 20));
+        const h = tEnd / n;
+        let up = 0;
+        let down = 0;
+        for (let i = 0; i < n; i++) {
+          const d = fa((i + 0.5) * h) - fb((i + 0.5) * h);
+          if (d > 0) up += d * h;
+          else down -= d * h;
+        }
+        gainValues.gain = up;
+        gainValues.loss = down;
+        gainValues.net = up - down;
+      }
       const N = 220;
       const eps = 0.008;
       const runs: { sign: 1 | -1; upper: Pt[]; lower: Pt[] }[] = [];
@@ -638,14 +655,16 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
         push(gains);
         const biggest = gains.children.reduce((a, b) => ((a as AreaDrawable).pts.length >= (b as AreaDrawable).pts.length ? a : b));
         anchors["gain_regions"] = centroid((biggest as AreaDrawable).pts);
-        label("label_gain", anchors["gain_regions"], "above-right", shade.gain_label ?? "QALYs gained", COLORS.region2, "gain_regions");
+        // Inside the area, in its colour darkened to read as ink (the rule the
+        // supply_demand areas follow, Hans 2026-09-26).
+        label("label_gain", anchors["gain_regions"], "center", shade.gain_label ?? "QALYs gained", "#4d7a3f", "gain_regions");
       }
       if (losses) {
         push(losses);
         const biggest = losses.children.reduce((a, b) => ((a as AreaDrawable).pts.length >= (b as AreaDrawable).pts.length ? a : b));
         anchors["loss_regions"] = centroid((biggest as AreaDrawable).pts);
         if (shade.loss_label !== "") {
-          label("label_loss", anchors["loss_regions"], "below-left", shade.loss_label ?? "Initial loss", COLORS.regionLoss, "loss_regions");
+          label("label_loss", anchors["loss_regions"], "center", shade.loss_label ?? "Initial loss", "#a8454a", "loss_regions");
         }
       }
     }
@@ -653,7 +672,7 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
 
   // Each shortfall's numbers for `{qaly.absolute}`-style text (SceneLayout.values):
   // the first plain, the k-th with `_k`, proportional as a percentage.
-  const values: Record<string, number> = {};
+  const values: Record<string, number> = { ...gainValues };
   shortfalls.forEach((r, k) => {
     const sfx = k === 0 ? "" : `_${k + 1}`;
     values[`absolute${sfx}`] = r.absolute;
