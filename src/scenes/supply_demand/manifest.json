@@ -234,7 +234,9 @@
         "properties": {
           "amount": {
             "type": "number",
-            "description": "Size of the tax in price-axis units — the axis runs 0-100 and the untaxed equilibrium sits at 50, so 18 is a substantial tax and the default for kind per_unit. NEGATIVE IS A SUBSIDY: the curve shifts the other way, more is traded, and `government_revenue` becomes a government cost. Numeric, so it animates: tween it from 0 to watch the wedge open and the deadweight loss grow. For kind ad_valorem this is a PERCENTAGE instead, default 36 (36%)."
+            "description": "Size of the tax in price-axis units — the axis runs 0-100 and the untaxed equilibrium sits at 50, so 18 is a substantial tax and the default for kind per_unit. NEGATIVE IS A SUBSIDY: the curve shifts the other way, more is traded, and `government_revenue` becomes a government cost. Numeric, so it animates: tween it from 0 to watch the wedge open and the deadweight loss grow. For kind ad_valorem this is a PERCENTAGE instead, default 36 (36%).",
+            "minimum": -40,
+            "maximum": 60
           },
           "side": {
             "type": "string",
@@ -264,7 +266,9 @@
         "properties": {
           "level": {
             "type": "number",
-            "description": "Where the line sits, in price-axis units (same 0-100 scale as tax.amount). Sliding it down opens the shortage and grows the deadweight loss in one gesture. A ceiling only BINDS below the equilibrium price; above it the line is drawn and nothing else happens, which is a legitimate figure about a ceiling that does nothing."
+            "description": "Where the line sits, in price-axis units (same 0-100 scale as tax.amount). Sliding it down opens the shortage and grows the deadweight loss in one gesture. A ceiling only BINDS below the equilibrium price; above it the line is drawn and nothing else happens, which is a legitimate figure about a ceiling that does nothing.",
+            "minimum": 2,
+            "maximum": 96
           },
           "label": {
             "type": "string",
@@ -282,7 +286,9 @@
         "properties": {
           "level": {
             "type": "number",
-            "description": "Where the line sits, in price-axis units (same 0-100 scale as tax.amount). Sliding it up opens the surplus and grows the deadweight loss in one gesture. A floor only BINDS above the equilibrium price; below it the line is drawn and nothing else happens, which is a legitimate figure about a floor that does nothing."
+            "description": "Where the line sits, in price-axis units (same 0-100 scale as tax.amount). Sliding it up opens the surplus and grows the deadweight loss in one gesture. A floor only BINDS above the equilibrium price; below it the line is drawn and nothing else happens, which is a legitimate figure about a floor that does nothing.",
+            "minimum": 2,
+            "maximum": 96
           },
           "label": {
             "type": "string"
