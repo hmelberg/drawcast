@@ -116,7 +116,7 @@
   {
     "request": "Draw a decision tree for choosing between surgery and watchful waiting, with QALY payoffs.",
     "spec": {
-      "title": "Surgery vs watchful waiting",
+      "title": "Operate, or wait?",
       "template": "decision_tree",
       "params": {
         "root": {
@@ -164,6 +164,12 @@
               }
             }
           ]
+        },
+        "box": {
+          "x": 40,
+          "y": 330,
+          "w": 920,
+          "h": 355
         }
       },
       "elements": [
@@ -172,6 +178,25 @@
           "type": "annotation",
           "target": "label_wait",
           "kind": "strike"
+        },
+        {
+          "id": "ev",
+          "type": "scratch",
+          "work": [
+            "Expected value = Σ chance × payoff",
+            {
+              "tex": "EV_{\\text{surgery}} = 0.85 \\times 9.2 + 0.15 \\times 5.1"
+            },
+            {
+              "tex": "= 7.82 + 0.77 \\approx 8.6"
+            },
+            {
+              "tex": "EV_{\\text{wait}} = 7.4"
+            }
+          ],
+          "x": 660,
+          "y": 235,
+          "font_size": 22
         }
       ],
       "commands": [
@@ -185,7 +210,7 @@
             "node_choice",
             "label_choice"
           ],
-          "speak": "Should she have surgery now, or wait and watch? This square is the decision we control."
+          "speak": "Should she have surgery now, or wait and watch? A decision tree is one way to answer that: it lays out each choice, the chances of what follows, and what each outcome is worth — then weighs them."
         },
         {
           "pause": 0.3
@@ -197,10 +222,7 @@
             "node_surgery",
             "label_surgery"
           ],
-          "speak": "Surgery leads to a circle — a chance node — because the outcome is uncertain."
-        },
-        {
-          "pause": 0.3
+          "speak": "This square is the decision we control. Surgery leads to a circle — a chance node — because its outcome is uncertain."
         },
         {
           "draw": [
@@ -225,10 +247,7 @@
             ],
             "effect": "circle"
           },
-          "speak": "The payoffs: 9.2 QALYs after recovery, 5.1 after a complication."
-        },
-        {
-          "pause": 0.3
+          "speak": "Each ending is worth something: 9.2 QALYs after recovery, 5.1 after a complication."
         },
         {
           "draw": [
@@ -238,16 +257,80 @@
             "label_wait",
             "payoff_wait"
           ],
-          "speak": "Watchful waiting avoids the risk, at a lower expected payoff."
+          "speak": "Watchful waiting has no chance node here: 7.4 QALYs, for sure."
         },
         {
-          "pause": 0.3
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "ev_box",
+            "ev_line_1"
+          ],
+          "speak": "To compare a sure 7.4 with a gamble, weigh each outcome by its chance: the expected value."
+        },
+        {
+          "highlight": {
+            "target": [
+              "branchlabel_surgery_ok",
+              "payoff_ok"
+            ]
+          },
+          "speak": "Success: 0.85 times 9.2…"
+        },
+        {
+          "highlight": {
+            "target": [
+              "branchlabel_surgery_comp",
+              "payoff_comp"
+            ]
+          },
+          "speak": "…plus complication: 0.15 times 5.1."
+        },
+        {
+          "draw": [
+            "ev_line_2"
+          ]
+        },
+        {
+          "draw": [
+            "ev_line_3"
+          ],
+          "speak": "That is 7.82 plus 0.77: about 8.6 QALYs expected from surgery."
+        },
+        {
+          "draw": [
+            "ev_line_4"
+          ],
+          "speak": "And waiting: 7.4."
         },
         {
           "draw": [
             "rule_out"
           ],
-          "speak": "Expected value favours surgery — about 8.6 against 7.4 QALYs — so we rule out waiting."
+          "speak": "8.6 beats 7.4, so the tree says operate: we cut the branch with the lower expected value."
+        },
+        {
+          "move": {
+            "target": [
+              "ev"
+            ],
+            "scale": 0.6,
+            "to": {
+              "x": 830,
+              "y": 300
+            }
+          },
+          "speak": "That is how a tree decides: average at each chance node, then take the best branch. The sum can move aside."
+        },
+        {
+          "highlight": {
+            "target": [
+              "label_comp",
+              "payoff_comp"
+            ]
+          },
+          "speak": "But the tree shows the trade-off; it does not make it. A patient who fears that complication more than the numbers say may still wait, and the tree shows what she gives up."
         }
       ]
     }

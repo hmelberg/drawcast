@@ -134,7 +134,7 @@ const elementSchema = {
     type: {
       type: "string",
       enum: [
-        "axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code",
+        "axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code", "scratch",
         "sector", "arc", "polygon", "pieces", "angle", "measure", "ellipse", "line",
         "group", "math", "image", "icon", "inset", "music",
       ],
@@ -219,6 +219,12 @@ const elementSchema = {
       type: "string",
       description:
         "The formal detail behind this element, for a viewer who wants more: its equation, derivation, definition or caveat, in a few sentences — `$…$` for inline math, `$$…$$` on its own line for a display formula. Never narrated or drawn: in the live player hovering the element shows its first sentence with More ▸, and a click (which pauses) or right-click opens it all on the element's card. Only when the cast has something formal worth offering — at most a few per cast.",
+    },
+    work: {
+      type: "array",
+      items: { oneOf: [{ type: "string" }, { type: "object", properties: { tex: { type: "string" } }, required: ["tex"] }] },
+      description:
+        "scratch: a temporary WORKING card (rounded, translucent paper) — one entry per line, words or {\"tex\": …} for a formula. Parts: <id>_box and <id>_line_1, _2 …; draw the box with the first line, then a line per beat as the narration builds the sum; afterwards erase it, fade it, or move it small into a corner (move with scale and to). Place it with at: {place: \"top_right\"} (or x/y); it may overlap the figure. Several may share a page.",
     },
     app_only: {
       type: "boolean",

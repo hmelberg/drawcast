@@ -40,7 +40,8 @@ export type ElementType =
   | "image"
   | "icon"
   | "inset"
-  | "music";
+  | "music"
+  | "scratch";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -137,6 +138,8 @@ export interface SpecElement {
   details?: string;
   /** Live player only: stripped from a video export (spec/app-only.ts). */
   app_only?: boolean;
+  /** scratch: the working, one entry per line — words, or {tex} for a formula (spec/scratch.ts). */
+  work?: (string | { tex: string })[];
   /** code: the chart's look — drawcast (the drawing's hand) or native (the library's own). */
   feel?: "drawcast" | "native";
   // region

@@ -21,6 +21,30 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-26 — Say what we are doing and why; show the working, then put it away
+
+Hans, on "Operate, or wait?": "the example … is too brief. It should: Tell
+the user that a decision tree is one way to answer the question. This is
+general point … We need to tell the listener what we are doing and why …
+it would be beneficial to show some temporary information or calculation
+that we may either erase or fade out or put in the corner afterwards … we
+should show (and explain) how to calculate expected value … in a separate
+box on the same page and we may highlight elements on the tree as we build
+up the expression … it is no big deal if we write on top of something else
+in a temporary box … We may have more than one of those."
+
+Distilled: two general rules. (1) Name the method and its purpose before
+using it — the viewer should know the plan before the steps. (2) Show the
+working the conclusion rests on, line by line as it is said, in a temporary
+card, highlighting the parts of the figure each line takes its numbers
+from; then park it small in a corner, fade or erase it. Scratch paper may
+overlap the figure.
+
+Status: the `scratch` element (spec/scratch.ts — expanded before layout into a
+rounded box and one text/math line each, grouped); the decision-tree
+few-shot rebuilt around it (the tree in `params.box` above, the EV working
+below, moved aside at 0.6); both rules in the prompt next to "Give the why".
+
 ### 2026-09-26 — Layout: established principles, aware of how it looks
 
 Hans, across several examples: readout numbers "not aligned properly";

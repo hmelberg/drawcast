@@ -7,6 +7,7 @@ import { planOptionsFor } from "../src/render/index";
 import { lintCommands } from "../src/lint/lint";
 import { ensureEnabledPacks } from "../src/scenes/packs";
 import { ensureEnginesForSpecs } from "../src/scenes/engines";
+import { expandSpec } from "../src/spec/expand";
 import type { Command, Spec } from "../src/spec/types";
 
 const examples = fewshots as { request: string; spec: Spec }[];
@@ -20,8 +21,10 @@ beforeAll(async () => {
 });
 
 describe("bundled fewshots stay exemplary", () => {
-  test.each(examples.map((ex) => [ex.request, ex.spec] as const))("%s — validates and every command id resolves", (_req, spec) => {
-    expect(validateSpec(spec).ok).toBe(true);
+  test.each(examples.map((ex) => [ex.request, ex.spec] as const))("%s — validates and every command id resolves", (_req, raw) => {
+    expect(validateSpec(raw).ok).toBe(true);
+    // Sugar (notes, cards, derivations, walks) expands before layout, as in the app.
+    const spec = expandSpec(raw);
     const layout = layoutSpec(spec);
     const bboxes = elementBBoxes(layout);
     // Planned the way render() plans it: without planOptionsFor a `group` id
