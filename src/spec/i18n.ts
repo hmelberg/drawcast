@@ -52,8 +52,19 @@ function itemSchema(schema: Schema): Schema {
   return schema?.items as Record<string, unknown> | undefined;
 }
 
+/** A `oneOf` param (one shortfall or a list of them) is walked by the branch
+ *  its value actually takes — otherwise the walker loses the schema, and an
+ *  id reference under it (`of`) would be translated like prose. */
+function branchFor(schema: Schema, value: unknown): Schema {
+  const alts = schema?.oneOf as Record<string, unknown>[] | undefined;
+  if (!alts) return schema;
+  const kind = Array.isArray(value) ? "array" : value !== null && typeof value === "object" ? "object" : typeof value;
+  return alts.find((a) => a.type === kind || (Array.isArray(a.type) && (a.type as string[]).includes(kind))) ?? schema;
+}
+
 /** Walk a params value beside its schema, rewriting the leaves that are text. */
-function rewriteParams(value: unknown, schema: Schema, key: string, role: string, rewrite: Rewrite): unknown {
+function rewriteParams(value: unknown, schemaIn: Schema, key: string, role: string, rewrite: Rewrite): unknown {
+  const schema = branchFor(schemaIn, value);
   if (Array.isArray(value)) return value.map((v) => rewriteParams(v, itemSchema(schema), key, role, rewrite));
   if (value && typeof value === "object") {
     const out: Record<string, unknown> = {};

@@ -131,6 +131,8 @@ describe("every bundled template's string params are classified", () => {
    *  traversal reports back exactly the paths it considers translatable. */
   function probe(schema: Record<string, any>, path = ""): unknown {
     if (schema?.type === "string") return path;
+    // A oneOf param (qaly shortfall: one or a list) probes its object form.
+    if (Array.isArray(schema?.oneOf)) return probe(schema.oneOf.find((a: Record<string, any>) => a.type === "object") ?? {}, path);
     if (schema?.type === "array") return [probe(schema.items ?? {}, `${path}[]`)];
     if (schema?.properties) {
       const out: Record<string, unknown> = {};

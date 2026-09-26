@@ -1,7 +1,7 @@
 {
   "name": "qaly_profiles",
   "status": "ready",
-  "description": "Quality-adjusted life years: health-related quality of life (utility, 0–1) on the y-axis against age/time on the x-axis, one non-linear curve per scenario. The area under a curve is the QALYs of that life; the shaded areas between two curves show QALYs gained (green) and lost (red). Choose this scene for ANY request about QALYs, quality of life over a lifetime, comparing life with vs without treatment, or treatment A vs treatment B. Profiles are described as waypoints — utility can drop suddenly at disease onset, dip at the start of treatment (initial discomfort), bounce back above the untreated path, and end at different death ages. All interpolation, clamping to [0,1], and gain/loss shading is computed for you. Add `reference` and `shortfall` for the SEVERITY side of the same figure: the health a comparable person without the disease could expect, and the gap to it from `index_age` on — absolute shortfall (absolutt prognosetap) and proportional shortfall, computed and stated on the figure. Choose this scene for ANY request about disease severity, prognosetap, health loss, shortfall, or how much health a disease costs someone compared with a normal life.",
+  "description": "Quality-adjusted life years: health-related quality of life (utility, 0–1) on the y-axis against age/time on the x-axis, one path per scenario — smooth, or straight segments like the textbook figure (`lines`). The area under a curve is the QALYs of that life; the shaded areas between two curves show QALYs gained (green) and lost (red). Choose this scene for ANY request about QALYs, quality of life over a lifetime, comparing life with vs without treatment, or treatment A vs treatment B. Profiles are described as waypoints — utility can drop suddenly at disease onset, dip at the start of treatment (initial discomfort), bounce back above the untreated path, and end at different death ages. All interpolation, clamping to [0,1], and gain/loss shading is computed for you. Add `reference` and `shortfall` for the SEVERITY side of the same figure: the health a comparable person without the disease could expect, and the gap to it from `index_age` on — absolute shortfall (absolutt prognosetap) and proportional shortfall, computed and stated on the figure. Choose this scene for ANY request about disease severity, prognosetap, health loss, shortfall, or how much health a disease costs someone compared with a normal life.",
   "params_schema": {
     "type": "object",
     "properties": {
@@ -17,9 +17,17 @@
         "type": "number",
         "description": "Right edge of the time axis. Defaults to just past the latest death age."
       },
+      "lines": {
+        "type": "string",
+        "enum": [
+          "smooth",
+          "straight"
+        ],
+        "description": "Paths between waypoints: smooth (default) or straight segments — the classic QALY diagram, easiest to read as areas."
+      },
       "profiles": {
         "type": "array",
-        "description": "1–3 scenarios, each a utility-over-time curve. Order matters: with two profiles, gain/loss shading defaults to profile 2 vs profile 1 (so put the intervention second).",
+        "description": "1–4 scenarios (e.g. without intervention, with it, or A and B), each a utility-over-time curve. Order matters: with two profiles, gain/loss shading defaults to profile 2 vs profile 1 (so put the intervention second).",
         "items": {
           "type": "object",
           "properties": {
@@ -42,7 +50,7 @@
             },
             "waypoints": {
               "type": "array",
-              "description": "Utility waypoints in time order. Between waypoints the curve glides smoothly (non-linear). step: true means the value JUMPS at that age — use it for disease onset or treatment start. A treatment 'bounce' is: step down (initial discomfort), then a waypoint a few years later back up above the untreated path.",
+              "description": "Utility waypoints in time order. Between waypoints the path glides (or runs straight with lines: straight). A profile may begin at diagnosis (first t > 0). step: true means the value JUMPS at that age — use it for disease onset or treatment start. A treatment 'bounce' is: step down (initial discomfort), then a waypoint a few years later back up above the untreated path.",
               "items": {
                 "type": "object",
                 "properties": {
@@ -73,7 +81,10 @@
         }
       },
       "shade_between": {
-        "type": "object",
+        "type": [
+          "object",
+          "null"
+        ],
         "description": "Shade the areas between two profiles: green where a is above b (QALYs gained), red where a is below b (e.g. initial treatment discomfort). Defaults to profile 2 vs profile 1; set to null to disable.",
         "properties": {
           "a": {
@@ -145,32 +156,76 @@
         "description": "The age the prognosis is judged from: diagnosis, or the moment the treatment decision is made. Everything before it is shared history and is not counted. Defaults to the first `step` waypoint of the profile being measured (usually disease onset), or 0."
       },
       "shortfall": {
-        "type": "object",
-        "description": "Measure the gap between `reference` and ONE profile from `index_age` to the end of life, and put the arithmetic on the figure: remaining QALYs in full health, remaining QALYs with the disease, the ABSOLUTE shortfall (their difference — Norwegian absolutt prognosetap, the severity criterion) and the PROPORTIONAL shortfall (that difference as a share of remaining healthy life — the Dutch criterion). The lost area is a pale wash that the gain/loss shading paints on top of. Set it together with a two-profile comparison to show severity and treatment effect in ONE figure: how bad it is untreated, and how much the treatment takes back.",
-        "properties": {
-          "of": {
-            "type": "string",
-            "description": "Profile id whose prognosis is measured — the UNTREATED / natural-course one. Defaults to the first profile.",
-            "x-translate": false
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "of": {
+                "type": "string",
+                "description": "Profile id whose prognosis is measured — the UNTREATED / natural-course one. Defaults to the first profile.",
+                "x-translate": false
+              },
+              "show": {
+                "type": "string",
+                "enum": [
+                  "absolute",
+                  "proportional",
+                  "both"
+                ],
+                "description": "Which figure the note states (default both)."
+              },
+              "discount": {
+                "type": "number",
+                "description": "Annual discount rate applied to both remaining-QALY totals (default 0). Severity criteria are written undiscounted — leave it at 0 unless the question is explicitly about discounting."
+              },
+              "label": {
+                "type": "string",
+                "description": "Heading on the arithmetic note. Default \"Health lost to the disease\"."
+              },
+              "index_age": {
+                "type": "number",
+                "description": "This patient's own index age (else the top-level index_age / the profile's onset)."
+              }
+            }
           },
-          "show": {
-            "type": "string",
-            "enum": [
-              "absolute",
-              "proportional",
-              "both"
-            ],
-            "description": "Which figure the note states (default both)."
-          },
-          "discount": {
-            "type": "number",
-            "description": "Annual discount rate applied to both remaining-QALY totals (default 0). Severity criteria are written undiscounted — leave it at 0 unless the question is explicitly about discounting."
-          },
-          "label": {
-            "type": "string",
-            "description": "Heading on the arithmetic note. Default \"Health lost to the disease\"."
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "of": {
+                  "type": "string",
+                  "description": "Profile id whose prognosis is measured — the UNTREATED / natural-course one. Defaults to the first profile.",
+                  "x-translate": false
+                },
+                "show": {
+                  "type": "string",
+                  "enum": [
+                    "absolute",
+                    "proportional",
+                    "both"
+                  ],
+                  "description": "Which figure the note states (default both)."
+                },
+                "discount": {
+                  "type": "number",
+                  "description": "Annual discount rate applied to both remaining-QALY totals (default 0). Severity criteria are written undiscounted — leave it at 0 unless the question is explicitly about discounting."
+                },
+                "label": {
+                  "type": "string",
+                  "description": "Heading on the arithmetic note. Default \"Health lost to the disease\"."
+                },
+                "index_age": {
+                  "type": "number",
+                  "description": "This patient's own index age (else the top-level index_age / the profile's onset)."
+                }
+              }
+            },
+            "maxItems": 3,
+            "description": "One per patient, each from its own index_age against the same reference — to compare, e.g., a young and an old patient. The k-th draws shortfall_region_k, index_line_k, shortfall_note_k."
           }
-        }
+        ],
+        "description": "Measure the gap between `reference` and ONE profile from `index_age` to the end of life, and put the arithmetic on the figure: remaining QALYs in full health, remaining QALYs with the disease, the ABSOLUTE shortfall (their difference — Norwegian absolutt prognosetap, the severity criterion) and the PROPORTIONAL shortfall (that difference as a share of remaining healthy life — the Dutch criterion). The lost area is a pale wash that the gain/loss shading paints on top of. Set it together with a two-profile comparison to show severity and treatment effect in ONE figure: how bad it is untreated, and how much the treatment takes back."
       }
     }
   },
@@ -188,7 +243,8 @@
     "index_line": "dashed vertical line at the index age, where the prognosis starts being counted",
     "shortfall_region": "the pale shaded area between the reference and the measured profile, from the index age on — the absolute shortfall as an area",
     "shortfall_note": "the four-line ledger: its heading, remaining QALYs without and with the disease, then the shortfall",
-    "label_index": "the \"From age N\" caption on the index line"
+    "label_index": "the \"From age N\" caption on the index line",
+    "shortfall_region_2 / index_line_2 / label_index_2 / shortfall_note_2": "the second patient's shortfall (shortfall as a list), in its curve's colour; _3 for a third"
   },
   "examples": [
     {

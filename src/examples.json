@@ -63898,5 +63898,215 @@
         }
       ]
     }
+  },
+  {
+    "request": "What makes a disease severe — and does it matter how we measure it?",
+    "spec": {
+      "title": "How severe is a disease?",
+      "template": "qaly_profiles",
+      "params": {
+        "lines": "straight",
+        "x_max": 90,
+        "reference": {
+          "label": "Normal life",
+          "waypoints": [
+            {
+              "t": 0,
+              "u": 0.95
+            },
+            {
+              "t": 40,
+              "u": 0.88
+            },
+            {
+              "t": 70,
+              "u": 0.78
+            }
+          ],
+          "death_at": 82
+        },
+        "profiles": [
+          {
+            "id": "anna",
+            "label": "Anna",
+            "waypoints": [
+              {
+                "t": 30,
+                "u": 0.72
+              },
+              {
+                "t": 60,
+                "u": 0.6
+              }
+            ],
+            "death_at": 64
+          },
+          {
+            "id": "bjorn",
+            "label": "Bjørn",
+            "waypoints": [
+              {
+                "t": 76,
+                "u": 0.5
+              }
+            ],
+            "death_at": 78
+          }
+        ],
+        "shade_between": null,
+        "shortfall": [
+          {
+            "of": "anna",
+            "label": "Anna, ill at 30"
+          },
+          {
+            "of": "bjorn",
+            "label": "Bjørn, ill at 76"
+          }
+        ]
+      },
+      "details": {
+        "shortfall_region": "Absolute shortfall = QALYs expected without the disease − QALYs expected with it, from the age of diagnosis: $$43.1 - 22.2 = 20.9$$",
+        "shortfall_region_2": "Proportional shortfall = the absolute shortfall as a share of what was expected: $$\\frac{4.7 - 1.0}{4.7} \\approx 79\\%$$ Anna's is $20.9 / 43.1 \\approx 49\\%$."
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "How severe is a disease?"
+          }
+        },
+        {
+          "draw": [
+            "axes",
+            "full_health_line",
+            "tick_one",
+            "tick_zero"
+          ],
+          "speak": "Many health services give extra priority to severe diseases. But what makes a disease severe? Two patients show that the answer depends on how you measure it."
+        },
+        {
+          "draw": [
+            "reference_curve",
+            "label_reference"
+          ],
+          "speak": "This dashed line is a normal life in our sketch: quality of life from one, perfect health, slowly falling, to death at about 82."
+        },
+        {
+          "draw": [
+            "curve_anna",
+            "label_anna"
+          ],
+          "speak": "Anna falls ill at 30. Without treatment she lives to 64, in poorer health."
+        },
+        {
+          "draw": [
+            "index_line",
+            "label_index",
+            "shortfall_region"
+          ],
+          "speak": "What she could have expected from 30 on, but loses, is this area — quality of life times years, counted in QALYs."
+        },
+        {
+          "draw": [
+            "shortfall_note"
+          ],
+          "speak": "She could have expected about 43 QALYs. She gets 22. She loses 21 — about half."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "curve_bjorn",
+            "label_bjorn"
+          ],
+          "speak": "Bjørn falls ill at 76 and dies at 78."
+        },
+        {
+          "draw": [
+            "index_line_2",
+            "label_index_2",
+            "shortfall_region_2",
+            "shortfall_note_2"
+          ],
+          "speak": "He could have expected under five QALYs. He gets one, and loses almost four — four fifths of what he had left."
+        },
+        {
+          "highlight": {
+            "target": [
+              "shortfall_region",
+              "shortfall_region_2"
+            ]
+          },
+          "speak": "So whose disease is the more severe?"
+        },
+        {
+          "highlight": {
+            "target": [
+              "shortfall_note"
+            ]
+          },
+          "speak": "Count the QALYs lost — the absolute shortfall — and it is Anna's, by far: 21 against under 4. Norway measures severity this way."
+        },
+        {
+          "highlight": {
+            "target": [
+              "shortfall_note_2"
+            ]
+          },
+          "speak": "Count the share of the remaining life that is lost — the proportional shortfall — and it is Bjørn's: 79 percent against 49. The Netherlands measures it this way."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "focus": {
+            "target": [
+              "shortfall_region",
+              "curve_anna"
+            ]
+          },
+          "speak": "The absolute measure counts the health actually lost, and a young patient has the most to lose. Its weakness: an old person facing a terrible prognosis can never count as very severe — too few years are left to lose."
+        },
+        {
+          "focus": {
+            "target": [
+              "shortfall_region_2",
+              "curve_bjorn"
+            ]
+          },
+          "speak": "The proportional measure calls a disease severe when it takes almost everything you had left, at any age. Its weakness: it ranks losing twenty-one years below losing four."
+        },
+        {
+          "highlight": {
+            "target": [
+              "reference_curve"
+            ]
+          },
+          "speak": "A third view looks back instead of forward: fair innings, the health a person gets over a whole life. Anna gets about 50 QALYs, Bjørn about 67 — so it favours Anna even more, and it is openly about age."
+        },
+        {
+          "highlight": {
+            "target": [
+              "shortfall_note",
+              "shortfall_note_2"
+            ]
+          },
+          "speak": "None of these is neutral; each is a value judgement. England's NICE uses both measures: a disease counts as severe if either loss is large."
+        },
+        {
+          "quiz": {
+            "question": "Which measure ranks Bjørn's disease as the more severe?",
+            "choices": [
+              "The absolute shortfall",
+              "The proportional shortfall",
+              "Fair innings"
+            ],
+            "correct": 2,
+            "right": "The proportional shortfall: he loses 79 percent of the health he had left, Anna 49."
+          }
+        }
+      ]
+    }
   }
 ]

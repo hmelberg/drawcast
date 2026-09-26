@@ -51,6 +51,8 @@ export interface QalyShortfall {
   /** profile id whose prognosis is measured against the reference (default: the first profile) */
   of?: string;
   show?: "absolute" | "proportional" | "both";
+  /** the age THIS prognosis is judged from — each patient their own (falls back to params.index_age) */
+  index_age?: number;
   /** annual discount rate; 0 (the default) is the undiscounted convention severity criteria use */
   discount?: number;
   label?: string;
@@ -67,8 +69,10 @@ export interface QalyParams {
   reference?: QalyProfile;
   /** age the prognosis is judged from (diagnosis / decision point) */
   index_age?: number;
-  /** measure the gap between the reference and one profile from index_age on */
-  shortfall?: QalyShortfall | null;
+  /** measure the gap between the reference and a profile from index_age on — or several, one per patient */
+  shortfall?: QalyShortfall | QalyShortfall[] | null;
+  /** "smooth" (default: eased between waypoints) or "straight" (the textbook QALY figure's straight segments) */
+  lines?: "smooth" | "straight";
 }
 
 export interface ShortfallResult {
@@ -112,7 +116,7 @@ export function computeShortfall(
   return { remainingHealthy: healthy, remainingDisease: ill, absolute, proportional: healthy > 0 ? absolute / healthy : 0 };
 }
 
-const PALETTE = [COLORS.supply, COLORS.demand, COLORS.accent];
+const PALETTE = [COLORS.supply, COLORS.demand, COLORS.accent, COLORS.shifted];
 
 // The classic "treatment bounce" comparison, used when the LLM gives no profiles.
 const DEFAULT_PROFILES: QalyProfile[] = [
@@ -192,6 +196,11 @@ function buildSegments(profile: QalyProfile): Segment[] {
 }
 
 const smoothstep = (x: number) => x * x * (3 - 2 * x);
+const linear = (x: number) => x;
+/** How a segment gets from one waypoint to the next: eased, or the textbook
+ *  figure's straight line (Hans 2026-09-26: "might be easier if we have
+ *  linear lines … both are possible"). Set once per layout. */
+let ease: (x: number) => number = smoothstep;
 
 /** Utility as a function of time (0 after death, held flat outside waypoints). */
 function profileFn(segments: Segment[], deathAt: number | undefined): (t: number) => number {
@@ -203,7 +212,7 @@ function profileFn(segments: Segment[], deathAt: number | undefined): (t: number
       if (s.kind === "vertical") continue;
       if (t >= s.t0 && t <= s.t1) {
         const tau = (t - s.t0) / (s.t1 - s.t0 || 1);
-        return s.u0 + (s.u1 - s.u0) * smoothstep(tau);
+        return s.u0 + (s.u1 - s.u0) * ease(tau);
       }
     }
     const lastSmooth = [...segments].reverse().find((s) => s.kind === "smooth");
@@ -217,11 +226,11 @@ function samplePts(segments: Segment[], sx: (v: number) => number, sy: (v: numbe
     if (s.kind === "vertical") {
       pts.push([sx(s.t0), sy(s.u0)], [sx(s.t1), sy(s.u1)]);
     } else {
-      const n = Math.max(8, Math.round((s.t1 - s.t0) * 0.8));
+      const n = ease === linear ? 1 : Math.max(8, Math.round((s.t1 - s.t0) * 0.8));
       for (let i = 0; i <= n; i++) {
         const tau = i / n;
         const t = s.t0 + (s.t1 - s.t0) * tau;
-        pts.push([sx(t), sy(s.u0 + (s.u1 - s.u0) * smoothstep(tau))]);
+        pts.push([sx(t), sy(s.u0 + (s.u1 - s.u0) * ease(tau))]);
       }
     }
   }
@@ -229,6 +238,7 @@ function samplePts(segments: Segment[], sx: (v: number) => number, sy: (v: numbe
 }
 
 export function layoutQalyProfiles(params: QalyParams): SceneLayout {
+  ease = params.lines === "straight" ? linear : smoothstep;
   const plot = plotArea();
   const profiles = (params.profiles?.length ? params.profiles : DEFAULT_PROFILES).map((p, i) => ({
     ...p,
@@ -334,6 +344,7 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
   // could expect — and the shortfall it defines. Pushed BEFORE the gain/loss
   // shading so the treatment areas paint on top of the loss backdrop.
   const wantsShortfall = params.shortfall !== null && params.shortfall !== undefined;
+  const shortfalls: ShortfallResult[] = [];
   if (params.reference || wantsShortfall) {
     const ref = { ...DEFAULT_REFERENCE, ...(params.reference ?? {}) };
     const refSegments = buildSegments(ref);
@@ -354,16 +365,26 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
       label("label_reference", refAnchor, "above-left", ref.label ?? "Without the disease", COLORS.guide, "reference_curve");
     }
 
-    const sf = params.shortfall;
-    if (sf && profiles.length > 0) {
-      const target = profiles.find((p) => p.id === sf.of) ?? profiles[0];
+    // One shortfall, or one per patient: each is measured from ITS OWN index
+    // age against the same reference, which is what lets two patients be
+    // compared on one figure (a young one losing much, an old one losing
+    // most of little). The first keeps the plain ids; the k-th gets `_k`.
+    let leftNotes = 0;
+    const sfs = (Array.isArray(params.shortfall) ? params.shortfall : params.shortfall ? [params.shortfall] : []).slice(0, 3);
+    sfs.forEach((sf, k) => {
+      if (profiles.length === 0) return;
+      const sfx = k === 0 ? "" : `_${k + 1}`;
+      const target = profiles.find((p) => p.id === sf.of) ?? profiles[Math.min(k, profiles.length - 1)];
       const diseaseFn = fns.get(target.id)!;
       // The prognosis is judged from the moment the disease arrives: the first
-      // step waypoint, unless the caller names an index age outright.
-      const onset = (target.waypoints ?? []).find((w) => w.step)?.t;
-      const indexAge = params.index_age ?? onset ?? 0;
+      // step waypoint (or the first waypoint of a profile that only begins at
+      // diagnosis), unless the caller names an index age outright.
+      const wps = target.waypoints ?? [];
+      const onset = wps.find((w) => w.step)?.t ?? (wps.length > 0 && Math.min(...wps.map((w) => w.t)) > 0 ? Math.min(...wps.map((w) => w.t)) : undefined);
+      const indexAge = sf.index_age ?? (sfs.length === 1 ? params.index_age : undefined) ?? onset ?? 0;
       const tEnd = Math.max(ref.death_at ?? 0, ends.get(target.id) ?? 0, indexAge);
       const res = computeShortfall(refFn, diseaseFn, indexAge, tEnd, sf.discount ?? 0);
+      shortfalls[k] = res;
 
       const N = 160;
       const upper: Pt[] = [];
@@ -375,14 +396,16 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
       }
       const regionPts: Pt[] = [...upper, ...[...lower].reverse()];
       push({
-        id: "shortfall_region",
+        id: `shortfall_region${sfx}`,
         kind: "area",
         pts: regionPts,
         z: Z_AREA,
-        style: defaultStyle({ color: COLORS.guide, fill: COLORS.guide, opacity: 0.2, strokeWidth: 1 }),
+        // Each patient's loss in their own curve's colour when there are
+        // several; the single classic shortfall keeps its grey wash.
+        style: defaultStyle({ color: sfs.length > 1 ? target.color : COLORS.guide, fill: sfs.length > 1 ? target.color : COLORS.guide, opacity: 0.2, strokeWidth: 1 }),
         drawOpts: defaultDrawOpts("sketch", SKETCH_MS.region),
       });
-      anchors["shortfall_region"] = centroid(regionPts);
+      anchors[`shortfall_region${sfx}`] = centroid(regionPts);
 
       // A single pale wash, NOT a hatch: hatching this region reads well on its
       // own, but every hatch line becomes an obstacle the label solver has to
@@ -390,7 +413,7 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
       // Measured against the bundled examples, the hatched version carried nine
       // label collisions where the whole library carries three.
       push({
-        id: "index_line",
+        id: `index_line${sfx}`,
         kind: "stroke",
         pts: [
           [sx(indexAge), sy(0)],
@@ -400,47 +423,65 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
         style: defaultStyle({ color: COLORS.guide, strokeWidth: 2.5, dash: true }),
         drawOpts: defaultDrawOpts("sketch", SKETCH_MS.guides),
       });
-      anchors["index_line"] = [sx(indexAge), sy(1.03)];
-      label("label_index", [sx(indexAge), sy(1.03)], "above-right", `From age ${Math.round(indexAge)}`, COLORS.guide, "index_line");
+      anchors[`index_line${sfx}`] = [sx(indexAge), sy(1.03)];
+      label(`label_index${sfx}`, [sx(indexAge), sy(1.03)], "above-right", `From age ${Math.round(indexAge)}`, COLORS.guide, `index_line${sfx}`);
 
       // The arithmetic in the open: a shortfall is only credible if you can see
       // the two remaining-QALY figures it was subtracted from. Kept to three
       // SHORT lines — a wide one crosses whatever curve happens to be low.
       const q = (v: number) => kit.num(v, 1);
       const show = sf.show ?? "both";
-      const noteLines = [
-        sf.label ?? "Health lost to the disease",
-        `Without the disease ${q(res.remainingHealthy)} QALYs`,
-        `With it ${q(res.remainingDisease)} QALYs`,
-      ];
-      if (show !== "proportional") noteLines.push(`Shortfall ${q(res.absolute)} QALYs${show === "both" ? ` (${Math.round(res.proportional * 100)}%)` : ""}`);
-      else noteLines.push(`Shortfall ${Math.round(res.proportional * 100)}% of what was left`);
+      const pct = `${Math.round(res.proportional * 100)}%`;
+      const several = sfs.length > 1;
+      // Several patients share the floor, so each note is shorter.
+      const noteLines = several
+        ? [sf.label ?? target.label ?? target.id, `Expected ${q(res.remainingHealthy)} QALYs`, `Gets ${q(res.remainingDisease)}`, show === "proportional" ? `Loses ${pct}` : show === "absolute" ? `Loses ${q(res.absolute)}` : `Loses ${q(res.absolute)} (${pct})`]
+        : [sf.label ?? "Health lost to the disease", `Without the disease ${q(res.remainingHealthy)} QALYs`, `With it ${q(res.remainingDisease)} QALYs`];
+      if (!several) {
+        if (show !== "proportional") noteLines.push(`Shortfall ${q(res.absolute)} QALYs${show === "both" ? ` (${pct})` : ""}`);
+        else noteLines.push(`Shortfall ${pct} of what was left`);
+      }
 
       // Left of the index line if there is room for the block, otherwise right
       // of it — the one strip of a QALY figure that is reliably empty is the
-      // floor, but the index line cuts it in two.
-      const NOTE_W = 250;
-      const noteX = sx(indexAge) - plot.x0 > NOTE_W + 40 ? plot.x0 + 24 : Math.min(sx(indexAge) + 20, plot.x1 - NOTE_W);
+      // floor, but the index line cuts it in two. With several patients, a
+      // note goes in the free paper UNDER its own patient's path when that
+      // stretch is wide enough, else in the strip left of the first index
+      // line, stacked — never across another patient's lines.
+      const NOTE_W = several ? 190 : 250;
+      let noteX: number;
+      let top: number;
+      if (!several) {
+        noteX = sx(indexAge) - plot.x0 > NOTE_W + 40 ? plot.x0 + 24 : Math.min(sx(indexAge) + 20, plot.x1 - NOTE_W);
+        top = 0.15;
+      } else if (sx(ends.get(target.id) ?? indexAge) - sx(indexAge) >= NOTE_W + 30) {
+        noteX = sx(indexAge) + 14;
+        top = 0.42;
+      } else {
+        noteX = plot.x0 + 24;
+        top = 0.42 - 0.3 * leftNotes++;
+      }
+      const noteColor = several ? target.color : COLORS.guide;
       push({
-        id: "shortfall_note",
+        id: `shortfall_note${sfx}`,
         kind: "group",
         children: noteLines.map((text, i) => ({
-          id: `shortfall_note__${i + 1}`,
+          id: `shortfall_note${sfx}__${i + 1}`,
           kind: "text" as const,
-          pos: [noteX, sy(0.15 - i * 0.06)] as Pt,
+          pos: [noteX, sy(top - i * 0.06)] as Pt,
           text,
           fontSize: 20,
           anchor: "start" as const,
           z: Z_TEXT,
-          style: defaultStyle({ color: COLORS.guide }),
+          style: defaultStyle({ color: noteColor }),
           drawOpts: defaultDrawOpts("instant"),
         })),
         z: Z_TEXT,
-        style: defaultStyle({ color: COLORS.guide }),
+        style: defaultStyle({ color: noteColor }),
         drawOpts: defaultDrawOpts("instant"),
       });
-      anchors["shortfall_note"] = [noteX, sy(0.15)];
-    }
+      anchors[`shortfall_note${sfx}`] = [noteX, sy(top)];
+    });
   }
 
   // Gain/loss shading between two profiles (default: the first two).
@@ -513,5 +554,16 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
     }
   }
 
-  return { drawables, labels, anchors, order, curveSamples, attached, frame: { x: [0, tMax], y: [0, 1.06], box: plot } };
+  // Each shortfall's numbers for `{qaly.absolute}`-style text (SceneLayout.values):
+  // the first plain, the k-th with `_k`, proportional as a percentage.
+  const values: Record<string, number> = {};
+  shortfalls.forEach((r, k) => {
+    const sfx = k === 0 ? "" : `_${k + 1}`;
+    values[`absolute${sfx}`] = r.absolute;
+    values[`proportional${sfx}`] = r.proportional * 100;
+    values[`remaining_healthy${sfx}`] = r.remainingHealthy;
+    values[`remaining_disease${sfx}`] = r.remainingDisease;
+  });
+
+  return { drawables, labels, anchors, order, curveSamples, attached, values, frame: { x: [0, tMax], y: [0, 1.06], box: plot } };
 }
