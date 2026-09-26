@@ -26,6 +26,9 @@ export interface CurveParams {
   /** Scales the curve's x-run about the equilibrium — see ELASTICITY. */
   elasticity?: "perfectly_inelastic" | "inelastic" | "unit" | "elastic" | "perfectly_elastic" | number;
   label?: string;
+  /** The viewer's drag (widget.ts): the curve itself moved this many domain
+   *  units right. Not in the manifest — authors shift with demand_shift. */
+  offset?: number;
 }
 
 export interface ShiftParams {
@@ -544,7 +547,14 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
 
 function shapedCurve(direction: "increasing" | "decreasing", p: CurveParams | undefined): Pt[] {
   const shape = qualitativeShape(direction, p?.curvature ?? "linear", p?.steepness ?? "medium");
-  return shape.map(([tx, ty]): Pt => [D0 + (D1 - D0) * tx, ty * 100]);
+  const pts = shape.map(([tx, ty]): Pt => [D0 + (D1 - D0) * tx, ty * 100]);
+  // `offset` moves the curve ITSELF (widget.ts: a drag on a figure with a
+  // tax or a price control, whose regions read off this curve). Off-plot
+  // points are dropped as for a shifted curve, so the slope is kept.
+  const off = Math.max(-60, Math.min(60, p?.offset ?? 0));
+  if (off === 0) return pts; // exact identity — every existing figure is untouched
+  const moved = pts.map(([x, y]): Pt => [x + off, y]).filter(([x]) => x >= D0 && x <= D1);
+  return moved.length >= 2 ? moved : pts;
 }
 
 function curve(id: string, domainPts: Pt[], color: string, ctx: Ctx): StrokeDrawable {

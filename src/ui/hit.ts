@@ -85,3 +85,41 @@ export function hitElement(
   }
   return best;
 }
+
+/** Distance from p to the segment a–b. */
+function segmentDistance(a: Pt, b: Pt, p: Pt): number {
+  const [dx, dy] = [b[0] - a[0], b[1] - a[1]];
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2));
+  return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+}
+
+/** Distance from p to the nearest point of a polyline. */
+export function polylineDistance(pts: readonly Pt[], p: Pt): number {
+  if (pts.length === 1) return Math.hypot(p[0] - pts[0][0], p[1] - pts[0][1]);
+  let best = Infinity;
+  for (let i = 1; i < pts.length; i++) best = Math.min(best, segmentDistance(pts[i - 1], pts[i], p));
+  return best;
+}
+
+/**
+ * The open stroke nearest p within `reach` logical units, or null — the hit
+ * test for a thin curve, which has no inside and whose box is most of the
+ * plot. A tie (two curves lying on one another, D′ pulled off D at amount 0)
+ * goes to the id listed FIRST, so a caller orders its ids by what should win.
+ */
+export function nearestLine(lines: ReadonlyMap<string, Pt[][]>, p: Pt, reach: number, order?: readonly string[]): string | null {
+  let best: string | null = null;
+  let bestDist = Infinity;
+  for (const id of order ?? [...lines.keys()]) {
+    for (const pts of lines.get(id) ?? []) {
+      const d = polylineDistance(pts, p);
+      // Strictly nearer by a hair, or the earlier id keeps it.
+      if (d <= reach && d < bestDist - 0.5) {
+        bestDist = d;
+        best = id;
+      }
+    }
+  }
+  return best;
+}

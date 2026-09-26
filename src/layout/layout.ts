@@ -563,6 +563,25 @@ export function elementRings(layout: Pick<LayoutResult, "drawables" | "order">):
   return map;
 }
 
+/**
+ * Open strokes per element id, the other half of elementRings: every stroke
+ * with two or more points that is NOT closed — a curve, a price line, an
+ * arrow. A curve has no inside to be in, so a widget that lets the viewer
+ * grab one hit-tests these by distance (ui/hit.ts nearestLine), never by box:
+ * a demand curve's box is half the plot (Hans 2026-09-26).
+ */
+export function elementLines(layout: Pick<LayoutResult, "drawables" | "order">): Map<string, Pt[][]> {
+  const map = new Map<string, Pt[][]>();
+  for (const id of layout.order) {
+    const lines: Pt[][] = [];
+    for (const d of leafDrawables(drawablesForId(layout.drawables, id))) {
+      if (d.kind === "stroke" && !d.closed && d.pts.length >= 2) lines.push(d.pts);
+    }
+    if (lines.length > 0) map.set(id, lines);
+  }
+  return map;
+}
+
 /** Spec domain → logical canvas. With a `fit`, the standard plot area is
  *  where the template's axes WERE; the fit says where they are now.
  *  No domain: coordinates are canvas coordinates and never follow a

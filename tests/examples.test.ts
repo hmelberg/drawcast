@@ -437,7 +437,11 @@ describe("bundled examples stay exemplary", () => {
       for (const ex of s.manifest.examples) {
         const scene = buildWidgetScene(s, ex.params);
         expect(scene, s.manifest.name).not.toBeNull();
-        const run = runWidget(s, ex.params, scene!.ids);
+        // Every part that has geometry here. A built-in template's labels
+        // (supply_demand's label_D…, 2026-09-26) are placed by the page
+        // layout's label solver, so the template's own scene has no box to
+        // click at; a document template draws its words and loses nothing.
+        const run = runWidget(s, ex.params, scene!.ids.filter((id) => scene!.boxes.has(id)));
         expect(run.errors, `${s.manifest.name} ${ex.request}`).toEqual([]);
       }
     }
