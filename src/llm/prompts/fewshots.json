@@ -897,7 +897,8 @@
           "style": {
             "color": "#2f6b8f",
             "dash": true
-          }
+          },
+          "details": "At terminal speed the ball stops accelerating, $a = 0$, so $mg = k v_t^2$ and $$v_t = \\sqrt{mg/k}$$ A heavier ball of the same size falls faster; a feather’s $v_t$ is well under 1 m/s."
         },
         {
           "id": "lab_term",
@@ -912,7 +913,8 @@
           "tex": "F_{\\text{net}} = mg - k v^2",
           "size": 48,
           "x": 700,
-          "y": 280
+          "y": 280,
+          "details": "Newton’s second law for the falling ball: $$m\\,a = mg - k v^2$$ where $k$ depends on the ball’s size and shape and on the air’s density."
         }
       ],
       "commands": [

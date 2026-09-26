@@ -126,7 +126,12 @@
             "right": "It shrinks: on a steeper ramp less of the weight presses into the surface, so the ramp pushes back less."
           }
         }
-      ]
+      ],
+      "details": {
+        "force_along": "The downhill part of the weight is $mg\\sin\\theta$: at $\\theta = 30°$, half the weight.",
+        "force_into": "The part pressing into the ramp is $mg\\cos\\theta$ — it shrinks as the ramp gets steeper.",
+        "force_friction": "Static friction grows to match the downhill pull, up to a limit $f \\le \\mu N$, where $\\mu$ depends on the two surfaces. The crate slides when $\\tan\\theta > \\mu$."
+      }
     }
   },
   {

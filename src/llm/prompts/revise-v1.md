@@ -67,7 +67,8 @@ How to read it, in full:
   and only this list keeps that from being read as a setting: `lang:`,
   `voice:` (male/female), `level:`, `record:`, `canvas:`, `domain:`,
   `vars: {json}`, `text: {json}`, `zoom_from:`, `use: <template>` (the
-  spec's `template`), `with: {json}` (its `params`), `chapter:`.
+  spec's `template`), `with: {json}` (its `params`), `details: {json}`
+  (formal details for a template's parts, by id), `chapter:`.
 - **When the script has no spelling for what you need, use the escape hatch
   rather than inventing one**: a ` ```yaml ` fence holding a LIST is appended to
   the page's elements, and one holding a MAPPING is merged into the page. Both

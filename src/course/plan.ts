@@ -70,7 +70,7 @@ function tagVocabulary(): string {
  * course is held to the same rules the planner wrote it under.
  */
 export function courseSystemPrompt(): string {
-  return COURSE_PROMPT.replace("{{TAGS}}", tagVocabulary());
+  return COURSE_PROMPT.replace("{{TAGS}}", () => tagVocabulary());
 }
 
 export function buildCourseMessages(request: string, lectures: number | null): { system: string; user: string } {

@@ -19,6 +19,9 @@ export interface CardTarget {
   /** Authored resource links (spec §13), merged from the element and any
    *  labels attached to it; deduped. */
   links: string[];
+  /** The authored formal detail (element `details`, or the spec's `details`
+   *  map for a template part): shown first on the card, previewed on hover. */
+  details?: string;
   /**
    * Set on a target minted from a DRAWN text that is not itself command-
    * addressable (a template's axis caption, `axes__x_label`): the addressable
@@ -122,6 +125,24 @@ export function cardTargets(spec: Spec, layout: LayoutFacts | readonly string[] 
       addLinks(t, linksOf(el));
     }
   }
+
+  // Formal details the author offered. An element carrying them is a card
+  // element even with no name or link of its own (its label, if any, already
+  // named it above); a label's details reach the element it labels too, the
+  // way its links do. The spec-level map reaches a TEMPLATE's parts, which
+  // have no element to carry the field.
+  const giveDetails = (id: string, text: unknown, name?: string): void => {
+    if (typeof text !== "string" || text.trim() === "" || !usable(id)) return;
+    const t = out.get(id) ?? ensure(id, name ?? id.replace(/_/g, " "));
+    t.details ??= text.trim();
+  };
+  for (const el of spec.elements ?? []) {
+    if (typeof el.details !== "string") continue;
+    const own = TEXT_BEARING.has(el.type) && typeof el.text === "string" && el.text.trim() !== "" ? el.text.trim() : undefined;
+    giveDetails(el.id, el.details, own);
+    if (el.type === "label" && typeof el.attach_to === "string") giveDetails(el.attach_to, el.details, own);
+  }
+  for (const [id, text] of Object.entries(spec.details ?? {})) giveDetails(id, text);
 
   // Command-addressable ids the LAYOUT minted for an element — a source's
   // highlighter sweeps (`<id>_quote`, `<id>_quote_2`, …) — carry their

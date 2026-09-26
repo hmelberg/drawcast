@@ -43,16 +43,21 @@ export function buildSystemBlocks(variantSource: string, parts: PromptParts): { 
       // pretty vs 29,838 minified (Opus 5, count_tokens) — the model reads
       // minified JSON just as well, and the schema is the largest single
       // block of the cached prefix.
-      .replaceAll("{{SCHEMA}}", JSON.stringify(parts.schema))
-      .replaceAll("{{CATALOG}}", parts.catalog)
-      .replaceAll("{{FEWSHOTS}}", parts.fewshots)
-      .replaceAll("{{CODE}}", parts.code ?? "")
-      .replaceAll("{{SOUND}}", parts.sound ?? "");
+      //
+      // Every insert is a FUNCTION, never a replacement string: in a string
+      // replacement `$$`, `$&`, `` $` `` and `$'` are patterns, and a schema
+      // description that wrote "`$…$` for math" pasted a copy of the whole
+      // prompt before it into the prompt (+54,000 chars, 2026-09-26).
+      .replaceAll("{{SCHEMA}}", () => JSON.stringify(parts.schema))
+      .replaceAll("{{CATALOG}}", () => parts.catalog)
+      .replaceAll("{{FEWSHOTS}}", () => parts.fewshots)
+      .replaceAll("{{CODE}}", () => parts.code ?? "")
+      .replaceAll("{{SOUND}}", () => parts.sound ?? "");
   const at = variantSource.indexOf("{{EXEMPLARS}}");
   if (at === -1) return { prefix: fill(variantSource), suffix: "" };
   return {
     prefix: fill(variantSource.slice(0, at)),
-    suffix: fill(variantSource.slice(at)).replaceAll("{{EXEMPLARS}}", parts.exemplars),
+    suffix: fill(variantSource.slice(at)).replaceAll("{{EXEMPLARS}}", () => parts.exemplars),
   };
 }
 

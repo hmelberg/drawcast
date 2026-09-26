@@ -33,6 +33,7 @@ import { h, logicalPoint } from "./dom";
 import { overCaption } from "./caption";
 import { gateIsOpen } from "./gates";
 import { hitElement } from "./hit";
+import { firstSentence, renderDetails } from "./details-render";
 import type { BBox } from "../layout/geometry";
 import type { WidgetHost } from "./widget-host";
 
@@ -249,6 +250,113 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost
     return (id !== null && targets.get(id)) || null;
   };
 
+  // ---- formal details: near the stroke, a hover preview -------------------
+  // The two NEW ways in (a click while playing, a hover) must not fire from
+  // anywhere inside a curve's bounding box — for an open stroke (a curve, a
+  // line, an arrow) the pointer has to be near the ink itself.
+  const strokesOf = new Map<string, [number, number][][]>();
+  for (const top of hd.layout.drawables) {
+    const t = targets.get(top.id);
+    if (!t?.details) continue;
+    const lines = leafDrawables([top])
+      .filter((d) => d.kind === "stroke" && !d.closed && !d.shapeHint && d.pts.length >= 2)
+      .map((d) => (d as { pts: [number, number][] }).pts);
+    if (lines.length > 0) strokesOf.set(top.id, lines);
+  }
+  const nearInk = (id: string, p: [number, number], slop = 16): boolean => {
+    const lines = strokesOf.get(id);
+    if (!lines) return true; // a shape or a word: its box is its body
+    for (const pts of lines) {
+      for (let i = 1; i < pts.length; i++) {
+        const [ax, ay] = pts[i - 1];
+        const [bx, by] = pts[i];
+        const dx = bx - ax;
+        const dy = by - ay;
+        const len2 = dx * dx + dy * dy || 1;
+        const u = Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - ay) * dy) / len2));
+        if (Math.hypot(p[0] - (ax + u * dx), p[1] - (ay + u * dy)) <= slop) return true;
+      }
+    }
+    return false;
+  };
+  // Tested only among the elements that CARRY details: a guide line or a
+  // shifted curve with no card of its own must not shadow the curve the
+  // author explained (the card's smallest-box rule would let it).
+  const detailsIds = [...targets.values()].filter((t) => t.details).map((t) => t.id);
+  const detailsAt = (e: MouseEvent): CardTarget | null => {
+    if (detailsIds.length === 0 || gateIsOpen(stage) || overCaption(e.target as Element | null)) return null;
+    const p = logicalPoint(stage, e);
+    if (!p) return null;
+    const visible = new Set(sceneAt(hd.plan, hd.timeline.position).visible);
+    const all = hitBoxes();
+    const boxes = new Map<string, BBox>();
+    for (const id of detailsIds) {
+      const b = all.get(id);
+      if (b && visible.has(targets.get(id)?.owner ?? id) && nearInk(id, p)) boxes.set(id, b);
+    }
+    const id = hitElement(boxes, p, 16);
+    return (id !== null && targets.get(id)) || null;
+  };
+
+  let tip: HTMLElement | null = null;
+  let tipFor: string | null = null;
+  let tipTimer = 0;
+  let leaveTimer = 0;
+  function hideTip(): void {
+    window.clearTimeout(tipTimer);
+    window.clearTimeout(leaveTimer);
+    leaveTimer = 0;
+    tip?.remove();
+    tip = null;
+    tipFor = null;
+  }
+  const showTip = (t: CardTarget, clientX: number, clientY: number): void => {
+    hideTip();
+    tipFor = t.id;
+    const more = h("button", { class: "cs-details-more" }, "More ▸");
+    more.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (hd.timeline.state === "playing") hd.timeline.pause();
+      openCard(t, clientX, clientY);
+    });
+    const body = h("div", { class: "cs-details-tip-text" });
+    renderDetails(body, firstSentence(t.details ?? ""));
+    tip = h("div", { class: "cs-details-tip" }, body, more);
+    tip.addEventListener("click", (e) => e.stopPropagation());
+    tip.addEventListener("pointerenter", () => {
+      window.clearTimeout(leaveTimer);
+      leaveTimer = 0;
+    });
+    tip.addEventListener("pointerleave", () => {
+      leaveTimer = window.setTimeout(hideTip, 300);
+    });
+    const sr = stage.getBoundingClientRect();
+    tip.style.left = `${Math.max(4, Math.min(clientX - sr.left + 12, sr.width - 290))}px`;
+    tip.style.top = `${Math.max(4, clientY - sr.top + 14)}px`;
+    stage.appendChild(tip);
+  };
+  // Hover is a mouse thing: on touch, long-press already opens the card.
+  stage.addEventListener("pointermove", (e) => {
+    if (e.pointerType !== "mouse" || card) return;
+    if (tip && e.target instanceof Node && tip.contains(e.target)) return; // reaching for More
+    const t = detailsAt(e);
+    if (t?.id === tipFor) {
+      window.clearTimeout(leaveTimer);
+      return;
+    }
+    if (!t) {
+      // Off the ink: a moment's grace, so the pointer can travel to More ▸.
+      if (tip && leaveTimer === 0) leaveTimer = window.setTimeout(hideTip, 450);
+      else if (!tip) hideTip();
+      return;
+    }
+    hideTip();
+    tipFor = t.id;
+    const { clientX, clientY } = e;
+    tipTimer = window.setTimeout(() => showTip(t, clientX, clientY), 350);
+  });
+  stage.addEventListener("pointerleave", hideTip);
+
   const openCard = (t: CardTarget, clientX: number, clientY: number): void => {
     closeCard();
     const title = h("div", { class: "cs-infocard-title" }, t.name);
@@ -261,7 +369,11 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost
       a.addEventListener("click", (e) => e.stopPropagation());
       return a;
     };
-    card = h("div", { class: "cs-infocard" }, closeBtn, title, summary, actions);
+    // The author's formal details come first: they are why this element is
+    // offered at all, and the card widens to hold a formula.
+    const details = t.details ? h("div", { class: "cs-infocard-details" }) : null;
+    if (details && t.details) renderDetails(details, t.details);
+    card = h("div", { class: `cs-infocard${details ? " cs-infocard-wide" : ""}` }, closeBtn, title, ...(details ? [details] : []), summary, actions);
     card.addEventListener("click", (e) => e.stopPropagation());
     card.addEventListener("contextmenu", (e) => {
       e.preventDefault();
@@ -337,7 +449,9 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost
 
     if (summaryRest) {
       fillSummary(summaryRest, summary);
-    } else if (meaningfulName(t.name)) {
+    } else if (!t.details && meaningfulName(t.name)) {
+      // (An element the author gave details already says what it is: a
+      // guessed encyclopedia sense under them would only compete.)
       // No authored identity: ask Wikipedia what this WORD could mean, and let
       // the figure's own words decide which sense (src/ui/wiki-match.ts). One
       // keyless search call, only on a click, and no model is involved —
@@ -387,9 +501,14 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost
 
     // At the pointer, clamped inside the stage.
     const sr = stage.getBoundingClientRect();
-    card.style.left = `${Math.min(clientX - sr.left + 10, sr.width - 250)}px`;
+    const cardW = details ? 350 : 250;
+    card.style.left = `${Math.max(4, Math.min(clientX - sr.left + 10, sr.width - cardW))}px`;
     card.style.top = `${Math.min(clientY - sr.top + 10, sr.height - 90)}px`;
     stage.appendChild(card);
+    // A tall card (details with a formula) must not run off the stage.
+    const over = card.offsetTop + card.offsetHeight - (sr.height - 4);
+    if (over > 0) card.style.top = `${Math.max(4, card.offsetTop - over)}px`;
+    hideTip();
     window.addEventListener("keydown", onKey);
   };
 
@@ -464,9 +583,18 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost
         e.stopPropagation();
         return;
       }
-      if (hd.timeline.state === "playing") return;
+      if (hd.timeline.state === "playing") {
+        // An element the author gave details is an explicit offer: one click
+        // from the movie pauses and opens them. Any other click stays the pause.
+        const d = detailsAt(e);
+        if (!d) return;
+        e.stopPropagation();
+        hd.timeline.pause();
+        openCard(d, e.clientX, e.clientY);
+        return;
+      }
       if (e.target instanceof Element && e.target.closest("button, a")) return;
-      const t = targetAt(e);
+      const t = detailsAt(e) ?? targetAt(e);
       if (!t) return;
       e.stopPropagation();
       openCard(t, e.clientX, e.clientY);
@@ -483,10 +611,10 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost
         // Pausing changes what is on stage under the pointer, so pause
         // BEFORE hit-testing; a background right-click stays the tray's
         // (or, on tray-less scenes, the browser's) to handle.
-        if (targetAt(e) === null) return;
+        if (detailsAt(e) === null && targetAt(e) === null) return;
         hd.timeline.pause();
       }
-      const t = targetAt(e);
+      const t = detailsAt(e) ?? targetAt(e);
       if (!t) return;
       e.preventDefault();
       e.stopPropagation();
@@ -512,6 +640,7 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost
     // under that gate only overWidget can turn the hand on, which is right.
     const own = stage.querySelector(".cs-widgetgate") !== null;
     const on = (hd.timeline.state !== "playing" || own) && (targetAt(e) !== null || overWidget(e));
-    stage.classList.toggle("cs-cardable", on);
+    // …and while playing, an element with details: a click on it opens them.
+    stage.classList.toggle("cs-cardable", on || (hd.timeline.state === "playing" && detailsAt(e) !== null));
   });
 }

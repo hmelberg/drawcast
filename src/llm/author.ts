@@ -114,14 +114,14 @@ export function secondExemplarYaml(): string {
 
 export function buildAuthorSystem(): Anthropic.TextBlockParam[] {
   const text = authorPromptSource
-    .replaceAll("{{KIT_SOURCE}}", kitSource)
+    .replaceAll("{{KIT_SOURCE}}", () => kitSource)
     .replaceAll(
       "{{ENGINES_SOURCE}}",
-      [enginesSource, "// ---- anatomy engine types ----", anatomyTypesSource, "// ---- elements engine types ----", elementsTypesSource, "// ---- space engine types ----", spaceTypesSource, "// ---- sky engine types ----", skyTypesSource].join("\n\n"),
+      () => [enginesSource, "// ---- anatomy engine types ----", anatomyTypesSource, "// ---- elements engine types ----", elementsTypesSource, "// ---- space engine types ----", spaceTypesSource, "// ---- sky engine types ----", skyTypesSource].join("\n\n"),
     )
-    .replaceAll("{{EXEMPLAR_YAML}}", exemplarYaml)
-    .replaceAll("{{EXEMPLAR_2_YAML}}", secondExemplarYaml())
-    .replaceAll("{{BUILTIN_IDS}}", Object.keys(scenes).sort().join(", "));
+    .replaceAll("{{EXEMPLAR_YAML}}", () => exemplarYaml)
+    .replaceAll("{{EXEMPLAR_2_YAML}}", () => secondExemplarYaml())
+    .replaceAll("{{BUILTIN_IDS}}", () => Object.keys(scenes).sort().join(", "));
   return [{ type: "text", text, cache_control: { type: "ephemeral" } }];
 }
 

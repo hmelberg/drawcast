@@ -215,6 +215,15 @@ const elementSchema = {
       description:
         "Resource links for this element (a paper, a video, a book) — shown on its info card in the live player; the video export ignores them. Full https URLs, COPIED VERBATIM from the user's request — NEVER invent, guess, or construct a URL (a fabricated DOI or video id looks exactly like a real one). The kind is auto-detected: YouTube plays embedded, Wikipedia shows a summary, .pdf opens a document view, anything else a new tab. On a label, the link also reaches the element it attach_to's.",
     },
+    details: {
+      type: "string",
+      description:
+        "The formal detail behind this element, for a viewer who wants more: its equation, derivation, definition or caveat, in a few sentences — `$…$` for inline math, `$$…$$` on its own line for a display formula. Never narrated or drawn: in the live player hovering the element shows its first sentence with More ▸, and a click (which pauses) or right-click opens it all on the element's card. Only when the cast has something formal worth offering — at most a few per cast.",
+    },
+    app_only: {
+      type: "boolean",
+      description: "Drawn in the live player, left out of a video export (with every command's mention of it) — e.g. a small `text` \"The math ▸\" carrying `details`, placed for viewers to click.",
+    },
     // region
     between: {
       type: "array",
@@ -1108,6 +1117,11 @@ export const specSchema = {
       type: "object",
       additionalProperties: { type: "number" },
       description: 'Named numbers, e.g. {"f": 1}: curve expr reads them ("sin(f*x)"), bind computes fields from them, drawn text shows {f}, animate sweeps them. Never named x or like a function.',
+    },
+    details: {
+      type: "object",
+      additionalProperties: { type: "string" },
+      description: 'The element `details` for ids that are not your own elements — a TEMPLATE\'s parts: {"demand_curve": "Here demand is $Q = 100 - 2P$ …"}.',
     },
     elements: { type: "array", items: elementSchema, description: "Tier-2/3 elements (also allowed alongside a template, for annotations)." },
     commands: {

@@ -5,6 +5,7 @@
 // format that will lose someone's work.
 import { beforeAll, describe, expect, test } from "vitest";
 import bundledExamples from "../src/examples.json";
+import fewshots from "../src/llm/prompts/fewshots.json";
 import { parseScriptPages } from "../src/spec/script/parse";
 import { printScriptPages } from "../src/spec/script/print";
 import { normalizeSpec } from "../src/spec/schema";
@@ -61,6 +62,13 @@ const check = (specs: Spec[]): { broken: string[]; unstable: string[] } => {
   });
   return { broken, unstable };
 };
+
+describe("the round trip over the few-shots (details and all)", () => {
+  test("every few-shot survives print → parse unchanged, and reprints the same", () => {
+    const result = check((fewshots as { spec: Spec }[]).map((e) => e.spec));
+    expect(result).toEqual({ broken: [], unstable: [] });
+  });
+});
 
 describe("the round trip over the bundled corpus", () => {
   const result = check(bundled);

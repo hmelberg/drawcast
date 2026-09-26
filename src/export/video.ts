@@ -5,6 +5,7 @@
 // only into the recorder, never the speakers). No servers; audio requires a
 // BYOK Google Cloud TTS key (browser speechSynthesis cannot be captured).
 
+import { stripAppOnly } from "../spec/app-only";
 import { render, type RenderStyle } from "../render";
 import { precomputeSweeps } from "../render/sweep-run";
 import { controlsOfFor } from "../render/plan";
@@ -410,7 +411,9 @@ export interface ExportResult {
   cues: CaptionCue[];
 }
 
-export async function exportVideo(items: Spec[], cfg: ExportConfig, hooks: ExportHooks): Promise<ExportResult> {
+export async function exportVideo(authoredItems: Spec[], cfg: ExportConfig, hooks: ExportHooks): Promise<ExportResult> {
+  // Nobody can click in a movie: what is there only to be clicked goes first.
+  const items = authoredItems.map(stripAppOnly);
   const { canvas, workbench, signal, keepAlive } = hooks;
   // Frame-driven pacing when a keep-alive scheduler is present (hidden tabs
   // throttle setTimeout hard); plain timers otherwise.

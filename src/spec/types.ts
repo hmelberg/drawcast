@@ -133,6 +133,10 @@ export interface SpecElement {
    *  movie export ignores them). Canonical form: array of full https URLs
    *  (max 4) — normalizeSpec folds a bare string into a one-element array. */
   link?: string[] | string;
+  /** Formal detail offered on demand (hover, click, card) — never narrated or drawn. */
+  details?: string;
+  /** Live player only: stripped from a video export (spec/app-only.ts). */
+  app_only?: boolean;
   // region
   between?: string[];
   // annotation
@@ -827,6 +831,8 @@ export interface Spec {
   domain?: { x?: [number, number]; y?: [number, number] };
   /** Top-level numbers (design 2026-09-10): read by curve `expr`, by `bind` expressions, as `{name}` in drawn text, and swept by animate. */
   vars?: Record<string, number>;
+  /** Formal details for ids that are not spec elements (a template's parts), by id. */
+  details?: Record<string, string>;
   elements?: SpecElement[];
   commands?: Command[];
 }

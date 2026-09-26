@@ -62,6 +62,7 @@ const RUST_ALLOWED_SELECTORS = [
   ".pl-item.current",
   ".share-dest.current",
   ".cs-infocard-actions a", // inline links
+  ".cs-details-more", // the details preview's More ▸, a link in all but tag
   ".cs-infocard-actions .cs-infocard-act",
   ".cs-mediamodal-bar a",
   ".cs-insetmodal-go", // primary action — "Go to page" (ui/inset-modal.ts)
