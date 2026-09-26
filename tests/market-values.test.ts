@@ -109,19 +109,22 @@ describe("supply_demand readout", () => {
     expect(texts(l).find((t) => t.id === "readout_shortage_value")!.text).toBe("—");
   });
 
-  test("the panel gets a column right of the plot, which gives up that width; without one the plot is untouched", () => {
+  test("the panel gets rows above the plot, which gives up that height (not its width); without one the plot is untouched", () => {
     const plain = layoutSupplyDemand({ units, tax: { amount: 18 } });
     const l = layoutSupplyDemand({ units, tax: { amount: 18 }, readout: ["price_buyers", "price_sellers", "quantity_traded", "revenue", "dwl"] });
-    expect(plain.frame!.box.x1).toBe(plotArea().x1);
+    expect(plain.frame!.box.y1).toBe(plotArea().y1);
     const box = l.frame!.box;
-    expect(box.x1).toBeLessThan(plotArea().x1);
+    // Full width kept — a column beside the plot made the market a tall strip (Hans 2026-09-26).
+    expect(box.x0).toBe(plotArea().x0);
+    expect(box.x1).toBe(plotArea().x1);
+    expect(box.y1).toBeLessThan(plotArea().y1);
     const lines = texts(l).filter((t) => t.id.startsWith("readout_"));
     for (const t of lines) {
-      // Clear of the plot and of the curve names at its right edge, and on the canvas.
-      expect(t.pos[0]).toBeGreaterThan(box.x1 + 50);
+      // Above the plot, inside its width, clear of the y-axis name at the left, on the canvas.
+      expect(t.pos[1]).toBeGreaterThan(box.y1);
+      expect(t.pos[1]).toBeLessThanOrEqual(plotArea().y1 + 10);
+      expect(t.pos[0]).toBeGreaterThan(box.x0 + 100);
       expect(t.pos[0]).toBeLessThanOrEqual(CANVAS.w);
-      expect(t.pos[1]).toBeGreaterThanOrEqual(box.y0);
-      expect(t.pos[1]).toBeLessThanOrEqual(box.y1);
     }
   });
 

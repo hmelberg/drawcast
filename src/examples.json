@@ -63902,6 +63902,7 @@
   {
     "request": "What makes a disease severe — and does it matter how we measure it?",
     "spec": {
+      "lang": "en",
       "title": "How severe is a disease?",
       "template": "qaly_profiles",
       "params": {

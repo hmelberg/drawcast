@@ -183,14 +183,16 @@ interface Intervention {
 }
 
 export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
-  // A readout gets its own column right of the plot, and the plot gives up
-  // that width. Inside the plot there is no corner a five-line panel can
-  // count on: the wedge right of the equilibrium is narrow, the top is where
-  // the taxed curve sweeps and the floor sits (checked on the frames harness,
-  // 2026-09-26). A narrower plot is still a market; a panel over E is not.
-  const readout = readoutColumn(params.readout, params.units ?? {});
+  // A readout gets rows of its own ABOVE the plot, and the plot gives up
+  // that strip of height. Inside the plot there is no corner a five-line
+  // panel can count on: the wedge right of the equilibrium is narrow, the top
+  // is where the taxed curve sweeps and the floor sits (checked on the frames
+  // harness, 2026-09-26). A column beside the plot (the first version) cost
+  // it half its width and made the market a tall strip — Hans: "the figure
+  // becomes taller than wider". A strip costs a little height instead.
   const full = plotArea();
-  const plot = readout ? { ...full, x1: full.x1 - readout.w - READOUT_GAP } : full;
+  const readout = readoutRows(params.readout, params.units ?? {}, full.x1 - full.x0 - READOUT_CAPTION_ROOM);
+  const plot = readout ? { ...full, y1: full.y1 - readout.h } : full;
   const sx = linearScale([0, 100], [plot.x0, plot.x1]);
   const sy = linearScale([0, 100], [plot.y0, plot.y1]);
   const ctx: Ctx = { sx, sy, toLogical: (pts) => pts.map(([x, y]): Pt => [sx(x), sy(y)]) };
@@ -560,19 +562,18 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
    * no ceiling) keeps its line with a dash, so ids never come and go
    * between frames.
    */
-  function addReadout(col: ReadoutColumn, v: Record<string, number>) {
-    const { keys, w, FONT, LINE } = col;
+  function addReadout(rows: ReadoutRows, v: Record<string, number>) {
+    const { items, FONT, LINE } = rows;
     const units = params.units ?? {};
-    // Beside the plot, past the room its curve names take at the right end,
-    // centred on the plot's height — between S's name at the top and D's at
-    // the bottom.
-    const x0 = plot.x1 + READOUT_GAP;
-    const top = (plot.y0 + plot.y1) / 2 + (keys.length * LINE) / 2;
-    const box = { x0, x1: x0 + w, y1: top };
+    // Right-aligned rows in the strip the plot gave up, top row first; the
+    // y-axis name keeps the strip's left end.
     const members: string[] = [];
-    keys.forEach((k, i) => {
+    for (const it of items) {
+      const k = it.key;
       const id = `readout_${k}`;
-      const y = box.y1 - FONT * 0.9 - i * LINE;
+      const x1 = full.x1 - it.right;
+      const x0 = x1 - it.w;
+      const y = full.y1 + 6 - FONT * 0.9 - it.row * LINE;
       const raw = v[k];
       const text = raw === undefined ? "—" : formatValue(k === "revenue" ? Math.abs(raw) : raw, VALUE_KIND[k], units);
       const line = (sub: string, pos: Pt, t: string, anchor: "start" | "end"): Drawable => ({
@@ -589,13 +590,13 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       push({
         id,
         kind: "group",
-        children: [line("name", [box.x0, y], readoutName(k, v), "start"), line("value", [box.x1, y], text, "end")],
+        children: [line("name", [x0, y], readoutName(k, v), "start"), line("value", [x1, y], text, "end")],
         z: Z_TEXT,
         style: defaultStyle({ color: COLORS.ink }),
         drawOpts: defaultDrawOpts("sketch", SKETCH_MS.text),
       });
       members.push(id);
-    });
+    }
     groups["readout"] = members;
   }
 
@@ -981,12 +982,15 @@ function formatValue(v: number, kind: "price" | "quantity" | "area", units: NonN
   return withUnit(num, kind === "quantity" ? units.quantity_unit : units.price_unit);
 }
 
-/** Room between the plot's right edge and the readout: the curve names (S, D′, "S + tax") sit there. */
-const READOUT_GAP = 66;
+/** The strip's left end stays free for the y-axis name ("Price (P)"). */
+const READOUT_CAPTION_ROOM = 170;
+/** Between two items in a row. */
+const READOUT_ITEM_GAP = 36;
 
-interface ReadoutColumn {
-  keys: ReadoutKey[];
-  w: number;
+interface ReadoutRows {
+  items: { key: ReadoutKey; w: number; row: number; right: number }[];
+  /** The height the strip takes from the plot's top. */
+  h: number;
   FONT: number;
   LINE: number;
 }
@@ -997,17 +1001,43 @@ function readoutName(k: ReadoutKey, v: Record<string, number>): string {
 }
 
 /**
- * The readout's keys (unknown ones dropped) and its width — fixed by the
- * words and a WIDE number, never by this frame's digits: a width that
- * followed the value would squeeze the plot back and forth mid-sweep.
+ * The readout's keys (unknown ones dropped), each an item as wide as its name
+ * and a WIDE number — never this frame's digits: widths that followed the
+ * value would reflow the rows back and forth mid-sweep — packed into
+ * right-aligned rows no wider than `room`, in the author's order.
  */
-function readoutColumn(requested: string[] | undefined, units: NonNullable<SupplyDemandParams["units"]>): ReadoutColumn | null {
+function readoutRows(requested: string[] | undefined, units: NonNullable<SupplyDemandParams["units"]>, room: number): ReadoutRows | null {
   const keys = (requested ?? []).filter((k): k is ReadoutKey => (READOUT_KEYS as readonly string[]).includes(k));
   if (keys.length === 0) return null;
-  const FONT = 24;
-  const LINE = 32;
-  const names = keys.flatMap((k) => [readoutName(k, {}), ...(k === "revenue" ? [readoutName(k, { revenue: -1 })] : [])]);
-  const valueW = Math.max(...keys.map((k) => kit.textWidth(withUnit("0 000", VALUE_KIND[k] === "quantity" ? units.quantity_unit : units.price_unit), FONT)));
-  const w = Math.max(...names.map((n) => kit.textWidth(n, FONT))) + 20 + valueW;
-  return { keys, w, FONT, LINE };
+  const FONT = 22;
+  const LINE = 30;
+  const width = (k: ReadoutKey): number => {
+    const names = [readoutName(k, {}), ...(k === "revenue" ? [readoutName(k, { revenue: -1 })] : [])];
+    const valueW = kit.textWidth(withUnit("0 000", VALUE_KIND[k] === "quantity" ? units.quantity_unit : units.price_unit), FONT);
+    return Math.max(...names.map((n) => kit.textWidth(n, FONT))) + 14 + valueW;
+  };
+  // Greedy rows, then each row laid out from its right end.
+  const rows: { key: ReadoutKey; w: number }[][] = [[]];
+  let used = 0;
+  for (const k of keys) {
+    const w = width(k);
+    const need = (rows[rows.length - 1].length ? READOUT_ITEM_GAP : 0) + w;
+    if (rows[rows.length - 1].length > 0 && used + need > room) {
+      rows.push([]);
+      used = 0;
+    }
+    rows[rows.length - 1].push({ key: k, w });
+    used += (rows[rows.length - 1].length > 1 ? READOUT_ITEM_GAP : 0) + w;
+  }
+  const items: ReadoutRows["items"] = [];
+  rows.forEach((row, r) => {
+    let right = 0;
+    for (const it of [...row].reverse()) {
+      items.push({ key: it.key, w: it.w, row: r, right });
+      right += it.w + READOUT_ITEM_GAP;
+    }
+  });
+  // Keep the author's order for ids/drawing.
+  items.sort((a, b) => keys.indexOf(a.key) - keys.indexOf(b.key));
+  return { items, h: rows.length * LINE + 22, FONT, LINE };
 }

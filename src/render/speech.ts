@@ -53,12 +53,26 @@ function scoreVoice(v: SpeechSynthesisVoice, lang: string): number {
   return s;
 }
 
-/** Cheap utterance-language sniff: Norwegian characters or function words. */
+/**
+ * Cheap utterance-language sniff, by weight of evidence: Norwegian function
+ * words and words written with æ/ø/å against English function words, English
+ * unless Norwegian clearly wins. It used to answer "nb" for ANY æøå, so one
+ * Norwegian name — "Bjørn falls ill at 76 and dies at 78." — put an English
+ * line in a Norwegian voice (Hans 2026-09-26). A name is one word; a sentence
+ * of its language has several function words.
+ */
 export function detectLang(text: string): "en" | "nb" {
-  if (/[æøå]/i.test(text)) return "nb";
-  const norwegianWords = /\b(og|er|ikke|det|som|en|et|på|til|av|vi|når|hvor|med|for at)\b/i;
-  const hits = (text.toLowerCase().match(norwegianWords) ?? []).length;
-  return hits >= 1 && !/\b(the|and|is|of|with|as)\b/i.test(text) ? "nb" : "en";
+  const words = text.toLowerCase().match(/[a-zæøåéèêóòôü']+/g) ?? [];
+  const NB = new Set(["og", "er", "ikke", "det", "som", "en", "et", "ei", "på", "til", "av", "vi", "når", "hvor", "med", "jeg", "du", "han", "hun", "den", "de", "har", "var", "kan", "skal", "vil", "må", "fra", "om", "men", "så", "hva", "hvordan", "hvorfor", "også", "eller", "blir", "ble", "seg", "sin", "mer", "enn", "bare", "nå"]);
+  const EN = new Set(["the", "and", "is", "of", "with", "as", "a", "to", "in", "it", "that", "are", "was", "for", "on", "this", "what", "how", "why", "he", "she", "they", "you", "not", "but", "or", "from", "by", "be", "has", "have", "at", "his", "her", "its", "who", "which", "more", "than", "into", "each"]);
+  let nb = 0;
+  let en = 0;
+  for (const w of words) {
+    if (NB.has(w)) nb++;
+    else if (/[æøå]/.test(w)) nb += 0.5; // a Norwegian spelling: evidence, not proof (names)
+    if (EN.has(w)) en++;
+  }
+  return nb > en ? "nb" : "en";
 }
 
 /**

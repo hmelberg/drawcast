@@ -99,6 +99,8 @@ export function layoutSpec(
   opts: { skipDrawBeatLint?: boolean } = {},
 ): LayoutResult {
   const spec = normalizeSpec(rawSpec) as Spec;
+  // `domain.box: "auto"`: the chart takes what the page's own drawing leaves.
+  if (spec.domain?.box === "auto") spec.domain = { ...spec.domain, box: autoChartBox(spec, measure) };
   // Formulas are laid out as glyph outlines, so the font is a layout input,
   // not a render one: every math element and equation_steps step below reads
   // this (scenes/engines.ts). The viewer's override arrives already folded
@@ -701,4 +703,51 @@ function headingIntrusions(drawables: Drawable[], measure: MeasureFn, commands?:
     }
   }
   return issues;
+}
+
+/**
+ * The chart's box on a page that also holds a drawing of the thing it
+ * measures (`domain.box: "auto"`): everything beside the drawing's own
+ * horizontal extent. A fixed half ("left"/"right") made every such chart a
+ * tall narrow strip beside a drawing that needed far less — Hans 2026-09-26:
+ * "the figure becomes taller than wider … avoid lots of white space reserved".
+ * The drawing is what the page places in CANVAS units: shapes, paths,
+ * polygons, texts and formulas with an x (a `bind` moves them up and down,
+ * never sideways, so x is enough). With no drawing, the whole band.
+ */
+function autoChartBox(spec: Spec, measure: MeasureFn): { x: number; y: number; w: number; h: number } | "full" {
+  const CANVAS_TYPES = new Set(["shape", "path", "polygon", "text", "math", "ellipse", "icon", "image"]);
+  let lo = Infinity;
+  let hi = -Infinity;
+  const add = (a: number, b: number) => {
+    lo = Math.min(lo, a);
+    hi = Math.max(hi, b);
+  };
+  for (const e of spec.elements ?? []) {
+    if (!CANVAS_TYPES.has(e.type) || e.data === true) continue;
+    // The card heading (expanded into a text and an underline before layout)
+    // spans the top of the page and is no part of the drawing.
+    if (/^card_\d+_/.test(e.id)) continue;
+    if (e.at && typeof e.at === "object" && !Array.isArray(e.at)) continue; // placed relative to something else
+    if (Array.isArray(e.points)) {
+      for (const p of e.points as unknown[]) if (Array.isArray(p) && typeof p[0] === "number") add(p[0], p[0]);
+      continue;
+    }
+    if (typeof e.x !== "number") continue;
+    const half =
+      typeof e.radius === "number"
+        ? e.radius
+        : typeof e.width === "number"
+          ? e.width / 2
+          : typeof e.text === "string" || typeof e.tex === "string"
+            ? measure(String(e.text ?? e.tex), typeof e.size === "number" ? e.size : typeof e.font_size === "number" ? e.font_size : 28).w / 2
+            : 20;
+    add(e.x - half, e.x + half);
+  }
+  if (!Number.isFinite(lo)) return "full";
+  const GUTTER = 40, MARGIN = 60, BAND_Y = 95, BAND_H = 560, W = 1000;
+  // The chart goes on the side with more room.
+  return lo - MARGIN > W - MARGIN - hi
+    ? { x: MARGIN, y: BAND_Y, w: Math.max(200, lo - GUTTER - MARGIN), h: BAND_H }
+    : { x: hi + GUTTER, y: BAND_Y, w: Math.max(200, W - MARGIN - hi - GUTTER), h: BAND_H };
 }

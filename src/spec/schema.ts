@@ -1112,10 +1112,10 @@ export const specSchema = {
         y: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
         box: {
           oneOf: [
-            { type: "string", enum: ["left", "right", "top", "bottom", "full"] },
+            { type: "string", enum: ["auto", "left", "right", "top", "bottom", "full"] },
             { type: "object", properties: { x: { type: "number" }, y: { type: "number" }, w: { type: "number" }, h: { type: "number" } }, required: ["x", "y", "w", "h"] },
           ],
-          description: "Where the chart sits: a region (\"left\" leaves the right half for a drawing of the thing it measures) or {x, y, w, h}. Default: the whole page.",
+          description: "Where the chart sits: \"auto\" takes all the page your own drawing (shapes, paths, texts with x/y) leaves free — the choice beside a drawing of the thing it measures; or a region (\"left\", …) or {x, y, w, h}. Default: the whole page.",
         },
       },
       additionalProperties: false,

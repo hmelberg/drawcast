@@ -849,7 +849,7 @@
           0,
           80
         ],
-        "box": "right"
+        "box": "auto"
       },
       "vars": {
         "t": 0
@@ -860,11 +860,11 @@
           "type": "path",
           "points": [
             [
-              100,
+              70,
               112
             ],
             [
-              400,
+              250,
               112
             ]
           ]
@@ -874,7 +874,7 @@
           "type": "shape",
           "shape": "circle",
           "radius": 13,
-          "x": 170,
+          "x": 110,
           "y": 600,
           "bind": {
             "y": "600 - 7.35*t*t"
@@ -889,7 +889,7 @@
           "type": "shape",
           "shape": "circle",
           "radius": 13,
-          "x": 330,
+          "x": 210,
           "y": 600,
           "bind": {
             "y": "600 - 270*ln((exp(0.2333*t) + exp(-0.2333*t))/2)"
@@ -903,9 +903,9 @@
           "id": "col_vac",
           "type": "text",
           "text": "no air",
-          "x": 170,
+          "x": 110,
           "y": 640,
-          "size": 26,
+          "size": 24,
           "style": {
             "color": "#8f887c"
           }
@@ -914,9 +914,9 @@
           "id": "col_air",
           "type": "text",
           "text": "in air",
-          "x": 330,
+          "x": 210,
           "y": 640,
-          "size": 26,
+          "size": 24,
           "style": {
             "color": "#b5482e"
           }
@@ -925,7 +925,7 @@
           "id": "clock",
           "type": "text",
           "text": "{t} s",
-          "x": 250,
+          "x": 160,
           "y": 80,
           "size": 24
         },
@@ -934,7 +934,7 @@
           "type": "shape",
           "shape": "circle",
           "radius": 11,
-          "x": 170,
+          "x": 110,
           "y": 592.6,
           "style": {
             "color": "#8f887c",
@@ -947,7 +947,7 @@
           "type": "shape",
           "shape": "circle",
           "radius": 11,
-          "x": 170,
+          "x": 110,
           "y": 570.6,
           "style": {
             "color": "#8f887c",
@@ -960,7 +960,7 @@
           "type": "shape",
           "shape": "circle",
           "radius": 11,
-          "x": 170,
+          "x": 110,
           "y": 533.9,
           "style": {
             "color": "#8f887c",
@@ -973,7 +973,7 @@
           "type": "shape",
           "shape": "circle",
           "radius": 11,
-          "x": 170,
+          "x": 110,
           "y": 482.4,
           "style": {
             "color": "#8f887c",
@@ -986,7 +986,7 @@
           "type": "shape",
           "shape": "circle",
           "radius": 11,
-          "x": 170,
+          "x": 110,
           "y": 416.2,
           "style": {
             "color": "#8f887c",
@@ -999,7 +999,7 @@
           "type": "shape",
           "shape": "circle",
           "radius": 11,
-          "x": 170,
+          "x": 110,
           "y": 335.4,
           "style": {
             "color": "#8f887c",
@@ -1012,7 +1012,7 @@
           "type": "shape",
           "shape": "circle",
           "radius": 11,
-          "x": 170,
+          "x": 110,
           "y": 239.9,
           "style": {
             "color": "#8f887c",
@@ -1025,7 +1025,7 @@
           "type": "shape",
           "shape": "circle",
           "radius": 11,
-          "x": 170,
+          "x": 110,
           "y": 129.6,
           "style": {
             "color": "#8f887c",
@@ -1038,7 +1038,7 @@
           "type": "shape",
           "shape": "circle",
           "radius": 11,
-          "x": 330,
+          "x": 210,
           "y": 592.7,
           "style": {
             "color": "#b5482e",
@@ -1051,7 +1051,7 @@
           "type": "shape",
           "shape": "circle",
           "radius": 11,
-          "x": 330,
+          "x": 210,
           "y": 571.6,
           "style": {
             "color": "#b5482e",
@@ -1064,7 +1064,7 @@
           "type": "shape",
           "shape": "circle",
           "radius": 11,
-          "x": 330,
+          "x": 210,
           "y": 538.7,
           "style": {
             "color": "#b5482e",
@@ -1077,7 +1077,7 @@
           "type": "shape",
           "shape": "circle",
           "radius": 11,
-          "x": 330,
+          "x": 210,
           "y": 496.4,
           "style": {
             "color": "#b5482e",
@@ -1090,7 +1090,7 @@
           "type": "shape",
           "shape": "circle",
           "radius": 11,
-          "x": 330,
+          "x": 210,
           "y": 447.2,
           "style": {
             "color": "#b5482e",
@@ -1103,7 +1103,7 @@
           "type": "shape",
           "shape": "circle",
           "radius": 11,
-          "x": 330,
+          "x": 210,
           "y": 393.3,
           "style": {
             "color": "#b5482e",
@@ -1116,7 +1116,7 @@
           "type": "shape",
           "shape": "circle",
           "radius": 11,
-          "x": 330,
+          "x": 210,
           "y": 336.1,
           "style": {
             "color": "#b5482e",
@@ -1129,7 +1129,7 @@
           "type": "shape",
           "shape": "circle",
           "radius": 11,
-          "x": 330,
+          "x": 210,
           "y": 276.8,
           "style": {
             "color": "#b5482e",
@@ -1224,8 +1224,8 @@
           "id": "eq_F",
           "type": "math",
           "tex": "F = mg - kv^2",
-          "size": 34,
-          "x": 250,
+          "size": 30,
+          "x": 160,
           "y": 40,
           "details": "Newton’s second law for the falling ball: $$m\\,a = mg - k v^2$$ where $k$ depends on the ball’s size and shape and on the air’s density."
         }

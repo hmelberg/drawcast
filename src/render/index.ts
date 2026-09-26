@@ -415,7 +415,9 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   const plan = planCommands(spec.commands, layout.order, {
     bboxOf: (id) => bboxes.get(id) ?? null,
     windows: layout.windows ?? {},
-    ...domainMapping(spec.domain, layout.fit),
+    // The layout's own frame when it has one: it is the RESOLVED domain
+    // (`box: "auto"` becomes a rectangle there, and only there).
+    ...domainMapping(spec.domain && layout.frame ? layout.frame : spec.domain, layout.fit),
     animateBase: spec.template ? spec.params ?? {} : null,
     varsBase: spec.vars ?? null,
     bboxesFor: (params, overrides) => {
