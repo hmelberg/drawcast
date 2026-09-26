@@ -21,6 +21,27 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-26 — A key name brings its face
+
+Hans: "the aspirin example is good, but this, and other examples, tend to
+forget the (soft) rule that if you mention a key name, then we temporarily
+try to show the portrait from wikipedia if it exists."
+
+What was wrong: the prompt's portrait bullet said "use one SPARINGLY, only
+when the person … genuinely serves the topic", which overrode the cameo
+rule of 2026-08-27; 90 bundled examples named a discoverer with no face.
+
+Distilled: a key person named → a cameo on the sentence that names them,
+erased quietly on the next beat. Soft: not for a passing mention, not for a
+name that is not a person.
+
+Status: the prompt bullet rewritten; 87 bundled examples given a cameo by
+script (each name checked for a Wikipedia portrait first; 13 without one
+left alone — Yerushalmy, Harberger, Paul Meier, Sackett, Kerrich, Gibrat,
+Playfair, Hanau, Følling, Jacob Cohen, among them). The naming sentence
+moved onto its own `draw` beat (one action per command); a gesture left
+without words by the split was dropped.
+
 ### 2026-09-26 — Announce a change before the figure makes it
 
 Hans, on "Should rents be capped?": "the curve should not change before you

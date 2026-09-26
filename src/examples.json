@@ -107,12 +107,15 @@
           "speak": "Tilt the ramp steeper, and more of the weight points downhill — until friction cannot keep up, and the crate slides."
         },
         {
-          "highlight": {
-            "target": [
-              "force_friction"
-            ]
-          },
+          "draw": [
+            "portrait_guillaume_amontons"
+          ],
           "speak": "Friction can only grow so far: Guillaume Amontons found in 1699 that its limit is a fixed fraction of the normal force."
+        },
+        {
+          "erase": [
+            "portrait_guillaume_amontons"
+          ]
         },
         {
           "quiz": {
@@ -131,7 +134,15 @@
         "force_along": "The downhill part of the weight is $mg\\sin\\theta$: at $\\theta = 30°$, half the weight.",
         "force_into": "The part pressing into the ramp is $mg\\cos\\theta$ — it shrinks as the ramp gets steeper.",
         "force_friction": "Static friction grows to match the downhill pull, up to a limit $f \\le \\mu N$, where $\\mu$ depends on the two surfaces. The crate slides when $\\tan\\theta > \\mu$."
-      }
+      },
+      "elements": [
+        {
+          "id": "portrait_guillaume_amontons",
+          "type": "portrait",
+          "of": "Guillaume Amontons",
+          "cameo": true
+        }
+      ]
     }
   },
   {
@@ -187,12 +198,15 @@
           "speak": "Spreading out lowers their energy. Adding hydrogen to benzene releases far less heat than three ordinary double bonds would — that missing energy is the extra stability."
         },
         {
-          "highlight": {
-            "target": [
-              "ring"
-            ]
-          },
+          "draw": [
+            "portrait_august_kekule"
+          ],
           "speak": "August Kekulé said the ring shape came to him in 1865, in a daydream of a snake biting its own tail."
+        },
+        {
+          "erase": [
+            "portrait_august_kekule"
+          ]
         },
         {
           "quiz": {
@@ -205,6 +219,14 @@
             "correct": 1,
             "right": "The electrons are shared around the whole ring, so every bond is the same: part single, part double."
           }
+        }
+      ],
+      "elements": [
+        {
+          "id": "portrait_august_kekule",
+          "type": "portrait",
+          "of": "August Kekulé",
+          "cameo": true
         }
       ]
     }
@@ -588,6 +610,12 @@
             "sheet_model"
           ],
           "walk": "replace"
+        },
+        {
+          "id": "portrait_linus_pauling",
+          "type": "portrait",
+          "of": "Linus Pauling",
+          "cameo": true
         }
       ],
       "commands": [
@@ -682,12 +710,15 @@
           "speak": "That is what this tight turn is for: the chain folds back, and its two strands lie side by side and pair up."
         },
         {
-          "highlight": {
-            "target": [
-              "label_1"
-            ]
-          },
+          "draw": [
+            "portrait_linus_pauling"
+          ],
           "speak": "Linus Pauling worked out the alpha helix in 1951 from the geometry of the backbone alone."
+        },
+        {
+          "erase": [
+            "portrait_linus_pauling"
+          ]
         },
         {
           "highlight": {
@@ -975,6 +1006,12 @@
           "style": {
             "color": "#b5482e"
           }
+        },
+        {
+          "id": "portrait_john_vane",
+          "type": "portrait",
+          "of": "John Vane",
+          "cameo": true
         }
       ],
       "commands": [
@@ -1120,12 +1157,15 @@
           "speak": "That is why a daily 75-milligram tablet guards the heart, and why surgeons ask you to stop aspirin a week before an operation."
         },
         {
-          "highlight": {
-            "target": [
-              "cox"
-            ]
-          },
+          "draw": [
+            "portrait_john_vane"
+          ],
           "speak": "Aspirin was sold from 1899, yet nobody knew how it worked until John Vane showed it in 1971. It won him a Nobel Prize."
+        },
+        {
+          "erase": [
+            "portrait_john_vane"
+          ]
         },
         {
           "quiz": {
@@ -1617,6 +1657,12 @@
           "tex": "4 \\text{ years} \\times 0.5 = 2 \\text{ QALYs}",
           "x": 700,
           "y": 560
+        },
+        {
+          "id": "portrait_richard_zeckhauser",
+          "type": "portrait",
+          "of": "Richard Zeckhauser",
+          "cameo": true
         }
       ],
       "commands": [
@@ -1706,12 +1752,15 @@
           "speak": "So a QALY gained is never just years added: easing pain for years can gain as much as extending life."
         },
         {
-          "highlight": {
-            "target": [
-              "axes"
-            ]
-          },
+          "draw": [
+            "portrait_richard_zeckhauser"
+          ],
           "speak": "The name was coined in 1976 by the economists Richard Zeckhauser and Donald Shepard."
+        },
+        {
+          "erase": [
+            "portrait_richard_zeckhauser"
+          ]
         },
         {
           "quiz": {
@@ -2782,6 +2831,12 @@
           "style": {
             "color": "#2f6b8f"
           }
+        },
+        {
+          "id": "portrait_antoine_lavoisier",
+          "type": "portrait",
+          "of": "Antoine Lavoisier",
+          "cameo": true
         }
       ],
       "commands": [
@@ -2879,13 +2934,15 @@
           "speak": "So a kilogram of gas makes two and three-quarter kilograms of carbon dioxide: most of its weight is borrowed oxygen."
         },
         {
-          "point": {
-            "at": {
-              "ref": "arrow"
-            },
-            "gesture": "underline"
-          },
+          "draw": [
+            "portrait_antoine_lavoisier"
+          ],
           "speak": "Antoine Lavoisier showed this in the 1770s by weighing reactions in sealed vessels: burning moves mass around, but never destroys it."
+        },
+        {
+          "erase": [
+            "portrait_antoine_lavoisier"
+          ]
         },
         {
           "quiz": {
@@ -3020,6 +3077,12 @@
           "style": {
             "color": "#b5482e"
           }
+        },
+        {
+          "id": "portrait_jens_christian_skou",
+          "type": "portrait",
+          "of": "Jens Christian Skou",
+          "cameo": true
         }
       ],
       "commands": [
@@ -3117,12 +3180,15 @@
           "speak": "And a nerve impulse spends that battery: sodium channels open and sodium rushes in, downhill, for free."
         },
         {
-          "highlight": {
-            "target": [
-              "protein_1"
-            ]
-          },
+          "draw": [
+            "portrait_jens_christian_skou"
+          ],
           "speak": "Jens Skou found this pump in crab nerves in 1957. Forty years later it won him a Nobel Prize."
+        },
+        {
+          "erase": [
+            "portrait_jens_christian_skou"
+          ]
         },
         {
           "point": {
@@ -3713,12 +3779,15 @@
           "speak": "Why don't the early steps make up for it? A step can finish a little early, but it can run very late. Delays add; they seldom cancel."
         },
         {
-          "highlight": {
-            "target": [
-              "bar_1"
-            ]
-          },
+          "draw": [
+            "portrait_daniel_kahneman"
+          ],
           "speak": "Daniel Kahneman and Amos Tversky named this the planning fallacy in 1979: we forecast from the plan, not from how such projects usually go."
+        },
+        {
+          "erase": [
+            "portrait_daniel_kahneman"
+          ]
         },
         {
           "highlight": {
@@ -3747,6 +3816,14 @@
             "correct": 2,
             "right": "Similar projects: their real durations already include the delays nobody plans for, while more detail only makes the best case look surer."
           }
+        }
+      ],
+      "elements": [
+        {
+          "id": "portrait_daniel_kahneman",
+          "type": "portrait",
+          "of": "Daniel Kahneman",
+          "cameo": true
         }
       ]
     }
@@ -3954,6 +4031,12 @@
             "t4",
             "t5"
           ]
+        },
+        {
+          "id": "portrait_david_ricardo",
+          "type": "portrait",
+          "of": "David Ricardo",
+          "cameo": true
         }
       ],
       "commands": [
@@ -4022,12 +4105,15 @@
           "speak": "Nobody got lazier. Each new baker shares the same oven and the same counter, so each has less to work with, and adds less."
         },
         {
-          "highlight": {
-            "target": [
-              "q"
-            ]
-          },
+          "draw": [
+            "portrait_david_ricardo"
+          ],
           "speak": "Economists first saw this on farms: in 1815, David Ricardo and Thomas Malthus argued that more labour on the same land yields less and less."
+        },
+        {
+          "erase": [
+            "portrait_david_ricardo"
+          ]
         },
         {
           "quiz": {
@@ -4132,6 +4218,12 @@
             "n_sick",
             "n_dead"
           ]
+        },
+        {
+          "id": "portrait_andrey_markov",
+          "type": "portrait",
+          "of": "Andrey Markov",
+          "cameo": true
         }
       ],
       "commands": [
@@ -4275,13 +4367,15 @@
           "speak": "And someone who recovered falls sick again as easily as someone never ill. When history matters, modellers add extra states to remember it."
         },
         {
-          "highlight": {
-            "target": [
-              "t_label_0",
-              "t_label_1"
-            ]
-          },
+          "draw": [
+            "portrait_andrey_markov"
+          ],
           "speak": "Andrey Markov invented these chains in 1906, and in 1913 tested them on the vowels and consonants of Pushkin's Eugene Onegin."
+        },
+        {
+          "erase": [
+            "portrait_andrey_markov"
+          ]
         },
         {
           "quiz": {
@@ -4592,6 +4686,12 @@
             "w": 300,
             "h": 440
           }
+        },
+        {
+          "id": "portrait_anatol_rapoport",
+          "type": "portrait",
+          "of": "Anatol Rapoport",
+          "cameo": true
         }
       ],
       "commands": [
@@ -4701,12 +4801,15 @@
           "speak": "Go back to silence, and so does the other. Today's betrayal costs tomorrow's cooperation."
         },
         {
-          "highlight": {
-            "target": [
-              "rounds"
-            ]
-          },
+          "draw": [
+            "portrait_anatol_rapoport"
+          ],
           "speak": "In Robert Axelrod's 1980 tournaments of computer strategies, this simplest one, sent in by Anatol Rapoport, won."
+        },
+        {
+          "erase": [
+            "portrait_anatol_rapoport"
+          ]
         },
         {
           "quiz": {
@@ -4833,12 +4936,15 @@
           "speak": "Now coffee goes up to five dollars. The line swings in, and the best mix slides to six cups."
         },
         {
-          "highlight": {
-            "target": [
-              "ic_2"
-            ]
-          },
+          "draw": [
+            "portrait_francis_ysidro_edgeworth"
+          ],
           "speak": "Francis Edgeworth drew the first indifference curves in 1881, in a book with the unlikely title Mathematical Psychics."
+        },
+        {
+          "erase": [
+            "portrait_francis_ysidro_edgeworth"
+          ]
         },
         {
           "quiz": {
@@ -4851,6 +4957,14 @@
             "correct": 2,
             "right": "The last dollar on each pleases equally: if coffee did better, moving a dollar to coffee would reach a higher curve."
           }
+        }
+      ],
+      "elements": [
+        {
+          "id": "portrait_francis_ysidro_edgeworth",
+          "type": "portrait",
+          "of": "Francis Ysidro Edgeworth",
+          "cameo": true
         }
       ]
     }
@@ -6574,6 +6688,12 @@
           "colors": {
             "1.2": "#b5482e"
           }
+        },
+        {
+          "id": "portrait_ronald_fisher",
+          "type": "portrait",
+          "of": "Ronald Fisher",
+          "cameo": true
         }
       ],
       "commands": [
@@ -6672,7 +6792,18 @@
               "shade2"
             ]
           },
-          "speak": "The 0.05 line itself is a convention. Ronald Fisher suggested it in 1925 as a convenient limit for judging a result, not a law."
+          "speak": "The 0.05 line itself is a convention."
+        },
+        {
+          "draw": [
+            "portrait_ronald_fisher"
+          ],
+          "speak": "Ronald Fisher suggested it in 1925 as a convenient limit for judging a result, not a law."
+        },
+        {
+          "erase": [
+            "portrait_ronald_fisher"
+          ]
         },
         {
           "quiz": {
@@ -6774,7 +6905,18 @@
               "universe"
             ]
           },
-          "speak": "Take them off once: fifty minus eight, forty-two. John Venn drew these diagrams in 1880 to make exactly this kind of logic visible."
+          "speak": "Take them off once: fifty minus eight, forty-two."
+        },
+        {
+          "draw": [
+            "portrait_john_venn"
+          ],
+          "speak": "John Venn drew these diagrams in 1880 to make exactly this kind of logic visible."
+        },
+        {
+          "erase": [
+            "portrait_john_venn"
+          ]
         },
         {
           "quiz": {
@@ -6787,6 +6929,14 @@
             "correct": 2,
             "right": "Twenty-one: fifteen plus ten counts the four who do both twice, so take them off once."
           }
+        }
+      ],
+      "elements": [
+        {
+          "id": "portrait_john_venn",
+          "type": "portrait",
+          "of": "John Venn",
+          "cameo": true
         }
       ]
     }
@@ -7093,7 +7243,18 @@
               "interval_0"
             ]
           },
-          "speak": "Write x greater than or equal to one instead, and the circle is filled: now one itself belongs. The symbols are Thomas Harriot's, printed in 1631."
+          "speak": "Write x greater than or equal to one instead, and the circle is filled: now one itself belongs."
+        },
+        {
+          "draw": [
+            "portrait_thomas_harriot"
+          ],
+          "speak": "The symbols are Thomas Harriot's, printed in 1631."
+        },
+        {
+          "erase": [
+            "portrait_thomas_harriot"
+          ]
         },
         {
           "quiz": {
@@ -7106,6 +7267,14 @@
             "correct": 1,
             "right": "A filled dot at 3, shaded to the left: 3 itself belongs, and so does everything smaller."
           }
+        }
+      ],
+      "elements": [
+        {
+          "id": "portrait_thomas_harriot",
+          "type": "portrait",
+          "of": "Thomas Harriot",
+          "cameo": true
         }
       ]
     }
@@ -7645,6 +7814,12 @@
           "x": 500,
           "y": 600,
           "size": 34
+        },
+        {
+          "id": "portrait_emil_leon_post",
+          "type": "portrait",
+          "of": "Emil Leon Post",
+          "cameo": true
         }
       ],
       "commands": [
@@ -7750,12 +7925,15 @@
           "speak": "The surprise is these two rows: 'if A then B' counts as kept whenever A is false. Logicians call that vacuously true."
         },
         {
-          "highlight": {
-            "target": [
-              "grid"
-            ]
-          },
+          "draw": [
+            "portrait_emil_leon_post"
+          ],
           "speak": "Tables like this were popularised in 1921, by Wittgenstein's Tractatus and, independently, by Emil Post."
+        },
+        {
+          "erase": [
+            "portrait_emil_leon_post"
+          ]
         },
         {
           "quiz": {
@@ -7871,6 +8049,12 @@
           "style": {
             "color": "#b5482e"
           }
+        },
+        {
+          "id": "portrait_peter_cathcart_wason",
+          "type": "portrait",
+          "of": "Peter Cathcart Wason",
+          "cameo": true
         }
       ],
       "commands": [
@@ -7964,12 +8148,15 @@
           "speak": "The difference is direction: the rule runs from P to Q, and only an argument that travels the same way is safe."
         },
         {
-          "highlight": {
-            "target": [
-              "form_bad"
-            ]
-          },
+          "draw": [
+            "portrait_peter_cathcart_wason"
+          ],
           "speak": "People fall for it all the time: in Peter Wason's 1966 card puzzle, most people check for confirming cases instead of the one that could break the rule."
+        },
+        {
+          "erase": [
+            "portrait_peter_cathcart_wason"
+          ]
         },
         {
           "quiz": {
@@ -8633,6 +8820,12 @@
           "style": {
             "color": "#b5482e"
           }
+        },
+        {
+          "id": "portrait_richard_feynman",
+          "type": "portrait",
+          "of": "Richard Feynman",
+          "cameo": true
         }
       ],
       "commands": [
@@ -8720,12 +8913,15 @@
           "speak": "Move the one across, and e, i, pi, one and zero share a single line."
         },
         {
-          "highlight": {
-            "target": [
-              "eq"
-            ]
-          },
+          "draw": [
+            "portrait_richard_feynman"
+          ],
           "speak": "At fourteen, Richard Feynman wrote in his notebook that this was the most remarkable formula in mathematics."
+        },
+        {
+          "erase": [
+            "portrait_richard_feynman"
+          ]
         },
         {
           "quiz": {
@@ -8852,7 +9048,15 @@
           "speak": "The denominator is the whole trick: it weighs the evidence against every other way it could have turned up."
         },
         {
-          "speak": "Paul Graham's 2002 essay A Plan for Spam built a filter on exactly this rule."
+          "speak": "Paul Graham's 2002 essay A Plan for Spam built a filter on exactly this rule.",
+          "draw": [
+            "portrait_paul_graham_programmer"
+          ]
+        },
+        {
+          "erase": [
+            "portrait_paul_graham_programmer"
+          ]
         },
         {
           "quiz": {
@@ -8865,6 +9069,14 @@
             "correct": 2,
             "right": "Less likely: a smaller prior shrinks the numerator, so the same word is weaker evidence."
           }
+        }
+      ],
+      "elements": [
+        {
+          "id": "portrait_paul_graham_programmer",
+          "type": "portrait",
+          "of": "Paul Graham (programmer)",
+          "cameo": true
         }
       ]
     }
@@ -9012,12 +9224,22 @@
           "speak": "So a helix is a circle and a climb at once. It turns up wherever something turns while moving forward: a drill bit, a climbing vine."
         },
         {
+          "draw": [
+            "portrait_rosalind_franklin"
+          ],
+          "speak": "In 1953, DNA's helix was read from Rosalind Franklin's X-ray photograph, whose X-shaped pattern is the mark of a helix seen side-on."
+        },
+        {
+          "erase": [
+            "portrait_rosalind_franklin"
+          ]
+        },
+        {
           "animate": {
             "elevation_deg": 22,
             "azimuth_deg": 125
           },
-          "duration": 3,
-          "speak": "In 1953, DNA's helix was read from Rosalind Franklin's X-ray photograph, whose X-shaped pattern is the mark of a helix seen side-on."
+          "duration": 3
         },
         {
           "quiz": {
@@ -9030,6 +9252,14 @@
             "correct": 1,
             "right": "A circle: from above, the steady climb is invisible, and only the turning is left."
           }
+        }
+      ],
+      "elements": [
+        {
+          "id": "portrait_rosalind_franklin",
+          "type": "portrait",
+          "of": "Rosalind Franklin",
+          "cameo": true
         }
       ]
     }
@@ -12928,6 +13158,12 @@
           "style": {
             "color": "#2f6b8f"
           }
+        },
+        {
+          "id": "portrait_willem_einthoven",
+          "type": "portrait",
+          "of": "Willem Einthoven",
+          "cameo": true
         }
       ],
       "commands": [
@@ -13041,14 +13277,15 @@
           "speak": "So a normal beat is a sequence: atria, pause, ventricles, recovery. Every rhythm disorder is one of those steps going wrong."
         },
         {
-          "point": {
-            "at": {
-              "x": 431,
-              "y": 480
-            },
-            "gesture": "tap"
-          },
+          "draw": [
+            "portrait_willem_einthoven"
+          ],
           "speak": "Willem Einthoven recorded the first clear ECGs in the early 1900s, named the waves P to T, and won the 1924 Nobel Prize."
+        },
+        {
+          "erase": [
+            "portrait_willem_einthoven"
+          ]
         },
         {
           "quiz": {
@@ -13339,6 +13576,12 @@
           "style": {
             "color": "#b5482e"
           }
+        },
+        {
+          "id": "portrait_alan_hodgkin",
+          "type": "portrait",
+          "of": "Alan Hodgkin",
+          "cameo": true
         }
       ],
       "commands": [
@@ -13439,13 +13682,15 @@
           "speak": "Every spike is the same size. So how does a neuron say 'stronger'? It fires more often: a light touch, a few spikes a second; a firm press, many more."
         },
         {
-          "point": {
-            "at": {
-              "ref": "axon"
-            },
-            "gesture": "underline"
-          },
+          "draw": [
+            "portrait_alan_hodgkin"
+          ],
           "speak": "Alan Hodgkin and Andrew Huxley worked this out in 1952, in a squid's giant axon, nearly a millimetre thick. It won them a Nobel Prize."
+        },
+        {
+          "erase": [
+            "portrait_alan_hodgkin"
+          ]
         },
         {
           "quiz": {
@@ -14562,6 +14807,12 @@
             "sp_sharp",
             "sp_ache"
           ]
+        },
+        {
+          "id": "portrait_hermann_von_helmholtz",
+          "type": "portrait",
+          "of": "Hermann von Helmholtz",
+          "cameo": true
         }
       ],
       "commands": [
@@ -14700,12 +14951,15 @@
           "speak": "In multiple sclerosis the immune system strips myelin in the brain and spinal cord; signals slow or fail, blurring sight or weakening a leg."
         },
         {
-          "highlight": {
-            "target": [
-              "axon"
-            ]
-          },
+          "draw": [
+            "portrait_hermann_von_helmholtz"
+          ],
           "speak": "In 1850 Hermann von Helmholtz first timed a nerve, in a frog's leg: about thirty metres a second. His teacher had thought it could never be measured."
+        },
+        {
+          "erase": [
+            "portrait_hermann_von_helmholtz"
+          ]
         },
         {
           "point": {
@@ -15495,6 +15749,12 @@
             "dash": true,
             "stroke_width": 3
           }
+        },
+        {
+          "id": "portrait_john_snow",
+          "type": "portrait",
+          "of": "John Snow",
+          "cameo": true
         }
       ],
       "commands": [
@@ -15591,12 +15851,15 @@
           "speak": "Nothing after 2020 can tell those two paths apart. Only the years before can make parallel trends believable."
         },
         {
-          "highlight": {
-            "target": [
-              "control_line"
-            ]
-          },
+          "draw": [
+            "portrait_john_snow"
+          ],
           "speak": "John Snow used the idea in 1850s London: cholera deaths among customers of a water company that moved its intake upstream, against a company that did not."
+        },
+        {
+          "erase": [
+            "portrait_john_snow"
+          ]
         },
         {
           "point": {
@@ -15832,6 +16095,12 @@
             "dash": true,
             "stroke_width": 3.5
           }
+        },
+        {
+          "id": "portrait_donald_t_campbell",
+          "type": "portrait",
+          "of": "Donald T. Campbell",
+          "cameo": true
         }
       ],
       "commands": [
@@ -15933,7 +16202,18 @@
               "axes"
             ]
           },
-          "speak": "The design came from psychologists. Donald Thistlethwaite and Donald Campbell used it in 1960 on students just either side of a National Merit cutoff."
+          "speak": "The design came from psychologists."
+        },
+        {
+          "draw": [
+            "portrait_donald_t_campbell"
+          ],
+          "speak": "Donald Thistlethwaite and Donald Campbell used it in 1960 on students just either side of a National Merit cutoff."
+        },
+        {
+          "erase": [
+            "portrait_donald_t_campbell"
+          ]
         },
         {
           "quiz": {
@@ -16322,6 +16602,12 @@
           "style": {
             "color": "#8a5fa8"
           }
+        },
+        {
+          "id": "portrait_corrado_gini",
+          "type": "portrait",
+          "of": "Corrado Gini",
+          "cameo": true
         }
       ],
       "commands": [
@@ -16422,7 +16708,18 @@
               "lorenz"
             ]
           },
-          "speak": "Max Lorenz drew his curve in 1905, as a graduate student. Corrado Gini turned the idea into a single number in 1912."
+          "speak": "Max Lorenz drew his curve in 1905, as a graduate student."
+        },
+        {
+          "draw": [
+            "portrait_corrado_gini"
+          ],
+          "speak": "Corrado Gini turned the idea into a single number in 1912."
+        },
+        {
+          "erase": [
+            "portrait_corrado_gini"
+          ]
         },
         {
           "highlight": {
@@ -16827,12 +17124,15 @@
           "speak": "The threat was empty: carrying it out would hurt the threatener more than giving in. Only a threat you would want to carry out, when the moment comes, is credible."
         },
         {
-          "highlight": {
-            "target": [
-              "solution"
-            ]
-          },
+          "draw": [
+            "portrait_reinhard_selten"
+          ],
           "speak": "Reinhard Selten made this precise in 1965 as subgame perfection: a plan must be best at every point it could reach. He shared the 1994 Nobel prize."
+        },
+        {
+          "erase": [
+            "portrait_reinhard_selten"
+          ]
         },
         {
           "highlight": {
@@ -16853,6 +17153,14 @@
             "correct": 2,
             "right": "Only a change to the incumbent's own payoffs: if fighting beats sharing once entry has happened, the newcomer, reading backwards, stays out."
           }
+        }
+      ],
+      "elements": [
+        {
+          "id": "portrait_reinhard_selten",
+          "type": "portrait",
+          "of": "Reinhard Selten",
+          "cameo": true
         }
       ]
     }
@@ -19131,6 +19439,12 @@
             "anchor": "top"
           },
           "anchor": "bottom"
+        },
+        {
+          "id": "portrait_jerzy_neyman",
+          "type": "portrait",
+          "of": "Jerzy Neyman",
+          "cameo": true
         }
       ],
       "commands": [
@@ -19219,12 +19533,15 @@
           "speak": "'A 95 percent chance the truth is in my interval' pictures the truth wandering. The truth is fixed; it's the intervals that wander."
         },
         {
-          "highlight": {
-            "target": [
-              "caption"
-            ]
-          },
+          "draw": [
+            "portrait_jerzy_neyman"
+          ],
           "speak": "Jerzy Neyman introduced confidence intervals in the 1930s, and defined them exactly this way: by how often the method catches the truth."
+        },
+        {
+          "erase": [
+            "portrait_jerzy_neyman"
+          ]
         },
         {
           "quiz": {
@@ -20006,13 +20323,15 @@
           "speak": "The dearer fans put some buyers off, but that is a slide along the new curve. Demand itself stays out as long as the heat does."
         },
         {
-          "point": {
-            "at": {
-              "ref": "shift_equilibrium_point"
-            },
-            "gesture": "circle"
-          },
+          "draw": [
+            "portrait_alfred_marshall"
+          ],
           "speak": "Alfred Marshall compared supply and demand to the blades of scissors: asking which one sets the price is like asking which blade cuts."
+        },
+        {
+          "erase": [
+            "portrait_alfred_marshall"
+          ]
         },
         {
           "quiz": {
@@ -20047,6 +20366,14 @@
             ]
           },
           "speak": "You got {score} of {score_total}. A shift of the curve moves the price; a change in price only moves buyers along it."
+        }
+      ],
+      "elements": [
+        {
+          "id": "portrait_alfred_marshall",
+          "type": "portrait",
+          "of": "Alfred Marshall",
+          "cameo": true
         }
       ]
     }
@@ -20177,6 +20504,12 @@
           "attach_to": "t_pb",
           "side": "below",
           "text": "lead"
+        },
+        {
+          "id": "portrait_jons_jacob_berzelius",
+          "type": "portrait",
+          "of": "Jöns Jacob Berzelius",
+          "cameo": true
         }
       ],
       "commands": [
@@ -20261,7 +20594,18 @@
               "la_pb"
             ]
           },
-          "speak": "Why Latin? The Swedish chemist Jöns Jacob Berzelius set up letter symbols around 1813, and took them from Latin, then science's shared language."
+          "speak": "Why Latin?"
+        },
+        {
+          "draw": [
+            "portrait_jons_jacob_berzelius"
+          ],
+          "speak": "The Swedish chemist Jöns Jacob Berzelius set up letter symbols around 1813, and took them from Latin, then science's shared language."
+        },
+        {
+          "erase": [
+            "portrait_jons_jacob_berzelius"
+          ]
         },
         {
           "highlight": {
@@ -20489,6 +20833,12 @@
           "style": {
             "color": "#b5482e"
           }
+        },
+        {
+          "id": "portrait_antoine_augustin_cournot",
+          "type": "portrait",
+          "of": "Antoine Augustin Cournot",
+          "cameo": true
         }
       ],
       "commands": [
@@ -20589,13 +20939,15 @@
           "speak": "That is what makes it an equilibrium: every buyer willing to pay the price gets a bike, and no shop is left with one unsold."
         },
         {
-          "highlight": {
-            "target": [
-              "demand_shift_curve",
-              "supply_curve"
-            ]
-          },
+          "draw": [
+            "portrait_antoine_augustin_cournot"
+          ],
           "speak": "Antoine Augustin Cournot drew the first demand curve in 1838. It took half a century before Alfred Marshall crossed it with supply."
+        },
+        {
+          "erase": [
+            "portrait_antoine_augustin_cournot"
+          ]
         },
         {
           "quiz": {
@@ -21110,6 +21462,12 @@
           "x": 870,
           "y": 585,
           "width": 120
+        },
+        {
+          "id": "portrait_john_ioannidis",
+          "type": "portrait",
+          "of": "John Ioannidis",
+          "cameo": true
         }
       ],
       "commands": [
@@ -21195,9 +21553,19 @@
         },
         {
           "draw": [
-            "paper"
+            "portrait_john_ioannidis"
           ],
           "speak": "John Ioannidis set out this arithmetic in 2005, in a paper whose title makes the claim outright."
+        },
+        {
+          "erase": [
+            "portrait_john_ioannidis"
+          ]
+        },
+        {
+          "draw": [
+            "paper"
+          ]
         },
         {
           "highlight": {
@@ -21629,6 +21997,12 @@
           "x": 330,
           "y": 480,
           "width": 160
+        },
+        {
+          "id": "portrait_thomas_robert_malthus",
+          "type": "portrait",
+          "of": "Thomas Robert Malthus",
+          "cameo": true
         }
       ],
       "commands": [
@@ -21639,10 +22013,21 @@
         },
         {
           "draw": [
+            "portrait_thomas_robert_malthus"
+          ],
+          "speak": "In 1798 Thomas Malthus argued that famine was not bad luck but arithmetic."
+        },
+        {
+          "erase": [
+            "portrait_thomas_robert_malthus"
+          ]
+        },
+        {
+          "draw": [
             "ax",
             "essay"
           ],
-          "speak": "In 1798 Thomas Malthus argued that famine was not bad luck but arithmetic. Was he right? His Essay on the Principle of Population rests on two lines."
+          "speak": "Was he right? His Essay on the Principle of Population rests on two lines."
         },
         {
           "draw": [
@@ -22604,6 +22989,12 @@
           "marks": [
             "np.sqrt(n)"
           ]
+        },
+        {
+          "id": "portrait_jacob_bernoulli",
+          "type": "portrait",
+          "of": "Jacob Bernoulli",
+          "cameo": true
         }
       ],
       "commands": [
@@ -22693,12 +23084,15 @@
           "speak": "A hundred times the draws bought only ten times the precision. The miss shrinks with the square root, not with the count."
         },
         {
-          "highlight": {
-            "target": [
-              "sim_out"
-            ]
-          },
+          "draw": [
+            "portrait_jacob_bernoulli"
+          ],
           "speak": "That the average must settle at all was proved by Jacob Bernoulli; his proof appeared in 1713, eight years after his death."
+        },
+        {
+          "erase": [
+            "portrait_jacob_bernoulli"
+          ]
         },
         {
           "explore": {
@@ -23081,6 +23475,12 @@
           "marks": [
             "plt.yscale(scale)"
           ]
+        },
+        {
+          "id": "portrait_john_napier",
+          "type": "portrait",
+          "of": "John Napier",
+          "cameo": true
         }
       ],
       "commands": [
@@ -23167,13 +23567,15 @@
           "speak": "So the rate never speeds up. The bend is what steady percentage growth looks like on an axis that counts in dollars."
         },
         {
-          "point": {
-            "at": {
-              "ref": "comp_line_8"
-            },
-            "gesture": "underline"
-          },
+          "draw": [
+            "portrait_john_napier"
+          ],
           "speak": "Logarithms, which John Napier published in 1614, turn multiplying into adding. That is exactly what this axis does to growth."
+        },
+        {
+          "erase": [
+            "portrait_john_napier"
+          ]
         },
         {
           "quiz": {
@@ -23344,6 +23746,12 @@
           "marks": [
             "(1 + rate)"
           ]
+        },
+        {
+          "id": "portrait_benjamin_franklin",
+          "type": "portrait",
+          "of": "Benjamin Franklin",
+          "cameo": true
         }
       ],
       "commands": [
@@ -23434,12 +23842,15 @@
           "speak": "But the ratios match: each three-point step multiplies the end by about four. A rate multiplies every year, so its step multiplies the result."
         },
         {
-          "highlight": {
-            "target": [
-              "rates_mark_1"
-            ]
-          },
+          "draw": [
+            "portrait_benjamin_franklin"
+          ],
           "speak": "Benjamin Franklin bet on this: his will left a thousand pounds each to Boston and Philadelphia, to compound for two hundred years."
+        },
+        {
+          "erase": [
+            "portrait_benjamin_franklin"
+          ]
         },
         {
           "quiz": {
@@ -24054,6 +24465,12 @@
           "size": 34,
           "x": 500,
           "y": 250
+        },
+        {
+          "id": "portrait_simon_stevin",
+          "type": "portrait",
+          "of": "Simon Stevin",
+          "cameo": true
         }
       ],
       "commands": [
@@ -24124,12 +24541,15 @@
           "speak": "So the lead itself compounds, doubling about every fourteen and a half years."
         },
         {
-          "highlight": {
-            "target": [
-              "header"
-            ]
-          },
+          "draw": [
+            "portrait_simon_stevin"
+          ],
           "speak": "Simon Stevin printed tables like this in 1582, so merchants could look up interest instead of working it out."
+        },
+        {
+          "erase": [
+            "portrait_simon_stevin"
+          ]
         },
         {
           "point": {
@@ -24200,6 +24620,12 @@
           "language": "brython",
           "show": "code",
           "code": "import pandas as pd\ndf = pd.DataFrame({\n    \"country\": [\"Norway\", \"Sweden\", \"Denmark\"],\n    \"now_2010\": [90, 53, 58],\n    \"now_2020\": [71, 53, 61],\n    \"real_2010\": [75, 48, 51],\n    \"real_2020\": [78, 52, 56]})\ny2010 = [df.now_2010.tolist(), df.real_2010.tolist()]\ny2020 = [df.now_2020.tolist(), df.real_2020.tolist()]"
+        },
+        {
+          "id": "portrait_simon_kuznets",
+          "type": "portrait",
+          "of": "Simon Kuznets",
+          "cameo": true
         }
       ],
       "commands": [
@@ -24292,12 +24718,15 @@
           "speak": "Current dollars ask what a year's output would fetch in dollars that year. Constant dollars ask whether the country made more."
         },
         {
-          "highlight": {
-            "target": [
-              "axes"
-            ]
-          },
+          "draw": [
+            "portrait_simon_kuznets"
+          ],
           "speak": "Simon Kuznets, who built America's national accounts in the 1930s, warned Congress that such a number is not a measure of welfare either."
+        },
+        {
+          "erase": [
+            "portrait_simon_kuznets"
+          ]
         },
         {
           "quiz": {
@@ -24354,6 +24783,12 @@
           "language": "brython",
           "show": "code",
           "code": "years = [0, 10, 20, 30, 40, 50]\nlow = [round(100 * 1.02 ** y) for y in years]\nsimple = [round(100 * (1 + 0.07 * y)) for y in years]\nhigh = [round(100 * 1.07 ** y) for y in years]\nframes = [low, simple, high]"
+        },
+        {
+          "id": "portrait_luca_pacioli",
+          "type": "portrait",
+          "of": "Luca Pacioli",
+          "cameo": true
         }
       ],
       "commands": [
@@ -24450,7 +24885,18 @@
               "calc_line_4"
             ]
           },
-          "speak": "The rule is old. It already appears in Luca Pacioli's arithmetic book of 1494."
+          "speak": "The rule is old."
+        },
+        {
+          "draw": [
+            "portrait_luca_pacioli"
+          ],
+          "speak": "It already appears in Luca Pacioli's arithmetic book of 1494."
+        },
+        {
+          "erase": [
+            "portrait_luca_pacioli"
+          ]
         },
         {
           "point": {
@@ -24517,6 +24963,12 @@
           "language": "python",
           "show": "none",
           "code": "import numpy as np\nrng = np.random.default_rng(3)\nedges = np.linspace(1, 6, 12)\ndef shares(n):\n    means = rng.integers(1, 7, size=(20000, n)).mean(axis=1)\n    counts, _ = np.histogram(means, bins=edges)\n    return [round(float(c) / 20000, 3) for c in counts]\nframes = [shares(1), shares(2), shares(10)]"
+        },
+        {
+          "id": "portrait_abraham_de_moivre",
+          "type": "portrait",
+          "of": "Abraham de Moivre",
+          "cameo": true
         }
       ],
       "commands": [
@@ -24605,13 +25057,15 @@
           "speak": "A third of all averages now land in this one middle bar."
         },
         {
-          "point": {
-            "at": {
-              "ref": "bar_6"
-            },
-            "gesture": "tap"
-          },
+          "draw": [
+            "portrait_abraham_de_moivre"
+          ],
           "speak": "Abraham de Moivre found this curve in 1733, counting heads in long runs of coin tosses."
+        },
+        {
+          "erase": [
+            "portrait_abraham_de_moivre"
+          ]
         },
         {
           "highlight": {
@@ -24697,6 +25151,12 @@
           "size": 34,
           "x": 500,
           "y": 290
+        },
+        {
+          "id": "portrait_edward_h_simpson",
+          "type": "portrait",
+          "of": "Edward H. Simpson",
+          "cameo": true
         }
       ],
       "commands": [
@@ -24773,12 +25233,15 @@
           "speak": "So the totals compare the mix of patients as much as the treatments. The rows compare like with like."
         },
         {
-          "highlight": {
-            "target": [
-              "header"
-            ]
-          },
+          "draw": [
+            "portrait_edward_h_simpson"
+          ],
           "speak": "Edward Simpson described the effect in 1951, but Udny Yule had spotted it about fifty years earlier."
+        },
+        {
+          "erase": [
+            "portrait_edward_h_simpson"
+          ]
         },
         {
           "quiz": {
@@ -24844,6 +25307,12 @@
             "1.07 ** y",
             "100 + 7 * y"
           ]
+        },
+        {
+          "id": "portrait_luca_pacioli",
+          "type": "portrait",
+          "of": "Luca Pacioli",
+          "cameo": true
         }
       ],
       "commands": [
@@ -24932,12 +25401,15 @@
           "speak": "Don't misread the flat-looking line: two percent also doubles, just every thirty-five years. On this scale the big numbers squash the small ones."
         },
         {
-          "highlight": {
-            "target": [
-              "calc_line_3"
-            ]
-          },
+          "draw": [
+            "portrait_luca_pacioli"
+          ],
           "speak": "The shortcut — seventy-two divided by the rate gives the doubling time — is already in Luca Pacioli's arithmetic book of 1494."
+        },
+        {
+          "erase": [
+            "portrait_luca_pacioli"
+          ]
         },
         {
           "quiz": {
@@ -25193,7 +25665,18 @@
             "axes",
             "points"
           ],
-          "speak": "Why plot data when the summary numbers already agree? Eleven points, from a paper the statistician Francis Anscombe published in 1973."
+          "speak": "Why plot data when the summary numbers already agree?"
+        },
+        {
+          "draw": [
+            "portrait_frank_anscombe"
+          ],
+          "speak": "Eleven points, from a paper the statistician Francis Anscombe published in 1973."
+        },
+        {
+          "erase": [
+            "portrait_frank_anscombe"
+          ]
         },
         {
           "draw": [
@@ -25273,6 +25756,14 @@
             "correct": 2,
             "right": "Nothing yet: Anscombe's sets share all those numbers while one is a curve and one has an outlier. Only the plot shows the shape."
           }
+        }
+      ],
+      "elements": [
+        {
+          "id": "portrait_frank_anscombe",
+          "type": "portrait",
+          "of": "Frank Anscombe",
+          "cameo": true
         }
       ]
     }
@@ -25600,12 +26091,15 @@
           "speak": "A U-shape, high at both ends and low in the middle, can score a correlation of zero: r only sees straight lines."
         },
         {
-          "highlight": {
-            "target": [
-              "axes"
-            ]
-          },
+          "draw": [
+            "portrait_francis_galton"
+          ],
           "speak": "Francis Galton coined 'co-relation' in 1888, comparing people's height with the length of their forearms."
+        },
+        {
+          "erase": [
+            "portrait_francis_galton"
+          ]
         },
         {
           "quiz": {
@@ -25618,6 +26112,14 @@
             "correct": 2,
             "right": "A strong link: as one rises the other tends to fall. The minus sign gives the direction; 0.6 gives the strength, deeper than any warm cell here."
           }
+        }
+      ],
+      "elements": [
+        {
+          "id": "portrait_francis_galton",
+          "type": "portrait",
+          "of": "Francis Galton",
+          "cameo": true
         }
       ]
     }
@@ -25666,6 +26168,12 @@
             "1.1 * bmi",
             "0.45 * age"
           ]
+        },
+        {
+          "id": "portrait_karl_pearson",
+          "type": "portrait",
+          "of": "Karl Pearson",
+          "cameo": true
         }
       ],
       "commands": [
@@ -25767,12 +26275,15 @@
           "speak": "A correlation measures how much of the variation a variable accounts for in this sample, not how hard each unit of it pushes."
         },
         {
-          "highlight": {
-            "target": [
-              "corr_line_7"
-            ]
-          },
+          "draw": [
+            "portrait_karl_pearson"
+          ],
           "speak": "Karl Pearson gave the coefficient its modern formula in 1896, which is why it is called Pearson's r."
+        },
+        {
+          "erase": [
+            "portrait_karl_pearson"
+          ]
         },
         {
           "quiz": {
@@ -25937,6 +26448,12 @@
             "sort_values",
             "cumsum()"
           ]
+        },
+        {
+          "id": "portrait_vilfredo_pareto",
+          "type": "portrait",
+          "of": "Vilfredo Pareto",
+          "cameo": true
         }
       ],
       "commands": [
@@ -26025,12 +26542,15 @@
           "speak": "If every item pulled equal weight, each bar would stand at seventeen percent, and the running share would climb in even steps."
         },
         {
-          "highlight": {
-            "target": [
-              "shop_mark_2"
-            ]
-          },
+          "draw": [
+            "portrait_vilfredo_pareto"
+          ],
           "speak": "Joseph Juran called this lopsidedness the Pareto principle, after Vilfredo Pareto, who found most of Italy's land owned by a small share of its people."
+        },
+        {
+          "erase": [
+            "portrait_vilfredo_pareto"
+          ]
         },
         {
           "highlight": {
@@ -26071,6 +26591,12 @@
           "marks": [
             "(1 + rate / n) ** n"
           ]
+        },
+        {
+          "id": "portrait_jacob_bernoulli",
+          "type": "portrait",
+          "of": "Jacob Bernoulli",
+          "cameo": true
         }
       ],
       "commands": [
@@ -26157,12 +26683,15 @@
           "speak": "More pieces mean more interest on interest, but each piece earns less; the two effects balance ever more closely, and the total levels off."
         },
         {
-          "highlight": {
-            "target": [
-              "ci_line_2"
-            ]
-          },
+          "draw": [
+            "portrait_jacob_bernoulli"
+          ],
           "speak": "Jacob Bernoulli asked this very question about a sum lent at full interest in 1683, and so found the number now called e."
+        },
+        {
+          "erase": [
+            "portrait_jacob_bernoulli"
+          ]
         },
         {
           "highlight": {
@@ -26240,6 +26769,12 @@
           "style": {
             "color": "#8a5fa8"
           }
+        },
+        {
+          "id": "portrait_abraham_de_moivre",
+          "type": "portrait",
+          "of": "Abraham de Moivre",
+          "cameo": true
         }
       ],
       "commands": [
@@ -26329,12 +26864,15 @@
           "speak": "The same 1.96 builds the 95 percent confidence interval, estimate plus or minus 1.96 standard errors. The test rejects exactly when that interval misses zero."
         },
         {
-          "highlight": {
-            "target": [
-              "curve"
-            ]
-          },
+          "draw": [
+            "portrait_abraham_de_moivre"
+          ],
           "speak": "Abraham de Moivre found this curve in 1733, as a shortcut for adding up the chances of long runs of coin tosses."
+        },
+        {
+          "erase": [
+            "portrait_abraham_de_moivre"
+          ]
         },
         {
           "quiz": {
@@ -26703,6 +27241,12 @@
             "stroke_width": 1
           },
           "data": true
+        },
+        {
+          "id": "portrait_stephen_jay_gould",
+          "type": "portrait",
+          "of": "Stephen Jay Gould",
+          "cameo": true
         }
       ],
       "commands": [
@@ -26785,12 +27329,15 @@
           "speak": "Its name is the restricted mean survival time: restricted, because it stops where follow-up stops, and says nothing about month six."
         },
         {
-          "highlight": {
-            "target": [
-              "half"
-            ]
-          },
+          "draw": [
+            "portrait_stephen_jay_gould"
+          ],
           "speak": "Told in 1982 that his cancer's median survival was eight months, Stephen Jay Gould wrote 'The Median Isn't the Message'. He lived twenty more years."
+        },
+        {
+          "erase": [
+            "portrait_stephen_jay_gould"
+          ]
         },
         {
           "quiz": {
@@ -26993,6 +27540,12 @@
           "language": "brython",
           "show": "none",
           "code": "nj = [20.44, 21.03]\npa = [23.33, 21.17]\ncf = [nj[0], round(nj[0] + pa[1] - pa[0], 2)]\neffect = round((nj[1] - nj[0]) - (pa[1] - pa[0]), 2)"
+        },
+        {
+          "id": "portrait_david_card",
+          "type": "portrait",
+          "of": "David Card",
+          "cameo": true
         }
       ],
       "commands": [
@@ -27077,13 +27630,15 @@
           "speak": "That is why the study was fought over for years, with payroll records and new data. It changed how economists argue about minimum wages."
         },
         {
-          "highlight": {
-            "target": [
-              "line_1",
-              "line_2"
-            ]
-          },
+          "draw": [
+            "portrait_david_card"
+          ],
           "speak": "David Card shared the 2021 Nobel prize partly for this work. Alan Krueger, his co-author, had died two years earlier."
+        },
+        {
+          "erase": [
+            "portrait_david_card"
+          ]
         },
         {
           "quiz": {
@@ -27461,6 +28016,12 @@
             "6.2 * age",
             "lm(kids ~ age)"
           ]
+        },
+        {
+          "id": "portrait_robert_wadlow",
+          "type": "portrait",
+          "of": "Robert Wadlow",
+          "cameo": true
         }
       ],
       "commands": [
@@ -27558,12 +28119,15 @@
           "speak": "It fails backwards too: at age zero it says 74.5 centimetres, where a newborn is about 50."
         },
         {
-          "highlight": {
-            "target": [
-              "fit_line"
-            ]
-          },
+          "draw": [
+            "portrait_robert_wadlow"
+          ],
           "speak": "Forwards, by about thirty-one it passes 2.72 metres, the height of Robert Wadlow, the tallest person on record."
+        },
+        {
+          "erase": [
+            "portrait_robert_wadlow"
+          ]
         },
         {
           "highlight": {
@@ -28439,6 +29003,12 @@
           "language": "python",
           "show": "none",
           "code": "import random\nrng = random.Random(2026)\nskill = [rng.randrange(2, 9) for _ in range(20)]\ntotal, rows = [0] * 20, []\nfor r in range(16):\n    for i in range(20):\n        total[i] += rng.randrange(1, skill[i] + 4)\n    rows.append(list(total))"
+        },
+        {
+          "id": "portrait_jacob_bernoulli",
+          "type": "portrait",
+          "of": "Jacob Bernoulli",
+          "cameo": true
         }
       ],
       "commands": [
@@ -28543,12 +29113,15 @@
           "speak": "Six players never reached the board, so you never saw them: the four weakest, and two middling ones."
         },
         {
-          "highlight": {
-            "target": [
-              "ticker"
-            ]
-          },
+          "draw": [
+            "portrait_jacob_bernoulli"
+          ],
           "speak": "Jacob Bernoulli proved why in 1713: as trials pile up, an average settles on its true value. The law of large numbers."
+        },
+        {
+          "erase": [
+            "portrait_jacob_bernoulli"
+          ]
         },
         {
           "point": {
@@ -28794,6 +29367,12 @@
           "language": "python",
           "show": "none",
           "code": "import math\nlaunch = [0, 0, 3, 5, 8, 11]\nclosed = [99, 13, 99, 99, 99, 99]\nceiling = [57, 102, 128, 110, 43, 85]\nrows = []\nfor yr in range(16):\n    row = []\n    for i in range(6):\n        age = yr - launch[i]\n        out = age < 0 or yr >= closed[i]\n        row.append(None if out else round(ceiling[i] / (1 + math.exp(-0.6 * (age - 3)))))\n    rows.append(row)"
+        },
+        {
+          "id": "portrait_tony_hoare",
+          "type": "portrait",
+          "of": "Tony Hoare",
+          "cameo": true
         }
       ],
       "commands": [
@@ -28895,7 +29474,18 @@
             },
             "gesture": "circle"
           },
-          "speak": "Zero is a measurement; null is the absence of one. Tony Hoare, who put null references into a language in 1965, later called them his billion-dollar mistake."
+          "speak": "Zero is a measurement; null is the absence of one."
+        },
+        {
+          "draw": [
+            "portrait_tony_hoare"
+          ],
+          "speak": "Tony Hoare, who put null references into a language in 1965, later called them his billion-dollar mistake."
+        },
+        {
+          "erase": [
+            "portrait_tony_hoare"
+          ]
         },
         {
           "quiz": {
@@ -29152,6 +29742,12 @@
           "language": "python",
           "show": "none",
           "code": "import random\nrng = random.Random(2026)\ncount, frames = [5] * 5, []\nfor t in range(1, 801):\n    r = rng.randrange(sum(count))\n    for i, n in enumerate(count):\n        if r < n:\n            count[i] += 1\n            break\n        r -= n\n    if t % 40 == 0:\n        frames.append([round(100 * v / sum(count), 1) for v in count])\nshare = lambda i: [[f[i] for f in frames[:k + 1]] for k in range(20)]\na, b, c, d, e = [share(i) for i in range(5)]\nballs = [40 * (k + 1) for k in range(20)]"
+        },
+        {
+          "id": "portrait_george_polya",
+          "type": "portrait",
+          "of": "George Pólya",
+          "cameo": true
         }
       ],
       "commands": [
@@ -29238,7 +29834,18 @@
               "line_5"
             ]
           },
-          "speak": "Rerun it with another seed and a different urn wins. George Pólya studied this urn in 1923: each share settles, but where it settles is chance."
+          "speak": "Rerun it with another seed and a different urn wins."
+        },
+        {
+          "draw": [
+            "portrait_george_polya"
+          ],
+          "speak": "George Pólya studied this urn in 1923: each share settles, but where it settles is chance."
+        },
+        {
+          "erase": [
+            "portrait_george_polya"
+          ]
         },
         {
           "highlight": {
@@ -29302,6 +29909,12 @@
           "language": "python",
           "show": "none",
           "code": "import numpy as np\nrng = np.random.default_rng(11)\ndef corr(n):\n    a = rng.normal(0, 1, n)\n    b = 0.8 * a + rng.normal(0, 0.6, n)\n    c = 0.5 * b + rng.normal(0, 0.9, n)\n    noise = rng.normal(0, 1, n)\n    return np.corrcoef([a, b, c, noise]).round(2).tolist()\nframes = [corr(n) for n in (20, 50, 200, 1000)]"
+        },
+        {
+          "id": "portrait_ronald_fisher",
+          "type": "portrait",
+          "of": "Ronald Fisher",
+          "cameo": true
         }
       ],
       "commands": [
@@ -29382,12 +29995,15 @@
           "speak": "So a pale-warm 0.2 from twenty people is exactly what noise produces. From a thousand, it would be a real signal."
         },
         {
-          "highlight": {
-            "target": [
-              "axes"
-            ]
-          },
+          "draw": [
+            "portrait_ronald_fisher"
+          ],
           "speak": "Ronald Fisher worked out in 1915 how sample correlations scatter around the truth, which is how we know how many people a study needs."
+        },
+        {
+          "erase": [
+            "portrait_ronald_fisher"
+          ]
         },
         {
           "quiz": {
@@ -29944,6 +30560,12 @@
             "fee"
           ],
           "code": "years = [0, 10, 20, 30, 40, 50]\nfee = Slider(0, 3, step=0.25, default=1, label=\"Yearly fee, %\")\ngross = [round(100 * 1.07 ** y) for y in years]\nnet = [round(100 * (1.07 * (1 - fee / 100)) ** y) for y in years]\nframes = [gross, net]"
+        },
+        {
+          "id": "portrait_john_c_bogle",
+          "type": "portrait",
+          "of": "John C. Bogle",
+          "cameo": true
         }
       ],
       "commands": [
@@ -30031,12 +30653,15 @@
           "speak": "Slide the fee from nothing to two percent, and the last bar sinks to about a third of the fee-free pot."
         },
         {
-          "highlight": {
-            "target": [
-              "calc_line_2"
-            ]
-          },
+          "draw": [
+            "portrait_john_c_bogle"
+          ],
           "speak": "This is why John Bogle started the first index fund for ordinary savers in 1976: to keep fees close to nothing."
+        },
+        {
+          "erase": [
+            "portrait_john_c_bogle"
+          ]
         },
         {
           "explore": {
@@ -30417,6 +31042,12 @@
             "w": 326,
             "h": 470
           }
+        },
+        {
+          "id": "portrait_jack_tramiel",
+          "type": "portrait",
+          "of": "Jack Tramiel",
+          "cameo": true
         }
       ],
       "commands": [
@@ -30490,13 +31121,15 @@
           "speak": "So it did not win by being the best computer. It won by being the cheapest good one, cheap because Commodore made its own parts."
         },
         {
-          "point": {
-            "at": {
-              "ref": "c64"
-            },
-            "gesture": "circle"
-          },
+          "draw": [
+            "portrait_jack_tramiel"
+          ],
           "speak": "Jack Tramiel, Commodore's founder, had a slogan for it: computers for the masses, not the classes."
+        },
+        {
+          "erase": [
+            "portrait_jack_tramiel"
+          ]
         },
         {
           "explore": {
@@ -33388,6 +34021,12 @@
             "w": 400,
             "h": 90
           }
+        },
+        {
+          "id": "portrait_humphry_davy",
+          "type": "portrait",
+          "of": "Humphry Davy",
+          "cameo": true
         }
       ],
       "commands": [
@@ -33447,12 +34086,15 @@
           "speak": "Noen ganger treffer latinen norsk: natrium blir Na og kalium blir K, fordi vi har tatt de latinske navnene."
         },
         {
-          "highlight": {
-            "target": [
-              "nak"
-            ]
-          },
+          "draw": [
+            "portrait_humphry_davy"
+          ],
           "speak": "På engelsk heter de sodium og potassium, navn Humphry Davy ga dem i 1807. Der passer symbolene ikke i det hele tatt."
+        },
+        {
+          "erase": [
+            "portrait_humphry_davy"
+          ]
         },
         {
           "quiz": {
@@ -34537,6 +35179,12 @@
           "style": {
             "color": "#b5482e"
           }
+        },
+        {
+          "id": "portrait_tycho_brahe",
+          "type": "portrait",
+          "of": "Tycho Brahe",
+          "cameo": true
         }
       ],
       "commands": [
@@ -34647,12 +35295,15 @@
           "speak": "Seen from anywhere else in the galaxy, the same five would make some other shape, and no W."
         },
         {
-          "highlight": {
-            "target": [
-              "frame"
-            ]
-          },
+          "draw": [
+            "portrait_tycho_brahe"
+          ],
           "speak": "This patch of sky has a famous history: in 1572 Tycho Brahe saw a new star flare up in Cassiopeia, and showed that the heavens could change."
+        },
+        {
+          "erase": [
+            "portrait_tycho_brahe"
+          ]
         },
         {
           "quiz": {
@@ -35458,11 +36109,21 @@
         },
         {
           "draw": [
+            "portrait_louis_spohr"
+          ],
+          "speak": "One part does nothing for the tone: the chin rest, invented by the violinist Louis Spohr around 1820 to hold the instrument steady."
+        },
+        {
+          "erase": [
+            "portrait_louis_spohr"
+          ]
+        },
+        {
+          "draw": [
             "chinrest",
             "chinrest_clamp",
             "label_chinrest"
-          ],
-          "speak": "One part does nothing for the tone: the chin rest, invented by the violinist Louis Spohr around 1820 to hold the instrument steady."
+          ]
         },
         {
           "quiz": {
@@ -35475,6 +36136,14 @@
             "correct": 1,
             "right": "The heavier bridge moves less, so less of the strings' vibration reaches the belly, and the belly is what makes the sound."
           }
+        }
+      ],
+      "elements": [
+        {
+          "id": "portrait_louis_spohr",
+          "type": "portrait",
+          "of": "Louis Spohr",
+          "cameo": true
         }
       ]
     }
@@ -38647,6 +39316,12 @@
             "g_sek"
           ],
           "walk": true
+        },
+        {
+          "id": "portrait_thomas_callister_hales",
+          "type": "portrait",
+          "of": "Thomas Callister Hales",
+          "cameo": true
         }
       ],
       "commands": [
@@ -38769,12 +39444,15 @@
           "speak": "At ingen oppdeling i like store celler, ikke engang med buede eller skjeve vegger, slår sekskantene, var bare en gammel gjetning."
         },
         {
-          "highlight": {
-            "target": [
-              "former"
-            ]
-          },
+          "draw": [
+            "portrait_thomas_callister_hales"
+          ],
           "speak": "Den ble bevist først i 1999, av matematikeren Thomas Hales. Biene hadde hatt svaret i millioner av år."
+        },
+        {
+          "erase": [
+            "portrait_thomas_callister_hales"
+          ]
         },
         {
           "quiz": {
@@ -40900,6 +41578,12 @@
           "colors": {
             "4": "#b5482e"
           }
+        },
+        {
+          "id": "portrait_bonaventura_cavalieri",
+          "type": "portrait",
+          "of": "Bonaventura Cavalieri",
+          "cameo": true
         }
       ],
       "commands": [
@@ -40985,7 +41669,18 @@
             },
             "gesture": "circle"
           },
-          "speak": "Tanken virker i rommet også: en skjev myntstabel har samme volum som en rett. Bonaventura Cavalieri gjorde den til et prinsipp på 1600-tallet."
+          "speak": "Tanken virker i rommet også: en skjev myntstabel har samme volum som en rett."
+        },
+        {
+          "draw": [
+            "portrait_bonaventura_cavalieri"
+          ],
+          "speak": "Bonaventura Cavalieri gjorde den til et prinsipp på 1600-tallet."
+        },
+        {
+          "erase": [
+            "portrait_bonaventura_cavalieri"
+          ]
         },
         {
           "quiz": {
@@ -41170,6 +41865,12 @@
             "=2+h"
           ],
           "step_gap": 80
+        },
+        {
+          "id": "portrait_george_berkeley",
+          "type": "portrait",
+          "of": "George Berkeley",
+          "cameo": true
         }
       ],
       "commands": [
@@ -41274,13 +41975,15 @@
           "speak": "Og nå kan h gå mot null uten problemer: stigningen går mot 2, akkurat det tallene viste."
         },
         {
-          "point": {
-            "at": {
-              "ref": "q1_2"
-            },
-            "gesture": "underline"
-          },
+          "draw": [
+            "portrait_george_berkeley"
+          ],
           "speak": "Biskop George Berkeley hånet nettopp dette i 1734: h er ikke null når vi deler, men null etterpå. Han kalte det spøkelser av avdøde størrelser."
+        },
+        {
+          "erase": [
+            "portrait_george_berkeley"
+          ]
         },
         {
           "quiz": {
@@ -41572,6 +42275,12 @@
             "s": "#2f6b8f",
             "a": "#b5482e"
           }
+        },
+        {
+          "id": "portrait_thomas_callister_hales",
+          "type": "portrait",
+          "of": "Thomas Callister Hales",
+          "cameo": true
         }
       ],
       "commands": [
@@ -41680,7 +42389,18 @@
             },
             "gesture": "circle"
           },
-          "speak": "Bier bygger sekskanter. Av alle måter å dele et plan i like store celler, bruker sekskanter minst vegg: det beviste Thomas Hales i 1999."
+          "speak": "Bier bygger sekskanter."
+        },
+        {
+          "draw": [
+            "portrait_thomas_callister_hales"
+          ],
+          "speak": "Av alle måter å dele et plan i like store celler, bruker sekskanter minst vegg: det beviste Thomas Hales i 1999."
+        },
+        {
+          "erase": [
+            "portrait_thomas_callister_hales"
+          ]
         },
         {
           "quiz": {
@@ -43529,6 +44249,12 @@
           "style": {
             "color": "#8f887c"
           }
+        },
+        {
+          "id": "portrait_elias_howe",
+          "type": "portrait",
+          "of": "Elias Howe",
+          "cameo": true
         }
       ],
       "commands": [
@@ -43655,12 +44381,15 @@
           "speak": "Med rundt åtte hundre sting i minuttet er den sydd på femten sekunder."
         },
         {
-          "highlight": {
-            "target": [
-              "nal"
-            ]
-          },
+          "draw": [
+            "portrait_elias_howe"
+          ],
           "speak": "Øyet i spissen og to tråder som låser hverandre: det fikk amerikaneren Elias Howe patent på i 1846."
+        },
+        {
+          "erase": [
+            "portrait_elias_howe"
+          ]
         },
         {
           "quiz": {
@@ -46529,6 +47258,12 @@
           "style": {
             "color": "#2f6b8f"
           }
+        },
+        {
+          "id": "portrait_charles_darwin",
+          "type": "portrait",
+          "of": "Charles Darwin",
+          "cameo": true
         }
       ],
       "commands": [
@@ -46623,13 +47358,15 @@
           "speak": "Så det meste av sparingen kommer av å dele vegger. Sekskanten legger bare de siste prosentene på toppen."
         },
         {
-          "point": {
-            "at": {
-              "ref": "foto"
-            },
-            "gesture": "circle"
-          },
+          "draw": [
+            "portrait_charles_darwin"
+          ],
           "speak": "Charles Darwin kalte bikaka helt perfekt til å spare arbeid og voks."
+        },
+        {
+          "erase": [
+            "portrait_charles_darwin"
+          ]
         },
         {
           "quiz": {
@@ -47706,6 +48443,12 @@
           "style": {
             "color": "#b5482e"
           }
+        },
+        {
+          "id": "portrait_c_h_d_buys_ballot",
+          "type": "portrait",
+          "of": "C. H. D. Buys Ballot",
+          "cameo": true
         }
       ],
       "commands": [
@@ -47804,7 +48547,18 @@
             },
             "gesture": "underline"
           },
-          "speak": "A siren coming towards you squeezes its waves the same way. Buys Ballot tested it in 1845, with horn players on a moving train."
+          "speak": "A siren coming towards you squeezes its waves the same way."
+        },
+        {
+          "draw": [
+            "portrait_c_h_d_buys_ballot"
+          ],
+          "speak": "Buys Ballot tested it in 1845, with horn players on a moving train."
+        },
+        {
+          "erase": [
+            "portrait_c_h_d_buys_ballot"
+          ]
         },
         {
           "quiz": {
@@ -48701,6 +49455,12 @@
             "color": "#3d3833",
             "fill": "#f2c14e"
           }
+        },
+        {
+          "id": "portrait_robert_recorde",
+          "type": "portrait",
+          "of": "Robert Recorde",
+          "cameo": true
         }
       ],
       "commands": [
@@ -48822,13 +49582,15 @@
           "speak": "Check it in the first line: two fours and three make eleven."
         },
         {
-          "highlight": {
-            "target": [
-              "eq"
-            ],
-            "part": "="
-          },
+          "draw": [
+            "portrait_robert_recorde"
+          ],
           "speak": "The equals sign itself was invented in 1557 by Robert Recorde: two parallel lines, because no two things could be more equal."
+        },
+        {
+          "erase": [
+            "portrait_robert_recorde"
+          ]
         },
         {
           "quiz": {
@@ -49977,6 +50739,12 @@
           "style": {
             "color": "#8a5fa8"
           }
+        },
+        {
+          "id": "portrait_h_gilbert_welch",
+          "type": "portrait",
+          "of": "H. Gilbert Welch",
+          "cameo": true
         }
       ],
       "commands": [
@@ -50086,12 +50854,15 @@
           "speak": "So survival rises whether screening works or not. The honest yardstick is where death falls: deaths per hundred thousand people, screened or not."
         },
         {
-          "highlight": {
-            "target": [
-              "punch"
-            ]
-          },
+          "draw": [
+            "portrait_h_gilbert_welch"
+          ],
           "speak": "In 2000, Gilbert Welch and colleagues compared twenty cancers over four decades: gains in five-year survival bore no relation to changes in death rates."
+        },
+        {
+          "erase": [
+            "portrait_h_gilbert_welch"
+          ]
         },
         {
           "quiz": {
@@ -50468,6 +51239,12 @@
           "style": {
             "color": "#8a5fa8"
           }
+        },
+        {
+          "id": "portrait_jules_antoine_lissajous",
+          "type": "portrait",
+          "of": "Jules Antoine Lissajous",
+          "cameo": true
         }
       ],
       "commands": [
@@ -50481,7 +51258,18 @@
             "frame",
             "beam"
           ],
-          "speak": "How could anyone see that two tones were in tune, long before electronic tuners? In 1857 Jules Lissajous turned the question into a picture."
+          "speak": "How could anyone see that two tones were in tune, long before electronic tuners?"
+        },
+        {
+          "draw": [
+            "portrait_jules_antoine_lissajous"
+          ],
+          "speak": "In 1857 Jules Lissajous turned the question into a picture."
+        },
+        {
+          "erase": [
+            "portrait_jules_antoine_lissajous"
+          ]
         },
         {
           "draw": [
@@ -50910,6 +51698,12 @@
             "0.99": "#b5482e",
             "0.01": "#8a5fa8"
           }
+        },
+        {
+          "id": "portrait_thomas_bayes",
+          "type": "portrait",
+          "of": "Thomas Bayes",
+          "cameo": true
         }
       ],
       "commands": [
@@ -51013,12 +51807,15 @@
           "speak": "The first positive didn't settle it. It picked out a smaller crowd, in which the same kind of test is finally convincing."
         },
         {
-          "highlight": {
-            "target": [
-              "mark_sick"
-            ]
-          },
+          "draw": [
+            "portrait_thomas_bayes"
+          ],
           "speak": "Thomas Bayes worked out this kind of updating; his essay was published in 1763, two years after his death, by his friend Richard Price."
+        },
+        {
+          "erase": [
+            "portrait_thomas_bayes"
+          ]
         },
         {
           "quiz": {
@@ -51161,6 +51958,12 @@
           "style": {
             "color": "#3d3833"
           }
+        },
+        {
+          "id": "portrait_david_ricardo",
+          "type": "portrait",
+          "of": "David Ricardo",
+          "cameo": true
         }
       ],
       "commands": [
@@ -51232,14 +52035,15 @@
           "speak": "So the bow is not a law of nature. It is the fact that resources differ, and each is moved in the order of what it does best."
         },
         {
-          "focus": {
-            "target": [
-              "seg1",
-              "seg2",
-              "seg3"
-            ]
-          },
+          "draw": [
+            "portrait_david_ricardo"
+          ],
           "speak": "David Ricardo made the same point about countries in 1817: England's cloth and Portugal's wine."
+        },
+        {
+          "erase": [
+            "portrait_david_ricardo"
+          ]
         },
         {
           "quiz": {
@@ -51434,6 +52238,12 @@
           "style": {
             "color": "#8f887c"
           }
+        },
+        {
+          "id": "portrait_lord_kelvin",
+          "type": "portrait",
+          "of": "Lord Kelvin",
+          "cameo": true
         }
       ],
       "commands": [
@@ -51543,13 +52353,15 @@
           "speak": "At minus fifteen a typical air unit gives about two: still double a heater, but no longer three."
         },
         {
-          "point": {
-            "at": {
-              "ref": "compressor"
-            },
-            "gesture": "circle"
-          },
+          "draw": [
+            "portrait_lord_kelvin"
+          ],
           "speak": "Lord Kelvin described such a heat multiplier in 1852, a century before heat pumps warmed ordinary homes."
+        },
+        {
+          "erase": [
+            "portrait_lord_kelvin"
+          ]
         },
         {
           "quiz": {
@@ -51870,6 +52682,12 @@
           "colors": {
             "1 - u": "#2f6b8f"
           }
+        },
+        {
+          "id": "portrait_agner_krarup_erlang",
+          "type": "portrait",
+          "of": "Agner Krarup Erlang",
+          "cameo": true
         }
       ],
       "commands": [
@@ -51954,12 +52772,15 @@
           "speak": "Grunnen er at pasienter klumper seg. Med luft i dagen spises en forsinkelse opp; uten luft arver neste pasient den, og pasienten etter der igjen."
         },
         {
-          "highlight": {
-            "target": [
-              "vent"
-            ]
-          },
+          "draw": [
+            "portrait_agner_krarup_erlang"
+          ],
           "speak": "Dette er køteori, og den begynte med den danske ingeniøren Agner Krarup Erlang, som regnet på telefonsentralen i København rundt 1909."
+        },
+        {
+          "erase": [
+            "portrait_agner_krarup_erlang"
+          ]
         },
         {
           "highlight": {
@@ -52618,6 +53439,12 @@
             "tree3"
           ],
           "walk": true
+        },
+        {
+          "id": "portrait_william_farr",
+          "type": "portrait",
+          "of": "William Farr",
+          "cameo": true
         }
       ],
       "commands": [
@@ -52714,12 +53541,15 @@
           "speak": "It even stops short: about six in a hundred never catch it, because by the end there are too few cases left to reach them."
         },
         {
-          "highlight": {
-            "target": [
-              "wave"
-            ]
-          },
+          "draw": [
+            "portrait_william_farr"
+          ],
           "speak": "William Farr saw in 1840 that epidemics rise and fall in a regular curve, almost ninety years before this model explained why."
+        },
+        {
+          "erase": [
+            "portrait_william_farr"
+          ]
         },
         {
           "quiz": {
@@ -52753,6 +53583,12 @@
             "resample"
           ],
           "code": "library(ggplot2)\nn <- Slider(10, 400, default = 40, label = \"Sample size\")\nreplace <- TRUE\nresample <- Button(\"New sample\")\nset.seed(1 + resample)\nx <- rexp(n, rate = 1/4)\nmeans <- round(replicate(2000, mean(sample(x, replace = replace))), 3)\ncat(\"sample mean:\", round(mean(x), 2), \" bootstrap SE:\", round(sd(means), 2), \"\\n\")\nggplot(data.frame(m = means), aes(m)) + geom_histogram(bins = 25) + coord_cartesian(xlim = c(1, 8))"
+        },
+        {
+          "id": "portrait_bradley_efron",
+          "type": "portrait",
+          "of": "Bradley Efron",
+          "cameo": true
         }
       ],
       "commands": [
@@ -52856,12 +53692,15 @@
           "speak": "Turn it back on, and let the sample grow to four hundred. The histogram narrows, as a real sampling distribution would."
         },
         {
-          "highlight": {
-            "target": [
-              "boot_line_1"
-            ]
-          },
+          "draw": [
+            "portrait_bradley_efron"
+          ],
           "speak": "Bradley Efron published the bootstrap in 1979. The name is from pulling yourself up by your own bootstraps."
+        },
+        {
+          "erase": [
+            "portrait_bradley_efron"
+          ]
         },
         {
           "explore": {
@@ -54313,6 +55152,12 @@
           "tex": "M_n = 2^n - 1",
           "x": 500,
           "y": 470
+        },
+        {
+          "id": "portrait_edouard_lucas",
+          "type": "portrait",
+          "of": "Édouard Lucas",
+          "cameo": true
         }
       ],
       "commands": [
@@ -54402,13 +55247,15 @@
           "speak": "One, three, seven, fifteen, thirty-one: always one less than a power of two. A guess of two more per disk would say nine for four disks; it takes fifteen."
         },
         {
-          "point": {
-            "at": {
-              "ref": "seq"
-            },
-            "gesture": "underline"
-          },
+          "draw": [
+            "portrait_edouard_lucas"
+          ],
           "speak": "Édouard Lucas sold the puzzle in 1883 with a legend of monks moving sixty-four disks. At a move a second, that takes about 585 billion years."
+        },
+        {
+          "erase": [
+            "portrait_edouard_lucas"
+          ]
         },
         {
           "move": {
@@ -54518,6 +55365,12 @@
           "tex": "\\text{carry} = A \\land B",
           "x": 600,
           "y": 185
+        },
+        {
+          "id": "portrait_claude_shannon",
+          "type": "portrait",
+          "of": "Claude Shannon",
+          "cameo": true
         }
       ],
       "commands": [
@@ -54592,13 +55445,15 @@
           "speak": "Chain adders like this column by column, each passing its carry to the left, and a processor adds numbers of any length."
         },
         {
-          "point": {
-            "at": {
-              "ref": "gate"
-            },
-            "gesture": "circle"
-          },
+          "draw": [
+            "portrait_claude_shannon"
+          ],
           "speak": "In 1937 a 21-year-old student, Claude Shannon, showed that switches wired like this can carry out any logic, arithmetic included."
+        },
+        {
+          "erase": [
+            "portrait_claude_shannon"
+          ]
         },
         {
           "ask": {
@@ -54839,6 +55694,12 @@
           "tex": "n\\log_2 n",
           "x": 860,
           "y": 622
+        },
+        {
+          "id": "portrait_donald_knuth",
+          "type": "portrait",
+          "of": "Donald Knuth",
+          "cameo": true
         }
       ],
       "commands": [
@@ -54926,13 +55787,15 @@
           "speak": "Faster sorts, like merge sort, compare items far apart. A million items take them about twenty million steps, not five hundred billion."
         },
         {
-          "point": {
-            "at": {
-              "ref": "ms"
-            },
-            "gesture": "underline"
-          },
+          "draw": [
+            "portrait_donald_knuth"
+          ],
           "speak": "Donald Knuth judged that bubble sort has nothing to recommend it, except a catchy name."
+        },
+        {
+          "erase": [
+            "portrait_donald_knuth"
+          ]
         },
         {
           "erase": [
@@ -56394,6 +57257,12 @@
             "\\hat{\\beta} = \\frac{88}{10} = 8.8"
           ],
           "step_gap": 232
+        },
+        {
+          "id": "portrait_adrienmarie_legendre",
+          "type": "portrait",
+          "of": "Adrien-Marie Legendre",
+          "cameo": true
         }
       ],
       "commands": [
@@ -56487,12 +57356,15 @@
           "speak": "Divide top and bottom by the number of students, and the two sums get their names: covariance over variance."
         },
         {
-          "highlight": {
-            "target": [
-              "slope"
-            ]
-          },
+          "draw": [
+            "portrait_adrienmarie_legendre"
+          ],
           "speak": "Adrien-Marie Legendre published the method of least squares in 1805, to fit the orbits of comets."
+        },
+        {
+          "erase": [
+            "portrait_adrienmarie_legendre"
+          ]
         },
         {
           "quiz": {
@@ -57005,6 +57877,12 @@
           "colors": {
             "u_t": "#2f6b8f"
           }
+        },
+        {
+          "id": "portrait_frank_ramsey_mathematician",
+          "type": "portrait",
+          "of": "Frank Ramsey (mathematician)",
+          "cameo": true
         }
       ],
       "commands": [
@@ -57116,7 +57994,18 @@
             "target": "eq",
             "part": "(1+r)^t"
           },
-          "speak": "Not everyone is at ease. In 1928 the economist Frank Ramsey called discounting later enjoyments 'ethically indefensible', a weakness of the imagination."
+          "speak": "Not everyone is at ease."
+        },
+        {
+          "draw": [
+            "portrait_frank_ramsey_mathematician"
+          ],
+          "speak": "In 1928 the economist Frank Ramsey called discounting later enjoyments 'ethically indefensible', a weakness of the imagination."
+        },
+        {
+          "erase": [
+            "portrait_frank_ramsey_mathematician"
+          ]
         },
         {
           "quiz": {
@@ -57426,6 +58315,12 @@
           "colors": {
             "s": "#2f6b8f"
           }
+        },
+        {
+          "id": "portrait_karl_pearson",
+          "type": "portrait",
+          "of": "Karl Pearson",
+          "cameo": true
         }
       ],
       "commands": [
@@ -57535,12 +58430,15 @@
           "speak": "Gjennomsnittet står inne i standardavviket. Uten et midtpunkt finnes det ingen avstand å måle."
         },
         {
-          "highlight": {
-            "target": [
-              "band"
-            ]
-          },
+          "draw": [
+            "portrait_karl_pearson"
+          ],
           "speak": "Navnet standardavvik fikk tallet av den britiske statistikeren Karl Pearson, i 1894."
+        },
+        {
+          "erase": [
+            "portrait_karl_pearson"
+          ]
         },
         {
           "quiz": {
@@ -58655,13 +59553,15 @@
           "speak": "So the real cost of a hospital is the schools not built, and it depends on how many hospitals you already have."
         },
         {
-          "point": {
-            "at": {
-              "ref": "pt_0"
-            },
-            "gesture": "tap"
-          },
+          "draw": [
+            "portrait_milton_friedman"
+          ],
           "speak": "Milton Friedman put the idea in a book title in 1975: There's No Such Thing as a Free Lunch."
+        },
+        {
+          "erase": [
+            "portrait_milton_friedman"
+          ]
         },
         {
           "quiz": {
@@ -58674,6 +59574,14 @@
             "correct": 3,
             "right": "More than twenty: past thirty hospitals the curve is steep, and each of the last ten costs about fifty-three schools."
           }
+        }
+      ],
+      "elements": [
+        {
+          "id": "portrait_milton_friedman",
+          "type": "portrait",
+          "of": "Milton Friedman",
+          "cameo": true
         }
       ]
     }
@@ -58811,13 +59719,15 @@
           "speak": "No one had to know where the curves cross. Each landlord saw only an empty flat, each tenant only a queue, and that was enough."
         },
         {
-          "point": {
-            "at": {
-              "ref": "label_Pstar"
-            },
-            "gesture": "underline"
-          },
+          "draw": [
+            "portrait_friedrich_hayek"
+          ],
           "speak": "Friedrich Hayek called this a marvel in 1945: prices carry what millions of people know to others who never meet them."
+        },
+        {
+          "erase": [
+            "portrait_friedrich_hayek"
+          ]
         },
         {
           "quiz": {
@@ -58830,6 +59740,14 @@
             "correct": 1,
             "right": "Rents drift down: every empty month is a reason for a landlord to ask less, until the flats are let."
           }
+        }
+      ],
+      "elements": [
+        {
+          "id": "portrait_friedrich_hayek",
+          "type": "portrait",
+          "of": "Friedrich Hayek",
+          "cameo": true
         }
       ]
     }
@@ -59265,7 +60183,18 @@
               "eq"
             ]
           },
-          "speak": "Output returns to potential. That argument is John Maynard Keynes's, published in 1936 in the middle of the slump it describes."
+          "speak": "Output returns to potential."
+        },
+        {
+          "draw": [
+            "portrait_john_maynard_keynes"
+          ],
+          "speak": "That argument is John Maynard Keynes's, published in 1936 in the middle of the slump it describes."
+        },
+        {
+          "erase": [
+            "portrait_john_maynard_keynes"
+          ]
         },
         {
           "focus": {
@@ -59288,6 +60217,14 @@
             "right": "Spending. All the capacity is still there, which is why policy that lifts demand can close the gap.",
             "wrong": "Look at what actually moved in the picture: only the demand curve. The supply side never budged."
           }
+        }
+      ],
+      "elements": [
+        {
+          "id": "portrait_john_maynard_keynes",
+          "type": "portrait",
+          "of": "John Maynard Keynes",
+          "cameo": true
         }
       ]
     }
@@ -59937,6 +60874,12 @@
             "feil"
           ],
           "kind": "cross"
+        },
+        {
+          "id": "portrait_larry_page",
+          "type": "portrait",
+          "of": "Larry Page",
+          "cameo": true
         }
       ],
       "commands": [
@@ -60024,12 +60967,15 @@
           "speak": "Én viktig ledetråd er lenkene: en lenke fra en annen side teller som en stemme for siden."
         },
         {
-          "highlight": {
-            "target": [
-              "rangering"
-            ]
-          },
+          "draw": [
+            "portrait_larry_page"
+          ],
           "speak": "Den ideen var kjernen i PageRank, som Larry Page og Sergey Brin beskrev i 1998, samme år som Google ble grunnlagt."
+        },
+        {
+          "erase": [
+            "portrait_larry_page"
+          ]
         },
         {
           "highlight": {
@@ -60264,6 +61210,12 @@
           "style": {
             "color": "#2f6b8f"
           }
+        },
+        {
+          "id": "portrait_felix_baumgartner",
+          "type": "portrait",
+          "of": "Felix Baumgartner",
+          "cameo": true
         }
       ],
       "commands": [
@@ -60359,12 +61311,15 @@
           "speak": "Når skjermen åpnes, får lufta en mye større flate å bremse, og den nye sluttfarten blir under tjue kilometer i timen."
         },
         {
-          "highlight": {
-            "target": [
-              "grense"
-            ]
-          },
+          "draw": [
+            "portrait_felix_baumgartner"
+          ],
           "speak": "I tynnere luft er sluttfarten høyere: Felix Baumgartner hoppet fra 39 kilometers høyde i 2012 og nådde over tretten hundre kilometer i timen."
+        },
+        {
+          "erase": [
+            "portrait_felix_baumgartner"
+          ]
         },
         {
           "quiz": {
