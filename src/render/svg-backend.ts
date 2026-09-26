@@ -716,6 +716,11 @@ function setRevealAt(n: RevealNode, local: number, t: number): void {
   if (len > 0) {
     el.style.strokeDasharray = `${len}`;
     el.style.strokeDashoffset = `${len - local}`;
+    // Not reached yet: HIDDEN, not merely dashed away. The dash-offset trick
+    // leaves a zero-length dash at the start of every subpath, and a round
+    // cap paints it — a row of dots along a dashed curve before its beat
+    // (the taxed supply curve, Hans 2026-09-26), a dot at a curve's end.
+    el.style.visibility = local > 0 ? "" : "hidden";
   } else {
     // A path with no length cannot be dashed at all: `stroke-dasharray: 0` is
     // a no-op, and a round cap paints the degenerate subpath as a DOT. Hide it
@@ -1351,6 +1356,7 @@ function makeEffects(
           const len = el.getTotalLength();
           el.style.strokeDasharray = `${len}`;
           el.style.strokeDashoffset = `${len}`;
+          el.style.visibility = "hidden"; // until the pen reaches it (see setRevealAt)
           into.push({ el, len });
         };
 
@@ -1434,13 +1440,19 @@ function makeEffects(
         // The ring is written ON by the rising level and then stays written:
         // a pen stroke does not unwrite itself when the throb dips.
         st.drawn = Math.max(st.drawn, a);
-        for (const { el, len } of st.ringPaths) el.style.strokeDashoffset = `${len * (1 - st.drawn)}`;
+        for (const { el, len } of st.ringPaths) {
+          el.style.strokeDashoffset = `${len * (1 - st.drawn)}`;
+          el.style.visibility = st.drawn > 0 ? "" : "hidden";
+        }
       }
       if (st.penPaths.length > 0) {
         // Written by the clock when there is one, by the level otherwise (a
         // widget's one-shot swell); either way it never unwrites.
         st.written = Math.max(st.written, elapsedMs !== undefined ? writtenAt(elapsedMs) : a);
-        for (const { el, len } of st.penPaths) el.style.strokeDashoffset = `${len * (1 - st.written)}`;
+        for (const { el, len } of st.penPaths) {
+          el.style.strokeDashoffset = `${len * (1 - st.written)}`;
+          el.style.visibility = st.written > 0 ? "" : "hidden";
+        }
       }
       st.nodes.forEach((n) => (n.style.opacity = String(a)));
     },

@@ -63948,10 +63948,10 @@
             "waypoints": [
               {
                 "t": 60,
-                "u": 0.4
+                "u": 0.3
               }
             ],
-            "death_at": 62
+            "death_at": 66
           }
         ],
         "shade_between": null,
@@ -63968,7 +63968,7 @@
       },
       "details": {
         "shortfall_region": "Absolute shortfall = QALYs expected without the disease − QALYs expected with it, from the age of diagnosis: $$47.7 - 17.2 = 30.5$$ (30.4 before rounding).",
-        "shortfall_region_2": "Proportional shortfall = the absolute shortfall as a share of what was expected: $$\\frac{17.3 - 0.8}{17.3} \\approx 95\\%$$ Anna’s is $30.4 / 47.7 \\approx 64\\%$."
+        "shortfall_region_2": "Proportional shortfall = the absolute shortfall as a share of what was expected: $$\\frac{17.3 - 1.8}{17.3} \\approx 90\\%$$ Anna’s is $30.4 / 47.7 \\approx 64\\%$."
       },
       "commands": [
         {
@@ -64026,7 +64026,7 @@
             "curve_bjorn",
             "label_bjorn"
           ],
-          "speak": "Bjørn falls ill at 60 and dies at 62."
+          "speak": "Bjørn falls ill at 60 and dies at 66, in very poor health."
         },
         {
           "draw": [
@@ -64035,7 +64035,7 @@
             "shortfall_region_2",
             "shortfall_note_2"
           ],
-          "speak": "He could have expected about 17 QALYs. He gets less than one: he loses 16.5 — nearly everything he had left."
+          "speak": "He could have expected about 17 QALYs. He gets under two: he loses 15.5 — nine tenths of what he had left."
         },
         {
           "highlight": {
@@ -64055,7 +64055,7 @@
           "show": [
             "shortfall_region"
           ],
-          "speak": "Count the QALYs lost — the absolute shortfall — and it is Anna’s: 30 against 16. Norway measures severity this way."
+          "speak": "Count the QALYs lost — the absolute shortfall — and it is Anna’s: 30 against 15. Norway measures severity this way."
         },
         {
           "hide": [
@@ -64066,7 +64066,7 @@
           "show": [
             "shortfall_region_2"
           ],
-          "speak": "Count the share of the remaining life that is lost — the proportional shortfall — and it is Bjørn’s: 95 percent against 64. The Netherlands measures it this way."
+          "speak": "Count the share of the remaining life that is lost — the proportional shortfall — and it is Bjørn’s: 90 percent against 64. The Netherlands measures it this way."
         },
         {
           "pause": 0.4
@@ -64091,7 +64091,7 @@
           "show": [
             "shortfall_region_2"
           ],
-          "speak": "The proportional measure calls a disease severe when it takes almost everything you had left, at any age. Its weakness: it ranks losing thirty years below losing sixteen."
+          "speak": "The proportional measure calls a disease severe when it takes almost everything you had left, at any age. Its weakness: it ranks losing thirty QALYs below losing fifteen."
         },
         {
           "highlight": {
@@ -64099,7 +64099,7 @@
               "reference_curve"
             ]
           },
-          "speak": "A third view looks back instead of forward: fair innings, the health a person gets over a whole life. Anna gets about 40 QALYs, Bjørn about 54 — so it favours Anna even more, and it is openly about age."
+          "speak": "A third view looks back instead of forward: fair innings, the health a person gets over a whole life. Anna gets about 40 QALYs, Bjørn about 55 — so it favours Anna even more, and it is openly about age."
         },
         {
           "highlight": {
@@ -64119,7 +64119,7 @@
               "Fair innings"
             ],
             "correct": 2,
-            "right": "The proportional shortfall: he loses 95 percent of the health he had left, Anna 64."
+            "right": "The proportional shortfall: he loses 90 percent of the health he had left, Anna 64."
           }
         }
       ]
