@@ -192,7 +192,22 @@ function buildSegments(profile: QalyProfile): Segment[] {
     segments.push({ t0: last.t, u0: last.u, t1: profile.death_at, u1: last.u, kind: "smooth" });
     segments.push({ t0: profile.death_at, u0: last.u, t1: profile.death_at, u1: 0, kind: "vertical" });
   } else if (last && profile.death_at !== undefined) {
-    segments.push({ t0: last.t, u0: last.u, t1: last.t, u1: 0, kind: "vertical" });
+    // Death BEFORE the last waypoint (an animate of death_at shortening a
+    // life, Hans 2026-09-26): the path ends there. It used to run on to the
+    // last waypoint while the shading — which reads 0 after death — stopped,
+    // so the gain no longer filled the space under the line.
+    const d = profile.death_at;
+    const kept: Segment[] = [];
+    for (const seg of segments) {
+      if (seg.t1 <= d) kept.push(seg);
+      else if (seg.t0 < d && seg.kind === "smooth") {
+        const tau = (d - seg.t0) / (seg.t1 - seg.t0 || 1);
+        kept.push({ ...seg, t1: d, u1: seg.u0 + (seg.u1 - seg.u0) * ease(tau) });
+      }
+    }
+    const endU = kept.length ? kept[kept.length - 1].u1 : last.u;
+    kept.push({ t0: d, u0: endU, t1: d, u1: 0, kind: "vertical" });
+    return kept;
   }
   return segments;
 }
