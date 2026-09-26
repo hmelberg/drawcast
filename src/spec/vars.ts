@@ -53,14 +53,17 @@ export function formatVar(value: number, decimals?: number, decimalComma = false
 const TOKEN = /\{([a-zA-Z_][a-zA-Z_0-9]*(?:\.[a-zA-Z_][a-zA-Z_0-9]*)?)(?::(\d))?\}/g;
 
 /** `{f}` / `{f:2}` / `{market.dwl}` → the value; an unknown name is left as written and returned in `unknown`. */
-export function interpolateVars(text: string, vars: Vars, decimalComma = false): { text: string; unknown: string[] } {
+export function interpolateVars(text: string, vars: Record<string, number | string>, decimalComma = false): { text: string; unknown: string[] } {
   const unknown: string[] = [];
   const out = text.replace(TOKEN, (whole, name: string, decimals: string | undefined) => {
     if (!Object.prototype.hasOwnProperty.call(vars, name)) {
       if (!unknown.includes(name)) unknown.push(name);
       return whole;
     }
-    return formatVar(vars[name], decimals === undefined ? undefined : Number(decimals), decimalComma);
+    // A script's value may be words (`{pow.label}`, an sprintf line): as written.
+    const v = vars[name];
+    if (typeof v === "string") return v;
+    return formatVar(v, decimals === undefined ? undefined : Number(decimals), decimalComma);
   });
   return { text: out, unknown };
 }

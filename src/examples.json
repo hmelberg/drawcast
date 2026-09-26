@@ -55677,19 +55677,133 @@
     "request": "Why does a trial with forty patients so often miss a real effect that a trial with four hundred finds every time?",
     "spec": {
       "title": "Statistical power, one sample size at a time",
+      "template": "line_chart",
+      "params": {
+        "x": "{pow.sizes}",
+        "series": [
+          {
+            "name": "power",
+            "values": "{pow.pw}"
+          },
+          {
+            "name": "this trial",
+            "values": "{pow.mark}",
+            "points": true
+          },
+          {
+            "name": "80% target",
+            "values": "{pow.goal}"
+          }
+        ],
+        "ylim": [
+          0,
+          100
+        ],
+        "xlim": [
+          0,
+          400
+        ],
+        "x_label": "Patients per arm",
+        "y_label": "Power (%)",
+        "box": {
+          "x": 60,
+          "y": 95,
+          "w": 640,
+          "h": 500
+        }
+      },
       "elements": [
         {
           "id": "pow",
           "type": "code",
           "language": "r",
+          "show": "code",
           "pane": "controls",
           "controls": [
             "n",
             "effect"
           ],
-          "code": "library(ggplot2)\nn <- Slider(10, 400, default = 40, label = \"Patients per arm\")\neffect <- Slider(0.1, 1.0, step = 0.05, default = 0.4, label = \"Effect size\")\nsizes <- seq(10, 400, by = 10)\npw <- sapply(sizes, function(k) power.t.test(n = k, delta = effect, sd = 1)$power)\nhere <- power.t.test(n = n, delta = effect, sd = 1)$power\ncat(\"power at\", n, \"per arm:\", round(100 * here), \"%\\n\")\nggplot(data.frame(n = sizes, power = pw), aes(n, power)) + geom_line() +\n  geom_point(data = data.frame(n = n, power = here), size = 3) +\n  geom_hline(yintercept = 0.8, linetype = \"dashed\") + ylim(0, 1)",
-          "width": 640,
-          "y": 410
+          "x": 865,
+          "y": 190,
+          "width": 240,
+          "code": "n <- Slider(10, 400, default = 40, label = \"Patients per arm\")\neffect <- Slider(0.1, 1.0, step = 0.05, default = 0.4, label = \"Effect size\")\nsizes <- sort(unique(c(seq(10, 400, by = 10), n)))\npw <- 100 * sapply(sizes, function(k) power.t.test(n = k, delta = effect, sd = 1)$power)\nhere <- 100 * power.t.test(n = n, delta = effect, sd = 1)$power\nmark <- ifelse(sizes == n, pw, NA)\nlabel <- sprintf(\"%d per arm: power %d%%\", n, round(here))\ngoal <- rep(80, length(sizes))"
+        },
+        {
+          "id": "result",
+          "type": "text",
+          "text": "{pow.label}",
+          "x": 500,
+          "y": 230,
+          "font_size": 26,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "score_title",
+          "type": "text",
+          "text": "per arm → power",
+          "x": 880,
+          "y": 560,
+          "font_size": 22,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "row_40",
+          "type": "text",
+          "text": "40 → 42%",
+          "x": 880,
+          "y": 515,
+          "font_size": 22
+        },
+        {
+          "id": "row_100",
+          "type": "text",
+          "text": "100 → 80%",
+          "x": 880,
+          "y": 475,
+          "font_size": 22
+        },
+        {
+          "id": "row_160",
+          "type": "text",
+          "text": "160 → 95%",
+          "x": 880,
+          "y": 435,
+          "font_size": 22
+        },
+        {
+          "id": "row_400",
+          "type": "text",
+          "text": "400 → 100%",
+          "x": 880,
+          "y": 395,
+          "font_size": 22
+        },
+        {
+          "id": "row_02",
+          "type": "text",
+          "text": "at 0.2: 400 → 81%",
+          "x": 880,
+          "y": 345,
+          "font_size": 22,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "score",
+          "type": "group",
+          "members": [
+            "score_title",
+            "row_40",
+            "row_100",
+            "row_160",
+            "row_400",
+            "row_02"
+          ]
         }
       ],
       "commands": [
@@ -55700,29 +55814,44 @@
         },
         {
           "draw": [
-            "pow",
-            "pow_ctl_n"
+            "axes",
+            "line_1"
           ],
-          "parallel": true,
-          "speak": "Why does a trial of forty patients so often miss an effect that four hundred find every time? Two trials, one drug, and the drug really works."
+          "speak": "Why does a trial of forty patients so often miss an effect that four hundred find every time? This curve is statistical power: the chance a trial of each size detects a drug that really works."
         },
         {
           "draw": [
+            "line_3"
+          ],
+          "speak": "Trials are usually planned to reach eighty percent."
+        },
+        {
+          "draw": [
+            "pow",
+            "pow_ctl_n",
             "pow_ctl_effect"
           ],
-          "speak": "Two knobs: patients per arm, and the true effect in standard deviations. Here the drug improves the outcome by 0.4 of one."
+          "parallel": true,
+          "speak": "Two knobs: patients per arm, and the true effect. Here the drug improves the outcome by 0.4 of a standard deviation."
         },
         {
           "draw": [
-            "pow_out"
+            "line_2",
+            "result"
           ],
-          "delivery": "grave",
-          "speak": "The curve is statistical power: the chance a trial of each size detects the effect. Forty per arm sits at forty-two percent."
+          "speak": "A trial with forty patients per arm sits at forty-two percent."
+        },
+        {
+          "draw": [
+            "score_title",
+            "row_40"
+          ],
+          "speak": "Let us keep score as we go."
         },
         {
           "highlight": {
             "target": [
-              "pow_out"
+              "result"
             ]
           },
           "speak": "So a small trial of a drug that works comes up empty more often than not. Its 'no significant difference' means 'too small to tell'."
@@ -55731,48 +55860,80 @@
           "run": {
             "code": "pow",
             "values": {
-              "n": [
-                40,
-                100,
-                160,
-                280,
-                400
-              ]
+              "n": 100
             }
           },
-          "speak": "Walk the arms up. A hundred per arm reaches eighty percent, the usual target; a hundred and sixty, ninety-five; after that, nearly certain."
+          "speak": "A hundred per arm reaches eighty percent…"
         },
         {
-          "highlight": {
-            "target": [
-              "pow_out"
-            ]
-          },
-          "speak": "Every patient costs the same, but power flattens out. That is why a trial is sized before it starts."
+          "draw": [
+            "row_100"
+          ]
         },
         {
           "run": {
             "code": "pow",
             "values": {
+              "n": 160
+            }
+          },
+          "speak": "…a hundred and sixty, ninety-five…"
+        },
+        {
+          "draw": [
+            "row_160"
+          ]
+        },
+        {
+          "run": {
+            "code": "pow",
+            "values": {
+              "n": 400
+            }
+          },
+          "speak": "…and four hundred, nearly certain."
+        },
+        {
+          "draw": [
+            "row_400"
+          ]
+        },
+        {
+          "highlight": {
+            "target": [
+              "row_40",
+              "row_100",
+              "row_160",
+              "row_400"
+            ]
+          },
+          "speak": "Every patient costs the same, but power flattens out: the step from forty to a hundred buys almost forty points, the step from a hundred and sixty to four hundred barely five. That is why a trial is sized before it starts."
+        },
+        {
+          "run": {
+            "code": "pow",
+            "values": {
+              "n": 400,
               "effect": 0.2
             }
           },
-          "speak": "Now halve the effect, to 0.2. Even four hundred per arm reaches only eighty percent."
+          "speak": "Now halve the effect, to 0.2. The whole curve sinks: even four hundred per arm reaches only eighty-one percent."
+        },
+        {
+          "draw": [
+            "row_02"
+          ]
         },
         {
           "highlight": {
             "target": [
-              "pow_ctl_effect"
+              "row_02",
+              "row_100"
             ]
           },
-          "speak": "Half the effect needs four times the patients: the size a trial needs grows with one over the effect squared."
+          "speak": "Half the effect needs four times the patients: about four hundred per arm instead of a hundred. The size a trial needs grows with one over the effect squared."
         },
         {
-          "highlight": {
-            "target": [
-              "pow_out"
-            ]
-          },
           "speak": "In 1962 Jacob Cohen checked a year of psychology studies and found they had, typically, less than an even chance of detecting a medium effect."
         },
         {

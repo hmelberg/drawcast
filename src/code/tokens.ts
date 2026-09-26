@@ -116,3 +116,32 @@ function deleteNearestProperty(root: Record<string, unknown>, at: (string | numb
   for (let i = 0; i < last; i++) host = (host as Record<string | number, unknown>)[at[i]];
   delete (host as Record<string, unknown>)[at[last] as string];
 }
+
+/** A `{codeId.path}` (or `{codeId.path:2}`) INSIDE drawn text. */
+const TEXT_TOKEN_RE = /\{([A-Za-z][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)(?::\d)?\}/g;
+
+/**
+ * Tokens naming a CODE element inside the drawn text of the page's own
+ * elements (text, label, node): "{pow.label}" as a text element is the
+ * author's own result line — placed where they want, worded as they want,
+ * as many as they want (Hans 2026-09-26), live through a sweep like a
+ * template param. Only ids that ARE code elements count, so `{market.dwl}`
+ * and a spec var stay theirs.
+ */
+export function scanTextTokens(elements: readonly { id?: string; type?: string; text?: unknown }[] | undefined): DataToken[] {
+  const codeIds = new Set((elements ?? []).filter((e) => e.type === "code" && typeof e.id === "string").map((e) => e.id as string));
+  if (codeIds.size === 0) return [];
+  const out: DataToken[] = [];
+  (elements ?? []).forEach((el, i) => {
+    if (typeof el.text !== "string" || !["text", "label", "node"].includes(el.type ?? "")) return;
+    for (const m of el.text.matchAll(TEXT_TOKEN_RE)) {
+      if (codeIds.has(m[1])) out.push({ codeId: m[1], path: m[2], at: ["elements", i, "text"] });
+    }
+  });
+  return out;
+}
+
+/** Every script value a spec asks for: its template params' tokens and its drawn text's. */
+export function requestedTokens(spec: { params?: unknown; elements?: readonly { id?: string; type?: string; text?: unknown }[] }): DataToken[] {
+  return [...scanDataTokens(spec.params), ...scanTextTokens(spec.elements)];
+}

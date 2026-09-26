@@ -7,7 +7,7 @@ import type { Spec, SpecElement } from "../spec/types";
 import { applyControls, parseControls } from "../code/controls";
 import { defaultChartStyle, runCode } from "../code/run";
 import type { CodeResolveDeps } from "./code";
-import { pathsByCodeId, scanDataTokens } from "../code/tokens";
+import { pathsByCodeId, requestedTokens } from "../code/tokens";
 import type { Plan } from "./plan";
 import type { CodePatch, SweepRunner } from "./player";
 
@@ -33,7 +33,7 @@ export function sweepRunnerFor(authored: Spec, deps: CodeResolveDeps = {}): Swee
     // The data bridge's paths ride along exactly as in render/code.ts, or a
     // swept script would miss the cache the resolve pass filled (and harvest
     // nothing for a "{id.path}" param).
-    const paths = pathsByCodeId(scanDataTokens(authored.params))[el.id] ?? [];
+    const paths = pathsByCodeId(requestedTokens(authored))[el.id] ?? [];
     // The chart style resolves the same way the resolve pass resolves it, or
     // a swept figure would change its LOOK as well as its numbers halfway
     // through the sweep (and miss the cache the precompute filled).

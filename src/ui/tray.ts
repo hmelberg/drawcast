@@ -37,7 +37,7 @@
 import type { RenderHandle } from "../render";
 import type { SpecElement } from "../spec/types";
 import { decodeCodeResult, defaultChartStyle, runCode } from "../code/run";
-import { pathsByCodeId, scanDataTokens, substituteDataTokens } from "../code/tokens";
+import { pathsByCodeId, scanDataTokens, substituteDataTokens, requestedTokens } from "../code/tokens";
 import { decodeFigures } from "../render/decode-figures";
 import { sceneAt } from "../render/plan";
 import { readParam, withOverrides } from "../render/params";
@@ -373,7 +373,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       takenOver.add(el.id);
       for (const g of controlGroups.get(el.id) ?? []) g.classList.add("cs-tray-controls-quiet");
     }
-    const paths = pathsByCodeId(scanDataTokens(hd.authored.params))[el.id] ?? [];
+    const paths = pathsByCodeId(requestedTokens(hd.authored))[el.id] ?? [];
     setDraft(el.id, code);
     announce(el.id, (s) => {
       s.busy(true);

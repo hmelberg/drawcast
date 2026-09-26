@@ -7,7 +7,7 @@
 
 import type { Spec } from "../spec/types";
 import type { CodeRunRequest, CodeRunResult } from "./run";
-import { pathsByCodeId, scanDataTokens, substituteDataTokens } from "./tokens";
+import { pathsByCodeId, substituteDataTokens, requestedTokens } from "./tokens";
 import { RUNTIME_LABEL } from "./languages";
 import { withControlDefaults } from "./controls";
 
@@ -31,7 +31,7 @@ export async function codeExecutionErrors(
   run: (req: CodeRunRequest) => Promise<CodeRunResult>,
 ): Promise<CodeCheckOutcome> {
   const out: CodeCheckOutcome = { errors: [], warnings: [] };
-  const byId = pathsByCodeId(scanDataTokens(spec.params));
+  const byId = pathsByCodeId(requestedTokens(spec));
   const envelopes = new Map<string, CodeRunResult>();
   for (const el of spec.elements ?? []) {
     if (el.type !== "code" || !el.language || !el.code) continue;

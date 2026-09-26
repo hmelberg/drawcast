@@ -11,7 +11,7 @@
 // hidden and whose id no token names is never executed (its lines are text).
 
 import { decodeCodeResult, defaultChartStyle, runCode, type CodeRunDeps, type CodeRunResult } from "../code/run";
-import { pathsByCodeId, scanDataTokens, substituteDataTokens } from "../code/tokens";
+import { pathsByCodeId, substituteDataTokens, requestedTokens } from "../code/tokens";
 import { withControlDefaults } from "../code/controls";
 import type { Spec, SpecElement } from "../spec/types";
 import type { RenderStyle } from "./svg-backend";
@@ -44,7 +44,7 @@ function paneHidden(el: SpecElement): boolean {
 
 export async function resolveCode(spec: Spec, deps: CodeResolveDeps = {}): Promise<CodeResolution[]> {
   const results: CodeResolution[] = [];
-  const byId = pathsByCodeId(scanDataTokens(spec.params));
+  const byId = pathsByCodeId(requestedTokens(spec));
   const codeEls = new Map<string, SpecElement>();
 
   for (const el of spec.elements ?? []) {

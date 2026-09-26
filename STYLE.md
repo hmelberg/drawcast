@@ -21,6 +21,28 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-26 — Write it down as you say it: the figure as a memory aid
+
+Hans, on "Statistical power, one sample size at a time": "As you play or
+explain points on a curve, you might also draw some short text/numbers about
+the point so the user can compare and do not have to remember. Generally
+learning and writing/drawing is partly about creating visual aids that help
+us remember … putting this in a table (some of it, not always all), at the
+same time you say it." Also: the script's chart and printed line did not
+look like the rest of drawcast, and the author should control where a
+result line goes, what it says, and how many there are.
+
+Distilled: when the narration walks through values, the figure keeps them —
+a mark on the curve and a row in a small table per value spoken, drawn on
+the beat that says it, so the viewer compares by looking instead of
+remembering. And a script's numbers become drawcast ink: a template chart
+fed by tokens, and the author's own text elements carrying `{codeid.path}`
+tokens (live through every run and knob), not a plot or a printed line.
+
+Status: text tokens from scripts shipped (code/tokens.ts scanTextTokens,
+layout scriptValues); line_chart per-series `points` (a one-value marker
+series); the power example rebuilt that way; the code prompt says so.
+
 ### 2026-09-26 — Exaggerate: big areas, big changes, corner cases
 
 Hans, on "How severe is a disease?": "one of the areas is quite small. In

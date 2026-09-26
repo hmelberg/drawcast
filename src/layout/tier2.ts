@@ -158,7 +158,9 @@ interface Ctx {
   /** The spec's vars (spec/vars.ts): read by curve expr, bind and `{name}` text tokens. */
   vars: Vars;
   /** The template's own numbers as `{market.dwl}` text tokens (SceneLayout.values) — text only, never expressions. */
-  templateValues: Vars;
+  templateValues: Record<string, number | string>;
+  /** The page's code element ids: `{pow.label}` before its script has run is pending, not a typo. */
+  codeIds: Set<string>;
   /** Logical → domain, the inverse of sx/sy (a posed curve's samples go through logical space and back). */
   ix: (v: number) => number;
   iy: (v: number) => number;
@@ -233,7 +235,7 @@ export function layoutElements(
    *  seedDrawables: the template's drawables, so `at.ref` can name a template id.
    *  vars: the spec's top-level numbers (spec/vars.ts).
    *  overrides: poses and morphed shapes the definitional references read (posed.ts). */
-  opts: { measure?: MeasureFn; seedDrawables?: Drawable[]; vars?: Vars; templateValues?: Vars; overrides?: LayoutOverrides; fit?: TemplateFit; decimalComma?: boolean; frame?: DataFrame } = {},
+  opts: { measure?: MeasureFn; seedDrawables?: Drawable[]; vars?: Vars; templateValues?: Record<string, number | string>; overrides?: LayoutOverrides; fit?: TemplateFit; decimalComma?: boolean; frame?: DataFrame } = {},
 ): Tier2Result {
   const measure = opts.measure ?? heuristicMeasure;
   const vars = opts.vars ?? {};
@@ -283,6 +285,7 @@ export function layoutElements(
     atFallback: {},
     vars,
     templateValues: opts.templateValues ?? {},
+    codeIds: new Set(elements.filter((e) => e.type === "code").map((e) => e.id)),
     ix: (v) => ixStd((v - fdx) / fs),
     iy: (v) => iyStd((v - fdy) / fs),
     posedAnchors: {},
@@ -1121,9 +1124,17 @@ function samplesOf(ctx: Ctx, id: string): Pt[] | undefined {
 /** `{name}` tokens in drawn text (design 2026-09-10 §2.1); an unknown name stays as written and warns, so a typo shows on the canvas. */
 function withVars(text: string, el: SpecElement, ctx: Ctx): string {
   const r = interpolateVars(text, { ...ctx.templateValues, ...ctx.vars }, ctx.decimalComma);
-  for (const name of r.unknown)
+  let out = r.text;
+  for (const name of r.unknown) {
+    // A script's value that has not arrived (the script has not run yet, or
+    // could not): a quiet ellipsis, never the raw token, never a warning.
+    if (name.includes(".") && ctx.codeIds.has(name.split(".")[0])) {
+      out = out.replace(new RegExp(`\\{${name.replace(/\./g, "\\.")}(?::\\d)?\\}`, "g"), "…");
+      continue;
+    }
     ctx.warnings.push(`${el.type} "${el.id}": text names {${name}}, which is not ${name.includes(".") ? "a value the template computes here" : "one of the vars"} — left as written`);
-  return r.text;
+  }
+  return out;
 }
 
 function curveDrawable(el: SpecElement, ctx: Ctx): StrokeDrawable {

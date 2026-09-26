@@ -582,6 +582,7 @@ params:
         type: object
         properties:
           name: { type: string }
+          points: { type: boolean, description: "Dots on this series only — a one-value series (nulls elsewhere) is a marker that follows its script." }
           values:
             oneOf:
               - { type: array, items: { type: [number, "null"] }, maxItems: 2000 }
@@ -1442,8 +1443,10 @@ layout: |
       // `crossing` (layout/model.ts) marks this line as a MOVER: the lint then
       // accepts an overlap between two DIFFERENT movers, and nothing else.
       const cross = racing ? { crossing: id } : {};
-      children.push(kit.stroke(id + "__l", drawnPts(pts), { color, strokeWidth: 4, ms: MS.curve, ...cross }));
-      if (params.points === true) pts.forEach((p, i) => children.push(kit.stroke(id + "__p" + (i + 1), kit.polygon(p, 4, 10), { closed: true, color, fill: color, strokeWidth: 2, ms: MS.stroke, ...cross })));
+      // A one-point series (a marker: `mark <- ifelse(x == n, y, NA)`) is its
+      // dot alone — there is no line to draw.
+      if (drawnPts(pts).length !== 1) children.push(kit.stroke(id + "__l", drawnPts(pts), { color, strokeWidth: 4, ms: MS.curve, ...cross }));
+      if (params.points === true || L.s.points === true) pts.forEach((p, i) => children.push(kit.stroke(id + "__p" + (i + 1), kit.polygon(p, 4, 10), { closed: true, color, fill: color, strokeWidth: 2, ms: MS.stroke, ...cross })));
       if (L.s.name && pts.length && labelled.has(k)) children.push(kit.text(id + "__t", [pts[pts.length - 1][0] + END_GAP, dodged[k]], L.s.name, { fontSize: END_SIZE, anchor: "start", color, opacity: 1 - (1 - kit.softAlpha(color)) * softness[k], ...cross }));
       push(kit.group(id, children));
       anchors[id] = pts.length ? pts[Math.floor(pts.length / 2)] : [plot.x0, plot.y0];

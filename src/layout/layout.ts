@@ -1,6 +1,7 @@
 // The layout orchestrator: spec → backend-independent drawables + lint.
 // Template routing failures fall through to tier-2 gracefully (never hard-fail).
 
+import { decodeCodeResult } from "../code/envelope";
 import { scenes } from "../scenes/registry";
 import { normalizeSpec } from "../spec/schema";
 import { applyTextMap } from "./text-map";
@@ -254,7 +255,7 @@ export function layoutSpec(
     // Norwegian cast. spec.lang when set, else the narration's own sniff.
     const spoken = (spec.commands ?? []).map((c) => c.speak ?? "").join(" ");
     const decimalComma = usesDecimalComma(spec.lang, spoken.trim() ? detectLang(spoken) : undefined);
-    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples, { measure, seedDrawables: [...drawables], vars: spec.vars, templateValues, overrides, fit, decimalComma, frame: templateFrame });
+    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples, { measure, seedDrawables: [...drawables], vars: spec.vars, templateValues: { ...templateValues, ...scriptValues(spec.elements) }, overrides, fit, decimalComma, frame: templateFrame });
     drawables.push(...tier2.drawables);
     labelRequests.push(...tier2.labels);
     warnings.push(...tier2.warnings);
@@ -750,4 +751,27 @@ function autoChartBox(spec: Spec, measure: MeasureFn): { x: number; y: number; w
   return lo - MARGIN > W - MARGIN - hi
     ? { x: MARGIN, y: BAND_Y, w: Math.max(200, lo - GUTTER - MARGIN), h: BAND_H }
     : { x: hi + GUTTER, y: BAND_Y, w: Math.max(200, W - MARGIN - hi - GUTTER), h: BAND_H };
+}
+
+/**
+ * What the page's scripts left behind, as `{codeId.path}` for drawn text
+ * (code/tokens.ts scanTextTokens asked the runtime for exactly these). Read
+ * from each code element's envelope, so a sweep's patched envelopes — the
+ * elements the layout is handed mid-sweep — make the text live. A one-element
+ * vector (R's every scalar) is its value; a longer one reads as a list.
+ */
+function scriptValues(elements: Spec["elements"]): Record<string, number | string> {
+  const out: Record<string, number | string> = {};
+  for (const el of elements ?? []) {
+    if (el.type !== "code") continue;
+    const env = decodeCodeResult(el.code_result);
+    if (!env?.ok || !env.data) continue;
+    for (const [path, raw] of Object.entries(env.data)) {
+      const v = Array.isArray(raw) && raw.length === 1 ? raw[0] : raw;
+      if (typeof v === "number" && Number.isFinite(v)) out[`${el.id}.${path}`] = v;
+      else if (typeof v === "string") out[`${el.id}.${path}`] = v;
+      else if (Array.isArray(v)) out[`${el.id}.${path}`] = v.join(", ");
+    }
+  }
+  return out;
 }
