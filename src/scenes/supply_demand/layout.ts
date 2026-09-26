@@ -114,6 +114,8 @@ const VALUE_NAME: Record<ReadoutKey, { en: string; nb: string }> = {
 };
 
 const D0 = 2;
+const Y_AXIS_SIDES: LabelRequest["side"][] = ["left", "above-left", "below-left"];
+const X_AXIS_SIDES: LabelRequest["side"][] = ["below", "below-left", "below-right"];
 const D1 = 96; // usable slice of the 0–100 domain, keeps arrowheads clear
 
 const ELASTICITY: Record<string, number> = {
@@ -230,6 +232,9 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       id,
       anchor,
       side,
+      // A price names a point on the y-axis, a quantity one on the x-axis:
+      // outside the axis always, stacking along it when crowded.
+      ...(side === "left" && anchor[0] === plot.x0 ? { sides: Y_AXIS_SIDES } : side === "below" && anchor[1] === plot.y0 ? { sides: X_AXIS_SIDES } : {}),
       text,
       fontSize: 28,
       style: defaultStyle({ color }),

@@ -52,6 +52,14 @@ export interface LabelRequest {
    * it is placed exactly as before.
    */
   ignore?: string[];
+  /**
+   * The only sides this label may take (the preferred `side` first). A label
+   * naming a point ON an axis — a price at the y-axis, a quantity at the
+   * x-axis — must stay outside it: with free fallback, a crowded one (P₂
+   * just above P₁, "P buyers" above P*) slid to the right, into the plot
+   * (Hans 2026-09-26). Restricted, it stacks along the outside instead.
+   */
+  sides?: LabelSide[];
 }
 
 /**
@@ -261,7 +269,14 @@ export function placeLabels(
     const h = lines.length * req.fontSize * LINE_HEIGHT;
     const ignored = req.ignore && req.ignore.length > 0 ? new Set(req.ignore) : null;
     const inPlay = ignored ? blocked.filter((o) => o.id === undefined || !ignored.has(o.id)) : blocked;
-    const sides: LabelSide[] = [req.side, ...FALLBACK_ORDER.filter((s) => s !== req.side)];
+    // Restricted sides are a strong preference, not a ban: they alone are
+    // tried at the near rings; only if none is clean there may the label
+    // take another side ("outside … unless in exceptional circumstances" —
+    // a long "going rent" that cannot fit left of the axis).
+    const preferred: LabelSide[] | null = req.sides ? [req.side, ...req.sides.filter((s) => s !== req.side)] : null;
+    const sides: LabelSide[] = preferred
+      ? [...preferred, ...FALLBACK_ORDER.filter((s) => !preferred.includes(s))]
+      : [req.side, ...FALLBACK_ORDER.filter((s) => s !== req.side)];
     const r0 = 10 + req.fontSize * 0.55;
     const rings = [1, 2.2, 3.6, 6, 9, 13].map((k) => r0 * k);
 
@@ -281,9 +296,19 @@ export function placeLabels(
       const core = coreOf(box);
       return inPlay.some((o) => !o.solid && o.seg !== undefined && segmentHitsBox(o.seg, core));
     };
+    // The search order: with preferred sides, first those alone at the near
+    // rings; then every side at the near rings; then every side further out —
+    // near on another side beats far on the preferred one, and an exile with
+    // a leader comes last. Grazing a stroke is accepted only in the open pass.
+    const passes: { ringIndex: number; r: number; only: boolean }[] = [
+      ...(preferred ? rings.slice(0, NEAR_RINGS).map((r, i) => ({ ringIndex: i, r, only: true })) : []),
+      ...rings.map((r, i) => ({ ringIndex: i, r, only: false })),
+    ];
     if (!pin) {
-      outer: for (const [ringIndex, r] of rings.entries()) {
+      outer: for (const { ringIndex, r, only } of passes) {
         for (const side of sides) {
+          if (only && !preferred!.includes(side)) continue;
+          if (!only && preferred && ringIndex < NEAR_RINGS && preferred.includes(side)) continue; // tried in its own pass
           const box = clampToCanvas(candidateBox(req.anchor, side, r, w, h));
           if (inPlay.some((o) => o.solid && boxesOverlap(box, o.box, 3))) continue; // text-text: never
           const penalty = inPlay.reduce((sum, o) => (o.solid ? sum : sum + overlapArea(box, o.box)), 0);
@@ -295,13 +320,13 @@ export function placeLabels(
           if (coreClean === null || ringIndex < coreClean.ringIndex || (ringIndex === coreClean.ringIndex && penalty < coreClean.penalty)) {
             coreClean = { box, ringIndex, penalty };
           }
-          if (ringIndex < NEAR_RINGS && (softNear === null || penalty < softNear.penalty)) {
+          if (!only && ringIndex < NEAR_RINGS && (softNear === null || penalty < softNear.penalty)) {
             softNear = { box, ringIndex, penalty };
           }
         }
         // No clean spot near the anchor: grazing a stroke here beats being
         // exiled to a distant clean spot with a leader line.
-        if (ringIndex === NEAR_RINGS - 1 && softNear) {
+        if (!only && ringIndex === NEAR_RINGS - 1 && softNear) {
           chosen = softNear;
           break;
         }
