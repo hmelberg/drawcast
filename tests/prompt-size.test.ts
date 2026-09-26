@@ -516,7 +516,15 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned UP 2026-09-25 (one coordinate rule; {data} on template axes): the Units paragraph and the data forms. +1924. 215468 -> 217392.
 // Re-pinned UP 2026-09-25 (a derivation as a structure): math `steps` and the `step` verb. +1683. 217392 -> 219075.
 // Re-pinned UP 2026-09-25 (isometric pack bundled and on by default): three catalog index lines. +230. 219075 -> 219305.
-const BASELINE_SYSTEM_CHARS = 219305;
+// Re-pinned UP 2026-09-26 (Hans's notes on the few-shots): two teaching
+// rules ("Give the why, not just the what"; "The model first, then the
+// world") and the opening asks for the viewer's question and the problem
+// (+1,300); supply_demand gained `numbering`, the shift `arrow` and the
+// Qd/Qs guides (+850); and the seven reviewed few-shots were rewritten to
+// show mechanism, contrast and complications, each with a card heading
+// (+9,540 — the bulk, and on purpose: the few-shots are what the model
+// imitates). 219305 -> 230995.
+const BASELINE_SYSTEM_CHARS = 230995;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

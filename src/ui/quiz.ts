@@ -51,6 +51,15 @@ const EAR_RIGHT_LINGER_MS = 1300;
 const EAR_WRONG_LINGER_MS = 2100;
 /** After the staff clears, before the next ear question sounds. */
 const EAR_QUESTION_DELAY_MS = 500;
+// Every drill: the figure stands EMPTY for a moment between an answer and the
+// next question, and the question arrives with a visible "next" — at 700 ms
+// straight into the next prompt, the note just written and the note now asked
+// for read as one exchange (Hans, 2026-09-26, on "Where does F4 go": "the gap
+// between the old and new note is still too short and confusing").
+const CLEAR_GAP_MS = 450;
+/** The staff drills write the answer on the staff: let it be read. */
+const STAFF_RIGHT_LINGER_MS = 1300;
+const STAFF_WRONG_LINGER_MS = 2100;
 
 /** One question: what to ask, what counts, and what a miss should reveal. */
 interface Question {
@@ -275,6 +284,14 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
     // units off an emoji is a trap waiting for a two-glyph label.
     const icon = activity.label.split(" ")[0];
     hint.textContent = `${icon} ${questions[i].prompt} · ${i + 1}/${questions.length}`;
+    // A new question, visibly: the pill pops in again (not on the first,
+    // which the drill's own entrance already announces).
+    hint.style.visibility = "";
+    hint.classList.remove("cs-figgate-next");
+    if (i > 0) {
+      void hint.offsetWidth; // restart the animation
+      hint.classList.add("cs-figgate-next");
+    }
     const q = questions[i];
     // The first question sounds at once; later ones after the staff has
     // cleared, so the new note is never heard as the last answer's echo.
@@ -422,14 +439,35 @@ export function mountQuiz(stage: HTMLElement, hd: RenderHandle, activity: Activi
     } else {
       revealTarget();
     }
-    timer = window.setTimeout(
-      () => {
-        i++;
-        if (i >= questions.length) showFinal();
-        else ask();
-      },
-      ear ? (right ? EAR_RIGHT_LINGER_MS : EAR_WRONG_LINGER_MS) : right ? RIGHT_LINGER_MS : WRONG_LINGER_MS,
-    );
+    // The verdict, in words, while the answer stands: which note (square,
+    // key) it was — so the next prompt is never read as this one's answer.
+    const named = kind === "staff" || kind === "piano" || kind === "chess" ? ` ${q.reveal[0]}` : "";
+    hint.classList.remove("cs-figgate-next");
+    hint.textContent = right ? `✓${named}` : named ? `✗ It was${named}` : "✗";
+    const linger = ear
+      ? right
+        ? EAR_RIGHT_LINGER_MS
+        : EAR_WRONG_LINGER_MS
+      : kind === "staff"
+        ? right
+          ? STAFF_RIGHT_LINGER_MS
+          : STAFF_WRONG_LINGER_MS
+        : right
+          ? RIGHT_LINGER_MS
+          : WRONG_LINGER_MS;
+    timer = window.setTimeout(() => {
+      i++;
+      if (i >= questions.length) {
+        showFinal();
+        return;
+      }
+      // Clear the figure first, then ask: an empty beat between the two.
+      clearMarks();
+      hint.style.visibility = "hidden";
+      timer = window.setTimeout(() => {
+        if (!dead) ask();
+      }, CLEAR_GAP_MS);
+    }, linger);
   }
 
   gate.addEventListener("click", (e) => {

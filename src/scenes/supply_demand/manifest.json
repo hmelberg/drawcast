@@ -174,7 +174,16 @@
           },
           "label": {
             "type": "string",
-            "description": "Default \"D′\"."
+            "description": "Default \"D′\" / \"D₂\"."
+          },
+          "arrow": {
+            "type": "string",
+            "enum": [
+              "horizontal",
+              "vertical",
+              "perpendicular"
+            ],
+            "description": "horizontal (default): same price, more (less) wanted or offered. vertical: same quantity, a higher (lower) price. perpendicular: square to the old curve."
           }
         }
       },
@@ -198,9 +207,26 @@
           },
           "label": {
             "type": "string",
-            "description": "Default \"S′\"."
+            "description": "Default \"S′\" / \"S₂\"."
+          },
+          "arrow": {
+            "type": "string",
+            "enum": [
+              "horizontal",
+              "vertical",
+              "perpendicular"
+            ],
+            "description": "horizontal (default): same price, more (less) wanted or offered. vertical: same quantity, a higher (lower) price. perpendicular: square to the old curve."
           }
         }
+      },
+      "numbering": {
+        "type": "string",
+        "enum": [
+          "prime",
+          "index"
+        ],
+        "description": "prime (default): D, E, P*, Q* → D′, E′, P*′, Q*′. index: D₁, E₁, P₁, Q₁ → D₂, E₂, P₂, Q₂ — textbook form, counts on for further changes."
       },
       "tax": {
         "type": "object",
@@ -212,15 +238,24 @@
           },
           "side": {
             "type": "string",
-            "enum": ["seller", "buyer"],
+            "enum": [
+              "seller",
+              "buyer"
+            ],
             "description": "Who the tax is collected from: seller (default) shifts supply up, buyer shifts demand down. The figure comes out IDENTICAL either way — same quantity, same two prices — which is the point worth showing when a request asks whether it matters who pays."
           },
           "kind": {
             "type": "string",
-            "enum": ["per_unit", "ad_valorem"],
+            "enum": [
+              "per_unit",
+              "ad_valorem"
+            ],
             "description": "per_unit (default) is a fixed amount per unit, so the curve shifts parallel. ad_valorem is a percentage of the price, so the curve PIVOTS from the origin and the wedge widens as price rises — the realistic shape for VAT or sales tax."
           },
-          "label": { "type": "string", "description": "Default \"S + tax\", or \"D - tax\" for a buyer-side tax." }
+          "label": {
+            "type": "string",
+            "description": "Default \"S + tax\", or \"D - tax\" for a buyer-side tax."
+          }
         }
       },
       "price_ceiling": {
@@ -285,13 +320,13 @@
     "label_Pstar": "price-axis label at the equilibrium",
     "label_Qstar": "quantity-axis label at the equilibrium",
     "demand_shift_curve / supply_shift_curve": "the shifted curve (when a shift is set)",
-    "demand_shift_arrow / supply_shift_arrow": "arrow from the old to the new curve; always present when a shift is set, but has no arrowhead when the shift amount is near 0 (|amount| < 2)",
+    "demand_shift_arrow / supply_shift_arrow": "arrow from the old to the new curve (see `arrow`); no arrowhead when |amount| < 2",
     "label_D_shift / label_S_shift": "shifted curve label",
     "shift_equilibrium_point": "dot at the new D–S crossing after a single shift (absent if both demand_shift and supply_shift are set)",
     "shift_guide_lines": "dashed guides from the shifted equilibrium to both axes",
-    "label_E_shift": "shifted equilibrium label (\"E′\")",
-    "label_P_shift": "price-axis label at the shifted equilibrium (\"P*′\")",
-    "label_Q_shift": "quantity-axis label at the shifted equilibrium (\"Q*′\")",
+    "label_E_shift": "shifted equilibrium label (\"E′\" / \"E₂\")",
+    "label_P_shift": "price-axis label at the shifted equilibrium (\"P*′\" / \"P₂\")",
+    "label_Q_shift": "quantity-axis label at the shifted equilibrium (\"Q*′\" / \"Q₂\")",
     "tax_supply_curve / tax_demand_curve": "the shifted curve — S+tax for a seller-side tax, D−tax for a buyer-side tax",
     "label_S_tax / label_D_tax": "its label",
     "tax_equilibrium_point": "the with-tax equilibrium dot",
@@ -306,7 +341,10 @@
     "label_transfer": "transfer label",
     "ceiling_line / floor_line": "the dashed price-control line",
     "label_ceiling / label_floor": "its label",
-    "shortage_guides / surplus_guides": "dashed guides at Qd and Qs",
+    "shortage_guides / surplus_guides": "both guides (a set)",
+    "shortage_guide_qd / surplus_guide_qd": "dashed guide at the quantity demanded at the controlled price",
+    "shortage_guide_qs / surplus_guide_qs": "the same at the quantity supplied",
+    "label_Qd / label_Qs": "\"Qd\" / \"Qs\" under each guide — draw each with its guide, one beat each, before the gap",
     "shortage_arrow / surplus_arrow": "double-headed arrow marking the gap",
     "label_shortage / label_surplus": "gap label",
     "cs_region / ps_region": "shaded consumer/producer surplus — only when \"consumer_surplus\" / \"producer_surplus\" is listed in `regions`; drawing either without that draws nothing at all",
@@ -353,11 +391,20 @@
     {
       "request": "Show that when demand is inelastic, buyers pay most of a tax.",
       "params": {
-        "demand": { "elasticity": "inelastic" },
+        "demand": {
+          "elasticity": "inelastic"
+        },
         "supply": {},
-        "equilibrium": { "show": true },
-        "tax": { "amount": 18 },
-        "regions": ["government_revenue", "deadweight_loss"]
+        "equilibrium": {
+          "show": true
+        },
+        "tax": {
+          "amount": 18
+        },
+        "regions": [
+          "government_revenue",
+          "deadweight_loss"
+        ]
       }
     },
     {
@@ -365,9 +412,18 @@
       "params": {
         "demand": {},
         "supply": {},
-        "equilibrium": { "show": true },
-        "price_ceiling": { "level": 32 },
-        "regions": ["consumer_surplus", "producer_surplus", "transfer", "deadweight_loss"]
+        "equilibrium": {
+          "show": true
+        },
+        "price_ceiling": {
+          "level": 32
+        },
+        "regions": [
+          "consumer_surplus",
+          "producer_surplus",
+          "transfer",
+          "deadweight_loss"
+        ]
       }
     }
   ]

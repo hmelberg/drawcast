@@ -2,27 +2,114 @@
   {
     "request": "Draw a demand and supply diagram, then show demand increasing.",
     "spec": {
-      "title": "Demand increase",
+      "title": "When demand rises",
       "template": "supply_demand",
       "params": {
-        "demand": { "curvature": "linear", "label": "D" },
-        "supply": { "label": "S" },
-        "equilibrium": { "show": true, "guides": true },
-        "demand_shift": { "direction": "right", "label": "D′" }
+        "numbering": "index",
+        "demand": {
+          "curvature": "linear"
+        },
+        "supply": {},
+        "equilibrium": {
+          "show": true,
+          "guides": true
+        },
+        "demand_shift": {
+          "direction": "right",
+          "arrow": "horizontal"
+        }
       },
       "commands": [
-        { "speak": "Let's build a market diagram and find where the price settles." },
-        { "draw": ["axes"], "speak": "Price on the vertical axis, quantity on the horizontal." },
-        { "pause": 0.3 },
-        { "draw": ["demand_curve", "label_D"], "speak": "This falling line is demand: as price falls, quantity demanded rises." },
-        { "pause": 0.3 },
-        { "draw": ["supply_curve", "label_S"], "speak": "And this rising line is supply: higher prices call forth more production." },
-        { "pause": 0.3 },
-        { "draw": ["equilibrium_point", "guide_lines", "label_E", "label_Pstar", "label_Qstar"], "speak": "Where the two lines cross, the market clears." },
-        { "point": { "at": { "ref": "equilibrium_point" }, "gesture": "circle" }, "speak": "This is the equilibrium." },
-        { "pause": 0.5 },
-        { "draw": ["demand_shift_curve", "demand_shift_arrow", "label_D_shift"], "speak": "Now suppose demand increases: the whole curve shifts to the right." },
-        { "highlight": { "target": ["demand_shift_curve"], "effect": "pulse" } }
+        {
+          "card": {
+            "title": "When demand rises"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "What happens to price and quantity when more people want something — ice cream on the first hot day, say?"
+        },
+        {
+          "draw": [
+            "demand_curve",
+            "label_D"
+          ],
+          "speak": "Demand: the lower the price, the more ice cream people want."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "supply_curve",
+            "label_S"
+          ],
+          "speak": "Supply: the higher the price, the more sellers are willing to make and sell."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "equilibrium_point",
+            "guide_lines",
+            "label_E",
+            "label_Pstar",
+            "label_Qstar"
+          ],
+          "speak": "On an ordinary day they meet here: the one price at which buyers want exactly what sellers offer."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "draw": [
+            "demand_shift_curve",
+            "demand_shift_arrow",
+            "label_D_shift"
+          ],
+          "speak": "Then the heat arrives. At every price, people now want more: the whole demand curve moves right."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "equilibrium_point"
+            },
+            "gesture": "circle"
+          },
+          "speak": "At the old price, the queue is longer than what sellers have."
+        },
+        {
+          "draw": [
+            "shift_equilibrium_point",
+            "shift_guide_lines",
+            "label_E_shift",
+            "label_P_shift",
+            "label_Q_shift"
+          ],
+          "speak": "So the price climbs — some buyers give up, sellers make more — until the two meet again: higher price, more ice cream."
+        },
+        {
+          "highlight": {
+            "target": [
+              "supply_curve"
+            ]
+          },
+          "speak": "And supply never moved. Sellers slid along their own curve: a change in the quantity supplied, not in supply."
+        },
+        {
+          "quiz": {
+            "question": "If supply had shifted right instead, what would the price do?",
+            "choices": [
+              "Rise",
+              "Fall"
+            ],
+            "correct": 2,
+            "right": "It falls: more is offered at every price, so sellers must cut the price to find buyers."
+          }
+        }
       ]
     }
   },
@@ -44,30 +131,124 @@
                 "type": "chance",
                 "label": "Operate",
                 "children": [
-                  { "label": "Success", "probability": 0.85, "node": { "id": "ok", "type": "terminal", "label": "Recovered", "payoff": 9.2 } },
-                  { "label": "Complication", "probability": 0.15, "node": { "id": "comp", "type": "terminal", "label": "Complication", "payoff": 5.1 } }
+                  {
+                    "label": "Success",
+                    "probability": 0.85,
+                    "node": {
+                      "id": "ok",
+                      "type": "terminal",
+                      "label": "Recovered",
+                      "payoff": 9.2
+                    }
+                  },
+                  {
+                    "label": "Complication",
+                    "probability": 0.15,
+                    "node": {
+                      "id": "comp",
+                      "type": "terminal",
+                      "label": "Complication",
+                      "payoff": 5.1
+                    }
+                  }
                 ]
               }
             },
-            { "label": "Watchful waiting", "node": { "id": "wait", "type": "terminal", "label": "No operation", "payoff": 7.4 } }
+            {
+              "label": "Watchful waiting",
+              "node": {
+                "id": "wait",
+                "type": "terminal",
+                "label": "No operation",
+                "payoff": 7.4
+              }
+            }
           ]
         }
       },
       "elements": [
-        { "id": "rule_out", "type": "annotation", "target": "label_wait", "kind": "strike" }
+        {
+          "id": "rule_out",
+          "type": "annotation",
+          "target": "label_wait",
+          "kind": "strike"
+        }
       ],
       "commands": [
-        { "speak": "The choice: operate, or wait. Let's map the decision." },
-        { "draw": ["node_choice", "label_choice"], "speak": "This square is the decision we control: operate, or wait." },
-        { "pause": 0.3 },
-        { "draw": ["edge_choice_surgery", "branchlabel_choice_surgery", "node_surgery", "label_surgery"], "speak": "Surgery leads to a circle — a chance node — because the outcome is uncertain." },
-        { "pause": 0.3 },
-        { "draw": ["edge_surgery_ok", "branchlabel_surgery_ok", "node_ok", "label_ok", "payoff_ok", "edge_surgery_comp", "branchlabel_surgery_comp", "node_comp", "label_comp", "payoff_comp"], "speak": "With probability 0.85 the operation succeeds; with 0.15 there is a complication." },
-        { "highlight": { "target": ["payoff_ok", "payoff_comp"], "effect": "circle" }, "speak": "The payoffs: 9.2 QALYs after recovery, 5.1 after a complication." },
-        { "pause": 0.3 },
-        { "draw": ["edge_choice_wait", "branchlabel_choice_wait", "node_wait", "label_wait", "payoff_wait"], "speak": "Watchful waiting avoids the risk, at a lower expected payoff." },
-        { "pause": 0.3 },
-        { "draw": ["rule_out"], "speak": "Expected value favours surgery — about 8.6 against 7.4 QALYs — so we rule out waiting." }
+        {
+          "card": {
+            "title": "Operate, or wait?"
+          }
+        },
+        {
+          "draw": [
+            "node_choice",
+            "label_choice"
+          ],
+          "speak": "Should she have surgery now, or wait and watch? This square is the decision we control."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "edge_choice_surgery",
+            "branchlabel_choice_surgery",
+            "node_surgery",
+            "label_surgery"
+          ],
+          "speak": "Surgery leads to a circle — a chance node — because the outcome is uncertain."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "edge_surgery_ok",
+            "branchlabel_surgery_ok",
+            "node_ok",
+            "label_ok",
+            "payoff_ok",
+            "edge_surgery_comp",
+            "branchlabel_surgery_comp",
+            "node_comp",
+            "label_comp",
+            "payoff_comp"
+          ],
+          "speak": "With probability 0.85 the operation succeeds; with 0.15 there is a complication."
+        },
+        {
+          "highlight": {
+            "target": [
+              "payoff_ok",
+              "payoff_comp"
+            ],
+            "effect": "circle"
+          },
+          "speak": "The payoffs: 9.2 QALYs after recovery, 5.1 after a complication."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "edge_choice_wait",
+            "branchlabel_choice_wait",
+            "node_wait",
+            "label_wait",
+            "payoff_wait"
+          ],
+          "speak": "Watchful waiting avoids the risk, at a lower expected payoff."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "rule_out"
+          ],
+          "speak": "Expected value favours surgery — about 8.6 against 7.4 QALYs — so we rule out waiting."
+        }
       ]
     }
   },
@@ -75,37 +256,230 @@
     "request": "Illustrate diminishing marginal utility.",
     "spec": {
       "title": "Diminishing marginal utility",
-      "domain": { "x": [0, 10], "y": [0, 100] },
+      "domain": {
+        "x": [
+          0,
+          6
+        ],
+        "y": [
+          0,
+          100
+        ]
+      },
       "elements": [
-        { "id": "ax", "type": "axes", "x_label": "Quantity consumed", "y_label": "Total utility" },
-        { "id": "utility", "type": "curve", "expr": "100*(1 - exp(-0.4*x))", "style": { "color": "#2f6b8f" } },
-        { "id": "u_label", "type": "label", "text": "U(x)", "attach_to": "utility", "side": "above" },
-        { "id": "p1", "type": "point", "at": { "x": 2, "y": 55.1 }, "guides": true },
-        { "id": "p2", "type": "point", "at": { "x": 6, "y": 90.9 }, "guides": true },
-        { "id": "note", "type": "label", "text": "Each extra unit adds less", "attach_to": "p2", "side": "below-right" },
-        { "id": "mark_note", "type": "annotation", "target": "note", "kind": "box" }
+        {
+          "id": "ax",
+          "type": "axes",
+          "x_label": "Units, one after another",
+          "y_label": "Total enjoyment"
+        },
+        {
+          "id": "choc",
+          "type": "curve",
+          "expr": "100*(1 - exp(-0.45*x))",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "choc_label",
+          "type": "label",
+          "text": "Chocolate",
+          "attach_to": "choc",
+          "side": "above"
+        },
+        {
+          "id": "p1",
+          "type": "point",
+          "at": {
+            "x": 1,
+            "y": 36.2
+          },
+          "guides": true,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "p2",
+          "type": "point",
+          "at": {
+            "x": 2,
+            "y": 59.3
+          },
+          "guides": true,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "p3",
+          "type": "point",
+          "at": {
+            "x": 3,
+            "y": 74.1
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "p4",
+          "type": "point",
+          "at": {
+            "x": 4,
+            "y": 83.5
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "g1",
+          "type": "label",
+          "text": "+36",
+          "attach_to": "p1",
+          "side": "left"
+        },
+        {
+          "id": "g2",
+          "type": "label",
+          "text": "+23",
+          "attach_to": "p2",
+          "side": "above-left"
+        },
+        {
+          "id": "g3",
+          "type": "label",
+          "text": "+15",
+          "attach_to": "p3",
+          "side": "above-left"
+        },
+        {
+          "id": "g4",
+          "type": "label",
+          "text": "+9",
+          "attach_to": "p4",
+          "side": "above-left"
+        },
+        {
+          "id": "song",
+          "type": "curve",
+          "expr": "100/(1 + exp(-1.4*(x - 3)))",
+          "style": {
+            "color": "#8a5fa8",
+            "dash": true
+          }
+        },
+        {
+          "id": "song_label",
+          "type": "label",
+          "text": "A new song",
+          "attach_to": "song",
+          "side": "right"
+        }
       ],
       "commands": [
-        { "speak": "Let's see why the first unit we consume matters more than the sixth." },
-        { "draw": ["ax", "utility", "u_label"], "speak": "Total utility rises as we consume more — but the curve keeps flattening." },
-        { "pause": 0.3 },
-        { "draw": ["p1", "p2"], "parallel": true, "speak": "The first two units bring utility to 55; the next four only lift it to 91." },
-        { "highlight": { "target": ["p1", "p2"], "effect": "circle" }, "speak": "The same extra unit buys less and less." },
-        { "pause": 0.3 },
-        { "draw": ["note", "mark_note"], "speak": "That flattening is diminishing marginal utility." }
+        {
+          "card": {
+            "title": "Diminishing marginal utility"
+          }
+        },
+        {
+          "draw": [
+            "ax"
+          ],
+          "speak": "Why is the first square of chocolate so much better than the fourth? Economists call it diminishing marginal utility."
+        },
+        {
+          "draw": [
+            "choc",
+            "choc_label"
+          ],
+          "speak": "Here is how much you enjoy eating squares one after another, added up."
+        },
+        {
+          "draw": [
+            "p1",
+            "g1"
+          ],
+          "speak": "The first square takes you from nothing to thirty-six."
+        },
+        {
+          "draw": [
+            "p2",
+            "g2"
+          ],
+          "speak": "The second adds twenty-three: still good, but two squares do not make you twice as happy."
+        },
+        {
+          "draw": [
+            "p3",
+            "g3",
+            "p4",
+            "g4"
+          ],
+          "speak": "The third adds fifteen, the fourth only nine: each extra square — the marginal one — adds less."
+        },
+        {
+          "highlight": {
+            "target": [
+              "choc"
+            ]
+          },
+          "speak": "Why? The craving gets used up. The first square meets a real hunger for sweetness; by the fourth you are close to full."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "song",
+            "song_label"
+          ],
+          "speak": "It is not a law of nature, though. A new song can be better the fourth time than the first, because you hear more in it each time."
+        },
+        {
+          "highlight": {
+            "target": [
+              "song"
+            ]
+          },
+          "speak": "Its curve bends UP before it flattens: rising marginal utility, for a while, and then even the best song wears out."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "p4"
+            },
+            "gesture": "circle"
+          },
+          "speak": "And timing matters: the rule is about units in a row. Next week, a square is as good as the first one was today."
+        },
+        {
+          "highlight": {
+            "target": [
+              "g1",
+              "g2",
+              "g3",
+              "g4"
+            ]
+          },
+          "speak": "That is why one more of something you already have plenty of is worth so little to you — and why you would pay less for it."
+        }
       ]
     }
   },
   {
     "request": "Show a client sending a request to a server that queries a database.",
     "spec": {
-      "title": "Client-server request flow",
+      "title": "A web request, round trip",
       "elements": [
         {
           "id": "client",
           "type": "node",
           "shape": "rect",
-          "text": "Client"
+          "text": "Browser"
         },
         {
           "id": "server",
@@ -120,6 +494,18 @@
           "text": "Database"
         },
         {
+          "id": "chain",
+          "type": "group",
+          "members": [
+            "client",
+            "server",
+            "db"
+          ],
+          "layout": "row",
+          "gap": 260,
+          "fit": "full"
+        },
+        {
           "id": "req",
           "type": "arrow",
           "from": {
@@ -127,19 +513,7 @@
           },
           "to": {
             "ref": "server"
-          },
-          "curved": true
-        },
-        {
-          "id": "resp",
-          "type": "arrow",
-          "from": {
-            "ref": "server"
-          },
-          "to": {
-            "ref": "client"
-          },
-          "curved": true
+          }
         },
         {
           "id": "query",
@@ -149,8 +523,7 @@
           },
           "to": {
             "ref": "db"
-          },
-          "curved": true
+          }
         },
         {
           "id": "rows",
@@ -160,8 +533,17 @@
           },
           "to": {
             "ref": "server"
+          }
+        },
+        {
+          "id": "resp",
+          "type": "arrow",
+          "from": {
+            "ref": "server"
           },
-          "curved": true
+          "to": {
+            "ref": "client"
+          }
         },
         {
           "id": "label_req",
@@ -173,30 +555,45 @@
         {
           "id": "label_query",
           "type": "label",
-          "text": "SELECT * FROM users",
+          "text": "SELECT … id = 42",
           "attach_to": "query",
           "side": "above"
+        },
+        {
+          "id": "label_rows",
+          "type": "label",
+          "text": "one row",
+          "attach_to": "rows",
+          "side": "below"
+        },
+        {
+          "id": "label_resp",
+          "type": "label",
+          "text": "a page",
+          "attach_to": "resp",
+          "side": "below"
         }
       ],
       "commands": [
+        {
+          "card": {
+            "title": "A web request, round trip"
+          }
+        },
         {
           "draw": [
             "client",
             "server",
             "db"
           ],
-          "parallel": true,
-          "speak": "A web request passes through three parts before an answer comes back: the client, the server, and its database."
-        },
-        {
-          "pause": 0.3
+          "speak": "What happens between clicking “my profile” and seeing it? Three parts take turns: your browser, a server, and its database."
         },
         {
           "draw": [
             "req",
             "label_req"
           ],
-          "speak": "The client asks the server for a page."
+          "speak": "The browser asks the server for the profile page."
         },
         {
           "pause": 0.3
@@ -206,17 +603,32 @@
             "query",
             "label_query"
           ],
-          "speak": "The server, in turn, queries the database for the data it needs."
-        },
-        {
-          "pause": 0.3
+          "speak": "The server does not have your profile to hand. It asks the database for exactly one row: yours."
         },
         {
           "draw": [
             "rows",
-            "resp"
+            "label_rows"
           ],
-          "speak": "The database returns rows, and the server sends its response back to the client."
+          "speak": "The database sends that row back."
+        },
+        {
+          "draw": [
+            "resp",
+            "label_resp"
+          ],
+          "speak": "And the server fills it into a page and returns it to the browser."
+        },
+        {
+          "flow": {
+            "along": [
+              "req",
+              "query",
+              "rows",
+              "resp"
+            ]
+          },
+          "speak": "Round trip: out and back, twice, usually in a fraction of a second."
         },
         {
           "point": {
@@ -225,7 +637,7 @@
             },
             "gesture": "circle"
           },
-          "speak": "The server sits in the middle, coordinating both sides."
+          "speak": "Why not let the browser ask the database itself? Because the server is where the rules live: it checks who you are and asks only for what you may see."
         }
       ]
     }
@@ -366,6 +778,11 @@
       ],
       "commands": [
         {
+          "card": {
+            "title": "Inside a bicycle pump"
+          }
+        },
+        {
           "draw": [
             "pumpe",
             "l_body",
@@ -422,132 +839,156 @@
   {
     "request": "Why does a dropped ball speed up? Show the equations with the curve.",
     "spec": {
-      "title": "How far a dropped ball has fallen",
+      "title": "Why a falling ball stops speeding up",
       "domain": {
         "x": [
           0,
-          3
+          12
         ],
         "y": [
           0,
-          50
+          70
         ]
       },
       "elements": [
         {
           "id": "ax",
           "type": "axes",
-          "x_label": "Time (s)",
-          "y_label": "Distance fallen (m)"
+          "x_label": "Time falling (s)",
+          "y_label": "Speed (m/s)"
         },
         {
-          "id": "steady",
+          "id": "vac",
           "type": "curve",
-          "expr": "14.7*x",
+          "expr": "9.8*x",
+          "x_to": 7,
           "style": {
             "color": "#8f887c",
             "dash": true
           }
         },
         {
-          "id": "fall",
+          "id": "lab_vac",
+          "type": "label",
+          "text": "gravity alone",
+          "attach_to": "vac",
+          "side": "left"
+        },
+        {
+          "id": "eq_v",
+          "type": "math",
+          "tex": "v = g\\,t",
+          "size": 48,
+          "x": 230,
+          "y": 560
+        },
+        {
+          "id": "real",
           "type": "curve",
-          "expr": "4.9*x*x",
+          "expr": "42*(1 - exp(-9.8*x/42))",
           "style": {
             "color": "#b5482e"
           }
         },
         {
-          "id": "p2",
-          "type": "point",
-          "at": {
-            "x": 2,
-            "y": 19.6
-          },
-          "style": {
-            "color": "#2f6b8f"
-          }
-        },
-        {
-          "id": "tang",
-          "type": "line",
-          "through": [
-            {
-              "ref": "p2"
-            }
-          ],
-          "slope": 19.6,
+          "id": "term",
+          "type": "curve",
+          "expr": "42",
           "style": {
             "color": "#2f6b8f",
             "dash": true
           }
         },
         {
-          "id": "lab_v",
+          "id": "lab_term",
           "type": "label",
-          "tex": "v = gt",
-          "attach_to": "p2",
-          "side": "below-right"
+          "text": "terminal speed, 42 m/s",
+          "attach_to": "term",
+          "side": "above"
         },
         {
-          "id": "eq_s",
+          "id": "eq_F",
           "type": "math",
-          "tex": "s = \\tfrac{1}{2} g t^2",
-          "size": 34,
-          "at": {
-            "ref": "p2",
-            "side": "below-right",
-            "gap": 30
-          }
+          "tex": "F_{\\text{net}} = mg - k v^2",
+          "size": 48,
+          "x": 700,
+          "y": 280
         }
       ],
       "commands": [
         {
+          "card": {
+            "title": "Why a falling ball stops speeding up"
+          }
+        },
+        {
           "draw": [
             "ax"
           ],
-          "speak": "A dropped ball covers far more ground in its second second than in its first. Here is why."
+          "speak": "Drop a baseball and it falls faster and faster — but not forever. Two forces explain both halves."
         },
         {
           "draw": [
-            "steady"
+            "vac",
+            "lab_vac"
           ],
-          "speak": "At a steady speed, the distance would grow along this straight line."
+          "speak": "Gravity pulls with the same force all the way down, so it adds the same speed every second: 9.8 metres per second, each second."
         },
         {
           "draw": [
-            "fall"
+            "eq_v"
           ],
-          "speak": "It does not. The real fall bends upward: every second adds more than the one before."
+          "speak": "With nothing else acting, speed simply grows with time."
         },
         {
-          "erase": [
-            "steady"
-          ],
-          "speak": "Gravity does not hand out distance at a fixed rate — it hands out speed."
+          "pause": 0.3
         },
         {
           "draw": [
-            "p2",
-            "tang",
-            "lab_v"
+            "real"
           ],
-          "speak": "The steepness at any instant is the speed, and it grows ten metres per second every second."
+          "speak": "A real ball starts on that line, then falls behind it and levels off."
         },
         {
           "draw": [
-            "eq_s"
+            "eq_F"
           ],
-          "speak": "Add that growing speed up and the distance goes as the square of the time."
+          "speak": "The second force is the air. The ball has to shove air out of its way, and the faster it goes, the harder the air pushes back — roughly with the square of the speed."
         },
         {
           "highlight": {
             "target": [
-              "fall"
+              "eq_F"
             ],
-            "effect": "glow"
+            "part": "k v^2"
           },
-          "speak": "So it falls five metres in the first second and fifteen in the next — three times as far, from a standing start."
+          "speak": "So the net pull shrinks as the ball speeds up, and each second adds less speed than the one before."
+        },
+        {
+          "draw": [
+            "term",
+            "lab_term"
+          ],
+          "speak": "At about 42 metres per second — 150 kilometres an hour — the air pushes up as hard as gravity pulls down. No net force, no more speeding up: terminal speed."
+        },
+        {
+          "highlight": {
+            "target": [
+              "vac"
+            ]
+          },
+          "speak": "On the Moon, with no air, the ball would stay on the straight line all the way down."
+        },
+        {
+          "quiz": {
+            "question": "A feather and a baseball are dropped together. Why does the feather lag?",
+            "choices": [
+              "Gravity pulls it less per kilo",
+              "The air stops it speeding up much sooner"
+            ],
+            "correct": 2,
+            "right": "Gravity adds the same 9.8 m/s each second to both; the feather's air resistance matches its tiny weight almost at once."
+          }
         }
       ]
     }
@@ -583,8 +1024,8 @@
           "id": "nacelle",
           "type": "shape",
           "shape": "rect",
-          "width": 110,
-          "height": 46,
+          "width": 170,
+          "height": 60,
           "at": {
             "ref": "tower",
             "anchor": "top"
@@ -592,25 +1033,10 @@
           "anchor": "bottom"
         },
         {
-          "id": "gearbox",
-          "type": "shape",
-          "shape": "rect",
-          "width": 42,
-          "height": 26,
-          "at": {
-            "ref": "nacelle",
-            "anchor": "center"
-          },
-          "style": {
-            "fill": "#f2c14e",
-            "color": "#b5482e"
-          }
-        },
-        {
           "id": "hub",
           "type": "shape",
           "shape": "circle",
-          "radius": 13,
+          "radius": 14,
           "at": {
             "ref": "nacelle",
             "anchor": "left"
@@ -692,106 +1118,510 @@
           "anchor": "top_left"
         },
         {
+          "id": "rotor",
+          "type": "group",
+          "members": [
+            "hub",
+            "blade_up",
+            "blade_dl",
+            "blade_dr"
+          ]
+        },
+        {
+          "id": "gear_big",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 22,
+          "at": {
+            "ref": "nacelle",
+            "anchor": "center"
+          },
+          "style": {
+            "fill": "#f2c14e",
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "gear_small",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 8,
+          "at": {
+            "ref": "gear_big",
+            "side": "right",
+            "gap": 0
+          },
+          "style": {
+            "fill": "#f2c14e",
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "generator",
+          "type": "shape",
+          "shape": "rect",
+          "width": 34,
+          "height": 30,
+          "at": {
+            "ref": "nacelle",
+            "anchor": "right"
+          },
+          "anchor": "right",
+          "style": {
+            "fill": "#87a878"
+          }
+        },
+        {
           "id": "turbin",
           "type": "group",
           "members": [
             "tower",
             "nacelle",
-            "gearbox",
-            "hub",
-            "blade_up",
-            "blade_dl",
-            "blade_dr"
+            "rotor",
+            "gear_big",
+            "gear_small",
+            "generator"
           ],
-          "fit": "left"
+          "fit": {
+            "x": 430,
+            "y": 20,
+            "w": 540,
+            "h": 620
+          }
+        },
+        {
+          "id": "wind_1",
+          "type": "path",
+          "points": [
+            [
+              60,
+              520
+            ],
+            [
+              160,
+              540
+            ],
+            [
+              260,
+              515
+            ],
+            [
+              360,
+              535
+            ]
+          ],
+          "smooth": true,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "wind_2",
+          "type": "path",
+          "points": [
+            [
+              40,
+              420
+            ],
+            [
+              140,
+              440
+            ],
+            [
+              240,
+              415
+            ],
+            [
+              340,
+              435
+            ]
+          ],
+          "smooth": true,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "wind_3",
+          "type": "path",
+          "points": [
+            [
+              60,
+              320
+            ],
+            [
+              160,
+              340
+            ],
+            [
+              260,
+              315
+            ],
+            [
+              360,
+              335
+            ]
+          ],
+          "smooth": true,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "l_gearbox",
+          "type": "label",
+          "text": "gearbox",
+          "attach_to": "gear_big",
+          "side": "above"
+        },
+        {
+          "id": "l_gen",
+          "type": "label",
+          "text": "generator",
+          "attach_to": "generator",
+          "side": "right"
         },
         {
           "id": "foto",
           "type": "image",
           "of": "Wind turbine",
           "width": 220,
-          "x": 790,
+          "x": 220,
           "y": 420
-        },
-        {
-          "id": "l_gearbox",
-          "type": "label",
-          "text": "Gearbox",
-          "attach_to": "gearbox",
-          "side": "above-right"
         }
       ],
       "commands": [
         {
+          "card": {
+            "title": "Inside the nacelle"
+          }
+        },
+        {
           "draw": [
-            "turbin"
+            "tower",
+            "nacelle",
+            "rotor"
           ],
-          "speak": "A wind turbine's blades turn about fifteen times a minute. The generator behind them wants fifteen hundred."
+          "speak": "Why does a wind turbine carry a gearbox up there? Because its two ends want very different speeds."
         },
         {
           "draw": [
             "foto"
           ],
-          "speak": "Each blade is longer than an airliner's wing, so the tips are already doing 250 kilometres an hour."
+          "speak": "Each blade is longer than an airliner’s wing."
         },
         {
           "erase": [
             "foto"
-          ],
-          "speak": "Something between rotor and generator has to make up the missing factor of a hundred."
+          ]
         },
         {
           "draw": [
+            "wind_1",
+            "wind_2",
+            "wind_3"
+          ],
+          "parallel": true,
+          "speak": "Wind pushes on the blades…"
+        },
+        {
+          "flow": {
+            "along": [
+              "wind_1",
+              "wind_2",
+              "wind_3"
+            ]
+          },
+          "speak": "…and the rotor turns — slowly. About fifteen times a minute."
+        },
+        {
+          "move": {
+            "target": [
+              "rotor"
+            ],
+            "rotate": -360,
+            "pivot": {
+              "ref": "hub"
+            },
+            "duration": 4,
+            "easing": "linear"
+          },
+          "speak": "It has to be slow: the tips of blades this long already cut the air at nearly 300 kilometres an hour, and faster means noise and worn-away edges."
+        },
+        {
+          "camera": {
+            "center": {
+              "ref": "nacelle"
+            },
+            "zoom": 1.8
+          }
+        },
+        {
+          "draw": [
+            "generator",
+            "l_gen"
+          ],
+          "speak": "At the other end sits the generator. It makes electricity by sweeping magnets past coils of wire, and it wants about fifteen hundred turns a minute to do that well."
+        },
+        {
+          "draw": [
+            "gear_big",
             "l_gearbox"
           ],
-          "speak": "That is the gearbox, buried in the nacelle."
+          "speak": "In between: a big gear on the slow shaft from the rotor…"
+        },
+        {
+          "draw": [
+            "gear_small"
+          ],
+          "speak": "…driving a small one. Each turn of the big wheel spins the small one many times: speed up, force down."
         },
         {
           "highlight": {
             "target": [
-              "gearbox"
-            ],
-            "effect": "glow"
+              "gear_small"
+            ]
           },
-          "speak": "It trades force for speed: the rotor's slow, enormous twist comes out fast and weak — what a generator eats."
+          "speak": "Three such steps in a row multiply fifteen turns a minute into fifteen hundred."
         },
         {
-          "point": {
-            "at": {
-              "ref": "gearbox"
-            },
-            "gesture": "circle"
+          "camera": {
+            "reset": true
+          }
+        },
+        {
+          "focus": {
+            "target": [
+              "nacelle",
+              "gear_big",
+              "gear_small",
+              "generator"
+            ]
           },
-          "speak": "It is also what breaks most often, which is why the newest turbines drop it and bolt the generator straight onto the rotor."
+          "speak": "The catch: the gearbox is what breaks most often, a hundred metres up. So many new turbines drop it, and use a huge generator with so many magnets that it works at fifteen turns a minute."
         }
       ]
     }
   },
   {
-    "request": "Explain with a dialogue why a price ceiling creates a shortage #qa",
+    "request": "Explain with a dialogue whether capping rents is a good idea #qa",
     "spec": {
-      "title": "Why a price ceiling creates a shortage",
+      "title": "Should rents be capped?",
       "template": "supply_demand",
       "params": {
-        "demand": { "curvature": "linear", "label": "D" },
-        "supply": { "label": "S" },
-        "equilibrium": { "show": true, "guides": true },
-        "price_ceiling": { "label": "Price ceiling", "show_shortage": true }
+        "x_label": "Flats rented",
+        "y_label": "Rent",
+        "demand": {
+          "curvature": "linear"
+        },
+        "supply": {
+          "elasticity": 1
+        },
+        "equilibrium": {
+          "show": true,
+          "guides": true
+        },
+        "price_ceiling": {
+          "label": "Rent cap",
+          "show_shortage": true
+        }
       },
+      "elements": [
+        {
+          "id": "tag_short",
+          "type": "text",
+          "text": "Next year",
+          "x": 830,
+          "y": 470,
+          "size": 26,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "tag_long",
+          "type": "text",
+          "text": "Ten years on",
+          "x": 830,
+          "y": 470,
+          "size": 26,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "run",
+          "type": "group",
+          "members": [
+            "tag_short",
+            "tag_long"
+          ],
+          "walk": "replace"
+        }
+      ],
       "commands": [
-        { "draw": ["axes"], "speak": "Two curves, one government price cap — let's see who actually loses.", "voice": "a" },
-        { "draw": ["demand_curve", "label_D"], "speak": "Demand falls as price falls — the usual story.", "voice": "a" },
-        { "pause": 0.3 },
-        { "draw": ["supply_curve", "label_S"], "speak": "Supply rises with price.", "voice": "a" },
-        { "pause": 0.3 },
-        { "draw": ["guide_lines", "equilibrium_point", "label_E", "label_Pstar", "label_Qstar"], "speak": "And here's equilibrium, where they agree.", "voice": "a" },
-        { "point": { "at": { "ref": "equilibrium_point" }, "gesture": "circle" }, "speak": "So if the government just fixes the price lower than that, buyers get more for less — everyone wins?", "voice": "b" },
-        { "pause": 0.3 },
-        { "draw": ["ceiling_line", "label_ceiling"], "speak": "Let's test that — a price ceiling set below equilibrium.", "voice": "a" },
-        { "pause": 0.5 },
-        { "draw": ["shortage_guides", "shortage_arrow", "label_shortage"], "speak": "At that price, buyers want more than sellers are willing to supply.", "voice": "a", "delivery": "grave" },
-        { "point": { "at": { "ref": "shortage_arrow" }, "gesture": "circle" }, "speak": "Oh — so that gap isn't extra savings, it's missing supply?", "voice": "b" },
-        { "highlight": { "target": ["label_shortage"], "effect": "pulse" }, "speak": "So the price cap didn't lower the cost of buying — it just made buying impossible for some.", "voice": "b" }
+        {
+          "card": {
+            "title": "Should rents be capped?"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Rents in this city are sky-high. Wouldn't a legal maximum rent help?",
+          "voice": "b"
+        },
+        {
+          "draw": [
+            "demand_curve",
+            "label_D"
+          ],
+          "speak": "Let's look. Demand: the lower the rent, the more people want a flat of their own.",
+          "voice": "a"
+        },
+        {
+          "draw": [
+            "supply_curve",
+            "label_S"
+          ],
+          "speak": "Supply: the higher the rent, the more flats landlords offer.",
+          "voice": "a"
+        },
+        {
+          "draw": [
+            "guide_lines",
+            "equilibrium_point",
+            "label_E",
+            "label_Pstar",
+            "label_Qstar"
+          ],
+          "speak": "Left alone, the rent settles where the two meet.",
+          "voice": "a"
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "ceiling_line",
+            "label_ceiling"
+          ],
+          "speak": "Now the cap: no rent above this line.",
+          "voice": "a"
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "ceiling_line"
+            }
+          },
+          "speak": "So everyone pays less?",
+          "voice": "b"
+        },
+        {
+          "draw": [
+            "shortage_guide_qd",
+            "label_Qd"
+          ],
+          "speak": "At the capped rent, this many people want a flat…",
+          "voice": "a"
+        },
+        {
+          "draw": [
+            "shortage_guide_qs",
+            "label_Qs"
+          ],
+          "speak": "…but landlords offer only this many.",
+          "voice": "a"
+        },
+        {
+          "draw": [
+            "shortage_arrow",
+            "label_shortage"
+          ],
+          "speak": "The gap is the shortage: more people want a flat than there are flats to rent.",
+          "voice": "a",
+          "delivery": "grave"
+        },
+        {
+          "highlight": {
+            "target": [
+              "label_Qs"
+            ]
+          },
+          "speak": "But whoever does get one pays less?",
+          "voice": "b"
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "shortage_arrow"
+            }
+          },
+          "speak": "Yes — for them the cap works. The cost falls on the ones in the gap, left without a flat, and on the landlords.",
+          "voice": "a"
+        },
+        {
+          "draw": [
+            "tag_short"
+          ],
+          "speak": "And the size of that gap depends on time. Next year, the buildings are still there…",
+          "voice": "a"
+        },
+        {
+          "animate": {
+            "supply.elasticity": 0.15
+          },
+          "duration": 3,
+          "speak": "…so supply hardly moves, few flats disappear, and the cap mostly moves money from landlords to tenants.",
+          "voice": "a"
+        },
+        {
+          "draw": [
+            "tag_long"
+          ],
+          "speak": "Ten years on, it's different.",
+          "voice": "a"
+        },
+        {
+          "animate": {
+            "supply.elasticity": 1.35
+          },
+          "duration": 3,
+          "speak": "Building flats to rent pays less, old ones get less upkeep or are sold off, and the shortage grows.",
+          "voice": "a"
+        },
+        {
+          "highlight": {
+            "target": [
+              "shortage_arrow"
+            ]
+          },
+          "speak": "So the real problem was never the rent itself?",
+          "voice": "b"
+        },
+        {
+          "highlight": {
+            "target": [
+              "label_Qs"
+            ]
+          },
+          "speak": "It's too few flats. A cap shares out the flats there are; only more flats make room for everyone.",
+          "voice": "a"
+        },
+        {
+          "quiz": {
+            "question": "Over many years, what does a rent cap do to the number of flats for rent?",
+            "choices": [
+              "Raises it",
+              "Lowers it",
+              "Leaves it unchanged"
+            ],
+            "correct": 2,
+            "right": "It lowers it: at a capped rent, building and keeping up flats to rent pays less."
+          }
+        }
       ]
     }
   },
@@ -801,13 +1631,22 @@
       "title": "The law of large numbers, one die at a time",
       "template": "bar_chart",
       "params": {
-        "labels": ["1", "2", "3", "4", "5", "6"],
+        "labels": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ],
         "values": "{dice.frames}",
         "stage": 0,
-        "ylim": [0, 0.3],
+        "ylim": [
+          0,
+          0.3
+        ],
         "y_label": "Share of rolls",
-        "value_labels": true,
-        "title": "Six faces, 100 rolls then 10,000"
+        "value_labels": true
       },
       "elements": [
         {
@@ -819,11 +1658,48 @@
         }
       ],
       "commands": [
-        { "draw": ["title"], "speak": "Is a die fair? Ask it a hundred times, then ten thousand." },
-        { "draw": ["axes", "bar_1", "bar_2", "bar_3", "bar_4", "bar_5", "bar_6"], "parallel": true, "speak": "A hundred rolls: the faces come up unevenly, some at a fifth, some at a seventh." },
-        { "point": { "at": { "ref": "bar_6" } }, "speak": "Nothing is wrong with the die — a hundred is just too few." },
-        { "animate": { "stage": 1 }, "duration": 3, "speak": "Ten thousand rolls, and every face settles toward one sixth." },
-        { "highlight": { "target": ["bar_1", "bar_6"] }, "speak": "The law of large numbers is not that luck evens out — it is that luck gets diluted." }
+        {
+          "card": {
+            "title": "The law of large numbers, one die at a time"
+          }
+        },
+        {
+          "draw": [
+            "axes",
+            "bar_1",
+            "bar_2",
+            "bar_3",
+            "bar_4",
+            "bar_5",
+            "bar_6"
+          ],
+          "parallel": true,
+          "speak": "Is a die fair? Ask it a hundred times, then ten thousand. A hundred rolls: the faces come up unevenly, some at a fifth, some at a seventh."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "bar_6"
+            }
+          },
+          "speak": "Nothing is wrong with the die — a hundred is just too few."
+        },
+        {
+          "animate": {
+            "stage": 1
+          },
+          "duration": 3,
+          "speak": "Ten thousand rolls, and every face settles toward one sixth."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_1",
+              "bar_6"
+            ]
+          },
+          "speak": "The law of large numbers is not that luck evens out — it is that luck gets diluted."
+        }
       ]
     }
   },
@@ -842,6 +1718,11 @@
         }
       ],
       "commands": [
+        {
+          "card": {
+            "title": "Group means, the tidyverse way"
+          }
+        },
         {
           "draw": [
             "tidy",
@@ -892,8 +1773,7 @@
           0.3
         ],
         "y_label": "Share of rolls",
-        "value_labels": true,
-        "title": "Six faces, 100 rolls then 10,000"
+        "value_labels": true
       },
       "elements": [
         {
@@ -906,10 +1786,9 @@
       ],
       "commands": [
         {
-          "draw": [
-            "title"
-          ],
-          "speak": "Is a die fair? Ask it a hundred times, then ten thousand — in a Python that loads in a second."
+          "card": {
+            "title": "Six faces, 100 rolls then 10,000"
+          }
         },
         {
           "draw": [
@@ -922,7 +1801,7 @@
             "bar_6"
           ],
           "parallel": true,
-          "speak": "A hundred rolls: the faces come up unevenly."
+          "speak": "Is a die fair? Ask it a hundred times, then ten thousand — in a Python that loads in a second. A hundred rolls: the faces come up unevenly."
         },
         {
           "animate": {

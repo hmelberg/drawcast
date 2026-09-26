@@ -1470,6 +1470,14 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   transform: translateX(-50%);
   pointer-events: none;
 }
+.cs-figgate-hint.cs-figgate-next {
+  animation: figgate-next 0.45s ease-out;
+}
+@keyframes figgate-next {
+  0% { transform: translateX(-50%) scale(1.25); opacity: 0; }
+  60% { transform: translateX(-50%) scale(0.97); opacity: 1; }
+  100% { transform: translateX(-50%) scale(1); }
+}
 .cs-figgate-skip {
   position: absolute;
   bottom: 1.2rem;

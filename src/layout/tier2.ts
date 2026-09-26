@@ -129,6 +129,9 @@ interface Ctx {
   /** Half-width and half-height of a rectangular node or shape: an arrow is
    *  trimmed to where its line leaves the BOX, not to a circle round it. */
   nodeBox: Map<string, [number, number]>;
+  /** How many arrows/edges join each unordered pair of refs ("a|b"), so a
+   *  request and its response between the same two boxes can run side by side. */
+  pairLinks: Map<string, number>;
   /** Positions computed for elements that gave none (the auto-row pass). */
   autoPlace: Record<string, Pt>;
   anchors: Record<string, Pt>;
@@ -260,6 +263,7 @@ export function layoutElements(
     parametric: new Set(),
     nodeRadius: new Map(),
     nodeBox: new Map(),
+    pairLinks: new Map(),
     autoPlace: {},
     anchors: { ...seedAnchors },
     namedAnchors: {},
@@ -292,6 +296,10 @@ export function layoutElements(
   const originalIds = new Set(elements.map((e) => e.id));
   elements = withCopies(elements, opts.overrides?.copies, (msg) => ctx.warnings.push(msg));
   ctx.extraOrder.push(...elements.filter((e) => !originalIds.has(e.id)).map((e) => e.id));
+  for (const e of elements) {
+    const k = linkPairKey(e);
+    if (k) ctx.pairLinks.set(k, (ctx.pairLinks.get(k) ?? 0) + 1);
+  }
 
   // Pass 1: position free nodes deterministically on a circle.
   const freeNodes = elements.filter((e) => e.type === "node" && e.x === undefined);
@@ -1466,6 +1474,19 @@ function resolvePointRef(p: PointRef | undefined, ctx: Ctx): Pt | null {
   return resolveEnd(p, ctx)?.pt ?? null;
 }
 
+/** Half the gap between two links that join the same pair of things. */
+const PAIR_OFFSET = 9;
+
+/** The unordered pair an arrow or edge joins, when both ends are bare refs
+ *  (an end at a named anchor is placed exactly and left alone). */
+function linkPairKey(el: SpecElement): string | null {
+  if (el.type !== "arrow" && el.type !== "edge") return null;
+  const f = el.from as { ref?: string; anchor?: string } | undefined;
+  const t = el.to as { ref?: string; anchor?: string } | undefined;
+  if (!f?.ref || !t?.ref || f.anchor !== undefined || t.anchor !== undefined || f.ref === t.ref) return null;
+  return [f.ref, t.ref].sort().join("|");
+}
+
 function connectorDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
   // arrow/edge always carries an EndRef object here — angle is the only
   // element type that can put a number or a bare [x, y] in from/to.
@@ -1508,8 +1529,16 @@ function connectorDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
     rFrom *= f;
     rTo *= f;
   }
-  const a: Pt = [from[0] + ux * rFrom, from[1] + uy * rFrom];
-  const b: Pt = [to[0] - ux * rTo, to[1] - uy * rTo];
+  // Two links between the same pair — a request and its response, a query and
+  // its rows — each keep to their own left, so they run side by side and never
+  // start and end on the same spot (#fewshot client-server, 2026-09-26). The
+  // left of A→B is the right of B→A, so a pair in opposite directions parts
+  // by itself; a curved link bows to that same side, away from its partner.
+  const pairKey = linkPairKey(el);
+  const side = pairKey && (ctx.pairLinks.get(pairKey) ?? 0) > 1 ? PAIR_OFFSET : 0;
+  const [ox, oy] = [-uy * side, ux * side];
+  const a: Pt = [from[0] + ux * rFrom + ox, from[1] + uy * rFrom + oy];
+  const b: Pt = [to[0] - ux * rTo + ox, to[1] - uy * rTo + oy];
   let pts: Pt[];
   if (el.curved) {
     const mid: Pt = [(a[0] + b[0]) / 2 - uy * dist * 0.18, (a[1] + b[1]) / 2 + ux * dist * 0.18];

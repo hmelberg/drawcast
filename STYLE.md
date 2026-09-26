@@ -21,6 +21,65 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-26 — The why, the contrast, and the model against the world
+
+Hans, going through the few-shots (the examples every generation sees):
+on the dropped ball, "It does not really explain why. It just asserts. … A
+good explanation gives you the why, often a mechanism, and does not just
+assert something. This why may have several steps and there may be several
+whys and mechanisms that need explaining" — here both why it speeds up
+(gravity) and why that stops (air resistance). On diminishing marginal
+utility: "could benefit from an example (the first chocolate gives a lot of
+satisfaction …) Could in general also add contrast. Sometimes the second is
+better than the first … Listening to music as you understand more. So:
+learning by contrast. And digging into distinctions and details (are we
+talking about consuming two units in a row? Only goods, or also
+experiences)." On the nacelle: "confusing because the 'problem' or the issue
+to be explained is never stated." On the price ceiling: the hook "is not
+clear unless you know the topic. Better to say something like 'Is it a good
+idea to set a maximum rent?'"; the shortage should be built step by step (qd,
+then qs, then the gap: more people want flats than there are flats); the
+closing line was wrong — a cap does lower the rent for those who get a flat,
+the problem is that fewer do; and "complications, details, nuances and
+exceptions like these is what gives value and understanding. … we may often
+start with the basic model. That is good explanation style. But then we
+introduce the other issues. In this way people also feel they learn
+something. We have a contrast (traditional story vs. what happens when we
+bring in more complications) and it is more honest."
+
+Distilled, four rules:
+
+1. **Open with the viewer's question, and name the problem.** Everyday words,
+   not the textbook term ("Is it a good idea to cap rents?"). When a device
+   or a mechanism is explained, state the problem it solves before the
+   solution (the rotor turns 15 times a minute; the generator needs 1,500).
+2. **Give the why, not the what.** Show the mechanism, and follow the chain of
+   whys as far as the question needs — often more than one link, and often
+   more than one mechanism (gravity AND air resistance).
+3. **Teach by contrast and distinction.** The idea against its neighbour or
+   its exception (the fourth chocolate against the first — and the song you
+   like better the tenth time); pin down its scope (in a row or over a year?
+   goods or experiences?).
+4. **The model first, then the world.** The clean model, then the one or two
+   complications that change the answer in practice (short run against long
+   run, who gains and who loses, where the model breaks), said plainly. Not
+   every complication, and not always — but the honest answer to the question
+   actually asked, never the model's slogan standing in for it.
+
+Also from the same pass (engine and templates, each fixed at the general
+cause rather than in the one example): the supply_demand shift arrow ran
+between two curve samples at different prices — now horizontal by default,
+with `arrow: vertical | perpendicular`; `numbering: "index"` names a changed
+market D₁ → D₂, P₁ → P₂ (and on); a shortage or surplus draws Qd and Qs as
+separate guides with their own names, so a cast can build it in steps; two
+arrows between the same two boxes keep to their own sides instead of meeting
+at one point; the figure drills say the verdict ("✗ It was F4"), leave the
+figure empty for a moment, and bring the next question in visibly; every
+few-shot opens with a heading.
+
+Status: rules 1–4 in the prompt (the opening bullet, "Give the why", "The
+model first, then the world"); the seven few-shots rewritten to show them.
+
 ### 2026-09-25 — Say what it is about first; one line after a quiz answer
 
 Hans, on the eight revised examples: "maybe a tendency (as before) to jump

@@ -28,6 +28,14 @@ export interface CurveParams {
   label?: string;
 }
 
+export interface ShiftParams {
+  direction?: "right" | "left";
+  amount?: number;
+  label?: string;
+  /** Which way the shift arrow points (see shiftArrow). Default "horizontal". */
+  arrow?: "horizontal" | "vertical" | "perpendicular";
+}
+
 export interface SupplyDemandParams {
   x_label?: string;
   y_label?: string;
@@ -35,8 +43,12 @@ export interface SupplyDemandParams {
   /** null = draw no supply curve */
   supply?: CurveParams | null;
   equilibrium?: { show?: boolean; label?: string; guides?: boolean; q_label?: string; p_label?: string };
-  demand_shift?: { direction?: "right" | "left"; amount?: number; label?: string };
-  supply_shift?: { direction?: "right" | "left"; amount?: number; label?: string };
+  demand_shift?: ShiftParams;
+  supply_shift?: ShiftParams;
+  /** How a changed market's names are marked: "prime" D′ E′ P*′ (default) or
+   *  "index" D₁ → D₂, E₁ → E₂, P₁ → P₂ — the textbook form that keeps
+   *  counting when a figure changes more than once. */
+  numbering?: "prime" | "index";
   tax?: {
     amount?: number;
     side?: "seller" | "buyer";
@@ -143,6 +155,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     order.push(d.id);
   };
   const attached: Record<string, string[]> = {};
+  const groups: Record<string, string[]> = {};
 
   // `of` is the element the label NAMES: it then follows that element's move,
   // fades when it fades, and stays lit when a focus keeps it (scenes/types.ts
@@ -165,6 +178,23 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
 
   push(makeAxes("axes", plot, params.x_label ?? "Quantity (Q)", params.y_label ?? "Price (P)"));
 
+  // The names of the market before and after a change. "index" numbers them
+  // (D₁ → D₂) so a second change can be a third number rather than a D″.
+  const indexed = params.numbering === "index";
+  const name = {
+    // Only what changes is numbered: an unshifted supply stays plain S.
+    D: indexed && params.demand_shift ? "D₁" : "D",
+    S: indexed && params.supply_shift ? "S₁" : "S",
+    E: indexed ? "E₁" : "E",
+    P: indexed ? "P₁" : "P*",
+    Q: indexed ? "Q₁" : "Q*",
+    D2: indexed ? "D₂" : "D′",
+    S2: indexed ? "S₂" : "S′",
+    E2: indexed ? "E₂" : "E′",
+    P2: indexed ? "P₂" : "P*′",
+    Q2: indexed ? "Q₂" : "Q*′",
+  };
+
   // Curves in domain space (0–100 both axes). Elasticity scales each curve's
   // x-run about the crossing of the UN-elasticized pair, so changing either
   // elasticity provably cannot move the equilibrium — which is what makes the
@@ -179,14 +209,14 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
   push(curve("demand_curve", demandPts, COLORS.demand, ctx));
   recordCurve("demand_curve", demandPts);
   anchors["demand_curve"] = ctx.toLogical([demandPts[demandPts.length - 1]])[0];
-  label("label_D", anchors["demand_curve"], "right", params.demand?.label ?? "D", COLORS.demand, "demand_curve");
+  label("label_D", anchors["demand_curve"], "right", params.demand?.label ?? name.D, COLORS.demand, "demand_curve");
 
   let eq: Pt | null = null;
   if (supplyPts) {
     push(curve("supply_curve", supplyPts, COLORS.supply, ctx));
     recordCurve("supply_curve", supplyPts);
     anchors["supply_curve"] = ctx.toLogical([supplyPts[supplyPts.length - 1]])[0];
-    label("label_S", anchors["supply_curve"], "right", params.supply?.label ?? "S", COLORS.supply, "supply_curve");
+    label("label_S", anchors["supply_curve"], "right", params.supply?.label ?? name.S, COLORS.supply, "supply_curve");
 
     eq = intersectPolylines(demandPts, supplyPts);
     if (eq && params.equilibrium?.show !== false) {
@@ -196,9 +226,9 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       }
       push(dot("equilibrium_point", eqL));
       anchors["equilibrium_point"] = eqL;
-      label("label_E", eqL, "above-right", params.equilibrium?.label ?? "E", COLORS.ink, "equilibrium_point");
-      label("label_Pstar", [plot.x0, eqL[1]], "left", params.equilibrium?.p_label ?? "P*", COLORS.ink, "equilibrium_point");
-      label("label_Qstar", [eqL[0], plot.y0], "below", params.equilibrium?.q_label ?? "Q*", COLORS.ink, "equilibrium_point");
+      label("label_E", eqL, "above-right", params.equilibrium?.label ?? name.E, COLORS.ink, "equilibrium_point");
+      label("label_Pstar", [plot.x0, eqL[1]], "left", params.equilibrium?.p_label ?? name.P, COLORS.ink, "equilibrium_point");
+      label("label_Qstar", [eqL[0], plot.y0], "below", params.equilibrium?.q_label ?? name.Q, COLORS.ink, "equilibrium_point");
     }
   }
 
@@ -221,13 +251,11 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     recordCurve(`${kind}_shift_curve`, shifted);
     const endL = ctx.toLogical([shifted[shifted.length - 1]])[0];
     anchors[`${kind}_shift_curve`] = endL;
-    label(`label_${kind === "demand" ? "D" : "S"}_shift`, endL, "right", shift.label ?? (kind === "demand" ? "D′" : "S′"), COLORS.shifted, `${kind}_shift_curve`);
-    const midBase = ctx.toLogical([base[Math.floor(base.length / 2)]])[0];
-    const midShifted = ctx.toLogical([shifted[Math.floor(shifted.length / 2)]])[0];
+    label(`label_${kind === "demand" ? "D" : "S"}_shift`, endL, "right", shift.label ?? (kind === "demand" ? name.D2 : name.S2), COLORS.shifted, `${kind}_shift_curve`);
     push({
       id: `${kind}_shift_arrow`,
       kind: "stroke",
-      pts: [midBase, midShifted],
+      pts: shiftArrow(kind, base, dx, shift.arrow ?? "horizontal", ctx),
       z: Z_STROKE,
       style: defaultStyle({ color: COLORS.guide, strokeWidth: 3 }),
       drawOpts: defaultDrawOpts("sketch", SKETCH_MS.arrow),
@@ -246,9 +274,9 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       push(guides("shift_guide_lines", eqS, ctx, plot));
       push(dot("shift_equilibrium_point", eqSL));
       anchors["shift_equilibrium_point"] = eqSL;
-      label("label_E_shift", eqSL, "above-right", "E′", COLORS.ink, "shift_equilibrium_point");
-      label("label_P_shift", [plot.x0, eqSL[1]], "left", "P*′", COLORS.ink, "shift_equilibrium_point");
-      label("label_Q_shift", [eqSL[0], plot.y0], "below", "Q*′", COLORS.ink, "shift_equilibrium_point");
+      label("label_E_shift", eqSL, "above-right", name.E2, COLORS.ink, "shift_equilibrium_point");
+      label("label_P_shift", [plot.x0, eqSL[1]], "left", name.P2, COLORS.ink, "shift_equilibrium_point");
+      label("label_Q_shift", [eqSL[0], plot.y0], "below", name.Q2, COLORS.ink, "shift_equilibrium_point");
     }
   }
 
@@ -332,7 +360,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     if (binds && qs !== null) {
       if (iv.kind === "none") iv = { kind: "ceiling", qTraded: qs, pBuyers: pc, pSellers: pc };
       if (params.price_ceiling.show_shortage !== false) {
-        addGap("shortage", pc, qs, solveForX(demandPts, pc), "Shortage");
+        addGap("shortage", pc, solveForX(demandPts, pc), qs, "Shortage");
       }
     }
   }
@@ -446,7 +474,7 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     }
   }
 
-  return { drawables, labels, anchors, order, curveSamples, attached, frame: { x: [0, 100], y: [0, 100], box: plot } };
+  return { drawables, labels, anchors, order, curveSamples, attached, groups, frame: { x: [0, 100], y: [0, 100], box: plot } };
 
   function addPriceLine(kind: "ceiling" | "floor", p: number, text: string) {
     const pts = ctx.toLogical([
@@ -469,26 +497,31 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
     label(`label_${kind}`, pts[1], "above-left", text, COLORS.accent, `${kind}_line`);
   }
 
-  function addGap(kind: "shortage" | "surplus", p: number, qLow: number | null, qHigh: number | null, text: string) {
-    if (qLow === null || qHigh === null) return;
-    const [qa, qb] = qLow < qHigh ? [qLow, qHigh] : [qHigh, qLow];
-    push({
-      id: `${kind}_guides`,
-      kind: "stroke",
-      // One polyline for both guides, so it runs up one, along the price
-      // line (which already draws that stretch) and down the other. Joined
-      // top-to-bottom-then-top it drew a dashed diagonal from (qa, 0) to
-      // (qb, p) across the plot (2026-09-25).
-      pts: ctx.toLogical([
-        [qa, 0],
-        [qa, p],
-        [qb, p],
-        [qb, 0],
-      ]),
-      z: Z_STROKE,
-      style: defaultStyle({ color: COLORS.guide, strokeWidth: 2.5, dash: true, roughness: 0.9 }),
-      drawOpts: defaultDrawOpts("sketch", SKETCH_MS.guides),
-    });
+  function addGap(kind: "shortage" | "surplus", p: number, qd: number | null, qs: number | null, text: string) {
+    if (qd === null || qs === null) return;
+    const [qa, qb] = qd < qs ? [qd, qs] : [qs, qd];
+    // One guide per quantity, each up from the axis to the price line, with
+    // its own name on the axis — so a cast can say "at this price buyers want
+    // THIS many" and "sellers offer only THIS many" as two beats, and only
+    // then open the gap. `${kind}_guides` still names both at once.
+    for (const [which, q, text] of [["qd", qd, "Qd"], ["qs", qs, "Qs"]] as const) {
+      const id = `${kind}_guide_${which}`;
+      const pts = ctx.toLogical([
+        [q, 0],
+        [q, p],
+      ]);
+      push({
+        id,
+        kind: "stroke",
+        pts,
+        z: Z_STROKE,
+        style: defaultStyle({ color: COLORS.guide, strokeWidth: 2.5, dash: true, roughness: 0.9 }),
+        drawOpts: defaultDrawOpts("sketch", SKETCH_MS.guides),
+      });
+      anchors[id] = pts[1];
+      label(`label_${which === "qd" ? "Qd" : "Qs"}`, pts[0], "below", text, which === "qd" ? COLORS.demand : COLORS.supply, id);
+    }
+    groups[`${kind}_guides`] = [`${kind}_guide_qd`, `${kind}_guide_qs`];
     const arrowY = kind === "shortage" ? p * 0.45 : Math.min(p * 1.12, 96);
     const arrowPts = ctx.toLogical([
       [qa, arrowY],
@@ -628,4 +661,64 @@ function betweenRegion(a: Pt[], b: Pt[], x0: number, x1: number): Pt[] | null {
   }
   if (upper.length < 2) return null;
   return [...upper, ...lower.reverse()];
+}
+
+/**
+ * The shift arrow, in logical coordinates: from a point on the old curve to
+ * the new one, at a place both curves reach and away from the crossing
+ * (where it vanished under E and E′ — 2026-09-26).
+ *
+ *  - "horizontal" (default): the same PRICE on both curves, so the arrow's
+ *    length is the shift itself — "at every price, buyers want more".
+ *  - "vertical": the same QUANTITY — "for the same amount, buyers will now
+ *    pay more" (a change in willingness to pay, a cost shock on supply).
+ *  - "perpendicular": square to the old curve, the plainest "the whole line
+ *    moved out" when the axes are not the point.
+ *
+ * It used to join the two curves' middle SAMPLES, which are at different
+ * prices once the shifted curve's off-plot points are dropped: an arrow that
+ * was neither horizontal nor vertical, and read as neither.
+ */
+function shiftArrow(kind: "demand" | "supply", base: Pt[], dx: number, how: "horizontal" | "vertical" | "perpendicular", ctx: Ctx): Pt[] {
+  const onPlot = (x: number) => x >= D0 - 1 && x <= D1 + 3;
+  // Demand's arrow sits high on the curve, supply's low: both to the left of
+  // the crossing, where the plot has room.
+  const want = kind === "demand" ? 0.25 : 0.3;
+  const order = base.map((_, i) => i).sort((a, b) => Math.abs(a / (base.length - 1) - want) - Math.abs(b / (base.length - 1) - want));
+  const shifted = (x: number): number | null => (onPlot(x) ? interpolateAtX(base, x - dx) : null);
+  for (const i of order) {
+    const [x, y] = base[i];
+    if (how === "horizontal") {
+      if (onPlot(x + dx)) return ctx.toLogical([[x, y], [x + dx, y]]);
+    } else if (how === "vertical") {
+      const y2 = shifted(x);
+      if (y2 !== null && y2 >= 0 && y2 <= 100) return ctx.toLogical([[x, y], [x, y2]]);
+    } else {
+      // Square to the old curve ON SCREEN (the axes are scaled differently),
+      // walked out until it meets the new one.
+      const a = ctx.toLogical([base[Math.max(0, i - 1)], base[Math.min(base.length - 1, i + 1)], [x, y]]);
+      const [tx, ty] = [a[1][0] - a[0][0], a[1][1] - a[0][1]];
+      const len = Math.hypot(tx, ty) || 1;
+      const sign = dx >= 0 ? 1 : -1;
+      // The normal that points the way the curve moved (toward +x for a right shift).
+      let [nx, ny] = [ty / len, -tx / len];
+      if (nx * sign < 0) [nx, ny] = [-nx, -ny];
+      const start = a[2];
+      const toDomain = (p: Pt): Pt => [(p[0] - ctx.sx(0)) / (ctx.sx(1) - ctx.sx(0)), (p[1] - ctx.sy(0)) / (ctx.sy(1) - ctx.sy(0))];
+      let prev = 0;
+      for (let s = 1; s <= 400; s++) {
+        const p: Pt = [start[0] + nx * s, start[1] + ny * s];
+        const [qx, qy] = toDomain(p);
+        const cy = shifted(qx);
+        if (cy === null) break;
+        const diff = qy - cy;
+        if (s > 1 && (diff === 0 || diff > 0 !== prev > 0)) return [start, p];
+        prev = diff;
+      }
+    }
+  }
+  // No place fits (a shift of ~0, or one that left no overlap): a zero-length
+  // arrow on the old curve, which draws nothing.
+  const mid = base[Math.floor(base.length / 2)];
+  return ctx.toLogical([mid, mid]);
 }
