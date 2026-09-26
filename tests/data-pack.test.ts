@@ -321,18 +321,19 @@ describe("stacked bars", () => {
     expect(Math.max(...area(l, "bar_1__f0")!.pts.map((p) => p[1]))).toBeCloseTo(Y(3, 6), 0);
   });
 
-  test("value labels: the stack total clears the top segment's own label instead of colliding with it", () => {
+  test("value labels: a stacked segment's number sits inside its own segment, the total above the column", () => {
     const l = stacked({ value_labels: true });
-    // Category A's top segment (series "Two", value 1 on a stack of 4) is
-    // tall enough to earn its own label — the collision case: its anchor is
-    // mathematically the same point the total label wants (segBase + v is
-    // the stack total for the last series).
+    // A label just above a segment's top edge sat in the segment above and
+    // read as that one's value (Hans, 2026-09-26). Category A's top segment
+    // (series "Two") is tall enough to earn its own label.
     const segLabel = flattenDrawables(l.drawables).find((d) => d.id === "bar_1__v1") as TextDrawable;
     const totalLabel = flattenDrawables(l.drawables).find((d) => d.id === "bar_1__total") as TextDrawable;
+    const ys = area(l, "bar_1__f1")!.pts.map((p) => p[1]);
     expect(segLabel).toBeDefined();
     expect(totalLabel).toBeDefined();
-    expect(segLabel.pos[0]).toBeCloseTo(totalLabel.pos[0], 6); // same column
-    expect(totalLabel.pos[1] - segLabel.pos[1]).toBeCloseTo(24, 6); // lifted clear, not stacked on top of it
+    expect(segLabel.pos[1]).toBeCloseTo((Math.min(...ys) + Math.max(...ys)) / 2, 6); // centred in its segment
+    expect(totalLabel.pos[1]).toBeGreaterThan(Math.max(...ys)); // the total is above the column
+    expect(totalLabel.pos[1] - segLabel.pos[1]).toBeGreaterThan(21); // and clear of the segment's label
   });
 
   test("a long series name truncates the refusal note so it clears the legend", () => {

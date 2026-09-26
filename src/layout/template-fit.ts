@@ -20,6 +20,7 @@ import { FONT_FLOOR } from "../lint/lint";
 import { CANVAS } from "./canvas";
 import type { SceneLayout } from "../scenes/types";
 import { unionBBoxForId, unionBoxes } from "./boxes";
+import { preferredLabelBox } from "./labels";
 import type { BBox } from "./geometry";
 import type { MeasureFn } from "./measure";
 import type { Drawable, Pt } from "./model";
@@ -63,7 +64,10 @@ export function floorTextSizes(ds: Drawable[]): void {
  */
 export function fitSceneLayout(scene: SceneLayout, box: BBox, measure: MeasureFn): TemplateFit | null {
   const ids = [...new Set(scene.drawables.map((d) => d.id))];
-  const union = unionBoxes(ids.map((id) => unionBBoxForId(scene.drawables, id, measure)));
+  // The labels count as ink at their preferred spots: they scale with the
+  // figure, and a fit blind to them filled the box with shapes alone.
+  const labelBoxes = scene.labels.filter((l) => l.text.trim() !== "").map((l) => preferredLabelBox(l, measure));
+  const union = unionBoxes([...ids.map((id) => unionBBoxForId(scene.drawables, id, measure)), ...labelBoxes]);
   if (!union) return null;
   const padded: BBox = { x: union.x - FIT_PAD, y: union.y - FIT_PAD, w: union.w + 2 * FIT_PAD, h: union.h + 2 * FIT_PAD };
   const { s, dx, dy } = fitTransform(padded, box);

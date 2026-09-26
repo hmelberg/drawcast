@@ -219,6 +219,20 @@ function candidateBox(anchor: Pt, side: LabelSide, r: number, w: number, h: numb
   return { x: cx - w / 2, y: cy - h / 2, w, h };
 }
 
+/**
+ * Where a label would sit at its preferred side on the nearest ring — the box
+ * the solver tries first, before it knows what is in the way. What a template
+ * fit counts as ink (template-fit.ts): a fit that measured the drawables
+ * alone sized the figure to fill its box and left the labels hanging out of
+ * it (a decision tree's terminal names at the canvas edge, 2026-09-26).
+ */
+export function preferredLabelBox(req: LabelRequest, measure: MeasureFn): BBox {
+  const lines = wrapLines(req.text, req.fontSize, measure);
+  const w = Math.max(...lines.map((line) => measure(line, req.fontSize).w));
+  const h = lines.length * req.fontSize * LINE_HEIGHT;
+  return candidateBox(req.anchor, req.side, 10 + req.fontSize * 0.55, w, h);
+}
+
 function clampToCanvas(b: BBox): BBox {
   const x = Math.min(Math.max(b.x, EDGE_PAD), CANVAS.w - b.w - EDGE_PAD);
   const y = Math.min(Math.max(b.y, EDGE_PAD), CANVAS.h - b.h - EDGE_PAD);

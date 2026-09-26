@@ -1092,12 +1092,38 @@ export function emphasisColorFor(want: string, own: string | undefined, explicit
   return EMPHASIS_FALLBACKS.find((c) => !readsAsSame(c, own) && !readsAsSame(c, INK)) ?? want;
 }
 
-/** What glow does to one leaf: a band under a line, a marker behind a code row, or the ink recoloured. */
-export function glowKindOf(leaf: Exclude<Drawable, { kind: "group" }>): "band" | "marker" | "tint" {
+/** Glow's frame round a filled shape: half of it is masked by the shape, so this is twice what shows outside. */
+const FRAME_WIDTH = 24;
+
+/**
+ * What glow does to one leaf: a band under a line, a marker behind a code row,
+ * a frame round a filled shape, or the ink recoloured.
+ *
+ * A frame is for the OUTLINE of something filled — a ball, a bar, a box with
+ * a fill (`filledTarget`: the target also holds an area, as a bar's hatched
+ * fill beside its outline). Tinting one washed the whole shape red and on a
+ * shaded ball read as a solid red disc (Hans, 2026-09-26: "comes solid and
+ * ugly red"; on bars: "Highlight just the frame of the square and not color
+ * or fill all of it"). The frame is the highlighter drawn round the shape,
+ * outside it only, so the fill keeps its own colour.
+ */
+export function glowKindOf(leaf: Exclude<Drawable, { kind: "group" }>, filledTarget = false): "band" | "marker" | "tint" | "frame" {
   if (leaf.kind === "text" && leaf.font === "mono") return "marker";
+  if (leaf.kind === "stroke" && outlineD(leaf) !== null && (leaf.style.fill !== undefined || filledTarget)) return "frame";
   if (leaf.kind === "stroke" && leaf.pts.length >= 2 && !leaf.precise) return "band";
   return "tint";
 }
+
+/** The closed outline of a stroke — its circle or rect hint, or its own closed polygon — in SVG coordinates. */
+function outlineD(leaf: Extract<Drawable, { kind: "stroke" }>): string | null {
+  const h = leaf.shapeHint;
+  if (h?.type === "circle") return circlePath(h.c[0], toSvgY(h.c[1]), h.r);
+  if (h?.type === "rect") return pathFromPts([[h.x, h.y], [h.x + h.w, h.y], [h.x + h.w, h.y + h.h], [h.x, h.y + h.h]], true);
+  if (leaf.closed && leaf.pts.length >= 3) return pathFromPts(leaf.pts, true);
+  return null;
+}
+
+let frameMaskSeq = 0;
 
 /** A thick round-capped path — band and marker alike — under the ink, posed like its leaf. */
 function penPath(d: string, color: string, width: number, alpha: number, pose: string | null): SVGPathElement {
@@ -1305,6 +1331,8 @@ interface HighlightNodes {
   penPaths: { el: SVGPathElement; len: number }[];
   /** How much of them has been written — never unwrites, like the ring. */
   written: number;
+  /** The masks glow's frames are cut by — removed with them. */
+  masks?: SVGMaskElement[];
 }
 
 function makeEffects(
@@ -1327,6 +1355,7 @@ function makeEffects(
     const st = active.get(key);
     if (!st) return;
     st.nodes.forEach((n) => n.remove());
+    st.masks?.forEach((m) => m.remove());
     active.delete(key);
   };
 
@@ -1385,10 +1414,62 @@ function makeEffects(
             for (const p of Array.from(mark.querySelectorAll("path"))) writeOn(p as SVGPathElement, effect === "circle" ? st.ringPaths : st.penPaths);
           }
         } else {
+          const filledTarget = lit.some((e) => e.leaf.kind === "area");
+          const framed = effect === "glow" ? lit.filter((e) => glowKindOf(e.leaf, filledTarget) === "frame") : [];
+          if (framed.length > 0) {
+            // Every outline's frame under ONE mask that blacks out the
+            // target's filled insides (the outlines and its areas alike): a
+            // stacked bar's inner edges then show nothing, and the whole
+            // column wears a single frame round its outside.
+            const mask = document.createElementNS(SVG_NS, "mask") as SVGMaskElement;
+            mask.id = `cs-frame-mask-${++frameMaskSeq}`;
+            mask.setAttribute("maskUnits", "userSpaceOnUse");
+            const all = document.createElementNS(SVG_NS, "rect");
+            for (const [k, v] of [["x", "-5000"], ["y", "-5000"], ["width", "10000"], ["height", "10000"], ["fill", "white"]]) all.setAttribute(k, v);
+            mask.appendChild(all);
+            const inside = (d: string, pose: string | null) => {
+              const p = document.createElementNS(SVG_NS, "path");
+              p.setAttribute("d", d);
+              p.setAttribute("fill", "black");
+              if (pose) p.setAttribute("transform", pose);
+              mask.appendChild(p);
+            };
+            for (const { g, leaf } of lit) {
+              const pose = g.getAttribute("transform");
+              if (leaf.kind === "area") inside(pathFromPts(leaf.pts, true), pose);
+              else if (leaf.kind === "stroke" && framed.some((e) => e.leaf === leaf)) inside(outlineD(leaf)!, pose);
+            }
+            const frames = document.createElementNS(SVG_NS, "g") as SVGGElement;
+            frames.setAttribute("mask", `url(#${mask.id})`);
+            frames.style.pointerEvents = "none";
+            // ONE pen for the whole frame (a per-outline switch dressed a
+            // stacked bar's orange top in blue and the rest in yellow): the
+            // first that reads as the fewest of the outlines' own inks.
+            const inks = framed.map((e) => (e.leaf.kind === "stroke" ? e.leaf.style.color : undefined));
+            const clashes = (c: string) => inks.filter((own) => own !== undefined && readsAsSame(c, own)).length;
+            const pen = color ?? [MARKER_COLOR, ...EMPHASIS_FALLBACKS].reduce((best, c) => (clashes(c) < clashes(best) ? c : best));
+            // The see-through is the group's, not each pen's: where two
+            // segments' frames overlap at a join they would darken twice.
+            const see = document.createElementNS(SVG_NS, "g") as SVGGElement;
+            see.setAttribute("opacity", String(color === undefined ? BAND_ALPHA : BAND_ALPHA_COLORED));
+            frames.appendChild(see);
+            for (const { g, leaf } of framed) {
+              if (leaf.kind !== "stroke") continue;
+              const path = penPath(outlineD(leaf)!, pen, FRAME_WIDTH, 1, g.getAttribute("transform"));
+              see.appendChild(path);
+              writeOn(path, st.penPaths);
+            }
+            underlay.append(mask, frames);
+            st.nodes.push(frames);
+            st.masks = [...(st.masks ?? []), mask];
+          }
           for (const { g, leaf } of lit) {
             const own = leaf.kind === "image" ? undefined : leaf.style.color;
             const hit = textHits.get(leaf.id);
-            const glow = effect === "glow" ? glowKindOf(leaf) : "tint";
+            const glow = effect === "glow" ? glowKindOf(leaf, filledTarget) : "tint";
+            // Framed: the frame is the whole mark — the fill keeps its colour
+            // and the numbers and names inside it their ink.
+            if (glow === "frame" || (framed.length > 0 && (leaf.kind === "area" || leaf.kind === "text"))) continue;
             if (glow === "tint") {
               const tint = emphasisColorFor(color ?? HIGHLIGHT_COLOR, own, color !== undefined);
               const clone =

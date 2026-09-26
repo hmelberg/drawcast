@@ -413,6 +413,17 @@ term as TeX (matched against each glyph's token chain, AreaDrawable.tex, as
 underline are drawn round the part, not the element. A part that names
 nothing lights the whole target, and lint says so (`highlight-part`).
 
+2026-09-26: the tint was still what a FILLED shape got, and it failed there —
+a shaded carbon ball "comes solid and ugly red", a stacked bar washed red
+"makes the bars very ugly" (Hans). Filled shapes now get a `frame`: the
+highlighter drawn round the outline, outside it only (masked by the shape's
+own inside, and by every fill in the target, so a stacked column wears one
+frame round the whole column and no band on its inner edges). One pen for the
+whole frame. The fill, and the numbers and names inside it, keep their own
+colours. A frame is for a stroke with a closed outline (circle or rect hint,
+or a closed polygon) that is filled or sits in a target with an area; an
+empty box keeps its band.
+
 ### 2026-09-19 — Emphasis should land and STAY, not breathe through the sentence
 
 Hans: "in drawcast, the we use the pulsating highlight (glow?) it often keep

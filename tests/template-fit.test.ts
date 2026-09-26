@@ -46,7 +46,7 @@ describe("resolveTemplateBox", () => {
 
 describe("fitSceneLayout", () => {
   test("scales the ink union (padded) uniformly into the box and centres it", () => {
-    const sc = scene();
+    const sc = { ...scene(), labels: [] };
     const box = { x: 520, y: 95, w: 360, h: 560 };
     const fit = fitSceneLayout(sc, box, heuristicMeasure)!;
     // union = rect padded by FIT_PAD: (100-24, 100-24) to (500+24, 300+24) → 448 × 248
@@ -60,6 +60,20 @@ describe("fitSceneLayout", () => {
     expect(Math.max(...xs)).toBeCloseTo(box.x + box.w - FIT_PAD * s, 3);
     // centred vertically
     expect((Math.min(...ys) + Math.max(...ys)) / 2).toBeCloseTo(box.y + box.h / 2, 3);
+  });
+
+  test("a label counts as ink at its preferred spot, so it lands inside the box too", () => {
+    const box = { x: 520, y: 95, w: 360, h: 560 };
+    const bare = fitSceneLayout({ ...scene(), labels: [] }, box, heuristicMeasure)!;
+    const sc = scene();
+    const fit = fitSceneLayout(sc, box, heuristicMeasure)!;
+    // "Susceptible" to the right of the rectangle widens the union: the figure shrinks to make room…
+    expect(fit.s).toBeLessThan(bare.s);
+    // …so the label's anchor (the rectangle's right edge) sits further in from the box edge.
+    const bareSc = { ...scene(), labels: [] };
+    fitSceneLayout(bareSc, box, heuristicMeasure);
+    const edge = (x: SceneLayout) => Math.max(...(x.drawables[0] as StrokeDrawable).pts.map((p) => p[0]));
+    expect(box.x + box.w - edge(sc)).toBeGreaterThan(box.x + box.w - edge(bareSc) + 20);
   });
 
   test("text, labels, anchors and curve samples travel with the ink", () => {

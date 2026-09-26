@@ -288,11 +288,6 @@ layout: |
     const xc = plot.x0 + slotW * (i + 0.5);
     const children = [];
     let reach = base;
-    // Whether the TOP segment (the last series, drawn last) got its own
-    // value label — that label's anchor is, by construction of baseFor,
-    // mathematically the same point the stack-total label wants, so the
-    // total must be lifted clear of it rather than reusing the anchor.
-    let topSegLabelled = false;
     series.forEach((s, j) => {
       const v = value(s, i);
       // Grouped bars sit side by side within the category slot; stacked bars
@@ -310,25 +305,22 @@ layout: |
       children.push(kit.area(id + "__f" + j, rect, color, { opacity: 0.55 }));
       children.push(kit.stroke(id + "__o" + j, rect, { closed: true, color, strokeWidth: 2.5, ms: MS.stroke }));
       // A stacked segment gets its own label only when it is tall enough to
-      // hold one (26 units of drawn height); the stack total is written
-      // above the column instead, once, below.
+      // hold one (26 units of drawn height), written INSIDE it, centred: a
+      // label just above a segment's top edge sits in the segment above and
+      // reads as that one's value (Hans, 2026-09-26: "the numbers seem to be
+      // in the wrong boxes"). The stack total is written above the column
+      // instead, once, below. A plain bar keeps its value above its end.
       if (showValues && (!stacked || hi2 - lo2 >= 26)) {
-        children.push(kit.text(id + "__v" + j, [x + w / 2, v >= 0 ? hi2 + 13 : lo2 - 13], fmt(v), { fontSize: 15, color: C.guide }));
-        if (stacked && j === series.length - 1) topSegLabelled = true;
+        const vy = stacked ? (lo2 + hi2) / 2 : v >= 0 ? hi2 + 13 : lo2 - 13;
+        children.push(kit.text(id + "__v" + j, [x + w / 2, vy], fmt(v), { fontSize: stacked ? 17 : 15, color: stacked ? C.ink : C.guide }));
       }
       reach = v >= 0 ? Math.max(reach, hi2) : Math.min(reach, lo2);
     });
     if (stacked && showValues) {
       const total = series.reduce((sum, s) => sum + value(s, i), 0);
       const totalY = Y(clamp(total, yMin, yMax));
-      // totalY + 13 is exactly where the top segment's own "__v" label sits
-      // (segBase + v === total for the last series) — lift the total clear
-      // of it, rather than colliding two labels on one point, when that
-      // label was drawn. 24 mirrors the legend's own row spacing below,
-      // already proven to clear the lint's label-label overlap check
-      // (font size 15-16, pad 2: two rows need >20.75 units apart).
-      const totalOff = topSegLabelled ? 37 : 13;
-      children.push(kit.text(id + "__total", [xc, totalY + totalOff], fmt(total), { fontSize: 15, color: C.guide }));
+      // Segment labels sit inside their segments, so the column's top edge is free.
+      children.push(kit.text(id + "__total", [xc, totalY + 13], fmt(total), { fontSize: 15, color: C.guide }));
     }
     children.push(kit.text(id + "__l", [xc, plot.y0 - 20], labels[i] !== undefined ? labels[i] : String(i + 1), { fontSize: labelSize }));
     push(kit.group(id, children));

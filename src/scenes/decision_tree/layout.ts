@@ -49,7 +49,11 @@ interface Wrapped {
 
 // top 95 clears the card heading (y > 690); bottom 150 clears the narration band,
 // which covers the bottom ~15% of the stage while a line is spoken (2026-09-25).
-const MARGIN = { left: 95, right: 180, top: 95, bottom: 150 };
+// right 230 holds a terminal's label and payoff ("Complication", 9) with room
+// to spare: at 180 they ran to the canvas edge while the left sat empty
+// (Hans, 2026-09-26: "very close to the right edge … just have some slightly
+// shorter arrows").
+const MARGIN = { left: 85, right: 230, top: 95, bottom: 150 };
 
 function wrap(node: TreeNode, path: number[], branch?: TreeBranch): Wrapped {
   return {

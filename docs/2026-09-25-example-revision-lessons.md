@@ -734,6 +734,22 @@ inconclusive trials pool to a clear answer; weight = 1/SE²), #28 confounder
   `wrong` is a hint, never the answer again.
 - Size: shown E = mc² at 30 vs 44 (`size` param, opt-in); undecided.
 
+## Hans's review notes (2026-09-26): methane, surgery-or-medication, projects
+
+- **Glow on a filled shape was a red wash** (carbon ball solid red, stacked
+  bars muddy). Engine fix: glow gives a filled shape a highlighter *frame*
+  round its outside; fill and inner text keep their colours; a stacked column
+  gets one frame (STYLE.md 2026-09-26).
+- **Stacked bar numbers sat in the wrong box**, systematically: each
+  segment's value was written just above its top edge, i.e. inside the
+  segment above. bar_chart now centres them in their own segment (ink, 17);
+  the total stays above the column.
+- **A boxed template's labels could spill past its box** (the decision
+  tree's terminal names at the right edge). The template fit measured the
+  drawables only; it now counts each label's preferred spot as ink. The
+  decision tree's native margins were also rebalanced (left 85, right 230),
+  and the example's box pulled in to 40…960.
+
 ## Template improvements
 
 **The main finding of batch 2: several templates draw at a fixed small

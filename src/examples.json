@@ -1340,9 +1340,9 @@
       "template": "decision_tree",
       "params": {
         "box": {
-          "x": 20,
+          "x": 40,
           "y": 225,
-          "w": 960,
+          "w": 920,
           "h": 450
         },
         "root": {

@@ -200,6 +200,17 @@ describe("the emphasis colour steps aside when it would read as the target's own
     expect(glowKindOf({ id: "c", kind: "text", pos: [0, 0], text: "label", fontSize: 17, anchor: "start", z: 2, style, drawOpts: draw })).toBe("tint");
     expect(glowKindOf({ id: "d", kind: "area", pts: [[0, 0], [1, 0], [1, 1]], z: 0, style, drawOpts: draw })).toBe("tint");
   });
+
+  test("glow frames a filled shape instead of washing it red: a shaded ball, a bar's outline beside its fill", () => {
+    const style = { color: COLORS.ink, strokeWidth: 2, opacity: 1, roughness: 1 } as never;
+    const filled = { color: COLORS.ink, strokeWidth: 3, opacity: 1, roughness: 1, fill: "#777" } as never;
+    const draw = { mode: "sketch", duration: 500 } as never;
+    const ball = { id: "atom_0", kind: "stroke", pts: [[50, 50]], shapeHint: { type: "circle", c: [50, 50], r: 20 }, z: 1, style: filled, drawOpts: draw } as const;
+    expect(glowKindOf(ball as never)).toBe("frame");
+    const outline = { id: "bar__o0", kind: "stroke", pts: [[0, 0], [10, 0], [10, 20], [0, 20]], closed: true, z: 1, style, drawOpts: draw } as const;
+    expect(glowKindOf(outline as never, true)).toBe("frame"); // the target also holds the bar's fill
+    expect(glowKindOf(outline as never, false)).toBe("band"); // an empty box keeps the band along its line
+  });
 });
 
 describe("glow on a line of code", () => {
