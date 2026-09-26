@@ -43,6 +43,18 @@ short of both curves.
 
 Status: all three shipped the same day.
 
+Later the same day, Hans on the result: "the ball falling does not really
+speed up as it falls. Also: it might be a good contrast to show the actual
+ball falling in the different circumstances … often the best explanation may
+first show the ball falling, then show the more formal chart. Start with the
+simple actual example, then make it more formal and show specific aspects …
+it depends on the level of the explanation … not a hard requirement."
+Distilled: the event first, then the chart (an advanced request may start
+abstract); the contrast cases side by side (no air / in air); and a strobe —
+a faint copy each second — because one moving dot does not show
+acceleration, while growing (then even) gaps do. The falling-ball few-shot
+is built that way; the prompt bullet is "Show the thing, then its chart".
+
 ### 2026-09-26 — The why, the contrast, and the model against the world
 
 Hans, going through the few-shots (the examples every generation sees):

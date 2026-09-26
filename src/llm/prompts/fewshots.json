@@ -843,18 +843,328 @@
       "domain": {
         "x": [
           0,
-          12
+          8
         ],
         "y": [
           0,
-          70
+          80
         ],
-        "box": "left"
+        "box": "right"
       },
       "vars": {
         "t": 0
       },
       "elements": [
+        {
+          "id": "ground",
+          "type": "path",
+          "points": [
+            [
+              100,
+              112
+            ],
+            [
+              400,
+              112
+            ]
+          ]
+        },
+        {
+          "id": "ball_vac",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 13,
+          "x": 170,
+          "y": 600,
+          "bind": {
+            "y": "600 - 7.35*t*t"
+          },
+          "style": {
+            "fill": "#8f887c",
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "ball_air",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 13,
+          "x": 330,
+          "y": 600,
+          "bind": {
+            "y": "600 - 270*ln((exp(0.2333*t) + exp(-0.2333*t))/2)"
+          },
+          "style": {
+            "fill": "#b5482e",
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "col_vac",
+          "type": "text",
+          "text": "no air",
+          "x": 170,
+          "y": 640,
+          "size": 26,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "col_air",
+          "type": "text",
+          "text": "in air",
+          "x": 330,
+          "y": 640,
+          "size": 26,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "clock",
+          "type": "text",
+          "text": "{t} s",
+          "x": 250,
+          "y": 80,
+          "size": 24
+        },
+        {
+          "id": "sv_1",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 11,
+          "x": 170,
+          "y": 592.6,
+          "style": {
+            "color": "#8f887c",
+            "fill": "#8f887c",
+            "opacity": 0.3
+          }
+        },
+        {
+          "id": "sv_2",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 11,
+          "x": 170,
+          "y": 570.6,
+          "style": {
+            "color": "#8f887c",
+            "fill": "#8f887c",
+            "opacity": 0.3
+          }
+        },
+        {
+          "id": "sv_3",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 11,
+          "x": 170,
+          "y": 533.9,
+          "style": {
+            "color": "#8f887c",
+            "fill": "#8f887c",
+            "opacity": 0.3
+          }
+        },
+        {
+          "id": "sv_4",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 11,
+          "x": 170,
+          "y": 482.4,
+          "style": {
+            "color": "#8f887c",
+            "fill": "#8f887c",
+            "opacity": 0.3
+          }
+        },
+        {
+          "id": "sv_5",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 11,
+          "x": 170,
+          "y": 416.2,
+          "style": {
+            "color": "#8f887c",
+            "fill": "#8f887c",
+            "opacity": 0.3
+          }
+        },
+        {
+          "id": "sv_6",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 11,
+          "x": 170,
+          "y": 335.4,
+          "style": {
+            "color": "#8f887c",
+            "fill": "#8f887c",
+            "opacity": 0.3
+          }
+        },
+        {
+          "id": "sv_7",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 11,
+          "x": 170,
+          "y": 239.9,
+          "style": {
+            "color": "#8f887c",
+            "fill": "#8f887c",
+            "opacity": 0.3
+          }
+        },
+        {
+          "id": "sv_8",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 11,
+          "x": 170,
+          "y": 129.6,
+          "style": {
+            "color": "#8f887c",
+            "fill": "#8f887c",
+            "opacity": 0.3
+          }
+        },
+        {
+          "id": "sa_1",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 11,
+          "x": 330,
+          "y": 592.7,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e",
+            "opacity": 0.3
+          }
+        },
+        {
+          "id": "sa_2",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 11,
+          "x": 330,
+          "y": 571.6,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e",
+            "opacity": 0.3
+          }
+        },
+        {
+          "id": "sa_3",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 11,
+          "x": 330,
+          "y": 538.7,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e",
+            "opacity": 0.3
+          }
+        },
+        {
+          "id": "sa_4",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 11,
+          "x": 330,
+          "y": 496.4,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e",
+            "opacity": 0.3
+          }
+        },
+        {
+          "id": "sa_5",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 11,
+          "x": 330,
+          "y": 447.2,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e",
+            "opacity": 0.3
+          }
+        },
+        {
+          "id": "sa_6",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 11,
+          "x": 330,
+          "y": 393.3,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e",
+            "opacity": 0.3
+          }
+        },
+        {
+          "id": "sa_7",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 11,
+          "x": 330,
+          "y": 336.1,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e",
+            "opacity": 0.3
+          }
+        },
+        {
+          "id": "sa_8",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 11,
+          "x": 330,
+          "y": 276.8,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e",
+            "opacity": 0.3
+          }
+        },
+        {
+          "id": "strobe_vac",
+          "type": "group",
+          "members": [
+            "sv_1",
+            "sv_2",
+            "sv_3",
+            "sv_4",
+            "sv_5",
+            "sv_6",
+            "sv_7",
+            "sv_8"
+          ]
+        },
+        {
+          "id": "strobe_air",
+          "type": "group",
+          "members": [
+            "sa_1",
+            "sa_2",
+            "sa_3",
+            "sa_4",
+            "sa_5",
+            "sa_6",
+            "sa_7",
+            "sa_8"
+          ]
+        },
         {
           "id": "ax",
           "type": "axes",
@@ -865,7 +1175,6 @@
           "id": "vac",
           "type": "curve",
           "expr": "9.8*x",
-          "x_to": 7,
           "style": {
             "color": "#8f887c",
             "dash": true
@@ -874,14 +1183,14 @@
         {
           "id": "lab_vac",
           "type": "label",
-          "text": "gravity alone: v = g t",
+          "text": "no air: v = g t",
           "attach_to": "vac",
           "side": "left"
         },
         {
           "id": "real",
           "type": "curve",
-          "expr": "42*(1 - exp(-9.8*x/42))",
+          "expr": "(exp(2*9.8*x/42) - 1)/(exp(2*9.8*x/42) + 1)*42",
           "style": {
             "color": "#b5482e"
           },
@@ -890,7 +1199,7 @@
         {
           "id": "lab_real",
           "type": "label",
-          "text": "speed of the ball",
+          "text": "in air",
           "attach_to": "real",
           "side": "below"
         },
@@ -907,86 +1216,17 @@
         {
           "id": "lab_term",
           "type": "label",
-          "text": "terminal speed, 42 m/s",
+          "text": "terminal speed",
           "attach_to": "term",
           "side": "above"
-        },
-        {
-          "id": "dot",
-          "type": "point",
-          "at": {
-            "x": 0,
-            "on": "real"
-          },
-          "bind": {
-            "at.x": "t"
-          },
-          "style": {
-            "color": "#b5482e"
-          }
-        },
-        {
-          "id": "drop_line",
-          "type": "path",
-          "points": [
-            [
-              655,
-              600
-            ],
-            [
-              655,
-              112
-            ]
-          ],
-          "style": {
-            "color": "#8f887c",
-            "dash": true
-          }
-        },
-        {
-          "id": "ground",
-          "type": "path",
-          "points": [
-            [
-              590,
-              112
-            ],
-            [
-              720,
-              112
-            ]
-          ]
-        },
-        {
-          "id": "ball",
-          "type": "shape",
-          "shape": "circle",
-          "radius": 15,
-          "x": 655,
-          "y": 600,
-          "bind": {
-            "y": "600 - 222.6*ln((exp(0.2333*t) + exp(-0.2333*t))/2)"
-          },
-          "style": {
-            "fill": "#b5482e",
-            "color": "#b5482e"
-          }
-        },
-        {
-          "id": "clock",
-          "type": "text",
-          "text": "{t} s",
-          "x": 655,
-          "y": 645,
-          "size": 26
         },
         {
           "id": "eq_F",
           "type": "math",
           "tex": "F = mg - kv^2",
-          "size": 40,
-          "x": 830,
-          "y": 420,
+          "size": 34,
+          "x": 250,
+          "y": 40,
           "details": "Newton’s second law for the falling ball: $$m\\,a = mg - k v^2$$ where $k$ depends on the ball’s size and shape and on the air’s density."
         }
       ],
@@ -998,54 +1238,65 @@
         },
         {
           "draw": [
-            "ax"
+            "ground",
+            "ball_vac",
+            "ball_air",
+            "col_vac",
+            "col_air",
+            "clock"
           ],
-          "speak": "Drop a baseball from a tall tower: it falls faster and faster — but not forever. Two forces explain both halves."
+          "speak": "Why does a falling ball stop speeding up? Drop two balls from a tall tower: one with no air around it at all, one through ordinary air."
+        },
+        {
+          "animate": {
+            "t": 8
+          },
+          "duration": 5,
+          "easing": "linear",
+          "speak": "At first they fall side by side. Then the one in air falls behind."
         },
         {
           "draw": [
-            "ground",
-            "drop_line",
-            "ball",
-            "clock"
+            "strobe_vac"
           ],
-          "speak": "Here is the ball, and on the left, how fast it is going."
+          "parallel": true,
+          "speak": "Here is where each ball was, once every second. With no air, every second’s gap is longer than the last: it never stops speeding up."
+        },
+        {
+          "draw": [
+            "strobe_air"
+          ],
+          "parallel": true,
+          "speak": "In air, the gaps grow at first — and then stop growing. That ball has stopped speeding up."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "draw": [
+            "ax"
+          ],
+          "speak": "The same two falls, as speed against time."
         },
         {
           "draw": [
             "vac",
             "lab_vac"
           ],
-          "speak": "Gravity pulls with the same force all the way down, so on its own it would add the same speed every second: 9.8 metres per second, each second."
-        },
-        {
-          "pause": 0.3
+          "speak": "No air: gravity adds 9.8 metres per second, every second — a straight line."
         },
         {
           "draw": [
             "real",
             "lab_real"
           ],
-          "speak": "A real ball starts on that line, then falls behind it and levels off."
-        },
-        {
-          "draw": [
-            "dot"
-          ]
-        },
-        {
-          "animate": {
-            "t": 12
-          },
-          "duration": 6,
-          "easing": "linear",
-          "speak": "Watch both at once: the ball drops, and the dot shows its speed — gaining fast at first, then hardly at all."
+          "speak": "In air: the same start, then a curve that levels off."
         },
         {
           "draw": [
             "eq_F"
           ],
-          "speak": "The second force is the air. The net pull is gravity, m g, minus the push of the air — and that push grows with the speed squared."
+          "speak": "The reason is a second force. The net pull is gravity, m g, minus the push of the air — and that push grows with the speed squared."
         },
         {
           "highlight": {
@@ -1054,7 +1305,7 @@
             ],
             "part": "kv^2"
           },
-          "speak": "So the faster the ball goes, the less is left over to speed it up."
+          "speak": "So the faster the ball goes, the less pull is left over to speed it up."
         },
         {
           "draw": [
@@ -1066,10 +1317,10 @@
         {
           "highlight": {
             "target": [
-              "vac"
+              "strobe_air"
             ]
           },
-          "speak": "On the Moon, with no air, the ball would stay on the straight line all the way down."
+          "speak": "That is the even spacing in the flashes: the same distance every second."
         },
         {
           "quiz": {
