@@ -51,6 +51,18 @@ export interface SceneLayout {
    * says it outright instead.
    */
   attached?: Record<string, string[]>;
+
+  /**
+   * The numbers the figure stands for, by name — a market's `price`, `dwl`,
+   * `revenue` — in the author's units, computed by the same layout call that
+   * draws it. Any template may fill it. Because the layout re-runs on every
+   * animate frame and slider move, so do these: a cast's own drawn text reads
+   * them as `{<namespace>.<key>}` tokens (layout.ts TEMPLATE_VALUES_NAME;
+   * `{market.dwl}` for supply_demand) and they stay live (Hans 2026-09-26:
+   * "we need … the numbers/results"). Only keys meaningful for the current
+   * params are present.
+   */
+  values?: Record<string, number>;
 }
 
 /** Intrinsic interactions a template can declare (interactivity spec §6):

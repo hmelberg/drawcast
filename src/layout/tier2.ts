@@ -157,6 +157,8 @@ interface Ctx {
   atFallback: Record<string, Pt>;
   /** The spec's vars (spec/vars.ts): read by curve expr, bind and `{name}` text tokens. */
   vars: Vars;
+  /** The template's own numbers as `{market.dwl}` text tokens (SceneLayout.values) — text only, never expressions. */
+  templateValues: Vars;
   /** Logical → domain, the inverse of sx/sy (a posed curve's samples go through logical space and back). */
   ix: (v: number) => number;
   iy: (v: number) => number;
@@ -231,7 +233,7 @@ export function layoutElements(
    *  seedDrawables: the template's drawables, so `at.ref` can name a template id.
    *  vars: the spec's top-level numbers (spec/vars.ts).
    *  overrides: poses and morphed shapes the definitional references read (posed.ts). */
-  opts: { measure?: MeasureFn; seedDrawables?: Drawable[]; vars?: Vars; overrides?: LayoutOverrides; fit?: TemplateFit; decimalComma?: boolean; frame?: DataFrame } = {},
+  opts: { measure?: MeasureFn; seedDrawables?: Drawable[]; vars?: Vars; templateValues?: Vars; overrides?: LayoutOverrides; fit?: TemplateFit; decimalComma?: boolean; frame?: DataFrame } = {},
 ): Tier2Result {
   const measure = opts.measure ?? heuristicMeasure;
   const vars = opts.vars ?? {};
@@ -280,6 +282,7 @@ export function layoutElements(
     measures: {},
     atFallback: {},
     vars,
+    templateValues: opts.templateValues ?? {},
     ix: (v) => ixStd((v - fdx) / fs),
     iy: (v) => iyStd((v - fdy) / fs),
     posedAnchors: {},
@@ -1117,8 +1120,9 @@ function samplesOf(ctx: Ctx, id: string): Pt[] | undefined {
 
 /** `{name}` tokens in drawn text (design 2026-09-10 §2.1); an unknown name stays as written and warns, so a typo shows on the canvas. */
 function withVars(text: string, el: SpecElement, ctx: Ctx): string {
-  const r = interpolateVars(text, ctx.vars, ctx.decimalComma);
-  for (const name of r.unknown) ctx.warnings.push(`${el.type} "${el.id}": text names {${name}}, which is not one of the vars — left as written`);
+  const r = interpolateVars(text, { ...ctx.templateValues, ...ctx.vars }, ctx.decimalComma);
+  for (const name of r.unknown)
+    ctx.warnings.push(`${el.type} "${el.id}": text names {${name}}, which is not ${name.includes(".") ? "a value the template computes here" : "one of the vars"} — left as written`);
   return r.text;
 }
 
