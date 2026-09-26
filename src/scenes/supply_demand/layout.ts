@@ -522,7 +522,10 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
         "label_wedge",
         ctx.toLogical([[(qLeft + qTraded) / 2, (pStar + pBuyers) / 2]])[0],
         "above",
-        pBuyers > pSellers ? "Government revenue" : "Government cost",
+        // The readout's own words (VALUE_NAME), which are also shorter: at
+        // "Government revenue" the label outgrew a narrow wedge and landed on
+        // both curves (2026-09-26).
+        pBuyers > pSellers ? "Tax revenue" : "Subsidy cost",
         COLORS.accent,
         "wedge_region",
       );

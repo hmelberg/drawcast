@@ -63693,5 +63693,210 @@
         }
       ]
     }
+  },
+  {
+    "request": "What does a tax really cost — beyond the money it raises?",
+    "spec": {
+      "title": "What a tax really costs",
+      "template": "supply_demand",
+      "params": {
+        "demand": {
+          "curvature": "linear",
+          "elasticity": 1
+        },
+        "supply": {},
+        "equilibrium": {
+          "show": true,
+          "guides": true
+        },
+        "tax": {
+          "amount": 15
+        },
+        "units": {
+          "price": [
+            0,
+            40
+          ],
+          "quantity": [
+            0,
+            2000
+          ],
+          "price_unit": "$",
+          "quantity_unit": "tickets"
+        },
+        "regions": [
+          "government_revenue",
+          "deadweight_loss"
+        ],
+        "readout": [
+          "price_buyers",
+          "price_sellers",
+          "quantity_traded",
+          "revenue",
+          "dwl"
+        ]
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "What a tax really costs"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "A tax raises money. But what does it cost, beyond the money? Take a six-dollar tax on every concert ticket."
+        },
+        {
+          "draw": [
+            "demand_curve",
+            "label_D"
+          ],
+          "speak": "Fans first: the cheaper the ticket, the more tickets they buy."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "supply_curve",
+            "label_S"
+          ],
+          "speak": "Organisers: the higher the price, the more shows they put on."
+        },
+        {
+          "draw": [
+            "equilibrium_point",
+            "guide_lines",
+            "label_E",
+            "label_Pstar",
+            "label_Qstar"
+          ],
+          "speak": "Without the tax, they meet here."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "tax_supply_curve",
+            "label_S_tax"
+          ],
+          "speak": "Now the tax. Organisers must hand six dollars to the state for every ticket, so they need six dollars more for each show: supply shifts up."
+        },
+        {
+          "draw": [
+            "tax_equilibrium_point",
+            "tax_guide_lines",
+            "price_buyers_point",
+            "price_sellers_point",
+            "label_Pb",
+            "label_Ps"
+          ],
+          "speak": "The market settles again. Fans pay more, organisers keep less: the six dollars is split between them."
+        },
+        {
+          "draw": [
+            "readout_price_buyers",
+            "readout_price_sellers"
+          ],
+          "speak": "In numbers: fans pay about three dollars more, organisers get about three dollars less."
+        },
+        {
+          "draw": [
+            "readout_quantity_traded"
+          ],
+          "speak": "And fewer tickets are sold."
+        },
+        {
+          "draw": [
+            "wedge_region",
+            "label_wedge",
+            "readout_revenue"
+          ],
+          "speak": "On every ticket still sold, the state collects six dollars: this rectangle."
+        },
+        {
+          "draw": [
+            "dwl_region",
+            "label_DWL",
+            "readout_dwl"
+          ],
+          "speak": "And this triangle is the rest of the cost: tickets that are no longer sold at all."
+        },
+        {
+          "highlight": {
+            "target": [
+              "dwl_region"
+            ]
+          },
+          "speak": "Each of those was worth more to a fan than it cost to put on the show. Now the show never happens — and nobody gets that value: not the state, not the fans, not the organisers. Economists call it the deadweight loss."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "animate": {
+            "tax.amount": 30
+          },
+          "duration": 3,
+          "speak": "Now double the tax."
+        },
+        {
+          "highlight": {
+            "target": [
+              "readout_dwl"
+            ]
+          },
+          "speak": "The loss does not double — it roughly quadruples. More tickets vanish, and each one lost was worth more."
+        },
+        {
+          "animate": {
+            "tax.amount": 15
+          },
+          "duration": 2,
+          "speak": "Back to six dollars."
+        },
+        {
+          "animate": {
+            "demand.elasticity": 0.35
+          },
+          "duration": 3,
+          "speak": "How big the triangle is depends on how much people respond. For something they buy anyway — insulin, fuel for the drive to work — demand is steep."
+        },
+        {
+          "highlight": {
+            "target": [
+              "readout_price_buyers",
+              "readout_dwl"
+            ]
+          },
+          "speak": "Then few purchases vanish, so the loss is small — but buyers carry most of the tax. A small loss and a fair tax are not the same thing."
+        },
+        {
+          "animate": {
+            "demand.elasticity": 1
+          },
+          "duration": 2
+        },
+        {
+          "explore": {},
+          "speak": "Your turn: drag the taxed curve up and down, and watch the rectangle and the triangle."
+        },
+        {
+          "quiz": {
+            "question": "If a tax is doubled, the deadweight loss…",
+            "choices": [
+              "doubles",
+              "roughly quadruples",
+              "stays the same"
+            ],
+            "correct": 2,
+            "right": "Roughly quadruples: twice as many tickets vanish, and each one lost was worth about twice as much."
+          }
+        }
+      ]
+    }
   }
 ]
