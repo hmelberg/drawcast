@@ -12,6 +12,7 @@
 // and are never cached: an offline or transient CDN failure must retry on
 // the next render.
 
+import { STALE_CHUNK_MESSAGE, isStaleChunkError } from "../stale-chunk";
 import { cacheGet, cachePut } from "../render/portrait";
 import { chartPrelude, defaultChartStyle, type ChartStyle } from "./chart-style";
 import { CODE_VERSION, decodeCodeResult, type CodeRunResult } from "./envelope";
@@ -103,7 +104,8 @@ async function defaultRunner(req: CodeRunRequest): Promise<CodeRunResult> {
     // A failed chunk load (offline, CDN down) is a runtime problem, not a
     // script bug — tag it so codeExecutionErrors can warn instead of
     // blocking generation on it.
-    const tagged = new Error((err as Error).message) as Error & { runtimeUnavailable?: boolean };
+    const msg = (err as Error).message;
+    const tagged = new Error(isStaleChunkError(msg) ? STALE_CHUNK_MESSAGE : msg) as Error & { runtimeUnavailable?: boolean };
     tagged.runtimeUnavailable = true;
     throw tagged;
   } finally {

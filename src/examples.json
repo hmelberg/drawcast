@@ -10,14 +10,14 @@
         "forces": [
           {
             "id": "gravity",
-            "label": "mg",
+            "label": "weight",
             "angle_deg": 270,
             "magnitude": 0.6,
             "color": "red"
           },
           {
             "id": "along",
-            "label": "mg sin θ",
+            "label": "downhill part",
             "angle_deg": 210,
             "magnitude": 0.3,
             "color": "red",
@@ -25,7 +25,7 @@
           },
           {
             "id": "into",
-            "label": "mg cos θ",
+            "label": "into the ramp",
             "angle_deg": 300,
             "magnitude": 0.52,
             "color": "red",
@@ -33,14 +33,14 @@
           },
           {
             "id": "normal",
-            "label": "N",
+            "label": "normal force",
             "angle_deg": 120,
             "magnitude": 0.52,
             "color": "blue"
           },
           {
             "id": "friction",
-            "label": "f",
+            "label": "friction",
             "angle_deg": 30,
             "magnitude": 0.3,
             "color": "gray"
@@ -104,7 +104,7 @@
               "force_friction"
             ]
           },
-          "speak": "Tilt the ramp steeper, and the downhill part, m g sine theta, grows — until friction can't keep up, and the crate slides."
+          "speak": "Tilt the ramp steeper, and more of the weight points downhill — until friction cannot keep up, and the crate slides."
         },
         {
           "highlight": {
@@ -123,7 +123,7 @@
               "It stays the same"
             ],
             "correct": 1,
-            "right": "It shrinks: less of gravity presses into a steeper ramp — m g cos theta falls as theta grows."
+            "right": "It shrinks: on a steeper ramp less of the weight presses into the surface, so the ramp pushes back less."
           }
         }
       ]

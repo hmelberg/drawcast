@@ -524,7 +524,11 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // show mechanism, contrast and complications, each with a card heading
 // (+9,540 — the bulk, and on purpose: the few-shots are what the model
 // imitates). 219305 -> 230995.
-const BASELINE_SYSTEM_CHARS = 230995;
+// Re-pinned UP 2026-09-26 (Hans's second batch): the rule that a formula or
+// symbol appears only when the cast uses and explains it, plus the revised
+// few-shots and exemplars (law of large numbers, R for beginners, the crate
+// in words). 230995 -> 233124.
+const BASELINE_SYSTEM_CHARS = 233124;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

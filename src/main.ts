@@ -3,6 +3,7 @@
 //   Editor: create drawings with AI or by hand, load examples and saved work,
 //           edit the spec JSON, and change/improve the compiler prompt.
 
+import { STALE_CHUNK_MESSAGE } from "./stale-chunk";
 import "./styles.css";
 import { type RenderHandle, type RenderStyle } from "./render";
 import type { MathFont, TextFamily } from "./layout/text-style";
@@ -479,6 +480,13 @@ function setStatusAction(text: string, label: string, onClick: () => void, kind:
   btn.addEventListener("click", onClick);
   statusEl.appendChild(btn);
 }
+
+// Any lazy chunk that fails to load after a redeploy (vite fires this for
+// every failed dynamic import in a build): say what happened and offer the
+// one thing that fixes it, instead of a raw browser error.
+window.addEventListener("vite:preloadError", () => {
+  setStatusAction(STALE_CHUNK_MESSAGE, "Reload", () => location.reload(), "error");
+});
 
 // Create panel
 const promptEl = h("textarea", {

@@ -1628,7 +1628,7 @@
   {
     "request": "Roll a die 100 times and then 10,000 times and show how the shares of each face settle down",
     "spec": {
-      "title": "The law of large numbers, one die at a time",
+      "title": "The law of large numbers",
       "template": "bar_chart",
       "params": {
         "labels": [
@@ -1643,7 +1643,7 @@
         "stage": 0,
         "ylim": [
           0,
-          0.3
+          0.35
         ],
         "y_label": "Share of rolls",
         "value_labels": true
@@ -1654,18 +1654,51 @@
           "type": "code",
           "language": "python",
           "show": "none",
-          "code": "import numpy as np\nrng = np.random.default_rng(7)\ndef shares(n):\n    rolls = rng.integers(1, 7, size=n)\n    return [round(float((rolls == f).mean()), 3) for f in range(1, 7)]\nframes = [shares(100), shares(10000)]"
+          "code": "import numpy as np\nrng = np.random.default_rng(7)\ndef shares(n):\n    rolls = rng.integers(1, 7, size=n)\n    return [round(float((rolls == f).mean()), 3) for f in range(1, 7)]\nframes = [shares(n) for n in (10, 100, 1000, 10000)]"
+        },
+        {
+          "id": "fair",
+          "type": "path",
+          "data": true,
+          "points": [
+            [
+              -0.5,
+              0.1667
+            ],
+            [
+              5.5,
+              0.1667
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "dash": true
+          }
+        },
+        {
+          "id": "fair_label",
+          "type": "label",
+          "text": "fair: 1 in 6",
+          "attach_to": "fair",
+          "side": "right"
         }
       ],
       "commands": [
         {
           "card": {
-            "title": "The law of large numbers, one die at a time"
+            "title": "The law of large numbers"
           }
         },
         {
           "draw": [
             "axes",
+            "fair",
+            "fair_label"
+          ],
+          "speak": "How many rolls does it take to see that a die is fair? If it is, each face comes up one time in six in the long run: this line."
+        },
+        {
+          "draw": [
             "bar_1",
             "bar_2",
             "bar_3",
@@ -1674,31 +1707,59 @@
             "bar_6"
           ],
           "parallel": true,
-          "speak": "Is a die fair? Ask it a hundred times, then ten thousand. A hundred rolls: the faces come up unevenly, some at a fifth, some at a seventh."
-        },
-        {
-          "point": {
-            "at": {
-              "ref": "bar_6"
-            }
-          },
-          "speak": "Nothing is wrong with the die — a hundred is just too few."
+          "speak": "Ten rolls: not a single three, and three sixes. Is the die loaded?"
         },
         {
           "animate": {
             "stage": 1
           },
-          "duration": 3,
-          "speak": "Ten thousand rolls, and every face settles toward one sixth."
+          "duration": 2.5,
+          "speak": "A hundred rolls: every face turns up now, but the shares still run from 13 to 21 percent."
+        },
+        {
+          "animate": {
+            "stage": 2
+          },
+          "duration": 2.5,
+          "speak": "A thousand: between 15 and 18 percent."
+        },
+        {
+          "animate": {
+            "stage": 3
+          },
+          "duration": 2.5,
+          "speak": "Ten thousand: all six within a point or so of the line."
         },
         {
           "highlight": {
             "target": [
-              "bar_1",
               "bar_6"
             ]
           },
-          "speak": "The law of large numbers is not that luck evens out — it is that luck gets diluted."
+          "speak": "Why does it settle? Not because luck evens out. After ten thousand rolls, the count of sixes is typically off by about forty — more than after a hundred, where it is off by about four."
+        },
+        {
+          "highlight": {
+            "target": [
+              "fair"
+            ]
+          },
+          "speak": "But four out of a hundred is four percent, and forty out of ten thousand is under half a percent. The misses grow with the square root of the rolls; the rolls themselves grow faster."
+        },
+        {
+          "speak": "That is the law of large numbers: early luck is never paid back — it is diluted."
+        },
+        {
+          "quiz": {
+            "question": "Ten rolls, and no three yet. The chance the next roll is a three is…",
+            "choices": [
+              "More than 1 in 6",
+              "1 in 6",
+              "Less than 1 in 6"
+            ],
+            "correct": 2,
+            "right": "One in six: the die has no memory. Old luck is diluted by new rolls, never paid back."
+          }
         }
       ]
     }
@@ -1706,7 +1767,7 @@
   {
     "request": "In R, show a tidyverse pipeline summarising a small table by group.",
     "spec": {
-      "title": "Group means, the tidyverse way",
+      "title": "Group means in R",
       "elements": [
         {
           "id": "tidy",
@@ -1714,13 +1775,13 @@
           "language": "r",
           "show": "left",
           "width": 900,
-          "code": "library(dplyr)\ndf <- tibble(group = c(\"a\", \"a\", \"b\", \"b\", \"c\"), x = c(2, 4, 6, 8, 10))\ndf |> group_by(group) |> summarise(mean_x = mean(x), n = n())"
+          "code": "library(dplyr)\nscores <- tibble(class = c(\"a\", \"a\", \"b\", \"b\", \"c\"), score = c(2, 4, 6, 8, 10))\nscores |>\n  group_by(class) |>\n  summarise(mean_score = mean(score), pupils = n())"
         }
       ],
       "commands": [
         {
           "card": {
-            "title": "Group means, the tidyverse way"
+            "title": "Group means in R"
           }
         },
         {
@@ -1729,25 +1790,37 @@
             "tidy_line_1"
           ],
           "parallel": true,
-          "speak": "dplyr is the grammar of data manipulation — one verb per step."
+          "speak": "How do you get the average for each group in a table, in R? First a helper: R has few commands for tables built in, and library(dplyr) loads a package that adds them."
         },
         {
           "draw": [
             "tidy_line_2"
           ],
-          "speak": "A tiny tibble: three groups, five values."
+          "speak": "Then a small table to work on — five pupils, their class, and a score. The arrow stores it under the name scores; tibble is dplyr’s word for a table."
         },
         {
           "draw": [
             "tidy_line_3"
           ],
-          "speak": "Group by, then summarise — the pipe reads like a sentence."
+          "speak": "Now the recipe. scores, then this sign, the pipe: take what is on the left and hand it to the next step."
+        },
+        {
+          "draw": [
+            "tidy_line_4"
+          ],
+          "speak": "group_by sorts the rows into one pile per class."
+        },
+        {
+          "draw": [
+            "tidy_line_5"
+          ],
+          "speak": "And summarise boils each pile down to one row: the mean score, and n, how many pupils were in the pile."
         },
         {
           "draw": [
             "tidy_out"
           ],
-          "speak": "And the last line, a tibble, lands as a table."
+          "speak": "The result: one row per class. Class a averages three, b seven — and c is ten, but from a single pupil, which is why the count is worth keeping."
         }
       ]
     }
