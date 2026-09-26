@@ -53,7 +53,7 @@ export interface QalyShortfall {
   show?: "absolute" | "proportional" | "both";
   /** the age THIS prognosis is judged from — each patient their own (falls back to params.index_age) */
   index_age?: number;
-  /** also draw expected_region (all that was expected) and kept_region (what the patient gets) */
+  /** also draw expected_region (all that was expected), kept_region (what the patient gets) and lifetime_region (the whole life, for fair innings) */
   areas?: boolean;
   /** annual discount rate; 0 (the default) is the undiscounted convention severity criteria use */
   discount?: number;
@@ -358,6 +358,7 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
   // shading so the treatment areas paint on top of the loss backdrop.
   const wantsShortfall = params.shortfall !== null && params.shortfall !== undefined;
   const shortfalls: ShortfallResult[] = [];
+  const lifetimes: number[] = [];
   if (params.reference || wantsShortfall) {
     const ref = { ...DEFAULT_REFERENCE, ...(params.reference ?? {}) };
     const refSegments = buildSegments(ref);
@@ -444,6 +445,45 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
           drawOpts: defaultDrawOpts("sketch", SKETCH_MS.region),
         });
         anchors[`kept_region${sfx}`] = centroid(keptPts);
+
+        // The whole life, for "fair innings": normal life from birth to the
+        // index age, then the patient's own path to the end — the health a
+        // person gets over a lifetime, which that view compares (Hans
+        // 2026-09-26: "shade the lifetime areas").
+        const lifeEnd = Math.max(indexAge, ends.get(target.id) ?? indexAge);
+        const lifeFn = (t: number) => (t < indexAge ? refFn(t) : diseaseFn(t));
+        const top: Pt[] = [];
+        for (let i = 0; i <= N; i++) {
+          const t = (lifeEnd * i) / N;
+          top.push([sx(t), sy(lifeFn(t))]);
+        }
+        const lifePts: Pt[] = [...top, [sx(lifeEnd), sy(0)], [sx(0), sy(0)]];
+        push({
+          id: `lifetime_region${sfx}`,
+          kind: "area",
+          pts: lifePts,
+          z: Z_AREA,
+          style: defaultStyle({ color: target.color, fill: target.color, opacity: 0.22, strokeWidth: 1 }),
+          drawOpts: defaultDrawOpts("sketch", SKETCH_MS.region),
+        });
+        const lifetime = computeShortfall(lifeFn, () => 0, 0, lifeEnd).remainingHealthy;
+        lifetimes[k] = lifetime;
+        // Named low in the widest stretch between the figure's vertical lines
+        // (every index line and every death drop): the middle of the life
+        // itself sits on a dashed index line more often than not.
+        const cuts = [0, lifeEnd, ...sfs.map((o) => o.index_age ?? NaN), ...profiles.map((p) => ends.get(p.id) ?? NaN), ...profiles.map((p) => Math.min(...(p.waypoints ?? []).map((w) => w.t)))]
+          .filter((t) => Number.isFinite(t) && t >= 0 && t <= lifeEnd)
+          .sort((a, b) => a - b);
+        let gap: [number, number] = [0, lifeEnd];
+        for (let i = 1; i < cuts.length; i++) if (cuts[i] - cuts[i - 1] > gap[1] - gap[0]) gap = [cuts[i - 1], cuts[i]];
+        // First choice: the years before anyone falls ill — normal life, full
+        // height, and the one stretch no note or other path uses.
+        const firstCut = cuts.find((t) => t > 0) ?? lifeEnd;
+        // Each patient's name a step lower than the last: labels are placed
+        // once for every beat, so two names at one spot would push apart.
+        const mid: Pt = sx(firstCut) - sx(0) >= 200 ? [sx(firstCut / 2), sy(0.55 - 0.16 * k)] : [sx((gap[0] + gap[1]) / 2), sy(0.22)];
+        anchors[`lifetime_region${sfx}`] = mid;
+        label(`label_lifetime${sfx}`, mid, "center", `${target.label ?? target.id}: ${kit.num(lifetime, 0)} QALYs`, target.color, `lifetime_region${sfx}`);
       }
       push({
         id: `shortfall_region${sfx}`,
@@ -620,6 +660,7 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
     values[`proportional${sfx}`] = r.proportional * 100;
     values[`remaining_healthy${sfx}`] = r.remainingHealthy;
     values[`remaining_disease${sfx}`] = r.remainingDisease;
+    if (lifetimes[k] !== undefined) values[`lifetime${sfx}`] = lifetimes[k];
   });
 
   return { drawables, labels, anchors, order, curveSamples, attached, values, frame: { x: [0, tMax], y: [0, 1.06], box: plot } };

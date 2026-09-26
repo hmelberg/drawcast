@@ -64348,12 +64348,43 @@
           "speak": "The proportional measure calls a disease severe when it takes almost everything you had left, at any age. Its weakness: it ranks losing thirty QALYs below losing fifteen."
         },
         {
-          "highlight": {
-            "target": [
-              "reference_curve"
-            ]
-          },
-          "speak": "A third view looks back instead of forward: fair innings, the health a person gets over a whole life. Anna gets about 40 QALYs, Bjørn about 55 — so it favours Anna even more, and it is openly about age."
+          "hide": [
+            "shortfall_region_2",
+            "shortfall_note",
+            "shortfall_note_2"
+          ]
+        },
+        {
+          "draw": [
+            "lifetime_region",
+            "label_lifetime"
+          ],
+          "speak": "A third view looks back instead of forward: fair innings — the health a person gets over a whole life. Anna, all of hers: about 40 QALYs."
+        },
+        {
+          "hide": [
+            "lifetime_region",
+            "label_lifetime"
+          ]
+        },
+        {
+          "draw": [
+            "lifetime_region_2",
+            "label_lifetime_2"
+          ],
+          "speak": "Bjørn, all of his: about 55. He has had most of his innings; she has not — so this view favours Anna even more, and it is openly about age."
+        },
+        {
+          "hide": [
+            "lifetime_region_2",
+            "label_lifetime_2"
+          ]
+        },
+        {
+          "show": [
+            "shortfall_note",
+            "shortfall_note_2"
+          ]
         },
         {
           "highlight": {
