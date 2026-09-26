@@ -63958,11 +63958,13 @@
         "shortfall": [
           {
             "of": "anna",
-            "label": "Anna, ill at 25"
+            "label": "Anna, ill at 25",
+            "areas": true
           },
           {
             "of": "bjorn",
-            "label": "Bjørn, ill at 60"
+            "label": "Bjørn, ill at 60",
+            "areas": true
           }
         ]
       },
@@ -64009,16 +64011,18 @@
         },
         {
           "draw": [
+            "kept_region",
             "shortfall_note"
           ],
-          "speak": "She could have expected about 48 QALYs. She gets 17. She loses 30 — almost two thirds."
+          "speak": "She could have expected about 48 QALYs. She keeps 17 — this area. She loses 30, almost two thirds."
         },
         {
           "pause": 0.4
         },
         {
           "hide": [
-            "shortfall_region"
+            "shortfall_region",
+            "kept_region"
           ]
         },
         {
@@ -64033,9 +64037,15 @@
             "index_line_2",
             "label_index_2",
             "shortfall_region_2",
+            "kept_region_2",
             "shortfall_note_2"
           ],
-          "speak": "He could have expected about 17 QALYs. He gets under two: he loses 15.5 — nine tenths of what he had left."
+          "speak": "He could have expected about 17 QALYs. He keeps under two: he loses 15.5 — nine tenths of what he had left."
+        },
+        {
+          "hide": [
+            "kept_region_2"
+          ]
         },
         {
           "highlight": {
@@ -64047,6 +64057,92 @@
           "speak": "So whose disease is the more severe?"
         },
         {
+          "show": [
+            "shortfall_region"
+          ]
+        },
+        {
+          "move": {
+            "target": [
+              "shortfall_region"
+            ],
+            "ghost": true,
+            "to": {
+              "x": 198,
+              "y": 330
+            },
+            "scale": 0.3
+          },
+          "speak": "Take Anna’s loss out of the figure…"
+        },
+        {
+          "move": {
+            "target": [
+              "shortfall_region_2"
+            ],
+            "ghost": true,
+            "to": {
+              "x": 304,
+              "y": 330
+            },
+            "scale": 0.3
+          },
+          "speak": "…and Bjørn’s, and set them side by side."
+        },
+        {
+          "highlight": {
+            "target": [
+              "shortfall_region",
+              "shortfall_region_2"
+            ]
+          },
+          "speak": "Count the QALYs lost — the absolute shortfall — and Anna’s is about twice the size: 30 against 15. Norway measures severity this way."
+        },
+        {
+          "move": {
+            "target": [
+              "shortfall_region"
+            ],
+            "to": {
+              "ref": "shortfall_region_ghost"
+            },
+            "scale": 3.3333
+          }
+        },
+        {
+          "move": {
+            "target": [
+              "shortfall_region_2"
+            ],
+            "to": {
+              "ref": "shortfall_region_2_ghost"
+            },
+            "scale": 3.3333
+          }
+        },
+        {
+          "erase": [
+            "shortfall_region_ghost",
+            "shortfall_region_2_ghost"
+          ]
+        },
+        {
+          "hide": [
+            "shortfall_region"
+          ]
+        },
+        {
+          "draw": [
+            "expected_region_2"
+          ],
+          "speak": "Now measure each loss against what was expected. Bjørn could expect this whole area; his loss fills nine tenths of it."
+        },
+        {
+          "erase": [
+            "expected_region_2"
+          ]
+        },
+        {
           "hide": [
             "shortfall_region_2"
           ]
@@ -64054,32 +64150,29 @@
         {
           "show": [
             "shortfall_region"
-          ],
-          "speak": "Count the QALYs lost — the absolute shortfall — and it is Anna’s: 30 against 15. Norway measures severity this way."
-        },
-        {
-          "hide": [
-            "shortfall_region"
           ]
         },
         {
-          "show": [
-            "shortfall_region_2"
+          "draw": [
+            "expected_region"
           ],
-          "speak": "Count the share of the remaining life that is lost — the proportional shortfall — and it is Bjørn’s: 90 percent against 64. The Netherlands measures it this way."
+          "speak": "Anna’s loss fills about two thirds of hers. Count the share lost — the proportional shortfall — and Bjørn’s is the more severe: 90 percent against 64. The Netherlands measures it this way."
+        },
+        {
+          "erase": [
+            "expected_region"
+          ]
         },
         {
           "pause": 0.4
         },
         {
-          "hide": [
-            "shortfall_region_2"
-          ]
-        },
-        {
-          "show": [
-            "shortfall_region"
-          ],
+          "focus": {
+            "target": [
+              "shortfall_region",
+              "curve_anna"
+            ]
+          },
           "speak": "The absolute measure counts the health actually lost, and a young patient has the most to lose. Its weakness: an old person facing a terrible prognosis can never count as very severe — too few years are left to lose."
         },
         {

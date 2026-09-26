@@ -53,6 +53,8 @@ export interface QalyShortfall {
   show?: "absolute" | "proportional" | "both";
   /** the age THIS prognosis is judged from — each patient their own (falls back to params.index_age) */
   index_age?: number;
+  /** also draw expected_region (all that was expected) and kept_region (what the patient gets) */
+  areas?: boolean;
   /** annual discount rate; 0 (the default) is the undiscounted convention severity criteria use */
   discount?: number;
   label?: string;
@@ -302,6 +304,12 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
   push(tick("tick_one", 1, "1"));
   push(tick("tick_zero", 0, "0"));
 
+  // The normal-life path, when the figure has one: a profile that only
+  // begins at diagnosis FALLS from it there (below).
+  const hasReference = !!params.reference || (params.shortfall !== null && params.shortfall !== undefined);
+  const refEarly = hasReference ? { ...DEFAULT_REFERENCE, ...(params.reference ?? {}) } : null;
+  const refEarlyFn = refEarly ? profileFn(buildSegments(refEarly), refEarly.death_at) : null;
+
   // Per-profile curves (and optional under-curve fills).
   const fns = new Map<string, (t: number) => number>();
   const ends = new Map<string, number>();
@@ -311,6 +319,11 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
     ends.set(p.id, p.death_at ?? (p.waypoints?.length ? Math.max(...p.waypoints.map((w) => w.t)) : tMax));
     const pts = samplePts(segments, sx, sy);
     if (pts.length < 2) continue;
+    // A path that begins at diagnosis drops there from the normal life it
+    // leaves — without the vertical, the disease seemed to start in mid-air
+    // (Hans 2026-09-26).
+    const t0 = Math.min(...(p.waypoints ?? []).map((w) => w.t));
+    if (refEarlyFn && Number.isFinite(t0) && t0 > 0) pts.unshift([sx(t0), sy(refEarlyFn(t0))]);
 
     if (p.fill) {
       const areaPts: Pt[] = [...pts, [pts[pts.length - 1][0], sy(0)], [pts[0][0], sy(0)]];
@@ -397,6 +410,41 @@ export function layoutQalyProfiles(params: QalyParams): SceneLayout {
         lower.push([sx(t), sy(Math.min(refFn(t), diseaseFn(t)))]);
       }
       const regionPts: Pt[] = [...upper, ...[...lower].reverse()];
+      // The two areas the shortfall is made of, on request (`areas: true`):
+      // what this patient could have EXPECTED from the index age (the whole
+      // area under normal life — the proportional measure's denominator) and
+      // what they KEEP (the area under their own path). Opt-in, because a
+      // part no beat mentions is drawn at the end anyway.
+      if (sf.areas) {
+        const under = (fn: (t: number) => number, until: number): Pt[] => {
+          const top: Pt[] = [];
+          for (let i = 0; i <= N; i++) {
+            const t = indexAge + ((until - indexAge) * i) / N;
+            top.push([sx(t), sy(fn(t))]);
+          }
+          return [...top, [sx(until), sy(0)], [sx(indexAge), sy(0)]];
+        };
+        const expectedPts = under(refFn, Math.max(indexAge, ref.death_at ?? tEnd));
+        push({
+          id: `expected_region${sfx}`,
+          kind: "area",
+          pts: expectedPts,
+          z: Z_AREA,
+          style: defaultStyle({ color: COLORS.guide, fill: COLORS.guide, opacity: 0.14, strokeWidth: 2 }),
+          drawOpts: defaultDrawOpts("sketch", SKETCH_MS.region),
+        });
+        anchors[`expected_region${sfx}`] = centroid(expectedPts);
+        const keptPts = under(diseaseFn, Math.max(indexAge, ends.get(target.id) ?? indexAge));
+        push({
+          id: `kept_region${sfx}`,
+          kind: "area",
+          pts: keptPts,
+          z: Z_AREA,
+          style: defaultStyle({ color: target.color, fill: target.color, opacity: 0.3, strokeWidth: 1 }),
+          drawOpts: defaultDrawOpts("sketch", SKETCH_MS.region),
+        });
+        anchors[`kept_region${sfx}`] = centroid(keptPts);
+      }
       push({
         id: `shortfall_region${sfx}`,
         kind: "area",

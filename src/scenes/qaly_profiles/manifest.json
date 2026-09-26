@@ -185,6 +185,10 @@
               "index_age": {
                 "type": "number",
                 "description": "This patient's own index age (else the top-level index_age / the profile's onset)."
+              },
+              "areas": {
+                "type": "boolean",
+                "description": "Also draw expected_region (all the patient could expect: the proportional shortfall's denominator) and kept_region (what they get) — to highlight each part of the arithmetic."
               }
             }
           },
@@ -218,6 +222,10 @@
                 "index_age": {
                   "type": "number",
                   "description": "This patient's own index age (else the top-level index_age / the profile's onset)."
+                },
+                "areas": {
+                  "type": "boolean",
+                  "description": "Also draw expected_region (all the patient could expect: the proportional shortfall's denominator) and kept_region (what they get) — to highlight each part of the arithmetic."
                 }
               }
             },
@@ -244,7 +252,8 @@
     "shortfall_region": "the pale shaded area between the reference and the measured profile, from the index age on — the absolute shortfall as an area",
     "shortfall_note": "the four-line ledger: its heading, remaining QALYs without and with the disease, then the shortfall",
     "label_index": "the \"From age N\" caption on the index line",
-    "shortfall_region_2 / index_line_2 / label_index_2 / shortfall_note_2": "the second patient's shortfall (shortfall as a list), in its curve's colour; _3 for a third"
+    "shortfall_region_2 / index_line_2 / label_index_2 / shortfall_note_2": "the second patient's shortfall (shortfall as a list), in its curve's colour; _3 for a third",
+    "expected_region / kept_region / expected_region_2 / kept_region_2": "with areas: true — the area under normal life from the index age, and the area under the patient's own path"
   },
   "examples": [
     {
