@@ -71758,5 +71758,317 @@
         }
       ]
     }
+  },
+  {
+    "request": "How do position, velocity and acceleration graphs fit together?",
+    "spec": {
+      "template": "motion_graphs",
+      "params": {
+        "segments": [
+          {
+            "duration": 3,
+            "a": 2,
+            "label": "speeding up"
+          },
+          {
+            "duration": 4,
+            "label": "cruising"
+          },
+          {
+            "duration": 3,
+            "v1": 0,
+            "label": "braking"
+          }
+        ],
+        "t": 0,
+        "labels": {
+          "object": "car"
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Motion graphs"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "How do the position, velocity and acceleration graphs of one trip fit together?"
+        },
+        {
+          "draw": [
+            "track",
+            "object"
+          ],
+          "speak": "Take one car on a straight road: it speeds up, cruises, then brakes to a stop."
+        },
+        {
+          "draw": [
+            "curve_x"
+          ],
+          "speak": "The top graph is position: how far along the road the car is at each moment."
+        },
+        {
+          "draw": [
+            "curve_v",
+            "curve_a"
+          ],
+          "speak": "Below it are velocity and acceleration, on the same clock."
+        },
+        {
+          "draw": [
+            "cursor"
+          ],
+          "speak": "This line is one moment in time, and every graph is read where it crosses."
+        },
+        {
+          "animate": {
+            "t": 10
+          },
+          "duration": 5,
+          "easing": "linear",
+          "speak": "Run the clock, and the car drives the whole trip while the line sweeps across."
+        },
+        {
+          "draw": [
+            "phases",
+            "boundaries"
+          ],
+          "speak": "Three phases, three shapes: a bend, a straight line, and a bend the other way."
+        },
+        {
+          "animate": {
+            "t": 5
+          },
+          "duration": 2.5,
+          "speak": "Stop in the middle of the cruise, at five seconds."
+        },
+        {
+          "highlight": {
+            "target": [
+              "tangent_x"
+            ]
+          },
+          "speak": "The position graph climbs six metres every second here."
+        },
+        {
+          "highlight": {
+            "target": [
+              "dot_v",
+              "readout_v"
+            ]
+          },
+          "speak": "And six is exactly the height of the velocity graph: velocity is the slope of position."
+        },
+        {
+          "highlight": {
+            "target": [
+              "tangent_v"
+            ]
+          },
+          "speak": "The velocity line is flat here, so its slope, the acceleration, is zero."
+        },
+        {
+          "animate": {
+            "t": 1.5
+          },
+          "duration": 2.5,
+          "speak": "While speeding up, velocity climbs two metres per second each second: acceleration sits at plus two."
+        },
+        {
+          "animate": {
+            "t": 8.5
+          },
+          "duration": 3,
+          "speak": "While braking, velocity falls, so acceleration drops below zero, though the car still rolls forward."
+        },
+        {
+          "highlight": {
+            "target": [
+              "a_seg_2",
+              "readout_a"
+            ]
+          },
+          "speak": "Negative acceleration means slowing down here, not going backwards."
+        },
+        {
+          "explore": {},
+          "speak": "Now drag the time line, or pull a piece of the velocity graph, and watch the other two follow."
+        },
+        {
+          "speak": "So read each graph by its slope: position's slope is velocity, and velocity's slope is acceleration."
+        },
+        {
+          "quiz": {
+            "question": "At eight seconds the car is braking. What is the sign of its acceleration?",
+            "choices": [
+              "Positive",
+              "Zero",
+              "Negative"
+            ],
+            "correct": 3,
+            "right": "Negative: the velocity graph slopes down while braking, even though the car still moves forward.",
+            "wrong": "Look at the slope of the velocity graph, not at its height."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why is the area under a velocity graph the distance travelled?",
+    "spec": {
+      "template": "motion_graphs",
+      "params": {
+        "v0": 4,
+        "segments": [
+          {
+            "duration": 3,
+            "label": "steady"
+          },
+          {
+            "duration": 6,
+            "a": -1,
+            "label": "hill"
+          }
+        ],
+        "panels": [
+          "x",
+          "v"
+        ],
+        "t": 0,
+        "shade": "to_cursor",
+        "tangents": false,
+        "labels": {
+          "object": "cart"
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Area and distance"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Why is the area under a velocity graph the distance travelled?"
+        },
+        {
+          "draw": [
+            "track",
+            "object"
+          ],
+          "speak": "A cart rolls along a track at a steady four metres per second."
+        },
+        {
+          "draw": [
+            "curve_v"
+          ],
+          "speak": "Its velocity graph is flat at four for the first three seconds."
+        },
+        {
+          "draw": [
+            "cursor",
+            "area"
+          ],
+          "speak": "Shade the area under that line, up to the moving time line."
+        },
+        {
+          "animate": {
+            "t": 3
+          },
+          "duration": 3,
+          "easing": "linear",
+          "speak": "In three seconds the shading grows into a rectangle, four high and three wide."
+        },
+        {
+          "highlight": {
+            "target": [
+              "area"
+            ],
+            "effect": "circle"
+          },
+          "speak": "Four times three is twelve, and the cart has gone exactly twelve metres."
+        },
+        {
+          "draw": [
+            "curve_x"
+          ],
+          "speak": "The position graph agrees: twelve metres after three seconds."
+        },
+        {
+          "highlight": {
+            "target": [
+              "v_seg_0"
+            ]
+          },
+          "speak": "No coincidence: height times width is speed times time, and that is distance."
+        },
+        {
+          "draw": [
+            "phases",
+            "boundaries"
+          ],
+          "speak": "Then the track climbs a hill, and the cart slows by one metre per second every second."
+        },
+        {
+          "animate": {
+            "t": 7
+          },
+          "duration": 4,
+          "easing": "linear",
+          "speak": "Each thin slice of time is still speed times a moment, so the triangle adds eight metres."
+        },
+        {
+          "animate": {
+            "t": 9
+          },
+          "duration": 3,
+          "easing": "linear",
+          "speak": "At seven seconds it stops, rolls back down, and the area below the axis counts backwards."
+        },
+        {
+          "highlight": {
+            "target": [
+              "readout_x",
+              "dot_x"
+            ]
+          },
+          "speak": "It ends eighteen metres from the start: twenty forward, then two back."
+        },
+        {
+          "highlight": {
+            "target": [
+              "area"
+            ],
+            "effect": "circle"
+          },
+          "speak": "The distance its wheels rolled counts both pieces as positive: twenty-two metres."
+        },
+        {
+          "explore": {},
+          "speak": "Now drag the time line, or lift the velocity graph, and watch the area and the position move together."
+        },
+        {
+          "speak": "So the area under velocity is the distance travelled, and counted with signs, it is the change in position."
+        },
+        {
+          "quiz": {
+            "question": "A velocity graph has 10 m of area above the axis and 4 m below. Where does the object end up?",
+            "choices": [
+              "14 m from the start",
+              "6 m from the start",
+              "4 m from the start"
+            ],
+            "correct": 2,
+            "right": "6 m: the area below the axis is motion backwards, so it is taken away, while the distance travelled is 14 m.",
+            "wrong": "Area below the axis is movement in the other direction."
+          }
+        }
+      ]
+    }
   }
 ]
