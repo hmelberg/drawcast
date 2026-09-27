@@ -38,7 +38,7 @@ import { mathDrawables, mathMorphDrawables } from "./math";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
 import { catmullRom, catmullRomClosed } from "./smooth";
 import { decodeIcon, decodePhoto, decodeSourceImage, decodeTrace } from "../spec/trace";
-import { obstacleBoxes, wrapText, type LabelRequest } from "./labels";
+import { mapLabelRequest, obstacleBoxes, wrapText, type LabelRequest } from "./labels";
 import { currentMathFontName, enginesLoaded, getLoadedEngines, type MathJaxEngine, type MusicEngine } from "../scenes/engines";
 import { musicDrawables } from "./music";
 import { linkKindOf } from "../ui/link-model";
@@ -944,7 +944,7 @@ function transformOwned(
   // drawing after tier-2 — but the point it will be solved AGAINST was read
   // off the member when the label was emitted, which was before this. Move
   // that point too, or the words land where the part used to be.
-  for (const req of labels) if (belongs(req.id)) req.anchor = map(req.anchor);
+  for (const req of labels) if (belongs(req.id)) mapLabelRequest(req, map);
 }
 
 /** How much larger a grid must show a written row's members before the row warns. */
