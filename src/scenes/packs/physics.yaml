@@ -112,13 +112,16 @@ layout: |
   const leftU = view ? view.left : Math.max(1.3 * dObj, virtual ? dFit : 0, f);
   const rightU = view ? view.right : Math.max(virtual || atInf ? 2 * f + 2 : dFit, 2 * f);
   const sx = 780 / (leftU + rightU);
-  const sy = view ? (view.height ? 250 / view.height : sx) : Math.min(sx, 250 / Math.max(hObj, hFit));
+  // Up to 250 above the axis; an inverted image gets 215 below it, which
+  // keeps it (and its label) above the caption band.
+  const sy = view ? (view.height ? 250 / view.height : sx) : Math.min(sx, 250 / Math.max(hObj, virtual ? hFit : 0), !virtual && !atInf ? 215 / hFit : Infinity);
   const lensX = 110 + leftU * sx, axisY = 375;
   const X = (u) => lensX + u * sx;                 // u < 0 left of the lens
   const Y = (h) => axisY + h * sy;
   const P = ([u, h]) => [X(u), Y(h)];
-  // Everything is clipped to the page: a far image is cut at the edge.
-  const B = { x0: 60, x1: 940, y0: axisY - 290, y1: axisY + 290 };
+  // Everything is clipped to the page: a far image is cut at the edge, and
+  // nothing reaches down into the caption band (y < 150).
+  const B = { x0: 60, x1: 940, y0: axisY - 225, y1: axisY + 290 };
   const inside = (p) => p[0] >= B.x0 - 1e-6 && p[0] <= B.x1 + 1e-6 && p[1] >= B.y0 - 1e-6 && p[1] <= B.y1 + 1e-6;
   const clipSeg = (a, b) => {
     let t0 = 0, t1 = 1;
@@ -204,7 +207,16 @@ layout: |
       // A cut image has no arrowhead: its tip is off the page.
       push(kit.stroke("image", pts, { arrowhead: shown ? "end" : undefined, strokeWidth: 5, color: C.ink, dash: virtual, ms: MS.arrow }));
       anchors.image = pts[pts.length - 1];
-      if (shown) label("label_image", [imgTip[0], imgTip[1] + (hImg >= 0 ? 26 : -26)], hImg >= 0 ? "above" : "below", virtual ? "Virtual image" : "Real image");
+      // An upright image is named above its tip; an inverted one beside its
+      // middle, clear of the caption band below it.
+      if (shown && hImg >= 0) label("label_image", [imgTip[0], imgTip[1] + 26], "above", "Virtual image");
+      if (shown && hImg < 0) {
+        const mid = [imgTip[0] + 6, (axisY + imgTip[1]) / 2];
+        if (showLabels) {
+          labels.push({ ...kit.label("label_image", mid, "right", virtual ? "Virtual image" : "Real image", { fontSize: 24 }), sides: ["right", "left", "below-right", "below-left"] });
+          order.push("label_image");
+        }
+      }
     }
   }
   if (showDist) {
@@ -735,15 +747,17 @@ layout: |
   // The scale: a SPEED's widest flight (its best angle, from its height) fills
   // the width and its steepest the height, so the angle alone never rescales.
   const reach = (v, h) => ({ R: (v / g) * Math.sqrt(v * v + 2 * g * h), top: h + Math.pow(v * Math.sin((85 * Math.PI) / 180), 2) / (2 * g) });
-  const X0 = 120, groundY = 200;
-  const availW = 650, availH = 430;
+  // The readouts (show_values) hang a range mark under the ground: the ground
+  // then rises out of the caption band, and the flight keeps under the card.
+  const X0 = 120, groundY = showValues ? 270 : 200;
+  const availW = 650, availH = showValues ? 380 : 430, roomW = 690, roomH = showValues ? 390 : 450;
   const vw = params.view && typeof params.view === "object" ? params.view : null;
   const view = vw && num(vw.range, 0) > 0 && num(vw.height, 0) > 0 ? vw : null;
   let S;
   if (view) {
     // Fixed — but a flight too big for it still fits: the page pulls back.
     const R = Math.max(F.R, G ? G.R : 0), H = Math.max(F.H, G ? G.H : 0);
-    S = Math.min(availW / view.range, availH / view.height, 690 / R, 450 / H);
+    S = Math.min(availW / view.range, availH / view.height, roomW / R, roomH / H);
   } else {
     const a = reach(speed, h0), b = G ? reach(G.v, G.h) : a;
     S = Math.min(availW / Math.max(a.R, b.R), availH / Math.max(a.top, b.top));
@@ -752,8 +766,8 @@ layout: |
 
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
-  // Two significant figures at most, no trailing zeros: 6, 3.6, 0.9, 0.25, 12.
-  const fmt = (v) => kit.num(v, v >= 10 ? 0 : v >= 1 ? 1 : 2).replace(/([.,]\d*?)0+$/, "$1").replace(/[.,]$/, "");
+  // One decimal (two under 1), no trailing zeros: 6, 3.6, 11.7, 0.9, 0.25.
+  const fmt = (v) => kit.num(v, v >= 100 ? 0 : v >= 1 ? 1 : 2).replace(/([.,]\d*?)0+$/, "$1").replace(/[.,]$/, "");
 
   // The ground runs the page's width, whatever the flight.
   const groundX0 = 60, groundX1 = 940;
@@ -962,14 +976,16 @@ widget: |
     if (!(k > 0) || !(S > 0)) return null;
     const own = scene.params.view && typeof scene.params.view === "object" && num(scene.params.view.range, 0) > 0 && num(scene.params.view.height, 0) > 0;
     const arrow = scene.lines.get("v0")?.[0] ?? null;
-    return { q, k, S, ST: S / k, L, arrow, groundY: ground[0][1], own };
+    const readouts = scene.params.show_values === true;
+    return { q, k, S, ST: S / k, L, arrow, groundY: ground[0][1], own, availH: readouts ? 380 : 430, roomH: readouts ? 390 : 450 };
   };
-  const pin = (G) => (G.own ? {} : { view: { range: r6(650 / G.ST), height: r6(430 / G.ST) } });
+  const pin = (G) => (G.own ? {} : { view: { range: r6(650 / G.ST), height: r6(G.availH / G.ST) } });
   const ghost = (G) => ({ ghost: { speed: G.q.v, angle_deg: G.q.a, height: G.q.h } });
   // The highest platform whose flight still fits the pinned page (690 across,
-  // 450 up, in template units) — the range grows with the height, so bisect.
+  // 450 up in template units; 390 up with the readouts, whose ground stands
+  // higher) — the range grows with the height, so bisect.
   const hRoom = (G) => {
-    const fits = (h) => { const f = flight({ ...G.q, h }); return f.R * G.ST <= 690 && f.H * G.ST <= 450; };
+    const fits = (h) => { const f = flight({ ...G.q, h }); return f.R * G.ST <= 690 && f.H * G.ST <= G.roomH; };
     if (fits(10)) return 10;
     let lo = 0, hi = 10;
     for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
