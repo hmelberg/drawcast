@@ -2,7 +2,7 @@
 // the budget line — an end turns it (that good's price), the middle slides it
 // (income) — and the optimum, its curves and a price_x_before split follow.
 // The body lives in the pack document (economics.yaml `widget:`),
-// `free_play: true`. Also the template's new params: x_max/y_max (axes that
+// live with no demo or judge, so free play. Also the template's new params: x_max/y_max (axes that
 // hold still) and price_x_before (substitution and income effects).
 import { beforeAll, describe, expect, test } from "vitest";
 import { ensureEnabledPacks } from "../src/scenes/packs";

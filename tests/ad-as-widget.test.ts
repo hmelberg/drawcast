@@ -1,7 +1,7 @@
 // ad_as's free-play body (2026-09-27): paused, the viewer drags AD or AS — a
 // demand or a supply shock — and the equilibrium recomputes under the
 // pointer. The body lives in the pack document (macro.yaml `widget:`),
-// `free_play: true`. The host half runs here too: a DOCUMENT's live body
+// live with no demo or judge, so free play (compile.ts). The host half runs here too: a DOCUMENT's live body
 // takes the same live path as supply_demand's built-in one.
 import { beforeAll, describe, expect, test } from "vitest";
 import { ensureEnabledPacks } from "../src/scenes/packs";

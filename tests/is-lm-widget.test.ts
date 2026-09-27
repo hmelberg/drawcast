@@ -1,6 +1,6 @@
 // is_lm's free-play body (2026-09-27): paused, the viewer drags IS or LM and
 // the equilibrium recomputes under the pointer. The body lives in the pack
-// document (macro.yaml `widget:`), `free_play: true` — so it answers no ask.
+// document (macro.yaml `widget:`), live with no demo or judge — so free play: it answers no ask.
 import { beforeAll, describe, expect, test } from "vitest";
 import { ensureEnabledPacks } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
