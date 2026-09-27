@@ -43,6 +43,30 @@ export function compileTemplateDoc(doc: TemplateDoc): { module?: SceneModule; er
     }
     return out as SceneLayout;
   };
+  // The doc's lint hook (SceneModule.lint): an issue list or nothing. The
+  // body is the author's code — a throw or a malformed item reports nothing
+  // rather than breaking the spec's lint.
+  let lint: SceneModule["lint"];
+  if (typeof doc.lint === "string" && doc.lint.trim() !== "") {
+    let lfn: (params: Record<string, unknown>, kit: unknown) => unknown;
+    try {
+      lfn = new Function("params", "kit", `"use strict";\n${doc.lint}`) as typeof lfn;
+    } catch (err) {
+      return { errors: [`template "${doc.template}" lint body failed to compile: ${(err as Error).message}`] };
+    }
+    lint = (params) => {
+      let out: unknown;
+      try {
+        out = lfn(params, kit);
+      } catch {
+        return [];
+      }
+      if (!Array.isArray(out)) return [];
+      return out
+        .filter((i): i is { severity: "warn" | "error"; message: string } => !!i && (i.severity === "warn" || i.severity === "error") && typeof i.message === "string")
+        .map((i) => ({ severity: i.severity, message: i.message }));
+    };
+  }
   let widget: (() => WidgetBody) | undefined;
   if (typeof doc.widget === "string" && doc.widget.trim() !== "") {
     let wfn: (kit: unknown) => unknown;
@@ -73,10 +97,10 @@ export function compileTemplateDoc(doc: TemplateDoc): { module?: SceneModule; er
     const b = probe as { live?: unknown; demo?: unknown; judge?: unknown };
     if (b.live === true && b.demo === undefined && b.judge === undefined) {
       const { widget: _flag, ...manifest } = docToManifest(doc);
-      return { module: { manifest, layout, widget }, errors: [] };
+      return { module: { manifest, layout, widget, ...(lint ? { lint } : {}) }, errors: [] };
     }
   }
-  return { module: { manifest: docToManifest(doc), layout, ...(widget ? { widget } : {}) }, errors: [] };
+  return { module: { manifest: docToManifest(doc), layout, ...(widget ? { widget } : {}), ...(lint ? { lint } : {}) }, errors: [] };
 }
 
 function finitePt(p: unknown): p is Pt {

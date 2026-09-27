@@ -580,17 +580,31 @@ layout: |
 ---
 template: sir_compartments
 title: Epidemic compartment model (SIR / SEIR)
-version: 1
-kit: 2
+version: 2
+kit: 11
 status: ready
 description: >-
-  A compartmental epidemic model (SIR, SEIR, or another variant): boxes for
-  each compartment in a left-to-right chain, connected by rate-labeled flow
-  arrows, with an optional curved return arrow beneath the chain (e.g. waning
-  immunity flowing back from Recovered to Susceptible). Choose this scene for
-  ANY request about an SIR model, SEIR model, epidemic compartment model,
-  susceptible-infectious-recovered, disease transmission dynamics, basic
-  reproduction number context, or compartmental modeling of an epidemic.
+  A compartmental epidemic model (SIR, SEIR, SIS, SIRS): boxes for each
+  compartment in a left-to-right chain, connected by rate-labeled flow
+  arrows. Choose this scene for ANY request about an SIR or SEIR model, an
+  epidemic curve, R0 or the effective reproduction number Rt, herd immunity,
+  vaccination coverage, flattening the curve, or why an epidemic peaks.
+  Two modes. The flow diagram alone (compartments, rates, show_loop) is a
+  static drawing. Give `r0` (or `model`) for the LIVE model instead: the flow
+  diagram moves to the top with its rates as numbers, and a plot of S, I, R
+  (E) over the days fills the page, computed from the equations — the peak
+  (dot, day), the dashed 1/R0 line on the S axis (where the S curve crosses
+  it, Rt = 1 and I peaks), herd immunity with a vaccination bar, an
+  intervention band cutting contacts, a time cursor reading S, I, R and Rt.
+  r0, vaccinated, infectious_days, cursor_day and intervention.* are numeric
+  and ANIMATE (give `days` when you animate, so the time axis holds still).
+  Paused, the viewer scrubs or taps R0, the rates and the vaccination share,
+  drags the intervention band and its edges, and drags a cursor across the
+  plot. Values: {sir.r0}, {sir.beta}, {sir.hit} (herd immunity, %),
+  {sir.peak_day}, {sir.peak_i} (%), {sir.final_size} (% ever infected; SIR
+  and SEIR), {sir.endemic_i} (%; SIS, SIRS, or with lifespan_years),
+  {sir.cross_day} (Rt falls below 1), {sir.r_eff} (Rt at the cursor, day 0
+  without one), {sir.s_at} {sir.i_at} {sir.r_at} (% at the cursor), {sir.days}.
 params:
   type: object
   properties:
@@ -599,15 +613,15 @@ params:
       minItems: 2
       maxItems: 5
       items: { type: string }
-      description: "Single-letter or short-word compartment codes in flow order, e.g. [\"S\",\"E\",\"I\",\"R\"] for SEIR (default [\"S\",\"I\",\"R\"])."
+      description: "Flow diagram alone: compartment codes in flow order, e.g. [\"S\",\"E\",\"I\",\"R\"] (default [\"S\",\"I\",\"R\"])."
     labels:
       type: array
       items: { type: string }
-      description: "Full compartment names, same order as `compartments` (default: Susceptible/Exposed/Infectious/Recovered/Deceased by code)."
+      description: "Full compartment names in order (default Susceptible/Exposed/Infectious/Recovered/Deceased by code). The live model takes them too."
     rates:
       type: array
       items: { type: string }
-      description: "Rate label over each arrow, one per flow (default β then γ, then σ/μ/δ for longer chains)."
+      description: "Flow diagram alone: rate label over each arrow (default β then γ, then σ/μ/δ)."
     show_loop:
       type: object
       properties:
@@ -615,15 +629,82 @@ params:
         to: { type: string }
         label: { type: string }
       required: [from, to]
-      description: "A curved return arrow below the chain, e.g. waning immunity from R back to S."
+      description: "Flow diagram alone: a curved return arrow below the chain, e.g. waning immunity from R back to S."
+    model:
+      type: string
+      enum: [sir, seir, sis, sirs]
+      description: "The live model: sir (default), seir (a latent E stage), sis (recovery gives no immunity), sirs (immunity wanes)."
+    r0:
+      type: number
+      description: "Live model: the basic reproduction number (default 2.5). beta is set so that R0 is this."
+    infectious_days:
+      type: number
+      description: "Live model: mean days infectious, 1/γ (default 10)."
+    latent_days:
+      type: number
+      description: "SEIR: mean days exposed before infectious, 1/σ (default 5)."
+    immunity_days:
+      type: number
+      description: "SIRS: mean days immunity lasts, 1/ω (default 180)."
+    vaccinated:
+      type: number
+      description: "Live model: share vaccinated (immune) at the start, 0–1 (0.4 for 40 %); shows herd immunity and a vaccination bar. Newborns too, with lifespan_years."
+    initial_infected:
+      type: number
+      description: "Live model: share infectious on day 0 (default 0.001)."
+    intervention:
+      type: object
+      properties:
+        start: { type: number }
+        end: { type: number }
+        reduction: { type: number }
+      description: "Live model: from day start to day end, contacts (β) are cut by reduction, a share 0–1 — a shaded band on the plot."
+    cursor_day:
+      type: number
+      description: "Live model: a vertical cursor on this day, reading S, I, R and Rt above the plot."
+    days:
+      type: number
+      description: "Live model: the time axis, 0 to days (default fitted to the epidemic). Give it when you animate."
+    lifespan_years:
+      type: number
+      description: "Live model: births and deaths at this life expectancy (an endemic model; default none — a closed population)."
+    curves:
+      type: array
+      items: { type: string, enum: [s, e, i, r] }
+      description: "Live model: which curves to draw (default all the model's compartments)."
+    show_hit:
+      type: boolean
+      description: "Live model: the herd-immunity readout and bar (default on when vaccinated is given)."
+    show_threshold:
+      type: boolean
+      description: "Live model: the dashed 1/R0 line (default true)."
+    show_peak:
+      type: boolean
+      description: "Live model: the peak dot and its day (default true)."
 element_ids:
-  box_<name>: a compartment box
+  box_<name>: a compartment box (s, e, i, r in the live model)
   box_code_<name>: the compartment's short code, inside the box
-  box_name_<name>: its full descriptive name, below the box
+  box_name_<name>: its full descriptive name (below the box; inside it in the live model)
   flow_<i>: the i-th flow arrow (compartments[i] -> compartments[i+1])
-  rate_<i>: that flow's rate label
-  loop: the optional curved return arrow, present when show_loop is set
+  rate_<i>: that flow's rate label (the live model writes β = 0.25, γ = 1/10)
+  loop: the curved return arrow (show_loop; the live SIS/SIRS model's recovery or waning)
   loop_label: its label
+  r0_value: "live model: the R₀ = 2.5 readout, top right"
+  hit_value: "live model: the herd immunity 60% readout, present with show_hit"
+  immunity_bar: "live model: the population bar, green as far as vaccinated, a tick at herd immunity"
+  vax_value: "live model: the vaccinated 40% readout, present when vaccinated is given"
+  axes: "live model: the axes (days, share of people) with their numbers"
+  curve_s / curve_e / curve_i / curve_r: "live model: the compartment curves"
+  label_s / label_e / label_i / label_r: their letters
+  threshold: "live model: the dashed S = 1/R₀ line (Rt = 1 where S crosses it)"
+  threshold_label: its 1/R₀ label
+  peak: "live model: the dot at the peak of I"
+  peak_guide: its dashed drop to the day axis
+  peak_label: "its peak, day 38 label"
+  intervention: "live model: the shaded band over the intervention's days, present with intervention"
+  intervention_label: "its contacts −40% label"
+  cursor: "live model: the time cursor with a dot on each curve, present with cursor_day"
+  cursor_readout: "the cursor's readout above the plot: day, Rt, and each compartment's share"
 examples:
   - request: "Draw an SIR model of an epidemic."
     params: {}
@@ -632,7 +713,394 @@ examples:
       compartments: ["S", "E", "I", "R"]
       rates: ["β·S·I", "σ·E", "γ·I"]
       show_loop: { from: "R", to: "S", label: "Waning immunity" }
+  - request: "Why does an epidemic peak before everyone has been infected?"
+    params: { r0: 3, days: 120, cursor_day: 38 }
+  - request: "How much vaccination stops a measles outbreak?"
+    params: { r0: 12, infectious_days: 8, vaccinated: 0.8, days: 120 }
+  - request: "What does a four-week lockdown do to the epidemic curve?"
+    params: { model: seir, r0: 2.5, intervention: { start: 30, end: 58, reduction: 0.5 }, days: 250 }
+lint: |
+  // What the params say that the schema cannot check.
+  const out = [];
+  const warn = (message) => out.push({ severity: "warn", message });
+  const error = (message) => out.push({ severity: "error", message });
+  const MODEL_ONLY = ["infectious_days", "latent_days", "immunity_days", "vaccinated", "initial_infected", "intervention", "cursor_day", "days", "lifespan_years", "curves", "show_hit", "show_threshold", "show_peak"];
+  const isModel = typeof params.model === "string" || typeof params.r0 === "number";
+  if (!isModel) {
+    const stray = MODEL_ONLY.filter((k) => params[k] !== undefined);
+    if (stray.length > 0) warn(stray.join(", ") + " only work in the live model — set r0 (or model) to draw it; the flow diagram alone ignores them");
+    return out;
+  }
+  const share = (name, v) => {
+    if (typeof v === "number" && (v < 0 || v > 1)) error(name + " is a share from 0 to 1 (0.6 for 60 %), got " + v);
+  };
+  share("vaccinated", params.vaccinated);
+  share("initial_infected", params.initial_infected);
+  const iv = params.intervention;
+  if (iv && typeof iv === "object") {
+    share("intervention.reduction", iv.reduction);
+    if (typeof iv.start === "number" && typeof iv.end === "number" && iv.end <= iv.start) error("intervention.end (" + iv.end + ") must come after intervention.start (" + iv.start + ")");
+  }
+  if (typeof params.r0 === "number" && (params.r0 < 0.1 || params.r0 > 20)) warn("r0 " + params.r0 + " is drawn clamped to 0.1–20");
+  const kind = ["sir", "seir", "sis", "sirs"].includes(params.model) ? params.model : "sir";
+  if (typeof params.model === "string" && !["sir", "seir", "sis", "sirs"].includes(params.model)) error('model must be "sir", "seir", "sis" or "sirs", got "' + params.model + '"');
+  if (kind === "sis" && params.vaccinated !== undefined) warn("an SIS model has no immune compartment: vaccinated is ignored");
+  if (kind !== "seir" && params.latent_days !== undefined) warn("latent_days is the SEIR model's (model: seir); it is ignored here");
+  if (kind !== "sirs" && params.immunity_days !== undefined) warn("immunity_days is the SIRS model's (model: sirs); it is ignored here");
+  const flowOnly = ["compartments", "rates", "show_loop"].filter((k) => params[k] !== undefined);
+  if (flowOnly.length > 0) warn("the live model draws its compartments and rates from `model`: " + flowOnly.join(", ") + " ignored");
+  if (typeof params.days === "number" && typeof params.cursor_day === "number" && params.cursor_day > params.days) warn("cursor_day " + params.cursor_day + " is past the last day (" + params.days + "); it is drawn at the end");
+  return out;
 layout: |
+  // ── The live model (2026-09-28) ─────────────────────────────────────
+  // Named by `model` or `r0`: the flow diagram moves to the top, a time
+  // series of the compartments fills the page below it, and the numbers
+  // (R0, herd immunity, peak, final size, Rt at a cursor) are computed by
+  // integrating the equations. Without either param the template is the
+  // flow diagram alone, painted exactly as before (tests/sir-parity).
+  if (typeof params.model === "string" || typeof params.r0 === "number") {
+    const C = kit.COLORS, MS = kit.SKETCH_MS;
+    const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const kind = ["sir", "seir", "sis", "sirs"].includes(params.model) ? params.model : "sir";
+    const r0 = clamp(num(params.r0, 2.5), 0.1, 20);
+    const D = clamp(num(params.infectious_days, 10), 0.5, 365);
+    const Lat = clamp(num(params.latent_days, 5), 0.2, 365);
+    const Wn = clamp(num(params.immunity_days, 180), 5, 36500);
+    const life = typeof params.lifespan_years === "number" && params.lifespan_years > 0 ? clamp(params.lifespan_years, 1, 200) : null;
+    const mu = life ? 1 / (life * 365) : 0;
+    const gamma = 1 / D;
+    const sigma = kind === "seir" ? 1 / Lat : 0;
+    const omega = kind === "sirs" ? 1 / Wn : 0;
+    // R0 is what the author gives; beta is what makes it so.
+    const beta = kind === "seir" ? (r0 * (gamma + mu) * (sigma + mu)) / sigma : r0 * (gamma + mu);
+    const hasR = kind !== "sis";
+    const vacc = hasR ? clamp(num(params.vaccinated, 0), 0, 1) : 0;
+    const i0 = clamp(num(params.initial_infected, 0.001), 1e-6, 0.5);
+    const ivp = params.intervention && typeof params.intervention === "object" && !Array.isArray(params.intervention) ? params.intervention : null;
+    const iv = ivp
+      ? (() => {
+          const s = Math.max(0, num(ivp.start, 20));
+          return { start: s, end: Math.max(s, num(ivp.end, s + 30)), cut: clamp(num(ivp.reduction, 0.4), 0, 1) };
+        })()
+      : null;
+    const betaAt = (t) => (iv && t >= iv.start && t < iv.end ? beta * (1 - iv.cut) : beta);
+
+    // State [S, E, I, R, cumulative infections], as shares of the population.
+    const deriv = (t, y) => {
+      const [S, E, I, R] = y;
+      const inf = betaAt(t) * S * I;
+      const dS = mu * (1 - vacc) - inf - mu * S + omega * R + (kind === "sis" ? gamma * I : 0);
+      const dE = kind === "seir" ? inf - (sigma + mu) * E : 0;
+      const dI = (kind === "seir" ? sigma * E : inf) - (gamma + mu) * I;
+      const dR = hasR ? mu * vacc + gamma * I - (omega + mu) * R : 0;
+      return [dS, dE, dI, dR, inf];
+    };
+    const dt = Math.min(0.25, D / 40, kind === "seir" ? Lat / 40 : 1);
+    const endemic = kind === "sis" || kind === "sirs" || mu > 0;
+    const given = typeof params.days === "number" && Number.isFinite(params.days) && params.days > 0 ? clamp(params.days, 5, 40000) : null;
+    // Run long enough to see the epidemic end (closed models), or to settle.
+    const tCap = given ?? (mu > 0 ? 7300 : kind === "sirs" ? Math.max(1500, 6 * Wn) : 4000);
+    const ts = [0], ys = [[Math.max(0, 1 - vacc - i0), 0, i0, vacc, i0]];
+    let y = ys[0], t = 0, peakI = i0, peakT = 0, crossT = null, doneT = null;
+    const reff = (tt, S) => (r0 * S * betaAt(tt)) / beta;
+    while (t < tCap - 1e-9) {
+      const h = Math.min(dt, tCap - t);
+      const k1 = deriv(t, y);
+      const k2 = deriv(t + h / 2, y.map((v, i) => v + (h / 2) * k1[i]));
+      const k3 = deriv(t + h / 2, y.map((v, i) => v + (h / 2) * k2[i]));
+      const k4 = deriv(t + h, y.map((v, i) => v + h * k3[i]));
+      const prevReff = reff(t, y[0]);
+      y = y.map((v, i) => Math.max(0, v + (h / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i])));
+      t += h;
+      ts.push(t);
+      ys.push(y);
+      if (y[2] > peakI) { peakI = y[2]; peakT = t; }
+      if (crossT === null && prevReff > 1 && reff(t, y[0]) <= 1) crossT = t;
+      // A closed epidemic is over once infection has all but gone, past its peak.
+      if (!given && !endemic && doneT === null && y[1] + y[2] < Math.max(0.01 * peakI, 1e-7) && (t > peakT + D || peakT === 0)) {
+        doneT = t;
+        break;
+      }
+    }
+    // A peak is a turn: I must fall back after it (an SIS curve that climbs
+    // to its level has none).
+    let hasPeak = false;
+    if (peakI > i0 * 1.01) {
+      const k = ts.findIndex((tt) => tt >= peakT);
+      for (let j = k; j < ys.length; j++) if (ys[j][2] < 0.97 * peakI) { hasPeak = true; break; }
+    }
+    const NICE = [30, 40, 50, 60, 80, 100, 120, 150, 200, 250, 300, 400, 500, 600, 800, 1000, 1200, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 8000, 10000, 15000, 20000, 40000];
+    const niceCeil = (v) => NICE.find((n) => n >= v - 1e-9) ?? 40000;
+    const at = (tt) => {
+      // The state at day tt, linearly between the steps.
+      if (tt <= 0) return ys[0];
+      if (tt >= ts[ts.length - 1]) return ys[ys.length - 1];
+      let lo = 0, hi = ts.length - 1;
+      while (hi - lo > 1) { const m = (lo + hi) >> 1; if (ts[m] <= tt) lo = m; else hi = m; }
+      const f = (tt - ts[lo]) / (ts[hi] - ts[lo] || 1);
+      return ys[lo].map((v, i) => v + f * (ys[hi][i] - v));
+    };
+
+    // Final size: the share ever infected. A closed model without an
+    // intervention has the classic equation, S∞ = S0·exp(−R0·(1 − v − S∞));
+    // otherwise it is read off the run's end.
+    let finalSize = null, endemicI = null;
+    if (!endemic) {
+      if (!iv) {
+        const S0 = ys[0][0];
+        let lo = 0, hi = S0;
+        for (let k = 0; k < 80; k++) {
+          const m = (lo + hi) / 2;
+          if (m - S0 * Math.exp(-r0 * (1 - vacc - m)) > 0) hi = m; else lo = m;
+        }
+        finalSize = 1 - vacc - (lo + hi) / 2;
+      } else {
+        finalSize = ys[ys.length - 1][4];
+      }
+    } else if (kind === "sis" && mu === 0) {
+      endemicI = r0 > 1 ? 1 - 1 / r0 : 0;
+    } else if (kind === "sirs" && mu === 0) {
+      endemicI = r0 > 1 ? ((1 - 1 / r0) * omega) / (omega + gamma) : 0;
+    } else if (kind !== "sirs") {
+      endemicI = Math.max(0, (mu * (r0 * (1 - vacc) - 1)) / beta);
+    } else {
+      endemicI = ys[ys.length - 1][2];
+    }
+    const hit = r0 > 1 ? 1 - 1 / r0 : 0;
+    // The time axis: to the end of a closed epidemic; an endemic one until
+    // it has settled near its level (20 years with births).
+    const settleT = (() => {
+      if (endemicI === null) return null;
+      const tol = Math.max(0.03 * endemicI, 1e-4);
+      for (let j = ys.length - 1; j >= 0; j--) if (Math.abs(ys[j][2] - endemicI) > tol) return ts[Math.min(j + 1, ts.length - 1)];
+      return 0;
+    })();
+    const horizon = given ?? (mu > 0 ? 7300 : endemic ? niceCeil(Math.max(hasPeak ? 3 * peakT : 0, (settleT ?? 0) * 1.15, 6 * D, 60)) : niceCeil(Math.max(doneT ?? t, 30)));
+
+    // ── Geometry ──
+    // A return flow (SIS, SIRS) hangs below the chain: the plot starts lower.
+    const looped = kind === "sis" || kind === "sirs";
+    const plot = { x0: 110, y0: 80, x1: 880, y1: looped ? 425 : 460 };
+    const sx = (tt) => plot.x0 + (tt / horizon) * (plot.x1 - plot.x0);
+    const sy = (f) => plot.y0 + f * (plot.y1 - plot.y0);
+    const drawables = [], labels = [], anchors = {}, order = [], attached = {}, drawnWith = {};
+    const push = (d, at) => { drawables.push(d); order.push(d.id); if (at) anchors[d.id] = at; };
+    const label = (id, anchor, side, text, color, fontSize) => { labels.push(kit.label(id, anchor, side, text, { color, fontSize })); order.push(id); };
+    const pct = (f) => kit.num(Math.round(f * 100), 0) + "%";
+    const days = (v) => kit.num(Math.round(v), 0);
+    const R0T = "R₀";
+
+    // The flow diagram, across the top.
+    const DEFAULT_FULL = { s: "Susceptible", e: "Exposed", i: "Infectious", r: "Recovered" };
+    const codes = kind === "seir" ? ["S", "E", "I", "R"] : kind === "sis" ? ["S", "I"] : ["S", "I", "R"];
+    const names = Array.isArray(params.labels) ? params.labels.map(String) : [];
+    const BW = codes.length === 4 ? 112 : 124, BH = 80, CY = 600;
+    const fx0 = 70 + BW / 2, fx1 = (codes.length === 4 ? 735 : codes.length === 2 ? 470 : 640) - BW / 2;
+    const cx = codes.map((_, i) => (codes.length === 1 ? fx0 : fx0 + (i * (fx1 - fx0)) / (codes.length - 1)));
+    codes.forEach((code, i) => {
+      const slug = code.toLowerCase();
+      const c = [cx[i], CY];
+      push(kit.stroke("box_" + slug, kit.rect(c[0] - BW / 2, c[1] - BH / 2, BW, BH), { closed: true, shapeHint: { type: "rect", x: c[0] - BW / 2, y: c[1] - BH / 2, w: BW, h: BH }, color: C.ink, strokeWidth: 4, ms: MS.node }), c);
+      push(kit.text("box_code_" + slug, [c[0], c[1] + 14], code, { fontSize: 30 }), [c[0], c[1] + 14]);
+      const nm = typeof names[i] === "string" && names[i].trim() !== "" ? names[i] : DEFAULT_FULL[slug];
+      push(kit.text("box_name_" + slug, [c[0], c[1] - 23], nm, { fontSize: Math.min(18, Math.floor((BW - 12) / Math.max(1, nm.length) / 0.55)), color: C.guide }), [c[0], c[1] - 23]);
+      attached["box_" + slug] = ["box_code_" + slug, "box_name_" + slug];
+      drawnWith["box_" + slug] = ["box_code_" + slug, "box_name_" + slug];
+    });
+    // Rates as numbers: β per day, and each stay as one over its days.
+    const oneOver = (d) => "1/" + kit.num(Math.round(d * 10) / 10);
+    const rateText = [];
+    if (kind === "seir") rateText.push("β = " + kit.num(Math.round(beta * 100) / 100, 2), "σ = " + oneOver(Lat), "γ = " + oneOver(D));
+    else if (kind === "sis") rateText.push("β = " + kit.num(Math.round(beta * 100) / 100, 2));
+    else rateText.push("β = " + kit.num(Math.round(beta * 100) / 100, 2), "γ = " + oneOver(D));
+    for (let i = 0; i < codes.length - 1; i++) {
+      const a = [cx[i], CY], b = [cx[i + 1], CY];
+      const { drawables: fd } = kit.edgeArrow("flow_" + i, a, b, { strokeWidth: 5, color: C.ink, ms: MS.arrow, shorten: { rect: [BW, BH] } });
+      fd.forEach((d) => push(d));
+      anchors["flow_" + i] = [(a[0] + b[0]) / 2, CY];
+      const rp = [(a[0] + b[0]) / 2, CY + BH / 2 + 20];
+      push(kit.text("rate_" + i, rp, rateText[i], { fontSize: 21, color: C.accent }), rp);
+      attached["flow_" + i] = ["rate_" + i];
+    }
+    // A return flow below the chain: recovery back to S (SIS), waning (SIRS).
+    if (kind === "sis" || kind === "sirs") {
+      const from = [cx[codes.length - 1], CY - BH / 2], to = [cx[0], CY - BH / 2];
+      // A shallow bow: about 38 units below the boxes, whatever the span.
+      const { drawables: ld } = kit.edgeArrow("loop", from, to, { curve: 76 / Math.max(1, from[0] - to[0]), strokeWidth: 3.5, color: C.guide, ms: MS.connector, shorten: 6 });
+      ld.forEach((d) => push(d));
+      let low = ld[0].pts[0];
+      for (const p of ld[0].pts) if (p[1] < low[1]) low = p;
+      anchors.loop = low;
+      const lt = kind === "sis" ? "γ = " + oneOver(D) : "ω = " + oneOver(Wn);
+      // Inside the bow, between the loop and the box above it.
+      push(kit.text("loop_label", [low[0], low[1] + 17], lt, { fontSize: 20, color: C.accent }), [low[0], low[1] + 17]);
+      attached.loop = ["loop_label"];
+    }
+
+    // The readouts, top right: R0 (scrub it), herd immunity, vaccination.
+    const RX = codes.length === 4 ? 790 : 700;
+    push(kit.text("r0_value", [RX, 640], R0T + " = " + kit.num(Math.round(r0 * 100) / 100), { fontSize: 34, color: C.accent, anchor: "start" }), [RX + 60, 640]);
+    const showHit = hasR && (params.show_hit === true || (params.show_hit !== false && typeof params.vaccinated === "number"));
+    const showVax = hasR && typeof params.vaccinated === "number";
+    if (showHit) {
+      push(kit.text("hit_value", [RX, 597], kit.say({ en: "herd immunity ", nb: "flokkimmunitet " }) + pct(hit), { fontSize: 20, color: C.ink, anchor: "start" }), [RX + 80, 597]);
+      // A bar for the population: filled as far as it is vaccinated, with a
+      // tick where herd immunity begins.
+      const bx0 = RX, bx1 = Math.min(965, RX + 200), by = 568, bh = 16;
+      const kids = [kit.stroke("immunity_bar__box", kit.rect(bx0, by - bh / 2, bx1 - bx0, bh), { closed: true, color: C.guide, strokeWidth: 2, ms: MS.guides })];
+      if (vacc > 0) kids.push(kit.area("immunity_bar__fill", kit.rect(bx0, by - bh / 2, (bx1 - bx0) * vacc, bh), C.region2, { opacity: 0.8 }));
+      const hx = bx0 + (bx1 - bx0) * hit;
+      kids.push(kit.stroke("immunity_bar__hit", [[hx, by - bh / 2 - 7], [hx, by + bh / 2 + 7]], { color: C.accent, strokeWidth: 3.5, ms: MS.guides }));
+      push(kit.group("immunity_bar", kids), [(bx0 + bx1) / 2, by]);
+      attached.immunity_bar = ["hit_value"];
+    }
+    if (showVax) {
+      push(kit.text("vax_value", [RX, 538], kit.say({ en: "vaccinated ", nb: "vaksinert " }) + pct(vacc), { fontSize: 20, color: "#5d7f52", anchor: "start" }), [RX + 70, 538]);
+    }
+
+    // The plot.
+    const xStep = (() => {
+      const raw = horizon / 5;
+      const p10 = 10 ** Math.floor(Math.log10(raw));
+      for (const m of [1, 2, 2.5, 5, 10]) if (m * p10 >= raw - 1e-9) return m * p10;
+      return 10 * p10;
+    })();
+    const axKids = [
+      kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 3.5, ms: MS.axis }),
+      kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 3.5, ms: MS.axis }),
+      kit.text("axes__x_label", [plot.x1 + kit.AXIS_OVERHANG + 10, plot.y0], kit.say({ en: "days", nb: "dager" }), { fontSize: 22, color: C.ink, anchor: "start" }),
+      kit.text("axes__y_label", [plot.x0 - 10, plot.y1 + kit.AXIS_OVERHANG + 20], kit.say({ en: "share of people", nb: "andel av folket" }), { fontSize: 22, color: C.ink, anchor: "start" }),
+    ];
+    for (let v = 0, k = 0; v <= horizon + 1e-9 && k < 12; v += xStep, k++) {
+      axKids.push(kit.stroke("axes__xt" + k, [[sx(v), plot.y0], [sx(v), plot.y0 - 8]], { color: C.ink, strokeWidth: 2, ms: MS.guides }));
+      axKids.push(kit.text("axes__xn" + k, [sx(v), plot.y0 - 24], kit.num(Math.round(v * 10) / 10), { fontSize: 18, color: C.ink }));
+    }
+    [0, 0.5, 1].forEach((f, k) => {
+      axKids.push(kit.stroke("axes__yt" + k, [[plot.x0, sy(f)], [plot.x0 - 8, sy(f)]], { color: C.ink, strokeWidth: 2, ms: MS.guides }));
+      axKids.push(kit.text("axes__yn" + k, [plot.x0 - 14, sy(f)], pct(f), { fontSize: 18, color: C.ink, anchor: "end" }));
+    });
+    push(kit.group("axes", axKids), [plot.x0, plot.y0]);
+
+    // The intervention: a band over its days, under everything else.
+    if (iv) {
+      const a = sx(Math.min(iv.start, horizon)), b = sx(Math.min(iv.end, horizon));
+      const w = Math.max(2, b - a);
+      push(kit.area("intervention", kit.rect(a, plot.y0, w, plot.y1 - plot.y0), C.region1, { opacity: 0.3 }), [a + w / 2, plot.y1]);
+      const lt = kit.say({ en: "contacts ", nb: "kontakter " }) + "−" + pct(iv.cut);
+      // Its label at the height in the band farthest from every curve.
+      const tm = (Math.min(iv.start, horizon) + Math.min(iv.end, horizon)) / 2;
+      const probe = [Math.min(iv.start, horizon), tm, Math.min(iv.end, horizon)].map((tt) => at(tt));
+      const cols = (Array.isArray(params.curves) && params.curves.length > 0 ? params.curves.map((c) => String(c).toLowerCase()) : ["s", "e", "i", "r"]).map((c) => ({ s: 0, e: 1, i: 2, r: 3 })[c]).filter((k) => k !== undefined && (k !== 1 || kind === "seir") && (k !== 3 || hasR));
+      let bestF = 0.93, bestGap = -1;
+      for (const f of [0.93, 0.8, 0.66, 0.5, 0.34, 0.2, 0.07]) {
+        let gap = Infinity;
+        for (const st of probe) for (const k of cols) gap = Math.min(gap, Math.abs(st[k] - f));
+        if (gap > bestGap + 0.02) { bestGap = gap; bestF = f; }
+      }
+      push(kit.text("intervention_label", [a + w / 2, sy(bestF)], lt, { fontSize: 18, color: C.ink }), [a + w / 2, sy(bestF)]);
+      attached.intervention = ["intervention_label"];
+    }
+
+    // Herd-immunity threshold on the S axis: S = 1/R0, where Rt = 1.
+    if (r0 > 1 && params.show_threshold !== false) {
+      const ty = sy(1 / r0);
+      push(kit.stroke("threshold", [[plot.x0, ty], [plot.x1, ty]], { color: C.accent, dash: true, strokeWidth: 2.5, ms: MS.guides }), [plot.x1, ty]);
+      push(kit.text("threshold_label", [plot.x1 + 8, ty], "1/" + R0T, { fontSize: 20, color: C.accent, anchor: "start" }), [plot.x1 + 8, ty]);
+      attached.threshold = ["threshold_label"];
+    }
+
+    // The curves, sampled across the horizon.
+    const COLOR = { s: C.supply, e: C.shifted, i: C.demand, r: "#5d7f52" };
+    const IDX = { s: 0, e: 1, i: 2, r: 3 };
+    const want = Array.isArray(params.curves) && params.curves.length > 0 ? params.curves.map((c) => String(c).toLowerCase()) : codes.map((c) => c.toLowerCase());
+    const shown = codes.map((c) => c.toLowerCase()).filter((c) => want.includes(c));
+    const NS = 240;
+    const samples = Array.from({ length: NS + 1 }, (_, k) => (k / NS) * horizon);
+    const curveSamples = {};
+    shown.forEach((c) => {
+      const pts = samples.map((tt) => [sx(tt), sy(at(tt)[IDX[c]])]);
+      push(kit.stroke("curve_" + c, pts, { color: COLOR[c], strokeWidth: c === "i" ? 5 : 4, ms: MS.curve }), pts[pts.length - 1]);
+      curveSamples["curve_" + c] = pts;
+    });
+    // Their names: S where it starts, I at its peak, E and R where they end.
+    const peakIn = hasPeak && peakT <= horizon;
+    shown.forEach((c) => {
+      const pts = curveSamples["curve_" + c];
+      let a = pts[pts.length - 1], side = "right";
+      if (c === "s") { a = pts[Math.round(NS * 0.04)]; side = "above-right"; }
+      if (c === "i" && peakIn) { a = [sx(peakT), sy(peakI)]; side = "above-left"; }
+      label("label_" + c, a, side, c.toUpperCase(), COLOR[c], 24);
+      attached["curve_" + c] = ["label_" + c];
+    });
+
+    // The peak: a dot on I and a guide down to its day.
+    if (peakIn && shown.includes("i") && params.show_peak !== false) {
+      const pp = [sx(peakT), sy(peakI)];
+      push(kit.stroke("peak_guide", [pp, [pp[0], plot.y0]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }), [pp[0], plot.y0]);
+      push(kit.stroke("peak", [pp], { shapeHint: { type: "circle", c: pp, r: 8 }, strokeWidth: 3, fill: C.demand, color: C.demand, ms: MS.dot }), pp);
+      label("peak_label", pp, "above-right", kit.say({ en: "peak, day ", nb: "topp, dag " }) + days(peakT), C.demand, 20);
+      attached.peak = ["peak_label", "peak_guide"];
+    }
+
+    // A time cursor: the state on its day, and Rt.
+    const values = {
+      r0: Math.round(r0 * 100) / 100,
+      beta: Math.round(beta * 1e4) / 1e4,
+      gamma: Math.round(gamma * 1e4) / 1e4,
+      infectious_days: D,
+      hit: Math.round(hit * 1e4) / 100,
+      vaccinated: Math.round(vacc * 1e4) / 100,
+      r_eff0: Math.round(r0 * ys[0][0] * 100) / 100,
+      days: horizon,
+    };
+    if (kind === "seir") { values.sigma = Math.round(sigma * 1e4) / 1e4; values.latent_days = Lat; }
+    if (kind === "sirs") { values.omega = Math.round(omega * 1e5) / 1e5; values.immunity_days = Wn; }
+    if (hasPeak) { values.peak_day = Math.round(peakT * 10) / 10; values.peak_i = Math.round(peakI * 1e4) / 100; }
+    else if (!endemic) { values.peak_day = 0; values.peak_i = Math.round(i0 * 1e4) / 100; }
+    if (crossT !== null) values.cross_day = Math.round(crossT * 10) / 10;
+    if (finalSize !== null) values.final_size = Math.round(finalSize * 1e4) / 100;
+    if (endemicI !== null) values.endemic_i = Math.round(endemicI * 1e4) / 100;
+    const cDay = typeof params.cursor_day === "number" && Number.isFinite(params.cursor_day) ? clamp(params.cursor_day, 0, horizon) : null;
+    const st = at(cDay ?? 0);
+    values.r_eff = Math.round(reff(cDay ?? 0, st[0]) * 100) / 100;
+    if (cDay !== null) {
+      values.day = Math.round(cDay * 10) / 10;
+      values.s_at = Math.round(st[0] * 1e4) / 100;
+      values.i_at = Math.round(st[2] * 1e4) / 100;
+      if (kind === "seir") values.e_at = Math.round(st[1] * 1e4) / 100;
+      if (hasR) values.r_at = Math.round(st[3] * 1e4) / 100;
+      const x = sx(cDay);
+      const kids = [kit.stroke("cursor__line", [[x, plot.y0], [x, plot.y1 + 6]], { color: C.ink, strokeWidth: 2.5, ms: MS.guides })];
+      shown.forEach((c) => {
+        const p = [x, sy(st[IDX[c]])];
+        kids.push(kit.stroke("cursor__dot_" + c, [p], { shapeHint: { type: "circle", c: p, r: 6 }, strokeWidth: 2, fill: COLOR[c], color: COLOR[c], ms: MS.dot }));
+      });
+      push(kit.group("cursor", kids), [x, plot.y1]);
+      // The readout above the plot: the day and Rt, then each compartment.
+      const rt = reff(cDay, st[0]);
+      const parts = [[kit.say({ en: "day ", nb: "dag " }) + days(cDay), C.ink], ["Rₜ = " + kit.num(Math.round(rt * 100) / 100, 2), C.accent]];
+      shown.forEach((c) => parts.push([c.toUpperCase() + " " + pct(st[IDX[c]]), COLOR[c]]));
+      const widths = parts.map(([s]) => kit.textWidth(s, 19));
+      const total = widths.reduce((a, b) => a + b, 0) + 14 * (parts.length - 1);
+      // Clear of the y axis's name, which stands at the same height.
+      const yName = kit.say({ en: "share of people", nb: "andel av folket" });
+      let x0 = clamp(x - total / 2, plot.x0 + 10 + kit.textWidth(yName, 22) + 36, 975 - total);
+      const ry = plot.y1 + 38;
+      const texts = parts.map(([s, col], k) => {
+        const tx = kit.text("cursor_readout__" + k, [x0, ry], s, { fontSize: 19, color: col, anchor: "start" });
+        x0 += widths[k] + 14;
+        return tx;
+      });
+      push(kit.group("cursor_readout", texts), [x, ry]);
+      attached.cursor = ["cursor_readout"];
+      drawnWith.cursor = ["cursor_readout"];
+    }
+    for (const k of Object.keys(values)) if (!Number.isFinite(values[k])) delete values[k];
+
+    return { drawables, labels, anchors, order, attached, drawnWith, values, curveSamples, frame: { x: [0, horizon], y: [0, 100], box: plot } };
+  }
+
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   function slugify(name) { return String(name).toLowerCase().replace(/[^a-z0-9]/g, "_") || "c"; }
   const DEFAULT_FULL = { s: "Susceptible", e: "Exposed", i: "Infectious", r: "Recovered", d: "Deceased" };
@@ -725,6 +1193,173 @@ layout: |
   }
 
   return { drawables, labels, anchors, order, attached };
+widget: |
+  // Free play (2026-09-28), in model mode only (`model` or `r0` set) — the
+  // flow diagram alone has nothing to work. While paused the viewer takes
+  // hold of the model's numbers and the whole figure recomputes:
+  //
+  //   R₀ = 2.5 (r0_value)          drag sideways: 0.1 per 4 units; tap: type it
+  //   β on the S→ arrow (rate_0)   0.01 per step; R₀ follows (γ held)
+  //   γ = 1/10, σ = 1/5, ω = 1/180 the days of that stay, 1 per step (ω: 5);
+  //   (rate_i, loop_label)         β is held, so a longer infectious stay
+  //                                raises R₀ — as it does
+  //   vaccinated 40% (vax_value)   1 % per step
+  //   contacts −40%                the intervention's cut, 1 % per step
+  //   the intervention band        drag it along the days; near an edge,
+  //                                that edge alone
+  //   the cursor, or blank plot    drag: the day it reads (whole days)
+  //
+  // While a drag is in flight the time axis holds still (the press-time
+  // `days`); on release it is the author's again (fitted when they gave
+  // none), so a slower epidemic is seen whole.
+  const STEP_UNITS = 4;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+  const fix = (v, d) => Number(v.toFixed(d));
+  const NUMBERS = ["r0_value", "rate_0", "rate_1", "rate_2", "loop_label", "vax_value", "intervention_label"];
+  const isModel = (p) => typeof p.model === "string" || typeof p.r0 === "number";
+  const kindOf = (p) => (["sir", "seir", "sis", "sirs"].includes(p.model) ? p.model : "sir");
+  // The model's numbers, with the layout's own defaults and bounds.
+  const model = (p) => {
+    const kind = kindOf(p);
+    const r0 = clamp(num(p.r0, 2.5), 0.1, 20);
+    const D = clamp(num(p.infectious_days, 10), 0.5, 365);
+    const Lat = clamp(num(p.latent_days, 5), 0.2, 365);
+    const mu = typeof p.lifespan_years === "number" && p.lifespan_years > 0 ? 1 / (clamp(p.lifespan_years, 1, 200) * 365) : 0;
+    const sigma = 1 / Lat;
+    // β per unit of R0: R0 = β/(γ+μ), times σ/(σ+μ) with a latent stay.
+    const per = (d, l) => (kind === "seir" ? ((1 / d + mu) * (1 / l + mu)) / (1 / l) : 1 / d + mu);
+    return { kind, r0, D, Lat, W: clamp(num(p.immunity_days, 180), 5, 36500), per, beta: r0 * per(D, Lat) };
+  };
+  // Which stay a rate label is the number of.
+  const stayOf = (id, kind) => {
+    if (kind === "seir") return id === "rate_1" ? "latent_days" : id === "rate_2" ? "infectious_days" : null;
+    if (kind === "sis") return id === "loop_label" ? "infectious_days" : null;
+    if (id === "rate_1") return "infectious_days";
+    return kind === "sirs" && id === "loop_label" ? "immunity_days" : null;
+  };
+  const intervention = (p) => {
+    const iv = p.intervention && typeof p.intervention === "object" && !Array.isArray(p.intervention) ? p.intervention : null;
+    if (!iv) return null;
+    const start = Math.max(0, num(iv.start, 20));
+    return { start, end: Math.max(start, num(iv.end, start + 30)), reduction: clamp(num(iv.reduction, 0.4), 0, 1) };
+  };
+  // The horizon as painted: the curves run to its last day.
+  const horizonOf = (scene) => {
+    for (const id of ["curve_i", "curve_s", "curve_r", "curve_e"]) {
+      const ln = scene.lines.get(id);
+      const last = ln && ln[0] && ln[0][ln[0].length - 1];
+      const d = last ? scene.toDomain(last) : null;
+      if (d) return Math.round(d[0]);
+    }
+    return num(scene.params.days, 100);
+  };
+  // A stay's new days, holding β: R0 moves with it.
+  const withStay = (p, key, days) => {
+    const m = model(p);
+    const D = key === "infectious_days" ? days : m.D;
+    const L = key === "latent_days" ? days : m.Lat;
+    const patch = { [key]: days };
+    if (key !== "immunity_days") patch.r0 = fix(m.beta / m.per(D, L), 3);
+    return patch;
+  };
+  // What the number `id` becomes at value v (in its own units).
+  const setNumber = (id, v, p) => {
+    const m = model(p);
+    if (id === "r0_value") return { r0: fix(clamp(v, 0.1, 20), 2) };
+    if (id === "rate_0") return { r0: fix(clamp(v * (m.r0 / m.beta), 0.1, 20), 3) };
+    if (id === "vax_value") return { vaccinated: fix(clamp(v, 0, 1), 4) };
+    if (id === "intervention_label") {
+      const iv = intervention(p);
+      return iv ? { intervention: { ...p.intervention, reduction: fix(clamp(v, 0, 1), 4) } } : {};
+    }
+    const key = stayOf(id, m.kind);
+    return key ? withStay(p, key, v) : {};
+  };
+  const current = (id, p) => {
+    const m = model(p);
+    if (id === "r0_value") return m.r0;
+    if (id === "rate_0") return m.beta;
+    if (id === "vax_value") return clamp(num(p.vaccinated, 0), 0, 1);
+    if (id === "intervention_label") return intervention(p)?.reduction ?? 0;
+    const key = stayOf(id, m.kind);
+    return key === "latent_days" ? m.Lat : key === "immunity_days" ? m.W : m.D;
+  };
+  const scrubbed = (id, p, n) => {
+    const v0 = current(id, p);
+    if (id === "r0_value") return setNumber(id, fix(v0 + 0.1 * n, 1), p);
+    if (id === "rate_0") return setNumber(id, Math.max(0.01, fix(v0 + 0.01 * n, 2)), p);
+    if (id === "vax_value" || id === "intervention_label") return setNumber(id, fix(v0 + 0.01 * n, 2), p);
+    const key = stayOf(id, model(p).kind);
+    if (!key) return {};
+    const step = key === "immunity_days" ? 5 : v0 < 4 ? 0.5 : 1;
+    const lo = key === "immunity_days" ? 5 : 0.5;
+    return setNumber(id, clamp(fix(v0 + step * n, 1), lo, key === "immunity_days" ? 3650 : 60), p);
+  };
+  const none = (state) => ({ state, effects: [] });
+
+  const init = (scene) => ({ days0: scene.params.days });
+  const on = (ev, st, scene) => {
+    const state = st ?? { days0: undefined };
+    const p = scene.params;
+    if (!isModel(p)) return none(state);
+    if (ev.type === "input") {
+      if (!NUMBERS.includes(ev.id)) return none(state);
+      const pctField = ev.id === "vax_value" || ev.id === "intervention_label";
+      const patch = setNumber(ev.id, pctField ? ev.value / 100 : ev.value, p);
+      return Object.keys(patch).length ? { state, effects: [{ patch }] } : none(state);
+    }
+    if ((ev.type !== "drag_move" && ev.type !== "drag") || !ev.from) return none(state);
+    let patch = null;
+    const H = horizonOf(scene);
+    if (NUMBERS.includes(ev.id)) {
+      const dx = ev.point[0] - ev.from[0];
+      patch = scrubbed(ev.id, p, Math.trunc(dx / STEP_UNITS + (dx >= 0 ? 1e-6 : -1e-6)));
+    } else if ((ev.id === "cursor" || ev.id === "__surface") && ev.domain) {
+      patch = { cursor_day: clamp(Math.round(ev.domain[0]), 0, H) };
+    } else if (ev.id === "intervention" && ev.domain && ev.fromDomain) {
+      const iv = intervention(p);
+      if (!iv) return none(state);
+      const d = Math.round(ev.domain[0] - ev.fromDomain[0]);
+      const edge = Math.max(1, 0.03 * H);
+      const x0 = ev.fromDomain[0];
+      let { start, end } = iv;
+      if (Math.abs(x0 - iv.start) <= edge && Math.abs(x0 - iv.start) <= Math.abs(x0 - iv.end)) start = clamp(iv.start + d, 0, iv.end - 1);
+      else if (Math.abs(x0 - iv.end) <= edge) end = clamp(iv.end + d, iv.start + 1, Math.max(H, iv.end));
+      else {
+        const dd = clamp(d, -iv.start, Math.max(0, H - iv.end));
+        start = iv.start + dd;
+        end = iv.end + dd;
+      }
+      patch = { intervention: { ...p.intervention, start, end } };
+    }
+    if (!patch || Object.keys(patch).length === 0) return none(state);
+    // The axis holds still under the finger; the release gives it back.
+    patch.days = ev.type === "drag_move" ? H : state.days0;
+    return { state, effects: [{ patch }] };
+  };
+  const editable = (id, point, scene) => {
+    const p = scene.params;
+    if (!isModel(p) || !NUMBERS.includes(id)) return null;
+    const v = current(id, p);
+    if (id === "r0_value") return { value: fix(v, 2), label: kit.say({ en: "Basic reproduction number R0", nb: "Basisreproduksjonstall R0" }), min: 0.1, max: 20, step: 0.1 };
+    if (id === "rate_0") return { value: fix(v, 3), label: kit.say({ en: "Transmission rate β per day", nb: "Smitterate β per dag" }), min: 0.001, max: 20, step: 0.01 };
+    if (id === "vax_value") return { value: fix(v * 100, 1), label: kit.say({ en: "Vaccinated, percent", nb: "Vaksinert, prosent" }), min: 0, max: 100, step: 1 };
+    if (id === "intervention_label") return intervention(p) ? { value: fix(v * 100, 1), label: kit.say({ en: "Contacts cut, percent", nb: "Kontakter kuttet, prosent" }), min: 0, max: 100, step: 1 } : null;
+    const key = stayOf(id, model(p).kind);
+    if (!key) return null;
+    const what = key === "latent_days" ? { en: "Days latent", nb: "Dager latent" } : key === "immunity_days" ? { en: "Days immune", nb: "Dager immun" } : { en: "Days infectious", nb: "Dager smittsom" };
+    return { value: fix(v, 1), label: kit.say(what), min: key === "immunity_days" ? 5 : 0.5, max: key === "immunity_days" ? 36500 : 365, step: key === "immunity_days" ? 5 : 0.5 };
+  };
+  const parts = (scene) => (isModel(scene.params) ? [...NUMBERS, "cursor", "intervention"].filter((id) => scene.ids.includes(id)) : []);
+  // The plot's own paper: a press there reads the day under it.
+  const surface = (scene) => {
+    if (!isModel(scene.params) || !scene.ids.includes("axes")) return null;
+    const H = horizonOf(scene);
+    const a = scene.toLogical([0, 0]), b = scene.toLogical([H, 100]);
+    return { x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]), w: Math.abs(b[0] - a[0]), h: Math.abs(b[1] - a[1]) };
+  };
+  return { init, on, editable, parts, surface, live: true };
 ---
 template: distribution_curve
 title: Probability distribution curve

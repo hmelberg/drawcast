@@ -114,6 +114,10 @@ export interface WidgetBody {
    *  unless the body calls that part `editable`: then the tap opens its
    *  number field. */
   live?: true;
+  /** A live body's buttons (2026-09-28, reed_frost's "new runs"): a TAP on
+   *  one of these parts is the body's gesture after all — delivered as a
+   *  `click`, not passed on to the card or the play toggle. */
+  taps?: string[];
   /**
    * Blank paper the body owns (2026-09-27, equation_plot's plot area): a
    * press there that lands on no part is the body's live drag, delivered

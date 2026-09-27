@@ -30,6 +30,10 @@ export interface TemplateDoc {
    *  contract (widget-types.ts). Optional; a document with one is playable
    *  while paused by that fact alone. */
   widget?: string;
+  /** JS function body: (params, kit) => [{severity: "warn" | "error", message}]
+   *  — what the params SAY that the schema cannot check (SceneModule.lint).
+   *  Optional; a throw or a malformed issue reports nothing. */
+  lint?: string;
   /** Opt-in: widen params_schema (data-schema.ts) at registration so numeric
    *  and array leaves also accept a "{id.var}" data token. */
   accepts_data?: boolean;
@@ -138,6 +142,9 @@ export function validateTemplateDoc(raw: unknown): DocResult {
   }
   if (d.widget !== undefined && typeof d.widget !== "string") {
     errors.push("widget must be a string (a JavaScript function body returning { init, on })");
+  }
+  if (d.lint !== undefined && typeof d.lint !== "string") {
+    errors.push("lint must be a string (a JavaScript function body returning an array of issues)");
   }
   if (d.title !== undefined && typeof d.title !== "string") errors.push("title must be a string");
   if (d.accepts_data !== undefined && typeof d.accepts_data !== "boolean") errors.push("accepts_data must be a boolean");

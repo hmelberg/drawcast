@@ -139,7 +139,7 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
   // discarded (the host's own body still mounts on the first event). A body
   // that throws on construction simply wants no keys — clickAt says so too.
   // Its named parts and its live flag come off the same probe.
-  const probe: { keys: string[]; parts?: WidgetBody["parts"]; live: boolean; editable: boolean; surface?: boolean; restLabel?: string } = (() => {
+  const probe: { keys: string[]; parts?: WidgetBody["parts"]; live: boolean; editable: boolean; surface?: boolean; restLabel?: string; taps?: string[] } = (() => {
     try {
       const b = module.widget!();
       return {
@@ -149,6 +149,7 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
         editable: typeof b.editable === "function",
         surface: typeof b.surface === "function",
         ...(typeof b.restLabel === "string" && b.restLabel.trim() !== "" ? { restLabel: b.restLabel.trim().slice(0, 40) } : {}),
+        ...(Array.isArray(b.taps) ? { taps: b.taps.filter((t): t is string => typeof t === "string") } : {}),
       };
     } catch {
       return { keys: [], live: false, editable: false };
@@ -461,6 +462,11 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
         // A tap is not a live body's gesture: the caller lets its click go
         // on — unless the body types the number the tap landed on.
         if (!g.moved) {
+          // A button of the body's (WidgetBody.taps): the tap is its gesture.
+          if (probe.taps?.includes(g.id)) {
+            run(g.scene, { type: "click", id: g.id, point: g.start, domain: g.scene.toDomain(g.start) });
+            return "click";
+          }
           const f = fieldFor(g.scene, g.id, g.start);
           if (!f) return "pass";
           editing = { id: g.id, point: g.start, scene: g.scene, ...f };
@@ -722,7 +728,7 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
     // capture listener sits on this same stage (so a plain stopPropagation
     // never reached it): a curve let go under the pointer is not a tap on it.
     // A tap that opened a number field is the field's, likewise.
-    swallowAll = read === "drag" || read === "edit";
+    swallowAll = read === "drag" || read === "edit" || (read === "click" && host.live);
     if (read === "edit") openField();
   };
   stage.addEventListener("pointerup", (e) => end(e, false), true);
