@@ -73,7 +73,9 @@ describe("the default catalog", () => {
     expect(stable).not.toContain("### Scene template: supply_demand (READY");
     expect(stable).not.toContain("### Scene template: qaly_profiles (READY");
     expect(stable).not.toContain("### Scene template: decision_tree (READY");
-    expect(stable.length).toBeLessThan(15_000); // measured 14,602, rounded up to the next 500
+    // measured 15,080 after the 2026-09-28 template round (one index line per
+    // new template: motion graphs, titration, Maxwell–Boltzmann…); room for its rest.
+    expect(stable.length).toBeLessThan(16_000);
     // The index itself is intact: every ready template still has its line.
     for (const id of readyIds()) expect(stable).toContain(`- ${id}: `);
     expect(stable).toContain("need_template");

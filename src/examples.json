@@ -71167,5 +71167,1180 @@
         }
       ]
     }
+  },
+  {
+    "request": "How can you read a landscape of hills and valleys from a 3D surface?",
+    "spec": {
+      "title": "Reading hills and valleys on a 3D surface",
+      "template": "plot3d",
+      "params": {
+        "surface": "exp(-((x-1)^2 + (y-1)^2)) + 0.7*exp(-((x+1.2)^2 + (y+0.8)^2)/0.6) - 0.6*exp(-((x+0.6)^2 + (y-1.4)^2)/0.5)",
+        "domain": [
+          -3,
+          3
+        ],
+        "grid_n": 20,
+        "style": "mesh",
+        "color_by": "height",
+        "shading": true,
+        "legend": true,
+        "azimuth_deg": 35,
+        "elevation_deg": 22,
+        "marks": [
+          {
+            "at": [
+              1,
+              1
+            ],
+            "label": "Peak"
+          },
+          {
+            "at": [
+              -1.2,
+              -0.8
+            ],
+            "label": "Hill"
+          },
+          {
+            "at": [
+              -0.6,
+              1.4
+            ],
+            "label": "Pit"
+          }
+        ]
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Reading a 3D landscape"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "How do you read hills and valleys off a 3D surface, where every spot on the ground has its own height?"
+        },
+        {
+          "draw": [
+            "surface"
+          ],
+          "speak": "Here is one: over each spot x, y the surface rises to its height z, built from small flat patches."
+        },
+        {
+          "draw": [
+            "colorbar"
+          ],
+          "speak": "Each patch is coloured by that height: blue is low, green is in between, gold is high."
+        },
+        {
+          "draw": [
+            "mark_0"
+          ],
+          "speak": "So the brightest gold is the summit, almost one unit up."
+        },
+        {
+          "draw": [
+            "mark_1"
+          ],
+          "speak": "Behind it stands a second, lower hill, so its top is only pale gold."
+        },
+        {
+          "draw": [
+            "mark_2"
+          ],
+          "speak": "And the deep blue hollow is a pit, sinking below zero."
+        },
+        {
+          "speak": "Light falls from the upper left, so slopes turned away are darker: that is what makes the hills look round.",
+          "animate": {
+            "azimuth_deg": 70
+          },
+          "duration": 3
+        },
+        {
+          "animate": {
+            "azimuth_deg": 125
+          },
+          "duration": 3,
+          "speak": "Walk around it, and the colours stay with the ground: gold means high from every side."
+        },
+        {
+          "animate": {
+            "azimuth_deg": 215,
+            "elevation_deg": 6
+          },
+          "duration": 3,
+          "speak": "Crouch down low, and the hills start to hide each other, just as on a real hike."
+        },
+        {
+          "animate": {
+            "azimuth_deg": 215,
+            "elevation_deg": 85
+          },
+          "duration": 3.5,
+          "speak": "Now look straight down: the heights flatten away, yet the colours still show every hill and hollow."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "colorbar"
+            },
+            "gesture": "circle"
+          },
+          "speak": "That is the trick of an atlas, which tints lowlands green and mountains brown."
+        },
+        {
+          "animate": {
+            "azimuth_deg": 395,
+            "elevation_deg": 30
+          },
+          "duration": 3.5,
+          "speak": "Colour for height, light for slope: together they let the eye read a surface at a glance."
+        },
+        {
+          "explore": {},
+          "speak": "Now turn it yourself: drag the landscape, and find the pit from every side."
+        },
+        {
+          "speak": "Blue is low, gold is high, and a darker patch is a slope facing away from the light."
+        },
+        {
+          "quiz": {
+            "question": "Seen from straight above, how can you still tell the peak from the pit?",
+            "choices": [
+              "By their colour",
+              "By the size of the patches",
+              "You cannot tell"
+            ],
+            "correct": 1,
+            "right": "By colour: the peak is gold and the pit is blue, whatever the angle.",
+            "wrong": "Think about what the colour bar measures."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "What does Km mean for an enzyme, and what does a competitive inhibitor do to it?",
+    "spec": {
+      "title": "What Km tells you about an enzyme",
+      "template": "equation_plot",
+      "params": {
+        "preset": "michaelis_menten_competitive",
+        "params": {
+          "I": 0
+        },
+        "x_label": "substrate (mM)"
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "What Km tells you"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "What does an enzyme's Km actually tell you, and why does a drug that blocks the enzyme change it?"
+        },
+        {
+          "draw": [
+            "eq",
+            "curve_0"
+          ],
+          "speak": "Give an enzyme more substrate and it works faster, but not without limit: the rate levels off."
+        },
+        {
+          "draw": [
+            "vmax"
+          ],
+          "speak": "It levels off at Vmax, here 10, when every enzyme molecule is busy all the time."
+        },
+        {
+          "draw": [
+            "km"
+          ],
+          "speak": "Km is the substrate concentration that gives half that top speed: here 2 millimolar."
+        },
+        {
+          "highlight": {
+            "target": [
+              "km_x_label"
+            ]
+          },
+          "speak": "A small Km means half speed on very little substrate: roughly, the enzyme binds its substrate tightly."
+        },
+        {
+          "draw": [
+            "eq_1",
+            "curve_1"
+          ],
+          "speak": "Now add a competitive inhibitor, a look-alike molecule that sits in the active site and blocks it."
+        },
+        {
+          "draw": [
+            "panel"
+          ]
+        },
+        {
+          "animate": {
+            "params.I": 2
+          },
+          "duration": 3,
+          "speak": "At low substrate the inhibitor wins many of the sites, so the red curve slides to the right."
+        },
+        {
+          "draw": [
+            "km_app"
+          ],
+          "speak": "Half of Vmax now takes 6 millimolar: the apparent Km has tripled."
+        },
+        {
+          "highlight": {
+            "target": [
+              "vmax"
+            ]
+          },
+          "speak": "But flood the enzyme with substrate and it still climbs toward the same Vmax, because substrate outcompetes the inhibitor."
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve_1"
+            ]
+          },
+          "speak": "Fomepizole, the antidote to methanol poisoning, blocks the liver enzyme alcohol dehydrogenase in just this way."
+        },
+        {
+          "explore": {},
+          "speak": "Try it: change the inhibitor or Km, or slide the Km point along the curve."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "km_app"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Km marks where the curve reaches half speed; a competitive inhibitor pushes that point right and leaves the ceiling where it was."
+        },
+        {
+          "quiz": {
+            "question": "A competitive inhibitor is added. What happens?",
+            "choices": [
+              "Vmax falls, Km stays",
+              "Vmax stays, Km rises",
+              "Both fall"
+            ],
+            "correct": 2,
+            "right": "Vmax stays, since enough substrate outcompetes the inhibitor, and Km rises, since half speed now needs more substrate.",
+            "wrong": "Think of what happens when there is far more substrate than inhibitor."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why does the Bohr shift help working muscle get more oxygen from the blood?",
+    "spec": {
+      "title": "How working muscle gets more oxygen",
+      "template": "equation_plot",
+      "params": {
+        "preset": "oxygen_dissociation",
+        "x_range": [
+          0,
+          120
+        ],
+        "marks": [
+          {
+            "kind": "point",
+            "at": 100,
+            "id": "lungs"
+          },
+          {
+            "kind": "point",
+            "at": 20,
+            "id": "muscle"
+          }
+        ]
+      },
+      "elements": [
+        {
+          "id": "lungs_word",
+          "type": "label",
+          "attach_to": "lungs",
+          "side": "below-right",
+          "text": "lungs"
+        },
+        {
+          "id": "muscle_word",
+          "type": "label",
+          "attach_to": "muscle",
+          "side": "above-left",
+          "text": "muscle"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Oxygen for working muscle"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Why does hard-working muscle get more oxygen out of the same blood?"
+        },
+        {
+          "draw": [
+            "eq",
+            "curve_0"
+          ],
+          "speak": "This S-shaped curve shows how full haemoglobin is with oxygen at each oxygen pressure."
+        },
+        {
+          "draw": [
+            "lungs",
+            "lungs_word"
+          ],
+          "speak": "In the lungs, at about 100 millimetres of mercury, blood leaves almost full: about 97 percent."
+        },
+        {
+          "draw": [
+            "muscle",
+            "muscle_word"
+          ],
+          "speak": "In a hard-working muscle the pressure falls to about 20, where only about 31 percent stays bound."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "muscle"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Everything in between is handed to the muscle, thanks to the steep middle of the curve."
+        },
+        {
+          "draw": [
+            "p50"
+          ],
+          "speak": "One number sums up where the curve sits: P50, the pressure at which haemoglobin is half full, about 27."
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve_0"
+            ]
+          },
+          "speak": "Working muscle is also warmer, more acidic and full of carbon dioxide, and each of these loosens haemoglobin's grip."
+        },
+        {
+          "draw": [
+            "panel"
+          ]
+        },
+        {
+          "animate": {
+            "params.P_50": 32
+          },
+          "duration": 3,
+          "ghost": [
+            "curve_0"
+          ],
+          "speak": "That shifts the whole curve to the right: P50 rises to about 32."
+        },
+        {
+          "highlight": {
+            "target": [
+              "muscle"
+            ]
+          },
+          "speak": "At 20 in the muscle, saturation drops from 31 to about 22 percent: nine more percent of the load is let go."
+        },
+        {
+          "highlight": {
+            "target": [
+              "lungs"
+            ]
+          },
+          "speak": "In the lungs, on the flat top, the shift hardly matters: blood still loads to about 96 percent."
+        },
+        {
+          "highlight": {
+            "target": [
+              "p50"
+            ]
+          },
+          "speak": "The acid and carbon dioxide part of this is the Bohr effect, described by Christian Bohr in 1904."
+        },
+        {
+          "erase": [
+            "curve_0_ghost"
+          ]
+        },
+        {
+          "explore": {},
+          "speak": "Try it: slide P50 or the Hill number and watch the lungs and the muscle."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "muscle"
+            },
+            "gesture": "tap"
+          },
+          "speak": "So the shift costs almost nothing where oxygen is picked up, and gives extra exactly where it is burned."
+        },
+        {
+          "quiz": {
+            "question": "A fever shifts the curve to the right. What happens in the tissues?",
+            "choices": [
+              "Less oxygen is released",
+              "More oxygen is released",
+              "Nothing changes"
+            ],
+            "correct": 2,
+            "right": "More is released: a right shift lowers the saturation at tissue pressures, so haemoglobin lets go of more.",
+            "wrong": "Look at what the shift did at the muscle's pressure."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why does population growth slow down as it approaches the carrying capacity?",
+    "spec": {
+      "title": "Why growth slows near the carrying capacity",
+      "template": "equation_plot",
+      "params": {
+        "preset": "logistic_vs_exponential",
+        "params": {
+          "t_1": {
+            "value": 3,
+            "min": 0,
+            "max": 25,
+            "step": 0.1,
+            "label": "time"
+          }
+        },
+        "panel": [
+          "r",
+          "K",
+          "N_0"
+        ],
+        "x_label": "years",
+        "y_label": "rabbits",
+        "marks": [
+          {
+            "kind": "tangent",
+            "at": "t_1",
+            "label": true
+          }
+        ]
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Why growth slows down"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Why does a growing population slow down as it fills its habitat, long before it runs out of room?"
+        },
+        {
+          "draw": [
+            "eq_1",
+            "curve_1"
+          ],
+          "speak": "Put ten rabbits on an island, breeding at a rate of half their number a year: unchecked, that is exponential growth, and it shoots off the chart."
+        },
+        {
+          "draw": [
+            "capacity"
+          ],
+          "speak": "But the island can feed only about a thousand: its carrying capacity, K."
+        },
+        {
+          "draw": [
+            "eq",
+            "curve_0"
+          ],
+          "speak": "Real growth follows this S-shaped logistic curve instead, bending over toward K."
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq"
+            ]
+          },
+          "speak": "Each rabbit's breeding rate shrinks with the room that is left: at half full, it breeds at half the rate."
+        },
+        {
+          "draw": [
+            "tangent"
+          ],
+          "speak": "The steepness of the curve is the growth itself: new rabbits per year."
+        },
+        {
+          "animate": {
+            "params.t_1": 9.2
+          },
+          "duration": 3,
+          "speak": "Early on there are few parents; as they multiply, with room to spare, the slope grows."
+        },
+        {
+          "draw": [
+            "inflection"
+          ],
+          "speak": "It is steepest at 500 rabbits, half of K, where they add about 125 a year."
+        },
+        {
+          "animate": {
+            "params.t_1": 18
+          },
+          "duration": 3,
+          "speak": "Past that point, crowding cuts each rabbit's rate faster than the parents multiply, and growth dies away."
+        },
+        {
+          "highlight": {
+            "target": [
+              "capacity"
+            ]
+          },
+          "speak": "At a thousand, births just balance deaths, and the population stays put."
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve_0"
+            ]
+          },
+          "speak": "The Belgian mathematician Pierre-François Verhulst proposed this curve in 1838, for human populations."
+        },
+        {
+          "draw": [
+            "panel"
+          ]
+        },
+        {
+          "explore": {},
+          "speak": "Try it: change the growth rate or K, or slide the tangent along the curve."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "inflection"
+            },
+            "gesture": "circle"
+          },
+          "speak": "So the slowdown does not begin at the limit: it begins halfway there."
+        },
+        {
+          "quiz": {
+            "question": "An island can feed 1000 rabbits. At what size do they add the most rabbits a year?",
+            "choices": [
+              "100",
+              "500",
+              "990"
+            ],
+            "correct": 2,
+            "right": "At 500, half of K: there are plenty of parents, and each still breeds at half its full rate.",
+            "wrong": "Growth needs both many parents and room to spare."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "How do position, velocity and acceleration graphs fit together?",
+    "spec": {
+      "template": "motion_graphs",
+      "params": {
+        "segments": [
+          {
+            "duration": 3,
+            "a": 2,
+            "label": "speeding up"
+          },
+          {
+            "duration": 4,
+            "label": "cruising"
+          },
+          {
+            "duration": 3,
+            "v1": 0,
+            "label": "braking"
+          }
+        ],
+        "t": 0,
+        "labels": {
+          "object": "car"
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Motion graphs"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "How do the position, velocity and acceleration graphs of one trip fit together?"
+        },
+        {
+          "draw": [
+            "track",
+            "object"
+          ],
+          "speak": "Take one car on a straight road: it speeds up, cruises, then brakes to a stop."
+        },
+        {
+          "draw": [
+            "curve_x"
+          ],
+          "speak": "The top graph is position: how far along the road the car is at each moment."
+        },
+        {
+          "draw": [
+            "curve_v",
+            "curve_a"
+          ],
+          "speak": "Below it are velocity and acceleration, on the same clock."
+        },
+        {
+          "draw": [
+            "cursor"
+          ],
+          "speak": "This line is one moment in time, and every graph is read where it crosses."
+        },
+        {
+          "animate": {
+            "t": 10
+          },
+          "duration": 5,
+          "easing": "linear",
+          "speak": "Run the clock, and the car drives the whole trip while the line sweeps across."
+        },
+        {
+          "draw": [
+            "phases",
+            "boundaries"
+          ],
+          "speak": "Three phases, three shapes: a bend, a straight line, and a bend the other way."
+        },
+        {
+          "animate": {
+            "t": 5
+          },
+          "duration": 2.5,
+          "speak": "Stop in the middle of the cruise, at five seconds."
+        },
+        {
+          "highlight": {
+            "target": [
+              "tangent_x"
+            ]
+          },
+          "speak": "The position graph climbs six metres every second here."
+        },
+        {
+          "highlight": {
+            "target": [
+              "dot_v",
+              "readout_v"
+            ]
+          },
+          "speak": "And six is exactly the height of the velocity graph: velocity is the slope of position."
+        },
+        {
+          "highlight": {
+            "target": [
+              "tangent_v"
+            ]
+          },
+          "speak": "The velocity line is flat here, so its slope, the acceleration, is zero."
+        },
+        {
+          "animate": {
+            "t": 1.5
+          },
+          "duration": 2.5,
+          "speak": "While speeding up, velocity climbs two metres per second each second: acceleration sits at plus two."
+        },
+        {
+          "animate": {
+            "t": 8.5
+          },
+          "duration": 3,
+          "speak": "While braking, velocity falls, so acceleration drops below zero, though the car still rolls forward."
+        },
+        {
+          "highlight": {
+            "target": [
+              "a_seg_2",
+              "readout_a"
+            ]
+          },
+          "speak": "Negative acceleration means slowing down here, not going backwards."
+        },
+        {
+          "explore": {},
+          "speak": "Now drag the time line, or pull a piece of the velocity graph, and watch the other two follow."
+        },
+        {
+          "speak": "So read each graph by its slope: position's slope is velocity, and velocity's slope is acceleration."
+        },
+        {
+          "quiz": {
+            "question": "At eight seconds the car is braking. What is the sign of its acceleration?",
+            "choices": [
+              "Positive",
+              "Zero",
+              "Negative"
+            ],
+            "correct": 3,
+            "right": "Negative: the velocity graph slopes down while braking, even though the car still moves forward.",
+            "wrong": "Look at the slope of the velocity graph, not at its height."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why is the area under a velocity graph the distance travelled?",
+    "spec": {
+      "template": "motion_graphs",
+      "params": {
+        "v0": 4,
+        "segments": [
+          {
+            "duration": 3,
+            "label": "steady"
+          },
+          {
+            "duration": 6,
+            "a": -1,
+            "label": "hill"
+          }
+        ],
+        "panels": [
+          "x",
+          "v"
+        ],
+        "t": 0,
+        "shade": "to_cursor",
+        "tangents": false,
+        "labels": {
+          "object": "cart"
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Area and distance"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Why is the area under a velocity graph the distance travelled?"
+        },
+        {
+          "draw": [
+            "track",
+            "object"
+          ],
+          "speak": "A cart rolls along a track at a steady four metres per second."
+        },
+        {
+          "draw": [
+            "curve_v"
+          ],
+          "speak": "Its velocity graph is flat at four for the first three seconds."
+        },
+        {
+          "draw": [
+            "cursor",
+            "area"
+          ],
+          "speak": "Shade the area under that line, up to the moving time line."
+        },
+        {
+          "animate": {
+            "t": 3
+          },
+          "duration": 3,
+          "easing": "linear",
+          "speak": "In three seconds the shading grows into a rectangle, four high and three wide."
+        },
+        {
+          "highlight": {
+            "target": [
+              "area"
+            ],
+            "effect": "circle"
+          },
+          "speak": "Four times three is twelve, and the cart has gone exactly twelve metres."
+        },
+        {
+          "draw": [
+            "curve_x"
+          ],
+          "speak": "The position graph agrees: twelve metres after three seconds."
+        },
+        {
+          "highlight": {
+            "target": [
+              "v_seg_0"
+            ]
+          },
+          "speak": "No coincidence: height times width is speed times time, and that is distance."
+        },
+        {
+          "draw": [
+            "phases",
+            "boundaries"
+          ],
+          "speak": "Then the track climbs a hill, and the cart slows by one metre per second every second."
+        },
+        {
+          "animate": {
+            "t": 7
+          },
+          "duration": 4,
+          "easing": "linear",
+          "speak": "Each thin slice of time is still speed times a moment, so the triangle adds eight metres."
+        },
+        {
+          "animate": {
+            "t": 9
+          },
+          "duration": 3,
+          "easing": "linear",
+          "speak": "At seven seconds it stops, rolls back down, and the area below the axis counts backwards."
+        },
+        {
+          "highlight": {
+            "target": [
+              "readout_x",
+              "dot_x"
+            ]
+          },
+          "speak": "It ends eighteen metres from the start: twenty forward, then two back."
+        },
+        {
+          "highlight": {
+            "target": [
+              "area"
+            ],
+            "effect": "circle"
+          },
+          "speak": "The distance its wheels rolled counts both pieces as positive: twenty-two metres."
+        },
+        {
+          "explore": {},
+          "speak": "Now drag the time line, or lift the velocity graph, and watch the area and the position move together."
+        },
+        {
+          "speak": "So the area under velocity is the distance travelled, and counted with signs, it is the change in position."
+        },
+        {
+          "quiz": {
+            "question": "A velocity graph has 10 m of area above the axis and 4 m below. Where does the object end up?",
+            "choices": [
+              "14 m from the start",
+              "6 m from the start",
+              "4 m from the start"
+            ],
+            "correct": 2,
+            "right": "6 m: the area below the axis is motion backwards, so it is taken away, while the distance travelled is 14 m.",
+            "wrong": "Area below the axis is movement in the other direction."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why does the pH jump at the equivalence point of a titration?",
+    "spec": {
+      "title": "Why the pH jumps at equivalence",
+      "template": "titration_curve",
+      "params": {
+        "kind": "weak_acid",
+        "pka": 4.76,
+        "c_analyte": 0.1,
+        "v_analyte": 25,
+        "c_titrant": 0.1,
+        "label": "acetic acid",
+        "compare": {
+          "kind": "strong_acid",
+          "label": "HCl"
+        },
+        "neutral": true,
+        "indicator": "phenolphthalein",
+        "flask": true,
+        "v": 0
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Why the pH jumps"
+          }
+        },
+        {
+          "draw": [
+            "axes",
+            "burette",
+            "flask"
+          ],
+          "speak": "Why does the pH in a titration barely move for ages, and then leap at a single drop?"
+        },
+        {
+          "draw": [
+            "legend"
+          ],
+          "speak": "The flask holds 25 millilitres of acid; the burette adds sodium hydroxide, both at 0.10 moles per litre."
+        },
+        {
+          "draw": [
+            "compare_curve",
+            "compare_label"
+          ],
+          "speak": "Take a strong acid first, hydrochloric acid, which is entirely split into ions from the start."
+        },
+        {
+          "highlight": {
+            "target": [
+              "compare_curve"
+            ]
+          },
+          "speak": "pH counts powers of ten: to go from pH 1 to pH 2, the base must remove nine in every ten hydrogen ions."
+        },
+        {
+          "draw": [
+            "compare_eq_point"
+          ],
+          "speak": "At 25 millilitres the acid is used up, and one drop either side swings the pH from about 4 to about 10."
+        },
+        {
+          "draw": [
+            "neutral_line"
+          ],
+          "speak": "That equivalence point sits at pH 7, because salt water is neutral."
+        },
+        {
+          "draw": [
+            "curve",
+            "curve_label"
+          ],
+          "speak": "Now a weak acid, acetic acid from vinegar: most molecules keep their hydrogen, so it starts near pH 2.9."
+        },
+        {
+          "draw": [
+            "buffer"
+          ],
+          "speak": "Each drop of base turns some acid into acetate, and the mixture soaks up the next drop: a buffer."
+        },
+        {
+          "draw": [
+            "cursor"
+          ]
+        },
+        {
+          "animate": {
+            "v": 12.5
+          },
+          "duration": 3,
+          "speak": "Half way, at 12.5 millilitres, there is exactly as much acetate as acid left."
+        },
+        {
+          "draw": [
+            "half_point"
+          ],
+          "speak": "There the pH equals the acid's pKa, 4.76, which is how chemists measure a pKa."
+        },
+        {
+          "animate": {
+            "v": 24
+          },
+          "duration": 3,
+          "speak": "The pH creeps up as long as some acid remains to take the base."
+        },
+        {
+          "animate": {
+            "v": 26
+          },
+          "duration": 2.5,
+          "speak": "Then two more millilitres take it from about 6 to above 11."
+        },
+        {
+          "draw": [
+            "eq_point"
+          ],
+          "speak": "This equivalence point lies near pH 8.7, not 7, because the acetate left behind is itself a weak base."
+        },
+        {
+          "draw": [
+            "indicator_band"
+          ],
+          "speak": "Phenolphthalein turns pink between 8.2 and 10, inside the jump, so the flask blushes right at the end point."
+        },
+        {
+          "explore": {},
+          "speak": "Try it: drag the purple point to change the pKa, or pull the cursor along the curve."
+        },
+        {
+          "speak": "The jump is steep because pH counts powers of ten, and at equivalence almost nothing is left to neutralise."
+        },
+        {
+          "quiz": {
+            "question": "Why is a weak acid's equivalence point above pH 7?",
+            "choices": [
+              "Its leftover base, acetate, takes H⁺ from water",
+              "Less sodium hydroxide was needed",
+              "The weak acid was more dilute"
+            ],
+            "correct": 1,
+            "right": "Acetate takes hydrogen ions from water and leaves hydroxide behind, so the solution is basic.",
+            "wrong": "Think about what the acid has turned into at equivalence."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why does a small rise in temperature speed up a reaction so much?",
+    "spec": {
+      "title": "Why a little heat speeds a reaction so much",
+      "template": "maxwell_boltzmann",
+      "params": {
+        "mode": "energy",
+        "T": 300,
+        "compare": {
+          "T": 310
+        },
+        "ea": 20,
+        "ea_catalyst": 14,
+        "tail_zoom": 50
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "A little heat, a lot faster"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Why does warming a reaction by just ten degrees speed it up so much?"
+        },
+        {
+          "draw": [
+            "curve",
+            "curve_label"
+          ],
+          "speak": "The molecules in a gas do not share one energy: at 300 kelvin most have little, and a few have a lot."
+        },
+        {
+          "draw": [
+            "ea_line"
+          ],
+          "speak": "To react, two molecules must meet with at least the activation energy, here 20 kilojoules per mole."
+        },
+        {
+          "draw": [
+            "tail",
+            "zoom_label"
+          ],
+          "speak": "Past that line the curve is too thin to see, so here it is magnified fifty times."
+        },
+        {
+          "draw": [
+            "shade",
+            "fraction_label"
+          ],
+          "speak": "Only this shaded tail can react: about one molecule in nine hundred."
+        },
+        {
+          "draw": [
+            "compare_curve",
+            "compare_label"
+          ],
+          "speak": "Now warm the gas by ten degrees, to 310 kelvin: only three percent hotter, and the crowd barely moves."
+        },
+        {
+          "draw": [
+            "compare_tail",
+            "compare_shade",
+            "compare_fraction_label"
+          ],
+          "speak": "But past the barrier the share grows from 0.11 to 0.14 percent, more than a quarter more."
+        },
+        {
+          "highlight": {
+            "target": [
+              "compare_shade"
+            ]
+          },
+          "speak": "The tail falls off exponentially, so a small shift of the whole crowd multiplies the few at its far end."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "ea_line"
+            },
+            "gesture": "tap"
+          },
+          "speak": "The higher the barrier, the stronger the effect: at 50 kilojoules, ten degrees nearly doubles the share."
+        },
+        {
+          "draw": [
+            "ea_cat_line",
+            "catalyst_shade"
+          ],
+          "speak": "A catalyst works another way: it opens a lower path, here 14 kilojoules."
+        },
+        {
+          "highlight": {
+            "target": [
+              "catalyst_shade"
+            ]
+          },
+          "speak": "That lets about nine times as many molecules through, with no heating at all."
+        },
+        {
+          "explore": {},
+          "speak": "Try it: drag a curve to heat or cool the gas, or slide either barrier."
+        },
+        {
+          "speak": "Heat nudges the whole crowd a little, but the reaction lives in the tail, where a little is a lot."
+        },
+        {
+          "quiz": {
+            "question": "Why does ten degrees matter so much more to the reaction than to the average molecule?",
+            "choices": [
+              "Only the far tail reacts, and it grows much faster",
+              "Warmer molecules have a lower barrier",
+              "The average energy doubles"
+            ],
+            "correct": 1,
+            "right": "Only molecules past the barrier react, and that steep tail grows by a quarter while the gas is only three percent hotter.",
+            "wrong": "Look at which part of the curve is shaded."
+          }
+        }
+      ]
+    }
   }
 ]
