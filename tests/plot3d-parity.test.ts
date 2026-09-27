@@ -4,8 +4,10 @@
 // casts animate to, the manifest's examples, the orbit sweep the pack tests
 // walked — to what it drew then: the same ids in the same order, the same
 // geometry, the same placed labels. tests/fixtures/plot3d-parity.json was
-// written by the pack version (PLOT3D_PARITY_WRITE=1) before the move.
-import { readFileSync, writeFileSync } from "node:fs";
+// written by the pack version before the move (the commit that added this
+// file registered the mathlogic pack and wrote it) and is never rewritten:
+// a figure that changes on purpose changes here by hand.
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import examples from "../src/examples.json";
 import { layoutSpec } from "../src/layout/layout";
@@ -58,17 +60,6 @@ export function fingerprint(params: Record<string, unknown>): unknown {
 
 describe("plot3d parity with the pack version", () => {
   const cases = parityCases();
-  if (process.env.PLOT3D_PARITY_WRITE === "1") {
-    test("write the fixture", async () => {
-      const { registerPack } = await import("../src/scenes/packs");
-      const yaml = (await import("../src/scenes/packs/mathlogic.yaml?raw")).default;
-      registerPack("mathlogic", yaml);
-      const out: Record<string, unknown> = {};
-      for (const c of cases) out[c.name] = { params: c.params, figure: fingerprint(c.params) };
-      writeFileSync(FIXTURE, JSON.stringify(out));
-    });
-    return;
-  }
   const fixture = JSON.parse(readFileSync(FIXTURE, "utf8")) as Record<string, { params: Record<string, unknown>; figure: unknown }>;
   test("the fixture covers every case", () => {
     expect(Object.keys(fixture).sort()).toEqual(cases.map((c) => c.name).sort());

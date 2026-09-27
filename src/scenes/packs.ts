@@ -145,7 +145,7 @@ export const PACK_TEMPLATES: Record<string, string[]> = {
   biology: ["dna_helix", "flower_anatomy", "food_web", "membrane_bilayer", "pathway", "phylo_tree", "punnett_square", "water_cycle"],
   economics: ["firm_cost_curves", "game_tree", "indifference_budget", "payoff_matrix", "ppf"],
   evidence: ["causal_dag", "distribution_curve", "forest_plot", "sir_compartments", "survival_curve"],
-  mathlogic: ["argument_map", "circle_sectors", "equation_steps", "geometry_figure", "number_line", "plot3d", "riemann_sum", "tangent_secant", "truth_table", "unit_circle", "venn_diagram"],
+  mathlogic: ["argument_map", "circle_sectors", "equation_steps", "geometry_figure", "number_line", "riemann_sum", "tangent_secant", "truth_table", "unit_circle", "venn_diagram"],
   medicine: ["ecg_strip", "heart_circulation", "icon_array", "nephron", "neuron", "pk_curve", "pv_loop", "screening_timeline"],
   anatomy: ["anatomy"],
   macro: ["ad_as", "is_lm", "solow_growth"],

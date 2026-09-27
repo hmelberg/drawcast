@@ -40,6 +40,11 @@ import { layoutEquationPlot, type EquationPlotParams } from "./equation_plot/lay
 import { lintEquationPlot } from "./equation_plot/lint";
 import { equationPlotWidget } from "./equation_plot/widget";
 import { readModel as readEquationPlot } from "./equation_plot/model";
+import plot3dManifest from "./plot3d/manifest.json";
+import { layoutPlot3d, type Plot3dParams } from "./plot3d/layout";
+import { lintPlot3d } from "./plot3d/lint";
+import { plot3dWidget } from "./plot3d/widget";
+import { readModel as readPlot3d } from "./plot3d/model";
 import { traySliders } from "./params-ui/params";
 
 export const scenes: Record<string, SceneModule> = {
@@ -108,6 +113,16 @@ export const scenes: Record<string, SceneModule> = {
     // panel's sliders and boxes, or by dragging the curve itself.
     widget: equationPlotWidget,
     sliders: (params) => traySliders(params.params, readEquationPlot(params as unknown as EquationPlotParams)),
+  },
+  // Built in since 2026-09-27 (it was the mathlogic pack's): the params-ui
+  // modules its live parameters use are TypeScript. Free play: orbit, zoom,
+  // and the parameters scrubbed, typed or slid.
+  plot3d: {
+    manifest: plot3dManifest as SceneManifest,
+    layout: (params) => layoutPlot3d(params as Plot3dParams),
+    lint: (params) => lintPlot3d(params as Plot3dParams),
+    widget: plot3dWidget,
+    sliders: (params) => traySliders(params.params, readPlot3d(params as Plot3dParams)),
   },
 };
 

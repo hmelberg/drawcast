@@ -37,7 +37,6 @@ const CONDITIONAL: Record<string, string[]> = {
   geometry_figure: ["ticks_<i>"],
   truth_table: ["title"],
   argument_map: ["title"],
-  plot3d: ["pt_<i>", "pt_label_<i>", "title"],
   ecg_strip: ["label_st", "st_pointer"],
   heart_circulation: ["label_defect"],
   pv_loop: ["edpvr"],
