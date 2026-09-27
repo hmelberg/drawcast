@@ -126,7 +126,50 @@ function branchLabels(spec: Spec, measure: MeasureFn) {
   return out;
 }
 
+// The other model-written version of the aneurysm question (prompt lab,
+// 2026-09-27, "A*"): a two-way and a three-way chance node, each with its
+// folded-back value, in a wide, short box. The bundled "Operate or watch?"
+// is the "D*" version of the same tree.
+const aneurysmAStar = {
+  box: { x: 30, y: 250, w: 940, h: 400 },
+  root: {
+    id: "choice",
+    type: "decision",
+    label: "4.5 cm aneurysm",
+    children: [
+      {
+        label: "",
+        node: {
+          id: "now",
+          type: "chance",
+          label: "Operate now",
+          value: "12.6 years",
+          children: [
+            { label: "Survives", probability: 0.97, node: t("now_ok", "Repaired", 13) },
+            { label: "Dies", probability: 0.03, node: t("now_death", "Died", 0) },
+          ],
+        },
+      },
+      {
+        label: "",
+        node: {
+          id: "wait",
+          type: "chance",
+          label: "Watch and wait",
+          value: "12.6 years",
+          children: [
+            { label: "Stable", probability: 0.45, node: t("small", "Never operated", 13) },
+            { label: "Grows", probability: 0.53, node: t("later", "Repaired later", 12.6) },
+            { label: "Bursts", probability: 0.02, node: t("rupture", "Rupture", 4) },
+          ],
+        },
+      },
+    ],
+  },
+} as DecisionTreeParams;
+
 const cases: [string, Spec][] = [
+  ["the aneurysm tree as a second model wrote it, in a box", specOf(aneurysmAStar)],
   ["the aneurysm tree (a three-way fan under a decision)", specOf(aneurysm)],
   ["two arms of two-way fans", specOf(twoArms)],
   ["a three-way fan", specOf(fan(3))],
@@ -180,4 +223,38 @@ test("the failing tree's outer labels sit outside their fan", () => {
   };
   expect(above("branchlabel_watch_burst")).toBe(true);
   expect(above("branchlabel_watch_stable")).toBe(false);
+});
+
+// Both model-written aneurysm trees lay out with no lint issue at all: no
+// label on another, none on a line, no payoff under a leader, the values
+// clear of the fans' outer labels — and at a readable size in their box.
+describe.each([
+  ["A*", aneurysmAStar],
+  ["D* (bundled)", (examples as { spec?: Spec }[]).find((e) => e.spec?.title === "Operate or watch?")!.spec!.params as unknown as DecisionTreeParams],
+])("the %s aneurysm tree", (_name, params) => {
+  test.each([0.85, 1, 1.15])("lints clean at text width ×%s", (k) => {
+    const r = layoutSpec(structuredClone(specOf(params)), scaled(k));
+    expect(r.issues.map((i) => `[${i.severity}] ${i.message}`)).toEqual([]);
+    expect(r.warnings).toEqual([]);
+  });
+
+  test("keeps its labels near their full size", () => {
+    const r = layoutSpec(structuredClone(specOf(params)));
+    expect(r.fit?.s ?? 1).toBeGreaterThan(0.75);
+  });
+
+  test("gives each chance node's value room clear of its fan's first and last labels", () => {
+    const r = layoutSpec(structuredClone(specOf(params)));
+    const text = leafDrawables(r.drawables).filter((d) => d.kind === "text");
+    const box = (id: string) => bboxOfText(text.find((d) => d.id === id)! as never, heuristicMeasure);
+    for (const v of text.filter((d) => d.id.startsWith("value_"))) {
+      const parent = v.id.slice("value_".length);
+      const vb = box(v.id);
+      for (const l of text.filter((d) => d.id.startsWith(`branchlabel_${parent}_`))) {
+        const lb = box(l.id);
+        const apart = vb.x + vb.w + 6 <= lb.x || lb.x + lb.w + 6 <= vb.x || vb.y + vb.h + 6 <= lb.y || lb.y + lb.h + 6 <= vb.y;
+        expect(apart, `${v.id} crowds ${l.id}`).toBe(true);
+      }
+    }
+  });
 });

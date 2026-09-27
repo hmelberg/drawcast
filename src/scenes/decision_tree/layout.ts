@@ -2,7 +2,7 @@
 // Health-economics conventions: decision = square, chance = circle,
 // terminal = triangle. The LLM never places nodes.
 
-import { hierarchy, tree } from "d3-hierarchy";
+import { hierarchy, tree, type HierarchyNode } from "d3-hierarchy";
 import { CANVAS } from "../../layout/canvas";
 import { heuristicMeasure } from "../../layout/measure";
 import {
@@ -17,6 +17,8 @@ import {
 } from "../../layout/model";
 import { wrapText, type LabelCorridor, type LabelRequest } from "../../layout/labels";
 import type { SceneLayout } from "../types";
+import type { BBox } from "../../layout/geometry";
+import { fitRegion, isFitName } from "../../layout/regions";
 
 export interface TreeNode {
   id?: string;
@@ -66,16 +68,47 @@ function wrap(node: TreeNode, path: number[], branch?: TreeBranch): Wrapped {
   };
 }
 
+/** A terminal's payoff text ("12.4", "12.4, cost 300"), or nothing. */
+function payoffOf(w: Wrapped): string | undefined {
+  const payoff = w.node.payoff ?? w.branch?.payoff;
+  const cost = w.node.cost ?? w.branch?.cost;
+  if (payoff === undefined && cost === undefined) return undefined;
+  const parts: string[] = [];
+  if (payoff !== undefined) parts.push(String(payoff));
+  if (cost !== undefined) parts.push(`cost ${cost}`);
+  return parts.join(", ");
+}
+
 function nodeRadius(type: TreeNode["type"]): number {
   return type === "decision" ? 34 : type === "chance" ? 30 : 32;
 }
 
-export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { positions: Record<string, Pt> } {
+export function layoutDecisionTree(params: DecisionTreeParams & { box?: unknown }): SceneLayout & { positions: Record<string, Pt> } {
   const rootWrapped = wrap(params.root, [0]);
   const h = hierarchy(rootWrapped, (d) => d.children);
-  const plotW = CANVAS.w - MARGIN.left - MARGIN.right;
-  const plotH = CANVAS.h - MARGIN.top - MARGIN.bottom;
-  tree<Wrapped>().size([plotH, plotW])(h);
+  const box = boxOf(params.box);
+  let placed = placeNodes(h, box, 1);
+  // A box shorter than the tree's budget scales the whole tree down, and a
+  // tree scaled by its height leaves the box's width unused. Laid out wider,
+  // its fans' wedges open sooner and it needs less height: spread it toward
+  // where its width and its height ask the same scale of the box, and keep
+  // the spread that is shrunk least (a wrap can change on the way, so the
+  // height need is not monotone in the width).
+  if (box) {
+    const room = box.h - 2 * BOX_PAD;
+    const shrink = (g: number, p: typeof placed) => Math.max(g, p.extent / room);
+    let best = { g: 1, placed, cost: shrink(1, placed) };
+    let g = 1;
+    for (let i = 0; i < 4; i++) {
+      const want = placed.extent / room;
+      if (want <= g * 1.02) break;
+      g = (g + want) / 2;
+      placed = placeNodes(h, box, g);
+      if (shrink(g, placed) < best.cost - 0.01) best = { g, placed, cost: shrink(g, placed) };
+    }
+    placed = best.placed;
+  }
+  const placedAt = placed.at;
 
   const drawables: Drawable[] = [];
   const labels: LabelRequest[] = [];
@@ -84,13 +117,10 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
   const positions: Record<string, Pt> = {};
   const order: string[] = [];
   const attached: Record<string, string[]> = {};
+  /** Where a non-terminal's name and value end on the right. */
+  const words = new Map<string, { nameRight: number; valueRight?: number }>();
 
-  type LaidOut = typeof h & { x: number; y: number };
-  const pos = (n: typeof h): Pt => {
-    const l = n as LaidOut;
-    // d3: x = breadth, y = depth. Horizontal tree: depth → logical x, breadth top-down → logical y.
-    return [MARGIN.left + l.y, CANVAS.h - MARGIN.top - l.x];
-  };
+  const pos = (n: typeof h): Pt => placedAt.get(n)!;
 
   // Nodes first (breadth-first, so drawing order reads root → leaves).
   for (const n of h.descendants()) {
@@ -117,17 +147,12 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
       nameReq.minX = c[0] - TERMINAL_HALF;
       order.push(`label_${cleanId}`);
       attached[id] = [...(attached[id] ?? []), `label_${cleanId}`];
-      const b = n.data.branch;
-      const payoff = node.payoff ?? b?.payoff;
-      const cost = node.cost ?? b?.cost;
-      if (payoff !== undefined || cost !== undefined) {
-        const parts: string[] = [];
-        if (payoff !== undefined) parts.push(String(payoff));
-        if (cost !== undefined) parts.push(`cost ${cost}`);
+      const payoffText = payoffOf(n.data);
+      if (payoffText !== undefined) {
         // The payoff is placed before the name: it is the number the tree
         // folds back, and the name can move where the number cannot (a
         // crowded pair of terminals pushed "6" onto its own triangle).
-        const payoffReq = labelReq(`payoff_${cleanId}`, [c[0] + 42, c[1]], "right", parts.join(", "), LABEL_FONT, COLORS.supply, own);
+        const payoffReq = labelReq(`payoff_${cleanId}`, [c[0] + PAYOFF_DX, c[1]], "right", payoffText, LABEL_FONT, COLORS.supply, own);
         payoffReq.minX = c[0] + TERMINAL_HALF;
         labels.push(payoffReq);
         order.push(`payoff_${cleanId}`);
@@ -137,7 +162,14 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
       // its triangle, a branch label has one strip.
       terminalNames.push(nameReq);
     } else {
-      labels.push(labelReq(`label_${cleanId}`, [c[0], c[1] + nodeRadius(node.type)], "above", node.label, LABEL_FONT, COLORS.ink, own));
+      // Centred over the node, unless the branch coming in climbs through
+      // the name's left end ("Watch with scans" struck through by the edge
+      // from the decision above it): then as far right as that takes, short
+      // of the node's own top branch.
+      const nameW = textBox(node.label, NODE_LABEL_WIDTH).w;
+      const nameDx = clearShift(n, nameW, "above", pos);
+      words.set(cleanId, { nameRight: c[0] + nameDx + nameW / 2 });
+      labels.push(labelReq(`label_${cleanId}`, [c[0] + nameDx, c[1] + nodeRadius(node.type)], "above", node.label, LABEL_FONT, COLORS.ink, own));
       order.push(`label_${cleanId}`);
       attached[id] = [...(attached[id] ?? []), `label_${cleanId}`];
       // The folded-back value, under the node it summarises and in the same
@@ -145,7 +177,11 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
       // off the tree, where the comparison can no longer be seen (2026-09-27).
       if (node.value !== undefined && node.value !== "") {
         const valueId = `value_${cleanId}`;
-        labels.push(labelReq(valueId, [c[0], c[1] - nodeRadius(node.type)], "below", String(node.value), LABEL_FONT, COLORS.supply));
+        // Likewise clear of a branch coming in from below.
+        const valueW = textBox(String(node.value), NODE_LABEL_WIDTH).w;
+        const valueDx = clearShift(n, valueW, "below", pos);
+        words.get(cleanId)!.valueRight = c[0] + valueDx + valueW / 2;
+        labels.push(labelReq(valueId, [c[0] + valueDx, c[1] - nodeRadius(node.type)], "below", String(node.value), LABEL_FONT, COLORS.supply));
         order.push(valueId);
         attached[id] = [...(attached[id] ?? []), valueId];
       }
@@ -180,19 +216,14 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
     anchors[id] = mid;
     order.push(id);
 
-    const branch = n.data.branch;
-    const parts: string[] = [];
-    if (branch?.label) parts.push(branch.label);
-    // 1/3 prints as 0.3333333333333333 — a token too long to wrap. Three
-    // decimals is all a tree's reader uses.
-    const p = branch?.probability !== undefined ? Number(branch.probability.toFixed(3)) : undefined;
-    if (p !== undefined) parts.push(`p=${p}`);
-    const text = parts.length === 0 ? undefined : p !== undefined && branch?.label ? `${branch.label} (p=${p})` : parts.join(" ");
     const siblings = parent.children ?? [];
     branchLabels.push({
       edgeId: id,
       labelId: `branchlabel_${parent.data.cleanId}_${n.data.cleanId}`,
-      text,
+      text: branchText(n.data.branch),
+      // What the parent says under and over itself, which the fan's outer
+      // labels must not slide into (see branchLabelRequests).
+      parentWords: words.get(parent.data.cleanId)!,
       depth: parent.depth,
       from,
       to,
@@ -200,6 +231,8 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
       ux,
       // Where it sits in its own fan: the first child is the top one.
       rank: siblings.length <= 1 ? 0 : siblings.indexOf(n) / (siblings.length - 1) - 0.5,
+      first: siblings.indexOf(n) === 0,
+      last: siblings.indexOf(n) === siblings.length - 1,
     });
   }
 
@@ -214,11 +247,56 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
   return { drawables, labels, anchors, positions, order, attached };
 }
 
+/** A branch's label text: "Grows (p=0.53)", "p=0.2", "Watch", or nothing. */
+function branchText(branch: TreeBranch | undefined): string | undefined {
+  const parts: string[] = [];
+  if (branch?.label) parts.push(branch.label);
+  // 1/3 prints as 0.3333333333333333 — a token too long to wrap. Three
+  // decimals is all a tree's reader uses.
+  const p = branch?.probability !== undefined ? Number(branch.probability.toFixed(3)) : undefined;
+  if (p !== undefined) parts.push(`p=${p}`);
+  return parts.length === 0 ? undefined : p !== undefined && branch?.label ? `${branch.label} (p=${p})` : parts.join(" ");
+}
+
+/**
+ * How far right of its node to centre a name (above it) or a value (below
+ * it) of width w so the branch coming in — from the parent, up-left or
+ * down-left — passes clear of the text's near corner. Bounded by the node's
+ * own outer branch on that side, which leaves toward the right; where the
+ * two cannot both be cleared, halfway.
+ */
+function clearShift(n: HierarchyNode<Wrapped>, w: number, side: "above" | "below", pos: (n: HierarchyNode<Wrapped>) => Pt): number {
+  if (!n.parent) return 0;
+  const c = pos(n);
+  const p = pos(n.parent);
+  const s = side === "above" ? 1 : -1;
+  // The text's near edge stands this far from the centre; keep the line
+  // this much short of it.
+  const reach = nodeRadius(n.data.node.type) + LABEL_R - 8;
+  const half = w / 2 + 4;
+  const rise = s * (p[1] - c[1]);
+  if (rise <= 0 || c[0] <= p[0]) return 0;
+  const need = half - (reach * (c[0] - p[0])) / rise;
+  if (need <= 0) return 0;
+  const kids = n.children ?? [];
+  const outer = side === "above" ? kids[0] : kids[kids.length - 1];
+  if (outer) {
+    const o = pos(outer);
+    const riseO = s * (o[1] - c[1]);
+    if (riseO > 0) {
+      const room = (reach * (o[0] - c[0])) / riseO - half;
+      if (room < need) return Math.max(0, (need + room) / 2);
+    }
+  }
+  return need;
+}
+
 interface BranchLabel {
   edgeId: string;
   labelId: string;
   /** Undefined for a branch with nothing to say — it still bounds its neighbours' corridors. */
   text?: string;
+  parentWords: { nameRight: number; valueRight?: number };
   /** The parent's depth: every edge of one column spans the same x-range. */
   depth: number;
   from: Pt;
@@ -227,6 +305,9 @@ interface BranchLabel {
   uy: number;
   /** −0.5 = top of its fan, +0.5 = bottom, 0 = middle or only child. */
   rank: number;
+  /** The top (first) and bottom (last) branch of its fan; an only child is both. */
+  first: boolean;
+  last: boolean;
 }
 
 type Gap = "above" | "below";
@@ -292,6 +373,17 @@ function branchLabelRequests(branches: BranchLabel[], nodes: Pt[]): LabelRequest
       const whole = strip(wall, x0, x1);
       const last: LabelCorridor = wall ? { ...whole, give: LABEL_FONT } : strip(undefined, x0 - (x1 - x0) / 2, x1);
       req.corridors = [strip(other, x0, x1), ...(share < 1 ? [whole] : []), last];
+      // The parent's value sits under it and its name over it. The fan's
+      // bottom label, below its branch, slid back toward the parent under the
+      // value ("Stays small (p=0.68)" into "EV 97.5", 2026-09-27); the top
+      // label likewise into the name. Where the strip leaves room past them,
+      // the label starts past them.
+      const words = gap === "below" && b.last ? b.parentWords.valueRight : gap === "above" && b.first ? b.parentWords.nameRight : undefined;
+      if (words !== undefined) {
+        const xMin = words + 10;
+        const w = Math.max(...wrapText(b.text, LABEL_FONT, width, heuristicMeasure).map((l) => heuristicMeasure(l, LABEL_FONT).w));
+        if (x1 - xMin >= w + 8) req.corridors = req.corridors.map((c) => ({ ...c, xMin: Math.max(c.xMin, xMin) }));
+      }
       out.push(req);
     });
   }
@@ -444,6 +536,10 @@ const TERMINAL_HALF = 26;
 
 /** Node names, payoffs, values and branch labels all share one size. */
 const LABEL_FONT = 26;
+/** A label's line height, as the solver stacks lines (labels.ts LINE_HEIGHT). */
+const LINE = LABEL_FONT * 1.25;
+/** The widest a node's name runs before it wraps (labels.ts MAX_LABEL_WIDTH). */
+const NODE_LABEL_WIDTH = 280;
 
 /**
  * A branch label lives over its own branch, so the branch's horizontal span is
@@ -461,6 +557,206 @@ function branchLabelWidth(text: string, span: number, slope: number): number {
   const longestWord = Math.max(...text.split(/\s+/).map((w) => heuristicMeasure(w, LABEL_FONT).w));
   return Math.max(room, longestWord);
 }
+
+/** Where a terminal's payoff is anchored, right of its centre. */
+const PAYOFF_DX = 42;
+/** The solver's first-ring offset for a label at LABEL_FONT (labels.ts: 10 + 0.55 × font). */
+const LABEL_R = 10 + LABEL_FONT * 0.55;
+/** A column never narrower than this, whatever its labels. */
+const COLUMN_MIN = 230;
+/** A column's room besides its label: the two nodes' radii, their clearances, some air. */
+const COLUMN_ENDS = 100;
+/** Past this a branch label wraps rather than widening its column. */
+const COLUMN_LABEL_MAX = 300;
+/** Clearance a label keeps from each line that bounds it (labels.ts CORRIDOR_CLEAR), plus air. */
+const STRIP_CLEAR = 9;
+/** Measured text runs up to this much wider in a browser than heuristically (the tests use ×1.15). */
+const TEXT_SLACK = 1.15;
+/** Room over the top node and under the bottom one, before a box is full. */
+const BOX_PAD = 8;
+
+type Node = HierarchyNode<Wrapped>;
+
+/** A label's box at LABEL_FONT, wrapped at maxWidth. */
+function textBox(text: string, maxWidth: number): { w: number; h: number } {
+  const lines = wrapText(text, LABEL_FONT, maxWidth, heuristicMeasure);
+  return { w: Math.max(...lines.map((l) => heuristicMeasure(l, LABEL_FONT).w)), h: lines.length * LINE };
+}
+
+function boxOf(v: unknown): BBox | null {
+  if (isFitName(v)) return fitRegion(v);
+  if (typeof v !== "object" || v === null) return null;
+  const b = v as Record<string, unknown>;
+  if (!["x", "y", "w", "h"].every((k) => typeof b[k] === "number" && Number.isFinite(b[k]))) return null;
+  const r = b as unknown as BBox;
+  return r.w > 0 && r.h > 0 ? { x: r.x, y: r.y, w: r.w, h: r.h } : null;
+}
+
+/**
+ * Where every node goes. The tidy tree used to hand each leaf the same slot
+ * and stretch the tree to the page, so a three-way fan got the spacing of a
+ * two-way one and its middle label had no wedge to sit in (the aneurysm
+ * tree: "Grows (p=0.3)" exiled under the fan, "Stays small (p=0.68)" on
+ * "EV 97.5", 2026-09-27). Now the room is budgeted from what must fit:
+ *
+ * - each column is as wide as its longest branch label asks, so a column of
+ *   bare edges (a decision's unlabelled options) gives its width to the
+ *   column that talks;
+ * - two neighbouring nodes are as far apart as their words (name above,
+ *   value or payoff below) and the branch labels between them need — for two
+ *   branches of one fan that is the WEDGE, which opens from nothing at the
+ *   parent, so the label that sits in it asks for the spacing that opens it
+ *   wide enough where the label starts;
+ * - with a box the tree is laid out in the box itself, at label size, instead
+ *   of on the whole canvas and shrunk into it.
+ */
+function placeNodes(h: Node, boxParam: BBox | null, widen: number): { at: Map<Node, Pt>; extent: number } {
+  const nodes = h.descendants();
+  const order = new Map(nodes.map((n, i) => [n, i] as const)); // breadth-first: within a depth, top to bottom
+  const depth = h.height;
+  const node = (n: Node) => n.data.node;
+
+  // Horizontal: the root's name overhangs it on the left, the terminals'
+  // names and payoffs on the right.
+  const rootHalf = Math.max(textBox(node(h).label, NODE_LABEL_WIDTH).w, node(h).value ? textBox(String(node(h).value), NODE_LABEL_WIDTH).w : 0) / 2;
+  const rightWords = Math.max(
+    0,
+    ...nodes
+      .filter((n) => node(n).type === "terminal")
+      .map((n) => {
+        const pay = payoffOf(n.data);
+        return Math.max(LABEL_R + textBox(node(n).label, NODE_LABEL_WIDTH).w, pay === undefined ? 0 : PAYOFF_DX + LABEL_R + textBox(pay, NODE_LABEL_WIDTH).w);
+      }),
+  );
+  const [x0, x1] = boxParam
+    ? [boxParam.x + Math.min(Math.max(rootHalf + 10, 45), 160), boxParam.x + boxParam.w * widen - Math.min(Math.max(rightWords * TEXT_SLACK + 10, 120), 320)]
+    : [MARGIN.left, CANVAS.w - MARGIN.right];
+
+  const need = new Array<number>(depth).fill(COLUMN_MIN);
+  for (const n of nodes) {
+    const t = n.parent && branchText(n.data.branch);
+    if (t) need[n.parent!.depth] = Math.max(need[n.parent!.depth], Math.min(textBox(t, Infinity).w * TEXT_SLACK, COLUMN_LABEL_MAX) + COLUMN_ENDS);
+  }
+  const total = need.reduce((a, b) => a + b, 0);
+  const col = need.map((v) => (v * (x1 - x0)) / (total || 1));
+  const xAt = (d: number) => x0 + col.slice(0, d).reduce((a, b) => a + b, 0);
+
+  // Vertical: what each node's words take above and below its centre.
+  const above = (n: Node): number => {
+    const nameH = textBox(node(n).label, NODE_LABEL_WIDTH).h;
+    return node(n).type === "terminal" ? LABEL_R + nameH : nodeRadius(node(n).type) + LABEL_R + nameH;
+  };
+  const below = (n: Node): number => {
+    const v = node(n).value;
+    if (node(n).type === "terminal") return payoffOf(n.data) !== undefined ? LINE / 2 + 2 : TERMINAL_HALF;
+    return v !== undefined && v !== "" ? nodeRadius(node(n).type) + LABEL_R + textBox(String(v), NODE_LABEL_WIDTH).h : nodeRadius(node(n).type) + 6;
+  };
+  // Which side of its branch a label will take (assignStrips decides; this
+  // is its first choice): outside its fan for the outer two, and for a middle
+  // one the wedge on its outward side.
+  const gapOf = (n: Node): Gap => {
+    const sibs = n.parent!.children!;
+    const i = sibs.indexOf(n);
+    if (sibs.length === 1 || i === 0) return "above";
+    if (i === sibs.length - 1) return "below";
+    return i / (sibs.length - 1) - 0.5 <= 0 ? "above" : "below";
+  };
+  // A label wraps at its column's room less the widest a browser's text runs.
+  const labelWidth = (n: Node) => Math.max(60, (col[n.parent!.depth] - COLUMN_ENDS) / TEXT_SLACK);
+  const labelOn = (n: Node, gap: Gap) => {
+    const t = n.parent ? branchText(n.data.branch) : undefined;
+    return t !== undefined && gapOf(n) === gap ? t : undefined;
+  };
+  /** What a node and the branch label on each side of it take, above and below its centre. */
+  const up = (n: Node) => {
+    const t = labelOn(n, "above");
+    return Math.max(above(n), t === undefined ? 0 : textBox(t, labelWidth(n)).h + 2 * STRIP_CLEAR);
+  };
+  const down = (n: Node) => {
+    const t = labelOn(n, "below");
+    return Math.max(below(n), t === undefined ? 0 : textBox(t, labelWidth(n)).h + 2 * STRIP_CLEAR);
+  };
+  /** The spacing that opens a fan's wedge enough for `text` near the child end. */
+  const wedge = (text: string, c: number): number => {
+    let best = Infinity;
+    const words = text.split(/\s+/).length;
+    for (let W = (c - COLUMN_ENDS) / TEXT_SLACK, k = 0; k < words && W > 0; k++) {
+      const { w, h } = textBox(text, W);
+      const f = (c - nodeRadius("terminal") - 8 - w * TEXT_SLACK) / c;
+      if (f > 0.12) best = Math.min(best, (h + 2 * STRIP_CLEAR) / f);
+      W = w - 1;
+    }
+    return Number.isFinite(best) ? best : (textBox(text, 0).h + 2 * STRIP_CLEAR) / 0.12;
+  };
+  // A terminal short of the last column has its name and payoff out in the
+  // next column, where the tidy tree, which only compares nodes of one
+  // depth, never looks: a neighbouring subtree's leaves came down onto them
+  // (the few-shot's "Complication (p=0.15)" over "No operation"). Its
+  // neighbour subtree's full reach is measured in a first pass.
+  const reach = new Map<Node, { up: number; down: number }>();
+  const shallowTerminal = (n: Node) => node(n).type === "terminal" && n.depth < depth;
+  const sep = (a: Node, b: Node): number => {
+    const [u, l] = order.get(a)! < order.get(b)! ? [a, b] : [b, a];
+    let d = below(u) + above(l) + 8;
+    const uLabel = labelOn(u, "below");
+    const lLabel = labelOn(l, "above");
+    if (u.parent && u.parent === l.parent) {
+      const t = uLabel ?? lLabel;
+      if (t) d = Math.max(d, wedge(t, col[u.parent.depth]));
+    } else {
+      // The strip between two fans holds the bottom label of one and the
+      // top label of the other; the nodes' own words are further right.
+      d = Math.max(d, (uLabel ? down(u) : 0) + (lLabel ? up(l) : 0) + 6);
+    }
+    if (shallowTerminal(l) && reach.has(u)) d = Math.max(d, reach.get(u)!.down + up(l) + 8);
+    if (shallowTerminal(u) && reach.has(l)) d = Math.max(d, down(u) + reach.get(l)!.up + 8);
+    return d;
+  };
+  const bx = (n: Node) => (n as Node & { x: number }).x;
+  const layout = tree<Wrapped>().nodeSize([1, 1]).separation(sep);
+  layout(h);
+  if (nodes.some(shallowTerminal)) {
+    for (const n of nodes) {
+      if (!n.children) continue;
+      const sub = n.descendants().slice(1);
+      reach.set(n, {
+        up: Math.max(...sub.map((m) => bx(n) - bx(m) + up(m))),
+        down: Math.max(...sub.map((m) => bx(m) - bx(n) + down(m))),
+      });
+    }
+    layout(h);
+  }
+
+  // d3's x is breadth, top down. Logical y is up.
+  const lo = Math.min(...nodes.map(bx));
+  const hi = Math.max(...nodes.map(bx));
+  const out = new Map<Node, Pt>();
+  if (!boxParam) {
+    // On the bare canvas the nodes fill the plot band, as they always have.
+    const plotH = CANVAS.h - MARGIN.top - MARGIN.bottom;
+    const k = hi > lo ? plotH / (hi - lo) : 0;
+    for (const n of nodes) out.set(n, [xAt(n.depth), hi > lo ? CANVAS.h - MARGIN.top - (bx(n) - lo) * k : MARGIN.bottom + plotH / 2]);
+    return { at: out, extent: plotH };
+  }
+  // In a box: at the spacing budgeted, centred, words and outer labels
+  // included. A box too small overflows here, and the template fit then
+  // scales the whole tree, words and all, into it — the budget holds.
+  const top = Math.max(...nodes.map((n) => -bx(n) + up(n)));
+  const bottom = Math.min(...nodes.map((n) => -bx(n) - down(n)));
+  const room = boxParam.h - 2 * BOX_PAD;
+  const k = hi > lo ? Math.max(1, Math.min(BOX_STRETCH, 1 + (room - (top - bottom)) / (hi - lo))) : 1;
+  const mid = boxParam.y + boxParam.h / 2;
+  // Stretched by k, the words' extent is [bottom', top'] about the nodes.
+  const yOf = (n: Node) => -bx(n) * k;
+  const topK = Math.max(...nodes.map((n) => yOf(n) + up(n)));
+  const bottomK = Math.min(...nodes.map((n) => yOf(n) - down(n)));
+  const shift = mid - (topK + bottomK) / 2;
+  for (const n of nodes) out.set(n, [xAt(n.depth) - (boxParam.w * (widen - 1)) / 2, yOf(n) + shift]);
+  return { at: out, extent: topK - bottomK };
+}
+
+/** How much a box may spread the tree past its budget, to fill the box. */
+const BOX_STRETCH = 1.3;
 
 function nodeDrawable(id: string, type: TreeNode["type"], c: Pt): StrokeDrawable {
   const style = defaultStyle({ strokeWidth: 3.5, color: type === "decision" ? COLORS.demand : type === "chance" ? COLORS.supply : COLORS.ink });

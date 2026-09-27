@@ -66867,5 +66867,375 @@
         }
       ]
     }
+  },
+  {
+    "request": "Should a 70-year-old with a small aortic aneurysm have surgery now, or wait and watch?",
+    "spec": {
+      "title": "Operate or watch?",
+      "template": "decision_tree",
+      "params": {
+        "box": {
+          "x": 20,
+          "y": 140,
+          "w": 960,
+          "h": 515
+        },
+        "root": {
+          "id": "choice",
+          "type": "decision",
+          "label": "4.5 cm aneurysm, age 70",
+          "children": [
+            {
+              "label": "",
+              "node": {
+                "id": "surgery",
+                "type": "chance",
+                "label": "Operate now",
+                "value": "EV 97",
+                "children": [
+                  {
+                    "label": "Dies",
+                    "probability": 0.03,
+                    "node": {
+                      "id": "op_death",
+                      "type": "terminal",
+                      "label": "Dead",
+                      "payoff": 0
+                    }
+                  },
+                  {
+                    "label": "Survives",
+                    "probability": 0.97,
+                    "node": {
+                      "id": "repaired",
+                      "type": "terminal",
+                      "label": "Fixed",
+                      "payoff": 100
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "label": "",
+              "node": {
+                "id": "watch",
+                "type": "chance",
+                "label": "Watch with scans",
+                "value": "EV 97.5",
+                "children": [
+                  {
+                    "label": "Bursts",
+                    "probability": 0.02,
+                    "node": {
+                      "id": "rupture",
+                      "type": "terminal",
+                      "label": "Mostly fatal",
+                      "payoff": 20
+                    }
+                  },
+                  {
+                    "label": "Grows",
+                    "probability": 0.3,
+                    "node": {
+                      "id": "later_repair",
+                      "type": "terminal",
+                      "label": "Repaired later",
+                      "payoff": 97
+                    }
+                  },
+                  {
+                    "label": "Stays small",
+                    "probability": 0.68,
+                    "node": {
+                      "id": "stays_small",
+                      "type": "terminal",
+                      "label": "Never operated",
+                      "payoff": 100
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "details": {
+        "payoff_rupture": "About four in five people whose aneurysm ruptures die, many before they reach hospital. Payoffs here are the chance of surviving the aneurysm and its treatment over two years, out of 100.",
+        "value_watch": "Folded back: $0.02 \\times 20 + 0.30 \\times 97 + 0.68 \\times 100 = 97.5$. The numbers are rounded illustrations for a 4.5 cm aneurysm in a 70-year-old man over two years.",
+        "branchlabel_surgery_op_death": "Planned open repair carried roughly 3–6 % operative mortality in the 1990s trials; keyhole (endovascular) repair is lower at first, but trials of early endovascular repair for small aneurysms also found no survival benefit."
+      },
+      "sources": [
+        {
+          "id": "uksat",
+          "title": "Mortality results for randomised controlled trial of early elective surgery or ultrasonographic surveillance for small abdominal aortic aneurysms",
+          "authors": "UK Small Aneurysm Trial Participants",
+          "year": 1998,
+          "finding": "Early surgery for 4.0–5.5 cm: no survival gain"
+        },
+        {
+          "id": "adam",
+          "title": "Immediate repair compared with surveillance of small abdominal aortic aneurysms",
+          "authors": "Lederle et al.",
+          "year": 2002,
+          "finding": "Immediate repair did not improve survival"
+        }
+      ],
+      "elements": [
+        {
+          "id": "ev",
+          "type": "scratch",
+          "work": [
+            "0.02×20 + 0.30×97 + 0.68×100",
+            "= 0.4 + 29.1 + 68",
+            "= 97.5"
+          ],
+          "x": 200,
+          "y": 200
+        },
+        {
+          "id": "verdict",
+          "type": "annotation",
+          "target": [
+            "value_watch"
+          ],
+          "kind": "box"
+        },
+        {
+          "id": "trials",
+          "type": "text",
+          "text": "Trials: no gain from early surgery",
+          "x": 200,
+          "y": 215,
+          "font_size": 22,
+          "cites": [
+            "uksat",
+            "adam"
+          ]
+        },
+        {
+          "id": "unit",
+          "type": "text",
+          "text": "survivors per 100",
+          "x": 850,
+          "y": 605,
+          "font_size": 20,
+          "style": {
+            "color": "#8f887c"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Operate or watch?"
+          }
+        },
+        {
+          "hide": [
+            "label_op_death",
+            "label_repaired",
+            "label_rupture",
+            "label_later_repair",
+            "label_stays_small"
+          ]
+        },
+        {
+          "draw": [
+            "node_choice",
+            "label_choice"
+          ],
+          "speak": "A 70-year-old has a small bulge in the aorta, four and a half centimetres wide: operate now, or keep an eye on it?"
+        },
+        {
+          "draw": [
+            "edge_choice_surgery",
+            "node_surgery",
+            "label_surgery",
+            "edge_choice_watch",
+            "node_watch",
+            "label_watch"
+          ],
+          "speak": "The bulge can burst, and a burst aorta is usually fatal — so fixing it early sounds like the safe choice."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "edge_surgery_op_death",
+            "branchlabel_surgery_op_death",
+            "node_op_death",
+            "payoff_op_death",
+            "unit"
+          ],
+          "speak": "But the repair is a big operation, and about 3 patients in 100 do not survive it."
+        },
+        {
+          "draw": [
+            "edge_surgery_repaired",
+            "branchlabel_surgery_repaired",
+            "node_repaired",
+            "payoff_repaired"
+          ],
+          "speak": "The other 97 leave with the aorta fixed for good."
+        },
+        {
+          "draw": [
+            "value_surgery"
+          ],
+          "speak": "So operating now gives a 97 percent chance of getting through this."
+        },
+        {
+          "highlight": {
+            "target": [
+              "value_surgery"
+            ],
+            "duration": 1.2
+          }
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "node_watch"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Now the waiting branch, where the aneurysm is scanned every few months."
+        },
+        {
+          "draw": [
+            "edge_watch_rupture",
+            "branchlabel_watch_rupture",
+            "node_rupture",
+            "payoff_rupture"
+          ],
+          "speak": "At this size an aneurysm bursts about one time in a hundred per year, so about 2 in 100 over two years, and most of them die."
+        },
+        {
+          "draw": [
+            "edge_watch_later_repair",
+            "branchlabel_watch_later_repair",
+            "node_later_repair",
+            "payoff_later_repair"
+          ],
+          "speak": "About 30 in 100 grow to five and a half centimetres, and then they get the same operation, with the same 3 percent risk."
+        },
+        {
+          "draw": [
+            "edge_watch_stays_small",
+            "branchlabel_watch_stays_small",
+            "node_stays_small",
+            "payoff_stays_small"
+          ],
+          "speak": "The rest stay small and never need the knife."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "ev_box",
+            "ev_line_1"
+          ],
+          "speak": "To compare, weigh each outcome by its chance and add them up."
+        },
+        {
+          "draw": [
+            "ev_line_2",
+            "ev_line_3"
+          ],
+          "speak": "Waiting comes out at 97 and a half —"
+        },
+        {
+          "draw": [
+            "value_watch"
+          ]
+        },
+        {
+          "highlight": {
+            "target": [
+              "value_surgery",
+              "value_watch"
+            ]
+          },
+          "speak": "a hair better than operating now."
+        },
+        {
+          "erase": [
+            "ev"
+          ]
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "focus": {
+            "target": [
+              "branchlabel_watch_rupture",
+              "branchlabel_surgery_op_death"
+            ]
+          },
+          "speak": "Why doesn't the dangerous bulge make surgery the winner?"
+        },
+        {
+          "highlight": {
+            "target": [
+              "branchlabel_watch_rupture"
+            ],
+            "effect": "circle"
+          },
+          "speak": "Because a small aneurysm's rupture risk is no bigger than the operation's own risk,",
+          "delivery": "grave"
+        },
+        {
+          "highlight": {
+            "target": [
+              "branchlabel_watch_later_repair"
+            ],
+            "effect": "underline"
+          },
+          "speak": "and waiting does not cancel the operation — it only postpones it for those who need it."
+        },
+        {
+          "draw": [
+            "trials"
+          ],
+          "speak": "Two large trials, in Britain and the United States, compared exactly this and found that early surgery for small aneurysms did not help people live longer."
+        },
+        {
+          "highlight": {
+            "target": [
+              "branchlabel_watch_later_repair",
+              "branchlabel_watch_rupture"
+            ]
+          },
+          "speak": "The balance tips once the aneurysm passes about five and a half centimetres,"
+        },
+        {
+          "draw": [
+            "verdict"
+          ],
+          "speak": "when its yearly chance of bursting climbs well above the risk of the operation."
+        },
+        {
+          "quiz": {
+            "question": "What would make operating now the better choice for this patient?",
+            "choices": [
+              "A larger aneurysm, likelier to burst",
+              "A longer wait between scans",
+              "A lower chance it stays small",
+              "Nothing — surgery is always riskier"
+            ],
+            "correct": 1,
+            "right": "A larger aneurysm: once its chance of bursting rises above the operation's 3 in 100, fixing it now saves more lives than waiting.",
+            "wrong": "Look at which number the operation's risk has to beat."
+          }
+        }
+      ]
+    }
   }
 ]

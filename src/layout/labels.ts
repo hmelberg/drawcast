@@ -466,7 +466,7 @@ export function placeLabels(
       ...(preferred ? rings.slice(0, NEAR_RINGS).map((r, i) => ({ ringIndex: i, r, only: true })) : []),
       ...rings.map((r, i) => ({ ringIndex: i, r, only: false })),
     ];
-    const search = (passes: { ringIndex: number; r: number; only: boolean }[]) => {
+    const search = (passes: { ringIndex: number; r: number; only: boolean }[], leadersClear = true) => {
       outer: for (const { ringIndex, r, only } of passes) {
         for (const side of sides) {
           if (only && !preferred!.includes(side)) continue;
@@ -475,8 +475,10 @@ export function placeLabels(
           if (req.minX !== undefined && box.x < req.minX) continue;
           if (inPlay.some((o) => o.solid && boxesOverlap(box, o.box, 3))) continue; // text-text: never
           // An exiled corridor label's leader is how it names its branch; one
-          // drawn through another label strikes that label out.
-          if (req.corridors?.length) {
+          // drawn through another label strikes that label out. So does any
+          // leader: a terminal's name exiled past its payoff drew its dashed
+          // line straight through the number (2026-09-27).
+          if (req.corridors?.length || (leadersClear && ringIndex >= 2)) {
             const lead: [Pt, Pt] = [req.anchor, leaderEnd(box, req.anchor)];
             if (inPlay.some((o) => o.solid && segmentHitsBox(lead, o.box))) continue;
           }
@@ -508,6 +510,8 @@ export function placeLabels(
       // its own anchor; near only when there is no far spot either.
       if (req.corridors?.length) search(passes.filter((p) => p.ringIndex >= NEAR_RINGS));
       if (!chosen && !coreClean) search(passes);
+      // Every far spot's leader crossing text is still better than no far spot.
+      if (!chosen && !coreClean && !req.corridors?.length) search(passes, false);
     }
 
     // Nothing fits anywhere: keep the preferred spot and let lint report it.
@@ -546,6 +550,15 @@ export function placeLabels(
         style: defaultStyle({ color: COLORS.guide, strokeWidth: 2, dash: true, roughness: 0.8 }),
         drawOpts: defaultDrawOpts("instant"),
       };
+      // Labels solved after this one keep off the leader as off any line.
+      const [a, b] = leader.pts as [Pt, Pt];
+      const pieces = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 40));
+      for (let i = 0; i < pieces; i++) {
+        const p: Pt = [a[0] + ((b[0] - a[0]) * i) / pieces, a[1] + ((b[1] - a[1]) * i) / pieces];
+        const q: Pt = [a[0] + ((b[0] - a[0]) * (i + 1)) / pieces, a[1] + ((b[1] - a[1]) * (i + 1)) / pieces];
+        const box = { x: Math.min(p[0], q[0]), y: Math.min(p[1], q[1]), w: Math.abs(q[0] - p[0]), h: Math.abs(q[1] - p[1]) };
+        blocked.push({ box, solid: false, id: leader.id, seg: [p, q] });
+      }
     }
 
     placed.push({
