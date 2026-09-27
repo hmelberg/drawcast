@@ -274,3 +274,32 @@ describe("the host: a tap on a number opens its field", () => {
     expect(host.press([990, 740])).toBe(false);
   });
 });
+
+describe("willingness to pay, drawn under the table and worked like any number", () => {
+  test("the table carries strategy_wtp when wtp is set, in the table's group; none without wtp", () => {
+    const lay = layoutDecisionTree(CE);
+    const line = lay.drawables.find((d) => d.id === "strategy_wtp");
+    expect(line && line.kind === "text" ? line.text : null).toBe("At $50,000 per QALY");
+    expect(lay.groups?.strategy_table).toContain("strategy_wtp");
+    const { wtp: _w, ...bare } = CE;
+    expect(layoutDecisionTree(bare as DecisionTreeParams).drawables.some((d) => d.id === "strategy_wtp")).toBe(false);
+  });
+
+  test("it is a part; a tap opens a field on the number; a drag and a typed value patch wtp", () => {
+    const sc = sceneOf(CE);
+    expect(treeParts(sc)).toContain("strategy_wtp");
+    const t = treeTarget("strategy_wtp", centre(sc, "strategy_wtp"), sc)!;
+    expect(t.kind).toBe("wtp");
+    const f = treeField(t, sc, "strategy_wtp");
+    expect(f.value).toBe(50000);
+    expect(f.min).toBe(0);
+    expect(f.box!.w).toBeLessThan(sc.boxes.get("strategy_wtp")!.w / 2);
+    expect(treeScrub(t, 40)).toBeGreaterThan(50000);
+    const typed = runOn(CE, [inputEvent("strategy_wtp", 10000, centre(sc, "strategy_wtp"))]);
+    expect((typed.params as unknown as DecisionTreeParams).wtp).toBe(10000);
+  });
+
+  test("lowering wtp far enough flips the pick to the cheapest option", () => {
+    expect(best({ ...CE, wtp: 50000 })).not.toBe(best({ ...CE, wtp: 100 }));
+  });
+});

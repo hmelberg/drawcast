@@ -6,6 +6,7 @@
 //   a branch's "(p=0.6)"            drag sideways: ±0.01 per step, 0–1
 //   a terminal's payoff / its cost  drag sideways: ±~1 % per step; the
 //                                   press's x picks which of "9.5, £300"
+//   the table's "At $30,000 per QALY"  the willingness to pay, the same way
 //   any of them, tapped             a number field over it (type, Enter)
 //
 // Complements — a chance node's branches keep adding up to 1:
@@ -31,7 +32,8 @@ import { fillProbabilities, nodeId } from "./rollback";
 /** A number of the tree the viewer can take hold of. */
 export type TreeTarget =
   | { kind: "p"; key: string; parentPath: number[]; index: number; value: number; name: string }
-  | { kind: "payoff" | "cost"; id: string; path: number[]; value: number; name: string; box?: BBox };
+  | { kind: "payoff" | "cost"; id: string; path: number[]; value: number; name: string; box?: BBox }
+  | { kind: "wtp"; value: number; box?: BBox };
 
 interface TreeIndex {
   /** branchlabel_<key> → the chance branch it labels. */
@@ -81,7 +83,12 @@ function labelText(params: DecisionTreeParams, id: string): string | null {
   let texts = textCache.get(params);
   if (!texts) {
     try {
-      texts = new Map(layoutDecisionTree(params).labels.map((l) => [l.id, l.text]));
+      const lay = layoutDecisionTree(params);
+      // Solver-placed labels, and the few texts drawn in place (strategy_wtp).
+      texts = new Map([
+        ...lay.drawables.flatMap((d) => (d.kind === "text" ? [[d.id, d.text] as [string, string]] : [])),
+        ...lay.labels.map((l) => [l.id, l.text] as [string, string]),
+      ]);
     } catch {
       texts = new Map();
     }
@@ -105,6 +112,15 @@ function subBox(box: BBox, text: string, start: number, end: number): BBox {
 export function treeTarget(id: string, point: Pt, scene: WidgetScene): TreeTarget | null {
   const params = scene.params as unknown as DecisionTreeParams;
   const idx = treeIndex(params);
+  if (id === "strategy_wtp") {
+    if (typeof params.wtp !== "number") return null;
+    // "At $30,000 per QALY": the number is the word after "At".
+    const box = scene.boxes.get(id);
+    const text = labelText(params, id);
+    const m = text ? /^(\S+ )(\S+)/.exec(text) : null;
+    const numBox = box && text && m ? subBox(box, text, m[1].length, m[1].length + m[2].length) : box;
+    return { kind: "wtp", value: params.wtp, ...(numBox ? { box: numBox } : {}) };
+  }
   const br = idx.branches.get(id);
   if (br) return br.value === undefined ? null : { kind: "p", key: br.key, parentPath: br.parentPath, index: br.index, value: br.value, name: br.name };
   const t = idx.terminals.get(id);
@@ -137,6 +153,7 @@ export function treeField(t: TreeTarget, scene: WidgetScene, id: string): EditFi
     const numBox = box && text && at >= 0 ? subBox(box, text, at + 2, text.replace(/\)$/, "").length) : undefined;
     return { value: t.value, label: `Probability of ${t.name}`, min: 0, max: 1, step: 0.01, ...(numBox ? { box: numBox } : {}) };
   }
+  if (t.kind === "wtp") return { value: t.value, label: "Willingness to pay", min: 0, step: amountScrub(t.value, 1).step, ...(t.box ? { box: t.box } : {}) };
   const floor = t.value < 0 ? {} : { min: 0 };
   return {
     value: t.value,
@@ -190,20 +207,23 @@ export function withAmount(root: TreeNode, path: number[], kind: "payoff" | "cos
 
 /** The patch that puts the target at v. */
 export function treePatch(t: TreeTarget, v: number, params: DecisionTreeParams): Record<string, unknown> {
+  if (t.kind === "wtp") return { wtp: v };
   return { root: t.kind === "p" ? withProbability(params.root, t.parentPath, t.index, v) : withAmount(params.root, t.path, t.kind, v) };
 }
 
 /** The value a sideways drag of dx sets, from the target's value at the press. */
 export function treeScrub(t: TreeTarget, dx: number): number {
   if (t.kind === "p") return scrubbed(t.value, dx, probabilityStep(t.value), 0, 1);
-  const { step, min } = amountScrub(t.value, t.kind === "cost" ? 1 : 0.1);
+  const { step, min } = amountScrub(t.value, t.kind === "payoff" ? 0.1 : 1);
   return scrubbed(t.value, dx, step, min);
 }
 
 /** Every part that holds a number the viewer may change. */
 export function treeParts(scene: WidgetScene): string[] {
   const idx = treeIndex(scene.params as unknown as DecisionTreeParams);
-  return [...[...idx.branches].filter(([, b]) => b.value !== undefined).map(([id]) => id), ...idx.terminals.keys()];
+  const params = scene.params as unknown as DecisionTreeParams;
+  const wtp = typeof params.wtp === "number" && scene.ids.includes("strategy_wtp") ? ["strategy_wtp"] : [];
+  return [...[...idx.branches].filter(([, b]) => b.value !== undefined).map(([id]) => id), ...idx.terminals.keys(), ...wtp];
 }
 
 export function decisionTreeWidget(): WidgetBody {

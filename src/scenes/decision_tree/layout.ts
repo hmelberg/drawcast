@@ -545,6 +545,9 @@ interface Table {
   font: number;
   w: number;
   h: number;
+  /** "At $30,000 per QALY": the willingness to pay the pick was made at,
+   *  under the rows (strategy_wtp) — drawn so the viewer can take hold of it. */
+  wtp?: string;
 }
 
 /**
@@ -587,7 +590,14 @@ function tableOf(params: DecisionTreeParams & { box?: unknown }, rolled: Rolled,
     font = Math.max(TABLE_FONT_MIN, Math.floor((TABLE_FONT * room) / m.w));
     m = measure(font);
   }
-  return { rows, cells, colW: m.colW, font, w: m.w, h: cells.length * font * TABLE_ROW + 10 };
+  const wtp = typeof params.wtp === "number" && Number.isFinite(params.wtp) ? `${say("At", "Ved")} ${fmt.money(params.wtp)} ${say("per", "per")} ${perUnit(fmt.unit) ?? say("unit", "enhet")}` : undefined;
+  const lines = cells.length + (wtp ? 1 : 0);
+  return { rows, cells, colW: m.colW, font, w: m.w, h: lines * font * TABLE_ROW + 10, ...(wtp ? { wtp } : {}) };
+}
+
+/** "per QALY", not "per QALYs": the unit a column names in the plural, one of it. */
+function perUnit(unit: string | undefined): string | undefined {
+  return unit && /^[A-Za-z]{2,}s$/.test(unit) ? unit.slice(0, -1) : unit;
 }
 
 /**
@@ -624,6 +634,12 @@ function drawTable(t: Table, at: Pt, out: { drawables: Drawable[]; anchors: Reco
     row(`strategy_row_${r.id}`, t.cells[i + 1], y, color);
     y -= lineH;
   });
+  if (t.wtp) {
+    out.drawables.push(kit.text("strategy_wtp", [x0, y], t.wtp, { fontSize: t.font, anchor: "start", color: COLORS.guide }));
+    out.anchors.strategy_wtp = [at[0], y];
+    out.order.push("strategy_wtp");
+    members.push("strategy_wtp");
+  }
   out.groups.strategy_table = members;
 }
 

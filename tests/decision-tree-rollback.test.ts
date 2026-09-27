@@ -141,7 +141,7 @@ describe("costs, willingness to pay and the ICER table", () => {
     expect(v.best).toBe(1);
     expect(v.ev_choice).toBeCloseTo(7.1, 10);
     expect(v.cost_choice).toBeCloseTo(78000, 6);
-    expect(l.groups?.strategy_table).toEqual(["strategy_head", "strategy_rule", "strategy_row_watch", "strategy_row_med", "strategy_row_surgery"]);
+    expect(l.groups?.strategy_table).toEqual(["strategy_head", "strategy_rule", "strategy_row_watch", "strategy_row_med", "strategy_row_surgery", "strategy_wtp"]);
     const row = flattenDrawables(l.drawables).filter((d) => d.id.startsWith("strategy_row_med__")) as TextDrawable[];
     expect(row.map((d) => d.text)).toEqual(["Medication", "$78,000", "7.1", "+$36,000", "+1.3", "$27,700"]);
     expect(labelText(l, "value_med")).toBe("7.1, $78,000");

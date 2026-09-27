@@ -54,7 +54,8 @@
     "collapsed_<id>": "the stubs on a node with collapsed: true",
     "strategy_table": "rollback with costs: the whole table under the tree (a group of strategy_head, strategy_rule and the rows)",
     "strategy_head": "the table's header row",
-    "strategy_row_<childId>": "one table row per option of the root decision, sorted by cost, e.g. strategy_row_surgery"
+    "strategy_row_<childId>": "one table row per option of the root decision, sorted by cost, e.g. strategy_row_surgery",
+    "strategy_wtp": "with wtp: the line under the table naming the willingness to pay the pick was made at (\"At $30,000 per QALY\")"
   },
   "examples": [
     {
