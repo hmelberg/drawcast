@@ -15,6 +15,7 @@
 // one too narrow is not. The lines are `work` ("show your work"; `lines` is
 // the code panel's window height); the corner is the usual `at: {place}`.
 
+import { heuristicMeasure } from "../layout/measure";
 import type { Spec, SpecElement } from "./types";
 
 export type NoteLine = string | { tex: string };
@@ -53,6 +54,11 @@ export function expandScratch(spec: Spec): Spec {
     const lines = (Array.isArray(el.work) ? el.work : []) as NoteLine[];
     const size = typeof el.font_size === "number" ? el.font_size : 24;
     const lineH = Math.round(size * 1.9);
+    // A formula reads smaller than words at one nominal size (the hand's
+    // letters are larger than MathJax's for the same x-height), so a formula
+    // line is typeset a size up to read as the card's words do — and is
+    // measured at that size, or a card of formulas alone is too narrow.
+    const texSize = Math.round(size * 1.25);
     // A formula is measured by what shows: \text{…} keeps its letters, a
     // command (\times, \approx) is one glyph, braces and scripts are nothing.
     const texChars = (tex: string) =>
@@ -61,8 +67,11 @@ export function expandScratch(spec: Spec): Spec {
         .replace(/\\[a-zA-Z]+/g, "x")
         .replace(/[{}_^\s]/g, "").length +
       (tex.match(/\s*[=+\-×]\s*|\\(times|approx|cdot)/g)?.length ?? 0);
+    // Words by the layout's own fallback measure — the one the lint lays
+    // out with when no font is at hand, and wider than the drawn hand — so a
+    // line never overhangs its card in either.
     const widthOf = (l: NoteLine) =>
-      typeof l === "string" ? l.length * size * 0.46 : texChars(l.tex) * size * 0.42;
+      typeof l === "string" ? heuristicMeasure(l, size).w : texChars(l.tex) * texSize * 0.42;
     const w = Math.max(160, ...lines.map(widthOf)) + 2 * PAD;
     const h = Math.max(1, lines.length) * lineH + 2 * PAD - (lineH - size * 1.2);
     // Where: an explicit centre, or a named corner of the page under the
@@ -90,8 +99,7 @@ export function expandScratch(spec: Spec): Spec {
       out.push(
         typeof l === "string"
           ? ({ id, type: "text", text: l, x: cx, y, font_size: size } as SpecElement)
-          // A formula reads smaller than words at one nominal size.
-          : ({ id, type: "math", tex: l.tex, x: cx, y, size: Math.round(size * 1.25) } as SpecElement),
+          : ({ id, type: "math", tex: l.tex, x: cx, y, size: texSize } as SpecElement),
       );
     });
     out.push({ id: el.id, type: "group", members } as SpecElement);
