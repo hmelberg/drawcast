@@ -219,6 +219,44 @@ call).
    The "fixed prompt parts are the next slimming target" note that stood
    here was **done on 2026-09-22** — see below.
 
+## Interactive decision trees and Markov models — done 2026-09-27
+
+Hans: let the viewer change probabilities, costs and utilities and watch the
+expected value / ICER follow; a matrix layout for Markov; big models shown in
+parts, zoomable and pannable. Built structure-derived (no cast command asks):
+- decision_tree `rollback: true` computes values, marks the pick (`best`) and
+  prunes the rest; with costs a strategy table (Δ, vs, ICER, dominated / ext.
+  dominated; staged parts strategy_base/delta/icer_<id>); `wtp` picks by net
+  benefit, drawn as strategy_wtp with a Net benefit column; `collapsed: true`;
+  `size: "full"` lays a big tree out at full text size in a world larger than
+  the page; branch costs count below and show on the branch label; `{tree.*}`
+  values, and tokens now expand inside template text.
+- markov_model `view: "matrix" | "both"` (derived grey diagonal, utility and
+  cost columns, compare values under changed cells, up to 10 states); fills
+  the page; labels at arrow midpoints; staged ICER parts; `trace.name`; very
+  large models become a world; `{markov.*}` values.
+- Paused viewer pan/zoom (ctrl/⌘-wheel, pinch, drag on blank paper, +/−/0, a
+  Fit pill; play glides back), SceneLayout.world, `camera {on: [ids]}`.
+- Live numbers on both templates: drag a number sideways to scrub it, tap to
+  type (WidgetBody.editable + an inline field); complements keep sums at 1.
+- One template-lint hook (SceneModule.lint); group highlight/focus lands on
+  the drawn members; one highlight colour per gesture.
+- Nine examples: three tree tutorials (fold-back, ICER and dominance, wtp),
+  three Markov tutorials (matrix, cohort trace, ICER), a 7-state CKD model, a
+  17-terminal world tree, a three-page screening tree with collapsed parts.
+
+Open: the strategy table's text (15–20) is small beside the tree's 26 and
+wider than the page with vs + net benefit, so `camera {on: strategy_table}`
+cannot zoom; `camera {on}` on a tree fan leaves out terminal payoff text;
+a world's card heading lives in the world (tiny at rest); a `size: "full"`
+root fan is unreadable at rest; Markov `view: "both"` without a trace and
+matrix+trace pages still leave part of the page empty; the Markov ICER ratio
+uses unrounded values (the tree's now uses the shown ones); the 1.4× minimum
+for wide targets is page-relative, cropping in a world; `camera {on}` drops
+unknown ids silently; ties at a decision show no tie state; the replay button
+covers a label at the end of a cast; the example app's `?open=` does not read
+the `{request, playlist}` JSON shape that frames reads.
+
 ## Prompt weight and coverage — done 2026-09-22
 
 Design `docs/superpowers/specs/2026-09-22-prompt-weight-and-coverage-design.md`,

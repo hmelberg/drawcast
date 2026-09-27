@@ -87,7 +87,14 @@ const fan = (n: number): DecisionTreeParams => ({
 
 const bundled = [...(examples as { spec?: Spec }[]), ...(fewshots as { spec?: Spec }[])]
   .map((e) => e.spec)
-  .filter((s): s is Spec => s?.template === "decision_tree");
+  .filter((s): s is Spec => s?.template === "decision_tree")
+  // A tree whose branches carry no words at all (the ICER tutorial names its
+  // options at the leaves) has no branch label to check.
+  .filter((s) => hasBranchWords((s.params as { root?: TreeNode }).root));
+
+function hasBranchWords(n: TreeNode | undefined): boolean {
+  return (n?.children ?? []).some((b) => !!b.label || typeof b.probability === "number" || hasBranchWords(b.node));
+}
 
 const specOf = (params: DecisionTreeParams): Spec => ({ title: "t", template: "decision_tree", params, commands: [] }) as unknown as Spec;
 

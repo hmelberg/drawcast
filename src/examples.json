@@ -67239,5 +67239,2636 @@
         }
       ]
     }
+  },
+  {
+    "request": "How does a decision tree turn chances into one number?",
+    "spec": {
+      "title": "Folding back a decision tree",
+      "template": "decision_tree",
+      "params": {
+        "rollback": true,
+        "decimals": 1,
+        "unit": "QALYs",
+        "root": {
+          "id": "choice",
+          "type": "decision",
+          "label": "Treatment",
+          "children": [
+            {
+              "label": "",
+              "node": {
+                "id": "surgery",
+                "type": "chance",
+                "label": "Surgery",
+                "children": [
+                  {
+                    "label": "",
+                    "probability": 0.6,
+                    "node": {
+                      "id": "s_cure",
+                      "type": "terminal",
+                      "label": "Cured",
+                      "payoff": 10
+                    }
+                  },
+                  {
+                    "label": "",
+                    "probability": 0.3,
+                    "node": {
+                      "id": "s_same",
+                      "type": "terminal",
+                      "label": "Same",
+                      "payoff": 6
+                    }
+                  },
+                  {
+                    "label": "",
+                    "probability": 0.1,
+                    "node": {
+                      "id": "s_harm",
+                      "type": "terminal",
+                      "label": "Harmed",
+                      "payoff": 2
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "label": "",
+              "node": {
+                "id": "drug",
+                "type": "chance",
+                "label": "Drug",
+                "children": [
+                  {
+                    "label": "",
+                    "probability": 0.7,
+                    "node": {
+                      "id": "d_work",
+                      "type": "terminal",
+                      "label": "Works",
+                      "payoff": 9
+                    }
+                  },
+                  {
+                    "label": "",
+                    "probability": 0.3,
+                    "node": {
+                      "id": "d_fail",
+                      "type": "terminal",
+                      "label": "Fails",
+                      "payoff": 7
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "box": {
+          "x": 30,
+          "y": 165,
+          "w": 940,
+          "h": 490
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Folding back a tree"
+          }
+        },
+        {
+          "draw": [
+            "node_choice",
+            "label_choice"
+          ],
+          "speak": "How does a decision tree turn a set of chances into one number you can compare?"
+        },
+        {
+          "draw": [
+            "edge_choice_surgery",
+            "node_surgery",
+            "label_surgery",
+            "edge_choice_drug",
+            "node_drug",
+            "label_drug"
+          ],
+          "speak": "Take a patient choosing between surgery and a drug. The square is her choice; each circle is chance."
+        },
+        {
+          "draw": [
+            "edge_surgery_s_cure",
+            "branchlabel_surgery_s_cure",
+            "node_s_cure",
+            "label_s_cure",
+            "payoff_s_cure",
+            "edge_surgery_s_same",
+            "branchlabel_surgery_s_same",
+            "node_s_same",
+            "label_s_same",
+            "payoff_s_same",
+            "edge_surgery_s_harm",
+            "branchlabel_surgery_s_harm",
+            "node_s_harm",
+            "label_s_harm",
+            "payoff_s_harm"
+          ],
+          "speak": "In this made-up example, surgery cures six times in ten, changes nothing three times, and harms once."
+        },
+        {
+          "highlight": {
+            "target": [
+              "payoff_s_cure",
+              "payoff_s_same",
+              "payoff_s_harm"
+            ]
+          },
+          "speak": "Each ending is worth some quality-adjusted life-years: ten, six, or two."
+        },
+        {
+          "draw": [
+            "edge_drug_d_work",
+            "branchlabel_drug_d_work",
+            "node_d_work",
+            "label_d_work",
+            "payoff_d_work",
+            "edge_drug_d_fail",
+            "branchlabel_drug_d_fail",
+            "node_d_fail",
+            "label_d_fail",
+            "payoff_d_fail"
+          ],
+          "speak": "The drug works seven times in ten, for nine years, and otherwise gives seven."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "payoff_s_cure"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Surgery holds the best ending on the page. Is it the better choice?"
+        },
+        {
+          "highlight": {
+            "target": [
+              "edge_surgery_s_cure",
+              "edge_surgery_s_same",
+              "edge_surgery_s_harm"
+            ]
+          },
+          "speak": "To answer, fold the tree back from the right. A circle is worth the average of its endings, each weighed by its chance."
+        },
+        {
+          "highlight": {
+            "target": [
+              "branchlabel_surgery_s_cure",
+              "payoff_s_cure",
+              "branchlabel_surgery_s_same",
+              "payoff_s_same",
+              "branchlabel_surgery_s_harm",
+              "payoff_s_harm"
+            ]
+          },
+          "speak": "For surgery: 0.6 times ten, plus 0.3 times six, plus 0.1 times two."
+        },
+        {
+          "draw": [
+            "value_surgery"
+          ],
+          "speak": "Six plus 1.8 plus 0.2: eight."
+        },
+        {
+          "highlight": {
+            "target": [
+              "branchlabel_drug_d_work",
+              "payoff_d_work",
+              "branchlabel_drug_d_fail",
+              "payoff_d_fail"
+            ]
+          },
+          "speak": "For the drug: 0.7 times nine plus 0.3 times seven."
+        },
+        {
+          "draw": [
+            "value_drug"
+          ],
+          "speak": "That is 8.4."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "best_choice_drug",
+            "value_choice"
+          ],
+          "speak": "At the square nothing is averaged: she chooses, so it is worth its best branch, 8.4."
+        },
+        {
+          "draw": [
+            "prune_choice_surgery"
+          ],
+          "speak": "Surgery is cut. Its great ending is real, but no change and harm, four chances in ten, drag its average down."
+        },
+        {
+          "focus": {
+            "target": [
+              "value_choice",
+              "node_choice"
+            ]
+          },
+          "speak": "The whole tree is now one number."
+        },
+        {
+          "explore": {},
+          "speak": "Try it: raise surgery's chance of a cure until the cut moves to the drug."
+        },
+        {
+          "highlight": {
+            "target": [
+              "value_surgery",
+              "value_drug"
+            ]
+          },
+          "speak": "Average at every circle, take the best at every square, and work from the right."
+        },
+        {
+          "quiz": {
+            "question": "At a square, one option could give 12 years but averages 6; the other averages 7. Which does the square take?",
+            "choices": [
+              "The one that could give 12",
+              "The one averaging 7"
+            ],
+            "correct": 2,
+            "right": "The one averaging 7: a square takes its best average, not its best ending.",
+            "wrong": "What is a circle worth to the square: its best ending, or its average?"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "What is an ICER, and when is an option dominated?",
+    "spec": {
+      "title": "ICERs and dominance",
+      "template": "decision_tree",
+      "params": {
+        "rollback": true,
+        "wtp": 50000,
+        "currency": "$",
+        "unit": "QALYs",
+        "decimals": 1,
+        "root": {
+          "id": "choice",
+          "type": "decision",
+          "label": "Treatment",
+          "children": [
+            {
+              "label": "",
+              "node": {
+                "id": "usual",
+                "type": "terminal",
+                "label": "Usual care",
+                "payoff": 5,
+                "cost": 0
+              }
+            },
+            {
+              "label": "",
+              "node": {
+                "id": "a",
+                "type": "terminal",
+                "label": "Drug A",
+                "payoff": 5.2,
+                "cost": 8000
+              }
+            },
+            {
+              "label": "",
+              "node": {
+                "id": "b",
+                "type": "terminal",
+                "label": "Drug B",
+                "payoff": 5.6,
+                "cost": 20000
+              }
+            },
+            {
+              "label": "",
+              "node": {
+                "id": "c",
+                "type": "terminal",
+                "label": "Drug C",
+                "payoff": 5.5,
+                "cost": 26000
+              }
+            }
+          ]
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "ICERs and dominance"
+          }
+        },
+        {
+          "draw": [
+            "node_choice",
+            "label_choice"
+          ],
+          "speak": "What is an ICER, and when is a treatment dominated, out of the race whatever health is worth?"
+        },
+        {
+          "draw": [
+            "edge_choice_usual",
+            "node_usual",
+            "label_usual",
+            "payoff_usual",
+            "edge_choice_a",
+            "node_a",
+            "label_a",
+            "payoff_a",
+            "edge_choice_b",
+            "node_b",
+            "label_b",
+            "payoff_b",
+            "edge_choice_c",
+            "node_c",
+            "label_c",
+            "payoff_c"
+          ],
+          "speak": "Take four made-up options: usual care and three drugs, each with its QALYs and its cost."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "strategy_head",
+            "strategy_rule",
+            "strategy_base_usual"
+          ],
+          "speak": "Line them up in a table, cheapest first. Usual care costs nothing extra and gives five QALYs."
+        },
+        {
+          "draw": [
+            "strategy_base_b",
+            "strategy_delta_b"
+          ],
+          "speak": "Drug B costs $20,000 more and gives 0.6 QALYs more."
+        },
+        {
+          "draw": [
+            "strategy_icer_b"
+          ],
+          "speak": "Extra cost over extra health, $20,000 over 0.6, is about $33,300 per QALY gained. That ratio is the ICER."
+        },
+        {
+          "draw": [
+            "strategy_base_c",
+            "strategy_delta_c",
+            "strategy_icer_c"
+          ],
+          "speak": "Drug C costs $6,000 more than B and gives less. It loses on both counts: it is dominated, and drops out."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "strategy_base_a",
+            "strategy_delta_a"
+          ],
+          "speak": "Drug A: $8,000 for 0.2 QALYs, $40,000 each. Yet A drops out too. Why?"
+        },
+        {
+          "highlight": {
+            "target": [
+              "strategy_base_a",
+              "strategy_delta_a",
+              "strategy_base_b",
+              "strategy_delta_b",
+              "strategy_icer_b"
+            ]
+          },
+          "speak": "Going on from A to B buys each further QALY for $30,000, less than A's own $40,000."
+        },
+        {
+          "draw": [
+            "strategy_icer_a"
+          ],
+          "speak": "A mix of usual care and B beats A: it is extendedly dominated."
+        },
+        {
+          "focus": {
+            "target": [
+              "strategy_row_usual",
+              "strategy_row_b"
+            ]
+          },
+          "speak": "What survives is a frontier, and each ICER compares an option with the next cheaper one still standing."
+        },
+        {
+          "draw": [
+            "strategy_wtp"
+          ],
+          "speak": "Only now does the price of health enter: say the payer values a QALY at $50,000."
+        },
+        {
+          "draw": [
+            "strategy_nmb"
+          ],
+          "speak": "Net benefit counts each QALY at that price and takes off the cost. B's is the highest."
+        },
+        {
+          "draw": [
+            "best_choice_b",
+            "pruned",
+            "value_choice"
+          ],
+          "speak": "B's $33,300 per QALY is under the price, so the tree picks B."
+        },
+        {
+          "quiz": {
+            "question": "Why is drug A struck off, at $40,000 per QALY?",
+            "choices": [
+              "It costs more than B",
+              "B buys each extra QALY more cheaply",
+              "It gives less than usual care"
+            ],
+            "correct": 2,
+            "right": "Mixing usual care and B gives A's health for less money, so A is never the efficient buy.",
+            "wrong": "Compare what each QALY costs, not the totals."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "How does willingness to pay decide between a cheap and an expensive treatment?",
+    "spec": {
+      "title": "What a QALY is worth",
+      "template": "decision_tree",
+      "params": {
+        "rollback": true,
+        "wtp": 40000,
+        "currency": "$",
+        "unit": "QALYs",
+        "decimals": 1,
+        "root": {
+          "id": "choice",
+          "type": "decision",
+          "label": "Treatment",
+          "children": [
+            {
+              "label": "",
+              "node": {
+                "id": "cheap",
+                "type": "chance",
+                "label": "Cheap drug",
+                "children": [
+                  {
+                    "label": "Works",
+                    "probability": 0.5,
+                    "node": {
+                      "id": "c_ok",
+                      "type": "terminal",
+                      "label": "Well",
+                      "payoff": 7
+                    }
+                  },
+                  {
+                    "label": "Fails",
+                    "probability": 0.5,
+                    "node": {
+                      "id": "c_no",
+                      "type": "terminal",
+                      "label": "Ill",
+                      "payoff": 5
+                    }
+                  }
+                ]
+              },
+              "cost": 2000
+            },
+            {
+              "label": "",
+              "node": {
+                "id": "dear",
+                "type": "chance",
+                "label": "Dear drug",
+                "children": [
+                  {
+                    "label": "Works",
+                    "probability": 0.75,
+                    "node": {
+                      "id": "d_ok",
+                      "type": "terminal",
+                      "label": "Well",
+                      "payoff": 7
+                    }
+                  },
+                  {
+                    "label": "Fails",
+                    "probability": 0.25,
+                    "node": {
+                      "id": "d_no",
+                      "type": "terminal",
+                      "label": "Ill",
+                      "payoff": 5
+                    }
+                  }
+                ]
+              },
+              "cost": 32000
+            }
+          ]
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "What a QALY is worth"
+          }
+        },
+        {
+          "draw": [
+            "node_choice",
+            "label_choice"
+          ],
+          "speak": "How does what we will pay for health decide between a cheap treatment and a dear one?"
+        },
+        {
+          "draw": [
+            "edge_choice_cheap",
+            "branchlabel_choice_cheap",
+            "node_cheap",
+            "label_cheap",
+            "edge_cheap_c_ok",
+            "branchlabel_cheap_c_ok",
+            "node_c_ok",
+            "label_c_ok",
+            "payoff_c_ok",
+            "edge_cheap_c_no",
+            "branchlabel_cheap_c_no",
+            "node_c_no",
+            "label_c_no",
+            "payoff_c_no"
+          ],
+          "speak": "In this made-up case, a cheap drug costs $2,000 and works for half of patients."
+        },
+        {
+          "draw": [
+            "edge_choice_dear",
+            "branchlabel_choice_dear",
+            "node_dear",
+            "label_dear",
+            "edge_dear_d_ok",
+            "branchlabel_dear_d_ok",
+            "node_d_ok",
+            "label_d_ok",
+            "payoff_d_ok",
+            "edge_dear_d_no",
+            "branchlabel_dear_d_no",
+            "node_d_no",
+            "label_d_no",
+            "payoff_d_no"
+          ],
+          "speak": "A dear drug costs $32,000 and works for three in four."
+        },
+        {
+          "highlight": {
+            "target": [
+              "payoff_c_ok",
+              "payoff_c_no",
+              "payoff_d_ok",
+              "payoff_d_no"
+            ]
+          },
+          "speak": "Either way, a patient it works for gets seven QALYs, one it fails gets five."
+        },
+        {
+          "draw": [
+            "value_cheap",
+            "value_dear"
+          ],
+          "speak": "Folded back, the cheap drug gives six QALYs on average, the dear one 6.5."
+        },
+        {
+          "draw": [
+            "strategy_head",
+            "strategy_rule",
+            "strategy_row_cheap",
+            "strategy_row_dear"
+          ],
+          "speak": "Half a QALY more costs $30,000 more."
+        },
+        {
+          "highlight": {
+            "target": [
+              "strategy_row_dear"
+            ]
+          },
+          "speak": "That is $60,000 per extra QALY: the ICER."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "strategy_wtp"
+          ],
+          "speak": "Is that worth it? Say a QALY is worth $40,000."
+        },
+        {
+          "draw": [
+            "strategy_nmb"
+          ],
+          "speak": "Net benefit: QALYs times $40,000, minus cost."
+        },
+        {
+          "highlight": {
+            "target": [
+              "strategy_nmb_cheap"
+            ]
+          },
+          "speak": "Cheap: $240,000 minus $2,000."
+        },
+        {
+          "highlight": {
+            "target": [
+              "strategy_nmb_dear"
+            ]
+          },
+          "speak": "Dear: $260,000 minus $32,000. Less."
+        },
+        {
+          "draw": [
+            "best_choice_cheap",
+            "prune_choice_dear",
+            "value_choice"
+          ],
+          "speak": "So at $40,000 the tree picks the cheap drug."
+        },
+        {
+          "animate": {
+            "wtp": 80000
+          },
+          "duration": 5,
+          "speak": "Now raise it. As it passes $60,000, the ICER, the pick flips to the dear drug."
+        },
+        {
+          "highlight": {
+            "target": [
+              "value_dear",
+              "strategy_row_dear"
+            ]
+          },
+          "speak": "Its extra half QALY is now worth more than its extra cost."
+        },
+        {
+          "explore": {},
+          "speak": "Try it: drag the price of a QALY, or a chance, and watch the pick."
+        },
+        {
+          "highlight": {
+            "target": [
+              "strategy_nmb",
+              "strategy_wtp"
+            ]
+          },
+          "speak": "The tree stays; the price of health decides."
+        },
+        {
+          "quiz": {
+            "question": "If a QALY were worth $50,000, which drug would the tree pick?",
+            "choices": [
+              "The cheap drug",
+              "The dear drug"
+            ],
+            "correct": 1,
+            "right": "The cheap one: $50,000 is below the $60,000 ICER, so the extra health costs more than it is worth.",
+            "wrong": "Compare $50,000 with the price of each extra QALY."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "How do you read a Markov transition matrix?",
+    "spec": {
+      "title": "Reading a transition matrix",
+      "template": "markov_model",
+      "params": {
+        "view": "both",
+        "states": [
+          "Well",
+          "Sick",
+          "Dead"
+        ],
+        "transitions": [
+          {
+            "from": "Well",
+            "to": "Sick",
+            "label": "0.10"
+          },
+          {
+            "from": "Sick",
+            "to": "Well",
+            "label": "0.25"
+          },
+          {
+            "from": "Sick",
+            "to": "Dead",
+            "label": "0.05"
+          },
+          {
+            "from": "Well",
+            "to": "Dead",
+            "label": "0.02"
+          }
+        ],
+        "self_loops": [
+          {
+            "state": "Well",
+            "label": "0.88"
+          },
+          {
+            "state": "Sick",
+            "label": "0.70"
+          },
+          {
+            "state": "Dead",
+            "label": "1"
+          }
+        ]
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Reading a transition matrix"
+          }
+        },
+        {
+          "draw": [
+            "state_well",
+            "state_label_well",
+            "state_sick",
+            "state_label_sick",
+            "state_dead",
+            "state_label_dead"
+          ],
+          "parallel": true,
+          "speak": "How do you read the grid of numbers behind every Markov model, the transition matrix?"
+        },
+        {
+          "draw": [
+            "matrix_corner",
+            "matrix_rule_head",
+            "matrix_rule_from",
+            "matrix_head_row_well",
+            "matrix_head_row_sick",
+            "matrix_head_row_dead",
+            "matrix_head_col_well",
+            "matrix_head_col_sick",
+            "matrix_head_col_dead"
+          ],
+          "parallel": true,
+          "speak": "It lists the same three states twice: rows are where people are now, columns where they are a year later."
+        },
+        {
+          "draw": [
+            "t_0",
+            "t_label_0",
+            "matrix_cell_well_sick"
+          ],
+          "speak": "Say ten percent of the well fall sick each year."
+        },
+        {
+          "highlight": {
+            "target": [
+              "t_0",
+              "t_label_0",
+              "matrix_cell_well_sick"
+            ]
+          },
+          "speak": "That arrow is this one cell: row Well, column Sick."
+        },
+        {
+          "draw": [
+            "t_3",
+            "t_label_3",
+            "matrix_cell_well_dead"
+          ],
+          "speak": "Two percent of the well die: row Well, column Dead."
+        },
+        {
+          "draw": [
+            "loop_well",
+            "loop_label_well",
+            "matrix_cell_well_well"
+          ],
+          "speak": "Everyone else stays well: 88 percent, on the diagonal."
+        },
+        {
+          "highlight": {
+            "target": [
+              "matrix_row_well"
+            ]
+          },
+          "speak": "So the row adds up to one. Everyone ends the year somewhere."
+        },
+        {
+          "draw": [
+            "t_1",
+            "t_label_1",
+            "t_2",
+            "t_label_2",
+            "matrix_cell_sick_well",
+            "matrix_cell_sick_dead"
+          ],
+          "speak": "Of the sick, a quarter recover and five percent die."
+        },
+        {
+          "draw": [
+            "loop_sick",
+            "loop_label_sick",
+            "matrix_cell_sick_sick"
+          ],
+          "speak": "That leaves seventy percent who stay sick."
+        },
+        {
+          "highlight": {
+            "target": [
+              "matrix_cell_well_well",
+              "matrix_cell_sick_sick"
+            ]
+          },
+          "speak": "The grey diagonal is never measured on its own. It is simply what the other cells leave over."
+        },
+        {
+          "draw": [
+            "matrix_row_dead",
+            "loop_dead",
+            "loop_label_dead"
+          ],
+          "speak": "The dead row: nobody leaves, so the whole one sits on the diagonal."
+        },
+        {
+          "highlight": {
+            "target": [
+              "state_dead"
+            ]
+          },
+          "speak": "A state like that is absorbing, and in time the whole cohort ends up there."
+        },
+        {
+          "highlight": {
+            "target": [
+              "matrix_col_dead",
+              "t_2",
+              "t_3"
+            ]
+          },
+          "speak": "Read down a column instead to see where arrivals come from: Dead takes in from every row."
+        },
+        {
+          "explore": {},
+          "speak": "Try changing a probability, and watch the diagonal shift to keep its row at one."
+        },
+        {
+          "quiz": {
+            "question": "Recovery from Sick rises from 0.25 to 0.35. What happens to the Sick-to-Sick cell?",
+            "choices": [
+              "Rises to 0.80",
+              "Falls to 0.60",
+              "Stays at 0.70"
+            ],
+            "correct": 2,
+            "right": "It falls to 0.60: the row must still add to one, so the stay gives up what recovery gains.",
+            "wrong": "Remember what the diagonal is made of."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "How does a cohort trace turn a Markov model into QALYs and costs?",
+    "spec": {
+      "title": "From a Markov model to QALYs",
+      "template": "markov_model",
+      "params": {
+        "view": "matrix",
+        "states": [
+          "Well",
+          "Sick",
+          "Dead"
+        ],
+        "transitions": [
+          {
+            "from": "Well",
+            "to": "Sick",
+            "label": "0.10"
+          },
+          {
+            "from": "Sick",
+            "to": "Well",
+            "label": "0.25"
+          },
+          {
+            "from": "Sick",
+            "to": "Dead",
+            "label": "0.05"
+          },
+          {
+            "from": "Well",
+            "to": "Dead",
+            "label": "0.02"
+          }
+        ],
+        "trace": {
+          "start": 1000,
+          "utility": [
+            0.9,
+            0.6,
+            0
+          ],
+          "cost": [
+            1000,
+            4000,
+            0
+          ],
+          "cycles": 3
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "From a Markov model to QALYs"
+          }
+        },
+        {
+          "draw": [
+            "matrix_corner",
+            "matrix_rule_head",
+            "matrix_rule_from",
+            "matrix_head_row_well",
+            "matrix_head_row_sick",
+            "matrix_head_row_dead",
+            "matrix_head_col_well",
+            "matrix_head_col_sick",
+            "matrix_head_col_dead",
+            "matrix_cell_well_well",
+            "matrix_cell_well_sick",
+            "matrix_cell_well_dead",
+            "matrix_cell_sick_well",
+            "matrix_cell_sick_sick",
+            "matrix_cell_sick_dead",
+            "matrix_cell_dead_well",
+            "matrix_cell_dead_sick",
+            "matrix_cell_dead_dead"
+          ],
+          "parallel": true,
+          "speak": "How does a Markov model turn into QALYs and costs? You run a group of people through it, year by year."
+        },
+        {
+          "highlight": {
+            "target": [
+              "matrix_head_row_well",
+              "matrix_cell_well_well",
+              "matrix_cell_well_sick",
+              "matrix_cell_well_dead"
+            ]
+          },
+          "speak": "Here is the model: each year, of the well, 88 percent stay, ten percent fall sick and two percent die."
+        },
+        {
+          "draw": [
+            "matrix_rule_values",
+            "matrix_rule_head_values",
+            "matrix_head_utility",
+            "matrix_utility_well",
+            "matrix_utility_sick",
+            "matrix_utility_dead"
+          ],
+          "speak": "Each state gets a value: a year well counts as 0.9 of a healthy year, a year sick as 0.6."
+        },
+        {
+          "draw": [
+            "matrix_head_cost",
+            "matrix_cost_well",
+            "matrix_cost_sick",
+            "matrix_cost_dead"
+          ],
+          "speak": "And a cost: a thousand pounds a year well, four thousand sick."
+        },
+        {
+          "draw": [
+            "trace_head",
+            "trace_head_rule",
+            "trace_row_0"
+          ],
+          "speak": "Now start a thousand people, all well."
+        },
+        {
+          "draw": [
+            "trace_row_1"
+          ],
+          "speak": "One year later the matrix has split them: 880 well, 100 sick, 20 dead."
+        },
+        {
+          "highlight": {
+            "target": [
+              "trace_row_1"
+            ]
+          },
+          "speak": "Score that year: 880 times 0.9, plus 100 times 0.6, is 852 QALYs. It costs 1.28 million pounds."
+        },
+        {
+          "highlight": {
+            "target": [
+              "matrix_col_well"
+            ]
+          },
+          "speak": "Year two applies the same matrix to these new counts: 88 percent of the well stay, and a quarter of the sick recover."
+        },
+        {
+          "draw": [
+            "trace_row_2"
+          ],
+          "speak": "So 799 are well, 158 sick and 43 dead: 814 QALYs this time."
+        },
+        {
+          "draw": [
+            "trace_row_3"
+          ],
+          "speak": "Each year, fewer are well and more are sick, so a year yields fewer QALYs and costs more."
+        },
+        {
+          "draw": [
+            "trace_gap",
+            "trace_rule_total",
+            "trace_total",
+            "trace_discount"
+          ],
+          "speak": "Run it for a lifetime, counting each later year 3.5 percent less, and add up: 13,426 QALYs and 28.2 million pounds."
+        },
+        {
+          "draw": [
+            "trace_mean"
+          ],
+          "speak": "Divide by the thousand people: 13.43 QALYs and 28,200 pounds per person, on average."
+        },
+        {
+          "highlight": {
+            "target": [
+              "matrix_utility_well",
+              "matrix_utility_sick",
+              "matrix_cost_well",
+              "matrix_cost_sick"
+            ]
+          },
+          "speak": "So the matrix moves the people, the values score each year, and the average is those two multiplied and added up."
+        },
+        {
+          "explore": {},
+          "speak": "Try raising the chance of falling sick, and watch the average QALYs fall and the cost climb."
+        },
+        {
+          "quiz": {
+            "question": "A year sick now costs £8,000 instead of £4,000. What changes in the trace?",
+            "choices": [
+              "Only the costs",
+              "The counts and the costs",
+              "The counts, QALYs and costs"
+            ],
+            "correct": 1,
+            "right": "Only the costs: the matrix alone decides who is where; the values just score each year.",
+            "wrong": "Ask which part of the model moves people between states."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "How do you get an ICER out of a Markov model?",
+    "spec": {
+      "title": "An ICER from a Markov model",
+      "template": "markov_model",
+      "params": {
+        "view": "matrix",
+        "states": [
+          "Well",
+          "Sick",
+          "Dead"
+        ],
+        "transitions": [
+          {
+            "from": "Well",
+            "to": "Sick",
+            "label": "0.10"
+          },
+          {
+            "from": "Sick",
+            "to": "Well",
+            "label": "0.25"
+          },
+          {
+            "from": "Sick",
+            "to": "Dead",
+            "label": "0.05"
+          },
+          {
+            "from": "Well",
+            "to": "Dead",
+            "label": "0.02"
+          }
+        ],
+        "trace": {
+          "start": 1000,
+          "utility": [
+            0.9,
+            0.6,
+            0
+          ],
+          "cost": [
+            1000,
+            4000,
+            0
+          ],
+          "cycles": 1,
+          "compare": {
+            "name": "New drug",
+            "transitions": [
+              {
+                "from": "Well",
+                "to": "Sick",
+                "label": "0.05"
+              }
+            ],
+            "cost": [
+              1500,
+              1500,
+              0
+            ]
+          },
+          "name": "No drug"
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "An ICER from a Markov model"
+          }
+        },
+        {
+          "camera": {
+            "on": [
+              "matrix"
+            ]
+          }
+        },
+        {
+          "draw": [
+            "matrix_corner",
+            "matrix_rule_head",
+            "matrix_rule_from",
+            "matrix_head_row_well",
+            "matrix_head_row_sick",
+            "matrix_head_row_dead",
+            "matrix_head_col_well",
+            "matrix_head_col_sick",
+            "matrix_head_col_dead",
+            "matrix_cell_well_well",
+            "matrix_cell_well_sick",
+            "matrix_cell_well_dead",
+            "matrix_cell_sick_well",
+            "matrix_cell_sick_sick",
+            "matrix_cell_sick_dead",
+            "matrix_cell_dead_well",
+            "matrix_cell_dead_sick",
+            "matrix_cell_dead_dead"
+          ],
+          "parallel": true,
+          "speak": "How do you get an ICER, the price of each extra QALY, out of a Markov model? You run the model twice, once per option."
+        },
+        {
+          "draw": [
+            "matrix_rule_values",
+            "matrix_head_utility",
+            "matrix_head_cost",
+            "matrix_rule_head_values",
+            "matrix_utility_well",
+            "matrix_cost_well",
+            "matrix_utility_sick",
+            "matrix_cost_sick",
+            "matrix_utility_dead",
+            "matrix_cost_dead"
+          ],
+          "parallel": true,
+          "speak": "Here is a model with illustrative numbers: a year well is worth 0.9 and costs a thousand pounds, a year sick 0.6 and four thousand."
+        },
+        {
+          "highlight": {
+            "target": [
+              "matrix_cell_well_sick"
+            ]
+          },
+          "speak": "Now a new drug halves the chance that a well person falls sick, from ten percent to five."
+        },
+        {
+          "draw": [
+            "matrix_compare_name",
+            "matrix_compare_well_sick",
+            "matrix_compare_well_well"
+          ],
+          "speak": "That changes one cell, and the stay beside it rises to 0.93, so the row still adds to one."
+        },
+        {
+          "draw": [
+            "matrix_compare_cost_well",
+            "matrix_compare_cost_sick"
+          ],
+          "speak": "The drug adds 1,500 pounds a year for everyone alive, well or sick."
+        },
+        {
+          "camera": {
+            "reset": true
+          }
+        },
+        {
+          "draw": [
+            "trace_head",
+            "trace_head_rule",
+            "trace_row_0",
+            "trace_row_1",
+            "trace_gap",
+            "trace_rule_total",
+            "trace_total",
+            "trace_discount",
+            "trace_mean"
+          ],
+          "speak": "Now run a thousand people through the model for a lifetime, without the drug: 13.43 QALYs and 28,200 pounds each, on average."
+        },
+        {
+          "camera": {
+            "on": [
+              "trace_total",
+              "trace_mean",
+              "trace_compare",
+              "trace_icer",
+              "thr"
+            ]
+          }
+        },
+        {
+          "draw": [
+            "trace_compare"
+          ],
+          "speak": "Then run the same thousand again, with the drug: 14.69 QALYs and 49,800 pounds each."
+        },
+        {
+          "draw": [
+            "trace_icer_gain"
+          ],
+          "speak": "So each person gains 1.26 QALYs,"
+        },
+        {
+          "draw": [
+            "trace_icer_cost"
+          ],
+          "speak": "at 21,600 pounds more."
+        },
+        {
+          "draw": [
+            "trace_icer_ratio"
+          ],
+          "speak": "Divide the extra cost by the extra QALYs: about 17,100 pounds per QALY gained. That is the ICER."
+        },
+        {
+          "focus": {
+            "target": [
+              "trace_mean",
+              "trace_compare",
+              "trace_icer"
+            ]
+          },
+          "speak": "It uses only the differences between the two runs; the 13.43 QALYs people get anyway never enter it."
+        },
+        {
+          "draw": [
+            "thr"
+          ],
+          "speak": "A health service then weighs it against what it will pay: at a threshold of, say, 20,000 pounds per QALY, this drug passes."
+        },
+        {
+          "camera": {
+            "reset": true
+          }
+        },
+        {
+          "explore": {},
+          "speak": "Try a weaker drug or a dearer one, and watch the ICER climb toward that 20,000."
+        },
+        {
+          "quiz": {
+            "question": "Both options get an extra £5,000 per person, say for a routine check-up. What happens to the ICER?",
+            "choices": [
+              "It rises",
+              "It falls",
+              "It stays the same"
+            ],
+            "correct": 3,
+            "right": "It stays the same: a cost both options pay cancels out when you take the difference.",
+            "wrong": "Look at which numbers the ICER divides."
+          }
+        }
+      ],
+      "elements": [
+        {
+          "id": "thr",
+          "type": "text",
+          "at": {
+            "ref": "trace_icer_ratio",
+            "side": "right",
+            "gap": 16
+          },
+          "text": "Threshold £20,000",
+          "font_size": 20,
+          "style": {
+            "color": "#8f887c"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "A seven-state Markov model of chronic kidney disease (CKD 3a to dialysis, transplant and death) in matrix view: walk the matrix row by row, run the cohort and compare a drug that slows progression, ending with its cost per QALY. Illustrative numbers.",
+    "spec": {
+      "title": "Is a kidney drug worth it?",
+      "template": "markov_model",
+      "params": {
+        "view": "matrix",
+        "states": [
+          "CKD 3a",
+          "CKD 3b",
+          "CKD 4",
+          "CKD 5",
+          "Dialysis",
+          "Transplant",
+          "Dead"
+        ],
+        "transitions": [
+          {
+            "from": "CKD 3a",
+            "to": "CKD 3b",
+            "label": "0.10"
+          },
+          {
+            "from": "CKD 3a",
+            "to": "Dead",
+            "label": "0.03"
+          },
+          {
+            "from": "CKD 3b",
+            "to": "CKD 4",
+            "label": "0.12"
+          },
+          {
+            "from": "CKD 3b",
+            "to": "Dead",
+            "label": "0.04"
+          },
+          {
+            "from": "CKD 4",
+            "to": "CKD 5",
+            "label": "0.15"
+          },
+          {
+            "from": "CKD 4",
+            "to": "Dead",
+            "label": "0.06"
+          },
+          {
+            "from": "CKD 5",
+            "to": "Dialysis",
+            "label": "0.40"
+          },
+          {
+            "from": "CKD 5",
+            "to": "Transplant",
+            "label": "0.05"
+          },
+          {
+            "from": "CKD 5",
+            "to": "Dead",
+            "label": "0.10"
+          },
+          {
+            "from": "Dialysis",
+            "to": "Transplant",
+            "label": "0.06"
+          },
+          {
+            "from": "Dialysis",
+            "to": "Dead",
+            "label": "0.15"
+          },
+          {
+            "from": "Transplant",
+            "to": "Dialysis",
+            "label": "0.03"
+          },
+          {
+            "from": "Transplant",
+            "to": "Dead",
+            "label": "0.03"
+          }
+        ],
+        "trace": {
+          "start": 1000,
+          "utility": [
+            0.8,
+            0.75,
+            0.7,
+            0.6,
+            0.55,
+            0.8,
+            0
+          ],
+          "cost": [
+            1000,
+            1500,
+            3000,
+            6000,
+            40000,
+            12000,
+            0
+          ],
+          "cycles": 2,
+          "currency": "$",
+          "compare": {
+            "name": "Drug",
+            "transitions": [
+              {
+                "from": "CKD 3a",
+                "to": "CKD 3b",
+                "label": "0.06"
+              },
+              {
+                "from": "CKD 3b",
+                "to": "CKD 4",
+                "label": "0.08"
+              },
+              {
+                "from": "CKD 4",
+                "to": "CKD 5",
+                "label": "0.10"
+              }
+            ],
+            "cost": [
+              3000,
+              3000,
+              3000,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Is a kidney drug worth it?"
+          }
+        },
+        {
+          "draw": [
+            "matrix_corner",
+            "matrix_head_row_ckd_3a",
+            "matrix_head_row_ckd_3b",
+            "matrix_head_row_ckd_4",
+            "matrix_head_row_ckd_5",
+            "matrix_head_row_dialysis",
+            "matrix_head_row_transplant",
+            "matrix_head_row_dead",
+            "matrix_head_col_ckd_3a",
+            "matrix_head_col_ckd_3b",
+            "matrix_head_col_ckd_4",
+            "matrix_head_col_ckd_5",
+            "matrix_head_col_dialysis",
+            "matrix_head_col_transplant",
+            "matrix_head_col_dead",
+            "matrix_rule_head",
+            "matrix_rule_from"
+          ],
+          "parallel": true,
+          "speak": "Is a drug that slows kidney disease worth its price? A Markov model can answer; the numbers here are illustrative."
+        },
+        {
+          "camera": {
+            "on": [
+              "matrix_row_ckd_3a"
+            ]
+          }
+        },
+        {
+          "draw": [
+            "matrix_head_row_ckd_3a",
+            "matrix_cell_ckd_3a_ckd_3a",
+            "matrix_cell_ckd_3a_ckd_3b",
+            "matrix_cell_ckd_3a_ckd_4",
+            "matrix_cell_ckd_3a_ckd_5",
+            "matrix_cell_ckd_3a_dialysis",
+            "matrix_cell_ckd_3a_transplant",
+            "matrix_cell_ckd_3a_dead"
+          ],
+          "speak": "Each row is one year in a state. From stage 3a, 10 in 100 move on to 3b, 3 die, and 87 stay."
+        },
+        {
+          "camera": {
+            "on": [
+              "matrix_row_ckd_3b",
+              "matrix_row_ckd_4"
+            ]
+          }
+        },
+        {
+          "draw": [
+            "matrix_head_row_ckd_3b",
+            "matrix_cell_ckd_3b_ckd_3a",
+            "matrix_cell_ckd_3b_ckd_3b",
+            "matrix_cell_ckd_3b_ckd_4",
+            "matrix_cell_ckd_3b_ckd_5",
+            "matrix_cell_ckd_3b_dialysis",
+            "matrix_cell_ckd_3b_transplant",
+            "matrix_cell_ckd_3b_dead",
+            "matrix_head_row_ckd_4",
+            "matrix_cell_ckd_4_ckd_3a",
+            "matrix_cell_ckd_4_ckd_3b",
+            "matrix_cell_ckd_4_ckd_4",
+            "matrix_cell_ckd_4_ckd_5",
+            "matrix_cell_ckd_4_dialysis",
+            "matrix_cell_ckd_4_transplant",
+            "matrix_cell_ckd_4_dead"
+          ],
+          "parallel": true,
+          "speak": "Stages 3b and 4 work the same way: one step on, a little faster at each stage."
+        },
+        {
+          "camera": {
+            "on": [
+              "matrix_corner",
+              "matrix_cell_dead_dead"
+            ],
+            "zoom": 1.3
+          }
+        },
+        {
+          "draw": [
+            "matrix_head_row_ckd_5",
+            "matrix_cell_ckd_5_ckd_3a",
+            "matrix_cell_ckd_5_ckd_3b",
+            "matrix_cell_ckd_5_ckd_4",
+            "matrix_cell_ckd_5_ckd_5",
+            "matrix_cell_ckd_5_dialysis",
+            "matrix_cell_ckd_5_transplant",
+            "matrix_cell_ckd_5_dead"
+          ],
+          "speak": "Stage 5 is kidney failure: each year, 40 in 100 start dialysis."
+        },
+        {
+          "draw": [
+            "matrix_head_row_dialysis",
+            "matrix_cell_dialysis_ckd_3a",
+            "matrix_cell_dialysis_ckd_3b",
+            "matrix_cell_dialysis_ckd_4",
+            "matrix_cell_dialysis_ckd_5",
+            "matrix_cell_dialysis_dialysis",
+            "matrix_cell_dialysis_transplant",
+            "matrix_cell_dialysis_dead",
+            "matrix_head_row_transplant",
+            "matrix_cell_transplant_ckd_3a",
+            "matrix_cell_transplant_ckd_3b",
+            "matrix_cell_transplant_ckd_4",
+            "matrix_cell_transplant_ckd_5",
+            "matrix_cell_transplant_dialysis",
+            "matrix_cell_transplant_transplant",
+            "matrix_cell_transplant_dead"
+          ],
+          "parallel": true,
+          "speak": "Dialysis can lead to a transplant, and a transplant can fail, back to dialysis."
+        },
+        {
+          "draw": [
+            "matrix_head_row_dead",
+            "matrix_cell_dead_ckd_3a",
+            "matrix_cell_dead_ckd_3b",
+            "matrix_cell_dead_ckd_4",
+            "matrix_cell_dead_ckd_5",
+            "matrix_cell_dead_dialysis",
+            "matrix_cell_dead_transplant",
+            "matrix_cell_dead_dead"
+          ],
+          "speak": "Dead is the row nobody leaves."
+        },
+        {
+          "highlight": {
+            "target": [
+              "matrix_col_dead"
+            ]
+          },
+          "speak": "And every other row leaks into it, from 3 to 15 in a hundred each year."
+        },
+        {
+          "highlight": {
+            "target": [
+              "matrix_stay"
+            ]
+          },
+          "speak": "The diagonal is who stays: whatever the moves leave, so each row adds up to one."
+        },
+        {
+          "camera": {
+            "on": [
+              "matrix_col_dead",
+              "matrix_head_cost",
+              "matrix_cost_dead"
+            ]
+          }
+        },
+        {
+          "draw": [
+            "matrix_rule_values",
+            "matrix_head_utility",
+            "matrix_head_cost",
+            "matrix_rule_head_values",
+            "matrix_utility_ckd_3a",
+            "matrix_utility_ckd_3b",
+            "matrix_utility_ckd_4",
+            "matrix_utility_ckd_5",
+            "matrix_utility_dialysis",
+            "matrix_utility_transplant",
+            "matrix_utility_dead",
+            "matrix_cost_ckd_3a",
+            "matrix_cost_ckd_3b",
+            "matrix_cost_ckd_4",
+            "matrix_cost_ckd_5",
+            "matrix_cost_dialysis",
+            "matrix_cost_transplant",
+            "matrix_cost_dead"
+          ],
+          "parallel": true,
+          "speak": "Each state also has a quality weight and a yearly cost."
+        },
+        {
+          "highlight": {
+            "target": [
+              "matrix_cost_dialysis"
+            ]
+          },
+          "speak": "Dialysis costs 40,000 dollars a year, more than ten times stage 4."
+        },
+        {
+          "camera": {
+            "on": [
+              "matrix_row_ckd_3a",
+              "matrix_row_ckd_4"
+            ]
+          }
+        },
+        {
+          "draw": [
+            "matrix_compare_name",
+            "matrix_compare_ckd_3a_ckd_3b",
+            "matrix_compare_ckd_3a_ckd_3a",
+            "matrix_compare_ckd_3b_ckd_4",
+            "matrix_compare_ckd_3b_ckd_3b",
+            "matrix_compare_ckd_4_ckd_5",
+            "matrix_compare_ckd_4_ckd_4"
+          ],
+          "speak": "The drug slows each step before failure: 10 in 100 becomes 6."
+        },
+        {
+          "camera": {
+            "on": [
+              "matrix_col_dead",
+              "matrix_head_cost",
+              "matrix_cost_dead"
+            ]
+          }
+        },
+        {
+          "draw": [
+            "matrix_compare_cost_ckd_3a",
+            "matrix_compare_cost_ckd_3b",
+            "matrix_compare_cost_ckd_4"
+          ],
+          "speak": "It costs 3,000 dollars a year, taken until stage 5."
+        },
+        {
+          "camera": {
+            "on": [
+              "trace_row_1",
+              "trace_icer"
+            ],
+            "zoom": 1.15
+          }
+        },
+        {
+          "draw": [
+            "trace_head",
+            "trace_head_rule",
+            "trace_row_0",
+            "trace_row_1",
+            "trace_row_2",
+            "trace_gap",
+            "trace_rule_total",
+            "trace_total",
+            "trace_discount"
+          ],
+          "parallel": true,
+          "speak": "Now run a thousand patients, all starting in stage 3a, year by year for a lifetime."
+        },
+        {
+          "draw": [
+            "trace_mean"
+          ],
+          "speak": "Without the drug, each patient gets 9.24 quality-adjusted years, at 57,100 dollars."
+        },
+        {
+          "draw": [
+            "trace_compare"
+          ],
+          "speak": "With it, 10.16 years, at 76,400 dollars."
+        },
+        {
+          "draw": [
+            "trace_icer_gain",
+            "trace_icer_cost"
+          ],
+          "speak": "So 0.92 years more, for 19,300 dollars more."
+        },
+        {
+          "draw": [
+            "trace_icer_ratio"
+          ],
+          "speak": "That is about 21,200 dollars per quality-adjusted year."
+        },
+        {
+          "highlight": {
+            "target": [
+              "trace_icer_cost"
+            ]
+          },
+          "speak": "That 19,300 is less than the drug's own price, 3,000 dollars a year for years: part of it comes back."
+        },
+        {
+          "camera": {
+            "on": [
+              "matrix_col_dead",
+              "matrix_head_cost",
+              "matrix_cost_dead"
+            ]
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "matrix_cost_dialysis"
+            ]
+          },
+          "speak": "It comes back as dialysis, at 40,000 dollars a year, that never happens."
+        },
+        {
+          "camera": {
+            "on": [
+              "matrix_col_dialysis",
+              "matrix_cost_dialysis"
+            ]
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "matrix_col_dialysis"
+            ]
+          },
+          "speak": "So the drug's value shows up in a column it never touches."
+        },
+        {
+          "camera": {
+            "reset": true
+          }
+        },
+        {
+          "quiz": {
+            "question": "If dialysis cost half as much, what would happen to the drug's cost per quality-adjusted year?",
+            "choices": [
+              "It would rise",
+              "It would fall",
+              "No change"
+            ],
+            "correct": 1,
+            "right": "It would rise: less dialysis to avoid means less of the drug's price comes back.",
+            "wrong": "Ask where the money that comes back comes from."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "A big decision tree for suspected appendicitis (operate now, scan first, wait and see) with 17 terminals, folded back with costs at $30,000 per QALY, laid out at full size larger than the page and walked fan by fan with the camera, ending on the strategy table and an overview. Illustrative numbers.",
+    "spec": {
+      "title": "Scan before surgery?",
+      "template": "decision_tree",
+      "params": {
+        "size": "full",
+        "rollback": true,
+        "wtp": 30000,
+        "currency": "$",
+        "unit": "QALYs",
+        "root": {
+          "id": "choice",
+          "type": "decision",
+          "label": "Appendicitis?",
+          "children": [
+            {
+              "label": "Operate now",
+              "node": {
+                "id": "op",
+                "type": "chance",
+                "label": "",
+                "children": [
+                  {
+                    "label": "Appendicitis",
+                    "node": {
+                      "id": "op_ap",
+                      "type": "chance",
+                      "label": "",
+                      "children": [
+                        {
+                          "label": "",
+                          "node": {
+                            "id": "op_ok",
+                            "type": "terminal",
+                            "label": "Recovers",
+                            "payoff": 40,
+                            "cost": 10000
+                          },
+                          "probability": 0.95
+                        },
+                        {
+                          "label": "",
+                          "node": {
+                            "id": "op_cx",
+                            "type": "terminal",
+                            "label": "Complication",
+                            "payoff": 39,
+                            "cost": 25000
+                          }
+                        }
+                      ]
+                    },
+                    "probability": 0.6
+                  },
+                  {
+                    "label": "Healthy",
+                    "node": {
+                      "id": "op_no",
+                      "type": "chance",
+                      "label": "",
+                      "children": [
+                        {
+                          "label": "",
+                          "node": {
+                            "id": "op_neg_ok",
+                            "type": "terminal",
+                            "label": "Recovers",
+                            "payoff": 39.9,
+                            "cost": 10000
+                          },
+                          "probability": 0.97
+                        },
+                        {
+                          "label": "",
+                          "node": {
+                            "id": "op_neg_cx",
+                            "type": "terminal",
+                            "label": "Complication",
+                            "payoff": 39,
+                            "cost": 25000
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "label": "Scan first",
+              "node": {
+                "id": "ct",
+                "type": "chance",
+                "label": "",
+                "children": [
+                  {
+                    "label": "Appendicitis",
+                    "node": {
+                      "id": "ct_ap",
+                      "type": "chance",
+                      "label": "",
+                      "children": [
+                        {
+                          "label": "Found",
+                          "node": {
+                            "id": "ct_found",
+                            "type": "chance",
+                            "label": "",
+                            "children": [
+                              {
+                                "label": "",
+                                "node": {
+                                  "id": "ct_op_ok",
+                                  "type": "terminal",
+                                  "label": "Recovers",
+                                  "payoff": 40,
+                                  "cost": 10000
+                                },
+                                "probability": 0.95
+                              },
+                              {
+                                "label": "",
+                                "node": {
+                                  "id": "ct_op_cx",
+                                  "type": "terminal",
+                                  "label": "Complication",
+                                  "payoff": 39,
+                                  "cost": 25000
+                                }
+                              }
+                            ]
+                          },
+                          "probability": 0.95
+                        },
+                        {
+                          "label": "Missed",
+                          "node": {
+                            "id": "ct_miss",
+                            "type": "chance",
+                            "label": "",
+                            "children": [
+                              {
+                                "label": "",
+                                "node": {
+                                  "id": "ct_perf_ok",
+                                  "type": "terminal",
+                                  "label": "Recovers",
+                                  "payoff": 39.5,
+                                  "cost": 20000
+                                },
+                                "probability": 0.9
+                              },
+                              {
+                                "label": "",
+                                "node": {
+                                  "id": "ct_perf_bad",
+                                  "type": "terminal",
+                                  "label": "Severe",
+                                  "payoff": 30,
+                                  "cost": 50000
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "probability": 0.6
+                  },
+                  {
+                    "label": "Healthy",
+                    "node": {
+                      "id": "ct_no",
+                      "type": "chance",
+                      "label": "",
+                      "children": [
+                        {
+                          "label": "",
+                          "node": {
+                            "id": "ct_home",
+                            "type": "terminal",
+                            "label": "Home",
+                            "payoff": 40,
+                            "cost": 0
+                          },
+                          "probability": 0.94
+                        },
+                        {
+                          "label": "False alarm",
+                          "node": {
+                            "id": "ct_fp",
+                            "type": "chance",
+                            "label": "",
+                            "children": [
+                              {
+                                "label": "",
+                                "node": {
+                                  "id": "ct_neg_ok",
+                                  "type": "terminal",
+                                  "label": "Recovers",
+                                  "payoff": 39.9,
+                                  "cost": 10000
+                                },
+                                "probability": 0.97
+                              },
+                              {
+                                "label": "",
+                                "node": {
+                                  "id": "ct_neg_cx",
+                                  "type": "terminal",
+                                  "label": "Complication",
+                                  "payoff": 39,
+                                  "cost": 25000
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "cost": 600
+            },
+            {
+              "label": "Wait and see",
+              "node": {
+                "id": "watch",
+                "type": "chance",
+                "label": "",
+                "children": [
+                  {
+                    "label": "Appendicitis",
+                    "node": {
+                      "id": "w_ap",
+                      "type": "chance",
+                      "label": "",
+                      "children": [
+                        {
+                          "label": "Operated",
+                          "node": {
+                            "id": "w_op",
+                            "type": "chance",
+                            "label": "",
+                            "children": [
+                              {
+                                "label": "",
+                                "node": {
+                                  "id": "w_op_ok",
+                                  "type": "terminal",
+                                  "label": "Recovers",
+                                  "payoff": 40,
+                                  "cost": 11500
+                                },
+                                "probability": 0.95
+                              },
+                              {
+                                "label": "",
+                                "node": {
+                                  "id": "w_op_cx",
+                                  "type": "terminal",
+                                  "label": "Complication",
+                                  "payoff": 39,
+                                  "cost": 26500
+                                }
+                              }
+                            ]
+                          },
+                          "probability": 0.7
+                        },
+                        {
+                          "label": "Perforates",
+                          "node": {
+                            "id": "w_perf",
+                            "type": "chance",
+                            "label": "",
+                            "children": [
+                              {
+                                "label": "",
+                                "node": {
+                                  "id": "w_perf_ok",
+                                  "type": "terminal",
+                                  "label": "Recovers",
+                                  "payoff": 39.5,
+                                  "cost": 21500
+                                },
+                                "probability": 0.9
+                              },
+                              {
+                                "label": "",
+                                "node": {
+                                  "id": "w_perf_bad",
+                                  "type": "terminal",
+                                  "label": "Severe",
+                                  "payoff": 30,
+                                  "cost": 51500
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "probability": 0.6
+                  },
+                  {
+                    "label": "Healthy",
+                    "node": {
+                      "id": "w_no",
+                      "type": "chance",
+                      "label": "",
+                      "children": [
+                        {
+                          "label": "",
+                          "node": {
+                            "id": "w_home",
+                            "type": "terminal",
+                            "label": "Home",
+                            "payoff": 40,
+                            "cost": 1500
+                          },
+                          "probability": 0.9
+                        },
+                        {
+                          "label": "",
+                          "node": {
+                            "id": "w_back",
+                            "type": "terminal",
+                            "label": "Home later",
+                            "payoff": 40,
+                            "cost": 3000
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Scan before surgery?"
+          }
+        },
+        {
+          "camera": {
+            "on": [
+              "node_choice",
+              "branchlabel_choice_op",
+              "branchlabel_choice_ct",
+              "branchlabel_choice_watch"
+            ],
+            "duration": 0.1
+          }
+        },
+        {
+          "draw": [
+            "node_choice",
+            "label_choice",
+            "edge_choice_op",
+            "branchlabel_choice_op",
+            "node_op",
+            "label_op",
+            "edge_choice_ct",
+            "branchlabel_choice_ct",
+            "node_ct",
+            "label_ct",
+            "edge_choice_watch",
+            "branchlabel_choice_watch",
+            "node_watch",
+            "label_watch"
+          ],
+          "speak": "Suspected appendicitis: operate now, scan first, or wait and see? A decision tree weighs all three; the numbers here are illustrative."
+        },
+        {
+          "camera": {
+            "on": [
+              "node_op",
+              "node_op_ap",
+              "node_op_no"
+            ],
+            "zoom": 1
+          }
+        },
+        {
+          "draw": [
+            "edge_op_op_ap",
+            "branchlabel_op_op_ap",
+            "node_op_ap",
+            "label_op_ap",
+            "edge_op_op_no",
+            "branchlabel_op_op_no",
+            "node_op_no",
+            "label_op_no"
+          ],
+          "speak": "Operate now, and 6 in 10 turn out to have appendicitis."
+        },
+        {
+          "camera": {
+            "on": [
+              "node_op_no",
+              "node_op_neg_ok",
+              "node_op_neg_cx"
+            ],
+            "zoom": 1
+          }
+        },
+        {
+          "draw": [
+            "edge_op_no_op_neg_ok",
+            "branchlabel_op_no_op_neg_ok",
+            "node_op_neg_ok",
+            "label_op_neg_ok",
+            "payoff_op_neg_ok",
+            "edge_op_no_op_neg_cx",
+            "branchlabel_op_no_op_neg_cx",
+            "node_op_neg_cx",
+            "label_op_neg_cx",
+            "payoff_op_neg_cx"
+          ],
+          "speak": "The other 4 in 10 lose a healthy appendix: 10,000 dollars, and now and then a complication."
+        },
+        {
+          "camera": {
+            "on": [
+              "node_op_ap",
+              "node_op_ok",
+              "node_op_cx"
+            ],
+            "zoom": 1
+          }
+        },
+        {
+          "draw": [
+            "edge_op_ap_op_ok",
+            "branchlabel_op_ap_op_ok",
+            "node_op_ok",
+            "label_op_ok",
+            "payoff_op_ok",
+            "edge_op_ap_op_cx",
+            "branchlabel_op_ap_op_cx",
+            "node_op_cx",
+            "label_op_cx",
+            "payoff_op_cx"
+          ],
+          "speak": "Those with appendicitis are treated in time, and 95 in 100 simply recover."
+        },
+        {
+          "camera": {
+            "on": [
+              "node_ct",
+              "node_ct_ap",
+              "node_ct_no"
+            ],
+            "zoom": 1
+          }
+        },
+        {
+          "draw": [
+            "edge_ct_ct_ap",
+            "branchlabel_ct_ct_ap",
+            "node_ct_ap",
+            "label_ct_ap",
+            "edge_ct_ct_no",
+            "branchlabel_ct_ct_no",
+            "node_ct_no",
+            "label_ct_no"
+          ],
+          "speak": "Scan first: a 600 dollar scan, for everyone, before anyone is cut."
+        },
+        {
+          "camera": {
+            "on": [
+              "node_ct_no",
+              "node_ct_home",
+              "node_ct_fp"
+            ],
+            "zoom": 1
+          }
+        },
+        {
+          "draw": [
+            "edge_ct_no_ct_home",
+            "branchlabel_ct_no_ct_home",
+            "node_ct_home",
+            "label_ct_home",
+            "payoff_ct_home",
+            "edge_ct_no_ct_fp",
+            "branchlabel_ct_no_ct_fp",
+            "node_ct_fp",
+            "label_ct_fp"
+          ],
+          "speak": "Of the healthy, the scan sends 94 in 100 home without an operation."
+        },
+        {
+          "draw": [
+            "edge_ct_fp_ct_neg_ok",
+            "branchlabel_ct_fp_ct_neg_ok",
+            "node_ct_neg_ok",
+            "label_ct_neg_ok",
+            "payoff_ct_neg_ok",
+            "edge_ct_fp_ct_neg_cx",
+            "branchlabel_ct_fp_ct_neg_cx",
+            "node_ct_neg_cx",
+            "label_ct_neg_cx",
+            "payoff_ct_neg_cx"
+          ]
+        },
+        {
+          "camera": {
+            "on": [
+              "node_ct_ap",
+              "node_ct_found",
+              "node_ct_miss",
+              "node_ct_perf_ok",
+              "node_ct_perf_bad"
+            ],
+            "zoom": 0.9
+          }
+        },
+        {
+          "draw": [
+            "edge_ct_ap_ct_found",
+            "branchlabel_ct_ap_ct_found",
+            "node_ct_found",
+            "label_ct_found",
+            "edge_ct_ap_ct_miss",
+            "branchlabel_ct_ap_ct_miss",
+            "node_ct_miss",
+            "label_ct_miss",
+            "edge_ct_miss_ct_perf_ok",
+            "branchlabel_ct_miss_ct_perf_ok",
+            "node_ct_perf_ok",
+            "label_ct_perf_ok",
+            "payoff_ct_perf_ok",
+            "edge_ct_miss_ct_perf_bad",
+            "branchlabel_ct_miss_ct_perf_bad",
+            "node_ct_perf_bad",
+            "label_ct_perf_bad",
+            "payoff_ct_perf_bad"
+          ],
+          "speak": "It finds 95 in 100 cases of appendicitis; the few it misses can burst."
+        },
+        {
+          "draw": [
+            "edge_ct_found_ct_op_ok",
+            "branchlabel_ct_found_ct_op_ok",
+            "node_ct_op_ok",
+            "label_ct_op_ok",
+            "payoff_ct_op_ok",
+            "edge_ct_found_ct_op_cx",
+            "branchlabel_ct_found_ct_op_cx",
+            "node_ct_op_cx",
+            "label_ct_op_cx",
+            "payoff_ct_op_cx"
+          ]
+        },
+        {
+          "camera": {
+            "on": [
+              "node_watch",
+              "node_w_ap",
+              "node_w_no"
+            ],
+            "zoom": 1
+          }
+        },
+        {
+          "draw": [
+            "edge_watch_w_ap",
+            "branchlabel_watch_w_ap",
+            "node_w_ap",
+            "label_w_ap",
+            "edge_watch_w_no",
+            "branchlabel_watch_w_no",
+            "node_w_no",
+            "label_w_no",
+            "edge_w_no_w_home",
+            "branchlabel_w_no_w_home",
+            "node_w_home",
+            "label_w_home",
+            "payoff_w_home",
+            "edge_w_no_w_back",
+            "branchlabel_w_no_w_back",
+            "node_w_back",
+            "label_w_back",
+            "payoff_w_back"
+          ],
+          "speak": "Wait and see: a night's observation, 1,500 dollars, and the healthy go home."
+        },
+        {
+          "camera": {
+            "on": [
+              "node_w_ap",
+              "node_w_op",
+              "node_w_perf"
+            ],
+            "zoom": 1
+          }
+        },
+        {
+          "draw": [
+            "edge_w_ap_w_op",
+            "branchlabel_w_ap_w_op",
+            "node_w_op",
+            "label_w_op",
+            "edge_w_ap_w_perf",
+            "branchlabel_w_ap_w_perf",
+            "node_w_perf",
+            "label_w_perf"
+          ],
+          "speak": "But while we wait, 3 in 10 appendixes burst."
+        },
+        {
+          "draw": [
+            "edge_w_op_w_op_ok",
+            "branchlabel_w_op_w_op_ok",
+            "node_w_op_ok",
+            "label_w_op_ok",
+            "payoff_w_op_ok",
+            "edge_w_op_w_op_cx",
+            "branchlabel_w_op_w_op_cx",
+            "node_w_op_cx",
+            "label_w_op_cx",
+            "payoff_w_op_cx"
+          ]
+        },
+        {
+          "camera": {
+            "on": [
+              "node_w_perf",
+              "node_w_perf_ok",
+              "node_w_perf_bad"
+            ],
+            "zoom": 1
+          }
+        },
+        {
+          "draw": [
+            "edge_w_perf_w_perf_ok",
+            "branchlabel_w_perf_w_perf_ok",
+            "node_w_perf_ok",
+            "label_w_perf_ok",
+            "payoff_w_perf_ok",
+            "edge_w_perf_w_perf_bad",
+            "branchlabel_w_perf_w_perf_bad",
+            "node_w_perf_bad",
+            "label_w_perf_bad",
+            "payoff_w_perf_bad"
+          ],
+          "speak": "A burst one costs twice as much to treat, and 1 in 10 end badly."
+        },
+        {
+          "camera": {
+            "on": [
+              "node_w_ap",
+              "node_w_no",
+              "node_w_home",
+              "node_w_back"
+            ],
+            "zoom": 0.9
+          }
+        },
+        {
+          "draw": [
+            "value_choice",
+            "value_op",
+            "value_op_ap",
+            "value_op_no",
+            "value_ct",
+            "value_ct_ap",
+            "value_ct_found",
+            "value_ct_miss",
+            "value_ct_no",
+            "value_ct_fp",
+            "value_watch",
+            "value_w_ap",
+            "value_w_op",
+            "value_w_perf",
+            "value_w_no"
+          ],
+          "parallel": true,
+          "speak": "Now fold the tree back: each chance node is worth its branches, weighed by their chances."
+        },
+        {
+          "highlight": {
+            "target": [
+              "value_w_no"
+            ]
+          },
+          "speak": "Here, 9 in 10 at 1,500 dollars and 1 in 10 at 3,000 make 1,650."
+        },
+        {
+          "camera": {
+            "on": [
+              "node_choice",
+              "node_ct",
+              "value_ct",
+              "branchlabel_choice_ct"
+            ]
+          }
+        },
+        {
+          "draw": [
+            "best",
+            "pruned"
+          ],
+          "speak": "Scanning first is cheaper and no worse, so it wins at any price per healthy year."
+        },
+        {
+          "camera": {
+            "on": [
+              "strategy_table"
+            ],
+            "zoom": 1.1
+          }
+        },
+        {
+          "draw": [
+            "strategy_table"
+          ],
+          "speak": "It costs about 3,000 dollars less than operating now, for the same health."
+        },
+        {
+          "highlight": {
+            "target": [
+              "strategy_row_watch"
+            ]
+          },
+          "speak": "Waiting is dearer and worse: burst appendixes cost more than the observation saves."
+        },
+        {
+          "camera": {
+            "on": [
+              "node_ct_no",
+              "node_ct_home",
+              "node_ct_fp"
+            ],
+            "zoom": 1
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "node_ct_home",
+              "payoff_ct_home"
+            ]
+          },
+          "speak": "The scan earns its price among the healthy: it spares most of them a 10,000 dollar operation."
+        },
+        {
+          "camera": {
+            "reset": true
+          }
+        },
+        {
+          "explore": {},
+          "speak": "Try it yourself: change the scan's accuracy or a cost, and watch the pick move."
+        },
+        {
+          "quiz": {
+            "question": "If only 1 in 10 suspected patients truly had appendicitis, would scanning first save more or less than operating now?",
+            "choices": [
+              "More",
+              "Less",
+              "The same"
+            ],
+            "correct": 1,
+            "right": "More: its savings come from the healthy it keeps off the table, and there would be more of them.",
+            "wrong": "Ask who the scan saves money on."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "A screening decision tree with 10 terminals (screen vs no screen; cancer found or missed; false alarms; treatment outcomes), folded back with costs and a strategy table: first the overview with the screening subtree collapsed, then each part expanded in turn with the camera on it. Illustrative numbers.",
+    "playlist": "playlist:\n  title: Is screening worth it?\n  prompt: \"A screening decision tree with 10 terminals (screen vs no screen; cancer found or missed; false alarms; treatment outcomes), folded back with costs and a strategy table: first the overview with the screening subtree collapsed, then each part expanded in turn with the camera on it. Illustrative numbers.\"\n  advance: auto\n  gap: 1\n---\n{\n \"title\": \"The overview\",\n \"template\": \"decision_tree\",\n \"params\": {\n  \"rollback\": true,\n  \"currency\": \"$\",\n  \"unit\": \"QALYs\",\n  \"size\": \"page\",\n  \"root\": {\n   \"id\": \"choice\",\n   \"type\": \"decision\",\n   \"label\": \"Screen?\",\n   \"children\": [\n    {\n     \"label\": \"No screen\",\n     \"node\": {\n      \"id\": \"none\",\n      \"type\": \"chance\",\n      \"label\": \"\",\n      \"children\": [\n       {\n        \"label\": \"Cancer\",\n        \"node\": {\n         \"id\": \"n_ca\",\n         \"type\": \"chance\",\n         \"label\": \"\",\n         \"children\": [\n          {\n           \"label\": \"\",\n           \"node\": {\n            \"id\": \"n_late_ok\",\n            \"type\": \"terminal\",\n            \"label\": \"Survives\",\n            \"payoff\": 12,\n            \"cost\": 50000\n           },\n           \"probability\": 0.5\n          },\n          {\n           \"label\": \"\",\n           \"node\": {\n            \"id\": \"n_late_die\",\n            \"type\": \"terminal\",\n            \"label\": \"Dies\",\n            \"payoff\": 4,\n            \"cost\": 40000\n           }\n          }\n         ]\n        },\n        \"probability\": 0.01\n       },\n       {\n        \"label\": \"\",\n        \"node\": {\n         \"id\": \"n_ok\",\n         \"type\": \"terminal\",\n         \"label\": \"Healthy\",\n         \"payoff\": 20,\n         \"cost\": 0\n        }\n       }\n      ]\n     }\n    },\n    {\n     \"label\": \"Screen\",\n     \"node\": {\n      \"id\": \"screen\",\n      \"type\": \"chance\",\n      \"label\": \"\",\n      \"children\": [\n       {\n        \"label\": \"Cancer\",\n        \"node\": {\n         \"id\": \"s_ca\",\n         \"type\": \"chance\",\n         \"label\": \"\",\n         \"children\": [\n          {\n           \"label\": \"Found\",\n           \"node\": {\n            \"id\": \"s_found\",\n            \"type\": \"chance\",\n            \"label\": \"\",\n            \"children\": [\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_cured\",\n               \"type\": \"terminal\",\n               \"label\": \"Cured\",\n               \"payoff\": 18,\n               \"cost\": 30000\n              },\n              \"probability\": 0.85\n             },\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_notcured\",\n               \"type\": \"terminal\",\n               \"label\": \"Not cured\",\n               \"payoff\": 8,\n               \"cost\": 60000\n              }\n             }\n            ]\n           },\n           \"probability\": 0.9\n          },\n          {\n           \"label\": \"Missed\",\n           \"node\": {\n            \"id\": \"s_missed\",\n            \"type\": \"chance\",\n            \"label\": \"\",\n            \"children\": [\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_late_ok\",\n               \"type\": \"terminal\",\n               \"label\": \"Survives\",\n               \"payoff\": 12,\n               \"cost\": 50000\n              },\n              \"probability\": 0.5\n             },\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_late_die\",\n               \"type\": \"terminal\",\n               \"label\": \"Dies\",\n               \"payoff\": 4,\n               \"cost\": 40000\n              }\n             }\n            ]\n           }\n          }\n         ]\n        },\n        \"probability\": 0.01\n       },\n       {\n        \"label\": \"No cancer\",\n        \"node\": {\n         \"id\": \"s_no\",\n         \"type\": \"chance\",\n         \"label\": \"\",\n         \"children\": [\n          {\n           \"label\": \"False alarm\",\n           \"node\": {\n            \"id\": \"s_fp\",\n            \"type\": \"chance\",\n            \"label\": \"\",\n            \"children\": [\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_fp_ok\",\n               \"type\": \"terminal\",\n               \"label\": \"Clear\",\n               \"payoff\": 19.95,\n               \"cost\": 1000\n              },\n              \"probability\": 0.99\n             },\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_fp_harm\",\n               \"type\": \"terminal\",\n               \"label\": \"Harm\",\n               \"payoff\": 17,\n               \"cost\": 15000\n              }\n             }\n            ]\n           },\n           \"probability\": 0.05\n          },\n          {\n           \"label\": \"\",\n           \"node\": {\n            \"id\": \"s_tn\",\n            \"type\": \"terminal\",\n            \"label\": \"Healthy\",\n            \"payoff\": 20,\n            \"cost\": 0\n           }\n          }\n         ]\n        }\n       }\n      ],\n      \"collapsed\": true\n     },\n     \"cost\": 300\n    }\n   ]\n  }\n },\n \"commands\": [\n  {\n   \"card\": {\n    \"title\": \"Is screening worth it?\"\n   }\n  },\n  {\n   \"hide\": [\n    \"value_choice\"\n   ]\n  },\n  {\n   \"draw\": [\n    \"node_choice\",\n    \"label_choice\"\n   ],\n   \"speak\": \"Should we screen healthy people for a cancer? A decision tree can weigh it; the numbers here are illustrative.\"\n  },\n  {\n   \"draw\": [\n    \"edge_choice_none\",\n    \"branchlabel_choice_none\",\n    \"node_none\",\n    \"label_none\",\n    \"edge_none_n_ca\",\n    \"branchlabel_none_n_ca\",\n    \"node_n_ca\",\n    \"label_n_ca\"\n   ],\n   \"speak\": \"Without screening, 1 in 100 people has the cancer, and it is found late.\"\n  },\n  {\n   \"draw\": [\n    \"edge_n_ca_n_late_ok\",\n    \"branchlabel_n_ca_n_late_ok\",\n    \"node_n_late_ok\",\n    \"payoff_n_late_ok\",\n    \"label_n_late_ok\",\n    \"edge_n_ca_n_late_die\",\n    \"branchlabel_n_ca_n_late_die\",\n    \"node_n_late_die\",\n    \"payoff_n_late_die\",\n    \"label_n_late_die\"\n   ],\n   \"speak\": \"Half of them survive, with 12 quality-adjusted years; the others die, with 4.\"\n  },\n  {\n   \"draw\": [\n    \"edge_none_n_ok\",\n    \"branchlabel_none_n_ok\",\n    \"node_n_ok\",\n    \"payoff_n_ok\",\n    \"label_n_ok\"\n   ],\n   \"speak\": \"The other 99 stay healthy: 20 years, at no cost.\"\n  },\n  {\n   \"draw\": [\n    \"value_n_ca\",\n    \"value_none\"\n   ],\n   \"speak\": \"Weigh each outcome by its chance, and no screening is worth 19.88 years, at 450 dollars a person.\"\n  },\n  {\n   \"draw\": [\n    \"edge_choice_screen\",\n    \"branchlabel_choice_screen\",\n    \"node_screen\",\n    \"label_screen\"\n   ],\n   \"speak\": \"Screening starts with a 300-dollar test for everyone.\"\n  },\n  {\n   \"draw\": [\n    \"collapsed_screen\",\n    \"value_screen\"\n   ],\n   \"speak\": \"Behind it is a whole subtree, folded shut here: 19.95 years, at 712 dollars.\"\n  },\n  {\n   \"draw\": [\n    \"best\",\n    \"pruned\"\n   ],\n   \"speak\": \"The tree picks screening, the option worth more years.\"\n  },\n  {\n   \"draw\": [\n    \"strategy_table\"\n   ],\n   \"speak\": \"It buys 0.07 years for 262 dollars more: about 3,700 dollars per year gained.\"\n  },\n  {\n   \"highlight\": {\n    \"target\": [\n     \"strategy_base_screen\",\n     \"strategy_delta_screen\"\n    ]\n   },\n   \"speak\": \"But 0.07 years is under a month. Where does it come from?\"\n  }\n ]\n}\n---\n{\n \"title\": \"The one in a hundred\",\n \"template\": \"decision_tree\",\n \"params\": {\n  \"rollback\": true,\n  \"currency\": \"$\",\n  \"unit\": \"QALYs\",\n  \"size\": \"page\",\n  \"root\": {\n   \"id\": \"choice\",\n   \"type\": \"decision\",\n   \"label\": \"Screen?\",\n   \"children\": [\n    {\n     \"label\": \"No screen\",\n     \"node\": {\n      \"id\": \"none\",\n      \"type\": \"chance\",\n      \"label\": \"\",\n      \"children\": [\n       {\n        \"label\": \"Cancer\",\n        \"node\": {\n         \"id\": \"n_ca\",\n         \"type\": \"chance\",\n         \"label\": \"\",\n         \"children\": [\n          {\n           \"label\": \"\",\n           \"node\": {\n            \"id\": \"n_late_ok\",\n            \"type\": \"terminal\",\n            \"label\": \"Survives\",\n            \"payoff\": 12,\n            \"cost\": 50000\n           },\n           \"probability\": 0.5\n          },\n          {\n           \"label\": \"\",\n           \"node\": {\n            \"id\": \"n_late_die\",\n            \"type\": \"terminal\",\n            \"label\": \"Dies\",\n            \"payoff\": 4,\n            \"cost\": 40000\n           }\n          }\n         ]\n        },\n        \"probability\": 0.01\n       },\n       {\n        \"label\": \"\",\n        \"node\": {\n         \"id\": \"n_ok\",\n         \"type\": \"terminal\",\n         \"label\": \"Healthy\",\n         \"payoff\": 20,\n         \"cost\": 0\n        }\n       }\n      ],\n      \"collapsed\": true\n     }\n    },\n    {\n     \"label\": \"Screen\",\n     \"node\": {\n      \"id\": \"screen\",\n      \"type\": \"chance\",\n      \"label\": \"\",\n      \"children\": [\n       {\n        \"label\": \"Cancer\",\n        \"node\": {\n         \"id\": \"s_ca\",\n         \"type\": \"chance\",\n         \"label\": \"\",\n         \"children\": [\n          {\n           \"label\": \"Found\",\n           \"node\": {\n            \"id\": \"s_found\",\n            \"type\": \"chance\",\n            \"label\": \"\",\n            \"children\": [\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_cured\",\n               \"type\": \"terminal\",\n               \"label\": \"Cured\",\n               \"payoff\": 18,\n               \"cost\": 30000\n              },\n              \"probability\": 0.85\n             },\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_notcured\",\n               \"type\": \"terminal\",\n               \"label\": \"Not cured\",\n               \"payoff\": 8,\n               \"cost\": 60000\n              }\n             }\n            ]\n           },\n           \"probability\": 0.9\n          },\n          {\n           \"label\": \"Missed\",\n           \"node\": {\n            \"id\": \"s_missed\",\n            \"type\": \"chance\",\n            \"label\": \"\",\n            \"children\": [\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_late_ok\",\n               \"type\": \"terminal\",\n               \"label\": \"Survives\",\n               \"payoff\": 12,\n               \"cost\": 50000\n              },\n              \"probability\": 0.5\n             },\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_late_die\",\n               \"type\": \"terminal\",\n               \"label\": \"Dies\",\n               \"payoff\": 4,\n               \"cost\": 40000\n              }\n             }\n            ],\n            \"collapsed\": true\n           }\n          }\n         ]\n        },\n        \"probability\": 0.01\n       },\n       {\n        \"label\": \"No cancer\",\n        \"node\": {\n         \"id\": \"s_no\",\n         \"type\": \"chance\",\n         \"label\": \"\",\n         \"children\": [\n          {\n           \"label\": \"False alarm\",\n           \"node\": {\n            \"id\": \"s_fp\",\n            \"type\": \"chance\",\n            \"label\": \"\",\n            \"children\": [\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_fp_ok\",\n               \"type\": \"terminal\",\n               \"label\": \"Clear\",\n               \"payoff\": 19.95,\n               \"cost\": 1000\n              },\n              \"probability\": 0.99\n             },\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_fp_harm\",\n               \"type\": \"terminal\",\n               \"label\": \"Harm\",\n               \"payoff\": 17,\n               \"cost\": 15000\n              }\n             }\n            ]\n           },\n           \"probability\": 0.05\n          },\n          {\n           \"label\": \"\",\n           \"node\": {\n            \"id\": \"s_tn\",\n            \"type\": \"terminal\",\n            \"label\": \"Healthy\",\n            \"payoff\": 20,\n            \"cost\": 0\n           }\n          }\n         ],\n         \"collapsed\": true\n        }\n       }\n      ]\n     },\n     \"cost\": 300\n    }\n   ]\n  },\n  \"table\": false\n },\n \"commands\": [\n  {\n   \"hide\": [\n    \"value_choice\"\n   ]\n  },\n  {\n   \"draw\": [\n    \"node_choice\",\n    \"label_choice\",\n    \"edge_choice_screen\",\n    \"branchlabel_choice_screen\",\n    \"node_screen\",\n    \"label_screen\",\n    \"edge_choice_none\",\n    \"branchlabel_choice_none\",\n    \"node_none\",\n    \"label_none\",\n    \"collapsed_none\",\n    \"value_none\",\n    \"value_screen\",\n    \"edge_screen_s_ca\",\n    \"branchlabel_screen_s_ca\",\n    \"node_s_ca\",\n    \"label_s_ca\",\n    \"edge_screen_s_no\",\n    \"branchlabel_screen_s_no\",\n    \"node_s_no\",\n    \"label_s_no\",\n    \"collapsed_s_no\",\n    \"value_s_no\"\n   ],\n   \"parallel\": true,\n   \"speak\": \"Open screening, and follow the 1 in 100 with cancer.\"\n  },\n  {\n   \"camera\": {\n    \"on\": [\n     \"node_s_ca\",\n     \"node_s_found\",\n     \"node_s_cured\",\n     \"node_s_notcured\"\n    ]\n   }\n  },\n  {\n   \"draw\": [\n    \"edge_s_ca_s_found\",\n    \"branchlabel_s_ca_s_found\",\n    \"node_s_found\",\n    \"label_s_found\",\n    \"edge_s_found_s_cured\",\n    \"branchlabel_s_found_s_cured\",\n    \"node_s_cured\",\n    \"payoff_s_cured\",\n    \"label_s_cured\",\n    \"edge_s_found_s_notcured\",\n    \"branchlabel_s_found_s_notcured\",\n    \"node_s_notcured\",\n    \"payoff_s_notcured\",\n    \"label_s_notcured\"\n   ],\n   \"speak\": \"The test finds 9 in 10 of their cancers early, and 85 in 100 of those are cured: 18 years.\"\n  },\n  {\n   \"camera\": {\n    \"reset\": true\n   }\n  },\n  {\n   \"draw\": [\n    \"edge_s_ca_s_missed\",\n    \"branchlabel_s_ca_s_missed\",\n    \"node_s_missed\",\n    \"label_s_missed\",\n    \"collapsed_s_missed\",\n    \"value_s_missed\"\n   ],\n   \"speak\": \"The missed tenth is found late, just as without screening: 8 years.\"\n  },\n  {\n   \"draw\": [\n    \"value_s_found\",\n    \"value_s_ca\"\n   ],\n   \"speak\": \"So a person with cancer can expect 15.65 years if screened; unscreened, on the first page, it was 8.\"\n  },\n  {\n   \"highlight\": {\n    \"target\": [\n     \"value_s_ca\"\n    ]\n   },\n   \"speak\": \"That is 7.65 years more for every person with cancer.\"\n  }\n ]\n}\n---\n{\n \"title\": \"The ninety-nine\",\n \"template\": \"decision_tree\",\n \"params\": {\n  \"rollback\": true,\n  \"currency\": \"$\",\n  \"unit\": \"QALYs\",\n  \"size\": \"page\",\n  \"root\": {\n   \"id\": \"choice\",\n   \"type\": \"decision\",\n   \"label\": \"Screen?\",\n   \"children\": [\n    {\n     \"label\": \"No screen\",\n     \"node\": {\n      \"id\": \"none\",\n      \"type\": \"chance\",\n      \"label\": \"\",\n      \"children\": [\n       {\n        \"label\": \"Cancer\",\n        \"node\": {\n         \"id\": \"n_ca\",\n         \"type\": \"chance\",\n         \"label\": \"\",\n         \"children\": [\n          {\n           \"label\": \"\",\n           \"node\": {\n            \"id\": \"n_late_ok\",\n            \"type\": \"terminal\",\n            \"label\": \"Survives\",\n            \"payoff\": 12,\n            \"cost\": 50000\n           },\n           \"probability\": 0.5\n          },\n          {\n           \"label\": \"\",\n           \"node\": {\n            \"id\": \"n_late_die\",\n            \"type\": \"terminal\",\n            \"label\": \"Dies\",\n            \"payoff\": 4,\n            \"cost\": 40000\n           }\n          }\n         ]\n        },\n        \"probability\": 0.01\n       },\n       {\n        \"label\": \"\",\n        \"node\": {\n         \"id\": \"n_ok\",\n         \"type\": \"terminal\",\n         \"label\": \"Healthy\",\n         \"payoff\": 20,\n         \"cost\": 0\n        }\n       }\n      ],\n      \"collapsed\": true\n     }\n    },\n    {\n     \"label\": \"Screen\",\n     \"node\": {\n      \"id\": \"screen\",\n      \"type\": \"chance\",\n      \"label\": \"\",\n      \"children\": [\n       {\n        \"label\": \"Cancer\",\n        \"node\": {\n         \"id\": \"s_ca\",\n         \"type\": \"chance\",\n         \"label\": \"\",\n         \"children\": [\n          {\n           \"label\": \"Found\",\n           \"node\": {\n            \"id\": \"s_found\",\n            \"type\": \"chance\",\n            \"label\": \"\",\n            \"children\": [\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_cured\",\n               \"type\": \"terminal\",\n               \"label\": \"Cured\",\n               \"payoff\": 18,\n               \"cost\": 30000\n              },\n              \"probability\": 0.85\n             },\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_notcured\",\n               \"type\": \"terminal\",\n               \"label\": \"Not cured\",\n               \"payoff\": 8,\n               \"cost\": 60000\n              }\n             }\n            ]\n           },\n           \"probability\": 0.9\n          },\n          {\n           \"label\": \"Missed\",\n           \"node\": {\n            \"id\": \"s_missed\",\n            \"type\": \"chance\",\n            \"label\": \"\",\n            \"children\": [\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_late_ok\",\n               \"type\": \"terminal\",\n               \"label\": \"Survives\",\n               \"payoff\": 12,\n               \"cost\": 50000\n              },\n              \"probability\": 0.5\n             },\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_late_die\",\n               \"type\": \"terminal\",\n               \"label\": \"Dies\",\n               \"payoff\": 4,\n               \"cost\": 40000\n              }\n             }\n            ]\n           }\n          }\n         ],\n         \"collapsed\": true\n        },\n        \"probability\": 0.01\n       },\n       {\n        \"label\": \"No cancer\",\n        \"node\": {\n         \"id\": \"s_no\",\n         \"type\": \"chance\",\n         \"label\": \"\",\n         \"children\": [\n          {\n           \"label\": \"False alarm\",\n           \"node\": {\n            \"id\": \"s_fp\",\n            \"type\": \"chance\",\n            \"label\": \"\",\n            \"children\": [\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_fp_ok\",\n               \"type\": \"terminal\",\n               \"label\": \"Clear\",\n               \"payoff\": 19.95,\n               \"cost\": 1000\n              },\n              \"probability\": 0.99\n             },\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_fp_harm\",\n               \"type\": \"terminal\",\n               \"label\": \"Harm\",\n               \"payoff\": 17,\n               \"cost\": 15000\n              }\n             }\n            ],\n            \"collapsed\": true\n           },\n           \"probability\": 0.05\n          },\n          {\n           \"label\": \"\",\n           \"node\": {\n            \"id\": \"s_tn\",\n            \"type\": \"terminal\",\n            \"label\": \"Healthy\",\n            \"payoff\": 20,\n            \"cost\": 0\n           }\n          }\n         ]\n        }\n       }\n      ]\n     },\n     \"cost\": 300\n    }\n   ]\n  }\n },\n \"commands\": [\n  {\n   \"hide\": [\n    \"value_choice\"\n   ]\n  },\n  {\n   \"draw\": [\n    \"node_choice\",\n    \"label_choice\",\n    \"edge_choice_screen\",\n    \"branchlabel_choice_screen\",\n    \"node_screen\",\n    \"label_screen\",\n    \"edge_choice_none\",\n    \"branchlabel_choice_none\",\n    \"node_none\",\n    \"label_none\",\n    \"collapsed_none\",\n    \"value_none\",\n    \"value_screen\",\n    \"edge_screen_s_ca\",\n    \"branchlabel_screen_s_ca\",\n    \"node_s_ca\",\n    \"label_s_ca\",\n    \"edge_screen_s_no\",\n    \"branchlabel_screen_s_no\",\n    \"node_s_no\",\n    \"label_s_no\",\n    \"collapsed_s_ca\",\n    \"value_s_ca\"\n   ],\n   \"parallel\": true,\n   \"speak\": \"Now the other 99, who have no cancer.\"\n  },\n  {\n   \"camera\": {\n    \"on\": [\n     \"node_s_no\",\n     \"node_s_fp\",\n     \"node_s_tn\"\n    ]\n   }\n  },\n  {\n   \"draw\": [\n    \"edge_s_no_s_tn\",\n    \"branchlabel_s_no_s_tn\",\n    \"node_s_tn\",\n    \"payoff_s_tn\",\n    \"label_s_tn\"\n   ],\n   \"speak\": \"Most test clear: they gain nothing, and pay only the 300-dollar test on the branch above.\"\n  },\n  {\n   \"draw\": [\n    \"edge_s_no_s_fp\",\n    \"branchlabel_s_no_s_fp\",\n    \"node_s_fp\",\n    \"label_s_fp\",\n    \"collapsed_s_fp\",\n    \"value_s_fp\"\n   ],\n   \"speak\": \"5 in 100 get a false alarm: a biopsy, worry, and now and then harm.\"\n  },\n  {\n   \"camera\": {\n    \"reset\": true\n   }\n  },\n  {\n   \"draw\": [\n    \"value_s_no\"\n   ],\n   \"speak\": \"So the healthy keep their 20 years, near enough, and pay 57 dollars each on top of the test.\"\n  },\n  {\n   \"draw\": [\n    \"strategy_table\"\n   ],\n   \"speak\": \"7.65 years for 1 in 100 is about 0.08 each; false alarms take a little back, leaving 0.07.\"\n  },\n  {\n   \"highlight\": {\n    \"target\": [\n     \"strategy_base_screen\",\n     \"strategy_delta_screen\",\n     \"strategy_icer_screen\"\n    ]\n   },\n   \"speak\": \"A small average can still be good value: here, about 3,700 dollars per year gained.\"\n  },\n  {\n   \"quiz\": {\n    \"question\": \"Screening adds 0.07 years per person. What does that mean?\",\n    \"choices\": [\n     \"Everyone gains about 26 days\",\n     \"A few gain years; most gain nothing\",\n     \"Everyone loses a little\"\n    ],\n    \"correct\": 2,\n    \"right\": \"A few gain years and most gain nothing: 7.65 years for 1 in 100, averaged over everyone screened.\",\n    \"wrong\": \"Look at which branch the extra years came from.\"\n   }\n  }\n ]\n}\n"
   }
 ]
