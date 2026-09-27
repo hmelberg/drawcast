@@ -3,6 +3,7 @@
 // pointer. The body lives in the pack document (macro.yaml `widget:`),
 // live with no demo or judge, so free play (compile.ts). The host half runs here too: a DOCUMENT's live body
 // takes the same live path as supply_demand's built-in one.
+import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, test } from "vitest";
 import { ensureEnabledPacks } from "../src/scenes/packs";
 import { scenes } from "../src/scenes/registry";
@@ -172,6 +173,18 @@ describe("the host drives a DOCUMENT's live body like a built-in's", () => {
     host.press(tapAt);
     expect(host.release(tapAt)).toBe("pass");
     expect(calls.length).toBe(before);
+  });
+});
+
+describe("the stage: a live drag let go over the paused figure's play button still lands", () => {
+  test("the big play button is hidden while grabbing, and a drop on it is not a drop on a control", () => {
+    // Found in the browser (2026-09-27): IS′ dragged back through the middle
+    // of a paused figure and released there snapped back to the press — the
+    // drop read the centred play button as a control, and cancelled.
+    const host = readFileSync("src/ui/widget-host.ts", "utf8");
+    expect(host).toContain('dropped.closest("button:not(.cs-bigplay)")');
+    const css = readFileSync("src/styles.css", "utf8");
+    expect(css).toContain(".cs-stage.cs-grabbing .cs-bigplay { display: none; }");
   });
 });
 

@@ -829,6 +829,9 @@ details > summary { cursor: pointer; color: var(--muted); }
   border-color: #3d3833;
 }
 .cs-stage.is-playing .cs-bigplay { display: none; }
+/* A curve being dragged live must not pass under the play button at the
+   figure's middle: the viewer is watching the figure there. */
+.cs-stage.cs-grabbing .cs-bigplay { display: none; }
 /* Between the items of a playlist "done" is a cut to the next one, not the
    end — playlist/session.ts marks the stage while that cut is pending, so
    the replay button does not flash at every chapter boundary. */
