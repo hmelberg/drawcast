@@ -61,6 +61,24 @@ function readCast(file) {
   }
 }
 
+/** What a cast file is, as `open` reports it. Mirrors src/playlist/cast-file.ts. */
+function castShape(text) {
+  let j;
+  try {
+    j = JSON.parse(text);
+  } catch {
+    return { label: "playlist YAML / script", empty: false };
+  }
+  const e = Array.isArray(j) ? j[0] : j;
+  if (!e || typeof e !== "object") return { label: "JSON that is not a cast", empty: true };
+  if (e.playlist !== undefined) return { label: "a {request, playlist} wrapper", empty: false };
+  const spec = e.spec && typeof e.spec === "object" ? e.spec : e;
+  const n = Array.isArray(spec.commands) ? spec.commands.length : 0;
+  const label = spec === e ? `a spec, ${n} commands` : `a {request, spec} wrapper, ${n} commands`;
+  const drawn = Array.isArray(spec.elements) && spec.elements.length > 0;
+  return { label, empty: n === 0 && !drawn && !spec.template };
+}
+
 function devPath(file) {
   const rel = relative(ROOT, resolve(ROOT, file));
   if (rel.startsWith("..")) throw new Error(`${file} must be inside the repo (e.g. dev-casts/) so the dev server can serve it`);
@@ -359,7 +377,12 @@ const commands = {
     const [file] = args.filter((a) => a !== "--launch");
     if (!file) throw new Error("usage: cast.mjs open <cast.json> [--launch]");
     const url = `${URL_BASE}/?open=${devPath(file)}`;
-    console.log(url);
+    // The app's ?open= unwraps the same shapes frames reads (a spec, {request,
+    // spec}, {request, title, playlist}; src/playlist/cast-file.ts). Say which
+    // one this is, and refuse a JSON file that would open as a blank page.
+    const shape = castShape(readFileSync(resolve(ROOT, file), "utf8"));
+    if (shape.empty) throw new Error(`${file}: ${shape.label} with nothing to draw — the app would open a blank page`);
+    console.log(`${url}\n(${shape.label})`);
     if (args.includes("--launch")) {
       const { spawn } = await import("node:child_process");
       spawn(process.platform === "darwin" ? "open" : "xdg-open", [url], { stdio: "ignore", detached: true }).unref();

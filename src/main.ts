@@ -72,6 +72,7 @@ import {
   type AudioTrack,
   type Playlist,
 } from "./playlist/playlist";
+import { unwrapCastText } from "./playlist/cast-file";
 import { mountPlaylist, playlistSpeakLines, type SessionHandle } from "./playlist/session";
 import { appendRecord, localRecordStorage } from "./render/record";
 import { applyViewsFlag } from "./views";
@@ -4604,8 +4605,12 @@ if (import.meta.env.DEV) {
     void fetch(openPath)
       .then((r) => (r.ok ? r.text() : Promise.reject(new Error(`${r.status}`))))
       .then((text) => {
-        const playlist = readPlaylistText(text);
-        if (playlist) setDoc({ id: null, driveFileId: null, sourcePath: null, title: docTitleOf(playlist, openPath.split("/").pop() ?? "cast"), playlist }, "Opened.");
+        // A cast file may wrap the spec — {request, spec}, {request, title,
+        // playlist} — as the frames harness accepts; read raw, a wrapper
+        // parsed as a blank spec and played 0 steps (playlist/cast-file.ts).
+        const cast = unwrapCastText(text);
+        const playlist = readPlaylistText(cast.text);
+        if (playlist) setDoc({ id: null, driveFileId: null, sourcePath: null, title: docTitleOf(playlist, cast.title ?? openPath.split("/").pop() ?? "cast"), playlist }, "Opened.");
       })
       .catch((err) => setStatus(`Could not open ${openPath}: ${(err as Error).message}`, "error"));
   }

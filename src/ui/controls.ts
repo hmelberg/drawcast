@@ -33,6 +33,7 @@ import { attachWidgetHost, widgetGateFor } from "./widget-host";
 import { attachPanelView } from "./panel-view";
 import { inControlRegion, tryContinue } from "./control-press";
 import { scenes } from "../scenes/registry";
+import { HANDS_ON_CLASS, figureIsHandsOn } from "./bigplay";
 
 export interface PlaybackPrefs {
   mode: "narrated" | "silent" | "instant";
@@ -769,7 +770,12 @@ export function attachPlayerControls(
   // Every control glyph is an inline SVG taking currentColor (see ui/icons.ts)
   // — one material, so the bar themes as a whole and macOS never swaps a
   // control for a colour-emoji bitmap.
-  const bigPlay = h("button", { class: "cs-bigplay", title: "Play with narration" }, icon("play"));
+  const bigPlay = h("button", { class: "cs-bigplay", title: "Play with narration", "aria-label": "Play with narration" }, icon("play"));
+  /** The big button's name, spoken and hovered alike. */
+  const nameBigPlay = (label: string): void => {
+    bigPlay.title = label;
+    bigPlay.setAttribute("aria-label", label);
+  };
   // cs-play is a stable hook: review mode pauses playback by pressing this
   // button rather than reaching into the player's internals.
   const playBtn = h("button", { class: "cs-bar-btn cs-play", title: "Play / pause" }, icon("play"));
@@ -1198,6 +1204,9 @@ export function attachPlayerControls(
   // the stage's play/pause toggle never sees it; question gates render
   // their own overlay and are left alone.
   const interactions = (hd.spec.template && scenes[hd.spec.template]?.manifest.interactions) || [];
+  // A figure worked by hand while paused docks the big play button in a
+  // corner instead of centring it over the very parts on offer (ui/bigplay.ts).
+  stage.classList.toggle(HANDS_ON_CLASS, figureIsHandsOn({ widget: widgetHost !== null, interactions }));
   if (interactions.includes("chess")) attachChessPlay(stage, hd);
   if (interactions.includes("staff")) attachStaffPlay(stage, hd);
   attachInfoCards(stage, hd, widgetHost); // no-op unless the spec carries card elements
@@ -1381,7 +1390,7 @@ export function attachPlayerControls(
       opts.onPlayingChange?.(s === "playing");
       playBtn.replaceChildren(icon(s === "playing" ? "pause" : "play"));
       bigPlay.replaceChildren(icon(s === "done" ? "replay" : "play"));
-      bigPlay.title = s === "done" ? "Replay with narration" : "Play with narration";
+      nameBigPlay(s === "done" ? "Replay with narration" : "Play with narration");
     },
     onStep: (done) => {
       prev.onStep?.(done, total);
@@ -1394,5 +1403,5 @@ export function attachPlayerControls(
   // Thumbnail state: show the finished drawing as the poster.
   hd.timeline.showPoster();
   bigPlay.replaceChildren(icon("play")); // poster shows play, not replay
-  bigPlay.title = "Play with narration";
+  nameBigPlay("Play with narration");
 }
