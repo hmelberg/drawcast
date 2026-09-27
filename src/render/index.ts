@@ -482,6 +482,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     // units). Frames inherit the boundary's choice and ride the anchor; the
     // solver runs at the boundaries only.
     let labelPins = mountedLayout.labelPins;
+    let committed: LayoutResult | null = null;
     player.reprojector = {
       frame: (params, scene, o = {}) => {
         const l = layoutFor(params, false, o.elements, o.overrides, o.trailProgress, labelPins);
@@ -499,8 +500,10 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
       commit: (params, overrides) => {
         const l = layoutFor(params, true, undefined, overrides);
         labelPins = l.labelPins;
+        committed = l;
         return mounted.remount!(l);
       },
+      committed: () => committed,
       setCodePatch: (id, p) => {
         if (p) codePatches.set(id, p);
         else codePatches.delete(id);
