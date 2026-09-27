@@ -823,7 +823,8 @@ describe("sky_map: lint-clean over a year of moments", () => {
     expect(clocks.size).toBe(200);
     const fields = new Set(moments(20).map((time) => JSON.stringify(lay({ time }).drawables)));
     expect(fields.size).toBe(20);
-  });
+    // 220 layouts: a few seconds here, over the 5 s default on CI's slower runners.
+  }, 30000);
 
   test.each([
     ["the default figure", {}],

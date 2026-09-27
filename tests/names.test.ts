@@ -150,12 +150,16 @@ describe("checkPaidName", () => {
 });
 
 // ---- Paid course names (paid-names round, 2026-09-17) ----------------------
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { formatPrice, isPayable, paidInHash, PAID_MIN_LENGTH, PRICE_CURRENCY, PRICE_LONG, PRICE_TIERS, priceFor, startNamePayment } from "../src/names";
 
+// The server repo sits beside this one on the author's machine only; CI (the
+// GitHub Pages workflow) checks out this repo alone, so there the pin is skipped.
+const SERVER_NAMES_PY = new URL("../../drawcast-anvil/server_code/names.py", import.meta.url);
+
 describe("price tiers mirror server_code/names.py", () => {
-  test("the constants are pinned to the server's", () => {
-    const py = readFileSync(new URL("../../drawcast-anvil/server_code/names.py", import.meta.url), "utf8");
+  test.skipIf(!existsSync(SERVER_NAMES_PY))("the constants are pinned to the server's", () => {
+    const py = readFileSync(SERVER_NAMES_PY, "utf8");
     expect(py).toContain(`PAID_MIN_LENGTH = ${PAID_MIN_LENGTH}`);
     expect(py).toContain(`PRICE_TIERS = (${PRICE_TIERS.map(([u, c]) => `(${u}, ${c})`).join(", ")})`);
     expect(py).toContain(`PRICE_LONG = ${PRICE_LONG}`);
