@@ -219,7 +219,16 @@ export function layoutSpec(
         // the draw-beat layout below) passes skipDrawBeatLint and skips it —
         // a label that legitimately vanishes as the triangle shrinks is not
         // a beat that drew nothing.
-        if (!opts.skipDrawBeatLint) issues.push(...templateIdsOff(spec, scene.manifest.element_ids ?? {}, sceneLayout));
+        if (!opts.skipDrawBeatLint) {
+          const layoutAt = (p: Record<string, unknown>): SceneLayout | null => {
+            try {
+              return scene.layout!(p);
+            } catch {
+              return null;
+            }
+          };
+          issues.push(...templateIdsOff(spec, scene.manifest.element_ids ?? {}, sceneLayout, layoutAt));
+        }
         // The template's own group names (scenes/types.ts): a channel to the
         // planner's parent-id expansion, which until now only freehand specs
         // could reach. Set before tier-2 runs, and tier-2's own groups are
@@ -455,22 +464,60 @@ export function nativeBox(template: string | undefined): boolean {
  * commands without ever finding `elementId` means it was drawn last, after
  * every animate: fold to the end just as if a final beat had drawn it.
  */
-function templateIdsOff(spec: Spec, declared: Record<string, string>, laid: SceneLayout): LintIssue[] {
+function templateIdsOff(
+  spec: Spec,
+  declared: Record<string, string>,
+  laid: SceneLayout,
+  layoutAt: (params: Record<string, unknown>) => SceneLayout | null = () => null,
+): LintIssue[] {
   const docOf = new Map<string, string>();
   for (const [key, doc] of Object.entries(declared)) for (const id of key.split("/")) docOf.set(id.trim(), doc);
-  const produced = new Set<string>([
-    ...leafDrawables(laid.drawables).map((d) => d.id),
-    ...laid.drawables.map((d) => d.id),
-    ...laid.labels.map((l) => l.id),
-    ...Object.keys(laid.groups ?? {}),
-    ...(spec.elements ?? []).map((e) => e.id),
-  ]);
+  const idsOfLayout = (l: SceneLayout) => [
+    ...leafDrawables(l.drawables).map((d) => d.id),
+    ...l.drawables.map((d) => d.id),
+    ...l.labels.map((x) => x.id),
+    ...Object.keys(l.groups ?? {}),
+  ];
+  const produced = new Set<string>([...idsOfLayout(laid), ...(spec.elements ?? []).map((e) => e.id)]);
+  // An id the base params do not produce can still be one a later `animate`
+  // mints: a tax that starts at 0 and grows has no wedge on the draw beat,
+  // but the player reveals every id a tween mints (render/index.ts
+  // withNewIdsVisible, and applyScene finishes ids the plan never knew), so
+  // the wedge opens with the tax. What the rule guards against is an id NO
+  // state of the cast ever produces (a region its `regions` never lists) —
+  // so each missing id is judged against the params in force at its draw
+  // beat and after every animate that follows it.
+  const commands = spec.commands ?? [];
+  const statesFrom = (index: number): Record<string, unknown>[] => {
+    let params = spec.params ?? {};
+    const out: Record<string, unknown>[] = [];
+    commands.forEach((cmd, i) => {
+      if (cmd.animate) {
+        const numeric = Object.fromEntries(
+          Object.entries(expandBoxAnimate(cmd.animate)).filter(([k, v]) => typeof v === "number" && readParam(params, k) !== null),
+        );
+        if (Object.keys(numeric).length > 0) {
+          params = withOverrides(params, numeric);
+          if (i > index) out.push(params);
+        }
+      }
+      if (i === index) out.push(params);
+    });
+    return out;
+  };
+  const laterProduces = (id: string, index: number) =>
+    statesFrom(index).some((p) => {
+      if (p === (spec.params ?? {})) return false; // the base layout, already judged
+      const l = layoutAt(p);
+      return !!l && idsOfLayout(l).includes(id);
+    });
   const seen = new Set<string>();
   const issues: LintIssue[] = [];
-  for (const cmd of spec.commands ?? []) {
+  for (const [index, cmd] of commands.entries()) {
     for (const id of ([] as string[]).concat(cmd.draw ?? [])) {
       if (seen.has(id) || produced.has(id) || !docOf.has(id)) continue;
       seen.add(id);
+      if (laterProduces(id, index)) continue;
       issues.push({
         rule: "template-id-off",
         ids: [], // a template's id is not a spec element (template-params does the same)
