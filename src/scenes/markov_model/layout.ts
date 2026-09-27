@@ -50,6 +50,14 @@ export interface MarkovParams {
   title?: string;
   /** Run the model: a cohort table beside the diagram (see MarkovTrace). */
   trace?: MarkovTrace;
+  /**
+   * What to draw: the state diagram (default), the transition "matrix" —
+   * rows from, columns to, each cell a probability, the stay on the diagonal
+   * derived as 1 − the row's exits — or "both". The matrix alone takes up to
+   * 10 states, where a ring of circles stops reading; with it, `trace`'s
+   * table runs full width under the matrix and so takes as many states too.
+   */
+  view?: "diagram" | "matrix" | "both";
 }
 
 /**
@@ -205,11 +213,23 @@ function chooseCurve(from: Pt, to: Pt, hasReverse: boolean, obstacles: Pt[], rx:
 /** The diagram's box when a trace table takes the right of the canvas. */
 const TRACED_BOX = { x: 80, y: 250, w: 280, h: 300 };
 
+/** States a diagram draws; the matrix alone takes more (a ring of 7+ circles stops reading). */
+export const MAX_DIAGRAM_STATES = 6;
+export const MAX_MATRIX_STATES = 10;
+/** A cohort table BESIDE the diagram fits this many state columns; under a matrix it runs full width. */
+export const MAX_TRACE_BESIDE = 4;
+
 export function layoutMarkovModel(params: MarkovParams): SceneLayout {
-  const states = params.states.slice(0, 6);
+  const view = params.view === "matrix" || params.view === "both" ? params.view : "diagram";
+  const showDiagram = view !== "matrix";
+  const showMatrix = view !== "diagram";
+  const states = params.states.slice(0, showDiagram ? MAX_DIAGRAM_STATES : MAX_MATRIX_STATES);
   const style = params.layout ?? (states.length >= 3 ? "circle" : "chain");
-  const run = params.trace ? runTrace(states, params.transitions, params.trace) : null;
-  const positions = kit.layoutNodes(states, params.transitions, { style, ...(run ? TRACED_BOX : BOX) });
+  const run = params.trace ? runTrace(states, params.transitions, params.trace, showMatrix ? MAX_MATRIX_STATES : MAX_TRACE_BESIDE) : null;
+  // The page: the diagram's box, and where the matrix and the table go.
+  const page = showMatrix ? pagePlan(states, params, run, showDiagram) : null;
+  const diagramBox = page ? page.diagramBox : run ? TRACED_BOX : BOX;
+  const positions: Record<string, Pt> = showDiagram && diagramBox ? kit.layoutNodes(states, params.transitions, { style, ...diagramBox }) : {};
 
   // Crowded arrangements (a 5–6 state chain or ring) shrink every ellipse
   // together so neighbors keep clear air; roomy ones keep the full size.
@@ -250,7 +270,7 @@ export function layoutMarkovModel(params: MarkovParams): SceneLayout {
     (incident.get(t.to) ?? incident.set(t.to, []).get(t.to)!).push([-u[0], -u[1]]);
   }
 
-  states.forEach((name) => {
+  (showDiagram ? states : []).forEach((name) => {
     const c = positions[name];
     if (!c) return;
     const slug = slugify(name);
@@ -376,30 +396,166 @@ export function layoutMarkovModel(params: MarkovParams): SceneLayout {
   });
 
   if (params.title) {
-    push(kit.text("title", [run ? 250 : 500, 650], params.title, { fontSize: 30 }));
+    push(kit.text("title", [run && !page ? 250 : 500, 650], params.title, { fontSize: 30 }));
   }
 
-  if (run) traceTable(run, states, params.trace!, push, anchors);
+  const groups: Record<string, string[]> = {};
+  if (page) page.matrix.draw(push, anchors, groups);
+  if (run) traceTable(run, states, params.trace!, push, anchors, page?.table);
 
-  return { drawables, labels, anchors, order, ...(run && { values: traceValues(run) }) };
+  const values = markovValues(states, params, run);
+  const issues = markovIssues(params, view);
+  return {
+    drawables,
+    labels,
+    anchors,
+    order,
+    ...(Object.keys(groups).length > 0 && { groups }),
+    ...(Object.keys(values).length > 0 && { values }),
+    ...(issues.length > 0 && { issues }),
+  };
 }
 
-/** The run's results for `{markov.<key>}` tokens in a cast's drawn text. */
-function traceValues(run: CohortRun): Record<string, number> {
-  const v: Record<string, number> = { qalys_total: run.total.qalys, cost_total: run.total.cost, qalys_mean: run.mean.qalys, cost_mean: run.mean.cost };
-  if (run.compare) {
-    const dq = run.compare.mean.qalys - run.mean.qalys, dc = run.compare.mean.cost - run.mean.cost;
-    Object.assign(v, { compare_qalys_mean: run.compare.mean.qalys, compare_cost_mean: run.compare.mean.cost, qalys_gained: dq, cost_added: dc });
-    if (dq > 0) v.cost_per_qaly = dc / dq;
+/**
+ * The model's numbers for `{markov.<key>}` tokens in a cast's drawn text
+ * (SceneLayout.values) — recomputed on every layout, so they follow any
+ * change to the params. Only keys meaningful for these params are present:
+ *
+ *   p_<from>_<to>          each transition's probability (slugs as in the ids)
+ *   stay_<s>               a state's stay, 1 − its exits (the matrix diagonal)
+ *   utility_<s>, cost_<s>  with trace.utility / trace.cost: a year in state s
+ *   qalys_mean, cost_mean  with trace: per person, discounted, lifetime
+ *   qalys_total, cost_total                the whole cohort's
+ *   compare_p_<from>_<to>, compare_stay_<s>, compare_cost_<s>  with trace.compare
+ *   compare_qalys_mean, compare_cost_mean  the second option per person
+ *   qalys_gained, cost_added               compare − base, per person
+ *   icer                   cost per QALY gained (only when QALYs are gained);
+ *                          cost_per_qaly is the same number under its older name
+ *
+ * The result keys are set last, so a state named "Mean" cannot shadow cost_mean.
+ */
+function markovValues(states: string[], params: MarkovParams, run: CohortRun | null): Record<string, number> {
+  const v: Record<string, number> = {};
+  const put = (prefix: string, m: MatrixRead) => {
+    params.transitions.forEach((t) => {
+      const i = states.indexOf(t.from), j = states.indexOf(t.to);
+      if (i >= 0 && j >= 0 && i !== j && m.explicit[i][j]) v[`${prefix}p_${slugify(t.from)}_${slugify(t.to)}`] = m.p[i][j];
+    });
+    states.forEach((s, i) => (v[`${prefix}stay_${slugify(s)}`] = m.p[i][i]));
+  };
+  const base = readMatrix(states, params.transitions);
+  if (base.bad.length === 0) put("", base);
+  const tr = params.trace;
+  if (tr) {
+    states.forEach((s, i) => {
+      if (tr.utility) v[`utility_${slugify(s)}`] = tr.utility[i] ?? 0;
+      if (tr.cost) v[`cost_${slugify(s)}`] = tr.cost[i] ?? 0;
+    });
+    if (tr.compare) {
+      const cmp = readMatrix(states, compareTransitions(params.transitions, tr.compare.transitions));
+      if (cmp.bad.length === 0) put("compare_", cmp);
+      if (tr.compare.cost) states.forEach((s, i) => (v[`compare_cost_${slugify(s)}`] = (tr.cost?.[i] ?? 0) + (tr.compare!.cost![i] ?? 0)));
+    }
+  }
+  if (run) {
+    Object.assign(v, { qalys_total: run.total.qalys, cost_total: run.total.cost, qalys_mean: run.mean.qalys, cost_mean: run.mean.cost });
+    if (run.compare) {
+      const dq = run.compare.mean.qalys - run.mean.qalys, dc = run.compare.mean.cost - run.mean.cost;
+      Object.assign(v, { compare_qalys_mean: run.compare.mean.qalys, compare_cost_mean: run.compare.mean.cost, qalys_gained: dq, cost_added: dc });
+      if (dq > 0) v.icer = v.cost_per_qaly = dc / dq;
+    }
   }
   return v;
 }
 
+/** The second option's transitions: the base list, each replaced by compare's entry for the same from/to. */
+function compareTransitions(base: MarkovTransition[], changes: MarkovTransition[] | undefined): MarkovTransition[] {
+  return base.map((t) => changes?.find((o) => o.from === t.from && o.to === t.to) ?? t);
+}
+
+/**
+ * What the author gave that the matrix and the trace cannot use — reported
+ * by the layout pass as template lint (SceneLayout.issues), errors for what
+ * would draw a wrong model, warnings for what is silently left out.
+ */
+function markovIssues(params: MarkovParams, view: "diagram" | "matrix" | "both"): { severity: "error" | "warn"; message: string }[] {
+  const out: { severity: "error" | "warn"; message: string }[] = [];
+  const n = params.states.length;
+  if (view !== "matrix" && n > MAX_DIAGRAM_STATES) {
+    out.push({ severity: "warn", message: `markov_model: the diagram draws ${MAX_DIAGRAM_STATES} states and ${n} were given — use view "matrix" for up to ${MAX_MATRIX_STATES}` });
+  } else if (n > MAX_MATRIX_STATES) {
+    out.push({ severity: "warn", message: `markov_model: the matrix draws ${MAX_MATRIX_STATES} states and ${n} were given` });
+  }
+  const tr = params.trace;
+  if (tr && view === "diagram" && n > MAX_TRACE_BESIDE) {
+    out.push({ severity: "error", message: `markov_model: trace beside the diagram fits ${MAX_TRACE_BESIDE} states and ${n} were given, so no table is drawn — use view "matrix" (or "both"), where the table runs full width` });
+  }
+  if (!tr && view === "diagram") return out;
+  const states = params.states.slice(0, view === "matrix" ? MAX_MATRIX_STATES : MAX_DIAGRAM_STATES);
+  const check = (transitions: MarkovTransition[], who: string) => {
+    const m = readMatrix(states, transitions);
+    for (const t of m.bad) {
+      out.push({ severity: "error", message: `markov_model: ${who}transition ${t.from} → ${t.to} has label ${t.label === undefined ? "(none)" : JSON.stringify(t.label)} — the matrix and trace read labels as probabilities, a number from 0 to 1 like "0.10"` });
+    }
+    m.exits.forEach((sum, i) => {
+      if (sum > 1 + 1e-9) out.push({ severity: "error", message: `markov_model: ${who}the transitions out of ${states[i]} add up to ${+sum.toFixed(4)} — more than 1, so its stay (1 − the rest) would be negative` });
+    });
+  };
+  check(params.transitions, "");
+  if (tr?.compare) {
+    check(compareTransitions(params.transitions, tr.compare.transitions), `${tr.compare.name}: `);
+    for (const c of tr.compare.transitions ?? []) {
+      if (!params.transitions.some((t) => t.from === c.from && t.to === c.to)) {
+        out.push({ severity: "warn", message: `markov_model: trace.compare changes ${c.from} → ${c.to}, which is not in transitions — ignored (compare changes an existing transition's label)` });
+      }
+    }
+  }
+  for (const k of ["utility", "cost"] as const) {
+    const a = tr?.[k];
+    if (a && a.length !== n) out.push({ severity: "warn", message: `markov_model: trace.${k} has ${a.length} entries for ${n} states (one per state, in states order; missing ones count 0)` });
+  }
+  return out;
+}
+
 /** A transition label read as a probability, or null. */
 function prob(label: string | undefined): number | null {
-  if (label === undefined) return null;
+  if (label === undefined || label.trim() === "") return null;
   const v = Number(label.trim().replace(",", "."));
   return Number.isFinite(v) && v >= 0 && v <= 1 ? v : null;
+}
+
+interface MatrixRead {
+  /** p[i][j]: from state i to state j; the diagonal is 1 − the row's exits (negative when they exceed 1). */
+  p: number[][];
+  /** The label as the author wrote it, where a transition gives one (off-diagonal only). */
+  label: (string | null)[][];
+  /** True where a transition names the cell. */
+  explicit: boolean[][];
+  /** Each row's exits (off-diagonal sum). */
+  exits: number[];
+  /** Transitions whose label is not a probability. */
+  bad: MarkovTransition[];
+}
+
+/** The transition matrix as far as it can be read — the lint reports what it cannot. */
+function readMatrix(states: string[], transitions: MarkovTransition[]): MatrixRead {
+  const n = states.length;
+  const p = states.map(() => states.map(() => 0));
+  const label = states.map(() => states.map((): string | null => null));
+  const explicit = states.map(() => states.map(() => false));
+  const bad: MarkovTransition[] = [];
+  for (const t of transitions) {
+    const i = states.indexOf(t.from), j = states.indexOf(t.to);
+    if (i < 0 || j < 0 || i === j) continue;
+    const v = prob(t.label);
+    explicit[i][j] = true;
+    label[i][j] = t.label ?? null;
+    if (v === null) bad.push(t);
+    else p[i][j] = v;
+  }
+  const exits = p.map((row) => row.reduce((a, b) => a + b, 0));
+  for (let i = 0; i < n; i++) p[i][i] = 1 - exits[i];
+  return { p, label, explicit, exits, bad };
 }
 
 interface CohortRun {
@@ -414,20 +570,8 @@ interface CohortRun {
 
 /** The transition matrix, or null when a label is not a probability or a state's arrows leave more than all of it. */
 function matrix(states: string[], transitions: MarkovTransition[]): number[][] | null {
-  const m = states.map(() => states.map(() => 0));
-  for (const t of transitions) {
-    const i = states.indexOf(t.from), j = states.indexOf(t.to);
-    const p = prob(t.label);
-    if (i < 0 || j < 0 || i === j) continue;
-    if (p === null) return null;
-    m[i][j] = p;
-  }
-  for (let i = 0; i < states.length; i++) {
-    const out = m[i].reduce((a, b) => a + b, 0);
-    if (out > 1 + 1e-9) return null;
-    m[i][i] = 1 - out;
-  }
-  return m;
+  const m = readMatrix(states, transitions);
+  return m.bad.length === 0 && m.exits.every((x) => x <= 1 + 1e-9) ? m.p : null;
 }
 
 function cohort(states: string[], m: number[][], tr: MarkovTrace, extra: number[] = []): Omit<CohortRun, "compare"> {
@@ -456,14 +600,13 @@ function cohort(states: string[], m: number[][], tr: MarkovTrace, extra: number[
   return { rows, qalys, costs, total: { qalys: tq, cost: tc }, mean: { qalys: tq / n0, cost: tc / n0 } };
 }
 
-function runTrace(states: string[], transitions: MarkovTransition[], tr: MarkovTrace): CohortRun | null {
-  if (states.length > 4) return null; // six columns of counts do not fit beside the diagram
+function runTrace(states: string[], transitions: MarkovTransition[], tr: MarkovTrace, maxStates: number): CohortRun | null {
+  if (states.length > maxStates) return null; // beside the diagram, more than four columns of counts do not fit
   const m = matrix(states, transitions);
   if (!m) return null;
   const base = cohort(states, m, tr);
   if (!tr.compare) return base;
-  const changed = transitions.map((t) => tr.compare!.transitions?.find((o) => o.from === t.from && o.to === t.to) ?? t);
-  const m2 = matrix(states, changed);
+  const m2 = matrix(states, compareTransitions(transitions, tr.compare.transitions));
   if (!m2) return base;
   return { ...base, compare: { name: tr.compare.name, mean: cohort(states, m2, tr, tr.compare.cost).mean } };
 }
@@ -480,26 +623,63 @@ function fmtMoney(v: number, cur: string): string {
   return `${sign}${cur}${Math.round(a).toLocaleString("en-GB")}`;
 }
 
+/** Where the cohort table goes and the size of its type. */
+interface TableFrame {
+  x0: number;
+  x1: number;
+  /** The first row's centre line. */
+  yTop: number;
+  FS: number;
+  ROW: number;
+  labelW: number;
+  qW: number;
+  cW: number;
+  /** The utility and cost rows — left out when the matrix shows them as columns. */
+  inputs: boolean;
+}
+
+/** The table beside the diagram: the geometry `trace` has always had. */
+const BESIDE_FRAME: TableFrame = { x0: 420, x1: 990, yTop: 632, FS: 24, ROW: 37, labelW: 100, qW: 88, cW: 108, inputs: true };
+
+/** Floor for any text the matrix or the table shrinks (the lint's FONT_FLOOR). */
+const MIN_FS = 14;
+
+/** A font no bigger than `fs` that fits `text` in `w`, floored at MIN_FS. */
+function fitFont(text: string, fs: number, w: number): number {
+  const tw = kit.textWidth(text, fs);
+  return tw <= w ? fs : Math.max(MIN_FS, (fs * w) / tw);
+}
+
 /**
  * The table, one drawable per row so a cast can write it in as it speaks:
  * trace_head, trace_utility, trace_cost, trace_row_0 (the start) …
  * trace_row_<cycles>, trace_total, trace_mean, and with compare
- * trace_compare and trace_icer.
+ * trace_compare and trace_icer. With the matrix on the page, its columns
+ * carry each state's utility and cost, and the table leaves those rows out.
+ * Returns the lowest y it inks (a dry run draws nothing: the page plan
+ * measures with it).
  */
-function traceTable(run: CohortRun, states: string[], tr: MarkovTrace, push: (d: Drawable) => void, anchors: Record<string, Pt>): void {
+function traceTable(
+  run: CohortRun,
+  states: string[],
+  tr: MarkovTrace,
+  push: (d: Drawable) => void,
+  anchors: Record<string, Pt>,
+  frame: TableFrame = BESIDE_FRAME,
+): number {
+  const { x0, x1, FS, ROW, labelW, qW, cW, inputs } = frame;
   const cur = tr.currency ?? "£";
   const cycles = Math.min(Math.max(tr.cycles ?? 2, 1), 4);
-  const FS = 24;
-  const x0 = 420, x1 = 990;
-  const labelW = 100, qW = 88, cW = 108;
   const stateW = (x1 - x0 - labelW - qW - cW) / states.length;
   const colX = [...states.map((_, i) => x0 + labelW + stateW * (i + 0.5)), x1 - cW - qW / 2, x1 - cW / 2];
-  const ROW = 37;
-  let y = 632;
-  const rowOf = (id: string, label: string, cells: (string | null)[], o: { color?: string; bold?: boolean } = {}) => {
-    const kids: Drawable[] = [kit.text(`${id}__l`, [x0, y], label, { fontSize: FS - 4, anchor: "start", color: o.color ?? COLORS.guide })];
+  let y = frame.yTop;
+  const rowOf = (id: string, label: string, cells: (string | null)[], o: { color?: string; fit?: boolean } = {}) => {
+    const kids: Drawable[] = [];
+    kids.push(kit.text(`${id}__l`, [x0, y], label, { fontSize: Math.max(MIN_FS, FS - 4), anchor: "start", color: o.color ?? COLORS.guide }));
     cells.forEach((c, i) => {
-      if (c !== null && c !== "") kids.push(kit.text(`${id}__c${i}`, [colX[i], y], c, { fontSize: FS, color: o.color ?? COLORS.ink }));
+      // A header's state name shrinks to its column (never the numbers: they are what the columns are sized for).
+      const fs = o.fit && i < states.length ? fitFont(c ?? "", FS, stateW - 6) : FS;
+      if (c !== null && c !== "") kids.push(kit.text(`${id}__c${i}`, [colX[i], y], c, { fontSize: fs, color: o.color ?? COLORS.ink }));
     });
     push(kit.group(id, kids));
     anchors[id] = [(x0 + x1) / 2, y];
@@ -507,15 +687,17 @@ function traceTable(run: CohortRun, states: string[], tr: MarkovTrace, push: (d:
   };
   const rule = (id: string) => {
     push(kit.stroke(id, [[x0, y + ROW / 2], [x1, y + ROW / 2]], { color: COLORS.guide, strokeWidth: 1.5, ms: SKETCH_MS.guides }));
-    y -= 8;
+    y -= Math.round(ROW * 0.216); // 8 at the table beside the diagram
   };
   const blank = states.map(() => null);
 
-  rowOf("trace_head", "", [...states, "QALYs", "Cost"], { color: COLORS.ink });
+  rowOf("trace_head", "", [...states, "QALYs", "Cost"], { color: COLORS.ink, fit: true });
   rule("trace_head_rule");
-  rowOf("trace_utility", "QALYs/yr", [...states.map((_, i) => kit.num(tr.utility?.[i] ?? 0)), null, null], { color: COLORS.supply });
-  rowOf("trace_cost", "Cost/yr", [...states.map((_, i) => fmtMoney(tr.cost?.[i] ?? 0, cur)), null, null], { color: COLORS.supply });
-  rule("trace_rule_1");
+  if (inputs) {
+    rowOf("trace_utility", "QALYs/yr", [...states.map((_, i) => kit.num(tr.utility?.[i] ?? 0)), null, null], { color: COLORS.supply });
+    rowOf("trace_cost", "Cost/yr", [...states.map((_, i) => fmtMoney(tr.cost?.[i] ?? 0, cur)), null, null], { color: COLORS.supply });
+    rule("trace_rule_1");
+  }
   rowOf("trace_row_0", "Start", [...run.rows[0].map(fmtCount), null, null]);
   for (let k = 1; k <= cycles; k++) {
     rowOf(`trace_row_${k}`, `Year ${k}`, [...run.rows[k].map(fmtCount), fmtCount(run.qalys[k - 1]), fmtMoney(run.costs[k - 1], cur)]);
@@ -523,16 +705,283 @@ function traceTable(run: CohortRun, states: string[], tr: MarkovTrace, push: (d:
   rule("trace_rule_2");
   rowOf("trace_total", "Lifetime", [...blank, fmtCount(run.total.qalys), fmtMoney(run.total.cost, cur)]);
   rowOf("trace_mean", "Per person", [...blank, run.mean.qalys.toFixed(1), fmtMoney(run.mean.cost, cur)], { color: COLORS.demand });
+  let low = y + ROW - FS * 0.6;
   if (run.compare) {
     const c = run.compare;
     rowOf("trace_compare", c.name, [...blank, c.mean.qalys.toFixed(1), fmtMoney(c.mean.cost, cur)], { color: COLORS.accent });
-    const dq = c.mean.qalys - run.mean.qalys, dc = c.mean.cost - run.mean.cost;
-    y -= 10;
-    const text =
-      dq > 0
-        ? `${dq.toFixed(1)} QALYs more for ${fmtMoney(dc, cur)}: ${fmtMoney(Math.round(dc / dq / 100) * 100, cur)} per QALY`
-        : `${Math.abs(dq).toFixed(1)} QALYs ${dq < 0 ? "fewer" : "more"}, ${fmtMoney(dc, cur)} in cost`;
-    push(kit.text("trace_icer", [(x0 + x1) / 2, y], text, { fontSize: FS, color: COLORS.accent }));
-    anchors.trace_icer = [(x0 + x1) / 2, y];
+    const yi = y - Math.round(ROW * 0.27); // 10 beside the diagram
+    push(kit.text("trace_icer", [(x0 + x1) / 2, yi], icerText(c.mean.qalys - run.mean.qalys, c.mean.cost - run.mean.cost, cur), { fontSize: FS, color: COLORS.accent }));
+    anchors.trace_icer = [(x0 + x1) / 2, yi];
+    low = yi - FS * 0.6;
   }
+  return low;
+}
+
+function icerText(dq: number, dc: number, cur: string): string {
+  if (dq > 0 && dc < 0) return `${dq.toFixed(1)} QALYs more and ${fmtMoney(-dc, cur)} less: dominant`;
+  return dq > 0
+    ? `${dq.toFixed(1)} QALYs more for ${fmtMoney(dc, cur)}: ${fmtMoney(Math.round(dc / dq / 100) * 100, cur)} per QALY`
+    : `${Math.abs(dq).toFixed(1)} QALYs ${dq < 0 ? "fewer" : "more"}, ${fmtMoney(dc, cur)} in cost`;
+}
+
+/** The table's frame at scale s under a matrix — columns sized to what they hold — and its size. */
+function tableFrame(run: CohortRun, states: string[], tr: MarkovTrace, s: number): { frame: Omit<TableFrame, "x0" | "x1" | "yTop">; w: number; h: number } {
+  const cur = tr.currency ?? "£";
+  const FS = Math.max(MIN_FS + 2, 22 * s);
+  const ROW = Math.max(34 * s, FS * 1.75);
+  const w = (t: string, fs = FS) => kit.textWidth(t, fs);
+  const labels = ["Start", "Year 4", "Lifetime", "Per person"];
+  const labelW = Math.max(...labels.map((l) => w(l, FS - 4))) + 16 * s;
+  const counts = run.rows.flat().map(fmtCount);
+  const qTexts = ["QALYs", ...run.qalys.map(fmtCount), fmtCount(run.total.qalys)];
+  const cTexts = ["Cost", ...run.costs.map((c) => fmtMoney(c, cur)), fmtMoney(run.total.cost, cur), fmtMoney(run.mean.cost, cur)];
+  if (run.compare) cTexts.push(fmtMoney(run.compare.mean.cost, cur));
+  const qW = Math.max(...qTexts.map((t) => w(t))) + 22 * s;
+  const cW = Math.max(...cTexts.map((t) => w(t))) + 22 * s;
+  const numW = Math.max(...counts.map((t) => w(t))) + 16 * s;
+  const nameW = Math.max(...states.map((t) => w(t))) + 10 * s;
+  const stateW = Math.max(numW, Math.min(nameW, numW * 1.5));
+  let width = labelW + states.length * stateW + qW + cW;
+  if (run.compare) {
+    // The compare row's name runs into the blank state columns; the ICER line is centred under all.
+    width = Math.max(width, w(icerText(run.compare.mean.qalys - run.mean.qalys, run.compare.mean.cost - run.mean.cost, cur)) + 20 * s);
+  }
+  const frame = { FS, ROW, labelW, qW, cW, inputs: false };
+  // Measure by a dry run: the rows the table will draw, from y = 0.
+  const low = traceTable(run, states, tr, () => {}, {}, { ...frame, x0: 0, x1: width, yTop: 0 });
+  return { frame, w: width, h: FS * 0.6 - low };
+}
+
+/** Transition-matrix geometry at one scale; `draw` places it with its top-left at (x0, yTop). */
+interface MatrixPlan {
+  w: number;
+  h: number;
+  draw: (x0: number, yTop: number, push: (d: Drawable) => void, anchors: Record<string, Pt>, groups: Record<string, string[]>) => void;
+}
+
+/**
+ * The transition matrix: a row per from-state, a column per to-state, each
+ * cell its probability as the author wrote it; the diagonal — the stay — is
+ * DERIVED (1 − the row's exits) and drawn so: grey on a light wash. Cells no
+ * transition names hold a faint 0. With trace.utility / trace.cost, a column
+ * each for what a year in the state is worth and costs. With trace.compare,
+ * every cell the second option changes carries its value in the option's
+ * colour under the base value (the stay it implies too, and its cost), and
+ * the option's name keys the colour under the grid.
+ *
+ * Ids — stable, by state slug, so a later widget can address one cell:
+ *   matrix_cell_<from>_<to>, matrix_compare_<from>_<to>,
+ *   matrix_head_row_<s>, matrix_head_col_<s>, matrix_utility_<s>,
+ *   matrix_cost_<s>, matrix_compare_cost_<s>, matrix_head_utility,
+ *   matrix_head_cost, matrix_corner, matrix_rule_head, matrix_rule_from,
+ *   matrix_rule_values, matrix_compare_name.
+ * Sets: matrix (all but the compare layer), matrix_compare, matrix_stay,
+ *   matrix_row_<s>, matrix_col_<s>.
+ */
+function planMatrix(states: string[], params: MarkovParams, s: number): MatrixPlan {
+  const n = states.length;
+  const tr = params.trace;
+  const cur = tr?.currency ?? "£";
+  const base = readMatrix(states, params.transitions);
+  const cmp = tr?.compare ? readMatrix(states, compareTransitions(params.transitions, tr.compare.transitions)) : null;
+  // The stay is written to the precision of the labels it is derived from.
+  const allLabels = [...base.label.flat(), ...(cmp?.label.flat() ?? [])].filter((l): l is string => l !== null);
+  const decimals = Math.min(4, Math.max(1, ...allLabels.map((l) => (l.trim().split(/[.,]/)[1] ?? "").length)));
+  const fmtP = (v: number): string => (Math.abs(v) < 1e-9 ? kit.num(0) : Math.abs(v - 1) < 1e-9 ? kit.num(1) : kit.num(Number(v.toFixed(decimals)), decimals).replace("-", "−"));
+  const cellText = (i: number, j: number): string => (i === j ? fmtP(base.p[i][i]) : base.explicit[i][j] ? base.label[i][j] ?? "?" : kit.num(0));
+  const cmpText = (i: number, j: number): string | null => {
+    if (!cmp) return null;
+    if (i === j) return Math.abs(cmp.p[i][i] - base.p[i][i]) > 1e-9 ? fmtP(cmp.p[i][i]) : null;
+    return cmp.explicit[i][j] && cmp.label[i][j] !== base.label[i][j] ? cmp.label[i][j] ?? "?" : null;
+  };
+  const showU = !!tr?.utility;
+  const showC = !!(tr?.cost || tr?.compare?.cost);
+  const cmpCost = (i: number): string | null => {
+    const add = tr?.compare?.cost?.[i] ?? 0;
+    return add !== 0 ? fmtMoney((tr?.cost?.[i] ?? 0) + add, cur) : null;
+  };
+  const cells = states.map((_, i) => states.map((_, j) => cellText(i, j)));
+  const cmps = states.map((_, i) => states.map((_, j) => cmpText(i, j)));
+  const cmpCosts = states.map((_, i) => cmpCost(i));
+  const anyCmp = cmps.flat().some((c) => c !== null) || cmpCosts.some((c) => c !== null);
+
+  const FS = Math.max(MIN_FS + 2, 22 * s);
+  const HFS = Math.max(MIN_FS + 1, 20 * s);
+  const CFS = Math.max(MIN_FS, 17 * s);
+  const ROW = Math.max(40 * s, FS * 1.55);
+  const cmpDrop = (FS + CFS) * 0.75; // clear of each other by the lint's own text boxes (1.25 em tall, 2 apart)
+  // A row the second option changes is taller: its values go under the base ones.
+  const rowHs = states.map((_, i) => (cmps[i].some((c) => c !== null) || cmpCosts[i] !== null ? ROW + cmpDrop + 2 * s : ROW));
+  const rowTops = rowHs.map((_, i) => rowHs.slice(0, i).reduce((a, b) => a + b, 0));
+  const gridH = rowHs.reduce((a, b) => a + b, 0);
+  const HEAD = Math.max(46 * s, HFS * 1.9, Math.max(MIN_FS, 15 * s) * 2.9);
+  const w = (t: string, fs: number) => kit.textWidth(t, fs);
+  const headW = Math.max(w("from", MIN_FS) + w("to", MIN_FS) + 12, ...states.map((t) => w(t, HFS))) + 24 * s;
+  const numW = Math.max(56 * s, ...cells.flat().map((t) => w(t, FS)), ...cmps.flat().map((t) => (t ? w(t, CFS) : 0))) + 22 * s;
+  const cellW = Math.max(numW, Math.min(Math.max(...states.map((t) => w(t, HFS))) + 12 * s, numW * 1.5));
+  const uHead = "QALYs/yr", cHead = "Cost/yr";
+  const uTexts = states.map((_, i) => kit.num(tr?.utility?.[i] ?? 0));
+  const cTexts = states.map((_, i) => fmtMoney(tr?.cost?.[i] ?? 0, cur));
+  const uW = showU ? Math.max(w(uHead, HFS), ...uTexts.map((t) => w(t, FS))) + 24 * s : 0;
+  const cW = showC ? Math.max(w(cHead, HFS), ...cTexts.map((t) => w(t, FS)), ...cmpCosts.map((t) => (t ? w(t, CFS) : 0))) + 24 * s : 0;
+  const gapX = showU || showC ? 16 * s : 0;
+  const keyH = anyCmp ? Math.max(34 * s, CFS * 2) : 0;
+  const width = headW + n * cellW + gapX + uW + cW;
+  const height = HEAD + gridH + keyH;
+
+  const draw: MatrixPlan["draw"] = (x0, yTop, push, anchors, groups) => {
+    const all: string[] = [];
+    const layer: string[] = [];
+    const rowSets = states.map((): string[] => []);
+    const colSets = states.map((): string[] => []);
+    const stay: string[] = [];
+    const put = (d: Drawable, at: Pt, into: string[] = all) => {
+      push(d);
+      anchors[d.id] = at;
+      into.push(d.id);
+    };
+    const gridX = x0 + headW;
+    const valuesX = gridX + n * cellW + gapX;
+    const bottom = yTop - HEAD - gridH;
+    const cx = (j: number) => gridX + cellW * (j + 0.5);
+    const rule = (id: string, a: Pt, b: Pt) => put(kit.stroke(id, [a, b], { color: COLORS.guide, strokeWidth: 1.5, ms: SKETCH_MS.guides }), [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]);
+
+    // The corner: a diagonal, "to" above it (the columns), "from" below (the rows).
+    const cfs = Math.max(MIN_FS, 15 * s);
+    put(
+      kit.group("matrix_corner", [
+        kit.stroke("matrix_corner__line", [[x0, yTop], [gridX, yTop - HEAD]], { color: COLORS.guide, strokeWidth: 1.2, ms: SKETCH_MS.guides }),
+        kit.text("matrix_corner__to", [gridX - 6 * s, yTop - HEAD * 0.26], "to", { fontSize: cfs, anchor: "end", color: COLORS.guide }),
+        kit.text("matrix_corner__from", [x0 + 4 * s, yTop - HEAD * 0.66], "from", { fontSize: cfs, anchor: "start", color: COLORS.guide }),
+      ]),
+      [x0 + headW / 2, yTop - HEAD / 2],
+    );
+    states.forEach((name, j) => {
+      const id = `matrix_head_col_${slugify(name)}`;
+      put(kit.text(id, [cx(j), yTop - HEAD / 2], name, { fontSize: fitFont(name, HFS, cellW - 8 * s) }), [cx(j), yTop - HEAD / 2]);
+      colSets[j].push(id);
+    });
+    if (showU) put(kit.text("matrix_head_utility", [valuesX + uW / 2, yTop - HEAD / 2], uHead, { fontSize: HFS }), [valuesX + uW / 2, yTop - HEAD / 2]);
+    if (showC) put(kit.text("matrix_head_cost", [valuesX + uW + cW / 2, yTop - HEAD / 2], cHead, { fontSize: HFS }), [valuesX + uW + cW / 2, yTop - HEAD / 2]);
+    rule("matrix_rule_head", [x0, yTop - HEAD], [x0 + width, yTop - HEAD]);
+    rule("matrix_rule_from", [gridX, yTop], [gridX, bottom]);
+    if (gapX) rule("matrix_rule_values", [valuesX - gapX / 2, yTop], [valuesX - gapX / 2, bottom]);
+
+    states.forEach((from, i) => {
+      const fs = slugify(from);
+      const rowTop = yTop - HEAD - rowTops[i];
+      const rowH = rowHs[i];
+      const y = rowTop - ROW / 2;
+      const yc = rowTop - ROW / 2 - cmpDrop;
+      const headId = `matrix_head_row_${fs}`;
+      put(kit.text(headId, [x0 + 6 * s, y], from, { fontSize: HFS, anchor: "start" }), [x0 + headW / 2, y]);
+      rowSets[i].push(headId);
+      states.forEach((to, j) => {
+        const id = `matrix_cell_${fs}_${slugify(to)}`;
+        const text = cells[i][j];
+        if (i === j) {
+          const inset = 4 * s;
+          const shade = kit.area(`${id}__shade`, kit.rect(cx(j) - cellW / 2 + inset, rowTop - rowH + inset, cellW - 2 * inset, rowH - 2 * inset), COLORS.guide, { opacity: 0.13, precise: true });
+          const color = base.p[i][i] < -1e-9 ? COLORS.demand : COLORS.guide;
+          put(kit.group(id, [shade, kit.text(`${id}__v`, [cx(j), y], text, { fontSize: FS, color })]), [cx(j), y]);
+          stay.push(id);
+        } else if (base.explicit[i][j]) {
+          const ok = prob(base.label[i][j] ?? undefined) !== null;
+          put(kit.text(id, [cx(j), y], text, { fontSize: FS, color: ok ? COLORS.ink : COLORS.demand }), [cx(j), y]);
+        } else {
+          put(kit.text(id, [cx(j), y], text, { fontSize: FS, opacity: 0.35 }), [cx(j), y]);
+        }
+        rowSets[i].push(id);
+        colSets[j].push(id);
+        const c = cmps[i][j];
+        if (c !== null) put(kit.text(`matrix_compare_${fs}_${slugify(to)}`, [cx(j), yc], c, { fontSize: CFS, color: COLORS.accent }), [cx(j), yc], layer);
+      });
+      if (showU) {
+        put(kit.text(`matrix_utility_${fs}`, [valuesX + uW / 2, y], uTexts[i], { fontSize: FS, color: COLORS.supply }), [valuesX + uW / 2, y]);
+        rowSets[i].push(`matrix_utility_${fs}`);
+      }
+      if (showC) {
+        put(kit.text(`matrix_cost_${fs}`, [valuesX + uW + cW / 2, y], cTexts[i], { fontSize: FS, color: COLORS.supply }), [valuesX + uW + cW / 2, y]);
+        rowSets[i].push(`matrix_cost_${fs}`);
+        const c = cmpCosts[i];
+        if (c !== null) put(kit.text(`matrix_compare_cost_${fs}`, [valuesX + uW + cW / 2, yc], c, { fontSize: CFS, color: COLORS.accent }), [valuesX + uW + cW / 2, yc], layer);
+      }
+    });
+    if (anyCmp && tr?.compare) {
+      const y = bottom - keyH / 2 - 2 * s;
+      put(kit.text("matrix_compare_name", [x0 + 6 * s, y], tr.compare.name, { fontSize: CFS, anchor: "start", color: COLORS.accent }), [x0 + 6 * s, y], layer);
+    }
+
+    groups.matrix = all;
+    if (layer.length) groups.matrix_compare = layer;
+    groups.matrix_stay = stay;
+    states.forEach((name, i) => {
+      groups[`matrix_row_${slugify(name)}`] = rowSets[i];
+      groups[`matrix_col_${slugify(name)}`] = colSets[i];
+    });
+  };
+  return { w: width, h: height, draw };
+}
+
+/** The page with a matrix on it: where the diagram, the matrix and the table go, at one scale that fits them all. */
+interface PagePlan {
+  diagramBox: { x: number; y: number; w: number; h: number } | null;
+  matrix: { draw: (push: (d: Drawable) => void, anchors: Record<string, Pt>, groups: Record<string, string[]>) => void };
+  table?: TableFrame;
+}
+
+const PAGE = { left: 50, right: 950, bottom: 55 };
+/** The diagram's share of the page beside the matrix: this much, or down to the least when a wide matrix needs the room. */
+const SIDE_DIAGRAM_W = 380;
+const MIN_SIDE_DIAGRAM_W = 290;
+const MIN_DIAGRAM_H = 300;
+const GAP = 34;
+
+function pagePlan(states: string[], params: MarkovParams, run: CohortRun | null, showDiagram: boolean): PagePlan {
+  const top = params.title ? 612 : 665;
+  const W = PAGE.right - PAGE.left;
+  const H = top - PAGE.bottom;
+  const midX = (PAGE.left + PAGE.right) / 2;
+  const matrixW = showDiagram ? W - MIN_SIDE_DIAGRAM_W - GAP : W;
+  // The largest scale (≤ 1.3) at which everything fits; below 0.4 it is drawn anyway, and the fit lint says so.
+  let s = 1.3;
+  let mat = planMatrix(states, params, s);
+  let tbl = run ? tableFrame(run, states, params.trace!, s) : null;
+  const fits = () => {
+    if (mat.w > matrixW) return false;
+    if (!tbl) return mat.h <= H;
+    if (tbl.w > W) return false;
+    return (showDiagram ? Math.max(mat.h, MIN_DIAGRAM_H) : mat.h) + GAP + tbl.h <= H;
+  };
+  while (!fits() && s > 0.4) {
+    s = Math.round((s - 0.03) * 100) / 100;
+    mat = planMatrix(states, params, s);
+    tbl = run ? tableFrame(run, states, params.trace!, s) : null;
+  }
+
+  // The table (if any) along the bottom, centred; the rest above it.
+  let table: TableFrame | undefined;
+  let upper = { bottom: PAGE.bottom, top };
+  if (tbl) {
+    const upperH = showDiagram ? Math.max(mat.h, MIN_DIAGRAM_H) : mat.h;
+    // Matrix and table as one block, centred in the page's height.
+    const blockTop = top - Math.max(0, (H - (upperH + GAP + tbl.h)) / 2);
+    const tableTop = blockTop - upperH - GAP;
+    table = { ...tbl.frame, x0: midX - tbl.w / 2, x1: midX + tbl.w / 2, yTop: tableTop - tbl.frame.FS * 0.6 };
+    upper = { bottom: tableTop, top: blockTop };
+  }
+  const upperMid = (upper.bottom + upper.top) / 2;
+  const sideW = Math.max(MIN_SIDE_DIAGRAM_W, Math.min(SIDE_DIAGRAM_W, W - GAP - mat.w));
+  const mx = showDiagram ? (PAGE.left + sideW + GAP + PAGE.right) / 2 : midX;
+  const m = mat;
+  // The diagram's box: its states' centres. Loops and labels reach past it,
+  // so it keeps clear of the band's edges; never taller than wide — a tall
+  // ring stretches its arrows and the label solver strays from them.
+  const dw = sideW - 50;
+  const dh = Math.max(120, Math.min(dw, upper.top - upper.bottom - 60));
+  return {
+    diagramBox: showDiagram ? { x: PAGE.left + 30, y: upperMid - dh / 2 - 25, w: dw, h: dh } : null,
+    matrix: { draw: (push, anchors, groups) => m.draw(mx - m.w / 2, upperMid + m.h / 2, push, anchors, groups) },
+    table,
+  };
 }
