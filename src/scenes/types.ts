@@ -144,4 +144,12 @@ export interface SceneModule {
    *  is free play only: the figure is workable while paused, but it is not
    *  offered as an ask's answer device. */
   widget?: () => WidgetBody;
+  /**
+   * Tray sliders the schema cannot declare — bounds that live in the params
+   * themselves (equation_plot's `params: {a: {value, min, max}}`, whose keys
+   * are the author's own names). Each is a dot path into params with its
+   * range; the tray offers them beside the schema's own (ui/tray.ts
+   * liveSliders), under the same rule: a path with no number today is left out.
+   */
+  sliders?: (params: Record<string, unknown>) => { path: string; label: string; min: number; max: number; step: number | "any" }[];
 }

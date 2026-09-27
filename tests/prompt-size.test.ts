@@ -546,7 +546,11 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // a tree larger than the page, walked with the camera — whose manifest
 // example is a sixteen-terminal tree, +3,300; the rounds before it had
 // used the headroom up).
-const BASELINE_SYSTEM_CHARS = 285000;
+// Raised to 300000 at 286242 (2026-09-27: the equation_plot template — any
+// y = f(x) with live parameters — whose full entry is ~9,200 chars in this
+// all-expanded measurement; in the app's two-level catalog it is one index
+// line).
+const BASELINE_SYSTEM_CHARS = 300000;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

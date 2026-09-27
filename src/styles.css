@@ -1794,6 +1794,9 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 .cs-viewfit:hover { border-color: #3d3833; background: rgba(255, 253, 246, 0.97); }
 .cs-viewfit[hidden] { display: none; }
+/* A plot's own axes, zoomed or panned by the viewer (widget rest): back to
+   the authored range. Top-left, so it never sits on the camera's Fit. */
+.cs-viewfit.cs-domainfit { right: auto; left: 0.6rem; }
 .cs-stage.cs-cardable { cursor: pointer; }
 /* .cs-figgate declares no cursor of its own — cursor is inherited, so a
    figgate would show whatever the stage around it resolves to either way.

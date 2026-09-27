@@ -122,6 +122,24 @@ describe("template params", () => {
   });
 });
 
+describe("equation_plot: the equation and its names are machinery, a parameter's label is prose", () => {
+  test("only the labels and captions are offered for translation", async () => {
+    const schema = (await import("../src/scenes/equation_plot/manifest.json")).default.params_schema;
+    const params = {
+      equation: ["y = a*sin(b*x)", "y = c"],
+      params: { a: { value: 2, label: "amplitude a", control: "slider" }, b: 1 },
+      editable: ["a"],
+      panel: ["a"],
+      drag: "a",
+      marks: ["roots", { kind: "point", at: "b", label: "here" }],
+      variable: "x",
+      x_label: "time",
+    };
+    const texts = translatableStrings({ template: "equation_plot", params }, schema).map((t) => t.text);
+    expect(texts.sort()).toEqual(["amplitude a", "here", "time"]);
+  });
+});
+
 // Drift guard. A new template that adds a string param joins this list or fails
 // here — which is the point: every string on a figure has to be classified as
 // prose or as machinery ONCE, deliberately, rather than discovered as a
@@ -153,6 +171,7 @@ describe("every bundled template's string params are classified", () => {
     expect(actual).toEqual({
       cost_effectiveness_plane: [".x_label", ".y_label", ".points[].label", ".title"],
       decision_tree: [".root.label", ".root.value", ".root.children[].label", ".unit"],
+      equation_plot: [".x_label", ".y_label"],
       free_body: [".body_label", ".forces[].label", ".net_force.label"],
       generic_axes_diagram: [".x_label", ".y_label", ".title", ".curves[].label", ".points[].label", ".vlines[].label", ".hlines[].label"],
       markov_model: [".states[]", ".transitions[].from", ".transitions[].to", ".transitions[].label", ".highlight_state", ".title", ".trace.compare.name", ".trace.compare.transitions[].from", ".trace.compare.transitions[].to", ".trace.compare.transitions[].label", ".trace.name"],

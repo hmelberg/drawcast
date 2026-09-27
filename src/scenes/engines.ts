@@ -865,12 +865,25 @@ export function enginesLoaded(names: string[]): boolean {
   return names.every((n) => cache.has(n));
 }
 
+/** Loads in flight, so two callers asking at once share ONE load. Two
+ *  concurrent mathjax loads each installed their own `mathjax.asyncLoad`
+ *  (a global), and the first one's font then asked the second one's still
+ *  empty table for its glyph files — "dynamic font file … is not bundled",
+ *  and a template figure with an equation drew nothing (2026-09-27). */
+const loading = new Map<string, Promise<unknown>>();
+
 export async function ensureEngines(names: string[]): Promise<void> {
   for (const n of names) {
     if (cache.has(n)) continue;
     const def = ENGINE_DEFS[n];
     if (!def) throw new Error(`unknown engine "${n}"`);
-    cache.set(n, await def.load());
+    let p = loading.get(n);
+    if (!p) {
+      p = def.load().finally(() => loading.delete(n));
+      loading.set(n, p);
+    }
+    const engine = await p;
+    if (!cache.has(n)) cache.set(n, engine);
   }
 }
 

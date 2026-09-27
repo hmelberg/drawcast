@@ -5,7 +5,7 @@ import type { Pt } from "../layout/model";
 import { validateEffects, type WidgetEffect } from "./widget-effects";
 import { buildWidgetScene, paramNamesOf, type WidgetSceneOpts } from "./widget-scene";
 import type { SceneModule } from "./types";
-import type { WidgetBody, WidgetEvent, WidgetScene } from "./widget-types";
+import { SURFACE_PART, type WidgetBody, type WidgetEvent, type WidgetScene } from "./widget-types";
 
 export function stepWidget(body: WidgetBody, state: unknown, event: WidgetEvent, scene: WidgetScene, paramNames: string[]): { state: unknown; effects: WidgetEffect[]; errors: string[] } {
   let out: unknown;
@@ -89,7 +89,7 @@ export function runWidget(module: SceneModule, params: Record<string, unknown>, 
     // string form reports: `to` may be null (blank paper) and may equal `id`
     // (dropped back where it was picked up), but neither may be invented.
     if (ev.type === "drag" || ev.type === "drag_move" || ev.type === "input") {
-      const unknown = [ev.id, ev.type === "drag" ? ev.to : null].filter((id): id is string => id !== null && !scene!.ids.includes(id));
+      const unknown = [ev.id, ev.type === "drag" ? ev.to : null].filter((id): id is string => id !== null && id !== SURFACE_PART && !scene!.ids.includes(id));
       if (unknown.length > 0) {
         for (const id of unknown) run.errors.push(`drag: "${id}" is not a part (${scene.ids.join(", ")})`);
         continue;

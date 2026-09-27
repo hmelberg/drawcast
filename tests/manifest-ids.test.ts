@@ -24,6 +24,7 @@ const CONDITIONAL: Record<string, string[]> = {
   ring_molecule: ["atom_<i>"],
   protein_secondary: ["strip_title"],
   generic_axes_diagram: ["hline_<i>", "shade"],
+  equation_plot: ["<mark>_c<i>"],
   reaction_scheme: ["label_under"],
   lab_apparatus: ["funnel"],
   periodic_table: ["highlight_<i>"],

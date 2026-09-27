@@ -18,9 +18,10 @@ import { scenes } from "../scenes/registry";
 import { buildWidgetScene, paramNamesOf } from "../scenes/widget-scene";
 import { partAt, stepWidget } from "../scenes/widget-run";
 import { parseFieldValue, validateEditField, type WidgetEffect } from "../scenes/widget-effects";
-import type { EditField, WidgetBody, WidgetEvent, WidgetScene } from "../scenes/widget-types";
+import { SURFACE_PART, type EditField, type WidgetBody, type WidgetEvent, type WidgetScene } from "../scenes/widget-types";
 import type { BBox } from "../layout/geometry";
 import { makeBrowserMeasure } from "../render/svg-backend";
+import { wheelZoomFactor } from "../render/camera";
 import { sceneAt } from "../render/plan";
 import { withNewIdsVisible, withOverrides } from "../render/params";
 import { answersMatch } from "../spec/answers";
@@ -59,6 +60,13 @@ export interface WidgetHost {
   release(p: Pt): "click" | "drag" | "pass" | "edit" | null;
   /** Drop the gesture and its ghost without delivering anything (pointercancel). */
   cancel(): void;
+  /** A live body's zoom over its surface (ctrl/⌘ + wheel, a pinch): true
+   *  when p is on it and the body ran — the caller then owns the wheel. */
+  zoomAt(p: Pt, factor: number): boolean;
+  /** The patch back to the body's rest view (WidgetBody.rest), or null. */
+  restPatch(): Record<string, unknown> | null;
+  /** Apply restPatch(): true when there was one. */
+  toRest(): boolean;
   /** True once the live gesture has passed DRAG_MIN — the stage's cursor
    *  reads this alone to swap a grab for a grabbing hand; false with no
    *  gesture in flight and false again the moment one ends. */
@@ -129,7 +137,7 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
   // discarded (the host's own body still mounts on the first event). A body
   // that throws on construction simply wants no keys — clickAt says so too.
   // Its named parts and its live flag come off the same probe.
-  const probe: { keys: string[]; parts?: WidgetBody["parts"]; live: boolean; editable: boolean } = (() => {
+  const probe: { keys: string[]; parts?: WidgetBody["parts"]; live: boolean; editable: boolean; surface?: boolean } = (() => {
     try {
       const b = module.widget!();
       return {
@@ -137,6 +145,7 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
         ...(Array.isArray(b.parts) || typeof b.parts === "function" ? { parts: b.parts } : {}),
         live: b.live === true,
         editable: typeof b.editable === "function",
+        surface: typeof b.surface === "function",
       };
     } catch {
       return { keys: [], live: false, editable: false };
@@ -306,6 +315,20 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
     perform(r.effects, sc);
   };
 
+  /** p is on the blank paper a live body owns (WidgetBody.surface). */
+  const onSurface = (sc: WidgetScene, p: Pt): boolean => {
+    if (!live || !probe.surface) return false;
+    const b = mounted(sc);
+    if (!b?.surface) return false;
+    let box: BBox | null = null;
+    try {
+      box = b.surface(sc);
+    } catch (err) {
+      warn(`widget surface() threw: ${(err as Error).message}`);
+    }
+    return !!box && p[0] >= box.x && p[0] <= box.x + box.w && p[1] >= box.y && p[1] <= box.y + box.h;
+  };
+
   /** A live drag's latest pointer, delivered against the press-time scene. */
   const flush = (): void => {
     const g = gesture;
@@ -371,9 +394,36 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
       if (gesture) return false;
       const sc = scene();
       if (!sc) return false;
-      const id = hit(sc, p);
+      const id = hit(sc, p) ?? (onSurface(sc, p) ? SURFACE_PART : null);
       if (id === null) return false;
       gesture = { id, start: p, moved: false, scene: sc, before: patches, pending: null, unframe: null };
+      return true;
+    },
+    zoomAt(p, factor) {
+      if (!live || gesture) return false;
+      const sc = scene();
+      if (!sc || !onSurface(sc, p)) return false;
+      run(sc, { type: "zoom", point: p, domain: sc.toDomain(p), factor });
+      return true;
+    },
+    restPatch() {
+      if (!live) return null;
+      const sc = scene();
+      const b = sc ? mounted(sc) : null;
+      if (!sc || !b?.rest) return null;
+      try {
+        const r = b.rest(sc, state);
+        return r && typeof r === "object" && Object.keys(r).length > 0 ? r : null;
+      } catch (err) {
+        warn(`widget rest() threw: ${(err as Error).message}`);
+        return null;
+      }
+    },
+    toRest() {
+      const r = this.restPatch();
+      if (!r) return false;
+      const keep = Object.keys(r).filter((k) => names.includes(k));
+      paint({ ...patches, ...Object.fromEntries(keep.map((k) => [k, r[k]])) });
       return true;
     },
     move(p) {
@@ -717,6 +767,45 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
     stage.addEventListener("pointerleave", () => {
       if (activeId === null) stage.classList.remove("cs-draggable", "cs-scrubbable");
     });
+  }
+
+  // A live body's own view (WidgetBody.surface / rest — equation_plot's
+  // domain): ctrl/⌘ + wheel, which is also how a trackpad pinch arrives,
+  // over its surface is the body's zoom, never the camera's (view-pan.ts
+  // stands down for a wheel this marks with preventDefault). Anywhere else
+  // it stays the camera's, and a plain wheel stays the page's scroll. While
+  // the body's view is off its rest a "Reset" pill offers the way back —
+  // beside the camera's own Fit, which is left alone.
+  if (host.live) {
+    const resetBtn = h("button", { class: "cs-viewfit cs-domainfit", title: "Back to the authored axes", "aria-label": "Reset the axes" }, "Reset axes") as HTMLButtonElement;
+    resetBtn.hidden = true;
+    stage.appendChild(resetBtn);
+    const syncReset = (): void => {
+      resetBtn.hidden = hd.timeline.state === "playing" || host.restPatch() === null;
+    };
+    resetBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      host.toRest();
+      syncReset();
+    });
+    stage.addEventListener(
+      "wheel",
+      (e) => {
+        if (!(e.ctrlKey || e.metaKey) || blocked(e)) return;
+        const p = logicalPoint(stage, e);
+        if (!p || !host.zoomAt(p, wheelZoomFactor(e))) return;
+        e.preventDefault();
+        syncReset();
+      },
+      { capture: true, passive: false },
+    );
+    stage.addEventListener("pointerup", () => queueMicrotask(syncReset));
+    stage.addEventListener("keyup", () => queueMicrotask(syncReset));
+    const prevState = hd.timeline.callbacks.onState;
+    hd.timeline.callbacks.onState = (s) => {
+      prevState?.(s);
+      if (s === "playing") resetBtn.hidden = true;
+    };
   }
 
   // Playback, a scrub or a step lands honest geometry — chain, never replace
