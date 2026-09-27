@@ -311,6 +311,13 @@ describe("reed_frost: the exact chain binomial", () => {
     expect(mid.cutoff).toBeGreaterThan(1);
     // Below threshold nothing takes off.
     expect(rfValues({ population: 60, r0: 0.8 }).p_major).toBe(0);
+    // A small group just above threshold has no dip to split at: no side is named.
+    const flat = rfValues({ population: 12, p: 0.11 });
+    expect(flat.split).toBe(0);
+    expect(flat.p_minor).toBeUndefined();
+    const ids = scenes.reed_frost.layout!({ population: 12, p: 0.11 }).order;
+    expect(ids).not.toContain("minor_label");
+    expect(ids).not.toContain("cutoff");
   });
   test("the simulated runs are the seed's: the same seed the same runs, another seed others", () => {
     const run = (seed: number) => scenes.reed_frost.layout!({ population: 30, r0: 2, seed }).drawables.filter((d) => d.id.startsWith("run_")).map((d) => JSON.stringify((d as { pts: Pt[] }).pts));

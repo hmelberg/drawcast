@@ -695,16 +695,16 @@ element_ids:
   vax_value: "live model: the vaccinated 40% readout, present when vaccinated is given"
   axes: "live model: the axes (days, share of people) with their numbers"
   curve_s / curve_e / curve_i / curve_r: "live model: the compartment curves"
-  label_s / label_e / label_i / label_r: their letters
+  label_s / label_e / label_i / label_r: their letters (drawn with their curve)
   threshold: "live model: the dashed S = 1/R₀ line (Rt = 1 where S crosses it)"
   threshold_label: its 1/R₀ label
-  peak: "live model: the dot at the peak of I"
+  peak: "live model: the dot at the peak of I (drawn with peak_guide and peak_label)"
   peak_guide: its dashed drop to the day axis
   peak_label: "its peak, day 38 label"
   intervention: "live model: the shaded band over the intervention's days, present with intervention"
   intervention_label: "its contacts −40% label"
   cursor: "live model: the time cursor with a dot on each curve, present with cursor_day"
-  cursor_readout: "the cursor's readout above the plot: day, Rt, and each compartment's share"
+  cursor_readout: "the cursor's readout above the plot (a set): cursor_day_label (day 38), cursor_rt (Rₜ = 1.03), cursor_s / cursor_e / cursor_i / cursor_r (each share); drawn with the cursor"
 examples:
   - request: "Draw an SIR model of an epidemic."
     params: {}
@@ -800,7 +800,9 @@ layout: |
     const endemic = kind === "sis" || kind === "sirs" || mu > 0;
     const given = typeof params.days === "number" && Number.isFinite(params.days) && params.days > 0 ? clamp(params.days, 5, 40000) : null;
     // Run long enough to see the epidemic end (closed models), or to settle.
-    const tCap = given ?? (mu > 0 ? 7300 : kind === "sirs" ? Math.max(1500, 6 * Wn) : 4000);
+    // A closed epidemic runs on past the author's axis until it is over, so
+    // its peak and size are its own even when the plot shows only the start.
+    const tCap = endemic ? given ?? (mu > 0 ? 7300 : kind === "sirs" ? Math.max(1500, 6 * Wn) : 4000) : Math.max(given ?? 0, 4000);
     const ts = [0], ys = [[Math.max(0, 1 - vacc - i0), 0, i0, vacc, i0]];
     let y = ys[0], t = 0, peakI = i0, peakT = 0, crossT = null, doneT = null;
     const reff = (tt, S) => (r0 * S * betaAt(tt)) / beta;
@@ -818,7 +820,7 @@ layout: |
       if (y[2] > peakI) { peakI = y[2]; peakT = t; }
       if (crossT === null && prevReff > 1 && reff(t, y[0]) <= 1) crossT = t;
       // A closed epidemic is over once infection has all but gone, past its peak.
-      if (!given && !endemic && doneT === null && y[1] + y[2] < Math.max(0.01 * peakI, 1e-7) && (t > peakT + D || peakT === 0)) {
+      if (!endemic && doneT === null && t >= (given ?? 0) && y[1] + y[2] < Math.max(0.01 * peakI, 1e-7) && (t > peakT + D || peakT === 0)) {
         doneT = t;
         break;
       }
@@ -884,7 +886,7 @@ layout: |
     const plot = { x0: 110, y0: 80, x1: 880, y1: looped ? 425 : 460 };
     const sx = (tt) => plot.x0 + (tt / horizon) * (plot.x1 - plot.x0);
     const sy = (f) => plot.y0 + f * (plot.y1 - plot.y0);
-    const drawables = [], labels = [], anchors = {}, order = [], attached = {}, drawnWith = {};
+    const drawables = [], labels = [], anchors = {}, order = [], attached = {}, drawnWith = {}, groups = {};
     const push = (d, at) => { drawables.push(d); order.push(d.id); if (at) anchors[d.id] = at; };
     const label = (id, anchor, side, text, color, fontSize) => { labels.push(kit.label(id, anchor, side, text, { color, fontSize })); order.push(id); };
     const pct = (f) => kit.num(Math.round(f * 100), 0) + "%";
@@ -1000,6 +1002,7 @@ layout: |
       }
       push(kit.text("intervention_label", [a + w / 2, sy(bestF)], lt, { fontSize: 18, color: C.ink }), [a + w / 2, sy(bestF)]);
       attached.intervention = ["intervention_label"];
+      drawnWith.intervention = ["intervention_label"];
     }
 
     // Herd-immunity threshold on the S axis: S = 1/R0, where Rt = 1.
@@ -1008,6 +1011,7 @@ layout: |
       push(kit.stroke("threshold", [[plot.x0, ty], [plot.x1, ty]], { color: C.accent, dash: true, strokeWidth: 2.5, ms: MS.guides }), [plot.x1, ty]);
       push(kit.text("threshold_label", [plot.x1 + 8, ty], "1/" + R0T, { fontSize: 20, color: C.accent, anchor: "start" }), [plot.x1 + 8, ty]);
       attached.threshold = ["threshold_label"];
+      drawnWith.threshold = ["threshold_label"];
     }
 
     // The curves, sampled across the horizon.
@@ -1029,9 +1033,10 @@ layout: |
       const pts = curveSamples["curve_" + c];
       let a = pts[pts.length - 1], side = "right";
       if (c === "s") { a = pts[Math.round(NS * 0.04)]; side = "above-right"; }
-      if (c === "i" && peakIn) { a = [sx(peakT), sy(peakI)]; side = "above-left"; }
+      if (c === "i" && peakIn) { a = [sx(peakT), sy(peakI)]; side = peakI < 0.12 ? "left" : "above-left"; }
       label("label_" + c, a, side, c.toUpperCase(), COLOR[c], 24);
       attached["curve_" + c] = ["label_" + c];
+      drawnWith["curve_" + c] = ["label_" + c];
     });
 
     // The peak: a dot on I and a guide down to its day.
@@ -1039,8 +1044,9 @@ layout: |
       const pp = [sx(peakT), sy(peakI)];
       push(kit.stroke("peak_guide", [pp, [pp[0], plot.y0]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }), [pp[0], plot.y0]);
       push(kit.stroke("peak", [pp], { shapeHint: { type: "circle", c: pp, r: 8 }, strokeWidth: 3, fill: C.demand, color: C.demand, ms: MS.dot }), pp);
-      label("peak_label", pp, "above-right", kit.say({ en: "peak, day ", nb: "topp, dag " }) + days(peakT), C.demand, 20);
+      label("peak_label", pp, peakI < 0.12 ? "above" : "above-right", kit.say({ en: "peak, day ", nb: "topp, dag " }) + days(peakT), C.demand, 20);
       attached.peak = ["peak_label", "peak_guide"];
+      drawnWith.peak = ["peak_guide", "peak_label"];
     }
 
     // A time cursor: the state on its day, and Rt.
@@ -1079,26 +1085,28 @@ layout: |
       push(kit.group("cursor", kids), [x, plot.y1]);
       // The readout above the plot: the day and Rt, then each compartment.
       const rt = reff(cDay, st[0]);
-      const parts = [[kit.say({ en: "day ", nb: "dag " }) + days(cDay), C.ink], ["Rₜ = " + kit.num(Math.round(rt * 100) / 100, 2), C.accent]];
-      shown.forEach((c) => parts.push([c.toUpperCase() + " " + pct(st[IDX[c]]), COLOR[c]]));
-      const widths = parts.map(([s]) => kit.textWidth(s, 19));
+      const parts = [["cursor_day_label", kit.say({ en: "day ", nb: "dag " }) + days(cDay), C.ink], ["cursor_rt", "Rₜ = " + kit.num(Math.round(rt * 100) / 100, 2), C.accent]];
+      shown.forEach((c) => parts.push(["cursor_" + c, c.toUpperCase() + " " + pct(st[IDX[c]]), COLOR[c]]));
+      const widths = parts.map(([, s]) => kit.textWidth(s, 21));
       const total = widths.reduce((a, b) => a + b, 0) + 14 * (parts.length - 1);
       // Clear of the y axis's name, which stands at the same height.
       const yName = kit.say({ en: "share of people", nb: "andel av folket" });
       let x0 = clamp(x - total / 2, plot.x0 + 10 + kit.textWidth(yName, 22) + 36, 975 - total);
       const ry = plot.y1 + 38;
-      const texts = parts.map(([s, col], k) => {
-        const tx = kit.text("cursor_readout__" + k, [x0, ry], s, { fontSize: 19, color: col, anchor: "start" });
+      // Each number is its own element (cursor_rt, cursor_s …), named
+      // together as cursor_readout; they come and go with the cursor.
+      const rids = parts.map(([id, s, col], k) => {
+        push(kit.text(id, [x0, ry], s, { fontSize: 21, color: col, anchor: "start" }), [x0 + widths[k] / 2, ry]);
         x0 += widths[k] + 14;
-        return tx;
+        return id;
       });
-      push(kit.group("cursor_readout", texts), [x, ry]);
-      attached.cursor = ["cursor_readout"];
-      drawnWith.cursor = ["cursor_readout"];
+      groups.cursor_readout = rids;
+      attached.cursor = rids;
+      drawnWith.cursor = rids;
     }
     for (const k of Object.keys(values)) if (!Number.isFinite(values[k])) delete values[k];
 
-    return { drawables, labels, anchors, order, attached, drawnWith, values, curveSamples, frame: { x: [0, horizon], y: [0, 100], box: plot } };
+    return { drawables, labels, anchors, order, attached, drawnWith, groups, values, curveSamples, frame: { x: [0, horizon], y: [0, 100], box: plot } };
   }
 
   const C = kit.COLORS, MS = kit.SKETCH_MS;
@@ -1383,7 +1391,9 @@ description: >-
   same seed always draws the same ones). Paused, the viewer scrubs or taps N,
   p and R0 in the header, and taps "new runs" for another set. Values:
   {reed_frost.r0}, {reed_frost.p}, {reed_frost.p_minor} and
-  {reed_frost.p_major} (% exact), {reed_frost.p_minor_bp} (% by the
+  {reed_frost.p_major} (% exact; absent with {reed_frost.split} 0, a small
+  group near threshold whose totals have no dip to split at — then all is
+  one colour and neither side is named), {reed_frost.p_minor_bp} (% by the
   branching-process approximation), {reed_frost.p_no_spread} (% that the
   first case infects nobody), {reed_frost.mean_final} and
   {reed_frost.mean_major} (people), {reed_frost.cutoff},
@@ -1427,13 +1437,13 @@ element_ids:
   rerun: "the new runs button (a tap draws new outbreaks)"
   axes: "the axes: generation, and infected so far (0 to N)"
   run_<k>: "the k-th simulated outbreak, k = 1…runs (group runs; runs_minor and runs_major split them)"
-  expected: "the dashed average path, with its label expected_label"
+  expected: "the dashed average path (drawn with its label expected_label)"
   cutoff: "the dashed line between fizzled and taken-off totals, across both panels"
-  dist_minor: "the bars of the final totals that count as fizzling"
+  dist_minor: "the bars of the final totals that count as fizzling (all the bars when there is no split)"
   dist_major: "the bars of the totals that count as taking off"
   dist_axis: "the distribution panel's base line, with its caption"
-  minor_label: "the fizzles 38% label"
-  major_label: "the takes off 62% label"
+  minor_label: "the fizzles 21% label (drawn with dist_minor)"
+  major_label: "the takes off 79% label (drawn with dist_major)"
 examples:
   - request: "Why do some outbreaks fizzle out while others explode?"
     params: { population: 30, r0: 2, runs: 12 }
@@ -1507,9 +1517,11 @@ layout: |
   for (let k = 0; k <= N; k++) final[k] /= total;
 
   // Where "fizzled" ends: the dip between the two humps of the final-size
-  // distribution. One hump near the start: all fizzle; one hump far from
-  // it: all take off.
-  let cutoff = N;
+  // distribution. Below threshold (R0 ≤ 1) all fizzle; one hump far from
+  // the start: all but "nobody infected" take off. One hump near the start
+  // with R0 above 1 (a small group near threshold) has no honest split: the
+  // figure then draws one colour and names no side (split: 0).
+  let cutoff = N, split = true;
   {
     let found = false;
     for (let k = I0 + 1; k < N; k++) {
@@ -1523,7 +1535,9 @@ layout: |
       let mode = I0;
       for (let k = I0; k <= N; k++) if (final[k] > final[mode]) mode = k;
       // (Only the first cases infecting nobody always counts as fizzling.)
-    cutoff = mode <= I0 + 0.25 * (N - I0) ? N : I0;
+    if (R0 <= 1) cutoff = N;
+    else if (mode > I0 + 0.25 * (N - I0)) cutoff = I0;
+    else split = false;
     }
   }
   let pMinor = 0, meanMajor = 0, pMajor = 0;
@@ -1576,9 +1590,9 @@ layout: |
   const dist = { x0: 670, x1: 860 };
   const sx = (g) => plot.x0 + (g / G) * (plot.x1 - plot.x0);
   const sy = (k) => plot.y0 + (k / N) * (plot.y1 - plot.y0);
-  const drawables = [], labels = [], anchors = {}, order = [], attached = {}, groups = {};
+  const drawables = [], labels = [], anchors = {}, order = [], attached = {}, groups = {}, drawnWith = {};
   const push = (d, at) => { drawables.push(d); order.push(d.id); if (at) anchors[d.id] = at; };
-  const INK_MINOR = C.guide, INK_MAJOR = C.demand;
+  const INK_MINOR = split ? C.guide : C.supply, INK_MAJOR = split ? C.demand : C.supply;
 
   // The header: the numbers to scrub, and the button.
   const HY = 640;
@@ -1613,7 +1627,7 @@ layout: |
   push(kit.group("axes", axKids), [plot.x0, plot.y0]);
 
   // The line between fizzled and taken off, across both panels.
-  const both = cutoff >= I0 && cutoff < N;
+  const both = split && cutoff >= I0 && cutoff < N;
   if (both) {
     const cy = sy(cutoff + 0.5);
     push(kit.stroke("cutoff", [[plot.x0, cy], [showDist ? dist.x1 : plot.x1, cy]], { color: C.guide, dash: true, strokeWidth: 2, ms: MS.guides }), [plot.x1, cy]);
@@ -1623,7 +1637,7 @@ layout: |
   const ids = [], minorIds = [], majorIds = [];
   const unit = (plot.y1 - plot.y0) / N;
   runs.forEach((r, k) => {
-    const major = r.final > cutoff;
+    const major = split && r.final > cutoff;
     // A hair apart, so runs that end on the same count read as a bundle.
     const off = ((k % 5) - 2) * Math.min(1.6, unit * 0.12);
     const pts = [];
@@ -1644,6 +1658,7 @@ layout: |
     labels.push(kit.label("expected_label", pts[Math.min(pts.length - 1, Math.max(2, Math.round(G * 0.45)))], "above", kit.say({ en: "average", nb: "gjennomsnitt" }), { color: C.ink, fontSize: 20 }));
     order.push("expected_label");
     attached.expected = ["expected_label"];
+    drawnWith.expected = ["expected_label"];
   }
 
   // The exact final-size distribution, sideways on the same axis.
@@ -1656,8 +1671,8 @@ layout: |
     for (let k = I0; k <= N; k++) {
       const L = len(final[k]);
       if (L < 0.8) continue;
-      const bar = kit.area("dist__" + k, kit.rect(dist.x0, sy(k) - bh / 2, L, bh), k > cutoff ? INK_MAJOR : INK_MINOR, { opacity: 0.75 });
-      (k > cutoff ? majorBars : minorBars).push(bar);
+      const bar = kit.area("dist__" + k, kit.rect(dist.x0, sy(k) - bh / 2, L, bh), split && k > cutoff ? INK_MAJOR : INK_MINOR, { opacity: 0.75 });
+      (split && k > cutoff ? majorBars : minorBars).push(bar);
     }
     push(kit.group("dist_axis", [
       kit.stroke("dist_axis__line", [[dist.x0, plot.y0], [dist.x0, plot.y1]], { color: C.ink, strokeWidth: 2.5, ms: MS.axis }),
@@ -1675,35 +1690,39 @@ layout: |
       for (let k = I0; k <= N; k++) if (Math.abs(sy(k) - sy(m)) < 16) w = Math.max(w, len(final[k]));
       return Math.min(dist.x0 + w + 12, 985 - kit.textWidth(text, 20));
     };
-    if (pMinor > 0.005) {
+    if (split && pMinor > 0.005) {
       const m = humpAt(I0, Math.min(cutoff, N));
       const text = kit.say({ en: "fizzles ", nb: "dør ut " }) + pctS(pMinor);
       const at = [clearX(m, text), Math.max(sy(m), plot.y0 + 12)];
       push(kit.text("minor_label", at, text, { fontSize: 20, color: C.guide, anchor: "start" }), at);
       attached.dist_minor = ["minor_label"];
+      drawnWith.dist_minor = ["minor_label"];
     }
-    if (pMajor > 0.005) {
+    if (split && pMajor > 0.005) {
       const m = humpAt(cutoff + 1, N);
       const text = kit.say({ en: "takes off ", nb: "tar av " }) + pctS(pMajor);
       const at = [clearX(m, text), Math.min(sy(m), plot.y1)];
       push(kit.text("major_label", at, text, { fontSize: 20, color: C.demand, anchor: "start" }), at);
       attached.dist_major = ["major_label"];
+      drawnWith.dist_major = ["major_label"];
     }
   }
 
   const r2 = (v) => Math.round(v * 100) / 100;
   const values = {
     population: N, initial: I0, p: Math.round(p * 1e5) / 1e5, r0: r2(R0), seed, generations: G,
-    p_minor: r2(pMinor * 100), p_major: r2(pMajor * 100), p_minor_bp: r2(pMinorBp * 100),
-    p_no_spread: r2(final[I0] * 100), mean_final: r2(meanFinal), cutoff,
-    runs: nRuns, runs_major: majorIds.length, runs_minor: minorIds.length,
+    p_minor_bp: r2(pMinorBp * 100), p_no_spread: r2(final[I0] * 100), mean_final: r2(meanFinal),
+    runs: nRuns, split: split ? 1 : 0,
   };
-  if (pMajor > 0) values.mean_major = r2(meanMajor / pMajor);
+  if (split) {
+    Object.assign(values, { p_minor: r2(pMinor * 100), p_major: r2(pMajor * 100), cutoff, runs_major: majorIds.length, runs_minor: minorIds.length });
+    if (pMajor > 0) values.mean_major = r2(meanMajor / pMajor);
+  }
   if (expCum.length > 1) values.expected_1 = r2(expCum[1] - expCum[0]);
   if (expCum.length > 2) values.expected_2 = r2(expCum[2] - expCum[1]);
   if (expCum.length > 3) values.expected_3 = r2(expCum[3] - expCum[2]);
 
-  return { drawables, labels, anchors, order, attached, groups, values, frame: { x: [0, G], y: [0, N], box: plot } };
+  return { drawables, labels, anchors, order, attached, groups, drawnWith, values, frame: { x: [0, G], y: [0, N], box: plot } };
 widget: |
   // Free play (2026-09-28): while paused the viewer works the group.
   //
