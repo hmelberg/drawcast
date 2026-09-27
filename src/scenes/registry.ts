@@ -20,6 +20,7 @@ import { layoutSupplyDemand, type SupplyDemandParams } from "./supply_demand/lay
 import { supplyDemandWidget } from "./supply_demand/widget";
 import { layoutDecisionTree, type DecisionTreeParams } from "./decision_tree/layout";
 import { lintDecisionTree } from "./decision_tree/lint";
+import { decisionTreeWidget } from "./decision_tree/widget";
 import { layoutQalyProfiles, type QalyParams } from "./qaly_profiles/layout";
 import qalyManifest from "./qaly_profiles/manifest.json";
 import freeBodyManifest from "./free_body/manifest.json";
@@ -31,7 +32,8 @@ import { layoutProteinSecondary, type ProteinSecondaryParams } from "./protein_s
 import { layoutTwoByTwoTable, type TwoByTwoParams } from "./two_by_two_table/layout";
 import { layoutTimeline, type TimelineParams } from "./timeline/layout";
 import { layoutGenericAxes, type GenericAxesParams } from "./generic_axes_diagram/layout";
-import { layoutMarkovModel, type MarkovParams } from "./markov_model/layout";
+import { layoutMarkovModel, lintMarkovModel, type MarkovParams } from "./markov_model/layout";
+import { markovWidget } from "./markov_model/widget";
 import { layoutCostEffectivenessPlane, type CEParams } from "./cost_effectiveness_plane/layout";
 
 export const scenes: Record<string, SceneModule> = {
@@ -47,6 +49,10 @@ export const scenes: Record<string, SceneModule> = {
     manifest: decisionTreeManifest as SceneManifest,
     layout: (params) => layoutDecisionTree(params as unknown as DecisionTreeParams),
     lint: (params) => lintDecisionTree(params as unknown as DecisionTreeParams),
+    // Free play (2026-09-27): while paused, the tree's probabilities, payoffs
+    // and costs are scrubbed or typed on the figure and the fold-back
+    // follows. No manifest `widget` flag: it answers no ask.
+    widget: decisionTreeWidget,
   },
   qaly_profiles: {
     manifest: qalyManifest as SceneManifest,
@@ -71,6 +77,10 @@ export const scenes: Record<string, SceneModule> = {
   markov_model: {
     manifest: markovManifest as SceneManifest,
     layout: (params) => layoutMarkovModel(params as unknown as MarkovParams),
+    lint: (params) => lintMarkovModel(params as unknown as MarkovParams),
+    // Free play, like decision_tree's: the transition probabilities (arrows,
+    // loops, matrix cells), utilities and costs, scrubbed or typed.
+    widget: markovWidget,
   },
   two_by_two_table: {
     manifest: twoByTwoManifest as SceneManifest,

@@ -65,15 +65,6 @@ export interface SceneLayout {
   values?: Record<string, number>;
 
   /**
-   * What the template could not honour in these params, in its own words —
-   * a Markov row whose exits add up to more than 1, a label that is not a
-   * probability. The layout pass reports each as `template-params` lint
-   * (errors reach the repair round), so a model that would draw wrong is
-   * caught where only the template knows the rule.
-   */
-  issues?: { severity: "error" | "warn"; message: string }[];
-
-  /**
    * The extent this layout occupies when it is larger than the page — a
    * decision tree three pages wide — in the same logical, y-up units as its
    * drawables (2026-09-27). Opt-in: absent, the figure is one 1000 × 750
@@ -131,8 +122,11 @@ export interface SceneModule {
   layout?: (params: Record<string, unknown>) => SceneLayout;
   /**
    * What the params SAY that the schema cannot check — a decision tree's
-   * probabilities summing to 1. layoutSpec reports each as a
-   * `template-params` lint issue; an error sends the spec to repair.
+   * probabilities summing to 1, a Markov row whose exits add up to more than
+   * 1, a label that is not a probability. The template's ONE lint hook:
+   * layoutSpec reports each as a `template-params` issue ("template <name>:
+   * …", once per spec); an error sends the spec to repair, so a model that
+   * would draw wrong is caught where only the template knows the rule.
    */
   lint?: (params: Record<string, unknown>) => { severity: "warn" | "error"; message: string }[];
   /** A fresh widget body per mount (the doc's `widget` function body, compiled

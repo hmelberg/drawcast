@@ -143,7 +143,19 @@ export function attachViewPan(stage: HTMLElement, hd: RenderHandle): void {
   // ---- pointers: one drags a zoomed view, two pinch ----
   const measure = makeBrowserMeasure();
   const template = hd.spec.template ? scenes[hd.spec.template] : undefined;
-  const interactive = !!template && (!!template.widget || (template.manifest.interactions?.length ?? 0) > 0);
+  // A LIVE widget body (supply_demand's curves, a tree's numbers) names its
+  // own parts and its host takes a press on one (preventDefault, above):
+  // everything else — a branch, a node, the paper — is the pan's, so a big
+  // tree can be dragged about by its edges. A click-style body claims every
+  // drawn part, as before.
+  const liveBody = ((): boolean => {
+    try {
+      return template?.widget?.().live === true;
+    } catch {
+      return false;
+    }
+  })();
+  const interactive = !!template && ((!!template.widget && !liveBody) || (template.manifest.interactions?.length ?? 0) > 0);
   /** On an interactive figure, a press on a drawn part is the part's. */
   const onPart = (e: PointerEvent): boolean => {
     if (!interactive) return false;
