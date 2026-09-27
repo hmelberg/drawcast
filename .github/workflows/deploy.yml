@@ -25,7 +25,26 @@ jobs:
       # No lock file yet (the fork dropped mermaid/jsxgraph and the stale lock);
       # switch back to `npm ci` + cache once a fresh package-lock.json is committed.
       - run: npm install
-      - run: npm test
+      # The full suite, with ONE known exception: vitest sometimes ends a
+      # fully green run with `[vitest-worker]: Timeout calling "onTaskUpdate"`
+      # (a worker torn down with a call in flight — see netlify.toml) and
+      # exits non-zero. That alone is let through; any failed test, or any
+      # other unhandled error, still stops the deploy.
+      - name: npm test
+        shell: bash
+        env:
+          NO_COLOR: "1"
+        run: |
+          set +e
+          npm test 2>&1 | tee vitest.log
+          code=${PIPESTATUS[0]}
+          [ "$code" -eq 0 ] && exit 0
+          if grep -Eq '^ *Tests .* failed' vitest.log || grep -Eq '^ *Test Files .* failed' vitest.log; then exit "$code"; fi
+          if grep -Eq '^ *Errors +1 error' vitest.log && grep -q 'Timeout calling "onTaskUpdate"' vitest.log; then
+            echo "::warning::vitest's onTaskUpdate timeout after a green run — ignored (see deploy.yml)"
+            exit 0
+          fi
+          exit "$code"
       # Actions secrets reach a step only when that step names them. Without
       # this block VITE_GOOGLE_CLIENT_ID is empty in the Pages bundle and every
       # ☁/▶ button hides itself. Secrets that do not exist yet interpolate to
