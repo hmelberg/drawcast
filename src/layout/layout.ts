@@ -5,6 +5,7 @@ import { decodeCodeResult } from "../code/envelope";
 import { scenes } from "../scenes/registry";
 import { normalizeSpec } from "../spec/schema";
 import { applyTextMap } from "./text-map";
+import { applyAdjust } from "./adjust";
 import { effectiveTextStyle } from "./text-style";
 import { setMathTextStyle } from "./math";
 import { setMathFont, setMathHand } from "../scenes/engines";
@@ -307,6 +308,20 @@ export function layoutSpec(
   // BEFORE the solver means obstacles, placement and annotation boxes are all
   // measured against the words that actually get drawn.
   if (spec.text_map) applyTextMap(drawables, labelRequests, spec.text_map);
+
+  // A template's own parts, moved or enlarged by the spec (layout/adjust.ts)
+  // — also before the solver, so labels avoid the part where it now is.
+  if (spec.adjust) {
+    const unknown = applyAdjust(drawables, labelRequests, spec.adjust, groups, measure);
+    if (unknown.length > 0) {
+      issues.push({
+        rule: "adjust-unknown",
+        ids: [],
+        severity: "warn",
+        message: `adjust names ${unknown.map((k) => `"${k}"`).join(", ")}, which this page does not draw — use a part id or group id from the template's element list`,
+      });
+    }
+  }
 
   // Label placement against everything drawn so far — INCLUDING the borders
   // that are not drawn yet. An annotation is laid out last, because it may

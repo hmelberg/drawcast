@@ -175,6 +175,7 @@ export function lookFixPrompt(critique: string, spec?: Obj): string {
         'Reply with ONLY the changes, as {"edits": [...]} — much shorter than the whole spec. Each edit is one of:',
         '- {"element": "<id>", "set": {<fields>}} (merges; a field set to null is removed) · {"element": "<id>", "remove": true} · {"add": {<a new element>}}',
         '- {"params": {<fields>}} (merges into params, nested objects too) · {"spec": {<top-level fields such as vars, text, domain>}}',
+        '- A template\'s own parts (its readout, its curve labels, a card it draws) are not elements: move or enlarge them with {"spec": {"adjust": {"<part or group id>": {"move": [<right %>, <up %>], "scale": <0.5–2.5>}}}} — move in percent of the page. Keep any adjust entries the spec already has.',
         '- {"command": <n>, "set": {<fields>}} · {"command": <n>, "replace": {<command>}} · {"command": <n>, "remove": true}',
         '- {"insert_before": <n>, "commands": [...]} · {"insert_after": <n>, "commands": [...]}',
         "Command numbers are those below, in the spec as it stands now — every edit uses these numbers, whatever the other edits do. If the changes are so many that the whole spec is simpler, return the complete spec instead.",
@@ -182,7 +183,7 @@ export function lookFixPrompt(critique: string, spec?: Obj): string {
         "Commands:",
         commandIndex(spec),
       ]
-    : ["", "Return the corrected COMPLETE spec (not a diff), as minified JSON."];
+    : ["", "Return the corrected COMPLETE spec (not a diff), as minified JSON. A template's own parts (its readout, its curve labels) are not elements: move or enlarge them with the top-level `adjust` ({\"<part id>\": {\"move\": [right %, up %], \"scale\": 1.4}})."];
   return [
     "A designer watched the rendered frames of this spec and reports these problems, most important first:",
     "",

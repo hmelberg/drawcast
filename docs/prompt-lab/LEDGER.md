@@ -14,6 +14,17 @@ Each entry: the hypothesis, what was run, what we saw, what was decided.
 - **Emphasis in frames**: the critic now sees gestures mid-sentence — does
   it judge emphasis better than before?
 
+## 2026-09-27 — A template's own parts can be moved and enlarged
+
+- **Why:** the critic kept asking to move or enlarge a template's readout or
+  curve labels, and the fix round had no field for it: those parts are drawn
+  by the template, not spec elements, so the fix was lost.
+- **Built:** `spec.adjust` — `{"<part or group id>": {"move": [right %, up %],
+  "scale": 0.5–2.5}}`, applied in the layout before labels are placed
+  (`src/layout/adjust.ts`); an unknown id warns (`adjust-unknown`). The fix
+  prompt names it. Not measured yet: watch whether readout/label fixes now
+  land in the next look-pass runs.
+
 ## 2026-09-27 — Courses get the look pass
 
 - **Decided (Hans):** a course follows the same setting (Look at the frames

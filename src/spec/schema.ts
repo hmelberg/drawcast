@@ -1143,6 +1143,19 @@ export const specSchema = {
       additionalProperties: { type: "number" },
       description: 'Named numbers, e.g. {"f": 1}: curve expr reads them ("sin(f*x)"), bind computes fields from them, drawn text shows {f}, animate sweeps them. Never named x or like a function.',
     },
+    adjust: {
+      type: "object",
+      additionalProperties: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          move: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
+          scale: { type: "number", minimum: 0.5, maximum: 2.5 },
+        },
+      },
+      description:
+        'Move or enlarge a TEMPLATE\'s own parts, which are not your elements (its readout, its curve labels, a card): {"readout": {"move": [-20, 10], "scale": 1.4}} — move is [right, up] in percent of the page, scale grows the part about its center (0.5–2.5). Use a part id or group id from the template\'s element list.',
+    },
     details: {
       type: "object",
       additionalProperties: { type: "string" },

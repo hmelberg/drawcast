@@ -855,6 +855,13 @@ export interface Spec {
   domain?: { x?: [number, number]; y?: [number, number]; box?: "auto" | "left" | "right" | "top" | "bottom" | "full" | { x: number; y: number; w: number; h: number } };
   /** Top-level numbers (design 2026-09-10): read by curve `expr`, by `bind` expressions, as `{name}` in drawn text, and swept by animate. */
   vars?: Record<string, number>;
+  /**
+   * Nudges for ids that are not spec elements — a template's own parts (its
+   * readout card, its curve labels), by id or group id: `move` is [right, up]
+   * in percent of the page, `scale` grows the part about its center (0.5–2.5).
+   * Applied in the layout, before labels are placed (layout/adjust.ts).
+   */
+  adjust?: Record<string, { move?: [number, number]; scale?: number }>;
   /** Formal details for ids that are not spec elements (a template's parts), by id. */
   details?: Record<string, string>;
   /** The studies, reports and books the cast draws on — listed in the tray,
