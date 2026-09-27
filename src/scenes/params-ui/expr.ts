@@ -411,7 +411,9 @@ export function toTeX(root: Node, variables: string | readonly string[], w: Para
     const one = a[0] ?? "";
     switch (n.fn) {
       case "exp":
-        return `e^{${one}}`;
+        // A fraction in an exponent is set too small to read (a Gaussian's
+        // −(x²+y²)/(2σ²)): then exp(…) on the line instead.
+        return hasFrac(one) ? `\\exp\\left(${one}\\right)` : `e^{${one}}`;
       case "sqrt":
         return `\\sqrt{${one}}`;
       case "abs":

@@ -1,0 +1,127 @@
+{
+  "name": "plot3d",
+  "status": "ready",
+  "description": "A 3D math plot in orbit-camera perspective: a wireframe surface z = f(x, y) (NOT a filled/shaded surface — a hand-sketched grid of lines, like a wire mesh model), a parametric space curve (x(t), y(t), z(t)) such as a helix, or a handful of labeled points in 3-space. Choose this scene for ANY request about a 3D surface, saddle, bowl, wireframe, mesh, parametric curve, helix, spiral in 3D, or plotting points in three dimensions — and for what a parameter does to a surface (z = a·x² − b·y² turning from bowl to saddle, a ripple's wavelength, a bump's width). azimuth_deg and elevation_deg are NUMERIC and ANIMATE smoothly — this is the marquee move for this template: animate azimuth_deg by 90-150 to orbit smoothly around the plot (\"walk around it\"), e.g. {\"animate\": {\"azimuth_deg\": 155}, \"duration\": 3}. The vertical axis is z (the function's/curve's third coordinate); x and y are the other two — this matches ordinary math notation, even though internally the plot orbits around a world y-up axis. Any name in the surface or curve other than x, y (t for a curve) and pi/e is a PARAMETER: give each a value (and min/max for a slider) in `params` and the equation is written above the plot with the current values in place, each value its own part (eq_param_<name>); animate one ({\"animate\": {\"params.a.value\": -1}}) and the surface follows. With parameters the z scale is fixed over every value their ranges allow, so a change reads as a change of height. Paused, the viewer ORBITS by dragging the plot, zooms with ctrl/⌘-wheel or a pinch, and changes the parameters by scrubbing or typing the equation's numbers (controls \"equation\", the default) or on a drawn panel of sliders (\"panel\"); an explore beat naming nothing invites exactly this. Numbers for text: {plot3d.<name>} per parameter, {plot3d.z_min}, {plot3d.z_max}, {plot3d.mark_0_z}.",
+  "engines": ["mathjax"],
+  "params_schema": {
+    "type": "object",
+    "properties": {
+      "surface": {
+        "type": "string",
+        "x-translate": false,
+        "description": "f(x, y) expression, e.g. \"x^2 - y^2\" for a saddle, or \"a*x^2 - b*y^2\" with parameters. Operators + - * / ^, juxtaposition (2x); functions sin cos tan exp ln log10 sqrt abs pow min max; constants pi, e. Sampled on a grid_n x grid_n grid over domain x,y and drawn as row/column wireframe polylines. z is auto-scaled from the sampled min/max so ANY expression (however large its range) fits the plot — you never need to pre-scale it yourself."
+      },
+      "curve": {
+        "type": "object",
+        "properties": {
+          "x_expr": { "type": "string", "x-translate": false, "description": "x(t) expression." },
+          "y_expr": { "type": "string", "x-translate": false, "description": "y(t) expression." },
+          "z_expr": { "type": "string", "x-translate": false, "description": "z(t) expression." },
+          "t_min": { "type": "number", "description": "default 0." },
+          "t_max": { "type": "number", "description": "default 2*PI (~6.283). For a helix over several turns use a larger multiple of PI, e.g. 12*PI ~= 37.7." },
+          "samples": { "type": "number", "description": "points along the curve, default 200." }
+        },
+        "description": "A parametric space curve (x(t), y(t), z(t)), e.g. a helix: { x_expr: \"cos(t)\", y_expr: \"sin(t)\", z_expr: \"t/6\", t_max: 37.7 }. Coordinates are NOT auto-scaled (unlike surface) — pick expressions that stay in a reasonable range, roughly single digits."
+      },
+      "points": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "at": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3, "description": "[x, y, z]." },
+            "label": { "type": "string" }
+          },
+          "required": ["at"]
+        },
+        "description": "A handful of labeled points in 3-space, each drawn as a small sphere."
+      },
+      "domain": {
+        "type": "array",
+        "items": { "type": "number" },
+        "minItems": 2,
+        "maxItems": 2,
+        "description": "[min, max] world-unit range for both x and y of a surface (default [-1, 1]). Does not affect curve/points."
+      },
+      "grid_n": { "type": "number", "description": "Surface grid resolution per axis, 2-20 (default 12) — 12 gives 12 row + 12 column wireframe polylines." },
+      "azimuth_deg": { "type": "number", "description": "Camera orbit angle in degrees (default 35). Numeric and ANIMATES — the marquee move: animate this to orbit around the plot." },
+      "elevation_deg": { "type": "number", "description": "Camera tilt in degrees (default 22). Numeric and animates." },
+      "distance": { "type": "number", "description": "Camera distance override in world units. Usually leave unset — the camera auto-frames whatever is plotted." },
+      "zoom": { "type": "number", "description": "Magnification about the plot's centre (default 1, 0.4-3). Numeric and animates." },
+      "axis_labels": {
+        "type": "object",
+        "properties": { "x": { "type": "string" }, "y": { "type": "string" }, "z": { "type": "string" } },
+        "description": "Override the default \"x\"/\"y\"/\"z\" axis label text."
+      },
+      "title": { "type": "string" },
+      "params": {
+        "type": "object",
+        "description": "Parameter name → a number (its value), or {value, min, max, step, label, fixed, control}. min+max give a slider and bound scrubbing and dragging; step defaults to a fiftieth of the range; label names it in the panel (\"amplitude a\"); fixed: true shows it but the viewer cannot change it; control \"box\" makes its panel control a number box.",
+        "additionalProperties": {
+          "oneOf": [
+            { "type": "number" },
+            {
+              "type": "object",
+              "properties": {
+                "value": { "type": "number" },
+                "min": { "type": "number" },
+                "max": { "type": "number" },
+                "step": { "type": "number" },
+                "label": { "type": "string" },
+                "fixed": { "type": "boolean" },
+                "control": { "type": "string", "enum": ["slider", "box"] }
+              }
+            }
+          ]
+        }
+      },
+      "editable": { "type": "array", "items": { "type": "string", "x-translate": false }, "description": "Only these parameters may be changed by the viewer (default: all but fixed ones)." },
+      "controls": { "type": "string", "enum": ["equation", "panel", "both"], "description": "Where the viewer changes them: the equation's own numbers (default), a panel of sliders/boxes right of the plot, or both." },
+      "panel": { "type": "array", "items": { "type": "string", "x-translate": false }, "description": "The parameters in the panel, in order (default: the editable ones)." },
+      "show_equation": { "type": "boolean", "description": "Write the equation above the plot (default: when it has parameters)." },
+      "z_range": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "With parameters: the z values the plot's height is scaled to (default: every value the parameters' ranges allow)." },
+      "marks": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "at": { "type": "array", "items": { "oneOf": [{ "type": "number" }, { "type": "string", "x-translate": false }] }, "minItems": 2, "maxItems": 2, "description": "[x, y] on the surface — a number or a parameter's name." },
+            "label": { "oneOf": [{ "type": "boolean" }, { "type": "string" }] }
+          },
+          "required": ["at"]
+        },
+        "description": "Dots ON the surface at (x, y, f(x, y)) — the saddle point, a peak. label true writes the height."
+      }
+    }
+  },
+  "element_ids": {
+    "axes": "SET — the three axes and their letters in one id, e.g. draw [axes]",
+    "surface": "SET — every wireframe line of the surface in one id, e.g. draw [surface]; present when a surface is drawn",
+    "axis_x / axis_y / axis_z": "the three coordinate axes (arrows from the origin), with axis_x_label / axis_y_label / axis_z_label alongside their tips",
+    "wire_row_<i> / wire_col_<i>": "the surface's row/column wireframe polylines (i = 0…grid_n-1), present when a surface is drawn",
+    "curve": "the parametric curve's single polyline, present when a curve is drawn",
+    "pt_<i> / pt_label_<i>": "a point's marker sphere and its label (label present only when given) — ONLY when there is no surface and no curve; one of the three is drawn, surface first, then curve, then points",
+    "mark_<i> / mark_label_<i>": "a mark's dot on the surface (marks[i]) and its label",
+    "eq": "the equation's written line, without its parameter values (they come with it when drawn)",
+    "eq_param_<name>": "a parameter's number in the equation (eq_param_<name>_2 where it appears again) — point, highlight or focus it when the voice names it",
+    "slider_<name>": "panel: a parameter's slider track (its name, value and knob come with it)",
+    "knob_<name>": "panel: the slider's knob",
+    "box_<name>": "panel: a number box",
+    "name_<name>": "panel: the parameter's label",
+    "value_<name>": "panel: its current value",
+    "panel": "group: every panel part",
+    "title": "the figure title, when set"
+  },
+  "examples": [
+    { "request": "Show the saddle surface z = x squared minus y squared in 3D.", "params": { "surface": "x^2 - y^2" } },
+    { "request": "Draw a 3D helix.", "params": { "curve": { "x_expr": "cos(t)", "y_expr": "sin(t)", "z_expr": "t/6", "t_min": 0, "t_max": 37.7 } } },
+    {
+      "request": "How do a and b turn a bowl into a saddle?",
+      "params": { "surface": "a*x^2 - b*y^2", "params": { "a": { "value": 1, "min": -2, "max": 2 }, "b": { "value": 1, "min": -2, "max": 2 } }, "marks": [{ "at": [0, 0], "label": true }] }
+    },
+    {
+      "request": "What does the width σ do to a bell-shaped bump?",
+      "params": { "surface": "A*exp(-(x^2 + y^2)/(2*sigma^2))", "domain": [-3, 3], "params": { "A": { "value": 1.5, "min": 0.5, "max": 2, "label": "height A" }, "sigma": { "value": 1, "min": 0.4, "max": 2, "label": "width σ", "control": "box" } }, "controls": "panel", "grid_n": 16 }
+    },
+    { "request": "Plot the points A and B in 3D.", "params": { "points": [{ "at": [0.6, 0.6, 0.6], "label": "A" }, { "at": [-0.6, 0.4, -0.5], "label": "B" }], "title": "Two points" } }
+  ]
+}

@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { ensureEngines, getLoadedEngines, type MathJaxEngine } from "../src/scenes/engines";
 import { compile, namesIn, parseExpr, toTeX } from "../src/scenes/params-ui/expr";
 import { PARAMS_SCHEMA, lintParams, readParams, stepFor, traySliders, withValue } from "../src/scenes/params-ui/params";
-import { drawEquation, equationTeX, paramOfEqPart } from "../src/scenes/params-ui/equation";
+import { drawEquation, equationTeX, isWholeMark, paramOfEqPart } from "../src/scenes/params-ui/equation";
 import { drawPanel, panelRows, sliderX } from "../src/scenes/params-ui/panel";
 import { controlField, controlParts, controlTarget, scrubValue, sliderPointerValue } from "../src/scenes/params-ui/controls";
 import { panRange, sameRange, tidyRange, zoomRange } from "../src/scenes/params-ui/domain";
@@ -60,6 +60,8 @@ describe("the equation as TeX, values written in", () => {
   test("functions and names", () => {
     expect(tex("A*sin(k*x + phi)", {})).toBe("\\mathord{A} \\sin(\\mathord{k} x + \\mathord{\\phi})");
     expect(tex("N0*exp(r*t)", { N0: "100", r: "0.10" }, "t")).toBe("\\mathord{100} e^{\\mathord{0.10} t}");
+    // A fraction would be set too small in an exponent: exp(…) on the line.
+    expect(tex("exp(-x^2/(2*s^2))", { s: "1.0" })).toBe("\\exp\\left(\\frac{-x^{2}}{2 \\cdot \\mathord{1.0}^{2}}\\right)");
     expect(tex("sqrt(x)/a", { a: "2" })).toBe("\\frac{\\sqrt{x}}{\\mathord{2}}");
   });
 });
@@ -91,8 +93,8 @@ describe("the parameters' shape", () => {
     const msgs = lintParams(given, readParams({ given, names: ["a", "b"] }), { editable: ["q"] }).map((i) => i.message);
     expect(msgs).toEqual(['param "a": value 9 is outside its range [0, 5]', 'param "b": min 2 is not below max 1', 'editable: "q" is not a parameter of the equation']);
   });
-  test("equation_plot's manifest carries PARAMS_SCHEMA as it is", () => {
-    const manifest = JSON.parse(readFileSync("src/scenes/equation_plot/manifest.json", "utf8"));
+  test.each(["equation_plot", "plot3d"])("%s's manifest carries PARAMS_SCHEMA as it is", (name) => {
+    const manifest = JSON.parse(readFileSync(`src/scenes/${name}/manifest.json`, "utf8"));
     for (const [k, v] of Object.entries(PARAMS_SCHEMA)) expect(manifest.params_schema.properties[k], k).toEqual(v);
   });
 });
@@ -103,6 +105,11 @@ describe("the drawn equation", () => {
   test("its TeX, values in", () => {
     expect(equationTeX({ lhsTeX: "y", node, variables: "x", set, form: "values" })).toEqual({ tex: "y = \\mathord{2.0} x^{2} - \\mathord{3.0} x + \\mathord{2.0}", order: ["a", "b", "a"] });
     expect(equationTeX({ lhsTeX: "z", node: parseExpr("a*x*y"), variables: ["x", "y"], set, form: "symbols" }).tex).toBe("z = \\mathord{a} x y");
+    // A tuple (a space curve's coordinates): each part in turn, the marks in reading order.
+    expect(equationTeX({ lhsTeX: "(x, y, z)", node: [parseExpr("cos(t)"), parseExpr("b*t"), parseExpr("a*t")], variables: "t", set, form: "values" })).toEqual({
+      tex: "(x, y, z) = \\left(\\cos(t),\\ \\mathord{-3.0} t,\\ \\mathord{2.0} t\\right)",
+      order: ["b", "a"],
+    });
   });
   test("each value its own part; a name written twice gets _2; fixed values are ink", () => {
     const mj = getLoadedEngines(["mathjax"]).mathjax as MathJaxEngine;
@@ -121,6 +128,15 @@ describe("the drawn equation", () => {
     const narrow = drawEquation(mj, { id: "eq", lhsTeX: "y", node, variables: "x", set, form: "values", center: [500, 600], width: 150 });
     const xs = narrow.drawables.flatMap((d) => (d.kind === "group" ? d.children : [d])).flatMap((d) => (d.kind === "area" ? d.pts.map((p) => p[0]) : []));
     expect(Math.max(...xs) - Math.min(...xs)).toBeLessThanOrEqual(260);
+  });
+  test("a value raised to a power keeps its part — the exponent is not a value of its own", () => {
+    const mj = getLoadedEngines(["mathjax"]).mathjax as MathJaxEngine;
+    const s = readParams({ given: { A: 1.5, s: 1 }, names: ["A", "s"] });
+    const r = drawEquation(mj, { id: "eq", lhsTeX: "z", node: parseExpr("A*exp(-(x^2 + y^2)/(2*s^2))"), variables: ["x", "y"], set: s, form: "values", center: [500, 600], width: 900 });
+    expect(r.paramIds).toEqual(["eq_param_A", "eq_param_s"]);
+    expect(isWholeMark("\\mathord{1.00}")).toBe(true);
+    expect(isWholeMark("\\mathord{\\mathrm{rate}}")).toBe(true);
+    expect(isWholeMark("\\mathord{1.00}^{2}")).toBe(false);
   });
 });
 
