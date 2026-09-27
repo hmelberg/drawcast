@@ -4,7 +4,7 @@
 // Two things in a cast are programs, and both run in this page's origin with
 // everything the page can reach — localStorage (the Anthropic key, the
 // account token), fetch, the DOM:
-//   - a template document's `layout` / `widget` bodies (`spec.templates`,
+//   - a template document's `layout` / `widget` / `lint` bodies (`spec.templates`,
 //     compiled with new Function in scenes/compile.ts), and
 //   - a code element's script (python / micropython / brython / microdata run
 //     on the main thread with `import js` / `browser.window`; R runs in webR's
@@ -117,9 +117,17 @@ function declinedSet(): Set<string> {
 
 const short = (text: string): string => sha256Hex(text).slice(0, 32);
 
-/** The trust key of a template document's code (id-independent: the same body is the same program). */
-export function templateKey(doc: { layout?: unknown; widget?: unknown }): string {
-  return `t:${short(JSON.stringify([typeof doc.layout === "string" ? doc.layout : "", typeof doc.widget === "string" ? doc.widget : ""]))}`;
+/**
+ * Every template-document field scenes/compile.ts turns into a function.
+ * A new one there must be added here, or its body would ride along
+ * unhashed — tests/code-trust.test.ts reads compile.ts and fails if so.
+ */
+export const TEMPLATE_CODE_FIELDS = ["layout", "widget", "lint"] as const;
+type TemplateCode = { [K in (typeof TEMPLATE_CODE_FIELDS)[number]]?: unknown };
+
+/** The trust key of a template document's code (id-independent: the same bodies are the same program). */
+export function templateKey(doc: TemplateCode): string {
+  return `t:${short(JSON.stringify(TEMPLATE_CODE_FIELDS.map((f) => (typeof doc[f] === "string" ? doc[f] : ""))))}`;
 }
 
 export function codeKey(language: string, code: string): string {
@@ -127,8 +135,8 @@ export function codeKey(language: string, code: string): string {
 }
 
 /** Does a template document carry a body that would be compiled? */
-export function templateHasCode(doc: { layout?: unknown; widget?: unknown }): boolean {
-  return (typeof doc.layout === "string" && doc.layout.trim() !== "") || (typeof doc.widget === "string" && doc.widget.trim() !== "");
+export function templateHasCode(doc: TemplateCode): boolean {
+  return TEMPLATE_CODE_FIELDS.some((f) => typeof doc[f] === "string" && (doc[f] as string).trim() !== "");
 }
 
 /** Would this language's script reach the page if it ran? */
@@ -150,7 +158,7 @@ export function codeItemsOf(spec: SpecLike): CodeItem[] {
   if (Array.isArray(spec?.templates)) {
     for (const t of spec.templates as unknown[]) {
       if (typeof t !== "object" || t === null) continue;
-      const doc = t as { template?: unknown; layout?: unknown; widget?: unknown };
+      const doc = t as TemplateCode & { template?: unknown };
       if (!templateHasCode(doc)) continue;
       push({ key: templateKey(doc), kind: "template", name: typeof doc.template === "string" ? doc.template : "?" });
     }

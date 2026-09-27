@@ -163,6 +163,7 @@ import { ensureFolder, isMissingFileError, openSpec, readFileText, saveSpec } fr
 import fewshots from "./llm/prompts/fewshots.json";
 import bundledExamples from "./examples.json";
 import { gateSpecs, migrateOnce, trustDerived, trustSpecs } from "./security/code-trust";
+import { remixSource } from "./security/view-origin";
 import { installCodeConsent } from "./ui/code-consent";
 
 const settings = loadSettings();
@@ -4209,6 +4210,30 @@ if (settings.githubRepo) void loadCoursesFromGithub({ quiet: true });
 // what happened, then clear the marker so a reload does not repeat it. The
 // door reaches the course page at the next publish — the page's door is only
 // ever built from a name this account has registered.
+// "Edit a copy" (security/view-origin.ts): the view origin hands a public
+// cast here as #remix&<its source>. It opens like an upload — an unsaved
+// document, not yours until you change it — and its own code goes through
+// the trust gate in present(), so a copy never runs anything unasked.
+const remixFrom = remixSource(location.hash);
+if (remixFrom) {
+  history.replaceState(null, "", location.pathname + location.search);
+  void (async () => {
+    const { parseViewerHash, fetchPublicCastText } = await import("./viewer");
+    const req = parseViewerHash(remixFrom);
+    try {
+      const text = req ? await fetchPublicCastText(req) : null;
+      const playlist = text === null ? null : readPlaylistText(text);
+      if (!playlist) {
+        if (text === null) setStatus("That link cannot be opened as a copy.", "error");
+        return;
+      }
+      setDoc({ id: null, driveFileId: null, sourcePath: null, title: docTitleOf(playlist, "Shared drawcast"), playlist }, "Opened a copy of the shared drawcast.");
+    } catch (err) {
+      setStatus(`Could not open a copy: ${(err as Error).message}`, "error");
+    }
+  })();
+}
+
 const paidReturn = paidInHash(location.hash);
 if (paidReturn) {
   history.replaceState(null, "", location.pathname + location.search);

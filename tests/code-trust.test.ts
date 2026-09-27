@@ -14,6 +14,8 @@ import {
   onBlocked,
   resetCodeTrust,
   setConsentHandler,
+  TEMPLATE_CODE_FIELDS,
+  templateHasCode,
   templateKey,
   trustDerived,
   trustKeys,
@@ -21,6 +23,7 @@ import {
   untrustedItems,
 } from "../src/security/code-trust";
 import { sha256Hex } from "../src/security/sha256";
+import { readFileSync } from "node:fs";
 import { isBlockedCastTemplate, isCastTemplateId, registerCastTemplates, resetCastTemplates } from "../src/scenes/cast-templates";
 import { registerUserTemplateYaml, unregisterUserTemplate } from "../src/scenes/my-templates";
 import { scenes } from "../src/scenes/registry";
@@ -82,6 +85,16 @@ describe("what counts as code", () => {
   test("code and a differing code_src are both keyed (the tray and sweep run code_src)", () => {
     const items = codeItemsOf({ elements: [codeEl("x = 1", { code_src: "import js" })] });
     expect(items).toHaveLength(2);
+  });
+
+  test("every field compile.ts turns into a function is part of the key", () => {
+    const src = readFileSync(new URL("../src/scenes/compile.ts", import.meta.url), "utf8");
+    const compiled = [...src.matchAll(/new Function\([^)]*\$\{doc\.(\w+)\}/g)].map((m) => m[1]);
+    expect(compiled.length).toBeGreaterThanOrEqual(3);
+    for (const f of compiled) expect(TEMPLATE_CODE_FIELDS as readonly string[]).toContain(f);
+    // and each one changes the key
+    for (const f of TEMPLATE_CODE_FIELDS) expect(templateKey({ ...doc("a"), [f]: "return 1;" })).not.toBe(templateKey(doc("a")));
+    expect(templateHasCode({ lint: "return [];" })).toBe(true);
   });
 
   test("a template's key is its body, not its id", () => {

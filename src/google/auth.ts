@@ -7,6 +7,8 @@
 // Scopes are requested incrementally, by the action that needs them, so a user
 // who only saves specs never sees a consent screen mentioning video uploads.
 
+import { onViewOrigin } from "../security/view-origin";
+
 export const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 export const YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube.upload";
 /**
@@ -153,6 +155,8 @@ interface TokenResponse {
  * a normal outcome the caller reports via setStatus, never an exception.
  */
 export async function requireScope(scope: Scope): Promise<string | null> {
+  // No Google tokens on the secret-free view origin (security/view-origin.ts).
+  if (onViewOrigin()) return null;
   const cached = store.get(scope);
   if (cached) return cached;
   if (!googleConfigured()) return null;

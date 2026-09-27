@@ -18,7 +18,7 @@ origin as the editor: `src/entry.ts` routes by hash inside one page. So
 everything below that reaches "the page" reaches the secrets, whichever mode
 the page booted in.
 
-## 1. Template documents (JS `layout` / `widget` bodies)
+## 1. Template documents (JS `layout` / `widget` / `lint` bodies)
 
 `src/scenes/compile.ts` compiles both bodies with `new Function` and calls
 them in the page. The only guard is on the *shape* of what they return.
@@ -89,7 +89,7 @@ needing its own check; the ones that show a document also ask up front.
 ## Trust rule (step 1)
 
 Implemented in `src/security/code-trust.ts`. Trust belongs to the exact bytes
-of a program — a SHA-256 of a template's `layout`+`widget`, or of a script's
+of a program — a SHA-256 of a template's `layout`+`widget`+`lint` (every field `compile.ts` compiles; a test fails if a new one is added without joining the key), or of a script's
 language+code — never to a claim in the document.
 
 **Trusted:**
@@ -147,7 +147,10 @@ stubbed, against `npm run build` served by `scripts/csp-headers.mjs`.
 
 - app boot, editor and player modes; examples: a built-in template
   (supply_demand), a pack template, math/MathJax (QALY), music, plot3d, a
-  space/sky figure (Finding Mars, How big is Jupiter?);
+  space/sky figure (Finding Mars, How big is Jupiter?); after merging main,
+  the round's new built-ins too — motion_graphs, titration_curve,
+  maxwell_boltzmann, plot3d (surface), equation_plot (presets) — which render
+  without a prompt (built-ins never pass through the gate);
 - 3D: the molecule viewer (3Dmol) and the anatomy body (mesh pack);
 - code elements actually executing (no baked result): Python with numpy +
   matplotlib (pyodide + packages from jsdelivr), R with a plot (webR worker),

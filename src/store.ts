@@ -21,6 +21,7 @@ import type { LintIssue } from "./lint/lint";
 import type { StoredDriveRom } from "./code/c64-drive-rom";
 import type { RenderStyle } from "./render";
 import type { Outline } from "./llm/outline";
+import { onViewOrigin } from "./security/view-origin";
 
 const KEYS = {
   settings: "drawcast.settings.v1",
@@ -361,11 +362,15 @@ export const SETTINGS_TABS: { id: string; label: string; fields: string[] }[] = 
   { id: "advanced", label: "Advanced", fields: ["contactEmail", "developerMode", "visualRepair", "backup"] },
 ];
 
+// The secret-free view origin (security/view-origin.ts) neither reads nor
+// keeps a key: every getter below answers "" there and every setter is a no-op.
 export function getApiKey(): string {
+  if (onViewOrigin()) return "";
   return localStorage.getItem(KEYS.apiKey) || (import.meta.env.VITE_ANTHROPIC_API_KEY ?? "");
 }
 
 export function setApiKey(key: string): void {
+  if (onViewOrigin()) return;
   if (key) localStorage.setItem(KEYS.apiKey, key);
   else localStorage.removeItem(KEYS.apiKey);
 }
@@ -375,10 +380,12 @@ export function setApiKey(key: string): void {
  * shape as the API key. There is no shared repo and so no shared credential.
  */
 export function getGithubToken(): string {
+  if (onViewOrigin()) return "";
   return localStorage.getItem(KEYS.githubToken) ?? "";
 }
 
 export function setGithubToken(token: string): void {
+  if (onViewOrigin()) return;
   if (token) localStorage.setItem(KEYS.githubToken, token);
   else localStorage.removeItem(KEYS.githubToken);
 }
@@ -411,10 +418,12 @@ export function setDriveRom(rom: StoredDriveRom | null): void {
 }
 
 export function getTtsKey(): string {
+  if (onViewOrigin()) return "";
   return localStorage.getItem(KEYS.ttsKey) || (import.meta.env.VITE_GOOGLE_TTS_KEY ?? "");
 }
 
 export function setTtsKey(key: string): void {
+  if (onViewOrigin()) return;
   if (key) localStorage.setItem(KEYS.ttsKey, key);
   else localStorage.removeItem(KEYS.ttsKey);
 }

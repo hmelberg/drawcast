@@ -5,10 +5,15 @@
 //
 // Nothing here may throw into a page load: every failure returns null.
 //
-// Imports only learn.ts, which imports nothing. store.ts must never be pulled
-// in here: it is the library, and the viewer chunk would drag it along.
+// Imports only learn.ts and security/view-origin.ts (→ names.ts → learn.ts).
+// store.ts must never be pulled in here: it is the library, and the viewer
+// chunk would drag it along.
+//
+// On the view origin (security/view-origin.ts) there is no token: getToken
+// answers "" and setToken does nothing, whatever reaches them.
 
 import { apiBase, DEFAULT_ENROLL_API } from "./learn";
+import { onViewOrigin } from "./security/view-origin";
 
 const TOKEN_KEY = "drawcast.token";
 /** `t` as its own parameter — never the `t` inside another word. */
@@ -23,6 +28,7 @@ function storage(): Storage | null {
 }
 
 export function getToken(): string {
+  if (onViewOrigin()) return "";
   try {
     return storage()?.getItem(TOKEN_KEY) ?? "";
   } catch {
@@ -31,6 +37,7 @@ export function getToken(): string {
 }
 
 export function setToken(token: string): void {
+  if (onViewOrigin()) return;
   const s = storage();
   if (!s) return;
   try {
