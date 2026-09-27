@@ -30,6 +30,12 @@ export interface TemplateDoc {
    *  contract (widget-types.ts). Optional; a document with one is playable
    *  while paused by that fact alone. */
   widget?: string;
+  /** The widget body is FREE PLAY only (2026-09-27): the viewer works the
+   *  figure while paused — a live body that drags curves, say — but it
+   *  answers no ask, so the manifest carries no `widget: true` (that flag
+   *  offers the figure as an ask's answer device, and keeps it from
+   *  growing). What supply_demand's built-in body is, for a document. */
+  free_play?: boolean;
   /** Opt-in: widen params_schema (data-schema.ts) at registration so numeric
    *  and array leaves also accept a "{id.var}" data token. */
   accepts_data?: boolean;
@@ -139,6 +145,8 @@ export function validateTemplateDoc(raw: unknown): DocResult {
   if (d.widget !== undefined && typeof d.widget !== "string") {
     errors.push("widget must be a string (a JavaScript function body returning { init, on })");
   }
+  if (d.free_play !== undefined && typeof d.free_play !== "boolean") errors.push("free_play must be a boolean");
+  if (d.free_play === true && (typeof d.widget !== "string" || d.widget.trim() === "")) errors.push("free_play needs a widget body — it says the body answers no ask");
   if (d.title !== undefined && typeof d.title !== "string") errors.push("title must be a string");
   if (d.accepts_data !== undefined && typeof d.accepts_data !== "boolean") errors.push("accepts_data must be a boolean");
 
@@ -159,12 +167,14 @@ export function docToManifest(doc: TemplateDoc): SceneManifest {
     ...(doc.explore ? { explore: doc.explore } : {}),
     // A stub never carries a widget: it has nothing to be playable IN — the
     // widget flag rides on a ready doc with a real layout body, same as the
-    // compile-time gate in compile.ts's stub early-return.
+    // compile-time gate in compile.ts's stub early-return. A free-play body
+    // is still compiled (SceneModule.widget) but is offered to no ask.
     ...(doc.status === "ready" &&
     typeof doc.layout === "string" &&
     doc.layout.trim() !== "" &&
     typeof doc.widget === "string" &&
-    doc.widget.trim() !== ""
+    doc.widget.trim() !== "" &&
+    doc.free_play !== true
       ? { widget: true as const }
       : {}),
     ...(doc.accepts_data ? { accepts_data: true } : {}),

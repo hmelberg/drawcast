@@ -30,6 +30,21 @@ describe("widget body — document", () => {
     expect(docToManifest(validateTemplateDoc(base).doc!).widget).toBeUndefined();
   });
 
+  test("free_play: the body compiles and runs, but the manifest offers it to no ask", () => {
+    const v = validateTemplateDoc({ ...base, widget: WIDGET, free_play: true });
+    expect(v.errors).toEqual([]);
+    expect(docToManifest(v.doc!).widget).toBeUndefined();
+    const { module, errors } = compileTemplateDoc(v.doc!);
+    expect(errors).toEqual([]);
+    expect(typeof module!.widget).toBe("function");
+    expect(module!.manifest.widget).toBeUndefined();
+  });
+
+  test("free_play must be a boolean, and needs a body to describe", () => {
+    expect(validateTemplateDoc({ ...base, widget: WIDGET, free_play: "yes" }).errors.some((e) => /free_play must be a boolean/.test(e))).toBe(true);
+    expect(validateTemplateDoc({ ...base, free_play: true }).errors.some((e) => /free_play needs a widget body/.test(e))).toBe(true);
+  });
+
   test("a non-string widget is rejected", () => {
     const v = validateTemplateDoc({ ...base, widget: 42 });
     expect(v.errors.some((e) => /widget must be a string/.test(e))).toBe(true);
