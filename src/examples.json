@@ -71321,5 +71321,442 @@
         }
       ]
     }
+  },
+  {
+    "request": "What does Km mean for an enzyme, and what does a competitive inhibitor do to it?",
+    "spec": {
+      "title": "What Km tells you about an enzyme",
+      "template": "equation_plot",
+      "params": {
+        "preset": "michaelis_menten_competitive",
+        "params": {
+          "I": 0
+        },
+        "x_label": "substrate (mM)"
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "What Km tells you"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "What does an enzyme's Km actually tell you, and why does a drug that blocks the enzyme change it?"
+        },
+        {
+          "draw": [
+            "eq",
+            "curve_0"
+          ],
+          "speak": "Give an enzyme more substrate and it works faster, but not without limit: the rate levels off."
+        },
+        {
+          "draw": [
+            "vmax"
+          ],
+          "speak": "It levels off at Vmax, here 10, when every enzyme molecule is busy all the time."
+        },
+        {
+          "draw": [
+            "km"
+          ],
+          "speak": "Km is the substrate concentration that gives half that top speed: here 2 millimolar."
+        },
+        {
+          "highlight": {
+            "target": [
+              "km_x_label"
+            ]
+          },
+          "speak": "A small Km means half speed on very little substrate: roughly, the enzyme binds its substrate tightly."
+        },
+        {
+          "draw": [
+            "eq_1",
+            "curve_1"
+          ],
+          "speak": "Now add a competitive inhibitor, a look-alike molecule that sits in the active site and blocks it."
+        },
+        {
+          "draw": [
+            "panel"
+          ]
+        },
+        {
+          "animate": {
+            "params.I": 2
+          },
+          "duration": 3,
+          "speak": "At low substrate the inhibitor wins many of the sites, so the red curve slides to the right."
+        },
+        {
+          "draw": [
+            "km_app"
+          ],
+          "speak": "Half of Vmax now takes 6 millimolar: the apparent Km has tripled."
+        },
+        {
+          "highlight": {
+            "target": [
+              "vmax"
+            ]
+          },
+          "speak": "But flood the enzyme with substrate and it still climbs toward the same Vmax, because substrate outcompetes the inhibitor."
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve_1"
+            ]
+          },
+          "speak": "Fomepizole, the antidote to methanol poisoning, blocks the liver enzyme alcohol dehydrogenase in just this way."
+        },
+        {
+          "explore": {},
+          "speak": "Try it: change the inhibitor or Km, or slide the Km point along the curve."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "km_app"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Km marks where the curve reaches half speed; a competitive inhibitor pushes that point right and leaves the ceiling where it was."
+        },
+        {
+          "quiz": {
+            "question": "A competitive inhibitor is added. What happens?",
+            "choices": [
+              "Vmax falls, Km stays",
+              "Vmax stays, Km rises",
+              "Both fall"
+            ],
+            "correct": 2,
+            "right": "Vmax stays, since enough substrate outcompetes the inhibitor, and Km rises, since half speed now needs more substrate.",
+            "wrong": "Think of what happens when there is far more substrate than inhibitor."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why does the Bohr shift help working muscle get more oxygen from the blood?",
+    "spec": {
+      "title": "How working muscle gets more oxygen",
+      "template": "equation_plot",
+      "params": {
+        "preset": "oxygen_dissociation",
+        "x_range": [
+          0,
+          120
+        ],
+        "marks": [
+          {
+            "kind": "point",
+            "at": 100,
+            "id": "lungs"
+          },
+          {
+            "kind": "point",
+            "at": 20,
+            "id": "muscle"
+          }
+        ]
+      },
+      "elements": [
+        {
+          "id": "lungs_word",
+          "type": "label",
+          "attach_to": "lungs",
+          "side": "below-right",
+          "text": "lungs"
+        },
+        {
+          "id": "muscle_word",
+          "type": "label",
+          "attach_to": "muscle",
+          "side": "above-left",
+          "text": "muscle"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Oxygen for working muscle"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Why does hard-working muscle get more oxygen out of the same blood?"
+        },
+        {
+          "draw": [
+            "eq",
+            "curve_0"
+          ],
+          "speak": "This S-shaped curve shows how full haemoglobin is with oxygen at each oxygen pressure."
+        },
+        {
+          "draw": [
+            "lungs",
+            "lungs_word"
+          ],
+          "speak": "In the lungs, at about 100 millimetres of mercury, blood leaves almost full: about 97 percent."
+        },
+        {
+          "draw": [
+            "muscle",
+            "muscle_word"
+          ],
+          "speak": "In a hard-working muscle the pressure falls to about 20, where only about 31 percent stays bound."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "muscle"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Everything in between is handed to the muscle, thanks to the steep middle of the curve."
+        },
+        {
+          "draw": [
+            "p50"
+          ],
+          "speak": "One number sums up where the curve sits: P50, the pressure at which haemoglobin is half full, about 27."
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve_0"
+            ]
+          },
+          "speak": "Working muscle is also warmer, more acidic and full of carbon dioxide, and each of these loosens haemoglobin's grip."
+        },
+        {
+          "draw": [
+            "panel"
+          ]
+        },
+        {
+          "animate": {
+            "params.P_50": 32
+          },
+          "duration": 3,
+          "ghost": [
+            "curve_0"
+          ],
+          "speak": "That shifts the whole curve to the right: P50 rises to about 32."
+        },
+        {
+          "highlight": {
+            "target": [
+              "muscle"
+            ]
+          },
+          "speak": "At 20 in the muscle, saturation drops from 31 to about 22 percent: nine more percent of the load is let go."
+        },
+        {
+          "highlight": {
+            "target": [
+              "lungs"
+            ]
+          },
+          "speak": "In the lungs, on the flat top, the shift hardly matters: blood still loads to about 96 percent."
+        },
+        {
+          "highlight": {
+            "target": [
+              "p50"
+            ]
+          },
+          "speak": "The acid and carbon dioxide part of this is the Bohr effect, described by Christian Bohr in 1904."
+        },
+        {
+          "erase": [
+            "curve_0_ghost"
+          ]
+        },
+        {
+          "explore": {},
+          "speak": "Try it: slide P50 or the Hill number and watch the lungs and the muscle."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "muscle"
+            },
+            "gesture": "tap"
+          },
+          "speak": "So the shift costs almost nothing where oxygen is picked up, and gives extra exactly where it is burned."
+        },
+        {
+          "quiz": {
+            "question": "A fever shifts the curve to the right. What happens in the tissues?",
+            "choices": [
+              "Less oxygen is released",
+              "More oxygen is released",
+              "Nothing changes"
+            ],
+            "correct": 2,
+            "right": "More is released: a right shift lowers the saturation at tissue pressures, so haemoglobin lets go of more.",
+            "wrong": "Look at what the shift did at the muscle's pressure."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why does population growth slow down as it approaches the carrying capacity?",
+    "spec": {
+      "title": "Why growth slows near the carrying capacity",
+      "template": "equation_plot",
+      "params": {
+        "preset": "logistic_vs_exponential",
+        "params": {
+          "t_1": {
+            "value": 3,
+            "min": 0,
+            "max": 25,
+            "step": 0.1,
+            "label": "time"
+          }
+        },
+        "panel": [
+          "r",
+          "K",
+          "N_0"
+        ],
+        "x_label": "years",
+        "y_label": "rabbits",
+        "marks": [
+          {
+            "kind": "tangent",
+            "at": "t_1",
+            "label": true
+          }
+        ]
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Why growth slows down"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Why does a growing population slow down as it fills its habitat, long before it runs out of room?"
+        },
+        {
+          "draw": [
+            "eq_1",
+            "curve_1"
+          ],
+          "speak": "Put ten rabbits on an island, breeding at a rate of half their number a year: unchecked, that is exponential growth, and it shoots off the chart."
+        },
+        {
+          "draw": [
+            "capacity"
+          ],
+          "speak": "But the island can feed only about a thousand: its carrying capacity, K."
+        },
+        {
+          "draw": [
+            "eq",
+            "curve_0"
+          ],
+          "speak": "Real growth follows this S-shaped logistic curve instead, bending over toward K."
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq"
+            ]
+          },
+          "speak": "Each rabbit's breeding rate shrinks with the room that is left: at half full, it breeds at half the rate."
+        },
+        {
+          "draw": [
+            "tangent"
+          ],
+          "speak": "The steepness of the curve is the growth itself: new rabbits per year."
+        },
+        {
+          "animate": {
+            "params.t_1": 9.2
+          },
+          "duration": 3,
+          "speak": "Early on there are few parents; as they multiply, with room to spare, the slope grows."
+        },
+        {
+          "draw": [
+            "inflection"
+          ],
+          "speak": "It is steepest at 500 rabbits, half of K, where they add about 125 a year."
+        },
+        {
+          "animate": {
+            "params.t_1": 18
+          },
+          "duration": 3,
+          "speak": "Past that point, crowding cuts each rabbit's rate faster than the parents multiply, and growth dies away."
+        },
+        {
+          "highlight": {
+            "target": [
+              "capacity"
+            ]
+          },
+          "speak": "At a thousand, births just balance deaths, and the population stays put."
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve_0"
+            ]
+          },
+          "speak": "The Belgian mathematician Pierre-François Verhulst proposed this curve in 1838, for human populations."
+        },
+        {
+          "draw": [
+            "panel"
+          ]
+        },
+        {
+          "explore": {},
+          "speak": "Try it: change the growth rate or K, or slide the tangent along the curve."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "inflection"
+            },
+            "gesture": "circle"
+          },
+          "speak": "So the slowdown does not begin at the limit: it begins halfway there."
+        },
+        {
+          "quiz": {
+            "question": "An island can feed 1000 rabbits. At what size do they add the most rabbits a year?",
+            "choices": [
+              "100",
+              "500",
+              "990"
+            ],
+            "correct": 2,
+            "right": "At 500, half of K: there are plenty of parents, and each still breeds at half its full rate.",
+            "wrong": "Growth needs both many parents and room to spare."
+          }
+        }
+      ]
+    }
   }
 ]
