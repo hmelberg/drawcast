@@ -1181,14 +1181,14 @@ function samplesOf(ctx: Ctx, id: string): Pt[] | undefined {
 }
 
 /** `{name}` tokens in drawn text (design 2026-09-10 §2.1); an unknown name stays as written and warns, so a typo shows on the canvas. */
-function withVars(text: string, el: SpecElement, ctx: Ctx): string {
-  const r = interpolateVars(text, { ...ctx.templateValues, ...ctx.vars }, ctx.decimalComma);
+function withVars(text: string, el: SpecElement, ctx: Ctx, extra: Record<string, string> = {}): string {
+  const r = interpolateVars(text, { ...ctx.templateValues, ...ctx.vars, ...extra }, ctx.decimalComma);
   let out = r.text;
   for (const name of r.unknown) {
     // A script's value that has not arrived (the script has not run yet, or
     // could not): a quiet ellipsis, never the raw token, never a warning.
     if (name.includes(".") && ctx.codeIds.has(name.split(".")[0])) {
-      out = out.replace(new RegExp(`\\{${name.replace(/\./g, "\\.")}(?::\\d)?\\}`, "g"), "…");
+      out = out.replace(new RegExp(`\\{${name.replace(/\./g, "\\.")}(?::\\d?,?)?\\}`, "g"), "…");
       continue;
     }
     ctx.warnings.push(`${el.type} "${el.id}": text names {${name}}, which is not ${name.includes(".") ? "a value the template computes here" : "one of the vars"} — left as written`);
@@ -2422,7 +2422,10 @@ function primaryRingSoFar(ctx: Ctx, id: string): { pts: Pt[]; closed: boolean; c
  * is given explicitly.
  */
 function measureDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
-  const format: M.MeasureFormat = { label: typeof el.label === "string" ? el.label : "{value}", unit: el.unit, scale: el.scale ?? 1, decimals: el.decimals, decimalComma: ctx.decimalComma };
+  // The label is drawn text like any other: `{f}` vars and template values
+  // are filled here, and `{value}` is kept for formatMeasure to write.
+  const label = typeof el.label === "string" ? withVars(el.label, el, ctx, { value: "{value}" }) : "{value}";
+  const format: M.MeasureFormat = { label, unit: el.unit, scale: el.scale ?? 1, decimals: el.decimals, decimalComma: ctx.decimalComma };
   const textId = `label_${el.id}`;
   const style = resolveStyle(el.style, { strokeWidth: 2 });
   const drawOpts = resolveDrawOpts(el.draw, { duration: SKETCH_MS.guides });

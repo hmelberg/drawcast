@@ -117,8 +117,8 @@ function deleteNearestProperty(root: Record<string, unknown>, at: (string | numb
   delete (host as Record<string, unknown>)[at[last] as string];
 }
 
-/** A `{codeId.path}` (or `{codeId.path:2}`) INSIDE drawn text. */
-const TEXT_TOKEN_RE = /\{([A-Za-z][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)(?::\d)?\}/g;
+/** A `{codeId.path}` (or `{codeId.path:2}`, `{codeId.path:0,}`) INSIDE drawn text. */
+const TEXT_TOKEN_RE = /\{([A-Za-z][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)(?::\d?,?)?\}/g;
 
 /**
  * Tokens naming a CODE element inside the drawn text of the page's own

@@ -39,23 +39,24 @@ export function exprVariables(vars?: Vars): string[] {
   return [...EXPR_BASE_VARS, ...Object.keys(vars ?? {})];
 }
 
-/** The measure rule (layout/measures.ts formatMeasure): ≥ 100 → no decimals, else one, a trailing .0 dropped; explicit decimals kept as written. */
-export function formatVar(value: number, decimals?: number, decimalComma = false): string {
+/** The measure rule (layout/measures.ts formatMeasure): ≥ 100 → no decimals, else one, a trailing .0 dropped; explicit decimals kept as written. `group` puts thousands separators in the whole part: "12,500" in an English cast, "12 500" (a no-break space) where the decimal mark is a comma. */
+export function formatVar(value: number, decimals?: number, decimalComma = false, group = false): string {
   const d = decimals !== undefined ? decimals : Math.abs(value) >= 100 ? 0 : 1;
   const s = decimals !== undefined ? value.toFixed(d) : value.toFixed(d).replace(/\.0$/, "");
   // The figure writes a number the way the voice reads it: 2,3 in a
   // Norwegian cast, as `measure` does (2026-09-25).
-  return decimalComma ? s.replace(".", ",") : s;
+  const marked = decimalComma ? s.replace(".", ",") : s;
+  return group ? marked.replace(/^-?\d+/, (whole) => whole.replace(/\B(?=(\d{3})+$)/g, decimalComma ? "\u00a0" : ",")) : marked;
 }
 
 // One optional dotted part: `{market.dwl}` reads a template's computed value
 // (scenes/types.ts SceneLayout.values), which the caller merges into `vars`.
-const TOKEN = /\{([a-zA-Z_][a-zA-Z_0-9]*(?:\.[a-zA-Z_][a-zA-Z_0-9]*)?)(?::(\d))?\}/g;
+const TOKEN = /\{([a-zA-Z_][a-zA-Z_0-9]*(?:\.[a-zA-Z_][a-zA-Z_0-9]*)?)(?::(\d)?(,)?)?\}/g;
 
-/** `{f}` / `{f:2}` / `{market.dwl}` → the value; an unknown name is left as written and returned in `unknown`. */
+/** `{f}` / `{f:2}` / `{m:0,}` (thousands grouped) / `{market.dwl}` → the value; an unknown name is left as written and returned in `unknown`. */
 export function interpolateVars(text: string, vars: Record<string, number | string>, decimalComma = false): { text: string; unknown: string[] } {
   const unknown: string[] = [];
-  const out = text.replace(TOKEN, (whole, name: string, decimals: string | undefined) => {
+  const out = text.replace(TOKEN, (whole, name: string, decimals: string | undefined, group: string | undefined) => {
     if (!Object.prototype.hasOwnProperty.call(vars, name)) {
       if (!unknown.includes(name)) unknown.push(name);
       return whole;
@@ -63,7 +64,7 @@ export function interpolateVars(text: string, vars: Record<string, number | stri
     // A script's value may be words (`{pow.label}`, an sprintf line): as written.
     const v = vars[name];
     if (typeof v === "string") return v;
-    return formatVar(v, decimals === undefined ? undefined : Number(decimals), decimalComma);
+    return formatVar(v, decimals === undefined ? undefined : Number(decimals), decimalComma, group !== undefined);
   });
   return { text: out, unknown };
 }

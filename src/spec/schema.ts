@@ -328,7 +328,7 @@ const elementSchema = {
     rows: { type: "integer", minimum: 1, maximum: 64, description: "pieces grid: how many rows (n is the columns) — e.g. n: 4, rows: 3 cuts a rectangle into twelve cells, numbered row by row from the top left. At most 256 cells in all." },
     label: {
       oneOf: [{ type: "string" }, { type: "boolean" }],
-      description: "angle/measure: the text — angle default the degrees (\"62°\"); false hides it; measure default \"{value}\" e.g. \"b = {value}\".",
+      description: "angle/measure: the text — angle default the degrees (\"62°\"); false hides it; measure default \"{value}\" e.g. \"b = {value}\"; a measure label without {value} is drawn as written.",
     },
     right: { type: "boolean", description: "angle: draw the right-angle square (default: automatically when the angle is 90°)." },
     what: {

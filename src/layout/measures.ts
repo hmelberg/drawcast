@@ -77,7 +77,10 @@ export function formatMeasure(value: number, f: MeasureFormat): string {
   // 12.5 keeps its half; an explicit `decimals` is kept as written.
   const dot = f.decimals === undefined ? v.toFixed(decimals).replace(/\.0$/, "") : v.toFixed(decimals);
   const num = f.decimalComma ? dot.replace(".", ",") : dot;
-  const text = f.label.includes("{value}") ? f.label.replace("{value}", num) : `${f.label}${num}`;
+  // A label without {value} is the whole text, drawn as written: "$10" on a
+  // tax wedge, not "$1042.1" (2026-09-27 — the number used to be appended).
+  if (!f.label.includes("{value}")) return f.label;
+  const text = f.label.replaceAll("{value}", num);
   return f.unit ? `${text} ${f.unit}` : text;
 }
 
