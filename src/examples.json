@@ -65626,5 +65626,1246 @@
         }
       ]
     }
+  },
+  {
+    "request": "Why does printing more money cause inflation — and when doesn't it?",
+    "spec": {
+      "title": "Money and prices",
+      "vars": {
+        "m": 100,
+        "v": 4,
+        "s": 400,
+        "p": 2,
+        "goods": 200,
+        "r": 400
+      },
+      "elements": [
+        {
+          "id": "spend",
+          "type": "shape",
+          "shape": "rect",
+          "x": 275,
+          "y": 300,
+          "width": 150,
+          "height": 200,
+          "bind": {
+            "width": "1.5*m",
+            "height": "50*v",
+            "x": "200 + 0.75*m",
+            "y": "200 + 25*v"
+          },
+          "style": {
+            "color": "#2f6b8f",
+            "fill": "#d6e4ee"
+          },
+          "details": "Total spending in a year is the money stock times how often each coin is spent: $M \\times V$. Here the rectangle's width is the money and its height the times each coin changes hands, so its area is the spending."
+        },
+        {
+          "id": "lab_m",
+          "type": "text",
+          "text": "money {m:0}",
+          "style": {
+            "color": "#2f6b8f"
+          },
+          "x": 275,
+          "y": 172,
+          "bind": {
+            "x": "200 + 0.75*m"
+          }
+        },
+        {
+          "id": "lab_v",
+          "type": "text",
+          "text": "times spent {v:0}",
+          "style": {
+            "color": "#2f6b8f"
+          },
+          "x": 95,
+          "y": 300,
+          "bind": {
+            "y": "200 + 25*v"
+          }
+        },
+        {
+          "id": "area_s",
+          "type": "text",
+          "text": "{s:0}",
+          "x": 305,
+          "y": 370,
+          "font_size": 34,
+          "bind": {
+            "x": "200 + 1.5*m - 45",
+            "y": "200 + 50*v - 30"
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "eqsign",
+          "type": "text",
+          "text": "=",
+          "x": 540,
+          "y": 300,
+          "font_size": 48
+        },
+        {
+          "id": "goods_rect",
+          "type": "shape",
+          "shape": "rect",
+          "x": 655,
+          "y": 300,
+          "width": 150,
+          "height": 200,
+          "bind": {
+            "width": "0.75*goods",
+            "height": "100*p",
+            "x": "580 + 0.375*goods",
+            "y": "200 + 50*p"
+          },
+          "style": {
+            "color": "#b5482e",
+            "fill": "#f3dcd4"
+          },
+          "details": "What the sellers receive is the loaves sold times the price of each: $P \\times Y$. Width is the loaves, height the price, area the same spending seen from the other side."
+        },
+        {
+          "id": "lab_q",
+          "type": "text",
+          "text": "loaves {goods:0}",
+          "style": {
+            "color": "#b5482e"
+          },
+          "x": 655,
+          "y": 172,
+          "bind": {
+            "x": "580 + 0.375*goods"
+          }
+        },
+        {
+          "id": "lab_p",
+          "type": "text",
+          "text": "price {p:0}",
+          "style": {
+            "color": "#b5482e"
+          },
+          "x": 790,
+          "y": 300,
+          "bind": {
+            "x": "640 + 0.75*goods",
+            "y": "200 + 50*p"
+          }
+        },
+        {
+          "id": "area_r",
+          "type": "text",
+          "text": "{r:0}",
+          "x": 685,
+          "y": 370,
+          "font_size": 34,
+          "bind": {
+            "x": "580 + 0.75*goods - 45",
+            "y": "200 + 100*p - 30"
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "eq",
+          "type": "math",
+          "tex": "M \\times V",
+          "x": 275,
+          "y": 640,
+          "colors": {
+            "M": "#2f6b8f",
+            "V": "#2f6b8f"
+          },
+          "details": "The quantity equation. As written it is an identity: spending equals receipts. It becomes a theory of inflation only with two extra assumptions — that V is stable and that Y is fixed by what the economy can produce. Drop either, and more M need not mean higher P.",
+          "size": 56
+        },
+        {
+          "id": "box_eq",
+          "type": "annotation",
+          "target": [
+            "eq",
+            "eq_mid",
+            "eq_r"
+          ],
+          "kind": "box"
+        },
+        {
+          "id": "eq_mid",
+          "type": "math",
+          "tex": "=",
+          "x": 540,
+          "y": 640,
+          "size": 56
+        },
+        {
+          "id": "eq_r",
+          "type": "math",
+          "tex": "P \\times Y",
+          "x": 655,
+          "y": 640,
+          "size": 56,
+          "colors": {
+            "P": "#b5482e",
+            "Y": "#b5482e"
+          }
+        },
+        {
+          "id": "spend0",
+          "type": "shape",
+          "shape": "rect",
+          "x": 275,
+          "y": 300,
+          "width": 150,
+          "height": 200,
+          "style": {
+            "color": "#8f887c",
+            "dash": true,
+            "opacity": 0.5,
+            "stroke_width": 1.5,
+            "roughness": 0
+          }
+        },
+        {
+          "id": "goods0",
+          "type": "shape",
+          "shape": "rect",
+          "x": 655,
+          "y": 300,
+          "width": 150,
+          "height": 200,
+          "style": {
+            "color": "#8f887c",
+            "dash": true,
+            "opacity": 0.5,
+            "stroke_width": 1.5,
+            "roughness": 0
+          }
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Money and prices"
+          }
+        },
+        {
+          "draw": [
+            "spend"
+          ],
+          "speak": "Why does printing money make prices rise — and why sometimes doesn't it?"
+        },
+        {
+          "draw": [
+            "lab_m",
+            "lab_v",
+            "area_s"
+          ],
+          "speak": "Start with a tiny island that has 100 coins, and each coin changes hands 4 times a year."
+        },
+        {
+          "draw": [
+            "goods_rect",
+            "eqsign",
+            "lab_q",
+            "lab_p",
+            "area_r"
+          ],
+          "speak": "That is 400 coins of spending a year, and it all goes on bread: 200 loaves at 2 coins each."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "eq",
+            "eq_mid",
+            "eq_r"
+          ],
+          "speak": "Whatever is spent is exactly what the sellers receive, so the two areas are always the same."
+        },
+        {
+          "highlight": {
+            "target": [
+              "spend",
+              "goods_rect"
+            ],
+            "duration": 1.2
+          }
+        },
+        {
+          "show": [
+            "spend0",
+            "goods0"
+          ]
+        },
+        {
+          "speak": "Now the island's ruler doubles the coins, and we will stretch the left rectangle to match.",
+          "blocking": false
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq"
+            ],
+            "part": "M",
+            "duration": 1
+          }
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "spend0"
+            },
+            "gesture": "circle",
+            "duration": 1
+          }
+        },
+        {
+          "animate": {
+            "m": 200,
+            "s": 800
+          },
+          "duration": 3
+        },
+        {
+          "focus": {
+            "target": [
+              "goods_rect",
+              "lab_q",
+              "lab_p",
+              "area_r"
+            ]
+          },
+          "speak": "Eight hundred coins of spending now chase the bread."
+        },
+        {
+          "speak": "If the bakers are already working flat out, there are still only 200 loaves, so the price has to give.",
+          "blocking": false
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq_r"
+            ],
+            "part": "P",
+            "duration": 1
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "lab_p"
+            ],
+            "duration": 0.8
+          }
+        },
+        {
+          "animate": {
+            "p": 4,
+            "r": 800
+          },
+          "duration": 3
+        },
+        {
+          "highlight": {
+            "target": [
+              "lab_p"
+            ],
+            "effect": "circle"
+          },
+          "speak": "Same bread, twice the price: that is inflation.",
+          "delivery": "grave"
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "animate": {
+            "p": 2,
+            "r": 400
+          },
+          "duration": 1.5,
+          "speak": "Rewind, and this time let the island have idle ovens and bakers looking for work."
+        },
+        {
+          "speak": "The extra coins hire them, so the rectangle grows sideways instead of up.",
+          "blocking": false
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq_r"
+            ],
+            "part": "Y",
+            "duration": 1
+          }
+        },
+        {
+          "animate": {
+            "goods": 400,
+            "r": 800
+          },
+          "duration": 3
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "animate": {
+            "goods": 200,
+            "r": 400,
+            "m": 100,
+            "s": 400
+          },
+          "duration": 1.5,
+          "speak": "Rewind once more."
+        },
+        {
+          "animate": {
+            "m": 200,
+            "s": 800
+          },
+          "duration": 2.5,
+          "speak": "What if people simply keep the new coins in a jar?"
+        },
+        {
+          "speak": "Each coin now changes hands only twice, so spending stays at 400, and neither bread nor prices budge.",
+          "blocking": false
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq"
+            ],
+            "part": "V",
+            "duration": 1.5
+          }
+        },
+        {
+          "animate": {
+            "v": 2,
+            "s": 400
+          },
+          "duration": 3
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "lab_v"
+            },
+            "gesture": "tap"
+          },
+          "speak": "That is roughly what happened after 2008, when the US Federal Reserve about quadrupled its base money, but banks mostly sat on it as reserves and inflation stayed near 2 percent."
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq_r"
+            ],
+            "effect": "underline",
+            "duration": 1.2
+          }
+        },
+        {
+          "draw": [
+            "box_eq"
+          ],
+          "speak": "So printing money raises prices only when the new money is spent into an economy that cannot make more."
+        },
+        {
+          "quiz": {
+            "question": "The island doubles its coins, the bakers are already at full capacity, but everyone now spends each coin half as often. What happens to the price of bread?",
+            "choices": [
+              "It doubles",
+              "It halves",
+              "It stays the same",
+              "It quadruples"
+            ],
+            "correct": 3,
+            "right": "It stays the same: twice the coins, each spent half as often, is the same spending, so the same bread sells at the same price.",
+            "wrong": "Multiply the two changes on the left side before looking at the price."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "How does a refrigerator keep the inside cold?",
+    "spec": {
+      "title": "How a fridge keeps cold",
+      "elements": [
+        {
+          "id": "cabinet",
+          "type": "shape",
+          "shape": "rect",
+          "x": 300,
+          "y": 410,
+          "width": 400,
+          "height": 460
+        },
+        {
+          "id": "l_inside",
+          "type": "text",
+          "text": "inside: 4 °C",
+          "x": 300,
+          "y": 610,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "milk",
+          "type": "shape",
+          "shape": "rect",
+          "x": 200,
+          "y": 240,
+          "width": 70,
+          "height": 120
+        },
+        {
+          "id": "l_milk",
+          "type": "text",
+          "text": "milk",
+          "x": 272,
+          "y": 240
+        },
+        {
+          "id": "evap",
+          "type": "path",
+          "points": [
+            [
+              500,
+              545
+            ],
+            [
+              140,
+              545
+            ],
+            [
+              140,
+              505
+            ],
+            [
+              460,
+              505
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          },
+          "details": "This part is the evaporator. Most home fridges today use isobutane (R600a) as the coolant; at the low pressure inside this pipe it boils far below freezing."
+        },
+        {
+          "id": "l_evap",
+          "type": "text",
+          "text": "boils at −25 °C",
+          "style": {
+            "color": "#2f6b8f"
+          },
+          "x": 312,
+          "y": 468
+        },
+        {
+          "id": "heat_in",
+          "type": "arrow",
+          "from": {
+            "ref": "milk",
+            "anchor": "top"
+          },
+          "to": {
+            "x": 200,
+            "y": 493
+          },
+          "style": {
+            "color": "#d0865f",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "l_heat_in",
+          "type": "text",
+          "text": "heat",
+          "style": {
+            "color": "#d0865f"
+          },
+          "x": 238,
+          "y": 398
+        },
+        {
+          "id": "p1",
+          "type": "path",
+          "points": [
+            [
+              460,
+              505
+            ],
+            [
+              475,
+              505
+            ],
+            [
+              475,
+              220
+            ],
+            [
+              565,
+              220
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "compressor",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 45,
+          "x": 610,
+          "y": 220,
+          "style": {
+            "color": "#8a5fa8",
+            "fill": "#8a5fa8"
+          },
+          "details": "The compressor is an electric pump. Squeezing a gas does work on it, and that work shows up as a higher temperature — the same reason a bicycle pump gets warm."
+        },
+        {
+          "id": "l_comp",
+          "type": "label",
+          "text": "compressor",
+          "attach_to": "compressor",
+          "side": "right",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "condenser",
+          "type": "path",
+          "points": [
+            [
+              580,
+              325
+            ],
+            [
+              580,
+              585
+            ],
+            [
+              630,
+              585
+            ],
+            [
+              630,
+              325
+            ],
+            [
+              680,
+              325
+            ],
+            [
+              680,
+              585
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "p2",
+          "type": "arrow",
+          "from": {
+            "ref": "compressor",
+            "anchor": "top"
+          },
+          "to": {
+            "ref": "condenser",
+            "anchor": "start"
+          },
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "l_cond",
+          "type": "label",
+          "text": "hot coils, 45 °C",
+          "attach_to": "condenser",
+          "side": "right",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "kitchen",
+          "type": "text",
+          "text": "kitchen: 20 °C",
+          "x": 888,
+          "y": 370
+        },
+        {
+          "id": "heat_out",
+          "type": "arrow",
+          "from": {
+            "x": 700,
+            "y": 370
+          },
+          "to": {
+            "x": 790,
+            "y": 370
+          },
+          "style": {
+            "color": "#d0865f",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "l_heat_out",
+          "type": "label",
+          "text": "heat",
+          "attach_to": "heat_out",
+          "side": "above",
+          "style": {
+            "color": "#d0865f"
+          }
+        },
+        {
+          "id": "p3",
+          "type": "path",
+          "points": [
+            [
+              680,
+              585
+            ],
+            [
+              680,
+              615
+            ],
+            [
+              602,
+              615
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "valve",
+          "type": "polygon",
+          "points": [
+            [
+              550,
+              631
+            ],
+            [
+              575,
+              618
+            ],
+            [
+              600,
+              631
+            ],
+            [
+              600,
+              599
+            ],
+            [
+              575,
+              612
+            ],
+            [
+              550,
+              599
+            ]
+          ],
+          "style": {
+            "color": "#3d3833",
+            "fill": "#8f887c"
+          }
+        },
+        {
+          "id": "l_valve",
+          "type": "label",
+          "text": "narrow valve",
+          "attach_to": "valve",
+          "side": "above"
+        },
+        {
+          "id": "p4",
+          "type": "path",
+          "points": [
+            [
+              548,
+              615
+            ],
+            [
+              525,
+              615
+            ],
+            [
+              525,
+              545
+            ],
+            [
+              500,
+              545
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "low_side",
+          "type": "group",
+          "members": [
+            "p4",
+            "evap",
+            "p1"
+          ]
+        },
+        {
+          "id": "high_side",
+          "type": "group",
+          "members": [
+            "p2",
+            "condenser",
+            "p3"
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "How a fridge keeps cold"
+          }
+        },
+        {
+          "draw": [
+            "cabinet",
+            "l_inside",
+            "milk",
+            "l_milk"
+          ],
+          "speak": "How does a fridge stay cold in a warm kitchen? The surprise: it makes no cold at all — it carries heat out."
+        },
+        {
+          "draw": [
+            "kitchen"
+          ],
+          "speak": "Inside it is 4 degrees, out here 20, and heat always creeps from warm to cold — so warmth leaks in through the walls all day."
+        },
+        {
+          "draw": [
+            "evap",
+            "l_evap"
+          ],
+          "speak": "So a pipe runs round the inside, carrying a coolant that boils at about minus 25 degrees."
+        },
+        {
+          "draw": [
+            "heat_in",
+            "l_heat_in"
+          ],
+          "speak": "Colder than the milk, it soaks up the milk's heat, and that heat makes it boil into gas."
+        },
+        {
+          "highlight": {
+            "target": [
+              "evap"
+            ]
+          },
+          "speak": "Boiling swallows a lot of heat — the way drying sweat cools your skin. This is where the inside gets cold."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "p1",
+            "compressor",
+            "l_comp"
+          ],
+          "speak": "Now the heat is in the gas. A pump, the compressor, sucks that gas out of the cabinet…"
+        },
+        {
+          "highlight": {
+            "target": [
+              "compressor"
+            ],
+            "effect": "pulse",
+            "color": "#8a5fa8"
+          },
+          "speak": "…and squeezes it hard."
+        },
+        {
+          "draw": [
+            "p2",
+            "condenser",
+            "l_cond"
+          ],
+          "speak": "Squeezed gas heats up: to about 45 degrees, hotter than the kitchen."
+        },
+        {
+          "draw": [
+            "heat_out",
+            "l_heat_out"
+          ],
+          "speak": "So in the coils on the back, heat flows out into the room, and the gas cools back into a liquid."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "p3",
+            "valve",
+            "l_valve",
+            "p4"
+          ],
+          "speak": "Last, the liquid squeezes through a narrow valve back into the cabinet. Its pressure drops, and at low pressure it boils at minus 25 again."
+        },
+        {
+          "flow": {
+            "along": [
+              "p4",
+              "evap",
+              "p1",
+              "p2",
+              "condenser",
+              "p3"
+            ]
+          },
+          "speak": "Round and round it goes: pick heat up inside, carry it out, dump it behind."
+        },
+        {
+          "highlight": {
+            "target": [
+              "low_side"
+            ]
+          },
+          "speak": "The whole trick is pressure: low where the coolant must be colder than the food,",
+          "delivery": "grave"
+        },
+        {
+          "highlight": {
+            "target": [
+              "high_side"
+            ]
+          },
+          "speak": "high where it must be hotter than the room.",
+          "delivery": "grave"
+        },
+        {
+          "highlight": {
+            "target": [
+              "compressor"
+            ]
+          },
+          "speak": "That squeeze is what the electricity pays for: pushing heat uphill, from cold to warm."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "heat_out"
+            },
+            "gesture": "circle"
+          },
+          "speak": "And it is why the back of a fridge feels warm: that is the heat that was in your food."
+        },
+        {
+          "quiz": {
+            "intro": "A quick check.",
+            "question": "On a hot day you leave the fridge door open. What happens to the kitchen?",
+            "choices": [
+              "It cools down",
+              "It gets warmer"
+            ],
+            "correct": 2,
+            "right": "It gets warmer: the fridge only moves heat from its inside to its back, both in the same room — and its motor adds heat of its own.",
+            "wrong": "Think about where the heat taken from inside ends up."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "If the government puts a $10 tax on every concert ticket, who ends up paying it?",
+    "spec": {
+      "title": "Who pays a ticket tax?",
+      "template": "supply_demand",
+      "params": {
+        "x_label": "Tickets sold",
+        "y_label": "Price ($)",
+        "demand": {
+          "curvature": "linear",
+          "elasticity": 1
+        },
+        "supply": {
+          "curvature": "linear",
+          "elasticity": 1
+        },
+        "equilibrium": {
+          "show": true,
+          "guides": true
+        },
+        "tax": {
+          "amount": 10,
+          "side": "seller",
+          "kind": "per_unit"
+        },
+        "regions": [
+          "government_revenue"
+        ],
+        "units": {
+          "price": [
+            0,
+            100
+          ],
+          "quantity": [
+            0,
+            1000
+          ],
+          "price_unit": "$",
+          "quantity_unit": "tickets"
+        },
+        "readout": []
+      },
+      "elements": [
+        {
+          "id": "t_fans",
+          "type": "text",
+          "text": "Fans pay ${market.price_buyers}",
+          "x": 760,
+          "y": 470,
+          "font_size": 26,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "t_sell",
+          "type": "text",
+          "text": "Sellers keep ${market.price_sellers}",
+          "at": {
+            "ref": "t_fans",
+            "side": "below",
+            "gap": 12
+          },
+          "font_size": 26,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "t_before",
+          "type": "text",
+          "text": "before: $55 / $45",
+          "at": {
+            "ref": "t_sell",
+            "side": "below",
+            "gap": 12
+          },
+          "font_size": 22,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "mark_ps",
+          "type": "annotation",
+          "target": [
+            "t_sell"
+          ],
+          "kind": "box"
+        }
+      ],
+      "details": {
+        "tax_supply_curve": "A per-unit tax of $t collected from sellers shifts supply up by exactly $t: to supply a ticket, a seller now needs the old price plus the tax.",
+        "supply_curve": "With a fixed number of seats, the quantity offered hardly responds to price in the short run: supply is nearly perfectly inelastic, so almost all of a tax falls on sellers."
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Who pays a ticket tax?"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "When the government taxes every concert ticket by ten dollars, who really pays it?"
+        },
+        {
+          "draw": [
+            "demand_curve",
+            "label_D"
+          ],
+          "speak": "Start with the ticket market before any tax: fans on one side…"
+        },
+        {
+          "draw": [
+            "supply_curve",
+            "label_S"
+          ],
+          "speak": "…sellers on the other."
+        },
+        {
+          "draw": [
+            "equilibrium_point",
+            "guide_lines",
+            "label_E",
+            "label_Pstar"
+          ],
+          "speak": "They meet at fifty dollars a ticket."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "tax_supply_curve",
+            "label_S_tax"
+          ],
+          "speak": "Now the law says the seller must send ten dollars per ticket to the government, so the whole supply curve lifts by ten."
+        },
+        {
+          "point": {
+            "at": {
+              "data": [
+                50,
+                60
+              ]
+            },
+            "gesture": "tap"
+          },
+          "speak": "The seller would love to just add ten dollars to the price."
+        },
+        {
+          "draw": [
+            "tax_equilibrium_point",
+            "tax_guide_lines"
+          ],
+          "speak": "But at sixty dollars some fans stay home, so the price settles in between."
+        },
+        {
+          "draw": [
+            "price_buyers_point",
+            "label_Pb",
+            "price_sellers_point",
+            "label_Ps",
+            "t_fans",
+            "t_sell"
+          ],
+          "speak": "Fans now pay fifty-five, and sellers keep forty-five."
+        },
+        {
+          "draw": [
+            "wedge_region",
+            "label_wedge"
+          ],
+          "speak": "The ten-dollar gap between those two prices is the government's cut, split five and five."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "t_before"
+          ],
+          "speak": "That even split came from assuming both sides can back out equally easily."
+        },
+        {
+          "highlight": {
+            "target": [
+              "supply_curve"
+            ]
+          },
+          "speak": "A concert is different: the hall has the same number of seats tonight, whatever the price."
+        },
+        {
+          "animate": {
+            "supply.elasticity": 0.06
+          },
+          "duration": 3.5,
+          "speak": "So the supply curve is about to stand up straight.",
+          "ghost": [
+            "supply_curve",
+            "tax_supply_curve",
+            "price_buyers_point",
+            "price_sellers_point"
+          ]
+        },
+        {
+          "fade": {
+            "target": [
+              "label_S_tax"
+            ],
+            "to": 0,
+            "duration": 0.6
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "price_buyers_point",
+              "t_fans"
+            ]
+          },
+          "speak": "Now the fans' price barely moves above fifty."
+        },
+        {
+          "highlight": {
+            "target": [
+              "price_sellers_point",
+              "t_sell"
+            ]
+          },
+          "speak": "And the sellers' take drops to just over forty: they carry almost the whole tax.",
+          "delivery": "grave"
+        },
+        {
+          "focus": {
+            "target": [
+              "supply_curve",
+              "tax_supply_curve"
+            ]
+          },
+          "speak": "Empty seats earn nothing, so the promoter cannot refuse the lower price the way a fan can refuse a higher one."
+        },
+        {
+          "draw": [
+            "mark_ps"
+          ],
+          "speak": "Whoever has fewer ways out pays more of the tax, no matter who writes the cheque to the government."
+        },
+        {
+          "quiz": {
+            "question": "With a fixed number of seats, who bears most of the $10 ticket tax?",
+            "choices": [
+              "The fans, because they buy the tickets",
+              "The sellers, who cannot cut the seats",
+              "It is always split fifty-fifty",
+              "The government, since it collects it"
+            ],
+            "correct": 2,
+            "right": "The sellers: with the seats fixed they cannot walk away, so the price fans pay barely rises and the tax comes out of what sellers keep."
+          }
+        }
+      ]
+    }
   }
 ]

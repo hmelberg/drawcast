@@ -7,6 +7,7 @@ import { scenes } from "../src/scenes/registry";
 import { layoutSpec } from "../src/layout/layout";
 import { flattenDrawables } from "../src/layout/model";
 import { validateSpec } from "../src/spec/schema";
+import { expandSpec } from "../src/spec/expand";
 import type { Spec } from "../src/spec/types";
 import bundledExamples from "../src/examples.json";
 import { PACK_DEFS, registerPack } from "../src/scenes/packs";
@@ -269,7 +270,7 @@ describe("bundled offline examples (src/examples.json)", () => {
   function checkSpec(spec: Spec, label: string): void {
     const v = validateSpec(spec);
     expect(v.errors, label).toEqual([]);
-    const res = layoutSpec(spec);
+    const res = layoutSpec(expandSpec(spec)); // a scratch card's parts (ev_box, ev_line_k) exist only once expanded
     expect(res.warnings, label).toEqual([]);
     expect(res.issues.filter((i) => i.severity === "error"), label).toEqual([]);
     const known = new Set(flattenDrawables(res.drawables).map((d) => d.id));
