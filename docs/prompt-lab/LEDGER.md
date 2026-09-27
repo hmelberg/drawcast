@@ -7,12 +7,30 @@ Each entry: the hypothesis, what was run, what we saw, what was decided.
 - **Plan first with a size budget.** The plan step explained better in
   run 1 but crowded pages; give it a budget (short labels, ≤ 8–10 branches or
   boxes, extra numbers said not drawn) and rerun against `standard`.
-- **Sonnet as the look critic** — half the price of Opus 5.5 ($2/$10 vs
-  $4/$20 per MTok), probably faster; does it see as much?
 - **A slimmer compiler prompt** per the rule audit (tool facts as reference,
   house taste as one page, general craft left to the model and the examples).
 - **Emphasis in frames**: the critic now sees gestures mid-sentence — does
   it judge emphasis better than before?
+
+## 2026-09-27 — Sonnet as the look critic: no
+
+- **Hypothesis:** Sonnet 5 (half Opus 5.5's price) sees the frames as well
+  as Opus, so the critic call could move to it.
+- **Run (free, on the machine):** the 16 first- and second-look calls of run
+  3's machine arms (4 figures × A*/D* × 2 looks), their saved frame sheets
+  and prompts. Sonnet agents answered each call fresh; the Opus answers are
+  the ones on file. Four Opus judge agents compared each pair blind (random
+  A/B) against the frames, item by item.
+- **Seen:** Opus preferred in 16 of 16. Real major problems found: Opus 48,
+  Sonnet 16; wrong items (not in the frames, or a fix that makes it worse):
+  Opus 2, Sonnet 22. Sonnet's typical misses: highlights it said were
+  absent, "cut off" captions that are only paged with the voice, empty
+  space that was not there.
+- **Caveats:** the judges are Opus (possible self-preference), and the Opus
+  answers were written in the original run, not fresh. The gap is too large
+  for either to explain.
+- **Decided:** the critic stays on the creative model (Opus). No API
+  confirmation needed.
 
 ## 2026-09-27 — A template's own parts can be moved and enlarged
 
@@ -24,6 +42,13 @@ Each entry: the hypothesis, what was run, what we saw, what was decided.
   (`src/layout/adjust.ts`); an unknown id warns (`adjust-unknown`). The fix
   prompt names it. Not measured yet: watch whether readout/label fixes now
   land in the next look-pass runs.
+
+## 2026-09-27 — long-label lint
+
+- **Built (Hans):** a label of more than four words warns (`long-label`):
+  canvas text is a cue, the voice says the sentence. Labels only (curve,
+  branch, part names); headings, cards and quotes are exempt. Seven bundled
+  examples and the gears template's wheel label were shortened to pass.
 
 ## 2026-09-27 — Courses get the look pass
 
