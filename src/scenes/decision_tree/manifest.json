@@ -1,7 +1,7 @@
 {
   "name": "decision_tree",
   "status": "ready",
-  "description": "A left-to-right decision tree with health-economics conventions: decision nodes are squares, chance nodes are circles, terminal nodes are triangles. Branches carry labels, probabilities, and terminals carry payoffs (e.g. QALYs) and costs. Choose this scene for decision analysis, treatment comparisons, expected-value examples, cost-effectiveness of options, or any 'decision tree' request. Node positions are computed by a tidy-tree algorithm — never place nodes yourself. With `rollback: true` the template computes the tree itself — never do the arithmetic by hand: each chance node's expected payoff (and expected cost) is Σ p × child, written under it as value_<id>; each decision takes its best option (highest expected payoff, or with `wtp` the highest payoff × wtp − cost), marked best_<decision>_<option>, the others cut with prune_<decision>_<option>; a chance branch left without a probability gets 1 − the others. When terminals have costs the root decision's options also appear in a strategy table under the tree (cost, effect, incremental cost and effect, ICER, dominated / ext. dominated). Every computed number is live in drawn text as {tree.<key>} (ev_<id>, cost_<id>, icer_<optionId>). A big tree: set `collapsed: true` on a subtree to draw it as one node with its value, or — to show every branch — `size: \"full\"` (for about a dozen terminals and up): the words stay full size and a tree too big for the page at that size is laid out larger than it; the cast walks through it with the camera: `{\"camera\": {\"on\": [\"node_<id>\", …]}}` framing one subtree at a time (list the subtree's nodes; each node's name, value and payoff come with it) and `{\"camera\": {\"reset\": true}}` for the whole tree. The paused viewer can pan and zoom it too.",
+  "description": "A left-to-right decision tree with health-economics conventions: decision nodes are squares, chance nodes are circles, terminal nodes are triangles. Branches carry labels, probabilities, and terminals carry payoffs (e.g. QALYs) and costs. Choose this scene for decision analysis, treatment comparisons, expected-value examples, cost-effectiveness of options, or any 'decision tree' request. Node positions are computed by a tidy-tree algorithm — never place nodes yourself. With `rollback: true` the template computes the tree itself — never do the arithmetic by hand: each chance node's expected payoff (and expected cost) is Σ p × child, written under it as value_<id>; each decision takes its best option (highest expected payoff, or with `wtp` the highest payoff × wtp − cost), marked best_<decision>_<option>, the others cut with prune_<decision>_<option>; a chance branch left without a probability gets 1 − the others. A cost on a branch is paid by everything below it: it counts in that subtree's value and table row, and is written on the branch label. When terminals have costs the root decision's options also appear in a strategy table under the tree (cost, effect, vs — the cheaper option it is compared with — Δ cost, Δ effect, ICER or dominated / ext. dominated; with wtp also net benefit); a row comes in parts, so a cast can draw the rows first and argue each verdict on a later beat. Every computed number is live in drawn text as {tree.<key>} (ev_<id>, cost_<id>, nmb_<id>, icer_<optionId>, wtp) — also inside the tree's own texts (a node's `value`) — and follows an animate of wtp or of a probability. A big tree: set `collapsed: true` on a subtree to draw it as one node with its value, or — to show every branch — `size: \"full\"` (for about a dozen terminals and up): the words stay full size and a tree too big for the page at that size is laid out larger than it; the cast walks through it with the camera: `{\"camera\": {\"on\": [\"node_<id>\", …]}}` framing one subtree at a time (list the subtree's nodes; each node's name, value and payoff come with it) and `{\"camera\": {\"reset\": true}}` for the whole tree. The paused viewer can pan and zoom it too.",
   "params_schema": {
     "type": "object",
     "properties": {
@@ -14,7 +14,7 @@
           "label": { "type": "string" },
           "payoff": { "type": "number", "description": "Terminal outcome value (e.g. QALYs)." },
           "cost": { "type": "number", "description": "Terminal cost, optional." },
-          "value": { "type": "string", "description": "Chance/decision node only: its folded-back value, e.g. \"EV 11.6 y\". Shown under the node as value_<id>; draw it on the beat that computes it. With rollback the value is computed — set this only to override its text." },
+          "value": { "type": "string", "description": "Chance/decision node only: its folded-back value, e.g. \"EV 11.6 y\". Shown under the node as value_<id>; draw it on the beat that computes it. With rollback the value is computed — set this only to override its text (tokens work: \"NMB ${tree.nmb_surgery:0,}\"), or to \"\" to draw none." },
           "collapsed": { "type": "boolean", "description": "Chance/decision node only: draw the node without its subtree (a fan of stubs, collapsed_<id>); under rollback its value is still computed from the hidden subtree. For showing a big tree in parts." },
           "children": {
             "type": "array",
@@ -24,7 +24,7 @@
               "properties": {
                 "label": { "type": "string", "description": "Branch label (the option or event)." },
                 "probability": { "type": "number", "description": "Chance-node branches only (0–1), summing to 1 across siblings. With rollback one sibling may omit it: it gets 1 − the others." },
-                "cost": { "type": "number", "description": "Optional cost paid on this branch (e.g. the procedure itself); under rollback added to everything after it." },
+                "cost": { "type": "number", "description": "Optional cost paid on this branch (e.g. the procedure itself): part of every number below it — the subtree's value, its table row, the pick — and written on the branch label (\"Screen, $300\")." },
                 "node": { "description": "The child node (same structure as root)." }
               }
             }
@@ -33,11 +33,12 @@
         "required": ["type", "label"]
       },
       "rollback": { "type": "boolean", "description": "Compute the tree: expected values under every chance/decision node, each decision's best branch marked, missing probabilities filled in, and (with costs) the strategy table. Default false: only what you write is drawn." },
-      "wtp": { "type": "number", "description": "Willingness to pay per unit of payoff (e.g. 30000 per QALY). With costs, decisions then maximise payoff × wtp − cost; without it they maximise expected payoff." },
+      "wtp": { "type": "number", "description": "Willingness to pay per unit of payoff (e.g. 30000 per QALY). With costs, decisions then maximise payoff × wtp − cost (the table's net-benefit column); without it they maximise expected payoff. Animate it ({\"animate\": {\"wtp\": 60000}}) and write it in text as {tree.wtp} — no var needed." },
       "currency": { "type": "string", "x-translate": false, "description": "Money prefix for costs, e.g. \"£\", \"$\", \"kr \"." },
       "unit": { "type": "string", "description": "The payoff's unit, e.g. \"QALYs\": names the table's effect column." },
       "decimals": { "type": "integer", "description": "Decimals for computed payoffs (default 2)." },
       "table": { "type": "boolean", "description": "false hides the strategy table (default: shown under rollback when terminals have costs and the root is a decision)." },
+      "box": { "type": "object", "properties": { "x": { "type": "number" }, "y": { "type": "number" }, "w": { "type": "number" }, "h": { "type": "number" } }, "required": ["x", "y", "w", "h"], "description": "The region the tree fills (logical units, lower-left corner, y up; or a region name like \"left\"), its table along the box's bottom. The tree takes the largest words that fit it (up to 30) and spreads to its height." },
       "size": { "type": "string", "enum": ["page", "full"], "description": "A tree too big for one page. \"full\": words at full size, the tree laid out larger than the page (the strategy table under it) — walk through it with camera {on: [node ids]} beats and camera {reset: true}; a tree that fits the page is drawn as always. \"page\": shrink it onto the page however small its words. Default: the page, unless its words would drop below the readable floor, then full. Ignored with a box." }
     },
     "required": ["root"]
@@ -52,9 +53,13 @@
     "best_<decisionId>_<childId>": "rollback: the highlighter under the branch a decision takes (the group `best` names all of them)",
     "prune_<decisionId>_<childId>": "rollback: the // mark across each branch a decision rejects (the group `pruned` names all of them)",
     "collapsed_<id>": "the stubs on a node with collapsed: true",
-    "strategy_table": "rollback with costs: the whole table under the tree (a group of strategy_head, strategy_rule and the rows)",
+    "strategy_table": "rollback with costs: the whole table under the tree",
     "strategy_head": "the table's header row",
-    "strategy_row_<childId>": "one table row per option of the root decision, sorted by cost, e.g. strategy_row_surgery",
+    "strategy_row_<childId>": "one row per option of the root decision, sorted by cost, e.g. strategy_row_surgery: all its parts below except the net benefit",
+    "strategy_base_<childId>": "a row's name, cost and effect — draw rows with these, then each verdict on its own beat",
+    "strategy_delta_<childId>": "a row's increments (vs — with 3+ options — Δ cost, Δ effect); not on the cheapest row",
+    "strategy_icer_<childId>": "a row's verdict: its ICER, or dominated / ext. dominated; not on the cheapest row",
+    "strategy_nmb": "with wtp: the net-benefit column (strategy_nmb_head and each strategy_nmb_<childId>); the pick's is coloured",
     "strategy_wtp": "with wtp: the line under the table naming the willingness to pay the pick was made at (\"At $30,000 per QALY\")"
   },
   "examples": [
