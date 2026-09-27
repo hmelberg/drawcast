@@ -8,7 +8,7 @@ import type { LintIssue } from "../lint/lint";
 import type { Spec, SpecElement } from "../spec/types";
 import { placeCaption } from "./caption-place";
 import { contentUnderCaption, darkUnderCaption } from "./caption-dark";
-import { ensureFigureStyles } from "./figure-style";
+import { ensureFigureStyles, PATRICK_HAND_URLS } from "./figure-style";
 import { splitVarOverrides, withNewIdsVisible, withOverrides } from "./params";
 import { controlsOfFor, planCommands, type Plan, type PlanOptions } from "./plan";
 import { withMinted, type MintedSpec } from "./minted";
@@ -222,9 +222,16 @@ function ensureFonts(): Promise<void> {
   fontsReady = (async () => {
     if (typeof document === "undefined" || !("fonts" in document)) return;
     try {
+      // A host that declared no Patrick Hand of its own (the frame harness,
+      // a page embedding the engine) gets the bundled copy: without it the
+      // labels fall back to a larger face than the one every formula is
+      // written in, and formulas look shrunken (figure-style.ts).
+      const declared = [...document.fonts].some((f) => f.family.replace(/["']/g, "") === "Patrick Hand");
+      if (!declared && typeof FontFace !== "undefined") {
+        document.fonts.add(new FontFace("Patrick Hand", PATRICK_HAND_URLS.map((u) => `url(${u}) format('truetype')`).join(", ")));
+      }
       await Promise.race([
-        document.fonts.load("26px 'Patrick Hand'"),
-        document.fonts.load("16px 'C64 Pro Mono'"),
+        Promise.all([document.fonts.load("26px 'Patrick Hand'"), document.fonts.load("16px 'C64 Pro Mono'")]),
         new Promise((r) => setTimeout(r, 900)),
       ]);
     } catch {

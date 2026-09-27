@@ -4,6 +4,11 @@ import { layoutSpec, elementBBoxes } from "../src/layout/layout";
 import { normalizeSpec } from "../src/spec/schema";
 import { flattenDrawables, SKETCH_MS } from "../src/layout/model";
 import { MATH_X_HEIGHT } from "../src/layout/math";
+import { existsSync } from "node:fs";
+import { PATRICK_HAND_URLS } from "../src/render/figure-style";
+import HAND from "../src/scenes/mathjax-fonts/patrickhand.json";
+import examples from "../src/examples.json";
+import type { Spec } from "../src/spec/types";
 
 describe("math element (real mathjax, node)", () => {
   beforeAll(async () => { await ensureEngines(["mathjax"]); });
@@ -151,5 +156,55 @@ describe("math element (real mathjax, node)", () => {
       commands: [{ draw: ["m"] }],
     });
     expect(r.warnings.concat(r.issues.map((i) => i.message)).join(" ")).toMatch(/math "m"/);
+  });
+
+  // 2026-09-27: LLM runs and a reviewer reported freehand formulas "about a
+  // third of the label size", and `size: 34`, then 56, "still small". The
+  // layout was right — the frame harness had no Patrick Hand and drew the
+  // labels in Comic Sans (render/figure-style.ts PATRICK_HAND_URLS). This
+  // pins the layout half: a formula with no size stands as tall as a label
+  // beside it, measured in the label's own face's metrics at the size the
+  // layout gave the label, and `size` scales it in proportion.
+  test("a formula with no size is as tall as a label at the default size, and size scales it", () => {
+    const r = layoutSpec({
+      elements: [
+        { id: "a", type: "shape", shape: "rect", x: 200, y: 200, width: 100, height: 40 },
+        { id: "lab", type: "label", text: "MVPY xvzn", attach_to: "a", side: "above" },
+        { id: "caps", type: "math", tex: "MVPY", x: 500, y: 400 },
+        { id: "low", type: "math", tex: "xvzn", x: 500, y: 300 },
+        { id: "caps34", type: "math", tex: "MVPY", size: 34, x: 500, y: 500 },
+        { id: "caps56", type: "math", tex: "MVPY", size: 56, x: 500, y: 600 },
+      ],
+      commands: [{ draw: ["a", "lab", "caps", "low", "caps34", "caps56"] }],
+    });
+    const label = flattenDrawables(r.drawables).find((d) => d.id === "lab" && d.kind === "text") as { fontSize: number } | undefined;
+    expect(label).toBeDefined();
+    expect(label!.fontSize).toBe(28);
+    const b = elementBBoxes(r);
+    const capH = (HAND.cap_height / HAND.upm) * label!.fontSize;
+    const xH = (HAND.x_height / HAND.upm) * label!.fontSize;
+    // Capitals: the hand's are fitted inside Fira's cap slot, a few percent lower.
+    expect(b.get("caps")!.h / capH).toBeGreaterThan(0.88);
+    expect(b.get("caps")!.h / capH).toBeLessThan(1.08);
+    expect(b.get("low")!.h / xH).toBeGreaterThan(0.92);
+    expect(b.get("low")!.h / xH).toBeLessThan(1.08);
+    expect(b.get("caps34")!.h / b.get("caps")!.h).toBeCloseTo(34 / 28, 1);
+    expect(b.get("caps56")!.h / b.get("caps")!.h).toBeCloseTo(56 / 28, 1);
+  });
+
+  test("a template page does not shrink a freehand formula", () => {
+    const tex = "4 \\text{ years} \\times 0.5 = 2 \\text{ QALYs}";
+    const withTemplate = (examples as { spec: Spec }[]).find((e) => e.spec.template === "qaly_profiles" && (e.spec.elements ?? []).some((el) => el.type === "math" && el.tex === tex && el.size === undefined));
+    expect(withTemplate).toBeDefined();
+    const spec = withTemplate!.spec;
+    const id = spec.elements!.find((el) => el.type === "math")!.id;
+    const onTemplate = elementBBoxes(layoutSpec(spec)).get(id)!;
+    const alone = elementBBoxes(layoutSpec({ elements: [{ id: "m", type: "math", tex, x: 500, y: 400 }], commands: [{ draw: ["m"] }] })).get("m")!;
+    expect(onTemplate.h).toBeCloseTo(alone.h, 1);
+  });
+
+  test("the bundled Patrick Hand a host without its own falls back to is the file the hand glyphs came from", () => {
+    expect(PATRICK_HAND_URLS[0]).toBe("/fonts/patrickhand/PatrickHand-Regular.ttf");
+    expect(existsSync(`public${PATRICK_HAND_URLS[0]}`)).toBe(true);
   });
 });
