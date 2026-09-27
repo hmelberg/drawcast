@@ -175,6 +175,7 @@ describe("every bundled template's string params are classified", () => {
       free_body: [".body_label", ".forces[].label", ".net_force.label"],
       generic_axes_diagram: [".x_label", ".y_label", ".title", ".curves[].label", ".points[].label", ".vlines[].label", ".hlines[].label"],
       markov_model: [".states[]", ".transitions[].from", ".transitions[].to", ".transitions[].label", ".highlight_state", ".title", ".trace.compare.name", ".trace.compare.transitions[].from", ".trace.compare.transitions[].to", ".trace.compare.transitions[].label", ".trace.name"],
+      motion_graphs: [".segments[].label", ".units.x", ".units.t", ".labels.object", ".title"],
       plot3d: [".points[].label", ".axis_labels.x", ".axis_labels.y", ".axis_labels.z", ".title"],
       protein_secondary: [".segments[].label", ".title"],
       qaly_profiles: [
