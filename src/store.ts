@@ -205,7 +205,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  model: "claude-opus-5",
+  model: "claude-opus-5-5",
   effort: "high",
   approach: "storyboard",
   templatesOnDemand: false,
@@ -299,6 +299,9 @@ export function loadSettings(): Settings {
   // load (cheap, idempotent) rather than as a one-shot flag: nothing else in
   // this file writes shareTo back to storage on its own.
   s.shareTo = migrateShareTo(s.shareTo);
+  // Opus 5.5 replaced Opus 5 in the model list (2026-09-27): a stored choice
+  // of the old id follows it rather than naming a model the picker lacks.
+  if (s.model === "claude-opus-5") s.model = "claude-opus-5-5";
   // One-time upgrade: the bundled packs moved from opt-in to baseline
   // (DEFAULT_SETTINGS.enabledPacks). A settings blob stored before that keeps
   // its own list, which `{...fallback, ...parsed}` leaves untouched — so union

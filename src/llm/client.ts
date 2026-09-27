@@ -8,12 +8,12 @@ import { extractJson } from "../spec/extract";
 import { addAnthropicTokens, anthropicBudgetError } from "../store";
 
 export const MODELS = [
-  { id: "claude-opus-5", label: "Opus 5 — best quality" },
+  { id: "claude-opus-5-5", label: "Opus 5.5 — best quality" },
   { id: "claude-sonnet-5", label: "Sonnet 5 — 2–3× faster" },
   { id: "claude-haiku-4-5", label: "Haiku 4.5 — fastest" },
 ] as const;
 
-export const DEFAULT_MODEL = "claude-opus-5";
+export const DEFAULT_MODEL = "claude-opus-5-5";
 
 export function makeClient(apiKey: string): Anthropic {
   return new Anthropic({
