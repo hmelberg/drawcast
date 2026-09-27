@@ -1,4 +1,5 @@
-// equation_plot's expressions: "y = a*sin(b*x + c)" parsed to a small AST —
+// params-ui's expressions (shared by equation_plot and any template with a
+// live equation): "y = a*sin(b*x + c)" parsed to a small AST —
 // evaluated for the curve, walked for its free parameters, and written back
 // as TeX with the parameters' current values in place (each value its own
 // marked group, so the layout can find its glyphs). The same function table
@@ -313,7 +314,8 @@ export const PARAM_MARK = "\\mathord";
 const PREC = { sum: 1, product: 2, unary: 3, power: 4, atom: 5 } as const;
 
 /**
- * The expression as TeX with every parameter written by `w` — each one
+ * The expression as TeX with every parameter (any name that is not one of
+ * `variables` or a constant) written by `w` — each one
  * wrapped in `\mathord{…}` so the layout can find it, and the parameters in
  * the order `order` lists (reading order: the n-th mark in the TeX is
  * order[n]).
@@ -323,9 +325,10 @@ const PREC = { sum: 1, product: 2, unary: 3, power: 4, atom: 5 } as const;
  * the magnitude ("2x² − 3x", not "2x² + −3x"); a negative value elsewhere
  * is bracketed ("x·(−2)").
  */
-export function toTeX(root: Node, variable: string, w: ParamWriter): { tex: string; order: string[] } {
+export function toTeX(root: Node, variables: string | readonly string[], w: ParamWriter): { tex: string; order: string[] } {
   const order: string[] = [];
-  const isParam = (n: Node): n is { k: "name"; name: string } => n.k === "name" && n.name !== variable && !isConstantName(n.name);
+  const vars = new Set(typeof variables === "string" ? [variables] : variables);
+  const isParam = (n: Node): n is { k: "name"; name: string } => n.k === "name" && !vars.has(n.name) && !isConstantName(n.name);
   const negativeParam = (n: Node): boolean => {
     if (!isParam(n)) return false;
     const d = w.digits(n.name);
@@ -363,7 +366,7 @@ export function toTeX(root: Node, variable: string, w: ParamWriter): { tex: stri
       case "num":
         return [n.text.replace(/^\./, "0."), PREC.atom];
       case "name":
-        if (n.name === variable || isConstantName(n.name)) return [nameTeX(n.name), PREC.atom];
+        if (vars.has(n.name) || isConstantName(n.name)) return [nameTeX(n.name), PREC.atom];
         return [writeParam(n, abs === n, !lead), PREC.atom];
       case "neg":
         return [`-${tex(n.a, PREC.unary, false, null)}`, PREC.unary];

@@ -39,7 +39,8 @@ import equationPlotManifest from "./equation_plot/manifest.json";
 import { layoutEquationPlot, type EquationPlotParams } from "./equation_plot/layout";
 import { lintEquationPlot } from "./equation_plot/lint";
 import { equationPlotWidget } from "./equation_plot/widget";
-import { traySliders } from "./equation_plot/model";
+import { readModel as readEquationPlot } from "./equation_plot/model";
+import { traySliders } from "./params-ui/params";
 
 export const scenes: Record<string, SceneModule> = {
   supply_demand: {
@@ -106,7 +107,7 @@ export const scenes: Record<string, SceneModule> = {
     // Free play: the parameters scrubbed or typed in the equation, on the
     // panel's sliders and boxes, or by dragging the curve itself.
     widget: equationPlotWidget,
-    sliders: (params) => traySliders(params as unknown as EquationPlotParams),
+    sliders: (params) => traySliders(params.params, readEquationPlot(params as unknown as EquationPlotParams)),
   },
 };
 

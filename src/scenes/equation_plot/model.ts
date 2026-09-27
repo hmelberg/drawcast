@@ -1,20 +1,14 @@
 // equation_plot's model: the template params read once into curves,
 // parameters and ranges — and the numerics every part shares (ranges and
 // ticks, roots and extrema, the solve a curve drag makes). Pure; the layout
-// draws what this computes and the widget patches what this reads.
-import { arityProblem, compile, isConstantName, isFunctionName, lhsTeX, namesIn, parseExpr, type Env, type Node } from "./expr";
+// draws what this computes and the widget patches what this reads. The
+// parameters themselves — their shape, the controls, the drawn equation and
+// panel — are params-ui's, shared with every template that has a live
+// equation.
+import { arityProblem, compile, lhsTeX, namesIn, parseExpr, type Env, type Node } from "../params-ui/expr";
+import { clampTo, declaredNames, niceUp, readParams, roundTo, type Param, type ParamSet, type ParamsMap } from "../params-ui/params";
 
-export interface ParamSpec {
-  value?: number;
-  min?: number;
-  max?: number;
-  step?: number;
-  label?: string;
-  /** Shown, never changed by the viewer. */
-  fixed?: boolean;
-  /** The panel's control for it: a slider (needs min and max) or a number box. */
-  control?: "slider" | "box";
-}
+export type { Param } from "../params-ui/params";
 
 export type MarkKind = "roots" | "extrema" | "y_intercept" | "point" | "tangent";
 export interface MarkSpec {
@@ -23,12 +17,12 @@ export interface MarkSpec {
   at?: number | string;
   /** Which equation (0-based, default 0). */
   curve?: number;
-  label?: string;
+  label?: string | boolean;
 }
 
 export interface EquationPlotParams {
   equation: string | string[];
-  params?: Record<string, number | ParamSpec>;
+  params?: ParamsMap;
   editable?: string[];
   controls?: "equation" | "panel" | "both";
   panel?: string[];
@@ -43,21 +37,6 @@ export interface EquationPlotParams {
   grid?: boolean;
 }
 
-export interface Param {
-  name: string;
-  value: number;
-  min?: number;
-  max?: number;
-  step: number;
-  /** Decimals the value is written with (from the step). */
-  decimals: number;
-  label: string;
-  editable: boolean;
-  control: "slider" | "box";
-  /** Given in the spec's `params` (else defaulted to 1). */
-  declared: boolean;
-}
-
 export interface Curve {
   index: number;
   src: string;
@@ -68,15 +47,10 @@ export interface Curve {
   f: (x: number, env: Env) => number;
 }
 
-export interface Model {
+export interface Model extends ParamSet {
   variable: string;
   curves: Curve[];
-  params: Param[];
-  byName: Map<string, Param>;
-  env: Env;
   xRange: [number, number];
-  controls: "equation" | "panel" | "both";
-  panel: Param[];
   drag: string[] | "auto" | false;
   marks: MarkSpec[];
   form: "values" | "symbols" | "both";
@@ -84,44 +58,9 @@ export interface Model {
 }
 
 export const MAX_CURVES = 4;
-export const MAX_PARAMS = 8;
-const DEFAULT_X: [number, number] = [-5, 5];
+export const DEFAULT_X: [number, number] = [-5, 5];
 
 const num = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
-
-/** 1, 2 or 5 times a power of ten, at or above `raw`. */
-export function niceUp(raw: number): number {
-  if (!(raw > 0)) return 1;
-  const pow = 10 ** Math.floor(Math.log10(raw));
-  for (const m of [1, 2, 5, 10]) if (m * pow >= raw * (1 - 1e-9)) return m * pow;
-  return 10 * pow;
-}
-
-/** Decimals a step needs (0.05 → 2, 1 → 0). */
-export function decimalsFor(step: number): number {
-  return Math.max(0, Math.min(6, -Math.floor(Math.log10(step) + 1e-9)));
-}
-
-/** Decimals a written number has (1.25 → 2). */
-function writtenDecimals(v: number): number {
-  const s = String(v);
-  if (/e-/i.test(s)) return Math.min(6, Number(s.split(/e-/i)[1]));
-  return (s.split(".")[1] ?? "").length;
-}
-
-/** A parameter's step: the author's, else a fiftieth of its range (1-2-5),
- *  else one unit in the last decimal the value is written with (at least 0.1). */
-export function stepFor(value: number, min?: number, max?: number, step?: number): number {
-  if (num(step) && step > 0) return step;
-  if (num(min) && num(max) && max > min) return niceUp((max - min) / 50);
-  return 10 ** -Math.max(1, writtenDecimals(value));
-}
-
-export const roundTo = (v: number, step: number): number => {
-  const d = decimalsFor(step);
-  return Number((Math.round(v / step) * step).toFixed(Math.min(10, d + 2)));
-};
-export const clampTo = (v: number, p: { min?: number; max?: number }): number => Math.min(p.max ?? Infinity, Math.max(p.min ?? -Infinity, v));
 
 /** The variable an equation's left side names: "f(t)" → t; else null. */
 function lhsVariable(lhs: string): string | null {
@@ -140,8 +79,7 @@ export function readModel(P: EquationPlotParams): Model {
   const errors: string[] = [];
   const list = (Array.isArray(P.equation) ? P.equation : [P.equation]).filter((s): s is string => typeof s === "string" && s.trim() !== "").slice(0, MAX_CURVES);
   if (list.length === 0) errors.push("no equation");
-  const given = P.params && typeof P.params === "object" && !Array.isArray(P.params) ? P.params : {};
-  const declared = Object.keys(given).filter((k) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(k));
+  const declared = declaredNames(P.params);
   const split = list.map(splitEquation);
   const variable =
     typeof P.variable === "string" && /^[A-Za-z][A-Za-z0-9_]*$/.test(P.variable) ? P.variable : (split.map((s) => lhsVariable(s.lhs)).find((v) => v !== null) ?? "x");
@@ -163,56 +101,21 @@ export function readModel(P: EquationPlotParams): Model {
   for (const c of curves) if (c.error) errors.push(`equation ${curves.length > 1 ? `${c.index + 1} ` : ""}"${c.src}": ${c.error}`);
 
   // Parameters: every free name but the variable, in first-use order, then
-  // any declared one the equations do not read (a mark's `at` may use it).
+  // a mark's `at` name, then any declared one the equations do not read.
   const names: string[] = [];
   for (const c of curves) if (c.node) for (const n of namesIn(c.node)) if (n !== variable && !names.includes(n)) names.push(n);
-  const markParams = (P.marks ?? []).flatMap((m) => (typeof m === "object" && m && typeof m.at === "string" ? [m.at] : []));
-  for (const n of [...markParams, ...declared]) if (!names.includes(n) && n !== variable && !isConstantName(n) && !isFunctionName(n)) names.push(n);
-  if (names.length > MAX_PARAMS) errors.push(`${names.length} parameters — at most ${MAX_PARAMS}`);
-  const editableList = Array.isArray(P.editable) ? P.editable.filter((s): s is string => typeof s === "string") : null;
-  const params: Param[] = names.slice(0, MAX_PARAMS).map((name) => {
-    const raw = Object.prototype.hasOwnProperty.call(given, name) ? given[name] : undefined;
-    const spec: ParamSpec = num(raw) ? { value: raw } : raw && typeof raw === "object" ? raw : {};
-    const min = num(spec.min) ? spec.min : undefined;
-    const max = num(spec.max) ? spec.max : undefined;
-    const value = num(spec.value) ? spec.value : min !== undefined && max !== undefined ? (min <= 1 && 1 <= max ? 1 : (min + max) / 2) : 1;
-    const step = stepFor(value, min, max, spec.step);
-    const editable = spec.fixed !== true && (editableList === null || editableList.includes(name));
-    const bounded = min !== undefined && max !== undefined && max > min;
-    return {
-      name,
-      value,
-      ...(min !== undefined ? { min } : {}),
-      ...(max !== undefined ? { max } : {}),
-      step,
-      decimals: Math.max(decimalsFor(step), writtenDecimals(value) > decimalsFor(step) ? Math.min(writtenDecimals(value), 4) : 0),
-      label: typeof spec.label === "string" && spec.label.trim() ? spec.label.trim() : name,
-      editable,
-      control: spec.control === "box" || !bounded ? "box" : "slider",
-      declared: raw !== undefined,
-    };
-  });
-  const byName = new Map(params.map((p) => [p.name, p]));
-  const env: Env = Object.create(null) as Env;
-  for (const p of params) env[p.name] = p.value;
+  for (const m of P.marks ?? []) if (typeof m === "object" && m && typeof m.at === "string" && m.at !== variable && !names.includes(m.at)) names.push(m.at);
+  const set = readParams({ given: P.params, names: names.concat(declared.filter((n) => n !== variable)), editable: P.editable, controls: P.controls, panel: P.panel });
+  if (set.dropped.length > 0) errors.push(`${set.params.length + set.dropped.length} parameters — at most ${set.params.length}`);
 
   const xr = Array.isArray(P.x_range) && num(P.x_range[0]) && num(P.x_range[1]) && P.x_range[1] > P.x_range[0] ? ([P.x_range[0], P.x_range[1]] as [number, number]) : DEFAULT_X;
-  const controls = P.controls === "panel" || P.controls === "both" ? P.controls : "equation";
-  const panelNames = Array.isArray(P.panel) ? P.panel.filter((s): s is string => typeof s === "string") : null;
-  const panel = controls === "equation" ? [] : params.filter((p) => (panelNames ? panelNames.includes(p.name) : p.editable));
   const drag: Model["drag"] =
     P.drag === false ? false : typeof P.drag === "string" ? [P.drag] : Array.isArray(P.drag) ? P.drag.filter((s): s is string => typeof s === "string") : "auto";
   const marks: MarkSpec[] = (P.marks ?? []).flatMap((m): MarkSpec[] =>
     typeof m === "string" ? [{ kind: m }] : m && typeof m === "object" && typeof m.kind === "string" ? [m] : [],
   );
   const form = P.equation_form === "symbols" || P.equation_form === "both" ? P.equation_form : "values";
-  return { variable, curves, params, byName, env, xRange: xr, controls, panel, drag, marks, form, errors };
-}
-
-/** The value as the digits the figure writes. */
-export function digitsOf(p: Param, v = p.value): string {
-  const s = v.toFixed(p.decimals);
-  return /^-0(\.0*)?$/.test(s) ? s.slice(1) : s;
+  return { ...set, variable, curves, xRange: xr, drag, marks, form, errors };
 }
 
 // ---- sampling, ranges and ticks -------------------------------------------
@@ -482,18 +385,3 @@ export function solveParam(c: Curve, env: Env, x0: number, target: number, p: Pa
   return done(best.v);
 }
 
-/**
- * The tray's sliders (SceneModule.sliders): one per editable parameter with
- * both bounds, at the path an animate or the tray writes — params.<name>
- * for a bare number, params.<name>.value for the object form. A parameter
- * the author never wrote has no number to slide from, so none.
- */
-export function traySliders(P: EquationPlotParams): { path: string; label: string; min: number; max: number; step: number }[] {
-  const m = readModel(P);
-  const given = P.params ?? {};
-  return m.params.flatMap((p) => {
-    if (!p.editable || !p.declared || p.min === undefined || p.max === undefined || !(p.max > p.min)) return [];
-    const raw = given[p.name];
-    return [{ path: typeof raw === "number" ? `params.${p.name}` : `params.${p.name}.value`, label: p.label, min: p.min, max: p.max, step: p.step }];
-  });
-}

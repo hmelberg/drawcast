@@ -22,6 +22,13 @@
 //     the part's. A drag begins only past a few pixels, so a tap still goes
 //     to the info card or the play toggle; the click after a real pan is
 //     swallowed.
+//   - A live widget body's SURFACE (WidgetBody.surface — an equation plot's
+//     plot area) is its own: a ctrl/⌘ + wheel or a trackpad pinch there
+//     zooms the plot's DOMAIN (the host marks it with preventDefault and
+//     this listener stands down), and a press there is the body's drag (its
+//     domain pan), so neither ever reaches the camera. Outside the surface,
+//     and with a plain wheel, everything above holds; two-finger touch
+//     pinches stay the camera's.
 //   - + / − / 0 over the figure (or in fullscreen) zoom in, out and back.
 //   - A small "fit" pill shows while the view is not at rest.
 
@@ -120,7 +127,8 @@ export function attachViewPan(stage: HTMLElement, hd: RenderHandle): void {
   stage.addEventListener(
     "wheel",
     (e) => {
-      if (!enabled()) return;
+      // A widget body's own zoom took it (its surface: a plot's domain).
+      if (!enabled() || e.defaultPrevented) return;
       if (e.target instanceof Element && e.target.closest(`${CONTROL_SELECTOR}, .cs-infocard, .cs-caption`)) return;
       const zoomed = !atRest(view(), rest);
       const fs = fullscreenElement()?.contains(stage) ?? false;

@@ -8,75 +8,26 @@
 // and each widget patch, and `values` carries them for {eq.<key>} tokens.
 import { AXIS_OVERHANG, axisLabelPlacement } from "../../layout/axes";
 import { plotArea, type PlotArea } from "../../layout/canvas";
-import { MATH_X_HEIGHT, mathSizeOf } from "../../layout/math";
 import { COLORS, Z_STROKE, Z_TEXT, SKETCH_MS, defaultDrawOpts, defaultStyle, type Drawable, type Pt } from "../../layout/model";
 import { simplifyPolyline } from "../../layout/geometry";
 import { getLoadedEngines, type MathJaxEngine } from "../engines";
 import { kit } from "../kit";
 import type { SceneLayout } from "../types";
-import { PARAM_MARK, toTeX } from "./expr";
-import {
-  autoYRange,
-  digitsOf,
-  extremaOf,
-  niceTicks,
-  readModel,
-  rootsOf,
-  sampleCurve,
-  slopeAt,
-  type Curve,
-  type EquationPlotParams,
-  type MarkSpec,
-  type Model,
-  type Param,
-} from "./model";
+import { drawEquation, PARAM_COLOR } from "../params-ui/equation";
+import { drawPanel, panelRows, PANEL_W } from "../params-ui/panel";
+import { autoYRange, extremaOf, niceTicks, readModel, rootsOf, sampleCurve, slopeAt, type EquationPlotParams, type MarkSpec, type Model } from "./model";
 
 export type { EquationPlotParams } from "./model";
 
 /** Curve colours in order: blue, red, sage, orange. */
 export const CURVE_COLORS = [COLORS.supply, COLORS.demand, "#5d8a4f", COLORS.shifted];
-/** What a number the viewer may change is written in. */
-export const PARAM_COLOR = COLORS.accent;
 
-const EQ_SIZE = 42;
-const EQ_MIN_SIZE = 22;
 const EQ_LINE = 60;
-const PANEL_W = 235;
 const PANEL_GAP = 75;
-const ROW_H = 84;
 const TICK_FONT = 22;
-const KNOB_R = 10;
-
-/** The panel's geometry, shared with the widget (a knob's x ↔ a value). */
-export interface PanelRow {
-  name: string;
-  kind: "slider" | "box";
-  /** Track ends (slider) — the x a value maps to. */
-  x0: number;
-  x1: number;
-  /** The track's y, and the label/value line's y. */
-  trackY: number;
-  textY: number;
-}
-
-export function panelRows(m: Model, plot: PlotArea): PanelRow[] {
-  const x0 = 1000 - 25 - PANEL_W;
-  const x1 = 1000 - 25;
-  const n = m.panel.length;
-  const mid = (plot.y0 + plot.y1) / 2;
-  const top = mid + (n * ROW_H) / 2;
-  return m.panel.map((p, i) => {
-    const textY = top - i * ROW_H - 26;
-    return { name: p.name, kind: p.control, x0: x0 + KNOB_R, x1: x1 - KNOB_R, trackY: textY - 36, textY };
-  });
-}
-
-/** Slider value ↔ x along the track. */
-export const sliderX = (row: PanelRow, p: Param, v: number): number => row.x0 + ((v - p.min!) / (p.max! - p.min!)) * (row.x1 - row.x0);
-export const sliderValue = (row: PanelRow, p: Param, x: number): number => p.min! + ((x - row.x0) / (row.x1 - row.x0)) * (p.max! - p.min!);
 
 /** Where everything goes: the plot box, the equation lines' centres, the panel's column. */
-export function pageGeometry(m: Model): { plot: PlotArea; eqLines: number; eqTop: number; eqCx: number; eqWidth: number } {
+export function pageGeometry(m: Model): { plot: PlotArea; eqLines: number; eqTop: number; eqCx: number; eqWidth: number; panel: { x0: number; x1: number; yMid: number } } {
   const page = plotArea();
   const lines = m.curves.length * (m.form === "both" ? 2 : 1);
   const plot: PlotArea = { ...page };
@@ -85,7 +36,8 @@ export function pageGeometry(m: Model): { plot: PlotArea; eqLines: number; eqTop
   if (m.panel.length > 0) plot.x1 = 1000 - 25 - PANEL_W - PANEL_GAP;
   const eqCx = m.panel.length > 0 ? (plot.x0 + 1000 - 25) / 2 : (plot.x0 + plot.x1) / 2;
   const eqWidth = m.panel.length > 0 ? 1000 - 25 - 40 : 1000 - 40;
-  return { plot, eqLines: lines, eqTop, eqCx, eqWidth };
+  const panel = { x0: 1000 - 25 - PANEL_W, x1: 1000 - 25, yMid: (plot.y0 + plot.y1) / 2 };
+  return { plot, eqLines: lines, eqTop, eqCx, eqWidth, panel };
 }
 
 export interface Frame {
@@ -113,7 +65,7 @@ const trim = (v: number, d = 2): string => {
 
 export function layoutEquationPlot(P: EquationPlotParams): SceneLayout {
   const m = readModel(P);
-  const { plot, eqTop, eqCx, eqWidth } = pageGeometry(m);
+  const { plot, eqTop, eqCx, eqWidth, panel: column } = pageGeometry(m);
   const [x0, x1] = m.xRange;
   const [y0, y1] = yRangeOf(m, P);
   const sx = (x: number): number => plot.x0 + ((x - x0) / (x1 - x0)) * (plot.x1 - plot.x0);
@@ -241,7 +193,7 @@ export function layoutEquationPlot(P: EquationPlotParams): SceneLayout {
       const cy = eqTop - EQ_LINE / 2 - line * EQ_LINE;
       line++;
       const ink = m.curves.length > 1 ? CURVE_COLORS[c.index % CURVE_COLORS.length] : COLORS.ink;
-      const r = equationDrawables(mathjax, m, c, form, id, [eqCx, cy], eqWidth, ink, seen);
+      const r = drawEquation(mathjax, { id, lhsTeX: c.lhsTeX, node: c.node, variables: m.variable, set: m, form, center: [eqCx, cy], width: eqWidth, ink, seen });
       for (const d of r.drawables) push(d, r.anchors[d.id]);
       eqIds.push(id);
       if (r.paramIds.length > 0) {
@@ -341,39 +293,11 @@ export function layoutEquationPlot(P: EquationPlotParams): SceneLayout {
   }
 
   // ---- the panel -----------------------------------------------------------
-  const rows = panelRows(m, plot);
-  const panelIds: string[] = [];
-  for (const row of rows) {
-    const p = m.byName.get(row.name)!;
-    const nameId = `name_${p.name}`;
-    const valueId = `value_${p.name}`;
-    const color = p.editable ? PARAM_COLOR : COLORS.ink;
-    const left = row.x0 - KNOB_R;
-    const right = row.x1 + KNOB_R;
-    push(kit.text(nameId, [left, row.textY], p.label, { fontSize: 24, anchor: "start" }), [left, row.textY]);
-    if (row.kind === "slider") {
-      push(kit.text(valueId, [right, row.textY], kit.num(Number(digitsOf(p)), p.decimals), { fontSize: 24, anchor: "end", color }), [right - 20, row.textY]);
-      const track: Pt[] = [[row.x0, row.trackY], [row.x1, row.trackY]];
-      push(kit.stroke(`slider_${p.name}`, track, { color: COLORS.guide, strokeWidth: 3, ms: SKETCH_MS.guides }), [row.x1, row.trackY]);
-      const kx = sliderX(row, p, Math.min(p.max!, Math.max(p.min!, p.value)));
-      const kc: Pt = [kx, row.trackY];
-      push(kit.stroke(`knob_${p.name}`, kit.circle(kc, KNOB_R, 20), { closed: true, shapeHint: { type: "circle", c: kc, r: KNOB_R }, color, fill: color, strokeWidth: 2, ms: SKETCH_MS.dot }), kc);
-      panelIds.push(nameId, valueId, `slider_${p.name}`, `knob_${p.name}`);
-      drawnWith[`slider_${p.name}`] = [nameId, valueId, `knob_${p.name}`];
-      attached[`slider_${p.name}`] = [nameId, valueId, `knob_${p.name}`];
-    } else {
-      const bw = 96;
-      const bh = 40;
-      const bx = right - bw;
-      const by = row.textY - 12;
-      push(kit.stroke(`box_${p.name}`, kit.rect(bx, by, bw, bh), { closed: true, color: COLORS.guide, strokeWidth: 2.5, ms: SKETCH_MS.guides }), [bx + bw / 2, by + bh / 2]);
-      push(kit.text(valueId, [bx + bw / 2, row.textY], kit.num(Number(digitsOf(p)), p.decimals), { fontSize: 24, anchor: "middle", color }), [bx + bw / 2, row.textY]);
-      panelIds.push(nameId, `box_${p.name}`, valueId);
-      drawnWith[`box_${p.name}`] = [nameId, valueId];
-      attached[`box_${p.name}`] = [nameId, valueId];
-    }
-  }
-  if (panelIds.length > 0) groups.panel = panelIds;
+  const panel = drawPanel(panelRows(m.panel, column));
+  for (const d of panel.drawables) push(d, panel.anchors[d.id]);
+  Object.assign(drawnWith, panel.drawnWith);
+  Object.assign(attached, panel.attached);
+  if (panel.ids.length > 0) groups.panel = panel.ids;
 
   // ---- values --------------------------------------------------------------
   for (const p of m.params) values[p.name] = p.value;
@@ -394,109 +318,6 @@ export function layoutEquationPlot(P: EquationPlotParams): SceneLayout {
     values,
     frame: { x: [x0, x1], y: [y0, y1], box: plot },
   };
-}
-
-/**
- * The drawn equation for curve `c`: its glyphs as filled outlines, those of
- * each parameter's value gathered into their own part (eq_param_<name>; a
- * name's second appearance eq_param_<name>_2 …), the rest under `id`.
- * Shrunk to fit `width`.
- */
-function equationDrawables(
-  mathjax: MathJaxEngine,
-  m: Model,
-  c: Curve,
-  form: "symbols" | "values",
-  id: string,
-  [cx, cy]: Pt,
-  width: number,
-  ink: string,
-  seen: Map<string, number>,
-): { drawables: Drawable[]; anchors: Record<string, Pt>; paramIds: string[] } {
-  const { tex: rhs, order: names } = toTeX(c.node!, m.variable, {
-    digits: (name) => {
-      if (form === "symbols") return null;
-      const p = m.byName.get(name);
-      return p ? digitsOf(p) : "1";
-    },
-  });
-  const tex = `${c.lhsTeX} = ${rhs}`;
-  const laid = mathjax.layoutTeX(tex, { display: true });
-  // Each marked group, in reading order: consecutive tokens under one
-  // \mathord{…} entry.
-  const markOf = (chain: string[]): string | null => chain.find((e) => e.startsWith(`${PARAM_MARK}{`)) ?? null;
-  const tokenGroup = new Map<number, number>();
-  let g = -1;
-  let prevMark: string | null = null;
-  let prevIndex = -2;
-  for (const t of laid.tokens) {
-    const mk = markOf(t.chain);
-    if (mk === null) {
-      prevMark = null;
-      continue;
-    }
-    if (!(mk === prevMark && t.index === prevIndex + 1)) g++;
-    tokenGroup.set(t.index, g);
-    prevMark = mk;
-    prevIndex = t.index;
-  }
-  const groupsFound = g + 1;
-  const mapped = groupsFound === names.length;
-
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  for (const o of laid.outlines)
-    for (const [x, y] of o.pts) {
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y);
-      maxY = Math.max(maxY, y);
-    }
-  if (!(maxX >= minX)) return { drawables: [], anchors: {}, paramIds: [] };
-  let size = mathSizeOf(EQ_SIZE);
-  const w0 = (maxX - minX) * size * MATH_X_HEIGHT;
-  if (w0 > width) size = Math.max(mathSizeOf(EQ_MIN_SIZE), (size * width) / w0);
-  const s = size * MATH_X_HEIGHT;
-  const w = (maxX - minX) * s;
-  const h = (maxY - minY) * s;
-  const tx = (x: number): number => cx - w / 2 + (x - minX) * s;
-  const ty = (y: number): number => cy - h / 2 + (y - minY) * s;
-  const place = (ring: [number, number][]): Pt[] => simplifyPolyline(ring.map(([x, y]): Pt => [tx(x), ty(y)]), 0.35);
-
-  const own: Drawable[] = [];
-  const perGroup = new Map<number, Drawable[]>();
-  laid.outlines.forEach((o, k) => {
-    const pts = place(o.pts);
-    if (pts.length < 3) return;
-    const holes = (o.holes ?? []).map(place).filter((r) => r.length >= 3);
-    const grp = mapped ? tokenGroup.get(o.token.index) : undefined;
-    const p = grp !== undefined ? m.byName.get(names[grp]) : undefined;
-    const color = p ? (p.editable ? PARAM_COLOR : ink) : ink;
-    const area = kit.area(`${id}__g${k}`, pts, color, { precise: true, ...(holes.length > 0 ? { holes } : {}) });
-    const d: Drawable = { ...area, z: Z_TEXT, style: { ...area.style, color, fill: color, opacity: 1 }, drawOpts: defaultDrawOpts("sketch", SKETCH_MS.text) };
-    if (grp !== undefined) {
-      if (!perGroup.has(grp)) perGroup.set(grp, []);
-      perGroup.get(grp)!.push(d);
-    } else own.push(d);
-  });
-  const group = (gid: string, children: Drawable[], color: string): Drawable => ({ id: gid, kind: "group", role: "math", children, z: Z_TEXT, style: defaultStyle({ color }), drawOpts: defaultDrawOpts("sketch", SKETCH_MS.text) });
-  const drawables: Drawable[] = [group(id, own, ink)];
-  const anchors: Record<string, Pt> = { [id]: [cx, cy] };
-  const paramIds: string[] = [];
-  for (const [gi, children] of [...perGroup].sort((a, b) => a[0] - b[0])) {
-    const name = names[gi];
-    const k = (seen.get(name) ?? 0) + 1;
-    seen.set(name, k);
-    const pid = `eq_param_${name}${k > 1 ? `_${k}` : ""}`;
-    const p = m.byName.get(name);
-    drawables.push(group(pid, children, p?.editable ? PARAM_COLOR : ink));
-    const xs = children.flatMap((d) => (d.kind === "area" ? d.pts.map((q) => q[0]) : []));
-    anchors[pid] = [(Math.min(...xs) + Math.max(...xs)) / 2, cy];
-    paramIds.push(pid);
-  }
-  return { drawables, anchors, paramIds };
 }
 
 /** The curve's samples cut into the pieces that lie in [lo, hi] — each piece

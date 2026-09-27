@@ -44,7 +44,13 @@ export type WidgetEvent =
    *  against the field's own min/max — the body gets a finite number only.
    *  `point` is where the tap that opened the field landed (a part holding
    *  two numbers tells them apart by it). */
-  | { type: "input"; id: string; value: number; point: Pt };
+  | { type: "input"; id: string; value: number; point: Pt }
+  /** A zoom over the body's `surface` (2026-09-27): ctrl/⌘ + wheel or a
+   *  trackpad pinch while paused. `factor` > 1 zooms in, about `point`. */
+  | { type: "zoom"; point: Pt; domain: Pt | null; factor: number };
+
+/** The part id a press on the body's `surface` (blank paper there) carries. */
+export const SURFACE_PART = "__surface";
 
 /** What a tap on an editable part opens (WidgetBody.editable): a number
  *  field laid over the number it edits. Validated by the host
@@ -108,4 +114,19 @@ export interface WidgetBody {
    *  unless the body calls that part `editable`: then the tap opens its
    *  number field. */
   live?: true;
+  /**
+   * Blank paper the body owns (2026-09-27, equation_plot's plot area): a
+   * press there that lands on no part is the body's live drag, delivered
+   * with id SURFACE_PART (a tap still passes through), and a ctrl/⌘ + wheel
+   * (a trackpad pinch) there is a `zoom` event instead of the camera's.
+   * Logical y-up; null = none right now.
+   */
+  surface?(scene: WidgetScene): BBox | null;
+  /**
+   * The patch that puts the body's view back where the author had it (a
+   * zoomed domain back to its authored range), or null when it is there.
+   * While it is not null the host shows a "Reset" pill beside the camera's
+   * Fit; a click applies it. Pure, like on().
+   */
+  rest?(scene: WidgetScene, state: unknown): Record<string, unknown> | null;
 }

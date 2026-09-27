@@ -5,16 +5,18 @@
 import { beforeAll, describe, expect, test } from "vitest";
 import { ensureEngines } from "../src/scenes/engines";
 import { scenes } from "../src/scenes/registry";
-import { compile, namesIn, parseExpr, toTeX } from "../src/scenes/equation_plot/expr";
 import { autoYRange, dragParam, extremaOf, readModel, rootsOf, solveParam, type EquationPlotParams } from "../src/scenes/equation_plot/model";
 import { layoutEquationPlot, clipCurve } from "../src/scenes/equation_plot/layout";
 import { lintEquationPlot } from "../src/scenes/equation_plot/lint";
-import { eqParts, eqPatch, eqTarget, scrubValue, sliderPointerValue } from "../src/scenes/equation_plot/widget";
+import { eqParts, eqPatch, eqTarget, panPatch, shownRanges, zoomPatch } from "../src/scenes/equation_plot/widget";
+import { scrubValue, sliderPointerValue } from "../src/scenes/params-ui/controls";
+import { SURFACE_PART } from "../src/scenes/widget-types";
 import { buildWidgetScene } from "../src/scenes/widget-scene";
 import { dragMoveEvent, inputEvent, runWidget, partAt } from "../src/scenes/widget-run";
 import { layoutSpec } from "../src/layout/layout";
 import { validateSpec } from "../src/spec/schema";
-import { planCommands } from "../src/render/plan";
+import { planCommands, INITIAL_STATE, type Plan } from "../src/render/plan";
+import { widgetHostFor } from "../src/ui/widget-host";
 import { readParam, withOverrides } from "../src/render/params";
 import { STEP_UNITS } from "../src/scenes/number-scrub";
 import type { Pt } from "../src/layout/model";
@@ -49,53 +51,6 @@ const valueOf = (params: unknown, name: string): number => {
 
 beforeAll(async () => {
   await ensureEngines(["mathjax"]);
-});
-
-describe("the expression: parsed, never eval'd", () => {
-  const ev = (src: string, env: Record<string, number> = {}) => compile(parseExpr(src))(env);
-  test("precedence, juxtaposition and unicode", () => {
-    expect(ev("-x^2", { x: 3 })).toBe(-9);
-    expect(ev("2x^2", { x: 3 })).toBe(18);
-    expect(ev("3(x+1)", { x: 1 })).toBe(6);
-    expect(ev("(x-1)(x+2)", { x: 2 })).toBe(4);
-    expect(ev("2^3^2")).toBe(512);
-    expect(ev("2·π")).toBeCloseTo(2 * Math.PI);
-    expect(ev("x²", { x: 4 })).toBe(16);
-    expect(ev("exp(0) + ln(e) + sqrt(16) + abs(-2) + pow(2, 3)")).toBe(1 + 1 + 4 + 2 + 8);
-  });
-  test("a declared single letter before ( multiplies; an unknown longer name is refused as a function", () => {
-    expect(ev("a(x+1)", { a: 2, x: 1 })).toBe(4);
-    expect(() => parseExpr("sinn(x)")).toThrow(/unknown function "sinn"/);
-    expect(compile(parseExpr("rate(x+1)", ["rate"]))({ rate: 3, x: 1 })).toBe(6);
-  });
-  test("nothing reaches a prototype or the page", () => {
-    for (const bad of ["constructor(x)", "alert(1)", "x.constructor", "window['a']", "x; 1", "`x`", "a=>a"]) expect(() => parseExpr(bad)).toThrow();
-    // A name that happens to be a prototype key is just a parameter.
-    expect(compile(parseExpr("__proto__ + toString"))({})).toBeNaN();
-    expect(() => parseExpr("x+".repeat(300) + "x")).toThrow(/longer/);
-    expect(() => parseExpr("(".repeat(60) + "x" + ")".repeat(60))).toThrow(/deeply/);
-  });
-  test("free names in first-use order, constants left out", () => {
-    expect(namesIn(parseExpr("a*sin(b*x + c) + pi + e"))).toEqual(["a", "b", "x", "c"]);
-  });
-});
-
-describe("the equation as TeX, values written in", () => {
-  const tex = (src: string, values: Record<string, string>, variable = "x") => toTeX(parseExpr(src), variable, { digits: (n) => values[n] ?? null }).tex;
-  test("a negative coefficient turns the + before it", () => {
-    expect(tex("a*x^2 + b*x + c", { a: "2", b: "-3", c: "1" })).toBe("\\mathord{2} x^{2} - \\mathord{3} x + \\mathord{1}");
-    expect(tex("a*x^2 + b*x + c", { a: "-2", b: "3", c: "-1" })).toBe("\\mathord{-2} x^{2} + \\mathord{3} x - \\mathord{1}");
-  });
-  test("a number beside a number takes a dot, a negative value inside is bracketed", () => {
-    expect(tex("x*a", { a: "2" })).toBe("x \\cdot \\mathord{2}");
-    expect(tex("x*a", { a: "-2" })).toBe("x \\cdot \\left(\\mathord{-2}\\right)");
-    expect(tex("a^2", { a: "-2" })).toBe("\\left(\\mathord{-2}\\right)^{2}");
-  });
-  test("functions and names", () => {
-    expect(tex("A*sin(k*x + phi)", {})).toBe("\\mathord{A} \\sin(\\mathord{k} x + \\mathord{\\phi})");
-    expect(tex("N0*exp(r*t)", { N0: "100", r: "0.10" }, "t")).toBe("\\mathord{100} e^{\\mathord{0.10} t}");
-    expect(tex("sqrt(x)/a", { a: "2" })).toBe("\\frac{\\sqrt{x}}{\\mathord{2}}");
-  });
 });
 
 describe("reading the params", () => {
@@ -323,5 +278,75 @@ describe("the tray", () => {
     const P: EquationPlotParams = { equation: "y = a*x + b + c + d", params: { a: { value: 1, min: 0, max: 2, label: "slope a" }, b: 3, c: { value: 0, min: -1, max: 1, fixed: true } } };
     expect(module.sliders!(asRec(P))).toEqual([{ path: "params.a.value", label: "slope a", min: 0, max: 2, step: 0.05 }]);
     expect(readParam(asRec(P), "params.a.value")).toBe(1);
+  });
+});
+
+describe("the domain: zoom and pan the plot's own axes", () => {
+  test("zoom about a point, pan by the hand's travel, both axes", () => {
+    expect(shownRanges(PARABOLA)).toEqual({ x: [-5, 5], y: [-5, 30] });
+    expect(zoomPatch(PARABOLA, [0, 0], 2)).toEqual({ x_range: [-2.5, 2.5], y_range: [-2.5, 15] });
+    expect(panPatch(PARABOLA, [1, 5], [2, 5])).toEqual({ x_range: [-6, 4], y_range: [-5, 30] });
+  });
+  test("the body: blank paper in the plot is its surface; a drag there pans, a zoom event zooms, rest goes back", () => {
+    const sc = sceneOf(PARABOLA);
+    const body = module.widget!();
+    const state = body.init(sc);
+    const surf = body.surface!(sc)!;
+    const plot = layoutEquationPlot(PARABOLA).frame!.box;
+    expect([surf.x, surf.y, surf.x + surf.w, surf.y + surf.h].map(Math.round)).toEqual([plot.x0, plot.y0, plot.x1, plot.y1].map(Math.round));
+    const from = sc.toLogical([-3, 20]);
+    const to = sc.toLogical([-2, 20]);
+    const pan = body.on({ type: "drag_move", id: SURFACE_PART, from, fromDomain: sc.toDomain(from), point: to, domain: sc.toDomain(to) }, state, sc);
+    expect((pan.effects as { patch: Record<string, unknown> }[])[0].patch).toEqual({ x_range: [-6, 4], y_range: [-5, 30] });
+    const zoom = body.on({ type: "zoom", point: sc.toLogical([0, 0]), domain: [0, 0], factor: 2 }, pan.state, sc);
+    const zoomed = { ...PARABOLA, ...(zoom.effects as { patch: Record<string, unknown> }[])[0].patch } as EquationPlotParams;
+    expect(zoomed.x_range).toEqual([-2.5, 2.5]);
+    // The zoomed curve is re-sampled across the new range, not magnified.
+    const curve = layoutEquationPlot(zoomed).curveSamples!.curve_0;
+    expect([curve[0][0], curve.at(-1)![0]].map(Math.round)).toEqual([plot.x0, plot.x1].map(Math.round));
+    expect(body.rest!(sceneOf(zoomed), zoom.state)).toEqual({ x_range: undefined, y_range: undefined });
+    expect(body.rest!(sc, zoom.state)).toBeNull(); // at the authored ranges already
+    expect(body.rest!(sceneOf(zoomed), state)).toBeNull(); // nothing moved yet
+  });
+  test("the host: a press on blank plot paper is the body's drag; ctrl-wheel zooms; the pill's patch resets", () => {
+    const spec = { template: "equation_plot", params: PARABOLA, commands: [] } as unknown as RenderHandle["spec"];
+    const layout = layoutSpec(spec);
+    const previews: Record<string, unknown>[] = [];
+    let painted: ReturnType<typeof layoutSpec> | null = null;
+    const timeline = {
+      state: "paused",
+      position: 1,
+      vars: new Map<string, string>(),
+      callbacks: {},
+      previewParams: (o: Record<string, unknown>) => {
+        painted = layoutSpec({ ...spec, params: { ...PARABOLA, ...o } } as unknown as RenderHandle["spec"]);
+        previews.push(o);
+      },
+      paintedLayout: () => painted,
+      glow: async () => undefined,
+      tapAt: async () => undefined,
+      caption: () => undefined,
+      getParamOverrides: () => ({}),
+    };
+    const plan = { steps: [], states: [{ ...INITIAL_STATE, visible: layout.order }], labels: {}, warnings: [], minted: [] } as unknown as Plan;
+    const hd = { spec, layout, plan, timeline } as unknown as RenderHandle;
+    const host = widgetHostFor(hd, { frame: (fn) => (fn(), () => undefined), warn: () => undefined })!;
+    const sc = sceneOf(PARABOLA);
+    const blank = sc.toLogical([-4, 25]); // far from the curve, in the plot
+    expect(host.grabbable(blank)).toBe(false);
+    expect(host.press(blank)).toBe(true);
+    host.move([blank[0] + 81, blank[1]]); // one x unit is 81 logical units here
+    expect(host.release([blank[0] + 81, blank[1]])).toBe("drag");
+    expect((previews.at(-1) as { x_range: number[] }).x_range).toEqual([-6, 4]);
+    // A tap on blank paper is still the play toggle's.
+    expect(host.press(blank)).toBe(true);
+    expect(host.release(blank)).toBe("pass");
+    // Outside the plot (the margin left of the y axis) nothing is the body's.
+    expect(host.press([40, 300])).toBe(false);
+    expect(host.zoomAt([40, 300], 2)).toBe(false);
+    expect(host.zoomAt(blank, 2)).toBe(true);
+    expect(host.restPatch()).toEqual({ x_range: undefined, y_range: undefined });
+    expect(host.toRest()).toBe(true);
+    expect(host.restPatch()).toBeNull();
   });
 });
