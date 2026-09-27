@@ -162,6 +162,8 @@ import { DRIVE_SCOPE, googleConfigured, pickerConfigured, requireScope, signOut,
 import { ensureFolder, isMissingFileError, openSpec, readFileText, saveSpec } from "./google/drive";
 import fewshots from "./llm/prompts/fewshots.json";
 import bundledExamples from "./examples.json";
+import { gateSpecs, migrateOnce, trustDerived, trustSpecs } from "./security/code-trust";
+import { installCodeConsent } from "./ui/code-consent";
 
 const settings = loadSettings();
 /**
@@ -302,6 +304,32 @@ let promoted = false;
 for (const r of registerMyTemplatesAtStartup()) {
   if (!r.ok) console.warn(`My template "${r.id}" failed to load:`, r.errors.join("; "));
 }
+
+// Code trust (security/code-trust.ts), before anything renders: code a cast
+// carries runs only when this browser trusts its exact bytes. The bundled
+// examples are ours (trusted for this page, never persisted); the library
+// that existed before the gate is the owner's own work (trusted once); and
+// anything else asks through the prompt installed here.
+installCodeConsent();
+/** Every spec a document holds — the unit the trust rules read. */
+function specsOfPlaylist(playlist: Playlist): Spec[] {
+  return itemsOf(playlist).map((i) => i.spec);
+}
+function specsOfText(text: string | undefined, spec: Spec | undefined): Spec[] {
+  if (text) {
+    try {
+      return specsOfPlaylist(parsePlaylistText(text));
+    } catch {
+      /* fall back to the spec alone */
+    }
+  }
+  return spec ? [spec] : [];
+}
+trustSpecs(
+  examples.flatMap((ex) => specsOfText(ex.playlist, ex.spec)),
+  { persist: false },
+);
+migrateOnce(() => loadLibrary().flatMap((d) => specsOfText(d.playlist, d.spec)));
 
 // Remote packs (M5): CACHED yaml only — this must NEVER fetch at startup (a
 // slow or dead remote host must not block or flake app startup). A
@@ -2803,9 +2831,24 @@ async function present(andPlay = false): Promise<void> {
     // row (A5) — a second switch here would only crowd the narrow preview bar.
     const switchBtn = h("button", { class: "cs-bar-btn", title: "Open the editor" }, "✎ Edit");
     switchBtn.addEventListener("click", () => showMode("editor"));
+    // Code the document carries that this browser does not trust (an
+    // upload, a Drive file, someone else's cast) asks before anything of it
+    // registers or runs; declined, the sinks draw without it.
+    const specsNow = specsOfPlaylist(doc.playlist);
+    const codeAllowed = await gateSpecs(specsNow);
+    if (seq !== presentSeq) return;
+    if (!codeAllowed) {
+      setStatusAction("This drawcast's own code was not run — shown without it.", "Run it…", () => {
+        void gateSpecs(specsNow, { askAgain: true }).then((ok) => {
+          if (!ok) return;
+          setStatus("Running this drawcast's code.", "ok");
+          void present();
+        });
+      });
+    }
     // A failed engine load is reported but never blocks the mount — the
     // affected template falls through with its own existing warning.
-    await ensureEnginesForSpecs(itemsOf(doc.playlist).map((i) => i.spec)).catch((err) => {
+    await ensureEnginesForSpecs(specsNow).catch((err) => {
       setStatus(`Engine load failed: ${(err as Error).message}`, "error");
     });
     const mounted = await mountPlaylist(host, doc.playlist, {
@@ -2968,6 +3011,11 @@ restoreBtn.addEventListener("click", () => {
 });
 
 function setDoc(next: Doc, statusText?: string, version?: { label: string; kind: "generate" | "revise" }): void {
+  // Only the AI paths pass a version. A generation is this browser's own AI
+  // output: all of it is trusted. A revise inherits: what it added is the
+  // AI's, what it changed of someone else's code is still theirs.
+  if (version?.kind === "generate") trustSpecs(specsOfPlaylist(next.playlist));
+  else if (version?.kind === "revise") trustDerived(specsOfPlaylist(doc.playlist), specsOfPlaylist(next.playlist));
   doc = next;
   // One founding request, two homes: the file carries it (playlist.meta.prompt,
   // B9) and the library keeps its own copy (Doc.prompt → SavedDrawing.prompt).
@@ -3875,6 +3923,9 @@ function ensureRendered(andPlay = false): boolean {
   if (!needsRender(specArea.value, lastRenderedText)) return false;
   const playlist = readPlaylistText(specArea.value);
   if (!playlist) return false;
+  // What you type is yours; an edit of code inherits the trust of what it
+  // replaced (security/code-trust.ts trustDerived).
+  trustDerived(specsOfPlaylist(doc.playlist), specsOfPlaylist(playlist));
   // Same document, edited in place — carry the id forward so autosave() below
   // replaces this entry instead of minting a second one (copy-on-write). The
   // prompt follows setDoc's rule: what the TEXT says wins (a hand-edited
@@ -4131,6 +4182,8 @@ async function loadCoursesFromGithub(opts: { quiet?: boolean } = {}): Promise<vo
         }),
       );
       const out = importCourse({ text, yamlByFile, courseId: t.localId ?? crypto.randomUUID(), updated: t.updated });
+      // Your own repository (Settings → Publishing): its lectures are yours.
+      trustSpecs(out.drawings.flatMap((d) => specsOfText(d.playlist, d.spec)));
       out.drawings.forEach(saveDrawing);
       saveCourse(out.course);
       loaded++;
@@ -4615,6 +4668,8 @@ if (import.meta.env.DEV) {
         // wrapper parsed as a blank spec and played 0 steps (playlist/cast-file.ts).
         const cast = unwrapCastText(text);
         const playlist = readPlaylistText(cast.text);
+        // Dev only: the local author's own files.
+        if (playlist) trustSpecs(specsOfPlaylist(playlist));
         if (playlist) setDoc({ id: null, driveFileId: null, sourcePath: null, title: docTitleOf(playlist, cast.title ?? openPath.split("/").pop() ?? "cast"), playlist }, "Opened.");
       })
       .catch((err) => setStatus(`Could not open ${openPath}: ${(err as Error).message}`, "error"));
@@ -4640,6 +4695,7 @@ if (import.meta.env.DEV) {
       const slug = parseCourse(text).context.slug;
       const existing = slug ? loadCourses().find((c) => parseCourse(c.text).context.slug === slug) : undefined;
       const out = importCourse({ text, yamlByFile, courseId: existing?.id ?? crypto.randomUUID(), updated: new Date().toISOString() });
+      trustSpecs(out.drawings.flatMap((d) => specsOfText(d.playlist, d.spec))); // dev only: the local author's own course
       out.drawings.forEach(saveDrawing);
       saveCourse(out.course);
       refreshLibrary();

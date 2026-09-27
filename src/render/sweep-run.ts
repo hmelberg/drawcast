@@ -11,6 +11,7 @@ import type { CodeResolveDeps } from "./code";
 import { pathsByCodeId, requestedTokens } from "../code/tokens";
 import type { Plan } from "./plan";
 import type { CodePatch, SweepRunner } from "./player";
+import { codeKey, isTrusted, languageNeedsTrust } from "../security/code-trust";
 
 /**
  * One script's sweep runner. `authored` is the spec as passed to render (NOT
@@ -29,6 +30,9 @@ export function sweepRunnerFor(authored: Spec, deps: CodeResolveDeps = {}): Swee
     // one, and parseControls would find nothing in it to sweep.
     const src = el?.code_src ?? el?.code;
     if (!el || el.type !== "code" || !el.language || !src || !el.controls?.length) throw new Error(`run: "${codeId}" is not a code element with controls`);
+    // Untrusted code (security/code-trust.ts) never runs: throwing holds the
+    // step at its previous result, exactly as a failed run does.
+    if (languageNeedsTrust(el.language) && !isTrusted(codeKey(el.language, src))) throw new Error("not run: this script came with the drawcast and has not been allowed to run");
     const { controls } = parseControls(el.language, src, el.controls);
     const code = applyControls(el.language, src, controls, values);
     // The data bridge's paths ride along exactly as in render/code.ts, or a

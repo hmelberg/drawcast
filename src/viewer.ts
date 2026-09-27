@@ -33,7 +33,9 @@ import { bakedAudioFor } from "./playlist/audio";
 import { validateSpec } from "./spec/schema";
 import { getTtsKey, loadSettings, saveSettings } from "./store";
 import { ensurePacksParallel, packsForSpecs, PACK_DEFS } from "./scenes/packs";
-import { registerCastTemplates } from "./scenes/cast-templates";
+import { isBlockedCastTemplate, registerCastTemplates } from "./scenes/cast-templates";
+import { gateSpecs } from "./security/code-trust";
+import { installCodeConsent } from "./ui/code-consent";
 import { scenes } from "./scenes/registry";
 import { pickerKey } from "./google/auth";
 
@@ -609,6 +611,13 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     // was even fetched, a round trip each); every pack, in parallel, when a
     // template's pack is unknown. The author's choice, never this browser's
     // settings, decides what loads.
+    // Code the cast carries (template bodies, scripts) runs in this page's
+    // origin — so a stranger's code asks first (security/code-trust.ts). A
+    // "Show without it" leaves the sinks refusing it: templates draw
+    // freehand, scripts show their saved output. Asked before anything
+    // registers or renders, so nothing of it has run by the time we ask.
+    installCodeConsent();
+    const codeAllowed = await gateSpecs(items.map((i) => i.spec));
     for (const item of items) registerCastTemplates(item.spec);
     const needPacks = packsForSpecs(items.map((i) => i.spec), (id) => scenes[id] !== undefined);
     await ensurePacksParallel(needPacks ?? Object.keys(PACK_DEFS));
@@ -622,7 +631,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       // silent fall-through to a near-blank page (layoutSpec's warning is
       // returned but nothing in this path reads it).
       const tpl = item.spec.template;
-      if (tpl && !scenes[tpl]) {
+      if (tpl && !scenes[tpl] && !isBlockedCastTemplate(tpl)) {
         throw new Error(`This drawcast uses the template "${tpl}", which this viewer does not know — it may come from a newer app or a remote pack.`);
       }
     }
@@ -635,6 +644,20 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       document.title = `${title} — drawcast`;
     }
     if (audioNote) noteEl.textContent = audioNote;
+    if (!codeAllowed) {
+      // The way back from "Show without it": ask again, and on yes reload —
+      // a template that was never compiled cannot be swapped into a live figure.
+      const again = h("button", { class: "viewer-run-code", title: "This drawcast's own code was not run" }, "Run its code…");
+      again.addEventListener("click", () => {
+        void gateSpecs(
+          items.map((i) => i.spec),
+          { askAgain: true },
+        ).then((ok) => {
+          if (ok) location.reload();
+        });
+      });
+      noteEl.append(noteEl.textContent ? " " : "", again);
+    }
     // Counting: after the playlist is parsed, because the flag travels in the
     // file, and BEFORE mountPlaylist, which takes seconds a visitor may not
     // stay for. Never awaited — a counting outage must not delay a drawing.

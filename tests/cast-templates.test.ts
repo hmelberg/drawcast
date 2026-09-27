@@ -28,7 +28,7 @@ describe("registerCastTemplates", () => {
   test("registers a carried template and a spec using it lays out", () => {
     added.push("cast_ring");
     const r = registerCastTemplates({ templates: [doc("cast_ring")] });
-    expect(r).toEqual({ registered: ["cast_ring"], skipped: [], errors: [] });
+    expect(r).toEqual({ registered: ["cast_ring"], skipped: [], blocked: [], errors: [] });
     expect(isCastTemplateId("cast_ring")).toBe(true);
     const out = layoutSpec({ template: "cast_ring", params: {}, elements: [] } as never);
     expect(out.warnings).toEqual([]);
@@ -65,8 +65,8 @@ describe("registerCastTemplates", () => {
   });
 
   test("no templates field is a no-op", () => {
-    expect(registerCastTemplates({})).toEqual({ registered: [], skipped: [], errors: [] });
-    expect(registerCastTemplates(null)).toEqual({ registered: [], skipped: [], errors: [] });
+    expect(registerCastTemplates({})).toEqual({ registered: [], skipped: [], blocked: [], errors: [] });
+    expect(registerCastTemplates(null)).toEqual({ registered: [], skipped: [], blocked: [], errors: [] });
   });
 });
 

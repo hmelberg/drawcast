@@ -34,6 +34,44 @@
     Access-Control-Allow-Origin = "*"
     Cache-Control = "public, max-age=31536000, immutable"
 
+# Content-Security-Policy (security review 2026-09-28,
+# docs/security/2026-09-28-code-execution-inventory.md). Defence in depth
+# behind the code-trust gate (src/security/code-trust.ts): if code ever does
+# run that should not, it cannot load scripts from elsewhere, and it cannot
+# fetch()/XHR/beacon to any host outside this list — the bulk exfiltration
+# channel for a stolen API key or account token.
+#
+# Every host below is one the app itself talks to (grep for the URL in src/):
+#   script-src  'unsafe-eval' — template bodies are compiled with new Function
+#               (scenes/compile.ts); 'wasm-unsafe-eval' — pyodide, webR,
+#               MicroPython. CDNs: jsdelivr (pyodide, brython, micropython),
+#               webR, plotly, Google sign-in + Drive picker (gsi, gapi), giscus.
+#   connect-src the Anthropic API, drawcast's own functions and server, Google
+#               APIs/Drive/Docs, GitHub (publish, remote packs, pylib/mdlib on
+#               *.github.io), runtime package CDNs (pyodide/PyPI, webR repo),
+#               Wikipedia/Wikimedia, Iconify, OpenAlex, Unpaywall, Open Library,
+#               archive.org, YouTube oEmbed, PubChem, arXiv, Google Fonts (the
+#               video export inlines the face).
+#   img-src     https: — portraits, sources and images may name any host, and
+#               are loaded as <img>. (A GET to an image host is a residual
+#               exfiltration channel CSP cannot close without breaking that.)
+#   frame-src   https: — YouTube, archive.org, the C64 emulator, giscus, Google
+#               sign-in/picker, and PDFs the reader opens from any host.
+#   frame-ancestors 'self' — the app holds secrets; it is not to be framed.
+#               A framable, secret-free viewer origin is step 2
+#               (docs/security/2026-09-28-viewer-origin.md).
+# Deliberately NOT allowed: fetch() to arbitrary hosts. Casualties, all
+# author-side and rare: a source PDF on a CORS-open host not listed here, a
+# remote pack URL outside GitHub, an author poster URL on another host, a C64
+# disk image from your own URL. To allow one, add its origin to connect-src.
+# tests/csp.test.ts pins the key directives.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://webr.r-wasm.org https://cdn.plot.ly https://accounts.google.com https://apis.google.com https://giscus.app; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' data: https://fonts.gstatic.com https://drawcast.app https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' data: blob: https://drawcast.app https://drawcast.anvil.app https://api.anthropic.com https://*.googleapis.com https://accounts.google.com https://docs.google.com https://*.googleusercontent.com https://api.github.com https://raw.githubusercontent.com https://*.github.io https://cdn.jsdelivr.net https://pypi.org https://files.pythonhosted.org https://webr.r-wasm.org https://repo.r-wasm.org https://cdn.plot.ly https://*.wikipedia.org https://*.wikimedia.org https://api.iconify.design https://api.openalex.org https://api.unpaywall.org https://openlibrary.org https://covers.openlibrary.org https://archive.org https://*.archive.org https://www.youtube.com https://i.ytimg.com https://pubchem.ncbi.nlm.nih.gov https://arxiv.org https://export.arxiv.org https://fonts.googleapis.com https://fonts.gstatic.com; worker-src 'self' blob:; frame-src https:; child-src 'self' blob: https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; manifest-src 'self'"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
 # NAME.drawcast.app → drawcast.app/#name (netlify/edge-functions/name-host.mts).
 # Needs `*.drawcast.app` as a domain alias on the site; the apex and www pass
 # straight through, so the function costs the ordinary page one host check.

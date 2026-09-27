@@ -29,6 +29,7 @@
 // only — window.__frames reports the same data either way.
 
 import bundledExamples from "../examples.json";
+import { setTrustPolicy } from "../security/code-trust";
 import { elementBBoxes, layoutSpec } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
 import { lintCommands } from "../lint/lint";
@@ -38,6 +39,11 @@ import { splitVarOverrides, withOverrides } from "../render/params";
 import { LASER_COLOR, makeBrowserMeasure } from "../render/svg-backend";
 import type { BackendEffects } from "../render/backend";
 import { pointerPath, unionBoxes } from "../render/effects";
+
+// Dev only: this harness renders the local author's own files and the
+// bundled examples (scripts/cast.mjs), never a stranger's cast — so the code
+// they carry runs without the viewer prompt (security/code-trust.ts).
+setTrustPolicy("all");
 import { sceneAt, type PlanStep } from "../render/plan";
 import type { RenderHandle } from "../render/index";
 import { toSvgY } from "../layout/canvas";

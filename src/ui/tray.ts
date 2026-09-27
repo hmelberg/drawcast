@@ -58,6 +58,20 @@ import { mountKeyGuide } from "./controls";
 import { pianoOctaves } from "../render/widgets";
 import { choiceSpecs, exploreSurface, readChoice, sliderSpecs, trayPlan, type ChoiceSpec, type SliderSpec } from "./tray-model";
 import { panelViewFor } from "./panel-view";
+import { codeKey, gateItem, languageNeedsTrust } from "../security/code-trust";
+
+/**
+ * May the tray run a script for this element? The AUTHOR's script decides
+ * (security/code-trust.ts): the viewer's edits of trusted code are theirs to
+ * run; an untrusted script asks first — a Run click is not consent to code
+ * the viewer never saw. An empty stub is the viewer's own page to write on.
+ */
+function mayRun(el: SpecElement): Promise<boolean> {
+  const authored = el.code_src ?? el.code ?? "";
+  if (!el.language || !languageNeedsTrust(el.language) || authored.trim() === "") return Promise.resolve(true);
+  return gateItem({ key: codeKey(el.language, authored), kind: "code", name: el.id, language: el.language });
+}
+const NOT_ALLOWED = "Not run — this drawcast's code has not been allowed to run";
 import { askPaths, checkedAnswer } from "../code/ask-check";
 import { c64EmulatorUrl, prefersTouchJoystick } from "../code/c64";
 import { decodeRom, encodeRom, identifyDriveRom, isDiskImage } from "../code/c64-drive-rom";
@@ -382,6 +396,10 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     }
     const paths = pathsByCodeId(requestedTokens(hd.authored))[el.id] ?? [];
     setDraft(el.id, code);
+    if (!(await mayRun(el))) {
+      announce(el.id, (s) => s.status(NOT_ALLOWED));
+      return;
+    }
     announce(el.id, (s) => {
       s.busy(true);
       s.status("Running…");
@@ -1573,6 +1591,10 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
       const check = async (code: string): Promise<void> => {
         if (!el.language) return;
         setDraft(el.id, code);
+        if (!(await mayRun(el))) {
+          announce(el.id, (s) => s.status(NOT_ALLOWED));
+          return;
+        }
         announce(el.id, (s) => {
           s.busy(true);
           s.status("Running…");
