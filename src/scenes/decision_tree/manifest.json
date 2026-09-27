@@ -1,7 +1,7 @@
 {
   "name": "decision_tree",
   "status": "ready",
-  "description": "A left-to-right decision tree with health-economics conventions: decision nodes are squares, chance nodes are circles, terminal nodes are triangles. Branches carry labels, probabilities, and terminals carry payoffs (e.g. QALYs) and costs. Choose this scene for decision analysis, treatment comparisons, expected-value examples, cost-effectiveness of options, or any 'decision tree' request. Node positions are computed by a tidy-tree algorithm — never place nodes yourself. With `rollback: true` the template computes the tree itself — never do the arithmetic by hand: each chance node's expected payoff (and expected cost) is Σ p × child, written under it as value_<id>; each decision takes its best option (highest expected payoff, or with `wtp` the highest payoff × wtp − cost), marked best_<decision>_<option>, the others cut with prune_<decision>_<option>; a chance branch left without a probability gets 1 − the others. When terminals have costs the root decision's options also appear in a strategy table under the tree (cost, effect, incremental cost and effect, ICER, dominated / ext. dominated). Every computed number is live in drawn text as {tree.<key>} (ev_<id>, cost_<id>, icer_<optionId>). A big tree: set `collapsed: true` on a subtree to draw it as one node with its value.",
+  "description": "A left-to-right decision tree with health-economics conventions: decision nodes are squares, chance nodes are circles, terminal nodes are triangles. Branches carry labels, probabilities, and terminals carry payoffs (e.g. QALYs) and costs. Choose this scene for decision analysis, treatment comparisons, expected-value examples, cost-effectiveness of options, or any 'decision tree' request. Node positions are computed by a tidy-tree algorithm — never place nodes yourself. With `rollback: true` the template computes the tree itself — never do the arithmetic by hand: each chance node's expected payoff (and expected cost) is Σ p × child, written under it as value_<id>; each decision takes its best option (highest expected payoff, or with `wtp` the highest payoff × wtp − cost), marked best_<decision>_<option>, the others cut with prune_<decision>_<option>; a chance branch left without a probability gets 1 − the others. When terminals have costs the root decision's options also appear in a strategy table under the tree (cost, effect, incremental cost and effect, ICER, dominated / ext. dominated). Every computed number is live in drawn text as {tree.<key>} (ev_<id>, cost_<id>, icer_<optionId>). A big tree: set `collapsed: true` on a subtree to draw it as one node with its value, or — to show every branch — `size: \"full\"` (for about a dozen terminals and up): the words stay full size and a tree too big for the page at that size is laid out larger than it; the cast walks through it with the camera: `{\"camera\": {\"on\": [\"node_<id>\", …]}}` framing one subtree at a time (list the subtree's nodes; each node's name, value and payoff come with it) and `{\"camera\": {\"reset\": true}}` for the whole tree. The paused viewer can pan and zoom it too.",
   "params_schema": {
     "type": "object",
     "properties": {
@@ -37,7 +37,8 @@
       "currency": { "type": "string", "x-translate": false, "description": "Money prefix for costs, e.g. \"£\", \"$\", \"kr \"." },
       "unit": { "type": "string", "description": "The payoff's unit, e.g. \"QALYs\": names the table's effect column." },
       "decimals": { "type": "integer", "description": "Decimals for computed payoffs (default 2)." },
-      "table": { "type": "boolean", "description": "false hides the strategy table (default: shown under rollback when terminals have costs and the root is a decision)." }
+      "table": { "type": "boolean", "description": "false hides the strategy table (default: shown under rollback when terminals have costs and the root is a decision)." },
+      "size": { "type": "string", "enum": ["page", "full"], "description": "A tree too big for one page. \"full\": words at full size, the tree laid out larger than the page (the strategy table under it) — walk through it with camera {on: [node ids]} beats and camera {reset: true}; a tree that fits the page is drawn as always. \"page\": shrink it onto the page however small its words. Default: the page, unless its words would drop below the readable floor, then full. Ignored with a box." }
     },
     "required": ["root"]
   },
@@ -156,6 +157,153 @@
               }
             },
             { "label": "No screening", "node": { "id": "none", "type": "terminal", "label": "Usual care", "payoff": 19.6 } }
+          ]
+        }
+      }
+    },
+    {
+      "request": "A decision tree for bowel cancer screening — none, a stool test, colonoscopy or a CT scan — with the cancer and no-cancer branches of each, folded back at $30,000 per QALY. Walk through it arm by arm.",
+      "params": {
+        "size": "full",
+        "rollback": true,
+        "wtp": 30000,
+        "currency": "$",
+        "unit": "QALYs",
+        "root": {
+          "id": "choice",
+          "type": "decision",
+          "label": "Screening",
+          "children": [
+            {
+              "label": "None",
+              "node": {
+                "id": "none",
+                "type": "chance",
+                "label": "No screening",
+                "children": [
+                  {
+                    "label": "Cancer",
+                    "probability": 0.05,
+                    "node": {
+                      "id": "none_ca",
+                      "type": "chance",
+                      "label": "Cancer",
+                      "children": [
+                        { "label": "Early", "probability": 0.2, "node": { "id": "none_early", "type": "terminal", "label": "Cured", "payoff": 17, "cost": 40000 } },
+                        { "label": "Late", "probability": 0.6, "node": { "id": "none_late", "type": "terminal", "label": "Late cancer", "payoff": 9, "cost": 90000 } },
+                        { "label": "Too late", "node": { "id": "none_death", "type": "terminal", "label": "Death", "payoff": 4, "cost": 60000 } }
+                      ]
+                    }
+                  },
+                  { "label": "No cancer", "node": { "id": "none_ok", "type": "terminal", "label": "Healthy", "payoff": 19, "cost": 0 } }
+                ]
+              }
+            },
+            {
+              "label": "Stool test",
+              "node": {
+                "id": "fit",
+                "type": "chance",
+                "label": "Stool test",
+                "children": [
+                  {
+                    "label": "Cancer",
+                    "probability": 0.05,
+                    "node": {
+                      "id": "fit_ca",
+                      "type": "chance",
+                      "label": "Cancer",
+                      "children": [
+                        { "label": "Positive", "probability": 0.7, "node": { "id": "fit_early", "type": "terminal", "label": "Cured", "payoff": 17, "cost": 42000 } },
+                        { "label": "Negative", "node": { "id": "fit_late", "type": "terminal", "label": "Late cancer", "payoff": 9, "cost": 91000 } }
+                      ]
+                    }
+                  },
+                  {
+                    "label": "No cancer",
+                    "node": {
+                      "id": "fit_no",
+                      "type": "chance",
+                      "label": "No cancer",
+                      "children": [
+                        { "label": "False alarm", "probability": 0.06, "node": { "id": "fit_fp", "type": "terminal", "label": "Scoped", "payoff": 18.99, "cost": 1500 } },
+                        { "label": "Clear", "node": { "id": "fit_ok", "type": "terminal", "label": "Healthy", "payoff": 19, "cost": 500 } }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "label": "Colonoscopy",
+              "node": {
+                "id": "scope",
+                "type": "chance",
+                "label": "Colonoscopy",
+                "children": [
+                  {
+                    "label": "Cancer",
+                    "probability": 0.05,
+                    "node": {
+                      "id": "scope_ca",
+                      "type": "chance",
+                      "label": "Cancer",
+                      "children": [
+                        { "label": "Found", "probability": 0.95, "node": { "id": "scope_early", "type": "terminal", "label": "Cured", "payoff": 17, "cost": 43000 } },
+                        { "label": "Missed", "node": { "id": "scope_late", "type": "terminal", "label": "Late cancer", "payoff": 9, "cost": 92000 } }
+                      ]
+                    }
+                  },
+                  {
+                    "label": "No cancer",
+                    "node": {
+                      "id": "scope_no",
+                      "type": "chance",
+                      "label": "No cancer",
+                      "children": [
+                        { "label": "Tear", "probability": 0.003, "node": { "id": "scope_harm", "type": "terminal", "label": "Complication", "payoff": 17.5, "cost": 15000 } },
+                        { "label": "Uneventful", "node": { "id": "scope_ok", "type": "terminal", "label": "Healthy", "payoff": 19, "cost": 1500 } }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "label": "CT scan",
+              "node": {
+                "id": "ct",
+                "type": "chance",
+                "label": "CT scan",
+                "children": [
+                  {
+                    "label": "Cancer",
+                    "probability": 0.05,
+                    "node": {
+                      "id": "ct_ca",
+                      "type": "chance",
+                      "label": "Cancer",
+                      "children": [
+                        { "label": "Found", "probability": 0.9, "node": { "id": "ct_early", "type": "terminal", "label": "Cured", "payoff": 17, "cost": 42500 } },
+                        { "label": "Missed", "node": { "id": "ct_late", "type": "terminal", "label": "Late cancer", "payoff": 9, "cost": 91500 } }
+                      ]
+                    }
+                  },
+                  {
+                    "label": "No cancer",
+                    "node": {
+                      "id": "ct_no",
+                      "type": "chance",
+                      "label": "No cancer",
+                      "children": [
+                        { "label": "Incidental", "probability": 0.1, "node": { "id": "ct_extra", "type": "terminal", "label": "More tests", "payoff": 18.95, "cost": 3000 } },
+                        { "label": "Clear", "node": { "id": "ct_ok", "type": "terminal", "label": "Healthy", "payoff": 19, "cost": 800 } }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
           ]
         }
       }

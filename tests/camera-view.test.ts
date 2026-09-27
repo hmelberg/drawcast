@@ -147,6 +147,13 @@ describe("camera commands", () => {
     const [n] = cameraSteps(planCommands([{ camera: { on: ["a", "b"], zoom: 4 } }], ["a", "b"], { bboxOf }));
     expect(n.box!.w).toBeCloseTo(250, 9);
   });
+  test("`on` frames an element with its attached words (a tree's node and its name)", () => {
+    const withName: Record<string, BBox> = { ...boxes, a_name: { x: 200, y: 110, w: 180, h: 30 } };
+    const p = planCommands([{ camera: { on: "a" } }], ["a", "a_name"], { bboxOf: (id) => withName[id] ?? null, attachedTo: (id) => (id === "a" ? ["a_name"] : []) });
+    const box = cameraSteps(p)[0].box!;
+    expect(box.x + box.w).toBeGreaterThanOrEqual(380);
+    expect(box.x).toBeLessThanOrEqual(100);
+  });
   test("an unknown id in `on` warns and the rest still frame", () => {
     const p = planCommands([{ camera: { on: ["a", "nope"] } }], ["a"], { bboxOf });
     expect(p.warnings.join(" ")).toMatch(/nope/);

@@ -1762,6 +1762,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
             }
             const b = kids.length > 0 ? unionBox(kids.map(currentBox)) : currentBox(id);
             if (b) boxes.push(b);
+            // With its own words: a node framed without its name, cut at
+            // the frame's edge, is a node the viewer cannot read.
+            for (const f of opts.attachedTo?.(id) ?? []) {
+              const fb = known.has(f) ? currentBox(f) : null;
+              if (fb) boxes.push(fb);
+            }
           }
           target = unionBox(boxes);
           if (target) {

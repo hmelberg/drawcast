@@ -28,14 +28,21 @@ export function lintDecisionTree(params: DecisionTreeParams & { box?: unknown })
   }
   try {
     const l = layoutDecisionTree(params);
-    if (l.textSize < SMALL_TEXT - 0.01) {
-      let leaves = 0;
-      walkTree(root, (node) => {
-        if (node.type === "terminal") leaves++;
-      });
+    let leaves = 0;
+    walkTree(root, (node) => {
+      if (node.type === "terminal") leaves++;
+    });
+    // A world is full size: not small, but the cast must walk it — say so
+    // unless the spec asked for it.
+    if (l.world && params.size !== "full") {
       issues.push({
         severity: "warn",
-        message: `the tree (${leaves} terminals) only fits the page with its text at ${l.textSize.toFixed(0)} — set collapsed: true on a subtree to show it in parts (its value is still computed), or split it across pages`,
+        message: `the tree (${leaves} terminals) is too big for one page, so it is drawn at full size larger than the page — say size: "full" and walk through it with camera {on: [...]} beats (camera {reset: true} shows the whole), or set collapsed: true on a subtree to show it in parts`,
+      });
+    } else if (!l.world && l.textSize < SMALL_TEXT - 0.01) {
+      issues.push({
+        severity: "warn",
+        message: `the tree (${leaves} terminals) only fits the page with its text at ${l.textSize.toFixed(0)} — set size: "full" to draw it at full size larger than the page (the cast walks through it with camera {on: [...]}), or collapsed: true on a subtree to show it in parts (its value is still computed), or split it across pages`,
       });
     }
   } catch {
