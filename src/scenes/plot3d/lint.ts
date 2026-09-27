@@ -2,9 +2,10 @@
 // does not parse or calls an unknown function, a parameter outside its own
 // range (params-ui lintParams), a name the expressions read that `params`
 // never declares (it is silently 1 — usually a typo, or "ax" for a*x), a
-// surface undefined over the whole domain, a mark off it.
+// surface undefined over the whole domain, a mark off it; a fill option that
+// is unknown, out of range, or set where nothing is filled.
 import { lintParams } from "../params-ui/params";
-import { readModel, surfaceAt, type Plot3dParams } from "./model";
+import { COLOR_BYS, readModel, SURFACE_STYLES, surfaceAt, type ColorBy, type Plot3dParams, type SurfaceStyle } from "./model";
 
 type Issue = { severity: "warn" | "error"; message: string };
 
@@ -42,6 +43,14 @@ export function lintPlot3d(P: Plot3dParams): Issue[] {
     else if (x < d0 || x > d1 || y < d0 || y > d1) out.push({ severity: "warn", message: `mark ${i}: (${x}, ${y}) is outside the domain [${d0}, ${d1}]` });
     else if (!Number.isFinite(surfaceAt(m, x, y))) out.push({ severity: "warn", message: `mark ${i}: the surface is undefined at (${x}, ${y})` });
   });
+  // The fill (style "mesh" / "solid").
+  if (P.style !== undefined && !SURFACE_STYLES.includes(P.style as SurfaceStyle)) out.push({ severity: "warn", message: `style ${JSON.stringify(P.style)} is not one of ${SURFACE_STYLES.join(", ")} — drawn as "wire"` });
+  if (P.color_by !== undefined && !COLOR_BYS.includes(P.color_by as ColorBy)) out.push({ severity: "warn", message: `color_by ${JSON.stringify(P.color_by)} is not one of ${COLOR_BYS.join(", ")} — drawn as "height"` });
+  if (typeof P.opacity === "number" && !(P.opacity >= 0.1 && P.opacity <= 1)) out.push({ severity: "warn", message: `opacity ${P.opacity} is outside 0.1–1 — drawn at ${m.fill.opacity}` });
+  const fillKeys = [P.color_by, P.shading, P.opacity, P.legend].some((v) => v !== undefined);
+  if (fillKeys && m.kind === "surface" && (P.style === undefined || P.style === "wire"))
+    out.push({ severity: "warn", message: 'color_by, shading, opacity and legend fill the surface — they do nothing with style "wire" (use "mesh" or "solid")' });
+  if (P.legend === true && m.fill.style !== "wire" && m.fill.colorBy !== "height") out.push({ severity: "warn", message: 'legend explains height colours — it needs color_by "height"' });
   if (!m.showEquation && m.controls === "equation" && m.params.some((p) => p.editable)) {
     out.push({ severity: "warn", message: 'controls "equation" with show_equation false: the viewer has nothing to change the parameters with — use controls "panel"' });
   }
