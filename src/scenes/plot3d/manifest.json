@@ -1,7 +1,7 @@
 {
   "name": "plot3d",
   "status": "ready",
-  "description": "A 3D math plot in orbit-camera perspective: a wireframe surface z = f(x, y) (NOT a filled/shaded surface — a hand-sketched grid of lines, like a wire mesh model), a parametric space curve (x(t), y(t), z(t)) such as a helix, or a handful of labeled points in 3-space. Choose this scene for ANY request about a 3D surface, saddle, bowl, wireframe, mesh, parametric curve, helix, spiral in 3D, or plotting points in three dimensions — and for what a parameter does to a surface (z = a·x² − b·y² turning from bowl to saddle, a ripple's wavelength, a bump's width). azimuth_deg and elevation_deg are NUMERIC and ANIMATE smoothly — this is the marquee move for this template: animate azimuth_deg by 90-150 to orbit smoothly around the plot (\"walk around it\"), e.g. {\"animate\": {\"azimuth_deg\": 155}, \"duration\": 3}. The vertical axis is z (the function's/curve's third coordinate); x and y are the other two — this matches ordinary math notation, even though internally the plot orbits around a world y-up axis. Any name in the surface or curve other than x, y (t for a curve) and pi/e is a PARAMETER: give each a value (and min/max for a slider) in `params` and the equation is written above the plot with the current values in place, each value its own part (eq_param_<name>); animate one ({\"animate\": {\"params.a.value\": -1}}) and the surface follows. With parameters the z scale is fixed over every value their ranges allow, so a change reads as a change of height. Paused, the viewer ORBITS by dragging the plot, zooms with ctrl/⌘-wheel or a pinch, and changes the parameters by scrubbing or typing the equation's numbers (controls \"equation\", the default) or on a drawn panel of sliders (\"panel\"); an explore beat naming nothing invites exactly this. Numbers for text: {plot3d.<name>} per parameter, {plot3d.z_min}, {plot3d.z_max}, {plot3d.mark_0_z}.",
+  "description": "A 3D math plot in orbit-camera perspective: a surface z = f(x, y) (by default a hand-sketched wireframe grid of lines; style \"mesh\" fills each grid cell, coloured by height or lit, under thin wires; \"solid\" is the fills alone), a parametric space curve (x(t), y(t), z(t)) such as a helix, or a handful of labeled points in 3-space. Choose this scene for ANY request about a 3D surface, saddle, bowl, wireframe, mesh, parametric curve, helix, spiral in 3D, or plotting points in three dimensions — and for what a parameter does to a surface (z = a·x² − b·y² turning from bowl to saddle, a ripple's wavelength, a bump's width). azimuth_deg and elevation_deg are NUMERIC and ANIMATE smoothly — this is the marquee move for this template: animate azimuth_deg by 90-150 to orbit smoothly around the plot (\"walk around it\"), e.g. {\"animate\": {\"azimuth_deg\": 155}, \"duration\": 3}. The vertical axis is z (the function's/curve's third coordinate); x and y are the other two — this matches ordinary math notation, even though internally the plot orbits around a world y-up axis. Any name in the surface or curve other than x, y (t for a curve) and pi/e is a PARAMETER: give each a value (and min/max for a slider) in `params` and the equation is written above the plot with the current values in place, each value its own part (eq_param_<name>); animate one ({\"animate\": {\"params.a.value\": -1}}) and the surface follows. With parameters the z scale is fixed over every value their ranges allow, so a change reads as a change of height. Paused, the viewer ORBITS by dragging the plot, zooms with ctrl/⌘-wheel or a pinch, and changes the parameters by scrubbing or typing the equation's numbers (controls \"equation\", the default) or on a drawn panel of sliders (\"panel\"); an explore beat naming nothing invites exactly this. Use style \"mesh\" when the reader must see WHERE the surface is high or low — hills and valleys, a landscape, a peak vs a pit, a bowl turning into a saddle — or when bare wires would tangle (many bumps, a surface folding in front of itself); keep \"wire\" for one simple shape and the sketched look. Numbers for text: {plot3d.<name>} per parameter, {plot3d.z_min}, {plot3d.z_max}, {plot3d.mark_0_z}.",
   "engines": ["mathjax"],
   "params_schema": {
     "type": "object",
@@ -79,6 +79,11 @@
       "panel": { "type": "array", "items": { "type": "string", "x-translate": false }, "description": "The parameters in the panel, in order (default: the editable ones)." },
       "show_equation": { "type": "boolean", "description": "Write the equation above the plot (default: when it has parameters)." },
       "z_range": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "With parameters: the z values the plot's height is scaled to (default: every value the parameters' ranges allow)." },
+      "style": { "type": "string", "enum": ["wire", "mesh", "solid"], "description": "\"wire\" (default): the wireframe only. \"mesh\": every grid cell a flat filled patch, the wires drawn thin over it (hidden ones cut away) — the choice for reading heights. \"solid\": fills with the wires almost gone (shading on by default)." },
+      "color_by": { "type": "string", "enum": ["height", "shade", "flat"], "description": "mesh/solid: what a cell's colour says. \"height\" (default): blue low → green → gold high, on the plot's fixed z scale, so a colour keeps meaning one height while parameters move. \"shade\": one blue, lit by a light that stays with the viewer, so turning the plot shows its form. \"flat\": one tone." },
+      "shading": { "type": "boolean", "description": "mesh/solid with color_by \"height\": also darken cells that face away from the light (height hue × light). Default: on for solid, off for mesh." },
+      "opacity": { "type": "number", "description": "mesh/solid: the fills' opacity, 0.1-1 (default 0.8) — below 1 the axes and marks behind the surface show through." },
+      "legend": { "type": "boolean", "description": "mesh/solid with color_by \"height\": a small colour bar right of the plot, labelled with the lowest and highest z." },
       "marks": {
         "type": "array",
         "items": {
@@ -95,7 +100,9 @@
   },
   "element_ids": {
     "axes": "SET — the three axes and their letters in one id, e.g. draw [axes]",
-    "surface": "SET — every wireframe line of the surface in one id, e.g. draw [surface]; present when a surface is drawn",
+    "surface": "SET — every wireframe line of the surface in one id, e.g. draw [surface]; present when a surface is drawn. With style mesh/solid it is the wires AND the fill: the wires sketch in, then the fill fades in under them",
+    "surface_fill": "mesh/solid: the filled cells, one element (painted back to front, under the wires)",
+    "surface_wires": "SET — mesh/solid: the wires alone",
     "axis_x / axis_y / axis_z": "the three coordinate axes (arrows from the origin), with axis_x_label / axis_y_label / axis_z_label alongside their tips",
     "wire_row_<i> / wire_col_<i>": "the surface's row/column wireframe polylines (i = 0…grid_n-1), present when a surface is drawn",
     "curve": "the parametric curve's single polyline, present when a curve is drawn",
@@ -109,7 +116,8 @@
     "name_<name>": "panel: the parameter's label",
     "value_<name>": "panel: its current value",
     "panel": "group: every panel part",
-    "title": "the figure title, when set"
+    "title": "the figure title, when set",
+    "colorbar": "legend: the colour bar — its words colorbar_min, colorbar_max and colorbar_label (the z name) come with it; legend is the SET of all four"
   },
   "examples": [
     { "request": "Show the saddle surface z = x squared minus y squared in 3D.", "params": { "surface": "x^2 - y^2" } },
@@ -117,6 +125,10 @@
     {
       "request": "How do a and b turn a bowl into a saddle?",
       "params": { "surface": "a*x^2 - b*y^2", "params": { "a": { "value": 1, "min": -2, "max": 2 }, "b": { "value": 1, "min": -2, "max": 2 } }, "marks": [{ "at": [0, 0], "label": true }] }
+    },
+    {
+      "request": "How do you read hills and valleys on a 3D surface?",
+      "params": { "surface": "exp(-((x-1)^2 + (y-1)^2)) - 0.8*exp(-((x+1)^2 + (y+0.5)^2))", "domain": [-3, 3], "grid_n": 18, "style": "mesh", "color_by": "height", "shading": true, "legend": true }
     },
     {
       "request": "What does the width σ do to a bell-shaped bump?",

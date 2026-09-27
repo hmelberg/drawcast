@@ -1,0 +1,50 @@
+{
+  "name": "maxwell_boltzmann",
+  "status": "ready",
+  "description": "The Maxwell–Boltzmann distribution of molecular speeds (mode speed, m/s) or kinetic energies (mode energy, kJ/mol) in a gas, normalised and computed exactly — never sketched. Choose it for ANY request about molecular speeds, the kinetic theory of gases, why temperature speeds up a reaction, activation energy and the fraction of molecules above it, what a catalyst does to that fraction, or light vs heavy gases. compare adds a second curve (another T, or another gas's molar_mass). ea draws the activation-energy line and shades the share of molecules at or beyond it, written as a percentage (computed from the curve, the same number on either axis); ea_catalyst adds the catalysed barrier and shades the extra share. That share is often too thin to see (a few in a thousand): tail_zoom magnifies the tail beyond Ea as a dashed curve (\"×100\"). speeds marks the most probable, mean and rms speeds. The axes are scaled for t_range (default 250–600 K), so animating T flattens and shifts the curve on fixed axes — the marquee move ({\"animate\": {\"T\": 400}, \"duration\": 3}); set t_range when T goes beyond it. Paused, the viewer drags a curve sideways (its temperature; on a one-curve figure the pull leaves the original behind and makes a second), drags the Eₐ or catalyst line, and scrubs or types a temperature label; an explore beat naming nothing invites exactly this. Numbers for text: {mb.percent_above}, {mb.fraction_above}, {mb.percent_above_2}, {mb.ratio} (compare ÷ main), {mb.catalyst_ratio}, {mb.v_mp}, {mb.v_mean}, {mb.v_rms}, {mb.T}, {mb.T2}.",
+  "params_schema": {
+    "type": "object",
+    "properties": {
+      "mode": { "type": "string", "enum": ["speed", "energy"], "description": "The x axis: molecular speed in m/s (default) or kinetic energy in kJ/mol (the activation-energy lesson's usual axis)." },
+      "T": { "type": "number", "minimum": 100, "maximum": 1000, "description": "Temperature, K (default 300). Animate it." },
+      "molar_mass": { "type": "number", "minimum": 2, "maximum": 200, "description": "g/mol (default 28, N₂). Speed mode only." },
+      "label": { "type": "string", "description": "A short name written before the temperature (\"N₂\")." },
+      "compare": {
+        "type": "object",
+        "properties": { "T": { "type": "number", "minimum": 100, "maximum": 1000 }, "molar_mass": { "type": "number" }, "label": { "type": "string" } },
+        "description": "A second curve in red: {T: 310} for a warmer gas, {molar_mass: 4, label: \"He\"} for a lighter one."
+      },
+      "ea": { "type": "number", "minimum": 1, "maximum": 100, "description": "Activation energy, kJ/mol: its line, the share beyond it shaded and written." },
+      "ea_catalyst": { "type": "number", "description": "The catalysed activation energy (below ea), kJ/mol: a dashed line and the extra share shaded green." },
+      "tail_zoom": { "type": "number", "description": "Magnify the tail beyond Eₐ by this factor (10, 100, 1000 …), drawn dashed with its \"×100\"." },
+      "speeds": { "type": "array", "items": { "type": "string", "enum": ["mp", "mean", "rms"] }, "description": "Mark the most probable (\"peak\"), mean and rms speed of the main curve (energy mode: mp and mean)." },
+      "show_fraction": { "type": "boolean", "description": "Write the share beyond Eₐ beside the shading (default true)." },
+      "t_range": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "[low, high] K the axes are scaled for, and the viewer's bounds (default [250, 600], widened to fit T)." },
+      "x_max": { "type": "number", "description": "The x axis's end (m/s or kJ/mol). Usually leave unset." },
+      "x_label": { "type": "string" },
+      "y_label": { "type": "string" },
+      "title": { "type": "string" }
+    }
+  },
+  "element_ids": {
+    "axes": "the two axes (ticks and captions come with them)",
+    "x_ticks / x_label / y_label": "the x axis's numbers and the captions",
+    "curve / curve_label": "the distribution and its temperature (\"300 K\")",
+    "compare_curve / compare_label": "the second curve and its temperature",
+    "ea_line / ea_label": "the activation energy's line and its \"Eₐ\"",
+    "shade / fraction_label": "the share of molecules beyond Eₐ, shaded and written (\"4.6 %\")",
+    "compare_shade / compare_fraction_label": "the same for the second curve",
+    "ea_cat_line / ea_cat_label / catalyst_shade": "the catalyst's lower barrier and the extra share it lets through",
+    "tail / compare_tail / zoom_label": "the magnified tails past Eₐ and their \"×100\", with tail_zoom (catalyst_tail, the stretch the catalyst opens, comes with ea_cat_line)",
+    "mp_line / mp_label": "the most probable speed (\"peak\")",
+    "mean_line / mean_label": "the mean speed",
+    "rms_line / rms_label": "the root-mean-square speed",
+    "title": "the title, when set"
+  },
+  "examples": [
+    { "request": "Show the distribution of molecular speeds of nitrogen at room temperature.", "params": { "T": 300, "molar_mass": 28, "label": "N₂", "speeds": ["mp", "mean", "rms"] } },
+    { "request": "Why does raising the temperature speed up a reaction?", "params": { "mode": "energy", "T": 300, "compare": { "T": 350 }, "ea": 20, "tail_zoom": 100 } },
+    { "request": "How does a catalyst change the fraction of molecules that can react?", "params": { "mode": "energy", "T": 300, "ea": 20, "ea_catalyst": 14, "tail_zoom": 30, "title": "A catalyst lowers the barrier" } },
+    { "request": "Compare the speeds of helium and nitrogen at the same temperature.", "params": { "T": 300, "label": "N₂", "compare": { "molar_mass": 4, "label": "He" } } }
+  ]
+}

@@ -43,9 +43,32 @@ export interface Plot3dParams {
   show_equation?: boolean;
   z_range?: [number, number];
   marks?: MarkSpec3[];
+  style?: string;
+  color_by?: string;
+  shading?: boolean;
+  opacity?: number;
+  legend?: boolean;
 }
 
 export type Kind = "surface" | "curve" | "points";
+
+/** How a surface is drawn: its wires only, filled cells under thin wires, or fills with the wires all but gone. */
+export type SurfaceStyle = "wire" | "mesh" | "solid";
+export const SURFACE_STYLES: SurfaceStyle[] = ["wire", "mesh", "solid"];
+/** What a filled cell's colour says: its height, its facing (lit), or nothing (one tone). */
+export type ColorBy = "height" | "shade" | "flat";
+export const COLOR_BYS: ColorBy[] = ["height", "shade", "flat"];
+export const DEFAULT_FILL_OPACITY = 0.8;
+
+/** The fill options, read once — `style` "wire" (the default) draws none of it. */
+export interface FillModel {
+  style: SurfaceStyle;
+  colorBy: ColorBy;
+  /** Lambert light × the colour: always with "shade"; "height" takes it when asked (default: solid only). */
+  shading: boolean;
+  opacity: number;
+  legend: boolean;
+}
 
 export interface Expr {
   src: string;
@@ -70,6 +93,7 @@ export interface Model extends ParamSet {
   zRange: [number, number] | null;
   camera: { azimuth: number; elevation: number; zoom: number; distance: number | null };
   marks: MarkSpec3[];
+  fill: FillModel;
   /** Names the expressions read that the author did not declare (each is 1). */
   undeclared: string[];
   errors: string[];
@@ -155,7 +179,17 @@ export function readModel(P: Plot3dParams): Model {
     zoom: num(P.zoom) && P.zoom > 0 ? clampZoom(P.zoom) : 1,
     distance: num(P.distance) && P.distance > 0 ? P.distance : null,
   };
-  return { ...set, kind, surface, curve, domain, gridN, variables, steady, showEquation, zRange, camera, marks, undeclared, errors };
+  return { ...set, kind, surface, curve, domain, gridN, variables, steady, showEquation, zRange, camera, marks, fill: readFill(P), undeclared, errors };
+}
+
+/** The fill options — an unknown style is "wire" (the lint names it), an unknown color_by "height". */
+export function readFill(P: Plot3dParams): FillModel {
+  const style: SurfaceStyle = SURFACE_STYLES.includes(P.style as SurfaceStyle) ? (P.style as SurfaceStyle) : "wire";
+  const colorBy: ColorBy = COLOR_BYS.includes(P.color_by as ColorBy) ? (P.color_by as ColorBy) : "height";
+  const shading = colorBy === "shade" ? true : typeof P.shading === "boolean" ? P.shading : style === "solid";
+  const opacity = num(P.opacity) ? Math.min(1, Math.max(0.1, P.opacity)) : DEFAULT_FILL_OPACITY;
+  const legend = P.legend === true && colorBy === "height" && style !== "wire";
+  return { style, colorBy, shading, opacity, legend };
 }
 
 export const clampZoom = (z: number): number => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
@@ -227,10 +261,20 @@ export function rangeEnvs(m: Model): Env[] {
 
 /** The largest |z| the surface reaches over its range of parameters (or the z_range's). */
 export function steadyZAbs(m: Model): number {
-  if (m.zRange) return Math.max(Math.abs(m.zRange[0]), Math.abs(m.zRange[1]));
-  let zAbs = 0;
-  for (const env of rangeEnvs(m)) for (const row of sampleSurface(m, env)) for (const z of row) zAbs = Math.max(zAbs, Math.abs(z));
-  return zAbs;
+  const [lo, hi] = steadyZExtent(m);
+  return Math.max(Math.abs(lo), Math.abs(hi));
+}
+
+/** The lowest and highest z the surface reaches over its range of parameters (or the z_range) — the height colours' fixed scale. */
+export function steadyZExtent(m: Model): [number, number] {
+  if (m.zRange) return [m.zRange[0], m.zRange[1]];
+  let lo = 0;
+  let hi = 0;
+  for (const env of rangeEnvs(m)) for (const row of sampleSurface(m, env)) for (const z of row) {
+    if (z < lo) lo = z;
+    if (z > hi) hi = z;
+  }
+  return [lo, hi];
 }
 
 /** The surface's min and max z at the current values (raw units), sampled

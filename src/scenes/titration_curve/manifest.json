@@ -1,0 +1,72 @@
+{
+  "name": "titration_curve",
+  "status": "ready",
+  "description": "An acid–base titration curve: pH (0–14) against the volume of titrant added, computed EXACTLY from the charge balance (dilution and water included) — never sketched. Choose it for ANY request about titration curves, equivalence points, why the pH jumps, weak vs strong acids or bases, buffers on a titration, pH = pKa at half-equivalence, choosing an indicator, or polyprotic acids. kind: strong_acid / weak_acid (titrated with NaOH) or strong_base / weak_base (with HCl); pka is the ACID form's (acetic acid 4.76; ammonia's NH4+ 9.25), a list for a polyprotic acid. Marks are computed: equivalence point(s), half-equivalence (pH = pKa, weak only), the buffer region (pH within pKa ± 1). compare draws a second curve (a strong acid beside a weak one). v puts a volume cursor on the curve with its readout; animate v ({\"animate\": {\"v\": 40}, \"duration\": 6}) with trace: true and the curve is drawn as the titrant runs in — the marquee move. indicator shades its colour-change range; flask: true adds a burette over a flask whose liquid takes the indicator's colour. Paused, the viewer drags the curve or cursor (the volume), a half-equivalence point up/down (the pKa), an equivalence point sideways (the amount of acid), the indicator band up/down (another indicator), and scrubs or types the numbers written above the plot; an explore beat naming nothing invites exactly this. Numbers for text: {titration.ph}, {titration.v}, {titration.v_eq}, {titration.ph_eq}, {titration.pka}, {titration.ph_half}, {titration.ph_start}, {titration.compare_ph_eq}.",
+  "params_schema": {
+    "type": "object",
+    "properties": {
+      "kind": { "type": "string", "enum": ["strong_acid", "weak_acid", "strong_base", "weak_base"], "description": "The analyte in the flask (default weak_acid). An acid is titrated with NaOH, a base with HCl." },
+      "c_analyte": { "type": "number", "minimum": 0.01, "maximum": 1, "description": "Analyte concentration, mol/L (default 0.1)." },
+      "v_analyte": { "type": "number", "description": "Analyte volume, mL (default 25)." },
+      "c_titrant": { "type": "number", "minimum": 0.01, "maximum": 1, "description": "Titrant concentration, mol/L (default 0.1)." },
+      "pka": {
+        "oneOf": [{ "type": "number", "minimum": 1, "maximum": 13 }, { "type": "array", "items": { "type": "number" }, "minItems": 1, "maxItems": 3 }],
+        "description": "Weak analytes only: the acid form's pKa (acetic 4.76, NH4+ 9.25), or 2–3 rising pKa's for a polyprotic acid ([2.15, 7.20])."
+      },
+      "v": { "type": "number", "description": "Volume added at the cursor, mL: draws the cursor with its readout (\"12.5 mL, pH 4.76\"). Animate it." },
+      "trace": { "type": "boolean", "description": "Draw the curve only up to v (the titration as it happens)." },
+      "v_max": { "type": "number", "description": "The x axis's end, mL (default about twice the equivalence volume). Set it when animating a concentration." },
+      "indicator": { "type": "string", "enum": ["none", "methyl_orange", "methyl_red", "bromothymol_blue", "phenolphthalein"], "description": "Shade this indicator's colour-change range (phenolphthalein 8.2–10)." },
+      "marks": { "type": "array", "items": { "type": "string", "enum": ["equivalence", "half", "buffer"] }, "description": "Which computed marks to draw (default all that apply)." },
+      "neutral": { "type": "boolean", "description": "A dashed line at pH 7." },
+      "compare": {
+        "type": "object",
+        "properties": {
+          "kind": { "type": "string", "enum": ["strong_acid", "weak_acid", "strong_base", "weak_base"] },
+          "c_analyte": { "type": "number" },
+          "v_analyte": { "type": "number" },
+          "c_titrant": { "type": "number" },
+          "pka": { "oneOf": [{ "type": "number" }, { "type": "array", "items": { "type": "number" } }] },
+          "label": { "type": "string" }
+        },
+        "description": "A second curve in red, e.g. {kind: \"strong_acid\", label: \"HCl\"}; unset numbers are the main curve's."
+      },
+      "label": { "type": "string", "description": "The main curve's short name (\"acetic acid\")." },
+      "analyte": { "type": "string", "description": "The analyte's name in the numbers' line (default \"acid\"/\"base\"), e.g. \"CH₃COOH\"." },
+      "titrant": { "type": "string", "description": "The titrant's name (default \"NaOH\"/\"HCl\")." },
+      "numbers": { "type": "boolean", "description": "Write the numbers the curve is made of above the plot (default true) — the viewer scrubs them." },
+      "flask": { "type": "boolean", "description": "Draw a burette over a flask beside the plot." },
+      "x_label": { "type": "string" },
+      "y_label": { "type": "string" },
+      "title": { "type": "string" }
+    }
+  },
+  "element_ids": {
+    "axes": "the two axes (their ticks and captions come with them)",
+    "x_ticks / y_ticks / x_label / y_label": "the ticks and the captions",
+    "curve": "the pH curve",
+    "curve_label": "its name, when label is set",
+    "compare_curve / compare_label": "the comparison curve and its name",
+    "eq_point / eq_label": "the equivalence point on the curve and its word (eq_point_2 … for a polyprotic acid)",
+    "compare_eq_point": "the comparison curve's equivalence point",
+    "half_point / half_label": "half-equivalence, where pH = pKa (weak analytes; half_point_2 …)",
+    "buffer / buffer_label": "the buffer region: the box where pH is within pKa ± 1",
+    "indicator_band / indicator_label": "the indicator's colour-change range and its name",
+    "neutral_line / neutral_label": "pH 7, when neutral is true",
+    "cursor / cursor_dot / cursor_label": "the volume cursor, its dot on the curve and its readout (when v is set)",
+    "legend": "the numbers' line (its numbers come with it)",
+    "num_c_analyte / num_v_analyte / num_c_titrant / num_pka": "each number in that line (num_pka_2 … for more pKa's) — point at one when the voice names it",
+    "burette / flask / flask_liquid": "the glassware, when flask is true (burette_liquid, burette_tip come with the burette)",
+    "marks": "group: every computed mark",
+    "title": "the title, when set"
+  },
+  "examples": [
+    { "request": "Show the titration curve of acetic acid with sodium hydroxide.", "params": { "kind": "weak_acid", "pka": 4.76, "label": "acetic acid", "analyte": "CH₃COOH", "indicator": "phenolphthalein" } },
+    {
+      "request": "Why is the equivalence point of a weak acid above pH 7, unlike a strong acid's?",
+      "params": { "kind": "weak_acid", "pka": 4.76, "label": "weak", "compare": { "kind": "strong_acid", "label": "strong" }, "neutral": true, "marks": ["equivalence", "half"] }
+    },
+    { "request": "Titrate ammonia with hydrochloric acid, step by step.", "params": { "kind": "weak_base", "pka": 9.25, "analyte": "NH₃", "v": 0, "trace": true, "indicator": "methyl_red", "flask": true, "title": "Ammonia with HCl" } },
+    { "request": "Titration curve of a diprotic acid.", "params": { "kind": "weak_acid", "pka": [2.15, 7.2], "v": 20 } }
+  ]
+}

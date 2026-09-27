@@ -1,0 +1,280 @@
+{
+  "name": "motion_graphs",
+  "status": "ready",
+  "description": "Linked kinematics graphs of one straight-line motion: position x(t), velocity v(t), acceleration a(t) stacked on ONE shared time axis (pick the panels), the object on a track above, and a time cursor through every panel — a dot on each graph, tangents showing slope of x = v and slope of v = a, the values read out beside each panel. Choose it for ANY question about motion graphs: how x–t, v–t and a–t relate, slope = velocity, area under v–t = displacement/distance, speeding up, braking, uniform acceleration, a car or ball moving in 1D. Motion: constant acceleration {x0, v0, a, duration}, or `segments` [{duration, a}] (or v1, the velocity at the piece's end); position is continuous. `t` is the cursor's time and ANIMATES: {\"animate\": {\"t\": 6}, \"duration\": 4} runs the object, cursor, readouts and shading — SET t in params (e.g. 0) first. shade \"to_cursor\" fills the area under v(t) up to the cursor (it grows as t sweeps; above the axis yellow, below red). Paused, the viewer drags the cursor (its t pill, or anywhere on the graphs), drags a v piece up/down (near an end: that corner's velocity; the middle: the whole piece), an a piece (its acceleration), and scrubs or taps the header numbers — everything follows; an explore beat naming nothing invites this. Numbers for text: {motion.t}, {motion.x}, {motion.v}, {motion.a} (at the cursor), {motion.displacement}, {motion.distance} (0 to the cursor), {motion.displacement_total}, {motion.distance_total}, {motion.x_end}, {motion.v_end}, {motion.duration}, {motion.a_<i>}, {motion.v_<i>} (piece i's a and end velocity). `{data: [t, v]}` lands on the v–t graph.",
+  "params_schema": {
+    "type": "object",
+    "properties": {
+      "x0": {
+        "type": "number",
+        "description": "Starting position (default 0)."
+      },
+      "v0": {
+        "type": "number",
+        "description": "Starting velocity (default 0)."
+      },
+      "a": {
+        "type": "number",
+        "description": "Constant acceleration (no segments). Default 0."
+      },
+      "duration": {
+        "type": "number",
+        "description": "How long the motion lasts (no segments). Default 5."
+      },
+      "segments": {
+        "type": "array",
+        "maxItems": 8,
+        "items": {
+          "type": "object",
+          "properties": {
+            "duration": {
+              "type": "number",
+              "description": "How long this piece lasts (> 0)."
+            },
+            "a": {
+              "type": "number",
+              "description": "The piece's constant acceleration (default 0)."
+            },
+            "v1": {
+              "type": "number",
+              "description": "Instead of a: the velocity at the piece's end."
+            },
+            "v0": {
+              "type": "number",
+              "description": "Only for an instant change of velocity (a bounce) at this piece's start; leave it out for a smooth motion."
+            },
+            "label": {
+              "type": "string",
+              "description": "A word or three naming the phase (\"braking\"), written above it."
+            }
+          },
+          "required": [
+            "duration"
+          ]
+        },
+        "description": "The motion in pieces of constant acceleration, in order: e.g. [{duration: 2, a: 2}, {duration: 3}, {duration: 2, v1: 0}] speeds up, cruises, brakes to a stop. At most 8."
+      },
+      "panels": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "x",
+            "v",
+            "a"
+          ]
+        },
+        "description": "Which graphs, drawn top to bottom x, v, a (default all three), e.g. [\"x\", \"v\"]."
+      },
+      "t": {
+        "type": "number",
+        "description": "The cursor's time (default 0). Animate it to run the motion."
+      },
+      "cursor": {
+        "type": "boolean",
+        "description": "Draw the time cursor, dots, tangents and readouts (default true)."
+      },
+      "track": {
+        "type": "boolean",
+        "description": "Draw the object on a position track above the graphs (default true)."
+      },
+      "shade": {
+        "type": "string",
+        "enum": [
+          "none",
+          "to_cursor",
+          "all"
+        ],
+        "description": "Shade the area under v(t): up to the cursor, over the whole motion, or none (default)."
+      },
+      "tangents": {
+        "type": "boolean",
+        "description": "Tangents at the cursor on x(t) (slope = v) and v(t) (slope = a). Default true."
+      },
+      "readout": {
+        "type": "boolean",
+        "description": "x, v, a at the cursor written beside each panel (default true)."
+      },
+      "numbers": {
+        "oneOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "x0",
+                "v0",
+                "a"
+              ],
+              "x-translate": false
+            }
+          }
+        ],
+        "description": "The motion's numbers in a header line, scrubbable: true = v0 and a (constant acceleration; the default there) or v0 (segments; off by default there); or a list."
+      },
+      "units": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "string"
+          },
+          "t": {
+            "type": "string"
+          }
+        },
+        "description": "Units of position and time (default m, s); v and a take x/t and x/t²."
+      },
+      "labels": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "string",
+            "x-translate": false
+          },
+          "v": {
+            "type": "string",
+            "x-translate": false
+          },
+          "a": {
+            "type": "string",
+            "x-translate": false
+          },
+          "t": {
+            "type": "string",
+            "x-translate": false
+          },
+          "object": {
+            "type": "string",
+            "description": "A word over the object (\"car\")."
+          }
+        },
+        "description": "The graphs' symbols (default x, v, a, t) and a name for the object."
+      },
+      "x_range": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        },
+        "minItems": 2,
+        "maxItems": 2,
+        "description": "[min, max] of the x panel (default: round numbers that hold the motion)."
+      },
+      "v_range": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        },
+        "minItems": 2,
+        "maxItems": 2,
+        "description": "[min, max] of the v panel."
+      },
+      "a_range": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        },
+        "minItems": 2,
+        "maxItems": 2,
+        "description": "[min, max] of the a panel."
+      },
+      "title": {
+        "type": "string"
+      }
+    }
+  },
+  "element_ids": {
+    "axes": "SET — every panel's axes",
+    "axes_x / axes_v / axes_a": "a panel's axes (value axis, t axis at 0); its ticks_<k>, label_<k>, unit_<k> come with it",
+    "ticks_x / ticks_v / ticks_a": "a panel's value numbers",
+    "label_x / label_v / label_a / label_t": "a graph's symbol; label_t the time caption",
+    "unit_x / unit_v / unit_a": "a panel's unit",
+    "time_ticks": "the time numbers under the bottom panel",
+    "curve_x": "the x(t) graph",
+    "v_seg_<i> / a_seg_<i>": "piece i of v(t) / a(t) (constant case: piece 0)",
+    "curve_v / curve_a": "SET — the whole v(t) / a(t) graph",
+    "boundaries": "dashed lines where pieces meet",
+    "phase_<i>": "piece i's label",
+    "phases": "SET — every phase label",
+    "area": "the shaded area under v(t) (shade)",
+    "cursor": "the time cursor; drawing it brings its dots, tangents, readouts and handle",
+    "cursor_knob / readout_t": "the cursor's handle and the time in it",
+    "dot_x / dot_v / dot_a": "a graph's point at the cursor",
+    "tangent_x / tangent_v": "the tangent at the cursor (slope of x = v, of v = a)",
+    "readout_x / readout_v / readout_a": "x, v, a at the cursor",
+    "readouts": "SET — every readout",
+    "track / track_label": "the position track and its caption",
+    "object": "the moving object (object_arrow, its velocity, and object_label come with it)",
+    "object_arrow / object_label": "its velocity arrow (absent at v ≈ 0) and its name",
+    "num_x0 / num_v0 / num_a": "a header number (with name_<k>, unit_<k>)",
+    "name_x0 / name_v0 / name_a / unit_x0 / unit_v0 / unit_a": "a header number's name and unit",
+    "numbers": "SET — the header line",
+    "title": "the title, when set"
+  },
+  "examples": [
+    {
+      "request": "Show the position, velocity and acceleration graphs of a ball thrown upward.",
+      "params": {
+        "x0": 0,
+        "v0": 10,
+        "a": -10,
+        "duration": 2,
+        "t": 0.5,
+        "units": {
+          "x": "m",
+          "t": "s"
+        },
+        "numbers": [
+          "x0",
+          "v0",
+          "a"
+        ],
+        "labels": {
+          "object": "ball"
+        },
+        "title": "Thrown upward"
+      }
+    },
+    {
+      "request": "A car speeds up, cruises, then brakes: how do its x–t, v–t and a–t graphs fit together?",
+      "params": {
+        "segments": [
+          {
+            "duration": 3,
+            "a": 2,
+            "label": "speeding up"
+          },
+          {
+            "duration": 4,
+            "label": "cruising"
+          },
+          {
+            "duration": 3,
+            "v1": 0,
+            "label": "braking"
+          }
+        ],
+        "t": 0,
+        "numbers": true,
+        "shade": "to_cursor"
+      }
+    },
+    {
+      "request": "Why is the area under a velocity graph the distance travelled?",
+      "params": {
+        "v0": 4,
+        "a": -1,
+        "duration": 6,
+        "panels": [
+          "x",
+          "v"
+        ],
+        "shade": "all",
+        "t": 6,
+        "track": false
+      }
+    }
+  ]
+}
