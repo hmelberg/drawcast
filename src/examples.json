@@ -4855,7 +4855,9 @@
         "price_x": 3,
         "price_y": 6,
         "x_good": "Coffees",
-        "y_good": "Sandwiches"
+        "y_good": "Sandwiches",
+        "x_max": 22,
+        "y_max": 12
       },
       "commands": [
         {
@@ -69870,5 +69872,529 @@
   {
     "request": "A screening decision tree with 10 terminals (screen vs no screen; cancer found or missed; false alarms; treatment outcomes), folded back with costs and a strategy table: first the overview with the screening subtree collapsed, then each part expanded in turn with the camera on it. Illustrative numbers.",
     "playlist": "playlist:\n  title: Is screening worth it?\n  prompt: \"A screening decision tree with 10 terminals (screen vs no screen; cancer found or missed; false alarms; treatment outcomes), folded back with costs and a strategy table: first the overview with the screening subtree collapsed, then each part expanded in turn with the camera on it. Illustrative numbers.\"\n  advance: auto\n  gap: 1\n---\n{\n \"title\": \"The overview\",\n \"template\": \"decision_tree\",\n \"params\": {\n  \"rollback\": true,\n  \"currency\": \"$\",\n  \"unit\": \"QALYs\",\n  \"size\": \"page\",\n  \"root\": {\n   \"id\": \"choice\",\n   \"type\": \"decision\",\n   \"label\": \"Screen?\",\n   \"children\": [\n    {\n     \"label\": \"No screen\",\n     \"node\": {\n      \"id\": \"none\",\n      \"type\": \"chance\",\n      \"label\": \"\",\n      \"children\": [\n       {\n        \"label\": \"Cancer\",\n        \"node\": {\n         \"id\": \"n_ca\",\n         \"type\": \"chance\",\n         \"label\": \"\",\n         \"children\": [\n          {\n           \"label\": \"\",\n           \"node\": {\n            \"id\": \"n_late_ok\",\n            \"type\": \"terminal\",\n            \"label\": \"Survives\",\n            \"payoff\": 12,\n            \"cost\": 50000\n           },\n           \"probability\": 0.5\n          },\n          {\n           \"label\": \"\",\n           \"node\": {\n            \"id\": \"n_late_die\",\n            \"type\": \"terminal\",\n            \"label\": \"Dies\",\n            \"payoff\": 4,\n            \"cost\": 40000\n           }\n          }\n         ]\n        },\n        \"probability\": 0.01\n       },\n       {\n        \"label\": \"\",\n        \"node\": {\n         \"id\": \"n_ok\",\n         \"type\": \"terminal\",\n         \"label\": \"Healthy\",\n         \"payoff\": 20,\n         \"cost\": 0\n        }\n       }\n      ]\n     }\n    },\n    {\n     \"label\": \"Screen\",\n     \"node\": {\n      \"id\": \"screen\",\n      \"type\": \"chance\",\n      \"label\": \"\",\n      \"children\": [\n       {\n        \"label\": \"Cancer\",\n        \"node\": {\n         \"id\": \"s_ca\",\n         \"type\": \"chance\",\n         \"label\": \"\",\n         \"children\": [\n          {\n           \"label\": \"Found\",\n           \"node\": {\n            \"id\": \"s_found\",\n            \"type\": \"chance\",\n            \"label\": \"\",\n            \"children\": [\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_cured\",\n               \"type\": \"terminal\",\n               \"label\": \"Cured\",\n               \"payoff\": 18,\n               \"cost\": 30000\n              },\n              \"probability\": 0.85\n             },\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_notcured\",\n               \"type\": \"terminal\",\n               \"label\": \"Not cured\",\n               \"payoff\": 8,\n               \"cost\": 60000\n              }\n             }\n            ]\n           },\n           \"probability\": 0.9\n          },\n          {\n           \"label\": \"Missed\",\n           \"node\": {\n            \"id\": \"s_missed\",\n            \"type\": \"chance\",\n            \"label\": \"\",\n            \"children\": [\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_late_ok\",\n               \"type\": \"terminal\",\n               \"label\": \"Survives\",\n               \"payoff\": 12,\n               \"cost\": 50000\n              },\n              \"probability\": 0.5\n             },\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_late_die\",\n               \"type\": \"terminal\",\n               \"label\": \"Dies\",\n               \"payoff\": 4,\n               \"cost\": 40000\n              }\n             }\n            ]\n           }\n          }\n         ]\n        },\n        \"probability\": 0.01\n       },\n       {\n        \"label\": \"No cancer\",\n        \"node\": {\n         \"id\": \"s_no\",\n         \"type\": \"chance\",\n         \"label\": \"\",\n         \"children\": [\n          {\n           \"label\": \"False alarm\",\n           \"node\": {\n            \"id\": \"s_fp\",\n            \"type\": \"chance\",\n            \"label\": \"\",\n            \"children\": [\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_fp_ok\",\n               \"type\": \"terminal\",\n               \"label\": \"Clear\",\n               \"payoff\": 19.95,\n               \"cost\": 1000\n              },\n              \"probability\": 0.99\n             },\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_fp_harm\",\n               \"type\": \"terminal\",\n               \"label\": \"Harm\",\n               \"payoff\": 17,\n               \"cost\": 15000\n              }\n             }\n            ]\n           },\n           \"probability\": 0.05\n          },\n          {\n           \"label\": \"\",\n           \"node\": {\n            \"id\": \"s_tn\",\n            \"type\": \"terminal\",\n            \"label\": \"Healthy\",\n            \"payoff\": 20,\n            \"cost\": 0\n           }\n          }\n         ]\n        }\n       }\n      ],\n      \"collapsed\": true\n     },\n     \"cost\": 300\n    }\n   ]\n  }\n },\n \"commands\": [\n  {\n   \"card\": {\n    \"title\": \"Is screening worth it?\"\n   }\n  },\n  {\n   \"hide\": [\n    \"value_choice\"\n   ]\n  },\n  {\n   \"draw\": [\n    \"node_choice\",\n    \"label_choice\"\n   ],\n   \"speak\": \"Should we screen healthy people for a cancer? A decision tree can weigh it; the numbers here are illustrative.\"\n  },\n  {\n   \"draw\": [\n    \"edge_choice_none\",\n    \"branchlabel_choice_none\",\n    \"node_none\",\n    \"label_none\",\n    \"edge_none_n_ca\",\n    \"branchlabel_none_n_ca\",\n    \"node_n_ca\",\n    \"label_n_ca\"\n   ],\n   \"speak\": \"Without screening, 1 in 100 people has the cancer, and it is found late.\"\n  },\n  {\n   \"draw\": [\n    \"edge_n_ca_n_late_ok\",\n    \"branchlabel_n_ca_n_late_ok\",\n    \"node_n_late_ok\",\n    \"payoff_n_late_ok\",\n    \"label_n_late_ok\",\n    \"edge_n_ca_n_late_die\",\n    \"branchlabel_n_ca_n_late_die\",\n    \"node_n_late_die\",\n    \"payoff_n_late_die\",\n    \"label_n_late_die\"\n   ],\n   \"speak\": \"Half of them survive, with 12 quality-adjusted years; the others die, with 4.\"\n  },\n  {\n   \"draw\": [\n    \"edge_none_n_ok\",\n    \"branchlabel_none_n_ok\",\n    \"node_n_ok\",\n    \"payoff_n_ok\",\n    \"label_n_ok\"\n   ],\n   \"speak\": \"The other 99 stay healthy: 20 years, at no cost.\"\n  },\n  {\n   \"draw\": [\n    \"value_n_ca\",\n    \"value_none\"\n   ],\n   \"speak\": \"Weigh each outcome by its chance, and no screening is worth 19.88 years, at 450 dollars a person.\"\n  },\n  {\n   \"draw\": [\n    \"edge_choice_screen\",\n    \"branchlabel_choice_screen\",\n    \"node_screen\",\n    \"label_screen\"\n   ],\n   \"speak\": \"Screening starts with a 300-dollar test for everyone.\"\n  },\n  {\n   \"draw\": [\n    \"collapsed_screen\",\n    \"value_screen\"\n   ],\n   \"speak\": \"Behind it is a whole subtree, folded shut here: 19.95 years, at 712 dollars.\"\n  },\n  {\n   \"draw\": [\n    \"best\",\n    \"pruned\"\n   ],\n   \"speak\": \"The tree picks screening, the option worth more years.\"\n  },\n  {\n   \"draw\": [\n    \"strategy_table\"\n   ],\n   \"speak\": \"It buys 0.07 years for 262 dollars more: about 3,700 dollars per year gained.\"\n  },\n  {\n   \"highlight\": {\n    \"target\": [\n     \"strategy_base_screen\",\n     \"strategy_delta_screen\"\n    ]\n   },\n   \"speak\": \"But 0.07 years is under a month. Where does it come from?\"\n  }\n ]\n}\n---\n{\n \"title\": \"The one in a hundred\",\n \"template\": \"decision_tree\",\n \"params\": {\n  \"rollback\": true,\n  \"currency\": \"$\",\n  \"unit\": \"QALYs\",\n  \"size\": \"page\",\n  \"root\": {\n   \"id\": \"choice\",\n   \"type\": \"decision\",\n   \"label\": \"Screen?\",\n   \"children\": [\n    {\n     \"label\": \"No screen\",\n     \"node\": {\n      \"id\": \"none\",\n      \"type\": \"chance\",\n      \"label\": \"\",\n      \"children\": [\n       {\n        \"label\": \"Cancer\",\n        \"node\": {\n         \"id\": \"n_ca\",\n         \"type\": \"chance\",\n         \"label\": \"\",\n         \"children\": [\n          {\n           \"label\": \"\",\n           \"node\": {\n            \"id\": \"n_late_ok\",\n            \"type\": \"terminal\",\n            \"label\": \"Survives\",\n            \"payoff\": 12,\n            \"cost\": 50000\n           },\n           \"probability\": 0.5\n          },\n          {\n           \"label\": \"\",\n           \"node\": {\n            \"id\": \"n_late_die\",\n            \"type\": \"terminal\",\n            \"label\": \"Dies\",\n            \"payoff\": 4,\n            \"cost\": 40000\n           }\n          }\n         ]\n        },\n        \"probability\": 0.01\n       },\n       {\n        \"label\": \"\",\n        \"node\": {\n         \"id\": \"n_ok\",\n         \"type\": \"terminal\",\n         \"label\": \"Healthy\",\n         \"payoff\": 20,\n         \"cost\": 0\n        }\n       }\n      ],\n      \"collapsed\": true\n     }\n    },\n    {\n     \"label\": \"Screen\",\n     \"node\": {\n      \"id\": \"screen\",\n      \"type\": \"chance\",\n      \"label\": \"\",\n      \"children\": [\n       {\n        \"label\": \"Cancer\",\n        \"node\": {\n         \"id\": \"s_ca\",\n         \"type\": \"chance\",\n         \"label\": \"\",\n         \"children\": [\n          {\n           \"label\": \"Found\",\n           \"node\": {\n            \"id\": \"s_found\",\n            \"type\": \"chance\",\n            \"label\": \"\",\n            \"children\": [\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_cured\",\n               \"type\": \"terminal\",\n               \"label\": \"Cured\",\n               \"payoff\": 18,\n               \"cost\": 30000\n              },\n              \"probability\": 0.85\n             },\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_notcured\",\n               \"type\": \"terminal\",\n               \"label\": \"Not cured\",\n               \"payoff\": 8,\n               \"cost\": 60000\n              }\n             }\n            ]\n           },\n           \"probability\": 0.9\n          },\n          {\n           \"label\": \"Missed\",\n           \"node\": {\n            \"id\": \"s_missed\",\n            \"type\": \"chance\",\n            \"label\": \"\",\n            \"children\": [\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_late_ok\",\n               \"type\": \"terminal\",\n               \"label\": \"Survives\",\n               \"payoff\": 12,\n               \"cost\": 50000\n              },\n              \"probability\": 0.5\n             },\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_late_die\",\n               \"type\": \"terminal\",\n               \"label\": \"Dies\",\n               \"payoff\": 4,\n               \"cost\": 40000\n              }\n             }\n            ],\n            \"collapsed\": true\n           }\n          }\n         ]\n        },\n        \"probability\": 0.01\n       },\n       {\n        \"label\": \"No cancer\",\n        \"node\": {\n         \"id\": \"s_no\",\n         \"type\": \"chance\",\n         \"label\": \"\",\n         \"children\": [\n          {\n           \"label\": \"False alarm\",\n           \"node\": {\n            \"id\": \"s_fp\",\n            \"type\": \"chance\",\n            \"label\": \"\",\n            \"children\": [\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_fp_ok\",\n               \"type\": \"terminal\",\n               \"label\": \"Clear\",\n               \"payoff\": 19.95,\n               \"cost\": 1000\n              },\n              \"probability\": 0.99\n             },\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_fp_harm\",\n               \"type\": \"terminal\",\n               \"label\": \"Harm\",\n               \"payoff\": 17,\n               \"cost\": 15000\n              }\n             }\n            ]\n           },\n           \"probability\": 0.05\n          },\n          {\n           \"label\": \"\",\n           \"node\": {\n            \"id\": \"s_tn\",\n            \"type\": \"terminal\",\n            \"label\": \"Healthy\",\n            \"payoff\": 20,\n            \"cost\": 0\n           }\n          }\n         ],\n         \"collapsed\": true\n        }\n       }\n      ]\n     },\n     \"cost\": 300\n    }\n   ]\n  },\n  \"table\": false\n },\n \"commands\": [\n  {\n   \"hide\": [\n    \"value_choice\"\n   ]\n  },\n  {\n   \"draw\": [\n    \"node_choice\",\n    \"label_choice\",\n    \"edge_choice_screen\",\n    \"branchlabel_choice_screen\",\n    \"node_screen\",\n    \"label_screen\",\n    \"edge_choice_none\",\n    \"branchlabel_choice_none\",\n    \"node_none\",\n    \"label_none\",\n    \"collapsed_none\",\n    \"value_none\",\n    \"value_screen\",\n    \"edge_screen_s_ca\",\n    \"branchlabel_screen_s_ca\",\n    \"node_s_ca\",\n    \"label_s_ca\",\n    \"edge_screen_s_no\",\n    \"branchlabel_screen_s_no\",\n    \"node_s_no\",\n    \"label_s_no\",\n    \"collapsed_s_no\",\n    \"value_s_no\"\n   ],\n   \"parallel\": true,\n   \"speak\": \"Open screening, and follow the 1 in 100 with cancer.\"\n  },\n  {\n   \"camera\": {\n    \"on\": [\n     \"node_s_ca\",\n     \"node_s_found\",\n     \"node_s_cured\",\n     \"node_s_notcured\"\n    ]\n   }\n  },\n  {\n   \"draw\": [\n    \"edge_s_ca_s_found\",\n    \"branchlabel_s_ca_s_found\",\n    \"node_s_found\",\n    \"label_s_found\",\n    \"edge_s_found_s_cured\",\n    \"branchlabel_s_found_s_cured\",\n    \"node_s_cured\",\n    \"payoff_s_cured\",\n    \"label_s_cured\",\n    \"edge_s_found_s_notcured\",\n    \"branchlabel_s_found_s_notcured\",\n    \"node_s_notcured\",\n    \"payoff_s_notcured\",\n    \"label_s_notcured\"\n   ],\n   \"speak\": \"The test finds 9 in 10 of their cancers early, and 85 in 100 of those are cured: 18 years.\"\n  },\n  {\n   \"camera\": {\n    \"reset\": true\n   }\n  },\n  {\n   \"draw\": [\n    \"edge_s_ca_s_missed\",\n    \"branchlabel_s_ca_s_missed\",\n    \"node_s_missed\",\n    \"label_s_missed\",\n    \"collapsed_s_missed\",\n    \"value_s_missed\"\n   ],\n   \"speak\": \"The missed tenth is found late, just as without screening: 8 years.\"\n  },\n  {\n   \"draw\": [\n    \"value_s_found\",\n    \"value_s_ca\"\n   ],\n   \"speak\": \"So a person with cancer can expect 15.65 years if screened; unscreened, on the first page, it was 8.\"\n  },\n  {\n   \"highlight\": {\n    \"target\": [\n     \"value_s_ca\"\n    ]\n   },\n   \"speak\": \"That is 7.65 years more for every person with cancer.\"\n  }\n ]\n}\n---\n{\n \"title\": \"The ninety-nine\",\n \"template\": \"decision_tree\",\n \"params\": {\n  \"rollback\": true,\n  \"currency\": \"$\",\n  \"unit\": \"QALYs\",\n  \"size\": \"page\",\n  \"root\": {\n   \"id\": \"choice\",\n   \"type\": \"decision\",\n   \"label\": \"Screen?\",\n   \"children\": [\n    {\n     \"label\": \"No screen\",\n     \"node\": {\n      \"id\": \"none\",\n      \"type\": \"chance\",\n      \"label\": \"\",\n      \"children\": [\n       {\n        \"label\": \"Cancer\",\n        \"node\": {\n         \"id\": \"n_ca\",\n         \"type\": \"chance\",\n         \"label\": \"\",\n         \"children\": [\n          {\n           \"label\": \"\",\n           \"node\": {\n            \"id\": \"n_late_ok\",\n            \"type\": \"terminal\",\n            \"label\": \"Survives\",\n            \"payoff\": 12,\n            \"cost\": 50000\n           },\n           \"probability\": 0.5\n          },\n          {\n           \"label\": \"\",\n           \"node\": {\n            \"id\": \"n_late_die\",\n            \"type\": \"terminal\",\n            \"label\": \"Dies\",\n            \"payoff\": 4,\n            \"cost\": 40000\n           }\n          }\n         ]\n        },\n        \"probability\": 0.01\n       },\n       {\n        \"label\": \"\",\n        \"node\": {\n         \"id\": \"n_ok\",\n         \"type\": \"terminal\",\n         \"label\": \"Healthy\",\n         \"payoff\": 20,\n         \"cost\": 0\n        }\n       }\n      ],\n      \"collapsed\": true\n     }\n    },\n    {\n     \"label\": \"Screen\",\n     \"node\": {\n      \"id\": \"screen\",\n      \"type\": \"chance\",\n      \"label\": \"\",\n      \"children\": [\n       {\n        \"label\": \"Cancer\",\n        \"node\": {\n         \"id\": \"s_ca\",\n         \"type\": \"chance\",\n         \"label\": \"\",\n         \"children\": [\n          {\n           \"label\": \"Found\",\n           \"node\": {\n            \"id\": \"s_found\",\n            \"type\": \"chance\",\n            \"label\": \"\",\n            \"children\": [\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_cured\",\n               \"type\": \"terminal\",\n               \"label\": \"Cured\",\n               \"payoff\": 18,\n               \"cost\": 30000\n              },\n              \"probability\": 0.85\n             },\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_notcured\",\n               \"type\": \"terminal\",\n               \"label\": \"Not cured\",\n               \"payoff\": 8,\n               \"cost\": 60000\n              }\n             }\n            ]\n           },\n           \"probability\": 0.9\n          },\n          {\n           \"label\": \"Missed\",\n           \"node\": {\n            \"id\": \"s_missed\",\n            \"type\": \"chance\",\n            \"label\": \"\",\n            \"children\": [\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_late_ok\",\n               \"type\": \"terminal\",\n               \"label\": \"Survives\",\n               \"payoff\": 12,\n               \"cost\": 50000\n              },\n              \"probability\": 0.5\n             },\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_late_die\",\n               \"type\": \"terminal\",\n               \"label\": \"Dies\",\n               \"payoff\": 4,\n               \"cost\": 40000\n              }\n             }\n            ]\n           }\n          }\n         ],\n         \"collapsed\": true\n        },\n        \"probability\": 0.01\n       },\n       {\n        \"label\": \"No cancer\",\n        \"node\": {\n         \"id\": \"s_no\",\n         \"type\": \"chance\",\n         \"label\": \"\",\n         \"children\": [\n          {\n           \"label\": \"False alarm\",\n           \"node\": {\n            \"id\": \"s_fp\",\n            \"type\": \"chance\",\n            \"label\": \"\",\n            \"children\": [\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_fp_ok\",\n               \"type\": \"terminal\",\n               \"label\": \"Clear\",\n               \"payoff\": 19.95,\n               \"cost\": 1000\n              },\n              \"probability\": 0.99\n             },\n             {\n              \"label\": \"\",\n              \"node\": {\n               \"id\": \"s_fp_harm\",\n               \"type\": \"terminal\",\n               \"label\": \"Harm\",\n               \"payoff\": 17,\n               \"cost\": 15000\n              }\n             }\n            ],\n            \"collapsed\": true\n           },\n           \"probability\": 0.05\n          },\n          {\n           \"label\": \"\",\n           \"node\": {\n            \"id\": \"s_tn\",\n            \"type\": \"terminal\",\n            \"label\": \"Healthy\",\n            \"payoff\": 20,\n            \"cost\": 0\n           }\n          }\n         ]\n        }\n       }\n      ]\n     },\n     \"cost\": 300\n    }\n   ]\n  }\n },\n \"commands\": [\n  {\n   \"hide\": [\n    \"value_choice\"\n   ]\n  },\n  {\n   \"draw\": [\n    \"node_choice\",\n    \"label_choice\",\n    \"edge_choice_screen\",\n    \"branchlabel_choice_screen\",\n    \"node_screen\",\n    \"label_screen\",\n    \"edge_choice_none\",\n    \"branchlabel_choice_none\",\n    \"node_none\",\n    \"label_none\",\n    \"collapsed_none\",\n    \"value_none\",\n    \"value_screen\",\n    \"edge_screen_s_ca\",\n    \"branchlabel_screen_s_ca\",\n    \"node_s_ca\",\n    \"label_s_ca\",\n    \"edge_screen_s_no\",\n    \"branchlabel_screen_s_no\",\n    \"node_s_no\",\n    \"label_s_no\",\n    \"collapsed_s_ca\",\n    \"value_s_ca\"\n   ],\n   \"parallel\": true,\n   \"speak\": \"Now the other 99, who have no cancer.\"\n  },\n  {\n   \"camera\": {\n    \"on\": [\n     \"node_s_no\",\n     \"node_s_fp\",\n     \"node_s_tn\"\n    ]\n   }\n  },\n  {\n   \"draw\": [\n    \"edge_s_no_s_tn\",\n    \"branchlabel_s_no_s_tn\",\n    \"node_s_tn\",\n    \"payoff_s_tn\",\n    \"label_s_tn\"\n   ],\n   \"speak\": \"Most test clear: they gain nothing, and pay only the 300-dollar test on the branch above.\"\n  },\n  {\n   \"draw\": [\n    \"edge_s_no_s_fp\",\n    \"branchlabel_s_no_s_fp\",\n    \"node_s_fp\",\n    \"label_s_fp\",\n    \"collapsed_s_fp\",\n    \"value_s_fp\"\n   ],\n   \"speak\": \"5 in 100 get a false alarm: a biopsy, worry, and now and then harm.\"\n  },\n  {\n   \"camera\": {\n    \"reset\": true\n   }\n  },\n  {\n   \"draw\": [\n    \"value_s_no\"\n   ],\n   \"speak\": \"So the healthy keep their 20 years, near enough, and pay 57 dollars each on top of the test.\"\n  },\n  {\n   \"draw\": [\n    \"strategy_table\"\n   ],\n   \"speak\": \"7.65 years for 1 in 100 is about 0.08 each; false alarms take a little back, leaving 0.07.\"\n  },\n  {\n   \"highlight\": {\n    \"target\": [\n     \"strategy_base_screen\",\n     \"strategy_delta_screen\",\n     \"strategy_icer_screen\"\n    ]\n   },\n   \"speak\": \"A small average can still be good value: here, about 3,700 dollars per year gained.\"\n  },\n  {\n   \"quiz\": {\n    \"question\": \"Screening adds 0.07 years per person. What does that mean?\",\n    \"choices\": [\n     \"Everyone gains about 26 days\",\n     \"A few gain years; most gain nothing\",\n     \"Everyone loses a little\"\n    ],\n    \"correct\": 2,\n    \"right\": \"A few gain years and most gain nothing: 7.65 years for 1 in 100, averaged over everyone screened.\",\n    \"wrong\": \"Look at which branch the extra years came from.\"\n   }\n  }\n ]\n}\n"
+  },
+  {
+    "request": "Why do sine and cosine repeat every full turn?",
+    "spec": {
+      "title": "Why sine and cosine repeat",
+      "template": "unit_circle",
+      "params": {
+        "angle_deg": 30,
+        "readout": "deg"
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Why sine repeats"
+          }
+        },
+        {
+          "draw": [
+            "x_axis",
+            "y_axis",
+            "circle"
+          ],
+          "speak": "Why do sine and cosine repeat themselves after every full turn? Start with a circle of radius one."
+        },
+        {
+          "draw": [
+            "radius",
+            "point",
+            "angle_arc",
+            "angle_label",
+            "angle_value"
+          ],
+          "speak": "Turn a radius thirty degrees up from the right-hand axis; its tip is a point on the circle."
+        },
+        {
+          "draw": [
+            "cos_line"
+          ],
+          "speak": "Cosine is how far across that point sits: 0.87."
+        },
+        {
+          "draw": [
+            "sin_line"
+          ],
+          "speak": "Sine is how far up it sits: exactly one half."
+        },
+        {
+          "draw": [
+            "coords_label"
+          ],
+          "speak": "So sine and cosine are simply the point's two coordinates."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "animate": {
+            "angle_deg": 150
+          },
+          "duration": 3,
+          "speak": "Keep turning, to 150 degrees: the point swings left, and the cosine turns negative."
+        },
+        {
+          "highlight": {
+            "target": [
+              "sin_line"
+            ]
+          },
+          "speak": "Its height is still one half, the same sine as thirty degrees."
+        },
+        {
+          "animate": {
+            "angle_deg": 210
+          },
+          "duration": 3,
+          "speak": "At 210 the point has dropped below and to the left, so both numbers are negative."
+        },
+        {
+          "animate": {
+            "angle_deg": 390
+          },
+          "duration": 4,
+          "speak": "Now go on past a full turn, to 390 degrees."
+        },
+        {
+          "highlight": {
+            "target": [
+              "angle_value"
+            ]
+          },
+          "speak": "The angle has grown by 360."
+        },
+        {
+          "highlight": {
+            "target": [
+              "coords_label"
+            ]
+          },
+          "speak": "Yet the point stands exactly where it stood at thirty, so its coordinates are the same again."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "circle"
+            },
+            "gesture": "circle"
+          },
+          "speak": "That is the whole reason: the angle keeps counting, but the circle has only one lap of places to put the point."
+        },
+        {
+          "speak": "Anything that comes round again, a swing, a tide, a sound, is written in sines and cosines for that reason."
+        },
+        {
+          "explore": {},
+          "speak": "Take hold of the point and drag it round a few times: watch the angle climb while the coordinates come back."
+        },
+        {
+          "quiz": {
+            "question": "Which angle has the same sine and cosine as 45°?",
+            "choices": [
+              "135°",
+              "225°",
+              "405°"
+            ],
+            "correct": 3,
+            "right": "405° is 45° plus a full turn, so the point is back in the same place and both coordinates repeat.",
+            "wrong": "Look for the angle that puts the point in exactly the same spot."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "How does a price rise split into substitution and income effects?",
+    "spec": {
+      "title": "One price rise, two effects",
+      "template": "indifference_budget",
+      "params": {
+        "income": 60,
+        "price_x": 4,
+        "price_x_before": 2,
+        "price_y": 6,
+        "x_good": "Coffees",
+        "y_good": "Sandwiches",
+        "curves": 1
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "One price rise, two effects"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "When coffee gets dearer, why do you buy less of it? Two different reasons hide in one move."
+        },
+        {
+          "draw": [
+            "budget_old",
+            "label_budget_old"
+          ],
+          "speak": "Maya has sixty dollars a week for coffee at two dollars and sandwiches at six. This line is every mix she can just afford."
+        },
+        {
+          "draw": [
+            "ic_old",
+            "label_ic_old",
+            "point_a",
+            "label_point_a",
+            "guide_a"
+          ],
+          "speak": "Her best mix is A, where the highest curve she can reach just touches the line: fifteen coffees and five sandwiches."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "budget_line",
+            "label_budget"
+          ],
+          "speak": "Now coffee doubles to four dollars. The line swings in about its sandwich end."
+        },
+        {
+          "draw": [
+            "ic_1",
+            "label_ic_1",
+            "optimum",
+            "optimum_label",
+            "guide_x",
+            "guide_y"
+          ],
+          "speak": "Her new best mix is B: seven and a half coffees, and still five sandwiches."
+        },
+        {
+          "highlight": {
+            "target": [
+              "guide_a",
+              "guide_x"
+            ]
+          },
+          "speak": "Part of that drop is because coffee is dear next to sandwiches; part is because she is simply poorer."
+        },
+        {
+          "draw": [
+            "budget_comp",
+            "label_budget_comp"
+          ],
+          "speak": "To pull them apart, give her just enough money to stay on her old curve at the new prices."
+        },
+        {
+          "draw": [
+            "point_c",
+            "label_point_c",
+            "guide_c"
+          ],
+          "speak": "The dashed line touches that curve at C: about ten and a half coffees and seven sandwiches."
+        },
+        {
+          "draw": [
+            "substitution_effect",
+            "label_substitution"
+          ],
+          "speak": "A to C is the substitution effect: just as happy, but with coffee dearer, she swaps some of it for food."
+        },
+        {
+          "draw": [
+            "income_effect",
+            "label_income"
+          ],
+          "speak": "C to B is the income effect: take the extra money away again, and she buys less coffee still."
+        },
+        {
+          "highlight": {
+            "target": [
+              "budget_comp"
+            ]
+          },
+          "speak": "That extra money was about twenty-five dollars a week: what the price rise really cost her."
+        },
+        {
+          "explore": {},
+          "speak": "Your turn: drag the end of the solid line to change coffee's price, and watch the two arrows."
+        },
+        {
+          "highlight": {
+            "target": [
+              "substitution_effect"
+            ]
+          },
+          "speak": "The substitution effect always points away from the good that got dearer."
+        },
+        {
+          "highlight": {
+            "target": [
+              "income_effect"
+            ]
+          },
+          "speak": "The income effect depends on the good: for cheap staples people buy less of as they get richer, it points back."
+        },
+        {
+          "quiz": {
+            "question": "If Maya were paid enough to stay on her old curve, which effect would remain?",
+            "choices": [
+              "Substitution",
+              "Income",
+              "Neither"
+            ],
+            "correct": 1,
+            "right": "Substitution: the money cancels the income effect, but coffee is still dear next to sandwiches, so she still swaps some for food."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "What happens in IS-LM when the government spends more?",
+    "spec": {
+      "title": "More spending, a higher rate",
+      "template": "is_lm",
+      "params": {
+        "is_shift": 20
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "More spending, a higher rate"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "What happens when the government spends more? In the IS-LM diagram, output and the interest rate answer together."
+        },
+        {
+          "draw": [
+            "is_curve"
+          ],
+          "speak": "The IS curve is the market for goods: the lower the rate, the more firms borrow to invest, and the more gets bought."
+        },
+        {
+          "draw": [
+            "lm_curve"
+          ],
+          "speak": "The LM curve is the market for money: more output needs more money for payments, and with the supply fixed, the rate must rise."
+        },
+        {
+          "draw": [
+            "eq"
+          ],
+          "speak": "Both markets clear where they cross: output of fifty-seven billion dollars, at four and a half percent."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "highlight": {
+            "target": [
+              "is_curve"
+            ]
+          },
+          "speak": "Now the government builds roads, and the builders it pays spend part of their new income in turn."
+        },
+        {
+          "draw": [
+            "is_shifted"
+          ],
+          "speak": "At any rate, demand is now twenty billion higher: the IS curve shifts twenty to the right."
+        },
+        {
+          "highlight": {
+            "target": [
+              "lm_curve"
+            ]
+          },
+          "speak": "But more output needs more money for payments. Borrowers compete for it, and the rate climbs along LM."
+        },
+        {
+          "draw": [
+            "eq2"
+          ],
+          "speak": "The economy settles here: output of sixty-seven billion, with the rate up to five point two percent."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "eq2"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Output rose ten, not twenty: at the higher rate, firms put off some investment. That is crowding out."
+        },
+        {
+          "explore": {},
+          "speak": "Your turn: drag the curves. Can the central bank, by moving LM, hold the rate where it was?"
+        },
+        {
+          "highlight": {
+            "target": [
+              "is_shifted"
+            ]
+          },
+          "speak": "A central bank that adds enough money to hold the rate removes the crowding out, and output rises the full twenty."
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq2"
+            ]
+          },
+          "speak": "So what a stimulus adds depends on the central bank as much as on the government."
+        },
+        {
+          "quiz": {
+            "question": "Why did output rise by less than the twenty billion of extra demand?",
+            "choices": [
+              "The rate rose and cut investment",
+              "Prices rose",
+              "Taxes rose"
+            ],
+            "correct": 1,
+            "right": "The rate rose: more output needed more money, borrowers bid the rate up, and some investment was crowded out."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "How does a supply shock move prices and output in AD-AS?",
+    "spec": {
+      "title": "A supply shock",
+      "template": "ad_as",
+      "params": {
+        "shift": {
+          "curve": "as",
+          "direction": "left",
+          "amount": 0
+        },
+        "show_lras": true
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "A supply shock"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "How does a supply shock move prices and output? Take an economy whose firms suddenly pay far more for oil."
+        },
+        {
+          "draw": [
+            "ad",
+            "label_ad"
+          ],
+          "speak": "Aggregate demand is all the spending there is: at a lower price level, the same money buys more."
+        },
+        {
+          "draw": [
+            "as",
+            "label_as"
+          ],
+          "speak": "Aggregate supply is what firms produce: with wages fixed for now, better prices make more output worth making."
+        },
+        {
+          "draw": [
+            "eq",
+            "guides",
+            "label_eq"
+          ],
+          "speak": "Where they cross is this year's output and price level."
+        },
+        {
+          "draw": [
+            "lras",
+            "label_lras"
+          ],
+          "speak": "Here that is also potential output: everyone who wants a job has one."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "as_shifted",
+            "label_as_shifted",
+            "shift_arrow",
+            "eq_new",
+            "label_eq_new"
+          ],
+          "speak": "Lay a copy of supply over the first, and raise the price of oil."
+        },
+        {
+          "animate": {
+            "shift.amount": 14
+          },
+          "duration": 3,
+          "speak": "Every unit now costs more to make, so at each price level firms make less: supply shifts left."
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq_new"
+            ]
+          },
+          "speak": "The economy slides up along demand: output falls about fourteen percent, and prices rise about as much."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "eq_new"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Less output and rising prices at once: stagflation."
+        },
+        {
+          "highlight": {
+            "target": [
+              "ad"
+            ]
+          },
+          "speak": "And it is a trap: more spending to rescue output lifts prices further, while squeezing demand deepens the slump."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "as_shifted"
+            },
+            "gesture": "tap"
+          },
+          "speak": "In 1973 the price of oil quadrupled, and much of the rich world got exactly this mix."
+        },
+        {
+          "explore": {},
+          "speak": "Your turn: drag the new supply curve, and watch prices and output move in opposite directions."
+        },
+        {
+          "highlight": {
+            "target": [
+              "as_shifted"
+            ]
+          },
+          "speak": "A demand shock moves prices and output the same way; a supply shock drives them apart."
+        },
+        {
+          "quiz": {
+            "question": "After a supply shock like dearer oil, what happens?",
+            "choices": [
+              "Prices and output both rise",
+              "Prices rise, output falls",
+              "Prices and output both fall"
+            ],
+            "correct": 2,
+            "right": "Prices rise and output falls: supply shifts left, and the economy slides up along demand to meet it."
+          }
+        }
+      ]
+    }
   }
 ]
