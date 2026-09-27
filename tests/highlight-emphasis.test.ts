@@ -12,7 +12,7 @@
 // drop-shadow halo anywhere.
 
 import { describe, expect, test } from "vitest";
-import { emphasisColorFor, glowKindOf, rendererFor } from "../src/render/svg-backend";
+import { emphasisColorFor, emphasisColorForAll, glowKindOf, rendererFor } from "../src/render/svg-backend";
 import { layoutSpec } from "../src/layout/layout";
 import { heuristicMeasure } from "../src/layout/measure";
 import { installMiniDom, FakeNode } from "./helpers/mini-dom";
@@ -190,6 +190,21 @@ describe("the emphasis colour steps aside when it would read as the target's own
 
   test("a colour the spec asked for is kept as asked", () => {
     expect(emphasisColorFor("#b5482e", COLORS.demand, true)).toBe("#b5482e");
+    expect(emphasisColorForAll("#b5482e", [COLORS.demand], true)).toBe("#b5482e");
+  });
+
+  test("one gesture, one colour: a red row and a purple row highlighted together do not swap colours", () => {
+    // Per leaf, the red row went blue and the purple row red — each in the other's role.
+    // Now one colour for the gesture; every candidate clashes with one of the two, so the default holds.
+    expect(emphasisColorForAll("#cf4632", [COLORS.demand, COLORS.accent], false)).toBe("#cf4632");
+    // A red row among ink ones: the whole gesture steps aside, together.
+    const one = emphasisColorForAll("#cf4632", [COLORS.demand, COLORS.ink], false);
+    expect(readsAsSame(one, COLORS.demand)).toBe(false);
+    expect(readsAsSame(one, COLORS.ink)).toBe(false);
+    // No clash: the default stays.
+    expect(emphasisColorForAll("#cf4632", [COLORS.ink, COLORS.accent], false)).toBe("#cf4632");
+    // The least clashing candidate wins.
+    expect(emphasisColorForAll("#cf4632", [COLORS.demand, COLORS.demand, COLORS.supply], false)).toBe(COLORS.supply);
   });
 
   test("glow picks by leaf: band for a line, marker for a code row, tint for the rest", () => {

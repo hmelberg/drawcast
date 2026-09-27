@@ -1172,6 +1172,21 @@ export function emphasisColorFor(want: string, own: string | undefined, explicit
   return EMPHASIS_FALLBACKS.find((c) => !readsAsSame(c, own) && !readsAsSame(c, INK)) ?? want;
 }
 
+/**
+ * ONE emphasis colour for everything a gesture tints: `want`, unless it reads
+ * as one of the targets' own inks — then the candidate (want, then the
+ * fallbacks, never plain ink) that clashes with the fewest of them. Chosen
+ * per leaf, highlighting a red row and a purple one together turned the red
+ * one blue and the purple one red — each row in the other's colour
+ * (2026-09-27). A colour the spec asked for is kept as asked.
+ */
+export function emphasisColorForAll(want: string, owns: (string | undefined)[], explicit: boolean): string {
+  const inks = owns.filter((o): o is string => o !== undefined);
+  const clashes = (c: string) => inks.filter((own) => readsAsSame(c, own)).length;
+  if (explicit || clashes(want) === 0) return want;
+  return [want, ...EMPHASIS_FALLBACKS.filter((c) => !readsAsSame(c, INK))].reduce((best, c) => (clashes(c) < clashes(best) ? c : best));
+}
+
 /** Glow's frame round a filled shape: half of it is masked by the shape, so this is twice what shows outside. */
 const FRAME_WIDTH = 24;
 
@@ -1545,6 +1560,12 @@ function makeEffects(
             st.nodes.push(frames);
             st.masks = [...(st.masks ?? []), mask];
           }
+          // One tint for every leaf this gesture recolours (see emphasisColorForAll).
+          const tint = emphasisColorForAll(
+            color ?? HIGHLIGHT_COLOR,
+            lit.filter((e) => e.leaf.kind !== "image" && (effect !== "glow" || glowKindOf(e.leaf, filledTarget) === "tint")).map((e) => (e.leaf.kind === "image" ? undefined : e.leaf.style.color)),
+            color !== undefined,
+          );
           for (const { g, leaf } of lit) {
             const own = leaf.kind === "image" ? undefined : leaf.style.color;
             const hit = textHits.get(leaf.id);
@@ -1553,7 +1574,6 @@ function makeEffects(
             // and the numbers and names inside it their ink.
             if (glow === "frame" || (framed.length > 0 && (leaf.kind === "area" || leaf.kind === "text"))) continue;
             if (glow === "tint") {
-              const tint = emphasisColorFor(color ?? HIGHLIGHT_COLOR, own, color !== undefined);
               const clone =
                 hit && leaf.kind === "text"
                   ? rangeClone(g, tint, rowOffset(textRows(leaf), hit.row, hit.col), rowOffset(textRows(leaf), hit.row, hit.col) + hit.len)

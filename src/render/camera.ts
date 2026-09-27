@@ -93,10 +93,28 @@ export function cameraBox(cx: number, cy: number, zoom: number, rest: BBox, lift
   return clampView({ x: cx - w / 2, y: cy - h / 2 - lift * h, w, h }, rest);
 }
 
-/** The zoom that frames `target` with `margin` on its tighter side (page-relative). */
+/** A wide, short target (a table or matrix row) is framed at least this close, its ends cropped. */
+export const FIT_SHORT_MIN_ZOOM = 1.4;
+/** A small target is framed no closer than this: a cell at 17× is a cell and nothing else. */
+export const FIT_MAX_ZOOM = 4;
+
+/**
+ * The zoom that frames `target` with `margin` on its tighter side
+ * (page-relative) — within two limits. A small target stops at
+ * FIT_MAX_ZOOM, with its neighbours round it. A wide, SHORT one — a matrix
+ * row 830 wide and 40 tall — would frame at below page size, which the
+ * camera clamps to no zoom at all, so "walk the matrix row by row" could not
+ * move; when its height leaves room to spare it is framed at
+ * FIT_SHORT_MIN_ZOOM instead, centred on it, its ends cropped at the sides
+ * (2026-09-27).
+ */
 export function fitZoom(target: BBox, margin: number): number | null {
   if (!(target.w > 0) || !(target.h > 0)) return null;
-  return Math.min(CANVAS.w / (target.w * margin), CANVAS.h / (target.h * margin));
+  const byW = CANVAS.w / (target.w * margin);
+  const byH = CANVAS.h / (target.h * margin);
+  const z = Math.min(byW, byH);
+  if (z < FIT_SHORT_MIN_ZOOM && byH >= 2 * FIT_SHORT_MIN_ZOOM) return FIT_SHORT_MIN_ZOOM;
+  return Math.min(z, FIT_MAX_ZOOM);
 }
 
 /**
