@@ -19,6 +19,14 @@
 // that puts ink down, every boundary where an animate has committed new params
 // (plan.states[i].params), and the last boundary. Not every beat — a draw beat
 // mid-figure is a frame nobody stops on.
+//
+// MID-GESTURE frames (&beats=all): a frame is the state AFTER its beat, and
+// the momentary gestures — highlight, focus, point, flow — hold only while
+// their sentence is spoken, so an after-frame never shows them and emphasis
+// could not be judged from the sheet. A beat whose step IS one of those is
+// drawn as the viewer sees it mid-sentence instead (paintGesture): the same
+// backend effect calls the player makes, frozen at full strength. Pictures
+// only — window.__frames reports the same data either way.
 
 import bundledExamples from "../examples.json";
 import { elementBBoxes, layoutSpec } from "../layout/layout";
@@ -27,7 +35,12 @@ import { lintCommands } from "../lint/lint";
 import { itemsOf, parsePlaylistText } from "../playlist/playlist";
 import { render } from "../render";
 import { splitVarOverrides, withOverrides } from "../render/params";
-import { makeBrowserMeasure } from "../render/svg-backend";
+import { LASER_COLOR, makeBrowserMeasure } from "../render/svg-backend";
+import type { BackendEffects } from "../render/backend";
+import { pointerPath, unionBoxes } from "../render/effects";
+import { sceneAt, type PlanStep } from "../render/plan";
+import type { RenderHandle } from "../render/index";
+import { toSvgY } from "../layout/canvas";
 import { resolveCode } from "../render/code";
 import { expandSpec } from "../spec/expand";
 import { validateSpec } from "../spec/schema";
@@ -236,6 +249,76 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
   return report;
 }
 
+// ---- mid-gesture frames ----
+
+const GESTURES = new Set(["highlight", "focus", "point", "flow"]);
+
+/** The momentary gesture this beat performs, if the frame is a narrated
+ *  gesture beat — the step whose after-state would hide it. */
+function gestureAt(plan: { steps: PlanStep[] }, at: number): PlanStep | null {
+  const step = plan.steps[at - 1];
+  return step && GESTURES.has(step.kind) && step.narration ? step : null;
+}
+
+/**
+ * Hold a gesture on a mount parked at its boundary, as the player paints it
+ * mid-sentence (render/player.ts, the highlight/focus/flow/point cases): the
+ * same BackendEffects calls, at full level, with enough elapsed time that a
+ * marker or band is fully written. The player keeps its effects private; a
+ * dev page reaches in rather than widen the app's API for a picture.
+ */
+function paintGesture(hd: RenderHandle, at: number, step: PlanStep, canvas: HTMLElement): void {
+  const effects = (hd.timeline as unknown as { effects: BackendEffects | null }).effects;
+  if (!effects) return;
+  const before = sceneAt(hd.plan, at - 1);
+  switch (step.kind) {
+    case "highlight": {
+      const box = unionBoxes(
+        step.ids.flatMap((id) => {
+          const b = step.boxes[id];
+          if (!b) return [];
+          const [dx, dy] = before.offsets[id] ?? [0, 0];
+          return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
+        }),
+      );
+      effects.setHighlight(step.ids, step.effect, 1, box, step.color, 10_000, step.part);
+      return;
+    }
+    case "focus": {
+      const keep = new Set(step.ids);
+      effects.setFocus?.(before.visible.filter((id) => !keep.has(id)), 0.16);
+      return;
+    }
+    case "flow": {
+      effects.setFlow?.(step.ids, { spacing: step.spacing, marks: step.marks, color: step.color, reverse: step.reverse }, { travelled: step.spacing * 0.4, alpha: 1 });
+      // The marks are the stroke's own colour on the stroke: moving, they catch
+      // the eye; stilled in a thumbnail they read as bumps. Fatten them here
+      // (the sheet only) so a still shows where the flow runs.
+      const dash = step.marks === "dots" ? `0.1 ${step.spacing}` : `${step.spacing / 2} ${step.spacing / 2}`;
+      for (const p of canvas.querySelectorAll(`[data-leaf-id] > path[stroke-dasharray="${dash}"]`)) p.setAttribute("stroke-width", step.marks === "dots" ? "13" : "7");
+      return;
+    }
+    case "point": {
+      const path = pointerPath({ x: step.x, y: step.y, box: step.box }, step.gesture);
+      // The gesture's own trace (a ring, a sweep), faint, under the dot where it ends.
+      if (step.gesture !== "tap") {
+        const pts = Array.from({ length: 61 }, (_, i) => path(0.22 + (0.95 - 0.22) * (i / 60)));
+        const trace = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        trace.setAttribute("d", pts.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${toSvgY(y).toFixed(1)}`).join(" "));
+        trace.setAttribute("fill", "none");
+        trace.setAttribute("stroke", LASER_COLOR);
+        trace.setAttribute("stroke-width", "3");
+        trace.setAttribute("stroke-dasharray", "2 6");
+        trace.setAttribute("stroke-linecap", "round");
+        trace.setAttribute("opacity", "0.55");
+        canvas.querySelector(".cs-overlay")?.appendChild(trace);
+      }
+      effects.setPointer(path(1));
+      return;
+    }
+  }
+}
+
 // ---- the page ----
 
 const app = document.getElementById("frames-app")!;
@@ -320,16 +403,19 @@ async function show(cast: Cast): Promise<CastReport> {
       const canvas = h("div", { class: "canvas" });
       cell.append(canvas);
       const cap = h("div", { class: "cap" });
-      cap.append(h("b", {}, `@${frame.at} ${frame.changed}`));
+      // Each cell is its own mount held at its own boundary: the sheet is live
+      // ink, so a screenshot of this page is a screenshot of the real figure.
+      const hd = await render(spec, canvas, { mode: "silent" });
+      hd.timeline.renderUpTo(frame.at);
+      // Only with &beats=all: a resting frame stays the after-state it always was.
+      const gesture = everyBeat() ? gestureAt(hd.plan, frame.at) : null;
+      if (gesture) paintGesture(hd, frame.at, gesture, canvas);
+      cap.append(h("b", {}, `@${frame.at} ${frame.changed}${gesture ? ` (mid-gesture: ${gesture.kind})` : ""}`));
       if (frame.issues.length > 0) cap.append(h("div", { class: "bad" }, frame.issues.join("\n")));
       else cap.append(h("span", { class: "ok" }, ` — lint clean (browser metrics)${frame.hiddenIssues.length > 0 ? ` · ${frame.hiddenIssues.length} off-screen` : ""}`));
       if (frame.speak.length > 0) cap.append(h("div", {}, `“${frame.speak[frame.speak.length - 1]}”`));
       cell.append(cap);
       sheet.append(cell);
-      // Each cell is its own mount held at its own boundary: the sheet is live
-      // ink, so a screenshot of this page is a screenshot of the real figure.
-      const hd = await render(spec, canvas, { mode: "silent" });
-      hd.timeline.renderUpTo(frame.at);
     }
     section.append(sheet);
     app.append(section);

@@ -1027,7 +1027,7 @@ function nudgeTextsIntoCanvas(svg: SVGSVGElement): void {
 // ---- gesture-verb effects: stateless per-frame primitives on an overlay ----
 
 const HIGHLIGHT_COLOR = "#cf4632";
-const LASER_COLOR = "#d33827";
+export const LASER_COLOR = "#d33827";
 
 /**
  * Coloured echo of an element's rendered nodes — pulse's whole effect, and
