@@ -1862,7 +1862,20 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         cmd.ghost,
         visible.filter((id) => !mintedBoxes.has(id)),
       );
-      if (ghosts) mintGhosts(ghosts.ids, ghosts.opacity, ghostParams(), ghostOverrides());
+      // …and SHOW it, on a step of its own ahead of the animate, as
+      // showGhosts does for the motion verbs. Minted without that step,
+      // nothing revealed it until a later boundary, so the faded "before"
+      // arrived AFTER the curve had shifted (Hans, 2026-09-27: "the ghost …
+      // is added after the curve shifts. That is confusing").
+      if (ghosts) {
+        const ghostIds = mintGhosts(ghosts.ids, ghosts.opacity, ghostParams(), ghostOverrides());
+        if (ghostIds.length > 0) {
+          const saidNarration = currentNarration;
+          currentNarration = undefined;
+          pushStep({ kind: "show", ids: ghostIds });
+          currentNarration = saidNarration;
+        }
+      }
       params = { ...params, ...targets };
       // trail on animate (design 2026-09-10 §2.4): the locus of one element's
       // anchor across the sweep, sampled from 61 layouts at uniform parameter

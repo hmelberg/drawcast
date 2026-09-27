@@ -1102,10 +1102,69 @@ function sampleCurveDomain(el: SpecElement, ctx: Ctx): Pt[] {
   const x0 = typeof el.x_from === "number" ? el.x_from : dx0 + (dx1 - dx0) * 0.02;
   const x1 = typeof el.x_to === "number" ? el.x_to : dx1 - (dx1 - dx0) * 0.02;
   if (el.expr) {
-    return sampleExpression(el.expr, x0, x1, ctx.vars).map(([x, y]): Pt => [x, clamp(y, dy0, dy1)]);
+    const raw = sampleExpression(el.expr, x0, x1, ctx.vars);
+    const clipped = clipToBand(raw, dy0, dy1);
+    if (clipped.runs > 1) ctx.warnings.push(`curve "${el.id}" leaves the plot and comes back — only its longest visible stretch is drawn`);
+    // Wholly outside the plot: the old pinned line, so the curve still exists for what reads it.
+    return clipped.pts.length >= 2 ? clipped.pts : raw.map(([x, y]): Pt => [x, clamp(y, dy0, dy1)]);
   }
   const shape = qualitativeShape(el.direction ?? "decreasing", el.curvature ?? "linear", el.steepness ?? "medium");
   return shape.map(([tx, ty]): Pt => [x0 + (x1 - x0) * tx, dy0 + (dy1 - dy0) * ty]);
+}
+
+/**
+ * A sampled curve cut where it leaves the plot's y-range, ending exactly on
+ * the edge. It used to be CLAMPED instead, so the part above the plot ran
+ * along the top as a flat line — a shifted demand curve grew a horizontal
+ * top (Hans, 2026-09-27: "when the AD curve shifts it becomes partly
+ * horizontal … That is wrong"). A polyline is one stroke, so a curve that
+ * leaves and comes back keeps its longest visible stretch (`runs` says how
+ * many there were).
+ */
+export function clipToBand(pts: Pt[], lo: number, hi: number): { pts: Pt[]; runs: number } {
+  const inside = (y: number): boolean => y >= lo && y <= hi;
+  const cross = (a: Pt, b: Pt): Pt => {
+    const edge = (a[1] > hi) !== (b[1] > hi) ? hi : lo;
+    const t = (edge - a[1]) / (b[1] - a[1]);
+    return [a[0] + (b[0] - a[0]) * t, edge];
+  };
+  const runs: Pt[][] = [];
+  let cur: Pt[] = [];
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    const prev = pts[i - 1];
+    if (!Number.isFinite(p[1])) {
+      if (cur.length > 0) runs.push(cur);
+      cur = [];
+      continue;
+    }
+    if (inside(p[1])) {
+      if (cur.length === 0 && prev && Number.isFinite(prev[1]) && !inside(prev[1])) {
+        const c = cross(prev, p);
+        // A sample exactly on the edge is its own crossing: one point, not two.
+        if (c[0] !== p[0] || c[1] !== p[1]) cur.push(c);
+      }
+      cur.push(p);
+    } else {
+      if (cur.length > 0) {
+        const c = cross(prev!, p);
+        const last = cur[cur.length - 1];
+        if (c[0] !== last[0] || c[1] !== last[1]) cur.push(c);
+        runs.push(cur);
+        cur = [];
+      } else if (prev && Number.isFinite(prev[1]) && ((prev[1] > hi && p[1] < lo) || (prev[1] < lo && p[1] > hi))) {
+        // Straight through the band between two samples.
+        const a = cross(prev, p);
+        const b = cross([a[0], a[1] === hi ? hi - 1e-9 : lo + 1e-9], p);
+        runs.push([a, b]);
+      }
+    }
+  }
+  if (cur.length > 0) runs.push(cur);
+  const real = runs.filter((r) => r.length >= 2);
+  if (real.length === 0) return { pts: [], runs: 0 };
+  const span = (r: Pt[]): number => r[r.length - 1][0] - r[0][0];
+  return { pts: real.reduce((best, r) => (span(r) > span(best) ? r : best)), runs: real.length };
 }
 
 function clamp(v: number, lo: number, hi: number): number {

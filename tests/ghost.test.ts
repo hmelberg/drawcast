@@ -91,6 +91,24 @@ describe("ghost under animate (a template)", () => {
     expect(out.order).toContain("piece_1_ghost");
     expect(out.order.indexOf("piece_1_ghost")).toBe(out.order.indexOf("piece_1") - 1);
   });
+  test("the animate's ghost is SHOWN on a step of its own, before the animate — not left for a later boundary", async () => {
+    // Hans 2026-09-27: "the ghost … is added after the curve shifts". The
+    // animate minted its ghosts with no show step (the motion verbs had one
+    // since round 3), so nothing drew them until the cast moved on.
+    const { ensureEnabledPacks } = await import("../src/scenes/packs");
+    await ensureEnabledPacks(["mathlogic"]);
+    const spec = { template: "circle_sectors", params: { n: 4, t: 0 }, elements: [], commands: [{ draw: ["piece_1", "piece_2", "piece_3", "piece_4"] }, { animate: { t: 1 }, ghost: true, speak: "Unroll it." }] };
+    const layout = layoutSpec(spec as never, heuristicMeasure);
+    const bboxes = elementBBoxes(layout, heuristicMeasure);
+    const plan = planCommands(spec.commands as never, layout.order, { bboxOf: (id) => bboxes.get(id) ?? null, animateBase: spec.params, ...planOptionsFor(spec as never, layout) });
+    const show = plan.steps.findIndex((st) => st.kind === "show");
+    const animate = plan.steps.findIndex((st) => st.kind === "animate");
+    expect(plan.steps[show]).toMatchObject({ kind: "show", ids: ["piece_1_ghost", "piece_2_ghost", "piece_3_ghost", "piece_4_ghost"] });
+    expect(animate).toBeGreaterThan(show);
+    // …and the beat's line is spoken once, by the animate.
+    expect(plan.steps[show]).not.toHaveProperty("narration");
+    expect(plan.steps[animate]).toMatchObject({ narration: "Unroll it." });
+  });
   test("a template ghost's drawables come from layoutAt, not from whatever layout is being wrapped (a live tween frame)", async () => {
     const { ensureEnabledPacks } = await import("../src/scenes/packs");
     await ensureEnabledPacks(["mathlogic"]);
