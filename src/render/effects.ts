@@ -92,7 +92,9 @@ export function pointerPath(target: PointerTarget, gesture: PointGesture): (t: n
     if (gesture === "underline") {
       // Sweep beneath the target, out and back.
       const half = box ? box.w / 2 + 10 : 45;
-      const baseY = box ? box.y - 14 : y - 20;
+      // 14 under a label's box — less under a short box (a table row's
+      // glyph band, 2026-09-27), where 14 was the next row.
+      const baseY = box ? box.y - Math.min(14, Math.max(5, box.h * 0.43)) : y - 20;
       const sweep = Math.sin(u * Math.PI * 1.5); // out to +half, back through center
       return [x + half * sweep, baseY];
     }
