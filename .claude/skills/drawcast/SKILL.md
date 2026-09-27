@@ -1,6 +1,6 @@
 ---
 name: drawcast
-description: Author a drawcast locally, the way the app would but with eyes — write the spec to the app's own prompt, render its frames, look, fix, repeat — then open it in the player. Use when Hans asks to make, draw or write a drawcast (or "a figure/cast explaining X") here in Claude Code rather than in the app.
+description: Author a drawcast — or a whole course of them — locally, the way the app would but with eyes — write the spec to the app's own prompt, render its frames, look, fix, repeat — then open it in the player. Use when Hans asks to make, draw or write a drawcast (or "a figure/cast explaining X"), or to make a course, here in Claude Code rather than in the app.
 ---
 
 # Author a drawcast locally
@@ -77,3 +77,43 @@ landed. The finished cast opens in the app's player.
   with no warning at all), or saving it elsewhere.
 - Anything the engine or a template could not do — a missing option, a bug —
   is worth a line to Hans: it is a fix for the app too.
+
+## A course
+
+A course is what the app's course panel makes: a plan (`course.md`), and per
+lecture a storyboard (the whole lecture's narration, written at once) whose
+parts are each staged as a drawcast. `scripts/cast.mjs` gives every step the
+app's OWN prompt and code, in a folder shaped like a published course:
+`dev-casts/courses/<slug>/` with `course.md`, `lecture-NN/` (working files)
+and one `NN-<title>.yaml` per built lecture.
+
+1. **Plan.** `node scripts/cast.mjs course-prompt "<request>" [--lectures N]`
+   → `dev-casts/_course-prompt.md`. Write the JSON it asks for (questions,
+   not topics; the shared context; tags such as `parts=4`) to
+   `dev-casts/courses/<slug>/plan.json`, then
+   `node scripts/cast.mjs course-new dev-casts/courses/<slug>/plan.json dev-casts/courses/<slug>`.
+2. **Show Hans `course.md` and wait.** The plan is a draft the teacher edits
+   (that is how the app works too); the lectures cost hours. Take his edits
+   into `course.md` directly — its format is what the course panel shows.
+3. **Each lecture** (in parallel: one subagent per lecture, each given this
+   skill and its lecture number; lectures do not depend on each other):
+   - `node scripts/cast.mjs lecture-prompt <dir> <n>` → write the storyboard
+     JSON it asks for to `<dir>/lecture-NN/storyboard.json`. This is where
+     the lecture's narration is written, for all its parts at once.
+   - For each part i: `node scripts/cast.mjs part-prompt <dir> <n> <i>` →
+     read the prompt (the part's request, with its already-written lines, is
+     at the end), write `<dir>/lecture-NN/part-<i>.json` as
+     `{"request": …, "spec": …}`, then the single-cast loop above: check,
+     frames, look, fix. The lines are written; the job is to STAGE them.
+   - `node scripts/cast.mjs lecture-build <dir> <n>` → the lecture's YAML,
+     exactly as the course runner assembles it (titles, level, the
+     "Next: …" card), and `status: done` in `course.md`. Frames the YAML
+     once more for a last look across the parts.
+4. **Open it:** `node scripts/cast.mjs course-open <dir> --launch` imports
+   the course into the app (built lectures only; opening again refreshes
+   it) and opens the course panel. From there Hans watches, edits, and
+   publishes as with any course.
+
+Report per lecture as it lands (title, parts, one line on what it shows);
+a lecture whose part will not come right is worth a line to Hans rather
+than a silent compromise.

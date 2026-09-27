@@ -48,7 +48,7 @@ import type { SpecFormat } from "./spec/text";
 import { h } from "./ui/dom";
 import { playerMeta } from "./ui/player-meta";
 import { openCoursePanel } from "./ui/course";
-import { referencedLectureIds } from "./course/document";
+import { parseCourse, referencedLectureIds } from "./course/document";
 import { fileSafe, openShare } from "./ui/share";
 import { checkSaveable } from "./ui/save-gate";
 import { authorButtonLabel, authoringMode, promptPlaceholder } from "./ui/author-mode";
@@ -4608,6 +4608,35 @@ if (import.meta.env.DEV) {
         if (playlist) setDoc({ id: null, driveFileId: null, sourcePath: null, title: docTitleOf(playlist, openPath.split("/").pop() ?? "cast"), playlist }, "Opened.");
       })
       .catch((err) => setStatus(`Could not open ${openPath}: ${(err as Error).message}`, "error"));
+  }
+  // `?course=/dev-casts/courses/<slug>/course.md` imports a course the local
+  // author built (scripts/cast.mjs lecture-build) the way loading from GitHub
+  // does — same folder shape, same importCourse — and opens its panel. A
+  // course already imported (matched by its `slug:`) is refreshed in place.
+  const coursePath = new URLSearchParams(location.search).get("course");
+  if (coursePath && coursePath.startsWith("/")) {
+    const dir = coursePath.slice(0, coursePath.lastIndexOf("/"));
+    const readText = (path: string): Promise<string | null> => fetch(path).then((r) => (r.ok ? r.text() : null)).catch(() => null);
+    void (async () => {
+      const text = await readText(coursePath);
+      if (text === null) return setStatus(`Could not open ${coursePath}.`, "error");
+      const yamlByFile: Record<string, string> = {};
+      await Promise.all(
+        lectureFilesOf(text).map(async (f) => {
+          const yaml = await readText(`${dir}/${f}`);
+          if (yaml !== null) yamlByFile[f] = yaml;
+        }),
+      );
+      const slug = parseCourse(text).context.slug;
+      const existing = slug ? loadCourses().find((c) => parseCourse(c.text).context.slug === slug) : undefined;
+      const out = importCourse({ text, yamlByFile, courseId: existing?.id ?? crypto.randomUUID(), updated: new Date().toISOString() });
+      out.drawings.forEach(saveDrawing);
+      saveCourse(out.course);
+      refreshLibrary();
+      openCourse(out.course.id);
+      const tail = out.missing.length > 0 ? ` Could not read: ${out.missing.join(", ")}.` : "";
+      setStatus(`Imported "${out.course.title}" with ${out.drawings.length} lecture${out.drawings.length === 1 ? "" : "s"}.${tail}`, out.missing.length > 0 ? "error" : "ok");
+    })();
   }
 }
 

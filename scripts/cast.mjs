@@ -13,6 +13,14 @@
 //                                                        for fine text) — needs the dev server
 //   node scripts/cast.mjs open <cast.json> [--launch]    the app URL that opens this cast (--launch opens it too)
 //
+// Courses (a folder dev-casts/courses/<slug>/, the shape of a published course):
+//   node scripts/cast.mjs course-prompt "<request>" [out.md] [--lectures N]   the app's course planner prompt
+//   node scripts/cast.mjs course-new <plan.json> <dir>                        the plan JSON → <dir>/course.md (the app's own normalizer)
+//   node scripts/cast.mjs lecture-prompt <dir> <n>                           lecture n's storyboard prompt → <dir>/lecture-NN/
+//   node scripts/cast.mjs part-prompt <dir> <n> <i>                          part i's system prompt + request (storyboard.json first)
+//   node scripts/cast.mjs lecture-build <dir> <n>                            part-*.json → <dir>/NN-<title>.yaml, marked done in course.md
+//   node scripts/cast.mjs course-open <dir> [--launch]                       the app URL that imports the course and opens it
+//
 // A cast file is a spec, a {request, spec}, or playlist YAML — anything the
 // app opens. Files live under dev-casts/ (gitignored). The dev server:
 //   npm run dev -- --port 5199 --strictPort      (DRAWCAST_URL overrides http://localhost:5199)
@@ -80,40 +88,190 @@ async function browser() {
   return chromium.launch({ executablePath: `${dir}/${sub}/chrome-headless-shell` });
 }
 
+/**
+ * The system prompt the app would send for this request — the compiler
+ * prompt, the catalog shortlist, few-shots, exemplars, the code/sound gates —
+ * wrapped for reading. The schema goes to dev-casts/_schema.json.
+ */
+async function appPromptText(load, request) {
+  mkdirSync(resolve(ROOT, "dev-casts"), { recursive: true });
+  const compile = await load("/src/llm/compile.ts");
+  const { buildSystemBlocks, formatExemplars, wantsCode, wantsSound } = await load("/src/llm/prompt.ts");
+  const { pickExemplars } = await load("/src/llm/exemplars.ts");
+  const { usableExemplars } = await load("/src/llm/exemplars.ts");
+  const { catalogParts, isReadyTemplate } = await load("/src/scenes/catalog.ts");
+  const examples = JSON.parse(readFileSync(resolve(ROOT, "src/examples.json"), "utf8"));
+  const bundled = usableExemplars(
+    examples.filter((e) => !e.specimen).map((e) => ({ prompt: e.request, spec: e.spec })),
+    isReadyTemplate,
+  );
+  const code = wantsCode(request), sound = wantsSound(request);
+  const catalog = catalogParts({ request });
+  // The schema (~90k characters of the ~210k) goes to its own file: the
+  // prompt keeps a pointer, and the author looks fields up when needed.
+  const schema = compile.apiSchema({ code, sound });
+  const variant = compile.promptVariants()[0].source.replace("{{SCHEMA}}", "(The JSON schema is in dev-casts/_schema.json — look up an element's or a command's fields there when you need them.)");
+  writeFileSync(resolve(ROOT, "dev-casts/_schema.json"), JSON.stringify(schema, null, 1));
+  const blocks = buildSystemBlocks(variant, {
+    schema,
+    catalog: catalog.stable,
+    fewshots: compile.fewshotsText({ code }),
+    exemplars: formatExemplars(pickExemplars(request, [], bundled, 3)),
+    code: code ? compile.CODE_PROMPT_SOURCE : "",
+    sound: sound ? compile.SOUND_PROMPT_SOURCE : "",
+  });
+  const text = blocks.prefix + blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "");
+  return text;
+}
+
+/**
+ * One lecture of a course folder, as the course runner sees it
+ * (course/run.ts requestFor): the request buildLectureRequest composes, the
+ * part count, the chapters and the tag brief — and, when asked, the
+ * storyboard already written to lecture-NN/storyboard.json, normalized the
+ * way the app normalizes a storyboard reply.
+ */
+async function lectureContext(load, dir, n, withOutline = false) {
+  const { parseCourse } = await load("/src/course/document.ts");
+  const { buildLectureRequest, partsOf } = await load("/src/course/run.ts");
+  const { buildBrief, parseTags } = await load("/src/llm/tags.ts");
+  const text = readFileSync(resolve(ROOT, dir, "course.md"), "utf8");
+  const course = parseCourse(text);
+  const lecture = course.lectures[n - 1];
+  if (!lecture) throw new Error(`the course has ${course.lectures.length} lectures`);
+  const parts = partsOf(lecture);
+  const chapters = lecture.chapters.length > 0 ? lecture.chapters : undefined;
+  const lectureDir = resolve(ROOT, dir, `lecture-${String(n).padStart(2, "0")}`);
+  const ctx = { course, text, lecture, request: buildLectureRequest(course, n - 1), parts, chapters, brief: buildBrief(parseTags(lecture.tags.join(" ")).tags), lectureDir };
+  if (!withOutline) return ctx;
+  const f = resolve(lectureDir, "storyboard.json");
+  if (!existsSync(f)) throw new Error(`no storyboard yet: write ${relative(ROOT, f)} (lecture-prompt shows the prompt)`);
+  const { normalizeOutline } = await load("/src/llm/outline.ts");
+  const outline = normalizeOutline(JSON.parse(readFileSync(f, "utf8")), chapters, parts);
+  if (!outline) throw new Error(`${relative(ROOT, f)} is not a usable storyboard (the app would reject it)`);
+  if (!outline.title) outline.title = ctx.request;
+  return { ...ctx, outline };
+}
+
 const commands = {
   async prompt([request, out = "dev-casts/_prompt.md"]) {
     if (!request) throw new Error('usage: cast.mjs prompt "<request>" [out.md]');
-    mkdirSync(resolve(ROOT, "dev-casts"), { recursive: true });
     await withVite(async (load) => {
-      const compile = await load("/src/llm/compile.ts");
-      const { buildSystemBlocks, formatExemplars, wantsCode, wantsSound } = await load("/src/llm/prompt.ts");
-      const { pickExemplars } = await load("/src/llm/exemplars.ts");
-      const { usableExemplars } = await load("/src/llm/exemplars.ts");
-      const { catalogParts, isReadyTemplate } = await load("/src/scenes/catalog.ts");
-      const examples = JSON.parse(readFileSync(resolve(ROOT, "src/examples.json"), "utf8"));
-      const bundled = usableExemplars(
-        examples.filter((e) => !e.specimen).map((e) => ({ prompt: e.request, spec: e.spec })),
-        isReadyTemplate,
-      );
-      const code = wantsCode(request), sound = wantsSound(request);
-      const catalog = catalogParts({ request });
-      // The schema (~90k characters of the ~210k) goes to its own file: the
-      // prompt keeps a pointer, and the author looks fields up when needed.
-      const schema = compile.apiSchema({ code, sound });
-      const variant = compile.promptVariants()[0].source.replace("{{SCHEMA}}", "(The JSON schema is in dev-casts/_schema.json — look up an element's or a command's fields there when you need them.)");
-      writeFileSync(resolve(ROOT, "dev-casts/_schema.json"), JSON.stringify(schema, null, 1));
-      const blocks = buildSystemBlocks(variant, {
-        schema,
-        catalog: catalog.stable,
-        fewshots: compile.fewshotsText({ code }),
-        exemplars: formatExemplars(pickExemplars(request, [], bundled, 3)),
-        code: code ? compile.CODE_PROMPT_SOURCE : "",
-        sound: sound ? compile.SOUND_PROMPT_SOURCE : "",
-      });
-      const text = blocks.prefix + blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "");
+      const text = await appPromptText(load, request);
       writeFileSync(resolve(ROOT, out), wrap(text) + "\n");
       console.log(`${out}: ${text.length} characters (wrapped at 300 columns; line breaks are not part of it). Shortlisted templates are in full at the end; the schema is in dev-casts/_schema.json.`);
     });
+  },
+
+  // ---- Courses (the /drawcast skill's course mode) --------------------------
+  // A course folder dev-casts/courses/<slug>/ holds course.md (the app's own
+  // course document), one lecture-NN/ working folder per lecture (the
+  // storyboard and the part specs) and one NN-<title>.yaml per built lecture —
+  // the same shape a published course has, so the app imports it as one.
+
+  async "course-prompt"(args) {
+    const n = args.includes("--lectures") ? Number(args[args.indexOf("--lectures") + 1]) : null;
+    const [request, out = "dev-casts/_course-prompt.md"] = args.filter((a, i) => a !== "--lectures" && args[i - 1] !== "--lectures");
+    if (!request) throw new Error('usage: cast.mjs course-prompt "<request>" [out.md] [--lectures N]');
+    await withVite(async (load) => {
+      const { buildCourseMessages } = await load("/src/course/plan.ts");
+      const { system, user } = buildCourseMessages(request, Number.isFinite(n) ? n : null);
+      mkdirSync(resolve(ROOT, "dev-casts"), { recursive: true });
+      writeFileSync(resolve(ROOT, out), wrap(`# SYSTEM\n\n${system}\n\n# USER\n\n${user}`) + "\n");
+      console.log(`${out}: the app's course planner prompt. Write the plan JSON it asks for to a file, then: cast.mjs course-new <plan.json> dev-casts/courses/<slug>`);
+    });
+  },
+
+  async "course-new"([planFile, dir]) {
+    if (!planFile || !dir) throw new Error("usage: cast.mjs course-new <plan.json> <dir>");
+    await withVite(async (load) => {
+      const { normalizeCoursePlan } = await load("/src/course/plan.ts");
+      const { formatCourse, parseCourse, setCourseOption } = await load("/src/course/document.ts");
+      const course = normalizeCoursePlan(JSON.parse(readFileSync(resolve(ROOT, planFile), "utf8")));
+      if (!course) throw new Error("the plan is unusable (the app needs a title and at least two lectures)");
+      const slug = basename(resolve(ROOT, dir));
+      const text = setCourseOption(formatCourse(course), "slug", slug);
+      mkdirSync(resolve(ROOT, dir), { recursive: true });
+      writeFileSync(resolve(ROOT, dir, "course.md"), text);
+      const parsed = parseCourse(text);
+      console.log(`${dir}/course.md: "${parsed.title}", ${parsed.lectures.length} lectures${parsed.warnings.length ? "\n  " + parsed.warnings.join("\n  ") : ""}`);
+    });
+  },
+
+  async "lecture-prompt"([dir, nArg]) {
+    if (!dir || !nArg) throw new Error("usage: cast.mjs lecture-prompt <dir> <lecture number, 1-based>");
+    await withVite(async (load) => {
+      const { request, parts, chapters, brief, lectureDir } = await lectureContext(load, dir, Number(nArg));
+      const { buildStoryboardMessages } = await load("/src/llm/storyboard.ts");
+      const { system, user } = buildStoryboardMessages(request, parts, { chapters, brief });
+      mkdirSync(lectureDir, { recursive: true });
+      const out = resolve(lectureDir, "_storyboard-prompt.md");
+      writeFileSync(out, wrap(`# SYSTEM\n\n${system}\n\n# USER\n\n${user}`) + "\n");
+      console.log(`${relative(ROOT, out)}: the app's storyboard prompt (${parts ?? "1–4"} parts). Write the JSON it asks for to ${relative(ROOT, resolve(lectureDir, "storyboard.json"))}, then part-prompt for each part.`);
+    });
+  },
+
+  async "part-prompt"([dir, nArg, iArg]) {
+    if (!dir || !nArg || !iArg) throw new Error("usage: cast.mjs part-prompt <dir> <lecture> <part>  (both 1-based)");
+    await withVite(async (load) => {
+      const { request, brief, lectureDir, outline } = await lectureContext(load, dir, Number(nArg), true);
+      const i = Number(iArg) - 1;
+      if (!outline.parts[i]) throw new Error(`the storyboard has ${outline.parts.length} parts`);
+      const { buildPartRequest } = await load("/src/llm/outline.ts");
+      const partRequest = buildPartRequest(request, outline, i, brief);
+      const text = await appPromptText(load, partRequest);
+      const out = resolve(lectureDir, `_part-${i + 1}-prompt.md`);
+      writeFileSync(out, wrap(text) + "\n\n# USER (the part's request)\n\n" + wrap(partRequest) + "\n");
+      console.log(`${relative(ROOT, out)}: ${text.length} characters of system prompt, then the part's request at the end. Write the spec to ${relative(ROOT, resolve(lectureDir, `part-${i + 1}.json`))} as {"request": …, "spec": …}; check and frames it as any cast.`);
+    });
+  },
+
+  async "lecture-build"([dir, nArg]) {
+    if (!dir || !nArg) throw new Error("usage: cast.mjs lecture-build <dir> <lecture>");
+    await withVite(async (load) => {
+      const n = Number(nArg);
+      const { course, text, lecture, lectureDir, outline } = await lectureContext(load, dir, n, true);
+      const { lecturePlaylist, stripClickGates } = await load("/src/course/run.ts");
+      const { parseTags } = await load("/src/llm/tags.ts");
+      const { formatPlaylist } = await load("/src/playlist/playlist.ts");
+      const { setLectureStatus } = await load("/src/course/document.ts");
+      const { validateSpec } = await load("/src/spec/schema.ts");
+      const { slugify } = await load("/src/publish/github.ts");
+      const tags = parseTags(lecture.tags.join(" "));
+      const specs = [], chapterOf = [], failed = [];
+      outline.parts.forEach((part, i) => {
+        const f = resolve(lectureDir, `part-${i + 1}.json`);
+        if (!existsSync(f)) return failed.push(i + 1);
+        const spec = readCast(f);
+        const v = validateSpec(spec);
+        if (!v.ok) throw new Error(`part ${i + 1} is invalid:\n  ${v.errors.join("\n  ")}`);
+        // What the runner does to every part (course/run.ts, llm/multi.ts).
+        spec.title ??= part.title;
+        spec.level ??= part.level ?? tags.level ?? undefined;
+        spec.voice ??= tags.voiceGender ?? undefined;
+        stripClickGates(spec, tags.tags);
+        specs.push(spec);
+        chapterOf.push(part.chapter);
+      });
+      if (failed.length) throw new Error(`missing part spec(s): ${failed.map((k) => `part-${k}.json`).join(", ")}`);
+      const playlist = lecturePlaylist(course, n - 1, { outline, specs, chapterOf, failed: [] });
+      const file = lecture.status?.file ?? `${String(n).padStart(2, "0")}-${slugify(lecture.title)}.yaml`;
+      writeFileSync(resolve(ROOT, dir, file), formatPlaylist(playlist, "yaml"));
+      const id = lecture.status?.id ?? crypto.randomUUID();
+      writeFileSync(resolve(ROOT, dir, "course.md"), setLectureStatus(text, n - 1, { state: "done", id, file, ts: new Date().toISOString().slice(0, 10) }));
+      console.log(`${dir}/${file}: lecture ${n} "${lecture.title}", ${specs.length} parts; course.md marks it done. Frames it with: cast.mjs frames ${dir}/${file}`);
+    });
+  },
+
+  async "course-open"(args) {
+    const dir = args.find((a) => a !== "--launch");
+    if (!dir) throw new Error("usage: cast.mjs course-open <dir> [--launch]");
+    const url = `${URL_BASE}/?course=${devPath(`${dir}/course.md`)}`;
+    console.log(url + "\n(imports the course into the app's local courses — built lectures only — and opens its panel; reopening re-imports it)");
+    if (args.includes("--launch")) {
+      const { spawn } = await import("node:child_process");
+      spawn(process.platform === "darwin" ? "open" : "xdg-open", [url], { stdio: "ignore", detached: true }).unref();
+    }
   },
 
   async template([id]) {
@@ -210,7 +368,7 @@ const commands = {
 };
 
 if (!commands[cmd]) {
-  console.log("usage: node scripts/cast.mjs prompt|template|check|frames|open …  (see the header of this file)");
+  console.log("usage: node scripts/cast.mjs prompt|template|check|frames|open|course-prompt|course-new|lecture-prompt|part-prompt|lecture-build|course-open …  (see the header of this file)");
   process.exitCode = 1;
 } else {
   await commands[cmd](rest).catch((err) => {
