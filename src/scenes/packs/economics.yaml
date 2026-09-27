@@ -152,7 +152,7 @@ layout: |
   const U = { below: uAt * 0.6, at: uAt, above: uAt * 1.55 };
   const LEVEL_STYLE = {
     below: { color: C.supply, dash: false, text: "Attainable" },
-    at: { color: C.accent, dash: false, text: "Optimum U" },
+    at: { color: C.accent, dash: false, text: split ? "U after" : "Optimum U" },
     above: { color: C.guide, dash: true, text: "Unattainable" },
   };
   const levels = curveCount === 1 ? ["at"] : curveCount === 2 ? ["below", "at"] : ["below", "at", "above"];
@@ -213,7 +213,7 @@ layout: |
     const effect = (id, x0, x1, y, text, color) => {
       push(kit.stroke(id, [[x0, y], [x1, y]], Object.assign({ color, strokeWidth: 3.5, ms: MS.arrow }, Math.abs(x1 - x0) >= 10 ? { arrowhead: "end" } : {})));
       anchors[id] = [(x0 + x1) / 2, y];
-      label("label_" + id.replace("_effect", ""), anchors[id], "above", text, color, 18);
+      label("label_" + id.replace("_effect", ""), anchors[id], "above", text, color, 20);
     };
     effect("substitution_effect", a[0], c[0], plot.y0 + 50, "Substitution", C.shifted);
     effect("income_effect", c[0], b, plot.y0 + 22, "Income", C.accent);

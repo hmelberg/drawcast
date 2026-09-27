@@ -193,3 +193,11 @@ describe("indifference_budget: live recompute", () => {
     expect(mod().layout!(run.params).frame!.x[1]).toBeCloseTo(sc.toDomain(sc.toLogical([65, 0]))![0], 6);
   });
 });
+
+describe("indifference_budget: figures a drag reaches are lint-clean", () => {
+  test.each([1.2, 2, 3, 5, 8])("price_x %d on pinned axes, with and without a split", (px) => {
+    const pin = { income: 100, price_y: 1, x_max: 65, y_max: 130 };
+    expect(lintAt({ ...pin, price_x: px })).toEqual([]);
+    expect(lintAt({ ...pin, price_x: px, price_x_before: 2, curves: 1 })).toEqual([]);
+  });
+});
