@@ -46,6 +46,14 @@ import { lintPlot3d } from "./plot3d/lint";
 import { plot3dWidget } from "./plot3d/widget";
 import { readModel as readPlot3d } from "./plot3d/model";
 import { traySliders } from "./params-ui/params";
+import titrationManifest from "./titration_curve/manifest.json";
+import { layoutTitration, type TitrationParams } from "./titration_curve/layout";
+import { lintTitration } from "./titration_curve/lint";
+import { titrationWidget } from "./titration_curve/widget";
+import maxwellManifest from "./maxwell_boltzmann/manifest.json";
+import { layoutMaxwell, type MaxwellParams } from "./maxwell_boltzmann/layout";
+import { lintMaxwell } from "./maxwell_boltzmann/lint";
+import { maxwellWidget } from "./maxwell_boltzmann/widget";
 
 export const scenes: Record<string, SceneModule> = {
   supply_demand: {
@@ -123,6 +131,22 @@ export const scenes: Record<string, SceneModule> = {
     lint: (params) => lintPlot3d(params as Plot3dParams),
     widget: plot3dWidget,
     sliders: (params) => traySliders(params.params, readPlot3d(params as Plot3dParams)),
+  },
+  // Free play: the volume, the pKa, the amounts and the indicator, dragged or
+  // scrubbed on the figure (2026-09-28).
+  titration_curve: {
+    manifest: titrationManifest as SceneManifest,
+    layout: (params) => layoutTitration(params as TitrationParams),
+    lint: (params) => lintTitration(params as TitrationParams),
+    widget: titrationWidget,
+  },
+  // Free play: the temperatures (drag a curve, scrub its label) and the
+  // barriers (drag the Eₐ and catalyst lines) (2026-09-28).
+  maxwell_boltzmann: {
+    manifest: maxwellManifest as SceneManifest,
+    layout: (params) => layoutMaxwell(params as MaxwellParams),
+    lint: (params) => lintMaxwell(params as MaxwellParams),
+    widget: maxwellWidget,
   },
 };
 

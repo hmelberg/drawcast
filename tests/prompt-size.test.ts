@@ -550,7 +550,11 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // y = f(x) with live parameters — whose full entry is ~9,200 chars in this
 // all-expanded measurement; in the app's two-level catalog it is one index
 // line).
-const BASELINE_SYSTEM_CHARS = 300000;
+// Raised to 320000 at 309799 (2026-09-28: two built-in chemistry templates,
+// titration_curve and maxwell_boltzmann — 296976 without them; their full
+// entries are ~12,800 chars in this all-expanded measurement, one index line
+// each in the app's two-level catalog).
+const BASELINE_SYSTEM_CHARS = 320000;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
