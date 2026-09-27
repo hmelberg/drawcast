@@ -4,12 +4,14 @@
 // checks as one the app generates.
 //
 //   node scripts/cast.mjs prompt "<request>" [out.md]   the app's system prompt for this request (catalog shortlist,
-//                                                        few-shots, exemplars, code/sound gates), wrapped for reading
+//                                                        few-shots, exemplars, code/sound gates), wrapped for reading;
+//                                                        the JSON schema goes to dev-casts/_schema.json (look fields up there)
 //   node scripts/cast.mjs template <id>                  a template's full catalog entry (params, element ids)
 //   node scripts/cast.mjs check <cast.json>              validation + layout/command lint (the generator's own checks)
-//   node scripts/cast.mjs frames <cast.json> [outdir]    frames after every spoken line, as PNG tiles, plus the
-//                                                        browser-measured lint per frame — needs the dev server
-//   node scripts/cast.mjs open <cast.json>               the app URL that opens this cast (dev server only)
+//   node scripts/cast.mjs frames <cast.json> [outdir] [--large]   frames after every spoken line, as PNG tiles, plus
+//                                                        the browser-measured lint per frame (--large: one frame per row,
+//                                                        for fine text) — needs the dev server
+//   node scripts/cast.mjs open <cast.json> [--launch]    the app URL that opens this cast (--launch opens it too)
 //
 // A cast file is a spec, a {request, spec}, or playlist YAML — anything the
 // app opens. Files live under dev-casts/ (gitignored). The dev server:
@@ -81,6 +83,7 @@ async function browser() {
 const commands = {
   async prompt([request, out = "dev-casts/_prompt.md"]) {
     if (!request) throw new Error('usage: cast.mjs prompt "<request>" [out.md]');
+    mkdirSync(resolve(ROOT, "dev-casts"), { recursive: true });
     await withVite(async (load) => {
       const compile = await load("/src/llm/compile.ts");
       const { buildSystemBlocks, formatExemplars, wantsCode, wantsSound } = await load("/src/llm/prompt.ts");
@@ -94,8 +97,13 @@ const commands = {
       );
       const code = wantsCode(request), sound = wantsSound(request);
       const catalog = catalogParts({ request });
-      const blocks = buildSystemBlocks(compile.promptVariants()[0].source, {
-        schema: compile.apiSchema({ code, sound }),
+      // The schema (~90k characters of the ~210k) goes to its own file: the
+      // prompt keeps a pointer, and the author looks fields up when needed.
+      const schema = compile.apiSchema({ code, sound });
+      const variant = compile.promptVariants()[0].source.replace("{{SCHEMA}}", "(The JSON schema is in dev-casts/_schema.json — look up an element's or a command's fields there when you need them.)");
+      writeFileSync(resolve(ROOT, "dev-casts/_schema.json"), JSON.stringify(schema, null, 1));
+      const blocks = buildSystemBlocks(variant, {
+        schema,
         catalog: catalog.stable,
         fewshots: compile.fewshotsText({ code }),
         exemplars: formatExemplars(pickExemplars(request, [], bundled, 3)),
@@ -103,9 +111,8 @@ const commands = {
         sound: sound ? compile.SOUND_PROMPT_SOURCE : "",
       });
       const text = blocks.prefix + blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "");
-      mkdirSync(resolve(ROOT, "dev-casts"), { recursive: true });
       writeFileSync(resolve(ROOT, out), wrap(text) + "\n");
-      console.log(`${out}: ${text.length} characters (wrapped at 300 columns; line breaks are not part of it). Shortlisted templates are in full at the end.`);
+      console.log(`${out}: ${text.length} characters (wrapped at 300 columns; line breaks are not part of it). Shortlisted templates are in full at the end; the schema is in dev-casts/_schema.json.`);
     });
   },
 
@@ -147,14 +154,19 @@ const commands = {
     });
   },
 
-  async frames([file, outdir]) {
-    if (!file) throw new Error("usage: cast.mjs frames <cast.json> [outdir]");
+  async frames(args) {
+    const large = args.includes("--large");
+    const [file, outdir] = args.filter((a) => a !== "--large");
+    if (!file) throw new Error("usage: cast.mjs frames <cast.json> [outdir] [--large]");
     const name = basename(file).replace(/\.(json|ya?ml)$/i, "");
     const out = resolve(ROOT, outdir ?? `dev-casts/frames-${name}`);
     mkdirSync(out, { recursive: true });
     const b = await browser();
     try {
-      const page = await b.newPage({ viewport: { width: 1000, height: 900 } });
+      // The harness lays frames two to a row at 1000 px; at 760 px they go one
+      // to a row, each about twice as wide — for judging fine text.
+      const W = large ? 760 : 1000;
+      const page = await b.newPage({ viewport: { width: W, height: 900 } });
       const errors = [];
       page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
       const url = `${URL_BASE}/frames.html?cast=${devPath(file)}&beats=all&v=${Date.now()}`;
@@ -168,7 +180,7 @@ const commands = {
       const tiles = [];
       for (let y = 150, k = 1; y < h; y += 1800, k++) {
         const f = `${out}/frames-${k}.png`;
-        await page.screenshot({ path: f, fullPage: true, clip: { x: 0, y, width: 1000, height: Math.min(1800, h - y) } });
+        await page.screenshot({ path: f, fullPage: true, clip: { x: 0, y, width: W, height: Math.min(1800, h - y) } });
         tiles.push(relative(ROOT, f));
       }
       writeFileSync(`${out}/report.json`, JSON.stringify(report, null, 1));
@@ -185,9 +197,15 @@ const commands = {
     }
   },
 
-  async open([file]) {
-    if (!file) throw new Error("usage: cast.mjs open <cast.json>");
-    console.log(`${URL_BASE}/?open=${devPath(file)}`);
+  async open(args) {
+    const [file] = args.filter((a) => a !== "--launch");
+    if (!file) throw new Error("usage: cast.mjs open <cast.json> [--launch]");
+    const url = `${URL_BASE}/?open=${devPath(file)}`;
+    console.log(url);
+    if (args.includes("--launch")) {
+      const { spawn } = await import("node:child_process");
+      spawn(process.platform === "darwin" ? "open" : "xdg-open", [url], { stdio: "ignore", detached: true }).unref();
+    }
   },
 };
 

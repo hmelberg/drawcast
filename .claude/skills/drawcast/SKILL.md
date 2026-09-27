@@ -24,10 +24,12 @@ landed. The finished cast opens in the app's player.
 
 1. **Read the prompt the app would send.**
    `node scripts/cast.mjs prompt "<request>"` writes `dev-casts/_prompt.md`:
-   the compiler prompt with the schema, the template index, the few-shots,
-   the exemplars picked for this request, and the shortlisted templates in
-   full at the end. Read ALL of it the first time in a session — the rules,
-   the verbs and the schema are what the renderer understands. For another
+   the compiler prompt, the template index, the few-shots, the exemplars
+   picked for this request, and the shortlisted templates in full at the
+   end (~120k characters — read it in chunks, all of it, the first time in
+   a session: the rules and verbs are what the renderer understands). The
+   JSON schema is in `dev-casts/_schema.json`: look an element's or a
+   command's fields up there (grep it) when you need them. For another
    template's parameters: `node scripts/cast.mjs template <id>`.
 2. **Plan before writing** (a few lines, for yourself): the question in
    everyday words, the one insight, the concrete example with numbers, the
@@ -39,7 +41,8 @@ landed. The finished cast opens in the app's player.
 5. **Look at it:** `node scripts/cast.mjs frames dev-casts/<slug>.json` →
    tiles in `dev-casts/frames-<slug>/`, one frame per spoken line (drawn
    mid-gesture where the line highlights, focuses, points or flows), plus the
-   browser's lint per frame. VIEW EVERY TILE. Judge as a viewer, with
+   browser's lint per frame. VIEW EVERY TILE (`--large` gives one frame per
+   row, for judging small text). Judge as a viewer, with
    `src/llm/prompts/look-v1.md` as the checklist: legibility, one large main
    figure, sync of words and picture, emphasis that lands, calm.
 6. **Fix and repeat 4–5** until nothing important is left (usually 2–3
@@ -48,8 +51,9 @@ landed. The finished cast opens in the app's player.
 7. **Fresh eyes (for anything that matters):** hand the tiles and
    `look-v1.md` to a subagent that has not seen the spec, and ask for its
    problem list. Fix what is real.
-8. **Show it:** `node scripts/cast.mjs open dev-casts/<slug>.json` prints the
-   player URL; open it (`open <url>`). Mute when you play it yourself.
+8. **Show it:** `node scripts/cast.mjs open dev-casts/<slug>.json --launch`
+   prints the player URL and opens it in the browser. Mute when you play it
+   yourself.
 
 ## What good looks like (the house taste, short)
 
