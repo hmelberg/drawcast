@@ -19,6 +19,7 @@ import genericAxesManifest from "./generic_axes_diagram/manifest.json";
 import { layoutSupplyDemand, type SupplyDemandParams } from "./supply_demand/layout";
 import { supplyDemandWidget } from "./supply_demand/widget";
 import { layoutDecisionTree, type DecisionTreeParams } from "./decision_tree/layout";
+import { lintDecisionTree } from "./decision_tree/lint";
 import { layoutQalyProfiles, type QalyParams } from "./qaly_profiles/layout";
 import qalyManifest from "./qaly_profiles/manifest.json";
 import freeBodyManifest from "./free_body/manifest.json";
@@ -45,6 +46,7 @@ export const scenes: Record<string, SceneModule> = {
   decision_tree: {
     manifest: decisionTreeManifest as SceneManifest,
     layout: (params) => layoutDecisionTree(params as unknown as DecisionTreeParams),
+    lint: (params) => lintDecisionTree(params as unknown as DecisionTreeParams),
   },
   qaly_profiles: {
     manifest: qalyManifest as SceneManifest,
