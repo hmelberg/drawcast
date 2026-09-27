@@ -103,33 +103,50 @@ layout: |
   anchors.lm_curve = lmPts[Math.floor(lmPts.length / 2)];
 
   const eq0 = cross(0, 0);
-  const eqGroup = (id, eq, starPrefix, color) => {
+  // `near`: the first equilibrium, when this is the second — an axis caption
+  // that would sit on the first one's (a shift that barely moves Y or r, as a
+  // drag passes through) is left out: the guide shows it lands in the same place.
+  const eqGroup = (id, eq, starPrefix, color, near) => {
     const x = XV(eq.Y), y = YR(eq.r);
+    const showY = !near || Math.abs(x - XV(near.Y)) >= 36;
+    const showR = !near || Math.abs(y - YR(near.r)) >= 24;
     push(kit.group(id, [
       kit.stroke(id + "__vx", [[x, y], [x, plot.y0]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }),
       kit.stroke(id + "__hy", [[x, y], [plot.x0, y]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }),
       kit.stroke(id + "__dot", kit.ellipse([x, y], 6, 6, 14), { closed: true, fill: color, color, ms: MS.dot }),
-      kit.text(id + "__ty", [x, plot.y0 - 26], "Y" + starPrefix, { fontSize: 19, color }),
-      kit.text(id + "__tr", [plot.x0 - 14, y], "r" + starPrefix, { fontSize: 19, anchor: "end", color }),
+      ...(showY ? [kit.text(id + "__ty", [x, plot.y0 - 26], "Y" + starPrefix, { fontSize: 19, color })] : []),
+      ...(showR ? [kit.text(id + "__tr", [plot.x0 - 14, y], "r" + starPrefix, { fontSize: 19, anchor: "end", color })] : []),
     ]));
     anchors[id] = [x, y];
   };
   if (showEq) eqGroup("eq", eq0, "*", C.ink);
 
-  const shifted = (id, fn, s, baseMid, color, letter) => {
+  const shifted = (id, fn, s, basePts, color, letter) => {
+    const baseMid = basePts[Math.floor(basePts.length / 2)], baseEnd = basePts[basePts.length - 1];
     const pts = linePts(fn, s);
     const midOld = baseMid;
-    const midNew = pts[Math.floor(pts.length / 2)];
+    // The shift is sideways, so the arrow is too: from the original's middle
+    // to the shifted curve at the same rate (the shifted samples' own middle
+    // lies at another rate once the range clips them, and the arrow stood up).
+    const midNew = [midOld[0] + XV(s) - XV(0), midOld[1]];
+    // The primed label sits on the side AWAY from the original's label,
+    // whichever way the curve moved (a drag moves it both ways) — but never
+    // down on the x-axis.
+    const end = pts[pts.length - 1];
+    const away = end[1] + (end[1] >= baseEnd[1] ? 28 : -28);
+    // Down there it goes to the curve's other, upper-left end instead.
+    const low = away < plot.y0 + 24;
+    const labelAt = low ? [pts[0][0] - 12, pts[0][1] + 12] : [end[0] + 14, away];
     push(kit.group(id, [
       kit.stroke(id + "__line", pts, { color: C.shifted, strokeWidth: 4, ms: MS.curve }),
       kit.stroke(id + "__arrow", [[midOld[0], midOld[1]], [midNew[0] - (midNew[0] - midOld[0]) * 0.15, midNew[1] - (midNew[1] - midOld[1]) * 0.15]], { arrowhead: "end", color: C.shifted, strokeWidth: 3, ms: MS.arrow }),
-      kit.text(id + "__t", [pts[pts.length - 1][0] + 14, pts[pts.length - 1][1] + (letter === "IS" ? -30 : 28)], letter + "'", { fontSize: 22, anchor: "start", color: C.shifted }),
+      kit.text(id + "__t", labelAt, letter + "'", { fontSize: 22, anchor: low ? "end" : "start", color: C.shifted }),
     ]));
     anchors[id] = midNew;
   };
-  if (isShift !== 0) shifted("is_shifted", isR, isShift, isPts[Math.floor(isPts.length / 2)], C.shifted, "IS");
-  if (lmShift !== 0) shifted("lm_shifted", lmR, lmShift, lmPts[Math.floor(lmPts.length / 2)], C.shifted, "LM");
-  if (showEq && (isShift !== 0 || lmShift !== 0)) eqGroup("eq2", cross(isShift, lmShift), "**", C.accent);
+  if (isShift !== 0) shifted("is_shifted", isR, isShift, isPts, C.shifted, "IS");
+  if (lmShift !== 0) shifted("lm_shifted", lmR, lmShift, lmPts, C.shifted, "LM");
+  if (showEq && (isShift !== 0 || lmShift !== 0)) eqGroup("eq2", cross(isShift, lmShift), "**", C.accent, eq0);
 
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [540, 700], params.title, { fontSize: 30 }));

@@ -174,3 +174,16 @@ describe("the host drives a DOCUMENT's live body like a built-in's", () => {
     expect(calls.length).toBe(before);
   });
 });
+
+describe("ad_as: every figure a drag can reach is lint-clean", () => {
+  const lintAt = (params: Record<string, unknown>): string[] => {
+    const l = layoutSpec({ title: "t", template: "ad_as", params, commands: [] } as unknown as RenderHandle["spec"]);
+    return [...l.warnings, ...l.issues.map((i) => `[${i.severity}] ${i.message}`)];
+  };
+  test.each(["ad", "as"])("%s shifted across its range, with and without the LRAS", (curve) => {
+    for (const d of [-30, -14, -3, 0, 3, 14, 30])
+      for (const show_lras of [false, true]) {
+        expect(lintAt({ shift: { curve, direction: d < 0 ? "left" : "right", amount: Math.abs(d) }, show_lras })).toEqual([]);
+      }
+  });
+});

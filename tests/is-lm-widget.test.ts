@@ -171,3 +171,28 @@ describe("is_lm: live recompute and values", () => {
     expect(ask.some((i) => i.rule === "widget" && /free play only/.test(i.message))).toBe(true);
   });
 });
+
+describe("is_lm: every figure a drag can reach is lint-clean", () => {
+  const lintAt = (params: Record<string, unknown>): string[] => {
+    const l = layoutSpec({ title: "t", template: "is_lm", params, commands: [] } as unknown as Spec);
+    return [...l.warnings, ...l.issues.map((i) => `[${i.severity}] ${i.message}`)];
+  };
+  test.each([-30, -12, -3, 0, 3, 12, 30])("IS shifted %d, with LM shifted each way", (s) => {
+    for (const m of [0, -20, -5, 5, 20]) expect(lintAt({ is_shift: s, lm_shift: m })).toEqual([]);
+  });
+
+  test("the shift arrow runs sideways, and a primed label stands clear of the original's", () => {
+    for (const s of [-20, -5, 5, 20]) {
+      const lay = mod().layout!({ lm_shift: s, is_shift: s });
+      for (const id of ["is_shifted", "lm_shifted"]) {
+        const g = lay.drawables.find((d) => d.id === id) as unknown as { children: { id: string; pts?: Pt[]; pos?: Pt }[] };
+        const arrow = g.children.find((c) => c.id.endsWith("__arrow"))!.pts!;
+        expect(arrow[0][1]).toBeCloseTo(arrow[1][1], 6);
+        const base = lay.drawables.find((d) => d.id === (id === "is_shifted" ? "is_curve" : "lm_curve")) as unknown as { children: { id: string; pos?: Pt }[] };
+        const t0 = base.children.find((c) => c.id.endsWith("__t"))!.pos!;
+        const t1 = g.children.find((c) => c.id.endsWith("__t"))!.pos!;
+        expect(Math.abs(t1[1] - t0[1])).toBeGreaterThan(20);
+      }
+    }
+  });
+});
