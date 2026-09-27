@@ -515,6 +515,10 @@ export function layoutPlot3d(P: Plot3dParams): SceneLayout {
 
   // ---- the equation (laid out above) --------------------------------------
   const drawnWith: Record<string, string[]> = {};
+  // A mark's name comes with its dot.
+  markInfo.forEach((mk, i) => {
+    if (mk.text) drawnWith[mk.id] = [`mark_label_${i}`];
+  });
   if (eqDrawn) {
     const r = eqDrawn;
     for (const d of r.drawables) {

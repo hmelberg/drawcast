@@ -189,6 +189,9 @@ describe("ids", () => {
     expect(g.legend).toEqual(["colorbar", "colorbar_max", "colorbar_min", "colorbar_label"]);
     expect(l.order).toEqual(expect.arrayContaining(["colorbar", "colorbar_min", "colorbar_max"]));
     expect(l.drawnWith?.colorbar).toEqual(["colorbar_max", "colorbar_min", "colorbar_label"]);
+    // A mark's name comes with its dot.
+    expect(layoutPlot3d({ ...HILLS, marks: [{ at: [1, 1], label: "Peak" }, { at: [0, 0] }] }).drawnWith).toMatchObject({ mark_0: ["mark_label_0"] });
+    expect(layoutPlot3d({ ...HILLS, marks: [{ at: [0, 0] }] }).drawnWith?.mark_0).toBeUndefined();
     // No legend without height colours or without asking.
     expect(layoutPlot3d({ ...HILLS, legend: false }).order).not.toContain("colorbar");
     expect(layoutPlot3d({ ...HILLS, color_by: "shade" }).order).not.toContain("colorbar");
