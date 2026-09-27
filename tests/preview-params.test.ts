@@ -6,6 +6,7 @@ import { Player, type Reprojector } from "../src/render/player";
 import { planCommands } from "../src/render/plan";
 import { SpeechManager } from "../src/render/speech";
 import type { RenderedElement } from "../src/render/backend";
+import type { LayoutResult } from "../src/layout/layout";
 
 // node has no rAF; drive Player.progress with a timer-based stand-in.
 globalThis.requestAnimationFrame ??= ((cb: FrameRequestCallback) =>
@@ -102,5 +103,24 @@ describe("previewParams", () => {
       params: { fen: "8/8/8/8/8/8/8/8 w - - 0 1", moves: [] },
       revealNew: true,
     });
+  });
+});
+
+describe("paintedLayout after an animate settles", () => {
+  // 2026-09-28 (motion_graphs): a cast that ends on an animated param — a
+  // time cursor swept to the end — painted the committed boundary, but the
+  // widget host hit-tested the AUTHORED params' layout (painted was null), so
+  // the viewer's first grab missed the cursor on screen.
+  test("with no preview, the painted layout is the last commit's", () => {
+    const player = makePlayer();
+    const committed = { order: ["demand"] } as unknown as LayoutResult;
+    const { rp } = makeReprojector();
+    player.reprojector = { ...rp, committed: () => committed };
+    expect(player.paintedLayout()).toBe(committed);
+    player.renderUpTo(1);
+    expect(player.paintedLayout()).toBe(committed);
+    // A reprojector that keeps none still reads as "the plan's".
+    player.reprojector = rp;
+    expect(player.paintedLayout()).toBeNull();
   });
 });

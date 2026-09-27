@@ -22,6 +22,9 @@ export function parityCases(): { name: string; params: Record<string, unknown> }
   for (const [i, ex] of (examples as { spec?: { template?: string; params?: Record<string, unknown>; commands?: { animate?: Record<string, unknown> }[] } }[]).entries()) {
     const s = ex.spec;
     if (s?.template !== "plot3d") continue;
+    // A figure with parameters or a filled style is the built-in's own: the
+    // pack never drew one.
+    if (s.params && (typeof s.params.params === "object" || (s.params.style !== undefined && s.params.style !== "wire"))) continue;
     let p = { ...(s.params ?? {}) };
     out.push({ name: `example ${i}`, params: p });
     for (const [k, c] of (s.commands ?? []).entries()) {

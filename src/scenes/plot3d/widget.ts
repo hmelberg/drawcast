@@ -57,7 +57,7 @@ export function zoomPatch(P: Plot3dParams, factor: number): Record<string, unkno
 }
 
 /** The ids of the plot itself (not its equation, panel or title). */
-const PLOT_ID = /^(axis_[xyz](_label)?|wire_(row|col)_\d+|curve|pt_\d+|pt_label_\d+|mark_\d+|mark_label_\d+)$/;
+const PLOT_ID = /^(axis_[xyz](_label)?|wire_(row|col)_\d+|surface_fill|curve|pt_\d+|pt_label_\d+|mark_\d+|mark_label_\d+)$/;
 
 /** The plot's paper, logical y-up: its drawn ink, padded, kept off the equation and the panel. */
 export function plotSurface(scene: WidgetScene): BBox | null {

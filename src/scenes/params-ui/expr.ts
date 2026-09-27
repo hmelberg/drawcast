@@ -392,7 +392,8 @@ export function toTeX(root: Node, variables: string | readonly string[], w: Para
           let b: string;
           if (isParam(base) && negativeParam(base)) b = writeParam(base, false, true);
           else b = tex(base, PREC.power + 1, false, null);
-          if (base.k === "call" && base.fn !== "sqrt" && base.fn !== "abs") b = paren(b);
+          // A function's value, or a fraction ((1/2)^(t/T)), raised to a power keeps its brackets.
+          if ((base.k === "call" && base.fn !== "sqrt" && base.fn !== "abs") || (base.k === "bin" && base.op === "/")) b = paren(b);
           return [`${b}^{${tex(n.b, 0, true, null)}}`, PREC.power];
         }
         if (n.op === "%") return [`${tex(n.a, PREC.product, lead, abs)} \\bmod ${tex(n.b, PREC.unary, false, null)}`, PREC.product];

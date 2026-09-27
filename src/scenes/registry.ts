@@ -40,12 +40,25 @@ import { layoutEquationPlot, type EquationPlotParams } from "./equation_plot/lay
 import { lintEquationPlot } from "./equation_plot/lint";
 import { equationPlotWidget } from "./equation_plot/widget";
 import { readModel as readEquationPlot } from "./equation_plot/model";
+import { withPreset as withEquationPreset } from "./equation_plot/presets";
 import plot3dManifest from "./plot3d/manifest.json";
 import { layoutPlot3d, type Plot3dParams } from "./plot3d/layout";
 import { lintPlot3d } from "./plot3d/lint";
 import { plot3dWidget } from "./plot3d/widget";
 import { readModel as readPlot3d } from "./plot3d/model";
 import { traySliders } from "./params-ui/params";
+import motionGraphsManifest from "./motion_graphs/manifest.json";
+import { layoutMotionGraphs, type MotionParams } from "./motion_graphs/layout";
+import { lintMotionGraphs } from "./motion_graphs/lint";
+import { motionGraphsWidget } from "./motion_graphs/widget";
+import titrationManifest from "./titration_curve/manifest.json";
+import { layoutTitration, type TitrationParams } from "./titration_curve/layout";
+import { lintTitration } from "./titration_curve/lint";
+import { titrationWidget } from "./titration_curve/widget";
+import maxwellManifest from "./maxwell_boltzmann/manifest.json";
+import { layoutMaxwell, type MaxwellParams } from "./maxwell_boltzmann/layout";
+import { lintMaxwell } from "./maxwell_boltzmann/lint";
+import { maxwellWidget } from "./maxwell_boltzmann/widget";
 import refractionManifest from "./refraction/manifest.json";
 import { layoutRefraction, type RefractionParams } from "./refraction/layout";
 import { lintRefraction } from "./refraction/lint";
@@ -120,7 +133,10 @@ export const scenes: Record<string, SceneModule> = {
     // Free play: the parameters scrubbed or typed in the equation, on the
     // panel's sliders and boxes, or by dragging the curve itself.
     widget: equationPlotWidget,
-    sliders: (params) => traySliders(params.params, readEquationPlot(params as unknown as EquationPlotParams)),
+    sliders: (params) => {
+      const P = withEquationPreset(params as unknown as EquationPlotParams);
+      return traySliders(P.params, readEquationPlot(P));
+    },
   },
   // Built in since 2026-09-27 (it was the mathlogic pack's): the params-ui
   // modules its live parameters use are TypeScript. Free play: orbit, zoom,
@@ -131,6 +147,30 @@ export const scenes: Record<string, SceneModule> = {
     lint: (params) => lintPlot3d(params as Plot3dParams),
     widget: plot3dWidget,
     sliders: (params) => traySliders(params.params, readPlot3d(params as Plot3dParams)),
+  },
+  // Free play (2026-09-28): drag the time cursor, a piece of v(t) or a(t),
+  // scrub the header numbers; every graph and the object follow.
+  motion_graphs: {
+    manifest: motionGraphsManifest as SceneManifest,
+    layout: (params) => layoutMotionGraphs(params as MotionParams),
+    lint: (params) => lintMotionGraphs(params as MotionParams),
+    widget: motionGraphsWidget,
+  },
+  // Free play: the volume, the pKa, the amounts and the indicator, dragged or
+  // scrubbed on the figure (2026-09-28).
+  titration_curve: {
+    manifest: titrationManifest as SceneManifest,
+    layout: (params) => layoutTitration(params as TitrationParams),
+    lint: (params) => lintTitration(params as TitrationParams),
+    widget: titrationWidget,
+  },
+  // Free play: the temperatures (drag a curve, scrub its label) and the
+  // barriers (drag the Eₐ and catalyst lines) (2026-09-28).
+  maxwell_boltzmann: {
+    manifest: maxwellManifest as SceneManifest,
+    layout: (params) => layoutMaxwell(params as MaxwellParams),
+    lint: (params) => lintMaxwell(params as MaxwellParams),
+    widget: maxwellWidget,
   },
   // Physics, free play (2026-09-28): drag the lamp or a ray, scrub or type
   // the indices and angles.

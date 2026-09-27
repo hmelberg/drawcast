@@ -19,7 +19,7 @@
 // (vertical on screen), math y becomes world Z (depth). Every element id
 // keeps its math meaning (axis_z is labeled "z" and points up on screen).
 import { plotArea } from "../../layout/canvas";
-import { COLORS, SKETCH_MS, type Drawable, type Pt } from "../../layout/model";
+import { COLORS, SKETCH_MS, Z_STROKE, defaultDrawOpts, defaultStyle, type AreaDrawable, type Drawable, type Pt } from "../../layout/model";
 import type { LabelRequest } from "../../layout/labels";
 import type { Side } from "../../spec/types";
 import { getLoadedEngines, type MathJaxEngine } from "../engines";
@@ -28,7 +28,8 @@ import type { SceneLayout } from "../types";
 import { drawEquation, equationTeX } from "../params-ui/equation";
 import type { Node } from "../params-ui/expr";
 import { drawPanel, panelRows, PANEL_W } from "../params-ui/panel";
-import { gridCoords, readModel, rangeEnvs, sampleCurve3, sampleSurface, steadyZAbs, surfaceAt, zExtent, type Model, type Plot3dParams, type Vec3 } from "./model";
+import { gridCoords, readModel, rangeEnvs, sampleCurve3, sampleSurface, steadyZAbs, steadyZExtent, surfaceAt, zExtent, type Model, type Plot3dParams, type Vec3 } from "./model";
+import { buildCells, clipPolygon, grow, heightColor, occluder, type Proj } from "./mesh";
 
 export type { Plot3dParams } from "./model";
 
@@ -65,6 +66,8 @@ export interface Page {
   eqCy: number;
   eqWidth: number;
   panel: { x0: number; x1: number; yMid: number };
+  /** Where the height legend's bar stands (its left edge), when there is one: the plot's box stops short of it. */
+  legendX: number;
 }
 
 const PX_PER_UNIT = 190;
@@ -72,13 +75,20 @@ const PX_LIVE = 270;
 const PX_LIVE_PANEL = 250;
 const EQ_LINE = 60;
 const PANEL_RIGHT = 975;
+/** The column the height legend keeps for itself at the plot's right. */
+const LEGEND_W = 110;
+
+/** A surface drawn with fills (style "mesh" / "solid"). */
+const filledOf = (m: Model): boolean => m.kind === "surface" && m.fill.style !== "wire";
 
 export function pageOf(m: Model): Page {
   const panelOn = m.panel.length > 0;
   const eqOn = m.showEquation;
   const shared = panelOn || eqOn;
   const panelX0 = PANEL_RIGHT - PANEL_W;
-  const cx = panelOn ? 360 : 500;
+  const legendOn = filledOf(m) && m.fill.legend;
+  const cx = panelOn ? 360 : legendOn ? 470 : 500;
+  const boxX1 = panelOn ? panelX0 - 30 : 988;
   // The equation's line sits where equation_plot's first line does: under
   // the page's top margin, or under a card's heading when there is one.
   const eqCy = plotArea().y1 + 8 - EQ_LINE / 2;
@@ -88,10 +98,12 @@ export function pageOf(m: Model): Page {
     cy,
     // The pack's 190 frames the axis box's corner — a bound no orbit
     // reaches, so its figures sit small in the page; kept for them
-    // (parity). A live figure frames its steady reach larger, and its
-    // ink is clipped to the plot's box anyway.
-    pxPerReach: m.steady || shared ? (panelOn ? PX_LIVE_PANEL : PX_LIVE) : PX_PER_UNIT,
-    box: { x0: 12, y0: 12, x1: panelOn ? panelX0 - 30 : 988, y1: eqOn ? eqCy - 40 : 738 },
+    // (parity). A live figure — or a filled one, which the pack never
+    // drew — frames its reach larger, and its ink is clipped to the
+    // plot's box anyway.
+    pxPerReach: m.steady || shared || filledOf(m) ? (panelOn ? PX_LIVE_PANEL : PX_LIVE) : PX_PER_UNIT,
+    box: { x0: 12, y0: 12, x1: legendOn ? boxX1 - LEGEND_W : boxX1, y1: eqOn ? eqCy - 40 : 738 },
+    legendX: boxX1 - 92,
     eqCy,
     eqWidth: 1000 - 60,
     panel: { x0: panelX0, x1: PANEL_RIGHT, yMid: cy },
@@ -181,7 +193,7 @@ export function layoutPlot3d(P: Plot3dParams): SceneLayout {
   const page = pageOf(m);
   // Ink and letters keep to the plot's box once something shares the page
   // or the view is zoomed; a figure with neither is drawn as it always was.
-  const clip = m.steady || m.showEquation || m.panel.length > 0 || m.camera.zoom !== 1;
+  const clip = m.steady || filledOf(m) || m.showEquation || m.panel.length > 0 || m.camera.zoom !== 1;
   const C = COLORS;
   const MS = SKETCH_MS;
 
@@ -233,6 +245,10 @@ export function layoutPlot3d(P: Plot3dParams): SceneLayout {
   /** math z → world height. */
   let zWorld: (z: number) => number = (z) => z;
   const values: Record<string, number> = {};
+  // style "mesh" / "solid": filled cells under the wires (mesh.ts).
+  const fill = m.fill;
+  const filled = m.kind === "surface" && fill.style !== "wire";
+  let heightScale: { lo: number; hi: number; t: (worldHeight: number) => number } | null = null;
 
   if (m.kind === "surface") {
     const xs = gridCoords(m);
@@ -244,12 +260,18 @@ export function layoutPlot3d(P: Plot3dParams): SceneLayout {
       const zAbs = steadyZAbs(m);
       const k = zAbs < 1e-9 ? 1 : zHalf / zAbs;
       zWorld = (z) => z * k;
+      // The height colours run over the same fixed range: a colour means one height whatever the sliders do.
+      if (filled) {
+        const [lo, hi] = steadyZExtent(m);
+        heightScale = { lo, hi, t: (w) => (hi - lo < 1e-9 ? 0.5 : (w / k - lo) / (hi - lo)) };
+      }
     } else if (raw) {
       let zMin = Infinity;
       let zMax = -Infinity;
       raw.forEach((row) => row.forEach((z) => ((zMin = Math.min(zMin, z)), (zMax = Math.max(zMax, z)))));
       const zSpan = zMax - zMin;
       zWorld = (z) => (zSpan < 1e-9 ? 0 : ((z - zMin) / zSpan - 0.5) * 2 * zHalf);
+      if (filled) heightScale = { lo: zMin, hi: zMax, t: (w) => (zSpan < 1e-9 ? 0.5 : w / (2 * zHalf) + 0.5) };
     }
     if (raw) {
       gridWorld = raw.map((row, i) =>
@@ -439,7 +461,12 @@ export function layoutPlot3d(P: Plot3dParams): SceneLayout {
     return pieces[0];
   };
   let curveMid: Pt | null = null;
-  if (gridWorld) {
+  let fillGroup: Drawable | null = null;
+  if (gridWorld && filled) {
+    const mesh = meshOf(gridWorld, camera, heightScale?.t ?? (() => 0.5), fill, clip ? page.box : null, reach);
+    fillGroup = mesh.fill;
+    manual.push(...mesh.wires.map((w) => ({ ...w, depth: 0 })));
+  } else if (gridWorld) {
     for (let i = 0; i < m.gridN; i++) pushLine(`wire_row_${i}`, gridWorld[i], { color: C.ink, strokeWidth: 3, ms: MS.stroke });
     for (let j = 0; j < m.gridN; j++) pushLine(`wire_col_${j}`, gridWorld.map((row) => row[j]), { color: C.supply, strokeWidth: 3, ms: MS.stroke });
   } else if (curveWorld) {
@@ -452,6 +479,14 @@ export function layoutPlot3d(P: Plot3dParams): SceneLayout {
   merged.sort((a, b) => b.depth - a.depth); // far first, project3d's own convention
   // A mark sits ON the surface: drawn over the wires, never lost behind the near ones.
   merged.sort((a, b) => Number(a.id.startsWith("mark_")) - Number(b.id.startsWith("mark_")));
+  if (fillGroup) {
+    // Filled: the axes first, then the cells back to front, then the wires
+    // (their hidden stretches already cut away), then the marks.
+    const rank = (id: string): number => (/^axis_/.test(id) ? 0 : id.startsWith("mark_") ? 3 : 2);
+    merged.sort((a, b) => rank(a.id) - rank(b.id));
+    const cellsAt = merged.filter((x) => rank(x.id) === 0).length;
+    merged.splice(cellsAt, 0, { id: fillGroup.id, depth: 0, drawable: fillGroup });
+  }
 
   const drawables = merged.map((x) => x.drawable);
   // Labels paint last (on top) — they're read, not occluded.
@@ -471,9 +506,19 @@ export function layoutPlot3d(P: Plot3dParams): SceneLayout {
   };
   const wires = order.filter((id) => /^wire_(row|col)_\d+$/.test(id));
   if (wires.length > 0) groups.surface = wires;
+  if (fillGroup) {
+    // A filled surface: `surface` is the wires AND the fill — a draw sketches
+    // the wires in first, then the cells fade in under them, back to front.
+    groups.surface_wires = wires;
+    groups.surface = [...wires, fillGroup.id];
+  }
 
   // ---- the equation (laid out above) --------------------------------------
   const drawnWith: Record<string, string[]> = {};
+  // A mark's name comes with its dot.
+  markInfo.forEach((mk, i) => {
+    if (mk.text) drawnWith[mk.id] = [`mark_label_${i}`];
+  });
   if (eqDrawn) {
     const r = eqDrawn;
     for (const d of r.drawables) {
@@ -499,6 +544,19 @@ export function layoutPlot3d(P: Plot3dParams): SceneLayout {
   Object.assign(attached, panel.attached);
   if (panel.ids.length > 0) groups.panel = panel.ids;
 
+  // ---- the colour bar: the height scale, low to high ------------------------
+  if (fill.legend && heightScale && fillGroup) {
+    const bar = colorBar(page, heightScale.lo, heightScale.hi, axisText("z"));
+    for (const d of bar.drawables) {
+      drawables.push(d);
+      order.push(d.id);
+    }
+    Object.assign(anchors, bar.anchors);
+    attached.colorbar = bar.labels;
+    drawnWith.colorbar = bar.labels;
+    groups.legend = ["colorbar", ...bar.labels];
+  }
+
   // ---- values --------------------------------------------------------------
   for (const p of m.params) values[p.name] = p.value;
   values.azimuth = m.camera.azimuth;
@@ -508,4 +566,180 @@ export function layoutPlot3d(P: Plot3dParams): SceneLayout {
   const out: SceneLayout = { drawables, labels, anchors, order, attached, groups, values };
   if (Object.keys(drawnWith).length > 0) out.drawnWith = drawnWith;
   return out;
+}
+
+/** Pen of a filled surface's wires: thin over the fills, a hairline for "solid". */
+const MESH_WIRE = { mesh: { width: 1.6, opacity: 0.75 }, solid: { width: 1.1, opacity: 0.18 } } as const;
+/** How far each cell reaches past its edges (logical units) so neighbours overlap and no paper seam shows. */
+const CELL_GROW = 0.45;
+
+type Cam = Parameters<typeof proj3>[0];
+
+/**
+ * A filled surface's drawables: the cells (exact fills, painter's order,
+ * far first), and the wires drawn thin over them with every stretch a
+ * nearer part of the surface hides cut away. `tOf` maps a world height onto
+ * the colour scale.
+ */
+export function meshOf(
+  world: Vec3[][],
+  camera: Cam,
+  tOf: (worldHeight: number) => number,
+  fill: Model["fill"],
+  box: Page["box"] | null,
+  reach: number,
+): { fill: Drawable; wires: { id: string; drawable: Drawable }[] } {
+  const n = world.length;
+  const proj: Proj[][] = world.map((row) => row.map((p) => proj3(camera, p)));
+  const az = (camera.azimuth * Math.PI) / 180;
+  const el = (camera.elevation * Math.PI) / 180;
+  const [ca, sa, ce, se] = [Math.cos(az), Math.sin(az), Math.cos(el), Math.sin(el)];
+  // A world vector into camera space (x right, y up, z toward the eye): proj3's rotation.
+  const rotate = (v: Vec3): Vec3 => {
+    const x1 = v[0] * ca - v[2] * sa;
+    const z1 = v[0] * sa + v[2] * ca;
+    return [x1, v[1] * ce - z1 * se, v[1] * se + z1 * ce];
+  };
+  const cells = buildCells(world, proj, rotate, tOf, fill.colorBy, fill.shading);
+  // A draw of the whole fill (its cells one after another, back to front) takes about half what the wires do.
+  const ms = Math.max(8, Math.round((SKETCH_MS.stroke * n) / Math.max(1, (n - 1) * (n - 1))));
+  const cellDrawables: Drawable[] = [];
+  for (const c of cells) {
+    const pts = box ? clipPolygon(grow(c.pts, CELL_GROW), box) : grow(c.pts, CELL_GROW);
+    if (pts.length < 3) continue;
+    const d: AreaDrawable = {
+      id: `surface_fill__${c.i}_${c.j}`,
+      kind: "area",
+      pts,
+      precise: true,
+      // In the stroke layer, so the paint order is this list's: over the axes, under the wires.
+      z: Z_STROKE,
+      style: defaultStyle({ fill: c.color, opacity: fill.opacity, strokeWidth: 0 }),
+      drawOpts: defaultDrawOpts("sketch", ms),
+    };
+    cellDrawables.push(d);
+  }
+  // ONE element: the cells are its leaves, in paint order. (361 ids of their
+  // own would make every per-id pass of the page and the player quadratic.)
+  const fillGroup = kit.group("surface_fill", cellDrawables);
+
+  // ---- the wires, their hidden stretches cut away ----
+  const hidden = occluder(cells, proj, reach * 1e-3);
+  const pen = MESH_WIRE[fill.style === "solid" ? "solid" : "mesh"];
+  const o = { color: COLORS.ink, strokeWidth: pen.width, opacity: pen.opacity, ms: SKETCH_MS.stroke };
+  const lerp = (a: Vec3, b: Vec3, t: number): Vec3 => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  const wires: { id: string; drawable: Drawable }[] = [];
+  /** One wire: its grid points (world) and their projections; `borders(k)` the cells segment k→k+1 edges. */
+  const wire = (id: string, w: Vec3[], q: Proj[], borders: (k: number) => [number, number][]): void => {
+    const runs: Pt[][] = [];
+    let cur: Pt[] = [];
+    const close = (): void => {
+      if (cur.length >= 2) runs.push(cur);
+      cur = [];
+    };
+    for (let k = 0; k < w.length - 1; k++) {
+      const own = borders(k);
+      const skip = (i: number, j: number): boolean => own.some(([a, b]) => a === i && b === j);
+      // Each half of a segment is seen or hidden as its own middle is.
+      const seen = [0.25, 0.75].map((t) => !hidden(proj3(camera, lerp(w[k], w[k + 1], t)), skip));
+      const a: Pt = [q[k].x, q[k].y];
+      const b: Pt = [q[k + 1].x, q[k + 1].y];
+      if (seen[0] && seen[1]) {
+        if (cur.length === 0) cur.push(a);
+        cur.push(b);
+        continue;
+      }
+      const mid = proj3(camera, lerp(w[k], w[k + 1], 0.5));
+      const m: Pt = [mid.x, mid.y];
+      if (seen[0]) {
+        if (cur.length === 0) cur.push(a);
+        cur.push(m);
+        close();
+      } else if (seen[1]) {
+        close();
+        cur.push(m, b);
+      } else close();
+    }
+    close();
+    const pieces = box ? runs.flatMap((r) => clipToBox(r, box)) : runs;
+    if (pieces.length === 0) return;
+    const drawable: Drawable =
+      pieces.length === 1 ? kit.stroke(id, pieces[0], o) : { ...kit.group(id, pieces.map((p, k) => kit.stroke(`${id}__s${k}`, p, o))), style: kit.stroke(id, pieces[0], o).style };
+    wires.push({ id, drawable });
+  };
+  const inGrid = (c: [number, number][]): [number, number][] => c.filter(([i, j]) => i >= 0 && j >= 0 && i < n - 1 && j < n - 1);
+  for (let i = 0; i < n; i++)
+    wire(`wire_row_${i}`, world[i], proj[i], (k) =>
+      inGrid([
+        [i - 1, k],
+        [i, k],
+      ]),
+    );
+  for (let j = 0; j < n; j++)
+    wire(
+      `wire_col_${j}`,
+      world.map((row) => row[j]),
+      proj.map((row) => row[j]),
+      (k) =>
+        inGrid([
+          [k, j - 1],
+          [k, j],
+        ]),
+    );
+  return { fill: fillGroup, wires };
+}
+
+/**
+ * The height legend: a slim vertical bar of the ramp at the plot box's right
+ * edge, the scale's top and bottom written beside it and the z axis's name
+ * under it. One id for the bar (`colorbar`), its words their own.
+ */
+function colorBar(page: Page, lo: number, hi: number, zName: string): { drawables: Drawable[]; anchors: Record<string, Pt>; labels: string[] } {
+  const STRIPS = 24;
+  const W = 20;
+  const H = 220;
+  const x0 = page.legendX;
+  const y0 = page.cy - H / 2;
+  const strips: Drawable[] = [];
+  for (let k = 0; k < STRIPS; k++) {
+    const ya = y0 + (H * k) / STRIPS;
+    const yb = y0 + (H * (k + 1)) / STRIPS + (k < STRIPS - 1 ? 0.5 : 0);
+    const d: AreaDrawable = {
+      id: `colorbar__${k}`,
+      kind: "area",
+      pts: [
+        [x0, ya],
+        [x0 + W, ya],
+        [x0 + W, yb],
+        [x0, yb],
+      ],
+      precise: true,
+      z: Z_STROKE,
+      style: defaultStyle({ fill: heightColor((k + 0.5) / STRIPS), strokeWidth: 0 }),
+      drawOpts: defaultDrawOpts("sketch", 20),
+    };
+    strips.push(d);
+  }
+  const frame = kit.stroke(
+    "colorbar__frame",
+    [
+      [x0, y0],
+      [x0 + W, y0],
+      [x0 + W, y0 + H],
+      [x0, y0 + H],
+    ],
+    { closed: true, color: COLORS.guide, strokeWidth: 1.5, ms: SKETCH_MS.guides },
+  );
+  const bar = kit.group("colorbar", [...strips, frame]);
+  const fs = 20;
+  const texts = [
+    kit.text("colorbar_max", [x0 + W + 8, y0 + H - fs * 0.35], trim(hi), { fontSize: fs, color: COLORS.guide, anchor: "start" }),
+    kit.text("colorbar_min", [x0 + W + 8, y0 - fs * 0.35], trim(lo), { fontSize: fs, color: COLORS.guide, anchor: "start" }),
+    kit.text("colorbar_label", [x0 + W / 2, y0 + H + 22], zName, { fontSize: 22, color: COLORS.guide }),
+  ];
+  return {
+    drawables: [bar, ...texts],
+    anchors: { colorbar: [x0 + W / 2, y0 + H / 2], colorbar_max: texts[0].pos, colorbar_min: texts[1].pos, colorbar_label: texts[2].pos },
+    labels: texts.map((t) => t.id),
+  };
 }
