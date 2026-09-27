@@ -191,6 +191,37 @@ export function dashedOutlineD(d: { pts: Pt[]; closed?: boolean; shapeHint?: Sha
   return dashedPathFromPts(closed && d.pts.length >= 3 ? [...d.pts, d.pts[0]] : d.pts);
 }
 
+/** A circle/rect hint's exact outline as SVG path data (SVG coordinates). */
+function hintOutlineD(h: ShapeHint): string {
+  if (h.type === "circle") return circlePath(h.c[0], toSvgY(h.c[1]), h.r);
+  return `M${h.x} ${toSvgY(h.y + h.h)} h${h.w} v${h.h} h${-h.w} Z`;
+}
+
+/**
+ * The fill a circle- or rect-hinted stroke (a `shape`) paints under its
+ * outline, as SVG path data, or null when it has none. One place for both
+ * render styles, dashed or solid: until 2026-09-27 only the circle branches
+ * painted a fill, so a `shape: rect` with `style.fill` drew empty. A polygon,
+ * ellipse, sector or closed path carries its fill as its own `_wash` area
+ * (tier2 filledOutline); its outline stroke holds `style.fill` too and must
+ * not be filled a second time — hence hint-only.
+ */
+export function shapeFillD(d: { shapeHint?: ShapeHint; style: { fill?: string; fillGradient?: GradientSpec } }): string | null {
+  if (!d.shapeHint || !(d.style.fill || d.style.fillGradient)) return null;
+  return hintOutlineD(d.shapeHint);
+}
+
+/** rough.js's own exact circle/rect for a hint. */
+function roughHint(rc: RoughSVG, h: ShapeHint, o: RoughOptions): SVGGElement {
+  return h.type === "circle" ? rc.circle(h.c[0], toSvgY(h.c[1]), h.r * 2, o) : rc.rectangle(h.x, toSvgY(h.y + h.h), h.w, h.h, o);
+}
+
+/** A hinted shape's solid-fill options for rough.js, or null when unfilled. */
+function roughHintFill(g: SVGGElement, d: { shapeHint?: ShapeHint; style: { fill?: string; fillGradient?: GradientSpec } }): Partial<RoughOptions> | null {
+  if (!shapeFillD(d)) return null;
+  return { fill: d.style.fillGradient ? appendRadialGradient(g, d.style.fillGradient) : d.style.fill!, fillStyle: "solid" };
+}
+
 /**
  * True when an area is an EXACT filled shape rather than a shaded region:
  * one crisp path in both render styles. Any hole implies it — rough.js's
@@ -344,30 +375,23 @@ function drawLeafClean(g: SVGGElement, d: Exclude<Drawable, { kind: "group" | "t
     }
     return;
   }
-  const filled = !!(d.style.fill || d.style.fillGradient);
+  const fillD = shapeFillD(d);
+  const paint = fillD ? (d.style.fillGradient ? appendRadialGradient(g, d.style.fillGradient) : d.style.fill!) : null;
   const dashed = dashedOutlineD(d);
   if (dashed) {
     // Dashed: the fill (if any) under a cut outline; the exact shape's own
     // stroke would draw solid.
-    if (filled && d.shapeHint?.type === "circle") {
-      const gradPaint = d.style.fillGradient ? appendRadialGradient(g, d.style.fillGradient) : null;
-      const { c, r } = d.shapeHint;
-      const f = plainPath(circlePath(c[0], toSvgY(c[1]), r), d.style, true);
-      f.setAttribute("fill", gradPaint ?? d.style.fill!);
+    if (fillD) {
+      const f = plainPath(fillD, d.style);
+      f.setAttribute("fill", paint!);
       f.setAttribute("stroke", "none");
       g.appendChild(f);
     }
     g.appendChild(plainPath(dashed, d.style));
-  } else if (d.shapeHint?.type === "circle") {
-    const gradPaint = d.style.fillGradient ? appendRadialGradient(g, d.style.fillGradient) : null;
-    const { c, r } = d.shapeHint;
-    const p = plainPath(circlePath(c[0], toSvgY(c[1]), r), d.style, filled);
-    if (filled) p.setAttribute("fill", gradPaint ?? d.style.fill!);
+  } else if (d.shapeHint) {
+    const p = plainPath(hintOutlineD(d.shapeHint), d.style);
+    if (paint) p.setAttribute("fill", paint);
     g.appendChild(p);
-  } else if (d.shapeHint?.type === "rect") {
-    const { x, y, w, h: rh } = d.shapeHint;
-    const top = toSvgY(y + rh);
-    g.appendChild(plainPath(`M${x} ${top} h${w} v${rh} h${-w} Z`, d.style));
   } else if (d.pts.length >= 2) {
     g.appendChild(plainPath(pathFromPts(d.pts, d.closed), d.style));
   }
@@ -521,20 +545,12 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
   if (dashed) {
     // Dashed: the fill (if any) under a cut outline; rc.circle and
     // rc.rectangle have no dash of their own.
-    if (d.shapeHint?.type === "circle") {
-      const { c, r } = d.shapeHint;
-      const fillPaint = d.style.fillGradient ? appendRadialGradient(g, d.style.fillGradient) : d.style.fill;
-      if (fillPaint) g.appendChild(rc.circle(c[0], toSvgY(c[1]), r * 2, { ...opts, stroke: "none", fill: fillPaint, fillStyle: "solid" }));
-    }
+    const fill = roughHintFill(g, d);
+    if (fill) g.appendChild(roughHint(rc, d.shapeHint!, { ...opts, stroke: "none", ...fill }));
     g.appendChild(rc.path(dashed, opts));
-  } else if (d.shapeHint?.type === "circle") {
-    const { c, r } = d.shapeHint;
-    const fillPaint = d.style.fillGradient ? appendRadialGradient(g, d.style.fillGradient) : d.style.fill;
-    const node = rc.circle(c[0], toSvgY(c[1]), r * 2, fillPaint ? { ...opts, fill: fillPaint, fillStyle: "solid" } : opts);
-    g.appendChild(node);
-  } else if (d.shapeHint?.type === "rect") {
-    const node = rc.rectangle(d.shapeHint.x, toSvgY(d.shapeHint.y + d.shapeHint.h), d.shapeHint.w, d.shapeHint.h, opts);
-    g.appendChild(node);
+  } else if (d.shapeHint) {
+    const fill = roughHintFill(g, d);
+    g.appendChild(roughHint(rc, d.shapeHint, fill ? { ...opts, ...fill } : opts));
   } else if (d.pts.length >= 2) {
     g.appendChild(rc.path(pathFromPts(d.pts, d.closed), opts));
   }
