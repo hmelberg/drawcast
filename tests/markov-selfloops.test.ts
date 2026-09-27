@@ -10,6 +10,17 @@ import { kit } from "../src/scenes/kit";
 import { flattenDrawables, type StrokeDrawable } from "../src/layout/model";
 import { layoutMarkovModel, type MarkovParams } from "../src/scenes/markov_model/layout";
 import type { Pt } from "../src/layout/model";
+import { layoutSpec } from "../src/layout/layout";
+import { heuristicMeasure } from "../src/layout/measure";
+import type { Spec } from "../src/spec/types";
+
+/** Where the label solver put a label, laid out as a spec would be. */
+function placedLabel(params: MarkovParams, id: string): Pt {
+  const l = layoutSpec({ template: "markov_model", params, commands: [] } as unknown as Spec, heuristicMeasure);
+  const d = flattenDrawables(l.drawables).find((x) => x.id === id);
+  if (!d || d.kind !== "text") throw new Error(`no label ${id}`);
+  return d.pos;
+}
 
 const RX = 78;
 const RY = 44;
@@ -138,7 +149,7 @@ describe("layoutMarkovModel self-loop placement and labels", () => {
   });
 
   test("a transition through an intermediate state bows around it (the classic HTA row)", () => {
-    const r = layoutMarkovModel({
+    const params: MarkovParams = {
       states: ["Well", "Sick", "Dead"],
       transitions: [
         { from: "Well", to: "Sick", label: "0.10" },
@@ -147,7 +158,8 @@ describe("layoutMarkovModel self-loop placement and labels", () => {
       ],
       layout: "chain",
       self_loops: ["Well", "Sick"],
-    });
+    };
+    const r = layoutMarkovModel(params);
     const sick = r.anchors["state_sick"];
     const t2 = flattenDrawables(r.drawables).find((d) => d.id === "t_2") as StrokeDrawable;
     expect(t2.pts.length, "the through-transition must be bowed, not straight").toBeGreaterThan(2);
@@ -157,14 +169,47 @@ describe("layoutMarkovModel self-loop placement and labels", () => {
     // The probability label belongs on the bow's convex (outer) side — a
     // fixed "above the line" nudge would shove it back toward the very
     // state the bow just swerved around.
-    const label = r.labels.find((l) => l.id === "t_label_2");
-    expect(label).toBeDefined();
+    // (Where the solver PUT it: the request's anchor is set back by the solver's ring.)
+    const label = placedLabel(params, "t_label_2");
     const first = t2.pts[0];
     const last = t2.pts[t2.pts.length - 1];
     const chordMid: Pt = [(first[0] + last[0]) / 2, (first[1] + last[1]) / 2];
     const pathMid = t2.pts[Math.floor((t2.pts.length - 1) / 2)];
     const bulge: Pt = [pathMid[0] - chordMid[0], pathMid[1] - chordMid[1]];
-    const off: Pt = [label!.anchor[0] - pathMid[0], label!.anchor[1] - pathMid[1]];
+    const off: Pt = [label[0] - pathMid[0], label[1] - pathMid[1]];
     expect(off[0] * bulge[0] + off[1] * bulge[1], "label must sit on the convex side").toBeGreaterThan(0);
+  });
+
+  test("a label sits at its arrow's middle, beside it — a straight arrow's too (it once sat at the tail)", () => {
+    const params: MarkovParams = {
+      states: ["Well", "Sick", "Dead"],
+      transitions: [
+        { from: "Well", to: "Sick", label: "0.10" },
+        { from: "Sick", to: "Well", label: "0.25" },
+        { from: "Sick", to: "Dead", label: "0.05" },
+        { from: "Well", to: "Dead", label: "0.02" },
+      ],
+      self_loops: [{ state: "Well", label: "0.88" }, { state: "Sick", label: "0.70" }, { state: "Dead", label: "1" }],
+    };
+    const strokes = flattenDrawables(layoutSpec({ template: "markov_model", params, commands: [] } as unknown as Spec, heuristicMeasure).drawables);
+    params.transitions.forEach((_, i) => {
+      const pts = (strokes.find((d) => d.id === `t_${i}`) as StrokeDrawable).pts;
+      const a = pts[0], b = pts[pts.length - 1];
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const at = placedLabel(params, `t_label_${i}`);
+      // Nearer the arrow's middle than either end.
+      const mid: Pt = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      const dMid = Math.hypot(at[0] - mid[0], at[1] - mid[1]);
+      expect(dMid, `t_label_${i}`).toBeLessThan(Math.hypot(at[0] - a[0], at[1] - a[1]));
+      expect(dMid, `t_label_${i}`).toBeLessThan(Math.hypot(at[0] - b[0], at[1] - b[1]));
+      expect(dMid, `t_label_${i}`).toBeLessThan(Math.max(45, len * 0.3));
+    });
+    // A stay label keeps close to its loop.
+    for (const s of ["well", "sick", "dead"]) {
+      const loop = (strokes.find((d) => d.id === `loop_${s}`) as StrokeDrawable).pts;
+      const at = placedLabel(params, `loop_label_${s}`);
+      const nearest = Math.min(...loop.map((p) => Math.hypot(p[0] - at[0], p[1] - at[1])));
+      expect(nearest, `loop_label_${s}`).toBeLessThan(40);
+    }
   });
 });

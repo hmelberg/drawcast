@@ -47,8 +47,41 @@ describe("markov_model trace", () => {
     expect(v.qalys_mean).toBeCloseTo(v.qalys_total / 1000, 9);
     expect(v.compare_qalys_mean).toBeGreaterThan(v.qalys_mean); // fewer fall sick
     expect(v.cost_per_qaly).toBeCloseTo((v.compare_cost_mean - v.cost_mean) / (v.compare_qalys_mean - v.qalys_mean), 6);
-    expect(cells(TRACED, "trace_mean")[1]).toBe(v.qalys_mean.toFixed(1));
-    expect(l.drawables.some((d) => d.id === "trace_icer")).toBe(true);
+    expect(cells(TRACED, "trace_mean")[1]).toBe(v.qalys_mean.toFixed(2));
+    // The ICER line in three parts a cast can draw one by one, grouped as trace_icer.
+    expect(l.groups!.trace_icer).toEqual(["trace_icer_gain", "trace_icer_cost", "trace_icer_ratio"]);
+    for (const id of l.groups!.trace_icer) expect(l.drawables.some((d) => d.id === id), id).toBe(true);
+  });
+
+  test("the differences are the differences of the numbers as written (no 1.3 QALYs over 13.4 and 14.7 that make 1.26)", () => {
+    const l = layoutMarkovModel(TRACED);
+    const text = (id: string) => flattenDrawables(l.drawables.filter((d) => d.id === id)).filter((d): d is TextDrawable => d.kind === "text").map((t) => t.text);
+    const num = (s: string) => Number(s.replace(/[£,+]/g, "").replace("−", "-"));
+    const [, qm, cm] = cells(TRACED, "trace_mean");
+    const [, qc, cc] = cells(TRACED, "trace_compare");
+    const gain = text("trace_icer_gain")[1];
+    const cost = text("trace_icer_cost")[0];
+    expect(num(gain)).toBeCloseTo(num(qc) - num(qm), 9);
+    expect(num(cost)).toBeCloseTo(num(cc) - num(cm), 9);
+    expect(gain).toMatch(/^\+\d+\.\d\d$/);
+    // The ratio is within rounding of the written cost over the written gain.
+    const ratio = num(text("trace_icer_ratio")[1]);
+    expect(Math.abs(ratio - num(cost) / num(gain))).toBeLessThan(0.02 * ratio);
+  });
+
+  test("the years the table skips show as ⋮, and the totals say they are discounted", () => {
+    const l = layoutMarkovModel(TRACED);
+    expect(l.order).toContain("trace_gap");
+    expect(l.order).toContain("trace_discount");
+    expect(flattenDrawables(l.drawables.filter((d) => d.id === "trace_discount")).find((d): d is TextDrawable => d.kind === "text")!.text).toBe("discounted 3.5%");
+    // Rules by what they close, the old numbered names kept as aliases.
+    expect(l.order).toContain("trace_rule_total");
+    expect(l.order).toContain("trace_rule_inputs");
+    expect(l.groups!.trace_rule_2).toEqual(["trace_rule_total"]);
+    // With a second option, the first is named like it (default "Current care").
+    expect(cells(TRACED, "trace_mean")[0]).toBe("Current care");
+    expect(cells({ ...TRACED, trace: { ...TRACED.trace!, name: "Usual care" } }, "trace_mean")[0]).toBe("Usual care");
+    expect(cells({ ...TRACED, trace: { ...TRACED.trace!, compare: undefined } }, "trace_mean")[0]).toBe("Per person");
   });
 
   test("the table sits right of the diagram, which moves left", () => {

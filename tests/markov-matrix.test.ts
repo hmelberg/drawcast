@@ -66,7 +66,7 @@ describe("markov_model matrix", () => {
   test("ids are stable and addressable, and the sets name what a beat wants", () => {
     const l = layoutMarkovModel({ ...BASE, view: "matrix", trace: TRACE });
     for (const id of [
-      "matrix_corner", "matrix_rule_head", "matrix_rule_from", "matrix_rule_values",
+      "matrix_corner", "matrix_rule_head", "matrix_rule_head_values", "matrix_rule_from", "matrix_rule_values",
       "matrix_head_row_well", "matrix_head_col_dead", "matrix_head_utility", "matrix_head_cost",
       "matrix_utility_sick", "matrix_cost_sick", "matrix_compare_well_sick", "matrix_compare_well_well",
       "matrix_compare_cost_well", "matrix_compare_name",
@@ -80,7 +80,14 @@ describe("markov_model matrix", () => {
     expect(textOf(l, "matrix_compare_cost_well")).toBe("£2,000");
     // Unchanged cells carry no compare value.
     expect(l.order).not.toContain("matrix_compare_sick_well");
-    expect(l.groups!.matrix_row_well).toEqual(expect.arrayContaining(["matrix_head_row_well", "matrix_cell_well_well", "matrix_cell_well_sick", "matrix_utility_well", "matrix_cost_well"]));
+    // A row is its name and its probabilities (what sums to 1); its values are their own set.
+    expect(l.groups!.matrix_row_well).toEqual(["matrix_head_row_well", "matrix_cell_well_well", "matrix_cell_well_sick", "matrix_cell_well_dead"]);
+    expect(l.groups!.matrix_values_well).toEqual(["matrix_utility_well", "matrix_cost_well"]);
+    expect(l.groups!.matrix_values).toEqual(expect.arrayContaining(["matrix_head_utility", "matrix_head_cost", "matrix_rule_head_values", "matrix_rule_values", "matrix_cost_dead"]));
+    // The head rule over the value columns belongs to them, not to the states' rule.
+    const ruleX = (id: string) => (l.drawables.find((d) => d.id === id) as { pts: [number, number][] }).pts.map((p) => p[0]);
+    expect(Math.max(...ruleX("matrix_rule_head"))).toBeLessThanOrEqual(Math.min(...ruleX("matrix_rule_head_values")) + 1e-9);
+    expect(Math.max(...ruleX("matrix_rule_head"))).toBeLessThan(l.anchors.matrix_head_utility[0]);
     expect(l.groups!.matrix_stay).toEqual(["matrix_cell_well_well", "matrix_cell_sick_sick", "matrix_cell_dead_dead"]);
     expect(l.groups!.matrix_compare).toContain("matrix_compare_well_sick");
     expect(l.groups!.matrix).not.toContain("matrix_compare_well_sick");
@@ -135,10 +142,77 @@ describe("markov_model matrix", () => {
     expect(under.order).toContain("trace_mean");
   });
 
-  test("the matrix and the table never overlap", () => {
-    const l = layoutMarkovModel({ ...BASE, view: "matrix", trace: { ...TRACE, cycles: 4 } });
-    const ys = (pre: string) => flattenDrawables(l.drawables.filter((d) => d.id.startsWith(pre))).filter((d): d is TextDrawable => d.kind === "text").map((t) => t.pos[1]);
-    expect(Math.min(...ys("matrix_"))).toBeGreaterThan(Math.max(...ys("trace_")));
+  test("the matrix and the table never overlap, and keep to the page between heading and captions", () => {
+    for (const cycles of [1, 4]) {
+      for (const view of ["matrix", "both"] as const) {
+        const l = layoutMarkovModel({ ...BASE, view, trace: { ...TRACE, cycles } });
+        const texts = (pre: string) => flattenDrawables(l.drawables.filter((d) => d.id.startsWith(pre))).filter((d): d is TextDrawable => d.kind === "text");
+        const box = (pre: string) => {
+          const ts = texts(pre);
+          return { x0: Math.min(...ts.map((t) => t.pos[0])), x1: Math.max(...ts.map((t) => t.pos[0])), y0: Math.min(...ts.map((t) => t.pos[1])), y1: Math.max(...ts.map((t) => t.pos[1])) };
+        };
+        const m = box("matrix_"), t = box("trace_");
+        expect(m.y0 > t.y1 || m.x1 < t.x0 || t.x1 < m.x0, `${view}, ${cycles} cycles`).toBe(true);
+        for (const d of texts("")) {
+          expect(d.pos[1], d.id).toBeGreaterThan(150);
+          expect(d.pos[1], d.id).toBeLessThan(655);
+        }
+      }
+    }
+  });
+
+  test("stacked, the table's columns are the matrix's: a state's count under its column, QALYs under QALYs/yr", () => {
+    const l = layoutMarkovModel({ ...BASE, view: "matrix", trace: { ...TRACE, cycles: 2 } });
+    const at = (id: string) => flattenDrawables(l.drawables.filter((d) => d.id === id))[0] as TextDrawable;
+    const head = (i: number) => flattenDrawables(l.drawables.filter((d) => d.id === "trace_head")).find((d) => d.id === `trace_head__c${i}`) as TextDrawable;
+    if (at("matrix_head_col_well").pos[1] > head(0).pos[1]) {
+      expect(head(0).pos[0]).toBeCloseTo(at("matrix_head_col_well").pos[0], 6);
+      expect(head(2).pos[0]).toBeCloseTo(at("matrix_head_col_dead").pos[0], 6);
+      expect(head(3).pos[0]).toBeCloseTo(at("matrix_head_utility").pos[0], 6);
+      expect(head(4).pos[0]).toBeCloseTo(at("matrix_head_cost").pos[0], 6);
+    } else {
+      throw new Error("expected the table under the matrix for three states");
+    }
+  });
+
+  test("a small model uses the page: big type, and `both` gives the diagram the room the matrix leaves", () => {
+    const m = layoutMarkovModel({ ...BASE, view: "matrix" });
+    expect((flattenDrawables(m.drawables).find((d) => d.id === "matrix_cell_well_sick") as TextDrawable).fontSize).toBeGreaterThanOrEqual(28);
+    const both = layoutMarkovModel({ ...BASE, view: "both", self_loops: ["Well", "Sick"] });
+    expect((flattenDrawables(both.drawables).find((d) => d.id === "matrix_cell_well_sick") as TextDrawable).fontSize).toBeGreaterThanOrEqual(24);
+    const xs = ["state_well", "state_sick", "state_dead"].map((id) => both.anchors[id][0]);
+    const ys = ["state_well", "state_sick", "state_dead"].map((id) => both.anchors[id][1]);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(200);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(170);
+  });
+
+  test("a model the page cannot hold at readable type is laid out in a world the camera walks; one that fits reports none", () => {
+    expect(layoutMarkovModel({ ...BASE, view: "matrix", trace: TRACE }).world).toBeUndefined();
+    const big = chain(7);
+    const n = big.states.length;
+    const l = layoutMarkovModel({
+      ...big,
+      view: "matrix",
+      trace: { utility: Array(n).fill(0.7), cost: Array(n).fill(2000), cycles: 3, compare: { name: "Drug", transitions: [{ from: "S1", to: "S2", label: "0.05" }], cost: Array(n).fill(1000) } },
+    });
+    expect(l.world).toBeDefined();
+    const w = l.world!;
+    for (const d of flattenDrawables(l.drawables)) {
+      if (d.kind !== "text") continue;
+      expect(d.fontSize, d.id).toBeGreaterThanOrEqual(14);
+      expect(d.pos[0], d.id).toBeGreaterThan(w.x);
+      expect(d.pos[0], d.id).toBeLessThan(w.x + w.w);
+      expect(d.pos[1], d.id).toBeGreaterThan(w.y + 150 - 1); // the caption band stays clear at rest too
+      expect(d.pos[1], d.id).toBeLessThan(655);
+    }
+  });
+
+  test("with a second option every row has room for its line, so the grid is evenly spaced before it is drawn", () => {
+    const l = layoutMarkovModel({ ...BASE, view: "matrix", trace: TRACE });
+    const ys = ["well", "sick", "dead"].map((s) => l.anchors[`matrix_head_row_${s}`][1]);
+    expect(ys[0] - ys[1]).toBeCloseTo(ys[1] - ys[2], 6);
+    // The option's name keys its values, beside the first line of them.
+    expect(l.anchors.matrix_compare_name[1]).toBeCloseTo(l.anchors.matrix_compare_well_sick[1], 6);
   });
 });
 

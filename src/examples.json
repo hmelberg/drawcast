@@ -4272,7 +4272,7 @@
         },
         {
           "draw": [
-            "trace_rule_1",
+            "trace_rule_inputs",
             "trace_row_0"
           ],
           "speak": "Now run it. Start a thousand people, all well."
@@ -4316,7 +4316,9 @@
         },
         {
           "draw": [
-            "trace_rule_2"
+            "trace_gap",
+            "trace_rule_total",
+            "trace_discount"
           ],
           "speak": "Keep going for a lifetime, counting later years for less: 3.5 percent a year, as in England."
         },
@@ -4330,7 +4332,7 @@
           "draw": [
             "trace_mean"
           ],
-          "speak": "Divide by the thousand people: 15.4 QALYs and 35,500 pounds per person, on average."
+          "speak": "Divide by the thousand people: 15.44 QALYs and 35,500 pounds per person, on average."
         },
         {
           "highlight": {
@@ -4344,13 +4346,13 @@
           "draw": [
             "trace_compare"
           ],
-          "speak": "Run the same cohort again: 17.4 QALYs and 50,700 pounds per person."
+          "speak": "Run the same cohort again: 17.39 QALYs and 50,700 pounds per person."
         },
         {
           "draw": [
             "trace_icer"
           ],
-          "speak": "So the drug buys 1.9 extra QALYs for 15,200 pounds: about 7,800 pounds per QALY."
+          "speak": "So the drug buys 1.95 extra QALYs for 15,200 pounds: about 7,800 pounds per QALY."
         },
         {
           "highlight": {
