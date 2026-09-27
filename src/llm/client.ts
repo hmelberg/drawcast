@@ -13,6 +13,16 @@ export const MODELS = [
   { id: "claude-haiku-4-5", label: "Haiku 4.5 — fastest" },
 ] as const;
 
+/**
+ * Models offered only in developer mode, for experiments (docs/prompt-lab):
+ * the newest tier beside Opus, and the model Opus 5.5 replaced, to compare
+ * against. Priced by priceFor's prefix table like the rest.
+ */
+export const LAB_MODELS = [
+  { id: "claude-fable-5-1", label: "Fable 5.1 — lab" },
+  { id: "claude-opus-5", label: "Opus 5 — lab, the previous default" },
+] as const;
+
 export const DEFAULT_MODEL = "claude-opus-5-5";
 
 export function makeClient(apiKey: string): Anthropic {
@@ -205,6 +215,8 @@ export interface CallOpts {
    * 2026-09-18) — the model's thinking counts against the same limit.
    */
   maxTokens?: number;
+  /** Set by callForJson for the manual transport: the reply must be one JSON object. */
+  jsonReply?: boolean;
 }
 
 // ---- the prefix gate: one cache write per prefix, not one per lane --------
@@ -268,6 +280,28 @@ function supportsEffort(model: string): boolean {
 }
 
 /**
+ * Prompt-lab seam (docs/prompt-lab/README.md): a lab runner may take over the
+ * actual request — hand it to an agent and return the reply's text — while
+ * everything around it (prompt assembly, parsing, repairs, lint, the look
+ * pass) runs as in the app. Returning null lets the request go to the API as
+ * usual. Never set by the app.
+ */
+export interface ManualRequest {
+  model: string;
+  system: string | Anthropic.TextBlockParam[];
+  messages: Anthropic.MessageParam[];
+  outputSchema: object | null;
+  /** True for every callForJson request — also when the schema rides as plain JSON, not under the grammar. */
+  jsonReply: boolean;
+  effort?: Effort;
+  maxTokens: number;
+}
+let manualTransport: ((req: ManualRequest) => Promise<string | null>) | null = null;
+export function setManualTransport(fn: ((req: ManualRequest) => Promise<string | null>) | null): void {
+  manualTransport = fn;
+}
+
+/**
  * Every call streams. Not for the incremental text alone — a streamed request
  * is also the one an AbortSignal can cut off mid-flight, and the one whose
  * progress the UI can show instead of a frozen status line.
@@ -293,6 +327,22 @@ async function createMessage(
     ...(Object.keys(outputConfig).length > 0 ? { output_config: outputConfig } : {}),
   };
   const requestOptions = { signal: opts.signal };
+  if (manualTransport) {
+    const text = await manualTransport({ model, system, messages, outputSchema, jsonReply: opts.jsonReply ?? outputSchema !== null, effort: opts.effort, maxTokens: base.max_tokens });
+    if (text !== null) {
+      opts.onDelta?.(text, text);
+      return {
+        id: "manual",
+        type: "message",
+        role: "assistant",
+        model,
+        content: [{ type: "text", text, citations: null }],
+        stop_reason: "end_turn",
+        stop_sequence: null,
+        usage: { input_tokens: 0, output_tokens: 0 },
+      } as unknown as Anthropic.Message;
+    }
+  }
   const release = await joinPrefix(prefixKey(model, system));
   try {
     // The two branches are kept apart rather than joined into one `stream`
@@ -372,8 +422,9 @@ export async function callForJson(
     const useSchema = schemaUsable && !brokenSchemas.has(schemaKey) ? outputSchema : null;
     const useFallbacks = !fallbacksBroken;
     try {
-      response = await createMessage(client, model, system, messages, useSchema, useFallbacks, opts);
-      structured = useSchema !== null;
+      response = await createMessage(client, model, system, messages, useSchema, useFallbacks, { ...opts, jsonReply: true });
+      // A manual reply was written by hand, not under the grammar — parse it leniently.
+      structured = useSchema !== null && !manualTransport;
     } catch (err) {
       lastError = err;
       if (!(err instanceof Anthropic.BadRequestError)) throw err;
@@ -429,7 +480,7 @@ export async function callForJson(
       [...messages, { role: "assistant", content: raw }, { role: "user", content: fix }],
       null,
       !fallbacksBroken,
-      { ...opts, effort: "low" },
+      { ...opts, effort: "low", jsonReply: true },
     );
     addAnthropicTokens((retry.usage?.input_tokens ?? 0) + (retry.usage?.output_tokens ?? 0));
     recordCall(retry.model ?? model, retry.usage, performance.now() - t0);

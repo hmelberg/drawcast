@@ -18,7 +18,9 @@
     "sanity:mdlib": "python3 scripts/mdlib-sanity.py",
     "selector:eval": "node scripts/selector-eval.mjs",
     "eval:freehand": "node scripts/freehand-eval.mjs",
-    "stamp:code": "node scripts/stamp-code-results.mjs"
+    "stamp:code": "node scripts/stamp-code-results.mjs",
+    "lab": "node scripts/prompt-lab.mjs",
+    "cast": "node scripts/cast.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",

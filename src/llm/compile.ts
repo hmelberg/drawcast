@@ -8,7 +8,8 @@ import { buildOutlineMessages, normalizeOutline, outlineSchemaFor, type Outline 
 import { buildStoryboardMessages, storyboardSchemaFor, type Approach } from "./storyboard";
 import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, styleBlock, systemBlocks, wantsCode, wantsSound, OPTIONAL_PROMPT_PLACEHOLDERS, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
 import { pickExemplars } from "./exemplars";
-import { catalogIsTwoLevel, catalogParts, detectNeedTemplate } from "../scenes/catalog";
+import { catalogIsTwoLevel, catalogParts, detectNeedTemplate, routerIndexText, selectTemplates, HOT_SHORTLIST } from "../scenes/catalog";
+import { buildTreatmentSystem, buildTreatmentUser, stagingNote, type TreatmentVersion } from "./treatment";
 import type { RouteResult } from "./router";
 import type { OnDemandRun } from "./on-demand-run";
 import type { describeTemplateFor } from "./on-demand";
@@ -184,9 +185,24 @@ export interface GenerationOutcome {
   systemPromptChars: number;
   /** True when an icon seed (cfg.fetchSeed) was fetched and sent with the request — independent of whether any seed path survived into the delivered spec. */
   seeded: boolean;
+  /** The plain-text plan the spec was staged from (cfg.treatment only). */
+  treatment?: string;
+  /** Why the plan call failed, when it did — generation then ran without one. */
+  treatmentError?: string;
+  /** How long the plan call took (ms), when one ran. */
+  treatmentMs?: number;
 }
 
 export interface GenerateConfig {
+  /**
+   * The "plan first" pipeline (developer mode; docs/prompt-lab): before the
+   * JSON call the creative model writes a plain-text plan — question,
+   * insight, example, figure, beats — and the compiler stages it. In the
+   * lab's fair comparison it did not beat the single call, so it is an
+   * option to experiment with, not the default. "v2" plans what, not where,
+   * and sees the shortlisted templates in full.
+   */
+  treatment?: boolean | TreatmentVersion;
   /**
    * The look pass (src/llm/look.ts): renders a spec's frames — one per spoken
    * line — for a critic who sees them and lists the page's problems; a fix
@@ -501,7 +517,36 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   const measure = makeBrowserMeasure();
   const maxRepairs = cfg.maxRepairs ?? 2;
 
-  const userContent = [request, cfg.brief, seed?.text].filter(Boolean).join("\n\n");
+  // ---- the plan step (cfg.treatment) ----
+  let treatment: string | undefined;
+  let treatmentError: string | undefined;
+  let treatmentMs: number | undefined;
+  const treatmentVersion: TreatmentVersion = cfg.treatment === "v1" ? "v1" : "v2";
+  if (cfg.treatment) {
+    cfg.onPhase?.("writing the plan");
+    const ids = shortlist ?? (route?.noneFits ? [] : selectTemplates(request, HOT_SHORTLIST));
+    const wanted = new Set(cfg.forcedTemplate ? [cfg.forcedTemplate] : ids);
+    const lines =
+      treatmentVersion === "v2" && catalog.variable.trim()
+        ? catalog.variable
+        : routerIndexText({ excludeIds: cfg.excludeIds })
+            .split("\n")
+            .filter((l) => wanted.has(/^- ([^:]+):/.exec(l)?.[1] ?? ""))
+            .join("\n");
+    try {
+      const out = await callForText(makeClient(cfg.apiKey), cfg.model, buildTreatmentSystem(lines, treatmentVersion), [{ role: "user", content: buildTreatmentUser(request, cfg.brief) }], {
+        signal: cfg.signal,
+        effort: cfg.effort,
+      });
+      treatment = out.text.trim() || undefined;
+      treatmentMs = Math.round(out.ms);
+    } catch (err) {
+      if (cfg.signal?.aborted) throw err;
+      treatmentError = describeApiError(err);
+    }
+  }
+  // ---- end plan step ----
+  const userContent = [request, cfg.brief, seed?.text, treatment ? stagingNote(treatment, treatmentVersion) : undefined].filter(Boolean).join("\n\n");
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: userContent }];
   const rounds: GenerationRound[] = [];
   let best: Spec | null = null;
@@ -698,6 +743,9 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       systemPromptChars: blocks.prefix.length + suffixText.length,
       route,
       seeded,
+      treatment,
+      treatmentError,
+      treatmentMs,
     };
   }
 
@@ -805,7 +853,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
         const images = await cfg.look(best);
         if (!images || images.length === 0) break;
         const t0 = performance.now();
-        const { text: critique } = await callForText(client, cfg.model, LOOK_PROMPT_SOURCE, [{ role: "user", content: lookUserContent(images, request) }], {
+        const { text: critique } = await callForText(client, cfg.model, LOOK_PROMPT_SOURCE, [{ role: "user", content: lookUserContent(images, treatment ?? request) }], {
           signal: cfg.signal,
           effort: cfg.effort,
         });
@@ -868,6 +916,9 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
     systemPromptChars: blocks.prefix.length + suffixText.length,
     route,
     seeded,
+    treatment,
+    treatmentError,
+    treatmentMs,
   };
 }
 

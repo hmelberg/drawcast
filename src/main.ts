@@ -17,7 +17,7 @@ import { createOnDemandRun, onDemandSummary } from "./llm/on-demand-run";
 import { missingPlaceholders } from "./llm/prompt";
 import { usableExemplars } from "./llm/exemplars";
 import { buildBrief, parseTags, suggestTags, TAGS, type ParsedTags } from "./llm/tags";
-import { MODELS, callLedger, costSummary, describeApiError, formatCost, resetCallLedger } from "./llm/client";
+import { LAB_MODELS, MODELS, callLedger, costSummary, describeApiError, formatCost, resetCallLedger } from "./llm/client";
 import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/author";
 import { reviseDocument, type ReviseOutcome } from "./llm/revise";
 import { withNotes } from "./llm/hoist";
@@ -643,6 +643,9 @@ function isActionValue(v: string): boolean {
 // happens where generation starts. Repairs always run on a fast model.
 const modelSel = h("select", { title: "Model for generation. Repair rounds always use a fast model." });
 for (const m of MODELS) modelSel.appendChild(h("option", { value: m.id }, m.label));
+// Lab models: listed only in developer mode (applyDeveloperMode shows them).
+const labModelOptions = LAB_MODELS.map((m) => h("option", { value: m.id, class: "lab-model" }, m.label) as HTMLOptionElement);
+for (const o of labModelOptions) modelSel.appendChild(o);
 modelSel.value = settings.model;
 if (!modelSel.value) modelSel.value = MODELS[0].id;
 // The effort dial (Hans, 2026-09-07): thinking depth and token spend for the
@@ -662,6 +665,20 @@ effortSel.value = settings.effort;
 // figure to its lines; independent writes each part on its own, knowing the
 // others by title only. Applies to #parts=N, #playlist and course runs; a
 // single figure has no parts and ignores it.
+// The pipeline (developer mode only, docs/prompt-lab): the standard single
+// call, or a plain-text plan first. Hidden — and standard — for everyone else.
+const pipelineSel = h(
+  "select",
+  { title: "Lab: how a single figure is written. Standard = one call (then the look pass); Plan first = a plain-text plan, then the spec staged from it." },
+  h("option", { value: "standard" }, "Standard"),
+  h("option", { value: "plan" }, "Plan first (lab)"),
+) as HTMLSelectElement;
+pipelineSel.value = settings.pipeline;
+pipelineSel.addEventListener("change", () => {
+  settings.pipeline = pipelineSel.value === "plan" ? "plan" : "standard";
+  persist();
+});
+const pipelineChoiceLabel = h("label", { class: "quiet-label" }, "Pipeline ", pipelineSel);
 const approachSel = h(
   "select",
   { title: "How a multi-part drawcast or lecture is planned. Applies to #parts=N, #playlist and course runs; a single figure has no parts and ignores it." },
@@ -1222,6 +1239,7 @@ const genChoices = h(
   h("label", { class: "quiet-label" }, "Model ", modelSel),
   h("label", { class: "quiet-label" }, "Effort ", effortSel),
   h("label", { class: "quiet-label" }, "Approach ", approachSel),
+  pipelineChoiceLabel,
   h("label", { class: "quiet-label" }, templatesOnDemandBox, " Author templates when none fits"),
   h("label", { class: "quiet-label" }, "at most ", templatesOnDemandMaxInput, " per run"),
 );
@@ -1238,7 +1256,7 @@ const choicesBtn = h("button", {
  */
 function refreshChoicesToggle(): void {
   const tpl = templateChoice === "" ? "Auto" : templateChoice;
-  const model = MODELS.find((m) => m.id === modelSel.value)?.label ?? modelSel.value;
+  const model = [...MODELS, ...LAB_MODELS].find((m) => m.id === modelSel.value)?.label ?? modelSel.value;
   const styleName = styleProfileSel.options[styleProfileSel.selectedIndex]?.textContent ?? "None";
   const prompt = variantSel.options[variantSel.selectedIndex]?.textContent ?? settings.variant;
   // The Instructions segment shows for developers — and for ANYONE whose
@@ -2141,6 +2159,16 @@ function applyDeveloperMode(): void {
   // the user-facing concept (B5).
   if (instructionsRow) instructionsRow.hidden = !on;
   instrChoiceLabel.hidden = !on;
+  // The lab's instruments: the pipeline choice and the lab models. Turning
+  // developer mode off puts both back to the defaults, so an experiment never
+  // silently drives ordinary generation.
+  pipelineChoiceLabel.hidden = !on;
+  for (const o of labModelOptions) o.hidden = !on;
+  if (!on && (LAB_MODELS.some((m) => m.id === settings.model) || LAB_MODELS.some((m) => m.id === modelSel.value))) {
+    settings.model = MODELS[0].id;
+    modelSel.value = settings.model;
+    persist();
+  }
   document.body.classList.toggle("dev-mode", on);
 }
 developerCb.addEventListener("change", () => {
@@ -3327,6 +3355,7 @@ async function generate(): Promise<void> {
     const outcome = await generateSpec(parsed.clean, {
       apiKey,
       look: settings.lookPass ? beatSheets : undefined,
+      treatment: settings.developerMode && settings.pipeline === "plan" ? "v2" : undefined,
       onDraft: (draft) => {
         endSpecStream(false);
         const pl = finishSpec(structuredClone(draft));

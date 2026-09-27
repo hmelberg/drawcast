@@ -176,6 +176,11 @@ export interface Settings {
    * the prompt lab's blind reviews put the visual gain here (2026-09-27).
    */
   lookPass: boolean;
+  /**
+   * Developer mode only (docs/prompt-lab): "plan" writes a plain-text plan
+   * before the spec (GenerateConfig.treatment). Standard everywhere else.
+   */
+  pipeline: "standard" | "plan";
   /** How the editor presents the spec text (parsing always accepts both). */
   specFormat: SpecFormat;
   /** The Share destination used last, so a repeat publish is one keypress. */
@@ -245,6 +250,7 @@ export const DEFAULT_SETTINGS: Settings = {
   developerMode: false,
   visualRepair: false,
   lookPass: true,
+  pipeline: "standard",
   specFormat: "yaml",
   shareTo: "link",
   // Every built-in pack, on. A pack that is off is invisible to the compiler
