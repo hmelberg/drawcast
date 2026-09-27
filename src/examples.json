@@ -72653,5 +72653,164 @@
         }
       ]
     }
+  },
+  {
+    "request": "When does a lens make an image you can put on a screen?",
+    "packs": [
+      "physics"
+    ],
+    "spec": {
+      "title": "When a lens makes a picture on a screen",
+      "template": "ray_diagram",
+      "params": {
+        "focal_length": 10,
+        "object_distance": 30,
+        "object_height": 2.5,
+        "show_distances": true,
+        "view": {
+          "left": 34,
+          "right": 40,
+          "height": 7
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "A picture on a screen"
+          }
+        },
+        {
+          "draw": [
+            "axis",
+            "lens"
+          ],
+          "speak": "When does a lens throw a picture you can catch on a screen, and when does it make one you can only see by looking through it?"
+        },
+        {
+          "draw": [
+            "focal_left",
+            "focal_right",
+            "label_left",
+            "label_right",
+            "f_mark",
+            "f_value"
+          ],
+          "parallel": true,
+          "speak": "This lens has a focal length of ten centimetres: light arriving parallel meets at F, ten centimetres behind it."
+        },
+        {
+          "draw": [
+            "object",
+            "label_object",
+            "do_mark",
+            "do_value"
+          ],
+          "speak": "Stand a small lamp thirty centimetres in front of it."
+        },
+        {
+          "draw": [
+            "ray_parallel"
+          ],
+          "speak": "A ray leaving the top of the lamp parallel to the axis is bent through the far F."
+        },
+        {
+          "draw": [
+            "ray_center"
+          ],
+          "speak": "A ray through the centre of the lens goes straight on."
+        },
+        {
+          "draw": [
+            "image",
+            "label_image"
+          ],
+          "speak": "They cross fifteen centimetres behind the lens, and so does every other ray from that point: an upside-down lamp, half the size."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "image"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Light really arrives there, so paper held at that spot shows the picture: a real image, the kind a camera makes."
+        },
+        {
+          "animate": {
+            "object_distance": 15
+          },
+          "duration": 3,
+          "speak": "Move the lamp in to fifteen centimetres: the crossing slides out to thirty, and the picture grows to twice the lamp's size."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "highlight": {
+            "target": [
+              "image"
+            ]
+          },
+          "speak": "Close to F, far and large: that is a projector, with the slide just outside the focal point."
+        },
+        {
+          "animate": {
+            "object_distance": 10
+          },
+          "duration": 3,
+          "speak": "At F itself the rays leave the lens parallel and never cross: no picture anywhere, just a torch beam."
+        },
+        {
+          "animate": {
+            "object_distance": 6
+          },
+          "duration": 3,
+          "speak": "Closer still, inside F, the rays spread apart after the lens; traced back, they seem to come from a larger, upright lamp behind the real one."
+        },
+        {
+          "highlight": {
+            "target": [
+              "image",
+              "label_image"
+            ]
+          },
+          "speak": "No light ever reaches that spot, so a screen there stays dark: this virtual image exists only for an eye looking through the lens."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "focal_left"
+            },
+            "gesture": "tap"
+          },
+          "speak": "So the dividing line is F: outside it the rays meet and a screen catches them, inside it they only seem to meet."
+        },
+        {
+          "highlight": {
+            "target": [
+              "lens"
+            ]
+          },
+          "speak": "Your own eye is the first kind: its lens throws a real, upside-down picture on the retina, and the brain turns it the right way up."
+        },
+        {
+          "explore": {},
+          "speak": "Drag the lamp yourself, and find the spot where the picture on the screen gives way to one you can only look at."
+        },
+        {
+          "quiz": {
+            "question": "A projector throws a large picture on a far wall. Where is its slide?",
+            "choices": [
+              "Just outside F",
+              "Exactly at F",
+              "Inside F"
+            ],
+            "correct": 1,
+            "right": "Just outside F: the rays still meet, so the picture can land on the wall, and the nearer the slide is to F, the farther and larger it lands.",
+            "wrong": "Think about which images a wall can catch."
+          }
+        }
+      ]
+    }
   }
 ]
