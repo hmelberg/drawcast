@@ -718,6 +718,27 @@ describe("economics pack", () => {
     expect(ids).toContain("shade");
   });
 
+  test("firm_cost_curves: min_avc / min_atc sit at the curves' minima; with fixed_cost MC passes through both", () => {
+    registerPack("economics", economicsYaml);
+    const r0 = scenes.firm_cost_curves.layout!({ mark_minima: true });
+    expect(scenes.firm_cost_curves.layout!({}).anchors.min_avc).toBeUndefined();
+    // default curves: both minima at Q=45 (AVC 14, ATC 22); plot maps 0..100 onto 120..930 / 95..675
+    expect(r0.anchors.min_avc[0]).toBeCloseTo(120 + 0.45 * 810, 0);
+    expect(r0.anchors.min_avc[1]).toBeCloseTo(95 + 0.14 * 580, 0);
+    expect(r0.anchors.min_atc[1]).toBeCloseTo(95 + 0.22 * 580, 0);
+    const r = scenes.firm_cost_curves.layout!({ fixed_cost: 400, mark_minima: true });
+    const toWorld = ([x, y]: [number, number]) => [((x - 120) / 810) * 100, ((y - 95) / 580) * 100];
+    const mc = (q: number) => 0.06 * (q - 30) ** 2 + 12;
+    for (const id of ["min_avc", "min_atc"]) {
+      const [q, v] = toWorld(r.anchors[id] as [number, number]);
+      expect(Math.abs(mc(q) - v)).toBeLessThan(0.1);
+    }
+    const [qa, va] = toWorld(r.anchors.min_atc as [number, number]);
+    expect(qa).toBeCloseTo(49.1, 0);
+    expect(va).toBeCloseTo(34, 0);
+    expect(va - (0.02 * (qa - 45) ** 2 + 25.5)).toBeCloseTo(400 / qa, 1); // ATC - AVC = F/Q
+  });
+
   // --- indifference curves on the frontier ---------------------------------
 
   function strokePts(r: SceneLayout, id: string): [number, number][] {
