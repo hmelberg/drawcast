@@ -814,7 +814,7 @@ describe("economics pack", () => {
 describe("evidence pack", () => {
   beforeEach(() => unregisterPack("evidence"));
 
-  const TEMPLATE_IDS = ["survival_curve", "forest_plot", "causal_dag", "sir_compartments", "distribution_curve"];
+  const TEMPLATE_IDS = ["survival_curve", "forest_plot", "causal_dag", "sir_compartments", "reed_frost", "distribution_curve"];
 
   function inBounds(res: ReturnType<typeof layoutSpec>) {
     expect(res.warnings).toEqual([]);
@@ -830,7 +830,7 @@ describe("evidence pack", () => {
     }
   }
 
-  test("registers all five templates in brief order", () => {
+  test("registers all six templates in brief order", () => {
     const r = registerPack("evidence", evidenceYaml);
     expect(r).toMatchObject({ ok: true, templateIds: TEMPLATE_IDS });
   });

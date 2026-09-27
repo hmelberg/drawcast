@@ -1060,7 +1060,7 @@ layout: |
     else if (!endemic) { values.peak_day = 0; values.peak_i = Math.round(i0 * 1e4) / 100; }
     if (crossT !== null) values.cross_day = Math.round(crossT * 10) / 10;
     if (finalSize !== null) values.final_size = Math.round(finalSize * 1e4) / 100;
-    if (endemicI !== null) values.endemic_i = Math.round(endemicI * 1e4) / 100;
+    if (endemicI !== null) values.endemic_i = Math.round(endemicI * 1e6) / 1e4;
     const cDay = typeof params.cursor_day === "number" && Number.isFinite(params.cursor_day) ? clamp(params.cursor_day, 0, horizon) : null;
     const st = at(cDay ?? 0);
     values.r_eff = Math.round(reff(cDay ?? 0, st[0]) * 100) / 100;
@@ -1360,6 +1360,416 @@ widget: |
     return { x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]), w: Math.abs(b[0] - a[0]), h: Math.abs(b[1] - a[1]) };
   };
   return { init, on, editable, parts, surface, live: true };
+---
+template: reed_frost
+title: Reed–Frost chain-binomial outbreaks
+version: 1
+kit: 11
+status: ready
+description: >-
+  The Reed–Frost chain-binomial epidemic in a small group: generation by
+  generation, each susceptible escapes each case independently with
+  probability 1 − p, so the next generation's cases are Binomial(S, 1 − (1 −
+  p)^C). Left, a set of simulated outbreaks as lines of people infected so far
+  against generation — grey the ones that fizzled, red the ones that took
+  off — and the expected (average) path; right, the EXACT distribution of the
+  final number infected as sideways bars on the same axis, split at its dip
+  into "fizzles" and "takes off" with each one's probability. Choose this
+  scene for ANY request about the Reed–Frost model, chain binomial, stochastic
+  or random outbreaks, why some outbreaks die out while others explode, minor
+  versus major outbreaks, extinction probability, or an outbreak in a
+  household, class, ship or village. Give R0 or p: R0 ≈ p·(N − 1). p, r0,
+  population and seed animate (seed in whole steps draws new outbreaks; the
+  same seed always draws the same ones). Paused, the viewer scrubs or taps N,
+  p and R0 in the header, and taps "new runs" for another set. Values:
+  {reed_frost.r0}, {reed_frost.p}, {reed_frost.p_minor} and
+  {reed_frost.p_major} (% exact), {reed_frost.p_minor_bp} (% by the
+  branching-process approximation), {reed_frost.p_no_spread} (% that the
+  first case infects nobody), {reed_frost.mean_final} and
+  {reed_frost.mean_major} (people), {reed_frost.cutoff},
+  {reed_frost.runs_major} and {reed_frost.runs_minor} (of the drawn runs),
+  {reed_frost.expected_1} {reed_frost.expected_2} (expected new cases in
+  generation 1, 2).
+params:
+  type: object
+  properties:
+    population:
+      type: integer
+      description: "People in the group, N, 2–100 (default 30), the first cases included."
+    p:
+      type: number
+      description: "The chance that one case infects one given susceptible in a generation, 0–1. Wins over r0."
+    r0:
+      type: number
+      description: "Instead of p: the expected cases one case causes in a group with no immunity, p = r0/(N − 1) (default 2)."
+    initial:
+      type: integer
+      description: "Cases in generation 0 (default 1)."
+    runs:
+      type: integer
+      description: "Simulated outbreaks drawn, 0–40 (default 12)."
+    seed:
+      type: integer
+      description: "Which random outbreaks (default 1). The same seed draws the same ones; animate it in whole steps for new ones."
+    generations:
+      type: integer
+      description: "Generations on the axis (default fitted). Give it when you animate p, r0 or population, so the axis holds still."
+    show_expected:
+      type: boolean
+      description: "The dashed average path (default true)."
+    show_distribution:
+      type: boolean
+      description: "The exact final-size bars on the right (default true)."
+element_ids:
+  n_value: "the N = 30 readout in the header"
+  p_value: "the p = 0.069 readout"
+  r0_value: "the R₀ ≈ 2 readout"
+  rerun: "the new runs button (a tap draws new outbreaks)"
+  axes: "the axes: generation, and infected so far (0 to N)"
+  run_<k>: "the k-th simulated outbreak, k = 1…runs (group runs; runs_minor and runs_major split them)"
+  expected: "the dashed average path, with its label expected_label"
+  cutoff: "the dashed line between fizzled and taken-off totals, across both panels"
+  dist_minor: "the bars of the final totals that count as fizzling"
+  dist_major: "the bars of the totals that count as taking off"
+  dist_axis: "the distribution panel's base line, with its caption"
+  minor_label: "the fizzles 38% label"
+  major_label: "the takes off 62% label"
+examples:
+  - request: "Why do some outbreaks fizzle out while others explode?"
+    params: { population: 30, r0: 2, runs: 12 }
+  - request: "Show the Reed–Frost chain binomial model for a household of 5 with p = 0.3."
+    params: { population: 5, p: 0.3, runs: 10 }
+lint: |
+  const out = [];
+  const N = typeof params.population === "number" ? params.population : 30;
+  if (typeof params.population === "number" && (params.population < 2 || params.population > 100)) out.push({ severity: params.population < 2 ? "error" : "warn", message: "population " + params.population + " is drawn clamped to 2–100 (the exact distribution is for small groups)" });
+  if (typeof params.p === "number" && (params.p < 0 || params.p > 1)) out.push({ severity: "error", message: "p is a probability from 0 to 1, got " + params.p });
+  if (typeof params.p === "number" && typeof params.r0 === "number") out.push({ severity: "warn", message: "give p or r0, not both: p wins, r0 is ignored" });
+  if (typeof params.p !== "number" && typeof params.r0 === "number" && params.r0 / Math.max(1, Math.min(100, N) - 1) > 1) out.push({ severity: "error", message: "r0 " + params.r0 + " in a group of " + N + " needs p = " + (params.r0 / (N - 1)).toFixed(2) + ", above 1 — use a smaller r0 or a larger population" });
+  if (typeof params.initial === "number" && params.initial >= Math.min(100, Math.max(2, N))) out.push({ severity: "error", message: "initial (" + params.initial + ") must be below population (" + N + ")" });
+  if (typeof params.runs === "number" && params.runs > 40) out.push({ severity: "warn", message: "runs " + params.runs + " is drawn as 40" });
+  return out;
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const N = Math.round(clamp(num(params.population, 30), 2, 100));
+  const I0 = Math.round(clamp(num(params.initial, 1), 1, N - 1));
+  const p = typeof params.p === "number" && Number.isFinite(params.p) ? clamp(params.p, 0, 1) : clamp(num(params.r0, 2) / (N - 1), 0, 1);
+  const q = 1 - p;
+  const R0 = p * (N - 1);
+  const nRuns = Math.round(clamp(num(params.runs, 12), 0, 40));
+  const seed = Math.floor(num(params.seed, 1));
+  const showExp = params.show_expected !== false;
+  const showDist = params.show_distribution !== false;
+
+  // ── The exact chain binomial ──
+  // A state is (S, C): susceptibles left, and cases this generation. From
+  // it, j new cases with Binomial(S, 1 − q^C); j = 0 ends the outbreak with
+  // N − S infected. Carried generation by generation (for the expected
+  // path) until no probability is left in play.
+  const lf = [0];
+  for (let k = 1; k <= N; k++) lf[k] = lf[k - 1] + Math.log(k);
+  const pmf = (s, pi) => {
+    const out = new Array(s + 1).fill(0);
+    if (pi <= 0) { out[0] = 1; return out; }
+    if (pi >= 1) { out[s] = 1; return out; }
+    const a = Math.log(pi), b = Math.log(1 - pi);
+    for (let j = 0; j <= s; j++) out[j] = Math.exp(lf[s] - lf[j] - lf[s - j] + j * a + (s - j) * b);
+    return out;
+  };
+  const final = new Array(N + 1).fill(0);
+  const expCum = [];
+  let active = new Map([[(N - I0) * (N + 1) + I0, 1]]);
+  let absorbedMean = 0;
+  // A state's binomial row, computed once however many generations reach it.
+  const memo = new Map();
+  for (let t = 0; t <= N + 1; t++) {
+    let e = absorbedMean, mass = 0;
+    for (const [key, m] of active) { e += m * (N - Math.floor(key / (N + 1))); mass += m; }
+    expCum.push(e);
+    if (mass < 1e-12) break;
+    const next = new Map();
+    for (const [key, m] of active) {
+      const s = Math.floor(key / (N + 1)), c = key % (N + 1);
+      let w = memo.get(key);
+      if (!w) { w = pmf(s, 1 - Math.pow(q, c)); memo.set(key, w); }
+      for (let j = 0; j <= s; j++) {
+        const mw = m * w[j];
+        if (mw < 1e-14) continue;
+        if (j === 0) { final[N - s] += mw; absorbedMean += mw * (N - s); }
+        else { const k2 = (s - j) * (N + 1) + j; next.set(k2, (next.get(k2) ?? 0) + mw); }
+      }
+    }
+    active = next;
+  }
+  const total = final.reduce((a, b) => a + b, 0) || 1;
+  for (let k = 0; k <= N; k++) final[k] /= total;
+
+  // Where "fizzled" ends: the dip between the two humps of the final-size
+  // distribution. One hump near the start: all fizzle; one hump far from
+  // it: all take off.
+  let cutoff = N;
+  {
+    let found = false;
+    for (let k = I0 + 1; k < N; k++) {
+      if (final[k] < final[k - 1] && final[k] <= final[k + 1]) {
+        let rise = 0;
+        for (let j = k + 1; j <= N; j++) rise = Math.max(rise, final[j]);
+        if (rise > final[k] * 1.5 + 1e-9) { cutoff = k; found = true; break; }
+      }
+    }
+    if (!found) {
+      let mode = I0;
+      for (let k = I0; k <= N; k++) if (final[k] > final[mode]) mode = k;
+      // (Only the first cases infecting nobody always counts as fizzling.)
+    cutoff = mode <= I0 + 0.25 * (N - I0) ? N : I0;
+    }
+  }
+  let pMinor = 0, meanMajor = 0, pMajor = 0;
+  for (let k = I0; k <= N; k++) {
+    if (k <= cutoff) pMinor += final[k];
+    else { pMajor += final[k]; meanMajor += k * final[k]; }
+  }
+  const meanFinal = final.reduce((a, v, k) => a + v * k, 0);
+  // The branching-process approximation: extinction q* = (1 − p + p q*)^(N − 1).
+  let qx = 0;
+  for (let k = 0; k < 400; k++) qx = Math.pow(1 - p + p * qx, N - 1);
+  const pMinorBp = Math.pow(qx, I0);
+
+  // ── Simulated outbreaks ──
+  // Each person, generation and run draws its own uniform from a hash of
+  // (seed, run, generation, person): the same seed is the same outbreaks,
+  // and a larger p only ever infects more of the same people.
+  const mix = (h) => {
+    h ^= h >>> 16; h = Math.imul(h, 0x7feb352d);
+    h ^= h >>> 15; h = Math.imul(h, 0x846ca68b);
+    h ^= h >>> 16;
+    return h >>> 0;
+  };
+  const u01 = (r, t, i) => mix(mix(mix(mix(seed) ^ Math.imul(r + 1, 0x9e3779b1)) ^ Math.imul(t + 1, 0x85ebca6b)) ^ Math.imul(i + 1, 0xc2b2ae35)) / 4294967296;
+  const runs = [];
+  for (let r = 0; r < nRuns; r++) {
+    const sus = new Array(N).fill(true);
+    for (let i = 0; i < I0; i++) sus[i] = false;
+    let c = I0, cum = I0;
+    const path = [cum], news = [c];
+    for (let t = 0; c > 0 && t <= N; t++) {
+      const pi = 1 - Math.pow(q, c);
+      let j = 0;
+      for (let i = I0; i < N; i++) if (sus[i] && u01(r, t, i) < pi) { sus[i] = false; j++; }
+      c = j;
+      cum += j;
+      path.push(cum);
+      news.push(j);
+    }
+    // The last entry is the generation that found no one.
+    runs.push({ path, final: cum, len: path.length - 1 });
+  }
+
+  // ── Geometry ──
+  const settle = expCum.findIndex((e) => e >= 0.995 * meanFinal);
+  const longest = runs.reduce((a, r) => Math.max(a, r.len), 0);
+  const G = typeof params.generations === "number" && params.generations >= 1 ? Math.round(clamp(params.generations, 2, 60)) : clamp(Math.max(longest, settle < 0 ? expCum.length - 1 : settle, 4) + 1, 5, 40);
+  const plot = { x0: 105, y0: 90, x1: showDist ? 610 : 880, y1: 540 };
+  // The bars' longest is 190 units, leaving room on their right for a name.
+  const dist = { x0: 670, x1: 860 };
+  const sx = (g) => plot.x0 + (g / G) * (plot.x1 - plot.x0);
+  const sy = (k) => plot.y0 + (k / N) * (plot.y1 - plot.y0);
+  const drawables = [], labels = [], anchors = {}, order = [], attached = {}, groups = {};
+  const push = (d, at) => { drawables.push(d); order.push(d.id); if (at) anchors[d.id] = at; };
+  const INK_MINOR = C.guide, INK_MAJOR = C.demand;
+
+  // The header: the numbers to scrub, and the button.
+  const HY = 640;
+  const pText = "p = " + kit.num(Math.round(p * 1000) / 1000, p < 0.1 ? 3 : 2);
+  const nText = "N = " + kit.num(N, 0);
+  const rText = "R₀ ≈ " + kit.num(Math.round(R0 * 100) / 100);
+  let hx = 105;
+  push(kit.text("n_value", [hx, HY], nText, { fontSize: 30, color: C.ink, anchor: "start" }), [hx + 40, HY]);
+  hx += kit.textWidth(nText, 30) + 50;
+  push(kit.text("p_value", [hx, HY], pText, { fontSize: 30, color: C.accent, anchor: "start" }), [hx + 50, HY]);
+  hx += kit.textWidth(pText, 30) + 50;
+  push(kit.text("r0_value", [hx, HY], rText, { fontSize: 30, color: C.accent, anchor: "start" }), [hx + 50, HY]);
+  push(kit.pad("rerun", [845, HY], kit.say({ en: "new runs ↻", nb: "nye forsøk ↻" }), { w: 170, h: 48 }, { fontSize: 22 }), [845, HY]);
+
+  // Axes: generation across, people infected so far up.
+  const axKids = [
+    kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 3.5, ms: MS.axis }),
+    kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 3.5, ms: MS.axis }),
+    kit.text("axes__x_label", [plot.x1 + kit.AXIS_OVERHANG, plot.y0 - 60], kit.say({ en: "generation", nb: "generasjon" }), { fontSize: 22, color: C.ink, anchor: "end" }),
+    kit.text("axes__y_label", [plot.x0 - 10, plot.y1 + kit.AXIS_OVERHANG + 20], kit.say({ en: "infected so far", nb: "smittet så langt" }), { fontSize: 22, color: C.ink, anchor: "start" }),
+  ];
+  const gStep = G <= 12 ? 1 : G <= 24 ? 2 : 5;
+  for (let g = 0, k = 0; g <= G; g += gStep, k++) {
+    axKids.push(kit.stroke("axes__xt" + k, [[sx(g), plot.y0], [sx(g), plot.y0 - 8]], { color: C.ink, strokeWidth: 2, ms: MS.guides }));
+    axKids.push(kit.text("axes__xn" + k, [sx(g), plot.y0 - 24], kit.num(g, 0), { fontSize: 18, color: C.ink }));
+  }
+  const yTicks = N <= 12 ? Array.from({ length: N + 1 }, (_, k) => k).filter((k) => k % (N <= 6 ? 1 : 2) === 0 || k === N) : [0, Math.round(N / 2), N];
+  yTicks.forEach((k, i) => {
+    axKids.push(kit.stroke("axes__yt" + i, [[plot.x0, sy(k)], [plot.x0 - 8, sy(k)]], { color: C.ink, strokeWidth: 2, ms: MS.guides }));
+    axKids.push(kit.text("axes__yn" + i, [plot.x0 - 14, sy(k)], kit.num(k, 0), { fontSize: 18, color: C.ink, anchor: "end" }));
+  });
+  push(kit.group("axes", axKids), [plot.x0, plot.y0]);
+
+  // The line between fizzled and taken off, across both panels.
+  const both = cutoff >= I0 && cutoff < N;
+  if (both) {
+    const cy = sy(cutoff + 0.5);
+    push(kit.stroke("cutoff", [[plot.x0, cy], [showDist ? dist.x1 : plot.x1, cy]], { color: C.guide, dash: true, strokeWidth: 2, ms: MS.guides }), [plot.x1, cy]);
+  }
+
+  // The runs: people infected so far, generation by generation, flat once over.
+  const ids = [], minorIds = [], majorIds = [];
+  const unit = (plot.y1 - plot.y0) / N;
+  runs.forEach((r, k) => {
+    const major = r.final > cutoff;
+    // A hair apart, so runs that end on the same count read as a bundle.
+    const off = ((k % 5) - 2) * Math.min(1.6, unit * 0.12);
+    const pts = [];
+    for (let g = 0; g <= G; g++) pts.push([sx(g), sy(r.path[Math.min(g, r.path.length - 1)]) + off]);
+    const id = "run_" + (k + 1);
+    push(kit.stroke(id, pts, { color: major ? INK_MAJOR : INK_MINOR, strokeWidth: major ? 3 : 2.5, opacity: major ? 0.85 : 0.75, ms: MS.connector }), pts[pts.length - 1]);
+    ids.push(id);
+    (major ? majorIds : minorIds).push(id);
+  });
+  if (ids.length > 0) groups.runs = ids;
+  if (minorIds.length > 0) groups.runs_minor = minorIds;
+  if (majorIds.length > 0) groups.runs_major = majorIds;
+
+  if (showExp) {
+    const pts = [];
+    for (let g = 0; g <= G; g++) pts.push([sx(g), sy(expCum[Math.min(g, expCum.length - 1)])]);
+    push(kit.stroke("expected", pts, { color: C.ink, dash: true, strokeWidth: 3.5, ms: MS.curve }), pts[pts.length - 1]);
+    labels.push(kit.label("expected_label", pts[Math.min(pts.length - 1, Math.max(2, Math.round(G * 0.45)))], "above", kit.say({ en: "average", nb: "gjennomsnitt" }), { color: C.ink, fontSize: 20 }));
+    order.push("expected_label");
+    attached.expected = ["expected_label"];
+  }
+
+  // The exact final-size distribution, sideways on the same axis.
+  if (showDist) {
+    let pmax = 0;
+    for (let k = I0; k <= N; k++) pmax = Math.max(pmax, final[k]);
+    const bh = Math.max(1.5, Math.min(16, unit * 0.8));
+    const len = (v) => (pmax > 0 ? (v / pmax) * (dist.x1 - dist.x0) : 0);
+    const minorBars = [], majorBars = [];
+    for (let k = I0; k <= N; k++) {
+      const L = len(final[k]);
+      if (L < 0.8) continue;
+      const bar = kit.area("dist__" + k, kit.rect(dist.x0, sy(k) - bh / 2, L, bh), k > cutoff ? INK_MAJOR : INK_MINOR, { opacity: 0.75 });
+      (k > cutoff ? majorBars : minorBars).push(bar);
+    }
+    push(kit.group("dist_axis", [
+      kit.stroke("dist_axis__line", [[dist.x0, plot.y0], [dist.x0, plot.y1]], { color: C.ink, strokeWidth: 2.5, ms: MS.axis }),
+      kit.text("dist_axis__caption", [dist.x0, plot.y1 + kit.AXIS_OVERHANG + 20], kit.say({ en: "chance of each total", nb: "sjansen for hvert antall" }), { fontSize: 22, color: C.ink, anchor: "start" }),
+    ]), [dist.x0, plot.y1]);
+    if (minorBars.length > 0) push(kit.group("dist_minor", minorBars), [dist.x0, sy(I0)]);
+    if (majorBars.length > 0) push(kit.group("dist_major", majorBars), [dist.x0, sy(Math.min(N, cutoff + 1))]);
+    // Each hump's name and chance, beside its tallest bar.
+    const pctS = (v) => kit.num(Math.round(v * 100), 0) + "%";
+    // Each hump's name beside it: level with its tallest bar, clear of
+    // every bar within a label's height of that row.
+    const humpAt = (lo, hi) => { let m = lo; for (let k = lo; k <= hi; k++) if (final[k] > final[m]) m = k; return m; };
+    const clearX = (m, text) => {
+      let w = 0;
+      for (let k = I0; k <= N; k++) if (Math.abs(sy(k) - sy(m)) < 16) w = Math.max(w, len(final[k]));
+      return Math.min(dist.x0 + w + 12, 985 - kit.textWidth(text, 20));
+    };
+    if (pMinor > 0.005) {
+      const m = humpAt(I0, Math.min(cutoff, N));
+      const text = kit.say({ en: "fizzles ", nb: "dør ut " }) + pctS(pMinor);
+      const at = [clearX(m, text), Math.max(sy(m), plot.y0 + 12)];
+      push(kit.text("minor_label", at, text, { fontSize: 20, color: C.guide, anchor: "start" }), at);
+      attached.dist_minor = ["minor_label"];
+    }
+    if (pMajor > 0.005) {
+      const m = humpAt(cutoff + 1, N);
+      const text = kit.say({ en: "takes off ", nb: "tar av " }) + pctS(pMajor);
+      const at = [clearX(m, text), Math.min(sy(m), plot.y1)];
+      push(kit.text("major_label", at, text, { fontSize: 20, color: C.demand, anchor: "start" }), at);
+      attached.dist_major = ["major_label"];
+    }
+  }
+
+  const r2 = (v) => Math.round(v * 100) / 100;
+  const values = {
+    population: N, initial: I0, p: Math.round(p * 1e5) / 1e5, r0: r2(R0), seed, generations: G,
+    p_minor: r2(pMinor * 100), p_major: r2(pMajor * 100), p_minor_bp: r2(pMinorBp * 100),
+    p_no_spread: r2(final[I0] * 100), mean_final: r2(meanFinal), cutoff,
+    runs: nRuns, runs_major: majorIds.length, runs_minor: minorIds.length,
+  };
+  if (pMajor > 0) values.mean_major = r2(meanMajor / pMajor);
+  if (expCum.length > 1) values.expected_1 = r2(expCum[1] - expCum[0]);
+  if (expCum.length > 2) values.expected_2 = r2(expCum[2] - expCum[1]);
+  if (expCum.length > 3) values.expected_3 = r2(expCum[3] - expCum[2]);
+
+  return { drawables, labels, anchors, order, attached, groups, values, frame: { x: [0, G], y: [0, N], box: plot } };
+widget: |
+  // Free play (2026-09-28): while paused the viewer works the group.
+  //
+  //   N = 30 (n_value)       drag sideways: 1 person per 4 units; tap: type it
+  //   p = 0.069 (p_value)    0.005 per step (0.001 below 0.05)
+  //   R₀ ≈ 2 (r0_value)      0.1 per step; p follows as R₀/(N − 1)
+  //   new runs ↻ (rerun)     a tap: the next seed, new outbreaks
+  //
+  // A scrub keeps the generation axis where it was pressed; the release
+  // gives it back to the author (fitted when they set none).
+  const STEP_UNITS = 4;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+  const fix = (v, d) => Number(v.toFixed(d));
+  const NUMBERS = ["n_value", "p_value", "r0_value"];
+  const model = (prm) => {
+    const N = Math.round(clamp(num(prm.population, 30), 2, 100));
+    const p = typeof prm.p === "number" && Number.isFinite(prm.p) ? clamp(prm.p, 0, 1) : clamp(num(prm.r0, 2) / (N - 1), 0, 1);
+    return { N, p, r0: p * (N - 1) };
+  };
+  const gensOf = (scene) => {
+    for (const id of ["run_1", "expected"]) {
+      const ln = scene.lines.get(id);
+      const last = ln && ln[0] && ln[0][ln[0].length - 1];
+      const d = last ? scene.toDomain(last) : null;
+      if (d) return Math.round(d[0]);
+    }
+    return undefined;
+  };
+  const setNumber = (id, v, prm) => {
+    const m = model(prm);
+    if (id === "n_value") return { population: Math.round(clamp(v, 2, 100)) };
+    if (id === "p_value") return { p: fix(clamp(v, 0, 1), 4) };
+    if (id === "r0_value") return { p: fix(clamp(v / (m.N - 1), 0, 1), 5) };
+    return {};
+  };
+  const init = (scene) => ({ g0: scene.params.generations });
+  const on = (ev, st, scene) => {
+    const state = st ?? { g0: undefined };
+    const prm = scene.params;
+    if (ev.type === "click" && ev.id === "rerun") {
+      return { state, effects: [{ patch: { seed: Math.floor(num(prm.seed, 1)) + 1 } }] };
+    }
+    if (ev.type === "input" && NUMBERS.includes(ev.id)) return { state, effects: [{ patch: setNumber(ev.id, ev.value, prm) }] };
+    if ((ev.type !== "drag_move" && ev.type !== "drag") || !ev.from || !NUMBERS.includes(ev.id)) return { state, effects: [] };
+    const dx = ev.point[0] - ev.from[0];
+    const n = Math.trunc(dx / STEP_UNITS + (dx >= 0 ? 1e-6 : -1e-6));
+    const m = model(prm);
+    let patch;
+    if (ev.id === "n_value") patch = setNumber(ev.id, m.N + n, prm);
+    else if (ev.id === "p_value") {
+      const step = m.p < 0.05 ? 0.001 : 0.005;
+      patch = setNumber(ev.id, fix(m.p + step * n, 3), prm);
+    } else patch = setNumber(ev.id, fix(m.r0 + 0.1 * n, 1), prm);
+    patch.generations = ev.type === "drag_move" ? gensOf(scene) ?? state.g0 : state.g0;
+    return { state, effects: [{ patch }] };
+  };
+  const editable = (id, point, scene) => {
+    const m = model(scene.params);
+    if (id === "n_value") return { value: m.N, label: kit.say({ en: "People in the group", nb: "Personer i gruppen" }), min: 2, max: 100, step: 1 };
+    if (id === "p_value") return { value: fix(m.p, 4), label: kit.say({ en: "Chance one case infects one person", nb: "Sjanse for at ett tilfelle smitter én person" }), min: 0, max: 1, step: 0.001 };
+    if (id === "r0_value") return { value: fix(m.r0, 2), label: kit.say({ en: "Basic reproduction number R0", nb: "Basisreproduksjonstall R0" }), min: 0, max: 99, step: 0.1 };
+    return null;
+  };
+  const parts = (scene) => ["rerun", ...NUMBERS].filter((id) => scene.ids.includes(id));
+  return { init, on, editable, parts, taps: ["rerun"], live: true };
 ---
 template: distribution_curve
 title: Probability distribution curve
