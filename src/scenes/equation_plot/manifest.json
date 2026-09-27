@@ -1,11 +1,18 @@
 {
   "name": "equation_plot",
   "status": "ready",
-  "description": "Any equation y = f(x) with parameters, plotted and live: axes with round ticks, the curve(s), and the equation written above them with the parameters' CURRENT values in place (\"y = 2.0·sin(1.5x + 0.3)\") — each value its own part, eq_param_<name>. Choose this for what a parameter does to a graph: a parabola's a, b, c; a sine's amplitude, frequency and phase; growth or decay at a rate; a line's slope and intercept; any function family. Every name in the equation other than the variable (x, or t when the left side is f(t)) and pi/e is a parameter: give each a value (and min/max for a slider) in `params`, else it is 1. Animate a parameter to sweep it ({\"animate\": {\"params.a\": 3}} — or \"params.a.value\" when it is written as an object) and the curve, the equation's numbers, the panel and every mark follow. Marks are computed, never by hand: roots, turning points, the y-intercept, a point or a tangent at x. Paused, the viewer changes the parameters themselves — by scrubbing or typing the numbers in the equation (controls \"equation\", the default), with a drawn panel of sliders and number boxes beside the plot (\"panel\"), or both — and by dragging the curve (it takes the parameter that moves it most at that x, or the author's `drag`). An explore beat naming nothing invites exactly this. Numbers for text: {eq.<name>} per parameter and {eq.root_1}, {eq.max_1_y}, {eq.point_y}, {eq.tangent_slope} …",
+  "description": "Any equation y = f(x) with parameters, plotted and live: axes with round ticks, the curve(s), and the equation written above them with the parameters' CURRENT values in place (\"y = 2.0·sin(1.5x + 0.3)\") — each value its own part, eq_param_<name>. Choose this for what a parameter does to a graph: a parabola's a, b, c; a sine's amplitude, frequency and phase; growth or decay at a rate; a line's slope and intercept; any function family. A textbook science curve — Michaelis–Menten (with an inhibitor), logistic growth, a dose–response (Hill) curve, the oxygen dissociation curve, first-order, radioactive or second-order decay, Beer–Lambert, a damped oscillation — is one `preset` away, marks and all. Every name in the equation other than the variable (x, or t when the left side is f(t)) and pi/e is a parameter: give each a value (and min/max for a slider) in `params`, else it is 1. Animate a parameter to sweep it ({\"animate\": {\"params.a\": 3}} — or \"params.a.value\" when it is written as an object) and the curve, the equation's numbers, the panel and every mark follow. Marks are computed, never by hand: roots, turning points, the y-intercept, a point or a tangent at x. Paused, the viewer changes the parameters themselves — by scrubbing or typing the numbers in the equation (controls \"equation\", the default), with a drawn panel of sliders and number boxes beside the plot (\"panel\"), or both — and by dragging the curve (it takes the parameter that moves it most at that x, or the author's `drag`). An explore beat naming nothing invites exactly this. Numbers for text: {eq.<name>} per parameter and {eq.root_1}, {eq.max_1_y}, {eq.point_y}, {eq.tangent_slope} …",
   "engines": ["mathjax"],
   "params_schema": {
     "type": "object",
     "properties": {
+      "preset": {
+        "type": "string",
+        "x-translate": false,
+        "enum": ["michaelis_menten", "michaelis_menten_competitive", "michaelis_menten_noncompetitive", "logistic_growth", "logistic_vs_exponential", "dose_response", "oxygen_dissociation", "first_order_decay", "radioactive_decay", "second_order_decay", "beer_lambert", "damped_oscillation"],
+        "description": "A textbook curve ready-made: equation, parameters (canonical values, slider ranges, labels), axis captions, ranges, controls and marks with ids. Then `equation` is not needed. Any field you write wins; `params` merge per name (a number sets the value, an object's keys go over the preset's); your `marks` are ADDED to the preset's (preset_marks: false drops them). Parameter names are as written below (V_max, K_m, EC_50…): animate \"params.K_m\". michaelis_menten: v = V_max·S/(K_m + S); the Vmax asymptote (vmax), the point at K_m, half of Vmax (km). michaelis_menten_competitive: …a competitive inhibitor (I, K_i) as curve 1: same Vmax, apparent K_m·(1 + I/K_i) (km_app). michaelis_menten_noncompetitive: …a non-competitive one: same K_m, Vmax lowered to V_max/(1 + I/K_i) (vmax_app). logistic_growth: N(t) = K/(1 + ((K − N_0)/N_0)·e^(−rt)); carrying capacity K (capacity), inflection at K/2 (inflection). logistic_vs_exponential: …with N_0·e^(rt) as curve 1. dose_response: Hill E = E_0 + E_max·C^n/(EC_50^n + C^n) on a log dose axis; the maximum (emax), EC_50 at half effect (ec50). oxygen_dissociation: haemoglobin S = 100·P^n/(P_50^n + P^n) %, n 2.7, P_50 26.8 mmHg (p50); a larger P_50 is the Bohr (right) shift. first_order_decay: A = A_0·e^(−kt); half-life ln2/k at A_0/2 (half_life). radioactive_decay: N = N_0·(1/2)^(t/T); T (half_life), 2T at N_0/4 (two_half_lives). second_order_decay: A = A_0/(1 + k·A_0·t); first half-life 1/(k·A_0) (half_life). beer_lambert: A = ε·l·c (ε 6.22 per mM·cm, NADH); a sample at c_1 (sample). damped_oscillation: x = A·e^(−γt)·cos(ωt), envelope as curve 1; 1/γ where it is A/e (decay_time)."
+      },
+      "preset_marks": { "type": "boolean", "description": "false: leave out the preset's marks." },
       "equation": {
         "description": "\"y = a*x^2 + b*x + c\", or up to 4 as a list (each its own curve and line). Operators + - * / ^, juxtaposition (2x, 3(x+1)); functions sin cos tan exp ln log10 sqrt abs pow min max floor ceil round; constants pi, e. Names are whole words: write a*x, not ax. The left side names the curve (y, f(x), N(t)); f(t) makes t the variable.",
         "x-translate": false,
@@ -40,20 +47,24 @@
         "oneOf": [{ "type": "boolean" }, { "type": "string", "x-translate": false }, { "type": "array", "items": { "type": "string", "x-translate": false } }]
       },
       "x_range": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "[min, max] of the variable (default [-5, 5])." },
+      "x_scale": { "type": "string", "enum": ["linear", "log"], "description": "\"log\": x in powers of ten (a dose, a frequency); x_range must be above 0." },
       "y_range": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "[min, max] of y. Default: fitted to the curves, snapped to round ticks, and kept still while the viewer changes a parameter unless the curve leaves it." },
       "marks": {
         "type": "array",
-        "description": "Computed marks: \"roots\", \"extrema\", \"y_intercept\", or {kind, at, curve, label}. kind \"point\" or \"tangent\" needs `at`: an x, or a parameter's name (the mark follows it, and the viewer drags the point along the curve). label: true writes the coordinates (a tangent: its slope), a string writes that word.",
+        "description": "Computed marks: \"roots\", \"extrema\", \"y_intercept\", or {kind, at, curve, label}. kind \"point\" or \"tangent\" needs `at`: an x, a parameter's name (the mark follows it, and the viewer drags the point along the curve), or an expression (\"ln(2)/k\"). \"hline\" / \"vline\": a dashed line across at y = at / x = at (an asymptote, a threshold). label: true writes the coordinates (a tangent: its slope), a string writes that word. A point's x_label / y_label: words at its guides' feet on the axes (\"Km\", \"Vmax/2\"). id names the mark.",
         "items": {
           "oneOf": [
             { "type": "string", "enum": ["roots", "extrema", "y_intercept"] },
             {
               "type": "object",
               "properties": {
-                "kind": { "type": "string", "enum": ["roots", "extrema", "y_intercept", "point", "tangent"] },
+                "kind": { "type": "string", "enum": ["roots", "extrema", "y_intercept", "point", "tangent", "hline", "vline"] },
                 "at": { "oneOf": [{ "type": "number" }, { "type": "string", "x-translate": false }] },
                 "curve": { "type": "integer", "minimum": 0, "maximum": 3 },
-                "label": { "oneOf": [{ "type": "boolean" }, { "type": "string" }] }
+                "label": { "oneOf": [{ "type": "boolean" }, { "type": "string" }] },
+                "x_label": { "type": "string" },
+                "y_label": { "type": "string" },
+                "id": { "type": "string", "x-translate": false }
               },
               "required": ["kind"]
             }
@@ -66,7 +77,7 @@
       "y_label": { "type": "string", "description": "y-axis caption (default the left side)." },
       "grid": { "type": "boolean", "description": "Faint grid lines at the ticks." }
     },
-    "required": ["equation"]
+    "anyOf": [{ "required": ["equation"] }, { "required": ["preset"] }]
   },
   "element_ids": {
     "axes": "both axes (through the origin when the ranges span it); x_label, y_label, x_ticks and y_ticks come with it",
@@ -80,9 +91,11 @@
     "root_<k>": "the k-th root from the left (marks: roots)",
     "max_<k> / min_<k>": "turning points, left to right (marks: extrema)",
     "y_intercept": "where the curve crosses x = 0",
-    "point": "the point mark with dashed guides to the axes (point_2 … for more)",
+    "point": "the point mark with dashed guides to the axes (point_2 … for more; a mark's `id`, or its preset's — km, vmax, p50 … — replaces the name)",
     "tangent": "the tangent line (tangent_2 …)",
+    "hline / vline": "a dashed line across the plot (hline_2 …)",
     "<mark>_label": "a mark's label, when it has one",
+    "<mark>_x_label / <mark>_y_label": "a point's words at its guides' feet (km_x_label)",
     "<mark>_c<i>": "a mark on curve i > 0 carries this suffix (root_1_c1)",
     "slider_<name>": "panel: a parameter's slider track (its name, value and knob come with it)",
     "knob_<name>": "panel: the slider's knob",
@@ -103,6 +116,14 @@
     {
       "request": "Exponential growth: how does the rate change the curve?",
       "params": { "equation": "N(t) = N0*exp(r*t)", "params": { "N0": { "value": 100, "min": 10, "max": 200, "step": 10, "control": "box" }, "r": { "value": 0.1, "min": -0.3, "max": 0.3, "step": 0.01 } }, "controls": "both", "x_range": [0, 20], "x_label": "years", "marks": [{ "kind": "point", "at": 10, "label": true }, { "kind": "tangent", "at": 10 }] }
+    },
+    {
+      "request": "What does Km mean for an enzyme?",
+      "params": { "preset": "michaelis_menten" }
+    },
+    {
+      "request": "Why does haemoglobin give up oxygen in the tissues?",
+      "params": { "preset": "oxygen_dissociation", "marks": [{ "kind": "vline", "at": 40, "label": "tissue" }, { "kind": "hline", "at": 75, "label": "venous" }] }
     }
   ]
 }

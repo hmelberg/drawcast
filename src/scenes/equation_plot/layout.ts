@@ -8,7 +8,7 @@
 // and each widget patch, and `values` carries them for {eq.<key>} tokens.
 import { AXIS_OVERHANG, axisLabelPlacement } from "../../layout/axes";
 import { plotArea, type PlotArea } from "../../layout/canvas";
-import { COLORS, Z_STROKE, Z_TEXT, SKETCH_MS, defaultDrawOpts, defaultStyle, type Drawable, type Pt } from "../../layout/model";
+import { COLORS, Z_STROKE, Z_TEXT, SKETCH_MS, defaultDrawOpts, defaultStyle, type Drawable, type Pt, type TextDrawable } from "../../layout/model";
 import { bboxOfText, polylineIntersectsBox, simplifyPolyline } from "../../layout/geometry";
 import { heuristicMeasure } from "../../layout/measure";
 import { getLoadedEngines, type MathJaxEngine } from "../engines";
@@ -16,7 +16,8 @@ import { kit } from "../kit";
 import type { SceneLayout } from "../types";
 import { drawEquation, PARAM_COLOR } from "../params-ui/equation";
 import { drawPanel, panelRows, PANEL_W } from "../params-ui/panel";
-import { autoYRange, extremaOf, niceTicks, readModel, rootsOf, sampleCurve, slopeAt, type EquationPlotParams, type MarkSpec, type Model } from "./model";
+import { autoYRange, extremaOf, fromU, logTicks, markAt, markIds, niceTicks, readModel, rootsOf, sampleCurve, slopeAt, toU, yNeeds, type EquationPlotParams, type MarkSpec, type Model } from "./model";
+import { withPreset } from "./presets";
 
 export type { EquationPlotParams } from "./model";
 
@@ -47,11 +48,11 @@ export interface Frame {
   box: PlotArea;
 }
 
-/** The y range drawn: the author's, else the calm auto range of every curve. */
+/** The y range drawn: the author's (or the preset's), else the calm auto range of every curve and hline. */
 export function yRangeOf(m: Model, P: EquationPlotParams): [number, number] {
-  const yr = P.y_range;
+  const yr = withPreset(P).y_range;
   if (Array.isArray(yr) && Number.isFinite(yr[0]) && Number.isFinite(yr[1]) && yr[1] > yr[0]) return [yr[0], yr[1]];
-  return autoYRange(m.curves.map((c) => sampleCurve(c, m.env, m.xRange).ys));
+  return autoYRange(yNeeds(m));
 }
 
 /** Ids of the marks, in their order: what the manifest documents. */
@@ -59,17 +60,90 @@ function markSuffix(mk: MarkSpec): string {
   return (mk.curve ?? 0) > 0 ? `_c${mk.curve}` : "";
 }
 
+/** A mark's words may be written a little shorter than the page allows. */
+const MARK_FONT = 22;
+
 const trim = (v: number, d = 2): string => {
   const s = kit.num(Number(v.toFixed(d)));
   return s === "-0" ? "0" : s;
 };
 
-export function layoutEquationPlot(P: EquationPlotParams): SceneLayout {
+/** Room between the last equation line's ink and the plot's top. */
+const EQ_PLOT_GAP = 54;
+/** Room between two equation lines' ink. */
+const EQ_GAP = 10;
+
+/** Move a drawable (and its children) up or down in place. */
+function shiftY(d: Drawable, dy: number): void {
+  if (d.kind === "group") for (const c of d.children) shiftY(c, dy);
+  else if (d.kind === "area") {
+    d.pts = d.pts.map(([x, y]): Pt => [x, y + dy]);
+    if (d.holes) d.holes = d.holes.map((h) => h.map(([x, y]): Pt => [x, y + dy]));
+  } else if (d.kind === "stroke") d.pts = d.pts.map(([x, y]): Pt => [x, y + dy]);
+  else if (d.kind === "text") d.pos = [d.pos[0], d.pos[1] + dy];
+}
+
+/** The ink's lowest and highest y (canvas y runs up). */
+function inkSpan(ds: Drawable[]): [number, number] | null {
+  const ys: number[] = [];
+  const walk = (d: Drawable): void => {
+    if (d.kind === "group") d.children.forEach(walk);
+    else if (d.kind === "area" || d.kind === "stroke") for (const p of d.pts) ys.push(p[1]);
+  };
+  ds.forEach(walk);
+  return ys.length ? [Math.min(...ys), Math.max(...ys)] : null;
+}
+
+/**
+ * The equation lines, top down from the page's top: each at its usual
+ * height, and a line whose ink reaches into the one above (a fraction under
+ * a fraction) moved down clear of it. `bottom` is the last line's lowest ink.
+ */
+function layoutEquations(m: Model, eqTop: number, eqCx: number, eqWidth: number): { lines: (ReturnType<typeof drawEquation> & { id: string })[]; bottom: number } {
+  const mathjax = getLoadedEngines(["mathjax"]).mathjax as MathJaxEngine;
+  const seen = new Map<string, number>();
+  const lines: (ReturnType<typeof drawEquation> & { id: string })[] = [];
+  let line = 0;
+  let floor = eqTop;
+  let bottom = eqTop - EQ_LINE;
+  for (const c of m.curves) {
+    if (!c.node) continue;
+    const forms: ("symbols" | "values")[] = m.form === "both" ? ["symbols", "values"] : [m.form];
+    for (const form of forms) {
+      const base = c.index === 0 ? "eq" : `eq_${c.index}`;
+      const id = form === "symbols" && m.form === "both" ? `${base}_symbols` : base;
+      const cy = eqTop - EQ_LINE / 2 - line * EQ_LINE;
+      line++;
+      const ink = m.curves.length > 1 ? CURVE_COLORS[c.index % CURVE_COLORS.length] : COLORS.ink;
+      const r = drawEquation(mathjax, { id, lhsTeX: c.lhsTeX, node: c.node, variables: m.variable, set: m, form, center: [eqCx, cy], width: eqWidth, ink, seen });
+      const span = inkSpan(r.drawables);
+      if (span) {
+        const dy = Math.min(0, floor - span[1]);
+        if (dy < 0) {
+          for (const d of r.drawables) shiftY(d, dy);
+          for (const k of Object.keys(r.anchors)) r.anchors[k] = [r.anchors[k][0], r.anchors[k][1] + dy];
+        }
+        floor = span[0] + dy - EQ_GAP;
+        bottom = Math.min(cy - EQ_LINE / 2, span[0] + dy);
+      }
+      lines.push({ ...r, id });
+    }
+  }
+  return { lines, bottom };
+}
+
+export function layoutEquationPlot(raw: EquationPlotParams): SceneLayout {
+  const P = withPreset(raw);
   const m = readModel(P);
   const { plot, eqTop, eqCx, eqWidth, panel: column } = pageGeometry(m);
+  const eqs = layoutEquations(m, eqTop, eqCx, eqWidth);
+  // A tall line (a fraction, two stacked) pushes the plot's top down.
+  plot.y1 = Math.min(plot.y1, eqs.bottom - EQ_PLOT_GAP);
   const [x0, x1] = m.xRange;
   const [y0, y1] = yRangeOf(m, P);
-  const sx = (x: number): number => plot.x0 + ((x - x0) / (x1 - x0)) * (plot.x1 - plot.x0);
+  const log = m.xScale === "log";
+  const [u0, u1] = [toU(m.xScale, x0), toU(m.xScale, x1)];
+  const sx = (x: number): number => plot.x0 + ((toU(m.xScale, x) - u0) / (u1 - u0)) * (plot.x1 - plot.x0);
   const sy = (y: number): number => plot.y0 + ((y - y0) / (y1 - y0)) * (plot.y1 - plot.y0);
 
   const drawables: Drawable[] = [];
@@ -87,7 +161,7 @@ export function layoutEquationPlot(P: EquationPlotParams): SceneLayout {
   };
 
   // ---- axes, through the origin when the range spans it --------------------
-  const ox = x0 < 0 && x1 > 0 ? sx(0) : plot.x0;
+  const ox = !log && x0 < 0 && x1 > 0 ? sx(0) : plot.x0;
   const oy = y0 < 0 && y1 > 0 ? sy(0) : plot.y0;
   const axisStyle = defaultStyle({ strokeWidth: 3.5, roughness: 1 });
   push(
@@ -122,7 +196,7 @@ export function layoutEquationPlot(P: EquationPlotParams): SceneLayout {
   const curvePolys: Pt[][] = [];
   for (const c of m.curves) {
     const id = `curve_${c.index}`;
-    const { xs, ys } = sampleCurve(c, m.env, m.xRange);
+    const { xs, ys } = sampleCurve(c, m.env, m.xRange, undefined, m.xScale);
     const segs = clipCurve(xs, ys, lo, hi).map((seg) => simplifyPolyline(seg.map(([x, y]): Pt => [sx(x), sy(y)]), 0.4));
     const color = CURVE_COLORS[c.index % CURVE_COLORS.length];
     const strokes = segs.filter((s) => s.length >= 2);
@@ -150,23 +224,68 @@ export function layoutEquationPlot(P: EquationPlotParams): SceneLayout {
   // on both axes' lines).
   // A number a curve runs through stands aside (it would be unreadable
   // under the ink): the tick mark stays, its number is left out.
+  // A point mark's words at the feet of its guides ("Km" under the x axis,
+  // "Vmax/2" left of the y axis) sit where tick numbers sit: worked out
+  // first, so a number they would cover stands aside like one under a curve.
+  const ids = markIds(m.marks);
+  const markId = (mk: MarkSpec): string => ids.get(mk) ?? mk.kind;
+  const feet = new Map<MarkSpec, { x?: TextDrawable; y?: TextDrawable }>();
+  for (const mk of m.marks) {
+    if (mk.kind !== "point" || (!mk.x_label && !mk.y_label)) continue;
+    const c = m.curves[mk.curve ?? 0];
+    if (!c || !c.node) continue;
+    const xAt = markAt(mk, m);
+    const y = c.f(xAt, m.env);
+    if (!(Number.isFinite(xAt) && Number.isFinite(y) && xAt >= x0 && xAt <= x1 && y >= y0 && y <= y1)) continue;
+    const id = markId(mk);
+    const foot: { x?: TextDrawable; y?: TextDrawable } = {};
+    // Two feet that would overlap (Km and the apparent Km close together)
+    // step apart: the later one a row further from its axis.
+    const clear = (make: (row: number) => TextDrawable): TextDrawable => {
+      for (let row = 0; ; row++) {
+        const t = make(row);
+        const b = bboxOfText(t, heuristicMeasure);
+        const hit = [...feet.values()].flatMap((f) => [f.x, f.y]).some((o) => {
+          if (!o) return false;
+          const q = bboxOfText(o, heuristicMeasure);
+          return q.x < b.x + b.w + 4 && q.x + q.w + 4 > b.x && q.y < b.y + b.h && q.y + q.h > b.y;
+        });
+        if (!hit || row >= 2) return t;
+      }
+    };
+    if (typeof mk.x_label === "string" && mk.x_label.trim()) {
+      const text = mk.x_label;
+      foot.x = clear((row) => kit.text(`${id}_x_label`, [sx(xAt), oy - 22 - row * 24], text, { fontSize: MARK_FONT, anchor: "middle" }));
+    }
+    if (typeof mk.y_label === "string" && mk.y_label.trim()) {
+      const text = mk.y_label;
+      foot.y = clear((row) => kit.text(`${id}_y_label`, [ox - 12, sy(y) - 7 - row * 24], text, { fontSize: MARK_FONT, anchor: "end" }));
+    }
+    feet.set(mk, foot);
+  }
+  const footBoxes = [...feet.values()].flatMap((f) => [f.x, f.y]).filter((d): d is TextDrawable => !!d).map((d) => bboxOfText(d, heuristicMeasure));
   const tickText = (id: string, pos: Pt, s: string, anchor: "start" | "middle" | "end"): Drawable | null => {
     const t = { ...kit.text(id, pos, s, { fontSize: TICK_FONT, color: COLORS.guide, anchor }), drawOpts: defaultDrawOpts("instant") };
     const b = bboxOfText(t, heuristicMeasure);
     const pad = { x: b.x - 3, y: b.y - 3, w: b.w + 6, h: b.h + 6 };
-    // …and so does one under an axis caption (a long x caption sits below the arrow's end).
-    const underCaption = captionBoxes.some((c) => c.x < pad.x + pad.w && c.x + c.w > pad.x && c.y < pad.y + pad.h && c.y + c.h > pad.y);
+    // …and so does one under an axis caption (a long x caption sits below the arrow's end) or a mark's foot.
+    const underCaption = [...captionBoxes, ...footBoxes].some((c) => c.x < pad.x + pad.w && c.x + c.w > pad.x && c.y < pad.y + pad.h && c.y + c.h > pad.y);
     return underCaption || curvePolys.some((poly) => polylineIntersectsBox(poly, pad)) ? null : t;
   };
-  const xt = niceTicks(x0, x1, 8);
-  const xd = Math.max(0, -Math.floor(Math.log10(xt.step) + 1e-9));
+  // A log axis: powers of ten (with 2s and 5s over a short span).
+  const xt = log ? { step: NaN, ticks: logTicks(x0, x1) } : niceTicks(x0, x1, 8);
+  const yTicks0 = niceTicks(y0, y1, 6).ticks[0] ?? NaN;
+  const xDigits = (v: number): number => (log ? Math.max(0, -Math.floor(Math.log10(v) + 1e-9)) : Math.max(0, -Math.floor(Math.log10(xt.step) + 1e-9)));
   const xChildren: Drawable[] = [];
   for (const v of xt.ticks) {
     const X = sx(v);
     if (Math.abs(X - ox) < 1 && ox !== plot.x0) continue;
     if (X < plot.x0 - 0.5 || X > plot.x1 + 0.5) continue;
     xChildren.push({ ...kit.stroke(`x_ticks__m${xChildren.length}`, [[X, oy - 6], [X, oy + 6]], { color: COLORS.guide, strokeWidth: 2, instant: true }) });
-    const label = tickText(`x_ticks__t${xChildren.length}`, [X, oy - 22], kit.num(v, xd), "middle");
+    // At the y axis the number would sit on the axis's line (x axis mid-plot)
+    // or on the y axis's own number at the corner (a log axis's 0.001 on its 0).
+    const corner = Math.abs(X - ox) < 1 && (oy !== plot.y0 || (ox === plot.x0 && Math.abs(yTicks0 - y0) < 1e-9 && (log || kit.num(v, xDigits(v)) !== "0")));
+    const label = corner ? null : tickText(`x_ticks__t${xChildren.length}`, [X, oy - 22], kit.num(v, xDigits(v)), "middle");
     if (label) xChildren.push(label);
   }
   const yt = niceTicks(y0, y1, 6);
@@ -195,29 +314,16 @@ export function layoutEquationPlot(P: EquationPlotParams): SceneLayout {
 
   if (m.curves.length > 1) groups.curves = m.curves.map((c) => `curve_${c.index}`).filter((id) => order.includes(id));
 
-  // ---- the equation(s), in the drawing's hand ------------------------------
-  const mathjax = getLoadedEngines(["mathjax"]).mathjax as MathJaxEngine;
-  const seen = new Map<string, number>();
+  // ---- the equation(s), in the drawing's hand (laid out above) --------------
   const eqIds: string[] = [];
   const paramIdsAll: string[] = [];
-  let line = 0;
-  for (const c of m.curves) {
-    if (!c.node) continue;
-    const forms: ("symbols" | "values")[] = m.form === "both" ? ["symbols", "values"] : [m.form];
-    for (const form of forms) {
-      const base = c.index === 0 ? "eq" : `eq_${c.index}`;
-      const id = form === "symbols" && m.form === "both" ? `${base}_symbols` : base;
-      const cy = eqTop - EQ_LINE / 2 - line * EQ_LINE;
-      line++;
-      const ink = m.curves.length > 1 ? CURVE_COLORS[c.index % CURVE_COLORS.length] : COLORS.ink;
-      const r = drawEquation(mathjax, { id, lhsTeX: c.lhsTeX, node: c.node, variables: m.variable, set: m, form, center: [eqCx, cy], width: eqWidth, ink, seen });
-      for (const d of r.drawables) push(d, r.anchors[d.id]);
-      eqIds.push(id);
-      if (r.paramIds.length > 0) {
-        attached[id] = r.paramIds;
-        drawnWith[id] = r.paramIds;
-        paramIdsAll.push(...r.paramIds);
-      }
+  for (const r of eqs.lines) {
+    for (const d of r.drawables) push(d, r.anchors[d.id]);
+    eqIds.push(r.id);
+    if (r.paramIds.length > 0) {
+      attached[r.id] = r.paramIds;
+      drawnWith[r.id] = r.paramIds;
+      paramIdsAll.push(...r.paramIds);
     }
   }
   groups.equations = [...eqIds, ...paramIdsAll].filter((id) => order.includes(id));
@@ -236,15 +342,67 @@ export function layoutEquationPlot(P: EquationPlotParams): SceneLayout {
     (attached[owner] ??= []).push(id);
   };
   const labelText = (mk: MarkSpec, coords: string): string | null => (mk.label === undefined || mk.label === "" ? null : typeof mk.label === "string" ? mk.label : mk.label === true ? coords : null);
-  let points = 0;
-  let tangents = 0;
+  // Roots and turning points are found along the page's own axis (in powers
+  // of ten on a log axis — the same points, sampled where they are drawn).
+  const onAxis = (f: (x: number) => number): ((u: number) => number) => (u) => f(fromU(m.xScale, u));
+  const uRange: [number, number] = [u0, u1];
+  const attach = (owner: string, id: string): void => {
+    (attached[owner] ??= []).push(id);
+  };
   for (const mk of m.marks) {
     const c = m.curves[mk.curve ?? 0];
     if (!c || !c.node) continue;
     const f = (x: number): number => c.f(x, m.env);
     const sfx = markSuffix(mk);
+    if (mk.kind === "hline" || mk.kind === "vline") {
+      const id = markId(mk);
+      const v = markAt(mk, m);
+      if (!Number.isFinite(v)) continue;
+      values[id] = Number(v.toFixed(6));
+      const t = typeof mk.label === "string" && mk.label.trim() ? mk.label : mk.label === true ? trim(v) : null;
+      if (mk.kind === "hline") {
+        if (v < y0 || v > y1) continue;
+        const Y = sy(v);
+        push(kit.stroke(id, [[plot.x0, Y], [plot.x1, Y]], { color: COLORS.guide, strokeWidth: 2.5, dash: true, ms: SKETCH_MS.guides }), [plot.x1, Y]);
+        // Its word at the end of the line the curves keep farther from (an
+        // asymptote's curve hugs it at one end), on the side away from them.
+        if (t) {
+          const near = (left: boolean): { gap: number; above: boolean } => {
+            let gap = Infinity;
+            let above = false;
+            for (const cv of m.curves) {
+              if (!cv.node) continue;
+              for (let i = 0; i <= 12; i++) {
+                const u = left ? u0 + ((u1 - u0) * i) / 60 : u1 - ((u1 - u0) * i) / 60;
+                const yy = cv.f(fromU(m.xScale, u), m.env);
+                if (!Number.isFinite(yy)) continue;
+                const d = Math.abs(sy(yy) - Y);
+                if (d < gap) [gap, above] = [d, sy(yy) > Y];
+              }
+            }
+            return { gap, above };
+          };
+          const [l, r] = [near(true), near(false)];
+          const left = l.gap > r.gap + 1;
+          const side = left ? l : r;
+          const pos: Pt = [left ? ox + 12 : plot.x1 - 4, side.above && side.gap < 40 ? Y - 26 : Y + 10];
+          push(kit.text(`${id}_label`, pos, t, { fontSize: MARK_FONT, anchor: left ? "start" : "end" }), pos);
+          attach(id, `${id}_label`);
+        }
+      } else {
+        if (v < x0 || v > x1) continue;
+        const X = sx(v);
+        push(kit.stroke(id, [[X, plot.y0], [X, plot.y1]], { color: COLORS.guide, strokeWidth: 2.5, dash: true, ms: SKETCH_MS.guides }), [X, plot.y1]);
+        if (t) {
+          const pos: Pt = [X + 8, plot.y1 - 24];
+          push(kit.text(`${id}_label`, pos, t, { fontSize: MARK_FONT, anchor: "start" }), pos);
+          attach(id, `${id}_label`);
+        }
+      }
+      continue;
+    }
     if (mk.kind === "roots") {
-      rootsOf(f, m.xRange).forEach((r, k) => {
+      rootsOf(onAxis(f), uRange).map((u) => fromU(m.xScale, u)).forEach((r, k) => {
         const id = `root_${k + 1}${sfx}`;
         values[id] = Number(r.toFixed(6));
         if (!inView(r, 0)) return;
@@ -255,7 +413,7 @@ export function layoutEquationPlot(P: EquationPlotParams): SceneLayout {
     } else if (mk.kind === "extrema") {
       let nMax = 0;
       let nMin = 0;
-      for (const e of extremaOf(f, m.xRange)) {
+      for (const e of extremaOf(onAxis(f), uRange).map((e) => ({ ...e, x: fromU(m.xScale, e.x) }))) {
         const id = e.kind === "max" ? `max_${++nMax}${sfx}` : `min_${++nMin}${sfx}`;
         values[`${id}_x`] = Number(e.x.toFixed(6));
         values[`${id}_y`] = Number(e.y.toFixed(6));
@@ -275,14 +433,15 @@ export function layoutEquationPlot(P: EquationPlotParams): SceneLayout {
       const t = labelText(mk, trim(y));
       if (t) markLabel(`${id}_label`, anchors[id], t);
     } else if (mk.kind === "point" || mk.kind === "tangent") {
-      const xAt = typeof mk.at === "number" ? mk.at : typeof mk.at === "string" ? (m.byName.get(mk.at)?.value ?? NaN) : (x0 + x1) / 2;
+      const xAt = mk.at === undefined ? fromU(m.xScale, (u0 + u1) / 2) : markAt(mk, m);
       const y = f(xAt);
-      const n = mk.kind === "point" ? ++points : ++tangents;
-      const id = `${mk.kind}${n > 1 ? `_${n}` : ""}${sfx}`;
+      const id = markId(mk);
       if (!Number.isFinite(xAt) || !Number.isFinite(y)) continue;
       values[`${id}_x`] = Number(xAt.toFixed(6));
       values[`${id}_y`] = Number(y.toFixed(6));
       if (mk.kind === "tangent") {
+        // A straight tangent is a curve on a log axis: not drawn there (the lint says so).
+        if (log) continue;
         const k = slopeAt(f, xAt, x1 - x0);
         if (!Number.isFinite(k)) continue;
         values[`${id}_slope`] = Number(k.toFixed(6));
@@ -305,6 +464,12 @@ export function layoutEquationPlot(P: EquationPlotParams): SceneLayout {
         drawables.push(kit.stroke(`${id}_guides`, [[c0[0], oy], c0, [ox, c0[1]]], { color: COLORS.guide, strokeWidth: 2, dash: true, ms: SKETCH_MS.guides }));
         const t = labelText(mk, `(${trim(xAt)}, ${trim(y)})`);
         if (t) markLabel(`${id}_label`, c0, t);
+        const foot = feet.get(mk);
+        for (const d of [foot?.x, foot?.y]) {
+          if (!d) continue;
+          push(d, d.pos);
+          attach(id, d.id);
+        }
       }
     }
   }
@@ -333,7 +498,8 @@ export function layoutEquationPlot(P: EquationPlotParams): SceneLayout {
     drawnWith,
     groups,
     values,
-    frame: { x: [x0, x1], y: [y0, y1], box: plot },
+    // On a log axis the frame is linear in log10 x: what a domain point means there.
+    frame: { x: log ? [u0, u1] : [x0, x1], y: [y0, y1], box: plot },
   };
 }
 
