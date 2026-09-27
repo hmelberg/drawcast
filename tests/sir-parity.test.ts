@@ -31,7 +31,13 @@ describe("sir_compartments: specs without model params paint as before", () => {
     expect(out).toMatchSnapshot();
   });
 
-  const bundled = (examples as { request: string; spec: Spec }[]).filter((e) => e.spec?.template === "sir_compartments");
+  // Only the flow-diagram casts: a bundled example with a model parameter
+  // (r0, model) is the live mode's own and has no "before" to hold.
+  const bundled = (examples as { request: string; spec: Spec }[]).filter((e) => {
+    if (e.spec?.template !== "sir_compartments") return false;
+    const p = (e.spec.params ?? {}) as Record<string, unknown>;
+    return p.r0 === undefined && p.model === undefined;
+  });
   test("there are bundled examples to hold", () => {
     expect(bundled.length).toBeGreaterThanOrEqual(3);
   });
