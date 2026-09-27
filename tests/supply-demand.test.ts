@@ -534,7 +534,15 @@ describe("welfare regions", () => {
         const dPS = polyArea(l, "ps_region") - ps0;
         // the wedge is a TRANSFER out of the two surpluses for a tax, and INTO
         // them for a subsidy, so it enters the identity with the sign of the tax
-        const wedge = polyArea(l, "wedge_region") * (c.tax && (c.tax.amount ?? 0) < 0 ? -1 : 1);
+        // Revenue is t × Q from quantity 0 (layout.ts: a tax is paid on every
+        // unit), but the surpluses are drawn only where the curves are. Left
+        // of the shared edge the matching loss of consumer surplus lies above
+        // the plot, so the drawn areas balance over the SHARED interval: count
+        // the wedge (a rectangle) from that edge on.
+        const edge = Math.min(...areaPts(base, "cs_region").map(([x]) => x));
+        const wp = ids(l).includes("wedge_region") ? areaPts(l, "wedge_region") : [];
+        const wedgeShared = wp.length === 0 ? 0 : (Math.max(...wp.map(([x]) => x)) - Math.max(edge, Math.min(...wp.map(([x]) => x)))) * (Math.max(...wp.map(([, y]) => y)) - Math.min(...wp.map(([, y]) => y)));
+        const wedge = wedgeShared * (c.tax && (c.tax.amount ?? 0) < 0 ? -1 : 1);
         const dwl = polyArea(l, "dwl_region");
         // RELATIVE tolerance: these are logical pixels squared, order 1e5, and
         // CS/PS are built from the 61-point curves while betweenRegion resamples
@@ -564,7 +572,11 @@ describe("welfare regions", () => {
     expect(qLeft).toBeCloseTo(dStart, 6);
     // not vacuous: the shared edge is far to the right of the price axis
     expect(qLeft).toBeGreaterThan(plotArea().x0 + 100);
-    for (const id of ["cs_region", "ps_region", "wedge_region"]) {
+    // The tax revenue is the exception, by design: t on every unit traded, so
+    // its rectangle runs from the price axis (Hans 2026-09-27: on a steep
+    // demand curve it stopped halfway).
+    expect(Math.min(...areaPts(l, "wedge_region").map(([x]) => x)), "wedge_region starts at the price axis").toBeCloseTo(plotArea().x0, 6);
+    for (const id of ["cs_region", "ps_region"]) {
       const pts = areaPts(l, id);
       expect(pts.length, `${id} is a real polygon`).toBeGreaterThanOrEqual(3);
       expect(Math.min(...pts.map(([x]) => x)), `${id} left edge`).toBeCloseTo(qLeft, 6);
@@ -593,7 +605,7 @@ describe("welfare regions", () => {
     });
     expect(floor.anchors["floor_line"]).toBeDefined();
     for (const l2 of [ceiling, floor]) {
-      for (const id of ["cs_region", "ps_region", "transfer_region", "wedge_region"]) {
+      for (const id of ["cs_region", "ps_region", "wedge_region"]) {
         expect(ids(l2)).not.toContain(id);
       }
       // the whole of [qLeft, Q*] is deadweight loss instead, and it is drawn

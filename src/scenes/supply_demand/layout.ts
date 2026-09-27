@@ -536,10 +536,14 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
 
     // Zero-height for a price control, where both sides face one price, so
     // this skips itself without a branch on iv.kind.
-    if (want.has("government_revenue") && shadeable && Math.abs(pBuyers - pSellers) > 0.5) {
-      // Revenue is the tax on every unit traded: from qLeft, which is the
-      // price axis itself in the ordinary case (see qLeft above).
-      const pts = ctx.toLogical([[qLeft, pSellers], [qTraded, pSellers], [qTraded, pBuyers], [qLeft, pBuyers]]);
+    if (want.has("government_revenue") && qTraded > 0 && Math.abs(pBuyers - pSellers) > 0.5) {
+      // Revenue is the tax on EVERY unit traded — t × Q, from quantity 0 —
+      // whatever the curves do. It used to start at qLeft, and a steep demand
+      // curve (whose drawn line begins well right of the axis) cut the
+      // rectangle short of the price axis (Hans, 2026-09-27, the cigarette
+      // tax). Nothing else is shaded left of qLeft, so the tiling above is
+      // untouched: the surpluses keep their own edge.
+      const pts = ctx.toLogical([[0, pSellers], [qTraded, pSellers], [qTraded, pBuyers], [0, pBuyers]]);
       push(area("wedge_region", pts, COLORS.accent));
       anchors["wedge_region"] = centroid(pts);
       // The wedge spans the WHOLE traded quantity (qLeft to qTraded, not a
@@ -548,14 +552,15 @@ export function layoutSupplyDemand(params: SupplyDemandParams): SceneLayout {
       // guides — label the wedge's upper band instead (between pStar and
       // pBuyers), the one strip a busy figure with both curves, both guide
       // sets and a deadweight-loss region leaves clear. Centred IN that band.
-      label("label_wedge", ctx.toLogical([[(qLeft + qTraded) / 2, (pStar + pBuyers) / 2]])[0], "center", pBuyers > pSellers ? "Tax revenue" : "Subsidy cost", COLORS.accent, "wedge_region");
+      label("label_wedge", ctx.toLogical([[qTraded / 2, (pStar + pBuyers) / 2]])[0], "center", pBuyers > pSellers ? "Tax revenue" : "Subsidy cost", COLORS.accent, "wedge_region");
     }
 
     // A transfer exists when both sides face ONE price (so there is no wedge)
     // and that price differs from the free-market one — which is true for a
     // binding ceiling or floor and false for a tax, without asking which.
-    if (want.has("transfer") && shadeable && Math.abs(pBuyers - pSellers) <= 0.5 && Math.abs(pStar - pBuyers) > 0.5) {
-      const pts = ctx.toLogical([[qLeft, pStar], [qTraded, pStar], [qTraded, pBuyers], [qLeft, pBuyers]]);
+    if (want.has("transfer") && qTraded > 0 && Math.abs(pBuyers - pSellers) <= 0.5 && Math.abs(pStar - pBuyers) > 0.5) {
+      // The same rule as revenue: (P − P*) on every unit traded, from quantity 0.
+      const pts = ctx.toLogical([[0, pStar], [qTraded, pStar], [qTraded, pBuyers], [0, pBuyers]]);
       push(area("transfer_region", pts, COLORS.accent));
       anchors["transfer_region"] = centroid(pts);
       label("label_transfer", anchors["transfer_region"], "center", "Transfer", COLORS.accent, "transfer_region");
