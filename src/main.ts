@@ -72,6 +72,7 @@ import {
   type AudioTrack,
   type Playlist,
 } from "./playlist/playlist";
+import { unwrapCastText } from "./playlist/cast-file";
 import { mountPlaylist, playlistSpeakLines, type SessionHandle } from "./playlist/session";
 import { appendRecord, localRecordStorage } from "./render/record";
 import { applyViewsFlag } from "./views";
@@ -4608,20 +4609,13 @@ if (import.meta.env.DEV) {
       .then((r) => (r.ok ? r.text() : Promise.reject(new Error(`${r.status}`))))
       // A cast on a pack template must not render before its pack is in.
       .then((text) => startupPacks.then(() => text, () => text))
-      // The local author's files are `{request, spec}` (scripts/cast.mjs):
-      // the spec is what plays — read whole, the wrapper was a blank page.
       .then((text) => {
-        try {
-          const j = JSON.parse(text) as { spec?: unknown; commands?: unknown };
-          if (j && typeof j.spec === "object" && j.spec !== null && j.commands === undefined) return JSON.stringify(j.spec);
-        } catch {
-          /* YAML or a playlist: as written */
-        }
-        return text;
-      })
-      .then((text) => {
-        const playlist = readPlaylistText(text);
-        if (playlist) setDoc({ id: null, driveFileId: null, sourcePath: null, title: docTitleOf(playlist, openPath.split("/").pop() ?? "cast"), playlist }, "Opened.");
+        // The local author's files wrap the spec — {request, spec}, {request,
+        // title, playlist} — as the frames harness accepts; read whole, a
+        // wrapper parsed as a blank spec and played 0 steps (playlist/cast-file.ts).
+        const cast = unwrapCastText(text);
+        const playlist = readPlaylistText(cast.text);
+        if (playlist) setDoc({ id: null, driveFileId: null, sourcePath: null, title: docTitleOf(playlist, cast.title ?? openPath.split("/").pop() ?? "cast"), playlist }, "Opened.");
       })
       .catch((err) => setStatus(`Could not open ${openPath}: ${(err as Error).message}`, "error"));
   }
