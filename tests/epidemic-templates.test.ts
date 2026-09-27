@@ -66,7 +66,7 @@ describe("sir_compartments: the live model's numbers", () => {
   test("the peak: I_max = 1 − (1 + ln R0)/R0, and Rt crosses 1 exactly there", () => {
     const v = sirValues({ r0: 3, ...tiny });
     expect(v.peak_i).toBeCloseTo((1 - (1 + Math.log(3)) / 3) * 100, 1);
-    expect(Math.abs(v.cross_day - v.peak_day)).toBeLessThan(0.6);
+    expect(Math.abs(v.cross_day - v.peak_day)).toBeLessThan(0.1);
     // A cursor on the peak day reads Rt = 1 and S = 1/R0.
     const at = sirValues({ r0: 3, ...tiny, cursor_day: v.peak_day });
     expect(at.r_eff).toBeCloseTo(1, 1);
@@ -169,7 +169,7 @@ describe("sir_compartments: the widget (model mode only)", () => {
     expect((b.parts as (s: WidgetScene) => string[])(legacy)).toEqual([]);
     expect(b.surface!(legacy)).toBeNull();
     const live = sceneOf(T, { r0: 3, vaccinated: 0.2, intervention: { start: 20, end: 40, reduction: 0.3 }, cursor_day: 30 });
-    expect((b.parts as (s: WidgetScene) => string[])(live)).toEqual(["r0_value", "rate_0", "rate_1", "vax_value", "intervention_label", "cursor", "intervention"]);
+    expect((b.parts as (s: WidgetScene) => string[])(live)).toEqual(["r0_value", "rate_0", "rate_1", "vax_value", "intervention_label", "cursor", "vaccinated_label", "vaccinated_band", "intervention"]);
   });
 
   test("R0 scrubs by 0.1 per 4 units, holding the axis while the finger is down", () => {
@@ -207,6 +207,19 @@ describe("sir_compartments: the widget (model mode only)", () => {
     expect(move(59, 79).intervention).toMatchObject({ start: 30, end: 80 }); // the right edge
     expect(move(45, 200).intervention).toMatchObject({ start: 70, end: 100 }); // not past the axis
     expect(partAt(sc, L(45, 50), 18, (b.parts as (s: WidgetScene) => string[])(sc))).toBe("intervention");
+  });
+
+  test("the vaccinated band: its lower edge follows the pointer; R counts only the recovered", () => {
+    const params = { r0: 3, days: 120, vaccinated: 0.3 };
+    const sc = sceneOf(T, params);
+    const b = scenes[T].widget!();
+    const from = sc.toLogical([60, 85]);
+    const r = stepWidget(b, b.init(sc), dragMoveEvent("vaccinated_band", from, sc.toLogical([60, 28.4]), sc), sc, names(T));
+    expect(r.effects[0].patch).toEqual({ vaccinated: 0.72, days: 120 });
+    const v = sirValues({ ...params, cursor_day: 0 });
+    expect(v.r_at).toBe(0);
+    expect(v.v_at).toBe(30);
+    expect(v.s_at + v.i_at + v.r_at + v.v_at).toBeCloseTo(100, 6);
   });
 
   test("the cursor and the blank plot: a drag reads the whole day under the pointer", () => {
