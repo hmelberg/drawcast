@@ -18,7 +18,8 @@ description: >-
   event data, censoring, median survival, or comparing survival between
   treatment arms or groups. Each arm's `survival` list takes typed numbers or
   a code element's variable via a "{id.var}" token — the Kaplan-Meier
-  estimate a script actually computed. TYPE every arm's `label` by hand: the
+  estimate a script actually computed. Entry i sits at time i × `time_step`
+  (default 1, so [1, .9, .8] at 0, 1, 2); both axes draw tick numbers. TYPE every arm's `label` by hand: the
   typed names are what keep the arm_i beats alive before the script has run,
   and an arm still waiting for its numbers draws flat at 100 % survival with
   no median guide, never an invented staircase.
@@ -41,19 +42,30 @@ params:
           survival:
             type: array
             items: { type: number }
-            description: "Survival proportions, one per time tick, non-increasing; the first SHOULD be 1.0 (everyone alive at t=0)."
+            description: "Survival proportions (0-1) at times 0, time_step, 2×time_step, …; non-increasing; the first SHOULD be 1.0 (everyone alive at t=0)."
         required: [label, survival]
       description: "One to three survival arms to compare."
     time_label:
       type: string
-      description: "Default \"Months\"."
+      description: "The time axis name and unit. Default \"Months\"."
+    time_step:
+      type: number
+      description: "Time between successive survival entries (default 1), e.g. 6 for survival at 0, 6, 12, … months."
+    time_ticks:
+      type: array
+      items: { type: number }
+      description: "Extra labelled ticks at these times (e.g. [12, 16]), beside the automatic ones."
+    survival_ticks:
+      type: array
+      items: { type: number }
+      description: "Extra labelled ticks at these proportions (e.g. [0.25]); 0, 50% and 100% are always drawn."
     censor_ticks:
       type: array
       items:
         type: object
         properties:
           arm: { type: integer, description: "Index into `arms`." }
-          at: { type: integer, description: "Time-tick index on that arm's survival array where a subject was censored." }
+          at: { type: integer, description: "Index into that arm's survival array (time at × time_step) where a subject was censored." }
         required: [arm, at]
       description: "Small tick marks on an arm's flat segment marking a censored observation."
     show_median:
@@ -62,7 +74,7 @@ params:
     title:
       type: string
 element_ids:
-  axes: the coordinate axes (one group with both axis lines and their captions)
+  axes: the coordinate axes (one group with both axis lines, their tick numbers and captions)
   arm_<i>: the right-continuous step-function curve for arms[i]
   arm_label_<i>: its label
   median_line: dashed guides at 50% survival to each arm's median crossing, present when show_median and at least one arm crosses 50%
@@ -86,11 +98,17 @@ layout: |
   const arms = armsRaw.length > 0 ? armsRaw : [{ label: "Arm 1", survival: [1, 0.9, 0.75, 0.6, 0.5, 0.4] }];
   const timeLabel = typeof params.time_label === "string" && params.time_label.trim() !== "" ? params.time_label : "Months";
   const showMedian = params.show_median !== false;
+  const step = typeof params.time_step === "number" && params.time_step > 0 && Number.isFinite(params.time_step) ? params.time_step : 1;
+  // Sizes are written against the page's 26-unit base; the page's
+  // text.font_size scales them all at render time.
+  const TICK_SIZE = 20, ARM_SIZE = 24;
 
   const plot = { x0: 120, y0: 110, x1: 930, y1: 630 };
   const maxLen = Math.max(2, ...arms.map((a) => (Array.isArray(a.survival) ? a.survival.length : 0)));
   const xDomainMax = maxLen - 1;
+  const tMax = xDomainMax * step;
   const sx = (i) => plot.x0 + (i / xDomainMax) * (plot.x1 - plot.x0);
+  const tx = (t) => plot.x0 + (t / tMax) * (plot.x1 - plot.x0);
   const sy = (v) => plot.y0 + Math.max(0, Math.min(1, v)) * (plot.y1 - plot.y0);
 
   const drawables = [], labels = [], anchors = {}, order = [];
@@ -103,9 +121,38 @@ layout: |
   const axesChildren = [
     kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
     kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.axisLabel("axes__x_label", "x", plot, timeLabel, { fontSize: 26 }),
+    // The caption drops below the row of tick numbers.
+    kit.axisLabel("axes__x_label", "x", { ...plot, y0: plot.y0 - 8 }, timeLabel, { fontSize: 26, captionDrop: true }),
     kit.axisLabel("axes__y_label", "y", plot, "Survival", { fontSize: 26 }),
   ];
+  // Tick numbers. Time: at entry times, every k-th entry so at most ten
+  // show — by multiples, so a label never reads 2.9999999999999996.
+  // Survival: 0, 50 %, 100 %.
+  const finiteIn = (v, lo, hi) => typeof v === "number" && Number.isFinite(v) && v >= lo - 1e-9 && v <= hi + 1e-9;
+  const k = [1, 2, 3, 4, 5, 6, 10, 12, 20, 24, 50, 100].find((n) => xDomainMax / n <= 10) || Math.ceil(xDomainMax / 10);
+  const tStep = step * k;
+  const timeTicks = [];
+  for (let m = 0; m * tStep <= tMax + 1e-9 && m < 24; m++) timeTicks.push(m * tStep);
+  (Array.isArray(params.time_ticks) ? params.time_ticks : []).slice(0, 8).forEach((t) => {
+    if (finiteIn(t, 0, tMax) && !timeTicks.some((u) => Math.abs(tx(u) - tx(t)) < 1)) timeTicks.push(t);
+  });
+  const survTicks = [0, 0.5, 1];
+  (Array.isArray(params.survival_ticks) ? params.survival_ticks : []).slice(0, 8).forEach((v) => {
+    if (finiteIn(v, 0, 1) && !survTicks.some((u) => Math.abs(u - v) < 1e-6)) survTicks.push(v);
+  });
+  const trim = (v) => Math.round(v * 1000) / 1000;
+  const fmtT = (t) => kit.num(trim(t));
+  const fmtS = (v) => kit.num(trim(v * 100)) + "%";
+  timeTicks.forEach((t, q) => {
+    const x = tx(t);
+    axesChildren.push(kit.stroke("axes__xt" + q, [[x, plot.y0], [x, plot.y0 - 8]], { color: C.guide, strokeWidth: 2, ms: MS.stroke }));
+    axesChildren.push(kit.text("axes__xn" + q, [x, plot.y0 - 22], fmtT(t), { fontSize: TICK_SIZE, color: C.guide }));
+  });
+  survTicks.forEach((v, q) => {
+    const y = sy(v);
+    axesChildren.push(kit.stroke("axes__yt" + q, [[plot.x0, y], [plot.x0 - 8, y]], { color: C.guide, strokeWidth: 2, ms: MS.stroke }));
+    axesChildren.push(kit.text("axes__yn" + q, [plot.x0 - 14, y], fmtS(v), { fontSize: TICK_SIZE, anchor: "end", color: C.guide }));
+  });
   push(kit.group("axes", axesChildren));
 
   // Right-continuous, non-increasing per arm: a value below the previous one
@@ -142,7 +189,7 @@ layout: |
     const id = "arm_" + i;
     push(kit.stroke(id, pts, { color, strokeWidth: 4.5, ms: MS.curve }));
     anchors[id] = pts[pts.length - 1];
-    label("arm_label_" + i, pts[pts.length - 1], "right", a.label || "Arm " + (i + 1), color, 20);
+    label("arm_label_" + i, pts[pts.length - 1], "right", a.label || "Arm " + (i + 1), color, ARM_SIZE);
 
     let crossIdx = -1;
     for (let k = 0; k < s.length; k++) {
@@ -181,7 +228,7 @@ layout: |
     push(kit.text("title", [(plot.x0 + plot.x1) / 2, plot.y1 + 68], params.title, { fontSize: 30 }));
   }
 
-  return { drawables, labels, anchors, order, ...(arms.every((a) => Array.isArray(a.survival)) ? { frame: { x: [0, xDomainMax], y: [0, 1], box: plot } } : {}) };
+  return { drawables, labels, anchors, order, ...(arms.every((a) => Array.isArray(a.survival)) ? { frame: { x: [0, tMax], y: [0, 1], box: plot } } : {}) };
 ---
 template: forest_plot
 title: Forest plot (meta-analysis)
