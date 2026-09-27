@@ -64,8 +64,8 @@ const issuesOf = (spec: Spec) => layoutSpec(structuredClone(spec)).issues.map((i
 describe("branch costs count for everything below the branch", () => {
   test("the option's value, table row and net benefit carry the cost on its branch — and its label says it", () => {
     const l = layoutDecisionTree(drugs());
-    expect(labelText(l, "value_cheap")).toBe("6, $2,000");
-    expect(labelText(l, "value_dear")).toBe("6.5, $32,000");
+    expect(labelText(l, "value_cheap")).toBe("6 · $2,000");
+    expect(labelText(l, "value_dear")).toBe("6.5 · $32,000");
     expect(cells(l, "strategy_base_cheap")).toEqual(["Cheap drug", "$2,000", "6"]);
     expect(cells(l, "strategy_base_dear")).toEqual(["Dear drug", "$32,000", "6.5"]);
     // Not "dominated at $0": the dear drug is on the frontier at $60,000 per QALY.
@@ -136,7 +136,7 @@ describe("where the table goes", () => {
       expect(table.length).toBeGreaterThan(4);
       const tableTop = Math.max(...table.map(([, b]) => b.y + b.h));
       for (const [, b] of table) expect(b.y).toBeGreaterThanOrEqual(145);
-      const tree = [...boxes].filter(([id]) => /^(node|label|value|payoff|branchlabel)_/.test(id));
+      const tree = [...boxes].filter(([id]) => /^(node|label|value|effect|cost|payoff|branchlabel)_/.test(id));
       for (const [, b] of tree) expect(b.y).toBeGreaterThan(tableTop);
       expect(r.issues.filter((i) => i.rule.startsWith("overlap") || i.rule === "out-of-canvas")).toEqual([]);
     }
@@ -224,7 +224,7 @@ describe("tokens in the tree's own text", () => {
     params.root.value = "";
     const l = layoutDecisionTree(params);
     expect(labelText(l, "value_choice")).toBeUndefined();
-    expect(labelText(l, "value_cheap")).toBe("6, $2,000");
+    expect(labelText(l, "value_cheap")).toBe("6 · $2,000");
   });
 });
 

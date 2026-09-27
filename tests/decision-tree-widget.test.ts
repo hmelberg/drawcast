@@ -37,7 +37,9 @@ describe("the body: which numbers are the viewer's", () => {
     const parts = treeParts(sceneOf(CE));
     expect(parts).toContain("branchlabel_watch_w_ok");
     expect(parts).toContain("branchlabel_watch_w_bad"); // filled in: 0.4
-    expect(parts).toContain("payoff_s_bad");
+    expect(parts).toContain("effect_s_bad");
+    expect(parts).toContain("cost_s_bad");
+    expect(parts).not.toContain("payoff_s_bad"); // the group of the two: not a part of its own
     expect(parts.some((id) => id.startsWith("branchlabel_choice_"))).toBe(false);
   });
 
@@ -124,17 +126,20 @@ describe("the scrub: a sideways drag changes the number by whole steps", () => {
   });
 });
 
-describe("a terminal's payoff and cost share one text: the press's x picks one", () => {
-  test("left of the comma is the payoff, right of it the cost — each with its own half as the field's box", () => {
+describe("a terminal's payoff and cost are two texts in two columns: each is its own part", () => {
+  test("effect_<id> is the payoff, cost_<id> the cost — each text its field's box, the payoff's left of the cost's", () => {
     const sc = sceneOf(CE);
-    const b = sc.boxes.get("payoff_s_ok")!;
-    const left = treeTarget("payoff_s_ok", [b.x + 3, b.y + b.h / 2], sc)!;
-    const right = treeTarget("payoff_s_ok", [b.x + b.w - 3, b.y + b.h / 2], sc)!;
-    expect(left).toMatchObject({ kind: "payoff", value: 9 });
-    expect(right).toMatchObject({ kind: "cost", value: 150000 });
-    const lb = treeField(left, sc, "payoff_s_ok").box!;
-    const rb = treeField(right, sc, "payoff_s_ok").box!;
-    expect(lb.x + lb.w).toBeLessThanOrEqual(rb.x);
+    const effect = treeTarget("effect_s_ok", centre(sc, "effect_s_ok"), sc)!;
+    const cost = treeTarget("cost_s_ok", centre(sc, "cost_s_ok"), sc)!;
+    expect(effect).toMatchObject({ kind: "payoff", value: 9 });
+    expect(cost).toMatchObject({ kind: "cost", value: 150000 });
+    const lb = treeField(effect, sc, "effect_s_ok").box!;
+    const rb = treeField(cost, sc, "cost_s_ok").box!;
+    expect(lb).toEqual(sc.boxes.get("effect_s_ok"));
+    expect(lb.x + lb.w).toBeLessThan(rb.x);
+    // The headings and the group name no number.
+    expect(treeTarget("payoff_head", [0, 0], sc)).toBeNull();
+    expect(treeTarget("payoff_s_ok", [0, 0], sc)).toBeNull();
   });
 
   test("a number the author put on the incoming branch is patched there", () => {
@@ -157,17 +162,15 @@ describe("tap to type: the body's field and the typed value", () => {
 
   test("a cost's field floors at 0; a payoff's does not", () => {
     const sc = sceneOf(CE);
-    const b = sc.boxes.get("payoff_w_bad")!;
-    expect(treeField(treeTarget("payoff_w_bad", [b.x + b.w - 2, b.y], sc)!, sc, "payoff_w_bad")).toMatchObject({ label: "Cost of Worse", min: 0 });
-    expect(treeField(treeTarget("payoff_w_bad", [b.x + 1, b.y], sc)!, sc, "payoff_w_bad").min).toBeUndefined();
+    expect(treeField(treeTarget("cost_w_bad", centre(sc, "cost_w_bad"), sc)!, sc, "cost_w_bad")).toMatchObject({ label: "Cost of Worse", min: 0 });
+    expect(treeField(treeTarget("effect_w_bad", centre(sc, "effect_w_bad"), sc)!, sc, "effect_w_bad").min).toBeUndefined();
   });
 
   test("a typed probability lands with its complement; a typed cost lands on the terminal", () => {
     const run = runOn(CE, [inputEvent("branchlabel_watch_w_bad", 0.25)]);
     expect(kids((run.params as unknown as DecisionTreeParams).root, 0)).toEqual([0.75, 0.25]);
     const sc = sceneOf(CE);
-    const b = sc.boxes.get("payoff_s_bad")!;
-    const cost = runOn(CE, [inputEvent("payoff_s_bad", 250000, [b.x + b.w - 2, b.y + 2])]);
+    const cost = runOn(CE, [inputEvent("cost_s_bad", 250000, centre(sc, "cost_s_bad"))]);
     expect(((cost.params as unknown as DecisionTreeParams).root.children![2].node.children![1].node).cost).toBe(250000);
   });
 });

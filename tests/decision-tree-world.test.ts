@@ -32,7 +32,8 @@ describe("a tree too big for the page, in a world", () => {
     const l = layoutDecisionTree(knee({ size: "full" }));
     expect(l.textSize).toBe(26);
     expect(l.scale).toBe(1);
-    expect(l.labels.every((x) => x.fontSize === 26)).toBe(true);
+    // Names at 26, branch labels and numbers a size under them.
+    expect(l.labels.every((x) => x.fontSize === (x.id.startsWith("label_") ? 26 : 22))).toBe(true);
     const w = l.world!;
     expect(w).toBeDefined();
     expect(w.y).toBeLessThan(0); // down…

@@ -122,7 +122,7 @@ describe("fold-back", () => {
     const l = layoutDecisionTree(params);
     expect(l.values!.cost_screen).toBe(300);
     expect(l.values!.nmb_screen).toBeCloseTo(9.8 * 50000 - 300, 6);
-    expect(labelText(l, "value_screen")).toBe("9.8, $300");
+    expect(labelText(l, "value_screen")).toBe("9.8 · $300");
     const base = flattenDrawables(l.drawables).filter((d) => d.id.startsWith("strategy_base_screen__")) as TextDrawable[];
     expect(base.map((d) => d.text)).toEqual(["Screen", "$300", "9.8"]);
     expect(l.values!.best).toBe(0);
@@ -193,8 +193,14 @@ describe("costs, willingness to pay and the ICER table", () => {
     expect(cells("strategy_nmb_med")).toEqual(["$277,000"]);
     expect(cells("strategy_head")).toEqual(["Cost", "QALYs", "vs", "Δ cost", "Δ QALYs", "ICER"]);
     expect(cells("strategy_nmb_head")).toEqual(["Net benefit"]);
-    expect(labelText(l, "value_med")).toBe("7.1, $78,000");
-    expect(labelText(l, "payoff_m_ok")).toBe("8, $60,000");
+    // Effect and cost set apart: a dot on a node, two columns at a terminal.
+    expect(labelText(l, "value_med")).toBe("7.1 · $78,000");
+    const text = (id: string) => (flattenDrawables(l.drawables).find((d) => d.id === id) as { text?: string } | undefined)?.text;
+    expect(text("effect_m_ok")).toBe("8");
+    expect(text("cost_m_ok")).toBe("$60,000");
+    expect(l.groups!.payoff_m_ok).toEqual(["effect_m_ok", "cost_m_ok"]);
+    expect(text("payoff_head")).toBe("QALYs");
+    expect(text("cost_head")).toBe("Cost");
   });
 
   test("dominance: dearer and no better is dominated; an ICER above the next one is extended dominance", () => {

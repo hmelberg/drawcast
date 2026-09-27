@@ -4,8 +4,8 @@
 // pick (highlighter) and the branches it prunes, the strategy table's ICERs.
 //
 //   a branch's "(p=0.6)"            drag sideways: ±0.01 per step, 0–1
-//   a terminal's payoff / its cost  drag sideways: ±~1 % per step; the
-//                                   press's x picks which of "9.5, £300"
+//   a terminal's payoff / its cost  drag sideways: ±~1 % per step (each is
+//                                   its own text, effect_<id> / cost_<id>)
 //   the table's "At $30,000 per QALY"  the willingness to pay, the same way
 //   any of them, tapped             a number field over it (type, Enter)
 //
@@ -38,8 +38,8 @@ export type TreeTarget =
 interface TreeIndex {
   /** branchlabel_<key> → the chance branch it labels. */
   branches: Map<string, { key: string; parentPath: number[]; index: number; value: number | undefined; name: string }>;
-  /** payoff_<id> → the terminal whose numbers it writes. */
-  terminals: Map<string, { id: string; path: number[]; node: TreeNode; branch?: TreeBranch }>;
+  /** effect_<id> / cost_<id> → the terminal number it writes. */
+  terminals: Map<string, { kind: "payoff" | "cost"; id: string; path: number[]; node: TreeNode; value: number }>;
 }
 
 const indexCache = new WeakMap<object, TreeIndex>();
@@ -56,7 +56,8 @@ export function treeIndex(params: DecisionTreeParams): TreeIndex {
     if (node.type === "terminal") {
       const payoff = node.payoff ?? branch?.payoff;
       const cost = node.cost ?? branch?.cost;
-      if (typeof payoff === "number" || typeof cost === "number") out.terminals.set(`payoff_${id}`, { id, path, node, branch });
+      if (typeof payoff === "number") out.terminals.set(`effect_${id}`, { kind: "payoff", id, path, node, value: payoff });
+      if (typeof cost === "number") out.terminals.set(`cost_${id}`, { kind: "cost", id, path, node, value: cost });
     }
     const kids = (node.children ?? []).filter((b) => b && typeof b === "object" && b.node && typeof b.node === "object");
     // A collapsed node's branches are not drawn: nothing there to take hold of.
@@ -108,8 +109,8 @@ function subBox(box: BBox, text: string, start: number, end: number): BBox {
   return { x: x0, y: box.y, w: Math.max(x1 - x0, 1), h: box.h };
 }
 
-/** What a press on part `id` at `point` takes hold of, or null. */
-export function treeTarget(id: string, point: Pt, scene: WidgetScene): TreeTarget | null {
+/** What a press on part `id` takes hold of, or null (`_point`: every part is one number, wherever it is pressed). */
+export function treeTarget(id: string, _point: Pt, scene: WidgetScene): TreeTarget | null {
   const params = scene.params as unknown as DecisionTreeParams;
   const idx = treeIndex(params);
   if (id === "strategy_wtp") {
@@ -125,22 +126,8 @@ export function treeTarget(id: string, point: Pt, scene: WidgetScene): TreeTarge
   if (br) return br.value === undefined ? null : { kind: "p", key: br.key, parentPath: br.parentPath, index: br.index, value: br.value, name: br.name };
   const t = idx.terminals.get(id);
   if (!t) return null;
-  const payoff = t.node.payoff ?? t.branch?.payoff;
-  const cost = t.node.cost ?? t.branch?.cost;
-  const name = t.node.label || t.id;
   const box = scene.boxes.get(id);
-  const one = (kind: "payoff" | "cost", value: number, b?: BBox): TreeTarget => ({ kind, id: t.id, path: t.path, value, name, ...(b ? { box: b } : {}) });
-  if (typeof payoff !== "number") return typeof cost === "number" ? one("cost", cost, box) : null;
-  if (typeof cost !== "number") return one("payoff", payoff, box);
-  // "9.5, £300" (or "9.5, cost 300"): the payoff is before the comma, the
-  // cost after it — the press's x says which one the viewer meant.
-  const text = labelText(params, id);
-  const cut = text ? text.indexOf(", ") : -1;
-  if (!box || !text || cut < 0) return one("payoff", payoff, box);
-  const left = subBox(box, text, 0, cut);
-  const right = subBox(box, text, cut + 2, text.length);
-  const split = (left.x + left.w + right.x) / 2;
-  return point[0] < split ? one("payoff", payoff, left) : one("cost", cost, right);
+  return { kind: t.kind, id: t.id, path: t.path, value: t.value, name: t.node.label || t.id, ...(box ? { box } : {}) };
 }
 
 /** The number field a tap on the target opens. */

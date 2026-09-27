@@ -53,6 +53,16 @@ export interface SceneLayout {
   attached?: Record<string, string[]>;
 
   /**
+   * What a draw of an element brings along the first time — `{effect_a:
+   * ["payoff_head"]}`: a column's heading appears with the first number of
+   * the column the cast draws, whichever that is, and is not drawn again
+   * with the next (2026-09-27, decision_tree). Structure-derived: the cast
+   * names the number, the template knows it heads a column. Keyed by leaf
+   * id; a draw of a group reaches its members' entries.
+   */
+  drawnWith?: Record<string, string[]>;
+
+  /**
    * The numbers the figure stands for, by name — a market's `price`, `dwl`,
    * `revenue` — in the author's units, computed by the same layout call that
    * draws it. Any template may fill it. Because the layout re-runs on every

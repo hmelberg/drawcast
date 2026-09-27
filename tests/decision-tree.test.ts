@@ -3,6 +3,7 @@ import { layoutDecisionTree, type DecisionTreeParams } from "../src/scenes/decis
 import { flattenDrawables } from "../src/layout/model";
 import { layoutSpec } from "../src/layout/layout";
 import type { Spec } from "../src/spec/types";
+import { knee } from "./helpers/knee-tree";
 
 const params: DecisionTreeParams = {
   root: {
@@ -57,28 +58,36 @@ describe("layoutDecisionTree", () => {
     const r = layoutDecisionTree(params);
     const labelIds = r.labels.map((l) => l.id);
     expect(labelIds).toContain("branchlabel_surgery_s_ok");
-    expect(labelIds).toContain("payoff_s_ok");
+    // A bare payoff is its own label beside its terminal; payoff_<id> names it.
+    expect(labelIds).toContain("effect_s_ok");
+    expect(r.groups?.payoff_s_ok).toEqual(["effect_s_ok"]);
     const prob = r.labels.find((l) => l.id === "branchlabel_surgery_s_ok");
     expect(prob!.text).toMatch(/0\.9/);
-    const payoff = r.labels.find((l) => l.id === "payoff_s_ok");
+    const payoff = r.labels.find((l) => l.id === "effect_s_ok");
     expect(payoff!.text).toMatch(/9\.5/);
   });
 
-  test("a chance node's value is its own label, value_<id>, in label size", () => {
+  test("a chance node's value is its own label, value_<id>, a size under the names", () => {
     const withValue = structuredClone(params);
     withValue.root.children![0].node.value = "EV 8.9";
     const r = layoutDecisionTree(withValue);
     const v = r.labels.find((l) => l.id === "value_surgery");
     expect(v?.text).toBe("EV 8.9");
-    expect(v?.fontSize).toBe(r.labels.find((l) => l.id === "label_surgery")!.fontSize);
+    expect(v?.fontSize).toBe(22);
+    expect(r.labels.find((l) => l.id === "label_surgery")!.fontSize).toBe(26);
     expect(r.attached?.["node_surgery"]).toContain("value_surgery");
     expect(layoutDecisionTree(params).labels.some((l) => l.id.startsWith("value_"))).toBe(false);
   });
 
-  test("branch labels are never smaller than node labels", () => {
+  test("branch labels and numbers are a size under the names (0.85 ×), never under the floor", () => {
     const r = layoutDecisionTree(params);
     const node = r.labels.find((l) => l.id === "label_surgery")!.fontSize;
-    for (const l of r.labels.filter((l) => l.id.startsWith("branchlabel_"))) expect(l.fontSize).toBeGreaterThanOrEqual(node);
+    const small = r.labels.filter((l) => /^(branchlabel|effect|value)_/.test(l.id));
+    expect(small.length).toBeGreaterThan(3);
+    for (const l of small) expect(l.fontSize).toBe(Math.round(node * 0.85));
+    // At the smallest size a tree gives up to, still at the floor or over it.
+    const big = layoutDecisionTree(knee({ size: "page" }));
+    for (const l of big.labels) expect(l.fontSize).toBeGreaterThanOrEqual(14);
   });
 
   test("node ids fall back to path-based ids when not given", () => {

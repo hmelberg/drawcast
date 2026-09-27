@@ -285,6 +285,8 @@ export interface PlanOptions {
   inDataUnits?: (id: string) => boolean;
   /** Ids that ride along with an element's translation: its attached labels and their leaders. */
   attachedTo?: (id: string) => string[];
+  /** Ids a draw (or show) of an element brings along while they are not yet on screen — a column's heading with its first number (scenes/types.ts `drawnWith`). */
+  drawnWith?: (id: string) => string[];
   /** The spec's `params` when the spec has a template; null/undefined = no template (animate then needs a var). */
   animateBase?: Record<string, unknown> | null;
   /** The spec's `vars` (design 2026-09-10 §2.4): a bare animate key that is not a template param animates the var of that name, kept in params as `vars.<name>`. */
@@ -604,6 +606,16 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       const shown = ids.filter((k) => visibleSet.has(k));
       if (ids.length > 0 && shown.length === 0) warnings.push(`${verb} target "${id}" is not visible at that point (skipped)`);
       for (const k of shown) if (!out.includes(k)) out.push(k);
+    }
+    return out;
+  };
+  /** A draw's ids with what each brings along the first time (opts.drawnWith), each companion just before the first id that brings it. */
+  const withCompanions = (ids: string[]): string[] => {
+    if (!opts.drawnWith) return ids;
+    const out: string[] = [];
+    for (const id of ids) {
+      for (const c of opts.drawnWith(id)) if (known.has(c) && !visibleSet.has(c) && !out.includes(c) && !ids.includes(c)) out.push(c);
+      if (!out.includes(id)) out.push(id);
     }
     return out;
   };
@@ -951,7 +963,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     if (cmd.speak !== undefined && !hasAction) {
       pushStep({ kind: "speak", text: cmd.speak, blocking: cmd.blocking !== false, speaker: cmd.voice, delivery: cmd.delivery });
     } else if (cmd.draw !== undefined) {
-      const ids = resolveIds(cmd.draw, "draw");
+      const ids = withCompanions(resolveIds(cmd.draw, "draw"));
       ids.forEach((id) => mentioned.add(id));
       ids.forEach((id) => lastRevealed.set(id, steps.length));
       makeVisible(ids);
@@ -1094,7 +1106,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       });
       if (cmd.ask.store !== undefined && cmd.ask.default !== undefined) storeDefaults[cmd.ask.store.toLowerCase()] = cmd.ask.default;
     } else if (cmd.show !== undefined) {
-      const ids = resolveIds(cmd.show, "show");
+      const ids = withCompanions(resolveIds(cmd.show, "show"));
       ids.forEach((id) => mentioned.add(id));
       ids.forEach((id) => lastRevealed.set(id, steps.length));
       makeVisible(ids);
