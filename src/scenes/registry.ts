@@ -47,6 +47,10 @@ import { lintPlot3d } from "./plot3d/lint";
 import { plot3dWidget } from "./plot3d/widget";
 import { readModel as readPlot3d } from "./plot3d/model";
 import { traySliders } from "./params-ui/params";
+import motionGraphsManifest from "./motion_graphs/manifest.json";
+import { layoutMotionGraphs, type MotionParams } from "./motion_graphs/layout";
+import { lintMotionGraphs } from "./motion_graphs/lint";
+import { motionGraphsWidget } from "./motion_graphs/widget";
 
 export const scenes: Record<string, SceneModule> = {
   supply_demand: {
@@ -127,6 +131,14 @@ export const scenes: Record<string, SceneModule> = {
     lint: (params) => lintPlot3d(params as Plot3dParams),
     widget: plot3dWidget,
     sliders: (params) => traySliders(params.params, readPlot3d(params as Plot3dParams)),
+  },
+  // Free play (2026-09-28): drag the time cursor, a piece of v(t) or a(t),
+  // scrub the header numbers; every graph and the object follow.
+  motion_graphs: {
+    manifest: motionGraphsManifest as SceneManifest,
+    layout: (params) => layoutMotionGraphs(params as MotionParams),
+    lint: (params) => lintMotionGraphs(params as MotionParams),
+    widget: motionGraphsWidget,
   },
 };
 

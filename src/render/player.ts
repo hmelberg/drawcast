@@ -83,6 +83,9 @@ export interface Reprojector {
   frame(params: Record<string, unknown>, scene: FrameScene, opts?: FrameOpts): LayoutResult | void;
   /** Full remount at settled params (and the source poses/shapes of that boundary); returns the new element handles. */
   commit(params: Record<string, number>, overrides?: LayoutOverrides): Map<string, RenderedElement>;
+  /** The layout the last commit mounted (null before any): what is on screen
+   *  after an animate settles on params the mounted layout never had. */
+  committed?(): LayoutResult | null;
   /** A `run`'s current patch for a script (null clears it). The render
    *  closure keeps these, so a COMMIT is patched too — a boundary layout
    *  that dropped them would snap the figure back to the authored script. */
@@ -1003,7 +1006,10 @@ export class Player {
 
   /** The layout on screen right now: a preview's, or the plan's. */
   paintedLayout(): LayoutResult | null {
-    return this.painted;
+    // No preview: the last committed boundary's layout. Without it a figure
+    // that ends on an animated param (a time cursor swept to the end) was
+    // hit-tested against the authored params' geometry (2026-09-28).
+    return this.painted ?? this.reprojector?.committed?.() ?? null;
   }
 
   /** Move a rendered part by (dx, dy) on top of the pose it is drawn with — a
