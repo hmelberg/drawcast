@@ -184,6 +184,14 @@ describe("parameters", () => {
     const note = layoutSpec(spec as unknown as RenderHandle["spec"]).drawables.find((d) => d.id === "note") as { text: string };
     expect(note.text).toBe("a = 1, top 1");
   });
+  test("a tall equation (a fraction) hangs from the top and the plot keeps below it, axes included", () => {
+    for (const P of [BUMP, { ...BUMP, zoom: 3, elevation_deg: 60 }]) {
+      const l = layoutPlot3d(P);
+      const flat = flattenDrawables(l.drawables);
+      const eqBottom = Math.min(...flat.filter((d) => d.id.startsWith("eq__") && d.kind === "area").flatMap((d) => (d as { pts: Pt[] }).pts.map((p) => p[1])));
+      for (const d of flat) if (/^(wire_|axis_[xyz]$)/.test(d.id) && d.kind === "stroke") for (const [, y] of d.pts) expect(y).toBeLessThan(eqBottom);
+    }
+  });
   test("zoomed or sharing the page, the ink stays in the plot's box", () => {
     expect(clipToBox([[0, 0], [10, 0], [20, 0]], { x0: 5, y0: -1, x1: 15, y1: 1 })).toEqual([[[5, 0], [10, 0], [15, 0]]]);
     expect(clipToBox([[0, 0], [10, 0], [10, 10], [0, 10]], { x0: 5, y0: -1, x1: 15, y1: 5 })).toEqual([[[5, 0], [10, 0], [10, 5]]]);

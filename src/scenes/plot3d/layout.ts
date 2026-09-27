@@ -158,6 +158,19 @@ function drawEquationMemo(mathjax: MathJaxEngine, o: Parameters<typeof drawEquat
   return structuredClone(r);
 }
 
+/** How far a one-line equation's ink reaches above its centre (a superscript's top). */
+const EQ_HALF = 26;
+
+/** Move a drawable (and its children) up or down in place. */
+function shiftY(d: Drawable, dy: number): void {
+  if (d.kind === "group") for (const c of d.children) shiftY(c, dy);
+  else if (d.kind === "area") {
+    d.pts = d.pts.map(([x, y]): Pt => [x, y + dy]);
+    if (d.holes) d.holes = d.holes.map((h) => h.map(([x, y]): Pt => [x, y + dy]));
+  } else if (d.kind === "stroke") d.pts = d.pts.map(([x, y]): Pt => [x, y + dy]);
+  else if (d.kind === "text") d.pos = [d.pos[0], d.pos[1] + dy];
+}
+
 const trim = (v: number): string => {
   const s = kit.num(Number(v.toFixed(2)));
   return s === "-0" ? "0" : s;
@@ -166,8 +179,49 @@ const trim = (v: number): string => {
 export function layoutPlot3d(P: Plot3dParams): SceneLayout {
   const m = readModel(P);
   const page = pageOf(m);
+  // Ink and letters keep to the plot's box once something shares the page
+  // or the view is zoomed; a figure with neither is drawn as it always was.
+  const clip = m.steady || m.showEquation || m.panel.length > 0 || m.camera.zoom !== 1;
   const C = COLORS;
   const MS = SKETCH_MS;
+
+  // ---- the equation, in the drawing's hand, values in ----------------------
+  // Laid out first: its top hangs from the page's top line, and a tall one
+  // (a fraction) pushes the plot's box — and its centre — down.
+  let eqDrawn: ReturnType<typeof drawEquation> | null = null;
+  if (m.showEquation) {
+    const lhs = m.kind === "curve" ? "(x, y, z)" : "z";
+    const nodes = m.kind === "curve" ? [m.curve!.x.node, m.curve!.y.node, m.curve!.z.node] : [m.surface?.node ?? null];
+    if (nodes.every((n): n is Node => n !== null)) {
+      const mathjax = getLoadedEngines(["mathjax"]).mathjax as MathJaxEngine;
+      eqDrawn = drawEquationMemo(mathjax, {
+        id: "eq",
+        lhsTeX: lhs,
+        node: nodes.length === 1 ? nodes[0] : nodes,
+        variables: m.variables,
+        set: m,
+        form: "values",
+        center: [m.panel.length > 0 ? (page.box.x0 + page.panel.x1) / 2 : 500, page.eqCy],
+        width: page.eqWidth,
+      });
+      const ys = eqDrawn.drawables.flatMap((d) => (d.kind === "group" ? d.children : [d])).flatMap((d) => (d.kind === "area" ? d.pts.map((q) => q[1]) : []));
+      if (ys.length > 0) {
+        const top = Math.max(...ys);
+        const lift = page.eqCy + EQ_HALF - top; // a one-line equation's top sits EQ_HALF above its centre
+        if (lift < 0) {
+          for (const d of eqDrawn.drawables) shiftY(d, lift);
+          for (const k of Object.keys(eqDrawn.anchors)) eqDrawn.anchors[k] = [eqDrawn.anchors[k][0], eqDrawn.anchors[k][1] + lift];
+        }
+        const bottom = Math.min(...ys) + Math.min(0, lift);
+        const y1 = Math.min(page.box.y1, bottom - 14);
+        if (y1 < page.box.y1) {
+          page.cy -= (page.box.y1 - y1) / 2;
+          page.panel.yMid = page.cy;
+          page.box.y1 = y1;
+        }
+      }
+    }
+  }
   const CX = page.cx;
   const CY = page.cy;
 
@@ -285,13 +339,25 @@ export function layoutPlot3d(P: Plot3dParams): SceneLayout {
       values[`${id}_y`] = Number(y.toFixed(6));
       values[`${id}_z`] = Number(z.toFixed(6));
       const w = toWorld(x, y, zWorld(z));
-      prims.push({ kind: "sphere", id, c: w, r: ptR * 1.1, color: C.demand, fill: C.demand, ms: MS.dot });
+      // The same size on screen at any zoom: a dot marks a place, it is not a ball in the world.
+      prims.push({ kind: "sphere", id, c: w, r: (ptR * 1.1) / m.camera.zoom, color: C.demand, fill: C.demand, ms: MS.dot });
       depthRef[id] = w;
       const text = mk.label === true ? `(${trim(x)}, ${trim(y)}, ${trim(z)})` : typeof mk.label === "string" && mk.label.trim() !== "" ? mk.label : null;
       markInfo.push({ id, w, text });
     });
   }
   const projected = kit.project3d(camera, prims);
+  if (clip) {
+    // An axis a zoom carries past the plot's box is cut at its edge (its arrowhead goes with the cut-off tip).
+    projected.drawables = projected.drawables.flatMap((d) => {
+      if (!/^axis_[xyz]$/.test(d.id) || d.kind !== "stroke") return [d];
+      const pieces = clipToBox(d.pts, page.box);
+      if (pieces.length === 0) return [];
+      if (pieces[0] === d.pts) return [d];
+      const { arrowhead: _cut, ...rest } = d;
+      return [{ ...rest, pts: pieces[0] }];
+    });
+  }
 
   // ---- labels: through the collision solver (kit.label → layout/labels.ts),
   // never fixed 3D text. An orbit often foreshortens an axis nearly to zero
@@ -311,9 +377,6 @@ export function layoutPlot3d(P: Plot3dParams): SceneLayout {
     if (dx < 0 && dy >= 0) return "above-left";
     return "below-left";
   }
-  // Ink and letters keep to the plot's box once something shares the page
-  // or the view is zoomed; a figure with neither is drawn as it always was.
-  const clip = m.steady || m.showEquation || m.panel.length > 0 || m.camera.zoom !== 1;
   const LABEL_INSET = 28;
   const MIN_ANCHOR_R = 95;
   const EXTRA_GAP = 45;
@@ -409,34 +472,20 @@ export function layoutPlot3d(P: Plot3dParams): SceneLayout {
   const wires = order.filter((id) => /^wire_(row|col)_\d+$/.test(id));
   if (wires.length > 0) groups.surface = wires;
 
-  // ---- the equation, in the drawing's hand, values in ----------------------
+  // ---- the equation (laid out above) --------------------------------------
   const drawnWith: Record<string, string[]> = {};
-  if (m.showEquation) {
-    const lhs = m.kind === "curve" ? "(x, y, z)" : "z";
-    const nodes = m.kind === "curve" ? [m.curve!.x.node, m.curve!.y.node, m.curve!.z.node] : [m.surface?.node ?? null];
-    if (nodes.every((n): n is Node => n !== null)) {
-      const mathjax = getLoadedEngines(["mathjax"]).mathjax as MathJaxEngine;
-      const r = drawEquationMemo(mathjax, {
-        id: "eq",
-        lhsTeX: lhs,
-        node: nodes.length === 1 ? nodes[0] : nodes,
-        variables: m.variables,
-        set: m,
-        form: "values",
-        center: [m.panel.length > 0 ? (page.box.x0 + page.panel.x1) / 2 : 500, page.eqCy],
-        width: page.eqWidth,
-      });
-      for (const d of r.drawables) {
-        drawables.push(d);
-        order.push(d.id);
-        anchors[d.id] = r.anchors[d.id];
-      }
-      if (r.paramIds.length > 0) {
-        attached.eq = r.paramIds;
-        drawnWith.eq = r.paramIds;
-      }
-      groups.equations = ["eq", ...r.paramIds];
+  if (eqDrawn) {
+    const r = eqDrawn;
+    for (const d of r.drawables) {
+      drawables.push(d);
+      order.push(d.id);
+      anchors[d.id] = r.anchors[d.id];
     }
+    if (r.paramIds.length > 0) {
+      attached.eq = r.paramIds;
+      drawnWith.eq = r.paramIds;
+    }
+    groups.equations = ["eq", ...r.paramIds];
   }
 
   // ---- the panel -----------------------------------------------------------
