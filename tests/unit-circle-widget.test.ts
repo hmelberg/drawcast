@@ -221,7 +221,7 @@ describe("the layout: readout and values", () => {
   });
   test("every readout, all four quadrants: lint clean", () => {
     for (const readout of ["deg", "rad", "both"]) {
-      for (const a of [30, 135, 225, 315, 390]) {
+      for (const a of [0, 10, -10, 30, 90, 135, 170, 180, 190, 225, 270, 269.9, 315, 390]) {
         const out = pageOf({ angle_deg: a, readout, quadrant_labels: true });
         expect(out.issues.filter((i) => i.severity === "error" || i.severity === "warn").map((i) => `${readout} ${a}: ${i.rule} ${i.message}`)).toEqual([]);
       }

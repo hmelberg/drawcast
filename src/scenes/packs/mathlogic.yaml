@@ -279,7 +279,9 @@ layout: |
   }
 
   const O = [500, 380], R = 240;
-  const cosV = Math.cos(theta), sinV = Math.sin(theta);
+  // cos 90° is 6e-17, not 0: a sign test on it would put a label on the wrong side.
+  const zero = (v) => (Math.abs(v) < 1e-12 ? 0 : v);
+  const cosV = zero(Math.cos(theta)), sinV = zero(Math.sin(theta));
   const point = [O[0] + R * cosV, O[1] + R * sinV];
 
   const drawables = [], labels = [], anchors = {}, order = [];
@@ -302,9 +304,13 @@ layout: |
     const foot = [O[0], point[1]];
     const midX = (foot[0] + point[0]) / 2;
     const labelY = point[1] + (sinV >= 0 ? 28 : -28);
+    // Near 90° and 270° the drop is too short to centre its label on: it
+    // would sit on the y-axis, and outside the circle it meets the point's
+    // coordinates — so it stands just right of the axis, inside the circle.
+    const short = Math.abs(point[0] - O[0]) < 60;
     const children = [
       kit.stroke("cos_line__seg", [foot, point], { color: C.supply, strokeWidth: 3.5, ms: MS.connector }),
-      kit.text("cos_line__text", [midX, labelY], "cos θ", { fontSize: 18, color: C.supply }),
+      kit.text("cos_line__text", short ? [O[0] + 14, point[1] + (sinV >= 0 ? -30 : 30)] : [midX, labelY], "cos θ", { fontSize: 18, color: C.supply, ...(short ? { anchor: "start" } : {}) }),
     ];
     push(kit.group("cos_line", children));
     anchors.cos_line = foot;
@@ -312,7 +318,10 @@ layout: |
   if (showSet.has("sin")) {
     const foot = [point[0], O[1]];
     const farX = O[0] + (R + 30) * (cosV >= 0 ? 1 : -1);
-    const midY = (foot[1] + point[1]) / 2;
+    // Near 0° and 180° the drop is too short: its label would sit on the
+    // x-axis, so it stands on the axis's other side from the point (where
+    // the coordinates are not).
+    const midY = Math.abs(point[1] - O[1]) < 60 ? O[1] + (sinV >= 0 ? -24 : 24) : (foot[1] + point[1]) / 2;
     const children = [
       kit.stroke("sin_line__seg", [foot, point], { color: C.demand, strokeWidth: 3.5, dash: true, ms: MS.connector }),
       kit.text("sin_line__text", [farX, midY], "sin θ", { fontSize: 18, color: C.demand, anchor: cosV >= 0 ? "start" : "end" }),
@@ -338,7 +347,9 @@ layout: |
   }
   if (showSet.has("coords")) {
     // A decimal comma needs a semicolon between the coordinates: (0,87; 0,50).
-    const text = "(" + kit.num(cosV, 2) + (kit.num(0.5, 1).includes(",") ? "; " : ", ") + kit.num(sinV, 2) + ")";
+    // A coordinate that rounds to zero is 0.00, never −0.00.
+    const two = (v) => kit.num(Math.abs(v) < 0.005 ? 0 : v, 2);
+    const text = "(" + two(cosV) + (kit.num(0.5, 1).includes(",") ? "; " : ", ") + two(sinV) + ")";
     const dx = cosV >= 0 ? 1 : -1, dy = sinV >= 0 ? 1 : -1;
     label("coords_label", point, sideFromDir(dx, dy), text, C.ink, 19);
   }
@@ -371,7 +382,7 @@ layout: |
       return d === 1 ? top : top + "/" + d;
     })();
     const text = "θ = " + (readout === "deg" ? degText : readout === "rad" ? radText : degText + " = " + radText);
-    push(kit.text("angle_value", [70, 690], text, { fontSize: 28, color: C.accent, anchor: "start" }));
+    push(kit.text("angle_value", [70, 690], text, { fontSize: 34, color: C.accent, anchor: "start" }));
     anchors.angle_value = [70, 690];
   }
 
@@ -379,11 +390,10 @@ layout: |
   // second turn reads 390), the point's coordinates, the slope of the
   // radius (absent where the radius stands vertical), and the quadrant
   // (0 on an axis).
-  const clean = (v) => (Math.abs(v) < 1e-12 ? 0 : v);
   const norm = ((angleDeg % 360) + 360) % 360;
   const onAxis = Math.abs(norm / 90 - Math.round(norm / 90)) < 1e-9;
-  const values = { theta_deg: angleDeg, theta_rad: theta, sin: clean(sinV), cos: clean(cosV), quadrant: onAxis ? 0 : Math.floor(norm / 90) + 1 };
-  if (Math.abs(cosV) > 1e-9) values.tan = clean(sinV / cosV);
+  const values = { theta_deg: angleDeg, theta_rad: theta, sin: sinV, cos: cosV, quadrant: onAxis ? 0 : Math.floor(norm / 90) + 1 };
+  if (Math.abs(cosV) > 1e-9) values.tan = zero(sinV / cosV);
 
   return { drawables, labels, anchors, order, attached, values };
 widget: |
@@ -461,7 +471,9 @@ widget: |
     if (ev.type !== "drag_move" && ev.type !== "drag") return none(state);
     if (!ev.from) return none(state);
     if (NUMBERS.includes(ev.id)) {
-      const n = Math.trunc((ev.point[0] - ev.from[0]) / STEP_UNITS);
+      const dx = ev.point[0] - ev.from[0];
+      // A hair of slack so 60 units of travel is 15 steps, not 14.999….
+      const n = Math.trunc(dx / STEP_UNITS + (dx >= 0 ? 1e-6 : -1e-6));
       return { state, effects: [{ patch: { angle_deg: Math.round(angleOf(scene)) + n } }] };
     }
     if (!HANDLES.includes(ev.id)) return none(state);
