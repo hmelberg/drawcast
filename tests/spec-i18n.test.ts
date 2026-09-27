@@ -176,6 +176,7 @@ describe("every bundled template's string params are classified", () => {
       generic_axes_diagram: [".x_label", ".y_label", ".title", ".curves[].label", ".points[].label", ".vlines[].label", ".hlines[].label"],
       markov_model: [".states[]", ".transitions[].from", ".transitions[].to", ".transitions[].label", ".highlight_state", ".title", ".trace.compare.name", ".trace.compare.transitions[].from", ".trace.compare.transitions[].to", ".trace.compare.transitions[].label", ".trace.name"],
       motion_graphs: [".segments[].label", ".units.x", ".units.t", ".labels.object", ".title"],
+      maxwell_boltzmann: [".label", ".compare.label", ".x_label", ".y_label", ".title"],
       plot3d: [".points[].label", ".axis_labels.x", ".axis_labels.y", ".axis_labels.z", ".title"],
       protein_secondary: [".segments[].label", ".title"],
       qaly_profiles: [
@@ -203,6 +204,7 @@ describe("every bundled template's string params are classified", () => {
         ".price_floor.label",
       ],
       timeline: [".title", ".start_label", ".end_label", ".milestones[].label", ".milestones[].sublabel"],
+      titration_curve: [".compare.label", ".label", ".analyte", ".titrant", ".x_label", ".y_label", ".title"],
       two_by_two_table: [".row_label", ".col_label", ".row_values[]", ".col_values[]", ".cells[][]", ".title"],
     });
   });

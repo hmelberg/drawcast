@@ -550,13 +550,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // y = f(x) with live parameters — whose full entry is ~9,200 chars in this
 // all-expanded measurement; in the app's two-level catalog it is one index
 // line).
-// Raised to 312000 at 300612 (2026-09-28: equation_plot presets — the twelve
-// textbook curves listed one line each in `preset`, x_scale, hline/vline
-// marks, and two preset examples: +3,660 in the template's entry), then to
-// 320000 with motion_graphs (~8,300 chars in this all-expanded measurement;
-// in the app's catalog it is one index line). The rest of the round's
-// templates (optics, fields, titration, epidemics) re-pin as they land.
-const BASELINE_SYSTEM_CHARS = 320000;
+// Raised through the 2026-09-28 template round (all-expanded measurement;
+// each new template is one index line in the app's two-level catalog):
+// 296976 before it; equation_plot presets +3,660; motion_graphs ~8,300;
+// titration_curve + maxwell_boltzmann ~12,800. Ceiling 335000 leaves room
+// for the round's optics, fields and epidemic templates, which re-pin too.
+const BASELINE_SYSTEM_CHARS = 335000;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
