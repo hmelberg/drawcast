@@ -4565,6 +4565,22 @@ importInput.addEventListener("change", () => {
   });
 });
 
+// Development only: `?open=/dev-casts/x.json` opens a local spec or playlist
+// the way "Open → from disk" does — how the local author (scripts/cast.mjs,
+// the /drawcast skill) hands its result to the player. Never in a build.
+if (import.meta.env.DEV) {
+  const openPath = new URLSearchParams(location.search).get("open");
+  if (openPath && openPath.startsWith("/")) {
+    void fetch(openPath)
+      .then((r) => (r.ok ? r.text() : Promise.reject(new Error(`${r.status}`))))
+      .then((text) => {
+        const playlist = readPlaylistText(text);
+        if (playlist) setDoc({ id: null, driveFileId: null, sourcePath: null, title: docTitleOf(playlist, openPath.split("/").pop() ?? "cast"), playlist }, "Opened.");
+      })
+      .catch((err) => setStatus(`Could not open ${openPath}: ${(err as Error).message}`, "error"));
+  }
+}
+
 // ---- Publishing one drawcast to the author's own public repo ---------------
 
 /**

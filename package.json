@@ -53,6 +53,7 @@
     "@types/topojson-specification": "^1.0.5",
     "d3-contour": "^4.0.2",
     "periodic-table-data": "^1.1.1",
+    "playwright-core": "^1.63.0",
     "typescript": "^5.7.0",
     "vite": "^6.0.0",
     "vitest": "^3.0.0"
