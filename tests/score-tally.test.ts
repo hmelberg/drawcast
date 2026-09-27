@@ -96,7 +96,7 @@ describe("the score tally", () => {
     );
     player.quizGate = async () => 0;
     await player.play();
-    expect(speech.spoken).toEqual(["One?", "Well done."]);
+    expect(speech.spoken).toEqual(["One?", "Correct.", "Well done."]);
   });
 
   test("feedback lines see the fresh answer", async () => {

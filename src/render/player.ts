@@ -25,6 +25,7 @@ import type { ControlValue } from "../code/controls";
 import { cueStartMs } from "./cue";
 import { stripLangMarks } from "./lang-spans";
 import { SpeechManager, type SpeechLike } from "./speech";
+import { correctWord } from "./quiz-words";
 import { EMPHASIS_EASE_MS, EMPHASIS_FIRST_PEAK_MS, EMPHASIS_HOLD_AT_MS, EMPHASIS_ONE_SWELL_MS, EMPHASIS_RELEASE_MS, easeInLevel, emphasisLevel, releaseLevel, swellLevel } from "./emphasis";
 import { translateCaption, type SubtitleTrack } from "../spec/subtitles";
 import type { ToneLike } from "./tones";
@@ -385,6 +386,19 @@ export class Player {
   private pendingSpeech: Promise<void> | null = null;
   /** The current narrated step's voice, so effects can follow it (glow-while-speaking). */
   private narrationVoice: Promise<void> | null = null;
+  /** The language the cast is written in (spec.lang), for the words the player says itself. */
+  private sourceLang: string | null = null;
+  setSourceLang(lang: string | null): void {
+    this.sourceLang = lang;
+  }
+
+  /** Stops the narrated step's voice alone — a question the viewer has already answered or skipped. */
+  private narrationCtl: AbortController | null = null;
+
+  /** A live viewer answered or skipped: the question's own reading stops now (Hans 2026-09-27). */
+  private cutQuestionVoice(): void {
+    this.narrationCtl?.abort();
+  }
   private ac: AbortController | null = null;
   /** Boundary: number of fully completed steps. */
   private completed = 0;
@@ -1071,15 +1085,18 @@ export class Player {
       if (signal.aborted) return;
       const narration = this.spokenLine(step.narration);
       this.showCaption(step.narration);
+      const voiceCtl = new AbortController();
+      this.narrationCtl = voiceCtl;
+      const voiceSignal = anySignal(signal, voiceCtl.signal);
       const voice =
         this.mode === "narrated"
-          ? this.speech.speak(narration, this.speedVal, signal, {
+          ? this.speech.speak(narration, this.speedVal, voiceSignal, {
               speaker: step.narrationSpeaker,
               delivery: step.narrationDelivery,
               gender: this.narratorGender ?? undefined,
               onStart: this.pagerFor(narration),
             })
-          : this.silentHold(narration, signal);
+          : this.silentHold(narration, voiceSignal);
       this.narrationVoice = voice;
       try {
         // An action written inside the sentence waits for its moment. The
@@ -1095,6 +1112,7 @@ export class Player {
         await Promise.all([cued(), voice]);
       } finally {
         this.narrationVoice = null;
+        if (this.narrationCtl === voiceCtl) this.narrationCtl = null;
       }
       return;
     }
@@ -1280,7 +1298,10 @@ export class Player {
         }
         const quizSecs = liveQuiz ? (performance.now() - t0) / 1000 : null;
         if (signal.aborted) return;
-        // Let the question finish before any feedback talks over it.
+        // A live viewer who has answered or skipped has read the question:
+        // its reading stops now rather than running on under the feedback.
+        // Otherwise (a movie) let it finish before any feedback talks.
+        if (liveQuiz) this.cutQuestionVoice();
         if (this.narrationVoice) await this.narrationVoice;
         if (signal.aborted) return;
         // Auto paths (movies, gate-less players) answer correctly by
@@ -1311,7 +1332,14 @@ export class Player {
         const fb = anySignal(signal, ctl.signal);
         const lines: string[] = [];
         if (chosen === step.correct) {
-          if (step.right) lines.push(step.right);
+          // A live viewer who got it right already knows why: hearing the
+          // explanation again is just repetition (Hans 2026-09-27: "maybe
+          // just say 'correct'"). A movie still reads `right` — it answers
+          // for the viewer, who has not.
+          // A `right` that reads a live value ("That makes {score}.") is news,
+          // not repetition, and is still said.
+          if (liveQuiz) lines.push(step.right && /\{[A-Za-z_][\w.]*\}/.test(step.right) ? step.right : correctWord(this.sourceLang, step.question));
+          else if (step.right) lines.push(step.right);
         } else if (chosen !== null) {
           // `wrong` is a hint BEFORE the reveal; one that just repeats the
           // reveal would say the same sentence twice (Hans 2026-09-25).
@@ -1400,7 +1428,8 @@ export class Player {
           typed = auto;
         }
         if (signal.aborted) return;
-        // Let the question finish before any feedback talks over it.
+        // Answered live: the question's reading stops (as for a quiz).
+        if (typed !== null && this.askGate && !this.autoAnswers) this.cutQuestionVoice();
         if (this.narrationVoice) await this.narrationVoice;
         if (signal.aborted) return;
         // Store BEFORE feedback so the feedback lines may use {store} too.

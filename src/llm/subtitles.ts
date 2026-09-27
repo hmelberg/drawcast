@@ -11,6 +11,7 @@
 // YouTube. A subtitle track is text under the picture: the labels stay put, the
 // voice stays put, and only what the caption displays is sent.
 
+import { correctWord } from "../render/quiz-words";
 import { callForJson, makeClient, type CallOpts } from "./client";
 import { controlsOfFor, planCommands } from "../render/plan";
 import type { Pt } from "../layout/model";
@@ -106,6 +107,8 @@ export function captionLines(spec: Spec): string[] {
     add(step.narration);
     if (step.kind === "speak") add(step.text);
     if (step.kind === "quiz") {
+      // What a live viewer hears on a right answer (render/quiz-words.ts).
+      add(correctWord(spec.lang, step.question));
       add(step.right);
       add(step.wrong);
       // The reveal after a wrong answer: the author's line, or the correct

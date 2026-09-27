@@ -453,6 +453,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     options.callbacks,
   );
   player.setNarratorGender(spec.voice ?? null);
+  player.setSourceLang(spec.lang ?? null);
   player.tones = options.tones ?? liveTones();
   // A template-bound ask needs its movie form HERE, on the player, not in the
   // controls layer: the exporter never attaches UI, and it must still see the

@@ -85,6 +85,7 @@ describe("the spoken track covers every line the voice says", () => {
     "The curve goes up.": "Kurven går opp.",
     "Which way?": "Hvilken vei?",
     "Up it goes.": "Opp går den.",
+    "Correct.": "Riktig.",
   };
 
   test("narration on an action step, and a question's feedback, are both translated", async () => {
@@ -92,7 +93,7 @@ describe("the spoken track covers every line the voice says", () => {
     player.setSpokenTrack(TRACK);
     player.quizGate = async (_s, step) => step.correct;
     await player.play();
-    expect(speech.spoken).toEqual(["Kurven går opp.", "Hvilken vei?", "Opp går den."]);
+    expect(speech.spoken).toEqual(["Kurven går opp.", "Hvilken vei?", "Riktig."]);
   });
 });
 

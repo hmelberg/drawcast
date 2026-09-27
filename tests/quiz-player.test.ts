@@ -27,12 +27,12 @@ function makePlayer(quiz: object, speech: RecordingSpeech) {
 }
 
 describe("the quiz action", () => {
-  test("correct answer: question then right feedback only", async () => {
+  test("correct answer: the question, then just \"Correct.\" — the viewer knows why (Hans 2026-09-27)", async () => {
     const speech = new RecordingSpeech();
     const player = makePlayer(ASK, speech);
     player.quizGate = async () => 1; // 0-based: "two"
     await player.play();
-    expect(speech.spoken).toEqual(["Which?", "Yes, two."]);
+    expect(speech.spoken).toEqual(["Which?", "Correct."]);
     expect(player.state).toBe("done");
   });
 
@@ -93,7 +93,34 @@ describe("the quiz action", () => {
     const answers = [1, 0]; // correct, then correct
     player.quizGate = async () => answers.shift() ?? null;
     await player.play();
-    expect(speech.spoken).toEqual(["Which?", "Yes, two.", "Second?", "A is right."]);
+    expect(speech.spoken).toEqual(["Which?", "Correct.", "Second?", "Correct."]);
+    expect(player.state).toBe("done");
+  });
+
+  test("a right line that reads a live value is news, and is still said", async () => {
+    const speech = new RecordingSpeech();
+    const player = makePlayer({ ...ASK, right: "Yes: that is {score} so far." }, speech);
+    player.quizGate = async () => 1;
+    await player.play();
+    expect(speech.spoken[1]).toMatch(/^Yes: that is/);
+  });
+
+  test("answering cuts the question's own reading at once", async () => {
+    // A voice that only ends when aborted: before, the player waited for it.
+    let aborted = false;
+    const speech = {
+      spoken: [] as string[],
+      speak(text: string, _r: number, signal?: AbortSignal) {
+        this.spoken.push(text);
+        if (text !== "Which?") return Promise.resolve();
+        return new Promise<void>((resolve) => signal?.addEventListener("abort", () => { aborted = true; resolve(); }));
+      },
+      cancel() {}, pause() {}, resume() {},
+    };
+    const player = makePlayer(ASK, speech as never);
+    player.quizGate = async () => null; // Skip
+    await player.play();
+    expect(aborted).toBe(true);
     expect(player.state).toBe("done");
   });
 

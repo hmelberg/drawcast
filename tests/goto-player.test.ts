@@ -44,7 +44,7 @@ describe("goto branching", () => {
       "Up it goes.", // the reveal after the wrong answer (right ?? choice)
       "The shift moves the crossing.",
       "Which way?",
-      "Up it goes.",
+      "Correct.", // right the second time: the viewer knows why now
       "Done.",
     ]);
     expect(player.state).toBe("done");
@@ -63,7 +63,7 @@ describe("goto branching", () => {
     );
     player.quizGate = async () => 0;
     await player.play();
-    expect(speech.spoken).toEqual(["Q?", "The end."]);
+    expect(speech.spoken).toEqual(["Q?", "Correct.", "The end."]);
   });
 
   test("autoAnswers (the exporter) never follows gotos", async () => {
