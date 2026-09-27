@@ -242,7 +242,8 @@ describe("the probability lint", () => {
 });
 
 describe("large trees", () => {
-  const big = (a: number, b: number): DecisionTreeParams => ({
+  const big = (a: number, b: number, size?: DecisionTreeParams["size"]): DecisionTreeParams => ({
+    ...(size && { size }),
     root: {
       id: "d",
       type: "decision",
@@ -261,16 +262,18 @@ describe("large trees", () => {
   test.each([
     [3, 3],
     [4, 3],
-  ])("a %i×%i tree gives up text size instead of overlapping its words", (a, b) => {
-    const l = layoutDecisionTree(big(a, b));
+  ])("on the page, a %i×%i tree gives up text size instead of overlapping its words", (a, b) => {
+    const l = layoutDecisionTree(big(a, b, "page"));
     expect(l.textSize).toBeLessThan(26);
     expect(l.textSize).toBeGreaterThanOrEqual(14);
-    const spec = { title: "t", template: "decision_tree", params: big(a, b), commands: [] } as unknown as Spec;
+    const spec = { title: "t", template: "decision_tree", params: big(a, b, "page"), commands: [] } as unknown as Spec;
     expect(layoutSpec(spec).issues.filter((i) => i.rule.startsWith("overlap")).map((i) => i.message)).toEqual([]);
   });
 
-  test("the lint suggests collapsing when the text had to go below 16", () => {
-    expect(lintDecisionTree(big(4, 4)).map((i) => i.message).join(" ")).toMatch(/collapsed: true/);
+  test("the lint suggests size: full or collapsing when the text had to go below 16", () => {
+    const said = lintDecisionTree(big(4, 4, "page")).map((i) => i.message).join(" ");
+    expect(said).toMatch(/collapsed: true/);
+    expect(said).toMatch(/size: "full"/);
     expect(lintDecisionTree(big(2, 2))).toEqual([]);
   });
 });

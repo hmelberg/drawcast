@@ -542,7 +542,11 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // still a ceiling: a jump past it (like the +54,000 `$` bug this same day)
 // fails here. Tighten it again when the revision work settles. Raised to
 // 270000 at 252368 (2026-09-26: scratch cards, "announce a change first").
-const BASELINE_SYSTEM_CHARS = 270000;
+// Raised to 285000 at 273162 (2026-09-27: decision_tree `size: "full"` —
+// a tree larger than the page, walked with the camera — whose manifest
+// example is a sixteen-terminal tree, +3,300; the rounds before it had
+// used the headroom up).
+const BASELINE_SYSTEM_CHARS = 285000;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

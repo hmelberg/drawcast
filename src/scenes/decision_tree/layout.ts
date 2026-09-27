@@ -17,7 +17,8 @@ import {
   type Pt,
   type StrokeDrawable,
 } from "../../layout/model";
-import { wrapText, type LabelCorridor, type LabelRequest } from "../../layout/labels";
+import { preferredLabelBox, wrapText, type LabelCorridor, type LabelRequest } from "../../layout/labels";
+import { unionBBoxForId, unionBoxes } from "../../layout/boxes";
 import type { SceneLayout } from "../types";
 import type { BBox } from "../../layout/geometry";
 import { fitRegion, isFitName } from "../../layout/regions";
@@ -62,6 +63,15 @@ export interface DecisionTreeParams {
   decimals?: number;
   /** false hides the strategy table that a rolled-back tree with costs draws. */
   table?: boolean;
+  /**
+   * How a tree too big for the page is drawn. "page": its words shrink (to
+   * the lint's floor) until it fits one page. "full": its words stay full
+   * size and the tree is laid out at the spacing they need, larger than the
+   * page — a world (SceneLayout.world) the camera walks through. Unset: the
+   * page, unless the page would need its words below the floor (they would
+   * collide), then full.
+   */
+  size?: "page" | "full";
 }
 
 interface Wrapped {
@@ -174,7 +184,21 @@ function nodeRadius(type: TreeNode["type"]): number {
   return type === "decision" ? 34 : type === "chance" ? 30 : 32;
 }
 
-export function layoutDecisionTree(params: DecisionTreeParams & { box?: unknown }): SceneLayout & { positions: Record<string, Pt>; scale: number; textSize: number } {
+type TreeLayout = SceneLayout & { positions: Record<string, Pt>; scale: number; textSize: number };
+
+export function layoutDecisionTree(params: DecisionTreeParams & { box?: unknown }): TreeLayout {
+  if (params.size === "full") return layoutTree(params, true);
+  const page = layoutTree(params, false);
+  // Scaled onto the page past the floor, its words are held at the floor
+  // while the tree shrinks under them: they collide (twenty terminals: a
+  // dozen overlaps and leader lines everywhere). Full size, in a world, they
+  // do not.
+  if (params.size === "page" || page.scale >= 1 || MIN_FONT * page.scale >= FONT_FLOOR - 1e-9) return page;
+  return layoutTree(params, true);
+}
+
+/** The tree on one page, or with `full` at full size in a world larger than the page when the page cannot hold it at full size. */
+function layoutTree(params: DecisionTreeParams & { box?: unknown }, full: boolean): TreeLayout {
   const rolled = params.rollback === true && params.root ? rollback(params.root, { wtp: params.wtp }) : null;
   const fmt = formatOf(params);
   const rootWrapped = wrap(params.root, [0], { rolled, fmt });
@@ -197,12 +221,21 @@ export function layoutDecisionTree(params: DecisionTreeParams & { box?: unknown 
   useFont(BASE_FONT);
   INLINE_TERMINALS = rolled !== null;
   let squeeze: BBox | null = null;
+  /** Laid out at full size in a world larger than the page (`size: "full"`). */
+  let spread = false;
   if (!box) {
     let { k } = placeNodes(h, null, 1, reserve);
     // A rolled-back tree is new, so it may ask more of its budget (0.9: its
     // ends carry long numbers; every tree before it keeps the 0.8 it was drawn with).
     const K = rolled ? 0.9 : SQUEEZE_K;
-    if (k > 0 && k < K) {
+    if (k > 0 && k < K && full) {
+      spread = true;
+      // Its ends in one line each, name then numbers — as a rolled-back
+      // tree's are: a name over its payoff took half as much height again,
+      // and a world's height is what its overview shrinks by.
+      INLINE_TERMINALS = true;
+    }
+    else if (k > 0 && k < K) {
       for (let f = BASE_FONT - 1; f >= MIN_FONT && k < K; f--) {
         useFont(f);
         k = placeNodes(h, null, 1, reserve).k;
@@ -210,7 +243,20 @@ export function layoutDecisionTree(params: DecisionTreeParams & { box?: unknown 
       if (k < K) box = squeeze = { ...BIG_REGION, y: BIG_REGION.y + reserve, h: BIG_REGION.h - reserve };
     }
   }
-  let placed = placeNodes(h, box, 1, reserve);
+  let placed = placeNodes(h, box, 1, spread ? 0 : reserve, spread);
+  if (spread) {
+    // A world is seen whole at rest, fitted to 4 : 3: a tree ten pages tall
+    // and one wide is a thread. Wider columns open the fans' wedges sooner
+    // and the tree needs less height: take the widening whose world the rest
+    // view shrinks least.
+    const shrink = (p: typeof placed) => Math.max(p.w / CANVAS.w, p.h / CANVAS.h);
+    let best = { placed, cost: shrink(placed) };
+    for (const g of WORLD_WIDEN) {
+      const p = placeNodes(h, null, g, 0, true);
+      if (shrink(p) < best.cost - 0.02) best = { placed: p, cost: shrink(p) };
+    }
+    placed = best.placed;
+  }
   // A box shorter than the tree's budget scales the whole tree down, and a
   // tree scaled by its height leaves the box's width unused. Laid out wider,
   // its fans' wedges open sooner and it needs less height: spread it toward
@@ -324,7 +370,11 @@ export function layoutDecisionTree(params: DecisionTreeParams & { box?: unknown 
       const nameW = textBox(node.label, NODE_LABEL_WIDTH).w;
       const nameDx = clearShift(n, nameW, "above", pos);
       words.set(cleanId, { nameRight: c[0] + nameDx + nameW / 2 });
-      labels.push(labelReq(`label_${cleanId}`, [c[0] + nameDx, c[1] + nodeRadius(node.type)], "above", node.label, LABEL_FONT, COLORS.ink, own));
+      // In a world the branch coming in is an obstacle too: unsqueezed, a
+      // branch falls steeply into a big subtree's node, and a name free to
+      // sit on it slid back along it ("Knee replacement", 2026-09-27). A
+      // world has the room to look further.
+      labels.push(labelReq(`label_${cleanId}`, [c[0] + nameDx, c[1] + nodeRadius(node.type)], "above", node.label, LABEL_FONT, COLORS.ink, spread ? [] : own));
       order.push(`label_${cleanId}`);
       attached[id] = [...(attached[id] ?? []), `label_${cleanId}`];
       // The folded-back value, under the node it summarises and in the same
@@ -425,14 +475,55 @@ export function layoutDecisionTree(params: DecisionTreeParams & { box?: unknown 
       for (const k of Object.keys(positions)) positions[k] = [positions[k][0] * f.s + f.dx, positions[k][1] * f.s + f.dy];
     }
   }
-  if (table) {
+  // In a world the table goes under the tree's lowest words, centred on it,
+  // with more air than on a page: it is framed on its own, and its header
+  // read as a line of the node over it.
+  const ink = spread ? inkBox(out) : null;
+  // (On whole units: its rows stand exactly one line apart, and at a fraction
+  // the overlap lint's 2-unit pad could read two of them as touching.)
+  if (table && ink) drawTable(table, [Math.round(ink.x + ink.w / 2), Math.round(ink.y - 2 * TABLE_GAP)], out, rolled!.bestId[rootWrapped.cleanId]);
+  else if (table) {
     // Under the tree, centred on it: the page's (or the box's) bottom strip.
     const area = outer ?? { x: BIG_REGION.x, y: BIG_REGION.y, w: BIG_REGION.w, h: BIG_REGION.h };
     drawTable(table, [area.x + area.w / 2, area.y + table.h], out, rolled!.bestId[rootWrapped.cleanId]);
   }
+  if (spread) {
+    // The ink with the table, and room for the solver to move a label.
+    const all = inkBox(out)!;
+    (out as TreeLayout).world = { x: all.x - WORLD_PAD, y: all.y - WORLD_PAD, w: all.w + 2 * WORLD_PAD, h: all.h + 2 * WORLD_PAD };
+  }
   if (Object.keys(groups).length === 0) delete (out as Partial<typeof out>).groups;
   return out;
 }
+
+/** The drawables' ink and the labels at their preferred spots. */
+function inkBox(l: { drawables: Drawable[]; labels: LabelRequest[] }): BBox | null {
+  const ids = [...new Set(l.drawables.map((d) => d.id))];
+  const labelBoxes = l.labels.filter((x) => x.text.trim() !== "").map((x) => preferredLabelBox(x, heuristicMeasure));
+  return unionBoxes([...ids.map((id) => unionBBoxForId(l.drawables, id, heuristicMeasure)), ...labelBoxes]);
+}
+
+/**
+ * A world's spacing over its budget. A page stretches a tree that fits to
+ * its plot band, so a page tree always had slack; a world at the budget
+ * exactly had none, and a five-way fan's middle labels sat on their
+ * branches. 1.15 (with WEDGE_AIR) kept every sampled tree — 20 terminals,
+ * fans of three to six, rolled back or not, collapsed arms — lint-clean;
+ * 1 and 1.05 did not.
+ */
+const WORLD_STRETCH = 1.15;
+/** In a world, the air a wedge's label asks over its clearances. */
+const WEDGE_AIR = 4;
+/**
+ * The column widenings a world tries (placeNodes' `widen`, on top of its
+ * budget). Up to 3 made the knee tree's overview 4 : 3 but its columns so
+ * wide that a camera on one fan hardly zoomed in (a fan spans a column and
+ * its ends' words); without any, the same tree stood four pages tall.
+ */
+const WORLD_WIDEN = [1.25, 1.5];
+
+/** Room round a world's ink: a label the solver moves off its preferred spot stays inside. */
+const WORLD_PAD = 40;
 
 /** Where the whole figure goes when it must be scaled onto the page: under the card heading, over the narration band. */
 const BIG_REGION: BBox = { x: 20, y: 118, w: 960, h: 572 };
@@ -981,7 +1072,7 @@ function boxOf(v: unknown): BBox | null {
  * - with a box the tree is laid out in the box itself, at label size, instead
  *   of on the whole canvas and shrunk into it.
  */
-function placeNodes(h: Node, boxParam: BBox | null, widen: number, reserve = 0): { at: Map<Node, Pt>; extent: number; k: number } {
+function placeNodes(h: Node, boxParam: BBox | null, widen: number, reserve = 0, spread = false): { at: Map<Node, Pt>; extent: number; k: number; w: number; h: number } {
   const nodes = h.descendants();
   const order = new Map(nodes.map((n, i) => [n, i] as const)); // breadth-first: within a depth, top to bottom
   const depth = h.height;
@@ -1015,7 +1106,9 @@ function placeNodes(h: Node, boxParam: BBox | null, widen: number, reserve = 0):
     if (t) need[n.parent!.depth] = Math.max(need[n.parent!.depth], Math.min(textBox(t, Infinity).w * TEXT_SLACK, COLUMN_LABEL_MAX) + COLUMN_ENDS);
   }
   const total = need.reduce((a, b) => a + b, 0);
-  const col = need.map((v) => (v * (x1 - x0)) / (total || 1));
+  // Spread (a world), a column is never narrower than its budget: the tree
+  // grows right past the page instead.
+  const col = need.map((v) => (spread ? v * Math.max(1, (x1 - x0) / (total || 1)) * widen : (v * (x1 - x0)) / (total || 1)));
   const xAt = (d: number) => x0 + col.slice(0, d).reduce((a, b) => a + b, 0);
 
   // Vertical: what each node's words take above and below its centre.
@@ -1027,7 +1120,11 @@ function placeNodes(h: Node, boxParam: BBox | null, widen: number, reserve = 0):
   const below = (n: Node): number => {
     const v = n.data.value;
     if (node(n).type === "terminal" && INLINE_TERMINALS) return INLINE_HALF();
-    if (node(n).type === "terminal") return payoffOf(n.data) !== undefined ? LINE / 2 + 2 : TERMINAL_HALF;
+    // A world is laid out at exactly this budget (a page stretches it), so
+    // there the triangle counts too: at the payoff's half line alone, the
+    // name of the terminal under it met the triangle and every name down
+    // the column slid one place (a 3 × 3 tree, 2026-09-27).
+    if (node(n).type === "terminal") return payoffOf(n.data) !== undefined ? Math.max(LINE / 2 + 2, spread ? TERMINAL_HALF + 6 : 0) : TERMINAL_HALF;
     return v !== undefined ? nodeRadius(node(n).type) + LABEL_R + textBox(v, NODE_LABEL_WIDTH).h : nodeRadius(node(n).type) + 6;
   };
   // Which side of its branch a label will take (assignStrips decides; this
@@ -1062,7 +1159,7 @@ function placeNodes(h: Node, boxParam: BBox | null, widen: number, reserve = 0):
     for (let W = (c - COLUMN_ENDS) / TEXT_SLACK, k = 0; k < words && W > 0; k++) {
       const { w, h } = textBox(text, W);
       const f = (c - nodeRadius("terminal") - 8 - w * TEXT_SLACK) / c;
-      if (f > 0.12) best = Math.min(best, (h + 2 * STRIP_CLEAR) / f);
+      if (f > 0.12) best = Math.min(best, (h + 2 * STRIP_CLEAR + (spread ? WEDGE_AIR : 0)) / f);
       W = w - 1;
     }
     return Number.isFinite(best) ? best : (textBox(text, 0).h + 2 * STRIP_CLEAR) / 0.12;
@@ -1110,13 +1207,23 @@ function placeNodes(h: Node, boxParam: BBox | null, widen: number, reserve = 0):
   const lo = Math.min(...nodes.map(bx));
   const hi = Math.max(...nodes.map(bx));
   const out = new Map<Node, Pt>();
+  if (!boxParam && spread) {
+    // A world: at the spacing budgeted, with some slack (stretched to the
+    // plot band if that is taller), the top node where the page's top node
+    // goes, growing down.
+    const plotH = CANVAS.h - MARGIN.top - MARGIN.bottom;
+    const k = hi > lo ? Math.max(WORLD_STRETCH, plotH / (hi - lo)) : 1;
+    for (const n of nodes) out.set(n, [xAt(n.depth), CANVAS.h - MARGIN.top - (bx(n) - lo) * k]);
+    // Its size, roughly: the page's margins round the nodes.
+    return { at: out, extent: (hi - lo) * k, k, w: xAt(depth) + CANVAS.w - x1, h: (hi - lo) * k + MARGIN.top + MARGIN.bottom };
+  }
   if (!boxParam) {
     // On the bare canvas the nodes fill the plot band, as they always have.
     // (A strategy table under the tree takes `reserve` off the band's bottom.)
     const plotH = CANVAS.h - MARGIN.top - MARGIN.bottom - reserve;
     const k = hi > lo ? plotH / (hi - lo) : 0;
     for (const n of nodes) out.set(n, [xAt(n.depth), hi > lo ? CANVAS.h - MARGIN.top - (bx(n) - lo) * k : MARGIN.bottom + reserve + plotH / 2]);
-    return { at: out, extent: plotH, k };
+    return { at: out, extent: plotH, k, w: CANVAS.w, h: CANVAS.h };
   }
   // In a box: at the spacing budgeted, centred, words and outer labels
   // included. A box too small overflows here, and the template fit then
@@ -1132,7 +1239,7 @@ function placeNodes(h: Node, boxParam: BBox | null, widen: number, reserve = 0):
   const bottomK = Math.min(...nodes.map((n) => yOf(n) - down(n)));
   const shift = mid - (topK + bottomK) / 2;
   for (const n of nodes) out.set(n, [xAt(n.depth) - (boxParam.w * (widen - 1)) / 2, yOf(n) + shift]);
-  return { at: out, extent: topK - bottomK, k };
+  return { at: out, extent: topK - bottomK, k, w: boxParam.w, h: boxParam.h };
 }
 
 /** How much a box may spread the tree past its budget, to fill the box. */

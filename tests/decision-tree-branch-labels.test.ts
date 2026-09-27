@@ -14,6 +14,7 @@ import examples from "../src/examples.json";
 import fewshots from "../src/llm/prompts/fewshots.json";
 import type { DecisionTreeParams, TreeNode } from "../src/scenes/decision_tree/layout";
 import type { Spec } from "../src/spec/types";
+import { knee } from "./helpers/knee-tree";
 
 const t = (id: string, label: string, payoff: number): TreeNode => ({ id, type: "terminal", label, payoff });
 
@@ -175,6 +176,9 @@ const cases: [string, Spec][] = [
   ["a three-way fan", specOf(fan(3))],
   ["a four-way fan", specOf(fan(4))],
   ...bundled.map((s): [string, Spec] => [`bundled "${s.title}"`, s]),
+  // Twenty terminals at full size, in a world larger than the page.
+  ["a twenty-terminal tree in a world", specOf(knee({ size: "full" }))],
+  ["a twenty-terminal tree in a world, rolled back with costs", specOf(knee({ size: "full", rollback: true, currency: "$", wtp: 30000 }, true))],
 ];
 
 describe.each([0.85, 1, 1.15])("branch labels belong to their own branch (text width ×%s)", (k) => {
