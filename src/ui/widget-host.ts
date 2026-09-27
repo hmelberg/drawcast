@@ -5,7 +5,10 @@
 // is a click, one that moved is a drag, and the pressed part follows the
 // pointer as a ghost on the renderer's offset — or, for a LIVE body
 // (2026-09-26), the figure itself recomputes under the pointer once a frame
-// through the tray's previewParams, and a tap passes through. The DOM-free core
+// through the tray's previewParams, and a tap passes through — or, on a part
+// the body calls `editable` (2026-09-27), opens a number field laid over the
+// number it edits: Enter or blur commits, Escape cancels, and the typed
+// number reaches the body as an `input` event. The DOM-free core
 // (widgetHostFor) is what tests drive; the stage listeners (attachWidgetHost)
 // are source-pinned.
 import type { RenderHandle } from "../render";
@@ -14,14 +17,16 @@ import type { MeasureFn } from "../layout/measure";
 import { scenes } from "../scenes/registry";
 import { buildWidgetScene, paramNamesOf } from "../scenes/widget-scene";
 import { partAt, stepWidget } from "../scenes/widget-run";
-import type { WidgetEffect } from "../scenes/widget-effects";
-import type { WidgetBody, WidgetEvent, WidgetScene } from "../scenes/widget-types";
+import { parseFieldValue, validateEditField, type WidgetEffect } from "../scenes/widget-effects";
+import type { EditField, WidgetBody, WidgetEvent, WidgetScene } from "../scenes/widget-types";
+import type { BBox } from "../layout/geometry";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { sceneAt } from "../render/plan";
 import { withNewIdsVisible, withOverrides } from "../render/params";
 import { answersMatch } from "../spec/answers";
 import { overCaption } from "./caption";
 import { h, logicalPoint } from "./dom";
+import { mountNumberEdit } from "./number-edit";
 import { CONTROL_SELECTOR, gateIsOpen } from "./gates";
 // Type-only: controls.ts imports this module for attachWidgetHost, so the
 // crossing back has to be erased at compile time or the two would cycle.
@@ -48,8 +53,10 @@ export interface WidgetHost {
    *  did (the ghost is cleared BEFORE the event is delivered, so only the
    *  body's own patch moves geometry for real); null when nothing was pressed.
    *  "pass" is a live body's tap: not its gesture, so the caller lets the
-   *  click go on to the card or the play toggle. */
-  release(p: Pt): "click" | "drag" | "pass" | null;
+   *  click go on to the card or the play toggle. "edit" is a live tap on a
+   *  part the body calls editable: editField() now holds the number field
+   *  to show, and the click is the widget's. */
+  release(p: Pt): "click" | "drag" | "pass" | "edit" | null;
   /** Drop the gesture and its ghost without delivering anything (pointercancel). */
   cancel(): void;
   /** True once the live gesture has passed DRAG_MIN — the stage's cursor
@@ -70,6 +77,18 @@ export interface WidgetHost {
   /** The body drags live (WidgetBody.live): the figure recomputes under the
    *  pointer, a tap passes through. */
   live: boolean;
+  /** True when p is on a part whose number a drag scrubs and a tap types
+   *  (WidgetBody.editable) — the hover's ew-resize cursor (cs-scrubbable). */
+  scrubbable(p: Pt): boolean;
+  /** The number field a tap opened (release() said "edit"): the part, the
+   *  field, and the box to lay it over (logical y-up). Null when none. */
+  editField(): { id: string; field: EditField; box: BBox } | null;
+  /** The viewer's text for the open field: parsed and checked against its
+   *  bounds; a good number goes to the body as an `input` event and closes
+   *  the field. A bad one leaves the field open and says why. */
+  commitEdit(text: string): { ok: true } | { ok: false; error: string };
+  /** Close the open field, delivering nothing. */
+  cancelEdit(): void;
   lastAnswer(): string | null;
   /** Subscribe to answer effects; returns the unsubscribe. */
   onAnswer(fn: (value: string) => void): () => void;
@@ -110,19 +129,32 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
   // discarded (the host's own body still mounts on the first event). A body
   // that throws on construction simply wants no keys — clickAt says so too.
   // Its named parts and its live flag come off the same probe.
-  const probe: { keys: string[]; parts?: string[]; live: boolean } = (() => {
+  const probe: { keys: string[]; parts?: WidgetBody["parts"]; live: boolean; editable: boolean } = (() => {
     try {
       const b = module.widget!();
-      return { keys: b.keys ?? [], ...(Array.isArray(b.parts) ? { parts: b.parts } : {}), live: b.live === true };
+      return {
+        keys: b.keys ?? [],
+        ...(Array.isArray(b.parts) || typeof b.parts === "function" ? { parts: b.parts } : {}),
+        live: b.live === true,
+        editable: typeof b.editable === "function",
+      };
     } catch {
-      return { keys: [], live: false };
+      return { keys: [], live: false, editable: false };
     }
   })();
   const declaredKeys = probe.keys;
   const live = probe.live;
   const frame = deps.frame ?? animationFrame;
   /** Which part a press at p takes: the body's named parts, else the surface. */
-  const hit = (sc: WidgetScene, p: Pt): string | null => partAt(sc, p, 18, probe.parts);
+  const hit = (sc: WidgetScene, p: Pt): string | null => {
+    try {
+      return partAt(sc, p, 18, probe.parts);
+    } catch (err) {
+      // A parts() function is the author's code: a throw means no part.
+      warn(`widget parts() threw: ${(err as Error).message}`);
+      return null;
+    }
+  };
 
   let body: WidgetBody | null = null;
   let state: unknown;
@@ -133,6 +165,9 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
    *  preview order `revealNew` compares against the mounted one (render/index.ts
    *  ~382), so a pad a patch mints is on screen and clickable at once. */
   let previewOrder: readonly string[] = [];
+  /** The number field a tap opened: the part, where the tap landed, the
+   *  scene it was opened against, and the field the body asked for. */
+  let editing: { id: string; point: Pt; scene: WidgetScene; field: EditField; box: BBox } | null = null;
   /** The one pointer gesture in flight: the part pressed, where the press
    *  began, and whether it has passed DRAG_MIN (once past, it stays a drag). */
   let gesture: {
@@ -223,23 +258,49 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
     }
   };
 
-  /** One event's whole journey: mount on the first one, step, keep the state,
-   *  perform. A click and a key press differ only in the event they carry. */
-  const run = (sc: WidgetScene, ev: WidgetEvent): void => {
+  /** The body, mounted on first use. Construction and init() are the
+   *  author's code: a body that throws reports and stands down — the gate
+   *  does the same (below), and the event is still the widget's, so nothing
+   *  falls through to the card. */
+  const mounted = (sc: WidgetScene): WidgetBody | null => {
     if (!body) {
-      // Construction and init() are the author's code: a body that throws
-      // reports and stands down — the gate does the same (below), and the
-      // event is still the widget's, so nothing falls through to the card.
       try {
         body = module.widget!();
         state = body.init(sc);
       } catch (err) {
         warn(`widget body threw on mount: ${(err as Error).message}`);
         body = null;
-        return;
       }
     }
-    const r = stepWidget(body, state, ev, sc, names);
+    return body;
+  };
+
+  /** The field a tap on part `id` at p opens, validated — or null. */
+  const fieldFor = (sc: WidgetScene, id: string, p: Pt): { field: EditField; box: BBox } | null => {
+    if (!probe.editable) return null;
+    const b = mounted(sc);
+    if (!b?.editable) return null;
+    let raw: unknown;
+    try {
+      raw = b.editable(id, p, sc);
+    } catch (err) {
+      warn(`widget editable() threw: ${(err as Error).message}`);
+      return null;
+    }
+    const v = validateEditField(raw);
+    for (const m of v.issues) warn(m);
+    const box = v.field?.box ?? sc.boxes.get(id);
+    return v.field && box ? { field: v.field, box } : null;
+  };
+  /** Per scene, which parts are editable at all — the hover asks on every
+   *  pointermove, and the answer only changes with the scene. */
+  const editableMemo = new WeakMap<WidgetScene, Map<string, boolean>>();
+
+  /** One event's whole journey: mount on the first one, step, keep the state,
+   *  perform. A click and a key press differ only in the event they carry. */
+  const run = (sc: WidgetScene, ev: WidgetEvent): void => {
+    if (!mounted(sc)) return;
+    const r = stepWidget(body!, state, ev, sc, names);
     for (const m of r.errors) warn(m);
     state = r.state;
     perform(r.effects, sc);
@@ -275,6 +336,29 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
       if (!live) return false;
       const sc = scene();
       return sc !== null && hit(sc, p) !== null;
+    },
+    scrubbable(p) {
+      if (!live || !probe.editable) return false;
+      const sc = scene();
+      const id = sc ? hit(sc, p) : null;
+      if (!sc || id === null) return false;
+      let seen = editableMemo.get(sc);
+      if (!seen) editableMemo.set(sc, (seen = new Map()));
+      if (!seen.has(id)) seen.set(id, fieldFor(sc, id, p) !== null);
+      return seen.get(id)!;
+    },
+    editField: () => (editing ? { id: editing.id, field: editing.field, box: editing.box } : null),
+    commitEdit(text) {
+      if (!editing) return { ok: false, error: "no field is open" };
+      const r = parseFieldValue(text, editing.field);
+      if ("error" in r) return { ok: false, error: r.error };
+      const e = editing;
+      editing = null;
+      run(e.scene, { type: "input", id: e.id, value: r.value, point: e.point });
+      return { ok: true };
+    },
+    cancelEdit() {
+      editing = null;
     },
     clickAt(p) {
       // The whole gesture in one point — the harness, the tests and anything
@@ -320,8 +404,14 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
       const g = gesture;
       drop();
       if (live) {
-        // A tap is not a live body's gesture: the caller lets its click go on.
-        if (!g.moved) return "pass";
+        // A tap is not a live body's gesture: the caller lets its click go
+        // on — unless the body types the number the tap landed on.
+        if (!g.moved) {
+          const f = fieldFor(g.scene, g.id, g.start);
+          if (!f) return "pass";
+          editing = { id: g.id, point: g.start, scene: g.scene, ...f };
+          return "edit";
+        }
         // The last word is the release point itself, against the SAME
         // press-time scene every drag_move used — so the final patch is the
         // one the viewer was looking at, not one frame behind it.
@@ -371,6 +461,7 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
       // painting its "before" now would dirty the geometry play is settling.
       if (live) drop();
       else this.cancel();
+      editing = null;
       body = null;
       state = undefined;
       patches = {};
@@ -448,6 +539,40 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
   const clearGrab = (): void => {
     stage.classList.remove("cs-grabbable", "cs-grabbing");
   };
+  /** The number field a tap opened, while it is on the stage. */
+  let field: { close: () => void } | null = null;
+  /** Lay the host's open field over its number (release() said "edit"). */
+  const openField = (): void => {
+    field?.close();
+    field = null;
+    const f = host.editField();
+    if (!f) return;
+    const opened = mountNumberEdit(stage, {
+      box: f.box,
+      value: f.field.value,
+      label: f.field.label,
+      ...(f.field.min !== undefined ? { min: f.field.min } : {}),
+      ...(f.field.max !== undefined ? { max: f.field.max } : {}),
+      ...(f.field.step !== undefined ? { step: f.field.step } : {}),
+      onCommit: (text) => {
+        const r = host.commitEdit(text);
+        if (r.ok) field = null;
+        return r.ok ? null : r.error;
+      },
+      onCancel: () => {
+        field = null;
+        host.cancelEdit();
+      },
+    });
+    if (opened) field = opened;
+    else host.cancelEdit();
+  };
+  /** Put an open field away without delivering it (play, a step). */
+  const closeField = (): void => {
+    const f = field;
+    field = null;
+    f?.close();
+  };
   /** The widget's OWN ask gate is up — the marker the keys read too. It comes
    *  off the moment the gate settles, so the mark's 900 ms linger is foreign. */
   const ownGate = (): boolean => stage.querySelector(".cs-widgetgate") !== null;
@@ -471,6 +596,10 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
     swallowClick = false; // whatever an earlier press armed, this click is new
     swallowAll = false;
     if (blocked(e)) return;
+    // A press anywhere else on the figure settles an open number field NOW
+    // (its blur commits), before the press reads the scene: a drag must
+    // start from the typed number, not from the one it replaced.
+    if (field) stage.querySelector<HTMLInputElement>("input.cs-numedit")?.blur();
     const p = logicalPoint(stage, e);
     if (!p || !host.press(p)) return;
     activeId = e.pointerId;
@@ -535,7 +664,9 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
     // A drag's click is nobody's — not even the info card's, whose own
     // capture listener sits on this same stage (so a plain stopPropagation
     // never reached it): a curve let go under the pointer is not a tap on it.
-    swallowAll = read === "drag";
+    // A tap that opened a number field is the field's, likewise.
+    swallowAll = read === "drag" || read === "edit";
+    if (read === "edit") openField();
   };
   stage.addEventListener("pointerup", (e) => end(e, false), true);
   stage.addEventListener("pointercancel", (e) => end(e, true), true);
@@ -569,13 +700,20 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
   // curve is thin — without it nothing says it can be taken). Its own class,
   // cs-draggable: cs-cardable stays the info card's sole toggle, and
   // cs-grabbable/cs-grabbing stay the press's. Only a live body installs it.
+  // A number the body lets the viewer scrub and type (WidgetBody.editable)
+  // says so with its own cursor, cs-scrubbable (ew-resize: drag sideways),
+  // which also stands for the press and the drag that follow.
   if (host.live) {
     stage.addEventListener("pointermove", (e) => {
       if (activeId !== null) return; // a gesture's own classes rule
       const p = blocked(e) ? null : logicalPoint(stage, e);
-      stage.classList.toggle("cs-draggable", p !== null && host.grabbable(p));
+      const scrub = p !== null && host.scrubbable(p);
+      stage.classList.toggle("cs-scrubbable", scrub);
+      stage.classList.toggle("cs-draggable", !scrub && p !== null && host.grabbable(p));
     });
-    stage.addEventListener("pointerleave", () => stage.classList.remove("cs-draggable"));
+    stage.addEventListener("pointerleave", () => {
+      if (activeId === null) stage.classList.remove("cs-draggable", "cs-scrubbable");
+    });
   }
 
   // Playback, a scrub or a step lands honest geometry — chain, never replace
@@ -594,7 +732,8 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
       // guard is what stops it from running its drop-on-a-control dance
       // against a gesture that is already gone.
       clearGrab();
-      stage.classList.remove("cs-draggable"); // the movie has nothing to grab
+      closeField();
+      stage.classList.remove("cs-draggable", "cs-scrubbable"); // the movie has nothing to grab
       activeId = null;
       stage.style.touchAction = priorTouchAction;
     }
@@ -602,6 +741,7 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
   const prevOnStep = hd.timeline.callbacks.onStep;
   hd.timeline.callbacks.onStep = (completed, total) => {
     prevOnStep?.(completed, total);
+    closeField();
     host.reset();
     clearGrab();
     activeId = null;

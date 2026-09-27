@@ -217,12 +217,10 @@ export function layoutSpec(
               `give it a taller region, or use a template with a native box`,
           });
         }
-        // What the template itself finds wrong with its params: the verdict a
-        // layout returns (SceneLayout.issues) and the module's own check
-        // (SceneModule.lint). Once per spec, like the draw-beat lint below: a
-        // relayout at a later animate stage is not a new spec.
+        // What the template itself finds wrong with its params — its one
+        // hook, SceneModule.lint. Once per spec, like the draw-beat lint
+        // below: a relayout at a later animate stage is not a new spec.
         if (!opts.skipDrawBeatLint) {
-          for (const i of sceneLayout.issues ?? []) issues.push({ rule: "template-params", ids: [], severity: i.severity, message: i.message });
           for (const i of scene.lint?.(spec.params ?? {}) ?? []) {
             issues.push({ rule: "template-params", ids: [], severity: i.severity, message: `template ${spec.template}: ${i.message}` });
           }

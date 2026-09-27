@@ -40,6 +40,10 @@ export const dragMoveEvent = (id: string, from: Pt, to: Pt, scene?: WidgetScene)
   domain: scene ? scene.toDomain(to) : null,
 });
 
+/** A typed number for the harness and the tests (`editable` bodies): what
+ *  the host delivers once the field commits. */
+export const inputEvent = (id: string, value: number, point: Pt = [0, 0]): WidgetEvent => ({ type: "input", id, value, point });
+
 export interface WidgetRun {
   states: unknown[];
   effects: WidgetEffect[][];
@@ -84,7 +88,7 @@ export function runWidget(module: SceneModule, params: Record<string, unknown>, 
     // A drag names TWO parts, and a typo in either is the same mistake the
     // string form reports: `to` may be null (blank paper) and may equal `id`
     // (dropped back where it was picked up), but neither may be invented.
-    if (ev.type === "drag" || ev.type === "drag_move") {
+    if (ev.type === "drag" || ev.type === "drag_move" || ev.type === "input") {
       const unknown = [ev.id, ev.type === "drag" ? ev.to : null].filter((id): id is string => id !== null && !scene!.ids.includes(id));
       if (unknown.length > 0) {
         for (const id of unknown) run.errors.push(`drag: "${id}" is not a part (${scene.ids.join(", ")})`);
@@ -136,11 +140,14 @@ export function demoWidget(module: SceneModule, params: Record<string, unknown>,
  * legend dead to the viewer. `scene.ids` stays the full part list — a body
  * may still glow or point at a label it never gets clicks from.
  */
-export function partAt(scene: WidgetScene, p: [number, number], slop = 18, parts?: readonly string[]): string | null {
-  if (parts) return partAmong(scene, p, slop, parts);
+export function partAt(scene: WidgetScene, p: [number, number], slop = 18, parts?: WidgetBody["parts"]): string | null {
+  if (parts) return partAmong(scene, p, slop, typeof parts === "function" ? parts(scene) : parts);
   const surface = new Map([...scene.boxes].filter(([id]) => scene.rings.has(id)));
   return hitElement(surface, p, slop, scene.rings);
 }
+
+/** How near a text part a press must land to take it, in logical units. */
+export const TEXT_SLOP = 6;
 
 /**
  * A body that NAMES its parts (WidgetBody.parts): only those are its, and a
@@ -155,6 +162,15 @@ function partAmong(scene: WidgetScene, p: Pt, slop: number, parts: readonly stri
   const open = parts.filter((id) => scene.ids.includes(id) && !scene.rings.has(id));
   const line = nearestLine(scene.lines, p, slop, open);
   if (line !== null) return line;
+  // A named part with neither an outline nor strokes is a text — a number a
+  // body lets the viewer scrub or type (2026-09-27): hit by its box, with a
+  // tighter slop, since numbers stand close together (a matrix's cells) and
+  // the paper between them must stay the pan's.
+  const texts = open.filter((id) => !scene.lines.has(id) && scene.boxes.has(id));
+  if (texts.length > 0) {
+    const text = hitElement(new Map(texts.map((id) => [id, scene.boxes.get(id)!])), p, Math.min(slop, TEXT_SLOP));
+    if (text !== null) return text;
+  }
   const closed = new Set(parts.filter((id) => scene.rings.has(id)));
   if (closed.size === 0) return null;
   const surface = new Map([...scene.boxes].filter(([id]) => closed.has(id)));

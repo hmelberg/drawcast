@@ -1793,6 +1793,10 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
    mere hover or a still-forming press. */
 .cs-stage.cs-grabbable, .cs-stage.cs-grabbable .cs-figgate { cursor: grab; }
 .cs-stage.cs-grabbing, .cs-stage.cs-grabbing .cs-figgate { cursor: grabbing; }
+/* A model's number (a tree's probability, a matrix cell): drag sideways to
+   scrub it, tap to type it — over it, while pressing it and while dragging
+   it. Declared after grabbing so the press does not trade it for a hand. */
+.cs-stage.cs-scrubbable, .cs-stage.cs-scrubbable.cs-grabbable, .cs-stage.cs-scrubbable.cs-grabbing { cursor: ew-resize; }
 /* A code screen takes typing: while paused, the cursor says so. */
 .cs-stage.cs-editable { cursor: text; }
 /* Over a game's play mark: a press, not typing. */
@@ -1870,6 +1874,28 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 /* The live control panel's one HTML piece: a text/number field typed over
    its DRAWN box (ui/controls-input.ts). The drawn box is the frame — no
    border, no background of its own — in the figure's sketch face. */
+/* Tap to type a model's number (ui/number-edit.ts): a chip laid over the
+   number, in the figure's hand, on the figure's own near-white ground (fixed
+   ink, like .cs-viewfit — the figure does not theme). */
+.cs-numedit {
+  position: absolute;
+  z-index: 25;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 0.35em;
+  font-family: var(--sketch-font);
+  text-align: center;
+  color: #3d3833;
+  background: rgba(255, 253, 246, 0.97);
+  border: 2px solid #2f6b8f;
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  box-shadow: 1px 2px 0 rgba(61, 56, 51, 0.25);
+  outline: none;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.cs-numedit::-webkit-outer-spin-button, .cs-numedit::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.cs-numedit[aria-invalid="true"] { border-color: #b5482e; background: #fff4ef; }
 .cs-ctlinput {
   position: absolute;
   z-index: 25;

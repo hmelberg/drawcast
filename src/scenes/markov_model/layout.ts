@@ -103,7 +103,7 @@ const EDGE_CLEARANCE = 1.12;
 const LABEL_OFFSET = 26;
 
 /** lowercase, every non-alphanumeric character becomes "_" — deterministic element ids from arbitrary state names. */
-function slugify(name: string): string {
+export function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "_");
 }
 
@@ -219,7 +219,38 @@ export const MAX_MATRIX_STATES = 10;
 /** A cohort table BESIDE the diagram fits this many state columns; under a matrix it runs full width. */
 export const MAX_TRACE_BESIDE = 4;
 
-export function layoutMarkovModel(params: MarkovParams): SceneLayout {
+/**
+ * The params with every numeric label written as text. A label is a string
+ * ("0.10"), but an `animate` of "transitions.0.label" tweens it as a number
+ * (render/params.ts reads "0.10" as its start), so mid-sweep and after it a
+ * label may be 0.1234: written with two decimals, or as many as it needs up
+ * to four. The same object back when nothing is numeric.
+ */
+export function withTextLabels(params: MarkovParams): MarkovParams {
+  const text = (v: unknown): unknown => {
+    if (typeof v !== "number" || !Number.isFinite(v)) return v;
+    const r = Number(v.toFixed(4));
+    return r.toFixed(Math.max(2, (String(r).split(".")[1] ?? "").length));
+  };
+  const fix = (ts: MarkovTransition[] | undefined): MarkovTransition[] | undefined =>
+    ts && ts.some((t) => typeof t?.label === "number") ? ts.map((t) => ({ ...t, label: text(t.label) as string })) : ts;
+  const loops = params.self_loops?.some((e) => typeof e === "object" && e !== null && typeof e.label === "number")
+    ? params.self_loops.map((e) => (typeof e === "object" && e !== null ? { ...e, label: text(e.label) as string } : e))
+    : params.self_loops;
+  const transitions = fix(params.transitions);
+  const cmp = params.trace?.compare;
+  const cmpT = fix(cmp?.transitions);
+  if (transitions === params.transitions && loops === params.self_loops && cmpT === cmp?.transitions) return params;
+  return {
+    ...params,
+    ...(transitions ? { transitions } : {}),
+    ...(loops ? { self_loops: loops } : {}),
+    ...(cmp && cmpT !== cmp.transitions ? { trace: { ...params.trace, compare: { ...cmp, transitions: cmpT } } } : {}),
+  };
+}
+
+export function layoutMarkovModel(raw: MarkovParams): SceneLayout {
+  const params = withTextLabels(raw);
   const view = params.view === "matrix" || params.view === "both" ? params.view : "diagram";
   const showDiagram = view !== "matrix";
   const showMatrix = view !== "diagram";
@@ -404,7 +435,6 @@ export function layoutMarkovModel(params: MarkovParams): SceneLayout {
   if (run) traceTable(run, states, params.trace!, push, anchors, page?.table);
 
   const values = markovValues(states, params, run);
-  const issues = markovIssues(params, view);
   return {
     drawables,
     labels,
@@ -412,7 +442,6 @@ export function layoutMarkovModel(params: MarkovParams): SceneLayout {
     order,
     ...(Object.keys(groups).length > 0 && { groups }),
     ...(Object.keys(values).length > 0 && { values }),
-    ...(issues.length > 0 && { issues }),
   };
 }
 
@@ -469,36 +498,40 @@ function markovValues(states: string[], params: MarkovParams, run: CohortRun | n
 }
 
 /** The second option's transitions: the base list, each replaced by compare's entry for the same from/to. */
-function compareTransitions(base: MarkovTransition[], changes: MarkovTransition[] | undefined): MarkovTransition[] {
+export function compareTransitions(base: MarkovTransition[], changes: MarkovTransition[] | undefined): MarkovTransition[] {
   return base.map((t) => changes?.find((o) => o.from === t.from && o.to === t.to) ?? t);
 }
 
 /**
- * What the author gave that the matrix and the trace cannot use — reported
- * by the layout pass as template lint (SceneLayout.issues), errors for what
- * would draw a wrong model, warnings for what is silently left out.
+ * What the author gave that the matrix and the trace cannot use — the
+ * template's lint (SceneModule.lint, which layoutSpec reports as
+ * `template-params`), errors for what would draw a wrong model, warnings for
+ * what is silently left out.
  */
-function markovIssues(params: MarkovParams, view: "diagram" | "matrix" | "both"): { severity: "error" | "warn"; message: string }[] {
+export function lintMarkovModel(raw: MarkovParams): { severity: "error" | "warn"; message: string }[] {
+  if (!raw || !Array.isArray(raw.states) || !Array.isArray(raw.transitions)) return [];
+  const params = withTextLabels(raw);
+  const view = params.view === "matrix" || params.view === "both" ? params.view : "diagram";
   const out: { severity: "error" | "warn"; message: string }[] = [];
   const n = params.states.length;
   if (view !== "matrix" && n > MAX_DIAGRAM_STATES) {
-    out.push({ severity: "warn", message: `markov_model: the diagram draws ${MAX_DIAGRAM_STATES} states and ${n} were given — use view "matrix" for up to ${MAX_MATRIX_STATES}` });
+    out.push({ severity: "warn", message: `the diagram draws ${MAX_DIAGRAM_STATES} states and ${n} were given — use view "matrix" for up to ${MAX_MATRIX_STATES}` });
   } else if (n > MAX_MATRIX_STATES) {
-    out.push({ severity: "warn", message: `markov_model: the matrix draws ${MAX_MATRIX_STATES} states and ${n} were given` });
+    out.push({ severity: "warn", message: `the matrix draws ${MAX_MATRIX_STATES} states and ${n} were given` });
   }
   const tr = params.trace;
   if (tr && view === "diagram" && n > MAX_TRACE_BESIDE) {
-    out.push({ severity: "error", message: `markov_model: trace beside the diagram fits ${MAX_TRACE_BESIDE} states and ${n} were given, so no table is drawn — use view "matrix" (or "both"), where the table runs full width` });
+    out.push({ severity: "error", message: `trace beside the diagram fits ${MAX_TRACE_BESIDE} states and ${n} were given, so no table is drawn — use view "matrix" (or "both"), where the table runs full width` });
   }
   if (!tr && view === "diagram") return out;
   const states = params.states.slice(0, view === "matrix" ? MAX_MATRIX_STATES : MAX_DIAGRAM_STATES);
   const check = (transitions: MarkovTransition[], who: string) => {
     const m = readMatrix(states, transitions);
     for (const t of m.bad) {
-      out.push({ severity: "error", message: `markov_model: ${who}transition ${t.from} → ${t.to} has label ${t.label === undefined ? "(none)" : JSON.stringify(t.label)} — the matrix and trace read labels as probabilities, a number from 0 to 1 like "0.10"` });
+      out.push({ severity: "error", message: `${who}transition ${t.from} → ${t.to} has label ${t.label === undefined ? "(none)" : JSON.stringify(t.label)} — the matrix and trace read labels as probabilities, a number from 0 to 1 like "0.10"` });
     }
     m.exits.forEach((sum, i) => {
-      if (sum > 1 + 1e-9) out.push({ severity: "error", message: `markov_model: ${who}the transitions out of ${states[i]} add up to ${+sum.toFixed(4)} — more than 1, so its stay (1 − the rest) would be negative` });
+      if (sum > 1 + 1e-9) out.push({ severity: "error", message: `${who}the transitions out of ${states[i]} add up to ${+sum.toFixed(4)} — more than 1, so its stay (1 − the rest) would be negative` });
     });
   };
   check(params.transitions, "");
@@ -506,25 +539,25 @@ function markovIssues(params: MarkovParams, view: "diagram" | "matrix" | "both")
     check(compareTransitions(params.transitions, tr.compare.transitions), `${tr.compare.name}: `);
     for (const c of tr.compare.transitions ?? []) {
       if (!params.transitions.some((t) => t.from === c.from && t.to === c.to)) {
-        out.push({ severity: "warn", message: `markov_model: trace.compare changes ${c.from} → ${c.to}, which is not in transitions — ignored (compare changes an existing transition's label)` });
+        out.push({ severity: "warn", message: `trace.compare changes ${c.from} → ${c.to}, which is not in transitions — ignored (compare changes an existing transition's label)` });
       }
     }
   }
   for (const k of ["utility", "cost"] as const) {
     const a = tr?.[k];
-    if (a && a.length !== n) out.push({ severity: "warn", message: `markov_model: trace.${k} has ${a.length} entries for ${n} states (one per state, in states order; missing ones count 0)` });
+    if (a && a.length !== n) out.push({ severity: "warn", message: `trace.${k} has ${a.length} entries for ${n} states (one per state, in states order; missing ones count 0)` });
   }
   return out;
 }
 
 /** A transition label read as a probability, or null. */
-function prob(label: string | undefined): number | null {
+export function prob(label: string | undefined): number | null {
   if (label === undefined || label.trim() === "") return null;
   const v = Number(label.trim().replace(",", "."));
   return Number.isFinite(v) && v >= 0 && v <= 1 ? v : null;
 }
 
-interface MatrixRead {
+export interface MatrixRead {
   /** p[i][j]: from state i to state j; the diagonal is 1 − the row's exits (negative when they exceed 1). */
   p: number[][];
   /** The label as the author wrote it, where a transition gives one (off-diagonal only). */
@@ -538,7 +571,7 @@ interface MatrixRead {
 }
 
 /** The transition matrix as far as it can be read — the lint reports what it cannot. */
-function readMatrix(states: string[], transitions: MarkovTransition[]): MatrixRead {
+export function readMatrix(states: string[], transitions: MarkovTransition[]): MatrixRead {
   const n = states.length;
   const p = states.map(() => states.map(() => 0));
   const label = states.map(() => states.map((): string | null => null));

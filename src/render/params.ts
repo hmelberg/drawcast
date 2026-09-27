@@ -33,7 +33,12 @@ export function readParam(params: Record<string, unknown> | undefined, path: str
       return null;
     }
   }
-  return typeof cur === "number" && Number.isFinite(cur) ? cur : null;
+  if (typeof cur === "number" && Number.isFinite(cur)) return cur;
+  // A number written as text — a Markov transition's label, "0.10" — is
+  // where an animate of it starts (2026-09-27): the sweep glides from the
+  // value on the figure instead of jumping to its target.
+  if (typeof cur === "string" && /^\s*[-+]?(\d+\.?\d*|\.\d+)\s*$/.test(cur)) return Number(cur);
+  return null;
 }
 
 /** Immutably overlay overrides onto params, creating missing objects.
