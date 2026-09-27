@@ -72,6 +72,24 @@ export interface SceneLayout {
    * caught where only the template knows the rule.
    */
   issues?: { severity: "error" | "warn"; message: string }[];
+
+  /**
+   * The extent this layout occupies when it is larger than the page — a
+   * decision tree three pages wide — in the same logical, y-up units as its
+   * drawables (2026-09-27). Opt-in: absent, the figure is one 1000 × 750
+   * page as always. Present, the camera at rest shows the world together
+   * with the page, grown to 4 : 3 (render/camera.ts restView): the overview
+   * is small, and `camera` commands and the paused viewer zoom in to read.
+   * Zoom numbers stay page-relative (zoom 1 = one page wide).
+   *
+   * Draw the page's own content where a page would put it (the card heading
+   * sits at the top of the PAGE, centred on x = 500) and grow the world
+   * right (x > 1000) and down (y < 0) from it. Report the box the ink really
+   * needs, labels included — it is the out-of-canvas lint's bound too.
+   * A spec's `params.box` fits the template onto the page, so a world
+   * reported under a box is ignored; so is a world no larger than the page.
+   */
+  world?: { x: number; y: number; w: number; h: number };
 }
 
 /** Intrinsic interactions a template can declare (interactivity spec §6):

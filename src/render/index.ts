@@ -427,6 +427,8 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     ...domainMapping(spec.domain && layout.frame ? layout.frame : spec.domain, layout.fit),
     animateBase: spec.template ? spec.params ?? {} : null,
     varsBase: spec.vars ?? null,
+    // A template's world larger than the page: camera boxes and `reset` are relative to it.
+    ...(layout.world ? { world: layout.world } : {}),
     bboxesFor: (params, overrides) => {
       const b = elementBBoxes(layoutFor(params, true, undefined, overrides), measure);
       return (id) => b.get(id) ?? null;
@@ -456,7 +458,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     mounted.elements,
     speech,
     caption,
-    { mode: options.mode, speed: options.speed, effects: mounted.effects, questions: options.questions, vars: options.vars, questionOffset: options.questionOffset },
+    { mode: options.mode, speed: options.speed, effects: mounted.effects, questions: options.questions, vars: options.vars, questionOffset: options.questionOffset, world: layout.world },
     options.callbacks,
   );
   player.setNarratorGender(spec.voice ?? null);

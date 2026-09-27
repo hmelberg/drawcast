@@ -57,6 +57,7 @@ function addressed(cmd: Command): string[] {
     ...idsOf(cmd.arrange?.target),
     ...ref(cmd.point?.at),
     ...(cmd.camera && !cmd.camera.reset ? ref(cmd.camera.center) : []),
+    ...(cmd.camera && !cmd.camera.reset ? idsOf(cmd.camera.on) : []),
   ];
 }
 

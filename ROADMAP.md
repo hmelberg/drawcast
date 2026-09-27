@@ -1718,6 +1718,12 @@ drawcast in several languages, re-linted after translation.
   The inset element (done 2026-09-17) covers presenting and concluding
   with pictures of earlier pages; screens remain the answer for a LIVE
   model beside a live simulation.
+  **Built toward it (2026-09-27):** a world larger than one frame —
+  `SceneLayout.world` → `LayoutResult.world`, the camera at rest is its
+  4 : 3 fit (render/camera.ts restView), zoom numbers stay page-relative,
+  `reset` returns to the whole world, `camera: {on: [ids]}` frames a union.
+  A stage of screens would report its union of frames as that world; the
+  paused viewer pan/zoom (ui/view-pan.ts) works on it unchanged.
 - **A stable id per drawcast** (idea, 2026-09-16 — to consider, not
   scheduled). Today a drawcast's identity is its cast key, the path
   `owner/repo/dir/file`: readable, doubles as the fetch address, and breaks

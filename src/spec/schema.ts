@@ -1010,10 +1010,11 @@ const commandSchema = {
     },
     camera: {
       type: "object",
-      description: "Zoom/pan the view. Set reset:true to return to the full canvas.",
+      description: "Zoom/pan the view. Set reset:true to return to the full canvas (on a template wider than the page: its whole world).",
       properties: {
         center: endRefSchema,
-        zoom: { anyOf: [{ type: "number" }, { type: "string", enum: ["fit"] }], description: "Magnification: 1 = whole canvas, 2 = 2× (default 2 when centering); \"fit\" frames center.ref with a margin." },
+        on: idListSchema("Frame these elements (one id or several, e.g. a subtree): zoom \"fit\" on their union unless zoom is a number."),
+        zoom: { anyOf: [{ type: "number" }, { type: "string", enum: ["fit"] }], description: "Magnification: 1 = one page, 2 = 2× (default 2 when centering); \"fit\" frames center.ref (or on) with a margin." },
         reset: { type: "boolean", description: "Return to the full canvas." },
         duration: { type: "number", description: "Seconds (default 1.2)." },
       },
@@ -1570,8 +1571,8 @@ function semanticErrors(spec: Spec): string[] {
         errors.push(`commands[${i}]: point.at needs ref (an element id), x+y coordinates, or data: [x, y]`);
       }
     }
-    if (verb === "camera" && !cmd.camera!.reset && cmd.camera!.center === undefined && cmd.camera!.zoom === undefined) {
-      errors.push(`commands[${i}]: camera needs center, zoom, or reset:true`);
+    if (verb === "camera" && !cmd.camera!.reset && cmd.camera!.center === undefined && cmd.camera!.on === undefined && cmd.camera!.zoom === undefined) {
+      errors.push(`commands[${i}]: camera needs center, on, zoom, or reset:true`);
     }
     if (verb === "animate") {
       const entries = Object.entries(cmd.animate!);

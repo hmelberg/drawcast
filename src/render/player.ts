@@ -15,7 +15,8 @@ import type { LayoutResult } from "../layout/layout";
 import { heldFrom, sceneAt } from "./plan";
 import { breathAfterMs } from "./breath";
 import type { BackendEffects, RenderedElement } from "./backend";
-import { EASINGS, FULL_CANVAS_BOX, FULL_VIEW_BOX, lerpBox, pointerPath, unionBoxes } from "./effects";
+import { EASINGS, lerpBox, pointerPath, unionBoxes } from "./effects";
+import { cameraBox, restView, restZoom } from "./camera";
 import { lengthFractionAt } from "./trails";
 import { pacedDurations } from "./pacing";
 import type { BBox } from "../layout/geometry";
@@ -414,16 +415,25 @@ export class Player {
   /** The ids something is DEFINED by (plan.sources): only their poses and shapes are part of a boundary's layout key. */
   private readonly sources: ReadonlySet<string>;
   state: PlayerState = "idle";
+  /** The camera at rest: the page, or the fit of a template's world (render/camera.ts). */
+  readonly restBox: BBox;
+  /** The box the PLAN last put the camera on (null = at rest). */
+  private planCam: BBox | null = null;
+  /** The viewer's own view while paused (ui/view-pan.ts), over the plan's; null = none. */
+  private viewCam: BBox | null = null;
+  /** The tween that hands the view back to the plan when play resumes. */
+  private viewReturn: Promise<void> | null = null;
 
   constructor(
     plan: Plan,
     elements: Map<string, RenderedElement>,
     speech: SpeechLike,
     captionEl: HTMLElement | null,
-    opts: { mode?: PlaybackMode; speed?: number; effects?: BackendEffects; questions?: "on" | "skip"; vars?: ReadonlyMap<string, string>; questionOffset?: number; breath?: boolean } = {},
+    opts: { mode?: PlaybackMode; speed?: number; effects?: BackendEffects; questions?: "on" | "skip"; vars?: ReadonlyMap<string, string>; questionOffset?: number; breath?: boolean; world?: BBox } = {},
     callbacks: PlayerCallbacks = {},
   ) {
     this.plan = plan;
+    this.restBox = restView(opts.world);
     this.holdFrom = heldFrom(plan);
     this.elements = elements;
     // A copy's id never appears in the plan-time (mounted) layout, so without
@@ -478,7 +488,16 @@ export class Player {
   async play(): Promise<void> {
     if (this.state === "playing") return;
     if (this.ac && this.state === "paused" && this.pausedFlag) {
-      // resume mid-step
+      // resume mid-step — the viewer's pan/zoom goes back to the plan's
+      // camera first (the step is still held while it does)
+      if (this.viewCam) {
+        this.setState("playing");
+        await this.returnView();
+        if ((this.state as PlayerState) !== "playing" || !this.pausedFlag) return;
+        this.pausedFlag = false;
+        this.speechSynthResume();
+        return;
+      }
       this.pausedFlag = false;
       this.speechSynthResume();
       this.setState("playing");
@@ -498,6 +517,10 @@ export class Player {
     this.ac = ac;
     this.pausedFlag = false;
     this.setState("playing");
+    if (this.viewCam) {
+      await this.returnView();
+      if (ac.signal.aborted) return;
+    }
     while (this.completed < this.plan.steps.length && !ac.signal.aborted) {
       this.callbacks.onStep?.(this.completed, this.plan.steps.length);
       await this.runStep(this.completed, ac.signal);
@@ -626,7 +649,76 @@ export class Player {
       else el.hide();
     }
     this.effects?.setPointer(null);
-    this.effects?.setCamera(scene.camera);
+    this.setCamera(scene.camera);
+  }
+
+  /** The plan puts the camera somewhere: it takes the screen back from the viewer. */
+  private setCamera(box: BBox | null): void {
+    this.planCam = box;
+    this.viewCam = null;
+    this.emitView(null);
+    this.effects?.setCamera(box);
+  }
+
+  private readonly viewListeners = new Set<(box: BBox | null) => void>();
+  private emitView(box: BBox | null): void {
+    for (const f of this.viewListeners) f(box);
+  }
+  /** Hear the viewer's view change (null: the plan's camera is back). Returns the unsubscribe. */
+  onViewChange(f: (box: BBox | null) => void): () => void {
+    this.viewListeners.add(f);
+    return () => this.viewListeners.delete(f);
+  }
+
+  /** Where the plan's camera stands now (the rest box when it is at rest). */
+  get planCamera(): BBox {
+    return this.planCam ?? this.restBox;
+  }
+
+  /** The viewer's own view, or null when the plan's camera is on screen. */
+  get viewCamera(): BBox | null {
+    return this.viewCam;
+  }
+
+  /**
+   * The viewer's paused pan/zoom (ui/view-pan.ts): shown over the plan's
+   * camera until play resumes or the plan moves the camera. Never while
+   * playing — the movie's camera is the plan's alone — and never recorded:
+   * an exporter drives a player with no UI, so this is app-only by
+   * construction. null puts the plan's camera back.
+   */
+  setViewCamera(box: BBox | null): boolean {
+    if (this.state === "playing" || !this.effects) return false;
+    this.viewCam = box;
+    this.emitView(box);
+    this.effects.setCamera(box ?? this.planCam);
+    return true;
+  }
+
+  /** Hand a viewer's view back to the plan's camera, smoothly (play resumes). */
+  private returnView(ms = 450): Promise<void> {
+    const from = this.viewCam;
+    if (!from || !this.effects) return this.viewReturn ?? Promise.resolve();
+    this.viewCam = null;
+    this.emitView(null);
+    const effects = this.effects;
+    const to = this.planCam ?? this.restBox;
+    const ease = EASINGS["ease-in-out"];
+    const start = performance.now();
+    this.viewReturn = new Promise<void>((resolve) => {
+      const tick = (now: number) => {
+        // A viewer who pauses again mid-return takes the view where it is.
+        if (this.viewCam) return resolve();
+        const t = Math.min(1, (now - start) / ms);
+        effects.setCamera(t >= 1 ? this.planCam : lerpBox(from, to, ease(t)));
+        if (t >= 1) return resolve();
+        this.raf(tick);
+      };
+      this.raf(tick);
+    }).finally(() => {
+      this.viewReturn = null;
+    });
+    return this.viewReturn;
   }
 
   private static keyOf(params: Record<string, number>, ov: LayoutOverrides | undefined): string {
@@ -1806,10 +1898,15 @@ export class Player {
       case "camera": {
         if (!this.effects) return;
         const effects = this.effects;
-        const from = before.camera ?? FULL_VIEW_BOX;
-        const to = step.box ?? FULL_VIEW_BOX;
+        const from = before.camera ?? this.restBox;
+        const to = step.box ?? this.restBox;
         const ease = EASINGS["ease-in-out"];
-        await this.progress(step.seconds * 1000, signal, (t) => effects.setCamera(t >= 1 ? step.box : lerpBox(from, to, ease(t))));
+        await this.progress(step.seconds * 1000, signal, (t) => {
+          this.planCam = t >= 1 ? step.box : lerpBox(from, to, ease(t));
+          // Paused mid-move with the viewer looking round: the view is theirs.
+          if (this.viewCam) return;
+          effects.setCamera(this.planCam);
+        });
         return;
       }
     }
@@ -2137,18 +2234,10 @@ export class Player {
     this.abortRun();
     const ac = new AbortController();
     this.ac = ac;
-    const zoom = Math.min(8, Math.max(1.2, opts.zoom ?? 4.5));
-    const w = FULL_CANVAS_BOX.w / zoom;
-    const h = FULL_CANVAS_BOX.h / zoom;
-    const cx = box.x + box.w / 2;
-    const cy = box.y + box.h / 2;
-    const to: BBox = {
-      x: Math.min(Math.max(cx - w / 2, 0), FULL_CANVAS_BOX.w - w),
-      y: Math.min(Math.max(cy - h / 2, 0), FULL_CANVAS_BOX.h - h),
-      w,
-      h,
-    };
-    const from = this.stateAt(this.completed).camera ?? FULL_VIEW_BOX;
+    const zoom = Math.min(8, Math.max(1.2 * restZoom(this.restBox), opts.zoom ?? 4.5));
+    const to = cameraBox(box.x + box.w / 2, box.y + box.h / 2, zoom, this.restBox) ?? this.restBox;
+    const from = this.viewCam ?? this.stateAt(this.completed).camera ?? this.restBox;
+    this.viewCam = null;
     const ease = EASINGS["ease-in-out"];
     await this.progress(opts.ms ?? 1600, ac.signal, (t) => effects.setCamera(lerpBox(from, to, ease(t))));
   }

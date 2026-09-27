@@ -338,9 +338,12 @@ export function preferredLabelBox(req: LabelRequest, measure: MeasureFn): BBox {
   return candidateBox(req.anchor, req.side, 10 + req.fontSize * 0.55, w, h);
 }
 
-function clampToCanvas(b: BBox): BBox {
-  const x = Math.min(Math.max(b.x, EDGE_PAD), CANVAS.w - b.w - EDGE_PAD);
-  const y = Math.min(Math.max(b.y, EDGE_PAD), CANVAS.h - b.h - EDGE_PAD);
+/** The page, the label solver's default bounds. */
+const PAGE_BOUNDS: BBox = { x: 0, y: 0, w: CANVAS.w, h: CANVAS.h };
+
+function clampInto(b: BBox, area: BBox): BBox {
+  const x = Math.min(Math.max(b.x, area.x + EDGE_PAD), area.x + area.w - b.w - EDGE_PAD);
+  const y = Math.min(Math.max(b.y, area.y + EDGE_PAD), area.y + area.h - b.h - EDGE_PAD);
   return { ...b, x, y };
 }
 
@@ -384,7 +387,10 @@ export function placeLabels(
   obstacles: Obstacle[],
   measure: MeasureFn,
   pins?: Record<string, LabelPin>,
+  /** Where labels may go: the page, or a template's world (SceneLayout.world). */
+  bounds: BBox = PAGE_BOUNDS,
 ): PlacedLabel[] {
+  const clampToCanvas = (b: BBox): BBox => clampInto(b, bounds);
   const blocked: Obstacle[] = [...obstacles];
   const placed: PlacedLabel[] = [];
 
@@ -424,7 +430,7 @@ export function placeLabels(
       const core = coreOf(box);
       return inPlay.some((o) => !o.solid && o.seg !== undefined && segmentHitsBox(o.seg, core));
     };
-    const onCanvas = (b: BBox) => b.x >= EDGE_PAD && b.y >= EDGE_PAD && b.x + b.w <= CANVAS.w - EDGE_PAD && b.y + b.h <= CANVAS.h - EDGE_PAD;
+    const onCanvas = (b: BBox) => b.x >= bounds.x + EDGE_PAD && b.y >= bounds.y + EDGE_PAD && b.x + b.w <= bounds.x + bounds.w - EDGE_PAD && b.y + b.h <= bounds.y + bounds.h - EDGE_PAD;
     // Corridors first: the first clean spot along the hugged line, else the
     // least-grazing one no line crosses; else a narrower wrap (a wedge
     // between two branches opens toward the children, and a narrower box

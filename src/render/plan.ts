@@ -22,6 +22,7 @@ import { boxAnchor, isUniversalAnchor, polygonAnchors, ptsBox } from "../layout/
 import { morphPair, stretchPts } from "./morph";
 import { dimensionLine, formatMeasure, heuristicLabelWidth, measureValue, ringCentroid, type MeasureSpec, type PointSource } from "../layout/measures";
 import { pathPosition } from "./effects";
+import { cameraBox, fitZoom, restView, restZoom } from "./camera";
 import { cumulativeLengthFractions } from "./trails";
 import type { GhostSpec, MintedSpec } from "./minted";
 import type { LayoutOverrides, PoseOverride } from "../layout/posed";
@@ -321,6 +322,9 @@ export interface PlanOptions {
   /** The ORIGINAL-parse controls of a code element that HAS controls, else
    *  null — what a `run` sweeps and what the explore demo walks. */
   controlsOf?: (id: string) => ControlSpec[] | null;
+  /** A template's world larger than the page (LayoutResult.world): the camera
+   *  rests on its fit, `reset` returns there, and camera boxes keep inside it. */
+  world?: BBox;
 }
 
 /** `PlanOptions.controlsOf` for a spec: the ORIGINAL-parse controls of a code
@@ -352,6 +356,8 @@ const CAMERA_FIT_MARGIN = 1.4;
 const CAMERA_FIT_LIFT = 0.1;
 
 export function planCommands(commands: Command[] | undefined, allIds: string[], opts: PlanOptions = {}): Plan {
+  /** The camera at rest: the page, or the fit of a template's world. */
+  const rest = restView(opts.world);
   let bboxOf = opts.bboxOf ?? (() => null);
   const toLogical = opts.toLogical ?? ((p: Pt) => p);
   const deltaToLogical = opts.deltaToLogical ?? ((d: Pt) => d);
@@ -1256,7 +1262,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           const b = bboxOf(id);
           if (!b) continue;
           const [ox, oy] = offsets[id] ?? [0, 0];
-          const off = (x: number, y: number) => x < 0 || x > CANVAS.w || y < 0 || y > CANVAS.h;
+          const off = (x: number, y: number) => x < rest.x || x > rest.x + rest.w || y < rest.y || y > rest.y + rest.h;
           const [bx, by] = bases[id] ?? [0, 0];
           const cx = b.x + b.w / 2 + ox, cy = b.y + b.h / 2 + oy;
           // Only a move that TAKES it off: something already off the canvas
@@ -1739,11 +1745,30 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.camera !== undefined) {
       let box: BBox | null = null;
       if (!cmd.camera.reset) {
-        let cx: number = camera ? camera.x + camera.w / 2 : CANVAS.w / 2;
-        let cy: number = camera ? camera.y + camera.h / 2 : CANVAS.h / 2;
+        let cx: number = camera ? camera.x + camera.w / 2 : rest.x + rest.w / 2;
+        let cy: number = camera ? camera.y + camera.h / 2 : rest.y + rest.h / 2;
         let target: BBox | null = null;
         const center = cmd.camera.center;
-        if (center?.ref !== undefined) {
+        // `on`: frame one element or several (a subtree of a big tree) —
+        // the union of their boxes, zoom "fit" unless a number is given.
+        const on = cmd.camera.on === undefined ? [] : Array.isArray(cmd.camera.on) ? cmd.camera.on : [cmd.camera.on];
+        if (on.length > 0) {
+          const boxes: BBox[] = [];
+          for (const id of on) {
+            const kids = standsFor(id);
+            if (!known.has(id) && kids.length === 0) {
+              warnings.push(`camera command references unknown id "${id}" (skipped)`);
+              continue;
+            }
+            const b = kids.length > 0 ? unionBox(kids.map(currentBox)) : currentBox(id);
+            if (b) boxes.push(b);
+          }
+          target = unionBox(boxes);
+          if (target) {
+            cx = target.x + target.w / 2;
+            cy = target.y + target.h / 2;
+          }
+        } else if (center?.ref !== undefined) {
           const kids = standsFor(center.ref);
           if (!known.has(center.ref) && kids.length === 0) {
             warnings.push(`camera command references unknown id "${center.ref}" (centering on canvas)`);
@@ -1767,28 +1792,14 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         // "fit": as close as frames the target with a margin (a zoom walk is
         // expanded before layout, so it cannot know a number); nothing to
         // fit falls back to the default 2×.
-        const asked =
-          cmd.camera.zoom === "fit"
-            ? target && target.w > 0 && target.h > 0
-              ? Math.min(CANVAS.w / (target.w * CAMERA_FIT_MARGIN), CANVAS.h / (target.h * CAMERA_FIT_MARGIN))
-              : 2
-            : cmd.camera.zoom ?? 2;
-        const zoom = Math.min(CAMERA_MAX_ZOOM, Math.max(1, asked));
-        if (zoom <= 1) {
-          box = null;
-        } else {
-          const w = CANVAS.w / zoom;
-          const h = CANVAS.h / zoom;
-          // A fitted target sits a little above centre: the caption band
-          // covers the bottom of the frame, and its words would sit under it.
-          const lift = cmd.camera.zoom === "fit" ? CAMERA_FIT_LIFT * h : 0;
-          box = {
-            x: Math.min(Math.max(cx - w / 2, 0), CANVAS.w - w),
-            y: Math.min(Math.max(cy - h / 2 - lift, 0), CANVAS.h - h),
-            w,
-            h,
-          };
-        }
+        // Zoom numbers are page-relative (1 = one page wide); on a template
+        // world the rest view may stand below 1, and "fit" may too.
+        const fit = cmd.camera.zoom === "fit" || (on.length > 0 && cmd.camera.zoom === undefined);
+        const asked = fit ? (target ? fitZoom(target, CAMERA_FIT_MARGIN) : null) ?? 2 : (cmd.camera.zoom as number | undefined) ?? 2;
+        const zoom = Math.min(CAMERA_MAX_ZOOM, Math.max(restZoom(rest), asked));
+        // A fitted target sits a little above centre: the caption band
+        // covers the bottom of the frame, and its words would sit under it.
+        box = cameraBox(cx, cy, zoom, rest, fit ? CAMERA_FIT_LIFT : 0);
       }
       camera = box;
       pushStep({ kind: "camera", box, seconds: cmd.camera.duration ?? 1.2 });

@@ -105,7 +105,7 @@ export interface BackendEffects {
   setOffset?(id: string, dx: number, dy: number): void;
   /** Show the laser dot at a logical y-up point; null hides it. */
   setPointer(p: Pt | null): void;
-  /** Jump the camera to a logical y-up viewBox; null = full canvas. */
+  /** Jump the camera to a logical y-up viewBox; null = the camera at rest (the page, or a template world's fit — render/camera.ts restView). */
   setCamera(box: BBox | null): void;
 }
 

@@ -492,9 +492,11 @@ export interface FlowArgs {
 export interface CameraArgs {
   /** Element id (ref) or coordinates to center on. */
   center?: EndRef;
-  /** Magnification: 1 = whole canvas, 2 = 2×, … — or "fit": frame center.ref with a margin. */
+  /** Frame these elements (one id, or several — their union): zoom "fit" unless `zoom` is a number. */
+  on?: string | string[];
+  /** Magnification, page-relative: 1 = one page wide, 2 = 2×, … — or "fit": frame center.ref / on with a margin. */
   zoom?: number | "fit";
-  /** Return to the full canvas. */
+  /** Return to the view at rest: the whole page, or a template's whole world. */
   reset?: boolean;
   /** seconds */
   duration?: number;
