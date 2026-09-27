@@ -129,4 +129,7 @@ export interface WidgetBody {
    * Fit; a click applies it. Pure, like on().
    */
   rest?(scene: WidgetScene, state: unknown): Record<string, unknown> | null;
+  /** What the Reset pill says (default "Reset axes" — a plot's domain; a 3D
+   *  plot's camera is "Reset view"). */
+  restLabel?: string;
 }

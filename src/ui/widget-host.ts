@@ -67,6 +67,8 @@ export interface WidgetHost {
   restPatch(): Record<string, unknown> | null;
   /** Apply restPatch(): true when there was one. */
   toRest(): boolean;
+  /** What the Reset pill says (WidgetBody.restLabel, else "Reset axes"). */
+  readonly restLabel: string;
   /** True once the live gesture has passed DRAG_MIN — the stage's cursor
    *  reads this alone to swap a grab for a grabbing hand; false with no
    *  gesture in flight and false again the moment one ends. */
@@ -137,7 +139,7 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
   // discarded (the host's own body still mounts on the first event). A body
   // that throws on construction simply wants no keys — clickAt says so too.
   // Its named parts and its live flag come off the same probe.
-  const probe: { keys: string[]; parts?: WidgetBody["parts"]; live: boolean; editable: boolean; surface?: boolean } = (() => {
+  const probe: { keys: string[]; parts?: WidgetBody["parts"]; live: boolean; editable: boolean; surface?: boolean; restLabel?: string } = (() => {
     try {
       const b = module.widget!();
       return {
@@ -146,6 +148,7 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
         live: b.live === true,
         editable: typeof b.editable === "function",
         surface: typeof b.surface === "function",
+        ...(typeof b.restLabel === "string" && b.restLabel.trim() !== "" ? { restLabel: b.restLabel.trim().slice(0, 40) } : {}),
       };
     } catch {
       return { keys: [], live: false, editable: false };
@@ -348,6 +351,7 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
   const host: WidgetHost = {
     keys: Object.freeze(declaredKeys),
     live,
+    restLabel: probe.restLabel ?? "Reset axes",
     over(p) {
       // A live body's parts are its only by DRAGGING; standing the card aside
       // for them (infocard.ts targetAt) would make a tap on a named curve dead.
@@ -777,7 +781,9 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
   // the body's view is off its rest a "Reset" pill offers the way back —
   // beside the camera's own Fit, which is left alone.
   if (host.live) {
-    const resetBtn = h("button", { class: "cs-viewfit cs-domainfit", title: "Back to the authored axes", "aria-label": "Reset the axes" }, "Reset axes") as HTMLButtonElement;
+    const label = host.restLabel;
+    const axes = label === "Reset axes";
+    const resetBtn = h("button", { class: "cs-viewfit cs-domainfit", title: axes ? "Back to the authored axes" : "Back to where the figure paused", "aria-label": axes ? "Reset the axes" : label }, label) as HTMLButtonElement;
     resetBtn.hidden = true;
     stage.appendChild(resetBtn);
     const syncReset = (): void => {
