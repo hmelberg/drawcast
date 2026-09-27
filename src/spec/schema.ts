@@ -1312,6 +1312,16 @@ export function normalizeSpec(spec: unknown): unknown {
       delete el.text;
       delete el.font_size;
     }
+    // Dashing is a style: `style.dash`. A bare `dash: true` on the element
+    // (the spelling a model reaches for, as with an SVG attribute) moves into
+    // style, so it dashes instead of failing validation; an explicit
+    // style.dash wins.
+    const bare = el as unknown as { dash?: unknown; style?: Record<string, unknown> };
+    if (typeof bare.dash === "boolean") {
+      const style = bare.style && typeof bare.style === "object" ? bare.style : (bare.style = {});
+      if (style.dash === undefined) style.dash = bare.dash;
+      delete bare.dash;
+    }
     // inset's of takes a playlist number too (YAML `of: 2`) — normalized to
     // its string form so validation and the resolver only ever see a string.
     if (el.type === "inset" && typeof el.of === "number") el.of = String(el.of);
