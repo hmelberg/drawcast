@@ -19,6 +19,7 @@ import {
   type GradientSpec,
   type ImageReveal,
   type Pt,
+  type ShapeHint,
   type StrokeDrawable,
 } from "../layout/model";
 import { FIGURE_GROUND, readsAsSame } from "../layout/ink";
@@ -168,6 +169,28 @@ function dashedPathFromPts(pts: Pt[], dash = 11, gap = 9): string {
   return parts.join(" ");
 }
 
+/** A circle/rect hint as a closed ring of points (first point repeated at
+ *  the end), so a dashed outline has real points to cut. */
+function hintRing(h: ShapeHint): Pt[] {
+  if (h.type === "rect") return [[h.x, h.y], [h.x + h.w, h.y], [h.x + h.w, h.y + h.h], [h.x, h.y + h.h], [h.x, h.y]];
+  const n = Math.max(24, Math.min(144, Math.round(h.r / 2)));
+  return Array.from({ length: n + 1 }, (_, i): Pt => [h.c[0] + h.r * Math.cos((2 * Math.PI * i) / n), h.c[1] + h.r * Math.sin((2 * Math.PI * i) / n)]);
+}
+
+/**
+ * The dashed outline of a stroke or area with `style.dash`, as SVG path data,
+ * or null when it is drawn solid. One place for every element type: a circle
+ * or rect hint is cut from its ring (the exact rc.circle/rc.rectangle have no
+ * dash), and a closed outline — polygon, ellipse, closed path, region — runs
+ * back to its first point, so its last side is dashed too.
+ */
+export function dashedOutlineD(d: { pts: Pt[]; closed?: boolean; shapeHint?: ShapeHint; style: { dash?: boolean } }, closed = !!d.closed): string | null {
+  if (!d.style.dash) return null;
+  if (d.shapeHint) return dashedPathFromPts(hintRing(d.shapeHint));
+  if (d.pts.length < 2) return null;
+  return dashedPathFromPts(closed && d.pts.length >= 3 ? [...d.pts, d.pts[0]] : d.pts);
+}
+
 /**
  * True when an area is an EXACT filled shape rather than a shaded region:
  * one crisp path in both render styles. Any hole implies it — rough.js's
@@ -300,8 +323,10 @@ function drawLeafClean(g: SVGGElement, d: Exclude<Drawable, { kind: "group" | "t
       g.appendChild(exactAreaPath(d));
       return;
     }
+    const dashed = dashedOutlineD(d, true);
     const p = plainPath(pathFromPts(d.pts, true), { ...d.style, strokeWidth: 1.5 }, true);
     p.setAttribute("fill", d.style.fill ?? d.style.color);
+    if (dashed) p.setAttribute("stroke", "none");
     // No extra fill-opacity knock-down here: the region's wash is carried by
     // its own `opacity` (kit.area's default 0.35, or whatever the template
     // asked for). A second, hardcoded knock-down was invisible at rest — the
@@ -312,10 +337,28 @@ function drawLeafClean(g: SVGGElement, d: Exclude<Drawable, { kind: "group" | "t
     // squares losing their green while a piece glided).
     p.setAttribute("opacity", String(d.style.opacity));
     g.appendChild(p);
+    if (dashed) {
+      const o = plainPath(dashed, { ...d.style, strokeWidth: Math.max(1.5, d.style.strokeWidth) });
+      o.setAttribute("opacity", String(d.style.opacity));
+      g.appendChild(o);
+    }
     return;
   }
   const filled = !!(d.style.fill || d.style.fillGradient);
-  if (d.shapeHint?.type === "circle") {
+  const dashed = dashedOutlineD(d);
+  if (dashed) {
+    // Dashed: the fill (if any) under a cut outline; the exact shape's own
+    // stroke would draw solid.
+    if (filled && d.shapeHint?.type === "circle") {
+      const gradPaint = d.style.fillGradient ? appendRadialGradient(g, d.style.fillGradient) : null;
+      const { c, r } = d.shapeHint;
+      const f = plainPath(circlePath(c[0], toSvgY(c[1]), r), d.style, true);
+      f.setAttribute("fill", gradPaint ?? d.style.fill!);
+      f.setAttribute("stroke", "none");
+      g.appendChild(f);
+    }
+    g.appendChild(plainPath(dashed, d.style));
+  } else if (d.shapeHint?.type === "circle") {
     const gradPaint = d.style.fillGradient ? appendRadialGradient(g, d.style.fillGradient) : null;
     const { c, r } = d.shapeHint;
     const p = plainPath(circlePath(c[0], toSvgY(c[1]), r), d.style, filled);
@@ -326,8 +369,7 @@ function drawLeafClean(g: SVGGElement, d: Exclude<Drawable, { kind: "group" | "t
     const top = toSvgY(y + rh);
     g.appendChild(plainPath(`M${x} ${top} h${w} v${rh} h${-w} Z`, d.style));
   } else if (d.pts.length >= 2) {
-    const dStr = d.style.dash ? dashedPathFromPts(d.pts) : pathFromPts(d.pts, d.closed);
-    g.appendChild(plainPath(dStr, d.style));
+    g.appendChild(plainPath(pathFromPts(d.pts, d.closed), d.style));
   }
   if (d.arrowhead && d.pts.length >= 2) {
     const heads: ("end" | "start")[] = d.arrowhead === "both" ? ["start", "end"] : [d.arrowhead];
@@ -459,17 +501,33 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
       return g;
     }
     // Dense, heavy hachure — thin sparse fills read as unshaded on some screens.
+    const dashed = dashedOutlineD(d, true);
     const node = rc.polygon(
       d.pts.map(([x, y]) => [x, toSvgY(y)]),
-      roughOpts(d, { fill: d.style.fill ?? d.style.color, fillStyle: "hachure", hachureGap: 5.5, fillWeight: 1.7, strokeWidth: 1.8 }),
+      roughOpts(d, { fill: d.style.fill ?? d.style.color, fillStyle: "hachure", hachureGap: 5.5, fillWeight: 1.7, strokeWidth: 1.8, ...(dashed && { stroke: "none" }) }),
     );
     node.setAttribute("opacity", String(Math.min(1, d.style.opacity + 0.15)));
     g.appendChild(node);
+    if (dashed) {
+      const outline = rc.path(dashed, roughOpts(d, { strokeWidth: Math.max(1.8, d.style.strokeWidth) }));
+      outline.setAttribute("opacity", String(Math.min(1, d.style.opacity + 0.15)));
+      g.appendChild(outline);
+    }
     return g;
   }
   // stroke
   const opts = roughOpts(d);
-  if (d.shapeHint?.type === "circle") {
+  const dashed = dashedOutlineD(d);
+  if (dashed) {
+    // Dashed: the fill (if any) under a cut outline; rc.circle and
+    // rc.rectangle have no dash of their own.
+    if (d.shapeHint?.type === "circle") {
+      const { c, r } = d.shapeHint;
+      const fillPaint = d.style.fillGradient ? appendRadialGradient(g, d.style.fillGradient) : d.style.fill;
+      if (fillPaint) g.appendChild(rc.circle(c[0], toSvgY(c[1]), r * 2, { ...opts, stroke: "none", fill: fillPaint, fillStyle: "solid" }));
+    }
+    g.appendChild(rc.path(dashed, opts));
+  } else if (d.shapeHint?.type === "circle") {
     const { c, r } = d.shapeHint;
     const fillPaint = d.style.fillGradient ? appendRadialGradient(g, d.style.fillGradient) : d.style.fill;
     const node = rc.circle(c[0], toSvgY(c[1]), r * 2, fillPaint ? { ...opts, fill: fillPaint, fillStyle: "solid" } : opts);
@@ -478,8 +536,7 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
     const node = rc.rectangle(d.shapeHint.x, toSvgY(d.shapeHint.y + d.shapeHint.h), d.shapeHint.w, d.shapeHint.h, opts);
     g.appendChild(node);
   } else if (d.pts.length >= 2) {
-    const dStr = d.style.dash ? dashedPathFromPts(d.pts) : pathFromPts(d.pts, d.closed);
-    g.appendChild(rc.path(dStr, opts));
+    g.appendChild(rc.path(pathFromPts(d.pts, d.closed), opts));
   }
   if (d.kind === "stroke" && d.arrowhead && d.pts.length >= 2) {
     const heads: ("end" | "start")[] = d.arrowhead === "both" ? ["start", "end"] : [d.arrowhead];
