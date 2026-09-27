@@ -15,9 +15,14 @@ import type { Course } from "../course/document";
 import { isPending, missingOf, partsOf } from "../course/run";
 import type { Effort } from "./client";
 
-/** `${model}|${effort}` — the key both the learned rates and the confirm's lookup are keyed by. */
-export function rateKey(model: string, effort: Effort): string {
-  return `${model}|${effort}`;
+/**
+ * `${model}|${effort}` — the key both the learned rates and the confirm's
+ * lookup are keyed by — with `|look` when the look pass runs, since a part
+ * that is also looked at and fixed costs noticeably more; a rate learned
+ * without it must not price a run with it (or the other way round).
+ */
+export function rateKey(model: string, effort: Effort, look = false): string {
+  return `${model}|${effort}${look ? "|look" : ""}`;
 }
 
 type Tier = "opus" | "sonnet" | "haiku";
@@ -47,8 +52,19 @@ export const PRIOR_USD_PER_OUTLINE: Record<Tier, number> = {
   haiku: 0.01,
 };
 
-export function priorUsdPerPart(model: string, effort: Effort): number {
-  return PRIOR_USD_PER_PART[tierOf(model)][effort];
+/**
+ * What the look pass adds per part (src/llm/look.ts: a critic that sees the
+ * frames, a fix round, up to twice) — an ESTIMATE from the settings text's
+ * "a few tens of cents" (2026-09-27), until a course run has measured it.
+ */
+export const PRIOR_USD_LOOK_PER_PART: Record<Tier, number> = {
+  opus: 0.4,
+  sonnet: 0.18,
+  haiku: 0.07,
+};
+
+export function priorUsdPerPart(model: string, effort: Effort, look = false): number {
+  return PRIOR_USD_PER_PART[tierOf(model)][effort] + (look ? PRIOR_USD_LOOK_PER_PART[tierOf(model)] : 0);
 }
 
 export function priorUsdPerOutline(model: string): number {
@@ -70,7 +86,7 @@ export interface CourseCostEstimate {
  * one (its status names what is missing) spends only those missing parts,
  * against the plan it already has, so no outline.
  */
-export function estimateCourseUsd(course: Course, model: string, effort: Effort, learned: Record<string, number>): CourseCostEstimate {
+export function estimateCourseUsd(course: Course, model: string, effort: Effort, learned: Record<string, number>, look = false): CourseCostEstimate {
   let parts = 0;
   let outlines = 0;
   for (const lecture of course.lectures) {
@@ -83,9 +99,9 @@ export function estimateCourseUsd(course: Course, model: string, effort: Effort,
       parts += partsOf(lecture);
     }
   }
-  const key = rateKey(model, effort);
+  const key = rateKey(model, effort, look);
   const learnedRate = learned[key];
-  const partRate = learnedRate ?? priorUsdPerPart(model, effort);
+  const partRate = learnedRate ?? priorUsdPerPart(model, effort, look);
   const outlineRate = priorUsdPerOutline(model);
   const usd = parts * partRate + outlines * outlineRate;
   return { usd, parts, outlines, source: learnedRate !== undefined ? "measured" : "default" };

@@ -2078,7 +2078,7 @@ const settingsBlocks = new Map<string, HTMLElement>([
       h(
         "div",
         { class: "settings-note" },
-        "After a figure is written, the model looks at its frames — one per spoken line — and fixes what it sees, up to twice. The first version shows at once; the improved one replaces it (about a minute or two, and a few tens of cents, more).",
+        "After a figure is written, the model looks at its frames — one per spoken line — and fixes what it sees, up to twice — every part of a course too. The first version shows at once; the improved one replaces it (about a minute or two, and a few tens of cents, more).",
       ),
     ),
   ],
@@ -4061,6 +4061,7 @@ function openCourse(id?: string, opts: { fresh?: boolean } = {}): void {
     bundledExemplars: () => bundledExemplarPool(),
     route: (req, sig) => routeTemplates(req, { apiKey: getApiKey(), signal: sig }),
     onTemplateAuthored: keepAuthoredTemplate,
+    look: beatSheets,
     setStatus,
     openDrawing: (id) => {
       const saved = loadLibrary().find((d) => d.id === id);

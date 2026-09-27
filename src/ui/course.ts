@@ -100,6 +100,8 @@ export interface CoursePanelDeps extends CourseShareDeps {
   route?: GenerateConfig["route"];
   /** Keeps a template authored on demand during a course (My templates + panels). */
   onTemplateAuthored?: GenerateConfig["onTemplateAuthored"];
+  /** The look pass's eyes (export/beat-sheet.ts); used when Settings.lookPass is on, as for a single figure. */
+  look?: GenerateConfig["look"];
   setStatus: (text: string, kind?: "ok" | "error") => void;
   /** Load a saved drawcast into the main editor/player. */
   openDrawing: (id: string) => void;
@@ -503,6 +505,10 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       route: deps.route,
       templatesOnDemand: deps.settings.templatesOnDemand,
       onTemplateAuthored: deps.onTemplateAuthored,
+      // The look pass, under the same setting as a single figure (Hans
+      // 2026-09-27): every part is looked at and fixed. Parts render their
+      // frames in their own off-screen hosts, so parallel parts don't collide.
+      look: deps.settings.lookPass ? deps.look : undefined,
       variant: deps.variant(),
       styleText: deps.styleText(),
       exemplars: deps.exemplars(),
@@ -718,7 +724,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       // it (Hans 2026-09-18). Estimated from a learned $/part once a run has
       // measured one (Settings.costPerPart), from a rough prior until then.
       const modelLabel = (MODELS.find((m) => m.id === deps.model())?.label ?? deps.model()).split(" — ")[0];
-      const costEstimate = estimateCourseUsd(course, deps.model(), deps.settings.effort, deps.settings.costPerPart);
+      const costEstimate = estimateCourseUsd(course, deps.model(), deps.settings.effort, deps.settings.costPerPart, deps.settings.lookPass);
       const costNote = `\n${formatCourseEstimate(costEstimate, modelLabel, deps.settings.effort)}`;
       // Narration is paid LATER (Publish → Embed narration), but the size of
       // that later bill belongs in this confirm (Hans 2026-09-02): projected
@@ -785,7 +791,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       // stored parts, or that failed before any call, teaches nothing).
       const costs = costSummary(callLedger());
       if (result.partsGenerated > 0 && costs.usd > 0) {
-        const key = rateKey(deps.model(), deps.settings.effort);
+        const key = rateKey(deps.model(), deps.settings.effort, deps.settings.lookPass);
         const measured = costs.usd / result.partsGenerated;
         // Reassigned, never mutated in place: a settings blob that predates
         // this field aliases DEFAULT_SETTINGS.costPerPart's own {} instance

@@ -7,11 +7,18 @@ Each entry: the hypothesis, what was run, what we saw, what was decided.
 - **Plan first with a size budget.** The plan step explained better in
   run 1 but crowded pages; give it a budget (short labels, ≤ 8–10 branches or
   boxes, extra numbers said not drawn) and rerun against `standard`.
-- **Sonnet as the look critic** — a fifth of the price; does it see as much?
+- **Sonnet as the look critic** — half the price of Opus 5.5 ($2/$10 vs
+  $4/$20 per MTok), probably faster; does it see as much?
 - **A slimmer compiler prompt** per the rule audit (tool facts as reference,
   house taste as one page, general craft left to the model and the examples).
 - **Emphasis in frames**: the critic now sees gestures mid-sentence — does
   it judge emphasis better than before?
+
+## 2026-09-27 — Courses get the look pass
+
+- **Decided (Hans):** a course follows the same setting (Look at the frames
+  and fix) as a single figure; every part is looked at. The course cost
+  estimate learns a separate rate with the look pass (`|look` in the key).
 
 ## 2026-09-27 — Plan first vs one call; the look pass
 

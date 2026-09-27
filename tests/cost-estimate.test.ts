@@ -10,6 +10,7 @@ import {
   estimateCourseUsd,
   formatCourseEstimate,
   learnRate,
+  PRIOR_USD_LOOK_PER_PART,
   PRIOR_USD_PER_OUTLINE,
   PRIOR_USD_PER_PART,
   priorUsdPerOutline,
@@ -45,6 +46,11 @@ describe("rateKey", () => {
 
   it("keeps different efforts apart for the same model", () => {
     expect(rateKey("claude-sonnet-5", "low")).not.toBe(rateKey("claude-sonnet-5", "high"));
+  });
+
+  it("keeps runs with the look pass apart from runs without it", () => {
+    expect(rateKey("claude-opus-5", "high", true)).toBe("claude-opus-5|high|look");
+    expect(rateKey("claude-opus-5", "high", false)).toBe(rateKey("claude-opus-5", "high"));
   });
 });
 
@@ -94,6 +100,15 @@ describe("estimateCourseUsd", () => {
     const learned = { [rateKey("claude-sonnet-5", "high")]: 999 };
     const e = estimateCourseUsd(course, "claude-opus-5", "high", learned);
     expect(e.source).toBe("default");
+  });
+
+  it("the look pass raises the prior per part, and a rate learned without it does not price a run with it", () => {
+    const course = parseCourse(DOC);
+    const plain = estimateCourseUsd(course, "claude-opus-5", "high", {});
+    const looked = estimateCourseUsd(course, "claude-opus-5", "high", {}, true);
+    expect(looked.usd).toBeCloseTo(plain.usd + 6 * PRIOR_USD_LOOK_PER_PART.opus);
+    const learned = { [rateKey("claude-opus-5", "high")]: 0.5 };
+    expect(estimateCourseUsd(course, "claude-opus-5", "high", learned, true).source).toBe("default");
   });
 
   it("costs nothing once every lecture is done", () => {
