@@ -72,6 +72,8 @@ export interface DecisionTreeParams {
    * collide), then full.
    */
   size?: "page" | "full";
+  /** The region the tree fills: {x, y, w, h} (layout.ts resolves a region name before the template sees it). */
+  box?: unknown;
 }
 
 interface Wrapped {
@@ -86,6 +88,8 @@ interface Wrapped {
   value?: string;
   /** A terminal's payoff text. */
   payoff?: string;
+  /** The incoming branch's label text (branchText). */
+  branchLabel?: string;
 }
 
 // top 95 clears the card heading (y > 690); bottom 150 clears the narration band,
@@ -112,8 +116,11 @@ function wrap(node: TreeNode, path: number[], ctx: WrapCtx, branch?: TreeBranch)
     const filled = rolled?.filled.has(key) ? { ...b, probability: rolled.p[key] } : b;
     return wrap(b.node, [...path, i], ctx, filled);
   };
-  let value = node.value !== undefined && node.value !== "" ? String(node.value) : undefined;
-  if (value === undefined && rolled && node.type !== "terminal") value = nodeValueText(rolled, cleanId, fmt);
+  let value = node.value != null && node.value !== "" ? String(node.value) : undefined;
+  // `value: ""` draws none: the root decision's value repeats its pick's, and
+  // a cast that says so aloud may leave it off (it is drawn at the end
+  // otherwise, as every id the cast never names is).
+  if (node.value == null && rolled && node.type !== "terminal") value = nodeValueText(rolled, cleanId, fmt);
   return {
     cleanId,
     node,
@@ -122,6 +129,7 @@ function wrap(node: TreeNode, path: number[], ctx: WrapCtx, branch?: TreeBranch)
     children: collapsed ? [] : kids.map(child),
     value,
     payoff: node.type === "terminal" ? payoffText(node, branch, rolled ? fmt : null) : undefined,
+    branchLabel: branchText(branch, node.type !== "terminal" && kids.length > 0 && typeof branch?.cost === "number" && Number.isFinite(branch.cost) ? fmt.cost(branch.cost) : undefined),
   };
 }
 
@@ -152,6 +160,10 @@ interface Format {
   money(v: number): string;
   /** A cost beside a payoff: money, or "cost 2,300" with no currency to say what it is. */
   cost(v: number): string;
+  /** The number `money` shows (to the 100 from 10,000, to 0.01m from a million). */
+  moneyRound(v: number): number;
+  /** The number `num` shows. */
+  round(v: number): number;
   unit?: string;
 }
 
@@ -167,9 +179,16 @@ function formatOf(params: DecisionTreeParams): Format {
     const body = a >= 1e6 ? `${kit.num(Number((a / 1e6).toFixed(a >= 1e7 ? 1 : 2)))}m` : a >= 1e4 ? thousands(Math.round(a / 100) * 100) : thousands(a);
     return `${sign}${cur}${body}`;
   };
+  const moneyRound = (v: number) => {
+    const a = Math.abs(v);
+    const r = a >= 1e6 ? Math.round(Number((a / 1e6).toFixed(a >= 1e7 ? 1 : 2)) * 1e6) : a >= 1e4 ? Math.round(a / 100) * 100 : Math.round(a);
+    return v < 0 ? -r : r;
+  };
   return {
     num: (v) => kit.num(Number(v.toFixed(decimals))),
     money,
+    moneyRound,
+    round: (v) => Number(v.toFixed(decimals)),
     cost: (v) => (cur ? money(v) : `cost ${money(v)}`),
     unit: typeof params.unit === "string" && params.unit.trim() ? params.unit.trim() : undefined,
   };
@@ -205,9 +224,10 @@ function layoutTree(params: DecisionTreeParams & { box?: unknown }, full: boolea
   const h = hierarchy(rootWrapped, (d) => d.children);
 
   // The strategy table takes the bottom of the page (or of the box), and the
-  // tree the rest.
-  const table = rolled && params.table !== false ? tableOf(params, rolled, fmt) : null;
-  const reserve = table ? table.h + TABLE_GAP : 0;
+  // tree the rest. On the page its bottom stands on the narration band (it
+  // was drawn from BIG_REGION's bottom, under two-line captions, 2026-09-27).
+  let table = rolled && params.table !== false ? tableOf(params, rolled, fmt) : null;
+  let reserve = table ? table.h + TABLE_GAP : 0;
   const outer = boxOf(params.box);
   let box: BBox | null = outer && reserve > 0 ? { ...outer, y: outer.y + reserve, h: Math.max(outer.h - reserve, outer.h * 0.4) } : outer;
   // A tree whose words need more height than the page has (nine terminals
@@ -223,11 +243,20 @@ function layoutTree(params: DecisionTreeParams & { box?: unknown }, full: boolea
   let squeeze: BBox | null = null;
   /** Laid out at full size in a world larger than the page (`size: "full"`). */
   let spread = false;
+  // The band's bottom holds the nodes; the words under the lowest node (a
+  // chance node's value, its bottom branch's label) hang below it, toward
+  // the table: the table's reserve takes them too, at the words' size.
+  const tableReserve = (): number => {
+    const base = table!.h + TABLE_GAP;
+    const low = placeNodes(h, null, 1, base).low;
+    return base + Math.max(0, Math.ceil(MARGIN.bottom + table!.h + WORDS_GAP - low));
+  };
+  if (!box && table) reserve = tableReserve();
   if (!box) {
     let { k } = placeNodes(h, null, 1, reserve);
     // A rolled-back tree is new, so it may ask more of its budget (0.9: its
     // ends carry long numbers; every tree before it keeps the 0.8 it was drawn with).
-    const K = rolled ? 0.9 : SQUEEZE_K;
+    const K = rolled && !table ? 0.9 : SQUEEZE_K;
     if (k > 0 && k < K && full) {
       spread = true;
       // Its ends in one line each, name then numbers — as a rolled-back
@@ -238,12 +267,66 @@ function layoutTree(params: DecisionTreeParams & { box?: unknown }, full: boolea
     else if (k > 0 && k < K) {
       for (let f = BASE_FONT - 1; f >= MIN_FONT && k < K; f--) {
         useFont(f);
+        if (table) {
+          table = tableOf(params, rolled!, fmt, f);
+          reserve = tableReserve();
+        }
         k = placeNodes(h, null, 1, reserve).k;
       }
-      if (k < K) box = squeeze = { ...BIG_REGION, y: BIG_REGION.y + reserve, h: BIG_REGION.h - reserve };
+      if (k < K) {
+        // Scaled into the page over the table (its words padded in by the fit).
+        const bottom = table ? MARGIN.bottom + table.h + TABLE_GAP : BIG_REGION.y;
+        box = squeeze = table ? { ...BIG_REGION, y: bottom, h: BIG_REGION.y + BIG_REGION.h - bottom } : { ...BIG_REGION, y: BIG_REGION.y + reserve, h: BIG_REGION.h - reserve };
+      }
     }
   }
-  let placed = placeNodes(h, box, 1, spread ? 0 : reserve, spread);
+  // A box shorter than the tree's budget scales the whole tree down, and a
+  // tree scaled by its height leaves the box's width unused. Laid out wider,
+  // its fans' wedges open sooner and it needs less height: spread it toward
+  // where its width and its height ask the same scale of the box, and keep
+  // the spread that is shrunk least (a wrap can change on the way, so the
+  // height need is not monotone in the width).
+  const widened = (region: BBox, fillIt: boolean) => {
+    const room = region.h - 2 * BOX_PAD;
+    const shrink = (g: number, p: ReturnType<typeof placeNodes>) => Math.max(g, p.extent / room);
+    let p = placeNodes(h, region, 1, reserve, false, fillIt);
+    let best = { placed: p, cost: shrink(1, p) };
+    let g = 1;
+    for (let i = 0; i < 4; i++) {
+      const want = p.extent / room;
+      if (want <= g * 1.02) break;
+      g = (g + want) / 2;
+      p = placeNodes(h, region, g, reserve, false, fillIt);
+      if (shrink(g, p) < best.cost - 0.01) best = { placed: p, cost: shrink(g, p) };
+    }
+    return best;
+  };
+  /** The author's box, which the tree fills (not the page's squeeze region). */
+  const fill = box !== null && squeeze === null;
+  if (fill) {
+    // In a box the tree takes the largest words it fits at — up to
+    // BOX_FONT_MAX in a roomy box (it was laid out at label size and then
+    // fitted again, smaller, by the page: 940 × 490 drew it smaller than
+    // the bare page, 2026-09-27), down to MIN_FONT in a narrow one. Where
+    // the box is short, laying it out wider at label size and scaling it
+    // into the box (words and all) may keep its words larger than any size
+    // it fits at: then that. Bigger than label size, it keeps some air.
+    const room = box!.h - 2 * BOX_PAD;
+    const fits = (p: ReturnType<typeof placeNodes>, f: number) => (f > BASE_FONT ? p.extent * BOX_AIR <= room && p.wFit >= BOX_AIR : p.extent <= room && p.wFit >= 1);
+    let fitsAt = 0;
+    for (let f = BOX_FONT_MAX; f >= MIN_FONT && fitsAt === 0; f--) {
+      useFont(f);
+      if (fits(placeNodes(h, box, 1, reserve, false, true), f)) fitsAt = f;
+    }
+    if (fitsAt < BASE_FONT) {
+      useFont(BASE_FONT);
+      // The fit pads the ink (FIT_PAD) and the words overhang the nodes' extent: a little under 1 / cost.
+      const scaled = (BASE_FONT * 0.92) / widened(box!, true).cost;
+      if (scaled > fitsAt) squeeze = box;
+      else useFont(fitsAt);
+    }
+  }
+  let placed = squeeze ? widened(squeeze, fill).placed : placeNodes(h, box, 1, spread ? 0 : reserve, spread, fill);
   if (spread) {
     // A world is seen whole at rest, fitted to 4 : 3: a tree ten pages tall
     // and one wide is a thread. Wider columns open the fans' wedges sooner
@@ -254,26 +337,6 @@ function layoutTree(params: DecisionTreeParams & { box?: unknown }, full: boolea
     for (const g of WORLD_WIDEN) {
       const p = placeNodes(h, null, g, 0, true);
       if (shrink(p) < best.cost - 0.02) best = { placed: p, cost: shrink(p) };
-    }
-    placed = best.placed;
-  }
-  // A box shorter than the tree's budget scales the whole tree down, and a
-  // tree scaled by its height leaves the box's width unused. Laid out wider,
-  // its fans' wedges open sooner and it needs less height: spread it toward
-  // where its width and its height ask the same scale of the box, and keep
-  // the spread that is shrunk least (a wrap can change on the way, so the
-  // height need is not monotone in the width).
-  if (box) {
-    const room = box.h - 2 * BOX_PAD;
-    const shrink = (g: number, p: typeof placed) => Math.max(g, p.extent / room);
-    let best = { g: 1, placed, cost: shrink(1, placed) };
-    let g = 1;
-    for (let i = 0; i < 4; i++) {
-      const want = placed.extent / room;
-      if (want <= g * 1.02) break;
-      g = (g + want) / 2;
-      placed = placeNodes(h, box, g, reserve);
-      if (shrink(g, placed) < best.cost - 0.01) best = { g, placed, cost: shrink(g, placed) };
     }
     placed = best.placed;
   }
@@ -442,7 +505,7 @@ function layoutTree(params: DecisionTreeParams & { box?: unknown }, full: boolea
       // The highlighter under the chosen branch is the branch.
       ignore: pick !== undefined && pick === n.data.cleanId ? [id, `best_${parent.data.cleanId}_${n.data.cleanId}`] : [id],
       labelId: `branchlabel_${parent.data.cleanId}_${n.data.cleanId}`,
-      text: branchText(n.data.branch),
+      text: n.data.branchLabel,
       // What the parent says under and over itself, which the fan's outer
       // labels must not slide into (see branchLabelRequests).
       parentWords: words.get(parent.data.cleanId)!,
@@ -466,7 +529,7 @@ function layoutTree(params: DecisionTreeParams & { box?: unknown }, full: boolea
   }
   labels.push(...terminalNames);
 
-  const out = { drawables, labels, anchors, positions, order, attached, groups, scale: 1, textSize: LABEL_FONT, ...(rolled && { values: valuesOf(rolled, rootWrapped.cleanId, table?.rows ?? null) }) };
+  const out = { drawables, labels, anchors, positions, order, attached, groups, scale: 1, textSize: LABEL_FONT, ...(rolled && { values: valuesOf(rolled, rootWrapped.cleanId, table, typeof params.wtp === "number" && Number.isFinite(params.wtp) ? params.wtp : undefined) }) };
   if (squeeze) {
     const f = fitSceneLayout(out, squeeze, heuristicMeasure);
     if (f) {
@@ -483,9 +546,10 @@ function layoutTree(params: DecisionTreeParams & { box?: unknown }, full: boolea
   // the overlap lint's 2-unit pad could read two of them as touching.)
   if (table && ink) drawTable(table, [Math.round(ink.x + ink.w / 2), Math.round(ink.y - 2 * TABLE_GAP)], out, rolled!.bestId[rootWrapped.cleanId]);
   else if (table) {
-    // Under the tree, centred on it: the page's (or the box's) bottom strip.
-    const area = outer ?? { x: BIG_REGION.x, y: BIG_REGION.y, w: BIG_REGION.w, h: BIG_REGION.h };
-    drawTable(table, [area.x + area.w / 2, area.y + table.h], out, rolled!.bestId[rootWrapped.cleanId]);
+    // Under the tree: the box's bottom strip, or on the page just over the
+    // narration band (MARGIN.bottom).
+    const at: Pt = outer ? [outer.x + outer.w / 2, outer.y + table.h] : [BIG_REGION.x + BIG_REGION.w / 2, MARGIN.bottom + table.h];
+    drawTable(table, at, out, rolled!.bestId[rootWrapped.cleanId]);
   }
   if (spread) {
     // The ink with the table, and room for the solver to move a label.
@@ -529,18 +593,38 @@ const WORLD_PAD = 40;
 const BIG_REGION: BBox = { x: 20, y: 118, w: 960, h: 572 };
 /** Below this share of its budgeted spacing a tree on the bare canvas gives up text size (the budget has slack: 0.8 kept every sampled tree lint-clean, 0.97 cost a nine-terminal tree 5 points of text for nothing). */
 const SQUEEZE_K = 0.8;
-/** Between the table and the tree's lowest words. */
+/** Between the table and the tree's lowest nodes… */
 const TABLE_GAP = 26;
+/** …and its lowest words. */
+const WORDS_GAP = 16;
 
 const TABLE_FONT = 20;
-const TABLE_FONT_MIN = 16;
-const TABLE_ROW = 1.35;
-const TABLE_COL_GAP = 26;
+/** With a net-benefit and a "vs" column a table has eight columns: it may shrink this far to fit its width. */
+const TABLE_FONT_MIN = 15;
+/**
+ * Row pitch, in fonts. At 1.35 two rows' measured boxes (1.25 em each) stood
+ * 0.1 em apart — under the overlap lint's 2-unit pad once the font dropped
+ * below 20 — and an underline or a pointer's sweep under one row landed on
+ * the next (2026-09-27). 1.5 leaves a quarter em.
+ */
+const TABLE_ROW = 1.5;
+const TABLE_COL_GAP = 22;
+/** Half the height of a row's pointing box (a part's GroupDrawable.box), in fonts: the glyphs, not the line's leading. */
+const ROW_HALF = 0.4;
+
+/** Which addressable part of a row a column's cell belongs to. */
+type Part = "base" | "delta" | "icer" | "nmb";
 
 interface Table {
   rows: StrategyRow[];
-  /** Header first, then one line per row, six cells each. */
+  /** The header's cells, one per column. */
+  head: string[];
+  /** One line per row (in `rows` order), a cell per column; "" is an empty cell. */
   cells: string[][];
+  /** The part each column belongs to: name, cost, effect | vs, Δ cost, Δ effect | ICER | net benefit. */
+  parts: Part[];
+  /** Columns written from the left (names); the rest are numbers, right-aligned. */
+  left: boolean[];
   colW: number[];
   font: number;
   w: number;
@@ -548,15 +632,23 @@ interface Table {
   /** "At $30,000 per QALY": the willingness to pay the pick was made at,
    *  under the rows (strategy_wtp) — drawn so the viewer can take hold of it. */
   wtp?: string;
+  /** Each row's increments and ICER as the table shows them (for `{tree.<key>}`). */
+  shown: Record<string, { dCost?: number; dEffect?: number; icer?: number }>;
 }
 
 /**
  * The root decision's options as a cost-effectiveness table: by cost, each
- * against the cheaper option on the frontier, with its ICER or why it has
- * none. Null unless the root is a decision whose options all have a payoff
- * and a cost.
+ * against the cheaper option on the frontier (named in the "vs" column), with
+ * its ICER or why it has none, and with a willingness to pay each option's
+ * net benefit. Null unless the root is a decision whose options all have a
+ * payoff and a cost.
+ *
+ * The increments are the differences of the numbers AS SHOWN, and the ICER
+ * their ratio: a reader checks a table by eye, and "$10,200 − $7,668 =
+ * +$2,547" (the unrounded difference) does not check. Dominance is still
+ * judged on the unrounded numbers.
  */
-function tableOf(params: DecisionTreeParams & { box?: unknown }, rolled: Rolled, fmt: Format): Table | null {
+function tableOf(params: DecisionTreeParams & { box?: unknown }, rolled: Rolled, fmt: Format, maxFont = TABLE_FONT): Table | null {
   const root = params.root;
   if (root.type !== "decision" || !rolled.hasCost || !rolled.hasPayoff) return null;
   const options = (root.children ?? []).map((b, i) => {
@@ -565,34 +657,62 @@ function tableOf(params: DecisionTreeParams & { box?: unknown }, rolled: Rolled,
   });
   if (options.length < 2 || options.some((o) => o.cost === undefined || o.effect === undefined)) return null;
   const rows = strategyTable(options as { id: string; label: string; cost: number; effect: number }[]);
+  const byId = new Map(rows.map((r) => [r.id, r]));
   const say = (en: string, nb: string) => kit.say({ en, nb });
   const eff = fmt.unit ?? say("Effect", "Effekt");
   const signed = (v: number, f: (v: number) => string) => (v > 1e-9 ? `+${f(v)}` : f(v));
-  const cells: string[][] = [
-    ["", say("Cost", "Kostnad"), eff, `Δ ${say("cost", "kostnad")}`, `Δ ${eff}`, say("ICER", "IKER")],
-    ...rows.map((r) => [
+  const wtp = typeof params.wtp === "number" && Number.isFinite(params.wtp) ? params.wtp : undefined;
+  const shown: Table["shown"] = {};
+  const head = ["", say("Cost", "Kostnad"), eff, say("vs", "mot"), `Δ ${say("cost", "kostnad")}`, `Δ ${eff}`, say("ICER", "IKER"), ...(wtp !== undefined ? [say("Net benefit", "Netto nytte")] : [])];
+  const cells = rows.map((r) => {
+    const vs = r.vs !== undefined ? byId.get(r.vs) : undefined;
+    let dCost: number | undefined;
+    let dEffect: number | undefined;
+    let icer: number | undefined;
+    if (vs) {
+      dCost = fmt.moneyRound(r.cost) - fmt.moneyRound(vs.cost);
+      dEffect = fmt.round(fmt.round(r.effect) - fmt.round(vs.effect));
+      if (r.icer !== undefined) icer = Math.abs(dEffect) > 1e-9 ? dCost / dEffect : r.icer;
+    }
+    shown[r.id] = { ...(dCost !== undefined && { dCost }), ...(dEffect !== undefined && { dEffect }), ...(icer !== undefined && { icer }) };
+    const verdict = r.status === "dominated" ? say("dominated", "dominert") : r.status === "ext_dominated" ? say("ext. dominated", "utv. dominert") : icer !== undefined ? fmt.money(icer) : "";
+    return [
       r.label,
       fmt.money(r.cost),
       fmt.num(r.effect),
-      r.dCost === undefined ? "" : signed(r.dCost, fmt.money),
-      r.dEffect === undefined ? "" : signed(r.dEffect, fmt.num),
-      r.status === "dominated" ? say("dominated", "dominert") : r.status === "ext_dominated" ? say("ext. dominated", "utv. dominert") : r.icer !== undefined ? fmt.money(r.icer) : "",
-    ]),
-  ];
+      vs ? vs.label : "",
+      dCost === undefined ? "" : signed(dCost, fmt.money),
+      dEffect === undefined ? "" : signed(dEffect, fmt.num),
+      verdict,
+      ...(wtp !== undefined ? [fmt.money(r.effect * wtp - r.cost)] : []),
+    ];
+  });
+  const parts: Part[] = ["base", "base", "base", "delta", "delta", "delta", "icer", ...(wtp !== undefined ? ["nmb" as const] : [])];
+  const left = parts.map((_, j) => j === 0 || j === 3);
+  // Two options: the second is against the first, as anyone sees — no "vs".
+  const keep = (_: unknown, j: number) => rows.length > 2 || j !== 3;
+  const table = { head: head.filter(keep), cells: cells.map((c) => c.filter(keep)), parts: parts.filter(keep), left: left.filter(keep) };
   const room = (boxOf(params.box)?.w ?? BIG_REGION.w) - 20;
+  const all = [table.head, ...table.cells];
   const measure = (font: number) => {
-    const colW = cells[0].map((_, j) => Math.max(...cells.map((row) => heuristicMeasure(row[j], font).w)));
+    const colW = table.head.map((_, j) => Math.ceil(Math.max(...all.map((row) => heuristicMeasure(row[j], font).w))));
     return { colW, w: colW.reduce((a, b) => a + b, 0) + TABLE_COL_GAP * (colW.length - 1) };
   };
-  let font = TABLE_FONT;
+  // Never larger than the tree's own words (a tree that gave up size for
+  // room gives its table's rows that room too).
+  const top = Math.min(TABLE_FONT, Math.max(TABLE_FONT_MIN, maxFont));
+  let font = top;
   let m = measure(font);
   if (m.w > room) {
-    font = Math.max(TABLE_FONT_MIN, Math.floor((TABLE_FONT * room) / m.w));
+    font = Math.max(TABLE_FONT_MIN, Math.floor((top * room) / m.w));
     m = measure(font);
   }
-  const wtp = typeof params.wtp === "number" && Number.isFinite(params.wtp) ? `${say("At", "Ved")} ${fmt.money(params.wtp)} ${say("per", "per")} ${perUnit(fmt.unit) ?? say("unit", "enhet")}` : undefined;
-  const lines = cells.length + (wtp ? 1 : 0);
-  return { rows, cells, colW: m.colW, font, w: m.w, h: lines * font * TABLE_ROW + 10, ...(wtp ? { wtp } : {}) };
+  const wtpLine = wtp !== undefined ? `${say("At", "Ved")} ${fmt.money(wtp)} ${say("per", "per")} ${perUnit(fmt.unit) ?? say("unit", "enhet")}` : undefined;
+  const lines = 1 + rows.length + (wtpLine ? 1 : 0);
+  // Header centre 0.9 em under the top, 6 more under the rule, a pitch a
+  // line, and the last line's lower half.
+  const h = Math.ceil(Math.round(font * 0.9) + 6 + Math.round(font * TABLE_ROW) * (lines - 1) + 0.65 * font);
+  return { rows, ...table, colW: m.colW, font, w: m.w, h, shown, ...(wtpLine ? { wtp: wtpLine } : {}) };
 }
 
 /** "per QALY", not "per QALYs": the unit a column names in the plural, one of it. */
@@ -601,42 +721,85 @@ function perUnit(unit: string | undefined): string | undefined {
 }
 
 /**
- * strategy_head, strategy_rule and one strategy_row_<optionId> per option,
- * top edge at `at`; the group strategy_table names them all. The option the
- * decision takes is in the chosen branch's colour.
+ * The table, top edge centred at `at`, on whole units (its rows stand exactly
+ * a pitch apart; at a fraction the overlap lint's pad could read two as
+ * touching). Each row is addressable whole or in parts, so a cast can draw
+ * the rows first and argue the verdicts on a later beat:
+ *
+ *   strategy_row_<id>    the group of the row's parts below (all of the row)
+ *   strategy_base_<id>   name, cost, effect
+ *   strategy_delta_<id>  vs (the option it is compared with), Δ cost, Δ effect — not on the cheapest row
+ *   strategy_icer_<id>   the ICER, or "dominated" / "ext. dominated" — not on the cheapest row
+ *   strategy_nmb_<id>    with wtp: its net benefit; the group strategy_nmb is the whole column
+ *
+ * strategy_head, strategy_rule and strategy_wtp; the group strategy_table
+ * names them all. Each part carries a box of its glyphs' band (not the
+ * line's leading): a pointer's underline sweep under a row stays off the
+ * next one. A dominated option's verdict is grey; the option the decision
+ * takes is in the chosen branch's colour — its net benefit with a wtp, its
+ * name without.
  */
 function drawTable(t: Table, at: Pt, out: { drawables: Drawable[]; anchors: Record<string, Pt>; order: string[]; groups: Record<string, string[]> }, pick: string | undefined): void {
-  const x0 = at[0] - t.w / 2;
-  const lineH = t.font * TABLE_ROW;
+  const x0 = Math.round(at[0] - t.w / 2);
+  const top = Math.round(at[1]);
+  const pitch = Math.round(t.font * TABLE_ROW);
+  const colLeft = t.colW.map((_, j) => x0 + t.colW.slice(0, j).reduce((a, b) => a + b, 0) + TABLE_COL_GAP * j);
+  const colRight = colLeft.map((x, j) => x + t.colW[j]);
   const members: string[] = [];
-  // Name left, numbers right-aligned in their columns.
-  const colRight = t.colW.map((_, j) => x0 + t.colW.slice(0, j + 1).reduce((a, b) => a + b, 0) + TABLE_COL_GAP * j);
-  const row = (id: string, cells: string[], y: number, color: string) => {
-    const kids = cells.flatMap((c, j) =>
-      c === "" ? [] : [kit.text(`${id}__c${j}`, j === 0 ? [x0, y] : [colRight[j], y], c, { fontSize: t.font, anchor: j === 0 ? "start" : "end", color })],
-    );
-    out.drawables.push(kit.group(id, kids));
-    out.anchors[id] = [at[0], y];
+  const nmbColumn: string[] = [];
+  /** One part: its cells as a group with a box, or nothing when every cell is empty. */
+  const part = (id: string, cells: string[], cols: number[], y: number, color: (j: number) => string): string | null => {
+    const used = cols.filter((j) => cells[j] !== "");
+    if (used.length === 0) return null;
+    const kids = used.map((j) => kit.text(`${id}__c${j}`, [t.left[j] ? colLeft[j] : colRight[j], y], cells[j], { fontSize: t.font, anchor: t.left[j] ? "start" : "end", color: color(j) }));
+    const g = kit.group(id, kids);
+    const bx0 = Math.min(...used.map((j) => colLeft[j]));
+    const bx1 = Math.max(...used.map((j) => colRight[j]));
+    g.box = { x: bx0, y: y - ROW_HALF * t.font, w: bx1 - bx0, h: 2 * ROW_HALF * t.font };
+    out.drawables.push(g);
+    out.anchors[id] = [(bx0 + bx1) / 2, y];
     out.order.push(id);
-    members.push(id);
+    return id;
   };
-  let y = at[1] - t.font * 0.9;
-  row("strategy_head", t.cells[0], y, COLORS.guide);
-  const ruleY = y - t.font * 0.85;
+  const colsOf = (p: Part) => t.parts.flatMap((q, j) => (q === p ? [j] : []));
+  const nonNmb = t.parts.flatMap((q, j) => (q === "nmb" ? [] : [j]));
+  let y = top - Math.round(t.font * 0.9);
+  const guide = () => COLORS.guide;
+  if (part("strategy_head", t.head, nonNmb, y, guide)) members.push("strategy_head");
+  const nmbHead = part("strategy_nmb_head", t.head, colsOf("nmb"), y, guide);
+  if (nmbHead) {
+    members.push(nmbHead);
+    nmbColumn.push(nmbHead);
+  }
+  const ruleY = y - Math.round(t.font * 0.85);
   const rule = kit.stroke("strategy_rule", [[x0, ruleY], [x0 + t.w, ruleY]], { color: COLORS.guide, strokeWidth: 1.5, ms: SKETCH_MS.guides });
   out.drawables.push(rule);
-  out.anchors.strategy_rule = [at[0], ruleY];
+  out.anchors.strategy_rule = [x0 + t.w / 2, ruleY];
   out.order.push("strategy_rule");
   members.push("strategy_rule");
-  y -= lineH + 6;
+  y -= pitch + 6;
+  const hasNmb = t.parts.includes("nmb");
   t.rows.forEach((r, i) => {
-    const color = r.id === pick ? COLORS.accent : r.status === "dominated" || r.status === "ext_dominated" ? COLORS.guide : COLORS.ink;
-    row(`strategy_row_${r.id}`, t.cells[i + 1], y, color);
-    y -= lineH;
+    const cells = t.cells[i];
+    const beaten = r.status === "dominated" || r.status === "ext_dominated";
+    const picked = r.id === pick;
+    const color = (j: number) =>
+      picked && ((hasNmb && t.parts[j] === "nmb") || (!hasNmb && j === 0)) ? COLORS.accent : beaten && t.parts[j] === "icer" ? COLORS.guide : COLORS.ink;
+    const row = (["base", "delta", "icer"] as const).flatMap((p) => part(`strategy_${p}_${r.id}`, cells, colsOf(p), y, color) ?? []);
+    out.groups[`strategy_row_${r.id}`] = row;
+    out.anchors[`strategy_row_${r.id}`] = [x0 + t.w / 2, y];
+    members.push(`strategy_row_${r.id}`);
+    const nmb = part(`strategy_nmb_${r.id}`, cells, colsOf("nmb"), y, color);
+    if (nmb) {
+      members.push(nmb);
+      nmbColumn.push(nmb);
+    }
+    y -= pitch;
   });
+  if (nmbColumn.length > 0) out.groups.strategy_nmb = nmbColumn;
   if (t.wtp) {
     out.drawables.push(kit.text("strategy_wtp", [x0, y], t.wtp, { fontSize: t.font, anchor: "start", color: COLORS.guide }));
-    out.anchors.strategy_wtp = [at[0], y];
+    out.anchors.strategy_wtp = [x0 + heuristicMeasure(t.wtp, t.font).w / 2, y];
     out.order.push("strategy_wtp");
     members.push("strategy_wtp");
   }
@@ -685,7 +848,7 @@ function collapsedStubs(id: string, type: TreeNode["type"], c: Pt): GroupDrawabl
 const STUB_LEN = 30;
 
 /** The numbers, for `{tree.<key>}` tokens (layout.ts TEMPLATE_VALUES_NAME). */
-function valuesOf(rolled: Rolled, rootId: string, rows: StrategyRow[] | null): Record<string, number> {
+function valuesOf(rolled: Rolled, rootId: string, table: Table | null, wtp: number | undefined): Record<string, number> {
   const v: Record<string, number> = {};
   for (const [id, e] of Object.entries(rolled.ev)) v[`ev_${id}`] = e;
   for (const [id, c] of Object.entries(rolled.cost)) v[`cost_${id}`] = c;
@@ -694,23 +857,32 @@ function valuesOf(rolled: Rolled, rootId: string, rows: StrategyRow[] | null): R
   for (const [id, k] of Object.entries(rolled.best)) v[`best_${id}`] = k;
   // The root decision's pick, as the index of its option.
   if (rolled.best[rootId] !== undefined) v.best = rolled.best[rootId];
-  for (const r of rows ?? []) {
-    if (r.icer !== undefined) v[`icer_${r.id}`] = r.icer;
-    if (r.dCost !== undefined) v[`dcost_${r.id}`] = r.dCost;
-    if (r.dEffect !== undefined) v[`deffect_${r.id}`] = r.dEffect;
+  // As the table shows them: the differences of its rounded numbers.
+  for (const [id, r] of Object.entries(table?.shown ?? {})) {
+    if (r.icer !== undefined) v[`icer_${id}`] = r.icer;
+    if (r.dCost !== undefined) v[`dcost_${id}`] = r.dCost;
+    if (r.dEffect !== undefined) v[`deffect_${id}`] = r.dEffect;
   }
+  // The willingness to pay itself, so drawn text follows an animate of it.
+  if (wtp !== undefined) v.wtp = wtp;
   return v;
 }
 
-/** A branch's label text: "Grows (p=0.53)", "p=0.2", "Watch", or nothing. */
-function branchText(branch: TreeBranch | undefined): string | undefined {
-  const parts: string[] = [];
-  if (branch?.label) parts.push(branch.label);
+/**
+ * A branch's label text: "Grows (p=0.53)", "p=0.2", "Watch", or nothing —
+ * with a cost paid on a branch into a subtree after its name ("Screen,
+ * $300", "Test, $300 (p=0.4)"): the fold-back counts it, so the tree shows
+ * it (2026-09-27: a $300 screening branch was in the pick and nowhere on the
+ * page). On a branch into a terminal the cost is the terminal's own, drawn
+ * with its payoff.
+ */
+function branchText(branch: TreeBranch | undefined, cost?: string): string | undefined {
+  const name = [branch?.label || undefined, cost].filter((x): x is string => x !== undefined).join(", ") || undefined;
   // 1/3 prints as 0.3333333333333333 — a token too long to wrap. Three
   // decimals is all a tree's reader uses.
   const p = branch?.probability !== undefined ? Number(branch.probability.toFixed(3)) : undefined;
-  if (p !== undefined) parts.push(`p=${p}`);
-  return parts.length === 0 ? undefined : p !== undefined && branch?.label ? `${branch.label} (p=${p})` : parts.join(" ");
+  if (p === undefined) return name;
+  return name !== undefined ? `${name} (p=${p})` : `p=${p}`;
 }
 
 /**
@@ -1088,7 +1260,14 @@ function boxOf(v: unknown): BBox | null {
  * - with a box the tree is laid out in the box itself, at label size, instead
  *   of on the whole canvas and shrunk into it.
  */
-function placeNodes(h: Node, boxParam: BBox | null, widen: number, reserve = 0, spread = false): { at: Map<Node, Pt>; extent: number; k: number; w: number; h: number } {
+function placeNodes(
+  h: Node,
+  boxParam: BBox | null,
+  widen: number,
+  reserve = 0,
+  spread = false,
+  fill = false,
+): { at: Map<Node, Pt>; extent: number; k: number; w: number; h: number; low: number; wFit: number } {
   const nodes = h.descendants();
   const order = new Map(nodes.map((n, i) => [n, i] as const)); // breadth-first: within a depth, top to bottom
   const depth = h.height;
@@ -1116,12 +1295,17 @@ function placeNodes(h: Node, boxParam: BBox | null, widen: number, reserve = 0, 
     ? [boxParam.x + Math.min(Math.max(rootHalf + 10, 45), 160), boxParam.x + boxParam.w * widen - Math.min(Math.max(rightWords * TEXT_SLACK + 10, 120), 320)]
     : [MARGIN.left, CANVAS.w - (INLINE_TERMINALS ? Math.min(Math.max(rightWords * TEXT_SLACK + 16, 150), 420) : MARGIN.right)];
 
-  const need = new Array<number>(depth).fill(COLUMN_MIN);
+  // In an author's box a column's floor goes with the words: at 16 a column
+  // of 230 took half a 600-wide box and squeezed its neighbour's labels out
+  // onto leaders (2026-09-27).
+  const need = new Array<number>(depth).fill(fill ? COLUMN_MIN * Math.min(1, LABEL_FONT / BASE_FONT) : COLUMN_MIN);
   for (const n of nodes) {
-    const t = n.parent && branchText(n.data.branch);
+    const t = n.parent && n.data.branchLabel;
     if (t) need[n.parent!.depth] = Math.max(need[n.parent!.depth], Math.min(textBox(t, Infinity).w * TEXT_SLACK, COLUMN_LABEL_MAX) + COLUMN_ENDS);
   }
   const total = need.reduce((a, b) => a + b, 0);
+  /** How much of the columns' budget the width holds (≥ 1: every column gets its labels' room). */
+  const wFit = (x1 - x0) / (total || 1);
   // Spread (a world), a column is never narrower than its budget: the tree
   // grows right past the page instead.
   const col = need.map((v) => (spread ? v * Math.max(1, (x1 - x0) / (total || 1)) * widen : (v * (x1 - x0)) / (total || 1)));
@@ -1156,7 +1340,7 @@ function placeNodes(h: Node, boxParam: BBox | null, widen: number, reserve = 0, 
   // A label wraps at its column's room less the widest a browser's text runs.
   const labelWidth = (n: Node) => Math.max(60, (col[n.parent!.depth] - COLUMN_ENDS) / TEXT_SLACK);
   const labelOn = (n: Node, gap: Gap) => {
-    const t = n.parent ? branchText(n.data.branch) : undefined;
+    const t = n.parent ? n.data.branchLabel : undefined;
     return t !== undefined && gapOf(n) === gap ? t : undefined;
   };
   /** What a node and the branch label on each side of it take, above and below its centre. */
@@ -1205,6 +1389,8 @@ function placeNodes(h: Node, boxParam: BBox | null, widen: number, reserve = 0, 
     return d;
   };
   const bx = (n: Node) => (n as Node & { x: number }).x;
+  /** The lowest the nodes' words reach, placed. */
+  const lowest = (at: Map<Node, Pt>) => Math.min(...nodes.map((n) => at.get(n)![1] - down(n)));
   const layout = tree<Wrapped>().nodeSize([1, 1]).separation(sep);
   layout(h);
   if (nodes.some(shallowTerminal)) {
@@ -1231,7 +1417,7 @@ function placeNodes(h: Node, boxParam: BBox | null, widen: number, reserve = 0, 
     const k = hi > lo ? Math.max(WORLD_STRETCH, plotH / (hi - lo)) : 1;
     for (const n of nodes) out.set(n, [xAt(n.depth), CANVAS.h - MARGIN.top - (bx(n) - lo) * k]);
     // Its size, roughly: the page's margins round the nodes.
-    return { at: out, extent: (hi - lo) * k, k, w: xAt(depth) + CANVAS.w - x1, h: (hi - lo) * k + MARGIN.top + MARGIN.bottom };
+    return { at: out, extent: (hi - lo) * k, k, w: xAt(depth) + CANVAS.w - x1, h: (hi - lo) * k + MARGIN.top + MARGIN.bottom, low: lowest(out), wFit };
   }
   if (!boxParam) {
     // On the bare canvas the nodes fill the plot band, as they always have.
@@ -1239,7 +1425,7 @@ function placeNodes(h: Node, boxParam: BBox | null, widen: number, reserve = 0, 
     const plotH = CANVAS.h - MARGIN.top - MARGIN.bottom - reserve;
     const k = hi > lo ? plotH / (hi - lo) : 0;
     for (const n of nodes) out.set(n, [xAt(n.depth), hi > lo ? CANVAS.h - MARGIN.top - (bx(n) - lo) * k : MARGIN.bottom + reserve + plotH / 2]);
-    return { at: out, extent: plotH, k, w: CANVAS.w, h: CANVAS.h };
+    return { at: out, extent: plotH, k, w: CANVAS.w, h: CANVAS.h, low: lowest(out), wFit };
   }
   // In a box: at the spacing budgeted, centred, words and outer labels
   // included. A box too small overflows here, and the template fit then
@@ -1247,7 +1433,7 @@ function placeNodes(h: Node, boxParam: BBox | null, widen: number, reserve = 0, 
   const top = Math.max(...nodes.map((n) => -bx(n) + up(n)));
   const bottom = Math.min(...nodes.map((n) => -bx(n) - down(n)));
   const room = boxParam.h - 2 * BOX_PAD;
-  const k = hi > lo ? Math.max(1, Math.min(BOX_STRETCH, 1 + (room - (top - bottom)) / (hi - lo))) : 1;
+  const k = hi > lo ? Math.max(1, Math.min(fill ? BOX_FILL_STRETCH : BOX_STRETCH, 1 + (room - (top - bottom)) / (hi - lo))) : 1;
   const mid = boxParam.y + boxParam.h / 2;
   // Stretched by k, the words' extent is [bottom', top'] about the nodes.
   const yOf = (n: Node) => -bx(n) * k;
@@ -1255,11 +1441,17 @@ function placeNodes(h: Node, boxParam: BBox | null, widen: number, reserve = 0, 
   const bottomK = Math.min(...nodes.map((n) => yOf(n) - down(n)));
   const shift = mid - (topK + bottomK) / 2;
   for (const n of nodes) out.set(n, [xAt(n.depth) - (boxParam.w * (widen - 1)) / 2, yOf(n) + shift]);
-  return { at: out, extent: topK - bottomK, k, w: boxParam.w, h: boxParam.h };
+  return { at: out, extent: topK - bottomK, k, w: boxParam.w, h: boxParam.h, low: bottomK + shift, wFit };
 }
 
-/** How much a box may spread the tree past its budget, to fill the box. */
+/** How much the page's squeeze region may spread the tree past its budget… */
 const BOX_STRETCH = 1.3;
+/** …and an author's box, which the tree fills as it fills the page (whose stretch is not capped). */
+const BOX_FILL_STRETCH = 2;
+/** The largest words a tree takes in a roomy box (BASE_FONT on the page)… */
+const BOX_FONT_MAX = 30;
+/** …with this much air, in height and width, over what the words need. */
+const BOX_AIR = 1.1;
 
 function nodeDrawable(id: string, type: TreeNode["type"], c: Pt): StrokeDrawable {
   const style = defaultStyle({ strokeWidth: 3.5, color: type === "decision" ? COLORS.demand : type === "chance" ? COLORS.supply : COLORS.ink });

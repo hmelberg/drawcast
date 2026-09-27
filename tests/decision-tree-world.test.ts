@@ -75,7 +75,7 @@ describe("a tree too big for the page, in a world", () => {
     const r = layoutSpec(specOf(p));
     const boxes = elementBBoxes(r);
     const lowestNode = Math.min(...[...boxes].filter(([id]) => id.startsWith("node_")).map(([, b]) => b.y));
-    const rows = [...boxes].filter(([id]) => id.startsWith("strategy_row_"));
+    const rows = [...boxes].filter(([id]) => id.startsWith("strategy_base_"));
     expect(rows).toHaveLength(4);
     for (const [, b] of rows) {
       expect(b.y + b.h).toBeLessThan(lowestNode);
@@ -135,7 +135,8 @@ describe("the trees that fit are untouched", () => {
     expect(l.world).toBeUndefined();
     expect(JSON.stringify(layoutDecisionTree({ ...structuredClone(params), size: "page" }))).toBe(plain);
     const full = layoutDecisionTree({ ...structuredClone(params), size: "full" });
-    if (l.textSize === 26) expect(JSON.stringify(full)).toBe(plain);
+    // A box ignores size (it is filled); on the page a tree at full size is the same tree.
+    if (l.textSize === 26 || params.box !== undefined) expect(JSON.stringify(full)).toBe(plain);
     else {
       // Its words had given up size to fit (the cost example, at 19): full
       // keeps them at 26, in a world a little larger than the page.

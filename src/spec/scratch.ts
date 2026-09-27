@@ -16,6 +16,7 @@
 // the code panel's window height); the corner is the usual `at: {place}`.
 
 import { heuristicMeasure } from "../layout/measure";
+import { formatVar } from "./vars";
 import type { Spec, SpecElement } from "./types";
 
 export type NoteLine = string | { tex: string };
@@ -40,6 +41,25 @@ function roundedRect(cx: number, cy: number, w: number, h: number, r: number): [
   corner(x0 + r, y0 + r, Math.PI); // bottom left
   corner(x1 - r, y0 + r, (3 * Math.PI) / 2); // bottom right
   return pts.map(([x, y]) => [Math.round(x * 10) / 10, Math.round(y * 10) / 10]);
+}
+
+/**
+ * A line as wide as it will be drawn: its `{name}` tokens (layout expands
+ * them) replaced by a number of plausible width. A card sized by
+ * "Cheap ${tree.nmb_cheap:0,}" as written was twice the drawn line and ran
+ * off the page (2026-09-27). A var: its value, with a digit to grow into (an
+ * animate may lengthen it); a value only the layout knows (a template's, a
+ * script's): as many digits as its format usually shows.
+ */
+function plausibleText(line: string, vars: Record<string, number>): string {
+  if (!line.includes("{")) return line;
+  return line.replace(/\{([a-zA-Z_][a-zA-Z_0-9]*(?:\.[a-zA-Z_][a-zA-Z_0-9]*)?)(?::(\d)?(,)?)?\}/g, (_whole, name: string, decimals: string | undefined, group: string | undefined) => {
+    const d = decimals === undefined ? undefined : Number(decimals);
+    const v = vars[name];
+    if (typeof v === "number" && Number.isFinite(v)) return `${formatVar(v, d, false, group !== undefined)}0`;
+    const frac = d === undefined ? ".00" : d > 0 ? `.${"0".repeat(d)}` : "";
+    return group !== undefined ? `000,000${frac}` : `0000${frac}`;
+  });
 }
 
 export function expandScratch(spec: Spec): Spec {
@@ -71,7 +91,7 @@ export function expandScratch(spec: Spec): Spec {
     // out with when no font is at hand, and wider than the drawn hand — so a
     // line never overhangs its card in either.
     const widthOf = (l: NoteLine) =>
-      typeof l === "string" ? heuristicMeasure(l, size).w : texChars(l.tex) * texSize * 0.42;
+      typeof l === "string" ? heuristicMeasure(plausibleText(l, spec.vars ?? {}), size).w : texChars(l.tex) * texSize * 0.42;
     const w = Math.max(160, ...lines.map(widthOf)) + 2 * PAD;
     const h = Math.max(1, lines.length) * lineH + 2 * PAD - (lineH - size * 1.2);
     // Where: an explicit centre, or a named corner of the page under the

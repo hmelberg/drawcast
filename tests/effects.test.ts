@@ -70,10 +70,12 @@ describe("pointerPath", () => {
     }
   });
 
-  test("underline sweeps beneath the box", () => {
-    const path = pointerPath(target, "underline");
+  test("underline sweeps beneath the box: 14 under a label's box, less under a short one (a table row's glyph band)", () => {
+    const tall = { ...target, box: { ...target.box, h: 40 } };
     for (const t of [0.3, 0.6, 0.9]) {
-      expect(path(t)[1]).toBeCloseTo(target.box.y - 14);
+      expect(pointerPath(tall, "underline")(t)[1]).toBeCloseTo(tall.box.y - 14);
+      // 20 high: 0.43 of it, so the sweep under one row of a table stays off the next.
+      expect(pointerPath(target, "underline")(t)[1]).toBeCloseTo(target.box.y - 8.6);
     }
   });
 

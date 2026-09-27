@@ -97,17 +97,7 @@ export function rollback(root: TreeNode, opts: RollbackOptions = {}): Rolled {
       e = num(node.payoff) ?? num(branch?.payoff);
       c = out.hasCost ? num(node.cost) ?? num(branch?.cost) ?? 0 : undefined;
     } else {
-      const rolled = kids.map((b, i) => {
-        const r = fold(b.node, [...path, i], b);
-        const childId = nodeId(b.node, [...path, i]);
-        // A cost (or payoff) on a branch into a subtree is paid on the way
-        // through: added to everything after it. On a branch into a
-        // terminal it IS the terminal's (payoffOf in layout.ts).
-        const into = b.node.type !== "terminal" && (b.node.children ?? []).length > 0;
-        const e = r.e === undefined ? undefined : r.e + (into ? num(b.payoff) ?? 0 : 0);
-        const c = r.c === undefined ? undefined : r.c + (into ? num(b.cost) ?? 0 : 0);
-        return { e, c, childId };
-      });
+      const rolled = kids.map((b, i) => ({ ...fold(b.node, [...path, i], b), childId: nodeId(b.node, [...path, i]) }));
       if (node.type === "chance") {
         const { p, filled } = fillProbabilities(kids);
         kids.forEach((_, i) => {
@@ -152,6 +142,17 @@ export function rollback(root: TreeNode, opts: RollbackOptions = {}): Rolled {
           c = rolled[k].c;
         }
       }
+    }
+    // A cost (or payoff) on the branch INTO a subtree is paid on the way
+    // through: it counts for everything below the branch, so it is part of
+    // the subtree's own numbers — its value_<id>, {tree.cost_<id>}, nmb and
+    // its row in the strategy table — and of every pick above it. (Added
+    // only to the parent's pick before 2026-09-27: the table showed a $300
+    // screening option as $0.) On a branch into a terminal it IS the
+    // terminal's number (above, and payoffText in layout.ts).
+    if (branch && node.type !== "terminal" && kids.length > 0) {
+      if (e !== undefined) e += num(branch.payoff) ?? 0;
+      if (c !== undefined) c += num(branch.cost) ?? 0;
     }
     if (e !== undefined) out.ev[id] = e;
     if (c !== undefined) out.cost[id] = c;
@@ -221,7 +222,9 @@ export interface StrategyInput {
 export interface StrategyRow extends StrategyInput {
   /** "ref": the cheapest undominated option; "frontier": on the efficient frontier, with an ICER. */
   status: "ref" | "frontier" | "dominated" | "ext_dominated";
-  /** Against the previous option on the frontier (cheaper), when there is one. */
+  /** The option the increments are against: the next cheaper one on the frontier, when there is one. */
+  vs?: string;
+  /** Against that option. */
   dCost?: number;
   dEffect?: number;
   icer?: number;
@@ -263,6 +266,7 @@ export function strategyTable(options: StrategyInput[]): StrategyRow[] {
   let prev: StrategyRow | undefined;
   for (const r of rows) {
     if (prev) {
+      r.vs = prev.id;
       r.dCost = r.cost - prev.cost;
       r.dEffect = r.effect - prev.effect;
     }

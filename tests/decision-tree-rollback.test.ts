@@ -96,10 +96,37 @@ describe("fold-back", () => {
     expect(r.ev.c).toBeCloseTo(4, 10);
   });
 
-  test("a branch cost into a subtree is added to everything after it", () => {
+  test("a branch cost into a subtree counts for everything below the branch: the subtree's own numbers too", () => {
     const root: TreeNode = { id: "d", type: "decision", label: "D", children: [{ cost: 100, node: { id: "c", type: "chance", label: "C", children: [{ probability: 0.5, node: t("a", 1, 10) }, { probability: 0.5, node: t("b", 1, 30) }] } }] };
-    expect(rollback(root).cost.c).toBe(20);
+    expect(rollback(root).cost.c).toBe(120);
     expect(rollback(root).cost.d).toBe(120);
+    expect(rollback(root, { wtp: 1000 }).nmb.c).toBe(880);
+  });
+
+  test("a cost on a root option's branch reaches its value, its {tree.cost_<id>}, its table row and the pick alike", () => {
+    // Screen: $300 on the branch, then 0.9 × 10 + 0.1 × 8; none: 9.5, free.
+    const params: DecisionTreeParams = {
+      rollback: true,
+      wtp: 50000,
+      currency: "$",
+      root: {
+        id: "choice",
+        type: "decision",
+        label: "Screen?",
+        children: [
+          { label: "Screen", cost: 300, node: { id: "screen", type: "chance", label: "Test", children: [{ probability: 0.9, node: t("ok", 10, 0) }, { node: t("sick", 8, 0) }] } },
+          { label: "None", node: t("none", 9.5, 0) },
+        ],
+      },
+    };
+    const l = layoutDecisionTree(params);
+    expect(l.values!.cost_screen).toBe(300);
+    expect(l.values!.nmb_screen).toBeCloseTo(9.8 * 50000 - 300, 6);
+    expect(labelText(l, "value_screen")).toBe("9.8, $300");
+    const base = flattenDrawables(l.drawables).filter((d) => d.id.startsWith("strategy_base_screen__")) as TextDrawable[];
+    expect(base.map((d) => d.text)).toEqual(["Screen", "$300", "9.8"]);
+    expect(l.values!.best).toBe(0);
+    expect(l.values!.icer_screen).toBeCloseTo(300 / 0.3, 6);
   });
 
   test("a missing payoff leaves everything above it unfolded, and the lint says which", () => {
@@ -141,9 +168,31 @@ describe("costs, willingness to pay and the ICER table", () => {
     expect(v.best).toBe(1);
     expect(v.ev_choice).toBeCloseTo(7.1, 10);
     expect(v.cost_choice).toBeCloseTo(78000, 6);
-    expect(l.groups?.strategy_table).toEqual(["strategy_head", "strategy_rule", "strategy_row_watch", "strategy_row_med", "strategy_row_surgery", "strategy_wtp"]);
-    const row = flattenDrawables(l.drawables).filter((d) => d.id.startsWith("strategy_row_med__")) as TextDrawable[];
-    expect(row.map((d) => d.text)).toEqual(["Medication", "$78,000", "7.1", "+$36,000", "+1.3", "$27,700"]);
+    expect(l.groups?.strategy_table).toEqual([
+      "strategy_head",
+      "strategy_nmb_head",
+      "strategy_rule",
+      "strategy_row_watch",
+      "strategy_nmb_watch",
+      "strategy_row_med",
+      "strategy_nmb_med",
+      "strategy_row_surgery",
+      "strategy_nmb_surgery",
+      "strategy_wtp",
+    ]);
+    // A row is its parts, so a cast can draw the verdict on a later beat;
+    // the cheapest row has no increments and no verdict.
+    expect(l.groups?.strategy_row_med).toEqual(["strategy_base_med", "strategy_delta_med", "strategy_icer_med"]);
+    expect(l.groups?.strategy_row_watch).toEqual(["strategy_base_watch"]);
+    expect(l.groups?.strategy_nmb).toEqual(["strategy_nmb_head", "strategy_nmb_watch", "strategy_nmb_med", "strategy_nmb_surgery"]);
+    const cells = (id: string) => (flattenDrawables(l.drawables).filter((d) => d.id.startsWith(`${id}__`)) as TextDrawable[]).map((d) => d.text);
+    expect(cells("strategy_base_med")).toEqual(["Medication", "$78,000", "7.1"]);
+    expect(cells("strategy_delta_med")).toEqual(["Watch", "+$36,000", "+1.3"]);
+    expect(cells("strategy_icer_med")).toEqual(["$27,700"]);
+    // Net benefit at $50,000: 7.1 × 50,000 − 78,000.
+    expect(cells("strategy_nmb_med")).toEqual(["$277,000"]);
+    expect(cells("strategy_head")).toEqual(["Cost", "QALYs", "vs", "Δ cost", "Δ QALYs", "ICER"]);
+    expect(cells("strategy_nmb_head")).toEqual(["Net benefit"]);
     expect(labelText(l, "value_med")).toBe("7.1, $78,000");
     expect(labelText(l, "payoff_m_ok")).toBe("8, $60,000");
   });
