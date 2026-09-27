@@ -39,7 +39,7 @@ const VMAX_LINE: MarkSpec = { kind: "hline", at: "V_max", label: "Vmax", id: "vm
 const KM_POINT: MarkSpec = { kind: "point", at: "K_m", x_label: "Km", y_label: "Vmax/2", id: "km" };
 const LOGISTIC = "N(t) = K/(1 + ((K - N_0)/N_0)*exp(-r*t))";
 const LOGISTIC_PARAMS: ParamsMap = {
-  K: { value: 1000, min: 200, max: 1100, step: 50, label: "carrying capacity K" },
+  K: { value: 1000, min: 200, max: 1100, step: 50, label: "capacity K" },
   N_0: { value: 10, min: 1, max: 200, step: 1, label: "N0" },
   r: { value: 0.5, min: 0.1, max: 1.5, step: 0.05, label: "growth rate r" },
 };

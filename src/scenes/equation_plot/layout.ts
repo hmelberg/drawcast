@@ -336,18 +336,29 @@ export function layoutEquationPlot(raw: EquationPlotParams): SceneLayout {
   };
   const inView = (x: number, y: number): boolean => Number.isFinite(y) && x >= x0 && x <= x1 && y >= y0 && y <= y1;
   const markLabel = (id: string, at: Pt, text: string): void => {
-    const pos: Pt = [at[0] + 12, at[1] + 14];
-    push(kit.text(id, pos, text, { fontSize: 22, anchor: "start" }), pos);
+    let pos: Pt = [at[0] + 12, at[1] + 14];
+    let t = kit.text(id, pos, text, { fontSize: 22, anchor: "start" });
+    // A word that would run past the plot's right edge (into a panel) turns to the mark's left.
+    const b = bboxOfText(t, heuristicMeasure);
+    if (b.x + b.w > plot.x1 + 10) {
+      pos = [at[0] - 12, at[1] + 14];
+      t = kit.text(id, pos, text, { fontSize: 22, anchor: "end" });
+    }
+    push(t, pos);
     const owner = id.replace(/_label$/, "");
     (attached[owner] ??= []).push(id);
+    // …and comes with the mark's draw, not at the cast's end.
+    (drawnWith[owner] ??= []).push(id);
   };
   const labelText = (mk: MarkSpec, coords: string): string | null => (mk.label === undefined || mk.label === "" ? null : typeof mk.label === "string" ? mk.label : mk.label === true ? coords : null);
   // Roots and turning points are found along the page's own axis (in powers
   // of ten on a log axis — the same points, sampled where they are drawn).
   const onAxis = (f: (x: number) => number): ((u: number) => number) => (u) => f(fromU(m.xScale, u));
   const uRange: [number, number] = [u0, u1];
+  // A line's word and a point's axis-foot words follow their mark, and come with its draw.
   const attach = (owner: string, id: string): void => {
     (attached[owner] ??= []).push(id);
+    (drawnWith[owner] ??= []).push(id);
   };
   for (const mk of m.marks) {
     const c = m.curves[mk.curve ?? 0];
