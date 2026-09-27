@@ -45,6 +45,11 @@ describe("unwrapCastText (?open= and cast.mjs open)", () => {
     expect(wrapped.items[0]!.spec.commands).toHaveLength((specEntry.spec!.commands as unknown[]).length);
   });
 
+  test("a spec with its own commands is bare, even if it has a `spec` key", () => {
+    const text = JSON.stringify({ ...specEntry.spec, spec: { commands: [] } });
+    expect(unwrapCastText(text)).toEqual({ text });
+  });
+
   test("playlist YAML and non-JSON text pass through untouched", () => {
     expect(unwrapCastText(playlistEntry.playlist!)).toEqual({ text: playlistEntry.playlist });
     expect(unwrapCastText("title: x\ncommands: []")).toEqual({ text: "title: x\ncommands: []" });

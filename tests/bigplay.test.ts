@@ -42,7 +42,7 @@ describe("the stage wiring (pins)", () => {
     expect(css).toMatch(/\.cs-stage\.cs-handson \.cs-bigplay:focus-visible/);
   });
   test("mid-drag the button never catches the pointer", () => {
-    expect(css).toMatch(/\.cs-stage\.cs-grabbing \.cs-bigplay \{ opacity: 0; pointer-events: none; \}/);
+    expect(css).toMatch(/\.cs-stage\.cs-grabbing \.cs-bigplay \{ display: none; \}/);
   });
   test("an ordinary cast's centred button is unchanged", () => {
     expect(css).toMatch(/\.cs-bigplay \{\s*position: absolute;\s*left: 50%;\s*top: 50%;\s*transform: translate\(-50%, -50%\);/);

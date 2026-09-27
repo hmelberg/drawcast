@@ -72,7 +72,7 @@ function castShape(text) {
   const e = Array.isArray(j) ? j[0] : j;
   if (!e || typeof e !== "object") return { label: "JSON that is not a cast", empty: true };
   if (e.playlist !== undefined) return { label: "a {request, playlist} wrapper", empty: false };
-  const spec = e.spec && typeof e.spec === "object" ? e.spec : e;
+  const spec = e.commands === undefined && e.spec && typeof e.spec === "object" ? e.spec : e;
   const n = Array.isArray(spec.commands) ? spec.commands.length : 0;
   const label = spec === e ? `a spec, ${n} commands` : `a {request, spec} wrapper, ${n} commands`;
   const drawn = Array.isArray(spec.elements) && spec.elements.length > 0;

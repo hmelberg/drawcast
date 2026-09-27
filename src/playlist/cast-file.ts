@@ -25,7 +25,9 @@ export function unwrapCastText(text: string): CastFile {
   }
   const entry = Array.isArray(json) ? json[0] : json;
   if (!entry || typeof entry !== "object" || Array.isArray(entry)) return { text };
-  const e = entry as { request?: unknown; title?: unknown; spec?: unknown; playlist?: unknown };
+  const e = entry as { request?: unknown; title?: unknown; spec?: unknown; playlist?: unknown; commands?: unknown };
+  // A spec that carries its own commands is a bare spec, whatever other keys it has.
+  if (e.commands !== undefined) return Array.isArray(json) ? { text: JSON.stringify(entry) } : { text };
   const title = typeof e.title === "string" ? e.title : typeof e.request === "string" ? e.request : undefined;
   const withTitle = (inner: string): CastFile => (title !== undefined ? { text: inner, title } : { text: inner });
   if (typeof e.playlist === "string") return withTitle(e.playlist);

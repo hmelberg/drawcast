@@ -356,7 +356,10 @@ function anyRemotePackTemplatesLive(): boolean {
 // is the deliberate trade against the false-drop this closes. No remote pack
 // is live → falls through to the original drop-on-deterministic-failure
 // rule unchanged.
-void ensureEnabledPacks(settings.enabledPacks).then((rs) => {
+/** Startup's pack load: the dev `?open=` path waits on it (below), or a
+ *  cast on a pack template raced it and rendered with no template. */
+const startupPacks = ensureEnabledPacks(settings.enabledPacks);
+void startupPacks.then((rs) => {
   let changed = false;
   const failed: string[] = [];
   for (const r of rs) {
@@ -4604,10 +4607,12 @@ if (import.meta.env.DEV) {
   if (openPath && openPath.startsWith("/")) {
     void fetch(openPath)
       .then((r) => (r.ok ? r.text() : Promise.reject(new Error(`${r.status}`))))
+      // A cast on a pack template must not render before its pack is in.
+      .then((text) => startupPacks.then(() => text, () => text))
       .then((text) => {
-        // A cast file may wrap the spec — {request, spec}, {request, title,
-        // playlist} — as the frames harness accepts; read raw, a wrapper
-        // parsed as a blank spec and played 0 steps (playlist/cast-file.ts).
+        // The local author's files wrap the spec — {request, spec}, {request,
+        // title, playlist} — as the frames harness accepts; read whole, a
+        // wrapper parsed as a blank spec and played 0 steps (playlist/cast-file.ts).
         const cast = unwrapCastText(text);
         const playlist = readPlaylistText(cast.text);
         if (playlist) setDoc({ id: null, driveFileId: null, sourcePath: null, title: docTitleOf(playlist, cast.title ?? openPath.split("/").pop() ?? "cast"), playlist }, "Opened.");

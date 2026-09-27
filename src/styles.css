@@ -855,8 +855,10 @@ details > summary { cursor: pointer; color: var(--muted); }
   transform: scale(1.07);
   opacity: 1;
 }
-/* Mid-drag the part owns the pointer: the button neither shows nor catches. */
-.cs-stage.cs-grabbing .cs-bigplay { opacity: 0; pointer-events: none; }
+/* Mid-drag the part owns the pointer: a curve dragged live must not pass
+   under the button (centred or docked) — the viewer is watching the figure
+   there — and a release over it is the drag's (widget-host.ts end()). */
+.cs-stage.cs-grabbing .cs-bigplay { display: none; }
 @media (pointer: coarse) {
   /* A thumb still gets the --tap minimum. */
   .cs-stage.cs-handson .cs-bigplay,

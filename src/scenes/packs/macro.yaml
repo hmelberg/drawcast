@@ -15,7 +15,10 @@ description: >-
   equilibrium. Choose this scene for ANY request about IS-LM, the goods and
   money markets together, fiscal policy or government spending shifting IS,
   monetary policy shifting LM, interest rates and output jointly, or the
-  Keynesian short-run equilibrium.
+  Keynesian short-run equilibrium. Paused, the viewer can drag IS or LM
+  and the equilibrium recomputes live; an explore beat naming nothing
+  hands it over. Values {is_lm.output}, {is_lm.rate}, {is_lm.output_new},
+  {is_lm.rate_new}.
 params:
   type: object
   properties:
@@ -99,38 +102,126 @@ layout: |
   anchors.lm_curve = lmPts[Math.floor(lmPts.length / 2)];
 
   const eq0 = cross(0, 0);
-  const eqGroup = (id, eq, starPrefix, color) => {
+  // `near`: the first equilibrium, when this is the second — an axis caption
+  // that would sit on the first one's (a shift that barely moves Y or r, as a
+  // drag passes through) is left out: the guide shows it lands in the same place.
+  const eqGroup = (id, eq, starPrefix, color, near) => {
     const x = XV(eq.Y), y = YR(eq.r);
+    const showY = !near || Math.abs(x - XV(near.Y)) >= 36;
+    const showR = !near || Math.abs(y - YR(near.r)) >= 24;
     push(kit.group(id, [
       kit.stroke(id + "__vx", [[x, y], [x, plot.y0]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }),
       kit.stroke(id + "__hy", [[x, y], [plot.x0, y]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }),
       kit.stroke(id + "__dot", kit.ellipse([x, y], 6, 6, 14), { closed: true, fill: color, color, ms: MS.dot }),
-      kit.text(id + "__ty", [x, plot.y0 - 26], "Y" + starPrefix, { fontSize: 19, color }),
-      kit.text(id + "__tr", [plot.x0 - 14, y], "r" + starPrefix, { fontSize: 19, anchor: "end", color }),
+      ...(showY ? [kit.text(id + "__ty", [x, plot.y0 - 26], "Y" + starPrefix, { fontSize: 19, color })] : []),
+      ...(showR ? [kit.text(id + "__tr", [plot.x0 - 14, y], "r" + starPrefix, { fontSize: 19, anchor: "end", color })] : []),
     ]));
     anchors[id] = [x, y];
   };
   if (showEq) eqGroup("eq", eq0, "*", C.ink);
 
-  const shifted = (id, fn, s, baseMid, color, letter) => {
+  const shifted = (id, fn, s, basePts, color, letter) => {
+    const baseMid = basePts[Math.floor(basePts.length / 2)], baseEnd = basePts[basePts.length - 1];
     const pts = linePts(fn, s);
     const midOld = baseMid;
-    const midNew = pts[Math.floor(pts.length / 2)];
+    // The shift is sideways, so the arrow is too: from the original's middle
+    // to the shifted curve at the same rate (the shifted samples' own middle
+    // lies at another rate once the range clips them, and the arrow stood up).
+    const midNew = [midOld[0] + XV(s) - XV(0), midOld[1]];
+    // The primed label sits on the side AWAY from the original's label,
+    // whichever way the curve moved (a drag moves it both ways) — but never
+    // down on the x-axis.
+    const end = pts[pts.length - 1];
+    const away = end[1] + (end[1] >= baseEnd[1] ? 28 : -28);
+    // Down there it goes to the curve's other, upper-left end instead.
+    const low = away < plot.y0 + 24;
+    const labelAt = low ? [pts[0][0] - 12, pts[0][1] + 12] : [end[0] + 14, away];
     push(kit.group(id, [
       kit.stroke(id + "__line", pts, { color: C.shifted, strokeWidth: 4, ms: MS.curve }),
       kit.stroke(id + "__arrow", [[midOld[0], midOld[1]], [midNew[0] - (midNew[0] - midOld[0]) * 0.15, midNew[1] - (midNew[1] - midOld[1]) * 0.15]], { arrowhead: "end", color: C.shifted, strokeWidth: 3, ms: MS.arrow }),
-      kit.text(id + "__t", [pts[pts.length - 1][0] + 14, pts[pts.length - 1][1] + (letter === "IS" ? -30 : 28)], letter + "'", { fontSize: 22, anchor: "start", color: C.shifted }),
+      kit.text(id + "__t", labelAt, letter + "'", { fontSize: 22, anchor: low ? "end" : "start", color: C.shifted }),
     ]));
     anchors[id] = midNew;
   };
-  if (isShift !== 0) shifted("is_shifted", isR, isShift, isPts[Math.floor(isPts.length / 2)], C.shifted, "IS");
-  if (lmShift !== 0) shifted("lm_shifted", lmR, lmShift, lmPts[Math.floor(lmPts.length / 2)], C.shifted, "LM");
-  if (showEq && (isShift !== 0 || lmShift !== 0)) eqGroup("eq2", cross(isShift, lmShift), "**", C.accent);
+  if (isShift !== 0) shifted("is_shifted", isR, isShift, isPts, C.shifted, "IS");
+  if (lmShift !== 0) shifted("lm_shifted", lmR, lmShift, lmPts, C.shifted, "LM");
+  if (showEq && (isShift !== 0 || lmShift !== 0)) eqGroup("eq2", cross(isShift, lmShift), "**", C.accent, eq0);
 
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [540, 700], params.title, { fontSize: 30 }));
   }
-  return { drawables, labels, anchors, order, frame: { x: [0, 110], y: [0, 11], box: plot } };
+  // The numbers the figure stands for ({is_lm.output} in a cast's text),
+  // recomputed with every drag and animate frame.
+  const r2 = (v) => Math.round(v * 100) / 100;
+  const values = { output: r2(eq0.Y), rate: r2(eq0.r) };
+  if (isShift !== 0 || lmShift !== 0) {
+    const e2 = cross(isShift, lmShift);
+    values.output_new = r2(e2.Y);
+    values.rate_new = r2(e2.r);
+  }
+  return { drawables, labels, anchors, order, values, frame: { x: [0, 110], y: [0, 11], box: plot } };
+widget: |
+  // Free play (2026-09-27), like supply_demand's: paused, the viewer takes
+  // hold of a curve and the economy recomputes under the pointer.
+  //
+  //   IS or IS′, anywhere  → shifts sideways (fiscal policy: is_shift)
+  //   LM or LM′, anywhere  → shifts sideways (monetary policy: lm_shift)
+  //
+  // The original curve stays as the reference: grabbing it pulls a shifted
+  // copy off it (the textbook IS′), grabbing the copy moves it on. The curve
+  // follows the POINTER, not just its sideways run: a curve shift is the one
+  // that puts the grabbed point where the pointer is. Live (`live: true`):
+  // every drag_move maps the press onto the press-time params, so the whole
+  // gesture is one patch and needs no state. Slopes are not params here.
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const num = (v) => (Number.isFinite(v) ? v : 0);
+  // The layout's lines solved for their shift: the s that puts the curve
+  // through domain point [Y, r]. IS: r = 9 - 0.08(Y - s); LM: r = 0.5 + 0.07(Y - s).
+  const THROUGH = {
+    is: ([Y, r]) => Y - (9 - r) / 0.08,
+    lm: ([Y, r]) => Y - (r - 0.5) / 0.07,
+  };
+  const CAPTION = { is: "Shifting IS: fiscal policy", lm: "Shifting LM: monetary policy" };
+  const shiftFor = (id, from, to, params) => {
+    const kind = id === "is_curve" || id === "is_shifted" ? "is" : id === "lm_curve" || id === "lm_shifted" ? "lm" : null;
+    if (!kind) return null;
+    const key = kind + "_shift";
+    const s0 = id.endsWith("_shifted") ? clamp(num(params[key]), -30, 30) : 0;
+    const s = Math.round(clamp(s0 + THROUGH[kind](to) - THROUGH[kind](from), -30, 30) * 10) / 10;
+    return { kind, patch: { [key]: s } };
+  };
+  // How far p lies from a polyline, in logical units.
+  const dist = (pts, p) => {
+    let best = Infinity;
+    for (let i = 1; i < pts.length; i++) {
+      const [a, b] = [pts[i - 1], pts[i]];
+      const dx = b[0] - a[0], dy = b[1] - a[1], len2 = dx * dx + dy * dy;
+      const u = len2 === 0 ? 0 : clamp(((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2, 0, 1);
+      best = Math.min(best, Math.hypot(p[0] - a[0] - u * dx, p[1] - a[1] - u * dy));
+    }
+    return best;
+  };
+  // A shifted group carries its shift arrow, whose tail sits ON the original
+  // curve: a press there that is nearer the original than the copy's own
+  // line meant the original.
+  const grabbed = (id, from, scene) => {
+    if (!id.endsWith("_shifted") || !from) return id;
+    const base = id === "is_shifted" ? "is_curve" : "lm_curve";
+    const own = scene.lines.get(id)?.[0], orig = scene.lines.get(base)?.[0];
+    return own && orig && dist(orig, from) < dist(own, from) ? base : id;
+  };
+  const on = (ev, st, scene) => {
+    const same = { state: st, effects: [] };
+    if ((ev.type !== "drag_move" && ev.type !== "drag") || !ev.fromDomain || !ev.domain) return same;
+    const r = shiftFor(grabbed(ev.id, ev.from, scene), ev.fromDomain, ev.domain, scene.params);
+    if (!r) return same;
+    const effects = [{ patch: r.patch }];
+    if (st.said !== r.kind) effects.push({ caption: CAPTION[r.kind] });
+    return { state: { said: r.kind }, effects };
+  };
+  // A shifted curve lying on its original is the one on top, so it can be
+  // pulled off again.
+  return { parts: ["is_shifted", "lm_shifted", "is_curve", "lm_curve"], live: true, init: () => ({ said: null }), on };
 ---
 template: solow_growth
 title: Solow growth model
@@ -286,7 +377,10 @@ description: >-
   GDP, an inflationary or recessionary shock, or an expansionary/
   contractionary demand or supply shift. shift.amount is numeric and
   animates smoothly — tween it to show the curve sliding and the equilibrium
-  moving with it.
+  moving with it. Paused, the viewer can drag AD or AS (a demand or supply
+  shock) and the equilibrium recomputes live; an explore beat naming nothing
+  hands it over. Values {ad_as.output}, {ad_as.price}, {ad_as.output_new},
+  {ad_as.price_new}, {ad_as.gap} (output minus potential, with LRAS).
 params:
   type: object
   properties:
@@ -372,6 +466,8 @@ layout: |
 
   const eqX = 50, eqY = 50;
   const eqL = [sx(eqX), sy(eqY)];
+  // The numbers the figure stands for ({ad_as.price} in a cast's text).
+  const values = { output: eqX, price: eqY };
   push(kit.stroke("guides", [[plot.x0, eqL[1]], eqL, [eqL[0], plot.y0]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }));
   push(kit.stroke("eq", [eqL], { shapeHint: { type: "circle", c: eqL, r: 7 }, strokeWidth: 3, fill: C.ink, ms: MS.dot }));
   anchors.eq = eqL;
@@ -421,6 +517,52 @@ layout: |
     push(kit.stroke("eq_new", [eq2L], { shapeHint: { type: "circle", c: eq2L, r: 7 }, strokeWidth: 3, fill: C.shifted, ms: MS.dot }));
     anchors.eq_new = eq2L;
     label("label_eq_new", eq2L, "below-right", "E′", C.shifted, 20);
+    values.output_new = eqX2;
+    values.price_new = eqY2;
   }
+  // Output against potential (the LRAS, at the first equilibrium's output):
+  // where the economy is now, less where it could be.
+  if (showLras) values.gap = (values.output_new ?? eqX) - eqX;
+  for (const k of Object.keys(values)) values[k] = Math.round(values[k] * 100) / 100;
 
-  return { drawables, labels, anchors, order, frame: { x: [0, 100], y: [0, 100], box: plot } };
+  return { drawables, labels, anchors, order, values, frame: { x: [0, 100], y: [0, 100], box: plot } };
+widget: |
+  // Free play (2026-09-27), like supply_demand's: paused, the viewer takes
+  // hold of a curve and the economy recomputes under the pointer.
+  //
+  //   AD, or AD′         → a demand shock (shift: {curve: ad})
+  //   AS, or AS′         → a supply shock (shift: {curve: as})
+  //
+  // The original curve stays as the reference: grabbing it pulls a shifted
+  // copy off it, grabbing the copy moves it on. The template shifts ONE
+  // curve, so taking hold of the other original swaps which one is shifted.
+  // The curve follows the POINTER: the shift is the one that puts the
+  // grabbed point where the pointer is. LRAS (potential output) is fixed —
+  // not a param — and stays put. Live: every drag_move maps the press onto
+  // the press-time params, so the gesture is one patch and needs no state.
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  // The layout's curves solved for their sideways shift dx: AD is
+  // y = 100 - (x - dx), AS is y = x - dx, in the 0–100 domain.
+  const THROUGH = { ad: ([x, y]) => x + y - 100, as: ([x, y]) => x - y };
+  const CAPTION = { ad: "Shifting AD: a demand shock", as: "Shifting AS: a supply shock" };
+  const KIND = { ad: "ad", ad_shifted: "ad", as: "as", as_shifted: "as" };
+  const signed = (shift) => {
+    const a = clamp(typeof shift.amount === "number" ? shift.amount : 18, 0, 30);
+    return shift.direction === "left" ? -a : a;
+  };
+  const on = (ev, st, scene) => {
+    const same = { state: st, effects: [] };
+    if ((ev.type !== "drag_move" && ev.type !== "drag") || !ev.fromDomain || !ev.domain) return same;
+    const kind = KIND[ev.id];
+    if (!kind) return same;
+    const shift = scene.params.shift && typeof scene.params.shift === "object" ? scene.params.shift : {};
+    const d0 = ev.id.endsWith("_shifted") && shift.curve === kind ? signed(shift) : 0;
+    const d = Math.round(clamp(d0 + THROUGH[kind](ev.domain) - THROUGH[kind](ev.fromDomain), -30, 30) * 10) / 10;
+    const next = { ...(shift.curve === kind ? shift : {}), curve: kind, direction: d < 0 ? "left" : "right", amount: Math.abs(d) };
+    const effects = [{ patch: { shift: next } }];
+    if (st.said !== kind) effects.push({ caption: CAPTION[kind] });
+    return { state: { said: kind }, effects };
+  };
+  // A shifted curve lying on its original is the one on top, so it can be
+  // pulled off again.
+  return { parts: ["ad_shifted", "as_shifted", "ad", "as"], live: true, init: () => ({ said: null }), on };

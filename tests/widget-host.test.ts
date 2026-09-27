@@ -386,7 +386,9 @@ describe("attachWidgetHost — source pins", () => {
     // With the pointer captured every event retargets to the stage, so the
     // event's own target cannot tell a drop on Skip from one on the paper.
     expect(end).toContain("document.elementFromPoint(e.clientX, e.clientY)");
-    expect(end).toContain('closest("button")');
+    // …any button but the big play one at the paused figure's middle, which a
+    // live curve is dragged through (ad-as-widget.test.ts).
+    expect(end).toContain('closest("button:not(.cs-bigplay)")');
     expect(end).toContain("host.cancel()");
   });
   test("capture lost mid-gesture drops the ghost and disarms the swallow — and the ordinary release is untouched", () => {
