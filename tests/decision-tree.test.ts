@@ -71,7 +71,7 @@ describe("layoutDecisionTree", () => {
     const v = r.labels.find((l) => l.id === "value_surgery");
     expect(v?.text).toBe("EV 8.9");
     expect(v?.fontSize).toBe(r.labels.find((l) => l.id === "label_surgery")!.fontSize);
-    expect(r.attached["node_surgery"]).toContain("value_surgery");
+    expect(r.attached?.["node_surgery"]).toContain("value_surgery");
     expect(layoutDecisionTree(params).labels.some((l) => l.id.startsWith("value_"))).toBe(false);
   });
 
