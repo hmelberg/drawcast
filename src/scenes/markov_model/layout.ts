@@ -1267,7 +1267,7 @@ const MIN_DIAGRAM_H = 260;
 const GAP = 34;
 /** The largest scale: a matrix alone, or one sharing the page with the diagram (which then gets the rest). */
 const S_MAX = 1.45;
-const S_MAX_WITH_DIAGRAM = 1.25;
+const S_MAX_WITH_DIAGRAM = 1.1;
 /** The page's smallest scale; below about 0.73 the type is at its floor and only the air between it shrinks. */
 const S_MIN = 0.4;
 /**
