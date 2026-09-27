@@ -134,7 +134,9 @@ export interface LintIssue {
     | "highlight-part"
     | "id-keyword"
     | "heading-intrusion"
-    | "adjust-unknown";
+    | "adjust-unknown"
+    /** a label of more than four words — canvas text is a cue, the voice says the sentence */
+    | "long-label";
   ids: string[];
   message: string;
   severity: "warn" | "error";

@@ -141,7 +141,8 @@ describe("branch labels survive realistic lengths", () => {
     ["The patient recovers fully within six months", "The patient does not recover at all"],
   ])("%s / %s — no label collides with a stroke", (a, b) => {
     const spec = { title: "t", template: "decision_tree", params: twoArmTree(a, b), commands: [] } as unknown as Spec;
-    expect(layoutSpec(spec).issues.map((i) => i.message)).toEqual([]);
+    // Deliberately long labels test collisions, not wording: long-label is expected here.
+    expect(layoutSpec(spec).issues.filter((i) => i.rule !== "long-label").map((i) => i.message)).toEqual([]);
   });
 
   // A three-way fan puts one branch dead horizontal, with a sibling wedge
@@ -161,6 +162,7 @@ describe("branch labels survive realistic lengths", () => {
       },
     } as unknown as DecisionTreeParams;
     const spec = { title: "t", template: "decision_tree", params, commands: [] } as unknown as Spec;
-    expect(layoutSpec(spec).issues.map((i) => i.message)).toEqual([]);
+    // Deliberately long labels test collisions, not wording: long-label is expected here.
+    expect(layoutSpec(spec).issues.filter((i) => i.rule !== "long-label").map((i) => i.message)).toEqual([]);
   });
 });

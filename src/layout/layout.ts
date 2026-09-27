@@ -6,6 +6,9 @@ import { scenes } from "../scenes/registry";
 import { normalizeSpec } from "../spec/schema";
 import { applyTextMap } from "./text-map";
 import { applyAdjust } from "./adjust";
+
+/** More words than this in one label is a sentence written out (long-label). */
+const LONG_LABEL_WORDS = 4;
 import { effectiveTextStyle } from "./text-style";
 import { setMathTextStyle } from "./math";
 import { setMathFont, setMathHand } from "../scenes/engines";
@@ -361,6 +364,21 @@ export function layoutSpec(
   }
   for (const req of labelRequests) {
     if (!order.includes(req.id)) order.push(req.id);
+  }
+
+  // Words on the canvas are cues, not sentences (Hans's house rule, 2026-09-27):
+  // a label names a curve, a branch, a part — a word or three, the voice says
+  // the rest. Labels only: headings, cards and quotes are allowed prose.
+  for (const req of labelRequests) {
+    const words = req.text.split(/\s+/).filter((w) => /\p{L}/u.test(w)).length;
+    if (words > LONG_LABEL_WORDS) {
+      issues.push({
+        rule: "long-label",
+        ids: [req.id],
+        severity: "warn",
+        message: `label "${req.id}" ("${req.text}") is ${words} words — a label is a cue of a word or three ("Dies", "Price"); let the voice say the rest`,
+      });
+    }
   }
 
   // Annotations last: they mark ALREADY-placed geometry (labels included),

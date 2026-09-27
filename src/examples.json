@@ -3855,7 +3855,7 @@
           "type": "label",
           "attach_to": "lin",
           "side": "left",
-          "text": "if each added the same",
+          "text": "if all equal",
           "style": {
             "color": "#8f887c"
           }
@@ -11560,7 +11560,7 @@
           "type": "label",
           "attach_to": "straight",
           "side": "above-right",
-          "text": "if it faded with distance",
+          "text": "if linear",
           "style": {
             "color": "#8f887c"
           }
@@ -22178,7 +22178,7 @@
   {
     "request": "How did John Snow's map find the source of the 1854 cholera outbreak? Show his actual map: https://archive.org/details/dr_map-1-cf-chefins-lith-london-to-accompany-on-the-mode-of-communicat-13187008",
     "title": "The Broad Street pump",
-    "playlist": "playlist:\n  title: The Broad Street pump\n---\ntitle: Soho, autumn 1854\ntemplate: timeline\nparams:\n  milestones:\n    - label: 31 August\n      sublabel: cholera breaks out\n    - label: Early September\n      sublabel: Snow lists the deaths\n    - label: He maps them\n      sublabel: one bar per death\n      emphasize: true\n    - label: 7 September\n      sublabel: to the parish board\n    - label: 8 September\n      sublabel: the handle comes off\ncommands:\n  - card:\n      title: The Broad Street pump\n  - draw:\n      - line\n      - dot_0\n      - label_0\n    speak: How did one map point at a single water pump, and change how we think cholera spreads? It starts on 31 August 1854, in a few streets of Soho.\n  - highlight:\n      target:\n        - dot_0\n    speak: Within ten days, some five hundred people nearby were dead.\n  - draw:\n      - dot_1\n      - label_1\n    speak: Most doctors blamed miasma, a poisonous bad air. John Snow suspected the water, and got the address of every death.\n  - draw:\n      - dot_2\n      - label_2\n    speak: Then he drew each death as a short black bar on the street where it happened.\n  - draw:\n      - dot_3\n      - label_3\n    speak: On 7 September he put the case to the local parish board.\n  - draw:\n      - dot_4\n      - label_4\n    speak: The next day, the handle of the Broad Street pump came off.\n---\ntitle: The map itself\nzoom_from: dot_2\nelements:\n  - id: snow_map\n    type: source\n    of: Snow's cholera map, 1855\n    archive: dr_map-1-cf-chefins-lith-london-to-accompany-on-the-mode-of-communicat-13187008\n    x: 290\n    'y': 410\n    width: 400\n  - id: brewery\n    type: node\n    shape: rect\n    width: 340\n    height: 70\n    x: 770\n    'y': 560\n    text: 'Brewery: 0 of 70 died'\n  - id: workhouse\n    type: node\n    shape: rect\n    width: 340\n    height: 70\n    at:\n      ref: brewery\n      side: below\n      gap: 50\n    text: 'Workhouse: 5 of 535'\n  - id: widow\n    type: node\n    shape: rect\n    width: 340\n    height: 70\n    at:\n      ref: workhouse\n      side: below\n      gap: 50\n    text: 'Hampstead: she died'\n  - id: cases\n    type: group\n    members:\n      - brewery\n      - workhouse\n      - widow\n    walk: true\ncommands:\n  - draw:\n      - snow_map\n    speak: This is the map itself, from the 1855 edition of Snow's book on cholera.\n  - camera:\n      center:\n        ref: snow_map\n      zoom: 1.8\n    speak: 'Every black bar is one death, stacked at its address, and the stacks crowd round one point near the middle: the Broad Street pump.'\n  - camera:\n      reset: true\n    speak: 'But a cluster alone fits bad air too: the air near the pump was as foul as its water. What settled it were the exceptions.'\n  - draw:\n      - brewery\n    speak: 'A brewery stood yards from the pump. Of its seventy or so workers, none died: they drank beer, and the brewery had its own well.'\n  - draw:\n      - workhouse\n    speak: The workhouse nearby held 535 people, and only five died. It had its own well too.\n  - draw:\n      - widow\n    speak: And a widow in Hampstead, miles away, died of cholera. She liked the taste of Broad Street water, and had it carried to her.\n  - highlight:\n      target:\n        - cases\n    speak: 'Same air, other water: spared. Other air, same water: dead. The exceptions turn a cluster into a cause.'\n  - highlight:\n      target:\n        - snow_map\n    speak: 'The legend leaves out one thing: the outbreak was already fading when the handle came off. What the map won was the argument.'\n  - quiz:\n      question: Which finding best shows it was the water, not the air?\n      choices:\n        - Deaths crowded round the pump\n        - The brewery men nearby were spared\n        - Deaths fell after the handle came off\n      correct: 2\n      right: 'The spared brewery men: they breathed the same air as their neighbours but drank other water. A cluster fits bad air too, and the outbreak was already fading.'\n"
+    "playlist": "playlist:\n  title: The Broad Street pump\n---\ntitle: Soho, autumn 1854\ntemplate: timeline\nparams:\n  milestones:\n    - label: 31 August\n      sublabel: cholera breaks out\n    - label: Early September\n      sublabel: deaths listed\n    - label: Mapped\n      sublabel: bar per death\n      emphasize: true\n    - label: 7 September\n      sublabel: parish board\n    - label: 8 September\n      sublabel: handle off\ncommands:\n  - card:\n      title: The Broad Street pump\n  - draw:\n      - line\n      - dot_0\n      - label_0\n    speak: How did one map point at a single water pump, and change how we think cholera spreads? It starts on 31 August 1854, in a few streets of Soho.\n  - highlight:\n      target:\n        - dot_0\n    speak: Within ten days, some five hundred people nearby were dead.\n  - draw:\n      - dot_1\n      - label_1\n    speak: Most doctors blamed miasma, a poisonous bad air. John Snow suspected the water, and got the address of every death.\n  - draw:\n      - dot_2\n      - label_2\n    speak: Then he drew each death as a short black bar on the street where it happened.\n  - draw:\n      - dot_3\n      - label_3\n    speak: On 7 September he put the case to the local parish board.\n  - draw:\n      - dot_4\n      - label_4\n    speak: The next day, the handle of the Broad Street pump came off.\n---\ntitle: The map itself\nzoom_from: dot_2\nelements:\n  - id: snow_map\n    type: source\n    of: Snow's cholera map, 1855\n    archive: dr_map-1-cf-chefins-lith-london-to-accompany-on-the-mode-of-communicat-13187008\n    x: 290\n    'y': 410\n    width: 400\n  - id: brewery\n    type: node\n    shape: rect\n    width: 340\n    height: 70\n    x: 770\n    'y': 560\n    text: 'Brewery: 0 of 70 died'\n  - id: workhouse\n    type: node\n    shape: rect\n    width: 340\n    height: 70\n    at:\n      ref: brewery\n      side: below\n      gap: 50\n    text: 'Workhouse: 5 of 535'\n  - id: widow\n    type: node\n    shape: rect\n    width: 340\n    height: 70\n    at:\n      ref: workhouse\n      side: below\n      gap: 50\n    text: 'Hampstead: she died'\n  - id: cases\n    type: group\n    members:\n      - brewery\n      - workhouse\n      - widow\n    walk: true\ncommands:\n  - draw:\n      - snow_map\n    speak: This is the map itself, from the 1855 edition of Snow's book on cholera.\n  - camera:\n      center:\n        ref: snow_map\n      zoom: 1.8\n    speak: 'Every black bar is one death, stacked at its address, and the stacks crowd round one point near the middle: the Broad Street pump.'\n  - camera:\n      reset: true\n    speak: 'But a cluster alone fits bad air too: the air near the pump was as foul as its water. What settled it were the exceptions.'\n  - draw:\n      - brewery\n    speak: 'A brewery stood yards from the pump. Of its seventy or so workers, none died: they drank beer, and the brewery had its own well.'\n  - draw:\n      - workhouse\n    speak: The workhouse nearby held 535 people, and only five died. It had its own well too.\n  - draw:\n      - widow\n    speak: And a widow in Hampstead, miles away, died of cholera. She liked the taste of Broad Street water, and had it carried to her.\n  - highlight:\n      target:\n        - cases\n    speak: 'Same air, other water: spared. Other air, same water: dead. The exceptions turn a cluster into a cause.'\n  - highlight:\n      target:\n        - snow_map\n    speak: 'The legend leaves out one thing: the outbreak was already fading when the handle came off. What the map won was the argument.'\n  - quiz:\n      question: Which finding best shows it was the water, not the air?\n      choices:\n        - Deaths crowded round the pump\n        - The brewery men nearby were spared\n        - Deaths fell after the handle came off\n      correct: 2\n      right: 'The spared brewery men: they breathed the same air as their neighbours but drank other water. A cluster fits bad air too, and the outbreak was already fading.'\n"
   },
   {
     "request": "What is a derivative, really? Link Grant Sanderson's calculus video: https://www.youtube.com/watch?v=WUvTyaaNkzM",
@@ -46305,7 +46305,7 @@
         {
           "id": "l_push",
           "type": "label",
-          "text": "all the wind above the cut",
+          "text": "wind above",
           "attach_to": "push",
           "side": "above",
           "style": {
@@ -51020,7 +51020,7 @@
           "type": "label",
           "attach_to": "origin",
           "side": "below-right",
-          "text": "the one point it knows",
+          "text": "known point",
           "style": {
             "color": "#8a5fa8"
           }
@@ -51955,7 +51955,7 @@
           "type": "label",
           "attach_to": "seg1",
           "side": "above-right",
-          "text": "mill town: 1 bread a tonne",
+          "text": "mill town: 1 bread/tonne",
           "style": {
             "color": "#2f6b8f"
           }

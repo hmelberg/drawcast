@@ -555,7 +555,7 @@ params:
       description: Label for the pedal force arrow (default "Pedal force").
     wheel_label:
       type: string
-      description: Label for the rear-wheel speed arrow (default "Wheel turns N× per pedal turn").
+      description: Label for the rear-wheel speed arrow (default "Wheel N× per pedal").
     ratio_caption:
       type: string
       description: Override the bottom gear-ratio caption text.
@@ -585,7 +585,7 @@ examples:
       rear_teeth: 28
       show_arrows: true
       pedal_label: Less force needed
-      wheel_label: Wheel turns only 1.21× per pedal turn
+      wheel_label: Wheel only 1.21× per pedal
 layout: |-
   const P=params||{};
   const C=kit.COLORS,MS=kit.SKETCH_MS;
@@ -689,7 +689,7 @@ layout: |-
     push(kit.stroke("wheel_arrow",pts,{color:C.supply,strokeWidth:4,arrowhead:"end",ms:MS.connector}));
     const tip=pts[pts.length-1];
     anchors.wheel_arrow=tip;
-    lab("label_wheel",tip,"below-right",P.wheel_label??("Wheel turns "+rs+"\u00d7 per pedal turn"),C.supply,24);
+    lab("label_wheel",tip,"below-right",P.wheel_label??("Wheel "+rs+"\u00d7 per pedal"),C.supply,24);
   }
 
   if(showRatio){
