@@ -45,7 +45,11 @@ type Schema = Record<string, unknown> | undefined;
 
 function subSchema(schema: Schema, key: string): Schema {
   const props = schema?.properties as Record<string, Record<string, unknown>> | undefined;
-  return props?.[key];
+  if (props && Object.prototype.hasOwnProperty.call(props, key)) return props[key];
+  // A map keyed by the author's own names (equation_plot's `params`): every
+  // entry has the one schema.
+  const extra = schema?.additionalProperties;
+  return extra && typeof extra === "object" ? (extra as Record<string, unknown>) : undefined;
 }
 
 function itemSchema(schema: Schema): Schema {
