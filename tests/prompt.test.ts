@@ -60,6 +60,11 @@ describe("compiler prompt style rules", () => {
     expect(compilerV1).toContain("a photo of a THING — a building, an instrument, an animal — is `image`");
   });
 
+  test("words on the canvas are short cues; the voice carries the sentence (2026-09-27)", () => {
+    expect(compilerV1).toContain("**Words on the canvas are cues, not sentences.**");
+    expect(compilerV1).toMatch(/a word or three/);
+  });
+
   test("caps how big a freehand figure may get (B2)", () => {
     expect(compilerV1).toContain("A figure is at most about 30 elements and 15 beats; when a thing has more parts, name the six that matter.");
   });

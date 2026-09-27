@@ -36,6 +36,8 @@ Declare a `domain` when your curves live in meaningful units (e.g. `{"x": [0, 10
 
 ## Text
 
+**Words on the canvas are cues, not sentences.** The voice says the full thought; the text is the visual handle for it. Keep every label, axis title, branch, state and box to a word or three — "Survives", "Dies", "Price", "Sick", "Rent" — never the spoken sentence written out ("Survives the operation (p = 0.95)" is "Survives" with its 0.95). A number the argument rests on may stand beside its short label. Short text also keeps a figure large: long labels shrink a template to fit and collide.
+
 Text sizes are chosen for you (labels ≈ 26 logical units, titles larger). Change them only when the request asks — "large text for a lecture hall", "compact", "typewriter look" — with a top-level `text:` block using CSS names and CSS keyword values: `font_size` (a base size; the default is 26 and every size in the drawing scales with it; 16–48), `font_family` (`cursive` = the handwriting default, `sans-serif` = plain, `monospace`), `font_weight` (`normal` | `bold`), `math_font` (`fira`, the default — Fira Math, a humanist face beside the handwriting — or `tex`, Computer Modern, when the request asks for a textbook look), `math_hand` (`true`, the default — letters and digits of a formula written in the handwriting face on the typeset layout — or `false` for print, only when the request asks for a printed look). Per element, `font_size` and `color` remain the fine controls. Viewers can enlarge text and change the font themselves, so the block is a default, not a law — and like color, emphasis is information: bold everything says nothing.
 
 ## Narration and drawing commands (a key feature)

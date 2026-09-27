@@ -21,6 +21,23 @@ before watching, and leaves them with something they want to retell.
 
 ## Ledger (newest first)
 
+### 2026-09-27 — Short words on the canvas: text cues the voice
+
+Hans: "A good idea in general is to have text and especially labels
+relatively short. Text is to some extent visual cues and aids to the full
+text that is spoken. So it would for instance be ok to just write survives
+and dies. This is a general issue for almost everything. axes labels,
+decision trees, markov state. Short is good."
+
+What prompted it: the prompt lab's blind review (docs/prompt-lab on branch
+prompt-lab). The messiest figures carried the longest labels — a decision
+tree with nine branch labels averaging 14 characters ("Survives surgery",
+"Dies at surgery") shrank to fit and collided, where the clean versions
+said "Survives", "Dies".
+
+Status: the compiler prompt's Text section opens with it ("Words on the
+canvas are cues, not sentences").
+
 ### 2026-09-26 — A key name brings its face
 
 Hans: "the aspirin example is good, but this, and other examples, tend to
