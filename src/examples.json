@@ -72070,5 +72070,277 @@
         }
       ]
     }
+  },
+  {
+    "request": "Why does the pH jump at the equivalence point of a titration?",
+    "spec": {
+      "title": "Why the pH jumps at equivalence",
+      "template": "titration_curve",
+      "params": {
+        "kind": "weak_acid",
+        "pka": 4.76,
+        "c_analyte": 0.1,
+        "v_analyte": 25,
+        "c_titrant": 0.1,
+        "label": "acetic acid",
+        "compare": {
+          "kind": "strong_acid",
+          "label": "HCl"
+        },
+        "neutral": true,
+        "indicator": "phenolphthalein",
+        "flask": true,
+        "v": 0
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Why the pH jumps"
+          }
+        },
+        {
+          "draw": [
+            "axes",
+            "burette",
+            "flask"
+          ],
+          "speak": "Why does the pH in a titration barely move for ages, and then leap at a single drop?"
+        },
+        {
+          "draw": [
+            "legend"
+          ],
+          "speak": "The flask holds 25 millilitres of acid; the burette adds sodium hydroxide, both at 0.10 moles per litre."
+        },
+        {
+          "draw": [
+            "compare_curve",
+            "compare_label"
+          ],
+          "speak": "Take a strong acid first, hydrochloric acid, which is entirely split into ions from the start."
+        },
+        {
+          "highlight": {
+            "target": [
+              "compare_curve"
+            ]
+          },
+          "speak": "pH counts powers of ten: to go from pH 1 to pH 2, the base must remove nine in every ten hydrogen ions."
+        },
+        {
+          "draw": [
+            "compare_eq_point"
+          ],
+          "speak": "At 25 millilitres the acid is used up, and one drop either side swings the pH from about 4 to about 10."
+        },
+        {
+          "draw": [
+            "neutral_line"
+          ],
+          "speak": "That equivalence point sits at pH 7, because salt water is neutral."
+        },
+        {
+          "draw": [
+            "curve",
+            "curve_label"
+          ],
+          "speak": "Now a weak acid, acetic acid from vinegar: most molecules keep their hydrogen, so it starts near pH 2.9."
+        },
+        {
+          "draw": [
+            "buffer"
+          ],
+          "speak": "Each drop of base turns some acid into acetate, and the mixture soaks up the next drop: a buffer."
+        },
+        {
+          "draw": [
+            "cursor"
+          ]
+        },
+        {
+          "animate": {
+            "v": 12.5
+          },
+          "duration": 3,
+          "speak": "Half way, at 12.5 millilitres, there is exactly as much acetate as acid left."
+        },
+        {
+          "draw": [
+            "half_point"
+          ],
+          "speak": "There the pH equals the acid's pKa, 4.76, which is how chemists measure a pKa."
+        },
+        {
+          "animate": {
+            "v": 24
+          },
+          "duration": 3,
+          "speak": "The pH creeps up as long as some acid remains to take the base."
+        },
+        {
+          "animate": {
+            "v": 26
+          },
+          "duration": 2.5,
+          "speak": "Then two more millilitres take it from about 6 to above 11."
+        },
+        {
+          "draw": [
+            "eq_point"
+          ],
+          "speak": "This equivalence point lies near pH 8.7, not 7, because the acetate left behind is itself a weak base."
+        },
+        {
+          "draw": [
+            "indicator_band"
+          ],
+          "speak": "Phenolphthalein turns pink between 8.2 and 10, inside the jump, so the flask blushes right at the end point."
+        },
+        {
+          "explore": {},
+          "speak": "Try it: drag the purple point to change the pKa, or pull the cursor along the curve."
+        },
+        {
+          "speak": "The jump is steep because pH counts powers of ten, and at equivalence almost nothing is left to neutralise."
+        },
+        {
+          "quiz": {
+            "question": "Why is a weak acid's equivalence point above pH 7?",
+            "choices": [
+              "Its leftover base, acetate, takes H⁺ from water",
+              "Less sodium hydroxide was needed",
+              "The weak acid was more dilute"
+            ],
+            "correct": 1,
+            "right": "Acetate takes hydrogen ions from water and leaves hydroxide behind, so the solution is basic.",
+            "wrong": "Think about what the acid has turned into at equivalence."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why does a small rise in temperature speed up a reaction so much?",
+    "spec": {
+      "title": "Why a little heat speeds a reaction so much",
+      "template": "maxwell_boltzmann",
+      "params": {
+        "mode": "energy",
+        "T": 300,
+        "compare": {
+          "T": 310
+        },
+        "ea": 20,
+        "ea_catalyst": 14,
+        "tail_zoom": 50
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "A little heat, a lot faster"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Why does warming a reaction by just ten degrees speed it up so much?"
+        },
+        {
+          "draw": [
+            "curve",
+            "curve_label"
+          ],
+          "speak": "The molecules in a gas do not share one energy: at 300 kelvin most have little, and a few have a lot."
+        },
+        {
+          "draw": [
+            "ea_line"
+          ],
+          "speak": "To react, two molecules must meet with at least the activation energy, here 20 kilojoules per mole."
+        },
+        {
+          "draw": [
+            "tail",
+            "zoom_label"
+          ],
+          "speak": "Past that line the curve is too thin to see, so here it is magnified fifty times."
+        },
+        {
+          "draw": [
+            "shade",
+            "fraction_label"
+          ],
+          "speak": "Only this shaded tail can react: about one molecule in nine hundred."
+        },
+        {
+          "draw": [
+            "compare_curve",
+            "compare_label"
+          ],
+          "speak": "Now warm the gas by ten degrees, to 310 kelvin: only three percent hotter, and the crowd barely moves."
+        },
+        {
+          "draw": [
+            "compare_tail",
+            "compare_shade",
+            "compare_fraction_label"
+          ],
+          "speak": "But past the barrier the share grows from 0.11 to 0.14 percent, more than a quarter more."
+        },
+        {
+          "highlight": {
+            "target": [
+              "compare_shade"
+            ]
+          },
+          "speak": "The tail falls off exponentially, so a small shift of the whole crowd multiplies the few at its far end."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "ea_line"
+            },
+            "gesture": "tap"
+          },
+          "speak": "The higher the barrier, the stronger the effect: at 50 kilojoules, ten degrees nearly doubles the share."
+        },
+        {
+          "draw": [
+            "ea_cat_line",
+            "catalyst_shade"
+          ],
+          "speak": "A catalyst works another way: it opens a lower path, here 14 kilojoules."
+        },
+        {
+          "highlight": {
+            "target": [
+              "catalyst_shade"
+            ]
+          },
+          "speak": "That lets about nine times as many molecules through, with no heating at all."
+        },
+        {
+          "explore": {},
+          "speak": "Try it: drag a curve to heat or cool the gas, or slide either barrier."
+        },
+        {
+          "speak": "Heat nudges the whole crowd a little, but the reaction lives in the tail, where a little is a lot."
+        },
+        {
+          "quiz": {
+            "question": "Why does ten degrees matter so much more to the reaction than to the average molecule?",
+            "choices": [
+              "Only the far tail reacts, and it grows much faster",
+              "Warmer molecules have a lower barrier",
+              "The average energy doubles"
+            ],
+            "correct": 1,
+            "right": "Only molecules past the barrier react, and that steep tail grows by a quarter while the gas is only three percent hotter.",
+            "wrong": "Look at which part of the curve is shaded."
+          }
+        }
+      ]
+    }
   }
 ]
