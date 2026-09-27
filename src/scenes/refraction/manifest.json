@@ -1,0 +1,54 @@
+{
+  "name": "refraction",
+  "status": "ready",
+  "description": "Light crossing the boundary between two media (air, water, glass…): the dashed normal, the incident ray from its lamp, the refracted ray bent by Snell's law n₁ sin θ₁ = n₂ sin θ₂, the partly reflected ray (as strong as the physics says), and θ₁, θ₂ marked with arcs and values — all computed. Choose it for ANY request about refraction, Snell's law, refractive index, why a straw looks bent or a pool looks shallow, the critical angle, total internal reflection (fibre optics, diamonds), or a glass slab's sideways shift. Past the critical angle (n₁ > n₂) the refracted ray is gone and only reflection remains. theta1_deg, n1 and n2 ANIMATE: {\"animate\": {\"theta1_deg\": 60}, \"duration\": 4} from water into air sweeps past the critical angle. Paused, the viewer drags the lamp or any ray (the angles follow), scrubs or types n = 1.33 and θ₁/θ₂; an explore beat naming nothing invites exactly this. Numbers for text: {refraction.theta1}, {refraction.theta2} (absent past the critical angle), {refraction.critical}, {refraction.n1}, {refraction.n2}, {refraction.reflected} (percent), {refraction.v1}/{refraction.v2} (speed as a fraction of c), {refraction.shift} (slab, in thicknesses), {refraction.depth_ratio} (apparent).",
+  "params_schema": {
+    "type": "object",
+    "properties": {
+      "medium1": { "type": "string", "description": "Where the light comes from, e.g. \"air\" (default) — a word or two, in the cast's language." },
+      "n1": { "type": "number", "description": "Its refractive index — always give it (air 1.00, water 1.33, glass 1.50, diamond 2.42)." },
+      "medium2": { "type": "string", "description": "Where it goes, e.g. \"water\" (default)." },
+      "n2": { "type": "number", "description": "Its index — always give it." },
+      "theta1_deg": { "type": "number", "description": "Angle of incidence from the normal, 0–89.5 (default 40). Animates." },
+      "from": { "type": "string", "enum": ["left", "right"], "description": "Side the lamp is on (default left)." },
+      "light_from": { "type": "string", "enum": ["above", "below"], "description": "\"below\": medium1 is drawn under the boundary and the light goes up (the straw: water below, eye above)." },
+      "show_angles": { "type": "boolean", "description": "Arcs and values for θ₁ and θ₂ (default true)." },
+      "show_reflection": { "type": "boolean", "description": "The partial reflected ray (default true; always drawn past the critical angle)." },
+      "show_critical": { "type": "boolean", "description": "The critical angle as a dashed line with its value when n1 > n2 (default true)." },
+      "show_law": { "type": "boolean", "description": "Write n₁ sin θ₁ = n₂ sin θ₂ with the live numbers (default false)." },
+      "wavefronts": { "type": "boolean", "description": "Crests across the rays, closer together where light is slower (default false)." },
+      "apparent": { "type": "boolean", "description": "The refracted ray traced straight back (dashed) to where the lamp APPEARS to be — the bent straw, the shallow pool." },
+      "image_label": { "type": "string", "description": "Text by the apparent position (default \"appears here\")." },
+      "eye": { "type": "boolean", "description": "An eye at the end of the ray, looking back along it." },
+      "slab": { "type": "boolean", "description": "medium2 is a slab with medium1 again beyond it: the ray leaves parallel, shifted sideways." },
+      "source_label": { "type": "string", "description": "A word or two by the lamp, e.g. \"straw tip\"." },
+      "title": { "type": "string" }
+    }
+  },
+  "element_ids": {
+    "medium1 / medium2": "the two media's washes (deeper for a higher index), with medium1_name / medium2_name and n1_label / n2_label (\"n = 1.33\") at the left edge",
+    "boundary": "the surface between them",
+    "normal": "the dashed normal through the point where the ray meets the boundary",
+    "source": "the lamp the incident ray starts from (source_label beside it when given)",
+    "incident_ray / refracted_ray / reflected_ray": "the rays (refracted_ray absent past the critical angle)",
+    "rays": "SET — every ray",
+    "theta1_arc / theta1_label": "θ₁'s arc and \"θ₁ = 40°\"",
+    "theta2_arc / theta2_label": "θ₂'s arc and value (absent past the critical angle)",
+    "angles": "SET — the arcs and their values",
+    "critical_line / critical_label": "the critical angle, dashed, with \"θc = 48.8°\" (n1 > n2)",
+    "tir_label": "\"Total internal reflection\", past the critical angle",
+    "law / law_numbers": "Snell's law and the same with the live numbers (show_law)",
+    "wavefronts": "the crests (wavefronts)",
+    "apparent_ray / image / image_label": "the ray traced back, where the lamp appears, its words (apparent)",
+    "eye": "the eye (eye)",
+    "boundary2 / medium3 / medium3_name / normal2 / exit_ray": "the slab's far side and the ray out of it (slab)",
+    "incident_extension / shift_arrow / shift_label": "the incident ray carried straight on and the sideways shift (slab)",
+    "title": "the title, when set"
+  },
+  "examples": [
+    { "request": "How does light bend going from air into water?", "params": { "medium1": "air", "n1": 1.0, "medium2": "water", "n2": 1.33, "theta1_deg": 45, "show_law": true } },
+    { "request": "When does light stop getting out of water?", "params": { "medium1": "water", "n1": 1.33, "medium2": "air", "n2": 1.0, "theta1_deg": 60, "light_from": "below" } },
+    { "request": "Why does a straw look bent in water?", "params": { "medium1": "water", "n1": 1.33, "medium2": "air", "n2": 1.0, "light_from": "below", "theta1_deg": 30, "apparent": true, "eye": true, "source_label": "straw tip", "show_reflection": false, "show_critical": false } },
+    { "request": "Why does a glass slab shift a ray sideways?", "params": { "medium1": "air", "n1": 1.0, "medium2": "glass", "n2": 1.5, "slab": true, "theta1_deg": 50, "wavefronts": true, "title": "Through a glass slab" } }
+  ]
+}

@@ -103,7 +103,8 @@ describe("wiring", () => {
 
   test("the stage: an edit tap swallows its click (card included) and opens the field; play and steps close it", () => {
     const src = readFileSync("src/ui/widget-host.ts", "utf8");
-    expect(src).toContain('swallowAll = read === "drag" || read === "edit";');
+    // …and a live body's own tap (WidgetBody.taps, 2026-09-28) swallows it the same way.
+    expect(src).toContain('swallowAll = read === "drag" || read === "edit" || (read === "click" && host.live);');
     expect(src).toContain('if (read === "edit") openField();');
     expect((src.match(/closeField\(\);/g) ?? []).length).toBeGreaterThanOrEqual(2);
     const css = readFileSync("src/styles.css", "utf8");

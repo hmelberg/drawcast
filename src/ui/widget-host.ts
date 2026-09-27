@@ -21,6 +21,7 @@ import { parseFieldValue, validateEditField, type WidgetEffect } from "../scenes
 import { SURFACE_PART, type EditField, type WidgetBody, type WidgetEvent, type WidgetScene } from "../scenes/widget-types";
 import type { BBox } from "../layout/geometry";
 import { makeBrowserMeasure } from "../render/svg-backend";
+import { layoutSpec } from "../layout/layout";
 import { wheelZoomFactor } from "../render/camera";
 import { sceneAt } from "../render/plan";
 import { withNewIdsVisible, withOverrides } from "../render/params";
@@ -56,7 +57,8 @@ export interface WidgetHost {
    *  "pass" is a live body's tap: not its gesture, so the caller lets the
    *  click go on to the card or the play toggle. "edit" is a live tap on a
    *  part the body calls editable: editField() now holds the number field
-   *  to show, and the click is the widget's. */
+   *  to show, and the click is the widget's. A live tap on a part the body
+   *  `taps` is a "click", delivered to it. */
   release(p: Pt): "click" | "drag" | "pass" | "edit" | null;
   /** Drop the gesture and its ghost without delivering anything (pointercancel). */
   cancel(): void;
@@ -139,7 +141,7 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
   // discarded (the host's own body still mounts on the first event). A body
   // that throws on construction simply wants no keys — clickAt says so too.
   // Its named parts and its live flag come off the same probe.
-  const probe: { keys: string[]; parts?: WidgetBody["parts"]; live: boolean; editable: boolean; surface?: boolean; restLabel?: string } = (() => {
+  const probe: { keys: string[]; parts?: WidgetBody["parts"]; live: boolean; editable: boolean; taps?: boolean; surface?: boolean; restLabel?: string } = (() => {
     try {
       const b = module.widget!();
       return {
@@ -147,6 +149,7 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
         ...(Array.isArray(b.parts) || typeof b.parts === "function" ? { parts: b.parts } : {}),
         live: b.live === true,
         editable: typeof b.editable === "function",
+        taps: typeof b.taps === "function",
         surface: typeof b.surface === "function",
         ...(typeof b.restLabel === "string" && b.restLabel.trim() !== "" ? { restLabel: b.restLabel.trim().slice(0, 40) } : {}),
       };
@@ -219,9 +222,26 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
   // pointermove, and building a scene runs the template's layout body — so the
   // answer is remembered until something that could change it does.
   let memo: { layout: unknown; key: string; scene: WidgetScene | null } | null = null;
+  /** The page as it stands at this boundary when no preview has painted it:
+   *  the mounted layout, unless the storyboard has animated the params since
+   *  (the player commits an animate's end without a painted layout, 2026-09-28)
+   *  — then the page re-laid at those params, or every part would be hit where
+   *  it stood before the animate (a lamp swung to 44° grabbed at 30°). */
+  let boundaryMemo: { key: string; layout: typeof hd.layout } | null = null;
+  const boundaryLayout = (p: Record<string, unknown>): typeof hd.layout => {
+    const key = JSON.stringify(p);
+    if (key === JSON.stringify(hd.spec.params ?? {})) return hd.layout;
+    if (boundaryMemo?.key === key) return boundaryMemo.layout;
+    try {
+      boundaryMemo = { key, layout: layoutSpec({ ...hd.spec, params: p }, deps.measure) };
+    } catch {
+      boundaryMemo = { key, layout: hd.layout };
+    }
+    return boundaryMemo.layout;
+  };
   const scene = (): WidgetScene | null => {
-    const painted = hd.timeline.paintedLayout() ?? hd.layout;
     const p = params();
+    const painted = hd.timeline.paintedLayout() ?? boundaryLayout(p);
     const key = `${hd.timeline.position}|${previewOrder.length}|${JSON.stringify(p)}`;
     if (memo && memo.layout === painted && memo.key === key) return memo.scene;
     const built = buildWidgetScene(module, p, { domain: hd.spec.domain, vars: Object.fromEntries(hd.timeline.vars), layout: painted, measure: deps.measure, visible: visible() });
@@ -316,6 +336,19 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
     for (const m of r.errors) warn(m);
     state = r.state;
     perform(r.effects, sc);
+  };
+
+  /** A live body takes a tap on part `id` as its own click (WidgetBody.taps). */
+  const tapsOn = (sc: WidgetScene, id: string): boolean => {
+    if (!probe.taps) return false;
+    const b = mounted(sc);
+    if (!b?.taps) return false;
+    try {
+      return b.taps(id, sc) === true;
+    } catch (err) {
+      warn(`widget taps() threw: ${(err as Error).message}`);
+      return false;
+    }
   };
 
   /** p is on the blank paper a live body owns (WidgetBody.surface). */
@@ -462,9 +495,14 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
         // on — unless the body types the number the tap landed on.
         if (!g.moved) {
           const f = fieldFor(g.scene, g.id, g.start);
-          if (!f) return "pass";
-          editing = { id: g.id, point: g.start, scene: g.scene, ...f };
-          return "edit";
+          if (f) {
+            editing = { id: g.id, point: g.start, scene: g.scene, ...f };
+            return "edit";
+          }
+          // …or the body's own tap (WidgetBody.taps): a click, like any body's.
+          if (!tapsOn(g.scene, g.id)) return "pass";
+          run(g.scene, { type: "click", id: g.id, point: g.start, domain: g.scene.toDomain(g.start) });
+          return "click";
         }
         // The last word is the release point itself, against the SAME
         // press-time scene every drag_move used — so the final patch is the
@@ -722,7 +760,8 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
     // capture listener sits on this same stage (so a plain stopPropagation
     // never reached it): a curve let go under the pointer is not a tap on it.
     // A tap that opened a number field is the field's, likewise.
-    swallowAll = read === "drag" || read === "edit";
+    // So is a live body's own tap (WidgetBody.taps): its card must not open.
+    swallowAll = read === "drag" || read === "edit" || (read === "click" && host.live);
     if (read === "edit") openField();
   };
   stage.addEventListener("pointerup", (e) => end(e, false), true);

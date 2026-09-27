@@ -72342,5 +72342,905 @@
         }
       ]
     }
+  },
+  {
+    "request": "Why does a straw look bent in water?",
+    "spec": {
+      "title": "Why a straw looks bent in water",
+      "template": "refraction",
+      "params": {
+        "medium1": "water",
+        "n1": 1.33,
+        "medium2": "air",
+        "n2": 1,
+        "light_from": "below",
+        "theta1_deg": 30,
+        "apparent": true,
+        "eye": true,
+        "source_label": "straw tip",
+        "show_reflection": false,
+        "show_critical": false
+      },
+      "elements": [
+        {
+          "id": "straw",
+          "type": "path",
+          "points": [
+            [
+              390,
+              209.5
+            ],
+            [
+              255,
+              495.3
+            ]
+          ],
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 9,
+            "opacity": 0.85
+          }
+        },
+        {
+          "id": "straw_seen",
+          "type": "path",
+          "points": [
+            [
+              390,
+              276.5
+            ],
+            [
+              300,
+              400
+            ]
+          ],
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 6,
+            "dash": true
+          }
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "The bent straw"
+          }
+        },
+        {
+          "draw": [
+            "media",
+            "boundary"
+          ],
+          "speak": "Why does a straw standing in a glass of water look broken, right at the surface?"
+        },
+        {
+          "draw": [
+            "straw"
+          ],
+          "speak": "The straw itself is perfectly straight."
+        },
+        {
+          "draw": [
+            "source",
+            "source_label"
+          ],
+          "speak": "Follow the light from one point on it: its tip, under the water."
+        },
+        {
+          "draw": [
+            "incident_ray"
+          ],
+          "speak": "That light travels up toward the surface in a straight line."
+        },
+        {
+          "draw": [
+            "normal",
+            "theta1_arc",
+            "theta1_label"
+          ],
+          "speak": "Measured from the dashed line square to the surface, it arrives at thirty degrees."
+        },
+        {
+          "draw": [
+            "refracted_ray"
+          ],
+          "speak": "Crossing into air, it bends away from that line."
+        },
+        {
+          "draw": [
+            "theta2_arc",
+            "theta2_label"
+          ],
+          "speak": "It leaves at almost forty-two degrees."
+        },
+        {
+          "highlight": {
+            "target": [
+              "n1_label",
+              "n2_label"
+            ]
+          },
+          "speak": "Light moves about a third faster in air than in water, and the side of the beam that gets out first pulls ahead, swinging the beam round."
+        },
+        {
+          "draw": [
+            "eye"
+          ],
+          "speak": "Now put your eye where that light lands."
+        },
+        {
+          "draw": [
+            "apparent_ray"
+          ],
+          "speak": "Your brain assumes light travels in straight lines, so it traces the ray straight back."
+        },
+        {
+          "draw": [
+            "image",
+            "image_label"
+          ],
+          "speak": "That line points above the real tip: the tip looks shallower than it is."
+        },
+        {
+          "draw": [
+            "straw_seen"
+          ],
+          "speak": "Every point below the surface is lifted the same way, while the part in the air stays put, so the straw seems to kink at the surface."
+        },
+        {
+          "erase": [
+            "straw",
+            "straw_seen"
+          ],
+          "speak": "The straw was never bent; the light was."
+        },
+        {
+          "animate": {
+            "theta1_deg": 44
+          },
+          "duration": 3,
+          "speak": "Look from a lower angle, and the tip seems to rise even higher."
+        },
+        {
+          "explore": {},
+          "speak": "Now drag the tip or the ray yourself, and watch where the tip appears."
+        },
+        {
+          "quiz": {
+            "question": "Looking into a pool, where does a coin on the bottom seem to be?",
+            "choices": [
+              "Deeper than it is",
+              "Shallower than it is",
+              "Exactly where it is"
+            ],
+            "correct": 2,
+            "right": "Shallower: its light bends away from the normal as it leaves the water, and traced straight back it points above the coin.",
+            "wrong": "Think about which way the light bends as it leaves the water."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "What do electric field lines tell you?",
+    "spec": {
+      "title": "What electric field lines tell you",
+      "template": "field_lines",
+      "params": {
+        "charges": [
+          {
+            "q": 1,
+            "x": -2,
+            "y": 0
+          },
+          {
+            "q": -1,
+            "x": 2,
+            "y": 0
+          }
+        ],
+        "test_charge": {
+          "x": 0,
+          "y": 1.9
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Field lines"
+          }
+        },
+        {
+          "draw": [
+            "charges"
+          ],
+          "speak": "What do the lines drawn around electric charges actually tell you?"
+        },
+        {
+          "draw": [
+            "lines"
+          ],
+          "speak": "Each line traces the way a small positive charge would be pushed, point by point."
+        },
+        {
+          "draw": [
+            "test_charge",
+            "test_force",
+            "test_force_label"
+          ],
+          "speak": "Put a tiny test charge anywhere, and the force on it points along the line through that spot."
+        },
+        {
+          "highlight": {
+            "target": [
+              "charge_0"
+            ]
+          },
+          "speak": "Lines start on positive charges,"
+        },
+        {
+          "highlight": {
+            "target": [
+              "charge_1"
+            ]
+          },
+          "speak": "and end on negative ones, so the arrows always run from plus to minus."
+        },
+        {
+          "animate": {
+            "test_charge.x": -1.2,
+            "test_charge.y": 0.8
+          },
+          "duration": 3,
+          "speak": "Slide the test charge in toward the plus charge, where the lines crowd together, and its arrow grows."
+        },
+        {
+          "speak": "That is the second thing the picture shows: crowded lines mean a strong field, sparse lines a weak one."
+        },
+        {
+          "highlight": {
+            "target": [
+              "lines"
+            ]
+          },
+          "speak": "And lines never cross, because at any point the push has only one direction."
+        },
+        {
+          "speak": "Now watch what happens if the right-hand charge turns positive too."
+        },
+        {
+          "animate": {
+            "charges.1.q": 1
+          },
+          "duration": 4,
+          "speak": "The lines stop joining the two charges: they bend away from each other and run off the page."
+        },
+        {
+          "point": {
+            "at": {
+              "data": [
+                0,
+                0
+              ]
+            },
+            "gesture": "circle"
+          },
+          "speak": "Halfway between, the two pushes cancel, and no line crosses this empty spot."
+        },
+        {
+          "speak": "Unlike charges, joined by lines, pull together; like charges push apart."
+        },
+        {
+          "explore": {},
+          "speak": "Now drag the charges around, or tap one to flip its sign, and watch the lines rearrange."
+        },
+        {
+          "speak": "So a field line picture shows, at a glance, which way a charge would be pushed, and how hard."
+        },
+        {
+          "quiz": {
+            "question": "Where on a field line picture is the force on a test charge strongest?",
+            "choices": [
+              "Where the lines spread apart",
+              "Where the lines crowd together",
+              "Where two lines cross"
+            ],
+            "correct": 2,
+            "right": "Where the lines crowd together: the closer the lines, the stronger the field.",
+            "wrong": "Think about what the spacing of the lines stands for."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "When does a lens make an image you can put on a screen?",
+    "packs": [
+      "physics"
+    ],
+    "spec": {
+      "title": "When a lens makes a picture on a screen",
+      "template": "ray_diagram",
+      "params": {
+        "focal_length": 10,
+        "object_distance": 30,
+        "object_height": 2.5,
+        "show_distances": true,
+        "view": {
+          "left": 34,
+          "right": 40,
+          "height": 7
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "A picture on a screen"
+          }
+        },
+        {
+          "draw": [
+            "axis",
+            "lens"
+          ],
+          "speak": "When does a lens throw a picture you can catch on a screen, and when does it make one you can only see by looking through it?"
+        },
+        {
+          "draw": [
+            "focal_left",
+            "focal_right",
+            "label_left",
+            "label_right",
+            "f_mark",
+            "f_value"
+          ],
+          "parallel": true,
+          "speak": "This lens has a focal length of ten centimetres: light arriving parallel meets at F, ten centimetres behind it."
+        },
+        {
+          "draw": [
+            "object",
+            "label_object",
+            "do_mark",
+            "do_value"
+          ],
+          "speak": "Stand a small lamp thirty centimetres in front of it."
+        },
+        {
+          "draw": [
+            "ray_parallel"
+          ],
+          "speak": "A ray leaving the top of the lamp parallel to the axis is bent through the far F."
+        },
+        {
+          "draw": [
+            "ray_center"
+          ],
+          "speak": "A ray through the centre of the lens goes straight on."
+        },
+        {
+          "draw": [
+            "image",
+            "label_image"
+          ],
+          "speak": "They cross fifteen centimetres behind the lens, and so does every other ray from that point: an upside-down lamp, half the size."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "image"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Light really arrives there, so paper held at that spot shows the picture: a real image, the kind a camera makes."
+        },
+        {
+          "animate": {
+            "object_distance": 15
+          },
+          "duration": 3,
+          "speak": "Move the lamp in to fifteen centimetres: the crossing slides out to thirty, and the picture grows to twice the lamp's size."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "highlight": {
+            "target": [
+              "image"
+            ]
+          },
+          "speak": "Close to F, far and large: that is a projector, with the slide just outside the focal point."
+        },
+        {
+          "animate": {
+            "object_distance": 10
+          },
+          "duration": 3,
+          "speak": "At F itself the rays leave the lens parallel and never cross: no picture anywhere, just a torch beam."
+        },
+        {
+          "animate": {
+            "object_distance": 6
+          },
+          "duration": 3,
+          "speak": "Closer still, inside F, the rays spread apart after the lens; traced back, they seem to come from a larger, upright lamp behind the real one."
+        },
+        {
+          "highlight": {
+            "target": [
+              "image",
+              "label_image"
+            ]
+          },
+          "speak": "No light ever reaches that spot, so a screen there stays dark: this virtual image exists only for an eye looking through the lens."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "focal_left"
+            },
+            "gesture": "tap"
+          },
+          "speak": "So the dividing line is F: outside it the rays meet and a screen catches them, inside it they only seem to meet."
+        },
+        {
+          "highlight": {
+            "target": [
+              "lens"
+            ]
+          },
+          "speak": "Your own eye is the first kind: its lens throws a real, upside-down picture on the retina, and the brain turns it the right way up."
+        },
+        {
+          "explore": {},
+          "speak": "Drag the lamp yourself, and find the spot where the picture on the screen gives way to one you can only look at."
+        },
+        {
+          "quiz": {
+            "question": "A projector throws a large picture on a far wall. Where is its slide?",
+            "choices": [
+              "Just outside F",
+              "Exactly at F",
+              "Inside F"
+            ],
+            "correct": 1,
+            "right": "Just outside F: the rays still meet, so the picture can land on the wall, and the nearer the slide is to F, the farther and larger it lands.",
+            "wrong": "Think about which images a wall can catch."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why does an epidemic peak before everyone is infected?",
+    "packs": [
+      "evidence"
+    ],
+    "spec": {
+      "title": "Why the wave turns",
+      "template": "sir_compartments",
+      "params": {
+        "r0": 3,
+        "days": 120,
+        "cursor_day": 20
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Why the wave turns"
+          }
+        },
+        {
+          "draw": [
+            "box_s",
+            "flow_0",
+            "box_i",
+            "flow_1",
+            "box_r"
+          ],
+          "speak": "Why does an epidemic peak and turn down while a third of people have still not caught it? Start with the simplest model: susceptible, infectious, recovered."
+        },
+        {
+          "draw": [
+            "rate_0",
+            "rate_1",
+            "r0_value"
+          ],
+          "speak": "Take a virus where one case, among people who can all catch it, infects three others: R nought is three."
+        },
+        {
+          "draw": [
+            "axes",
+            "curve_s"
+          ],
+          "speak": "The blue line is the share of the town still susceptible, day by day."
+        },
+        {
+          "draw": [
+            "curve_i",
+            "peak"
+          ],
+          "speak": "The red line is the share infectious at once: it climbs, peaks on day 38 with three in ten ill, and falls."
+        },
+        {
+          "draw": [
+            "curve_r"
+          ],
+          "speak": "Green: recovered, and immune."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "cursor"
+          ],
+          "speak": "On day 20, 93 in a hundred are still susceptible, so a case's three contacts give about 2.8 new cases."
+        },
+        {
+          "highlight": {
+            "target": [
+              "cursor_rt"
+            ]
+          },
+          "speak": "That number is R t, the effective reproduction number: above one, the wave grows."
+        },
+        {
+          "draw": [
+            "threshold"
+          ],
+          "speak": "Now the line that decides it: one third, one over R nought."
+        },
+        {
+          "animate": {
+            "cursor_day": 38.4
+          },
+          "duration": 3,
+          "speak": "Slide to the peak. Only a third are still susceptible, so three contacts give one new case."
+        },
+        {
+          "highlight": {
+            "target": [
+              "threshold"
+            ]
+          },
+          "speak": "R t is one exactly where the blue line crosses the dashed one — the same day the red line turns."
+        },
+        {
+          "animate": {
+            "cursor_day": 60
+          },
+          "duration": 3,
+          "speak": "Beyond it each case is replaced by fewer than one, and the wave drains, though the virus is as contagious as ever."
+        },
+        {
+          "animate": {
+            "cursor_day": 120
+          },
+          "duration": 3,
+          "speak": "Cases still sick keep infecting on the way down, so the blue line overshoots: in the end only six percent escape."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "threshold"
+            },
+            "gesture": "underline"
+          },
+          "speak": "That line also gives the herd-immunity threshold: start with two thirds immune, and the wave never begins."
+        },
+        {
+          "explore": {},
+          "speak": "Drag the cursor across the days, or scrub R nought, and watch R t pass one at the peak."
+        },
+        {
+          "quiz": {
+            "question": "A virus has R nought 4. About what share is still susceptible when its wave peaks?",
+            "choices": [
+              "A quarter",
+              "A half",
+              "Nobody"
+            ],
+            "correct": 1,
+            "right": "A quarter: the wave turns when R nought times the susceptible share falls to one, and four times a quarter is one."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "How many people must be vaccinated to stop an outbreak?",
+    "packs": [
+      "evidence"
+    ],
+    "spec": {
+      "title": "Enough to stop it",
+      "template": "sir_compartments",
+      "params": {
+        "r0": 3,
+        "days": 250,
+        "vaccinated": 0,
+        "show_hit": true
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Enough to stop it"
+          }
+        },
+        {
+          "draw": [
+            "box_s",
+            "flow_0",
+            "box_i",
+            "flow_1",
+            "box_r"
+          ],
+          "speak": "How many people must be vaccinated to stop an outbreak? Not everyone — and a simple model says how many."
+        },
+        {
+          "draw": [
+            "rate_0",
+            "rate_1",
+            "r0_value"
+          ],
+          "speak": "Take a virus where each case infects three others when nobody is immune: R nought is three."
+        },
+        {
+          "draw": [
+            "axes",
+            "curve_s",
+            "curve_i",
+            "curve_r"
+          ],
+          "speak": "Unchecked, it sweeps through: three in ten ill at the peak, and 94 percent infected in the end."
+        },
+        {
+          "draw": [
+            "threshold"
+          ],
+          "speak": "The dashed line is one third, one over R nought: below it, each case meets too few susceptible people to replace itself."
+        },
+        {
+          "draw": [
+            "hit_value",
+            "immunity_bar"
+          ],
+          "speak": "So if two thirds are immune from the start, the outbreak cannot grow: that share, one minus one over R nought, is the herd immunity threshold."
+        },
+        {
+          "draw": [
+            "vaccinated_band",
+            "vax_value"
+          ],
+          "speak": "Now vaccinate, with a vaccine that fully protects: the vaccinated hang as a green band from the top."
+        },
+        {
+          "animate": {
+            "vaccinated": 0.3
+          },
+          "duration": 3,
+          "speak": "Thirty percent vaccinated: the blue line starts lower, and the wave comes later and smaller."
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve_i"
+            ]
+          },
+          "speak": "Twelve percent ill at the peak instead of thirty."
+        },
+        {
+          "animate": {
+            "vaccinated": 0.5
+          },
+          "duration": 3,
+          "speak": "Half vaccinated: a slow ripple — yet it still infects three in ten people over the months."
+        },
+        {
+          "animate": {
+            "vaccinated": 0.7
+          },
+          "duration": 3,
+          "speak": "Seventy percent: the band now reaches below the dashed line, the susceptible start below it, and the outbreak dies out."
+        },
+        {
+          "highlight": {
+            "target": [
+              "immunity_bar"
+            ]
+          },
+          "speak": "The bar has passed the tick at two thirds, and the unvaccinated are protected too: fewer than one person in a hundred is ever infected."
+        },
+        {
+          "animate": {
+            "r0": 15
+          },
+          "duration": 3,
+          "speak": "Measles is far more contagious — each case infects twelve to eighteen others — and at fifteen the same seventy percent lets it reach nearly every unvaccinated person."
+        },
+        {
+          "highlight": {
+            "target": [
+              "hit_value"
+            ]
+          },
+          "speak": "For measles about 93 percent must be immune, which is why a small dip in coverage brings it back."
+        },
+        {
+          "highlight": {
+            "target": [
+              "vaccinated_band"
+            ]
+          },
+          "speak": "All this assumes full protection and people who mix evenly; a weaker vaccine, or a school where the unvaccinated cluster, needs more."
+        },
+        {
+          "explore": {},
+          "speak": "Drag the green band or scrub R nought yourself, and find where the wave disappears."
+        },
+        {
+          "quiz": {
+            "question": "A virus has R nought 5. About what share must be immune to stop it?",
+            "choices": [
+              "Half",
+              "Four in five",
+              "Everyone"
+            ],
+            "correct": 2,
+            "right": "Four in five: one minus one over five. Then each case meets only one susceptible person in five of its contacts, and replaces itself less than once."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why do some outbreaks fizzle out while others explode?",
+    "packs": [
+      "evidence"
+    ],
+    "spec": {
+      "title": "Fizzle or explode",
+      "template": "reed_frost",
+      "params": {
+        "population": 30,
+        "r0": 2,
+        "runs": 12,
+        "seed": 3
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Fizzle or explode"
+          }
+        },
+        {
+          "draw": [
+            "n_value",
+            "p_value",
+            "r0_value",
+            "rerun"
+          ],
+          "speak": "Why do some outbreaks fizzle out while others, of the same disease, explode? Take a class of thirty with one sick child."
+        },
+        {
+          "highlight": {
+            "target": [
+              "p_value"
+            ]
+          },
+          "speak": "Each classmate has a seven percent chance of catching it from each sick child, so one case infects two on average: R nought is two."
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Across: generations of cases; up: how many have been infected so far."
+        },
+        {
+          "draw": [
+            "run_2"
+          ],
+          "speak": "Here is one outbreak, rolled with dice: one case infects three, they infect four more, and it climbs until 26 children have had it."
+        },
+        {
+          "draw": [
+            "run_1"
+          ],
+          "speak": "Same disease, same class, another roll: the first child infects nobody — the grey line along the bottom — and it is over."
+        },
+        {
+          "draw": [
+            "runs"
+          ],
+          "speak": "Ten more rolls: most take off, a few stop at one or two cases."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "dist_axis",
+            "dist_minor",
+            "dist_major",
+            "cutoff"
+          ],
+          "speak": "On the right, the exact chance of every final total, computed rather than rolled."
+        },
+        {
+          "highlight": {
+            "target": [
+              "dist_minor"
+            ]
+          },
+          "speak": "It has two humps: about one outbreak in five fizzles out with a handful of cases —"
+        },
+        {
+          "highlight": {
+            "target": [
+              "dist_major"
+            ]
+          },
+          "speak": "— and four in five take off, infecting about 24 of the 30."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "minor_label"
+            },
+            "gesture": "underline"
+          },
+          "speak": "Each classmate has a 93 percent chance of escaping the first child, so all 29 escape about one time in eight: more than half of all the fizzles."
+        },
+        {
+          "highlight": {
+            "target": [
+              "runs_minor"
+            ]
+          },
+          "speak": "While there are only one or two cases, luck can end the chain —"
+        },
+        {
+          "highlight": {
+            "target": [
+              "runs_major"
+            ]
+          },
+          "speak": "— but once there are ten, it almost never does."
+        },
+        {
+          "draw": [
+            "expected"
+          ],
+          "speak": "The dashed average, about twenty children, hides the split: one class gets a couple of cases, the next nearly everyone."
+        },
+        {
+          "highlight": {
+            "target": [
+              "r0_value"
+            ]
+          },
+          "speak": "Lowell Reed and Wade Hampton Frost taught this chain of chances at Johns Hopkins in 1928, and never published it themselves."
+        },
+        {
+          "explore": {},
+          "speak": "Tap new runs for another dozen outbreaks, or scrub R nought and the class size."
+        },
+        {
+          "quiz": {
+            "question": "R nought is 2, yet one of these outbreaks ended with a single case. Why?",
+            "choices": [
+              "The disease was milder",
+              "Chance: the first case infected nobody",
+              "The class was immune"
+            ],
+            "correct": 2,
+            "right": "Chance: with a seven percent risk per classmate, the first child infects nobody one time in eight — the same disease, just an unlucky start for it."
+          }
+        }
+      ]
+    }
   }
 ]
