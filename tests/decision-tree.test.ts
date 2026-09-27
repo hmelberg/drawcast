@@ -64,6 +64,23 @@ describe("layoutDecisionTree", () => {
     expect(payoff!.text).toMatch(/9\.5/);
   });
 
+  test("a chance node's value is its own label, value_<id>, in label size", () => {
+    const withValue = structuredClone(params);
+    withValue.root.children![0].node.value = "EV 8.9";
+    const r = layoutDecisionTree(withValue);
+    const v = r.labels.find((l) => l.id === "value_surgery");
+    expect(v?.text).toBe("EV 8.9");
+    expect(v?.fontSize).toBe(r.labels.find((l) => l.id === "label_surgery")!.fontSize);
+    expect(r.attached["node_surgery"]).toContain("value_surgery");
+    expect(layoutDecisionTree(params).labels.some((l) => l.id.startsWith("value_"))).toBe(false);
+  });
+
+  test("branch labels are never smaller than node labels", () => {
+    const r = layoutDecisionTree(params);
+    const node = r.labels.find((l) => l.id === "label_surgery")!.fontSize;
+    for (const l of r.labels.filter((l) => l.id.startsWith("branchlabel_"))) expect(l.fontSize).toBeGreaterThanOrEqual(node);
+  });
+
   test("node ids fall back to path-based ids when not given", () => {
     const r = layoutDecisionTree({
       root: { type: "decision", label: "Root", children: [{ label: "a", node: { type: "terminal", label: "A" } }] },

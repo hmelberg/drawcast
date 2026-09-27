@@ -14,6 +14,7 @@
           "label": { "type": "string" },
           "payoff": { "type": "number", "description": "Terminal outcome value (e.g. QALYs)." },
           "cost": { "type": "number", "description": "Terminal cost, optional." },
+          "value": { "type": "string", "description": "Chance/decision node only: its folded-back value, e.g. \"EV 11.6 y\". Shown under the node as value_<id>; draw it on the beat that computes it." },
           "children": {
             "type": "array",
             "description": "Branches to child nodes.",
@@ -37,7 +38,8 @@
     "edge_<parentId>_<childId>": "the branch line between two nodes",
     "label_<id>": "a node's text label",
     "branchlabel_<parentId>_<childId>": "branch label with probability, e.g. \"Success (p=0.9)\"",
-    "payoff_<id>": "payoff/cost text at a terminal"
+    "payoff_<id>": "payoff/cost text at a terminal",
+    "value_<id>": "a chance/decision node's value text (its `value` param), e.g. value_surgery"
   },
   "examples": [
     {

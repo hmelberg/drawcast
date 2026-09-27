@@ -1356,6 +1356,7 @@
                 "id": "surgery",
                 "type": "chance",
                 "label": "Surgery",
+                "value": "8.1 QALYs",
                 "children": [
                   {
                     "label": "Works",
@@ -1386,6 +1387,7 @@
                 "id": "med",
                 "type": "chance",
                 "label": "Medication",
+                "value": "7.4 QALYs",
                 "children": [
                   {
                     "label": "Controlled",
@@ -1414,26 +1416,6 @@
         }
       },
       "elements": [
-        {
-          "id": "ev_surgery",
-          "type": "label",
-          "attach_to": "node_surgery",
-          "side": "below-left",
-          "text": "8.1 QALYs",
-          "style": {
-            "color": "#2f6b8f"
-          }
-        },
-        {
-          "id": "ev_med",
-          "type": "label",
-          "attach_to": "node_med",
-          "side": "below",
-          "text": "7.4 QALYs",
-          "style": {
-            "color": "#2f6b8f"
-          }
-        },
         {
           "id": "threshold",
           "type": "math",
@@ -1535,20 +1517,20 @@
         },
         {
           "draw": [
-            "ev_surgery"
+            "value_surgery"
           ],
           "speak": "Instead, fold the tree back: weight each ending by its chance. Nine times 0.85 plus three times 0.15 gives surgery 8.1 expected QALYs."
         },
         {
           "draw": [
-            "ev_med"
+            "value_med"
           ],
           "speak": "Eight times 0.7 plus six times 0.3 gives medication 7.4."
         },
         {
           "highlight": {
             "target": [
-              "ev_surgery"
+              "value_surgery"
             ]
           },
           "speak": "Surgery, by 0.7 QALYs a patient, even though about one patient in seven ends up worse off than on tablets."
