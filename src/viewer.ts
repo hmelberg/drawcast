@@ -33,7 +33,10 @@ import { bakedAudioFor } from "./playlist/audio";
 import { validateSpec } from "./spec/schema";
 import { getTtsKey, loadSettings, saveSettings } from "./store";
 import { ensurePacksParallel, packsForSpecs, PACK_DEFS } from "./scenes/packs";
-import { registerCastTemplates } from "./scenes/cast-templates";
+import { isBlockedCastTemplate, registerCastTemplates } from "./scenes/cast-templates";
+import { gateSpecs } from "./security/code-trust";
+import { enrollRoute, mainAppUrl, namedRoute, onViewOrigin, remixUrl } from "./security/view-origin";
+import { installCodeConsent } from "./ui/code-consent";
 import { scenes } from "./scenes/registry";
 import { pickerKey } from "./google/auth";
 
@@ -368,6 +371,13 @@ export async function runNamed(hash: string): Promise<void> {
     status.classList.add("error");
     return;
   }
+  // A public cast plays on the view origin; a course door or a private cast
+  // needs the account, on the main one (security/view-origin.ts).
+  const elsewhere = namedRoute(resolved, hash);
+  if (elsewhere) {
+    location.replace(elsewhere);
+    return;
+  }
   if (resolved.kind === "course") {
     // The door, not a bounce to the course's page: the page links HERE, so
     // a redirect would send a learner who just clicked Join straight back to
@@ -544,6 +554,18 @@ function shareButton(): HTMLButtonElement {
   return btn;
 }
 
+/**
+ * The text of a PUBLIC shared cast (GitHub, Drive, a Google Doc) — what the
+ * editor fetches for "Edit a copy" (security/view-origin.ts remixUrl). A
+ * server cast is private to an account and has no public copy: null.
+ */
+export async function fetchPublicCastText(req: ViewerRequest): Promise<string | null> {
+  if (req.gh) return fetchGhText(req.gh);
+  if (req.driveId) return fetchGdriveText(req.driveId);
+  if (req.docId) return fetchGdocText(req.docId);
+  return null;
+}
+
 export async function runViewer(req: ViewerRequest): Promise<void> {
   document.body.classList.add("viewer-body");
   const app = document.getElementById("app")!;
@@ -583,7 +605,13 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   // count, so it is said once and never blocks the drawing.
   const noteEl = h("span", { class: "viewer-note" });
   // The same row the app's Player mode draws (ui/player-meta.ts).
-  const meta = playerMeta(viewsEl, noteEl, h("a", { class: "viewer-made", href: location.pathname, title: "Open the drawcast app" }, "Made with drawcast"));
+  // On the view origin the app is elsewhere: "Made with drawcast" goes to the
+  // main origin, and "Edit a copy" takes this cast there — an explicit
+  // action, and the editor puts its code through the trust gate like any
+  // upload. A private server cast has no public copy to fetch.
+  const made = h("a", { class: "viewer-made", href: onViewOrigin() ? mainAppUrl() : location.pathname, title: "Open the drawcast app" }, "Made with drawcast");
+  const remix = onViewOrigin() && !req.anvil ? h("a", { class: "viewer-made viewer-remix", href: remixUrl(location.hash), title: "Open a copy of this drawcast in the drawcast editor" }, "Edit a copy") : null;
+  const meta = playerMeta(viewsEl, noteEl, remix ? h("span", { class: "viewer-made" }, remix, " · ", made) : made);
   app.append(h("div", { class: "viewer-wrap" }, figureHost, meta.root));
 
   try {
@@ -598,6 +626,13 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
           ? await fetchGdriveText(req.driveId)
           : await fetchGdocText(req.docId!);
     const playlist = parsePlaylistText(text);
+    // On the view origin, a cast that reports learner progress needs the
+    // account, which lives on the main origin only: hand it over there.
+    const forAccount = enrollRoute(playlist.meta.enroll, DEFAULT_ENROLL_API, location.hash);
+    if (forAccount) {
+      location.replace(forAccount);
+      return;
+    }
     const items = itemsOf(playlist);
     if (items.length === 0) throw new Error("The document contains no drawable items.");
     // Templates register BEFORE anything lays out (Hans's live bug,
@@ -609,6 +644,13 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     // was even fetched, a round trip each); every pack, in parallel, when a
     // template's pack is unknown. The author's choice, never this browser's
     // settings, decides what loads.
+    // Code the cast carries (template bodies, scripts) runs in this page's
+    // origin — so a stranger's code asks first (security/code-trust.ts). A
+    // "Show without it" leaves the sinks refusing it: templates draw
+    // freehand, scripts show their saved output. Asked before anything
+    // registers or renders, so nothing of it has run by the time we ask.
+    installCodeConsent();
+    const codeAllowed = await gateSpecs(items.map((i) => i.spec));
     for (const item of items) registerCastTemplates(item.spec);
     const needPacks = packsForSpecs(items.map((i) => i.spec), (id) => scenes[id] !== undefined);
     await ensurePacksParallel(needPacks ?? Object.keys(PACK_DEFS));
@@ -622,7 +664,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       // silent fall-through to a near-blank page (layoutSpec's warning is
       // returned but nothing in this path reads it).
       const tpl = item.spec.template;
-      if (tpl && !scenes[tpl]) {
+      if (tpl && !scenes[tpl] && !isBlockedCastTemplate(tpl)) {
         throw new Error(`This drawcast uses the template "${tpl}", which this viewer does not know — it may come from a newer app or a remote pack.`);
       }
     }
@@ -635,6 +677,20 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       document.title = `${title} — drawcast`;
     }
     if (audioNote) noteEl.textContent = audioNote;
+    if (!codeAllowed) {
+      // The way back from "Show without it": ask again, and on yes reload —
+      // a template that was never compiled cannot be swapped into a live figure.
+      const again = h("button", { class: "viewer-run-code", title: "This drawcast's own code was not run" }, "Run its code…");
+      again.addEventListener("click", () => {
+        void gateSpecs(
+          items.map((i) => i.spec),
+          { askAgain: true },
+        ).then((ok) => {
+          if (ok) location.reload();
+        });
+      });
+      noteEl.append(noteEl.textContent ? " " : "", again);
+    }
     // Counting: after the playlist is parsed, because the flag travels in the
     // file, and BEFORE mountPlaylist, which takes seconds a visitor may not
     // stay for. Never awaited — a counting outage must not delay a drawing.

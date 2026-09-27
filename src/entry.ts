@@ -12,8 +12,18 @@
 import { redeemFromAddress } from "./account";
 import { DEFAULT_ENROLL_API } from "./learn";
 import { isNameHash } from "./names";
+import { bootRoute, onViewOrigin } from "./security/view-origin";
 
 async function boot(): Promise<void> {
+  // First of all, before any storage is read: which origin this page belongs
+  // on (security/view-origin.ts). Only does anything when a view origin is
+  // configured; then other people's public casts play there, and everything
+  // that needs the account — the editor, sign-in, private casts — plays here.
+  const route = bootRoute({ origin: location.origin, hash: location.hash });
+  if (route.go) {
+    location.replace(route.go);
+    return;
+  }
   // Before routing: a `t=` in the address is a sign-in coming back, and the
   // hash it rode in on is the page the person actually asked for. The hash
   // is read AFTER the redeem, once the token has been stripped from it.
@@ -23,21 +33,29 @@ async function boot(): Promise<void> {
   // `#name&t=junk` — an unbounded POST to a sleeping backend would hang a
   // shared link on a blank page. Ten seconds, then the page routes as usual,
   // signed out.
-  await redeemFromAddress(location.hash, location.href, DEFAULT_ENROLL_API, (input, init) =>
-    fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
-  );
+  // Never on the view origin: it holds no account token (bootRoute sends a
+  // sign-in coming back there on to the main origin anyway).
+  if (!onViewOrigin()) {
+    await redeemFromAddress(location.hash, location.href, DEFAULT_ENROLL_API, (input, init) =>
+      fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
+    );
+  }
   const hash = location.hash;
   // index.html's pen-stroke loader covers the download; whatever boots now
   // draws its own page (the viewer its own loading line).
   const doneBooting = (): void => document.getElementById("boot")?.remove();
-  if (/[#&](gdoc|gh|gdrive|anvil)[=-]/.test(hash)) {
+  // "#remix&gh=…" is the editor opening a copy of a shared cast (main.ts):
+  // neither the viewer (whose pattern "&gh=" matches) nor a name ("remix"
+  // parses as one), so it is set aside before both are tested.
+  const remix = hash.startsWith("#remix&");
+  if (!remix && /[#&](gdoc|gh|gdrive|anvil)[=-]/.test(hash)) {
     const { parseViewerHash, runViewer, showUnplayable } = await import("./viewer");
     doneBooting();
     const req = parseViewerHash(hash);
     // A refused hash is a message, never a silent blank page.
     if (req) await runViewer(req);
     else showUnplayable();
-  } else if (isNameHash(hash)) {
+  } else if (!remix && isNameHash(hash)) {
     const { runNamed } = await import("./viewer");
     doneBooting();
     await runNamed(hash);

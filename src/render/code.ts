@@ -16,6 +16,10 @@ import { pathsByCodeId, substituteDataTokens, requestedTokens } from "../code/to
 import { withControlDefaults } from "../code/controls";
 import type { Spec, SpecElement } from "../spec/types";
 import type { RenderStyle } from "./svg-backend";
+import { codeKey, isTrusted, languageNeedsTrust, noteBlocked } from "../security/code-trust";
+
+/** What an untrusted script with no saved output shows instead of running. */
+export const NOT_RUN_MESSAGE = "Not run: this script came with the drawcast from its author, and runs only if you choose “Run it”.";
 
 /** The run deps plus the one thing about the FIGURE a script's run depends
  *  on: how the drawing is being rendered. A chart the author did not style
@@ -29,6 +33,8 @@ export interface CodeResolution {
   error?: string;
   /** The skip rule applied: hidden pane, no token names this element. */
   skipped?: boolean;
+  /** Untrusted code (security/code-trust.ts): not run; its saved output, if any, stands. */
+  blocked?: boolean;
 }
 
 /** A stamped envelope serves a request only when it answers every path —
@@ -51,6 +57,9 @@ export async function resolveCode(spec: Spec, deps: CodeResolveDeps = {}): Promi
   for (const el of spec.elements ?? []) {
     if (el.type !== "code") continue;
     codeEls.set(el.id, el);
+    // The trust key is taken on the script as the SPEC carries it, before
+    // the controls rewrite below — the same bytes codeItemsOf keys.
+    const entryCode = el.code;
     // Code controls: the document's stamp is the run at the controls'
     // defaults, and the panel draws the same text (design 2026-09-14 §2.5).
     // Applied on the render CLONE, before the stamp check and the run — the
@@ -72,6 +81,19 @@ export async function resolveCode(spec: Spec, deps: CodeResolveDeps = {}): Promi
     if (el.game !== undefined && (el.code ?? "").trim() === "") {
       results.push({ id: el.id, ok: true, skipped: true });
       continue;
+    }
+    // The gate (security review 2026-09-28): a script runs in this page's
+    // origin, so one this browser does not trust never runs here. Its baked
+    // output (code_result, as the author's run left it) is drawn instead,
+    // even a stamp that would otherwise be re-run.
+    if (el.language && typeof entryCode === "string" && entryCode.trim() !== "" && languageNeedsTrust(el.language)) {
+      const key = codeKey(el.language, entryCode);
+      if (!isTrusted(key)) {
+        noteBlocked({ key, kind: "code", name: el.id, language: el.language });
+        if (!el.code_result) el.code_result = JSON.stringify({ ok: false, stdout: "", stderr: "", figures: [], error: NOT_RUN_MESSAGE } satisfies CodeRunResult);
+        results.push({ id: el.id, ok: true, blocked: true });
+        continue;
+      }
     }
     if (el.code_result) {
       // Only a successful stamp that covers the request is trustworthy cache:

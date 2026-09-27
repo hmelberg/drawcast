@@ -11,4 +11,10 @@ export type { RenderHandle, RenderOptions, RenderStyle } from "./render";
 export { DrawcastFigure, defineDrawcastFigure, parseFigureAttrs, type FigureAttrs } from "./engine-element";
 
 import { defineDrawcastFigure } from "./engine-element";
+import { setTrustPolicy } from "./security/code-trust";
+// The embeddable engine renders what its HOST page hands it, in the host's
+// own origin: the host is the author, and there is no drawcast secret in
+// that origin to protect. Code in those specs runs as the host wrote it
+// (security/code-trust.ts; the app and the share viewer use "check").
+setTrustPolicy("all");
 defineDrawcastFigure();

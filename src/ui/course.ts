@@ -55,6 +55,7 @@ import { resolveSources } from "../render/source";
 import { resolveImages } from "../render/image";
 import { resolveIcons } from "../render/icon";
 import { unembeddedImages } from "./insert";
+import { trustDerived, trustSpecs } from "../security/code-trust";
 import { getGithubToken, getTtsKey, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, saveSettings, type SavedCourse, type SavedDrawing } from "../store";
 import { h } from "./dom";
 import { createModal } from "./modal";
@@ -470,6 +471,9 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         return;
       }
       const first = outcome.playlist.entries.find((e) => e.kind === "item");
+      // An AI revise (security/code-trust.ts): new code is the AI's, changed
+      // code inherits the trust of what it replaced.
+      trustDerived(saved.playlist ? itemsOf(parsePlaylistText(saved.playlist)).map((i) => i.spec) : [saved.spec], itemsOf(outcome.playlist).map((i) => i.spec));
       const next: SavedDrawing = {
         ...saved,
         spec: first && first.kind === "item" ? first.spec : saved.spec,
@@ -669,6 +673,8 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
     // would leave the previous version orphaned in the library.
     const id = lecture.status?.id ?? crypto.randomUUID();
     const first = playlist.entries.find((e) => e.kind === "item");
+    // A lecture this browser's AI generated is its own code (security/code-trust.ts).
+    trustSpecs(itemsOf(playlist).map((i) => i.spec));
     saveDrawing({
       id,
       title: lecture.title,

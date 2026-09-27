@@ -5,6 +5,7 @@
 import { loadMyTemplates } from "../store";
 import { parseTemplateDoc, type TemplateDoc } from "./doc";
 import { registerTemplateDoc, scenes } from "./registry";
+import { templateHasCode, templateKey, trustKeys } from "../security/code-trust";
 
 /** Ids owned by the user this session. Only these may be re-registered or removed. */
 const userIds = new Set<string>();
@@ -25,7 +26,13 @@ export function registerUserTemplateYaml(yaml: string): { ok: boolean; id?: stri
   }
   const prev = scenes[doc.template];
   const r = registerTemplateDoc(doc); // reuse the parsed doc — also kills the double parse
-  if (r.ok) userIds.add(doc.template);
+  if (r.ok) {
+    userIds.add(doc.template);
+    // Your own template (authored here, imported by you, or loaded from your
+    // store) — so a cast that carries a copy of it runs it without asking,
+    // in the viewer too (security/code-trust.ts).
+    if (templateHasCode(doc)) trustKeys([templateKey(doc)]);
+  }
   else if (prev) scenes[doc.template] = prev;
   else delete scenes[doc.template];
   return { ok: r.ok, id: doc.template, errors: r.errors };
