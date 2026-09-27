@@ -34,6 +34,21 @@ export const C64_FONT_URLS = [
   "https://drawcast.app/fonts/c64/C64_Pro_Mono-STYLE.woff2", // a page embedding the engine (CORS is on for /fonts/* in netlify.toml)
 ] as const;
 
+/** Where the handwriting face lives, for a page that has not loaded it
+ *  itself: the app's index.html takes it from Google Fonts, but the dev
+ *  frame harness (frames.html) and a page embedding the engine load nothing,
+ *  and their labels fell back to Comic Sans — a fifth taller than Patrick
+ *  Hand, while a formula is always written with Patrick Hand's own outlines
+ *  (scenes/math-hand.ts), so every formula looked shrunken beside its labels
+ *  (2026-09-27: "formulas about a third of the label size"; measured, at
+ *  size 28, caps 17.4 vs 22.5 logical units under Comic Sans, 17.4 vs 18.8
+ *  under Patrick Hand). Same order as the C64 face's URLs. */
+export const PATRICK_HAND_URLS = [
+  "/fonts/patrickhand/PatrickHand-Regular.ttf",
+  "fonts/patrickhand/PatrickHand-Regular.ttf",
+  "https://drawcast.app/fonts/patrickhand/PatrickHand-Regular.ttf",
+] as const;
+
 const FIGURE_CSS = `
 @font-face {
   font-family: 'C64 Pro Mono';
