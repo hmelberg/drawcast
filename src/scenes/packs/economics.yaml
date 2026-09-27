@@ -16,8 +16,14 @@ description: >-
   for ANY request about consumer choice, indifference curves, budget
   constraints or budget lines, marginal rate of substitution, Cobb-Douglas
   utility, or "what bundle maximizes utility". income, price_x and price_y
-  are numeric and animate smoothly — tween them to show the budget line
-  pivoting or sliding and the optimum sliding along with it.
+  are numeric and animate smoothly — tween them (with x_max/y_max set, so
+  the axes hold still) to show the budget line pivoting or sliding and the
+  optimum sliding along with it. price_x_before splits a price change into
+  its substitution and income effects. Paused, the viewer can drag the
+  budget line (an end turns it: that good's price; the middle slides it:
+  income) and the optimum follows live; an explore beat naming nothing
+  hands it over. Values {consumer.x}, {consumer.y}, and with price_x_before
+  {consumer.substitution}, {consumer.income_effect}.
 params:
   type: object
   properties:
@@ -47,6 +53,15 @@ params:
     y_good:
       type: string
       description: "Label for the good on the y-axis (default \"Good Y\")."
+    x_max:
+      type: number
+      description: "Fixed x-axis extent in units of the x-good (default 1.3 × the budget's x-intercept, so the line never seems to move). Set x_max and y_max when animating a price or income."
+    y_max:
+      type: number
+      description: "Fixed y-axis extent in units of the y-good (see x_max)."
+    price_x_before:
+      type: number
+      description: "The x-good's price before a change to price_x: adds the old budget line, the old optimum A on its curve, the compensated line through C, and the substitution (A→C) and income (C→B) effects."
 element_ids:
   axes: the coordinate axes (one group with both axis lines and their captions)
   budget_line: the straight budget line from (0, income/price_y) to (income/price_x, 0)
@@ -57,11 +72,21 @@ element_ids:
   optimum_label: the optimum's label
   guide_x: dashed vertical guide from the optimum down to the x-axis, present when show_optimum
   guide_y: dashed horizontal guide from the optimum to the y-axis, present when show_optimum
+  budget_old / label_budget_old: the budget line at price_x_before (dashed), with price_x_before
+  ic_old / label_ic_old: the indifference curve through the old optimum, with price_x_before
+  budget_comp / label_budget_comp: the compensated budget line (new prices, old utility), with price_x_before
+  point_a / label_point_a: the old optimum A, with price_x_before (the optimum is then labelled B)
+  point_c / label_point_c: the compensated bundle C (A's curve, new prices), with price_x_before
+  guide_a / guide_c: dashed guides from A and C down to the x-axis
+  substitution_effect / label_substitution: arrow A→C along the x-axis
+  income_effect / label_income: arrow C→B along the x-axis
 examples:
   - request: "Draw a consumer's indifference curves and budget line, and show the optimal bundle."
     params: {}
   - request: "Show how a consumer chooses between food and housing."
     params: { preference: "x_leaning", x_good: "Food", y_good: "Housing" }
+  - request: "Split a price rise into substitution and income effects."
+    params: { price_x: 3, price_x_before: 2, curves: 1 }
 layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const income = Math.max(1, params.income ?? 100);
@@ -79,8 +104,24 @@ layout: |
   const yInt = income / priceY;
   const xStar = alpha * xInt;
   const yStar = (1 - alpha) * yInt;
-  const worldXMax = xInt * 1.3;
-  const worldYMax = yInt * 1.3;
+  // A price change to split (Slutsky/Hicks, Cobb-Douglas): the old optimum
+  // A, and C, the cheapest bundle on A's curve at the NEW prices.
+  const pxBefore = Number.isFinite(params.price_x_before) ? Math.max(0.01, params.price_x_before) : null;
+  const split = pxBefore !== null && Math.abs(pxBefore - priceX) > 1e-9 ? (() => {
+    const xA = alpha * income / pxBefore, yA = yStar;
+    const u0 = Math.pow(xA, alpha) * Math.pow(yA, 1 - alpha);
+    const xC = u0 * Math.pow((alpha * priceY) / ((1 - alpha) * priceX), 1 - alpha);
+    const yC = u0 * Math.pow(((1 - alpha) * priceX) / (alpha * priceY), alpha);
+    const incomeC = priceX * xC + priceY * yC;
+    return { xA, yA, u0, xC, yC, incomeC, xIntOld: income / pxBefore, xIntC: incomeC / priceX, yIntC: incomeC / priceY };
+  })() : null;
+  // The axes: 1.3 × the farthest intercept drawn, unless x_max/y_max hold
+  // them still (an animated or dragged price) — and never so short that a
+  // line runs off the plot.
+  const xFar = split ? Math.max(xInt, split.xIntOld, split.xIntC) : xInt;
+  const yFar = split ? Math.max(yInt, split.yIntC) : yInt;
+  const worldXMax = Number.isFinite(params.x_max) && params.x_max > 0 ? Math.max(params.x_max, xFar * 1.05) : xFar * 1.3;
+  const worldYMax = Number.isFinite(params.y_max) && params.y_max > 0 ? Math.max(params.y_max, yFar * 1.05) : yFar * 1.3;
   const sx = (v) => plot.x0 + (v / worldXMax) * (plot.x1 - plot.x0);
   const sy = (v) => plot.y0 + (v / worldYMax) * (plot.y1 - plot.y0);
 
@@ -110,7 +151,7 @@ layout: |
   const U = { below: uAt * 0.6, at: uAt, above: uAt * 1.55 };
   const LEVEL_STYLE = {
     below: { color: C.supply, dash: false, text: "Attainable" },
-    at: { color: C.accent, dash: false, text: "Optimum U" },
+    at: { color: C.accent, dash: false, text: split ? "U after" : "Optimum U" },
     above: { color: C.guide, dash: true, text: "Unattainable" },
   };
   const levels = curveCount === 1 ? ["at"] : curveCount === 2 ? ["below", "at"] : ["below", "at", "above"];
@@ -136,11 +177,149 @@ layout: |
     push(kit.stroke("guide_y", [[plot.x0, opt[1]], opt], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }));
     push(kit.stroke("optimum", [opt], { shapeHint: { type: "circle", c: opt, r: 7 }, strokeWidth: 3, fill: C.ink, ms: MS.dot }));
     anchors.optimum = opt;
-    label("optimum_label", opt, "above-right", "Optimum", C.ink, 22);
+    label("optimum_label", opt, "above-right", split ? "B" : "Optimum", C.ink, 22);
     attached["optimum"] = [...(attached["optimum"] ?? []), "optimum_label"];
   }
 
-  return { drawables, labels, anchors, order, attached, frame: { x: [0, worldXMax], y: [0, worldYMax], box: plot } };
+  const values = { x: xStar, y: yStar, x_intercept: xInt, y_intercept: yInt };
+  if (split) {
+    const { xA, yA, xC, yC } = split;
+    const oldPts = [[sx(0), sy(yInt)], [sx(split.xIntOld), sy(0)]];
+    push(kit.stroke("budget_old", oldPts, { color: C.guide, dash: true, strokeWidth: 3.5, ms: MS.curve }));
+    anchors.budget_old = oldPts[1];
+    label("label_budget_old", oldPts[1], "below", "Before", C.guide, 19);
+    const oldWorld = icWorldPts(split.u0);
+    const oldIc = oldWorld.length > 1 ? oldWorld.map(([x, y]) => [sx(x), sy(y)]) : [[sx(xA), sy(yA)], [sx(xA) + 1, sy(yA)]];
+    push(kit.stroke("ic_old", oldIc, { color: C.supply, strokeWidth: 3.5, ms: MS.curve }));
+    anchors.ic_old = oldIc[oldIc.length - 1];
+    label("label_ic_old", anchors.ic_old, "right", "U before", C.supply, 19);
+    const compPts = [[sx(0), sy(split.yIntC)], [sx(split.xIntC), sy(0)]];
+    push(kit.stroke("budget_comp", compPts, { color: C.shifted, dash: true, strokeWidth: 3, ms: MS.curve }));
+    anchors.budget_comp = compPts[0];
+    label("label_budget_comp", compPts[0], "right", "Compensated", C.shifted, 19);
+    const a = [sx(xA), sy(yA)], c = [sx(xC), sy(yC)];
+    push(kit.stroke("guide_a", [[a[0], plot.y0], a], { color: C.guide, dash: true, strokeWidth: 2, ms: MS.guides }));
+    push(kit.stroke("guide_c", [[c[0], plot.y0], c], { color: C.guide, dash: true, strokeWidth: 2, ms: MS.guides }));
+    push(kit.stroke("point_a", [a], { shapeHint: { type: "circle", c: a, r: 7 }, strokeWidth: 3, fill: C.supply, color: C.supply, ms: MS.dot }));
+    anchors.point_a = a;
+    label("label_point_a", a, "above-right", "A", C.supply, 22);
+    push(kit.stroke("point_c", [c], { shapeHint: { type: "circle", c, r: 7 }, strokeWidth: 3, fill: C.shifted, color: C.shifted, ms: MS.dot }));
+    anchors.point_c = c;
+    label("label_point_c", c, "above-right", "C", C.shifted, 22);
+    // The two effects as arrows along the x-axis: A→C, then C→B. A move
+    // too small to carry a head is drawn as a plain tick.
+    const b = sx(xStar);
+    const effect = (id, x0, x1, y, text, color) => {
+      push(kit.stroke(id, [[x0, y], [x1, y]], Object.assign({ color, strokeWidth: 3.5, ms: MS.arrow }, Math.abs(x1 - x0) >= 10 ? { arrowhead: "end" } : {})));
+      anchors[id] = [(x0 + x1) / 2, y];
+      label("label_" + id.replace("_effect", ""), anchors[id], "above", text, color, 20);
+    };
+    effect("substitution_effect", a[0], c[0], plot.y0 + 50, "Substitution", C.shifted);
+    effect("income_effect", c[0], b, plot.y0 + 22, "Income", C.accent);
+    Object.assign(values, { x_before: xA, y_before: yA, x_comp: xC, y_comp: yC, substitution: xC - xA, income_effect: xStar - xC, income_comp: split.incomeC });
+  }
+  for (const k of Object.keys(values)) values[k] = Math.round(values[k] * 100) / 100;
+
+  return { drawables, labels, anchors, order, attached, values, frame: { x: [0, worldXMax], y: [0, worldYMax], box: plot } };
+widget: |
+  // Free play (2026-09-27), like supply_demand's: paused, the viewer takes
+  // hold of the budget line and the choice recomputes under the pointer.
+  //
+  //   near the x-axis end → turns about the y-intercept (price_x)
+  //   near the y-axis end → turns about the x-intercept (price_y)
+  //   the middle          → slides parallel (income)
+  //
+  // The optimum, its curves and guides, and a price_x_before split (A, C,
+  // the substitution and income arrows) all follow. The first drag also
+  // pins the axes where they stand (x_max, y_max): the axes otherwise scale
+  // with the intercepts, and the line would never seem to move. Live: every
+  // drag_move maps the press onto the press-time params — one patch per
+  // gesture, no state.
+  const END = 0.2;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const round = (v, d) => Math.round(v * 10 ** d) / 10 ** d;
+  const fin = (v) => Number.isFinite(v);
+  const read = (p) => {
+    const income = Math.max(1, fin(p.income) ? p.income : 100);
+    const px = Math.max(0.01, fin(p.price_x) ? p.price_x : 2);
+    const py = Math.max(0.01, fin(p.price_y) ? p.price_y : 1);
+    const alpha = p.preference === "x_leaning" ? 0.7 : p.preference === "y_leaning" ? 0.3 : 0.5;
+    return { income, px, py, alpha };
+  };
+  // The layout's axes at these params (the layout's own rule, repeated).
+  const world = (p) => {
+    const { income, px, py, alpha } = read(p);
+    let xFar = income / px, yFar = income / py;
+    const pb = fin(p.price_x_before) ? Math.max(0.01, p.price_x_before) : null;
+    if (pb !== null && Math.abs(pb - px) > 1e-9) {
+      const u0 = Math.pow(alpha * income / pb, alpha) * Math.pow((1 - alpha) * income / py, 1 - alpha);
+      const xC = u0 * Math.pow((alpha * py) / ((1 - alpha) * px), 1 - alpha);
+      const yC = u0 * Math.pow(((1 - alpha) * px) / (alpha * py), alpha);
+      const iC = px * xC + py * yC;
+      xFar = Math.max(xFar, income / pb, iC / px);
+      yFar = Math.max(yFar, iC / py);
+    }
+    const X = fin(p.x_max) && p.x_max > 0 ? Math.max(p.x_max, xFar * 1.05) : xFar * 1.3;
+    const Y = fin(p.y_max) && p.y_max > 0 ? Math.max(p.y_max, yFar * 1.05) : yFar * 1.3;
+    return [X, Y];
+  };
+  // Where along a polyline the nearest point to p lies (0–1), and that point.
+  const along = (pts, p) => {
+    const lens = [0];
+    for (let i = 1; i < pts.length; i++) lens.push(lens[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    const total = lens[lens.length - 1] || 1;
+    let best = { d: Infinity, at: pts[0], t: 0 };
+    for (let i = 1; i < pts.length; i++) {
+      const [a, b] = [pts[i - 1], pts[i]];
+      const dx = b[0] - a[0], dy = b[1] - a[1], len2 = dx * dx + dy * dy;
+      const u = len2 === 0 ? 0 : clamp(((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2, 0, 1);
+      const at = [a[0] + u * dx, a[1] + u * dy];
+      const d = Math.hypot(p[0] - at[0], p[1] - at[1]);
+      if (d < best.d) best = { d, at, t: (lens[i - 1] + u * (lens[i] - lens[i - 1])) / total };
+    }
+    return best;
+  };
+  const good = (p, key, fallback) => (typeof p[key] === "string" && p[key].trim() !== "" ? p[key] : fallback);
+  // The patch a drag of the budget line from `from` to `to` (domain units)
+  // makes, pressed at logical `fromL`; null = nothing.
+  const dragPatch = (fromL, from, to, scene) => {
+    const p = scene.params;
+    const { income, px, py } = read(p);
+    const xInt = income / px, yInt = income / py;
+    const [X, Y] = world(p);
+    const pin = { x_max: round(X, 3), y_max: round(Y, 3) };
+    const line = scene.lines.get("budget_line")?.[0];
+    const hit = line ? along(line, fromL) : null;
+    // The grabbed point ON the line, moved with the pointer: the new line
+    // passes through it.
+    const g = (hit && scene.toDomain(hit.at)) || from;
+    const tx = g[0] + to[0] - from[0], ty = g[1] + to[1] - from[1];
+    const t = hit ? hit.t : 0.5;
+    if (t > 1 - END) {
+      // The line from the y-intercept through the pointer meets the x-axis at…
+      const x = ty < yInt * 0.999 && tx > 0 ? (tx * yInt) / (yInt - ty) : Infinity;
+      const xNew = clamp(x, X * 0.05, X * 0.95);
+      return { patch: { price_x: round(income / xNew, 3), ...pin }, caption: "Changing the price of " + good(p, "x_good", "Good X") };
+    }
+    if (t < END) {
+      const y = tx < xInt * 0.999 && ty > 0 ? (ty * xInt) / (xInt - tx) : Infinity;
+      const yNew = clamp(y, Y * 0.05, Y * 0.95);
+      return { patch: { price_y: round(income / yNew, 3), ...pin }, caption: "Changing the price of " + good(p, "y_good", "Good Y") };
+    }
+    // Parallel: the income that puts the line through the pointer, kept on the plot.
+    const kMax = Math.min((X * 0.95) / xInt, (Y * 0.95) / yInt);
+    const k = clamp(tx / xInt + ty / yInt, 0.05, kMax);
+    return { patch: { income: round(income * k, 2), ...pin }, caption: "Changing income" };
+  };
+  const on = (ev, st, scene) => {
+    const same = { state: st, effects: [] };
+    if ((ev.type !== "drag_move" && ev.type !== "drag") || ev.id !== "budget_line" || !ev.from || !ev.fromDomain || !ev.domain) return same;
+    const r = dragPatch(ev.from, ev.fromDomain, ev.domain, scene);
+    const effects = [{ patch: r.patch }];
+    if (st.said !== r.caption) effects.push({ caption: r.caption });
+    return { state: { said: r.caption }, effects };
+  };
+  return { parts: ["budget_line"], live: true, init: () => ({ said: null }), on };
 ---
 template: ppf
 title: Production possibilities frontier

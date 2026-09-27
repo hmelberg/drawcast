@@ -651,8 +651,11 @@ export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHo
     // the widget gets nothing and the ghost goes back. Under pointer capture
     // every event retargets to the STAGE, so the event's own target cannot
     // tell Skip from paper — the release point can.
+    // Not the big play button, though: it sits on the MIDDLE of a paused
+    // figure, and a curve dragged live through it and let go there (hidden
+    // while grabbing, styles.css) was cancelled — snapped back to the press.
     const dropped = document.elementFromPoint(e.clientX, e.clientY);
-    const p = dropped instanceof Element && dropped.closest("button") !== null ? null : logicalPoint(stage, e);
+    const p = dropped instanceof Element && dropped.closest("button:not(.cs-bigplay)") !== null ? null : logicalPoint(stage, e);
     if (!p) {
       host.cancel();
       return;
