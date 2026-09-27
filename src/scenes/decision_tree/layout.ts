@@ -25,6 +25,8 @@ export interface TreeNode {
   /** Outcome value at a terminal (e.g. QALYs). May also sit on the incoming branch. */
   payoff?: number;
   cost?: number;
+  /** Folded-back value at a chance or decision node ("EV 11.6 y"), drawn as value_<id>. */
+  value?: string;
   children?: TreeBranch[];
 }
 
@@ -107,7 +109,7 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
     // ignore that lands on top of the square.
     const own = n.parent ? [`edge_${n.parent.data.cleanId}_${cleanId}`] : [];
     if (node.type === "terminal") {
-      labels.push(labelReq(`label_${cleanId}`, c, "above-right", node.label, 26, COLORS.ink, own));
+      const nameReq = labelReq(`label_${cleanId}`, c, "above-right", node.label, LABEL_FONT, COLORS.ink, own);
       order.push(`label_${cleanId}`);
       attached[id] = [...(attached[id] ?? []), `label_${cleanId}`];
       const b = n.data.branch;
@@ -117,14 +119,27 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
         const parts: string[] = [];
         if (payoff !== undefined) parts.push(String(payoff));
         if (cost !== undefined) parts.push(`cost ${cost}`);
-        labels.push(labelReq(`payoff_${cleanId}`, [c[0] + 42, c[1]], "right", parts.join(", "), 26, COLORS.supply, own));
+        // The payoff is placed before the name: it is the number the tree
+        // folds back, and the name can move where the number cannot (a
+        // crowded pair of terminals pushed "6" onto its own triangle).
+        labels.push(labelReq(`payoff_${cleanId}`, [c[0] + 42, c[1]], "right", parts.join(", "), LABEL_FONT, COLORS.supply, own));
         order.push(`payoff_${cleanId}`);
         attached[id] = [...(attached[id] ?? []), `payoff_${cleanId}`];
       }
+      labels.push(nameReq);
     } else {
-      labels.push(labelReq(`label_${cleanId}`, [c[0], c[1] + nodeRadius(node.type)], "above", node.label, 26, COLORS.ink, own));
+      labels.push(labelReq(`label_${cleanId}`, [c[0], c[1] + nodeRadius(node.type)], "above", node.label, LABEL_FONT, COLORS.ink, own));
       order.push(`label_${cleanId}`);
       attached[id] = [...(attached[id] ?? []), `label_${cleanId}`];
+      // The folded-back value, under the node it summarises and in the same
+      // size as its name: models otherwise put "EV 11.6 y" on a scratch card,
+      // off the tree, where the comparison can no longer be seen (2026-09-27).
+      if (node.value !== undefined && node.value !== "") {
+        const valueId = `value_${cleanId}`;
+        labels.push(labelReq(valueId, [c[0], c[1] - nodeRadius(node.type)], "below", String(node.value), LABEL_FONT, COLORS.supply));
+        order.push(valueId);
+        attached[id] = [...(attached[id] ?? []), valueId];
+      }
     }
   }
 
@@ -157,9 +172,12 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
     const branch = n.data.branch;
     const parts: string[] = [];
     if (branch?.label) parts.push(branch.label);
-    if (branch?.probability !== undefined) parts.push(`p=${branch.probability}`);
+    // 1/3 prints as 0.3333333333333333 — a token too long to wrap. Three
+    // decimals is all a tree's reader uses.
+    const p = branch?.probability !== undefined ? Number(branch.probability.toFixed(3)) : undefined;
+    if (p !== undefined) parts.push(`p=${p}`);
     if (parts.length > 0) {
-      const text = branch?.probability !== undefined && branch.label ? `${branch.label} (p=${branch.probability})` : parts.join(" ");
+      const text = p !== undefined && branch?.label ? `${branch.label} (p=${p})` : parts.join(" ");
       const labelId = `branchlabel_${parent.data.cleanId}_${n.data.cleanId}`;
       // Outside the fan, never inside it: an up-going branch takes its label
       // above its edge, a down-going one below. Labelling every branch "above"
@@ -169,6 +187,11 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
       // (an only child) has no wedge to avoid, so it keeps "above".
       const diagonal = Math.abs(uy) > HORIZONTAL_UY;
       const side: LabelRequest["side"] = uy < -HORIZONTAL_UY ? "below" : "above";
+      // At label size a centred box is wide enough that a steep branch runs
+      // out through its far end ("Complication (p=0.15)" struck through by its
+      // own line). Leaning back toward the parent, the box sits on the side
+      // the branch has already left; straight above/below is the fallback.
+      const lean: LabelRequest["side"] = side === "below" ? "below-left" : "above-left";
       // Along the branch, but past its midpoint: at the parent end every
       // sibling branch converges and the parent's own label sits just above
       // the node, so that is the busiest spot in the figure. BRANCH_LABEL_T of
@@ -178,7 +201,13 @@ export function layoutDecisionTree(params: DecisionTreeParams): SceneLayout & { 
       // whole wedge, a poor stand-in for the thin line. A horizontal branch's
       // box IS the line, so keeping it as an obstacle is what lifts the label
       // clear of it (the middle branch of a three-way fan).
-      labels.push(labelReq(labelId, at, side, text, branchFontSize(text, Math.abs(to[0] - from[0])), COLORS.guide, diagonal ? [id] : undefined));
+      const req = labelReq(labelId, at, side, text, LABEL_FONT, COLORS.guide, diagonal ? [id] : undefined);
+      req.maxWidth = branchLabelWidth(text, Math.abs(to[0] - from[0]), diagonal ? Math.abs(uy / ux) : 0);
+      if (diagonal) {
+        req.side = lean;
+        req.sides = [lean, side];
+      }
+      labels.push(req);
       order.push(labelId);
       attached[id] = [...(attached[id] ?? []), labelId];
     }
@@ -193,20 +222,24 @@ const BRANCH_LABEL_T = 0.62;
 /** Below this |uy| a branch is treated as horizontal — no wedge to stay out of. */
 const HORIZONTAL_UY = 0.08;
 
-const BRANCH_FONT = 24;
-const BRANCH_FONT_MIN = 15;
+/** Node names, payoffs, values and branch labels all share one size. */
+const LABEL_FONT = 26;
 
 /**
  * A branch label lives over its own branch, so the branch's horizontal span is
  * all the room it has: past that it reaches into the next column of nodes.
- * 24 is the ceiling, not the size — long text shrinks to fit (the same bargain
- * phylo_tree strikes with long leaf names) rather than colliding.
+ * Long text WRAPS to that width ("Symptoms persist / or worsen / (p=0.12)")
+ * instead of shrinking: the probability is the number the argument rests on,
+ * and at 15 it was the smallest text on the page (2026-09-27). No line is cut
+ * narrower than its longest word.
  */
-function branchFontSize(text: string, span: number): number {
-  const room = Math.max(40, span - 24); // clear of the node at each end
-  const natural = heuristicMeasure(text, BRANCH_FONT).w;
-  if (natural <= room) return BRANCH_FONT;
-  return Math.max(BRANCH_FONT_MIN, Math.floor((BRANCH_FONT * room) / natural));
+function branchLabelWidth(text: string, span: number, slope: number): number {
+  let room = Math.max(40, span - 24); // clear of the node at each end
+  // A box centred over a steep branch is crossed by it wherever the line has
+  // dropped more than the label's offset: keep half the width inside that.
+  if (slope > 0) room = Math.min(room, (1.3 * (10 + LABEL_FONT * 0.55)) / slope * 2);
+  const longestWord = Math.max(...text.split(/\s+/).map((w) => heuristicMeasure(w, LABEL_FONT).w));
+  return Math.max(room, longestWord);
 }
 
 function nodeDrawable(id: string, type: TreeNode["type"], c: Pt): StrokeDrawable {

@@ -60,6 +60,12 @@ export interface LabelRequest {
    * (Hans 2026-09-26). Restricted, it stacks along the outside instead.
    */
   sides?: LabelSide[];
+  /**
+   * Wrap wider than this (default MAX_LABEL_WIDTH). A label that must fit a
+   * narrow slot — a decision-tree branch label over its own branch — wraps
+   * to it instead of shrinking its font (2026-09-27).
+   */
+  maxWidth?: number;
 }
 
 /**
@@ -208,8 +214,8 @@ export function wrapText(text: string, fontSize: number, maxWidth: number, measu
   return lines;
 }
 
-function wrapLines(text: string, fontSize: number, measure: MeasureFn): string[] {
-  return wrapText(text, fontSize, MAX_LABEL_WIDTH, measure);
+function wrapLines(req: LabelRequest, measure: MeasureFn): string[] {
+  return wrapText(req.text, req.fontSize, req.maxWidth ?? MAX_LABEL_WIDTH, measure);
 }
 
 function candidateBox(anchor: Pt, side: LabelSide, r: number, w: number, h: number): BBox {
@@ -227,7 +233,7 @@ function candidateBox(anchor: Pt, side: LabelSide, r: number, w: number, h: numb
  * it (a decision tree's terminal names at the canvas edge, 2026-09-26).
  */
 export function preferredLabelBox(req: LabelRequest, measure: MeasureFn): BBox {
-  const lines = wrapLines(req.text, req.fontSize, measure);
+  const lines = wrapLines(req, measure);
   const w = Math.max(...lines.map((line) => measure(line, req.fontSize).w));
   const h = lines.length * req.fontSize * LINE_HEIGHT;
   return candidateBox(req.anchor, req.side, 10 + req.fontSize * 0.55, w, h);
@@ -278,7 +284,7 @@ export function placeLabels(
   const placed: PlacedLabel[] = [];
 
   for (const req of requests) {
-    const lines = wrapLines(req.text, req.fontSize, measure);
+    const lines = wrapLines(req, measure);
     const w = Math.max(...lines.map((line) => measure(line, req.fontSize).w));
     const h = lines.length * req.fontSize * LINE_HEIGHT;
     const ignored = req.ignore && req.ignore.length > 0 ? new Set(req.ignore) : null;
