@@ -715,7 +715,8 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
         closed: true,
         shapeHint: { type: "rect", x: x0, y: yTop - h, w, h },
         z: Z_STROKE,
-        style: resolveStyle(el.style, { strokeWidth: 2.5 }),
+        // An outline only: a rect hint with a fill paints it (svg-backend shapeFillD).
+        style: { ...resolveStyle(el.style, { strokeWidth: 2.5 }), fill: undefined },
         drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.node }),
       });
     }
@@ -1193,7 +1194,7 @@ export function chromeDrawables(id: string, frame: CodeFrame, x0: number, yTop: 
     drawOpts,
   });
   if (frame === "window") {
-    out.push(stroke(`${id}__bar`, rectPts(x0, yTop, w, BAR_H), true, ink({ strokeWidth: 2.5 }), sketch(SKETCH_MS.node), { x: x0, y: yTop, w, h: BAR_H }));
+    out.push(stroke(`${id}__bar`, rectPts(x0, yTop, w, BAR_H), true, { ...ink({ strokeWidth: 2.5 }), fill: undefined }, sketch(SKETCH_MS.node), { x: x0, y: yTop, w, h: BAR_H }));
     for (let i = 0; i < 3; i++) {
       out.push(stroke(`${id}__bar_dot_${i + 1}`, circlePts([x0 + 18 + i * 18, yTop + BAR_H / 2], 5), true, resolveStyle(undefined, { color: COLORS.guide, strokeWidth: 2 }), instant));
     }
