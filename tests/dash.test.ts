@@ -102,13 +102,13 @@ describe("a bare `dash: true` on the element means style.dash", () => {
   test("it validates, and normalizes into style", () => {
     expect(validateSpec(bare).ok).toBe(true);
     const n = normalizeSpec(bare) as Spec;
-    expect(n.elements[0].style?.dash).toBe(true);
-    expect((n.elements[0] as unknown as { dash?: boolean }).dash).toBeUndefined();
+    expect(n.elements![0].style?.dash).toBe(true);
+    expect((n.elements![0] as unknown as { dash?: boolean }).dash).toBeUndefined();
   });
 
   test("an explicit style.dash wins", () => {
     const n = normalizeSpec({ elements: [{ id: "b", type: "path", points: [[0, 0], [1, 1]], dash: true, style: { dash: false } }], commands: [] }) as Spec;
-    expect(n.elements[0].style?.dash).toBe(false);
+    expect(n.elements![0].style?.dash).toBe(false);
   });
 
   test("the laid-out rect is dashed", () => {
