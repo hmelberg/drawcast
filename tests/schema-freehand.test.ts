@@ -26,6 +26,12 @@ describe("freehand spec fields", () => {
     expect(ok([{ id: "a", type: "shape", shape: "rect", x: 81, y: 51 }, { id: "l", type: "label", tex: "x", attach_to: "a" }]).ok).toBe(true);
     expect(ok([{ id: "l", type: "label", tex: "x" }]).errors.join(" ")).toMatch(/"l": math needs x and y, or at\.ref/);
   });
+  test("text and math may be placed at a data position (at.data), as the prompt offers", () => {
+    expect(ok([{ id: "t", type: "text", text: "one show", at: { data: [58, 12] } }]).ok).toBe(true);
+    expect(ok([{ id: "m", type: "math", tex: "x", at: { data: [3, 4] } }]).ok).toBe(true);
+    // a malformed data pair still places nothing
+    expect(ok([{ id: "t", type: "text", text: "hi", at: { data: [58] } }]).ok).toBe(false);
+  });
   test("a full freehand thing validates", () => {
     expect(ok([
       { id: "body", type: "shape", shape: "rect", x: 330, y: 400, width: 60, height: 200 },

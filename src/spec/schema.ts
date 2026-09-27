@@ -1748,8 +1748,13 @@ function semanticErrors(spec: Spec): string[] {
  *  refuse to be left with no position at all. */
 function placedByAt(el: SpecElement): boolean {
   if (el.at === undefined || Array.isArray(el.at)) return false;
-  const at = el.at as { ref?: string; place?: string };
-  return typeof at.ref === "string" || typeof at.place === "string";
+  const at = el.at as { ref?: string; place?: string; data?: unknown };
+  // `{data: [x, y]}` places anything but a point too: layout turns it into
+  // canvas x/y through the page's frame (tier2 inCanvasUnits). Validation
+  // refused it on text and math while the prompt offered it "in `at`"
+  // (prompt lab, 2026-09-27: two drafts lost a repair round to it).
+  const data = Array.isArray(at.data) && at.data.length === 2 && at.data.every((v) => typeof v === "number");
+  return typeof at.ref === "string" || typeof at.place === "string" || data;
 }
 
 function elementErrors(el: SpecElement): string[] {
@@ -1836,7 +1841,7 @@ function elementErrors(el: SpecElement): string[] {
       break;
     case "text": {
       need(!!el.text, "needs text");
-      need((typeof el.x === "number" && typeof el.y === "number") || placedByAt(el), "needs x and y (logical coordinates), or at: {ref: ...}, or at: {place: ...}");
+      need((typeof el.x === "number" && typeof el.y === "number") || placedByAt(el), "needs x and y (logical coordinates), or at: {ref: ...}, at: {place: ...} or at: {data: [x, y]}");
       break;
     }
     case "group":
@@ -1852,7 +1857,7 @@ function elementErrors(el: SpecElement): string[] {
       // middle of the canvas, on top of the drawing. A `label` with tex says
       // it with attach_to, which normalizeSpec has already turned into at.ref.
       if (!((typeof el.x === "number" && typeof el.y === "number") || placedByAt(el))) {
-        errs.push(`element "${el.id}": math needs x and y, or at.ref, or at.place`);
+        errs.push(`element "${el.id}": math needs x and y, or at.ref, at.place or at.data`);
       }
       break;
     }
