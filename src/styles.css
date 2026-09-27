@@ -1796,7 +1796,9 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-viewfit[hidden] { display: none; }
 /* A plot's own axes, zoomed or panned by the viewer (widget rest): back to
    the authored range. Top-left, so it never sits on the camera's Fit. */
-.cs-viewfit.cs-domainfit { right: auto; left: 0.6rem; }
+/* Right of the docked play button (.cs-handson .cs-bigplay: 40px, 44px on
+   touch, at 0.6rem), which a hands-on figure always has in that corner. */
+.cs-viewfit.cs-domainfit { right: auto; left: calc(0.6rem + 52px); }
 .cs-stage.cs-cardable { cursor: pointer; }
 /* .cs-figgate declares no cursor of its own — cursor is inherited, so a
    figgate would show whatever the stage around it resolves to either way.

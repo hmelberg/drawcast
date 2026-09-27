@@ -70875,5 +70875,297 @@
         }
       ]
     }
+  },
+  {
+    "request": "What does a saddle point look like, and why is it not a minimum?",
+    "spec": {
+      "title": "A saddle point is flat, but not a bottom",
+      "template": "plot3d",
+      "params": {
+        "surface": "a*x^2 - b*y^2",
+        "params": {
+          "a": {
+            "value": 1,
+            "min": -1,
+            "max": 1,
+            "step": 0.1
+          },
+          "b": {
+            "value": -1,
+            "min": -1,
+            "max": 1,
+            "step": 0.1
+          }
+        },
+        "marks": [
+          {
+            "at": [
+              0,
+              0
+            ]
+          }
+        ],
+        "azimuth_deg": 35,
+        "elevation_deg": 22
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Saddle points"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "What does a saddle point look like, and why is it not a minimum, even though the ground there is flat?"
+        },
+        {
+          "draw": [
+            "surface",
+            "eq"
+          ],
+          "speak": "Start with a bowl: z equals x squared plus y squared."
+        },
+        {
+          "draw": [
+            "mark_0"
+          ],
+          "speak": "At the centre the bowl is flat, and every step away from it goes uphill."
+        },
+        {
+          "highlight": {
+            "target": [
+              "mark_0"
+            ]
+          },
+          "speak": "That is a true minimum: nothing nearby is lower."
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq_param_b"
+            ]
+          },
+          "speak": "Now watch the number in front of y squared."
+        },
+        {
+          "animate": {
+            "params.b.value": 1
+          },
+          "duration": 3.5,
+          "speak": "Flip its sign, and along y the surface bends down instead of up."
+        },
+        {
+          "animate": {
+            "azimuth_deg": 125
+          },
+          "duration": 3,
+          "speak": "Walk around it. Along x, the centre is still the bottom of a valley."
+        },
+        {
+          "animate": {
+            "azimuth_deg": 215
+          },
+          "duration": 3,
+          "speak": "Along y, the same spot is the top of a ridge."
+        },
+        {
+          "highlight": {
+            "target": [
+              "mark_0"
+            ]
+          },
+          "speak": "The centre is still perfectly flat, with zero slope in every direction."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "mark_0"
+            },
+            "gesture": "circle"
+          },
+          "speak": "But it is lowest only one way and highest the other, so it is neither a minimum nor a maximum."
+        },
+        {
+          "animate": {
+            "elevation_deg": 6,
+            "azimuth_deg": 290
+          },
+          "duration": 3,
+          "speak": "That is a saddle point: a ball placed there balances, then rolls off at the slightest nudge."
+        },
+        {
+          "speak": "It matters when a computer hunts for the lowest point of a surface, as when a model is trained: flat ground can fool it."
+        },
+        {
+          "animate": {
+            "elevation_deg": 22,
+            "azimuth_deg": 395
+          },
+          "duration": 3,
+          "speak": "In many dimensions, saddles far outnumber true bottoms."
+        },
+        {
+          "explore": {},
+          "speak": "Now turn it yourself: drag the surface to walk round it, and drag a number to reshape it."
+        },
+        {
+          "speak": "So flat is not enough: a minimum curves up in every direction, a saddle only in some."
+        },
+        {
+          "quiz": {
+            "question": "At a saddle point the slope is zero. Why is it not a minimum?",
+            "choices": [
+              "It is higher than the edges",
+              "It rises one way and falls another",
+              "The slope is not really zero"
+            ],
+            "correct": 2,
+            "right": "Along one direction it is the bottom of a valley, along the other the top of a ridge, so nearby points are lower.",
+            "wrong": "Think of walking across it in the two directions."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "What does sigma do to a bell-shaped hill in 3D?",
+    "spec": {
+      "title": "Sigma sets how wide the bell is",
+      "template": "plot3d",
+      "params": {
+        "surface": "A*exp(-(x^2 + y^2)/(2*sigma^2))",
+        "domain": [
+          -3,
+          3
+        ],
+        "grid_n": 20,
+        "params": {
+          "A": {
+            "value": 1.5,
+            "min": 0.5,
+            "max": 2,
+            "step": 0.1,
+            "label": "height A"
+          },
+          "sigma": {
+            "value": 1,
+            "min": 0.5,
+            "max": 1.5,
+            "step": 0.05,
+            "label": "width σ"
+          }
+        },
+        "controls": "panel",
+        "azimuth_deg": 35,
+        "elevation_deg": 22
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "A bell in 3D"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "What does sigma, the width, do to a bell-shaped hill in three dimensions?"
+        },
+        {
+          "draw": [
+            "surface",
+            "eq"
+          ],
+          "speak": "Here is the hill: from its peak, the height falls off the same way in every direction."
+        },
+        {
+          "draw": [
+            "panel"
+          ],
+          "speak": "Two numbers set it: A, the height of the peak, and sigma, the width."
+        },
+        {
+          "highlight": {
+            "target": [
+              "slider_sigma"
+            ]
+          },
+          "speak": "Watch sigma first."
+        },
+        {
+          "animate": {
+            "params.sigma.value": 0.5
+          },
+          "duration": 3,
+          "speak": "Shrink it to a half, and the hill pulls in to a narrow spike."
+        },
+        {
+          "animate": {
+            "params.sigma.value": 1.5
+          },
+          "duration": 3.5,
+          "speak": "Grow it to one and a half, and the same peak spreads into a broad, gentle mound."
+        },
+        {
+          "animate": {
+            "params.sigma.value": 1
+          },
+          "duration": 2,
+          "speak": "Sigma is a distance: one sigma out from the centre, the hill has fallen to about six tenths of its peak."
+        },
+        {
+          "animate": {
+            "azimuth_deg": 125
+          },
+          "duration": 3.5,
+          "speak": "Walk around it, and every side shows the same bell curve: the hill is perfectly round."
+        },
+        {
+          "highlight": {
+            "target": [
+              "slider_A"
+            ]
+          },
+          "speak": "A does something simpler."
+        },
+        {
+          "animate": {
+            "params.A.value": 0.7
+          },
+          "duration": 3,
+          "speak": "Lower it, and the whole hill sinks, but its width stays exactly the same."
+        },
+        {
+          "animate": {
+            "params.A.value": 1.5,
+            "azimuth_deg": 215
+          },
+          "duration": 3,
+          "speak": "This is the shape a photo editor uses to blur: each point of light is spread into a little hill like this, and sigma sets how far."
+        },
+        {
+          "explore": {},
+          "speak": "Now try it: drag the sliders, or turn the hill with your hand."
+        },
+        {
+          "speak": "So A sets how high the bell is, sigma sets how wide, and neither touches the other."
+        },
+        {
+          "quiz": {
+            "question": "You double sigma and keep A. What happens to the hill?",
+            "choices": [
+              "It gets twice as tall",
+              "It gets twice as wide",
+              "It gets twice as wide and half as tall"
+            ],
+            "correct": 2,
+            "right": "It spreads to twice the width, while the peak stays at A: sigma sets only the width.",
+            "wrong": "Remember which number the peak's height is."
+          }
+        }
+      ]
+    }
   }
 ]
