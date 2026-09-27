@@ -207,13 +207,13 @@ layout: |
       // A cut image has no arrowhead: its tip is off the page.
       push(kit.stroke("image", pts, { arrowhead: shown ? "end" : undefined, strokeWidth: 5, color: C.ink, dash: virtual, ms: MS.arrow }));
       anchors.image = pts[pts.length - 1];
-      // An upright image is named above its tip; an inverted one beside its
-      // middle, clear of the caption band below it.
+      // An upright image is named above its tip; an inverted one right of its
+      // tip, where the rays that meet there leave room — clear of the caption
+      // band below it.
       if (shown && hImg >= 0) label("label_image", [imgTip[0], imgTip[1] + 26], "above", "Virtual image");
       if (shown && hImg < 0) {
-        const mid = [imgTip[0] + 6, (axisY + imgTip[1]) / 2];
         if (showLabels) {
-          labels.push({ ...kit.label("label_image", mid, "right", virtual ? "Virtual image" : "Real image", { fontSize: 24 }), sides: ["right", "left", "below-right", "below-left"] });
+          labels.push({ ...kit.label("label_image", [imgTip[0] + 8, imgTip[1] + 4], "right", "Real image", { fontSize: 24 }), sides: ["right", "above-right", "left", "below-right"] });
           order.push("label_image");
         }
       }
