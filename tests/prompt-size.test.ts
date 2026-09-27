@@ -550,7 +550,9 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // y = f(x) with live parameters — whose full entry is ~9,200 chars in this
 // all-expanded measurement; in the app's two-level catalog it is one index
 // line).
-const BASELINE_SYSTEM_CHARS = 300000;
+// Raised to 315000 at 306593 (2026-09-28: the refraction and field_lines
+// physics templates, each a full entry in this all-expanded measurement).
+const BASELINE_SYSTEM_CHARS = 315000;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

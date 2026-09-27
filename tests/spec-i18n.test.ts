@@ -172,6 +172,7 @@ describe("every bundled template's string params are classified", () => {
       cost_effectiveness_plane: [".x_label", ".y_label", ".points[].label", ".title"],
       decision_tree: [".root.label", ".root.value", ".root.children[].label", ".unit"],
       equation_plot: [".x_label", ".y_label"],
+      field_lines: [".charges[].label", ".title"],
       free_body: [".body_label", ".forces[].label", ".net_force.label"],
       generic_axes_diagram: [".x_label", ".y_label", ".title", ".curves[].label", ".points[].label", ".vlines[].label", ".hlines[].label"],
       markov_model: [".states[]", ".transitions[].from", ".transitions[].to", ".transitions[].label", ".highlight_state", ".title", ".trace.compare.name", ".trace.compare.transitions[].from", ".trace.compare.transitions[].to", ".trace.compare.transitions[].label", ".trace.name"],
@@ -186,6 +187,7 @@ describe("every bundled template's string params are classified", () => {
         ".reference.label",
         ".shortfall.label",
       ],
+      refraction: [".medium1", ".medium2", ".image_label", ".source_label", ".title"],
       ring_molecule: [".substituents[].text", ".name"],
       supply_demand: [
         ".x_label",

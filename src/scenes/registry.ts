@@ -46,6 +46,14 @@ import { lintPlot3d } from "./plot3d/lint";
 import { plot3dWidget } from "./plot3d/widget";
 import { readModel as readPlot3d } from "./plot3d/model";
 import { traySliders } from "./params-ui/params";
+import refractionManifest from "./refraction/manifest.json";
+import { layoutRefraction, type RefractionParams } from "./refraction/layout";
+import { lintRefraction } from "./refraction/lint";
+import { refractionWidget } from "./refraction/widget";
+import fieldLinesManifest from "./field_lines/manifest.json";
+import { layoutFieldLines, type FieldLinesParams } from "./field_lines/layout";
+import { lintFieldLines } from "./field_lines/lint";
+import { fieldLinesWidget } from "./field_lines/widget";
 
 export const scenes: Record<string, SceneModule> = {
   supply_demand: {
@@ -123,6 +131,22 @@ export const scenes: Record<string, SceneModule> = {
     lint: (params) => lintPlot3d(params as Plot3dParams),
     widget: plot3dWidget,
     sliders: (params) => traySliders(params.params, readPlot3d(params as Plot3dParams)),
+  },
+  // Physics, free play (2026-09-28): drag the lamp or a ray, scrub or type
+  // the indices and angles.
+  refraction: {
+    manifest: refractionManifest as SceneManifest,
+    layout: (params) => layoutRefraction(params as RefractionParams),
+    lint: (params) => lintRefraction(params as RefractionParams),
+    widget: refractionWidget,
+  },
+  // Drag a charge (the lines re-trace), tap it to flip its sign, scrub or
+  // type its label's magnitude, drag the test charge.
+  field_lines: {
+    manifest: fieldLinesManifest as SceneManifest,
+    layout: (params) => layoutFieldLines(params as FieldLinesParams),
+    lint: (params) => lintFieldLines(params as FieldLinesParams),
+    widget: fieldLinesWidget,
   },
 };
 

@@ -1,0 +1,55 @@
+{
+  "name": "field_lines",
+  "status": "ready",
+  "description": "The electric field of 1–4 point charges: field lines traced from the positive charges (more lines for more charge) ending on the negative ones or running off the page, an arrow on each, optionally the equipotentials (dashed) and a test charge with the force on it. All computed. Choose it for ANY request about electric fields, field lines, like vs unlike charges, a dipole, Coulomb's law pictured, equipotentials, or the force on a charge in a field. Positions are in the figure's own units: x −5…5, y −2.7…2.7, (0, 0) the middle. charges.<i>.x / .y / .q and test_charge.x / .y ANIMATE and the field re-traces every frame: {\"animate\": {\"charges.1.x\": 1}, \"duration\": 3}. Paused, the viewer drags a charge (the lines follow), taps it to flip its sign, scrubs or types its label's value, drags the test charge; an explore beat naming nothing invites exactly this. Numbers for text (test charge): {field_lines.E}, {field_lines.E_angle} (degrees from +x), {field_lines.Ex}, {field_lines.Ey}, {field_lines.V}, {field_lines.F}; also {field_lines.lines}, {field_lines.net_charge}.",
+  "params_schema": {
+    "type": "object",
+    "properties": {
+      "charges": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "q": { "type": "number", "description": "Signed charge in units of q, −5…5, e.g. 1 or -2." },
+            "x": { "type": "number", "description": "−5…5." },
+            "y": { "type": "number", "description": "−2.7…2.7." },
+            "label": { "type": "string", "description": "Its label instead of the value (\"+2q\"), e.g. \"q₁\"." }
+          },
+          "required": ["q", "x", "y"]
+        },
+        "description": "1–4 point charges. A dipole: [{q: 1, x: -2, y: 0}, {q: -1, x: 2, y: 0}]."
+      },
+      "density": { "type": "number", "description": "Lines per unit of charge, 1–16 (default 8; capped so the figure has ≤ 64)." },
+      "arrows": { "type": "boolean", "description": "An arrow on each line (default true)." },
+      "equipotentials": { "type": "boolean", "description": "Dashed lines of equal potential (default false)." },
+      "test_charge": {
+        "type": "object",
+        "properties": {
+          "x": { "type": "number" },
+          "y": { "type": "number" },
+          "q": { "type": "number", "description": "Its sign and size (default +1): sets the force's direction and length." }
+        },
+        "required": ["x", "y"],
+        "description": "A small test charge with the force arrow F on it."
+      },
+      "title": { "type": "string" }
+    },
+    "required": ["charges"]
+  },
+  "element_ids": {
+    "charge_<i>": "charge i's disc with its sign (red +, blue −)",
+    "charge_label_<i>": "its label (\"+2q\" or the given label)",
+    "charges": "SET — every charge and its label",
+    "lines_<i>": "the field lines that start at charge i (a negative charge has its own only when lines come in to it from the edge)",
+    "lines": "SET — every field line",
+    "equipotentials": "the dashed equipotentials (equipotentials)",
+    "test_charge / test_force / test_force_label": "the test charge, the force arrow on it and its \"F\" (test_charge)",
+    "title": "the title, when set"
+  },
+  "examples": [
+    { "request": "What does the field of a single positive charge look like?", "params": { "charges": [{ "q": 1, "x": 0, "y": 0 }], "test_charge": { "x": 2.5, "y": 1 } } },
+    { "request": "Draw the field lines of an electric dipole.", "params": { "charges": [{ "q": 1, "x": -2, "y": 0 }, { "q": -1, "x": 2, "y": 0 }], "equipotentials": true } },
+    { "request": "How do the field lines of two like charges look?", "params": { "charges": [{ "q": 1, "x": -2, "y": 0 }, { "q": 1, "x": 2, "y": 0 }], "title": "Two like charges" } },
+    { "request": "What happens to the field when one charge is twice as big and opposite?", "params": { "charges": [{ "q": 2, "x": -1.5, "y": 0 }, { "q": -1, "x": 1.5, "y": 0 }], "density": 6 } }
+  ]
+}
