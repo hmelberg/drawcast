@@ -205,7 +205,7 @@ layout: |
 ---
 template: unit_circle
 title: Unit circle (sine and cosine)
-version: 1
+version: 2
 kit: 11
 status: ready
 description: >-
@@ -215,7 +215,11 @@ description: >-
   coordinates. Choose this scene for ANY request about the unit circle,
   sine, cosine, radians or degrees on a circle, or how an angle's coordinates
   relate to its sine and cosine. angle_deg is numeric and ANIMATES smoothly —
-  tween it to sweep the point around the circle.
+  tween it to sweep the point around the circle. While paused the viewer can
+  drag the point round the circle (it settles on 30°, 45°, 60°, 90° … when
+  close), and tap or scrub the angle to set it; everything follows. Its
+  numbers read as {unit_circle.theta_deg}, {unit_circle.sin:2},
+  {unit_circle.cos:2}, {unit_circle.tan:2}, {unit_circle.quadrant}.
 params:
   type: object
   properties:
@@ -231,6 +235,10 @@ params:
     quadrant_labels:
       type: boolean
       description: "Label the four quadrants I-IV (default false)."
+    readout:
+      type: string
+      enum: [none, deg, rad, both]
+      description: "Write the angle's size at the top left as angle_value: \"θ = 60°\" (deg), \"θ = π/3\" (rad — a multiple of 15° as a fraction of π, else decimals), or both. Default none. It follows every animate and drag, and past a full turn it keeps counting (390°)."
 element_ids:
   circle: the unit circle (drawn at radius 240 for legibility)
   x_axis: the horizontal axis
@@ -242,10 +250,15 @@ element_ids:
   angle_arc: the small arc at the origin marking θ, present when shown
   angle_label: its "θ" label, present when shown
   coords_label: the point's "(cos θ, sin θ)" label with actual values, present when shown
+  angle_value: the "θ = 60°" readout at the top left, present when readout is set
 examples:
   - request: "Show the unit circle at a 30 degree angle, and animate it sweeping all the way around."
     params:
       angle_deg: 30
+  - request: "What is 60 degrees in radians, on the unit circle?"
+    params:
+      angle_deg: 60
+      readout: both
 layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const angleDeg = typeof params.angle_deg === "number" && Number.isFinite(params.angle_deg) ? params.angle_deg : 45;
@@ -253,6 +266,7 @@ layout: |
   const showList = Array.isArray(params.show) && params.show.length > 0 ? params.show : ["sin", "cos", "arc", "coords"];
   const showSet = new Set(showList);
   const quadrantLabels = params.quadrant_labels === true;
+  const readout = ["deg", "rad", "both"].includes(params.readout) ? params.readout : "none";
 
   function sideFromDir(dx, dy) {
     const ax = Math.abs(dx), ay = Math.abs(dy);
@@ -334,8 +348,144 @@ layout: |
       push(kit.text("quadrant_" + i, [O[0] + sx * qr * 0.66, O[1] + sy * qr * 0.66], name, { fontSize: 18, color: C.guide }));
     });
   }
+  if (readout !== "none") {
+    // The angle's size, where it stays put while the point moves (a tap
+    // opens a field over it — it must not run from the finger). Degrees
+    // are whole, or one decimal when typed so (22.5°); an animate frame's
+    // 137.4…° reads 137°. Radians: a multiple of 15° is a fraction of π
+    // (π/3, 3π/4, 13π/6), else two decimals.
+    const minus = (s) => s.replace("-", "−");
+    const tenth = Math.round(angleDeg * 10) / 10;
+    const oneDecimal = Math.abs(angleDeg * 10 - Math.round(angleDeg * 10)) < 1e-6 && tenth !== Math.round(tenth);
+    const degText = minus(oneDecimal ? kit.num(tenth, 1) : kit.num(Math.round(angleDeg), 0)) + "°";
+    const radText = (() => {
+      const n = angleDeg / 15;
+      if (Math.abs(n - Math.round(n)) > 1e-6) return minus(kit.num(theta, 2)) + " rad";
+      let k = Math.round(n), d = 12;
+      if (k === 0) return "0";
+      const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
+      const g = gcd(Math.abs(k), d);
+      k /= g;
+      d /= g;
+      const top = (k === 1 ? "" : k === -1 ? "−" : minus(String(k))) + "π";
+      return d === 1 ? top : top + "/" + d;
+    })();
+    const text = "θ = " + (readout === "deg" ? degText : readout === "rad" ? radText : degText + " = " + radText);
+    push(kit.text("angle_value", [70, 690], text, { fontSize: 28, color: C.accent, anchor: "start" }));
+    anchors.angle_value = [70, 690];
+  }
 
-  return { drawables, labels, anchors, order, attached };
+  // The numbers, for {unit_circle.<key>} tokens: the angle as given (a
+  // second turn reads 390), the point's coordinates, the slope of the
+  // radius (absent where the radius stands vertical), and the quadrant
+  // (0 on an axis).
+  const clean = (v) => (Math.abs(v) < 1e-12 ? 0 : v);
+  const norm = ((angleDeg % 360) + 360) % 360;
+  const onAxis = Math.abs(norm / 90 - Math.round(norm / 90)) < 1e-9;
+  const values = { theta_deg: angleDeg, theta_rad: theta, sin: clean(sinV), cos: clean(cosV), quadrant: onAxis ? 0 : Math.floor(norm / 90) + 1 };
+  if (Math.abs(cosV) > 1e-9) values.tan = clean(sinV / cosV);
+
+  return { drawables, labels, anchors, order, attached, values };
+widget: |
+  // Free play (2026-09-27): while paused the viewer takes hold of the
+  // figure and it recomputes under the pointer — radius, sin and cos drops,
+  // arc, coordinates, readout, and every {unit_circle.*} number.
+  //
+  //   the point or the radius   drag: the point goes where the pointer
+  //                             points, seen from the origin
+  //   the angle's number        drag sideways: 1° per 4 units of travel
+  //   (angle_value, or θ)       tap: a number field — degrees, or radians
+  //                             when the readout is radians alone
+  //
+  // Snapping (the dragged point only): within SNAP_DEG of a multiple of 30°
+  // or of 45° — 0, 30, 45, 60, 90, 120, 135 … (the π/6 and π/4 multiples) —
+  // the angle settles exactly there, so the special angles are easy to hit,
+  // and 3° past one the point moves freely again. A scrub moves in whole
+  // degrees and needs none; a typed degree is taken as typed; typed radians
+  // within 0.3° of a multiple of 15° land on it (1.047 is 60°).
+  //
+  // A drag keeps count of the turns: round once from 30° is 390°, and back
+  // the other way −330° — the arc shows where the point is, the readout
+  // how far it has gone. Free play only: no demo, no judge — it answers no
+  // ask (compile.ts drops the manifest's widget flag for such a body).
+  const SNAP_DEG = 3;
+  const STEP_UNITS = 4;
+  const TYPED_RAD_SNAP = 0.3;
+  // A pointer nearer the origin than this has no direction: the angle stays.
+  const DEAD_ZONE = 12;
+  const HANDLES = ["point", "radius"];
+  const NUMBERS = ["angle_value", "angle_label"];
+  const DEG = 180 / Math.PI;
+  const r2 = (v) => Math.round(v * 100) / 100;
+  const angleOf = (scene) => {
+    const a = scene.params.angle_deg;
+    return typeof a === "number" && Number.isFinite(a) ? a : 45;
+  };
+  // The origin on the page as painted (any box or fit): where the radius starts.
+  const origin = (scene) => {
+    const r = scene.lines.get("radius");
+    if (r && r[0] && r[0].length > 0) return r[0][0];
+    const b = scene.boxes.get("circle");
+    return b ? [b.x + b.w / 2, b.y + b.h / 2] : null;
+  };
+  // The nearest special angle within SNAP_DEG, else a itself.
+  const snap = (a) => {
+    let best = a, gap = SNAP_DEG + 1e-9;
+    for (const m of [30, 45]) {
+      const c = Math.round(a / m) * m;
+      if (Math.abs(a - c) <= gap) {
+        best = c;
+        gap = Math.abs(a - c);
+      }
+    }
+    return best === 0 ? 0 : best;
+  };
+  // The direction `raw` (−180…180) as the turn nearest `near`: no jump of 360.
+  const unwrap = (raw, near) => raw + 360 * Math.round((near - raw) / 360);
+  const radiansOnly = (scene) => scene.params.readout === "rad";
+  const none = (state) => ({ state, effects: [] });
+
+  const init = () => ({ from: null, last: null });
+  const on = (ev, st, scene) => {
+    const state = st ?? { from: null, last: null };
+    if (ev.type === "input") {
+      if (!NUMBERS.includes(ev.id)) return none(state);
+      let a = ev.value;
+      if (radiansOnly(scene)) {
+        a = ev.value * DEG;
+        const s = Math.round(a / 15) * 15;
+        if (Math.abs(a - s) <= TYPED_RAD_SNAP) a = s;
+      }
+      return { state, effects: [{ patch: { angle_deg: Math.round(a * 1e4) / 1e4 } }] };
+    }
+    if (ev.type !== "drag_move" && ev.type !== "drag") return none(state);
+    if (!ev.from) return none(state);
+    if (NUMBERS.includes(ev.id)) {
+      const n = Math.trunc((ev.point[0] - ev.from[0]) / STEP_UNITS);
+      return { state, effects: [{ patch: { angle_deg: Math.round(angleOf(scene)) + n } }] };
+    }
+    if (!HANDLES.includes(ev.id)) return none(state);
+    const O = origin(scene);
+    if (!O) return none(state);
+    const dx = ev.point[0] - O[0], dy = ev.point[1] - O[1];
+    // A gesture's frames all come against the press-time scene; the turn
+    // count rides in state from frame to frame, keyed by the press point.
+    const same = state.from !== null && state.last !== null && state.from[0] === ev.from[0] && state.from[1] === ev.from[1];
+    const near = same ? state.last : angleOf(scene);
+    if (Math.hypot(dx, dy) < DEAD_ZONE) return same ? { state, effects: [{ patch: { angle_deg: near } }] } : none(state);
+    const a = r2(snap(unwrap(Math.atan2(dy, dx) * DEG, near)));
+    return { state: { from: [ev.from[0], ev.from[1]], last: a }, effects: [{ patch: { angle_deg: a } }] };
+  };
+  const editable = (id, point, scene) => {
+    if (!NUMBERS.includes(id)) return null;
+    const a = angleOf(scene);
+    if (radiansOnly(scene)) {
+      return { value: Math.round((a / DEG) * 1e4) / 1e4, label: kit.say({ en: "Angle in radians", nb: "Vinkel i radianer" }), min: -6 * Math.PI, max: 6 * Math.PI, step: 0.01 };
+    }
+    return { value: r2(a), label: kit.say({ en: "Angle in degrees", nb: "Vinkel i grader" }), min: -1080, max: 1080, step: 1 };
+  };
+  const parts = (scene) => [...HANDLES, ...NUMBERS].filter((id) => scene.ids.includes(id));
+  return { init, on, editable, parts, live: true };
 ---
 template: number_line
 title: Number line
