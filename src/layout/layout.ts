@@ -37,6 +37,7 @@ import { fitSceneLayout, growSceneLayout, resolveTemplateBox, type TemplateFit }
 import type { SceneLayout } from "../scenes/types";
 import { FIT_NAMES, isFitName } from "./regions";
 import { expandBoxAnimate, readParam, withOverrides } from "../render/params";
+import { interpolateVars } from "../spec/vars";
 
 export interface LayoutResult {
   drawables: Drawable[];
@@ -168,6 +169,8 @@ export function layoutSpec(
   let templateIds: string[] = [];
   let templateFrame: DataFrame | undefined;
   let templateValues: Record<string, number> = {};
+  /** What the template itself drew: its text may carry the cast's tokens (expandTemplateTokens). */
+  let templateOwn: { drawables: Drawable[]; labels: LabelRequest[] } | null = null;
   let world: BBox | null = null;
 
   // The cast's language and decimal mark, for what a template WRITES on the
@@ -258,6 +261,7 @@ export function layoutSpec(
         if (sceneLayout.attached) attached = { ...sceneLayout.attached };
         drawables.push(...sceneLayout.drawables);
         labelRequests.push(...sceneLayout.labels);
+        templateOwn = { drawables: sceneLayout.drawables, labels: sceneLayout.labels };
         order.push(...sceneLayout.order);
         seedAnchors = sceneLayout.anchors;
         if (sceneLayout.frame) templateFrame = sceneLayout.frame;
@@ -327,6 +331,18 @@ export function layoutSpec(
   // BEFORE the solver means obstacles, placement and annotation boxes are all
   // measured against the words that actually get drawn.
   if (spec.text_map) applyTextMap(drawables, labelRequests, spec.text_map);
+
+  // Words the author wrote into a template's params — a decision tree's node
+  // value "NMB {tree.nmb_dear:0,}", a label "{w} per QALY" — carry the same
+  // tokens as drawn text, and were drawn literally (2026-09-27). Expanded
+  // here, before the solver measures them, from the template's values, the
+  // script's and the vars in force — so, as every relayout (an animate
+  // stage) comes through here, they follow the numbers.
+  if (templateOwn) {
+    const spoken = (spec.commands ?? []).map((c) => c.speak ?? "").join(" ");
+    const comma = usesDecimalComma(spec.lang, spoken.trim() ? detectLang(spoken) : undefined);
+    expandTemplateTokens(templateOwn, { ...templateValues, ...scriptValues(spec.elements), ...(spec.vars ?? {}) }, comma);
+  }
 
   // A template's own parts, moved or enlarged by the spec (layout/adjust.ts)
   // — also before the solver, so labels avoid the part where it now is.
@@ -856,6 +872,28 @@ function autoChartBox(spec: Spec, measure: MeasureFn): { x: number; y: number; w
  * elements the layout is handed mid-sweep — make the text live. A one-element
  * vector (R's every scalar) is its value; a longer one reads as a list.
  */
+/**
+ * `{name}` tokens in a template's own text, IN PLACE. Only names that have a
+ * value are replaced — a template's text is not the author's alone, so an
+ * unknown brace stays as it is, without a warning — and never in text with a
+ * backslash (TeX: `\sqrt{x}` is not a var).
+ */
+function expandTemplateTokens(own: { drawables: Drawable[]; labels: LabelRequest[] }, values: Record<string, number | string>, decimalComma: boolean): void {
+  if (Object.keys(values).length === 0) return;
+  const expand = (t: string) => (t.includes("{") && !t.includes("\\") ? interpolateVars(t, values, decimalComma).text : t);
+  const walk = (ds: Drawable[]) => {
+    for (const d of ds) {
+      if (d.kind === "group") walk(d.children);
+      else if (d.kind === "text") {
+        d.text = expand(d.text);
+        if (d.lines) d.lines = d.lines.map(expand);
+      }
+    }
+  };
+  walk(own.drawables);
+  for (const l of own.labels) l.text = expand(l.text);
+}
+
 function scriptValues(elements: Spec["elements"]): Record<string, number | string> {
   const out: Record<string, number | string> = {};
   for (const el of elements ?? []) {
