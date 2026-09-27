@@ -590,6 +590,23 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     const out = requested.flatMap((id) => expandOne(id, verb, quiet));
     return [...new Set(out)];
   };
+  /**
+   * A gesture's targets that are on screen. A target that stands for several
+   * elements (a template's set — matrix_row_<s>, a group, a `pieces` parent)
+   * gestures at those of them already drawn: a row half written in is still
+   * the row the voice names. Only an id with nothing of it visible warns.
+   */
+  const visibleTargets = (raw: string[] | string | undefined, verb: string): string[] => {
+    const requested = typeof raw === "string" ? [raw] : raw ?? [];
+    const out: string[] = [];
+    for (const id of requested) {
+      const ids = expandOne(id, verb, false);
+      const shown = ids.filter((k) => visibleSet.has(k));
+      if (ids.length > 0 && shown.length === 0) warnings.push(`${verb} target "${id}" is not visible at that point (skipped)`);
+      for (const k of shown) if (!out.includes(k)) out.push(k);
+    }
+    return out;
+  };
   /** How a command's target reads back in a warning: the id(s) the author wrote, not the expanded pieces. */
   const targetLabel = (raw: string[] | string | undefined): string => (typeof raw === "string" ? raw : (raw ?? []).join(", "));
   /** Element's current visual bbox: layout bbox under its accumulated pose —
@@ -1107,11 +1124,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       makeHidden(ids);
       pushStep({ kind: "clear", ids });
     } else if (cmd.highlight !== undefined) {
-      const ids = resolveIds(cmd.highlight.target, "highlight").filter((id) => {
-        if (visibleSet.has(id)) return true;
-        warnings.push(`highlight target "${id}" is not visible at that point (skipped)`);
-        return false;
-      });
+      const ids = visibleTargets(cmd.highlight.target, "highlight");
       if (ids.length === 0) continue;
       const boxes: Record<string, BBox> = {};
       for (const id of ids) {
@@ -1129,11 +1142,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.highlight.duration === undefined && currentNarration !== undefined ? { untilNarrationEnd: true } : {}),
       });
     } else if (cmd.focus !== undefined) {
-      const ids = resolveIds(cmd.focus.target, "focus").filter((id) => {
-        if (visibleSet.has(id)) return true;
-        warnings.push(`focus target "${id}" is not visible at that point (skipped)`);
-        return false;
-      });
+      const ids = visibleTargets(cmd.focus.target, "focus");
       if (ids.length === 0) continue;
       // A label belongs to the thing it names. `fade` and `move` have always
       // carried followers; the inverse spotlight did not, so it held an
