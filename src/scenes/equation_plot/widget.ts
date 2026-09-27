@@ -30,30 +30,30 @@ import { controlDragValue, controlField, controlParts, controlTarget, type Contr
 import { panRange, sameRange, tidyRange, zoomRange, type Range } from "../params-ui/domain";
 import { clampTo, roundTo, withValue, type Param } from "../params-ui/params";
 import { yRangeOf } from "./layout";
-import { autoYRange, dragParam, fitsRange, readModel, sampleCurve, solveParam, type EquationPlotParams, type Model } from "./model";
+import { autoYRange, dragParam, fitsRange, fromU, markIds, readModel, solveParam, toU, yNeeds, type EquationPlotParams, type Model } from "./model";
+import { withPreset } from "./presets";
 
 export type EqTarget = ControlTarget | { kind: "curve"; curve: number } | { kind: "along"; param: Param };
 
 /** A press on a curve this near a draggable point takes the point instead. */
 export const POINT_GRAB = 16;
 
-/** The n-th point (or tangent) mark on curve c. */
-function markFor(m: Model, kind: "point" | "tangent", n: number, c: number) {
-  return m.marks.filter((k) => k.kind === kind && (k.curve ?? 0) === c)[n - 1] ?? null;
-}
+/** The params the body works on: the scene's, with a preset filled in. */
+const paramsOf = (scene: WidgetScene): EquationPlotParams => withPreset(scene.params as unknown as EquationPlotParams);
 
 /** What a press on part `id` works, or null. */
 export function eqTarget(id: string, m: Model): EqTarget | null {
   const control = controlTarget(id, m);
   if (control) return control;
-  let r: RegExpMatchArray | null;
-  if ((r = id.match(/^curve_(\d+)$/))) {
+  const r = id.match(/^curve_(\d+)$/);
+  if (r) {
     const c = m.curves[Number(r[1])];
     return c && c.node && m.drag !== false ? { kind: "curve", curve: c.index } : null;
   }
-  if ((r = id.match(/^(point|tangent)(?:_(\d+))?(?:_c(\d+))?$/))) {
-    const mk = markFor(m, r[1] as "point" | "tangent", r[2] ? Number(r[2]) : 1, r[3] ? Number(r[3]) : 0);
-    const p = mk && typeof mk.at === "string" ? m.byName.get(mk.at) : undefined;
+  // A point or tangent whose `at` is a parameter's name rides the curve.
+  for (const [mk, mid] of markIds(m.marks)) {
+    if (mid !== id || (mk.kind !== "point" && mk.kind !== "tangent")) continue;
+    const p = typeof mk.at === "string" ? m.byName.get(mk.at.trim()) : undefined;
     return p && p.editable ? { kind: "along", param: p } : null;
   }
   return null;
@@ -62,11 +62,12 @@ export function eqTarget(id: string, m: Model): EqTarget | null {
 /** Every drawn part the viewer may work, in the order a tie goes: the
  *  panel's knobs and tracks, the riding points, the numbers, the curves. */
 export function eqParts(scene: WidgetScene): string[] {
-  const m = readModel(scene.params as unknown as EquationPlotParams);
+  const m = readModel(paramsOf(scene));
   const controls = controlParts(scene.ids, m);
   const knobs = controls.filter((id) => /^(knob|slider)_/.test(id));
   const numbers = controls.filter((id) => !/^(knob|slider)_/.test(id));
-  const marks = scene.ids.filter((id) => /^(point|tangent)/.test(id) && eqTarget(id, m) !== null);
+  const markSet = new Set(markIds(m.marks).values());
+  const marks = scene.ids.filter((id) => markSet.has(id) && eqTarget(id, m) !== null);
   const curves = scene.ids.filter((id) => id.startsWith("curve_") && eqTarget(id, m) !== null);
   return [...knobs, ...marks, ...numbers, ...curves];
 }
@@ -77,42 +78,55 @@ export function shownRanges(P: EquationPlotParams): { x: Range; y: Range } {
   return { x: m.xRange, y: yRangeOf(m, P) };
 }
 
+/** The x range in the frame's own units (log10 x on a log axis) and back. */
+const scaleOf = (P: EquationPlotParams): Model["xScale"] => (withPreset(P).x_scale === "log" ? "log" : "linear");
+const toFrame = (P: EquationPlotParams, [a, b]: Range): Range => [toU(scaleOf(P), a), toU(scaleOf(P), b)];
+/** A frame range back to x: on a log axis rounded to three significant digits. */
+const fromFrame = (P: EquationPlotParams, [a, b]: Range): Range =>
+  scaleOf(P) === "log" ? [Number(fromU("log", a).toPrecision(3)), Number(fromU("log", b).toPrecision(3))] : tidyRange([a, b]);
+
 /**
  * The patch that puts parameter `name` at v: the new `params`, and — when
  * the author left y to the template — the y range to keep: the one on
  * screen, or, when the new curves leave it, the round range that holds both.
  */
-export function eqPatch(P: EquationPlotParams, name: string, v: number, yAuto: boolean): Record<string, unknown> {
+export function eqPatch(raw: EquationPlotParams, name: string, v: number, yAuto: boolean): Record<string, unknown> {
+  const P = withPreset(raw);
   const params = withValue(P.params, name, v);
   if (!yAuto) return { params };
   const shown = yRangeOf(readModel(P), P);
   const next = readModel({ ...P, params: params as EquationPlotParams["params"] });
-  const ys = next.curves.map((c) => sampleCurve(c, next.env, next.xRange).ys);
+  const ys = yNeeds(next);
   if (fitsRange(ys, shown)) return { params, y_range: shown };
   // Widened, never narrowed: the new curves' own round range, joined to the one on screen.
   const need = autoYRange(ys);
   return { params, y_range: [Math.min(need[0], shown[0]), Math.max(need[1], shown[1])] };
 }
 
-/** The domain zoomed by `factor` about the domain point `at`, both axes. */
+/** The domain zoomed by `factor` about the domain point `at` (frame units), both axes. */
 export function zoomPatch(P: EquationPlotParams, at: Pt, factor: number): Record<string, unknown> {
   const { x, y } = shownRanges(P);
-  return { x_range: tidyRange(zoomRange(x, at[0], factor)), y_range: tidyRange(zoomRange(y, at[1], factor)) };
+  return { x_range: fromFrame(P, zoomRange(toFrame(P, x), at[0], factor)), y_range: tidyRange(zoomRange(y, at[1], factor)) };
 }
 
 /** The domain panned so the paper under `from` is under `to` (domain points, press-time frame). */
 export function panPatch(P: EquationPlotParams, from: Pt, to: Pt): Record<string, unknown> {
   const { x, y } = shownRanges(P);
-  return { x_range: tidyRange(panRange(x, from[0], to[0])), y_range: tidyRange(panRange(y, from[1], to[1])) };
+  return { x_range: fromFrame(P, panRange(toFrame(P, x), from[0], to[0])), y_range: tidyRange(panRange(y, from[1], to[1])) };
 }
 
-/** The value a drag of target `t` sets, or null for nothing. */
+/** The value a drag of target `t` sets, or null for nothing. Domain points
+ *  are the frame's: log10 x on a log axis. */
 export function dragValue(t: EqTarget, m: Model, scene: WidgetScene, from: Pt, fromDomain: Pt | null, to: Pt, toDomain: Pt | null): { name: string; value: number } | null {
   if (t.kind === "scrub" || t.kind === "slider") return controlDragValue(t, scene, from, to);
   if (!fromDomain || !toDomain) return null;
-  if (t.kind === "along") return { name: t.param.name, value: clampTo(roundTo(t.param.value + (toDomain[0] - fromDomain[0]), t.param.step), t.param) };
+  if (t.kind === "along") {
+    // The point rides the pointer's travel along the axis: on a log axis that is a factor.
+    const moved = m.xScale === "log" ? fromU("log", toU("log", t.param.value) + (toDomain[0] - fromDomain[0])) : t.param.value + (toDomain[0] - fromDomain[0]);
+    return { name: t.param.name, value: clampTo(roundTo(moved, t.param.step), t.param) };
+  }
   const c = m.curves[t.curve];
-  const x0 = fromDomain[0];
+  const x0 = fromU(m.xScale, fromDomain[0]);
   const p = dragParam(m, c, x0);
   if (!p) return null;
   const y0 = c.f(x0, m.env);
@@ -136,13 +150,15 @@ export function equationPlotWidget(): WidgetBody {
     live: true,
     parts: eqParts,
     init: (scene: WidgetScene): State => {
-      const P = scene.params as unknown as EquationPlotParams;
+      const P = paramsOf(scene);
       const x = rangeOf(P.x_range);
       const y = rangeOf(P.y_range);
       return { yAuto: !y, authored: { ...(x ? { x } : {}), ...(y ? { y } : {}) }, moved: false };
     },
     surface(scene: WidgetScene): BBox | null {
-      const { x, y } = shownRanges(scene.params as unknown as EquationPlotParams);
+      const P = paramsOf(scene);
+      const { y } = shownRanges(P);
+      const x = toFrame(P, shownRanges(P).x);
       const a = scene.toLogical([x[0], y[0]]);
       const b = scene.toLogical([x[1], y[1]]);
       if (![...a, ...b].every(Number.isFinite)) return null;
@@ -151,17 +167,17 @@ export function equationPlotWidget(): WidgetBody {
     rest(scene: WidgetScene, raw: unknown) {
       const state = raw as State | undefined;
       if (!state?.moved) return null;
-      const P = scene.params as unknown as EquationPlotParams;
+      const P = paramsOf(scene);
       if (sameRange(rangeOf(P.x_range), state.authored.x ?? null) && sameRange(rangeOf(P.y_range), state.authored.y ?? null)) return null;
       return { x_range: state.authored.x, y_range: state.authored.y };
     },
     editable(id: string, _point: Pt, scene: WidgetScene): EditField | null {
-      const t = controlTarget(id, readModel(scene.params as unknown as EquationPlotParams));
+      const t = controlTarget(id, readModel(paramsOf(scene)));
       return t ? controlField(t) : null;
     },
     on(event: WidgetEvent, raw: unknown, scene: WidgetScene) {
       const state = (raw ?? { yAuto: true, authored: {}, moved: false }) as State;
-      const P = scene.params as unknown as EquationPlotParams;
+      const P = paramsOf(scene);
       const m = readModel(P);
       if (event.type === "input") {
         const t = controlTarget(event.id, m);
@@ -183,8 +199,9 @@ export function equationPlotWidget(): WidgetBody {
       let t = eqTarget(event.id, m);
       // A press on the curve right at a point that rides it takes the point.
       if (t?.kind === "curve") {
+        const riders = new Set(markIds(m.marks).values());
         for (const id of scene.ids) {
-          if (!/^point/.test(id)) continue;
+          if (!riders.has(id)) continue;
           const b = scene.boxes.get(id);
           const tt = eqTarget(id, m);
           if (b && tt?.kind === "along" && Math.hypot(b.x + b.w / 2 - from[0], b.y + b.h / 2 - from[1]) <= POINT_GRAB) t = tt;

@@ -550,7 +550,10 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // y = f(x) with live parameters — whose full entry is ~9,200 chars in this
 // all-expanded measurement; in the app's two-level catalog it is one index
 // line).
-const BASELINE_SYSTEM_CHARS = 300000;
+// Raised to 312000 at 300612 (2026-09-28: equation_plot presets — the twelve
+// textbook curves listed one line each in `preset`, x_scale, hline/vline
+// marks, and two preset examples: +3,660 in the template's entry).
+const BASELINE_SYSTEM_CHARS = 312000;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

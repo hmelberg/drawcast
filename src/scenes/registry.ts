@@ -40,6 +40,7 @@ import { layoutEquationPlot, type EquationPlotParams } from "./equation_plot/lay
 import { lintEquationPlot } from "./equation_plot/lint";
 import { equationPlotWidget } from "./equation_plot/widget";
 import { readModel as readEquationPlot } from "./equation_plot/model";
+import { withPreset as withEquationPreset } from "./equation_plot/presets";
 import plot3dManifest from "./plot3d/manifest.json";
 import { layoutPlot3d, type Plot3dParams } from "./plot3d/layout";
 import { lintPlot3d } from "./plot3d/lint";
@@ -112,7 +113,10 @@ export const scenes: Record<string, SceneModule> = {
     // Free play: the parameters scrubbed or typed in the equation, on the
     // panel's sliders and boxes, or by dragging the curve itself.
     widget: equationPlotWidget,
-    sliders: (params) => traySliders(params.params, readEquationPlot(params as unknown as EquationPlotParams)),
+    sliders: (params) => {
+      const P = withEquationPreset(params as unknown as EquationPlotParams);
+      return traySliders(P.params, readEquationPlot(P));
+    },
   },
   // Built in since 2026-09-27 (it was the mathlogic pack's): the params-ui
   // modules its live parameters use are TypeScript. Free play: orbit, zoom,

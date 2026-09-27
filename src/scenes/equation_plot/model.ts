@@ -6,22 +6,34 @@
 // panel — are params-ui's, shared with every template that has a live
 // equation.
 import { arityProblem, compile, lhsTeX, namesIn, parseExpr, type Env, type Node } from "../params-ui/expr";
+import { withPreset } from "./presets";
 import { clampTo, declaredNames, niceUp, readParams, roundTo, type Param, type ParamSet, type ParamsMap } from "../params-ui/params";
 
 export type { Param } from "../params-ui/params";
 
-export type MarkKind = "roots" | "extrema" | "y_intercept" | "point" | "tangent";
+export type MarkKind = "roots" | "extrema" | "y_intercept" | "point" | "tangent" | "hline" | "vline";
 export interface MarkSpec {
   kind: MarkKind;
-  /** x of a point or tangent: a number, or a parameter's name (the mark then moves with it — and drags it). */
+  /** x of a point, tangent or vline, y of an hline: a number, a parameter's
+   *  name (the mark then moves with it — and a point drags it), or an
+   *  expression in the parameters ("K_m*(1 + I/K_i)", "V_max/2"). */
   at?: number | string;
   /** Which equation (0-based, default 0). */
   curve?: number;
   label?: string | boolean;
+  /** A point's words at the feet of its dashed guides: under the x axis, left of the y axis. */
+  x_label?: string;
+  y_label?: string;
+  /** The mark's own id (a preset names its marks: "km", "vmax"); else point, hline_2, … */
+  id?: string;
 }
 
 export interface EquationPlotParams {
-  equation: string | string[];
+  /** A named textbook curve (presets.ts): its fields fill in under the author's own. */
+  preset?: string;
+  /** false: the preset's marks are left out (the author's `marks` are otherwise added to them). */
+  preset_marks?: boolean;
+  equation?: string | string[];
   params?: ParamsMap;
   editable?: string[];
   controls?: "equation" | "panel" | "both";
@@ -29,6 +41,8 @@ export interface EquationPlotParams {
   drag?: boolean | string | string[];
   x_range?: [number, number];
   y_range?: [number, number];
+  /** "log": the x axis runs in powers of ten (x_range above 0; the frame's x is then log10 x). */
+  x_scale?: "linear" | "log";
   marks?: (MarkKind | MarkSpec)[];
   variable?: string;
   equation_form?: "values" | "symbols" | "both";
@@ -47,10 +61,14 @@ export interface Curve {
   f: (x: number, env: Env) => number;
 }
 
+export type XScale = "linear" | "log";
+
 export interface Model extends ParamSet {
   variable: string;
   curves: Curve[];
   xRange: [number, number];
+  /** How x maps to the page: linearly, or by log10 (the frame's x is then log10 x). */
+  xScale: XScale;
   drag: string[] | "auto" | false;
   marks: MarkSpec[];
   form: "values" | "symbols" | "both";
@@ -59,6 +77,7 @@ export interface Model extends ParamSet {
 
 export const MAX_CURVES = 4;
 export const DEFAULT_X: [number, number] = [-5, 5];
+export const DEFAULT_LOG_X: [number, number] = [0.01, 100];
 
 const num = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
@@ -74,11 +93,50 @@ function splitEquation(src: string): { lhs: string; rhs: string } {
   return { lhs: src.slice(0, at).trim() || "y", rhs: src.slice(at + 1) };
 }
 
-/** Read the template params. Never throws: what is wrong is listed in `errors`. */
-export function readModel(P: EquationPlotParams): Model {
+/** x → the page's axis coordinate: x itself, or log10 x on a log axis. */
+export const toU = (scale: XScale, x: number): number => (scale === "log" ? Math.log10(x) : x);
+/** The axis coordinate back to x. */
+export const fromU = (scale: XScale, u: number): number => (scale === "log" ? 10 ** u : u);
+
+/** A mark's `at` as an expression over the parameters, or null (a number, nothing, or not an expression). */
+export function atExpr(at: unknown, declared: readonly string[] = []): Node | null {
+  if (typeof at !== "string" || at.trim() === "") return null;
+  try {
+    const node = parseExpr(at, declared);
+    return arityProblem(node) ? null : node;
+  } catch {
+    return null;
+  }
+}
+
+/** Where a mark sits: its `at` at the current parameters (NaN when it cannot be read). */
+export function markAt(mk: MarkSpec, m: Pick<Model, "env" | "params">): number {
+  if (typeof mk.at === "number") return mk.at;
+  const node = atExpr(mk.at, m.params.map((p) => p.name));
+  return node ? compile(node)(m.env) : NaN;
+}
+
+/** The ids of the marks that are one part each (point, tangent, hline,
+ *  vline): the author's `id`, else the kind numbered in order (point,
+ *  point_2, …) with _c<i> for a mark on curve i > 0. */
+export function markIds(marks: readonly MarkSpec[]): Map<MarkSpec, string> {
+  const out = new Map<MarkSpec, string>();
+  const count: Record<string, number> = {};
+  for (const mk of marks) {
+    if (mk.kind !== "point" && mk.kind !== "tangent" && mk.kind !== "hline" && mk.kind !== "vline") continue;
+    const n = (count[mk.kind] = (count[mk.kind] ?? 0) + 1);
+    const c = mk.curve ?? 0;
+    out.set(mk, typeof mk.id === "string" && /^[A-Za-z][A-Za-z0-9_]*$/.test(mk.id) ? mk.id : `${mk.kind}${n > 1 ? `_${n}` : ""}${c > 0 ? `_c${c}` : ""}`);
+  }
+  return out;
+}
+
+/** Read the template params (a preset's filled in first). Never throws: what is wrong is listed in `errors`. */
+export function readModel(raw: EquationPlotParams): Model {
+  const P = withPreset(raw);
   const errors: string[] = [];
   const list = (Array.isArray(P.equation) ? P.equation : [P.equation]).filter((s): s is string => typeof s === "string" && s.trim() !== "").slice(0, MAX_CURVES);
-  if (list.length === 0) errors.push("no equation");
+  if (list.length === 0) errors.push("no equation (write `equation`, or name a `preset`)");
   const declared = declaredNames(P.params);
   const split = list.map(splitEquation);
   const variable =
@@ -104,35 +162,55 @@ export function readModel(P: EquationPlotParams): Model {
   // a mark's `at` name, then any declared one the equations do not read.
   const names: string[] = [];
   for (const c of curves) if (c.node) for (const n of namesIn(c.node)) if (n !== variable && !names.includes(n)) names.push(n);
-  for (const m of P.marks ?? []) if (typeof m === "object" && m && typeof m.at === "string" && m.at !== variable && !names.includes(m.at)) names.push(m.at);
+  for (const m of P.marks ?? []) {
+    if (typeof m !== "object" || !m || typeof m.at !== "string") continue;
+    const node = atExpr(m.at, declared);
+    if (!node) {
+      errors.push(`mark ${m.kind}: at "${m.at}" is neither a number, a parameter nor an expression`);
+      continue;
+    }
+    for (const n of namesIn(node)) if (n !== variable && !names.includes(n)) names.push(n);
+  }
   const set = readParams({ given: P.params, names: names.concat(declared.filter((n) => n !== variable)), editable: P.editable, controls: P.controls, panel: P.panel });
   if (set.dropped.length > 0) errors.push(`${set.params.length + set.dropped.length} parameters — at most ${set.params.length}`);
 
-  const xr = Array.isArray(P.x_range) && num(P.x_range[0]) && num(P.x_range[1]) && P.x_range[1] > P.x_range[0] ? ([P.x_range[0], P.x_range[1]] as [number, number]) : DEFAULT_X;
+  const xScale: XScale = P.x_scale === "log" ? "log" : "linear";
+  const xGiven = Array.isArray(P.x_range) && num(P.x_range[0]) && num(P.x_range[1]) && P.x_range[1] > P.x_range[0];
+  if (xGiven && xScale === "log" && !(P.x_range![0] > 0)) errors.push(`x_scale "log" needs an x_range above 0, not [${P.x_range!.join(", ")}]`);
+  const xr = xGiven && (xScale === "linear" || P.x_range![0] > 0) ? ([P.x_range![0], P.x_range![1]] as [number, number]) : xScale === "log" ? DEFAULT_LOG_X : DEFAULT_X;
   const drag: Model["drag"] =
     P.drag === false ? false : typeof P.drag === "string" ? [P.drag] : Array.isArray(P.drag) ? P.drag.filter((s): s is string => typeof s === "string") : "auto";
   const marks: MarkSpec[] = (P.marks ?? []).flatMap((m): MarkSpec[] =>
     typeof m === "string" ? [{ kind: m }] : m && typeof m === "object" && typeof m.kind === "string" ? [m] : [],
   );
   const form = P.equation_form === "symbols" || P.equation_form === "both" ? P.equation_form : "values";
-  return { ...set, variable, curves, xRange: xr, drag, marks, form, errors };
+  return { ...set, variable, curves, xRange: xr, xScale, drag, marks, form, errors };
 }
 
 // ---- sampling, ranges and ticks -------------------------------------------
 
 export const SAMPLES = 240;
 
-/** The curve's values across the x range (NaN where undefined). */
-export function sampleCurve(c: Curve, env: Env, [x0, x1]: [number, number], n = SAMPLES): { xs: number[]; ys: number[] } {
+/** The curve's values across the x range (NaN where undefined), evenly
+ *  spaced on the page — in powers of ten on a log axis. */
+export function sampleCurve(c: Curve, env: Env, [x0, x1]: [number, number], n = SAMPLES, scale: XScale = "linear"): { xs: number[]; ys: number[] } {
   const xs: number[] = [];
   const ys: number[] = [];
+  const [u0, u1] = [toU(scale, x0), toU(scale, x1)];
   for (let i = 0; i <= n; i++) {
-    const x = x0 + ((x1 - x0) * i) / n;
+    const x = fromU(scale, u0 + ((u1 - u0) * i) / n);
     xs.push(x);
     const y = c.f(x, env);
     ys.push(Number.isFinite(y) ? y : NaN);
   }
   return { xs, ys };
+}
+
+/** What the auto y range must hold: every curve across the x range, and the
+ *  height of every hline mark (an asymptote a curve only approaches). */
+export function yNeeds(m: Model): number[][] {
+  const lines = m.marks.filter((mk) => mk.kind === "hline").map((mk) => markAt(mk, m)).filter(Number.isFinite);
+  return [...m.curves.map((c) => sampleCurve(c, m.env, m.xRange, SAMPLES, m.xScale).ys), ...(lines.length ? [lines] : [])];
 }
 
 /** Evenly spaced round numbers covering [lo, hi], about `target` of them. */
@@ -214,6 +292,20 @@ function bisect(g: (x: number) => number, a: number, b: number, ga: number): num
 export function slopeAt(f: (x: number) => number, x: number, span: number): number {
   const h = span * 1e-5;
   return (f(x + h) - f(x - h)) / (2 * h);
+}
+
+/** Powers of ten across [lo, hi] (lo > 0) — with their 2s and 5s when the range spans under three decades. */
+export function logTicks(lo: number, hi: number): number[] {
+  const k0 = Math.floor(Math.log10(lo) + 1e-9);
+  const k1 = Math.ceil(Math.log10(hi) - 1e-9);
+  const within = (v: number): boolean => v >= lo * (1 - 1e-9) && v <= hi * (1 + 1e-9);
+  const few = k1 - k0 < 3;
+  const out: number[] = [];
+  for (let k = k0; k <= k1; k++) for (const m of few ? [1, 2, 5] : [1]) {
+    const v = Number((m * 10 ** k).toPrecision(12));
+    if (within(v)) out.push(v);
+  }
+  return out;
 }
 
 /** Where f crosses (or touches) zero in [x0, x1], left to right — at most `cap`. */
