@@ -66,6 +66,15 @@ export function compileTemplateDoc(doc: TemplateDoc): { module?: SceneModule; er
       return { errors: [`template "${doc.template}" widget body: keys must be an array of strings`] };
     }
     widget = () => wfn(kit) as WidgetBody;
+    // Free play (2026-09-27): a LIVE body with neither demo nor judge is
+    // worked while paused but answers no ask — like the built-ins
+    // (registry.ts supply_demand), its manifest carries no `widget` flag,
+    // which would offer the figure as an ask's answer device.
+    const b = probe as { live?: unknown; demo?: unknown; judge?: unknown };
+    if (b.live === true && b.demo === undefined && b.judge === undefined) {
+      const { widget: _flag, ...manifest } = docToManifest(doc);
+      return { module: { manifest, layout, widget }, errors: [] };
+    }
   }
   return { module: { manifest: docToManifest(doc), layout, ...(widget ? { widget } : {}) }, errors: [] };
 }
