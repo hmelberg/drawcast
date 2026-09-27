@@ -97,7 +97,9 @@ function liveSliders(hd: RenderHandle): { spec: SliderSpec; value: number }[] {
   // The viewer's own committed numbers (a {var} animate) win over the plan's
   // fallbacks — exploration continues from where THEY left the figure.
   const runtime = hd.timeline.getParamOverrides();
-  return sliderSpecs(schema, hd.spec.params)
+  // The template's own sliders (bounds written in the params, not the schema).
+  const own = scenes[tpl]?.sliders?.((hd.spec.params ?? {}) as Record<string, unknown>) ?? [];
+  return [...sliderSpecs(schema, hd.spec.params), ...own]
     .map((spec) => ({ spec, value: runtime[spec.path] ?? readParam(effective, spec.path) }))
     .filter((s): s is { spec: SliderSpec; value: number } => s.value !== null);
 }

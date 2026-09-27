@@ -481,3 +481,19 @@ export function solveParam(c: Curve, env: Env, x0: number, target: number, p: Pa
   }
   return done(best.v);
 }
+
+/**
+ * The tray's sliders (SceneModule.sliders): one per editable parameter with
+ * both bounds, at the path an animate or the tray writes — params.<name>
+ * for a bare number, params.<name>.value for the object form. A parameter
+ * the author never wrote has no number to slide from, so none.
+ */
+export function traySliders(P: EquationPlotParams): { path: string; label: string; min: number; max: number; step: number }[] {
+  const m = readModel(P);
+  const given = P.params ?? {};
+  return m.params.flatMap((p) => {
+    if (!p.editable || !p.declared || p.min === undefined || p.max === undefined || !(p.max > p.min)) return [];
+    const raw = given[p.name];
+    return [{ path: typeof raw === "number" ? `params.${p.name}` : `params.${p.name}.value`, label: p.label, min: p.min, max: p.max, step: p.step }];
+  });
+}

@@ -317,3 +317,11 @@ describe("the movie: animate sweeps a parameter", () => {
     expect(readParam({ params: { a: 2 } }, "params.a")).toBe(2);
   });
 });
+
+describe("the tray", () => {
+  test("a slider per editable, bounded, written parameter, at the path animate uses", () => {
+    const P: EquationPlotParams = { equation: "y = a*x + b + c + d", params: { a: { value: 1, min: 0, max: 2, label: "slope a" }, b: 3, c: { value: 0, min: -1, max: 1, fixed: true } } };
+    expect(module.sliders!(asRec(P))).toEqual([{ path: "params.a.value", label: "slope a", min: 0, max: 2, step: 0.05 }]);
+    expect(readParam(asRec(P), "params.a.value")).toBe(1);
+  });
+});
