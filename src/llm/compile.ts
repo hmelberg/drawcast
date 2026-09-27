@@ -18,6 +18,7 @@ import { specSchema, validateSpec, CODE_ONLY_ELEMENT_PROPS, SOUND_ONLY_COMMAND_P
 import { paramsWithAssets } from "../spec/assets";
 import { attachSeedCredit, type SeedBlock } from "./seed";
 import { visualRepairMessages, wantsVisualRepair } from "./visual";
+import { LOOK_PROMPT_SOURCE, applySpecEditsLenient, isEditsReply, lookFixPrompt, lookFoundNothing, lookUserContent, type LookImage } from "./look";
 import type { Spec } from "../spec/types";
 import { layoutSpec } from "../layout/layout";
 import { expandSpec } from "../spec/expand";
@@ -144,13 +145,17 @@ export function apiSchema(opts: { code?: boolean; sound?: boolean } = {}): objec
 }
 
 export interface GenerationRound {
-  label: "initial" | "schema-repair" | "lint-repair" | "template-fetch" | "pedagogy" | "visual";
+  label: "initial" | "schema-repair" | "lint-repair" | "template-fetch" | "pedagogy" | "visual" | "look";
   spec: unknown;
   validationErrors: string[];
   lintIssues: LintIssue[];
   meta: JsonCallMeta;
-  /** Pedagogy and visual rounds only: whether the revision replaced the delivered spec. */
+  /** Pedagogy, visual and look rounds only: whether the revision replaced the delivered spec. */
   adopted?: boolean;
+  /** Look rounds only: what the critic said about the rendered frames. */
+  critique?: string;
+  /** Look rounds only: why the fix was not adopted, or which edits were skipped. */
+  note?: string;
   /**
    * The reply hit the output ceiling and never parsed (spec is null,
    * validationErrors carries the client's message). Logged as a round because
@@ -182,6 +187,20 @@ export interface GenerationOutcome {
 }
 
 export interface GenerateConfig {
+  /**
+   * The look pass (src/llm/look.ts): renders a spec's frames — one per spoken
+   * line — for a critic who sees them and lists the page's problems; a fix
+   * round applies the list (as edits), and the critic looks again, up to
+   * `lookRounds` times (default 2) or until it answers NONE. Injected by the
+   * app, since frames need a browser. Absent means no look pass.
+   */
+  look?: (spec: Spec) => Promise<LookImage[] | null>;
+  lookRounds?: number;
+  /**
+   * Called once the first valid spec is in hand, BEFORE the look pass — so
+   * the app can show it while the pass improves it (a minute or two).
+   */
+  onDraft?: (spec: Spec) => void;
   /**
    * After a structurally clean spec lands, run one teaching-quality pass: the
    * model re-reads the spec against the pedagogy rubric (situate, hook on
@@ -392,6 +411,7 @@ function adoptIfNoWorse(
   candidateJson: unknown,
   baseLint: LintIssue[],
   lintOf: (spec: Spec) => LintIssue[] | null,
+  warnsMayRise = false,
 ): { spec: Spec; adopted: boolean; lintIssues: LintIssue[]; validationErrors: string[] } {
   const v = validateSpec(candidateJson);
   if (!v.ok) return { spec: current, adopted: false, lintIssues: baseLint, validationErrors: v.errors };
@@ -400,7 +420,7 @@ function adoptIfNoWorse(
   const candidateLint = lintOf(candidate);
   if (candidateLint === null) return { spec: current, adopted: false, lintIssues: baseLint, validationErrors: [] };
   const count = (issues: LintIssue[], sev: string) => issues.filter((i) => i.severity === sev).length;
-  const noWorse = count(candidateLint, "error") <= count(baseLint, "error") && count(candidateLint, "warn") <= count(baseLint, "warn");
+  const noWorse = count(candidateLint, "error") <= count(baseLint, "error") && (warnsMayRise || count(candidateLint, "warn") <= count(baseLint, "warn"));
   const changed = JSON.stringify(candidate) !== JSON.stringify(current);
   if (noWorse && changed) return { spec: candidate, adopted: true, lintIssues: candidateLint, validationErrors: [] };
   return { spec: current, adopted: false, lintIssues: baseLint, validationErrors: [] };
@@ -767,6 +787,68 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
         rounds.push({ label: "visual", spec: json, validationErrors: result.validationErrors, lintIssues: result.lintIssues, meta, adopted: result.adopted });
       } catch {
         /* best-effort by design */
+      }
+    }
+  }
+
+  // The look pass: a critic sees the rendered frames; a fix round applies its
+  // list; look again. Its fixes are judged by the eye, not by lint warnings,
+  // so warnings may rise — never errors, never an invalid spec, never another
+  // template. A fix that breaks the spec gets one repair round on the SAME
+  // model (the cheaper repair model lost fixes through the API — prompt lab
+  // run 3), and edits that name nothing are skipped, not fatal.
+  if (best && cfg.look) {
+    cfg.onDraft?.(best);
+    for (let i = 0; i < (cfg.lookRounds ?? 2); i++) {
+      try {
+        cfg.onPhase?.(i === 0 ? "looking at the frames" : "looking again");
+        const images = await cfg.look(best);
+        if (!images || images.length === 0) break;
+        const t0 = performance.now();
+        const { text: critique } = await callForText(client, cfg.model, LOOK_PROMPT_SOURCE, [{ role: "user", content: lookUserContent(images, request) }], {
+          signal: cfg.signal,
+          effort: cfg.effort,
+        });
+        const baseLint = lintOf(best) ?? [];
+        if (lookFoundNothing(critique)) {
+          rounds.push({ label: "look", spec: best, validationErrors: [], lintIssues: baseLint, meta: { ms: performance.now() - t0, structuredOutput: false }, adopted: false, critique, note: "nothing to fix" });
+          break;
+        }
+        cfg.onPhase?.("fixing what it saw");
+        const fixTurns: Anthropic.MessageParam[] = [
+          ...messages,
+          { role: "assistant", content: JSON.stringify(best) },
+          { role: "user", content: lookFixPrompt(critique, best as unknown as Record<string, unknown>) },
+        ];
+        // The edits reply answers against a looser shape than the spec schema.
+        let { json, raw, meta } = await callForJson(client, cfg.model, system, fixTurns, { type: "object" }, { signal: cfg.signal, effort: cfg.effort });
+        let note = "";
+        if (isEditsReply(json)) {
+          const applied = applySpecEditsLenient(best as unknown as Record<string, unknown>, json.edits);
+          json = applied.spec;
+          raw = JSON.stringify(json);
+          if (applied.skipped.length) note = `skipped edits: ${applied.skipped.join("; ")}`;
+        }
+        const firstTry = validateSpec(json);
+        const errs = firstTry.ok ? (lintOf(json as Spec) ?? []).filter((x) => x.severity === "error") : [];
+        if (!firstTry.ok || errs.length > baseLint.filter((x) => x.severity === "error").length) {
+          const feedback = !firstTry.ok
+            ? `The spec failed validation:\n${firstTry.errors.join("\n")}\n\nReturn the corrected COMPLETE spec (not a diff), as minified JSON. Keep the designer's fixes.`
+            : `The rendered figure has visual problems:\n${lintReportText(errs)}\n\nReturn the corrected COMPLETE spec (not a diff), as minified JSON. Keep the designer's fixes.`;
+          cfg.onPhase?.("repairing the fix");
+          ({ json, raw, meta } = await callForJson(client, cfg.model, system, [...fixTurns, { role: "assistant", content: raw }, { role: "user", content: feedback }], schema, {
+            signal: cfg.signal,
+            effort: "medium",
+          }));
+        }
+        const result = adoptIfNoWorse(best, json, baseLint, lintOf, true);
+        if (result.adopted) best = result.spec;
+        else note = [note, result.validationErrors.length ? `invalid: ${result.validationErrors.slice(0, 3).join("; ")}` : "no better than before (errors, template or unchanged)"].filter(Boolean).join(" · ");
+        rounds.push({ label: "look", spec: json as Spec, validationErrors: result.validationErrors, lintIssues: result.lintIssues, meta, adopted: result.adopted, critique, note: note || undefined });
+        if (!result.adopted) break;
+      } catch (err) {
+        if (cfg.signal?.aborted) throw err;
+        break;
       }
     }
   }
