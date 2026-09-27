@@ -1,7 +1,7 @@
 {
   "name": "markov_model",
   "status": "ready",
-  "description": "A state-transition (Markov) diagram: 2–6 health/process states as circles, transition arrows between them (with a probability/rate label), and self-loops for states that also \"stay\" (optionally captioned with the stay probability). Choose this for ANY request about a Markov model, a health-state transition diagram, or a cycle of states with probabilities of moving between them. All placement is computed for you: a ring for 3+ states or a horizontal row (layout \"chain\" — the classic textbook style for health-state models), self-loops aimed into each state's least crowded side, and arrows that bow around any state that sits in their way. A state that no transition ever leaves renders as absorbing (plain ink, no color) automatically. Give it `trace` to RUN the model: a cohort table beside the diagram (counts in each state year by year, QALY weight and cost of each state, the QALYs and cost each year yields, discounted lifetime totals, the average per person, and with `compare` a second option and its cost per QALY gained) — every number computed from the transition labels, so narrate the table's numbers rather than working them out.",
+  "description": "A state-transition (Markov) diagram: 2–6 health/process states as circles, transition arrows between them (with a probability/rate label), and self-loops for states that also \"stay\" (optionally captioned with the stay probability). Choose this for ANY request about a Markov model, a health-state transition diagram, or a cycle of states with probabilities of moving between them. All placement is computed for you: a ring for 3+ states or a horizontal row (layout \"chain\" — the classic textbook style for health-state models), self-loops aimed into each state's least crowded side, and arrows that bow around any state that sits in their way. A state that no transition ever leaves renders as absorbing (plain ink, no color) automatically. `view: \"matrix\"` draws the transition matrix instead (rows from, columns to, each cell a probability; the stay on the diagonal is derived as 1 − the row's exits and shown grey; up to 10 states — use it from 7 states, or whenever the numbers matter more than the picture); `view: \"both\"` puts diagram and matrix side by side. Give it `trace` to RUN the model: a cohort table (counts in each state year by year, QALY weight and cost of each state, the QALYs and cost each year yields, discounted lifetime totals, the average per person, and with `compare` a second option and its cost per QALY gained) — every number computed from the transition labels, so narrate the table's numbers rather than working them out. Beside the diagram the table takes at most 4 states; with the matrix it runs full width under it (up to 10), the matrix then carries each state's QALYs/yr and Cost/yr as columns and, with `compare`, the option's changed values in its colour under the base ones. Drawn text can quote the results live: {markov.qalys_mean}, {markov.cost_mean}, {markov.compare_qalys_mean}, {markov.compare_cost_mean}, {markov.qalys_gained}, {markov.cost_added}, {markov.icer}, {markov.stay_<slug>}, {markov.p_<from>_<to>}.",
   "params_schema": {
     "type": "object",
     "properties": {
@@ -11,8 +11,8 @@
           "type": "string"
         },
         "minItems": 2,
-        "maxItems": 6,
-        "description": "2–6 state names, in the order they should be laid out."
+        "maxItems": 10,
+        "description": "2–10 state names, in the order they should be laid out. The diagram draws at most 6; 7–10 need view \"matrix\"."
       },
       "transitions": {
         "type": "array",
@@ -80,7 +80,7 @@
       },
       "trace": {
         "type": "object",
-        "description": "Run a cohort through the model and draw the table right of the diagram (the diagram moves left). Transition labels must be probabilities; each state's stay is what its arrows leave. At most 4 states.",
+        "description": "Run a cohort through the model and draw the table. Transition labels must be probabilities; each state's stay is what its arrows leave. Beside the diagram (view \"diagram\"): at most 4 states, the diagram moves left. With view \"matrix\" or \"both\": the table runs full width under the matrix, up to 10 states, and its QALYs/yr and Cost/yr rows move into the matrix as columns.",
         "properties": {
           "start": {
             "type": "number",
@@ -165,6 +165,15 @@
             ]
           }
         }
+      },
+      "view": {
+        "type": "string",
+        "enum": [
+          "diagram",
+          "matrix",
+          "both"
+        ],
+        "description": "What to draw: \"diagram\" (default) the states as circles; \"matrix\" the transition matrix alone (rows from, columns to, derived stay on the diagonal; up to 10 states); \"both\" the diagram left and the matrix right (with trace, keep \"both\" to 4 states: the diagram gets small)."
       }
     },
     "required": [
@@ -181,9 +190,25 @@
     "loop_label_<slug>": "that loop's stay-probability caption, when its `self_loops` entry set a label",
     "hl_<slug>": "tinted halo behind the state named by `highlight_state` — present only when set",
     "title": "figure title, when set",
+    "matrix": "with view matrix/both: the whole transition matrix without the compare layer (a set)",
+    "matrix_cell_<from>_<to>": "one cell: the probability of moving from state <from> to <to> (slugs); the diagonal matrix_cell_<s>_<s> is the derived stay, grey on a light wash",
+    "matrix_head_row_<slug>": "the row's from-state name",
+    "matrix_head_col_<slug>": "the column's to-state name",
+    "matrix_row_<slug>": "every cell of one from-state's row, its name and its QALYs/cost — the row that sums to 1 (a set)",
+    "matrix_col_<slug>": "one to-state's column: its name and cells (a set)",
+    "matrix_stay": "the diagonal: every derived stay cell (a set)",
+    "matrix_utility_<slug>": "with trace.utility: the state's QALYs/yr cell",
+    "matrix_cost_<slug>": "with trace.cost: the state's Cost/yr cell",
+    "matrix_head_utility": "with trace.utility: the QALYs/yr column head",
+    "matrix_head_cost": "with trace.cost: the Cost/yr column head",
+    "matrix_corner": "the corner cell's diagonal with 'from' and 'to'",
+    "matrix_compare_<from>_<to>": "with trace.compare: the option's value under a cell it changes (the stay it implies too), in its colour",
+    "matrix_compare_cost_<slug>": "with trace.compare.cost: the option's Cost/yr under the base one",
+    "matrix_compare_name": "with trace.compare: the option's name under the matrix, keying its colour",
+    "matrix_compare": "the compare layer: every matrix_compare_* value and the name (a set) — draw it after the matrix to show what the option changes",
     "trace_head": "with trace: the table's header row (the state names, QALYs, Cost)",
-    "trace_utility": "with trace: the QALY weight of a year in each state",
-    "trace_cost": "with trace: the cost of a year in each state",
+    "trace_utility": "with trace, view \"diagram\": the QALY weight of a year in each state (with the matrix, see matrix_utility_<slug>)",
+    "trace_cost": "with trace, view \"diagram\": the cost of a year in each state (with the matrix, see matrix_cost_<slug>)",
     "trace_row_<k>": "with trace: row 0 the starting cohort; row k (1…cycles) the counts at the end of year k, with that year's QALYs and cost",
     "trace_total": "with trace: the cohort's discounted lifetime QALYs and cost",
     "trace_mean": "with trace: the same per person — the average",
@@ -289,6 +314,101 @@
         ],
         "layout": "chain",
         "highlight_state": "Broken"
+      }
+    },
+    {
+      "request": "Show a five-state disease model as a transition matrix and run it for a cohort, comparing a new drug that halves progression from mild to severe.",
+      "params": {
+        "title": "A five-state model",
+        "view": "matrix",
+        "states": [
+          "Well",
+          "Mild",
+          "Severe",
+          "Remission",
+          "Dead"
+        ],
+        "transitions": [
+          {
+            "from": "Well",
+            "to": "Mild",
+            "label": "0.08"
+          },
+          {
+            "from": "Well",
+            "to": "Dead",
+            "label": "0.01"
+          },
+          {
+            "from": "Mild",
+            "to": "Severe",
+            "label": "0.12"
+          },
+          {
+            "from": "Mild",
+            "to": "Remission",
+            "label": "0.20"
+          },
+          {
+            "from": "Mild",
+            "to": "Dead",
+            "label": "0.02"
+          },
+          {
+            "from": "Severe",
+            "to": "Remission",
+            "label": "0.10"
+          },
+          {
+            "from": "Severe",
+            "to": "Dead",
+            "label": "0.15"
+          },
+          {
+            "from": "Remission",
+            "to": "Mild",
+            "label": "0.05"
+          },
+          {
+            "from": "Remission",
+            "to": "Dead",
+            "label": "0.01"
+          }
+        ],
+        "trace": {
+          "utility": [
+            0.95,
+            0.75,
+            0.4,
+            0.85,
+            0
+          ],
+          "cost": [
+            200,
+            2500,
+            12000,
+            800,
+            0
+          ],
+          "cycles": 3,
+          "compare": {
+            "name": "New drug",
+            "transitions": [
+              {
+                "from": "Mild",
+                "to": "Severe",
+                "label": "0.06"
+              }
+            ],
+            "cost": [
+              0,
+              3000,
+              0,
+              0,
+              0
+            ]
+          }
+        }
       }
     }
   ]

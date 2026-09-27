@@ -209,6 +209,8 @@ export function layoutSpec(
               `give it a taller region, or use a template with a native box`,
           });
         }
+        // The template's own verdict on its params (scenes/types.ts `issues`).
+        for (const i of sceneLayout.issues ?? []) issues.push({ rule: "template-params", ids: [], severity: i.severity, message: i.message });
         templateIds = sceneLayout.order;
         // A `draw` of an id the template's catalog entry DECLARES but this
         // layout did not PRODUCE — `dwl_region` on a page whose `regions`

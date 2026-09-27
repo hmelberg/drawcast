@@ -63,6 +63,15 @@ export interface SceneLayout {
    * params are present.
    */
   values?: Record<string, number>;
+
+  /**
+   * What the template could not honour in these params, in its own words —
+   * a Markov row whose exits add up to more than 1, a label that is not a
+   * probability. The layout pass reports each as `template-params` lint
+   * (errors reach the repair round), so a model that would draw wrong is
+   * caught where only the template knows the rule.
+   */
+  issues?: { severity: "error" | "warn"; message: string }[];
 }
 
 /** Intrinsic interactions a template can declare (interactivity spec §6):
