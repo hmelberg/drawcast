@@ -9,7 +9,8 @@
 import { AXIS_OVERHANG, axisLabelPlacement } from "../../layout/axes";
 import { plotArea, type PlotArea } from "../../layout/canvas";
 import { COLORS, Z_STROKE, Z_TEXT, SKETCH_MS, defaultDrawOpts, defaultStyle, type Drawable, type Pt } from "../../layout/model";
-import { simplifyPolyline } from "../../layout/geometry";
+import { bboxOfText, polylineIntersectsBox, simplifyPolyline } from "../../layout/geometry";
+import { heuristicMeasure } from "../../layout/measure";
 import { getLoadedEngines, type MathJaxEngine } from "../engines";
 import { kit } from "../kit";
 import type { SceneLayout } from "../types";
@@ -106,53 +107,19 @@ export function layoutEquationPlot(P: EquationPlotParams): SceneLayout {
   const xCaption = typeof P.x_label === "string" && P.x_label.trim() ? P.x_label : m.variable;
   const yCaption = typeof P.y_label === "string" && P.y_label.trim() ? P.y_label : (m.curves[0]?.lhs ?? "y");
   const xl = axisLabelPlacement("x", { ...plot, y0: oy }, xCaption, 26);
-  push(kit.text("x_label", xl.pos, xCaption, { fontSize: 26, anchor: xl.anchor }), xl.pos);
+  const xLabel = kit.text("x_label", xl.pos, xCaption, { fontSize: 26, anchor: xl.anchor });
+  push(xLabel, xl.pos);
   const yl = axisLabelPlacement("y", { ...plot, x0: ox }, yCaption, 26);
-  push(kit.text("y_label", yl.pos, yCaption, { fontSize: 26, anchor: yl.anchor }), yl.pos);
-
-  // Ticks: round numbers, a short mark across the axis and the number
-  // beside it; none where the other axis crosses (the origin's 0 would sit
-  // on both axes' lines).
-  const tickText = (id: string, pos: Pt, s: string, anchor: "start" | "middle" | "end"): Drawable => ({
-    ...kit.text(id, pos, s, { fontSize: TICK_FONT, color: COLORS.guide, anchor }),
-    drawOpts: defaultDrawOpts("instant"),
-  });
-  const xt = niceTicks(x0, x1, 8);
-  const xd = Math.max(0, -Math.floor(Math.log10(xt.step) + 1e-9));
-  const xChildren: Drawable[] = [];
-  for (const v of xt.ticks) {
-    const X = sx(v);
-    if (Math.abs(X - ox) < 1 && ox !== plot.x0) continue;
-    if (X < plot.x0 - 0.5 || X > plot.x1 + 0.5) continue;
-    xChildren.push({ ...kit.stroke(`x_ticks__m${xChildren.length}`, [[X, oy - 6], [X, oy + 6]], { color: COLORS.guide, strokeWidth: 2, instant: true }) });
-    xChildren.push(tickText(`x_ticks__t${xChildren.length}`, [X, oy - 22], kit.num(v, xd), "middle"));
-  }
-  const yt = niceTicks(y0, y1, 6);
-  const yd = Math.max(0, -Math.floor(Math.log10(yt.step) + 1e-9));
-  const yChildren: Drawable[] = [];
-  for (const v of yt.ticks) {
-    const Y = sy(v);
-    if (Math.abs(Y - oy) < 1 && oy !== plot.y0) continue;
-    if (Y < plot.y0 - 0.5 || Y > plot.y1 + 0.5) continue;
-    yChildren.push(kit.stroke(`y_ticks__m${yChildren.length}`, [[ox - 6, Y], [ox + 6, Y]], { color: COLORS.guide, strokeWidth: 2, instant: true }));
-    yChildren.push(tickText(`y_ticks__t${yChildren.length}`, [ox - 12, Y - 7], kit.num(v, yd), "end"));
-  }
-  const tickGroup = (id: string, children: Drawable[]): Drawable => ({ id, kind: "group", children, z: Z_TEXT, style: defaultStyle({ color: COLORS.guide }), drawOpts: defaultDrawOpts("instant") });
-  if (xChildren.length > 0) push(tickGroup("x_ticks", xChildren), [plot.x1, oy]);
-  if (yChildren.length > 0) push(tickGroup("y_ticks", yChildren), [ox, plot.y1]);
-  if (P.grid) {
-    const lines: Drawable[] = [];
-    for (const v of xt.ticks) if (sx(v) > plot.x0 + 1 && Math.abs(sx(v) - ox) > 1) lines.push(kit.stroke(`grid__x${lines.length}`, [[sx(v), plot.y0], [sx(v), plot.y1]], { color: COLORS.guide, strokeWidth: 1, opacity: 0.35, instant: true }));
-    for (const v of yt.ticks) if (sy(v) > plot.y0 + 1 && Math.abs(sy(v) - oy) > 1) lines.push(kit.stroke(`grid__y${lines.length}`, [[plot.x0, sy(v)], [plot.x1, sy(v)]], { color: COLORS.guide, strokeWidth: 1, opacity: 0.35, instant: true }));
-    if (lines.length > 0) push({ id: "grid", kind: "group", children: lines, z: Z_STROKE - 1, style: defaultStyle({ color: COLORS.guide }), drawOpts: defaultDrawOpts("instant") });
-  }
-  attached.axes = ["x_label", "y_label", ...(xChildren.length ? ["x_ticks"] : []), ...(yChildren.length ? ["y_ticks"] : [])];
-  drawnWith.axes = attached.axes;
+  const yLabel = kit.text("y_label", yl.pos, yCaption, { fontSize: 26, anchor: yl.anchor });
+  push(yLabel, yl.pos);
+  const captionBoxes = [bboxOfText(xLabel, heuristicMeasure), bboxOfText(yLabel, heuristicMeasure)];
 
   // ---- curves, cut where they leave the y range or jump a pole -------------
   const band = (y1 - y0) * 0.02;
   const lo = y0 - band;
   const hi = y1 + band;
+  const curveDrawables: [Drawable, Pt][] = [];
+  const curvePolys: Pt[][] = [];
   for (const c of m.curves) {
     const id = `curve_${c.index}`;
     const { xs, ys } = sampleCurve(c, m.env, m.xRange);
@@ -173,9 +140,59 @@ export function layoutEquationPlot(P: EquationPlotParams): SceneLayout {
             children: strokes.map((pts, k) => ({ id: `${id}__s${k}`, kind: "stroke" as const, pts, z: Z_STROKE, style, drawOpts: defaultDrawOpts("sketch", Math.max(400, SKETCH_MS.curve / strokes.length)) })),
           };
     const longest = strokes.reduce((a, b) => (b.length > a.length ? b : a));
-    push(d, longest[longest.length - 1]);
+    curveDrawables.push([d, longest[longest.length - 1]]);
+    curvePolys.push(...strokes);
     curveSamples[id] = longest;
   }
+
+  // Ticks: round numbers, a short mark across the axis and the number
+  // beside it; none where the other axis crosses (the origin's 0 would sit
+  // on both axes' lines).
+  // A number a curve runs through stands aside (it would be unreadable
+  // under the ink): the tick mark stays, its number is left out.
+  const tickText = (id: string, pos: Pt, s: string, anchor: "start" | "middle" | "end"): Drawable | null => {
+    const t = { ...kit.text(id, pos, s, { fontSize: TICK_FONT, color: COLORS.guide, anchor }), drawOpts: defaultDrawOpts("instant") };
+    const b = bboxOfText(t, heuristicMeasure);
+    const pad = { x: b.x - 3, y: b.y - 3, w: b.w + 6, h: b.h + 6 };
+    // …and so does one under an axis caption (a long x caption sits below the arrow's end).
+    const underCaption = captionBoxes.some((c) => c.x < pad.x + pad.w && c.x + c.w > pad.x && c.y < pad.y + pad.h && c.y + c.h > pad.y);
+    return underCaption || curvePolys.some((poly) => polylineIntersectsBox(poly, pad)) ? null : t;
+  };
+  const xt = niceTicks(x0, x1, 8);
+  const xd = Math.max(0, -Math.floor(Math.log10(xt.step) + 1e-9));
+  const xChildren: Drawable[] = [];
+  for (const v of xt.ticks) {
+    const X = sx(v);
+    if (Math.abs(X - ox) < 1 && ox !== plot.x0) continue;
+    if (X < plot.x0 - 0.5 || X > plot.x1 + 0.5) continue;
+    xChildren.push({ ...kit.stroke(`x_ticks__m${xChildren.length}`, [[X, oy - 6], [X, oy + 6]], { color: COLORS.guide, strokeWidth: 2, instant: true }) });
+    const label = tickText(`x_ticks__t${xChildren.length}`, [X, oy - 22], kit.num(v, xd), "middle");
+    if (label) xChildren.push(label);
+  }
+  const yt = niceTicks(y0, y1, 6);
+  const yd = Math.max(0, -Math.floor(Math.log10(yt.step) + 1e-9));
+  const yChildren: Drawable[] = [];
+  for (const v of yt.ticks) {
+    const Y = sy(v);
+    if (Math.abs(Y - oy) < 1 && oy !== plot.y0) continue;
+    if (Y < plot.y0 - 0.5 || Y > plot.y1 + 0.5) continue;
+    yChildren.push(kit.stroke(`y_ticks__m${yChildren.length}`, [[ox - 6, Y], [ox + 6, Y]], { color: COLORS.guide, strokeWidth: 2, instant: true }));
+    const label = tickText(`y_ticks__t${yChildren.length}`, [ox - 12, Y - 7], kit.num(v, yd), "end");
+    if (label) yChildren.push(label);
+  }
+  const tickGroup = (id: string, children: Drawable[]): Drawable => ({ id, kind: "group", children, z: Z_TEXT, style: defaultStyle({ color: COLORS.guide }), drawOpts: defaultDrawOpts("instant") });
+  if (xChildren.length > 0) push(tickGroup("x_ticks", xChildren), [plot.x1, oy]);
+  if (yChildren.length > 0) push(tickGroup("y_ticks", yChildren), [ox, plot.y1]);
+  if (P.grid) {
+    const lines: Drawable[] = [];
+    for (const v of xt.ticks) if (sx(v) > plot.x0 + 1 && Math.abs(sx(v) - ox) > 1) lines.push(kit.stroke(`grid__x${lines.length}`, [[sx(v), plot.y0], [sx(v), plot.y1]], { color: COLORS.guide, strokeWidth: 1, opacity: 0.35, instant: true }));
+    for (const v of yt.ticks) if (sy(v) > plot.y0 + 1 && Math.abs(sy(v) - oy) > 1) lines.push(kit.stroke(`grid__y${lines.length}`, [[plot.x0, sy(v)], [plot.x1, sy(v)]], { color: COLORS.guide, strokeWidth: 1, opacity: 0.35, instant: true }));
+    if (lines.length > 0) push({ id: "grid", kind: "group", children: lines, z: Z_STROKE - 1, style: defaultStyle({ color: COLORS.guide }), drawOpts: defaultDrawOpts("instant") });
+  }
+  attached.axes = ["x_label", "y_label", ...(xChildren.length ? ["x_ticks"] : []), ...(yChildren.length ? ["y_ticks"] : [])];
+  drawnWith.axes = attached.axes;
+  for (const [d, at] of curveDrawables) push(d, at);
+
   if (m.curves.length > 1) groups.curves = m.curves.map((c) => `curve_${c.index}`).filter((id) => order.includes(id));
 
   // ---- the equation(s), in the drawing's hand ------------------------------

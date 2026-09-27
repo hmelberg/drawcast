@@ -116,6 +116,17 @@ describe("the layout", () => {
     expect(r2).toEqual(r1);
     expect(autoYRange([[0, 100]])).toEqual([0, 120]);
   });
+  test("a tick number a curve runs through, or an axis caption covers, stands aside", () => {
+    const texts = (p: EquationPlotParams, id: string) => {
+      const g = layoutEquationPlot(p).drawables.find((d) => d.id === id) as { children: { kind: string; text?: string }[] };
+      return g.children.filter((c) => c.kind === "text").map((c) => c.text);
+    };
+    // y = x keeps clear of the numbers under the x axis; a steep line through x = -4 runs over "-4".
+    expect(texts({ equation: "y = x", x_range: [-5, 5], y_range: [-5, 5] }, "x_ticks")).toContain("-4");
+    expect(texts({ equation: "y = 10*(x + 4)", x_range: [-5, 5], y_range: [-5, 5] }, "x_ticks")).not.toContain("-4");
+    // A long caption under the axis end takes the last number's place.
+    expect(texts({ equation: "y = 100*x", x_range: [0, 40], y_range: [0, 5000], x_label: "years" }, "x_ticks")).not.toContain("40");
+  });
   test("{eq.<key>} reads the live values in drawn text", () => {
     const spec = { template: "equation_plot", params: PARABOLA, elements: [{ id: "note", type: "text", text: "a = {eq.a}, root {eq.root_2:2}", x: 500, y: 40 }], commands: [] };
     const page = layoutSpec(spec as unknown as RenderHandle["spec"]);
