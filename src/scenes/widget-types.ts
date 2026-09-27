@@ -107,17 +107,18 @@ export interface WidgetBody {
    *  outline and no strokes (a number's text) is hit by its box
    *  (widget-run.ts partAmong). */
   editable?(id: string, point: Pt, scene: WidgetScene): EditField | null;
+  /** A live body's own TAP (2026-09-28, field_lines: a tap on a charge flips
+   *  its sign): true and a tap on this part is delivered as a `click` event
+   *  instead of passing through to the card. Asked after `editable` (a
+   *  number field wins). Pure, like on(). */
+  taps?(id: string, scene: WidgetScene): boolean;
   /** Drags are the body's gesture, delivered live (`drag_move` per frame)
    *  and applied live — the figure recomputes under the pointer, no ghost.
    *  A TAP on a live body's part is not its gesture: the click goes on to
    *  the info card or the play toggle as if the widget were not there —
    *  unless the body calls that part `editable`: then the tap opens its
-   *  number field. */
+   *  number field — or `taps` it: then the tap is a `click`. */
   live?: true;
-  /** A live body's buttons (2026-09-28, reed_frost's "new runs"): a TAP on
-   *  one of these parts is the body's gesture after all — delivered as a
-   *  `click`, not passed on to the card or the play toggle. */
-  taps?: string[];
   /**
    * Blank paper the body owns (2026-09-27, equation_plot's plot area): a
    * press there that lands on no part is the body's live drag, delivered

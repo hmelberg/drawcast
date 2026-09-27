@@ -59,6 +59,14 @@ import maxwellManifest from "./maxwell_boltzmann/manifest.json";
 import { layoutMaxwell, type MaxwellParams } from "./maxwell_boltzmann/layout";
 import { lintMaxwell } from "./maxwell_boltzmann/lint";
 import { maxwellWidget } from "./maxwell_boltzmann/widget";
+import refractionManifest from "./refraction/manifest.json";
+import { layoutRefraction, type RefractionParams } from "./refraction/layout";
+import { lintRefraction } from "./refraction/lint";
+import { refractionWidget } from "./refraction/widget";
+import fieldLinesManifest from "./field_lines/manifest.json";
+import { layoutFieldLines, type FieldLinesParams } from "./field_lines/layout";
+import { lintFieldLines } from "./field_lines/lint";
+import { fieldLinesWidget } from "./field_lines/widget";
 
 export const scenes: Record<string, SceneModule> = {
   supply_demand: {
@@ -163,6 +171,22 @@ export const scenes: Record<string, SceneModule> = {
     layout: (params) => layoutMaxwell(params as MaxwellParams),
     lint: (params) => lintMaxwell(params as MaxwellParams),
     widget: maxwellWidget,
+  },
+  // Physics, free play (2026-09-28): drag the lamp or a ray, scrub or type
+  // the indices and angles.
+  refraction: {
+    manifest: refractionManifest as SceneManifest,
+    layout: (params) => layoutRefraction(params as RefractionParams),
+    lint: (params) => lintRefraction(params as RefractionParams),
+    widget: refractionWidget,
+  },
+  // Drag a charge (the lines re-trace), tap it to flip its sign, scrub or
+  // type its label's magnitude, drag the test charge.
+  field_lines: {
+    manifest: fieldLinesManifest as SceneManifest,
+    layout: (params) => layoutFieldLines(params as FieldLinesParams),
+    lint: (params) => lintFieldLines(params as FieldLinesParams),
+    widget: fieldLinesWidget,
   },
 };
 

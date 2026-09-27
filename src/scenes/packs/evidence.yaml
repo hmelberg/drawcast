@@ -1830,7 +1830,9 @@ widget: |
     return null;
   };
   const parts = (scene) => ["rerun", ...NUMBERS].filter((id) => scene.ids.includes(id));
-  return { init, on, editable, parts, taps: ["rerun"], live: true };
+  // "new runs" is a button: its tap is the body's (WidgetBody.taps).
+  const taps = (id) => id === "rerun";
+  return { init, on, editable, parts, taps, live: true };
 ---
 template: distribution_curve
 title: Probability distribution curve

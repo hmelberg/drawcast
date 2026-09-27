@@ -384,7 +384,9 @@ describe("reed_frost: the widget", () => {
     const run = runWidget(scenes[T], { population: 30, r0: 2, seed: 4 }, ["rerun", "rerun"]);
     expect(run.errors).toEqual([]);
     expect(run.params.seed).toBe(6);
-    expect(scenes[T].widget!().taps).toEqual(["rerun"]);
+    const body = scenes[T].widget!();
+    expect(body.taps!("rerun", sceneOf(T, { population: 30, r0: 2 }))).toBe(true);
+    expect(body.taps!("n_value", sceneOf(T, { population: 30, r0: 2 }))).toBe(false);
   });
   test("the host: a tap on new runs is the body's click (a live body's other taps pass on)", () => {
     const params = { population: 30, r0: 2 };
