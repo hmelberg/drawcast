@@ -96,3 +96,19 @@ describe("widget body — document", () => {
     expect(scenes["tap_pad_broken"].widget).toBeUndefined();
   });
 });
+
+describe("widget body — free play (live, no demo/judge)", () => {
+  const LIVE = WIDGET.replace("return { init, on };", "return { init, on, live: true };");
+  test("a live body with neither demo nor judge is worked while paused but answers no ask: no manifest flag", () => {
+    const { module, errors } = compileTemplateDoc({ ...base, widget: LIVE } as TemplateDoc);
+    expect(errors).toEqual([]);
+    expect(typeof module!.widget).toBe("function");
+    expect(module!.widget!().live).toBe(true);
+    expect(module!.manifest.widget).toBeUndefined();
+  });
+  test("a live body that also demos or judges keeps the flag, as does any non-live body", () => {
+    const withDemo = LIVE.replace("live: true", "live: true, demo: () => []");
+    expect(compileTemplateDoc({ ...base, widget: withDemo } as TemplateDoc).module!.manifest.widget).toBe(true);
+    expect(compileTemplateDoc({ ...base, widget: WIDGET } as TemplateDoc).module!.manifest.widget).toBe(true);
+  });
+});
