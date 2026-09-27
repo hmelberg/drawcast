@@ -4,7 +4,7 @@
 type Env = Record<string, number>;
 type Evaluator = (env: Env) => number;
 
-const FUNCTIONS: Record<string, (...args: number[]) => number> = {
+export const FUNCTIONS: Record<string, (...args: number[]) => number> = {
   exp: Math.exp,
   ln: Math.log,
   log: Math.log,
@@ -22,7 +22,7 @@ const FUNCTIONS: Record<string, (...args: number[]) => number> = {
   round: Math.round,
 };
 
-const CONSTANTS: Record<string, number> = { pi: Math.PI, e: Math.E };
+export const CONSTANTS: Record<string, number> = { pi: Math.PI, e: Math.E };
 
 interface Token {
   kind: "num" | "ident" | "op";

@@ -66,12 +66,14 @@ describe("the default catalog", () => {
   // Re-pinned 2026-09-25: the isometric pack joined the default set (three
   // index lines: layer_stack, isometric_blocks, geometric_solids) —
   // measured 14,447 chars, rounded up to the next 500.
+  // Re-pinned 2026-09-27: the built-in equation_plot joined (one index
+  // line) — measured 14,602 chars, rounded up to the next 500.
   test("the stable catalog is the index and nothing expanded", () => {
     const { stable } = catalogParts({ request: "explain a chess opening" });
     expect(stable).not.toContain("### Scene template: supply_demand (READY");
     expect(stable).not.toContain("### Scene template: qaly_profiles (READY");
     expect(stable).not.toContain("### Scene template: decision_tree (READY");
-    expect(stable.length).toBeLessThan(14_500); // measured 14,447, rounded up to the next 500
+    expect(stable.length).toBeLessThan(15_000); // measured 14,602, rounded up to the next 500
     // The index itself is intact: every ready template still has its line.
     for (const id of readyIds()) expect(stable).toContain(`- ${id}: `);
     expect(stable).toContain("need_template");

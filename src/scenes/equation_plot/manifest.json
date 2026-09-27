@@ -1,0 +1,108 @@
+{
+  "name": "equation_plot",
+  "status": "ready",
+  "description": "Any equation y = f(x) with parameters, plotted and live: axes with round ticks, the curve(s), and the equation written above them with the parameters' CURRENT values in place (\"y = 2.0·sin(1.5x + 0.3)\") — each value its own part, eq_param_<name>. Choose this for what a parameter does to a graph: a parabola's a, b, c; a sine's amplitude, frequency and phase; growth or decay at a rate; a line's slope and intercept; any function family. Every name in the equation other than the variable (x, or t when the left side is f(t)) and pi/e is a parameter: give each a value (and min/max for a slider) in `params`, else it is 1. Animate a parameter to sweep it ({\"animate\": {\"params.a\": 3}} — or \"params.a.value\" when it is written as an object) and the curve, the equation's numbers, the panel and every mark follow. Marks are computed, never by hand: roots, turning points, the y-intercept, a point or a tangent at x. Paused, the viewer changes the parameters themselves — by scrubbing or typing the numbers in the equation (controls \"equation\", the default), with a drawn panel of sliders and number boxes beside the plot (\"panel\"), or both — and by dragging the curve (it takes the parameter that moves it most at that x, or the author's `drag`). An explore beat naming nothing invites exactly this. Numbers for text: {eq.<name>} per parameter and {eq.root_1}, {eq.max_1_y}, {eq.point_y}, {eq.tangent_slope} …",
+  "engines": ["mathjax"],
+  "params_schema": {
+    "type": "object",
+    "properties": {
+      "equation": {
+        "description": "\"y = a*x^2 + b*x + c\", or up to 4 as a list (each its own curve and line). Operators + - * / ^, juxtaposition (2x, 3(x+1)); functions sin cos tan exp ln log10 sqrt abs pow min max floor ceil round; constants pi, e. Names are whole words: write a*x, not ax. The left side names the curve (y, f(x), N(t)); f(t) makes t the variable.",
+        "x-translate": false,
+        "oneOf": [{ "type": "string", "x-translate": false }, { "type": "array", "items": { "type": "string", "x-translate": false }, "minItems": 1, "maxItems": 4 }]
+      },
+      "params": {
+        "type": "object",
+        "description": "Parameter name → a number (its value), or {value, min, max, step, label, fixed, control}. min+max give a slider and bound scrubbing and dragging; step defaults to a fiftieth of the range; label names it in the panel (\"amplitude a\"); fixed: true shows it but the viewer cannot change it; control \"box\" makes its panel control a number box.",
+        "additionalProperties": {
+          "oneOf": [
+            { "type": "number" },
+            {
+              "type": "object",
+              "properties": {
+                "value": { "type": "number" },
+                "min": { "type": "number" },
+                "max": { "type": "number" },
+                "step": { "type": "number" },
+                "label": { "type": "string" },
+                "fixed": { "type": "boolean" },
+                "control": { "type": "string", "enum": ["slider", "box"] }
+              }
+            }
+          ]
+        }
+      },
+      "editable": { "type": "array", "items": { "type": "string", "x-translate": false }, "description": "Only these parameters may be changed by the viewer (default: all but fixed ones)." },
+      "controls": { "type": "string", "enum": ["equation", "panel", "both"], "description": "Where the viewer changes them: the equation's own numbers (default), a panel of sliders/boxes right of the plot, or both." },
+      "panel": { "type": "array", "items": { "type": "string", "x-translate": false }, "description": "The parameters in the panel, in order (default: the editable ones)." },
+      "drag": {
+        "description": "Dragging the curve: false turns it off; a parameter name (or a list, first that moves the curve there wins) is what a drag changes. Default: the editable parameter that moves the curve most where it was grabbed.",
+        "oneOf": [{ "type": "boolean" }, { "type": "string", "x-translate": false }, { "type": "array", "items": { "type": "string", "x-translate": false } }]
+      },
+      "x_range": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "[min, max] of the variable (default [-5, 5])." },
+      "y_range": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "[min, max] of y. Default: fitted to the curves, snapped to round ticks, and kept still while the viewer changes a parameter unless the curve leaves it." },
+      "marks": {
+        "type": "array",
+        "description": "Computed marks: \"roots\", \"extrema\", \"y_intercept\", or {kind, at, curve, label}. kind \"point\" or \"tangent\" needs `at`: an x, or a parameter's name (the mark follows it, and the viewer drags the point along the curve). label: true writes the coordinates (a tangent: its slope), a string writes that word.",
+        "items": {
+          "oneOf": [
+            { "type": "string", "enum": ["roots", "extrema", "y_intercept"] },
+            {
+              "type": "object",
+              "properties": {
+                "kind": { "type": "string", "enum": ["roots", "extrema", "y_intercept", "point", "tangent"] },
+                "at": { "oneOf": [{ "type": "number" }, { "type": "string", "x-translate": false }] },
+                "curve": { "type": "integer", "minimum": 0, "maximum": 3 },
+                "label": { "oneOf": [{ "type": "boolean" }, { "type": "string" }] }
+              },
+              "required": ["kind"]
+            }
+          ]
+        }
+      },
+      "variable": { "type": "string", "x-translate": false, "description": "The variable's name when the left side does not say (default x)." },
+      "equation_form": { "type": "string", "enum": ["values", "symbols", "both"], "description": "The equation with values in (default), in letters (y = a·sin(bx + c)), or both lines." },
+      "x_label": { "type": "string", "description": "x-axis caption (default the variable)." },
+      "y_label": { "type": "string", "description": "y-axis caption (default the left side)." },
+      "grid": { "type": "boolean", "description": "Faint grid lines at the ticks." }
+    },
+    "required": ["equation"]
+  },
+  "element_ids": {
+    "axes": "both axes (through the origin when the ranges span it); x_label, y_label, x_ticks and y_ticks come with it",
+    "x_label": "x-axis caption",
+    "y_label": "y-axis caption",
+    "x_ticks": "the x-axis tick marks and numbers",
+    "y_ticks": "the y-axis tick marks and numbers",
+    "curve_<i>": "equation i's curve (curve_0 for the first); the group `curves` names them all",
+    "eq": "the first equation's written line, without its parameter values (they come with it when drawn); eq_1 … for the others; with equation_form both, eq_symbols is the letters line",
+    "eq_param_<name>": "a parameter's number in the equation (eq_param_<name>_2 where it appears again) — point, highlight or focus it when the voice names it; the group `equations` names every line and number",
+    "root_<k>": "the k-th root from the left (marks: roots)",
+    "max_<k> / min_<k>": "turning points, left to right (marks: extrema)",
+    "y_intercept": "where the curve crosses x = 0",
+    "point": "the point mark with dashed guides to the axes (point_2 … for more)",
+    "tangent": "the tangent line (tangent_2 …)",
+    "<mark>_label": "a mark's label, when it has one",
+    "<mark>_c<i>": "a mark on curve i > 0 carries this suffix (root_1_c1)",
+    "slider_<name>": "panel: a parameter's slider track (its name, value and knob come with it)",
+    "knob_<name>": "panel: the slider's knob",
+    "box_<name>": "panel: a number box",
+    "name_<name>": "panel: the parameter's label",
+    "value_<name>": "panel: its current value",
+    "panel": "group: every panel part"
+  },
+  "examples": [
+    {
+      "request": "What do a, b and c do to a parabola?",
+      "params": { "equation": "y = a*x^2 + b*x + c", "params": { "a": { "value": 1, "min": -3, "max": 3 }, "b": { "value": 0, "min": -5, "max": 5 }, "c": { "value": -2, "min": -5, "max": 5 } }, "marks": ["roots", "extrema", "y_intercept"], "x_range": [-5, 5] }
+    },
+    {
+      "request": "How do amplitude, frequency and phase shape a sine wave?",
+      "params": { "equation": "y = A*sin(k*x + phi)", "params": { "A": { "value": 2, "min": 0, "max": 4, "label": "amplitude A" }, "k": { "value": 1, "min": 0.2, "max": 3, "label": "frequency k" }, "phi": { "value": 0, "min": -3.14, "max": 3.14, "step": 0.05, "label": "phase φ" } }, "controls": "panel", "x_range": [-6.28, 6.28], "y_range": [-5, 5], "marks": ["extrema"] }
+    },
+    {
+      "request": "Exponential growth: how does the rate change the curve?",
+      "params": { "equation": "N(t) = N0*exp(r*t)", "params": { "N0": { "value": 100, "min": 10, "max": 200, "step": 10, "control": "box" }, "r": { "value": 0.1, "min": -0.3, "max": 0.3, "step": 0.01 } }, "controls": "both", "x_range": [0, 20], "x_label": "years", "marks": [{ "kind": "point", "at": 10, "label": true }, { "kind": "tangent", "at": 10 }] }
+    }
+  ]
+}

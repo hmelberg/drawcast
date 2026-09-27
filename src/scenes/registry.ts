@@ -35,6 +35,10 @@ import { layoutGenericAxes, type GenericAxesParams } from "./generic_axes_diagra
 import { layoutMarkovModel, lintMarkovModel, type MarkovParams } from "./markov_model/layout";
 import { markovWidget } from "./markov_model/widget";
 import { layoutCostEffectivenessPlane, type CEParams } from "./cost_effectiveness_plane/layout";
+import equationPlotManifest from "./equation_plot/manifest.json";
+import { layoutEquationPlot, type EquationPlotParams } from "./equation_plot/layout";
+import { lintEquationPlot } from "./equation_plot/lint";
+import { equationPlotWidget } from "./equation_plot/widget";
 
 export const scenes: Record<string, SceneModule> = {
   supply_demand: {
@@ -93,6 +97,14 @@ export const scenes: Record<string, SceneModule> = {
   generic_axes_diagram: {
     manifest: genericAxesManifest as SceneManifest,
     layout: (params) => layoutGenericAxes(params as unknown as GenericAxesParams),
+  },
+  equation_plot: {
+    manifest: equationPlotManifest as SceneManifest,
+    layout: (params) => layoutEquationPlot(params as unknown as EquationPlotParams),
+    lint: (params) => lintEquationPlot(params as unknown as EquationPlotParams),
+    // Free play: the parameters scrubbed or typed in the equation, on the
+    // panel's sliders and boxes, or by dragging the curve itself.
+    widget: equationPlotWidget,
   },
 };
 
