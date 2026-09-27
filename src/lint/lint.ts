@@ -398,6 +398,9 @@ export function lintLayoutDetailed(
    *  that figure and the fit scaled it as one, so its own parts touching is
    *  the drawing, not a collision. Overlap rules only. */
   sameGroup?: (a: string, b: string) => boolean,
+  /** The figure's extent when a template reports a world larger than the
+   *  page (LayoutResult.world): out-of-canvas measures against it. */
+  bounds?: BBox,
 ): { issues: LintIssue[]; exempt: LintIssue[] } {
   const issues: LintIssue[] = [...lintCueTiming(drawables, commands ?? [], expandId)];
   const exempt: LintIssue[] = [];
@@ -475,16 +478,19 @@ export function lintLayoutDetailed(
       : bboxOfPts(d.pts);
     else continue;
     if (d.kind === "text" && clippedAway(d, box)) continue;
+    const area = bounds ?? { x: 0, y: 0, w: CANVAS.w, h: CANVAS.h };
     if (
-      box.x < -CANVAS_TOLERANCE ||
-      box.y < -CANVAS_TOLERANCE ||
-      box.x + box.w > CANVAS.w + CANVAS_TOLERANCE ||
-      box.y + box.h > CANVAS.h + CANVAS_TOLERANCE
+      box.x < area.x - CANVAS_TOLERANCE ||
+      box.y < area.y - CANVAS_TOLERANCE ||
+      box.x + box.w > area.x + area.w + CANVAS_TOLERANCE ||
+      box.y + box.h > area.y + area.h + CANVAS_TOLERANCE
     ) {
       issues.push({
         rule: "out-of-canvas",
         ids: [d.id],
-        message: `element "${d.id}" extends outside the ${CANVAS.w}×${CANVAS.h} logical canvas`,
+        message: bounds
+          ? `element "${d.id}" extends outside the template's world (${Math.round(area.x)}, ${Math.round(area.y)}, ${Math.round(area.w)}×${Math.round(area.h)})`
+          : `element "${d.id}" extends outside the ${CANVAS.w}×${CANVAS.h} logical canvas`,
         severity: "error",
       });
     }
@@ -664,8 +670,8 @@ export function lintLayoutDetailed(
   return { issues, exempt };
 }
 
-export function lintLayout(drawables: Drawable[], measure: MeasureFn, commands?: Command[], expandId?: (id: string) => string[] | null | undefined, sameGroup?: (a: string, b: string) => boolean): LintIssue[] {
-  return lintLayoutDetailed(drawables, measure, commands, expandId, sameGroup).issues;
+export function lintLayout(drawables: Drawable[], measure: MeasureFn, commands?: Command[], expandId?: (id: string) => string[] | null | undefined, sameGroup?: (a: string, b: string) => boolean, bounds?: BBox): LintIssue[] {
+  return lintLayoutDetailed(drawables, measure, commands, expandId, sameGroup, bounds).issues;
 }
 
 const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "copy", "flow", "keep", "camera", "card", "animate", "play", "run"] as const;

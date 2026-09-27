@@ -6,7 +6,8 @@ import type { TextFamily, TextWeight } from "../layout/text-style";
 import rough from "roughjs";
 import type { RoughSVG } from "roughjs/bin/svg";
 import type { Options as RoughOptions } from "roughjs/bin/core";
-import { CANVAS, FULL_VIEW, toSvgY } from "../layout/canvas";
+import { CANVAS, toSvgY } from "../layout/canvas";
+import { restView } from "./camera";
 import {
   CHAR_W,
   COLORS,
@@ -1074,7 +1075,13 @@ class SvgElementHandle implements RenderedElement {
  * (and again once webfonts finish loading), shift any overflowing <text> back
  * inside the viewBox. Purely visual; layout/lint boxes are unchanged.
  */
-function nudgeTextsIntoCanvas(svg: SVGSVGElement): void {
+function nudgeTextsIntoCanvas(svg: SVGSVGElement, world?: BBox): void {
+  // A template's world (LayoutResult.world) is the edge instead of the page:
+  // its ink lies beyond the page on purpose. Logical y-up → svg y-down.
+  const left = world ? world.x : 0;
+  const right = world ? world.x + world.w : CANVAS.w;
+  const top = world ? toSvgY(world.y + world.h) : 0;
+  const bottom = world ? toSvgY(world.y) : CANVAS.h;
   for (const t of Array.from(svg.querySelectorAll("text"))) {
     try {
       // Our backend never sets transforms on text otherwise, so recomputing
@@ -1082,12 +1089,12 @@ function nudgeTextsIntoCanvas(svg: SVGSVGElement): void {
       t.removeAttribute("transform");
       const bb = (t as SVGTextElement).getBBox();
       let dx = 0;
-      const overRight = bb.x + bb.width - (CANVAS.w - 3);
+      const overRight = bb.x + bb.width - (right - 3);
       if (overRight > 0) dx = -overRight;
-      else if (bb.x < 3) dx = 3 - bb.x;
+      else if (bb.x < left + 3) dx = left + 3 - bb.x;
       let dy = 0;
-      if (bb.y < 3) dy = 3 - bb.y;
-      else if (bb.y + bb.height > CANVAS.h - 3) dy = CANVAS.h - 3 - (bb.y + bb.height);
+      if (bb.y < top + 3) dy = top + 3 - bb.y;
+      else if (bb.y + bb.height > bottom - 3) dy = bottom - 3 - (bb.y + bb.height);
       if (dx !== 0 || dy !== 0) {
         t.setAttribute("transform", `translate(${dx.toFixed(1)} ${dy.toFixed(1)})`);
       }
@@ -1414,6 +1421,8 @@ function makeEffects(
   underlay: SVGGElement,
   leafNodes: Map<string, { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }> }[]>,
   rc: RoughSVG | null,
+  /** The camera at rest — FULL_VIEW, or the fit of the layout's world. */
+  rest: () => BBox,
 ): BackendEffects {
   const active = new Map<string, HighlightNodes>();
   const flows = new Map<string, SVGPathElement[]>();
@@ -1714,7 +1723,7 @@ function makeEffects(
     },
 
     setCamera(box: BBox | null): void {
-      const b = box ?? FULL_VIEW;
+      const b = box ?? rest();
       svg.setAttribute("viewBox", `${b.x.toFixed(1)} ${toSvgY(b.y + b.h).toFixed(1)} ${b.w.toFixed(1)} ${b.h.toFixed(1)}`);
     },
   };
@@ -1726,8 +1735,10 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
     label: opts.label,
     async mount(layout: LayoutResult, _spec, container: HTMLElement): Promise<MountResult> {
       const svg = document.createElementNS(SVG_NS, "svg") as SVGSVGElement;
-      // The canvas inside its paper margin (layout/canvas.ts VIEW_PAD).
-      svg.setAttribute("viewBox", `${FULL_VIEW.x} ${toSvgY(FULL_VIEW.y + FULL_VIEW.h)} ${FULL_VIEW.w} ${FULL_VIEW.h}`);
+      // The canvas inside its paper margin (layout/canvas.ts VIEW_PAD) — or,
+      // for a template with a world larger than the page, that world's fit.
+      let rest: BBox = restView(layout.world);
+      svg.setAttribute("viewBox", `${rest.x} ${toSvgY(rest.y + rest.h)} ${rest.w} ${rest.h}`);
       svg.setAttribute("class", "cs-svg");
       const rc = opts.sketchy ? rough.svg(svg) : null;
 
@@ -1843,9 +1854,10 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
       buildNodes(layout, leafNodes);
 
       container.appendChild(svg);
-      nudgeTextsIntoCanvas(svg);
+      let world = layout.world;
+      nudgeTextsIntoCanvas(svg, world);
       document.fonts?.ready?.then(() => {
-        if (svg.isConnected) nudgeTextsIntoCanvas(svg);
+        if (svg.isConnected) nudgeTextsIntoCanvas(svg, world);
       });
 
       // Handles need the nodes in the DOM (getTotalLength).
@@ -1859,7 +1871,7 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
 
       return {
         elements,
-        effects: makeEffects(svg, overlay, underlay, leafNodes, rc),
+        effects: makeEffects(svg, overlay, underlay, leafNodes, rc, () => rest),
         destroy: () => svg.remove(),
         // A tween frame runs every rAF tick, so it rebuilds nodes and attaches
         // NO handles — no getTotalLength, no prepare/setProgress. That is only
@@ -1889,7 +1901,10 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
           layers[3].replaceChildren();
           leafNodes.clear();
           buildNodes(l, leafNodes);
-          nudgeTextsIntoCanvas(svg);
+          // The world is the template's; a relayout may report a new one.
+          world = l.world;
+          rest = restView(world);
+          nudgeTextsIntoCanvas(svg, world);
           const els = new Map<string, RenderedElement>();
           for (const [id, entry] of leafNodes) {
             els.set(

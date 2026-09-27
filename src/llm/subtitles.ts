@@ -75,8 +75,9 @@ function mentionedIds(spec: Spec): string[] {
     // drops the whole morph as an unknown id, taking its narration with it.
     const point = c.point as { at?: { ref?: unknown } } | undefined;
     add(point?.at?.ref);
-    const camera = c.camera as { center?: { ref?: unknown } } | undefined;
+    const camera = c.camera as { center?: { ref?: unknown }; on?: unknown } | undefined;
     add(camera?.center?.ref);
+    add(camera?.on);
     const morph = c.morph as { to?: { ref?: unknown } } | undefined;
     if (morph?.to && !Array.isArray(morph.to)) add(morph.to.ref);
   }

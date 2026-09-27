@@ -28,6 +28,7 @@ import { creditsOf } from "../export/credits";
 import { connectGateFor } from "./connect-gate";
 import { attachInfoCards } from "./infocard";
 import { attachInsetZoom } from "./inset-zoom";
+import { attachViewPan } from "./view-pan";
 import { attachWidgetHost, widgetGateFor } from "./widget-host";
 import { attachPanelView } from "./panel-view";
 import { inControlRegion, tryContinue } from "./control-press";
@@ -1151,6 +1152,10 @@ export function attachPlayerControls(
   };
   // The widget host is attached HERE, above the gate block, because a
   // template-bound ask's gate routes its clicks through it.
+  // The viewer's paused pan/zoom. Its click swallow (after a pan) is a
+  // capture listener that must stand before the widget host's and the info
+  // card's; its press is a bubble listener, so theirs run first.
+  attachViewPan(stage, hd);
   const widgetHost = attachWidgetHost(stage, hd); // no-op unless the template carries a widget body
   const textGate = askGateFor(stage);
   const figureGate = figureGateFor(stage, hd);

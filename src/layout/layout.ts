@@ -31,7 +31,7 @@ import { hasDefaultColumnInsets, INSET_MAIN } from "./inset";
 import type { LayoutOverrides } from "./posed";
 import { heuristicMeasure, type MeasureFn } from "./measure";
 import { drawablesForId, leafDrawables, type Drawable, type Pt } from "./model";
-import { domainPlot, frameToCanvas, linearScale, setHeadingFloor, type DataFrame } from "./canvas";
+import { domainPlot, frameToCanvas, linearScale, setHeadingFloor, worldBounds, type DataFrame } from "./canvas";
 import { figureSplit } from "./figure-split";
 import { fitSceneLayout, growSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
 import type { SceneLayout } from "../scenes/types";
@@ -82,6 +82,10 @@ export interface LayoutResult {
    *  area, else a chart template's own (SceneLayout.frame). What
    *  `{data: [x, y]}` means, in layout and plan alike. */
   frame?: DataFrame;
+  /** The extent beyond the page a template reported (SceneLayout.world),
+   *  joined with the page — absent for a one-page figure. The camera rests
+   *  on it (render/camera.ts restView); labels and the lint keep inside it. */
+  world?: BBox;
 }
 
 /**
@@ -164,6 +168,7 @@ export function layoutSpec(
   let templateIds: string[] = [];
   let templateFrame: DataFrame | undefined;
   let templateValues: Record<string, number> = {};
+  let world: BBox | null = null;
 
   // The cast's language and decimal mark, for what a template WRITES on the
   // figure (kit.num / kit.say): spec.lang, else the narration's own.
@@ -196,8 +201,11 @@ export function layoutSpec(
     } else {
       try {
         const sceneLayout = scene.layout(spec.params ?? {});
+        // A world larger than the page (scenes/types.ts): the camera is what
+        // brings it in, so it is neither grown nor — under a box — kept.
+        world = box ? null : worldBounds(sceneLayout.world);
         if (box && !native) fit = fitSceneLayout(sceneLayout, box, measure) ?? undefined;
-        else if (!box && !native && mayGrow(spec, scene.manifest)) fit = growSceneLayout(sceneLayout, measure) ?? undefined;
+        else if (!box && !native && !world && mayGrow(spec, scene.manifest)) fit = growSceneLayout(sceneLayout, measure) ?? undefined;
         if (fit && fit.s < FIT_SCALE_FLOOR) {
           const where = isFitName(rawBox) ? `"${rawBox}"` : JSON.stringify(fit.box);
           issues.push({
@@ -355,7 +363,7 @@ export function layoutSpec(
     // Solid: a drawn border is ink a label must not sit on, the same as text.
     obstacles.push({ box: { x: box.x - pad, y: box.y - pad, w: box.w + 2 * pad, h: box.h + 2 * pad }, solid: true, id: el.id });
   }
-  const placed = placeLabels(labelRequests, obstacles, measure, labelPinsIn);
+  const placed = placeLabels(labelRequests, obstacles, measure, labelPinsIn, world ?? undefined);
   const labelPins: Record<string, LabelPin> = {};
   for (const p of placed) {
     if (p.leader) drawables.push(p.leader);
@@ -435,7 +443,7 @@ export function layoutSpec(
   const marks = (x: string, y: string) => annotated.some(([id, ts]) => ownsId(id, x) && ts.some((t) => ownsId(t, y)));
   const composed = (a: string, b: string) =>
     marks(a, b) || marks(b, a) || Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
-  const layoutIssues = lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], composed);
+  const layoutIssues = lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], composed, world ?? undefined);
   layoutIssues.push(...headingIntrusions(drawables, measure, spec.commands));
   const atDraw = codeEl && !opts.skipDrawBeatLint ? paramsAtFirstDraw(rawSpec, codeEl.id) : null;
   if (!codeEl || atDraw === null) {
@@ -462,7 +470,7 @@ export function layoutSpec(
     const waiting = /"\{[A-Za-z_][\w]*\.[^"]*\}"/.test(JSON.stringify(spec.params ?? {}));
     if (usesData && !waiting) warnings.push(`template "${spec.template}" has no data axes — {data: [x, y]} reads a 0–100 domain on the plot area; place overlays with at.ref/anchor instead`);
   }
-  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, attached, fitGroups, namedAnchors, measures, labelPins, ...(fit ? { fit } : {}), ...(frame ? { frame } : {}) };
+  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, attached, fitGroups, namedAnchors, measures, labelPins, ...(fit ? { fit } : {}), ...(frame ? { frame } : {}), ...(world ? { world } : {}) };
 }
 
 /** Does this template lay itself out in a `box` param? Five data templates

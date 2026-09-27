@@ -20,6 +20,19 @@ export const VIEW_PAD = Object.freeze({ x: 0, y: 0 } as const);
 /** The un-zoomed view, logical y-up: the canvas and its paper. */
 export const FULL_VIEW = Object.freeze({ x: -VIEW_PAD.x, y: -VIEW_PAD.y, w: CANVAS.w + 2 * VIEW_PAD.x, h: CANVAS.h + 2 * VIEW_PAD.y } as const);
 
+/**
+ * What a figure occupies: the page, or the page together with the larger
+ * world a template reported (SceneLayout.world) — the bounds the label
+ * solver and the out-of-canvas lint keep to. Null for no (usable) world.
+ */
+export function worldBounds(world: { x: number; y: number; w: number; h: number } | undefined | null): { x: number; y: number; w: number; h: number } | null {
+  if (!world || ![world.x, world.y, world.w, world.h].every(Number.isFinite) || !(world.w > 0) || !(world.h > 0)) return null;
+  const x0 = Math.min(world.x, 0), y0 = Math.min(world.y, 0);
+  const x1 = Math.max(world.x + world.w, CANVAS.w), y1 = Math.max(world.y + world.h, CANVAS.h);
+  if (x0 === 0 && y0 === 0 && x1 === CANVAS.w && y1 === CANVAS.h) return null;
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
 /** Default plot-area margins (logical units) for diagrams with axes. */
 // top: the y arrow overshoots the plot by AXIS_OVERHANG (22) and the y-axis
 // caption sits above the arrowhead (a 28pt label box is 35 units) — 55 units
