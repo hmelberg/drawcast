@@ -492,7 +492,6 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
   function config(signal: AbortSignal): GenerateConfig {
     return {
       apiKey: deps.apiKey(),
-      pedagogyReview: true,
       model: deps.model(),
       // The same dials the single-figure Generate reads: effort, approach
       // (docs/2026-09-19-storyboard-approach.md — a course run reads this

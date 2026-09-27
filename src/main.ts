@@ -77,6 +77,7 @@ import { appendRecord, localRecordStorage } from "./render/record";
 import { applyViewsFlag } from "./views";
 import { exportVideo, narrationLanguage, type ExportResult } from "./export/video";
 import { authorPosterPng, posterPng, snapshotPng } from "./export/snapshot";
+import { beatSheets } from "./export/beat-sheet";
 import { LANGUAGES, languageLabel } from "./export/tts";
 import { subtitleLanguages } from "./spec/subtitles";
 import { bakedAudioFor, type BakedAudio } from "./playlist/audio";
@@ -1762,6 +1763,12 @@ const burnCaptionsCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 burnCaptionsCb.checked = settings.burnCaptions;
 const developerCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 developerCb.checked = settings.developerMode;
+const lookPassCb = h("input", { type: "checkbox" }) as HTMLInputElement;
+lookPassCb.checked = settings.lookPass;
+lookPassCb.addEventListener("change", () => {
+  settings.lookPass = lookPassCb.checked;
+  persist();
+});
 const visualRepairCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 visualRepairCb.checked = settings.visualRepair;
 visualRepairCb.addEventListener("change", () => {
@@ -2045,6 +2052,19 @@ const settingsBlocks = new Map<string, HTMLElement>([
     ),
   ],
   [
+    "lookPass",
+    h(
+      "div",
+      { class: "settings-field" },
+      h("label", { class: "settings-check" }, lookPassCb, " Look at the frames and fix"),
+      h(
+        "div",
+        { class: "settings-note" },
+        "After a figure is written, the model looks at its frames — one per spoken line — and fixes what it sees, up to twice. The first version shows at once; the improved one replaces it (about a minute or two, and a few tens of cents, more).",
+      ),
+    ),
+  ],
+  [
     "visualRepair",
     h(
       "div",
@@ -2098,6 +2118,7 @@ function openSettings(): void {
   burnCaptionsCb.checked = settings.burnCaptions;
   developerCb.checked = settings.developerMode;
   visualRepairCb.checked = settings.visualRepair;
+  lookPassCb.checked = settings.lookPass;
   usageNote.textContent = usageSummary();
   usageNote.hidden = usageNote.textContent === "";
   dialog.showModal();
@@ -3292,9 +3313,30 @@ async function generate(): Promise<void> {
       return seedBlock(subject, rings, el.credit ?? "");
     };
     // ---- end icon seed ----
+    // The look pass shows the first version as soon as it is valid and
+    // replaces it with the improved one — unless the author has edited the
+    // first version meanwhile, in which case the improvement is offered.
+    let draftText: string | null = null;
+    const finishSpec = (spec: Spec): Playlist => {
+      if (parsed.level && !spec.level) spec.level = parsed.level;
+      if (parsed.voiceGender && !spec.voice) spec.voice = parsed.voiceGender;
+      const pl = singlePlaylist(spec);
+      pl.meta.prompt = rawRequest;
+      return pl;
+    };
     const outcome = await generateSpec(parsed.clean, {
       apiKey,
-      pedagogyReview: true,
+      look: settings.lookPass ? beatSheets : undefined,
+      onDraft: (draft) => {
+        endSpecStream(false);
+        const pl = finishSpec(structuredClone(draft));
+        setDoc({ id: null, driveFileId: null, sourcePath: null, title: draft.title ?? parsed.clean, prompt: rawRequest, playlist: pl }, "First version — now looking at its frames to improve it…", {
+          label: rawRequest,
+          kind: "generate",
+        });
+        autosave();
+        draftText = specArea.value;
+      },
       visualRepair: settings.visualRepair ? snapshotPng : undefined,
       model: settings.model,
       effort: settings.effort,
@@ -3329,14 +3371,25 @@ async function generate(): Promise<void> {
       return;
     }
     endSpecStream(false); // setDoc below writes the formatted spec over it
-    if (parsed.level && !outcome.spec.level) outcome.spec.level = parsed.level;
-    if (parsed.voiceGender && !outcome.spec.voice) outcome.spec.voice = parsed.voiceGender;
-    const playlist = singlePlaylist(outcome.spec);
     // The founding request travels IN the document from here on (B9), so a
     // Drive/disk/GitHub round trip — and the published copy — keeps it. The
     // cost is visible and accepted (§F.3.3): a generated single figure now
     // opens with a two-line `playlist:` header above its spec.
-    playlist.meta.prompt = rawRequest;
+    const playlist = finishSpec(outcome.spec);
+    const looks = outcome.rounds.filter((r) => r.label === "look");
+    const lookText = looks.length ? ` · looked ${looks.length}×, ${looks.filter((r) => r.adopted).length} fix${looks.filter((r) => r.adopted).length === 1 ? "" : "es"} kept` : "";
+    if (draftText !== null) {
+      // The first version is already the document. Same document, a new
+      // version on its history — so the first version stays one click back.
+      const improved = looks.some((r) => r.adopted);
+      const status = (improved ? "Improved after looking at its frames" : "Looked at its frames — the first version stands") + lookText + costText();
+      if (!improved) setStatus(status);
+      else if (specArea.value === draftText) setDoc({ ...doc, playlist }, status, { label: "look pass", kind: "revise" });
+      else setStatusAction(`${status}. You have edited the first version meanwhile.`, "Use the improved version", () => setDoc({ ...doc, playlist }, "Improved version applied.", { label: "look pass", kind: "revise" }));
+      autosave();
+      lastLogId = logId;
+      return;
+    }
     // Built once and appended to BOTH status lines below: the template offer
     // fires in the same tick as setDoc and used to overwrite the whole line,
     // so a seeded figure never told anyone which icon set it started from.
@@ -3405,7 +3458,7 @@ async function authorTemplateAndRedraw(rawRequest: string, request: string, free
       generate: (req, forcedTemplate) =>
         generateSpec(req, {
           apiKey,
-          pedagogyReview: true,
+          look: settings.lookPass ? beatSheets : undefined,
           model: settings.model,
           effort: settings.effort,
           variant: currentVariant(),
@@ -3571,7 +3624,7 @@ async function generateMulti(
     { request: parsed.clean, parts: parsed.parts, brief },
     {
       apiKey,
-      pedagogyReview: true,
+      look: settings.lookPass ? beatSheets : undefined,
       model: settings.model,
       effort: settings.effort,
       approach: settings.approach,

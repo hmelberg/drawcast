@@ -170,6 +170,12 @@ export interface Settings {
    * One extra model call per qualifying figure. Off until measured.
    */
   visualRepair: boolean;
+  /**
+   * The look pass (src/llm/look.ts): after a figure is written, the model
+   * looks at its frames and fixes what it sees, up to twice. On by default —
+   * the prompt lab's blind reviews put the visual gain here (2026-09-27).
+   */
+  lookPass: boolean;
   /** How the editor presents the spec text (parsing always accepts both). */
   specFormat: SpecFormat;
   /** The Share destination used last, so a repeat publish is one keypress. */
@@ -238,6 +244,7 @@ export const DEFAULT_SETTINGS: Settings = {
   choicesOpen: false,
   developerMode: false,
   visualRepair: false,
+  lookPass: true,
   specFormat: "yaml",
   shareTo: "link",
   // Every built-in pack, on. A pack that is off is invisible to the compiler
