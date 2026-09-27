@@ -26,7 +26,8 @@ export interface EquationOpts {
   id: string;
   /** The left side, as TeX ("y", "f(x)", "z"). */
   lhsTeX: string;
-  node: Node;
+  /** The right side — or a tuple of them, written (a, b, c). */
+  node: Node | readonly Node[];
   /** Names that are variables, not parameters (x; x and y for a surface). */
   variables: string | readonly string[];
   set: ParamSet;
@@ -41,15 +42,36 @@ export interface EquationOpts {
   seen?: Map<string, number>;
 }
 
+const isTuple = (n: Node | readonly Node[]): n is readonly Node[] => Array.isArray(n);
+
+/** "\mathord{…}" and nothing after the brace that closes it. */
+export function isWholeMark(e: string): boolean {
+  const open = `${PARAM_MARK}{`;
+  if (!e.startsWith(open)) return false;
+  let depth = 0;
+  for (let i = open.length - 1; i < e.length; i++) {
+    if (e[i] === "{") depth++;
+    else if (e[i] === "}" && --depth === 0) return i === e.length - 1;
+  }
+  return false;
+}
+
 /** The TeX of one line, and the parameters in the order their marks appear. */
 export function equationTeX(o: Pick<EquationOpts, "lhsTeX" | "node" | "variables" | "set" | "form">): { tex: string; order: string[] } {
-  const { tex, order } = toTeX(o.node, o.variables, {
-    digits: (name) => {
+  const writer = {
+    digits: (name: string) => {
       if (o.form === "symbols") return null;
       const p = o.set.byName.get(name);
       return p ? digitsOf(p) : "1";
     },
-  });
+  };
+  if (isTuple(o.node)) {
+    // A tuple — a space curve's (x(t), y(t), z(t)): each part written in
+    // turn, so the marks still come in reading order.
+    const parts = o.node.map((n) => toTeX(n, o.variables, writer));
+    return { tex: `${o.lhsTeX} = \\left(${parts.map((p) => p.tex).join(",\\ ")}\\right)`, order: parts.flatMap((p) => p.order) };
+  }
+  const { tex, order } = toTeX(o.node, o.variables, writer);
   return { tex: `${o.lhsTeX} = ${tex}`, order };
 }
 
@@ -66,7 +88,10 @@ export function drawEquation(mathjax: MathJaxEngine, o: EquationOpts): { drawabl
   // \mathord{…} entry. (Two identical marks side by side would merge; a
   // value always has a dot or an operator beside another, and a count that
   // does not match leaves every glyph in the line — never a wrong id.)
-  const markOf = (chain: string[]): string | null => chain.find((e) => e.startsWith(`${PARAM_MARK}{`)) ?? null;
+  // The entry must be the mark WHOLE: "\mathord{1.00}^{2}" also starts with
+  // the mark, and taking it would count a power's exponent as a value of its
+  // own (a parameter squared — a Gaussian's σ² — then lost every id).
+  const markOf = (chain: string[]): string | null => chain.find(isWholeMark) ?? null;
   const tokenGroup = new Map<number, number>();
   let g = -1;
   let prevMark: string | null = null;
