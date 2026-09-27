@@ -70396,5 +70396,484 @@
         }
       ]
     }
+  },
+  {
+    "request": "What do a, b and c do to a parabola?",
+    "spec": {
+      "title": "What a, b and c do to a parabola",
+      "template": "equation_plot",
+      "params": {
+        "equation": "y = a*x^2 + b*x + c",
+        "params": {
+          "a": {
+            "value": 1,
+            "min": -3,
+            "max": 3,
+            "step": 0.5
+          },
+          "b": {
+            "value": 0,
+            "min": -5,
+            "max": 5,
+            "step": 1
+          },
+          "c": {
+            "value": -2,
+            "min": -5,
+            "max": 5,
+            "step": 1
+          }
+        },
+        "x_range": [
+          -5,
+          5
+        ],
+        "y_range": [
+          -6,
+          8
+        ],
+        "marks": [
+          "roots",
+          "extrema",
+          "y_intercept"
+        ]
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "a, b and c"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "What do the three numbers in a parabola's equation actually do to its shape?"
+        },
+        {
+          "draw": [
+            "eq",
+            "curve_0"
+          ],
+          "speak": "Start with y equals x squared, minus two: a U, opening upward."
+        },
+        {
+          "draw": [
+            "y_intercept"
+          ],
+          "speak": "c is the easy one. It is where the curve crosses the vertical axis."
+        },
+        {
+          "animate": {
+            "params.c.value": 1
+          },
+          "duration": 2.5,
+          "speak": "Raise c from minus two to one, and the whole U slides straight up."
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq_param_a"
+            ]
+          },
+          "speak": "a sets how wide the U is, and which way it opens."
+        },
+        {
+          "animate": {
+            "params.a.value": 3
+          },
+          "duration": 2,
+          "speak": "At three, the arms squeeze together."
+        },
+        {
+          "animate": {
+            "params.a.value": -1
+          },
+          "duration": 2.5,
+          "speak": "Below zero, the U turns over into a hill."
+        },
+        {
+          "animate": {
+            "params.a.value": 1
+          },
+          "duration": 1.5,
+          "speak": "Back to one."
+        },
+        {
+          "draw": [
+            "min_1"
+          ],
+          "speak": "Now watch the lowest point, the vertex, while b changes."
+        },
+        {
+          "animate": {
+            "params.b.value": 3
+          },
+          "duration": 4,
+          "trail": {
+            "of": "min_1"
+          },
+          "speak": "As b grows, the vertex runs left and down, along a curve of its own."
+        },
+        {
+          "highlight": {
+            "target": [
+              "min_1_trail"
+            ]
+          },
+          "speak": "Its path is itself a parabola, opening downward: b moves the U, but never changes its shape."
+        },
+        {
+          "erase": [
+            "min_1_trail"
+          ]
+        },
+        {
+          "animate": {
+            "params.c.value": -2
+          },
+          "duration": 2,
+          "speak": "Pull c back down, and the curve crosses zero twice again."
+        },
+        {
+          "draw": [
+            "root_1",
+            "root_2"
+          ],
+          "parallel": true,
+          "speak": "Those crossings are the roots, the x values that solve the equation."
+        },
+        {
+          "explore": {},
+          "speak": "Now try it yourself: drag a number in the equation, or grab the curve."
+        },
+        {
+          "speak": "So c lifts the curve, a stretches or flips it, and b slides it along a hidden parabola."
+        },
+        {
+          "quiz": {
+            "question": "Which numbers can change without changing the parabola's shape?",
+            "choices": [
+              "Only a",
+              "b and c",
+              "Only b"
+            ],
+            "correct": 2,
+            "right": "b and c only move the curve: c lifts it, b slides its vertex. Only a changes its shape.",
+            "wrong": "Think of which change squeezed or flipped the U."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "How do amplitude, frequency and phase shape a sine wave?",
+    "spec": {
+      "title": "Amplitude, frequency and phase",
+      "template": "equation_plot",
+      "params": {
+        "equation": "y = A*sin(k*x + phi)",
+        "params": {
+          "A": {
+            "value": 1,
+            "min": 0,
+            "max": 4,
+            "step": 0.1,
+            "label": "amplitude A"
+          },
+          "k": {
+            "value": 1,
+            "min": 0.5,
+            "max": 3,
+            "step": 0.1,
+            "label": "frequency k"
+          },
+          "phi": {
+            "value": 0,
+            "min": -3.14,
+            "max": 3.14,
+            "step": 0.01,
+            "label": "phase φ"
+          }
+        },
+        "controls": "panel",
+        "x_range": [
+          -6.28,
+          6.28
+        ],
+        "y_range": [
+          -4,
+          4
+        ]
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "A sine wave's three knobs"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "What do amplitude, frequency and phase each do to a sine wave?"
+        },
+        {
+          "draw": [
+            "eq",
+            "curve_0"
+          ],
+          "speak": "Start with plain sine: it rises and falls, and repeats every two pi, about six and a quarter."
+        },
+        {
+          "draw": [
+            "slider_A"
+          ],
+          "speak": "The first knob is amplitude: how far the wave swings from the middle line."
+        },
+        {
+          "animate": {
+            "params.A.value": 3
+          },
+          "duration": 2.5,
+          "speak": "Turn it up to three, and the peaks rise to three while the timing stays put."
+        },
+        {
+          "draw": [
+            "slider_k"
+          ],
+          "speak": "The second is frequency: how many waves fit into the same stretch."
+        },
+        {
+          "animate": {
+            "params.k.value": 2
+          },
+          "duration": 3,
+          "speak": "Double it, and two waves fit where one did, each half as long."
+        },
+        {
+          "draw": [
+            "slider_phi"
+          ],
+          "speak": "The third is phase: it slides the wave sideways without changing its shape."
+        },
+        {
+          "animate": {
+            "params.phi.value": 1.57
+          },
+          "duration": 3,
+          "ghost": [
+            "curve_0"
+          ],
+          "speak": "Add a quarter turn, 1.57, and the wave starts at its peak: sine has become cosine."
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve_0"
+            ]
+          },
+          "speak": "But look how little it moved: less than one unit, not 1.57."
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq_param_k"
+            ]
+          },
+          "speak": "With frequency two, everything happens twice as fast, so the shift is phase divided by frequency."
+        },
+        {
+          "erase": [
+            "curve_0_ghost"
+          ]
+        },
+        {
+          "explore": {},
+          "speak": "The knobs are yours now: drag them, or grab the wave itself."
+        },
+        {
+          "speak": "Amplitude sets the height, frequency the spacing, and phase where each wave begins."
+        },
+        {
+          "quiz": {
+            "question": "With frequency 2, a phase of 3.14 slides the wave sideways by about how much?",
+            "choices": [
+              "3.14",
+              "1.57",
+              "6.28"
+            ],
+            "correct": 2,
+            "right": "1.57: the shift is phase divided by frequency, and 3.14 over 2 is 1.57.",
+            "wrong": "Remember what the frequency did to the last shift."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why does a small change in the interest rate matter so much over 30 years?",
+    "spec": {
+      "title": "Why the interest rate matters so much",
+      "template": "equation_plot",
+      "params": {
+        "equation": "V(t) = P*(1 + r)^t",
+        "params": {
+          "P": {
+            "value": 1000,
+            "min": 100,
+            "max": 3000,
+            "step": 100,
+            "label": "start P",
+            "control": "box"
+          },
+          "r": {
+            "value": 0.05,
+            "min": 0,
+            "max": 0.1,
+            "step": 0.01,
+            "label": "rate r"
+          }
+        },
+        "controls": "both",
+        "x_range": [
+          0,
+          40
+        ],
+        "y_range": [
+          0,
+          16000
+        ],
+        "x_label": "years",
+        "y_label": "dollars",
+        "marks": [
+          {
+            "kind": "point",
+            "at": 30
+          }
+        ]
+      },
+      "elements": [
+        {
+          "id": "value_at_30",
+          "type": "label",
+          "attach_to": "point",
+          "side": "left",
+          "text": "${eq.point_y:0,}"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Interest over 30 years"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Why does a couple of points of interest matter so much over thirty years?"
+        },
+        {
+          "draw": [
+            "eq",
+            "curve_0"
+          ],
+          "speak": "Put a thousand dollars away at five percent, and each year it grows by a twentieth of what is there."
+        },
+        {
+          "draw": [
+            "point",
+            "value_at_30"
+          ],
+          "speak": "After thirty years it has become about 4,300 dollars."
+        },
+        {
+          "draw": [
+            "box_P"
+          ],
+          "speak": "One way to end with more is to start with more."
+        },
+        {
+          "animate": {
+            "params.P.value": 2000
+          },
+          "duration": 2.5,
+          "speak": "Double the start, and every point on the curve simply doubles."
+        },
+        {
+          "animate": {
+            "params.P.value": 1000
+          },
+          "duration": 1.5,
+          "speak": "Back to a thousand."
+        },
+        {
+          "draw": [
+            "slider_r"
+          ],
+          "speak": "The other way is the rate, and it works differently."
+        },
+        {
+          "animate": {
+            "params.r.value": 0.07
+          },
+          "duration": 3,
+          "ghost": [
+            "curve_0"
+          ],
+          "speak": "Raise it from five to seven percent, and the thirty-year total climbs to about 7,600."
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve_0"
+            ]
+          },
+          "speak": "The curve does not just rise, it bends upward, because each year's gain earns interest the next year."
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq_param_r"
+            ]
+          },
+          "speak": "At seven percent, money doubles about every ten years: three doublings in thirty years is eight times."
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve_0_ghost"
+            ]
+          },
+          "speak": "At five percent it doubles only every fourteen years, barely twice in thirty."
+        },
+        {
+          "erase": [
+            "curve_0_ghost"
+          ]
+        },
+        {
+          "explore": {},
+          "speak": "Try it: drag the rate, type a new start, or pull the curve up at any year."
+        },
+        {
+          "speak": "The start scales the curve; the rate bends it, and the bend compounds every year."
+        },
+        {
+          "quiz": {
+            "question": "At seven percent a year, roughly how long does money take to double?",
+            "choices": [
+              "7 years",
+              "10 years",
+              "14 years"
+            ],
+            "correct": 2,
+            "right": "About ten years: seventy divided by the rate in percent gives the doubling time.",
+            "wrong": "Count the doublings in thirty years at seven percent."
+          }
+        }
+      ]
+    }
   }
 ]

@@ -16,6 +16,7 @@ import { flattenDrawables } from "../src/layout/model";
 import { validateSpec } from "../src/spec/schema";
 import { expandSpec } from "../src/spec/expand";
 import { domainMapping, elementBBoxes, layoutSpec } from "../src/layout/layout";
+import { boxAnchor } from "../src/layout/anchors";
 import { heuristicMeasure } from "../src/layout/measure";
 import { planCommands } from "../src/render/plan";
 import { planOptionsFor } from "../src/render/index";
@@ -206,6 +207,18 @@ describe("bundled examples stay exemplary", () => {
         expect(l.issues.filter((i) => i.severity === "error"), `after ${JSON.stringify(params)}`).toEqual([]);
         const b = elementBBoxes(l);
         return (id) => b.get(id) ?? null;
+      },
+      // An animate's trail samples the anchor across the sweep, as the app's
+      // render() does (src/render/index.ts anchorsAt).
+      anchorsAt: (params, overrides) => {
+        const l = layoutSpec(specAt(spec, params), undefined, overrides, undefined, { skipDrawBeatLint: true });
+        const b = elementBBoxes(l);
+        return (id, name) => {
+          const named = l.namedAnchors[id]?.[name];
+          if (named) return named;
+          const box = b.get(id);
+          return box ? boxAnchor(box, name) : null;
+        };
       },
       // planOptionsFor carries `controlsOf` too, so a `run` or an explore
       // demo in a bundled example is planned exactly as the app plans it —
