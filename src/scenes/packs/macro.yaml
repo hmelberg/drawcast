@@ -19,7 +19,6 @@ description: >-
   and the equilibrium recomputes live; an explore beat naming nothing
   hands it over. Values {is_lm.output}, {is_lm.rate}, {is_lm.output_new},
   {is_lm.rate_new}.
-free_play: true
 params:
   type: object
   properties:
@@ -382,7 +381,6 @@ description: >-
   shock) and the equilibrium recomputes live; an explore beat naming nothing
   hands it over. Values {ad_as.output}, {ad_as.price}, {ad_as.output_new},
   {ad_as.price_new}, {ad_as.gap} (output minus potential, with LRAS).
-free_play: true
 params:
   type: object
   properties:
