@@ -7,11 +7,13 @@ import { CANVAS } from "../../layout/canvas";
 import { heuristicMeasure } from "../../layout/measure";
 import {
   COLORS,
+  Z_AREA,
   Z_STROKE,
   SKETCH_MS,
   defaultDrawOpts,
   defaultStyle,
   type Drawable,
+  type GroupDrawable,
   type Pt,
   type StrokeDrawable,
 } from "../../layout/model";
@@ -19,6 +21,10 @@ import { wrapText, type LabelCorridor, type LabelRequest } from "../../layout/la
 import type { SceneLayout } from "../types";
 import type { BBox } from "../../layout/geometry";
 import { fitRegion, isFitName } from "../../layout/regions";
+import { fitSceneLayout } from "../../layout/template-fit";
+import { FONT_FLOOR } from "../../lint/lint";
+import { kit } from "../kit";
+import { nodeId, rollback, strategyTable, type Rolled, type StrategyRow } from "./rollback";
 
 export interface TreeNode {
   id?: string;
@@ -27,8 +33,10 @@ export interface TreeNode {
   /** Outcome value at a terminal (e.g. QALYs). May also sit on the incoming branch. */
   payoff?: number;
   cost?: number;
-  /** Folded-back value at a chance or decision node ("EV 11.6 y"), drawn as value_<id>. */
+  /** Folded-back value at a chance or decision node ("EV 11.6 y"), drawn as value_<id>. Overrides the computed one. */
   value?: string;
+  /** Drawn as a leaf with a fan of stubs (collapsed_<id>): its subtree is not laid out, but still folded back. */
+  collapsed?: boolean;
   children?: TreeBranch[];
 }
 
@@ -42,13 +50,32 @@ export interface TreeBranch {
 
 export interface DecisionTreeParams {
   root: TreeNode;
+  /** Fold the tree back: every chance and decision node gets its computed value, each decision its chosen branch. */
+  rollback?: boolean;
+  /** Willingness to pay per unit of payoff: decisions then maximise payoff·wtp − cost. */
+  wtp?: number;
+  /** Money prefix for costs ("£", "$", "kr "). */
+  currency?: string;
+  /** The payoff's unit ("QALYs", "years"): the table's effect column, and after node values. */
+  unit?: string;
+  /** Decimals for payoffs (default 2). */
+  decimals?: number;
+  /** false hides the strategy table that a rolled-back tree with costs draws. */
+  table?: boolean;
 }
 
 interface Wrapped {
   cleanId: string;
   node: TreeNode;
+  /** The incoming branch — with a missing probability filled in, under rollback. */
   branch?: TreeBranch;
   children: Wrapped[];
+  /** Drawn as a leaf: its children are hidden. */
+  collapsed: boolean;
+  /** The text under a chance/decision node: its `value`, else under rollback the computed one. */
+  value?: string;
+  /** A terminal's payoff text. */
+  payoff?: string;
 }
 
 // top 95 clears the card heading (y > 690); bottom 150 clears the narration band,
@@ -59,35 +86,131 @@ interface Wrapped {
 // shorter arrows").
 const MARGIN = { left: 85, right: 230, top: 95, bottom: 150 };
 
-function wrap(node: TreeNode, path: number[], branch?: TreeBranch): Wrapped {
+/** How a tree's numbers are written; under rollback, what it computed. */
+interface WrapCtx {
+  rolled: Rolled | null;
+  fmt: Format;
+}
+
+function wrap(node: TreeNode, path: number[], ctx: WrapCtx, branch?: TreeBranch): Wrapped {
+  const cleanId = nodeId(node, path);
+  const kids = node.children ?? [];
+  const collapsed = node.collapsed === true && node.type !== "terminal" && kids.length > 0;
+  const { rolled, fmt } = ctx;
+  const child = (b: TreeBranch, i: number): Wrapped => {
+    const key = `${cleanId}_${nodeId(b.node, [...path, i])}`;
+    const filled = rolled?.filled.has(key) ? { ...b, probability: rolled.p[key] } : b;
+    return wrap(b.node, [...path, i], ctx, filled);
+  };
+  let value = node.value !== undefined && node.value !== "" ? String(node.value) : undefined;
+  if (value === undefined && rolled && node.type !== "terminal") value = nodeValueText(rolled, cleanId, fmt);
   return {
-    cleanId: node.id ?? path.join("_"),
+    cleanId,
     node,
     branch,
-    children: (node.children ?? []).map((b, i) => wrap(b.node, [...path, i], b)),
+    collapsed,
+    children: collapsed ? [] : kids.map(child),
+    value,
+    payoff: node.type === "terminal" ? payoffText(node, branch, rolled ? fmt : null) : undefined,
   };
 }
 
-/** A terminal's payoff text ("12.4", "12.4, cost 300"), or nothing. */
-function payoffOf(w: Wrapped): string | undefined {
-  const payoff = w.node.payoff ?? w.branch?.payoff;
-  const cost = w.node.cost ?? w.branch?.cost;
+/** A terminal's payoff text ("12.4", "12.4, cost 300"; under rollback "12.4, £300"), or nothing. */
+function payoffText(node: TreeNode, branch: TreeBranch | undefined, fmt: Format | null): string | undefined {
+  const payoff = node.payoff ?? branch?.payoff;
+  const cost = node.cost ?? branch?.cost;
   if (payoff === undefined && cost === undefined) return undefined;
   const parts: string[] = [];
-  if (payoff !== undefined) parts.push(String(payoff));
-  if (cost !== undefined) parts.push(`cost ${cost}`);
+  if (payoff !== undefined) parts.push(fmt ? fmt.num(payoff) : String(payoff));
+  if (cost !== undefined) parts.push(fmt ? fmt.cost(cost) : `cost ${cost}`);
   return parts.join(", ");
+}
+
+/** A folded-back node's text: "8.95", "8.95 QALYs", "8.95, £2,300" — or nothing where a number below is missing. */
+function nodeValueText(rolled: Rolled, id: string, fmt: Format): string | undefined {
+  const e = rolled.ev[id];
+  const c = rolled.cost[id];
+  const parts: string[] = [];
+  if (e !== undefined) parts.push(c === undefined && fmt.unit ? `${fmt.num(e)} ${fmt.unit}` : fmt.num(e));
+  if (c !== undefined) parts.push(fmt.cost(c));
+  return parts.length > 0 ? parts.join(", ") : undefined;
+}
+
+interface Format {
+  num(v: number): string;
+  /** Money, currency prefixed; bare numbers in the table's cost columns. */
+  money(v: number): string;
+  /** A cost beside a payoff: money, or "cost 2,300" with no currency to say what it is. */
+  cost(v: number): string;
+  unit?: string;
+}
+
+function formatOf(params: DecisionTreeParams): Format {
+  const decimals = Math.min(Math.max(Math.round(typeof params.decimals === "number" ? params.decimals : 2), 0), 6);
+  const cur = typeof params.currency === "string" ? params.currency : "";
+  // The figure's locale (kit.num): 8,95 and 12 000 in a Norwegian cast.
+  const comma = kit.num(0.5) !== "0.5";
+  const thousands = (v: number) => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, comma ? " " : ",");
+  const money = (v: number) => {
+    const a = Math.abs(v);
+    const sign = v < -1e-9 ? "−" : "";
+    const body = a >= 1e6 ? `${kit.num(Number((a / 1e6).toFixed(a >= 1e7 ? 1 : 2)))}m` : a >= 1e4 ? thousands(Math.round(a / 100) * 100) : thousands(a);
+    return `${sign}${cur}${body}`;
+  };
+  return {
+    num: (v) => kit.num(Number(v.toFixed(decimals))),
+    money,
+    cost: (v) => (cur ? money(v) : `cost ${money(v)}`),
+    unit: typeof params.unit === "string" && params.unit.trim() ? params.unit.trim() : undefined,
+  };
+}
+
+/** A terminal's payoff text as drawn, or nothing. */
+function payoffOf(w: Wrapped): string | undefined {
+  return w.payoff;
 }
 
 function nodeRadius(type: TreeNode["type"]): number {
   return type === "decision" ? 34 : type === "chance" ? 30 : 32;
 }
 
-export function layoutDecisionTree(params: DecisionTreeParams & { box?: unknown }): SceneLayout & { positions: Record<string, Pt> } {
-  const rootWrapped = wrap(params.root, [0]);
+export function layoutDecisionTree(params: DecisionTreeParams & { box?: unknown }): SceneLayout & { positions: Record<string, Pt>; scale: number; textSize: number } {
+  const rolled = params.rollback === true && params.root ? rollback(params.root, { wtp: params.wtp }) : null;
+  const fmt = formatOf(params);
+  const rootWrapped = wrap(params.root, [0], { rolled, fmt });
   const h = hierarchy(rootWrapped, (d) => d.children);
-  const box = boxOf(params.box);
-  let placed = placeNodes(h, box, 1);
+
+  // The strategy table takes the bottom of the page (or of the box), and the
+  // tree the rest.
+  const table = rolled && params.table !== false ? tableOf(params, rolled, fmt) : null;
+  const reserve = table ? table.h + TABLE_GAP : 0;
+  const outer = boxOf(params.box);
+  let box: BBox | null = outer && reserve > 0 ? { ...outer, y: outer.y + reserve, h: Math.max(outer.h - reserve, outer.h * 0.4) } : outer;
+  // A tree whose words need more height than the page has (nine terminals
+  // and up) was squeezed to the plot band at full text size, its labels on
+  // top of each other. Its words get smaller first, down to MIN_FONT; past
+  // that it is laid out at the spacing its words need and the whole figure,
+  // words and all, scaled onto the page, the text held at the lint's floor
+  // (template-fit.ts). "Squeezed" = the band gives the nodes less than the
+  // spacing their words were budgeted (k < 1), so every tree that fits is
+  // laid out exactly as it always was.
+  useFont(BASE_FONT);
+  INLINE_TERMINALS = rolled !== null;
+  let squeeze: BBox | null = null;
+  if (!box) {
+    let { k } = placeNodes(h, null, 1, reserve);
+    // A rolled-back tree is new, so it may ask more of its budget (0.9: its
+    // ends carry long numbers; every tree before it keeps the 0.8 it was drawn with).
+    const K = rolled ? 0.9 : SQUEEZE_K;
+    if (k > 0 && k < K) {
+      for (let f = BASE_FONT - 1; f >= MIN_FONT && k < K; f--) {
+        useFont(f);
+        k = placeNodes(h, null, 1, reserve).k;
+      }
+      if (k < K) box = squeeze = { ...BIG_REGION, y: BIG_REGION.y + reserve, h: BIG_REGION.h - reserve };
+    }
+  }
+  let placed = placeNodes(h, box, 1, reserve);
   // A box shorter than the tree's budget scales the whole tree down, and a
   // tree scaled by its height leaves the box's width unused. Laid out wider,
   // its fans' wedges open sooner and it needs less height: spread it toward
@@ -103,7 +226,7 @@ export function layoutDecisionTree(params: DecisionTreeParams & { box?: unknown 
       const want = placed.extent / room;
       if (want <= g * 1.02) break;
       g = (g + want) / 2;
-      placed = placeNodes(h, box, g);
+      placed = placeNodes(h, box, g, reserve);
       if (shrink(g, placed) < best.cost - 0.01) best = { g, placed, cost: shrink(g, placed) };
     }
     placed = best.placed;
@@ -117,6 +240,7 @@ export function layoutDecisionTree(params: DecisionTreeParams & { box?: unknown 
   const positions: Record<string, Pt> = {};
   const order: string[] = [];
   const attached: Record<string, string[]> = {};
+  const groups: Record<string, string[]> = {};
   /** Where a non-terminal's name and value end on the right. */
   const words = new Map<string, { nameRight: number; valueRight?: number }>();
 
@@ -131,6 +255,13 @@ export function layoutDecisionTree(params: DecisionTreeParams & { box?: unknown 
     anchors[id] = c;
     drawables.push(nodeDrawable(id, node.type, c));
     order.push(id);
+    if (n.data.collapsed) {
+      // A fan of stubs where its branches would leave: "more tree here".
+      const stubs = collapsedStubs(`collapsed_${cleanId}`, node.type, c);
+      drawables.push(stubs);
+      order.push(stubs.id);
+      attached[id] = [...(attached[id] ?? []), stubs.id];
+    }
 
     // A node's label may sit near the branch that ARRIVES at it — otherwise
     // it drifts sideways to dodge its own incoming edge and lands in the space
@@ -139,7 +270,31 @@ export function layoutDecisionTree(params: DecisionTreeParams & { box?: unknown 
     // branch). The node shape itself stays an obstacle: a label allowed to
     // ignore that lands on top of the square.
     const own = n.parent ? [`edge_${n.parent.data.cleanId}_${cleanId}`] : [];
-    if (node.type === "terminal") {
+    if (n.parent && rolled?.bestId[n.parent.data.cleanId] === cleanId && n.parent.data.node.type === "decision") own.push(`best_${n.parent.data.cleanId}_${cleanId}`);
+    if (node.type === "terminal" && INLINE_TERMINALS) {
+      // A rolled-back tree's ends read as a table's rows: name, then its
+      // numbers, on one line right of the triangle — half the height of a
+      // name over the numbers, which a tree with costs (long numbers, a
+      // table under it) cannot spare.
+      const nameX = c[0] + TERMINAL_HALF + 8;
+      const nameReq = labelReq(`label_${cleanId}`, [nameX - LABEL_R, c[1]], "right", node.label, LABEL_FONT, COLORS.ink, own);
+      nameReq.minX = c[0] + TERMINAL_HALF;
+      nameReq.sides = ["right"];
+      labels.push(nameReq);
+      order.push(nameReq.id);
+      attached[id] = [...(attached[id] ?? []), nameReq.id];
+      const payoffText = payoffOf(n.data);
+      if (payoffText !== undefined) {
+        // In one column with the other ends of its depth: a column of numbers.
+        const payX = nameX + inlineNameW(h, n.depth) * TEXT_SLACK + INLINE_GAP;
+        const payoffReq = labelReq(`payoff_${cleanId}`, [payX - LABEL_R, c[1]], "right", payoffText, LABEL_FONT, COLORS.supply, own);
+        payoffReq.minX = payX - 4;
+        payoffReq.sides = ["right"];
+        labels.push(payoffReq);
+        order.push(payoffReq.id);
+        attached[id] = [...(attached[id] ?? []), payoffReq.id];
+      }
+    } else if (node.type === "terminal") {
       const nameReq = labelReq(`label_${cleanId}`, c, "above-right", node.label, LABEL_FONT, COLORS.ink, own);
       // Never left of its own triangle: crowded out of its corner, a
       // terminal's name (or payoff) drifted onto the branches and read as a
@@ -175,13 +330,14 @@ export function layoutDecisionTree(params: DecisionTreeParams & { box?: unknown 
       // The folded-back value, under the node it summarises and in the same
       // size as its name: models otherwise put "EV 11.6 y" on a scratch card,
       // off the tree, where the comparison can no longer be seen (2026-09-27).
-      if (node.value !== undefined && node.value !== "") {
+      const value = n.data.value;
+      if (value !== undefined) {
         const valueId = `value_${cleanId}`;
         // Likewise clear of a branch coming in from below.
-        const valueW = textBox(String(node.value), NODE_LABEL_WIDTH).w;
+        const valueW = textBox(value, NODE_LABEL_WIDTH).w;
         const valueDx = clearShift(n, valueW, "below", pos);
         words.get(cleanId)!.valueRight = c[0] + valueDx + valueW / 2;
-        labels.push(labelReq(valueId, [c[0] + valueDx, c[1] - nodeRadius(node.type)], "below", String(node.value), LABEL_FONT, COLORS.supply));
+        labels.push(labelReq(valueId, [c[0] + valueDx, c[1] - nodeRadius(node.type)], "below", value, LABEL_FONT, COLORS.supply));
         order.push(valueId);
         attached[id] = [...(attached[id] ?? []), valueId];
       }
@@ -216,9 +372,25 @@ export function layoutDecisionTree(params: DecisionTreeParams & { box?: unknown 
     anchors[id] = mid;
     order.push(id);
 
+    // Folded back, a decision shows its pick: the chosen branch under a
+    // highlighter stroke, every other one cut with the double hash of a
+    // pruned branch.
+    const pick = rolled?.bestId[parent.data.cleanId];
+    if (pick !== undefined && parent.data.node.type === "decision") {
+      const pair = `${parent.data.cleanId}_${n.data.cleanId}`;
+      const mark = pick === n.data.cleanId ? bestMark(`best_${pair}`, from, to) : pruneMark(`prune_${pair}`, from, to);
+      drawables.push(mark);
+      anchors[mark.id] = mid;
+      order.push(mark.id);
+      attached[id] = [...(attached[id] ?? []), mark.id];
+      (groups[pick === n.data.cleanId ? "best" : "pruned"] ??= []).push(mark.id);
+    }
+
     const siblings = parent.children ?? [];
     branchLabels.push({
       edgeId: id,
+      // The highlighter under the chosen branch is the branch.
+      ignore: pick !== undefined && pick === n.data.cleanId ? [id, `best_${parent.data.cleanId}_${n.data.cleanId}`] : [id],
       labelId: `branchlabel_${parent.data.cleanId}_${n.data.cleanId}`,
       text: branchText(n.data.branch),
       // What the parent says under and over itself, which the fan's outer
@@ -244,7 +416,183 @@ export function layoutDecisionTree(params: DecisionTreeParams & { box?: unknown 
   }
   labels.push(...terminalNames);
 
-  return { drawables, labels, anchors, positions, order, attached };
+  const out = { drawables, labels, anchors, positions, order, attached, groups, scale: 1, textSize: LABEL_FONT, ...(rolled && { values: valuesOf(rolled, rootWrapped.cleanId, table?.rows ?? null) }) };
+  if (squeeze) {
+    const f = fitSceneLayout(out, squeeze, heuristicMeasure);
+    if (f) {
+      out.scale = f.s;
+      out.textSize = Math.max(LABEL_FONT * f.s, FONT_FLOOR);
+      for (const k of Object.keys(positions)) positions[k] = [positions[k][0] * f.s + f.dx, positions[k][1] * f.s + f.dy];
+    }
+  }
+  if (table) {
+    // Under the tree, centred on it: the page's (or the box's) bottom strip.
+    const area = outer ?? { x: BIG_REGION.x, y: BIG_REGION.y, w: BIG_REGION.w, h: BIG_REGION.h };
+    drawTable(table, [area.x + area.w / 2, area.y + table.h], out, rolled!.bestId[rootWrapped.cleanId]);
+  }
+  if (Object.keys(groups).length === 0) delete (out as Partial<typeof out>).groups;
+  return out;
+}
+
+/** Where the whole figure goes when it must be scaled onto the page: under the card heading, over the narration band. */
+const BIG_REGION: BBox = { x: 20, y: 118, w: 960, h: 572 };
+/** Below this share of its budgeted spacing a tree on the bare canvas gives up text size (the budget has slack: 0.8 kept every sampled tree lint-clean, 0.97 cost a nine-terminal tree 5 points of text for nothing). */
+const SQUEEZE_K = 0.8;
+/** Between the table and the tree's lowest words. */
+const TABLE_GAP = 26;
+
+const TABLE_FONT = 20;
+const TABLE_FONT_MIN = 16;
+const TABLE_ROW = 1.35;
+const TABLE_COL_GAP = 26;
+
+interface Table {
+  rows: StrategyRow[];
+  /** Header first, then one line per row, six cells each. */
+  cells: string[][];
+  colW: number[];
+  font: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * The root decision's options as a cost-effectiveness table: by cost, each
+ * against the cheaper option on the frontier, with its ICER or why it has
+ * none. Null unless the root is a decision whose options all have a payoff
+ * and a cost.
+ */
+function tableOf(params: DecisionTreeParams & { box?: unknown }, rolled: Rolled, fmt: Format): Table | null {
+  const root = params.root;
+  if (root.type !== "decision" || !rolled.hasCost || !rolled.hasPayoff) return null;
+  const options = (root.children ?? []).map((b, i) => {
+    const id = nodeId(b.node, [0, i]);
+    return { id, label: b.label || b.node.label, cost: rolled.cost[id], effect: rolled.ev[id] };
+  });
+  if (options.length < 2 || options.some((o) => o.cost === undefined || o.effect === undefined)) return null;
+  const rows = strategyTable(options as { id: string; label: string; cost: number; effect: number }[]);
+  const say = (en: string, nb: string) => kit.say({ en, nb });
+  const eff = fmt.unit ?? say("Effect", "Effekt");
+  const signed = (v: number, f: (v: number) => string) => (v > 1e-9 ? `+${f(v)}` : f(v));
+  const cells: string[][] = [
+    ["", say("Cost", "Kostnad"), eff, `Δ ${say("cost", "kostnad")}`, `Δ ${eff}`, say("ICER", "IKER")],
+    ...rows.map((r) => [
+      r.label,
+      fmt.money(r.cost),
+      fmt.num(r.effect),
+      r.dCost === undefined ? "" : signed(r.dCost, fmt.money),
+      r.dEffect === undefined ? "" : signed(r.dEffect, fmt.num),
+      r.status === "dominated" ? say("dominated", "dominert") : r.status === "ext_dominated" ? say("ext. dominated", "utv. dominert") : r.icer !== undefined ? fmt.money(r.icer) : "",
+    ]),
+  ];
+  const room = (boxOf(params.box)?.w ?? BIG_REGION.w) - 20;
+  const measure = (font: number) => {
+    const colW = cells[0].map((_, j) => Math.max(...cells.map((row) => heuristicMeasure(row[j], font).w)));
+    return { colW, w: colW.reduce((a, b) => a + b, 0) + TABLE_COL_GAP * (colW.length - 1) };
+  };
+  let font = TABLE_FONT;
+  let m = measure(font);
+  if (m.w > room) {
+    font = Math.max(TABLE_FONT_MIN, Math.floor((TABLE_FONT * room) / m.w));
+    m = measure(font);
+  }
+  return { rows, cells, colW: m.colW, font, w: m.w, h: cells.length * font * TABLE_ROW + 10 };
+}
+
+/**
+ * strategy_head, strategy_rule and one strategy_row_<optionId> per option,
+ * top edge at `at`; the group strategy_table names them all. The option the
+ * decision takes is in the chosen branch's colour.
+ */
+function drawTable(t: Table, at: Pt, out: { drawables: Drawable[]; anchors: Record<string, Pt>; order: string[]; groups: Record<string, string[]> }, pick: string | undefined): void {
+  const x0 = at[0] - t.w / 2;
+  const lineH = t.font * TABLE_ROW;
+  const members: string[] = [];
+  // Name left, numbers right-aligned in their columns.
+  const colRight = t.colW.map((_, j) => x0 + t.colW.slice(0, j + 1).reduce((a, b) => a + b, 0) + TABLE_COL_GAP * j);
+  const row = (id: string, cells: string[], y: number, color: string) => {
+    const kids = cells.flatMap((c, j) =>
+      c === "" ? [] : [kit.text(`${id}__c${j}`, j === 0 ? [x0, y] : [colRight[j], y], c, { fontSize: t.font, anchor: j === 0 ? "start" : "end", color })],
+    );
+    out.drawables.push(kit.group(id, kids));
+    out.anchors[id] = [at[0], y];
+    out.order.push(id);
+    members.push(id);
+  };
+  let y = at[1] - t.font * 0.9;
+  row("strategy_head", t.cells[0], y, COLORS.guide);
+  const ruleY = y - t.font * 0.85;
+  const rule = kit.stroke("strategy_rule", [[x0, ruleY], [x0 + t.w, ruleY]], { color: COLORS.guide, strokeWidth: 1.5, ms: SKETCH_MS.guides });
+  out.drawables.push(rule);
+  out.anchors.strategy_rule = [at[0], ruleY];
+  out.order.push("strategy_rule");
+  members.push("strategy_rule");
+  y -= lineH + 6;
+  t.rows.forEach((r, i) => {
+    const color = r.id === pick ? COLORS.accent : r.status === "dominated" || r.status === "ext_dominated" ? COLORS.guide : COLORS.ink;
+    row(`strategy_row_${r.id}`, t.cells[i + 1], y, color);
+    y -= lineH;
+  });
+  out.groups.strategy_table = members;
+}
+
+/** A highlighter stroke under the chosen branch. */
+function bestMark(id: string, from: Pt, to: Pt): StrokeDrawable {
+  return {
+    id,
+    kind: "stroke",
+    pts: [from, to],
+    z: Z_AREA,
+    style: defaultStyle({ color: COLORS.accent, strokeWidth: 12, opacity: 0.4, roughness: 0.8 }),
+    drawOpts: defaultDrawOpts("sketch", SKETCH_MS.connector),
+  };
+}
+
+/** The pruned-branch mark: two short strokes across the branch, a third of the way along. */
+function pruneMark(id: string, from: Pt, to: Pt): GroupDrawable {
+  const len = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1;
+  const u: Pt = [(to[0] - from[0]) / len, (to[1] - from[1]) / len];
+  const nrm: Pt = [-u[1], u[0]];
+  const at = Math.min(0.35 * len, 90);
+  const slash = (k: number): Pt[] => {
+    const c: Pt = [from[0] + u[0] * (at + k * 9), from[1] + u[1] * (at + k * 9)];
+    // Leaning along the branch, like a hand's //.
+    const d: Pt = [nrm[0] * 12 + u[0] * 5, nrm[1] * 12 + u[1] * 5];
+    return [[c[0] - d[0], c[1] - d[1]], [c[0] + d[0], c[1] + d[1]]];
+  };
+  const opts = { color: COLORS.ink, strokeWidth: 3, ms: SKETCH_MS.guides };
+  return kit.group(id, [kit.stroke(`${id}__a`, slash(-0.5), opts), kit.stroke(`${id}__b`, slash(0.5), opts)]);
+}
+
+/** A collapsed node's mark: three stubs fanning out to the right, where its branches would go. */
+function collapsedStubs(id: string, type: TreeNode["type"], c: Pt): GroupDrawable {
+  const r = nodeRadius(type) + 4;
+  const opts = { color: COLORS.ink, strokeWidth: 3, ms: SKETCH_MS.guides };
+  return kit.group(
+    id,
+    [-1, 0, 1].map((k, i) => kit.stroke(`${id}__${i}`, [[c[0] + r, c[1] + k * 7], [c[0] + r + STUB_LEN, c[1] + k * 20]], opts)),
+  );
+}
+
+/** How far a collapsed node's stubs reach past its shape. */
+const STUB_LEN = 30;
+
+/** The numbers, for `{tree.<key>}` tokens (layout.ts TEMPLATE_VALUES_NAME). */
+function valuesOf(rolled: Rolled, rootId: string, rows: StrategyRow[] | null): Record<string, number> {
+  const v: Record<string, number> = {};
+  for (const [id, e] of Object.entries(rolled.ev)) v[`ev_${id}`] = e;
+  for (const [id, c] of Object.entries(rolled.cost)) v[`cost_${id}`] = c;
+  for (const [id, x] of Object.entries(rolled.nmb)) v[`nmb_${id}`] = x;
+  for (const [key, p] of Object.entries(rolled.p)) v[`p_${key}`] = p;
+  for (const [id, k] of Object.entries(rolled.best)) v[`best_${id}`] = k;
+  // The root decision's pick, as the index of its option.
+  if (rolled.best[rootId] !== undefined) v.best = rolled.best[rootId];
+  for (const r of rows ?? []) {
+    if (r.icer !== undefined) v[`icer_${r.id}`] = r.icer;
+    if (r.dCost !== undefined) v[`dcost_${r.id}`] = r.dCost;
+    if (r.dEffect !== undefined) v[`deffect_${r.id}`] = r.dEffect;
+  }
+  return v;
 }
 
 /** A branch's label text: "Grows (p=0.53)", "p=0.2", "Watch", or nothing. */
@@ -293,6 +641,8 @@ function clearShift(n: HierarchyNode<Wrapped>, w: number, side: "above" | "below
 
 interface BranchLabel {
   edgeId: string;
+  /** What the label may sit against: its edge, and the edge's highlighter. */
+  ignore: string[];
   labelId: string;
   /** Undefined for a branch with nothing to say — it still bounds its neighbours' corridors. */
   text?: string;
@@ -360,7 +710,7 @@ function branchLabelRequests(branches: BranchLabel[], nodes: Pt[]): LabelRequest
       // Its own branch is the corridor's wall, exactly; as obstacle boxes a
       // diagonal would only blur it. The neighbour stays an obstacle, for the
       // looser corridors.
-      const req = labelReq(b.labelId, at, lean, b.text, LABEL_FONT, COLORS.guide, [b.edgeId]);
+      const req = labelReq(b.labelId, at, lean, b.text, LABEL_FONT, COLORS.guide, b.ignore);
       req.maxWidth = width;
       req.sides = [...new Set<LabelRequest["side"]>([lean, gap, gap === "above" ? "above-left" : "below-left", gap === "above" ? "above-right" : "below-right"])];
       // Its own part of the strip; failing that (a label too long for the
@@ -534,10 +884,15 @@ const HORIZONTAL_UY = 0.08;
 /** Half the width of a terminal's triangle. */
 const TERMINAL_HALF = 26;
 
-/** Node names, payoffs, values and branch labels all share one size. */
-const LABEL_FONT = 26;
+/** Node names, payoffs, values and branch labels all share one size… */
+const BASE_FONT = 26;
+/** …which a tree too tall for the page at BASE_FONT gives up, down to this, before it is scaled (layoutDecisionTree). */
+const MIN_FONT = 16;
+// The size of THIS layout: set by useFont at the start of each call (layout
+// is synchronous, so a module variable is one call's), read everywhere below.
+let LABEL_FONT = BASE_FONT;
 /** A label's line height, as the solver stacks lines (labels.ts LINE_HEIGHT). */
-const LINE = LABEL_FONT * 1.25;
+let LINE = LABEL_FONT * 1.25;
 /** The widest a node's name runs before it wraps (labels.ts MAX_LABEL_WIDTH). */
 const NODE_LABEL_WIDTH = 280;
 
@@ -560,8 +915,24 @@ function branchLabelWidth(text: string, span: number, slope: number): number {
 
 /** Where a terminal's payoff is anchored, right of its centre. */
 const PAYOFF_DX = 42;
+/** Under rollback a terminal's name and numbers share its line (layoutDecisionTree sets this per call)… */
+let INLINE_TERMINALS = false;
+/** …this far apart… */
+const INLINE_GAP = 10;
+/** The widest terminal name at a depth: the numbers after them start in one column. */
+function inlineNameW(h: HierarchyNode<Wrapped>, depth: number): number {
+  return Math.max(0, ...h.descendants().filter((m) => m.depth === depth && m.data.node.type === "terminal").map((m) => textBox(m.data.node.label, NODE_LABEL_WIDTH).w));
+}
+/** …and a terminal takes this much above and below its centre. */
+const INLINE_HALF = () => Math.max(TERMINAL_HALF * 0.85, LINE / 2) + 5;
 /** The solver's first-ring offset for a label at LABEL_FONT (labels.ts: 10 + 0.55 × font). */
-const LABEL_R = 10 + LABEL_FONT * 0.55;
+let LABEL_R = 10 + LABEL_FONT * 0.55;
+
+function useFont(f: number): void {
+  LABEL_FONT = f;
+  LINE = f * 1.25;
+  LABEL_R = 10 + f * 0.55;
+}
 /** A column never narrower than this, whatever its labels. */
 const COLUMN_MIN = 230;
 /** A column's room besides its label: the two nodes' radii, their clearances, some air. */
@@ -610,27 +981,33 @@ function boxOf(v: unknown): BBox | null {
  * - with a box the tree is laid out in the box itself, at label size, instead
  *   of on the whole canvas and shrunk into it.
  */
-function placeNodes(h: Node, boxParam: BBox | null, widen: number): { at: Map<Node, Pt>; extent: number } {
+function placeNodes(h: Node, boxParam: BBox | null, widen: number, reserve = 0): { at: Map<Node, Pt>; extent: number; k: number } {
   const nodes = h.descendants();
   const order = new Map(nodes.map((n, i) => [n, i] as const)); // breadth-first: within a depth, top to bottom
   const depth = h.height;
   const node = (n: Node) => n.data.node;
 
   // Horizontal: the root's name overhangs it on the left, the terminals'
-  // names and payoffs on the right.
-  const rootHalf = Math.max(textBox(node(h).label, NODE_LABEL_WIDTH).w, node(h).value ? textBox(String(node(h).value), NODE_LABEL_WIDTH).w : 0) / 2;
+  // names and payoffs on the right (a collapsed node's name and value are
+  // centred on it, past its stubs).
+  const rootHalf = Math.max(textBox(node(h).label, NODE_LABEL_WIDTH).w, h.data.value ? textBox(h.data.value, NODE_LABEL_WIDTH).w : 0) / 2;
   const rightWords = Math.max(
     0,
     ...nodes
-      .filter((n) => node(n).type === "terminal")
+      .filter((n) => node(n).type === "terminal" || n.data.collapsed)
       .map((n) => {
+        if (n.data.collapsed) {
+          const words = Math.max(textBox(node(n).label, NODE_LABEL_WIDTH).w, n.data.value ? textBox(n.data.value, NODE_LABEL_WIDTH).w : 0) / 2;
+          return Math.max(nodeRadius(node(n).type) + 4 + STUB_LEN, words);
+        }
         const pay = payoffOf(n.data);
+        if (INLINE_TERMINALS) return TERMINAL_HALF + 8 + inlineNameW(h, n.depth) * TEXT_SLACK + (pay === undefined ? 0 : INLINE_GAP + textBox(pay, NODE_LABEL_WIDTH).w);
         return Math.max(LABEL_R + textBox(node(n).label, NODE_LABEL_WIDTH).w, pay === undefined ? 0 : PAYOFF_DX + LABEL_R + textBox(pay, NODE_LABEL_WIDTH).w);
       }),
   );
   const [x0, x1] = boxParam
     ? [boxParam.x + Math.min(Math.max(rootHalf + 10, 45), 160), boxParam.x + boxParam.w * widen - Math.min(Math.max(rightWords * TEXT_SLACK + 10, 120), 320)]
-    : [MARGIN.left, CANVAS.w - MARGIN.right];
+    : [MARGIN.left, CANVAS.w - (INLINE_TERMINALS ? Math.min(Math.max(rightWords * TEXT_SLACK + 16, 150), 420) : MARGIN.right)];
 
   const need = new Array<number>(depth).fill(COLUMN_MIN);
   for (const n of nodes) {
@@ -644,12 +1021,14 @@ function placeNodes(h: Node, boxParam: BBox | null, widen: number): { at: Map<No
   // Vertical: what each node's words take above and below its centre.
   const above = (n: Node): number => {
     const nameH = textBox(node(n).label, NODE_LABEL_WIDTH).h;
+    if (node(n).type === "terminal" && INLINE_TERMINALS) return INLINE_HALF();
     return node(n).type === "terminal" ? LABEL_R + nameH : nodeRadius(node(n).type) + LABEL_R + nameH;
   };
   const below = (n: Node): number => {
-    const v = node(n).value;
+    const v = n.data.value;
+    if (node(n).type === "terminal" && INLINE_TERMINALS) return INLINE_HALF();
     if (node(n).type === "terminal") return payoffOf(n.data) !== undefined ? LINE / 2 + 2 : TERMINAL_HALF;
-    return v !== undefined && v !== "" ? nodeRadius(node(n).type) + LABEL_R + textBox(String(v), NODE_LABEL_WIDTH).h : nodeRadius(node(n).type) + 6;
+    return v !== undefined ? nodeRadius(node(n).type) + LABEL_R + textBox(v, NODE_LABEL_WIDTH).h : nodeRadius(node(n).type) + 6;
   };
   // Which side of its branch a label will take (assignStrips decides; this
   // is its first choice): outside its fan for the outer two, and for a middle
@@ -733,10 +1112,11 @@ function placeNodes(h: Node, boxParam: BBox | null, widen: number): { at: Map<No
   const out = new Map<Node, Pt>();
   if (!boxParam) {
     // On the bare canvas the nodes fill the plot band, as they always have.
-    const plotH = CANVAS.h - MARGIN.top - MARGIN.bottom;
+    // (A strategy table under the tree takes `reserve` off the band's bottom.)
+    const plotH = CANVAS.h - MARGIN.top - MARGIN.bottom - reserve;
     const k = hi > lo ? plotH / (hi - lo) : 0;
-    for (const n of nodes) out.set(n, [xAt(n.depth), hi > lo ? CANVAS.h - MARGIN.top - (bx(n) - lo) * k : MARGIN.bottom + plotH / 2]);
-    return { at: out, extent: plotH };
+    for (const n of nodes) out.set(n, [xAt(n.depth), hi > lo ? CANVAS.h - MARGIN.top - (bx(n) - lo) * k : MARGIN.bottom + reserve + plotH / 2]);
+    return { at: out, extent: plotH, k };
   }
   // In a box: at the spacing budgeted, centred, words and outer labels
   // included. A box too small overflows here, and the template fit then
@@ -752,7 +1132,7 @@ function placeNodes(h: Node, boxParam: BBox | null, widen: number): { at: Map<No
   const bottomK = Math.min(...nodes.map((n) => yOf(n) - down(n)));
   const shift = mid - (topK + bottomK) / 2;
   for (const n of nodes) out.set(n, [xAt(n.depth) - (boxParam.w * (widen - 1)) / 2, yOf(n) + shift]);
-  return { at: out, extent: topK - bottomK };
+  return { at: out, extent: topK - bottomK, k };
 }
 
 /** How much a box may spread the tree past its budget, to fill the box. */

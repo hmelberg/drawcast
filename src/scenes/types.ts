@@ -102,6 +102,12 @@ export interface SceneManifest {
 export interface SceneModule {
   manifest: SceneManifest;
   layout?: (params: Record<string, unknown>) => SceneLayout;
+  /**
+   * What the params SAY that the schema cannot check — a decision tree's
+   * probabilities summing to 1. layoutSpec reports each as a
+   * `template-params` lint issue; an error sends the spec to repair.
+   */
+  lint?: (params: Record<string, unknown>) => { severity: "warn" | "error"; message: string }[];
   /** A fresh widget body per mount (the doc's `widget` function body, compiled
    *  once — or a built-in's, supply_demand's). A body WITHOUT `manifest.widget`
    *  is free play only: the figure is workable while paused, but it is not

@@ -209,6 +209,14 @@ export function layoutSpec(
               `give it a taller region, or use a template with a native box`,
           });
         }
+        // What the template itself finds wrong with its params (SceneModule.lint).
+        // Once per spec, like the draw-beat lint below: a relayout at a later
+        // animate stage is not a new spec.
+        if (scene.lint && !opts.skipDrawBeatLint) {
+          for (const i of scene.lint(spec.params ?? {})) {
+            issues.push({ rule: "template-params", ids: [], severity: i.severity, message: `template ${spec.template}: ${i.message}` });
+          }
+        }
         templateIds = sceneLayout.order;
         // A `draw` of an id the template's catalog entry DECLARES but this
         // layout did not PRODUCE — `dwl_region` on a page whose `regions`
@@ -685,7 +693,7 @@ export function elementLines(layout: Pick<LayoutResult, "drawables" | "order">):
 /** The token namespace a template's `values` are read under — the thing
  *  they describe, where the template's name would read worse (`{market.dwl}`,
  *  not `{supply_demand.dwl}`). Any other template: its own name. */
-const TEMPLATE_VALUES_NAME: Record<string, string> = { supply_demand: "market", qaly_profiles: "qaly", markov_model: "markov" };
+const TEMPLATE_VALUES_NAME: Record<string, string> = { supply_demand: "market", qaly_profiles: "qaly", markov_model: "markov", decision_tree: "tree" };
 
 function mayGrow(spec: Spec, manifest: { widget?: true; interactions?: unknown[]; grow?: boolean }): boolean {
   if (manifest.grow === false || manifest.widget || (manifest.interactions?.length ?? 0) > 0) return false;
