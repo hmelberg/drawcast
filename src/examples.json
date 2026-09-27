@@ -71167,5 +71167,159 @@
         }
       ]
     }
+  },
+  {
+    "request": "How can you read a landscape of hills and valleys from a 3D surface?",
+    "spec": {
+      "title": "Reading hills and valleys on a 3D surface",
+      "template": "plot3d",
+      "params": {
+        "surface": "exp(-((x-1)^2 + (y-1)^2)) + 0.7*exp(-((x+1.2)^2 + (y+0.8)^2)/0.6) - 0.6*exp(-((x+0.6)^2 + (y-1.4)^2)/0.5)",
+        "domain": [
+          -3,
+          3
+        ],
+        "grid_n": 20,
+        "style": "mesh",
+        "color_by": "height",
+        "shading": true,
+        "legend": true,
+        "azimuth_deg": 35,
+        "elevation_deg": 22,
+        "marks": [
+          {
+            "at": [
+              1,
+              1
+            ],
+            "label": "Peak"
+          },
+          {
+            "at": [
+              -1.2,
+              -0.8
+            ],
+            "label": "Hill"
+          },
+          {
+            "at": [
+              -0.6,
+              1.4
+            ],
+            "label": "Pit"
+          }
+        ]
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Reading a 3D landscape"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "How do you read hills and valleys off a 3D surface, where every spot on the ground has its own height?"
+        },
+        {
+          "draw": [
+            "surface"
+          ],
+          "speak": "Here is one: over each spot x, y the surface rises to its height z, built from small flat patches."
+        },
+        {
+          "draw": [
+            "colorbar"
+          ],
+          "speak": "Each patch is coloured by that height: blue is low, green is in between, gold is high."
+        },
+        {
+          "draw": [
+            "mark_0"
+          ],
+          "speak": "So the brightest gold is the summit, almost one unit up."
+        },
+        {
+          "draw": [
+            "mark_1"
+          ],
+          "speak": "Behind it stands a second, lower hill, so its top is only pale gold."
+        },
+        {
+          "draw": [
+            "mark_2"
+          ],
+          "speak": "And the deep blue hollow is a pit, sinking below zero."
+        },
+        {
+          "speak": "Light falls from the upper left, so slopes turned away are darker: that is what makes the hills look round.",
+          "animate": {
+            "azimuth_deg": 70
+          },
+          "duration": 3
+        },
+        {
+          "animate": {
+            "azimuth_deg": 125
+          },
+          "duration": 3,
+          "speak": "Walk around it, and the colours stay with the ground: gold means high from every side."
+        },
+        {
+          "animate": {
+            "azimuth_deg": 215,
+            "elevation_deg": 6
+          },
+          "duration": 3,
+          "speak": "Crouch down low, and the hills start to hide each other, just as on a real hike."
+        },
+        {
+          "animate": {
+            "azimuth_deg": 215,
+            "elevation_deg": 85
+          },
+          "duration": 3.5,
+          "speak": "Now look straight down: the heights flatten away, yet the colours still show every hill and hollow."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "colorbar"
+            },
+            "gesture": "circle"
+          },
+          "speak": "That is the trick of an atlas, which tints lowlands green and mountains brown."
+        },
+        {
+          "animate": {
+            "azimuth_deg": 395,
+            "elevation_deg": 30
+          },
+          "duration": 3.5,
+          "speak": "Colour for height, light for slope: together they let the eye read a surface at a glance."
+        },
+        {
+          "explore": {},
+          "speak": "Now turn it yourself: drag the landscape, and find the pit from every side."
+        },
+        {
+          "speak": "Blue is low, gold is high, and a darker patch is a slope facing away from the light."
+        },
+        {
+          "quiz": {
+            "question": "Seen from straight above, how can you still tell the peak from the pit?",
+            "choices": [
+              "By their colour",
+              "By the size of the patches",
+              "You cannot tell"
+            ],
+            "correct": 1,
+            "right": "By colour: the peak is gold and the pit is blue, whatever the angle.",
+            "wrong": "Think about what the colour bar measures."
+          }
+        }
+      ]
+    }
   }
 ]
