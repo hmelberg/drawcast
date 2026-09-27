@@ -66,6 +66,102 @@ export interface LabelRequest {
    * to it instead of shrinking its font (2026-09-27).
    */
   maxWidth?: number;
+  /**
+   * Strips the label must stay inside, as hard geometry rather than
+   * obstacle boxes: a decision-tree branch label between its own branch and
+   * the neighbouring one. Boxes cannot say this — a diagonal's boxes claim
+   * the wedge it crosses — so the old solve treated the neighbour as a soft
+   * cost, found nothing clean, and slid onto the next branch ("Grows
+   * (p=0.53)" on the edge to "Never operated", 2026-09-27). Inside a
+   * corridor the label slides ALONG the line it hugs, nearest the anchor
+   * first, rather than out from the anchor in rings. Strictest first; a
+   * label with no place in any corridor gets the ordinary search.
+   */
+  corridors?: LabelCorridor[];
+  /**
+   * No part of the label left of this x — a hard bound on every search. A
+   * decision tree's terminal name and payoff belong right of their triangle;
+   * crowded out of it, they used to drift left onto the branches, where they
+   * read as branch labels (2026-09-27).
+   */
+  minX?: number;
+}
+
+/** See LabelRequest.corridors. Lines are extended past their ends. */
+export interface LabelCorridor {
+  xMin: number;
+  xMax: number;
+  /** The label stays above this line (logical y is up). */
+  floor?: [Pt, Pt];
+  /** The label stays below this line. */
+  ceiling?: [Pt, Pt];
+  /** The line the label sits along — the thing it names. */
+  hug: "floor" | "ceiling";
+  /** How far the label's edge may cross the OTHER line — a last resort for a
+   *  label too big for its strip. Kept under a quarter of its height, the
+   *  line never reaches the label's core (what the lint measures). */
+  give?: number;
+}
+
+/** Move a request's geometry with its figure (template fit, group arrangement). */
+export function mapLabelRequest(req: LabelRequest, map: (p: Pt) => Pt): void {
+  req.anchor = map(req.anchor);
+  if (req.minX !== undefined) req.minX = map([req.minX, 0])[0];
+  if (req.corridors) {
+    req.corridors = req.corridors.map((c) => ({
+      ...c,
+      xMin: map([c.xMin, 0])[0],
+      xMax: map([c.xMax, 0])[0],
+      floor: c.floor && [map(c.floor[0]), map(c.floor[1])],
+      ceiling: c.ceiling && [map(c.ceiling[0]), map(c.ceiling[1])],
+    }));
+  }
+}
+
+/** Clearance between a corridor-bound label and the lines that bound it. */
+const CORRIDOR_CLEAR = 7;
+/** How far off the hugged line a corridor label may stand, nearest first. */
+const HUG_OFFSETS = [0, 8, 18, 30];
+/** The step a corridor label slides along its line. */
+const HUG_STEP = 6;
+
+function lineY([a, b]: [Pt, Pt], x: number): number {
+  if (b[0] === a[0]) return a[1];
+  return a[1] + ((b[1] - a[1]) * (x - a[0])) / (b[0] - a[0]);
+}
+
+/** Whether a box stays inside its corridor. */
+function insideCorridor(box: BBox, c: LabelCorridor): boolean {
+  if (box.x < c.xMin - 0.01 || box.x + box.w > c.xMax + 0.01) return false;
+  const xs = [box.x, box.x + box.w];
+  const clear = (line: "floor" | "ceiling") => CORRIDOR_CLEAR - (c.hug === line ? 0 : Math.min(c.give ?? 0, box.h / 4));
+  if (c.floor && box.y < Math.max(...xs.map((x) => lineY(c.floor!, x))) + clear("floor") - 0.01) return false;
+  if (c.ceiling && box.y + box.h > Math.min(...xs.map((x) => lineY(c.ceiling!, x))) - clear("ceiling") + 0.01) return false;
+  return true;
+}
+
+/**
+ * Every spot along a corridor's hugged line, best first: close to the line,
+ * then close to the anchor. The box stands HUG_OFFSETS off the line at its
+ * nearer corner, so a steep line never runs through it.
+ */
+function hugCandidates(c: LabelCorridor, anchor: Pt, w: number, h: number): BBox[] {
+  const line = c.hug === "floor" ? c.floor : c.ceiling;
+  if (!line) return [];
+  const out: { box: BBox; score: number }[] = [];
+  const x0s: number[] = [];
+  for (let x = c.xMin; x + w <= c.xMax + 0.01; x += HUG_STEP) x0s.push(x);
+  if (x0s.length === 0 || x0s[x0s.length - 1] + w < c.xMax - 0.01) x0s.push(c.xMax - w);
+  for (const x0 of x0s) {
+    const ys = [lineY(line, x0), lineY(line, x0 + w)];
+    HUG_OFFSETS.forEach((d, k) => {
+      const y = c.hug === "floor" ? Math.max(...ys) + CORRIDOR_CLEAR + d : Math.min(...ys) - CORRIDOR_CLEAR - d - h;
+      const box = { x: x0, y, w, h };
+      if (!insideCorridor(box, c)) return;
+      out.push({ box, score: k * 40 + Math.abs(x0 + w / 2 - anchor[0]) });
+    });
+  }
+  return out.sort((p, q) => p.score - q.score).map((o) => o.box);
 }
 
 /**
@@ -86,6 +182,9 @@ export interface LabelPin {
   d: Pt;
   /** Whether that placement drew a leader, so a pinned frame draws it too. */
   leader: boolean;
+  /** The width the label was wrapped to, when the solve chose a narrower
+   *  one than its request's (a corridor label fitting its strip). */
+  maxWidth?: number;
 }
 
 export interface PlacedLabel {
@@ -271,6 +370,12 @@ function segmentHitsBox([a, b]: [Pt, Pt], r: BBox): boolean {
   return c.some((p, i) => cross(a, b, p, c[(i + 1) % 4]));
 }
 
+/** Where a leader from `anchor` meets a label's box: the middle of its nearer side. */
+function leaderEnd(box: BBox, anchor: Pt): Pt {
+  const cx = box.x + box.w / 2;
+  return [cx + (anchor[0] < cx ? -box.w / 2 - 2 : box.w / 2 + 2), box.y + box.h / 2];
+}
+
 /** Rings 0..NEAR_RINGS-1 count as "near the anchor" — no leader needed there. */
 const NEAR_RINGS = 2;
 
@@ -284,9 +389,14 @@ export function placeLabels(
   const placed: PlacedLabel[] = [];
 
   for (const req of requests) {
-    const lines = wrapLines(req, measure);
-    const w = Math.max(...lines.map((line) => measure(line, req.fontSize).w));
-    const h = lines.length * req.fontSize * LINE_HEIGHT;
+    // Pinned: the boundary already chose, and this frame only follows the
+    // anchor. No search at all — re-running it is the whole defect.
+    const pin = pins?.[req.id];
+    const shape = (maxWidth: number) => {
+      const lines = wrapText(req.text, req.fontSize, maxWidth, measure);
+      return { lines, maxWidth, w: Math.max(...lines.map((line) => measure(line, req.fontSize).w)), h: lines.length * req.fontSize * LINE_HEIGHT };
+    };
+    let { lines, w, h, maxWidth: wrappedTo } = shape(pin?.maxWidth ?? req.maxWidth ?? MAX_LABEL_WIDTH);
     const ignored = req.ignore && req.ignore.length > 0 ? new Set(req.ignore) : null;
     const inPlay = ignored ? blocked.filter((o) => o.id === undefined || !ignored.has(o.id)) : blocked;
     // Restricted sides are a strong preference, not a ban: they alone are
@@ -300,14 +410,12 @@ export function placeLabels(
     const r0 = 10 + req.fontSize * 0.55;
     const rings = [1, 2.2, 3.6, 6, 9, 13].map((k) => r0 * k);
 
-    // Pinned: the boundary already chose, and this frame only follows the
-    // anchor. No search at all — re-running it is the whole defect.
-    const pin = pins?.[req.id];
-
-    let chosen: { box: BBox; ringIndex: number } | null = null;
-    let softNear: { box: BBox; ringIndex: number; penalty: number } | null = null;
+    // (Typed by assertion: they are set inside the search closure below, which
+    // flow analysis would otherwise not see.)
+    let chosen = null as { box: BBox; ringIndex: number } | null;
+    let softNear = null as { box: BBox; ringIndex: number; penalty: number } | null;
     /** The nearest spot no line crosses the core of, however much it grazes. */
-    let coreClean: { box: BBox; ringIndex: number; penalty: number } | null = null;
+    let coreClean = null as { box: BBox; ringIndex: number; penalty: number } | null;
     // A line through the label's core is what the label–stroke lint reports;
     // the solver used to accept it near the anchor ("grazing beats exile")
     // and the lint then blamed the author (ledger, Engine #4: labels on
@@ -316,6 +424,40 @@ export function placeLabels(
       const core = coreOf(box);
       return inPlay.some((o) => !o.solid && o.seg !== undefined && segmentHitsBox(o.seg, core));
     };
+    const onCanvas = (b: BBox) => b.x >= EDGE_PAD && b.y >= EDGE_PAD && b.x + b.w <= CANVAS.w - EDGE_PAD && b.y + b.h <= CANVAS.h - EDGE_PAD;
+    // Corridors first: the first clean spot along the hugged line, else the
+    // least-grazing one no line crosses; else a narrower wrap (a wedge
+    // between two branches opens toward the children, and a narrower box
+    // reaches further into the open end); else the next corridor.
+    if (!pin && req.corridors) {
+      const wraps = [shape(wrappedTo)];
+      for (;;) {
+        const last = wraps[wraps.length - 1];
+        if (last.lines.length >= req.text.split(/\s+/).length) break;
+        const next = shape(last.w - 1);
+        if (next.lines.length === last.lines.length) break; // no word breaks narrower
+        wraps.push(next);
+      }
+      corridors: for (const corridor of req.corridors) for (const wrap of wraps) {
+        let best: { box: BBox; penalty: number } | null = null;
+        for (const box of hugCandidates(corridor, req.anchor, wrap.w, wrap.h)) {
+          if (!onCanvas(box)) continue;
+          if (inPlay.some((o) => o.solid && boxesOverlap(box, o.box, 3))) continue;
+          const penalty = inPlay.reduce((sum, o) => (o.solid ? sum : sum + overlapArea(box, o.box)), 0);
+          if (penalty === 0) {
+            best = { box, penalty };
+            break;
+          }
+          if (crossed(box)) continue;
+          if (best === null || penalty < best.penalty) best = { box, penalty };
+        }
+        if (best) {
+          chosen = { box: best.box, ringIndex: 0 };
+          ({ lines, w, h, maxWidth: wrappedTo } = wrap);
+          break corridors;
+        }
+      }
+    }
     // The search order: with preferred sides, first those alone at the near
     // rings; then every side at the near rings; then every side further out —
     // near on another side beats far on the preferred one, and an exile with
@@ -324,13 +466,20 @@ export function placeLabels(
       ...(preferred ? rings.slice(0, NEAR_RINGS).map((r, i) => ({ ringIndex: i, r, only: true })) : []),
       ...rings.map((r, i) => ({ ringIndex: i, r, only: false })),
     ];
-    if (!pin) {
+    const search = (passes: { ringIndex: number; r: number; only: boolean }[]) => {
       outer: for (const { ringIndex, r, only } of passes) {
         for (const side of sides) {
           if (only && !preferred!.includes(side)) continue;
           if (!only && preferred && ringIndex < NEAR_RINGS && preferred.includes(side)) continue; // tried in its own pass
           const box = clampToCanvas(candidateBox(req.anchor, side, r, w, h));
+          if (req.minX !== undefined && box.x < req.minX) continue;
           if (inPlay.some((o) => o.solid && boxesOverlap(box, o.box, 3))) continue; // text-text: never
+          // An exiled corridor label's leader is how it names its branch; one
+          // drawn through another label strikes that label out.
+          if (req.corridors?.length) {
+            const lead: [Pt, Pt] = [req.anchor, leaderEnd(box, req.anchor)];
+            if (inPlay.some((o) => o.solid && segmentHitsBox(lead, o.box))) continue;
+          }
           const penalty = inPlay.reduce((sum, o) => (o.solid ? sum : sum + overlapArea(box, o.box)), 0);
           if (penalty === 0) {
             chosen = { box, ringIndex };
@@ -351,6 +500,14 @@ export function placeLabels(
           break;
         }
       }
+    };
+    if (!pin && !chosen) {
+      // A label that had corridors and found no place in any is past the
+      // near rings: near but outside its corridor is exactly the spot that
+      // reads as the neighbour's label. It goes far first, with a leader to
+      // its own anchor; near only when there is no far spot either.
+      if (req.corridors?.length) search(passes.filter((p) => p.ringIndex >= NEAR_RINGS));
+      if (!chosen && !coreClean) search(passes);
     }
 
     // Nothing fits anywhere: keep the preferred spot and let lint report it.
@@ -380,12 +537,7 @@ export function placeLabels(
     const wantsLeader = pin ? pin.leader : !!used && used.ringIndex >= 2;
     if (wantsLeader) {
       // Displaced far: draw a thin leader from the anchor toward the label edge.
-      const cx = finalBox.x + finalBox.w / 2;
-      const cy = finalBox.y + finalBox.h / 2;
-      const towardAnchor: Pt = [
-        cx + (req.anchor[0] < cx ? -finalBox.w / 2 - 2 : finalBox.w / 2 + 2),
-        cy,
-      ];
+      const towardAnchor = leaderEnd(finalBox, req.anchor);
       leader = {
         id: `${req.id}_leader`,
         kind: "stroke",
@@ -399,7 +551,11 @@ export function placeLabels(
     placed.push({
       text,
       leader,
-      pin: { d: [text.pos[0] - req.anchor[0], text.pos[1] - req.anchor[1]], leader: wantsLeader },
+      pin: {
+        d: [text.pos[0] - req.anchor[0], text.pos[1] - req.anchor[1]],
+        leader: wantsLeader,
+        ...(wrappedTo !== (req.maxWidth ?? MAX_LABEL_WIDTH) ? { maxWidth: wrappedTo } : {}),
+      },
     });
   }
 

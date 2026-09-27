@@ -20,7 +20,7 @@ import { FONT_FLOOR } from "../lint/lint";
 import { CANVAS } from "./canvas";
 import type { SceneLayout } from "../scenes/types";
 import { unionBBoxForId, unionBoxes } from "./boxes";
-import { preferredLabelBox } from "./labels";
+import { mapLabelRequest, preferredLabelBox } from "./labels";
 import type { BBox } from "./geometry";
 import type { MeasureFn } from "./measure";
 import type { Drawable, Pt } from "./model";
@@ -75,7 +75,7 @@ export function fitSceneLayout(scene: SceneLayout, box: BBox, measure: MeasureFn
   scaleDrawables(scene.drawables, s, dx, dy);
   floorTextSizes(scene.drawables);
   for (const l of scene.labels) {
-    l.anchor = map(l.anchor);
+    mapLabelRequest(l, map);
     l.fontSize = Math.max(l.fontSize * s, FONT_FLOOR);
   }
   mapPoints(scene.anchors, map);
@@ -129,7 +129,7 @@ export function growSceneLayout(scene: SceneLayout, measure: MeasureFn): Templat
   scaleDrawables(scene.drawables, s, dx, dy);
   capGrownText(scene.drawables, s);
   for (const l of scene.labels) {
-    l.anchor = map(l.anchor);
+    mapLabelRequest(l, map);
     l.fontSize = l.fontSize * Math.min(s, TEXT_GROW_MAX);
   }
   mapPoints(scene.anchors, map);
