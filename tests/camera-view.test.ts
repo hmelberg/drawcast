@@ -7,6 +7,8 @@ import {
   cameraBox,
   clampView,
   fitZoom,
+  FIT_MAX_ZOOM,
+  FIT_SHORT_MIN_ZOOM,
   looksLikeMouseWheel,
   MIN_VIEW_W,
   panBy,
@@ -116,6 +118,25 @@ describe("cameraBox and fitZoom", () => {
   test("fitZoom frames the tighter side with the margin", () => {
     expect(fitZoom({ x: 0, y: 0, w: 500, h: 100 }, 1)).toBe(2);
     expect(fitZoom({ x: 0, y: 0, w: 0, h: 100 }, 1)).toBeNull();
+  });
+  test("a wide, short target (a matrix row) is framed close, cropped at the sides; a small one does not balloon", () => {
+    // 830 × 40 at margin 1.4 would be zoom 0.86 — the page, no zoom at all.
+    expect(fitZoom({ x: 85, y: 400, w: 830, h: 40 }, 1.4)).toBe(FIT_SHORT_MIN_ZOOM);
+    // A tall-enough wide target keeps its whole-width fit.
+    expect(fitZoom({ x: 0, y: 0, w: 700, h: 300 }, 1.4)).toBeCloseTo(1000 / 980, 9);
+    // A cell stops at FIT_MAX_ZOOM.
+    expect(fitZoom({ x: 0, y: 0, w: 40, h: 25 }, 1.4)).toBe(FIT_MAX_ZOOM);
+    // On a world, a target larger than the page still frames below 1.
+    expect(fitZoom({ x: 0, y: 0, w: 2000, h: 900 }, 1.4)!).toBeLessThan(1);
+  });
+  test("camera on a matrix row: centred on it, closer than the page", () => {
+    const row = { x: 85, y: 400, w: 830, h: 40 };
+    const p = planCommands([{ draw: ["row"] }, { camera: { on: "row" } }], ["row"], { bboxOf: (id) => (id === "row" ? row : null) });
+    const box = p.steps.find((s): s is Extract<PlanStep, { kind: "camera" }> => s.kind === "camera")!.box!;
+    expect(box.w).toBeCloseTo(1000 / FIT_SHORT_MIN_ZOOM, 6);
+    expect(box.x + box.w / 2).toBeCloseTo(500, 6);
+    expect(box.y).toBeLessThan(row.y);
+    expect(box.y + box.h).toBeGreaterThan(row.y + row.h);
   });
 });
 
