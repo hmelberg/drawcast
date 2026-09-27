@@ -60073,7 +60073,7 @@
             "shade",
             "label_shade"
           ],
-          "speak": "There, each loaf costs about 35 cents on average, so about 43 cents of every sale is profit. That rectangle is the total."
+          "speak": "There, each loaf costs about 38 cents on average, so about 40 cents of every sale is profit. That rectangle is the total."
         },
         {
           "highlight": {
@@ -60096,11 +60096,11 @@
               "shade"
             ]
           },
-          "speak": "Each bakery follows the same rule, bakes a little less, and keeps about 16 cents a loaf."
+          "speak": "Each bakery follows the same rule, bakes a little less, and keeps about 6 cents a loaf."
         },
         {
           "animate": {
-            "price": 23
+            "price": 34.6
           },
           "duration": 3,
           "speak": "And newcomers keep arriving while there is anything left to arrive for."

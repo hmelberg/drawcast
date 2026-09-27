@@ -346,13 +346,12 @@ description: >-
   deadweight-loss triangle versus the competitive outcome. Choose this scene
   for ANY request about marginal cost, average total cost, average variable
   cost, marginal revenue, a firm's profit-maximizing quantity, perfect
-  competition, monopoly pricing, or monopoly deadweight loss. Default
-  curves: MC = 0.06(Q-30)^2+12, AVC = 0.04(Q-45)^2+14, ATC = AVC+8, so min
-  AVC = 14 and min ATC = 22, both at Q = 45. With fixed_cost F the curves
-  follow from MC: AVC = 0.02(Q-45)^2+25.5 (min 25.5 at Q = 45, on MC) and
-  ATC = AVC+F/Q, whose min lies on MC (F = 400: Q ~ 49, ATC ~ 34). A price
-  between min AVC and min ATC is the loss-but-produce case; below min AVC,
-  shutdown. Set mark_minima to add dots on both minima (min_avc, min_atc).
+  competition, monopoly pricing, or monopoly deadweight loss. Curves: MC =
+  0.06(Q-30)^2+12; AVC = 0.02(Q-45)^2+25.5 and ATC = AVC+F/Q follow from it,
+  so MC passes through both minima: min AVC 25.5 at Q = 45, min ATC ~34 at
+  Q ~ 49 with the default fixed_cost F = 400. A price between min AVC and
+  min ATC is the loss-but-produce case; below min AVC, shutdown. Set
+  mark_minima to add dots on both minima (min_avc, min_atc).
 params:
   type: object
   properties:
@@ -375,7 +374,7 @@ params:
       description: "Shade a profit/loss rectangle at the profit-maximizing quantity (either mode), or, monopoly only, the deadweight-loss triangle between demand and MC from the monopoly quantity to the competitive quantity. Omit for no shading."
     fixed_cost:
       type: number
-      description: "Fixed cost F, 0-2000 (omit for the default curves). ATC - AVC = F/Q, so a larger F widens the band between them. Numeric and animates smoothly."
+      description: "Fixed cost F, 0-2000 (default 400). ATC - AVC = F/Q, so a larger F widens the band between them. Numeric and animates smoothly."
     mark_minima:
       type: boolean
       description: "Add min_avc (shutdown point) and min_atc (break-even point) dots on the curves (default false)."
@@ -394,21 +393,20 @@ examples:
   - request: "Show a monopolist's profit-maximizing quantity and the resulting deadweight loss."
     params: { mode: "monopoly", shade: "deadweight" }
   - request: "Show a firm that keeps producing at a loss because price covers its variable cost."
-    params: { fixed_cost: 400, price: 30, shade: "loss", mark_minima: true }
+    params: { price: 30, shade: "loss", mark_minima: true }
 layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const mcExpr = kit.expr("0.06*(x-30)^2 + 12", ["x"]);
-  // Default: the original reference curves (min AVC 14, min ATC 22, both at Q=45).
-  // With fixed_cost F: TVC = integral of MC, so AVC = 0.02(x-45)^2 + 25.5 meets MC
-  // at its minimum, and ATC = AVC + F/x meets MC at its own.
+  // TVC = integral of MC, so AVC = 0.02(x-45)^2 + 25.5 meets MC at its minimum,
+  // and ATC = AVC + F/x meets MC at its own (F = 400: Q ~ 49, ATC ~ 34).
   const fixedCost = typeof params.fixed_cost === "number" && Number.isFinite(params.fixed_cost)
-    ? Math.min(2000, Math.max(0, params.fixed_cost)) : null;
-  const atcExpr = fixedCost === null ? kit.expr("0.04*(x-45)^2 + 22", ["x"]) : kit.expr("0.02*(x-45)^2 + 25.5 + f/x", ["x", "f"]);
-  const avcExpr = fixedCost === null ? kit.expr("0.04*(x-45)^2 + 14", ["x"]) : kit.expr("0.02*(x-45)^2 + 25.5", ["x"]);
+    ? Math.min(2000, Math.max(0, params.fixed_cost)) : 400;
+  const atcExpr = kit.expr("0.02*(x-45)^2 + 25.5 + f/x", ["x", "f"]);
+  const avcExpr = kit.expr("0.02*(x-45)^2 + 25.5", ["x"]);
   const demandExpr = kit.expr("90 - 0.8*x", ["x"]);
   const mrExpr = kit.expr("90 - 1.6*x", ["x"]);
   const mc = (x) => mcExpr({ x });
-  const atc = (x) => atcExpr({ x, f: fixedCost ?? 0 });
+  const atc = (x) => atcExpr({ x, f: fixedCost });
   const avc = (x) => avcExpr({ x });
   function argmin(f) {
     let lo = 1, hi = 100;

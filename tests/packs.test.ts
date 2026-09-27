@@ -718,15 +718,16 @@ describe("economics pack", () => {
     expect(ids).toContain("shade");
   });
 
-  test("firm_cost_curves: min_avc / min_atc sit at the curves' minima; with fixed_cost MC passes through both", () => {
+  test("firm_cost_curves: min_avc / min_atc sit at the curves' minima, and MC passes through both", () => {
     registerPack("economics", economicsYaml);
     const r0 = scenes.firm_cost_curves.layout!({ mark_minima: true });
     expect(scenes.firm_cost_curves.layout!({}).anchors.min_avc).toBeUndefined();
-    // default curves: both minima at Q=45 (AVC 14, ATC 22); plot maps 0..100 onto 120..930 / 95..675
+    // min AVC 25.5 at Q=45; plot maps 0..100 onto 120..930 / 95..675
     expect(r0.anchors.min_avc[0]).toBeCloseTo(120 + 0.45 * 810, 0);
-    expect(r0.anchors.min_avc[1]).toBeCloseTo(95 + 0.14 * 580, 0);
-    expect(r0.anchors.min_atc[1]).toBeCloseTo(95 + 0.22 * 580, 0);
-    const r = scenes.firm_cost_curves.layout!({ fixed_cost: 400, mark_minima: true });
+    expect(r0.anchors.min_avc[1]).toBeCloseTo(95 + 0.255 * 580, 0);
+    // the default fixed cost is 400: the same curves as writing it out
+    expect(r0.anchors.min_atc).toEqual(scenes.firm_cost_curves.layout!({ fixed_cost: 400, mark_minima: true }).anchors.min_atc);
+    const r = r0;
     const toWorld = ([x, y]: [number, number]) => [((x - 120) / 810) * 100, ((y - 95) / 580) * 100];
     const mc = (q: number) => 0.06 * (q - 30) ** 2 + 12;
     for (const id of ["min_avc", "min_atc"]) {
