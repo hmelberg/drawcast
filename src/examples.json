@@ -72342,5 +72342,316 @@
         }
       ]
     }
+  },
+  {
+    "request": "Why does a straw look bent in water?",
+    "spec": {
+      "title": "Why a straw looks bent in water",
+      "template": "refraction",
+      "params": {
+        "medium1": "water",
+        "n1": 1.33,
+        "medium2": "air",
+        "n2": 1,
+        "light_from": "below",
+        "theta1_deg": 30,
+        "apparent": true,
+        "eye": true,
+        "source_label": "straw tip",
+        "show_reflection": false,
+        "show_critical": false
+      },
+      "elements": [
+        {
+          "id": "straw",
+          "type": "path",
+          "points": [
+            [
+              390,
+              209.5
+            ],
+            [
+              255,
+              495.3
+            ]
+          ],
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 9,
+            "opacity": 0.85
+          }
+        },
+        {
+          "id": "straw_seen",
+          "type": "path",
+          "points": [
+            [
+              390,
+              276.5
+            ],
+            [
+              300,
+              400
+            ]
+          ],
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 6,
+            "dash": true
+          }
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "The bent straw"
+          }
+        },
+        {
+          "draw": [
+            "media",
+            "boundary"
+          ],
+          "speak": "Why does a straw standing in a glass of water look broken, right at the surface?"
+        },
+        {
+          "draw": [
+            "straw"
+          ],
+          "speak": "The straw itself is perfectly straight."
+        },
+        {
+          "draw": [
+            "source",
+            "source_label"
+          ],
+          "speak": "Follow the light from one point on it: its tip, under the water."
+        },
+        {
+          "draw": [
+            "incident_ray"
+          ],
+          "speak": "That light travels up toward the surface in a straight line."
+        },
+        {
+          "draw": [
+            "normal",
+            "theta1_arc",
+            "theta1_label"
+          ],
+          "speak": "Measured from the dashed line square to the surface, it arrives at thirty degrees."
+        },
+        {
+          "draw": [
+            "refracted_ray"
+          ],
+          "speak": "Crossing into air, it bends away from that line."
+        },
+        {
+          "draw": [
+            "theta2_arc",
+            "theta2_label"
+          ],
+          "speak": "It leaves at almost forty-two degrees."
+        },
+        {
+          "highlight": {
+            "target": [
+              "n1_label",
+              "n2_label"
+            ]
+          },
+          "speak": "Light moves about a third faster in air than in water, and the side of the beam that gets out first pulls ahead, swinging the beam round."
+        },
+        {
+          "draw": [
+            "eye"
+          ],
+          "speak": "Now put your eye where that light lands."
+        },
+        {
+          "draw": [
+            "apparent_ray"
+          ],
+          "speak": "Your brain assumes light travels in straight lines, so it traces the ray straight back."
+        },
+        {
+          "draw": [
+            "image",
+            "image_label"
+          ],
+          "speak": "That line points above the real tip: the tip looks shallower than it is."
+        },
+        {
+          "draw": [
+            "straw_seen"
+          ],
+          "speak": "Every point below the surface is lifted the same way, while the part in the air stays put, so the straw seems to kink at the surface."
+        },
+        {
+          "erase": [
+            "straw",
+            "straw_seen"
+          ],
+          "speak": "The straw was never bent; the light was."
+        },
+        {
+          "animate": {
+            "theta1_deg": 44
+          },
+          "duration": 3,
+          "speak": "Look from a lower angle, and the tip seems to rise even higher."
+        },
+        {
+          "explore": {},
+          "speak": "Now drag the tip or the ray yourself, and watch where the tip appears."
+        },
+        {
+          "quiz": {
+            "question": "Looking into a pool, where does a coin on the bottom seem to be?",
+            "choices": [
+              "Deeper than it is",
+              "Shallower than it is",
+              "Exactly where it is"
+            ],
+            "correct": 2,
+            "right": "Shallower: its light bends away from the normal as it leaves the water, and traced straight back it points above the coin.",
+            "wrong": "Think about which way the light bends as it leaves the water."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "What do electric field lines tell you?",
+    "spec": {
+      "title": "What electric field lines tell you",
+      "template": "field_lines",
+      "params": {
+        "charges": [
+          {
+            "q": 1,
+            "x": -2,
+            "y": 0
+          },
+          {
+            "q": -1,
+            "x": 2,
+            "y": 0
+          }
+        ],
+        "test_charge": {
+          "x": 0,
+          "y": 1.9
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Field lines"
+          }
+        },
+        {
+          "draw": [
+            "charges"
+          ],
+          "speak": "What do the lines drawn around electric charges actually tell you?"
+        },
+        {
+          "draw": [
+            "lines"
+          ],
+          "speak": "Each line traces the way a small positive charge would be pushed, point by point."
+        },
+        {
+          "draw": [
+            "test_charge",
+            "test_force",
+            "test_force_label"
+          ],
+          "speak": "Put a tiny test charge anywhere, and the force on it points along the line through that spot."
+        },
+        {
+          "highlight": {
+            "target": [
+              "charge_0"
+            ]
+          },
+          "speak": "Lines start on positive charges,"
+        },
+        {
+          "highlight": {
+            "target": [
+              "charge_1"
+            ]
+          },
+          "speak": "and end on negative ones, so the arrows always run from plus to minus."
+        },
+        {
+          "animate": {
+            "test_charge.x": -1.2,
+            "test_charge.y": 0.8
+          },
+          "duration": 3,
+          "speak": "Slide the test charge in toward the plus charge, where the lines crowd together, and its arrow grows."
+        },
+        {
+          "speak": "That is the second thing the picture shows: crowded lines mean a strong field, sparse lines a weak one."
+        },
+        {
+          "highlight": {
+            "target": [
+              "lines"
+            ]
+          },
+          "speak": "And lines never cross, because at any point the push has only one direction."
+        },
+        {
+          "speak": "Now watch what happens if the right-hand charge turns positive too."
+        },
+        {
+          "animate": {
+            "charges.1.q": 1
+          },
+          "duration": 4,
+          "speak": "The lines stop joining the two charges: they bend away from each other and run off the page."
+        },
+        {
+          "point": {
+            "at": {
+              "data": [
+                0,
+                0
+              ]
+            },
+            "gesture": "circle"
+          },
+          "speak": "Halfway between, the two pushes cancel, and no line crosses this empty spot."
+        },
+        {
+          "speak": "Unlike charges, joined by lines, pull together; like charges push apart."
+        },
+        {
+          "explore": {},
+          "speak": "Now drag the charges around, or tap one to flip its sign, and watch the lines rearrange."
+        },
+        {
+          "speak": "So a field line picture shows, at a glance, which way a charge would be pushed, and how hard."
+        },
+        {
+          "quiz": {
+            "question": "Where on a field line picture is the force on a test charge strongest?",
+            "choices": [
+              "Where the lines spread apart",
+              "Where the lines crowd together",
+              "Where two lines cross"
+            ],
+            "correct": 2,
+            "right": "Where the lines crowd together: the closer the lines, the stronger the field.",
+            "wrong": "Think about what the spacing of the lines stands for."
+          }
+        }
+      ]
+    }
   }
 ]
