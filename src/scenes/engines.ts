@@ -893,7 +893,9 @@ export async function ensureEnginesForTemplate(id: string): Promise<void> {
  * The engines a spec's own ELEMENTS need — today only mathjax, for a `math`
  * element or a `label` written as TeX (schema.normalizeSpec turns the latter
  * into the former, so both spellings are read here: enginesForSpec runs on
- * raw, un-normalised specs too).
+ * raw, un-normalised specs too) — and for a `scratch` card with a
+ * `{tex}` line in its `work`, which becomes a math element only when
+ * spec/scratch.ts expands it, after the engines are chosen.
  *
  * Element engines only: a TEMPLATE's engines live in its manifest, and the
  * registry is reachable from this module solely through a deferred import
@@ -902,7 +904,13 @@ export async function ensureEnginesForTemplate(id: string): Promise<void> {
  */
 export function enginesForSpec(spec: Partial<Spec>): string[] {
   const els = Array.isArray(spec?.elements) ? spec.elements : [];
-  const needsMath = els.some((el) => el && (el.type === "math" || typeof el.tex === "string"));
+  const needsMath = els.some(
+    (el) =>
+      el &&
+      (el.type === "math" ||
+        typeof el.tex === "string" ||
+        (el.type === "scratch" && Array.isArray(el.work) && el.work.some((l) => typeof (l as { tex?: unknown })?.tex === "string"))),
+  );
   const needsMusic = els.some((el) => el && el.type === "music");
   return [...(needsMath ? ["mathjax"] : []), ...(needsMusic ? ["music"] : [])];
 }
