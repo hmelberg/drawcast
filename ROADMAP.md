@@ -3091,6 +3091,25 @@ tests/explore-command.test.ts. (Related: decision_tree's tray has no p
 slider — the probabilities are dragged on the figure — so ⊕ offers only the
 node-type choice there.)
 
+## Overnight round 2026-09-29: playback, Sources corner, burstiness, parameter colours, live math, timeline — done
+
+From Hans's notes of 2026-09-29 (items 1–5; several templates per screen stays parked, see "template-as-element" above). Built in parallel worktrees, merged on main, all tests green.
+
+- **Playback.** Pause → seek → play is heard again (`SpeechManager.cancel()` resumes the synth; Chrome/Safari keep `paused` across cancel, so every line had queued silently behind it). A ☰ jump or part change keeps the viewer's current mute, mode and speed (`src/playlist/live-prefs.ts`) instead of the session's starting ones.
+- **Sources / More corner** (`more` on the spec; `src/ui/more-model.ts`, `more.ts`). A spec with `sources` gets a quiet "Sources" chip on the stage, bottom right, for free; `more: false` hides it; `more: {label, corner, items, open}` adds non-source entries (`{title, url, text, image}`); `image` on sources gives thumbnails (YouTube links get one automatically). Opens up from a bottom corner, down from a top one; pauses the cast; not drawn in exports. Lint `more-list`.
+- **Queue burstiness** (des_process): `variability` (CV of gaps or service; 0 regular, 1 Poisson, >1 clumped; gamma by inverse CDF so animating it reshapes the same run), `schedule` (arrival rate over the day, step or smooth, drawn as a band under the first time chart), `batch` (group arrivals). Theory uses the true ca²/cs²; with a schedule the curve reads "theory, if steady". On-canvas scrubbable `CV` readout; casts animate `nodes.<i>.variability`.
+- **Parameter colours** (equation_plot, plot3d): `PARAM_PALETTE` in layout/model.ts; each editable parameter's letter, number, slider row and driven marks share its colour; `color` override; the letter flashes while the viewer changes it. `equation_form` default stays "values"; the manifest steers to "both" when a cast explains its parameters.
+- **Live math** (docs/superpowers/specs/2026-09-29-live-math-design.md): `{name}` in a `math` element's tex draws the var's value and is live by default (scrub / tap to type, same press rule as template live numbers), coloured from `PARAM_PALETTE`, the same colour marking the number in text and labels; `form: values|symbols|both`; vars take an object form `{value, min, max, step, decimals, color, fixed}` or `{expr}` (computed). A braced argument stays a letter; `^{{t}}` writes the value.
+- **Timeline rewrite**: dated events (years, BCE, "66 Ma", "1960s" …), `scale: linear|log_ago`, nested `eras` bands, events with `portrait`/`image`/`links`/`cites`/`details`/`priority`, `view` window animatable (log-space tween on log_ago), priority level of detail (labels drop to dots and return on zoom), paused pan/zoom with Reset view, cards on events. Old `milestones` still render (labels now alternate above/below). New template hooks: `cards`, `pictures` (resolved before layout, portrait cache), `tweenSpace`. Info cards now hit-test the layout as currently drawn.
+- **Examples**: 339 second nurse now has a midday peak (old copy dev-casts/old-339.json); new 345 bursty arrivals, 346 a, b and c, 347 discounting (live PV), 348 10,000 steps (Sources), 349 health-economics history timeline, 350 deep time.
+
+Open, from the round:
+- des_process: schedule points not draggable (clashes with drag-to-move-time); only the first scheduled source gets a band; theory assumes random arrivals for merged or split flows; `batch_<id>` not in the manifest ids; the CV scrub is quick (60 px ≈ 2.0).
+- Sources corner: not checked visually in multi-part playlists, phone width, top corners or dark mode; the chip label isn't translated; uses CSS `:has`.
+- Colours: a second `trail` on the same point makes `<id>_trail_2`; a turning-point dot appears unasked when a turns negative (old behaviour); the letter flash uses emphasis red, not the parameter colour.
+- Live math: a cast can't `highlight` a single live number (nested parts); vars inside `label` tex or template equations aren't live; plain `{r}` in text formats 0.035 as "0" unless `decimals` or `{r:3}`.
+- Timeline: a showing hover tooltip isn't closed on pinch zoom; the axis height is computed from the whole timeline, so an early beat may show a label high up; crowded log_ago stretches can drop priority-2 labels (zoom in for them); pictures resolve only on the render path.
+
 ## Housekeeping
 
 - Regenerate `package-lock.json` (`npm install`) and switch CI back to

@@ -76853,5 +76853,679 @@
         }
       ]
     }
+  },
+  {
+    "request": "Where did the big ideas of health economics come from? A timeline of the founding papers.",
+    "spec": {
+      "title": "Where health economics came from",
+      "template": "timeline",
+      "params": {
+        "view": {
+          "from": 1958,
+          "to": 2004
+        },
+        "eras": [
+          {
+            "from": 1960,
+            "to": 1975,
+            "label": "Theory"
+          },
+          {
+            "from": 1975,
+            "to": 1990,
+            "label": "Methods"
+          },
+          {
+            "from": 1990,
+            "to": 2003,
+            "label": "Policy"
+          }
+        ],
+        "events": [
+          {
+            "id": "arrow",
+            "date": 1963,
+            "label": "Arrow",
+            "sublabel": "uncertainty",
+            "portrait": "Kenneth Arrow",
+            "priority": 1,
+            "links": [
+              "https://www.jstor.org/stable/1812044"
+            ],
+            "details": "Uncertainty and the welfare economics of medical care, American Economic Review 1963: medical care is not an ordinary market — the patient cannot judge quality, and illness is unpredictable."
+          },
+          {
+            "id": "klarman",
+            "date": 1968,
+            "label": "Klarman",
+            "sublabel": "dialysis vs transplant",
+            "priority": 2,
+            "details": "Klarman, Francis and Rosenthal compared kidney dialysis with transplantation and counted a year with a working graft as worth more than a year on dialysis."
+          },
+          {
+            "id": "pauly",
+            "date": 1968.6,
+            "label": "Pauly",
+            "sublabel": "moral hazard",
+            "priority": 3
+          },
+          {
+            "id": "fanshel",
+            "date": 1970,
+            "label": "Fanshel & Bush",
+            "sublabel": "health index",
+            "priority": 2,
+            "links": [
+              "https://doi.org/10.1287/opre.18.6.1021"
+            ]
+          },
+          {
+            "id": "grossman",
+            "date": 1972,
+            "label": "Grossman",
+            "sublabel": "demand for health",
+            "priority": 1,
+            "links": [
+              "https://doi.org/10.1086/259880"
+            ],
+            "details": "On the concept of health capital and the demand for health, Journal of Political Economy 1972: health is a stock people invest in; medical care is one input."
+          },
+          {
+            "id": "torrance",
+            "date": 1972.6,
+            "label": "Torrance",
+            "sublabel": "utilities",
+            "priority": 2,
+            "links": [
+              "https://pubmed.ncbi.nlm.nih.gov/5044699/"
+            ]
+          },
+          {
+            "id": "rand",
+            "date": 1974,
+            "label": "RAND experiment",
+            "sublabel": "price and use",
+            "priority": 3,
+            "links": [
+              "https://en.wikipedia.org/wiki/RAND_Health_Insurance_Experiment"
+            ]
+          },
+          {
+            "id": "qaly",
+            "date": 1976,
+            "label": "“QALY”",
+            "sublabel": "Zeckhauser & Shepard",
+            "priority": 2
+          },
+          {
+            "id": "weinstein",
+            "date": 1977,
+            "label": "Weinstein & Stason",
+            "sublabel": "cost-effectiveness",
+            "priority": 1,
+            "emphasize": true,
+            "cites": [
+              "ws77"
+            ],
+            "links": [
+              "https://doi.org/10.1056/NEJM197703312961304"
+            ]
+          },
+          {
+            "id": "williams",
+            "date": 1985,
+            "label": "Williams",
+            "sublabel": "cost per QALY",
+            "priority": 2,
+            "links": [
+              "https://doi.org/10.1136/bmj.291.6491.326"
+            ]
+          },
+          {
+            "id": "euroqol",
+            "date": 1990,
+            "label": "EQ-5D",
+            "sublabel": "EuroQol",
+            "priority": 2,
+            "links": [
+              "https://doi.org/10.1016/0168-8510(90)90421-9"
+            ]
+          },
+          {
+            "id": "panel",
+            "date": 1996,
+            "label": "US Panel",
+            "sublabel": "reference case",
+            "priority": 3
+          },
+          {
+            "id": "nice",
+            "date": 1999,
+            "label": "NICE",
+            "sublabel": "England",
+            "priority": 1,
+            "links": [
+              "https://en.wikipedia.org/wiki/National_Institute_for_Health_and_Care_Excellence"
+            ]
+          }
+        ]
+      },
+      "sources": [
+        {
+          "id": "ws77",
+          "title": "Foundations of cost-effectiveness analysis for health and medical practices",
+          "authors": "Weinstein and Stason",
+          "year": 1977,
+          "doi": "10.1056/NEJM197703312961304",
+          "finding": "cost per quality-adjusted life year as the yardstick"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Where health economics came from"
+          }
+        },
+        {
+          "draw": [
+            "axis"
+          ],
+          "speak": "Health economics is younger than most people think. Here is how its big ideas arrived, one paper at a time."
+        },
+        {
+          "draw": [
+            "eras"
+          ],
+          "speak": "Roughly: first the theory, then the methods, then the policy that uses them."
+        },
+        {
+          "draw": [
+            "event_arrow"
+          ],
+          "speak": "It starts in 1963, with Kenneth Arrow asking why medical care is not an ordinary market."
+        },
+        {
+          "highlight": {
+            "target": [
+              "event_arrow"
+            ]
+          },
+          "speak": "Patients cannot judge what they buy, and nobody knows when they will fall ill. Those two facts shape everything after."
+        },
+        {
+          "draw": [
+            "event_klarman",
+            "event_pauly"
+          ],
+          "speak": "By the late sixties the ideas crowd together."
+        },
+        {
+          "animate": {
+            "view.from": 1966.5,
+            "view.to": 1979.5
+          },
+          "duration": 2.5,
+          "speak": "So let us zoom into that crowded decade."
+        },
+        {
+          "draw": [
+            "event_fanshel"
+          ],
+          "speak": "In 1970 Fanshel and Bush put states of health on one scale, from full health down to death."
+        },
+        {
+          "draw": [
+            "event_grossman"
+          ],
+          "speak": "In 1972 Michael Grossman treated health as a stock people invest in; medical care is only one input."
+        },
+        {
+          "draw": [
+            "event_torrance",
+            "event_rand"
+          ],
+          "speak": "Torrance measured how much people value each state, and the RAND experiment tested what prices do to use."
+        },
+        {
+          "draw": [
+            "event_qaly"
+          ],
+          "speak": "By 1976 the combined unit had a name: the quality-adjusted life year."
+        },
+        {
+          "draw": [
+            "event_weinstein"
+          ],
+          "speak": "And in 1977 Weinstein and Stason wrote the recipe: cost per quality-adjusted life year gained."
+        },
+        {
+          "highlight": {
+            "target": [
+              "event_weinstein"
+            ]
+          },
+          "speak": "That ratio is still the yardstick today."
+        },
+        {
+          "animate": {
+            "view.from": 1958,
+            "view.to": 2004
+          },
+          "duration": 2.5,
+          "speak": "Now step back out."
+        },
+        {
+          "draw": [
+            "event_williams",
+            "event_euroqol",
+            "event_panel"
+          ],
+          "speak": "Then came the tools: Alan Williams' league tables, the EQ-5D questionnaire, and agreed rules for doing the sums."
+        },
+        {
+          "draw": [
+            "event_nice"
+          ],
+          "speak": "And in 1999 England's NICE began deciding what the health service pays for, with exactly this arithmetic."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "event_arrow"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Pause and click any paper to read it — from Arrow's question to NICE's answer took thirty-six years."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Show the whole history of the Earth on one timeline, from its formation to the Iron Age.",
+    "spec": {
+      "title": "4.5 billion years on one line",
+      "template": "timeline",
+      "params": {
+        "scale": "log_ago",
+        "view": {
+          "from": -4600000000,
+          "to": 1990
+        },
+        "eras": [
+          {
+            "from": "4.6 Ga",
+            "to": "4.0 Ga",
+            "label": "Hadean",
+            "color": "#AE027E"
+          },
+          {
+            "from": "4.0 Ga",
+            "to": "2.5 Ga",
+            "label": "Archean",
+            "color": "#F0047F"
+          },
+          {
+            "from": "2.5 Ga",
+            "to": "541 Ma",
+            "label": "Proterozoic",
+            "color": "#F73563"
+          },
+          {
+            "from": "541 Ma",
+            "to": "now",
+            "label": "Phanerozoic",
+            "color": "#9AD9DD"
+          },
+          {
+            "from": "541 Ma",
+            "to": "252 Ma",
+            "label": "Paleozoic",
+            "level": 1,
+            "color": "#99C08D"
+          },
+          {
+            "from": "252 Ma",
+            "to": "66 Ma",
+            "label": "Mesozoic",
+            "level": 1,
+            "color": "#67C5CA"
+          },
+          {
+            "from": "66 Ma",
+            "to": "now",
+            "label": "Cenozoic",
+            "level": 1,
+            "color": "#F2E61D"
+          },
+          {
+            "from": "541 Ma",
+            "to": "485 Ma",
+            "label": "Cambrian",
+            "level": 2,
+            "color": "#7FA056"
+          },
+          {
+            "from": "485 Ma",
+            "to": "444 Ma",
+            "label": "Ordovician",
+            "level": 2,
+            "color": "#009270"
+          },
+          {
+            "from": "444 Ma",
+            "to": "419 Ma",
+            "label": "Silurian",
+            "level": 2,
+            "color": "#B3E1B6"
+          },
+          {
+            "from": "419 Ma",
+            "to": "359 Ma",
+            "label": "Devonian",
+            "level": 2,
+            "color": "#CB8C37"
+          },
+          {
+            "from": "359 Ma",
+            "to": "299 Ma",
+            "label": "Carboniferous",
+            "level": 2,
+            "color": "#67A599"
+          },
+          {
+            "from": "299 Ma",
+            "to": "252 Ma",
+            "label": "Permian",
+            "level": 2,
+            "color": "#F04028"
+          },
+          {
+            "from": "252 Ma",
+            "to": "201 Ma",
+            "label": "Triassic",
+            "level": 2,
+            "color": "#812B92"
+          },
+          {
+            "from": "201 Ma",
+            "to": "145 Ma",
+            "label": "Jurassic",
+            "level": 2,
+            "color": "#34B2C9"
+          },
+          {
+            "from": "145 Ma",
+            "to": "66 Ma",
+            "label": "Cretaceous",
+            "level": 2,
+            "color": "#7FC64E"
+          },
+          {
+            "from": "66 Ma",
+            "to": "23 Ma",
+            "label": "Paleogene",
+            "level": 2,
+            "color": "#FD9A52"
+          },
+          {
+            "from": "23 Ma",
+            "to": "2.58 Ma",
+            "label": "Neogene",
+            "level": 2,
+            "color": "#FFE619"
+          },
+          {
+            "from": "2.58 Ma",
+            "to": "now",
+            "label": "Quaternary",
+            "level": 2,
+            "color": "#F9F97F"
+          },
+          {
+            "from": "3.3 Ma",
+            "to": "3300 BCE",
+            "label": "Stone Age",
+            "level": 3,
+            "color": "#b9a78a"
+          },
+          {
+            "from": "3300 BCE",
+            "to": "1200 BCE",
+            "label": "Bronze Age",
+            "level": 3,
+            "color": "#cd8a4c"
+          },
+          {
+            "from": "1200 BCE",
+            "to": "500",
+            "label": "Iron Age",
+            "level": 3,
+            "color": "#8c8f96"
+          }
+        ],
+        "events": [
+          {
+            "id": "earth",
+            "date": "4.54 Ga",
+            "label": "Earth forms",
+            "priority": 1,
+            "links": [
+              "https://en.wikipedia.org/wiki/Age_of_Earth"
+            ]
+          },
+          {
+            "id": "life",
+            "date": "3.7 Ga",
+            "label": "Life",
+            "priority": 2
+          },
+          {
+            "id": "oxygen",
+            "date": "2.4 Ga",
+            "label": "Oxygen",
+            "sublabel": "in the air",
+            "priority": 2,
+            "links": [
+              "https://en.wikipedia.org/wiki/Great_Oxidation_Event"
+            ]
+          },
+          {
+            "id": "cambrian",
+            "date": "538 Ma",
+            "label": "Animals",
+            "sublabel": "Cambrian",
+            "priority": 1,
+            "links": [
+              "https://en.wikipedia.org/wiki/Cambrian_explosion"
+            ]
+          },
+          {
+            "id": "dying",
+            "date": "252 Ma",
+            "label": "Great Dying",
+            "priority": 3
+          },
+          {
+            "id": "asteroid",
+            "date": "66 Ma",
+            "label": "Asteroid",
+            "sublabel": "dinosaurs end",
+            "priority": 1,
+            "emphasize": true,
+            "links": [
+              "https://en.wikipedia.org/wiki/Chicxulub_impactor"
+            ],
+            "details": "A rock about ten kilometres across struck what is now Mexico; three in four species died out, and mammals inherited the Earth."
+          },
+          {
+            "id": "split",
+            "date": "6 Ma",
+            "label": "Our line splits",
+            "sublabel": "from chimps",
+            "priority": 3
+          },
+          {
+            "id": "tools",
+            "date": "3.3 Ma",
+            "label": "Stone tools",
+            "priority": 2
+          },
+          {
+            "id": "sapiens",
+            "date": "300 ka",
+            "label": "Homo sapiens",
+            "priority": 1,
+            "links": [
+              "https://en.wikipedia.org/wiki/Jebel_Irhoud"
+            ]
+          },
+          {
+            "id": "farming",
+            "date": "12 ka",
+            "label": "Farming",
+            "priority": 2
+          },
+          {
+            "id": "writing",
+            "date": "3200 BCE",
+            "label": "Writing",
+            "priority": 2
+          },
+          {
+            "id": "iron",
+            "date": "1200 BCE",
+            "label": "Iron",
+            "priority": 3
+          }
+        ]
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "4.5 billion years on one line"
+          }
+        },
+        {
+          "draw": [
+            "axis"
+          ],
+          "speak": "Here is the whole history of the Earth on one line. Each step to the left goes ten times further back."
+        },
+        {
+          "draw": [
+            "era_0",
+            "era_1",
+            "era_2",
+            "era_3"
+          ],
+          "speak": "Geologists split it into four eons. Three of them are almost all microbes."
+        },
+        {
+          "animate": {
+            "view.from": -4600000000,
+            "view.to": -300000000
+          },
+          "duration": 2.5,
+          "speak": "On this scale the first four billion years are squeezed into the left edge, so zoom in on them."
+        },
+        {
+          "draw": [
+            "event_earth",
+            "event_life",
+            "event_oxygen"
+          ],
+          "speak": "The Earth forms, life starts within a few hundred million years, and much later the air fills with oxygen."
+        },
+        {
+          "animate": {
+            "view.from": -4600000000,
+            "view.to": 1990
+          },
+          "duration": 2.5,
+          "speak": "Now back out."
+        },
+        {
+          "draw": [
+            "era_4",
+            "era_5",
+            "era_6",
+            "event_cambrian"
+          ],
+          "speak": "Only in the last half-billion years do animals appear — the Cambrian explosion."
+        },
+        {
+          "draw": [
+            "event_dying",
+            "event_asteroid"
+          ],
+          "speak": "Sixty-six million years ago an asteroid ends the dinosaurs."
+        },
+        {
+          "highlight": {
+            "target": [
+              "event_asteroid"
+            ]
+          },
+          "speak": "Mammals inherit the Earth."
+        },
+        {
+          "draw": [
+            "era_7",
+            "era_8",
+            "era_9",
+            "era_10",
+            "era_11",
+            "era_12",
+            "era_13",
+            "era_14",
+            "era_15",
+            "era_16",
+            "era_17",
+            "era_18"
+          ],
+          "speak": "The eras split again into periods: Jurassic, Cretaceous and the rest."
+        },
+        {
+          "animate": {
+            "view.from": -8000000,
+            "view.to": 1990
+          },
+          "duration": 3,
+          "speak": "Now zoom in on the last few million years — our part of the story."
+        },
+        {
+          "draw": [
+            "event_split",
+            "event_tools",
+            "event_sapiens"
+          ],
+          "speak": "Our line splits from the chimpanzees; stone tools appear; and three hundred thousand years ago, Homo sapiens."
+        },
+        {
+          "draw": [
+            "era_19",
+            "event_farming"
+          ],
+          "speak": "For almost all of that time we live in the Stone Age. Farming begins only twelve thousand years ago."
+        },
+        {
+          "draw": [
+            "era_20",
+            "era_21",
+            "event_writing",
+            "event_iron"
+          ],
+          "speak": "Then things speed up: bronze, writing, iron — all squeezed into the last five thousand years."
+        },
+        {
+          "animate": {
+            "view.from": -4600000000,
+            "view.to": 1990
+          },
+          "duration": 3,
+          "speak": "Step back out. Each tick to the left is ten times further back, which is the only way our short story fits on the same line as the Earth's."
+        }
+      ]
+    }
   }
 ]
