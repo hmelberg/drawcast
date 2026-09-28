@@ -601,7 +601,9 @@ const BASELINE_SYSTEM_CHARS = 360000;
 // domain page — the $defs are inlined, so it counts several times). Measured 90705.
 // Re-pinned UP 2026-09-28 (population): the `population` element — count, states,
 // order, seed, legend, labels, and its clauses on layout/fit/colors. Measured 93059.
-const BASELINE_SCHEMA_CHARS = 93300;
+// Re-pinned UP 2026-09-29 (links): the `link` element — href, title, image, form,
+// open — and the spec-level `end_page`. Measured 93779.
+const BASELINE_SCHEMA_CHARS = 94000;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

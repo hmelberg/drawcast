@@ -3,6 +3,9 @@
 //   Editor: create drawings with AI or by hand, load examples and saved work,
 //           edit the spec JSON, and change/improve the compiler prompt.
 
+import { setDrawingOpener, setLinkBase } from "./links/base";
+import { courseBaseForDrawing, withCourse } from "./links/course";
+import type { LinkBase } from "./links/resolve";
 import { STALE_CHUNK_MESSAGE } from "./stale-chunk";
 import "./styles.css";
 import { type RenderHandle, type RenderStyle } from "./render";
@@ -78,7 +81,7 @@ import { mountPlaylist, playlistSpeakLines, type SessionHandle } from "./playlis
 import { appendRecord, localRecordStorage } from "./render/record";
 import { applyViewsFlag } from "./views";
 import { exportVideo, narrationLanguage, type ExportResult } from "./export/video";
-import { authorPosterPng, posterPng, snapshotPng } from "./export/snapshot";
+import { snapshotPng, posterForPlaylistText } from "./export/snapshot";
 import { beatSheets } from "./export/beat-sheet";
 import { LANGUAGES, languageLabel } from "./export/tts";
 import { subtitleLanguages } from "./spec/subtitles";
@@ -3044,6 +3047,21 @@ restoreBtn.addEventListener("click", () => {
   applyHistoryUi();
 });
 
+// A link to a lecture of a local course opens that lecture here, as the
+// course panel's ▶ does (links/base.ts; the viewer has no library).
+setDrawingOpener((id) => {
+  const saved = loadLibrary().find((d) => d.id === id);
+  if (saved) setDoc(docFromSaved(saved), `Loaded "${saved.title}".`);
+});
+
+/** A link base for the NEXT setDoc only — the dev ?open= knows its file's folder, setDoc does not. */
+let pendingLinkBase: LinkBase | null = null;
+function takePendingLinkBase(): LinkBase | null {
+  const b = pendingLinkBase;
+  pendingLinkBase = null;
+  return b;
+}
+
 function setDoc(next: Doc, statusText?: string, version?: { label: string; kind: "generate" | "revise" }): void {
   // Only the AI paths pass a version. A generation is this browser's own AI
   // output: all of it is trusted. A revise inherits: what it added is the
@@ -3051,6 +3069,10 @@ function setDoc(next: Doc, statusText?: string, version?: { label: string; kind:
   if (version?.kind === "generate") trustSpecs(specsOfPlaylist(next.playlist));
   else if (version?.kind === "revise") trustDerived(specsOfPlaylist(doc.playlist), specsOfPlaylist(next.playlist));
   doc = next;
+  // Where this document's links are read from (links/base.ts): a lecture of
+  // a local course reads lecture:N and ./file.yaml against that course; a
+  // file the dev server opened, against its folder; anything else has none.
+  setLinkBase((next.id ? courseBaseForDrawing(loadCourses().map((c) => c.text), next.id) : null) ?? takePendingLinkBase());
   // One founding request, two homes: the file carries it (playlist.meta.prompt,
   // B9) and the library keeps its own copy (Doc.prompt → SavedDrawing.prompt).
   // The file is authoritative WHEN IT HAS ONE — so opening a document that
@@ -4724,12 +4746,15 @@ if (import.meta.env.DEV) {
       .then((r) => (r.ok ? r.text() : Promise.reject(new Error(`${r.status}`))))
       // A cast on a pack template must not render before its pack is in.
       .then((text) => startupPacks.then(() => text, () => text))
-      .then((text) => {
+      .then(async (text) => {
         // The local author's files wrap the spec — {request, spec}, {request,
         // title, playlist} — as the frames harness accepts; read whole, a
         // wrapper parsed as a blank spec and played 0 steps (playlist/cast-file.ts).
         const cast = unwrapCastText(text);
         const playlist = readPlaylistText(cast.text);
+        const dir = openPath.slice(0, openPath.lastIndexOf("/") + 1);
+        const courseText = /lecture:\d/.test(cast.text) ? await fetch(`${dir}course.md`).then((r) => (r.ok ? r.text() : null), () => null) : null;
+        pendingLinkBase = withCourse({ kind: "dev", path: openPath }, openPath.slice(dir.length), courseText);
         // Dev only: the local author's own files.
         if (playlist) trustSpecs(specsOfPlaylist(playlist));
         if (playlist) setDoc({ id: null, driveFileId: null, sourcePath: null, title: docTitleOf(playlist, cast.title ?? openPath.split("/").pop() ?? "cast"), playlist }, "Opened.");
@@ -4810,15 +4835,7 @@ if (import.meta.env.DEV) {
  * never a reason to stop a publish.
  */
 async function publishedPoster(text: string): Promise<Uint8Array | null> {
-  try {
-    const playlist = parsePlaylistText(text);
-    const own = playlist.meta.poster ? await authorPosterPng(playlist.meta.poster) : null;
-    if (own) return own;
-    const first = itemsOf(playlist)[0];
-    return first ? await posterPng(first.spec) : null;
-  } catch {
-    return null;
-  }
+  return posterForPlaylistText(text);
 }
 
 function embedDeps(): EmbedDeps {

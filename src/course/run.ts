@@ -8,7 +8,7 @@ import { type GenerateConfig } from "../llm/compile";
 import { generateFromOutline, outlineParts, type PartsRequest, type PartsResult } from "../llm/multi";
 import type { Outline } from "../llm/outline";
 import { buildBrief, parseTags } from "../llm/tags";
-import { DEFAULT_META, entriesForParts, itemsOf, makeNextCard, parsePlaylistText, type Playlist, type PlaylistEntry } from "../playlist/playlist";
+import { DEFAULT_META, entriesForParts, itemsOf, makeEndPage, parsePlaylistText, type Playlist, type PlaylistEntry } from "../playlist/playlist";
 import type { Spec } from "../spec/types";
 import type { SavedDrawing } from "../store";
 import { parseCourse, setLectureStatus, type Course, type CourseLecture } from "./document";
@@ -109,17 +109,25 @@ export function estimateMinutes(specs: Spec[]): number {
   return (lines * SECONDS_PER_SPEAK_LINE) / 60;
 }
 
-/** One lecture's playlist: its parts, its chapters, and the card naming what follows. */
+/** The end page of lecture `index` (0-based): its neighbours as links, or
+ *  null for a one-lecture course (nothing to link to). */
+export function endPageFor(course: Course, index: number): Spec | null {
+  const total = course.lectures.length;
+  if (total <= 1) return null;
+  return makeEndPage({
+    position: index + 1,
+    total,
+    ...(index > 0 ? { prev: course.lectures[index - 1].title } : {}),
+    ...(index + 1 < total ? { next: course.lectures[index + 1].title } : {}),
+  });
+}
+
+/** One lecture's playlist: its parts, its chapters, and the end page linking its neighbours. */
 export function lecturePlaylist(course: Course, index: number, result: PartsResult): Playlist {
   const lecture = course.lectures[index];
   const entries: PlaylistEntry[] = entriesForParts(result.specs, result.chapterOf);
-  const following = course.lectures[index + 1];
-  if (following) {
-    entries.push({
-      kind: "item",
-      spec: makeNextCard({ next: following.title, position: index + 2, total: course.lectures.length }),
-    });
-  }
+  const end = endPageFor(course, index);
+  if (end) entries.push({ kind: "item", spec: end });
   // The founding request travels in the file (B9), for a lecture exactly as
   // for a hand-typed Generate: what the teacher asked this lecture to cover.
   // The notes, not buildLectureRequest's assembled prompt — that one restates

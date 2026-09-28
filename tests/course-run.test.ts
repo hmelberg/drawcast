@@ -85,19 +85,22 @@ describe("estimateCalls", () => {
 describe("lecturePlaylist", () => {
   const spec = (title: string): Spec => ({ title, elements: [], commands: [] });
 
-  it("appends a next-card naming the following lecture", () => {
+  it("ends on an end page linking the next lecture by number", () => {
     const playlist = lecturePlaylist(parseCourse(DOC), 0, {
       outline: null,
       specs: [spec("a"), spec("b")],
       chapterOf: [undefined, undefined],
       failed: [],
     });
-    const items = itemsOf(playlist);
-    const texts = (items.at(-1)!.spec.elements ?? []).map((e) => ("text" in e ? e.text : "")).join(" ");
-    expect(texts).toContain("Difference-in-differences");
+    const end = itemsOf(playlist).at(-1)!.spec;
+    expect(end.end_page).toBe(true);
+    const next = (end.elements ?? []).find((e) => e.id === "end_next");
+    expect(next).toMatchObject({ type: "link", href: "lecture:2", title: "Difference-in-differences" });
+    expect((end.elements ?? []).some((e) => e.id === "end_prev")).toBe(false); // the first lecture has no previous
+    expect(end.commands?.[0]?.speak).toBe("Next: Difference-in-differences");
   });
 
-  it("adds no next-card to the last lecture", () => {
+  it("the last lecture's end page links back, not on", () => {
     const course = parseCourse(DOC);
     const playlist = lecturePlaylist(course, 2, {
       outline: null,
@@ -105,7 +108,12 @@ describe("lecturePlaylist", () => {
       chapterOf: [undefined],
       failed: [],
     });
-    expect(itemsOf(playlist)).toHaveLength(1);
+    const items = itemsOf(playlist);
+    expect(items).toHaveLength(2);
+    const ids = (items[1].spec.elements ?? []).map((e) => e.id);
+    expect(ids).toContain("end_prev");
+    expect(ids).not.toContain("end_next");
+    expect(items[1].spec.elements?.find((e) => e.id === "end_again")).toMatchObject({ href: "lecture:3", open: "here", form: "text" });
   });
 
   it("emits chapter entries where the outline assigned them", () => {

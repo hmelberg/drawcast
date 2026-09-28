@@ -635,6 +635,9 @@ export function layoutElements(
       case "source":
         drawables.push(...sourceDrawables(el, ctx));
         break;
+      case "link":
+        drawables.push(linkDrawable(el, ctx));
+        break;
       case "code":
         drawables.push(...codeDrawables(el, ctx));
         break;
@@ -2107,6 +2110,163 @@ function iconDrawable(el: SpecElement, ctx: Ctx): GroupDrawable | null {
     // the box's edges, so unionBBoxForId (boxes.ts) must read this nominal
     // box directly rather than union the rings' bbox — otherwise `at`
     // placement (side/gap) would vary per icon instead of tracking `size`.
+    box,
+  };
+}
+
+/** What a link says when its author gave no title and none was resolved:
+ *  "Lecture 3" for lecture:3, else the target's file name, prettified. */
+export function linkFallbackTitle(href: string | undefined): string {
+  const to = (href ?? "").trim();
+  const lecture = /^lecture:(\d+)$/.exec(to);
+  if (lecture) return `Lecture ${lecture[1]}`;
+  const name = (to.split(/[/#=]/).pop() ?? "").replace(/\.(ya?ml|json)$/i, "");
+  const words = name.replace(/^\d+[-_]/, "").replace(/[-_]+/g, " ").trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : "Open";
+}
+
+/**
+ * A link to another drawcast (spec 2026-09-28-drawcast-links). Two forms:
+ * a TEXT link — the words, underlined, with a ▸ — and a CARD — a 4:3 frame
+ * holding the target's picture (resolved into `strokes` by render/link.ts
+ * before layout) with the title under it, or, with no picture, the title
+ * written large inside the frame with a small play mark: the fallback card,
+ * so a link whose thumbnail never loads still reads as a link, never as a
+ * broken image. The click itself is ui/link-host.ts's; this is the ink.
+ */
+function linkDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
+  const title = (el.title ?? "").trim() || linkFallbackTitle(el.href);
+  const children: Drawable[] = [];
+  let box: BBox;
+  if (el.form === "text") {
+    const fontSize = el.font_size ?? 24;
+    const [cx, cy] = originOr(el, ctx, [500, 120]);
+    const text = `${title} \u25b8`;
+    const width = heuristicMeasure(text, fontSize).w;
+    children.push({
+      id: `${el.id}__text`,
+      kind: "text",
+      pos: [cx, cy],
+      text,
+      fontSize,
+      anchor: "middle",
+      z: Z_TEXT,
+      style: resolveStyle(el.style, {}),
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
+    });
+    const uy = cy - fontSize * 0.62;
+    children.push({
+      id: `${el.id}__line`,
+      kind: "stroke",
+      pts: [
+        [cx - width / 2, uy],
+        [cx + width / 2, uy],
+      ],
+      z: Z_STROKE,
+      style: resolveStyle(el.style, { strokeWidth: 2 }),
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 300 }),
+    });
+    box = { x: cx - width / 2, y: uy - 4, w: width, h: fontSize * 1.3 + 4 };
+  } else {
+    const w = Math.max(120, Math.min(600, el.size ?? 300));
+    const h = w * 0.75;
+    const [cx, cy] = originOr(el, ctx, [500, 400]);
+    const photo = el.strokes ? decodePhoto(el.strokes) : null;
+    if (photo) {
+      // Contained in the 4:3 slot, centred: a portrait-shaped picture keeps its shape.
+      const ih = Math.min(h, w * photo.aspect);
+      const iw = ih / photo.aspect;
+      children.push({
+        id: `${el.id}__img`,
+        kind: "image",
+        href: photo.href,
+        pos: [cx, cy],
+        w: iw,
+        h: ih,
+        z: Z_STROKE,
+        style: resolveStyle(undefined, {}),
+        reveal: el.reveal ?? "fade",
+        drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 700 }),
+      });
+    } else {
+      const fontSize = Math.max(18, Math.min(40, Math.round(w / 9)));
+      let lines = wrapText(title, fontSize, w - 40, heuristicMeasure);
+      if (lines.length > 3) lines = [...lines.slice(0, 2), `${lines[2]}\u2026`];
+      children.push({
+        id: `${el.id}__fallback`,
+        kind: "text",
+        pos: [cx, cy + h * 0.06],
+        text: lines.join(" "),
+        lines: lines.length > 1 ? lines : undefined,
+        fontSize,
+        anchor: "middle",
+        z: Z_TEXT,
+        style: resolveStyle(el.style, {}),
+        drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 500 }),
+      });
+      const r = Math.max(9, w * 0.035);
+      const mx = cx + w / 2 - r * 2.2;
+      const my = cy - h / 2 + r * 2.2;
+      children.push({
+        id: `${el.id}__mark`,
+        kind: "area",
+        pts: [
+          [mx - r * 0.6, my + r * 0.8],
+          [mx + r * 0.9, my],
+          [mx - r * 0.6, my - r * 0.8],
+        ],
+        precise: true,
+        z: Z_STROKE,
+        style: resolveStyle(undefined, { fill: COLORS.ink, opacity: 1, strokeWidth: 0 }),
+        drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 260 }),
+      });
+    }
+    children.push({
+      id: `${el.id}__frame`,
+      kind: "stroke",
+      pts: [
+        [cx - w / 2 - 5, cy - h / 2 - 5],
+        [cx + w / 2 + 5, cy - h / 2 - 5],
+        [cx + w / 2 + 5, cy + h / 2 + 5],
+        [cx - w / 2 - 5, cy + h / 2 + 5],
+      ],
+      closed: true,
+      z: Z_STROKE,
+      style: resolveStyle(el.style, { strokeWidth: 3 }),
+      drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.node }),
+    });
+    box = { x: cx - w / 2 - 5, y: cy - h / 2 - 5, w: w + 10, h: h + 10 };
+    if (photo) {
+      // The title rides under the picture (the source caption, 2 lines max).
+      const fontSize = 20;
+      let lines = wrapText(title, fontSize, w + 20, heuristicMeasure);
+      if (lines.length > 2) lines = [lines[0], `${lines[1]}\u2026`];
+      const blockH = lines.length * fontSize * LINE_HEIGHT;
+      const y = cy - h / 2 - 5 - 12 - blockH / 2;
+      children.push({
+        id: `${el.id}__name`,
+        kind: "text",
+        pos: [cx, y],
+        text: lines.join(" "),
+        lines: lines.length > 1 ? lines : undefined,
+        fontSize,
+        anchor: "middle",
+        z: Z_TEXT,
+        style: resolveStyle(el.style, {}),
+        drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 240 }),
+      });
+      box = { ...box, y: y - blockH / 2, h: box.h + (box.y - (y - blockH / 2)) };
+    }
+  }
+  ctx.anchors[el.id] = [box.x + box.w / 2, box.y + box.h / 2];
+  ctx.namedAnchors[el.id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(box, n)]));
+  return {
+    id: el.id,
+    kind: "group",
+    z: Z_STROKE,
+    style: defaultStyle(),
+    drawOpts: resolveDrawOpts(undefined, { mode: "sketch", duration: 0 }),
+    children,
     box,
   };
 }

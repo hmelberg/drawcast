@@ -7,6 +7,7 @@
 
 import { render } from "../render";
 import type { Spec } from "../spec/types";
+import { parsePlaylistText, posterItemOf } from "../playlist/playlist";
 import { paintFrame, sketchFontStyle } from "./video";
 
 export async function snapshotPng(spec: Spec): Promise<string | null> {
@@ -111,5 +112,23 @@ async function rasterize(src: string | Blob, type = ""): Promise<Uint8Array | nu
     return out ? new Uint8Array(await out.arrayBuffer()) : null;
   } finally {
     URL.revokeObjectURL(url);
+  }
+}
+
+/**
+ * The poster published beside a cast or a course lecture: the author's
+ * `poster:` image when it can be fetched, else the finished drawing of the
+ * LAST content part (never the end page of links). Null on any failure —
+ * never a reason to stop a publish.
+ */
+export async function posterForPlaylistText(text: string): Promise<Uint8Array | null> {
+  try {
+    const playlist = parsePlaylistText(text);
+    const own = playlist.meta.poster ? await authorPosterPng(playlist.meta.poster) : null;
+    if (own) return own;
+    const item = posterItemOf(playlist);
+    return item ? await posterPng(item.spec) : null;
+  } catch {
+    return null;
   }
 }

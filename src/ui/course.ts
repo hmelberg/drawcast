@@ -3,6 +3,7 @@
 // every action reads it back rather than holding a parsed copy, so the author's
 // edits are never overwritten by stale state.
 
+import { posterForPlaylistText } from "../export/snapshot";
 import { type Course, type CourseLecture, formatCourse, parseCourse } from "../course/document";
 import { generateCoursePlan } from "../course/plan";
 import { applyCourseFolder, applyCourseName, applyJoinDoor, commitPublish, courseDoorName, courseKeyFor, courseRegistration, preparePublish, type PublishArgs } from "../course/publish";
@@ -1069,6 +1070,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         lectureYaml: publishText,
         fetchImpl: (input, init) => fetch(input, { ...init, signal: controller.signal }),
         onUpload: (done, total) => working(done < total ? `Uploading to GitHub — file ${done + 1}/${total}…` : "Committing…"),
+        poster: posterForPlaylistText,
       };
       const prepared = await preparePublish(publishArgs);
       // The registry BEFORE the commit (identity round): the page's door is

@@ -29,6 +29,9 @@ export interface RenderResolveDeps {
   resolveImages: (spec: Spec) => Promise<unknown>;
   /** render/icon.ts's resolveIcons — mutates the spec it is given. */
   resolveIcons: (spec: Spec) => Promise<unknown>;
+  /** render/link.ts's resolveLinks — mutates the spec it is given. Optional:
+   *  a caller with no links to show (a test, a tool) need not wire it. */
+  resolveLinks?: (spec: Spec) => Promise<unknown>;
   contactEmail: string;
   /** How the figure is being drawn — the default chart style follows it. */
   style: RenderStyle;
@@ -47,6 +50,7 @@ export async function resolvedRenderSpec(spec: Spec, deps: RenderResolveDeps): P
     deps.resolveCode(copy, { style: deps.style }).catch(() => undefined),
     deps.resolveImages(copy).catch(() => undefined),
     deps.resolveIcons(copy).catch(() => undefined),
+    deps.resolveLinks?.(copy).catch(() => undefined),
   ]);
   return copy;
 }

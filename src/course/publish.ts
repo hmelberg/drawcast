@@ -7,6 +7,7 @@
 // a caller with nothing to decide; a second target (Drive) would replace
 // these functions alone.
 
+import { posterPathFor } from "../publish/cast";
 import {
   commitFiles,
   emptyManifest,
@@ -296,6 +297,13 @@ export interface PublishArgs {
   fetchImpl?: typeof fetch;
   /** Blob upload progress (commitFiles) — surfaced on the panel's status line. */
   onUpload?: (done: number, total: number) => void;
+  /**
+   * A lecture's thumbnail from its published YAML (export/snapshot.ts
+   * posterForPlaylistText), committed beside it as `<file>.png` — what link
+   * cards and the viewer's loading poster show. Optional and best-effort: a
+   * null or a throw is simply no thumbnail, never a failed publish.
+   */
+  poster?: (yaml: string) => Promise<Uint8Array | null>;
 }
 
 export interface PublishResult {
@@ -364,12 +372,13 @@ export async function commitPublish(args: PublishArgs, prepared: PreparedPublish
   const { updated, defaultBranch, manifest } = prepared;
   const course = parseCourse(updated);
   const withNames = buildPublishPlan({ course, text: updated, repo, coursesDir, viewerBase, manifest, lectureYaml, door });
+  const files = [...withNames.files, ...(args.poster ? await lecturePosters(withNames, args.poster) : [])];
 
   await commitFiles(
     repo,
     token,
     defaultBranch,
-    withNames.files,
+    files,
     withNames.deletions,
     `drawcast: publish course "${course.title || "Untitled course"}"`,
     fetchImpl,
@@ -382,8 +391,20 @@ export async function commitPublish(args: PublishArgs, prepared: PreparedPublish
     pagesUrl: withNames.pagesUrl,
     readmeUrl: withNames.readmeUrl,
     defaultBranch,
-    count: withNames.files.length,
+    count: files.length,
   };
+}
+
+/** One `<file>.png` beside each published lecture whose poster could be drawn. */
+export async function lecturePosters(plan: Pick<PublishPlan, "files" | "fileOf">, poster: (yaml: string) => Promise<Uint8Array | null>): Promise<PublishFile[]> {
+  const out: PublishFile[] = [];
+  for (const name of plan.fileOf.values()) {
+    const file = plan.files.find((f) => f.path === name || f.path.endsWith(`/${name}`));
+    if (!file) continue;
+    const bytes = await poster(file.content).catch(() => null);
+    if (bytes) out.push({ path: posterPathFor(file.path), content: "", bytes });
+  }
+  return out;
 }
 
 /** Prepare and commit in one go, for a caller with no name to register between them. */

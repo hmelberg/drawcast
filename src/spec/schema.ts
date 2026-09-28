@@ -138,7 +138,7 @@ const elementSchema = {
       enum: [
         "axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code", "scratch",
         "sector", "arc", "polygon", "pieces", "angle", "measure", "ellipse", "line",
-        "group", "math", "image", "icon", "inset", "music", "population",
+        "group", "math", "image", "icon", "inset", "music", "population", "link",
       ],
     },
     // axes
@@ -211,6 +211,11 @@ const elementSchema = {
       enum: ["above", "below", "left", "right", "above-left", "above-right", "below-left", "below-right"],
       description: "label: preferred side relative to the attached element. The collision solver may move it. measure: left/right of the segment's direction (default: away from the measured element).",
     },
+    href: { type: "string", description: "link: the drawcast it opens — ./file.yaml, lecture:N, or a GitHub/Drive/player link the user gave; never invent one." },
+    title: { type: "string", description: "link: its words (default: the target's title)." },
+    image: { type: "string", description: "link: a picture URL for the card." },
+    form: { type: "string", enum: ["card", "text"], description: "link: card (default, a thumbnail) or text." },
+    open: { type: "string", enum: ["auto", "tab", "here", "window"], description: "link: auto (default: a new tab mid-video, this page at the end), tab, here, window (over the video)." },
     link: {
       type: "array",
       items: { type: "string" },
@@ -294,7 +299,7 @@ const elementSchema = {
       description: "group: scale and centre the members into this region or box (aspect kept). population: the region or box it fills (legend included).",
     },
     tex: { type: "string", description: "math: LaTeX, drawn as handwriting. label: LaTeX instead of text." },
-    size: { type: "number", description: "math: font size, the same units as text font_size (default 28, a label's size). Leave it out: every formula on a page shares one size; at most a headline formula may take 34. icon: box size in logical units (default 100). music: one staff space in logical units (default 26)." },
+    size: { type: "number", description: "math: font size, the same units as text font_size (default 28, a label's size). Leave it out: every formula on a page shares one size; at most a headline formula may take 34. icon: box size in logical units (default 100). music: one staff space in logical units (default 26). link: card width (300)." },
     symbol: { type: "string", enum: [...MUSIC_SYMBOLS], description: "music: the symbol, drawn from a real music font — notes join their stems exactly. x/y is its centre (a note's head)." },
     stem: { type: "string", enum: ["up", "down"], description: "music: a note's stem direction (default up)." },
     dots: { type: "integer", minimum: 0, maximum: 2, description: "music: dots after a note (each adds half)." },
@@ -1121,6 +1126,7 @@ export const specSchema = {
     "Commands interleave narration (speak) with drawing (draw) for a gradually built, narrated figure.",
   properties: {
     title: { type: "string", description: "Short title of the figure." },
+    end_page: { type: "boolean", description: "Machine-written; never write it." },
     zoom_from: {
       type: "string",
       description:
@@ -1846,6 +1852,9 @@ function elementErrors(el: SpecElement): string[] {
         !!el.of || !!el.doi || !!el.isbn || !!el.archive || !!el.url || !!el.strokes,
         "needs one reference: of (the work's title), doi, isbn, archive, or url",
       );
+      break;
+    case "link":
+      need(typeof el.href === "string" && el.href.trim() !== "", "needs href (the drawcast it opens)");
       break;
     case "label":
       need(!!el.text, "needs text");

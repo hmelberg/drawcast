@@ -26,6 +26,7 @@ import { toggleFullscreen } from "./fullscreen";
 import { dragGateFor } from "./drag-gate";
 import { creditsOf } from "../export/credits";
 import { connectGateFor } from "./connect-gate";
+import { attachLinks } from "./link-host";
 import { attachInfoCards } from "./infocard";
 import { attachInsetZoom } from "./inset-zoom";
 import { attachViewPan } from "./view-pan";
@@ -1210,6 +1211,7 @@ export function attachPlayerControls(
   if (interactions.includes("chess")) attachChessPlay(stage, hd);
   if (interactions.includes("staff")) attachStaffPlay(stage, hd);
   attachInfoCards(stage, hd, widgetHost); // no-op unless the spec carries card elements
+  attachLinks(stage, hd); // no-op unless the spec carries link elements
   attachLongPress(stage); // touch: a long press is the right-click every card and the tray answer
   attachInsetZoom(stage, hd); // no-op unless the spec carries insets with a picture
   attachPanelView(stage, hd); // no-op unless the figure draws a code panel

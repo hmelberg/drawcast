@@ -2,6 +2,7 @@
 // IR, so every backend gets the same report and the results feed the LLM
 // repair round as structured text.
 
+import { parseTarget } from "../links/resolve";
 import { CANVAS } from "../layout/canvas";
 import { MATH_DEFAULT_SIZE } from "../layout/math";
 import { isFitName } from "../layout/regions";
@@ -140,7 +141,9 @@ export interface LintIssue {
     /** too many texts on one page state, or several below the small-print line (crowding.ts) — generation only, warns */
     | "crowding"
     /** a population's counts, states, orders or size (layout/population.ts) — warns */
-    | "population";
+    | "population"
+    /** a link's href names no drawcast (links/resolve.ts parseTarget) — warns */
+    | "link-target";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -1024,6 +1027,14 @@ function lintCurveExprs(spec: Spec): LintIssue[] {
 export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIssue[] {
   const cmds = spec.commands ?? [];
   const issues: LintIssue[] = [...lintSources(spec), ...lintCode(spec), ...lintWidget(spec), ...lintMathSizes(spec), ...lintCurveExprs(spec)];
+
+  // A link whose href names nothing the resolver can read draws, but never
+  // opens (links/resolve.ts decides the forms a target may take).
+  for (const el of spec.elements ?? []) {
+    if (el.type === "link" && typeof el.href === "string" && parseTarget(el.href) === null) {
+      issues.push({ rule: "link-target", ids: [el.id], message: `link "${el.id}": href "${el.href}" is not a drawcast link — use a player/GitHub/Drive link, owner/repo/path.yaml, ./file.yaml or lecture:N`, severity: "warn" });
+    }
+  }
 
   // Keys of a positioned element's `at` ("gap 12") read as fields too: an
   // element called gap lost its id on the round trip.

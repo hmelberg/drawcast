@@ -81,6 +81,9 @@ landed. The finished cast opens in the app's player.
   meaning is; calm, few colours, each one role.
 - A closing quiz that checks the insight, not recall.
 - Only facts, numbers and people you are sure of.
+- A link to another drawcast is a `link` element (`href`, `form: card|text`,
+  `open`, optional `title`/`image`) — only to targets Hans or the course
+  gives (`./file.yaml`, `lecture:N`, a GitHub or Drive link); never invent one.
 
 ## When it is done
 
@@ -140,7 +143,7 @@ than a silent compromise.
 Any link to it works: the course page (owner.github.io/repo/<course>/), the
 folder or a file on github.com, a player link (drawcast.app/#gh=…), raw, or
 owner/repo/path. A link to one lecture pulls its whole course (the course
-page, READMEs and Next cards hang together) and says which lecture it was.
+page, READMEs and end pages hang together) and says which lecture it was.
 A drawcast.app/#<name> short link does not say where the files are — ask for
 the GitHub one.
 
@@ -161,8 +164,9 @@ the GitHub one.
    not need to touch stays word for word — baked narration is keyed by the
    sentence, so an edited line loses its recording. Reorder, drop or add
    parts in `outline.json`'s `entries` (a new part is a new `part-N.json`,
-   written with `prompt` as any cast). The last part of a lecture is the
-   drawn "Next" card: leave it, push redraws it.
+   written with `prompt` as any cast). The last part of a lecture is its
+   end page (Previous / Next / Watch again, as `link` elements): push redraws
+   it from course.md, keeping any `link` elements you add to it.
    Course-level changes go in `course.md` directly: retitle, reorder, edit
    questions, drop a lecture. Never change a `file:` on a status line — it is
    the published link. A new lecture is made with the course steps above

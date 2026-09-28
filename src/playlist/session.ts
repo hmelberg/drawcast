@@ -600,6 +600,9 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     if (items.length <= 1) return;
     const nx = playlist.meta.next;
     if (!nx || idx < items.length - 1) return;
+    // A lecture that ends on its own links (the end page, or an author's)
+    // needs no pill beside them.
+    if ((items[items.length - 1].spec.elements ?? []).some((e) => e.type === "link")) return;
     const stage = host.querySelector<HTMLElement>(".cs-stage");
     if (!stage || stage.querySelector(".cs-nextlink")) return;
     const a = h("a", { class: "cs-nextlink", href: nx.href, title: `Next lecture: ${nx.title}` }, `Next: ${nx.title} ▸`);

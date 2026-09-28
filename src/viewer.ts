@@ -9,6 +9,9 @@
 //   https://…/drawcast/#gh=hmelberg/kurs/courses/causal/did.yaml
 //   https://…/drawcast/#anvil=spanish1/01-intro.yaml
 
+import { setLinkBase } from "./links/base";
+import { withCourse } from "./links/course";
+import type { LinkBase } from "./links/resolve";
 import "./styles.css";
 import { type RenderStyle } from "./render";
 import { CloudSpeech } from "./export/tts";
@@ -238,6 +241,17 @@ async function fetchGdriveText(fileId: string): Promise<string> {
 }
 
 /** Fetch the playlist from a public repo. Private repos are not served here. */
+async function setViewerLinkBase(gh: GhRef | undefined, text: string): Promise<void> {
+  if (!gh) return setLinkBase(null);
+  const file: LinkBase = { kind: "gh", owner: gh.owner, repo: gh.repo, path: gh.path };
+  if (!/lecture:\d/.test(text)) return setLinkBase(file);
+  const dir = gh.path.includes("/") ? gh.path.slice(0, gh.path.lastIndexOf("/") + 1) : "";
+  const course = await fetch(rawUrlFor({ ...gh, path: `${dir}course.md` }))
+    .then((r) => (r.ok ? r.text() : null))
+    .catch(() => null);
+  setLinkBase(withCourse(file, gh.path.slice(dir.length), course));
+}
+
 async function fetchGhText(gh: GhRef): Promise<string> {
   const res = await fetch(rawUrlFor(gh));
   if (res.ok) return await res.text();
@@ -626,6 +640,10 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
           ? await fetchGdriveText(req.driveId)
           : await fetchGdocText(req.docId!);
     const playlist = parsePlaylistText(text);
+    // Where this cast's links are read from (links/base.ts): its GitHub
+    // folder; and, when a link names a lecture by number, the course.md
+    // beside it (only then — a plain cast pays no extra fetch).
+    await setViewerLinkBase(req.gh, text);
     // On the view origin, a cast that reports learner progress needs the
     // account, which lives on the main origin only: hand it over there.
     const forAccount = enrollRoute(playlist.meta.enroll, DEFAULT_ENROLL_API, location.hash);

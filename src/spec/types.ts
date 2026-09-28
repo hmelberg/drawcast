@@ -42,7 +42,8 @@ export type ElementType =
   | "inset"
   | "music"
   | "scratch"
-  | "population";
+  | "population"
+  | "link";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -295,6 +296,17 @@ export interface SpecElement {
    * iris = circle opening, drift = settle-and-fade, fade = plain opacity.
    */
   reveal?: "develop" | "iris" | "wipe" | "drift" | "fade";
+  // link (another drawcast, clickable — spec 2026-09-28-drawcast-links)
+  /** link: the drawcast it opens — a player, GitHub or Drive link, owner/repo/path.yaml, a path relative to this file (./next.yaml), or lecture:N in a course. */
+  href?: string;
+  /** link: what it says (default: the target's own title, else its file name). */
+  title?: string;
+  /** link: the author's own picture for the card (a URL); wins over the target's thumbnail. */
+  image?: string;
+  /** link: "card" (default) — a thumbnail or title card; "text" — clickable words. */
+  form?: "card" | "text";
+  /** link: auto (default: here once the drawcast has finished, a new tab before), tab, here, or window (over the video). */
+  open?: "auto" | "tab" | "here" | "window";
   // inset (a small picture of another playlist item's final frame — spec 2026-09-17-inset)
   /** inset: true (default) fits the source page's ink into the box; false fits its whole canvas. */
   crop?: boolean;
@@ -809,6 +821,9 @@ export interface QuizArgs {
 
 export interface Spec {
   title?: string;
+  /** Machine-written: a course lecture's generated end page (playlist.ts
+   *  makeEndPage) — links to the previous and next lecture. The poster skips it. */
+  end_page?: boolean;
   /**
    * Global text defaults — CSS property names, CSS keyword values: a base
    * `font_size` (every size in the drawing scales by it / 26), a generic

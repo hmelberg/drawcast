@@ -12,7 +12,7 @@ import { desmartenJson } from "../spec/extract";
 import { dumpSpecYaml, formatSpec, parseSpecText, type SpecFormat } from "../spec/text";
 import { parseScriptPages, printScriptPages } from "../spec/script/index";
 import { looksLikeScript } from "../spec/script/detect";
-import type { Spec } from "../spec/types";
+import type { Command, Spec } from "../spec/types";
 import { narrationLanguage } from "../export/video";
 import { resolveSibling } from "./inset-ref";
 
@@ -602,6 +602,54 @@ export function makeNextCard(opts: NextCardOptions): Spec {
       { clear: {} },
     ],
   };
+}
+
+export interface EndPageOptions {
+  /** This lecture's 1-based number. */
+  position: number;
+  total: number;
+  /** The previous lecture's title (absent on the first). */
+  prev?: string;
+  /** The next lecture's title (absent on the last). */
+  next?: string;
+}
+
+/**
+ * The page a course lecture ends on (spec 2026-09-28-drawcast-links §5): the
+ * previous and next lectures as link cards, and "Watch again". The links name
+ * lectures by NUMBER (`lecture:N`), read against the course when clicked
+ * (links/resolve.ts) — so the page is right before the next lecture has a
+ * file, in the app, in dev and on GitHub alike, and a republish rewrites
+ * nothing. It ends drawn (no clear): the links are what the viewer is left
+ * with. The spoken line is the Next card's own, so baked narration carries over.
+ */
+export function makeEndPage(opts: EndPageOptions): Spec {
+  const both = opts.prev !== undefined && opts.next !== undefined;
+  const elements: Spec["elements"] = [];
+  const cards: string[] = [];
+  const card = (id: string, kicker: string, title: string, n: number, x: number): void => {
+    elements.push({ id: `${id}_kicker`, type: "text", text: kicker, x, y: 545, font_size: 24, style: { opacity: 0.6 } });
+    elements.push({ id, type: "link", href: `lecture:${n}`, title, size: 320, x, y: 395 });
+    cards.push(`${id}_kicker`, id);
+  };
+  if (opts.prev !== undefined) card("end_prev", "Previous", opts.prev, opts.position - 1, both ? 265 : 500);
+  if (opts.next !== undefined) card("end_next", "Next", opts.next, opts.position + 1, both ? 735 : 500);
+  elements.push({ id: "end_again", type: "link", form: "text", href: `lecture:${opts.position}`, title: "Watch again", open: "here", x: 500, y: 160 });
+  elements.push({ id: "end_count", type: "text", text: `${opts.position} of ${opts.total}`, x: 500, y: 95, font_size: 22, style: { opacity: 0.6 } });
+  const first: Command = opts.next !== undefined ? { draw: cards, speak: `Next: ${opts.next}` } : { draw: cards };
+  return { title: "Where next", end_page: true, elements, commands: [first, { draw: ["end_again", "end_count"] }] };
+}
+
+/** The item a poster is drawn from: the LAST content part — the end
+ *  picture — never the end page or the legacy Next card. Null when there is none. */
+export function posterItemOf(playlist: Playlist): { spec: Spec } | null {
+  const content = itemsOf(playlist).filter((i) => !isEndPage(i.spec));
+  return content.at(-1) ?? null;
+}
+
+/** True for a lecture's generated last page: the end page, or the legacy drawn Next card. */
+export function isEndPage(spec: Spec): boolean {
+  return spec.end_page === true || (spec.elements ?? []).some((e) => e.id === "nx_kicker");
 }
 
 /** The item's spec plus a soft exit: hold for the gap, then un-draw everything. */

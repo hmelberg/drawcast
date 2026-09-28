@@ -862,7 +862,7 @@ function headingIntrusions(drawables: Drawable[], measure: MeasureFn, commands?:
  * never sideways, so x is enough). With no drawing, the whole band.
  */
 function autoChartBox(spec: Spec, measure: MeasureFn): { x: number; y: number; w: number; h: number } | "full" {
-  const CANVAS_TYPES = new Set(["shape", "path", "polygon", "text", "math", "ellipse", "icon", "image"]);
+  const CANVAS_TYPES = new Set(["shape", "path", "polygon", "text", "math", "ellipse", "icon", "image", "link"]);
   let lo = Infinity;
   let hi = -Infinity;
   const add = (a: number, b: number) => {

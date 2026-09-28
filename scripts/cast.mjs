@@ -30,7 +30,7 @@
 //   node scripts/cast.mjs revise-prompt <parts-dir | cast.json> "<change>" [out.md]   the app's rules, the document's templates in full
 //   node scripts/cast.mjs repack <parts-dir>             parts → the YAML again; narration kept for every unchanged line
 //   node scripts/cast.mjs push <workdir> [--dry-run | --no-push] [--direct] [-m msg] [--body text] [--new-pr]
-//        regenerates what the app's publish would (course page, READMEs, manifests, Next cards) and commits it:
+//        regenerates what the app's publish would (course page, READMEs, manifests, end pages) and commits it:
 //        a branch + PR by default (from a fork without push rights; later pushes update the same PR), --direct to
 //        the default branch. Refuses if the files changed on GitHub since the pull.
 //
@@ -489,8 +489,8 @@ const commands = {
       const parts = entries.flatMap((e) => {
         if (!e.part) return [`  (chapter) ${e.chapter}`];
         const spec = JSON.parse(readFileSync(resolve(outdir, `part-${e.part}.json`), "utf8"));
-        const next = (spec.elements ?? []).some((el) => el.id === "nx_kicker");
-        return [`  part-${e.part}.json  ${next ? '(the drawn "Next" card — push redraws it from course.md; leave it)' : (spec.title ?? "")}`];
+        const next = spec.end_page === true || (spec.elements ?? []).some((el) => el.id === "nx_kicker");
+        return [`  part-${e.part}.json  ${next ? "(the end page — push redraws it from course.md; add your own link elements to it, leave the rest)" : (spec.title ?? "")}`];
       });
       console.log(`${relative(ROOT, outdir)}: ${n} part(s)${audio ? `, ${audio} baked narration clip(s) kept aside in the source` : ""}\n${parts.join("\n")}\nEdit the parts (check/frames each), reorder/drop/add in outline.json entries, then: cast.mjs repack ${relative(ROOT, outdir)}`);
     });
@@ -587,7 +587,8 @@ const commands = {
       const { parseCourse } = await load("/src/course/document.ts");
       const { parseManifest, emptyManifest } = await load("/src/publish/github.ts");
       const { doorlessNote } = await load("/src/course/page.ts");
-      const { parsePlaylistText, formatPublished, makeNextCard } = await load("/src/playlist/playlist.ts");
+      const { parsePlaylistText, formatPublished, isEndPage } = await load("/src/playlist/playlist.ts");
+      const { endPageFor } = await load("/src/course/run.ts");
       const text = readFileSync(resolve(wd, "course.md"), "utf8");
       const course = parseCourse(text);
       const manifestText = readAtCommit(clone, upstream, joinRepo(origin.coursesDir, "courses.json"));
@@ -602,15 +603,24 @@ const commands = {
           const f = course.lectures[i].status?.file;
           if (!f || !existsSync(resolve(wd, f))) return null;
           // What course/run.ts's lecturePlaylist ties to the course's order:
-          // the lecture's title and the drawn "Next" card. A retitled or
-          // reordered course gets them redrawn, as a rebuild would.
+          // the lecture's title and its end page (or the legacy drawn "Next"
+          // card, which becomes an end page). A retitled or reordered course
+          // gets them redrawn, as a rebuild would; an author's own links on
+          // the old end page are kept.
           const p = parsePlaylistText(readFileSync(resolve(wd, f), "utf8"));
           p.meta.title = course.lectures[i].title;
           const last = p.entries.at(-1);
-          const isNextCard = last?.kind === "item" && (last.spec.elements ?? []).some((e) => e.id === "nx_kicker");
-          if (isNextCard) p.entries.pop();
-          const following = course.lectures[i + 1];
-          if (isNextCard && following) p.entries.push({ kind: "item", spec: makeNextCard({ next: following.title, position: i + 2, total: course.lectures.length }) });
+          const hadEnd = last?.kind === "item" && isEndPage(last.spec);
+          if (hadEnd) p.entries.pop();
+          const end = endPageFor(course, i);
+          if (end) {
+            const own = hadEnd ? (last.spec.elements ?? []).filter((e) => e.type === "link" && !/^end_/.test(e.id)) : [];
+            if (own.length > 0) {
+              end.elements = [...(end.elements ?? []), ...own];
+              end.commands = [...(end.commands ?? []), { draw: own.map((e) => e.id) }];
+            }
+            p.entries.push({ kind: "item", spec: end });
+          }
           return formatPublished(p, p.audio ?? null);
         },
         door: pageDoor(readAtCommit(clone, upstream, joinRepo(origin.path, "index.html")), doorlessNote),
