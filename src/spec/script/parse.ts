@@ -104,7 +104,11 @@ function splitPairs(head: string, tokens: string[], line: number): { args: strin
     }
     if (i + 1 >= tokens.length) throw new ScriptError(`"${tokens[i]}" has no value`, line);
     const pair = [tokens[i], tokens[i + 1]];
-    (MODIFIER_KEYS.has(tokens[i]) && !mine.has(tokens[i]) ? extra : args).push(...pair);
+    // A modifier's own fields flatten to dotted keys (`trail.of ball`): the
+    // key's first segment says whose they are (an animate of a bare var
+    // printed `trail.of` into the animate's own map, 2026-09-28).
+    const root = tokens[i].split(".")[0];
+    (MODIFIER_KEYS.has(root) && !mine.has(root) ? extra : args).push(...pair);
   }
   return { args, extra };
 }

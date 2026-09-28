@@ -75134,5 +75134,860 @@
         }
       ]
     }
+  },
+  {
+    "request": "Why does a ball thrown sideways hit the ground at the same time as one that is just dropped?",
+    "spec": {
+      "title": "Thrown or dropped: same landing time",
+      "domain": {
+        "x": [
+          -2.2,
+          6.6
+        ],
+        "y": [
+          -0.55,
+          5.3
+        ],
+        "box": {
+          "x": 10,
+          "y": 110,
+          "w": 840,
+          "h": 620
+        }
+      },
+      "vars": {
+        "t": 0,
+        "v": 3
+      },
+      "elements": [
+        {
+          "id": "ground",
+          "type": "path",
+          "data": true,
+          "points": [
+            [
+              -2.2,
+              -0.15
+            ],
+            [
+              6.6,
+              -0.15
+            ]
+          ],
+          "style": {
+            "color": "#3d3833",
+            "stroke_width": 2.5
+          }
+        },
+        {
+          "id": "ledge",
+          "type": "polygon",
+          "data": true,
+          "points": [
+            [
+              -1.7,
+              -0.15
+            ],
+            [
+              -0.62,
+              -0.15
+            ],
+            [
+              -0.62,
+              4.85
+            ],
+            [
+              -1.7,
+              4.85
+            ]
+          ],
+          "style": {
+            "color": "#3d3833",
+            "fill": "#8f887c",
+            "fill_style": "wash",
+            "opacity": 0.3
+          }
+        },
+        {
+          "id": "ledge_h",
+          "type": "measure",
+          "from": {
+            "data": [
+              -1.95,
+              -0.15
+            ]
+          },
+          "to": {
+            "data": [
+              -1.95,
+              4.85
+            ]
+          },
+          "label": "5 m",
+          "side": "left"
+        },
+        {
+          "id": "ball_drop",
+          "type": "point",
+          "at": {
+            "data": [
+              -0.4,
+              5
+            ]
+          },
+          "radius": 14,
+          "bind": {
+            "at.data.1": "5-5*t*t"
+          },
+          "style": {
+            "color": "#2f6b8f",
+            "fill": "#2f6b8f"
+          }
+        },
+        {
+          "id": "ball_throw",
+          "type": "point",
+          "at": {
+            "data": [
+              0,
+              5
+            ]
+          },
+          "radius": 14,
+          "bind": {
+            "at.data.0": "v*t",
+            "at.data.1": "5-5*t*t"
+          },
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e"
+          }
+        },
+        {
+          "id": "v_arrow",
+          "type": "arrow",
+          "from": {
+            "data": [
+              0.2,
+              5
+            ]
+          },
+          "to": {
+            "data": [
+              1.1,
+              5
+            ]
+          },
+          "bind": {
+            "to.data.0": "0.2+0.3*v"
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "v_label",
+          "type": "label",
+          "text": "{v} m/s",
+          "attach_to": "v_arrow",
+          "side": "above",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "sd_1",
+          "type": "point",
+          "at": {
+            "data": [
+              -0.4,
+              4.8
+            ]
+          },
+          "radius": 9,
+          "style": {
+            "color": "#2f6b8f",
+            "fill": "#2f6b8f",
+            "opacity": 0.4
+          }
+        },
+        {
+          "id": "st_1",
+          "type": "point",
+          "at": {
+            "data": [
+              0.6,
+              4.8
+            ]
+          },
+          "radius": 9,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e",
+            "opacity": 0.4
+          }
+        },
+        {
+          "id": "sd_2",
+          "type": "point",
+          "at": {
+            "data": [
+              -0.4,
+              4.2
+            ]
+          },
+          "radius": 9,
+          "style": {
+            "color": "#2f6b8f",
+            "fill": "#2f6b8f",
+            "opacity": 0.4
+          }
+        },
+        {
+          "id": "st_2",
+          "type": "point",
+          "at": {
+            "data": [
+              1.2,
+              4.2
+            ]
+          },
+          "radius": 9,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e",
+            "opacity": 0.4
+          }
+        },
+        {
+          "id": "sd_3",
+          "type": "point",
+          "at": {
+            "data": [
+              -0.4,
+              3.2
+            ]
+          },
+          "radius": 9,
+          "style": {
+            "color": "#2f6b8f",
+            "fill": "#2f6b8f",
+            "opacity": 0.4
+          }
+        },
+        {
+          "id": "st_3",
+          "type": "point",
+          "at": {
+            "data": [
+              1.8,
+              3.2
+            ]
+          },
+          "radius": 9,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e",
+            "opacity": 0.4
+          }
+        },
+        {
+          "id": "sd_4",
+          "type": "point",
+          "at": {
+            "data": [
+              -0.4,
+              1.7999999999999998
+            ]
+          },
+          "radius": 9,
+          "style": {
+            "color": "#2f6b8f",
+            "fill": "#2f6b8f",
+            "opacity": 0.4
+          }
+        },
+        {
+          "id": "st_4",
+          "type": "point",
+          "at": {
+            "data": [
+              2.4,
+              1.7999999999999998
+            ]
+          },
+          "radius": 9,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e",
+            "opacity": 0.4
+          }
+        },
+        {
+          "id": "sd_5",
+          "type": "point",
+          "at": {
+            "data": [
+              -0.4,
+              0
+            ]
+          },
+          "radius": 9,
+          "style": {
+            "color": "#2f6b8f",
+            "fill": "#2f6b8f",
+            "opacity": 0.4
+          }
+        },
+        {
+          "id": "st_5",
+          "type": "point",
+          "at": {
+            "data": [
+              3,
+              0
+            ]
+          },
+          "radius": 9,
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e",
+            "opacity": 0.4
+          }
+        },
+        {
+          "id": "strobe_drop",
+          "type": "group",
+          "members": [
+            "sd_1",
+            "sd_2",
+            "sd_3",
+            "sd_4",
+            "sd_5"
+          ]
+        },
+        {
+          "id": "strobe_throw",
+          "type": "group",
+          "members": [
+            "st_1",
+            "st_2",
+            "st_3",
+            "st_4",
+            "st_5"
+          ]
+        },
+        {
+          "id": "lvl_1",
+          "type": "path",
+          "data": true,
+          "points": [
+            [
+              -0.4,
+              4.8
+            ],
+            [
+              0.6,
+              4.8
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "dash": true,
+            "stroke_width": 1
+          }
+        },
+        {
+          "id": "lvl_2",
+          "type": "path",
+          "data": true,
+          "points": [
+            [
+              -0.4,
+              4.2
+            ],
+            [
+              1.2,
+              4.2
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "dash": true,
+            "stroke_width": 1
+          }
+        },
+        {
+          "id": "lvl_3",
+          "type": "path",
+          "data": true,
+          "points": [
+            [
+              -0.4,
+              3.2
+            ],
+            [
+              1.8,
+              3.2
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "dash": true,
+            "stroke_width": 1
+          }
+        },
+        {
+          "id": "lvl_4",
+          "type": "path",
+          "data": true,
+          "points": [
+            [
+              -0.4,
+              1.8
+            ],
+            [
+              2.4,
+              1.8
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "dash": true,
+            "stroke_width": 1
+          }
+        },
+        {
+          "id": "levels",
+          "type": "group",
+          "members": [
+            "lvl_1",
+            "lvl_2",
+            "lvl_3",
+            "lvl_4"
+          ]
+        },
+        {
+          "id": "fall_1",
+          "type": "label",
+          "text": "0.2 m",
+          "attach_to": "sd_1",
+          "side": "below-left",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "fall_2",
+          "type": "label",
+          "text": "0.8 m",
+          "attach_to": "sd_2",
+          "side": "left",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "fall_3",
+          "type": "label",
+          "text": "1.8 m",
+          "attach_to": "sd_3",
+          "side": "left",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "g_drop",
+          "type": "arrow",
+          "from": {
+            "data": [
+              -0.4,
+              3
+            ]
+          },
+          "to": {
+            "data": [
+              -0.4,
+              2
+            ]
+          },
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "g_throw",
+          "type": "arrow",
+          "from": {
+            "data": [
+              1.8,
+              3
+            ]
+          },
+          "to": {
+            "data": [
+              1.8,
+              2
+            ]
+          },
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "g_lab_d",
+          "type": "label",
+          "text": "g",
+          "attach_to": "g_drop",
+          "side": "right",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "g_lab_t",
+          "type": "label",
+          "text": "g",
+          "attach_to": "g_throw",
+          "side": "left",
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "drop_1",
+          "type": "path",
+          "data": true,
+          "points": [
+            [
+              0.6,
+              4.8
+            ],
+            [
+              0.6,
+              0.3
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "dash": true,
+            "stroke_width": 1,
+            "opacity": 0.6
+          }
+        },
+        {
+          "id": "drop_2",
+          "type": "path",
+          "data": true,
+          "points": [
+            [
+              1.2,
+              4.2
+            ],
+            [
+              1.2,
+              0.3
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "dash": true,
+            "stroke_width": 1,
+            "opacity": 0.6
+          }
+        },
+        {
+          "id": "steps",
+          "type": "group",
+          "members": [
+            "drop_1",
+            "drop_2"
+          ]
+        },
+        {
+          "id": "step_m",
+          "type": "measure",
+          "from": {
+            "data": [
+              0.6,
+              0.5
+            ]
+          },
+          "to": {
+            "data": [
+              1.2,
+              0.5
+            ]
+          },
+          "label": "0.6 m",
+          "side": "left"
+        },
+        {
+          "id": "land_m",
+          "type": "measure",
+          "from": {
+            "data": [
+              0,
+              -0.15
+            ]
+          },
+          "to": {
+            "data": [
+              3,
+              -0.15
+            ]
+          },
+          "bind": {
+            "to.data.0": "max(v*t,0.6)"
+          },
+          "label": "{v} m",
+          "side": "right",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "calc",
+          "type": "scratch",
+          "work": [
+            {
+              "tex": "5 = 0.5 \\cdot 10\\cdot t^2"
+            },
+            {
+              "tex": "t = 1\\ \\text{s}"
+            }
+          ],
+          "at": {
+            "place": "top_right"
+          },
+          "font_size": 30
+        },
+        {
+          "id": "box_t",
+          "type": "annotation",
+          "target": [
+            "calc_line_2"
+          ],
+          "kind": "box"
+        },
+        {
+          "id": "clock",
+          "type": "text",
+          "text": "t = {t:1} s",
+          "x": 860,
+          "y": 450,
+          "size": 26
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Thrown or dropped?"
+          }
+        },
+        {
+          "draw": [
+            "ground",
+            "ledge"
+          ],
+          "speak": "Why does a ball thrown sideways hit the ground at the same time as one that is just dropped?"
+        },
+        {
+          "draw": [
+            "ledge_h"
+          ],
+          "speak": "Take a ledge five metres up, and ignore the air."
+        },
+        {
+          "draw": [
+            "ball_drop",
+            "ball_throw",
+            "v_arrow",
+            "v_label",
+            "clock"
+          ],
+          "speak": "Drop one ball, and throw the other sideways at three metres per second."
+        },
+        {
+          "highlight": {
+            "target": [
+              "ball_throw"
+            ]
+          },
+          "speak": "Most people expect the thrown ball to stay up longer — it has farther to go."
+        },
+        {
+          "animate": {
+            "t": 1
+          },
+          "duration": 2.5,
+          "easing": "linear",
+          "trail": {
+            "of": "ball_throw"
+          },
+          "speak": "Let both go at once — and they hit the ground together."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "draw": [
+            "strobe_drop",
+            "strobe_throw"
+          ],
+          "parallel": true,
+          "speak": "Now freeze the flight every fifth of a second."
+        },
+        {
+          "draw": [
+            "levels"
+          ],
+          "speak": "At every snapshot, the two balls are at exactly the same height."
+        },
+        {
+          "draw": [
+            "fall_1",
+            "fall_2",
+            "fall_3"
+          ],
+          "speak": "By then they have fallen 0.2 metres, 0.8, 1.8 — the same for both."
+        },
+        {
+          "draw": [
+            "g_drop",
+            "g_lab_d",
+            "g_throw",
+            "g_lab_t"
+          ],
+          "parallel": true,
+          "speak": "Gravity pulls straight down, and pulls on both balls the same."
+        },
+        {
+          "highlight": {
+            "target": [
+              "strobe_drop"
+            ]
+          },
+          "speak": "It adds downward speed every instant, so each gap is bigger than the last."
+        },
+        {
+          "focus": {
+            "target": [
+              "v_arrow",
+              "v_label"
+            ]
+          },
+          "speak": "The sideways speed points across, so it can neither help nor hinder the fall."
+        },
+        {
+          "draw": [
+            "steps",
+            "step_m",
+            "land_m",
+            "label_land_m"
+          ],
+          "speak": "Sideways, the ball just steps along, 0.6 metres each snapshot — three metres in all."
+        },
+        {
+          "draw": [
+            "calc_box",
+            "calc_line_1"
+          ],
+          "speak": "So the landing time is set by height alone; with g about ten metres per second squared…"
+        },
+        {
+          "draw": [
+            "calc_line_2",
+            "box_t"
+          ],
+          "speak": "…five metres takes one second, however fast you throw."
+        },
+        {
+          "fade": {
+            "target": [
+              "strobe_drop",
+              "strobe_throw",
+              "levels",
+              "g_drop",
+              "g_lab_d",
+              "g_throw",
+              "g_lab_t",
+              "steps",
+              "step_m",
+              "label_step_m",
+              "ball_throw_trail"
+            ],
+            "to": 0.25
+          },
+          "speak": "What if we throw it twice as hard?"
+        },
+        {
+          "hide": [
+            "ball_drop",
+            "ball_throw",
+            "land_m",
+            "label_land_m",
+            "fall_1",
+            "fall_2",
+            "fall_3"
+          ]
+        },
+        {
+          "animate": {
+            "t": 0,
+            "v": 6
+          },
+          "duration": 0.3
+        },
+        {
+          "show": [
+            "ball_drop",
+            "ball_throw",
+            "land_m"
+          ]
+        },
+        {
+          "animate": {
+            "t": 1
+          },
+          "duration": 2.5,
+          "easing": "linear",
+          "trail": {
+            "of": "ball_throw"
+          },
+          "speak": "The path stretches out to six metres, but it still lands after one second."
+        },
+        {
+          "show": [
+            "label_land_m"
+          ]
+        },
+        {
+          "highlight": {
+            "target": [
+              "ball_throw",
+              "ball_drop",
+              "clock"
+            ]
+          },
+          "speak": "Speed decides where it lands; height decides when."
+        },
+        {
+          "quiz": {
+            "question": "From the same five-metre ledge, a ball is thrown sideways at 10 metres per second. When does it land?",
+            "choices": [
+              "After 1 second",
+              "After 2 seconds",
+              "After half a second",
+              "Later than the dropped ball"
+            ],
+            "correct": 1,
+            "wrong": "Ask what sets the fall: the sideways speed only carries the ball across.",
+            "right": "After one second: the five-metre drop sets the time, and the sideways speed only carries it farther, to ten metres."
+          }
+        }
+      ]
+    }
   }
 ]
