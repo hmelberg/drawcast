@@ -336,8 +336,10 @@ export interface SpecElement {
   title?: string;
   /** link: the author's own picture for the card (a URL); wins over the target's thumbnail. */
   image?: string;
-  /** link: "card" (default) — a thumbnail or title card; "text" — clickable words. */
-  form?: "card" | "text";
+  /** link: "card" (default) — a thumbnail or title card; "text" — clickable words.
+   *  math: how `{var}` tokens are written — "values" (default), "symbols" (the
+   *  names), "both" (names, then = and the right side in values). */
+  form?: "card" | "text" | "values" | "symbols" | "both";
   /** link: auto (default: here once the drawcast has finished, a new tab before), tab, here, or window (over the video). */
   open?: "auto" | "tab" | "here" | "window";
   // inset (a small picture of another playlist item's final frame — spec 2026-09-17-inset)
@@ -852,6 +854,29 @@ export interface QuizArgs {
   store?: string;
 }
 
+/**
+ * A var (design 2026-09-29 live math): a plain number, or the number with
+ * what a number cannot say — the live range and step, its decimals, its
+ * colour, `fixed` (never live), or `expr`: a computed var, recomputed from
+ * the vars before it, never live, never animated.
+ */
+export type VarDef =
+  | number
+  | {
+      value?: number;
+      expr?: string;
+      min?: number;
+      max?: number;
+      step?: number;
+      decimals?: number;
+      color?: string;
+      fixed?: boolean;
+      /** Internal, never authored: the value as WRITTEN while a sweep or a
+       *  scrub has replaced `value` (spec/vars.ts withVarValues) — the number
+       *  whose decimals the formula keeps writing. */
+      _written?: number;
+    };
+
 export interface Spec {
   title?: string;
   /** Machine-written: a course lecture's generated end page (playlist.ts
@@ -921,8 +946,8 @@ export interface Spec {
    */
   templates?: TemplateDoc[];
   domain?: { x?: [number, number]; y?: [number, number]; box?: "auto" | "left" | "right" | "top" | "bottom" | "full" | { x: number; y: number; w: number; h: number } };
-  /** Top-level numbers (design 2026-09-10): read by curve `expr`, by `bind` expressions, as `{name}` in drawn text, and swept by animate. */
-  vars?: Record<string, number>;
+  /** Top-level numbers (design 2026-09-10): read by curve `expr`, by `bind` expressions, as `{name}` in drawn text and in a math `tex` (live there, design 2026-09-29), and swept by animate. */
+  vars?: Record<string, VarDef>;
   /**
    * Nudges for ids that are not spec elements — a template's own parts (its
    * readout card, its curve labels), by id or group id: `move` is [right, up]

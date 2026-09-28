@@ -7,7 +7,8 @@ import { CANVAS } from "../layout/canvas";
 import { MATH_DEFAULT_SIZE } from "../layout/math";
 import { isFitName } from "../layout/regions";
 import { AUTO_NAMESPACE, baseName, isReservedVar, VAR_RE } from "../spec/answers";
-import { EXPR_BASE_VARS } from "../spec/vars";
+import { EXPR_BASE_VARS, varValues } from "../spec/vars";
+import { texNamesVars } from "../layout/live-math";
 import { effectiveShow } from "../spec/code-show";
 import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox, type BBox } from "../layout/geometry";
 import { drawablesForId, leafDrawables, type Drawable, type GroupDrawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
@@ -87,6 +88,7 @@ export interface LintIssue {
     | "overlap-math-label"
     /** formulas of different sizes on one page — warns, never blocks */
     | "math-size"
+    | "math-form"
     /** a code panel and the template figure beside it drawn on the same ground */
     | "overlap-code-figure"
     /** a template's box was small enough that the fit scale did most of the shrinking */
@@ -782,6 +784,25 @@ function lintMathSizes(spec: Spec): LintIssue[] {
 }
 
 /**
+ * Live math (design 2026-09-29): `form` says how a formula writes its
+ * `{var}` tokens, so on a formula that names none it does nothing — and the
+ * link's card/text forms mean nothing on a formula (nor values on a link).
+ */
+function lintLiveMath(spec: Spec): LintIssue[] {
+  const issues: LintIssue[] = [];
+  const vars = varValues(spec.vars);
+  for (const el of spec.elements ?? []) {
+    if (el.form === undefined) continue;
+    const mathForm = el.form === "values" || el.form === "symbols" || el.form === "both";
+    if (el.type === "math" && !mathForm) issues.push({ rule: "math-form", ids: [el.id], severity: "warn", message: `math "${el.id}": form "${el.form}" is a link's — a formula takes values, symbols or both` });
+    else if (el.type === "link" && mathForm) issues.push({ rule: "math-form", ids: [el.id], severity: "warn", message: `link "${el.id}": form "${el.form}" is a formula's — a link takes card or text` });
+    else if (el.type === "math" && el.form !== "values" && !(typeof el.tex === "string" && texNamesVars(el.tex, vars)))
+      issues.push({ rule: "math-form", ids: [el.id], severity: "warn", message: `math "${el.id}": form "${el.form}" does nothing — the formula names no var as {name}` });
+  }
+  return issues;
+}
+
+/**
  * Code panels are load-bearing: the script executes in the viewer's browser.
  * These rules catch the storyboard killers — a script too long to narrate, a
  * split view too narrow to read, and figure-as-IDE (several panels at once).
@@ -1048,7 +1069,7 @@ function lintCurveExprs(spec: Spec): LintIssue[] {
 
 export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIssue[] {
   const cmds = spec.commands ?? [];
-  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintMathSizes(spec), ...lintCurveExprs(spec)];
+  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintMathSizes(spec), ...lintLiveMath(spec), ...lintCurveExprs(spec)];
 
   // A link whose href names nothing the resolver can read draws, but never
   // opens (links/resolve.ts decides the forms a target may take).

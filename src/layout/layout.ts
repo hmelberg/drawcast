@@ -38,7 +38,8 @@ import { fitSceneLayout, growSceneLayout, resolveTemplateBox, type TemplateFit }
 import type { SceneLayout } from "../scenes/types";
 import { FIT_NAMES, isFitName } from "./regions";
 import { expandBoxAnimate, readParam, withOverrides } from "../render/params";
-import { interpolateVars } from "../spec/vars";
+import { interpolateVars, varInfos, varValues } from "../spec/vars";
+import { colourLiveVarText, liveMathColors } from "./live-math";
 
 export interface LayoutResult {
   drawables: Drawable[];
@@ -354,7 +355,7 @@ export function layoutSpec(
   if (templateOwn) {
     const spoken = (spec.commands ?? []).map((c) => c.speak ?? "").join(" ");
     const comma = usesDecimalComma(spec.lang, spoken.trim() ? detectLang(spoken) : undefined);
-    expandTemplateTokens(templateOwn, { ...templateValues, ...scriptValues(spec.elements), ...(spec.vars ?? {}) }, comma);
+    expandTemplateTokens(templateOwn, { ...templateValues, ...scriptValues(spec.elements), ...varValues(spec.vars) }, comma);
   }
 
   // A template's own parts, moved or enlarged by the spec (layout/adjust.ts)
@@ -516,6 +517,17 @@ export function layoutSpec(
     // later.warnings deliberately discarded: the base layout above already
     // carries the template's/tier-2's warnings (same spec, same elements) —
     // the draw-beat layout would only repeat them under a moved box.
+  }
+  // A live var's number reads in its colour in words as in its formula
+  // (design 2026-09-29) — after the labels are placed and wrapped.
+  if (spec.vars && spec.elements) {
+    const spoken = (spec.commands ?? []).map((c) => c.speak ?? "").join(" ");
+    colourLiveVarText(drawables, spec.elements, {
+      vars: varValues(spec.vars),
+      infos: new Map(varInfos(spec.vars).map((v) => [v.name, v])),
+      colors: liveMathColors(spec.vars, spec.elements),
+      decimalComma: usesDecimalComma(spec.lang, spoken.trim() ? detectLang(spoken) : undefined),
+    });
   }
   const frame = pageFrame(spec.domain, templateFrame);
   // `{data: [x, y]}` on a template page means the template's own axes — and

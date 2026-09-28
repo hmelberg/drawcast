@@ -57,6 +57,7 @@ import type { BBox } from "../layout/geometry";
 import { mountKeyGuide } from "./controls";
 import { pianoOctaves } from "../render/widgets";
 import { choiceSpecs, exploreSurface, readChoice, sliderSpecs, trayPlan, type ChoiceSpec, type SliderSpec } from "./tray-model";
+import { liveMathOf } from "./live-vars";
 import { panelViewFor } from "./panel-view";
 import { codeKey, gateItem, languageNeedsTrust } from "../security/code-trust";
 
@@ -199,6 +200,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
     games.length === 0 &&
     !bodyTemplate &&
     !spaceTemplate &&
+    // A live formula is worked on the figure, but its explore beat is held here.
+    liveMathOf(hd.spec).mathIds.length === 0 &&
     partsCount < MIN_PARTS &&
     (hd.spec.sources?.length ?? 0) === 0
   )
@@ -1491,6 +1494,8 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         // The BODY, not the manifest flag: supply_demand's drags are free play
         // with no `widget: true` (that flag offers asks), and they count.
         (hd.spec.template !== undefined && scenes[hd.spec.template]?.widget !== undefined) ||
+        // A formula whose numbers the viewer drags (live math, 2026-09-29).
+        liveMathOf(hd.spec).mathIds.length > 0 ||
         interactions.some((k) => k === "piano" || k === "chess" || k === "periodic" || k === "staff");
       const surface = exploreSurface(
         step,

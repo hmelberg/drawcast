@@ -214,7 +214,7 @@ const elementSchema = {
     href: { type: "string", description: "link: the drawcast it opens — ./file.yaml, lecture:N, or a GitHub/Drive/player link the user gave; never invent one." },
     title: { type: "string", description: "link: its words (default: the target's title)." },
     image: { type: "string", description: "link: a picture URL for the card." },
-    form: { type: "string", enum: ["card", "text"], description: "link: card (default, a thumbnail) or text." },
+    form: { type: "string", enum: ["card", "text", "values", "symbols", "both"], description: "link: card (default, a thumbnail) or text. math: {var}s as values (default), symbols or both." },
     open: { type: "string", enum: ["auto", "tab", "here", "window"], description: "link: auto (default: a new tab mid-video, this page at the end), tab, here, window (over the video)." },
     link: {
       type: "array",
@@ -298,7 +298,7 @@ const elementSchema = {
       ],
       description: "group: scale and centre the members into this region or box (aspect kept). population: the region or box it fills (legend included).",
     },
-    tex: { type: "string", description: "math: LaTeX, drawn as handwriting. label: LaTeX instead of text." },
+    tex: { type: "string", description: "math: LaTeX, drawn as handwriting; {v} writes var v's value, live (an argument needs {{v}}: \\frac{{B}}{…}, ^{{t}}). label: LaTeX instead of text." },
     size: { type: "number", description: "math: font size, the same units as text font_size (default 28, a label's size). Leave it out: every formula on a page shares one size; at most a headline formula may take 34. icon: box size in logical units (default 100). music: one staff space in logical units (default 26). link: card width (300)." },
     symbol: { type: "string", enum: [...MUSIC_SYMBOLS], description: "music: the symbol, drawn from a real music font — notes join their stems exactly. x/y is its centre (a note's head)." },
     stem: { type: "string", enum: ["up", "down"], description: "music: a note's stem direction (default up)." },
@@ -1164,8 +1164,17 @@ export const specSchema = {
     },
     vars: {
       type: "object",
-      additionalProperties: { type: "number" },
-      description: 'Named numbers, e.g. {"f": 1}: curve expr reads them ("sin(f*x)"), bind computes fields from them, drawn text shows {f}, animate sweeps them. Never named x or like a function.',
+      additionalProperties: {
+        oneOf: [
+          { type: "number" },
+          {
+            type: "object",
+            properties: { value: { type: "number" }, expr: { type: "string" }, min: { type: "number" }, max: { type: "number" }, step: { type: "number" }, decimals: { type: "integer" }, color: { type: "string" }, fixed: { type: "boolean" } },
+            additionalProperties: false,
+          },
+        ],
+      },
+      description: 'Named numbers, e.g. {"f": 1}: curve expr reads them ("sin(f*x)"), bind computes fields from them, drawn text shows {f}, animate sweeps them. Never named x or like a function. {f} in a math tex is live: the paused viewer drags or types it. Object form {value, min, max, step, decimals, color, fixed: true}, or {expr: "a*b"} computed from earlier vars.',
     },
     adjust: {
       type: "object",

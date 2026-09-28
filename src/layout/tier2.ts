@@ -45,7 +45,8 @@ import { layoutPopulation, populationBox, populationValues } from "./population"
 import { linkKindOf } from "../ui/link-model";
 import type { LintIssue } from "../lint/lint";
 import type { ElementType, EndRef, PointRef, Spec, SpecElement } from "../spec/types";
-import { evalBindings, interpolateVars, type Vars } from "../spec/vars";
+import { evalBindings, interpolateVars, varInfos, varValues, type VarInfo, type Vars } from "../spec/vars";
+import { liveMathColors, liveTeX } from "./live-math";
 import { mapDrawable, poseMapOf, type LayoutOverrides } from "./posed";
 import type { TemplateFit } from "./template-fit";
 
@@ -162,6 +163,11 @@ interface Ctx {
   atFallback: Record<string, Pt>;
   /** The spec's vars (spec/vars.ts): read by curve expr, bind and `{name}` text tokens. */
   vars: Vars;
+  /** The vars' definitions (spec/vars.ts varInfos) and each live var's colour — what a math formula needs to write a var as a live part (live-math.ts). */
+  varInfo: Map<string, VarInfo>;
+  varColors: Record<string, string>;
+  /** A var's own `decimals`, for `{name}` in text. */
+  varDecimals: Record<string, number>;
   /** The template's own numbers as `{market.dwl}` text tokens (SceneLayout.values) — text only, never expressions. */
   templateValues: Record<string, number | string>;
   /** The page's code element ids: `{pow.label}` before its script has run is pending, not a typo. */
@@ -240,10 +246,12 @@ export function layoutElements(
    *  seedDrawables: the template's drawables, so `at.ref` can name a template id.
    *  vars: the spec's top-level numbers (spec/vars.ts).
    *  overrides: poses and morphed shapes the definitional references read (posed.ts). */
-  opts: { measure?: MeasureFn; seedDrawables?: Drawable[]; vars?: Vars; templateValues?: Record<string, number | string>; overrides?: LayoutOverrides; fit?: TemplateFit; decimalComma?: boolean; frame?: DataFrame } = {},
+  opts: { measure?: MeasureFn; seedDrawables?: Drawable[]; vars?: Spec["vars"]; templateValues?: Record<string, number | string>; overrides?: LayoutOverrides; fit?: TemplateFit; decimalComma?: boolean; frame?: DataFrame } = {},
 ): Tier2Result {
   const measure = opts.measure ?? heuristicMeasure;
-  const vars = opts.vars ?? {};
+  // The numbers every reader wants; a computed var evaluated over the others.
+  const vars = varValues(opts.vars);
+  const infos = varInfos(opts.vars);
   // A template's own frame stands in for a missing `domain`: curves, regions
   // and `{data: [x, y]}` then land on the template's axes. It does NOT make
   // the domain "declared" — a bare {x, y} on a template page stays canvas
@@ -290,6 +298,9 @@ export function layoutElements(
     measures: {},
     atFallback: {},
     vars,
+    varInfo: new Map(infos.map((v) => [v.name, v])),
+    varColors: liveMathColors(opts.vars, elements),
+    varDecimals: Object.fromEntries(infos.filter((v) => v.decimals !== undefined).map((v) => [v.name, v.decimals!])),
     templateValues: opts.templateValues ?? {},
     codeIds: new Set(elements.filter((e) => e.type === "code").map((e) => e.id)),
     ix: (v) => ixStd((v - fdx) / fs),
@@ -594,10 +605,16 @@ export function layoutElements(
           // formula; with `from` and `t < 1` it is mid-tween — the tex it
           // came from, how far along. t = 1 (or no from/t) settles on `tex`.
           const ov = ctx.overrides.math?.[el.id];
+          // Live math (design 2026-09-29): `{name}` tokens written in, each
+          // var occurrence a part of its own. A formula naming no var comes
+          // back as the same string.
+          const live = (tex: string) =>
+            liveTeX(tex, { id: el.id, vars: ctx.vars, infos: ctx.varInfo, colors: ctx.varColors, values: ctx.templateValues, form: el.form === "symbols" || el.form === "both" ? el.form : "values", decimalComma: ctx.decimalComma });
           if (ov?.from !== undefined && ov.t !== undefined && ov.t < 1) {
-            laid = mathMorphDrawables({ ...el, tex: ov.tex }, engine, cx, cy, ov.from, ov.tex, ov.t);
+            laid = mathMorphDrawables({ ...el, tex: ov.tex }, engine, cx, cy, live(ov.from).tex, live(ov.tex).tex, ov.t);
           } else {
-            laid = mathDrawables({ ...el, tex: ov?.tex ?? el.tex }, engine, cx, cy);
+            const written = live(ov?.tex ?? el.tex ?? "");
+            laid = mathDrawables({ ...el, tex: written.tex }, engine, cx, cy, written.marks);
           }
         } catch (err) {
           issues.push({ rule: "math", ids: [el.id], severity: "error", message: `math "${el.id}": ${(err as Error).message}` });
@@ -1230,7 +1247,7 @@ function samplesOf(ctx: Ctx, id: string): Pt[] | undefined {
 
 /** `{name}` tokens in drawn text (design 2026-09-10 §2.1); an unknown name stays as written and warns, so a typo shows on the canvas. */
 function withVars(text: string, el: SpecElement, ctx: Ctx, extra: Record<string, string> = {}): string {
-  const r = interpolateVars(text, { ...ctx.templateValues, ...ctx.vars, ...extra }, ctx.decimalComma);
+  const r = interpolateVars(text, { ...ctx.templateValues, ...ctx.vars, ...extra }, ctx.decimalComma, ctx.varDecimals);
   let out = r.text;
   for (const name of r.unknown) {
     // A script's value that has not arrived (the script has not run yet, or

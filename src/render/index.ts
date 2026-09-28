@@ -10,6 +10,7 @@ import { placeCaption } from "./caption-place";
 import { contentUnderCaption, darkUnderCaption } from "./caption-dark";
 import { ensureFigureStyles, PATRICK_HAND_URLS } from "./figure-style";
 import { splitVarOverrides, withNewIdsVisible, withOverrides } from "./params";
+import { withVarValues } from "../spec/vars";
 import { controlsOfFor, planCommands, type Plan, type PlanOptions } from "./plan";
 import { withMinted, type MintedSpec } from "./minted";
 import { dependentsMap, sourceIds } from "../spec/deps";
@@ -420,7 +421,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     const split = splitVarOverrides(effective);
     const l = applyTextStyle(
       layoutSpec(
-        { ...spec, params: withOverrides(spec.params, split.params), ...(Object.keys(split.vars).length > 0 ? { vars: { ...(spec.vars ?? {}), ...split.vars } } : {}), ...(patched ? { elements: patched } : {}) },
+        { ...spec, params: withOverrides(spec.params, split.params), ...(Object.keys(split.vars).length > 0 ? { vars: withVarValues(spec.vars, split.vars) } : {}), ...(patched ? { elements: patched } : {}) },
         measure,
         overrides,
         pins,

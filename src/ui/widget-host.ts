@@ -29,6 +29,7 @@ import { answersMatch } from "../spec/answers";
 import { overCaption } from "./caption";
 import { h, logicalPoint } from "./dom";
 import { mountNumberEdit } from "./number-edit";
+import { combineHosts, liveVarHostFor } from "./live-vars";
 import { CONTROL_SELECTOR, gateIsOpen } from "./gates";
 // Type-only: controls.ts imports this module for attachWidgetHost, so the
 // crossing back has to be erased at compile time or the two would cycle.
@@ -118,6 +119,9 @@ export interface WidgetHostDeps {
   /** A live drag's frame clock: runs fn once, soon; returns its cancel.
    *  requestAnimationFrame in the app, synchronous in tests. */
   frame?: (fn: () => void) => () => void;
+  /** Paint the body's patches. Absent: the player's previewParams — the stage
+   *  passes its own when live math shares the page (both previews merged). */
+  preview?: (patches: Record<string, unknown>) => void;
 }
 
 const animationFrame = (fn: () => void): (() => void) => {
@@ -253,7 +257,8 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
    *  (previewParams), so intersections, guides and regions all recompute. */
   const paint = (next: Record<string, unknown>): void => {
     patches = next;
-    hd.timeline.previewParams(patches, { revealNew: true });
+    if (deps.preview) deps.preview(patches);
+    else hd.timeline.previewParams(patches, { revealNew: true });
     // The patched layout's own order: whatever it mints that the mounted
     // layout never had is now painted (revealNew), so the host must count
     // it as visible too or the widget could not click what it just drew.
@@ -603,7 +608,17 @@ export function pressBlocked(f: { playing: boolean; ownGate: boolean; foreignGat
  *  own: cs-cardable only ever says "something is here", and only this host
  *  knows whether that something is currently being held. */
 export function attachWidgetHost(stage: HTMLElement, hd: RenderHandle): WidgetHost | null {
-  const host = widgetHostFor(hd, { measure: makeBrowserMeasure() });
+  // A template's body and the page's live math (ui/live-vars.ts) share the
+  // stage's one gesture router; with both, each paints its own patches and
+  // the preview is the two merged.
+  const painted: { body: Record<string, unknown>; math: Record<string, unknown> } = { body: {}, math: {} };
+  const previewAs = (who: "body" | "math") => (p: Record<string, unknown>) => {
+    painted[who] = p;
+    hd.timeline.previewParams({ ...painted.body, ...painted.math }, { revealNew: true });
+  };
+  const body = widgetHostFor(hd, { measure: makeBrowserMeasure(), preview: previewAs("body") });
+  const math = liveVarHostFor(hd, { preview: previewAs("math") });
+  const host = body && math ? combineHosts(body, math, () => ((painted.body = {}), (painted.math = {}))) : body ?? math;
   if (!host) return null;
 
   // One pointer gesture, read at release (spec §2.2 addendum 2026-09-15b),
