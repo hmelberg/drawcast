@@ -116,6 +116,18 @@ export function markAt(mk: MarkSpec, m: Pick<Model, "env" | "params">): number {
   return node ? compile(node)(m.env) : NaN;
 }
 
+/** The colour of the parameter a mark's `at` follows (the first with a
+ *  colour of its own that the expression reads), or null: a fixed x. */
+export function markColor(mk: MarkSpec, m: Pick<Model, "params" | "byName">): string | null {
+  const node = atExpr(mk.at, m.params.map((p) => p.name));
+  if (!node) return null;
+  for (const n of namesIn(node)) {
+    const c = m.byName.get(n)?.color;
+    if (c) return c;
+  }
+  return null;
+}
+
 /** The ids of the marks that are one part each (point, tangent, hline,
  *  vline): the author's `id`, else the kind numbered in order (point,
  *  point_2, …) with _c<i> for a mark on curve i > 0. */

@@ -6,7 +6,7 @@ import { beforeAll, describe, expect, test } from "vitest";
 import { ensureEngines } from "../src/scenes/engines";
 import { scenes } from "../src/scenes/registry";
 import { autoYRange, dragParam, extremaOf, readModel, rootsOf, solveParam, type EquationPlotParams } from "../src/scenes/equation_plot/model";
-import { layoutEquationPlot, clipCurve } from "../src/scenes/equation_plot/layout";
+import { layoutEquationPlot, clipCurve, letterParts } from "../src/scenes/equation_plot/layout";
 import { lintEquationPlot } from "../src/scenes/equation_plot/lint";
 import { eqParts, eqPatch, eqTarget, panPatch, shownRanges, zoomPatch } from "../src/scenes/equation_plot/widget";
 import { scrubValue, sliderPointerValue } from "../src/scenes/params-ui/controls";
@@ -19,7 +19,7 @@ import { planCommands, INITIAL_STATE, type Plan } from "../src/render/plan";
 import { widgetHostFor } from "../src/ui/widget-host";
 import { readParam, withOverrides } from "../src/render/params";
 import { STEP_UNITS } from "../src/scenes/number-scrub";
-import type { Pt } from "../src/layout/model";
+import { COLORS, PARAM_PALETTE, type Pt } from "../src/layout/model";
 import type { WidgetScene } from "../src/scenes/widget-types";
 import type { RenderHandle } from "../src/render";
 
@@ -109,6 +109,24 @@ describe("the layout", () => {
     for (const id of ["slider_A", "knob_A", "name_A", "value_A", "box_k", "value_k", "slider_phi"]) expect(l.order).toContain(id);
     expect(l.groups?.panel).toContain("knob_phi");
   });
+  test("colour per parameter: letter, number, slider and the marks it drives share it", () => {
+    const P: EquationPlotParams = {
+      ...PARABOLA,
+      params: { ...PARABOLA.params, c: { value: -2, min: -5, max: 5, color: "#123456" } },
+      equation_form: "both",
+      controls: "both",
+      marks: [{ kind: "point", at: "b" }, { kind: "tangent", at: 1 }, { kind: "vline", at: "c + 1" }],
+    };
+    const l = layoutEquationPlot(P);
+    const color = (id: string) => l.drawables.find((d) => d.id === id)!.style.color;
+    expect(l.order).toContain("eq_symbols");
+    for (const [name, want] of [["a", PARAM_PALETTE[0]], ["b", PARAM_PALETTE[1]], ["c", "#123456"]] as const)
+      for (const id of [`eq_param_${name}`, `eq_param_${name}_2`, `knob_${name}`, `value_${name}`, `name_${name}`]) expect(color(id), id).toBe(want);
+    // The point rides b; the vline follows c; a tangent at a fixed x is ink.
+    expect(color("point")).toBe(PARAM_PALETTE[1]);
+    expect(color("vline")).toBe("#123456");
+    expect(color("tangent")).toBe(COLORS.ink);
+  });
   test("the y range is calm: round, and still under a small change", () => {
     const r1 = layoutEquationPlot({ equation: "y = a*sin(x)", params: { a: 2 } }).frame!.y;
     const r2 = layoutEquationPlot({ equation: "y = a*sin(x)", params: { a: 2.1 } }).frame!.y;
@@ -169,6 +187,21 @@ describe("the widget", () => {
     expect(valueOf(run.params, "c")).toBe(-1);
     // The author's object form is kept, with the new value in it.
     expect((run.params.params as Record<string, unknown>).c).toEqual({ value: -1, min: -5, max: 5 });
+  });
+  test("changing a parameter lights its letter in its colour, once per press", () => {
+    const P: EquationPlotParams = { ...PARABOLA, equation_form: "both", controls: "both" };
+    const sc = sceneOf(P);
+    const knob = centre(sc, "knob_b");
+    const ev = (to: Pt) => dragMoveEvent("knob_b", knob, to, sc);
+    const run = runWidget(module, asRec(P), [ev([knob[0] + 20, knob[1]]), ev([knob[0] + 40, knob[1]])], { layout: pageOf(P) });
+    expect(run.errors).toEqual([]);
+    const glows = run.effects.map((es) => es.filter((e) => e.glow));
+    expect(letterParts(readModel(P))).toEqual(["eq_param_a", "eq_param_b", "eq_param_c"]);
+    expect(letterParts(readModel({ equation: ["y = a*x + a", "y = a - x"], params: { a: 2 }, equation_form: "both" }))).toEqual(["eq_param_a", "eq_param_a_2", "eq_param_a_5"]);
+    expect(letterParts(readModel(PARABOLA))).toEqual([]);
+    // The letter only: the number changes under the drag.
+    expect(glows[0]).toEqual([{ glow: ["eq_param_b"] }]);
+    expect(glows[1]).toEqual([]);
   });
   test("tap to type: a field with the parameter's bounds, and the typed value lands", () => {
     const sc = sceneOf(PARABOLA);

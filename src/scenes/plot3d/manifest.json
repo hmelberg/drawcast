@@ -56,7 +56,7 @@
       "title": { "type": "string" },
       "params": {
         "type": "object",
-        "description": "Parameter name → a number (its value), or {value, min, max, step, label, fixed, control}. min+max give a slider and bound scrubbing and dragging; step defaults to a fiftieth of the range; label names it in the panel (\"amplitude a\"); fixed: true shows it but the viewer cannot change it; control \"box\" makes its panel control a number box.",
+        "description": "Parameter name → a number (its value), or {value, min, max, step, label, fixed, control, color}. min+max give a slider and bound scrubbing and dragging; step defaults to a fiftieth of the range; label names it in the panel (\"amplitude a\"); fixed: true shows it but the viewer cannot change it; control \"box\" makes its panel control a number box. Each editable one has its own colour (letter, number, slider, the marks it moves); color (\"#rrggbb\") overrides it.",
         "additionalProperties": {
           "oneOf": [
             { "type": "number" },
@@ -69,7 +69,8 @@
                 "step": { "type": "number" },
                 "label": { "type": "string" },
                 "fixed": { "type": "boolean" },
-                "control": { "type": "string", "enum": ["slider", "box"] }
+                "control": { "type": "string", "enum": ["slider", "box"] },
+                "color": { "type": "string", "x-translate": false }
               }
             }
           ]

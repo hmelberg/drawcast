@@ -21,7 +21,7 @@
       },
       "params": {
         "type": "object",
-        "description": "Parameter name → a number (its value), or {value, min, max, step, label, fixed, control}. min+max give a slider and bound scrubbing and dragging; step defaults to a fiftieth of the range; label names it in the panel (\"amplitude a\"); fixed: true shows it but the viewer cannot change it; control \"box\" makes its panel control a number box.",
+        "description": "Parameter name → a number (its value), or {value, min, max, step, label, fixed, control, color}. min+max give a slider and bound scrubbing and dragging; step defaults to a fiftieth of the range; label names it in the panel (\"amplitude a\"); fixed: true shows it but the viewer cannot change it; control \"box\" makes its panel control a number box. Each editable one has its own colour (letter, number, slider, the marks it moves); color (\"#rrggbb\") overrides it.",
         "additionalProperties": {
           "oneOf": [
             { "type": "number" },
@@ -34,7 +34,8 @@
                 "step": { "type": "number" },
                 "label": { "type": "string" },
                 "fixed": { "type": "boolean" },
-                "control": { "type": "string", "enum": ["slider", "box"] }
+                "control": { "type": "string", "enum": ["slider", "box"] },
+                "color": { "type": "string", "x-translate": false }
               }
             }
           ]
@@ -73,7 +74,7 @@
         }
       },
       "variable": { "type": "string", "x-translate": false, "description": "The variable's name when the left side does not say (default x)." },
-      "equation_form": { "type": "string", "enum": ["values", "symbols", "both"], "description": "The equation with values in (default), in letters (y = a·sin(bx + c)), or both lines." },
+      "equation_form": { "type": "string", "enum": ["values", "symbols", "both"], "description": "The equation with values in (default), in letters (y = a·sin(bx + c)), or both: letters above numbers, each parameter in its own colour — choose both when the cast explains what each parameter does." },
       "x_label": { "type": "string", "description": "x-axis caption (default the variable)." },
       "y_label": { "type": "string", "description": "y-axis caption (default the left side)." },
       "grid": { "type": "boolean", "description": "Faint grid lines at the ticks." }
@@ -108,7 +109,7 @@
   "examples": [
     {
       "request": "What do a, b and c do to a parabola?",
-      "params": { "equation": "y = a*x^2 + b*x + c", "params": { "a": { "value": 1, "min": -3, "max": 3 }, "b": { "value": 0, "min": -5, "max": 5 }, "c": { "value": -2, "min": -5, "max": 5 } }, "marks": ["roots", "extrema", "y_intercept"], "x_range": [-5, 5] }
+      "params": { "equation": "y = a*x^2 + b*x + c", "params": { "a": { "value": 1, "min": -3, "max": 3 }, "b": { "value": 0, "min": -5, "max": 5 }, "c": { "value": -2, "min": -5, "max": 5 } }, "equation_form": "both", "marks": ["roots", "extrema", "y_intercept"], "x_range": [-5, 5] }
     },
     {
       "request": "How do amplitude, frequency and phase shape a sine wave?",

@@ -14,9 +14,9 @@ import { heuristicMeasure } from "../../layout/measure";
 import { getLoadedEngines, type MathJaxEngine } from "../engines";
 import { kit } from "../kit";
 import type { SceneLayout } from "../types";
-import { drawEquation, PARAM_COLOR } from "../params-ui/equation";
+import { drawEquation, equationTeX } from "../params-ui/equation";
 import { drawPanel, panelRows, PANEL_W } from "../params-ui/panel";
-import { autoYRange, extremaOf, fromU, logTicks, markAt, markIds, niceTicks, readModel, rootsOf, sampleCurve, slopeAt, toU, yNeeds, type EquationPlotParams, type MarkSpec, type Model } from "./model";
+import { autoYRange, extremaOf, fromU, logTicks, markAt, markColor as drivenColor, markIds, niceTicks, readModel, rootsOf, sampleCurve, slopeAt, toU, yNeeds, type EquationPlotParams, type MarkSpec, type Model } from "./model";
 import { withPreset } from "./presets";
 
 export type { EquationPlotParams } from "./model";
@@ -92,6 +92,28 @@ function inkSpan(ds: Drawable[]): [number, number] | null {
   };
   ds.forEach(walk);
   return ys.length ? [Math.min(...ys), Math.max(...ys)] : null;
+}
+
+/**
+ * The parts that write a parameter's LETTER (a symbols line's
+ * eq_param_<name>[_k]), numbered as layoutEquations numbers them — every
+ * line in turn, the symbols line first. What lights while the viewer changes
+ * the parameter: a letter never changes under the drag, a number would.
+ */
+export function letterParts(m: Model): string[] {
+  const seen = new Map<string, number>();
+  const out: string[] = [];
+  for (const c of m.curves) {
+    if (!c.node) continue;
+    const forms: ("symbols" | "values")[] = m.form === "both" ? ["symbols", "values"] : [m.form];
+    for (const form of forms)
+      for (const name of equationTeX({ lhsTeX: c.lhsTeX, node: c.node, variables: m.variable, set: m, form }).order) {
+        const k = (seen.get(name) ?? 0) + 1;
+        seen.set(name, k);
+        if (form === "symbols") out.push(`eq_param_${name}${k > 1 ? `_${k}` : ""}`);
+      }
+  }
+  return out;
 }
 
 /**
@@ -329,7 +351,7 @@ export function layoutEquationPlot(raw: EquationPlotParams): SceneLayout {
   groups.equations = [...eqIds, ...paramIdsAll].filter((id) => order.includes(id));
 
   // ---- marks --------------------------------------------------------------
-  const markColor = COLORS.ink;
+  const markColor: string = COLORS.ink;
   const dot = (id: string, x: number, y: number, color = markColor): void => {
     const c: Pt = [sx(x), sy(y)];
     push(kit.stroke(id, [c], { shapeHint: { type: "circle", c, r: 7 }, color, fill: color, strokeWidth: 2, ms: SKETCH_MS.dot }), c);
@@ -365,6 +387,8 @@ export function layoutEquationPlot(raw: EquationPlotParams): SceneLayout {
     if (!c || !c.node) continue;
     const f = (x: number): number => c.f(x, m.env);
     const sfx = markSuffix(mk);
+    // A mark whose `at` follows a parameter is drawn in that parameter's colour.
+    const driven = drivenColor(mk, m);
     if (mk.kind === "hline" || mk.kind === "vline") {
       const id = markId(mk);
       const v = markAt(mk, m);
@@ -374,7 +398,7 @@ export function layoutEquationPlot(raw: EquationPlotParams): SceneLayout {
       if (mk.kind === "hline") {
         if (v < y0 || v > y1) continue;
         const Y = sy(v);
-        push(kit.stroke(id, [[plot.x0, Y], [plot.x1, Y]], { color: COLORS.guide, strokeWidth: 2.5, dash: true, ms: SKETCH_MS.guides }), [plot.x1, Y]);
+        push(kit.stroke(id, [[plot.x0, Y], [plot.x1, Y]], { color: driven ?? COLORS.guide, strokeWidth: 2.5, dash: true, ms: SKETCH_MS.guides }), [plot.x1, Y]);
         // Its word at the end of the line the curves keep farther from (an
         // asymptote's curve hugs it at one end), on the side away from them.
         if (t) {
@@ -403,7 +427,7 @@ export function layoutEquationPlot(raw: EquationPlotParams): SceneLayout {
       } else {
         if (v < x0 || v > x1) continue;
         const X = sx(v);
-        push(kit.stroke(id, [[X, plot.y0], [X, plot.y1]], { color: COLORS.guide, strokeWidth: 2.5, dash: true, ms: SKETCH_MS.guides }), [X, plot.y1]);
+        push(kit.stroke(id, [[X, plot.y0], [X, plot.y1]], { color: driven ?? COLORS.guide, strokeWidth: 2.5, dash: true, ms: SKETCH_MS.guides }), [X, plot.y1]);
         if (t) {
           const pos: Pt = [X + 8, plot.y1 - 24];
           push(kit.text(`${id}_label`, pos, t, { fontSize: MARK_FONT, anchor: "start" }), pos);
@@ -459,17 +483,17 @@ export function layoutEquationPlot(raw: EquationPlotParams): SceneLayout {
         const seg = clipLine(xAt, y, k, [x0, x1], [y0, y1]);
         if (seg) {
           const pts = seg.map(([x, yy]): Pt => [sx(x), sy(yy)]);
-          push(kit.stroke(id, pts, { color: PARAM_COLOR, strokeWidth: 3, ms: SKETCH_MS.connector }), pts[1]);
+          push(kit.stroke(id, pts, { color: driven ?? COLORS.ink, strokeWidth: 3, ms: SKETCH_MS.connector }), pts[1]);
           if (inView(xAt, y)) {
             const c0: Pt = [sx(xAt), sy(y)];
-            drawables.push(kit.stroke(`${id}_dot`, [c0], { shapeHint: { type: "circle", c: c0, r: 7 }, color: PARAM_COLOR, fill: PARAM_COLOR, strokeWidth: 2, ms: SKETCH_MS.dot }));
+            drawables.push(kit.stroke(`${id}_dot`, [c0], { shapeHint: { type: "circle", c: c0, r: 7 }, color: driven ?? COLORS.ink, fill: driven ?? COLORS.ink, strokeWidth: 2, ms: SKETCH_MS.dot }));
           }
           const t = labelText(mk, `${kit.say({ en: "slope", nb: "stigning", nn: "stigning", sv: "lutning", da: "hældning", de: "Steigung" })} ${trim(k)}`);
           if (t) markLabel(`${id}_label`, pts[1][1] > plot.y1 - 30 ? [pts[1][0] - 120, pts[1][1] - 40] : pts[1], t);
         }
       } else {
         if (!inView(xAt, y)) continue;
-        dot(id, xAt, y);
+        dot(id, xAt, y, driven ?? markColor);
         // Dashed guides down and across to the axes (the point's own sub-part).
         const c0 = anchors[id];
         drawables.push(kit.stroke(`${id}_guides`, [[c0[0], oy], c0, [ox, c0[1]]], { color: COLORS.guide, strokeWidth: 2, dash: true, ms: SKETCH_MS.guides }));

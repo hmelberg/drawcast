@@ -4,14 +4,17 @@
 // template's params in ONE shape, so every template with an equation
 // (equation_plot, and plot3d next) offers the same controls:
 //
-//   params:   { a: 2, b: { value, min, max, step, label, fixed, control } }
+//   params:   { a: 2, b: { value, min, max, step, label, fixed, control, color } }
 //   editable: ["a"]                          only these (default: all not fixed)
 //   controls: "equation" | "panel" | "both"  where the viewer works them
 //   panel:    ["a", "b"]                     the panel's rows (default: editable)
 //
 // Every name the expressions read that the author did not declare is a
-// parameter too, at 1. The JSON-schema fragment for a manifest is
+// parameter too, at 1. Each editable parameter has a colour of its own
+// (PARAM_PALETTE by order, or its `color`): its letter, its number, its
+// slider and the marks it drives share it. The JSON-schema fragment for a manifest is
 // PARAMS_SCHEMA below (manifests are JSON, so a template copies it).
+import { COLORS, PARAM_PALETTE } from "../../layout/model";
 import { isConstantName, isFunctionName } from "./expr";
 
 export interface ParamSpec {
@@ -24,6 +27,8 @@ export interface ParamSpec {
   fixed?: boolean;
   /** The panel's control for it: a slider (needs min and max) or a number box. */
   control?: "slider" | "box";
+  /** Its own colour: "#rrggbb" (or "#rgb") or a palette role (demand, supply…). */
+  color?: string;
 }
 
 export type ParamsMap = Record<string, number | ParamSpec>;
@@ -42,6 +47,9 @@ export interface Param {
   control: "slider" | "box";
   /** Given in the spec's `params` (else defaulted to 1). */
   declared: boolean;
+  /** What its letter, number, slider and marks are drawn in; null = the
+   *  equation's own ink (a fixed parameter without a `color`). */
+  color: string | null;
 }
 
 export interface ParamSet {
@@ -100,6 +108,23 @@ export function digitsOf(p: Param, v = p.value): string {
   return /^-0(\.0*)?$/.test(s) ? s.slice(1) : s;
 }
 
+/** A colour a parameter's `color` names: "#rgb"/"#rrggbb" as written, a
+ *  COLORS role (demand, supply, accent…) as its hex; null for anything else. */
+export function paramColorOf(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const s = v.trim();
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(s)) return s.toLowerCase();
+  const role = (COLORS as Record<string, unknown>)[s];
+  return Object.prototype.hasOwnProperty.call(COLORS, s) && typeof role === "string" ? role : null;
+}
+
+/** A `color` that names no colour, as a lint warning (null when it does or is absent). */
+export function paramColorIssue(name: string, spec: unknown): { severity: "warn"; message: string } | null {
+  const c = spec && typeof spec === "object" ? (spec as ParamSpec).color : undefined;
+  if (c === undefined || paramColorOf(c) !== null) return null;
+  return { severity: "warn", message: `param "${name}": color ${JSON.stringify(c)} is neither "#rrggbb" nor a palette name (demand, supply, accent…) — it takes one from the palette` };
+}
+
 /** A name a parameter may have (and not a function or a constant). */
 export const isParamName = (s: string): boolean => /^[A-Za-z_][A-Za-z0-9_]*$/.test(s) && !isConstantName(s) && !isFunctionName(s);
 
@@ -136,7 +161,13 @@ export function readParams(opts: { given?: unknown; names: string[]; editable?: 
       editable: spec.fixed !== true && (editableList === null || editableList.includes(name)),
       control: spec.control === "box" || !bounded ? "box" : "slider",
       declared: raw !== undefined,
+      color: paramColorOf(spec.color),
     };
+  });
+  // The rest of the editable ones take the palette in order — counting every
+  // editable parameter, so an author's colour on one does not shift the others.
+  params.filter((p) => p.editable).forEach((p, k) => {
+    p.color ??= PARAM_PALETTE[k % PARAM_PALETTE.length];
   });
   const byName = new Map(params.map((p) => [p.name, p]));
   const env = Object.create(null) as Record<string, number>;
@@ -154,6 +185,8 @@ export function lintParams(given: unknown, set: ParamSet, lists: Record<string, 
   for (const [name, raw] of Object.entries(g)) {
     if (!raw || typeof raw !== "object") continue;
     const { value, min, max } = raw;
+    const bad = paramColorIssue(name, raw);
+    if (bad) out.push(bad);
     if (typeof min === "number" && typeof max === "number" && !(max > min)) out.push({ severity: "error", message: `param "${name}": min ${min} is not below max ${max}` });
     else if (typeof value === "number" && ((typeof min === "number" && value < min) || (typeof max === "number" && value > max)))
       out.push({ severity: "error", message: `param "${name}": value ${value} is outside its range [${min ?? "−∞"}, ${max ?? "∞"}]` });
@@ -198,7 +231,7 @@ export const PARAMS_SCHEMA = {
   params: {
     type: "object",
     description:
-      "Parameter name → a number (its value), or {value, min, max, step, label, fixed, control}. min+max give a slider and bound scrubbing and dragging; step defaults to a fiftieth of the range; label names it in the panel (\"amplitude a\"); fixed: true shows it but the viewer cannot change it; control \"box\" makes its panel control a number box.",
+      "Parameter name → a number (its value), or {value, min, max, step, label, fixed, control, color}. min+max give a slider and bound scrubbing and dragging; step defaults to a fiftieth of the range; label names it in the panel (\"amplitude a\"); fixed: true shows it but the viewer cannot change it; control \"box\" makes its panel control a number box. Each editable one has its own colour (letter, number, slider, the marks it moves); color (\"#rrggbb\") overrides it.",
     additionalProperties: {
       oneOf: [
         { type: "number" },
@@ -212,6 +245,7 @@ export const PARAMS_SCHEMA = {
             label: { type: "string" },
             fixed: { type: "boolean" },
             control: { type: "string", enum: ["slider", "box"] },
+            color: { type: "string", "x-translate": false },
           },
         },
       ],

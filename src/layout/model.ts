@@ -297,6 +297,15 @@ export const COLORS = Object.freeze({
   boardHighlight: "#f6d891",
 } as const);
 
+/**
+ * Colours for live parameters (params-ui, 2026-09-29): parameter k the viewer
+ * may change takes PARAM_PALETTE[k % 5] — its letter, its number, its slider
+ * and the marks it drives — so the eye links them. Kept apart from the curve
+ * and series colours (supply blue, demand red, sage, orange) so a parameter
+ * never reads as a curve; the first is COLORS.accent, the old single colour.
+ */
+export const PARAM_PALETTE = Object.freeze(["#8a5fa8", "#1f7a7a", "#b0417a", "#9a6b1f", "#4f5fa8"]);
+
 export function defaultStyle(overrides: Partial<ResolvedStyle> = {}): ResolvedStyle {
   return { color: INK, strokeWidth: 3.5, roughness: 1.4, opacity: 1, ...overrides };
 }

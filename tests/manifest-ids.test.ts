@@ -24,7 +24,9 @@ const CONDITIONAL: Record<string, string[]> = {
   ring_molecule: ["atom_<i>"],
   protein_secondary: ["strip_title"],
   generic_axes_diagram: ["hline_<i>", "shade"],
-  equation_plot: ["<mark>_c<i>"],
+  // equation_plot's "<mark>_c<i>" left 2026-09-29: the placeholder pattern
+  // (.+_c.+) now matches eq_param_c_2 — the parabola example's letters line
+  // (equation_form "both") numbers its c twice.
   des_process: ["balked_<id>", "title"],
   reaction_scheme: ["label_under"],
   lab_apparatus: ["funnel"],

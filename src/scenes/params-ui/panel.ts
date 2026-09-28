@@ -8,11 +8,13 @@
 //   box_<p>     a number box's outline
 //
 // Drawing a row's slider_<p> (or box_<p>) brings its name, value and knob
-// with it (drawnWith), and they follow it (attached). The widget side —
-// which part does what under the pointer — is controls.ts.
+// with it (drawnWith), and they follow it (attached). A row is drawn in its
+// parameter's colour — label, value, knob, a box's outline — the colour of
+// its letter and number in the equation (params.ts Param.color); the track
+// stays a guide. The widget side — which part does what under the pointer —
+// is controls.ts.
 import { COLORS, SKETCH_MS, type Drawable, type Pt } from "../../layout/model";
 import { kit } from "../kit";
-import { PARAM_COLOR } from "./equation";
 import { digitsOf, type Param } from "./params";
 
 export const PANEL_W = 235;
@@ -69,11 +71,11 @@ export function drawPanel(rows: PanelRow[]): DrawnPanel {
     const p = row.param;
     const nameId = `name_${p.name}`;
     const valueId = `value_${p.name}`;
-    const color = p.editable ? PARAM_COLOR : COLORS.ink;
+    const color = p.color ?? COLORS.ink;
     const left = row.x0 - KNOB_R;
     const right = row.x1 + KNOB_R;
     const digits = kit.num(Number(digitsOf(p)), p.decimals);
-    push(kit.text(nameId, [left, row.textY], p.label, { fontSize: 24, anchor: "start" }), [left, row.textY]);
+    push(kit.text(nameId, [left, row.textY], p.label, { fontSize: 24, anchor: "start", color }), [left, row.textY]);
     if (row.kind === "slider") {
       push(kit.text(valueId, [right, row.textY], digits, { fontSize: 24, anchor: "end", color }), [right - 20, row.textY]);
       push(kit.stroke(`slider_${p.name}`, [[row.x0, row.trackY], [row.x1, row.trackY]], { color: COLORS.guide, strokeWidth: 3, ms: SKETCH_MS.guides }), [row.x1, row.trackY]);
@@ -86,7 +88,7 @@ export function drawPanel(rows: PanelRow[]): DrawnPanel {
       const bh = 40;
       const bx = right - bw;
       const by = row.textY - 12;
-      push(kit.stroke(`box_${p.name}`, kit.rect(bx, by, bw, bh), { closed: true, color: COLORS.guide, strokeWidth: 2.5, ms: SKETCH_MS.guides }), [bx + bw / 2, by + bh / 2]);
+      push(kit.stroke(`box_${p.name}`, kit.rect(bx, by, bw, bh), { closed: true, color: p.color ?? COLORS.guide, strokeWidth: 2.5, ms: SKETCH_MS.guides }), [bx + bw / 2, by + bh / 2]);
       push(kit.text(valueId, [bx + bw / 2, row.textY], digits, { fontSize: 24, anchor: "middle", color }), [bx + bw / 2, row.textY]);
       out.drawnWith[`box_${p.name}`] = [nameId, valueId];
       out.attached[`box_${p.name}`] = [nameId, valueId];

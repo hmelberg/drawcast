@@ -2,6 +2,7 @@
 // that does not parse or calls an unknown function, a parameter whose value
 // lies outside its own range, a curve with nothing to draw over the range,
 // a preset this build does not know, a mark that cannot be placed.
+import { paramColorIssue } from "../params-ui/params";
 import { markAt, markIds, readModel, sampleCurve, type EquationPlotParams } from "./model";
 import { PRESET_NAMES, withPreset } from "./presets";
 
@@ -18,6 +19,8 @@ export function lintEquationPlot(raw: EquationPlotParams): Issue[] {
   for (const [name, spec] of Object.entries(given)) {
     if (!spec || typeof spec !== "object") continue;
     const { value, min, max } = spec;
+    const bad = paramColorIssue(name, spec);
+    if (bad) out.push(bad);
     if (typeof min === "number" && typeof max === "number" && !(max > min)) out.push({ severity: "error", message: `param "${name}": min ${min} is not below max ${max}` });
     else if (typeof value === "number" && ((typeof min === "number" && value < min) || (typeof max === "number" && value > max)))
       out.push({ severity: "error", message: `param "${name}": value ${value} is outside its range [${min ?? "−∞"}, ${max ?? "∞"}]` });
