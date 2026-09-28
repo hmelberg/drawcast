@@ -172,8 +172,11 @@ async function lectureContext(load, dir, n, withOutline = false) {
 }
 
 const commands = {
-  async prompt([request, out = "dev-casts/_prompt.md"]) {
+  async prompt([request, out]) {
     if (!request) throw new Error('usage: cast.mjs prompt "<request>" [out.md]');
+    // One file per request by default: parallel authors (subagents) used to
+    // share dev-casts/_prompt.md and read each other's shortlist (2026-09-28).
+    out ??= `dev-casts/_prompt-${request.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48)}.md`;
     await withVite(async (load) => {
       const text = await appPromptText(load, request);
       writeFileSync(resolve(ROOT, out), wrap(text) + "\n");
