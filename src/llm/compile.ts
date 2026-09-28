@@ -8,8 +8,17 @@ import { buildOutlineMessages, normalizeOutline, outlineSchemaFor, type Outline 
 import { buildStoryboardMessages, storyboardSchemaFor, type Approach } from "./storyboard";
 import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, styleBlock, systemBlocks, wantsCode, wantsSound, OPTIONAL_PROMPT_PLACEHOLDERS, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
 import { pickExemplars } from "./exemplars";
-import { catalogIsTwoLevel, catalogParts, detectNeedTemplate, routerIndexText, selectTemplates, HOT_SHORTLIST } from "../scenes/catalog";
-import { buildTreatmentSystem, buildTreatmentUser, stagingNote, type TreatmentVersion } from "./treatment";
+import { catalogIndexText, catalogIsTwoLevel, catalogParts, detectNeedTemplate, fullEntryIds, isReadyTemplate, routerIndexText, selectTemplates, storyTemplateLines, HOT_SHORTLIST } from "../scenes/catalog";
+import {
+  buildTreatmentSystem,
+  buildTreatmentUser,
+  stagingNote,
+  takeTemplateGaps,
+  treatmentTemplate,
+  DEFAULT_TREATMENT_EFFORT,
+  type TemplateGap,
+  type TreatmentVersion,
+} from "./treatment";
 import type { RouteResult } from "./router";
 import type { OnDemandRun } from "./on-demand-run";
 import type { describeTemplateFor } from "./on-demand";
@@ -192,18 +201,31 @@ export interface GenerationOutcome {
   treatmentError?: string;
   /** How long the plan call took (ms), when one ran. */
   treatmentMs?: number;
+  /** The template the storyline named on its TEMPLATE line (v3), when it named one. */
+  treatmentTemplate?: string;
+  /**
+   * Staging's notes on templates that could not do what the storyline needed
+   * (treatment.ts takeTemplateGaps): taken off the reply before validation,
+   * so the spec never carries them. For the owner — which templates to extend.
+   */
+  templateGaps?: TemplateGap[];
 }
 
 export interface GenerateConfig {
   /**
-   * The "plan first" pipeline (developer mode; docs/prompt-lab): before the
-   * JSON call the creative model writes a plain-text plan — question,
-   * insight, example, figure, beats — and the compiler stages it. In the
-   * lab's fair comparison it did not beat the single call, so it is an
-   * option to experiment with, not the default. "v2" plans what, not where,
-   * and sees the shortlisted templates in full.
+   * Story first (llm/treatment.ts): before the JSON call the creative model
+   * writes a plain-text storyline — question, insight, example, figure,
+   * beats — and the compiler stages it. "v3" is the app's single-cast
+   * default under Settings.approach "storyboard" (treatment.ts
+   * singleCastTreatment): the storyline rules, the shortlist with each
+   * template's interactions, and the library index so the story can name a
+   * template the shortlist missed. "v2" (true) and "v1" are the prompt lab's
+   * arms. Absent: the one-shot call. The teaching (pedagogy) pass never runs
+   * on a staged storyline — its narration was authored.
    */
   treatment?: boolean | TreatmentVersion;
+  /** Effort for the storyline call (default treatment.ts DEFAULT_TREATMENT_EFFORT, medium). Staging keeps `effort`. */
+  treatmentEffort?: Effort;
   /**
    * The look pass (src/llm/look.ts): renders a spec's frames — one per spoken
    * line — for a critic who sees them and lists the page's problems; a fix
@@ -505,39 +527,55 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   const code = wantCode ? CODE_PROMPT_SOURCE : "";
   const sound = wantSound ? SOUND_PROMPT_SOURCE : "";
   const schema = apiSchema({ code: wantCode, sound: wantSound });
-  let blocks = buildSystemBlocks(cfg.variant.source, {
-    schema,
-    catalog: catalog.stable,
-    fewshots: fewshotsText({ code: wantCode }),
-    exemplars: formatExemplars(pickExemplars(request, cfg.exemplars, cfg.bundledExemplars ?? [], 3)),
-    code,
-    sound,
-  });
-  let suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "") + styleBlock(cfg.styleText);
-  let system: Anthropic.TextBlockParam[] = systemBlocks(blocks.prefix, suffixText);
+  // The compiler's system prompt from the CURRENT catalog — rebuilt when the
+  // storyline names a template the shortlist missed, and at the
+  // need_template escalation below.
+  const buildSystem = () => {
+    const b = buildSystemBlocks(cfg.variant.source, {
+      schema,
+      catalog: catalog.stable,
+      fewshots: fewshotsText({ code: wantCode }),
+      exemplars: formatExemplars(pickExemplars(request, cfg.exemplars, cfg.bundledExemplars ?? [], 3)),
+      code,
+      sound,
+    });
+    const suffixText = b.suffix + (catalog.variable ? "\n\n" + catalog.variable : "") + styleBlock(cfg.styleText);
+    return { blocks: b, suffixText, system: systemBlocks(b.prefix, suffixText) as Anthropic.TextBlockParam[] };
+  };
+  let { blocks, suffixText, system } = buildSystem();
   const measure = makeBrowserMeasure();
   const maxRepairs = cfg.maxRepairs ?? 2;
 
-  // ---- the plan step (cfg.treatment) ----
+  // ---- the story step (cfg.treatment) ----
   let treatment: string | undefined;
   let treatmentError: string | undefined;
   let treatmentMs: number | undefined;
-  const treatmentVersion: TreatmentVersion = cfg.treatment === "v1" ? "v1" : "v2";
+  let namedTemplate: string | undefined;
+  const treatmentVersion: TreatmentVersion = cfg.treatment === "v1" || cfg.treatment === "v3" ? cfg.treatment : "v2";
   if (cfg.treatment) {
-    cfg.onPhase?.("writing the plan");
+    cfg.onPhase?.(treatmentVersion === "v3" ? "writing the story" : "writing the plan");
+    const twoLevel = catalogIsTwoLevel(cfg.excludeIds);
     const ids = shortlist ?? (route?.noneFits ? [] : selectTemplates(request, HOT_SHORTLIST));
     const wanted = new Set(cfg.forcedTemplate ? [cfg.forcedTemplate] : ids);
+    // v3: the templates the staging step will see in full (the router's
+    // picks filled up by keyword, exactly catalogParts' shortlist), one story
+    // line each with its interactions, and — unless a template is forced —
+    // the library's one-line index.
+    const shown = cfg.forcedTemplate ? [cfg.forcedTemplate] : twoLevel ? fullEntryIds(catalog.variable) : ids;
     const lines =
-      treatmentVersion === "v2" && catalog.variable.trim()
-        ? catalog.variable
-        : routerIndexText({ excludeIds: cfg.excludeIds })
-            .split("\n")
-            .filter((l) => wanted.has(/^- ([^:]+):/.exec(l)?.[1] ?? ""))
-            .join("\n");
+      treatmentVersion === "v3"
+        ? storyTemplateLines(shown, { excludeIds: cfg.excludeIds })
+        : treatmentVersion === "v2" && catalog.variable.trim()
+          ? catalog.variable
+          : routerIndexText({ excludeIds: cfg.excludeIds })
+              .split("\n")
+              .filter((l) => wanted.has(/^- ([^:]+):/.exec(l)?.[1] ?? ""))
+              .join("\n");
+    const index = treatmentVersion === "v3" && !cfg.forcedTemplate && twoLevel ? catalogIndexText({ excludeIds: cfg.excludeIds }) : undefined;
     try {
-      const out = await callForText(makeClient(cfg.apiKey), cfg.model, buildTreatmentSystem(lines, treatmentVersion), [{ role: "user", content: buildTreatmentUser(request, cfg.brief) }], {
+      const out = await callForText(makeClient(cfg.apiKey), cfg.model, buildTreatmentSystem(lines, treatmentVersion, index), [{ role: "user", content: buildTreatmentUser(request, cfg.brief) }], {
         signal: cfg.signal,
-        effort: cfg.effort,
+        effort: cfg.treatmentEffort ?? DEFAULT_TREATMENT_EFFORT,
       });
       treatment = out.text.trim() || undefined;
       treatmentMs = Math.round(out.ms);
@@ -545,8 +583,20 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       if (cfg.signal?.aborted) throw err;
       treatmentError = describeApiError(err);
     }
+    // The story named a template the shortlist missed (mirrors the
+    // need_template escalation, without its extra call): its full entry
+    // joins the shortlist before staging.
+    const named = treatment && treatmentVersion === "v3" ? treatmentTemplate(treatment) : null;
+    if (named && isReadyTemplate(named) && !(cfg.excludeIds ?? []).includes(named)) {
+      namedTemplate = named;
+      if (!cfg.forcedTemplate && twoLevel && !shown.includes(named)) {
+        catalog = catalogParts({ request, priorityIds: cfg.priorityIds, excludeIds: cfg.excludeIds, shortlist: [named, ...shown] });
+        ({ blocks, suffixText, system } = buildSystem());
+      }
+    }
   }
-  // ---- end plan step ----
+  // ---- end story step ----
+  const gaps: TemplateGap[] = [];
   const userContent = [request, cfg.brief, seed?.text, treatment ? stagingNote(treatment, treatmentVersion) : undefined].filter(Boolean).join("\n\n");
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: userContent }];
   const rounds: GenerationRound[] = [];
@@ -617,6 +667,11 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
         throw err;
       }
       const { json, raw, meta } = call;
+      // Staging's template-gap notes ride the reply as a top-level field the
+      // spec schema does not have: off before anything reads the spec.
+      for (const g of takeTemplateGaps(json)) {
+        if (!gaps.some((x) => x.template === g.template && x.missing === g.missing)) gaps.push(g);
+      }
 
       lastRaw = raw;
       // Escalation (fires at most once): the model asked for a template's full
@@ -630,16 +685,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
         // forced-mode catalogParts is always all-stable (variable === "") —
         // the escalation rebuild pins a fully cache-stable prefix too.
         catalog = catalogParts({ forced: needed, excludeIds: cfg.excludeIds });
-        blocks = buildSystemBlocks(cfg.variant.source, {
-          schema,
-          catalog: catalog.stable,
-          fewshots: fewshotsText({ code: wantCode }),
-          exemplars: formatExemplars(pickExemplars(request, cfg.exemplars, cfg.bundledExemplars ?? [], 3)),
-          code,
-          sound,
-        });
-        suffixText = blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "") + styleBlock(cfg.styleText);
-        system = systemBlocks(blocks.prefix, suffixText);
+        ({ blocks, suffixText, system } = buildSystem());
         messages.push(
           { role: "assistant", content: raw },
           { role: "user", content: `Full definition of "${needed}" is now in your instructions. Return the complete spec using it.` },
@@ -749,6 +795,8 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       treatment,
       treatmentError,
       treatmentMs,
+      treatmentTemplate: namedTemplate,
+      templateGaps: gaps.length ? gaps : undefined,
     };
   }
 
@@ -776,7 +824,9 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
     }
   };
 
-  if (best && !forcedMismatch && cfg.pedagogyReview) {
+  // Never over a staged storyline: its narration was authored, and a pass
+  // that rewrites it undoes what the story step bought (as for parts).
+  if (best && !forcedMismatch && cfg.pedagogyReview && !treatment) {
     try {
       const baseLint = lintOf(best) ?? [];
       const round = rounds.length + 1;
@@ -923,6 +973,8 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
     treatment,
     treatmentError,
     treatmentMs,
+    treatmentTemplate: namedTemplate,
+    templateGaps: gaps.length ? gaps : undefined,
   };
 }
 
