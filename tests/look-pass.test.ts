@@ -7,6 +7,7 @@ vi.mock("../src/llm/client", async (importOriginal) => {
 
 import { callForJson, callForText, type JsonCallMeta } from "../src/llm/client";
 import { generateSpec, type GenerateConfig, type PromptVariant } from "../src/llm/compile";
+import { LOOK_PROMPT_SOURCE } from "../src/llm/look";
 
 const mockJson = vi.mocked(callForJson);
 const mockText = vi.mocked(callForText);
@@ -67,6 +68,16 @@ describe("the look pass", () => {
     const staged = mockJson.mock.calls[0][3][0].content as string;
     expect(staged).toContain("## The treatment to stage");
     expect(staged).toContain("QUESTION: why a box?");
+  });
+
+  test("the look prompt asks the clutter questions, and stops at NONE", () => {
+    expect(LOOK_PROMPT_SOURCE).toMatch(/Clutter — count, do not guess/);
+    expect(LOOK_PROMPT_SOURCE).toMatch(/how many separate\s+pieces of text are visible at once/);
+    expect(LOOK_PROMPT_SOURCE).toMatch(/What is the smallest text/);
+    expect(LOOK_PROMPT_SOURCE).toMatch(/still on the page from earlier beats that no longer serves/);
+    expect(LOOK_PROMPT_SOURCE).toMatch(/"Remove X"[\s\S]*is a valid fix/);
+    expect(LOOK_PROMPT_SOURCE).toMatch(/Does the main figure fill the\s+page/);
+    expect(LOOK_PROMPT_SOURCE).toMatch(/answer exactly `NONE`/);
   });
 
   test("no look callback, no look rounds and no draft", async () => {
