@@ -214,7 +214,7 @@ const elementSchema = {
     href: { type: "string", description: "link: the drawcast it opens — ./file.yaml, lecture:N, or a GitHub/Drive/player link the user gave; never invent one." },
     title: { type: "string", description: "link: its words (default: the target's title)." },
     image: { type: "string", description: "link: a picture URL for the card." },
-    form: { type: "string", enum: ["card", "text", "values", "symbols", "both"], description: "link: card (default, a thumbnail) or text. math: {var}s as values (default), symbols, or both (names = values)." },
+    form: { type: "string", enum: ["card", "text", "values", "symbols", "both"], description: "link: card (default, a thumbnail) or text. math: {var}s as values (default), symbols or both." },
     open: { type: "string", enum: ["auto", "tab", "here", "window"], description: "link: auto (default: a new tab mid-video, this page at the end), tab, here, window (over the video)." },
     link: {
       type: "array",
@@ -1174,7 +1174,7 @@ export const specSchema = {
           },
         ],
       },
-      description: 'Named numbers, e.g. {"f": 1}: curve expr reads them ("sin(f*x)"), bind computes fields from them, drawn text shows {f}, animate sweeps them. Never named x or like a function. A math tex shows {f} as a number the paused viewer drags or types — everything reading f follows. Object form: {"value": 0.03, "min": 0, "max": 0.1, "step", "decimals", "color", "fixed": true (not live)}; {"expr": "B/(1+r)^t"} computes one from the vars before it.',
+      description: 'Named numbers, e.g. {"f": 1}: curve expr reads them ("sin(f*x)"), bind computes fields from them, drawn text shows {f}, animate sweeps them. Never named x or like a function. {f} in a math tex is live: the paused viewer drags or types it. Object form {value, min, max, step, decimals, color, fixed: true}, or {expr: "a*b"} computed from earlier vars.',
     },
     adjust: {
       type: "object",
