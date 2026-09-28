@@ -97,7 +97,10 @@ curves, intersections, shaded regions, arrows, labels attached to things,
 boxes and flowcharts laid out automatically, circles cut into sectors,
 polygons, angles, measures, typeset formulas; a thing drawn as named, clickable
 parts (a pump, a cell); a portrait, a photo, a book with a passage; icons;
-code that runs and draws its output.
+code that runs and draws its output. For a group of people (an epidemic,
+vaccination, screening, a risk, a trial), a population of person icons whose
+states change one person at a time (healthy, sick, immune, vaccinated, dead)
+— never dots.
 
 Motion and attention: draw piece by piece; point, highlight a part (or one
 term of a formula), underline, circle; focus; zoom the camera; ANIMATE a
