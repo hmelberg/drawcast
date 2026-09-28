@@ -300,10 +300,15 @@ describe("the figure", () => {
     expect(l.order).toContain("cursor_b");
     expect(l.drawnWith!.lane_1_b).toContain("cursor_b");
     expect(l.groups!.cursors).toEqual(["cursor", "cursor_b", "cursor_knob"]);
+    // A lane is its bars and marks only: the rails are their own element, drawn with the first lane.
+    expect(l.drawnWith!.lane_1_a).toContain("rails_a");
+    expect(flattenDrawables(l.drawables).some((d) => d.id.startsWith("lane_1_a__rail"))).toBe(false);
     const curves = layoutDesHta({ ...ONC, view: "curves", t: 3 });
     expect(curves.order).toEqual(expect.arrayContaining(["os_a", "os_b", "pfs_a", "pfs_b", "ly_gain", "curve_axes", "key_a", "alive_dot_b", "alive_a"]));
     const res = layoutDesHta({ ...ONC, view: "results", wtp: 30000 });
-    expect(res.order).toEqual(expect.arrayContaining(["res_head", "res_a", "res_b", "res_diff", "res_icer", "res_note", "plane_axes", "plane_dots", "plane_mean", "plane_wtp"]));
+    expect(res.order).toEqual(expect.arrayContaining(["res_head", "res_a", "res_b", "res_diff", "res_icer", "res_wtp", "res_note", "plane_axes", "plane_dots", "plane_mean", "plane_wtp"]));
+    const icerText = flattenDrawables(res.drawables).find((d) => d.id === "res_icer__v") as unknown as { text: string };
+    expect(icerText.text).toMatch(/^£[\d,]+ per QALY$/);
     const dia = layoutDesHta({ ...ONC, view: "diagram" });
     expect(dia.order).toEqual(expect.arrayContaining(["event_label_0", "event_shape_2", "event_label_3", "state_utility_progressed", "state_cost_progression_free", "strategy_a", "strategy_b"]));
     const ov = layoutDesHta({ ...ONC, view: "overview" });

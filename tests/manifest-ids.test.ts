@@ -60,7 +60,7 @@ const CONDITIONAL: Record<string, string[]> = {
   // The diagram and results views (and a title): the manifest's two examples
   // are the timelines and the overview. Its bundled casts (a diagram and a
   // results view) draw these once they are in src/examples.json.
-  des_hta: ["event_shape_<i>", "state_utility_<slug>", "state_cost_<slug>", "plane_axes", "plane_dots", "plane_mean", "plane_wtp", "strategy_a", "strategy_b", "title"],
+  des_hta: ["state_utility_<slug>", "state_cost_<slug>", "plane_axes", "plane_dots", "plane_mean", "plane_wtp", "strategy_a", "strategy_b", "title"],
 };
 
 const specs: Spec[] = [];

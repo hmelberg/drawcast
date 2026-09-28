@@ -252,7 +252,7 @@
       },
       "wtp": {
         "type": "number",
-        "description": "Willingness to pay per QALY: the threshold line on the CE plane."
+        "description": "Willingness to pay per QALY: a Threshold row under the ICER, and the line on the CE plane."
       },
       "title": {
         "type": "string"
@@ -271,12 +271,13 @@
     "model": "SET — the whole model diagram",
     "lane_<k>_a / lane_<k>_b": "patient k (1-based) under the comparator / the intervention: bars, ◆, ✕",
     "lanes_a / lanes_b": "SET — every lane of a strategy",
+    "rails_a / rails_b": "the faint guide line of every lane in a column, drawn with its first lane",
     "lane_labels / tl_head_a / tl_head_b": "the patient numbers; each column's strategy name",
-    "tl_axis_a / tl_axis_b / tl_mean_a / tl_mean_b": "each column's time axis, and the mean over ALL patients under it",
+    "tl_axis_a / tl_axis_b / tl_mean_a / tl_mean_b": "each column's time axis, and (timelines view) the mean over ALL patients under it",
     "os_a / os_b / pfs_a / pfs_b / ly_gain": "curves: alive, in the first state; the life-years gained between the OS curves",
     "curve_axes / key": "the curves' axes; their key (SET)",
     "alive_dot_a / alive_dot_b / alive_a / alive_b": "with t: the dots and % alive at the cursor",
-    "res_head / res_a / res_b / res_diff / res_icer / res_note / results": "results table rows (results: the SET)",
+    "res_head / res_a / res_b / res_diff / res_icer / res_wtp / res_note / results": "results table rows; res_wtp (with wtp) the threshold; results is the SET",
     "plane_axes / plane_dots / plane_mean / plane_wtp": "results view: each patient's difference on the CE plane, the mean, the threshold",
     "strategy_a / strategy_b": "diagram view: what each strategy does",
     "cursor / cursor_b / cursor_curves / cursor_knob / cursors": "with t: the dashed time line on each axis (cursor_b on the intervention column, drawn with its lanes; cursor_curves on the overview curves) and its t pill; cursors is the SET",
@@ -405,7 +406,8 @@
         },
         "horizon": 30,
         "view": "overview",
-        "t": 10
+        "t": 10,
+        "wtp": 20000
       }
     }
   ]

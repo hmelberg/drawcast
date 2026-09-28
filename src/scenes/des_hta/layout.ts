@@ -299,8 +299,10 @@ function drawDiagram(o: Out, P: HtaParams, m: Model, box: Box, detailed: boolean
       push(text(`event_label_${e.index}`, labAt, main, fit(main, fsLab, room)), labAt);
       o.attached[id] = [`event_label_${e.index}`];
       members.push(`event_label_${e.index}`);
-      if (words.shape && shapeAt && detailed) {
-        push(text(`event_shape_${e.index}`, shapeAt, words.shape, fit(words.shape, fsLab - 2, room), { color: COLORS.guide }), shapeAt);
+      // The shape says what kind of law it is (a rising Weibull hazard); in
+      // the header strip too, under the arrow, where only a neighbour's arrow is.
+      if (words.shape && shapeAt && (detailed || adjacent)) {
+        push(text(`event_shape_${e.index}`, shapeAt, words.shape, fit(words.shape, detailed ? fsLab - 2 : 14, room), { color: COLORS.guide }), shapeAt);
         o.attached[id].push(`event_shape_${e.index}`);
         members.push(`event_shape_${e.index}`);
       }
@@ -367,12 +369,15 @@ function drawTimelines(o: Out, P: HtaParams, sim: SimResult, box: Box, rows: num
     const head = arm.name;
     push(text(`tl_head_${k}`, [(c.x0 + c.x1) / 2, box.y1 - 12], head, fit(head, fsHead, c.x1 - c.x0), { color: ARM_COLORS[ai] }), [(c.x0 + c.x1) / 2, box.y1 - 14]);
     const lanes: string[] = [];
+    // Faint guides for the whole horizon (where a bar could still go), one
+    // element per column, drawn with its first lane: a lane is only its bars
+    // and marks, so a highlight of a patient lights up that life alone.
+    const rails: Drawable[] = [];
     for (let r = 0; r < Math.min(rows, arm.paths.length); r++) {
       const path = arm.paths[r];
       const yc = g.top - g.rowH * (r + 0.5);
       const kids: Drawable[] = [];
-      // A faint guide for the whole horizon: where a bar could still go.
-      kids.push(kit.stroke(`lane_${r + 1}_${k}__rail`, [[c.x0, yc], [c.x1, yc]], { color: "#d9d3c7", strokeWidth: 1.5, instant: true }));
+      rails.push(kit.stroke(`rails_${k}__${r + 1}`, [[c.x0, yc], [c.x1, yc]], { color: "#d9d3c7", strokeWidth: 1.5, instant: true }));
       path.stays.forEach((st, j) => {
         if (st.t0 >= tCur) return;
         const x0 = X(st.t0), x1 = X(Math.min(st.t1, tCur));
@@ -386,10 +391,15 @@ function drawTimelines(o: Out, P: HtaParams, sim: SimResult, box: Box, rows: num
         else if (ev.kind === "death") kids.push(cross(`lane_${r + 1}_${k}__x${j}`, at, Math.max(5, barH * 0.36)));
       });
       const id = `lane_${r + 1}_${k}`;
+      if (kids.length === 0) kids.push(kit.stroke(`${id}__start`, [[c.x0, yc - barH / 2], [c.x0, yc + barH / 2]], { color: stateColor(m, 0), strokeWidth: 2, instant: true }));
       push(kit.group(id, kids), [(c.x0 + c.x1) / 2, yc]);
       lanes.push(id);
     }
     o.groups[`lanes_${k}`] = lanes;
+    if (rails.length) {
+      push(kit.group(`rails_${k}`, rails), [(c.x0 + c.x1) / 2, (g.top + g.axisY) / 2]);
+      (o.drawnWith[lanes[0]] ??= []).push(`rails_${k}`);
+    }
     push(timeAxis(`tl_axis_${k}`, c.x0, c.x1, g.axisY, H, compact ? 15 : 17, compact ? 4 : 5), [(c.x0 + c.x1) / 2, g.axisY]);
     const years = kit.say({ en: "years", nb: "år" });
     const yAt: Pt = [(c.x0 + c.x1) / 2, g.axisY - (compact ? 40 : 44)];
@@ -398,7 +408,7 @@ function drawTimelines(o: Out, P: HtaParams, sim: SimResult, box: Box, rows: num
     o.drawnWith[`tl_axis_${k}`] = [`tl_years_${k}`];
     const mean = `${kit.num(sh.qalys[ai], 2)} QALYs · ${fmtMoney(sh.cost[ai], cur)}`;
     const fy = box.y0 + 12;
-    push(text(`tl_mean_${k}`, [(c.x0 + c.x1) / 2, fy], mean, fit(mean, compact ? 18 : 21, c.x1 - c.x0), { color: ARM_COLORS[ai] }), [(c.x0 + c.x1) / 2, fy]);
+    if (!compact) push(text(`tl_mean_${k}`, [(c.x0 + c.x1) / 2, fy], mean, fit(mean, compact ? 18 : 21, c.x1 - c.x0), { color: ARM_COLORS[ai] }), [(c.x0 + c.x1) / 2, fy]);
   });
   // Patient numbers, once, left of the first column.
   const nums: Drawable[] = [];
@@ -522,7 +532,8 @@ function drawTable(o: Out, P: HtaParams, sim: SimResult, box: Box, compact: bool
   const d = discountOf(P);
   const FS = compact ? 19 : 24;
   const LFS = compact ? 17 : 21;
-  const rows = 5;
+  const wtp = typeof P.wtp === "number" && P.wtp > 0 ? P.wtp : null;
+  const rows = wtp ? 6 : 5;
   const ROW = Math.min(compact ? 34 : 46, (box.y1 - box.y0) / (rows + 0.6));
   const w = box.x1 - box.x0;
   const labelW = w * 0.36;
@@ -547,22 +558,34 @@ function drawTable(o: Out, P: HtaParams, sim: SimResult, box: Box, compact: bool
   rule("res_rule_diff");
   row("res_diff", kit.say({ en: "Difference", nb: "Forskjell" }), [signed(fmtMoney(Math.abs(sh.dcost), cur), sh.dcost), signed(kit.num(Math.abs(sh.dqaly), 2), sh.dqaly), signed(kit.num(Math.abs(sh.dly), 2), sh.dly)], COLORS.ink, COLORS.guide);
   const icerId = "res_icer";
+  const perQaly = (v: number): string => `${fmtMoney(v, cur)} ${kit.say({ en: "per QALY", nb: "per QALY" })}`;
   const icerWord = compact ? kit.say({ en: "ICER", nb: "IKER" }) : kit.say({ en: "ICER (per QALY)", nb: "IKER (per QALY)" });
   if (sh.icer !== null) {
     const kids: Drawable[] = [
       kit.text(`${icerId}__l`, [box.x0, y], icerWord, { fontSize: fit(icerWord, LFS, labelW - 8), anchor: "start", color: COLORS.accent }),
-      kit.text(`${icerId}__v`, [cx(0), y], fmtMoney(sh.icer, cur), { fontSize: FS, color: COLORS.accent }),
+      kit.text(`${icerId}__v`, [cx(0.5), y], perQaly(sh.icer), { fontSize: fit(perQaly(sh.icer), FS, 2 * colW - 6), color: COLORS.accent }),
     ];
     push(kit.group(icerId, kids), [cx(0), y]);
   } else {
     push(kit.group(icerId, [kit.text(`${icerId}__v`, [box.x0, y], sh.verdict ?? "", { fontSize: LFS, anchor: "start", color: COLORS.accent })]), [box.x0 + kit.textWidth(sh.verdict ?? "", LFS) / 2, y]);
   }
+  if (wtp) {
+    y -= ROW;
+    const w = kit.say({ en: "Threshold", nb: "Terskel" });
+    push(
+      kit.group("res_wtp", [
+        kit.text("res_wtp__l", [box.x0, y], w, { fontSize: fit(w, LFS, labelW - 8), anchor: "start", color: COLORS.guide }),
+        kit.text("res_wtp__v", [cx(0.5), y], perQaly(wtp), { fontSize: fit(perQaly(wtp), FS, 2 * colW - 6), color: COLORS.guide }),
+      ]),
+      [cx(0.5), y],
+    );
+  }
   y -= ROW * 0.8;
   const pct = (r: number): string => kit.num(Number((r * 100).toFixed(2)));
-  const disc = d.costs === d.qalys ? (d.costs > 0 ? kit.say({ en: `discounted ${pct(d.costs)}%`, nb: `diskontert ${pct(d.costs)} %` }) : kit.say({ en: "undiscounted", nb: "udiskontert" })) : kit.say({ en: `discounted ${pct(d.costs)}% costs, ${pct(d.qalys)}% QALYs`, nb: `diskontert ${pct(d.costs)} % kostnader, ${pct(d.qalys)} % QALY` });
+  const disc = d.costs === d.qalys ? (d.costs > 0 ? kit.say({ en: `costs and QALYs discounted ${pct(d.costs)}%`, nb: `kostnader og QALY diskontert ${pct(d.costs)} %` }) : kit.say({ en: "undiscounted", nb: "udiskontert" })) : kit.say({ en: `discounted ${pct(d.costs)}% costs, ${pct(d.qalys)}% QALYs`, nb: `diskontert ${pct(d.costs)} % kostnader, ${pct(d.qalys)} % QALY` });
   const note = kit.say({ en: `Mean per patient of ${sim.model.patients.toLocaleString("en-GB")} · ${disc}`, nb: `Snitt per pasient av ${sim.model.patients.toLocaleString("en-GB")} · ${disc}` });
   push(text("res_note", [box.x0, y], note, fit(note, compact ? 15 : 18, w), { anchor: "start", color: COLORS.guide }), [box.x0 + Math.min(w, kit.textWidth(note, 18)) / 2, y]);
-  o.groups.results = ["res_head", "res_rule_head", "res_a", "res_b", "res_rule_diff", "res_diff", "res_icer", "res_note"];
+  o.groups.results = ["res_head", "res_rule_head", "res_a", "res_b", "res_rule_diff", "res_diff", "res_icer", ...(wtp ? ["res_wtp"] : []), "res_note"];
 }
 
 interface PlaneGeom {
@@ -674,7 +697,7 @@ export function shownHr(P: HtaParams): { value: number; key: string | null } | n
 function drawControls(o: Out, P: HtaParams, y: number, x0: number, x1: number): void {
   const push = pusher(o);
   const cur = P.currency ?? "£";
-  const FS = 19;
+  const FS = 22;
   const items: { id: string; label: string; value: string }[] = [];
   const hr = shownHr(P);
   if (hr) items.push({ id: "knob_hr", label: hr.key ? `HR (${hr.key})` : kit.say({ en: "hazard ratio", nb: "hasardratio" }), value: kit.num(hr.value, 2) });
@@ -785,7 +808,7 @@ export function geometryOf(P: HtaParams): Geometry {
   const rows = Math.max(1, Math.min(MAX_TL_SHOW, Math.round(typeof P.show === "number" ? P.show : 12)));
   const header: Box = { x0: 60, x1: 940, y0: top - 78, y1: top };
   const base = { view, header: null, timelines: null, rows, curves: null, table: null, plane: null, diagram: null, controlsY: 26 } as Geometry;
-  if (view === "timelines") return { ...base, header, timelines: { x0: 30, x1: 970, y0: 50, y1: header.y0 - 8 } };
+  if (view === "timelines") return { ...base, header, timelines: { x0: 30, x1: 970, y0: 50, y1: header.y0 - 16 } };
   if (view === "curves") return { ...base, header, curves: { x0: 60, x1: 960, y0: 50, y1: header.y0 - 10 } };
   if (view === "results") return { ...base, table: { x0: 150, x1: 850, y0: top - 270, y1: top }, plane: { x0: 200, x1: 800, y0: 60, y1: top - 300 } };
   if (view === "diagram") return { ...base, diagram: { x0: 40, x1: 960, y0: 200, y1: top - 40 } };
@@ -794,7 +817,7 @@ export function geometryOf(P: HtaParams): Geometry {
     ...base,
     header,
     rows: Math.min(rows, 8),
-    timelines: { x0: 20, x1: 500, y0: 50, y1: header.y0 - 8 },
+    timelines: { x0: 20, x1: 500, y0: 50, y1: header.y0 - 16 },
     curves: { x0: 520, x1: 985, y0: 300, y1: header.y0 - 8 },
     table: { x0: 540, x1: 975, y0: 60, y1: 285 },
   };
