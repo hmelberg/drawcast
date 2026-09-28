@@ -305,6 +305,24 @@ interface PlaceIn {
  * same inputs always give the same picture (and the tests pin it).
  */
 export function placeLabels(items: readonly PlaceIn[], axisY: number, pitch: number, lanes: number, mode: "flag" | "center", below = 0): Map<string, Placed> {
+  const order = [...items].sort((a, b) => a.rank - b.rank || Number(b.emph) - Number(a.emph) || a.index - b.index);
+  const minRank = order.length > 0 ? order[0].rank : 0;
+  let best = placeInOrder(order, minRank, axisY, pitch, lanes, mode, below);
+  // Greedy placement can box in a top-priority event (an emphasized one
+  // placed first takes the lane it needed): retry with the ones left out
+  // placed first, and keep whichever shows more of the top priority.
+  const score = (m: Map<string, Placed>): number => order.filter((o) => o.rank === minRank && m.has(o.key)).length * 1000 + m.size;
+  for (let round = 0; round < 3; round++) {
+    const missing = order.filter((o) => o.rank === minRank && !best.has(o.key));
+    if (missing.length === 0) break;
+    const next = placeInOrder([...missing, ...order.filter((o) => !missing.includes(o))], minRank, axisY, pitch, lanes, mode, below);
+    if (score(next) <= score(best)) break;
+    best = next;
+  }
+  return best;
+}
+
+function placeInOrder(order: readonly PlaceIn[], minRank: number, axisY: number, pitch: number, lanes: number, mode: "flag" | "center", below: number): Map<string, Placed> {
   // Lanes above the axis are 0, 1, 2 …; lanes below it (the milestones
   // form, which has no ticks or eras there) are −1, −2 … — tried in turn,
   // so labels alternate sides before they climb.
@@ -313,15 +331,13 @@ export function placeLabels(items: readonly PlaceIn[], axisY: number, pitch: num
     if (k < lanes) laneList.push(k);
     if (k < below) laneList.push(-(k + 1));
   }
-  const order = [...items].sort((a, b) => a.rank - b.rank || Number(b.emph) - Number(a.emph) || a.index - b.index);
-  const minRank = order.length > 0 ? order[0].rank : 0;
   const placed: { key: string; x: number; p: Placed; leader: [Pt, Pt] }[] = [];
   const out = new Map<string, Placed>();
   const done = new Set<string>();
   const sides: ("r" | "l" | "c")[] = mode === "center" ? ["c"] : ["r", "l"];
   // A leader may lean a little when the straight stem is blocked: the label
   // slides sideways, never far from its date.
-  const shifts = mode === "center" ? [0, 24, -24, 48, -48] : [0, 26, -26, 56, -56, 90, -90];
+  const shifts = mode === "center" ? [0, 24, -24, 48, -48] : [0, 26, -26, 56, -56, 90, -90, 130, -130, 180, -180];
   const grow = (b: { x0: number; x1: number; y0: number; y1: number }, d: number): BBox => ({ x: b.x0 - d, y: b.y0 - d, w: b.x1 - b.x0 + 2 * d, h: b.y1 - b.y0 + 2 * d });
   for (const it of order) {
     let best: { p: Placed; leader: [Pt, Pt] } | null = null;
