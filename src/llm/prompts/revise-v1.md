@@ -69,7 +69,8 @@ How to read it, in full:
   `vars: {json}`, `text: {json}`, `zoom_from:`, `use: <template>` (the
   spec's `template`), `with: {json}` (its `params`), `details: {json}`
   (formal details for a template's parts, by id), `sources: [json]` (the
-  studies the narration names; an element `cites` them), `chapter:`.
+  studies the narration names; an element `cites` them), `more: {json}` (the
+  viewer's corner list of sources and links; `false` hides it), `chapter:`.
 - **When the script has no spelling for what you need, use the escape hatch
   rather than inventing one**: a ` ```yaml ` fence holding a LIST is appended to
   the page's elements, and one holding a MAPPING is merged into the page. Both

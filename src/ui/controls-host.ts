@@ -228,7 +228,7 @@ export function attachControlsHost(stage: HTMLElement, host: ControlsHost, opts:
       // `.cs-caption` is the one that is not a button: an absolute overlay
       // across the stage's whole bottom edge with its pointer events on, so
       // selecting the beat's text over a bottom row would drag that slider.
-      if (e.target instanceof Element && e.target.closest("button, input, select, textarea, .cs-paramtray, .cs-codeedit, .cs-ctlinput, .cs-caption")) return;
+      if (e.target instanceof Element && e.target.closest("button, input, select, textarea, .cs-paramtray, .cs-codeedit, .cs-ctlinput, .cs-caption, .cs-more")) return;
       const p = logicalPoint(stage, e);
       if (!p || host.panelAt(p) === null) return;
       if (opts.playing() && !opts.gated()) opts.pauseAndSnap();

@@ -582,6 +582,8 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost
   stage.addEventListener(
     "click",
     (e) => {
+      // The corner list (ui/more.ts) lies over the ink: its presses are its own.
+      if (e.target instanceof Element && e.target.closest(".cs-more")) return;
       if (card && e.target instanceof Element && !card.contains(e.target)) {
         closeCard();
         e.stopPropagation();

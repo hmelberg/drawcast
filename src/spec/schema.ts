@@ -1198,12 +1198,29 @@ export const specSchema = {
           doi: { type: "string", description: "Bare DOI (10.…), only one you are certain of." },
           url: { type: "string", description: "Full https URL, only one you are certain of — NEVER invent or construct one; leave it out instead." },
           finding: { type: "string", description: "What it found, in under ten words." },
+          image: { type: "string" },
         },
         required: ["id", "title"],
         additionalProperties: false,
       },
       description:
         "The studies, reports and books the narration names (\"a University of Washington team found…\") — listed for the viewer in the tray, and linked from any element that `cites` one. Name every study you mention; a source without a link is still worth listing.",
+    },
+    more: {
+      description: "The viewer's corner list (default: the sources, bottom-right; false hides it). items: source ids and {title, url, text} extras.",
+      oneOf: [
+        { type: "boolean" },
+        {
+          type: "object",
+          properties: {
+            label: { type: "string" },
+            corner: { type: "string", enum: ["bottom-right", "bottom-left", "top-right", "top-left"] },
+            items: { type: "array", items: { oneOf: [{ type: "string" }, { type: "object", properties: { title: { type: "string" }, url: { type: "string" }, text: { type: "string" }, image: { type: "string" } }, required: ["title"], additionalProperties: false }] } },
+            open: { type: "boolean" },
+          },
+          additionalProperties: false,
+        },
+      ],
     },
     elements: { type: "array", items: elementSchema, description: "Tier-2/3 elements (also allowed alongside a template, for annotations)." },
     commands: {
@@ -1461,6 +1478,22 @@ function semanticErrors(spec: Spec): string[] {
     for (const c of Array.isArray(el.cites) ? el.cites : typeof el.cites === "string" ? [el.cites] : []) {
       if (!sourceIds.has(c)) errors.push(`element "${el.id}" cites "${c}", which is not in sources`);
     }
+  }
+  for (const src of spec.sources ?? []) {
+    if (src.image !== undefined && !/^https?:\/\//i.test(src.image)) errors.push(`sources.${src.id}: image "${src.image}" must be a full http(s) URL`);
+  }
+  // The corner list: every id names a source, every link is a real one.
+  if (typeof spec.more === "object" && spec.more !== null) {
+    (spec.more.items ?? []).forEach((item, i) => {
+      if (typeof item === "string") {
+        if (!sourceIds.has(item)) errors.push(`more.items: "${item}" is not in sources`);
+        return;
+      }
+      for (const k of ["url", "image"] as const) {
+        const v = item[k];
+        if (v !== undefined && !/^https?:\/\//i.test(v)) errors.push(`more.items[${i}]: ${k} "${v}" must be a full http(s) URL`);
+      }
+    });
   }
 
   if (!spec.template && !(spec.elements && spec.elements.length > 0)) {

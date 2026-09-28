@@ -63,7 +63,7 @@ export function attachInsetZoom(stage: HTMLElement, hd: RenderHandle): void {
     "click",
     (e) => {
       if (hd.timeline.state === "playing") return;
-      if (e.target instanceof Element && e.target.closest("button, a, .cs-insetmodal")) return;
+      if (e.target instanceof Element && e.target.closest("button, a, .cs-insetmodal, .cs-more")) return;
       const id = targetAt(e);
       if (id === null) return;
       e.stopPropagation();
