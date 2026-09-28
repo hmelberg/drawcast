@@ -77,6 +77,7 @@ describe("the default catalog", () => {
     // new template: motion graphs, titration, Maxwell–Boltzmann…); room for its rest.
     // Measured 15,707 with des_process's index line (2026-09-28); raised to
     // 16,500 for the health-economics DES template's line beside it.
+    // Measured 15,842 with des_hta's line too (+135), the same day.
     expect(stable.length).toBeLessThan(16_500);
     // The index itself is intact: every ready template still has its line.
     for (const id of readyIds()) expect(stable).toContain(`- ${id}: `);

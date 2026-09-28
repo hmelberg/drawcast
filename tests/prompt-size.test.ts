@@ -559,6 +559,8 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // discrete event simulation of a queue network — whose full entry is 9,077
 // chars in this all-expanded measurement; 333580 before it). The headroom
 // is for the health-economics DES template landing beside it.
+// Measured 354510 with des_hta beside it (the health-economics DES,
+// +11,500 all-expanded; one index line in the app's two-level catalog).
 const BASELINE_SYSTEM_CHARS = 360000;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one

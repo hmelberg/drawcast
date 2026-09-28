@@ -1,0 +1,414 @@
+{
+  "name": "des_hta",
+  "status": "ready",
+  "description": "A discrete event simulation (DES) for health technology assessment: individual patients simulated through health states (e.g. Progression-free → Progressed → Dead) under a comparator and an intervention, with the SAME patients and random numbers in both (common random numbers), then averaged into discounted costs, QALYs and an ICER. Choose it for ANY request about discrete event simulation, patient-level / individual / microsimulation models in health economics, why DES instead of a Markov model (time-dependent hazards, time since progression, patient histories), how a simulation produces an ICER, simulated survival curves (PFS, OS). Every number is simulated, never typed: narrate the table, don't compute. Events draw their times by inverse CDF (competing risks: the earliest happens); dist exponential {rate} or {median}, weibull {shape, median} (or scale), gompertz {rate, shape}, piecewise {rates, times}; clock \"state\" (default: time since entering the state — the memory a Markov model lacks) or \"model\". An event with to = from is recurrent (an adverse event: one-off cost and qaly_loss, ◆). Views: \"timelines\" (default: a row per patient, bars coloured by state, ✕ death, ◆ adverse event; comparator left, intervention right, same patients; the mean over all patients under each column), \"curves\" (alive = OS solid, first state = PFS dashed, both strategies; life-years gained shaded), \"results\" (table: cost, QALYs, life years per patient, difference, ICER or Dominant/Dominated; a CE plane of each patient's own difference, `wtp` draws the threshold), \"diagram\" (the model with its laws, QALY weights and costs), \"overview\" (all at once, smaller). Every view but diagram has the model as a small header (the colour key). `t` is a time cursor and ANIMATES: {\"animate\": {\"t\": 20}, \"duration\": 6} fills the timelines in and draws the curves — set t: 0 in params first. The hazard ratio animates too: strategies.1.hr, or strategies.1.hr.<event name> for a map. Paused, the viewer drags the time cursor (anywhere on lanes or curves), scrubs or types the hazard ratio, the drug's cost, the medians/shapes and each state's utility and cost (diagram view), and taps \"new patients ↻\"; everything re-simulates — an explore beat naming nothing invites this. Numbers for text (as the table shows them; a = comparator, b = intervention): {hta.cost_a}, {hta.cost_b}, {hta.qalys_a}, {hta.qalys_b}, {hta.dcost}, {hta.dqaly}, {hta.icer}, {hta.ly_a}, {hta.ly_b}, {hta.dly}, {hta.pfs_a}, {hta.pfs_b} (mean years), {hta.alive_a}, {hta.alive_b}, {hta.pf_a}, {hta.pf_b} (% at t), {hta.t}, {hta.patients}, {hta.hr}. Numbers are illustrative unless the author gives real ones: say so.",
+  "params_schema": {
+    "type": "object",
+    "properties": {
+      "states": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 5,
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "utility": {
+              "type": "number",
+              "description": "QALY weight of a year in the state (0–1)."
+            },
+            "cost": {
+              "type": "number",
+              "description": "Cost of a year in the state."
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        "description": "2–5 states in drawing order; every patient starts in the first. The death state is named like \"Dead\"."
+      },
+      "events": {
+        "type": "array",
+        "maxItems": 8,
+        "items": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string"
+            },
+            "to": {
+              "type": "string",
+              "description": "A state name; equal to from = a recurrent event (adverse event)."
+            },
+            "name": {
+              "type": "string",
+              "description": "Short name (\"progression\"); what a strategy's hr map names. Default \"from → to\".",
+              "x-translate": false
+            },
+            "dist": {
+              "type": "string",
+              "enum": [
+                "exponential",
+                "weibull",
+                "gompertz",
+                "piecewise"
+              ],
+              "description": "Default exponential."
+            },
+            "rate": {
+              "type": "number",
+              "description": "exponential: per year; gompertz: the hazard at 0."
+            },
+            "median": {
+              "type": "number",
+              "description": "exponential / weibull: median years."
+            },
+            "shape": {
+              "type": "number",
+              "description": "weibull: > 1 rising hazard, < 1 falling; gompertz: growth per year."
+            },
+            "scale": {
+              "type": "number",
+              "description": "weibull: years (instead of median)."
+            },
+            "rates": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "description": "piecewise: rate per year in each period."
+            },
+            "times": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "description": "piecewise: the years the rate changes (one fewer than rates)."
+            },
+            "clock": {
+              "type": "string",
+              "enum": [
+                "state",
+                "model"
+              ],
+              "description": "state (default): time since entering from; model: since the start."
+            },
+            "cost": {
+              "type": "number",
+              "description": "One-off cost each time it happens."
+            },
+            "qaly_loss": {
+              "type": "number",
+              "description": "One-off QALY loss each time it happens."
+            }
+          },
+          "required": [
+            "from",
+            "to"
+          ]
+        },
+        "description": "Transitions with their time-to-event law. Competing events out of a state: the earliest sampled time happens."
+      },
+      "strategies": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "hr": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "number"
+                  }
+                }
+              ],
+              "description": "Hazard ratio: a number (every state-changing event) or {eventName: hr}."
+            },
+            "cost": {
+              "type": "number",
+              "description": "Treatment cost a year while on treatment."
+            },
+            "until": {
+              "type": "string",
+              "description": "Treatment (cost and hr) stops on entering this state, e.g. \"Progressed\"."
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        "description": "[comparator, intervention]."
+      },
+      "age": {
+        "type": "number",
+        "description": "Age at the start (default 60)."
+      },
+      "background": {
+        "type": "boolean",
+        "description": "Background mortality by age (Gompertz, illustrative) to the death state."
+      },
+      "risk": {
+        "type": "object",
+        "properties": {
+          "share": {
+            "type": "number",
+            "description": "Share of patients with it, 0–1."
+          },
+          "hr": {
+            "type": "number",
+            "description": "Its hazard ratio."
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "x-translate": false
+            },
+            "description": "Event names it scales (default every state-changing event)."
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "share",
+          "hr"
+        ],
+        "description": "One binary patient attribute (e.g. smoker)."
+      },
+      "patients": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 5000,
+        "description": "Simulated patients (default 1000)."
+      },
+      "horizon": {
+        "type": "number",
+        "description": "Years (default 20)."
+      },
+      "discount": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "costs": {
+                "type": "number"
+              },
+              "qalys": {
+                "type": "number"
+              }
+            }
+          }
+        ],
+        "description": "Yearly rate, continuous (default 0.035 for both)."
+      },
+      "currency": {
+        "type": "string",
+        "description": "Default \"£\".",
+        "x-translate": false
+      },
+      "seed": {
+        "type": "integer",
+        "description": "Which patients (default 1)."
+      },
+      "crn": {
+        "type": "boolean",
+        "description": "false: independent random numbers per strategy (to show the noise common ones remove)."
+      },
+      "t": {
+        "type": "number",
+        "description": "Time cursor, years; animates."
+      },
+      "view": {
+        "type": "string",
+        "enum": [
+          "timelines",
+          "curves",
+          "results",
+          "diagram",
+          "overview"
+        ]
+      },
+      "show": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 16,
+        "description": "Patients drawn as timelines (default 12; overview 8 at most)."
+      },
+      "wtp": {
+        "type": "number",
+        "description": "Willingness to pay per QALY: a Threshold row under the ICER, and the line on the CE plane."
+      },
+      "title": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "states",
+      "events",
+      "strategies"
+    ]
+  },
+  "element_ids": {
+    "state_<slug> / state_label_<slug>": "a state's box (coloured: the bars' key) and its name",
+    "event_<i> / event_label_<i> / event_shape_<i> / event_mark_<i>": "event i's arrow (a loop for a recurrent one, with its ◆ mark), its median or rate, its Weibull/Gompertz shape",
+    "state_utility_<slug> / state_cost_<slug>": "diagram view: the state's QALY weight and cost a year",
+    "model": "SET — the whole model diagram",
+    "lane_<k>_a / lane_<k>_b": "patient k (1-based) under the comparator / the intervention: bars, ◆, ✕",
+    "lanes_a / lanes_b": "SET — every lane of a strategy",
+    "rails_a / rails_b": "the faint guide line of every lane in a column, drawn with its first lane",
+    "lane_labels / tl_head_a / tl_head_b": "the patient numbers; each column's strategy name",
+    "tl_axis_a / tl_axis_b / tl_mean_a / tl_mean_b": "each column's time axis, and (timelines view) the mean over ALL patients under it",
+    "os_a / os_b / pfs_a / pfs_b / ly_gain": "curves: alive, in the first state; the life-years gained between the OS curves",
+    "curve_axes / key": "the curves' axes; their key (SET)",
+    "alive_dot_a / alive_dot_b / alive_a / alive_b": "with t: the dots and % alive at the cursor",
+    "res_head / res_a / res_b / res_diff / res_icer / res_wtp / res_note / results": "results table rows; res_wtp (with wtp) the threshold; results is the SET",
+    "plane_axes / plane_dots / plane_mean / plane_wtp": "results view: each patient's difference on the CE plane, the mean, the threshold",
+    "strategy_a / strategy_b": "diagram view: what each strategy does",
+    "cursor / cursor_b / cursor_curves / cursor_knob / cursors": "with t: the dashed time line on each axis (cursor_b on the intervention column, drawn with its lanes; cursor_curves on the overview curves) and its t pill; cursors is the SET",
+    "knob_hr / knob_cost / reseed / controls": "the controls: hazard ratio, drug cost, new patients (controls: the SET)",
+    "title": "the title, when set"
+  },
+  "examples": [
+    {
+      "request": "Show how a discrete event simulation follows cancer patients on a new drug versus standard care.",
+      "params": {
+        "states": [
+          {
+            "name": "Progression-free",
+            "utility": 0.8,
+            "cost": 3000
+          },
+          {
+            "name": "Progressed",
+            "utility": 0.6,
+            "cost": 8000
+          },
+          {
+            "name": "Dead"
+          }
+        ],
+        "events": [
+          {
+            "from": "Progression-free",
+            "to": "Progressed",
+            "name": "progression",
+            "median": 2
+          },
+          {
+            "from": "Progression-free",
+            "to": "Dead",
+            "name": "death",
+            "rate": 0.04
+          },
+          {
+            "from": "Progressed",
+            "to": "Dead",
+            "name": "death after progression",
+            "dist": "weibull",
+            "shape": 1.6,
+            "median": 1.5
+          },
+          {
+            "from": "Progression-free",
+            "to": "Progression-free",
+            "name": "adverse event",
+            "rate": 0.3,
+            "cost": 1500,
+            "qaly_loss": 0.02
+          }
+        ],
+        "strategies": [
+          {
+            "name": "Standard care"
+          },
+          {
+            "name": "New drug",
+            "hr": {
+              "progression": 0.65
+            },
+            "cost": 20000,
+            "until": "Progressed"
+          }
+        ],
+        "horizon": 15,
+        "t": 15
+      }
+    },
+    {
+      "request": "What does a patient-level simulation give for the ICER of a heart drug, with background mortality and smokers at higher risk?",
+      "params": {
+        "states": [
+          {
+            "name": "Well",
+            "utility": 0.85,
+            "cost": 500
+          },
+          {
+            "name": "After MI",
+            "utility": 0.7,
+            "cost": 2500
+          },
+          {
+            "name": "Dead"
+          }
+        ],
+        "events": [
+          {
+            "from": "Well",
+            "to": "After MI",
+            "name": "heart attack",
+            "rate": 0.05
+          },
+          {
+            "from": "After MI",
+            "to": "Dead",
+            "name": "cardiac death",
+            "dist": "weibull",
+            "shape": 0.7,
+            "median": 12,
+            "cost": 4000
+          }
+        ],
+        "strategies": [
+          {
+            "name": "No drug"
+          },
+          {
+            "name": "Statin",
+            "hr": {
+              "heart attack": 0.7
+            },
+            "cost": 300
+          }
+        ],
+        "age": 60,
+        "background": true,
+        "risk": {
+          "share": 0.3,
+          "hr": 1.8,
+          "label": "smokers"
+        },
+        "horizon": 30,
+        "view": "overview",
+        "t": 10,
+        "wtp": 20000
+      }
+    }
+  ]
+}

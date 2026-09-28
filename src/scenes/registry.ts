@@ -71,6 +71,10 @@ import desProcessManifest from "./des_process/manifest.json";
 import { layoutDes, type DesParams } from "./des_process/layout";
 import { lintDes } from "./des_process/lint";
 import { desWidget } from "./des_process/widget";
+import desHtaManifest from "./des_hta/manifest.json";
+import { layoutDesHta, type HtaParams } from "./des_hta/layout";
+import { lintDesHta } from "./des_hta/lint";
+import { desHtaWidget } from "./des_hta/widget";
 
 export const scenes: Record<string, SceneModule> = {
   supply_demand: {
@@ -201,6 +205,15 @@ export const scenes: Record<string, SceneModule> = {
     layout: (params) => layoutDes(params as DesParams),
     lint: (params) => lintDes(params as DesParams),
     widget: desWidget,
+  },
+  // Health economics, free play (2026-09-28): a patient-level discrete event
+  // simulation — drag time, scrub the hazard ratio, the costs and the laws,
+  // tap for new patients; the same patients re-simulate live.
+  des_hta: {
+    manifest: desHtaManifest as SceneManifest,
+    layout: (params) => layoutDesHta(params as unknown as HtaParams),
+    lint: (params) => lintDesHta(params as unknown as HtaParams),
+    widget: desHtaWidget,
   },
 };
 
