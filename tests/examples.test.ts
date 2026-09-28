@@ -175,7 +175,7 @@ describe("bundled examples stay exemplary", () => {
       .map((s) => s.manifest.name);
     // A template whose bundled example is written but not yet added (Hans adds
     // examples to src/examples.json himself): named here until it lands.
-    const awaiting = new Set(["des_hta"]);
+    const awaiting = new Set<string>([]);
     expect(ready.filter((id) => !covered.has(id) && !awaiting.has(id))).toEqual([]);
     // … and leaves the list the day it does.
     expect([...awaiting].filter((id) => covered.has(id))).toEqual([]);

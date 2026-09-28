@@ -73591,5 +73591,493 @@
         }
       ]
     }
+  },
+  {
+    "request": "Why use discrete event simulation instead of a Markov model?",
+    "spec": {
+      "title": "Why simulate patients one by one?",
+      "template": "des_hta",
+      "params": {
+        "states": [
+          {
+            "name": "Progression-free",
+            "utility": 0.8,
+            "cost": 3000
+          },
+          {
+            "name": "Progressed",
+            "utility": 0.6,
+            "cost": 8000
+          },
+          {
+            "name": "Dead"
+          }
+        ],
+        "events": [
+          {
+            "from": "Progression-free",
+            "to": "Progressed",
+            "name": "progression",
+            "median": 2
+          },
+          {
+            "from": "Progression-free",
+            "to": "Dead",
+            "name": "death",
+            "rate": 0.04
+          },
+          {
+            "from": "Progressed",
+            "to": "Dead",
+            "name": "death after progression",
+            "dist": "weibull",
+            "shape": 1.8,
+            "median": 1.5
+          },
+          {
+            "from": "Progression-free",
+            "to": "Progression-free",
+            "name": "adverse event",
+            "rate": 0.3,
+            "cost": 1500,
+            "qaly_loss": 0.02
+          }
+        ],
+        "strategies": [
+          {
+            "name": "Standard care"
+          },
+          {
+            "name": "New drug",
+            "hr": {
+              "progression": 0.65
+            },
+            "cost": 20000,
+            "until": "Progressed"
+          }
+        ],
+        "horizon": 10,
+        "show": 10,
+        "t": 0
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Why simulate patients one by one?"
+          }
+        },
+        {
+          "draw": [
+            "state_progression_free",
+            "state_label_progression_free",
+            "state_progressed",
+            "state_label_progressed",
+            "state_dead",
+            "state_label_dead"
+          ],
+          "parallel": true,
+          "speak": "Why would a health economist simulate patients one at a time, instead of running a Markov model?"
+        },
+        {
+          "draw": [
+            "event_0",
+            "event_label_0",
+            "event_1",
+            "event_2",
+            "event_label_2"
+          ],
+          "parallel": true,
+          "speak": "Both can start from the same picture: cancer that has not progressed, then progression, then death."
+        },
+        {
+          "highlight": {
+            "target": [
+              "state_progressed"
+            ]
+          },
+          "speak": "A Markov model moves the whole group a year at a time, and its states have no memory."
+        },
+        {
+          "draw": [
+            "event_shape_2"
+          ],
+          "speak": "But here the risk of death climbs the longer someone has lived since progression: a Weibull curve."
+        },
+        {
+          "draw": [
+            "tun_box",
+            "tun_line_1"
+          ],
+          "speak": "A Markov model can only fake that with tunnel states: a copy of Progressed for each year since it happened."
+        },
+        {
+          "draw": [
+            "tun_line_2",
+            "tun_line_3",
+            "tun_line_4",
+            "tun_line_5"
+          ],
+          "speak": "Each copy gets its own risk of dying that year, from 28 percent in the first to 81 in the fourth."
+        },
+        {
+          "erase": [
+            "tun"
+          ]
+        },
+        {
+          "draw": [
+            "tl_head_a",
+            "lane_labels",
+            "lanes_a",
+            "tl_axis_a",
+            "tl_years_a",
+            "cursor",
+            "cursor_knob"
+          ],
+          "speak": "A discrete event simulation needs no copies: it follows single patients instead, one row each."
+        },
+        {
+          "animate": {
+            "t": 10
+          },
+          "duration": 7,
+          "easing": "linear",
+          "speak": "For each, it draws a time to progression, then a time to death counted from that day, and plays the life forward."
+        },
+        {
+          "focus": {
+            "target": [
+              "lane_3_a",
+              "lane_labels"
+            ]
+          },
+          "speak": "Patient three progressed after two months, and died about a year later."
+        },
+        {
+          "focus": {
+            "target": [
+              "lane_5_a",
+              "lane_labels"
+            ]
+          },
+          "speak": "Patient five progressed after five years, and again lived about a year: the clock restarted at progression."
+        },
+        {
+          "draw": [
+            "event_3",
+            "event_mark_3"
+          ],
+          "parallel": true
+        },
+        {
+          "focus": {
+            "target": [
+              "lane_9_a",
+              "lane_labels",
+              "event_3",
+              "event_mark_3"
+            ]
+          },
+          "speak": "A life also carries a history: patient nine had three adverse events, the diamonds, each with its own cost and loss of quality."
+        },
+        {
+          "draw": [
+            "tl_mean_a"
+          ],
+          "speak": "Averaged over a thousand simulated lives, standard care gives 2.54 discounted QALYs for 17,700 pounds, in these illustrative numbers."
+        },
+        {
+          "draw": [
+            "tl_head_b",
+            "lanes_b",
+            "tl_axis_b",
+            "tl_years_b",
+            "tl_mean_b"
+          ],
+          "speak": "And since every patient is kept, the same thousand can be replayed on a new drug that slows progression."
+        },
+        {
+          "focus": {
+            "target": [
+              "lane_5_a",
+              "lane_5_b",
+              "lane_labels"
+            ]
+          },
+          "speak": "Patient five now progresses after seven and a half years, and still lives about a year after that."
+        },
+        {
+          "draw": [
+            "reseed"
+          ],
+          "speak": "The price is computing time, and a little chance noise: a new set of patients gives slightly different averages."
+        },
+        {
+          "draw": [
+            "knob_hr",
+            "knob_cost"
+          ],
+          "parallel": true
+        },
+        {
+          "explore": {},
+          "speak": "Try it: drag the time line or the hazard ratio, and watch the same patients' lives change."
+        },
+        {
+          "speak": "So a simulation buys memory: the time since an event, and each patient's history, can decide what happens next."
+        },
+        {
+          "quiz": {
+            "question": "Why is death after progression hard for a plain Markov model here?",
+            "choices": [
+              "Its risk depends on time since progression",
+              "Death costs more than living",
+              "Progression is too rare"
+            ],
+            "correct": 1,
+            "right": "Its risk rises with the time since progression, a memory a Markov state lacks, while each simulated patient keeps their own clock.",
+            "wrong": "Think about what changes the longer someone has lived in Progressed."
+          }
+        }
+      ],
+      "elements": [
+        {
+          "id": "tun",
+          "type": "scratch",
+          "work": [
+            "Markov: Progressed, copied per year",
+            "1st year: 28% die",
+            "2nd year: 56% die",
+            "3rd year: 71% die",
+            "4th year: 81% die"
+          ],
+          "x": 500,
+          "y": 380
+        }
+      ]
+    }
+  },
+  {
+    "request": "How does a patient-level simulation produce an ICER?",
+    "spec": {
+      "title": "From simulated patients to an ICER",
+      "template": "des_hta",
+      "params": {
+        "states": [
+          {
+            "name": "Progression-free",
+            "utility": 0.8,
+            "cost": 3000
+          },
+          {
+            "name": "Progressed",
+            "utility": 0.6,
+            "cost": 8000
+          },
+          {
+            "name": "Dead"
+          }
+        ],
+        "events": [
+          {
+            "from": "Progression-free",
+            "to": "Progressed",
+            "name": "progression",
+            "median": 2
+          },
+          {
+            "from": "Progression-free",
+            "to": "Dead",
+            "name": "death",
+            "rate": 0.04
+          },
+          {
+            "from": "Progressed",
+            "to": "Dead",
+            "name": "death after progression",
+            "dist": "weibull",
+            "shape": 1.8,
+            "median": 1.5
+          },
+          {
+            "from": "Progression-free",
+            "to": "Progression-free",
+            "name": "adverse event",
+            "rate": 0.3,
+            "cost": 1500,
+            "qaly_loss": 0.02
+          }
+        ],
+        "strategies": [
+          {
+            "name": "Standard care"
+          },
+          {
+            "name": "New drug",
+            "hr": {
+              "progression": 0.65
+            },
+            "cost": 20000,
+            "until": "Progressed"
+          }
+        ],
+        "horizon": 20,
+        "show": 8,
+        "view": "overview",
+        "t": 0,
+        "wtp": 30000
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "From simulated patients to an ICER"
+          }
+        },
+        {
+          "draw": [
+            "model"
+          ],
+          "speak": "How does a simulation of single patients become one number: the cost of each QALY a new drug gains?"
+        },
+        {
+          "draw": [
+            "tl_head_a",
+            "lane_labels",
+            "lanes_a",
+            "tl_axis_a",
+            "tl_years_a",
+            "cursor",
+            "cursor_knob"
+          ],
+          "speak": "It starts with simulated patients on standard care, one row each."
+        },
+        {
+          "draw": [
+            "tl_head_b",
+            "lanes_b",
+            "tl_axis_b",
+            "tl_years_b"
+          ],
+          "speak": "Then the very same patients, with the same luck, on a new drug that slows progression."
+        },
+        {
+          "animate": {
+            "t": 20
+          },
+          "duration": 7,
+          "easing": "linear",
+          "speak": "Each life is played forward over twenty years, and every year in a state adds its quality of life and its cost."
+        },
+        {
+          "focus": {
+            "target": [
+              "lane_1_a",
+              "lane_1_b",
+              "lane_labels"
+            ]
+          },
+          "speak": "Patient one stays progression-free for nine years instead of under seven, and pays for the drug in every one of them."
+        },
+        {
+          "focus": {
+            "target": [
+              "lane_3_a",
+              "lane_3_b",
+              "lane_labels"
+            ]
+          },
+          "speak": "Patient three progresses within months either way, and gains almost nothing."
+        },
+        {
+          "draw": [
+            "res_head",
+            "res_rule_head",
+            "res_a",
+            "res_b",
+            "res_note"
+          ],
+          "speak": "Add up each life, counting later years for less, 3.5 percent a year, and average a thousand of them."
+        },
+        {
+          "highlight": {
+            "target": [
+              "res_a",
+              "res_b"
+            ]
+          },
+          "speak": "Standard care gives 2.59 QALYs for 18,200 pounds per patient; the drug, 3.24 QALYs for 84,400."
+        },
+        {
+          "draw": [
+            "res_rule_diff",
+            "res_diff"
+          ],
+          "speak": "So the drug gains 0.65 QALYs, for 66,200 pounds more."
+        },
+        {
+          "draw": [
+            "res_icer"
+          ],
+          "speak": "Divide the extra cost by the QALYs gained: about 101,000 pounds per QALY."
+        },
+        {
+          "draw": [
+            "res_wtp"
+          ],
+          "speak": "NICE usually accepts 20,000 to 30,000 pounds, so at this illustrative price the drug would be turned down."
+        },
+        {
+          "draw": [
+            "curve_axes",
+            "key",
+            "pfs_a",
+            "pfs_b",
+            "os_a",
+            "os_b",
+            "ly_gain",
+            "cursor_curves"
+          ],
+          "speak": "The same patients also give survival curves; the shaded gap is the life gained, about one year on average."
+        },
+        {
+          "focus": {
+            "target": [
+              "lanes_a",
+              "lanes_b",
+              "lane_labels"
+            ]
+          },
+          "speak": "And because both arms share their patients, the difference is the drug, not the luck of the draw."
+        },
+        {
+          "draw": [
+            "knob_hr",
+            "knob_cost",
+            "reseed"
+          ],
+          "parallel": true
+        },
+        {
+          "explore": {},
+          "speak": "Try it: lower the drug's price, or strengthen its hazard ratio, and watch the cost per QALY move."
+        },
+        {
+          "speak": "So a simulated ICER is just averages: the same patients twice, costs and QALYs discounted, then difference over difference."
+        },
+        {
+          "quiz": {
+            "question": "Why run the same simulated patients under both strategies?",
+            "choices": [
+              "So the difference reflects the drug, not chance",
+              "It makes the drug look cheaper",
+              "Discounting needs it"
+            ],
+            "correct": 1,
+            "right": "With the same patients and the same random draws, what differs between the arms is the drug, so the difference is not swamped by chance.",
+            "wrong": "Think about where the difference between the two columns can come from."
+          }
+        }
+      ]
+    }
   }
 ]
