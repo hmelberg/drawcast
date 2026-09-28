@@ -33,6 +33,7 @@ import { expandSpec } from "../spec/expand";
 import { resolveSources } from "./source";
 import { resolveImages } from "./image";
 import { resolveLinks } from "./link";
+import { resolveTemplatePictures } from "./template-pictures";
 import { resolveIcons } from "./icon";
 import { loadSettings } from "../store";
 import { fontStack, makeBrowserMeasure, rendererFor, type RenderStyle } from "./svg-backend";
@@ -301,7 +302,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // handed to every site that starts a run: the resolve pass below, the
   // sweep runner, and the tray (through the handle).
   const style: RenderStyle = options.style ?? "sketchy";
-  spec = await resolvedRenderSpec(spec, { resolvePortraits, resolveSources, resolveCode, resolveImages, resolveIcons, resolveLinks, contactEmail: contactEmail(), style });
+  spec = await resolvedRenderSpec(spec, { resolvePortraits, resolveSources, resolveCode, resolveImages, resolveIcons, resolveLinks, resolveTemplatePictures, contactEmail: contactEmail(), style });
   const renderer = rendererFor(style);
 
   const figure = document.createElement("div");
@@ -348,7 +349,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
       measureFor: (ts) => scaledMeasure(makeBrowserMeasure({ family: fontStack(ts.family), weight: ts.weight }), ts.scale),
       prepare: async (source) => {
         await ensureEnginesForSpecs([source]);
-        const resolved = await resolvedRenderSpec(expandSpec(source), { resolvePortraits, resolveSources, resolveCode, resolveImages, resolveIcons, resolveLinks, contactEmail: contactEmail(), style });
+        const resolved = await resolvedRenderSpec(expandSpec(source), { resolvePortraits, resolveSources, resolveCode, resolveImages, resolveIcons, resolveLinks, resolveTemplatePictures, contactEmail: contactEmail(), style });
         const ts = effectiveTextStyle(resolved);
         await ensureMathFont(ts.mathFont).catch(() => undefined);
         return withTextStyle(resolved, ts);
@@ -444,6 +445,9 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     // (`box: "auto"` becomes a rectangle there, and only there).
     ...domainMapping(spec.domain && layout.frame ? layout.frame : spec.domain, layout.fit),
     animateBase: spec.template ? spec.params ?? {} : null,
+    ...(spec.template && scenes[spec.template]?.tweenSpace
+      ? { tweenSpace: (key: string) => scenes[spec.template!]!.tweenSpace!(key, spec.params ?? {}) }
+      : {}),
     varsBase: spec.vars ?? null,
     // A template's world larger than the page: camera boxes and `reset` are relative to it.
     ...(layout.world ? { world: layout.world } : {}),

@@ -8,6 +8,8 @@ import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import type { CodeWindow } from "../layout/code";
 import { expandBoxAnimate, readParam } from "./params";
+import { tweenValue } from "./tween-space";
+import type { TweenSpace } from "../scenes/types";
 import { chessSquareBox, pianoKeyBox, pianoOctaves } from "./widgets";
 import { normalizeItems } from "../ui/drag-model";
 import { BUILTIN_WIDGETS } from "../spec/types";
@@ -113,7 +115,7 @@ export type PlanStep = (
       untilNarrationEnd?: boolean;
     }
   | { kind: "camera"; box: BBox | null; seconds: number }
-  | { kind: "animate"; targets: Record<string, number>; starts: Record<string, number | null>; seconds: number; easing?: Easing; varTargets?: Record<string, string>; trails?: TrailProgress[] }
+  | { kind: "animate"; targets: Record<string, number>; starts: Record<string, number | null>; seconds: number; easing?: Easing; varTargets?: Record<string, string>; trails?: TrailProgress[]; spaces?: Record<string, TweenSpace> }
   | {
       kind: "play";
       voices: PlayVoice[];
@@ -295,6 +297,8 @@ export interface PlanOptions {
   isPaper?: (id: string) => boolean;
   /** The spec's `params` when the spec has a template; null/undefined = no template (animate then needs a var). */
   animateBase?: Record<string, unknown> | null;
+  /** The space a template param glides through (scenes/types.ts tweenSpace): absent/null = linear. */
+  tweenSpace?: (key: string) => TweenSpace | null;
   /** The spec's `vars` (design 2026-09-10 §2.4): a bare animate key that is not a template param animates the var of that name, kept in params as `vars.<name>`. */
   varsBase?: Record<string, number> | null;
   /** After an animate or a relayout step, the planner switches its bbox source
@@ -1938,6 +1942,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         if (start === null) warnings.push(`animate "${key}" has no numeric start value in params — it will jump straight to the target`);
       }
       const paramsBefore = { ...params };
+      // A param the template glides by factors, not by steps (a log_ago view).
+      const spaces: Record<string, TweenSpace> = {};
+      for (const key of Object.keys(targets)) {
+        const sp = opts.tweenSpace?.(key);
+        if (sp) spaces[key] = sp;
+      }
       // Ghost the visible figure at THIS boundary — the params BEFORE this
       // animate updates them — excluding minted ids already on screen (a
       // trail or an earlier ghost: mintGhosts would only warn and skip them).
@@ -1977,7 +1987,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
             const at: Record<string, number> = { ...paramsBefore };
             for (const key of Object.keys(targets)) {
               const s = starts[key];
-              at[key] = s === null ? targets[key] : s + (targets[key] - s) * u;
+              at[key] = s === null ? targets[key] : tweenValue(s, targets[key], u, spaces[key]);
             }
             const raw = opts.anchorsAt(at, ov)(tr.of, tr.anchor ?? "center");
             if (raw) pts.push(poseOf(offsets[tr.of] ?? [0, 0], turns[tr.of])(raw));
@@ -2005,6 +2015,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.easing !== undefined ? { easing: cmd.easing } : {}),
         ...(Object.keys(varTargets).length > 0 ? { varTargets } : {}),
         ...(stepTrails.length > 0 ? { trails: stepTrails } : {}),
+        ...(Object.keys(spaces).length > 0 ? { spaces } : {}),
       });
       relayoutBoxes();
     } else if (cmd.play !== undefined) {
