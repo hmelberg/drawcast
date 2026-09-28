@@ -85,6 +85,12 @@ export interface LabelRequest {
    * read as branch labels (2026-09-27).
    */
   minX?: number;
+  /**
+   * Extra distance to keep from the anchor, for a label naming something
+   * bigger than a dot — a point drawn with a large `radius` (a ball): every
+   * ring stands this much further out. Default 0 — placement as before.
+   */
+  clear?: number;
 }
 
 /** See LabelRequest.corridors. Lines are extended past their ends. */
@@ -335,7 +341,7 @@ export function preferredLabelBox(req: LabelRequest, measure: MeasureFn): BBox {
   const lines = wrapLines(req, measure);
   const w = Math.max(...lines.map((line) => measure(line, req.fontSize).w));
   const h = lines.length * req.fontSize * LINE_HEIGHT;
-  return candidateBox(req.anchor, req.side, 10 + req.fontSize * 0.55, w, h);
+  return candidateBox(req.anchor, req.side, 10 + req.fontSize * 0.55 + (req.clear ?? 0), w, h);
 }
 
 /** The page, the label solver's default bounds. */
@@ -414,7 +420,7 @@ export function placeLabels(
       ? [...preferred, ...FALLBACK_ORDER.filter((s) => !preferred.includes(s))]
       : [req.side, ...FALLBACK_ORDER.filter((s) => s !== req.side)];
     const r0 = 10 + req.fontSize * 0.55;
-    const rings = [1, 2.2, 3.6, 6, 9, 13].map((k) => r0 * k);
+    const rings = [1, 2.2, 3.6, 6, 9, 13].map((k) => r0 * k + (req.clear ?? 0));
 
     // (Typed by assertion: they are set inside the search closure below, which
     // flow analysis would otherwise not see.)

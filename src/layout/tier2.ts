@@ -464,6 +464,13 @@ export function layoutElements(
     ctx.posedCurveSamples.set(id, logical.map(map).map((p): Pt => [ctx.ix(p[0]), ctx.iy(p[1])]));
   }
   const labels: LabelRequest[] = [];
+  // A label on a point drawn larger than a dot stands clear of its rim.
+  const labelClearance = (targetId: string | undefined): { clear?: number } => {
+    const target = targetId === undefined ? undefined : elements.find((e) => e.id === targetId);
+    if (target?.type !== "point") return {};
+    const extra = pointRadius(bound(target)) - POINT_RADIUS;
+    return extra > 0 ? { clear: extra } : {};
+  };
   for (const raw of emitOrder) {
     const el = inCanvasUnits(bound(raw), ctx);
     const start = drawables.length;
@@ -514,6 +521,7 @@ export function layoutElements(
           fontSize: el.font_size ?? 28,
           style: resolveStyle(el.style),
           drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
+          ...labelClearance(el.attach_to),
         });
         break;
       }
@@ -1284,6 +1292,12 @@ function resolvePointDomain(el: SpecElement, ctx: Ctx): Pt | null {
   return null;
 }
 
+/** A point's dot radius in canvas units: `radius` when given (a ball, a planet), else the house 7. */
+export const POINT_RADIUS = 7;
+export function pointRadius(el: SpecElement): number {
+  return typeof el.radius === "number" && Number.isFinite(el.radius) ? Math.max(2, Math.min(120, el.radius)) : POINT_RADIUS;
+}
+
 function pointDrawables(el: SpecElement, ctx: Ctx, plotFit: PlotArea): Drawable[] {
   const domainPt = resolvePointDomain(el, ctx);
   if (!domainPt) return [];
@@ -1312,7 +1326,7 @@ function pointDrawables(el: SpecElement, ctx: Ctx, plotFit: PlotArea): Drawable[
     id: el.id,
     kind: "stroke",
     pts: [p],
-    shapeHint: { type: "circle", c: p, r: 7 },
+    shapeHint: { type: "circle", c: p, r: pointRadius(el) },
     z: Z_STROKE,
     style: resolveStyle(el.style, { strokeWidth: 3, fill: resolveStyle(el.style).color }),
     drawOpts: resolveDrawOpts(el.draw, { duration: SKETCH_MS.dot }),
