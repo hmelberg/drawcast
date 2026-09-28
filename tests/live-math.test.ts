@@ -4,8 +4,8 @@ import { beforeAll, describe, expect, test } from "vitest";
 import { ensureEngines } from "../src/scenes/engines";
 import { layoutSpec } from "../src/layout/layout";
 import { flattenDrawables, PARAM_PALETTE, type Drawable } from "../src/layout/model";
-import { liveTeX, partOfChain, symbolTeX, texNamesVars } from "../src/layout/live-math";
-import { animatableVars, liveDecimals, liveVarColors, varInfos, varNameErrors, varScrub, varValues, withVarValues } from "../src/spec/vars";
+import { liveMathColors, liveTeX, partOfChain, symbolTeX, texNamesVars } from "../src/layout/live-math";
+import { animatableVars, liveDecimals, varInfos, varNameErrors, varScrub, varValues, withVarValues } from "../src/spec/vars";
 import { validateSpec } from "../src/spec/schema";
 import type { Spec } from "../src/spec/types";
 import { liveVarHostFor, varOfPart } from "../src/ui/live-vars";
@@ -68,13 +68,14 @@ describe("var definitions", () => {
     expect(one({ value: 5, step: 0.5, max: 8 })).toEqual({ step: 0.5, min: 0, max: 8 });
   });
 
-  test("each live var takes the next PARAM_PALETTE colour in vars order; its own color wins; fixed and computed have none", () => {
-    expect(liveVarColors({ a: 1, k: { value: 2, fixed: true }, b: 2, c: { value: 1, color: "#000000" }, d: 1, e: { expr: "a" } })).toEqual({
-      a: PARAM_PALETTE[0],
-      b: PARAM_PALETTE[1],
-      c: "#000000",
-      d: PARAM_PALETTE[3],
-    });
+  test("each var a formula makes live takes the next PARAM_PALETTE colour in vars order; its own color wins; fixed, computed and unshown have none", () => {
+    const vars: Spec["vars"] = { a: 1, k: { value: 2, fixed: true }, z: 3, b: 2, c: { value: 1, color: "#000000" }, d: 1, e: { expr: "a" } };
+    const elements = [
+      { id: "m", type: "math" as const, tex: "{a} + {k} + {b} + {e} + \\frac{z}{2}" },
+      { id: "n", type: "math" as const, tex: "x", steps: ["{c} = {d}"] },
+      { id: "t", type: "text" as const, text: "{z}" },
+    ];
+    expect(liveMathColors(vars, elements)).toEqual({ a: PARAM_PALETTE[0], b: PARAM_PALETTE[1], c: "#000000", d: PARAM_PALETTE[3] });
   });
 });
 
@@ -143,6 +144,29 @@ describe("layout (real mathjax)", () => {
     // The formula stays one thing to draw, move and erase.
     expect(l.order).toContain("pv");
     expect(l.order.some((id) => id.includes("_var_"))).toBe(false);
+  });
+
+  test("a live var's number reads in its colour in words too, row by row when a label wraps; a page with no live formula colours nothing", () => {
+    const l = layoutSpec(discount);
+    const note = l.drawables.find((d) => d.id === "note") as { runs?: { text: string; color?: string }[][] };
+    expect(note.runs).toEqual([[{ text: "Worth 50.3 today at " }, { text: "0.035", color: PARAM_PALETTE[0] }]]);
+    const wrapped = layoutSpec({
+      ...discount,
+      elements: [
+        ...discount.elements!,
+        { id: "lab", type: "label", attach_to: "bar", side: "right", text: "At a rate of {r:3} a year for {t} years the future gain is worth much less" },
+      ],
+      commands: [{ draw: ["pv", "bar", "note", "lab"] }],
+    });
+    const lab = wrapped.drawables.find((d) => d.id === "lab") as { lines?: string[]; runs?: { text: string; color?: string }[][] };
+    expect(lab.lines!.length).toBeGreaterThan(1);
+    expect(lab.runs!.length).toBe(lab.lines!.length);
+    lab.runs!.forEach((row, i) => expect(row.map((r) => r.text).join("")).toBe(lab.lines![i]));
+    const coloured = lab.runs!.flat().filter((r) => r.color);
+    expect(coloured).toEqual([{ text: "0.035", color: PARAM_PALETTE[0] }, { text: "20", color: PARAM_PALETTE[1] }]);
+    // No formula shows the var: it is not live, so its number is plain ink.
+    const plain = layoutSpec({ vars: { f: 2 }, elements: [{ id: "t", type: "text", text: "f is {f}", x: 500, y: 300 }], commands: [{ draw: ["t"] }] });
+    expect((plain.drawables.find((d) => d.id === "t") as { runs?: unknown }).runs).toBeUndefined();
   });
 
   test("a changed var re-lays out everything that reads it", () => {

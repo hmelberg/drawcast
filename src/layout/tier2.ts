@@ -45,8 +45,8 @@ import { layoutPopulation, populationBox, populationValues } from "./population"
 import { linkKindOf } from "../ui/link-model";
 import type { LintIssue } from "../lint/lint";
 import type { ElementType, EndRef, PointRef, Spec, SpecElement } from "../spec/types";
-import { evalBindings, interpolateVars, liveVarColors, varInfos, varValues, type VarInfo, type Vars } from "../spec/vars";
-import { liveTeX } from "./live-math";
+import { evalBindings, interpolateVars, varInfos, varValues, type VarInfo, type Vars } from "../spec/vars";
+import { liveMathColors, liveTeX } from "./live-math";
 import { mapDrawable, poseMapOf, type LayoutOverrides } from "./posed";
 import type { TemplateFit } from "./template-fit";
 
@@ -299,7 +299,7 @@ export function layoutElements(
     atFallback: {},
     vars,
     varInfo: new Map(infos.map((v) => [v.name, v])),
-    varColors: liveVarColors(opts.vars),
+    varColors: liveMathColors(opts.vars, elements),
     varDecimals: Object.fromEntries(infos.filter((v) => v.decimals !== undefined).map((v) => [v.name, v.decimals!])),
     templateValues: opts.templateValues ?? {},
     codeIds: new Set(elements.filter((e) => e.type === "code").map((e) => e.id)),

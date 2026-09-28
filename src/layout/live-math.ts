@@ -13,7 +13,9 @@
 // formula): MathJax carries every wrapper into the token's ancestor chain,
 // so the outermost one names the occurrence exactly, even when two vars hold
 // the same number side by side (equation.ts leans on reading order instead).
-import { formatVar, liveDecimals, type VarInfo } from "../spec/vars";
+import { formatVar, liveDecimals, varInfos, type VarInfo } from "../spec/vars";
+import type { Spec, SpecElement } from "../spec/types";
+import { PARAM_PALETTE, type Drawable } from "./model";
 
 /** The token drawn text reads (spec/vars.ts TOKEN), with an optional dotted part. */
 const TOKEN = /\{([a-zA-Z_][a-zA-Z_0-9]*(?:\.[a-zA-Z_][a-zA-Z_0-9]*)?)(?::(\d)?(,)?)?\}/g;
@@ -48,7 +50,7 @@ export interface LiveTeXOpts {
   vars: Record<string, number>;
   /** The definitions, for live, decimals and colour. */
   infos: ReadonlyMap<string, VarInfo>;
-  /** Live var → colour (spec/vars.ts liveVarColors). */
+  /** Live var → colour (liveMathColors, below). */
   colors: Readonly<Record<string, string>>;
   /** Template and population values (`{pop.sick}`): shown as plain numbers, never parts. */
   values?: Readonly<Record<string, number | string>>;
@@ -163,4 +165,115 @@ export function partOfChain(chain: readonly string[], marks: ReadonlyMap<string,
     else if (found) break;
   }
   return found;
+}
+
+/** One drawn text whose `{name}` tokens a live var fills: the element's
+ *  raw text, and the id of the text drawable that shows it. */
+function textSources(el: SpecElement): { raw: string; id: string }[] {
+  if (typeof el.text !== "string" || !el.text.includes("{")) return [];
+  if (el.type === "text" || el.type === "label") return [{ raw: el.text, id: el.id }];
+  if (el.type === "node") return [{ raw: el.text, id: `${el.id}_text` }];
+  return [];
+}
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * The same colour for a live var's number in words as in its formula
+ * (design 2026-09-29): a `text`, `label` or node text showing `{r}` gets its
+ * number as a coloured run (TextDrawable.runs), row by row when it wraps.
+ * The drawn text is matched against the element's raw text — literal words
+ * as written (any whitespace where it wrapped), a live token as its number,
+ * any other token as whatever it became — so a text that no longer reads as
+ * its source (translated, rewritten) is left alone rather than miscoloured.
+ */
+export function colourLiveVarText(
+  drawables: Drawable[],
+  elements: readonly SpecElement[],
+  o: { vars: Record<string, number>; infos: ReadonlyMap<string, VarInfo>; colors: Readonly<Record<string, string>>; decimalComma?: boolean },
+): void {
+  if (Object.keys(o.colors).length === 0) return;
+  for (const el of elements) {
+    for (const { raw, id } of textSources(el)) {
+      const d = drawables.find((x) => x.id === id);
+      if (!d || d.kind !== "text" || d.runs) continue;
+      let pattern = "";
+      const colours: (string | null)[] = [];
+      let last = 0;
+      let any = false;
+      for (const m of raw.matchAll(TOKEN)) {
+        pattern += raw.slice(last, m.index).split(/\s+/).map(escapeRe).join("\\s+");
+        last = m.index! + m[0].length;
+        const name = m[1];
+        const colour = o.colors[name];
+        if (colour !== undefined && Object.prototype.hasOwnProperty.call(o.vars, name)) {
+          const info = o.infos.get(name);
+          const dec = m[2] !== undefined ? Number(m[2]) : info?.decimals;
+          pattern += `(${escapeRe(formatVar(o.vars[name], dec, o.decimalComma, m[3] !== undefined))})`;
+          colours.push(colour);
+          any = true;
+        } else {
+          pattern += "([\\s\\S]*?)";
+          colours.push(null);
+        }
+      }
+      if (!any) continue;
+      pattern += raw.slice(last).split(/\s+/).map(escapeRe).join("\\s+");
+      const rows = d.lines && d.lines.length > 1 ? d.lines : [d.text];
+      const joined = rows.join("\n");
+      const hit = new RegExp(`^\\s*${pattern}\\s*$`, "d").exec(joined) as (RegExpExecArray & { indices?: [number, number][] }) | null;
+      if (!hit?.indices) continue;
+      const ranges: { from: number; to: number; color: string }[] = [];
+      colours.forEach((c, k) => {
+        const r = hit.indices![k + 1];
+        if (c && r && r[1] > r[0]) ranges.push({ from: r[0], to: r[1], color: c });
+      });
+      let offset = 0;
+      d.runs = rows.map((row) => {
+        const runs: { text: string; color?: string }[] = [];
+        let at = 0;
+        for (const r of ranges) {
+          const from = Math.max(0, r.from - offset), to = Math.min(row.length, r.to - offset);
+          if (to <= from) continue;
+          if (from > at) runs.push({ text: row.slice(at, from) });
+          runs.push({ text: row.slice(from, to), color: r.color });
+          at = to;
+        }
+        if (at < row.length || runs.length === 0) runs.push({ text: row.slice(at) });
+        offset += row.length + 1;
+        return runs;
+      });
+    }
+  }
+}
+
+/** The vars some math formula shows as tokens (argument positions aside). */
+export function varsShownInMath(elements: readonly SpecElement[], vars: Readonly<Record<string, unknown>>): Set<string> {
+  const out = new Set<string>();
+  for (const el of elements) {
+    if (el.type !== "math") continue;
+    const texs = [el.tex, ...(el.steps ?? []).map((s) => (typeof s === "string" ? s : s.tex))];
+    for (const tex of texs) {
+      if (typeof tex !== "string") continue;
+      for (const m of tex.matchAll(TOKEN)) if (Object.prototype.hasOwnProperty.call(vars, m[1]) && !isArgument(tex, m.index!)) out.add(m[1]);
+    }
+  }
+  return out;
+}
+
+/**
+ * The colour of each var a formula makes live (design 2026-09-29): its own
+ * `color`, else PARAM_PALETTE by its order among those vars in `vars`. A var
+ * no formula shows is not live and keeps the ink wherever it is written.
+ */
+export function liveMathColors(vars: Spec["vars"], elements: readonly SpecElement[]): Record<string, string> {
+  const shown = varsShownInMath(elements, vars ?? {});
+  const out: Record<string, string> = {};
+  let k = 0;
+  for (const v of varInfos(vars)) {
+    if (v.fixed || !shown.has(v.name)) continue;
+    out[v.name] = v.color ?? PARAM_PALETTE[k % PARAM_PALETTE.length];
+    k++;
+  }
+  return out;
 }

@@ -3,7 +3,6 @@
 // tokens in drawn text. animate sweeps them (render/plan.ts).
 import { compileExpression } from "./expression";
 import type { SpecElement, VarDef } from "./types";
-import { PARAM_PALETTE } from "../layout/model";
 import { decimalsOf, niceStep } from "../scenes/number-scrub";
 
 export type Vars = Record<string, number>;
@@ -154,22 +153,6 @@ export function withVarValues(vars: Record<string, VarDef> | undefined, values: 
       if (def.expr === undefined) out[name] = { ...def, value: v, _written: def._written ?? def.value };
     } else if (typeof def === "number" && def !== v) out[name] = { value: v, _written: def };
     else out[name] = v;
-  }
-  return out;
-}
-
-/**
- * The colour of each LIVE var (design 2026-09-29): its own `color`, else
- * PARAM_PALETTE by its order among the live vars in `vars`. Fixed and
- * computed vars have none — they are written in the formula's ink.
- */
-export function liveVarColors(vars: Record<string, VarDef> | undefined): Record<string, string> {
-  const out: Record<string, string> = {};
-  let k = 0;
-  for (const v of varInfos(vars)) {
-    if (v.fixed) continue;
-    out[v.name] = v.color ?? PARAM_PALETTE[k % PARAM_PALETTE.length];
-    k++;
   }
   return out;
 }
