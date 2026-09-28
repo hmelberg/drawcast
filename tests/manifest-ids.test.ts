@@ -60,6 +60,9 @@ const CONDITIONAL: Record<string, string[]> = {
   // The diagram and results views (and a title): the manifest's two examples
   // are the timelines and the overview. Its bundled casts (a diagram and a
   // results view) draw these once they are in src/examples.json.
+  // The old undated form's ids (2026-09-29): the manifest's examples moved
+  // to dated events; the QALY course (docs/courses) still draws these.
+  timeline: ["line", "dot_<i>", "label_<i>"],
   des_hta: ["state_utility_<slug>", "state_cost_<slug>", "plane_axes", "plane_dots", "plane_mean", "plane_wtp", "strategy_a", "strategy_b", "title"],
 };
 

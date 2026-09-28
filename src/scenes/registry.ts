@@ -30,7 +30,8 @@ import { layoutFreeBody, type FreeBodyParams } from "./free_body/layout";
 import { layoutRingMolecule, type RingMoleculeParams } from "./ring_molecule/layout";
 import { layoutProteinSecondary, type ProteinSecondaryParams } from "./protein_secondary/layout";
 import { layoutTwoByTwoTable, type TwoByTwoParams } from "./two_by_two_table/layout";
-import { layoutTimeline, type TimelineParams } from "./timeline/layout";
+import { layoutTimeline, timelineCards, timelinePictures, timelineTweenSpace, type TimelineParams } from "./timeline/layout";
+import { timelineWidget } from "./timeline/widget";
 import { layoutGenericAxes, type GenericAxesParams } from "./generic_axes_diagram/layout";
 import { layoutMarkovModel, lintMarkovModel, type MarkovParams } from "./markov_model/layout";
 import { markovWidget } from "./markov_model/widget";
@@ -129,6 +130,12 @@ export const scenes: Record<string, SceneModule> = {
   timeline: {
     manifest: timelineManifest as SceneManifest,
     layout: (params) => layoutTimeline(params as unknown as TimelineParams),
+    // Free play (2026-09-29): drag along time, pinch or ctrl-wheel to zoom;
+    // events carry cards (links, details, sources) and pictures from params.
+    widget: timelineWidget,
+    cards: (params) => timelineCards(params as unknown as TimelineParams),
+    pictures: (params) => timelinePictures(params as unknown as TimelineParams),
+    tweenSpace: (key, params) => timelineTweenSpace(key, params as unknown as TimelineParams),
   },
   generic_axes_diagram: {
     manifest: genericAxesManifest as SceneManifest,

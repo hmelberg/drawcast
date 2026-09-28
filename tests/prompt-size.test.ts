@@ -561,7 +561,11 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // is for the health-economics DES template landing beside it.
 // Measured 354510 with des_hta beside it (the health-economics DES,
 // +11,500 all-expanded; one index line in the app's two-level catalog).
-const BASELINE_SYSTEM_CHARS = 360000;
+// Raised to 370000 at 363547 (2026-09-29: the timeline template rewritten —
+// dates, log_ago deep time, era bands, events with portraits, links, details
+// and sources, a zoomable view; its entry grew from the 8-milestone stub, and
+// it is still one index line in the app's two-level catalog).
+const BASELINE_SYSTEM_CHARS = 370000;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

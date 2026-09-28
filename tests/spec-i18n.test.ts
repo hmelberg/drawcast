@@ -207,7 +207,7 @@ describe("every bundled template's string params are classified", () => {
         ".price_ceiling.label",
         ".price_floor.label",
       ],
-      timeline: [".title", ".start_label", ".end_label", ".milestones[].label", ".milestones[].sublabel"],
+      timeline: [".title", ".events[].label", ".events[].sublabel", ".events[].details", ".eras[].label", ".start_label", ".end_label", ".milestones[].label", ".milestones[].sublabel"],
       titration_curve: [".compare.label", ".label", ".analyte", ".titrant", ".x_label", ".y_label", ".title"],
       two_by_two_table: [".row_label", ".col_label", ".row_values[]", ".col_values[]", ".cells[][]", ".title"],
     });
