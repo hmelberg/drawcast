@@ -74079,5 +74079,800 @@
         }
       ]
     }
+  },
+  {
+    "request": "Why is the sky blue, and why are sunsets red?",
+    "spec": {
+      "title": "Blue sky, red sunset",
+      "domain": {
+        "x": [
+          400,
+          700
+        ],
+        "y": [
+          0,
+          10
+        ],
+        "box": {
+          "x": 620,
+          "y": 160,
+          "w": 350,
+          "h": 220
+        }
+      },
+      "elements": [
+        {
+          "id": "sky",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 238,
+          "x": 300,
+          "y": 388,
+          "style": {
+            "color": "#2f6b8f",
+            "fill": "#2f6b8f",
+            "opacity": 0.22
+          }
+        },
+        {
+          "id": "air",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 238,
+          "x": 300,
+          "y": 388,
+          "style": {
+            "color": "#8f887c",
+            "dash": true
+          }
+        },
+        {
+          "id": "earth",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 195,
+          "x": 300,
+          "y": 388,
+          "style": {
+            "color": "#3d3833",
+            "fill": "#e6dcc6"
+          }
+        },
+        {
+          "id": "l_air",
+          "type": "label",
+          "text": "Air",
+          "attach_to": "air",
+          "side": "left"
+        },
+        {
+          "id": "l_earth",
+          "type": "text",
+          "text": "Earth",
+          "x": 300,
+          "y": 368,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "sun",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 45,
+          "x": 880,
+          "y": 610,
+          "style": {
+            "color": "#d0865f",
+            "fill": "#f2c14e"
+          }
+        },
+        {
+          "id": "l_sun",
+          "type": "label",
+          "text": "Sun",
+          "attach_to": "sun",
+          "side": "right"
+        },
+        {
+          "id": "noon_out",
+          "type": "path",
+          "points": [
+            [
+              838,
+              593.9
+            ],
+            [
+              522.3,
+              473.1
+            ]
+          ],
+          "style": {
+            "color": "#e0a93a",
+            "stroke_width": 5
+          }
+        },
+        {
+          "id": "noon_in",
+          "type": "path",
+          "points": [
+            [
+              522.3,
+              473.1
+            ],
+            [
+              490.5,
+              460.9
+            ]
+          ],
+          "style": {
+            "color": "#e0a93a",
+            "stroke_width": 5
+          }
+        },
+        {
+          "id": "noon_beam",
+          "type": "group",
+          "members": [
+            "noon_out",
+            "noon_in"
+          ]
+        },
+        {
+          "id": "noon_you",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 10,
+          "x": 482.1,
+          "y": 457.7,
+          "style": {
+            "color": "#3d3833",
+            "fill": "#3d3833"
+          }
+        },
+        {
+          "id": "l_noon",
+          "type": "label",
+          "text": "Noon",
+          "attach_to": "noon_you",
+          "side": "below-right"
+        },
+        {
+          "id": "m1",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 7,
+          "x": 474.9,
+          "y": 514.8,
+          "style": {
+            "color": "#3d3833",
+            "fill": "#8f887c"
+          }
+        },
+        {
+          "id": "m2",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 7,
+          "x": 514.8,
+          "y": 410.4,
+          "style": {
+            "color": "#3d3833",
+            "fill": "#8f887c"
+          }
+        },
+        {
+          "id": "m3",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 7,
+          "x": 436.1,
+          "y": 555.7,
+          "style": {
+            "color": "#3d3833",
+            "fill": "#8f887c"
+          }
+        },
+        {
+          "id": "m4",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 7,
+          "x": 415.9,
+          "y": 588.6,
+          "style": {
+            "color": "#3d3833",
+            "fill": "#8f887c"
+          }
+        },
+        {
+          "id": "m5",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 7,
+          "x": 385.9,
+          "y": 587.2,
+          "style": {
+            "color": "#3d3833",
+            "fill": "#8f887c"
+          }
+        },
+        {
+          "id": "m6",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 7,
+          "x": 355.9,
+          "y": 585.8,
+          "style": {
+            "color": "#3d3833",
+            "fill": "#8f887c"
+          }
+        },
+        {
+          "id": "molecules",
+          "type": "group",
+          "members": [
+            "m1",
+            "m2",
+            "m3"
+          ]
+        },
+        {
+          "id": "s1",
+          "type": "path",
+          "points": [
+            [
+              475.9,
+              506.9
+            ],
+            [
+              480.6,
+              469.6
+            ],
+            [
+              484.1,
+              480
+            ],
+            [
+              480.6,
+              469.6
+            ],
+            [
+              474.6,
+              478.8
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 2.5
+          }
+        },
+        {
+          "id": "s2",
+          "type": "path",
+          "points": [
+            [
+              510.3,
+              417
+            ],
+            [
+              488.9,
+              447.8
+            ],
+            [
+              490.6,
+              437
+            ],
+            [
+              488.9,
+              447.8
+            ],
+            [
+              498.5,
+              442.4
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 2.5
+          }
+        },
+        {
+          "id": "s3",
+          "type": "path",
+          "points": [
+            [
+              439.5,
+              548.5
+            ],
+            [
+              477,
+              468.6
+            ],
+            [
+              477.1,
+              479.6
+            ],
+            [
+              477,
+              468.6
+            ],
+            [
+              468.5,
+              475.5
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 2.5
+          }
+        },
+        {
+          "id": "sky_scatter",
+          "type": "group",
+          "members": [
+            "s1",
+            "s2",
+            "s3"
+          ]
+        },
+        {
+          "id": "dusk_you",
+          "type": "shape",
+          "shape": "circle",
+          "radius": 10,
+          "x": 291,
+          "y": 582.8,
+          "style": {
+            "color": "#3d3833",
+            "fill": "#3d3833"
+          }
+        },
+        {
+          "id": "l_dusk",
+          "type": "label",
+          "text": "Sunset",
+          "attach_to": "dusk_you",
+          "side": "above-left"
+        },
+        {
+          "id": "dusk_1",
+          "type": "path",
+          "points": [
+            [
+              835,
+              607.9
+            ],
+            [
+              427.3,
+              589.1
+            ]
+          ],
+          "style": {
+            "color": "#e0a93a",
+            "stroke_width": 5
+          }
+        },
+        {
+          "id": "dusk_2g",
+          "type": "path",
+          "points": [
+            [
+              427.3,
+              589.1
+            ],
+            [
+              390.9,
+              587.4
+            ]
+          ],
+          "style": {
+            "color": "#e0a93a",
+            "stroke_width": 5
+          }
+        },
+        {
+          "id": "dusk_3g",
+          "type": "path",
+          "points": [
+            [
+              390.9,
+              587.4
+            ],
+            [
+              301,
+              583.3
+            ]
+          ],
+          "style": {
+            "color": "#e0a93a",
+            "stroke_width": 5
+          }
+        },
+        {
+          "id": "dusk_2",
+          "type": "path",
+          "points": [
+            [
+              427.3,
+              589.1
+            ],
+            [
+              390.9,
+              587.4
+            ]
+          ],
+          "style": {
+            "color": "#d0865f",
+            "stroke_width": 5
+          }
+        },
+        {
+          "id": "dusk_3",
+          "type": "path",
+          "points": [
+            [
+              390.9,
+              587.4
+            ],
+            [
+              301,
+              583.3
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 6
+          }
+        },
+        {
+          "id": "dusk_beam",
+          "type": "group",
+          "members": [
+            "dusk_1",
+            "dusk_2g",
+            "dusk_3g"
+          ]
+        },
+        {
+          "id": "d1",
+          "type": "path",
+          "points": [
+            [
+              413.9,
+              596.6
+            ],
+            [
+              401.9,
+              636.6
+            ],
+            [
+              398.9,
+              622.1
+            ],
+            [
+              401.9,
+              636.6
+            ],
+            [
+              412.3,
+              626.2
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 2.5
+          }
+        },
+        {
+          "id": "d2",
+          "type": "path",
+          "points": [
+            [
+              383.9,
+              595.2
+            ],
+            [
+              371.9,
+              635.2
+            ],
+            [
+              368.9,
+              620.7
+            ],
+            [
+              371.9,
+              635.2
+            ],
+            [
+              382.3,
+              624.8
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 2.5
+          }
+        },
+        {
+          "id": "d3",
+          "type": "path",
+          "points": [
+            [
+              353.9,
+              593.8
+            ],
+            [
+              341.9,
+              633.8
+            ],
+            [
+              338.9,
+              619.3
+            ],
+            [
+              341.9,
+              633.8
+            ],
+            [
+              352.3,
+              623.4
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 2.5
+          }
+        },
+        {
+          "id": "dusk_scatter",
+          "type": "group",
+          "members": [
+            "m4",
+            "m5",
+            "m6",
+            "d1",
+            "d2",
+            "d3"
+          ]
+        },
+        {
+          "id": "l_1x",
+          "type": "label",
+          "text": "1× air",
+          "attach_to": "noon_in",
+          "side": "above-right"
+        },
+        {
+          "id": "l_38x",
+          "type": "label",
+          "text": "38× air",
+          "attach_to": "dusk_scatter",
+          "side": "above"
+        },
+        {
+          "id": "ax",
+          "type": "axes",
+          "x_label": "Wavelength",
+          "y_label": "Scattering"
+        },
+        {
+          "id": "ray",
+          "type": "curve",
+          "expr": "(700/x)*(700/x)*(700/x)*(700/x)",
+          "style": {
+            "color": "#3d3833"
+          }
+        },
+        {
+          "id": "l_ray",
+          "type": "label",
+          "tex": "\\propto 1/\\lambda^4",
+          "attach_to": "ray",
+          "side": "above"
+        },
+        {
+          "id": "p_violet",
+          "type": "point",
+          "at": {
+            "x": 410,
+            "on": "ray"
+          },
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "l_violet",
+          "type": "label",
+          "text": "Violet",
+          "attach_to": "p_violet",
+          "side": "right"
+        },
+        {
+          "id": "p_blue",
+          "type": "point",
+          "at": {
+            "x": 450,
+            "on": "ray"
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "l_blue",
+          "type": "label",
+          "text": "Blue",
+          "attach_to": "p_blue",
+          "side": "above-right"
+        },
+        {
+          "id": "p_red",
+          "type": "point",
+          "at": {
+            "x": 700,
+            "on": "ray"
+          },
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "l_red",
+          "type": "label",
+          "text": "Red",
+          "attach_to": "p_red",
+          "side": "above"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Blue sky, red sunset"
+          }
+        },
+        {
+          "draw": [
+            "earth",
+            "l_earth",
+            "air",
+            "l_air"
+          ],
+          "speak": "Why is the sky blue, and why do sunsets turn red?"
+        },
+        {
+          "draw": [
+            "sun",
+            "l_sun",
+            "noon_beam",
+            "noon_you",
+            "l_noon"
+          ],
+          "speak": "Sunlight arrives white: every colour of the rainbow mixed together."
+        },
+        {
+          "draw": [
+            "molecules"
+          ],
+          "parallel": true,
+          "speak": "On its way down it hits air molecules, far smaller than a wavelength of light, and each knocks a little light aside."
+        },
+        {
+          "draw": [
+            "ax",
+            "ray",
+            "l_ray"
+          ],
+          "speak": "How much depends steeply on colour: scattering goes as one over the wavelength to the fourth power."
+        },
+        {
+          "draw": [
+            "p_blue",
+            "l_blue",
+            "p_red",
+            "l_red"
+          ],
+          "speak": "Blue, at about 450 nanometres, is scattered almost six times more than red at 700."
+        },
+        {
+          "draw": [
+            "sky_scatter"
+          ],
+          "parallel": true,
+          "speak": "So wherever you look away from the sun, blue light is arriving from the side, scattered toward you."
+        },
+        {
+          "draw": [
+            "sky"
+          ],
+          "speak": "That scattered blue is the sky."
+        },
+        {
+          "draw": [
+            "p_violet",
+            "l_violet"
+          ],
+          "speak": "Why not violet, which scatters even more?"
+        },
+        {
+          "highlight": {
+            "target": [
+              "p_violet",
+              "l_violet"
+            ]
+          },
+          "speak": "The sun sends less violet, and our eyes are far less sensitive to it, so the mix looks blue."
+        },
+        {
+          "draw": [
+            "dusk_you",
+            "l_dusk",
+            "dusk_beam"
+          ],
+          "speak": "Now stand where the sun is setting: its light must cross far more air to reach you."
+        },
+        {
+          "draw": [
+            "l_1x",
+            "l_38x"
+          ],
+          "speak": "Near the horizon the path holds about thirty-eight times as much air as straight up."
+        },
+        {
+          "speak": "The drawing is not to scale: real air is a far thinner skin, so the two paths differ far more than drawn.",
+          "focus": {
+            "target": [
+              "air",
+              "sky",
+              "earth",
+              "l_earth",
+              "l_air"
+            ]
+          }
+        },
+        {
+          "draw": [
+            "dusk_scatter"
+          ],
+          "parallel": true,
+          "speak": "Along that long path, blue is scattered out of the beam again and again."
+        },
+        {
+          "speak": "What reaches your eye is what is left: orange and red.",
+          "draw": [
+            "dusk_2",
+            "dusk_3"
+          ]
+        },
+        {
+          "focus": {
+            "target": [
+              "sky_scatter",
+              "noon_you",
+              "dusk_scatter",
+              "dusk_3",
+              "dusk_you",
+              "earth"
+            ]
+          },
+          "speak": "So the blue sky and the red sunset are one effect: the blue knocked out of the beam, and the light that survives."
+        },
+        {
+          "quiz": {
+            "question": "The Moon has no air. What colour is its sky in the daytime?",
+            "choices": [
+              "Blue",
+              "Black",
+              "Red"
+            ],
+            "correct": 2,
+            "wrong": "Ask what would send sunlight toward you from the empty sky.",
+            "right": "Black: with no air there is nothing to scatter sunlight toward you, so you see only the sun itself."
+          }
+        }
+      ]
+    }
   }
 ]
