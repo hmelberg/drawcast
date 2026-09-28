@@ -62,6 +62,8 @@ export function attachLinks(stage: HTMLElement, hd: RenderHandle): void {
   };
   const hitAt = (e: MouseEvent): SpecElement | null => {
     if (gateIsOpen(stage)) return null;
+    // The corner list (ui/more.ts) lies over the ink: its presses are its own.
+    if (e.target instanceof Element && e.target.closest(".cs-more")) return null;
     const p = logicalPoint(stage, e);
     if (!p) return null;
     // What is on screen: the boundary's ink, and — while a step is under

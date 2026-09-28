@@ -521,6 +521,10 @@ export class Player {
     const ac = new AbortController();
     this.ac = ac;
     this.pausedFlag = false;
+    // A fresh run never inherits a paused synthesizer or tone context (a
+    // pause the run it replaces left behind): its first line would queue
+    // behind it and the whole run would draw in silence.
+    this.speechSynthResume();
     this.setState("playing");
     if (this.viewCam) {
       await this.returnView();

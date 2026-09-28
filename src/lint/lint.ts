@@ -27,6 +27,7 @@ import { runValues } from "../render/sweep";
 import { pathsByCodeId, scanDataTokens } from "../code/tokens";
 import { connectKey } from "../render/widgets";
 import { CONNECT_MAX_EDGES } from "../ui/connect-model";
+import { moreModel } from "../ui/more-model";
 import { COLOR_WORDS, FLAGS, PLACE_WORDS, SIDE_WORDS } from "../spec/script/sugar";
 
 /**
@@ -143,7 +144,9 @@ export interface LintIssue {
     /** a population's counts, states, orders or size (layout/population.ts) — warns */
     | "population"
     /** a link's href names no drawcast (links/resolve.ts parseTarget) — warns */
-    | "link-target";
+    | "link-target"
+    /** the corner list (spec `more`) shows nothing, or leaves a source nowhere but the tray */
+    | "more-list";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -733,6 +736,25 @@ function lintSources(spec: Spec): LintIssue[] {
   return issues;
 }
 
+/**
+ * The corner list (spec `more`, ui/more-model.ts). Unknown ids are the
+ * validator's; what it cannot see is an author's `items` that list nothing
+ * the viewer can use, or that leave out a source no element `cites` — that
+ * study is then one the narration names and the figure never offers.
+ */
+function lintMore(spec: Spec): LintIssue[] {
+  const more = spec.more;
+  if (typeof more !== "object" || more === null || more.items === undefined) return [];
+  if (moreModel(spec) === null) {
+    return [{ rule: "more-list", ids: [], message: "more.items lists nothing to show — list source ids or {title, url} entries, or write more: false", severity: "warn" }];
+  }
+  const listed = new Set(more.items.filter((i): i is string => typeof i === "string"));
+  const cited = new Set((spec.elements ?? []).flatMap((e) => (Array.isArray(e.cites) ? e.cites : typeof e.cites === "string" ? [e.cites] : [])));
+  const left = (spec.sources ?? []).filter((s) => !listed.has(s.id) && !cited.has(s.id)).map((s) => s.id);
+  if (left.length === 0) return [];
+  return [{ rule: "more-list", ids: [], message: `more.items leaves out ${left.map((id) => `"${id}"`).join(", ")}, which no element cites — add ${left.length === 1 ? "it" : "them"} to more.items`, severity: "warn" }];
+}
+
 /** Formulas beyond this ratio of largest to smallest size on one page read as
  *  a mistake, not an emphasis (Hans 2026-09-16: "very large and then smaller
  *  equations in the same page"). 28 → 34, the headline allowance, is 1.21. */
@@ -1026,7 +1048,7 @@ function lintCurveExprs(spec: Spec): LintIssue[] {
 
 export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIssue[] {
   const cmds = spec.commands ?? [];
-  const issues: LintIssue[] = [...lintSources(spec), ...lintCode(spec), ...lintWidget(spec), ...lintMathSizes(spec), ...lintCurveExprs(spec)];
+  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintMathSizes(spec), ...lintCurveExprs(spec)];
 
   // A link whose href names nothing the resolver can read draws, but never
   // opens (links/resolve.ts decides the forms a target may take).

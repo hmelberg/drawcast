@@ -29,6 +29,7 @@ import type { Spec } from "../spec/types";
 import { elementBBoxes } from "../layout/layout";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import type { BBox } from "../layout/geometry";
+import { livePrefs } from "./live-prefs";
 
 /** The layout bbox of the zoom target in the CURRENT item's scene, or null. */
 function zoomTargetBox(handle: RenderHandle, id: string): BBox | null {
@@ -176,14 +177,34 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
    *  2026-09-18). tests/playlist-nav-wiring.test.ts pins the order. */
   let finishedLast = false;
 
-  const prefs: PlaybackPrefs = {
+  // Live across mounts (playlist/live-prefs.ts): the bar each mount builds
+  // starts from the viewer's latest mode, speed and mute, not the session's
+  // first ones — and so does the figure each mount renders.
+  let speedRef = opts.speed;
+  const prefs: PlaybackPrefs = livePrefs({
     ...opts.prefs,
     onMode: (m) => {
       modeRef = m;
       opts.prefs.onMode?.(m);
     },
+    onSpeed: (sp) => {
+      speedRef = sp;
+      opts.prefs.onSpeed?.(sp);
+    },
+  });
+  const renderOpts = {
+    style: opts.style,
+    text: opts.text,
+    speech: opts.speech,
+    get mode() {
+      return modeRef;
+    },
+    get speed() {
+      return speedRef;
+    },
+    questions: opts.questions,
+    siblings: items.map((it) => it.spec),
   };
-  const renderOpts = { style: opts.style, text: opts.text, speech: opts.speech, mode: opts.mode, speed: opts.speed, questions: opts.questions, siblings: items.map((it) => it.spec) };
   // Stored answers survive the cut between items (spec 2026-09-15-stored-
   // answers): every ITEM render is seeded from the carry and its static
   // question offset; cards (title, chapter) render plain. Absorbed back on

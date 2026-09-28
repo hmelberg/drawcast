@@ -58,9 +58,10 @@ describe("controls host on the stage (pins)", () => {
     const body = down![1];
     // .cs-caption is the one that is not a button: an absolute overlay across
     // the whole stage bottom with pointer events on, so selecting the beat's
-    // text over a bottom row would otherwise drag that row's slider.
+    // text over a bottom row would otherwise drag that row's slider. The
+    // corner list (.cs-more, ui/more.ts) lies over a corner the same way.
     expect(body).toMatch(
-      /e\.target instanceof Element && e\.target\.closest\("button, input, select, textarea, \.cs-paramtray, \.cs-codeedit, \.cs-ctlinput, \.cs-caption"\)/,
+      /e\.target instanceof Element && e\.target\.closest\("button, input, select, textarea, \.cs-paramtray, \.cs-codeedit, \.cs-ctlinput, \.cs-caption, \.cs-more"\)/,
     );
     // …and it must bow out BEFORE the press becomes a gesture, or the knob
     // moves anyway while the button's own click also fires.

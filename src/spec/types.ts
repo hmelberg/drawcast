@@ -74,6 +74,39 @@ export interface SpecSource {
   url?: string;
   /** What it found, in a few words — shown under the title. */
   finding?: string;
+  /** A small picture (a cover, a figure) for the corner list: full http(s) URL. */
+  image?: string;
+}
+
+/** Which corner of the stage the "more" list docks in. */
+export const MORE_CORNERS = ["bottom-right", "bottom-left", "top-right", "top-left"] as const;
+export type MoreCorner = (typeof MORE_CORNERS)[number];
+
+/** One entry of the corner list that is not one of the spec's `sources`. */
+export interface SpecMoreItem {
+  title: string;
+  /** Full http(s) URL; opens in a new tab. */
+  url?: string;
+  /** A line under the title. */
+  text?: string;
+  /** A small picture, full http(s) URL. */
+  image?: string;
+}
+
+/**
+ * The corner list on the stage (ui/more.ts): a quiet "Sources" chip that
+ * opens the works the cast draws on, and anything else worth a click.
+ * Absent: the spec's `sources`, bottom-right, when there are any. `false`
+ * hides it; `true` is the default.
+ */
+export interface SpecMore {
+  /** The chip's word — default "Sources", or "More" once an item is not a source. */
+  label?: string;
+  corner?: MoreCorner;
+  /** Source ids and extra entries, in order; absent = every source. */
+  items?: Array<string | SpecMoreItem>;
+  /** Start with the list open (on the poster). */
+  open?: boolean;
 }
 
 export interface SpecStyle {
@@ -902,6 +935,8 @@ export interface Spec {
   /** The studies, reports and books the cast draws on — listed in the tray,
    *  and on the info card of any element that `cites` one. */
   sources?: SpecSource[];
+  /** The corner list of sources and further links (SpecMore). */
+  more?: SpecMore | boolean;
   elements?: SpecElement[];
   commands?: Command[];
 }

@@ -37,4 +37,4 @@ export function gateIsOpen(stage: ParentNode): boolean {
 // closing a cycle (controls.ts imports attachWidgetHost). One constant, so
 // the two guards cannot drift into naming different subsets: the widget used
 // to name only "button" and swallowed presses that began on a slider.
-export const CONTROL_SELECTOR = "input, button, select, textarea, label, .cs-paramtray, .cs-codeedit, .cs-ctlinput";
+export const CONTROL_SELECTOR = "input, button, select, textarea, label, .cs-paramtray, .cs-codeedit, .cs-ctlinput, .cs-more";

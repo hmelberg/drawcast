@@ -570,6 +570,9 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // `color` in the shared params schema, carried by equation_plot's and
 // plot3d's manifests, and equation_form "both" steered to when a cast
 // explains its parameters; +~500 all-expanded).
+// Re-pinned UP 2026-09-29 (the corner list): the spec-level `more` (label,
+// corner, items of source ids or {title, url, text, image}, open) and a
+// source's `image`, in the schema this prompt carries, and the Sources bullet naming the corner list. Measured 360451.
 const BASELINE_SYSTEM_CHARS = 365000;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
@@ -612,7 +615,10 @@ const BASELINE_SYSTEM_CHARS = 365000;
 // order, seed, legend, labels, and its clauses on layout/fit/colors. Measured 93059.
 // Re-pinned UP 2026-09-29 (links): the `link` element — href, title, image, form,
 // open — and the spec-level `end_page`. Measured 93779.
-const BASELINE_SCHEMA_CHARS = 94000;
+// Re-pinned UP 2026-09-29 (the corner list): the spec-level `more` — label,
+// corner, items (source ids or {title, url, text, image}), open — and a
+// source's `image`. Measured 94436.
+const BASELINE_SCHEMA_CHARS = 94600;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in
