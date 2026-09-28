@@ -192,8 +192,16 @@ export class SpeechManager {
     return Math.min(15000, Math.max(900, (words / 170) * 60000));
   }
 
+  /**
+   * Empty the queue AND lift a pause. Chrome and Safari keep `paused` true
+   * across cancel(), so pause → seek → play queued every new utterance behind
+   * a paused synthesizer: the drawing went on (the watchdog) in silence while
+   * the mute button said sound on. A cancelled synthesizer has nothing left
+   * to resume, so resuming here only clears the flag.
+   */
   cancel(): void {
     this.synth?.cancel();
+    this.synth?.resume();
   }
 
   pause(): void {
