@@ -1,0 +1,308 @@
+{
+ "request": "Adding up rectangles — part 2 of 'What theory holds the QALY up?'",
+ "spec": {
+  "title": "Adding up rectangles",
+  "template": "qaly_profiles",
+  "params": {
+   "x_label": "Years t",
+   "y_label": "Quality q",
+   "x_max": 10.5,
+   "lines": "straight",
+   "shade_between": null,
+   "profiles": [
+    {
+     "id": "treated",
+     "label": "Treated",
+     "color": "#2f6b8f",
+     "fill": true,
+     "waypoints": [
+      {
+       "t": 0,
+       "u": 0.7
+      },
+      {
+       "t": 10,
+       "u": 0.7
+      }
+     ],
+     "death_at": 5
+    },
+    {
+     "id": "full",
+     "label": "Full health",
+     "color": "#b5482e",
+     "fill": true,
+     "waypoints": [
+      {
+       "t": 0,
+       "u": 1
+      },
+      {
+       "t": 10,
+       "u": 1
+      }
+     ],
+     "death_at": 3.5
+    }
+   ]
+  },
+  "elements": [
+   {
+    "id": "area5",
+    "type": "text",
+    "text": "3.5 QALYs",
+    "at": {
+     "data": [
+      2.5,
+      0.2
+     ]
+    },
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "font_size": 30
+   },
+   {
+    "id": "area10",
+    "type": "text",
+    "text": "7 QALYs",
+    "at": {
+     "data": [
+      8.5,
+      0.2
+     ]
+    },
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "font_size": 30
+   },
+   {
+    "id": "gap5",
+    "type": "arrow",
+    "from": {
+     "data": [
+      5,
+      0.85
+     ]
+    },
+    "to": {
+     "data": [
+      3.5,
+      0.85
+     ]
+    },
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "gap5_l",
+    "type": "label",
+    "text": "1.5 y = 30%",
+    "attach_to": "gap5",
+    "side": "above"
+   },
+   {
+    "id": "gap10",
+    "type": "arrow",
+    "from": {
+     "data": [
+      10,
+      0.85
+     ]
+    },
+    "to": {
+     "data": [
+      7,
+      0.85
+     ]
+    },
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "gap10_l",
+    "type": "label",
+    "text": "3 y = 30%",
+    "attach_to": "gap10",
+    "side": "above"
+   },
+   {
+    "id": "form",
+    "type": "scratch",
+    "work": [
+     {
+      "tex": "U(q,t) = V(q)\\cdot f(t)"
+     },
+     {
+      "tex": "f(t) = t \\;\\Rightarrow\\; U = V(q)\\cdot t"
+     }
+    ],
+    "x": 300,
+    "y": 330,
+    "font_size": 28
+   }
+  ],
+  "sources": [
+   {
+    "id": "psw",
+    "title": "Utility functions for life years and health status",
+    "authors": "Pliskin, Shepard & Weinstein",
+    "year": 1980,
+    "finding": "conditions under which QALYs represent preferences"
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Adding up rectangles"
+    }
+   },
+   {
+    "draw": [
+     "axes",
+     "full_health_line"
+    ],
+    "speak": "Now that one weight is a utility, can we simply multiply it by years and add?"
+   },
+   {
+    "highlight": {
+     "target": [
+      "axes"
+     ]
+    },
+    "speak": "Pliskin, Shepard and Weinstein asked exactly that in 1980, and answered with conditions on preferences."
+   },
+   {
+    "draw": [
+     "curve_treated",
+     "label_treated",
+     "fill_treated",
+     "area5"
+    ],
+    "speak": "Take the treated patient: five years at q = 0.7 — an area of 3.5 QALYs."
+   },
+   {
+    "draw": [
+     "curve_full",
+     "label_full",
+     "fill_full"
+    ],
+    "speak": "The QALY model says this is as good as 3.5 years in full health: equal areas, equal value."
+   },
+   {
+    "speak": "First condition, mutual utility independence: how you rank lengths of life does not depend on the health state, and how you rank states does not depend on the length.",
+    "blocking": false
+   },
+   {
+    "point": {
+     "at": {
+      "data": [
+       5,
+       0
+      ]
+     },
+     "gesture": "tap"
+    }
+   },
+   {
+    "pause": 1.2
+   },
+   {
+    "point": {
+     "at": {
+      "data": [
+       0,
+       0.7
+      ]
+     },
+     "gesture": "tap"
+    }
+   },
+   {
+    "pause": 4
+   },
+   {
+    "draw": [
+     "gap5",
+     "gap5_l"
+    ],
+    "speak": "Second, constant proportional trade-off: suppose the patient would give up 1.5 of the 5 years — 30 per cent — to be in full health."
+   },
+   {
+    "keep": {
+     "target": [
+      "curve_treated",
+      "curve_full"
+     ]
+    },
+    "speak": "Now make it ten years at 0.7. How many would they give up?"
+   },
+   {
+    "pause": 1.8
+   },
+   {
+    "animate": {
+     "profiles.0.death_at": 10,
+     "profiles.1.death_at": 7
+    },
+    "duration": 3,
+    "speak": "Constant proportional trade-off says 30 per cent again: three years, leaving seven in full health."
+   },
+   {
+    "erase": [
+     "area5"
+    ]
+   },
+   {
+    "draw": [
+     "area10",
+     "gap10",
+     "gap10_l"
+    ],
+    "speak": "The share traded is fixed whatever the duration — that is what makes q a constant multiplier."
+   },
+   {
+    "highlight": {
+     "target": [
+      "gap10_l"
+     ]
+    },
+    "speak": "For some states people will bear a few years but not many, and then the share is not constant."
+   },
+   {
+    "erase": [
+     "curve_treated_ghost",
+     "curve_full_ghost",
+     "gap5",
+     "gap5_l",
+     "gap10",
+     "gap10_l"
+    ]
+   },
+   {
+    "draw": [
+     "form_box",
+     "form_line_1"
+    ],
+    "speak": "Together these two give utility as a quality weight times some function of years;"
+   },
+   {
+    "draw": [
+     "form_line_2"
+    ],
+    "speak": "a third condition makes that function the years themselves."
+   },
+   {
+    "highlight": {
+     "target": [
+      "form_line_2"
+     ]
+    },
+    "speak": "So adding up rectangles is not arithmetic: it is an assumption about how people trade time for quality."
+   }
+  ]
+ }
+}

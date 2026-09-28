@@ -1,0 +1,205 @@
+{
+ "request": "Risk neutral about years — part 3 of 'What theory holds the QALY up?'",
+ "spec": {
+  "title": "Risk neutral about years",
+  "template": "decision_tree",
+  "params": {
+   "rollback": true,
+   "unit": "QALYs",
+   "decimals": 1,
+   "table": false,
+   "root": {
+    "id": "choice",
+    "type": "decision",
+    "label": "q = 0.7",
+    "children": [
+     {
+      "label": "Sure",
+      "node": {
+       "id": "sure",
+       "type": "terminal",
+       "label": "5 years",
+       "payoff": 3.5
+      }
+     },
+     {
+      "label": "Coin flip",
+      "node": {
+       "id": "flip",
+       "type": "chance",
+       "label": "Flip",
+       "children": [
+        {
+         "label": "Heads",
+         "probability": 0.5,
+         "node": {
+          "id": "ten",
+          "type": "terminal",
+          "label": "10 years",
+          "payoff": 7
+         }
+        },
+        {
+         "label": "Tails",
+         "node": {
+          "id": "dead",
+          "type": "terminal",
+          "label": "Death",
+          "payoff": 0
+         }
+        }
+       ]
+      }
+     }
+    ]
+   }
+  },
+  "elements": [
+   {
+    "id": "bwj",
+    "type": "scratch",
+    "work": [
+     "BWJ 1997",
+     {
+      "tex": "\\text{risk neutral} \\Rightarrow \\text{QALY}"
+     }
+    ],
+    "x": 790,
+    "y": 580,
+    "font_size": 26
+   }
+  ],
+  "sources": [
+   {
+    "id": "bwj97",
+    "title": "Characterizing QALYs by risk neutrality",
+    "authors": "Bleichrodt, Wakker & Johannesson",
+    "year": 1997,
+    "finding": "for chronic states, risk neutrality in life years plus the zero condition implies the QALY model"
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Risk neutral about years"
+    }
+   },
+   {
+    "hide": [
+     "best",
+     "pruned",
+     "value_choice"
+    ]
+   },
+   {
+    "draw": [
+     "node_choice",
+     "label_choice"
+    ],
+    "speak": "The third condition is the strongest: risk neutrality over life years."
+   },
+   {
+    "draw": [
+     "edge_choice_sure",
+     "branchlabel_choice_sure",
+     "node_sure",
+     "label_sure"
+    ],
+    "speak": "Here is the test, all in the treated state, q = 0.7: five years for sure."
+   },
+   {
+    "draw": [
+     "edge_choice_flip",
+     "branchlabel_choice_flip",
+     "node_flip",
+     "label_flip",
+     "edge_flip_ten",
+     "branchlabel_flip_ten",
+     "node_ten",
+     "label_ten",
+     "edge_flip_dead",
+     "branchlabel_flip_dead",
+     "node_dead",
+     "label_dead"
+    ],
+    "speak": "Or a coin flip: ten years with probability one half, immediate death otherwise."
+   },
+   {
+    "draw": [
+     "payoff_sure"
+    ],
+    "speak": "The QALY model scores the sure branch at 3.5 QALYs."
+   },
+   {
+    "draw": [
+     "payoff_ten",
+     "payoff_dead",
+     "value_flip"
+    ],
+    "speak": "And the flip? Half of 7 plus half of 0 is 3.5 — exactly the same."
+   },
+   {
+    "highlight": {
+     "target": [
+      "payoff_sure",
+      "value_flip"
+     ]
+    },
+    "speak": "So the QALY model says you should not care which you get. Would you really flip that coin?"
+   },
+   {
+    "pause": 1.8
+   },
+   {
+    "highlight": {
+     "target": [
+      "edge_choice_sure",
+      "node_sure",
+      "label_sure"
+     ]
+    },
+    "speak": "Most people would not: studies usually find people risk averse about the length of their life."
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "value_flip"
+     },
+     "gesture": "underline"
+    },
+    "speak": "For them a QALY is not their utility — it rates the gamble as highly as the sure five years they prefer."
+   },
+   {
+    "draw": [
+     "bwj_box",
+     "bwj_line_1"
+    ],
+    "speak": "Bleichrodt, Wakker and Johannesson showed in 1997 how much hangs on this one condition."
+   },
+   {
+    "draw": [
+     "bwj_line_2"
+    ],
+    "speak": "For chronic states, risk neutrality over life years — plus the zero condition, that zero years are worth the same in every health state — is enough on its own; the other conditions follow."
+   },
+   {
+    "explore": {},
+    "speak": "Pause and drag the flip's probability: its value moves, the sure branch stays at 3.5, and they meet only at one half."
+   },
+   {
+    "erase": [
+     "bwj"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "branchlabel_flip_ten",
+      "branchlabel_flip_dead"
+     ]
+    },
+    "speak": "So the QALY as a utility stands or falls with one testable attitude to risk — and few people quite hold it."
+   }
+  ]
+ }
+}

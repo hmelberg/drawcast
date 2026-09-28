@@ -1,0 +1,290 @@
+{
+ "request": "Welfare or health? — part 4 of 'What theory holds the QALY up?'",
+ "spec": {
+  "title": "Welfare or health?",
+  "elements": [
+   {
+    "id": "head_w",
+    "type": "text",
+    "text": "Welfarism",
+    "x": 460,
+    "y": 600,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "head_x",
+    "type": "text",
+    "text": "Extra-welfarism",
+    "x": 775,
+    "y": 600,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "rule",
+    "type": "path",
+    "points": [
+     [
+      50,
+      560
+     ],
+     [
+      950,
+      560
+     ]
+    ],
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "divider",
+    "type": "path",
+    "points": [
+     [
+      615,
+      630
+     ],
+     [
+      615,
+      265
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "dash": true
+    }
+   },
+   {
+    "id": "row_counts",
+    "type": "text",
+    "text": "Counts",
+    "x": 170,
+    "y": 500,
+    "font_size": 30,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "row_measure",
+    "type": "text",
+    "text": "Tool",
+    "x": 170,
+    "y": 400,
+    "font_size": 30,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "row_needs",
+    "type": "text",
+    "text": "Needs",
+    "x": 170,
+    "y": 300,
+    "font_size": 30,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "w_counts",
+    "type": "text",
+    "text": "Own utility",
+    "x": 460,
+    "y": 500,
+    "font_size": 36,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "x_counts",
+    "type": "text",
+    "text": "Health",
+    "x": 775,
+    "y": 500,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "w_measure",
+    "type": "text",
+    "text": "CBA · WTP",
+    "x": 460,
+    "y": 400,
+    "font_size": 36,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "x_measure",
+    "type": "text",
+    "text": "CEA · QALY",
+    "x": 775,
+    "y": 400,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "w_needs",
+    "type": "text",
+    "text": "EU conditions",
+    "x": 460,
+    "y": 300,
+    "font_size": 36,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "x_needs",
+    "type": "text",
+    "text": "Agreed measure",
+    "x": 775,
+    "y": 300,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "rowlabels",
+    "type": "group",
+    "members": [
+     "row_counts",
+     "row_measure",
+     "row_needs"
+    ]
+   },
+   {
+    "id": "ex",
+    "type": "scratch",
+    "work": [
+     {
+      "tex": "\\frac{\\Delta C}{\\Delta Q} = \\frac{30{,}000}{1.5} = 20{,}000 \\text{ vs } \\lambda"
+     }
+    ],
+    "x": 615,
+    "y": 205,
+    "font_size": 28
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Welfare or health?"
+    }
+   },
+   {
+    "draw": [
+     "rule",
+     "divider",
+     "rowlabels"
+    ],
+    "speak": "Now that the utility foundation looks thin, ask what the QALY is for."
+   },
+   {
+    "draw": [
+     "head_w",
+     "w_counts"
+    ],
+    "speak": "Two answers split health economics. The first, welfarism: what counts is each person's own utility, as they judge it."
+   },
+   {
+    "draw": [
+     "w_measure"
+    ],
+    "speak": "Its natural tool is cost–benefit analysis, with benefits valued by willingness to pay."
+   },
+   {
+    "draw": [
+     "w_needs"
+    ],
+    "speak": "For a welfarist, the conditions of this lecture are essential: a QALY that is not a utility does not measure welfare."
+   },
+   {
+    "draw": [
+     "head_x"
+    ],
+    "speak": "The second answer is extra-welfarism, a term associated with Anthony Culyer, drawing on Amartya Sen."
+   },
+   {
+    "draw": [
+     "x_counts",
+     "x_measure"
+    ],
+    "speak": "Here health itself is the social goal a decision-maker pursues, and the QALY measures health — not anyone's whole welfare."
+   },
+   {
+    "highlight": {
+     "target": [
+      "w_needs"
+     ]
+    },
+    "speak": "Does the QALY then still need risk neutrality and the rest?"
+   },
+   {
+    "pause": 1.8
+   },
+   {
+    "draw": [
+     "x_needs"
+    ],
+    "speak": "Much less: it must be a good, agreed measure of health, not a perfect model of each person's choices."
+   },
+   {
+    "draw": [
+     "ex_box",
+     "ex_line_1"
+    ],
+    "speak": "Our example reads cleanly this way: 1.5 QALYs gained for 30,000 more — 20,000 per QALY, set against the payer's threshold λ."
+   },
+   {
+    "highlight": {
+     "target": [
+      "x_counts"
+     ]
+    },
+    "speak": "The price is that the value judgements come into the open: the decision-maker, not the individual, chooses what counts."
+   },
+   {
+    "erase": [
+     "ex"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "row_needs",
+      "w_needs",
+      "x_needs"
+     ],
+     "effect": "underline"
+    },
+    "speak": "So the QALY rests on one of two things: expected utility theory, if it is to be a utility, or a social choice to maximise health, if it is not."
+   },
+   {
+    "highlight": {
+     "target": [
+      "head_w",
+      "head_x"
+     ],
+     "effect": "underline"
+    },
+    "speak": "Now you can see what an argument about QALYs is often really about — which of those two foundations the speaker stands on."
+   }
+  ]
+ }
+}

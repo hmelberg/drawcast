@@ -1,0 +1,240 @@
+{
+ "request": "How is a QALY calculated? Part 2: Time trade-off",
+ "spec": {
+  "title": "Time trade-off",
+  "template": "qaly_profiles",
+  "params": {
+   "x_label": "Years",
+   "y_label": "Quality of life, q",
+   "x_max": 11,
+   "lines": "straight",
+   "profiles": [
+    {
+     "id": "state",
+     "label": "Life A: the state",
+     "color": "#2f6b8f",
+     "waypoints": [
+      {
+       "t": 0,
+       "u": 0.7
+      },
+      {
+       "t": 10.1,
+       "u": 0.7
+      }
+     ],
+     "death_at": 10.1
+    },
+    {
+     "id": "healthy",
+     "label": "Life B: full health",
+     "color": "#b5482e",
+     "waypoints": [
+      {
+       "t": 0,
+       "u": 1
+      },
+      {
+       "t": 10,
+       "u": 1
+      }
+     ],
+     "death_at": 10
+    }
+   ],
+   "shade_between": {
+    "a": "healthy",
+    "b": "state",
+    "gain_label": "Quality gained",
+    "loss_label": "Years given up"
+   }
+  },
+  "elements": [
+   {
+    "id": "sc",
+    "type": "scratch",
+    "work": [
+     {
+      "tex": "q = 7 \\div 10 = 0.7"
+     },
+     {
+      "tex": "0.3 \\times 7 = 0.7 \\times 3 = 2.1"
+     }
+    ],
+    "x": 330,
+    "y": 300
+   },
+   {
+    "id": "wtd",
+    "type": "text",
+    "text": "Worse than dead: q < 0",
+    "at": {
+     "data": [
+      3.5,
+      0.15
+     ]
+    },
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "y10",
+    "type": "text",
+    "text": "10",
+    "at": {
+     "data": [
+      10,
+      -0.06
+     ]
+    }
+   },
+   {
+    "id": "y7",
+    "type": "text",
+    "text": "7",
+    "at": {
+     "data": [
+      7,
+      -0.06
+     ]
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Time trade-off"
+    }
+   },
+   {
+    "draw": [
+     "axes",
+     "tick_one",
+     "tick_zero"
+    ],
+    "speak": "Now that we know the public values the states, how do you ask a person what a state is worth?"
+   },
+   {
+    "draw": [
+     "full_health_line"
+    ],
+    "speak": "The time trade-off offers a choice between two lives."
+   },
+   {
+    "draw": [
+     "curve_state",
+     "label_state",
+     "y10"
+    ],
+    "speak": "Life A: ten years in the health state, then death."
+   },
+   {
+    "draw": [
+     "curve_healthy",
+     "label_healthy"
+    ],
+    "speak": "Life B: years in full health, then death — and at first, the same ten years."
+   },
+   {
+    "highlight": {
+     "target": [
+      "curve_healthy"
+     ]
+    },
+    "speak": "With equal years, everyone picks full health."
+   },
+   {
+    "animate": {
+     "profiles.1.death_at": 7
+    },
+    "duration": 4,
+    "ghost": [
+     "curve_healthy"
+    ],
+    "speak": "So shorten Life B, a year at a time, until the person can no longer choose between them."
+   },
+   {
+    "draw": [
+     "y7"
+    ],
+    "speak": "Say that happens at seven years."
+   },
+   {
+    "highlight": {
+     "target": [
+      "curve_state",
+      "curve_healthy"
+     ]
+    },
+    "speak": "Then ten years in the state are worth seven healthy years."
+   },
+   {
+    "erase": [
+     "curve_healthy_ghost"
+    ]
+   },
+   {
+    "draw": [
+     "sc_box",
+     "sc_line_1"
+    ],
+    "speak": "The weight is the ratio: q = 7 ÷ 10 = 0.7."
+   },
+   {
+    "draw": [
+     "gain_regions",
+     "label_gain",
+     "loss_regions",
+     "label_loss",
+     "sc_line_2"
+    ],
+    "speak": "On the figure, the two lives now enclose equal areas: the quality gained in the first seven years balances the three years given up."
+   },
+   {
+    "erase": [
+     "sc"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "gain_regions",
+      "loss_regions"
+     ]
+    },
+    "speak": "That is the QALY idea run backwards: indifference means equal QALYs."
+   },
+   {
+    "draw": [
+     "wtd"
+    ],
+    "speak": "For a state some find worse than dead, the question is reframed — a spell in the state followed by full health, against dying now — and the weight comes out below zero."
+   },
+   {
+    "highlight": {
+     "target": [
+      "curve_healthy"
+     ]
+    },
+    "speak": "So a time trade-off weight is the share of your years you would keep in full health, instead of living them all in the state."
+   },
+   {
+    "quiz": {
+     "question": "Someone would give up 2 of 10 years to be free of a state. What is its weight?",
+     "choices": [
+      "0.2",
+      "0.8",
+      "2.0"
+     ],
+     "correct": 2,
+     "right": "0.8: they keep 8 healthy years in place of 10 in the state, and 8 ÷ 10 = 0.8.",
+     "wrong": "The weight is the share of years kept, not given up."
+    }
+   }
+  ]
+ }
+}

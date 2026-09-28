@@ -1,0 +1,84 @@
+{
+ "title": "Is a QALY a QALY, whoever gets it?",
+ "parts": [
+  {
+   "title": "A QALY is a QALY",
+   "brief": "Opens on the disagreement (neutral arithmetic or a moral choice?), works the running example, gives the case for equal weighting — impartiality and opportunity cost — and resolves: equal weighting is itself a choice.",
+   "template": "qaly_profiles",
+   "figure": "The running example as a QALY diagram with straight segments: quality q (0 to 1) against age from 60. Standard care: 4 years at q = 0.5, ending at 64, labelled '2.0 QALYs'. New treatment: 5 years at q = 0.7, ending at 65, labelled '3.5 QALYs'. The green area between them is the gain, labelled 'ΔQ = 1.5'. A readout 'ICER 20,000 = λ' appears when the budget is spoken. Supporting piece: two claim cards, 'Just arithmetic' and 'A moral choice' — drawn at line 1, 'Just arithmetic' struck through at line 10, both gone after line 11. At line 9 a small 'weight 1' tag is written on the gain area and stays.",
+   "script": [
+    "Some say a QALY is just neutral arithmetic, the same for everyone; others say it hides a moral choice about who counts.",
+    "Who is right?",
+    "Take our 60-year-old: standard care gives four years at a quality of 0.5, which is two QALYs.",
+    "The new treatment gives five years at 0.7, three and a half QALYs, and the gain between them is 1.5.",
+    "The sum asks how much health is gained, never whose — a QALY to this patient weighs exactly what it would to anyone else.",
+    "That is the first case for equal weighting: impartiality, no one's health counts for more because of who they are.",
+    "The second is the budget: the extra 30,000 spent here, at a threshold of 20,000 per QALY, would buy 1.5 QALYs for someone else.",
+    "So any extra weight for one group is health taken from patients we never see.",
+    "Yet the sum did choose something: it gave every person's QALYs a weight of one.",
+    "That is a moral choice too, so 'just arithmetic' is wrong.",
+    "Equal weighting is a defensible choice, not the absence of one.",
+    "And equal per QALY is not equal per person — which is where the critics begin."
+   ]
+  },
+  {
+   "title": "The old and the disabled",
+   "brief": "Shows why equal weighting per QALY gives less priority to people with fewer QALYs to gain — the old and the disabled — with Harris's 1987 critique and the defenders' reply.",
+   "template": "qaly_profiles",
+   "figure": "A QALY diagram of one life-saving cure, quality against age 0 to 80, illustrative numbers. First the young patient saved at 30: a shaded block from 30 to 80 at q = 0.8, labelled '40 QALYs'. Then the older patient saved at 70: a block from 70 to 80 at q = 0.8, labelled '8 QALYs', while the young block stays as a faded ghost for comparison. Then the young patient with a lasting disability: a block from 30 to 80 at q = 0.4, labelled '20 QALYs', beside the faded 40 ghost. The label of the smaller block is highlighted as each comparison is spoken. Supporting piece: a card 'Harris, 1987' with the cue 'Every life counts equally' — from line 8, gone after line 11.",
+   "script": [
+    "Now that we have seen the case for weighting every QALY equally, look at who ends up with fewer QALYs to gain.",
+    "Say a cure saves a life, and afterwards the person lives to 80 at a quality of 0.8 — illustrative numbers.",
+    "Saved at 30, that is fifty years at 0.8: forty QALYs.",
+    "Saved at 70, the same cure buys ten years: eight QALYs.",
+    "Same treatment, same cost, but the older patient's rescue counts for a fifth as much.",
+    "Now a young patient with a lasting disability, living at 0.4 after the cure.",
+    "The same fifty years give only twenty QALYs: half the priority, because of the disability.",
+    "In 1987 the philosopher John Harris attacked exactly this, in a paper called 'QALYfying the value of life'.",
+    "His point: each person who wants to go on living has the same claim to it, however many QALYs their life holds.",
+    "Critics call the disability case double jeopardy: the first misfortune lowers your quality of life, and then it lowers your priority.",
+    "Defenders reply that the QALY counts health gained, not the worth of a person, and that ignoring it means buying less health overall.",
+    "So QALYs do not rank people, but wherever there is less health to gain, the old and the disabled come second."
+   ]
+  },
+  {
+   "title": "Fair innings and rescue",
+   "brief": "Two arguments for adding weight: Alan Williams's fair innings (1997), which favours the young even more than QALYs do, and the rule of rescue for identified lives.",
+   "template": "qaly_profiles",
+   "figure": "A QALY diagram of whole lives, quality against age 0 to about 85. A dashed curve is a normal life to its natural end, labelled 'Fair innings'. Two lifetimes are shaded beneath it: someone struck down at 30 whose life ends at 40, and our 60-year-old on standard care whose life ends at 64. Each lifetime area is labelled with its total, and the short one is highlighted when Williams's weight is spoken; the gap between each and the fair innings is what falls short. Supporting piece, for the rule of rescue: one named person icon, 'Seen', beside a small crowd of unnamed icons, 'Unseen' — from line 8, gone after line 11.",
+   "script": [
+    "Now that we have seen the complaint that QALYs favour the young, here is an argument that they should favour them even more.",
+    "Alan Williams, one of the QALY's pioneers, made it in 1997: the fair innings argument.",
+    "Everyone, he argued, has a claim to a fair lifetime of health — a normal span in reasonable quality.",
+    "The dashed curve is such a life, lived to its natural end; the area beneath it is a fair innings.",
+    "Our 60-year-old has already had most of one; someone struck down at 30 falls far short.",
+    "Williams proposed extra weight for QALYs that go to those who would otherwise fall short of a fair innings.",
+    "On this view the young patient's QALYs count for more — the opposite of Harris's remedy.",
+    "The rule of rescue pulls another way: the urge to save an identified person in danger, whatever it costs.",
+    "One named patient in the news, against many unnamed patients who would gain more from the same money.",
+    "The QALY sum cannot see the difference: a named life and a statistical one weigh the same.",
+    "Defenders call that fairness to the unseen; critics call it blindness to something people really value.",
+    "So both arguments ask the same of the sum: add weight — for a lifetime cut short, or for a person we can see."
+   ]
+  },
+  {
+   "title": "Severity, in practice",
+   "brief": "The weight payers actually use — severity as the health a disease takes — in Norway and NICE, the US restriction on cost per QALY thresholds, and the synthesis: every weight is a choice.",
+   "template": "qaly_profiles",
+   "figure": "The running example again as a QALY diagram with straight segments, age 60 to about 82: a dashed reference curve for a normal life from 60 (illustrative population norms), standard care (4 years at 0.5) and the new treatment (5 years at 0.7) with the green gain. The pale area between the reference and standard care is the absolute shortfall, with its ledger written on the figure: about 18 QALYs expected, 2 left, about 16 lost, a proportional shortfall of about 89 percent. The shortfall area is highlighted when severity is defined, the ledger when the NICE weight is chosen. Supporting piece: a scratch card worked line by line — '1.5 × 1.2 = 1.8 QALYs', '30,000 ÷ 1.8 ≈ 16,700 per QALY' — from line 9, gone after line 10.",
+   "script": [
+    "Now that we have seen the arguments for extra weight, the one payers have actually adopted is severity.",
+    "Severity asks how much health the disease takes: the gap between a normal life from 60 and what this patient can expect.",
+    "With illustrative population norms, our 60-year-old could expect about eighteen more QALYs; standard care leaves two.",
+    "That gap, about sixteen QALYs, is the absolute shortfall — the measure of severity Norway uses.",
+    "Norway's priority-setting weighs three things: the benefit, the resources it takes, and the severity.",
+    "The more severe the condition, the higher the cost per QALY Norway will accept.",
+    "In 2022 NICE, in England, brought in a severity modifier: QALYs in the most severe conditions count 1.2 or 1.7 times.",
+    "Our patient loses about 89 percent of the health they could expect: enough for the 1.2 weight.",
+    "Then the gain of 1.5 QALYs counts as 1.8, and the ICER falls from 20,000 to about 16,700 per QALY.",
+    "The United States went another way: the Affordable Care Act restricts the use of cost per QALY thresholds in Medicare.",
+    "So a QALY is a QALY only because someone decided it should be; every weight, even a weight of one, is a choice about whose health the budget buys."
+   ]
+  }
+ ]
+}

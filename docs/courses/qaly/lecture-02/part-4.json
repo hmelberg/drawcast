@@ -1,0 +1,290 @@
+{
+ "request": "How is a QALY calculated? Part 4: Over time, to a cost per QALY",
+ "spec": {
+  "title": "Over time, to a cost per QALY",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "x_label": "Year",
+   "y_label": "QALYs in the year",
+   "ylim": [
+    0,
+    0.8
+   ],
+   "stage": 0,
+   "box": {
+    "x": 90,
+    "y": 170,
+    "w": 590,
+    "h": 450
+   },
+   "series": [
+    {
+     "name": "Standard care",
+     "values": [
+      [
+       0.5,
+       0.5,
+       0.5,
+       0.5,
+       0
+      ],
+      [
+       0.5,
+       0.5,
+       0.5,
+       0.5,
+       0
+      ],
+      [
+       0.5,
+       0.483,
+       0.467,
+       0.451,
+       0.0
+      ]
+     ]
+    },
+    {
+     "name": "New treatment",
+     "values": [
+      [
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      [
+       0.7,
+       0.7,
+       0.7,
+       0.7,
+       0.7
+      ],
+      [
+       0.7,
+       0.676,
+       0.653,
+       0.631,
+       0.61
+      ]
+     ]
+    }
+   ]
+  },
+  "vars": {
+   "ts": 2.0,
+   "tn": 3.5
+  },
+  "elements": [
+   {
+    "id": "rs",
+    "type": "text",
+    "text": "Standard: {ts:2}",
+    "x": 845,
+    "y": 560,
+    "font_size": 30,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "rn",
+    "type": "text",
+    "text": "New: {tn:2}",
+    "x": 845,
+    "y": 510,
+    "font_size": 30,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "scA",
+    "type": "scratch",
+    "work": [
+     {
+      "tex": "\\frac{q}{(1+r)^{t-1}}"
+     },
+     {
+      "tex": "r = 3.5\\%"
+     }
+    ],
+    "x": 840,
+    "y": 330
+   },
+   {
+    "id": "scB",
+    "type": "scratch",
+    "work": [
+     {
+      "tex": "\\Delta Q = 3.27 - 1.90 = 1.37"
+     },
+     {
+      "tex": "\\Delta C = 30{,}000"
+     },
+     {
+      "tex": "ICER = \\frac{30{,}000}{1.37} \\approx 21{,}900"
+     },
+     {
+      "tex": "21{,}900 < \\lambda = 30{,}000"
+     }
+    ],
+    "x": 830,
+    "y": 300,
+    "font_size": 22
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Over time, to a cost per QALY"
+    }
+   },
+   {
+    "draw": [
+     "axes"
+    ],
+    "speak": "Now that each year has a weight, we can add up our running example over time."
+   },
+   {
+    "draw": [
+     "bar_1",
+     "bar_2",
+     "bar_3",
+     "bar_4",
+     "bar_5",
+     "legend",
+     "rs"
+    ],
+    "speak": "Standard care: four years at 0.5, one bar per year, for 2.0 QALYs."
+   },
+   {
+    "animate": {
+     "stage": 1
+    },
+    "duration": 2,
+    "speak": "The new treatment: five years at 0.7, for 3.5 QALYs."
+   },
+   {
+    "draw": [
+     "rn"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_5"
+     ]
+    },
+    "speak": "But a healthy year far in the future usually counts for less than one today, so future QALYs are discounted."
+   },
+   {
+    "draw": [
+     "scA_box",
+     "scA_line_1",
+     "scA_line_2"
+    ],
+    "speak": "Each year is divided by (1 + r) to the power of how far away it is; NICE in England uses r = 3.5% for both costs and QALYs."
+   },
+   {
+    "animate": {
+     "stage": 2,
+     "ts": 1.9,
+     "tn": 3.27
+    },
+    "duration": 3,
+    "speak": "Watch the bars shrink: year one stays whole, and year five keeps 87% of its weight."
+   },
+   {
+    "highlight": {
+     "target": [
+      "rs",
+      "rn"
+     ]
+    },
+    "speak": "Summed, standard care falls to 1.90 QALYs, and the new treatment to 3.27."
+   },
+   {
+    "erase": [
+     "scA"
+    ]
+   },
+   {
+    "draw": [
+     "scB_box",
+     "scB_line_1"
+    ],
+    "speak": "The gain ΔQ shrinks from 1.5 to 1.37 QALYs."
+   },
+   {
+    "draw": [
+     "scB_line_2"
+    ],
+    "speak": "The extra cost, ΔC = 30,000, is paid up front here, so it is not discounted."
+   },
+   {
+    "draw": [
+     "scB_line_3"
+    ],
+    "speak": "The ICER is ΔC ÷ ΔQ: 30,000 ÷ 1.37, about 21,900 per QALY, up from 20,000."
+   },
+   {
+    "draw": [
+     "scB_line_4"
+    ],
+    "speak": "A payer with a threshold λ of 30,000 per QALY would still say yes."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_1",
+      "bar_2",
+      "bar_3",
+      "bar_4",
+      "bar_5"
+     ]
+    },
+    "speak": "So a cost per QALY is a chain: ticks on a form, the public's trade-offs, weights times years, and a discount rate."
+   },
+   {
+    "erase": [
+     "scB_box",
+     "scB_line_1",
+     "scB_line_2",
+     "scB_line_3",
+     "scB_line_4"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "rs",
+      "rn"
+     ]
+    },
+    "speak": "Every link is a choice someone made, and changing any one of them moves the ICER."
+   },
+   {
+    "quiz": {
+     "question": "If the new treatment's extra benefit came 20 years from now instead of within five, what would discounting do to its ICER?",
+     "choices": [
+      "Raise it more",
+      "Lower it",
+      "Leave it unchanged"
+     ],
+     "correct": 1,
+     "right": "It raises it more: QALYs twenty years away are divided by a much bigger (1 + r) to the power t, so ΔQ shrinks while the cost paid now does not.",
+     "wrong": "A later year is divided by a bigger (1 + r) to the power t."
+    }
+   }
+  ]
+ }
+}

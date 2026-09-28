@@ -1,0 +1,210 @@
+{
+ "request": "How is a QALY calculated? Part 3: Standard gamble",
+ "spec": {
+  "title": "Standard gamble",
+  "template": "decision_tree",
+  "params": {
+   "rollback": true,
+   "unit": "q",
+   "box": {
+    "x": 40,
+    "y": 170,
+    "w": 920,
+    "h": 470
+   },
+   "decimals": 2,
+   "root": {
+    "id": "choice",
+    "type": "decision",
+    "label": "Choose",
+    "children": [
+     {
+      "label": "Gamble",
+      "node": {
+       "id": "gamble",
+       "type": "chance",
+       "label": "Treatment",
+       "children": [
+        {
+         "label": "Full health",
+         "probability": 1,
+         "node": {
+          "id": "healthy",
+          "type": "terminal",
+          "label": "Healthy",
+          "payoff": 1
+         }
+        },
+        {
+         "label": "Dead",
+         "node": {
+          "id": "dead",
+          "type": "terminal",
+          "label": "Dead",
+          "payoff": 0
+         }
+        }
+       ]
+      }
+     },
+     {
+      "label": "Certain",
+      "node": {
+       "id": "state",
+       "type": "terminal",
+       "label": "The state",
+       "payoff": 0.7
+      }
+     }
+    ]
+   }
+  },
+  "elements": [
+   {
+    "id": "sc",
+    "type": "scratch",
+    "work": [
+     {
+      "tex": "0.7 \\times 1 + 0.3 \\times 0 = 0.7"
+     }
+    ],
+    "x": 780,
+    "y": 290
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Standard gamble"
+    }
+   },
+   {
+    "draw": [
+     "node_choice",
+     "label_choice"
+    ],
+    "speak": "The time trade-off pays in years; the standard gamble pays in risk."
+   },
+   {
+    "draw": [
+     "edge_choice_state",
+     "branchlabel_choice_state",
+     "node_state",
+     "label_state"
+    ],
+    "speak": "The choice: live on in the health state for certain,"
+   },
+   {
+    "draw": [
+     "edge_choice_gamble",
+     "branchlabel_choice_gamble",
+     "node_gamble",
+     "label_gamble",
+     "edge_gamble_healthy",
+     "branchlabel_gamble_healthy",
+     "node_healthy",
+     "label_healthy",
+     "payoff_healthy",
+     "edge_gamble_dead",
+     "branchlabel_gamble_dead",
+     "node_dead",
+     "label_dead",
+     "payoff_dead"
+    ],
+    "speak": "or take a treatment that restores full health with probability p, and kills you with probability 1 − p."
+   },
+   {
+    "draw": [
+     "value_gamble",
+     "best_choice_gamble"
+    ],
+    "speak": "If p is 1, the gamble is a free cure, and everyone takes it."
+   },
+   {
+    "erase": [
+     "best_choice_gamble"
+    ]
+   },
+   {
+    "hide": [
+     "prune_choice_state"
+    ]
+   },
+   {
+    "animate": {
+     "root.children.0.node.children.0.probability": 0.8
+    },
+    "duration": 3,
+    "speak": "Lower p step by step, and at some point the person can no longer choose."
+   },
+   {
+    "animate": {
+     "root.children.0.node.children.0.probability": 0.7
+    },
+    "duration": 2,
+    "speak": "Say that point is p = 0.7."
+   },
+   {
+    "draw": [
+     "sc_box",
+     "sc_line_1"
+    ],
+    "speak": "The gamble is then worth 0.7 × 1 + 0.3 × 0, which is 0.7."
+   },
+   {
+    "draw": [
+     "payoff_state"
+    ],
+    "speak": "So the certain state is worth 0.7 too: the weight is read straight off the probability."
+   },
+   {
+    "erase": [
+     "sc"
+    ]
+   },
+   {
+    "explore": {},
+    "speak": "Pause and drag p: the gamble's value follows it, and where it matches the certain state is the weight."
+   },
+   {
+    "highlight": {
+     "target": [
+      "payoff_healthy",
+      "payoff_dead"
+     ]
+    },
+    "speak": "Both methods put the state on the same scale, with full health at 1 and death at 0."
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "payoff_state"
+     },
+     "gesture": "underline"
+    },
+    "speak": "In practice, the same person usually gives a higher weight in the gamble than in the time trade-off — we come back to why."
+   },
+   {
+    "highlight": {
+     "target": [
+      "branchlabel_gamble_dead"
+     ]
+    },
+    "speak": "So the standard gamble weighs a state by how much risk of death you would accept to escape it."
+   },
+   {
+    "quiz": {
+     "question": "Someone accepts at most a 5% risk of death to be cured of a state. What is its weight?",
+     "choices": [
+      "0.05",
+      "0.95",
+      "0.5"
+     ],
+     "correct": 2,
+     "right": "0.95: indifference comes at a 95% chance of full health, so the state is worth 0.95.",
+     "wrong": "p is the chance of full health, not of death."
+    }
+   }
+  ]
+ }
+}

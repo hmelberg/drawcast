@@ -1,0 +1,210 @@
+{
+ "request": "The gamble as a ruler — part 1 of 'What theory holds the QALY up?'",
+ "spec": {
+  "title": "The gamble as a ruler",
+  "template": "decision_tree",
+  "params": {
+   "rollback": true,
+   "unit": "Utility",
+   "decimals": 1,
+   "table": false,
+   "root": {
+    "id": "choice",
+    "type": "decision",
+    "label": "Choose",
+    "children": [
+     {
+      "label": "Certain",
+      "node": {
+       "id": "sure",
+       "type": "terminal",
+       "label": "State q",
+       "payoff": 0.7
+      }
+     },
+     {
+      "label": "Gamble",
+      "node": {
+       "id": "gamble",
+       "type": "chance",
+       "label": "Gamble",
+       "children": [
+        {
+         "label": "Win",
+         "probability": 0.3,
+         "node": {
+          "id": "full",
+          "type": "terminal",
+          "label": "Full health",
+          "payoff": 1
+         }
+        },
+        {
+         "label": "Lose",
+         "node": {
+          "id": "dead",
+          "type": "terminal",
+          "label": "Death",
+          "payoff": 0
+         }
+        }
+       ]
+      }
+     }
+    ]
+   }
+  },
+  "elements": [
+   {
+    "id": "eu",
+    "type": "scratch",
+    "work": [
+     {
+      "tex": "EU = p \\cdot 1 + (1-p) \\cdot 0"
+     },
+     {
+      "tex": "= p"
+     }
+    ],
+    "x": 780,
+    "y": 570,
+    "font_size": 26
+   }
+  ],
+  "sources": [
+   {
+    "id": "vnm",
+    "title": "Theory of Games and Economic Behavior",
+    "authors": "von Neumann & Morgenstern",
+    "year": 1944,
+    "finding": "axioms under which choices maximise expected utility"
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "The gamble as a ruler"
+    }
+   },
+   {
+    "hide": [
+     "best",
+     "pruned",
+     "value_choice"
+    ]
+   },
+   {
+    "draw": [
+     "node_choice",
+     "label_choice"
+    ],
+    "speak": "What theory lets us read a QALY weight as a person's utility — what is holding that number up?"
+   },
+   {
+    "draw": [
+     "edge_choice_sure",
+     "branchlabel_choice_sure",
+     "edge_choice_gamble",
+     "branchlabel_choice_gamble"
+    ],
+    "parallel": true,
+    "speak": "The easy answer: a weight is just a score for how good a state feels."
+   },
+   {
+    "highlight": {
+     "target": [
+      "node_choice"
+     ]
+    },
+    "speak": "Expected utility theory makes a much stronger claim, and the standard gamble shows it."
+   },
+   {
+    "draw": [
+     "node_sure",
+     "label_sure"
+    ],
+    "speak": "One branch is certain: live out your life in the treated state."
+   },
+   {
+    "draw": [
+     "node_gamble",
+     "label_gamble",
+     "edge_gamble_full",
+     "branchlabel_gamble_full",
+     "node_full",
+     "label_full",
+     "payoff_full",
+     "edge_gamble_dead",
+     "branchlabel_gamble_dead",
+     "node_dead",
+     "label_dead",
+     "payoff_dead"
+    ],
+    "speak": "The other is a gamble: full health with probability p, immediate death otherwise."
+   },
+   {
+    "animate": {
+     "root.children.1.node.children.0.probability": 0.7
+    },
+    "duration": 4,
+    "speak": "We raise p until the person cannot choose between them — say, at p = 0.7."
+   },
+   {
+    "speak": "Why should that indifference point be the weight?"
+   },
+   {
+    "pause": 1.8
+   },
+   {
+    "draw": [
+     "eu_box",
+     "eu_line_1"
+    ],
+    "cue_end": true,
+    "cue": 0.9,
+    "speak": "Von Neumann and Morgenstern showed that if choices obey a few axioms, a gamble is worth the probability-weighted average of its outcomes' utilities."
+   },
+   {
+    "draw": [
+     "eu_line_2",
+     "value_gamble"
+    ],
+    "speak": "Full health is fixed at 1 and death at 0, so the gamble is worth p times 1 plus one minus p times 0 — exactly p."
+   },
+   {
+    "draw": [
+     "payoff_sure"
+    ],
+    "speak": "Indifference means the certain state is worth the same: q = 0.7."
+   },
+   {
+    "erase": [
+     "eu"
+    ]
+   },
+   {
+    "explore": {},
+    "speak": "Pause and drag p: the gamble's value follows it one for one."
+   },
+   {
+    "highlight": {
+     "target": [
+      "edge_choice_sure",
+      "node_sure",
+      "label_sure"
+     ]
+    },
+    "speak": "The catch is that many people overweight a sure thing, and then p is no longer their utility."
+   },
+   {
+    "highlight": {
+     "target": [
+      "value_gamble",
+      "payoff_sure"
+     ]
+    },
+    "speak": "So the weight is a utility exactly as far as the person chooses by expected utility."
+   }
+  ]
+ }
+}
