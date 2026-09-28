@@ -278,12 +278,28 @@ describe("the figure", () => {
       }
     }
   });
+  test("the top strip is left for a card heading: no view inks above y 680, and a card's lint finds nothing", () => {
+    for (const view of ["timelines", "curves", "results", "diagram", "overview"] as const) {
+      for (const ex of module.manifest.examples) {
+        const l = layoutDesHta({ ...(ex.params as unknown as HtaParams), view, t: 3 });
+        const ys = flattenDrawables(l.drawables).flatMap((d) => ("pts" in d ? (d as { pts: Pt[] }).pts.map((p) => p[1]) : d.kind === "text" ? [(d as unknown as { pos: Pt }).pos[1] + 12] : []));
+        expect(Math.max(...ys), view).toBeLessThanOrEqual(680);
+      }
+    }
+    const spec = { template: "des_hta", params: ONC, commands: [{ card: { title: "Discrete event simulation" } }, { draw: ["model"], speak: "Why simulate patients one by one?" }] };
+    const res = layoutSpec(spec as never);
+    expect(res.issues.filter((i) => i.rule === "heading-intrusion")).toEqual([]);
+  });
   test("ids: the timelines (a row per patient per strategy), the header, the controls, the cursor", () => {
     const l = layoutDesHta({ ...ONC, t: 3 });
     expect(l.order).toEqual(expect.arrayContaining(["state_progression_free", "state_label_progressed", "event_0", "event_2", "event_3", "event_mark_3", "lane_1_a", "lane_12_b", "lane_labels", "tl_head_a", "tl_head_b", "tl_axis_a", "tl_mean_b", "knob_hr", "knob_cost", "reseed", "cursor", "cursor_knob"]));
     expect(l.groups!.lanes_a).toHaveLength(12);
     expect(l.groups!.model).toContain("state_dead");
     expect(l.groups!.controls).toEqual(["knob_hr", "knob_cost", "reseed"]);
+    // The cursor's line through the intervention's column comes with that column's lanes, not before.
+    expect(l.order).toContain("cursor_b");
+    expect(l.drawnWith!.lane_1_b).toContain("cursor_b");
+    expect(l.groups!.cursors).toEqual(["cursor", "cursor_b", "cursor_knob"]);
     const curves = layoutDesHta({ ...ONC, view: "curves", t: 3 });
     expect(curves.order).toEqual(expect.arrayContaining(["os_a", "os_b", "pfs_a", "pfs_b", "ly_gain", "curve_axes", "key_a", "alive_dot_b", "alive_a"]));
     const res = layoutDesHta({ ...ONC, view: "results", wtp: 30000 });

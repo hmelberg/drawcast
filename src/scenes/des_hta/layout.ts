@@ -277,7 +277,7 @@ function drawDiagram(o: Out, P: HtaParams, m: Model, box: Box, detailed: boolean
     } else {
       const forward = e.to > e.from;
       const k = forward ? ++up : ++down;
-      const h = (detailed ? 58 : 30) + (k - 1) * (detailed ? 44 : 20);
+      const h = (detailed ? 58 : 26) + (k - 1) * (detailed ? 44 : 14);
       const sgn = forward ? 1 : -1;
       const ya = cy + sgn * (bh / 2 + 4);
       const a: Pt = [x0 + (forward ? 1 : -1) * bw * 0.18, ya];
@@ -465,6 +465,9 @@ function drawCurves(o: Out, sim: SimResult, box: Box, tCur: number, compact: boo
       pts.push([X(t), Y(which === "os" ? 1 - (m.dead >= 0 ? arm.occ[m.dead][k] : 0) : arm.occ[0][k])]);
     }
     if (upto > 0 && (pts.length === 0 || X(upto) - pts[pts.length - 1][0] > 0.5)) pts.push([X(upto), Y(which === "os" ? 1 - (m.dead >= 0 ? occAt(arm, m.dead, upto, H) : 0) : occAt(arm, 0, upto, H))]);
+    // At t = 0 a curve is its first point twice: its id exists from the
+    // start, so a cast can name it before the sweep draws it out.
+    if (pts.length === 1) pts.push([pts[0][0] + 0.01, pts[0][1]]);
     return pts;
   };
   // Life-years gained: between the OS curves, to the cursor.
@@ -696,23 +699,36 @@ function drawControls(o: Out, P: HtaParams, y: number, x0: number, x1: number): 
   o.groups.controls = [...items.map((i) => i.id), "reseed"];
 }
 
+/**
+ * The cursor: a dashed line per time axis — `cursor` on the first (the
+ * frame's), `cursor_b` on the intervention's column, `cursor_curves` on the
+ * overview's curves — each drawn with what it crosses (the first lane of a
+ * column, the curves' axes), so a cast that has not drawn the second column
+ * yet shows no line through its empty half. `cursors` is the SET.
+ */
 function drawCursor(o: Out, tCur: number, H: number, spans: Span[], knobAt: number): void {
   const push = pusher(o);
-  const kids: Drawable[] = [];
-  spans.forEach((c, i) => {
+  spans.forEach((c) => {
     const X = c.x0 + (tCur / H) * (c.x1 - c.x0);
-    kids.push(kit.stroke(`cursor__${i}`, [[X, c.y0], [X, c.y1]], { color: COLORS.ink, strokeWidth: 1.8, dash: true, instant: true }));
+    push(kit.stroke(c.id, [[X, c.y0], [X, c.y1]], { color: COLORS.ink, strokeWidth: 1.8, dash: true, instant: true }), [X, (c.y0 + c.y1) / 2]);
   });
   const X0 = spans[0].x0 + (tCur / H) * (spans[0].x1 - spans[0].x0);
-  push(kit.group("cursor", kids), [X0, (spans[0].y0 + spans[0].y1) / 2]);
   const s = `t = ${kit.num(Number(tCur.toFixed(1)), 1)}`;
   const w = kit.textWidth(s, 16) + 16;
   push(kit.pad("cursor_knob", [X0, knobAt], s, { w, h: 24 }, { fontSize: 16, color: COLORS.ink }), [X0, knobAt]);
   o.attached.cursor = ["cursor_knob"];
+  o.drawnWith.cursor = ["cursor_knob"];
+  o.groups.cursors = [...spans.map((c) => c.id), "cursor_knob"];
+  for (const c of spans.slice(1)) {
+    const host = c.id === "cursor_b" ? (o.groups.lanes_b ?? []).slice(0, 1) : ["curve_axes"];
+    for (const h of host) (o.drawnWith[h] ??= []).push(c.id);
+  }
 }
 
 /** One stretch of time axis on the page: x0 is t = 0, x1 the horizon; y0…y1 the height its cursor line runs. */
 export interface Span {
+  /** The cursor line's id on this axis. */
+  id: string;
   x0: number;
   x1: number;
   y0: number;
@@ -734,12 +750,12 @@ export function timeSpans(P: HtaParams): { horizon: number; spans: Span[]; knobA
   let knobAt = 0;
   if (g.timelines) {
     const tg = tlGeom(g.timelines, g.rows, g.view === "overview" ? 26 : 34);
-    for (const c of tg.cols) spans.push({ x0: c.x0, x1: c.x1, y0: tg.axisY, y1: tg.top + 4 });
+    tg.cols.forEach((c, i) => spans.push({ id: i === 0 ? "cursor" : "cursor_b", x0: c.x0, x1: c.x1, y0: tg.axisY, y1: tg.top + 4 }));
     knobAt = tg.top + 12;
   }
   if (g.curves) {
     const p = curvePlot(g.curves, g.view === "overview");
-    spans.push({ x0: p.x0, x1: p.x1, y0: p.y0, y1: p.y1 });
+    spans.push({ id: spans.length ? "cursor_curves" : "cursor", x0: p.x0, x1: p.x1, y0: p.y0, y1: p.y1 });
     if (!g.timelines) knobAt = p.y0 - 44;
   }
   return spans.length ? { horizon: m.horizon, spans, knobAt } : null;
@@ -763,13 +779,15 @@ export interface Geometry {
 export function geometryOf(P: HtaParams): Geometry {
   const view = viewOf(P);
   const title = typeof P.title === "string" && P.title.trim() !== "";
-  const top = title ? 690 : 730;
+  // The top strip stays free for a card heading (its underline sits near
+  // y 696): nothing inks above 680 — above 650 under the template's own title.
+  const top = title ? 650 : 680;
   const rows = Math.max(1, Math.min(MAX_TL_SHOW, Math.round(typeof P.show === "number" ? P.show : 12)));
-  const header: Box = { x0: 60, x1: 940, y0: top - 92, y1: top };
+  const header: Box = { x0: 60, x1: 940, y0: top - 78, y1: top };
   const base = { view, header: null, timelines: null, rows, curves: null, table: null, plane: null, diagram: null, controlsY: 26 } as Geometry;
   if (view === "timelines") return { ...base, header, timelines: { x0: 30, x1: 970, y0: 50, y1: header.y0 - 8 } };
   if (view === "curves") return { ...base, header, curves: { x0: 60, x1: 960, y0: 50, y1: header.y0 - 10 } };
-  if (view === "results") return { ...base, table: { x0: 150, x1: 850, y0: top - 290, y1: top - 10 }, plane: { x0: 200, x1: 800, y0: 60, y1: top - 320 } };
+  if (view === "results") return { ...base, table: { x0: 150, x1: 850, y0: top - 270, y1: top }, plane: { x0: 200, x1: 800, y0: 60, y1: top - 300 } };
   if (view === "diagram") return { ...base, diagram: { x0: 40, x1: 960, y0: 200, y1: top - 40 } };
   // overview
   return {
@@ -849,7 +867,7 @@ function readouts(o: Out, sim: SimResult, cg: CurveGeom, t: number): void {
   // is the axis: then both go above, the higher one clear of the lower.
   const hi = alive[1] >= alive[0] ? 1 : 0;
   const lowY = cg.Y(alive[1 - hi]);
-  const floor = lowY - cg.Y(0) < 34;
+  const floor = lowY - cg.Y(0) < 50;
   const yOf = [0, 0];
   yOf[1 - hi] = floor ? Math.max(lowY + 14, cg.Y(0) + 34) : lowY - 14;
   yOf[hi] = Math.max(cg.Y(alive[hi]) + 14, floor ? yOf[1 - hi] + 28 : -Infinity);

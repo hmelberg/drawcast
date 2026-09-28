@@ -279,7 +279,7 @@
     "res_head / res_a / res_b / res_diff / res_icer / res_note / results": "results table rows (results: the SET)",
     "plane_axes / plane_dots / plane_mean / plane_wtp": "results view: each patient's difference on the CE plane, the mean, the threshold",
     "strategy_a / strategy_b": "diagram view: what each strategy does",
-    "cursor / cursor_knob": "with t: the time cursor and its t pill",
+    "cursor / cursor_b / cursor_curves / cursor_knob / cursors": "with t: the dashed time line on each axis (cursor_b on the intervention column, drawn with its lanes; cursor_curves on the overview curves) and its t pill; cursors is the SET",
     "knob_hr / knob_cost / reseed / controls": "the controls: hazard ratio, drug cost, new patients (controls: the SET)",
     "title": "the title, when set"
   },

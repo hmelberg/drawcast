@@ -7,7 +7,7 @@
 //                      step (0–3); tap: type it
 //   knob_cost          drag sideways: the treatment's cost a year (~1 % a step)
 //   reseed             tap: new patients (the seed + 1)
-//   the time cursor    drag the t pill, the dashed line, or anywhere on the
+//   the time cursor    drag the t pill, a dashed line, or anywhere on the
 //                      lanes or the curves: time moves (the bars fill in, the
 //                      curves draw to it)
 //   event_label_<i>    drag sideways: the event's median (or rate, or scale)
@@ -26,6 +26,8 @@ import { slugify, type HtaEvent, type HtaParams, type HtaState } from "./model";
 
 export const HR_STEP = 0.01;
 export const HR_MAX = 3;
+/** The cursor's parts: its dashed lines and its t pill. */
+const CURSOR = /^cursor(_knob|_b|_curves)?$/;
 
 type Target =
   | { kind: "hr"; value: number; key: string | null }
@@ -148,7 +150,7 @@ export function timeAtPoint(scene: WidgetScene, p: Pt): number | null {
 
 export function htaParts(scene: WidgetScene): string[] {
   const P = scene.params as unknown as HtaParams;
-  return scene.ids.filter((id) => id === "cursor_knob" || id === "cursor" || id === "reseed" || targetOf(id, P) !== null);
+  return scene.ids.filter((id) => CURSOR.test(id) || id === "reseed" || targetOf(id, P) !== null);
 }
 
 export function desHtaWidget(): WidgetBody {
@@ -192,7 +194,7 @@ export function desHtaWidget(): WidgetBody {
       }
       if (event.type !== "drag_move" && event.type !== "drag") return none;
       if (!event.from) return none;
-      if (event.id === "cursor" || event.id === "cursor_knob" || event.id === SURFACE_PART) {
+      if (CURSOR.test(event.id) || event.id === SURFACE_PART) {
         const t = timeAtPoint(scene, event.point);
         return t === null ? none : { state, effects: [{ patch: { t } }] };
       }
