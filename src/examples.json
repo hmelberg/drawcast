@@ -74874,5 +74874,265 @@
         }
       ]
     }
+  },
+  {
+    "request": "How does a drug's half-life decide how often you have to take it?",
+    "spec": {
+      "title": "Half-life sets the clock",
+      "template": "pk_curve",
+      "params": {
+        "route": "oral",
+        "half_life": 6,
+        "doses": 60,
+        "dose_interval": 24,
+        "dose": 1,
+        "t_max": 72,
+        "y_max": 1.25,
+        "show_window": true,
+        "window_low": 0.4,
+        "window_high": 0.8,
+        "show_average": true,
+        "show_half_lives": false
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Half-life and dosing"
+          }
+        },
+        {
+          "hide": [
+            "ss_line",
+            "label_ss"
+          ]
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "How does a drug's half-life decide how often you have to take it? Here is a drug's level in the blood, hour by hour."
+        },
+        {
+          "draw": [
+            "window"
+          ],
+          "speak": "It works inside this band: below it, too little; above it, side effects."
+        },
+        {
+          "draw": [
+            "curve",
+            "dose_0",
+            "dose_1",
+            "dose_2",
+            "reg_a"
+          ],
+          "speak": "Take a made-up drug with a six-hour half-life, one pill a day; the numbers are only illustrative."
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "point": {
+            "at": {
+              "data": [
+                28,
+                1.05
+              ]
+            },
+            "gesture": "circle"
+          },
+          "speak": "Each pill shoots the level above the band."
+        },
+        {
+          "point": {
+            "at": {
+              "data": [
+                48,
+                0.14
+              ]
+            },
+            "gesture": "circle"
+          },
+          "speak": "But a day is four half-lives, so by the next pill it has sunk far below it."
+        },
+        {
+          "draw": [
+            "avg_line"
+          ],
+          "speak": "The blue dashed line is the average level over the day."
+        },
+        {
+          "speak": "This band's top is twice its bottom, so between pills the level may halve only once.",
+          "draw": [
+            "x2"
+          ]
+        },
+        {
+          "erase": [
+            "reg_a"
+          ]
+        },
+        {
+          "animate": {
+            "dose": 0.25,
+            "dose_interval": 6
+          },
+          "duration": 4,
+          "speak": "So split the same daily amount into four: a quarter of the pill every six hours."
+        },
+        {
+          "draw": [
+            "reg_b"
+          ]
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "highlight": {
+            "target": [
+              "avg_line"
+            ]
+          },
+          "speak": "The average has not moved: the same total goes in each day, and the body clears what goes in."
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve"
+            ]
+          },
+          "speak": "What changes is how far it falls between pills: once built up, it stays inside the band."
+        },
+        {
+          "point": {
+            "at": {
+              "data": [
+                51,
+                0.62
+              ]
+            },
+            "gesture": "circle"
+          },
+          "speak": "Each half-life halves the level; this window allows one halving."
+        },
+        {
+          "speak": "So the rule: at most as many half-lives between pills as halvings the window allows.",
+          "highlight": {
+            "target": [
+              "x2",
+              "label_x2"
+            ]
+          }
+        },
+        {
+          "erase": [
+            "reg_b",
+            "x2",
+            "label_x2"
+          ]
+        },
+        {
+          "animate": {
+            "half_life": 36,
+            "dose_interval": 24,
+            "dose": 0.1667,
+            "t_max": 240
+          },
+          "duration": 4,
+          "speak": "Now a drug with a half-life of a day and a half, taken once a day, shown over ten days."
+        },
+        {
+          "draw": [
+            "reg_c"
+          ]
+        },
+        {
+          "highlight": {
+            "target": [
+              "curve"
+            ]
+          },
+          "speak": "It builds up for days, then barely swings, even with a whole day between pills."
+        },
+        {
+          "speak": "That is amlodipine, a blood pressure drug with a half-life of thirty to fifty hours, taken once a day.",
+          "point": {
+            "at": {
+              "data": [
+                216,
+                0.56
+              ]
+            },
+            "gesture": "circle"
+          }
+        },
+        {
+          "speak": "How often is set by the half-life and the window, not by how much you take."
+        },
+        {
+          "quiz": {
+            "question": "A drug has a 12-hour half-life, and its window's top is twice its bottom. How often should it be taken?",
+            "choices": [
+              "Every 6 hours",
+              "Every 12 hours",
+              "Once a day"
+            ],
+            "correct": 2,
+            "right": "Every twelve hours: the window allows one halving, and one halving takes one half-life — twelve hours.",
+            "wrong": "Count how many halvings the window allows, and how long each halving takes for this drug."
+          }
+        }
+      ],
+      "elements": [
+        {
+          "id": "x2",
+          "type": "measure",
+          "from": {
+            "x": 80,
+            "y": 290
+          },
+          "to": {
+            "x": 80,
+            "y": 450
+          },
+          "what": "length",
+          "label": "×2",
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "reg_a",
+          "type": "text",
+          "text": "1 pill a day",
+          "style": {
+            "color": "#b5482e"
+          },
+          "x": 770,
+          "y": 665
+        },
+        {
+          "id": "reg_b",
+          "type": "text",
+          "text": "¼ pill every 6 h",
+          "style": {
+            "color": "#b5482e"
+          },
+          "x": 770,
+          "y": 665
+        },
+        {
+          "id": "reg_c",
+          "type": "text",
+          "text": "t½ 36 h · 10 days",
+          "style": {
+            "color": "#b5482e"
+          },
+          "x": 770,
+          "y": 665
+        }
+      ]
+    }
   }
 ]
