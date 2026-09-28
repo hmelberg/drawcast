@@ -10,6 +10,7 @@ import { ensureEnabledPacks } from "../src/scenes/packs";
 import { planCommands } from "../src/render/plan";
 import { planOptionsFor } from "../src/render/index";
 import type { Spec } from "../src/spec/types";
+import { validateSpec } from "../src/spec/schema";
 
 beforeAll(async () => {
   await ensureEnabledPacks(["evidence", "economics"] as never);
@@ -106,5 +107,48 @@ describe("a template without data axes", () => {
     await ensureEnabledPacks(["biology"] as never);
     const l = layoutSpec({ template: "cell_diagram", params: {}, elements: [{ id: "n", type: "text", text: "x", at: { data: [1, 1] } }], commands: [] } as unknown as Spec, heuristicMeasure);
     expect(l.warnings.some((w) => /has no data axes/.test(w))).toBe(true);
+  });
+});
+
+describe("{canvas: [x, y]}: canvas units even on a page with a domain", () => {
+  const domainPage = (elements: object[], commands: object[] = []) =>
+    ({ domain: { x: [0, 10], y: [0, 10] }, elements: [{ id: "c", type: "curve", expr: "x" }, ...elements], commands }) as unknown as Spec;
+  const pts = (spec: Spec, id: string) => flattenDrawables(layoutSpec(spec, heuristicMeasure).drawables).filter((d) => d.id === id || d.id.startsWith(id + "_")).flatMap((d) => (d as { pts?: [number, number][] }).pts ?? []);
+
+  test("an annotation arrow from the canvas margin to a data point", () => {
+    const spec = domainPage([{ id: "a", type: "arrow", from: { canvas: [60, 700] }, to: { data: [5, 5] } }]);
+    const { toLogical } = domainMapping(spec.domain, undefined);
+    const p = pts(spec, "a");
+    const [tx, ty] = toLogical([5, 5]);
+    expect(p.some(([x, y]) => Math.abs(x - 60) < 1 && Math.abs(y - 700) < 1)).toBe(true);
+    expect(p.some(([x, y]) => Math.hypot(x - tx, y - ty) < 12)).toBe(true);
+  });
+
+  test("the same numbers as {x, y} read the domain — {canvas} is what differs", () => {
+    const a = pts(domainPage([{ id: "a", type: "arrow", from: { x: 1, y: 1 }, to: { x: 2, y: 2 } }]), "a");
+    const b = pts(domainPage([{ id: "a", type: "arrow", from: { canvas: [1, 1] }, to: { canvas: [2, 2] } }]), "a");
+    expect(Math.max(...a.map((q) => q[0]))).toBeGreaterThan(100);
+    expect(Math.max(...b.map((q) => q[0]))).toBeLessThan(5);
+  });
+
+  test("a point at {canvas} sits there, whatever the domain", () => {
+    const [x, y] = centre(domainPage([{ id: "p", type: "point", at: { canvas: [80, 700] } }]), "p");
+    expect(x).toBeCloseTo(80, 0);
+    expect(y).toBeCloseTo(700, 0);
+  });
+
+  test("validates, on arrows and on a verb's point", () => {
+    const spec = domainPage([{ id: "a", type: "arrow", from: { canvas: [60, 700] }, to: { data: [5, 5] } }], [{ draw: ["c", "a"] }, { point: { at: { canvas: [500, 375] } } }]);
+    expect(validateSpec(spec).errors).toEqual([]);
+  });
+
+  test("point.at and a move of a canvas arrow are in canvas units", () => {
+    const spec = domainPage([{ id: "a", type: "arrow", from: { canvas: [60, 700] }, to: { canvas: [200, 600] } }], [{ draw: ["c", "a"] }, { point: { at: { canvas: [500, 375] } } }, { move: { target: "a", by: [10, 0] } }]);
+    const l = layoutSpec(spec, heuristicMeasure);
+    const bb = elementBBoxes(l, heuristicMeasure);
+    const p = planCommands(spec.commands as never, l.order, { bboxOf: (id) => bb.get(id) ?? null, ...domainMapping(spec.domain, l.fit), ...planOptionsFor(spec, l) });
+    const step = p.steps.find((s) => s.kind === "point") as { x: number; y: number };
+    expect([step.x, step.y]).toEqual([500, 375]);
+    expect(p.states[p.states.length - 1].offsets.a).toEqual([10, 0]);
   });
 });

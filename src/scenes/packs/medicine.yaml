@@ -843,13 +843,22 @@ params:
       description: "Elimination half-life in hours, 0.5-48 (default 6)."
     doses:
       type: integer
-      description: "Number of doses, 1-10 (default 1). 4+ doses draw the steady-state line."
+      description: "Number of doses, 1-60 (default 1); doses past t_max are not drawn. 4+ doses in view draw the steady-state line."
     dose_interval:
       type: number
       description: "Hours between doses, 1-48 (default 12). Only used when doses > 1."
+    dose:
+      type: number
+      description: "Size of each dose, 0.05-5 (default 1 = a dose that peaks at 1.0 on its own). Same daily amount, split: {dose: 1, dose_interval: 24} → animate {dose: 0.25, dose_interval: 6} — set t_max, y_max and enough doses to fill t_max so nothing but the curve moves."
     loading_dose:
       type: number
       description: "Multiplier for the FIRST dose, 1-3 (default 1). E.g. 2 = double loading dose that jumps straight toward the plateau."
+    y_max:
+      type: number
+      description: "Fixed top of the concentration axis, in the window's units (default: 1.12 × the highest peak or window edge; a y_max below that gives way). Set it, above every peak the animate reaches, when animating dose, dose_interval or loading_dose — else the axis rescales every frame and the band seems to move."
+    show_average:
+      type: boolean
+      description: "Dashed \"Average\" line at the steady-state average level, dose ÷ interval × the area under one dose (default false; repeated doses only). The same daily amount gives the same average, however it is split."
     show_window:
       type: boolean
       description: "Shaded therapeutic window band (default false)."
@@ -871,9 +880,11 @@ element_ids:
   axes: the coordinate axes (a group with axis captions)
   curve: the concentration curve itself
   dose_<i>: small arrow on the time axis marking when dose i is taken
-  window: the therapeutic window (shaded band + dashed edges + caption, a group)
-  ss_line: dashed steady-state line (doses >= 4 only)
-  label_ss: "\"Steady state (≈ 5 half-lives)\" caption on that line"
+  window: the therapeutic window (shaded band + dashed edges, a group; its caption window__t comes with it)
+  ss_line: dashed line at the steady-state PEAK — the highest the sawtooth rises once it has levelled off (4+ doses in view)
+  label_ss: "\"Steady-state peak\" caption on that line (drawn with it)"
+  avg_line: dashed line at the steady-state average level (show_average)
+  label_avg: "\"Average\" caption on that line (drawn with it)"
   half_guides: the half-life staircase guides (a group, single IV dose)
   title: figure title, when set
 examples:
@@ -887,15 +898,26 @@ examples:
       dose_interval: 12
       show_window: true
       title: "Reaching steady state"
+  - request: "One pill a day, or a quarter of it every six hours?"
+    params:
+      doses: 20
+      dose_interval: 24
+      dose: 1
+      half_life: 12
+      t_max: 120
+      y_max: 2.6
+      show_average: true
 layout: |
   const C = kit.COLORS, MS = kit.SKETCH_MS;
   const num = (v, d) => (Number.isFinite(v) ? v : d);
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const route = params.route === "iv" ? "iv" : "oral";
   const halfLife = clamp(num(params.half_life, 6), 0.5, 48);
-  const doses = clamp(Math.round(num(params.doses, 1)), 1, 10);
+  const doses = clamp(Math.round(num(params.doses, 1)), 1, 60);
   const interval = clamp(num(params.dose_interval, 12), 1, 48);
+  const dose = clamp(num(params.dose, 1), 0.05, 5);
   const loading = clamp(num(params.loading_dose, 1), 1, 3);
+  const showAvg = params.show_average === true && doses > 1;
   const showWindow = params.show_window === true;
   const winLow = Math.max(0.1, num(params.window_low, 1));
   const winHigh = Math.max(winLow + 0.3, num(params.window_high, 2.5));
@@ -911,10 +933,32 @@ layout: |
     let c = 0;
     for (let i = 0; i < doses; i++) {
       const u = t - i * interval;
-      if (u >= 0) c += (i === 0 ? loading : 1) * unit(u);
+      if (u >= 0) c += (i === 0 ? loading : 1) * dose * unit(u);
     }
     return c;
   };
+  // Doses taken inside the hours shown (arrows, the steady-state rule).
+  let shown = 0;
+  for (let i = 0; i < doses && i * interval <= tmax + 1e-9; i++) shown++;
+  // The steady-state average: one dose's area under the curve, spread over
+  // one interval — the same daily amount gives the same average, whatever
+  // the split.
+  const auc1 = route === "iv" ? 1 / ke : (1 / ke - 1 / ka) / bNorm;
+  const cAvg = (dose * auc1) / interval;
+  // The steady-state PEAK: the top of the sawtooth once it has levelled off
+  // — every earlier dose's remainder summed, at the best moment in one
+  // interval. What ss_line marks; the curve approaches it from below.
+  const ssLine = shown >= 4;
+  let ssPeak = 0;
+  if (ssLine) {
+    const K = Math.ceil((halfLife * 12) / interval) + 1;
+    for (let j = 0; j <= 200; j++) {
+      const u = (interval * j) / 200;
+      let c = 0;
+      for (let k = 0; k <= K; k++) c += dose * unit(u + k * interval);
+      if (c > ssPeak) ssPeak = c;
+    }
+  }
 
   const N = 420;
   const samples = [];
@@ -926,12 +970,17 @@ layout: |
     if (c > cmax) cmax = c;
   }
   const plot = { x0: 110, y0: 130, x1: 920, y1: 630 };
-  const yTop = Math.max(cmax, showWindow ? winHigh : 0) * 1.12;
+  // y_max pins the axis (an animate of the dose keeps the band still); it
+  // only gives way to a curve or window that would crowd the plot's top strip.
+  // A plateau the hours shown only approach still fits under the caption strip.
+  const yFit = Math.max(cmax, showWindow ? winHigh : 0, ssPeak / 1.03);
+  const yPin = num(params.y_max, NaN);
+  const yTop = Math.max(yPin > 0 ? yPin : 0, yFit * 1.12);
   const X = (t) => plot.x0 + (t / tmax) * (plot.x1 - plot.x0);
   const Y = (c) => plot.y0 + (c / yTop) * (plot.y1 - plot.y0);
 
   const drawables = [], labels = [], anchors = {}, order = [];
-  const attached = {};
+  const attached = {}, drawnWith = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
   push(kit.group("axes", [
@@ -948,14 +997,21 @@ layout: |
       kit.area("window__band", [[plot.x0, yLo], [plot.x1, yLo], [plot.x1, yHi], [plot.x0, yHi]], C.region2, { opacity: 0.22 }),
       kit.stroke("window__lo", [[plot.x0, yLo], [plot.x1, yLo]], { color: C.region2, dash: true, strokeWidth: 2.5, ms: MS.guides }),
       kit.stroke("window__hi", [[plot.x0, yHi], [plot.x1, yHi]], { color: C.region2, dash: true, strokeWidth: 2.5, ms: MS.guides }),
-      kit.text("window__t", [plot.x1 - 10, yHi - 20], "Therapeutic window", { fontSize: 18, anchor: "end", color: C.region2 }),
     ]));
     anchors.window = [plot.x1 - 60, (yLo + yHi) / 2];
+    // The caption is placed by the solver, clear of the curve and the other
+    // lines (a fixed spot inside the band sat on the sawtooth whenever it
+    // ran through the band's top), and comes with the band.
+    labels.push(kit.label("window__t", [plot.x1 - 40, yHi], "below-left", "Therapeutic window", { fontSize: 24, color: C.region2 }));
+    attached.window = ["window__t"];
+    drawnWith.window = ["window__t"];
   }
 
   for (let i = 0; i < doses; i++) {
     const x = X(i * interval);
-    if (x > plot.x1) break;
+    // Not under the "Hours" caption at the axis's end: a dose there has not
+    // yet shown on the curve anyway (doses that fill a fixed t_max reach it).
+    if (x > plot.x1 - 75) break;
     const id = "dose_" + i;
     push(kit.stroke(id, [[x, plot.y0 - 30], [x, plot.y0 - 8]], { arrowhead: "end", color: C.guide, strokeWidth: 3, ms: MS.dot }));
     anchors[id] = [x, plot.y0 - 19];
@@ -967,19 +1023,32 @@ layout: |
   samples.forEach(([, c], i) => { if (c > samples[peakI][1]) peakI = i; });
   anchors.curve = [X(samples[peakI][0]), Y(samples[peakI][1])];
 
-  if (doses >= 4) {
-    let plateau = 0;
-    for (const [t, c] of samples) if (t >= tmax - interval * 1.5 && c > plateau) plateau = c;
-    const ySS = Y(plateau);
+  if (ssLine) {
+    // At the true steady-state peak (it used to read the curve's level 1.5
+    // intervals before the end — often a falling stretch, a line that
+    // marked nothing in particular).
+    const ySS = Y(ssPeak);
     push(kit.stroke("ss_line", [[plot.x0, ySS], [plot.x1, ySS]], { color: C.guide, dash: true, strokeWidth: 2.5, ms: MS.guides }));
     anchors.ss_line = [plot.x0 + 60, ySS];
-    // The sawtooth's peaks touch the steady-state line all along it, so no
-    // caption can hug the line itself. The strip above the window/curve is
-    // provably empty (yTop carries 1.12 headroom, so nothing drawn exceeds
-    // y0 + 500/1.12 ≈ 576) — the caption lives there as a plot-header note.
-    push(kit.text("label_ss", [plot.x1 - 12, plot.y1 - 8], "Steady state (≈ 5 half-lives)", { fontSize: 18, anchor: "end", color: C.guide }));
+    // The sawtooth's peaks touch the line from below, so its caption goes
+    // ABOVE it, at the left where the curve is still climbing (the window's
+    // caption holds the right end), placed by the solver. It
+    // names what the line marks — the PEAK once levelled off; the average
+    // is avg_line — and comes with the line when drawn.
+    labels.push(kit.label("label_ss", [plot.x0 + 40, ySS], "above-right", "Steady-state peak", { fontSize: 24, color: C.guide }));
     attached["ss_line"] = [...(attached["ss_line"] ?? []), "label_ss"];
-    anchors.label_ss = [plot.x1 - 12, plot.y1 - 8];
+    drawnWith.ss_line = ["label_ss"];
+  }
+
+  if (showAvg) {
+    const yA = Y(cAvg);
+    push(kit.stroke("avg_line", [[plot.x0, yA], [plot.x1, yA]], { color: C.supply, dash: true, strokeWidth: 2.5, ms: MS.guides }));
+    anchors.avg_line = [plot.x1 - 60, yA];
+    // The solver finds a clear spot by the line's right end: the sawtooth
+    // crosses it at every dose, so no fixed spot is safe.
+    labels.push(kit.label("label_avg", [plot.x1 - 40, yA], "above-left", "Average", { fontSize: 24, color: C.supply }));
+    attached.avg_line = ["label_avg"];
+    drawnWith.avg_line = ["label_avg"];
   }
 
   if (showHalf && doses === 1 && route === "iv") {
@@ -988,19 +1057,19 @@ layout: |
     for (let k = 1; k <= 3; k++) {
       const t = k * halfLife;
       if (t > tmax) break;
-      const x = X(t), y = Y(loading * unit(t));
+      const x = X(t), y = Y(loading * dose * unit(t));
       children.push(kit.stroke("half__v" + k, [[x, plot.y0], [x, y]], { color: C.guide, dash: true, strokeWidth: 2, ms: MS.guides }));
       children.push(kit.stroke("half__h" + k, [[x, y], [plot.x0, y]], { color: C.guide, dash: true, strokeWidth: 2, ms: MS.guides }));
-      children.push(kit.text("half__t" + k, [plot.x0 - 12, y], fracs[k - 1], { fontSize: 16, anchor: "end", color: C.guide }));
+      children.push(kit.text("half__t" + k, [plot.x0 - 12, y], fracs[k - 1], { fontSize: 22, anchor: "end", color: C.guide }));
     }
     push(kit.group("half_guides", children));
-    anchors.half_guides = [X(halfLife), Y(loading * 0.5)];
+    anchors.half_guides = [X(halfLife), Y(loading * dose * 0.5)];
   }
 
   if (typeof params.title === "string" && params.title.trim() !== "") {
     push(kit.text("title", [540, 708], params.title, { fontSize: 30 }));
   }
-  return { drawables, labels, anchors, order, attached, frame: { x: [0, tmax], y: [0, yTop], box: plot } };
+  return { drawables, labels, anchors, order, attached, drawnWith, frame: { x: [0, tmax], y: [0, yTop], box: plot } };
 ---
 template: pv_loop
 title: Cardiac pressure-volume loop

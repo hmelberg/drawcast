@@ -84,6 +84,9 @@ export interface Tier2Result {
    * `pieces` element's `<id>_1` … `<id>_n` sectors.
    */
   extraOrder: string[];
+  /** Element id → ids a draw of it brings along, right after it: a measure's
+   *  number with its dimension line (scenes/types.ts `drawnWith`, but after). */
+  drawnAfter: Record<string, string[]>;
   warnings: string[];
   /** Windowed code panes (el.lines), keyed by element id — the plan scrolls them. */
   windows: Record<string, CodeWindow>;
@@ -139,6 +142,7 @@ interface Ctx {
   /** The drawables laid out so far — an arrow endpoint's `anchor` reads a box off them. */
   drawablesSoFar: Drawable[];
   extraOrder: string[];
+  drawnAfter: Record<string, string[]>;
   warnings: string[];
   windows: Record<string, CodeWindow>;
   panes: Record<string, BBox>;
@@ -273,6 +277,7 @@ export function layoutElements(
     namedAnchors: {},
     drawablesSoFar: [],
     extraOrder: [],
+    drawnAfter: {},
     windows: {},
     panes: {},
     warnings: [],
@@ -464,6 +469,13 @@ export function layoutElements(
     ctx.posedCurveSamples.set(id, logical.map(map).map((p): Pt => [ctx.ix(p[0]), ctx.iy(p[1])]));
   }
   const labels: LabelRequest[] = [];
+  // A label on a point drawn larger than a dot stands clear of its rim.
+  const labelClearance = (targetId: string | undefined): { clear?: number } => {
+    const target = targetId === undefined ? undefined : elements.find((e) => e.id === targetId);
+    if (target?.type !== "point") return {};
+    const extra = pointRadius(bound(target)) - POINT_RADIUS;
+    return extra > 0 ? { clear: extra } : {};
+  };
   for (const raw of emitOrder) {
     const el = inCanvasUnits(bound(raw), ctx);
     const start = drawables.length;
@@ -514,6 +526,7 @@ export function layoutElements(
           fontSize: el.font_size ?? 28,
           style: resolveStyle(el.style),
           drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text }),
+          ...labelClearance(el.attach_to),
         });
         break;
       }
@@ -851,6 +864,7 @@ export function layoutElements(
     anchors: ctx.anchors,
     namedAnchors: ctx.namedAnchors,
     extraOrder: ctx.extraOrder,
+    drawnAfter: ctx.drawnAfter,
     warnings: ctx.warnings,
     windows: ctx.windows,
     panes: ctx.panes,
@@ -1269,6 +1283,7 @@ function resolvePointDomain(el: SpecElement, ctx: Ctx): Pt | null {
     return [at.x, y];
   }
   if (Array.isArray(at.data) && at.data.length === 2) return [at.data[0], at.data[1]];
+  if (Array.isArray(at.canvas) && at.canvas.length === 2) return [ctx.ix(at.canvas[0]), ctx.iy(at.canvas[1])];
   // A bare {x, y} is the domain's on a page that declares one; with no
   // domain it is canvas units — it used to read a silent default 0–100
   // domain, so {x: 600, y: 600} landed five canvases away (2026-09-25).
@@ -1282,6 +1297,12 @@ function resolvePointDomain(el: SpecElement, ctx: Ctx): Pt | null {
     return null;
   }
   return null;
+}
+
+/** A point's dot radius in canvas units: `radius` when given (a ball, a planet), else the house 7. */
+export const POINT_RADIUS = 7;
+export function pointRadius(el: SpecElement): number {
+  return typeof el.radius === "number" && Number.isFinite(el.radius) ? Math.max(2, Math.min(120, el.radius)) : POINT_RADIUS;
 }
 
 function pointDrawables(el: SpecElement, ctx: Ctx, plotFit: PlotArea): Drawable[] {
@@ -1312,7 +1333,7 @@ function pointDrawables(el: SpecElement, ctx: Ctx, plotFit: PlotArea): Drawable[
     id: el.id,
     kind: "stroke",
     pts: [p],
-    shapeHint: { type: "circle", c: p, r: 7 },
+    shapeHint: { type: "circle", c: p, r: pointRadius(el) },
     z: Z_STROKE,
     style: resolveStyle(el.style, { strokeWidth: 3, fill: resolveStyle(el.style).color }),
     drawOpts: resolveDrawOpts(el.draw, { duration: SKETCH_MS.dot }),
@@ -1510,7 +1531,7 @@ interface ResolvedEnd {
   anchored: boolean;
 }
 
-function resolveEnd(end: { ref?: string; x?: number; y?: number; anchor?: string; data?: [number, number] } | undefined, ctx: Ctx): ResolvedEnd | null {
+function resolveEnd(end: { ref?: string; x?: number; y?: number; anchor?: string; data?: [number, number]; canvas?: [number, number] } | undefined, ctx: Ctx): ResolvedEnd | null {
   if (!end) return null;
   if (end.ref) {
     // Definitional readers see the posed view (design 2026-09-10 §2.5).
@@ -1544,6 +1565,8 @@ function resolveEnd(end: { ref?: string; x?: number; y?: number; anchor?: string
     return { pt: a, anchored: false };
   }
   if (Array.isArray(end.data) && end.data.length === 2) return { pt: [ctx.sx(end.data[0]), ctx.sy(end.data[1])], anchored: false };
+  // Canvas units whatever the page's domain: an annotation beside the chart.
+  if (Array.isArray(end.canvas) && end.canvas.length === 2) return { pt: [end.canvas[0], end.canvas[1]], anchored: false };
   if (end.x !== undefined && end.y !== undefined) {
     return { pt: ctx.domainDeclared ? [ctx.sx(end.x), ctx.sy(end.y)] : [end.x, end.y], anchored: false };
   }
@@ -2285,6 +2308,8 @@ function filledOutline(id: string, pts: Pt[], el: SpecElement): Drawable[] {
       id: `${id}_wash`,
       kind: "area",
       pts,
+      // fill_style "wash": one exact flat tint instead of rough hachure.
+      ...(el.style?.fill_style === "wash" ? { precise: true } : {}),
       z: Z_AREA,
       style: resolveStyle(el.style, { opacity: 0.35 }),
       drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.region }),
@@ -2508,6 +2533,11 @@ function measureDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     // focus/highlight/keep) resolves through pieceGroups to `label_areal`
     // instead of dropping as an id that paints nothing.
     if (!hasLine) ctx.pieceGroups[el.id] = [textId];
+    // With a line, the number comes with it: `draw: ["m"]` draws the line,
+    // then its number — it used to wait for the final implicit draw unless
+    // the cast named `label_<id>` too (which still works: it is then drawn
+    // where the cast says).
+    else ctx.drawnAfter[el.id] = [textId];
   }
   ctx.measures[el.id] = { of: el.of, what, from: fromSrc, to: toSrc, side, offset: el.offset ?? 24, format, lineId: el.id, textId, circle: circle ?? undefined };
   return out;

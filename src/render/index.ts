@@ -127,7 +127,7 @@ const DATA_KINDS = new Set<string>(["point", "curve", "region", "arrow", "edge",
 export function planOptionsFor(
   spec: Spec,
   layout: LayoutResult,
-): Pick<PlanOptions, "attachedTo" | "drawnWith" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds" | "mathOf" | "isElement" | "controlsOf" | "dataToLogical" | "inDataUnits"> {
+): Pick<PlanOptions, "attachedTo" | "drawnWith" | "drawnAfter" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds" | "mathOf" | "isElement" | "controlsOf" | "dataToLogical" | "inDataUnits"> {
   // Definitions hold (design 2026-09-10 §2.5): what is defined in terms of
   // what. A source that is a group or a pieces cut is moved through its
   // members (the planner expands it), so its dependents are attached to every
@@ -174,6 +174,9 @@ export function planOptionsFor(
     inDataUnits: (id) => {
       if (!spec.domain) return false;
       const el = spec.elements?.find((e) => e.id === id);
+      // An arrow drawn in canvas units ({canvas: [x, y]} ends) moves in them too.
+      const canvasEnd = (v: unknown) => Array.isArray((v as { canvas?: unknown } | undefined)?.canvas);
+      if (el && (el.type === "arrow" || el.type === "edge") && (canvasEnd(el.from) || canvasEnd(el.to))) return false;
       return !!el && DATA_KINDS.has(el.type);
     },
     pieceOf: (id) => layout.pieces[id] ?? null,
@@ -193,6 +196,7 @@ export function planOptionsFor(
     expandId: (id) => layout.pieceGroups[id] ?? null,
     expandGroup: (id) => layout.groups[id] ?? null,
     drawnWith: (id) => (layout.drawnWith?.[id] ?? []).filter((x) => layout.order.includes(x)),
+    drawnAfter: (id) => (layout.drawnAfter?.[id] ?? []).filter((x) => layout.order.includes(x)),
     anchorOf: (id, name) => layout.namedAnchors[id]?.[name] ?? null,
     leafPointsOf: (id) => {
       const out: { leafId: string; pts: Pt[]; closed: boolean }[] = [];

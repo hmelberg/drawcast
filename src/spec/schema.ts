@@ -36,6 +36,7 @@ const styleSchema = {
     dash: { type: "boolean", description: "Dashed stroke (guide lines etc.)." },
     roughness: { type: "number", description: "Hand-drawn sketchiness 0 (clean) to 3 (very rough)." },
     opacity: { type: "number" },
+    fill_style: { type: "string", enum: ["hatch", "wash"], description: "polygon/sector/ellipse/closed path fill: hatch (default, hand-drawn strokes) or wash (one flat translucent tint, like a circle's — a sunlit half); opacity sets its strength (default 0.35)." },
   },
   additionalProperties: false,
 };
@@ -81,7 +82,7 @@ const SHARED_DEFS = {
       { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2 },
       {
         type: "object",
-        properties: { ref: { type: "string" }, anchor: { type: "string" }, x: { type: "number" }, y: { type: "number" }, data: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "[x, y] in data units — the page's domain, or a template's own axes." } },
+        properties: { ref: { type: "string" }, anchor: { type: "string" }, x: { type: "number" }, y: { type: "number" }, data: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "[x, y] in data units — the page's domain, or a template's own axes." }, canvas: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "[x, y] in canvas units, even on a domain page." } },
         additionalProperties: false,
       },
     ],
@@ -101,6 +102,7 @@ const SHARED_DEFS = {
       y: { type: "number" },
       anchor: { type: "string", description: `A named point ON ref instead of its centre — e.g. {"ref": "tri", "anchor": "vertex_1"}: ${ANCHOR_NAMES}.` },
       data: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "[x, y] in data units — the page's domain, or a template's own axes." },
+      canvas: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "[x, y] in canvas units, even on a domain page." },
     },
     additionalProperties: false,
   },
@@ -108,13 +110,13 @@ const SHARED_DEFS = {
 
 const endRefSchema = {
   allOf: [{ $ref: "#/$defs/end_ref" }],
-  description: "Arrow/edge endpoint: set ref to an element id, OR x+y (domain units if a domain is declared, else canvas), OR data: [x, y] (data units — also a template's axes).",
+  description: "Arrow/edge endpoint: set ref to an element id, OR x+y (domain units if a domain is declared, else canvas), OR data: [x, y] (data units — also a template's axes), OR canvas: [x, y] (canvas units, even on a domain page).",
 };
 
 /** A point a verb takes: [x, y], or a named point on an element so the model never computes it. */
 const pointRefSchema = (what: string) => ({
   allOf: [{ $ref: "#/$defs/point_ref" }],
-  description: `${what} — [x, y] (domain units when a domain is declared, else canvas), {"data": [x, y]}, or {"ref": id, "anchor": name} for a point ON an element so you never compute it: ${ANCHOR_NAMES}.`,
+  description: `${what} — [x, y] (domain units when a domain is declared, else canvas), {"data": [x, y]}, {"canvas": [x, y]} (canvas units always), or {"ref": id, "anchor": name} for a point ON an element so you never compute it: ${ANCHOR_NAMES}.`,
 });
 
 /** A verb's ghost option: true (every target), a list of ids, or {of, opacity}. */
@@ -163,6 +165,7 @@ const elementSchema = {
             x: { type: "number" },
             y: { type: "number" },
             data: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "[x, y] in data units — the page's domain, or a template's own axes." },
+            canvas: { type: "array", items: { type: "number" }, minItems: 2, maxItems: 2, description: "point/angle: [x, y] in canvas units even on a page with a domain." },
             intersection_of: { type: "array", items: { type: "string" }, description: "Two curve ids (your own or a scene template's); the point is their intersection." },
             on: { type: "string", description: "point: the curve this point sits on at x (y is read off it)." },
             ref: { type: "string" },
@@ -311,7 +314,7 @@ const elementSchema = {
     y: { type: "number", description: "text/shape/sector/arc/polygon/pieces/ellipse: logical y (y-up canvas) — the centre, for the shapes that have one. inset: the centre of the box; omit x, y and at to take the next slot in the right-hand thumbnail column." },
     width: { type: "number", description: "shape rect / node / portrait / source / code / pieces strips+grid (the rectangle to cut): width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880). / image: width. inset: box width (default 160; the height follows 4:3 unless given) — only read when x/y or at place the inset; in the column, width and height are ignored." },
     height: { type: "number", description: "shape rect / node / pieces strips+grid (the rectangle to cut): height in logical units. inset: box height." },
-    radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces / angle: radius in logical units (angle default 40)." },
+    radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces / angle: radius in logical units (angle default 40). point: the dot's radius in canvas units (default 7; e.g. 20 for a ball) — bind it to animate." },
     font_size: { type: "number", description: "text: font size in logical units (≥ 14; default 26)." },
     // sector / arc / polygon / pieces
     start: { type: "number", description: "sector/arc: start angle in degrees, counter-clockwise from +x (0 = right, 90 = up) — e.g. start: 0, end: 90 is the upper-right quarter." },
@@ -844,7 +847,7 @@ const commandSchema = {
       type: "object",
       description: "A laser pointer travels to the target and gestures at it, then disappears. Combine with speak blocking:false to talk while pointing.",
       properties: {
-        at: { ...endRefSchema, description: "Where: {\"ref\": id, \"anchor\": name}, {\"x\": …, \"y\": …}, or {\"data\": [x, y]} for a spot on a chart — an object, not [x, y]." },
+        at: { ...endRefSchema, description: "Where: {\"ref\": id, \"anchor\": name}, {\"x\": …, \"y\": …}, {\"data\": [x, y]} for a spot on a chart, or {\"canvas\": [x, y]} — an object, not [x, y]." },
         gesture: { type: "string", enum: ["tap", "circle", "underline"], description: "tap = dip at the spot (default); circle = trace a ring around it; underline = sweep beneath it." },
         duration: { type: "number", description: "Seconds (default 2)." },
       },
@@ -1566,9 +1569,10 @@ function semanticErrors(spec: Spec): string[] {
       // `{data: [x, y]}` is the documented way to point at a spot on a chart
       // (the planner has read it since the one coordinate rule, 2026-09-25).
       const data = (at as { data?: unknown } | undefined)?.data;
-      const hasData = Array.isArray(data) && data.length === 2 && data.every((v) => typeof v === "number");
+      const pair = (v: unknown) => Array.isArray(v) && v.length === 2 && v.every((n) => typeof n === "number");
+      const hasData = pair(data) || pair((at as { canvas?: unknown } | undefined)?.canvas);
       if (!at || (at.ref === undefined && !hasData && (at.x === undefined || at.y === undefined))) {
-        errors.push(`commands[${i}]: point.at needs ref (an element id), x+y coordinates, or data: [x, y]`);
+        errors.push(`commands[${i}]: point.at needs ref (an element id), x+y coordinates, data: [x, y] or canvas: [x, y]`);
       }
     }
     if (verb === "camera" && !cmd.camera!.reset && cmd.camera!.center === undefined && cmd.camera!.on === undefined && cmd.camera!.zoom === undefined) {
