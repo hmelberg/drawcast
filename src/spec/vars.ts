@@ -51,6 +51,10 @@ function varDefErrors(name: string, def: Record<string, unknown>, before: string
   if (def.step !== undefined && typeof def.step === "number" && !(def.step > 0)) errors.push(`vars: "${name}".step must be above 0`);
   if (def.color !== undefined && typeof def.color !== "string") errors.push(`vars: "${name}".color must be a colour string`);
   if (def.fixed !== undefined && typeof def.fixed !== "boolean") errors.push(`vars: "${name}".fixed must be true or false`);
+  const n = (k: string) => (typeof def[k] === "number" ? (def[k] as number) : undefined);
+  const [lo, hi, v] = [n("min"), n("max"), n("value")];
+  if (lo !== undefined && hi !== undefined && lo >= hi) errors.push(`vars: "${name}".min must be below its max`);
+  else if (v !== undefined && ((lo !== undefined && v < lo) || (hi !== undefined && v > hi))) errors.push(`vars: "${name}".value ${v} is outside its min–max`);
   const hasValue = def.value !== undefined;
   if (def.expr !== undefined) {
     if (typeof def.expr !== "string") errors.push(`vars: "${name}".expr must be a string`);

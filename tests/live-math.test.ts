@@ -7,6 +7,7 @@ import { flattenDrawables, PARAM_PALETTE, type Drawable } from "../src/layout/mo
 import { liveMathColors, liveTeX, partOfChain, symbolTeX, texNamesVars } from "../src/layout/live-math";
 import { animatableVars, liveDecimals, varInfos, varNameErrors, varScrub, varValues, withVarValues } from "../src/spec/vars";
 import { validateSpec } from "../src/spec/schema";
+import { lintCommands } from "../src/lint/lint";
 import type { Spec } from "../src/spec/types";
 import { liveVarHostFor, varOfPart } from "../src/ui/live-vars";
 import { INITIAL_STATE, planCommands, type Plan } from "../src/render/plan";
@@ -46,6 +47,8 @@ describe("var definitions", () => {
     expect(varNameErrors({ a: { value: 1, expr: "2" } }).join(" ")).toMatch(/both value and expr/);
     expect(varNameErrors({ a: { min: 0 } }).join(" ")).toMatch(/needs a value/);
     expect(varNameErrors({ a: { value: 1, colour: "red" } }).join(" ")).toMatch(/unknown field "colour"/);
+    expect(varNameErrors({ a: { value: 1, min: 2, max: 1 } }).join(" ")).toMatch(/min must be below its max/);
+    expect(varNameErrors({ a: { value: 5, min: 0, max: 1 } }).join(" ")).toMatch(/outside its min–max/);
     expect(validateSpec({ ...discount }).errors).toEqual([]);
   });
 
@@ -76,6 +79,16 @@ describe("var definitions", () => {
       { id: "t", type: "text" as const, text: "{z}" },
     ];
     expect(liveMathColors(vars, elements)).toEqual({ a: PARAM_PALETTE[0], b: PARAM_PALETTE[1], c: "#000000", d: PARAM_PALETTE[3] });
+  });
+});
+
+describe("lint", () => {
+  test("form on a formula naming no var, and a link's form on a formula, are warned", () => {
+    const base = { vars: { r: 0.03 }, commands: [] } as Spec;
+    const rules = (el: Record<string, unknown>) => lintCommands({ ...base, elements: [el as never] }).filter((i) => i.rule === "math-form").map((i) => i.message);
+    expect(rules({ id: "m", type: "math", tex: "{r}", form: "both" })).toEqual([]);
+    expect(rules({ id: "m", type: "math", tex: "x^2", form: "symbols" })[0]).toMatch(/does nothing/);
+    expect(rules({ id: "m", type: "math", tex: "{r}", form: "card" })[0]).toMatch(/a link's/);
   });
 });
 
