@@ -68,6 +68,9 @@ export interface LayoutResult {
   /** Element id → the ids its first draw brings along (a template's column
    *  headings, scenes/types.ts `drawnWith`). */
   drawnWith?: Record<string, string[]>;
+  /** Element id → the ids its first draw brings along right AFTER it (a
+   *  measure's number, tier2 `drawnAfter`). */
+  drawnAfter?: Record<string, string[]>;
   /** Those groups that carry a `fit` (tier2.fitGroups): their members were
    *  scaled and centred together, which excuses their mutual overlaps. */
   fitGroups: Record<string, string[]>;
@@ -165,6 +168,7 @@ export function layoutSpec(
   let groups: Record<string, string[]> = {};
   let attached: Record<string, string[]> = {};
   let drawnWith: Record<string, string[]> = {};
+  let drawnAfter: Record<string, string[]> = {};
   let fitGroups: Record<string, string[]> = {};
   let namedAnchors: Record<string, Record<string, Pt>> = {};
   let measures: Record<string, MeasureSpec> = {};
@@ -306,6 +310,7 @@ export function layoutSpec(
     fitGroups = tier2.fitGroups;
     namedAnchors = tier2.namedAnchors;
     measures = tier2.measures;
+    drawnAfter = tier2.drawnAfter;
     for (const el of spec.elements) {
       // A show:none code element draws nothing (it only feeds params), so it
       // must not become a command-addressable id or an implicit final draw.
@@ -499,7 +504,7 @@ export function layoutSpec(
     const waiting = /"\{[A-Za-z_][\w]*\.[^"]*\}"/.test(JSON.stringify(spec.params ?? {}));
     if (usesData && !waiting) warnings.push(`template "${spec.template}" has no data axes — {data: [x, y]} reads a 0–100 domain on the plot area; place overlays with at.ref/anchor instead`);
   }
-  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, attached, drawnWith, fitGroups, namedAnchors, measures, labelPins, ...(fit ? { fit } : {}), ...(frame ? { frame } : {}), ...(world ? { world } : {}) };
+  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, attached, drawnWith, drawnAfter, fitGroups, namedAnchors, measures, labelPins, ...(fit ? { fit } : {}), ...(frame ? { frame } : {}), ...(world ? { world } : {}) };
 }
 
 /** Does this template lay itself out in a `box` param? Five data templates

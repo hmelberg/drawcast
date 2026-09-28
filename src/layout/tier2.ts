@@ -84,6 +84,9 @@ export interface Tier2Result {
    * `pieces` element's `<id>_1` … `<id>_n` sectors.
    */
   extraOrder: string[];
+  /** Element id → ids a draw of it brings along, right after it: a measure's
+   *  number with its dimension line (scenes/types.ts `drawnWith`, but after). */
+  drawnAfter: Record<string, string[]>;
   warnings: string[];
   /** Windowed code panes (el.lines), keyed by element id — the plan scrolls them. */
   windows: Record<string, CodeWindow>;
@@ -139,6 +142,7 @@ interface Ctx {
   /** The drawables laid out so far — an arrow endpoint's `anchor` reads a box off them. */
   drawablesSoFar: Drawable[];
   extraOrder: string[];
+  drawnAfter: Record<string, string[]>;
   warnings: string[];
   windows: Record<string, CodeWindow>;
   panes: Record<string, BBox>;
@@ -273,6 +277,7 @@ export function layoutElements(
     namedAnchors: {},
     drawablesSoFar: [],
     extraOrder: [],
+    drawnAfter: {},
     windows: {},
     panes: {},
     warnings: [],
@@ -859,6 +864,7 @@ export function layoutElements(
     anchors: ctx.anchors,
     namedAnchors: ctx.namedAnchors,
     extraOrder: ctx.extraOrder,
+    drawnAfter: ctx.drawnAfter,
     warnings: ctx.warnings,
     windows: ctx.windows,
     panes: ctx.panes,
@@ -2525,6 +2531,11 @@ function measureDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     // focus/highlight/keep) resolves through pieceGroups to `label_areal`
     // instead of dropping as an id that paints nothing.
     if (!hasLine) ctx.pieceGroups[el.id] = [textId];
+    // With a line, the number comes with it: `draw: ["m"]` draws the line,
+    // then its number — it used to wait for the final implicit draw unless
+    // the cast named `label_<id>` too (which still works: it is then drawn
+    // where the cast says).
+    else ctx.drawnAfter[el.id] = [textId];
   }
   ctx.measures[el.id] = { of: el.of, what, from: fromSrc, to: toSrc, side, offset: el.offset ?? 24, format, lineId: el.id, textId, circle: circle ?? undefined };
   return out;

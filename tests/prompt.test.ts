@@ -156,10 +156,11 @@ describe("compiler prompt style rules", () => {
     expect(compilerV1Code).toContain("**Data from code, drawn as ink.**");
   });
 
-  test("teaches that a measure's number is the separate element label_<id>, named in draw beside the line", () => {
-    // Round 3 review, I2: without this the model writes `draw: ["side"]` and
-    // the number falls into the implicit final draw at the end of the cast.
-    for (const s of ["`label_<id>`", '"draw": ["side", "label_side"]', '"draw": ["areal"]']) expect(compilerV1).toContain(s);
+  test("teaches that a measure's number is the element label_<id>, which comes with the measure", () => {
+    // Round 3 review, I2: `draw: ["side"]` used to leave the number for the
+    // implicit final draw at the end of the cast. Since 2026-09-28 the planner
+    // brings it with the line (tier2 drawnAfter); naming it is for a later reveal.
+    for (const s of ["`label_<id>`", '"draw": ["side"]', "name `label_side` in a later `draw`", '"draw": ["areal"]']) expect(compilerV1).toContain(s);
   });
 });
 

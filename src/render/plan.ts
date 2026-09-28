@@ -287,6 +287,8 @@ export interface PlanOptions {
   attachedTo?: (id: string) => string[];
   /** Ids a draw (or show) of an element brings along while they are not yet on screen — a column's heading with its first number (scenes/types.ts `drawnWith`). */
   drawnWith?: (id: string) => string[];
+  /** The same, drawn right AFTER the element — a measure's number after its dimension line. */
+  drawnAfter?: (id: string) => string[];
   /** The spec's `params` when the spec has a template; null/undefined = no template (animate then needs a var). */
   animateBase?: Record<string, unknown> | null;
   /** The spec's `vars` (design 2026-09-10 §2.4): a bare animate key that is not a template param animates the var of that name, kept in params as `vars.<name>`. */
@@ -613,12 +615,28 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return out;
   };
   /** A draw's ids with what each brings along the first time (opts.drawnWith), each companion just before the first id that brings it. */
+  const namedByCast = new Set<string>();
+  const collectNamed = (v: unknown): void => {
+    if (Array.isArray(v)) v.forEach(collectNamed);
+    else if (v && typeof v === "object") {
+      for (const [k, x] of Object.entries(v)) {
+        if ((k === "draw" || k === "show") && (typeof x === "string" || Array.isArray(x))) [x].flat().forEach((id) => typeof id === "string" && namedByCast.add(id));
+        else collectNamed(x);
+      }
+    }
+  };
+  if (opts.drawnAfter) collectNamed(commands ?? []);
   const withCompanions = (ids: string[]): string[] => {
-    if (!opts.drawnWith) return ids;
+    if (!opts.drawnWith && !opts.drawnAfter) return ids;
     const out: string[] = [];
+    const bring = (c: string) => {
+      if (known.has(c) && !visibleSet.has(c) && !out.includes(c) && !ids.includes(c)) out.push(c);
+    };
     for (const id of ids) {
-      for (const c of opts.drawnWith(id)) if (known.has(c) && !visibleSet.has(c) && !out.includes(c) && !ids.includes(c)) out.push(c);
+      for (const c of opts.drawnWith?.(id) ?? []) bring(c);
       if (!out.includes(id)) out.push(id);
+      // A follower the cast draws or shows itself, anywhere, is drawn where the cast says.
+      for (const c of opts.drawnAfter?.(id) ?? []) if (!namedByCast.has(c)) bring(c);
     }
     return out;
   };
