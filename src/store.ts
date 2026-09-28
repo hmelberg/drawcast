@@ -87,9 +87,10 @@ export interface Settings {
   model: string;
   /** Effort for the creative rounds (generate, revise, author): thinking depth and token spend. Repairs always run low. */
   effort: "low" | "medium" | "high";
-  /** How a multi-part drawcast or lecture is planned (docs/2026-09-19-storyboard-approach.md) — mirrors llm/storyboard.ts's
-   *  Approach as a literal union so store.ts stays free of llm/ imports. Read by generateParts (main.ts) and the course
-   *  panel (ui/course.ts) when building a GenerateConfig; a single figure has no parts and ignores it. */
+  /** Write the story first (docs/2026-09-19-storyboard-approach.md) — mirrors llm/storyboard.ts's Approach as a literal
+   *  union so store.ts stays free of llm/ imports. "storyboard" (default): a single drawcast gets a storyline call before
+   *  its spec (llm/treatment.ts singleCastTreatment, v3), and parts get one storyboard for the series; "independent": a
+   *  single drawcast in one call, each part on its own. Read by generate, generateParts (main.ts) and the course panel. */
   approach: "storyboard" | "independent";
   /** Template on demand without asking, for COURSE (and other multi-part) runs: when two or more freehand parts turn out to be the same kind of figure (their on-demand briefs agree), a template is authored and they are redrawn with it, one after another. A single freehand figure — in a course or standalone — always gets the OFFER instead; this setting never applies to it (spec §5.5). */
   templatesOnDemand: boolean;
@@ -178,8 +179,9 @@ export interface Settings {
    */
   lookPass: boolean;
   /**
-   * Developer mode only (docs/prompt-lab): "plan" writes a plain-text plan
-   * before the spec (GenerateConfig.treatment). Standard everywhere else.
+   * Developer mode only (docs/prompt-lab): "plan" forces the lab's v2 plan
+   * sheet before a single drawcast's spec (GenerateConfig.treatment);
+   * "standard" follows `approach`. Standard everywhere else.
    */
   pipeline: "standard" | "plan";
   /** How the editor presents the spec text (parsing always accepts both). */
@@ -875,6 +877,19 @@ export interface LogEntry {
   renderMs?: number;
   error?: string;
   rating?: number;
+  /**
+   * Staging's notes on templates that could not do what the storyline needed
+   * (llm/treatment.ts TemplateGap, mirrored here so store.ts stays free of
+   * llm/ imports). Never in the spec: taken off the reply before validation.
+   */
+  templateGaps?: { template: string; missing: string }[];
+}
+
+/** Every template-gap note in the logs, newest first, with the request it came from — which templates to extend. */
+export function templateGapsFromLogs(logs: LogEntry[] = loadLogs()): { template: string; missing: string; prompt: string; ts: string }[] {
+  return logs
+    .flatMap((l) => (l.templateGaps ?? []).map((g) => ({ ...g, prompt: l.prompt, ts: l.ts })))
+    .sort((a, b) => b.ts.localeCompare(a.ts));
 }
 
 const MAX_LOGS = 300;
@@ -1008,6 +1023,9 @@ export function buildImprovementPacket(): object {
       ),
       untemplated_prompts: untemplatedPrompts,
     },
+    // What staging could not do with a planned template — the list of
+    // templates worth extending (llm/treatment.ts takeTemplateGaps).
+    template_gaps: templateGapsFromLogs(logs),
     worst_cases: worst,
     handoff_instructions:
       "This packet was exported by drawcast. Feed it to a Claude Code session in the drawcast repo. " +

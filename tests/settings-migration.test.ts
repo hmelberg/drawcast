@@ -23,6 +23,7 @@ import { DEFAULT_SETTINGS, loadSettings, migrateShareTo } from "../src/store";
 import type { Settings } from "../src/store";
 import { DEFAULT_ON_DEMAND_MAX } from "../src/llm/on-demand-run";
 import { APPROACHES, DEFAULT_APPROACH } from "../src/llm/storyboard";
+import { singleCastTreatment } from "../src/llm/treatment";
 
 const SETTINGS_KEY = "drawcast.settings.v1";
 
@@ -102,6 +103,28 @@ describe("the approach setting (docs/2026-09-19-storyboard-approach.md)", () => 
       const pinned: Settings["approach"] = id;
       expect(["storyboard", "independent"]).toContain(pinned);
     }
+  });
+  // 2026-09-28: the same setting now decides a SINGLE drawcast too — the
+  // storyline first (treatment v3) or one call. The ids did not change, so a
+  // stored blob needs no migration: a default user gets the storyline, one
+  // who chose "independent" keeps the one-shot call.
+  it("governs single drawcasts: storyboard (the default) → the storyline, independent → one call", () => {
+    expect(singleCastTreatment(DEFAULT_SETTINGS)).toBe("v3");
+    mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, approach: "independent" }));
+    expect(singleCastTreatment(loadSettings())).toBeUndefined();
+    mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, approach: "storyboard" }));
+    expect(singleCastTreatment(loadSettings())).toBe("v3");
+  });
+  it("the lab's Pipeline 'plan' still forces the v2 sheet — in developer mode only", () => {
+    expect(singleCastTreatment({ ...DEFAULT_SETTINGS, developerMode: true, pipeline: "plan" })).toBe("v2");
+    expect(singleCastTreatment({ ...DEFAULT_SETTINGS, developerMode: true, pipeline: "plan", approach: "independent" })).toBe("v2");
+    expect(singleCastTreatment({ ...DEFAULT_SETTINGS, developerMode: false, pipeline: "plan" })).toBe("v3");
+  });
+  it("the picker says what it does for a single drawcast and for parts", () => {
+    const story = APPROACHES.find((a) => a.id === "storyboard")!;
+    expect(story.label).toBe("Write the story first (storyline)");
+    expect(story.hint).toMatch(/single drawcast/);
+    expect(story.hint).toMatch(/multi-part/);
   });
 });
 
