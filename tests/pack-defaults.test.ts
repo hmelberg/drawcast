@@ -75,9 +75,9 @@ describe("the default catalog", () => {
     expect(stable).not.toContain("### Scene template: decision_tree (READY");
     // measured 15,080 after the 2026-09-28 template round (one index line per
     // new template: motion graphs, titration, Maxwell–Boltzmann…); room for its rest.
-    // Measured 15,691 after des_hta's index line (+135), 2026-09-28; the
-    // ceiling rounded up to the next 500 above that, with a line or two of room
-    // for the templates landing beside it.
+    // Measured 15,707 with des_process's index line (2026-09-28); raised to
+    // 16,500 for the health-economics DES template's line beside it.
+    // Measured 15,842 with des_hta's line too (+135), the same day.
     expect(stable.length).toBeLessThan(16_500);
     // The index itself is intact: every ready template still has its line.
     for (const id of readyIds()) expect(stable).toContain(`- ${id}: `);

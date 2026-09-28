@@ -67,6 +67,10 @@ import fieldLinesManifest from "./field_lines/manifest.json";
 import { layoutFieldLines, type FieldLinesParams } from "./field_lines/layout";
 import { lintFieldLines } from "./field_lines/lint";
 import { fieldLinesWidget } from "./field_lines/widget";
+import desProcessManifest from "./des_process/manifest.json";
+import { layoutDes, type DesParams } from "./des_process/layout";
+import { lintDes } from "./des_process/lint";
+import { desWidget } from "./des_process/widget";
 import desHtaManifest from "./des_hta/manifest.json";
 import { layoutDesHta, type HtaParams } from "./des_hta/layout";
 import { lintDesHta } from "./des_hta/lint";
@@ -191,6 +195,16 @@ export const scenes: Record<string, SceneModule> = {
     layout: (params) => layoutFieldLines(params as FieldLinesParams),
     lint: (params) => lintFieldLines(params as FieldLinesParams),
     widget: fieldLinesWidget,
+  },
+  // A discrete event simulation of a queue or process network (2026-09-28):
+  // run once per params, read at `t`. Free play: drag the clock or the
+  // chart's cursor, scrub rates, service times and shares, tap ⊖ ⊕ and
+  // "new run" — it re-simulates under the hand.
+  des_process: {
+    manifest: desProcessManifest as SceneManifest,
+    layout: (params) => layoutDes(params as DesParams),
+    lint: (params) => lintDes(params as DesParams),
+    widget: desWidget,
   },
   // Health economics, free play (2026-09-28): a patient-level discrete event
   // simulation — drag time, scrub the hazard ratio, the costs and the laws,

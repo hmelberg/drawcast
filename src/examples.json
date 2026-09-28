@@ -73242,5 +73242,354 @@
         }
       ]
     }
+  },
+  {
+    "request": "Why does a queue explode as a server gets close to 100% busy?",
+    "spec": {
+      "title": "Why queues explode near 100% busy",
+      "template": "des_process",
+      "params": {
+        "entity": "customer",
+        "nodes": [
+          {
+            "id": "arrive",
+            "type": "source",
+            "rate": 0.5
+          },
+          {
+            "id": "till",
+            "type": "station",
+            "label": "cashier",
+            "servers": 1,
+            "service": 1
+          },
+          {
+            "id": "leave",
+            "type": "sink"
+          }
+        ],
+        "horizon": 480,
+        "seed": 25,
+        "t": 0,
+        "chart": [
+          {
+            "of": "queue",
+            "y_max": 30
+          },
+          {
+            "of": "wait_util",
+            "y_max": 25
+          }
+        ]
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Queues near full"
+          }
+        },
+        {
+          "draw": [
+            "node_arrive",
+            "route_arrive_till"
+          ],
+          "speak": "Why does a queue explode when a server gets close to 100% busy?"
+        },
+        {
+          "draw": [
+            "node_till"
+          ],
+          "speak": "Take one cashier: customers arrive at random, one every two minutes on average, and each takes about a minute."
+        },
+        {
+          "draw": [
+            "node_leave",
+            "route_till_leave"
+          ]
+        },
+        {
+          "draw": [
+            "chart",
+            "clock",
+            "reroll"
+          ],
+          "speak": "So she is busy half the time. Let's run an eight-hour day."
+        },
+        {
+          "animate": {
+            "t": 480
+          },
+          "duration": 8,
+          "easing": "linear",
+          "speak": "Customers come in clumps, a short line forms now and then, and it soon clears."
+        },
+        {
+          "highlight": {
+            "target": [
+              "readout_till"
+            ]
+          },
+          "speak": "Over the day, the average wait is under a minute."
+        },
+        {
+          "highlight": {
+            "target": [
+              "rate_arrive"
+            ]
+          },
+          "speak": "Now let more customers come, so that she is busy 80% of the time."
+        },
+        {
+          "animate": {
+            "nodes.0.rate": 0.8
+          },
+          "duration": 4,
+          "speak": "The same day, re-run: sixty percent more customers, and five times the wait."
+        },
+        {
+          "draw": [
+            "chart_2"
+          ],
+          "speak": "Queueing theory predicts this curve: the wait grows like busy time divided by idle time."
+        },
+        {
+          "animate": {
+            "nodes.0.rate": 0.95
+          },
+          "duration": 5,
+          "speak": "At 95% busy, idle time is a twentieth, and the predicted wait is nineteen minutes."
+        },
+        {
+          "highlight": {
+            "target": [
+              "sim_dot_2"
+            ]
+          },
+          "speak": "This day came out at ten: near full, one day's average swings wildly around the prediction."
+        },
+        {
+          "highlight": {
+            "target": [
+              "chart_line"
+            ]
+          },
+          "speak": "Why? Customers arrive in random bursts, and a line only shrinks while she serves faster than they come."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "queue_till"
+            },
+            "gesture": "circle"
+          },
+          "speak": "At half busy she has spare time to catch up; at 95% she has almost none, so every burst lingers."
+        },
+        {
+          "highlight": {
+            "target": [
+              "node_arrive"
+            ]
+          },
+          "speak": "If customers came exactly on schedule and each took exactly a minute, nobody would wait at all: randomness makes the queue."
+        },
+        {
+          "highlight": {
+            "target": [
+              "theory_curve_2"
+            ]
+          },
+          "speak": "That is why hospital planners aim for beds about 85% full, not 100%."
+        },
+        {
+          "explore": {},
+          "speak": "Try it: drag the arrival rate or the service time, or tap new run for another day."
+        },
+        {
+          "speak": "Near full, waits don't grow in step with busyness; they blow up, because no slack is left to absorb the randomness."
+        },
+        {
+          "quiz": {
+            "question": "A server goes from 90% to 95% busy. Roughly what happens to the average wait?",
+            "choices": [
+              "It rises about 5%",
+              "It roughly doubles",
+              "It stays the same"
+            ],
+            "correct": 2,
+            "right": "It roughly doubles: busy over idle goes from 9 to 19, because idle time halves.",
+            "wrong": "Think of busy time divided by idle time."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why does adding a second server cut waiting so much? (an emergency department triage desk, one nurse vs two)",
+    "spec": {
+      "title": "Why a second triage nurse cuts waiting so much",
+      "template": "des_process",
+      "params": {
+        "entity": "patient",
+        "nodes": [
+          {
+            "id": "door",
+            "type": "source",
+            "rate": 0.18
+          },
+          {
+            "id": "triage",
+            "type": "station",
+            "servers": 1,
+            "service": 5
+          },
+          {
+            "id": "seen",
+            "type": "sink",
+            "label": "triaged"
+          }
+        ],
+        "horizon": 480,
+        "seed": 8,
+        "t": 0,
+        "chart": [
+          {
+            "of": "queue",
+            "y_max": 20
+          },
+          {
+            "of": "wait",
+            "y_max": 100
+          }
+        ]
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "A second triage nurse"
+          }
+        },
+        {
+          "draw": [
+            "node_door",
+            "route_door_triage"
+          ],
+          "speak": "Why does adding a second triage nurse cut the waiting in an emergency department by far more than half?"
+        },
+        {
+          "draw": [
+            "node_triage"
+          ],
+          "speak": "Patients arrive at random, about eleven an hour, and triage takes five minutes on average."
+        },
+        {
+          "draw": [
+            "node_seen",
+            "route_triage_seen"
+          ]
+        },
+        {
+          "draw": [
+            "chart",
+            "chart_2",
+            "clock",
+            "reroll"
+          ],
+          "speak": "So one nurse is busy about 90% of the time. Let's run an eight-hour shift."
+        },
+        {
+          "animate": {
+            "t": 480
+          },
+          "duration": 9,
+          "easing": "linear",
+          "speak": "The line swells and drains with every cluster of arrivals, and some patients wait over an hour."
+        },
+        {
+          "highlight": {
+            "target": [
+              "readout_triage"
+            ]
+          },
+          "speak": "On average a patient waits about forty minutes just to be triaged."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "add_triage"
+            },
+            "gesture": "tap"
+          },
+          "speak": "Now add a second nurse, working from the same line."
+        },
+        {
+          "animate": {
+            "nodes.1.servers": 2
+          },
+          "duration": 2,
+          "speak": "Same shift, same patients: the line almost disappears, and the average wait drops to under a minute."
+        },
+        {
+          "highlight": {
+            "target": [
+              "chart_dots_2"
+            ]
+          },
+          "speak": "Twice the staff, yet the wait fell more than forty-fold."
+        },
+        {
+          "highlight": {
+            "target": [
+              "readout_triage"
+            ]
+          },
+          "speak": "The reason: each nurse is now busy less than half the time, and waiting grows far faster than busyness."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "queue_triage"
+            },
+            "gesture": "circle"
+          },
+          "speak": "At 90% busy there is almost no slack to absorb a burst of arrivals; at 45% a burst clears within minutes."
+        },
+        {
+          "highlight": {
+            "target": [
+              "server_triage"
+            ]
+          },
+          "speak": "Sharing one line helps too: with separate lines, patients would still wait about four minutes; with one, about one."
+        },
+        {
+          "highlight": {
+            "target": [
+              "rate_door"
+            ]
+          },
+          "speak": "Real arrivals rise and fall through the day, so what matters is how busy the nurses are at the peak."
+        },
+        {
+          "explore": {},
+          "speak": "Try it: tap plus or minus for nurses, or drag the arrival rate, and watch the waits."
+        },
+        {
+          "speak": "Near full capacity, a little extra capacity buys a huge cut in waiting."
+        },
+        {
+          "quiz": {
+            "question": "One nurse is 90% busy and patients wait about 45 minutes. A second nurse joins, sharing the line. Roughly how long do patients wait now?",
+            "choices": [
+              "About 22 minutes",
+              "About a minute",
+              "About 45 minutes"
+            ],
+            "correct": 2,
+            "right": "About a minute: each nurse drops to 45% busy, and at 45% bursts clear before a line builds.",
+            "wrong": "Halving how busy each nurse is does far more than halve the wait."
+          }
+        }
+      ]
+    }
   }
 ]
