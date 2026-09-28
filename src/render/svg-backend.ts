@@ -513,7 +513,9 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
     g.appendChild(img);
     return g;
   }
-  if (!rc || (d.kind === "stroke" && d.precise)) {
+  // roughness 0 is the clean line the style promises: one exact path, not
+  // rough.js's two coincident passes (a scratch card's border).
+  if (!rc || (d.kind === "stroke" && (d.precise || d.style.roughness === 0))) {
     drawLeafClean(g, d);
     return g;
   }
@@ -703,6 +705,21 @@ function makeLeafHandle(g: SVGGElement, leaf: Exclude<Drawable, { kind: "group" 
         g.style.opacity = String(base * t);
       },
     };
+  }
+  if (leaf.drawOpts.mode === "fade") {
+    // No pen: the leaf comes up (and, erased, goes down) as a whole — a
+    // scratch card's paper appears quickly instead of being sketched round.
+    // Inline CSS on the leaf's node beats its authored `opacity` attribute,
+    // so the fade multiplies that value in, and at t = 1 it clears to the
+    // attribute alone: a settled leaf is a freshly built one (swapGeometry).
+    const own = () => {
+      const a = Number(g.getAttribute("opacity") ?? "1");
+      return Number.isFinite(a) ? a : 1;
+    };
+    const apply = (t: number) => {
+      g.style.opacity = t >= 1 ? "" : (Math.max(0, t) * own()).toFixed(3);
+    };
+    return { durationMs: leaf.drawOpts.duration, prepare: () => apply(0), setProgress: apply };
   }
   // `fillOpacity` is the path's OWN authored fill-opacity (null = nothing to
   // fade). The reveal multiplies it rather than replacing it, so a fully
@@ -1577,7 +1594,13 @@ function makeEffects(
               see.appendChild(path);
               writeOn(path, st.penPaths);
             }
-            underlay.append(mask, frames);
+            // On a top-layer leaf (a scratch card) the frame goes under it in
+            // its own layer, as the band below does.
+            const first = framed[0];
+            if (first.leaf.z >= 3 && first.fadeNode.parentNode) {
+              underlay.append(mask);
+              first.fadeNode.parentNode.insertBefore(frames, first.fadeNode);
+            } else underlay.append(mask, frames);
             st.nodes.push(frames);
             st.masks = [...(st.masks ?? []), mask];
           }
@@ -1587,7 +1610,7 @@ function makeEffects(
             lit.filter((e) => e.leaf.kind !== "image" && (effect !== "glow" || glowKindOf(e.leaf, filledTarget) === "tint")).map((e) => (e.leaf.kind === "image" ? undefined : e.leaf.style.color)),
             color !== undefined,
           );
-          for (const { g, leaf } of lit) {
+          for (const { g, leaf, fadeNode } of lit) {
             const own = leaf.kind === "image" ? undefined : leaf.style.color;
             const hit = textHits.get(leaf.id);
             const glow = effect === "glow" ? glowKindOf(leaf, filledTarget) : "tint";
@@ -1632,7 +1655,11 @@ function makeEffects(
               }
             }
             if (!path) continue;
-            underlay.appendChild(path);
+            // A leaf pasted ON the figure (the top layer: a scratch card's
+            // line) lies above the underlay and its card's paper: its pen goes
+            // just under it in that layer instead, or the paper hides it.
+            if (leaf.z >= 3 && fadeNode.parentNode) fadeNode.parentNode.insertBefore(path, fadeNode);
+            else underlay.appendChild(path);
             st.nodes.push(path);
             writeOn(path, st.penPaths);
           }

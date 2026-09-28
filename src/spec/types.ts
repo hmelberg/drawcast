@@ -86,8 +86,8 @@ export interface SpecStyle {
 }
 
 export interface SpecDraw {
-  /** sketch = progressive drawing; instant = at once; type = characters at typing speed with a cursor (code lines only; elsewhere sketch). */
-  mode?: "sketch" | "instant" | "type";
+  /** sketch = progressive drawing; instant = at once; type = characters at typing speed with a cursor (code lines only; elsewhere sketch); fade = fades in whole, no pen. */
+  mode?: "sketch" | "instant" | "type" | "fade";
   /** seconds */
   duration?: number;
 }

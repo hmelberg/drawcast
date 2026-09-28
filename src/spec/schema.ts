@@ -47,9 +47,9 @@ const drawSchema = {
   properties: {
     mode: {
       type: "string",
-      enum: ["sketch", "instant", "type"],
+      enum: ["sketch", "instant", "type", "fade"],
       description:
-        "sketch = progressive handwriting-style drawing; instant = appears at once; type = characters appear at typing speed with a cursor (code lines only — on any other element it draws as sketch).",
+        "sketch = progressive handwriting-style drawing; instant = appears at once; type = characters appear at typing speed with a cursor (code lines only — on any other element it draws as sketch); fade = fades in.",
     },
     duration: { type: "number", description: "Animation duration in seconds (sketch mode)." },
   },
@@ -233,7 +233,7 @@ const elementSchema = {
       type: "array",
       items: { oneOf: [{ type: "string" }, { type: "object", properties: { tex: { type: "string" } }, required: ["tex"] }] },
       description:
-        "scratch: a temporary WORKING card (rounded, translucent paper) — one entry per line, words or {\"tex\": …} for a formula. Parts: <id>_box and <id>_line_1, _2 …; draw the box with the first line, then a line per beat as the narration builds the sum; afterwards erase it, fade it, or move it small into a corner (move with scale and to). Place it with at: {place: \"top_right\"} (or x/y); it may overlap the figure. font_size sizes its lines (default 24; formulas scale with it, the card fits them). Several may share a page.",
+        "scratch: a temporary WORKING card (grey paper) — one entry per line, words or {\"tex\": …} for a formula. Parts: <id>_box and <id>_line_1, _2 …; draw the box with the first line, then a line per beat as the narration builds the sum; afterwards erase it, fade it, or move it small into a corner (move with scale and to). It sits ON the figure; default: left middle, or at: {place: \"top_right\"} (any corner/side) or x/y. font_size sizes its lines (default 24; formulas scale with it, the card fits them). Several may share a page.",
     },
     app_only: {
       type: "boolean",

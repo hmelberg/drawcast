@@ -291,6 +291,8 @@ export interface PlanOptions {
   drawnAfter?: (id: string) => string[];
   /** The other parts of one made thing — a scratch card's box for each of its lines, its lines for the box — which a focus keeps lit together. */
   partsOf?: (id: string) => string[];
+  /** What other ids are written on — a scratch card's box: an erase takes it after them, so no line is left floating without its paper. */
+  isPaper?: (id: string) => boolean;
   /** The spec's `params` when the spec has a template; null/undefined = no template (animate then needs a var). */
   animateBase?: Record<string, unknown> | null;
   /** The spec's `vars` (design 2026-09-10 §2.4): a bare animate key that is not a template param animates the var of that name, kept in params as `vars.<name>`. */
@@ -1140,7 +1142,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       makeHidden(ids);
       pushStep({ kind: "hide", ids });
     } else if (cmd.erase !== undefined) {
-      const ids = resolveIds(cmd.erase, "erase");
+      const named = resolveIds(cmd.erase, "erase");
+      // Paper last: the words written on it go first, then the card.
+      const ids = opts.isPaper ? [...named.filter((id) => !opts.isPaper!(id)), ...named.filter((id) => opts.isPaper!(id))] : named;
       ids.forEach((id) => mentioned.add(id));
       // Only visible elements can animate an un-sketch; the rest just stay hidden.
       const animatable = ids.filter((id) => visibleSet.has(id));
