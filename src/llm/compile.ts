@@ -24,6 +24,7 @@ import type { Spec } from "../spec/types";
 import { layoutSpec } from "../layout/layout";
 import { expandSpec } from "../spec/expand";
 import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
+import { lintCrowding } from "../lint/crowding";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { codeExecutionErrors, type CodeCheckOutcome } from "../code/check";
 import type { CodeRunRequest, CodeRunResult } from "../code/run";
@@ -664,7 +665,9 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
           validation.errors.push(`engine load failed: ${(err as Error).message}`);
         });
         try {
-          lintIssues = [...layoutSpec(expandSpec(best), measure).issues, ...lintCommands(expandSpec(best))];
+          const expanded = expandSpec(best);
+          const laid = layoutSpec(expanded, measure);
+          lintIssues = [...laid.issues, ...lintCommands(expanded), ...lintCrowding(laid, expanded)];
         } catch (err) {
           lintIssues = [];
           validation.errors.push(`layout failed: ${(err as Error).message}`);
@@ -766,7 +769,8 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   const lintOf = (spec: Spec): LintIssue[] | null => {
     try {
       const expanded = expandSpec(spec);
-      return [...layoutSpec(expanded, measure).issues, ...lintCommands(expanded)];
+      const laid = layoutSpec(expanded, measure);
+      return [...laid.issues, ...lintCommands(expanded), ...lintCrowding(laid, expanded)];
     } catch {
       return null;
     }

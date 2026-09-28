@@ -136,7 +136,9 @@ export interface LintIssue {
     | "heading-intrusion"
     | "adjust-unknown"
     /** a label of more than four words — canvas text is a cue, the voice says the sentence */
-    | "long-label";
+    | "long-label"
+    /** too many texts on one page state, or several below the small-print line (crowding.ts) — generation only, warns */
+    | "crowding";
   ids: string[];
   message: string;
   severity: "warn" | "error";
