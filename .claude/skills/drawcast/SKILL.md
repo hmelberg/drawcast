@@ -23,7 +23,7 @@ landed. The finished cast opens in the app's player.
 ## The loop
 
 1. **Read the prompt the app would send.**
-   `node scripts/cast.mjs prompt "<request>"` writes `dev-casts/_prompt.md`:
+   `node scripts/cast.mjs prompt "<request>"` writes `dev-casts/_prompt-<request-slug>.md` (the path is printed; one file per request, so parallel authors never share one):
    the compiler prompt, the template index, the few-shots, the exemplars
    picked for this request, and the shortlisted templates in full at the
    end (~120k characters — read it in chunks, all of it, the first time in
