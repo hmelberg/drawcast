@@ -179,7 +179,7 @@ export interface PopulationSlots {
 function bestGrid(n: number, w: number, h: number): { cols: number; rows: number; ph: number } {
   let best = { cols: 1, rows: n, ph: 0 };
   // A person is 0.6 of its height wide; the cell leaves room around it.
-  const size = (cols: number, rows: number) => Math.min((h / rows) * 0.86, (w / cols) * 1.2);
+  const size = (cols: number, rows: number) => Math.min((h / rows) * 0.8, (w / cols) / 0.9);
   for (let cols = 1; cols <= n; cols++) {
     const rows = Math.ceil(n / cols);
     const ph = size(cols, rows);
@@ -190,7 +190,7 @@ function bestGrid(n: number, w: number, h: number): { cols: number; rows: number
   // little size.
   if (n >= 30 && n % 10 === 0 && best.cols !== 10) {
     const ph = size(10, n / 10);
-    if (ph >= best.ph * 0.85) best = { cols: 10, rows: n / 10, ph };
+    if (ph >= best.ph * 0.75) best = { cols: 10, rows: n / 10, ph };
   }
   return best;
 }
@@ -198,11 +198,14 @@ function bestGrid(n: number, w: number, h: number): { cols: number; rows: number
 export function populationSlots(n: number, box: BBox, layout: "grid" | "crowd", seed: number): PopulationSlots {
   const { cols, rows, ph } = bestGrid(n, box.w, box.h);
   const h = Math.min(MAX_HEIGHT, ph);
-  const cw = box.w / cols, ch = box.h / rows;
-  // The block is centred: a short last row sits in the middle.
-  const usedW = Math.min(box.w, cw * cols);
-  const x0 = box.x + (box.w - usedW) / 2;
-  const top = box.y + box.h;
+  // Spacing follows the person, not the box: the gap between neighbours is
+  // about the same across and down, so a wide box does not pull the people
+  // into columns (nor a tall one into rows). The block is centred, and a
+  // short last row sits in the middle.
+  const cw = Math.min(box.w / cols, h * 0.6 + h * 0.3);
+  const ch = Math.min(box.h / rows, h * 1.25);
+  const x0 = box.x + (box.w - cw * cols) / 2;
+  const top = box.y + box.h - (box.h - ch * rows) / 2;
   const centres: Pt[] = [];
   const heights: number[] = [];
   const r = rng(seed * 31 + 7);

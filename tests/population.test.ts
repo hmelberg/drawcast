@@ -10,6 +10,8 @@ import { assignStates, layoutPopulation, populationCounts, populationSlots, slot
 import { heuristicMeasure } from "../src/layout/measure";
 import { flattenDrawables, type Drawable, type GroupDrawable, type TextDrawable } from "../src/layout/model";
 import type { Spec, SpecElement } from "../src/spec/types";
+import { planCommands } from "../src/render/plan";
+import { planOptionsFor } from "../src/render/index";
 
 const pop = (extra: Partial<SpecElement> = {}): SpecElement => ({ id: "pop", type: "population", states: { healthy: 70, sick: 20, immune: 10 }, ...extra }) as SpecElement;
 const lay = (spec: Spec) => layoutSpec(expandSpec(spec));
@@ -147,6 +149,29 @@ describe("population on a page", () => {
     expect(l.namedAnchors.pop.left[0]).toBeLessThan(120);
     expect(l.namedAnchors.pop_sick.center[0]).toBeLessThan(400);
     expect(l.namedAnchors.pop_legend.bottom[1]).toBeGreaterThan(l.namedAnchors.pop.bottom[1] - 1);
+  });
+});
+
+describe("population in the plan", () => {
+  test("draw of the parent draws every set; animate sweeps the bound var; highlight names a set; no warnings", () => {
+    const spec: Spec = expandSpec({
+      vars: { i: 1 },
+      elements: [pop({ states: { healthy: 0, vaccinated: 50, sick: 1 }, count: 100, order: { sick: "cluster" }, bind: { "states.sick": "i" } })],
+      commands: [
+        { draw: ["pop"], speak: "a" },
+        { animate: { i: 30 }, duration: 3, speak: "b" },
+        { highlight: { target: ["pop_sick"] }, speak: "c" },
+        { focus: { target: ["pop_vaccinated"] }, speak: "d" },
+      ],
+    });
+    const l = layoutSpec(spec);
+    const plan = planCommands(spec.commands, l.order, { varsBase: spec.vars ?? null, animateBase: null, ...planOptionsFor(spec, l) });
+    expect(plan.warnings).toEqual([]);
+    const draw = plan.steps.find((s) => s.kind === "draw") as { ids: string[] } | undefined;
+    expect(draw?.ids).toEqual(["pop_healthy", "pop_vaccinated", "pop_sick", "pop_legend"]);
+    const anim = plan.steps.find((s) => s.kind === "animate") as { targets: Record<string, number>; starts: Record<string, number> };
+    expect(anim.targets).toEqual({ "vars.i": 30 });
+    expect(anim.starts).toEqual({ "vars.i": 1 });
   });
 });
 
