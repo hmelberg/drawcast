@@ -8,6 +8,11 @@ import { liveTeX, partOfChain, symbolTeX, texNamesVars } from "../src/layout/liv
 import { animatableVars, liveDecimals, liveVarColors, varInfos, varNameErrors, varScrub, varValues, withVarValues } from "../src/spec/vars";
 import { validateSpec } from "../src/spec/schema";
 import type { Spec } from "../src/spec/types";
+import { liveVarHostFor, varOfPart } from "../src/ui/live-vars";
+import { INITIAL_STATE, planCommands, type Plan } from "../src/render/plan";
+import { planOptionsFor, type RenderHandle } from "../src/render";
+import { splitVarOverrides } from "../src/render/params";
+import { STEP_UNITS } from "../src/scenes/number-scrub";
 
 const infosOf = (vars: Spec["vars"]) => new Map(varInfos(vars).map((v) => [v.name, v]));
 
@@ -153,5 +158,134 @@ describe("layout (real mathjax)", () => {
     expect(height(b)).toBeLessThan(height(a) * 0.6);
     const count = (l: ReturnType<typeof layoutSpec>) => flattenDrawables([findGroup(l.drawables, "pv_var_r")!]).filter((x) => x.kind === "area").length;
     expect(count(b)).toBe(5); // 0.070: the written decimals kept
+  });
+});
+
+describe("the viewer changes a var on the figure (live-vars host)", () => {
+  beforeAll(async () => {
+    await ensureEngines(["mathjax"]);
+  });
+
+  /** A paused handle at one boundary; previewParams paints, as the player's does. */
+  function handle(spec: Spec, opts: { visible?: string[]; params?: Record<string, number> } = {}) {
+    const layout = layoutSpec(spec);
+    const previews: Record<string, unknown>[] = [];
+    let painted: ReturnType<typeof layoutSpec> | null = null;
+    const timeline = {
+      state: "paused",
+      position: 1,
+      previewParams: (o: Record<string, unknown>) => {
+        previews.push(o);
+        const split = splitVarOverrides(o);
+        painted = layoutSpec({ ...spec, vars: withVarValues(spec.vars, split.vars) });
+      },
+      paintedLayout: () => painted,
+      getParamOverrides: () => ({}),
+    };
+    const plan = { steps: [], states: [{ ...INITIAL_STATE, visible: opts.visible ?? spec.elements!.map((e) => e.id), params: opts.params ?? {} }], labels: {}, warnings: [], minted: [] } as unknown as Plan;
+    const hd = { spec, layout, plan, timeline } as unknown as RenderHandle;
+    const host = liveVarHostFor(hd, { frame: (fn) => (fn(), () => {}) })!;
+    const centre = (id: string): [number, number] => {
+      const g = findGroup((timeline.paintedLayout() ?? layout).drawables, id)!;
+      const pts = flattenDrawables([g]).flatMap((d) => (d.kind === "area" ? d.pts : []));
+      const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+      return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
+    };
+    const noteText = () => ((timeline.paintedLayout() ?? layout).drawables.find((d) => d.id === "note") as { text: string }).text;
+    return { host, previews, centre, noteText, timeline };
+  }
+
+  test("no live var in any formula: no host", () => {
+    const hd = { spec: { vars: { u: 50 }, elements: [{ id: "f", type: "math", tex: "\\frac{u}{1-u}" }], commands: [] } } as unknown as RenderHandle;
+    expect(liveVarHostFor(hd)).toBeNull();
+    const fixed = { spec: { vars: { u: { value: 5, fixed: true } }, elements: [{ id: "f", type: "math", tex: "{u}" }], commands: [] } } as unknown as RenderHandle;
+    expect(liveVarHostFor(fixed)).toBeNull();
+  });
+
+  test("a drag sideways on r scrubs it a step per STEP_UNITS, and the text and bar bound to it follow", () => {
+    const h = handle(discount);
+    const [x, y] = h.centre("pv_var_r");
+    expect(h.host.scrubbable([x, y])).toBe(true);
+    expect(h.host.scrubbable([x, y + 200])).toBe(false);
+    // B is fixed: no handle on it.
+    expect(h.host.scrubbable(h.centre("pv_var_B"))).toBe(false);
+    expect(h.host.press([x, y])).toBe(true);
+    h.host.move([x + 10 * STEP_UNITS, y]);
+    expect(h.previews.at(-1)).toEqual({ "vars.r": 0.045 });
+    expect(h.noteText()).toBe("Worth 41.5 today at 0.045");
+    expect(h.host.release([x + 35 * STEP_UNITS, y])).toBe("drag");
+    expect(h.previews.at(-1)).toEqual({ "vars.r": 0.07 });
+    expect(h.noteText()).toBe("Worth 25.8 today at 0.070");
+    // Never below 0: a var written positive has a floor there.
+    const [x2, y2] = h.centre("pv_var_r");
+    h.host.press([x2, y2]);
+    h.host.release([x2 - 500 * STEP_UNITS, y2]);
+    expect(h.previews.at(-1)).toEqual({ "vars.r": 0 });
+  });
+
+  test("a tap opens the number field; a typed number is the new value; out of range is refused", () => {
+    const spec: Spec = { ...discount, vars: { ...discount.vars, r: { value: 0.035, min: 0, max: 0.1 } } };
+    const h = handle(spec);
+    const c = h.centre("pv_var_r");
+    h.host.press(c);
+    expect(h.host.release(c)).toBe("edit");
+    const f = h.host.editField()!;
+    expect(f.id).toBe("pv_var_r");
+    expect(f.field).toMatchObject({ value: 0.035, min: 0, max: 0.1, step: 0.001 });
+    expect(h.host.commitEdit("0.5")).toEqual({ ok: false, error: "at most 0.1" });
+    expect(h.host.commitEdit("0,05")).toEqual({ ok: true });
+    expect(h.previews.at(-1)).toEqual({ "vars.r": 0.05 });
+    expect(h.host.editField()).toBeNull();
+  });
+
+  test("the scrub starts from the value the storyboard animated to; reset forgets the viewer's value", () => {
+    const h = handle(discount, { params: { "vars.t": 30 } });
+    const c = h.centre("pv_var_t");
+    h.host.press(c);
+    h.host.release([c[0] + 3 * STEP_UNITS, c[1]]);
+    expect(h.previews.at(-1)).toEqual({ "vars.t": 33 });
+    h.host.reset();
+    h.host.press(c);
+    h.host.release([c[0] + 2 * STEP_UNITS, c[1]]);
+    expect(h.previews.at(-1)).toEqual({ "vars.t": 32 });
+  });
+
+  test("an undrawn formula has nothing to grab", () => {
+    const h = handle(discount, { visible: ["bar"] });
+    expect(h.host.press(h.centre("pv_var_r"))).toBe(false);
+  });
+
+  test("a cancelled drag puts the value back", () => {
+    const h = handle(discount);
+    const c = h.centre("pv_var_t");
+    h.host.press(c);
+    h.host.move([c[0] + 5 * STEP_UNITS, c[1]]);
+    h.host.cancel();
+    expect(h.previews.at(-1)).toEqual({});
+  });
+
+  test("varOfPart reads a name that itself ends in _<digits> whole first", () => {
+    expect(varOfPart("eq_var_r", ["eq"], new Set(["r"]))).toBe("r");
+    expect(varOfPart("eq_var_r_2", ["eq"], new Set(["r"]))).toBe("r");
+    expect(varOfPart("eq_var_k_1", ["eq"], new Set(["k_1"]))).toBe("k_1");
+    expect(varOfPart("eq_var_k_1_2", ["eq"], new Set(["k_1"]))).toBe("k_1");
+    expect(varOfPart("other_var_r", ["eq"], new Set(["r"]))).toBeNull();
+  });
+});
+
+describe("animate still sweeps the var, and the drawn number follows", () => {
+  beforeAll(async () => {
+    await ensureEngines(["mathjax"]);
+  });
+  test("the plan keeps vars.r; the layout at a frame writes the swept number; a computed var is not a sweep target", () => {
+    const spec: Spec = { ...discount, commands: [{ draw: ["pv", "bar", "note"] }, { animate: { r: 0.06 }, duration: 2 }, { animate: { PV: 3 }, duration: 1 }] };
+    const l = layoutSpec(spec);
+    const plan = planCommands(spec.commands, l.order, { varsBase: spec.vars ?? null, animateBase: null, ...planOptionsFor(spec, l) });
+    expect(plan.states.at(-1)!.params["vars.r"]).toBe(0.06);
+    expect(plan.states.at(-1)!.params["vars.PV"]).toBeUndefined();
+    expect(plan.warnings.join(" ")).toMatch(/PV/);
+    const mid = layoutSpec({ ...spec, vars: withVarValues(spec.vars, { r: 0.05 }) });
+    const digits = flattenDrawables([findGroup(mid.drawables, "pv_var_r")!]).filter((d) => d.kind === "area").length;
+    expect(digits).toBe(5); // 0.050
   });
 });
