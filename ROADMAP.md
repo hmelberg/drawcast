@@ -3074,6 +3074,23 @@ Next round candidates from the same design (§12): externality / Pigouvian tax
 tariff / quota (a world-price line and import geometry). Neither reuses this
 round's machinery, so neither got cheaper by being crammed in.
 
+## ⊕ tray Continue leaves an explore gate standing — noted 2026-09-29, open
+
+Found while fixing the blank page after Continue (964faa70). On an explore
+beat that holds the run with the tray SHUT (the "Continue ▸" pill on the
+figure — e.g. the QALY course, lecture 2 part 3, the standard gamble's "drag
+p" beat), pressing ⊕ opens the tray gated; pressing the tray's own
+"Continue ▶" closes it, but the pill comes back and the lesson stays paused —
+the gate is not resolved, so the viewer has to press Continue a second time.
+Seen headless (Playwright): after the tray's Continue, the pill is back and
+nothing is drawn for 4 s. Suspect `ui/tray.ts`: ⊕ during a shut-tray gate
+(`gatedCode`, trayBtn) re-enters the gate instead of handing its resolve to
+the tray, so the tray's Continue finds no `gateResolve`. Fix: one Continue,
+from either door, resolves the gate and plays on; add a test beside
+tests/explore-command.test.ts. (Related: decision_tree's tray has no p
+slider — the probabilities are dragged on the figure — so ⊕ offers only the
+node-type choice there.)
+
 ## Housekeeping
 
 - Regenerate `package-lock.json` (`npm install`) and switch CI back to
