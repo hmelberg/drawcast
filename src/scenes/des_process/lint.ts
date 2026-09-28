@@ -2,9 +2,10 @@
 // node that does not exist, shares that do not add up to 1, a node nobody
 // reaches or that leads nowhere, a station whose utilisation is 1 or more
 // (its queue grows without bound — the picture is honest, but say so), and
-// a run that would make more entities than the engine keeps.
+// a run that would make more entities than the engine keeps; a schedule
+// whose times and rates do not pair up, a batch or variability out of range.
 import { stationTheory, trafficRates } from "./engine";
-import { MAX_ENTITIES, MAX_NODES, MAX_SERVERS, nodeSpecs, readModel, routeEntries, type DesParams } from "./model";
+import { MAX_BATCH, MAX_ENTITIES, MAX_NODES, MAX_SERVERS, MAX_VARIABILITY, nodeSpecs, readModel, readSchedule, routeEntries, type DesParams } from "./model";
 
 type Issue = { severity: "warn" | "error"; message: string };
 
@@ -42,9 +43,23 @@ export function lintDes(P: DesParams): Issue[] {
       for (const [to, p] of Object.entries(n.to)) if (!(typeof p === "number" && p >= 0 && p <= 1)) out.push({ severity: "error", message: `node "${n.id}": the share to "${to}" must be a number 0–1` });
     }
     if (n.type === "source") {
-      const has = [n.rate, n.every].some((v) => typeof v === "number" && v > 0) || n.interarrival !== undefined || (Array.isArray(n.times) && n.times.length > 0);
-      if (!has) out.push({ severity: "error", message: `source "${n.id}" needs rate (per time unit), every, interarrival or times` });
+      const has = [n.rate, n.every].some((v) => typeof v === "number" && v > 0) || n.interarrival !== undefined || n.schedule !== undefined || (Array.isArray(n.times) && n.times.length > 0);
+      if (!has) out.push({ severity: "error", message: `source "${n.id}" needs rate (per time unit), every, interarrival, schedule or times` });
+      if (n.schedule !== undefined) {
+        const s = n.schedule;
+        const ok = s && typeof s === "object" && Array.isArray(s.times) && Array.isArray(s.rates) && s.times.length === s.rates.length && s.times.length > 0;
+        if (!ok) out.push({ severity: "error", message: `source "${n.id}": schedule needs times and rates of the same length, e.g. {times: [0, 120], rates: [0.1, 0.3]}` });
+        else if (!readSchedule(s)) out.push({ severity: "error", message: `source "${n.id}": schedule's times must be ≥ 0 and its rates ≥ 0, one of them above 0` });
+        else if (s.times.some((t, i) => i > 0 && !(t > s.times[i - 1]))) out.push({ severity: "warn", message: `source "${n.id}": schedule's times should rise (they are sorted)` });
+        if (typeof n.rate === "number") out.push({ severity: "warn", message: `source "${n.id}": schedule replaces rate (scale the schedule's rates instead)` });
+      }
+      if (n.batch !== undefined) {
+        const b = typeof n.batch === "number" ? n.batch : n.batch && typeof n.batch === "object" ? n.batch.mean : NaN;
+        if (!(typeof b === "number" && b >= 1 && b <= MAX_BATCH)) out.push({ severity: "error", message: `source "${n.id}": batch is a group size 1–${MAX_BATCH}, or {mean} (geometric sizes, mean ≥ 1)` });
+      }
     }
+    if (n.variability !== undefined && !(typeof n.variability === "number" && n.variability >= 0 && n.variability <= MAX_VARIABILITY))
+      out.push({ severity: "warn", message: `node "${n.id}": variability is a coefficient of variation 0–${MAX_VARIABILITY} (0 regular, 1 random, more bursty); drawn clamped` });
     if (n.type === "station" && typeof n.servers === "number" && (n.servers < 1 || n.servers > MAX_SERVERS)) out.push({ severity: "warn", message: `station "${n.id}": servers ${n.servers} is drawn as ${Math.max(1, Math.min(MAX_SERVERS, Math.round(n.servers)))} (1–${MAX_SERVERS})` });
   });
   if (out.some((i) => i.severity === "error")) return out;

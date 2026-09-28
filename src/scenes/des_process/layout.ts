@@ -52,6 +52,13 @@ export function fmt(v: number): string {
 
 /** The arrival text under a source. */
 export function rateText(n: ModelNode, unit: string): string {
+  if (n.schedule) {
+    const lo = Math.min(...n.schedule.rates),
+      hi = Math.max(...n.schedule.rates);
+    return lo === hi ? `${fmt(hi)} / ${unit}` : `${fmt(lo)}–${fmt(hi)} / ${unit}`;
+  }
+  // Given as a rate, it reads as one whatever its spread (a CV animated through 0 keeps its words).
+  if (n.inter && n.gapFrom === "rate") return `${fmt((n.batch?.mean ?? 1) / n.inter.mean)} / ${unit}`;
   if (n.inter) {
     if (n.inter.kind === "exponential") return `${fmt(1 / n.inter.mean)} / ${unit}`;
     if (n.inter.kind === "fixed") return `every ${fmt(n.inter.mean)} ${unit}`;
@@ -69,6 +76,17 @@ export function serviceText(n: ModelNode, unit: string): string {
   if (d.kind === "fixed") return `${fmt(d.mean)} ${unit}`;
   if (d.kind === "uniform" || d.kind === "triangular") return `${fmt(s.min)}–${fmt(s.max)} ${unit}`;
   return `≈${fmt(d.mean)} ${unit}`;
+}
+
+/** A node's variability readout ("CV 1.5"), or "" when the spec sets none. */
+export function varText(n: ModelNode): string {
+  return n.variability === undefined ? "" : `CV ${kit.num(Number(n.variability.toFixed(1)), 1)}`;
+}
+
+/** A source's group size ("groups of 3", "groups of ≈2"), or "". */
+export function batchText(n: ModelNode): string {
+  if (!n.batch) return "";
+  return n.batch.fixed ? `groups of ${n.batch.mean}` : `groups of ≈${fmt(n.batch.mean)}`;
 }
 
 /** Colour of a token of priority class p, given the classes present. */
@@ -189,7 +207,11 @@ export function geometry(P: DesParams, m: Model): Geometry {
   const labelW = (n: ModelNode): number => kit.textWidth(n.label, LABEL_FONT) + 8;
   const serverW = (n: ModelNode): number => serverCentres(n.servers, 0, 0).w;
   const fixedW = (n: ModelNode): number =>
-    n.kind === "station" ? serverW(n) + 12 : n.kind === "delay" ? Math.max(DELAY_W, labelW(n)) : Math.max(2 * NODE_R + 10, Math.min(labelW(n), 150), kit.textWidth(rateText(n, m.unit), NUM_FONT) + 8);
+    n.kind === "station"
+      ? serverW(n) + 12
+      : n.kind === "delay"
+        ? Math.max(DELAY_W, labelW(n))
+        : Math.max(2 * NODE_R + 10, Math.min(labelW(n), 150), kit.textWidth(rateText(n, m.unit), NUM_FONT) + 8, ...[varText(n), batchText(n)].filter(Boolean).map((x) => kit.textWidth(x, READ_FONT) + 8));
   let gap = 80;
   const stationLayers = byLayer.filter((l) => l.some((i) => m.nodes[i].kind === "station")).length;
   const widthWith = (lane: number): number =>
@@ -213,7 +235,9 @@ export function geometry(P: DesParams, m: Model): Geometry {
   }
 
   // Heights: the label above the core, the numbers and readouts below it.
-  const below = (n: ModelNode): number => (n.kind === "station" ? 32 + (readouts ? 56 : 0) + (Number.isFinite(n.capacity) ? 26 : 0) : n.kind === "sink" ? 6 : 30);
+  // (A variability readout, a batch's words: one more line each under the node.)
+  const extra = (n: ModelNode): number => (varText(n) ? 30 : 0) + (batchText(n) ? 30 : 0);
+  const below = (n: ModelNode): number => (n.kind === "station" ? 32 + (readouts ? 56 : 0) + (Number.isFinite(n.capacity) ? 26 : 0) : n.kind === "sink" ? 6 : 30) + extra(n);
   const coreH = (n: ModelNode): number => (n.kind === "station" ? Math.max(LANE_H, serverCentres(n.servers, 0, 0).h) : n.kind === "delay" ? DELAY_H : 2 * NODE_R);
   const above = 36;
   const nodes: NodeGeo[] = new Array(m.nodes.length);
@@ -417,12 +441,22 @@ export function layoutDes(P: DesParams): SceneLayout {
 
   // ---- routes first (under the nodes), each with the tokens on it ----------------------
   const rates = trafficRates(m);
+  const batched = m.nodes.some((n) => !!n.batch);
   for (const r of G.routes) {
     const id = `route_${nodeId(r.from)}_${nodeId(r.to)}`;
     const kids: Drawable[] = [kit.stroke(`${id}__line`, r.pts, { arrowhead: "end", color: COLORS.ink, strokeWidth: 2.5, roughness: 0.8, ms: SKETCH_MS.arrow })];
     let k = 0;
+    // A group that came together travels together: each after the first a token's width behind.
+    const len = r.pts.reduce((a, p, i) => (i > 0 ? a + Math.hypot(p[0] - r.pts[i - 1][0], p[1] - r.pts[i - 1][1]) : 0), 0) || 1;
+    let prevFrac = NaN,
+      behind = 0;
     for (const tk of tokens)
-      if (tk.where === "transit" && tk.from === r.from && tk.to === r.to) kids.push(tokenAt(`${id}__tok${k++}`, pointAlong(r.pts, r.cum, Math.min(0.94, tk.frac)), tk.priority));
+      if (tk.where === "transit" && tk.from === r.from && tk.to === r.to) {
+        behind = batched && tk.frac === prevFrac ? behind + 1 : 0;
+        prevFrac = tk.frac;
+        const u = Math.max(0, Math.min(0.94, tk.frac) - (behind * 2.2 * TOKEN_R) / len);
+        kids.push(tokenAt(`${id}__tok${k++}`, pointAlong(r.pts, r.cum, u), tk.priority));
+      }
     push({ id, kind: "group", z: 1, style: kids[0].style, drawOpts: kids[0].drawOpts, children: kids }, pointAlong(r.pts, r.cum, 0.5));
     addTo("routes", id);
     if (m.nodes[r.from].routes.length > 1) {
@@ -464,6 +498,20 @@ export function layoutDes(P: DesParams): SceneLayout {
           push(kit.text(`rate_${id}`, at, s, { fontSize: NUM_FONT, color: COLORS.supply }), at);
           members.push(`rate_${id}`);
         }
+        let y = g.y0 - 50;
+        const b = batchText(n);
+        if (b) {
+          const at: Pt = [g.cx, y];
+          push(kit.text(`batch_${id}`, at, b, { fontSize: READ_FONT, color: COLORS.guide }), at);
+          members.push(`batch_${id}`);
+          y -= 30;
+        }
+        const v = varText(n);
+        if (v) {
+          const at: Pt = [g.cx, y];
+          push(kit.text(`var_${id}`, at, v, { fontSize: READ_FONT, color: COLORS.supply }), at);
+          members.push(`var_${id}`);
+        }
       }
     } else if (n.kind === "delay") {
       const kids: Drawable[] = [square(`node_${id}__box`, g.x0, g.y0, g.x1 - g.x0, g.y1 - g.y0, { color: COLORS.ink, fill: COLORS.paper, strokeWidth: 3, roughness: 0.8, ms: SKETCH_MS.node })];
@@ -484,6 +532,12 @@ export function layoutDes(P: DesParams): SceneLayout {
       const at: Pt = [g.cx, g.y0 - 20];
       push(kit.text(`service_${id}`, at, s, { fontSize: NUM_FONT, color: COLORS.supply }), at);
       members.push(`service_${id}`);
+      const v = varText(n);
+      if (v) {
+        const vAt: Pt = [g.cx, g.y0 - 50];
+        push(kit.text(`var_${id}`, vAt, v, { fontSize: READ_FONT, color: COLORS.supply }), vAt);
+        members.push(`var_${id}`);
+      }
     } else if (n.kind === "station") {
       // The lane: open where they come in, tokens lined up to the servers.
       const lx0 = g.laneX0!,
@@ -536,6 +590,13 @@ export function layoutDes(P: DesParams): SceneLayout {
         members.push(`remove_${id}`, `add_${id}`);
       }
       y -= 30;
+      const v = varText(n);
+      if (v) {
+        const vAt: Pt = [(lx0 + lx1) / 2, y - 2];
+        push(kit.text(`var_${id}`, vAt, v, { fontSize: READ_FONT, color: COLORS.supply }), vAt);
+        members.push(`var_${id}`);
+        y -= 30;
+      }
       const st = stationStats(run, g.index, t)!;
       if (P.readouts !== false) {
         const [l1, l2] = readoutLines(st, m.unit);
@@ -619,6 +680,7 @@ export function layoutDes(P: DesParams): SceneLayout {
   // ---- charts ----------------------------------------------------------------------------------
   let frame: SceneLayout["frame"];
   let utilFrame: SceneLayout["frame"];
+  let drawnStrip = false;
   for (const c of G.charts) {
     const sfx = c.suffix;
     const set = `chart${sfx}`;
@@ -629,8 +691,9 @@ export function layoutDes(P: DesParams): SceneLayout {
       const n = m.nodes[c.station!];
       const th = stationTheory(m, c.station!, rates);
       const s = n.service?.mean ?? 1;
-      const ca2 = 1;
-      const cs2 = n.service?.cv2 ?? 1;
+      // The arrivals' and the service's true cv²: burstier arrivals lift the whole curve.
+      const ca2 = th?.ca2 ?? 1;
+      const cs2 = th?.cs2 ?? n.service?.cv2 ?? 1;
       const curveAt = (rho: number): number => waitApprox(n.servers, rho, s, ca2, cs2);
       const simW = Number.isFinite(st.wait) ? st.wait : 0;
       const yTop = c.y_max ?? niceCeil(Math.max(curveAt(0.9), simW * 1.1, th && Number.isFinite(th.wq) ? th.wq * 1.1 : 0, 1e-9));
@@ -668,7 +731,7 @@ export function layoutDes(P: DesParams): SceneLayout {
       const ky = plot.y1 - 8;
       const key: Drawable[] = [
         kit.stroke(`${own("legend")}__curve`, [[kx, ky], [kx + 26, ky]], { color: COLORS.accent, strokeWidth: 3, roughness: 0.4, ms: SKETCH_MS.guides }),
-        kit.text(`${own("legend")}__theory`, [kx + 34, ky], th && !th.exact ? "theory (approx.)" : "theory", { fontSize: READ_FONT, color: COLORS.accent, anchor: "start" }),
+        kit.text(`${own("legend")}__theory`, [kx + 34, ky], th?.scheduled ? "theory, if steady" : th && !th.exact ? "theory (approx.)" : "theory", { fontSize: READ_FONT, color: COLORS.accent, anchor: "start" }),
         disc(`${own("legend")}__dot`, [kx + 13, ky - 30], 7, { color: COLORS.supply, fill: COLORS.supply, strokeWidth: 2, ms: SKETCH_MS.dot }),
         kit.text(`${own("legend")}__run`, [kx + 34, ky - 30], "this run", { fontSize: READ_FONT, color: COLORS.supply, anchor: "start" }),
       ];
@@ -697,6 +760,13 @@ export function layoutDes(P: DesParams): SceneLayout {
       const wx = sx(m.warmup);
       push(kit.area(own("warmup"), kit.rect(plot.x0, plot.y0, wx - plot.x0, plot.y1 - plot.y0), COLORS.guide, { opacity: 0.14, precise: true }), [(plot.x0 + wx) / 2, plot.y1 - 12]);
       addTo(set, own("warmup"));
+    }
+    // The first time chart carries the (first) schedule's strip.
+    const scheduled = drawnStrip ? undefined : m.nodes.find((x) => x.schedule);
+    if (scheduled) {
+      drawnStrip = true;
+      pushStrip(scheduled, plot, sx, t, m, push);
+      addTo(set, `schedule_${scheduled.id}`);
     }
     if (series) {
       const pts = stepPoints(series, t).map(([x, y]): Pt => [sx(x), sy(y)]);
@@ -745,6 +815,39 @@ function countTo(a: ArrayLike<number>, t: number): number {
     else hi = mid;
   }
   return lo;
+}
+
+/**
+ * A source's schedule, drawn along the bottom of a time chart: its rate as a
+ * pale stepped (or joined) band sharing the chart's time axis — so a peak of
+ * arrivals stands under the queue it builds — with a dot on it at t.
+ */
+function pushStrip(n: ModelNode, plot: PlotArea, sx: (v: number) => number, t: number, m: Model, push: (d: Drawable, at: Pt) => void): void {
+  const s = n.schedule!;
+  const H = m.horizon;
+  const top = Math.max(...s.rates) || 1;
+  const band = 0.26 * (plot.y1 - plot.y0);
+  const sy = (r: number): number => plot.y0 + (r / top) * band;
+  const line: Pt[] = [];
+  const knots = s.times.filter((x) => x < H);
+  knots.forEach((k, i) => {
+    const next = i + 1 < knots.length ? knots[i + 1] : H;
+    line.push([sx(k), sy(s.rate(k))]);
+    line.push([sx(next), sy(s.smooth ? s.rate(next) : s.rate(k))]);
+  });
+  const id = `schedule_${n.id}`;
+  const dotAt: Pt = [sx(t), sy(s.rate(Math.min(t, H - 1e-9)))];
+  // Its key in the plot's top-left corner, where a queue that starts empty seldom reaches.
+  const kx = plot.x0 + 18;
+  const ky = plot.y1 - 10;
+  const kids: Drawable[] = [
+    kit.area(`${id}__band`, [[line[0][0], plot.y0], ...line, [line[line.length - 1][0], plot.y0]], COLORS.accent, { opacity: 0.13, precise: true }),
+    kit.stroke(`${id}__line`, line, { color: COLORS.accent, strokeWidth: 2, roughness: 0.4, ms: SKETCH_MS.curve }),
+    kit.area(`${id}__swatch`, kit.rect(kx, ky - 7, 26, 14), COLORS.accent, { opacity: 0.25, precise: true }),
+    kit.text(`${id}__label`, [kx + 34, ky], "arrival rate", { fontSize: READ_FONT, color: COLORS.accent, anchor: "start" }),
+    disc(`${id}__now`, dotAt, 6, { color: COLORS.accent, fill: COLORS.accent, strokeWidth: 2, ms: SKETCH_MS.dot }),
+  ];
+  push(kit.group(id, kids), [(plot.x0 + plot.x1) / 2, plot.y0 + band / 2]);
 }
 
 /** A small round button: "−" or "+" (faint when it cannot go further). */
