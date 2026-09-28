@@ -579,6 +579,7 @@ layout: |
   return { drawables, labels, anchors, order };
 ---
 template: sir_compartments
+interaction: "In model mode: scrub R0, beta, a stay or the share vaccinated; drag the intervention band along the days, or the cursor to read a day; the curves recompute."
 title: Epidemic compartment model (SIR / SEIR)
 version: 2
 kit: 11
@@ -1411,6 +1412,7 @@ widget: |
   return { init, on, editable, parts, surface, live: true };
 ---
 template: reed_frost
+interaction: "Scrub N, p or R0; tap 'new runs' for fresh outbreaks under the same rule."
 title: Reed–Frost chain-binomial outbreaks
 version: 1
 kit: 11
