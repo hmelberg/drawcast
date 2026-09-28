@@ -110,7 +110,8 @@ describe("the TeX", () => {
 
   test("every bundled formula is written exactly as before (none shows a var as a token)", () => {
     let n = 0;
-    for (const ex of examples as { spec?: Spec }[]) {
+    // The examples bundled before live math (2026-09-29); later ones may use it on purpose.
+    for (const ex of (examples as { spec?: Spec }[]).slice(0, 345)) {
       const spec = ex.spec;
       if (!spec?.elements) continue;
       const vars = varValues(spec.vars);

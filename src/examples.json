@@ -73424,7 +73424,7 @@
     }
   },
   {
-    "request": "Why does adding a second server cut waiting so much? (an emergency department triage desk, one nurse vs two)",
+    "request": "Why does adding a second server cut waiting so much? (an emergency department triage desk, one nurse vs two, with arrivals that rise and fall through the day)",
     "spec": {
       "title": "Why a second triage nurse cuts waiting so much",
       "template": "des_process",
@@ -73434,7 +73434,20 @@
           {
             "id": "door",
             "type": "source",
-            "rate": 0.18
+            "schedule": {
+              "times": [
+                0,
+                120,
+                240,
+                360
+              ],
+              "rates": [
+                0.12,
+                0.24,
+                0.18,
+                0.12
+              ]
+            }
           },
           {
             "id": "triage",
@@ -73449,7 +73462,7 @@
           }
         ],
         "horizon": 480,
-        "seed": 8,
+        "seed": 10,
         "t": 0,
         "chart": [
           {
@@ -73479,7 +73492,7 @@
           "draw": [
             "node_triage"
           ],
-          "speak": "Patients arrive at random, about eleven an hour, and triage takes five minutes on average."
+          "speak": "Patients arrive at random, and triage takes five minutes on average."
         },
         {
           "draw": [
@@ -73494,15 +73507,31 @@
             "clock",
             "reroll"
           ],
-          "speak": "So one nurse is busy about 90% of the time. Let's run an eight-hour shift."
+          "speak": "But they do not arrive evenly."
+        },
+        {
+          "highlight": {
+            "target": [
+              "schedule_door"
+            ]
+          },
+          "speak": "About seven an hour in the morning, fourteen an hour around midday, then fewer again."
+        },
+        {
+          "highlight": {
+            "target": [
+              "rate_door"
+            ]
+          },
+          "speak": "Over the whole shift one nurse is busy about 80% of the time. Let's run an eight-hour shift."
         },
         {
           "animate": {
             "t": 480
           },
-          "duration": 9,
+          "duration": 10,
           "easing": "linear",
-          "speak": "The line swells and drains with every cluster of arrivals, and some patients wait over an hour."
+          "speak": "The morning line stays short. At the midday peak patients come faster than one nurse can triage them, and the line swells."
         },
         {
           "highlight": {
@@ -73526,7 +73555,7 @@
             "nodes.1.servers": 2
           },
           "duration": 2,
-          "speak": "Same shift, same patients: the line almost disappears, and the average wait drops to under a minute."
+          "speak": "Same shift, same patients: the line almost disappears, and the average wait drops to about two minutes."
         },
         {
           "highlight": {
@@ -73534,7 +73563,7 @@
               "chart_dots_2"
             ]
           },
-          "speak": "Twice the staff, yet the wait fell more than forty-fold."
+          "speak": "Twice the staff, yet the wait fell about twentyfold."
         },
         {
           "highlight": {
@@ -73542,7 +73571,7 @@
               "readout_triage"
             ]
           },
-          "speak": "The reason: each nurse is now busy less than half the time, and waiting grows far faster than busyness."
+          "speak": "Each nurse is now busy about 40% of the time, and even at the peak only 60%."
         },
         {
           "point": {
@@ -73551,23 +73580,15 @@
             },
             "gesture": "circle"
           },
-          "speak": "At 90% busy there is almost no slack to absorb a burst of arrivals; at 45% a burst clears within minutes."
+          "speak": "Near full capacity there is no slack to absorb a burst of arrivals; with slack, a burst clears within minutes."
         },
         {
           "highlight": {
             "target": [
-              "server_triage"
+              "schedule_door"
             ]
           },
-          "speak": "Sharing one line helps too: with separate lines, patients would still wait about four minutes; with one, about one."
-        },
-        {
-          "highlight": {
-            "target": [
-              "rate_door"
-            ]
-          },
-          "speak": "Real arrivals rise and fall through the day, so what matters is how busy the nurses are at the peak."
+          "speak": "So the peak, not the daily average, decides how many nurses you need."
         },
         {
           "explore": {},
@@ -73578,14 +73599,14 @@
         },
         {
           "quiz": {
-            "question": "One nurse is 90% busy and patients wait about 45 minutes. A second nurse joins, sharing the line. Roughly how long do patients wait now?",
+            "question": "One nurse is busy about 80% of the shift and patients wait about 40 minutes. A second nurse joins, sharing the line. Roughly how long do patients wait now?",
             "choices": [
-              "About 22 minutes",
-              "About a minute",
-              "About 45 minutes"
+              "About 20 minutes",
+              "About 2 minutes",
+              "About 40 minutes"
             ],
             "correct": 2,
-            "right": "About a minute: each nurse drops to 45% busy, and at 45% bursts clear before a line builds.",
+            "right": "About two minutes: each nurse drops to about 40% busy, and even the midday peak clears before a line builds.",
             "wrong": "Halving how busy each nurse is does far more than halve the wait."
           }
         }
@@ -75985,6 +76006,849 @@
             "correct": 1,
             "wrong": "Ask what sets the fall: the sideways speed only carries the ball across.",
             "right": "After one second: the five-metre drop sets the time, and the sideways speed only carries it farther, to ten metres."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Same average, longer queues: why bursty arrivals hurt",
+    "spec": {
+      "title": "Same average, longer queues",
+      "template": "des_process",
+      "params": {
+        "entity": "patient",
+        "nodes": [
+          {
+            "id": "door",
+            "type": "source",
+            "rate": 0.1667,
+            "variability": 0
+          },
+          {
+            "id": "triage",
+            "type": "station",
+            "servers": 1,
+            "service": {
+              "dist": "fixed",
+              "value": 5
+            }
+          },
+          {
+            "id": "seen",
+            "type": "sink",
+            "label": "triaged"
+          }
+        ],
+        "horizon": 480,
+        "seed": 78,
+        "t": 0,
+        "chart": [
+          {
+            "of": "queue",
+            "y_max": 20
+          },
+          {
+            "of": "wait_util",
+            "y_max": 60
+          }
+        ]
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Bursty arrivals"
+          }
+        },
+        {
+          "draw": [
+            "node_door",
+            "route_door_triage"
+          ],
+          "speak": "Same number of patients on average, yet far longer queues: why do bursty arrivals hurt?"
+        },
+        {
+          "draw": [
+            "node_triage",
+            "node_seen",
+            "route_triage_seen"
+          ],
+          "speak": "One triage nurse, about ten patients an hour, and to keep it simple, triage takes exactly five minutes."
+        },
+        {
+          "highlight": {
+            "target": [
+              "var_door"
+            ]
+          },
+          "speak": "This number is how uneven the gaps between arrivals are. At zero, a patient arrives exactly every six minutes."
+        },
+        {
+          "draw": [
+            "chart",
+            "chart_2",
+            "clock",
+            "reroll"
+          ]
+        },
+        {
+          "animate": {
+            "t": 480
+          },
+          "duration": 7,
+          "easing": "linear",
+          "speak": "Nobody waits: each patient is done a minute before the next one walks in."
+        },
+        {
+          "highlight": {
+            "target": [
+              "readout_triage"
+            ]
+          },
+          "speak": "The nurse is busy five minutes in every six, and the line never forms."
+        },
+        {
+          "animate": {
+            "nodes.0.variability": 1
+          },
+          "duration": 3,
+          "speak": "Now the same average, but arriving at random, the way patients really come."
+        },
+        {
+          "highlight": {
+            "target": [
+              "readout_triage"
+            ]
+          },
+          "speak": "Sometimes two arrive a minute apart, and the second one waits. The average wait is now about twelve minutes."
+        },
+        {
+          "animate": {
+            "nodes.0.variability": 2
+          },
+          "duration": 3,
+          "speak": "And bursty: patients come in clumps, then long gaps with nobody at all."
+        },
+        {
+          "highlight": {
+            "target": [
+              "chart_line"
+            ]
+          },
+          "speak": "The nurse is still busy about the same share of the time, but the average wait is now close to fifty minutes."
+        },
+        {
+          "highlight": {
+            "target": [
+              "theory_curve_2"
+            ]
+          },
+          "speak": "Queueing theory agrees: waiting grows with the square of the burstiness, so doubling it roughly quadruples the wait."
+        },
+        {
+          "highlight": {
+            "target": [
+              "rate_door"
+            ]
+          },
+          "speak": "The average never changed. Only the spacing of the arrivals did."
+        },
+        {
+          "explore": {},
+          "speak": "Try it: drag the CV to make arrivals more regular or more bursty, and watch the waits."
+        },
+        {
+          "speak": "Smoothing arrivals, with booked times or a steadier referral flow, can cut waiting as much as extra staff."
+        },
+        {
+          "quiz": {
+            "question": "Arrivals keep the same average but become twice as bursty. Roughly what happens to the wait?",
+            "choices": [
+              "It stays the same",
+              "It about doubles",
+              "It about quadruples"
+            ],
+            "correct": 3,
+            "right": "Right: the wait grows with the square of the variability, so twice as bursty means about four times the wait.",
+            "wrong": "The average load is unchanged, but waiting grows with the square of the variability: about four times."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "What each number in y = a x² + b x + c does",
+    "spec": {
+      "title": "What a, b and c do",
+      "template": "equation_plot",
+      "params": {
+        "equation": "y = a*x^2 + b*x + c",
+        "params": {
+          "a": {
+            "value": 1,
+            "min": -3,
+            "max": 3,
+            "step": 0.5
+          },
+          "b": {
+            "value": 0,
+            "min": -4,
+            "max": 4,
+            "step": 0.5
+          },
+          "c": {
+            "value": -2,
+            "min": -5,
+            "max": 5,
+            "step": 0.5
+          }
+        },
+        "equation_form": "both",
+        "controls": "both",
+        "x_range": [
+          -5,
+          5
+        ],
+        "y_range": [
+          -6,
+          8
+        ],
+        "marks": [
+          "extrema",
+          "y_intercept"
+        ]
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "a, b and c"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "What does each of the three numbers in a parabola's equation actually do?"
+        },
+        {
+          "draw": [
+            "eq_symbols",
+            "eq",
+            "curve_0"
+          ],
+          "speak": "On top, the letters. Underneath, the numbers they stand for right now."
+        },
+        {
+          "draw": [
+            "slider_a",
+            "slider_b",
+            "slider_c"
+          ],
+          "parallel": true,
+          "speak": "Each letter has its own colour, and its slider wears the same one."
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq_param_a",
+              "eq_param_a_2",
+              "knob_a"
+            ]
+          },
+          "speak": "Start with a, in purple."
+        },
+        {
+          "animate": {
+            "params.a.value": 3
+          },
+          "duration": 2,
+          "speak": "Turn a up, and the U squeezes narrow."
+        },
+        {
+          "animate": {
+            "params.a.value": -1
+          },
+          "duration": 2.5,
+          "speak": "Push it below zero, and the U flips over into a hill."
+        },
+        {
+          "animate": {
+            "params.a.value": 1
+          },
+          "duration": 1.5,
+          "speak": "Back to one."
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq_param_b",
+              "eq_param_b_2",
+              "knob_b"
+            ]
+          },
+          "speak": "Now b, in teal. You might guess it tilts the curve, or slides it sideways."
+        },
+        {
+          "draw": [
+            "min_1"
+          ],
+          "speak": "Keep an eye on the lowest point."
+        },
+        {
+          "animate": {
+            "params.b.value": 3
+          },
+          "duration": 3.5,
+          "trail": {
+            "of": "min_1"
+          },
+          "speak": "As b grows, the lowest point runs left, and down."
+        },
+        {
+          "animate": {
+            "params.b.value": -3
+          },
+          "duration": 5,
+          "trail": {
+            "of": "min_1"
+          },
+          "speak": "Send b the other way, and it swings back up and over to the right."
+        },
+        {
+          "highlight": {
+            "target": [
+              "min_1_trail",
+              "min_1_trail_2"
+            ]
+          },
+          "speak": "Its path is a parabola of its own, upside down. b slides the U along it, and never changes its shape."
+        },
+        {
+          "erase": [
+            "min_1_trail",
+            "min_1_trail_2"
+          ]
+        },
+        {
+          "animate": {
+            "params.b.value": 0
+          },
+          "duration": 2,
+          "speak": "b back to zero."
+        },
+        {
+          "highlight": {
+            "target": [
+              "eq_param_c",
+              "eq_param_c_2",
+              "knob_c"
+            ]
+          },
+          "speak": "Last, c, in pink."
+        },
+        {
+          "draw": [
+            "y_intercept"
+          ],
+          "speak": "c is where the curve crosses the vertical axis."
+        },
+        {
+          "animate": {
+            "params.c.value": 3
+          },
+          "duration": 2.5,
+          "speak": "Raise it, and the whole U lifts straight up."
+        },
+        {
+          "animate": {
+            "params.c.value": -2
+          },
+          "duration": 2,
+          "speak": "Lower it, and the U sinks again."
+        },
+        {
+          "speak": "So a shapes the curve, b slides it along a hidden parabola, and c lifts it."
+        },
+        {
+          "quiz": {
+            "question": "Which number changes the parabola's shape?",
+            "choices": [
+              "a",
+              "b",
+              "c"
+            ],
+            "correct": 1,
+            "right": "Only a squeezes or flips the U. b and c just move it.",
+            "wrong": "Think back: which change made the U narrower, or turned it over?"
+          }
+        },
+        {
+          "explore": {},
+          "speak": "Your turn: drag a slider or a number, and watch its letter light up."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Why does discounting make a health gain in the future count for less than the same gain today?",
+    "spec": {
+      "title": "Why discounting shrinks future health",
+      "vars": {
+        "B": {
+          "value": 10,
+          "fixed": true
+        },
+        "r": {
+          "value": 0.035,
+          "min": 0,
+          "max": 0.1,
+          "step": 0.005
+        },
+        "t": {
+          "value": 20,
+          "min": 0,
+          "max": 60
+        },
+        "PV": {
+          "expr": "B/(1+r)^t",
+          "decimals": 1
+        }
+      },
+      "elements": [
+        {
+          "id": "pv",
+          "type": "math",
+          "tex": "PV = \\frac{{B}}{(1+{r})^{{t}}} = {PV}",
+          "size": 46,
+          "x": 500,
+          "y": 605
+        },
+        {
+          "id": "base",
+          "type": "path",
+          "points": [
+            [
+              230,
+              180
+            ],
+            [
+              770,
+              180
+            ]
+          ],
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "later",
+          "type": "shape",
+          "shape": "rect",
+          "x": 640,
+          "y": 320,
+          "width": 120,
+          "height": 280,
+          "style": {
+            "color": "#2f6b8f",
+            "fill": "#2f6b8f"
+          }
+        },
+        {
+          "id": "later_lab",
+          "type": "text",
+          "text": "in {t} years",
+          "x": 640,
+          "y": 145,
+          "font_size": 26
+        },
+        {
+          "id": "later_val",
+          "type": "text",
+          "text": "{B} QALYs",
+          "x": 640,
+          "y": 488,
+          "font_size": 26
+        },
+        {
+          "id": "today",
+          "type": "shape",
+          "shape": "rect",
+          "x": 360,
+          "y": 320,
+          "width": 120,
+          "height": 280,
+          "bind": {
+            "height": "PV*28",
+            "y": "180 + PV*14"
+          },
+          "style": {
+            "color": "#b5482e",
+            "fill": "#b5482e"
+          }
+        },
+        {
+          "id": "today_lab",
+          "type": "text",
+          "text": "today",
+          "x": 360,
+          "y": 145,
+          "font_size": 26
+        },
+        {
+          "id": "today_val",
+          "type": "text",
+          "text": "{PV} QALYs",
+          "x": 360,
+          "y": 300,
+          "bind": {
+            "y": "208 + PV*28"
+          },
+          "font_size": 26
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Why discounting shrinks future health"
+          }
+        },
+        {
+          "draw": [
+            "base",
+            "later",
+            "later_lab",
+            "later_val"
+          ],
+          "speak": "Why does a health economist count ten healthy years that arrive in twenty years' time as less than ten years gained today? The answer is discounting."
+        },
+        {
+          "draw": [
+            "pv"
+          ],
+          "speak": "A gain that comes later is divided by one plus the discount rate, once for every year we wait."
+        },
+        {
+          "draw": [
+            "today",
+            "today_lab",
+            "today_val"
+          ],
+          "speak": "At the three and a half percent that NICE uses, those ten future years are worth about five years today."
+        },
+        {
+          "animate": {
+            "r": 0.06
+          },
+          "duration": 3,
+          "speak": "Raise the rate to six percent, and the same gain shrinks to about three."
+        },
+        {
+          "animate": {
+            "r": 0.035
+          },
+          "duration": 1.5
+        },
+        {
+          "animate": {
+            "t": 40
+          },
+          "duration": 3,
+          "speak": "Keep the rate, but push the gain forty years away, and it is worth only a quarter of what it would be today."
+        },
+        {
+          "animate": {
+            "t": 20
+          },
+          "duration": 1.5,
+          "speak": "That is why prevention, whose benefits come late, is so sensitive to the rate we choose."
+        },
+        {
+          "quiz": {
+            "question": "A screening programme costs money now; its health gains arrive in thirty years. A higher discount rate makes it look…",
+            "choices": [
+              "better value",
+              "worse value",
+              "no different"
+            ],
+            "correct": 1,
+            "right": "Worse value: the costs today count in full, while the distant gains shrink."
+          }
+        },
+        {
+          "explore": {},
+          "speak": "Your turn. Drag the rate or the years in the formula sideways, or tap one to type a number, and watch today's bar."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Do you really need 10,000 steps a day?",
+    "spec": {
+      "title": "Do you need 10,000 steps?",
+      "domain": {
+        "x": [
+          0,
+          14
+        ],
+        "y": [
+          0,
+          110
+        ]
+      },
+      "sources": [
+        {
+          "id": "paluch",
+          "title": "Daily steps and all-cause mortality: a meta-analysis of 15 international cohorts",
+          "authors": "Paluch et al.",
+          "year": 2022,
+          "doi": "10.1016/S2468-2667(21)00302-9",
+          "finding": "Risk falls, then levels off at 6,000–10,000 steps"
+        },
+        {
+          "id": "lee",
+          "title": "Association of Step Volume and Intensity With All-Cause Mortality in Older Women",
+          "authors": "Lee et al.",
+          "year": 2019,
+          "doi": "10.1001/jamainternmed.2019.0899",
+          "finding": "Older women: benefit levels off near 7,500"
+        },
+        {
+          "id": "saint_maurice",
+          "title": "Association of Daily Step Count and Step Intensity With Mortality Among US Adults",
+          "authors": "Saint-Maurice et al.",
+          "year": 2020,
+          "doi": "10.1001/jama.2020.1382",
+          "finding": "8,000 steps: half the risk of 4,000"
+        },
+        {
+          "id": "who2020",
+          "title": "World Health Organization 2020 guidelines on physical activity and sedentary behaviour",
+          "authors": "Bull et al.",
+          "year": 2020,
+          "doi": "10.1136/bjsports-2020-102955",
+          "finding": "Some activity beats none"
+        }
+      ],
+      "more": {
+        "label": "Sources",
+        "items": [
+          "paluch",
+          "lee",
+          "saint_maurice",
+          "who2020",
+          {
+            "title": "WHO fact sheet: physical activity",
+            "url": "https://www.who.int/news-room/fact-sheets/detail/physical-activity",
+            "text": "The guidelines in plain words"
+          }
+        ]
+      },
+      "elements": [
+        {
+          "id": "ax",
+          "type": "axes",
+          "x_label": "Steps a day (thousands)",
+          "y_label": "Risk of dying"
+        },
+        {
+          "id": "risk",
+          "type": "curve",
+          "expr": "45 + 55*exp(-0.45*(x - 3.5))",
+          "x_from": 3.5,
+          "x_to": 13.5,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "q1",
+          "type": "point",
+          "at": {
+            "x": 3.55,
+            "y": 100
+          },
+          "style": {
+            "color": "#2f6b8f"
+          },
+          "cites": [
+            "paluch"
+          ]
+        },
+        {
+          "id": "q2",
+          "type": "point",
+          "at": {
+            "x": 5.8,
+            "y": 60
+          },
+          "style": {
+            "color": "#2f6b8f"
+          },
+          "cites": [
+            "paluch"
+          ]
+        },
+        {
+          "id": "q3",
+          "type": "point",
+          "at": {
+            "x": 7.84,
+            "y": 55
+          },
+          "style": {
+            "color": "#2f6b8f"
+          },
+          "cites": [
+            "paluch"
+          ]
+        },
+        {
+          "id": "q4",
+          "type": "point",
+          "at": {
+            "x": 10.9,
+            "y": 47
+          },
+          "style": {
+            "color": "#2f6b8f"
+          },
+          "cites": [
+            "paluch"
+          ]
+        },
+        {
+          "id": "dots",
+          "type": "group",
+          "members": [
+            "q1",
+            "q2",
+            "q3",
+            "q4"
+          ]
+        },
+        {
+          "id": "goal_line",
+          "type": "arrow",
+          "from": {
+            "x": 10,
+            "y": 0
+          },
+          "to": {
+            "x": 10,
+            "y": 95
+          },
+          "style": {
+            "color": "#8f887c",
+            "dash": true
+          }
+        },
+        {
+          "id": "l_goal",
+          "type": "label",
+          "attach_to": "goal_line",
+          "side": "above",
+          "text": "10,000 goal",
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "drop_note",
+          "type": "label",
+          "attach_to": "q2",
+          "side": "above-right",
+          "text": "big drop",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "level_note",
+          "type": "label",
+          "attach_to": "q3",
+          "side": "above",
+          "text": "levels off",
+          "style": {
+            "color": "#b5482e"
+          },
+          "cites": [
+            "lee",
+            "paluch"
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Do you need 10,000 steps?"
+          }
+        },
+        {
+          "draw": [
+            "ax"
+          ],
+          "speak": "Do you really need ten thousand steps a day? Let's look at what the studies found."
+        },
+        {
+          "draw": [
+            "goal_line",
+            "l_goal"
+          ],
+          "speak": "The ten thousand goal began as a pedometer slogan in Japan in the 1960s, not as a result from a study."
+        },
+        {
+          "draw": [
+            "q1"
+          ],
+          "speak": "In 2022, researchers pooled fifteen studies of about forty-seven thousand adults wearing step counters. Here is the risk of dying for the least active quarter."
+        },
+        {
+          "draw": [
+            "q2",
+            "drop_note"
+          ],
+          "speak": "People at around six thousand steps had about forty percent lower risk. That is the big drop."
+        },
+        {
+          "draw": [
+            "q3",
+            "q4"
+          ],
+          "speak": "Going on to eight thousand, then eleven thousand, bought a little more, but much less."
+        },
+        {
+          "draw": [
+            "risk",
+            "level_note"
+          ],
+          "speak": "The curve levels off: at six to eight thousand for people over sixty, and at eight to ten thousand for younger adults."
+        },
+        {
+          "highlight": {
+            "target": [
+              "dots"
+            ]
+          },
+          "speak": "These studies follow people over time, so they show an association, not proof that the steps did it. But studies of older women and of American adults found the same shape."
+        },
+        {
+          "erase": [
+            "drop_note"
+          ]
+        },
+        {
+          "speak": "So ten thousand is fine, but it is not a threshold. The biggest gain comes from moving at all. The studies are in the corner, under Sources."
+        },
+        {
+          "quiz": {
+            "question": "Where does the curve say an inactive person gains the most?",
+            "choices": [
+              "The first few thousand extra steps",
+              "The last steps before 10,000",
+              "Only past 12,000"
+            ],
+            "correct": 1,
+            "right": "The first few thousand: the risk falls fastest from the least active group, then levels off."
           }
         }
       ]
