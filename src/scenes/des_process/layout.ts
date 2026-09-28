@@ -221,13 +221,14 @@ export function geometry(P: DesParams, m: Model): Geometry {
   const lone = byLayer.filter((l) => l.length === 1).map((l) => m.nodes[l[0]]);
   const lo = Math.max(flow.y0, ...lone.map((n) => flow.y0 + coreH(n) / 2 + below(n)));
   const hi = Math.min(flow.y1, ...lone.map((n) => flow.y1 - above - coreH(n) / 2));
-  const lineY = lo <= hi ? (lo + hi) / 2 : hi;
+  // With charts below, the flow keeps to the top and the charts take what it leaves.
+  const lineY = lo > hi ? hi : hasCharts ? Math.max(lo, hi - 25) : (lo + hi) / 2;
   byLayer.forEach((ids, k) => {
     const blocks = ids.map((i) => above + coreH(m.nodes[i]) + below(m.nodes[i]));
     const H = flow.y1 - flow.y0;
     const sum = blocks.reduce((a, b) => a + b, 0);
-    const spare = Math.max(0, H - sum) / (ids.length + 1);
-    let y = flow.y1 - spare;
+    const spare = hasCharts ? Math.min(18, Math.max(0, H - sum - 25) / (ids.length + 1)) : Math.max(0, H - sum) / (ids.length + 1);
+    let y = flow.y1 - spare - (hasCharts && H - sum > 25 ? 25 : 0);
     ids.forEach((i, j) => {
       const n = m.nodes[i];
       const ch = coreH(n);
@@ -336,13 +337,16 @@ export function geometry(P: DesParams, m: Model): Geometry {
       }
     }
 
-  // Charts: one wide, or two side by side.
+  // Charts: one wide, or two side by side, as tall as the flow leaves room
+  // for (the clock's row between them).
+  let flowBottom = lowest;
+  for (const r of routes) for (const p of r.pts) flowBottom = Math.min(flowBottom, p[1] - 14);
+  const y1 = Math.max(248, Math.min(340, flowBottom - 100));
   const chartRows = charts.map((c, k) => {
-    const plot: PlotArea =
-      charts.length === 1 ? { x0: 130, x1: 900, y0: 110, y1: 248 } : k === 0 ? { x0: 110, x1: 440, y0: 110, y1: 248 } : { x0: 600, x1: 930, y0: 110, y1: 248 };
+    const plot: PlotArea = charts.length === 1 ? { x0: 130, x1: 900, y0: 110, y1 } : k === 0 ? { x0: 110, x1: 440, y0: 110, y1 } : { x0: 600, x1: 930, y0: 110, y1 };
     return { ...c, plot, suffix: k === 0 ? "" : "_2" };
   });
-  const clock: Pt = hasCharts ? [965, 318] : [965, 70];
+  const clock: Pt = hasCharts ? [965, y1 + 72] : [965, 70];
   // "new run" just left of the clock, its circle arrow first (the point is the arrow's centre).
   const reroll: Pt = [clock[0] - kit.textWidth(clockText(m.horizon, m), 26) - 36 - kit.textWidth("new run", 19) - 16, clock[1]];
   return { nodes, routes, flow, charts: chartRows, clock, reroll };
@@ -587,12 +591,16 @@ export function layoutDes(P: DesParams): SceneLayout {
   if (controls) {
     const c: Pt = G.reroll;
     const arc = kit.arc(c, 9, 0.5, 5.4, 14);
+    // A button: a pill round the circling arrow and its words, so a tap anywhere on it lands.
+    const x0 = c[0] - 19;
+    const x1 = c[0] + 16 + kit.textWidth("new run", 19) + 10;
     const kids: Drawable[] = [
+      square("reroll__pill", x0, c[1] - 16, x1 - x0, 32, { color: COLORS.guide, fill: COLORS.paper, strokeWidth: 1.5, roughness: 0.4, ms: SKETCH_MS.guides }),
       kit.stroke("reroll__arc", arc, { arrowhead: "end", color: COLORS.guide, strokeWidth: 2, roughness: 0.4, ms: SKETCH_MS.arrow }),
       kit.text("reroll__t", [c[0] + 16, c[1]], "new run", { fontSize: 19, color: COLORS.guide, anchor: "start" }),
     ];
-    (kids[0] as { headSize?: number }).headSize = 6;
-    push(kit.group("reroll", kids), [c[0] + 40, c[1]]);
+    (kids[1] as { headSize?: number }).headSize = 6;
+    push(kit.group("reroll", kids), [(x0 + x1) / 2, c[1]]);
   }
 
   // ---- values ------------------------------------------------------------------------------

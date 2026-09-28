@@ -17,6 +17,7 @@ import { SURFACE_PART, type WidgetScene } from "../src/scenes/widget-types";
 import { layoutSpec } from "../src/layout/layout";
 import { flattenDrawables, type Drawable, type Pt } from "../src/layout/model";
 import { validateSpec } from "../src/spec/schema";
+import { translatableStrings } from "../src/spec/i18n";
 import { planCommands, INITIAL_STATE, type Plan } from "../src/render/plan";
 import { withOverrides } from "../src/render/params";
 import { widgetHostFor } from "../src/ui/widget-host";
@@ -321,6 +322,12 @@ describe("the figure", () => {
       }
   });
 
+  test("translation reaches the labels and the entity, never an id a route or a chart refers to", () => {
+    const texts = translatableStrings({ template: "des_process", params: ED } as never, module.manifest.params_schema).map((t) => t.text);
+    expect(texts).toEqual(expect.arrayContaining(["X-ray", "patient"]));
+    for (const id of ["doctor", "xray", "triage", "home", "door"]) expect(texts).not.toContain(id);
+  });
+
   test("the lint: unknown refs, shares ≠ 1, no sink, utilisation ≥ 1, too many entities", () => {
     expect(lintDes({ nodes: [] })[0].severity).toBe("error");
     const bad = lintDes({ nodes: [{ id: "a", type: "source", rate: 1, to: "nowhere" }, { id: "z", type: "sink" }] });
@@ -440,6 +447,12 @@ describe("the paused viewer", () => {
     expect(host.release(rate)).toBe("edit");
     expect(host.commitEdit("0.7")).toEqual({ ok: true });
     expect((current.nodes as { rate: number }[])[0].rate).toBe(0.7);
+    // "new run" is a button: a tap on its words (not only its arrow) is the body's.
+    const words = sceneOf({ ...P, ...current } as DesParams).boxes.get("reroll")!;
+    const onWords: Pt = [words.x + words.w * 0.75, words.y + words.h / 2];
+    expect(host.press(onWords)).toBe(true);
+    expect(host.release(onWords)).toBe("click");
+    expect(current.seed).toBe(2);
   });
 });
 
