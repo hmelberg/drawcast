@@ -196,6 +196,10 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   // on every figure swap (items and cards alike), on hide, on the page
   // leaving and on destroy — each close is one onItem call. A return from
   // hidden reopens a view for the same item, so the teacher sums per item.
+  // Declared before the visibility handler that reads it: a tab switch while
+  // the first item is still rendering (the await below) fired that handler
+  // with `idx` in its temporal dead zone (ReferenceError, 2026-09-28).
+  let idx = 0;
   const timer = new ItemTimer();
   function flushItemView(): void {
     const view = timer.close();
@@ -342,8 +346,6 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
       },
     };
   }
-
-  let idx = 0;
 
   // The whole cast's step count, part by part, for the global counter: an
   // estimate from each part's own commands (one step per command, plus the
