@@ -71,6 +71,19 @@ export function controlDragValue(t: ControlTarget, scene: WidgetScene, from: Pt,
   return { name: t.param.name, value: sliderPointerValue(t.param, to[0], Math.min(...xs), Math.max(...xs)) };
 }
 
+/**
+ * What lights up while parameter `p` is being changed: its parts among
+ * `among` (the template's letter parts — a number would change under the
+ * glow and leave its old digits behind) but the one pressed — so a slider or
+ * a number in the values line shows which letter it is. One effect, for the
+ * press's first frame. In the glow's own colour: glow recolours a glyph, and
+ * the parameter's colour on a letter already in it would show nothing.
+ */
+export function echoEffect(p: Param, pressed: string, among: readonly string[], set: ParamSet): { glow: string[] } | null {
+  const glow = among.filter((id) => id !== pressed && paramOfEqPart(id, set) === p.name);
+  return glow.length > 0 && p.editable ? { glow } : null;
+}
+
 /** The control parts among `ids` that are live, in tie order. */
 export function controlParts(ids: readonly string[], set: ParamSet): string[] {
   const rank = (id: string): number => CONTROL_PREFIXES.findIndex((p) => id.startsWith(p));

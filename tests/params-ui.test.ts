@@ -6,10 +6,11 @@ import { beforeAll, describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { ensureEngines, getLoadedEngines, type MathJaxEngine } from "../src/scenes/engines";
 import { compile, namesIn, parseExpr, toTeX } from "../src/scenes/params-ui/expr";
-import { PARAMS_SCHEMA, lintParams, readParams, stepFor, traySliders, withValue } from "../src/scenes/params-ui/params";
+import { PARAMS_SCHEMA, lintParams, paramColorOf, readParams, stepFor, traySliders, withValue } from "../src/scenes/params-ui/params";
+import { COLORS, PARAM_PALETTE } from "../src/layout/model";
 import { drawEquation, equationTeX, isWholeMark, paramOfEqPart } from "../src/scenes/params-ui/equation";
 import { drawPanel, panelRows, sliderX } from "../src/scenes/params-ui/panel";
-import { controlField, controlParts, controlTarget, scrubValue, sliderPointerValue } from "../src/scenes/params-ui/controls";
+import { controlField, controlParts, controlTarget, echoEffect, scrubValue, sliderPointerValue } from "../src/scenes/params-ui/controls";
 import { panRange, sameRange, tidyRange, zoomRange } from "../src/scenes/params-ui/domain";
 import { STEP_UNITS } from "../src/scenes/number-scrub";
 
@@ -93,6 +94,21 @@ describe("the parameters' shape", () => {
     const msgs = lintParams(given, readParams({ given, names: ["a", "b"] }), { editable: ["q"] }).map((i) => i.message);
     expect(msgs).toEqual(['param "a": value 9 is outside its range [0, 5]', 'param "b": min 2 is not below max 1', 'editable: "q" is not a parameter of the equation']);
   });
+  test("each editable parameter its own colour: the palette in order, an author's colour, fixed ones ink", () => {
+    const set = readParams({ given: { a: 1, b: { value: 1, fixed: true }, c: 1, d: 1, f: 1, g: 1, h: 1 }, names: ["a", "b", "c", "d", "f", "g", "h"] });
+    // Counted among the editable ones: the fixed b takes no slot.
+    expect(set.params.map((p) => p.color)).toEqual([PARAM_PALETTE[0], null, PARAM_PALETTE[1], PARAM_PALETTE[2], PARAM_PALETTE[3], PARAM_PALETTE[4], PARAM_PALETTE[0]]);
+    expect(PARAM_PALETTE[0]).toBe(COLORS.accent);
+    // An override (hex or a palette role) does not shift the others; a fixed one may have one too.
+    const o = readParams({ given: { a: { value: 1, color: "#C00" }, b: { value: 1, color: "demand", fixed: true }, c: 1 }, names: ["a", "b", "c"] });
+    expect(o.params.map((p) => p.color)).toEqual(["#c00", COLORS.demand, PARAM_PALETTE[1]]);
+    // Not a colour: the palette's, and the lint says so.
+    const bad = { a: { value: 1, color: "blurple" } };
+    expect(readParams({ given: bad, names: ["a"] }).params[0].color).toBe(PARAM_PALETTE[0]);
+    expect(paramColorOf("chess")).toBeNull();
+    expect(paramColorOf("#12345")).toBeNull();
+    expect(lintParams(bad, readParams({ given: bad, names: ["a"] }), {}).map((i) => i.message)[0]).toMatch(/param "a": color "blurple" is neither/);
+  });
   test.each(["equation_plot", "plot3d"])("%s's manifest carries PARAMS_SCHEMA as it is", (name) => {
     const manifest = JSON.parse(readFileSync(`src/scenes/${name}/manifest.json`, "utf8"));
     for (const [k, v] of Object.entries(PARAMS_SCHEMA)) expect(manifest.params_schema.properties[k], k).toEqual(v);
@@ -138,6 +154,32 @@ describe("the drawn equation", () => {
     expect(isWholeMark("\\mathord{\\mathrm{rate}}")).toBe(true);
     expect(isWholeMark("\\mathord{1.00}^{2}")).toBe(false);
   });
+  test("a parameter's colour is the same for its letter and its number; each parameter differs", () => {
+    const mj = getLoadedEngines(["mathjax"]).mathjax as MathJaxEngine;
+    const s = readParams({ given: { a: 1, b: 2, c: { value: 3, fixed: true } }, names: ["a", "b", "c"] });
+    const n = parseExpr("a*x^2 + b*x + c");
+    const seen = new Map<string, number>();
+    const letters = drawEquation(mj, { id: "eq_symbols", lhsTeX: "y", node: n, variables: "x", set: s, form: "symbols", center: [500, 650], width: 900, seen });
+    const numbers = drawEquation(mj, { id: "eq", lhsTeX: "y", node: n, variables: "x", set: s, form: "values", center: [500, 600], width: 900, seen });
+    expect(letters.paramIds).toEqual(["eq_param_a", "eq_param_b", "eq_param_c"]);
+    expect(numbers.paramIds).toEqual(["eq_param_a_2", "eq_param_b_2", "eq_param_c_2"]);
+    const all = [...letters.drawables, ...numbers.drawables];
+    const color = (id: string) => all.find((d) => d.id === id)!.style.color;
+    // Every glyph of the part is filled in it too.
+    const glyphs = (id: string) => new Set((all.find((d) => d.id === id) as { children: { style: { fill?: string } }[] }).children.map((c) => c.style.fill));
+    expect(color("eq_param_a")).toBe(PARAM_PALETTE[0]);
+    expect(color("eq_param_a_2")).toBe(PARAM_PALETTE[0]);
+    expect([...glyphs("eq_param_a")]).toEqual([PARAM_PALETTE[0]]);
+    expect(color("eq_param_b")).toBe(PARAM_PALETTE[1]);
+    expect(color("eq_param_b_2")).toBe(PARAM_PALETTE[1]);
+    expect(color("eq_param_c")).toBe(color("eq"));
+    expect(color("eq_param_c_2")).toBe(color("eq"));
+    // The echo while b changes: its parts among those given (and nothing of a or c), not the part pressed.
+    const ids = [...letters.paramIds, ...numbers.paramIds];
+    expect(echoEffect(s.byName.get("b")!, "eq_param_b_2", ids, s)).toEqual({ glow: ["eq_param_b"] });
+    expect(echoEffect(s.byName.get("b")!, "knob_b", ids, s)).toEqual({ glow: ["eq_param_b", "eq_param_b_2"] });
+    expect(echoEffect(s.byName.get("c")!, "eq_param_c_2", ids, s)).toBeNull();
+  });
 });
 
 describe("the drawn panel and its controls", () => {
@@ -151,6 +193,17 @@ describe("the drawn panel and its controls", () => {
     const panel = drawPanel(rows);
     expect(panel.ids).toEqual(["name_a", "value_a", "slider_a", "knob_a", "name_b", "box_b", "value_b", "name_c", "value_c", "slider_c", "knob_c"]);
     expect(panel.drawnWith.slider_a).toEqual(["name_a", "value_a", "knob_a"]);
+  });
+  test("a row is drawn in its parameter's colour: label, value, knob, a box's outline; a fixed one in ink", () => {
+    const panel = drawPanel(rows);
+    const d = (id: string) => panel.drawables.find((x) => x.id === id)!;
+    const [a, b] = [set.byName.get("a")!.color, set.byName.get("b")!.color];
+    expect([a, b]).toEqual([PARAM_PALETTE[0], PARAM_PALETTE[1]]);
+    for (const id of ["name_a", "value_a", "knob_a"]) expect(d(id).style.color, id).toBe(a);
+    expect(d("knob_a").style.fill).toBe(a);
+    expect(d("slider_a").style.color).toBe(COLORS.guide);
+    for (const id of ["name_b", "value_b", "box_b"]) expect(d(id).style.color, id).toBe(b);
+    for (const id of ["name_c", "value_c", "knob_c"]) expect(d(id).style.color, id).toBe(COLORS.ink);
   });
   test("targets: a slider's knob and track, a box and a value scrub; a fixed one is nothing", () => {
     expect(controlTarget("knob_a", set)?.kind).toBe("slider");

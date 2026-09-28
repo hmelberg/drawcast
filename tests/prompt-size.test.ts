@@ -561,7 +561,11 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // is for the health-economics DES template landing beside it.
 // Measured 354510 with des_hta beside it (the health-economics DES,
 // +11,500 all-expanded; one index line in the app's two-level catalog).
-const BASELINE_SYSTEM_CHARS = 360000;
+// Raised to 365000 at 360315 (2026-09-29: a colour per live parameter —
+// `color` in the shared params schema, carried by equation_plot's and
+// plot3d's manifests, and equation_form "both" steered to when a cast
+// explains its parameters; +~500 all-expanded).
+const BASELINE_SYSTEM_CHARS = 365000;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

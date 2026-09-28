@@ -3,8 +3,9 @@
 // filled outline, and the glyphs of each parameter's value gathered into a
 // part of their own — eq_param_<name> (eq_param_<name>_2, _3 … where the
 // name appears again) — so a cast can point at a number and the paused viewer
-// can scrub or type it (controls.ts). Editable values are written in the
-// parameter colour, fixed ones in the equation's ink.
+// can scrub or type it (controls.ts). An editable parameter is written in
+// its own colour (params.ts Param.color) — its letter in the symbols line and
+// its number in the values line alike — a fixed one in the equation's ink.
 import { MATH_X_HEIGHT, mathSizeOf } from "../../layout/math";
 import { COLORS, Z_TEXT, SKETCH_MS, defaultDrawOpts, defaultStyle, type Drawable, type Pt } from "../../layout/model";
 import { simplifyPolyline } from "../../layout/geometry";
@@ -13,7 +14,8 @@ import { kit } from "../kit";
 import { PARAM_MARK, toTeX, type Node } from "./expr";
 import { digitsOf, type ParamSet } from "./params";
 
-/** What a number the viewer may change is written in. */
+/** The first live parameter's colour (PARAM_PALETTE[0]): what a template
+ *  without per-parameter colours writes a changeable number in. */
 export const PARAM_COLOR = COLORS.accent;
 export const EQ_SIZE = 42;
 export const EQ_MIN_SIZE = 22;
@@ -140,7 +142,7 @@ export function drawEquation(mathjax: MathJaxEngine, o: EquationOpts): { drawabl
     const holes = (ol.holes ?? []).map(place).filter((r) => r.length >= 3);
     const grp = mapped ? tokenGroup.get(ol.token.index) : undefined;
     const p = grp !== undefined ? o.set.byName.get(names[grp]) : undefined;
-    const color = p?.editable ? PARAM_COLOR : ink;
+    const color = p?.color ?? ink;
     const area = kit.area(`${o.id}__g${k}`, pts, color, { precise: true, ...(holes.length > 0 ? { holes } : {}) });
     const d: Drawable = { ...area, z: Z_TEXT, style: { ...area.style, color, fill: color, opacity: 1 }, drawOpts: defaultDrawOpts("sketch", SKETCH_MS.text) };
     if (grp !== undefined) {
@@ -165,7 +167,7 @@ export function drawEquation(mathjax: MathJaxEngine, o: EquationOpts): { drawabl
     const k = (seen.get(name) ?? 0) + 1;
     seen.set(name, k);
     const pid = `${EQ_PARAM_PREFIX}${name}${k > 1 ? `_${k}` : ""}`;
-    drawables.push(group(pid, children, o.set.byName.get(name)?.editable ? PARAM_COLOR : ink));
+    drawables.push(group(pid, children, o.set.byName.get(name)?.color ?? ink));
     const xs = children.flatMap((d) => (d.kind === "area" ? d.pts.map((q) => q[0]) : []));
     anchors[pid] = [(Math.min(...xs) + Math.max(...xs)) / 2, cy];
     paramIds.push(pid);

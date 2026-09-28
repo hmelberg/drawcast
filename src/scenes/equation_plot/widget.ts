@@ -18,6 +18,9 @@
 //   over the plot
 //   the "Reset axes" pill       back to the authored ranges (rest)
 //
+// Whatever changes a parameter, its letter in the equation (a symbols line)
+// lights up as the drag starts (controls.ts echoEffect).
+//
 // Which parameters are live follows the author: `controls`, `editable` /
 // `fixed`, `drag`. A y range the author did not set is kept still by the
 // widget — each patch writes the range on screen back as `y_range`, widened
@@ -26,10 +29,10 @@
 import type { BBox } from "../../layout/geometry";
 import type { Pt } from "../../layout/model";
 import { SURFACE_PART, type EditField, type WidgetBody, type WidgetEvent, type WidgetScene } from "../widget-types";
-import { controlDragValue, controlField, controlParts, controlTarget, type ControlTarget } from "../params-ui/controls";
+import { controlDragValue, controlField, controlParts, controlTarget, echoEffect, type ControlTarget } from "../params-ui/controls";
 import { panRange, sameRange, tidyRange, zoomRange, type Range } from "../params-ui/domain";
 import { clampTo, roundTo, withValue, type Param } from "../params-ui/params";
-import { yRangeOf } from "./layout";
+import { letterParts, yRangeOf } from "./layout";
 import { autoYRange, dragParam, fitsRange, fromU, markIds, readModel, solveParam, toU, yNeeds, type EquationPlotParams, type Model } from "./model";
 import { withPreset } from "./presets";
 
@@ -141,6 +144,8 @@ interface State {
   authored: { x?: Range; y?: Range };
   /** The viewer has zoomed or panned: the Reset pill may show. */
   moved: boolean;
+  /** Where the press being dragged began, once its parameter's letter has lit (echoEffect). */
+  echoed?: Pt | null;
 }
 
 const rangeOf = (r: unknown): Range | undefined => (Array.isArray(r) && r.length === 2 && r.every((v) => typeof v === "number") ? [r[0], r[1]] : undefined);
@@ -207,10 +212,18 @@ export function equationPlotWidget(): WidgetBody {
           if (b && tt?.kind === "along" && Math.hypot(b.x + b.w / 2 - from[0], b.y + b.h / 2 - from[1]) <= POINT_GRAB) t = tt;
         }
       }
-      if (!t) return { state, effects: [] };
+      // The release ends the press: the next one lights its letter again.
+      const done = event.type === "drag" ? { ...state, echoed: null } : state;
+      if (!t) return { state: done, effects: [] };
       const r = dragValue(t, m, scene, from, fromDomain, event.point, event.domain);
-      if (!r) return { state, effects: [] };
-      return { state, effects: [{ patch: eqPatch(P, r.name, r.value, state.yAuto) }] };
+      if (!r) return { state: done, effects: [] };
+      const effects: unknown[] = [{ patch: eqPatch(P, r.name, r.value, state.yAuto) }];
+      // The press's first frame lights the parameter's letter.
+      const p = m.byName.get(r.name);
+      const fresh = event.type === "drag_move" && !(state.echoed && state.echoed[0] === from[0] && state.echoed[1] === from[1]);
+      const echo = fresh && p ? echoEffect(p, event.id, letterParts(m).filter((id) => scene.ids.includes(id)), m) : null;
+      if (echo) effects.push(echo);
+      return { state: fresh ? { ...state, echoed: from } : done, effects };
     },
   };
 }
