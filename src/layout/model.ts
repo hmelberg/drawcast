@@ -297,6 +297,11 @@ export const COLORS = Object.freeze({
   boardHighlight: "#f6d891",
 } as const);
 
+/** The colours of numbers the viewer can change — one per live parameter or
+ *  var, by order (a var's own `color` wins). The same colour marks that
+ *  number wherever it is drawn. */
+export const PARAM_PALETTE = Object.freeze(["#8a5fa8", "#1f7a7a", "#b0417a", "#9a6b1f", "#4f5fa8"]);
+
 export function defaultStyle(overrides: Partial<ResolvedStyle> = {}): ResolvedStyle {
   return { color: INK, strokeWidth: 3.5, roughness: 1.4, opacity: 1, ...overrides };
 }

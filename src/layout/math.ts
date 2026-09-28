@@ -13,6 +13,7 @@ import type { MathJaxEngine, MathOutline } from "../scenes/engines";
 import { matchShapes, termTex } from "./math-morph";
 import { morphPair } from "../render/morph";
 import type { SpecElement } from "../spec/types";
+import { partOfChain, type LiveMathPart } from "./live-math";
 
 /**
  * An x-height row is this fraction of `size` — the engine normalises the
@@ -163,7 +164,11 @@ export function mathDrawables(
   mathjax: MathJaxEngine,
   cx: number,
   cy: number,
-): { drawables: Drawable[]; box: BBox; unusedColors: string[] } {
+  /** Live math (live-math.ts liveTeX): each var occurrence's mark → its part.
+   *  The glyphs of a part are gathered into a group of their own under the
+   *  part's id, nested in the formula's group, in the live var's colour. */
+  marks?: ReadonlyMap<string, LiveMathPart>,
+): { drawables: Drawable[]; box: BBox; unusedColors: string[]; parts: Record<string, BBox> } {
   const size = mathSizeOf(el.size ?? el.font_size);
   // Display style: a fraction's numerator and denominator at full size, as
   // on a whiteboard — inline style shrank them to script size, and authors
@@ -176,14 +181,20 @@ export function mathDrawables(
   const drawOpts = resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.text });
   const usedKeys = new Set<string>();
   const children: Drawable[] = [];
+  // A part's glyphs, in the order the part first appears, so paint order
+  // (and the handwriting's stroke order) stays the formula's own.
+  const partKids = new Map<string, { part: LiveMathPart; kids: Drawable[] }>();
+  let n = 0;
   for (const shape of shapes) {
     if (shape === null) continue;
     const key = matchedColorKey(shape.outline.token.chain, el.colors);
     if (key !== null) usedKeys.add(key);
-    const color = key !== null ? el.colors![key] : ink.color;
+    const part = marks ? partOfChain(shape.outline.token.chain, marks) : null;
+    // An explicit `colors` entry wins; else a live var's own colour.
+    const color = key !== null ? el.colors![key] : part?.color ?? ink.color;
     const style = resolveStyle(el.style, { color, fill: color, opacity: 1 });
-    children.push({
-      id: `${el.id}__g${children.length}`,
+    const d: Drawable = {
+      id: `${el.id}__g${n++}`,
       kind: "area",
       pts: shape.pts,
       ...(shape.holes.length > 0 ? { holes: shape.holes } : {}),
@@ -192,14 +203,41 @@ export function mathDrawables(
       z: Z_AREA + 1,
       style,
       drawOpts,
-    });
+    };
+    if (!part) {
+      children.push(d);
+      continue;
+    }
+    let slot = partKids.get(part.id);
+    if (!slot) {
+      slot = { part, kids: [] };
+      partKids.set(part.id, slot);
+      // The part's group stands where its first glyph did.
+      children.push({ id: part.id, kind: "group", role: "math", children: slot.kids, z: Z_AREA + 1, style: resolveStyle(el.style, part.color ? { color: part.color } : {}), drawOpts });
+    }
+    slot.kids.push(d);
+  }
+  const parts: Record<string, BBox> = {};
+  for (const [id, { kids }] of partKids) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const k of kids) {
+      if (k.kind !== "area") continue;
+      for (const [x, y] of k.pts) {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+    if (x1 >= x0) parts[id] = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
   }
   const unusedColors = el.colors ? Object.keys(el.colors).filter((k) => !usedKeys.has(k)) : [];
-  if (children.length === 0) return { drawables: [], box, unusedColors };
+  if (children.length === 0) return { drawables: [], box, unusedColors, parts };
   return {
     drawables: [{ id: el.id, kind: "group", role: "math", children, z: Z_AREA + 1, style: ink, drawOpts: resolveDrawOpts(el.draw) }],
     box,
     unusedColors,
+    parts,
   };
 }
 

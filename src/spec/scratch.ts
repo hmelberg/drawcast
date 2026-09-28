@@ -24,7 +24,7 @@
 // middle of the left edge.
 
 import { heuristicMeasure } from "../layout/measure";
-import { formatVar } from "./vars";
+import { formatVar, varValues } from "./vars";
 import type { Spec, SpecElement } from "./types";
 
 export type NoteLine = string | { tex: string };
@@ -130,7 +130,7 @@ export function expandScratch(spec: Spec): Spec {
     // out with when no font is at hand, and wider than the drawn hand — so a
     // line never overhangs its card in either.
     const widthOf = (l: NoteLine) =>
-      typeof l === "string" ? heuristicMeasure(plausibleText(l, spec.vars ?? {}), size).w : texChars(l.tex) * texSize * 0.42;
+      typeof l === "string" ? heuristicMeasure(plausibleText(l, varValues(spec.vars)), size).w : texChars(l.tex) * texSize * 0.42;
     const w = Math.max(160, ...lines.map(widthOf)) + 2 * PAD;
     const h = Math.max(1, lines.length) * lineH + 2 * PAD - (lineH - size * 1.2);
     // Where: an explicit centre, or a named corner of the page under the

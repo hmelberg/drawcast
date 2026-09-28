@@ -38,7 +38,7 @@ import { fitSceneLayout, growSceneLayout, resolveTemplateBox, type TemplateFit }
 import type { SceneLayout } from "../scenes/types";
 import { FIT_NAMES, isFitName } from "./regions";
 import { expandBoxAnimate, readParam, withOverrides } from "../render/params";
-import { interpolateVars } from "../spec/vars";
+import { interpolateVars, varValues } from "../spec/vars";
 
 export interface LayoutResult {
   drawables: Drawable[];
@@ -354,7 +354,7 @@ export function layoutSpec(
   if (templateOwn) {
     const spoken = (spec.commands ?? []).map((c) => c.speak ?? "").join(" ");
     const comma = usesDecimalComma(spec.lang, spoken.trim() ? detectLang(spoken) : undefined);
-    expandTemplateTokens(templateOwn, { ...templateValues, ...scriptValues(spec.elements), ...(spec.vars ?? {}) }, comma);
+    expandTemplateTokens(templateOwn, { ...templateValues, ...scriptValues(spec.elements), ...varValues(spec.vars) }, comma);
   }
 
   // A template's own parts, moved or enlarged by the spec (layout/adjust.ts)

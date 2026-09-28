@@ -36,6 +36,7 @@ import { lintCommands } from "../lint/lint";
 import { itemsOf, parsePlaylistText } from "../playlist/playlist";
 import { render } from "../render";
 import { splitVarOverrides, withOverrides } from "../render/params";
+import { withVarValues } from "../spec/vars";
 import { LASER_COLOR, makeBrowserMeasure } from "../render/svg-backend";
 import { FOCUS_DIM, type BackendEffects } from "../render/backend";
 import { pointerPath, unionBoxes } from "../render/effects";
@@ -112,7 +113,7 @@ function specAt(spec: Spec, overrides: Record<string, number>): Spec {
   return {
     ...spec,
     params: withOverrides(spec.params, split.params),
-    ...(Object.keys(split.vars).length > 0 ? { vars: { ...(spec.vars ?? {}), ...split.vars } } : {}),
+    ...(Object.keys(split.vars).length > 0 ? { vars: withVarValues(spec.vars, split.vars) } : {}),
   };
 }
 

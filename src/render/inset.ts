@@ -20,6 +20,7 @@ import type { Spec } from "../spec/types";
 import { frameDrawables } from "./frame";
 import { withMinted } from "./minted";
 import { splitVarOverrides, withOverrides } from "./params";
+import { withVarValues } from "../spec/vars";
 import { planCommands, sceneAt, type PlanOptions } from "./plan";
 
 export type PlanOptsFor = (spec: Spec, layout: LayoutResult) => Partial<PlanOptions>;
@@ -31,7 +32,7 @@ export function pictureOf(source: Spec, measure: MeasureFn, planOpts: PlanOptsFo
   const style = effectiveTextStyle(src);
   const layoutAt = (params: Record<string, unknown>, overrides?: LayoutOverrides): LayoutResult => {
     const split = splitVarOverrides(params);
-    const withVars = Object.keys(split.vars).length > 0 ? { vars: { ...(src.vars ?? {}), ...split.vars } } : {};
+    const withVars = Object.keys(split.vars).length > 0 ? { vars: withVarValues(src.vars, split.vars) } : {};
     return layoutSpec({ ...src, params: withOverrides(src.params, split.params), ...withVars }, measure, overrides, undefined, { skipDrawBeatLint: true });
   };
   const layout = layoutAt({});

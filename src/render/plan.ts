@@ -30,6 +30,7 @@ import { SpeechManager } from "./speech";
 import { DEMO_EVERY_S, demoWalk, loopCount, RUN_EVERY_S, runValues } from "./sweep";
 import { parseControls, type ControlSpec, type ControlValue } from "../code/controls";
 import type { PlayArgs } from "../spec/types";
+import { animatableVars } from "../spec/vars";
 
 export type PlanStep = (
   | { kind: "speak"; text: string; blocking: boolean; speaker?: "a" | "b"; delivery?: Delivery }
@@ -296,7 +297,7 @@ export interface PlanOptions {
   /** The spec's `params` when the spec has a template; null/undefined = no template (animate then needs a var). */
   animateBase?: Record<string, unknown> | null;
   /** The spec's `vars` (design 2026-09-10 §2.4): a bare animate key that is not a template param animates the var of that name, kept in params as `vars.<name>`. */
-  varsBase?: Record<string, number> | null;
+  varsBase?: Spec["vars"] | null;
   /** After an animate or a relayout step, the planner switches its bbox source
    *  to this so later steps target the recomputed geometry: `overrides` carry
    *  the poses and shapes of the source ids as they then stand. */
@@ -1879,7 +1880,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       const targets: Record<string, number> = {};
       const varTargets: Record<string, string> = {};
       const hasTemplate = opts.animateBase !== undefined && opts.animateBase !== null;
-      const varsBase = opts.varsBase ?? null;
+      // A computed var (`expr`) follows the others and is not swept itself.
+      const varsBase = animatableVars(opts.varsBase ?? undefined);
       const isVar = (bare: string) => varsBase !== null && Object.prototype.hasOwnProperty.call(varsBase, bare);
       /** Params first (a dot path the template knows — or, on a template spec,
        *  any path: an unknown one still jumps, as before); else a var by bare
