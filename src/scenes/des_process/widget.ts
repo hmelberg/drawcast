@@ -7,6 +7,8 @@
 //   a source's rate             drag sideways: scrub it; tap: type it
 //   a station's service time    drag sideways: scrub the mean (its spread
 //                               scales with it); tap: type it
+//   a CV readout ("CV 1.0")     drag sideways: scrub the variability (0
+//                               regular, 1 random, more bursty); tap: type it
 //   a branch's share ("30%")    drag sideways: scrub it, the node's other
 //                               shares make room; tap: type it (%)
 //   ⊖ ⊕ under the servers       tap: one server fewer / more
@@ -22,11 +24,12 @@ import type { Pt } from "../../layout/model";
 import { clamp, niceStep, rescaleShares, roundToStep, scrubbed, STEP_UNITS } from "../number-scrub";
 import { SURFACE_PART, type EditField, type WidgetBody, type WidgetEvent, type WidgetScene } from "../widget-types";
 import { geometry, runOf, timeOf } from "./layout";
-import { MAX_SERVERS, nodeSpecs, readModel, routeEntries, scaleDist, type DesParams, type NodeSpec } from "./model";
+import { MAX_SERVERS, MAX_VARIABILITY, nodeSpecs, readModel, routeEntries, scaleDist, type DesParams, type NodeSpec } from "./model";
 
 const RATE = /^rate_(.+)$/;
 const SERVICE = /^service_(.+)$/;
 const SHARE = /^share_(.+)$/;
+const VAR = /^var_(.+)$/;
 const ADD = /^add_(.+)$/;
 const REMOVE = /^remove_(.+)$/;
 const CURSOR = /^cursor(_2)?$/;
@@ -35,7 +38,7 @@ const num = (v: unknown): v is number => typeof v === "number" && Number.isFinit
 
 /** Every part the body works, in the order a tie goes. */
 export function desParts(scene: WidgetScene): string[] {
-  return scene.ids.filter((id) => id === "clock" || id === "reroll" || CURSOR.test(id) || RATE.test(id) || SERVICE.test(id) || SHARE.test(id) || ADD.test(id) || REMOVE.test(id));
+  return scene.ids.filter((id) => id === "clock" || id === "reroll" || CURSOR.test(id) || RATE.test(id) || VAR.test(id) || SERVICE.test(id) || SHARE.test(id) || ADD.test(id) || REMOVE.test(id));
 }
 
 /** The node list with node `id` changed. */
@@ -47,7 +50,12 @@ function withNode(P: DesParams, id: string, change: (n: NodeSpec) => NodeSpec): 
 }
 
 /** A source's rate as the text shows it: arrivals per unit, or the gap between them. */
-export function rateValue(n: NodeSpec): { key: "rate" | "every" | "interarrival"; value: number } | null {
+export function rateValue(n: NodeSpec): { key: "rate" | "every" | "interarrival" | "schedule"; value: number } | null {
+  // A schedule reads (and scrubs) as its peak: every rate scales with it.
+  if (n.schedule) {
+    const m = readModel({ nodes: [{ ...n, id: "s" }], horizon: 1 }).nodes[0];
+    if (m?.schedule) return { key: "schedule", value: Math.max(...m.schedule.rates) };
+  }
   if (num(n.rate) && n.rate > 0) return { key: "rate", value: n.rate };
   if (num(n.every) && n.every > 0) return { key: "every", value: n.every };
   if (n.interarrival !== undefined) {
@@ -62,6 +70,10 @@ export function setRate(n: NodeSpec, v: number): NodeSpec {
   const r = rateValue(n);
   if (!r) return n;
   if (r.key === "interarrival") return { ...n, interarrival: scaleDist(n.interarrival, v / r.value) };
+  if (r.key === "schedule") {
+    const k = v / r.value;
+    return { ...n, schedule: { ...n.schedule!, rates: n.schedule!.rates.map((x) => (num(x) ? Number((x * k).toFixed(4)) : x)) } };
+  }
   return { ...n, [r.key]: v };
 }
 
@@ -79,6 +91,19 @@ export function setService(n: NodeSpec, v: number): NodeSpec {
   const spec = n[key] ?? 1;
   if (!(cur > 0)) return { ...n, [key]: v };
   return { ...n, [key]: scaleDist(spec, v / cur) };
+}
+
+/** A node's variability now: as set, else what its distribution has (1 for a plain rate). */
+export function variabilityValue(n: NodeSpec): number | null {
+  if (num(n.variability)) return clamp(n.variability, 0, MAX_VARIABILITY);
+  const m = readModel({ nodes: [{ ...n, id: "s" }], horizon: 1 }).nodes[0];
+  const d = n.type === "source" ? m?.inter : m?.service;
+  return d ? Math.sqrt(d.cv2) : null;
+}
+
+/** The node with its variability set to v (0 – MAX_VARIABILITY, a tenth at a time). */
+export function setVariability(n: NodeSpec, v: number): NodeSpec {
+  return { ...n, variability: clamp(roundToStep(v, 0.1), 0, MAX_VARIABILITY) };
 }
 
 /** The share id's two ends, found among the node ids (ids may hold "_"). */
@@ -194,7 +219,14 @@ export function dragPatch(id: string, from: Pt, to: Pt, scene: WidgetScene): { p
     if (!n || !r) return null;
     const v = scrubbed(r.value, dx, niceStep(r.value, 0.01), niceStep(r.value, 0.01), Infinity);
     const nodes = withNode(P, n.id, (x) => setRate(x, v));
-    return nodes ? { patch: { nodes }, caption: r.key === "rate" ? "Changing the arrival rate" : "Changing the gap between arrivals" } : null;
+    return nodes ? { patch: { nodes }, caption: r.key === "rate" || r.key === "schedule" ? "Changing the arrival rate" : "Changing the gap between arrivals" } : null;
+  }
+  if ((mt = VAR.exec(id))) {
+    const n = nodeSpecs(P).find((x) => x.id === mt![1]);
+    const v0 = n ? variabilityValue(n) : null;
+    if (!n || v0 === null) return null;
+    const nodes = withNode(P, n.id, (x) => setVariability(x, scrubbed(v0, dx, 0.1, 0, MAX_VARIABILITY)));
+    return nodes ? { patch: { nodes }, caption: varCaption(n) } : null;
   }
   if ((mt = SERVICE.exec(id))) {
     const n = nodeSpecs(P).find((x) => x.id === mt![1]);
@@ -214,6 +246,8 @@ export function dragPatch(id: string, from: Pt, to: Pt, scene: WidgetScene): { p
   }
   return null;
 }
+
+const varCaption = (n: NodeSpec): string => (n.type === "source" ? "Changing how bursty arrivals are" : "Changing how much the time varies");
 
 /** The patch a tap on part `id` makes. */
 export function tapPatch(id: string, P: DesParams): { patch: Record<string, unknown>; caption: string } | null {
@@ -268,7 +302,13 @@ export function desWidget(): WidgetBody {
       if ((mt = RATE.exec(id))) {
         const n = nodeSpecs(P).find((x) => x.id === mt![1]);
         const r = n && rateValue(n);
-        return r ? { value: r.value, label: r.key === "rate" ? `Arrivals per ${readModel(P).unit}` : `Time between arrivals (${readModel(P).unit})`, min: 0.0001, step: niceStep(r.value, 0.01) } : null;
+        const label = r?.key === "rate" ? `Arrivals per ${readModel(P).unit}` : r?.key === "schedule" ? `Peak arrivals per ${readModel(P).unit}` : `Time between arrivals (${readModel(P).unit})`;
+        return r ? { value: r.value, label, min: 0.0001, step: niceStep(r.value, 0.01) } : null;
+      }
+      if ((mt = VAR.exec(id))) {
+        const n = nodeSpecs(P).find((x) => x.id === mt![1]);
+        const v = n ? variabilityValue(n) : null;
+        return v !== null ? { value: v, label: n!.type === "source" ? "Variability of the gaps (CV: 0 regular, 1 random)" : "Variability of the times (CV)", min: 0, max: MAX_VARIABILITY, step: 0.1 } : null;
       }
       if ((mt = SERVICE.exec(id))) {
         const n = nodeSpecs(P).find((x) => x.id === mt![1]);
@@ -303,6 +343,11 @@ export function desWidget(): WidgetBody {
         if ((mt = RATE.exec(event.id)) && event.value > 0) {
           const nodes = withNode(P, mt[1], (x) => setRate(x, event.value));
           return say(nodes ? { patch: { nodes }, caption: "Changing the arrival rate" } : null);
+        }
+        if ((mt = VAR.exec(event.id)) && event.value >= 0) {
+          const n = nodeSpecs(P).find((x) => x.id === mt![1]);
+          const nodes = n ? withNode(P, n.id, (x) => setVariability(x, event.value)) : null;
+          return say(nodes ? { patch: { nodes }, caption: varCaption(n!) } : null);
         }
         if ((mt = SERVICE.exec(event.id)) && event.value >= 0) {
           const nodes = withNode(P, mt[1], (x) => setService(x, event.value));

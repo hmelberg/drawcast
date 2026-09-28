@@ -561,7 +561,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // is for the health-economics DES template landing beside it.
 // Measured 354510 with des_hta beside it (the health-economics DES,
 // +11,500 all-expanded; one index line in the app's two-level catalog).
-const BASELINE_SYSTEM_CHARS = 360000;
+// Raised to 362000 at 361084 (2026-09-29: des_process burstiness — the
+// node fields `variability`, `schedule` and `batch`, marked advanced, one
+// id line and a third manifest example that draws the CV readout and the
+// schedule band: +1,319 on 359765, all-expanded; nothing in the app's
+// two-level index line changed).
+const BASELINE_SYSTEM_CHARS = 362000;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

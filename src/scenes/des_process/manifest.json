@@ -1,8 +1,8 @@
 {
   "name": "des_process",
   "status": "ready",
-  "description": "A discrete event simulation of a queue or process network, run and drawn: sources → stations (a lane of waiting tokens before c server boxes, busy or idle) → delays → sinks (with a counter), routes with their shares, the entities as tokens where the simulation has them at time t, a readout per station (waiting, % busy, mean wait), a clock, and a chart: queue length over time with a cursor at t, or mean wait against utilisation with queueing theory's curve. Choose it for ANY question about queues, waiting lines, servers, utilisation, bottlenecks, patient flow, Little's law, M/M/1, M/M/c, or simulating a process. `t` ANIMATES — set t: 0, then {\"animate\": {\"t\": 120}, \"duration\": 8} runs the simulation on screen (tokens flow); animating a rate or service time (\"nodes.0.rate\") re-runs it (hold t at the horizon to watch the queue grow). The same seed is the same run. Paused, the viewer drags the clock or the chart's cursor, scrubs or types a rate, a service time or a share, taps ⊖ ⊕ for servers and \"new run\" for another seed; an explore beat naming nothing invites this. Numbers for text: {des.t}, {des.arrivals}, {des.departures}, {des.in_system}, {des.L}, {des.W}, {des.lambda}; per station {des.<id>_queue}, _busy, _servers, _util (%), _wait, _avg_queue, _throughput, _served, _balked, _rho (fraction) and for M/M/c or M/G/1 _wq_theory, _lq_theory; the first station's also without the prefix ({des.util}, {des.wait}, {des.rho}, {des.wq_theory}); {des.<sink>_done}.",
-  "interaction": "Scrub time on the clock or a chart; scrub arrival rates, service times and branch shares; tap plus or minus for a server more or fewer, 'new run' for another seed.",
+  "description": "A discrete event simulation of a queue or process network, run and drawn: sources → stations (a lane of waiting tokens before c server boxes, busy or idle) → delays → sinks (with a counter), routes with their shares, the entities as tokens where the simulation has them at time t, a readout per station (waiting, % busy, mean wait), a clock, and a chart: queue length over time with a cursor at t, or mean wait against utilisation with queueing theory's curve. Choose it for ANY question about queues, waiting lines, servers, utilisation, bottlenecks, patient flow, Little's law, M/M/1, M/M/c, or simulating a process. `t` ANIMATES — set t: 0, then {\"animate\": {\"t\": 120}, \"duration\": 8} runs the simulation on screen (tokens flow); animating a rate or service time (\"nodes.0.rate\") re-runs it (hold t at the horizon to watch the queue grow). The same seed is the same run. Paused, the viewer drags the clock or the chart's cursor, scrubs or types a rate, a service time, a CV or a share, taps ⊖ ⊕ for servers and \"new run\" for another seed; an explore beat naming nothing invites this. Numbers for text: {des.t}, {des.arrivals}, {des.departures}, {des.in_system}, {des.L}, {des.W}, {des.lambda}; per station {des.<id>_queue}, _busy, _servers, _util (%), _wait, _avg_queue, _throughput, _served, _balked, _rho (fraction) and for M/M/c or M/G/1 _wq_theory, _lq_theory; the first station's also without the prefix ({des.util}, {des.wait}, {des.rho}, {des.wq_theory}); {des.<sink>_done}.",
+  "interaction": "Scrub time on the clock or a chart; scrub arrival rates, service times, CVs and branch shares; tap plus or minus for a server more or fewer, 'new run' for another seed.",
   "params_schema": {
     "type": "object",
     "properties": {
@@ -48,6 +48,25 @@
               ],
               "description": "source: instead, the gap between arrivals, as service."
             },
+            "variability": {
+              "type": "number",
+              "description": "Advanced. The gaps' (source) or times' (station, delay) coefficient of variation, mean kept: 0 regular, 1 random (the default), 2 bursty. Draws a scrubbable \"CV 1.0\"; animate nodes.<i>.variability."
+            },
+            "schedule": {
+              "type": "object",
+              "description": "Advanced. source, instead of rate: {times: [0, 120, 240], rates: [0.1, 0.3, 0.2]}, each rate from its time on (shape: \"smooth\" joins them); drawn in the first time chart."
+            },
+            "batch": {
+              "oneOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "object"
+                }
+              ],
+              "description": "Advanced. source: groups of this size arrive together, or {mean} (geometric); rate still counts entities."
+            },
             "priority": {
               "type": "integer",
               "description": "source: its entities' class, 1 = most urgent (coloured apart)."
@@ -65,7 +84,7 @@
                   "type": "object"
                 }
               ],
-              "description": "station: time to serve one. A number = random (exponential) with that mean; or {dist: \"fixed\", value} | {dist: \"uniform\", min, max} | {dist: \"triangular\", min, mode, max} | {dist: \"lognormal\", mean, sd} | {dist: \"exponential\", mean}."
+              "description": "station: time to serve one. A number = random (exponential) with that mean; or {dist: \"fixed\", value} | {dist: \"uniform\", min, max} | {dist: \"triangular\", min, mode, max} | {dist: \"lognormal\", mean, sd} | {dist: \"gamma\", mean, cv} | {dist: \"exponential\", mean}."
             },
             "time": {
               "oneOf": [
@@ -244,6 +263,7 @@
     "queue_<id>": "a station's lane with its waiting tokens (and a \"+n\" when more wait than fit)",
     "server_<id>": "a station's server boxes, shaded when busy, a token in each",
     "label_<id> / rate_<id> / service_<id>": "a node's name; a source's arrival rate; a station's or delay's time",
+    "var_<id> / schedule_<id>": "a node's \"CV 1.0\"; a scheduled source's rate band in the first time chart, a dot at t",
     "add_<id> / remove_<id>": "a station's ⊕ ⊖ buttons (controls)",
     "readout_<id>": "a station's readout: waiting, % busy, mean wait",
     "balked_<id>": "\"n turned away\" (a station with capacity)",
@@ -331,6 +351,46 @@
           "of": "queue",
           "station": "doctor"
         }
+      }
+    },
+    {
+      "request": "Why does the emergency waiting room overflow around midday when triage copes on average?",
+      "params": {
+        "entity": "patient",
+        "nodes": [
+          {
+            "id": "door",
+            "type": "source",
+            "schedule": {
+              "times": [
+                0,
+                120,
+                240,
+                360
+              ],
+              "rates": [
+                0.08,
+                0.22,
+                0.15,
+                0.08
+              ]
+            },
+            "variability": 1.5
+          },
+          {
+            "id": "triage",
+            "type": "station",
+            "servers": 1,
+            "service": 5
+          },
+          {
+            "id": "seen",
+            "type": "sink"
+          }
+        ],
+        "horizon": 480,
+        "t": 480,
+        "chart": "queue"
       }
     }
   ]

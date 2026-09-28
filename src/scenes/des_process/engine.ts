@@ -9,7 +9,7 @@
 // Queueing theory beside it: the traffic equations (λ at every node), M/M/c
 // by Erlang C, M/G/1 by Pollaczek–Khinchine, Allen–Cunneen otherwise.
 import type { Dist, Model, ModelNode } from "./model";
-import { MAX_ENTITIES } from "./model";
+import { MAX_BATCH, MAX_ENTITIES } from "./model";
 
 // ---- random streams ------------------------------------------------------------
 
@@ -245,6 +245,8 @@ export function simulate(m: Model, o: { maxEntities?: number } = {}): Run {
   const arrivalRng = m.nodes.map((n) => mulberry32(streamSeed(m.seed, n.index, 1)));
   const serviceRng = m.nodes.map((n) => mulberry32(streamSeed(m.seed, n.index, 2)));
   const routeRng = m.nodes.map((n) => mulberry32(streamSeed(m.seed, n.index, 3)));
+  // Group sizes draw from their own stream, so a batch leaves the gaps' draws alone.
+  const batchRng = m.nodes.map((n) => mulberry32(streamSeed(m.seed, n.index, 4)));
   const cal = new Calendar();
   const entities: Entity[] = [];
   let truncated = false;
@@ -256,10 +258,30 @@ export function simulate(m: Model, o: { maxEntities?: number } = {}): Run {
   const waitHead: number[] = new Array(N).fill(0);
   const current: Visit[] = [];
 
+  // A source with a schedule keeps an operational clock (the cumulative
+  // rate): its gaps are drawn there and mapped back to real time.
+  const opClock: number[] = new Array(N).fill(0);
+  const nextArrival = (n: ModelNode, t: number): number => {
+    const gap = sample(n.inter, arrivalRng[n.index]);
+    if (!n.schedule) return t + gap;
+    opClock[n.index] += gap;
+    return n.schedule.inv(opClock[n.index]);
+  };
+  const groupSize = (n: ModelNode): number => {
+    if (!n.batch) return 1;
+    if (n.batch.fixed) return n.batch.mean;
+    // Geometric on 1, 2, … with mean b: P(k) = p(1 − p)^(k − 1), p = 1/b.
+    const p = 1 / n.batch.mean;
+    const u = batchRng[n.index]();
+    return Math.min(MAX_BATCH, 1 + Math.floor(Math.log(1 - u) / Math.log(1 - p)));
+  };
+
   for (const n of m.nodes) {
     if (n.kind !== "source") continue;
-    if (n.inter) cal.push(sample(n.inter, arrivalRng[n.index]), ARRIVE_SOURCE, n.index, -1);
-    else if (n.times) for (const t of n.times) if (t <= H) cal.push(t, ARRIVE_SOURCE, n.index, -1);
+    if (n.inter) {
+      const first = nextArrival(n, 0);
+      if (Number.isFinite(first)) cal.push(first, ARRIVE_SOURCE, n.index, -1);
+    } else if (n.times) for (const t of n.times) if (t <= H) cal.push(t, ARRIVE_SOURCE, n.index, -1);
   }
 
   const route = (n: ModelNode): number => {
@@ -324,10 +346,19 @@ export function simulate(m: Model, o: { maxEntities?: number } = {}): Run {
         truncated = true;
         continue;
       }
-      const e: Entity = { id: entities.length, source: ni, priority: n.priority, born: t, exit: Infinity, visits: [] };
-      entities.push(e);
-      moveOn(e, ni, t);
-      if (n.inter) cal.push(t + sample(n.inter, arrivalRng[ni]), ARRIVE_SOURCE, ni, -1);
+      for (let k = groupSize(n); k > 0; k--) {
+        if (entities.length >= cap) {
+          truncated = true;
+          break;
+        }
+        const e: Entity = { id: entities.length, source: ni, priority: n.priority, born: t, exit: Infinity, visits: [] };
+        entities.push(e);
+        moveOn(e, ni, t);
+      }
+      if (n.inter) {
+        const next = nextArrival(n, t);
+        if (Number.isFinite(next)) cal.push(next, ARRIVE_SOURCE, ni, -1);
+      }
       continue;
     }
     const e = entities[ei];
@@ -618,11 +649,30 @@ export function stepPoints(s: StepSeries, t: number, max = 800): [number, number
 
 // ---- queueing theory --------------------------------------------------------------------
 
-/** Mean external arrival rate of a source (per time unit), or null. */
+/** Mean external arrival rate of a source (per time unit; entities, groups counted whole), or null. */
 export function sourceRate(n: ModelNode, horizon: number): number | null {
-  if (n.inter && n.inter.mean > 0) return 1 / n.inter.mean;
+  if (n.inter && n.schedule) return n.schedule.cum(horizon) / horizon;
+  if (n.inter && n.inter.mean > 0) return (n.batch?.mean ?? 1) / n.inter.mean;
   if (n.times && n.times.length > 0) return n.times.filter((x) => x <= horizon).length / horizon;
   return null;
+}
+
+/** A source's arrivals are a Poisson process: exponential gaps, one at a time, a steady rate. */
+export const isPoisson = (n: ModelNode): boolean => !!n.inter && n.inter.kind === "exponential" && !n.batch && !n.schedule;
+
+/**
+ * The squared coefficient of variation a source's arrivals bring to a queue
+ * (its index of dispersion): groups arriving with gap cv² c² and sizes of
+ * mean b and variance σ² count as b·c² + σ²/b entities — b·c² for a fixed
+ * size, b·c² + b − 1 for geometric sizes. One at a time it is the gaps' cv².
+ * With a schedule it is the burstiness about the average rate; the swings of
+ * the rate itself are not in it.
+ */
+export function arrivalCv2(n: ModelNode): number {
+  const c2 = n.inter?.cv2 ?? 1;
+  if (!n.batch) return c2;
+  const b = n.batch.mean;
+  return b * c2 + (n.batch.fixed ? 0 : b - 1);
 }
 
 /** λ at every node from the traffic equations λ = λ₀ + λP (balking ignored). */
@@ -671,6 +721,11 @@ export interface Theory {
   lq: number;
   /** wq is exact queueing theory (else an approximation). */
   exact: boolean;
+  /** The arrivals' and the service's squared coefficients of variation the approximation used. */
+  ca2: number;
+  cs2: number;
+  /** An arrival rate that changes over the run feeds it: the theory is for steady arrivals at the average rate. */
+  scheduled: boolean;
 }
 
 /** Mean wait in queue for c servers at utilisation rho with mean service s, arrival and service cv²: M/M/c times (ca² + cs²) / 2. */
@@ -695,15 +750,15 @@ export function stationTheory(m: Model, node: number, rates = trafficRates(m)): 
   // Arrivals: Poisson when every source is, and the network is Jackson-like
   // (exponential stations) or this station is fed straight from sources.
   const sources = m.nodes.filter((x) => x.kind === "source");
-  const poissonSources = sources.every((x) => !x.inter || x.inter.kind === "exponential") && sources.every((x) => !!x.inter);
+  const poissonSources = sources.every(isPoisson);
   const feeders = m.nodes.filter((x) => x.kind !== "sink" && x.routes.some((r) => r.to === node));
   const direct = feeders.every((x) => x.kind === "source");
   const upstreamExp = feeders.every((x) => x.kind === "source" || (x.kind === "station" && x.service?.kind === "exponential") || (x.kind === "delay"));
   const poissonIn = poissonSources && (direct || upstreamExp);
-  const ca2 = poissonIn ? 1 : direct && feeders.length === 1 && feeders[0].inter ? feeders[0].inter.cv2 : 1;
+  const ca2 = poissonIn ? 1 : direct && feeders.length === 1 && feeders[0].inter ? arrivalCv2(feeders[0]) : 1;
   const cs2 = n.service.cv2;
   const finite = Number.isFinite(n.capacity);
   const wq = waitApprox(n.servers, rho, s, ca2, cs2);
   const exact = !finite && poissonIn && (n.service.kind === "exponential" || n.servers === 1);
-  return { lambda, rho, wq, lq: lambda * wq, exact };
+  return { lambda, rho, wq, lq: lambda * wq, exact, ca2, cs2, scheduled: sources.some((x) => !!x.schedule) };
 }
