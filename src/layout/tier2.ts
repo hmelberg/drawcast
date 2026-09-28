@@ -2308,6 +2308,8 @@ function filledOutline(id: string, pts: Pt[], el: SpecElement): Drawable[] {
       id: `${id}_wash`,
       kind: "area",
       pts,
+      // fill_style "wash": one exact flat tint instead of rough hachure.
+      ...(el.style?.fill_style === "wash" ? { precise: true } : {}),
       z: Z_AREA,
       style: resolveStyle(el.style, { opacity: 0.35 }),
       drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: SKETCH_MS.region }),

@@ -36,6 +36,7 @@ const styleSchema = {
     dash: { type: "boolean", description: "Dashed stroke (guide lines etc.)." },
     roughness: { type: "number", description: "Hand-drawn sketchiness 0 (clean) to 3 (very rough)." },
     opacity: { type: "number" },
+    fill_style: { type: "string", enum: ["hatch", "wash"], description: "polygon/sector/ellipse/closed path fill: hatch (default, hand-drawn strokes) or wash (one flat translucent tint, like a circle's — a sunlit half); opacity sets its strength (default 0.35)." },
   },
   additionalProperties: false,
 };

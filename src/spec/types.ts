@@ -81,6 +81,8 @@ export interface SpecStyle {
   dash?: boolean;
   roughness?: number;
   opacity?: number;
+  /** How a polygon / sector / ellipse / closed path paints its fill: "hatch" (default, hand-drawn strokes) or "wash" (one flat, even tint). */
+  fill_style?: "hatch" | "wash";
 }
 
 export interface SpecDraw {
