@@ -92,6 +92,11 @@ export interface Settings {
    *  its spec (llm/treatment.ts singleCastTreatment, v3), and parts get one storyboard for the series; "independent": a
    *  single drawcast in one call, each part on its own. Read by generate, generateParts (main.ts) and the course panel. */
   approach: "storyboard" | "independent";
+  /** Which storyboard prompt a multi-part drawcast or course is planned with under approach "storyboard" (llm/storyboard.ts
+   *  StoryboardVersion, mirrored as a literal union). "v1" (default): the storyboard since 2026-09-19; "v2": it also carries
+   *  the storyline rules and the templates' interactions, and each part is staged like a single drawcast's storyline.
+   *  The owner flips the default after a blind comparison (dev-casts/compare-storyboard.html). */
+  storyboardVersion: "v1" | "v2";
   /** Template on demand without asking, for COURSE (and other multi-part) runs: when two or more freehand parts turn out to be the same kind of figure (their on-demand briefs agree), a template is authored and they are redrawn with it, one after another. A single freehand figure — in a course or standalone — always gets the OFFER instead; this setting never applies to it (spec §5.5). */
   templatesOnDemand: boolean;
   /** At most this many templates are authored in ONE multi-part drawcast or course run (0 = none there; a single figure is unaffected). Bounds time (~4 min each) and spend. */
@@ -222,6 +227,7 @@ export const DEFAULT_SETTINGS: Settings = {
   model: "claude-opus-5-5",
   effort: "high",
   approach: "storyboard",
+  storyboardVersion: "v1",
   templatesOnDemand: false,
   // A literal, not DEFAULT_ON_DEMAND_MAX: store.ts is imported by the viewer
   // and stays free of llm/ imports. tests/settings-migration.test.ts pins the two equal.
@@ -318,6 +324,9 @@ export function loadSettings(): Settings {
   // Opus 5.5 replaced Opus 5 in the model list (2026-09-27): a stored choice
   // of the old id follows it rather than naming a model the picker lacks.
   if (s.model === "claude-opus-5") s.model = "claude-opus-5-5";
+  // Storyboard v2 (2026-09-28): a blob stored before the field gets the
+  // default through the spread; anything else unknown falls back to it too.
+  if (s.storyboardVersion !== "v2") s.storyboardVersion = "v1";
   // One-time upgrade: the bundled packs moved from opt-in to baseline
   // (DEFAULT_SETTINGS.enabledPacks). A settings blob stored before that keeps
   // its own list, which `{...fallback, ...parsed}` leaves untouched — so union

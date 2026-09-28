@@ -263,6 +263,28 @@ describe("runCourse: landed parts and the teaching pass", () => {
     expect(result.teachingPass).toEqual({ runs: 2, adopted: 1 });
   });
 
+  it("hands the config (storyboard version included) to every phase, and collects the parts' template gaps per lecture", async () => {
+    vi.mocked(generateFromOutline).mockResolvedValue({
+      outline: null,
+      specs: [mkSpec("a"), mkSpec("b"), mkSpec("c")],
+      chapterOf: [undefined, undefined, undefined],
+      failed: [],
+      templateGaps: [{ part: 2, template: "sir_compartments", missing: "no contact tree" }],
+    });
+    const store = vi.fn<StoreLecture>(() => "id");
+    const v2 = { ...cfg, storyboardVersion: "v2" as const };
+    const result = await runCourse(ONE_LECTURE, v2, hooks, store);
+    expect(vi.mocked(outlineParts).mock.calls[0][1].storyboardVersion).toBe("v2");
+    expect(vi.mocked(generateFromOutline).mock.calls[0][2].storyboardVersion).toBe("v2");
+    expect(result.templateGaps).toEqual([{ lecture: 0, part: 2, template: "sir_compartments", missing: "no contact tree" }]);
+  });
+
+  it("no gaps, no field", async () => {
+    vi.mocked(generateFromOutline).mockResolvedValue({ outline: null, specs: [mkSpec("a"), mkSpec("b"), mkSpec("c")], chapterOf: [undefined, undefined, undefined], failed: [] });
+    const result = await runCourse(ONE_LECTURE, cfg, hooks, vi.fn<StoreLecture>(() => "id"));
+    expect(result.templateGaps).toBeUndefined();
+  });
+
   it("counts nothing generated and no teaching pass when every part fails outright", async () => {
     const outcomes = [outcome(null, [round("initial")]), outcome(null, [round("initial")]), outcome(null, [round("initial")])];
     vi.mocked(generateFromOutline).mockImplementation(async (_req, _plan, _cfg, partsHooks) => {

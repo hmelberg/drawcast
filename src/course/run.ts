@@ -197,6 +197,12 @@ export interface RunResult {
   partsGenerated: number;
   /** The teaching (pedagogy) pass across every part this run touched: how many parts got one, and how many of those replaced the delivered spec. */
   teachingPass: { runs: number; adopted: number };
+  /**
+   * Staging's template-gap notes across the run (storyboard v2 asks each
+   * part for them; llm/multi.ts PartsResult.templateGaps), with the 0-based
+   * lecture and 1-based part. Absent when there were none.
+   */
+  templateGaps?: { lecture: number; part: number; template: string; missing: string }[];
 }
 
 /**
@@ -269,7 +275,15 @@ export function mergeParts(stored: LoadedLecture, fresh: PartsResult): PartsResu
       newAt++;
     }
   }
-  return { outline: stored.outline, specs, chapterOf, failed: fresh.failed, errors: fresh.errors, error: specs.length === 0 ? fresh.error : undefined };
+  return {
+    outline: stored.outline,
+    specs,
+    chapterOf,
+    failed: fresh.failed,
+    errors: fresh.errors,
+    error: specs.length === 0 ? fresh.error : undefined,
+    ...(fresh.templateGaps ? { templateGaps: fresh.templateGaps } : {}),
+  };
 }
 
 /** The lectures a run would touch: what is missing, or exactly the one named. */
@@ -342,6 +356,7 @@ export async function runCourse(
   let partsGenerated = 0;
   let teachingRuns = 0;
   let teachingAdopted = 0;
+  const templateGaps: NonNullable<RunResult["templateGaps"]> = [];
 
   const progress = (phase: RunProgress["phase"]): void =>
     hooks.onProgress({ phase, lecturesTotal: targets.length, lecturesDone, partsTotal, partsDone });
@@ -397,6 +412,7 @@ export async function runCourse(
         plan.stored ? { only: plan.stored.missing } : undefined,
       );
       const result = plan.stored ? mergeParts(plan.stored, fresh) : fresh;
+      for (const g of fresh.templateGaps ?? []) templateGaps.push({ lecture: i, ...g });
 
       const failure = partsFailure(result, plan.outline.parts.length);
       if (result.specs.length === 0) {
@@ -444,5 +460,6 @@ export async function runCourse(
     partial: partial.sort((a, b) => a - b),
     partsGenerated,
     teachingPass: { runs: teachingRuns, adopted: teachingAdopted },
+    ...(templateGaps.length > 0 ? { templateGaps: templateGaps.sort((a, b) => a.lecture - b.lecture || a.part - b.part) } : {}),
   };
 }

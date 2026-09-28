@@ -16,8 +16,10 @@
 // Courses (a folder dev-casts/courses/<slug>/, the shape of a published course):
 //   node scripts/cast.mjs course-prompt "<request>" [out.md] [--lectures N]   the app's course planner prompt
 //   node scripts/cast.mjs course-new <plan.json> <dir>                        the plan JSON → <dir>/course.md (the app's own normalizer)
-//   node scripts/cast.mjs lecture-prompt <dir> <n>                           lecture n's storyboard prompt → <dir>/lecture-NN/
-//   node scripts/cast.mjs part-prompt <dir> <n> <i>                          part i's system prompt + request (storyboard.json first)
+//   node scripts/cast.mjs lecture-prompt <dir> <n> [--storyboard v2]         lecture n's storyboard prompt → <dir>/lecture-NN/
+//   node scripts/cast.mjs part-prompt <dir> <n> <i> [--storyboard v2]        part i's system prompt + request (storyboard.json first)
+//        --storyboard v2: the new storyboard prompt (storyline rules, templates with "Viewer can") and its per-part
+//        staging note — the app's Settings "Storyboard prompt: new (v2)"; without it, v1 (the app's default)
 //   node scripts/cast.mjs lecture-build <dir> <n>                            part-*.json → <dir>/NN-<title>.yaml, marked done in course.md
 //   node scripts/cast.mjs course-open <dir> [--launch]                       the app URL that imports the course and opens it
 //
@@ -111,7 +113,7 @@ async function browser() {
  * prompt, the catalog shortlist, few-shots, exemplars, the code/sound gates —
  * wrapped for reading. The schema goes to dev-casts/_schema.json.
  */
-async function appPromptText(load, request) {
+async function appPromptText(load, request, priorityIds = []) {
   mkdirSync(resolve(ROOT, "dev-casts"), { recursive: true });
   const compile = await load("/src/llm/compile.ts");
   const { buildSystemBlocks, formatExemplars, wantsCode, wantsSound } = await load("/src/llm/prompt.ts");
@@ -124,7 +126,7 @@ async function appPromptText(load, request) {
     isReadyTemplate,
   );
   const code = wantsCode(request), sound = wantsSound(request);
-  const catalog = catalogParts({ request });
+  const catalog = catalogParts({ request, priorityIds });
   // The schema (~90k characters of the ~210k) goes to its own file: the
   // prompt keeps a pointer, and the author looks fields up when needed.
   const schema = compile.apiSchema({ code, sound });
@@ -169,6 +171,20 @@ async function lectureContext(load, dir, n, withOutline = false) {
   if (!outline) throw new Error(`${relative(ROOT, f)} is not a usable storyboard (the app would reject it)`);
   if (!outline.title) outline.title = ctx.request;
   return { ...ctx, outline };
+}
+
+/** `--storyboard v1|v2` (default v1, the app's default). */
+function storyboardFlag(args) {
+  const at = args.indexOf("--storyboard");
+  if (at === -1) return "v1";
+  const v = args[at + 1];
+  if (v !== "v1" && v !== "v2") throw new Error("--storyboard takes v1 or v2");
+  return v;
+}
+
+/** The arguments without `--storyboard <v>`. */
+function positional(args) {
+  return args.filter((a, i) => a !== "--storyboard" && args[i - 1] !== "--storyboard");
 }
 
 const commands = {
@@ -219,28 +235,42 @@ const commands = {
     });
   },
 
-  async "lecture-prompt"([dir, nArg]) {
-    if (!dir || !nArg) throw new Error("usage: cast.mjs lecture-prompt <dir> <lecture number, 1-based>");
+  async "lecture-prompt"(args) {
+    const version = storyboardFlag(args);
+    const [dir, nArg] = positional(args);
+    if (!dir || !nArg) throw new Error("usage: cast.mjs lecture-prompt <dir> <lecture number, 1-based> [--storyboard v2]");
     await withVite(async (load) => {
       const { request, parts, chapters, brief, lectureDir } = await lectureContext(load, dir, Number(nArg));
-      const { buildStoryboardMessages } = await load("/src/llm/storyboard.ts");
-      const { system, user } = buildStoryboardMessages(request, parts, { chapters, brief });
+      const { buildStoryboardMessages, buildStoryboardMessagesV2 } = await load("/src/llm/storyboard.ts");
+      // v2 sees the templates the app would show it: the keyword shortlist
+      // (the app asks its router first) with "Viewer can", and the index.
+      const { storyboardTemplates } = await load("/src/llm/multi.ts");
+      const { system, user } =
+        version === "v2"
+          ? buildStoryboardMessagesV2(request, parts, { chapters, brief, ...storyboardTemplates(request) })
+          : buildStoryboardMessages(request, parts, { chapters, brief });
       mkdirSync(lectureDir, { recursive: true });
       const out = resolve(lectureDir, "_storyboard-prompt.md");
       writeFileSync(out, wrap(`# SYSTEM\n\n${system}\n\n# USER\n\n${user}`) + "\n");
-      console.log(`${relative(ROOT, out)}: the app's storyboard prompt (${parts ?? "1–4"} parts). Write the JSON it asks for to ${relative(ROOT, resolve(lectureDir, "storyboard.json"))}, then part-prompt for each part.`);
+      console.log(`${relative(ROOT, out)}: the app's storyboard prompt ${version} (${parts ?? "1–4"} parts). Write the JSON it asks for to ${relative(ROOT, resolve(lectureDir, "storyboard.json"))}, then part-prompt for each part.`);
     });
   },
 
-  async "part-prompt"([dir, nArg, iArg]) {
-    if (!dir || !nArg || !iArg) throw new Error("usage: cast.mjs part-prompt <dir> <lecture> <part>  (both 1-based)");
+  async "part-prompt"(args) {
+    const version = storyboardFlag(args);
+    const [dir, nArg, iArg] = positional(args);
+    if (!dir || !nArg || !iArg) throw new Error("usage: cast.mjs part-prompt <dir> <lecture> <part> [--storyboard v2]  (both 1-based)");
     await withVite(async (load) => {
       const { request, brief, lectureDir, outline } = await lectureContext(load, dir, Number(nArg), true);
       const i = Number(iArg) - 1;
       if (!outline.parts[i]) throw new Error(`the storyboard has ${outline.parts.length} parts`);
       const { buildPartRequest } = await load("/src/llm/outline.ts");
-      const partRequest = buildPartRequest(request, outline, i, brief);
-      const text = await appPromptText(load, partRequest);
+      const partRequest = buildPartRequest(request, outline, i, brief, version);
+      // v2: a template the storyboard planned for this part gets its full
+      // entry, as the app's partConfig gives it.
+      const { isReadyTemplate } = await load("/src/scenes/catalog.ts");
+      const planned = version === "v2" && outline.parts[i].template && isReadyTemplate(outline.parts[i].template) ? [outline.parts[i].template] : [];
+      const text = await appPromptText(load, partRequest, planned);
       const out = resolve(lectureDir, `_part-${i + 1}-prompt.md`);
       writeFileSync(out, wrap(text) + "\n\n# USER (the part's request)\n\n" + wrap(partRequest) + "\n");
       console.log(`${relative(ROOT, out)}: ${text.length} characters of system prompt, then the part's request at the end. Write the spec to ${relative(ROOT, resolve(lectureDir, `part-${i + 1}.json`))} as {"request": …, "spec": …}; check and frames it as any cast.`);

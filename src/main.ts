@@ -12,7 +12,7 @@ import { generateSpec, improvePrompt, promptVariants, type ImproveCase, type Pro
 import { routeTemplates } from "./llm/router";
 import { authorOnDemand, templateWorthy } from "./llm/on-demand";
 import { generateParts } from "./llm/multi";
-import { APPROACHES, DEFAULT_APPROACH } from "./llm/storyboard";
+import { APPROACHES, DEFAULT_APPROACH, STORYBOARD_VERSIONS, asStoryboardVersion } from "./llm/storyboard";
 import { singleCastTreatment } from "./llm/treatment";
 import { createOnDemandRun, onDemandSummary } from "./llm/on-demand-run";
 import { missingPlaceholders } from "./llm/prompt";
@@ -726,6 +726,21 @@ const approachSel = h(
   ...APPROACHES.map((a) => h("option", { value: a.id, title: a.hint }, a.label)),
 );
 approachSel.value = APPROACHES.some((a) => a.id === settings.approach) ? settings.approach : DEFAULT_APPROACH;
+// Which storyboard prompt a multi-part drawcast or course is planned with
+// (llm/storyboard.ts, 2026-09-28): the current one (v1, the default) or the
+// new one carrying the storyline rules (v2). Sits right under Story so the
+// owner finds it; it matters only when the story is written first.
+const storyboardSel = h(
+  "select",
+  { title: "Storyboard prompt for a multi-part drawcast or course (when the story is written first). Current (v1) is the default; new (v2) also carries the storyline rules — question first, the naive answer, one ghosted change at a time, a figure budget per part, templates with what the viewer can do, a transfer quiz — and stages each part like a single drawcast's storyline." },
+  ...STORYBOARD_VERSIONS.map((v) => h("option", { value: v.id, title: v.hint }, v.label)),
+) as HTMLSelectElement;
+storyboardSel.value = asStoryboardVersion(settings.storyboardVersion);
+storyboardSel.addEventListener("change", () => {
+  settings.storyboardVersion = asStoryboardVersion(storyboardSel.value);
+  persist();
+});
+const storyboardChoiceLabel = h("label", { class: "quiet-label" }, "Storyboard prompt ", storyboardSel);
 // Template on demand without asking (Hans, 2026-09-07): decided BEFORE
 // Generate so a course never stops to ask part by part. Applies to course
 // (and other multi-part) runs only — a single freehand figure always gets
@@ -1281,6 +1296,7 @@ const genChoices = h(
   h("label", { class: "quiet-label" }, "Model ", modelSel),
   h("label", { class: "quiet-label" }, "Effort ", effortSel),
   h("label", { class: "quiet-label" }, "Story ", approachSel),
+  storyboardChoiceLabel,
   pipelineChoiceLabel,
   h("label", { class: "quiet-label" }, templatesOnDemandBox, " Author templates when none fits"),
   h("label", { class: "quiet-label" }, "at most ", templatesOnDemandMaxInput, " per run"),
@@ -1309,7 +1325,8 @@ function refreshChoicesToggle(): void {
   const effort = effortSel.options[effortSel.selectedIndex]?.textContent?.split(" — ")[0] ?? settings.effort;
   const approach = approachSel.options[approachSel.selectedIndex]?.textContent?.split(" — ")[0] ?? settings.approach;
   const onDemand = settings.templatesOnDemand ? ` · Templates on demand (≤${settings.templatesOnDemandMax} per run)` : "";
-  choicesBtn.title = `Template: ${tpl} · Style: ${styleName}${dev} · Model: ${model} · Effort: ${effort} · Story: ${approach}${onDemand}`;
+  const storyboard = settings.storyboardVersion === "v2" ? " · Storyboard prompt: new (v2)" : "";
+  choicesBtn.title = `Template: ${tpl} · Style: ${styleName}${dev} · Model: ${model} · Effort: ${effort} · Story: ${approach}${storyboard}${onDemand}`;
   choicesBtn.classList.toggle("has-choice", templateChoice !== "" && genChoices.hidden);
 }
 
@@ -1323,7 +1340,7 @@ choicesBtn.addEventListener("click", () => {
   persist();
   applyChoicesOpen();
 });
-for (const sel of [templateSel, variantSel, modelSel]) {
+for (const sel of [templateSel, variantSel, modelSel, storyboardSel]) {
   sel.addEventListener("change", refreshChoicesToggle);
 }
 applyChoicesOpen();
@@ -3722,6 +3739,7 @@ async function generateMulti(
       model: settings.model,
       effort: settings.effort,
       approach: settings.approach,
+      storyboardVersion: settings.storyboardVersion,
       variant: currentVariant(),
       styleText: activeStyleText(),
       exemplars: usableExemplars(loadExemplars(), isReadyTemplate),

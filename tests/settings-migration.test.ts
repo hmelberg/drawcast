@@ -22,7 +22,7 @@ vi.stubGlobal("localStorage", {
 import { DEFAULT_SETTINGS, loadSettings, migrateShareTo } from "../src/store";
 import type { Settings } from "../src/store";
 import { DEFAULT_ON_DEMAND_MAX } from "../src/llm/on-demand-run";
-import { APPROACHES, DEFAULT_APPROACH } from "../src/llm/storyboard";
+import { APPROACHES, DEFAULT_APPROACH, DEFAULT_STORYBOARD_VERSION, STORYBOARD_VERSIONS } from "../src/llm/storyboard";
 import { singleCastTreatment } from "../src/llm/treatment";
 
 const SETTINGS_KEY = "drawcast.settings.v1";
@@ -119,6 +119,23 @@ describe("the approach setting (docs/2026-09-19-storyboard-approach.md)", () => 
     expect(singleCastTreatment({ ...DEFAULT_SETTINGS, developerMode: true, pipeline: "plan" })).toBe("v2");
     expect(singleCastTreatment({ ...DEFAULT_SETTINGS, developerMode: true, pipeline: "plan", approach: "independent" })).toBe("v2");
     expect(singleCastTreatment({ ...DEFAULT_SETTINGS, developerMode: false, pipeline: "plan" })).toBe("v3");
+  });
+  it("the storyboard prompt (2026-09-28) defaults to v1, the storyboard module's default", () => {
+    expect(DEFAULT_SETTINGS.storyboardVersion).toBe("v1");
+    expect(DEFAULT_SETTINGS.storyboardVersion).toBe(DEFAULT_STORYBOARD_VERSION);
+    for (const { id } of STORYBOARD_VERSIONS) {
+      const pinned: Settings["storyboardVersion"] = id;
+      expect(["v1", "v2"]).toContain(pinned);
+    }
+  });
+  it("a blob stored before the storyboard prompt existed loads as v1; v2 survives; junk falls back to v1", () => {
+    const { storyboardVersion: _drop, ...old } = DEFAULT_SETTINGS;
+    mem.set(SETTINGS_KEY, JSON.stringify(old));
+    expect(loadSettings().storyboardVersion).toBe("v1");
+    mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, storyboardVersion: "v2" }));
+    expect(loadSettings().storyboardVersion).toBe("v2");
+    mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, storyboardVersion: "v9" }));
+    expect(loadSettings().storyboardVersion).toBe("v1");
   });
   it("the picker says what it does for a single drawcast and for parts", () => {
     const story = APPROACHES.find((a) => a.id === "storyboard")!;
