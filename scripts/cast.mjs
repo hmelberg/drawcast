@@ -317,6 +317,7 @@ const commands = {
       const { layoutSpec } = await load("/src/layout/layout.ts");
       const { heuristicMeasure } = await load("/src/layout/measure.ts");
       const { lintCommands } = await load("/src/lint/lint.ts");
+      const { lintCrowding } = await load("/src/lint/crowding.ts");
       const { ensureEnginesForSpecs } = await load("/src/scenes/engines.ts");
       const v = validateSpec(spec);
       if (!v.ok) {
@@ -329,7 +330,9 @@ const commands = {
       const laid = layoutSpec(ex, heuristicMeasure);
       // The layout's own warnings too (a label moved off other ink, …): the
       // bundled-examples gate fails on them, so an author must see them here.
-      const issues = [...laid.issues, ...(laid.warnings ?? []).map((message) => ({ severity: "warning", message })), ...lintCommands(ex)];
+      // Crowding (texts on the page at once, small print) is checked by the
+      // app's generation too — advisory; the examples gate does not read it.
+      const issues = [...laid.issues, ...(laid.warnings ?? []).map((message) => ({ severity: "warning", message })), ...lintCommands(ex), ...lintCrowding(laid, ex)];
       const speaks = (spec.commands ?? []).filter((c) => typeof c.speak === "string").length;
       console.log(`valid · ${speaks} spoken lines · ${(spec.elements ?? []).length} elements${spec.template ? ` · template ${spec.template}` : ""}`);
       console.log(issues.length ? issues.map((i) => `  [${i.severity}] ${i.message}`).join("\n") : "  lint clean (heuristic metrics — frames gives the browser's)");

@@ -3,6 +3,7 @@ title: Economics
 description: Consumer choice, PPF, cost curves, payoff matrices and extensive-form game trees — micro and game-theory teaching figures with computed geometry.
 ---
 template: indifference_budget
+interaction: "Drag the budget line: near an axis end it turns (that good's price), in the middle it slides (income); the optimum and its curves follow."
 title: Consumer choice (indifference curves & budget line)
 version: 1
 kit: 4

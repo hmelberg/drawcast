@@ -238,6 +238,10 @@ export async function generateFromOutline(
   hooks: PartsHooks = {},
   opts: FromOutlineOptions = {},
 ): Promise<PartsResult> {
+  // A part is never written story-first on its own: the storyboard already
+  // wrote its lines (or, independent, the outline its brief). The single-cast
+  // storyline (GenerateConfig.treatment) is stripped here, whoever built cfg.
+  cfg = { ...cfg, treatment: undefined };
   // Parts depend only on the outline (bridging uses outline titles, not each
   // other's specs), so they generate in parallel — the gate caps how many.
   const wanted = (i: number): boolean => opts.only === undefined || opts.only.includes(i + 1);

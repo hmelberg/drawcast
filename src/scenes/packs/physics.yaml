@@ -3,6 +3,7 @@ title: Physics
 description: Optics ray diagrams, wave diagrams, circuits, projectiles, a bicycle drivetrain and a hydraulic press — classroom physics figures with computed geometry.
 ---
 template: ray_diagram
+interaction: "Drag the object (distance and height) or either F (focal length); the rays and the image follow, running off to infinity at F and coming back virtual."
 title: Lens ray diagram
 version: 2
 kit: 11
@@ -633,6 +634,7 @@ layout: |
   return { drawables, labels, anchors, order };
 ---
 template: projectile_motion
+interaction: "Drag the v0 arrow's tip (angle and speed) or the platform (launch height); the path, apex and readouts follow, the last throw stays as a ghost."
 title: Projectile motion trajectory
 version: 2
 kit: 11

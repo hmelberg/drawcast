@@ -2,6 +2,7 @@
   "name": "supply_demand",
   "status": "ready",
   "description": "A price–quantity market diagram: downward-sloping demand, upward-sloping supply, equilibrium where they cross. Choose this scene for ANY request about markets, demand/supply, equilibrium, price ceilings or floors (shortage/surplus), taxes, subsidies and deadweight loss, consumer/producer surplus, or curve shifts. All geometry is computed for you — you only choose which ingredients to include. Spec-level region elements can shade between this scene's curves (between: [supply_curve, demand_curve], or a price line like ceiling_line). Paused, the viewer can drag a curve (shift; near an end, turn), a price line or the taxed curve, and the market recomputes live; an explore beat naming nothing hands it over.",
+  "interaction": "Drag a curve's middle to shift it, near an end to turn it (elasticity); drag a price ceiling, floor or the taxed curve up and down; equilibrium, shortage and deadweight loss follow.",
   "params_schema": {
     "type": "object",
     "properties": {

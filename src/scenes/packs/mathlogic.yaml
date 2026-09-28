@@ -204,6 +204,7 @@ layout: |
   return { drawables, labels, anchors, order };
 ---
 template: unit_circle
+interaction: "Drag the point round the circle (it snaps to the 30 and 45 degree angles) or scrub the angle; sin, cos, the arc and the readout follow."
 title: Unit circle (sine and cosine)
 version: 2
 kit: 11

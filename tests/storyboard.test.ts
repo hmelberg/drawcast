@@ -110,6 +110,12 @@ describe("outlineParts chooses by approach", () => {
     await generateFromOutline({ request: "q", parts: 2, brief: "" }, plan, { ...base, pedagogyReview: true });
     const cfgs = vi.mocked(compile.generateSpec).mock.calls.map((c) => c[1].pedagogyReview);
     expect(cfgs).toEqual([false, true]);
+
+    // The single-cast storyline never reaches a part: parts are staged from
+    // the storyboard's script (or written on their own), whoever built cfg.
+    vi.mocked(compile.generateSpec).mockClear();
+    await generateFromOutline({ request: "q", parts: 2, brief: "" }, plan, { ...base, treatment: "v3" });
+    expect(vi.mocked(compile.generateSpec).mock.calls.map((c) => c[1].treatment)).toEqual([undefined, undefined]);
   });
 });
 

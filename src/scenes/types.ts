@@ -124,6 +124,14 @@ export interface SceneManifest {
   grow?: boolean;
   /** True when the document carries a widget body: the figure is playable while paused. */
   widget?: true;
+  /**
+   * What the viewer can do with the figure while paused, in one short line
+   * ("drag a curve to shift it; drag near its end to turn it") — read by the
+   * storyline call (llm/treatment.ts) so a story can plan an explore beat
+   * around the template's real interactions. Optional; absent = none worth
+   * planning around.
+   */
+  interaction?: string;
 }
 
 /** A registered template: manifest always; layout when ready and compiled. */

@@ -144,6 +144,43 @@ export function routerIndexText(opts: { excludeIds?: string[] } = {}): string {
     .join("\n");
 }
 
+/**
+ * The storyline call's view of the templates worth considering (llm/
+ * treatment.ts, treatment-v3): per template its one-line description (the
+ * first sentence and the "Choose this for…" sentence) and, when the template
+ * declares one, what the viewer can do with it while paused (the manifest's
+ * `interaction`) — so a story can plan an explore beat around the template's
+ * real interactions. No parameter schema: the story says WHAT, the staging
+ * step reads the full entry.
+ */
+export function storyTemplateLines(ids: string[], opts: { excludeIds?: string[] } = {}): string {
+  const excluded = new Set(opts.excludeIds ?? []);
+  return dedupe(ids)
+    .filter((id) => scenes[id]?.manifest.status === "ready" && !excluded.has(id))
+    .map((id) => {
+      const m = scenes[id].manifest;
+      const choose = chooseSentence(m.description);
+      const first = firstSentence(m.description);
+      const line = `- ${id}: ${first}${choose && choose !== first ? ` ${choose}` : ""}`;
+      return m.interaction ? `${line}\n  Viewer can: ${m.interaction}` : line;
+    })
+    .join("\n");
+}
+
+/** The compiler's compact index (one capped line per ready template) on its own — what the storyline call reads to name a template that was not shortlisted. */
+export function catalogIndexText(opts: { excludeIds?: string[] } = {}): string {
+  const excluded = new Set(opts.excludeIds ?? []);
+  return Object.values(scenes)
+    .filter((s) => s.manifest.status === "ready" && !excluded.has(s.manifest.name))
+    .map((s) => indexLine(s.manifest))
+    .join("\n");
+}
+
+/** The template ids a catalog block carries as full entries, in order (its "### Scene template: <id> (READY" headings). */
+export function fullEntryIds(catalogBlock: string): string[] {
+  return [...catalogBlock.matchAll(/^### Scene template: ([a-z][a-z0-9_]*) \(READY/gm)].map((m) => m[1]);
+}
+
 /** True when the default library is past the point where every template
  *  gets a full entry — the regime in which a shortlist (router or keyword)
  *  decides what the model sees in full. */

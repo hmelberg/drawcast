@@ -17,6 +17,14 @@ they should be:
 - **Composition:** is there one main figure, drawn large? Is space wasted
   while things are cramped elsewhere? Are there too many small pieces? Is
   anything misaligned that should line up?
+- **Clutter — count, do not guess.** On the busiest frame: how many separate
+  pieces of text are visible at once (more than about a dozen is crowded)?
+  What is the smallest text, and can it be read at a glance? Is anything
+  still on the page from earlier beats that no longer serves the line being
+  spoken — a helper line, a ghost, a finished scratch card, a readout? Would
+  the page be better with one piece removed? "Remove X" (or "erase X after
+  beat N") is a valid fix, often the best one. Does the main figure fill the
+  page, or sit small in a corner of empty paper?
 - **Sync:** is what the line talks about visible when it is spoken? Does
   anything appear, move or stay that contradicts the line?
 - **Emphasis:** does it land where the meaning is, and not as decoration?
