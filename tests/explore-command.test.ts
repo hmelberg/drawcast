@@ -135,6 +135,26 @@ describe("settleParams and getParamOverrides", () => {
     expect(commits.at(-1)).toEqual({});
   });
 
+  // A figure drag (widget) or slider preview dirties the geometry; the commit
+  // on Continue mounts FRESH element handles, and those must be shown as the
+  // boundary has them — not left at their mounted (hidden) state, which was a
+  // blank stage after "Continue" (found 2026-09-28 on a decision_tree drag).
+  test("settleParams shows the boundary's visible elements on the fresh handles", () => {
+    const player = new Player(planCommands([{ draw: ["x"] }], ["x"], { animateBase: {} }), new Map(), new RecordingSpeech(), null, {
+      mode: "silent",
+    });
+    const shown: string[] = [];
+    const fresh = (id: string): RenderedElement =>
+      ({ finish: () => shown.push(id), hide: () => {}, play: async () => {} }) as unknown as RenderedElement;
+    const rp: Reprojector = { frame: () => {}, commit: () => new Map([["x", fresh("x")]]) };
+    player.reprojector = rp;
+    player.renderUpTo(1);
+    shown.length = 0;
+    player.previewParams({ n: 40 });
+    player.settleParams();
+    expect(shown).toEqual(["x"]);
+  });
+
   test("getParamOverrides exposes the viewer's runtime values", async () => {
     const plan = planCommands(
       [{ ask: { question: "N?", store: "n_choice", default: "20" } }, { animate: { n: "{n_choice}" }, duration: 0.05 }],

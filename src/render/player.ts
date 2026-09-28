@@ -513,8 +513,10 @@ export class Player {
     if (this.completed >= this.plan.steps.length) this.renderUpTo(0);
     // A pending tray preview (geometryDirty) must settle before stepping:
     // frame() leaves handle-less DOM, and the run's actions need honest
-    // elements. No-op when nothing is dirty and params already match.
-    this.applyKey(this.stateAt(this.completed));
+    // elements. No-op when nothing is dirty and params already match; a
+    // commit's fresh handles get the boundary's scene, as in settleParams.
+    const boundary = this.stateAt(this.completed);
+    if (this.applyKey(boundary)) this.applyScene(boundary);
 
     const ac = new AbortController();
     this.ac = ac;
@@ -776,7 +778,10 @@ export class Player {
   settleParams(): void {
     // A `run`'s patch is NOT preview state: it is what the lesson now shows,
     // and it survives Continue (only a scrub back past the run takes it away).
-    this.applyKey(this.stateAt(this.completed));
+    // A commit mounts fresh handles: show them as the boundary has them, or
+    // the stage goes blank after a preview (a figure drag, a slider).
+    const scene = this.stateAt(this.completed);
+    if (this.applyKey(scene)) this.applyScene(scene);
   }
 
   /** What a `run` has left this script at, or null — the tray reads it to
@@ -917,16 +922,20 @@ export class Player {
     return out;
   }
 
-  private applyKey(scene: SceneState): void {
-    if (!this.reprojector) return;
+  /** Commit the scene's geometry when it differs from what is mounted (or
+   *  is dirty); true when it did — the handles are then FRESH, at their
+   *  mounted state, and the caller must apply the scene to them. */
+  private applyKey(scene: SceneState): boolean {
+    if (!this.reprojector) return false;
     this.painted = null; // back to the plan-time geometry
     const merged = this.withVarOverrides(scene.params);
     const ov = this.overridesOf(scene.offsets, scene.turns, scene.shapes, scene.tex, scene.copies);
     const key = Player.keyOf(merged, ov);
-    if (!this.geometryDirty && key === this.appliedKey) return;
+    if (!this.geometryDirty && key === this.appliedKey) return false;
     this.elements = this.reprojector.commit(merged, ov);
     this.appliedKey = key;
     this.geometryDirty = false;
+    return true;
   }
 
   /**
