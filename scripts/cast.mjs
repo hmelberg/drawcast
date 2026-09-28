@@ -16,10 +16,10 @@
 // Courses (a folder dev-casts/courses/<slug>/, the shape of a published course):
 //   node scripts/cast.mjs course-prompt "<request>" [out.md] [--lectures N]   the app's course planner prompt
 //   node scripts/cast.mjs course-new <plan.json> <dir>                        the plan JSON → <dir>/course.md (the app's own normalizer)
-//   node scripts/cast.mjs lecture-prompt <dir> <n> [--storyboard v2]         lecture n's storyboard prompt → <dir>/lecture-NN/
-//   node scripts/cast.mjs part-prompt <dir> <n> <i> [--storyboard v2]        part i's system prompt + request (storyboard.json first)
-//        --storyboard v2: the new storyboard prompt (storyline rules, templates with "Viewer can") and its per-part
-//        staging note — the app's Settings "Storyboard prompt: new (v2)"; without it, v1 (the app's default)
+//   node scripts/cast.mjs lecture-prompt <dir> <n> [--storyboard v1]         lecture n's storyboard prompt → <dir>/lecture-NN/
+//   node scripts/cast.mjs part-prompt <dir> <n> <i> [--storyboard v1]        part i's system prompt + request (storyboard.json first)
+//        (default v2: the storyboard prompt (storyline rules, templates with "Viewer can") and its per-part
+//        staging note, the app's default since 2026-09-28); --storyboard v1 gives the previous prompt)
 //   node scripts/cast.mjs lecture-build <dir> <n>                            part-*.json → <dir>/NN-<title>.yaml, marked done in course.md
 //   node scripts/cast.mjs course-open <dir> [--launch]                       the app URL that imports the course and opens it
 //
@@ -173,10 +173,10 @@ async function lectureContext(load, dir, n, withOutline = false) {
   return { ...ctx, outline };
 }
 
-/** `--storyboard v1|v2` (default v1, the app's default). */
+/** `--storyboard v1|v2` (default v2, the app's default since 2026-09-28). */
 function storyboardFlag(args) {
   const at = args.indexOf("--storyboard");
-  if (at === -1) return "v1";
+  if (at === -1) return "v2";
   const v = args[at + 1];
   if (v !== "v1" && v !== "v2") throw new Error("--storyboard takes v1 or v2");
   return v;

@@ -134,7 +134,7 @@ export function buildStoryboardMessages(
 
 /** Which storyboard prompt (and, with it, which per-part staging hand-over — outline.ts buildPartRequest). */
 export type StoryboardVersion = "v1" | "v2";
-export const DEFAULT_STORYBOARD_VERSION: StoryboardVersion = "v1";
+export const DEFAULT_STORYBOARD_VERSION: StoryboardVersion = "v2";
 
 /** The picker's choices, in order. */
 export const STORYBOARD_VERSIONS: readonly { id: StoryboardVersion; label: string; hint: string }[] = [
@@ -148,7 +148,7 @@ export const STORYBOARD_VERSIONS: readonly { id: StoryboardVersion; label: strin
 
 /** A stored value → a version; anything unknown is the default. */
 export function asStoryboardVersion(v: unknown): StoryboardVersion {
-  return v === "v2" ? "v2" : DEFAULT_STORYBOARD_VERSION;
+  return v === "v1" || v === "v2" ? v : DEFAULT_STORYBOARD_VERSION;
 }
 
 /** v1's schema plus an OPTIONAL `template` per part — the planned template id, absent for freehand. */

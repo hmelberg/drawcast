@@ -58,6 +58,7 @@ const KEYS = {
   // feedback_no_backwards_compat).
   // v8 on 2026-09-25: the isometric pack joined the default set.
   packsUpgrade: "drawcast.packsDefault.v8",
+  storyboardV2: "drawcast.storyboardV2Default.v1",
 } as const;
 
 /** Where Share last sent this document. Declared here rather than in the UI:
@@ -227,7 +228,7 @@ export const DEFAULT_SETTINGS: Settings = {
   model: "claude-opus-5-5",
   effort: "high",
   approach: "storyboard",
-  storyboardVersion: "v1",
+  storyboardVersion: "v2",
   templatesOnDemand: false,
   // A literal, not DEFAULT_ON_DEMAND_MAX: store.ts is imported by the viewer
   // and stays free of llm/ imports. tests/settings-migration.test.ts pins the two equal.
@@ -326,7 +327,22 @@ export function loadSettings(): Settings {
   if (s.model === "claude-opus-5") s.model = "claude-opus-5-5";
   // Storyboard v2 (2026-09-28): a blob stored before the field gets the
   // default through the spread; anything else unknown falls back to it too.
-  if (s.storyboardVersion !== "v2") s.storyboardVersion = "v1";
+  if (s.storyboardVersion !== "v1") s.storyboardVersion = "v2";
+  // v2 became the default after a blind comparison (Hans, 2026-09-28). Blobs
+  // saved while v1 was the default carry "v1" without anyone choosing it, so
+  // move them to v2 ONCE (a flag, like the packs upgrade below); a v1 picked
+  // after that stays.
+  try {
+    if (!localStorage.getItem(KEYS.storyboardV2)) {
+      localStorage.setItem(KEYS.storyboardV2, "1");
+      if (s.storyboardVersion === "v1") {
+        s.storyboardVersion = "v2";
+        saveSettings(s);
+      }
+    }
+  } catch {
+    /* no storage — the default already is v2 */
+  }
   // One-time upgrade: the bundled packs moved from opt-in to baseline
   // (DEFAULT_SETTINGS.enabledPacks). A settings blob stored before that keeps
   // its own list, which `{...fallback, ...parsed}` leaves untouched — so union

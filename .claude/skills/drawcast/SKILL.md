@@ -118,10 +118,10 @@ and one `NN-<title>.yaml` per built lecture.
      at the end), write `<dir>/lecture-NN/part-<i>.json` as
      `{"request": …, "spec": …}`, then the single-cast loop above: check,
      frames, look, fix. The lines are written; the job is to STAGE them.
-   - Both take `--storyboard v2` for the new storyboard prompt (the app's
-     Settings "Storyboard prompt: new (v2)"; the storyline rules, templates
-     with "Viewer can", and a per-part staging note). Use the same version
-     for a lecture's storyboard and its parts. Without it: v1, the default.
+   - Both use the v2 storyboard prompt by default (the app's default since
+     2026-09-28: the storyline rules, templates with "Viewer can", and a
+     per-part staging note); `--storyboard v1` gives the previous prompt. Use
+     the same version for a lecture's storyboard and its parts.
    - `node scripts/cast.mjs lecture-build <dir> <n>` → the lecture's YAML,
      exactly as the course runner assembles it (titles, level, the
      "Next: …" card), and `status: done` in `course.md`. Frames the YAML

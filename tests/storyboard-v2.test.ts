@@ -69,11 +69,12 @@ describe("v1 is unchanged, byte for byte", () => {
 });
 
 describe("the switch", () => {
-  test("v1 is the default; anything unknown reads as v1", () => {
-    expect(DEFAULT_STORYBOARD_VERSION).toBe("v1");
+  test("v2 is the default (2026-09-28); an explicit v1 stays v1; anything unknown reads as v2", () => {
+    expect(DEFAULT_STORYBOARD_VERSION).toBe("v2");
     expect(STORYBOARD_VERSIONS.map((v) => v.id)).toEqual(["v1", "v2"]);
     expect(asStoryboardVersion("v2")).toBe("v2");
-    for (const v of [undefined, null, "v3", "", 2]) expect(asStoryboardVersion(v)).toBe("v1");
+    expect(asStoryboardVersion("v1")).toBe("v1");
+    for (const v of [undefined, null, "v3", "", 2]) expect(asStoryboardVersion(v)).toBe("v2");
   });
 });
 
