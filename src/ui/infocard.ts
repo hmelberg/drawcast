@@ -148,6 +148,17 @@ export function sceneNamesFor(hd: RenderHandle): { id: string; name: string }[] 
   return [];
 }
 
+/** The template's own cards for its parts (SceneModule.cards), or none. */
+export function sceneCardsFor(hd: RenderHandle): Record<string, { name: string; links?: string[]; details?: string; cites?: string[]; wiki?: string }> {
+  const mod = hd.spec.template ? scenes[hd.spec.template] : undefined;
+  if (!mod?.cards) return {};
+  try {
+    return mod.cards(hd.spec.params ?? {});
+  } catch {
+    return {};
+  }
+}
+
 export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost: WidgetHost | null = null): void {
   // The words a template DREW count too, not just the spec's own elements —
   // otherwise an axis caption, a node's text and a legend entry are all dead.
@@ -158,7 +169,7 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost
   const drawnTexts = leafDrawables(hd.layout.drawables)
     .filter((d): d is TextDrawable => d.kind === "text")
     .map((d) => ({ id: d.id, text: d.text, owner: ownerOf.get(d.id) }));
-  const targets = cardTargets(hd.spec, { order: hd.layout.order, texts: drawnTexts, sceneNames: sceneNamesFor(hd) });
+  const targets = cardTargets(hd.spec, { order: hd.layout.order, texts: drawnTexts, sceneNames: sceneNamesFor(hd), sceneCards: sceneCardsFor(hd) });
   // A figure of pure geometry carries no card — but it still NARRATES, and a
   // viewer can still select a phrase in that narration, so the caption half is
   // wired regardless. With neither, the scene pays nothing.
@@ -170,7 +181,12 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost
     .map((e) => e.id);
   const flip = hd.spec.params?.["flip"] === true;
   const octaves = pianoOctaves(hd.spec.params);
-  let boxes: ReadonlyMap<string, BBox> | null = null;
+  /** The hit boxes, remembered per painted layout: a template whose params
+   *  move its parts (a timeline panned or zoomed by the viewer or by the
+   *  storyboard's animate) is hit where it is DRAWN, not where it stood when
+   *  the figure mounted. */
+  let boxes: { layout: unknown; map: ReadonlyMap<string, BBox> } | null = null;
+  const layoutNow = (): typeof hd.layout => hd.timeline.paintedLayout?.() ?? hd.layout;
 
   /**
    * Hit boxes for every card target: the command-addressable elements, plus
@@ -180,14 +196,15 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost
    * the SMALLEST containing box, a word always wins over the part behind it.
    */
   const hitBoxes = (): ReadonlyMap<string, BBox> => {
-    if (boxes) return boxes;
+    const lay = layoutNow();
+    if (boxes && boxes.layout === lay) return boxes.map;
     const measure = makeBrowserMeasure();
-    const map = new Map<string, BBox>(elementBBoxes(hd.layout, measure));
-    for (const d of leafDrawables(hd.layout.drawables)) {
+    const map = new Map<string, BBox>(elementBBoxes(lay, measure));
+    for (const d of leafDrawables(lay.drawables)) {
       if (d.kind !== "text" || !targets.has(d.id) || map.has(d.id)) continue;
       map.set(d.id, bboxOfText(d, measure));
     }
-    boxes = map;
+    boxes = { layout: lay, map };
     return map;
   };
 
@@ -255,18 +272,31 @@ export function attachInfoCards(stage: HTMLElement, hd: RenderHandle, widgetHost
   // The two NEW ways in (a click while playing, a hover) must not fire from
   // anywhere inside a curve's bounding box — for an open stroke (a curve, a
   // line, an arrow) the pointer has to be near the ink itself.
-  const strokesOf = new Map<string, [number, number][][]>();
-  for (const top of hd.layout.drawables) {
-    const t = targets.get(top.id);
-    if (!t?.details) continue;
-    const lines = leafDrawables([top])
-      .filter((d) => d.kind === "stroke" && !d.closed && !d.shapeHint && d.pts.length >= 2)
-      .map((d) => (d as { pts: [number, number][] }).pts);
-    if (lines.length > 0) strokesOf.set(top.id, lines);
-  }
+  let inkMemo: { layout: unknown; lines: Map<string, [number, number][][]>; words: Map<string, BBox[]> } | null = null;
+  const inkOf = (): NonNullable<typeof inkMemo> => {
+    const lay = layoutNow();
+    if (inkMemo && inkMemo.layout === lay) return inkMemo;
+    const lines = new Map<string, [number, number][][]>();
+    const words = new Map<string, BBox[]>();
+    const measure = makeBrowserMeasure();
+    for (const top of lay.drawables) {
+      const t = targets.get(top.id);
+      if (!t?.details) continue;
+      const leaves = leafDrawables([top]);
+      const ls = leaves.filter((d) => d.kind === "stroke" && !d.closed && !d.shapeHint && d.pts.length >= 2).map((d) => (d as { pts: [number, number][] }).pts);
+      if (ls.length > 0) lines.set(top.id, ls);
+      // A part that is a stem AND words (a timeline event): the words are its body too.
+      const ws = leaves.filter((d): d is TextDrawable => d.kind === "text").map((d) => bboxOfText(d, measure));
+      if (ws.length > 0) words.set(top.id, ws);
+    }
+    inkMemo = { layout: lay, lines, words };
+    return inkMemo;
+  };
   const nearInk = (id: string, p: [number, number], slop = 16): boolean => {
-    const lines = strokesOf.get(id);
+    const { lines: all, words } = inkOf();
+    const lines = all.get(id);
     if (!lines) return true; // a shape or a word: its box is its body
+    for (const b of words.get(id) ?? []) if (p[0] >= b.x - 4 && p[0] <= b.x + b.w + 4 && p[1] >= b.y - 4 && p[1] <= b.y + b.h + 4) return true;
     for (const pts of lines) {
       for (let i = 1; i < pts.length; i++) {
         const [ax, ay] = pts[i - 1];

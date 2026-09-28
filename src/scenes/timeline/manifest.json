@@ -1,73 +1,88 @@
 {
   "name": "timeline",
   "status": "ready",
-  "description": "A horizontal timeline with 2–8 ordered milestones. Choose this scene for ANY request about a sequence of events over time — a project plan, a patient care pathway, a historical sequence, a study or trial timeline. All spacing and label placement is computed for you; set `emphasize` on a milestone to call it out.",
+  "description": "A dated timeline: events placed by date on a time axis, optional era bands beneath it (nested levels: eons/periods, ages, reigns), thumbnails (portraits or pictures) beside labels, and links, details and sources on each event's info card. Choose it for ANY sequence of events in time — intellectual history (authors with their papers), historical periods, deep time (scale log_ago), a project plan or a patient pathway. Placement is computed: labels never overlap; when space is short, lower-priority events shrink to dots and return as the view zooms in. Animate view.from / view.to (numbers) to zoom or scroll; paused viewers pan and pinch. Keep labels to a word or three — the voice says the sentence.",
+  "grow": false,
+  "interaction": "drag along the timeline to scroll through time; pinch or ctrl-scroll to zoom (more events appear); tap an event for its card",
   "params_schema": {
     "type": "object",
     "properties": {
-      "title": {
-        "type": "string"
-      },
-      "start_label": {
-        "type": "string",
-        "description": "Small caption at the left end of the line, e.g. \"Diagnosis\"."
-      },
-      "end_label": {
-        "type": "string",
-        "description": "Small caption at the right end of the line, e.g. \"Today\"."
-      },
-      "milestones": {
+      "title": { "type": "string" },
+      "scale": { "enum": ["linear", "log_ago"], "description": "linear (default): calendar years. log_ago: log of years before present — each factor of ten gets equal width (geology, evolution, prehistory)." },
+      "events": {
         "type": "array",
-        "minItems": 2,
-        "maxItems": 8,
         "items": {
           "type": "object",
           "properties": {
+            "id": { "type": "string", "description": "Part id becomes event_<id>." },
+            "date": { "x-translate": false, "type": ["number", "string"], "description": "A year (negative = BCE) or a string: \"1963\", \"3300 BCE\", \"1969-07\", \"66 Ma\", \"4.5 Ga\", \"12 ka\", \"now\"." },
             "label": { "type": "string" },
-            "sublabel": {
-              "type": "string",
-              "description": "Short secondary text shown alongside the label."
-            },
-            "emphasize": {
-              "type": "boolean",
-              "description": "Draws this milestone larger, in the accent color."
-            }
+            "sublabel": { "type": "string", "description": "A few words under the label." },
+            "portrait": { "x-translate": false, "type": ["string", "boolean"], "description": "A person's name: their Wikipedia portrait as a thumbnail (true = the label)." },
+            "image": { "x-translate": false, "type": "string", "description": "Picture URL for the thumbnail." },
+            "links": { "type": "array", "items": { "x-translate": false, "type": "string" }, "description": "Paper (DOI/PubMed/JSTOR), YouTube, PDF or Wikipedia URLs on the card." },
+            "cites": { "type": "array", "items": { "x-translate": false, "type": "string" }, "description": "Ids of the spec's sources." },
+            "details": { "type": "string", "description": "A sentence or two for the card." },
+            "priority": { "type": "integer", "minimum": 1, "description": "1 = always shown; higher gives way first when crowded (default 2; emphasize = 1)." },
+            "emphasize": { "type": "boolean" }
           },
-          "required": ["label"]
-        },
-        "description": "2–8 ordered milestones, left to right."
-      }
-    },
-    "required": ["milestones"]
+          "required": ["date", "label"]
+        }
+      },
+      "eras": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "from": { "x-translate": false, "type": ["number", "string"] },
+            "to": { "x-translate": false, "type": ["number", "string"] },
+            "label": { "type": "string" },
+            "level": { "type": "integer", "minimum": 0, "description": "0 = top band; 1, 2… thinner bands below (subdivisions)." },
+            "color": { "x-translate": false, "type": "string" }
+          },
+          "required": ["from", "to"]
+        }
+      },
+      "view": { "type": "object", "properties": { "from": { "x-translate": false, "type": ["number", "string"] }, "to": { "x-translate": false, "type": ["number", "string"] } }, "description": "Window shown (default: all). Numbers when animated." },
+      "start_label": { "type": "string", "description": "Caption at the axis's left end." },
+      "end_label": { "type": "string", "description": "Caption at its right end." },
+      "show_dates": { "type": "boolean", "description": "Date above each label (default true)." },
+      "milestones": { "type": "array", "items": { "type": "object", "properties": { "label": { "type": "string" }, "sublabel": { "type": "string" }, "emphasize": { "type": "boolean" } }, "required": ["label"] }, "description": "Old undated form: 2–8 evenly spaced steps; prefer events." }
+    }
   },
   "element_ids": {
-    "line": "the horizontal timeline arrow (with start_label/end_label captions when set)",
-    "dot_<i>": "the marker for milestone i (0-indexed, left to right)",
-    "label_<i>": "milestone i's label (and sublabel, when set)",
-    "title": "figure title, when set"
+    "event_<id>": "an event: its dot, stem, thumbnail and label (event_<i> when it has no id)",
+    "era_<i>": "era band i (in eras order)",
+    "events": "every event",
+    "eras": "every era band",
+    "axis": "the time axis with its ticks",
+    "title": "figure title, when set",
+    "line / dot_<i> / label_<i>": "the milestones form's parts"
   },
   "examples": [
     {
-      "request": "Draw a timeline of a research project from kickoff to the final report.",
+      "request": "How did the economics of health care begin?",
       "params": {
-        "title": "Project timeline",
-        "milestones": [
-          { "label": "Kickoff" },
-          { "label": "Data collection" },
-          { "label": "Analysis" },
-          { "label": "Report", "emphasize": true }
+        "title": "Founding ideas",
+        "view": { "from": 1958, "to": 2002 },
+        "eras": [{ "from": 1960, "to": 1976, "label": "Theory" }, { "from": 1976, "to": 2001, "label": "Methods" }],
+        "events": [
+          { "id": "arrow", "date": 1963, "label": "Arrow", "sublabel": "uncertainty", "portrait": "Kenneth Arrow", "priority": 1, "links": ["https://www.jstor.org/stable/1812044"] },
+          { "id": "grossman", "date": 1972, "label": "Grossman", "sublabel": "demand for health", "links": ["https://doi.org/10.1086/259880"] },
+          { "id": "ws", "date": 1977, "label": "Weinstein & Stason", "sublabel": "cost-effectiveness", "emphasize": true },
+          { "id": "nice", "date": 1999, "label": "NICE", "priority": 1 }
         ]
       }
     },
     {
-      "request": "Show a timeline from diagnosis to follow-up, with treatment as the key event.",
+      "request": "Show the history of life on Earth.",
       "params": {
-        "start_label": "Diagnosis",
-        "end_label": "Follow-up",
-        "milestones": [
-          { "label": "Referral" },
-          { "label": "Treatment starts", "emphasize": true },
-          { "label": "Recovery" }
+        "scale": "log_ago",
+        "eras": [{ "from": "4.6 Ga", "to": "541 Ma", "label": "Precambrian" }, { "from": "541 Ma", "to": "now", "label": "Phanerozoic" }, { "from": "66 Ma", "to": "now", "label": "Cenozoic", "level": 1 }],
+        "events": [
+          { "date": "3.7 Ga", "label": "First life" },
+          { "date": "66 Ma", "label": "Asteroid", "emphasize": true },
+          { "date": "300 ka", "label": "Homo sapiens", "priority": 1 }
         ]
       }
     }

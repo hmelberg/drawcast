@@ -160,4 +160,44 @@ export interface SceneModule {
    * liveSliders), under the same rule: a path with no number today is left out.
    */
   sliders?: (params: Record<string, unknown>) => { path: string; label: string; min: number; max: number; step: number | "any" }[];
+  /**
+   * Info cards for the template's OWN parts (2026-09-29, timeline): what a
+   * part is called, the links, details and sources the author gave it in
+   * params — a timeline event's paper, its portrait's person. The card
+   * machinery (ui/card-model.ts) treats each like an element carrying the
+   * same fields; `cites` names the spec's `sources`, `wiki` a person whose
+   * Wikipedia summary the card may show.
+   */
+  cards?: (params: Record<string, unknown>) => Record<string, SceneCard>;
+  /**
+   * Pictures the template draws from params (2026-09-29, timeline): each is
+   * an object IN the params to resolve before layout — a person's portrait
+   * by name (`of`), or an image by `url` — whose encoded photo the resolver
+   * writes into `target.strokes` (render/template-pictures.ts). The same
+   * never-throw contract as the portrait element: a miss leaves no strokes.
+   */
+  pictures?: (params: Record<string, unknown>) => { target: Record<string, unknown>; of?: string; url?: string }[];
+  /**
+   * The space an `animate` glides a param through, when a straight line in
+   * its own units would look wrong (2026-09-29): a log_ago timeline's view
+   * zooming from 4.5 Ga toward the present must shrink by equal FACTORS, not
+   * by equal years. null / absent = linear, as always.
+   */
+  tweenSpace?: (key: string, params: Record<string, unknown>) => TweenSpace | null;
+}
+
+/** A template part's card (SceneModule.cards). */
+export interface SceneCard {
+  name: string;
+  links?: string[];
+  details?: string;
+  cites?: string[];
+  wiki?: string;
+}
+
+/** Glide in log(sign·(v − origin)): equal factors of distance from `origin`. */
+export interface TweenSpace {
+  kind: "log";
+  origin: number;
+  sign: 1 | -1;
 }

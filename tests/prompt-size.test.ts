@@ -578,7 +578,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // compiler prompt — a formula naming {r} is live, with the vars object form.
 // Merged 2026-09-29 (burstiness + parameter colours + corner list + live math
 // together): measured 363438.
-const BASELINE_SYSTEM_CHARS = 364000;
+// Raised to 370000 at 363547 (2026-09-29: the timeline template rewritten —
+// dates, log_ago deep time, era bands, events with portraits, links, details
+// and sources, a zoomable view; its entry grew from the 8-milestone stub, and
+// it is still one index line in the app's two-level catalog).
+// Merged 2026-09-29 with the timeline rewrite on top of the four above: measured 367220.
+const BASELINE_SYSTEM_CHARS = 367800;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

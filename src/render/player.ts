@@ -5,6 +5,7 @@
 // stepping, and a live speed multiplier. Scrubbing applies the plan's
 // precomputed scene state (visibility, offsets, camera) at any boundary.
 
+import { tweenValue } from "./tween-space";
 import type { MeasureFollow, MorphItem, Plan, PlanStep, SceneState, TrailProgress, TransformItem } from "./plan";
 import { moveFrame, morphFrame, transformFrame } from "./tween";
 import { overridesKey, type LayoutOverrides } from "../layout/posed";
@@ -1798,7 +1799,7 @@ export class Player {
           const cur: Record<string, number> = { ...this.withVarOverrides(before.params) };
           for (const key of Object.keys(targets)) {
             const start = step.starts[key];
-            cur[key] = start === null ? targets[key] : start + (targets[key] - start) * e;
+            cur[key] = start === null ? targets[key] : tweenValue(start, targets[key], e, step.spaces?.[key]);
           }
           // reveal ids the tween mints (a 40th slice): they join the implicit final draw
           rp.frame(cur, this.frameScene(before, visible), { revealNew: true, overrides, trailProgress: Player.trailProgressAt(step.trails, e) });

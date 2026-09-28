@@ -153,7 +153,8 @@ describe("template interaction lines (SceneManifest.interaction)", () => {
     expect(text).toMatch(/^ {2}Viewer can: Drag a curve's middle to shift it/m);
     expect(text).toMatch(/^- timeline: /m);
     expect(text).not.toContain("nope");
-    expect(text.split("\n").filter((l) => l.startsWith("  Viewer can:"))).toHaveLength(1);
+    // Both carry one since 2026-09-29 (the timeline pans and zooms while paused).
+    expect(text.split("\n").filter((l) => l.startsWith("  Viewer can:"))).toHaveLength(2);
     expect(storyTemplateLines(["supply_demand"], { excludeIds: ["supply_demand"] })).toBe("");
   });
 

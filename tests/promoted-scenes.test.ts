@@ -186,10 +186,15 @@ describe("layoutTimeline", () => {
     expect(radius(dotB, r.anchors["dot_1"])).toBeGreaterThan(radius(dotA, r.anchors["dot_0"]));
   });
 
-  test("every milestone gets a label with a valid side", () => {
+  // Since 2026-09-29 the template places its own labels (lanes above and
+  // below the line, tests/timeline-template.test.ts) instead of asking the
+  // shared label solver: each label_<i> is a drawn group with its text.
+  test("every milestone gets a label", () => {
     const r = layoutTimeline({ milestones: [{ label: "A" }, { label: "B" }, { label: "C" }, { label: "D" }] });
-    expect(r.labels.length).toBe(4);
-    for (const l of r.labels) expect(["above", "below", "left", "right", "above-left", "above-right", "below-left", "below-right"]).toContain(l.side);
+    for (let i = 0; i < 4; i++) {
+      const g = flattenDrawables(r.drawables).filter((d) => d.id.startsWith(`label_${i}__`) && d.kind === "text");
+      expect(g.length).toBeGreaterThan(0);
+    }
   });
 
   test("caps at 8 milestones", () => {

@@ -46,6 +46,14 @@ export interface LayoutFacts {
    * spec gave — an authored label still wins.
    */
   sceneNames?: readonly { id: string; name: string }[];
+  /**
+   * Cards the TEMPLATE builds for its own parts from params (SceneModule.cards
+   * — a timeline event's name, paper links, details, cited sources and the
+   * portrait's person). Each is a card element exactly as if the spec had
+   * carried those fields on an element of that id; an authored card of the
+   * same id keeps its name and gains what it lacked.
+   */
+  sceneCards?: Readonly<Record<string, { name: string; links?: string[]; details?: string; cites?: string[]; wiki?: string }>>;
   /** Command-addressable ids in draw order (`LayoutResult.order`). */
   order?: readonly string[];
   /**
@@ -186,6 +194,19 @@ export function cardTargets(spec: Spec, layout: LayoutFacts | readonly string[] 
     if (typeof n.id !== "string" || n.id === "" || typeof n.name !== "string" || !meaningfulName(n.name)) continue;
     if (out.has(n.id)) continue;
     out.set(n.id, { id: n.id, name: n.name, kind: "plain", links: [] });
+  }
+
+  // What the template says about its own parts (timeline events).
+  for (const [id, c] of Object.entries(facts.sceneCards ?? {})) {
+    if (!usable(id) || !c || typeof c.name !== "string" || c.name.trim() === "") continue;
+    const prev = out.get(id);
+    const t: CardTarget = prev ?? { id, name: c.name.trim(), kind: c.wiki ? "portrait" : "plain", links: [] };
+    if (!prev && c.wiki) t.wikiName = c.wiki;
+    addLinks(t, (c.links ?? []).filter((l): l is string => typeof l === "string"));
+    if (typeof c.details === "string" && c.details.trim() !== "") t.details ??= c.details.trim();
+    const cited = citedSources(spec, c.cites);
+    if (cited.length > 0) t.cites = [...(t.cites ?? []), ...cited.filter((s) => !t.cites?.includes(s))];
+    out.set(id, t);
   }
 
   // Finally the words a TEMPLATE drew. They are not spec elements — the
