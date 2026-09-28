@@ -30,6 +30,8 @@ describe("moreModel", () => {
     const [seattle, states] = m.entries;
     expect(seattle).toMatchObject({ title: "Evidence from Seattle", href: "https://www.nber.org/papers/w23532", byline: "Jardim et al. (2017)", text: "Hours fell", hint: "🌐 nber.org" });
     expect(states).toMatchObject({ href: "https://doi.org/10.1093/qje/qjz014", image: "https://example.org/cover.png" });
+    // doi.org says nothing the ↗ does not
+    expect(states.hint).toBeUndefined();
   });
 
   test("no sources and no more: nothing; more: false hides it; more: true is the default", () => {

@@ -47,8 +47,10 @@ function thumbFor(href: string | null): string | undefined {
   return k.kind === "youtube" ? `https://i.ytimg.com/vi/${k.id}/default.jpg` : undefined;
 }
 
+/** A DOI's host says nothing the ↗ does not; every other host, kind or not, says where it goes. */
 function hintFor(href: string | null): string | undefined {
-  return href ? linkActionsFor([href])[0]?.label : undefined;
+  if (!href || /^https?:\/\/(dx\.)?doi\.org\//i.test(href)) return undefined;
+  return linkActionsFor([href])[0]?.label;
 }
 
 function fromSource(s: SpecSource): MoreEntry {

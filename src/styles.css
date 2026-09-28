@@ -935,6 +935,8 @@ details > summary { cursor: pointer; color: var(--muted); }
 .cs-stage:has(.cs-nextlink) .cs-more-bottom-right,
 .cs-stage:has(.cs-handin) .cs-more-bottom-left { bottom: 3rem; }
 .cs-more.cs-more-open { z-index: 9; }
+/* The list is being read: the big ▶ steps out of its way until it closes. */
+.cs-stage:has(.cs-more-open) .cs-bigplay { display: none; }
 .cs-more-chip {
   display: inline-flex;
   align-items: center;
