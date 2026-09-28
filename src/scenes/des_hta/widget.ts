@@ -13,6 +13,11 @@
 //   event_label_<i>    drag sideways: the event's median (or rate, or scale)
 //   event_shape_<i>    drag sideways: its Weibull (or Gompertz) shape
 //   state_utility_<s>, state_cost_<s>   the state's QALY weight and cost a year
+//   the "Reset model" pill             the author's model (and patients) back
+//
+// Re-simulating is ~1 ms for 1,000 patients × 2 (engine.ts), so a drag
+// re-runs the whole simulation every frame at full size: no thinned-out
+// preview to swap back on release.
 //
 // Every gesture is a patch of top-level params (`strategies`, `events`,
 // `states`, `seed`, `t`). A drag maps (press point → pointer) onto the
@@ -21,7 +26,7 @@ import type { BBox } from "../../layout/geometry";
 import type { Pt } from "../../layout/model";
 import { amountScrub, clamp, roundTo, roundToStep, scrubbed } from "../number-scrub";
 import { SURFACE_PART, type EditField, type WidgetBody, type WidgetEvent, type WidgetScene } from "../widget-types";
-import { geometryOf, shownHr, timeSpans, type Span } from "./layout";
+import { shownHr, timeSpans, type Span } from "./layout";
 import { slugify, type HtaEvent, type HtaParams, type HtaState } from "./model";
 
 export const HR_STEP = 0.01;
@@ -148,6 +153,10 @@ export function timeAtPoint(scene: WidgetScene, p: Pt): number | null {
   return roundToStep(clamp(t, 0, H), timeStep(H));
 }
 
+/** What the widget may change of the model (the cursor `t` is not the model). */
+const MODEL_KEYS = ["states", "events", "strategies", "seed"] as const;
+const snapshot = (P: Record<string, unknown>): Record<string, unknown> => Object.fromEntries(MODEL_KEYS.map((k) => [k, P[k]]));
+
 export function htaParts(scene: WidgetScene): string[] {
   const P = scene.params as unknown as HtaParams;
   return scene.ids.filter((id) => CURSOR.test(id) || id === "reseed" || targetOf(id, P) !== null);
@@ -178,7 +187,15 @@ export function desHtaWidget(): WidgetBody {
       if (![...lo, ...hi].every(Number.isFinite)) return null;
       return { x: Math.min(lo[0], hi[0]), y: Math.min(lo[1], hi[1]), w: Math.abs(hi[0] - lo[0]), h: Math.abs(hi[1] - lo[1]) };
     },
-    init: () => null,
+    // The author's model, for the Reset pill (moving time alone shows none).
+    init: (scene: WidgetScene) => ({ original: snapshot(scene.params) }),
+    restLabel: "Reset model",
+    rest(scene: WidgetScene, raw: unknown) {
+      const original = (raw as { original?: Record<string, unknown> } | null)?.original;
+      if (!original) return null;
+      const now = snapshot(scene.params);
+      return MODEL_KEYS.every((k) => JSON.stringify(now[k] ?? null) === JSON.stringify(original[k] ?? null)) ? null : { ...original };
+    },
     on(event: WidgetEvent, state: unknown, scene: WidgetScene) {
       const P = scene.params as unknown as HtaParams;
       const none = { state, effects: [] };
@@ -205,4 +222,3 @@ export function desHtaWidget(): WidgetBody {
   };
 }
 
-export { geometryOf };

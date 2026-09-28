@@ -371,6 +371,10 @@ describe("the paused viewer", () => {
     expect(body.taps!("reseed", sc)).toBe(true);
     const re = body.on({ type: "click", id: "reseed", point: centre(sc, "reseed"), domain: null }, st, sc);
     expect(patchOf(re)).toEqual({ seed: 2 });
+    // The Reset pill: none while only time has moved; the author's model back once it changed.
+    expect(body.rest!(sceneOf({ ...P, t: 9 }), st)).toBeNull();
+    const changed = sceneOf({ ...P, ...patchOf(typed), seed: 2 } as HtaParams);
+    expect(body.rest!(changed, st)).toEqual({ states: P.states, events: P.events, strategies: P.strategies, seed: undefined });
   });
   test("the time cursor: drag its pill, or anywhere on either column's lanes — the same time on both", () => {
     const sc = sceneOf(P);
