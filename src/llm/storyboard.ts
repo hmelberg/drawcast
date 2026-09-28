@@ -138,10 +138,10 @@ export const DEFAULT_STORYBOARD_VERSION: StoryboardVersion = "v2";
 
 /** The picker's choices, in order. */
 export const STORYBOARD_VERSIONS: readonly { id: StoryboardVersion; label: string; hint: string }[] = [
-  { id: "v1", label: "current (v1)", hint: "The storyboard prompt multi-part drawcasts and courses have used since 2026-09-19." },
+  { id: "v1", label: "earlier (v1)", hint: "The storyboard prompt multi-part drawcasts and courses used 2026-09-19 to 2026-09-28 — for comparison." },
   {
     id: "v2",
-    label: "new (v2)",
+    label: "v2 (default)",
     hint: "The storyboard also carries the storyline rules (question first, the naive answer, one ghosted change at a time, a figure budget per part, templates with what the viewer can do, a transfer quiz), and each part is staged the way a single drawcast's storyline is.",
   },
 ];

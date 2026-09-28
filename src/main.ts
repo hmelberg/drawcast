@@ -727,12 +727,13 @@ const approachSel = h(
 );
 approachSel.value = APPROACHES.some((a) => a.id === settings.approach) ? settings.approach : DEFAULT_APPROACH;
 // Which storyboard prompt a multi-part drawcast or course is planned with
-// (llm/storyboard.ts, 2026-09-28): the current one (v1, the default) or the
-// new one carrying the storyline rules (v2). Sits right under Story so the
-// owner finds it; it matters only when the story is written first.
+// (llm/storyboard.ts): v2, the storyline rules, is the default since the blind
+// comparison (2026-09-28); v1, the earlier prompt, stays selectable in
+// DEVELOPER MODE only — an experiment/rollback lever like Pipeline, reset to
+// v2 when developer mode is turned off (applyDeveloperMode).
 const storyboardSel = h(
   "select",
-  { title: "Storyboard prompt for a multi-part drawcast or course (when the story is written first). Current (v1) is the default; new (v2) also carries the storyline rules — question first, the naive answer, one ghosted change at a time, a figure budget per part, templates with what the viewer can do, a transfer quiz — and stages each part like a single drawcast's storyline." },
+  { title: "Developer: storyboard prompt for a multi-part drawcast or course (when the story is written first). v2 (the default) carries the storyline rules — question first, the naive answer, one ghosted change at a time, a figure budget per part, templates with what the viewer can do, a transfer quiz; v1 is the earlier prompt, for comparison." },
   ...STORYBOARD_VERSIONS.map((v) => h("option", { value: v.id, title: v.hint }, v.label)),
 ) as HTMLSelectElement;
 storyboardSel.value = asStoryboardVersion(settings.storyboardVersion);
@@ -1325,7 +1326,7 @@ function refreshChoicesToggle(): void {
   const effort = effortSel.options[effortSel.selectedIndex]?.textContent?.split(" — ")[0] ?? settings.effort;
   const approach = approachSel.options[approachSel.selectedIndex]?.textContent?.split(" — ")[0] ?? settings.approach;
   const onDemand = settings.templatesOnDemand ? ` · Templates on demand (≤${settings.templatesOnDemandMax} per run)` : "";
-  const storyboard = settings.storyboardVersion === "v2" ? " · Storyboard prompt: new (v2)" : "";
+  const storyboard = settings.storyboardVersion === "v1" ? " · Storyboard prompt: earlier (v1)" : "";
   choicesBtn.title = `Template: ${tpl} · Style: ${styleName}${dev} · Model: ${model} · Effort: ${effort} · Story: ${approach}${storyboard}${onDemand}`;
   choicesBtn.classList.toggle("has-choice", templateChoice !== "" && genChoices.hidden);
 }
@@ -2222,6 +2223,12 @@ function applyDeveloperMode(): void {
   // developer mode off puts both back to the defaults, so an experiment never
   // silently drives ordinary generation.
   pipelineChoiceLabel.hidden = !on;
+  storyboardChoiceLabel.hidden = !on;
+  if (!on && settings.storyboardVersion !== "v2") {
+    settings.storyboardVersion = "v2";
+    storyboardSel.value = "v2";
+    persist();
+  }
   for (const o of labModelOptions) o.hidden = !on;
   if (!on && (LAB_MODELS.some((m) => m.id === settings.model) || LAB_MODELS.some((m) => m.id === modelSel.value))) {
     settings.model = MODELS[0].id;
