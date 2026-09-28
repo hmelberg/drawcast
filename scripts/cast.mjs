@@ -23,6 +23,17 @@
 //   node scripts/cast.mjs lecture-build <dir> <n>                            part-*.json → <dir>/NN-<title>.yaml, marked done in course.md
 //   node scripts/cast.mjs course-open <dir> [--launch]                       the app URL that imports the course and opens it
 //
+// Revising what is published (any GitHub link to a course folder, a lecture, a cast or a saved source):
+//   node scripts/cast.mjs pull <github-url> [workdir] [--force]   sparse clone in dev-casts/repos/ + a working copy
+//        (a course → dev-casts/courses/<slug>/, a cast → dev-casts/pulled/<slug>/) with origin.json
+//   node scripts/cast.mjs unpack <course-dir> <n>  |  unpack <cast.yaml> [outdir]   → part-N.json + outline.json
+//   node scripts/cast.mjs revise-prompt <parts-dir | cast.json> "<change>" [out.md]   the app's rules, the document's templates in full
+//   node scripts/cast.mjs repack <parts-dir>             parts → the YAML again; narration kept for every unchanged line
+//   node scripts/cast.mjs push <workdir> [--dry-run | --no-push] [--direct] [-m msg] [--body text] [--new-pr]
+//        regenerates what the app's publish would (course page, READMEs, manifests, Next cards) and commits it:
+//        a branch + PR by default (from a fork without push rights; later pushes update the same PR), --direct to
+//        the default branch. Refuses if the files changed on GitHub since the pull.
+//
 // A cast file is a spec, a {request, spec}, or playlist YAML — anything the
 // app opens. Files live under dev-casts/ (gitignored). The dev server:
 //   npm run dev -- --port 5199 --strictPort      (DRAWCAST_URL overrides http://localhost:5199)
@@ -30,6 +41,8 @@
 import { createServer } from "vite";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, relative, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import { pageDoor, parseGithubTarget } from "./cast-github.mjs";
 
 const [cmd, ...rest] = process.argv.slice(2);
 const ROOT = process.cwd();
@@ -187,6 +200,59 @@ function positional(args) {
   return args.filter((a, i) => a !== "--storyboard" && args[i - 1] !== "--storyboard");
 }
 
+// ---- Revising from GitHub: helpers -------------------------------------------
+
+/** Run a command; its trimmed stdout, or an error carrying its stderr. */
+function sh(bin, args) {
+  const r = spawnSync(bin, args, { encoding: "utf8", maxBuffer: 1 << 30 });
+  if (r.status !== 0) throw new Error(`${bin} ${args.slice(0, 3).join(" ")} …: ${(r.stderr || r.stdout || "").trim()}`);
+  return r.stdout.trim();
+}
+
+const joinRepo = (...parts) => parts.filter(Boolean).join("/");
+
+/** The player the published links point at (the app's viewerBase), read off the repo's own READMEs. */
+function findViewerBase(clone, folder) {
+  for (let dir = folder; ; dir = dir.split("/").slice(0, -1).join("/")) {
+    const f = resolve(clone, dir, "README.md");
+    const m = existsSync(f) && /\((https?:\/\/[^)\s]*?)\/?#gh=/.exec(readFileSync(f, "utf8"));
+    if (m) return m[1] + "/";
+    if (!dir) return "https://drawcast.app/";
+  }
+}
+
+/** A file as it is at `commit` (the clone is sparse and blob-less, so not from the worktree); null if absent. */
+function readAtCommit(clone, commit, path) {
+  const r = spawnSync("git", ["-C", clone, "show", `${commit}:${path}`], { encoding: "utf8", maxBuffer: 1 << 30 });
+  return r.status === 0 ? r.stdout : null;
+}
+
+function guardWorkdir(work, force) {
+  if (!existsSync(work) || force) return;
+  const has = readdirSync(work).length > 0;
+  if (has) throw new Error(`${relative(ROOT, work)} exists — pass another workdir, or --force to overwrite its published files (part files and lecture folders are left alone)`);
+}
+
+/** unpack's arguments: a YAML (→ <name>.parts/), or a course folder and a lecture number (→ lecture-NN/). */
+async function unpackTarget(load, args) {
+  const [a, b] = args;
+  if (!a) throw new Error("usage: cast.mjs unpack <cast.yaml> [outdir]  |  cast.mjs unpack <course-dir> <lecture>");
+  const at = resolve(ROOT, a);
+  if (existsSync(resolve(at, "course.md"))) {
+    const n = Number(b);
+    const { lectures } = await courseLectures(load, readFileSync(resolve(at, "course.md"), "utf8"));
+    const file = lectures[n - 1]?.status?.file;
+    if (!file) throw new Error(`lecture ${b} has no published file in ${a}/course.md (${lectures.length} lectures)`);
+    return { yaml: resolve(at, file), outdir: resolve(at, `lecture-${String(n).padStart(2, "0")}`) };
+  }
+  return { yaml: at, outdir: resolve(ROOT, b ?? a.replace(/\.ya?ml$/i, "") + ".parts") };
+}
+
+async function courseLectures(load, text) {
+  const { parseCourse } = await load("/src/course/document.ts");
+  return parseCourse(text);
+}
+
 const commands = {
   async prompt([request, out]) {
     if (!request) throw new Error('usage: cast.mjs prompt "<request>" [out.md]');
@@ -325,6 +391,301 @@ const commands = {
     }
   },
 
+  // ---- Revising what is already published (a GitHub URL) --------------------
+  // pull makes a sparse clone under dev-casts/repos/ and a working copy
+  // (a course folder shaped like the ones above, or one cast) with an
+  // origin.json saying where it came from. unpack/repack turn a published
+  // YAML into part-N.json + outline.json and back, keeping its meta and the
+  // baked narration of every line still spoken. push regenerates what the
+  // app's own publish would (course page, READMEs, manifests, next links)
+  // and commits it: a branch and a PR by default, the default branch only
+  // with --direct.
+
+  async pull(args) {
+    const force = args.includes("--force");
+    const [url, out] = args.filter((a) => a !== "--force");
+    if (!url) throw new Error("usage: cast.mjs pull <github-url> [workdir] [--force]");
+    const t = parseGithubTarget(url);
+    const branch = t.branch ?? sh("gh", ["api", `repos/${t.owner}/${t.repo}`, "--jq", ".default_branch"]);
+    const clone = resolve(ROOT, "dev-casts/repos", `${t.owner}__${t.repo}`);
+    // A path that is a file is checked out by its folder: a lecture needs its
+    // course, a cast its casts.json.
+    const isFile = /\.ya?ml$/i.test(t.path);
+    const folder = isFile ? t.path.split("/").slice(0, -1).join("/") : t.path;
+    if (!existsSync(clone)) {
+      mkdirSync(resolve(ROOT, "dev-casts/repos"), { recursive: true });
+      sh("git", ["clone", "--quiet", "--filter=blob:none", "--sparse", "--depth", "1", "--branch", branch, `https://github.com/${t.owner}/${t.repo}.git`, clone]);
+    } else {
+      sh("git", ["-C", clone, "fetch", "--quiet", "--depth", "1", "origin", branch]);
+      sh("git", ["-C", clone, "checkout", "--quiet", "--force", "-B", branch, "FETCH_HEAD"]);
+    }
+    const dirs = new Set(sh("git", ["-C", clone, "sparse-checkout", "list"]).split("\n").filter(Boolean));
+    if (folder) dirs.add(folder);
+    // Cone mode: every file directly in each parent folder comes too
+    // (courses.json, the repo's index pages).
+    sh("git", ["-C", clone, "sparse-checkout", "set", ...dirs]);
+    const base = sh("git", ["-C", clone, "rev-parse", "HEAD"]);
+    const at = (p) => resolve(clone, p);
+    if (!existsSync(at(t.path))) throw new Error(`${t.owner}/${t.repo}@${branch} has no ${t.path || "(root)"}`);
+
+    const courseDir = existsSync(at(joinRepo(folder, "course.md"))) ? folder : null;
+    if (!courseDir && !isFile) {
+      const listing = readdirSync(at(folder)).filter((f) => !f.startsWith("."));
+      throw new Error(`${t.path || "the repo root"} is neither a course folder (no course.md) nor a .yaml. It holds: ${listing.join(", ")}. Pass a course folder or a cast's .yaml.`);
+    }
+    const viewerBase = findViewerBase(clone, folder);
+    const common = { owner: t.owner, repo: t.repo, branch, base, clone: relative(ROOT, clone), viewerBase, pulled: new Date().toISOString() };
+
+    if (courseDir) {
+      const slug = courseDir.split("/").at(-1);
+      const work = resolve(ROOT, out ?? `dev-casts/courses/${slug}`);
+      guardWorkdir(work, force);
+      mkdirSync(work, { recursive: true });
+      const text = readFileSync(at(joinRepo(courseDir, "course.md")), "utf8");
+      writeFileSync(resolve(work, "course.md"), text);
+      const course = await withVite((load) => courseLectures(load, text));
+      const files = course.lectures.map((l) => l.status?.file ?? null);
+      const copied = [];
+      for (const f of files) {
+        if (!f || !existsSync(at(joinRepo(courseDir, f)))) continue;
+        writeFileSync(resolve(work, f), readFileSync(at(joinRepo(courseDir, f))));
+        copied.push(f);
+      }
+      const coursesDir = courseDir.split("/").slice(0, -1).join("/");
+      const lecture = isFile ? files.indexOf(t.path.split("/").at(-1)) + 1 || null : null;
+      writeFileSync(resolve(work, "origin.json"), JSON.stringify({ kind: "course", ...common, path: courseDir, coursesDir, lecture }, null, 1) + "\n");
+      const lines = course.lectures.map((l, i) => `  ${String(i + 1).padStart(2)}. ${l.title}${files[i] && copied.includes(files[i]) ? "" : "   (not published — nothing to revise)"}${lecture === i + 1 ? "   ← the link pointed here" : ""}`);
+      console.log(`${relative(ROOT, work)}: course "${text.match(/^# (.*)$/m)?.[1] ?? slug}" from ${t.owner}/${t.repo}@${branch}, ${copied.length} of ${files.length} lecture(s) published:\n${lines.join("\n")}\nNext: cast.mjs unpack ${relative(ROOT, work)} <n>  (a lecture → lecture-NN/part-*.json)`);
+      return;
+    }
+
+    const file = t.path.split("/").at(-1);
+    const slug = file.replace(/\.ya?ml$/i, "");
+    const kind = folder.split("/").at(-1) === "sources" ? "source" : "cast";
+    const work = resolve(ROOT, out ?? `dev-casts/pulled/${slug}`);
+    guardWorkdir(work, force);
+    mkdirSync(work, { recursive: true });
+    writeFileSync(resolve(work, file), readFileSync(at(t.path)));
+    writeFileSync(resolve(work, "origin.json"), JSON.stringify({ kind, ...common, path: t.path, castsDir: folder, file }, null, 1) + "\n");
+    console.log(`${relative(ROOT, work)}/${file}: ${kind === "source" ? "a saved source" : "a published drawcast"} from ${t.owner}/${t.repo}@${branch}.\nNext: cast.mjs unpack ${relative(ROOT, work)}/${file}`);
+  },
+
+  async unpack(args) {
+    await withVite(async (load) => {
+      const { parsePlaylistText } = await load("/src/playlist/playlist.ts");
+      const { yaml, outdir } = await unpackTarget(load, args);
+      const playlist = parsePlaylistText(readFileSync(yaml, "utf8"));
+      mkdirSync(outdir, { recursive: true });
+      for (const f of readdirSync(outdir)) if (/^part-\d+\.json$/.test(f)) throw new Error(`${relative(ROOT, outdir)} already holds part files — repack or remove them first`);
+      let n = 0;
+      const entries = playlist.entries.map((e) => {
+        if (e.kind === "chapter") return { chapter: e.title };
+        n++;
+        writeFileSync(resolve(outdir, `part-${n}.json`), JSON.stringify(e.spec, null, 1) + "\n");
+        return { part: n };
+      });
+      writeFileSync(resolve(outdir, "outline.json"), JSON.stringify({ source: relative(outdir, yaml), meta: playlist.meta, entries }, null, 1) + "\n");
+      const audio = playlist.audio ? Object.keys(playlist.audio.lines).length : 0;
+      const parts = entries.flatMap((e) => {
+        if (!e.part) return [`  (chapter) ${e.chapter}`];
+        const spec = JSON.parse(readFileSync(resolve(outdir, `part-${e.part}.json`), "utf8"));
+        const next = (spec.elements ?? []).some((el) => el.id === "nx_kicker");
+        return [`  part-${e.part}.json  ${next ? '(the drawn "Next" card — push redraws it from course.md; leave it)' : (spec.title ?? "")}`];
+      });
+      console.log(`${relative(ROOT, outdir)}: ${n} part(s)${audio ? `, ${audio} baked narration clip(s) kept aside in the source` : ""}\n${parts.join("\n")}\nEdit the parts (check/frames each), reorder/drop/add in outline.json entries, then: cast.mjs repack ${relative(ROOT, outdir)}`);
+    });
+  },
+
+  async repack([outdir]) {
+    if (!outdir) throw new Error("usage: cast.mjs repack <parts-dir>");
+    const dir = resolve(ROOT, outdir);
+    const outline = JSON.parse(readFileSync(resolve(dir, "outline.json"), "utf8"));
+    const yaml = resolve(dir, outline.source);
+    await withVite(async (load) => {
+      const { parsePlaylistText, formatPublished } = await load("/src/playlist/playlist.ts");
+      const { validateSpec } = await load("/src/spec/schema.ts");
+      const { playlistSpeakLines } = await load("/src/playlist/session.ts");
+      const { speechKey } = await load("/src/render/delivery.ts");
+      const errors = [];
+      const entries = outline.entries.map((e) => {
+        if (e.chapter !== undefined) return { kind: "chapter", title: e.chapter };
+        const f = resolve(dir, `part-${e.part}.json`);
+        if (!existsSync(f)) throw new Error(`outline.json lists part ${e.part} but ${relative(ROOT, f)} is missing`);
+        const spec = readCast(f);
+        const v = validateSpec(spec);
+        if (!v.ok) errors.push(...v.errors.map((m) => `part ${e.part}: ${m}`));
+        return { kind: "item", spec };
+      });
+      if (errors.length) throw new Error(`not repacked — invalid:\n  ${errors.join("\n  ")}`);
+      const playlist = { meta: outline.meta, entries, warnings: [] };
+      // Narration is keyed by the sentence (speechKey): unchanged lines keep
+      // their clip, and a clip for a line no longer said is dropped, as the
+      // app's own bake does.
+      const before = parsePlaylistText(readFileSync(yaml, "utf8")).audio;
+      let audio = null, report = "";
+      if (before) {
+        const wanted = playlistSpeakLines(playlist).filter((l) => l.text.trim()).map(speechKey);
+        const lines = Object.fromEntries(wanted.filter((k) => before.lines[k]).map((k) => [k, before.lines[k]]));
+        audio = { ...before, lines };
+        const missing = wanted.filter((k) => !before.lines[k]).length;
+        const dropped = Object.keys(before.lines).length - Object.keys(lines).length;
+        report = `\n  narration: ${Object.keys(lines).length} clip(s) kept, ${dropped} dropped (lines no longer said)` + (missing ? `, ${missing} line(s) with no recording — they play in the browser's voice until re-baked (republish with narration from the app)` : "");
+      }
+      writeFileSync(yaml, formatPublished(playlist, audio));
+      console.log(`${relative(ROOT, yaml)}: ${entries.filter((e) => e.kind === "item").length} part(s) repacked${report}`);
+    });
+  },
+
+  async "revise-prompt"([target, instruction, out]) {
+    if (!target || !instruction) throw new Error('usage: cast.mjs revise-prompt <parts-dir | cast.json> "<what to change>" [out.md]');
+    const t = resolve(ROOT, target);
+    const files = existsSync(resolve(t, "outline.json")) ? readdirSync(t).filter((f) => /^part-\d+\.json$/.test(f)).map((f) => resolve(t, f)) : [t];
+    const templates = [...new Set(files.map((f) => readCast(f)?.template).filter(Boolean))];
+    out ??= `dev-casts/_revise-${relative(resolve(ROOT, "dev-casts"), t).replace(/\.json$/, "").replace(/[^\w-]+/g, "-").slice(-60)}.md`;
+    await withVite(async (load) => {
+      // The app's revise sends the compiler prompt with the document's own
+      // templates in full (llm/revise.ts); the instruction picks the rest.
+      const text = await appPromptText(load, instruction, templates);
+      writeFileSync(resolve(ROOT, out), wrap(text) + `\n\n# THE CHANGE ASKED FOR\n\n${instruction}\n\nEdit the part file(s) in place; change only what this asks for. The spoken lines are the drawcast: keep every line the change does not touch word for word (its baked narration is keyed by the sentence).\n`);
+      console.log(`${out}: ${text.length} characters — the app's rules and schema, with ${templates.length ? `the document's templates (${templates.join(", ")})` : "no template"} in full.`);
+    });
+  },
+
+  async push(args) {
+    const direct = args.includes("--direct"), dry = args.includes("--dry-run"), fresh = args.includes("--new-pr"), local = args.includes("--no-push");
+    const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
+    const message = flag("-m"), body = flag("--body");
+    const [work] = args.filter((a, i) => !a.startsWith("-") && !["-m", "--body"].includes(args[i - 1]));
+    if (!work) throw new Error('usage: cast.mjs push <workdir> [--dry-run | --no-push] [--direct] [-m "<commit message>"] [--body "<PR description>"] [--new-pr]');
+    const wd = resolve(ROOT, work);
+    const origin = JSON.parse(readFileSync(resolve(wd, "origin.json"), "utf8"));
+    const clone = resolve(ROOT, origin.clone);
+    const repo = { owner: origin.owner, repo: origin.repo };
+    const git = (...a) => sh("git", ["-C", clone, ...a]);
+
+    // Nothing is overwritten that changed upstream since the pull.
+    git("fetch", "--quiet", "--depth", "1", "origin", origin.branch);
+    const upstream = git("rev-parse", "FETCH_HEAD");
+    const watched = origin.kind === "course" ? [origin.path, joinRepo(origin.coursesDir, "courses.json")] : [origin.path];
+    const moved = upstream === origin.base ? "" : git("diff", "--name-only", origin.base, upstream, "--", ...watched);
+    if (moved) throw new Error(`changed on GitHub since the pull, not pushed:\n  ${moved.split("\n").join("\n  ")}\nPull again into a fresh workdir and carry the revision over.`);
+
+    const files = await withVite(async (load) => {
+      if (origin.kind === "source") return { files: [{ path: origin.path, content: readFileSync(resolve(wd, origin.file), "utf8") }], deletions: [] };
+      if (origin.kind === "cast") {
+        const { buildCastPlan, parseCastIndex, emptyCastIndex } = await load("/src/publish/cast.ts");
+        const { parsePlaylistText, itemsOf } = await load("/src/playlist/playlist.ts");
+        const text = readFileSync(resolve(wd, origin.file), "utf8");
+        const p = parsePlaylistText(text);
+        const title = p.meta.title ?? itemsOf(p)[0]?.spec.title ?? "";
+        const indexText = readAtCommit(clone, upstream, joinRepo(origin.castsDir, "casts.json"));
+        const slug = origin.file.replace(/\.ya?ml$/i, "");
+        const plan = buildCastPlan({ title, text, slug, previousSlug: slug, repo, castsDir: origin.castsDir, viewerBase: origin.viewerBase, index: indexText ? parseCastIndex(indexText) : emptyCastIndex() });
+        return { files: plan.files, deletions: [] };
+      }
+      const { buildPublishPlan } = await load("/src/course/publish.ts");
+      const { parseCourse } = await load("/src/course/document.ts");
+      const { parseManifest, emptyManifest } = await load("/src/publish/github.ts");
+      const { doorlessNote } = await load("/src/course/page.ts");
+      const { parsePlaylistText, formatPublished, makeNextCard } = await load("/src/playlist/playlist.ts");
+      const text = readFileSync(resolve(wd, "course.md"), "utf8");
+      const course = parseCourse(text);
+      const manifestText = readAtCommit(clone, upstream, joinRepo(origin.coursesDir, "courses.json"));
+      const plan = buildPublishPlan({
+        course,
+        text,
+        repo,
+        coursesDir: origin.coursesDir,
+        viewerBase: origin.viewerBase,
+        manifest: manifestText ? parseManifest(manifestText) : emptyManifest(),
+        lectureYaml: (i) => {
+          const f = course.lectures[i].status?.file;
+          if (!f || !existsSync(resolve(wd, f))) return null;
+          // What course/run.ts's lecturePlaylist ties to the course's order:
+          // the lecture's title and the drawn "Next" card. A retitled or
+          // reordered course gets them redrawn, as a rebuild would.
+          const p = parsePlaylistText(readFileSync(resolve(wd, f), "utf8"));
+          p.meta.title = course.lectures[i].title;
+          const last = p.entries.at(-1);
+          const isNextCard = last?.kind === "item" && (last.spec.elements ?? []).some((e) => e.id === "nx_kicker");
+          if (isNextCard) p.entries.pop();
+          const following = course.lectures[i + 1];
+          if (isNextCard && following) p.entries.push({ kind: "item", spec: makeNextCard({ next: following.title, position: i + 2, total: course.lectures.length }) });
+          return formatPublished(p, p.audio ?? null);
+        },
+        door: pageDoor(readAtCommit(clone, upstream, joinRepo(origin.path, "index.html")), doorlessNote),
+      });
+      return { files: plan.files, deletions: plan.deletions };
+    });
+
+    // What would change, against the repo as it is now.
+    const changes = [];
+    for (const f of files.files) {
+      const now = readAtCommit(clone, upstream, f.path);
+      if (now === null) changes.push(["new", f.path]);
+      else if (now !== f.content) changes.push(["changed", f.path]);
+    }
+    for (const p of files.deletions) changes.push(["deleted", p]);
+    // The date in the manifests changes on every publish; alone it is no change.
+    const real = changes.filter(([, p]) => !/(^|\/)(courses\.json|casts\.json|index\.html|README\.md)$/.test(p));
+    console.log(changes.length ? changes.map(([k, p]) => `  ${k.padEnd(8)} ${p}`).join("\n") : "  nothing differs from GitHub");
+    if (!real.length) return console.log("Nothing to push.");
+    if (dry) return console.log("(dry run — nothing written)");
+
+    const perm = local ? { push: true } : JSON.parse(sh("gh", ["api", `repos/${origin.owner}/${origin.repo}`, "--jq", "{push: .permissions.push}"]));
+    const me = local ? "" : sh("gh", ["api", "user", "--jq", ".login"]);
+    if (direct && !perm.push) throw new Error(`${me} cannot push to ${origin.owner}/${origin.repo} — drop --direct to open a pull request from a fork`);
+    const branch = direct ? origin.branch : !fresh && origin.pr?.branch ? origin.pr.branch : `drawcast/revise-${basename(origin.path).replace(/\.ya?ml$/i, "")}-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")}`;
+    // A PR branch already pushed is built on (its PR updates); anything else starts from upstream.
+    const onPr = !direct && origin.pr?.branch === branch;
+    git("checkout", "--quiet", "--force", "-B", branch, upstream);
+    if (onPr) {
+      const remote = origin.pr.remote;
+      try {
+        git("fetch", "--quiet", remote, branch);
+        git("reset", "--quiet", "--hard", "FETCH_HEAD");
+      } catch {
+        /* the PR branch is gone (merged and deleted): start a fresh one from upstream */
+      }
+    }
+    const extra = new Set(files.files.map((f) => f.path.split("/").slice(0, -1).join("/")).filter(Boolean));
+    if (extra.size) git("sparse-checkout", "add", ...extra);
+    for (const f of files.files) {
+      mkdirSync(resolve(clone, f.path, ".."), { recursive: true });
+      writeFileSync(resolve(clone, f.path), f.bytes ?? f.content);
+    }
+    for (const p of files.deletions) if (existsSync(resolve(clone, p))) git("rm", "--quiet", p);
+    git("add", "--sparse", ...files.files.map((f) => f.path));
+    if (!git("status", "--porcelain")) return console.log("Nothing to push (the branch already has these changes).");
+    const title = origin.kind === "course" ? readFileSync(resolve(wd, "course.md"), "utf8").match(/^# (.*)$/m)?.[1] : origin.file;
+    git("commit", "--quiet", "-m", message ?? `drawcast: revise ${origin.kind} "${title}"`);
+
+    if (local) return console.log(`Committed on ${branch} in ${origin.clone}, not pushed:\n${git("show", "--stat", "--format=%h %s", "HEAD")}`);
+
+    // gh's own credentials for the push, without touching the git config.
+    const pushTo = (remote, ref) => sh("git", ["-C", clone, "-c", "credential.helper=", "-c", "credential.helper=!gh auth git-credential", "push", "--quiet", remote, ref]);
+    if (direct) {
+      pushTo("origin", `HEAD:${origin.branch}`);
+      origin.base = git("rev-parse", "HEAD");
+      writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
+      return console.log(`Pushed to ${origin.owner}/${origin.repo}@${origin.branch} (${origin.base.slice(0, 7)}). The viewer reads raw.githubusercontent.com, which can lag a few minutes.`);
+    }
+    let remote = "origin", head = branch;
+    if (!perm.push) {
+      sh("gh", ["repo", "fork", `${origin.owner}/${origin.repo}`, "--clone=false"]);
+      remote = `https://github.com/${me}/${origin.repo}.git`;
+      head = `${me}:${branch}`;
+    }
+    pushTo(remote, `HEAD:refs/heads/${branch}`);
+    let url = onPr ? origin.pr.url : null;
+    if (!url) {
+      url = sh("gh", ["pr", "create", "--repo", `${origin.owner}/${origin.repo}`, "--base", origin.branch, "--head", head, "--title", message ?? `Revise ${origin.kind}: ${title}`, "--body", body ?? `A revision made with the drawcast skill (scripts/cast.mjs push).\n\nFiles:\n${changes.map(([k, p]) => `- ${k} \`${p}\``).join("\n")}`]);
+    }
+    origin.pr = { url, branch, remote };
+    writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
+    console.log(`${onPr ? "Updated" : "Opened"} ${url}`);
+  },
+
   async template([id]) {
     if (!id) throw new Error("usage: cast.mjs template <id>");
     await withVite(async (load) => {
@@ -430,7 +791,7 @@ const commands = {
 };
 
 if (!commands[cmd]) {
-  console.log("usage: node scripts/cast.mjs prompt|template|check|frames|open|course-prompt|course-new|lecture-prompt|part-prompt|lecture-build|course-open …  (see the header of this file)");
+  console.log("usage: node scripts/cast.mjs prompt|template|check|frames|open|course-prompt|course-new|lecture-prompt|part-prompt|lecture-build|course-open|pull|unpack|revise-prompt|repack|push …  (see the header of this file)");
   process.exitCode = 1;
 } else {
   await commands[cmd](rest).catch((err) => {
