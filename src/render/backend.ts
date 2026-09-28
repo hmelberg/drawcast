@@ -81,7 +81,8 @@ export interface BackendEffects {
   endHighlight(ids: string[]): void;
   /**
    * Dim the listed ids to `alpha` (1 = normal) — the focus verb's inverse
-   * spotlight. Optional so embedded/legacy backends keep working.
+   * spotlight (held at FOCUS_DIM). Composes with a fade: a faded element
+   * dims from where the fade left it. Optional so embedded/legacy backends keep working.
    */
   setFocus?(dimIds: string[], alpha: number): void;
   /** Restore any leftover dim (abort/scrub safety). */
@@ -148,3 +149,12 @@ export interface BackendModule {
   label: string;
   mount(layout: LayoutResult, spec: Spec, container: HTMLElement): Promise<MountResult>;
 }
+
+/**
+ * How far `focus` dims everything it does not name. 0.16 (to 2026-09-28)
+ * all but erased the rest — Hans: "too strong" — so the viewer lost the
+ * context the focus is meant to sit in. At 0.38 the rest reads as set
+ * aside, still legible. One value for the player, the frame harness and
+ * the export, so they agree.
+ */
+export const FOCUS_DIM = 0.38;

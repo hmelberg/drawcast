@@ -14,6 +14,14 @@
 // before layout): generous, since a card a little too wide is harmless and
 // one too narrow is not. The lines are `work` ("show your work"; `lines` is
 // the code panel's window height); the corner is the usual `at: {place}`.
+//
+// The look (Hans 2026-09-28: "ugly and slow"): a weak grey wash of paper
+// with one thin clean border — no rough double pass, no pen going round it
+// — that FADES in (draw mode fade), text inside as before. It is pasted ON
+// the figure (the top layer), where its own paper keeps it readable, so the
+// layout exempts it from the overlap rules and label placement ignores it
+// (scratchIds, used by layout.ts). With no place given it sits at the
+// middle of the left edge.
 
 import { heuristicMeasure } from "../layout/measure";
 import { formatVar } from "./vars";
@@ -24,7 +32,38 @@ export type NoteLine = string | { tex: string };
 const PAD = 18;
 const RADIUS = 14;
 
-const PLACES = ["top_left", "top_right", "bottom_left", "bottom_right", "center"] as const;
+const PLACES = ["top_left", "top_right", "bottom_left", "bottom_right", "center", "left", "right", "top", "bottom"] as const;
+
+/** The card's paper: the page's own paper with ~9 % ink in it — grey enough
+ *  to read as a separate sheet, light enough to leave the words the ink. */
+export const SCRATCH_PAPER = "#e9e5db";
+/** Its border: a light, thin, clean line. */
+export const SCRATCH_EDGE = "#b3ac9f";
+/** How opaque the paper is: what lies under the card shows only as a ghost. */
+const PAPER_OPACITY = 0.97;
+/** Seconds each of the paper's two leaves (wash, then border) takes to fade in — and out, erased. */
+const FADE_S = 0.2;
+
+/**
+ * The scratch cards a layout's groups hold, read off the expansion's own
+ * naming — a group <g> of <g>_box and <g>_line_n — so no marker has to
+ * survive expansion. For focus (a line keeps its paper lit) and for the
+ * layout (the card sits on top, outside the overlap rules).
+ */
+export function scratchCards(groups: Record<string, string[]>): { id: string; box: string; lines: string[] }[] {
+  const out: { id: string; box: string; lines: string[] }[] = [];
+  for (const [id, members] of Object.entries(groups)) {
+    const box = `${id}_box`;
+    const lines = members.filter((m) => m.startsWith(`${id}_line_`));
+    if (members.includes(box) && lines.length > 0) out.push({ id, box, lines });
+  }
+  return out;
+}
+
+/** Whether a drawable id (a leaf, a formula's group, a wash) belongs to one of these cards. */
+export function isScratchPart(cards: { id: string; box: string; lines: string[] }[], id: string): boolean {
+  return cards.some((c) => [c.box, ...c.lines].some((m) => id === m || id.startsWith(`${m}_`)));
+}
 
 /** A rounded rectangle as a closed polyline: quarter circles at the corners. */
 function roundedRect(cx: number, cy: number, w: number, h: number, r: number): [number, number][] {
@@ -98,17 +137,21 @@ export function expandScratch(spec: Spec): Spec {
     // heading strip (the band figures use: y 95–655).
     const at = el.at as { place?: unknown } | undefined;
     const place = typeof at?.place === "string" && (PLACES as readonly string[]).includes(at.place) ? at.place : null;
+    // No place and no x: the middle of the left edge (Hans 2026-09-28) — a
+    // fixed slot, so the author and the viewer know where working appears.
+    const side = place ?? (typeof el.x === "number" ? "center" : "left");
     const cx =
-      typeof el.x === "number" ? el.x : place?.endsWith("left") ? 60 + w / 2 : place?.endsWith("right") ? 940 - w / 2 : 500;
+      typeof el.x === "number" ? el.x : side.endsWith("left") ? 60 + w / 2 : side.endsWith("right") ? 940 - w / 2 : 500;
     const cy =
-      typeof el.y === "number" ? el.y : place?.startsWith("top") ? 655 - h / 2 : place?.startsWith("bottom") ? 95 + h / 2 : 375;
+      typeof el.y === "number" ? el.y : side.startsWith("top") ? 655 - h / 2 : side.startsWith("bottom") ? 95 + h / 2 : 375;
     const members: string[] = [`${el.id}_box`];
     out.push({
       id: `${el.id}_box`,
       type: "path",
       points: roundedRect(cx, cy, w, h, RADIUS),
       closed: true,
-      style: { color: "#8f887c", fill: "#fdfbf5", opacity: 0.92, ...(el.style ?? {}) },
+      style: { color: SCRATCH_EDGE, stroke_width: 1.2, roughness: 0, fill: SCRATCH_PAPER, fill_style: "wash", opacity: PAPER_OPACITY, ...(el.style ?? {}) },
+      draw: { mode: "fade", duration: FADE_S },
       ...(el.app_only ? { app_only: true } : {}),
     } as SpecElement);
     const top = cy + h / 2 - PAD - size * 0.6;

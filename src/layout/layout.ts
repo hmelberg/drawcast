@@ -30,7 +30,8 @@ import { bboxOfText } from "./geometry";
 import { hasDefaultColumnInsets, INSET_MAIN } from "./inset";
 import type { LayoutOverrides } from "./posed";
 import { heuristicMeasure, type MeasureFn } from "./measure";
-import { drawablesForId, leafDrawables, type Drawable, type Pt } from "./model";
+import { drawablesForId, flattenDrawables, leafDrawables, Z_TOP, type Drawable, type Pt } from "./model";
+import { isScratchPart, scratchCards } from "../spec/scratch";
 import { domainPlot, frameToCanvas, linearScale, setHeadingFloor, worldBounds, type DataFrame } from "./canvas";
 import { figureSplit } from "./figure-split";
 import { fitSceneLayout, growSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
@@ -374,7 +375,22 @@ export function layoutSpec(
   // predict here, and a label that cannot see it will happily sit on it. The
   // prediction is the same padFor the real pass uses, so what the solver
   // avoids is what gets drawn.
-  const obstacles = obstacleBoxes(drawables, measure);
+  // A scratch card is pasted ON the figure (spec/scratch.ts): every part of
+  // it paints in the top layer, over whatever ink it covers, and label
+  // placement neither avoids it nor is pushed about by it — it is temporary,
+  // and its own paper keeps its words readable.
+  const cards = scratchCards(groups);
+  const onCard = (id: string) => cards.length > 0 && isScratchPart(cards, id);
+  // Its words need no paper halo: they sit on the card's own paper, and a
+  // page-coloured halo reads as a pale patch on the grey.
+  if (cards.length > 0) {
+    for (const d of flattenDrawables(drawables)) {
+      if (!onCard(d.id)) continue;
+      d.z = Z_TOP;
+      if (d.kind === "text") d.halo = false;
+    }
+  }
+  const obstacles = obstacleBoxes(drawables, measure).filter((o) => o.id === undefined || !onCard(o.id));
   const labelIds = new Set(labelRequests.map((r) => r.id));
   for (const el of spec.elements ?? []) {
     if (el.type !== "annotation" || el.kind === "strike" || el.kind === "cross") continue;
@@ -460,7 +476,11 @@ export function layoutSpec(
       const b = d.kind === "text" ? bboxOfText(d, measure) : { x: d.pos[0] - d.w / 2, y: d.pos[1] - d.h / 2, w: d.w, h: d.h };
       return [[b.x, b.y], [b.x + b.w, b.y], [b.x, b.y + b.h], [b.x + b.w, b.y + b.h]] as Pt[];
     });
-    drawables.push(...annotationDrawables(el, box, textTarget, (msg) => warnings.push(msg), fit, inkPts));
+    const markInk = annotationDrawables(el, box, textTarget, (msg) => warnings.push(msg), fit, inkPts);
+    // A mark on a scratch card's line is on the card: the top layer, or the
+    // card's paper would hide it.
+    if (targets.some(onCard)) for (const d of flattenDrawables(markInk)) d.z = Z_TOP;
+    drawables.push(...markInk);
   }
 
   // lint hands us TOP-LEVEL drawable ids (`n1_text`, a pieces cell, a
@@ -475,8 +495,9 @@ export function layoutSpec(
     .filter((e) => e.type === "annotation")
     .map((e) => [e.id, (Array.isArray(e.target) ? e.target : e.target !== undefined ? [e.target] : []) as string[]]);
   const marks = (x: string, y: string) => annotated.some(([id, ts]) => ownsId(id, x) && ts.some((t) => ownsId(t, y)));
+  // …and a scratch card covering ink is the card's job, not a collision.
   const composed = (a: string, b: string) =>
-    marks(a, b) || marks(b, a) || Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
+    onCard(a) || onCard(b) || marks(a, b) || marks(b, a) || Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
   const layoutIssues = lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], composed, world ?? undefined);
   layoutIssues.push(...headingIntrusions(drawables, measure, spec.commands));
   const atDraw = codeEl && !opts.skipDrawBeatLint ? paramsAtFirstDraw(rawSpec, codeEl.id) : null;

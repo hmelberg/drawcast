@@ -31,8 +31,8 @@ export interface ResolvedStyle {
 }
 
 export interface DrawResolved {
-  /** type = a text leaf reveals character by character (code lines); every other leaf treats it as sketch. */
-  mode: "sketch" | "instant" | "type";
+  /** type = a text leaf reveals character by character (code lines); every other leaf treats it as sketch. fade = the leaf's ink comes up as a whole, no pen (a scratch card's paper). */
+  mode: "sketch" | "instant" | "type" | "fade";
   /** milliseconds */
   duration: number;
 }
@@ -319,10 +319,11 @@ export const SKETCH_MS = Object.freeze({
   priceLine: 1150,
   arrow: 730,
   text: 400,
+  fade: 320,
 } as const);
 
-export function defaultDrawOpts(mode: "sketch" | "instant" | "type" = "sketch", durationMs?: number): DrawResolved {
-  return { mode, duration: mode === "instant" ? 0 : (durationMs ?? SKETCH_MS.stroke) };
+export function defaultDrawOpts(mode: DrawResolved["mode"] = "sketch", durationMs?: number): DrawResolved {
+  return { mode, duration: mode === "instant" ? 0 : (durationMs ?? (mode === "fade" ? SKETCH_MS.fade : SKETCH_MS.stroke)) };
 }
 
 /** Pre-order flatten: groups are included, followed by their children. */

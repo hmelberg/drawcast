@@ -513,7 +513,9 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
     g.appendChild(img);
     return g;
   }
-  if (!rc || (d.kind === "stroke" && d.precise)) {
+  // roughness 0 is the clean line the style promises: one exact path, not
+  // rough.js's two coincident passes (a scratch card's border).
+  if (!rc || (d.kind === "stroke" && (d.precise || d.style.roughness === 0))) {
     drawLeafClean(g, d);
     return g;
   }
@@ -703,6 +705,21 @@ function makeLeafHandle(g: SVGGElement, leaf: Exclude<Drawable, { kind: "group" 
         g.style.opacity = String(base * t);
       },
     };
+  }
+  if (leaf.drawOpts.mode === "fade") {
+    // No pen: the leaf comes up (and, erased, goes down) as a whole — a
+    // scratch card's paper appears quickly instead of being sketched round.
+    // Inline CSS on the leaf's node beats its authored `opacity` attribute,
+    // so the fade multiplies that value in, and at t = 1 it clears to the
+    // attribute alone: a settled leaf is a freshly built one (swapGeometry).
+    const own = () => {
+      const a = Number(g.getAttribute("opacity") ?? "1");
+      return Number.isFinite(a) ? a : 1;
+    };
+    const apply = (t: number) => {
+      g.style.opacity = t >= 1 ? "" : (Math.max(0, t) * own()).toFixed(3);
+    };
+    return { durationMs: leaf.drawOpts.duration, prepare: () => apply(0), setProgress: apply };
   }
   // `fillOpacity` is the path's OWN authored fill-opacity (null = nothing to
   // fade). The reveal multiplies it rather than replacing it, so a fully
@@ -912,6 +929,24 @@ export function poseTransform(dx: number, dy: number, deg: number, pivot: Pt, sc
   return parts.length === 0 ? null : parts.join(" ");
 }
 
+/**
+ * The focus dim on a leaf's fade wrapper: inline CSS opacity = the fade's
+ * own `opacity` attribute × the dim, so a faded element dims from where the
+ * fade left it and ending the focus (alpha 1) hands the node back to the
+ * attribute alone. `data-focus` remembers the dim so a fade that lands
+ * mid-focus keeps it (SvgElementHandle.setOpacity).
+ */
+export function setFocusAlpha(fadeNode: SVGGElement, alpha: number): void {
+  if (alpha >= 1) {
+    fadeNode.style.opacity = ""; // clears the inline value: the attribute rules again
+    delete fadeNode.dataset.focus;
+    return;
+  }
+  const fade = Number(fadeNode.getAttribute("opacity") ?? "1");
+  fadeNode.dataset.focus = alpha.toFixed(3);
+  fadeNode.style.opacity = (Math.max(0, alpha) * (Number.isFinite(fade) ? fade : 1)).toFixed(3);
+}
+
 /** One leaf's live nodes, as buildNodes assembles them: the leaf's own `<g>`
  *  (data-leaf-id carrying node, rebuilt in place by setPoints), the drawable
  *  it was built from, and the fade wrapper `<g>` above it. */
@@ -1031,15 +1066,18 @@ class SvgElementHandle implements RenderedElement {
    *  store, applied to fadeGroups (see its doc comment). Kept on a node of
    *  its own, ABOVE the leaf, so it never collides with anything the leaf's
    *  own node already uses its opacity for: the drawable's authored
-   *  translucency (an `opacity` attribute written by drawLeaf), the reveal's
-   *  `style.opacity` (text/image), or the focus effect's transient
-   *  `style.opacity`. Different nodes means SVG's nested-opacity compositing
-   *  MULTIPLIES them, so a fade to 0.5 halves a 0.42 highlighter band rather
-   *  than replacing it, and ending a focus never undoes a fade. */
+   *  translucency (an `opacity` attribute written by drawLeaf) or the
+   *  reveal's `style.opacity` (text/image). Different nodes means SVG's
+   *  nested-opacity compositing MULTIPLIES them, so a fade to 0.5 halves a
+   *  0.42 highlighter band rather than replacing it. The focus dim shares
+   *  this wrapper as inline CSS composed with the attribute (setFocusAlpha),
+   *  so ending a focus never undoes a fade. */
   setOpacity(alpha: number): void {
     for (const g of this.fadeGroups) {
       if (alpha >= 1) g.removeAttribute("opacity");
       else g.setAttribute("opacity", Math.max(0, alpha).toFixed(3));
+      // A focus dim in force rides on top of the new fade (setFocusAlpha).
+      if (g.dataset.focus !== undefined) setFocusAlpha(g, Number(g.dataset.focus));
     }
   }
 
@@ -1434,7 +1472,7 @@ function makeEffects(
   svg: SVGSVGElement,
   overlay: SVGGElement,
   underlay: SVGGElement,
-  leafNodes: Map<string, { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }> }[]>,
+  leafNodes: Map<string, LeafEntry[]>,
   rc: RoughSVG | null,
   /** The camera at rest — FULL_VIEW, or the fit of the layout's world. */
   rest: () => BBox,
@@ -1556,7 +1594,13 @@ function makeEffects(
               see.appendChild(path);
               writeOn(path, st.penPaths);
             }
-            underlay.append(mask, frames);
+            // On a top-layer leaf (a scratch card) the frame goes under it in
+            // its own layer, as the band below does.
+            const first = framed[0];
+            if (first.leaf.z >= 3 && first.fadeNode.parentNode) {
+              underlay.append(mask);
+              first.fadeNode.parentNode.insertBefore(frames, first.fadeNode);
+            } else underlay.append(mask, frames);
             st.nodes.push(frames);
             st.masks = [...(st.masks ?? []), mask];
           }
@@ -1566,7 +1610,7 @@ function makeEffects(
             lit.filter((e) => e.leaf.kind !== "image" && (effect !== "glow" || glowKindOf(e.leaf, filledTarget) === "tint")).map((e) => (e.leaf.kind === "image" ? undefined : e.leaf.style.color)),
             color !== undefined,
           );
-          for (const { g, leaf } of lit) {
+          for (const { g, leaf, fadeNode } of lit) {
             const own = leaf.kind === "image" ? undefined : leaf.style.color;
             const hit = textHits.get(leaf.id);
             const glow = effect === "glow" ? glowKindOf(leaf, filledTarget) : "tint";
@@ -1611,7 +1655,11 @@ function makeEffects(
               }
             }
             if (!path) continue;
-            underlay.appendChild(path);
+            // A leaf pasted ON the figure (the top layer: a scratch card's
+            // line) lies above the underlay and its card's paper: its pen goes
+            // just under it in that layer instead, or the paper hides it.
+            if (leaf.z >= 3 && fadeNode.parentNode) fadeNode.parentNode.insertBefore(path, fadeNode);
+            else underlay.appendChild(path);
             st.nodes.push(path);
             writeOn(path, st.penPaths);
           }
@@ -1668,20 +1716,22 @@ function makeEffects(
       }
     },
 
+    // The dim goes on each leaf's fade wrapper, never the leaf's own node:
+    // that node's opacity belongs to the reveal (text/image write
+    // `style.opacity` every frame) and to the drawable's authored
+    // translucency (an `opacity` attribute that inline CSS would REPLACE, not
+    // multiply). Dimming it there turned a 0.35 wash into 0.16 ink and, on
+    // release, snapped translucent text to full strength. The wrapper is a
+    // group, so the dim is one flattened layer over everything the leaf
+    // paints — a rough stroke's passes, its fill, a text halo — and the
+    // passes never show through each other.
     setFocus(dimIds: string[], alpha: number): void {
       const a = Math.max(0, Math.min(1, alpha));
-      for (const id of dimIds) {
-        for (const { g } of leafNodes.get(id) ?? []) {
-          if (a >= 1) g.style.removeProperty("opacity");
-          else g.style.opacity = String(a);
-        }
-      }
+      for (const id of dimIds) for (const { fadeNode } of leafNodes.get(id) ?? []) setFocusAlpha(fadeNode, a);
     },
 
     endFocus(dimIds: string[]): void {
-      for (const id of dimIds) {
-        for (const { g } of leafNodes.get(id) ?? []) g.style.removeProperty("opacity");
-      }
+      for (const id of dimIds) for (const { fadeNode } of leafNodes.get(id) ?? []) setFocusAlpha(fadeNode, 1);
     },
 
     setFlow(ids: string[], o: FlowOpts, frame: { travelled: number; alpha: number }): void {

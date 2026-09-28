@@ -14,7 +14,7 @@ import { ACTIVITY_QUESTIONS } from "../spec/types";
 import type { LayoutResult } from "../layout/layout";
 import { heldFrom, sceneAt } from "./plan";
 import { breathAfterMs } from "./breath";
-import type { BackendEffects, RenderedElement } from "./backend";
+import { FOCUS_DIM, type BackendEffects, type RenderedElement } from "./backend";
 import { EASINGS, lerpBox, pointerPath, unionBoxes } from "./effects";
 import { cameraBox, restView, restZoom } from "./camera";
 import { lengthFractionAt } from "./trails";
@@ -1693,9 +1693,8 @@ export class Player {
         const keep = new Set(step.ids);
         const dimIds = before.visible.filter((id) => !keep.has(id));
         if (dimIds.length === 0) return;
-        const DIM = 0.16;
         const RAMP = 280;
-        const alphaAt = (t: number) => 1 - (1 - DIM) * t;
+        const alphaAt = (t: number) => 1 - (1 - FOCUS_DIM) * t;
         try {
           await this.progress(RAMP, signal, (t) => effects.setFocus!(dimIds, alphaAt(t)));
           if (signal.aborted) return;

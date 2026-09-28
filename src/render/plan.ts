@@ -289,6 +289,10 @@ export interface PlanOptions {
   drawnWith?: (id: string) => string[];
   /** The same, drawn right AFTER the element — a measure's number after its dimension line. */
   drawnAfter?: (id: string) => string[];
+  /** The other parts of one made thing — a scratch card's box for each of its lines, its lines for the box — which a focus keeps lit together. */
+  partsOf?: (id: string) => string[];
+  /** What other ids are written on — a scratch card's box: an erase takes it after them, so no line is left floating without its paper. */
+  isPaper?: (id: string) => boolean;
   /** The spec's `params` when the spec has a template; null/undefined = no template (animate then needs a var). */
   animateBase?: Record<string, unknown> | null;
   /** The spec's `vars` (design 2026-09-10 §2.4): a bare animate key that is not a template param animates the var of that name, kept in params as `vars.<name>`. */
@@ -1138,7 +1142,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       makeHidden(ids);
       pushStep({ kind: "hide", ids });
     } else if (cmd.erase !== undefined) {
-      const ids = resolveIds(cmd.erase, "erase");
+      const named = resolveIds(cmd.erase, "erase");
+      // Paper last: the words written on it go first, then the card.
+      const ids = opts.isPaper ? [...named.filter((id) => !opts.isPaper!(id)), ...named.filter((id) => opts.isPaper!(id))] : named;
       ids.forEach((id) => mentioned.add(id));
       // Only visible elements can animate an un-sketch; the rest just stay hidden.
       const animatable = ids.filter((id) => visibleSet.has(id));
@@ -1184,8 +1190,26 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // without its price in "One drug, two verdicts" (measured 2026-09-21,
       // 4 of the corpus's 15 focus beats). Only followers already ON SCREEN:
       // the dim is computed from what is visible, so anything else is moot.
+      //
+      // …and not only labels (2026-09-28, Hans: "some but not all of the
+      // thing is faded"): whatever belongs to a target stays lit with it —
+      // its attached labels and their leaders, what the layout draws with it
+      // or right after it (a measure's number, a column's heading), a
+      // label's own leader, the parts of one made thing (a scratch card's
+      // paper under its line). Closed transitively, so a measure's number
+      // brings ITS leader too. A group target already stands for all its
+      // members (visibleTargets). The parts of a made thing are read for the
+      // targets only: a line brings its card's paper, not the paper's other
+      // lines.
       const kept = [...ids];
-      for (const id of ids) for (const f of opts.attachedTo?.(id) ?? []) if (visibleSet.has(f) && !kept.includes(f)) kept.push(f);
+      for (const id of ids) for (const p of opts.partsOf?.(id) ?? []) if (visibleSet.has(p) && !kept.includes(p)) kept.push(p);
+      const belongs = (id: string): string[] => [
+        ...(opts.attachedTo?.(id) ?? []),
+        ...(opts.drawnWith?.(id) ?? []),
+        ...(opts.drawnAfter?.(id) ?? []),
+        `${id}_leader`,
+      ];
+      for (let i = 0; i < kept.length; i++) for (const f of belongs(kept[i])) if (visibleSet.has(f) && !kept.includes(f)) kept.push(f);
       pushStep({
         kind: "focus",
         ids: kept,

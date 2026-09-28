@@ -3,6 +3,7 @@ import { planCommands, type PlanStep } from "../src/render/plan";
 import { layoutSpec } from "../src/layout/layout";
 import { planOptionsFor } from "../src/render/index";
 import type { Spec } from "../src/spec/types";
+import { expandSpec } from "../src/spec/expand";
 
 const focusOf = (plan: ReturnType<typeof planCommands>) => plan.steps.find((s) => s.kind === "focus") as Extract<PlanStep, { kind: "focus" }>;
 
@@ -69,5 +70,40 @@ describe("a template can say which label belongs to which element", () => {
     );
     const fade = plan.steps.find((s) => s.kind === "fade") as Extract<PlanStep, { kind: "fade" }>;
     expect(fade.items.map((i) => i.id).sort()).toEqual(["wtp_label", "wtp_line"]);
+  });
+});
+
+describe("focus keeps everything that belongs to its target (2026-09-28)", () => {
+  test("what the layout draws with it or right after it stays lit — transitively, a label's leader too", () => {
+    const plan = planCommands(
+      [{ draw: ["bar", "head", "m", "label_m", "label_m_leader", "other"] }, { focus: { target: ["bar"] } }],
+      ["bar", "head", "m", "label_m", "label_m_leader", "other"],
+      {
+        drawnWith: (id) => (id === "bar" ? ["head"] : []),
+        drawnAfter: (id) => (id === "bar" ? ["m"] : []),
+        attachedTo: (id) => (id === "m" ? ["label_m"] : []),
+      },
+    );
+    expect(focusOf(plan).ids.sort()).toEqual(["bar", "head", "label_m", "label_m_leader", "m"]);
+  });
+
+  test("a scratch card's paper stays under the line in focus, and the lines stay on a focused card", () => {
+    const spec = {
+      elements: [
+        { id: "dot", type: "point", x: 200, y: 200 },
+        { id: "calc", type: "scratch", work: ["2 + 2", "= 4"] },
+      ],
+      commands: [],
+    } as unknown as Spec;
+    const expanded = expandSpec(spec);
+    const layout = layoutSpec(expanded);
+    const opts = planOptionsFor(expanded, layout);
+    const draw = { draw: ["dot", "calc_box", "calc_line_1", "calc_line_2"] };
+    const line = planCommands([draw, { focus: { target: ["calc_line_2"] } }], layout.order, opts);
+    expect(focusOf(line).ids.sort()).toEqual(["calc_box", "calc_line_2"]);
+    const box = planCommands([draw, { focus: { target: ["calc_box"] } }], layout.order, opts);
+    expect(focusOf(box).ids.sort()).toEqual(["calc_box", "calc_line_1", "calc_line_2"]);
+    const group = planCommands([draw, { focus: { target: ["calc"] } }], layout.order, opts);
+    expect(focusOf(group).ids.sort()).toEqual(["calc_box", "calc_line_1", "calc_line_2"]);
   });
 });

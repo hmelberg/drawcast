@@ -128,11 +128,13 @@ describe("the drag ghost (BackendEffects.setOffset)", () => {
         expect(after.getAttribute("transform")).toBe("translate(10.0 -20.0)");
 
         // The bug the ghost inherited: the focus dim (and the glow beside it)
-        // were writing to the detached node too. (endFocus is not exercised
-        // here — the shim's style bag has no removeProperty.)
+        // were writing to the detached node too. The dim sits on the leaf's
+        // fade wrapper, its parent (tests/focus-dim.test.ts).
         effects.setFocus!(["band"], 0.3);
-        expect(after.style.opacity).toBe("0.3");
-        expect(before.style.opacity ?? "").toBe("");
+        expect(after.parentNode!.style.opacity).toBe("0.300");
+        expect(before.parentNode?.style.opacity ?? "").toBe("");
+        effects.endFocus!(["band"]);
+        expect(after.parentNode!.style.opacity).toBe("");
       } finally {
         restore();
       }
