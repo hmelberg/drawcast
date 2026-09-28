@@ -138,7 +138,9 @@ export interface LintIssue {
     /** a label of more than four words — canvas text is a cue, the voice says the sentence */
     | "long-label"
     /** too many texts on one page state, or several below the small-print line (crowding.ts) — generation only, warns */
-    | "crowding";
+    | "crowding"
+    /** a population's counts, states, orders or size (layout/population.ts) — warns */
+    | "population";
   ids: string[];
   message: string;
   severity: "warn" | "error";

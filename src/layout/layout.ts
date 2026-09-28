@@ -319,6 +319,8 @@ export function layoutSpec(
       // A pieces element's parent id draws nothing itself — its n pieces
       // (already in tier2.extraOrder) are the command-addressable elements.
       if (el.type === "pieces") continue;
+      // So is a population's: its state sets and legend are what draw.
+      if (el.type === "population") continue;
       // A group is the same kind of stand-in: it draws nothing itself, its
       // members do. The plan expands the group id to them (expandGroup).
       if (el.type === "group") continue;

@@ -41,6 +41,7 @@ import { decodeIcon, decodePhoto, decodeSourceImage, decodeTrace } from "../spec
 import { mapLabelRequest, obstacleBoxes, wrapText, type LabelRequest } from "./labels";
 import { currentMathFontName, enginesLoaded, getLoadedEngines, type MathJaxEngine, type MusicEngine } from "../scenes/engines";
 import { musicDrawables } from "./music";
+import { layoutPopulation, populationBox, populationValues } from "./population";
 import { linkKindOf } from "../ui/link-model";
 import type { LintIssue } from "../lint/lint";
 import type { ElementType, EndRef, PointRef, Spec, SpecElement } from "../spec/types";
@@ -50,7 +51,7 @@ import type { TemplateFit } from "./template-fit";
 
 /** The types the auto-row places: the ones that own a free x/y and would
  *  otherwise fall back to the middle of the canvas. */
-const AUTO_ROW_TYPES = new Set<ElementType>(["text", "shape", "math", "image", "icon", "portrait", "polygon", "sector", "arc", "ellipse", "music"]);
+const AUTO_ROW_TYPES = new Set<ElementType>(["text", "shape", "math", "image", "icon", "portrait", "polygon", "sector", "arc", "ellipse", "music", "population"]);
 
 /**
  * One piece's geometry (currently only `pieces: {of: "sectors"}`), keyed by
@@ -401,6 +402,14 @@ export function layoutElements(
     return r.el;
   };
 
+  // A population's counts as `{pop.sick}` / `{pop.count}` in drawn text —
+  // computed from the bound element before anything is emitted, so a text
+  // listed before the population reads them too, and every animate frame
+  // (a relayout) writes the number the picture shows.
+  const popValues: Record<string, number> = {};
+  for (const raw of elements) if (raw.type === "population") Object.assign(popValues, populationValues(bound(raw)));
+  if (Object.keys(popValues).length > 0) ctx.templateValues = { ...ctx.templateValues, ...popValues };
+
   // Pass 2: sample curves (needed before points/regions regardless of order).
   for (const raw of elements.filter((e) => e.type === "curve")) {
     const el = bound(raw);
@@ -666,6 +675,28 @@ export function layoutElements(
       case "ellipse":
         drawables.push(...ellipseDrawables(el, ctx));
         break;
+      case "population": {
+        const fit = el.fit;
+        const region = typeof fit === "string" ? (isFitName(fit) ? fitRegion(fit) : null) : fit && typeof fit === "object" ? { x: fit.x, y: fit.y, w: fit.w, h: fit.h } : null;
+        const c: Pt = region ? [region.x + region.w / 2, region.y + region.h / 2] : originOr(el, ctx, [CANVAS.w / 2, CANVAS.h / 2]);
+        // Two or more placed by the auto-row share the width between them.
+        const slot = ctx.autoPlace[el.id] !== undefined ? (CANVAS.w - 120) / freeElements.length - 30 : undefined;
+        const laid = layoutPopulation(el, populationBox(el, c, region, slot), measure);
+        drawables.push(...laid.drawables);
+        issues.push(...laid.issues);
+        for (const id of laid.ids) {
+          ctx.extraOrder.push(id);
+          ctx.anchors[id] = laid.anchors[id];
+          const b = laid.boxes[id];
+          if (b) ctx.namedAnchors[id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(b, n)]));
+        }
+        // The sets are the population's pieces: `draw: ["pop"]` draws them
+        // all, and `at` moves them along with it.
+        ctx.pieceGroups[el.id] = laid.ids;
+        ctx.anchors[el.id] = [laid.box.x + laid.box.w / 2, laid.box.y + laid.box.h / 2];
+        ctx.namedAnchors[el.id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(laid.box, n)]));
+        break;
+      }
       case "line": {
         const line = lineDrawable(el, ctx);
         if (line) drawables.push(line);

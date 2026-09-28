@@ -599,7 +599,9 @@ const BASELINE_SYSTEM_CHARS = 360000;
 // Raised with headroom 2026-09-26 (same reason): measured 86227 with `domain.box`.
 // Re-pinned UP 2026-09-28: `canvas: [x, y]` on at / end refs / verb points (canvas units on a
 // domain page — the $defs are inlined, so it counts several times). Measured 90705.
-const BASELINE_SCHEMA_CHARS = 91000;
+// Re-pinned UP 2026-09-28 (population): the `population` element — count, states,
+// order, seed, legend, labels, and its clauses on layout/fit/colors. Measured 93059.
+const BASELINE_SCHEMA_CHARS = 93300;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

@@ -41,7 +41,8 @@ export type ElementType =
   | "icon"
   | "inset"
   | "music"
-  | "scratch";
+  | "scratch"
+  | "population";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -195,7 +196,7 @@ export interface SpecElement {
   /** group: arrange the members — a row, a column, or a grid `columns` wide.
    *  The engine computes every position from the members' own sizes, so a
    *  structure needs no coordinates. Absent: members keep their own places. */
-  layout?: "row" | "column" | "grid";
+  layout?: "row" | "column" | "grid" | "crowd";
   /** layout: space between neighbours, logical units (default 40). */
   gap?: number;
   /** layout grid: members per row. */
@@ -353,6 +354,19 @@ export interface SpecElement {
   page?: number;
   /** Passage on `page` to sweep with a highlighter (PDF path only). */
   quote?: string;
+  // population (layout/population.ts): people as person pictograms, each in a state
+  /** population: how many people (default: the states' sum, else 100). */
+  count?: number;
+  /** population: people per state, in order; the FIRST is the remainder. Bind a count (`bind: {"states.sick": "i"}`) to animate it. */
+  states?: Record<string, number>;
+  /** population: how a state takes its people — spread (even), cluster (outward from a seed person), random, rows; one for all or per state. */
+  order?: "spread" | "cluster" | "random" | "rows" | Record<string, "spread" | "cluster" | "random" | "rows">;
+  /** population: seeds cluster/random/spread and a crowd's jitter (default 1). */
+  seed?: number;
+  /** population: draw the legend (default true). */
+  legend?: boolean;
+  /** population: the legend's word per state (default: the state's name). */
+  labels?: Record<string, string>;
   // cross-cutting
   style?: SpecStyle;
   draw?: SpecDraw;

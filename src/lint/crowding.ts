@@ -52,6 +52,10 @@ export interface CrowdingOpts {
   expandId?: (id: string) => string[] | null | undefined;
   /** Which top-level drawables count (default: all). */
   counts?: (id: string) => boolean;
+  /** The FIGURE a top-level id belongs to, when its words are one thing on
+   *  the page — a population's state sets and legend: however many entries
+   *  its legend has, it counts as one item, not one per text. */
+  figureOf?: (id: string) => string | undefined;
 }
 
 function ids(raw: string[] | string | undefined, expandId?: CrowdingOpts["expandId"]): string[] {
@@ -81,10 +85,19 @@ export function crowdingStates(drawables: Drawable[], commands: Command[] | unde
   const managed = new Set<string>();
   const states: CrowdingState[] = [];
   const snapshot = (beat: number) => {
-    const texts = [...visible].flatMap((id) => textsOf.get(id) ?? []);
-    if (texts.length === 0) return;
-    const sizes = texts.map((t) => t.fontSize);
-    states.push({ beat, texts: texts.length, smallest: Math.min(...sizes), small: sizes.filter((s) => s < SMALL_TEXT).length });
+    // One figure's words are one item, sized by its smallest.
+    const items = new Map<string, number>();
+    for (const id of visible) {
+      const texts = textsOf.get(id) ?? [];
+      if (texts.length === 0) continue;
+      const fig = opts.figureOf?.(id);
+      const sizes = texts.map((t) => t.fontSize);
+      if (fig === undefined) sizes.forEach((sz, i) => items.set(`${id}#${i}`, sz));
+      else items.set(`fig:${fig}`, Math.min(items.get(`fig:${fig}`) ?? Infinity, ...sizes));
+    }
+    if (items.size === 0) return;
+    const sizes = [...items.values()];
+    states.push({ beat, texts: sizes.length, smallest: Math.min(...sizes), small: sizes.filter((s) => s < SMALL_TEXT).length });
   };
   const mark = (id: string, on: boolean) => {
     for (const o of owners(id)) {
@@ -109,9 +122,19 @@ export function crowdingStates(drawables: Drawable[], commands: Command[] | unde
 }
 
 /** The ids the crowding lint counts for `spec`: its own elements (and their sub-drawables), code panes excluded. */
-export function castOwnIds(spec: Spec): (id: string) => boolean {
+export function castOwnIds(spec: Spec, minted: Record<string, string[]> = {}): (id: string) => boolean {
   const own = new Set((spec.elements ?? []).filter((e) => e.type !== "code").map((e) => e.id));
+  // What an element of the cast mints under ids of its own (a population's
+  // sets and legend) is the cast's too.
+  for (const e of spec.elements ?? []) if (e.type === "population") for (const k of minted[e.id] ?? []) own.add(k);
   return (id) => own.has(id) || SUB_SUFFIXES.some((s) => id.endsWith(`_${s}`) && own.has(id.slice(0, -(s.length + 1))));
+}
+
+/** Top-level id → the population it belongs to (its sets and legend are one figure). */
+export function populationFigures(spec: Spec, minted: Record<string, string[]> = {}): (id: string) => string | undefined {
+  const of = new Map<string, string>();
+  for (const e of spec.elements ?? []) if (e.type === "population") for (const k of minted[e.id] ?? []) of.set(k, e.id);
+  return (id) => of.get(id);
 }
 
 /**
@@ -125,7 +148,8 @@ export function lintCrowding(
 ): LintIssue[] {
   const states = crowdingStates(layout.drawables, spec.commands, {
     expandId: (id) => layout.pieceGroups?.[id] ?? layout.groups?.[id],
-    counts: castOwnIds(spec),
+    counts: castOwnIds(spec, layout.pieceGroups),
+    figureOf: populationFigures(spec, layout.pieceGroups),
   });
   const issues: LintIssue[] = [];
   const where = (s: CrowdingState) => (s.beat < 0 ? "on the finished page" : `after commands[${s.beat}]`);

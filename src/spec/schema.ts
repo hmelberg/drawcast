@@ -138,7 +138,7 @@ const elementSchema = {
       enum: [
         "axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code", "scratch",
         "sector", "arc", "polygon", "pieces", "angle", "measure", "ellipse", "line",
-        "group", "math", "image", "icon", "inset", "music",
+        "group", "math", "image", "icon", "inset", "music", "population",
       ],
     },
     // axes
@@ -274,9 +274,9 @@ const elementSchema = {
     members: { type: "array", items: { type: "string" }, minItems: 1, description: "group: element ids that form one thing; draw/move/highlight the group id to act on all." },
     layout: {
       type: "string",
-      enum: ["row", "column", "grid"],
+      enum: ["row", "column", "grid", "crowd"],
       description:
-        "group: ARRANGE the members — \"row\" side by side, \"column\" stacked, \"grid\" `columns` wide, or, with no `columns`, as wide as shows the members largest. Every position is computed from the members' own sizes, so a structure of boxes needs NO x/y anywhere: declare the parts, wrap them in a group with a layout, and join them with arrows. Boxes in a laid-out group are given one size (the largest needed) so the row reads as a row. `gap` (default 40) spaces them, `align` (center/start/end) sets the cross axis. Combine with `fit` to scale the finished arrangement into a region.",
+        "group: ARRANGE the members — \"row\" side by side, \"column\" stacked, \"grid\" `columns` wide, or, with no `columns`, as wide as shows the members largest. Every position is computed from the members' own sizes, so a structure of boxes needs NO x/y anywhere: declare the parts, wrap them in a group with a layout, and join them with arrows. Boxes in a laid-out group are given one size (the largest needed) so the row reads as a row. `gap` (default 40) spaces them, `align` (center/start/end) sets the cross axis. Combine with `fit` to scale the finished arrangement into a region. population: \"grid\" (default) or \"crowd\" (people standing about).",
     },
     gap: { type: "number", description: "group layout: space between neighbours, logical units (default 40)." },
     columns: { type: "integer", minimum: 1, description: "group layout grid: members per row. Leave it out and the grid picks the count that shows the members largest." },
@@ -291,7 +291,7 @@ const elementSchema = {
         { type: "string", enum: ["left", "right", "top", "bottom", "full"] },
         { type: "object", properties: { x: { type: "number" }, y: { type: "number" }, w: { type: "number" }, h: { type: "number" } }, required: ["x", "y", "w", "h"], additionalProperties: false },
       ],
-      description: "group: scale and centre the members into this region or box (aspect kept).",
+      description: "group: scale and centre the members into this region or box (aspect kept). population: the region or box it fills (legend included).",
     },
     tex: { type: "string", description: "math: LaTeX, drawn as handwriting. label: LaTeX instead of text." },
     size: { type: "number", description: "math: font size, the same units as text font_size (default 28, a label's size). Leave it out: every formula on a page shares one size; at most a headline formula may take 34. icon: box size in logical units (default 100). music: one staff space in logical units (default 26)." },
@@ -306,7 +306,7 @@ const elementSchema = {
     },
     step_gap: { type: "number", description: "math with steps: canvas units between lines (default ≈ 3.2 × size)." },
     note_dx: { type: "number", description: "math with steps: the notes' column, canvas units right of the formula's centre (default 220)." },
-    colors: { type: "object", additionalProperties: { type: "string" }, description: 'math: colour per term, a TeX snippet → colour ({"x": "#2f6b8f", "\\\\Delta C": "#b5482e"}); every occurrence.' },
+    colors: { type: "object", additionalProperties: { type: "string" }, description: 'math: colour per term, a TeX snippet → colour ({"x": "#2f6b8f", "\\\\Delta C": "#b5482e"}); every occurrence. population: colour per state (hex or a palette name).' },
     set: { type: "string", description: "icon: icon set prefix (lucide, tabler, ph, heroicons, material-symbols; fa6-solid, twemoji as CC BY)." },
     credit: { type: "string", description: "image/icon: attribution (machine-written; copy VERBATIM if present)." },
     crop: { type: "boolean", description: "inset: true (default) fits the source page's ink into the box so the drawing fills it; false fits the whole 1000×750 canvas, so every uncropped inset shares one scale and the source's layout is preserved." },
@@ -500,6 +500,20 @@ const elementSchema = {
       description:
         "code: what the pane holds — code (THE DEFAULT: the script's lines) or controls (the script's `controls` drawn as knobs and switches — a slider as a track with a knob, a choice as chips, a toggle as a switch — live while paused; the movie shows them at their defaults). The pane sits UNDER the output by default (show: below, full width); set show only when the request wants it elsewhere.",
     },
+    count: { type: "integer", minimum: 1, maximum: 400, description: "population: how many people (default: the states' sum, else 100)." },
+    states: {
+      type: "object",
+      additionalProperties: { type: "number" },
+      description:
+        'population: a GROUP OF PEOPLE drawn as person icons — for epidemics, vaccination, screening, risk, trials; never dots. People per state, in order: {"healthy": 70, "sick": 20, "immune": 10} — the FIRST is the remainder. Built-in looks: healthy, sick, immune, vaccinated, dead; any other state needs a colour in colors. Each state is a set <id>_<state> (all the people in it now — highlight or focus it), plus <id>_legend; text reads {<id>.sick}, {<id>.count}. Everyone keeps their place: animate a count (bind: {"states.sick": "i"} with a var i) and people turn over one by one. A later state never takes an earlier one\'s people — list vaccinated before sick and the infection reaches only the unvaccinated. Place it with fit (a region) or x, y, width, height.',
+    },
+    order: {
+      anyOf: [{ type: "string", enum: ["spread", "cluster", "random", "rows"] }, { type: "object", additionalProperties: { type: "string", enum: ["spread", "cluster", "random", "rows"] } }],
+      description: 'population: which people a state takes — spread (evenly mixed; default), cluster (outward from one seed person: an outbreak), random, rows (filled from the top left: "8 in 100"). One for all, or per state: {"vaccinated": "spread", "sick": "cluster"}.',
+    },
+    seed: { type: "integer", description: "population: picks the cluster's first person and the random order (same seed, same people)." },
+    legend: { type: "boolean", description: "population: a legend under the people, \"70 healthy\" per state (default true)." },
+    labels: { type: "object", additionalProperties: { type: "string" }, description: "population: the legend's word per state (default the state's name)." },
     bind: {
       type: "object",
       additionalProperties: { type: "string" },
@@ -1809,7 +1823,7 @@ function elementErrors(el: SpecElement): string[] {
       errs.push(`element "${el.id}": at.place cannot be combined with at.ref — a place is on the canvas, a ref is on another element`);
     }
   }
-  if (el.layout !== undefined && el.type !== "group") {
+  if (el.layout !== undefined && el.type !== "group" && !(el.type === "population" && (el.layout === "grid" || el.layout === "crowd"))) {
     errs.push(`element "${el.id}": layout is a group's field — wrap the parts in a group to arrange them`);
   }
   if (el.walk !== undefined && el.type !== "group") {
@@ -1930,6 +1944,13 @@ function elementErrors(el: SpecElement): string[] {
     case "ellipse":
       need(typeof el.rx === "number" && typeof el.ry === "number", "needs rx and ry");
       break;
+    case "population": {
+      need(el.count !== undefined || el.states !== undefined, 'needs count or states ({"healthy": 90, "sick": 10})');
+      if (el.states !== undefined) need(typeof el.states === "object" && el.states !== null && !Array.isArray(el.states) && Object.values(el.states).every((v) => typeof v === "number" && Number.isFinite(v) && v >= 0), "states must map each state to a count ≥ 0");
+      if (el.count !== undefined) need(Number.isInteger(el.count) && el.count >= 1 && el.count <= 400, "count must be a whole number from 1 to 400");
+      if (el.layout !== undefined) need(el.layout === "grid" || el.layout === "crowd", 'layout must be "grid" or "crowd"');
+      break;
+    }
     case "line":
       need(Array.isArray(el.through) && el.through.length >= 1 && el.through.length <= 2, "needs through (1 or 2 points)");
       if (Array.isArray(el.through) && el.through.length === 1) {
