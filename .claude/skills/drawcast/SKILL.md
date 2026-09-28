@@ -31,13 +31,26 @@ landed. The finished cast opens in the app's player.
    JSON schema is in `dev-casts/_schema.json`: look an element's or a
    command's fields up there (grep it) when you need them. For another
    template's parameters: `node scripts/cast.mjs template <id>`.
-2. **Plan before writing** (a few lines, for yourself): the question in
-   everyday words, the one insight, the concrete example with numbers, the
-   figure — one main figure, drawn large, a template when one fits — and the
-   beats.
+2. **Storyline first** (the app's default since 2026-09-28 — Settings'
+   "Write the story first"): before any JSON, write the storyline to
+   `dev-casts/<slug>-story.md` by the rules in
+   `src/llm/prompts/treatment-v3.md` — the question as asked, the naive
+   answer, one insight named at the end, an example with correct numbers,
+   one change at a time with a ghost, key numbers on the canvas, a figure
+   budget (one main figure, at most ONE temporary supporting piece at a
+   time, each marked "gone after beat N"), a template's real interactions
+   planned into an explore beat, a transfer quiz with a `wrong` hint, 12–17
+   short sentences. Then STAGE it (step 3) as the app's staging note says
+   (`stagingNote` in `src/llm/treatment.ts`): the lines are sacred, the ink is
+   not. If a planned template cannot do what the story needs and you go
+   freehand, note it (template + what was missing) in your report — that is
+   a template to extend. (Under "Write it in one go", plan in a few lines
+   for yourself instead.)
 3. **Write the spec** to `dev-casts/<slug>.json` as `{"request": …, "spec": …}`.
 4. **Check it:** `node scripts/cast.mjs check dev-casts/<slug>.json`. Fix
-   every INVALID and every `[error]`; warnings are for step 5's eyes.
+   every INVALID and every `[error]`; warnings are for step 5's eyes — a
+   `crowding` warning (too many texts on the page at once, or small print)
+   means erase what has served or draw fewer, larger things.
 5. **Look at it:** `node scripts/cast.mjs frames dev-casts/<slug>.json` →
    tiles in `dev-casts/frames-<slug>/`, one frame per spoken line (drawn
    mid-gesture where the line highlights, focuses, points or flows), plus the

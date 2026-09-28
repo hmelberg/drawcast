@@ -37,6 +37,8 @@ export interface TemplateDoc {
   /** Opt-in: widen params_schema (data-schema.ts) at registration so numeric
    *  and array leaves also accept a "{id.var}" data token. */
   accepts_data?: boolean;
+  /** One short line: what the viewer can do with the figure while paused (SceneManifest.interaction). */
+  interaction?: string;
 }
 
 export interface DocResult {
@@ -148,6 +150,7 @@ export function validateTemplateDoc(raw: unknown): DocResult {
   }
   if (d.title !== undefined && typeof d.title !== "string") errors.push("title must be a string");
   if (d.accepts_data !== undefined && typeof d.accepts_data !== "boolean") errors.push("accepts_data must be a boolean");
+  if (d.interaction !== undefined && (typeof d.interaction !== "string" || d.interaction.trim() === "")) errors.push("interaction must be a non-empty string (one short line)");
 
   return errors.length > 0 ? { errors } : { doc: d as unknown as TemplateDoc, errors: [] };
 }
@@ -175,5 +178,6 @@ export function docToManifest(doc: TemplateDoc): SceneManifest {
       ? { widget: true as const }
       : {}),
     ...(doc.accepts_data ? { accepts_data: true } : {}),
+    ...(typeof doc.interaction === "string" && doc.interaction.trim() ? { interaction: doc.interaction.trim() } : {}),
   };
 }

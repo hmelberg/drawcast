@@ -2,6 +2,7 @@
   "name": "field_lines",
   "status": "ready",
   "description": "The electric field of 1–4 point charges: field lines traced from the positive charges (more lines for more charge) ending on the negative ones or running off the page, an arrow on each, optionally the equipotentials (dashed) and a test charge with the force on it. All computed. Choose it for ANY request about electric fields, field lines, like vs unlike charges, a dipole, Coulomb's law pictured, equipotentials, or the force on a charge in a field. Positions are in the figure's own units: x −5…5, y −2.7…2.7, (0, 0) the middle. charges.<i>.x / .y / .q and test_charge.x / .y ANIMATE and the field re-traces every frame: {\"animate\": {\"charges.1.x\": 1}, \"duration\": 3}. Paused, the viewer drags a charge (the lines follow), taps it to flip its sign, scrubs or types its label's value, drags the test charge; an explore beat naming nothing invites exactly this. Numbers for text (test charge): {field_lines.E}, {field_lines.E_angle} (degrees from +x), {field_lines.Ex}, {field_lines.Ey}, {field_lines.V}, {field_lines.F}; also {field_lines.lines}, {field_lines.net_charge}.",
+  "interaction": "Drag a charge (the field lines re-trace), tap it to flip its sign, scrub its size; drag the test charge to read the force on it.",
   "params_schema": {
     "type": "object",
     "properties": {

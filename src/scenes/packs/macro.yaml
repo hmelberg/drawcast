@@ -3,6 +3,7 @@ title: Macroeconomics
 description: IS-LM, the Solow growth model and AD-AS — the macro teaching canon with computed intersections and shift arrows.
 ---
 template: is_lm
+interaction: "Drag IS or LM sideways (fiscal or monetary policy); a shifted copy peels off the original and the equilibrium follows."
 title: IS-LM
 version: 1
 kit: 4
@@ -362,6 +363,7 @@ layout: |
   return { drawables, labels, anchors, order, frame: { x: [0, kMax * 1.05], y: [0, yMax], box: plot } };
 ---
 template: ad_as
+interaction: "Drag AD or AS sideways (a demand or a supply shock); the shifted copy peels off the original, LRAS stays, output and prices follow."
 title: Aggregate demand - aggregate supply
 version: 1
 kit: 4

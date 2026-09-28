@@ -294,7 +294,9 @@ describe("styleBlock — the author's style is added last, so it wins (B5, S §4
     // concept would silently drop a placeholder. These pin the seam.
     const compile = readFileSync(new URL("../src/llm/compile.ts", import.meta.url), "utf8");
     const revise = readFileSync(new URL("../src/llm/revise.ts", import.meta.url), "utf8");
-    expect(compile.match(/suffixText = [^;]*styleBlock\(cfg\.styleText\)/g)?.length).toBe(2);
+    // One builder (generateSpec's buildSystem) serves the first build and
+    // every rebuild (a template the storyline names, the need_template escalation).
+    expect(compile.match(/suffixText = [^;]*styleBlock\(cfg\.styleText\)/g)?.length).toBe(1);
     expect(revise.match(/suffixText = [^;]*styleBlock\(cfg\.styleText\)/g)?.length).toBe(1);
   });
 });

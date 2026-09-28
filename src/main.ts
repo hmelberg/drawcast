@@ -13,6 +13,7 @@ import { routeTemplates } from "./llm/router";
 import { authorOnDemand, templateWorthy } from "./llm/on-demand";
 import { generateParts } from "./llm/multi";
 import { APPROACHES, DEFAULT_APPROACH } from "./llm/storyboard";
+import { singleCastTreatment } from "./llm/treatment";
 import { createOnDemandRun, onDemandSummary } from "./llm/on-demand-run";
 import { missingPlaceholders } from "./llm/prompt";
 import { usableExemplars } from "./llm/exemplars";
@@ -110,6 +111,7 @@ import type { SpeakLine } from "./render/delivery";
 import {
   addExemplar,
   appendLog,
+  templateGapsFromLogs,
   buildImprovementPacket,
   clearLogs,
   deleteDrawing,
@@ -693,18 +695,21 @@ const effortSel = h(
   h("option", { value: "low" }, "Low — quick sketch"),
 );
 effortSel.value = settings.effort;
-// How a multi-part drawcast or lecture is planned (docs/2026-09-19-storyboard-approach.md):
-// storyboard writes the narration once for the whole series, then draws each
-// figure to its lines; independent writes each part on its own, knowing the
-// others by title only. Applies to #parts=N, #playlist and course runs; a
-// single figure has no parts and ignores it.
-// The pipeline (developer mode only, docs/prompt-lab): the standard single
-// call, or a plain-text plan first. Hidden — and standard — for everyone else.
+// Write the story first (docs/2026-09-19-storyboard-approach.md, and for a
+// single drawcast since 2026-09-28): the storyline — every spoken line —
+// is written first, then the figure is staged to it. A single drawcast gets
+// one storyline call (llm/treatment.ts v3) before the spec; a multi-part
+// drawcast, #playlist or course gets one storyboard for the whole series.
+// Off ("independent"): a single drawcast is one call, and each part is
+// written on its own, knowing the others by title only.
+// The pipeline (developer mode only, docs/prompt-lab): "plan" forces the lab's
+// v2 plan sheet for a single drawcast; "standard" follows the choice above.
+// Hidden — and standard — for everyone else.
 const pipelineSel = h(
   "select",
-  { title: "Lab: how a single figure is written. Standard = one call (then the look pass); Plan first = a plain-text plan, then the spec staged from it." },
-  h("option", { value: "standard" }, "Standard"),
-  h("option", { value: "plan" }, "Plan first (lab)"),
+  { title: "Lab: how a single figure is written. Follow Approach = the storyline (v3) or one call, as Approach says; Plan v2 = the lab's arm C plan sheet, then the spec staged from it." },
+  h("option", { value: "standard" }, "Follow Approach"),
+  h("option", { value: "plan" }, "Plan v2 (lab)"),
 ) as HTMLSelectElement;
 pipelineSel.value = settings.pipeline;
 pipelineSel.addEventListener("change", () => {
@@ -714,8 +719,11 @@ pipelineSel.addEventListener("change", () => {
 const pipelineChoiceLabel = h("label", { class: "quiet-label" }, "Pipeline ", pipelineSel);
 const approachSel = h(
   "select",
-  { title: "How a multi-part drawcast or lecture is planned. Applies to #parts=N, #playlist and course runs; a single figure has no parts and ignores it." },
-  ...APPROACHES.map((a) => h("option", { value: a.id }, a.label)),
+  {
+    title:
+      "Write the story first (storyline): every spoken line is written before anything is drawn, then the figure is staged to it. A single drawcast gets one storyline call before its spec (a little slower, one extra call); a multi-part drawcast, #playlist or course gets one storyboard for the whole series. Off: a single drawcast is written in one call, and each part on its own.",
+  },
+  ...APPROACHES.map((a) => h("option", { value: a.id, title: a.hint }, a.label)),
 );
 approachSel.value = APPROACHES.some((a) => a.id === settings.approach) ? settings.approach : DEFAULT_APPROACH;
 // Template on demand without asking (Hans, 2026-09-07): decided BEFORE
@@ -1225,7 +1233,8 @@ const exportPacketBtn = h("button", { class: "small", title: "Worst cases + fail
 const clearLogsBtn = h("button", { class: "small" }, "Clear logs");
 
 function refreshCounts(): void {
-  exemplarCount.textContent = `${loadExemplars().length} exemplars · ${loadLogs().length} logged generations`;
+  const gaps = templateGapsFromLogs().length;
+  exemplarCount.textContent = `${loadExemplars().length} exemplars · ${loadLogs().length} logged generations${gaps ? ` · ${gaps} template gap${gaps === 1 ? "" : "s"} (in the improvement packet)` : ""}`;
 }
 refreshCounts();
 
@@ -1271,7 +1280,7 @@ const genChoices = h(
   instrChoiceLabel,
   h("label", { class: "quiet-label" }, "Model ", modelSel),
   h("label", { class: "quiet-label" }, "Effort ", effortSel),
-  h("label", { class: "quiet-label" }, "Approach ", approachSel),
+  h("label", { class: "quiet-label" }, "Story ", approachSel),
   pipelineChoiceLabel,
   h("label", { class: "quiet-label" }, templatesOnDemandBox, " Author templates when none fits"),
   h("label", { class: "quiet-label" }, "at most ", templatesOnDemandMaxInput, " per run"),
@@ -1300,7 +1309,7 @@ function refreshChoicesToggle(): void {
   const effort = effortSel.options[effortSel.selectedIndex]?.textContent?.split(" — ")[0] ?? settings.effort;
   const approach = approachSel.options[approachSel.selectedIndex]?.textContent?.split(" — ")[0] ?? settings.approach;
   const onDemand = settings.templatesOnDemand ? ` · Templates on demand (≤${settings.templatesOnDemandMax} per run)` : "";
-  choicesBtn.title = `Template: ${tpl} · Style: ${styleName}${dev} · Model: ${model} · Effort: ${effort} · Approach: ${approach}${onDemand}`;
+  choicesBtn.title = `Template: ${tpl} · Style: ${styleName}${dev} · Model: ${model} · Effort: ${effort} · Story: ${approach}${onDemand}`;
   choicesBtn.classList.toggle("has-choice", templateChoice !== "" && genChoices.hidden);
 }
 
@@ -3192,7 +3201,8 @@ function logOutcome(prompt: string, outcome: Awaited<ReturnType<typeof generateS
     lintIssues: [],
     warnings: [],
     seeded: outcome.seeded,
-    error: outcome.error,
+    error: outcome.error ?? (outcome.treatmentError ? `story step failed (${outcome.treatmentError}) — written in one go` : undefined),
+    ...(outcome.templateGaps ? { templateGaps: outcome.templateGaps } : {}),
   };
   appendLog(entry);
   refreshCounts();
@@ -3408,7 +3418,7 @@ async function generate(): Promise<void> {
     const outcome = await generateSpec(parsed.clean, {
       apiKey,
       look: settings.lookPass ? beatSheets : undefined,
-      treatment: settings.developerMode && settings.pipeline === "plan" ? "v2" : undefined,
+      treatment: singleCastTreatment(settings),
       onDraft: (draft) => {
         endSpecStream(false);
         const pl = finishSpec(structuredClone(draft));
@@ -3541,6 +3551,8 @@ async function authorTemplateAndRedraw(rawRequest: string, request: string, free
         generateSpec(req, {
           apiKey,
           look: settings.lookPass ? beatSheets : undefined,
+          // A redraw is a single drawcast: the same story-first choice.
+          treatment: singleCastTreatment(settings),
           model: settings.model,
           effort: settings.effort,
           variant: currentVariant(),

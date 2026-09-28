@@ -8,9 +8,14 @@
 //   node scripts/prompt-lab.mjs --manual …                     the model calls answered by agents (free)
 //
 // Options:
-//   --set fresh|templates|final   the request list (final = 2 freehand + 2 template)
+//   --set fresh|templates|final|storyline5
+//                                 the request list (final = 2 freehand + 2 template;
+//                                 storyline5 = the one-shot-vs-storyline comparison:
+//                                 2 freehand + 3 template, two with live widgets)
 //   --cases 1,3                   which of them
-//   --arms standard,plan          pipelines: standard = one call; plan = a plain-text plan first
+//   --arms standard,plan          pipelines: standard (= oneshot) = one call; plan = the v2 plan
+//                                 first; storyline = the app's default since 2026-09-28 (the
+//                                 v3 storyline at medium effort, then staging)
 //   --no-look                     without the look pass (it needs --frames)
 //   --model <id>                  another model (default: the app's)
 //   --manual                      every Opus/Sonnet call goes to files instead of the API:
@@ -91,7 +96,11 @@ const TEMPLATES = [
 ];
 /** The fair A*-vs-D* run (2026-09-27): two freehand, two template. */
 const FINAL = [FRESH[0], FRESH[3], TEMPLATES[0], TEMPLATES[1]];
-const CASES = set === "templates" ? TEMPLATES : set === "final" ? FINAL : FRESH;
+/** One-shot vs storyline (2026-09-28): two freehand, three template — a
+ *  plain template, and two whose widgets the storyline can plan an explore
+ *  beat around. */
+const STORYLINE5 = [FRESH[0], FRESH[3], TEMPLATES[0], TEMPLATES[1], ["lens", "Why does a magnifying glass make things look bigger, and why does the image flip when you hold it far away?"]];
+const CASES = set === "templates" ? TEMPLATES : set === "final" ? FINAL : set === "storyline5" ? STORYLINE5 : FRESH;
 
 /**
  * The pipelines, as the app runs them (the 2026-09-27 lab's A* and D*): both
@@ -101,7 +110,9 @@ const CASES = set === "templates" ? TEMPLATES : set === "final" ? FINAL : FRESH;
 const noLook = args.includes("--no-look");
 const ARMS = {
   standard: { treatment: false, lookPass: !noLook },
+  oneshot: { treatment: false, lookPass: !noLook },
   plan: { treatment: "v2", lookPass: !noLook },
+  storyline: { treatment: "v3", lookPass: !noLook },
 };
 
 // ---- manual transport: requests to files, replies from files ----
@@ -277,6 +288,9 @@ try {
             words: speaks.reduce((s, c) => s + c.speak.split(/\s+/).length, 0),
             model: modelOpt ?? DEFAULT_MODEL,
             treatmentMs: outcome.treatmentMs,
+            treatmentTemplate: outcome.treatmentTemplate,
+            templateGaps: outcome.templateGaps,
+            crowding: lint.filter((i) => i.rule === "crowding").map((i) => i.message),
             stages: outcome.rounds.map((r) => ({
               label: r.label,
               adopted: r.adopted,

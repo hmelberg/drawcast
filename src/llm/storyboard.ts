@@ -4,15 +4,29 @@
 // single-figure generator. Builders here are pure; the call is
 // compile.ts's generateStoryboard, the choice multi.ts's outlineParts.
 
-/** How a multi-part drawcast or a lecture is planned. See GenerateConfig.approach. */
+/**
+ * Whether the story is written first. See GenerateConfig.approach. Since
+ * 2026-09-28 it governs a SINGLE drawcast too: "storyboard" writes its
+ * storyline first (llm/treatment.ts v3, singleCastTreatment) and stages the
+ * figure to it; "independent" is the one-shot call. The ids are unchanged, so
+ * stored settings need no migration.
+ */
 export type Approach = "storyboard" | "independent";
 
 export const DEFAULT_APPROACH: Approach = "storyboard";
 
 /** The user-facing choices, in the order the picker shows them. */
 export const APPROACHES: readonly { id: Approach; label: string; hint: string }[] = [
-  { id: "storyboard", label: "Storyboard first — one script, then each figure", hint: "One call writes the narration for the whole series so the parts cohere; each figure is then drawn to its lines." },
-  { id: "independent", label: "Independent parts — each figure written on its own", hint: "An outline names the parts; each part is written separately, knowing the others by title only." },
+  {
+    id: "storyboard",
+    label: "Write the story first (storyline)",
+    hint: "Every spoken line is written before anything is drawn, then the figure is staged to it. A single drawcast gets one storyline call first; a multi-part drawcast or course gets one storyboard for the whole series, so the parts cohere.",
+  },
+  {
+    id: "independent",
+    label: "Write it in one go",
+    hint: "A single drawcast is written in one call, words and drawing together; the parts of a multi-part drawcast are each written on their own, knowing the others by title only.",
+  },
 ];
 
 import { mayProposeChapters, OUTLINE_SCHEMA, PROPOSE_CHAPTERS_LINE, outlineSchemaFor } from "./outline";

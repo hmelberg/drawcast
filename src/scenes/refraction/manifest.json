@@ -2,6 +2,7 @@
   "name": "refraction",
   "status": "ready",
   "description": "Light crossing the boundary between two media (air, water, glass…): the dashed normal, the incident ray from its lamp, the refracted ray bent by Snell's law n₁ sin θ₁ = n₂ sin θ₂, the partly reflected ray (as strong as the physics says), and θ₁, θ₂ marked with arcs and values — all computed. Choose it for ANY request about refraction, Snell's law, refractive index, why a straw looks bent or a pool looks shallow, the critical angle, total internal reflection (fibre optics, diamonds), or a glass slab's sideways shift. Past the critical angle (n₁ > n₂) the refracted ray is gone and only reflection remains. theta1_deg, n1 and n2 ANIMATE: {\"animate\": {\"theta1_deg\": 60}, \"duration\": 4} from water into air sweeps past the critical angle. Paused, the viewer drags the lamp or any ray (the angles follow), scrubs or types n = 1.33 and θ₁/θ₂; an explore beat naming nothing invites exactly this. Numbers for text: {refraction.theta1}, {refraction.theta2} (absent past the critical angle), {refraction.critical}, {refraction.n1}, {refraction.n2}, {refraction.reflected} (percent), {refraction.v1}/{refraction.v2} (speed as a fraction of c), {refraction.shift} (slab, in thicknesses), {refraction.depth_ratio} (apparent).",
+  "interaction": "Drag the lamp or a ray to aim the light; scrub a medium's n or an angle; Snell's law solves the rest.",
   "params_schema": {
     "type": "object",
     "properties": {

@@ -40,7 +40,12 @@ animator.
 `Settings.approach`: `"storyboard"` (default) | `"independent"`. Picked in
 the generation choices row beside Model and Effort; applies to `#parts=N`,
 `#playlist` and every course run (the course panel reads the same setting).
-A single figure has no parts and ignores it. The outline stored with a
+Since 2026-09-28 it governs a single figure too ("Write the story first
+(storyline)"): "storyboard" writes the single figure's storyline first
+(`src/llm/treatment.ts` v3, `prompts/treatment-v3.md`, medium effort, no
+teaching pass) and stages the spec to it; "independent" is the one-shot call.
+Parts never get the single-figure storyline — the storyboard already wrote
+their lines. The outline stored with a
 partial lecture carries its scripts, so a resumed lecture draws its missing
 parts to the same script.
 
