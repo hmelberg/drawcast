@@ -555,7 +555,11 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // 296976 before it; equation_plot presets +3,660; motion_graphs ~8,300;
 // titration_curve + maxwell_boltzmann ~12,800. Ceiling 335000 leaves room
 // for the round's optics, fields and epidemic templates, which re-pin too.
-const BASELINE_SYSTEM_CHARS = 335000;
+// Raised to 360000 at 342657 (2026-09-28: the des_process template — a
+// discrete event simulation of a queue network — whose full entry is 9,077
+// chars in this all-expanded measurement; 333580 before it). The headroom
+// is for the health-economics DES template landing beside it.
+const BASELINE_SYSTEM_CHARS = 360000;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

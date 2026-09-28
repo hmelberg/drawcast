@@ -1,0 +1,336 @@
+{
+  "name": "des_process",
+  "status": "ready",
+  "description": "A discrete event simulation of a queue or process network, run and drawn: sources → stations (a lane of waiting tokens before c server boxes, busy or idle) → delays → sinks (with a counter), routes with their shares, the entities as tokens where the simulation has them at time t, a readout per station (waiting, % busy, mean wait), a clock, and a chart: queue length over time with a cursor at t, or mean wait against utilisation with queueing theory's curve. Choose it for ANY question about queues, waiting lines, servers, utilisation, bottlenecks, patient flow, Little's law, M/M/1, M/M/c, or simulating a process. `t` ANIMATES — set t: 0, then {\"animate\": {\"t\": 120}, \"duration\": 8} runs the simulation on screen (tokens flow); animating a rate or service time (\"nodes.0.rate\") re-runs it (hold t at the horizon to watch the queue grow). The same seed is the same run. Paused, the viewer drags the clock or the chart's cursor, scrubs or types a rate, a service time or a share, taps ⊖ ⊕ for servers and \"new run\" for another seed; an explore beat naming nothing invites this. Numbers for text: {des.t}, {des.arrivals}, {des.departures}, {des.in_system}, {des.L}, {des.W}, {des.lambda}; per station {des.<id>_queue}, _busy, _servers, _util (%), _wait, _avg_queue, _throughput, _served, _balked, _rho (fraction) and for M/M/c or M/G/1 _wq_theory, _lq_theory; the first station's also without the prefix ({des.util}, {des.wait}, {des.rho}, {des.wq_theory}); {des.<sink>_done}.",
+  "params_schema": {
+    "type": "object",
+    "properties": {
+      "nodes": {
+        "type": "array",
+        "maxItems": 12,
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Short id, e.g. \"triage\"."
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "source",
+                "station",
+                "delay",
+                "sink"
+              ]
+            },
+            "label": {
+              "type": "string",
+              "description": "A word or two on the canvas (default: the id; a source's is the entity's plural, a sink's \"done\")."
+            },
+            "rate": {
+              "type": "number",
+              "description": "source: arrivals per time unit (random, Poisson)."
+            },
+            "every": {
+              "type": "number",
+              "description": "source: instead, one arrival every this many time units."
+            },
+            "interarrival": {
+              "oneOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "object"
+                }
+              ],
+              "description": "source: instead, the gap between arrivals, as service."
+            },
+            "priority": {
+              "type": "integer",
+              "description": "source: its entities' class, 1 = most urgent (coloured apart)."
+            },
+            "servers": {
+              "type": "integer",
+              "description": "station: servers working in parallel, 1–12 (default 1)."
+            },
+            "service": {
+              "oneOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "object"
+                }
+              ],
+              "description": "station: time to serve one. A number = random (exponential) with that mean; or {dist: \"fixed\", value} | {dist: \"uniform\", min, max} | {dist: \"triangular\", min, mode, max} | {dist: \"lognormal\", mean, sd} | {dist: \"exponential\", mean}."
+            },
+            "time": {
+              "oneOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "object"
+                }
+              ],
+              "description": "delay: time spent there (no queue), as service."
+            },
+            "capacity": {
+              "type": "integer",
+              "description": "station: the most that may wait; more are turned away."
+            },
+            "discipline": {
+              "type": "string",
+              "enum": [
+                "fifo",
+                "priority"
+              ],
+              "description": "station: priority serves the lowest class first."
+            },
+            "to": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "x-translate": false
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "number"
+                  }
+                }
+              ],
+              "description": "Where entities go next: an id, or shares {\"xray\": 0.3, \"doctor\": 0.7} summing to 1. Default: the next node in the list."
+            }
+          },
+          "required": [
+            "id",
+            "type"
+          ]
+        },
+        "description": "The network, left to right: at least a source, a station and a sink."
+      },
+      "entity": {
+        "type": "string",
+        "description": "What flows: \"patient\", \"customer\", \"car\" (default customer)."
+      },
+      "time_unit": {
+        "type": "string",
+        "description": "\"min\" (default), \"h\", \"s\", \"days\"."
+      },
+      "horizon": {
+        "type": "number",
+        "description": "Length of the run (default 120). Keep arrivals under ~3000."
+      },
+      "warmup": {
+        "type": "number",
+        "description": "Statistics skip [0, warmup) (default 0)."
+      },
+      "seed": {
+        "type": "integer",
+        "description": "The random run (default 1)."
+      },
+      "t": {
+        "type": "number",
+        "description": "The time shown (default: the horizon). Animate it to run the simulation."
+      },
+      "chart": {
+        "description": "\"queue\" (default: waiting at the first station over time), \"wait\" (each wait and the running mean), \"system\" (number in the system), \"wait_util\" (mean wait against % busy, theory curve and the run's dot), an object {of, station, y_max}, a list of two (side by side), or false.",
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "queue",
+              "wait",
+              "system",
+              "wait_util"
+            ]
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "of": {
+                "type": "string",
+                "enum": [
+                  "queue",
+                  "wait",
+                  "system",
+                  "wait_util"
+                ]
+              },
+              "station": {
+                "type": "string",
+                "x-translate": false
+              },
+              "y_max": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "of"
+            ]
+          },
+          {
+            "type": "array",
+            "maxItems": 2,
+            "items": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "queue",
+                    "wait",
+                    "system",
+                    "wait_util"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "of": {
+                      "type": "string",
+                      "enum": [
+                        "queue",
+                        "wait",
+                        "system",
+                        "wait_util"
+                      ]
+                    },
+                    "station": {
+                      "type": "string",
+                      "x-translate": false
+                    },
+                    "y_max": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "of"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "readouts": {
+        "type": "boolean",
+        "description": "The readout under each station (default true)."
+      },
+      "controls": {
+        "type": "boolean",
+        "description": "The ⊖ ⊕ server buttons and \"new run\" (default true)."
+      },
+      "transit": {
+        "type": "number",
+        "description": "Time units a token takes along an arrow on screen (default: short — horizon/120 at most)."
+      },
+      "title": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "nodes"
+    ]
+  },
+  "element_ids": {
+    "node_<id>": "a source's or sink's ring (a sink's with its counter), a delay's box with its tokens; for a station, the SET of all its parts",
+    "queue_<id>": "a station's lane with its waiting tokens (and a \"+n\" when more wait than fit)",
+    "server_<id>": "a station's server boxes, shaded when busy, a token in each",
+    "label_<id> / rate_<id> / service_<id>": "a node's name; a source's arrival rate; a station's or delay's time",
+    "add_<id> / remove_<id>": "a station's ⊕ ⊖ buttons (controls)",
+    "readout_<id>": "a station's readout: waiting, % busy, mean wait",
+    "balked_<id>": "\"n turned away\" (a station with capacity)",
+    "route_<a>_<b> / share_<a>_<b>": "the arrow from a to b with the tokens travelling it; its share (\"30%\") on a branch",
+    "nodes / routes": "SETS — every node part; every arrow and share",
+    "clock / reroll": "\"t = 12 min\"; the \"new run\" button (controls)",
+    "chart": "SET — the chart: axes, x_ticks, y_ticks, x_label, y_label, chart_line (the quantity up to t), cursor (at t), warmup (shaded); a \"wait\" chart adds chart_dots; \"wait_util\" has theory_curve, theory_dot, sim_dot. A second chart's ids end _2 (chart_2).",
+    "title": "the title, when set"
+  },
+  "examples": [
+    {
+      "request": "Why do customers queue at a single checkout even when the cashier is not always busy?",
+      "params": {
+        "entity": "customer",
+        "nodes": [
+          {
+            "id": "arrive",
+            "type": "source",
+            "rate": 0.8
+          },
+          {
+            "id": "checkout",
+            "type": "station",
+            "servers": 1,
+            "service": 1
+          },
+          {
+            "id": "leave",
+            "type": "sink"
+          }
+        ],
+        "horizon": 120,
+        "t": 60,
+        "chart": "queue"
+      }
+    },
+    {
+      "request": "Simulate patient flow in an emergency department: triage, then some need an X-ray before they see a doctor.",
+      "params": {
+        "entity": "patient",
+        "nodes": [
+          {
+            "id": "door",
+            "type": "source",
+            "rate": 0.5
+          },
+          {
+            "id": "triage",
+            "type": "station",
+            "servers": 1,
+            "service": {
+              "dist": "triangular",
+              "min": 1,
+              "mode": 1.5,
+              "max": 3
+            },
+            "to": {
+              "xray": 0.3,
+              "doctor": 0.7
+            }
+          },
+          {
+            "id": "xray",
+            "type": "station",
+            "label": "X-ray",
+            "servers": 1,
+            "service": 5,
+            "to": "doctor"
+          },
+          {
+            "id": "doctor",
+            "type": "station",
+            "servers": 2,
+            "service": 3.5
+          },
+          {
+            "id": "home",
+            "type": "sink"
+          }
+        ],
+        "horizon": 240,
+        "warmup": 30,
+        "t": 240,
+        "chart": {
+          "of": "queue",
+          "station": "doctor"
+        }
+      }
+    }
+  ]
+}
