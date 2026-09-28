@@ -1277,6 +1277,7 @@ function resolvePointDomain(el: SpecElement, ctx: Ctx): Pt | null {
     return [at.x, y];
   }
   if (Array.isArray(at.data) && at.data.length === 2) return [at.data[0], at.data[1]];
+  if (Array.isArray(at.canvas) && at.canvas.length === 2) return [ctx.ix(at.canvas[0]), ctx.iy(at.canvas[1])];
   // A bare {x, y} is the domain's on a page that declares one; with no
   // domain it is canvas units — it used to read a silent default 0–100
   // domain, so {x: 600, y: 600} landed five canvases away (2026-09-25).
@@ -1524,7 +1525,7 @@ interface ResolvedEnd {
   anchored: boolean;
 }
 
-function resolveEnd(end: { ref?: string; x?: number; y?: number; anchor?: string; data?: [number, number] } | undefined, ctx: Ctx): ResolvedEnd | null {
+function resolveEnd(end: { ref?: string; x?: number; y?: number; anchor?: string; data?: [number, number]; canvas?: [number, number] } | undefined, ctx: Ctx): ResolvedEnd | null {
   if (!end) return null;
   if (end.ref) {
     // Definitional readers see the posed view (design 2026-09-10 §2.5).
@@ -1558,6 +1559,8 @@ function resolveEnd(end: { ref?: string; x?: number; y?: number; anchor?: string
     return { pt: a, anchored: false };
   }
   if (Array.isArray(end.data) && end.data.length === 2) return { pt: [ctx.sx(end.data[0]), ctx.sy(end.data[1])], anchored: false };
+  // Canvas units whatever the page's domain: an annotation beside the chart.
+  if (Array.isArray(end.canvas) && end.canvas.length === 2) return { pt: [end.canvas[0], end.canvas[1]], anchored: false };
   if (end.x !== undefined && end.y !== undefined) {
     return { pt: ctx.domainDeclared ? [ctx.sx(end.x), ctx.sy(end.y)] : [end.x, end.y], anchored: false };
   }

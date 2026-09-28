@@ -174,6 +174,9 @@ export function planOptionsFor(
     inDataUnits: (id) => {
       if (!spec.domain) return false;
       const el = spec.elements?.find((e) => e.id === id);
+      // An arrow drawn in canvas units ({canvas: [x, y]} ends) moves in them too.
+      const canvasEnd = (v: unknown) => Array.isArray((v as { canvas?: unknown } | undefined)?.canvas);
+      if (el && (el.type === "arrow" || el.type === "edge") && (canvasEnd(el.from) || canvasEnd(el.to))) return false;
       return !!el && DATA_KINDS.has(el.type);
     },
     pieceOf: (id) => layout.pieces[id] ?? null,

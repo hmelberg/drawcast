@@ -367,7 +367,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   /** `{data: [x, y]}` anywhere a verb takes a point: the page's data frame. */
   const dataOf = (p: unknown): Pt | null => {
     const d = (p as { data?: unknown } | null | undefined)?.data;
-    return Array.isArray(d) && d.length === 2 ? dataToLogical(d as Pt) : null;
+    if (Array.isArray(d) && d.length === 2) return dataToLogical(d as Pt);
+    // `{canvas: [x, y]}`: canvas units whatever the page's domain.
+    const c = (p as { canvas?: unknown } | null | undefined)?.canvas;
+    return Array.isArray(c) && c.length === 2 ? [c[0] as number, c[1] as number] : null;
   };
   /** A move's (or morph.to's) units follow what it moves: domain units only
    *  when EVERY target lives in the domain (inDataUnits); without that

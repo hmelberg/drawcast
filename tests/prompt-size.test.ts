@@ -597,7 +597,9 @@ const BASELINE_SYSTEM_CHARS = 360000;
 // Re-pinned UP 2026-09-25: math steps / step_gap / note_dx and the step command. 83685 -> 84874.
 // Re-pinned UP 2026-09-26: `details` (element and spec-level) and `app_only`. 84874 -> 85834.
 // Raised with headroom 2026-09-26 (same reason): measured 86227 with `domain.box`.
-const BASELINE_SCHEMA_CHARS = 90000;
+// Re-pinned UP 2026-09-28: `canvas: [x, y]` on at / end refs / verb points (canvas units on a
+// domain page — the $defs are inlined, so it counts several times). Measured 90705.
+const BASELINE_SCHEMA_CHARS = 91000;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in
