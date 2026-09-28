@@ -9,7 +9,7 @@ import { applyCourseFolder, applyCourseName, applyJoinDoor, commitPublish, cours
 import type { Door, DoorlessReason } from "../course/page";
 import { matchLibrary, restoredStatus } from "../course/reconcile";
 import { reviseCourse } from "../course/revise";
-import { estimateCalls, loadedLectureFromRow, runCourse, type PartialLecture } from "../course/run";
+import { estimateCalls, loadedLectureFromRow, runCourse, type PartialLecture, type RunResult } from "../course/run";
 import { setLectureStatus } from "../course/document";
 import type { GenerateConfig, PromptVariant } from "../llm/compile";
 import { callLedger, costSummary, formatCost, MODELS, resetCallLedger } from "../llm/client";
@@ -56,7 +56,8 @@ import { resolveImages } from "../render/image";
 import { resolveIcons } from "../render/icon";
 import { unembeddedImages } from "./insert";
 import { trustDerived, trustSpecs } from "../security/code-trust";
-import { getGithubToken, getTtsKey, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, saveSettings, type SavedCourse, type SavedDrawing } from "../store";
+import { appendLog, getGithubToken, getTtsKey, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, saveSettings, type LogEntry, type SavedCourse, type SavedDrawing } from "../store";
+import { SPEC_VERSION } from "../spec/schema";
 import { h } from "./dom";
 import { createModal } from "./modal";
 import { openShare, type ShareDeps } from "./share";
@@ -506,6 +507,8 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       // stops to ask).
       effort: deps.settings.effort,
       approach: deps.settings.approach,
+      // Which storyboard prompt (and per-part staging) the lectures are planned with — v1 unless the owner chose v2.
+      storyboardVersion: deps.settings.storyboardVersion,
       route: deps.route,
       templatesOnDemand: deps.settings.templatesOnDemand,
       onTemplateAuthored: deps.onTemplateAuthored,
@@ -807,6 +810,10 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         deps.settings.costPerPart = { ...deps.settings.costPerPart, [key]: learnRate(deps.settings.costPerPart[key], measured) };
         saveSettings(deps.settings);
       }
+      // Staging's template-gap notes (storyboard v2): into the logs, one
+      // entry per lecture, where the single-cast notes already go — the
+      // report reads them there (store.ts templateGapsFromLogs).
+      for (const entry of gapLogEntries(result.templateGaps, course, deps.model(), deps.variant().name)) appendLog(entry);
       status.textContent = "";
       const failed = result.failed.length;
       const partial = result.partial.length;
@@ -827,7 +834,8 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
             : `Generated ${result.generated} lecture${result.generated === 1 ? "" : "s"}.`) +
           onDemandSummary(onDemandRun) +
           costSuffix +
-          teachingSuffix,
+          teachingSuffix +
+          (result.templateGaps?.length ? ` · ${result.templateGaps.length} template gap${result.templateGaps.length === 1 ? "" : "s"} noted` : ""),
         trouble ? "error" : "ok",
       );
     } catch (err) {
@@ -1431,4 +1439,25 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
   else refreshCourseList();
   render();
   modal.open();
+}
+
+/**
+ * A course run's template gaps (storyboard v2) as log entries, one per
+ * lecture in order, each note prefixed with its part — the shape the
+ * single-cast notes already have, so templateGapsFromLogs reports them.
+ */
+export function gapLogEntries(gaps: RunResult["templateGaps"], course: Pick<Course, "title" | "lectures">, model: string, promptVariant: string): LogEntry[] {
+  const byLecture = new Map<number, NonNullable<RunResult["templateGaps"]>>();
+  for (const g of gaps ?? []) byLecture.set(g.lecture, [...(byLecture.get(g.lecture) ?? []), g]);
+  return [...byLecture].map(([lecture, list]) => ({
+    id: crypto.randomUUID(),
+    ts: new Date().toISOString(),
+    prompt: `${course.title || "course"} — ${course.lectures[lecture]?.title ?? `lecture ${lecture + 1}`} [template gaps]`,
+    config: { model, promptVariant, specVersion: SPEC_VERSION },
+    rounds: [],
+    spec: null,
+    lintIssues: [],
+    warnings: [],
+    templateGaps: list.map((g) => ({ template: g.template, missing: `part ${g.part}: ${g.missing}` })),
+  }));
 }

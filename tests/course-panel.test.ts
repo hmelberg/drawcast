@@ -1,7 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { parseCourse } from "../src/course/document";
-import { costPreview, lectureRowLabel, resolveOpenCourseId } from "../src/ui/course";
+import { costPreview, gapLogEntries, lectureRowLabel, resolveOpenCourseId } from "../src/ui/course";
+import { templateGapsFromLogs } from "../src/store";
 
 const DOC = `# T
 ---
@@ -200,5 +201,28 @@ describe("panelActions", () => {
   });
   it("a title alone is not a plan yet", () => {
     expect(panelActions(parseCourse("# Just a title\n"))).toEqual({ plan: "make", generate: false });
+  });
+});
+
+describe("a course run's template gaps (storyboard v2)", () => {
+  it("become one log entry per lecture, in the shape the gap report reads", () => {
+    const course = parseCourse("# Vaccines\n\n## Herd immunity\nq\n\n## Boosters\nq\n");
+    const entries = gapLogEntries(
+      [
+        { lecture: 1, part: 2, template: "sir_compartments", missing: "no waning" },
+        { lecture: 0, part: 1, template: "sir_compartments", missing: "no contact tree" },
+        { lecture: 1, part: 3, template: "timeline", missing: "no doses" },
+      ],
+      course,
+      "m",
+      "v1",
+    );
+    expect(entries.map((e) => e.prompt)).toEqual(["Vaccines — Boosters [template gaps]", "Vaccines — Herd immunity [template gaps]"]);
+    expect(entries[0].templateGaps).toEqual([
+      { template: "sir_compartments", missing: "part 2: no waning" },
+      { template: "timeline", missing: "part 3: no doses" },
+    ]);
+    expect(templateGapsFromLogs(entries).map((g) => g.missing).sort()).toEqual(["part 1: no contact tree", "part 2: no waning", "part 3: no doses"]);
+    expect(gapLogEntries(undefined, course, "m", "v1")).toEqual([]);
   });
 });

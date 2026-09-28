@@ -5,7 +5,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { makeClient, callForJson, callForText, describeApiError, isOutputLimitError, planningModelFor, repairModelFor, type Effort, type JsonCallMeta } from "./client";
 import { buildOutlineMessages, normalizeOutline, outlineSchemaFor, type Outline } from "./outline";
-import { buildStoryboardMessages, storyboardSchemaFor, type Approach } from "./storyboard";
+import { buildStoryboardMessages, buildStoryboardMessagesV2, storyboardSchemaForVersion, type Approach, type StoryboardVersion } from "./storyboard";
 import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, styleBlock, systemBlocks, wantsCode, wantsSound, OPTIONAL_PROMPT_PLACEHOLDERS, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
 import { pickExemplars } from "./exemplars";
 import { catalogIndexText, catalogIsTwoLevel, catalogParts, detectNeedTemplate, fullEntryIds, isReadyTemplate, routerIndexText, selectTemplates, storyTemplateLines, HOT_SHORTLIST } from "../scenes/catalog";
@@ -329,6 +329,17 @@ export interface GenerateConfig {
    * Read nowhere in generateSpec itself; a single figure has no parts.
    */
   approach?: Approach;
+  /**
+   * Which storyboard prompt a multi-part drawcast or a lecture is planned
+   * with under approach "storyboard" (Settings.storyboardVersion; llm/
+   * storyboard.ts). "v1" (the default): the storyboard as since 2026-09-19,
+   * each part staged by outline.ts scriptBlock. "v2": the storyboard also
+   * carries the storyline rules and the templates with their interactions,
+   * may plan a template per part, and each part is staged by outline.ts
+   * partStagingNote (lines sacred, ink not, figure budget, template gaps).
+   * Read by llm/multi.ts only.
+   */
+  storyboardVersion?: StoryboardVersion;
   /** Cancels the generation, whichever round is in flight. */
   signal?: AbortSignal;
   /** Called as the model writes, once per streamed delta. */
@@ -1007,11 +1018,17 @@ export async function generateStoryboard(
   cfg: { apiKey: string; model: string; effort?: Effort; styleText?: string },
   parts: number | null,
   signal?: AbortSignal,
-  opts: { chapters?: string[]; brief?: string } = {},
+  opts: { chapters?: string[]; brief?: string; version?: StoryboardVersion; templateLines?: string; index?: string } = {},
 ): Promise<Outline | null> {
   const client = makeClient(cfg.apiKey);
-  const { system, user } = buildStoryboardMessages(request, parts, { ...opts, styleText: cfg.styleText });
-  const { json } = await callForJson(client, planningModelFor(cfg.model), system, [{ role: "user", content: user }], storyboardSchemaFor(parts), {
+  // v2 (Settings.storyboardVersion): the storyline rules and the templates
+  // with their interactions; v1 exactly as before.
+  const { version, templateLines, index, ...base } = opts;
+  const { system, user } =
+    version === "v2"
+      ? buildStoryboardMessagesV2(request, parts, { ...base, templateLines, index, styleText: cfg.styleText })
+      : buildStoryboardMessages(request, parts, { ...base, styleText: cfg.styleText });
+  const { json } = await callForJson(client, planningModelFor(cfg.model), system, [{ role: "user", content: user }], storyboardSchemaForVersion(parts, version ?? "v1"), {
     signal,
     ...(cfg.effort ? { effort: cfg.effort } : {}),
   });

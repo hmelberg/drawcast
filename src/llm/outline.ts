@@ -21,6 +21,13 @@ export interface OutlinePart {
    * (buildPartRequest) and skips the per-part teaching pass (multi.ts).
    */
   script?: string[];
+  /**
+   * Storyboard v2 only (llm/storyboard.ts buildStoryboardMessagesV2): the
+   * ready template the storyboard planned this part's figure with. A plan
+   * hint, never a force — multi.ts gives it a full catalog entry, and the
+   * part's staging may draw freehand instead and say why (a template gap).
+   */
+  template?: string;
 }
 
 export interface Outline {
@@ -146,7 +153,7 @@ export function normalizeOutline(json: unknown, chapters?: string[], want: numbe
   const parts: OutlinePart[] = [];
   for (const p of raw.parts) {
     if (typeof p !== "object" || p === null) continue;
-    const { title, brief, level, chapter, figure, script } = p as Record<string, unknown>;
+    const { title, brief, level, chapter, figure, script, template } = p as Record<string, unknown>;
     if (typeof title !== "string" || title.length === 0) continue;
     const part: OutlinePart = { title, brief: typeof brief === "string" ? brief : "" };
     if (level === "basic" || level === "advanced") part.level = level;
@@ -165,6 +172,9 @@ export function normalizeOutline(json: unknown, chapters?: string[], want: numbe
       const lines = script.filter((l): l is string => typeof l === "string" && l.trim().length > 0).map((l) => l.trim());
       if (lines.length > 0) part.script = lines;
     }
+    // Storyboard v2's optional plan hint; whether the id is a real template is
+    // checked where it is used (multi.ts), not here.
+    if (typeof template === "string" && /^[a-z][a-z0-9_]*$/.test(template.trim()) && template.trim() !== "none" && template.trim() !== "freehand") part.template = template.trim();
     parts.push(part);
   }
   // ONE part is a legitimate answer to a bare `#parts` (Hans 2026-09-22):
@@ -205,9 +215,25 @@ function dropPointlessChapters(parts: OutlinePart[]): void {
 }
 
 /** The per-part request handed to the ordinary single-figure generator. */
-export function buildPartRequest(clean: string, outline: Outline, index: number, brief: string): string {
+export function buildPartRequest(clean: string, outline: Outline, index: number, brief: string, version: "v1" | "v2" = "v1"): string {
   const part = outline.parts[index];
   const n = outline.parts.length;
+  // Storyboard v2 (Settings.storyboardVersion) changes only a part WITH a
+  // script: the storyboard already wrote its opening, bridge and synthesis,
+  // so those directives are not repeated, and the hand-over is
+  // partStagingNote's instead of scriptBlock's. v1 is below, unchanged.
+  if (version === "v2" && part.script && part.script.length > 0) {
+    const v2 = [
+      clean,
+      "",
+      `This drawcast is part ${index + 1} of ${n} in the series "${outline.title}".`,
+      `This part: ${part.brief ? `${part.title} — ${part.brief}` : part.title}.`,
+      `The full series: ${outline.parts.map((p, i) => `${i + 1}. ${p.title}`).join("; ")}.`,
+    ];
+    if (brief) v2.push("", brief);
+    v2.push("", partStagingNote(part));
+    return v2.join("\n");
+  }
   const lines = [
     clean,
     "",
@@ -247,5 +273,38 @@ export function scriptBlock(part: OutlinePart): string {
     "",
     ...(part.script ?? []).map((line, i) => `${i + 1}. ${line}`),
   );
+  return out.join("\n");
+}
+
+/** The top-level reply field staging reports a template gap in — llm/treatment.ts TEMPLATE_GAPS_KEY, repeated so outline.ts stays import-free (tests/storyboard-v2.test.ts pins them equal). */
+export const PART_GAPS_KEY = "template_gaps";
+
+/**
+ * Storyboard v2's hand-over to the artist: the single-cast storyline's
+ * staging note (llm/treatment.ts stagingNote v3) for one part of a series —
+ * the lines are sacred, the ink is not, the figure budget holds, temporary
+ * pieces go at the line the figure paragraph names, and a planned template
+ * that cannot do what the lines need is reported, not bent to. Appended
+ * LAST, after the tag brief, like scriptBlock.
+ */
+export function partStagingNote(part: OutlinePart): string {
+  const gap = (id: string) => `\`"${PART_GAPS_KEY}": [{"template": "${id}", "missing": "<what it could not do, in a short phrase>"}]\``;
+  const out: string[] = [
+    "## The storyboard to stage",
+    "",
+    "A teacher has already written this part's storyboard — its narration written for the whole series at once, so it bridges from the previous part, uses the series' notation and repeats nothing. STAGE it: build the figure it describes and one command per line, in its order, with its lines as the `speak` text.",
+    "- The LINES are sacred: keep what each says and their order. You may tighten a line to fit the ink, split a long one across two beats or merge two short ones — never change its content, reorder, drop or add lines. Their length and opening override the general length and opening guidance in your instructions.",
+    "- The INK is not: the layout is yours. You may merge, shrink or drop a planned piece to keep the page clear, and you must keep the figure budget — one main figure, drawn large, and at most one temporary supporting piece (a scratch card, a readout, an inset) on the page at a time.",
+    "- Honour every `temporary` mark: erase or fade that piece at the line it names (erase, fade or clear commands), and fade ghosts and helper lines once they have served.",
+    "- Numbers the figure paragraph puts on the canvas go on the canvas. A planned `Quiz:` becomes a quiz command with its `wrong` hint, right after the line whose figure answers it; a quiz or ask the brief calls for carries its own question text and nothing more. A planned `Explore:` becomes a pause on the figure at the line that invites it.",
+    "- Choose the exact verbs, ids, colors and layout yourself, following your instructions; where the storyboard asks for something the medium cannot do, do the nearest thing it can.",
+    part.template
+      ? `- The storyboard planned this part's figure with the template \`${part.template}\` (its full entry is in your instructions). Use it unless it cannot do what these lines need; if you draw the figure freehand instead, add a top-level field ${gap(part.template)} to your reply — it is taken off before the spec is checked. Leave it out otherwise.`
+      : `- If a template you start from cannot do what these lines need and you draw that figure freehand instead, add a top-level field ${gap("<id>")} to your reply — it is taken off before the spec is checked. Leave it out otherwise.`,
+    "- Open with a `card` heading as usual.",
+    "",
+  ];
+  if (part.figure) out.push(`FIGURE: ${part.figure}`, "");
+  out.push("LINES:", ...(part.script ?? []).map((line, i) => `${i + 1}. ${line}`));
   return out.join("\n");
 }
