@@ -9,6 +9,7 @@ import { animatableVars, liveDecimals, varInfos, varNameErrors, varScrub, varVal
 import { validateSpec } from "../src/spec/schema";
 import { lintCommands } from "../src/lint/lint";
 import type { Spec } from "../src/spec/types";
+import examples from "../src/examples.json";
 import { liveVarHostFor, varOfPart } from "../src/ui/live-vars";
 import { INITIAL_STATE, planCommands, type Plan } from "../src/render/plan";
 import { planOptionsFor, type RenderHandle } from "../src/render";
@@ -105,6 +106,24 @@ describe("the TeX", () => {
   test("a formula naming no var is returned as the same string", () => {
     for (const tex of ["W = 10 \\cdot \\frac{u}{{1 - u}}", "\\frac{a}{b}", "\\{r\\}", "\\text{r}", "e^{i\\pi}"]) expect(liveTeX(tex, o).tex).toBe(tex);
     expect(texNamesVars("W = 10 \\cdot \\frac{u}{{1 - u}}", o.vars)).toBe(false);
+  });
+
+  test("every bundled formula is written exactly as before (none shows a var as a token)", () => {
+    let n = 0;
+    for (const ex of examples as { spec?: Spec }[]) {
+      const spec = ex.spec;
+      if (!spec?.elements) continue;
+      const vars = varValues(spec.vars);
+      for (const el of spec.elements) {
+        const texs = el.type === "math" ? [el.tex, ...(el.steps ?? []).map((s) => (typeof s === "string" ? s : s.tex))] : [];
+        for (const tex of texs) {
+          if (typeof tex !== "string") continue;
+          n++;
+          expect(liveTeX(tex, { id: el.id, vars, infos: infosOf(spec.vars), colors: {} }).tex).toBe(tex);
+        }
+      }
+    }
+    expect(n).toBeGreaterThan(20);
   });
 
   test("later occurrences are _2, _3 …; decimals inline; the decimal comma stays in the number", () => {
