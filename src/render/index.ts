@@ -127,7 +127,7 @@ const DATA_KINDS = new Set<string>(["point", "curve", "region", "arrow", "edge",
 export function planOptionsFor(
   spec: Spec,
   layout: LayoutResult,
-): Pick<PlanOptions, "attachedTo" | "drawnWith" | "drawnAfter" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds" | "mathOf" | "isElement" | "controlsOf" | "dataToLogical" | "inDataUnits"> {
+): Pick<PlanOptions, "attachedTo" | "drawnWith" | "drawnAfter" | "partsOf" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds" | "mathOf" | "isElement" | "controlsOf" | "dataToLogical" | "inDataUnits"> {
   // Definitions hold (design 2026-09-10 §2.5): what is defined in terms of
   // what. A source that is a group or a pieces cut is moved through its
   // members (the planner expands it), so its dependents are attached to every
@@ -151,7 +151,19 @@ export function planOptionsFor(
       else groupsOf.set(kid, [parent]);
     }
   }
+  // A scratch card (spec/scratch.ts) is one made thing: its box is the
+  // paper each line is written on. Read off the expansion's own naming — a
+  // group <g> of <g>_box and <g>_line_n — so no marker has to survive it.
+  const parts = new Map<string, string[]>();
+  for (const [g, members] of Object.entries(layout.groups)) {
+    const box = `${g}_box`;
+    const lines = members.filter((m) => m.startsWith(`${g}_line_`));
+    if (!members.includes(box) || lines.length === 0) continue;
+    parts.set(box, lines);
+    for (const l of lines) parts.set(l, [box]);
+  }
   return {
+    partsOf: (id) => parts.get(id) ?? [],
     dependentsOf: (id) => depsByLeaf.get(id) ?? [],
     sourceIds: sources,
     // A sweep reads the AUTHORED control literals: this clone has already

@@ -912,6 +912,24 @@ export function poseTransform(dx: number, dy: number, deg: number, pivot: Pt, sc
   return parts.length === 0 ? null : parts.join(" ");
 }
 
+/**
+ * The focus dim on a leaf's fade wrapper: inline CSS opacity = the fade's
+ * own `opacity` attribute × the dim, so a faded element dims from where the
+ * fade left it and ending the focus (alpha 1) hands the node back to the
+ * attribute alone. `data-focus` remembers the dim so a fade that lands
+ * mid-focus keeps it (SvgElementHandle.setOpacity).
+ */
+export function setFocusAlpha(fadeNode: SVGGElement, alpha: number): void {
+  if (alpha >= 1) {
+    fadeNode.style.opacity = ""; // clears the inline value: the attribute rules again
+    delete fadeNode.dataset.focus;
+    return;
+  }
+  const fade = Number(fadeNode.getAttribute("opacity") ?? "1");
+  fadeNode.dataset.focus = alpha.toFixed(3);
+  fadeNode.style.opacity = (Math.max(0, alpha) * (Number.isFinite(fade) ? fade : 1)).toFixed(3);
+}
+
 /** One leaf's live nodes, as buildNodes assembles them: the leaf's own `<g>`
  *  (data-leaf-id carrying node, rebuilt in place by setPoints), the drawable
  *  it was built from, and the fade wrapper `<g>` above it. */
@@ -1031,15 +1049,18 @@ class SvgElementHandle implements RenderedElement {
    *  store, applied to fadeGroups (see its doc comment). Kept on a node of
    *  its own, ABOVE the leaf, so it never collides with anything the leaf's
    *  own node already uses its opacity for: the drawable's authored
-   *  translucency (an `opacity` attribute written by drawLeaf), the reveal's
-   *  `style.opacity` (text/image), or the focus effect's transient
-   *  `style.opacity`. Different nodes means SVG's nested-opacity compositing
-   *  MULTIPLIES them, so a fade to 0.5 halves a 0.42 highlighter band rather
-   *  than replacing it, and ending a focus never undoes a fade. */
+   *  translucency (an `opacity` attribute written by drawLeaf) or the
+   *  reveal's `style.opacity` (text/image). Different nodes means SVG's
+   *  nested-opacity compositing MULTIPLIES them, so a fade to 0.5 halves a
+   *  0.42 highlighter band rather than replacing it. The focus dim shares
+   *  this wrapper as inline CSS composed with the attribute (setFocusAlpha),
+   *  so ending a focus never undoes a fade. */
   setOpacity(alpha: number): void {
     for (const g of this.fadeGroups) {
       if (alpha >= 1) g.removeAttribute("opacity");
       else g.setAttribute("opacity", Math.max(0, alpha).toFixed(3));
+      // A focus dim in force rides on top of the new fade (setFocusAlpha).
+      if (g.dataset.focus !== undefined) setFocusAlpha(g, Number(g.dataset.focus));
     }
   }
 
@@ -1434,7 +1455,7 @@ function makeEffects(
   svg: SVGSVGElement,
   overlay: SVGGElement,
   underlay: SVGGElement,
-  leafNodes: Map<string, { g: SVGGElement; leaf: Exclude<Drawable, { kind: "group" }> }[]>,
+  leafNodes: Map<string, LeafEntry[]>,
   rc: RoughSVG | null,
   /** The camera at rest — FULL_VIEW, or the fit of the layout's world. */
   rest: () => BBox,
@@ -1668,20 +1689,22 @@ function makeEffects(
       }
     },
 
+    // The dim goes on each leaf's fade wrapper, never the leaf's own node:
+    // that node's opacity belongs to the reveal (text/image write
+    // `style.opacity` every frame) and to the drawable's authored
+    // translucency (an `opacity` attribute that inline CSS would REPLACE, not
+    // multiply). Dimming it there turned a 0.35 wash into 0.16 ink and, on
+    // release, snapped translucent text to full strength. The wrapper is a
+    // group, so the dim is one flattened layer over everything the leaf
+    // paints — a rough stroke's passes, its fill, a text halo — and the
+    // passes never show through each other.
     setFocus(dimIds: string[], alpha: number): void {
       const a = Math.max(0, Math.min(1, alpha));
-      for (const id of dimIds) {
-        for (const { g } of leafNodes.get(id) ?? []) {
-          if (a >= 1) g.style.removeProperty("opacity");
-          else g.style.opacity = String(a);
-        }
-      }
+      for (const id of dimIds) for (const { fadeNode } of leafNodes.get(id) ?? []) setFocusAlpha(fadeNode, a);
     },
 
     endFocus(dimIds: string[]): void {
-      for (const id of dimIds) {
-        for (const { g } of leafNodes.get(id) ?? []) g.style.removeProperty("opacity");
-      }
+      for (const id of dimIds) for (const { fadeNode } of leafNodes.get(id) ?? []) setFocusAlpha(fadeNode, 1);
     },
 
     setFlow(ids: string[], o: FlowOpts, frame: { travelled: number; alpha: number }): void {

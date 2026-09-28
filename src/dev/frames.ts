@@ -37,7 +37,7 @@ import { itemsOf, parsePlaylistText } from "../playlist/playlist";
 import { render } from "../render";
 import { splitVarOverrides, withOverrides } from "../render/params";
 import { LASER_COLOR, makeBrowserMeasure } from "../render/svg-backend";
-import type { BackendEffects } from "../render/backend";
+import { FOCUS_DIM, type BackendEffects } from "../render/backend";
 import { pointerPath, unionBoxes } from "../render/effects";
 
 // Dev only: this harness renders the local author's own files and the
@@ -292,7 +292,7 @@ function paintGesture(hd: RenderHandle, at: number, step: PlanStep, canvas: HTML
     }
     case "focus": {
       const keep = new Set(step.ids);
-      effects.setFocus?.(before.visible.filter((id) => !keep.has(id)), 0.16);
+      effects.setFocus?.(before.visible.filter((id) => !keep.has(id)), FOCUS_DIM);
       return;
     }
     case "flow": {
