@@ -171,6 +171,7 @@ describe("every bundled template's string params are classified", () => {
     expect(actual).toEqual({
       cost_effectiveness_plane: [".x_label", ".y_label", ".points[].label", ".title"],
       decision_tree: [".root.label", ".root.value", ".root.children[].label", ".unit"],
+      des_process: [".nodes[].label", ".entity", ".time_unit", ".title"],
       equation_plot: [".marks[].x_label", ".marks[].y_label", ".x_label", ".y_label"],
       field_lines: [".charges[].label", ".title"],
       free_body: [".body_label", ".forces[].label", ".net_force.label"],

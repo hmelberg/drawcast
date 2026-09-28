@@ -25,6 +25,7 @@ const CONDITIONAL: Record<string, string[]> = {
   protein_secondary: ["strip_title"],
   generic_axes_diagram: ["hline_<i>", "shade"],
   equation_plot: ["<mark>_c<i>"],
+  des_process: ["balked_<id>", "title"],
   reaction_scheme: ["label_under"],
   lab_apparatus: ["funnel"],
   periodic_table: ["highlight_<i>"],
