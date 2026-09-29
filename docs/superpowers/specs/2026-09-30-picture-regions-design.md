@@ -110,7 +110,10 @@ is not planned.
   picture's own fractions.
 - **URL fetching.** Showing a linked picture needs no CORS. Reading its
   pixels (mapping, OCR, embedding) does; hosts that refuse go through a small
-  Netlify fetch function, like the name lookups.
+  Netlify fetch function, like the name lookups. microdata.no is one: its
+  images answer without an `Access-Control-Allow-Origin` header (checked
+  2026-09-30), so the §9.1 example is shown directly but mapped through the
+  function.
 - **Credit and rights**: `credit` as today. A screenshot of someone's
   manual is the author's responsibility; the app shows the credit line.
 
@@ -304,27 +307,219 @@ match it.
 The mapping prompt is its own small prompt; the compiler prompt grows only by
 the place syntax (§4), the `box` effect and `tour` — a few lines.
 
-## 9. Worked example
+## 9. Examples
+
+The region boxes below were measured on the real pictures (2026-09-30), as a
+mapping step would return them. They are what the spec would hold *after*
+the drop-unused step (§8.2).
+
+### 9.1 The microdata.no command window (a user interface)
+
+The manual page has two pictures, and the example uses both:
+
+- **image79** (1920 × 1041), a clean screenshot of a working session: the
+  `demografidata` dataset with 8 variables, a history of `import`,
+  `generate` and `replace` commands, and the register-variable list. No
+  arrows. This is the one to point into.
+- **image83** (1914 × 938), the same window *with the manual's own blue
+  arrows and labels*. Two uses:
+  1. its **toolbar strip** (the seven round buttons at the top right),
+     shown alone through `view`, since image79 is an older version with only
+     four buttons;
+  2. **a test for the mapping step** (delivery 3): the arrows and labels are
+     the manual's answer key. Map the clean part of the picture, then check
+     that each labelled thing was found, with the right box.
 
 ```yaml
-- speak: This is the command window in microdata.
-  show: md
-- speak: On the left, the datasets you have made.
-  highlight: {target: md:datasets}
-- speak: Below them, every variable in the registers.
-  highlight: {target: md:variables}       # the box slides down
-- speak: You can filter them by name here.
-  camera: {on: md:filter}                   # the box shrinks to the filter; the camera follows
-- speak: Commands go in at the bottom.
-  camera: {on: md:command_line}
-  point: {at: md:command_line, gesture: underline}
-- speak: And the results appear above.
-  camera: {reset: true}
-  focus: {target: md:results}
+elements:
+  - id: md
+    type: image
+    url: https://microdata.no/manual/assets/images/image79-3a6b840c804b98810159afecdbdab29c.png
+    look: screen
+    view: [0, 0.069, 1, 0.931]          # without the browser's tab and address bar
+    credit: "Sikt / SSB, microdata.no user manual"
+    regions:                            # [x, y, w, h], from the top-left
+      datasets:        [0.000, 0.069, 0.200, 0.466]
+      dataset_name:    [0.000, 0.099, 0.200, 0.042]   # "demografidata — 8 variabler, 9 903 456 enheter"
+      imported:        [0.000, 0.144, 0.200, 0.140]   # kjonn, faarmnd, sivstand, …
+      variables:       [0.000, 0.535, 0.200, 0.465]
+      filter:          [0.000, 0.562, 0.200, 0.020]   # "Filtrér variabler"
+      results:         [0.200, 0.069, 0.800, 0.900]
+      import_command:  [0.205, 0.209, 0.192, 0.014]   # "import fdb1/BEFOLKNING_KJOENN as kjonn"
+      command_line:    [0.200, 0.970, 0.800, 0.030]   # "demografidata»"
+
+  - id: tools
+    type: image
+    url: https://microdata.no/manual/assets/images/image83-356911b82643d6cb7d8086c8203ba2bd.png
+    look: screen
+    view: [0.830, 0.000, 0.170, 0.042]  # the button strip only — above the manual's arrows
+    credit: "Sikt / SSB, microdata.no user manual"
+    regions:                            # left to right, as the manual labels them
+      script_window: [0.841, 0.003, 0.019, 0.037]   # "Gå til skriptvindu"
+      help:          [0.863, 0.003, 0.019, 0.037]   # shortcuts + interactive introduction
+      support_chat:  [0.885, 0.003, 0.019, 0.037]
+      export:        [0.906, 0.003, 0.019, 0.037]   # export all results / print
+      saved:         [0.928, 0.003, 0.019, 0.037]   # are the last changes saved?
+      settings:      [0.950, 0.003, 0.019, 0.037]   # appearance, or log out
+
+script:
+  - speak: This is microdata's command window, in the middle of a session.
+    show: md
+  - speak: On the left, the dataset you are building.
+    highlight: {target: md:datasets}
+  - speak: Its name, and how many variables and people it holds.
+    highlight: {target: md:dataset_name}          # the box shrinks up to the name
+  - speak: Below that, the variables you have brought into it.
+    highlight: {target: md:imported}              # and slides down to the list
+  - speak: Further down are all the variables in the registers — thousands of them.
+    focus: {target: md:variables}                 # the spotlight takes over from the box
+  - speak: So you search for them by name.
+    camera: {on: md:filter}
+    point: {at: md:filter, gesture: underline}
+  - speak: The big area on the right is where everything you do is written down.
+    camera: {reset: true}
+    focus: {target: md:results}
+  - speak: Each command, and what came out of it — here, the sex of every person, imported as kjonn.
+    camera: {on: md:import_command, zoom: 3}
+    highlight: {target: md:import_command}
+  - speak: You type commands at the very bottom.
+    camera: {on: md:command_line, zoom: 2}        # the camera pans down from the command
+    point: {at: md:command_line, gesture: underline}
+  - speak: And up in the corner are the tools.
+    camera: {reset: true}
+    hide: md
+    show: tools
+    highlight: {target: [tools:script_window, tools:help, tools:support_chat, tools:export, tools:saved, tools:settings]}
+    # one sentence, six stops: the box travels along the strip
+  - speak: If you get stuck, the chat puts you in touch with support.
+    highlight: {target: tools:support_chat}
 ```
 
-or, with the tour: `tour: [datasets, variables, filter, command_line,
-results]` and one plain sentence per step.
+**The same with a tour**, as the app's AI would most often write it for a
+plain "walk me through the screen":
+
+```yaml
+  - id: md
+    type: image
+    # … as above …
+    tour: [datasets, imported, variables, filter, results, command_line]
+    tour_look: box
+```
+
+with six plain sentences, one per stop, and no commands.
+
+**How the regions got there in the app.** The request was "explain the
+microdata command window" with image79 attached. The plan marked the picture
+with
+
+```yaml
+regions:
+  auto:
+    detail: some
+    find: [dataset list, variable search, command line, "import fdb1/BEFOLKNING_KJOENN"]
+```
+
+The map came back with about 20 regions (every imported variable, the
+scroll bar, the four toolbar buttons, the NSD logo, …); the compiler used
+eight; the rest stayed in the cache.
+
+### 9.2 The Arnolfini Portrait (a painting)
+
+Jan van Eyck, *The Arnolfini Portrait*, 1434 (National Gallery, London) —
+public domain, on Wikimedia Commons at 4386 × 6000. A painting famous for
+details you only see when someone shows you where to look: the convex mirror
+that reflects two more people in the doorway, the signature on the wall, the
+single lit candle, the dog, the shoes kicked off.
+
+```yaml
+elements:
+  - id: art
+    type: image
+    url: https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Van_Eyck_-_Arnolfini_Portrait.jpg/3840px-Van_Eyck_-_Arnolfini_Portrait.jpg
+    look: screen                         # faithful colour; "screen" is really "as it is"
+    credit: "Jan van Eyck, 1434. National Gallery, London. Public domain (Wikimedia Commons)."
+    regions:
+      man:           [0.068, 0.110, 0.443, 0.796]
+      woman:         [0.536, 0.171, 0.453, 0.812]
+      raised_hand:   [0.231, 0.293, 0.042, 0.080]
+      joined_hands:  [0.505, 0.396, 0.110, 0.044]
+      chandelier:    [0.370, 0.000, 0.286, 0.198]
+      candle:        [0.415, 0.050, 0.020, 0.034]   # the only one lit
+      signature:     [0.417, 0.194, 0.188, 0.038]   # "Johannes de eyck fuit hic 1434"
+      mirror:        [0.425, 0.241, 0.160, 0.117]
+      mirror_glass:  [0.464, 0.263, 0.089, 0.072]   # the two figures in the doorway
+      rosary:        [0.401, 0.244, 0.026, 0.088]
+      oranges:       [0.071, 0.522, 0.046, 0.023]
+      window:        [0.042, 0.000, 0.088, 0.472]
+      bed:           [0.714, 0.000, 0.286, 0.762]
+      dog:           [0.365, 0.823, 0.208, 0.160]
+      clogs:         [0.000, 0.857, 0.156, 0.126]
+      slippers:      [0.479, 0.621, 0.078, 0.023]
+
+script:
+  - speak: A merchant and his wife, painted in Bruges in 1434.
+    show: art
+    highlight: {target: [art:man, art:woman]}
+  - speak: He raises his hand, as if taking an oath. Their other hands are joined.
+    highlight: {target: [art:raised_hand, art:joined_hands]}  # the box moves from one hand to the other
+  - speak: Above them, one candle burns in broad daylight.
+    camera: {on: art:chandelier}
+    point: {at: art:candle, gesture: circle}
+  - speak: Just below, on the wall, the painter wrote — Jan van Eyck was here.
+    camera: {on: art:signature}                   # pans down; no lift between the two
+    highlight: {target: art:signature}
+  - speak: And under the signature, a mirror.
+    camera: {on: art:mirror}
+  - speak: Look closely. It shows the couple from behind — and two more people in the doorway. One of them may be the painter.
+    camera: {on: art:mirror_glass, zoom: 8}       # needs the high-resolution picture; see below
+    focus: {target: art:mirror_glass}
+  - speak: The rest of the room is full of things that meant something to the people who saw it.
+    camera: {reset: true}
+    highlight: {target: [art:oranges, art:clogs, art:slippers, art:dog]}  # a path round the room
+  - speak: Oranges, expensive imports from the south.
+    highlight: {target: art:oranges}
+  - speak: Shoes taken off, as on holy ground.
+    highlight: {target: [art:clogs, art:slippers]}
+  - speak: And a little dog — faithfulness, or simply a pet.
+    highlight: {target: art:dog}                  # the box travels round the room, stop by stop
+```
+
+**How the regions got there.** Mostly `find`, because the explanation is
+about particular things:
+
+```yaml
+regions:
+  auto:
+    detail: few                  # the two people, the room — for context
+    kinds: [areas]
+    find: [mirror, the figures in the mirror, signature, lit candle, dog, oranges, shoes, "Johannes de eyck fuit hic"]
+```
+
+What this example shows that the microdata one does not:
+
+- **Text recognition fails on the signature.** It is gothic script, painted.
+  The quoted `find` reports "not found as text", and the model-found
+  `signature` stands in. That is the right behaviour: report, fall back, never
+  invent.
+- **"Shoes" finds two things** — the clogs lower left and the red slippers
+  in the background. A `find` may return more than one region per phrase,
+  named apart (`clogs`, `slippers`).
+- **Deep zoom needs resolution and a higher limit.** The mirror's glass is
+  about 9 % of the painting's width: 85 px in a 960 px copy, which is mush at
+  8×. The example uses the 3840 px copy (glass ≈ 340 px; 3.3 MB — linked,
+  not embedded: a picture this size is the case for the size cap in §12). And a fit to the
+  glass wants roughly 20× page zoom where the camera stops at 8×
+  (`render/camera.ts` `MAX_ZOOM`); the limit should rise for pictures with
+  `look: screen`, bounded by the picture's own pixels (never zoom past about
+  1 picture pixel per screen pixel).
+- **Commons serves fixed thumbnail widths only.** Tested 2026-09-30: 960,
+  1280, 1920 and 3840 answer; 1200 and 2560 give an error. Fetching a Commons
+  picture at a chosen size must round to a width that works (or take the
+  original).
+- **Nested regions.** `mirror_glass` sits inside `mirror`; `candle` inside
+  `chandelier`. Moving from the outer to the inner box is exactly the zoom a
+  guide does in front of the painting — carry-over (§6.1) makes it one
+  continuous motion.
 
 ## 10. Later: interaction
 
