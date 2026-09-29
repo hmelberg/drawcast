@@ -145,8 +145,26 @@ export async function registerNow({ origin, session, verify, reg, registry, name
     note += claimNote(claimed);
   }
   const out = await registerItem(api, { key: session?.key, ...reg }, fetchImpl);
-  note += registryNote(out);
+  note += registryNote(out, "run: node scripts/cast.mjs login");
   return { note, name: typeof out === "object" ? out.name : null };
+}
+
+/**
+ * Does this push carry the claim file (final review C2)? Only when the push
+ * lands where the pusher can push themselves — `--direct`, or a PR branch on
+ * the same repo — so a proof in the repo proves THEM. A PR from a fork
+ * would, once merged, prove the contributor and hand them every unproven
+ * row; a source revision proves nothing the registry uses.
+ */
+export function shouldClaim({ kind, canPush }) {
+  // `direct` changes nothing: --direct without push rights is refused
+  // before any commit, and a PR on a repo the user can push to is theirs.
+  return kind !== "source" && canPush === true;
+}
+
+/** Only a cast or a course is an item the registry knows (M4). */
+export function registrable(origin) {
+  return origin?.kind === "cast" || origin?.kind === "course";
 }
 
 const dollars = (cents) => `${Number.isInteger(cents / 100) ? cents / 100 : (cents / 100).toFixed(2)} USD`;

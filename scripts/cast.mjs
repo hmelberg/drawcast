@@ -33,7 +33,7 @@
 //        regenerates what the app's publish would (course page, READMEs, manifests, end pages) and commits it:
 //        a branch + PR by default (from a fork without push rights; later pushes update the same PR), --direct to
 //        the default branch. Refuses if the files changed on GitHub since the pull. Signed in (see below), the
-//        commit also carries a claim file, and a --direct push registers with Anvil and prints its free link
+//        commit also carries a claim file (only on a repo you can push to — never from a fork), and a --direct push registers with Anvil and prints its free link
 //        (drawcast.app/#<name>) — a PR push prints when to run register instead, once it is merged.
 //   node scripts/cast.mjs register <workdir>   after a PR-published first publish merges: verifies the claim
 //        and registers the item (a --direct push already does this on its own, right after the commit)
@@ -62,7 +62,7 @@ import { basename, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { homedir, hostname } from "node:os";
 import { pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin, takenSlugs } from "./cast-github.mjs";
-import { apiUrl, boundedFetch, checkName, clearSession, nameBlocker, deviceLogin, nameAdvice, readSession, registerFor, registerNow, registrationFor, waitForName, writeSession } from "./cast-account.mjs";
+import { apiUrl, boundedFetch, checkName, clearSession, nameBlocker, deviceLogin, nameAdvice, readSession, registerFor, registerNow, registrable, registrationFor, shouldClaim, waitForName, writeSession } from "./cast-account.mjs";
 
 const [cmd, ...rest] = process.argv.slice(2);
 const ROOT = process.cwd();
@@ -791,10 +791,12 @@ const commands = {
     // push). Bounded (fix round 1): a stalled Anvil must never hang a
     // dry run's claim, let alone a real push. `claim` set here (a closure
     // over the withVite callback below) so a failed or not-yet-deployed
-    // /claim (null) adds no file at all.
+    // /claim (null) adds no file at all. It joins the commit only once the
+    // push rights are known (shouldClaim, below — final review C2); a
+    // source revision never asks for one (M4).
     let claim = null;
     const files = await withVite(async (load) => {
-      if (session) {
+      if (session && registrable(origin)) {
         const { claimFile } = await load("/src/registry.ts");
         claim = await claimFile(session.api, session.key, joinRepo(origin.owner, origin.repo), boundedFetch());
       }
@@ -857,7 +859,6 @@ const commands = {
       });
       return { files: plan.files, deletions: plan.deletions };
     });
-    if (claim) files.files = [...files.files, claim];
 
     // What would change, against the repo as it is now.
     const changes = [];
@@ -868,9 +869,10 @@ const commands = {
     }
     for (const p of files.deletions) changes.push(["deleted", p]);
     // The date in the manifests changes on every publish; alone it is no
-    // change — nor is the claim file (registry delivery 1): it rewrites
-    // every signed-in push (a fresh nonce), so on its own it must never turn
-    // "nothing to push" into a push.
+    // change — nor is the claim file (registry delivery 1): a first push
+    // adds it and a stale pending nonce (older than an hour) rotates it, so
+    // on its own it must never turn "nothing to push" into a push. (It is
+    // not in `files` yet here — it joins below, once shouldClaim allows.)
     const real = changes.filter(([, p]) => !/(^|\/)(courses\.json|casts\.json|index\.html|README\.md|\.drawcast\/claim)$/.test(p));
     console.log(changes.length ? changes.map(([k, p]) => `  ${k.padEnd(8)} ${p}`).join("\n") : "  nothing differs from GitHub");
     if (!real.length) return console.log("Nothing to push.");
@@ -881,6 +883,11 @@ const commands = {
     const perm = local ? { push: true } : JSON.parse(sh("gh", ["api", `repos/${origin.owner}/${origin.repo}`, "--jq", "{push: .permissions.push}"]));
     const me = local ? "" : sh("gh", ["api", "user", "--jq", ".login"]);
     if (direct && !perm.push) throw new Error(`${me} cannot push to ${origin.owner}/${origin.repo} — drop --direct to open a pull request from a fork`);
+    // The claim file only where the pusher could have pushed it themselves
+    // (final review C2): a fork's PR, once merged, would otherwise prove the
+    // CONTRIBUTOR and hand them every unproven row under this repo.
+    if (claim && !shouldClaim({ kind: origin.kind, direct, canPush: perm.push === true })) claim = null;
+    if (claim) files.files = [...files.files, claim];
     const branch = direct ? origin.branch : !fresh && origin.pr?.branch ? origin.pr.branch : `drawcast/${verb}-${basename(origin.path).replace(/\.ya?ml$/i, "")}-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")}`;
     // A PR branch already pushed is built on (its PR updates); anything else starts from upstream.
     const onPr = !direct && origin.pr?.branch === branch;
@@ -923,7 +930,7 @@ const commands = {
       // because the registry step after it stumbled.
       let note = "";
       try {
-        note = await registerPublished(origin, wd, session, Boolean(claim));
+        if (registrable(origin)) note = await registerPublished(origin, wd, session, Boolean(claim));
       } catch (err) {
         console.error("drawcast: registry step failed (the push itself already landed)", err);
       }
@@ -947,7 +954,7 @@ const commands = {
     console.log(`${onPr ? "Updated" : "Opened"} ${url}`);
     // The claim file rode along in this commit too, but it is not live on
     // the default branch — and so not registerable — until the PR merges.
-    console.log(`Register after the merge: node scripts/cast.mjs register ${work}`);
+    if (registrable(origin)) console.log(`Register after the merge: node scripts/cast.mjs register ${work}`);
   },
 
   async template([id]) {

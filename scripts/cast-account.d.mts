@@ -35,7 +35,7 @@ export function registerNow(args: {
   registry: {
     verifyClaim: (...a: never[]) => Promise<boolean>;
     registerItem: (...a: never[]) => Promise<unknown>;
-    registryNote: (out: never) => string;
+    registryNote: (out: never, signIn?: string) => string;
   };
   names?: {
     courseClaim: (...a: never[]) => unknown;
@@ -59,3 +59,5 @@ export function checkName(
   reg: { key: string; name: string; kind: "cast" | "course"; target: string },
 ): Promise<string>;
 export function nameBlocker(origin: { published?: string; pr?: { url?: string } }, prState: string | null): string | null;
+export function shouldClaim(args: { kind: string; direct: boolean; canPush: boolean }): boolean;
+export function registrable(origin: Record<string, unknown> | null | undefined): boolean;

@@ -2,7 +2,7 @@ import { mkdtempSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { boundedFetch, checkName, clearSession, nameBlocker, deviceLogin, nameAdvice, readSession, registerFor, registerNow, registrationFor, waitForName, writeSession } from "../scripts/cast-account.mjs";
+import { boundedFetch, checkName, registrable, shouldClaim, clearSession, nameBlocker, deviceLogin, nameAdvice, readSession, registerFor, registerNow, registrationFor, waitForName, writeSession } from "../scripts/cast-account.mjs";
 import * as coursePub from "../src/course/publish";
 import * as castPub from "../src/publish/cast";
 import { parseCourse } from "../src/course/document";
@@ -264,5 +264,54 @@ describe("nameBlocker (a name only for what is live)", () => {
   it("the PR merged, or a direct push, or a pulled revision: go ahead", () => {
     expect(nameBlocker({ published: "pr", pr: { url: "u" } }, "MERGED")).toBeNull();
     expect(nameBlocker({}, null)).toBeNull();
+  });
+});
+
+describe("shouldClaim (final review C2: the claim file only where the pusher could have pushed it themselves)", () => {
+  it("--direct, or a PR branch on a repo the user can push to: yes", () => {
+    expect(shouldClaim({ kind: "cast", direct: true, canPush: true })).toBe(true);
+    expect(shouldClaim({ kind: "course", direct: false, canPush: true })).toBe(true);
+  });
+  it("a PR from a fork (no push rights): never — a merge would hand the contributor every unproven row", () => {
+    expect(shouldClaim({ kind: "cast", direct: false, canPush: false })).toBe(false);
+    expect(shouldClaim({ kind: "course", direct: true, canPush: false })).toBe(false);
+  });
+  it("a source revision: never", () => {
+    expect(shouldClaim({ kind: "source", direct: true, canPush: true })).toBe(false);
+  });
+});
+
+describe("registrable (final review M4: a source push registers nothing)", () => {
+  it("a cast or a course, not a source", () => {
+    expect(registrable({ kind: "cast" })).toBe(true);
+    expect(registrable({ kind: "course" })).toBe(true);
+    expect(registrable({ kind: "source" })).toBe(false);
+  });
+});
+
+describe("registerNow's sign-in hint (final review M5)", () => {
+  it("a 401 from registerItem tells the terminal to run login, not to open Settings", async () => {
+    const registry = { verifyClaim: async () => true, registerItem: async () => "key" as const, registryNote };
+    const origin = { kind: "cast", owner: "ann", repo: "casts" };
+    const out = await registerNow({ origin, session: { api: "https://x", key: "k", email: null }, verify: false, reg: { kind: "cast" as const, target: "ann/casts/casts/q.yaml" }, registry, fetchImpl: async () => new Response("{}") });
+    expect(out.note).toBe(" · not registered — run: node scripts/cast.mjs login");
+  });
+});
+
+
+describe("cast.mjs push wiring (C2, M4)", () => {
+  it("the claim joins the commit only after the push rights are known, and only when shouldClaim allows; a source push never registers", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../scripts/cast.mjs", import.meta.url), "utf8");
+    const push = src.slice(src.indexOf("  async push(args) {"), src.indexOf("  async template("));
+    const permAt = push.indexOf("const perm = ");
+    const gateAt = push.indexOf("if (claim && !shouldClaim({ kind: origin.kind, direct, canPush: perm.push === true })) claim = null;");
+    const addAt = push.indexOf("if (claim) files.files = [...files.files, claim];");
+    expect(permAt).toBeGreaterThan(0);
+    expect(gateAt).toBeGreaterThan(permAt);
+    expect(addAt).toBeGreaterThan(gateAt);
+    expect(push.split("files.files = [...files.files, claim]").length).toBe(2);
+    expect(push).toContain("if (session && registrable(origin)) {");
+    expect(push).toContain("if (registrable(origin)) note = await registerPublished(");
   });
 });
