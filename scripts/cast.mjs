@@ -34,6 +34,11 @@
 //        a branch + PR by default (from a fork without push rights; later pushes update the same PR), --direct to
 //        the default branch. Refuses if the files changed on GitHub since the pull.
 //
+// Publishing something new (a course folder or a folder with one cast YAML) to a repo of the user's:
+//   node scripts/cast.mjs publish-target <workdir> <owner/repo> [--dir <folder>] [--create]
+//        writes <workdir>/origin.json aimed at the repo (a free slug, Pages switched on; --create makes the repo,
+//        public); then push <workdir> --direct publishes it like any revision.
+//
 // A cast file is a spec, a {request, spec}, or playlist YAML — anything the
 // app opens. Files live under dev-casts/ (gitignored). The dev server:
 //   npm run dev -- --port 5199 --strictPort      (DRAWCAST_URL overrides http://localhost:5199)
@@ -42,7 +47,7 @@ import { createServer } from "vite";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { pageDoor, parseGithubTarget } from "./cast-github.mjs";
+import { pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin } from "./cast-github.mjs";
 
 const [cmd, ...rest] = process.argv.slice(2);
 const ROOT = process.cwd();
@@ -210,6 +215,25 @@ function sh(bin, args) {
 }
 
 const joinRepo = (...parts) => parts.filter(Boolean).join("/");
+
+/** A sparse, blob-less clone of owner/repo@branch under dev-casts/repos/,
+ *  fresh from origin, with `folders` checked out. Cone mode: every file
+ *  directly in each parent folder comes too (courses.json, the repo's index
+ *  pages). */
+function ensureClone(owner, repo, branch, folders) {
+  const clone = resolve(ROOT, "dev-casts/repos", `${owner}__${repo}`);
+  if (!existsSync(clone)) {
+    mkdirSync(resolve(ROOT, "dev-casts/repos"), { recursive: true });
+    sh("git", ["clone", "--quiet", "--filter=blob:none", "--sparse", "--depth", "1", "--branch", branch, `https://github.com/${owner}/${repo}.git`, clone]);
+  } else {
+    sh("git", ["-C", clone, "fetch", "--quiet", "--depth", "1", "origin", branch]);
+    sh("git", ["-C", clone, "checkout", "--quiet", "--force", "-B", branch, "FETCH_HEAD"]);
+  }
+  const dirs = new Set(sh("git", ["-C", clone, "sparse-checkout", "list"]).split("\n").filter(Boolean));
+  for (const f of folders) if (f) dirs.add(f);
+  sh("git", ["-C", clone, "sparse-checkout", "set", ...dirs]);
+  return { clone, base: sh("git", ["-C", clone, "rev-parse", "HEAD"]) };
+}
 
 /** The player the published links point at (the app's viewerBase), read off the repo's own READMEs. */
 function findViewerBase(clone, folder) {
@@ -407,24 +431,11 @@ const commands = {
     if (!url) throw new Error("usage: cast.mjs pull <github-url> [workdir] [--force]");
     const t = parseGithubTarget(url);
     const branch = t.branch ?? sh("gh", ["api", `repos/${t.owner}/${t.repo}`, "--jq", ".default_branch"]);
-    const clone = resolve(ROOT, "dev-casts/repos", `${t.owner}__${t.repo}`);
     // A path that is a file is checked out by its folder: a lecture needs its
     // course, a cast its casts.json.
     const isFile = /\.ya?ml$/i.test(t.path);
     const folder = isFile ? t.path.split("/").slice(0, -1).join("/") : t.path;
-    if (!existsSync(clone)) {
-      mkdirSync(resolve(ROOT, "dev-casts/repos"), { recursive: true });
-      sh("git", ["clone", "--quiet", "--filter=blob:none", "--sparse", "--depth", "1", "--branch", branch, `https://github.com/${t.owner}/${t.repo}.git`, clone]);
-    } else {
-      sh("git", ["-C", clone, "fetch", "--quiet", "--depth", "1", "origin", branch]);
-      sh("git", ["-C", clone, "checkout", "--quiet", "--force", "-B", branch, "FETCH_HEAD"]);
-    }
-    const dirs = new Set(sh("git", ["-C", clone, "sparse-checkout", "list"]).split("\n").filter(Boolean));
-    if (folder) dirs.add(folder);
-    // Cone mode: every file directly in each parent folder comes too
-    // (courses.json, the repo's index pages).
-    sh("git", ["-C", clone, "sparse-checkout", "set", ...dirs]);
-    const base = sh("git", ["-C", clone, "rev-parse", "HEAD"]);
+    const { clone, base } = ensureClone(t.owner, t.repo, branch, [folder]);
     const at = (p) => resolve(clone, p);
     if (!existsSync(at(t.path))) throw new Error(`${t.owner}/${t.repo}@${branch} has no ${t.path || "(root)"}`);
 
@@ -551,6 +562,59 @@ const commands = {
     });
   },
 
+  async "publish-target"(args) {
+    const flag = (n) => (args.includes(n) ? args[args.indexOf(n) + 1] : undefined);
+    const [work, target] = args.filter((a, i) => !a.startsWith("-") && args[i - 1] !== "--dir");
+    if (!work || !target || !/^[\w.-]+\/[\w.-]+$/.test(target)) throw new Error("usage: cast.mjs publish-target <workdir> <owner/repo> [--dir <folder>] [--create]");
+    const wd = resolve(ROOT, work);
+    if (existsSync(resolve(wd, "origin.json"))) throw new Error(`${work} already has an origin.json — it is published; use push`);
+    const [owner, repo] = target.split("/");
+    const me = sh("gh", ["api", "user", "--jq", ".login"]);
+    let info = spawnSync("gh", ["api", `repos/${owner}/${repo}`], { encoding: "utf8" });
+    if (info.status !== 0) {
+      if (!args.includes("--create")) throw new Error(`${owner}/${repo} does not exist (gh is signed in as ${me}) — pass --create to make it, public`);
+      sh("gh", ["repo", "create", `${owner}/${repo}`, "--public", "--add-readme", "-d", "Drawcasts"]);
+      info = spawnSync("gh", ["api", `repos/${owner}/${repo}`], { encoding: "utf8" });
+    }
+    const meta = JSON.parse(info.stdout);
+    if (meta.private) throw new Error(`${owner}/${repo} is private — the player cannot read it; choose a public repo`);
+    if (!meta.permissions?.push) throw new Error(`${me} cannot push to ${owner}/${repo}`);
+    const branch = meta.default_branch;
+    // Pages from the default branch's root; 409 means it is on already.
+    const pages = spawnSync("gh", ["api", "-X", "POST", `repos/${owner}/${repo}/pages`, "-f", `source[branch]=${branch}`, "-f", "source[path]=/"], { encoding: "utf8" });
+    if (pages.status !== 0 && !/409|already/i.test(pages.stderr + pages.stdout)) console.log(`(GitHub Pages not switched on: ${(pages.stderr || pages.stdout).trim()} — the #gh= player link works without it)`);
+
+    const dir = (flag("--dir") ?? "").replace(/^\/+|\/+$/g, "");
+    const isCourse = existsSync(resolve(wd, "course.md"));
+    const { clone, base } = ensureClone(owner, repo, branch, [dir, isCourse ? "" : joinRepo(dir, "casts")]);
+    await withVite(async (load) => {
+      const { slugify, slugFor, parseManifest } = await load("/src/publish/github.ts");
+      const { parseCastIndex } = await load("/src/publish/cast.ts");
+      const { parseCourse, setCourseOption } = await load("/src/course/document.ts");
+      const viewerBase = findViewerBase(clone, dir);
+      const common = { owner, repo, branch, base, clone: relative(ROOT, clone), viewerBase, dir, slugFor };
+      if (isCourse) {
+        const text = readFileSync(resolve(wd, "course.md"), "utf8");
+        const course = parseCourse(text);
+        const manifest = readAtCommit(clone, base, joinRepo(dir, "courses.json"));
+        const taken = manifest ? parseManifest(manifest).courses.map((c) => c.slug) : [];
+        const { origin, slug } = publishOrigin({ ...common, kind: "course", slug: course.context.slug ?? slugify(course.title || basename(wd)), takenSlugs: taken });
+        if (course.context.slug !== slug) writeFileSync(resolve(wd, "course.md"), setCourseOption(text, "slug", slug));
+        writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
+        console.log(`${work} → ${owner}/${repo}/${origin.path} (as ${me}). Page after push: ${pagesUrlFor(owner, repo, origin.path)}\nNext: cast.mjs push ${work} --dry-run`);
+        return;
+      }
+      const yamls = readdirSync(wd).filter((f) => /\.ya?ml$/i.test(f));
+      if (yamls.length !== 1) throw new Error(`${work} must hold exactly one .yaml or a course.md (it holds ${yamls.length} .yaml)`);
+      const index = readAtCommit(clone, base, joinRepo(dir, "casts", "casts.json"));
+      const taken = index ? parseCastIndex(index).casts.map((c) => c.slug) : [];
+      const { origin } = publishOrigin({ ...common, kind: "cast", slug: slugify(yamls[0].replace(/\.ya?ml$/i, "")), takenSlugs: taken });
+      if (origin.file !== yamls[0]) writeFileSync(resolve(wd, origin.file), readFileSync(resolve(wd, yamls[0])));
+      writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
+      console.log(`${work} → ${owner}/${repo}/${origin.path} (as ${me}). Player after push: ${viewerBase}#gh=${owner}/${repo}/${origin.path}\nNext: cast.mjs push ${work} --dry-run`);
+    });
+  },
+
   async push(args) {
     const direct = args.includes("--direct"), dry = args.includes("--dry-run"), fresh = args.includes("--new-pr"), local = args.includes("--no-push");
     const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
@@ -642,10 +706,12 @@ const commands = {
     if (!real.length) return console.log("Nothing to push.");
     if (dry) return console.log("(dry run — nothing written)");
 
+    // A first publish (publish-target) says so in its branch, commit and PR; once pushed it is a revision like any other.
+    const verb = origin.published === "new" ? "publish" : "revise";
     const perm = local ? { push: true } : JSON.parse(sh("gh", ["api", `repos/${origin.owner}/${origin.repo}`, "--jq", "{push: .permissions.push}"]));
     const me = local ? "" : sh("gh", ["api", "user", "--jq", ".login"]);
     if (direct && !perm.push) throw new Error(`${me} cannot push to ${origin.owner}/${origin.repo} — drop --direct to open a pull request from a fork`);
-    const branch = direct ? origin.branch : !fresh && origin.pr?.branch ? origin.pr.branch : `drawcast/revise-${basename(origin.path).replace(/\.ya?ml$/i, "")}-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")}`;
+    const branch = direct ? origin.branch : !fresh && origin.pr?.branch ? origin.pr.branch : `drawcast/${verb}-${basename(origin.path).replace(/\.ya?ml$/i, "")}-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")}`;
     // A PR branch already pushed is built on (its PR updates); anything else starts from upstream.
     const onPr = !direct && origin.pr?.branch === branch;
     git("checkout", "--quiet", "--force", "-B", branch, upstream);
@@ -668,7 +734,7 @@ const commands = {
     git("add", "--sparse", ...files.files.map((f) => f.path));
     if (!git("status", "--porcelain")) return console.log("Nothing to push (the branch already has these changes).");
     const title = origin.kind === "course" ? readFileSync(resolve(wd, "course.md"), "utf8").match(/^# (.*)$/m)?.[1] : origin.file;
-    git("commit", "--quiet", "-m", message ?? `drawcast: revise ${origin.kind} "${title}"`);
+    git("commit", "--quiet", "-m", message ?? `drawcast: ${verb} ${origin.kind} "${title}"`);
 
     if (local) return console.log(`Committed on ${branch} in ${origin.clone}, not pushed:\n${git("show", "--stat", "--format=%h %s", "HEAD")}`);
 
@@ -677,6 +743,7 @@ const commands = {
     if (direct) {
       pushTo("origin", `HEAD:${origin.branch}`);
       origin.base = git("rev-parse", "HEAD");
+      delete origin.published;
       writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
       return console.log(`Pushed to ${origin.owner}/${origin.repo}@${origin.branch} (${origin.base.slice(0, 7)}). The viewer reads raw.githubusercontent.com, which can lag a few minutes.`);
     }
@@ -689,9 +756,10 @@ const commands = {
     pushTo(remote, `HEAD:refs/heads/${branch}`);
     let url = onPr ? origin.pr.url : null;
     if (!url) {
-      url = sh("gh", ["pr", "create", "--repo", `${origin.owner}/${origin.repo}`, "--base", origin.branch, "--head", head, "--title", message ?? `Revise ${origin.kind}: ${title}`, "--body", body ?? `A revision made with the drawcast skill (scripts/cast.mjs push).\n\nFiles:\n${changes.map(([k, p]) => `- ${k} \`${p}\``).join("\n")}`]);
+      url = sh("gh", ["pr", "create", "--repo", `${origin.owner}/${origin.repo}`, "--base", origin.branch, "--head", head, "--title", message ?? `${verb === "publish" ? "Publish" : "Revise"} ${origin.kind}: ${title}`, "--body", body ?? `A revision made with the drawcast skill (scripts/cast.mjs push).\n\nFiles:\n${changes.map(([k, p]) => `- ${k} \`${p}\``).join("\n")}`]);
     }
     origin.pr = { url, branch, remote };
+    delete origin.published;
     writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
     console.log(`${onPr ? "Updated" : "Opened"} ${url}`);
   },
@@ -801,7 +869,7 @@ const commands = {
 };
 
 if (!commands[cmd]) {
-  console.log("usage: node scripts/cast.mjs prompt|template|check|frames|open|course-prompt|course-new|lecture-prompt|part-prompt|lecture-build|course-open|pull|unpack|revise-prompt|repack|push …  (see the header of this file)");
+  console.log(`usage: node scripts/cast.mjs ${Object.keys(commands).join("|")} …  (see the header of this file)`);
   process.exitCode = 1;
 } else {
   await commands[cmd](rest).catch((err) => {
