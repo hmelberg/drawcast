@@ -9,11 +9,11 @@
 
 import type { Spec, SpecElement } from "../spec/types";
 import { inlineStrokes } from "../spec/assets";
-import { decodePhoto, encodePhoto } from "../spec/trace";
-import { cacheGet, cachePut, LOOK_DIM, loadRaster, styledPhotoDataUri, wikiSummaryUrl, type Raster } from "./portrait";
+import { decodePhoto, encodeLinkedPhoto, encodePhoto, isLinkedPhoto } from "../spec/trace";
+import { cacheGet, cachePut, faithfulDataUri, LOOK_DIM, loadRaster, measureNatural, SCREEN_DIM, styledPhotoDataUri, wikiSummaryUrl, type Raster } from "./portrait";
 
 /** Bump when the resolver's output changes — old cache entries stop matching. */
-const IMAGE_VERSION = 1;
+const IMAGE_VERSION = 2;
 
 export function commonsSearchUrl(q: string): string {
   return `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrnamespace=6&gsrlimit=1&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=480&format=json&origin=*`;
@@ -70,10 +70,14 @@ export interface ImageDeps {
    *  for the same reason source.ts injects `renderImage` whole: a node test
    *  can supply a fake raster without needing a real canvas to encode it on. */
   encode: (raster: Raster) => string;
+  /** The `look: "screen"` encoding: colour untouched, lossless. */
+  encodeScreen: (raster: Raster) => string;
+  /** Natural size without reading pixels — for a host that refuses them. */
+  measure: (url: string) => Promise<{ width: number; height: number }>;
 }
 
 function defaultDeps(): ImageDeps {
-  return { fetch: globalThis.fetch, loadRaster, encode: styledPhotoDataUri };
+  return { fetch: globalThis.fetch, loadRaster, encode: styledPhotoDataUri, encodeScreen: faithfulDataUri, measure: measureNatural };
 }
 
 export interface ImageResolution {
@@ -83,8 +87,9 @@ export interface ImageResolution {
 }
 
 /** Cache key for an image element, or null when it needs no resolution. */
-function imageCacheKey(el: Pick<SpecElement, "type" | "of" | "strokes">): string | null {
-  if (el.type !== "image" || el.strokes) return null;
+function imageCacheKey(el: Pick<SpecElement, "type" | "of" | "strokes" | "url" | "look">): string | null {
+  if (el.type !== "image" || (el.strokes && !isLinkedPhoto(el.strokes))) return null;
+  if (el.url) return `i${IMAGE_VERSION}|url|${el.look ?? "photo"}|${el.url.trim()}`;
   if (!el.of) return null;
   return `i${IMAGE_VERSION}|${el.of.trim().toLowerCase()}`;
 }
@@ -108,7 +113,7 @@ export async function resolveImages(spec: Spec, deps: ImageDeps = defaultDeps())
   for (const el of spec.elements ?? []) {
     if (el.type !== "image") continue;
     const have = inlineStrokes(spec, el);
-    if (have && decodePhoto(have)) {
+    if (have && decodePhoto(have)) { // a linked picture (lnk1) is not resolved: decodePhoto refuses it
       results.push({ id: el.id, ok: true });
       continue;
     }
@@ -119,6 +124,21 @@ export async function resolveImages(spec: Spec, deps: ImageDeps = defaultDeps())
     }
     try {
       let encoded = await cacheGet(key);
+      if (!encoded && el.url) {
+        const url = el.url.trim();
+        let strokes: string;
+        try {
+          const screen = el.look === "screen";
+          const raster = await deps.loadRaster(url, screen ? SCREEN_DIM : LOOK_DIM.photo);
+          strokes = encodePhoto(raster.height / raster.width, screen ? deps.encodeScreen(raster) : deps.encode(raster));
+        } catch {
+          // The host refuses pixel reads (no CORS header) — still SHOWN, by link.
+          const n = await deps.measure(url);
+          strokes = encodeLinkedPhoto(n.height / n.width, url);
+        }
+        encoded = JSON.stringify({ strokes, source: url });
+        await cachePut(key, encoded);
+      }
       if (!encoded) {
         let thumburl: string | undefined;
         let credit: string | undefined;
@@ -156,9 +176,9 @@ export async function resolveImages(spec: Spec, deps: ImageDeps = defaultDeps())
         encoded = JSON.stringify({ strokes: photo, credit, source: thumburl });
         await cachePut(key, encoded);
       }
-      const parsed = JSON.parse(encoded) as { strokes: string; credit: string; source: string };
+      const parsed = JSON.parse(encoded) as { strokes: string; credit?: string; source: string };
       el.strokes = parsed.strokes;
-      el.credit = parsed.credit;
+      if (parsed.credit) el.credit = parsed.credit; // a url image keeps its authored credit
       el.source = parsed.source;
       results.push({ id: el.id, ok: true });
     } catch (err) {

@@ -81,6 +81,9 @@ export async function cachePut(key: string, encoded: string): Promise<void> {
  */
 export const LOOK_DIM: Record<string, number> = { photo: 240, page: 640 };
 
+/** Longest side of a `look: "screen"` picture: a screenshot must survive a 4x zoom (spec 2026-09-30-picture-regions section 3). */
+export const SCREEN_DIM = 2400;
+
 export interface Raster {
   width: number;
   height: number;
@@ -145,6 +148,27 @@ export function styledPhotoDataUri(raster: { width: number; height: number; data
   }
   ctx.putImageData(out, 0, 0);
   return canvas.toDataURL("image/jpeg", 0.8);
+}
+
+/** The faithful look: the raster's own colours, lossless — screenshots, diagrams, paintings. */
+export function faithfulDataUri(r: Raster): string {
+  const c = document.createElement("canvas");
+  c.width = r.width;
+  c.height = r.height;
+  const ctx = c.getContext("2d");
+  if (!ctx) throw new Error("canvas 2D unavailable");
+  ctx.putImageData(new ImageData(new Uint8ClampedArray(r.data), r.width, r.height), 0, 0);
+  return c.toDataURL("image/png");
+}
+
+/** A picture's natural size WITHOUT reading its pixels (no crossOrigin, so a CORS-refusing host still answers). */
+export function measureNatural(url: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => reject(new Error(`picture did not load: ${url}`));
+    img.src = url;
+  });
 }
 
 /** Trace a local image file (editor file-drop) — no CORS involved. */

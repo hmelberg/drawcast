@@ -11,6 +11,8 @@ const deps = (routes: Record<string, unknown>) => ({
   fetch: (async (url: string) => ({ ok: url in routes, status: url in routes ? 200 : 404, json: async () => routes[url] })) as unknown as typeof fetch,
   loadRaster: raster as never,
   encode: () => "data:image/jpeg;base64,AAAA",
+  encodeScreen: () => "data:image/png;base64,AAAA",
+  measure: async () => ({ width: 4, height: 2 }),
 });
 
 describe("resolveImages", () => {

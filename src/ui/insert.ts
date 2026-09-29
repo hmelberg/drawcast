@@ -13,6 +13,7 @@
 import { resolvePortraits, traceFromBlob } from "../render/portrait";
 import { resolveSources } from "../render/source";
 import { resolveImages } from "../render/image";
+import { isLinkedPhoto } from "../spec/trace";
 import { ASSET_MAX_BYTES, assetBytes, formatAssetSize, hoistStrokes } from "../spec/assets";
 import { resolveIcons } from "../render/icon";
 import type { SpecElement } from "../spec/types";
@@ -280,7 +281,7 @@ function imageElements(playlist: Playlist): number {
  */
 export function unembeddedImages(playlist: Playlist): number {
   return itemsOf(playlist).reduce(
-    (n, it) => n + (it.spec.elements ?? []).filter((e) => embeddable(e.type) && !e.strokes).length,
+    (n, it) => n + (it.spec.elements ?? []).filter((e) => embeddable(e.type) && (!e.strokes || isLinkedPhoto(e.strokes))).length,
     0,
   );
 }
