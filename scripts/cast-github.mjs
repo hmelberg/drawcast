@@ -34,3 +34,33 @@ export function pageDoor(html, doorlessNote) {
   const why = reasons.find((r) => doorlessNote(r) === unescape(note).trim());
   return { name: null, why: why ?? "unregistered" };
 }
+
+const join = (...p) => p.filter(Boolean).join("/");
+
+/** The origin.json of a FIRST publish (cast.mjs publish-target): the shape
+ *  pull writes, so push treats it like any revision. A slug already in the
+ *  repo is never reused — slugFor picks a free one. */
+export function publishOrigin({ kind, owner, repo, branch, base, clone, viewerBase, dir, slug, takenSlugs, slugFor }) {
+  const free = takenSlugs.includes(slug) ? slugFor(slug, new Set(takenSlugs)) : slug;
+  const common = { owner, repo, branch, base, clone, viewerBase, pulled: new Date().toISOString(), published: "new" };
+  if (kind === "course") return { slug: free, origin: { kind, ...common, path: join(dir, free), coursesDir: dir, lecture: null } };
+  const castsDir = join(dir, "casts");
+  const file = `${free}.yaml`;
+  return { slug: free, origin: { kind, ...common, path: join(castsDir, file), castsDir, file } };
+}
+
+/** The GitHub Pages address of a folder in owner/repo. */
+export function pagesUrlFor(owner, repo, path) {
+  return `https://${owner}.github.io/${repo}/${path ? `${path}/` : ""}`;
+}
+
+/** The slugs a first publish may not take: those the manifest lists AND every
+ *  name already in the folder on GitHub (a course made by hand, a manifest
+ *  kept elsewhere) — push --direct would otherwise write over them. A course
+ *  may also not be called `casts`, the folder single casts live in. `tree` is
+ *  the folder's entry names (git ls-tree); compared lower-case, extension off. */
+export function takenSlugs({ kind, listed, tree }) {
+  const stem = (n) => n.toLowerCase().replace(/\.[a-z0-9]+$/, "");
+  const fromTree = kind === "course" ? tree.map(stem) : tree.filter((n) => /\.ya?ml$/i.test(n)).map(stem);
+  return [...new Set([...listed, ...fromTree, ...(kind === "course" ? ["casts"] : [])])];
+}
