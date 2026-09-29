@@ -62,7 +62,7 @@ import { basename, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { homedir, hostname } from "node:os";
 import { pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin, takenSlugs } from "./cast-github.mjs";
-import { apiUrl, checkName, clearSession, nameBlocker, deviceLogin, nameAdvice, readSession, registerFor, registrationFor, waitForName, writeSession } from "./cast-account.mjs";
+import { apiUrl, boundedFetch, checkName, clearSession, nameBlocker, deviceLogin, nameAdvice, readSession, registerFor, registerNow, registrationFor, waitForName, writeSession } from "./cast-account.mjs";
 
 const [cmd, ...rest] = process.argv.slice(2);
 const ROOT = process.cwd();
@@ -293,38 +293,35 @@ async function courseLectures(load, text) {
 }
 
 /**
- * The registry step (registry delivery 1): verify the claim (when asked —
- * push asks only for the claim it minted this run; register asks whenever
- * signed in, since an earlier push's claim already landed), register the
- * item — a course claims its default run first (CONTROLLER RULING: as the
- * app's own course publish does, so only the course's owner can ever hold
- * a name for it) — then registerItem, and record any free name that comes
- * back on origin.freeName (written to origin.json only when one did).
- * `claimCourse`, `verifyClaim` and `registerItem` never throw on their own
- * (a network or server trouble is a string outcome, folded into the note
- * `registryNote` builds); this can still throw for a genuine usage error
- * (registerFor's "no slug"). Callers that must never fail on it (push,
- * after the commit already landed) wrap the call themselves; `register`'s
- * whole job IS this step, so it lets a throw surface as a real error.
+ * cast.mjs's own wrapper around cast-account.mjs's (tested, pure)
+ * registerNow: loads the app's registry/names modules through withVite and
+ * builds the registration (registerFor), then hands the actual network
+ * sequence — verifyClaim, a course's claimCourse, registerItem — to it,
+ * every call bounded (boundedFetch — fix round 1: a stalled Anvil must
+ * never hang `push --direct` after the git push has already landed, nor a
+ * `push --dry-run`'s claim). Records any free name that comes back on
+ * origin.freeName (written to origin.json only when one did).
+ *
+ * verifyClaim/claimCourse/registerItem never throw on their own (a network
+ * or server trouble is a string outcome, folded into the note
+ * registerNow/registryNote build); this can still throw for a genuine
+ * usage error (registerFor's "no slug"). Callers that must never fail on
+ * it (push, after the commit already landed) wrap the call themselves;
+ * `register`'s whole job IS this step, so it lets a throw surface as a
+ * real error.
  */
-async function registerNow(origin, wd, session, verify) {
-  const api = session?.api ?? apiUrl();
-  const repoStr = joinRepo(origin.owner, origin.repo);
-  const note = await withVite(async (load) => {
-    const { verifyClaim, registerItem, registryNote } = await load("/src/registry.ts");
-    if (verify && session) await verifyClaim(api, session.key, repoStr);
+async function registerPublished(origin, wd, session, verify) {
+  const fetchImpl = boundedFetch();
+  const { note, name } = await withVite(async (load) => {
+    const registry = await load("/src/registry.ts");
     const { parseCourse } = await load("/src/course/document.ts");
     const { courseRegistration } = await load("/src/course/publish.ts");
     const courseText = origin.kind === "course" ? readFileSync(resolve(wd, "course.md"), "utf8") : undefined;
     const reg = registerFor(origin, { parseCourse, courseRegistration }, courseText);
-    if (origin.kind === "course" && session) {
-      const { courseClaim, claimCourse } = await load("/src/names.ts");
-      await claimCourse(api, courseClaim(session.key, reg));
-    }
-    const out = await registerItem(api, { key: session?.key, ...reg });
-    if (typeof out === "object" && out.name) origin.freeName = out.name;
-    return registryNote(out);
+    const names = origin.kind === "course" ? await load("/src/names.ts") : undefined;
+    return registerNow({ origin, session, verify, reg, registry, names, fetchImpl });
   });
+  if (name) origin.freeName = name;
   if (origin.freeName) writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
   return note;
 }
@@ -764,7 +761,7 @@ const commands = {
       writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
     }
     const session = readSession(homedir());
-    const note = await registerNow(origin, wd, session, true);
+    const note = await registerPublished(origin, wd, session, true);
     console.log(note ? `${work}${note}` : `${work}: registered (no free name)`);
   },
 
@@ -790,14 +787,16 @@ const commands = {
     const session = readSession(homedir());
     // Registry delivery 1: signed in, the claim file rides in the SAME
     // commit as the revision — proof Anvil reads back from GitHub once the
-    // commit lands (registerNow's verifyClaim, after a --direct push).
-    // `claim` set here (a closure over the withVite callback below) so a
-    // failed or not-yet-deployed /claim (null) adds no file at all.
+    // commit lands (registerPublished's verifyClaim, after a --direct
+    // push). Bounded (fix round 1): a stalled Anvil must never hang a
+    // dry run's claim, let alone a real push. `claim` set here (a closure
+    // over the withVite callback below) so a failed or not-yet-deployed
+    // /claim (null) adds no file at all.
     let claim = null;
     const files = await withVite(async (load) => {
       if (session) {
         const { claimFile } = await load("/src/registry.ts");
-        claim = await claimFile(session.api, session.key, joinRepo(origin.owner, origin.repo));
+        claim = await claimFile(session.api, session.key, joinRepo(origin.owner, origin.repo), boundedFetch());
       }
       if (origin.kind === "source") return { files: [{ path: origin.path, content: readFileSync(resolve(wd, origin.file), "utf8") }], deletions: [] };
       if (origin.kind === "cast") {
@@ -924,7 +923,7 @@ const commands = {
       // because the registry step after it stumbled.
       let note = "";
       try {
-        note = await registerNow(origin, wd, session, Boolean(claim));
+        note = await registerPublished(origin, wd, session, Boolean(claim));
       } catch (err) {
         console.error("drawcast: registry step failed (the push itself already landed)", err);
       }

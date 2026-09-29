@@ -2,10 +2,12 @@ import { mkdtempSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { checkName, clearSession, nameBlocker, deviceLogin, nameAdvice, readSession, registerFor, registrationFor, waitForName, writeSession } from "../scripts/cast-account.mjs";
+import { boundedFetch, checkName, clearSession, nameBlocker, deviceLogin, nameAdvice, readSession, registerFor, registerNow, registrationFor, waitForName, writeSession } from "../scripts/cast-account.mjs";
 import * as coursePub from "../src/course/publish";
 import * as castPub from "../src/publish/cast";
 import { parseCourse } from "../src/course/document";
+import { registryNote } from "../src/registry";
+import { claimNote } from "../src/names";
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
 
@@ -94,6 +96,109 @@ describe("registerFor (push/register: the free, automatic registration — regis
   it("a course never published has no slug — refuses rather than registering nothing", () => {
     const origin = { kind: "course", owner: "ann", repo: "casts", path: "qalys", coursesDir: "" };
     expect(() => registerFor(origin, lib, "# QALYs\n")).toThrow(/no slug/);
+  });
+});
+
+describe("boundedFetch (fix round 1: a stalled Anvil must not hang push/register)", () => {
+  it("aborts a fetch that never resolves once timeoutMs elapses", async () => {
+    const hanging = (_url: string, init?: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        init!.signal!.addEventListener("abort", () => reject(init!.signal!.reason));
+      });
+    const bound = boundedFetch(20, hanging as unknown as typeof fetch);
+    await expect(bound("https://x", {})).rejects.toBeTruthy();
+  });
+
+  it("keeps the caller's own init (method, headers, body) alongside the abort signal", async () => {
+    let seen: RequestInit | undefined;
+    const fetchImpl = async (_url: string, init?: RequestInit) => {
+      seen = init;
+      return new Response("{}");
+    };
+    const bound = boundedFetch(1000, fetchImpl as unknown as typeof fetch);
+    await bound("https://x", { method: "POST", headers: { "content-type": "text/plain" }, body: "hi" });
+    expect(seen?.method).toBe("POST");
+    expect(seen?.headers).toEqual({ "content-type": "text/plain" });
+    expect(seen?.body).toBe("hi");
+    expect(seen?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("defaults to a 10 s bound and the global fetch when called with no arguments", async () => {
+    const bound = boundedFetch();
+    expect(typeof bound).toBe("function");
+  });
+});
+
+describe("registerNow (push/register's network step, once registerFor built the registration)", () => {
+  const registry = {
+    verifyClaim: async () => true,
+    registerItem: async () => ({ item: {}, name: "qaly", owner: "you" as const, proven: true }),
+    registryNote,
+  };
+  it("a course folds claimCourse's own note in before registerItem's", async () => {
+    const names = {
+      courseClaim: (key: string, reg: { target: string }) => ({ key, course: reg.target }),
+      claimCourse: async () => "ok" as const,
+      claimNote,
+    };
+    const origin = { kind: "course", owner: "ann", repo: "casts" };
+    const reg = { kind: "course" as const, target: "ann/casts/qalys" };
+    const session = { api: "https://x", key: "k", email: null };
+    const out = await registerNow({ origin, session, verify: false, reg, registry, names, fetchImpl: async () => new Response("{}") });
+    expect(out).toEqual({ note: " · you own this course · drawcast.app/#qaly", name: "qaly" });
+  });
+
+  it("a cast never touches `names` — there is no course to claim", async () => {
+    const origin = { kind: "cast", owner: "ann", repo: "casts" };
+    const reg = { kind: "cast" as const, target: "ann/casts/casts/qaly.yaml" };
+    const out = await registerNow({ origin, session: null, verify: false, reg, registry, fetchImpl: async () => new Response("{}") });
+    expect(out).toEqual({ note: " · drawcast.app/#qaly", name: "qaly" });
+  });
+
+  it("verify: true, signed in, runs verifyClaim before claimCourse and registerItem — and bounds every one of them with the caller's own fetchImpl", async () => {
+    const calls: string[] = [];
+    const bounded: typeof fetch = (async () => new Response("{}")) as unknown as typeof fetch;
+    const reg2 = {
+      verifyClaim: async (_api: string, _key: string, _repo: string, f: typeof fetch) => {
+        calls.push(f === bounded ? "verify" : "verify(unbound!)");
+        return true;
+      },
+      registerItem: async (_api: string, _reg: unknown, f: typeof fetch) => {
+        calls.push(f === bounded ? "register" : "register(unbound!)");
+        return { item: {}, name: null, owner: "none" as const, proven: false };
+      },
+      registryNote,
+    };
+    const names = {
+      courseClaim: (key: string, reg: { target: string }) => ({ key, course: reg.target }),
+      claimCourse: async (_api: string, _claim: unknown, f: typeof fetch) => {
+        calls.push(f === bounded ? "claim" : "claim(unbound!)");
+        return "ok" as const;
+      },
+      claimNote,
+    };
+    const origin = { kind: "course", owner: "ann", repo: "casts" };
+    const session = { api: "https://x", key: "k", email: null };
+    await registerNow({ origin, session, verify: true, reg: { kind: "course" as const, target: "ann/casts/qalys" }, registry: reg2, names, fetchImpl: bounded });
+    expect(calls).toEqual(["verify", "claim", "register"]);
+  });
+
+  it("signed out: registerItem still runs, key-less, and verify is skipped even when asked", async () => {
+    const seen: unknown[] = [];
+    const reg2 = {
+      verifyClaim: async () => {
+        seen.push("verify");
+        return true;
+      },
+      registerItem: async (_api: string, body: { key?: string }) => {
+        seen.push(body);
+        return { item: {}, name: null, owner: "none" as const, proven: false };
+      },
+      registryNote,
+    };
+    const origin = { kind: "cast", owner: "ann", repo: "casts" };
+    await registerNow({ origin, session: null, verify: true, reg: { kind: "cast" as const, target: "ann/casts/casts/qaly.yaml" }, registry: reg2, fetchImpl: async () => new Response("{}") });
+    expect(seen).toEqual([{ key: undefined, kind: "cast", target: "ann/casts/casts/qaly.yaml" }]);
   });
 });
 

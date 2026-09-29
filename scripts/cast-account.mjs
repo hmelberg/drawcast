@@ -10,6 +10,16 @@ import { pagesUrlFor } from "./cast-github.mjs";
 
 /** The drawcast server: DRAWCAST_API, else the default app (src/learn.ts DEFAULT_ENROLL_API). */
 export const apiUrl = () => (process.env.DRAWCAST_API || "https://drawcast.anvil.app").replace(/\/+$/, "");
+
+/** A fetch bound to `timeoutMs` — never the callee's own job (src/registry.ts
+ *  says so explicitly: claimFile/verifyClaim/registerItem's bound is the
+ *  caller's). Without it a stalled Anvil hangs `push --direct` AFTER the
+ *  git push has already landed (the "Pushed to …" line never prints), or a
+ *  `push --dry-run`'s claim. `timeoutMs` and the underlying `fetchImpl` are
+ *  both injectable so a test can prove the abort without waiting 10 s. */
+export function boundedFetch(timeoutMs = 10_000, fetchImpl = fetch) {
+  return (input, init) => fetchImpl(input, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+}
 export const sessionPath = (home) => join(home, ".config/drawcast/session.json");
 
 export function readSession(home) {
@@ -98,6 +108,45 @@ export function registerFor(origin, lib, courseText) {
     title: origin.file.replace(/\.ya?ml$/i, ""),
     page: pagesUrlFor(origin.owner, origin.repo, origin.castsDir),
   };
+}
+
+/**
+ * The registry step (registry delivery 1) once a signed-in publish has
+ * landed (cast.mjs push/register): verify the claim (when asked — push
+ * asks only for the claim it minted this run; register asks whenever
+ * signed in, since an earlier push's claim already landed), then register
+ * the item — a course claims its default run first (CONTROLLER RULING:
+ * as the app's own course publish does, so only the course's owner can
+ * ever hold a name for it), folding claimCourse's own note in before
+ * registerItem's — then registerItem. Pure (apart from the network calls
+ * it is handed): cast.mjs loads `registry`/`names` via withVite and builds
+ * `reg` (registerFor) before calling this, which is what makes this
+ * testable without a real Vite session.
+ *
+ * `registry` is src/registry.ts's `{verifyClaim, registerItem,
+ * registryNote}`; `names` is src/names.ts's `{courseClaim, claimCourse,
+ * claimNote}` — needed, and read, only for a course. `fetchImpl` bounds
+ * every one of these calls (boundedFetch above) — never their own job,
+ * per src/registry.ts's own contract, and the caller's to enforce.
+ *
+ * Returns the note to show and any free name that came back (null
+ * otherwise) — recording it on origin.freeName is the caller's job, kept
+ * out of here so this stays a pure function.
+ */
+export async function registerNow({ origin, session, verify, reg, registry, names, fetchImpl }) {
+  const { verifyClaim, registerItem, registryNote } = registry;
+  const api = session?.api ?? apiUrl();
+  const repoStr = `${origin.owner}/${origin.repo}`;
+  let note = "";
+  if (verify && session) await verifyClaim(api, session.key, repoStr, fetchImpl);
+  if (origin.kind === "course" && session) {
+    const { courseClaim, claimCourse, claimNote } = names;
+    const claimed = await claimCourse(api, courseClaim(session.key, reg), fetchImpl);
+    note += claimNote(claimed);
+  }
+  const out = await registerItem(api, { key: session?.key, ...reg }, fetchImpl);
+  note += registryNote(out);
+  return { note, name: typeof out === "object" ? out.name : null };
 }
 
 const dollars = (cents) => `${Number.isInteger(cents / 100) ? cents / 100 : (cents / 100).toFixed(2)} USD`;

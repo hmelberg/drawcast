@@ -4,6 +4,7 @@ export interface Session {
   email: string | null;
 }
 export function apiUrl(): string;
+export function boundedFetch(timeoutMs?: number, fetchImpl?: typeof fetch): typeof fetch;
 export function sessionPath(home: string): string;
 export function readSession(home: string): Session | null;
 export function writeSession(home: string, s: Session): void;
@@ -26,6 +27,23 @@ export function registerFor(
   lib: { courseRegistration: (...a: never[]) => unknown; parseCourse: (text: string) => unknown },
   courseText?: string,
 ): { kind: "cast" | "course"; target: string; title?: string; page?: string; lectures?: string[] };
+export function registerNow(args: {
+  origin: Record<string, unknown>;
+  session: Session | null;
+  verify: boolean;
+  reg: { kind: "cast" | "course"; target: string; title?: string; page?: string; lectures?: string[] };
+  registry: {
+    verifyClaim: (...a: never[]) => Promise<boolean>;
+    registerItem: (...a: never[]) => Promise<unknown>;
+    registryNote: (out: never) => string;
+  };
+  names?: {
+    courseClaim: (...a: never[]) => unknown;
+    claimCourse: (...a: never[]) => Promise<string>;
+    claimNote: (outcome: never) => string;
+  };
+  fetchImpl?: typeof fetch;
+}): Promise<{ note: string; name: string | null }>;
 export function nameAdvice(state: string, name: string, price: number): string;
 export function waitForName(args: {
   api: string;
