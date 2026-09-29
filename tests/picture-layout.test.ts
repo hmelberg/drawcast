@@ -53,4 +53,32 @@ describe("screen picture layout", () => {
       restore();
     }
   });
+  test("screen images keep the centre instead of joining the auto-row", () => {
+    const r = layoutSpec({
+      elements: [
+        { id: "a", type: "image", url: "https://x.org/a.png", look: "screen", strokes: shot },
+        { id: "b", type: "image", url: "https://x.org/b.png", look: "screen", strokes: shot },
+      ],
+      commands: [{ draw: ["a", "b"] }],
+    } as never);
+    const imgA = img(r, "a");
+    const imgB = img(r, "b");
+    // Both screen images should be centred at x=500, not spread into a row
+    expect(imgA.pos[0]).toBe(500);
+    expect(imgB.pos[0]).toBe(500);
+  });
+  test("plain (non-screen) images still form a row when multiple", () => {
+    const r = layoutSpec({
+      elements: [
+        { id: "c", type: "image", of: "Commons image 1", strokes: shot },
+        { id: "d", type: "image", of: "Commons image 2", strokes: shot },
+      ],
+      commands: [{ draw: ["c", "d"] }],
+    } as never);
+    const imgC = img(r, "c");
+    const imgD = img(r, "d");
+    // Plain images should still form a row with different x positions
+    expect(imgC.pos[0]).not.toBe(imgD.pos[0]);
+    expect(imgC.pos[0]).not.toBe(500);
+  });
 });

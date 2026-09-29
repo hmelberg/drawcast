@@ -373,8 +373,9 @@ export function layoutElements(
   // figure only changes when it was already a pile. Nodes are excluded (their
   // own ring is above), and so are the types whose position comes from
   // somewhere else: a label from what it is attached to, a curve from the
-  // domain, an inset from its column.
-  const freeElements = elements.filter((e) => AUTO_ROW_TYPES.has(e.type) && e.x === undefined && e.y === undefined && !relAt(e));
+  // domain, an inset from its column. A screen picture is the figure itself,
+  // not a photo in a row (spec 2026-09-30-picture-regions).
+  const freeElements = elements.filter((e) => AUTO_ROW_TYPES.has(e.type) && e.x === undefined && e.y === undefined && !relAt(e) && !(e.type === "image" && (e as any).look === "screen"));
   if (freeElements.length > 1) {
     const slots = autoRow(freeElements.length);
     freeElements.forEach((el, i) => {
