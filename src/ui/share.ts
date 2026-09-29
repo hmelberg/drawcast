@@ -31,7 +31,7 @@ import { getToken, signInUrl } from "../account";
 import { checkNote, checkPaidName, driveTarget, formatPrice, priceFor } from "../names";
 import { embeddedPlaylist, type EmbedDeps } from "../publish/embed";
 import { parseRepo, slugify } from "../publish/github";
-import { castRegistration } from "../publish/cast";
+import { castRegistration, privateCastTarget } from "../publish/cast";
 import { courseKeyFor, joinPath } from "../course/publish";
 import type { ServerAccess } from "../publish/server";
 import { quotePrivate, startPrivatePayment, type PrivateQuoteOutcome } from "../registry";
@@ -193,8 +193,8 @@ export function privateRequest(
   const repo = parseRepo(settings.githubRepo);
   if (!repo) return null;
   if (subject === "drawcast") {
-    const slug = slugify(fieldSlug.trim() || doc.title);
-    return { kind: "cast", target: castRegistration(slug, repo, joinPath(settings.coursesDir, "casts"), "").target, lectures: 1 };
+    // The same prediction the publish itself locks under (privateCastTarget).
+    return { kind: "cast", target: privateCastTarget(repo, joinPath(settings.coursesDir, "casts"), fieldSlug, doc.publishedAs, doc.title).target, lectures: 1 };
   }
   const dir = doc.folder ?? joinPath(settings.coursesDir, slugify(fieldSlug.trim() || doc.title));
   return {

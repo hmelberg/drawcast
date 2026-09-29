@@ -30,7 +30,7 @@ import { addCosts, bakeCost, costLabel, courseNarrationProjection, type BakeCost
 import { runLang, stampedVoice, synthesizeBase64 } from "../export/tts";
 import { joinPath } from "../course/publish";
 import { claimCourse, claimNote, courseClaim, formatPrice, isPayable, nameNote, normalizeName, registerName, startNamePayment } from "../names";
-import { DEFAULT_ENROLL_API } from "../learn";
+import { apiBase, DEFAULT_ENROLL_API } from "../learn";
 import { claimFile, quotePrivate, registerItem, registryNote, verifyClaim } from "../registry";
 import { getToken } from "../account";
 import { fetchItemKey, liveKeyStorage, unlockForAuthor } from "../item-key";
@@ -1040,6 +1040,12 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         ? removeCourseOption(withDoor, "private")
         : withDoor;
     const course = parseCourse(text);
+    // A private course's key and its learners live on drawcast's own server;
+    // a door to someone else's backend could never let anyone in.
+    if (isPrivate && course.enroll !== undefined && apiBase(course.enroll) !== DEFAULT_ENROLL_API) {
+      say("A private course joins through drawcast.app — remove the custom enroll: line to publish it privately.", "error");
+      return;
+    }
     if (course.lectures.length === 0) {
       say("There is nothing to publish yet.", "error");
       return;
@@ -1200,6 +1206,10 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       // one, else its free registry name (it exists once private is paid
       // for) — a locked course with no way to join would be unreachable.
       if (isPrivate && !door.name && privateName) door = { name: privateName, app: settings.viewerBase };
+      if (isPrivate && !door.name) {
+        say("Not published: the course's link isn't registered yet — try again in a minute.", "error");
+        return;
+      }
       const out = await commitPublish(publishArgs, prepared, door);
       // Past this line the commit has LANDED. Anything that fails below is
       // local bookkeeping, and reporting it as "Publish failed" would send the

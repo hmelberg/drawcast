@@ -16,6 +16,7 @@ import {
   preflight,
   readFile,
   slugFor,
+  slugify,
   type PublishFile,
   type RepoRef,
 } from "./github";
@@ -91,6 +92,21 @@ export interface CastPlanArgs {
  *  derives the same path from the link it was given). */
 export function posterPathFor(castPath: string): string {
   return castPath.replace(/\.ya?ml$/i, "") + ".png";
+}
+
+/**
+ * The ONE prediction of a private cast's registry target and item key
+ * (registry delivery 2, task 10) — Share's quote (privateRequest) and the
+ * publish's own key fetch (main.ts privateCastLock) must agree on it, or a
+ * cast is paid for under one item and locked under another. The rule is
+ * buildCastPlan's: the Name field, else the slug it already publishes
+ * under, else the title. `item` is the target without `.yaml` (Anvil's
+ * registry.item_key for a cast).
+ */
+export function privateCastTarget(repo: RepoRef, castsDir: string, field: string | undefined, publishedAs: string | undefined, title: string): { target: string; item: string } {
+  const slug = slugify((field ?? "").trim() || publishedAs || title || "lecture");
+  const target = `${repo.owner}/${repo.repo}/${joinPath(castsDir, `${slug}.yaml`)}`;
+  return { target, item: target.replace(/\.ya?ml$/i, "") };
 }
 
 export function castHref(base: string, owner: string, repo: string, path: string): string {
@@ -238,7 +254,9 @@ export async function publishCast(args: CastPublishArgs): Promise<CastPublishRes
   // No deletions: a cast owns exactly one file, and its slug never changes, so
   // there is never a stale path to remove. (Courses need them because a
   // deleted lecture would otherwise stay reachable at its old link forever.)
-  await commitFiles(args.repo, args.token, defaultBranch, files, [], `drawcast: publish "${args.title || "Untitled drawcast"}"`, fetchImpl);
+  // A private cast also removes a poster an earlier PUBLIC publish left —
+  // it shows a frame of what is now locked (only if the repo has one).
+  await commitFiles(args.repo, args.token, defaultBranch, files, [], `drawcast: publish "${args.title || "Untitled drawcast"}"`, fetchImpl, undefined, args.lock ? [posterPathFor(castPath)] : []);
 
   return {
     slug: plan.slug,

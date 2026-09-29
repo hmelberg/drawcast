@@ -385,12 +385,9 @@ export async function commitPublish(args: PublishArgs, prepared: PreparedPublish
   const course = parseCourse(updated);
   const withNames = buildPublishPlan({ course, text: updated, repo, coursesDir, viewerBase, manifest, lectureYaml, door });
   const dir = joinPath(coursesDir, withNames.slug);
+  const lecturePaths = [...withNames.fileOf.values()].map((name) => joinPath(dir, name));
   const own = args.lock
-    ? await lockLectureFiles(
-        withNames.files,
-        [...withNames.fileOf.values()].map((name) => joinPath(dir, name)),
-        args.lock,
-      )
+    ? await lockLectureFiles(withNames.files, lecturePaths, args.lock)
     : [...withNames.files, ...(args.poster ? await lecturePosters(withNames, args.poster) : [])];
   const files = [...own, ...(args.extraFiles ?? [])];
 
@@ -403,6 +400,9 @@ export async function commitPublish(args: PublishArgs, prepared: PreparedPublish
     `drawcast: publish course "${course.title || "Untitled course"}"`,
     fetchImpl,
     args.onUpload,
+    // A private course also removes the lecture posters an earlier PUBLIC
+    // publish left (only those the repo has) — each shows a lecture frame.
+    args.lock ? lecturePaths.map(posterPathFor) : [],
   );
 
   return {

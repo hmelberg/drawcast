@@ -30,7 +30,7 @@ interface Recorded {
   body: Record<string, unknown> | null;
 }
 
-function fakeGithub(): { seen: Recorded[]; fetchImpl: typeof fetch } {
+function fakeGithub(existing: string[] = []): { seen: Recorded[]; fetchImpl: typeof fetch } {
   const seen: Recorded[] = [];
   const fetchImpl = (async (url: string, init: RequestInit = {}) => {
     seen.push({ url, body: init.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : null });
@@ -42,7 +42,7 @@ function fakeGithub(): { seen: Recorded[]; fetchImpl: typeof fetch } {
         : url.includes("/git/commits/")
           ? { tree: { sha: "treesha" } }
           : url.includes("/git/trees/")
-            ? { tree: [] }
+            ? { tree: existing.map((path) => ({ path, sha: `old-${path}`, type: "blob" })) }
             : { sha: "new" };
     return { ok: true, status: 200, json: async () => body, text: async () => "" } as Response;
   }) as unknown as typeof fetch;
@@ -60,6 +60,12 @@ function committed(seen: Recorded[]): Map<string, string> {
   // blob bodies by order (commitFiles uploads in file order).
   tree.filter((t) => t.sha !== null).forEach((t, i) => blobs.set(t.path, blobBodies[i]));
   return blobs;
+}
+
+/** Paths the commit's tree removes (a null sha). */
+function removed(seen: Recorded[]): string[] {
+  const tree = seen.find((s) => /\/git\/trees$/.test(s.url))!.body!.tree as { path: string; sha: string | null }[];
+  return tree.filter((t) => t.sha === null).map((t) => t.path);
 }
 
 const fakeLock = async (path: string, text: string): Promise<string> => `${LOCK_HEADER}\nitem: o/r/x\nfor: ${path}\nlen: ${text.length}\n`;
@@ -209,5 +215,76 @@ describe("the private publish paths fetch the key and re-quote before committing
   it("ui/course.ts seeds Share's Private box from the course document", () => {
     const src = readFileSync("src/ui/course.ts", "utf8");
     expect(src).toMatch(/private: course\.private/);
+  });
+});
+
+describe("a private publish removes posters an earlier public publish left", () => {
+  it("course: a lecture's .png in the repo is deleted; one that is not there is not asked for", async () => {
+    const { seen, fetchImpl } = fakeGithub(["courses/causal-inference/did.png", "courses/causal-inference/other.png"]);
+    const args = courseArgs({ fetchImpl, lock: fakeLock });
+    await commitPublish(args, await preparePublish(args), { name: "causal-free", app: "https://drawcast.app/" });
+    expect(removed(seen)).toContain("courses/causal-inference/did.png");
+    expect(removed(seen)).not.toContain("courses/causal-inference/potential-outcomes.png");
+    expect(removed(seen)).not.toContain("courses/causal-inference/other.png");
+  });
+  it("course: a public publish deletes no poster", async () => {
+    const { seen, fetchImpl } = fakeGithub(["courses/causal-inference/did.png"]);
+    const args = courseArgs({ fetchImpl });
+    await commitPublish(args, await preparePublish(args));
+    expect(removed(seen)).not.toContain("courses/causal-inference/did.png");
+  });
+  it("cast: its .png in the repo is deleted", async () => {
+    const { seen, fetchImpl } = fakeGithub(["casts/difference-in-differences.png"]);
+    await publishCast({ ...castArgs, fetchImpl, lock: fakeLock });
+    expect(removed(seen)).toEqual(["casts/difference-in-differences.png"]);
+  });
+});
+
+describe("one prediction of a private cast's target (Share's quote and the publish agree)", () => {
+  it("a retitled cast with an empty Name field keeps its published slug in both", async () => {
+    const { privateCastTarget } = await import("../src/publish/cast");
+    const { privateRequest } = await import("../src/ui/share");
+    const repo = { owner: "o", repo: "r" };
+    const doc = { title: "A brand new title", publishedAs: "old-slug", folder: undefined, lectureCount: undefined };
+    const shared = privateRequest(doc, { githubRepo: "o/r", coursesDir: "" }, "drawcast", "");
+    const own = privateCastTarget(repo, "casts", "", "old-slug", "A brand new title");
+    expect(own.target).toBe("o/r/casts/old-slug.yaml");
+    expect(own.item).toBe("o/r/casts/old-slug");
+    expect(shared?.target).toBe(own.target);
+    const src = readFileSync("src/main.ts", "utf8");
+    expect(src).toContain("privateCastTarget(");
+  });
+});
+
+describe("private items never go anywhere unlocked", () => {
+  const main = readFileSync("src/main.ts", "utf8");
+  const fn = (name: string) => main.slice(main.indexOf(`async function ${name}(`), main.indexOf("\n}\n", main.indexOf(`async function ${name}(`)));
+  it("Save source refuses a private drawcast before anything is written", () => {
+    const body = fn("saveSourceToGithub");
+    const guard = body.indexOf("if (doc.private)");
+    expect(guard).toBeGreaterThan(0);
+    expect(guard).toBeLessThan(body.indexOf("saveSource("));
+    expect(body).toContain("This drawcast is private — Save source would put it on GitHub unencrypted. Publish it (locked) instead.");
+  });
+  it("the drawcast server and Google Drive publishes refuse a private drawcast", () => {
+    for (const [name, write] of [["publishServerCast", "publishToServer("], ["publishDriveCast", "saveSpec("]]) {
+      const body = fn(name);
+      const guard = body.indexOf("if (doc.private)");
+      expect(guard, name).toBeGreaterThan(0);
+      expect(guard, name).toBeLessThan(body.indexOf(write));
+      expect(body).toContain("PRIVATE_ELSEWHERE");
+    }
+    expect(main).toContain('"This is private — publish it to GitHub, where it is locked."');
+  });
+  it("a private course refuses a custom enroll: server and a door with no name, before the commit", () => {
+    const course = readFileSync("src/ui/course.ts", "utf8");
+    const body = course.slice(course.indexOf("async function publish("), course.indexOf("function showLinks("));
+    const commit = body.indexOf("await commitPublish(");
+    const custom = body.indexOf("A private course joins through drawcast.app — remove the custom enroll: line to publish it privately.");
+    const nameless = body.indexOf("Not published: the course's link isn't registered yet — try again in a minute.");
+    expect(custom).toBeGreaterThan(0);
+    expect(custom).toBeLessThan(commit);
+    expect(nameless).toBeGreaterThan(0);
+    expect(nameless).toBeLessThan(commit);
   });
 });

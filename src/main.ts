@@ -90,7 +90,7 @@ import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "./export/bak
 import { listCloudVoices, runLang, stampedVoice, synthesizeBase64 } from "./export/tts";
 import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "./export/bake-cache";
 import { bakeCost, costLabel } from "./export/tts-cost";
-import { publishCast } from "./publish/cast";
+import { privateCastTarget, publishCast } from "./publish/cast";
 import { LockError, type LectureLock } from "./publish/lock";
 import { lockText } from "./crypto/lecture-lock";
 import { publishToServer, serverCastKey, type ServerAccess } from "./publish/server";
@@ -5121,6 +5121,10 @@ async function publishDrawcast({
   }
 }
 
+/** Private items go to GitHub, locked, and nowhere else (task 10 fix round):
+ *  the Drive and drawcast-server publishes would upload the plain text. */
+const PRIVATE_ELSEWHERE = "This is private — publish it to GitHub, where it is locked.";
+
 /** The status line when a private publish cannot get its key (task 10). */
 const PRIVATE_KEY_MISSING = "Not published: the private key isn't available — is private paid for, and are you signed in as the owner?";
 
@@ -5145,9 +5149,8 @@ async function privateCastLock(
   bounded: typeof fetch,
 ): Promise<LectureLock | string> {
   if (!accountToken) return "Not published: sign in to publish privately (Settings → Publishing).";
-  // The same target registerItem sends for a cast (below in publishDrawcast).
-  const target = `${repoStr}/${joinPath(castsDir, `${slugify(slug || doc.publishedAs || doc.title || "lecture")}.yaml`)}`;
-  const item = target.replace(/\.ya?ml$/i, "");
+  // One prediction, shared with Share's quote (privateRequest).
+  const { target, item } = privateCastTarget(parseRepo(repoStr)!, castsDir, slug, doc.publishedAs, doc.title);
   const quote = await quotePrivate(DEFAULT_ENROLL_API, { key: accountToken, kind: "cast", target, lectures: 1, private: true }, bounded);
   if (quote === "key") return "Not published: sign in again to publish privately (Settings → Publishing).";
   if (quote === "error") return "Not published: could not check the private drawcast just now — try again in a moment.";
@@ -5181,6 +5184,10 @@ async function privateCastLock(
  * every line again, or hand over lines from a different publish entirely.
  */
 async function publishServerCast({ bake, embedImages, name, access }: { bake: boolean; embedImages: boolean; name?: string; access?: ServerAccess }): Promise<void> {
+  if (doc.private) {
+    setStatus(PRIVATE_ELSEWHERE, "error");
+    return;
+  }
   const accountToken = getToken();
   if (!accountToken) {
     setStatus("Not signed in — sign in from Settings → Publishing (drawcast account) to publish to the drawcast server.", "error");
@@ -5297,6 +5304,10 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
  * where the author flips "Anyone with the link can view".
  */
 async function publishDriveCast({ bake, embedImages, name }: { bake: boolean; embedImages: boolean; name?: string }): Promise<void> {
+  if (doc.private) {
+    setStatus(PRIVATE_ELSEWHERE, "error");
+    return;
+  }
   if (!googleConfigured()) {
     setStatus("This build has no Google client configured — publishing to Drive is unavailable.", "error");
     return;
@@ -5484,6 +5495,11 @@ async function openFromDrive(): Promise<void> {
 let sourceSaveInFlight = false;
 async function saveSourceToGithub(): Promise<void> {
   if (sourceSaveInFlight) return;
+  // A private drawcast's plain source must never reach the (public) repo.
+  if (doc.private) {
+    setStatus("This drawcast is private — Save source would put it on GitHub unencrypted. Publish it (locked) instead.", "error");
+    return;
+  }
   sourceSaveInFlight = true;
   try {
     // What you see is what you save — refuses (and says why) instead of
