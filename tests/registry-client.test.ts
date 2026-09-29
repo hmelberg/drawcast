@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test, vi } from "vitest";
-import { claimFile, registerItem, registryNote, verifyClaim, type RegisterOutcome, type RegisterResult } from "../src/registry";
+import { claimFile, registerItem, registryNote, verifyClaim, type RegistryOutcome, type RegisterResult } from "../src/registry";
 
 function fetchReturning(status: number, body: unknown): typeof fetch {
   return vi.fn(async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
@@ -107,7 +107,7 @@ describe("registryNote", () => {
     expect(registryNote({ item: {}, name: null, owner: "you", proven: true })).toBe("");
   });
   test("key, rate and error all read as unreachable", () => {
-    const outcomes: RegisterOutcome[] = ["key", "rate", "error"];
+    const outcomes: RegistryOutcome[] = ["key", "rate", "error"];
     for (const out of outcomes) expect(registryNote(out)).toBe(" · not registered (server unreachable)");
   });
 });
@@ -141,5 +141,29 @@ describe("both publish flows claim the repo before the commit and register after
     expect(iCommit).toBeLessThan(iRegisterItem);
     expect(iRegisterItem).toBeLessThan(iRegistryNote);
     expect(iRegistryNote).toBeLessThan(iSay);
+  });
+
+  test("publishDrawcast: local bookkeeping (autosave) runs BEFORE the registry calls — it must never wait behind a network call to the registry", () => {
+    const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
+    const fn = main.slice(main.indexOf("async function publishDrawcast("), main.indexOf("async function publishServerCast("));
+    const iPublishCast = fn.indexOf("await publishCast(");
+    const iAutosave = fn.indexOf("autosave(");
+    const iVerifyClaim = fn.indexOf("verifyClaim(");
+    expect(iPublishCast).toBeGreaterThan(0);
+    expect(iPublishCast).toBeLessThan(iAutosave);
+    expect(iAutosave).toBeLessThan(iVerifyClaim);
+  });
+
+  test("ui/course.ts publish: local bookkeeping (checkpoint/persist) runs BEFORE the registry calls — it must never wait behind a network call to the registry", () => {
+    const course = readFileSync(new URL("../src/ui/course.ts", import.meta.url), "utf8");
+    const fn = course.slice(course.indexOf("async function publish("), course.indexOf("function showLinks("));
+    const iCommit = fn.indexOf("await commitPublish(");
+    const iCheckpoint = fn.indexOf("checkpoint(");
+    const iPersist = fn.indexOf("persist(");
+    const iVerifyClaim = fn.indexOf("verifyClaim(");
+    expect(iCommit).toBeGreaterThan(0);
+    expect(iCommit).toBeLessThan(iCheckpoint);
+    expect(iCheckpoint).toBeLessThan(iVerifyClaim);
+    expect(iPersist).toBeLessThan(iVerifyClaim);
   });
 });

@@ -4988,25 +4988,35 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
     doc.publishedAs = out.slug;
     doc.publishedComments = allowComments === true && settings.giscusRepoId !== "" && settings.giscusCategoryId !== "";
     doc.publishedViews = countViews !== false;
+    // Bookkeeping first: saving the slug is what keeps the published link
+    // permanent, and it must not wait behind a network call to the registry.
+    try {
+      autosave();
+    } catch (err) {
+      console.error("drawcast: publish succeeded, bookkeeping failed", err);
+    }
     // The registry, now that the commit — and the claim file inside it —
     // are live: verify ownership, then register the cast. Both are wrapped
     // and bounded above, so neither can turn a landed publish into a
-    // reported failure.
+    // reported failure, and neither runs before the bookkeeping above.
     if (claim) await verifyClaim(DEFAULT_ENROLL_API, accountToken, repoStr, bounded);
     const reg = await registerItem(
       DEFAULT_ENROLL_API,
       { key: accountToken || undefined, kind: "cast", target: `${repoStr}/${joinPath(castsDir, `${out.slug}.yaml`)}`, title: doc.title, page: out.castUrl },
       bounded,
     );
-    if (typeof reg === "object" && reg.name) doc.freeName = reg.name;
-    const regSuffix = registryNote(reg);
-    // Bookkeeping: saving the slug (and any free name the registry minted)
-    // is what keeps the published link permanent.
-    try {
-      autosave();
-    } catch (err) {
-      console.error("drawcast: publish succeeded, bookkeeping failed", err);
+    if (typeof reg === "object" && reg.name) {
+      doc.freeName = reg.name;
+      // A second, lightweight save for the free name alone — worth
+      // persisting, but never worth making the SLUG's own bookkeeping above
+      // wait on the registry first.
+      try {
+        autosave();
+      } catch (err) {
+        console.error("drawcast: publish succeeded, bookkeeping failed", err);
+      }
     }
+    const regSuffix = registryNote(reg);
     // No PAID name is registered here since the pretty-link round
     // (2026-09-18): the direct #gh= link is the free, permanent address,
     // and a custom pretty link is bought under Share → Pretty link (the

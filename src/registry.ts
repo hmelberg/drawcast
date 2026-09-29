@@ -80,7 +80,7 @@ export interface RegisterResult {
   proven: boolean;
 }
 
-export type RegisterOutcome = RegisterResult | "key" | "rate" | "error";
+export type RegistryOutcome = RegisterResult | "key" | "rate" | "error";
 
 /**
  * POST /register: records the published item and, signed in, mints or moves
@@ -88,7 +88,7 @@ export type RegisterOutcome = RegisterResult | "key" | "rate" | "error";
  * knows), `"rate"` a 429; anything else that is not a 200 — a 400, a 5xx, a
  * network failure — is `"error"`. Never throws.
  */
-export async function registerItem(api: string, reg: RegisterInput, fetchImpl: typeof fetch = fetch): Promise<RegisterOutcome> {
+export async function registerItem(api: string, reg: RegisterInput, fetchImpl: typeof fetch = fetch): Promise<RegistryOutcome> {
   try {
     const res = await fetchImpl(`${apiBase(api)}/_/api/register`, {
       method: "POST",
@@ -116,7 +116,7 @@ export async function registerItem(api: string, reg: RegisterInput, fetchImpl: t
  * `"key"`/`"rate"`/a network failure all read the same way to the author:
  * the publish is fine, only the registry step did not happen.
  */
-export function registryNote(out: RegisterOutcome): string {
+export function registryNote(out: RegistryOutcome): string {
   if (out === "key" || out === "rate" || out === "error") return " · not registered (server unreachable)";
   if (out.owner === "other") return " · registered to another account — republish while signed in to prove the repo is yours";
   return out.name ? ` · drawcast.app/#${out.name}` : "";
