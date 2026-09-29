@@ -37,7 +37,8 @@ import {
 import { mathDrawables, mathMorphDrawables } from "./math";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
 import { catmullRom, catmullRomClosed } from "./smooth";
-import { decodeIcon, decodePhoto, decodeSourceImage, decodeTrace } from "../spec/trace";
+import { decodeIcon, decodePhoto, decodePicture, decodeSourceImage, decodeTrace } from "../spec/trace";
+import { FULL_VIEW4, isRect4, type Rect4 } from "../spec/places";
 import { mapLabelRequest, obstacleBoxes, wrapText, type LabelRequest } from "./labels";
 import { currentMathFontName, enginesLoaded, getLoadedEngines, type MathJaxEngine, type MusicEngine } from "../scenes/engines";
 import { musicDrawables } from "./music";
@@ -79,6 +80,8 @@ export interface Tier2Result {
   anchors: Record<string, Pt>;
   /** Geometric anchors per element id (design §2.1, §2.5): polygon vertex_k/side_k/centroid, sector apex/arc/start/end, arrow tail/tip/mid, path start/end/mid/point_k, ellipse focus_1/focus_2, line start/end/mid/point_k. */
   namedAnchors: Record<string, Record<string, Pt>>;
+  /** Pictures you can point into: per image id, the part shown and its named regions. */
+  pictures: Record<string, { view: Rect4; regions: Record<string, Rect4> }>;
   /**
    * Command-addressable ids tier-2 minted that are NOT spec element ids — a
    * source element's quote highlights (`<id>_quote`, `<id>_quote_2`, …), which
@@ -141,6 +144,7 @@ interface Ctx {
   autoPlace: Record<string, Pt>;
   anchors: Record<string, Pt>;
   namedAnchors: Record<string, Record<string, Pt>>;
+  pictures: Record<string, { view: Rect4; regions: Record<string, Rect4> }>;
   /** The drawables laid out so far — an arrow endpoint's `anchor` reads a box off them. */
   drawablesSoFar: Drawable[];
   extraOrder: string[];
@@ -284,6 +288,7 @@ export function layoutElements(
     autoPlace: {},
     anchors: { ...seedAnchors },
     namedAnchors: {},
+    pictures: {},
     drawablesSoFar: [],
     extraOrder: [],
     drawnAfter: {},
@@ -914,6 +919,7 @@ export function layoutElements(
     labels,
     anchors: ctx.anchors,
     namedAnchors: ctx.namedAnchors,
+    pictures: ctx.pictures,
     extraOrder: ctx.extraOrder,
     drawnAfter: ctx.drawnAfter,
     warnings: ctx.warnings,
@@ -1966,13 +1972,16 @@ function portraitDrawable(el: SpecElement, ctx: Ctx): GroupDrawable {
  * caption, licence-gated by the resolver — never fabricated here.
  */
 function imageDrawable(el: SpecElement, ctx: Ctx): GroupDrawable | null {
-  const photo = el.strokes ? decodePhoto(el.strokes) : null;
+  const photo = el.strokes ? decodePicture(el.strokes) : null;
   if (!photo) {
-    ctx.warnings.push(`no image found for "${el.of ?? el.id}"`);
+    ctx.warnings.push(`no image found for "${el.of ?? el.url ?? el.id}"`);
     return null;
   }
-  const w = el.width ?? 220;
-  const h = w * photo.aspect;
+  const screen = el.look === "screen";
+  const view = isRect4(el.view) && el.view[2] > 0 && el.view[3] > 0 ? el.view : FULL_VIEW4;
+  const w = el.width ?? (screen ? 900 : 220);
+  // The shown part's aspect: the whole picture's, times how much taller than wide the view is.
+  const h = w * photo.aspect * (view[3] / view[2]);
   const [cx, cy] = originOr(el, ctx, [500, 375]);
   const children: Drawable[] = [
     {
@@ -1985,6 +1994,7 @@ function imageDrawable(el: SpecElement, ctx: Ctx): GroupDrawable | null {
       z: Z_STROKE,
       style: resolveStyle(undefined, {}),
       reveal: el.reveal ?? "fade",
+      ...(view !== FULL_VIEW4 ? { view } : {}),
       drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 900 }),
     },
   ];
@@ -2004,6 +2014,9 @@ function imageDrawable(el: SpecElement, ctx: Ctx): GroupDrawable | null {
   ctx.anchors[el.id] = [cx, cy];
   const box = { x: cx - w / 2, y: cy - h / 2, w, h };
   ctx.namedAnchors[el.id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(box, n)]));
+  if (screen || el.view !== undefined || el.regions !== undefined) {
+    ctx.pictures[el.id] = { view, regions: el.regions ?? {} };
+  }
   return {
     id: el.id,
     kind: "group",

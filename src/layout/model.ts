@@ -209,6 +209,8 @@ export interface ImageDrawable extends BaseDrawable {
   h: number;
   /** Entrance/exit effect (default "fade" — plain opacity). */
   reveal?: ImageReveal;
+  /** The part of the picture drawn into pos/w/h, [x, y, w, h] fractions from the top-left (default the whole). */
+  view?: [number, number, number, number];
 }
 
 export type Drawable = StrokeDrawable | AreaDrawable | TextDrawable | ImageDrawable | GroupDrawable;

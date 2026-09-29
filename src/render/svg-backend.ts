@@ -504,12 +504,33 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
   if (d.kind === "image") {
     const img = document.createElementNS(SVG_NS, "image");
     img.setAttribute("href", d.href);
-    img.setAttribute("x", String(d.pos[0] - d.w / 2));
-    img.setAttribute("y", String(toSvgY(d.pos[1] + d.h / 2)));
-    img.setAttribute("width", String(d.w));
-    img.setAttribute("height", String(d.h));
     img.setAttribute("preserveAspectRatio", "none");
     if (d.style.opacity < 1) img.setAttribute("opacity", String(d.style.opacity));
+    const x = d.pos[0] - d.w / 2;
+    const y = toSvgY(d.pos[1] + d.h / 2);
+    if (d.view) {
+      // The whole picture in a 1000 × 1000 unit space; the viewBox picks the
+      // shown part and stretches it over the drawable's box.
+      const [vx, vy, vw, vh] = d.view;
+      const box = document.createElementNS(SVG_NS, "svg");
+      box.setAttribute("x", String(x));
+      box.setAttribute("y", String(y));
+      box.setAttribute("width", String(d.w));
+      box.setAttribute("height", String(d.h));
+      box.setAttribute("viewBox", `${vx * 1000} ${vy * 1000} ${vw * 1000} ${vh * 1000}`);
+      box.setAttribute("preserveAspectRatio", "none");
+      img.setAttribute("x", "0");
+      img.setAttribute("y", "0");
+      img.setAttribute("width", "1000");
+      img.setAttribute("height", "1000");
+      box.appendChild(img);
+      g.appendChild(box);
+      return g;
+    }
+    img.setAttribute("x", String(x));
+    img.setAttribute("y", String(y));
+    img.setAttribute("width", String(d.w));
+    img.setAttribute("height", String(d.h));
     g.appendChild(img);
     return g;
   }
