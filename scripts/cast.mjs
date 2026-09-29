@@ -39,6 +39,10 @@
 //        writes <workdir>/origin.json aimed at the repo (a free slug, Pages switched on; --create makes the repo,
 //        public); then push <workdir> --direct publishes it like any revision.
 //
+// A pretty link, drawcast.app/#<name> (bought, one-time, on Stripe's page), for something published:
+//   node scripts/cast.mjs login | logout      the drawcast account: a code to type on drawcast.anvil.app/#device
+//                                             → a session token in ~/.config/drawcast/session.json (0600)
+//
 // A cast file is a spec, a {request, spec}, or playlist YAML — anything the
 // app opens. Files live under dev-casts/ (gitignored). The dev server:
 //   npm run dev -- --port 5199 --strictPort      (DRAWCAST_URL overrides http://localhost:5199)
@@ -47,7 +51,9 @@ import { createServer } from "vite";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { homedir, hostname } from "node:os";
 import { pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin } from "./cast-github.mjs";
+import { apiUrl, clearSession, deviceLogin, readSession, writeSession } from "./cast-account.mjs";
 
 const [cmd, ...rest] = process.argv.slice(2);
 const ROOT = process.cwd();
@@ -613,6 +619,20 @@ const commands = {
       writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
       console.log(`${work} → ${owner}/${repo}/${origin.path} (as ${me}). Player after push: ${viewerBase}#gh=${owner}/${repo}/${origin.path}\nNext: cast.mjs push ${work} --dry-run`);
     });
+  },
+
+  async login() {
+    const api = apiUrl();
+    const { key, email } = await deviceLogin({ api, label: `Claude Code on ${hostname()}` });
+    writeSession(homedir(), { api, key, email });
+    console.log(`Signed in to ${api} as ${email}. Sign this terminal out with cast.mjs logout, or under Signed-in browsers on your account page.`);
+  },
+
+  async logout() {
+    const s = readSession(homedir());
+    if (s) await fetch(`${s.api}/_/api/signout`, { method: "POST", headers: { "content-type": "text/plain" }, body: JSON.stringify({ key: s.key }) }).catch(() => {});
+    clearSession(homedir());
+    console.log(s ? "Signed out." : "Not signed in.");
   },
 
   async push(args) {

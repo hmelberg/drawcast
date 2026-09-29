@@ -38,7 +38,7 @@
 
 ## Part A — publish a new drawcast or course to the user's GitHub (drawcast repo)
 
-### Task A1: `publishOrigin` — the origin.json of a first publish (pure)
+### Task 1 (A1): `publishOrigin` — the origin.json of a first publish (pure)
 
 **Files:**
 - Modify: `scripts/cast-github.mjs` (add `publishOrigin`, `pagesUrlFor`)
@@ -120,7 +120,7 @@ Run: `npx vitest run tests/cast-github.test.ts` → PASS.
 
 - [ ] **Step 5: Commit** — `git commit -m "cast.mjs: publishOrigin — the origin.json of a first publish"`
 
-### Task A2: `cast.mjs publish-target <workdir> <owner/repo> [--dir d] [--create]`
+### Task 2 (A2): `cast.mjs publish-target <workdir> <owner/repo> [--dir d] [--create]`
 
 **Files:**
 - Modify: `scripts/cast.mjs`: extract `ensureClone(owner, repo, branch, folders)` from `pull` (lines ~409–427) and use it in both commands. Add a `"publish-target"` command. Update the usage comment at the top.
@@ -222,7 +222,7 @@ Expected: the course page, README, `courses.json` and lecture YAMLs are on `main
 
 - [ ] **Step 4: Commit** — `git commit -m "cast.mjs publish-target: a new cast or course gets an origin in the user's repo; push publishes it"`
 
-### Task A3: SKILL.md — "Publishing something new"
+### Task 3 (A3): SKILL.md — "Publishing something new"
 
 **Files:** Modify `.claude/skills/drawcast/SKILL.md`: add a section after "Revising what is published".
 
@@ -251,7 +251,7 @@ Expected: the course page, README, `courses.json` and lecture YAMLs are on `main
 
 ## Part B — device sign-in on the Anvil server (drawcast-anvil repo)
 
-### Task B1: `device.py` — the rules (pure)
+### Task 4 (B1): `device.py` — the rules (pure)
 
 **Files:**
 - Create: `server_code/device.py`
@@ -342,7 +342,7 @@ def poll_verdict(row, now):
 
 - [ ] **Step 4: Run** → PASS. **Step 5: Commit** — `git commit -m "device.py: device sign-in rules"`
 
-### Task B2: table, endpoints and callables
+### Task 5 (B2): table, endpoints and callables
 
 **Files:**
 - Modify: `anvil.yaml` (new table `device_codes`)
@@ -507,7 +507,7 @@ The new session token appears under "Signed-in browsers" with its label, and "Si
 - [ ] **Step 4: Run** `python3 -m pytest -q` → all PASS.
 - [ ] **Step 5: Commit** — `git commit -m "Device sign-in: /device/start, /device/poll, approve_device — a terminal gets a session token"`
 
-### Task B3: the approve page
+### Task 6 (B3): the approve page
 
 **Files:**
 - Create: `client_code/DeviceApprove/__init__.py`, `client_code/DeviceApprove/form_template.html`
@@ -620,7 +620,7 @@ class DeviceApprove(DeviceApproveTemplate):
 - [ ] **Step 4: Run** `python3 -m pytest -q` → PASS.
 - [ ] **Step 5: Commit** — `git commit -m "DeviceApprove: #device, the code typed, Allow/Deny"`
 
-### Task B4: deploy and live smoke
+### Task 7 (B4): deploy and live smoke
 
 - [ ] **Step 1:** Follow the README's deploy: `git fetch && git rebase origin/master`, then `git push origin HEAD:master`. Open the app in the Anvil editor, pull from git, and apply the `device_codes` schema when Anvil asks. **Ask Hans before the push.** It changes the live server.
 - [ ] **Step 2: Smoke**
@@ -641,7 +641,7 @@ Expected as commented. Also check that Deny gives `400 denied` on the next poll.
 
 ## Part C — sign-in and names from the skill (drawcast repo; needs B deployed)
 
-### Task C1: `scripts/cast-account.mjs` — session file and device login
+### Task 8 (C1): `scripts/cast-account.mjs` — session file and device login
 
 **Files:**
 - Create: `scripts/cast-account.mjs`, `scripts/cast-account.d.mts`
@@ -767,7 +767,7 @@ In `cast.mjs` (import `homedir` from `node:os`, `hostname` from `node:os`):
 - [ ] **Step 4: Run** → PASS. Then run `node scripts/cast.mjs login` live, approve on `#device`, and check `ls -l ~/.config/drawcast/session.json` shows `-rw-------`.
 - [ ] **Step 5: Commit** — `git commit -m "cast.mjs login/logout: the device sign-in, a private session file"`
 
-### Task C2: `cast.mjs name <workdir> <name> [--buy --price <cents>]`
+### Task 9 (C2): `cast.mjs name <workdir> <name> [--buy --price <cents>]`
 
 **Files:**
 - Modify: `scripts/cast-account.mjs` (add `registrationFor`, `nameAdvice`)
@@ -891,7 +891,7 @@ The command in `cast.mjs`:
 - [ ] **Step 4: Run** `npx vitest run tests/cast-account.test.ts` → PASS.
 - [ ] **Step 5: Commit** — `git commit -m "cast.mjs name: check a name, or buy it — Stripe Checkout in the browser, the price confirmed"`
 
-### Task C3: `cast.mjs name-wait <workdir> [--timeout 540]`, and the course door on the next push
+### Task 10 (C3): `cast.mjs name-wait <workdir> [--timeout 540]`, and the course door on the next push
 
 **Files:**
 - Modify: `scripts/cast-account.mjs` (add `waitForName`)
@@ -981,7 +981,7 @@ In `push`, replace the `door:` argument of `buildPublishPlan`:
 - [ ] **Step 4: Run** `npm test` → PASS (the whole suite, since `push` changed).
 - [ ] **Step 5: Commit** — `git commit -m "cast.mjs name-wait: the name settles (or not), recorded; a course's next push carries it on its door"`
 
-### Task C4: SKILL.md — "A pretty link", and the end-to-end check
+### Task 11 (C4): SKILL.md — "A pretty link", and the end-to-end check
 
 **Files:** Modify `.claude/skills/drawcast/SKILL.md` (after "Publishing something new").
 
