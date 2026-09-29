@@ -58,7 +58,7 @@ import { basename, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { homedir, hostname } from "node:os";
 import { pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin, takenSlugs } from "./cast-github.mjs";
-import { apiUrl, checkName, clearSession, deviceLogin, nameAdvice, readSession, registrationFor, waitForName, writeSession } from "./cast-account.mjs";
+import { apiUrl, checkName, clearSession, nameBlocker, deviceLogin, nameAdvice, readSession, registrationFor, waitForName, writeSession } from "./cast-account.mjs";
 
 const [cmd, ...rest] = process.argv.slice(2);
 const ROOT = process.cwd();
@@ -649,7 +649,13 @@ const commands = {
     const wd = resolve(ROOT, work);
     if (!existsSync(resolve(wd, "origin.json"))) throw new Error(`${work} is not published (no origin.json) — publish-target and push it first`);
     const origin = JSON.parse(readFileSync(resolve(wd, "origin.json"), "utf8"));
-    if (origin.published === "new") throw new Error(`${work} is aimed at ${origin.owner}/${origin.repo} but not pushed yet — push it first`);
+    const prState = origin.published === "pr" && origin.pr?.url ? spawnSync("gh", ["pr", "view", origin.pr.url, "--json", "state", "--jq", ".state"], { encoding: "utf8" }).stdout.trim() : null;
+    const blocked = nameBlocker(origin, prState);
+    if (blocked) throw new Error(`${work}: ${blocked}`);
+    if (origin.published === "pr") {
+      delete origin.published; // merged: live now
+      writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
+    }
     const s = readSession(homedir());
     await withVite(async (load) => {
       const N = await load("/src/names.ts");
@@ -846,7 +852,8 @@ const commands = {
       url = sh("gh", ["pr", "create", "--repo", `${origin.owner}/${origin.repo}`, "--base", origin.branch, "--head", head, "--title", message ?? `${verb === "publish" ? "Publish" : "Revise"} ${origin.kind}: ${title}`, "--body", body ?? `A revision made with the drawcast skill (scripts/cast.mjs push).\n\nFiles:\n${changes.map(([k, p]) => `- ${k} \`${p}\``).join("\n")}`]);
     }
     origin.pr = { url, branch, remote };
-    delete origin.published;
+    // A first publish in a PR is live only once merged — name checks (nameBlocker).
+    if (origin.published === "new") origin.published = "pr";
     writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
     console.log(`${onPr ? "Updated" : "Opened"} ${url}`);
   },

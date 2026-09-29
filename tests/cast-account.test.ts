@@ -2,7 +2,7 @@ import { mkdtempSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { checkName, clearSession, deviceLogin, nameAdvice, readSession, registrationFor, waitForName, writeSession } from "../scripts/cast-account.mjs";
+import { checkName, clearSession, nameBlocker, deviceLogin, nameAdvice, readSession, registrationFor, waitForName, writeSession } from "../scripts/cast-account.mjs";
 import * as coursePub from "../src/course/publish";
 import * as castPub from "../src/publish/cast";
 import { parseCourse } from "../src/course/document";
@@ -127,5 +127,16 @@ describe("checkName (cast.mjs name without --buy)", () => {
     const n = { checkPaidName: async () => ({ state: "yours", price: 500 }), registerName: async () => { probed = true; return "ok"; } };
     expect(await checkName(n, "https://x", reg)).toBe("yours");
     expect(probed).toBe(false);
+  });
+});
+
+describe("nameBlocker (a name only for what is live)", () => {
+  it("aimed but never pushed", () => expect(nameBlocker({ published: "new" }, null)).toMatch(/push it first/));
+  it("first published as a PR not yet merged", () => {
+    expect(nameBlocker({ published: "pr", pr: { url: "u" } }, "OPEN")).toMatch(/merge/i);
+  });
+  it("the PR merged, or a direct push, or a pulled revision: go ahead", () => {
+    expect(nameBlocker({ published: "pr", pr: { url: "u" } }, "MERGED")).toBeNull();
+    expect(nameBlocker({}, null)).toBeNull();
   });
 });

@@ -35,3 +35,4 @@ export function checkName(
   api: string,
   reg: { key: string; name: string; kind: "cast" | "course"; target: string },
 ): Promise<string>;
+export function nameBlocker(origin: { published?: string; pr?: { url?: string } }, prState: string | null): string | null;

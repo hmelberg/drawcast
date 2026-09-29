@@ -126,3 +126,13 @@ export async function checkName(N, api, reg) {
   if (state !== "free" && state !== "taken") return state;
   return (await N.registerName(api, reg)) === "key" ? "key" : state;
 }
+
+/** Why a name may not be bought for this workdir yet — or null. A name must
+ *  point at files that are live on the default branch: not a workdir aimed
+ *  but never pushed, nor a first publish still waiting in a PR. `prState`
+ *  is gh's answer for origin.pr (OPEN / MERGED / CLOSED), when there is one. */
+export function nameBlocker(origin, prState) {
+  if (origin.published === "new") return "it is aimed at its repo but not pushed yet — push it first";
+  if (origin.published === "pr" && prState !== "MERGED") return `its first publish is a pull request not merged yet (${origin.pr?.url ?? "?"}) — merge it first`;
+  return null;
+}
