@@ -30,3 +30,8 @@ export function waitForName(args: {
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
 }): Promise<"ok" | "elsewhere" | "timeout">;
+export function checkName(
+  N: { checkPaidName: (...a: never[]) => Promise<{ state: string }>; registerName: (...a: never[]) => Promise<string> },
+  api: string,
+  reg: { key: string; name: string; kind: "cast" | "course"; target: string },
+): Promise<string>;

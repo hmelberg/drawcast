@@ -58,7 +58,7 @@ import { basename, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { homedir, hostname } from "node:os";
 import { pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin } from "./cast-github.mjs";
-import { apiUrl, clearSession, deviceLogin, nameAdvice, readSession, registrationFor, waitForName, writeSession } from "./cast-account.mjs";
+import { apiUrl, checkName, clearSession, deviceLogin, nameAdvice, readSession, registrationFor, waitForName, writeSession } from "./cast-account.mjs";
 
 const [cmd, ...rest] = process.argv.slice(2);
 const ROOT = process.cwd();
@@ -660,8 +660,7 @@ const commands = {
       const courseText = origin.kind === "course" ? readFileSync(resolve(wd, "course.md"), "utf8") : undefined;
       const reg = { key: s.key, ...registrationFor(origin, name, lib, courseText) };
       if (!args.includes("--buy")) {
-        const { state } = await N.checkPaidName(s.api, name, s.key, origin.kind);
-        return console.log(nameAdvice(state, name, price));
+        return console.log(nameAdvice(await checkName(N, s.api, reg), name, price));
       }
       // Already yours: POST /name repoints it, free. A free name answers "pay".
       const first = await N.registerName(s.api, reg);

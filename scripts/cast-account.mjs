@@ -113,3 +113,14 @@ export async function waitForName({ api, name, target, timeoutS = 540, fetchImpl
   }
   return "timeout";
 }
+
+/** The check's state, with a stale token caught: /name/check reads an
+ *  unknown key as no key (so a revoked session hears "taken" for its own
+ *  name). For "free" and "taken" POST /name is asked too — it answers 401
+ *  for a dead key and writes nothing for those two (402 and 409 come before
+ *  any claim). "yours" already proves the key is live. `N` is names.ts. */
+export async function checkName(N, api, reg) {
+  const { state } = await N.checkPaidName(api, reg.name, reg.key, reg.kind);
+  if (state !== "free" && state !== "taken") return state;
+  return (await N.registerName(api, reg)) === "key" ? "key" : state;
+}

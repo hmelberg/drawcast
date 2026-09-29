@@ -2,7 +2,7 @@ import { mkdtempSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { clearSession, deviceLogin, nameAdvice, readSession, registrationFor, waitForName, writeSession } from "../scripts/cast-account.mjs";
+import { checkName, clearSession, deviceLogin, nameAdvice, readSession, registrationFor, waitForName, writeSession } from "../scripts/cast-account.mjs";
 import * as coursePub from "../src/course/publish";
 import * as castPub from "../src/publish/cast";
 import { parseCourse } from "../src/course/document";
@@ -94,5 +94,27 @@ describe("waitForName (cast.mjs name-wait)", () => {
   it("a network error is a try again, not a crash", async () => {
     const answers: (() => Promise<Response>)[] = [async () => { throw new Error("offline"); }, async () => new Response(JSON.stringify({ kind: "course", target: "ann/casts/qalys" }))];
     expect(await waitForName({ ...args, fetchImpl: () => answers.shift()!() })).toBe("ok");
+  });
+});
+
+describe("checkName (cast.mjs name without --buy)", () => {
+  const reg = { key: "k", name: "qaly", kind: "cast" as const, target: "a/b/c.yaml" };
+  const names = (state: string, register: string) => ({
+    checkPaidName: async () => ({ state, price: 500 }),
+    registerName: async () => register,
+  });
+  it("a revoked token is 'log in', not 'taken' (the check reads an unknown key as no key)", async () => {
+    expect(await checkName(names("taken", "key"), "https://x", reg)).toBe("key");
+    expect(await checkName(names("free", "key"), "https://x", reg)).toBe("key");
+  });
+  it("a live token keeps the check's answer", async () => {
+    expect(await checkName(names("free", "pay"), "https://x", reg)).toBe("free");
+    expect(await checkName(names("taken", "taken"), "https://x", reg)).toBe("taken");
+  });
+  it("'yours' needs no probe — only a live key can be the owner", async () => {
+    let probed = false;
+    const n = { checkPaidName: async () => ({ state: "yours", price: 500 }), registerName: async () => { probed = true; return "ok"; } };
+    expect(await checkName(n, "https://x", reg)).toBe("yours");
+    expect(probed).toBe(false);
   });
 });
