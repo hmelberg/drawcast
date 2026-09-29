@@ -554,6 +554,16 @@ export interface SavedDrawing {
    * existed simply has none, and `docFromSaved` treats that the same as null.
    */
   sourcePath?: string | null;
+  /**
+   * The free title name the Anvil registry minted for this drawcast on its
+   * last GitHub publish (registry delivery 1) — drawcast.app/#<freeName>.
+   * Distinct from a bought pretty link (there is no field for that on this
+   * row; Share reads it back from the registry), and from `publishedAs`,
+   * the GitHub slug the name may or may not match. Absent until the first
+   * publish that got one back, and cleared by nothing — the registry itself
+   * is the source of truth for who currently owns it.
+   */
+  freeName?: string;
   ts: string;
 }
 

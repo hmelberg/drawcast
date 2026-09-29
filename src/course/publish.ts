@@ -304,6 +304,9 @@ export interface PublishArgs {
    * null or a throw is simply no thumbnail, never a failed publish.
    */
   poster?: (yaml: string) => Promise<Uint8Array | null>;
+  /** Files committed alongside the course's own — the registry's claim file
+   *  (registry delivery 1), when this publish is proving repo ownership. */
+  extraFiles?: PublishFile[];
 }
 
 export interface PublishResult {
@@ -372,7 +375,7 @@ export async function commitPublish(args: PublishArgs, prepared: PreparedPublish
   const { updated, defaultBranch, manifest } = prepared;
   const course = parseCourse(updated);
   const withNames = buildPublishPlan({ course, text: updated, repo, coursesDir, viewerBase, manifest, lectureYaml, door });
-  const files = [...withNames.files, ...(args.poster ? await lecturePosters(withNames, args.poster) : [])];
+  const files = [...withNames.files, ...(args.poster ? await lecturePosters(withNames, args.poster) : []), ...(args.extraFiles ?? [])];
 
   await commitFiles(
     repo,

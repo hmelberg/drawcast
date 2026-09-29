@@ -94,6 +94,7 @@ import { publishCast } from "./publish/cast";
 import { publishToServer, serverCastKey, type ServerAccess } from "./publish/server";
 import { isPayable, normalizeName, paidInHash, registerName, startNamePayment } from "./names";
 import { DEFAULT_ENROLL_API } from "./learn";
+import { claimFile, registerItem, registryNote, verifyClaim } from "./registry";
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
 import { embeddedPlaylist, withAuthoredTemplates, type EmbedDeps } from "./publish/embed";
@@ -287,6 +288,9 @@ interface Doc {
    * save goes back to the same file instead of minting a second one.
    */
   sourcePath: string | null;
+  /** The free title name the Anvil registry minted on the last GitHub
+   *  publish (registry delivery 1) — see SavedDrawing.freeName. */
+  freeName?: string;
   title: string;
   prompt?: string;
   playlist: Playlist;
@@ -426,12 +430,12 @@ function docFromSaved(saved: SavedDrawing): Doc {
       const playlist = parsePlaylistText(saved.playlist);
       // The file's own founding prompt wins (B9); `saved.prompt` is what a
       // library entry written before B9 has instead — its only copy.
-      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, serverCast: saved.serverCast, publishedComments: saved.publishedComments, publishedViews: saved.publishedViews, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, title: saved.title, prompt: playlist.meta.prompt ?? saved.prompt, playlist };
+      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, serverCast: saved.serverCast, publishedComments: saved.publishedComments, publishedViews: saved.publishedViews, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, freeName: saved.freeName, title: saved.title, prompt: playlist.meta.prompt ?? saved.prompt, playlist };
     } catch {
       /* fall through to the single spec */
     }
   }
-  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, serverCast: saved.serverCast, publishedComments: saved.publishedComments, publishedViews: saved.publishedViews, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
+  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, serverCast: saved.serverCast, publishedComments: saved.publishedComments, publishedViews: saved.publishedViews, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, freeName: saved.freeName, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
 }
 
 function initialDoc(): Doc {
@@ -2995,7 +2999,7 @@ function showVersion(index: number): void {
     specArea.value = v.text;
     // Same rule as setDoc: the version's own text is authoritative about the
     // founding request (B9) when it carries one; doc.prompt is the fallback.
-    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
+    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, freeName: doc.freeName, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
     void present();
     // A history restore filled the textarea, not a keystroke — it already
     // matches what present() just drew.
@@ -3135,6 +3139,7 @@ function autosave(): void {
     drivePublishedId: doc.drivePublishedId,
     drivePublishedName: doc.drivePublishedName,
     sourcePath: doc.sourcePath,
+    freeName: doc.freeName,
     ts: new Date().toISOString(),
   });
   refreshLibrary();
@@ -3704,7 +3709,7 @@ async function revise(): Promise<void> {
       // Same document, edited in place by AI (same as a manual re-render) — carry
       // driveFileId forward too, or a Save right after a Revise would litter
       // Drive with a second copy of the file the earlier Save already created.
-      { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
+      { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, freeName: doc.freeName, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
       withNotes(`Revised: ${instruction}` + costText(), notes),
       { label, kind: "revise" },
     );
@@ -3990,7 +3995,7 @@ function ensureRendered(andPlay = false): boolean {
   // replaces this entry instead of minting a second one (copy-on-write). The
   // prompt follows setDoc's rule: what the TEXT says wins (a hand-edited
   // header is an edit like any other), with doc.prompt as the fallback.
-  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
+  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, freeName: doc.freeName, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
   if (!restoring) stack = pushManualEdit(stack, specArea.value, new Date().toISOString());
   applyHistoryUi();
   void present(andPlay);
@@ -4944,12 +4949,27 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
   lastBakeNote = "";
   lastEmbedNote = "";
   const ac = new AbortController();
+  // `token` above is the GitHub one; this is the drawcast server's — see
+  // ui/course.ts's publish for the same split. A signed-out publish still
+  // claims nothing (claimFile answers null with no token) and registers
+  // read-only (registerItem with no `key`).
+  const accountToken = getToken();
+  const repoStr = `${repo.owner}/${repo.repo}`;
+  const castsDir = joinPath(settings.coursesDir, "casts");
+  // A registry failure must never fail a publish: every call below is
+  // bounded to 10 s (as the course publish's own "bounded" fetch), and its
+  // outcome only ever changes the status line's suffix.
+  const bounded: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) });
   try {
     setStatus("Publishing to GitHub…");
     const text = await publishTextFor(ac.signal, bake, embedImages, allowComments, countViews !== false);
     setStatus("Drawing the poster…");
     const poster = await publishedPoster(text);
     setStatus("Publishing to GitHub…");
+    // The claim file (registry delivery 1) rides in the SAME commit as the
+    // cast: Anvil proves ownership by reading it back from GitHub after the
+    // commit lands (verifyClaim below), never before.
+    const claim = await claimFile(DEFAULT_ENROLL_API, accountToken, repoStr, bounded);
     const out = await publishCast({
       title: doc.title,
       text,
@@ -4958,8 +4978,9 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
       previousSlug: doc.publishedAs,
       repo,
       token,
-      castsDir: joinPath(settings.coursesDir, "casts"),
+      castsDir,
       viewerBase: settings.viewerBase,
+      extraFiles: claim ? [claim] : [],
       fetchImpl: (input, init) => fetch(input, { ...init, signal: ac.signal }),
     });
     // Past this line the commit has LANDED. Recording the slug is what keeps
@@ -4967,18 +4988,33 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
     doc.publishedAs = out.slug;
     doc.publishedComments = allowComments === true && settings.giscusRepoId !== "" && settings.giscusCategoryId !== "";
     doc.publishedViews = countViews !== false;
-    // Bookkeeping first: saving the slug is what keeps the published link
-    // permanent, and it must not wait behind a network call to the registry.
+    // The registry, now that the commit — and the claim file inside it —
+    // are live: verify ownership, then register the cast. Both are wrapped
+    // and bounded above, so neither can turn a landed publish into a
+    // reported failure.
+    if (claim) await verifyClaim(DEFAULT_ENROLL_API, accountToken, repoStr, bounded);
+    const reg = await registerItem(
+      DEFAULT_ENROLL_API,
+      { key: accountToken || undefined, kind: "cast", target: `${repoStr}/${joinPath(castsDir, `${out.slug}.yaml`)}`, title: doc.title, page: out.castUrl },
+      bounded,
+    );
+    if (typeof reg === "object" && reg.name) doc.freeName = reg.name;
+    const regSuffix = registryNote(reg);
+    // Bookkeeping: saving the slug (and any free name the registry minted)
+    // is what keeps the published link permanent.
     try {
       autosave();
     } catch (err) {
       console.error("drawcast: publish succeeded, bookkeeping failed", err);
     }
-    // No name is registered here since the pretty-link round (2026-09-18):
-    // the direct #gh= link is the free, permanent address, and a name — the
-    // pretty link — is bought under Share → Pretty link. The automatic free
-    // registration lived here until commit 181305a.
-    setStatus(`Published to ${out.castUrl}${lastEmbedNote}${lastBakeNote}`, "ok");
+    // No PAID name is registered here since the pretty-link round
+    // (2026-09-18): the direct #gh= link is the free, permanent address,
+    // and a custom pretty link is bought under Share → Pretty link (the
+    // automatic free registration that lived here until commit 181305a was
+    // that paid system's old freebie). The FREE title name above is a
+    // different thing entirely — every publish gets one from the registry,
+    // named or not, signed in or not (registry delivery 1).
+    setStatus(`Published to ${out.castUrl}${lastEmbedNote}${lastBakeNote}${regSuffix}`, "ok");
   } catch (err) {
     console.error("drawcast: publish failed", err);
     const e = err as Error;
