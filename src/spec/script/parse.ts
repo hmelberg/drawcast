@@ -2,6 +2,7 @@
 // spoken line plus what is indented under it; one direction is one command,
 // except that consecutive element declarations collapse into the single
 // `draw` they describe; the spoken line rides on the beat's first command.
+import { parsePlace } from "../places";
 import { scanLines, type ScriptLine } from "./lines";
 import { parseValue, setPath, splitTokens } from "./values";
 import { specSchema } from "../schema";
@@ -87,7 +88,8 @@ function argKeys(head: string): Set<string> {
   return keys;
 }
 
-const isBareId = (t: string): boolean => /^[A-Za-z_][\w-]*$/.test(t);
+// An id, or a picture place on one (spec 2026-09-30-picture-regions §4): md:name, md@top, md@[x, y(, w, h)].
+const isBareId = (t: string): boolean => /^[A-Za-z_][\w-]*$/.test(t) || parsePlace(t) !== null;
 
 /** Pairs whose key is a modifier the verb does not itself declare. */
 function splitPairs(head: string, tokens: string[], line: number): { args: string[]; extra: string[] } {
