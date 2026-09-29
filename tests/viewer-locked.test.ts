@@ -114,6 +114,24 @@ describe("lockedDoor", () => {
     expect(r.button).toBeUndefined();
   });
 
+  test("offline: a plain message and a Try again button that reloads — NEVER deniedDoor's sign-in button, which would drop a perfectly good session", () => {
+    const reload = vi.fn();
+    vi.stubGlobal("location", { reload });
+    try {
+      const d = deps("tok");
+      const r = render({ denied: "offline", item: ITEM }, d);
+      expect(r.h1.textContent).toBe("This lecture is locked");
+      expect(r.note.textContent).toBe("Can't reach the drawcast server — check your connection and try again.");
+      expect(r.button!.textContent).toBe("Try again");
+      r.button!.click();
+      expect(reload).toHaveBeenCalledTimes(1);
+      expect(d.forget).not.toHaveBeenCalled();
+      expect(d.signIn).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   test("403 none: the course's join door, built from the ENVELOPE'S item, not the cast key", async () => {
     const d = deps("tok");
     const r = render({ denied: 403, standing: "none", title: "Learn russian", page: "https://x.example/course", item: ITEM }, d);
@@ -179,8 +197,12 @@ describe("runViewer's locked-lecture wiring (source guard)", () => {
   });
 
   test("the key fetch is always sent to DEFAULT_ENROLL_API — never the envelope's own enroll field", () => {
-    expect(run).toMatch(/unlockForViewer\(text, \{ api: DEFAULT_ENROLL_API, token: getToken, storage: liveItemKeyStorage\(\) \}\)/);
+    expect(run).toMatch(/unlockForViewer\(text, \{ api: DEFAULT_ENROLL_API, token: getToken \}\)/);
     expect(run).not.toMatch(/envelope\.enroll|\.enroll\b/);
+  });
+
+  test("no localStorage of its own — the item-key store is item-key.ts's own default, not something runViewer reaches for", () => {
+    expect(viewer).not.toMatch(/localStorage/);
   });
 
   test("a door result replaces the whole page, like deniedDoor's, and stops there", () => {

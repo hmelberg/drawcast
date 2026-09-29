@@ -43,7 +43,7 @@ import { installCodeConsent } from "./ui/code-consent";
 import { scenes } from "./scenes/registry";
 import { pickerKey } from "./google/auth";
 import { isLocked } from "./crypto/lecture-lock";
-import { unlockForViewer, type KeyDenial, type KeyStorage } from "./item-key";
+import { unlockForViewer, type KeyDenial } from "./item-key";
 
 export interface GhRef {
   owner: string;
@@ -561,18 +561,6 @@ export function deniedDoor(cast: string, status: 401 | 403, deps: DoorDeps = liv
   });
 }
 
-/** localStorage, guarded like account.ts's own storage() — private mode can
- *  throw on ACCESS, not only on use. Only called on the main origin: a
- *  locked lecture never reaches unlockForViewer on the view origin, since
- *  lockedRoute hands it over first (runViewer, below). */
-function liveItemKeyStorage(): KeyStorage | null {
-  try {
-    return localStorage;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * A locked lecture's door (private lectures, registry delivery 2): 401 is
  * the very same sign-in door a refused server cast gets — deniedDoor reused
@@ -582,11 +570,26 @@ function liveItemKeyStorage(): KeyStorage | null {
  * deniedDoor's 403 above) — joining posts that item as `course`, since a
  * private lecture is its own enrolment unit (task 4). Pending and rejected
  * are not a button to click again, and neither is a 404 (the item stopped
- * being private, or moved, since this lecture was published) — just what
- * happened, in the door's own words.
+ * being private, or moved, since this lecture was published) or an
+ * "offline" denial (Anvil was never reached, and nothing was kept) — those
+ * two get a plain message and, for offline, a reload button, but NEVER
+ * deniedDoor's sign-in button: that button drops the current session
+ * (fix round 1) — exactly wrong when the problem is the network, not the
+ * account.
  */
 export function lockedDoor(door: KeyDenial & { item: string }, deps: DoorDeps = liveDoorDeps, onJoined: () => void = () => location.reload()): HTMLElement {
   if (door.denied === 401) return deniedDoor(door.item, 401, deps, onJoined);
+  if (door.denied === "offline") {
+    const button = h("button", { class: "primary" }, "Try again");
+    button.addEventListener("click", () => location.reload());
+    return h(
+      "div",
+      { class: "viewer-wrap" },
+      h("h1", { class: "viewer-title" }, "This lecture is locked"),
+      h("p", { class: "viewer-status error" }, "Can't reach the drawcast server — check your connection and try again."),
+      h("p", {}, button),
+    );
+  }
   if (door.denied === 404) {
     return h(
       "div",
@@ -724,8 +727,10 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
         return;
       }
       // Anvil, never the envelope's own `enroll` field — that field is not
-      // authenticated (item-key.ts's security note).
-      const unlocked = await unlockForViewer(text, { api: DEFAULT_ENROLL_API, token: getToken, storage: liveItemKeyStorage() });
+      // authenticated (item-key.ts's security note). Storage is left to
+      // unlockForViewer's own default (item-key.ts's liveKeyStorage) — this
+      // module keeps no localStorage reference of its own.
+      const unlocked = await unlockForViewer(text, { api: DEFAULT_ENROLL_API, token: getToken });
       if ("door" in unlocked) {
         app.replaceChildren(lockedDoor(unlocked.door));
         return;

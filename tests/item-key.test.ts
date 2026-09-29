@@ -81,11 +81,11 @@ describe("fetchItemKey", () => {
     expect(storage.getItem(itemKeyStorageKey(ITEM))).toBe("kept-key"); // still there — a network failure never deletes it
   });
 
-  it("a network error with nothing kept is a 401 denial", async () => {
+  it("a network error with nothing kept is a distinct 'offline' denial — never the 401 that would sign a valid session out", async () => {
     const f = vi.fn(async () => {
       throw new Error("offline");
     });
-    expect(await fetchItemKey(API, "tok", ITEM, f as unknown as typeof fetch, mapStorage())).toEqual({ denied: 401 });
+    expect(await fetchItemKey(API, "tok", ITEM, f as unknown as typeof fetch, mapStorage())).toEqual({ denied: "offline" });
   });
 
   it("a malformed 200 body (no key field) is treated like the request never landed", async () => {
@@ -99,7 +99,43 @@ describe("fetchItemKey", () => {
     const storage = mapStorage({ [itemKeyStorageKey(ITEM)]: "kept-key" });
     expect(await fetchItemKey(API, "tok", ITEM, impl, storage)).toEqual({ key: "kept-key" });
     expect(storage.getItem(itemKeyStorageKey(ITEM))).toBe("kept-key");
-    expect(await fetchItemKey(API, "tok", ITEM, impl, mapStorage())).toEqual({ denied: 401 });
+    expect(await fetchItemKey(API, "tok", ITEM, impl, mapStorage())).toEqual({ denied: "offline" });
+  });
+
+  describe("a throwing storage never reaches a caller (quota errors, Safari private mode)", () => {
+    function throwingStorage(): KeyStorage {
+      return {
+        getItem: () => {
+          throw new Error("quota");
+        },
+        setItem: () => {
+          throw new Error("quota");
+        },
+        removeItem: () => {
+          throw new Error("quota");
+        },
+      };
+    }
+
+    it("a 200 whose setItem throws still returns the key", async () => {
+      const { impl } = fetchStub(() => json(200, { key: "kkk", item: ITEM }));
+      await expect(fetchItemKey(API, "tok", ITEM, impl, throwingStorage())).resolves.toEqual({ key: "kkk" });
+    });
+
+    it("a 401/403/404 whose removeItem throws still denies cleanly", async () => {
+      await expect(fetchItemKey(API, "tok", ITEM, fetchStub(() => json(401, {})).impl, throwingStorage())).resolves.toEqual({ denied: 401 });
+      await expect(fetchItemKey(API, "tok", ITEM, fetchStub(() => json(404, {})).impl, throwingStorage())).resolves.toEqual({ denied: 404 });
+      await expect(
+        fetchItemKey(API, "tok", ITEM, fetchStub(() => json(403, { standing: "none", title: "x" })).impl, throwingStorage()),
+      ).resolves.toEqual({ denied: 403, standing: "none", title: "x", page: null });
+    });
+
+    it("a network error whose getItem throws falls back to offline, not a crash", async () => {
+      const f = vi.fn(async () => {
+        throw new Error("offline");
+      });
+      await expect(fetchItemKey(API, "tok", ITEM, f as unknown as typeof fetch, throwingStorage())).resolves.toEqual({ denied: "offline" });
+    });
   });
 
   it("is bounded like every other registry call", () => {
@@ -134,6 +170,15 @@ describe("unlockForViewer", () => {
     expect(out).toEqual({ door: { ...denial, item: ITEM } });
   });
 
+  it("no clean answer and nothing kept becomes an 'offline' door — never the sign-in door", async () => {
+    const env = await lockText("secret\n", KEY, ITEM);
+    const f = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    const out = await unlockForViewer(env, { token: () => "tok", fetchImpl: f as unknown as typeof fetch, storage: mapStorage() });
+    expect(out).toEqual({ door: { denied: "offline", item: ITEM } });
+  });
+
   it("a wrong (stale) kept key is dropped and asked for again, once — the retry succeeds", async () => {
     const env = await lockText("secret\n", KEY, ITEM);
     let call = 0;
@@ -147,12 +192,40 @@ describe("unlockForViewer", () => {
     expect(impl).toHaveBeenCalledTimes(2);
   });
 
-  it("wrong twice ends in the sign-in door, not a loop", async () => {
+  it("wrong twice is the 404-style 'locked' door, not the sign-in door — a session that is otherwise fine must not be dropped over a key mismatch", async () => {
     const env = await lockText("secret\n", KEY, ITEM);
     const { impl } = fetchStub(() => json(200, { key: OTHER, item: ITEM }));
-    const out = await unlockForViewer(env, { token: () => "tok", fetchImpl: impl, storage: mapStorage() });
-    expect(out).toEqual({ door: { denied: 401, item: ITEM } });
+    const storage = mapStorage();
+    const out = await unlockForViewer(env, { token: () => "tok", fetchImpl: impl, storage });
+    expect(out).toEqual({ door: { denied: 404, item: ITEM } });
     expect(impl).toHaveBeenCalledTimes(2);
+    // The (wrong) key fetchItemKey stored along the way is cleaned up too.
+    expect(storage.getItem(itemKeyStorageKey(ITEM))).toBeNull();
+  });
+
+  it("the wrong-key retry's own storage drop never throws, even with a throwing storage", async () => {
+    const env = await lockText("secret\n", KEY, ITEM);
+    const { impl } = fetchStub(() => json(200, { key: OTHER, item: ITEM }));
+    const throwing: KeyStorage = {
+      getItem: () => {
+        throw new Error("quota");
+      },
+      setItem: () => {
+        throw new Error("quota");
+      },
+      removeItem: () => {
+        throw new Error("quota");
+      },
+    };
+    await expect(unlockForViewer(env, { token: () => "tok", fetchImpl: impl, storage: throwing })).resolves.toEqual({ door: { denied: 404, item: ITEM } });
+  });
+
+  it("omitting storage entirely falls back to the live store (unavailable in this test environment) without throwing", async () => {
+    const env = await lockText("secret\n", KEY, ITEM);
+    const f = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    await expect(unlockForViewer(env, { token: () => "tok", fetchImpl: f as unknown as typeof fetch })).resolves.toEqual({ door: { denied: "offline", item: ITEM } });
   });
 
   it("security: the fetch always goes to deps.api, never the envelope's own (unauthenticated) enroll field", async () => {

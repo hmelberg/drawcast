@@ -2,18 +2,26 @@
 // this app learns a private item's AES key. The viewer uses it as a learner
 // (this file); the author's own publish/pull reuses it with the owner's
 // token (a later task). Nothing here may throw into a page load — every
-// failure is a denial or a stored fallback, never an exception.
+// failure is a denial or a stored fallback, never an exception, and every
+// storage call is wrapped too (quota errors, Safari private mode can throw
+// on a get/set/remove, not only on obtaining the object).
 //
 // The kept key (localStorage["drawcast.itemkey:<item>"], main origin only —
 // the view origin never reaches this: a locked lecture is bounced to the
 // main origin before unlockForViewer runs, security/view-origin.ts's
 // lockedRoute) is a courtesy for reading offline, not a cache trusted over
 // the network: Anvil is asked FIRST whenever a request can be made at all,
-// and the kept key is read only when that request never got an answer
-// (offline, a timeout, a malformed 200) — never when Anvil answers with a
-// refusal. A refusal (401/403/404) deletes the kept key: the point of asking
-// every time is that standing changes — revoked, rotated, rejected — and
-// yesterday's key must stop working today.
+// and the kept key is read only when that request never got a clean answer
+// — the fetch itself failing, a 5xx/429, or a 200 whose body is not the
+// shape the contract promises (fix round 1, controller-accepted extension)
+// — never when Anvil answers with a refusal. A refusal (401/403/404)
+// deletes the kept key: the point of asking every time is that standing
+// changes — revoked, rotated, rejected — and yesterday's key must stop
+// working today. With no clean answer AND nothing kept, that is `{denied:
+// "offline"}` — deliberately not `{denied: 401}`: 401 renders the sign-in
+// door, whose button drops the current session (deps.forget()) — exactly
+// wrong for "the network is down", which has nothing to do with whether
+// this browser's session is any good.
 
 import { isLocked, envelopeOf, unlockText, ENROLL_API } from "./crypto/lecture-lock";
 import { apiBase } from "./learn";
@@ -28,18 +36,67 @@ export function itemKeyStorageKey(item: string): string {
   return ITEM_KEY_PREFIX + item;
 }
 
+/** localStorage on the main origin, guarded like account.ts's own storage()
+ *  helper — private-mode Safari can throw on mere ACCESS to the global, not
+ *  only on use. Exported and used as unlockForViewer's default so runViewer
+ *  needs no localStorage reference of its own (tests/learn-viewer.test.ts
+ *  bans any in viewer.ts — a pre-existing guard against an older, removed
+ *  identity mechanism, kept exactly as it was). */
+export function liveKeyStorage(): KeyStorage | null {
+  try {
+    return localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** Wraps a storage so a throw from get/set/remove — a quota error, a
+ *  security-restricted context, anything — never reaches a caller. A kept
+ *  key is a courtesy; losing the ability to keep one is not a page-load
+ *  failure. Safe to apply more than once. */
+function guarded(s: KeyStorage | null): KeyStorage | null {
+  if (!s) return null;
+  return {
+    getItem: (k: string) => {
+      try {
+        return s.getItem(k);
+      } catch {
+        return null;
+      }
+    },
+    setItem: (k: string, v: string) => {
+      try {
+        s.setItem(k, v);
+      } catch {
+        /* the key just isn't kept this time */
+      }
+    },
+    removeItem: (k: string) => {
+      try {
+        s.removeItem(k);
+      } catch {
+        /* nothing to do if it won't go */
+      }
+    },
+  };
+}
+
 /**
- * Anvil's answer to `/key` (server_code/api.py, task 4), mapped one to one:
- * a session nobody knows (401); a standing that is not "ok" (403, with the
- * course's own free name/title and page, so a door can be built straight
- * from the denial — the same shape courseDoor already takes); or an item
- * that is not private at all (404) — moved, or the course took its privacy
- * back off since this lecture was published.
+ * Anvil's answer to `/key` (server_code/api.py, task 4), mapped one to one,
+ * plus one denial of this client's own: a session nobody knows (401); a
+ * standing that is not "ok" (403, with the course's own free name/title and
+ * page, so a door can be built straight from the denial — the same shape
+ * courseDoor already takes); an item that is not private at all (404) —
+ * moved, or the course took its privacy back off since this lecture was
+ * published; or Anvil never gave a clean answer at all and nothing was kept
+ * to fall back on ("offline" — see the module doc above for why this is not
+ * folded into 401).
  */
 export type KeyDenial =
   | { denied: 401 }
   | { denied: 403; standing: "none" | "pending" | "rejected"; title: string; page: string | null }
-  | { denied: 404 };
+  | { denied: 404 }
+  | { denied: "offline" };
 
 export type FetchKeyResult = { key: string } | KeyDenial;
 
@@ -54,23 +111,24 @@ export type FetchKeyResult = { key: string } | KeyDenial;
  *
  * A 200 keeps the key for next time. A refusal (401/403/404) drops whatever
  * was kept — see the module doc above. Anything else that is not a clean
- * answer — the fetch itself failing (offline, a timeout), a 5xx, or a 200
- * whose body is not the `{key}` shape the contract promises — falls back to
- * the kept key if there is one, so a learner who has already opened this
- * lecture once can still open it on a flaky connection; with nothing kept,
- * that is a 401 denial, the same door a signed-out visitor gets.
+ * answer — the fetch itself failing (offline, a timeout), a 5xx/429, or a
+ * 200 whose body is not the `{key}` shape the contract promises — falls
+ * back to the kept key if there is one, so a learner who has already opened
+ * this lecture once can still open it on a flaky connection; with nothing
+ * kept, that is `{denied: "offline"}`, never `{denied: 401}` (module doc).
  */
 export async function fetchItemKey(
   api: string,
   token: string,
   item: string,
   fetchImpl: typeof fetch = fetch,
-  storage: KeyStorage | null = null,
+  storageIn: KeyStorage | null = null,
 ): Promise<FetchKeyResult> {
+  const storage = guarded(storageIn);
   const storageKey = itemKeyStorageKey(item);
   const kept = (): FetchKeyResult => {
     const k = storage?.getItem(storageKey);
-    return k ? { key: k } : { denied: 401 };
+    return k ? { key: k } : { denied: "offline" };
   };
   let res: Response;
   try {
@@ -121,8 +179,11 @@ export interface UnlockDeps {
    *  attempt and the wrong-key retry below is seen. */
   token: () => string;
   fetchImpl?: typeof fetch;
-  /** null on the view origin, or anywhere storage itself is unavailable. */
-  storage: KeyStorage | null;
+  /** Omit to use the live localStorage-backed store (liveKeyStorage,
+   *  guarded); pass null explicitly to run with no storage at all (tests
+   *  exercising the network-only paths), or inject a Map-backed shim.
+   *  Guarded again here regardless — see `guarded` above. */
+  storage?: KeyStorage | null;
 }
 
 export type UnlockOutcome = { text: string } | { door: KeyDenial & { item: string } };
@@ -136,8 +197,12 @@ export type UnlockOutcome = { text: string } | { door: KeyDenial & { item: strin
  * take-over rotates the key" — is dropped and asked for again ONCE, so a
  * genuine rotation (or a transient network blip that served the wrong
  * fallback) heals itself on the very next request instead of a permanent
- * wrong-key door; failing twice ends in the same door a signed-out visitor
- * would get.
+ * wrong-key door. Wrong twice is no longer a local-cache problem: the kept
+ * key (fetchItemKey stores every 200 key it gets, even one that turns out
+ * not to decrypt) is dropped again, and the result is the same door a 404
+ * gets — "this lecture is locked, and its key is no longer available" —
+ * never the sign-in door, which would only tempt a perfectly good session
+ * to sign out over a key mismatch it cannot fix by doing so.
  */
 export async function unlockForViewer(text: string, deps: UnlockDeps): Promise<UnlockOutcome> {
   if (!isLocked(text)) return { text };
@@ -149,9 +214,10 @@ export async function unlockForViewer(text: string, deps: UnlockDeps): Promise<U
   const { item } = envelope;
   const api = deps.api ?? ENROLL_API;
   const fetchImpl = deps.fetchImpl ?? fetch;
+  const storage = guarded(deps.storage === undefined ? liveKeyStorage() : deps.storage);
 
   const attempt = async (): Promise<UnlockOutcome | "wrong-key"> => {
-    const result = await fetchItemKey(api, deps.token(), item, fetchImpl, deps.storage);
+    const result = await fetchItemKey(api, deps.token(), item, fetchImpl, storage);
     if ("denied" in result) return { door: { ...result, item } };
     try {
       return { text: await unlockText(text, result.key) };
@@ -162,7 +228,9 @@ export async function unlockForViewer(text: string, deps: UnlockDeps): Promise<U
 
   const first = await attempt();
   if (first !== "wrong-key") return first;
-  deps.storage?.removeItem(itemKeyStorageKey(item));
+  storage?.removeItem(itemKeyStorageKey(item));
   const second = await attempt();
-  return second === "wrong-key" ? { door: { denied: 401, item } } : second;
+  if (second !== "wrong-key") return second;
+  storage?.removeItem(itemKeyStorageKey(item));
+  return { door: { denied: 404, item } };
 }
