@@ -45,6 +45,8 @@
 //   node scripts/cast.mjs name <workdir> <name>                         free (and its price) / yours / taken
 //   node scripts/cast.mjs name <workdir> <name> --buy --price <cents>   yours: repoint it, free; free: Stripe Checkout
 //                                             opens in the browser (--price must equal the name's price)
+//   node scripts/cast.mjs name-wait <workdir> [--timeout 540]         until the name resolves here; records it (a course:
+//                                             `name:` in course.md, and the next push puts it on the page's door)
 //
 // A cast file is a spec, a {request, spec}, or playlist YAML — anything the
 // app opens. Files live under dev-casts/ (gitignored). The dev server:
@@ -56,7 +58,7 @@ import { basename, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { homedir, hostname } from "node:os";
 import { pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin } from "./cast-github.mjs";
-import { apiUrl, clearSession, deviceLogin, nameAdvice, readSession, registrationFor, writeSession } from "./cast-account.mjs";
+import { apiUrl, clearSession, deviceLogin, nameAdvice, readSession, registrationFor, waitForName, writeSession } from "./cast-account.mjs";
 
 const [cmd, ...rest] = process.argv.slice(2);
 const ROOT = process.cwd();
@@ -675,6 +677,27 @@ const commands = {
     });
   },
 
+  async "name-wait"(args) {
+    const [work] = args.filter((a, i) => !a.startsWith("-") && args[i - 1] !== "--timeout");
+    if (!work) throw new Error("usage: cast.mjs name-wait <workdir> [--timeout <seconds>]");
+    const timeoutS = Number(args.includes("--timeout") ? args[args.indexOf("--timeout") + 1] : 540);
+    const wd = resolve(ROOT, work);
+    const origin = JSON.parse(readFileSync(resolve(wd, "origin.json"), "utf8"));
+    const p = origin.pendingName;
+    if (!p) throw new Error(`${work} has no name being bought — run cast.mjs name … --buy first`);
+    const outcome = await waitForName({ api: readSession(homedir())?.api ?? apiUrl(), name: p.name, target: p.target, timeoutS });
+    if (outcome === "timeout") return console.log(`drawcast.app/#${p.name} is not paid (yet). If the payment went through, run name-wait again; a cancelled checkout charges nothing.`);
+    if (outcome === "elsewhere") return console.log(`drawcast.app/#${p.name} went to someone else between checkout and payment — the payment is refunded by hand (write to the drawcast server's owner). Pick another name.`);
+    origin.registered = p.name;
+    delete origin.pendingName;
+    writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
+    if (origin.kind !== "course") return console.log(`https://drawcast.app/#${p.name} is yours and plays the drawcast.`);
+    const { setCourseOption } = await withVite((load) => load("/src/course/document.ts"));
+    const f = resolve(wd, "course.md");
+    writeFileSync(f, setCourseOption(readFileSync(f, "utf8"), "name", p.name));
+    console.log(`https://drawcast.app/#${p.name} is yours and plays the course. Push once more (cast.mjs push ${work} --direct) so the course page carries the name.`);
+  },
+
   async push(args) {
     const direct = args.includes("--direct"), dry = args.includes("--dry-run"), fresh = args.includes("--new-pr"), local = args.includes("--no-push");
     const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
@@ -747,7 +770,10 @@ const commands = {
           }
           return formatPublished(p, p.audio ?? null);
         },
-        door: pageDoor(readAtCommit(clone, upstream, joinRepo(origin.path, "index.html")), doorlessNote),
+        // A name bought here (name-wait) is the door's; otherwise the page keeps the door it had.
+        door: origin.registered
+          ? { name: origin.registered, app: "https://drawcast.app/" }
+          : pageDoor(readAtCommit(clone, upstream, joinRepo(origin.path, "index.html")), doorlessNote),
       });
       return { files: plan.files, deletions: plan.deletions };
     });

@@ -98,3 +98,18 @@ export function nameAdvice(state, name, price) {
       return "the drawcast server did not answer — try again in a minute";
   }
 }
+
+/** Poll the public resolver (GET /name?n=) until `name` points at `target`.
+ *  The Stripe redirect and the webhook both settle a paid name, so this sees
+ *  either; it never claims success for a name that resolves elsewhere. */
+export async function waitForName({ api, name, target, timeoutS = 540, fetchImpl = fetch, sleep = wait }) {
+  for (let t = 0; t <= timeoutS; t += 5) {
+    const r = await fetchImpl(`${api}/_/api/name?n=${encodeURIComponent(name)}`).catch(() => null);
+    if (r?.ok) {
+      const body = await r.json().catch(() => ({}));
+      return body.target === target ? "ok" : "elsewhere";
+    }
+    await sleep(5000);
+  }
+  return "timeout";
+}

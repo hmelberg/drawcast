@@ -22,3 +22,11 @@ export function registrationFor(
   courseText?: string,
 ): { name: string; kind: "cast" | "course"; target: string; page?: string; title?: string; lectures?: string[] };
 export function nameAdvice(state: string, name: string, price: number): string;
+export function waitForName(args: {
+  api: string;
+  name: string;
+  target: string;
+  timeoutS?: number;
+  fetchImpl?: typeof fetch;
+  sleep?: (ms: number) => Promise<void>;
+}): Promise<"ok" | "elsewhere" | "timeout">;

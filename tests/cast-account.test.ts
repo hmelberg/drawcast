@@ -2,7 +2,7 @@ import { mkdtempSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { clearSession, deviceLogin, nameAdvice, readSession, registrationFor, writeSession } from "../scripts/cast-account.mjs";
+import { clearSession, deviceLogin, nameAdvice, readSession, registrationFor, waitForName, writeSession } from "../scripts/cast-account.mjs";
 import * as coursePub from "../src/course/publish";
 import * as castPub from "../src/publish/cast";
 import { parseCourse } from "../src/course/document";
@@ -76,5 +76,23 @@ describe("nameAdvice", () => {
     expect(nameAdvice("taken", "qaly", 2000)).toMatch(/someone else/);
     expect(nameAdvice("short", "qa", 2000)).toMatch(/3 characters/);
     expect(nameAdvice("invalid", "gh-x", 2000)).toMatch(/not a valid name/);
+  });
+});
+
+describe("waitForName (cast.mjs name-wait)", () => {
+  const args = { api: "https://x", name: "qaly", target: "ann/casts/qalys", timeoutS: 30, sleep: async () => {} };
+  it("ok once the name resolves to our target", async () => {
+    const answers = [new Response("{}", { status: 404 }), new Response(JSON.stringify({ kind: "course", target: "ann/casts/qalys" }))];
+    expect(await waitForName({ ...args, fetchImpl: async () => answers.shift()! })).toBe("ok");
+  });
+  it("elsewhere when it resolves to someone else's target (taken between checkout and payment)", async () => {
+    expect(await waitForName({ ...args, fetchImpl: async () => new Response(JSON.stringify({ kind: "cast", target: "bob/x/y.yaml" })) })).toBe("elsewhere");
+  });
+  it("timeout when nothing settles (a cancelled or unfinished payment)", async () => {
+    expect(await waitForName({ ...args, fetchImpl: async () => new Response("{}", { status: 404 }) })).toBe("timeout");
+  });
+  it("a network error is a try again, not a crash", async () => {
+    const answers: (() => Promise<Response>)[] = [async () => { throw new Error("offline"); }, async () => new Response(JSON.stringify({ kind: "course", target: "ann/casts/qalys" }))];
+    expect(await waitForName({ ...args, fetchImpl: () => answers.shift()!() })).toBe("ok");
   });
 });
