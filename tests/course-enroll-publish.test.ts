@@ -29,7 +29,8 @@ describe("publishing a course with enroll", () => {
   });
   test("with a registered name the page is a door: one link to that name in the app, no script, and nothing for one to read", () => {
     const html = pageOf(plan(text, DOOR), "learn-russian");
-    expect(html).toContain('href="https://drawcast.app/#learn-russian"');
+    // &join (Task 8): coursePage's escapeHtml turns the `&` into `&amp;`.
+    expect(html).toContain('href="https://drawcast.app/#learn-russian&amp;join"');
     expect(html).toMatch(/Join this course/i);
     expect(html).not.toContain("<script");
     expect(html).not.toContain("data-enroll");
@@ -39,7 +40,7 @@ describe("publishing a course with enroll", () => {
   test("the door is the name the caller registered, whatever the document says — the page never guesses", () => {
     const named = "# Learn Russian\nslug: learn-russian\nname: russian-for-all\nenroll: https://drawcast.anvil.app/\n\n## Cases\nq\n";
     // The registration named it russian-for-all and came back ok:
-    expect(pageOf(plan(named, { name: "russian-for-all", app: "https://drawcast.app/" }), "learn-russian")).toContain('href="https://drawcast.app/#russian-for-all"');
+    expect(pageOf(plan(named, { name: "russian-for-all", app: "https://drawcast.app/" }), "learn-russian")).toContain('href="https://drawcast.app/#russian-for-all&amp;join"');
     // …but had the caller registered nothing, neither name: nor the slug becomes a link.
     const html = pageOf(plan(named), "learn-russian");
     expect(html).not.toContain("#russian-for-all");

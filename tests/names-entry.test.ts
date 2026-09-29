@@ -44,11 +44,21 @@ describe("runNamed", () => {
     expect(viewer).toMatch(/src: name\.includes\("\/"\) \? "lecture" : "name"/);
     expect(viewer).toMatch(/ref: typeof document !== "undefined" \? document\.referrer : ""/);
     expect(viewer).toMatch(/kind === "course"/);
-    // A course name is the door the published page links to (identity
-    // round): bouncing to that page would send a learner who just clicked
-    // Join straight back to where they came from.
-    expect(viewer).not.toMatch(/location\.replace\(resolved\.page\)/);
+    // A course name with a page opens that page (Task 8) — UNLESS the hash
+    // already carries `&join` (the page's own Join link, or a copied one),
+    // which reaches the door directly rather than bouncing back to the page
+    // a learner who just clicked Join came from.
+    expect(viewer).toMatch(/resolved\.kind === "course" && resolved\.page && !JOIN_RE\.test\(hash\)/);
+    expect(viewer).toMatch(/location\.replace\(resolved\.page\)/);
     expect(viewer).toMatch(/status\.replaceWith\(courseDoor\(name, resolved\)\)/);
+    // The page redirect is checked strictly AFTER namedRoute's own bounce to
+    // the main origin, and the door is the fallback once neither applies.
+    const namedRouteAt = viewer.indexOf("namedRoute(resolved, hash)");
+    const pageRedirectAt = viewer.indexOf('resolved.kind === "course" && resolved.page');
+    const doorAt = viewer.indexOf("status.replaceWith(courseDoor(name, resolved))");
+    expect(namedRouteAt).toBeGreaterThan(0);
+    expect(pageRedirectAt).toBeGreaterThan(namedRouteAt);
+    expect(doorAt).toBeGreaterThan(pageRedirectAt);
     // anvilHashFor, not ghHashFor: a registered name may point at the
     // drawcast server as readily as at GitHub, and names.ts decides which.
     expect(viewer).toMatch(/parseViewerHash\(anvilHashFor\(hash, resolved\.target\)\)/);
@@ -62,6 +72,17 @@ describe("runNamed", () => {
     expect(parseCall).toBeGreaterThan(0);
     expect(statusRemove).toBeGreaterThan(parseCall);
     expect(viewer).toMatch(/points at something this viewer cannot play/);
+  });
+
+  test("the join test reuses view-origin's own JOIN_RE rather than a second literal", () => {
+    const rawViewer = readFileSync(new URL("../src/viewer.ts", import.meta.url), "utf8");
+    expect(rawViewer).toMatch(/import \{[^}]*\bJOIN_RE\b[^}]*\} from "\.\/security\/view-origin"/);
+    expect(rawViewer).toMatch(/JOIN_RE\.test\(hash\)/);
+    // stripJoin (above) has its own, differently-shaped pattern for a
+    // different job (stripping `&join` or `&join=…` from a copied link) —
+    // that one is fine. What must NOT reappear is view-origin's own literal
+    // pattern, copy-pasted as a second definition instead of imported.
+    expect(rawViewer).not.toContain("/[#&]join(?:=|&|$)/");
   });
 });
 

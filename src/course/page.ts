@@ -19,9 +19,14 @@ export function lectureHref(base: string, owner: string, repo: string, path: str
   return `${base.replace(/\/+$/, "")}/#gh=${owner}/${repo}/${path}`;
 }
 
-/** The course's door in the app: drawcast.app/#<name> (spec §7, §8). */
+/**
+ * The course's door in the app: drawcast.app/#<name>&join (spec §7, §8).
+ * `&join` (Task 8, viewer.ts's runNamed) sends this link straight to the
+ * join step — a bare `#<name>`, reached any other way (typed, shared),
+ * opens this very page instead of bouncing a visitor back here.
+ */
 export function courseHref(base: string, name: string): string {
-  return `${base.replace(/\/+$/, "")}/#${name}`;
+  return `${base.replace(/\/+$/, "")}/#${name}&join`;
 }
 
 /**

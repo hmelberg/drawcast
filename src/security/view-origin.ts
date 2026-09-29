@@ -65,7 +65,9 @@ export function onViewOrigin(origin: string = here(), cfg: OriginConfig = ORIGIN
 
 const PUBLIC_SOURCE_RE = /[#&](gdoc|gh|gdrive)[=-]/;
 const ANVIL_RE = /[#&]anvil[=-]/;
-const JOIN_RE = /[#&]join(?:=|&|$)/;
+/** Exported: viewer.ts's runNamed tests the same hash for the same reason
+ *  (the course page's own Join link, or a copied one) — one pattern. */
+export const JOIN_RE = /[#&]join(?:=|&|$)/;
 const TOKEN_RE = /[#&]t=/;
 const STAY_RE = /[#&]main(?:&|$)/;
 const REMIX_RE = /^#remix&/;

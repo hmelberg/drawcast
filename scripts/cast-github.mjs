@@ -18,20 +18,27 @@ export function parseGithubTarget(url) {
   throw new Error(`not a GitHub link I can read: ${url}`);
 }
 
+const unescapeHtml = (s) => s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+
 /**
  * The course page's Join door as it is now, so a republish from here keeps it:
  * a door to a registered name, or the reason there is none (course/page.ts).
  * A page with no join section gives undefined, which is what it was built with.
+ *
+ * The door's href ends `&join` (Task 8, courseHref in course/page.ts) —
+ * escapeHtml turns that `&` into `&amp;` in the page itself, so the raw
+ * capture is unescaped BEFORE the trailing `&join` is trimmed back off, so a
+ * push does not rewrite the door to a name literally called "<name>&join".
+ * An older page with no `&join` suffix still reads fine: nothing to trim.
  */
 export function pageDoor(html, doorlessNote) {
   if (!html) return undefined;
   const door = /<a class="door" href="([^"]*?)\/?#([^"]+)"/.exec(html);
-  if (door) return { name: door[2], app: door[1] + "/" };
+  if (door) return { name: unescapeHtml(door[2]).replace(/&join$/, ""), app: door[1] + "/" };
   const note = /Joining is not open yet<\/b> — ([^<]*)</.exec(html)?.[1];
   if (note === undefined) return undefined;
-  const unescape = (s) => s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
   const reasons = ["signed-out", "taken", "short", "invalid", "owner", "elsewhere", "unreachable", "unregistered"];
-  const why = reasons.find((r) => doorlessNote(r) === unescape(note).trim());
+  const why = reasons.find((r) => doorlessNote(r) === unescapeHtml(note).trim());
   return { name: null, why: why ?? "unregistered" };
 }
 

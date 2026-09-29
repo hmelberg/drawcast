@@ -38,7 +38,7 @@ import { getTtsKey, loadSettings, saveSettings } from "./store";
 import { ensurePacksParallel, packsForSpecs, PACK_DEFS } from "./scenes/packs";
 import { isBlockedCastTemplate, registerCastTemplates } from "./scenes/cast-templates";
 import { gateSpecs } from "./security/code-trust";
-import { enrollRoute, mainAppUrl, namedRoute, onViewOrigin, remixUrl } from "./security/view-origin";
+import { enrollRoute, JOIN_RE, mainAppUrl, namedRoute, onViewOrigin, remixUrl } from "./security/view-origin";
 import { installCodeConsent } from "./ui/code-consent";
 import { scenes } from "./scenes/registry";
 import { pickerKey } from "./google/auth";
@@ -391,16 +391,28 @@ export async function runNamed(hash: string): Promise<void> {
     return;
   }
   // A public cast plays on the view origin; a course door or a private cast
-  // needs the account, on the main one (security/view-origin.ts).
+  // needs the account, on the main one (security/view-origin.ts). This runs
+  // FIRST even for a course with a page below: a course is accountBound, so
+  // on the view origin this still bounces to the main origin before the page
+  // redirect is decided there — one extra hop, harmless (namedRoute's own
+  // job, not this function's).
   const elsewhere = namedRoute(resolved, hash);
   if (elsewhere) {
     location.replace(elsewhere);
     return;
   }
+  // Task 8: a course name opens its own GitHub course page — the front a
+  // learner who just typed or was handed the name should land on — UNLESS
+  // the hash already carries `&join` (the page's own Join link, courseHref
+  // in course/page.ts, or a copied one), which reaches the door directly.
+  if (resolved.kind === "course" && resolved.page && !JOIN_RE.test(hash)) {
+    location.replace(resolved.page);
+    return;
+  }
   if (resolved.kind === "course") {
-    // The door, not a bounce to the course's page: the page links HERE, so
-    // a redirect would send a learner who just clicked Join straight back to
-    // where they came from.
+    // No page to send a learner to instead, or `&join` asked for the door by
+    // name: the door, not a second bounce to the page a redirect would have
+    // just come from.
     status.replaceWith(courseDoor(name, resolved));
     return;
   }

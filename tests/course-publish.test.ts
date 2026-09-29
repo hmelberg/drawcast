@@ -211,7 +211,8 @@ describe("preparePublish, then commitPublish", () => {
     expect(out.text).toContain("file: did.yaml");
     const blobs = withDoor.seen.filter((s) => s.url.includes("/git/blobs")).map((s) => Buffer.from(s.body!.content as string, "base64").toString("utf8"));
     const page = blobs.find((b) => b.includes("<h1>Causal Inference</h1>"))!;
-    expect(page).toContain('href="https://drawcast.app/#causal-inference"');
+    // &join (Task 8): coursePage's escapeHtml turns the `&` into `&amp;`.
+    expect(page).toContain('href="https://drawcast.app/#causal-inference&amp;join"');
 
     const doorless = fakeGithub();
     await commitPublish({ ...enrolling, fetchImpl: doorless.fetchImpl }, await preparePublish({ ...enrolling, fetchImpl: doorless.fetchImpl }), { name: null, why: "taken" });

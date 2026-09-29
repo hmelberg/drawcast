@@ -90,7 +90,9 @@ describe("the door", () => {
     const html = coursePage(SPANISH, [], DOOR);
     expect(html).toMatch(/Join this course/i);
     expect(html).toContain("https://drawcast.app/#");
-    expect(html).toContain('href="https://drawcast.app/#spanish-for-all"');
+    // …&join (Task 8): the door reaches the app's join step directly, rather
+    // than bouncing to this very page (runNamed's page redirect, viewer.ts).
+    expect(html).toContain('href="https://drawcast.app/#spanish-for-all&amp;join"');
   });
   test("the privacy line says what is stored and no more: the users table has no name column", () => {
     // A data-collection statement that overstates is still a false one. The
@@ -110,14 +112,14 @@ describe("the door", () => {
     // A `name:` in the document, or the slug, is not a door on its own: only
     // a registration that came back ok is (see course-enroll-publish tests).
     const html = coursePage({ ...SPANISH, name: "Something-Else", context: { slug: "spanish" } }, [], DOOR);
-    expect(html).toContain('href="https://drawcast.app/#spanish-for-all"');
+    expect(html).toContain('href="https://drawcast.app/#spanish-for-all&amp;join"');
     expect(html).not.toContain("#something-else");
-    expect(html).not.toContain('href="https://drawcast.app/#spanish"');
+    expect(html).not.toContain('href="https://drawcast.app/#spanish&amp;join"');
   });
-  test("the door follows the app base the lecture links use, without a doubled slash", () => {
-    expect(courseHref("https://drawcast.app/", "spanish")).toBe("https://drawcast.app/#spanish");
-    expect(courseHref("https://my.site", "spanish")).toBe("https://my.site/#spanish");
-    expect(coursePage(SPANISH, [], { ...DOOR, app: "https://my.site/" })).toContain('href="https://my.site/#spanish-for-all"');
+  test("the door follows the app base the lecture links use, without a doubled slash, and its href ends &join", () => {
+    expect(courseHref("https://drawcast.app/", "spanish")).toBe("https://drawcast.app/#spanish&join");
+    expect(courseHref("https://my.site", "spanish")).toBe("https://my.site/#spanish&join");
+    expect(coursePage(SPANISH, [], { ...DOOR, app: "https://my.site/" })).toContain('href="https://my.site/#spanish-for-all&amp;join"');
   });
   test("without a door decision there is no join section at all", () => {
     const html = coursePage(SPANISH, []);
