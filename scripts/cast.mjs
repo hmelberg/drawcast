@@ -57,7 +57,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { basename, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { homedir, hostname } from "node:os";
-import { pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin } from "./cast-github.mjs";
+import { pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin, takenSlugs } from "./cast-github.mjs";
 import { apiUrl, checkName, clearSession, deviceLogin, nameAdvice, readSession, registrationFor, waitForName, writeSession } from "./cast-account.mjs";
 
 const [cmd, ...rest] = process.argv.slice(2);
@@ -603,12 +603,14 @@ const commands = {
       const { parseCastIndex } = await load("/src/publish/cast.ts");
       const { parseCourse, setCourseOption } = await load("/src/course/document.ts");
       const viewerBase = findViewerBase(clone, dir);
+      // Entry names in a folder at `base` (the clone is sparse and blob-less, so not from the worktree).
+      const treeAt = (folder) => sh("git", ["-C", clone, "ls-tree", "--name-only", base, folder ? `${folder}/` : ""].filter(Boolean)).split("\n").filter(Boolean).map((p) => p.split("/").at(-1));
       const common = { owner, repo, branch, base, clone: relative(ROOT, clone), viewerBase, dir, slugFor };
       if (isCourse) {
         const text = readFileSync(resolve(wd, "course.md"), "utf8");
         const course = parseCourse(text);
         const manifest = readAtCommit(clone, base, joinRepo(dir, "courses.json"));
-        const taken = manifest ? parseManifest(manifest).courses.map((c) => c.slug) : [];
+        const taken = takenSlugs({ kind: "course", listed: manifest ? parseManifest(manifest).courses.map((c) => c.slug) : [], tree: treeAt(dir) });
         const { origin, slug } = publishOrigin({ ...common, kind: "course", slug: course.context.slug ?? slugify(course.title || basename(wd)), takenSlugs: taken });
         if (course.context.slug !== slug) writeFileSync(resolve(wd, "course.md"), setCourseOption(text, "slug", slug));
         writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
@@ -618,7 +620,7 @@ const commands = {
       const yamls = readdirSync(wd).filter((f) => /\.ya?ml$/i.test(f));
       if (yamls.length !== 1) throw new Error(`${work} must hold exactly one .yaml or a course.md (it holds ${yamls.length} .yaml)`);
       const index = readAtCommit(clone, base, joinRepo(dir, "casts", "casts.json"));
-      const taken = index ? parseCastIndex(index).casts.map((c) => c.slug) : [];
+      const taken = takenSlugs({ kind: "cast", listed: index ? parseCastIndex(index).casts.map((c) => c.slug) : [], tree: treeAt(joinRepo(dir, "casts")) });
       const { origin } = publishOrigin({ ...common, kind: "cast", slug: slugify(yamls[0].replace(/\.ya?ml$/i, "")), takenSlugs: taken });
       if (origin.file !== yamls[0]) writeFileSync(resolve(wd, origin.file), readFileSync(resolve(wd, yamls[0])));
       writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");

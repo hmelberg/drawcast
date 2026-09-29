@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin } from "../scripts/cast-github.mjs";
+import { pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin, takenSlugs } from "../scripts/cast-github.mjs";
 import { slugFor } from "../src/publish/github";
 import { coursePage, doorlessNote, type DoorlessReason } from "../src/course/page";
 import { parseCourse } from "../src/course/document";
@@ -68,5 +68,16 @@ describe("publishOrigin (cast.mjs publish-target)", () => {
 
   it("pagesUrlFor", () => {
     expect(pagesUrlFor("ann", "casts", "courses/q")).toBe("https://ann.github.io/casts/courses/q/");
+  });
+});
+
+describe("takenSlugs (publish-target never overwrites)", () => {
+  it("a course: the manifest's slugs, every name already in the folder, and casts", () => {
+    const t = takenSlugs({ kind: "course", listed: ["qaly"], tree: ["hand-made", "README.md", "index.html", "courses.json"] });
+    for (const s of ["qaly", "hand-made", "casts", "readme", "index", "courses"]) expect(t).toContain(s);
+  });
+  it("a cast: the index's slugs and every .yaml already in casts/", () => {
+    const t = takenSlugs({ kind: "cast", listed: ["a"], tree: ["b.yaml", "c.yml", "casts.json", "README.md"] });
+    expect(t).toEqual(expect.arrayContaining(["a", "b", "c"]));
   });
 });

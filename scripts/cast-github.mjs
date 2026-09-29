@@ -53,3 +53,14 @@ export function publishOrigin({ kind, owner, repo, branch, base, clone, viewerBa
 export function pagesUrlFor(owner, repo, path) {
   return `https://${owner}.github.io/${repo}/${path ? `${path}/` : ""}`;
 }
+
+/** The slugs a first publish may not take: those the manifest lists AND every
+ *  name already in the folder on GitHub (a course made by hand, a manifest
+ *  kept elsewhere) — push --direct would otherwise write over them. A course
+ *  may also not be called `casts`, the folder single casts live in. `tree` is
+ *  the folder's entry names (git ls-tree); compared lower-case, extension off. */
+export function takenSlugs({ kind, listed, tree }) {
+  const stem = (n) => n.toLowerCase().replace(/\.[a-z0-9]+$/, "");
+  const fromTree = kind === "course" ? tree.map(stem) : tree.filter((n) => /\.ya?ml$/i.test(n)).map(stem);
+  return [...new Set([...listed, ...fromTree, ...(kind === "course" ? ["casts"] : [])])];
+}
