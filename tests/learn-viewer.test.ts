@@ -15,7 +15,11 @@ describe("the code is gone", () => {
   test("no code map, no ?learner= handling, no 🎓 control — and no localStorage read for any of them", () => {
     expect(src).not.toMatch(/learnerButton|saveLearner|learnerFor|forgetLearner|normalizeCode|stripLearnerParam|reportingAllowed|LearnerEntry/);
     expect(src).not.toMatch(/req\.learner|learner=/);
-    expect(src).not.toMatch(/safeLocalStorage|localStorage/);
+    // safeLocalStorage was that identity's own helper; it must not come back.
+    // A bare localStorage IS back (task 7, private lectures) — item-key.ts's
+    // kept-key courtesy, unrelated to any of the above — so only the old
+    // name is banned now, not the API itself.
+    expect(src).not.toMatch(/safeLocalStorage/);
   });
 });
 

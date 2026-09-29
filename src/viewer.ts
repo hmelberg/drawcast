@@ -38,10 +38,12 @@ import { getTtsKey, loadSettings, saveSettings } from "./store";
 import { ensurePacksParallel, packsForSpecs, PACK_DEFS } from "./scenes/packs";
 import { isBlockedCastTemplate, registerCastTemplates } from "./scenes/cast-templates";
 import { gateSpecs } from "./security/code-trust";
-import { coursePageRedirect, enrollRoute, mainAppUrl, namedRoute, onViewOrigin, remixUrl } from "./security/view-origin";
+import { coursePageRedirect, enrollRoute, lockedRoute, mainAppUrl, namedRoute, onViewOrigin, remixUrl } from "./security/view-origin";
 import { installCodeConsent } from "./ui/code-consent";
 import { scenes } from "./scenes/registry";
 import { pickerKey } from "./google/auth";
+import { isLocked } from "./crypto/lecture-lock";
+import { unlockForViewer, type KeyDenial, type KeyStorage } from "./item-key";
 
 export interface GhRef {
   owner: string;
@@ -559,6 +561,58 @@ export function deniedDoor(cast: string, status: 401 | 403, deps: DoorDeps = liv
   });
 }
 
+/** localStorage, guarded like account.ts's own storage() — private mode can
+ *  throw on ACCESS, not only on use. Only called on the main origin: a
+ *  locked lecture never reaches unlockForViewer on the view origin, since
+ *  lockedRoute hands it over first (runViewer, below). */
+function liveItemKeyStorage(): KeyStorage | null {
+  try {
+    return localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A locked lecture's door (private lectures, registry delivery 2): 401 is
+ * the very same sign-in door a refused server cast gets — deniedDoor reused
+ * verbatim, since the wording is indifferent to whether the refusal came
+ * from `/cast` or from `/key`. 403 "none" is the course's own join
+ * door, built from the ENVELOPE'S item (never the cast's own key, unlike
+ * deniedDoor's 403 above) — joining posts that item as `course`, since a
+ * private lecture is its own enrolment unit (task 4). Pending and rejected
+ * are not a button to click again, and neither is a 404 (the item stopped
+ * being private, or moved, since this lecture was published) — just what
+ * happened, in the door's own words.
+ */
+export function lockedDoor(door: KeyDenial & { item: string }, deps: DoorDeps = liveDoorDeps, onJoined: () => void = () => location.reload()): HTMLElement {
+  if (door.denied === 401) return deniedDoor(door.item, 401, deps, onJoined);
+  if (door.denied === 404) {
+    return h(
+      "div",
+      { class: "viewer-wrap" },
+      h("h1", { class: "viewer-title" }, "This lecture is locked"),
+      h("p", { class: "viewer-status error" }, "This lecture is locked, and its key is no longer available."),
+    );
+  }
+  if (door.standing === "none") {
+    return courseDoor(door.title || door.item, { kind: "course", target: door.item, page: door.page }, deps, {
+      onJoined,
+      lead: "This lecture is private to its course. Ask to join — the teacher approves requests.",
+    });
+  }
+  return h(
+    "div",
+    { class: "viewer-wrap" },
+    h("h1", { class: "viewer-title" }, "This lecture is private"),
+    h(
+      "p",
+      { class: `viewer-status${door.standing === "rejected" ? " error" : ""}` },
+      door.standing === "pending" ? "Your request to join is waiting for the teacher's approval." : "Your request to join this course was declined.",
+    ),
+  );
+}
+
 /**
  * Share, as an icon in the control bar beside fullscreen (player round; C3
  * before it, as a button in a footer strip): the Web Share API where it
@@ -651,7 +705,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
 
   try {
     let audioNote = "";
-    const text = req.anvil
+    let text = req.anvil
       ? await fetchAnvilText(req.anvil, fetch, (why) => {
           audioNote = `Recorded narration unavailable (${why}); narration falls back to a synthesised voice.`;
         })
@@ -660,6 +714,24 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
         : req.driveId
           ? await fetchGdriveText(req.driveId)
           : await fetchGdocText(req.docId!);
+    if (isLocked(text)) {
+      // Unlocking needs the account, which lives on the main origin only —
+      // hand a locked lecture over there before ever trying, rather than
+      // showing a door that could never open (security/view-origin.ts).
+      const elsewhere = lockedRoute(location.origin, location.hash);
+      if (elsewhere) {
+        location.replace(elsewhere);
+        return;
+      }
+      // Anvil, never the envelope's own `enroll` field — that field is not
+      // authenticated (item-key.ts's security note).
+      const unlocked = await unlockForViewer(text, { api: DEFAULT_ENROLL_API, token: getToken, storage: liveItemKeyStorage() });
+      if ("door" in unlocked) {
+        app.replaceChildren(lockedDoor(unlocked.door));
+        return;
+      }
+      text = unlocked.text;
+    }
     const playlist = parsePlaylistText(text);
     // Where this cast's links are read from (links/base.ts): its GitHub
     // folder; and, when a link names a lecture by number, the course.md
