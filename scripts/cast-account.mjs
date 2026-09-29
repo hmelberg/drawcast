@@ -10,6 +10,16 @@ import { pagesUrlFor } from "./cast-github.mjs";
 
 /** The drawcast server: DRAWCAST_API, else the default app (src/learn.ts DEFAULT_ENROLL_API). */
 export const apiUrl = () => (process.env.DRAWCAST_API || "https://drawcast.anvil.app").replace(/\/+$/, "");
+
+/** A fetch bound to `timeoutMs` — never the callee's own job (src/registry.ts
+ *  says so explicitly: claimFile/verifyClaim/registerItem's bound is the
+ *  caller's). Without it a stalled Anvil hangs `push --direct` AFTER the
+ *  git push has already landed (the "Pushed to …" line never prints), or a
+ *  `push --dry-run`'s claim. `timeoutMs` and the underlying `fetchImpl` are
+ *  both injectable so a test can prove the abort without waiting 10 s. */
+export function boundedFetch(timeoutMs = 10_000, fetchImpl = fetch) {
+  return (input, init) => fetchImpl(input, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+}
 export const sessionPath = (home) => join(home, ".config/drawcast/session.json");
 
 export function readSession(home) {
@@ -72,6 +82,89 @@ export function registrationFor(origin, name, lib, courseText) {
   if (origin.kind !== "cast") throw new Error(`a ${origin.kind} cannot have a name — only a cast or a course`);
   const slug = origin.file.replace(/\.ya?ml$/i, "");
   return { ...lib.castRegistration(slug, repo, origin.castsDir, pagesUrlFor(origin.owner, origin.repo, origin.castsDir)), name };
+}
+
+/** What `push`/`register` send to POST /register after a publish lands
+ *  (registry delivery 1) — the free, automatic registration every publish
+ *  gets, distinct from `registrationFor`'s bought pretty name (no `name`
+ *  in the shape below: registerItem never takes one, only ever hands one
+ *  back). `lib` is the app's own builders — parseCourse, courseRegistration
+ *  — so a course's target/page/title/lectures cannot drift from what the
+ *  app's own publish sends. A cast has no title of its own the way a
+ *  course's `# <title>` is one, so its registered title is its file's
+ *  stem — the same thing its slug already is. */
+export function registerFor(origin, lib, courseText) {
+  const repo = { owner: origin.owner, repo: origin.repo };
+  if (origin.kind === "course") {
+    const course = lib.parseCourse(courseText);
+    const reg = lib.courseRegistration(course, repo, origin.coursesDir, pagesUrlFor(origin.owner, origin.repo, origin.path));
+    if (!reg) throw new Error("the course has no slug — run publish-target and push first");
+    return { kind: reg.kind, target: reg.target, title: reg.title, page: reg.page, lectures: reg.lectures };
+  }
+  if (origin.kind !== "cast") throw new Error(`a ${origin.kind} cannot be registered — only a cast or a course`);
+  return {
+    kind: "cast",
+    target: `${origin.owner}/${origin.repo}/${origin.castsDir}/${origin.file}`,
+    title: origin.file.replace(/\.ya?ml$/i, ""),
+    page: pagesUrlFor(origin.owner, origin.repo, origin.castsDir),
+  };
+}
+
+/**
+ * The registry step (registry delivery 1) once a signed-in publish has
+ * landed (cast.mjs push/register): verify the claim (when asked — push
+ * asks only for the claim it minted this run; register asks whenever
+ * signed in, since an earlier push's claim already landed), then register
+ * the item — a course claims its default run first (CONTROLLER RULING:
+ * as the app's own course publish does, so only the course's owner can
+ * ever hold a name for it), folding claimCourse's own note in before
+ * registerItem's — then registerItem. Pure (apart from the network calls
+ * it is handed): cast.mjs loads `registry`/`names` via withVite and builds
+ * `reg` (registerFor) before calling this, which is what makes this
+ * testable without a real Vite session.
+ *
+ * `registry` is src/registry.ts's `{verifyClaim, registerItem,
+ * registryNote}`; `names` is src/names.ts's `{courseClaim, claimCourse,
+ * claimNote}` — needed, and read, only for a course. `fetchImpl` bounds
+ * every one of these calls (boundedFetch above) — never their own job,
+ * per src/registry.ts's own contract, and the caller's to enforce.
+ *
+ * Returns the note to show and any free name that came back (null
+ * otherwise) — recording it on origin.freeName is the caller's job, kept
+ * out of here so this stays a pure function.
+ */
+export async function registerNow({ origin, session, verify, reg, registry, names, fetchImpl }) {
+  const { verifyClaim, registerItem, registryNote } = registry;
+  const api = session?.api ?? apiUrl();
+  const repoStr = `${origin.owner}/${origin.repo}`;
+  let note = "";
+  if (verify && session) await verifyClaim(api, session.key, repoStr, fetchImpl);
+  if (origin.kind === "course" && session) {
+    const { courseClaim, claimCourse, claimNote } = names;
+    const claimed = await claimCourse(api, courseClaim(session.key, reg), fetchImpl);
+    note += claimNote(claimed);
+  }
+  const out = await registerItem(api, { key: session?.key, ...reg }, fetchImpl);
+  note += registryNote(out, "run: node scripts/cast.mjs login");
+  return { note, name: typeof out === "object" ? out.name : null };
+}
+
+/**
+ * Does this push carry the claim file (final review C2)? Only when the push
+ * lands where the pusher can push themselves — `--direct`, or a PR branch on
+ * the same repo — so a proof in the repo proves THEM. A PR from a fork
+ * would, once merged, prove the contributor and hand them every unproven
+ * row; a source revision proves nothing the registry uses.
+ */
+export function shouldClaim({ kind, canPush }) {
+  // `direct` changes nothing: --direct without push rights is refused
+  // before any commit, and a PR on a repo the user can push to is theirs.
+  return kind !== "source" && canPush === true;
+}
+
+/** Only a cast or a course is an item the registry knows (M4). */
+export function registrable(origin) {
+  return origin?.kind === "cast" || origin?.kind === "course";
 }
 
 const dollars = (cents) => `${Number.isInteger(cents / 100) ? cents / 100 : (cents / 100).toFixed(2)} USD`;

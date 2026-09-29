@@ -65,7 +65,9 @@ export function onViewOrigin(origin: string = here(), cfg: OriginConfig = ORIGIN
 
 const PUBLIC_SOURCE_RE = /[#&](gdoc|gh|gdrive)[=-]/;
 const ANVIL_RE = /[#&]anvil[=-]/;
-const JOIN_RE = /[#&]join(?:=|&|$)/;
+/** Exported: viewer.ts's runNamed tests the same hash for the same reason
+ *  (the course page's own Join link, or a copied one) — one pattern. */
+export const JOIN_RE = /[#&]join(?:=|&|$)/;
 const TOKEN_RE = /[#&]t=/;
 const STAY_RE = /[#&]main(?:&|$)/;
 const REMIX_RE = /^#remix&/;
@@ -111,6 +113,35 @@ export function namedRoute(resolved: { kind: "cast" | "course"; target: string }
   if (origin === cfg.view && accountBound) return `${cfg.main}/${withStayMarker(hash)}`;
   if (origin === cfg.main && !accountBound && !STAY_RE.test(hash)) return `${cfg.view}/${hash}`;
   return null;
+}
+
+/**
+ * A course name's own GitHub course page, or null to show the door instead.
+ * Null when the hash asks for the door (`&join`), when there is no page, when
+ * the page is not on the course owner's own `https://<owner>.github.io` site
+ * (a registry entry is data, not a licence to redirect anywhere — final
+ * review I1), and when the visitor arrived FROM that page's origin: pages
+ * published before `&join` link the bare name, and sending them back would
+ * loop (final review C1).
+ */
+export function coursePageRedirect(resolved: { kind: "cast" | "course"; target: string; page: string | null }, hash: string, referrer: string): string | null {
+  if (resolved.kind !== "course" || !resolved.page || JOIN_RE.test(hash)) return null;
+  let page: URL;
+  try {
+    page = new URL(resolved.page);
+  } catch {
+    return null;
+  }
+  const owner = resolved.target.split("/", 1)[0].toLowerCase();
+  if (!owner || page.protocol !== "https:" || page.hostname.toLowerCase() !== `${owner}.github.io`) return null;
+  if (referrer) {
+    try {
+      if (new URL(referrer).origin === page.origin) return null;
+    } catch {
+      /* an unreadable referrer is no referrer */
+    }
+  }
+  return resolved.page;
 }
 
 /**

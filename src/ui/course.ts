@@ -31,6 +31,7 @@ import { runLang, stampedVoice, synthesizeBase64 } from "../export/tts";
 import { joinPath } from "../course/publish";
 import { claimCourse, claimNote, courseClaim, isPayable, nameNote, normalizeName, registerName, startNamePayment } from "../names";
 import { DEFAULT_ENROLL_API } from "../learn";
+import { claimFile, registerItem, registryNote, verifyClaim } from "../registry";
 import { getToken } from "../account";
 
 /**
@@ -1091,10 +1092,21 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       let door: Door = { name: null, why: "signed-out" };
       // `token` above is the GitHub one; this is the drawcast server's.
       const accountToken = getToken();
+      // A registry failure must never fail a publish: every call below —
+      // the paid-name claim/register above it and the free registry below —
+      // is bounded to 10 s, and its outcome only ever changes a status
+      // suffix, never the publish's own success.
+      const bounded: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) });
+      const repoStr = `${repo.owner}/${repo.repo}`;
+      // The claim file (registry delivery 1) rides in the SAME commit as the
+      // course: Anvil proves ownership by reading it back from GitHub after
+      // the commit lands (verifyClaim below), never before. Signed out,
+      // claimFile answers null — no file, no ownership to prove.
+      const claim = await claimFile(DEFAULT_ENROLL_API, accountToken, repoStr, bounded);
+      publishArgs.extraFiles = claim ? [claim] : [];
       const reg = accountToken ? prepared.registration : null;
       if (accountToken && reg) {
         working("Registering the course…");
-        const bounded: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) });
         // The claim FIRST (teachers round, spec §5): publishing signed in is
         // what makes the author the course's owner in the teacher dashboard,
         // and a name may only be registered by the owner — so the name step
@@ -1133,7 +1145,9 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       const firstTime = !published.has(settings.githubRepo);
       published.add(settings.githubRepo);
       // Writing the permanent file names back into the document is what keeps
-      // the links in it pointing at the files that were just committed.
+      // the links in it pointing at the files that were just committed. This
+      // runs BEFORE the registry calls below: local bookkeeping must not
+      // wait behind a network call to the registry.
       let bookkeeping: Error | null = null;
       try {
         checkpoint();
@@ -1144,6 +1158,22 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         console.error("drawcast: publish succeeded, bookkeeping failed", err);
         bookkeeping = err as Error;
       }
+      // The registry, now that the commit — and the claim file inside it —
+      // are live: verify ownership, then register the course. `prepared.
+      // registration` is never null here: preparePublish always sets a slug
+      // on `updated` before building it. This is a FREE, automatic
+      // registration distinct from the paid pretty link claimed/registered
+      // above — every publish gets one, named or not, signed in or not.
+      // Independent of the local bookkeeping above (which may have failed):
+      // the commit already landed either way, and this records it.
+      if (claim) await verifyClaim(DEFAULT_ENROLL_API, accountToken, repoStr, bounded);
+      const regInput = prepared.registration!;
+      const regItem = await registerItem(
+        DEFAULT_ENROLL_API,
+        { key: accountToken || undefined, kind: regInput.kind, target: regInput.target, title: regInput.title, page: regInput.page, lectures: regInput.lectures },
+        bounded,
+      );
+      nameSuffix += registryNote(regItem);
       if (bookkeeping) {
         say(
           `Published to ${out.courseUrl} — but the file names could not be written back into the document (${bookkeeping.name}: ${bookkeeping.message}). Press Publish again after checking the document.${nameSuffix}`,

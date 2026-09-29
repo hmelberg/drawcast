@@ -86,6 +86,14 @@ export interface ShareDoc {
    */
   publishedAs?: string;
   /**
+   * The free `drawcast.app/#<name>` name the registry gave this drawcast
+   * after its first successful GitHub publish (registry delivery 1) — read
+   * only, to show as a reminder above the Pretty link panel's buy form.
+   * Courses do not carry one in this delivery (their publish shows it only
+   * in the status line), so this stays undefined for `subject: "course"`.
+   */
+  freeName?: string;
+  /**
    * The Drive file this drawcast was published to before, if it has been.
    * Read only to decide whether the Drive panel's rename warning has anything
    * to warn about — before the first publish there is no file to rename.
@@ -1371,6 +1379,13 @@ function build(): ShareSession {
     { class: "hint" },
     "A short address for this work: drawcast.app/#name, which also answers as name.drawcast.app. Bought once; the direct link you already have stays free.",
   );
+  // The free `drawcast.app/#<name>` name the registry already gave this
+  // drawcast, if any (registry delivery 1, task 9) — a reminder above the
+  // buy form that a link exists before the visitor spends anything. Hidden
+  // whenever the document carries no freeName (courses, and a drawcast not
+  // yet published).
+  const freeNameLink = h("a", { target: "_blank", rel: "noopener" }) as HTMLAnchorElement;
+  const freeNameHint = h("div", { class: "hint" }, "Your free link: ", freeNameLink, " Buy a shorter name below if you want one.");
   const prettyNameInput = h("input", { type: "text", class: "yt-field", "aria-label": "Pretty link name" }) as HTMLInputElement;
   // "change", not "input": Share keeps exactly one input listener (the price
   // line), so the folder follows the pretty name when that field is left.
@@ -1404,6 +1419,7 @@ function build(): ShareSession {
     "div",
     { class: "share-panel" },
     prettyHelp,
+    freeNameHint,
     h("div", {}, h("label", { class: "quiet-label" }, "Name ", prettyNameInput, prettyCheck.button), prettyCheck.note, prettyPriceLine),
     prettyTargetRow,
     prettyNoCopy,
@@ -1419,6 +1435,11 @@ function build(): ShareSession {
     prettyNoCopy.hidden = copies.length > 0;
     prettyFolderLine.textContent = doc.folder ? `The course's folder, ${doc.folder}/, never changes — only the address does.` : "";
     prettyFolderLine.hidden = !doc.folder;
+    freeNameHint.hidden = !doc.freeName;
+    if (doc.freeName) {
+      freeNameLink.href = `https://drawcast.app/#${doc.freeName}`;
+      freeNameLink.textContent = `drawcast.app/#${doc.freeName}`;
+    }
     prettyNameInput.value = doc.publishedAs ?? slugify(doc.title);
     refreshPrettyPrice();
     prettyCheck.reset();

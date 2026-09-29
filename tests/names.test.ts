@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import { anvilHashFor, checkNote, checkPaidName, driveTarget, ghHashFor, isNameHash, nameInHash, normalizeName, registerName, resolveName, NAME_RE, RESERVED_PREFIXES, type CheckState } from "../src/names";
+import { anvilHashFor, checkNote, checkPaidName, driveTarget, ghHashFor, isNameHash, nameInHash, normalizeName, registerName, resolveName, NAME_ENDPOINTS, NAME_RE, RESERVED_PREFIXES, type CheckState } from "../src/names";
 
 function fetchReturning(status: number, body: unknown): typeof fetch {
   return vi.fn(async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
@@ -49,14 +49,96 @@ describe("hash helpers", () => {
 });
 
 describe("resolveName", () => {
-  test("GETs /_/api/name?n= and returns the body", async () => {
-    const f = fetchReturning(200, { kind: "cast", target: "o/r/p.yaml", page: null });
-    expect(await resolveName("https://drawcast.anvil.app/", "learn-russian/3", f)).toEqual({ kind: "cast", target: "o/r/p.yaml", page: null });
-    expect(calls(f)[0][0]).toBe("https://drawcast.anvil.app/_/api/name?n=learn-russian%2F3");
+  test("the endpoint order is the Netlify functions first, Anvil last", () => {
+    expect(NAME_ENDPOINTS).toEqual(["/.netlify/functions/name", "https://drawcast.app/.netlify/functions/name"]);
   });
-  test("404 or a throw is null", async () => {
-    expect(await resolveName("https://x", "nope", fetchReturning(404, { error: "unknown" }))).toBeNull();
+
+  test("uses the first endpoint that answers, and carries src/ref in the query", async () => {
+    const f = fetchReturning(200, { kind: "cast", target: "o/r/p.yaml", page: null });
+    const result = await resolveName("https://drawcast.anvil.app/", "learn-russian/3", f, { src: "lecture", ref: "https://x.example/?q=1" });
+    expect(result).toEqual({ kind: "cast", target: "o/r/p.yaml", page: null });
+    expect(calls(f).length).toBe(1);
+    expect(calls(f)[0][0]).toBe(`/.netlify/functions/name?n=learn-russian%2F3&src=lecture&ref=${encodeURIComponent("https://x.example/?q=1")}`);
+  });
+
+  test("no opts defaults src to 'name' and ref to empty", async () => {
+    const f = fetchReturning(200, { kind: "cast", target: "o/r/p.yaml", page: null });
+    await resolveName("https://x", "learn-russian", f);
+    expect(calls(f)[0][0]).toBe("/.netlify/functions/name?n=learn-russian&src=name&ref=");
+  });
+
+  test("a JSON 404 from an endpoint is Anvil's authoritative 'unknown name' — no further tries", async () => {
+    const f = fetchReturning(404, { error: "unknown" });
+    expect(await resolveName("https://x", "nope", f)).toBeNull();
+    expect(calls(f).length).toBe(1); // never reaches the second endpoint or Anvil directly
+  });
+
+  test("a JSON 5xx from an endpoint is the FUNCTION's own trouble reaching Anvil, not Anvil's answer — moves on, and the next endpoint's 200 wins", async () => {
+    let n = 0;
+    const f = vi.fn(async () => {
+      n++;
+      if (n === 1) return new Response(JSON.stringify({ error: "unreachable" }), { status: 502 });
+      return new Response(JSON.stringify({ kind: "cast", target: "o/r/p.yaml", page: null }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const result = await resolveName("https://x", "learn-russian", f);
+    expect(result).toEqual({ kind: "cast", target: "o/r/p.yaml", page: null });
+    expect(calls(f).length).toBe(2);
+    expect(calls(f)[1][0]).toBe("https://drawcast.app/.netlify/functions/name?n=learn-russian&src=name&ref=");
+  });
+
+  test("a JSON 429 from an endpoint is the SHARED egress budget, not Anvil's answer about the name — moves on (final review I2)", async () => {
+    let n = 0;
+    const f = vi.fn(async () => {
+      n++;
+      if (n <= 2) return new Response(JSON.stringify({ error: "rate" }), { status: 429 });
+      return new Response(JSON.stringify({ kind: "cast", target: "o/r/p.yaml", page: null }), { status: 200 });
+    }) as unknown as typeof fetch;
+    expect(await resolveName("https://drawcast.anvil.app/", "learn-russian", f)).toEqual({ kind: "cast", target: "o/r/p.yaml", page: null });
+    expect(calls(f).length).toBe(3); // both Netlify endpoints, then Anvil direct
+  });
+
+  test("a JSON 5xx from every endpoint, including Anvil direct, is null — nowhere left to move on to", async () => {
+    const f = fetchReturning(503, { error: "down" });
+    expect(await resolveName("https://drawcast.anvil.app/", "learn-russian", f)).toBeNull();
+    expect(calls(f).length).toBe(3); // both Netlify endpoints, then Anvil direct
+  });
+
+  test("a network error moves to the next endpoint, and on to the next", async () => {
+    let n = 0;
+    const f = vi.fn(async () => {
+      n++;
+      if (n <= 2) throw new Error("offline");
+      return new Response(JSON.stringify({ kind: "cast", target: "o/r/p.yaml", page: null }), { status: 200 });
+    }) as unknown as typeof fetch;
+    // Only the third fetchImpl call is reachable by making both NAME_ENDPOINTS
+    // throw — the third call is the Anvil fallback.
+    const result = await resolveName("https://drawcast.anvil.app/", "nope", f);
+    expect(result).toEqual({ kind: "cast", target: "o/r/p.yaml", page: null });
+    expect(calls(f).length).toBe(3);
+    expect(calls(f)[2][0]).toBe("https://drawcast.anvil.app/_/api/name?n=nope");
+  });
+
+  test("a non-JSON response (the wrong endpoint) moves on too, without needing a thrown error", async () => {
+    let n = 0;
+    const f = vi.fn(async () => {
+      n++;
+      if (n <= 2) return new Response("<html>not found</html>", { status: 404, headers: { "content-type": "text/html" } });
+      return new Response(JSON.stringify({ kind: "cast", target: "o/r/p.yaml", page: null }), { status: 200 });
+    }) as unknown as typeof fetch;
+    expect(await resolveName("https://drawcast.anvil.app/", "nope", f)).toEqual({ kind: "cast", target: "o/r/p.yaml", page: null });
+    expect(calls(f).length).toBe(3);
+  });
+
+  test("both Netlify endpoints down and Anvil itself failing is null", async () => {
     expect(await resolveName("https://x", "nope", vi.fn(async () => { throw new Error("offline"); }) as unknown as typeof fetch)).toBeNull();
+  });
+
+  test("Anvil's own fallback still returns null on a 404", async () => {
+    const f = vi.fn(async (url: string) => {
+      if (url.includes("/.netlify/")) throw new Error("offline");
+      return new Response(JSON.stringify({ error: "unknown" }), { status: 404 });
+    }) as unknown as typeof fetch;
+    expect(await resolveName("https://x", "nope", f)).toBeNull();
   });
 });
 

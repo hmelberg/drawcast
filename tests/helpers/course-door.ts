@@ -10,6 +10,11 @@
 //
 // Pair every `hasDoor(page) === false` with a `hasDoor(withDoor) === true` on
 // a page that has one, so a detector that has gone blind cannot pass.
+//
+// The door's own href ends `&join` (Task 8: courseHref appends it, so the
+// link opens straight to the join step rather than bouncing back to this
+// very page — see runNamed's page redirect, src/viewer.ts) — the fallback
+// shape below allows that optional suffix too.
 export function hasDoor(html: string): boolean {
-  return /class="door"/.test(html) || /href="[^"]*\/#[a-z0-9-]+(?:\/\d+)?"/.test(html);
+  return /class="door"/.test(html) || /href="[^"]*\/#[a-z0-9-]+(?:\/\d+)?(?:&join)?"/.test(html);
 }

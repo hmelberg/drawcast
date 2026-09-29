@@ -52,6 +52,10 @@ describe("the account lives beside the GitHub token", () => {
     // (2026-09-18): the direct #gh= link is the free address; a name is bought.
     const castPublish = main.slice(main.indexOf("await publishCast("), main.indexOf("async function publishServerCast("));
     expect(castPublish).not.toContain("registerName(");
+    // But every publish DOES register with the Anvil registry (Task 7,
+    // registry delivery 1) — a free, automatic entry distinct from the
+    // bought pretty link above.
+    expect(castPublish).toContain("registerItem(");
     const buy = main.slice(main.indexOf("async function buyPrettyLink("), main.indexOf("// ---------- video export ----------"));
     expect(buy).toContain("registerName(DEFAULT_ENROLL_API, reg)");
     // A course's page carries a door to its name (identity round), so the

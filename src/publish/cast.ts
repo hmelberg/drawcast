@@ -199,6 +199,9 @@ export interface CastPublishArgs {
   castsDir: string;
   viewerBase: string;
   poster?: Uint8Array | null;
+  /** Files committed alongside the cast's own — the registry's claim file
+   *  (registry delivery 1), when this publish is proving repo ownership. */
+  extraFiles?: PublishFile[];
   fetchImpl?: typeof fetch;
 }
 
@@ -219,10 +222,13 @@ export async function publishCast(args: CastPublishArgs): Promise<CastPublishRes
   const index = indexText ? parseCastIndex(indexText) : emptyCastIndex();
 
   const plan = buildCastPlan({ ...args, index });
+  // The claim file (registry delivery 1), when this publish is proving repo
+  // ownership, rides in the same commit as the cast itself.
+  const files = [...plan.files, ...(args.extraFiles ?? [])];
   // No deletions: a cast owns exactly one file, and its slug never changes, so
   // there is never a stale path to remove. (Courses need them because a
   // deleted lecture would otherwise stay reachable at its old link forever.)
-  await commitFiles(args.repo, args.token, defaultBranch, plan.files, [], `drawcast: publish "${args.title || "Untitled drawcast"}"`, fetchImpl);
+  await commitFiles(args.repo, args.token, defaultBranch, files, [], `drawcast: publish "${args.title || "Untitled drawcast"}"`, fetchImpl);
 
   return {
     slug: plan.slug,
@@ -230,6 +236,6 @@ export async function publishCast(args: CastPublishArgs): Promise<CastPublishRes
     readmeUrl: plan.readmeUrl,
     pagesUrl: plan.pagesUrl,
     defaultBranch,
-    count: plan.files.length,
+    count: files.length,
   };
 }

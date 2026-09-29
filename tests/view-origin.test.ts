@@ -3,7 +3,7 @@
 // boots, the hand-backs that need the account, "Edit a copy", the secret
 // getters answering empty on the view origin, and the edge function's part.
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { bootRoute, enrollRoute, namedRoute, ORIGINS, onViewOrigin, remixSource, remixUrl, withStayMarker, type OriginConfig } from "../src/security/view-origin";
+import { bootRoute, coursePageRedirect, enrollRoute, namedRoute, ORIGINS, onViewOrigin, remixSource, remixUrl, withStayMarker, type OriginConfig } from "../src/security/view-origin";
 import { hostToHash, viewFramePolicy, viewHostOf } from "../netlify/lib/name-host.mts";
 
 const MAIN = "https://drawcast.app";
@@ -171,5 +171,32 @@ describe("edge function", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+// Final review C1 + I1: a course name sends the visitor to its GitHub page —
+// but never back to the page they just came from (old pages link the bare
+// name, no &join), and never off the owner's own github.io site.
+describe("coursePageRedirect", () => {
+  const course = { kind: "course" as const, target: "Hans/Course/course.yaml", page: "https://hans.github.io/course/" };
+  test("a course with its own page goes there", () => {
+    expect(coursePageRedirect(course, "#learn-x", "")).toBe(course.page);
+    expect(coursePageRedirect(course, "#learn-x", "https://news.example/post")).toBe(course.page);
+  });
+  test("&join, a cast, or no page: stay", () => {
+    expect(coursePageRedirect(course, "#learn-x&join", "")).toBeNull();
+    expect(coursePageRedirect({ ...course, kind: "cast" }, "#learn-x", "")).toBeNull();
+    expect(coursePageRedirect({ ...course, page: null }, "#learn-x", "")).toBeNull();
+  });
+  test("C1: coming FROM the course page's own origin shows the door, not a loop", () => {
+    expect(coursePageRedirect(course, "#learn-x", "https://hans.github.io/course/lecture-2.html")).toBeNull();
+    expect(coursePageRedirect(course, "#learn-x", "not a url")).toBe(course.page);
+  });
+  test("I1: a page off <owner>.github.io is never a redirect (open-redirect guard)", () => {
+    expect(coursePageRedirect({ ...course, page: "https://phish.example/" }, "#learn-x", "")).toBeNull();
+    expect(coursePageRedirect({ ...course, page: "https://other.github.io/course/" }, "#learn-x", "")).toBeNull();
+    expect(coursePageRedirect({ ...course, page: "http://hans.github.io/course/" }, "#learn-x", "")).toBeNull();
+    expect(coursePageRedirect({ ...course, page: "https://HANS.github.io/course/" }, "#learn-x", "")).toBe("https://HANS.github.io/course/");
+    expect(coursePageRedirect({ ...course, page: "javascript:alert(1)" }, "#learn-x", "")).toBeNull();
   });
 });

@@ -31,6 +31,15 @@ describe("pageDoor reads back the door coursePage wrote (a push must not change 
     const door = { name: "qaly", app: "https://drawcast.app/" };
     expect(pageDoor(coursePage(course, links, door), doorlessNote)).toEqual(door);
   });
+  it("the name comes back clean even though coursePage's door link now ends &join (Task 8)", () => {
+    const html = coursePage(course, links, { name: "qaly", app: "https://drawcast.app/" });
+    expect(html).toContain('href="https://drawcast.app/#qaly&amp;join"');
+    expect(pageDoor(html, doorlessNote)).toEqual({ name: "qaly", app: "https://drawcast.app/" });
+  });
+  it("still reads an OLDER page whose door link has no &join suffix", () => {
+    const html = '<a class="door" href="https://drawcast.app/#qaly">Join this course in drawcast →</a>';
+    expect(pageDoor(html, doorlessNote)).toEqual({ name: "qaly", app: "https://drawcast.app/" });
+  });
   it.each(reasons)("doorless: %s", (why) => {
     expect(pageDoor(coursePage(course, links, { name: null, why }), doorlessNote)).toEqual({ name: null, why });
   });
