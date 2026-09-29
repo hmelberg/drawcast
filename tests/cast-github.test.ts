@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { pageDoor, parseGithubTarget } from "../scripts/cast-github.mjs";
+import { pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin } from "../scripts/cast-github.mjs";
+import { slugFor } from "../src/publish/github";
 import { coursePage, doorlessNote, type DoorlessReason } from "../src/course/page";
 import { parseCourse } from "../src/course/document";
 
@@ -39,4 +40,33 @@ describe("pageDoor reads back the door coursePage wrote (a push must not change 
     expect(coursePage(course, links, again)).toBe(html);
   });
   it("no page, no door", () => expect(pageDoor(null, doorlessNote)).toBeUndefined());
+});
+
+describe("publishOrigin (cast.mjs publish-target)", () => {
+  const common = { owner: "ann", repo: "casts", branch: "main", base: "abc123", clone: "dev-casts/repos/ann__casts", viewerBase: "https://drawcast.app/", slugFor };
+
+  it("a course goes in <dir>/<slug> with the pull shape", () => {
+    const { origin, slug } = publishOrigin({ ...common, kind: "course", dir: "courses", slug: "qaly-basics", takenSlugs: [] });
+    expect(slug).toBe("qaly-basics");
+    expect(origin).toMatchObject({ kind: "course", owner: "ann", repo: "casts", branch: "main", base: "abc123", path: "courses/qaly-basics", coursesDir: "courses", lecture: null, published: "new" });
+  });
+
+  it("a course at the repo root has no leading slash", () => {
+    expect(publishOrigin({ ...common, kind: "course", dir: "", slug: "q", takenSlugs: [] }).origin.path).toBe("q");
+  });
+
+  it("a slug already in the repo gets a fresh one — never overwrites", () => {
+    const { slug, origin } = publishOrigin({ ...common, kind: "course", dir: "", slug: "qaly-basics", takenSlugs: ["qaly-basics"] });
+    expect(slug).not.toBe("qaly-basics");
+    expect(origin.path).toBe(slug);
+  });
+
+  it("a cast goes in <dir>/casts/<slug>.yaml", () => {
+    const { origin } = publishOrigin({ ...common, kind: "cast", dir: "", slug: "twenty-players", takenSlugs: [] });
+    expect(origin).toMatchObject({ kind: "cast", path: "casts/twenty-players.yaml", castsDir: "casts", file: "twenty-players.yaml" });
+  });
+
+  it("pagesUrlFor", () => {
+    expect(pagesUrlFor("ann", "casts", "courses/q")).toBe("https://ann.github.io/casts/courses/q/");
+  });
 });
