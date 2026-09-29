@@ -131,7 +131,7 @@ const DATA_KINDS = new Set<string>(["point", "curve", "region", "arrow", "edge",
 export function planOptionsFor(
   spec: Spec,
   layout: LayoutResult,
-): Pick<PlanOptions, "attachedTo" | "drawnWith" | "drawnAfter" | "partsOf" | "isPaper" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds" | "mathOf" | "isElement" | "controlsOf" | "dataToLogical" | "inDataUnits"> {
+): Pick<PlanOptions, "attachedTo" | "drawnWith" | "drawnAfter" | "partsOf" | "isPaper" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds" | "mathOf" | "isElement" | "controlsOf" | "dataToLogical" | "inDataUnits" | "pictureOf"> {
   // Definitions hold (design 2026-09-10 §2.5): what is defined in terms of
   // what. A source that is a group or a pieces cut is moved through its
   // members (the planner expands it), so its dependents are attached to every
@@ -186,6 +186,13 @@ export function planOptionsFor(
     // else — text, a formula, a shape, a path — in canvas units. The page's
     // units used to apply to everything, so a formula copy moved "55 down"
     // travelled 319 (2026-09-25).
+    pictureOf: (id) => {
+      const meta = layout.pictures?.[id];
+      if (!meta) return null;
+      const d = leafDrawables(drawablesForId(layout.drawables, id)).find((x) => x.kind === "image" && x.id === `${id}__img`);
+      if (!d || d.kind !== "image") return null;
+      return { frame: { rect: { x: d.pos[0] - d.w / 2, y: d.pos[1] - d.h / 2, w: d.w, h: d.h }, view: meta.view }, regions: meta.regions };
+    },
     inDataUnits: (id) => {
       if (!spec.domain) return false;
       const el = spec.elements?.find((e) => e.id === id);

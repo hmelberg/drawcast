@@ -24,6 +24,7 @@ import { boxAnchor, isUniversalAnchor, polygonAnchors, ptsBox } from "../layout/
 import { morphPair, stretchPts } from "./morph";
 import { dimensionLine, formatMeasure, heuristicLabelWidth, measureValue, ringCentroid, type MeasureSpec, type PointSource } from "../layout/measures";
 import { pathPosition } from "./effects";
+import { fractionBox, fractionPoint, parsePlace, type PictureFrame, type Rect4 } from "../spec/places";
 import { cameraBox, fitZoom, restView, restZoom } from "./camera";
 import { cumulativeLengthFractions } from "./trails";
 import type { GhostSpec, MintedSpec } from "./minted";
@@ -94,6 +95,8 @@ export type PlanStep = (
       /** Targets that stay lit — the player dims the REST of the visible set. */
       ids: string[];
       seconds: number;
+      /** Picture places in focus: each picture's current rect and the lit boxes on it. */
+      spots?: { frame: BBox; holes: BBox[] }[];
       /** Narrated with no explicit duration: hold the focus until the voice ends. */
       untilNarrationEnd?: boolean;
     }
@@ -273,6 +276,8 @@ export interface Plan {
 export interface PlanOptions {
   /** Layout-time bbox per element id (logical units), for point/camera/highlight targeting. */
   bboxOf?: (id: string) => BBox | null;
+  /** A picture you can point into (spec 2026-09-30-picture-regions): its shown rect and view, and its named regions. Null for anything else. */
+  pictureOf?: (id: string) => { frame: PictureFrame; regions: Record<string, Rect4> } | null;
   /** Windowed code panes (layout's `windows`): after every visibility change
    *  the plan scrolls each so its highest visible line is the bottom row,
    *  recorded as per-line offsets in the state — the move verb's own store,
@@ -758,6 +763,52 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return anchorNow(id, r.anchor ?? "center", verb);
   };
 
+  /**
+   * A picture place (`md:name`, `md@[x, y, w, h]`, `md@[x, y]`, `md@top`)
+   * where it stands NOW — the picture's rect moved by its owner's offset —
+   * or null when `s` is not place syntax (a plain id: the caller carries on
+   * as before). "skip" when it names a place that cannot be aimed at; the
+   * warning says why. A place on a picture not yet drawn is skipped for the
+   * gestures that need it on screen (`mustShow`).
+   */
+  type PlaceNow = { owner: string; kind: "region" | "box" | "point" | "anchor"; box: BBox; point: Pt; frame: BBox };
+  const placeNow = (s: string, verb: string, mustShow: boolean): PlaceNow | "skip" | null => {
+    const p = parsePlace(s);
+    if (!p) return null;
+    const pic = opts.pictureOf?.(p.owner) ?? null;
+    if (!pic) {
+      warnings.push(`${verb}: "${p.owner}" is not a picture (in "${s}")`);
+      return "skip";
+    }
+    if (!visibleSet.has(p.owner)) {
+      warnings.push(`${verb} target "${s}" is not visible at that point${mustShow ? " (skipped)" : ""}`);
+      if (mustShow) return "skip";
+    }
+    const [dx, dy] = offsets[p.owner] ?? [0, 0];
+    const shift = (b: BBox): BBox => ({ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h });
+    const frame = shift(pic.frame.rect);
+    let box: BBox;
+    if (p.kind === "region") {
+      const r = pic.regions[p.name];
+      if (!r) {
+        const names = Object.keys(pic.regions);
+        warnings.push(`${verb}: ${p.owner} has no region "${p.name}" — it has: ${names.length > 0 ? names.join(", ") : "none"}`);
+        return "skip";
+      }
+      box = shift(fractionBox(pic.frame, r));
+    } else if (p.kind === "box") box = shift(fractionBox(pic.frame, p.box));
+    else if (p.kind === "point") {
+      const [x, y] = fractionPoint(pic.frame, p.at);
+      box = { x: x + dx, y: y + dy, w: 0, h: 0 };
+    } else box = frame;
+    let point: Pt = [box.x + box.w / 2, box.y + box.h / 2];
+    if (p.kind === "anchor") {
+      if (!isUniversalAnchor(p.anchor)) warnings.push(`${verb}: a picture has no anchor "${p.anchor}" — using center`);
+      point = boxAnchor(frame, isUniversalAnchor(p.anchor) ? p.anchor : "center");
+    }
+    return { owner: p.owner, kind: p.kind, box, point, frame };
+  };
+
   /** Mint a faded copy of each id where it is NOW (design §2.1 round 3): known, mentioned, boxed and visible at once. Returns the ghost ids.
    *  `params`: pass `ghostParams()` — null for a tier-2 spec (the ghost reads
    *  the layout being wrapped), or the boundary params for a template spec
@@ -1168,25 +1219,58 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       makeHidden(ids);
       pushStep({ kind: "clear", ids });
     } else if (cmd.highlight !== undefined) {
-      const ids = visibleTargets(cmd.highlight.target, "highlight");
+      let raw: string[] = typeof cmd.highlight.target === "string" ? [cmd.highlight.target] : cmd.highlight.target ?? [];
+      let part = cmd.highlight.part;
+      // `{target: md, part: bottom}` on a picture names its region.
+      if (part !== undefined && raw.some((t) => opts.pictureOf?.(t)?.regions[part!])) {
+        raw = raw.map((t) => (opts.pictureOf?.(t)?.regions[part!] ? `${t}:${part}` : t));
+        part = undefined;
+      }
+      const places: Record<string, BBox> = {};
+      const plain: string[] = [];
+      for (const t of raw) {
+        const pl = placeNow(t, "highlight", true);
+        if (pl === null) plain.push(t);
+        else if (pl !== "skip") {
+          if (pl.kind === "point" || pl.kind === "anchor") warnings.push(`highlight: "${t}" is a point, not a box — use point, or a box "${pl.owner}@[x, y, w, h]"`);
+          else places[t] = pl.box;
+        }
+      }
+      const ids = [...visibleTargets(plain, "highlight"), ...Object.keys(places)];
       if (ids.length === 0) continue;
-      const boxes: Record<string, BBox> = {};
+      const boxes: Record<string, BBox> = { ...places };
       for (const id of ids) {
+        if (id in places) continue;
         const box = bboxOf(id); // layout box; the player adds the live offset
         if (box) boxes[id] = box;
       }
+      const anyPlace = Object.keys(places).length > 0;
+      const asked = cmd.highlight.effect;
+      const effect = anyPlace && (asked === undefined || asked === "glow" || asked === "pulse") ? "box" : asked ?? "glow";
       pushStep({
         kind: "highlight",
         ids,
         boxes,
-        effect: cmd.highlight.effect ?? "glow",
+        effect,
         seconds: cmd.highlight.duration ?? 1.5,
         color: cmd.highlight.color,
-        ...(cmd.highlight.part ? { part: cmd.highlight.part } : {}),
+        ...(part ? { part } : {}),
         ...(cmd.highlight.duration === undefined && currentNarration !== undefined ? { untilNarrationEnd: true } : {}),
       });
     } else if (cmd.focus !== undefined) {
-      const ids = visibleTargets(cmd.focus.target, "focus");
+      const rawF: string[] = typeof cmd.focus.target === "string" ? [cmd.focus.target] : cmd.focus.target ?? [];
+      const spotsBy = new Map<string, { frame: BBox; holes: BBox[] }>();
+      const plainF: string[] = [];
+      for (const t of rawF) {
+        const pl = placeNow(t, "focus", true);
+        if (pl === null) plainF.push(t);
+        else if (pl !== "skip") {
+          const sp = spotsBy.get(pl.owner) ?? { frame: pl.frame, holes: [] };
+          sp.holes.push(pl.kind === "point" || pl.kind === "anchor" ? { x: pl.point[0] - 30, y: pl.point[1] - 30, w: 60, h: 60 } : pl.box);
+          spotsBy.set(pl.owner, sp);
+        }
+      }
+      const ids = [...visibleTargets(plainF, "focus"), ...[...spotsBy.keys()].filter((o) => !plainF.includes(o))];
       if (ids.length === 0) continue;
       // A label belongs to the thing it names. `fade` and `move` have always
       // carried followers; the inverse spotlight did not, so it held an
@@ -1219,6 +1303,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         kind: "focus",
         ids: kept,
         seconds: cmd.focus.duration ?? 2,
+        ...(spotsBy.size > 0 ? { spots: [...spotsBy.values()] } : {}),
         ...(cmd.focus.duration === undefined && currentNarration !== undefined ? { untilNarrationEnd: true } : {}),
       });
     } else if (cmd.point !== undefined) {
@@ -1227,6 +1312,14 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       let box: BBox | undefined;
       let refId: string | undefined;
       if (at?.ref !== undefined) {
+        const pl = placeNow(at.ref, "point", false);
+        if (pl === "skip") continue;
+        if (pl !== null) {
+          const areal = pl.kind === "region" || pl.kind === "box";
+          const [px, py] = areal && at.anchor !== undefined ? boxAnchor(pl.box, at.anchor) : pl.point;
+          pushStep({ kind: "point", x: px, y: py, box: areal ? pl.box : undefined, refId: pl.owner, gesture: cmd.point.gesture ?? "tap", seconds: cmd.point.duration ?? 2 });
+          continue;
+        }
         const kids = standsFor(at.ref);
         if (!known.has(at.ref) && kids.length === 0) {
           warnings.push(`point command references unknown id "${at.ref}" (skipped)`);
@@ -1826,6 +1919,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         if (on.length > 0) {
           const boxes: BBox[] = [];
           for (const id of on) {
+            const pl = placeNow(id, "camera", false);
+            if (pl === "skip") continue;
+            if (pl !== null) {
+              boxes.push(pl.kind === "region" || pl.kind === "box" ? pl.box : { x: pl.point[0] - 60, y: pl.point[1] - 45, w: 120, h: 90 });
+              continue;
+            }
             const kids = standsFor(id);
             if (!known.has(id) && kids.length === 0) {
               warnings.push(`camera command references unknown id "${id}" (skipped)`);
@@ -1844,6 +1943,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           if (target) {
             cx = target.x + target.w / 2;
             cy = target.y + target.h / 2;
+          }
+        } else if (center?.ref !== undefined && parsePlace(center.ref) !== null) {
+          const pl = placeNow(center.ref, "camera", false);
+          if (pl !== "skip" && pl !== null) {
+            target = pl.kind === "region" || pl.kind === "box" ? pl.box : null;
+            [cx, cy] = pl.kind !== "anchor" && center.anchor !== undefined && target ? boxAnchor(target, center.anchor) : pl.point;
           }
         } else if (center?.ref !== undefined) {
           const kids = standsFor(center.ref);
