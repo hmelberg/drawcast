@@ -294,6 +294,7 @@ function paintGesture(hd: RenderHandle, at: number, step: PlanStep, canvas: HTML
     case "focus": {
       const keep = new Set(step.ids);
       effects.setFocus?.(before.visible.filter((id) => !keep.has(id)), FOCUS_DIM);
+      if (step.spots?.length) effects.setSpotlight?.(step.spots, FOCUS_DIM);
       return;
     }
     case "flow": {

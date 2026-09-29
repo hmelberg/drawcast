@@ -1702,7 +1702,7 @@ export class Player {
       }
       case "focus": {
         const effects = this.effects;
-        if (!effects?.setFocus) return;
+        if (!effects) return;
         // The inverse spotlight: dim everything visible EXCEPT the targets.
         const keep = new Set(step.ids);
         const dimIds = before.visible.filter((id) => !keep.has(id));
@@ -1711,7 +1711,7 @@ export class Player {
         const RAMP = 280;
         const alphaAt = (t: number) => 1 - (1 - FOCUS_DIM) * t;
         const paint = (a: number) => {
-          if (dimIds.length > 0) effects.setFocus!(dimIds, a);
+          if (dimIds.length > 0) effects.setFocus?.(dimIds, a);
           if (spots.length > 0) effects.setSpotlight?.(spots, a);
         };
         try {
