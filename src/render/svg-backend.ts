@@ -1376,6 +1376,29 @@ function underlinePath(box: SvgBox, color: string, rc: RoughSVG | null): SVGGEle
   return g;
 }
 
+/** A box drawn round a region — highlight `box`: the pen line and a faint marker wash inside it. */
+function boxMarkPath(box: SvgBox, color: string, rc: RoughSVG | null): SVGGElement {
+  const pad = 6;
+  const x = box.x - pad;
+  const y = box.y - pad;
+  const w = box.w + 2 * pad;
+  const h = box.h + 2 * pad;
+  const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  g.style.pointerEvents = "none";
+  const wash = document.createElementNS(SVG_NS, "rect");
+  for (const [k, v] of [["x", x], ["y", y], ["width", w], ["height", h], ["rx", 6]] as const) wash.setAttribute(k, String(v));
+  wash.setAttribute("fill", MARKER_COLOR);
+  wash.setAttribute("fill-opacity", "0.16");
+  wash.setAttribute("stroke", "none");
+  g.appendChild(wash);
+  if (rc) {
+    g.appendChild(rc.rectangle(x, y, w, h, { stroke: color, strokeWidth: 3, roughness: 1, bowing: 0.6, fill: undefined, seed: 9 }));
+  } else {
+    g.appendChild(plainPath(`M${x} ${y} H${x + w} V${y + h} H${x} Z`, { color, strokeWidth: 3 }));
+  }
+  return g;
+}
+
 /**
  * Where a run of characters sits on one row of a text leaf, in SVG
  * coordinates before the leaf's pose. Mono text is exact (the CHAR_W grid
@@ -1499,6 +1522,7 @@ function makeEffects(
   rest: () => BBox,
 ): BackendEffects {
   const active = new Map<string, HighlightNodes>();
+  const spotlightNodes: SVGPathElement[] = [];
   const flows = new Map<string, SVGPathElement[]>();
   /** What a ghosted node's `transform` was before the drag picked it up — per
    *  NODE, so a geometry rebuild simply starts the ghost over on the new one
@@ -1545,7 +1569,7 @@ function makeEffects(
           into.push({ el, len });
         };
 
-        if (effect === "circle" || effect === "underline") {
+        if (effect === "circle" || effect === "underline" || effect === "box") {
           // Around (or under) the piece when there is one — measured on the
           // leaves and posed like them — else the targets' own layout box.
           let around: SvgBox | null = null;
@@ -1561,13 +1585,14 @@ function makeEffects(
           }
           if (around) {
             const pen = color ?? HIGHLIGHT_COLOR;
-            const mark = effect === "circle" ? ellipseRingPath(around, pen, rc, narrowed) : underlinePath(around, pen, rc);
+            const mark =
+              effect === "circle" ? ellipseRingPath(around, pen, rc, narrowed) : effect === "box" ? boxMarkPath(around, pen, rc) : underlinePath(around, pen, rc);
             if (pose) mark.setAttribute("transform", pose);
             overlay.appendChild(mark);
             st.nodes.push(mark);
             // The ring is written by the level (it always has been); the
             // underline by the clock, like glow's pens.
-            for (const p of Array.from(mark.querySelectorAll("path"))) writeOn(p as SVGPathElement, effect === "circle" ? st.ringPaths : st.penPaths);
+            for (const p of Array.from(mark.querySelectorAll("path"))) writeOn(p as SVGPathElement, effect === "underline" ? st.penPaths : st.ringPaths);
           }
         } else {
           const filledTarget = lit.some((e) => e.leaf.kind === "area");
@@ -1753,6 +1778,32 @@ function makeEffects(
 
     endFocus(dimIds: string[]): void {
       for (const id of dimIds) for (const { fadeNode } of leafNodes.get(id) ?? []) setFocusAlpha(fadeNode, 1);
+    },
+
+    setSpotlight(spots: { frame: BBox; holes: BBox[] }[], alpha: number): void {
+      const dim = Math.max(0, Math.min(1, 1 - alpha));
+      for (const n of spotlightNodes) n.remove();
+      spotlightNodes.length = 0;
+      for (const s of spots) {
+        const rectD = (b: BBox) => {
+          const v = svgBoxOf(b);
+          return `M${v.x} ${v.y} H${v.x + v.w} V${v.y + v.h} H${v.x} Z`;
+        };
+        const p = document.createElementNS(SVG_NS, "path") as SVGPathElement;
+        p.setAttribute("d", [rectD(s.frame), ...s.holes.map(rectD)].join(" "));
+        p.setAttribute("fill-rule", "evenodd");
+        // The figure's own ground (dark mode keeps figures on paper), so the dim reads as fading toward it.
+        p.setAttribute("fill", FIGURE_GROUND);
+        p.setAttribute("fill-opacity", String(dim));
+        p.style.pointerEvents = "none";
+        overlay.appendChild(p);
+        spotlightNodes.push(p);
+      }
+    },
+
+    endSpotlight(): void {
+      for (const n of spotlightNodes) n.remove();
+      spotlightNodes.length = 0;
     },
 
     setFlow(ids: string[], o: FlowOpts, frame: { travelled: number; alpha: number }): void {

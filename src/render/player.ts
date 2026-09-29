@@ -1706,11 +1706,16 @@ export class Player {
         // The inverse spotlight: dim everything visible EXCEPT the targets.
         const keep = new Set(step.ids);
         const dimIds = before.visible.filter((id) => !keep.has(id));
-        if (dimIds.length === 0) return;
+        const spots = step.spots ?? [];
+        if (dimIds.length === 0 && spots.length === 0) return;
         const RAMP = 280;
         const alphaAt = (t: number) => 1 - (1 - FOCUS_DIM) * t;
+        const paint = (a: number) => {
+          if (dimIds.length > 0) effects.setFocus!(dimIds, a);
+          if (spots.length > 0) effects.setSpotlight?.(spots, a);
+        };
         try {
-          await this.progress(RAMP, signal, (t) => effects.setFocus!(dimIds, alphaAt(t)));
+          await this.progress(RAMP, signal, (t) => paint(alphaAt(t)));
           if (signal.aborted) return;
           if (step.untilNarrationEnd && this.narrationVoice) {
             await this.narrationVoice;
@@ -1718,9 +1723,10 @@ export class Player {
             await this.waitScaled(Math.max(0, step.seconds * 1000 - 2 * RAMP), signal);
           }
           if (signal.aborted) return;
-          await this.progress(RAMP, signal, (t) => effects.setFocus!(dimIds, alphaAt(1 - t)));
+          await this.progress(RAMP, signal, (t) => paint(alphaAt(1 - t)));
         } finally {
           effects.endFocus?.(dimIds);
+          if (spots.length > 0) effects.endSpotlight?.();
         }
         return;
       }

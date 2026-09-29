@@ -88,6 +88,14 @@ export interface BackendEffects {
   /** Restore any leftover dim (abort/scrub safety). */
   endFocus?(dimIds: string[]): void;
   /**
+   * The spotlight inside a picture (spec 2026-09-30-picture-regions §5): a
+   * wash over each picture's frame with its holes left clear, at the focus
+   * verb's alpha (1 = none, FOCUS_DIM = full). Optional, like setFocus.
+   */
+  setSpotlight?(spots: { frame: BBox; holes: BBox[] }[], alpha: number): void;
+  /** Remove the spotlight (abort/scrub safety). */
+  endSpotlight?(): void;
+  /**
    * Marks streaming along the ids' strokes: `travelled` is the distance
    * covered so far (logical units), `alpha` the ramp (0–1). Stateless per
    * frame; endFlow removes the overlays.
