@@ -353,12 +353,13 @@ elements:
     view: [0.830, 0.000, 0.170, 0.042]  # the button strip only — above the manual's arrows
     credit: "Sikt / SSB, microdata.no user manual"
     regions:                            # left to right, as the manual labels them
-      script_window: [0.841, 0.003, 0.019, 0.037]   # "Gå til skriptvindu"
-      help:          [0.863, 0.003, 0.019, 0.037]   # shortcuts + interactive introduction
-      support_chat:  [0.885, 0.003, 0.019, 0.037]
-      export:        [0.906, 0.003, 0.019, 0.037]   # export all results / print
-      saved:         [0.928, 0.003, 0.019, 0.037]   # are the last changes saved?
-      settings:      [0.950, 0.003, 0.019, 0.037]   # appearance, or log out
+      command_window: [0.841, 0.003, 0.019, 0.037]   # the window you are in (unlabelled)
+      script_window:  [0.863, 0.003, 0.019, 0.037]   # "Gå til skriptvindu"
+      help:           [0.885, 0.003, 0.019, 0.037]   # shortcuts + interactive introduction
+      support_chat:   [0.906, 0.003, 0.019, 0.037]
+      export:         [0.928, 0.003, 0.019, 0.037]   # export all results / print
+      saved:          [0.950, 0.003, 0.019, 0.037]   # are the last changes saved?
+      settings:       [0.972, 0.003, 0.019, 0.037]   # appearance, or log out
 
 script:
   - speak: This is microdata's command window, in the middle of a session.
@@ -371,24 +372,24 @@ script:
     highlight: {target: md:imported}              # and slides down to the list
   - speak: Further down are all the variables in the registers — thousands of them.
     focus: {target: md:variables}                 # the spotlight takes over from the box
+  - camera: {on: md:filter}
   - speak: So you search for them by name.
-    camera: {on: md:filter}
     point: {at: md:filter, gesture: underline}
+  - camera: {reset: true}
   - speak: The big area on the right is where everything you do is written down.
-    camera: {reset: true}
     focus: {target: md:results}
+  - camera: {on: md:import_command, zoom: 3}
   - speak: Each command, and what came out of it — here, the sex of every person, imported as kjonn.
-    camera: {on: md:import_command, zoom: 3}
     highlight: {target: md:import_command}
+  - camera: {on: md:command_line}
   - speak: You type commands at the very bottom.
-    camera: {on: md:command_line, zoom: 2}        # the camera pans down from the command
     point: {at: md:command_line, gesture: underline}
+  - camera: {reset: true}
+  - hide: md
+  - show: tools
   - speak: And up in the corner are the tools.
-    camera: {reset: true}
-    hide: md
-    show: tools
-    highlight: {target: [tools:script_window, tools:help, tools:support_chat, tools:export, tools:saved, tools:settings]}
-    # one sentence, six stops: the box travels along the strip
+    highlight: {target: tools:script_window}
+    # a travelling box along the strip is delivery 2 — see §6.2
   - speak: If you get stuck, the chat puts you in touch with support.
     highlight: {target: tools:support_chat}
 ```

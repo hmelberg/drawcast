@@ -22,12 +22,13 @@ elements:
     view: [0.830, 0.000, 0.170, 0.042]  # the button strip only
     credit: "Sikt / SSB, microdata.no user manual"
     regions:                            # left to right, as the manual labels them
-      script_window: [0.841, 0.003, 0.019, 0.037]
-      help:          [0.863, 0.003, 0.019, 0.037]
-      support_chat:  [0.885, 0.003, 0.019, 0.037]
-      export:        [0.906, 0.003, 0.019, 0.037]
-      saved:         [0.928, 0.003, 0.019, 0.037]
-      settings:      [0.950, 0.003, 0.019, 0.037]
+      command_window: [0.841, 0.003, 0.019, 0.037]   # the window you are in (unlabelled)
+      script_window:  [0.863, 0.003, 0.019, 0.037]   # "Gå til skriptvindu"
+      help:           [0.885, 0.003, 0.019, 0.037]   # shortcuts + interactive introduction
+      support_chat:   [0.906, 0.003, 0.019, 0.037]
+      export:         [0.928, 0.003, 0.019, 0.037]   # export all results / print
+      saved:          [0.950, 0.003, 0.019, 0.037]   # are the last changes saved?
+      settings:       [0.972, 0.003, 0.019, 0.037]   # appearance, or log out
 commands:
   - draw: [md]
     speak: This is microdata's command window, mid-session.
@@ -48,7 +49,7 @@ commands:
   - camera: {on: ["md:import_command"], zoom: 3}
   - highlight: {target: ["md:import_command"]}
     speak: Each command, and what came out of it.
-  - camera: {on: ["md:command_line"], zoom: 2}
+  - camera: {on: ["md:command_line"]}
   - point: {at: {ref: "md:command_line"}, gesture: underline}
     speak: You type commands at the bottom.
   - camera: {reset: true}
