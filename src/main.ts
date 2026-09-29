@@ -100,7 +100,7 @@ import { claimFile, privateInHash, quotePrivate, registerItem, registryNote, ver
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
 import { fetchItemKey, liveKeyStorage, unlockForAuthor } from "./item-key";
-import { inPrivateCourse, isPrivateDrawing } from "./private-doc";
+import { inPrivateCourse, isPrivateDrawing, keptRowFields } from "./private-doc";
 import { embeddedPlaylist, withAuthoredTemplates, type EmbedDeps } from "./publish/embed";
 import { resolvePortraits } from "./render/portrait";
 import { resolveIcons } from "./render/icon";
@@ -429,6 +429,14 @@ function firstSpec(d: Doc): Spec {
 }
 
 function docFromSaved(saved: SavedDrawing): Doc {
+  const d = docFromSavedRow(saved);
+  // A lecture of a private course is private in memory from the moment it
+  // opens (task 10 fix round 3) — whatever its row happens to carry.
+  if (isPrivateDrawing(d, loadLibrary(), loadCourses())) d.private = true;
+  return d;
+}
+
+function docFromSavedRow(saved: SavedDrawing): Doc {
   // `?? null` normalises a library entry stored before sourcePath existed
   // (plain `undefined` at runtime, despite the type) into the real default.
   const sourcePath = saved.sourcePath ?? null;
@@ -3147,7 +3155,10 @@ function autosave(): void {
     drivePublishedName: doc.drivePublishedName,
     sourcePath: doc.sourcePath,
     freeName: doc.freeName,
-    private: doc.private,
+    // Merged from the row this save replaces: `courseId` (the editor's
+    // document never holds it) and `private`, which a save never clears
+    // (keptRowFields — task 10 fix round 3).
+    ...keptRowFields(doc, loadLibrary().find((d) => d.id === doc.id)),
     ts: new Date().toISOString(),
   });
   refreshLibrary();

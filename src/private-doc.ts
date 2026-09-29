@@ -33,6 +33,21 @@ export function inPrivateCourse(
   return courses.some((c) => privateCourse(c.text) && parseCourse(c.text).lectures.some((l) => l.status?.id === id));
 }
 
+/**
+ * The fields autosave carries over from the row it replaces (task 10 fix
+ * round 3): saveDrawing replaces a whole row, and the editor's document does
+ * not hold `courseId`, nor necessarily `private`. A private flag is never
+ * cleared by a save — only an explicit make-public (`doc.private === false`,
+ * which only a public GitHub publish of the drawcast sets) clears it.
+ */
+export function keptRowFields(
+  doc: { private?: boolean },
+  existing: { private?: boolean; courseId?: string } | undefined,
+): { private: true | undefined; courseId: string | undefined } {
+  const priv = doc.private === false ? undefined : doc.private || existing?.private ? true : undefined;
+  return { private: priv, courseId: existing?.courseId };
+}
+
 export function isPrivateDrawing(
   doc: { id: string | null; private?: boolean },
   library: readonly { id: string; courseId?: string; private?: boolean }[],
