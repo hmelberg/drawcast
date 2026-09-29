@@ -27,6 +27,10 @@ Decided with Hans (2026-09-30):
   (right-click → Find parts), by the app's AI when the request is to explain
   that picture, or by the skill. The result is written into the spec as plain
   named boxes, and the picture is never analysed again.
+- **Control over the map**: a level of detail, which kinds to look for
+  (areas, controls, text), and `find` for exactly the things wanted. The full
+  map is kept in a cache; only the regions the drawcast uses go into the spec.
+  Region names are English.
 - **Both the app and the local skill.** The app's pipeline does the mapping;
   the skill uses the same vocabulary and adds precision tools.
 - **Movement, not just positions.** Pointing and highlighting can jump from
@@ -77,12 +81,12 @@ is not planned.
   view: [0, 0.07, 1, 0.93]      # show only this part (cut off the browser bar)
   credit: "Sikt / SSB, microdata.no user manual"
   regions:
-    datasett:      [0.00, 0.070, 0.20, 0.465]
-    registervar:   [0.00, 0.535, 0.20, 0.465]
+    datasets:      [0.00, 0.070, 0.20, 0.465]
+    variables:   [0.00, 0.535, 0.20, 0.465]
     filter:        [0.00, 0.560, 0.20, 0.020]
-    arbeidsflate:  [0.20, 0.070, 0.80, 0.900]
-    kommandolinje: [0.20, 0.970, 0.80, 0.030]
-    verktoy:       [0.91, 0.070, 0.08, 0.035]
+    results:  [0.20, 0.070, 0.80, 0.900]
+    command_line: [0.20, 0.970, 0.80, 0.030]
+    toolbar:       [0.91, 0.070, 0.08, 0.035]
 ```
 
 - **`url`** — a direct image URL. **Or a file**: a dropped picture is stored
@@ -118,7 +122,7 @@ mapped:
 | Written | Means |
 |---|---|
 | `md` | the whole (shown) picture |
-| `md:kommandolinje` | a region by name |
+| `md:command_line` | a region by name |
 | `md@top`, `md@left`, `md@top_right`, … | a named spot (the existing anchor names) |
 | `md@[0.6, 0.1]` | a point: 60 % across, 10 % down |
 | `md@[0.2, 0.9, 0.8, 0.1]` | a box, unnamed |
@@ -126,22 +130,22 @@ mapped:
 The string forms are shorthand for `{ref: md, region: …}`, `{ref: md,
 anchor: …}` and `{ref: md, at: [...]}`, so `EndRef` gains `region` and `at`
 and nothing else changes. A region name that does not exist is a lint error
-("md has no region kommandolinje; it has: …"), never a silent miss.
+("md has no region command_line; it has: …"), never a silent miss.
 
 ## 5. The verbs on a picture
 
 Existing verbs, new targets — plus one new highlight effect:
 
-- **`point: {at: md:kommandolinje}`** — the laser; `gesture: circle` traces
+- **`point: {at: md:command_line}`** — the laser; `gesture: circle` traces
   the region's box.
-- **`highlight: {target: md:registervar, effect: box}`** — **new effect
+- **`highlight: {target: md:variables, effect: box}`** — **new effect
   `box`**: a rounded rectangle drawn around the region in the highlighter
   colour, with a faint fill. On a picture, `box` is the default effect.
-  (`part:` also works: `{target: md, part: registervar}`.)
-- **`focus: {target: md:arbeidsflate}`** — the spotlight: the picture (and
+  (`part:` also works: `{target: md, part: variables}`.)
+- **`focus: {target: md:results}`** — the spotlight: the picture (and
   everything else) dims except the region. On a picture this dims *inside*
   the picture, not just other elements.
-- **`camera: {on: md:datasett}`** — frame the region (zoom `fit`, or a number).
+- **`camera: {on: md:datasets}`** — frame the region (zoom `fit`, or a number).
 
 ## 6. Movement
 
@@ -167,7 +171,7 @@ rezooms — instead of fading out and appearing again.
 
 ```yaml
 - speak: From the list of datasets, down to the variables, and over to the command line.
-  highlight: {target: [md:datasett, md:registervar, md:kommandolinje]}
+  highlight: {target: [md:datasets, md:variables, md:command_line]}
 ```
 
 A list is visited in order; the sentence's time is split between the stops.
@@ -180,7 +184,7 @@ its name is spoken — are later.
 ```yaml
 - id: md
   type: image
-  tour: [datasett, registervar, arbeidsflate, kommandolinje]
+  tour: [datasets, variables, results, command_line]
   tour_look: box          # box (default) | focus | zoom | point
 ```
 
@@ -210,6 +214,65 @@ boxes, so the spec is then the same as one written by hand. It is cached by
 the picture's content hash, so the same screenshot in two drawcasts is mapped
 once.
 
+### 8.1 Asking for what you want
+
+`auto` alone uses the defaults. The longer form gives control, so the map
+neither comes back far too detailed nor misses what the explanation needs:
+
+```yaml
+regions:
+  auto:
+    detail: some            # few | some (default) | many
+    kinds: [areas, controls] # areas | controls | text — default all three
+    find: [command line, "Filtrér variabler", search button]
+```
+
+- **`detail`** — how fine the map is. `few`: the main areas only (the four
+  panels of the microdata window, about 3–8 regions). `some`: areas plus the
+  controls a newcomer would be shown (about 10–25). `many`: down to single
+  buttons, fields and labels (up to about 80).
+- **`kinds`** — what to look for. `areas` (panels, sections, the parts of a
+  diagram), `controls` (buttons, fields, menus, tabs, icons), `text` (visible
+  words, via text recognition — exact boxes).
+- **`find`** — be specific: mark only these things, if they exist. A quoted
+  string is matched as visible text (exact, via text recognition); a plain
+  phrase is looked for by the model ("search button"). With `find` alone,
+  `detail` and `kinds` do not apply — only what is asked for is marked.
+  **Anything not found is reported, never invented**: "not found in md:
+  search button". The author sees that; the app's AI gets it back and writes
+  around it.
+- The author sets these in the Find parts picker; the app's AI sets them in
+  the plan — usually `find` with the things its outline means to talk about,
+  plus a small `detail: few` for context.
+
+### 8.2 Capture generously, keep what is used
+
+The cost of a map is one call that sees the picture, and it hardly depends
+on how many regions come back (a picture is roughly 1.5k input tokens; 50
+regions are roughly 1.5k output tokens). What does grow with detail is the
+*spec* and the *compiler's prompt*. So the two are kept apart:
+
+1. **The full map lives in the cache**, not in the spec: every region found,
+   at the requested detail, with its kind and a confidence.
+2. **The compiler is given the names** from the map (one compact line each:
+   `command_line — control — "demografidata»"`), not the boxes, and writes
+   the narration against them.
+3. **After compiling, unused regions are dropped from the spec**: only
+   regions the drawcast actually points at, highlights, focuses or frames are
+   written into `regions:`. Regions written or edited by hand are never
+   dropped.
+4. **Adding a mention later is free**: a revision that names a region the
+   spec no longer has picks it up from the cached map with no new call. Only
+   a region the map never had asks for a new, targeted `find`.
+
+This way a generous default (`some`) costs little, the spec stays small and
+readable, and what the explanation needs is there.
+
+Region names are **English ids**, whatever the language of the picture or
+the narration (`command_line`, not `kommandolinje`); a region's visible text,
+when it has one, is kept beside it in the map so `find` and the compiler can
+match it.
+
 **Who asks for it:**
 
 - **The author**: right-click the picture → **Find parts**. That only starts
@@ -227,9 +290,8 @@ once.
 **How:**
 
 1. **A model that can see** gets the picture and returns named boxes: short
-   names (the voice says the sentence; the region name is a word or two), in
-   the language of the request. Good at panels, buttons and menus; a few
-   percent off.
+   names (the voice says the sentence; the region name is a word or two),
+   in English. Good at panels, buttons and menus; a few percent off.
 2. **Text recognition** (Tesseract.js) makes text-labelled parts exact: a
    region whose label is visible text snaps to the text's box, and
    `part: "Filtrér variabler"` finds the words the way `quote` finds a
@@ -248,21 +310,21 @@ the place syntax (§4), the `box` effect and `tour` — a few lines.
 - speak: This is the command window in microdata.
   show: md
 - speak: On the left, the datasets you have made.
-  highlight: {target: md:datasett}
+  highlight: {target: md:datasets}
 - speak: Below them, every variable in the registers.
-  highlight: {target: md:registervar}       # the box slides down
+  highlight: {target: md:variables}       # the box slides down
 - speak: You can filter them by name here.
   camera: {on: md:filter}                   # the box shrinks to the filter; the camera follows
 - speak: Commands go in at the bottom.
-  camera: {on: md:kommandolinje}
-  point: {at: md:kommandolinje, gesture: underline}
+  camera: {on: md:command_line}
+  point: {at: md:command_line, gesture: underline}
 - speak: And the results appear above.
   camera: {reset: true}
-  focus: {target: md:arbeidsflate}
+  focus: {target: md:results}
 ```
 
-or, with the tour: `tour: [datasett, registervar, filter, kommandolinje,
-arbeidsflate]` and one plain sentence per step.
+or, with the tour: `tour: [datasets, variables, filter, command_line,
+results]` and one plain sentence per step.
 
 ## 10. Later: interaction
 
@@ -282,7 +344,9 @@ arbeidsflate]` and one plain sentence per step.
    drawcast by hand.
 2. **Movement.** Carry-over (§6.1) with seek-safety, paths in a sentence
    (§6.2), `tour` (§6.3), the camera-world scroll (§7).
-3. **Mapping in the app and the skill.** `regions: auto`, the mapping prompt,
+3. **Mapping in the app and the skill.** `regions: auto` with `detail`,
+   `kinds` and `find` (model-found; `text` and quoted `find` wait for
+   delivery 4), the cached full map and the drop-unused step, the mapping prompt,
    the plan step that marks a picture, the content-hash cache, the Netlify
    fetch for CORS-refusing hosts.
 4. **Precision and editing.** Text recognition, the Find parts picker with
@@ -291,15 +355,13 @@ arbeidsflate]` and one plain sentence per step.
 
 ## 12. Open questions
 
-- **The region separator**: `md:kommandolinje` reads well, but must not clash
+- **The region separator**: `md:command_line` reads well, but must not clash
   with anything that already uses `:` in a target string. Check before
-  delivery 1; `md/kommandolinje` is the fallback.
+  delivery 1; `md/command_line` is the fallback.
 - **`look: screen` on a traced drop.** Today a dropped file is traced. Should
   Insert image ask ("sketch it" / "keep it as a screenshot"), or guess from
   the picture (a UI has large flat areas and small text)?
 - **Box style**: highlighter-yellow fill (matches the new highlighter) or an
   ink outline (matches the house style)? Try both on the microdata picture.
-- **Language of region names**: the request's language (Norwegian here) or
-  always English ids with the label kept separately?
 - **Size cap** for embedded screen pictures, and whether publishing links
   large pictures instead of embedding them.
