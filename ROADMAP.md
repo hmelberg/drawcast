@@ -3110,6 +3110,37 @@ Open, from the round:
 - Live math: a cast can't `highlight` a single live number (nested parts); vars inside `label` tex or template equations aren't live; plain `{r}` in text formats 0.035 as "0" unless `decimals` or `{r:3}`.
 - Timeline: a showing hover tooltip isn't closed on pinch zoom; the axis height is computed from the whole timeline, so an early beat may show a label high up; crowded log_ago stretches can drop priority-2 labels (zoom in for them); pictures resolve only on the render path.
 
+## Registry: may a collaborator take over an older teacher's course? — noted 2026-09-30, to decide later
+
+Raised by the final review of registry delivery 1 (spec
+`docs/superpowers/specs/2026-09-29-registry-private-names-design.md`, merged
+99d1bb02 / drawcast-anvil 19dfccd). Hans: decide later.
+
+**How it works now.** Ownership of a GitHub location is proven by the claim
+file (`.drawcast/claim`, checked by `/claim/verify`). A proven account takes
+over every *unproven* registry row in that repo (`_take_over_unproven` in
+drawcast-anvil `api.py`), and re-mints the item's free name. Anyone with
+write access to the repo can prove it, so a **collaborator counts as a proven
+owner**. A course registered before claim files existed (by `POST /course`)
+is unproven, so a collaborator's first signed-in publish to that repo takes
+the course over, and with it `courses.owner`: the teacher dashboard (learner
+progress, answers, emails), join requests, teachers and access. Once two
+accounts are both proven, neither can take a row from the other; only an
+admin can move it (Anvil Data Tables).
+
+**The question.** Is that what we want, or should an existing owner be
+protected? Options when we come back to it:
+- keep it as is (the spec's rule: proven replaces unproven);
+- a take-over of a row that already has an owner (even unproven) needs that
+  owner to agree, or waits N days and mails them first;
+- only the GitHub repo *owner* (the `owner/` segment's account), not any
+  collaborator, can prove — needs GitHub identity, e.g. the GitHub App;
+- give existing unproven owners a grace period to prove before take-over is
+  allowed.
+
+Related, also open: private GitHub repos can't be proven at all (the claim
+check reads raw.githubusercontent anonymously) — a delivery 2 concern.
+
 ## Housekeeping
 
 - Regenerate `package-lock.json` (`npm install`) and switch CI back to
