@@ -1,6 +1,6 @@
 # Pointing into pictures — design
 
-2026-09-30 · status: draft for review
+2026-09-30 · status: draft for review · delivery 1 built 2026-09-30 — see plan docs/superpowers/plans/2026-09-30-picture-regions-delivery-1.md
 
 ## 1. What this is for
 
@@ -130,9 +130,7 @@ mapped:
 | `md@[0.6, 0.1]` | a point: 60 % across, 10 % down |
 | `md@[0.2, 0.9, 0.8, 0.1]` | a box, unnamed |
 
-The string forms are shorthand for `{ref: md, region: …}`, `{ref: md,
-anchor: …}` and `{ref: md, at: [...]}`, so `EndRef` gains `region` and `at`
-and nothing else changes. A region name that does not exist is a lint error
+In `point.at` and `camera.center` a place goes in `ref` — `{ref: "md:command_line"}`, `{ref: "md:command_line", anchor: "left"}`, `{ref: "md@[0.6, 0.1]"}` — so no command changes shape. Targets that take ids (`highlight`, `focus`, `camera.on`) take the place strings directly. A region name that does not exist is a lint error
 ("md has no region command_line; it has: …"), never a silent miss.
 
 ## 5. The verbs on a picture

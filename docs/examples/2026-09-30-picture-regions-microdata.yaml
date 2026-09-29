@@ -1,0 +1,69 @@
+title: "The microdata.no command window"
+elements:
+  - id: md
+    type: image
+    url: https://microdata.no/manual/assets/images/image79-3a6b840c804b98810159afecdbdab29c.png
+    look: screen
+    view: [0, 0.069, 1, 0.931]          # without the browser's tab and address bar
+    credit: "Sikt / SSB, microdata.no user manual"
+    regions:                            # [x, y, w, h], from the top-left
+      datasets:        [0.000, 0.069, 0.200, 0.466]
+      dataset_name:    [0.000, 0.099, 0.200, 0.042]
+      imported:        [0.000, 0.144, 0.200, 0.140]
+      variables:       [0.000, 0.535, 0.200, 0.465]
+      filter:          [0.000, 0.562, 0.200, 0.020]
+      results:         [0.200, 0.069, 0.800, 0.900]
+      import_command:  [0.205, 0.209, 0.192, 0.014]
+      command_line:    [0.200, 0.970, 0.800, 0.030]
+  - id: tools
+    type: image
+    url: https://microdata.no/manual/assets/images/image83-356911b82643d6cb7d8086c8203ba2bd.png
+    look: screen
+    view: [0.830, 0.000, 0.170, 0.042]  # the button strip only
+    credit: "Sikt / SSB, microdata.no user manual"
+    regions:                            # left to right, as the manual labels them
+      script_window: [0.841, 0.003, 0.019, 0.037]
+      help:          [0.863, 0.003, 0.019, 0.037]
+      support_chat:  [0.885, 0.003, 0.019, 0.037]
+      export:        [0.906, 0.003, 0.019, 0.037]
+      saved:         [0.928, 0.003, 0.019, 0.037]
+      settings:      [0.950, 0.003, 0.019, 0.037]
+commands:
+  - draw: [md]
+    speak: This is microdata's command window, mid-session.
+  - highlight: {target: ["md:datasets"]}
+    speak: On the left, the dataset you are building.
+  - highlight: {target: ["md:dataset_name"]}
+    speak: Its name, and how much it holds.
+  - highlight: {target: ["md:imported"]}
+    speak: Below, the variables you have brought in.
+  - focus: {target: ["md:variables"]}
+    speak: Further down, thousands more, in the registers.
+  - camera: {on: ["md:filter"]}
+  - point: {at: {ref: "md:filter"}, gesture: underline}
+    speak: So you search for them by name.
+  - camera: {reset: true}
+  - focus: {target: ["md:results"]}
+    speak: On the right, everything you do is written down.
+  - camera: {on: ["md:import_command"], zoom: 3}
+  - highlight: {target: ["md:import_command"]}
+    speak: Each command, and what came out of it.
+  - camera: {on: ["md:command_line"], zoom: 2}
+  - point: {at: {ref: "md:command_line"}, gesture: underline}
+    speak: You type commands at the bottom.
+  - camera: {reset: true}
+  - hide: [md]
+  - draw: [tools]
+    speak: And in the corner, the tools.
+  - highlight: {target: ["tools:script_window"]}
+    speak: The script window.
+  - highlight: {target: ["tools:help"]}
+    speak: Help.
+  - highlight: {target: ["tools:support_chat"]}
+    speak: If you get stuck, the chat reaches support.
+  - highlight: {target: ["tools:export"]}
+    speak: Export your results.
+  - highlight: {target: ["tools:saved"]}
+    speak: Whether your changes are saved.
+  - highlight: {target: ["tools:settings"]}
+    speak: And settings.

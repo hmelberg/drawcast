@@ -583,7 +583,13 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // and sources, a zoomable view; its entry grew from the 8-milestone stub, and
 // it is still one index line in the app's two-level catalog).
 // Merged 2026-09-29 with the timeline rewrite on top of the four above: measured 367220.
-const BASELINE_SYSTEM_CHARS = 367800;
+// Re-pinned 2026-09-30 for picture regions (delivery 1): three image
+// properties (`look`, `view`, `regions`), `box` in the highlight enum, and
+// `url` documented for image grew the schema by +705 chars (it is
+// embedded verbatim in the system prompt); the prompt gained the url/regions
+// sentence on freehand rule 7 and one clause on each of highlight, point,
+// focus and camera (+561). Measured 368486 (schema 95759).
+const BASELINE_SYSTEM_CHARS = 368486;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -631,7 +637,8 @@ const BASELINE_SYSTEM_CHARS = 367800;
 // Re-pinned UP 2026-09-29 (live math): vars take an object form (value, min, max, step,
 // decimals, color, fixed, expr), one clause on math `tex`, and math values on `form`. Measured 94397.
 // Merged 2026-09-29 (corner list + live math together): measured 95054.
-const BASELINE_SCHEMA_CHARS = 95100;
+// Re-pinned UP 2026-09-30 (picture regions, delivery 1): +705, see the system note above. Measured 95759.
+const BASELINE_SCHEMA_CHARS = 95759;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in
