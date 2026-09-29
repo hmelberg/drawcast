@@ -51,4 +51,7 @@ describe("picture fields", () => {
     const spec = { elements: [{ id: "t", type: "text", text: "hi", x: 1, y: 1 }], commands: [{ highlight: { target: "t", effect: "box" } }] };
     expect(errorsOf(spec)).toBe("");
   });
+  test("an inherited name is not a region", () => {
+    expect(errorsOf({ elements: [md], commands: [{ draw: ["md"] }, { highlight: { target: "md:constructor" } }] })).toMatch(/has no region "constructor"/);
+  });
 });

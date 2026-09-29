@@ -72,4 +72,14 @@ describe("places in the planner", () => {
     expect(p.steps.some((s: any) => s.kind === "highlight")).toBe(false);
     expect(p.warnings.join("\n")).toMatch(/"md:left" is not visible/);
   });
+  test("a mixed highlight keeps the plain id's effect and warns", () => {
+    const p = plan([{ draw: ["md", "t"] }, { highlight: { target: ["t", "md:left"] } }]);
+    expect(stepOf(p, "highlight").effect).toBe("glow");
+    expect(p.warnings.join("\n")).toContain("in its own command");
+  });
+  test("an inherited name is not a region", () => {
+    const p = plan([{ draw: ["md"] }, { highlight: { target: "md:toString" } }]);
+    expect(p.steps.some((s: any) => s.kind === "highlight")).toBe(false);
+    expect(p.warnings.join("\n")).toMatch(/has no region "toString"/);
+  });
 });

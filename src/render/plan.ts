@@ -789,7 +789,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     const frame = shift(pic.frame.rect);
     let box: BBox;
     if (p.kind === "region") {
-      const r = pic.regions[p.name];
+      const r = Object.hasOwn(pic.regions, p.name) ? pic.regions[p.name] : undefined;
       if (!r) {
         const names = Object.keys(pic.regions);
         warnings.push(`${verb}: ${p.owner} has no region "${p.name}" — it has: ${names.length > 0 ? names.join(", ") : "none"}`);
@@ -1221,9 +1221,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.highlight !== undefined) {
       let raw: string[] = typeof cmd.highlight.target === "string" ? [cmd.highlight.target] : cmd.highlight.target ?? [];
       let part = cmd.highlight.part;
+      const hasRegion = (t: string, name: string) => { const r = opts.pictureOf?.(t)?.regions; return r !== undefined && Object.hasOwn(r, name); };
       // `{target: md, part: bottom}` on a picture names its region.
-      if (part !== undefined && raw.some((t) => opts.pictureOf?.(t)?.regions[part!])) {
-        raw = raw.map((t) => (opts.pictureOf?.(t)?.regions[part!] ? `${t}:${part}` : t));
+      if (part !== undefined && raw.some((t) => hasRegion(t, part!))) {
+        raw = raw.map((t) => (hasRegion(t, part!) ? `${t}:${part}` : t));
         part = undefined;
       }
       const places: Record<string, BBox> = {};
@@ -1244,9 +1245,11 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         const box = bboxOf(id); // layout box; the player adds the live offset
         if (box) boxes[id] = box;
       }
-      const anyPlace = Object.keys(places).length > 0;
+      const placeKeys = Object.keys(places);
+      const allPlaces = placeKeys.length > 0 && plain.length === 0 && ids.length === placeKeys.length;
+      if (placeKeys.length > 0 && !allPlaces) warnings.push(`highlight: places and ids in one highlight — highlight "${placeKeys.join('", "')}" in its own command`);
       const asked = cmd.highlight.effect;
-      const effect = anyPlace && (asked === undefined || asked === "glow" || asked === "pulse") ? "box" : asked ?? "glow";
+      const effect = allPlaces && (asked === undefined || asked === "glow" || asked === "pulse") ? "box" : asked ?? "glow";
       pushStep({
         kind: "highlight",
         ids,

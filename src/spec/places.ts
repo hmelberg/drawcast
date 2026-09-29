@@ -123,7 +123,7 @@ export function pictureErrors(spec: Spec): string[] {
       errs.push(`"${s}": ${p.owner} is not an image`);
       continue;
     }
-    if (p.kind === "region" && !(owner.regions && p.name in owner.regions)) {
+    if (p.kind === "region" && !(owner.regions && Object.hasOwn(owner.regions, p.name))) {
       const names = Object.keys(owner.regions ?? {});
       errs.push(`"${s}": ${p.owner} has no region "${p.name}" — it has: ${names.length > 0 ? names.join(", ") : "none"}`);
     }
