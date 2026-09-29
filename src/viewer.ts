@@ -38,7 +38,7 @@ import { getTtsKey, loadSettings, saveSettings } from "./store";
 import { ensurePacksParallel, packsForSpecs, PACK_DEFS } from "./scenes/packs";
 import { isBlockedCastTemplate, registerCastTemplates } from "./scenes/cast-templates";
 import { gateSpecs } from "./security/code-trust";
-import { enrollRoute, JOIN_RE, mainAppUrl, namedRoute, onViewOrigin, remixUrl } from "./security/view-origin";
+import { coursePageRedirect, enrollRoute, mainAppUrl, namedRoute, onViewOrigin, remixUrl } from "./security/view-origin";
 import { installCodeConsent } from "./ui/code-consent";
 import { scenes } from "./scenes/registry";
 import { pickerKey } from "./google/auth";
@@ -405,8 +405,12 @@ export async function runNamed(hash: string): Promise<void> {
   // learner who just typed or was handed the name should land on — UNLESS
   // the hash already carries `&join` (the page's own Join link, courseHref
   // in course/page.ts, or a copied one), which reaches the door directly.
-  if (resolved.kind === "course" && resolved.page && !JOIN_RE.test(hash)) {
-    location.replace(resolved.page);
+  // coursePageRedirect also stays put for a visitor who came from that very
+  // page (old pages link the bare name) and for a page off the owner's own
+  // github.io site.
+  const page = coursePageRedirect(resolved, hash, typeof document !== "undefined" ? document.referrer : "");
+  if (page) {
+    location.replace(page);
     return;
   }
   if (resolved.kind === "course") {

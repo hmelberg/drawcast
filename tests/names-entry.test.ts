@@ -48,13 +48,15 @@ describe("runNamed", () => {
     // already carries `&join` (the page's own Join link, or a copied one),
     // which reaches the door directly rather than bouncing back to the page
     // a learner who just clicked Join came from.
-    expect(viewer).toMatch(/resolved\.kind === "course" && resolved\.page && !JOIN_RE\.test\(hash\)/);
-    expect(viewer).toMatch(/location\.replace\(resolved\.page\)/);
+    // The decision (kind, &join, referrer, owner's github.io) lives in
+    // view-origin's coursePageRedirect — tests/view-origin.test.ts.
+    expect(viewer).toMatch(/const page = coursePageRedirect\(resolved, hash, typeof document !== "undefined" \? document\.referrer : ""\)/);
+    expect(viewer).toMatch(/location\.replace\(page\)/);
     expect(viewer).toMatch(/status\.replaceWith\(courseDoor\(name, resolved\)\)/);
     // The page redirect is checked strictly AFTER namedRoute's own bounce to
     // the main origin, and the door is the fallback once neither applies.
     const namedRouteAt = viewer.indexOf("namedRoute(resolved, hash)");
-    const pageRedirectAt = viewer.indexOf('resolved.kind === "course" && resolved.page');
+    const pageRedirectAt = viewer.indexOf("coursePageRedirect(resolved, hash");
     const doorAt = viewer.indexOf("status.replaceWith(courseDoor(name, resolved))");
     expect(namedRouteAt).toBeGreaterThan(0);
     expect(pageRedirectAt).toBeGreaterThan(namedRouteAt);
@@ -76,8 +78,8 @@ describe("runNamed", () => {
 
   test("the join test reuses view-origin's own JOIN_RE rather than a second literal", () => {
     const rawViewer = readFileSync(new URL("../src/viewer.ts", import.meta.url), "utf8");
-    expect(rawViewer).toMatch(/import \{[^}]*\bJOIN_RE\b[^}]*\} from "\.\/security\/view-origin"/);
-    expect(rawViewer).toMatch(/JOIN_RE\.test\(hash\)/);
+    // coursePageRedirect (view-origin.ts, beside JOIN_RE) makes the &join test.
+    expect(rawViewer).toMatch(/import \{[^}]*\bcoursePageRedirect\b[^}]*\} from "\.\/security\/view-origin"/);
     // stripJoin (above) has its own, differently-shaped pattern for a
     // different job (stripping `&join` or `&join=…` from a copied link) —
     // that one is fine. What must NOT reappear is view-origin's own literal

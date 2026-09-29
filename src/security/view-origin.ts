@@ -116,6 +116,35 @@ export function namedRoute(resolved: { kind: "cast" | "course"; target: string }
 }
 
 /**
+ * A course name's own GitHub course page, or null to show the door instead.
+ * Null when the hash asks for the door (`&join`), when there is no page, when
+ * the page is not on the course owner's own `https://<owner>.github.io` site
+ * (a registry entry is data, not a licence to redirect anywhere — final
+ * review I1), and when the visitor arrived FROM that page's origin: pages
+ * published before `&join` link the bare name, and sending them back would
+ * loop (final review C1).
+ */
+export function coursePageRedirect(resolved: { kind: "cast" | "course"; target: string; page: string | null }, hash: string, referrer: string): string | null {
+  if (resolved.kind !== "course" || !resolved.page || JOIN_RE.test(hash)) return null;
+  let page: URL;
+  try {
+    page = new URL(resolved.page);
+  } catch {
+    return null;
+  }
+  const owner = resolved.target.split("/", 1)[0].toLowerCase();
+  if (!owner || page.protocol !== "https:" || page.hostname.toLowerCase() !== `${owner}.github.io`) return null;
+  if (referrer) {
+    try {
+      if (new URL(referrer).origin === page.origin) return null;
+    } catch {
+      /* an unreadable referrer is no referrer */
+    }
+  }
+  return resolved.page;
+}
+
+/**
  * On the view origin, a cast that reports learner progress to the drawcast
  * server needs the signed-in account: hand it to the main origin. Null = stay.
  */
