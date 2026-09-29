@@ -51,7 +51,32 @@ describe("verifyClaim", () => {
     const [url, init] = calls(f)[0];
     expect(url).toBe("https://drawcast.anvil.app/_/api/claim/verify");
     expect(JSON.parse(init.body as string)).toEqual({ key: "k", repo: REPO });
-    expect(await verifyClaim(API, "k", REPO, fetchReturning(200, { verified: false }))).toBe(false);
+    expect(await verifyClaim(API, "k", REPO, fetchReturning(200, { verified: false }), { sleep: async () => {} })).toBe(false);
+  });
+
+  test("M3: {verified:false} is retried — 3 attempts, 3 s apart — since raw.githubusercontent lags a fresh commit", async () => {
+    const waits: number[] = [];
+    let n = 0;
+    const f = vi.fn(async () => {
+      n++;
+      return new Response(JSON.stringify({ verified: n === 3 }), { status: 200 });
+    }) as unknown as typeof fetch;
+    expect(await verifyClaim(API, "k", REPO, f, { sleep: async (ms) => void waits.push(ms) })).toBe(true);
+    expect(calls(f).length).toBe(3);
+    expect(waits).toEqual([3000, 3000]);
+  });
+
+  test("M3: never more than 3 attempts; each one bounded by its own timeout signal", async () => {
+    const f = fetchReturning(200, { verified: false });
+    expect(await verifyClaim(API, "k", REPO, f, { sleep: async () => {} })).toBe(false);
+    expect(calls(f).length).toBe(3);
+    for (const [, init] of calls(f)) expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  test("M3: a refusal or a network error is not retried", async () => {
+    const f = fetchReturning(401, { error: "key" });
+    expect(await verifyClaim(API, "k", REPO, f, { sleep: async () => {} })).toBe(false);
+    expect(calls(f).length).toBe(1);
   });
 
   test("a non-2xx or a network error is false, never a throw", async () => {
@@ -106,9 +131,13 @@ describe("registryNote", () => {
     expect(registryNote({ item: {}, name: null, owner: "none", proven: false })).toBe("");
     expect(registryNote({ item: {}, name: null, owner: "you", proven: true })).toBe("");
   });
-  test("key, rate and error all read as unreachable", () => {
-    const outcomes: RegistryOutcome[] = ["key", "rate", "error"];
+  test("rate and error read as unreachable", () => {
+    const outcomes: RegistryOutcome[] = ["rate", "error"];
     for (const out of outcomes) expect(registryNote(out)).toBe(" · not registered (server unreachable)");
+  });
+  test("M5: key (a 401) says to sign in again — the app's wording by default, the caller's own when given", () => {
+    expect(registryNote("key")).toBe(" · not registered — sign in again (Settings → Publishing)");
+    expect(registryNote("key", "run: node scripts/cast.mjs login")).toBe(" · not registered — run: node scripts/cast.mjs login");
   });
 });
 
@@ -165,5 +194,13 @@ describe("both publish flows claim the repo before the commit and register after
     expect(iCommit).toBeLessThan(iCheckpoint);
     expect(iCheckpoint).toBeLessThan(iVerifyClaim);
     expect(iPersist).toBeLessThan(iVerifyClaim);
+  });
+});
+
+describe("M6: publishDrawcast keeps a free name only when the item is the author's (or nobody's)", () => {
+  test("doc.freeName is set only for owner you/none", () => {
+    const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
+    const fn = main.slice(main.indexOf("async function publishDrawcast("), main.indexOf("async function publishServerCast("));
+    expect(fn).toMatch(/if \(typeof reg === "object" && reg\.name && \(reg\.owner === "you" \|\| reg\.owner === "none"\)\) \{\s*doc\.freeName = reg\.name;/);
   });
 });

@@ -5005,7 +5005,9 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
       { key: accountToken || undefined, kind: "cast", target: `${repoStr}/${joinPath(castsDir, `${out.slug}.yaml`)}`, title: doc.title, page: out.castUrl },
       bounded,
     );
-    if (typeof reg === "object" && reg.name) {
+    // Only a name for the author's own item (or an unowned one): a name
+    // held by another account is theirs to hand out, not this document's.
+    if (typeof reg === "object" && reg.name && (reg.owner === "you" || reg.owner === "none")) {
       doc.freeName = reg.name;
       // A second, lightweight save for the free name alone — worth
       // persisting, but never worth making the SLUG's own bookkeeping above

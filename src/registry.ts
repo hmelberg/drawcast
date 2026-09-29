@@ -44,21 +44,41 @@ export async function claimFile(api: string, token: string, repo: string, fetchI
 /**
  * POST /claim/verify, once the claim file above has been committed: true
  * only when Anvil has read it back from GitHub and its first line matches
- * the nonce. False on any refusal or network trouble — never throws.
+ * the nonce. raw.githubusercontent.com can lag a commit made a second ago,
+ * so an answer of {verified:false} is asked again — up to `attempts` times
+ * (3), `delayMs` (3 s) apart, each attempt bounded by its own `timeoutMs`
+ * signal (final review M3); `sleep` is injectable for tests. A refusal, a
+ * malformed answer or network trouble is false at once, never a throw.
  */
-export async function verifyClaim(api: string, token: string, repo: string, fetchImpl: typeof fetch = fetch): Promise<boolean> {
-  try {
-    const res = await fetchImpl(`${apiBase(api)}/_/api/claim/verify`, {
-      method: "POST",
-      headers: { "content-type": "text/plain" },
-      body: JSON.stringify({ key: token, repo }),
-    });
-    if (!res.ok) return false;
-    const body = (await res.json()) as { verified?: unknown };
-    return body.verified === true;
-  } catch {
-    return false;
+export async function verifyClaim(
+  api: string,
+  token: string,
+  repo: string,
+  fetchImpl: typeof fetch = fetch,
+  opts: { attempts?: number; delayMs?: number; timeoutMs?: number; sleep?: (ms: number) => Promise<void> } = {},
+): Promise<boolean> {
+  const attempts = opts.attempts ?? 3;
+  const delayMs = opts.delayMs ?? 3_000;
+  const timeoutMs = opts.timeoutMs ?? 10_000;
+  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  for (let i = 0; i < attempts; i++) {
+    if (i > 0) await sleep(delayMs);
+    try {
+      const res = await fetchImpl(`${apiBase(api)}/_/api/claim/verify`, {
+        method: "POST",
+        headers: { "content-type": "text/plain" },
+        body: JSON.stringify({ key: token, repo }),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (!res.ok) return false;
+      const body = (await res.json()) as { verified?: unknown };
+      if (body.verified === true) return true;
+      if (body.verified !== false) return false;
+    } catch {
+      return false;
+    }
   }
+  return false;
 }
 
 export interface RegisterInput {
@@ -116,8 +136,11 @@ export async function registerItem(api: string, reg: RegisterInput, fetchImpl: t
  * `"key"`/`"rate"`/a network failure all read the same way to the author:
  * the publish is fine, only the registry step did not happen.
  */
-export function registryNote(out: RegistryOutcome): string {
-  if (out === "key" || out === "rate" || out === "error") return " · not registered (server unreachable)";
+export function registryNote(out: RegistryOutcome, signIn = "sign in again (Settings → Publishing)"): string {
+  // A 401 is a stale or missing session, not an unreachable server — the
+  // cure is signing in; the skill passes its own "run: … login" (M5).
+  if (out === "key") return ` · not registered — ${signIn}`;
+  if (out === "rate" || out === "error") return " · not registered (server unreachable)";
   if (out.owner === "other") return " · registered to another account — republish while signed in to prove the repo is yours";
   return out.name ? ` · drawcast.app/#${out.name}` : "";
 }
