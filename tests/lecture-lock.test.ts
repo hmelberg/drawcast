@@ -31,4 +31,45 @@ describe("lecture-lock", () => {
     const big = "x".repeat(3_000_000);
     expect(await unlockText(await lockText(big, KEY, ITEM), KEY)).toBe(big);
   });
+  it("a tampered ciphertext char fails, not silently returns garbage", async () => {
+    const env = await lockText("secret", KEY, ITEM);
+    const e = envelopeOf(env)!;
+    const flipped = e.data[0] === "A" ? "B" : "A";
+    const tampered = env.replace(`data: ${e.data}`, `data: ${flipped}${e.data.slice(1)}`);
+    await expect(unlockText(tampered, KEY)).rejects.toThrow(/wrong-key/);
+  });
+  it("a short (16-byte) key is rejected: bad-key at lock, wrong-key at unlock", async () => {
+    const shortKey = "AAECAwQFBgcICQoLDA0ODw"; // 16 bytes, valid base64url, wrong length
+    await expect(lockText("secret", shortKey, ITEM)).rejects.toThrow(/bad-key/);
+    const env = await lockText("secret", KEY, ITEM);
+    await expect(unlockText(env, shortKey)).rejects.toThrow(/wrong-key/);
+  });
+  it("rejects a malformed item", async () => {
+    await expect(lockText("secret", KEY, "")).rejects.toThrow(/bad-item/);
+    await expect(lockText("secret", KEY, "ann/casts\nqalys")).rejects.toThrow(/bad-item/);
+    await expect(lockText("secret", KEY, "ann/casts/qalys ")).rejects.toThrow(/bad-item/);
+    await expect(lockText("secret", KEY, " ann/casts/qalys")).rejects.toThrow(/bad-item/);
+  });
+  it("a CRLF envelope unlocks the same as an LF one", async () => {
+    const env = await lockText("title: A\r\nline two\r\n", KEY, ITEM);
+    const crlf = env.replace(/\n/g, "\r\n");
+    expect(isLocked(crlf)).toBe(true);
+    expect(await unlockText(crlf, KEY)).toBe("title: A\r\nline two\r\n");
+  });
+  it("round-trips every small size 0..5 bytes (every base64 padding branch)", async () => {
+    for (let n = 0; n <= 5; n++) {
+      const text = "y".repeat(n);
+      expect(await unlockText(await lockText(text, KEY, ITEM), KEY)).toBe(text);
+    }
+  });
+  it("the same plaintext under two different items gets two different ivs", async () => {
+    const a = envelopeOf(await lockText("shared", KEY, "ann/casts/qalys"))!;
+    const b = envelopeOf(await lockText("shared", KEY, "ann/casts/other"))!;
+    expect(a.iv).not.toBe(b.iv);
+  });
+  it("rejects an envelope claiming a foreign alg", async () => {
+    const env = await lockText("secret", KEY, ITEM);
+    const tampered = env.replace("alg: AES-GCM-256", "alg: ROT13");
+    await expect(unlockText(tampered, KEY)).rejects.toThrow(/wrong-key/);
+  });
 });
