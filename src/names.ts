@@ -109,13 +109,70 @@ export interface Resolved {
   page: string | null;
 }
 
-export async function resolveName(api: string, name: string, fetchImpl: typeof fetch = fetch): Promise<Resolved | null> {
+/**
+ * Endpoints tried in order, the same shape as VIEW_ENDPOINTS in src/views.ts:
+ * same-origin first (the Netlify deploy, and `netlify dev`), then the
+ * absolute URL for the GitHub Pages deploy, which calls the drawcast.app
+ * function cross-origin. Both proxy to the very same Anvil registry, so a
+ * JSON answer of any status from either one is authoritative — see
+ * resolveName below.
+ */
+export const NAME_ENDPOINTS = ["/.netlify/functions/name", "https://drawcast.app/.netlify/functions/name"];
+
+function toResolved(body: unknown): Resolved | null {
+  const b = body as Partial<Resolved>;
+  if ((b.kind !== "cast" && b.kind !== "course") || typeof b.target !== "string") return null;
+  return { kind: b.kind, target: b.target, page: typeof b.page === "string" ? b.page : null };
+}
+
+/**
+ * Resolves a name against Anvil's registry, through the Netlify endpoints
+ * first (they cache a hot name for 60 s and record a visit — see
+ * netlify/functions/name.mts) and Anvil directly as the last resort.
+ *
+ * The endpoints are tried in order, and the rule for moving to the next one
+ * is deliberately narrow: move on ONLY when the fetch itself throws (offline,
+ * DNS, timeout) or the response body is not JSON (e.g. a platform's own HTML
+ * error page for a route that does not exist there — the "wrong endpoint"
+ * case, not an answer from Anvil at all). A JSON body of ANY status —
+ * including 404 — is Anvil's actual answer relayed through the proxy, and
+ * every endpoint proxies the same registry, so there is nothing to gain by
+ * asking a different one: a JSON 404 means "unknown name" and stops the
+ * search right there, same as a malformed 200 does.
+ */
+export async function resolveName(
+  api: string,
+  name: string,
+  fetchImpl: typeof fetch = fetch,
+  opts?: { src?: "name" | "lecture"; ref?: string },
+): Promise<Resolved | null> {
+  const src = opts?.src === "lecture" ? "lecture" : "name";
+  const ref = opts?.ref ?? "";
+  const query = `n=${encodeURIComponent(name)}&src=${src}&ref=${encodeURIComponent(ref)}`;
+
+  for (const endpoint of NAME_ENDPOINTS) {
+    try {
+      const res = await fetchImpl(`${endpoint}?${query}`);
+      let body: unknown;
+      try {
+        body = await res.json();
+      } catch {
+        continue; // not JSON — the wrong endpoint, not an answer; try the next
+      }
+      if (!res.ok) return null; // an authoritative JSON "no" from Anvil
+      return toResolved(body);
+    } catch {
+      /* network error — try the next endpoint */
+    }
+  }
+
+  // Both Netlify endpoints are unreachable or answered with something that
+  // is not JSON at all: fall back to Anvil directly, exactly as before this
+  // endpoint existed.
   try {
     const res = await fetchImpl(`${apiBase(api)}/_/api/name?n=${encodeURIComponent(name)}`);
     if (!res.ok) return null;
-    const body = (await res.json()) as Partial<Resolved>;
-    if ((body.kind !== "cast" && body.kind !== "course") || typeof body.target !== "string") return null;
-    return { kind: body.kind, target: body.target, page: typeof body.page === "string" ? body.page : null };
+    return toResolved(await res.json());
   } catch {
     return null;
   }

@@ -379,7 +379,12 @@ export async function runNamed(hash: string): Promise<void> {
   document.body.classList.add("viewer-body");
   const status = h("p", { class: "viewer-status" }, "Looking up the name…");
   document.body.append(status);
-  const resolved = name ? await resolveName(DEFAULT_ENROLL_API, name) : null;
+  const resolved = name
+    ? await resolveName(DEFAULT_ENROLL_API, name, fetch, {
+        src: name.includes("/") ? "lecture" : "name",
+        ref: typeof document !== "undefined" ? document.referrer : "",
+      })
+    : null;
   if (!name || !resolved) {
     status.textContent = `No drawcast called "${name ?? hash}".`;
     status.classList.add("error");

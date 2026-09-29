@@ -37,7 +37,12 @@ describe("entry routes names", () => {
 describe("runNamed", () => {
   test("resolves against the registry, opens the door for a course, plays casts through parseViewerHash", () => {
     expect(viewer).toMatch(/export async function runNamed\(hash: string\)/);
-    expect(viewer).toMatch(/resolveName\(DEFAULT_ENROLL_API, name\)/);
+    // The Netlify name endpoint records a visit per lookup, and needs to know
+    // WHY the lookup happened (a bare name vs. a course lecture) and where it
+    // came from — src/ref, sent explicitly rather than guessed server-side.
+    expect(viewer).toMatch(/resolveName\(DEFAULT_ENROLL_API, name, fetch, \{/);
+    expect(viewer).toMatch(/src: name\.includes\("\/"\) \? "lecture" : "name"/);
+    expect(viewer).toMatch(/ref: typeof document !== "undefined" \? document\.referrer : ""/);
     expect(viewer).toMatch(/kind === "course"/);
     // A course name is the door the published page links to (identity
     // round): bouncing to that page would send a learner who just clicked
