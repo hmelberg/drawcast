@@ -131,14 +131,19 @@ function toResolved(body: unknown): Resolved | null {
  * netlify/functions/name.mts) and Anvil directly as the last resort.
  *
  * The endpoints are tried in order, and the rule for moving to the next one
- * is deliberately narrow: move on ONLY when the fetch itself throws (offline,
- * DNS, timeout) or the response body is not JSON (e.g. a platform's own HTML
- * error page for a route that does not exist there — the "wrong endpoint"
- * case, not an answer from Anvil at all). A JSON body of ANY status —
- * including 404 — is Anvil's actual answer relayed through the proxy, and
- * every endpoint proxies the same registry, so there is nothing to gain by
- * asking a different one: a JSON 404 means "unknown name" and stops the
- * search right there, same as a malformed 200 does.
+ * is deliberately narrow: move on when the fetch itself throws (offline,
+ * DNS, timeout), when the response body is not JSON (e.g. a platform's own
+ * HTML error page for a route that does not exist there — the "wrong
+ * endpoint" case, not an answer from Anvil at all), OR when the JSON body
+ * carries a 5xx status — that is the Netlify FUNCTION reporting its own
+ * trouble reaching Anvil (see defaultResolve in netlify/functions/name.mts,
+ * which synthesises a 502 on a fetch failure), not an answer from Anvil
+ * itself, so treating it as authoritative would turn "this one path to
+ * Anvil is broken" into "no drawcast by that name" for every viewer. A JSON
+ * 2xx or 4xx, by contrast, IS Anvil's actual answer relayed through the
+ * proxy: a JSON 404 means "unknown name" and stops the search right there,
+ * same as a malformed 200 does. The final, direct-to-Anvil attempt has
+ * nowhere left to move on to, so a 5xx there is simply null.
  */
 export async function resolveName(
   api: string,
@@ -159,7 +164,11 @@ export async function resolveName(
       } catch {
         continue; // not JSON — the wrong endpoint, not an answer; try the next
       }
-      if (!res.ok) return null; // an authoritative JSON "no" from Anvil
+      // A 5xx JSON body is the function's own trouble reaching Anvil, not
+      // Anvil's answer — try the next endpoint rather than reporting "no
+      // drawcast by that name" for what is really a broken proxy path.
+      if (res.status >= 500) continue;
+      if (!res.ok) return null; // a 4xx JSON body IS Anvil's authoritative "no"
       return toResolved(body);
     } catch {
       /* network error — try the next endpoint */

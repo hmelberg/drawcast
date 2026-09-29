@@ -73,6 +73,25 @@ describe("resolveName", () => {
     expect(calls(f).length).toBe(1); // never reaches the second endpoint or Anvil directly
   });
 
+  test("a JSON 5xx from an endpoint is the FUNCTION's own trouble reaching Anvil, not Anvil's answer — moves on, and the next endpoint's 200 wins", async () => {
+    let n = 0;
+    const f = vi.fn(async () => {
+      n++;
+      if (n === 1) return new Response(JSON.stringify({ error: "unreachable" }), { status: 502 });
+      return new Response(JSON.stringify({ kind: "cast", target: "o/r/p.yaml", page: null }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const result = await resolveName("https://x", "learn-russian", f);
+    expect(result).toEqual({ kind: "cast", target: "o/r/p.yaml", page: null });
+    expect(calls(f).length).toBe(2);
+    expect(calls(f)[1][0]).toBe("https://drawcast.app/.netlify/functions/name?n=learn-russian&src=name&ref=");
+  });
+
+  test("a JSON 5xx from every endpoint, including Anvil direct, is null — nowhere left to move on to", async () => {
+    const f = fetchReturning(503, { error: "down" });
+    expect(await resolveName("https://drawcast.anvil.app/", "learn-russian", f)).toBeNull();
+    expect(calls(f).length).toBe(3); // both Netlify endpoints, then Anvil direct
+  });
+
   test("a network error moves to the next endpoint, and on to the next", async () => {
     let n = 0;
     const f = vi.fn(async () => {
