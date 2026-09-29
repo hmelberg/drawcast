@@ -33,6 +33,7 @@ import { claimCourse, claimNote, courseClaim, isPayable, nameNote, normalizeName
 import { DEFAULT_ENROLL_API } from "../learn";
 import { claimFile, registerItem, registryNote, verifyClaim } from "../registry";
 import { getToken } from "../account";
+import { unlockForAuthor } from "../item-key";
 
 /**
  * Why the published page gets no door, per the registry's answer to the name
@@ -904,7 +905,14 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         const published = await readFile(repo, joinPath(settings.coursesDir, course.context.slug || "", file), (input, init) =>
           fetch(input, { ...init, signal }),
         ).catch(() => null);
-        if (published) existing = parsePlaylistText(published).audio?.lines ?? {};
+        // A private lecture reads back locked — unlock with the owner's own
+        // token (unlockForAuthor, task 8). Any failure (signed out, revoked,
+        // a rotated key) is just "no previous file": narration is
+        // re-synthesized rather than reused.
+        if (published) {
+          const unlocked = await unlockForAuthor(published);
+          if ("text" in unlocked) existing = parsePlaylistText(unlocked.text).audio?.lines ?? {};
+        }
       }
       const track = await bakeNarration(
         lines,

@@ -6,7 +6,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { lockText } from "../src/crypto/lecture-lock";
-import { fetchItemKey, itemKeyStorageKey, unlockForViewer, type KeyStorage } from "../src/item-key";
+import { fetchItemKey, itemKeyStorageKey, unlockForAuthor, unlockForViewer, type KeyStorage } from "../src/item-key";
 
 const KEY = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"; // 32 bytes 0..31
 const OTHER = "Hx4dHBsaGRgXFhUUExIREA8ODQwLCgkIBwYFBAMCAQA"; // 32 bytes 31..0
@@ -243,5 +243,58 @@ describe("unlockForViewer", () => {
     const { impl, calls } = fetchStub(() => json(200, { key: KEY, item: ITEM }));
     await unlockForViewer(env, { token: () => "tok", fetchImpl: impl, storage: mapStorage() });
     expect(calls[0].url).toBe("https://drawcast.anvil.app/_/api/key");
+  });
+});
+
+describe("unlockForAuthor", () => {
+  it("plain text passes straight through unchanged, no fetch made", async () => {
+    const f = vi.fn();
+    const out = await unlockForAuthor("title: A\n", { token: () => "tok", fetchImpl: f as unknown as typeof fetch, storage: null });
+    expect(out).toEqual({ text: "title: A\n" });
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  it("a locked envelope unlocks with the key Anvil hands back to the owner's own token", async () => {
+    const env = await lockText("secret lecture\n", KEY, ITEM);
+    const { impl, calls } = fetchStub(() => json(200, { key: KEY, item: ITEM }));
+    const out = await unlockForAuthor(env, { token: () => "owner-tok", fetchImpl: impl, storage: mapStorage() });
+    expect(out).toEqual({ text: "secret lecture\n" });
+    expect(JSON.parse(String(calls[0].init?.body))).toEqual({ key: "owner-tok", item: ITEM });
+  });
+
+  it.each([401, 403, 404])("a %s denial never throws or exposes a key — it becomes {locked}", async (status) => {
+    const env = await lockText("secret\n", KEY, ITEM);
+    const { impl } = fetchStub(() => json(status, { error: "x", standing: "none", title: "x" }));
+    const out = await unlockForAuthor(env, { token: () => "tok", fetchImpl: impl, storage: mapStorage() });
+    expect(out).toHaveProperty("locked");
+    expect(typeof (out as { locked: string }).locked).toBe("string");
+    expect(out).not.toHaveProperty("key");
+  });
+
+  it("a wrong key (after the one retry unlockText itself does not do) becomes {locked}, never a throw", async () => {
+    const env = await lockText("secret\n", KEY, ITEM);
+    const { impl } = fetchStub(() => json(200, { key: OTHER, item: ITEM }));
+    const out = await unlockForAuthor(env, { token: () => "tok", fetchImpl: impl, storage: mapStorage() });
+    expect(out).toHaveProperty("locked");
+  });
+
+  it("no clean answer and nothing kept becomes {locked}, not a throw", async () => {
+    const env = await lockText("secret\n", KEY, ITEM);
+    const f = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    const out = await unlockForAuthor(env, { token: () => "tok", fetchImpl: f as unknown as typeof fetch, storage: mapStorage() });
+    expect(out).toEqual({ locked: expect.any(String) });
+  });
+
+  it("defaults api to ENROLL_API when deps.api is not given", async () => {
+    const env = await lockText("secret\n", KEY, ITEM);
+    const { impl, calls } = fetchStub(() => json(200, { key: KEY, item: ITEM }));
+    await unlockForAuthor(env, { token: () => "tok", fetchImpl: impl, storage: mapStorage() });
+    expect(calls[0].url).toBe("https://drawcast.anvil.app/_/api/key");
+  });
+
+  it("never throws even with no deps at all (falls back to the live token/storage, unavailable in this test environment)", async () => {
+    await expect(unlockForAuthor("title: A\n")).resolves.toEqual({ text: "title: A\n" });
   });
 });

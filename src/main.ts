@@ -97,6 +97,7 @@ import { DEFAULT_ENROLL_API } from "./learn";
 import { claimFile, registerItem, registryNote, verifyClaim } from "./registry";
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
+import { unlockForAuthor } from "./item-key";
 import { embeddedPlaylist, withAuthoredTemplates, type EmbedDeps } from "./publish/embed";
 import { resolvePortraits } from "./render/portrait";
 import { resolveIcons } from "./render/icon";
@@ -4233,6 +4234,7 @@ async function loadCoursesFromGithub(opts: { quiet?: boolean } = {}): Promise<vo
     if (!opts.quiet) setStatus(`Loading ${plural(todo.length)} from GitHub…`);
     let loaded = 0;
     const missing: string[] = [];
+    const locked: string[] = [];
     for (const t of todo) {
       const text = await readFile(repo, joinPath(t.dir, "course.md"));
       if (text === null) {
@@ -4243,7 +4245,15 @@ async function loadCoursesFromGithub(opts: { quiet?: boolean } = {}): Promise<vo
       await Promise.all(
         lectureFilesOf(text).map(async (f) => {
           const yaml = await readFile(repo, joinPath(t.dir, f));
-          if (yaml !== null) yamlByFile[f] = yaml;
+          if (yaml === null) return;
+          // A private lecture reads back as a locked envelope — unlock it
+          // with the owner's own token (unlockForAuthor, task 8). A lecture
+          // this account cannot unlock (signed out, revoked, a rotated key)
+          // is reported separately below, never silently skipped and never
+          // stored still-encrypted.
+          const unlocked = await unlockForAuthor(yaml);
+          if ("text" in unlocked) yamlByFile[f] = unlocked.text;
+          else locked.push(`${t.slug}/${f}`);
         }),
       );
       const out = importCourse({ text, yamlByFile, courseId: t.localId ?? crypto.randomUUID(), updated: t.updated });
@@ -4257,7 +4267,11 @@ async function loadCoursesFromGithub(opts: { quiet?: boolean } = {}): Promise<vo
     refreshLibrary();
     if (loaded === 0 && opts.quiet) return;
     const tail = missing.length > 0 ? ` ${missing.length} lecture file${missing.length === 1 ? "" : "s"} could not be read: ${missing.join(", ")}.` : "";
-    setStatus(`Loaded ${plural(loaded)} from GitHub.${tail}`, missing.length > 0 ? "error" : "ok");
+    const lockedTail =
+      locked.length > 0
+        ? ` ${locked.length} lecture file${locked.length === 1 ? "" : "s"} locked — sign in as the owner to load ${locked.length === 1 ? "it" : "them"}: ${locked.join(", ")}.`
+        : "";
+    setStatus(`Loaded ${plural(loaded)} from GitHub.${tail}${lockedTail}`, missing.length > 0 || locked.length > 0 ? "error" : "ok");
   } catch (err) {
     if (!opts.quiet) setStatus(`Loading courses failed: ${(err as Error).message}`, "error");
   } finally {
@@ -4856,9 +4870,16 @@ async function publishTextFor(
   previousText: () => Promise<string | null> = async () => {
     const repo = parseRepo(settings.githubRepo);
     if (!repo || !doc.publishedAs) return null;
-    return readFile(repo, joinPath(joinPath(settings.coursesDir, "casts"), `${doc.publishedAs}.yaml`), (input, init) =>
+    const raw = await readFile(repo, joinPath(joinPath(settings.coursesDir, "casts"), `${doc.publishedAs}.yaml`), (input, init) =>
       fetch(input, { ...init, signal }),
     ).catch(() => null);
+    if (raw === null) return null;
+    // A private cast reads back locked — unlock with the owner's own token
+    // (unlockForAuthor, task 8). Any failure (signed out, revoked, a
+    // rotated key) is just "no previous file": narration is re-synthesized
+    // rather than reused, never a reason to fail the publish.
+    const unlocked = await unlockForAuthor(raw);
+    return "text" in unlocked ? unlocked.text : null;
   },
 ): Promise<string> {
   const editorPlaylist = embedImages ? (readPlaylistText(specArea.value) ?? doc.playlist) : null;
