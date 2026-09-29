@@ -1,6 +1,6 @@
 ---
 name: drawcast
-description: Author a drawcast — or a whole course of them — locally, the way the app would but with eyes — write the spec to the app's own prompt, render its frames, look, fix, repeat — then open it in the player. Publishes a new one to a GitHub repo of the user's, and revises a PUBLISHED drawcast or course from its GitHub link, handing the change back as a pull request (or a direct commit, when allowed). Use when Hans asks to make, draw or write a drawcast (or "a figure/cast explaining X"), to make a course, or to revise/fix/update one that is on GitHub, here in Claude Code rather than in the app.
+description: Author a drawcast — or a whole course of them — locally, the way the app would but with eyes — write the spec to the app's own prompt, render its frames, look, fix, repeat — then open it in the player. Publishes a new one to a GitHub repo of the user's (and buys it a drawcast.app/#name pretty link), and revises a PUBLISHED drawcast or course from its GitHub link, handing the change back as a pull request (or a direct commit, when allowed). Use when Hans asks to make, draw or write a drawcast (or "a figure/cast explaining X"), to make a course, or to revise/fix/update one that is on GitHub, here in Claude Code rather than in the app.
 ---
 
 # Author a drawcast locally
@@ -157,6 +157,23 @@ public repo the user chooses; after that it is revised like anything published.
    can take a minute the first time). Narration is the browser's voice until the course is
    published with narration from the app. Later revisions: step 4 onwards of the revise
    flow below, on the same workdir.
+
+## A pretty link (drawcast.app/#<name>)
+
+Only for something already pushed (it needs `origin.json`; a course or a cast). Every name is
+bought, one-time: 20 USD up to 5 characters, 10 USD up to 7, 5 USD longer; 3 at least.
+The `#gh=` link stays free — say so if the user only wants a link to share.
+
+1. **Signed in?** `name` says so if not: `node scripts/cast.mjs login` prints a code and
+   drawcast.anvil.app/#device; the user signs in there and types the code. Once per machine
+   (`logout` undoes it; so does "Sign out everywhere" on the account page).
+2. `name <workdir> <name>` — free (with its price) / yours / taken. Tell the user the price.
+3. **Only on the user's yes to that price:** `name <workdir> <name> --buy --price <cents>`.
+   It opens Stripe Checkout in their browser; they pay there. Never ask for card details,
+   and never pick a price for them. A name already theirs is repointed here at no cost.
+4. `name-wait <workdir>` (in the background; up to 9 minutes) until the name resolves here.
+   "Not paid (yet)" is not a failure: run it again after they pay. A course: push once more
+   so the course page carries the name.
 
 ## Revising what is published (a GitHub link)
 
