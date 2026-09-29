@@ -1,6 +1,6 @@
 ---
 name: drawcast
-description: Author a drawcast — or a whole course of them — locally, the way the app would but with eyes — write the spec to the app's own prompt, render its frames, look, fix, repeat — then open it in the player. Also revises a PUBLISHED drawcast or course from its GitHub link and hands the change back as a pull request (or a direct commit, when allowed). Use when Hans asks to make, draw or write a drawcast (or "a figure/cast explaining X"), to make a course, or to revise/fix/update one that is on GitHub, here in Claude Code rather than in the app.
+description: Author a drawcast — or a whole course of them — locally, the way the app would but with eyes — write the spec to the app's own prompt, render its frames, look, fix, repeat — then open it in the player. Publishes a new one to a GitHub repo of the user's, and revises a PUBLISHED drawcast or course from its GitHub link, handing the change back as a pull request (or a direct commit, when allowed). Use when Hans asks to make, draw or write a drawcast (or "a figure/cast explaining X"), to make a course, or to revise/fix/update one that is on GitHub, here in Claude Code rather than in the app.
 ---
 
 # Author a drawcast locally
@@ -137,6 +137,26 @@ and one `NN-<title>.yaml` per built lecture.
 Report per lecture as it lands (title, parts, one line on what it shows);
 a lecture whose part will not come right is worth a line to Hans rather
 than a silent compromise.
+
+## Publishing something new (to a GitHub repo of the user's)
+
+A drawcast or a course made here (a folder with one cast YAML, or a course folder) goes to a
+public repo the user chooses; after that it is revised like anything published.
+
+1. **Which account and repo.** `gh api user --jq .login` names the account gh is signed in
+   as; say it, and ask which repo (an existing public one, or a new one) and folder. If gh
+   is not signed in, ask the user to run `! gh auth login`.
+2. `node scripts/cast.mjs publish-target <workdir> <owner/repo> [--dir <folder>] [--create]`
+   — `--create` only when the user said to make the repo (public). It switches Pages on,
+   picks a slug no other cast or course in the repo has (rewriting `slug:` in course.md),
+   and writes `origin.json`.
+3. `push <workdir> --dry-run`, show the file list, and on a yes `push <workdir> --direct`
+   (it is the user's own repo; a PR to themselves is noise — unless they want one, or the
+   repo is someone else's: then plain `push` opens a PR from a fork).
+4. Report the player link (`drawcast.app/#gh=…`) and, for a course, the course page (Pages
+   can take a minute the first time). Narration is the browser's voice until the course is
+   published with narration from the app. Later revisions: step 4 onwards of the revise
+   flow below, on the same workdir.
 
 ## Revising what is published (a GitHub link)
 
