@@ -85,6 +85,36 @@ export function decodePhoto(s: string): { aspect: number; href: string } | null 
   return { aspect: Math.max(0.05, aspectRaw / 500), href };
 }
 
+/**
+ * A LINKED picture (spec 2026-09-30-picture-regions §3): shown from its own
+ * https URL because the host refuses pixel reads, so it could not be
+ * embedded. `lnk1:<2-char aspect>:<url>` — the aspect because layout is
+ * synchronous and must size the picture before it loads.
+ */
+export function encodeLinkedPhoto(aspect: number, url: string): string {
+  const a = Number.isFinite(aspect) && aspect > 0 ? aspect : 1;
+  return `lnk1:${enc12(Math.min(8, a) * 500)}:${url}`;
+}
+
+export function isLinkedPhoto(s: string | undefined): boolean {
+  return typeof s === "string" && s.startsWith("lnk1:");
+}
+
+/** An embedded photo (img1) or a linked one (lnk1, https only). */
+export function decodePicture(s: string): { aspect: number; href: string; linked: boolean } | null {
+  if (typeof s !== "string") return null;
+  if (s.startsWith("lnk1:")) {
+    const aspectRaw = dec12(s, 5);
+    if (aspectRaw === null) return null;
+    const aspect = Math.max(0.05, aspectRaw / 500);
+    const href = s.slice(8);
+    if (s[7] !== ":" || !href.startsWith("https://")) return null;
+    return { aspect, href, linked: true };
+  }
+  const p = decodePhoto(s);
+  return p ? { ...p, linked: false } : null;
+}
+
 /** A highlight rectangle over a source page: [x, y, w, h], lower-left origin. */
 export type PhotoRect = [number, number, number, number];
 
