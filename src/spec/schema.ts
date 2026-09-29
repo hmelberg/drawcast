@@ -20,6 +20,7 @@ import { varNameErrors } from "./vars";
 import { parseABC } from "./abc";
 import { DATA_TOKEN_RE, MALFORMED_TOKEN_RE, scanDataTokens } from "../code/tokens";
 import { validateTemplateDoc } from "../scenes/doc";
+import { pictureErrors } from "./places";
 
 // ajv ships CJS; depending on the bundler/runtime the class is the module or its .default.
 const AjvCtor = ((AjvModule as unknown as { default?: unknown }).default ?? AjvModule) as typeof AjvModule;
@@ -376,7 +377,14 @@ const elementSchema = {
     url: {
       type: "string",
       description:
-        "portrait/source: direct image, .pdf, or YOUTUBE url — ONLY when the user's request supplied one (copy it verbatim; never invent). On a source, a YouTube url draws the video's still, framed with a hand-drawn play mark, and clicking it plays the video embedded — use it when the video IS a thing the figure points at, and note that its title becomes the caption automatically.",
+        "portrait/source/image: direct image, .pdf, or YOUTUBE url — ONLY when the user's request supplied one (copy it verbatim; never invent). On a source, a YouTube url draws the video's still, framed with a hand-drawn play mark, and clicking it plays the video embedded — use it when the video IS a thing the figure points at, and note that its title becomes the caption automatically.",
+    },
+    look: { type: "string", enum: ["screen"], description: "image: \"screen\" keeps colour and resolution — screenshots, diagrams, paintings you point into." },
+    view: { type: "array", items: { type: "number" }, minItems: 4, maxItems: 4, description: "image: the part shown, [x, y, w, h] fractions from the top-left." },
+    regions: {
+      type: "object",
+      additionalProperties: { type: "array", items: { type: "number" }, minItems: 4, maxItems: 4 },
+      description: "image: named parts, name → [x, y, w, h] fractions of the whole picture from the top-left. Target one as \"<id>:<name>\"; any spot as \"<id>@[x, y, w, h]\" or \"<id>@[x, y]\".",
     },
     strokes: { type: "string", description: "portrait/source: embedded traced strokes (machine-written; copy VERBATIM if present, never edit or regenerate)." },
     source: { type: "string", description: "portrait/source: provenance/attribution (machine-written; copy verbatim)." },
@@ -843,7 +851,7 @@ const commandSchema = {
         "Temporarily emphasize visible elements, then return to normal. With a paired speak and no duration it LIGHTS UP AND HOLDS for the rest of the sentence, releasing as the voice ends — the way to talk about one specific element (a curve, an equilibrium) while it is lit.",
       properties: {
         target: idListSchema("Element ids to emphasize."),
-        effect: { type: "string", enum: ["glow", "circle", "underline", "pulse"], description: "glow (default) = suits the target: a yellow band under a line, a marker behind a code line, red ink on a formula, text or shape; circle = a hand-drawn ring; underline = a pen line under it; pulse = red ink that throbs three times first. color replaces the red/yellow." },
+        effect: { type: "string", enum: ["glow", "circle", "underline", "pulse", "box"], description: "glow (default) = suits the target: a yellow band under a line, a marker behind a code line, red ink on a formula, text or shape; circle = a hand-drawn ring; underline = a pen line under it; pulse = red ink that throbs three times first. box = a box drawn round the target (the default on a picture place). color replaces the red/yellow." },
         part: { type: "string", description: "Only this piece: a formula term as TeX (\"t_r\"), or verbatim text of a label or code line." },
         duration: { type: "number", description: "Seconds. Omit with a paired speak to let the effect last the whole sentence (default 1.5 otherwise)." },
         color: { type: "string", description: "Emphasis color, CSS color string." },
@@ -1472,6 +1480,8 @@ function semanticErrors(spec: Spec): string[] {
     if (!v.doc) errors.push(`templates[${i}]: ${v.errors[0] ?? "invalid template document"}`);
   });
 
+  errors.push(...pictureErrors(spec));
+
   // A var named like a curve variable or a function could never be read.
   if (spec.vars !== undefined) errors.push(...varNameErrors(spec.vars));
 
@@ -1955,6 +1965,10 @@ function elementErrors(el: SpecElement): string[] {
       break;
     }
     case "image":
+      if ((typeof el.of !== "string" || el.of.trim() === "") && (typeof el.url !== "string" || el.url.trim() === "") && !el.strokes) {
+        errs.push(`element "${el.id}": image needs of or url`);
+      }
+      break;
     case "icon":
     case "inset":
       if (typeof el.of !== "string" || el.of.trim() === "") {

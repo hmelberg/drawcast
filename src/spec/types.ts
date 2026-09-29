@@ -1,3 +1,4 @@
+import type { Rect4 } from "./places";
 import type { TemplateDoc } from "../scenes/doc";
 // The single spec format the LLM ever sees. See BRIEF.md and src/spec/schema.ts.
 // All coordinates are logical (1000×750, y-up, origin bottom-left) or domain
@@ -313,6 +314,12 @@ export interface SpecElement {
   of?: string;
   /** Direct image URL (user-provided; CORS-permitting hosts only). */
   url?: string;
+  /** image: "screen" — the faithful look for screenshots, diagrams and paintings: full colour, no tint, native resolution (≤ 2400 px). Default: the styled small photo. */
+  look?: "screen";
+  /** image: the part of the picture shown, [x, y, w, h] as fractions from the top-left (default the whole picture). */
+  view?: Rect4;
+  /** image: named boxes on the picture, [x, y, w, h] as fractions of the WHOLE picture from the top-left — targets as "<id>:<name>". */
+  regions?: Record<string, Rect4>;
   /** Embedded traced strokes (spec/trace.ts encoding); set automatically for dropped files. */
   strokes?: string;
   /** Provenance: where the traced image came from (attribution). */
@@ -420,7 +427,7 @@ export interface SpecElement {
 }
 
 export type Easing = "linear" | "ease-in" | "ease-out" | "ease-in-out";
-export type HighlightEffect = "pulse" | "circle" | "glow" | "underline";
+export type HighlightEffect = "pulse" | "circle" | "glow" | "underline" | "box";
 export type PointGesture = "tap" | "circle" | "underline";
 
 export interface HighlightArgs {
