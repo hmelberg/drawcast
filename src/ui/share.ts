@@ -96,10 +96,9 @@ export interface ShareDoc {
   freeName?: string;
   /**
    * Published encrypted, enrolled learners only (registry delivery 2, task
-   * 9) — read only, to seed the Private checkbox on a republish. Undefined
-   * for a course in this delivery (course.ts does not read its document's
-   * own `private:` option back into Share yet — Task 10's job, alongside
-   * the actual lock); a fresh document of either subject is simply undefined.
+   * 9) — read only, to seed the Private checkbox on a republish. A course
+   * reads it from its document's own `private:` option (ui/course.ts, task
+   * 10); a fresh document of either subject is simply undefined.
    */
   private?: boolean;
   /**
@@ -252,8 +251,8 @@ export interface ShareDeps {
     countViews?: boolean;
     allowSignup?: boolean;
     folder?: string;
-    /** The Private checkbox (registry delivery 2, task 9): carried into the
-     *  document state; locking the published files is Task 10. */
+    /** The Private checkbox (registry delivery 2, task 9): a private publish
+     *  locks every lecture file before the commit (task 10). */
     private?: boolean;
   }) => Promise<void>;
   /**

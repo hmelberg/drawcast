@@ -20,6 +20,7 @@ import {
   type RepoRef,
 } from "./github";
 import type { Registration } from "../names";
+import { lockLectureFiles, type LectureLock } from "./lock";
 
 export interface CastEntry {
   slug: string;
@@ -202,6 +203,11 @@ export interface CastPublishArgs {
   /** Files committed alongside the cast's own — the registry's claim file
    *  (registry delivery 1), when this publish is proving repo ownership. */
   extraFiles?: PublishFile[];
+  /** A PRIVATE cast (registry delivery 2, task 10): locks the cast file
+   *  before the commit (publish/lock.ts — all or nothing, nothing committed
+   *  on a failure). When set, no poster is committed: it would show a
+   *  frame of the locked cast. */
+  lock?: LectureLock;
   fetchImpl?: typeof fetch;
 }
 
@@ -221,10 +227,14 @@ export async function publishCast(args: CastPublishArgs): Promise<CastPublishRes
   const indexText = await readFile(args.repo, joinPath(args.castsDir, "casts.json"), fetchImpl);
   const index = indexText ? parseCastIndex(indexText) : emptyCastIndex();
 
-  const plan = buildCastPlan({ ...args, index });
+  // A private cast gets no poster at all — `poster` is dropped here, before
+  // the plan, so no .png path can exist to be committed.
+  const plan = buildCastPlan({ ...args, poster: args.lock ? null : args.poster, index });
+  const castPath = joinPath(args.castsDir, `${plan.slug}.yaml`);
+  const own = args.lock ? await lockLectureFiles(plan.files, [castPath], args.lock) : plan.files;
   // The claim file (registry delivery 1), when this publish is proving repo
   // ownership, rides in the same commit as the cast itself.
-  const files = [...plan.files, ...(args.extraFiles ?? [])];
+  const files = [...own, ...(args.extraFiles ?? [])];
   // No deletions: a cast owns exactly one file, and its slug never changes, so
   // there is never a stale path to remove. (Courses need them because a
   // deleted lecture would otherwise stay reachable at its old link forever.)

@@ -54,7 +54,7 @@ describe("every author re-read of a published lecture is unlocked before it is p
   test("all three sites import unlockForAuthor from item-key.ts", () => {
     const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
     const course = readFileSync(new URL("../src/ui/course.ts", import.meta.url), "utf8");
-    expect(main).toMatch(/import\s*\{\s*unlockForAuthor\s*\}\s*from\s*"\.\/item-key"/);
-    expect(course).toMatch(/import\s*\{\s*unlockForAuthor\s*\}\s*from\s*"\.\.\/item-key"/);
+    expect(main).toMatch(/import\s*\{[^}]*\bunlockForAuthor\b[^}]*\}\s*from\s*"\.\/item-key"/);
+    expect(course).toMatch(/import\s*\{[^}]*\bunlockForAuthor\b[^}]*\}\s*from\s*"\.\.\/item-key"/);
   });
 });

@@ -91,13 +91,15 @@ import { listCloudVoices, runLang, stampedVoice, synthesizeBase64 } from "./expo
 import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "./export/bake-cache";
 import { bakeCost, costLabel } from "./export/tts-cost";
 import { publishCast } from "./publish/cast";
+import { LockError, type LectureLock } from "./publish/lock";
+import { lockText } from "./crypto/lecture-lock";
 import { publishToServer, serverCastKey, type ServerAccess } from "./publish/server";
-import { isPayable, normalizeName, paidInHash, registerName, startNamePayment } from "./names";
+import { formatPrice, isPayable, normalizeName, paidInHash, registerName, startNamePayment } from "./names";
 import { DEFAULT_ENROLL_API } from "./learn";
-import { claimFile, privateInHash, registerItem, registryNote, verifyClaim } from "./registry";
+import { claimFile, privateInHash, quotePrivate, registerItem, registryNote, verifyClaim } from "./registry";
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
-import { unlockForAuthor } from "./item-key";
+import { fetchItemKey, liveKeyStorage, unlockForAuthor } from "./item-key";
 import { embeddedPlaylist, withAuthoredTemplates, type EmbedDeps } from "./publish/embed";
 import { resolvePortraits } from "./render/portrait";
 import { resolveIcons } from "./render/icon";
@@ -4990,8 +4992,8 @@ async function publishDrawcast({
   slug?: string;
   allowComments?: boolean;
   countViews?: boolean;
-  /** Share's Private checkbox (registry delivery 2, task 9) — document state
-   *  only here; locking the published file is Task 10. */
+  /** Share's Private checkbox (registry delivery 2, task 9). Private
+   *  publishes the cast file locked (task 10) — see privateCastLock. */
   private?: boolean;
 }): Promise<void> {
   const token = getGithubToken();
@@ -5019,11 +5021,31 @@ async function publishDrawcast({
   // bounded to 10 s (as the course publish's own "bounded" fetch), and its
   // outcome only ever changes the status line's suffix.
   const bounded: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) });
+  // Share always sends the box's state; a caller that sends nothing keeps
+  // what the document already is — a private cast never silently goes public.
+  const isPrivate = makePrivate ?? doc.private === true;
   try {
+    // A PRIVATE cast (registry delivery 2, task 10): the key first, before
+    // any narration is bought or anything is committed. No key, no publish —
+    // the cast file is never committed in plaintext.
+    let lock: LectureLock | undefined;
+    if (isPrivate) {
+      setStatus("Checking the private drawcast…");
+      const got = await privateCastLock(accountToken, repoStr, castsDir, slug, bounded);
+      if (typeof got === "string") {
+        setStatus(got, "error");
+        return;
+      }
+      lock = got;
+    }
     setStatus("Publishing to GitHub…");
     const text = await publishTextFor(ac.signal, bake, embedImages, allowComments, countViews !== false);
-    setStatus("Drawing the poster…");
-    const poster = await publishedPoster(text);
+    // A private cast commits no poster: it would show a frame of the cast.
+    let poster: Uint8Array | null = null;
+    if (!lock) {
+      setStatus("Drawing the poster…");
+      poster = await publishedPoster(text);
+    }
     setStatus("Publishing to GitHub…");
     // The claim file (registry delivery 1) rides in the SAME commit as the
     // cast: Anvil proves ownership by reading it back from GitHub after the
@@ -5040,6 +5062,7 @@ async function publishDrawcast({
       castsDir,
       viewerBase: settings.viewerBase,
       extraFiles: claim ? [claim] : [],
+      lock,
       fetchImpl: (input, init) => fetch(input, { ...init, signal: ac.signal }),
     });
     // Past this line the commit has LANDED. Recording the slug is what keeps
@@ -5047,7 +5070,7 @@ async function publishDrawcast({
     doc.publishedAs = out.slug;
     doc.publishedComments = allowComments === true && settings.giscusRepoId !== "" && settings.giscusCategoryId !== "";
     doc.publishedViews = countViews !== false;
-    doc.private = makePrivate === true;
+    doc.private = isPrivate;
     // Bookkeeping first: saving the slug is what keeps the published link
     // permanent, and it must not wait behind a network call to the registry.
     try {
@@ -5086,14 +5109,57 @@ async function publishDrawcast({
     // that paid system's old freebie). The FREE title name above is a
     // different thing entirely — every publish gets one from the registry,
     // named or not, signed in or not (registry delivery 1).
-    setStatus(`Published to ${out.castUrl}${lastEmbedNote}${lastBakeNote}${regSuffix}`, "ok");
+    if (lock) setStatus(`Published locked — only enrolled learners can watch. ${out.castUrl}${lastEmbedNote}${regSuffix}`, "ok");
+    else setStatus(`Published to ${out.castUrl}${lastEmbedNote}${lastBakeNote}${regSuffix}`, "ok");
   } catch (err) {
     console.error("drawcast: publish failed", err);
     const e = err as Error;
-    setStatus(`Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
+    // A lock refusal is already the whole sentence ("Not published: …").
+    setStatus(e instanceof LockError ? e.message : `Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
   } finally {
     shareBtn.disabled = false;
   }
+}
+
+/** The status line when a private publish cannot get its key (task 10). */
+const PRIVATE_KEY_MISSING = "Not published: the private key isn't available — is private paid for, and are you signed in as the owner?";
+
+/**
+ * Everything a PRIVATE cast needs before its commit (registry delivery 2,
+ * task 10): the price asked again — defence in depth, Share's own quote may
+ * be stale — then the item key, fetched as the OWNER. Answers the lock to
+ * hand publishCast, or the status line to show instead of publishing.
+ *
+ * The item is the registry's item key for the cast (the target without
+ * `.yaml`), predicted the way Share's quote predicted it (privateRequest):
+ * the Name field's slug, else the one already published, else the title.
+ * buildCastPlan may still mint a different slug (a collision suffix); the
+ * lock refuses any path but the predicted one, so a cast is never locked
+ * with — or committed under — an item that was not paid for.
+ */
+async function privateCastLock(
+  accountToken: string,
+  repoStr: string,
+  castsDir: string,
+  slug: string | undefined,
+  bounded: typeof fetch,
+): Promise<LectureLock | string> {
+  if (!accountToken) return "Not published: sign in to publish privately (Settings → Publishing).";
+  // The same target registerItem sends for a cast (below in publishDrawcast).
+  const target = `${repoStr}/${joinPath(castsDir, `${slugify(slug || doc.publishedAs || doc.title || "lecture")}.yaml`)}`;
+  const item = target.replace(/\.ya?ml$/i, "");
+  const quote = await quotePrivate(DEFAULT_ENROLL_API, { key: accountToken, kind: "cast", target, lectures: 1, private: true }, bounded);
+  if (quote === "key") return "Not published: sign in again to publish privately (Settings → Publishing).";
+  if (quote === "error") return "Not published: could not check the private drawcast just now — try again in a moment.";
+  if (quote.owner === "other") return "Not published: this drawcast is registered to another account, so it can't be made private.";
+  if (quote.due > 0) return `Not published: private isn't paid for yet — pay ${formatPrice(quote.due, quote.currency)} under Share → Private first.`;
+  const got = await fetchItemKey(DEFAULT_ENROLL_API, accountToken, item, bounded, liveKeyStorage());
+  if (!("key" in got)) return PRIVATE_KEY_MISSING;
+  const key = got.key;
+  return async (path, text) => {
+    if (`${repoStr}/${path.replace(/\.ya?ml$/i, "")}` !== item) throw new Error(`it would publish as ${path}, not the name made private — publish again under that name`);
+    return lockText(text, key, item);
+  };
 }
 
 /**

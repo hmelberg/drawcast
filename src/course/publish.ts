@@ -8,6 +8,7 @@
 // these functions alone.
 
 import { posterPathFor } from "../publish/cast";
+import { lockLectureFiles, type LectureLock } from "../publish/lock";
 import {
   commitFiles,
   emptyManifest,
@@ -307,6 +308,14 @@ export interface PublishArgs {
   /** Files committed alongside the course's own — the registry's claim file
    *  (registry delivery 1), when this publish is proving repo ownership. */
   extraFiles?: PublishFile[];
+  /**
+   * A PRIVATE course (registry delivery 2, task 10): locks every lecture
+   * file of the plan — exactly the paths `fileOf` names, the lectures this
+   * publish commits — before the commit, all or nothing (publish/lock.ts).
+   * When set, `poster` is ignored: a thumbnail would show a frame of a
+   * locked lecture.
+   */
+  lock?: LectureLock;
 }
 
 export interface PublishResult {
@@ -375,7 +384,15 @@ export async function commitPublish(args: PublishArgs, prepared: PreparedPublish
   const { updated, defaultBranch, manifest } = prepared;
   const course = parseCourse(updated);
   const withNames = buildPublishPlan({ course, text: updated, repo, coursesDir, viewerBase, manifest, lectureYaml, door });
-  const files = [...withNames.files, ...(args.poster ? await lecturePosters(withNames, args.poster) : []), ...(args.extraFiles ?? [])];
+  const dir = joinPath(coursesDir, withNames.slug);
+  const own = args.lock
+    ? await lockLectureFiles(
+        withNames.files,
+        [...withNames.fileOf.values()].map((name) => joinPath(dir, name)),
+        args.lock,
+      )
+    : [...withNames.files, ...(args.poster ? await lecturePosters(withNames, args.poster) : [])];
+  const files = [...own, ...(args.extraFiles ?? [])];
 
   await commitFiles(
     repo,
