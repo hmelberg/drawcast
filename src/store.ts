@@ -564,6 +564,15 @@ export interface SavedDrawing {
    * is the source of truth for who currently owns it.
    */
   freeName?: string;
+  /**
+   * Published encrypted, enrolled learners only (registry delivery 2, task
+   * 9) — carried on the library row exactly like `publishedComments`/
+   * `publishedViews`, so a republish's Share panel seeds the Private
+   * checkbox from what the last publish actually did rather than always
+   * starting unticked. Locking the files themselves is Task 10; this field
+   * is document state only.
+   */
+  private?: boolean;
   ts: string;
 }
 

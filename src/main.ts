@@ -94,7 +94,7 @@ import { publishCast } from "./publish/cast";
 import { publishToServer, serverCastKey, type ServerAccess } from "./publish/server";
 import { isPayable, normalizeName, paidInHash, registerName, startNamePayment } from "./names";
 import { DEFAULT_ENROLL_API } from "./learn";
-import { claimFile, registerItem, registryNote, verifyClaim } from "./registry";
+import { claimFile, privateInHash, registerItem, registryNote, verifyClaim } from "./registry";
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
 import { unlockForAuthor } from "./item-key";
@@ -292,6 +292,9 @@ interface Doc {
   /** The free title name the Anvil registry minted on the last GitHub
    *  publish (registry delivery 1) — see SavedDrawing.freeName. */
   freeName?: string;
+  /** Published encrypted, enrolled learners only (registry delivery 2, task
+   *  9) — see SavedDrawing.private. Locking the files is Task 10. */
+  private?: boolean;
   title: string;
   prompt?: string;
   playlist: Playlist;
@@ -431,12 +434,12 @@ function docFromSaved(saved: SavedDrawing): Doc {
       const playlist = parsePlaylistText(saved.playlist);
       // The file's own founding prompt wins (B9); `saved.prompt` is what a
       // library entry written before B9 has instead — its only copy.
-      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, serverCast: saved.serverCast, publishedComments: saved.publishedComments, publishedViews: saved.publishedViews, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, freeName: saved.freeName, title: saved.title, prompt: playlist.meta.prompt ?? saved.prompt, playlist };
+      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, serverCast: saved.serverCast, publishedComments: saved.publishedComments, publishedViews: saved.publishedViews, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, freeName: saved.freeName, private: saved.private, title: saved.title, prompt: playlist.meta.prompt ?? saved.prompt, playlist };
     } catch {
       /* fall through to the single spec */
     }
   }
-  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, serverCast: saved.serverCast, publishedComments: saved.publishedComments, publishedViews: saved.publishedViews, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, freeName: saved.freeName, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
+  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, serverCast: saved.serverCast, publishedComments: saved.publishedComments, publishedViews: saved.publishedViews, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, freeName: saved.freeName, private: saved.private, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
 }
 
 function initialDoc(): Doc {
@@ -3000,7 +3003,7 @@ function showVersion(index: number): void {
     specArea.value = v.text;
     // Same rule as setDoc: the version's own text is authoritative about the
     // founding request (B9) when it carries one; doc.prompt is the fallback.
-    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, freeName: doc.freeName, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
+    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, freeName: doc.freeName, private: doc.private, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
     void present();
     // A history restore filled the textarea, not a keystroke — it already
     // matches what present() just drew.
@@ -3141,6 +3144,7 @@ function autosave(): void {
     drivePublishedName: doc.drivePublishedName,
     sourcePath: doc.sourcePath,
     freeName: doc.freeName,
+    private: doc.private,
     ts: new Date().toISOString(),
   });
   refreshLibrary();
@@ -3710,7 +3714,7 @@ async function revise(): Promise<void> {
       // Same document, edited in place by AI (same as a manual re-render) — carry
       // driveFileId forward too, or a Save right after a Revise would litter
       // Drive with a second copy of the file the earlier Save already created.
-      { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, freeName: doc.freeName, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
+      { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, freeName: doc.freeName, private: doc.private, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
       withNotes(`Revised: ${instruction}` + costText(), notes),
       { label, kind: "revise" },
     );
@@ -3996,7 +4000,7 @@ function ensureRendered(andPlay = false): boolean {
   // replaces this entry instead of minting a second one (copy-on-write). The
   // prompt follows setDoc's rule: what the TEXT says wins (a hand-edited
   // header is an edit like any other), with doc.prompt as the fallback.
-  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, freeName: doc.freeName, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
+  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, freeName: doc.freeName, private: doc.private, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
   if (!restoring) stack = pushManualEdit(stack, specArea.value, new Date().toISOString());
   applyHistoryUi();
   void present(andPlay);
@@ -4321,6 +4325,24 @@ if (paidReturn) {
     setStatus(`"${paidReturn.name}" was taken by someone else while you paid — the payment will be refunded. Set name: in the course document to pick another.`, "error");
   } else {
     setStatus(`The payment for drawcast.app/#${paidReturn.name} was not completed — the course is published without its short address.`);
+  }
+}
+
+// Stripe's return from a Private purchase (registry delivery 2, task 9) —
+// the sibling of paidReturn above, its own endpoint and fragment shape
+// (privateInHash, src/registry.ts). The Share panel is not reopened: nothing
+// here remembers which document was being published across the Stripe round
+// trip, so the status line is the whole of it — Publish, pressed again once
+// the panel is reopened by hand, reads the paid state fresh from a new quote.
+const privReturn = privateInHash(location.hash);
+if (privReturn) {
+  history.replaceState(null, "", location.pathname + location.search);
+  if (privReturn.outcome === "privpaid") {
+    setStatus("Private is paid — press Publish to publish locked.", "ok");
+  } else if (privReturn.outcome === "privorphan") {
+    setStatus("The item changed owner while you paid — the payment will be refunded.", "error");
+  } else {
+    setStatus("Private was not paid — nothing was charged.");
   }
 }
 
@@ -4955,7 +4977,23 @@ async function publishTextFor(
 let lastBakeNote = "";
 let lastEmbedNote = "";
 
-async function publishDrawcast({ bake, embedImages, slug, allowComments, countViews }: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean }): Promise<void> {
+async function publishDrawcast({
+  bake,
+  embedImages,
+  slug,
+  allowComments,
+  countViews,
+  private: makePrivate,
+}: {
+  bake: boolean;
+  embedImages: boolean;
+  slug?: string;
+  allowComments?: boolean;
+  countViews?: boolean;
+  /** Share's Private checkbox (registry delivery 2, task 9) — document state
+   *  only here; locking the published file is Task 10. */
+  private?: boolean;
+}): Promise<void> {
   const token = getGithubToken();
   const repo = parseRepo(settings.githubRepo);
   if (!token || !repo) {
@@ -5009,6 +5047,7 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
     doc.publishedAs = out.slug;
     doc.publishedComments = allowComments === true && settings.giscusRepoId !== "" && settings.giscusCategoryId !== "";
     doc.publishedViews = countViews !== false;
+    doc.private = makePrivate === true;
     // Bookkeeping first: saving the slug is what keeps the published link
     // permanent, and it must not wait behind a network call to the registry.
     try {
