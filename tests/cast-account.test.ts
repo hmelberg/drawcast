@@ -2,7 +2,7 @@ import { mkdtempSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { checkName, clearSession, nameBlocker, deviceLogin, nameAdvice, readSession, registrationFor, waitForName, writeSession } from "../scripts/cast-account.mjs";
+import { checkName, clearSession, nameBlocker, deviceLogin, nameAdvice, readSession, registerFor, registrationFor, waitForName, writeSession } from "../scripts/cast-account.mjs";
 import * as coursePub from "../src/course/publish";
 import * as castPub from "../src/publish/cast";
 import { parseCourse } from "../src/course/document";
@@ -73,6 +73,27 @@ describe("registrationFor (cast.mjs name)", () => {
     const reg = registrationFor(origin, "qaly", lib, text);
     expect(reg).toMatchObject({ name: "qaly", kind: "course", target: "ann/casts/qalys", page: "https://ann.github.io/casts/qalys/", title: "QALYs" });
     expect(reg.lectures).toEqual(["ann/casts/qalys/01-one.yaml"]);
+  });
+});
+
+describe("registerFor (push/register: the free, automatic registration — registry delivery 1)", () => {
+  it("a cast: its GitHub file, titled by its file stem (a cast has no title of its own)", () => {
+    const origin = { kind: "cast", owner: "ann", repo: "casts", castsDir: "casts", file: "qaly.yaml" };
+    expect(registerFor(origin, lib)).toEqual({ kind: "cast", target: "ann/casts/casts/qaly.yaml", title: "qaly", page: "https://ann.github.io/casts/casts/" });
+  });
+
+  it("a course: the course key, page, title and published lectures — no chosen name (that is the paid flow's job)", () => {
+    const text = "# QALYs\nslug: qalys\n\n---\n## One\nWhy?\nstatus: done · id: x · file: 01-one.yaml · 2026-09-28\n\n---\n## Two\nHow?\n";
+    const origin = { kind: "course", owner: "ann", repo: "casts", path: "qalys", coursesDir: "" };
+    const reg = registerFor(origin, lib, text);
+    expect(reg).toMatchObject({ kind: "course", target: "ann/casts/qalys", page: "https://ann.github.io/casts/qalys/", title: "QALYs" });
+    expect(reg.lectures).toEqual(["ann/casts/qalys/01-one.yaml"]);
+    expect(Object.keys(reg).sort()).toEqual(["kind", "lectures", "page", "target", "title"]);
+  });
+
+  it("a course never published has no slug — refuses rather than registering nothing", () => {
+    const origin = { kind: "course", owner: "ann", repo: "casts", path: "qalys", coursesDir: "" };
+    expect(() => registerFor(origin, lib, "# QALYs\n")).toThrow(/no slug/);
   });
 });
 

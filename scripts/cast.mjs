@@ -32,7 +32,11 @@
 //   node scripts/cast.mjs push <workdir> [--dry-run | --no-push] [--direct] [-m msg] [--body text] [--new-pr]
 //        regenerates what the app's publish would (course page, READMEs, manifests, end pages) and commits it:
 //        a branch + PR by default (from a fork without push rights; later pushes update the same PR), --direct to
-//        the default branch. Refuses if the files changed on GitHub since the pull.
+//        the default branch. Refuses if the files changed on GitHub since the pull. Signed in (see below), the
+//        commit also carries a claim file, and a --direct push registers with Anvil and prints its free link
+//        (drawcast.app/#<name>) — a PR push prints when to run register instead, once it is merged.
+//   node scripts/cast.mjs register <workdir>   after a PR-published first publish merges: verifies the claim
+//        and registers the item (a --direct push already does this on its own, right after the commit)
 //
 // Publishing something new (a course folder or a folder with one cast YAML) to a repo of the user's:
 //   node scripts/cast.mjs publish-target <workdir> <owner/repo> [--dir <folder>] [--create]
@@ -58,7 +62,7 @@ import { basename, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { homedir, hostname } from "node:os";
 import { pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin, takenSlugs } from "./cast-github.mjs";
-import { apiUrl, checkName, clearSession, nameBlocker, deviceLogin, nameAdvice, readSession, registrationFor, waitForName, writeSession } from "./cast-account.mjs";
+import { apiUrl, checkName, clearSession, nameBlocker, deviceLogin, nameAdvice, readSession, registerFor, registrationFor, waitForName, writeSession } from "./cast-account.mjs";
 
 const [cmd, ...rest] = process.argv.slice(2);
 const ROOT = process.cwd();
@@ -286,6 +290,43 @@ async function unpackTarget(load, args) {
 async function courseLectures(load, text) {
   const { parseCourse } = await load("/src/course/document.ts");
   return parseCourse(text);
+}
+
+/**
+ * The registry step (registry delivery 1): verify the claim (when asked —
+ * push asks only for the claim it minted this run; register asks whenever
+ * signed in, since an earlier push's claim already landed), register the
+ * item — a course claims its default run first (CONTROLLER RULING: as the
+ * app's own course publish does, so only the course's owner can ever hold
+ * a name for it) — then registerItem, and record any free name that comes
+ * back on origin.freeName (written to origin.json only when one did).
+ * `claimCourse`, `verifyClaim` and `registerItem` never throw on their own
+ * (a network or server trouble is a string outcome, folded into the note
+ * `registryNote` builds); this can still throw for a genuine usage error
+ * (registerFor's "no slug"). Callers that must never fail on it (push,
+ * after the commit already landed) wrap the call themselves; `register`'s
+ * whole job IS this step, so it lets a throw surface as a real error.
+ */
+async function registerNow(origin, wd, session, verify) {
+  const api = session?.api ?? apiUrl();
+  const repoStr = joinRepo(origin.owner, origin.repo);
+  const note = await withVite(async (load) => {
+    const { verifyClaim, registerItem, registryNote } = await load("/src/registry.ts");
+    if (verify && session) await verifyClaim(api, session.key, repoStr);
+    const { parseCourse } = await load("/src/course/document.ts");
+    const { courseRegistration } = await load("/src/course/publish.ts");
+    const courseText = origin.kind === "course" ? readFileSync(resolve(wd, "course.md"), "utf8") : undefined;
+    const reg = registerFor(origin, { parseCourse, courseRegistration }, courseText);
+    if (origin.kind === "course" && session) {
+      const { courseClaim, claimCourse } = await load("/src/names.ts");
+      await claimCourse(api, courseClaim(session.key, reg));
+    }
+    const out = await registerItem(api, { key: session?.key, ...reg });
+    if (typeof out === "object" && out.name) origin.freeName = out.name;
+    return registryNote(out);
+  });
+  if (origin.freeName) writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
+  return note;
 }
 
 const commands = {
@@ -705,6 +746,28 @@ const commands = {
     console.log(`https://drawcast.app/#${p.name} is yours and plays the course. Push once more (cast.mjs push ${work} --direct) so the course page carries the name.`);
   },
 
+  /** For a first publish that went out as a PR (push without --direct): the
+   *  claim file rode along in that commit, but registering it — and minting
+   *  its free name — has to wait until the PR is merged and the claim file
+   *  is live on the default branch. Run this once it is. A --direct push
+   *  never needs it: push registers on its own, right after the commit. */
+  async register([work]) {
+    if (!work) throw new Error("usage: cast.mjs register <workdir>");
+    const wd = resolve(ROOT, work);
+    if (!existsSync(resolve(wd, "origin.json"))) throw new Error(`${work} is not published (no origin.json) — publish-target and push it first`);
+    const origin = JSON.parse(readFileSync(resolve(wd, "origin.json"), "utf8"));
+    const prState = origin.published === "pr" && origin.pr?.url ? spawnSync("gh", ["pr", "view", origin.pr.url, "--json", "state", "--jq", ".state"], { encoding: "utf8" }).stdout.trim() : null;
+    const blocked = nameBlocker(origin, prState);
+    if (blocked) throw new Error(`${work}: ${blocked}`);
+    if (origin.published === "pr") {
+      delete origin.published; // merged: live now
+      writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
+    }
+    const session = readSession(homedir());
+    const note = await registerNow(origin, wd, session, true);
+    console.log(note ? `${work}${note}` : `${work}: registered (no free name)`);
+  },
+
   async push(args) {
     const direct = args.includes("--direct"), dry = args.includes("--dry-run"), fresh = args.includes("--new-pr"), local = args.includes("--no-push");
     const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
@@ -724,7 +787,18 @@ const commands = {
     const moved = upstream === origin.base ? "" : git("diff", "--name-only", origin.base, upstream, "--", ...watched);
     if (moved) throw new Error(`changed on GitHub since the pull, not pushed:\n  ${moved.split("\n").join("\n  ")}\nPull again into a fresh workdir and carry the revision over.`);
 
+    const session = readSession(homedir());
+    // Registry delivery 1: signed in, the claim file rides in the SAME
+    // commit as the revision — proof Anvil reads back from GitHub once the
+    // commit lands (registerNow's verifyClaim, after a --direct push).
+    // `claim` set here (a closure over the withVite callback below) so a
+    // failed or not-yet-deployed /claim (null) adds no file at all.
+    let claim = null;
     const files = await withVite(async (load) => {
+      if (session) {
+        const { claimFile } = await load("/src/registry.ts");
+        claim = await claimFile(session.api, session.key, joinRepo(origin.owner, origin.repo));
+      }
       if (origin.kind === "source") return { files: [{ path: origin.path, content: readFileSync(resolve(wd, origin.file), "utf8") }], deletions: [] };
       if (origin.kind === "cast") {
         const { buildCastPlan, parseCastIndex, emptyCastIndex } = await load("/src/publish/cast.ts");
@@ -784,6 +858,7 @@ const commands = {
       });
       return { files: plan.files, deletions: plan.deletions };
     });
+    if (claim) files.files = [...files.files, claim];
 
     // What would change, against the repo as it is now.
     const changes = [];
@@ -793,8 +868,11 @@ const commands = {
       else if (now !== f.content) changes.push(["changed", f.path]);
     }
     for (const p of files.deletions) changes.push(["deleted", p]);
-    // The date in the manifests changes on every publish; alone it is no change.
-    const real = changes.filter(([, p]) => !/(^|\/)(courses\.json|casts\.json|index\.html|README\.md)$/.test(p));
+    // The date in the manifests changes on every publish; alone it is no
+    // change — nor is the claim file (registry delivery 1): it rewrites
+    // every signed-in push (a fresh nonce), so on its own it must never turn
+    // "nothing to push" into a push.
+    const real = changes.filter(([, p]) => !/(^|\/)(courses\.json|casts\.json|index\.html|README\.md|\.drawcast\/claim)$/.test(p));
     console.log(changes.length ? changes.map(([k, p]) => `  ${k.padEnd(8)} ${p}`).join("\n") : "  nothing differs from GitHub");
     if (!real.length) return console.log("Nothing to push.");
     if (dry) return console.log("(dry run — nothing written)");
@@ -837,8 +915,20 @@ const commands = {
       pushTo("origin", `HEAD:${origin.branch}`);
       origin.base = git("rev-parse", "HEAD");
       delete origin.published;
+      // Bookkeeping first: the base/published above are what keep the link
+      // permanent, and must not wait behind a network call to the registry.
       writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
-      return console.log(`Pushed to ${origin.owner}/${origin.repo}@${origin.branch} (${origin.base.slice(0, 7)}). The viewer reads raw.githubusercontent.com, which can lag a few minutes.`);
+      // The commit — and the claim file inside it, if one rode along — are
+      // now live: verify it, then register (registry delivery 1). Wrapped:
+      // a push that already landed must never be reported as a failure
+      // because the registry step after it stumbled.
+      let note = "";
+      try {
+        note = await registerNow(origin, wd, session, Boolean(claim));
+      } catch (err) {
+        console.error("drawcast: registry step failed (the push itself already landed)", err);
+      }
+      return console.log(`Pushed to ${origin.owner}/${origin.repo}@${origin.branch} (${origin.base.slice(0, 7)}). The viewer reads raw.githubusercontent.com, which can lag a few minutes.${note}`);
     }
     let remote = "origin", head = branch;
     if (!perm.push) {
@@ -856,6 +946,9 @@ const commands = {
     if (origin.published === "new") origin.published = "pr";
     writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
     console.log(`${onPr ? "Updated" : "Opened"} ${url}`);
+    // The claim file rode along in this commit too, but it is not live on
+    // the default branch — and so not registerable — until the PR merges.
+    console.log(`Register after the merge: node scripts/cast.mjs register ${work}`);
   },
 
   async template([id]) {

@@ -74,6 +74,32 @@ export function registrationFor(origin, name, lib, courseText) {
   return { ...lib.castRegistration(slug, repo, origin.castsDir, pagesUrlFor(origin.owner, origin.repo, origin.castsDir)), name };
 }
 
+/** What `push`/`register` send to POST /register after a publish lands
+ *  (registry delivery 1) — the free, automatic registration every publish
+ *  gets, distinct from `registrationFor`'s bought pretty name (no `name`
+ *  in the shape below: registerItem never takes one, only ever hands one
+ *  back). `lib` is the app's own builders — parseCourse, courseRegistration
+ *  — so a course's target/page/title/lectures cannot drift from what the
+ *  app's own publish sends. A cast has no title of its own the way a
+ *  course's `# <title>` is one, so its registered title is its file's
+ *  stem — the same thing its slug already is. */
+export function registerFor(origin, lib, courseText) {
+  const repo = { owner: origin.owner, repo: origin.repo };
+  if (origin.kind === "course") {
+    const course = lib.parseCourse(courseText);
+    const reg = lib.courseRegistration(course, repo, origin.coursesDir, pagesUrlFor(origin.owner, origin.repo, origin.path));
+    if (!reg) throw new Error("the course has no slug — run publish-target and push first");
+    return { kind: reg.kind, target: reg.target, title: reg.title, page: reg.page, lectures: reg.lectures };
+  }
+  if (origin.kind !== "cast") throw new Error(`a ${origin.kind} cannot be registered — only a cast or a course`);
+  return {
+    kind: "cast",
+    target: `${origin.owner}/${origin.repo}/${origin.castsDir}/${origin.file}`,
+    title: origin.file.replace(/\.ya?ml$/i, ""),
+    page: pagesUrlFor(origin.owner, origin.repo, origin.castsDir),
+  };
+}
+
 const dollars = (cents) => `${Number.isInteger(cents / 100) ? cents / 100 : (cents / 100).toFixed(2)} USD`;
 
 /** One line on where a name stands and what to do next — the terminal's

@@ -157,6 +157,9 @@ public repo the user chooses; after that it is revised like anything published.
    can take a minute the first time). Narration is the browser's voice until the course is
    published with narration from the app. Later revisions: step 4 onwards of the revise
    flow below, on the same workdir.
+   `push --direct` now also registers the item with Anvil and prints its free link
+   (`drawcast.app/#<name>`) itself; a PR push instead prints when to run
+   `node scripts/cast.mjs register <workdir>`, which does the same once the PR is merged.
 
 ## A pretty link (drawcast.app/#<name>)
 

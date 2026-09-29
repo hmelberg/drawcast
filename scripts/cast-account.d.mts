@@ -21,6 +21,11 @@ export function registrationFor(
   lib: { courseRegistration: (...a: never[]) => unknown; castRegistration: (...a: never[]) => unknown; parseCourse: (text: string) => unknown },
   courseText?: string,
 ): { name: string; kind: "cast" | "course"; target: string; page?: string; title?: string; lectures?: string[] };
+export function registerFor(
+  origin: Record<string, unknown>,
+  lib: { courseRegistration: (...a: never[]) => unknown; parseCourse: (text: string) => unknown },
+  courseText?: string,
+): { kind: "cast" | "course"; target: string; title?: string; page?: string; lectures?: string[] };
 export function nameAdvice(state: string, name: string, price: number): string;
 export function waitForName(args: {
   api: string;
