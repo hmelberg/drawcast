@@ -40,6 +40,17 @@ describe("deviceLogin", () => {
     await expect(deviceLogin({ api: "https://x", label: "t", fetchImpl: async () => answers.shift()!, sleep: async () => {}, say: () => {} })).rejects.toThrow(/denied/);
   });
 
+  it("a 500, a 429 or a dropped connection mid-poll is waited out, not fatal", async () => {
+    const answers: (() => Promise<Response>)[] = [
+      async () => json(200, { device: "d", code: "BCDF-GHJK", verify: "v", interval: 5, expires_in: 600 }),
+      async () => json(500, {}),
+      async () => json(429, { error: "rate" }),
+      async () => { throw new Error("offline"); },
+      async () => json(200, { key: "K", email: "a@b" }),
+    ];
+    expect(await deviceLogin({ api: "https://x", label: "t", fetchImpl: () => answers.shift()!(), sleep: async () => {}, say: () => {} })).toEqual({ key: "K", email: "a@b" });
+  });
+
   it("gives up as expired when nobody answers", async () => {
     let calls = 0;
     const fetchImpl = async () => (calls++ === 0 ? json(200, { device: "d", code: "BCDF-GHJK", verify: "v", interval: 5, expires_in: 20 }) : json(202, { state: "pending" }));

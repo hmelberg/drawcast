@@ -46,8 +46,10 @@ export async function deviceLogin({ api, label, fetchImpl = fetch, sleep = wait,
   say(`Open ${verify} (sign in if asked) and type this code: ${code}\nWaiting up to ${Math.round(expires_in / 60)} minutes…`);
   for (let waited = 0; waited < expires_in; waited += interval) {
     await sleep(interval * 1000);
-    const r = await post(fetchImpl, `${api}/_/api/device/poll`, { device });
-    if (r.status === 202) continue;
+    // The person has typed the code by now: a hiccup (a dropped connection, a
+    // 5xx from a transaction conflict, the poll budget) is waited out, not fatal.
+    const r = await post(fetchImpl, `${api}/_/api/device/poll`, { device }).catch(() => null);
+    if (!r || r.status === 202 || r.status === 429 || r.status >= 500) continue;
     const body = await r.json().catch(() => ({}));
     if (r.ok && typeof body.key === "string") return { key: body.key, email: body.email ?? null };
     throw new Error(body.error || `poll ${r.status}`);
