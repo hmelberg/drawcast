@@ -127,6 +127,7 @@ export async function resolveImages(spec: Spec, deps: ImageDeps = defaultDeps())
       if (!encoded && el.url) {
         const url = el.url.trim();
         let strokes: string;
+        let linked = false;
         try {
           const screen = el.look === "screen";
           const raster = await deps.loadRaster(url, screen ? SCREEN_DIM : LOOK_DIM.photo);
@@ -135,9 +136,11 @@ export async function resolveImages(spec: Spec, deps: ImageDeps = defaultDeps())
           // The host refuses pixel reads (no CORS header) — still SHOWN, by link.
           const n = await deps.measure(url);
           strokes = encodeLinkedPhoto(n.height / n.width, url);
+          linked = true;
         }
         encoded = JSON.stringify({ strokes, source: url });
-        await cachePut(key, encoded);
+        // Only a successful pixel read is cached: a linked outcome may be transient, and a later embed must retry.
+        if (!linked) await cachePut(key, encoded);
       }
       if (!encoded) {
         let thumburl: string | undefined;

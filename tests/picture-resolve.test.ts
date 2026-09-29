@@ -41,6 +41,15 @@ describe("an image from its url", () => {
     expect(pic).toMatchObject({ href: "https://microdata.no/shot.png", linked: true });
     expect(pic.aspect).toBeCloseTo(1041 / 1920, 2);
   });
+  test("a linked outcome is not cached: a later resolve with a working read embeds", async () => {
+    const url = "https://retry.example/shot.png";
+    const first = { elements: [{ id: "a", type: "image", url, look: "screen" }] };
+    await resolveImages(first as never, { ...base, loadRaster: async () => { throw new Error("blip"); } } as never);
+    expect(decodePicture((first.elements[0] as unknown as { strokes: string }).strokes)!.linked).toBe(true);
+    const second = { elements: [{ id: "a", type: "image", url, look: "screen" }] };
+    await resolveImages(second as never, { ...base, loadRaster: async () => raster(1920, 1041) } as never);
+    expect(decodePicture((second.elements[0] as unknown as { strokes: string }).strokes)).toMatchObject({ linked: false, href: "data:image/png;base64,COLOUR" });
+  });
   test("both load and measure failing: an error result, not a throw", async () => {
     const spec = { elements: [{ id: "x", type: "image", url: "https://gone.example/a.png" }] };
     const deps = { ...base, loadRaster: async () => { throw new Error("no"); }, measure: async () => { throw new Error("dead"); } };
