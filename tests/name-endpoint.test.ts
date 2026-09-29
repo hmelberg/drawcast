@@ -2,7 +2,7 @@
 // about HTTP: caching, CORS, visit recording, and the stats door — not Blobs
 // or Anvil's own rules.
 import { describe, expect, test } from "vitest";
-import { handleNameRequest, type CacheEntry, type NameDeps } from "../netlify/functions/name.mts";
+import { defaultResolve, handleNameRequest, type CacheEntry, type NameDeps } from "../netlify/functions/name.mts";
 import type { DayRecord } from "../netlify/lib/name-visits.mts";
 
 function deps(over: Partial<NameDeps> = {}): NameDeps & { writes: Array<{ key: string; rec: DayRecord }> } {
@@ -209,5 +209,41 @@ describe("?stats=", () => {
     const d = deps({ resolve: async () => { throw new Error("must not be called"); } });
     const res = await handleNameRequest(get("?stats=learn-russian", { "x-drawcast-stats": "s3cr3t" }), d);
     expect(res.status).toBe(200);
+  });
+});
+
+// Final review I4: the dashboard reads ?stats=<base name>, so a lecture
+// lookup (`name/3`) is counted under the course's base name, still as a
+// "lecture" visit.
+describe("a lecture lookup", () => {
+  test("is recorded under the BASE name, source lecture", async () => {
+    const d = deps();
+    const res = await handleNameRequest(get("?n=learn-russian%2F3&src=lecture"), d);
+    expect(res.status).toBe(200);
+    expect(d.writes.length).toBe(1);
+    expect(d.writes[0].key).toBe("v/learn-russian/2026-09-29");
+    expect(d.writes[0].rec.source).toEqual({ lecture: 1 });
+  });
+});
+
+// Final review I2: a slow Anvil costs five seconds, not the whole function.
+describe("defaultResolve", () => {
+  test("bounds the Anvil fetch with a timeout signal", async () => {
+    let signal: AbortSignal | undefined;
+    const f = (async (_url: string, init?: RequestInit) => {
+      signal = init?.signal ?? undefined;
+      return new Response(JSON.stringify({ kind: "cast", target: "o/r/p.yaml", page: null }), { status: 200 });
+    }) as unknown as typeof fetch;
+    expect((await defaultResolve("x", f)).status).toBe(200);
+    expect(signal).toBeInstanceOf(AbortSignal);
+  });
+
+  test("a hung Anvil is a 5xx once the timeout fires (the client then tries the next door)", async () => {
+    const f = ((_url: string, init?: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+      })) as unknown as typeof fetch;
+    const answer = await defaultResolve("x", f, 20);
+    expect(answer.status).toBeGreaterThanOrEqual(500);
   });
 });

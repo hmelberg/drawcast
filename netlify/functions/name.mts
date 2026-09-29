@@ -135,7 +135,9 @@ export async function handleNameRequest(req: Request, deps: NameDeps): Promise<R
     // change what the caller gets back — swallow it, same as views.mts does
     // for its own storage failures.
     try {
-      const key = visitKey(name, dayString(now));
+      // Under the BASE name: a lecture (`name/3`) counts toward its course,
+      // which is what the dashboard's ?stats=<name> reads (final review I4).
+      const key = visitKey(name.split("/", 1)[0], dayString(now));
       const rec = await deps.readDay(key);
       const next = addVisit(rec, { country: deps.country(req), source, ref: refDomain(ref) });
       await deps.writeDay(key, next);
@@ -155,9 +157,12 @@ interface NameStore {
   setJSON(key: string, value: unknown): Promise<unknown>;
 }
 
-async function defaultResolve(name: string): Promise<{ status: number; body: unknown }> {
+/** Anvil's answer, bounded (final review I2): a slow Anvil costs five
+ *  seconds and a 502 — the client then tries the next door — not the whole
+ *  function's timeout. Exported for the tests. */
+export async function defaultResolve(name: string, fetchImpl: typeof fetch = fetch, timeoutMs = 5_000): Promise<{ status: number; body: unknown }> {
   try {
-    const res = await fetch(`${ANVIL_BASE}/_/api/name?n=${encodeURIComponent(name)}`);
+    const res = await fetchImpl(`${ANVIL_BASE}/_/api/name?n=${encodeURIComponent(name)}`, { signal: AbortSignal.timeout(timeoutMs) });
     let body: unknown;
     try {
       body = await res.json();
@@ -209,7 +214,7 @@ interface NetlifyGeoContext {
 export default async (req: Request, context?: NetlifyGeoContext): Promise<Response> => {
   const store = getStore({ name: "name-visits", consistency: "strong" }) as unknown as NameStore;
   return handleNameRequest(req, {
-    resolve: defaultResolve,
+    resolve: (name) => defaultResolve(name),
     readDay: defaultReadDay(store),
     writeDay: defaultWriteDay(store),
     country: () => context?.geo?.country?.code ?? "??",

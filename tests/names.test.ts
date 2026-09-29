@@ -86,6 +86,17 @@ describe("resolveName", () => {
     expect(calls(f)[1][0]).toBe("https://drawcast.app/.netlify/functions/name?n=learn-russian&src=name&ref=");
   });
 
+  test("a JSON 429 from an endpoint is the SHARED egress budget, not Anvil's answer about the name — moves on (final review I2)", async () => {
+    let n = 0;
+    const f = vi.fn(async () => {
+      n++;
+      if (n <= 2) return new Response(JSON.stringify({ error: "rate" }), { status: 429 });
+      return new Response(JSON.stringify({ kind: "cast", target: "o/r/p.yaml", page: null }), { status: 200 });
+    }) as unknown as typeof fetch;
+    expect(await resolveName("https://drawcast.anvil.app/", "learn-russian", f)).toEqual({ kind: "cast", target: "o/r/p.yaml", page: null });
+    expect(calls(f).length).toBe(3); // both Netlify endpoints, then Anvil direct
+  });
+
   test("a JSON 5xx from every endpoint, including Anvil direct, is null — nowhere left to move on to", async () => {
     const f = fetchReturning(503, { error: "down" });
     expect(await resolveName("https://drawcast.anvil.app/", "learn-russian", f)).toBeNull();

@@ -135,7 +135,7 @@ function toResolved(body: unknown): Resolved | null {
  * DNS, timeout), when the response body is not JSON (e.g. a platform's own
  * HTML error page for a route that does not exist there — the "wrong
  * endpoint" case, not an answer from Anvil at all), OR when the JSON body
- * carries a 5xx status — that is the Netlify FUNCTION reporting its own
+ * carries a 5xx status (or a 429: see below) — that is the Netlify FUNCTION reporting its own
  * trouble reaching Anvil (see defaultResolve in netlify/functions/name.mts,
  * which synthesises a 502 on a fetch failure), not an answer from Anvil
  * itself, so treating it as authoritative would turn "this one path to
@@ -167,7 +167,11 @@ export async function resolveName(
       // A 5xx JSON body is the function's own trouble reaching Anvil, not
       // Anvil's answer — try the next endpoint rather than reporting "no
       // drawcast by that name" for what is really a broken proxy path.
-      if (res.status >= 500) continue;
+      // A 429 likewise: Anvil's name budget is per client IP, and every
+      // viewer reaches it through Netlify's few egress IPs — one busy minute
+      // for everyone is not "no such name" (final review I2); Anvil direct
+      // counts this viewer's own IP instead.
+      if (res.status >= 500 || res.status === 429) continue;
       if (!res.ok) return null; // a 4xx JSON body IS Anvil's authoritative "no"
       return toResolved(body);
     } catch {
@@ -286,7 +290,7 @@ export function checkNote(state: CheckState, name: string, opts: { price?: numbe
 /**
  * The Check button (spec §9; every name bought since the pretty-link round):
  * advice, not a reservation. The rule and the paid floor are checked here
- * FIRST, so a malformed or short name costs no request out of the 600/h
+ * FIRST, so a malformed or short name costs no request out of the
  * name budget; `kind` rides the body; the server's price comes back beside
  * the state so the note can say what a free name costs. The token is what
  * tells "yours" from "taken"; signed out, no key is sent and the server
