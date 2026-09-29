@@ -2,7 +2,10 @@ import { mkdtempSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { clearSession, deviceLogin, readSession, writeSession } from "../scripts/cast-account.mjs";
+import { clearSession, deviceLogin, nameAdvice, readSession, registrationFor, writeSession } from "../scripts/cast-account.mjs";
+import * as coursePub from "../src/course/publish";
+import * as castPub from "../src/publish/cast";
+import { parseCourse } from "../src/course/document";
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
 
@@ -42,5 +45,36 @@ describe("deviceLogin", () => {
     const fetchImpl = async () => (calls++ === 0 ? json(200, { device: "d", code: "BCDF-GHJK", verify: "v", interval: 5, expires_in: 20 }) : json(202, { state: "pending" }));
     await expect(deviceLogin({ api: "https://x", label: "t", fetchImpl, sleep: async () => {}, say: () => {} })).rejects.toThrow(/expired/);
     expect(calls).toBeLessThan(10);
+  });
+});
+
+const lib = { courseRegistration: coursePub.courseRegistration, castRegistration: castPub.castRegistration, parseCourse };
+
+describe("registrationFor (cast.mjs name)", () => {
+  it("a cast: its GitHub file, under the chosen name", () => {
+    const origin = { kind: "cast", owner: "ann", repo: "casts", path: "casts/qaly.yaml", castsDir: "casts", file: "qaly.yaml" };
+    expect(registrationFor(origin, "qaly-intro", lib)).toMatchObject({ name: "qaly-intro", kind: "cast", target: "ann/casts/casts/qaly.yaml" });
+  });
+
+  it("a course: the course key, page and published lectures, under the chosen name", () => {
+    const text = "# QALYs\nslug: qalys\n\n---\n## One\nWhy?\nstatus: done · id: x · file: 01-one.yaml · 2026-09-28\n\n---\n## Two\nHow?\n";
+    const origin = { kind: "course", owner: "ann", repo: "casts", path: "qalys", coursesDir: "" };
+    const reg = registrationFor(origin, "qaly", lib, text);
+    expect(reg).toMatchObject({ name: "qaly", kind: "course", target: "ann/casts/qalys", page: "https://ann.github.io/casts/qalys/", title: "QALYs" });
+    expect(reg.lectures).toEqual(["ann/casts/qalys/01-one.yaml"]);
+  });
+});
+
+describe("nameAdvice", () => {
+  it("says the price for a free name and how to buy it", () => {
+    expect(nameAdvice("free", "qaly", 2000)).toMatch(/20 USD.*--buy --price 2000/);
+  });
+  it("a missing or revoked session says: log in (not the app's Settings wording)", () => {
+    expect(nameAdvice("key", "qaly", 2000)).toMatch(/cast\.mjs login/);
+  });
+  it("taken, short and invalid each say what to do", () => {
+    expect(nameAdvice("taken", "qaly", 2000)).toMatch(/someone else/);
+    expect(nameAdvice("short", "qa", 2000)).toMatch(/3 characters/);
+    expect(nameAdvice("invalid", "gh-x", 2000)).toMatch(/not a valid name/);
   });
 });

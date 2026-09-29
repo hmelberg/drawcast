@@ -42,6 +42,9 @@
 // A pretty link, drawcast.app/#<name> (bought, one-time, on Stripe's page), for something published:
 //   node scripts/cast.mjs login | logout      the drawcast account: a code to type on drawcast.anvil.app/#device
 //                                             → a session token in ~/.config/drawcast/session.json (0600)
+//   node scripts/cast.mjs name <workdir> <name>                         free (and its price) / yours / taken
+//   node scripts/cast.mjs name <workdir> <name> --buy --price <cents>   yours: repoint it, free; free: Stripe Checkout
+//                                             opens in the browser (--price must equal the name's price)
 //
 // A cast file is a spec, a {request, spec}, or playlist YAML — anything the
 // app opens. Files live under dev-casts/ (gitignored). The dev server:
@@ -53,7 +56,7 @@ import { basename, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { homedir, hostname } from "node:os";
 import { pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin } from "./cast-github.mjs";
-import { apiUrl, clearSession, deviceLogin, readSession, writeSession } from "./cast-account.mjs";
+import { apiUrl, clearSession, deviceLogin, nameAdvice, readSession, registrationFor, writeSession } from "./cast-account.mjs";
 
 const [cmd, ...rest] = process.argv.slice(2);
 const ROOT = process.cwd();
@@ -633,6 +636,43 @@ const commands = {
     if (s) await fetch(`${s.api}/_/api/signout`, { method: "POST", headers: { "content-type": "text/plain" }, body: JSON.stringify({ key: s.key }) }).catch(() => {});
     clearSession(homedir());
     console.log(s ? "Signed out." : "Not signed in.");
+  },
+
+  async name(args) {
+    const flag = (n) => (args.includes(n) ? args[args.indexOf(n) + 1] : undefined);
+    const [work, raw] = args.filter((a, i) => !a.startsWith("-") && args[i - 1] !== "--price");
+    if (!work || !raw) throw new Error("usage: cast.mjs name <workdir> <name> [--buy --price <cents>]");
+    const wd = resolve(ROOT, work);
+    if (!existsSync(resolve(wd, "origin.json"))) throw new Error(`${work} is not published (no origin.json) — publish-target and push it first`);
+    const origin = JSON.parse(readFileSync(resolve(wd, "origin.json"), "utf8"));
+    if (origin.published === "new") throw new Error(`${work} is aimed at ${origin.owner}/${origin.repo} but not pushed yet — push it first`);
+    const s = readSession(homedir());
+    await withVite(async (load) => {
+      const N = await load("/src/names.ts");
+      const lib = { ...(await load("/src/course/publish.ts")), ...(await load("/src/publish/cast.ts")), ...(await load("/src/course/document.ts")) };
+      const name = N.normalizeName(raw);
+      if (!name) return console.log(nameAdvice("invalid", raw, 0));
+      if (!N.isPayable(name)) return console.log(nameAdvice("short", name, 0));
+      if (!s) return console.log(nameAdvice("key", name, 0));
+      const price = N.priceFor(name);
+      const courseText = origin.kind === "course" ? readFileSync(resolve(wd, "course.md"), "utf8") : undefined;
+      const reg = { key: s.key, ...registrationFor(origin, name, lib, courseText) };
+      if (!args.includes("--buy")) {
+        const { state } = await N.checkPaidName(s.api, name, s.key, origin.kind);
+        return console.log(nameAdvice(state, name, price));
+      }
+      // Already yours: POST /name repoints it, free. A free name answers "pay".
+      const first = await N.registerName(s.api, reg);
+      if (first === "ok") return console.log(`https://drawcast.app/#${name} now points at ${reg.target}.`);
+      if (first !== "pay") return console.log(nameAdvice(first, name, price));
+      if (Number(flag("--price")) !== price) throw new Error(`--price must be ${price} (${N.formatPrice(price)}) — say the price to the user and get a yes first`);
+      const pay = await N.startNamePayment(s.api, { ...reg, return: "https://drawcast.app/" });
+      if (typeof pay !== "object") return console.log(nameAdvice(pay, name, price));
+      origin.pendingName = { name, target: reg.target, started: new Date().toISOString() };
+      writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
+      spawnSync("open", [pay.url]);
+      console.log(`Opened Stripe Checkout for drawcast.app/#${name} (${N.formatPrice(price)}) in the browser:\n  ${pay.url}\nPay there, then: cast.mjs name-wait ${work}`);
+    });
   },
 
   async push(args) {

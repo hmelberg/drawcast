@@ -6,6 +6,7 @@
 // cast.mjs so tests can reach it; nothing here imports the app.
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { pagesUrlFor } from "./cast-github.mjs";
 
 /** The drawcast server: DRAWCAST_API, else the default app (src/learn.ts DEFAULT_ENROLL_API). */
 export const apiUrl = () => (process.env.DRAWCAST_API || "https://drawcast.anvil.app").replace(/\/+$/, "");
@@ -52,4 +53,48 @@ export async function deviceLogin({ api, label, fetchImpl = fetch, sleep = wait,
     throw new Error(body.error || `poll ${r.status}`);
   }
   throw new Error("expired");
+}
+
+/** What POST /name and /name/pay are sent for a workdir's published copy
+ *  (its origin.json), under `name`. `lib` is the app's own builders —
+ *  courseRegistration, castRegistration, parseCourse — so the shapes cannot
+ *  drift from what the app's Share panel sends. */
+export function registrationFor(origin, name, lib, courseText) {
+  const repo = { owner: origin.owner, repo: origin.repo };
+  if (origin.kind === "course") {
+    const course = lib.parseCourse(courseText);
+    const reg = lib.courseRegistration({ ...course, name }, repo, origin.coursesDir, pagesUrlFor(origin.owner, origin.repo, origin.path));
+    if (!reg) throw new Error("the course has no slug — run publish-target and push first");
+    return reg;
+  }
+  if (origin.kind !== "cast") throw new Error(`a ${origin.kind} cannot have a name — only a cast or a course`);
+  const slug = origin.file.replace(/\.ya?ml$/i, "");
+  return { ...lib.castRegistration(slug, repo, origin.castsDir, pagesUrlFor(origin.owner, origin.repo, origin.castsDir)), name };
+}
+
+const dollars = (cents) => `${Number.isInteger(cents / 100) ? cents / 100 : (cents / 100).toFixed(2)} USD`;
+
+/** One line on where a name stands and what to do next — the terminal's
+ *  wording (names.ts's nameNote speaks of the app's Settings). */
+export function nameAdvice(state, name, price) {
+  switch (state) {
+    case "free":
+      return `drawcast.app/#${name} is free: ${dollars(price)}, one-time. To buy it: cast.mjs name <workdir> ${name} --buy --price ${price}`;
+    case "yours":
+      return `drawcast.app/#${name} is already yours — cast.mjs name <workdir> ${name} --buy points it here at no cost`;
+    case "taken":
+      return `drawcast.app/#${name} belongs to someone else — pick another`;
+    case "short":
+      return `"${name}" is too short — a name has at least 3 characters`;
+    case "invalid":
+      return `"${name}" is not a valid name (a-z, 0-9 and dashes; not starting gh-, anvil-, url-, …)`;
+    case "owner":
+      return "the course this points at belongs to another drawcast account";
+    case "key":
+      return "not signed in to drawcast (or signed out from the account page) — run: node scripts/cast.mjs login";
+    case "rate":
+      return "too many tries in the last hour — try again later";
+    default:
+      return "the drawcast server did not answer — try again in a minute";
+  }
 }
