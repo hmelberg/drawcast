@@ -743,6 +743,15 @@ export function saveDrawing(d: SavedDrawing): void {
   persist("library", all);
 }
 
+/** Marks library rows private in place (order kept — saveDrawing would move
+ *  each to the top): a course made private marks its lectures (task 10). */
+export function markDrawingsPrivate(ids: readonly string[]): void {
+  const wanted = new Set(ids);
+  if (!libraryCache.some((x) => wanted.has(x.id) && !x.private)) return;
+  libraryCache = libraryCache.map((x) => (wanted.has(x.id) ? { ...x, private: true } : x));
+  persist("library", libraryCache);
+}
+
 export function deleteDrawing(id: string): void {
   libraryCache = libraryCache.filter((x) => x.id !== id);
   persist("library", libraryCache);

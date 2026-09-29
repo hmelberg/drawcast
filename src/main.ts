@@ -100,6 +100,7 @@ import { claimFile, privateInHash, quotePrivate, registerItem, registryNote, ver
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
 import { fetchItemKey, liveKeyStorage, unlockForAuthor } from "./item-key";
+import { inPrivateCourse, isPrivateDrawing } from "./private-doc";
 import { embeddedPlaylist, withAuthoredTemplates, type EmbedDeps } from "./publish/embed";
 import { resolvePortraits } from "./render/portrait";
 import { resolveIcons } from "./render/icon";
@@ -5023,7 +5024,14 @@ async function publishDrawcast({
   const bounded: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) });
   // Share always sends the box's state; a caller that sends nothing keeps
   // what the document already is — a private cast never silently goes public.
-  const isPrivate = makePrivate ?? doc.private === true;
+  const isPrivate = makePrivate ?? isPrivateDoc();
+  // A lecture of a private course never goes to GitHub unlocked, whatever
+  // the box says: its course keeps it private (task 10 fix round 2).
+  if (!isPrivate && inPrivateCourse(doc.id, loadLibrary(), loadCourses())) {
+    setStatus("This lecture belongs to a private course — publish the course, or tick Private, so it is locked.", "error");
+    shareBtn.disabled = false;
+    return;
+  }
   try {
     // A PRIVATE cast (registry delivery 2, task 10): the key first, before
     // any narration is bought or anything is committed. No key, no publish —
@@ -5121,6 +5129,13 @@ async function publishDrawcast({
   }
 }
 
+/** Whether the open drawing is private — its own flag, its library row's,
+ *  or its course's `private:` (a lecture opened on its own). See
+ *  private-doc.ts; every plaintext upload's guard asks this. */
+function isPrivateDoc(): boolean {
+  return isPrivateDrawing(doc, loadLibrary(), loadCourses());
+}
+
 /** Private items go to GitHub, locked, and nowhere else (task 10 fix round):
  *  the Drive and drawcast-server publishes would upload the plain text. */
 const PRIVATE_ELSEWHERE = "This is private — publish it to GitHub, where it is locked.";
@@ -5184,7 +5199,7 @@ async function privateCastLock(
  * every line again, or hand over lines from a different publish entirely.
  */
 async function publishServerCast({ bake, embedImages, name, access }: { bake: boolean; embedImages: boolean; name?: string; access?: ServerAccess }): Promise<void> {
-  if (doc.private) {
+  if (isPrivateDoc()) {
     setStatus(PRIVATE_ELSEWHERE, "error");
     return;
   }
@@ -5304,7 +5319,7 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
  * where the author flips "Anyone with the link can view".
  */
 async function publishDriveCast({ bake, embedImages, name }: { bake: boolean; embedImages: boolean; name?: string }): Promise<void> {
-  if (doc.private) {
+  if (isPrivateDoc()) {
     setStatus(PRIVATE_ELSEWHERE, "error");
     return;
   }
@@ -5496,7 +5511,7 @@ let sourceSaveInFlight = false;
 async function saveSourceToGithub(): Promise<void> {
   if (sourceSaveInFlight) return;
   // A private drawcast's plain source must never reach the (public) repo.
-  if (doc.private) {
+  if (isPrivateDoc()) {
     setStatus("This drawcast is private — Save source would put it on GitHub unencrypted. Publish it (locked) instead.", "error");
     return;
   }
@@ -5761,7 +5776,9 @@ shareBtn.addEventListener("click", () => {
     // the text does not currently parse.
     doc: () => {
       const playlist = readPlaylistText(specArea.value) ?? doc.playlist;
-      return { ...doc, playlist, narrationCost: costLabel(bakeCost(playlistSpeakLines(playlist), settings.cloudVoices)) };
+      // `private` derived (task 10 fix round 2): a lecture of a private
+      // course opens with Share's Private box already ticked.
+      return { ...doc, playlist, narrationCost: costLabel(bakeCost(playlistSpeakLines(playlist), settings.cloudVoices)), private: isPrivateDoc() || undefined };
     },
     settings,
     persist,

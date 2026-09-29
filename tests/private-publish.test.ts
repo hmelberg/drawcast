@@ -261,7 +261,7 @@ describe("private items never go anywhere unlocked", () => {
   const fn = (name: string) => main.slice(main.indexOf(`async function ${name}(`), main.indexOf("\n}\n", main.indexOf(`async function ${name}(`)));
   it("Save source refuses a private drawcast before anything is written", () => {
     const body = fn("saveSourceToGithub");
-    const guard = body.indexOf("if (doc.private)");
+    const guard = body.indexOf("if (isPrivateDoc())");
     expect(guard).toBeGreaterThan(0);
     expect(guard).toBeLessThan(body.indexOf("saveSource("));
     expect(body).toContain("This drawcast is private — Save source would put it on GitHub unencrypted. Publish it (locked) instead.");
@@ -269,7 +269,7 @@ describe("private items never go anywhere unlocked", () => {
   it("the drawcast server and Google Drive publishes refuse a private drawcast", () => {
     for (const [name, write] of [["publishServerCast", "publishToServer("], ["publishDriveCast", "saveSpec("]]) {
       const body = fn(name);
-      const guard = body.indexOf("if (doc.private)");
+      const guard = body.indexOf("if (isPrivateDoc())");
       expect(guard, name).toBeGreaterThan(0);
       expect(guard, name).toBeLessThan(body.indexOf(write));
       expect(body).toContain("PRIVATE_ELSEWHERE");
