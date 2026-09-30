@@ -112,6 +112,8 @@ export type PlanStep = (
       from?: BBox;
       /** The NEXT mark step continues this one: do not release at the end. */
       continues?: boolean;
+      /** The picture is turned: its frame is only its bounds (the light keeps to the paper wash). */
+      turned?: boolean;
       /** Runs together with the mark step before it — the same command named
        *  places on several pictures: one sentence (carried by the first step
        *  alone), every picture lit at once. */
@@ -866,6 +868,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         frame,
         stops,
         ...(glide ? { from: last.box } : {}),
+        // Rotated, not merely scaled or mirrored: its bounds are no longer the picture.
+        ...((turns[owner]?.deg ?? 0) % 360 !== 0 ? { turned: true } : {}),
         seconds,
         ...(untilNarrationEnd ? { untilNarrationEnd: true } : {}),
       };
@@ -1324,6 +1328,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         // All places: one mark per picture (spec §13).
         const asked = cmd.highlight.effect;
         const mark: MarkKind = asked === "circle" || asked === "ring" ? "ring" : asked === "box" ? "box" : "light";
+        if (cmd.highlight.color !== undefined) warnings.push("highlight: color has no effect on a picture place (the mark has its own look)");
         pushMarks(places, mark, cmd.highlight.duration ?? 1.5, cmd.highlight.lift === true, until, areaStop);
         continue;
       }

@@ -600,7 +600,11 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // clauses — the highlight bullet's soft light with stops and glides, the
 // point bullet's arrow/glow — replacing delivery 1's "box is the default on
 // a picture place" (+300). 368644 -> 369482 (schema 95759 -> 96297).
-const BASELINE_SYSTEM_CHARS = 369482;
+// Re-pinned UP 2026-09-30 (picture marks final review, M3): the highlight
+// bullet says "the next mark of the same kind" glides, not "the next
+// gesture" — a different kind on the same picture starts fresh. Prompt only:
+// +14. 369482 -> 369496.
+const BASELINE_SYSTEM_CHARS = 369496;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

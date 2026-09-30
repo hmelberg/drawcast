@@ -34,6 +34,8 @@ export interface MarkFrame {
   /** Arrow only: where its tip and tail are (canvas, y-up) — glided with the box, so the arrow never jumps sides mid-glide. */
   tip?: Pt;
   tail?: Pt;
+  /** The picture is turned: `frame` is only its bounds, so the light keeps to the paper wash (a torch would darken past the picture). */
+  turned?: boolean;
 }
 
 /** What a mark step carries that the curve reads. */
@@ -43,6 +45,8 @@ export interface MarkPath {
   stops: MarkStop[];
   /** Where the previous step on the same owner left the mark — it glides from here. */
   from?: BBox;
+  /** The picture is turned (see MarkFrame.turned). */
+  turned?: boolean;
 }
 
 /** A first appearance eases (and writes) in over this long. */
@@ -99,6 +103,7 @@ export function markFrameAt(step: MarkPath, ms: number, durMs: number): MarkFram
     depth: DEPTH_FROM + (DEPTH_TO - DEPTH_FROM) * (durMs > 0 ? clamp01(ms / durMs) : 1),
     breathe: breatheAt(ms),
     ...(step.mark === "arrow" ? arrowBetween(prev ?? to, to, e, step.frame) : {}),
+    ...(step.turned ? { turned: true } : {}),
   };
 }
 
@@ -134,6 +139,7 @@ export function markReleaseAt(step: MarkPath, ms: number, durMs?: number): MarkF
     write: 1,
     depth: DEPTH_TO,
     breathe: durMs === undefined ? 1 : breatheAt(durMs + ms),
+    ...(step.turned ? { turned: true } : {}),
   };
 }
 

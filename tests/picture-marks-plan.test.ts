@@ -94,3 +94,18 @@ test("fading the picture out between two marks breaks the glide; a partial fade 
   const half = marks(plan([{ draw: ["md"] }, { highlight: { target: "md:left" } }, { fade: { target: "md", to: 0.5 } }, { highlight: { target: "md:right" } }]));
   expect(half[1].from).toBeDefined();
 });
+
+test("a turned picture's mark says so (its frame is only the turned picture's bounds); straight or scaled, it does not", () => {
+  const turned = marks(plan([{ draw: ["md"] }, { move: { target: "md", rotate: 20 } }, { highlight: { target: "md:left" } }]));
+  expect(turned[0].turned).toBe(true);
+  const straight = marks(plan([{ draw: ["md"] }, { highlight: { target: "md:left" } }]));
+  expect(straight[0].turned).toBeUndefined();
+  const scaled = marks(plan([{ draw: ["md"] }, { move: { target: "md", scale: 1.5 } }, { highlight: { target: "md:left" } }]));
+  expect(scaled[0].turned).toBeUndefined();
+});
+
+test("color on a place highlight warns: the mark has its own look", () => {
+  const p = plan([{ draw: ["md"] }, { highlight: { target: "md:left", color: "red" } }]);
+  expect(p.warnings).toContain("highlight: color has no effect on a picture place (the mark has its own look)");
+  expect(plan([{ draw: ["md"] }, { highlight: { target: "md:left" } }]).warnings).toEqual([]);
+});

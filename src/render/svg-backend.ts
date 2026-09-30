@@ -1745,7 +1745,9 @@ function lightMark(g: SVGGElement, id: string, tone: () => number | null): (f: M
       e.setAttribute("ry", (ry * FEATHER_REACH).toFixed(1));
     }
     // The tone may arrive after the mark is up: the next frame picks it up.
-    const w = washFor(tone());
+    // A turned picture's frame is only its bounds: a torch would darken the
+    // paper round it, so it keeps the paper wash whatever its tone.
+    const w = washFor(f.turned ? null : tone());
     wash.setAttribute("fill", w.color);
     lift.setAttribute("fill-opacity", (w.lift * Math.max(0, Math.min(1, f.level))).toFixed(3));
     wash.setAttribute("fill-opacity", (Math.max(0, Math.min(1, f.depth * f.level))).toFixed(3));
@@ -1859,6 +1861,7 @@ function sameMarkFrame(a: MarkFrame, b: MarkFrame): boolean {
     a.write === b.write &&
     a.depth === b.depth &&
     a.breathe === b.breathe &&
+    a.turned === b.turned &&
     sameBox(a.box, b.box) &&
     sameBox(a.frame, b.frame) &&
     samePt(a.tip, b.tip) &&

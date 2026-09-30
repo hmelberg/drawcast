@@ -326,6 +326,21 @@ describe("the light follows the picture's tone", () => {
     expect(luminanceCacheSize()).toBe(32);
   });
 
+  test("a turned dark picture gets the paper wash: a torch would spill past it", async () => {
+    setLuminanceProbe(async () => 0.2);
+    const { restore, effects, overlay } = await withPicture(encodePhoto(1.5, DATA), DATA);
+    try {
+      await tick();
+      const f = frameOf("light", { x: 300, y: 300, w: 50, h: 50 }, { level: 1 });
+      effects.setMark!("md", f);
+      expect(washOf(overlay).getAttribute("fill")).toBe("#1b140e");
+      effects.setMark!("md", { ...f, turned: true });
+      expect(washOf(overlay).getAttribute("fill")).toBe(FIGURE_GROUND);
+    } finally {
+      restore();
+    }
+  });
+
   test("a linked https picture is never probed: paper wash", async () => {
     let calls = 0;
     setLuminanceProbe(async () => (calls++, 0.1));

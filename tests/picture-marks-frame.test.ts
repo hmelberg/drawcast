@@ -203,3 +203,11 @@ describe("washFor: the light follows the picture's tone", () => {
   });
 });
 
+
+test("a turned picture's step: every frame and the release say turned", () => {
+  const box: BBox = { x: 10, y: 10, w: 20, h: 20 };
+  const step = { mark: "light" as const, frame: { x: 0, y: 0, w: 100, h: 100 }, stops: [{ box, at: 0 }], turned: true };
+  expect(markFrameAt(step, 100, 1000).turned).toBe(true);
+  expect(markReleaseAt(step, 100).turned).toBe(true);
+  expect(markFrameAt({ ...step, turned: undefined }, 100, 1000).turned).toBeUndefined();
+});
