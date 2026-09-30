@@ -95,3 +95,41 @@ export function waitForPrivate(args: {
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
 }): Promise<"paid" | "timeout">;
+
+// ---- Listed (registry deliveries 3–4, task 10) ------------------------------
+
+export type SetListingOutcomeLike = "ok" | { due: number } | "owner" | "key" | "error";
+
+export function listingAdvice(outcome: SetListingOutcomeLike, listed: boolean, work: string): string;
+
+export function waitForListing(args: {
+  api: string;
+  body: unknown;
+  quotePrivate: (api: string, body: unknown, fetchImpl?: typeof fetch) => Promise<PrivateQuoteOutcomeLike>;
+  wantListed: boolean;
+  timeoutS?: number;
+  fetchImpl?: typeof fetch;
+  sleep?: (ms: number) => Promise<void>;
+}): Promise<"done" | "timeout">;
+
+// ---- Narration credit (registry delivery 3, task 5's skill half) ----------
+
+export interface CreditBalanceLike {
+  balanceMicro: number;
+  balanceUsd: string;
+}
+export type CreditBalanceOutcomeLike = CreditBalanceLike | "key" | "error";
+export type CreditPayOutcomeLike = { url: string } | "pending" | "key" | "error";
+
+export function creditBalanceAdvice(balance: CreditBalanceOutcomeLike): string;
+export function creditPayAdvice(pay: CreditPayOutcomeLike): string;
+
+export function waitForCredit(args: {
+  api: string;
+  key: string;
+  startMicro: number;
+  creditBalance: (api: string, key: string, fetchImpl?: typeof fetch) => Promise<CreditBalanceOutcomeLike>;
+  timeoutS?: number;
+  fetchImpl?: typeof fetch;
+  sleep?: (ms: number) => Promise<void>;
+}): Promise<CreditBalanceLike | "timeout">;

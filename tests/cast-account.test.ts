@@ -1,4 +1,4 @@
-import { mkdtempSync, statSync } from "node:fs";
+import { mkdtempSync, readFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -23,6 +23,11 @@ import {
   privatePayAdvice,
   waitForPrivate,
   privateCourseText,
+  listingAdvice,
+  waitForListing,
+  creditBalanceAdvice,
+  creditPayAdvice,
+  waitForCredit,
 } from "../scripts/cast-account.mjs";
 import * as coursePub from "../src/course/publish";
 import * as castPub from "../src/publish/cast";
@@ -467,5 +472,141 @@ describe("privateCourseText (final review I1a): a private course push writes pri
     expect(writeAt).toBeGreaterThan(markAt);
     expect(planAt).toBeGreaterThan(writeAt);
     expect(push.slice(markAt - 300, markAt)).toContain("if (origin.private) {");
+  });
+});
+
+describe("cast.mjs private --unlisted (registry deliveries 3–4, task 10): the pay body now carries private and listed explicitly", () => {
+  const src: string = readFileSync(new URL("../scripts/cast.mjs", import.meta.url), "utf8");
+  const priv = src.slice(src.indexOf("  async private(args) {"), src.indexOf("  /**\n   * Registry deliveries 3–4, task 10: whether"));
+
+  it("parses --unlisted and carries it into the quote's own `listed` field", () => {
+    expect(priv).toContain('const unlisted = args.includes("--unlisted");');
+    expect(priv).toContain("const body = { key: session.key, kind: origin.kind, target, lectures, private: true, listed: !unlisted };");
+  });
+
+  it("the pay body spreads payListedFields(true, !unlisted) — never a literal private/listed of its own", () => {
+    const payCall = priv.slice(priv.indexOf("const pay = await startPrivatePayment("), priv.indexOf("if (typeof pay !== \"object\") throw new Error(privatePayAdvice(pay));"));
+    expect(payCall).toContain("...payListedFields(true, !unlisted),");
+    expect(payCall).not.toMatch(/\bprivate:\s*(true|false|!unlisted),/); // no hand-assembled {private, listed} at the pay call site
+  });
+
+  it("loads payListedFields from the app's own src/ui/share.ts (never a second copy of it)", () => {
+    expect(priv).toContain('await load("/src/ui/share.ts")');
+  });
+});
+
+describe("cast.mjs listing (registry deliveries 3–4, task 10): the unlist-only pay body carries private:false, listed:false", () => {
+  const src: string = readFileSync(new URL("../scripts/cast.mjs", import.meta.url), "utf8");
+  const listing = src.slice(src.indexOf("  async listing(args) {"), src.indexOf("  /**\n   * Registry delivery 3, task 5"));
+
+  it("requires exactly one of --listed / --unlisted", () => {
+    expect(listing).toContain("if (wantListed === wantUnlisted) throw new Error(");
+  });
+
+  it("quotes with listed matching the request, and private:false — listing never touches the lock", () => {
+    expect(listing).toContain("const body = { key: session.key, kind: origin.kind, target: reg.target, lectures, private: false, listed: wantListed };");
+  });
+
+  it("--listed calls setListing(…, true) directly — always free, no payment path", () => {
+    const listedBranch = listing.slice(listing.indexOf("if (wantListed) {"), listing.indexOf("// --unlisted:"));
+    expect(listedBranch).toContain("await setListing(session.api, session.key, item, true, boundedFetch());");
+    expect(listedBranch).not.toContain("startPrivatePayment");
+  });
+
+  it("the unlist-only pay body spreads payListedFields(false, false) — the item stays public", () => {
+    expect(listing).toContain("...payListedFields(false, false),");
+  });
+
+  it("loads payListedFields from the app's own src/ui/share.ts (never a second copy of it)", () => {
+    expect(listing).toContain('await load("/src/ui/share.ts")');
+  });
+
+  it("polls with waitForListing(wantListed: false) after paying, the same idiom as private's waitForPrivate", () => {
+    expect(listing).toContain("await waitForListing({ api: session.api, body, quotePrivate, wantListed: false, fetchImpl: boundedFetch() });");
+  });
+});
+
+describe("listingAdvice (cast.mjs listing)", () => {
+  it("ok says listed or unlisted, by direction", () => {
+    expect(listingAdvice("ok", true, "w")).toBe("w: listed.");
+    expect(listingAdvice("ok", false, "w")).toBe("w: unlisted.");
+  });
+  it("a missing or revoked session says: log in", () => {
+    expect(listingAdvice("key", false, "w")).toMatch(/cast\.mjs login/);
+  });
+  it("registered to another account", () => {
+    expect(listingAdvice("owner", false, "w")).toMatch(/another drawcast account/);
+  });
+  it("the server did not answer", () => {
+    expect(listingAdvice("error", false, "w")).toMatch(/did not answer/);
+  });
+  it("a {due} answer says the exact next command, and never the key", () => {
+    const advice = listingAdvice({ due: 500 }, false, "dev-casts/pulled/x");
+    expect(advice).toMatch(/5 USD|500/);
+    expect(advice).toContain("cast.mjs listing dev-casts/pulled/x --unlisted --price 500");
+    expect(advice).not.toMatch(/[A-Za-z0-9_-]{20,}/);
+  });
+});
+
+describe("waitForListing (cast.mjs listing --unlisted: waits for the quote's listed to settle)", () => {
+  const body = { key: "k", kind: "cast" as const, target: "a/b/c.yaml", lectures: 1, private: false, listed: false };
+  it('"done" once the quote reports listed matching wantListed', async () => {
+    const answers = [
+      { due: 500, currency: "usd", paidLectures: 0, private: false, listed: true, owner: "you" as const, name: null },
+      { due: 0, currency: "usd", paidLectures: 1, private: false, listed: false, owner: "you" as const, name: null },
+    ];
+    const quotePrivate = async () => answers.shift()!;
+    expect(await waitForListing({ api: "https://x", body, quotePrivate, wantListed: false, timeoutS: 30, sleep: async () => {} })).toBe("done");
+  });
+  it("times out cleanly when it never settles (a cancelled or unfinished checkout)", async () => {
+    const quotePrivate = async () => ({ due: 500, currency: "usd", paidLectures: 0, private: false, listed: true, owner: "you" as const, name: null });
+    expect(await waitForListing({ api: "https://x", body, quotePrivate, wantListed: false, timeoutS: 10, sleep: async () => {} })).toBe("timeout");
+  });
+  it("a 'key'/'error' outcome from quotePrivate is not mistaken for done — kept polling", async () => {
+    const answers: ("key" | { due: number; currency: string; paidLectures: number; private: boolean; listed: boolean; owner: "you"; name: null })[] = [
+      "key",
+      { due: 0, currency: "usd", paidLectures: 1, private: false, listed: false, owner: "you", name: null },
+    ];
+    const quotePrivate = async () => answers.shift()!;
+    expect(await waitForListing({ api: "https://x", body, quotePrivate, wantListed: false, timeoutS: 30, sleep: async () => {} })).toBe("done");
+  });
+});
+
+describe("creditBalanceAdvice / creditPayAdvice (cast.mjs credit)", () => {
+  it("shows the balance", () => {
+    expect(creditBalanceAdvice({ balanceMicro: 1_500_000, balanceUsd: "1.50" })).toBe("Narration credit: 1.50 USD.");
+  });
+  it("a missing or revoked session says: log in", () => {
+    expect(creditBalanceAdvice("key")).toMatch(/cast\.mjs login/);
+    expect(creditPayAdvice("key")).toMatch(/cast\.mjs login/);
+  });
+  it("the server did not answer", () => {
+    expect(creditBalanceAdvice("error")).toMatch(/did not answer/);
+    expect(creditPayAdvice("error")).toMatch(/did not answer/);
+  });
+  it("a pending checkout says so", () => {
+    expect(creditPayAdvice("pending")).toMatch(/already open/);
+  });
+});
+
+describe("waitForCredit (cast.mjs credit --buy: waits for the balance to rise)", () => {
+  it("returns the new balance once it has risen above the starting one", async () => {
+    const answers = [
+      { balanceMicro: 0, balanceUsd: "0.00" },
+      { balanceMicro: 5_000_000, balanceUsd: "5.00" },
+    ];
+    const creditBalance = async () => answers.shift()!;
+    const out = await waitForCredit({ api: "https://x", key: "k", startMicro: 0, creditBalance, timeoutS: 30, sleep: async () => {} });
+    expect(out).toEqual({ balanceMicro: 5_000_000, balanceUsd: "5.00" });
+  });
+  it("times out cleanly when the balance never rises (a cancelled or unfinished checkout)", async () => {
+    const creditBalance = async () => ({ balanceMicro: 0, balanceUsd: "0.00" });
+    expect(await waitForCredit({ api: "https://x", key: "k", startMicro: 0, creditBalance, timeoutS: 10, sleep: async () => {} })).toBe("timeout");
+  });
+  it("a 'key'/'error' outcome from creditBalance is not mistaken for risen — kept polling", async () => {
+    const answers: ("key" | { balanceMicro: number; balanceUsd: string })[] = ["key", { balanceMicro: 2_000_000, balanceUsd: "2.00" }];
+    const creditBalance = async () => answers.shift()!;
+    const out = await waitForCredit({ api: "https://x", key: "k", startMicro: 1_000_000, creditBalance, timeoutS: 30, sleep: async () => {} });
+    expect(out).toEqual({ balanceMicro: 2_000_000, balanceUsd: "2.00" });
   });
 });

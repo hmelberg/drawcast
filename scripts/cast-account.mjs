@@ -325,3 +325,79 @@ export async function waitForPrivate({ api, body, quotePrivate, timeoutS = 540, 
   }
   return "timeout";
 }
+
+// ---- Listed (registry deliveries 3–4, task 10): cast.mjs listing —
+// whether an already-registered course or cast shows in the public
+// catalogue. Unlike Private, it takes effect at once (no push needed): a
+// paid unlist-only purchase still goes through the SAME quote/pay
+// (src/registry.ts's quotePrivate/startPrivatePayment) `private` itself
+// uses, with `payListedFields(false, false)` (src/ui/share.ts, loaded
+// through withVite — never duplicated here) so the item stays public.
+
+/**
+ * `cast.mjs listing`'s advice once setListing has answered (or, in the
+ * defensive `{due}` case, a race between the quote already checked and the
+ * actual call) — never a throw, and never the key.
+ */
+export function listingAdvice(outcome, listed, work) {
+  if (outcome === "ok") return `${work}: ${listed ? "listed" : "unlisted"}.`;
+  if (outcome === "key") return "not signed in to drawcast (or signed out from the account page) — run: node scripts/cast.mjs login";
+  if (outcome === "owner") return "this is registered to another drawcast account — listing is only for its own owner";
+  if (typeof outcome === "object") return `Unlisted needs ${dollars(outcome.due)} — run: node scripts/cast.mjs listing ${work} --unlisted --price ${outcome.due}`;
+  return "the drawcast server did not answer — try again in a minute";
+}
+
+/**
+ * Poll POST /register/quote (cast.mjs listing --unlisted, after Checkout
+ * opened) every 5 s up to `timeoutS` (9 min, the same budget as
+ * waitForPrivate/waitForName) until the item's own `listed` state matches
+ * `wantListed` — the same "poll the read model, not the payment" idiom as
+ * waitForPrivate. "timeout" if it never settles (a cancelled or unfinished
+ * checkout charges nothing).
+ */
+export async function waitForListing({ api, body, quotePrivate, wantListed, timeoutS = 540, fetchImpl = fetch, sleep = wait }) {
+  for (let t = 0; t <= timeoutS; t += 5) {
+    const q = await quotePrivate(api, body, fetchImpl);
+    if (typeof q === "object" && q.listed === wantListed) return "done";
+    await sleep(5000);
+  }
+  return "timeout";
+}
+
+// ---- Narration credit (registry delivery 3, task 5's skill half):
+// cast.mjs credit [--buy <cents>]. Every function here is pure/injectable,
+// like the sections above — src/credit.ts's creditBalance/startCreditPayment
+// are the app's own, loaded by cast.mjs through withVite.
+
+/** `cast.mjs credit`'s advice for a balance outcome — never the key. */
+export function creditBalanceAdvice(balance) {
+  if (balance === "key") return "not signed in to drawcast (or signed out from the account page) — run: node scripts/cast.mjs login";
+  if (balance === "error") return "the drawcast server did not answer — try again in a minute";
+  return `Narration credit: ${balance.balanceUsd} USD.`;
+}
+
+/** `cast.mjs credit --buy`'s advice once startCreditPayment refuses to open
+ *  Checkout at all (never opened, so there is nothing to wait for). */
+export function creditPayAdvice(pay) {
+  if (pay === "pending") return "a credit purchase is already open — finish that one, then try again";
+  if (pay === "key") return "not signed in to drawcast (or signed out from the account page) — run: node scripts/cast.mjs login";
+  return "the drawcast server did not answer — try again in a minute";
+}
+
+/**
+ * Poll POST /credit/balance (cast.mjs credit --buy, after Checkout opened)
+ * every 5 s up to `timeoutS` (9 min) until the balance has risen above
+ * `startMicro` — the same "poll until true" idiom as waitForPrivate/
+ * waitForName. Returns the new balance once it has risen; "timeout" if it
+ * never does (a cancelled or unfinished checkout charges nothing).
+ * `creditBalance` is the caller's own (src/credit.ts), so this stays free
+ * of any import of it.
+ */
+export async function waitForCredit({ api, key, startMicro, creditBalance, timeoutS = 540, fetchImpl = fetch, sleep = wait }) {
+  for (let t = 0; t <= timeoutS; t += 5) {
+    const b = await creditBalance(api, key, fetchImpl);
+    if (typeof b === "object" && b.balanceMicro > startMicro) return b;
+    await sleep(5000);
+  }
+  return "timeout";
+}

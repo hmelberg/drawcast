@@ -207,6 +207,39 @@ that made it private) — `pull` unlocks it with that key while copying it into 
 locked file it cannot unlock stops before writing anything, rather than leaving plaintext or a
 half-made workdir.
 
+`private <workdir> --unlisted` (before paying) buys private AND unlisted in the same
+purchase — one payment, no separate step. Without `--unlisted` the item stays listed in the
+public catalogue (drawcast.app/#browse) once it is registered.
+
+## Listing (drawcast.app/#browse)
+
+Whether an already-registered course or cast (it needs `origin.json`) shows in the public
+catalogue — takes effect at once, no `push` needed, and never touches whether it is locked
+private. Listing (again) is always free.
+
+1. `node scripts/cast.mjs listing <workdir> --listed` — turns it back on, free, done.
+2. `node scripts/cast.mjs listing <workdir> --unlisted` — free at once if it has ever paid for
+   Private or an earlier unlisted purchase; otherwise it prints what is due (the same one-time
+   fee as Private).
+3. **Only on the user's yes to that price:** `node scripts/cast.mjs listing <workdir>
+   --unlisted --price <cents>` (must equal what was printed). It opens Stripe Checkout in the
+   browser and waits (up to 9 minutes) for it to clear. "Not paid (yet)" is not a failure: run
+   it again after they pay. The item stays public throughout — only the catalogue listing changes.
+
+## Narration credit
+
+An author signed in to drawcast but with no Google TTS key of their own can still publish
+narration from the app: the server synthesizes it against prepaid credit. This skill's own
+`frames`/bake here always uses a local TTS key when one is configured — credit only matters
+for publishing narration from the app without one.
+
+1. `node scripts/cast.mjs credit` — the signed-in author's balance.
+2. **Only on the user's own yes to the exact amount** (never pick it for them): `node
+   scripts/cast.mjs credit --buy <cents>` — 500, 1000 or 2000 (5/10/20 USD), the only three
+   packs. It opens Stripe Checkout in the browser and waits (up to 9 minutes) for the balance
+   to rise, then prints the new one. "Not paid (yet)" is not a failure: run `credit` again
+   after they pay.
+
 ## Revising what is published (a GitHub link)
 
 Any link to it works: the course page (owner.github.io/repo/<course>/), the

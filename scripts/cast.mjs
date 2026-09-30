@@ -58,13 +58,33 @@
 //                                             `name:` in course.md, and the next push puts it on the page's door)
 //
 // Private (registry delivery 2, task 11) — locked on GitHub, only for enrolled learners:
-//   node scripts/cast.mjs private <workdir>                    the quote (what is due, in USD) and the exact next
-//                                             command; already paid says so instead
-//   node scripts/cast.mjs private <workdir> --price <cents>    --price must equal the quote's due; opens Stripe
-//                                             Checkout in the browser, waits (up to 9 minutes) for it to clear, then
-//                                             sets origin.private = true. The next `push` locks the plan and
-//                                             commits it locked; `pull` on a private course/cast needs the owner's
-//                                             own login to read it back at all.
+//   node scripts/cast.mjs private <workdir> [--unlisted]        the quote (what is due, in USD) and the exact next
+//                                             command; already paid says so instead. --unlisted buys private AND
+//                                             unlisted in the SAME purchase (without it, the item stays listed).
+//   node scripts/cast.mjs private <workdir> --price <cents> [--unlisted]   --price must equal the quote's due;
+//                                             opens Stripe Checkout in the browser, waits (up to 9 minutes) for it
+//                                             to clear, then sets origin.private = true. The next `push` locks the
+//                                             plan and commits it locked; `pull` on a private course/cast needs the
+//                                             owner's own login to read it back at all.
+//
+// Listing (registry deliveries 3–4, task 10) — whether an already-registered course or cast
+// shows in the public catalogue (drawcast.app/#browse); takes effect at once, no push needed:
+//   node scripts/cast.mjs listing <workdir> --listed             turns listing back on — always free
+//   node scripts/cast.mjs listing <workdir> --unlisted            already covered (paid private before, or an
+//                                             earlier unlisted purchase) → off at once, free. Otherwise prints what
+//                                             is due; on the user's yes, --price <cents> (must equal it) opens
+//                                             Stripe Checkout, waits (up to 9 minutes), then confirms unlisted. The
+//                                             item stays PUBLIC — this only leaves it out of the catalogue.
+//
+// Narration credit (registry delivery 3) — lets a signed-in author with no Google TTS key of
+// their own still publish narration (the server synthesizes against prepaid credit):
+//   node scripts/cast.mjs credit                                  the signed-in author's balance
+//   node scripts/cast.mjs credit --buy <cents>                    500, 1000 or 2000 (5/10/20 USD) — only on the
+//                                             user's own yes to that amount; opens Stripe Checkout in the browser,
+//                                             waits (up to 9 minutes) for the balance to rise, then prints it.
+//                                             The skill's own bake (frames, etc.) still uses a local TTS key when
+//                                             one is configured — credit is for publishing narration from the app
+//                                             without one.
 //
 // A cast file is a spec, a {request, spec}, or playlist YAML — anything the
 // app opens. Files live under dev-casts/ (gitignored). The dev server:
@@ -81,9 +101,12 @@ import {
   boundedFetch,
   checkName,
   clearSession,
+  creditBalanceAdvice,
+  creditPayAdvice,
   nameBlocker,
   deviceLogin,
   dollars,
+  listingAdvice,
   nameAdvice,
   privatePayAdvice,
   privateItemFor,
@@ -95,6 +118,8 @@ import {
   registrable,
   registrationFor,
   shouldClaim,
+  waitForCredit,
+  waitForListing,
   waitForName,
   waitForPrivate,
   writeSession,
@@ -827,11 +852,20 @@ const commands = {
    * exactly like `name --buy`), opens Stripe Checkout and waits for it to
    * clear. Never prints the key; `push` (not this command) is what actually
    * locks and commits, once origin.private is true.
+   *
+   * `--unlisted` (registry deliveries 3–4, task 10) buys private AND
+   * unlisted in the SAME purchase — one payment covers both (plan ruling 8)
+   * — by sending `listed: false` through `payListedFields`, the app's own
+   * single place these two booleans are assembled (src/ui/share.ts); without
+   * it the item stays listed (`payListedFields(true, true)`). Fix round 1:
+   * the pay body must send `private`/`listed` explicitly — the server
+   * defaults an absent `private` to true, but never omit it either way.
    */
   async private(args) {
     const flag = (n) => (args.includes(n) ? args[args.indexOf(n) + 1] : undefined);
+    const unlisted = args.includes("--unlisted");
     const [work] = args.filter((a, i) => !a.startsWith("-") && args[i - 1] !== "--price");
-    if (!work) throw new Error("usage: cast.mjs private <workdir> [--price <cents>]");
+    if (!work) throw new Error("usage: cast.mjs private <workdir> [--price <cents>] [--unlisted]");
     const wd = resolve(ROOT, work);
     if (!existsSync(resolve(wd, "origin.json"))) throw new Error(`${work} is not published (no origin.json) — publish-target and push it first`);
     const origin = JSON.parse(readFileSync(resolve(wd, "origin.json"), "utf8"));
@@ -843,6 +877,7 @@ const commands = {
     await withVite(async (load) => {
       const lib = { ...(await load("/src/course/publish.ts")), ...(await load("/src/publish/cast.ts")), ...(await load("/src/course/document.ts")) };
       const { quotePrivate, startPrivatePayment } = await load("/src/registry.ts");
+      const { payListedFields } = await load("/src/ui/share.ts");
       const courseText = origin.kind === "course" ? readFileSync(resolve(wd, "course.md"), "utf8") : undefined;
       const reg = registerFor(origin, lib, courseText);
       // A cast's target/item is the ONE prediction publish/cast.ts's own
@@ -857,7 +892,7 @@ const commands = {
           ? lib.privateCastTarget({ owner: origin.owner, repo: origin.repo }, origin.castsDir, undefined, origin.file.replace(/\.ya?ml$/i, ""), reg.title).target
           : reg.target;
       const lectures = origin.kind === "course" ? Math.max(1, reg.lectures.length) : 1;
-      const body = { key: session.key, kind: origin.kind, target, lectures, private: true };
+      const body = { key: session.key, kind: origin.kind, target, lectures, private: true, listed: !unlisted };
       const quote = await quotePrivate(session.api, body, boundedFetch());
 
       if (!priceArg) {
@@ -874,16 +909,127 @@ const commands = {
       if (typeof quote !== "object" || quote.owner === "other") throw new Error(privateQuoteAdvice(quote, work));
       if (Number(priceArg) !== quote.due) throw new Error(`--price must be ${quote.due} (${dollars(quote.due)}) — say the price to the user and get a yes first`);
 
-      const pay = await startPrivatePayment(session.api, { key: session.key, kind: origin.kind, target, title: reg.title, page: reg.page, lectures, return: "https://drawcast.app/" }, boundedFetch());
+      const pay = await startPrivatePayment(
+        session.api,
+        { key: session.key, kind: origin.kind, target, title: reg.title, page: reg.page, lectures, ...payListedFields(true, !unlisted), return: "https://drawcast.app/" },
+        boundedFetch(),
+      );
       if (typeof pay !== "object") throw new Error(privatePayAdvice(pay));
       spawnSync("open", [pay.url]);
-      console.log(`Opened Stripe Checkout for ${origin.kind === "course" ? "this private course" : "this private drawcast"} (${dollars(quote.due)}) in the browser:\n  ${pay.url}\nPay there — waiting…`);
+      console.log(`Opened Stripe Checkout for ${origin.kind === "course" ? "this private course" : "this private drawcast"}${unlisted ? ", unlisted," : ""} (${dollars(quote.due)}) in the browser:\n  ${pay.url}\nPay there — waiting…`);
 
       const outcome = await waitForPrivate({ api: session.api, body, quotePrivate, fetchImpl: boundedFetch() });
       if (outcome !== "paid") return console.log("Not paid (yet) — run private again after paying.");
       origin.private = true;
       writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
       console.log("Private is paid — push to publish locked.");
+    });
+  },
+
+  /**
+   * Registry deliveries 3–4, task 10: whether an already-registered course
+   * or cast shows in the public catalogue (drawcast.app/#browse) — takes
+   * effect at once, no push needed (unlike Private above). Listing (again)
+   * is always free; unlisting is free only once the item has ever paid for
+   * Private or an earlier unlisted purchase (`paid_lectures > 0`) —
+   * otherwise it costs the same one-time fee as Private (plan ruling 8),
+   * asked for on the user's own yes to it, exactly like `private` itself.
+   * The item stays PUBLIC either way: this only ever changes the catalogue
+   * listing, never the lock. Never prints the key.
+   */
+  async listing(args) {
+    const flag = (n) => (args.includes(n) ? args[args.indexOf(n) + 1] : undefined);
+    const wantListed = args.includes("--listed");
+    const wantUnlisted = args.includes("--unlisted");
+    if (wantListed === wantUnlisted) throw new Error("usage: cast.mjs listing <workdir> --listed | --unlisted [--price <cents>]");
+    const [work] = args.filter((a, i) => !a.startsWith("-") && args[i - 1] !== "--price");
+    if (!work) throw new Error("usage: cast.mjs listing <workdir> --listed | --unlisted [--price <cents>]");
+    const wd = resolve(ROOT, work);
+    if (!existsSync(resolve(wd, "origin.json"))) throw new Error(`${work} is not published (no origin.json) — publish-target and push it first`);
+    const origin = JSON.parse(readFileSync(resolve(wd, "origin.json"), "utf8"));
+    if (!registrable(origin)) throw new Error(`a ${origin.kind} cannot be listed — only a cast or a course`);
+    const session = readSession(homedir());
+    if (!session) throw new Error("not signed in to drawcast — run: node scripts/cast.mjs login");
+    const priceArg = flag("--price");
+
+    await withVite(async (load) => {
+      const lib = { ...(await load("/src/course/publish.ts")), ...(await load("/src/publish/cast.ts")), ...(await load("/src/course/document.ts")) };
+      const { quotePrivate, startPrivatePayment, setListing, registryItemKey } = await load("/src/registry.ts");
+      const { payListedFields } = await load("/src/ui/share.ts");
+      const courseText = origin.kind === "course" ? readFileSync(resolve(wd, "course.md"), "utf8") : undefined;
+      const reg = registerFor(origin, lib, courseText);
+      const item = registryItemKey(origin.kind, reg.target);
+      const lectures = origin.kind === "course" ? Math.max(1, reg.lectures.length) : 1;
+      // The quote — read-only, never a side effect — is asked first so the
+      // due (if any) can be shown to the user for their yes, exactly like
+      // `private` itself; asking about `private: false` here since listing
+      // never touches the lock, only the catalogue.
+      const body = { key: session.key, kind: origin.kind, target: reg.target, lectures, private: false, listed: wantListed };
+      const quote = await quotePrivate(session.api, body, boundedFetch());
+      if (typeof quote !== "object" || quote.owner === "other") throw new Error(privateQuoteAdvice(quote, work));
+
+      if (wantListed) {
+        const r = await setListing(session.api, session.key, item, true, boundedFetch());
+        return console.log(listingAdvice(r, true, work));
+      }
+
+      // --unlisted: free at once when already covered (paid_lectures > 0 —
+      // a private purchase or an earlier unlisted one); otherwise the exact
+      // same price as Private, paid once (plan ruling 8).
+      if (quote.due === 0) {
+        const r = await setListing(session.api, session.key, item, false, boundedFetch());
+        return console.log(listingAdvice(r, false, work));
+      }
+      if (!priceArg) return console.log(`Unlisted needs ${dollars(quote.due)} — run: node scripts/cast.mjs listing ${work} --unlisted --price ${quote.due}`);
+      if (Number(priceArg) !== quote.due) throw new Error(`--price must be ${quote.due} (${dollars(quote.due)}) — say the price to the user and get a yes first`);
+
+      // The item stays public — payListedFields(false, false) — so this
+      // purchase never locks it, only settles listed:false (fix round 1's
+      // invariant: never omit `private` either way).
+      const pay = await startPrivatePayment(
+        session.api,
+        { key: session.key, kind: origin.kind, target: reg.target, title: reg.title, page: reg.page, lectures, ...payListedFields(false, false), return: "https://drawcast.app/" },
+        boundedFetch(),
+      );
+      if (typeof pay !== "object") throw new Error(privatePayAdvice(pay));
+      spawnSync("open", [pay.url]);
+      console.log(`Opened Stripe Checkout to unlist this ${origin.kind === "course" ? "course" : "drawcast"} (${dollars(quote.due)}) in the browser:\n  ${pay.url}\nPay there — waiting…`);
+
+      const outcome = await waitForListing({ api: session.api, body, quotePrivate, wantListed: false, fetchImpl: boundedFetch() });
+      console.log(outcome === "done" ? `${work}: unlisted.` : "Not paid (yet) — run listing --unlisted again after paying.");
+    });
+  },
+
+  /**
+   * Registry delivery 3, task 5 (skill half): the signed-in author's
+   * narration-credit balance, and buying more of it (500/1000/2000 cents —
+   * 5/10/20 USD, the only three packs) when the user has said yes to that
+   * exact amount — never picked by the skill itself (SKILL.md says so).
+   * Waits (up to 9 minutes) for the balance to rise, the same "poll until
+   * it changed" idiom as `private`/`name-wait`. Never prints the key.
+   */
+  async credit(args) {
+    const cents = args.includes("--buy") ? Number(args[args.indexOf("--buy") + 1]) : null;
+    if (args.includes("--buy") && ![500, 1000, 2000].includes(cents)) throw new Error("usage: cast.mjs credit [--buy <500|1000|2000>] — the three credit packs (5/10/20 USD); say the amount to the user and get a yes first");
+    const session = readSession(homedir());
+    if (!session) throw new Error("not signed in to drawcast — run: node scripts/cast.mjs login");
+
+    await withVite(async (load) => {
+      const { creditBalance, startCreditPayment } = await load("/src/credit.ts");
+      if (cents === null) {
+        const balance = await creditBalance(session.api, session.key, boundedFetch());
+        return console.log(creditBalanceAdvice(balance));
+      }
+      const before = await creditBalance(session.api, session.key, boundedFetch());
+      const startMicro = typeof before === "object" ? before.balanceMicro : 0;
+      const pay = await startCreditPayment(session.api, { key: session.key, cents, return: "https://drawcast.app/" }, boundedFetch());
+      if (typeof pay !== "object") throw new Error(creditPayAdvice(pay));
+      spawnSync("open", [pay.url]);
+      console.log(`Opened Stripe Checkout for ${dollars(cents)} of narration credit in the browser:\n  ${pay.url}\nPay there — waiting…`);
+
+      const outcome = await waitForCredit({ api: session.api, key: session.key, startMicro, creditBalance, fetchImpl: boundedFetch() });
+      if (outcome === "timeout") return console.log("Not paid (yet) — run credit again after paying, or credit to check the new balance.");
+      console.log(`Credit purchased — new balance: ${outcome.balanceUsd} USD.`);
     });
   },
 
