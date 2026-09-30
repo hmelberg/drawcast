@@ -5,7 +5,7 @@
 // Recognized tags are stripped from the text; unknown #words are left alone
 // (a literal # in a request must never be eaten) and reported for the UI.
 
-export type TagGroup = "length" | "level" | "language" | "style" | "hook" | "why" | "controversy" | "history" | "facts" | "proscons" | "mode" | "pacing" | "tone" | "human" | "voice" | "gestures" | "structure" | "interaction";
+export type TagGroup = "length" | "level" | "audience" | "language" | "style" | "hook" | "why" | "controversy" | "history" | "facts" | "proscons" | "mode" | "pacing" | "tone" | "human" | "voice" | "gestures" | "structure" | "interaction";
 
 export interface TagDef {
   tag: string;
@@ -30,21 +30,21 @@ export const TAGS: TagDef[] = [
   {
     tag: "veryshort",
     group: "length",
-    hint: "2–3 spoken lines, one single idea",
-    brief: "Keep it VERY short: 2–3 speak lines, one single idea, no preamble. Override the examples' length.",
+    hint: "5–7 spoken lines, one single idea",
+    brief: "Keep it VERY short: 5–7 speak lines, one single idea, no preamble. Override the examples' length.",
   },
   {
     tag: "short",
     group: "length",
-    hint: "3–4 spoken lines, one idea",
-    brief: "Keep it short: 3–4 speak lines, one idea only, no preamble. Override the examples' length.",
+    hint: "8–12 spoken lines, one idea",
+    brief: "Keep it short: 8–12 speak lines, one idea only, a one-line opening. Override the examples' length.",
   },
   {
     tag: "long",
     group: "length",
-    hint: "10–16 lines in 2–3 acts: announce, example, step by step, synthesis",
+    hint: "22–30 lines in 2–3 acts: announce, example, step by step, synthesis",
     brief:
-      "Make it a long drawcast: 10–16 speak lines in 2–3 acts (use clear between acts); override the examples' length. " +
+      "Make it a long drawcast: 22–30 speak lines in 2–3 acts (use clear between acts); override the examples' length. " +
       "Open by saying in one sentence what you will explain (with drawing already underway), then ground it in one concrete example with real numbers — a concrete case is the best hook. " +
       "Build the explanation step by step through that example: narrate each element AS it is drawn (put speak on the draw command) — what it is and why it matters — and no step is skipped. " +
       "End with a one-line synthesis of the insight.",
@@ -52,9 +52,9 @@ export const TAGS: TagDef[] = [
   {
     tag: "verylong",
     group: "length",
-    hint: "16–24 lines, deep dive: announce, example, steps, debate, synthesis",
+    hint: "30–40 lines, deep dive: announce, example, steps, debate, synthesis",
     brief:
-      "Make it a deep-dive drawcast: 16–24 speak lines in 3–4 acts (use clear between acts); override the examples' length. " +
+      "Make it a deep-dive drawcast: 30–40 speak lines in 3–4 acts (use clear between acts); override the examples' length. " +
       "Open by saying in one sentence what you will explain (with drawing already underway), then ground it in one concrete example with real numbers — a concrete case is the best hook. " +
       "Build the explanation step by step through that example: narrate each element AS it is drawn (put speak on the draw command) — what it is and why it matters — and no step is skipped. " +
       "You have room for up to TWO enrichment moments (why it matters, a real debate, a historical note, empirical numbers, or strengths and weaknesses) — pick only what genuinely fits the topic. " +
@@ -71,6 +71,36 @@ export const TAGS: TagDef[] = [
     group: "level",
     hint: "advanced audience: technical terms, assumptions stated",
     brief: "Audience: advanced. Use precise technical vocabulary, assume prior knowledge, and state assumptions or conditions where they matter.",
+  },
+  // Who watches. No tag = the default viewer the prompts assume: a curious
+  // adult of better-than-average ability with decent general knowledge but
+  // no special knowledge of the topic. #for=<who> names anyone else.
+  {
+    tag: "students",
+    group: "audience",
+    hint: "students meeting the topic in a course",
+    brief: "Audience: students meeting this topic in a course. Use the field's own terms, each defined once in passing, and show the working they will need to do it themselves.",
+  },
+  {
+    tag: "professionals",
+    aliases: ["pros"],
+    group: "audience",
+    hint: "people who work with the topic in practice",
+    brief: "Audience: professionals who work with this topic in practice. Skip what they already know, use their vocabulary, and spend the time on the step that changes a decision they make.",
+  },
+  {
+    tag: "children",
+    aliases: ["kids"],
+    group: "audience",
+    hint: "children about 10–14",
+    brief: "Audience: children about 10–14. Everyday words and examples from their world, nothing assumed — simple, but still true and never babyish.",
+  },
+  {
+    // Display-only like template=<id>: #for=<who> is parsed in parseTags.
+    tag: "for=<who>",
+    group: "audience",
+    hint: "a particular audience, e.g. #for=nurses (dashes for spaces)",
+    brief: "",
   },
   {
     tag: "norwegian",
@@ -298,6 +328,13 @@ for (const def of TAGS) {
   for (const a of def.aliases ?? []) byName.set(a, def);
 }
 
+/** The exclusive group a typed tag word belongs to (`for=…` is audience), or null for an unknown word. */
+export function tagGroupOf(word: string): TagGroup | null {
+  const lower = word.toLowerCase();
+  if (/^for=.+$/.test(lower)) return "audience";
+  return byName.get(lower)?.group ?? null;
+}
+
 export interface ParsedTags {
   /** The request with recognized tags removed (whitespace collapsed). */
   clean: string;
@@ -316,7 +353,7 @@ export interface ParsedTags {
   template: string | null;
 }
 
-const TAG_RE = /(^|\s)#([a-zæøå]+(?:=[^\s#]+)?)/gi;
+export const TAG_RE = /(^|\s)#([a-zæøå]+(?:=[^\s#]+)?)/gi;
 
 export function parseTags(text: string): ParsedTags {
   const unknown: string[] = [];
@@ -334,6 +371,16 @@ export function parseTags(text: string): ParsedTags {
       if (partsMatch) {
         playlist = true;
         parts = parseInt(partsMatch[1], 10);
+        return lead;
+      }
+      const forMatch = /^for=(.+)$/.exec(word);
+      if (forMatch) {
+        // A named audience: one more member of the exclusive audience group.
+        const def: TagDef = { tag: `for=${forMatch[1]}`, group: "audience", hint: "", brief: "" };
+        const prev = byGroup.get("audience");
+        if (prev) order.splice(order.indexOf(prev), 1);
+        byGroup.set("audience", def);
+        order.push(def);
         return lead;
       }
       const templateMatch = /^template=(.+)$/.exec(lower);
@@ -373,10 +420,16 @@ export function parseTags(text: string): ParsedTags {
   };
 }
 
+/** The brief for #for=<who>: dashes stand for spaces in a tag. */
+export function audienceBrief(who: string): string {
+  const name = who.replace(/[-_]+/g, " ").trim();
+  return name ? `Audience: ${name}. Pitch the example, the words and what you assume they already know to them.` : "";
+}
+
 /** The directing-brief block appended to the user message ("" when nothing applies). */
 export function buildBrief(tags: string[]): string {
   const lines = tags
-    .map((t) => byName.get(t)?.brief ?? "")
+    .map((t) => (t.startsWith("for=") ? audienceBrief(t.slice(4)) : byName.get(t)?.brief ?? ""))
     .filter((b) => b.length > 0);
   if (lines.length === 0) return "";
   return `Directing brief:\n${lines.map((l) => `- ${l}`).join("\n")}`;

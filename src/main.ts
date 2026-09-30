@@ -21,6 +21,7 @@ import { createOnDemandRun, onDemandSummary } from "./llm/on-demand-run";
 import { missingPlaceholders } from "./llm/prompt";
 import { usableExemplars } from "./llm/exemplars";
 import { buildBrief, parseTags, suggestTags, TAGS, type ParsedTags } from "./llm/tags";
+import { BRIEF_CONTROLS, briefTagInText, clearBriefTag, forTag, withBriefDefaults, type BriefGroup } from "./llm/brief-controls";
 import { LAB_MODELS, MODELS, callLedger, costSummary, describeApiError, formatCost, makeClient, planningModelFor, resetCallLedger } from "./llm/client";
 import { autoImages, makeMapAuto, makeMapPictures, mapOutcome, mapPicture, optOutWarning, writeFullMaps, type PictureMap } from "./llm/picture-map";
 import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/author";
@@ -594,7 +595,74 @@ const tagChips = h("div", { class: "tag-chips", hidden: "" });
 const tagSuggest = h("div", { class: "tag-suggest", hidden: "" });
 let suggestIndex = 0;
 
+// ---------- the brief controls: audience, level, length ----------
+// Three quiet selects beside Generate (llm/brief-controls.ts). Each choice is
+// a tag; one typed in the box wins and shows here, and touching the control
+// hands the group back to it (the typed tag leaves the text).
+
+const briefSels = new Map<BriefGroup, HTMLSelectElement>();
+const briefForInput = h("input", {
+  type: "text",
+  class: "brief-for",
+  placeholder: "who? e.g. nurses",
+  "aria-label": "Audience (who is watching)",
+  hidden: "",
+}) as HTMLInputElement;
+const briefRow = h("span", { class: "brief-controls" });
+/** "Other…" picked and not yet named: keep the field open while it is empty. */
+let briefOtherOpen = false;
+
+for (const c of BRIEF_CONTROLS) {
+  const sel = h("select", { class: "brief-sel", "aria-label": c.label }) as HTMLSelectElement;
+  for (const o of c.options) sel.appendChild(h("option", { value: o.value, title: o.hint }, o.label));
+  briefSels.set(c.group, sel);
+  briefRow.append(sel);
+  if (c.group === "audience") briefRow.append(briefForInput);
+  sel.addEventListener("change", () => {
+    const typed = briefTagInText(promptEl.value, c.group);
+    if (typed !== null) promptEl.value = clearBriefTag(promptEl.value, c.group);
+    hideSuggest();
+    if (c.group === "audience") {
+      briefOtherOpen = sel.value === "for";
+      settings.brief.audience = briefOtherOpen ? forTag(briefForInput.value) : sel.value;
+    } else {
+      settings.brief[c.group] = sel.value;
+    }
+    persist();
+    refreshChips();
+    if (briefOtherOpen) briefForInput.focus();
+  });
+}
+briefForInput.addEventListener("input", () => {
+  settings.brief.audience = forTag(briefForInput.value);
+  persist();
+});
+
+function refreshBriefControls(): void {
+  for (const c of BRIEF_CONTROLS) {
+    const sel = briefSels.get(c.group)!;
+    const typed = briefTagInText(promptEl.value, c.group);
+    const value = typed ?? settings.brief[c.group];
+    const isFor = value.startsWith("for=") || (c.group === "audience" && typed === null && briefOtherOpen);
+    sel.value = isFor ? "for" : c.options.some((o) => o.value === value) ? value : "";
+    // A typed tag rules this group: say so, and where.
+    sel.classList.toggle("brief-typed", typed !== null);
+    const option = c.options.find((o) => o.value === sel.value);
+    sel.title = typed !== null
+      ? `${c.label}: set by #${typed} in the request — choose here to take it over`
+      : `${c.label}: ${option?.hint ?? ""}`;
+    if (c.group === "audience") {
+      briefForInput.hidden = !isFor;
+      briefForInput.disabled = typed !== null;
+      if (value.startsWith("for=") && document.activeElement !== briefForInput) {
+        briefForInput.value = value.slice(4).replace(/-/g, " ");
+      }
+    }
+  }
+}
+
 function refreshChips(): void {
+  refreshBriefControls();
   const parsed = parseTags(promptEl.value);
   tagChips.replaceChildren();
   const chips: HTMLElement[] = parsed.tags.map((t) =>
@@ -630,7 +698,7 @@ function acceptSuggestion(tag: string): void {
   // be typed immediately (both are display-only TAGS entries — the actual
   // #parts=N / #template=<id> parsing in tags.ts is a separate regex, not
   // keyed off this literal).
-  const insert = tag === "parts=N" ? "#parts=" : tag === "template=<id>" ? "#template=" : `#${tag} `;
+  const insert = tag === "parts=N" ? "#parts=" : tag === "template=<id>" ? "#template=" : tag === "for=<who>" ? "#for=" : `#${tag} `;
   promptEl.value = promptEl.value.slice(0, cur.start) + insert + promptEl.value.slice(pos);
   const caret = cur.start + insert.length;
   promptEl.setSelectionRange(caret, caret);
@@ -1379,7 +1447,7 @@ const editorWrap = h(
     h("div", { class: "row prompt-row" }, promptEl, tagSuggest),
     tagChips,
     viewBar,
-    h("div", { class: "row gen-row" }, choicesBtn, histNav, generateBtn),
+    h("div", { class: "row gen-row" }, briefRow, choicesBtn, histNav, generateBtn),
     genChoices,
   ),
   statusEl,
@@ -3433,7 +3501,9 @@ function blockedByAi(what: string): boolean {
 }
 
 async function generate(): Promise<void> {
-  const rawRequest = promptEl.value.trim();
+  // The brief controls fill in each group the text leaves open; the stored
+  // prompt carries them, so a later look at the document shows its brief.
+  const rawRequest = promptEl.value.trim() ? withBriefDefaults(promptEl.value.trim(), settings.brief) : "";
   if (!rawRequest) return;
   const parsed = parseTags(rawRequest);
   if (!parsed.clean) {
@@ -3898,6 +3968,8 @@ function applyAuthorMode(): void {
   const mode = authoringMode(specArea.value, blankDocText());
   const viewing = !atNewest(stack);
   generateBtn.textContent = authorButtonLabel(mode, { busy: aiBusy, viewing });
+  // The brief shapes a new drawcast; a revision keeps the one it has.
+  briefRow.hidden = mode !== "generate" || viewing;
   promptEl.placeholder = promptPlaceholder(mode);
   generateBtn.title = aiBusy
     ? "Stop this AI call (Esc)"

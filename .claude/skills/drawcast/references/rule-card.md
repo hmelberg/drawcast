@@ -64,7 +64,7 @@ when a verb's behaviour matters, grep `src/llm/prompts/compiler-v1.md`.
   points lands there. Page-level things: `at: {"place": "top_right"}` (center,
   top, bottom, left, right, corners). No position at all → placed for you.
 - List the parts and what each hangs off BEFORE writing JSON; ≤ ~30
-  elements, ≤ ~17 beats; name the six parts that matter.
+  elements, ≤ ~20 beats; name the six parts that matter.
 - Boxes (flowchart, chain, compared pair, cycle, peers): a group with
   `layout: row | column | grid` (grid without `columns` picks the largest
   arrangement), `gap` (40), `align`; groups nest (a column inside a row =

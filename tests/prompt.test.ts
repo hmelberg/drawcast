@@ -66,7 +66,7 @@ describe("compiler prompt style rules", () => {
   });
 
   test("caps how big a freehand figure may get (B2)", () => {
-    expect(compilerV1).toContain("A figure is at most about 30 elements and 17 beats; when a thing has more parts, name the six that matter.");
+    expect(compilerV1).toContain("A figure is at most about 30 elements and 20 beats; when a thing has more parts, name the six that matter.");
   });
 
   test("the freehand section stays short enough to be read", () => {

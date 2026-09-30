@@ -609,7 +609,10 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // +558 on the schema and so on the prompt; and rule 7 now says the app maps a
 // picture URL in the request and the compiler uses the listed part names
 // (regions: "auto", boxes filled in), +131. 369496 -> 370185.
-const BASELINE_SYSTEM_CHARS = 370185;
+// Re-pinned UP 2026-09-30 (brief controls): the intro names the default
+// viewer when the request names no audience (+157), the length line and the
+// freehand beat cap move to 14–20 / 20 (-24). 370185 -> 370318.
+const BASELINE_SYSTEM_CHARS = 370318;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

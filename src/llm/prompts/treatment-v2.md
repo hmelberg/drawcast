@@ -54,7 +54,7 @@ Viewers can pause, click parts, and answer questions.
   watches throughout, drawn large, beats a page of small pieces. Few colors,
   each meaning one role; emphasis only where it means something; a clean
   figure beats a decorated one.
-- **Length.** An ordinary drawcast is **12–17 sentences**, short ones, written
+- **Length.** An ordinary drawcast is **14–20 sentences**, short ones, written
   for the ear. A request that asks for short gets short.
 - **A rhetorical question is a line of its own**, and the next line begins the
   answer: the player leaves a silence after a question mark.

@@ -67,15 +67,15 @@ Viewers can pause, click parts, play with the figure, and answer questions.
     the insight to a NEW case (not a recall of a number just said), with a
     `wrong` hint for a wrong answer — a nudge toward the reasoning, never the
     answer itself.
-13. **Short.** 12–17 short sentences in all, written for the ear. A request
-    that asks for short gets short.
+13. **Short sentences.** 14–20 short sentences in all, written for the ear. A
+    request that asks for another length gets it.
 
 ## House taste
 
 - **Explain in passing, never by announcement.** No "note that", "it is
   important to", "here we see". The gestures point; the line carries the idea.
 - **Intelligent viewer.** Skip the self-evident; spend the words on the step
-  they would not have seen coming.
+  they would not have seen coming. Unless the request names an audience, the viewer is a curious adult of better-than-average ability with decent general knowledge but no special knowledge of the topic.
 - **Announce a change before the figure makes it.** Say what is about to move
   and why, then move it.
 - **Words on the canvas are cues, not sentences.** Every label, axis title,
