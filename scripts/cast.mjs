@@ -7,7 +7,7 @@
 //                                                        few-shots, exemplars, code/sound gates), wrapped for reading;
 //                                                        the JSON schema goes to dev-casts/_schema.json (look fields up there)
 //   node scripts/cast.mjs template <id>                  a template's full catalog entry (params, element ids)
-//   node scripts/cast.mjs check <cast.json>              validation + layout/command lint (the generator's own checks)
+//   node scripts/cast.mjs check <cast.json|yaml>         validation + layout/command lint (the generator's own checks)
 //   node scripts/cast.mjs frames <cast.json> [outdir] [--large]   frames after every spoken line, as PNG tiles, plus
 //                                                        the browser-measured lint per frame (--large: one frame per row,
 //                                                        for fine text) — needs the dev server
@@ -1391,10 +1391,17 @@ const commands = {
   },
 
   async check([file]) {
-    if (!file) throw new Error("usage: cast.mjs check <cast.json>");
-    const spec = readCast(file);
-    if (!spec) throw new Error("check reads JSON (a spec or {request, spec}); for YAML use frames");
+    if (!file) throw new Error("usage: cast.mjs check <cast.json | cast.yaml>");
+    let spec = readCast(file);
     await withVite(async (load) => {
+      if (!spec) {
+        // YAML (a spec as the portable skill writes it, or a one-page playlist):
+        // the app's own reader, as the player's #cast= / #paste would read it.
+        const { parsePlaylistText, itemsOf } = await load("/src/playlist/playlist.ts");
+        const items = itemsOf(parsePlaylistText(readFileSync(resolve(ROOT, file), "utf8")));
+        if (items.length !== 1) throw new Error(`check reads one page; ${file} has ${items.length} (use frames for a playlist)`);
+        spec = items[0].spec;
+      }
       const { validateSpec } = await load("/src/spec/schema.ts");
       const { expandSpec } = await load("/src/spec/expand.ts");
       const { layoutSpec } = await load("/src/layout/layout.ts");

@@ -1,0 +1,30 @@
+title: Why savings snowball
+domain: {x: [0, 30], y: [0, 8]}
+vars:
+  r: {value: 0.05, min: 0, max: 0.1}
+elements:
+  - {id: ax, type: axes, x_label: "Years", y_label: "Money ×"}
+  - {id: simple, type: curve, expr: "1 + r*x", style: {color: "#8f887c", dash: true}}
+  - {id: compound, type: curve, expr: "(1+r)^x", style: {color: "#2f6b8f"}}
+  - {id: l_simple, type: label, attach_to: simple, side: below, text: "Simple", style: {color: "#8f887c"}}
+  - {id: l_compound, type: label, attach_to: compound, side: above, text: "Compound", style: {color: "#2f6b8f"}}
+commands:
+  - card: {title: "Why savings snowball"}
+  - draw: [ax]
+    speak: "Why does money left in the bank grow faster and faster?"
+  - draw: [simple, l_simple]
+    speak: "If you only earned interest on what you put in, it would grow in a straight line."
+  - draw: [compound, l_compound]
+    speak: "But each year's interest earns interest too, so the line bends upward."
+  - pause: 0.5
+  - animate: {r: 0.07}
+    duration: 3
+    speak: "Raise the rate from five to seven percent, and the gap after thirty years more than doubles."
+  - highlight: {target: [compound]}
+    speak: "Compounding is growth on growth: the longer you wait, the more it matters."
+  - quiz:
+      question: "Which grows more over 30 years?"
+      choices: ["8% simple", "5% compound"]
+      correct: 2
+      right: "5% compound: after thirty years it has more than quadrupled, while 8% simple reaches 3.4 times."
+      wrong: "Think about what the interest itself earns in the later years."
