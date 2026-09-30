@@ -597,3 +597,36 @@ laser; plain ids are unchanged everywhere.
 This replaces delivery 1's red box default and the hard-edged spotlight on
 pictures, and it is §6 (movement) built together with the look — `tour`
 remains for later.
+
+## 14. Delivery 3 — how mapping runs (decided 2026-09-30)
+
+- **Only while authoring, never at render.** The player, the published viewer
+  and exports never call a model; a viewer has no key and must not be billed.
+- **Three triggers.** (1) A request that contains a picture URL: the compile
+  pipeline maps it before the storyline and the compiler run — the compiler
+  receives the part NAMES (one line each: name — kind — visible label), never
+  the boxes, and writes gestures against them; after each reply the pipeline
+  fills `regions` with the boxes of the names the drawcast actually uses, so a
+  misspelt name is caught by validation and fixed by the ordinary repair round.
+  (2) A revise whose document holds `regions: auto` (or the long form): mapped
+  before the revise call; its names ride the revise message the same way.
+  (3) The author writes `regions: auto` in the editor and draws: the full map
+  is written into the document (every part found, sorted by name), for the
+  author to use and prune.
+- **The picture reaches the model by URL when it has one** (the API fetches
+  it — so a host that refuses browsers' pixel reads, like microdata.no, can
+  still be mapped); an embedded picture goes as base64.
+- **Model:** the planning model (Sonnet on an Opus or Sonnet setting; Haiku is
+  raised to Sonnet) — boxes need a capable eye; one call per picture.
+- **Cache:** the full map, per picture and options, in the browser's picture
+  cache; revising or regenerating the same picture costs nothing.
+- **`find` in delivery 3 is model-found only**; quoted text is matched by the
+  model as visible text (exact text recognition is delivery 4). Anything not
+  found is reported: to the compiler as "not found: …", to the author as a
+  status line.
+- **The fetch helper** (`/.netlify/functions/picture?url=`) lets the browser
+  read a CORS-refusing picture's pixels so it can be EMBEDDED (movies, posters,
+  the torch tone) instead of linked. https only, public hosts only (no
+  private, loopback or link-local addresses after DNS resolution), images
+  only, 8 MB cap, 8 s timeout, per-IP rate limit, CORS for drawcast's own
+  origins.
