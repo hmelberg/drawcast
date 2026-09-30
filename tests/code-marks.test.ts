@@ -149,7 +149,7 @@ describe("the chart style", () => {
     expect(codeCacheKey(base)).toBe(codeCacheKey({ ...base, chart: "xkcd" }));
     expect(codeCacheKey({ ...base, chart: "seaborn" })).not.toBe(codeCacheKey(base));
     // …but a script it cannot touch must not miss its cache for nothing.
-    const plain = { language: "micropython" as const, code: "print(1)" };
+    const plain = { language: "r" as const, code: "print(1)" };
     expect(codeCacheKey({ ...plain, chart: "xkcd" })).toBe(codeCacheKey(plain));
   });
 

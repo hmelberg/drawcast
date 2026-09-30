@@ -45,7 +45,7 @@ export type Grammar = "python" | "r";
 
 /** Which grammar a language reads; null = no controls for this language. */
 export function grammarFor(language: string): Grammar | null {
-  if (language === "python" || language === "brython" || language === "micropython" || language === "microdata") return "python";
+  if (language === "python" || language === "brython" || language === "microdata") return "python";
   if (language === "r") return "r";
   return null;
 }

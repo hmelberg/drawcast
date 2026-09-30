@@ -14,7 +14,7 @@ import { SUB_SUFFIXES } from "../layout/model";
 import { UNIVERSAL_ANCHORS } from "../layout/anchors";
 import { isFitName } from "../layout/regions";
 import { C64_PROGRAMS } from "../code/c64-catalogue";
-import { LANGUAGES, isLanguage } from "../code/languages";
+import { LANGUAGES, currentLanguage, isLanguage } from "../code/languages";
 import { notationBeats, INSTRUMENTS } from "./notation";
 import { varNameErrors } from "./vars";
 import { parseABC } from "./abc";
@@ -456,7 +456,7 @@ const elementSchema = {
       type: "string",
       enum: [...LANGUAGES],
       description:
-        "code: the runtime that executes the script. brython = the light tier (loads in about a second): CPython syntax and standard library, plus pandas, plotly.express, numpy, matplotlib, scipy.stats, statsmodels and seaborn emulations — the default for a script that needs no heavy numerics. python = full CPython via pyodide (real numpy/scipy/matplotlib, PyPI on demand; tens of megabytes). r = R via webR (base or tidyverse; library() auto-installs; every top-level expression prints as at the console; a trailing data frame draws as a table, a base plot or a printed ggplot as a figure). micropython = the minimal tier (half a megabyte, boots in milliseconds; pandas and plotly.express emulations, a partial standard library) — only when the request asks for it." + C64_LANGUAGE_CLAUSE,
+        "code: the runtime that executes the script. brython = the light tier (loads in about a second): CPython syntax and standard library, plus pandas, plotly.express, numpy, matplotlib, scipy.stats, statsmodels and seaborn emulations — the default for a script that needs no heavy numerics. python = full CPython via pyodide (real numpy/scipy/matplotlib, PyPI on demand; tens of megabytes). r = R via webR (base or tidyverse; library() auto-installs; every top-level expression prints as at the console; a trailing data frame draws as a table, a base plot or a printed ggplot as a figure)." + C64_LANGUAGE_CLAUSE,
     },
     code: {
       type: "string",
@@ -1392,6 +1392,8 @@ export function normalizeSpec(spec: unknown): unknown {
     if (!el || typeof el !== "object") continue;
     if (el.link !== undefined) el.link = toList(el.link);
     if (el.cites !== undefined) el.cites = toList(el.cites);
+    // A retired runtime is spelled as the one that runs it now (code/languages.ts).
+    if (el.type === "code" && el.language !== undefined) el.language = currentLanguage(el.language) as SpecElement["language"];
     // `at: "left"` is the short way to say `at: {place: "left"}`, and the
     // hyphenated spelling (the one a model reaches for by analogy with side
     // names) normalizes to the anchor spelling — so validation, layout and

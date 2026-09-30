@@ -3171,6 +3171,13 @@ the exact code at tag `archive/pipeline-experiments-2026-09-30`. Kept on
 purpose: "Write it in one go" (a user-facing choice) and the prompt library
 (developer mode — the separate NOTES.md question).
 
+## MicroPython retired — 2026-09-30
+
+Brython stays as the light Python tier; MicroPython went (its own pandas and
+plotly stand-ins, a dict-order trap, about a second of load saved). Casts that
+name it play on Brython. How to bring it back: `docs/prompt-lab/archive/README.md`,
+tag `archive/micropython-2026-09-30`.
+
 ## Housekeeping
 
 - Regenerate `package-lock.json` (`npm install`) and switch CI back to

@@ -19,7 +19,7 @@ describe("Tab", () => {
 
   test("R indents by two, Python by four", () => {
     expect(indentWidth("r")).toBe(2);
-    for (const l of ["python", "brython", "micropython", "microdata"]) expect(indentWidth(l)).toBe(4);
+    for (const l of ["python", "brython", "microdata"]) expect(indentWidth(l)).toBe(4);
   });
 
   test("a selection spanning lines shifts every line it touches", () => {

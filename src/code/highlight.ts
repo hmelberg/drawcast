@@ -480,7 +480,6 @@ export function tokenizeLine(line: string, language: string): Token[] {
   switch (language) {
     case "python":
     case "brython":
-    case "micropython":
       tokens = tokenizePyRLike(line, PY_CFG);
       break;
     case "r":

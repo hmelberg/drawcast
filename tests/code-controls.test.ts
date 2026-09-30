@@ -10,7 +10,6 @@ describe("grammarFor", () => {
   test("the python family shares one grammar; r its own; basic none", () => {
     expect(grammarFor("python")).toBe("python");
     expect(grammarFor("brython")).toBe("python");
-    expect(grammarFor("micropython")).toBe("python");
     expect(grammarFor("microdata")).toBe("python");
     expect(grammarFor("r")).toBe("r");
     expect(grammarFor("basic")).toBeNull();

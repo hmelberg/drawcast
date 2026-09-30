@@ -4,8 +4,8 @@
 
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
-import { LANGUAGES, RUNTIME_LABEL, RUNTIME_VERSION, cacheTag, isLanguage } from "../src/code/languages";
-import { specSchema, validateSpec } from "../src/spec/schema";
+import { LANGUAGES, RUNTIME_LABEL, RUNTIME_VERSION, cacheTag, currentLanguage, isLanguage } from "../src/code/languages";
+import { normalizeSpec, specSchema, validateSpec } from "../src/spec/schema";
 import { codeCacheKey, runCode, type CodeRunRequest, type CodeRunResult } from "../src/code/run";
 import { codeExecutionErrors } from "../src/code/check";
 import type { Spec } from "../src/spec/types";
@@ -14,11 +14,11 @@ const spec = (el: object): Spec =>
   ({ elements: [{ id: "c1", type: "code", ...el }], commands: [] }) as unknown as Spec;
 
 describe("languages — one declaration", () => {
-  test("the six languages, each with a label and a pinned version", () => {
-    expect([...LANGUAGES]).toEqual(["python", "r", "brython", "micropython", "microdata", "basic"]);
+  test("the five languages, each with a label and a pinned version", () => {
+    expect([...LANGUAGES]).toEqual(["python", "r", "brython", "microdata", "basic"]);
     for (const l of LANGUAGES) {
       expect(RUNTIME_LABEL[l]).toBeTruthy();
-      // Five are pinned to a runtime someone else versions; basic is ours,
+      // Four are pinned to a runtime someone else versions; basic is ours,
       // versioned by a counter we bump when its rules change.
       expect(RUNTIME_VERSION[l]).toMatch(l === "basic" ? /^\d+$/ : /^\d+\.\d+\.\d+$/);
     }
@@ -37,7 +37,6 @@ describe("languages — one declaration", () => {
     expect(cacheTag("python")).toBe(`py${RUNTIME_VERSION.python}`);
     expect(cacheTag("r")).toBe(`r${RUNTIME_VERSION.r}`);
     expect(cacheTag("brython")).toMatch(new RegExp(`^bry${RUNTIME_VERSION.brython.replace(/\./g, "\\.")}\\+\\d{4}-\\d{2}-\\d{2}$`));
-    expect(cacheTag("micropython")).toMatch(new RegExp(`^mpy${RUNTIME_VERSION.micropython.replace(/\./g, "\\.")}\\+\\d{4}-\\d{2}-\\d{2}$`));
     // microdata runs ON pyodide, so its tag pins BOTH the interpreter and the
     // vendored m2py snapshot — a new snapshot must miss the cache cleanly.
     expect(cacheTag("microdata")).toMatch(new RegExp(`^md${RUNTIME_VERSION.microdata.replace(/\./g, "\\.")}\\+\\d{4}-\\d{2}-\\d{2}[a-z]?$`));
@@ -104,5 +103,22 @@ describe("prompt knows the runtimes it may emit", () => {
   test("every language is offered and no 'never emit' sentence remains", () => {
     for (const l of LANGUAGES) expect(prompt).toContain(`"language": "${l}"`);
     expect(prompt).not.toMatch(/never emit/i);
+  });
+});
+
+// MicroPython was retired 2026-09-30 (tag archive/micropython-2026-09-30):
+// a cast that names it plays on Brython, the light tier that runs the same
+// scripts.
+describe("a retired runtime runs on its successor", () => {
+  test("micropython reads as brython, in the spec and at the runner", async () => {
+    expect(isLanguage("micropython")).toBe(false);
+    expect(currentLanguage("micropython")).toBe("brython");
+    expect(currentLanguage("python")).toBe("python");
+    const s = spec({ language: "micropython", code: "print(1)" });
+    expect(validateSpec(s).ok).toBe(true);
+    expect((normalizeSpec(s) as Spec).elements?.[0]).toMatchObject({ language: "brython" });
+    let seen: string | undefined;
+    await runCode({ language: "micropython" as never, code: "print(1)" }, { cacheGet: async () => null, cachePut: async () => {}, runner: async (req) => ((seen = req.language), { ok: true, stdout: "", stderr: "", figures: [] }) });
+    expect(seen).toBe("brython");
   });
 });
