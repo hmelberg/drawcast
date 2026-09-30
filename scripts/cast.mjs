@@ -221,7 +221,7 @@ async function browser() {
 async function appPromptText(load, request, priorityIds = []) {
   mkdirSync(resolve(ROOT, "dev-casts"), { recursive: true });
   const compile = await load("/src/llm/compile.ts");
-  const { buildSystemBlocks, formatExemplars, wantsCode, wantsSound } = await load("/src/llm/prompt.ts");
+  const { buildSystemBlocks, formatExemplars, wantsC64, wantsCode, wantsSound } = await load("/src/llm/prompt.ts");
   const { pickExemplars } = await load("/src/llm/exemplars.ts");
   const { usableExemplars } = await load("/src/llm/exemplars.ts");
   const { catalogParts, isReadyTemplate } = await load("/src/scenes/catalog.ts");
@@ -230,11 +230,11 @@ async function appPromptText(load, request, priorityIds = []) {
     examples.filter((e) => !e.specimen).map((e) => ({ prompt: e.request, spec: e.spec })),
     isReadyTemplate,
   );
-  const code = wantsCode(request), sound = wantsSound(request);
+  const code = wantsCode(request), sound = wantsSound(request), c64 = wantsC64(request);
   const catalog = catalogParts({ request, priorityIds });
   // The schema (~90k characters of the ~210k) goes to its own file: the
   // prompt keeps a pointer, and the author looks fields up when needed.
-  const schema = compile.apiSchema({ code, sound });
+  const schema = compile.apiSchema({ code, sound, c64 });
   const variant = compile.promptVariants()[0].source.replace("{{SCHEMA}}", "(The JSON schema is in dev-casts/_schema.json — look up an element's or a command's fields there when you need them.)");
   writeFileSync(resolve(ROOT, "dev-casts/_schema.json"), JSON.stringify(schema, null, 1));
   const blocks = buildSystemBlocks(variant, {
@@ -242,7 +242,7 @@ async function appPromptText(load, request, priorityIds = []) {
     catalog: catalog.stable,
     fewshots: compile.fewshotsText({ code }),
     exemplars: formatExemplars(pickExemplars(request, [], bundled, 3)),
-    code: code ? compile.CODE_PROMPT_SOURCE : "",
+    code: compile.codePromptFor(code, c64),
     sound: sound ? compile.SOUND_PROMPT_SOURCE : "",
   });
   const text = blocks.prefix + blocks.suffix + (catalog.variable ? "\n\n" + catalog.variable : "");

@@ -6,7 +6,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { makeClient, callForJson, callForText, describeApiError, isOutputLimitError, planningModelFor, repairModelFor, type Effort, type JsonCallMeta } from "./client";
 import { buildOutlineMessages, normalizeOutline, outlineSchemaFor, type Outline } from "./outline";
 import { buildStoryboardMessages, buildStoryboardMessagesV2, storyboardSchemaForVersion, type Approach, type StoryboardVersion } from "./storyboard";
-import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, styleBlock, systemBlocks, wantsCode, wantsSound, OPTIONAL_PROMPT_PLACEHOLDERS, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
+import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, styleBlock, systemBlocks, wantsC64, wantsCode, wantsSound, OPTIONAL_PROMPT_PLACEHOLDERS, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
 import { pickExemplars } from "./exemplars";
 import { catalogIndexText, catalogIsTwoLevel, catalogParts, detectNeedTemplate, fullEntryIds, isReadyTemplate, routerIndexText, selectTemplates, storyTemplateLines, HOT_SHORTLIST } from "../scenes/catalog";
 import {
@@ -24,7 +24,7 @@ import type { OnDemandRun } from "./on-demand-run";
 import type { describeTemplateFor } from "./on-demand";
 import type { TemplateDoc } from "../scenes/doc";
 import { ensureEnginesForSpecs } from "../scenes/engines";
-import { specSchema, validateSpec, CODE_ONLY_ELEMENT_PROPS, SOUND_ONLY_COMMAND_PROPS, SOUND_ONLY_ELEMENT_PROPS } from "../spec/schema";
+import { specSchema, validateSpec, C64_FRAME_CLAUSE, C64_LANGUAGE_CLAUSE, CODE_ONLY_ELEMENT_PROPS, SOUND_ONLY_COMMAND_PROPS, SOUND_ONLY_ELEMENT_PROPS } from "../spec/schema";
 import { paramsWithAssets } from "../spec/assets";
 import { attachSeedCredit, type SeedBlock } from "./seed";
 import { visualRepairMessages, wantsVisualRepair } from "./visual";
@@ -43,6 +43,7 @@ import { scanDataTokens } from "../code/tokens";
 import { checkMappedPictures, picturesInRequest, withMapCheck, type PictureMap } from "./picture-map";
 import fewshots from "./prompts/fewshots.json";
 import codeMd from "./prompts/compiler-v1-code.md?raw";
+import c64Md from "./prompts/compiler-v1-c64.md?raw";
 import soundMd from "./prompts/compiler-v1-sound.md?raw";
 
 /** Budget for the authoring-time code-execution check (real pyodide WASM in
@@ -80,6 +81,19 @@ const variantModules = import.meta.glob("./prompts/compiler-*.md", { query: "?ra
 export const CODE_PROMPT_SOURCE = codeMd;
 
 /**
+ * The Commodore 64 part of the code block — BASIC, the game catalogue and the
+ * c64 frame — kept in its own file and appended to {{CODE}} only for a
+ * request that names the machine (prompt.ts's wantsC64).
+ */
+export const C64_PROMPT_SOURCE = c64Md;
+
+/** What fills {{CODE}}: nothing, the code block, or the code block and the C64 part. */
+export function codePromptFor(code: boolean, c64: boolean): string {
+  if (!code) return "";
+  return c64 ? `${CODE_PROMPT_SOURCE.trimEnd()}\n${C64_PROMPT_SOURCE}` : CODE_PROMPT_SOURCE;
+}
+
+/**
  * The `play` verb, kept in its own file and filled into {{SOUND}} only for a
  * request about sound or music (prompt.ts's wantsSound): 1.4k chars of note
  * notation and ABC that the prompt already gated in prose, so every other
@@ -89,10 +103,10 @@ export const SOUND_PROMPT_SOURCE = soundMd;
 
 export function promptVariants(): PromptVariant[] {
   return Object.entries(variantModules)
-    // compiler-v1-code.md and -sound.md are FRAGMENTS of compiler-v1, not
+    // compiler-v1-code.md, -c64.md and -sound.md are FRAGMENTS of compiler-v1, not
     // variants of their own — the glob above would otherwise offer them in
     // the prompt picker. Every conditional block added later goes here too.
-    .filter(([path]) => !/-(code|sound)\.md$/.test(path))
+    .filter(([path]) => !/-(code|sound|c64)\.md$/.test(path))
     .map(([path, source]) => ({
       name: path.replace(/^.*compiler-/, "").replace(/\.md$/, ""),
       source,
@@ -120,7 +134,8 @@ export function fewshotsText(opts: { code?: boolean } = {}): string {
  * prompt's {{SCHEMA}}.
  *
  * `code` and `sound` are the SAME two booleans that already gate {{CODE}}
- * and {{SOUND}} (llm/prompt.ts's wantsCode / wantsSound). Omitted means the
+ * and {{SOUND}} (llm/prompt.ts's wantsCode / wantsSound); `c64` the one that
+ * appends compiler-v1-c64.md to {{CODE}} (wantsC64). Omitted means the
  * full schema, so every caller that does not care is unaffected. Both blocks
  * sit before {{EXEMPLARS}}, so the cached prefix already forks four ways on
  * these two — gating the schema too adds no fifth cache entry.
@@ -137,7 +152,7 @@ export function fewshotsText(opts: { code?: boolean } = {}): string {
  * the full specSchema, so a request the gate misjudged is not rejected for
  * writing a code element anyway.
  */
-export function apiSchema(opts: { code?: boolean; sound?: boolean } = {}): object {
+export function apiSchema(opts: { code?: boolean; sound?: boolean; c64?: boolean } = {}): object {
   const copy = JSON.parse(JSON.stringify(specSchema)) as Record<string, unknown>;
   delete copy.$schema;
   const props = copy.properties as Record<string, any>;
@@ -145,6 +160,17 @@ export function apiSchema(opts: { code?: boolean; sound?: boolean } = {}): objec
     const el = props.elements.items.properties;
     for (const k of CODE_ONLY_ELEMENT_PROPS) delete el[k];
     el.type.enum = el.type.enum.filter((t: string) => t !== "code");
+    delete props.commands.items.properties.explore.properties.game;
+  } else if (opts.c64 === false) {
+    // A code request that does not name the Commodore 64 (prompt.ts's
+    // wantsC64): the same gate as compiler-v1-c64.md, for the schema half.
+    const el = props.elements.items.properties;
+    delete el.game;
+    el.language.enum = el.language.enum.filter((l: string) => l !== "basic");
+    el.language.description = el.language.description.replace(C64_LANGUAGE_CLAUSE, "");
+    el.frame.enum = el.frame.enum.filter((f: string) => f !== "c64");
+    el.frame.description = el.frame.description.replace(C64_FRAME_CLAUSE, "");
+    delete props.commands.items.properties.explore.properties.game;
   }
   if (opts.sound === false) {
     const cmd = props.commands.items.properties;
@@ -565,11 +591,13 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   // three reads can never disagree.
   const wantCode = wantsCode(request);
   const wantSound = wantsSound(request);
+  const wantC64 = wantsC64(request);
   // The code block rides along only for a request that wants a script; every
-  // other request keeps 15k chars out of its (cached) prefix.
-  const code = wantCode ? CODE_PROMPT_SOURCE : "";
+  // other request keeps 15k chars out of its (cached) prefix. Its C64 part
+  // only when the request names the machine.
+  const code = codePromptFor(wantCode, wantC64);
   const sound = wantSound ? SOUND_PROMPT_SOURCE : "";
-  const schema = apiSchema({ code: wantCode, sound: wantSound });
+  const schema = apiSchema({ code: wantCode, sound: wantSound, c64: wantC64 });
   // The compiler's system prompt from the CURRENT catalog — rebuilt when the
   // storyline names a template the shortlist missed, and at the
   // need_template escalation below.

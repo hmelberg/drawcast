@@ -11,12 +11,12 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import reviseMd from "./prompts/revise-v1.md?raw";
 import { itemsOf, parsePlaylistText, type Playlist, formatPlaylist } from "../playlist/playlist";
-import { buildSystemBlocks, stripFence, styleBlock, systemBlocks, wantsCode, wantsSound } from "./prompt";
+import { buildSystemBlocks, stripFence, styleBlock, systemBlocks, wantsC64, wantsCode, wantsSound } from "./prompt";
 import { hoistPortraitStrokes, noteForDescribed, restorePortraitStrokes } from "./hoist";
 import { lintReportText, type LintIssue } from "../lint/lint";
 import { checkPlaylist } from "../lint/check-playlist";
 import { callForText, describeApiError, makeClient, type Effort } from "./client";
-import { apiSchema, CODE_PROMPT_SOURCE, SOUND_PROMPT_SOURCE, fewshotsText, needsRepair, repairModelFor, type PromptVariant } from "./compile";
+import { apiSchema, codePromptFor, SOUND_PROMPT_SOURCE, fewshotsText, needsRepair, repairModelFor, type PromptVariant } from "./compile";
 import { catalogParts } from "../scenes/catalog";
 import { ensureEnginesForSpecs, ensureEnginesForTemplate } from "../scenes/engines";
 import { makeBrowserMeasure } from "../render/svg-backend";
@@ -192,12 +192,16 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
   const wantSound =
     wantsSound(instruction) ||
     specs.some((s) => (Array.isArray(s.commands) && s.commands.some((c) => c?.play !== undefined)) || (Array.isArray(s.elements) && s.elements.some((e) => e?.type === "music")));
+  // A document already on the machine keeps the C64 part, as its code keeps the code block.
+  const wantC64 =
+    wantsC64(instruction) ||
+    specs.some((s) => Array.isArray(s.elements) && s.elements.some((e) => e?.type === "code" && (e.language === "basic" || e.frame === "c64" || e.game !== undefined)));
   const blocks = buildSystemBlocks(cfg.variant.source, {
-    schema: apiSchema({ code: wantCode, sound: wantSound }),
+    schema: apiSchema({ code: wantCode, sound: wantSound, c64: wantC64 }),
     catalog: catalog.stable,
     fewshots: fewshotsText({ code: wantCode }),
     exemplars: "",
-    code: wantCode ? CODE_PROMPT_SOURCE : "",
+    code: codePromptFor(wantCode, wantC64),
     sound: wantSound ? SOUND_PROMPT_SOURCE : "",
   });
   // The revise block comes AFTER the compiler prompt and before the style

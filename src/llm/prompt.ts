@@ -108,12 +108,26 @@ export const OPTIONAL_PROMPT_PLACEHOLDERS = ["{{CODE}}", "{{SOUND}}"] as const;
  * is the DIFFICULTY tag ("assume no background"), the very request this
  * budget exists to protect. The branch could only ever fire from a test that
  * fabricated a tag, so it is gone rather than left looking load-bearing.
- * (`basic` stays in the words below: in free text it may be Commodore BASIC.)
+ * Commodore BASIC is caught by wantsC64 below, and only in capitals: a
+ * lower-case "basic" is far more often "basic statistics" than the language.
  */
 const CODE_WORDS =
-  /\b(code|script|python|pandas|numpy|matplotlib|plotly|simul(at|er)\w*|tidyverse|ggplot|brython|micropython|microdata|c64|commodore|basic|kode\w*|skript\w*|program\w*|beregn\w*|regn ut)\b|\bR\b/i;
+  /\b(code|script|python|pandas|numpy|matplotlib|plotly|simul(at|er)\w*|tidyverse|ggplot|brython|micropython|microdata|kode\w*|skript\w*|program\w*|beregn\w*|regn ut)\b|\bR\b/i;
 export function wantsCode(request: string): boolean {
-  return CODE_WORDS.test(request);
+  return CODE_WORDS.test(request) || wantsC64(request);
+}
+
+/**
+ * Does this request NAME the Commodore 64 — its BASIC, its games, its frame?
+ * The C64 block (compiler-v1-c64.md) and the C64 half of the code schema
+ * (`game`, frame "c64", language "basic") ride along only then: a Python
+ * simulation has no use for fourteen cartridge names. Implies wantsCode.
+ * BASIC counts only in capitals, as the language is written; "basic" in
+ * lower case is an adjective (and `#basic` the difficulty tag).
+ */
+const C64_WORDS = /\b(c64|c-64|commodore|vic-?20|home computers?|hjemmedatamaskin\w*)\b/i;
+export function wantsC64(request: string): boolean {
+  return C64_WORDS.test(request) || /\bBASIC\b/.test(request);
 }
 
 /**

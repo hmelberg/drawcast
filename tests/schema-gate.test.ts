@@ -78,7 +78,7 @@ describe("the schema's code and sound halves", () => {
     const src = await import("node:fs").then((fs) => fs.readFileSync("src/llm/compile.ts", "utf8"));
     const calls = src.match(/apiSchema\(\{[^}]*\}\)/g) ?? [];
     expect(calls.length, "every apiSchema call in compile.ts").toBeGreaterThan(0);
-    for (const c of calls) expect(c).toBe("apiSchema({ code: wantCode, sound: wantSound })");
+    for (const c of calls) expect(c).toBe("apiSchema({ code: wantCode, sound: wantSound, c64: wantC64 })");
     expect(src).not.toMatch(/apiSchema\(\)/);
   });
 });

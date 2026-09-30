@@ -95,8 +95,12 @@ describe("dispatch — node has no browser, so every browser runtime degrades to
 
 describe("prompt knows the runtimes it may emit", () => {
   // The runtimes live in the CODE block (compiler-v1-code.md), which {{CODE}}
-  // fills into the prompt only for a request that wants a script (Task 10).
-  const prompt = readFileSync(new URL("../src/llm/prompts/compiler-v1-code.md", import.meta.url), "utf8");
+  // fills into the prompt only for a request that wants a script (Task 10) —
+  // all but BASIC, which sits in its C64 part (compiler-v1-c64.md), appended
+  // only for a request that names the machine.
+  const prompt =
+    readFileSync(new URL("../src/llm/prompts/compiler-v1-code.md", import.meta.url), "utf8") +
+    readFileSync(new URL("../src/llm/prompts/compiler-v1-c64.md", import.meta.url), "utf8");
   test("every language is offered and no 'never emit' sentence remains", () => {
     for (const l of LANGUAGES) expect(prompt).toContain(`"language": "${l}"`);
     expect(prompt).not.toMatch(/never emit/i);

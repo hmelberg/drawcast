@@ -126,6 +126,15 @@ const ghostSchema = (what: string) => ({
   description: `${what} — KEEP a faded copy of the original where it is while this plays: true keeps every target at 0.3, ["id", …] keeps those, {"of": […], "opacity": 0.2} sets the shade. The copy is an element <id>_ghost you can erase or fade later — a pieces id ghosts every piece: kake_1_ghost, kake_2_ghost, … Default: nothing is kept.`,
 });
 
+/**
+ * The Commodore 64 sentences inside the `language` and `frame` descriptions,
+ * as constants so llm/compile.ts's apiSchema can take exactly these strings
+ * out for a request that does not name the machine (the `game` properties
+ * and the "basic"/"c64" enum values go with them).
+ */
+export const C64_LANGUAGE_CLAUSE = " basic = Commodore 64 BASIC V2, drawcast's own small interpreter: PRINT, variables, GOTO/GOSUB, IF/THEN, FOR/NEXT, POKE/PEEK to the screen, colour RAM, border (53280) and background (53281); the run leaves a 40 × 25 C64 screen that is DRAWN on the panel — pair it with frame: \"c64\". No arrays, DATA, INPUT, SYS or sound in this first cut.";
+export const C64_FRAME_CLAUSE = " c64 (that tube monitor standing on a home-computer keyboard, the 1982 desk),";
+
 const elementSchema = {
   type: "object",
   description:
@@ -447,7 +456,7 @@ const elementSchema = {
       type: "string",
       enum: [...LANGUAGES],
       description:
-        "code: the runtime that executes the script. brython = the light tier (loads in about a second): CPython syntax and standard library, plus pandas, plotly.express, numpy, matplotlib, scipy.stats, statsmodels and seaborn emulations — the default for a script that needs no heavy numerics. python = full CPython via pyodide (real numpy/scipy/matplotlib, PyPI on demand; tens of megabytes). r = R via webR (base or tidyverse; library() auto-installs; every top-level expression prints as at the console; a trailing data frame draws as a table, a base plot or a printed ggplot as a figure). micropython = the minimal tier (half a megabyte, boots in milliseconds; pandas and plotly.express emulations, a partial standard library) — only when the request asks for it. basic = Commodore 64 BASIC V2, drawcast's own small interpreter: PRINT, variables, GOTO/GOSUB, IF/THEN, FOR/NEXT, POKE/PEEK to the screen, colour RAM, border (53280) and background (53281); the run leaves a 40 × 25 C64 screen that is DRAWN on the panel — pair it with frame: \"c64\". No arrays, DATA, INPUT, SYS or sound in this first cut.",
+        "code: the runtime that executes the script. brython = the light tier (loads in about a second): CPython syntax and standard library, plus pandas, plotly.express, numpy, matplotlib, scipy.stats, statsmodels and seaborn emulations — the default for a script that needs no heavy numerics. python = full CPython via pyodide (real numpy/scipy/matplotlib, PyPI on demand; tens of megabytes). r = R via webR (base or tidyverse; library() auto-installs; every top-level expression prints as at the console; a trailing data frame draws as a table, a base plot or a printed ggplot as a figure). micropython = the minimal tier (half a megabyte, boots in milliseconds; pandas and plotly.express emulations, a partial standard library) — only when the request asks for it." + C64_LANGUAGE_CLAUSE,
     },
     code: {
       type: "string",
@@ -469,7 +478,7 @@ const elementSchema = {
       type: "string",
       enum: ["panel", "window", "screen", "laptop", "crt", "c64", "none"],
       description:
-        "code: chrome drawn around the panel — none (bare paper, no frame at all; THE DEFAULT), screen (the code and its output on a computer display: one rounded shell with a chin, no stand), crt (an old tube monitor: chunky shell, bulging glass, little buttons on the chin, on a short foot), c64 (that tube monitor standing on a home-computer keyboard, the 1982 desk), laptop (the flat display over a keyboard), window (a title bar with three dots), panel (just a light frame). Ask for the screen when the story is that this happened on a computer, and pair it with draw: {mode: \"type\"} so the code is typed onto it.",
+        "code: chrome drawn around the panel — none (bare paper, no frame at all; THE DEFAULT), screen (the code and its output on a computer display: one rounded shell with a chin, no stand), crt (an old tube monitor: chunky shell, bulging glass, little buttons on the chin, on a short foot)," + C64_FRAME_CLAUSE + " laptop (the flat display over a keyboard), window (a title bar with three dots), panel (just a light frame). Ask for the screen when the story is that this happened on a computer, and pair it with draw: {mode: \"type\"} so the code is typed onto it.",
     },
     figures: {
       type: "number",

@@ -222,7 +222,7 @@ function soundRef(compile) {
 
 function codeRef(compile) {
   const from = "src/llm/prompts/compiler-v1-code.md";
-  const t = ["# Code on the page", "", "For a drawcast that runs a script (a simulation, a computed chart, a lesson about code). Examples are JSON; write the same in YAML — a multi-line script as a `|` block.", "", compile.CODE_PROMPT_SOURCE.trim()].join("\n");
+  const t = ["# Code on the page", "", "For a drawcast that runs a script (a simulation, a computed chart, a lesson about code). Examples are JSON; write the same in YAML — a multi-line script as a `|` block.", "", compile.codePromptFor(true, true).trim()].join("\n");
   assertPortable(t, "code.md");
   return `${header(from)}\n\n${t}`;
 }
