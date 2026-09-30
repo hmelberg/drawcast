@@ -280,3 +280,55 @@ export function privateInHash(hash: string): { outcome: "privpaid" | "privunpaid
   if (!m) return null;
   return { outcome: m[1] as "privpaid" | "privunpaid" | "privorphan", name: m[2] };
 }
+
+// ---- Listed (registry deliveries 3–4, task 9): whether an already-
+// registered item shows in the public catalogue (#browse). Unlike Private,
+// listing takes effect at once — it never waits for a republish, so the
+// Share panel's Listed switch calls this directly instead of feeding
+// refreshPrivateLine/Publish.
+
+export type SetListingOutcome =
+  | "ok"
+  | { due: number } // 402 {error:"pay", due} — unlisting an item that has never paid (plan ruling 8)
+  | "owner" // 403 {error:"owner"} — registered to someone else
+  | "key" // 401
+  | "error";
+
+/**
+ * POST /register/listing: turns an already-registered item's catalogue
+ * listing on or off. Listing again (`listed: true`) is always free; turning
+ * it off is free only once the item has ever paid for Private (any
+ * `paid_lectures > 0`) — otherwise the server refuses with the one-time fee
+ * still owed, `{due}`, and the caller pays it through `startPrivatePayment`
+ * with `listed: false` (which settles `listed` even when `private` stays
+ * false — plan ruling 8). `item` identifies the SAME row `quotePrivate`/
+ * `startPrivatePayment` price — `{kind, target}` — never the free name or
+ * the encryption item-key (crypto/lecture-lock.ts's own, unrelated `item`
+ * string). Every refusal is a word; never throws.
+ */
+export async function setListing(
+  api: string,
+  key: string,
+  item: { kind: "cast" | "course"; target: string },
+  listed: boolean,
+  fetchImpl: typeof fetch = fetch,
+): Promise<SetListingOutcome> {
+  try {
+    const res = await fetchImpl(`${apiBase(api)}/_/api/register/listing`, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: JSON.stringify({ key, item: { kind: item.kind, target: item.target }, listed }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (res.ok) return "ok";
+    if (res.status === 401) return "key";
+    if (res.status === 403) return "owner";
+    if (res.status === 402) {
+      const b = (await res.json().catch(() => ({}))) as { due?: unknown };
+      return { due: typeof b.due === "number" ? b.due : 0 };
+    }
+    return "error";
+  } catch {
+    return "error";
+  }
+}

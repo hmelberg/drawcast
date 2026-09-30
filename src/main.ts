@@ -1449,6 +1449,10 @@ const sidebar = h(
     })(),
     dataRow,
     h("a", { class: "sidebar-row", href: "./help.html", target: "_blank", rel: "noopener" }, "Help"),
+    // The catalogue (registry deliveries 3–4, task 9): a standalone page,
+    // opened in its own tab exactly like Help — entry.ts routes "#browse"
+    // there before it ever reaches this editor.
+    h("a", { class: "sidebar-row", href: "#browse", target: "_blank", rel: "noopener" }, "Browse the catalogue"),
     (() => {
       const b = h("button", { class: "sidebar-row" }, "Sign in with Google");
       accountRow = b;

@@ -6,6 +6,7 @@ import {
   quotePrivate,
   registerItem,
   registryNote,
+  setListing,
   startPrivatePayment,
   verifyClaim,
   type PrivateQuote,
@@ -268,6 +269,77 @@ describe("startPrivatePayment", () => {
 
   test("a network error never throws — error", async () => {
     await expect(startPrivatePayment("https://a", body, throwing())).resolves.toBe("error");
+  });
+});
+
+// registry deliveries 3–4, task 9: `listed` rides in the SAME quote/pay
+// bodies as `private` — price_due depends on both (plan ruling 8), so
+// there is no separate quote for the Listed switch.
+describe("quotePrivate/startPrivatePayment carry the optional listed/private fields verbatim", () => {
+  test("quotePrivate sends listed exactly as given, including omitted (server defaults true)", async () => {
+    const withListed = { key: "k", kind: "cast" as const, target: "o/r/casts/x.yaml", lectures: 1, private: false, listed: false };
+    const f = fetchReturning(200, { due: 300, currency: "usd", paid_lectures: 0, private: false, owner: "you", name: "x" });
+    await quotePrivate("https://a", withListed, f);
+    expect(JSON.parse(calls(f)[0][1].body as string)).toEqual(withListed);
+
+    const noListed = { key: "k", kind: "cast" as const, target: "o/r/casts/x.yaml", lectures: 1, private: true };
+    const f2 = fetchReturning(200, { due: 0 });
+    await quotePrivate("https://a", noListed, f2);
+    expect(JSON.parse(calls(f2)[0][1].body as string)).toEqual(noListed);
+    expect(JSON.parse(calls(f2)[0][1].body as string)).not.toHaveProperty("listed");
+  });
+
+  test("startPrivatePayment sends private/listed exactly as given", async () => {
+    const body = {
+      key: "k",
+      kind: "course" as const,
+      target: "o/r/courses/micro-i",
+      title: "T",
+      lectures: 3,
+      private: false,
+      listed: false,
+      return: "https://drawcast.app/",
+    };
+    const f = fetchReturning(200, { url: "https://checkout.stripe.com/pay/cs_1" });
+    await startPrivatePayment("https://a", body, f);
+    expect(JSON.parse(calls(f)[0][1].body as string)).toEqual(body);
+  });
+});
+
+describe("setListing", () => {
+  const item = { kind: "cast" as const, target: "o/r/casts/x.yaml" };
+
+  test("POSTs text/plain JSON to /register/listing, bounded, item as {kind, target}", async () => {
+    const f = fetchReturning(200, { listed: true });
+    const out = await setListing("https://drawcast.anvil.app", "k", item, true, f);
+    expect(out).toBe("ok");
+    const [url, init] = calls(f)[0];
+    expect(url).toBe("https://drawcast.anvil.app/_/api/register/listing");
+    expect((init.headers as Record<string, string>)["content-type"]).toBe("text/plain");
+    expect(JSON.parse(init.body as string)).toEqual({ key: "k", item: { kind: "cast", target: "o/r/casts/x.yaml" }, listed: true });
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  test("listed:false with listed:true in the body — sent exactly as asked", async () => {
+    const f = fetchReturning(200, { listed: false });
+    await setListing("https://a", "k", item, false, f);
+    expect(JSON.parse(calls(f)[0][1].body as string).listed).toBe(false);
+  });
+
+  test("402 -> {due}, defaulting to 0 on a malformed body", async () => {
+    expect(await setListing("https://a", "k", item, false, fetchReturning(402, { error: "pay", due: 500 }))).toEqual({ due: 500 });
+    expect(await setListing("https://a", "k", item, false, fetchReturning(402, {}))).toEqual({ due: 0 });
+  });
+
+  test("403 -> owner, 401 -> key, anything else non-2xx -> error", async () => {
+    expect(await setListing("https://a", "k", item, true, fetchReturning(403, { error: "owner" }))).toBe("owner");
+    expect(await setListing("https://a", "k", item, true, fetchReturning(401, { error: "key" }))).toBe("key");
+    expect(await setListing("https://a", "k", item, true, fetchReturning(400, {}))).toBe("error");
+    expect(await setListing("https://a", "k", item, true, fetchReturning(500, {}))).toBe("error");
+  });
+
+  test("a network error never throws — error", async () => {
+    await expect(setListing("https://a", "k", item, true, throwing())).resolves.toBe("error");
   });
 });
 
