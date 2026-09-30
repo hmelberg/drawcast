@@ -36,12 +36,6 @@ export function lookProblems(critique: string): string {
   return critique.replace(/^\s*WISH:.*$/gim, "").trim();
 }
 
-/** The WISH line's content, "" when absent or "none". */
-export function lookWish(critique: string): string {
-  const w = /^\s*WISH:\s*(.*)$/im.exec(critique)?.[1]?.trim() ?? "";
-  return /^none\.?$/i.test(w) ? "" : w;
-}
-
 /**
  * Edits instead of a whole spec (prompt-lab, 2026-09-27): a fix round that
  * re-emits the complete spec costs ~8–10k output tokens and a minute or two

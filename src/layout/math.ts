@@ -43,9 +43,6 @@ let currentMathText: MathTextStyle = { scale: 1 };
 export function setMathTextStyle(style: MathTextStyle): void {
   currentMathText = { scale: style.scale };
 }
-export function mathTextStyle(): MathTextStyle {
-  return currentMathText;
-}
 /** The size a formula is laid out at: the element's own (or the default),
  *  times the global text scale. */
 export function mathSizeOf(size: number | undefined): number {

@@ -25,3 +25,6 @@ dev-casts/
 
 # The portable drawcast skill (npm run build:skill) — generated, never committed
 dist-skill/
+
+# Browser-automation screenshots and logs (Playwright MCP) — scratch, kept on disk only
+.playwright-mcp/

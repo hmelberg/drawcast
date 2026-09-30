@@ -73,10 +73,6 @@ export function setTrustPolicy(p: TrustPolicy): void {
   policy = p;
 }
 
-export function trustPolicy(): TrustPolicy {
-  return policy;
-}
-
 function storage(kind: "local" | "session"): Storage | null {
   try {
     return kind === "local" ? globalThis.localStorage ?? null : globalThis.sessionStorage ?? null;
