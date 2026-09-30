@@ -101,3 +101,55 @@ describe("arrowGeometry", () => {
     expect(inBox).toBe(false);
   });
 });
+
+describe("the arrow glides (fix round 1)", () => {
+  test("a glide across the frame's middle moves tip and tail smoothly from A's arrow to B's", () => {
+    // Left-low box points up-right; right-high box points down-left.
+    const left = { x: 150, y: 150, w: 80, h: 80 };
+    const right = { x: 780, y: 480, w: 100, h: 100 };
+    const step = { mark: "arrow" as const, frame: FRAME, stops: [{ box: right, at: 0 }], from: left };
+    const a = arrowGeometry(left, FRAME);
+    const b = arrowGeometry(right, FRAME);
+    expect(a.tail[0] > a.tip[0]).not.toBe(b.tail[0] > b.tip[0]); // the sides really flip
+    const samples = Array.from({ length: 10 }, (_, k) => markFrameAt(step, (k * MARK_GLIDE_MS) / 9, 2000));
+    expect(samples[0].tip).toEqual(a.tip);
+    expect(samples[0].tail).toEqual(a.tail);
+    expect(samples[9].tip).toEqual(b.tip);
+    expect(samples[9].tail).toEqual(b.tail);
+    // The box itself moves ~700 units in 550 ms; at 10 samples the ends move
+    // with it, never a jump on top of that.
+    const boxStep = (k: number) => Math.hypot(samples[k].box.x - samples[k - 1].box.x, samples[k].box.y - samples[k - 1].box.y);
+    for (let k = 1; k < 10; k++) {
+      const dTip = Math.hypot(samples[k].tip![0] - samples[k - 1].tip![0], samples[k].tip![1] - samples[k - 1].tip![1]);
+      const dTail = Math.hypot(samples[k].tail![0] - samples[k - 1].tail![0], samples[k].tail![1] - samples[k - 1].tail![1]);
+      expect(dTip).toBeLessThan(boxStep(k) + 20);
+      expect(dTail).toBeLessThan(boxStep(k) + 20);
+    }
+  });
+
+  test("a short glide (same side) moves the ends less than 20 units per sample", () => {
+    const b1 = { x: 200, y: 200, w: 60, h: 60 };
+    const b2 = { x: 300, y: 260, w: 60, h: 60 };
+    const step = { mark: "arrow" as const, frame: FRAME, stops: [{ box: b2, at: 0 }], from: b1 };
+    const samples = Array.from({ length: 10 }, (_, k) => markFrameAt(step, (k * MARK_GLIDE_MS) / 9, 2000));
+    for (let k = 1; k < 10; k++) {
+      expect(Math.hypot(samples[k].tip![0] - samples[k - 1].tip![0], samples[k].tip![1] - samples[k - 1].tip![1])).toBeLessThan(20);
+      expect(Math.hypot(samples[k].tail![0] - samples[k - 1].tail![0], samples[k].tail![1] - samples[k - 1].tail![1])).toBeLessThan(20);
+    }
+  });
+
+  test("resting and released, the arrow is arrowGeometry of its box", () => {
+    const step = { mark: "arrow" as const, frame: FRAME, stops: [{ box: A, at: 0 }, { box: B, at: 0.5 }] };
+    expect(markFrameAt(step, 300, 2000)).toMatchObject(arrowGeometry(A, FRAME));
+    expect(markReleaseAt(step, 100, 2000)).toMatchObject(arrowGeometry(B, FRAME));
+  });
+});
+
+describe("the glow keeps breathing through its release (fix round 1)", () => {
+  test("breathe at release start equals breathe at the step's end", () => {
+    const step = { mark: "glow" as const, frame: FRAME, stops: [{ box: A, at: 0 }] };
+    for (const dur of [1000, 1900, 2345]) {
+      expect(markReleaseAt(step, 0, dur).breathe).toBeCloseTo(markFrameAt(step, dur, dur).breathe, 9);
+    }
+  });
+});

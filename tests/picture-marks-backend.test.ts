@@ -98,6 +98,19 @@ describe("setMark / endMark", () => {
     }
   });
 
+  test("arrow: placed from the frame's own tip and tail when it carries them", async () => {
+    const { restore, effects, overlay } = await mounted();
+    try {
+      effects.setMark!("md", frameOf("arrow", { x: 200, y: 200, w: 100, h: 100 }, { tip: [400, 300], tail: [400, 400] }));
+      const g = overlay.children.find((n) => n.getAttribute("data-mark") === "md")!;
+      const t = g.getAttribute("transform")!;
+      expect(t.startsWith("translate(400.0 ")).toBe(true);
+      expect(t).toContain("scale(");
+    } finally {
+      restore();
+    }
+  });
+
   test("glow: the circle's radius scales with breathe", async () => {
     const { restore, effects, overlay } = await mounted();
     try {

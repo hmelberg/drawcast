@@ -1513,6 +1513,7 @@ const ARROW_CORE = "#fff3c4";
 const ARROW_SHAFT: [number, number][] = [[ARROW_RUN[0], -ARROW_RUN[1]], [37, -30], [2, -2]];
 const ARROW_HEAD: [number, number][] = [[12, -4], [0, 0], [5, -13]];
 const ARROW_ANGLE = Math.atan2(-ARROW_RUN[1], ARROW_RUN[0]);
+const ARROW_LENGTH = Math.hypot(ARROW_RUN[0], ARROW_RUN[1]);
 /** How much of an arrow's write-on the shaft takes; the head is the rest. */
 const ARROW_SHAFT_SHARE = 0.8;
 /** Room between a ring or box and the place it marks. */
@@ -1658,11 +1659,19 @@ function arrowMark(g: SVGGElement, rc: RoughSVG | null): (f: MarkFrame) => void 
   const headPaths = writePaths(head);
   for (const wp of [...shaftPaths, ...headPaths]) wp.el.setAttribute("stroke-linejoin", "round");
   return (f) => {
-    const { tip, tail } = arrowGeometry(f.box, f.frame);
+    const { tip, tail } = f.tip && f.tail ? { tip: f.tip, tail: f.tail } : arrowGeometry(f.box, f.frame);
     const tx = tip[0];
     const ty = toSvgY(tip[1]);
-    const angle = Math.atan2(toSvgY(tail[1]) - ty, tail[0] - tx) - ARROW_ANGLE;
-    g.setAttribute("transform", `translate(${tx.toFixed(1)} ${ty.toFixed(1)}) rotate(${((angle * 180) / Math.PI).toFixed(2)})`);
+    const dx = tail[0] - tx;
+    const dy = toSvgY(tail[1]) - ty;
+    const angle = Math.atan2(dy, dx) - ARROW_ANGLE;
+    // A glide between sides swings the tail round the tip; the arrow follows
+    // it at its length, never past it.
+    const k = Math.hypot(dx, dy) / ARROW_LENGTH;
+    g.setAttribute(
+      "transform",
+      `translate(${tx.toFixed(1)} ${ty.toFixed(1)}) rotate(${((angle * 180) / Math.PI).toFixed(2)})${Math.abs(k - 1) > 1e-3 ? ` scale(${k.toFixed(4)})` : ""}`,
+    );
     writeTo(shaftPaths, f.write / ARROW_SHAFT_SHARE);
     writeTo(headPaths, (f.write - ARROW_SHAFT_SHARE) / (1 - ARROW_SHAFT_SHARE));
     g.style.opacity = String(Math.max(0, Math.min(1, f.level)));

@@ -30,6 +30,9 @@ export interface MarkFrame {
   depth: number;
   /** Glow only: its scale factor. */
   breathe: number;
+  /** Arrow only: where its tip and tail are (canvas, y-up) — glided with the box, so the arrow never jumps sides mid-glide. */
+  tip?: Pt;
+  tail?: Pt;
 }
 
 /** What a mark step carries that the curve reads. */
@@ -75,11 +78,13 @@ export function markFrameAt(step: MarkPath, ms: number, durMs: number): MarkFram
   let i = 0;
   while (i + 1 < stops.length && start(i + 1) <= ms) i++;
   const prev = i === 0 ? step.from : stops[i - 1].box;
-  let box = stops[i]?.box ?? step.from ?? step.frame;
+  const to = stops[i]?.box ?? step.from ?? step.frame;
+  let box = to;
+  let e = 1;
   if (prev && stops[i]) {
     const glide = Math.min(MARK_GLIDE_MS, end(i) - start(i));
-    const t = glide > 0 ? (ms - start(i)) / glide : 1;
-    box = lerpBox(prev, stops[i].box, easeInOut(t));
+    e = easeInOut(glide > 0 ? (ms - start(i)) / glide : 1);
+    box = lerpBox(prev, to, e);
   }
   const entering = step.from ? 1 : easeOut(ms / MARK_IN_MS);
   return {
@@ -89,21 +94,43 @@ export function markFrameAt(step: MarkPath, ms: number, durMs: number): MarkFram
     level: entering,
     write: step.from ? 1 : clamp01(ms / MARK_IN_MS),
     depth: DEPTH_FROM + (DEPTH_TO - DEPTH_FROM) * (durMs > 0 ? clamp01(ms / durMs) : 1),
-    breathe: 1 + BREATHE_AMP * Math.sin((2 * Math.PI * ms) / BREATHE_MS),
+    breathe: breatheAt(ms),
+    ...(step.mark === "arrow" ? arrowBetween(prev ?? to, to, e, step.frame) : {}),
   };
 }
 
-/** The release at `ms` into it (level falls 1 → 0), at the step's last box. */
-export function markReleaseAt(step: MarkPath, ms: number): MarkFrame {
+const breatheAt = (ms: number) => 1 + BREATHE_AMP * Math.sin((2 * Math.PI * ms) / BREATHE_MS);
+const lerpPt = (a: Pt, b: Pt, t: number): Pt => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+
+/**
+ * The arrow part way through a glide from box `a` to box `b`: each end glides
+ * from where it points at `a` to where it points at `b`. Picking the side per
+ * frame from the moving box would flip tip and tail the moment the box
+ * crossed the frame's middle.
+ */
+function arrowBetween(a: BBox, b: BBox, e: number, frame: BBox): { tip: Pt; tail: Pt } {
+  const end = arrowGeometry(b, frame);
+  if (e >= 1) return end;
+  const start = arrowGeometry(a, frame);
+  return { tip: lerpPt(start.tip, end.tip, e), tail: lerpPt(start.tail, end.tail, e) };
+}
+
+/**
+ * The release at `ms` into it (level falls 1 → 0), at the step's last box.
+ * `durMs` is the step's length, so a glow keeps breathing from where the
+ * step left it rather than snapping to its rest size.
+ */
+export function markReleaseAt(step: MarkPath, ms: number, durMs?: number): MarkFrame {
   const last = step.stops[step.stops.length - 1]?.box ?? step.from ?? step.frame;
   return {
     kind: step.mark,
     frame: step.frame,
     box: last,
+    ...(step.mark === "arrow" ? arrowGeometry(last, step.frame) : {}),
     level: 1 - easeInOut(ms / MARK_RELEASE_MS),
     write: 1,
     depth: DEPTH_TO,
-    breathe: 1,
+    breathe: durMs === undefined ? 1 : breatheAt(durMs + ms),
   };
 }
 
