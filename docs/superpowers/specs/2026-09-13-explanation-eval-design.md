@@ -1,5 +1,14 @@
 # Design: the explanation eval — does a prompt change teach better?
 
+> **Status 2026-09-30: approved, never built** (no `scripts/explanation-eval.mjs`;
+> merged from branch `manim-part2`). The prompt lab's blind review
+> (`docs/prompt-lab/`, 2026-09-27) has since covered part of it — holistic
+> side-by-side scores for two arms. This design adds what the lab lacks: a
+> frozen held-out case set, per-item verdicts with evidence, mutants that prove
+> the judge can fail, and a before/after comparison of the teaching pass.
+> Build it before the prompt trims in ROADMAP.md ("Reducing token use…"), so
+> those can be measured on teaching quality, not only on schema errors.
+
 Status: approved by Hans 2026-09-13 ("Do it"), after four rulings taken
 during the design conversation:
 

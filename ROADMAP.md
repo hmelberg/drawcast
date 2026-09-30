@@ -3193,6 +3193,12 @@ exemplars 11k. Most of it is cached (a cached read of the whole prefix is
 ~$0.04), so the gains are cheaper cache writes, latency and a less cluttered
 preamble — never worth an extra repair round. Measure every prompt change in
 the prompt lab (schema errors, repair rounds, lint, cost) before keeping it.
+For teaching quality, not just errors, build the explanation eval first
+(`docs/superpowers/specs/2026-09-13-explanation-eval-design.md` — approved
+2026-09-13, never built): a frozen case set judged per item with evidence,
+mutants to prove the judge can fail, and the cast before and after the
+teaching pass — the evidence the schema/fewshot trims and the teaching-pass
+decision need.
 
 How the cache works today (`systemBlocks`, src/llm/prompt.ts) — two facts
 that should steer what to trim, noted 2026-09-30, NOT acted on yet:
