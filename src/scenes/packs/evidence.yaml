@@ -290,7 +290,7 @@ params:
       type: string
 element_ids:
   null_line: dashed vertical reference line at the null effect
-  study_<i>: square point-estimate marker for studies[i], sized by weight
+  study_<i>: square point-estimate marker for studies[i] (counted from 0), sized by weight
   ci_<i>: its horizontal confidence-interval whisker
   study_label_<i>: its study-name label, left column
   est_label_<i>: its "est [lo, hi]" text, right column

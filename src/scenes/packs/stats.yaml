@@ -455,7 +455,7 @@ params:
       type: string
 element_ids:
   true_line: the dashed vertical line at the true value
-  ci_<i>: interval i (bar + center dot, a group), top to bottom
+  ci_<i>: interval i (bar + center dot, a group), top to bottom, counted from 0 (ci_0 … ci_19 for 20 draws)
   caption: "the tally, e.g. \"19 of 20 caught the truth\""
   title: figure title, when set
 examples:
