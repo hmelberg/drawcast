@@ -1,0 +1,48 @@
+title: "The Arnolfini Portrait — where to look"
+elements:
+  - id: art
+    type: image
+    url: https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Van_Eyck_-_Arnolfini_Portrait.jpg/3840px-Van_Eyck_-_Arnolfini_Portrait.jpg
+    look: screen                        # faithful colour, full resolution for the deep zoom
+    credit: "Jan van Eyck, 1434. National Gallery, London. Public domain (Wikimedia Commons)."
+    regions:                            # [x, y, w, h], fractions from the top-left
+      man:           [0.068, 0.110, 0.443, 0.796]
+      woman:         [0.536, 0.171, 0.453, 0.812]
+      raised_hand:   [0.231, 0.293, 0.042, 0.080]
+      joined_hands:  [0.505, 0.396, 0.110, 0.044]
+      chandelier:    [0.370, 0.000, 0.286, 0.198]
+      candle:        [0.415, 0.050, 0.020, 0.034]
+      signature:     [0.417, 0.194, 0.188, 0.038]
+      mirror:        [0.425, 0.241, 0.160, 0.117]
+      mirror_glass:  [0.464, 0.263, 0.089, 0.072]
+      oranges:       [0.071, 0.522, 0.046, 0.023]
+      dog:           [0.365, 0.823, 0.208, 0.160]
+      clogs:         [0.000, 0.857, 0.156, 0.126]
+      slippers:      [0.479, 0.621, 0.078, 0.023]
+commands:
+  - draw: [art]
+    speak: A merchant and his wife, painted in Bruges in 1434.
+  - highlight: {target: ["art:man", "art:woman"]}
+    speak: Two people, side by side.
+  - highlight: {target: ["art:raised_hand"]}
+    speak: He raises his hand, as if taking an oath.
+  - highlight: {target: ["art:joined_hands"]}
+    speak: Their other hands are joined.
+  - camera: {on: ["art:chandelier"]}
+  - point: {at: {ref: "art:candle"}, gesture: circle}
+    speak: Above them, one candle burns in broad daylight.
+  - camera: {on: ["art:signature"]}
+  - highlight: {target: ["art:signature"]}
+    speak: Just below, the painter wrote on the wall — Jan van Eyck was here.
+  - camera: {on: ["art:mirror"]}
+    speak: And under it, a mirror.
+  - camera: {on: ["art:mirror_glass"], zoom: 8}
+  - focus: {target: ["art:mirror_glass"]}
+    speak: Look closely. Two more people stand in the doorway. One may be the painter.
+  - camera: {reset: true}
+  - highlight: {target: ["art:oranges"]}
+    speak: Oranges, expensive imports from the south.
+  - highlight: {target: ["art:clogs", "art:slippers"]}
+    speak: Shoes taken off, as on holy ground.
+  - highlight: {target: ["art:dog"]}
+    speak: And a little dog — faithfulness, or simply a pet.

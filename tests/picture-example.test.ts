@@ -28,3 +28,15 @@ describe("picture regions example cast", () => {
     for (const k of ['"highlight"', '"focus"', '"camera"', '"point"', "md:command_line", "tools:support_chat"]) expect(json).toContain(k);
   });
 });
+
+describe("picture regions painting example (Arnolfini)", () => {
+  const text = readFileSync("docs/examples/2026-09-30-picture-regions-arnolfini.yaml", "utf8");
+  const playlist = parsePlaylistText(text);
+  const items = itemsOf(playlist);
+
+  test("parses to one page and validates", () => {
+    expect(playlist.warnings).toEqual([]);
+    expect(items).toHaveLength(1);
+    expect(validateSpec(expandSpec(items[0].spec)).errors ?? []).toEqual([]);
+  });
+});

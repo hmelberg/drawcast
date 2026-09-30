@@ -52,6 +52,7 @@ import { resolveCode } from "../render/code";
 import { expandSpec } from "../spec/expand";
 import { validateSpec } from "../spec/schema";
 import type { Spec } from "../spec/types";
+import { parsePlace } from "../spec/places";
 import { ensureEnginesForSpecs } from "../scenes/engines";
 import { ensureEnabledPacks, PACK_DEFS } from "../scenes/packs";
 
@@ -280,15 +281,21 @@ function paintGesture(hd: RenderHandle, at: number, step: PlanStep, canvas: HTML
   const before = sceneAt(hd.plan, at - 1);
   switch (step.kind) {
     case "highlight": {
-      const box = unionBoxes(
-        step.ids.flatMap((id) => {
-          const b = step.boxes[id];
-          if (!b) return [];
-          const [dx, dy] = before.offsets[id] ?? [0, 0];
-          return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
-        }),
-      );
-      effects.setHighlight(step.ids, step.effect, 1, box, step.color, 10_000, step.part);
+      const boxFor = (ids: string[]) =>
+        unionBoxes(
+          ids.flatMap((id) => {
+            const b = step.boxes[id];
+            if (!b) return [];
+            const [dx, dy] = before.offsets[id] ?? [0, 0];
+            return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
+          }),
+        );
+      // As the player: a box on picture places is one box per place.
+      const places = step.effect === "box" ? step.ids.filter((id) => parsePlace(id) !== null) : [];
+      const plain = step.ids.filter((id) => !places.includes(id));
+      for (const ids of [...(plain.length > 0 ? [plain] : []), ...places.map((id) => [id])]) {
+        effects.setHighlight(ids, step.effect, 1, boxFor(ids), step.color, 10_000, step.part);
+      }
       return;
     }
     case "focus": {
