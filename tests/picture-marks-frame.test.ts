@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
-import { arrowGeometry, markFrameAt, markReleaseAt, MARK_GLIDE_MS, MARK_IN_MS, MARK_RELEASE_MS } from "../src/render/marks";
+import { arrowGeometry, markFrameAt, washFor, markReleaseAt, MARK_GLIDE_MS, MARK_IN_MS, MARK_RELEASE_MS } from "../src/render/marks";
 import type { BBox } from "../src/layout/geometry";
+import { FIGURE_GROUND } from "../src/layout/ink";
 
 const FRAME: BBox = { x: 100, y: 100, w: 800, h: 500 };
 const A: BBox = { x: 200, y: 200, w: 100, h: 100 };
@@ -191,6 +192,14 @@ describe("arrows reach wide and tall parts from inside the picture (tuning)", ()
     const { tip, tail } = arrowGeometry(corner, FRAME);
     expect(inside(tip, FRAME)).toBe(true);
     expect(inside(tail, FRAME)).toBe(true);
+  });
+});
+
+describe("washFor: the light follows the picture's tone", () => {
+  test("a dark picture gets a torch, a light or unknown one the paper wash", () => {
+    expect(washFor(0.3)).toEqual({ color: "#1b140e", lift: 0.16 });
+    expect(washFor(0.8)).toEqual({ color: FIGURE_GROUND, lift: 0.1 });
+    expect(washFor(null)).toEqual({ color: FIGURE_GROUND, lift: 0.1 });
   });
 });
 

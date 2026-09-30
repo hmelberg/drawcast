@@ -1,5 +1,7 @@
-import { describe, expect, test } from "vitest";
-import { rendererFor } from "../src/render/svg-backend";
+import { afterEach, describe, expect, test } from "vitest";
+import { rendererFor, setLuminanceProbe } from "../src/render/svg-backend";
+import { encodeLinkedPhoto, encodePhoto } from "../src/spec/trace";
+import { FIGURE_GROUND } from "../src/layout/ink";
 import { layoutSpec } from "../src/layout/layout";
 import { heuristicMeasure } from "../src/layout/measure";
 import { installMiniDom, FakeNode } from "./helpers/mini-dom";
@@ -182,3 +184,64 @@ describe("setMark / endMark", () => {
     }
   });
 });
+
+describe("the light follows the picture's tone", () => {
+  afterEach(() => setLuminanceProbe(null));
+
+  async function withPicture(strokes: string, url: string) {
+    const spec = { elements: [{ id: "md", type: "image", url, look: "photo", strokes }], commands: [{ draw: ["md"] }] };
+    const { restore, doc } = installMiniDom();
+    const layout = layoutSpec(spec as never, heuristicMeasure);
+    const container = new FakeNode("div", doc as never);
+    const r = await rendererFor("clean").mount(layout, spec as never, container as never);
+    for (const el of r.elements.values()) el.finish();
+    const svg = container.children[0];
+    return { restore, effects: r.effects!, overlay: svg.children[svg.children.length - 1] };
+  }
+  const washOf = (overlay: FakeNode) => {
+    const g = overlay.children.find((n) => n.getAttribute("data-mark") === "md")!;
+    return find(g, "rect").find((r) => (r.getAttribute("mask") ?? "").startsWith("url(#"))!;
+  };
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+  const DATA = "data:image/png;base64,AAAA";
+
+  for (const [lum, color, name] of [[0.2, "#1b140e", "dark → torch"], [0.9, FIGURE_GROUND, "light → paper"]] as const) {
+    test(`a data: picture measured ${name}`, async () => {
+      const probed: string[] = [];
+      setLuminanceProbe(async (href) => (probed.push(href), lum));
+      const { restore, effects, overlay } = await withPicture(encodePhoto(1.5, DATA), DATA);
+      try {
+        const f = frameOf("light", { x: 300, y: 300, w: 50, h: 50 }, { level: 1 });
+        effects.setMark!("md", f);
+        expect(washOf(overlay).getAttribute("fill")).toBe(FIGURE_GROUND); // not known yet
+        await tick();
+        effects.setMark!("md", f);
+        expect(washOf(overlay).getAttribute("fill")).toBe(color);
+        const lift = overlay.children.find((n) => n.getAttribute("data-mark") === "md")!.children.find((n) => n.tagName === "ellipse")!;
+        expect(Number(lift.getAttribute("fill-opacity"))).toBeCloseTo(lum < 0.42 ? 0.16 : 0.1, 3);
+        effects.endMark!("md");
+        effects.setMark!("md", f); // measured once per href
+        expect(probed).toEqual([DATA]);
+      } finally {
+        restore();
+      }
+    });
+  }
+
+  test("a linked https picture is never probed: paper wash", async () => {
+    let calls = 0;
+    setLuminanceProbe(async () => (calls++, 0.1));
+    const url = "https://x.org/a.png";
+    const { restore, effects, overlay } = await withPicture(encodeLinkedPhoto(1.5, url), url);
+    try {
+      effects.setMark!("md", frameOf("light", { x: 300, y: 300, w: 50, h: 50 }));
+      await tick();
+      effects.setMark!("md", frameOf("light", { x: 300, y: 300, w: 50, h: 50 }));
+      expect(calls).toBe(0);
+      expect(washOf(overlay).getAttribute("fill")).toBe(FIGURE_GROUND);
+    } finally {
+      restore();
+    }
+  });
+});
+

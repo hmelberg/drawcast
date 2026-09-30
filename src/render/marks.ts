@@ -6,6 +6,7 @@
 
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
+import { FIGURE_GROUND } from "../layout/ink";
 
 export type MarkKind = "light" | "ring" | "box" | "arrow" | "glow";
 
@@ -134,6 +135,21 @@ export function markReleaseAt(step: MarkPath, ms: number, durMs?: number): MarkF
     depth: DEPTH_TO,
     breathe: durMs === undefined ? 1 : breatheAt(durMs + ms),
   };
+}
+
+/** Below this mean luminance (0..1) a picture is dark: its light is a torch, not a paper wash. */
+export const DARK_PICTURE = 0.42;
+/** The torch's dark. */
+export const TORCH_COLOR = "#1b140e";
+
+/**
+ * What the light washes a picture with, by its tone. A paper wash round a
+ * clear pool of DARK paint reads as a shadow; on a dark picture the rest
+ * darkens instead (a torch) and the pool, with a stronger warm lift, reads as
+ * light. Unknown tone (a linked picture, or not measured yet) → paper.
+ */
+export function washFor(meanLuminance: number | null): { color: string; lift: number } {
+  return meanLuminance !== null && meanLuminance < DARK_PICTURE ? { color: TORCH_COLOR, lift: 0.16 } : { color: FIGURE_GROUND, lift: 0.1 };
 }
 
 /** The arrow's run from tip to tail (canvas units, y-up) — the drawn arrow's own shape. */

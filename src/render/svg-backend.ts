@@ -32,7 +32,7 @@ import type { BBox } from "../layout/geometry";
 import type { HighlightEffect } from "../spec/types";
 import type { BackendEffects, BackendModule, FlowOpts, MountResult, RenderedElement, Squash } from "./backend";
 import type { Turn } from "./pose";
-import { arrowGeometry, ARROW_RUN, type MarkFrame, type MarkKind } from "./marks";
+import { arrowGeometry, ARROW_RUN, washFor, type MarkFrame, type MarkKind } from "./marks";
 import { computeTypeFrame, type TypeRun } from "./type-reveal";
 
 export const SKETCH_FONT = "'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive";
@@ -1518,9 +1518,71 @@ const ARROW_LENGTH = Math.hypot(ARROW_RUN[0], ARROW_RUN[1]);
 const ARROW_SHAFT_SHARE = 0.8;
 /** The light's pool is at least this wide on each axis (logical units). */
 const LIGHT_MIN_R = 55;
-/** The warm lift inside the pool, and its strength at full level. */
+/** The warm lift inside the pool (its strength comes from marks.ts washFor). */
 const LIGHT_LIFT = "#fff8e6";
-const LIGHT_LIFT_ALPHA = 0.1;
+
+/** A picture's mean luminance (0..1), or null when its pixels cannot be read. */
+export type LuminanceProbe = (href: string) => Promise<number | null>;
+
+/** The real probe: the picture drawn into a 24×24 canvas, its pixels averaged (Rec. 709 weights). */
+const canvasLuminance: LuminanceProbe = (href) =>
+  new Promise((resolve) => {
+    if (typeof Image === "undefined") return resolve(null);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement("canvas") as HTMLCanvasElement;
+        c.width = c.height = 24;
+        const ctx = c.getContext("2d");
+        if (!ctx) return resolve(null);
+        ctx.drawImage(img, 0, 0, 24, 24);
+        const d = ctx.getImageData(0, 0, 24, 24).data;
+        let sum = 0;
+        let n = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          if (d[i + 3] === 0) continue; // a transparent pixel is no tone
+          sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+          n++;
+        }
+        resolve(n > 0 ? sum / n / 255 : null);
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = href;
+  });
+
+let luminanceProbe: LuminanceProbe = canvasLuminance;
+/** Measured tones, per href — measured once however many marks a picture gets. */
+const luminanceCache = new Map<string, number | null>();
+const luminancePending = new Set<string>();
+
+/** Swap the luminance probe (tests: mini-dom has no canvas); null restores the real one. Clears the cache. */
+export function setLuminanceProbe(probe: LuminanceProbe | null): void {
+  luminanceProbe = probe ?? canvasLuminance;
+  luminanceCache.clear();
+  luminancePending.clear();
+}
+
+/**
+ * The tone of a picture's shown image, as far as it is known: null until a
+ * data: image has been measured (the measure starts here, once per href), and
+ * always for a linked https image, whose pixels a canvas may not read.
+ */
+function pictureTone(href: string | null): () => number | null {
+  if (!href || !href.startsWith("data:")) return () => null;
+  if (!luminanceCache.has(href) && !luminancePending.has(href)) {
+    luminancePending.add(href);
+    luminanceProbe(href)
+      .catch(() => null)
+      .then((v) => {
+        luminancePending.delete(href);
+        luminanceCache.set(href, v);
+      });
+  }
+  return () => luminanceCache.get(href) ?? null;
+}
 /** Room between a ring or box and the place it marks. */
 const MARK_PAD = 8;
 
@@ -1578,7 +1640,7 @@ const paddedSvgBox = (b: BBox, pad: number): SvgBox => {
  * picture's frame, with a feathered hole where the place is. Its depth
  * deepens through the step; only attributes change per frame.
  */
-function lightMark(g: SVGGElement, id: string): (f: MarkFrame) => void {
+function lightMark(g: SVGGElement, id: string, tone: () => number | null): (f: MarkFrame) => void {
   const defs = svgEl("defs", {}, g);
   const blur = svgEl("filter", { id: `${id}-blur`, filterUnits: "userSpaceOnUse" }, defs);
   const gauss = svgEl("feGaussianBlur", {}, blur);
@@ -1608,7 +1670,10 @@ function lightMark(g: SVGGElement, id: string): (f: MarkFrame) => void {
       e.setAttribute("rx", rx.toFixed(1));
       e.setAttribute("ry", ry.toFixed(1));
     }
-    lift.setAttribute("fill-opacity", (LIGHT_LIFT_ALPHA * Math.max(0, Math.min(1, f.level))).toFixed(3));
+    // The tone may arrive after the mark is up: the next frame picks it up.
+    const w = washFor(tone());
+    wash.setAttribute("fill", w.color);
+    lift.setAttribute("fill-opacity", (w.lift * Math.max(0, Math.min(1, f.level))).toFixed(3));
     wash.setAttribute("fill-opacity", (Math.max(0, Math.min(1, f.depth * f.level))).toFixed(3));
   };
 }
@@ -1711,7 +1776,7 @@ function glowMark(g: SVGGElement, id: string): (f: MarkFrame) => void {
 }
 
 /** Build an owner's mark on the overlay (it is attached first, so its paths can be measured). */
-function buildMark(owner: string, f: MarkFrame, overlay: SVGGElement, rc: RoughSVG | null): MarkNodes {
+function buildMark(owner: string, f: MarkFrame, overlay: SVGGElement, rc: RoughSVG | null, href: string | null): MarkNodes {
   const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
   g.setAttribute("data-mark", owner);
   g.style.pointerEvents = "none";
@@ -1719,7 +1784,7 @@ function buildMark(owner: string, f: MarkFrame, overlay: SVGGElement, rc: RoughS
   const id = `cs-mark-${++frameMaskSeq}`;
   const update =
     f.kind === "light"
-      ? lightMark(g, id)
+      ? lightMark(g, id, pictureTone(href))
       : f.kind === "glow"
         ? glowMark(g, id)
         : f.kind === "arrow"
@@ -2017,7 +2082,9 @@ function makeEffects(
         m = undefined;
       }
       if (!m) {
-        m = buildMark(owner, f, overlay, rc);
+        // The light reads the picture's tone: its shown image is the owner's `<id>__img` leaf.
+        const img = f.kind === "light" ? (leafNodes.get(owner) ?? []).find((e) => e.leaf.kind === "image" && e.leaf.id === `${owner}__img`) : undefined;
+        m = buildMark(owner, f, overlay, rc, img?.leaf.kind === "image" ? img.leaf.href : null);
         marks.set(owner, m);
       }
       m.update(f);
