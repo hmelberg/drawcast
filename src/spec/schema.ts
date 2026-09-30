@@ -382,9 +382,32 @@ const elementSchema = {
     look: { type: "string", enum: ["screen"], description: "image: \"screen\" keeps colour and resolution — screenshots, diagrams, paintings you point into." },
     view: { type: "array", items: { type: "number" }, minItems: 4, maxItems: 4, description: "image: the part shown, [x, y, w, h] fractions from the top-left." },
     regions: {
-      type: "object",
-      additionalProperties: { type: "array", items: { type: "number" }, minItems: 4, maxItems: 4 },
-      description: "image: named parts, name → [x, y, w, h] fractions of the whole picture from the top-left. Target one as \"<id>:<name>\"; any spot as \"<id>@[x, y, w, h]\" or \"<id>@[x, y]\".",
+      anyOf: [
+        { type: "object", additionalProperties: { type: "array", items: { type: "number" }, minItems: 4, maxItems: 4 } },
+        { const: "auto" },
+        {
+          type: "object",
+          properties: {
+            auto: {
+              anyOf: [
+                { const: true },
+                {
+                  type: "object",
+                  properties: {
+                    detail: { type: "string", enum: ["few", "some", "many"] },
+                    kinds: { type: "array", items: { type: "string", enum: ["areas", "controls", "text"] } },
+                    find: { type: "array", items: { type: "string" } },
+                  },
+                  additionalProperties: false,
+                },
+              ],
+            },
+          },
+          required: ["auto"],
+          additionalProperties: false,
+        },
+      ],
+      description: "image: named parts, name → [x, y, w, h] fractions of the whole picture from the top-left. Target one as \"<id>:<name>\"; any spot as \"<id>@[x, y, w, h]\" or \"<id>@[x, y]\". \"auto\" (or {auto: {detail, kinds, find}}) has the app map the picture's parts for you when a key is set — then target parts by a snake_case name you expect.",
     },
     strokes: { type: "string", description: "portrait/source: embedded traced strokes (machine-written; copy VERBATIM if present, never edit or regenerate)." },
     source: { type: "string", description: "portrait/source: provenance/attribution (machine-written; copy verbatim)." },

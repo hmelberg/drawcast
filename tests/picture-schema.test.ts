@@ -65,4 +65,12 @@ describe("picture fields", () => {
     // A string whose part before ":" / "@" names no element is left alone.
     expect(errorsOf({ elements: [md], commands: [{ draw: ["md"] }, { highlight: { target: "nobody@[1" } }] })).not.toMatch(/well-formed/);
   });
+
+  test("regions: auto forms", () => {
+    const el = (regions: unknown) => ({ elements: [{ id: "md", type: "image", url: "https://microdata.no/a.png", regions }], commands: [{ draw: ["md"] }, { highlight: { target: "md:anything" } }] });
+    expect(errorsOf(el("auto"))).toBe("");
+    expect(errorsOf(el({ auto: true }))).toBe("");
+    expect(errorsOf(el({ auto: { detail: "many" } }))).toBe("");
+    expect(errorsOf(el({ auto: { detail: "huge" } }))).not.toBe("");
+  });
 });

@@ -38,7 +38,7 @@ import { mathDrawables, mathMorphDrawables } from "./math";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
 import { catmullRom, catmullRomClosed } from "./smooth";
 import { decodeIcon, decodePhoto, decodePicture, decodeSourceImage, decodeTrace } from "../spec/trace";
-import { FULL_VIEW4, isRect4, type Rect4 } from "../spec/places";
+import { FULL_VIEW4, handRegions, isAutoRegions, isRect4, type Rect4 } from "../spec/places";
 import { mapLabelRequest, obstacleBoxes, wrapText, type LabelRequest } from "./labels";
 import { currentMathFontName, enginesLoaded, getLoadedEngines, type MathJaxEngine, type MusicEngine } from "../scenes/engines";
 import { musicDrawables } from "./music";
@@ -2018,7 +2018,8 @@ function imageDrawable(el: SpecElement, ctx: Ctx): GroupDrawable | null {
   const box = { x: cx - w / 2, y: cy - h / 2, w, h };
   ctx.namedAnchors[el.id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(box, n)]));
   // Every drawn image is a picture: places (p@top, p@[x, y]) work on an ordinary one too.
-  ctx.pictures[el.id] = { view, regions: el.regions ?? {} };
+  if (isAutoRegions(el.regions)) ctx.warnings.push(`${el.id}: regions: auto has not been mapped yet — open the drawcast in the app with a key to map it`);
+  ctx.pictures[el.id] = { view, regions: handRegions(el.regions) };
   return {
     id: el.id,
     kind: "group",

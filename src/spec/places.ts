@@ -68,6 +68,16 @@ export function fractionPoint(f: PictureFrame, p: [number, number]): Pt {
   return [b.x, b.y];
 }
 
+/** `regions: "auto"` or `{auto: …}` — the map is made in the app while authoring, not written by hand. */
+export function isAutoRegions(r: unknown): boolean {
+  return r === "auto" || (!!r && typeof r === "object" && !Array.isArray(r) && Object.hasOwn(r, "auto"));
+}
+
+/** The hand-written boxes of a regions field ({} for auto or absent). */
+export function handRegions(r: unknown): Record<string, Rect4> {
+  return r && typeof r === "object" && !isAutoRegions(r) ? (r as Record<string, Rect4>) : {};
+}
+
 const NAME_RE = /^[A-Za-z_][\w-]*$/;
 const inUnit = (r: Rect4) => r.every((n) => n >= -1e-9) && r[0] + r[2] <= 1 + 1e-9 && r[1] + r[3] <= 1 + 1e-9;
 
@@ -75,7 +85,7 @@ type Loose = Record<string, unknown>;
 const asObj = (v: unknown): Loose | undefined => (v && typeof v === "object" ? (v as Loose) : undefined);
 
 /** Every place string a command aims at: highlight/focus targets, camera.on, point.at.ref, camera.center.ref. */
-function placesInCommands(commands: unknown): string[] {
+export function placesInCommands(commands: unknown): string[] {
   const out: string[] = [];
   const list = (v: unknown) => (typeof v === "string" ? [v] : Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
   const walk = (v: unknown): void => {
@@ -106,7 +116,7 @@ export function pictureErrors(spec: Spec): string[] {
     if (el.view !== undefined && (!isRect4(el.view) || !inUnit(el.view) || el.view[2] <= 0 || el.view[3] <= 0)) {
       errs.push(`${el.id}: view must be [x, y, w, h] inside 0..1 with w, h > 0`);
     }
-    for (const [name, r] of Object.entries(el.regions ?? {})) {
+    for (const [name, r] of Object.entries(handRegions(el.regions))) {
       if (!NAME_RE.test(name)) errs.push(`${el.id}: region name "${name}" must be a word (letters, digits, _ or -)`);
       if (!isRect4(r) || !inUnit(r)) {
         errs.push(`${el.id}: region "${name}" must be [x, y, w, h] inside 0..1`);
@@ -130,8 +140,9 @@ export function pictureErrors(spec: Spec): string[] {
       errs.push(`"${s}": ${p.owner} is not an image`);
       continue;
     }
-    if (p.kind === "region" && !(owner.regions && Object.hasOwn(owner.regions, p.name))) {
-      const names = Object.keys(owner.regions ?? {});
+    const own = handRegions(owner.regions);
+    if (p.kind === "region" && !isAutoRegions(owner.regions) && !(own && Object.hasOwn(own, p.name))) {
+      const names = Object.keys(own ?? {});
       errs.push(`"${s}": ${p.owner} has no region "${p.name}" — it has: ${names.length > 0 ? names.join(", ") : "none"}`);
     }
     if (p.kind === "anchor" && !isUniversalAnchor(p.anchor)) {

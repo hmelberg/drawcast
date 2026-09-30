@@ -319,7 +319,7 @@ export interface SpecElement {
   /** image: the part of the picture shown, [x, y, w, h] as fractions from the top-left (default the whole picture). */
   view?: Rect4;
   /** image: named boxes on the picture, [x, y, w, h] as fractions of the WHOLE picture from the top-left — targets as "<id>:<name>". */
-  regions?: Record<string, Rect4>;
+  regions?: Record<string, Rect4> | "auto" | { auto: true | { detail?: "few" | "some" | "many"; kinds?: ("areas" | "controls" | "text")[]; find?: string[] } };
   /** Embedded traced strokes (spec/trace.ts encoding); set automatically for dropped files. */
   strokes?: string;
   /** Provenance: where the traced image came from (attribution). */

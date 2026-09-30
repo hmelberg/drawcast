@@ -21,6 +21,11 @@ describe("screen picture layout", () => {
     expect(d.view).toEqual([0, 0, 1, 0.5]);
     expect(r.pictures?.md).toEqual({ view: [0, 0, 1, 0.5], regions: {} });
   });
+  test("regions: auto lays out with no regions and warns it is unmapped", () => {
+    const r = layoutSpec({ elements: [{ id: "md", type: "image", url: "https://x.org/a.png", look: "screen", strokes: shot, regions: "auto" }], commands: [{ draw: ["md"] }] } as never);
+    expect(r.pictures?.md.regions).toEqual({});
+    expect(r.warnings.join("\n")).toMatch(/md: regions: auto has not been mapped yet/);
+  });
   test("regions are carried to the layout result; an ordinary image carries the whole view (final fix I4)", () => {
     const regions = { top: [0, 0, 1, 0.5] };
     const r = layoutSpec({
