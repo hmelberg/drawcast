@@ -3175,3 +3175,70 @@ purpose: "Write it in one go" (a user-facing choice) and the prompt library
 
 - Regenerate `package-lock.json` (`npm install`) and switch CI back to
   `npm ci` with the npm cache.
+
+## Reducing token use, prompt size and code complexity — noted 2026-09-30, open
+
+Measured 2026-09-30: an ordinary request (not code, not sound) sends about
+239,000 characters (~60k tokens) before the request itself — schema 84k (57k
+of it field descriptions), `compiler-v1.md` 61k, template catalogue 38k (16.5k
+index + 21.6k full entries for the shortlist), fixed fewshots 37k, picked
+exemplars 11k. Most of it is cached (a cached read of the whole prefix is
+~$0.04), so the gains are cheaper cache writes, latency and a less cluttered
+preamble — never worth an extra repair round. Measure every prompt change in
+the prompt lab (schema errors, repair rounds, lint, cost) before keeping it.
+
+Tokens and prompt size, biggest first:
+
+1. **Schema field descriptions (57k).** They are NOT copies of the rules:
+   measured against `compiler-v1*.md`, 283 of 347 share under 10 % of their
+   wording — they say what a field accepts, the rules say when to use it. So
+   no mechanical cut. The route, in order:
+   - **Hand over the full description in the repair round** for each field
+     that failed validation. Useful on its own, costs nothing when the model
+     is right.
+   - **Then shorten only big, rarely used descriptions** (`ask.widget` 1.8k,
+     `of` 1.5k, `move.pivot`, `flip.through`, `states`), keeping full text for
+     the fields examples use often. Optionally keep a full text for the
+     skill's `schema.json` (the skill looks fields up; the app cannot).
+   - Keep the `code:` / `With play:` prefixes — tests sort fields by them.
+   - Risk: the model knows less per field → more repair rounds, which cost far
+     more than the ~⅓ cent a request this saves.
+2. **Fewshots (37k).** Eleven fixed examples beside three picked per request;
+   2–4 fixed may do. Check in the lab — examples shape style strongly.
+3. **Stop teaching barely used syntax** (`clear`, `if`, `wait`, `flip`,
+   `press`, `keep`, `cue_end`, `blocking`): prompt and schema text only, the
+   engine keeps them, fully reversible.
+4. **Fewer full template entries** — full entries for the top 2–3 matches,
+   index lines for the rest (perhaps −8–12k).
+5. **More gates like code/sound/C64** — explore flags for anatomy/space/sky,
+   the chess widget — only for the request that names them.
+6. **Fewer calls per cast** (NOTES.md): narrow or drop the teaching pass if
+   its adopted count stays low, the effort dial for the creative round, the
+   Batch API for courses.
+
+Code size and complexity:
+
+1. **Decisions (large):** C64/BASIC (~1.7k lines) and chess (~1.5k) as
+   extensions loaded from drawcast.app when a cast's content needs them;
+   check whether the explore modes (sky, space, 3D anatomy, body, ~1.8k) are
+   used beyond their demos; the NOTES.md items — publish rail five → two,
+   freeze learners/view counts/giscus, prompt library/ratings/improve-from-worst
+   to dev-only or out, one deploy target.
+2. **Old compatibility code:** the localStorage → IndexedDB migration and the
+   one-time upgrade flags in `store.ts`, legacy link parameters in
+   `viewer.ts`, the timeline's undated "old form", retired annotation kinds.
+3. **Syntax merges:** `show` → `draw` instant, `hide` → `erase` instant,
+   `edge` → `arrow` with no head, `keep` → `ghost`, remove `clear`; rename the
+   `label` and `reveal` commands that clash with element/field names. Old
+   casts rewritten on load.
+4. **Template formats:** fold `cell_diagram` and `molecule_3d` (lone
+   `template.yaml` folders) into packs; move simple code scenes into YAML over
+   time; `des_process` / `des_hta` (~5.4k lines) — check what they share;
+   `galton_board` and `generic_axes_diagram` have no example.
+5. **Structure:** split `main.ts` (6.3k lines), break up `render/player.ts`
+   (one ~2.4k-line function), split `layout/tier2.ts` by element kind.
+6. **Loose end:** `setViewerBase` (links/base.ts) is the only writer of the
+   viewer base and nothing calls it — wire it to Settings or remove it.
+
+Retire the way 2026-09-30 did: a pushed `archive/…` tag, the text in
+`docs/prompt-lab/archive/`, a note here.
