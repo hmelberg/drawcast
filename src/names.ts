@@ -8,7 +8,7 @@ import { apiBase } from "./learn";
 
 export const NAME_RE = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?(?:\/[a-z0-9-]{1,20})?$/;
 /** May not start a name, with or without a trailing dash: `gh-…` is an alias of `gh=…` in the viewer. */
-export const RESERVED_PREFIXES = ["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner", "me", "www"] as const;
+export const RESERVED_PREFIXES = ["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner", "me", "browse", "www"] as const;
 
 export function normalizeName(raw: string | null | undefined): string | null {
   if (typeof raw !== "string") return null;
