@@ -87,6 +87,7 @@ import {
   nameAdvice,
   privatePayAdvice,
   privateItemFor,
+  privateCourseText,
   privateQuoteAdvice,
   readSession,
   registerFor,
@@ -1020,7 +1021,17 @@ const commands = {
       const { doorlessNote } = await load("/src/course/page.ts");
       const { parsePlaylistText, formatPublished, isEndPage } = await load("/src/playlist/playlist.ts");
       const { endPageFor } = await load("/src/course/run.ts");
-      const text = readFileSync(resolve(wd, "course.md"), "utf8");
+      let text = readFileSync(resolve(wd, "course.md"), "utf8");
+      // A private course publishes `private: true` and its Join door in
+      // course.md itself (final review I1a) — so an app that loads it back
+      // from GitHub knows it is private — written into the workdir first, so
+      // the published course.md and the workdir agree.
+      if (origin.private) {
+        const { setCourseOption } = await load("/src/course/document.ts");
+        const { applyJoinDoor } = await load("/src/course/publish.ts");
+        text = privateCourseText(text, { setCourseOption, applyJoinDoor });
+        writeFileSync(resolve(wd, "course.md"), text);
+      }
       const course = parseCourse(text);
       const manifestText = readAtCommit(clone, upstream, joinRepo(origin.coursesDir, "courses.json"));
       const plan = buildPublishPlan({

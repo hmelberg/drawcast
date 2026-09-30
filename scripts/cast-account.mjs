@@ -256,6 +256,18 @@ export function privateItemFor(origin, reg) {
 }
 
 /**
+ * A private course's course.md as `push` publishes it (final review I1a):
+ * `private: true` in its header — so the app, loading it back from GitHub,
+ * knows it is private and never republishes it in plaintext — and the Join
+ * door (`enroll:`) its page needs, since only enrolled learners can read it.
+ * `lib` is the app's own course/document.ts setCourseOption and
+ * course/publish.ts applyJoinDoor. Idempotent.
+ */
+export function privateCourseText(text, lib) {
+  return lib.applyJoinDoor(lib.setCourseOption(text, "private", "true"), true);
+}
+
+/**
  * What a private quote still owes, worded identically everywhere it shows —
  * push's own refusal, and `private` printed with no `--price` — and the
  * exact next command. Null when nothing is due (already fully paid for

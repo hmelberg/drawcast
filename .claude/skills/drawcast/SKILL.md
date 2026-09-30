@@ -180,9 +180,17 @@ The `#gh=` link stays free — say so if the user only wants a link to share.
 
 ## Private (locked on GitHub, only for enrolled learners)
 
-Only for something already pushed. A private course/cast still lives on the user's public
-repo, but every lecture file (or the cast's own file) is committed as an encrypted envelope,
-not plain YAML — only a learner (or the owner, pulling it back here) with the key can read it.
+Make it private right after `publish-target` and BEFORE the first `push` (it needs
+`origin.json`; a course or a cast) — never publish it plain first: every version pushed stays
+readable in the repo's git history, and locking later does not reach back. A private
+course/cast still lives on the user's public repo, but every lecture file (or the cast's own
+file) is committed as an encrypted envelope, not plain YAML — only a learner (or the owner,
+pulling it back here) with the key can read it; a private course's course.md is pushed with
+`private: true` and its Join door.
+
+Already pushed in the clear? Warn the user before going on: the earlier versions stay readable
+in the history. To avoid that, publish into a new folder (`publish-target` with a new name)
+and make that one private before its first push.
 
 1. `node scripts/cast.mjs private <workdir>` — the quote: what is due right now, in USD.
 2. **Only on the user's yes to that price** — never pick it for them, never ask for card

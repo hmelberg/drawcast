@@ -22,10 +22,12 @@ import {
   privateQuoteAdvice,
   privatePayAdvice,
   waitForPrivate,
+  privateCourseText,
 } from "../scripts/cast-account.mjs";
 import * as coursePub from "../src/course/publish";
 import * as castPub from "../src/publish/cast";
 import { parseCourse } from "../src/course/document";
+import * as courseDoc from "../src/course/document";
 import { registryNote } from "../src/registry";
 import { claimNote } from "../src/names";
 
@@ -438,5 +440,32 @@ describe("cast.mjs push wiring (fix round 1, #2/#7): the lock runs before any gi
     const firstFetchAt = push.indexOf('git("fetch", "--quiet", "--depth", "1", "origin", origin.branch);');
     expect(refuseAt).toBeGreaterThan(0);
     expect(refuseAt).toBeLessThan(firstFetchAt);
+  });
+});
+
+describe("privateCourseText (final review I1a): a private course push writes private: true and the Join door into course.md", () => {
+  const lib = { ...coursePub, ...courseDoc };
+  const text = "# QALYs\n\n## 1. What a QALY is\n";
+  it("marks the course private and gives its page a Join door", () => {
+    const out = privateCourseText(text, lib);
+    const course = parseCourse(out);
+    expect(course.private).toBe(true);
+    expect(course.enroll).toBeDefined();
+  });
+  it("is idempotent: a second push changes nothing", () => {
+    const once = privateCourseText(text, lib);
+    expect(privateCourseText(once, lib)).toBe(once);
+  });
+  it("cast.mjs push rewrites the workdir's course.md with it before the plan is built", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../scripts/cast.mjs", import.meta.url), "utf8");
+    const push = src.slice(src.indexOf("  async push(args) {"), src.indexOf("  async template("));
+    const markAt = push.indexOf("privateCourseText(");
+    const writeAt = push.indexOf('writeFileSync(resolve(wd, "course.md"), text)');
+    const planAt = push.indexOf("const plan = buildPublishPlan({");
+    expect(markAt).toBeGreaterThan(0);
+    expect(writeAt).toBeGreaterThan(markAt);
+    expect(planAt).toBeGreaterThan(writeAt);
+    expect(push.slice(markAt - 300, markAt)).toContain("if (origin.private) {");
   });
 });

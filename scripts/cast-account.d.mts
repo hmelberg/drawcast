@@ -66,6 +66,11 @@ export function registrable(origin: Record<string, unknown> | null | undefined):
 
 export function dollars(cents: number): string;
 
+export function privateCourseText(
+  text: string,
+  lib: { setCourseOption: (text: string, key: string, value: string) => string; applyJoinDoor: (text: string, on: boolean) => string },
+): string;
+
 export function privateItemFor(origin: Record<string, unknown>, reg: { target: string }): string;
 
 export interface PrivateQuoteLike {
