@@ -64,7 +64,11 @@ describe("the account lives beside the GitHub token", () => {
     // with a timeout, so an unreachable registry costs ten seconds.
     const coursePublish = course.slice(course.indexOf("await preparePublish("), course.indexOf("function showLinks("));
     expect(coursePublish.indexOf("registerName(")).toBeGreaterThan(0);
-    expect(coursePublish).toMatch(/AbortSignal\.timeout\(10_000\)/);
+    // The bounded fetch is defined before preparePublish since the private
+    // check moved ahead of embedding (task 10 fix round 2); it is still the
+    // one the name calls use.
+    expect(course.slice(course.indexOf("async function publish("), course.indexOf("function showLinks("))).toMatch(/AbortSignal\.timeout\(10_000\)/);
+    expect(coursePublish).toContain("DEFAULT_ENROLL_API, { key: accountToken, ...reg }, bounded)");
     expect(coursePublish).toMatch(/nameNote\(/);
     expect(coursePublish.indexOf("registerName(")).toBeLessThan(coursePublish.indexOf("await commitPublish("));
     expect(coursePublish.indexOf("await commitPublish(")).toBeLessThan(coursePublish.indexOf("render();"));

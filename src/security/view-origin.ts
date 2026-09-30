@@ -153,6 +153,19 @@ export function enrollRoute(enroll: string | undefined, enrollApi: string, hash:
   return enroll.replace(/\/+$/, "") === enrollApi.replace(/\/+$/, "") ? `${cfg.main}/${withStayMarker(hash)}` : null;
 }
 
+/**
+ * A locked lecture (private lectures, registry delivery 2): unlocking needs
+ * the account (item-key.ts's fetchItemKey), which lives on the main origin
+ * only. On the view origin, hand it over there, marked, before ever trying
+ * to unlock — a door built on that origin could never open, since the
+ * secret getters there always answer empty (module doc above). On the main
+ * origin, or with the view origin unconfigured, stay: that is the only
+ * origin an encrypted envelope is ever handed to isLocked/unlockForViewer.
+ */
+export function lockedRoute(origin: string, hash: string, cfg: OriginConfig = ORIGINS): string | null {
+  return onViewOrigin(origin, cfg) ? `${cfg.main}/${withStayMarker(hash)}` : null;
+}
+
 /** "Edit a copy": the main origin's editor, told which public cast to fetch. */
 export function remixUrl(sourceHash: string, cfg: OriginConfig = ORIGINS): string {
   const src = sourceHash

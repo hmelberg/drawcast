@@ -2,10 +2,32 @@ import { mkdtempSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { boundedFetch, checkName, registrable, shouldClaim, clearSession, nameBlocker, deviceLogin, nameAdvice, readSession, registerFor, registerNow, registrationFor, waitForName, writeSession } from "../scripts/cast-account.mjs";
+import {
+  boundedFetch,
+  checkName,
+  registrable,
+  shouldClaim,
+  clearSession,
+  nameBlocker,
+  deviceLogin,
+  nameAdvice,
+  readSession,
+  registerFor,
+  registerNow,
+  registrationFor,
+  waitForName,
+  writeSession,
+  privateItemFor,
+  privateDueMessage,
+  privateQuoteAdvice,
+  privatePayAdvice,
+  waitForPrivate,
+  privateCourseText,
+} from "../scripts/cast-account.mjs";
 import * as coursePub from "../src/course/publish";
 import * as castPub from "../src/publish/cast";
 import { parseCourse } from "../src/course/document";
+import * as courseDoc from "../src/course/document";
 import { registryNote } from "../src/registry";
 import { claimNote } from "../src/names";
 
@@ -299,6 +321,82 @@ describe("registerNow's sign-in hint (final review M5)", () => {
 });
 
 
+describe("privateItemFor (the item lockText/fetchItemKey bind an envelope to, matching the app's own prediction)", () => {
+  it("a cast: the target without .yaml (publish/cast.ts's privateCastTarget)", () => {
+    expect(privateItemFor({ kind: "cast" }, { target: "ann/casts/casts/qaly.yaml" })).toBe("ann/casts/casts/qaly");
+  });
+  it("a course: the target as is — one item for the whole course, applied to every lecture", () => {
+    expect(privateItemFor({ kind: "course" }, { target: "ann/casts/qalys" })).toBe("ann/casts/qalys");
+  });
+});
+
+describe("privateDueMessage / privateQuoteAdvice (cast.mjs private, and push's own refusal)", () => {
+  const owed = { due: 2000, currency: "usd", paidLectures: 0, private: false, owner: "you" as const, name: null };
+  const paid = { due: 0, currency: "usd", paidLectures: 2, private: true, owner: "you" as const, name: null };
+  it("says what is due, in USD, and the exact next command", () => {
+    expect(privateDueMessage(owed, "dev-casts/courses/qalys")).toBe(
+      "Private needs 20 USD for the new lectures — run: node scripts/cast.mjs private dev-casts/courses/qalys --price 2000",
+    );
+    expect(privateQuoteAdvice(owed, "dev-casts/courses/qalys")).toBe(privateDueMessage(owed, "dev-casts/courses/qalys"));
+  });
+  it("nothing due: already paid", () => {
+    expect(privateDueMessage(paid, "w")).toBeNull();
+    expect(privateQuoteAdvice(paid, "w")).toBe("Private is paid — push to publish locked.");
+  });
+  it("a missing or revoked session says: log in", () => {
+    expect(privateQuoteAdvice("key", "w")).toMatch(/cast\.mjs login/);
+  });
+  it("the server did not answer", () => {
+    expect(privateQuoteAdvice("error", "w")).toMatch(/did not answer/);
+  });
+  it("registered to another account", () => {
+    expect(privateQuoteAdvice({ ...owed, owner: "other" }, "w")).toMatch(/another drawcast account/);
+  });
+});
+
+describe("privatePayAdvice (cast.mjs private --price, when Checkout never opens)", () => {
+  it("each refusal says what to do next, and the key is never in any of them", () => {
+    for (const pay of ["nothing-due", "pending", "owner", "key", "error"] as const) {
+      const advice = privatePayAdvice(pay);
+      expect(advice.length).toBeGreaterThan(0);
+      expect(advice).not.toMatch(/[A-Za-z0-9_-]{20,}/); // no token-shaped key ever leaks into the wording
+    }
+    expect(privatePayAdvice("key")).toMatch(/cast\.mjs login/);
+  });
+});
+
+describe("waitForPrivate (cast.mjs private: waits for the quote to say paid)", () => {
+  const body = { key: "k", kind: "cast" as const, target: "a/b/c.yaml", lectures: 1, private: true };
+  it("paid once due is 0 and private is true", async () => {
+    const answers = [
+      { due: 500, currency: "usd", paidLectures: 0, private: false, owner: "you" as const, name: null },
+      { due: 0, currency: "usd", paidLectures: 1, private: true, owner: "you" as const, name: null },
+    ];
+    const quotePrivate = async () => answers.shift()!;
+    expect(await waitForPrivate({ api: "https://x", body, quotePrivate, timeoutS: 30, sleep: async () => {} })).toBe("paid");
+  });
+  it("due 0 but not yet flagged private keeps polling, not a false paid", async () => {
+    const answers = [
+      { due: 0, currency: "usd", paidLectures: 1, private: false, owner: "you" as const, name: null },
+      { due: 0, currency: "usd", paidLectures: 1, private: true, owner: "you" as const, name: null },
+    ];
+    const quotePrivate = async () => answers.shift()!;
+    expect(await waitForPrivate({ api: "https://x", body, quotePrivate, timeoutS: 30, sleep: async () => {} })).toBe("paid");
+  });
+  it("times out cleanly when it never settles (a cancelled or unfinished checkout)", async () => {
+    const quotePrivate = async () => ({ due: 500, currency: "usd", paidLectures: 0, private: false, owner: "you" as const, name: null });
+    expect(await waitForPrivate({ api: "https://x", body, quotePrivate, timeoutS: 10, sleep: async () => {} })).toBe("timeout");
+  });
+  it("a 'key'/'error' outcome from quotePrivate is not mistaken for paid — kept polling", async () => {
+    const answers: ("key" | { due: number; currency: string; paidLectures: number; private: boolean; owner: "you"; name: null })[] = [
+      "key",
+      { due: 0, currency: "usd", paidLectures: 1, private: true, owner: "you", name: null },
+    ];
+    const quotePrivate = async () => answers.shift()!;
+    expect(await waitForPrivate({ api: "https://x", body, quotePrivate, timeoutS: 30, sleep: async () => {} })).toBe("paid");
+  });
+});
+
 describe("cast.mjs push wiring (C2, M4)", () => {
   it("the claim joins the commit only after the push rights are known, and only when shouldClaim allows; a source push never registers", async () => {
     const { readFileSync } = await import("node:fs");
@@ -313,5 +411,61 @@ describe("cast.mjs push wiring (C2, M4)", () => {
     expect(push.split("files.files = [...files.files, claim]").length).toBe(2);
     expect(push).toContain("if (session && registrable(origin)) {");
     expect(push).toContain("if (registrable(origin)) note = await registerPublished(");
+  });
+});
+
+describe("cast.mjs push wiring (fix round 1, #2/#7): the lock runs before any git write, the claim joins after", () => {
+  it("lockLectureFiles is called inside the plan-building withVite, before the first git write (checkout) — and the claim only joins files.files after that", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../scripts/cast.mjs", import.meta.url), "utf8");
+    const push = src.slice(src.indexOf("  async push(args) {"), src.indexOf("  async template("));
+    const withViteAt = push.indexOf("const files = await withVite(async (load) => {");
+    const lockAt = push.indexOf("await lockLectureFiles(planFiles, lecturePaths");
+    const claimJoinAt = push.indexOf("if (claim) files.files = [...files.files, claim];");
+    const checkoutAt = push.indexOf('git("checkout", "--quiet", "--force", "-B", branch, upstream);');
+    expect(withViteAt).toBeGreaterThan(0);
+    expect(lockAt).toBeGreaterThan(withViteAt);
+    expect(checkoutAt).toBeGreaterThan(lockAt);
+    expect(claimJoinAt).toBeGreaterThan(lockAt);
+    // The real app lock (publish/lock.ts), never a second copy of its checks.
+    expect(push).toContain('await load("/src/publish/lock.ts")');
+    expect(push).not.toMatch(/\blockPlanFiles\b/);
+  });
+
+  it("a private source refuses before any git write at all (not merely before the lock)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../scripts/cast.mjs", import.meta.url), "utf8");
+    const push = src.slice(src.indexOf("  async push(args) {"), src.indexOf("  async template("));
+    const refuseAt = push.indexOf('if (origin.kind === "source" && origin.private) throw new Error("a private source can\'t be pushed");');
+    const firstFetchAt = push.indexOf('git("fetch", "--quiet", "--depth", "1", "origin", origin.branch);');
+    expect(refuseAt).toBeGreaterThan(0);
+    expect(refuseAt).toBeLessThan(firstFetchAt);
+  });
+});
+
+describe("privateCourseText (final review I1a): a private course push writes private: true and the Join door into course.md", () => {
+  const lib = { ...coursePub, ...courseDoc };
+  const text = "# QALYs\n\n## 1. What a QALY is\n";
+  it("marks the course private and gives its page a Join door", () => {
+    const out = privateCourseText(text, lib);
+    const course = parseCourse(out);
+    expect(course.private).toBe(true);
+    expect(course.enroll).toBeDefined();
+  });
+  it("is idempotent: a second push changes nothing", () => {
+    const once = privateCourseText(text, lib);
+    expect(privateCourseText(once, lib)).toBe(once);
+  });
+  it("cast.mjs push rewrites the workdir's course.md with it before the plan is built", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../scripts/cast.mjs", import.meta.url), "utf8");
+    const push = src.slice(src.indexOf("  async push(args) {"), src.indexOf("  async template("));
+    const markAt = push.indexOf("privateCourseText(");
+    const writeAt = push.indexOf('writeFileSync(resolve(wd, "course.md"), text)');
+    const planAt = push.indexOf("const plan = buildPublishPlan({");
+    expect(markAt).toBeGreaterThan(0);
+    expect(writeAt).toBeGreaterThan(markAt);
+    expect(planAt).toBeGreaterThan(writeAt);
+    expect(push.slice(markAt - 300, markAt)).toContain("if (origin.private) {");
   });
 });

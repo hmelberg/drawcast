@@ -3141,6 +3141,26 @@ protected? Options when we come back to it:
 Related, also open: private GitHub repos can't be proven at all (the claim
 check reads raw.githubusercontent anonymously) — a delivery 2 concern.
 
+## Private courses (registry delivery 2) — merged 2026-09-30, left open
+
+Built per `docs/superpowers/plans/2026-09-30-registry-delivery-2-private.md`
+(app 888577ba, drawcast-anvil 7d3fe12): lectures locked in the author's
+public repo, the key from Anvil's `/key` for enrolled learners, private
+bought per item. Known and deferred:
+
+- **"Make public" never tells Anvil.** The item stays private there (key,
+  approval-only joins) while its file is plaintext; the next Share open
+  re-ticks Private. Needs a server "make public" call (free, per the prices).
+- **A removed learner keeps a key they already copied out** — keys rotate
+  only on a take-over. Rotating on removal means re-locking every lecture.
+- **Raw read lag:** a signed-out publish seconds after a locked push can read
+  the old plaintext file and not see the lock. A contents-API read with the
+  author's token would close it (and work for private repos).
+- **A locked repo file with no server-private record is a dead end** — the
+  publish is forced private and refused; no "make public" escape.
+- The skill's quote counts outline lectures, the app counts built ones.
+- `scripts/cast-account.d.mts` is hand-kept and shadows the `.mjs` for `tsc`.
+
 ## Housekeeping
 
 - Regenerate `package-lock.json` (`npm install`) and switch CI back to

@@ -167,7 +167,7 @@ export function registrable(origin) {
   return origin?.kind === "cast" || origin?.kind === "course";
 }
 
-const dollars = (cents) => `${Number.isInteger(cents / 100) ? cents / 100 : (cents / 100).toFixed(2)} USD`;
+export const dollars = (cents) => `${Number.isInteger(cents / 100) ? cents / 100 : (cents / 100).toFixed(2)} USD`;
 
 /** One line on where a name stands and what to do next — the terminal's
  *  wording (names.ts's nameNote speaks of the app's Settings). */
@@ -228,4 +228,100 @@ export function nameBlocker(origin, prState) {
   if (origin.published === "new") return "it is aimed at its repo but not pushed yet — push it first";
   if (origin.published === "pr" && prState !== "MERGED") return `its first publish is a pull request not merged yet (${origin.pr?.url ?? "?"}) — merge it first`;
   return null;
+}
+
+// ---- Private (registry delivery 2, task 11): `pull` unlocks, `push` locks,
+// `private` pays. Every function below is pure/injectable — the actual
+// crypto (lockText/unlockForAuthor, src/crypto/lecture-lock.ts,
+// src/item-key.ts) and network calls (quotePrivate/startPrivatePayment,
+// src/registry.ts) are the app's own, loaded by cast.mjs through withVite and
+// handed in here, exactly like registerNow above takes `registry`/`names` —
+// so this file still imports nothing from src/ and stays testable with
+// fakes. The actual lock STEP (fix round 1, #2) is the app's own
+// publish/lock.ts lockLectureFiles, loaded and called directly by cast.mjs —
+// not reimplemented here, so its envelope-header check, its `.png` refusal
+// and its dropping of a stray `bytes` field can never drift from what a
+// browser publish enforces.
+
+/**
+ * The item key lockText/fetchItemKey bind an envelope to (crypto/lecture-
+ * lock.ts's `item`) — the SAME prediction the app itself makes (a cast:
+ * publish/cast.ts's privateCastTarget, the target without `.yaml`; a course:
+ * ui/course.ts's own publish, the course's registry target itself, applied
+ * to every lecture file it locks) — built from `reg`, `registerFor`'s own
+ * output, so it can never drift from what gets registered.
+ */
+export function privateItemFor(origin, reg) {
+  return origin.kind === "cast" ? reg.target.replace(/\.ya?ml$/i, "") : reg.target;
+}
+
+/**
+ * A private course's course.md as `push` publishes it (final review I1a):
+ * `private: true` in its header — so the app, loading it back from GitHub,
+ * knows it is private and never republishes it in plaintext — and the Join
+ * door (`enroll:`) its page needs, since only enrolled learners can read it.
+ * `lib` is the app's own course/document.ts setCourseOption and
+ * course/publish.ts applyJoinDoor. Idempotent.
+ */
+export function privateCourseText(text, lib) {
+  return lib.applyJoinDoor(lib.setCourseOption(text, "private", "true"), true);
+}
+
+/**
+ * What a private quote still owes, worded identically everywhere it shows —
+ * push's own refusal, and `private` printed with no `--price` — and the
+ * exact next command. Null when nothing is due (already fully paid for
+ * what would publish). Never prints the key.
+ */
+export function privateDueMessage(quote, work) {
+  if (quote.due <= 0) return null;
+  return `Private needs ${dollars(quote.due)} for the new lectures — run: node scripts/cast.mjs private ${work} --price ${quote.due}`;
+}
+
+/**
+ * `cast.mjs private`'s (and push's own) full advice for a quote outcome —
+ * the price and the next command, that it is already paid, or why nothing
+ * could be quoted at all. Never prints the key.
+ */
+export function privateQuoteAdvice(quote, work) {
+  if (quote === "key") return "not signed in to drawcast (or signed out from the account page) — run: node scripts/cast.mjs login";
+  if (quote === "error") return "the drawcast server did not answer — try again in a minute";
+  if (quote.owner === "other") return "this is registered to another drawcast account — private is only for its own owner";
+  return privateDueMessage(quote, work) ?? "Private is paid — push to publish locked.";
+}
+
+/** `cast.mjs private --price`'s advice once startPrivatePayment refuses to
+ *  open Checkout at all (never opened, so there is nothing to wait for). */
+export function privatePayAdvice(pay) {
+  switch (pay) {
+    case "nothing-due":
+      return "nothing is due — private is already paid; push to publish locked.";
+    case "pending":
+      return "a checkout for this is already open — finish that one, then run private again";
+    case "owner":
+      return "this is registered to another drawcast account — private is only for its own owner";
+    case "key":
+      return "not signed in to drawcast (or signed out from the account page) — run: node scripts/cast.mjs login";
+    default:
+      return "the drawcast server did not answer — try again in a minute";
+  }
+}
+
+/**
+ * Poll POST /register/quote (cast.mjs private, after Checkout opened) every
+ * 5 s up to `timeoutS` (9 min, name-wait's own budget) until the item is
+ * fully settled — due 0 AND private true, both: a quote can echo an old
+ * `due` for a beat after the webhook flips `private`, or vice versa.
+ * "timeout" if it never settles (a cancelled or unfinished checkout charges
+ * nothing). `quotePrivate` is the caller's own (src/registry.ts), so this
+ * stays free of any import of it; `sleep` is injectable so a test drives
+ * every tick without waiting.
+ */
+export async function waitForPrivate({ api, body, quotePrivate, timeoutS = 540, fetchImpl = fetch, sleep = wait }) {
+  for (let t = 0; t <= timeoutS; t += 5) {
+    const q = await quotePrivate(api, body, fetchImpl);
+    if (typeof q === "object" && q.due === 0 && q.private === true) return "paid";
+    await sleep(5000);
+  }
+  return "timeout";
 }

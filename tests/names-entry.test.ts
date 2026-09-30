@@ -96,7 +96,7 @@ describe("the course door's live wiring", () => {
   const live = viewer.slice(viewer.indexOf("const liveDoorDeps: DoorDeps = {"), viewer.indexOf("export function courseDoor("));
   test("courseDoor is exported, takes the resolved pointer and the deps, and is what a course name opens", () => {
     expect(viewer).toMatch(
-      /export function courseDoor\(\s*name: string,\s*resolved: Resolved,\s*deps: DoorDeps = liveDoorDeps,\s*opts: \{ onJoined\?: \(\) => void; lead\?: string \} = \{\},\s*\): HTMLElement/,
+      /export function courseDoor\(\s*name: string,\s*resolved: Resolved,\s*deps: DoorDeps = liveDoorDeps,\s*opts: \{ onJoined\?: \(\) => void; lead\?: string; title\?: string \} = \{\},\s*\): HTMLElement/,
     );
     expect(viewer).toMatch(/import \{ anvilHashFor, nameInHash, resolveName, type Resolved \} from "\.\/names"/);
     expect(live.length).toBeGreaterThan(0);

@@ -4,7 +4,7 @@
 // edits are never overwritten by stale state.
 
 import { posterForPlaylistText } from "../export/snapshot";
-import { type Course, type CourseLecture, formatCourse, parseCourse } from "../course/document";
+import { type Course, type CourseLecture, formatCourse, parseCourse, removeCourseOption, setCourseOption } from "../course/document";
 import { generateCoursePlan } from "../course/plan";
 import { applyCourseFolder, applyCourseName, applyJoinDoor, commitPublish, courseDoorName, courseKeyFor, courseRegistration, preparePublish, type PublishArgs } from "../course/publish";
 import type { Door, DoorlessReason } from "../course/page";
@@ -29,10 +29,14 @@ import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from
 import { addCosts, bakeCost, costLabel, courseNarrationProjection, type BakeCost } from "../export/tts-cost";
 import { runLang, stampedVoice, synthesizeBase64 } from "../export/tts";
 import { joinPath } from "../course/publish";
-import { claimCourse, claimNote, courseClaim, isPayable, nameNote, normalizeName, registerName, startNamePayment } from "../names";
-import { DEFAULT_ENROLL_API } from "../learn";
-import { claimFile, registerItem, registryNote, verifyClaim } from "../registry";
+import { claimCourse, claimNote, courseClaim, formatPrice, isPayable, nameNote, normalizeName, registerName, startNamePayment } from "../names";
+import { apiBase, DEFAULT_ENROLL_API } from "../learn";
+import { claimFile, quotePrivate, registerItem, registryNote, verifyClaim } from "../registry";
 import { getToken } from "../account";
+import { courseLockedInRepo, hasBuiltLecture, privateLectureCount, publishPrivacy } from "../private-doc";
+import { fetchItemKey, liveKeyStorage, unlockForAuthor } from "../item-key";
+import { lockText } from "../crypto/lecture-lock";
+import { LockError, type LectureLock } from "../publish/lock";
 
 /**
  * Why the published page gets no door, per the registry's answer to the name
@@ -49,7 +53,7 @@ const DOORLESS: Record<Exclude<Awaited<ReturnType<typeof registerName>>, "ok">, 
   // A course name is bought (paid-names round): unpaid, it is simply not registered yet.
   pay: "unregistered",
 };
-import { parseRepo, readFile } from "../publish/github";
+import { parseRepo, readFile, slugify } from "../publish/github";
 import { embeddedPlaylist, withAuthoredTemplates } from "../publish/embed";
 import { myTemplateDoc } from "../scenes/my-templates";
 import { resolvePortraits } from "../render/portrait";
@@ -58,7 +62,7 @@ import { resolveImages } from "../render/image";
 import { resolveIcons } from "../render/icon";
 import { unembeddedImages } from "./insert";
 import { trustDerived, trustSpecs } from "../security/code-trust";
-import { appendLog, getGithubToken, getTtsKey, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, saveSettings, type LogEntry, type SavedCourse, type SavedDrawing } from "../store";
+import { appendLog, getGithubToken, markDrawingsPrivate, getTtsKey, loadCourses, loadLibrary, loadSettings, saveCourse, saveDrawing, saveSettings, type LogEntry, type SavedCourse, type SavedDrawing } from "../store";
 import { SPEC_VERSION } from "../spec/schema";
 import { h } from "./dom";
 import { createModal } from "./modal";
@@ -697,6 +701,9 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       outline: partial?.outline,
       missing: partial?.missing,
       sourcePath: null, // a course lecture; GitHub source-saving is per drawcast, not wired to courses
+      // A lecture of a private course is private on its own row too (task
+      // 10 fix round 2) — belt and braces beside private-doc.ts's lookup.
+      private: parseCourse(doc.value).private ? true : undefined,
       ts: new Date().toISOString(),
     });
     return id;
@@ -904,7 +911,14 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         const published = await readFile(repo, joinPath(settings.coursesDir, course.context.slug || "", file), (input, init) =>
           fetch(input, { ...init, signal }),
         ).catch(() => null);
-        if (published) existing = parsePlaylistText(published).audio?.lines ?? {};
+        // A private lecture reads back locked — unlock with the owner's own
+        // token (unlockForAuthor, task 8). Any failure (signed out, revoked,
+        // a rotated key) is just "no previous file": narration is
+        // re-synthesized rather than reused.
+        if (published) {
+          const unlocked = await unlockForAuthor(published);
+          if ("text" in unlocked) existing = parsePlaylistText(unlocked.text).audio?.lines ?? {};
+        }
       }
       const track = await bakeNarration(
         lines,
@@ -1002,7 +1016,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
   // own (each lecture's file name is derived by publishCourse from the
   // document), so `slug` is never read here. The course's NAME — its pretty
   // link — is bought and bound to `name:` by buyPrettyLink below (2026-09-18).
-  async function publish({ bake, embedImages, allowComments, countViews, allowSignup, folder }: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean; allowSignup?: boolean; folder?: string }): Promise<void> {
+  async function publish({ bake, embedImages, allowComments, countViews, allowSignup, folder, private: makePrivate, confirmPublic }: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean; allowSignup?: boolean; folder?: string; private?: boolean; confirmPublic?: boolean }): Promise<void> {
     const settings = loadSettings();
     const token = getGithubToken();
     const repo = parseRepo(settings.githubRepo);
@@ -1017,23 +1031,118 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
     // document changes only when the commit lands, with the rest of the
     // bookkeeping below. applyCourseFolder writes nothing once slug: exists.
     const withFolder = applyCourseFolder(doc.value, folder);
-    const text = allowSignup === undefined ? withFolder : applyJoinDoor(withFolder, allowSignup);
+    // Private (registry delivery 2, task 10): Share always sends the box's
+    // state, seeded from the document's own `private:` option; a caller that
+    // sends nothing keeps what the document is — never silently public. A
+    // private course is written `private: true` and FORCES its Join door:
+    // enrolling is the only way in, so the page must carry the door.
+    let isPrivate = makePrivate ?? parseCourse(doc.value).private === true;
+    // The server's word wins over local state that never learned it (final
+    // review I1b): a course made private with the skill, then loaded here,
+    // publishes LOCKED unless the author confirmed making it public in
+    // Share. Round 2: a course already published is read back from the repo
+    // first (its course.md's `private:`, or a locked lecture) — signed in or
+    // not — so it fails CLOSED when the quote cannot run; signed out, the
+    // private path below then refuses. An unreadable repo stays fail-open.
+    if (!isPrivate && confirmPublic !== true) {
+      const draft = parseCourse(withFolder);
+      const item = courseKeyFor(repo, joinPath(settings.coursesDir, draft.context.slug || slugify(draft.title || "course")));
+      const bounded: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) });
+      // The same folder the private target (and buildPublishPlan) predicts —
+      // a slug-less course's title slug too, so a skill-published private
+      // course of the same title is read, never skipped.
+      const repoLocked = await courseLockedInRepo((path) => readFile(repo, path, bounded), joinPath(settings.coursesDir, draft.context.slug || slugify(draft.title || "course")));
+      const server = getToken() ? await quotePrivate(DEFAULT_ENROLL_API, { key: getToken(), kind: "course", target: item, lectures: privateLectureCount(draft, loadLibrary()), private: true }, bounded) : null;
+      if (publishPrivacy(false, server, false, repoLocked).private) {
+        isPrivate = true;
+        say("This course is private on drawcast.app — publishing it locked.");
+      }
+    }
+    const withDoor = isPrivate ? applyJoinDoor(withFolder, true) : allowSignup === undefined ? withFolder : applyJoinDoor(withFolder, allowSignup);
+    const text = isPrivate
+      ? setCourseOption(withDoor, "private", "true")
+      : parseCourse(withDoor).private
+        ? removeCourseOption(withDoor, "private")
+        : withDoor;
     const course = parseCourse(text);
+    // A private course's key and its learners live on drawcast's own server;
+    // a door to someone else's backend could never let anyone in.
+    if (isPrivate && course.enroll !== undefined && apiBase(course.enroll) !== DEFAULT_ENROLL_API) {
+      say("A private course joins through drawcast.app — remove the custom enroll: line to publish it privately.", "error");
+      return;
+    }
     if (course.lectures.length === 0) {
       say("There is nothing to publish yet.", "error");
       return;
     }
     const library = loadLibrary();
     const savedYaml = (index: number): string | null => {
-      const status = course.lectures[index].status;
-      if (status?.state !== "done" || !status.id) return null;
-      const saved = library.find((d) => d.id === status.id);
-      return saved?.playlist ?? (saved ? formatPlaylist(singlePlaylist(saved.spec), "yaml") : null);
+      // One rule for "has a generated file" (private-doc.ts), shared with
+      // the private quote's lecture count (final review M2).
+      if (!hasBuiltLecture(course.lectures[index], library)) return null;
+      const saved = library.find((d) => d.id === course.lectures[index].status!.id)!;
+      return saved.playlist ?? formatPlaylist(singlePlaylist(saved.spec), "yaml");
     };
 
     const controller = begin();
     working("Publishing to GitHub…");
     try {
+      // `token` above is the GitHub one; this is the drawcast server's.
+      const accountToken = getToken();
+      // A registry failure must never fail a publish: every call below —
+      // the paid-name claim/register above it and the free registry below —
+      // is bounded to 10 s, and its outcome only ever changes a status
+      // suffix, never the publish's own success.
+      const bounded: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) });
+      // A PRIVATE course (task 10): before anything is committed, the price
+      // is asked again — a course that grew since it was paid for owes the
+      // difference first (Review Focus #5) — and the item key is fetched as
+      // the OWNER. Every lecture is then locked before the one commit, all
+      // or nothing, and no thumbnail rides along (commitPublish, `lock`).
+      // No key, no publish: nothing private is ever committed in plaintext.
+      let privateName: string | null = null;
+      let privateItem: string | null = null;
+      let lock: LectureLock | undefined;
+      if (isPrivate) {
+        // Predicted exactly as buildPublishPlan mints it (a recorded slug,
+        // else the title's) — checked against the plan after preparePublish.
+        const item = courseKeyFor(repo, joinPath(settings.coursesDir, course.context.slug || slugify(course.title || "course")));
+        privateItem = item;
+        if (!accountToken) {
+          say("Not published: sign in to publish privately (Settings → Publishing).", "error");
+          return;
+        }
+        working("Checking the private course…");
+        // The lectures this publish commits: the ones with a generated file.
+        const lectures = privateLectureCount(course, library);
+        const quote = await quotePrivate(DEFAULT_ENROLL_API, { key: accountToken, kind: "course", target: item, lectures, private: true }, bounded);
+        if (quote === "key" || quote === "error") {
+          say(quote === "key" ? "Not published: sign in again to publish privately (Settings → Publishing)." : "Not published: could not check the private course just now — try again in a moment.", "error");
+          return;
+        }
+        if (quote.owner === "other") {
+          say("Not published: this course is registered to another account, so it can't be made private.", "error");
+          return;
+        }
+        if (quote.due > 0) {
+          say(`Not published: this private course now has ${lectures} lecture(s) — pay the difference (${formatPrice(quote.due, quote.currency)}) under Share → Private first.`, "error");
+          return;
+        }
+        const got = await fetchItemKey(DEFAULT_ENROLL_API, accountToken, item, bounded, liveKeyStorage());
+        if (!("key" in got)) {
+          say("Not published: the private key isn't available — is private paid for, and are you signed in as the owner?", "error");
+          return;
+        }
+        // Known here, before any embedding or baking is spent: a private
+        // course with no registered name would ship a page nobody can join.
+        if (!quote.name) {
+          say("Not published: the course's link isn't registered yet — try again in a minute.", "error");
+          return;
+        }
+        const key = got.key;
+        lock = (_path, t) => lockText(t, key, item);
+        privateName = quote.name;
+      }
       // Embed BEFORE baking, and both before the commit, so a cancelled or
       // failed step leaves the repo untouched rather than half-published.
       // Each lecture's text is embedded on its own parsed copy — the library
@@ -1074,6 +1183,20 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         poster: posterForPlaylistText,
       };
       const prepared = await preparePublish(publishArgs);
+      if (lock) {
+        // Every existing lecture row of a course being made private is
+        // marked private too, so opening one on its own keeps it locked.
+        markDrawingsPrivate(course.lectures.flatMap((l) => (l.status?.id ? [l.status.id] : [])));
+        // The plan's own target must be the one just paid for and keyed —
+        // the prediction above and buildPublishPlan share the slug rule, and
+        // a disagreement locks nothing under an unpaid item.
+        if (prepared.registration?.target !== privateItem) {
+          say("Not published: the course's folder changed since it was made private — try again.", "error");
+          return;
+        }
+        publishArgs.lock = lock;
+        publishArgs.poster = undefined;
+      }
       // The registry BEFORE the commit (identity round): the page's door is
       // built only from a name THIS publish registered. A name that comes
       // back taken would otherwise ship a Join button into a stranger's run
@@ -1090,13 +1213,6 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       // rest of the session.
       let nameSuffix = "";
       let door: Door = { name: null, why: "signed-out" };
-      // `token` above is the GitHub one; this is the drawcast server's.
-      const accountToken = getToken();
-      // A registry failure must never fail a publish: every call below —
-      // the paid-name claim/register above it and the free registry below —
-      // is bounded to 10 s, and its outcome only ever changes a status
-      // suffix, never the publish's own success.
-      const bounded: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) });
       const repoStr = `${repo.owner}/${repo.repo}`;
       // The claim file (registry delivery 1) rides in the SAME commit as the
       // course: Anvil proves ownership by reading it back from GitHub after
@@ -1136,6 +1252,14 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         } else {
           door = { name: null, why: claimed === "owner" ? "owner" : claimed === "key" ? "signed-out" : "unreachable" };
         }
+      }
+      // A private course's door: the name registered above when there is
+      // one, else its free registry name (it exists once private is paid
+      // for) — a locked course with no way to join would be unreachable.
+      if (isPrivate && !door.name && privateName) door = { name: privateName, app: settings.viewerBase };
+      if (isPrivate && !door.name) {
+        say("Not published: the course's link isn't registered yet — try again in a minute.", "error");
+        return;
       }
       const out = await commitPublish(publishArgs, prepared, door);
       // Past this line the commit has LANDED. Anything that fails below is
@@ -1187,12 +1311,14 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       // second publish with the box off would otherwise report the first
       // publish's count.
       const images = embedded && embeddedTotal > 0 ? ` — ${embeddedTotal} image(s) embedded` : "";
-      say(`Published ${out.count} files to ${settings.githubRepo}${images}.${narration}${nameSuffix}`, "ok");
+      if (publishArgs.lock) say(`Published locked — only enrolled learners can watch. ${out.count} files to ${settings.githubRepo}${images}.${nameSuffix}`, "ok");
+      else say(`Published ${out.count} files to ${settings.githubRepo}${images}.${narration}${nameSuffix}`, "ok");
     } catch (err) {
       // The stack is what names the culprit; the message alone rarely does.
       console.error("drawcast: publish failed", err);
       const e = err as Error;
-      say(`Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
+      // A lock refusal is already the whole sentence ("Not published: …").
+      say(e instanceof LockError ? e.message : `Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
     } finally {
       end(controller);
     }
@@ -1288,6 +1414,9 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
           // The one line Link's panel shows so Publish never looks the same
           // as publishing a single drawcast (spec §2).
           lectureCount: course.lectures.length,
+          // What a private quote/pay prices (final review M2): the lectures
+          // the publish commits — the same count its own re-quote uses.
+          privateLectures: privateLectureCount(course, loadLibrary()),
           // The Name field's prefill: the door name (name round) — and the
           // folder it must never be confused with, once there is one.
           publishedAs: courseDoorName(course),
@@ -1303,6 +1432,9 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
           publishedViews,
           // Whether the page carries its Join door, straight from the document (spec §5).
           joinDoor: course.enroll !== undefined,
+          // Seeds Share's Private box on a republish (task 10): the course's
+          // own `private:` option — absent means public.
+          private: course.private,
           // What unchecking would delete — an author running their own Anvil
           // app is the one who needs to see this before the line is gone (F2).
           enrollUrl: course.enroll,

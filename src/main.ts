@@ -90,13 +90,17 @@ import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "./export/bak
 import { listCloudVoices, runLang, stampedVoice, synthesizeBase64 } from "./export/tts";
 import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "./export/bake-cache";
 import { bakeCost, costLabel } from "./export/tts-cost";
-import { publishCast } from "./publish/cast";
+import { privateCastTarget, publishCast } from "./publish/cast";
+import { LockError, type LectureLock } from "./publish/lock";
+import { isLocked, lockText } from "./crypto/lecture-lock";
 import { publishToServer, serverCastKey, type ServerAccess } from "./publish/server";
-import { isPayable, normalizeName, paidInHash, registerName, startNamePayment } from "./names";
+import { formatPrice, isPayable, normalizeName, paidInHash, registerName, startNamePayment } from "./names";
 import { DEFAULT_ENROLL_API } from "./learn";
-import { claimFile, registerItem, registryNote, verifyClaim } from "./registry";
+import { claimFile, privateInHash, quotePrivate, registerItem, registryNote, verifyClaim } from "./registry";
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
+import { fetchItemKey, liveKeyStorage, unlockForAuthor } from "./item-key";
+import { castLockedInRepo, inPrivateCourse, isPrivateDrawing, keptRowFields, publishPrivacy } from "./private-doc";
 import { embeddedPlaylist, withAuthoredTemplates, type EmbedDeps } from "./publish/embed";
 import { resolvePortraits } from "./render/portrait";
 import { resolveIcons } from "./render/icon";
@@ -291,6 +295,9 @@ interface Doc {
   /** The free title name the Anvil registry minted on the last GitHub
    *  publish (registry delivery 1) — see SavedDrawing.freeName. */
   freeName?: string;
+  /** Published encrypted, enrolled learners only (registry delivery 2, task
+   *  9) — see SavedDrawing.private. Locking the files is Task 10. */
+  private?: boolean;
   title: string;
   prompt?: string;
   playlist: Playlist;
@@ -422,6 +429,14 @@ function firstSpec(d: Doc): Spec {
 }
 
 function docFromSaved(saved: SavedDrawing): Doc {
+  const d = docFromSavedRow(saved);
+  // A lecture of a private course is private in memory from the moment it
+  // opens (task 10 fix round 3) — whatever its row happens to carry.
+  if (isPrivateDrawing(d, loadLibrary(), loadCourses())) d.private = true;
+  return d;
+}
+
+function docFromSavedRow(saved: SavedDrawing): Doc {
   // `?? null` normalises a library entry stored before sourcePath existed
   // (plain `undefined` at runtime, despite the type) into the real default.
   const sourcePath = saved.sourcePath ?? null;
@@ -430,12 +445,12 @@ function docFromSaved(saved: SavedDrawing): Doc {
       const playlist = parsePlaylistText(saved.playlist);
       // The file's own founding prompt wins (B9); `saved.prompt` is what a
       // library entry written before B9 has instead — its only copy.
-      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, serverCast: saved.serverCast, publishedComments: saved.publishedComments, publishedViews: saved.publishedViews, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, freeName: saved.freeName, title: saved.title, prompt: playlist.meta.prompt ?? saved.prompt, playlist };
+      return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, serverCast: saved.serverCast, publishedComments: saved.publishedComments, publishedViews: saved.publishedViews, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, freeName: saved.freeName, private: saved.private, title: saved.title, prompt: playlist.meta.prompt ?? saved.prompt, playlist };
     } catch {
       /* fall through to the single spec */
     }
   }
-  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, serverCast: saved.serverCast, publishedComments: saved.publishedComments, publishedViews: saved.publishedViews, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, freeName: saved.freeName, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
+  return { id: saved.id, driveFileId: null, publishedAs: saved.publishedAs, serverCast: saved.serverCast, publishedComments: saved.publishedComments, publishedViews: saved.publishedViews, drivePublishedId: saved.drivePublishedId, drivePublishedName: saved.drivePublishedName, sourcePath, freeName: saved.freeName, private: saved.private, title: saved.title, prompt: saved.prompt, playlist: singlePlaylist(saved.spec) };
 }
 
 function initialDoc(): Doc {
@@ -2999,7 +3014,7 @@ function showVersion(index: number): void {
     specArea.value = v.text;
     // Same rule as setDoc: the version's own text is authoritative about the
     // founding request (B9) when it carries one; doc.prompt is the fallback.
-    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, freeName: doc.freeName, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
+    doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, freeName: doc.freeName, private: doc.private, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
     void present();
     // A history restore filled the textarea, not a keystroke — it already
     // matches what present() just drew.
@@ -3140,6 +3155,10 @@ function autosave(): void {
     drivePublishedName: doc.drivePublishedName,
     sourcePath: doc.sourcePath,
     freeName: doc.freeName,
+    // Merged from the row this save replaces: `courseId` (the editor's
+    // document never holds it) and `private`, which a save never clears
+    // (keptRowFields — task 10 fix round 3).
+    ...keptRowFields(doc, loadLibrary().find((d) => d.id === doc.id)),
     ts: new Date().toISOString(),
   });
   refreshLibrary();
@@ -3709,7 +3728,7 @@ async function revise(): Promise<void> {
       // Same document, edited in place by AI (same as a manual re-render) — carry
       // driveFileId forward too, or a Save right after a Revise would litter
       // Drive with a second copy of the file the earlier Save already created.
-      { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, freeName: doc.freeName, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
+      { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, freeName: doc.freeName, private: doc.private, title: docTitleOf(outcome.playlist, doc.title), prompt: doc.prompt, playlist: outcome.playlist },
       withNotes(`Revised: ${instruction}` + costText(), notes),
       { label, kind: "revise" },
     );
@@ -3995,7 +4014,7 @@ function ensureRendered(andPlay = false): boolean {
   // replaces this entry instead of minting a second one (copy-on-write). The
   // prompt follows setDoc's rule: what the TEXT says wins (a hand-edited
   // header is an edit like any other), with doc.prompt as the fallback.
-  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, freeName: doc.freeName, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
+  doc = { id: doc.id, driveFileId: doc.driveFileId, publishedAs: doc.publishedAs, serverCast: doc.serverCast, publishedComments: doc.publishedComments, publishedViews: doc.publishedViews, drivePublishedId: doc.drivePublishedId, drivePublishedName: doc.drivePublishedName, sourcePath: doc.sourcePath, freeName: doc.freeName, private: doc.private, title: docTitleOf(playlist, doc.title), prompt: playlist.meta.prompt ?? doc.prompt, playlist };
   if (!restoring) stack = pushManualEdit(stack, specArea.value, new Date().toISOString());
   applyHistoryUi();
   void present(andPlay);
@@ -4233,6 +4252,7 @@ async function loadCoursesFromGithub(opts: { quiet?: boolean } = {}): Promise<vo
     if (!opts.quiet) setStatus(`Loading ${plural(todo.length)} from GitHub…`);
     let loaded = 0;
     const missing: string[] = [];
+    const locked: string[] = [];
     for (const t of todo) {
       const text = await readFile(repo, joinPath(t.dir, "course.md"));
       if (text === null) {
@@ -4240,13 +4260,24 @@ async function loadCoursesFromGithub(opts: { quiet?: boolean } = {}): Promise<vo
         continue;
       }
       const yamlByFile: Record<string, string> = {};
+      // Any locked lecture makes the course private locally (final review I1b).
+      let anyLocked = false;
       await Promise.all(
         lectureFilesOf(text).map(async (f) => {
           const yaml = await readFile(repo, joinPath(t.dir, f));
-          if (yaml !== null) yamlByFile[f] = yaml;
+          if (yaml === null) return;
+          // A private lecture reads back as a locked envelope — unlock it
+          // with the owner's own token (unlockForAuthor, task 8). A lecture
+          // this account cannot unlock (signed out, revoked, a rotated key)
+          // is reported separately below, never silently skipped and never
+          // stored still-encrypted.
+          if (isLocked(yaml)) anyLocked = true;
+          const unlocked = await unlockForAuthor(yaml);
+          if ("text" in unlocked) yamlByFile[f] = unlocked.text;
+          else locked.push(`${t.slug}/${f}`);
         }),
       );
-      const out = importCourse({ text, yamlByFile, courseId: t.localId ?? crypto.randomUUID(), updated: t.updated });
+      const out = importCourse({ text, yamlByFile, courseId: t.localId ?? crypto.randomUUID(), updated: t.updated, locked: anyLocked });
       // Your own repository (Settings → Publishing): its lectures are yours.
       trustSpecs(out.drawings.flatMap((d) => specsOfText(d.playlist, d.spec)));
       out.drawings.forEach(saveDrawing);
@@ -4257,7 +4288,11 @@ async function loadCoursesFromGithub(opts: { quiet?: boolean } = {}): Promise<vo
     refreshLibrary();
     if (loaded === 0 && opts.quiet) return;
     const tail = missing.length > 0 ? ` ${missing.length} lecture file${missing.length === 1 ? "" : "s"} could not be read: ${missing.join(", ")}.` : "";
-    setStatus(`Loaded ${plural(loaded)} from GitHub.${tail}`, missing.length > 0 ? "error" : "ok");
+    const lockedTail =
+      locked.length > 0
+        ? ` ${locked.length} lecture file${locked.length === 1 ? "" : "s"} locked — sign in as the owner to load ${locked.length === 1 ? "it" : "them"}: ${locked.join(", ")}.`
+        : "";
+    setStatus(`Loaded ${plural(loaded)} from GitHub.${tail}${lockedTail}`, missing.length > 0 || locked.length > 0 ? "error" : "ok");
   } catch (err) {
     if (!opts.quiet) setStatus(`Loading courses failed: ${(err as Error).message}`, "error");
   } finally {
@@ -4307,6 +4342,24 @@ if (paidReturn) {
     setStatus(`"${paidReturn.name}" was taken by someone else while you paid — the payment will be refunded. Set name: in the course document to pick another.`, "error");
   } else {
     setStatus(`The payment for drawcast.app/#${paidReturn.name} was not completed — the course is published without its short address.`);
+  }
+}
+
+// Stripe's return from a Private purchase (registry delivery 2, task 9) —
+// the sibling of paidReturn above, its own endpoint and fragment shape
+// (privateInHash, src/registry.ts). The Share panel is not reopened: nothing
+// here remembers which document was being published across the Stripe round
+// trip, so the status line is the whole of it — Publish, pressed again once
+// the panel is reopened by hand, reads the paid state fresh from a new quote.
+const privReturn = privateInHash(location.hash);
+if (privReturn) {
+  history.replaceState(null, "", location.pathname + location.search);
+  if (privReturn.outcome === "privpaid") {
+    setStatus("Private is paid — press Publish to publish locked.", "ok");
+  } else if (privReturn.outcome === "privorphan") {
+    setStatus("The item changed owner while you paid — the payment will be refunded.", "error");
+  } else {
+    setStatus("Private was not paid — nothing was charged.");
   }
 }
 
@@ -4856,9 +4909,16 @@ async function publishTextFor(
   previousText: () => Promise<string | null> = async () => {
     const repo = parseRepo(settings.githubRepo);
     if (!repo || !doc.publishedAs) return null;
-    return readFile(repo, joinPath(joinPath(settings.coursesDir, "casts"), `${doc.publishedAs}.yaml`), (input, init) =>
+    const raw = await readFile(repo, joinPath(joinPath(settings.coursesDir, "casts"), `${doc.publishedAs}.yaml`), (input, init) =>
       fetch(input, { ...init, signal }),
     ).catch(() => null);
+    if (raw === null) return null;
+    // A private cast reads back locked — unlock with the owner's own token
+    // (unlockForAuthor, task 8). Any failure (signed out, revoked, a
+    // rotated key) is just "no previous file": narration is re-synthesized
+    // rather than reused, never a reason to fail the publish.
+    const unlocked = await unlockForAuthor(raw);
+    return "text" in unlocked ? unlocked.text : null;
   },
 ): Promise<string> {
   const editorPlaylist = embedImages ? (readPlaylistText(specArea.value) ?? doc.playlist) : null;
@@ -4934,7 +4994,27 @@ async function publishTextFor(
 let lastBakeNote = "";
 let lastEmbedNote = "";
 
-async function publishDrawcast({ bake, embedImages, slug, allowComments, countViews }: { bake: boolean; embedImages: boolean; slug?: string; allowComments?: boolean; countViews?: boolean }): Promise<void> {
+async function publishDrawcast({
+  bake,
+  embedImages,
+  slug,
+  allowComments,
+  countViews,
+  private: makePrivate,
+  confirmPublic,
+}: {
+  bake: boolean;
+  embedImages: boolean;
+  slug?: string;
+  allowComments?: boolean;
+  countViews?: boolean;
+  /** Share's Private checkbox (registry delivery 2, task 9). Private
+   *  publishes the cast file locked (task 10) — see privateCastLock. */
+  private?: boolean;
+  /** Share's "Make public" confirm (final review I1b): the author unticked
+   *  Private on an item the SERVER says is private, and said yes. */
+  confirmPublic?: boolean;
+}): Promise<void> {
   const token = getGithubToken();
   const repo = parseRepo(settings.githubRepo);
   if (!token || !repo) {
@@ -4960,11 +5040,54 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
   // bounded to 10 s (as the course publish's own "bounded" fetch), and its
   // outcome only ever changes the status line's suffix.
   const bounded: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) });
+  // Share always sends the box's state; a caller that sends nothing keeps
+  // what the document already is — a private cast never silently goes public.
+  let isPrivate = makePrivate ?? isPrivateDoc();
+  // The server's word wins over local state that never learned it (final
+  // review I1b): a cast made private elsewhere (the skill, another browser)
+  // publishes LOCKED unless the author confirmed making it public in Share.
+  // Round 2: the repo itself is read first — the PREDICTED path, signed in
+  // or not — so a cast already locked there publishes locked (or is refused
+  // signed out, by privateCastLock) even when the quote cannot run. Only an
+  // unreadable repo stays fail-open (the commit would fail too).
+  if (!isPrivate && confirmPublic !== true) {
+    const { target } = privateCastTarget(repo, castsDir, slug, doc.publishedAs, doc.title);
+    const repoLocked = await castLockedInRepo((path) => readFile(repo, path, bounded), target.slice(repoStr.length + 1));
+    const server = accountToken ? await quotePrivate(DEFAULT_ENROLL_API, { key: accountToken, kind: "cast", target, lectures: 1, private: true }, bounded) : null;
+    if (publishPrivacy(false, server, false, repoLocked).private) {
+      isPrivate = true;
+      setStatus("This drawcast is private on drawcast.app — publishing it locked.");
+    }
+  }
+  // A lecture of a private course never goes to GitHub unlocked, whatever
+  // the box says: its course keeps it private (task 10 fix round 2).
+  if (!isPrivate && inPrivateCourse(doc.id, loadLibrary(), loadCourses())) {
+    setStatus("This lecture belongs to a private course — publish the course, or tick Private, so it is locked.", "error");
+    shareBtn.disabled = false;
+    return;
+  }
   try {
+    // A PRIVATE cast (registry delivery 2, task 10): the key first, before
+    // any narration is bought or anything is committed. No key, no publish —
+    // the cast file is never committed in plaintext.
+    let lock: LectureLock | undefined;
+    if (isPrivate) {
+      setStatus("Checking the private drawcast…");
+      const got = await privateCastLock(accountToken, repoStr, castsDir, slug, bounded);
+      if (typeof got === "string") {
+        setStatus(got, "error");
+        return;
+      }
+      lock = got;
+    }
     setStatus("Publishing to GitHub…");
     const text = await publishTextFor(ac.signal, bake, embedImages, allowComments, countViews !== false);
-    setStatus("Drawing the poster…");
-    const poster = await publishedPoster(text);
+    // A private cast commits no poster: it would show a frame of the cast.
+    let poster: Uint8Array | null = null;
+    if (!lock) {
+      setStatus("Drawing the poster…");
+      poster = await publishedPoster(text);
+    }
     setStatus("Publishing to GitHub…");
     // The claim file (registry delivery 1) rides in the SAME commit as the
     // cast: Anvil proves ownership by reading it back from GitHub after the
@@ -4981,6 +5104,7 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
       castsDir,
       viewerBase: settings.viewerBase,
       extraFiles: claim ? [claim] : [],
+      lock,
       fetchImpl: (input, init) => fetch(input, { ...init, signal: ac.signal }),
     });
     // Past this line the commit has LANDED. Recording the slug is what keeps
@@ -4988,6 +5112,7 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
     doc.publishedAs = out.slug;
     doc.publishedComments = allowComments === true && settings.giscusRepoId !== "" && settings.giscusCategoryId !== "";
     doc.publishedViews = countViews !== false;
+    doc.private = isPrivate;
     // Bookkeeping first: saving the slug is what keeps the published link
     // permanent, and it must not wait behind a network call to the registry.
     try {
@@ -5026,14 +5151,67 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
     // that paid system's old freebie). The FREE title name above is a
     // different thing entirely — every publish gets one from the registry,
     // named or not, signed in or not (registry delivery 1).
-    setStatus(`Published to ${out.castUrl}${lastEmbedNote}${lastBakeNote}${regSuffix}`, "ok");
+    if (lock) setStatus(`Published locked — only enrolled learners can watch. ${out.castUrl}${lastEmbedNote}${regSuffix}`, "ok");
+    else setStatus(`Published to ${out.castUrl}${lastEmbedNote}${lastBakeNote}${regSuffix}`, "ok");
   } catch (err) {
     console.error("drawcast: publish failed", err);
     const e = err as Error;
-    setStatus(`Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
+    // A lock refusal is already the whole sentence ("Not published: …").
+    setStatus(e instanceof LockError ? e.message : `Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
   } finally {
     shareBtn.disabled = false;
   }
+}
+
+/** Whether the open drawing is private — its own flag, its library row's,
+ *  or its course's `private:` (a lecture opened on its own). See
+ *  private-doc.ts; every plaintext upload's guard asks this. */
+function isPrivateDoc(): boolean {
+  return isPrivateDrawing(doc, loadLibrary(), loadCourses());
+}
+
+/** Private items go to GitHub, locked, and nowhere else (task 10 fix round):
+ *  the Drive and drawcast-server publishes would upload the plain text. */
+const PRIVATE_ELSEWHERE = "This is private — publish it to GitHub, where it is locked.";
+
+/** The status line when a private publish cannot get its key (task 10). */
+const PRIVATE_KEY_MISSING = "Not published: the private key isn't available — is private paid for, and are you signed in as the owner?";
+
+/**
+ * Everything a PRIVATE cast needs before its commit (registry delivery 2,
+ * task 10): the price asked again — defence in depth, Share's own quote may
+ * be stale — then the item key, fetched as the OWNER. Answers the lock to
+ * hand publishCast, or the status line to show instead of publishing.
+ *
+ * The item is the registry's item key for the cast (the target without
+ * `.yaml`), predicted the way Share's quote predicted it (privateRequest):
+ * the Name field's slug, else the one already published, else the title.
+ * buildCastPlan may still mint a different slug (a collision suffix); the
+ * lock refuses any path but the predicted one, so a cast is never locked
+ * with — or committed under — an item that was not paid for.
+ */
+async function privateCastLock(
+  accountToken: string,
+  repoStr: string,
+  castsDir: string,
+  slug: string | undefined,
+  bounded: typeof fetch,
+): Promise<LectureLock | string> {
+  if (!accountToken) return "Not published: sign in to publish privately (Settings → Publishing).";
+  // One prediction, shared with Share's quote (privateRequest).
+  const { target, item } = privateCastTarget(parseRepo(repoStr)!, castsDir, slug, doc.publishedAs, doc.title);
+  const quote = await quotePrivate(DEFAULT_ENROLL_API, { key: accountToken, kind: "cast", target, lectures: 1, private: true }, bounded);
+  if (quote === "key") return "Not published: sign in again to publish privately (Settings → Publishing).";
+  if (quote === "error") return "Not published: could not check the private drawcast just now — try again in a moment.";
+  if (quote.owner === "other") return "Not published: this drawcast is registered to another account, so it can't be made private.";
+  if (quote.due > 0) return `Not published: private isn't paid for yet — pay ${formatPrice(quote.due, quote.currency)} under Share → Private first.`;
+  const got = await fetchItemKey(DEFAULT_ENROLL_API, accountToken, item, bounded, liveKeyStorage());
+  if (!("key" in got)) return PRIVATE_KEY_MISSING;
+  const key = got.key;
+  return async (path, text) => {
+    if (`${repoStr}/${path.replace(/\.ya?ml$/i, "")}` !== item) throw new Error(`it would publish as ${path}, not the name made private — publish again under that name`);
+    return lockText(text, key, item);
+  };
 }
 
 /**
@@ -5055,6 +5233,10 @@ async function publishDrawcast({ bake, embedImages, slug, allowComments, countVi
  * every line again, or hand over lines from a different publish entirely.
  */
 async function publishServerCast({ bake, embedImages, name, access }: { bake: boolean; embedImages: boolean; name?: string; access?: ServerAccess }): Promise<void> {
+  if (isPrivateDoc()) {
+    setStatus(PRIVATE_ELSEWHERE, "error");
+    return;
+  }
   const accountToken = getToken();
   if (!accountToken) {
     setStatus("Not signed in — sign in from Settings → Publishing (drawcast account) to publish to the drawcast server.", "error");
@@ -5171,6 +5353,10 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
  * where the author flips "Anyone with the link can view".
  */
 async function publishDriveCast({ bake, embedImages, name }: { bake: boolean; embedImages: boolean; name?: string }): Promise<void> {
+  if (isPrivateDoc()) {
+    setStatus(PRIVATE_ELSEWHERE, "error");
+    return;
+  }
   if (!googleConfigured()) {
     setStatus("This build has no Google client configured — publishing to Drive is unavailable.", "error");
     return;
@@ -5358,6 +5544,11 @@ async function openFromDrive(): Promise<void> {
 let sourceSaveInFlight = false;
 async function saveSourceToGithub(): Promise<void> {
   if (sourceSaveInFlight) return;
+  // A private drawcast's plain source must never reach the (public) repo.
+  if (isPrivateDoc()) {
+    setStatus("This drawcast is private — Save source would put it on GitHub unencrypted. Publish it (locked) instead.", "error");
+    return;
+  }
   sourceSaveInFlight = true;
   try {
     // What you see is what you save — refuses (and says why) instead of
@@ -5619,7 +5810,9 @@ shareBtn.addEventListener("click", () => {
     // the text does not currently parse.
     doc: () => {
       const playlist = readPlaylistText(specArea.value) ?? doc.playlist;
-      return { ...doc, playlist, narrationCost: costLabel(bakeCost(playlistSpeakLines(playlist), settings.cloudVoices)) };
+      // `private` derived (task 10 fix round 2): a lecture of a private
+      // course opens with Share's Private box already ticked.
+      return { ...doc, playlist, narrationCost: costLabel(bakeCost(playlistSpeakLines(playlist), settings.cloudVoices)), private: isPrivateDoc() || undefined };
     },
     settings,
     persist,

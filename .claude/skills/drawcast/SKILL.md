@@ -178,6 +178,35 @@ The `#gh=` link stays free — say so if the user only wants a link to share.
    "Not paid (yet)" is not a failure: run it again after they pay. A course: push once more
    so the course page carries the name.
 
+## Private (locked on GitHub, only for enrolled learners)
+
+Make it private right after `publish-target` and BEFORE the first `push` (it needs
+`origin.json`; a course or a cast) — never publish it plain first: every version pushed stays
+readable in the repo's git history, and locking later does not reach back. A private
+course/cast still lives on the user's public repo, but every lecture file (or the cast's own
+file) is committed as an encrypted envelope, not plain YAML — only a learner (or the owner,
+pulling it back here) with the key can read it; a private course's course.md is pushed with
+`private: true` and its Join door.
+
+Already pushed in the clear? Warn the user before going on: the earlier versions stay readable
+in the history. To avoid that, publish into a new folder (`publish-target` with a new name)
+and make that one private before its first push.
+
+1. `node scripts/cast.mjs private <workdir>` — the quote: what is due right now, in USD.
+2. **Only on the user's yes to that price** — never pick it for them, never ask for card
+   details: `node scripts/cast.mjs private <workdir> --price <cents>` (must equal the quote's
+   due). It opens Stripe Checkout in the browser and waits (up to 9 minutes) for it to clear.
+   "Not paid (yet)" is not a failure: run it again after they pay.
+3. Once paid, `push <workdir> --dry-run` then, on a yes, `push <workdir> --direct` (or a PR, as
+   any revision) — this is what actually locks every lecture file and commits it; `private`
+   itself never writes to GitHub. A course that grows (a new lecture built and pushed later)
+   quotes and may owe again on its next push — say so before pushing if it refuses.
+
+Pulling a private course or cast needs the OWNER's own login (`cast.mjs login`, same account
+that made it private) — `pull` unlocks it with that key while copying it into the workdir; a
+locked file it cannot unlock stops before writing anything, rather than leaving plaintext or a
+half-made workdir.
+
 ## Revising what is published (a GitHub link)
 
 Any link to it works: the course page (owner.github.io/repo/<course>/), the

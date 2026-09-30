@@ -564,6 +564,15 @@ export interface SavedDrawing {
    * is the source of truth for who currently owns it.
    */
   freeName?: string;
+  /**
+   * Published encrypted, enrolled learners only (registry delivery 2, task
+   * 9) — carried on the library row exactly like `publishedComments`/
+   * `publishedViews`, so a republish's Share panel seeds the Private
+   * checkbox from what the last publish actually did rather than always
+   * starting unticked. Locking the files themselves is Task 10; this field
+   * is document state only.
+   */
+  private?: boolean;
   ts: string;
 }
 
@@ -732,6 +741,15 @@ export function saveDrawing(d: SavedDrawing): void {
   all.unshift(d);
   libraryCache = all;
   persist("library", all);
+}
+
+/** Marks library rows private in place (order kept — saveDrawing would move
+ *  each to the top): a course made private marks its lectures (task 10). */
+export function markDrawingsPrivate(ids: readonly string[]): void {
+  const wanted = new Set(ids);
+  if (!libraryCache.some((x) => wanted.has(x.id) && !x.private)) return;
+  libraryCache = libraryCache.map((x) => (wanted.has(x.id) ? { ...x, private: true } : x));
+  persist("library", libraryCache);
 }
 
 export function deleteDrawing(id: string): void {

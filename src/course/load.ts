@@ -11,7 +11,7 @@ import { formatPlaylist, itemsOf } from "../playlist/playlist";
 import type { SavedCourse, SavedDrawing } from "../store";
 import { isBlankSpec } from "../spec/schema";
 import { checkSaveable } from "../ui/save-gate";
-import { parseCourse } from "./document";
+import { parseCourse, setCourseOption } from "./document";
 import { joinPath } from "./publish";
 
 export interface LoadTodo {
@@ -73,6 +73,10 @@ export interface ImportArgs {
   courseId: string;
   /** The manifest's time for this course. */
   updated: string;
+  /** Some lecture file came back as a locked envelope (final review I1b):
+   *  the course is private, whatever its course.md says — a course the
+   *  skill made private before its course.md carried `private: true`. */
+  locked?: boolean;
 }
 
 export interface ImportResult {
@@ -133,8 +137,12 @@ export function importCourse(args: ImportArgs): ImportResult {
       ts: args.updated,
     });
   }
+  // A course whose lectures were locked is private locally too, so the
+  // app never republishes it in plaintext (final review I1b). Kept verbatim
+  // otherwise — and when it already says so.
+  const text = args.locked && !course.private ? setCourseOption(args.text, "private", "true") : args.text;
   return {
-    course: { id: args.courseId, title: course.title, text: args.text, ts: args.updated },
+    course: { id: args.courseId, title: course.title, text, ts: args.updated },
     drawings,
     missing,
   };
