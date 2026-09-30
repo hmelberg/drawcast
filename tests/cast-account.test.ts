@@ -2,7 +2,28 @@ import { mkdtempSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { boundedFetch, checkName, registrable, shouldClaim, clearSession, nameBlocker, deviceLogin, nameAdvice, readSession, registerFor, registerNow, registrationFor, waitForName, writeSession } from "../scripts/cast-account.mjs";
+import {
+  boundedFetch,
+  checkName,
+  registrable,
+  shouldClaim,
+  clearSession,
+  nameBlocker,
+  deviceLogin,
+  nameAdvice,
+  readSession,
+  registerFor,
+  registerNow,
+  registrationFor,
+  waitForName,
+  writeSession,
+  lockPlanFiles,
+  privateItemFor,
+  privateDueMessage,
+  privateQuoteAdvice,
+  privatePayAdvice,
+  waitForPrivate,
+} from "../scripts/cast-account.mjs";
 import * as coursePub from "../src/course/publish";
 import * as castPub from "../src/publish/cast";
 import { parseCourse } from "../src/course/document";
@@ -298,6 +319,127 @@ describe("registerNow's sign-in hint (final review M5)", () => {
   });
 });
 
+
+describe("lockPlanFiles (push: lock every lecture file of a private plan — task 11)", () => {
+  it("locks exactly the lecture paths, drops .png paths, leaves everything else untouched", async () => {
+    const files = [
+      { path: "qalys/01-one.yaml", content: "one" },
+      { path: "qalys/02-two.yaml", content: "two" },
+      { path: "qalys/course.md", content: "# QALYs" },
+      { path: "qalys/index.html", content: "<html>" },
+      { path: "qalys/01-one.png", content: "", bytes: new Uint8Array([1]) },
+    ];
+    const lecturePaths = new Set(["qalys/01-one.yaml", "qalys/02-two.yaml"]);
+    const locked: string[] = [];
+    const lock = async (path: string, text: string) => {
+      locked.push(path);
+      return `LOCKED:${text}`;
+    };
+    const out = await lockPlanFiles(files, (p) => lecturePaths.has(p), lock);
+    expect(out.map((f) => f.path)).toEqual(["qalys/01-one.yaml", "qalys/02-two.yaml", "qalys/course.md", "qalys/index.html"]);
+    expect(out.find((f) => f.path === "qalys/01-one.yaml")?.content).toBe("LOCKED:one");
+    expect(out.find((f) => f.path === "qalys/02-two.yaml")?.content).toBe("LOCKED:two");
+    expect(out.find((f) => f.path === "qalys/course.md")?.content).toBe("# QALYs");
+    expect(locked).toEqual(["qalys/01-one.yaml", "qalys/02-two.yaml"]);
+  });
+
+  it("a cast: exactly its one file locked, nothing else in the plan touched", async () => {
+    const files = [
+      { path: "casts/qaly.yaml", content: "spec" },
+      { path: "casts/casts.json", content: "{}" },
+    ];
+    const lock = async (_path: string, text: string) => `LOCKED:${text}`;
+    const out = await lockPlanFiles(files, (p) => p === "casts/qaly.yaml", lock);
+    expect(out).toEqual([
+      { path: "casts/qaly.yaml", content: "LOCKED:spec" },
+      { path: "casts/casts.json", content: "{}" },
+    ]);
+  });
+
+  it("a lock failure throws before anything is returned", async () => {
+    const files = [{ path: "a.yaml", content: "x" }];
+    const lock = async () => {
+      throw new Error("boom");
+    };
+    await expect(lockPlanFiles(files, () => true, lock)).rejects.toThrow(/boom/);
+  });
+});
+
+describe("privateItemFor (the item lockText/fetchItemKey bind an envelope to, matching the app's own prediction)", () => {
+  it("a cast: the target without .yaml (publish/cast.ts's privateCastTarget)", () => {
+    expect(privateItemFor({ kind: "cast" }, { target: "ann/casts/casts/qaly.yaml" })).toBe("ann/casts/casts/qaly");
+  });
+  it("a course: the target as is — one item for the whole course, applied to every lecture", () => {
+    expect(privateItemFor({ kind: "course" }, { target: "ann/casts/qalys" })).toBe("ann/casts/qalys");
+  });
+});
+
+describe("privateDueMessage / privateQuoteAdvice (cast.mjs private, and push's own refusal)", () => {
+  const owed = { due: 2000, currency: "usd", paidLectures: 0, private: false, owner: "you" as const, name: null };
+  const paid = { due: 0, currency: "usd", paidLectures: 2, private: true, owner: "you" as const, name: null };
+  it("says what is due, in USD, and the exact next command", () => {
+    expect(privateDueMessage(owed, "dev-casts/courses/qalys")).toBe(
+      "Private needs 20 USD for the new lectures — run: node scripts/cast.mjs private dev-casts/courses/qalys --price 2000",
+    );
+    expect(privateQuoteAdvice(owed, "dev-casts/courses/qalys")).toBe(privateDueMessage(owed, "dev-casts/courses/qalys"));
+  });
+  it("nothing due: already paid", () => {
+    expect(privateDueMessage(paid, "w")).toBeNull();
+    expect(privateQuoteAdvice(paid, "w")).toBe("Private is paid — push to publish locked.");
+  });
+  it("a missing or revoked session says: log in", () => {
+    expect(privateQuoteAdvice("key", "w")).toMatch(/cast\.mjs login/);
+  });
+  it("the server did not answer", () => {
+    expect(privateQuoteAdvice("error", "w")).toMatch(/did not answer/);
+  });
+  it("registered to another account", () => {
+    expect(privateQuoteAdvice({ ...owed, owner: "other" }, "w")).toMatch(/another drawcast account/);
+  });
+});
+
+describe("privatePayAdvice (cast.mjs private --price, when Checkout never opens)", () => {
+  it("each refusal says what to do next, and the key is never in any of them", () => {
+    for (const pay of ["nothing-due", "pending", "owner", "key", "error"] as const) {
+      const advice = privatePayAdvice(pay);
+      expect(advice.length).toBeGreaterThan(0);
+      expect(advice).not.toMatch(/[A-Za-z0-9_-]{20,}/); // no token-shaped key ever leaks into the wording
+    }
+    expect(privatePayAdvice("key")).toMatch(/cast\.mjs login/);
+  });
+});
+
+describe("waitForPrivate (cast.mjs private: waits for the quote to say paid)", () => {
+  const body = { key: "k", kind: "cast" as const, target: "a/b/c.yaml", lectures: 1, private: true };
+  it("paid once due is 0 and private is true", async () => {
+    const answers = [
+      { due: 500, currency: "usd", paidLectures: 0, private: false, owner: "you" as const, name: null },
+      { due: 0, currency: "usd", paidLectures: 1, private: true, owner: "you" as const, name: null },
+    ];
+    const quotePrivate = async () => answers.shift()!;
+    expect(await waitForPrivate({ api: "https://x", body, quotePrivate, timeoutS: 30, sleep: async () => {} })).toBe("paid");
+  });
+  it("due 0 but not yet flagged private keeps polling, not a false paid", async () => {
+    const answers = [
+      { due: 0, currency: "usd", paidLectures: 1, private: false, owner: "you" as const, name: null },
+      { due: 0, currency: "usd", paidLectures: 1, private: true, owner: "you" as const, name: null },
+    ];
+    const quotePrivate = async () => answers.shift()!;
+    expect(await waitForPrivate({ api: "https://x", body, quotePrivate, timeoutS: 30, sleep: async () => {} })).toBe("paid");
+  });
+  it("times out cleanly when it never settles (a cancelled or unfinished checkout)", async () => {
+    const quotePrivate = async () => ({ due: 500, currency: "usd", paidLectures: 0, private: false, owner: "you" as const, name: null });
+    expect(await waitForPrivate({ api: "https://x", body, quotePrivate, timeoutS: 10, sleep: async () => {} })).toBe("timeout");
+  });
+  it("a 'key'/'error' outcome from quotePrivate is not mistaken for paid — kept polling", async () => {
+    const answers: ("key" | { due: number; currency: string; paidLectures: number; private: boolean; owner: "you"; name: null })[] = [
+      "key",
+      { due: 0, currency: "usd", paidLectures: 1, private: true, owner: "you", name: null },
+    ];
+    const quotePrivate = async () => answers.shift()!;
+    expect(await waitForPrivate({ api: "https://x", body, quotePrivate, timeoutS: 30, sleep: async () => {} })).toBe("paid");
+  });
+});
 
 describe("cast.mjs push wiring (C2, M4)", () => {
   it("the claim joins the commit only after the push rights are known, and only when shouldClaim allows; a source push never registers", async () => {
