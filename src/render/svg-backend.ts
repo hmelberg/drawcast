@@ -1556,7 +1556,8 @@ const canvasLuminance: LuminanceProbe = (href) =>
 let luminanceProbe: LuminanceProbe = canvasLuminance;
 /** Measured tones, per href — measured once however many marks a picture gets. */
 const luminanceCache = new Map<string, number | null>();
-const luminancePending = new Set<string>();
+/** Per href being measured, what to call when its tone is known (the lights already on it). */
+const luminancePending = new Map<string, Set<() => void>>();
 
 /** Swap the luminance probe (tests: mini-dom has no canvas); null restores the real one. Clears the cache. */
 export function setLuminanceProbe(probe: LuminanceProbe | null): void {
@@ -1569,17 +1570,29 @@ export function setLuminanceProbe(probe: LuminanceProbe | null): void {
  * The tone of a picture's shown image, as far as it is known: null until a
  * data: image has been measured (the measure starts here, once per href), and
  * always for a linked https image, whose pixels a canvas may not read.
+ * `onKnown` runs once when a measure still in flight lands — so a light
+ * painted once and left (a paused player, the frames sheet) takes the tone too.
  */
-function pictureTone(href: string | null): () => number | null {
+function pictureTone(href: string | null, onKnown: () => void): () => number | null {
   if (!href || !href.startsWith("data:")) return () => null;
-  if (!luminanceCache.has(href) && !luminancePending.has(href)) {
-    luminancePending.add(href);
-    luminanceProbe(href)
-      .catch(() => null)
-      .then((v) => {
-        luminancePending.delete(href);
-        luminanceCache.set(href, v);
-      });
+  if (!luminanceCache.has(href)) {
+    let waiters = luminancePending.get(href);
+    if (!waiters) {
+      const mine = new Set<() => void>();
+      waiters = mine;
+      luminancePending.set(href, mine);
+      const probe = luminanceProbe;
+      probe(href)
+        .catch(() => null)
+        .then((v) => {
+          // A probe swapped out meanwhile (setLuminanceProbe) no longer counts.
+          if (luminancePending.get(href) !== mine) return;
+          luminancePending.delete(href);
+          luminanceCache.set(href, v);
+          for (const f of mine) f();
+        });
+    }
+    waiters.add(onKnown);
   }
   return () => luminanceCache.get(href) ?? null;
 }
@@ -1590,6 +1603,8 @@ interface MarkNodes {
   kind: MarkKind;
   g: SVGGElement;
   update(f: MarkFrame): void;
+  /** The frame last painted — re-applied when the picture's tone arrives. */
+  last?: MarkFrame;
 }
 
 interface WritePath {
@@ -1776,7 +1791,7 @@ function glowMark(g: SVGGElement, id: string): (f: MarkFrame) => void {
 }
 
 /** Build an owner's mark on the overlay (it is attached first, so its paths can be measured). */
-function buildMark(owner: string, f: MarkFrame, overlay: SVGGElement, rc: RoughSVG | null, href: string | null): MarkNodes {
+function buildMark(owner: string, f: MarkFrame, overlay: SVGGElement, rc: RoughSVG | null, href: string | null, onTone: () => void): MarkNodes {
   const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
   g.setAttribute("data-mark", owner);
   g.style.pointerEvents = "none";
@@ -1784,7 +1799,7 @@ function buildMark(owner: string, f: MarkFrame, overlay: SVGGElement, rc: RoughS
   const id = `cs-mark-${++frameMaskSeq}`;
   const update =
     f.kind === "light"
-      ? lightMark(g, id, pictureTone(href))
+      ? lightMark(g, id, pictureTone(href, onTone))
       : f.kind === "glow"
         ? glowMark(g, id)
         : f.kind === "arrow"
@@ -2084,9 +2099,14 @@ function makeEffects(
       if (!m) {
         // The light reads the picture's tone: its shown image is the owner's `<id>__img` leaf.
         const img = f.kind === "light" ? (leafNodes.get(owner) ?? []).find((e) => e.leaf.kind === "image" && e.leaf.id === `${owner}__img`) : undefined;
-        m = buildMark(owner, f, overlay, rc, img?.leaf.kind === "image" ? img.leaf.href : null);
+        const built: MarkNodes = buildMark(owner, f, overlay, rc, img?.leaf.kind === "image" ? img.leaf.href : null, () => {
+          // Still this owner's live mark? Repaint its last frame in the known tone.
+          if (marks.get(owner) === built && built.last) built.update(built.last);
+        });
+        m = built;
         marks.set(owner, m);
       }
+      m.last = f;
       m.update(f);
     },
 

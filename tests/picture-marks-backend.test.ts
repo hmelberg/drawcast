@@ -228,6 +228,38 @@ describe("the light follows the picture's tone", () => {
     });
   }
 
+  test("a light painted once and left takes the tone when the probe lands, with no further setMark", async () => {
+    let land: (v: number) => void = () => {};
+    setLuminanceProbe(() => new Promise<number>((r) => (land = r)));
+    const { restore, effects, overlay } = await withPicture(encodePhoto(1.5, DATA), DATA);
+    try {
+      effects.setMark!("md", frameOf("light", { x: 300, y: 300, w: 50, h: 50 }, { level: 1 }));
+      const wash = washOf(overlay);
+      expect(wash.getAttribute("fill")).toBe(FIGURE_GROUND);
+      land(0.2);
+      await tick();
+      expect(washOf(overlay)).toBe(wash);
+      expect(wash.getAttribute("fill")).toBe("#1b140e");
+    } finally {
+      restore();
+    }
+  });
+
+  test("an ended light is not repainted when the probe lands", async () => {
+    let land: (v: number) => void = () => {};
+    setLuminanceProbe(() => new Promise<number>((r) => (land = r)));
+    const { restore, effects, overlay } = await withPicture(encodePhoto(1.5, DATA), DATA);
+    try {
+      effects.setMark!("md", frameOf("light", { x: 300, y: 300, w: 50, h: 50 }));
+      effects.endMark!("md");
+      land(0.2);
+      await tick();
+      expect(overlay.children.some((n) => n.getAttribute("data-mark") === "md")).toBe(false);
+    } finally {
+      restore();
+    }
+  });
+
   test("a linked https picture is never probed: paper wash", async () => {
     let calls = 0;
     setLuminanceProbe(async () => (calls++, 0.1));
