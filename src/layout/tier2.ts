@@ -2018,7 +2018,13 @@ function imageDrawable(el: SpecElement, ctx: Ctx): GroupDrawable | null {
   const box = { x: cx - w / 2, y: cy - h / 2, w, h };
   ctx.namedAnchors[el.id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(box, n)]));
   // Every drawn image is a picture: places (p@top, p@[x, y]) work on an ordinary one too.
-  if (isAutoRegions(el.regions)) ctx.warnings.push(`${el.id}: regions: auto has not been mapped yet — open the drawcast in the app with a key to map it`);
+  if (isAutoRegions(el.regions)) {
+    ctx.warnings.push(
+      typeof el.url === "string" && el.url !== ""
+        ? `${el.id}: regions: auto has not been mapped yet — open the drawcast in the app with a key to map it`
+        : `${el.id}: regions: auto needs a url picture`,
+    );
+  }
   ctx.pictures[el.id] = { view, regions: handRegions(el.regions) };
   return {
     id: el.id,

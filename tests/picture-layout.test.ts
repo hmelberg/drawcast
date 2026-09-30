@@ -26,6 +26,12 @@ describe("screen picture layout", () => {
     expect(r.pictures?.md.regions).toEqual({});
     expect(r.warnings.join("\n")).toMatch(/md: regions: auto has not been mapped yet/);
   });
+  test("regions: auto on a picture without a url warns that it needs one", () => {
+    const r = layoutSpec({ elements: [{ id: "p", type: "image", of: "Bicycle pump", strokes: shot, regions: "auto" }], commands: [{ draw: ["p"] }] } as never);
+    const w = r.warnings.join("\n");
+    expect(w).toMatch(/p: regions: auto needs a url picture/);
+    expect(w).not.toMatch(/has not been mapped yet/);
+  });
   test("regions are carried to the layout result; an ordinary image carries the whole view (final fix I4)", () => {
     const regions = { top: [0, 0, 1, 0.5] };
     const r = layoutSpec({

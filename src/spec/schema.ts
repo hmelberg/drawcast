@@ -407,7 +407,7 @@ const elementSchema = {
           additionalProperties: false,
         },
       ],
-      description: "image: named parts, name → [x, y, w, h] fractions of the whole picture from the top-left. Target one as \"<id>:<name>\"; any spot as \"<id>@[x, y, w, h]\" or \"<id>@[x, y]\". \"auto\" (or {auto: {detail, kinds, find}}) has the app map the picture's parts for you when a key is set — then target parts by a snake_case name you expect.",
+      description: "image: named parts, name → [x, y, w, h] fractions of the whole picture from the top-left. Target one as \"<id>:<name>\"; any spot as \"<id>@[x, y, w, h]\" or \"<id>@[x, y]\". \"auto\" (or {auto: {detail, kinds, find}}) asks the app to find the parts; aim only at names the app listed — never guess one.",
     },
     strokes: { type: "string", description: "portrait/source: embedded traced strokes (machine-written; copy VERBATIM if present, never edit or regenerate)." },
     source: { type: "string", description: "portrait/source: provenance/attribution (machine-written; copy verbatim)." },
