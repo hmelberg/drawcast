@@ -103,6 +103,18 @@ describe("structured output is decided per schema", () => {
   });
 });
 
+describe("isolate", () => {
+  test("a 400 rethrows after one attempt and leaves the session's schema and fallback state alone", async () => {
+    const { client, recorded } = queuedClient([{ error: schemaError() }, { text: '{"a":"1"}' }]);
+    await expect(callForJson(client, "claude-sonnet-5", "s", [{ role: "user", content: "u" }], CLOSED, { isolate: true })).rejects.toBeInstanceOf(Anthropic.BadRequestError);
+    expect(recorded).toHaveLength(1);
+    await callForJson(client, "claude-sonnet-5", "s", [{ role: "user", content: "u" }], CLOSED);
+    expect(recorded).toHaveLength(2);
+    expect((recorded[1].body.output_config as { format?: unknown }).format).toBeDefined(); // schema not marked broken
+    expect(JSON.stringify(recorded[1].body)).toBe(JSON.stringify({ ...recorded[0].body, messages: recorded[0].body.messages })); // same shape: fallbacks intact
+  });
+});
+
 describe("max_tokens", () => {
   test("the default ceiling is 64000 — streaming, so a high ceiling costs nothing until used (Hans 2026-09-18)", async () => {
     const { client, recorded } = queuedClient([{ text: '{"a":"1"}' }]);

@@ -101,7 +101,7 @@ describe("fillUsedRegions / autoImages", () => {
     expect(Object.keys(regions)).toEqual(["command_line"]);
     expect(Object.getPrototypeOf(regions)).toBeNull();
     expect(({} as Record<string, unknown>).command_line).toBeUndefined();
-    expect(r.missing.length).toBeLessThanOrEqual(1);
+    expect(r.missing).toEqual([]); // the unsafe name is skipped, not reported missing
   });
   test("autoImages", () => {
     expect(autoImages(mk())).toEqual([

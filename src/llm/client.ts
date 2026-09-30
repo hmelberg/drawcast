@@ -217,6 +217,13 @@ export interface CallOpts {
   maxTokens?: number;
   /** Set by callForJson for the manual transport: the reply must be one JSON object. */
   jsonReply?: boolean;
+  /**
+   * callForJson only: a 400 is about THIS request (a picture the API cannot
+   * fetch, say), not the schema or the fallbacks — rethrow it at once and
+   * leave the session's degradation state (brokenSchemas, fallbacksBroken)
+   * alone.
+   */
+  isolate?: boolean;
 }
 
 // ---- the prefix gate: one cache write per prefix, not one per lane --------
@@ -427,7 +434,7 @@ export async function callForJson(
       structured = useSchema !== null && !manualTransport;
     } catch (err) {
       lastError = err;
-      if (!(err instanceof Anthropic.BadRequestError)) throw err;
+      if (!(err instanceof Anthropic.BadRequestError) || opts.isolate) throw err;
       const msg = err.message;
       if (useSchema && /output_config|format\.schema|json_schema/i.test(msg)) {
         brokenSchemas.add(schemaKey);

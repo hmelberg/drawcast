@@ -258,7 +258,7 @@ export async function mapPicture(picture: string, opts: MapOptions, deps: MapDep
       [{ type: "text", text: mapSystemPrompt() }],
       [{ role: "user", content: [block, { type: "text", text: mapUserText(opts) }] }],
       MAP_SCHEMA,
-      { maxTokens: 4000, signal: deps.signal },
+      { maxTokens: 4000, signal: deps.signal, isolate: true },
     );
     const map = sanitizeMap(json, opts);
     if (map.regions.length > 0 || map.notFound.length > 0) {

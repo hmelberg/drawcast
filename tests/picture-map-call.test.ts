@@ -54,6 +54,12 @@ describe("mapPicture", () => {
     await mapPicture("https://x/a.png", OPTS, d);
     expect(d.store.size).toBe(0);
   });
+  test("a 400 (a picture the API cannot fetch) → null, sent isolated", async () => {
+    const { default: A } = await import("@anthropic-ai/sdk");
+    mockJson.mockRejectedValueOnce(new A.BadRequestError(400, { type: "error" }, "Unable to download the file", new Headers()));
+    expect(await mapPicture("https://x/a.png", OPTS, deps())).toBeNull();
+    expect(mockJson.mock.calls[0][5]).toMatchObject({ isolate: true });
+  });
   test("an abort rejects", async () => {
     const ac = new AbortController();
     ac.abort();
