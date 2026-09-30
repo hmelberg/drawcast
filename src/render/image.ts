@@ -10,7 +10,9 @@
 import type { Spec, SpecElement } from "../spec/types";
 import { inlineStrokes } from "../spec/assets";
 import { decodePhoto, encodeLinkedPhoto, encodePhoto, isLinkedPhoto } from "../spec/trace";
-import { cacheGet, cachePut, faithfulDataUri, LOOK_DIM, loadRaster, measureNatural, SCREEN_DIM, styledPhotoDataUri, wikiSummaryUrl, type Raster } from "./portrait";
+import { cacheGet, cachePut, faithfulDataUri, LOOK_DIM, loadRaster, measureNatural, SCREEN_DIM, SCREEN_MIN_DIM, SCREEN_URI_BUDGET, styledPhotoDataUri, wikiSummaryUrl, type Raster } from "./portrait";
+
+export { SCREEN_URI_BUDGET };
 
 /** Bump when the resolver's output changes — old cache entries stop matching. */
 const IMAGE_VERSION = 2;
@@ -70,8 +72,8 @@ export interface ImageDeps {
    *  for the same reason source.ts injects `renderImage` whole: a node test
    *  can supply a fake raster without needing a real canvas to encode it on. */
   encode: (raster: Raster) => string;
-  /** The `look: "screen"` encoding: colour untouched, lossless. */
-  encodeScreen: (raster: Raster) => string;
+  /** The `look: "screen"` encoding: colour untouched — lossless PNG by default, JPEG when asked (to fit SCREEN_URI_BUDGET). */
+  encodeScreen: (raster: Raster, opts?: { type?: "png" | "jpeg"; quality?: number }) => string;
   /** Natural size without reading pixels — for a host that refuses them. */
   measure: (url: string) => Promise<{ width: number; height: number }>;
 }
@@ -92,6 +94,27 @@ function imageCacheKey(el: Pick<SpecElement, "type" | "of" | "strokes" | "url" |
   if (el.url) return `i${IMAGE_VERSION}|url|${el.look ?? "photo"}|${el.url.trim()}`;
   if (!el.of) return null;
   return `i${IMAGE_VERSION}|${el.of.trim().toLowerCase()}`;
+}
+
+/**
+ * A `look: "screen"` picture as a data URI within SCREEN_URI_BUDGET: PNG
+ * first; over budget, JPEG q=0.9; still over, the raster's long side shrinks
+ * by x0.8 (re-read at the smaller size, JPEG again) down to SCREEN_MIN_DIM.
+ * `uri` is null when nothing fits — the caller keeps the picture linked.
+ */
+async function embedScreen(url: string, deps: ImageDeps): Promise<{ uri: string | null; aspect: number }> {
+  let raster = await deps.loadRaster(url, SCREEN_DIM);
+  const aspect = raster.height / raster.width;
+  const png = deps.encodeScreen(raster);
+  if (png.length <= SCREEN_URI_BUDGET) return { uri: png, aspect };
+  let dim = Math.max(raster.width, raster.height);
+  for (;;) {
+    const jpeg = deps.encodeScreen(raster, { type: "jpeg", quality: 0.9 });
+    if (jpeg.length <= SCREEN_URI_BUDGET) return { uri: jpeg, aspect };
+    if (dim <= SCREEN_MIN_DIM) return { uri: null, aspect };
+    dim = Math.max(SCREEN_MIN_DIM, Math.round(dim * 0.8));
+    raster = await deps.loadRaster(url, dim);
+  }
 }
 
 /** The Commons file title (`File:...`) implied by an image URL's last path segment. */
@@ -129,9 +152,18 @@ export async function resolveImages(spec: Spec, deps: ImageDeps = defaultDeps())
         let strokes: string;
         let linked = false;
         try {
-          const screen = el.look === "screen";
-          const raster = await deps.loadRaster(url, screen ? SCREEN_DIM : LOOK_DIM.photo);
-          strokes = encodePhoto(raster.height / raster.width, screen ? deps.encodeScreen(raster) : deps.encode(raster));
+          if (el.look === "screen") {
+            const { uri, aspect } = await embedScreen(url, deps);
+            // Too big to embed even at SCREEN_MIN_DIM: shown by link, like a refusing host.
+            if (uri) strokes = encodePhoto(aspect, uri);
+            else {
+              strokes = encodeLinkedPhoto(aspect, url);
+              linked = true;
+            }
+          } else {
+            const raster = await deps.loadRaster(url, LOOK_DIM.photo);
+            strokes = encodePhoto(raster.height / raster.width, deps.encode(raster));
+          }
         } catch {
           // The host refuses pixel reads (no CORS header) — still SHOWN, by link.
           const n = await deps.measure(url);

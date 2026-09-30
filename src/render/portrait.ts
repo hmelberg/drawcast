@@ -84,6 +84,12 @@ export const LOOK_DIM: Record<string, number> = { photo: 240, page: 640 };
 /** Longest side of a `look: "screen"` picture: a screenshot must survive a 4x zoom (spec 2026-09-30-picture-regions section 3). */
 export const SCREEN_DIM = 2400;
 
+/** Most characters an EMBEDDED screen picture's data URI may take: the asset limit is 1 MB and spec section 3 promises "a few hundred KB" — past this it is re-encoded smaller, then kept linked. */
+export const SCREEN_URI_BUDGET = 700_000;
+
+/** The smallest long side a screen picture is shrunk to while fitting SCREEN_URI_BUDGET — below it a screenshot's text stops being legible. */
+export const SCREEN_MIN_DIM = 1200;
+
 export interface Raster {
   width: number;
   height: number;
@@ -151,14 +157,14 @@ export function styledPhotoDataUri(raster: { width: number; height: number; data
 }
 
 /** The faithful look: the raster's own colours, lossless — screenshots, diagrams, paintings. */
-export function faithfulDataUri(r: Raster): string {
+export function faithfulDataUri(r: Raster, opts: { type?: "png" | "jpeg"; quality?: number } = {}): string {
   const c = document.createElement("canvas");
   c.width = r.width;
   c.height = r.height;
   const ctx = c.getContext("2d");
   if (!ctx) throw new Error("canvas 2D unavailable");
   ctx.putImageData(new ImageData(new Uint8ClampedArray(r.data), r.width, r.height), 0, 0);
-  return c.toDataURL("image/png");
+  return opts.type === "jpeg" ? c.toDataURL("image/jpeg", opts.quality ?? 0.9) : c.toDataURL("image/png");
 }
 
 /** A picture's natural size WITHOUT reading its pixels (no crossOrigin, so a CORS-refusing host still answers). */

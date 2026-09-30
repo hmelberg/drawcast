@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { resolveImages } from "../src/render/image";
+import { resolveImages, SCREEN_URI_BUDGET } from "../src/render/image";
 import { decodePicture } from "../src/spec/trace";
 import { unembeddedImages } from "../src/ui/insert";
 
@@ -59,5 +59,49 @@ describe("an image from its url", () => {
   test("a linked picture counts as not embedded", () => {
     const playlist = { entries: [{ kind: "item", spec: { elements: [{ id: "md", type: "image", url: "https://x.org/a.png", strokes: "lnk1:AA:https://x.org/a.png" }] } }] };
     expect(unembeddedImages(playlist as never)).toBe(1);
+  });
+});
+
+describe("an embedded screen picture fits the asset budget (final fix C1)", () => {
+  const big = "x".repeat(SCREEN_URI_BUDGET + 1);
+  test("PNG over budget: JPEG q=0.9 at full size when that fits", async () => {
+    const calls: string[] = [];
+    const spec = { elements: [{ id: "md", type: "image", url: "https://budget.example/a.png", look: "screen" }] };
+    const deps = {
+      ...base,
+      loadRaster: async (_u: string, d: number) => raster(d, Math.round(d * 0.54)),
+      encodeScreen: (r: { width: number }, o?: { type?: string; quality?: number }) => {
+        calls.push(`${o?.type ?? "png"}@${r.width}`);
+        return o?.type === "jpeg" ? `data:image/jpeg;base64,J${r.width}` : `data:image/png;base64,${big}`;
+      },
+    };
+    await resolveImages(spec as never, deps as never);
+    expect(calls).toEqual(["png@2400", "jpeg@2400"]);
+    expect(decodePicture((spec.elements[0] as unknown as { strokes: string }).strokes)).toMatchObject({ linked: false, href: "data:image/jpeg;base64,J2400" });
+  });
+  test("JPEG over budget: the raster shrinks by x0.8 until it fits", async () => {
+    const dims: number[] = [];
+    const spec = { elements: [{ id: "md", type: "image", url: "https://budget.example/b.png", look: "screen" }] };
+    const deps = {
+      ...base,
+      loadRaster: async (_u: string, d: number) => (dims.push(d), raster(d, Math.round(d * 0.54))),
+      encodeScreen: (r: { width: number }, o?: { type?: string; quality?: number }) =>
+        o?.type === "jpeg" && o.quality === 0.9 && r.width <= 1536 ? `data:image/jpeg;base64,J${r.width}` : `data:image/png;base64,${big}`,
+    };
+    await resolveImages(spec as never, deps as never);
+    expect(dims).toEqual([2400, 1920, 1536]);
+    expect(decodePicture((spec.elements[0] as unknown as { strokes: string }).strokes)).toMatchObject({ linked: false, href: "data:image/jpeg;base64,J1536" });
+  });
+  test("always over budget: kept linked (lnk1), never below the 1200 px floor", async () => {
+    const dims: number[] = [];
+    const url = "https://budget.example/c.png";
+    const spec = { elements: [{ id: "md", type: "image", url, look: "screen" }] };
+    const deps = { ...base, loadRaster: async (_u: string, d: number) => (dims.push(d), raster(d, Math.round(d * 0.54))), encodeScreen: () => `data:image/png;base64,${big}` };
+    const [r] = await resolveImages(spec as never, deps as never);
+    expect(r.ok).toBe(true);
+    expect(Math.min(...dims)).toBeGreaterThanOrEqual(1200);
+    const pic = decodePicture((spec.elements[0] as unknown as { strokes: string }).strokes)!;
+    expect(pic).toMatchObject({ linked: true, href: url });
+    expect(pic.aspect).toBeCloseTo(0.54, 2);
   });
 });
