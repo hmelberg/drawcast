@@ -126,3 +126,71 @@ describe("a hoisted linked picture (final fix minors)", () => {
     expect(embedStatus([{ error: "boom" }], 1, 0)).toEqual({ text: "Embedded with 1 failure: boom", kind: "error" });
   });
 });
+
+describe("a CORS-refusing picture goes through the picture proxy before it is linked", () => {
+  const endpoints = ["/.netlify/functions/picture", "https://drawcast.app/.netlify/functions/picture"];
+  test("the direct read fails, the proxied one succeeds: embedded, source stays the original url, credit kept", async () => {
+    const url = "https://cors-refusing.example/shot.png?x=1&y=2";
+    const tried: string[] = [];
+    const spec = { elements: [{ id: "md", type: "image", url, look: "screen", credit: "Sikt" }] };
+    const deps = {
+      ...base,
+      pictureEndpoints: endpoints,
+      loadRaster: async (u: string) => {
+        tried.push(u);
+        if (u === url) throw new Error("tainted canvas");
+        return raster(1920, 1041);
+      },
+    };
+    const [r] = await resolveImages(spec as never, deps as never);
+    expect(r.ok).toBe(true);
+    expect(tried).toEqual([url, `/.netlify/functions/picture?url=${encodeURIComponent(url)}`]);
+    const el = spec.elements[0] as { strokes?: string; source?: string; credit?: string };
+    expect(el.strokes!.startsWith("img1:")).toBe(true);
+    expect(decodePicture(el.strokes!)).toMatchObject({ linked: false, href: "data:image/png;base64,COLOUR" });
+    expect(el.source).toBe(url);
+    expect(el.credit).toBe("Sikt");
+  });
+  test("the first endpoint failing falls through to the next (a photo look)", async () => {
+    const url = "https://cors-refusing.example/p.jpg";
+    const tried: string[] = [];
+    const spec = { elements: [{ id: "p", type: "image", url }] };
+    const deps = {
+      ...base,
+      pictureEndpoints: endpoints,
+      loadRaster: async (u: string) => {
+        tried.push(u);
+        if (!u.startsWith("https://drawcast.app/")) throw new Error("no");
+        return raster(240, 120);
+      },
+    };
+    await resolveImages(spec as never, deps as never);
+    expect(tried).toEqual([url, `/.netlify/functions/picture?url=${encodeURIComponent(url)}`, `https://drawcast.app/.netlify/functions/picture?url=${encodeURIComponent(url)}`]);
+    const el = spec.elements[0] as unknown as { strokes: string; source: string };
+    expect(decodePicture(el.strokes)).toMatchObject({ linked: false, href: "data:image/jpeg;base64,GREY" });
+    expect(el.source).toBe(url);
+  });
+  test("every endpoint failing: linked (lnk1) as before", async () => {
+    const url = "https://cors-refusing.example/gone.png";
+    const tried: string[] = [];
+    const spec = { elements: [{ id: "md", type: "image", url, look: "screen" }] };
+    const deps = { ...base, pictureEndpoints: endpoints, loadRaster: async (u: string) => { tried.push(u); throw new Error("no"); } };
+    const [r] = await resolveImages(spec as never, deps as never);
+    expect(r.ok).toBe(true);
+    expect(tried.length).toBe(3);
+    const el = spec.elements[0] as unknown as { strokes: string; source: string };
+    expect(el.strokes.startsWith("lnk1:")).toBe(true);
+    expect(decodePicture(el.strokes)).toMatchObject({ linked: true, href: url });
+    expect(el.source).toBe(url);
+  });
+  test("a screen picture too big to embed even when read directly is linked, not retried through the proxy", async () => {
+    const url = "https://huge.example/a.png";
+    const tried = new Set<string>();
+    const spec = { elements: [{ id: "md", type: "image", url, look: "screen" }] };
+    const big = "x".repeat(SCREEN_URI_BUDGET + 1);
+    const deps = { ...base, pictureEndpoints: endpoints, loadRaster: async (u: string, d: number) => (tried.add(u), raster(d, d)), encodeScreen: () => `data:image/png;base64,${big}` };
+    await resolveImages(spec as never, deps as never);
+    expect([...tried]).toEqual([url]);
+    expect((spec.elements[0] as unknown as { strokes: string }).strokes.startsWith("lnk1:")).toBe(true);
+  });
+});

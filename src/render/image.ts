@@ -76,10 +76,19 @@ export interface ImageDeps {
   encodeScreen: (raster: Raster, opts?: { type?: "png" | "jpeg"; quality?: number }) => string;
   /** Natural size without reading pixels — for a host that refuses them. */
   measure: (url: string) => Promise<{ width: number; height: number }>;
+  /** The picture proxy's endpoints (netlify/functions/picture.mts), tried in order when a direct read is refused. */
+  pictureEndpoints?: readonly string[];
 }
 
+/**
+ * The picture proxy: same-origin first (a Netlify deploy, or `netlify dev`),
+ * then drawcast.app itself (the GitHub Pages deploy, plain `vite`). Both are
+ * GETs an `<img crossOrigin>` may make under the CSP's img-src.
+ */
+export const PICTURE_ENDPOINTS: readonly string[] = ["/.netlify/functions/picture", "https://drawcast.app/.netlify/functions/picture"];
+
 function defaultDeps(): ImageDeps {
-  return { fetch: globalThis.fetch, loadRaster, encode: styledPhotoDataUri, encodeScreen: faithfulDataUri, measure: measureNatural };
+  return { fetch: globalThis.fetch, loadRaster, encode: styledPhotoDataUri, encodeScreen: faithfulDataUri, measure: measureNatural, pictureEndpoints: PICTURE_ENDPOINTS };
 }
 
 export interface ImageResolution {
@@ -150,27 +159,36 @@ export async function resolveImages(spec: Spec, deps: ImageDeps = defaultDeps())
       let encoded = await cacheGet(key);
       if (!encoded && el.url) {
         const url = el.url.trim();
-        let strokes: string;
-        let linked = false;
-        try {
+        // The pixels, read from `src` (the picture itself, or the proxy's copy of it); throws when they cannot be read.
+        const embedFrom = async (src: string): Promise<{ strokes: string; linked: boolean }> => {
           if (el.look === "screen") {
-            const { uri, aspect } = await embedScreen(url, deps);
+            const { uri, aspect } = await embedScreen(src, deps);
             // Too big to embed even at SCREEN_MIN_DIM: shown by link, like a refusing host.
-            if (uri) strokes = encodePhoto(aspect, uri);
-            else {
-              strokes = encodeLinkedPhoto(aspect, url);
-              linked = true;
-            }
-          } else {
-            const raster = await deps.loadRaster(url, LOOK_DIM.photo);
-            strokes = encodePhoto(raster.height / raster.width, deps.encode(raster));
+            return uri ? { strokes: encodePhoto(aspect, uri), linked: false } : { strokes: encodeLinkedPhoto(aspect, url), linked: true };
           }
+          const raster = await deps.loadRaster(src, LOOK_DIM.photo);
+          return { strokes: encodePhoto(raster.height / raster.width, deps.encode(raster)), linked: false };
+        };
+        let outcome: { strokes: string; linked: boolean } | null = null;
+        try {
+          outcome = await embedFrom(url);
         } catch {
-          // The host refuses pixel reads (no CORS header) — still SHOWN, by link.
-          const n = await deps.measure(url);
-          strokes = encodeLinkedPhoto(n.height / n.width, url);
-          linked = true;
+          // The host refuses pixel reads (no CORS header): read them through the picture proxy instead.
+          for (const endpoint of deps.pictureEndpoints ?? []) {
+            try {
+              outcome = await embedFrom(`${endpoint}?url=${encodeURIComponent(url)}`);
+              break;
+            } catch {
+              // this endpoint is unreachable or refused the picture — try the next
+            }
+          }
         }
+        if (!outcome) {
+          // Nothing could read the pixels — still SHOWN, by link.
+          const n = await deps.measure(url);
+          outcome = { strokes: encodeLinkedPhoto(n.height / n.width, url), linked: true };
+        }
+        const { strokes, linked } = outcome;
         encoded = JSON.stringify({ strokes, source: url });
         // Only a successful pixel read is cached: a linked outcome may be transient, and a later embed must retry.
         if (!linked) await cachePut(key, encoded);
