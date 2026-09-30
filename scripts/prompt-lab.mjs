@@ -4,7 +4,7 @@
 // and a copy of each spec to dev-casts/ for the player and the frames page.
 //
 //   node scripts/prompt-lab.mjs --limit 0                      boot check, no calls
-//   node scripts/prompt-lab.mjs --set final --arms standard,plan --frames http://localhost:5199
+//   node scripts/prompt-lab.mjs --set final --arms oneshot,storyline --frames http://localhost:5199
 //   node scripts/prompt-lab.mjs --manual …                     the model calls answered by agents (free)
 //
 // Options:
@@ -13,9 +13,10 @@
 //                                 storyline5 = the one-shot-vs-storyline comparison:
 //                                 2 freehand + 3 template, two with live widgets)
 //   --cases 1,3                   which of them
-//   --arms standard,plan          pipelines: standard (= oneshot) = one call; plan = the v2 plan
-//                                 first; storyline = the app's default since 2026-09-28 (the
-//                                 v3 storyline at medium effort, then staging)
+//   --arms oneshot,storyline      pipelines: oneshot (= standard) = one call; storyline = the
+//                                 app's default since 2026-09-28 (the storyline at medium
+//                                 effort, then staging). The v2 plan arm was retired 2026-09-30
+//                                 (docs/prompt-lab/archive/, tag archive/pipeline-experiments-2026-09-30).
 //   --no-look                     without the look pass (it needs --frames)
 //   --model <id>                  another model (default: the app's)
 //   --manual                      every Opus/Sonnet call goes to files instead of the API:
@@ -40,7 +41,7 @@ const opt = (name, dflt) => {
 };
 const limit = Number(opt("--limit", "99"));
 const only = opt("--cases", undefined)?.split(",").map(Number);
-const arms = opt("--arms", "standard,plan").split(",");
+const arms = opt("--arms", "oneshot,storyline").split(",");
 const modelOpt = opt("--model", undefined);
 const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 const outDir = opt("--out", `docs/prompt-lab/runs/${stamp}`);
@@ -111,9 +112,10 @@ const noLook = args.includes("--no-look");
 const ARMS = {
   standard: { treatment: false, lookPass: !noLook },
   oneshot: { treatment: false, lookPass: !noLook },
-  plan: { treatment: "v2", lookPass: !noLook },
-  storyline: { treatment: "v3", lookPass: !noLook },
+  storyline: { treatment: true, lookPass: !noLook },
 };
+const unknownArms = arms.filter((a) => !(a in ARMS));
+if (unknownArms.length) throw new Error(`unknown arm(s) ${unknownArms.join(", ")}; the arms are ${Object.keys(ARMS).join(", ")}`);
 
 // ---- manual transport: requests to files, replies from files ----
 const wrap = (text, width = 300) =>

@@ -1,19 +1,9 @@
-// Storyboard v2 (2026-09-28): the lecture/multi-part storyboard carrying the
-// storyline rules, behind Settings.storyboardVersion — v1 stays the default
-// and stays byte-for-byte what it was.
+// The lecture/multi-part storyboard carrying the storyline rules (the
+// default since the blind comparison, 2026-09-28; the only one since the
+// earlier prompt was retired, 2026-09-30).
 
 import { beforeAll, describe, expect, test, vi } from "vitest";
-import { createHash } from "node:crypto";
-import {
-  asStoryboardVersion,
-  buildStoryboardMessages,
-  buildStoryboardMessagesV2,
-  DEFAULT_STORYBOARD_VERSION,
-  STORYBOARD_SCHEMA_V2,
-  STORYBOARD_VERSIONS,
-  storyboardSchemaFor,
-  storyboardSchemaForVersion,
-} from "../src/llm/storyboard";
+import { buildStoryboardMessages, STORYBOARD_SCHEMA, storyboardSchemaFor } from "../src/llm/storyboard";
 import { buildPartRequest, normalizeOutline, PART_GAPS_KEY, partStagingNote, type Outline } from "../src/llm/outline";
 import { TEMPLATE_GAPS_KEY, takeTemplateGaps } from "../src/llm/treatment";
 import { structuredOutputSupported } from "../src/llm/client";
@@ -24,69 +14,15 @@ vi.mock("../src/llm/compile", async (importOriginal) => {
   return { ...real, generateOutline: vi.fn(), generateStoryboard: vi.fn(), generateSpec: vi.fn() };
 });
 
-const sha = (s: string) => createHash("sha256").update(s).digest("hex");
-
-describe("v1 is unchanged, byte for byte", () => {
-  // Hashes taken from main before v2 existed (5c51ffc9). A change here is a
-  // change to the DEFAULT prompt — make it on purpose, and re-pin.
-  test("the storyboard prompt", () => {
-    const pins: [string, number | null, object, string][] = [
-      ["Explain compound interest", 3, {}, "e0580cfffb6fb996e4f7187e9a4c796c3a7af526016157c5ad833c34281570ad"],
-      ["q", null, { brief: "Open with a question.", styleText: "Dry humour." }, "ec6c2641ec1c05566521e2927e891ba0e65d1f65652f69cdbea4c235b7c44ac1"],
-      ["x", 5, {}, "9705b498212cfe73e6e25ae855adffcbdecd1b358c9bb3cef329f32b2f576058"],
-      ["x", 6, { chapters: ["Setting up", "The turn"] }, "f499fff2ad68cffe58b8fc6d762ef174e31661384e69992e077e78a9a8c11d25"],
-    ];
-    for (const [r, p, o, hash] of pins) {
-      const m = buildStoryboardMessages(r, p, o as never);
-      expect(sha(m.system + "\u0000" + m.user)).toBe(hash);
-    }
-  });
-
-  test("the per-part request (the staging hand-over), default and explicit v1", () => {
-    const outline = normalizeOutline({
-      title: "Compound interest",
-      parts: [
-        { title: "The rule", brief: "what compounding is", figure: "a bar", script: ["a", "b"] },
-        { title: "The curve", brief: "why", figure: "curve", script: ["c"] },
-        { title: "End", brief: "", script: ["d"] },
-      ],
-    })!;
-    const pins = [
-      "111c3f502ce7a0a74de40721e9e94fad459969273bb7b2a9492ab5d31974ae07",
-      "d44ee384fd07c9af04d27a6de0e8b12a86e8e2fd0ee08cc4e5089c04ad8e92df",
-      "ba6783c9c773bc50640ae2df36e12e257bba98cd2bf69cb9ea442ee7f6aba4c7",
-    ];
-    pins.forEach((hash, i) => {
-      expect(sha(buildPartRequest("Explain compound interest", outline, i, "BRIEF"))).toBe(hash);
-      expect(sha(buildPartRequest("Explain compound interest", outline, i, "BRIEF", "v1"))).toBe(hash);
-    });
-  });
-
-  test("v1's schema is the version switch's v1 schema", () => {
-    expect(storyboardSchemaForVersion(3, "v1")).toEqual(storyboardSchemaFor(3));
-    expect(storyboardSchemaForVersion(null, "v1")).toBe(storyboardSchemaFor(null));
-  });
-});
-
-describe("the switch", () => {
-  test("v2 is the default (2026-09-28); an explicit v1 stays v1; anything unknown reads as v2", () => {
-    expect(DEFAULT_STORYBOARD_VERSION).toBe("v2");
-    expect(STORYBOARD_VERSIONS.map((v) => v.id)).toEqual(["v1", "v2"]);
-    expect(asStoryboardVersion("v2")).toBe("v2");
-    expect(asStoryboardVersion("v1")).toBe("v1");
-    for (const v of [undefined, null, "v3", "", 2]) expect(asStoryboardVersion(v)).toBe("v2");
-  });
-});
-
-describe("the v2 storyboard prompt", () => {
-  const { system, user } = buildStoryboardMessagesV2("How do vaccines protect a population?", 3, {
+describe("the storyboard prompt", () => {
+  const { system, user } = buildStoryboardMessages("How do vaccines protect a population?", 3, {
     brief: "#quiz brief",
     styleText: "Dry.",
     templateLines: "- sir_compartments: An epidemic model.\n  Viewer can: scrub R0 or the share vaccinated.",
     index: "- supply_demand: Curves.",
   });
 
-  test("keeps v1's arc rules", () => {
+  test("the arc rules", () => {
     expect(system).toContain("exactly 3 parts");
     expect(system).toContain("Situate before you explain, ONCE, in part 1");
     expect(system).toContain('bridging from the previous one in one sentence ("Now that we have seen …")');
@@ -126,32 +62,32 @@ describe("the v2 storyboard prompt", () => {
     expect(system).toContain("- supply_demand: Curves.");
   });
 
-  test("the output shape is v1's plus an optional template", () => {
+  test("the output shape: title, brief, figure, script, and an optional template", () => {
     expect(system).toContain('"template":"<template id, or leave the field out for freehand>"');
     expect(system).toContain('"figure":');
     expect(system).toContain('"script":["<line 1>","<line 2>"]');
-    expect(structuredOutputSupported(STORYBOARD_SCHEMA_V2)).toBe(true);
-    expect(STORYBOARD_SCHEMA_V2.properties.parts.items.required).toEqual(["title", "brief", "figure", "script"]);
-    expect(STORYBOARD_SCHEMA_V2.properties.parts.items.properties.template.type).toBe("string");
-    expect((storyboardSchemaForVersion(3, "v2") as { properties: { parts: { minItems: number } } }).properties.parts.minItems).toBe(3);
+    expect(structuredOutputSupported(STORYBOARD_SCHEMA)).toBe(true);
+    expect(STORYBOARD_SCHEMA.properties.parts.items.required).toEqual(["title", "brief", "figure", "script"]);
+    expect(STORYBOARD_SCHEMA.properties.parts.items.properties.template.type).toBe("string");
+    expect((storyboardSchemaFor(3) as { properties: { parts: { minItems: number } } }).properties.parts.minItems).toBe(3);
   });
 
-  test("brief in the user turn, the author's style last, chapters as v1", () => {
+  test("brief in the user turn, the author's style last, chapters", () => {
     expect(user).toBe("How do vaccines protect a population?\n\n#quiz brief");
     expect(system.endsWith("Dry.")).toBe(true);
-    expect(buildStoryboardMessagesV2("x", 6, { chapters: ["A", "B"] }).system).toContain("1. A; 2. B");
-    expect(buildStoryboardMessagesV2("x", 5).system).toContain("chapter: OPTIONAL");
-    expect(buildStoryboardMessagesV2("x", 3).system).not.toContain("chapter:");
+    expect(buildStoryboardMessages("x", 6, { chapters: ["A", "B"] }).system).toContain("1. A; 2. B");
+    expect(buildStoryboardMessages("x", 5).system).toContain("chapter: OPTIONAL");
+    expect(buildStoryboardMessages("x", 3).system).not.toContain("chapter:");
   });
 
   test("with nothing shortlisted it says so, and no index when none is given", () => {
-    const s = buildStoryboardMessagesV2("x", 2).system;
+    const s = buildStoryboardMessages("x", 2).system;
     expect(s).toContain("None fits this request closely");
     expect(s).not.toContain("## The rest of the library");
   });
 });
 
-describe("the v2 storyboard's real template blocks", () => {
+describe("the storyboard's real template blocks", () => {
   beforeAll(async () => {
     await ensureEnabledPacks(Object.keys(PACK_DEFS));
   });
@@ -183,7 +119,7 @@ describe("the plan's template field", () => {
   });
 });
 
-describe("v2 staging of a part", () => {
+describe("staging a part", () => {
   const plan: Outline = {
     title: "Herd immunity",
     parts: [
@@ -194,7 +130,7 @@ describe("v2 staging of a part", () => {
   };
 
   test("a scripted part gets the storyline staging note after the brief, not scriptBlock or the opening directives", () => {
-    const r = buildPartRequest("Q", plan, 0, "BRIEF", "v2");
+    const r = buildPartRequest("Q", plan, 0, "BRIEF");
     expect(r).toContain("## The storyboard to stage");
     expect(r).toContain("The LINES are sacred");
     expect(r).toContain("The INK is not");
@@ -210,9 +146,13 @@ describe("v2 staging of a part", () => {
     expect(r).toContain('part 1 of 3 in the series "Herd immunity"');
   });
 
-  test("a part with no planned template still may report a gap; no script → v1's request", () => {
+  test("a part with no planned template still may report a gap; no script → the opening, bridge and synthesis directives", () => {
     expect(partStagingNote(plan.parts[1])).toContain('"template": "<id>"');
-    expect(buildPartRequest("Q", plan, 2, "B", "v2")).toBe(buildPartRequest("Q", plan, 2, "B", "v1"));
+    const plain = buildPartRequest("Q", plan, 2, "B");
+    expect(plain).not.toContain("## The storyboard to stage");
+    expect(plain).toContain('The previous part was "The threshold"');
+    expect(plain).toContain("End with a synthesis");
+    expect(plain.endsWith("\n\nB")).toBe(true);
   });
 
   test("the gap field name is the one staging's reply is read by", () => {
@@ -222,7 +162,7 @@ describe("v2 staging of a part", () => {
   });
 });
 
-describe("multi.ts passes the version through", () => {
+describe("multi.ts: the storyboard's templates and staging", () => {
   beforeAll(async () => {
     await ensureEnabledPacks(Object.keys(PACK_DEFS));
   });
@@ -235,38 +175,34 @@ describe("multi.ts passes the version through", () => {
     ],
   };
 
-  test("outlineParts: v1 exactly as before; v2 with its version and the template blocks (router picks when there is a router)", async () => {
+  test("outlineParts: the storyboard gets the template blocks (router picks when there is a router)", async () => {
     const compile = await import("../src/llm/compile");
     const { outlineParts } = await import("../src/llm/multi");
     vi.mocked(compile.generateStoryboard).mockReset().mockResolvedValue(plan);
 
-    await outlineParts({ request: "q", parts: 2, brief: "B" }, { ...base, storyboardVersion: "v1" });
-    expect(vi.mocked(compile.generateStoryboard).mock.calls[0][4]).toEqual({ chapters: undefined, brief: "B" });
-
     const route = vi.fn().mockResolvedValue({ ids: ["sir_compartments"], noneFits: false, subject: "" });
-    await outlineParts({ request: "q", parts: 2, brief: "B" }, { ...base, storyboardVersion: "v2", route });
-    const opts = vi.mocked(compile.generateStoryboard).mock.calls[1][4] as { version: string; templateLines: string; index?: string; brief: string };
-    expect(opts.version).toBe("v2");
+    await outlineParts({ request: "q", parts: 2, brief: "B" }, { ...base, route });
+    const opts = vi.mocked(compile.generateStoryboard).mock.calls[0][4] as { templateLines: string; index?: string; brief: string };
     expect(opts.brief).toBe("B");
     expect(opts.templateLines).toMatch(/^- sir_compartments: /);
     expect(opts.templateLines).toContain("Viewer can:");
     expect(opts.index).toBeTruthy();
     expect(route).toHaveBeenCalledWith("q", undefined);
 
-    // "independent" never reaches the storyboard, v2 or not.
+    // "independent" never reaches the storyboard.
     vi.mocked(compile.generateStoryboard).mockClear();
-    await outlineParts({ request: "q", parts: 2, brief: "" }, { ...base, approach: "independent", storyboardVersion: "v2", route });
+    await outlineParts({ request: "q", parts: 2, brief: "" }, { ...base, approach: "independent", route });
     expect(compile.generateStoryboard).not.toHaveBeenCalled();
   });
 
-  test("generateFromOutline: v2 stages by the storyline note, shortlists a real planned template, and collects gap notes", async () => {
+  test("generateFromOutline: stages by the storyline note, shortlists a real planned template, and collects gap notes", async () => {
     const compile = await import("../src/llm/compile");
     const { generateFromOutline } = await import("../src/llm/multi");
     vi.mocked(compile.generateSpec)
       .mockReset()
       .mockResolvedValueOnce({ spec: { elements: [], commands: [] } as never, rounds: [], systemPromptChars: 0, seeded: false, templateGaps: [{ template: "sir_compartments", missing: "no contact tree" }] })
       .mockResolvedValueOnce({ spec: { elements: [], commands: [] } as never, rounds: [], systemPromptChars: 0, seeded: false });
-    const r = await generateFromOutline({ request: "q", parts: 2, brief: "" }, plan, { ...base, storyboardVersion: "v2" });
+    const r = await generateFromOutline({ request: "q", parts: 2, brief: "" }, plan, base);
     const calls = vi.mocked(compile.generateSpec).mock.calls;
     expect(calls[0][0]).toContain("## The storyboard to stage");
     expect(calls[0][1].priorityIds).toEqual(["sir_compartments"]);
@@ -275,18 +211,4 @@ describe("multi.ts passes the version through", () => {
     expect(r.templateGaps).toEqual([{ part: 1, template: "sir_compartments", missing: "no contact tree" }]);
   });
 
-  test("generateFromOutline: v1 (and no version) hands over scriptBlock and no priority template", async () => {
-    const compile = await import("../src/llm/compile");
-    const { generateFromOutline } = await import("../src/llm/multi");
-    for (const cfg of [base, { ...base, storyboardVersion: "v1" as const }]) {
-      vi.mocked(compile.generateSpec).mockReset().mockResolvedValue({ spec: { elements: [], commands: [] } as never, rounds: [], systemPromptChars: 0, seeded: false });
-      const r = await generateFromOutline({ request: "q", parts: 2, brief: "" }, plan, cfg);
-      const calls = vi.mocked(compile.generateSpec).mock.calls;
-      expect(calls[0][0]).toContain("ALREADY WRITTEN");
-      expect(calls[0][0]).not.toContain("## The storyboard to stage");
-      expect(calls[0][0]).toBe(buildPartRequest("q", plan, 0, ""));
-      expect(calls[0][1].priorityIds).toBeUndefined();
-      expect(r.templateGaps).toBeUndefined();
-    }
-  });
 });

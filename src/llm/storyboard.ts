@@ -7,7 +7,7 @@
 /**
  * Whether the story is written first. See GenerateConfig.approach. Since
  * 2026-09-28 it governs a SINGLE drawcast too: "storyboard" writes its
- * storyline first (llm/treatment.ts v3, singleCastTreatment) and stages the
+ * storyline first (llm/treatment.ts singleCastTreatment) and stages the
  * figure to it; "independent" is the one-shot call. The ids are unchanged, so
  * stored settings need no migration.
  */
@@ -33,7 +33,7 @@ import { mayProposeChapters, OUTLINE_SCHEMA, PROPOSE_CHAPTERS_LINE, outlineSchem
 import { styleBlock } from "./prompt";
 
 /** The outline's shape plus, per part, the figure paragraph and the script — closed, so structured outputs hold the model to it. */
-export const STORYBOARD_SCHEMA = {
+const STORYBOARD_BASE_SCHEMA = {
   ...OUTLINE_SCHEMA,
   properties: {
     ...OUTLINE_SCHEMA.properties,
@@ -59,109 +59,23 @@ export const STORYBOARD_SCHEMA = {
   },
 } as const;
 
-/** STORYBOARD_SCHEMA with an explicit `#parts=N` written into it — see outlineSchemaFor. */
-export function storyboardSchemaFor(want: number | null): object {
-  return outlineSchemaFor(want, STORYBOARD_SCHEMA as unknown as typeof OUTLINE_SCHEMA);
-}
 
-/**
- * The storyboard call's messages. The teaching rules the per-part pedagogy
- * pass held a finished spec against (compile.ts PEDAGOGY_RUBRIC) are here
- * instead, because this is where the narration is now written — and here
- * they can say what a per-part pass never could: situate ONCE, bridge from
- * what the previous part actually said, one interesting thing per SERIES.
- * The author's style block comes last, after every rule, so it wins.
- */
-export function buildStoryboardMessages(
-  request: string,
-  parts: number | null,
-  opts: { chapters?: string[]; brief?: string; styleText?: string } = {},
-): { system: string; user: string } {
-  const count = parts !== null ? `exactly ${parts} parts` : "1–4 parts (your judgement: the fewest that teach it well — ONE is a real answer when the question is genuinely one figure, and padding a single idea into three is worse than one good part)";
-  const chapters = opts.chapters && opts.chapters.length > 0 ? opts.chapters : undefined;
-  const system: string[] = [
-    "You write the STORYBOARD for a multi-part drawcast: a short series of narrated, hand-drawn teaching figures, each part 30–90 seconds on one single figure and one idea. You write the whole series' narration now, in one sitting, so that it coheres; another pass draws each part's figure to your lines and cannot change your words — it may only tighten a line to fit the ink.",
-    "",
-    `Split the request into ${count}. Each part stands on one figure and one idea.`,
-    "",
-    "For every part give:",
-    "- title: short (it is shown on the continue button between parts).",
-    "- brief: one line — what this part covers and its role in the arc.",
-    "- figure: what is drawn. The kind of figure (a plot, a thing with named parts, a table, a timeline, a formula built up), its named parts, and what appears, moves or is highlighted across the beats, in order — concrete enough that an artist with only this paragraph draws the right thing. The same quantities and parts carry the same names and symbols in every part.",
-    "- script: the spoken lines in order, 8–14 per part, each one or two sentences that land while the ink lands — a line says what is appearing at that moment and what it means.",
-    "",
-    "The arc across parts: part 1 says in one sentence what the whole series will explain, then grounds it in a concrete example with drawing already underway — never a teaser over a blank canvas. The middle parts carry the step-by-step development. Every later part opens by bridging from the previous one in one sentence (\"Now that we have seen …\") and never re-introduces the topic. The last part ends with a synthesis that ties the series together and names what the viewer can now see.",
-    "",
-    "How the lines teach:",
-    "- Situate before you explain, ONCE, in part 1: the opening states or hints why this matters — the decision it informs, the mistake it prevents — the stakes, not the conclusion. Later parts build; they do not re-situate.",
-    "- Explain in passing, never by announcement: no \"note that\", \"it is important\", \"here we see\". The ink shows where to look; the line carries the idea.",
-    "- Assume an intelligent viewer: spend the words on the step they would not have seen coming, and let the obvious pass without ceremony.",
-    "- A rhetorical question is a line of its own, and the line after it begins the answer, never a second question: the player leaves a moment of silence after a question mark, and that silence is where the viewer thinks.",
-    "- One genuinely interesting thing in the whole series — a surprising implication, a real number, a scrap of history, a reframing — placed where it fits, and only if it is true: a clean explanation beats an invented tidbit. Never manufacture a controversy, a quote or a statistic.",
-    "- Each part converges on one insight, and its closing line says what the viewer can now see.",
-    "- Write the lines in the language of the request.",
-    "- level: \"basic\" or \"advanced\" only when the request implies one.",
-  ];
-  const propose = mayProposeChapters(parts, opts.chapters);
-  if (chapters) {
-    system.push(
-      `- chapter: the author declared these chapters, in order: ${chapters.map((c, i) => `${i + 1}. ${c}`).join("; ")}. Assign every part to one of them, in order, and never invent a chapter that is not on this list.`,
-    );
-  } else if (propose) {
-    system.push(`- ${PROPOSE_CHAPTERS_LINE}`);
-  }
-  const chapterField = chapters
-    ? '"chapter":"<one of the declared chapters>",'
-    : propose
-      ? '"chapter":"<the chapter this part falls under, or omit the field>",'
-      : "";
-  system.push(
-    "",
-    "Return ONLY a minified JSON object of exactly this shape, nothing else:",
-    `{"title":"<short series title>","parts":[{"title":"<short part title>","brief":"<one line>","level":"basic|advanced (only when implied)",${chapterField}"figure":"<what is drawn and what changes>","script":["<line 1>","<line 2>"]}]}`,
-  );
-  const user = opts.brief ? `${request}\n\n${opts.brief}` : request;
-  return { system: system.join("\n") + styleBlock(opts.styleText), user };
-}
+// Since 2026-09-28 (the blind comparison) the storyboard carries the
+// single-cast storyline rules (llm/prompts/treatment-v3.md) adapted per part,
+// and the templates with what the viewer can do with each. The earlier
+// prompt, v1, was retired 2026-09-30: docs/prompt-lab/archive/storyboard-v1.md.
 
-// ---------------------------------------------------------------------------
-// Storyboard v2 (2026-09-28): v1's arc rules PLUS the single-cast storyline
-// rules (llm/prompts/treatment-v3.md) adapted per part, and the templates
-// with what the viewer can do with each. Behind Settings.storyboardVersion,
-// default "v1" until the owner has compared the two blind. v1 above stays
-// byte-for-byte what it was (tests/storyboard-v2.test.ts pins its hash).
-// ---------------------------------------------------------------------------
-
-/** Which storyboard prompt (and, with it, which per-part staging hand-over — outline.ts buildPartRequest). */
-export type StoryboardVersion = "v1" | "v2";
-export const DEFAULT_STORYBOARD_VERSION: StoryboardVersion = "v2";
-
-/** The picker's choices, in order. */
-export const STORYBOARD_VERSIONS: readonly { id: StoryboardVersion; label: string; hint: string }[] = [
-  { id: "v1", label: "earlier (v1)", hint: "The storyboard prompt multi-part drawcasts and courses used 2026-09-19 to 2026-09-28 — for comparison." },
-  {
-    id: "v2",
-    label: "v2 (default)",
-    hint: "The storyboard also carries the storyline rules (question first, the naive answer, one ghosted change at a time, a figure budget per part, templates with what the viewer can do, a transfer quiz), and each part is staged the way a single drawcast's storyline is.",
-  },
-];
-
-/** A stored value → a version; anything unknown is the default. */
-export function asStoryboardVersion(v: unknown): StoryboardVersion {
-  return v === "v1" || v === "v2" ? v : DEFAULT_STORYBOARD_VERSION;
-}
-
-/** v1's schema plus an OPTIONAL `template` per part — the planned template id, absent for freehand. */
-export const STORYBOARD_SCHEMA_V2 = {
-  ...STORYBOARD_SCHEMA,
+/** The storyboard's shape: the base plus an OPTIONAL `template` per part — the planned template id, absent for freehand. */
+export const STORYBOARD_SCHEMA = {
+  ...STORYBOARD_BASE_SCHEMA,
   properties: {
-    ...STORYBOARD_SCHEMA.properties,
+    ...STORYBOARD_BASE_SCHEMA.properties,
     parts: {
-      ...STORYBOARD_SCHEMA.properties.parts,
+      ...STORYBOARD_BASE_SCHEMA.properties.parts,
       items: {
-        ...STORYBOARD_SCHEMA.properties.parts.items,
+        ...STORYBOARD_BASE_SCHEMA.properties.parts.items,
         properties: {
-          ...STORYBOARD_SCHEMA.properties.parts.items.properties,
+          ...STORYBOARD_BASE_SCHEMA.properties.parts.items.properties,
           template: {
             type: "string",
             description: "The id of the ready template this part's figure is drawn with, when one fits. Omit for a freehand figure.",
@@ -172,20 +86,20 @@ export const STORYBOARD_SCHEMA_V2 = {
   },
 } as const;
 
-/** The schema for a version, with an explicit `#parts=N` written into it — v1's is exactly storyboardSchemaFor's. */
-export function storyboardSchemaForVersion(want: number | null, version: StoryboardVersion): object {
-  return version === "v2" ? outlineSchemaFor(want, STORYBOARD_SCHEMA_V2 as unknown as typeof OUTLINE_SCHEMA) : storyboardSchemaFor(want);
+/** STORYBOARD_SCHEMA with an explicit `#parts=N` written into it — see outlineSchemaFor. */
+export function storyboardSchemaFor(want: number | null): object {
+  return outlineSchemaFor(want, STORYBOARD_SCHEMA as unknown as typeof OUTLINE_SCHEMA);
 }
 
 /**
- * The v2 storyboard call's messages. `templateLines` are the lecture
+ * The storyboard call's messages. `templateLines` are the lecture
  * request's shortlist, one story line each with its "Viewer can:" line
  * (catalog.ts storyTemplateLines); `index`, when given, is the rest of the
  * library one line each (catalog.ts catalogIndexText) — the same two blocks
  * the single-cast storyline gets (treatment.ts buildTreatmentSystem v3).
- * Output shape: v1's plus an optional per-part `template`.
+ * Output shape: STORYBOARD_SCHEMA.
  */
-export function buildStoryboardMessagesV2(
+export function buildStoryboardMessages(
   request: string,
   parts: number | null,
   opts: { chapters?: string[]; brief?: string; styleText?: string; templateLines?: string; index?: string } = {},

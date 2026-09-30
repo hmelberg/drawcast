@@ -5,10 +5,10 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { makeClient, callForJson, callForText, describeApiError, isOutputLimitError, planningModelFor, repairModelFor, type Effort, type JsonCallMeta } from "./client";
 import { buildOutlineMessages, normalizeOutline, outlineSchemaFor, type Outline } from "./outline";
-import { buildStoryboardMessages, buildStoryboardMessagesV2, storyboardSchemaForVersion, type Approach, type StoryboardVersion } from "./storyboard";
+import { buildStoryboardMessages, storyboardSchemaFor, type Approach } from "./storyboard";
 import { buildSystemBlocks, formatExemplars, missingPlaceholders, stripFence, styleBlock, systemBlocks, wantsC64, wantsCode, wantsSound, OPTIONAL_PROMPT_PLACEHOLDERS, PROMPT_PLACEHOLDERS, type Exemplar } from "./prompt";
 import { pickExemplars } from "./exemplars";
-import { catalogIndexText, catalogIsTwoLevel, catalogParts, detectNeedTemplate, fullEntryIds, isReadyTemplate, routerIndexText, selectTemplates, storyTemplateLines, HOT_SHORTLIST } from "../scenes/catalog";
+import { catalogIndexText, catalogIsTwoLevel, catalogParts, detectNeedTemplate, fullEntryIds, isReadyTemplate, selectTemplates, storyTemplateLines, HOT_SHORTLIST } from "../scenes/catalog";
 import {
   buildTreatmentSystem,
   buildTreatmentUser,
@@ -17,7 +17,6 @@ import {
   treatmentTemplate,
   DEFAULT_TREATMENT_EFFORT,
   type TemplateGap,
-  type TreatmentVersion,
 } from "./treatment";
 import type { RouteResult } from "./router";
 import type { OnDemandRun } from "./on-demand-run";
@@ -244,15 +243,14 @@ export interface GenerateConfig {
   /**
    * Story first (llm/treatment.ts): before the JSON call the creative model
    * writes a plain-text storyline — question, insight, example, figure,
-   * beats — and the compiler stages it. "v3" is the app's single-cast
-   * default under Settings.approach "storyboard" (treatment.ts
-   * singleCastTreatment): the storyline rules, the shortlist with each
-   * template's interactions, and the library index so the story can name a
-   * template the shortlist missed. "v2" (true) and "v1" are the prompt lab's
-   * arms. Absent: the one-shot call. The teaching (pedagogy) pass never runs
-   * on a staged storyline — its narration was authored.
+   * beats — and the compiler stages it. The app's single-cast default under
+   * Settings.approach "storyboard" (treatment.ts singleCastTreatment): the
+   * storyline rules, the shortlist with each template's interactions, and
+   * the library index so the story can name a template the shortlist
+   * missed. Absent or false: the one-shot call. The teaching (pedagogy)
+   * pass never runs on a staged storyline — its narration was authored.
    */
-  treatment?: boolean | TreatmentVersion;
+  treatment?: boolean;
   /** Effort for the storyline call (default treatment.ts DEFAULT_TREATMENT_EFFORT, medium). Staging keeps `effort`. */
   treatmentEffort?: Effort;
   /**
@@ -368,17 +366,6 @@ export interface GenerateConfig {
    * Read nowhere in generateSpec itself; a single figure has no parts.
    */
   approach?: Approach;
-  /**
-   * Which storyboard prompt a multi-part drawcast or a lecture is planned
-   * with under approach "storyboard" (Settings.storyboardVersion; llm/
-   * storyboard.ts). "v1" (the default): the storyboard as since 2026-09-19,
-   * each part staged by outline.ts scriptBlock. "v2": the storyboard also
-   * carries the storyline rules and the templates with their interactions,
-   * may plan a template per part, and each part is staged by outline.ts
-   * partStagingNote (lines sacred, ink not, figure budget, template gaps).
-   * Read by llm/multi.ts only.
-   */
-  storyboardVersion?: StoryboardVersion;
   /** Cancels the generation, whichever round is in flight. */
   signal?: AbortSignal;
   /** Called as the model writes, once per streamed delta. */
@@ -622,29 +609,19 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   let treatmentError: string | undefined;
   let treatmentMs: number | undefined;
   let namedTemplate: string | undefined;
-  const treatmentVersion: TreatmentVersion = cfg.treatment === "v1" || cfg.treatment === "v3" ? cfg.treatment : "v2";
   if (cfg.treatment) {
-    cfg.onPhase?.(treatmentVersion === "v3" ? "writing the story" : "writing the plan");
+    cfg.onPhase?.("writing the story");
     const twoLevel = catalogIsTwoLevel(cfg.excludeIds);
     const ids = shortlist ?? (route?.noneFits ? [] : selectTemplates(request, HOT_SHORTLIST));
-    const wanted = new Set(cfg.forcedTemplate ? [cfg.forcedTemplate] : ids);
-    // v3: the templates the staging step will see in full (the router's
-    // picks filled up by keyword, exactly catalogParts' shortlist), one story
-    // line each with its interactions, and — unless a template is forced —
-    // the library's one-line index.
+    // The templates the staging step will see in full (the router's picks
+    // filled up by keyword, exactly catalogParts' shortlist), one story line
+    // each with its interactions, and — unless a template is forced — the
+    // library's one-line index.
     const shown = cfg.forcedTemplate ? [cfg.forcedTemplate] : twoLevel ? fullEntryIds(catalog.variable) : ids;
-    const lines =
-      treatmentVersion === "v3"
-        ? storyTemplateLines(shown, { excludeIds: cfg.excludeIds })
-        : treatmentVersion === "v2" && catalog.variable.trim()
-          ? catalog.variable
-          : routerIndexText({ excludeIds: cfg.excludeIds })
-              .split("\n")
-              .filter((l) => wanted.has(/^- ([^:]+):/.exec(l)?.[1] ?? ""))
-              .join("\n");
-    const index = treatmentVersion === "v3" && !cfg.forcedTemplate && twoLevel ? catalogIndexText({ excludeIds: cfg.excludeIds }) : undefined;
+    const lines = storyTemplateLines(shown, { excludeIds: cfg.excludeIds });
+    const index = !cfg.forcedTemplate && twoLevel ? catalogIndexText({ excludeIds: cfg.excludeIds }) : undefined;
     try {
-      const out = await callForText(makeClient(cfg.apiKey), cfg.model, buildTreatmentSystem(lines, treatmentVersion, index), [{ role: "user", content: [buildTreatmentUser(request, cfg.brief), mapNoteText].filter(Boolean).join("\n\n") }], {
+      const out = await callForText(makeClient(cfg.apiKey), cfg.model, buildTreatmentSystem(lines, index), [{ role: "user", content: [buildTreatmentUser(request, cfg.brief), mapNoteText].filter(Boolean).join("\n\n") }], {
         signal: cfg.signal,
         effort: cfg.treatmentEffort ?? DEFAULT_TREATMENT_EFFORT,
       });
@@ -657,7 +634,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
     // The story named a template the shortlist missed (mirrors the
     // need_template escalation, without its extra call): its full entry
     // joins the shortlist before staging.
-    const named = treatment && treatmentVersion === "v3" ? treatmentTemplate(treatment) : null;
+    const named = treatment ? treatmentTemplate(treatment) : null;
     if (named && isReadyTemplate(named) && !(cfg.excludeIds ?? []).includes(named)) {
       namedTemplate = named;
       if (!cfg.forcedTemplate && twoLevel && !shown.includes(named)) {
@@ -668,7 +645,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   }
   // ---- end story step ----
   const gaps: TemplateGap[] = [];
-  const userContent = [request, cfg.brief, seed?.text, mapNoteText, treatment ? stagingNote(treatment, treatmentVersion) : undefined].filter(Boolean).join("\n\n");
+  const userContent = [request, cfg.brief, seed?.text, mapNoteText, treatment ? stagingNote(treatment) : undefined].filter(Boolean).join("\n\n");
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: userContent }];
   const rounds: GenerationRound[] = [];
   let best: Spec | null = null;
@@ -1087,17 +1064,11 @@ export async function generateStoryboard(
   cfg: { apiKey: string; model: string; effort?: Effort; styleText?: string },
   parts: number | null,
   signal?: AbortSignal,
-  opts: { chapters?: string[]; brief?: string; version?: StoryboardVersion; templateLines?: string; index?: string } = {},
+  opts: { chapters?: string[]; brief?: string; templateLines?: string; index?: string } = {},
 ): Promise<Outline | null> {
   const client = makeClient(cfg.apiKey);
-  // v2 (Settings.storyboardVersion): the storyline rules and the templates
-  // with their interactions; v1 exactly as before.
-  const { version, templateLines, index, ...base } = opts;
-  const { system, user } =
-    version === "v2"
-      ? buildStoryboardMessagesV2(request, parts, { ...base, templateLines, index, styleText: cfg.styleText })
-      : buildStoryboardMessages(request, parts, { ...base, styleText: cfg.styleText });
-  const { json } = await callForJson(client, planningModelFor(cfg.model), system, [{ role: "user", content: user }], storyboardSchemaForVersion(parts, version ?? "v1"), {
+  const { system, user } = buildStoryboardMessages(request, parts, { ...opts, styleText: cfg.styleText });
+  const { json } = await callForJson(client, planningModelFor(cfg.model), system, [{ role: "user", content: user }], storyboardSchemaFor(parts), {
     signal,
     ...(cfg.effort ? { effort: cfg.effort } : {}),
   });

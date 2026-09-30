@@ -280,10 +280,7 @@ describe("runCourse: landed parts and the teaching pass", () => {
       templateGaps: [{ part: 2, template: "sir_compartments", missing: "no contact tree" }],
     });
     const store = vi.fn<StoreLecture>(() => "id");
-    const v2 = { ...cfg, storyboardVersion: "v2" as const };
-    const result = await runCourse(ONE_LECTURE, v2, hooks, store);
-    expect(vi.mocked(outlineParts).mock.calls[0][1].storyboardVersion).toBe("v2");
-    expect(vi.mocked(generateFromOutline).mock.calls[0][2].storyboardVersion).toBe("v2");
+    const result = await runCourse(ONE_LECTURE, cfg, hooks, store);
     expect(result.templateGaps).toEqual([{ lecture: 0, part: 2, template: "sir_compartments", missing: "no contact tree" }]);
   });
 

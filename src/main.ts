@@ -15,7 +15,7 @@ import { generateSpec, improvePrompt, promptVariants, type ImproveCase, type Pro
 import { routeTemplates } from "./llm/router";
 import { authorOnDemand, templateWorthy } from "./llm/on-demand";
 import { generateParts } from "./llm/multi";
-import { APPROACHES, DEFAULT_APPROACH, STORYBOARD_VERSIONS, asStoryboardVersion } from "./llm/storyboard";
+import { APPROACHES, DEFAULT_APPROACH } from "./llm/storyboard";
 import { singleCastTreatment } from "./llm/treatment";
 import { createOnDemandRun, onDemandSummary } from "./llm/on-demand-run";
 import { missingPlaceholders } from "./llm/prompt";
@@ -790,25 +790,10 @@ effortSel.value = settings.effort;
 // Write the story first (docs/2026-09-19-storyboard-approach.md, and for a
 // single drawcast since 2026-09-28): the storyline — every spoken line —
 // is written first, then the figure is staged to it. A single drawcast gets
-// one storyline call (llm/treatment.ts v3) before the spec; a multi-part
+// one storyline call (llm/treatment.ts) before the spec; a multi-part
 // drawcast, #playlist or course gets one storyboard for the whole series.
 // Off ("independent"): a single drawcast is one call, and each part is
 // written on its own, knowing the others by title only.
-// The pipeline (developer mode only, docs/prompt-lab): "plan" forces the lab's
-// v2 plan sheet for a single drawcast; "standard" follows the choice above.
-// Hidden — and standard — for everyone else.
-const pipelineSel = h(
-  "select",
-  { title: "Lab: how a single figure is written. Follow Approach = the storyline (v3) or one call, as Approach says; Plan v2 = the lab's arm C plan sheet, then the spec staged from it." },
-  h("option", { value: "standard" }, "Follow Approach"),
-  h("option", { value: "plan" }, "Plan v2 (lab)"),
-) as HTMLSelectElement;
-pipelineSel.value = settings.pipeline;
-pipelineSel.addEventListener("change", () => {
-  settings.pipeline = pipelineSel.value === "plan" ? "plan" : "standard";
-  persist();
-});
-const pipelineChoiceLabel = h("label", { class: "quiet-label" }, "Pipeline ", pipelineSel);
 const approachSel = h(
   "select",
   {
@@ -818,22 +803,6 @@ const approachSel = h(
   ...APPROACHES.map((a) => h("option", { value: a.id, title: a.hint }, a.label)),
 );
 approachSel.value = APPROACHES.some((a) => a.id === settings.approach) ? settings.approach : DEFAULT_APPROACH;
-// Which storyboard prompt a multi-part drawcast or course is planned with
-// (llm/storyboard.ts): v2, the storyline rules, is the default since the blind
-// comparison (2026-09-28); v1, the earlier prompt, stays selectable in
-// DEVELOPER MODE only — an experiment/rollback lever like Pipeline, reset to
-// v2 when developer mode is turned off (applyDeveloperMode).
-const storyboardSel = h(
-  "select",
-  { title: "Developer: storyboard prompt for a multi-part drawcast or course (when the story is written first). v2 (the default) carries the storyline rules — question first, the naive answer, one ghosted change at a time, a figure budget per part, templates with what the viewer can do, a transfer quiz; v1 is the earlier prompt, for comparison." },
-  ...STORYBOARD_VERSIONS.map((v) => h("option", { value: v.id, title: v.hint }, v.label)),
-) as HTMLSelectElement;
-storyboardSel.value = asStoryboardVersion(settings.storyboardVersion);
-storyboardSel.addEventListener("change", () => {
-  settings.storyboardVersion = asStoryboardVersion(storyboardSel.value);
-  persist();
-});
-const storyboardChoiceLabel = h("label", { class: "quiet-label" }, "Storyboard prompt ", storyboardSel);
 // Template on demand without asking (Hans, 2026-09-07): decided BEFORE
 // Generate so a course never stops to ask part by part. Applies to course
 // (and other multi-part) runs only — a single freehand figure always gets
@@ -1389,8 +1358,6 @@ const genChoices = h(
   h("label", { class: "quiet-label" }, "Model ", modelSel),
   h("label", { class: "quiet-label" }, "Effort ", effortSel),
   h("label", { class: "quiet-label" }, "Story ", approachSel),
-  storyboardChoiceLabel,
-  pipelineChoiceLabel,
   h("label", { class: "quiet-label" }, templatesOnDemandBox, " Author templates when none fits"),
   h("label", { class: "quiet-label" }, "at most ", templatesOnDemandMaxInput, " per run"),
 );
@@ -1418,8 +1385,7 @@ function refreshChoicesToggle(): void {
   const effort = effortSel.options[effortSel.selectedIndex]?.textContent?.split(" — ")[0] ?? settings.effort;
   const approach = approachSel.options[approachSel.selectedIndex]?.textContent?.split(" — ")[0] ?? settings.approach;
   const onDemand = settings.templatesOnDemand ? ` · Templates on demand (≤${settings.templatesOnDemandMax} per run)` : "";
-  const storyboard = settings.storyboardVersion === "v1" ? " · Storyboard prompt: earlier (v1)" : "";
-  choicesBtn.title = `Template: ${tpl} · Style: ${styleName}${dev} · Model: ${model} · Effort: ${effort} · Story: ${approach}${storyboard}${onDemand}`;
+  choicesBtn.title = `Template: ${tpl} · Style: ${styleName}${dev} · Model: ${model} · Effort: ${effort} · Story: ${approach}${onDemand}`;
   choicesBtn.classList.toggle("has-choice", templateChoice !== "" && genChoices.hidden);
 }
 
@@ -1433,7 +1399,7 @@ choicesBtn.addEventListener("click", () => {
   persist();
   applyChoicesOpen();
 });
-for (const sel of [templateSel, variantSel, modelSel, storyboardSel]) {
+for (const sel of [templateSel, variantSel, modelSel]) {
   sel.addEventListener("change", refreshChoicesToggle);
 }
 applyChoicesOpen();
@@ -2315,16 +2281,8 @@ function applyDeveloperMode(): void {
   // the user-facing concept (B5).
   if (instructionsRow) instructionsRow.hidden = !on;
   instrChoiceLabel.hidden = !on;
-  // The lab's instruments: the pipeline choice and the lab models. Turning
-  // developer mode off puts both back to the defaults, so an experiment never
-  // silently drives ordinary generation.
-  pipelineChoiceLabel.hidden = !on;
-  storyboardChoiceLabel.hidden = !on;
-  if (!on && settings.storyboardVersion !== "v2") {
-    settings.storyboardVersion = "v2";
-    storyboardSel.value = "v2";
-    persist();
-  }
+  // The lab models: turning developer mode off puts the model back to the
+  // default, so an experiment never silently drives ordinary generation.
   for (const o of labModelOptions) o.hidden = !on;
   if (!on && (LAB_MODELS.some((m) => m.id === settings.model) || LAB_MODELS.some((m) => m.id === modelSel.value))) {
     settings.model = MODELS[0].id;
@@ -3879,7 +3837,6 @@ async function generateMulti(
       model: settings.model,
       effort: settings.effort,
       approach: settings.approach,
-      storyboardVersion: settings.storyboardVersion,
       variant: currentVariant(),
       styleText: activeStyleText(),
       exemplars: usableExemplars(loadExemplars(), isReadyTemplate),

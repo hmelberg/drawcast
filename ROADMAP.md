@@ -3161,6 +3161,16 @@ bought per item. Known and deferred:
 - The skill's quote counts outline lectures, the app counts built ones.
 - `scripts/cast-account.d.mts` is hand-kept and shadows the `.mjs` for `tsc`.
 
+## Retired pipeline experiments — 2026-09-30
+
+Treatment v1 and v2 (with the developer-mode Pipeline select) and storyboard
+v1 (with the developer-mode Storyboard select) are gone from the app: v3, the
+storyline, and storyboard v2 won their comparisons. Stored settings drop the
+two old fields on load. The prompt texts are in `docs/prompt-lab/archive/`,
+the exact code at tag `archive/pipeline-experiments-2026-09-30`. Kept on
+purpose: "Write it in one go" (a user-facing choice) and the prompt library
+(developer mode — the separate NOTES.md question).
+
 ## Housekeeping
 
 - Regenerate `package-lock.json` (`npm install`) and switch CI back to

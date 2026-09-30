@@ -26,7 +26,7 @@ const SPEC = {
 const STORY = "QUESTION: why?\nNAIVE ANSWER: none\nINSIGHT: this.\nTEMPLATE: none\nFIGURE: a box\nBEATS:\n1. A box. — draw it\nQUIZ: …";
 
 function cfg(over: Partial<GenerateConfig> = {}): GenerateConfig {
-  return { apiKey: "k", model: "claude-opus-5-5", variant: VARIANT, exemplars: [], executeCode: false, treatment: "v3", effort: "high", ...over };
+  return { apiKey: "k", model: "claude-opus-5-5", variant: VARIANT, exemplars: [], executeCode: false, treatment: true, effort: "high", ...over };
 }
 const systemText = (sys: unknown) => (Array.isArray(sys) ? (sys as { text: string }[]).map((b) => b.text).join("\n") : String(sys));
 

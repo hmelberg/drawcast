@@ -7,7 +7,6 @@ import {
   treatmentTemplate,
   DEFAULT_TREATMENT_EFFORT,
   STORYLINE_PROMPT_SOURCE,
-  TREATMENT_PROMPT_SOURCE,
 } from "../src/llm/treatment";
 import { catalogIndexText, fullEntryIds, storyTemplateLines } from "../src/scenes/catalog";
 import { scenes } from "../src/scenes/registry";
@@ -15,29 +14,7 @@ import { ensureEnabledPacks, PACK_DEFS } from "../src/scenes/packs";
 import { validateSpec } from "../src/spec/schema";
 import { parseTemplateDoc } from "../src/scenes/doc";
 
-describe("treatment → staging (prompt-lab arm C)", () => {
-  test("the system prompt carries the sheet and the shortlisted templates", () => {
-    const sys = buildTreatmentSystem("- supply_demand: Supply and demand curves.");
-    expect(sys.startsWith(TREATMENT_PROMPT_SOURCE.trim())).toBe(true);
-    expect(sys).toContain("- supply_demand: Supply and demand curves.");
-    expect(buildTreatmentSystem("")).toContain("plan a freehand figure");
-  });
-
-  test("the house decisions are in the sheet", () => {
-    expect(TREATMENT_PROMPT_SOURCE).toContain("14–20 sentences");
-    expect(TREATMENT_PROMPT_SOURCE).toMatch(/ride\s+the scaffolding/);
-  });
-
-  test("the user turn and the staging note", () => {
-    expect(buildTreatmentUser("Why?", "Directing brief:\n- short")).toBe("Why?\n\nDirecting brief:\n- short");
-    expect(buildTreatmentUser("Why?")).toBe("Why?");
-    const note = stagingNote("QUESTION: why?\nBEATS: 1. …");
-    expect(note).toContain("## The treatment to stage");
-    expect(note.endsWith("QUESTION: why?\nBEATS: 1. …")).toBe(true);
-  });
-});
-
-describe("the storyline (treatment v3)", () => {
+describe("the storyline", () => {
   test("the sheet carries every storyline rule", () => {
     const s = STORYLINE_PROMPT_SOURCE;
     expect(s).toMatch(/Open with the question, as asked/);
@@ -59,19 +36,19 @@ describe("the storyline (treatment v3)", () => {
     expect(s).toMatch(/`wrong` hint/);
     expect(s).toContain("14–20 short sentences");
     expect(s).toMatch(/^TEMPLATE:/m);
-    // v2's rule: say WHAT, never WHERE.
+    // Say WHAT, never WHERE.
     expect(s).toMatch(/never WHERE/);
   });
 
-  test("the v3 system prompt: the shortlist with its interactions, then the library index", () => {
-    const sys = buildTreatmentSystem("- supply_demand: Curves.\n  Viewer can: drag a curve.", "v3", "- a: A.\n- b: B.");
+  test("the system prompt: the shortlist with its interactions, then the library index", () => {
+    const sys = buildTreatmentSystem("- supply_demand: Curves.\n  Viewer can: drag a curve.", "- a: A.\n- b: B.");
     expect(sys.startsWith(STORYLINE_PROMPT_SOURCE.trim())).toBe(true);
     expect(sys).toContain("## Templates shortlisted for this request");
     expect(sys).toContain("Viewer can: drag a curve.");
     expect(sys).toContain("## The rest of the library");
     expect(sys).toContain("- b: B.");
-    expect(buildTreatmentSystem("", "v3")).toMatch(/plan a freehand figure/);
-    expect(buildTreatmentSystem("", "v3")).not.toContain("## The rest of the library");
+    expect(buildTreatmentSystem("")).toMatch(/plan a freehand figure/);
+    expect(buildTreatmentSystem("")).not.toContain("## The rest of the library");
   });
 
   test("the storyline's effort defaults to medium", () => {
@@ -86,8 +63,13 @@ describe("the storyline (treatment v3)", () => {
     expect(treatmentTemplate("QUESTION: no template line")).toBeNull();
   });
 
-  test("the v3 staging note: lines sacred, ink not, the budget, temporary marks, the gap channel", () => {
-    const note = stagingNote("QUESTION: why?", "v3");
+  test("the user turn: the request and the brief", () => {
+    expect(buildTreatmentUser("Why?", "Directing brief:\n- short")).toBe("Why?\n\nDirecting brief:\n- short");
+    expect(buildTreatmentUser("Why?")).toBe("Why?");
+  });
+
+  test("the staging note: lines sacred, ink not, the budget, temporary marks, the gap channel", () => {
+    const note = stagingNote("QUESTION: why?");
     expect(note).toContain("## The storyline to stage");
     expect(note).toMatch(/The LINES are sacred: keep what each says and their order/);
     expect(note).toMatch(/tighten a line to fit/);

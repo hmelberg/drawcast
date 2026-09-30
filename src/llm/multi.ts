@@ -4,7 +4,7 @@
 // tuned for single figures, which one giant completion would not.
 
 import { generateOutline, generateSpec, generateStoryboard, type GenerateConfig, type GenerationOutcome } from "./compile";
-import { DEFAULT_APPROACH, type StoryboardVersion } from "./storyboard";
+import { DEFAULT_APPROACH } from "./storyboard";
 import { catalogIndexText, catalogIsTwoLevel, isReadyTemplate, selectTemplates, storyTemplateLines } from "../scenes/catalog";
 import { buildPartRequest, type Outline } from "./outline";
 import { generationGate } from "./limit";
@@ -35,7 +35,7 @@ export interface PartsResult {
   error?: string;
   /**
    * Staging's notes on templates that could not do what a part's lines
-   * needed (treatment.ts TemplateGap), with the 1-based part — storyboard v2
+   * needed (treatment.ts TemplateGap), with the 1-based part — the storyboard
    * asks for them; v1 never does, so there they stay absent.
    */
   templateGaps?: { part: number; template: string; missing: string }[];
@@ -124,7 +124,7 @@ async function authorTemplatesForParts(
     const describe = cfg.describe ?? describeTemplateFor;
     await Promise.all(
       worthy.map(async (i) => {
-        const request = buildPartRequest(req.request, plan, i, req.brief, cfg.storyboardVersion ?? "v1");
+        const request = buildPartRequest(req.request, plan, i, req.brief);
         const { brief } = await describe(request, outcomes[i].spec as Spec, { apiKey: cfg.apiKey, model: cfg.model, signal: cfg.signal }).catch(
           () => ({ brief: null }) as { brief: TemplateBrief | null },
         );
@@ -138,7 +138,7 @@ async function authorTemplatesForParts(
     if (cfg.signal?.aborted) return;
     const o = outcomes[i];
     if (!o.spec) continue;
-    const request = buildPartRequest(req.request, plan, i, req.brief, cfg.storyboardVersion ?? "v1");
+    const request = buildPartRequest(req.request, plan, i, req.brief);
     const label = `part ${i + 1}`;
     const freehand = o.spec;
     const brief = briefs.get(i) ?? null;
@@ -195,17 +195,17 @@ async function authorTemplatesForParts(
 
 export const EMPTY_PARTS: PartsResult = { outline: null, specs: [], chapterOf: [], failed: [] };
 
-/** How many templates the v2 storyboard is shown in full when no router picks them: a lecture's parts may draw several kinds of figure. */
+/** How many templates the storyboard is shown in full when no router picks them: a lecture's parts may draw several kinds of figure. */
 export const STORYBOARD_SHORTLIST = 8;
 
 /**
- * Storyboard v2's two template blocks, the way the single-cast storyline
+ * The storyboard's two template blocks, the way the single-cast storyline
  * gets them (compile.ts story step): the shortlist as story lines with
  * "Viewer can:" (catalog.ts storyTemplateLines) — `ids` when a router named
  * them, else the keyword shortlist for the request — and, in the two-level
  * regime, the whole library one line each so the storyboard can name a
  * template the shortlist missed. Pure; also what scripts/cast.mjs
- * lecture-prompt --storyboard v2 shows the local author.
+ * lecture-prompt shows the local author.
  */
 export function storyboardTemplates(request: string, opts: { ids?: string[]; excludeIds?: string[] } = {}): { templateLines: string; index?: string } {
   const ids = opts.ids ?? selectTemplates(request, STORYBOARD_SHORTLIST);
@@ -215,13 +215,13 @@ export function storyboardTemplates(request: string, opts: { ids?: string[]; exc
 }
 
 /**
- * The config one part is generated with under storyboard v2: a part whose
- * storyboard planned a ready template gets that template's full catalog
- * entry (priorityIds) — a shortlist, never a force, so the staging may still
- * draw freehand and report the gap. v1, or no usable plan: cfg unchanged.
+ * The config one part is generated with: a part whose storyboard planned a
+ * ready template gets that template's full catalog entry (priorityIds) — a
+ * shortlist, never a force, so the staging may still draw freehand and
+ * report the gap. No usable plan: cfg unchanged.
  */
 export function partConfig(cfg: GenerateConfig, template: string | undefined): GenerateConfig {
-  if (cfg.storyboardVersion !== "v2" || !template || !isReadyTemplate(template) || (cfg.excludeIds ?? []).includes(template)) return cfg;
+  if (!template || !isReadyTemplate(template) || (cfg.excludeIds ?? []).includes(template)) return cfg;
   if ((cfg.priorityIds ?? []).includes(template)) return cfg;
   return { ...cfg, priorityIds: [...(cfg.priorityIds ?? []), template] };
 }
@@ -247,19 +247,17 @@ export async function outlineParts(req: PartsRequest, cfg: GenerateConfig): Prom
   // is written by the creative model at the author's effort with the tag
   // brief in hand; an outline names the parts and leaves the words to each.
   const storyboard = (cfg.approach ?? DEFAULT_APPROACH) === "storyboard";
-  // Storyboard v2 (cfg.storyboardVersion) also reads the templates worth
-  // considering, with what the viewer can do with each: the router's picks
-  // for the lecture request when the app injects one, else the keyword
-  // shortlist; v1 is called exactly as before.
-  const v2 = storyboard && cfg.storyboardVersion === "v2";
-  let v2opts: { version: StoryboardVersion; templateLines: string; index?: string } | undefined;
-  if (v2 && !cfg.signal?.aborted) {
+  // The storyboard also reads the templates worth considering, with what the
+  // viewer can do with each: the router's picks for the lecture request when
+  // the app injects one, else the keyword shortlist.
+  let templates: { templateLines: string; index?: string } | undefined;
+  if (storyboard && !cfg.signal?.aborted) {
     let ids: string[] | undefined;
     if (cfg.route && catalogIsTwoLevel(cfg.excludeIds)) {
       const r = await cfg.route(req.request, cfg.signal).catch(() => null);
       if (r) ids = r.ids.length > 0 ? r.ids : r.noneFits ? [] : undefined;
     }
-    v2opts = { version: "v2", ...storyboardTemplates(req.request, { ids, excludeIds: cfg.excludeIds }) };
+    templates = storyboardTemplates(req.request, { ids, excludeIds: cfg.excludeIds });
   }
   try {
     outline = await generationGate(() =>
@@ -268,10 +266,7 @@ export async function outlineParts(req: PartsRequest, cfg: GenerateConfig): Prom
       cfg.signal?.aborted
         ? Promise.resolve(null)
         : storyboard
-          ? generateStoryboard(req.request, { apiKey: cfg.apiKey, model: cfg.model, effort: cfg.effort, styleText: cfg.styleText }, req.parts, cfg.signal, v2opts ? { chapters: req.chapters, brief: req.brief, ...v2opts } : {
-              chapters: req.chapters,
-              brief: req.brief,
-            })
+          ? generateStoryboard(req.request, { apiKey: cfg.apiKey, model: cfg.model, effort: cfg.effort, styleText: cfg.styleText }, req.parts, cfg.signal, { chapters: req.chapters, brief: req.brief, ...templates })
           : generateOutline(req.request, { apiKey: cfg.apiKey, model: cfg.model }, req.parts, cfg.signal, req.chapters),
     );
   } catch (err) {
@@ -315,11 +310,11 @@ export async function generateFromOutline(
             // part alone would re-situate and undo the coherence the
             // storyboard bought. A part without one (independent approach,
             // or a plan stored before scripts existed) keeps the pass.
-            // Storyboard v2 (cfg.storyboardVersion): the part is staged by
-            // partStagingNote, and a template its storyboard planned is
-            // shortlisted in full (partConfig); v1 exactly as before.
+            // A part with a script is staged by partStagingNote, and a
+            // template its storyboard planned is shortlisted in full
+            // (partConfig).
             generateSpec(
-              buildPartRequest(req.request, plan, i, req.brief, cfg.storyboardVersion ?? "v1"),
+              buildPartRequest(req.request, plan, i, req.brief),
               partConfig(plan.parts[i].script?.length ? { ...cfg, pedagogyReview: false } : cfg, plan.parts[i].template),
             ),
       ).then((outcome) => {
