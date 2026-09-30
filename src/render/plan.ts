@@ -592,7 +592,18 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     }
     applyScroll();
   };
+  /**
+   * Marks on picture places (spec §13). Each picture's last mark: a new mark
+   * of the same kind (no `lift`) on the picture where it stood then glides
+   * from its last box, and that earlier step is told not to release. Hiding
+   * the picture (every path: hide, erase, clear, a played key coming back
+   * up), fading it out, moving or turning it, or another kind of mark on it
+   * breaks the chain; camera moves and gestures elsewhere do not.
+   */
+  const lastMark = new Map<string, { kind: MarkKind; box: BBox; frame: BBox; stepIndex: number }>();
+  const forgetMarks = (ids: string[]) => ids.forEach((id) => lastMark.delete(id));
   const makeHidden = (ids: string[]) => {
+    forgetMarks(ids);
     for (const id of ids) visibleSet.delete(id);
     visible = visible.filter((id) => visibleSet.has(id));
     applyScroll();
@@ -832,15 +843,6 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return { owner: p.owner, kind: p.kind, box, point, frame };
   };
 
-  /**
-   * Marks on picture places (spec §13). Each picture's last mark: a new mark
-   * of the same kind (no `lift`) glides from its last box, and that earlier
-   * step is told not to release. Hiding, erasing or clearing the picture, or
-   * another kind of mark on it, breaks the chain; camera moves and gestures
-   * elsewhere do not.
-   */
-  const lastMark = new Map<string, { kind: MarkKind; box: BBox; stepIndex: number }>();
-  const forgetMarks = (ids: string[]) => ids.forEach((id) => lastMark.delete(id));
   /** One mark step per picture, stops in the order the places were named. */
   const pushMarks = (places: PlaceNow[], mark: MarkKind, seconds: number, lift: boolean, untilNarrationEnd: boolean, stopBox: (pl: PlaceNow) => BBox) => {
     const owners = [...new Set(places.map((pl) => pl.owner))];
@@ -848,7 +850,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       const mine = places.filter((pl) => pl.owner === owner);
       const stops: MarkStop[] = mine.map((pl, i) => ({ box: stopBox(pl), at: i / mine.length }));
       const last = lastMark.get(owner);
-      const glide = last !== undefined && last.kind === mark && !lift;
+      const frame = mine[mine.length - 1].frame;
+      // Only where the picture still stands: a moved or turned picture has left the old box behind.
+      const same = (a: BBox, b: BBox) => Math.abs(a.x - b.x) <= 0.5 && Math.abs(a.y - b.y) <= 0.5 && Math.abs(a.w - b.w) <= 0.5 && Math.abs(a.h - b.h) <= 0.5;
+      const glide = last !== undefined && last.kind === mark && !lift && same(last.frame, frame);
       if (glide) {
         const prev = steps[last.stepIndex];
         if (prev.kind === "mark") prev.continues = true;
@@ -858,7 +863,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         kind: "mark",
         owner,
         mark,
-        frame: mine[mine.length - 1].frame,
+        frame,
         stops,
         ...(glide ? { from: last.box } : {}),
         seconds,
@@ -868,7 +873,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // later one runs alongside it, bare — spoken once, lit together.
       if (k === 0) pushStep(step);
       else bare(() => pushStep({ ...step, parallel: true }));
-      lastMark.set(owner, { kind: mark, box: stops[stops.length - 1].box, stepIndex });
+      lastMark.set(owner, { kind: mark, box: stops[stops.length - 1].box, frame, stepIndex });
     });
   };
   /** Push with no narration or cue of the current command attached. */
@@ -1272,7 +1277,6 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       const ids = resolveIds(cmd.hide, "hide");
       ids.forEach((id) => mentioned.add(id));
       makeHidden(ids);
-      forgetMarks(ids);
       pushStep({ kind: "hide", ids });
     } else if (cmd.erase !== undefined) {
       const named = resolveIds(cmd.erase, "erase");
@@ -1282,7 +1286,6 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // Only visible elements can animate an un-sketch; the rest just stay hidden.
       const animatable = ids.filter((id) => visibleSet.has(id));
       makeHidden(ids);
-      forgetMarks(ids);
       if (animatable.length > 0) pushStep({ kind: "erase", ids: animatable, parallel: cmd.parallel === true });
     } else if (cmd.clear !== undefined) {
       const keep = new Set(resolveIds(cmd.clear.keep, "clear.keep"));
@@ -1295,7 +1298,6 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         }
       }
       makeHidden(ids);
-      forgetMarks(ids);
       pushStep({ kind: "clear", ids });
     } else if (cmd.highlight !== undefined) {
       let raw: string[] = typeof cmd.highlight.target === "string" ? [cmd.highlight.target] : cmd.highlight.target ?? [];
@@ -2006,6 +2008,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         seen.add(id);
         items.push({ id, from: opacities[id] ?? 1, to });
         opacities[id] = to;
+        // Faded out, a picture's mark is gone with it: the next one eases in.
+        if (to <= 0.05) forgetMarks([id]);
       };
       for (const id of ids) fadeOne(id);
       for (const id of ids) for (const f of opts.attachedTo?.(id) ?? []) if (known.has(f) && !ids.includes(f)) fadeOne(f);

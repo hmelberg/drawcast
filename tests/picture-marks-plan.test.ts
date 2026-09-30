@@ -73,3 +73,24 @@ test("one command on two pictures: one sentence — narration on the first mark 
   expect(mb.narration).toBeUndefined();
   expect(mb.parallel).toBe(true);
 });
+
+test("the picture moved between two marks: no glide from the stale box", () => {
+  const p = plan([{ draw: ["md"] }, { highlight: { target: "md:left" } }, { move: { target: "md", by: [300, 0] } }, { highlight: { target: "md:left" } }]);
+  const [a, b] = marks(p);
+  expect(b.frame.x).toBe(400);
+  expect(a.continues).toBeFalsy();
+  expect(b.from).toBeUndefined();
+});
+test("a move of under half a unit still glides", () => {
+  const p = plan([{ draw: ["md"] }, { highlight: { target: "md:left" } }, { move: { target: "md", by: [0.2, 0] } }, { highlight: { target: "md:right" } }]);
+  const [a, b] = marks(p);
+  expect(a.continues).toBe(true);
+  expect(b.from).toBeDefined();
+});
+test("fading the picture out between two marks breaks the glide; a partial fade does not", () => {
+  const out = marks(plan([{ draw: ["md"] }, { highlight: { target: "md:left" } }, { fade: { target: "md", to: 0 } }, { fade: { target: "md", to: 1 } }, { highlight: { target: "md:right" } }]));
+  expect(out[0].continues).toBeFalsy();
+  expect(out[1].from).toBeUndefined();
+  const half = marks(plan([{ draw: ["md"] }, { highlight: { target: "md:left" } }, { fade: { target: "md", to: 0.5 } }, { highlight: { target: "md:right" } }]));
+  expect(half[1].from).toBeDefined();
+});
