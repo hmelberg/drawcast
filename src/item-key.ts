@@ -96,7 +96,7 @@ function guarded(s: KeyStorage | null): KeyStorage | null {
  */
 export type KeyDenial =
   | { denied: 401 }
-  | { denied: 403; standing: "none" | "pending" | "rejected"; title: string; page: string | null }
+  | { denied: 403; standing: "none" | "pending" | "rejected"; title: string; page: string | null; name?: string }
   | { denied: 404 }
   | { denied: "offline" };
 
@@ -161,9 +161,12 @@ export async function fetchItemKey(
   }
   if (res.status === 403) {
     storage?.removeItem(storageKey);
-    const body = (await res.json().catch(() => ({}))) as { standing?: unknown; title?: unknown; page?: unknown };
+    const body = (await res.json().catch(() => ({}))) as { standing?: unknown; title?: unknown; page?: unknown; name?: unknown };
     const standing = body.standing === "pending" || body.standing === "rejected" ? body.standing : "none";
-    return { denied: 403, standing, title: typeof body.title === "string" && body.title ? body.title : item, page: typeof body.page === "string" ? body.page : null };
+    // `name` is the item's free drawcast.app name (final review M3), when it
+    // has one — what the locked door links to, never the spaced title.
+    const name = typeof body.name === "string" && /^[a-z0-9-]+$/.test(body.name) ? body.name : undefined;
+    return { denied: 403, standing, title: typeof body.title === "string" && body.title ? body.title : item, page: typeof body.page === "string" ? body.page : null, ...(name ? { name } : {}) };
   }
   // A 5xx, a 429: Anvil's own trouble, not an answer about this item's
   // standing — the same fallback as the request never landing.

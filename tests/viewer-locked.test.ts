@@ -143,6 +143,15 @@ describe("lockedDoor", () => {
     expect(d.join).toHaveBeenCalledWith("tok", { course: ITEM, title: "Learn russian", page: "https://x.example/course" });
   });
 
+  test("403 none with a free name (final review M3): the title heads the door, the join's page falls back to #<name> — never #<Title With Spaces>", async () => {
+    const d = deps("tok");
+    const r = render({ denied: 403, standing: "none", title: "Learn russian", page: null, name: "russian", item: ITEM }, d);
+    expect(r.h1.textContent).toBe("Learn russian");
+    r.button!.click();
+    await tick();
+    expect(d.join).toHaveBeenCalledWith("tok", { course: ITEM, title: "Learn russian", page: "https://drawcast.app/#russian" });
+  });
+
   test("403 none: an empty title falls back to the item as the name", () => {
     const r = render({ denied: 403, standing: "none", title: "", page: null, item: ITEM }, deps("tok"));
     // courseDoor title-cases whatever name it is given (hyphens to spaces,

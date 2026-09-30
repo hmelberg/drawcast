@@ -482,9 +482,11 @@ export function courseDoor(
   name: string,
   resolved: Resolved,
   deps: DoorDeps = liveDoorDeps,
-  opts: { onJoined?: () => void; lead?: string } = {},
+  opts: { onJoined?: () => void; lead?: string; title?: string } = {},
 ): HTMLElement {
-  const title = name.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase());
+  // `opts.title` (the locked door's, final review M3) is the heading; `name`
+  // is then only ever a link (#<name>), so it must be a name, never a title.
+  const title = opts.title || name.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase());
   const heading = h("h1", { class: "viewer-title" }, title);
   const note = h("p", { class: "viewer-status" }, opts.lead ?? "Joining lets you and the course's teachers follow your progress and answers.");
   const button = h("button", { class: "primary" }, deps.token() === "" ? "Sign in to join" : "Join this course");
@@ -599,7 +601,10 @@ export function lockedDoor(door: KeyDenial & { item: string }, deps: DoorDeps = 
     );
   }
   if (door.standing === "none") {
-    return courseDoor(door.title || door.item, { kind: "course", target: door.item, page: door.page }, deps, {
+    // The link half is the item's free name, or the item itself — never
+    // the title, which would build "#<Title With Spaces>" (final review M3).
+    return courseDoor(door.name || door.item, { kind: "course", target: door.item, page: door.page }, deps, {
+      title: door.title,
       onJoined,
       lead: "This lecture is private to its course. Ask to join — the teacher approves requests.",
     });

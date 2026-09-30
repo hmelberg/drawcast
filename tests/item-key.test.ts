@@ -65,6 +65,13 @@ describe("fetchItemKey", () => {
     expect(await fetchItemKey(API, "tok", ITEM, impl, null)).toEqual({ denied: 403, standing: "none", title: ITEM, page: null });
   });
 
+  it("403 carries the item's free name when the server gives one (final review M3); a malformed one is dropped", async () => {
+    const named = fetchStub(() => json(403, { error: "access", standing: "none", title: "Learn russian", page: null, name: "russian" }));
+    expect(await fetchItemKey(API, "tok", ITEM, named.impl, null)).toEqual({ denied: 403, standing: "none", title: "Learn russian", page: null, name: "russian" });
+    const spaced = fetchStub(() => json(403, { standing: "none", title: "x", name: "Learn russian" }));
+    expect(await fetchItemKey(API, "tok", ITEM, spaced.impl, null)).toEqual({ denied: 403, standing: "none", title: "x", page: null });
+  });
+
   it("404 denies and deletes a kept key", async () => {
     const { impl } = fetchStub(() => json(404, { error: "not-private" }));
     const storage = mapStorage({ [itemKeyStorageKey(ITEM)]: "stale" });
