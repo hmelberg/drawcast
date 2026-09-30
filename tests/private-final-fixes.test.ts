@@ -168,8 +168,9 @@ describe("M3: the locked door names the item by its free name, never a spaced ti
   });
 });
 
-describe("I4: SKILL.md makes it private BEFORE the first push", () => {
-  const skill = read(".claude/skills/drawcast/SKILL.md");
+describe("I4: the skill makes it private BEFORE the first push", () => {
+  // The publishing steps moved from SKILL.md into references/publish.md (2026-09-30).
+  const skill = read(".claude/skills/drawcast/references/publish.md");
   const section = between(skill, "## Private (locked on GitHub", "\nPulling a private");
   it("no longer says 'Only for something already pushed' for Private", () => {
     expect(section).not.toContain("Only for something already pushed");
