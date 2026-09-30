@@ -3194,6 +3194,23 @@ exemplars 11k. Most of it is cached (a cached read of the whole prefix is
 preamble — never worth an extra repair round. Measure every prompt change in
 the prompt lab (schema errors, repair rounds, lint, cost) before keeping it.
 
+How the cache works today (`systemBlocks`, src/llm/prompt.ts) — two facts
+that should steer what to trim, noted 2026-09-30, NOT acted on yet:
+
+- **The cache lives 5 minutes** (the default `ephemeral`, no `ttl`). Inside one
+  generation it pays well (repairs, the look pass, parts, lectures), but an
+  author who makes a cast, thinks for ten minutes and makes another pays a
+  cache WRITE again (~1.25× input price; a read is ~0.1×). The prefix also
+  forks per gate combination (code / sound / C64 — up to six), per model and
+  per deploy. Option to weigh: the 1-hour cache (`ttl: "1h"`, writes ~2×)
+  for authoring sessions — decide from the call ledger how often people
+  generate again within the hour.
+- **The tail is never cached**: the picked exemplars (~11k) and the
+  shortlist's full template entries (~21.6k) — ~8k tokens at full price on
+  every call, repairs included. Trimming there saves more per character than
+  trimming the cached schema or rules, so items 2 and 4 below are worth more
+  than their size suggests; trimming the cached part pays mainly on writes.
+
 Tokens and prompt size, biggest first:
 
 1. **Schema field descriptions (57k).** They are NOT copies of the rules:
