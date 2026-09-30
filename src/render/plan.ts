@@ -25,6 +25,7 @@ import { morphPair, stretchPts } from "./morph";
 import { dimensionLine, formatMeasure, heuristicLabelWidth, measureValue, ringCentroid, type MeasureSpec, type PointSource } from "../layout/measures";
 import { pathPosition } from "./effects";
 import { fractionBox, fractionPoint, parsePlace, type PictureFrame, type Rect4 } from "../spec/places";
+import type { MarkKind, MarkStop } from "./marks";
 import { cameraBox, fitZoom, restView, restZoom } from "./camera";
 import { cumulativeLengthFractions } from "./trails";
 import type { GhostSpec, MintedSpec } from "./minted";
@@ -95,12 +96,27 @@ export type PlanStep = (
       /** Targets that stay lit — the player dims the REST of the visible set. */
       ids: string[];
       seconds: number;
-      /** Picture places in focus: each picture's current rect and the lit boxes on it. */
+      /** Delivery 1's picture spotlight — no longer planned (places are marks); the player still reads it until Task 3. */
       spots?: { frame: BBox; holes: BBox[] }[];
       /** Narrated with no explicit duration: hold the focus until the voice ends. */
       untilNarrationEnd?: boolean;
     }
   | { kind: "point"; x: number; y: number; box?: BBox; refId?: string; gesture: PointGesture; seconds: number }
+  /** A gesture on picture places (spec §13): one mark owned by the picture, travelling through its stops. */
+  | {
+      kind: "mark";
+      owner: string;
+      mark: MarkKind;
+      /** The picture's rect where it stands now. */
+      frame: BBox;
+      stops: MarkStop[];
+      /** The previous mark's last box when this one continues it (glides from there). */
+      from?: BBox;
+      /** The NEXT mark step continues this one: do not release at the end. */
+      continues?: boolean;
+      seconds: number;
+      untilNarrationEnd?: boolean;
+    }
   | ({ kind: "move"; ids: string[]; path: Pt[]; seconds: number; easing: Easing; trails?: TrailProgress[]; relayout?: true } & MeasureFollow)
   | ({ kind: "transform"; items: TransformItem[]; seconds: number; easing: Easing; trails?: TrailProgress[]; relayout?: true } & MeasureFollow)
   | { kind: "fade"; items: { id: string; from: number; to: number }[]; seconds: number; easing: Easing }
@@ -814,6 +830,45 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     return { owner: p.owner, kind: p.kind, box, point, frame };
   };
 
+  /**
+   * Marks on picture places (spec §13). Each picture's last mark: a new mark
+   * of the same kind (no `lift`) glides from its last box, and that earlier
+   * step is told not to release. Hiding, erasing or clearing the picture, or
+   * another kind of mark on it, breaks the chain; camera moves and gestures
+   * elsewhere do not.
+   */
+  const lastMark = new Map<string, { kind: MarkKind; box: BBox; stepIndex: number }>();
+  const forgetMarks = (ids: string[]) => ids.forEach((id) => lastMark.delete(id));
+  /** One mark step per picture, stops in the order the places were named. */
+  const pushMarks = (places: PlaceNow[], mark: MarkKind, seconds: number, lift: boolean, untilNarrationEnd: boolean, stopBox: (pl: PlaceNow) => BBox) => {
+    const owners = [...new Set(places.map((pl) => pl.owner))];
+    for (const owner of owners) {
+      const mine = places.filter((pl) => pl.owner === owner);
+      const stops: MarkStop[] = mine.map((pl, i) => ({ box: stopBox(pl), at: i / mine.length }));
+      const last = lastMark.get(owner);
+      const glide = last !== undefined && last.kind === mark && !lift;
+      if (glide) {
+        const prev = steps[last.stepIndex];
+        if (prev.kind === "mark") prev.continues = true;
+      }
+      const stepIndex = steps.length;
+      pushStep({
+        kind: "mark",
+        owner,
+        mark,
+        frame: mine[mine.length - 1].frame,
+        stops,
+        ...(glide ? { from: last.box } : {}),
+        seconds,
+        ...(untilNarrationEnd ? { untilNarrationEnd: true } : {}),
+      });
+      lastMark.set(owner, { kind: mark, box: stops[stops.length - 1].box, stepIndex });
+    }
+  };
+  /** A point or anchor place as a box a light or ring can sit on: 60 x 60 about the point. */
+  const areaStop = (pl: PlaceNow): BBox =>
+    pl.kind === "point" || pl.kind === "anchor" ? { x: pl.point[0] - 30, y: pl.point[1] - 30, w: 60, h: 60 } : pl.box;
+
   /** Mint a faded copy of each id where it is NOW (design §2.1 round 3): known, mentioned, boxed and visible at once. Returns the ghost ids.
    *  `params`: pass `ghostParams()` — null for a tier-2 spec (the ghost reads
    *  the layout being wrapped), or the boundary params for a template spec
@@ -1201,6 +1256,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       const ids = resolveIds(cmd.hide, "hide");
       ids.forEach((id) => mentioned.add(id));
       makeHidden(ids);
+      forgetMarks(ids);
       pushStep({ kind: "hide", ids });
     } else if (cmd.erase !== undefined) {
       const named = resolveIds(cmd.erase, "erase");
@@ -1210,6 +1266,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // Only visible elements can animate an un-sketch; the rest just stay hidden.
       const animatable = ids.filter((id) => visibleSet.has(id));
       makeHidden(ids);
+      forgetMarks(ids);
       if (animatable.length > 0) pushStep({ kind: "erase", ids: animatable, parallel: cmd.parallel === true });
     } else if (cmd.clear !== undefined) {
       const keep = new Set(resolveIds(cmd.clear.keep, "clear.keep"));
@@ -1222,6 +1279,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         }
       }
       makeHidden(ids);
+      forgetMarks(ids);
       pushStep({ kind: "clear", ids });
     } else if (cmd.highlight !== undefined) {
       let raw: string[] = typeof cmd.highlight.target === "string" ? [cmd.highlight.target] : cmd.highlight.target ?? [];
@@ -1232,29 +1290,36 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         raw = raw.map((t) => (hasRegion(t, part!) ? `${t}:${part}` : t));
         part = undefined;
       }
-      const places: Record<string, BBox> = {};
+      const places: PlaceNow[] = [];
+      const placeNames: string[] = [];
       const plain: string[] = [];
       for (const t of raw) {
         const pl = placeNow(t, "highlight", true);
         if (pl === null) plain.push(t);
         else if (pl !== "skip") {
-          if (pl.kind === "point" || pl.kind === "anchor") warnings.push(`highlight: "${t}" is a point, not a box — use point, or a box "${pl.owner}@[x, y, w, h]"`);
-          else places[t] = pl.box;
+          places.push(pl);
+          placeNames.push(t);
         }
       }
-      const ids = [...visibleTargets(plain, "highlight"), ...Object.keys(places)];
+      const until = cmd.highlight.duration === undefined && currentNarration !== undefined;
+      if (places.length > 0 && plain.length === 0) {
+        // All places: one mark per picture (spec §13).
+        const asked = cmd.highlight.effect;
+        const mark: MarkKind = asked === "circle" || asked === "ring" ? "ring" : asked === "box" ? "box" : "light";
+        pushMarks(places, mark, cmd.highlight.duration ?? 1.5, cmd.highlight.lift === true, until, areaStop);
+        continue;
+      }
+      if (places.length > 0) warnings.push(`highlight: places and ids in one highlight — highlight "${placeNames.join('", "')}" in its own command`);
+      const ids = visibleTargets(plain, "highlight");
       if (ids.length === 0) continue;
-      const boxes: Record<string, BBox> = { ...places };
+      const boxes: Record<string, BBox> = {};
       for (const id of ids) {
-        if (id in places) continue;
         const box = bboxOf(id); // layout box; the player adds the live offset
         if (box) boxes[id] = box;
       }
-      const placeKeys = Object.keys(places);
-      const allPlaces = placeKeys.length > 0 && plain.length === 0 && ids.length === placeKeys.length;
-      if (placeKeys.length > 0 && !allPlaces) warnings.push(`highlight: places and ids in one highlight — highlight "${placeKeys.join('", "')}" in its own command`);
+      // light / ring are the picture marks' names; on an ordinary id they read as glow / circle.
       const asked = cmd.highlight.effect;
-      const effect = allPlaces && (asked === undefined || asked === "glow" || asked === "pulse") ? "box" : asked ?? "glow";
+      const effect = asked === "light" ? "glow" : asked === "ring" ? "circle" : asked ?? "glow";
       pushStep({
         kind: "highlight",
         ids,
@@ -1263,22 +1328,29 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         seconds: cmd.highlight.duration ?? 1.5,
         color: cmd.highlight.color,
         ...(part ? { part } : {}),
-        ...(cmd.highlight.duration === undefined && currentNarration !== undefined ? { untilNarrationEnd: true } : {}),
+        ...(until ? { untilNarrationEnd: true } : {}),
       });
     } else if (cmd.focus !== undefined) {
       const rawF: string[] = typeof cmd.focus.target === "string" ? [cmd.focus.target] : cmd.focus.target ?? [];
-      const spotsBy = new Map<string, { frame: BBox; holes: BBox[] }>();
+      const placesF: PlaceNow[] = [];
+      const placeNamesF: string[] = [];
       const plainF: string[] = [];
       for (const t of rawF) {
         const pl = placeNow(t, "focus", true);
         if (pl === null) plainF.push(t);
         else if (pl !== "skip") {
-          const sp = spotsBy.get(pl.owner) ?? { frame: pl.frame, holes: [] };
-          sp.holes.push(pl.kind === "point" || pl.kind === "anchor" ? { x: pl.point[0] - 30, y: pl.point[1] - 30, w: 60, h: 60 } : pl.box);
-          spotsBy.set(pl.owner, sp);
+          placesF.push(pl);
+          placeNamesF.push(t);
         }
       }
-      const ids = [...visibleTargets(plainF, "focus"), ...[...spotsBy.keys()].filter((o) => !plainF.includes(o))];
+      const untilF = cmd.focus.duration === undefined && currentNarration !== undefined;
+      if (placesF.length > 0 && plainF.length === 0) {
+        // All places: a light on each picture (spec §13), not a dim of the rest.
+        pushMarks(placesF, "light", cmd.focus.duration ?? 2, cmd.focus.lift === true, untilF, areaStop);
+        continue;
+      }
+      if (placesF.length > 0) warnings.push(`focus: places and ids in one focus — focus "${placeNamesF.join('", "')}" in its own command`);
+      const ids = visibleTargets(plainF, "focus");
       if (ids.length === 0) continue;
       // A label belongs to the thing it names. `fade` and `move` have always
       // carried followers; the inverse spotlight did not, so it held an
@@ -1311,8 +1383,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         kind: "focus",
         ids: kept,
         seconds: cmd.focus.duration ?? 2,
-        ...(spotsBy.size > 0 ? { spots: [...spotsBy.values()] } : {}),
-        ...(cmd.focus.duration === undefined && currentNarration !== undefined ? { untilNarrationEnd: true } : {}),
+        ...(untilF ? { untilNarrationEnd: true } : {}),
       });
     } else if (cmd.point !== undefined) {
       const at = cmd.point.at;
@@ -1325,7 +1396,14 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         if (pl !== null) {
           const areal = pl.kind === "region" || pl.kind === "box";
           const [px, py] = areal && at.anchor !== undefined ? boxAnchor(pl.box, at.anchor) : pl.point;
-          pushStep({ kind: "point", x: px, y: py, box: areal ? pl.box : undefined, refId: pl.owner, gesture: cmd.point.gesture ?? "tap", seconds: cmd.point.duration ?? 2 });
+          const g = cmd.point.gesture;
+          if (g === undefined || g === "arrow" || g === "glow") {
+            // An arrow (default) or a glow on the picture (spec §13): the place's box, or a 0-size box at its point.
+            const aim: BBox = areal && at.anchor === undefined ? pl.box : { x: px, y: py, w: 0, h: 0 };
+            pushMarks([pl], g === "glow" ? "glow" : "arrow", cmd.point.duration ?? 2, cmd.point.lift === true, false, () => aim);
+            continue;
+          }
+          pushStep({ kind: "point", x: px, y: py, box: areal ? pl.box : undefined, refId: pl.owner, gesture: g, seconds: cmd.point.duration ?? 2 });
           continue;
         }
         const kids = standsFor(at.ref);
@@ -1364,7 +1442,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         warnings.push("point command without a resolvable target skipped");
         continue;
       }
-      pushStep({ kind: "point", x, y, box, refId, gesture: cmd.point.gesture ?? "tap", seconds: cmd.point.duration ?? 2 });
+      // arrow / glow are picture marks; on anything else they read as the laser's tap.
+      const g = cmd.point.gesture;
+      pushStep({ kind: "point", x, y, box, refId, gesture: g === undefined || g === "arrow" || g === "glow" ? "tap" : g, seconds: cmd.point.duration ?? 2 });
     } else if (cmd.move !== undefined) {
       const ids = withoutDependents(resolveIds(cmd.move.target, "move"), "move");
       for (const id of ids) {

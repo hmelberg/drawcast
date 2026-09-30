@@ -99,10 +99,11 @@ describe("screen picture layout", () => {
     const bboxes = elementBBoxes(layout);
     const plan = planCommands(spec.commands as never, layout.order, { bboxOf: (id) => bboxes.get(id) ?? null, ...planOptionsFor(spec as never, layout) });
     expect(plan.warnings).toEqual([]);
-    const s = plan.steps.find((x) => x.kind === "point") as any;
+    // An arrow mark (spec §13) at the picture's top: a 0-size stop box on the point.
+    const s = plan.steps.find((x) => x.kind === "mark") as any;
     expect(s).toBeDefined();
     const d = img(layout, "p");
-    expect(s.x).toBeCloseTo(d.pos[0], 5);
+    expect(s.stops[0].box.x).toBeCloseTo(d.pos[0], 5);
   });
   test("planOptionsFor's pictureOf: the __img drawable's centre becomes its rect, with the view (final fix T6-triage a)", () => {
     const spec = { elements: [{ id: "md", type: "image", url: "https://x.org/a.png", look: "screen", strokes: shot, view: [0, 0, 1, 0.5], regions: { top: [0, 0, 1, 0.25] } }], commands: [{ draw: ["md"] }] };

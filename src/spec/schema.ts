@@ -851,10 +851,11 @@ const commandSchema = {
         "Temporarily emphasize visible elements, then return to normal. With a paired speak and no duration it LIGHTS UP AND HOLDS for the rest of the sentence, releasing as the voice ends — the way to talk about one specific element (a curve, an equilibrium) while it is lit.",
       properties: {
         target: idListSchema("Element ids to emphasize."),
-        effect: { type: "string", enum: ["glow", "circle", "underline", "pulse", "box"], description: "glow (default) = suits the target: a yellow band under a line, a marker behind a code line, red ink on a formula, text or shape; circle = a hand-drawn ring; underline = a pen line under it; pulse = red ink that throbs three times first. box = a box drawn round the target (the default on a picture place). color replaces the red/yellow." },
+        effect: { type: "string", enum: ["glow", "circle", "underline", "pulse", "box", "light", "ring"], description: "glow (default) = suits the target: a yellow band under a line, a marker behind a code line, red ink on a formula, text or shape; circle = a hand-drawn ring; underline = a pen line under it; pulse = red ink that throbs three times first. box = a box drawn round the target; light = a soft light on a picture place (its default), ring = a hand-drawn ring. color replaces the red/yellow." },
         part: { type: "string", description: "Only this piece: a formula term as TeX (\"t_r\"), or verbatim text of a label or code line." },
         duration: { type: "number", description: "Seconds. Omit with a paired speak to let the effect last the whole sentence (default 1.5 otherwise)." },
         color: { type: "string", description: "Emphasis color, CSS color string." },
+        lift: { type: "boolean", description: "Start this mark fresh instead of gliding from the previous one on the same picture." },
       },
       required: ["target"],
       additionalProperties: false,
@@ -866,6 +867,7 @@ const commandSchema = {
       properties: {
         target: idListSchema("Element ids that stay lit; everything else dims."),
         duration: { type: "number", description: "Seconds. Omit with a paired speak to hold for the sentence (default 2 otherwise)." },
+        lift: { type: "boolean", description: "Start this mark fresh instead of gliding from the previous one on the same picture." },
       },
       required: ["target"],
       additionalProperties: false,
@@ -875,8 +877,9 @@ const commandSchema = {
       description: "A laser pointer travels to the target and gestures at it, then disappears. Combine with speak blocking:false to talk while pointing.",
       properties: {
         at: { ...endRefSchema, description: "Where: {\"ref\": id, \"anchor\": name}, {\"x\": …, \"y\": …}, {\"data\": [x, y]} for a spot on a chart, or {\"canvas\": [x, y]} — an object, not [x, y]." },
-        gesture: { type: "string", enum: ["tap", "circle", "underline"], description: "tap = dip at the spot (default); circle = trace a ring around it; underline = sweep beneath it." },
+        gesture: { type: "string", enum: ["tap", "circle", "underline", "arrow", "glow"], description: "tap = dip at the spot (default); circle = trace a ring around it; underline = sweep beneath it. On a picture place: arrow = a hand-drawn arrow (its default), glow = a soft glow." },
         duration: { type: "number", description: "Seconds (default 2)." },
+        lift: { type: "boolean", description: "Start this mark fresh instead of gliding from the previous one on the same picture." },
       },
       required: ["at"],
       additionalProperties: false,

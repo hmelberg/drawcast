@@ -427,8 +427,10 @@ export interface SpecElement {
 }
 
 export type Easing = "linear" | "ease-in" | "ease-out" | "ease-in-out";
-export type HighlightEffect = "pulse" | "circle" | "glow" | "underline" | "box";
-export type PointGesture = "tap" | "circle" | "underline";
+/** light / ring: marks on a picture place (spec §13); on a plain id they read as glow / circle. */
+export type HighlightEffect = "pulse" | "circle" | "glow" | "underline" | "box" | "light" | "ring";
+/** arrow / glow: marks on a picture place (spec §13); on a plain id they read as tap. */
+export type PointGesture = "tap" | "circle" | "underline" | "arrow" | "glow";
 
 export interface HighlightArgs {
   target: string[] | string;
@@ -438,6 +440,8 @@ export interface HighlightArgs {
   /** seconds */
   duration?: number;
   color?: string;
+  /** Start this mark fresh instead of gliding from the previous one on the same picture (picture places only). */
+  lift?: boolean;
 }
 
 export interface PointArgs {
@@ -446,6 +450,8 @@ export interface PointArgs {
   gesture?: PointGesture;
   /** seconds */
   duration?: number;
+  /** Start this mark fresh instead of gliding from the previous one on the same picture (picture places only). */
+  lift?: boolean;
 }
 
 /** Keep a faded copy of the targets where they are now — true, a list of ids, or {of, opacity}. */
@@ -590,6 +596,8 @@ export interface FocusArgs {
   target: string[] | string;
   /** Seconds. Omit with a paired speak to hold the focus for the whole sentence (default 2 otherwise). */
   duration?: number;
+  /** Start this mark fresh instead of gliding from the previous one on the same picture (picture places only). */
+  lift?: boolean;
 }
 
 export interface ClearArgs {
