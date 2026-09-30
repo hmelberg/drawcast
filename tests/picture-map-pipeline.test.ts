@@ -152,3 +152,65 @@ describe("editor write-back", () => {
     expect(spec.elements![1].regions).toEqual({ a: [0, 0, 1, 1] });
   });
 });
+
+describe("final-review fixes", () => {
+  const withMap = () => cfg({ mapPictures: async () => ({ maps: new Map([[U, MAP]]), note: NOTE, warnings: [] }) });
+
+  test("I2 compile: no map + a reply aiming at an invented part of regions: auto → the first validation says it was not mapped", async () => {
+    mockJson.mockResolvedValue(respond(specUsing("guess")));
+    const out = await generateSpec("Explain a picture", cfg());
+    expect(out.rounds[0].validationErrors.join("\n")).toContain(`"md" was not mapped — its parts are unknown; aim at "md@top", "md@[x, y, w, h]" or the whole picture`);
+  });
+
+  test("I2 revise: likewise", async () => {
+    const doc = formatPlaylist(singlePlaylist(specUsing("guess") as unknown as Spec), "script");
+    mockText.mockImplementation(async () => ({ text: doc, ms: 1 }));
+    const out = await reviseDocument(doc, "x", { apiKey: "k", model: "claude-opus-5", variant: promptVariants()[0], maxRepairs: 0 });
+    expect(out.rounds[0].errors.join("\n")).toContain(`"md" was not mapped`);
+  });
+
+  test("I2: a place that is not a part name (md@top) on an unmapped auto picture is fine", async () => {
+    const spec = specUsing("x");
+    spec.commands[1] = { highlight: { target: ["md@top"] } };
+    mockJson.mockResolvedValue(respond(spec));
+    const out = await generateSpec("Explain a picture", cfg());
+    expect(out.rounds[0].validationErrors.join("\n")).not.toContain("was not mapped");
+  });
+
+  test("I3: a look-pass candidate aiming at another mapped part is adopted, its box filled", async () => {
+    const both = specUsing("command_line");
+    both.commands.push({ highlight: { target: ["md:results"] } });
+    mockJson.mockResolvedValueOnce(respond(specUsing("command_line"))).mockResolvedValueOnce(respond(both));
+    mockText.mockResolvedValue({ text: "Point at the results too.", ms: 1 } as never);
+    const out = await generateSpec(REQUEST, { ...withMap(), look: async () => [{ mediaType: "image/png", data: "x" }], lookRounds: 1 });
+    const look = out.rounds.find((r) => r.label === "look")!;
+    expect(look.adopted).toBe(true);
+    expect(out.spec!.elements![0].regions).toEqual({ command_line: [0.2, 0.9, 0.8, 0.1], results: [0, 0, 0.5, 0.5] });
+  });
+
+  test("I5: the repair message names the map's parts once per missing name and never says 'it has: none'", async () => {
+    mockJson.mockResolvedValueOnce(respond(specUsing("nope"))).mockResolvedValueOnce(respond(specUsing("results")));
+    const out = await generateSpec(REQUEST, withMap());
+    const errs = out.rounds[0].validationErrors;
+    expect(errs.filter((e) => e.includes("nope"))).toHaveLength(1);
+    expect(errs.join("\n")).toContain("command_line, results");
+    expect(errs.join("\n")).not.toContain("it has: none");
+    const repair = JSON.stringify(mockJson.mock.calls[1][3]);
+    expect(repair).toContain("command_line, results");
+    expect(repair).not.toContain("it has: none");
+  });
+
+  test("M-b: the phase says it is looking at the picture before the mapping call — only when there is a picture", async () => {
+    mockJson.mockResolvedValue(respond(specUsing("command_line")));
+    const phases: string[] = [];
+    const mapPictures = vi.fn(async () => {
+      phases.push("<map>");
+      return { maps: new Map([[U, MAP]]), note: NOTE, warnings: [] };
+    });
+    await generateSpec(REQUEST, cfg({ mapPictures, onPhase: (p) => phases.push(p) }));
+    expect(phases.slice(0, 2)).toEqual(["looking at the picture", "<map>"]);
+    phases.length = 0;
+    await generateSpec("Explain supply and demand", cfg({ mapPictures, onPhase: (p) => phases.push(p) }));
+    expect(phases).not.toContain("looking at the picture");
+  });
+});

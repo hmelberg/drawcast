@@ -24,7 +24,7 @@ import { apiSchema, CODE_PROMPT_SOURCE, SOUND_PROMPT_SOURCE, fewshotsText, needs
 import { catalogParts } from "../scenes/catalog";
 import { ensureEnginesForSpecs, ensureEnginesForTemplate } from "../scenes/engines";
 import { makeBrowserMeasure } from "../render/svg-backend";
-import { autoImages, fillMappedRegions, mapNote, type MapOptions, type PictureMap } from "./picture-map";
+import { autoImages, checkMappedPictures, mapNote, withMapCheck, type MapCheck, type MapOptions, type PictureMap } from "./picture-map";
 
 /**
  * The notation card: how to read and write a drawcast document, and the
@@ -300,13 +300,15 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
       if (!parsed.playlist) {
         errors = [parsed.error!];
       } else {
-        // The mapped boxes of the names this reply uses, before it is judged.
-        if (maps) {
-          const items = itemsOf(parsed.playlist);
-          for (const item of items) {
-            const where = items.length > 1 ? `item ${item.index + 1}: ` : "";
-            errors.push(...fillMappedRegions(item.spec, maps).map((e) => where + e));
-          }
+        // The mapped boxes of the names this reply uses, before it is judged;
+        // a name the map lacks, or one aimed into a picture nothing mapped,
+        // is reported for the repair (compile.ts does the same).
+        const pics: MapCheck = { errors: [], reported: new Set() };
+        const items = itemsOf(parsed.playlist);
+        for (const item of items) {
+          const c = checkMappedPictures(item.spec, maps, items.length > 1 ? `item ${item.index + 1}: ` : "");
+          pics.errors.push(...c.errors);
+          for (const k of c.reported) pics.reported.add(k);
         }
         // Engines must be loaded before layout — layoutSpec reads them synchronously.
         for (const id of templatesIn(parsed.playlist)) {
@@ -320,7 +322,7 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
           errors.push(`engine load failed: ${(err as Error).message}`);
         });
         const checked = checkPlaylist(parsed.playlist, measure);
-        errors = [...errors, ...checked.errors];
+        errors = [...errors, ...withMapCheck(checked.errors, pics)];
         lintIssues = checked.lintIssues;
         if (errors.length === 0) best = { playlist: parsed.playlist, text: cleaned };
       }

@@ -40,7 +40,7 @@ import type { CodeRunRequest, CodeRunResult } from "../code/run";
 import { paramsStrictness, templateParamIssues } from "../scenes/params-check";
 import { isPackTemplateId, packTemplateIds } from "../scenes/packs";
 import { scanDataTokens } from "../code/tokens";
-import { fillMappedRegions, type PictureMap } from "./picture-map";
+import { checkMappedPictures, picturesInRequest, withMapCheck, type PictureMap } from "./picture-map";
 import fewshots from "./prompts/fewshots.json";
 import codeMd from "./prompts/compiler-v1-code.md?raw";
 import soundMd from "./prompts/compiler-v1-sound.md?raw";
@@ -475,9 +475,13 @@ function adoptIfNoWorse(
   baseLint: LintIssue[],
   lintOf: (spec: Spec) => LintIssue[] | null,
   warnsMayRise = false,
+  maps?: Map<string, PictureMap>,
 ): { spec: Spec; adopted: boolean; lintIssues: LintIssue[]; validationErrors: string[] } {
+  // The mapped pictures' boxes for the names this candidate uses, filled
+  // before it is judged — as for the compiler's own rounds (§14).
+  const pics = checkMappedPictures(candidateJson, maps);
   const v = validateSpec(candidateJson);
-  if (!v.ok) return { spec: current, adopted: false, lintIssues: baseLint, validationErrors: v.errors };
+  if (!v.ok || pics.errors.length > 0) return { spec: current, adopted: false, lintIssues: baseLint, validationErrors: withMapCheck(v.errors, pics) };
   const candidate = candidateJson as Spec;
   if (candidate.template !== current.template) return { spec: current, adopted: false, lintIssues: baseLint, validationErrors: [] };
   const candidateLint = lintOf(candidate);
@@ -542,6 +546,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   let mapped: { maps: Map<string, PictureMap>; note: string; warnings: string[] } | null = null;
   const warnings: string[] = [];
   if (cfg.mapPictures) {
+    if (picturesInRequest(request).length > 0) cfg.onPhase?.("looking at the picture");
     try {
       mapped = await cfg.mapPictures(request, cfg.signal);
     } catch (err) {
@@ -733,10 +738,11 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       }
 
       // The mapped pictures' boxes, for the names this reply uses (§14); a
-      // name the map lacks is reported with the real ones for the repair.
-      const mapErrors = mapped && mapped.maps.size > 0 && json && typeof json === "object" ? fillMappedRegions(json as Spec, mapped.maps) : [];
-      const validation = validateSpec(json);
-      validation.errors.push(...mapErrors);
+      // name the map lacks is reported with the real ones for the repair, and
+      // a part name aimed into a picture nothing mapped is reported as guessed.
+      const pics = checkMappedPictures(json, mapped?.maps);
+      const checked = validateSpec(json);
+      const validation = { ok: checked.ok && pics.errors.length === 0, errors: withMapCheck(checked.errors, pics) };
       if (cfg.forcedTemplate && (json as Spec)?.template !== cfg.forcedTemplate) {
         validation.errors.push(`the request requires template "${cfg.forcedTemplate}" — set "template" to it and use its params`);
       }
@@ -888,7 +894,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       if (isUnchangedReply(json)) {
         rounds.push({ label: "pedagogy", spec: best, validationErrors: [], lintIssues: baseLint, meta, adopted: false });
       } else {
-        const result = adoptIfNoWorse(best, json, baseLint, lintOf);
+        const result = adoptIfNoWorse(best, json, baseLint, lintOf, false, mapped?.maps);
         if (result.adopted) best = result.spec;
         rounds.push({ label: "pedagogy", spec: json, validationErrors: result.validationErrors, lintIssues: result.lintIssues, meta, adopted: result.adopted });
       }
@@ -927,7 +933,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
             onDelta: cfg.onProgress && ((_delta, text) => cfg.onProgress!({ label: "visual", round, text })),
           },
         );
-        const result = adoptIfNoWorse(best, json, baseLint, lintOf);
+        const result = adoptIfNoWorse(best, json, baseLint, lintOf, false, mapped?.maps);
         if (result.adopted) best = result.spec;
         rounds.push({ label: "visual", spec: json, validationErrors: result.validationErrors, lintIssues: result.lintIssues, meta, adopted: result.adopted });
       } catch {
@@ -974,7 +980,9 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
           raw = JSON.stringify(json);
           if (applied.skipped.length) note = `skipped edits: ${applied.skipped.join("; ")}`;
         }
-        const firstTry = validateSpec(json);
+        const firstPics = checkMappedPictures(json, mapped?.maps);
+        const firstChecked = validateSpec(json);
+        const firstTry = { ok: firstChecked.ok && firstPics.errors.length === 0, errors: withMapCheck(firstChecked.errors, firstPics) };
         const errs = firstTry.ok ? (lintOf(json as Spec) ?? []).filter((x) => x.severity === "error") : [];
         if (!firstTry.ok || errs.length > baseLint.filter((x) => x.severity === "error").length) {
           const feedback = !firstTry.ok
@@ -986,7 +994,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
             effort: "medium",
           }));
         }
-        const result = adoptIfNoWorse(best, json, baseLint, lintOf, true);
+        const result = adoptIfNoWorse(best, json, baseLint, lintOf, true, mapped?.maps);
         if (result.adopted) best = result.spec;
         else note = [note, result.validationErrors.length ? `invalid: ${result.validationErrors.slice(0, 3).join("; ")}` : "no better than before (errors, template or unchanged)"].filter(Boolean).join(" · ");
         rounds.push({ label: "look", spec: json as Spec, validationErrors: result.validationErrors, lintIssues: result.lintIssues, meta, adopted: result.adopted, critique, note: note || undefined });

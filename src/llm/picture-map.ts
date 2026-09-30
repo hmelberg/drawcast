@@ -203,14 +203,15 @@ export function autoImages(spec: Spec): { id: string; picture: string; opts: Map
   return out;
 }
 
-/** Set each mapped image's regions to the boxes of the names the commands use (keeping hand-written boxes); returns the used names the map lacks. */
-export function fillUsedRegions(spec: Spec, maps: Map<string, PictureMap>): { missing: string[] } {
+/** Set each mapped image's regions to the boxes of the names the commands use (keeping hand-written boxes); returns the used names the map lacks (missingAt: with their picture). */
+export function fillUsedRegions(spec: Spec, maps: Map<string, PictureMap>): { missing: string[]; missingAt: { owner: string; name: string }[] } {
   const used = new Map<string, Set<string>>();
   for (const s of placesInCommands(spec.commands)) {
     const p = parsePlace(s);
     if (p?.kind === "region") (used.get(p.owner) ?? used.set(p.owner, new Set()).get(p.owner)!).add(p.name);
   }
   const missing: string[] = [];
+  const missingAt: { owner: string; name: string }[] = [];
   for (const el of spec.elements ?? []) {
     if (el.type !== "image" || typeof el.url !== "string") continue;
     const map = maps.get(el.url);
@@ -224,11 +225,14 @@ export function fillUsedRegions(spec: Spec, maps: Map<string, PictureMap>): { mi
       if (Object.hasOwn(hand, name) || !/^[a-z][a-z0-9_]{0,31}$/.test(name)) continue;
       const found = map.regions.find((r) => r.name === name);
       if (found) filled[name] = found.box;
-      else missing.push(name);
+      else {
+        missing.push(name);
+        missingAt.push({ owner: el.id, name });
+      }
     }
     el.regions = filled;
   }
-  return { missing };
+  return { missing, missingAt };
 }
 
 // ---- the call (authoring only) ---------------------------------------------
@@ -303,26 +307,65 @@ export async function mapPictures(
   return mapShared(sharedMapper(deps), items, deps.signal);
 }
 
+/** The pipeline's picture check on one reply (see checkMappedPictures). */
+export interface MapCheck {
+  /** One line per used name a map lacks, and one per unmapped auto picture a part name aims into. */
+  errors: string[];
+  /** `<where><owner>\0<name>` of the names already reported above — validation's own "has no region" line for them is dropped. */
+  reported: Set<string>;
+}
+
 /**
- * fillUsedRegions on a model's reply, as the pipeline runs it before
- * validation: returns an error line per used name the map lacks, listing the
- * picture's real part names so the repair round can pick one. Never throws —
- * a malformed reply is validation's to report.
+ * The compile and revise pipelines' picture step, run on every candidate
+ * before it is validated: fill the used boxes from the maps (§14), report
+ * each used name a map lacks with the picture's real names, and report a part
+ * NAME aimed into a picture still `regions: auto` — nothing mapped it, so the
+ * name was guessed. (pictureErrors outside the pipelines stays tolerant of
+ * auto: the editor maps it later.) `where` prefixes every line ("item 2: ").
+ * Never throws — a malformed reply is validation's to report.
  */
-export function fillMappedRegions(spec: Spec, maps: Map<string, PictureMap>): string[] {
+export function checkMappedPictures(spec: unknown, maps?: Map<string, PictureMap> | null, where = ""): MapCheck {
+  const out: MapCheck = { errors: [], reported: new Set() };
   try {
-    if (!Array.isArray(spec.elements)) return [];
-    const { missing } = fillUsedRegions(spec, maps);
-    if (missing.length === 0) return [];
-    const parts: string[] = [];
-    for (const el of spec.elements) {
-      const map = el?.type === "image" && typeof el.url === "string" ? maps.get(el.url) : undefined;
-      if (map) parts.push(`${el.id}: ${map.regions.map((r) => r.name).join(", ") || "none"}`);
+    const s = spec as Spec;
+    if (!s || typeof s !== "object" || !Array.isArray(s.elements)) return out;
+    if (maps && maps.size > 0) {
+      const { missingAt } = fillUsedRegions(s, maps);
+      const seen = new Set<string>();
+      for (const { owner, name } of missingAt) {
+        const key = `${owner}\0${name}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.reported.add(where + key);
+        const el = s.elements.find((e) => e?.id === owner);
+        const map = el && typeof el.url === "string" ? maps.get(el.url) : undefined;
+        const names = map?.regions.map((r) => r.name).join(", ") || "none";
+        out.errors.push(`${where}"${owner}:${name}": not a mapped part of the picture — ${owner}'s mapped parts are: ${names}`);
+      }
     }
-    return [`not a mapped part of the picture: ${[...new Set(missing)].join(", ")} — the mapped parts are ${parts.join("; ")}`];
+    const unmapped = new Set<string>();
+    for (const place of placesInCommands(s.commands)) {
+      const p = parsePlace(place);
+      if (p?.kind !== "region" || unmapped.has(p.owner)) continue;
+      const el = s.elements.find((e) => e?.id === p.owner);
+      if (el?.type === "image" && isAutoRegions(el.regions)) unmapped.add(p.owner);
+    }
+    for (const id of unmapped) out.errors.push(`${where}"${id}" was not mapped — its parts are unknown; aim at "${id}@top", "${id}@[x, y, w, h]" or the whole picture`);
   } catch {
-    return [];
+    return { errors: [], reported: new Set() };
   }
+  return out;
+}
+
+/** Validation's errors with the pipeline's picture check folded in: its "has no region" lines for names the check already reported are dropped (one line per missing name), its own lines appended. */
+export function withMapCheck(errors: string[], check: MapCheck): string[] {
+  const kept = check.reported.size === 0
+    ? errors
+    : errors.filter((e) => {
+        const m = /^((?:item \d+: )?)"[^"]*": (\S+) has no region "([^"]*)"/.exec(e);
+        return !m || !check.reported.has(`${m[1]}${m[2]}\0${m[3]}`);
+      });
+  return [...kept, ...check.errors];
 }
 
 /** What the compile pipeline gets from mapping a request (GenerateConfig.mapPictures). */
