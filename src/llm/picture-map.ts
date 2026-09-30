@@ -280,14 +280,99 @@ export async function mapPictures(
   items: { picture: string; opts: MapOptions }[],
   deps: MapDeps,
 ): Promise<{ maps: Map<string, PictureMap>; warnings: string[] }> {
+  return mapShared(sharedMapper(deps), items, deps.signal);
+}
+
+/**
+ * fillUsedRegions on a model's reply, as the pipeline runs it before
+ * validation: returns an error line per used name the map lacks, listing the
+ * picture's real part names so the repair round can pick one. Never throws —
+ * a malformed reply is validation's to report.
+ */
+export function fillMappedRegions(spec: Spec, maps: Map<string, PictureMap>): string[] {
+  try {
+    if (!Array.isArray(spec.elements)) return [];
+    const { missing } = fillUsedRegions(spec, maps);
+    if (missing.length === 0) return [];
+    const parts: string[] = [];
+    for (const el of spec.elements) {
+      const map = el?.type === "image" && typeof el.url === "string" ? maps.get(el.url) : undefined;
+      if (map) parts.push(`${el.id}: ${map.regions.map((r) => r.name).join(", ") || "none"}`);
+    }
+    return [`not a mapped part of the picture: ${[...new Set(missing)].join(", ")} — the mapped parts are ${parts.join("; ")}`];
+  } catch {
+    return [];
+  }
+}
+
+/** What the compile pipeline gets from mapping a request (GenerateConfig.mapPictures). */
+export interface RequestMaps { maps: Map<string, PictureMap>; note: string; warnings: string[] }
+
+/**
+ * One picture mapper for a whole run: the parts of a multi-part drawcast or a
+ * course's lectures ask for the same picture in parallel, and a cold cache
+ * would otherwise pay for it once per part — the first ask's call is shared.
+ */
+function sharedMapper(deps: Omit<MapDeps, "signal">) {
+  const inflight = new Map<string, Promise<PictureMap | null>>();
+  return (picture: string, opts: MapOptions, signal?: AbortSignal): Promise<PictureMap | null> => {
+    const key = mapCacheKey(picture, opts);
+    let p = inflight.get(key);
+    if (!p) {
+      p = mapPicture(picture, opts, { ...deps, signal });
+      p.catch(() => inflight.delete(key)); // an abort is not remembered
+      inflight.set(key, p);
+    }
+    return p;
+  };
+}
+
+/** mapPictures over a shared mapper (see sharedMapper). */
+async function mapShared(map: ReturnType<typeof sharedMapper>, items: { picture: string; opts: MapOptions }[], signal?: AbortSignal) {
   const maps = new Map<string, PictureMap>();
   const warnings: string[] = [];
   for (const { picture, opts } of items) {
     if (maps.has(picture)) continue;
-    const map = await mapPicture(picture, opts, deps);
-    const label = picture.startsWith("data:") ? "an embedded picture" : picture;
-    if (map && (map.regions.length > 0 || map.notFound.length > 0)) maps.set(picture, map);
-    else warnings.push(`Could not map the parts of ${label}; regions: auto has no boxes for it.`);
+    const m = await map(picture, opts, signal);
+    if (m && (m.regions.length > 0 || m.notFound.length > 0)) maps.set(picture, m);
+    else warnings.push(`Could not map the parts of ${picture.startsWith("data:") ? "an embedded picture" : picture}; regions: auto has no boxes for it.`);
   }
   return { maps, warnings };
+}
+
+/** The compile pipeline's hook (GenerateConfig.mapPictures): the request's picture URLs (none → null, no call), mapped with the default options, with the compiler's note. */
+export function makeMapPictures(deps: Omit<MapDeps, "signal">): (request: string, signal?: AbortSignal) => Promise<RequestMaps | null> {
+  const map = sharedMapper(deps);
+  return async (request, signal) => {
+    const urls = picturesInRequest(request);
+    if (urls.length === 0) return null;
+    const { maps, warnings } = await mapShared(map, urls.map((picture) => ({ picture, opts: defaults() })), signal);
+    const note = maps.size > 0 ? mapNote([...maps].map(([url, m]) => ({ url, map: m }))) : "";
+    return { maps, note, warnings };
+  };
+}
+
+/** Revise's hook (ReviseConfig.mapAuto): the pictures a document's regions: auto asks for, with their options. */
+export function makeMapAuto(deps: Omit<MapDeps, "signal">): (items: { picture: string; opts: MapOptions }[], signal?: AbortSignal) => Promise<{ maps: Map<string, PictureMap>; warnings: string[] }> {
+  const map = sharedMapper(deps);
+  return (items, signal) => mapShared(map, items, signal);
+}
+
+/**
+ * The editor's write-back (§14 trigger 3): every image whose regions ask for
+ * auto and whose picture was mapped gets the WHOLE map, sorted by name, for
+ * the author to use and prune. Returns what was written, per image id.
+ */
+export function writeFullMaps(spec: Spec, maps: Map<string, PictureMap>): { id: string; count: number; notFound: string[] }[] {
+  const out: { id: string; count: number; notFound: string[] }[] = [];
+  for (const el of Array.isArray(spec.elements) ? spec.elements : []) {
+    if (el?.type !== "image" || typeof el.url !== "string" || !autoOptions(el.regions)) continue;
+    const map = maps.get(el.url);
+    if (!map || map.regions.length === 0) continue;
+    const regions: Record<string, Rect4> = Object.create(null) as Record<string, Rect4>;
+    for (const r of [...map.regions].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) regions[r.name] = r.box;
+    el.regions = regions;
+    out.push({ id: el.id, count: map.regions.length, notFound: map.notFound });
+  }
+  return out;
 }

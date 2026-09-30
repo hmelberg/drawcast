@@ -40,6 +40,7 @@ import type { CodeRunRequest, CodeRunResult } from "../code/run";
 import { paramsStrictness, templateParamIssues } from "../scenes/params-check";
 import { isPackTemplateId, packTemplateIds } from "../scenes/packs";
 import { scanDataTokens } from "../code/tokens";
+import { fillMappedRegions, type PictureMap } from "./picture-map";
 import fewshots from "./prompts/fewshots.json";
 import codeMd from "./prompts/compiler-v1-code.md?raw";
 import soundMd from "./prompts/compiler-v1-sound.md?raw";
@@ -209,6 +210,8 @@ export interface GenerationOutcome {
    * so the spec never carries them. For the owner — which templates to extend.
    */
   templateGaps?: TemplateGap[];
+  /** Non-fatal notes for the author — a picture in the request that could not be mapped (cfg.mapPictures). */
+  warnings?: string[];
 }
 
 export interface GenerateConfig {
@@ -297,6 +300,16 @@ export interface GenerateConfig {
    * throwing, so it never costs the generation.
    */
   fetchSeed?: (subject: string, signal?: AbortSignal) => Promise<SeedBlock | null>;
+  /**
+   * Picture mapping (picture-map.ts makeMapPictures, spec 2026-09-30-picture-
+   * regions §14), injected by the app: a picture URL in the request is mapped
+   * before the storyline; its part NAMES ride the storyline's and the
+   * compiler's user turns, and after each reply the boxes of the names the
+   * spec uses are filled in before validation. Absent (tests, embeds without
+   * a key) or null (no picture in the request) means no call and no note; a
+   * failure degrades to no map.
+   */
+  mapPictures?: (request: string, signal?: AbortSignal) => Promise<{ maps: Map<string, PictureMap>; note: string; warnings: string[] } | null>;
   /** Effort for the creative round (Settings). Repairs and the pedagogy pass always run low; omitted = the API default (high). */
   effort?: Effort;
   /** Named phases the status line can show between deltas: "routing", "writing the spec", "checking the code", "teaching pass". */
@@ -525,6 +538,20 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   const seed = route?.noneFits && route.subject && cfg.fetchSeed ? await cfg.fetchSeed(route.subject, cfg.signal).catch(() => null) : null;
   const seeded = seed !== null;
   // ---- end icon seed ----
+  // ---- picture mapping (§14): the parts of a picture the request links. ----
+  let mapped: { maps: Map<string, PictureMap>; note: string; warnings: string[] } | null = null;
+  const warnings: string[] = [];
+  if (cfg.mapPictures) {
+    try {
+      mapped = await cfg.mapPictures(request, cfg.signal);
+    } catch (err) {
+      if (cfg.signal?.aborted) throw err;
+      warnings.push(`Could not map the pictures in the request (${describeApiError(err)}); regions are left to the compiler.`);
+    }
+    if (mapped) warnings.push(...mapped.warnings);
+  }
+  const mapNoteText = mapped?.note.trim() ? mapped.note : undefined;
+  // ---- end picture mapping ----
   let catalog = catalogParts({ request, forced: cfg.forcedTemplate, priorityIds: cfg.priorityIds, excludeIds: cfg.excludeIds, shortlist });
   // One pair of booleans, read three times below: the prose gate ({{CODE}}/
   // {{SOUND}}), the schema built for the prompt's {{SCHEMA}}, and the same
@@ -584,7 +611,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
               .join("\n");
     const index = treatmentVersion === "v3" && !cfg.forcedTemplate && twoLevel ? catalogIndexText({ excludeIds: cfg.excludeIds }) : undefined;
     try {
-      const out = await callForText(makeClient(cfg.apiKey), cfg.model, buildTreatmentSystem(lines, treatmentVersion, index), [{ role: "user", content: buildTreatmentUser(request, cfg.brief) }], {
+      const out = await callForText(makeClient(cfg.apiKey), cfg.model, buildTreatmentSystem(lines, treatmentVersion, index), [{ role: "user", content: [buildTreatmentUser(request, cfg.brief), mapNoteText].filter(Boolean).join("\n\n") }], {
         signal: cfg.signal,
         effort: cfg.treatmentEffort ?? DEFAULT_TREATMENT_EFFORT,
       });
@@ -608,7 +635,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   }
   // ---- end story step ----
   const gaps: TemplateGap[] = [];
-  const userContent = [request, cfg.brief, seed?.text, treatment ? stagingNote(treatment, treatmentVersion) : undefined].filter(Boolean).join("\n\n");
+  const userContent = [request, cfg.brief, seed?.text, mapNoteText, treatment ? stagingNote(treatment, treatmentVersion) : undefined].filter(Boolean).join("\n\n");
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: userContent }];
   const rounds: GenerationRound[] = [];
   let best: Spec | null = null;
@@ -705,7 +732,11 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
         continue;
       }
 
+      // The mapped pictures' boxes, for the names this reply uses (§14); a
+      // name the map lacks is reported with the real ones for the repair.
+      const mapErrors = mapped && mapped.maps.size > 0 && json && typeof json === "object" ? fillMappedRegions(json as Spec, mapped.maps) : [];
       const validation = validateSpec(json);
+      validation.errors.push(...mapErrors);
       if (cfg.forcedTemplate && (json as Spec)?.template !== cfg.forcedTemplate) {
         validation.errors.push(`the request requires template "${cfg.forcedTemplate}" — set "template" to it and use its params`);
       }
@@ -808,6 +839,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       treatmentMs,
       treatmentTemplate: namedTemplate,
       templateGaps: gaps.length ? gaps : undefined,
+      warnings: warnings.length ? warnings : undefined,
     };
   }
 
@@ -986,6 +1018,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
     treatmentMs,
     treatmentTemplate: namedTemplate,
     templateGaps: gaps.length ? gaps : undefined,
+    warnings: warnings.length ? warnings : undefined,
   };
 }
 
