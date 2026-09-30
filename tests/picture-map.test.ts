@@ -110,3 +110,46 @@ describe("fillUsedRegions / autoImages", () => {
     ]);
   });
 });
+
+describe("final-review fixes", () => {
+  test("I1a: MAP_SCHEMA's box has no minItems/maxItems (the sanitiser enforces length 4)", async () => {
+    const { MAP_SCHEMA } = await import("../src/llm/picture-map");
+    expect(JSON.stringify(MAP_SCHEMA)).not.toMatch(/minItems|maxItems/);
+  });
+
+  test("I4: an unused auto image stays auto; one with hand boxes keeps them", () => {
+    const map: PictureMap = { regions: [{ name: "a", box: [0, 0, 0.5, 0.5], kind: "area" }], notFound: [] };
+    const spec = {
+      elements: [
+        { id: "md", type: "image", url: "u", regions: "auto" },
+        { id: "h", type: "image", url: "u", regions: { mine: [0, 0, 1, 1] } },
+      ],
+      commands: [{ draw: ["md", "h"] }],
+    } as never as import("../src/spec/types").Spec;
+    fillUsedRegions(spec, new Map([["u", map]]));
+    expect(spec.elements![0].regions).toBe("auto");
+    expect(spec.elements![1].regions).toEqual({ mine: [0, 0, 1, 1] });
+  });
+
+  test("M-a: boxes in pixels (any coordinate > 1.5) make the reply unusable", () => {
+    const raw = { regions: [{ name: "a", box: [0.1, 0.1, 0.2, 0.2], kind: "area" }, { name: "b", box: [120, 40, 300, 80], kind: "area" }], not_found: ["x"] };
+    expect(sanitizeMap(raw, all)).toEqual({ regions: [], notFound: [] });
+    expect(sanitizeMap({ regions: [{ name: "a", box: [0.1, 0.1, 1.2, 0.2], kind: "area" }], not_found: [] }, all).regions).toHaveLength(1); // a slight overshoot is clamped, not refused
+  });
+
+  test("M-c: balanced parentheses inside a URL path are kept", () => {
+    const u = "https://upload.wikimedia.org/wikipedia/commons/a/ab/Mona_Lisa_(painting).jpg";
+    expect(picturesInRequest(`See ${u}.`)).toEqual([u]);
+    expect(picturesInRequest(`(see ${u})`)).toEqual([u]);
+    expect(picturesInRequest("(https://x.org/a.png)")).toEqual(["https://x.org/a.png"]);
+  });
+
+  test("M-d: a hand region named auto with a box is a plain map", async () => {
+    const { isAutoRegions, handRegions } = await import("../src/spec/places");
+    expect(autoOptions({ auto: [0, 0, 0.5, 0.5] })).toBeNull();
+    expect(isAutoRegions({ auto: [0, 0, 0.5, 0.5] })).toBe(false);
+    expect(handRegions({ auto: [0, 0, 0.5, 0.5] })).toEqual({ auto: [0, 0, 0.5, 0.5] });
+    expect(isAutoRegions({ auto: { detail: "few" } })).toBe(true);
+    expect(isAutoRegions({ auto: true })).toBe(true);
+  });
+});

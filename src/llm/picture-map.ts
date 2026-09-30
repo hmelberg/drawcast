@@ -5,7 +5,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { callForJson } from "./client";
 import { cacheGet as defaultGet, cachePut as defaultPut } from "../render/portrait";
-import { parsePlace, placesInCommands, type Rect4 } from "../spec/places";
+import { isAutoRegions, parsePlace, placesInCommands, type Rect4 } from "../spec/places";
 import type { Spec } from "../spec/types";
 
 export type MapDetail = "few" | "some" | "many";
@@ -24,7 +24,7 @@ const defaults = (): MapOptions => ({ detail: "some", kinds: [...KINDS], find: [
 /** The auto request on an image, normalised; null when regions is a plain map or absent. */
 export function autoOptions(regions: unknown): MapOptions | null {
   if (regions === "auto") return defaults();
-  if (!regions || typeof regions !== "object" || Array.isArray(regions) || !Object.hasOwn(regions, "auto")) return null;
+  if (!isAutoRegions(regions)) return null;
   const a = (regions as { auto: unknown }).auto;
   const o = defaults();
   if (a && typeof a === "object") {
@@ -42,8 +42,18 @@ export function autoOptions(regions: unknown): MapOptions | null {
 /** https picture URLs in a request text, at most 3, de-duplicated, in order. */
 export function picturesInRequest(text: string): string[] {
   const out: string[] = [];
-  for (const m of text.matchAll(/https:\/\/[^\s<>"'`)\]]+/g)) {
-    const url = m[0].replace(/[.,;:!?]+$/, "");
+  for (const m of text.matchAll(/https:\/\/[^\s<>"'`\]]+/g)) {
+    // Trailing punctuation and a closing parenthesis the URL did not open
+    // ("(see https://…/a.png)") are prose; a balanced one is the path's own
+    // (Wikimedia's "Mona_Lisa_(painting).jpg").
+    let url = m[0];
+    for (;;) {
+      const t = url.replace(/[.,;:!?]+$/, "");
+      const unbalanced = t.endsWith(")") && t.split(")").length > t.split("(").length;
+      const next = unbalanced ? t.slice(0, -1) : t;
+      if (next === url) break;
+      url = next;
+    }
     let path: string;
     try {
       path = new URL(url).pathname;
@@ -58,7 +68,8 @@ export function picturesInRequest(text: string): string[] {
   return out;
 }
 
-const box4 = { type: "array", items: { type: "number" }, minItems: 4, maxItems: 4 };
+// No minItems/maxItems: the grammar need not know the length; sanitizeMap enforces 4.
+const box4 = { type: "array", items: { type: "number" } };
 export const MAP_SCHEMA: object = {
   type: "object",
   properties: {
@@ -126,6 +137,12 @@ export function sanitizeMap(raw: unknown, opts: MapOptions): PictureMap {
   try {
     if (!raw || typeof raw !== "object") return out;
     const r = raw as { regions?: unknown; not_found?: unknown };
+    // A box in pixels means every box is in pixels — the reply cannot be read as fractions.
+    const pixels = (it: unknown) => {
+      const b = it && typeof it === "object" ? (it as { box?: unknown }).box : undefined;
+      return Array.isArray(b) && b.some((n) => typeof n === "number" && n > 1.5);
+    };
+    if (Array.isArray(r.regions) && r.regions.some(pixels)) return out;
     const allowed = new Set(opts.kinds.map((k) => KIND_OF[k]));
     const used = new Set<string>();
     if (Array.isArray(r.regions)) {
@@ -198,9 +215,12 @@ export function fillUsedRegions(spec: Spec, maps: Map<string, PictureMap>): { mi
     if (el.type !== "image" || typeof el.url !== "string") continue;
     const map = maps.get(el.url);
     if (!map) continue;
-    const hand = el.regions && typeof el.regions === "object" && !Object.hasOwn(el.regions, "auto") ? (el.regions as Record<string, Rect4>) : {};
+    const hand = el.regions && typeof el.regions === "object" && !isAutoRegions(el.regions) ? (el.regions as Record<string, Rect4>) : {};
+    const names = used.get(el.id);
+    // Nothing aims into an auto picture: it stays auto (nothing to fill, nothing to lose).
+    if (!names?.size && Object.keys(hand).length === 0) continue;
     const filled: Record<string, Rect4> = Object.assign(Object.create(null) as Record<string, Rect4>, hand);
-    for (const name of used.get(el.id) ?? []) {
+    for (const name of names ?? []) {
       if (Object.hasOwn(hand, name) || !/^[a-z][a-z0-9_]{0,31}$/.test(name)) continue;
       const found = map.regions.find((r) => r.name === name);
       if (found) filled[name] = found.box;

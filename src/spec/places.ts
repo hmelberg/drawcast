@@ -68,9 +68,15 @@ export function fractionPoint(f: PictureFrame, p: [number, number]): Pt {
   return [b.x, b.y];
 }
 
-/** `regions: "auto"` or `{auto: …}` — the map is made in the app while authoring, not written by hand. */
+/**
+ * `regions: "auto"` or `{auto: …}` — the map is made in the app while
+ * authoring, not written by hand. `{auto: [x, y, w, h]}` is a hand-written
+ * region that happens to be called auto: a plain map.
+ */
 export function isAutoRegions(r: unknown): boolean {
-  return r === "auto" || (!!r && typeof r === "object" && !Array.isArray(r) && Object.hasOwn(r, "auto"));
+  if (r === "auto") return true;
+  if (!r || typeof r !== "object" || Array.isArray(r) || !Object.hasOwn(r, "auto")) return false;
+  return !Array.isArray((r as { auto: unknown }).auto);
 }
 
 /** The hand-written boxes of a regions field ({} for auto or absent). */
