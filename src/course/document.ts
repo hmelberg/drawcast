@@ -5,6 +5,8 @@
 // setLectureStatus, which edits the text surgically so the author's layout
 // survives every run.
 
+import { tagGroupOf, type TagGroup } from "../llm/tags";
+
 export interface LectureStatus {
   state: "pending" | "done" | "failed";
   /** Library id of the generated drawcast. */
@@ -53,6 +55,15 @@ export interface Course {
    */
   private?: boolean;
   intro?: string;
+  /**
+   * Course-level tags: a tag line in the header, before the first `##` —
+   * the course's brief (who watches, how deep: `#for=nurses #basic`), set
+   * from the course panel's Audience/Level controls. Every lecture is
+   * generated as if it carried these first (course/run.ts lectureTags), so a
+   * lecture's own tag of the same group wins. Absent when the header has no
+   * tag line — a course made before 2026-09-30 parses exactly as it did.
+   */
+  tags?: string[];
   lectures: CourseLecture[];
   warnings: string[];
 }
@@ -157,7 +168,9 @@ export function parseCourse(text: string): Course {
     }
 
     if (TAG_LINE_RE.test(line)) {
-      if (current) current.tags.push(...(line.match(TAG_RE) ?? []));
+      const tags = line.match(TAG_RE) ?? [];
+      if (current) current.tags.push(...tags);
+      else if (course.title && tags.length > 0) (course.tags ??= []).push(...tags);
       continue;
     }
 
@@ -198,6 +211,7 @@ export function formatCourse(course: Course): string {
   if (course.enroll) out.push(`enroll: ${course.enroll}`);
   if (course.name) out.push(`name: ${course.name}`);
   if (course.private) out.push("private: true");
+  if (course.tags && course.tags.length > 0) out.push(course.tags.join(" "));
   if (course.intro) out.push("", course.intro);
   for (const lecture of course.lectures) {
     out.push("", "---", `## ${lecture.title}`);
@@ -268,6 +282,34 @@ export function removeCourseOption(text: string, key: string): string {
     if (kept.length > 0) out.push(kept.join(" · "));
   });
   return out.join("\n");
+}
+
+/**
+ * Set (or, with "", clear) the course-level tag of one exclusive group — the
+ * course panel's Audience and Level controls write the course's brief this
+ * way. Surgical like setCourseOption: the header's tag line is edited in
+ * place (its other tags untouched), written after the title and its option
+ * lines when there is none, and dropped when it empties. `tag` is canonical,
+ * without the `#`.
+ */
+export function setCourseTag(text: string, group: TagGroup, tag: string): string {
+  const lines = text.split("\n");
+  const end = headerEnd(lines);
+  const title = lines.findIndex((l, i) => i < end && /^#\s+/.test(l.trim()));
+  // Only after the title: parseCourse ignores a tag line above it.
+  const at = title < 0 ? -1 : lines.findIndex((l, i) => i > title && i < end && TAG_LINE_RE.test(l.trim()));
+  const kept = (at >= 0 ? (lines[at].match(TAG_RE) ?? []) : []).filter((t) => tagGroupOf(t.slice(1)) !== group);
+  const next = tag ? [...kept, `#${tag}`] : kept;
+  if (at >= 0) {
+    if (next.length > 0) lines[at] = next.join(" ");
+    else lines.splice(at, 1);
+    return lines.join("\n");
+  }
+  if (next.length === 0 || title < 0) return text;
+  let insert = title + 1;
+  while (insert < end && OPTION_RE.test(lines[insert].trim())) insert++;
+  lines.splice(insert, 0, next.join(" "));
+  return lines.join("\n");
 }
 
 /**

@@ -24,9 +24,20 @@ export const SECONDS_PER_SPEAK_LINE = 4.5;
 /** Default parts when a lecture declares none — about five minutes. */
 const DEFAULT_PARTS = 4;
 
+/**
+ * The tags a lecture is generated with: the course's own (its brief — the
+ * header's tag line, document.ts Course.tags) first, then the lecture's, so
+ * parseTags' last-mention-wins lets a lecture override the course within a
+ * group (#advanced on one lecture of a #basic course). A course without a
+ * header tag line gives exactly the lecture's tags, as before.
+ */
+export function lectureTags(course: Pick<Course, "tags">, lecture: CourseLecture): string[] {
+  return course.tags && course.tags.length > 0 ? [...course.tags, ...lecture.tags] : lecture.tags;
+}
+
 /** Exported for src/llm/cost-estimate.ts, which counts a would-be run the same way estimateCalls does. */
-export function partsOf(lecture: CourseLecture): number {
-  return parseTags(lecture.tags.join(" ")).parts ?? DEFAULT_PARTS;
+export function partsOf(lecture: CourseLecture, course: Pick<Course, "tags"> = {}): number {
+  return parseTags(lectureTags(course, lecture).join(" ")).parts ?? DEFAULT_PARTS;
 }
 
 export function isPending(lecture: CourseLecture): boolean {
@@ -89,7 +100,8 @@ export function buildLectureRequest(course: Course, index: number): string {
   }
   // Tags last, in the raw form parseTags expects, so tags.ts fragments apply
   // unchanged rather than being re-described here.
-  if (lecture.tags.length > 0) lines.push("", lecture.tags.join(" "));
+  const tags = lectureTags(course, lecture);
+  if (tags.length > 0) lines.push("", tags.join(" "));
   return lines.join("\n");
 }
 
@@ -100,7 +112,7 @@ export function buildLectureRequest(course: Course, index: number): string {
  * gone, the run regenerates that lecture in full and spends more than this.)
  */
 export function estimateCalls(course: Course): number {
-  return course.lectures.filter(isPending).reduce((sum, lecture) => sum + (missingOf(lecture)?.length ?? 1 + partsOf(lecture)), 0);
+  return course.lectures.filter(isPending).reduce((sum, lecture) => sum + (missingOf(lecture)?.length ?? 1 + partsOf(lecture, course)), 0);
 }
 
 /** Rough runtime of a generated lecture, in minutes. */
@@ -313,10 +325,10 @@ function resumable(course: Course, index: number, opts: RunOptions): LoadedLectu
 
 function requestFor(course: Course, index: number): PartsRequest {
   const lecture = course.lectures[index];
-  const parsedTags = parseTags(lecture.tags.join(" "));
+  const parsedTags = parseTags(lectureTags(course, lecture).join(" "));
   return {
     request: buildLectureRequest(course, index),
-    parts: partsOf(lecture),
+    parts: partsOf(lecture, course),
     brief: buildBrief(parsedTags.tags),
     chapters: lecture.chapters.length > 0 ? lecture.chapters : undefined,
   };
@@ -399,7 +411,7 @@ export async function runCourse(
       if (!plan.outline || cfg.signal?.aborted) return;
       const i = plan.index;
       const lecture = course.lectures[i];
-      const parsedTags = parseTags(lecture.tags.join(" "));
+      const parsedTags = parseTags(lectureTags(course, lecture).join(" "));
       const fresh = await generateFromOutline(
         plan.request,
         plan.outline,

@@ -3,7 +3,7 @@
 // runner hands each lecture to the ordinary generator.
 
 import { makeClient, callForJson } from "../llm/client";
-import { TAGS } from "../llm/tags";
+import { buildBrief, TAGS } from "../llm/tags";
 import { MAX_LECTURES, type Course, type CourseLecture } from "./document";
 import COURSE_PROMPT from "../llm/prompts/course-v1.md?raw";
 
@@ -73,7 +73,21 @@ export function courseSystemPrompt(): string {
   return COURSE_PROMPT.replace("{{TAGS}}", () => tagVocabulary());
 }
 
-export function buildCourseMessages(request: string, lectures: number | null): { system: string; user: string } {
+/**
+ * The course's brief as the planner reads it: the tags' directing sentences,
+ * framed as fixed. `tags` are the course-level tags (`#for=nurses`, `#basic`);
+ * "" when there are none.
+ */
+export function courseBriefBlock(tags: string[]): string {
+  const brief = buildBrief(tags.map((t) => t.replace(/^#/, "")));
+  if (!brief) return "";
+  return [
+    `The author has set the course's brief (${tags.map((t) => (t.startsWith("#") ? t : `#${t}`)).join(" ")}). Every lecture will be generated with it, so plan for this audience and level — the questions, the running example and context.level — and do not repeat these tags on the lectures:`,
+    brief,
+  ].join("\n");
+}
+
+export function buildCourseMessages(request: string, lectures: number | null, brief: string[] = []): { system: string; user: string } {
   const count =
     lectures !== null
       ? `exactly ${lectures} lectures`
@@ -88,7 +102,8 @@ export function buildCourseMessages(request: string, lectures: number | null): {
     "Return ONLY a minified JSON object of exactly this shape, nothing else:",
     '{"title":"<course title>","context":{"level":"…","language":"…","notation":"…","example":"…"},"intro":"<one or two sentences>","lectures":[{"title":"<lecture title>","questions":["<question>"],"tags":["why","parts=4"],"chapters":[]}]}',
   ].join("\n");
-  return { system, user: request };
+  const block = courseBriefBlock(brief);
+  return { system, user: block ? `${request}\n\n${block}` : request };
 }
 
 function stringArray(value: unknown): string[] {
@@ -141,9 +156,10 @@ export async function generateCoursePlan(
   cfg: { apiKey: string; model: string },
   lectures: number | null,
   signal?: AbortSignal,
+  brief: string[] = [],
 ): Promise<Course | null> {
   const client = makeClient(cfg.apiKey);
-  const { system, user } = buildCourseMessages(request, lectures);
+  const { system, user } = buildCourseMessages(request, lectures, brief);
   // Medium, not the default high: one call per course, and its judgement is
   // the product (which questions, which lecture gets `controversy`), so it
   // keeps more thinking than the outline does — but a plan is a page of
@@ -151,5 +167,8 @@ export async function generateCoursePlan(
   const { json } = await callForJson(client, cfg.model, system, [{ role: "user", content: user }], COURSE_SCHEMA as unknown as object, { signal, effort: "medium" });
   const course = normalizeCoursePlan(json);
   if (course && !course.title) course.title = request;
+  // Stored with the course (the header's tag line), so every lecture's
+  // storyboard and part is generated with the same brief (run.ts lectureTags).
+  if (course && brief.length > 0) course.tags = brief.map((t) => (t.startsWith("#") ? t : `#${t}`));
   return course;
 }

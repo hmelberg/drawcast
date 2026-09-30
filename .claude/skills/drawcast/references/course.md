@@ -14,12 +14,19 @@ and one `NN-<title>.yaml` per built lecture.
    economists…), level, language, and how many lectures. One message, with
    your proposal for each; wait for the answer. The answers go into the
    request you give `course-prompt` and into the plan's shared context, so
-   every storyboard sees them.
+   every storyboard sees them. Audience and level are also tags
+   (`#for=nurses`, `#students`, `#professionals`, `#children`; `#basic`,
+   `#advanced`): typed in the request, `course-prompt` takes them as the
+   course's brief, and `course-new --brief` stores them as the tag line under
+   `course.md`'s title — the app's Audience/Level controls write the same
+   line, and every `lecture-prompt`/`part-prompt` carries it (a lecture's own
+   tag of the same group wins).
 1. **Plan.** `node scripts/cast.mjs course-prompt "<request>" [--lectures N]`
    → `dev-casts/_course-prompt.md`. Write the JSON it asks for (questions,
    not topics; the shared context; tags such as `parts=4`) to
    `dev-casts/courses/<slug>/plan.json`, then
-   `node scripts/cast.mjs course-new dev-casts/courses/<slug>/plan.json dev-casts/courses/<slug>`.
+   `node scripts/cast.mjs course-new dev-casts/courses/<slug>/plan.json dev-casts/courses/<slug> [--brief "#for=nurses #basic"]`
+   (the command `course-prompt` prints includes `--brief` when there is one).
 2. **Show the user `course.md` and wait.** The plan is a draft the teacher edits
    (that is how the app works too); the lectures cost hours. Take their edits
    into `course.md` directly — its format is what the course panel shows.
