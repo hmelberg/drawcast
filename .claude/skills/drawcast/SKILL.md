@@ -1,6 +1,6 @@
 ---
 name: drawcast
-description: Author a drawcast — or a whole course of them — locally, the way the app would but with eyes — write the spec to the app's own prompt, render its frames, look, fix, repeat — then open it in the player. Publishes a new one to a GitHub repo of the user's (and buys it a drawcast.app/#name pretty link), and revises a PUBLISHED drawcast or course from its GitHub link, handing the change back as a pull request (or a direct commit, when allowed). Use when Hans asks to make, draw or write a drawcast (or "a figure/cast explaining X"), to make a course, or to revise/fix/update one that is on GitHub, here in Claude Code rather than in the app.
+description: Use when the user asks to make, draw or write a drawcast (or "a figure/cast explaining X"), to make a course of drawcasts, to revise, fix or update a drawcast or course published on GitHub, or to publish one, buy it a drawcast.app/#name link, make it private, change its catalogue listing or buy narration credit — here in Claude Code in the drawcast repo, rather than in the app.
 ---
 
 # Author a drawcast locally
@@ -8,19 +8,35 @@ description: Author a drawcast — or a whole course of them — locally, the wa
 You write the spec yourself, to the SAME prompt, templates and checks the app
 uses (scripts/cast.mjs loads the app's own code), but unlike the app's single
 API call you can look at the result and fix it until it is right. In the
-prompt lab (docs/prompt-lab on branch prompt-lab) figures made this way
-scored higher than API ones, mostly because the look-and-fix step always
-landed. The finished cast opens in the app's player.
+prompt lab (docs/prompt-lab) figures made this way scored higher than API
+ones, mostly because the look-and-fix step always landed. The finished cast
+opens in the app's player.
+
+## Which file for which job
+
+| The user wants | Read |
+|---|---|
+| One drawcast | this file |
+| A drawcast that explains a picture part by part | this file + `references/pictures.md` |
+| A course (several lectures) | this file + `references/course.md` (+ `references/rule-card.md` for its parts) |
+| A change to something published (a GitHub, course-page or player link) | this file + `references/revise.md` |
+| To publish, a pretty link, private, listing, narration credit | `references/publish.md` |
 
 ## Setup (once per session)
 
-- Work in the main checkout (or a worktree if Hans says so). `npm ci` if
+- Work in the main checkout (or a worktree if the user says so). `npm ci` if
   node_modules is missing.
 - Dev server, in the background: `npm run dev -- --port 5199 --strictPort`
   (skip if `curl -s localhost:5199` already answers). Frames and the player
-  need it.
+  need it. Another port: set `DRAWCAST_URL=http://localhost:<port>` for
+  `cast.mjs`.
+- Frames need a headless Chromium: if `frames` says there is none, run
+  `npx playwright-core install chromium-headless-shell`.
 
 ## The loop
+
+Name the drawcast with a short slug (lowercase, dashes: `compound-interest`);
+every working file below is `dev-casts/<slug>…`.
 
 1. **Read the prompt the app would send.**
    `node scripts/cast.mjs prompt "<request>"` writes `dev-casts/_prompt-<request-slug>.md` (the path is printed; one file per request, so parallel authors never share one):
@@ -33,40 +49,84 @@ landed. The finished cast opens in the app's player.
    template's parameters: `node scripts/cast.mjs template <id>`.
 2. **Storyline first** (the app's default since 2026-09-28 — Settings'
    "Write the story first"): before any JSON, write the storyline to
-   `dev-casts/<slug>-story.md` by the rules in
-   `src/llm/prompts/treatment-v3.md` — the question as asked, the naive
-   answer, one insight named at the end, an example with correct numbers,
-   one change at a time with a ghost, key numbers on the canvas, a figure
-   budget (one main figure, at most ONE temporary supporting piece at a
-   time, each marked "gone after beat N"), a template's real interactions
-   planned into an explore beat, a transfer quiz with a `wrong` hint, 12–17
-   short sentences. Then STAGE it (step 3) as the app's staging note says
-   (`stagingNote` in `src/llm/treatment.ts`): the lines are sacred, the ink is
-   not. If a planned template cannot do what the story needs and you go
-   freehand, note it (template + what was missing) in your report — that is
-   a template to extend. (Under "Write it in one go", plan in a few lines
-   for yourself instead.)
-3. **Write the spec** to `dev-casts/<slug>.json` as `{"request": …, "spec": …}`.
-4. **Check it:** `node scripts/cast.mjs check dev-casts/<slug>.json`. Fix
-   every INVALID and every `[error]`; warnings are for step 5's eyes — a
+   `dev-casts/<slug>-story.md`. It opens with the brief — four lines:
+
+   ```
+   Audience: <who watches — a patient, a first-year student, nurses, a health economist…>
+   Level: basic | standard | advanced
+   Language: <the narration's language>
+   Length: <number of spoken lines>
+   ```
+
+   The user may set any of them — in words ("for nurses", "keep it short")
+   or with the app's own tags (`#basic`/`#advanced`; `#veryshort`,
+   `#short`, `#long`, `#verylong`; `#norwegian` …, as `src/llm/tags.ts`
+   defines them) — and the request wins. Where it says nothing, the
+   defaults are the app's:
+   - **Audience:** curious adults of better-than-average ability with
+     decent general knowledge, but no special knowledge of this topic.
+   - **Level:** `standard` — between the `#basic` brief (no jargon, every
+     term defined) and the `#advanced` one (technical terms, prior
+     knowledge assumed): define a field's own terms once, in passing.
+   - **Language:** the language the request is written in.
+   - **Length:** 12–17 spoken lines; a length tag gives its own range.
+   Name the defaults you used in your report so the user can change them.
+   The spec's `level` field is set only for `basic` or `advanced`.
+
+   Then the storyline, by the rules in `src/llm/prompts/treatment-v3.md` —
+   the question as asked, the naive answer, one insight named at the end,
+   an example with correct numbers, one change at a time with a ghost, key
+   numbers on the canvas, a figure budget (one main figure, at most ONE
+   temporary supporting piece at a time, each marked "gone after beat N"), a
+   template's real interactions planned into an explore beat, a transfer
+   quiz with a `wrong` hint, short sentences for the ear. Pitch every
+   sentence at the brief's audience.
+
+   Then STAGE it (step 4) as the app's staging note says (`stagingNote` in
+   `src/llm/treatment.ts`): the lines are sacred, the ink is not. If a
+   planned template cannot do what the story needs and you go freehand,
+   note it (template + what was missing) in your report — that is a
+   template to extend. (When the user asks you to skip the storyline, plan in
+   a few lines for yourself instead.)
+3. **Check the facts and name the sources.** List every claim in the
+   storyline a viewer could look up: each number, study, date, named person
+   or rule. Check each one now (WebSearch; PubMed for medicine and health)
+   and fix the storyline where it was wrong. A claim you cannot confirm is
+   cut or turned into the worked example's own made-up numbers, said as
+   such ("say a drug costs…"). Each study, report, guideline or dataset the
+   narration relies on goes into the spec's top-level `sources`
+   (`id`, `title`, `authors`, `year`, `finding`; `doi`/`url` only when you
+   saw it yourself), and the canvas element that shows its number or claim
+   carries `"cites": ["<id>"]`. A drawcast with only textbook facts and
+   made-up example numbers has no `sources` — that is fine.
+4. **Write the spec** to `dev-casts/<slug>.json` as `{"request": …, "spec": …}`.
+5. **Check it:** `node scripts/cast.mjs check dev-casts/<slug>.json`. Fix
+   every INVALID and every `[error]`; warnings are for step 6's eyes — a
    `crowding` warning (too many texts on the page at once, or small print)
    means erase what has served or draw fewer, larger things.
-5. **Look at it:** `node scripts/cast.mjs frames dev-casts/<slug>.json` →
+6. **Look at it:** `node scripts/cast.mjs frames dev-casts/<slug>.json` →
    tiles in `dev-casts/frames-<slug>/`, one frame per spoken line (drawn
    mid-gesture where the line highlights, focuses, points or flows), plus the
    browser's lint per frame. VIEW EVERY TILE (`--large` gives one frame per
    row, for judging small text). Judge as a viewer, with
    `src/llm/prompts/look-v1.md` as the checklist: legibility, one large main
    figure, sync of words and picture, emphasis that lands, calm.
-6. **Fix and repeat 4–5** until nothing important is left (usually 2–3
+7. **Fix and repeat 5–6** until nothing important is left (usually 2–3
    rounds). Fix causes, not symptoms: a crowded page wants fewer or shorter
    things, not nudged coordinates.
-7. **Fresh eyes (for anything that matters):** hand the tiles and
-   `look-v1.md` to a subagent that has not seen the spec, and ask for its
-   problem list. Fix what is real.
-8. **Show it:** `node scripts/cast.mjs open dev-casts/<slug>.json --launch`
+8. **Fresh eyes, every time.** Once your own rounds are done, start one
+   subagent with the Agent tool, `model: "opus"` (the prompt lab found a
+   smaller model misses most real problems and invents others). Give it the
+   tile paths, the spoken lines in order, the brief, and
+   `src/llm/prompts/look-v1.md` — never the spec or your storyline — and
+   ask for its problem list, most serious first. Fix what is real, frame
+   once more, and say in your report what you took and what you left.
+   When you are yourself a subagent (no Agent tool), end with the tile
+   paths and the spoken lines in your report instead: the session that
+   started you runs this step.
+9. **Show it:** `node scripts/cast.mjs open dev-casts/<slug>.json --launch`
    prints the player URL and opens it in the browser. Mute when you play it
-   yourself.
+   yourself (narration AND WebAudio tones).
 
 ## What good looks like (the house taste, short)
 
@@ -76,258 +136,22 @@ landed. The finished cast opens in the app's player.
   12–17 short sentences for the ear.
 - **Words on the canvas are cues:** a word or three ("Survives", "Dies");
   the voice carries the sentence.
-- One main figure, drawn large; at most two supporting pieces.
+- One main figure, drawn large; at most one supporting piece at a time.
 - Something happens while each line is spoken; emphasis only where the
   meaning is; calm, few colours, each one role.
 - A closing quiz that checks the insight, not recall.
-- Only facts, numbers and people you are sure of.
+- Every checkable claim checked (step 3); the studies behind it in `sources`.
 - A link to another drawcast is a `link` element (`href`, `form: card|text`,
-  `open`, optional `title`/`image`) — only to targets Hans or the course
+  `open`, optional `title`/`image`) — only to targets the user or the course
   gives (`./file.yaml`, `lecture:N`, a GitHub or Drive link); never invent one.
-
-## A picture to point into (a screenshot, a diagram, a painting)
-
-When the drawcast explains a picture part by part (spec
-`docs/superpowers/specs/2026-09-30-picture-regions-design.md`; examples
-`docs/examples/2026-09-30-picture-regions-{microdata,arnolfini}.yaml`):
-
-- **Look at it yourself.** Download the picture (`curl -sL -o …`; Wikimedia
-  serves only fixed thumbnail widths — 960, 1280, 1920, 3840) and view it.
-  You are the app's mapper here: the app's "maps the picture for you" rule
-  does not apply in the skill — nothing maps it, and `regions: auto` stays
-  unmapped (the frames warn, and gestures on it point at nothing). Never
-  write `regions: auto`.
-- **Write the parts as boxes:** `image` with `url`, `look: screen`, `credit`,
-  and `regions: {name: [x, y, w, h]}` — fractions of the WHOLE picture from
-  its top-left, short English snake_case names; `view` to crop (fractions of
-  the whole too). Aim with `"md:name"` in highlight/focus/`camera.on`, and
-  `{ref: "md:name"}` in `point.at`/`camera.center`; `md@top` or
-  `md@[x, y, w, h]` for an unnamed spot. Several places in one highlight are
-  stops the light travels through.
-- **Check every box in the frames** (step 5 draws each gesture
-  mid-sentence): the light, the arrow and each zoom must land on the part the
-  voice names — a box one button off is the usual slip; fix the numbers,
-  not the story. Parts nested in parts (a mirror's glass) are fine.
-- **Rights:** a site may refuse AI use of its pictures (microdata.no says so
-  in its robots.txt). Tell Hans when a picture comes from such a site; he
-  decides. Always keep `credit`.
 
 ## When it is done
 
-- Tell Hans the URL and one line on what the figure shows.
+- Tell the user the URL and one line on what the figure shows, plus the
+  brief's defaults you chose and what the fresh eyes found.
 - Offer, don't do: adding it to `src/examples.json` (then
   `npx vitest run tests/examples.test.ts` must stay green — examples must lint
-  with no warning at all), or saving it elsewhere.
+  with no warning at all), publishing it (`references/publish.md`), or
+  saving it elsewhere.
 - Anything the engine or a template could not do — a missing option, a bug —
-  is worth a line to Hans: it is a fix for the app too.
-
-## A course
-
-A course is what the app's course panel makes: a plan (`course.md`), and per
-lecture a storyboard (the whole lecture's narration, written at once) whose
-parts are each staged as a drawcast. `scripts/cast.mjs` gives every step the
-app's OWN prompt and code, in a folder shaped like a published course:
-`dev-casts/courses/<slug>/` with `course.md`, `lecture-NN/` (working files)
-and one `NN-<title>.yaml` per built lecture.
-
-1. **Plan.** `node scripts/cast.mjs course-prompt "<request>" [--lectures N]`
-   → `dev-casts/_course-prompt.md`. Write the JSON it asks for (questions,
-   not topics; the shared context; tags such as `parts=4`) to
-   `dev-casts/courses/<slug>/plan.json`, then
-   `node scripts/cast.mjs course-new dev-casts/courses/<slug>/plan.json dev-casts/courses/<slug>`.
-2. **Show Hans `course.md` and wait.** The plan is a draft the teacher edits
-   (that is how the app works too); the lectures cost hours. Take his edits
-   into `course.md` directly — its format is what the course panel shows.
-3. **Each lecture** (in parallel: one subagent per lecture, each given this
-   skill and its lecture number; lectures do not depend on each other):
-   - `node scripts/cast.mjs lecture-prompt <dir> <n>` → write the storyboard
-     JSON it asks for to `<dir>/lecture-NN/storyboard.json`. This is where
-     the lecture's narration is written, for all its parts at once.
-   - For each part i: `node scripts/cast.mjs part-prompt <dir> <n> <i>` →
-     read the prompt (the part's request, with its already-written lines, is
-     at the end), write `<dir>/lecture-NN/part-<i>.json` as
-     `{"request": …, "spec": …}`, then the single-cast loop above: check,
-     frames, look, fix. The lines are written; the job is to STAGE them.
-   - Both use the v2 storyboard prompt by default (the app's default since
-     2026-09-28: the storyline rules, templates with "Viewer can", and a
-     per-part staging note); `--storyboard v1` gives the previous prompt. Use
-     the same version for a lecture's storyboard and its parts.
-   - `node scripts/cast.mjs lecture-build <dir> <n>` → the lecture's YAML,
-     exactly as the course runner assembles it (titles, level, the
-     "Next: …" card), and `status: done` in `course.md`. Frames the YAML
-     once more for a last look across the parts.
-4. **Open it:** `node scripts/cast.mjs course-open <dir> --launch` imports
-   the course into the app (built lectures only; opening again refreshes
-   it) and opens the course panel. From there Hans watches, edits, and
-   publishes as with any course.
-
-Report per lecture as it lands (title, parts, one line on what it shows);
-a lecture whose part will not come right is worth a line to Hans rather
-than a silent compromise.
-
-## Publishing something new (to a GitHub repo of the user's)
-
-A drawcast or a course made here (a folder with one cast YAML, or a course folder) goes to a
-public repo the user chooses; after that it is revised like anything published.
-
-1. **Which account and repo.** `gh api user --jq .login` names the account gh is signed in
-   as; say it, and ask which repo (an existing public one, or a new one) and folder. If gh
-   is not signed in, ask the user to run `! gh auth login`.
-2. `node scripts/cast.mjs publish-target <workdir> <owner/repo> [--dir <folder>] [--create]`
-   — `--create` only when the user said to make the repo (public). It switches Pages on,
-   picks a slug no other cast or course in the repo has (rewriting `slug:` in course.md),
-   and writes `origin.json`.
-3. `push <workdir> --dry-run`, show the file list, and on a yes `push <workdir> --direct`
-   (it is the user's own repo; a PR to themselves is noise — unless they want one, or the
-   repo is someone else's: then plain `push` opens a PR from a fork).
-4. Report the player link (`drawcast.app/#gh=…`) and, for a course, the course page (Pages
-   can take a minute the first time). Narration is the browser's voice until the course is
-   published with narration from the app. Later revisions: step 4 onwards of the revise
-   flow below, on the same workdir.
-   `push --direct` now also registers the item with Anvil and prints its free link
-   (`drawcast.app/#<name>`) itself; a PR push instead prints when to run
-   `node scripts/cast.mjs register <workdir>`, which does the same once the PR is merged.
-
-## A pretty link (drawcast.app/#<name>)
-
-Only for something already pushed (it needs `origin.json`; a course or a cast). Every name is
-bought, one-time: 20 USD up to 5 characters, 10 USD up to 7, 5 USD longer; 3 at least.
-The `#gh=` link stays free — say so if the user only wants a link to share.
-
-1. **Signed in?** `name` says so if not: `node scripts/cast.mjs login` prints a code and
-   drawcast.anvil.app/#device; the user signs in there and types the code. Once per machine
-   (`logout` undoes it; so does "Sign out everywhere" on the account page).
-2. `name <workdir> <name>` — free (with its price) / yours / taken. Tell the user the price.
-3. **Only on the user's yes to that price:** `name <workdir> <name> --buy --price <cents>`.
-   It opens Stripe Checkout in their browser; they pay there. Never ask for card details,
-   and never pick a price for them. A name already theirs is repointed here at no cost.
-4. `name-wait <workdir>` (in the background; up to 9 minutes) until the name resolves here.
-   "Not paid (yet)" is not a failure: run it again after they pay. A course: push once more
-   so the course page carries the name.
-
-## Private (locked on GitHub, only for enrolled learners)
-
-Make it private right after `publish-target` and BEFORE the first `push` (it needs
-`origin.json`; a course or a cast) — never publish it plain first: every version pushed stays
-readable in the repo's git history, and locking later does not reach back. A private
-course/cast still lives on the user's public repo, but every lecture file (or the cast's own
-file) is committed as an encrypted envelope, not plain YAML — only a learner (or the owner,
-pulling it back here) with the key can read it; a private course's course.md is pushed with
-`private: true` and its Join door.
-
-Already pushed in the clear? Warn the user before going on: the earlier versions stay readable
-in the history. To avoid that, publish into a new folder (`publish-target` with a new name)
-and make that one private before its first push.
-
-1. `node scripts/cast.mjs private <workdir>` — the quote: what is due right now, in USD.
-2. **Only on the user's yes to that price** — never pick it for them, never ask for card
-   details: `node scripts/cast.mjs private <workdir> --price <cents>` (must equal the quote's
-   due). It opens Stripe Checkout in the browser and waits (up to 9 minutes) for it to clear.
-   "Not paid (yet)" is not a failure: run it again after they pay.
-3. Once paid, `push <workdir> --dry-run` then, on a yes, `push <workdir> --direct` (or a PR, as
-   any revision) — this is what actually locks every lecture file and commits it; `private`
-   itself never writes to GitHub. A course that grows (a new lecture built and pushed later)
-   quotes and may owe again on its next push — say so before pushing if it refuses.
-
-Pulling a private course or cast needs the OWNER's own login (`cast.mjs login`, same account
-that made it private) — `pull` unlocks it with that key while copying it into the workdir; a
-locked file it cannot unlock stops before writing anything, rather than leaving plaintext or a
-half-made workdir.
-
-`private <workdir> --unlisted` (before paying) buys private AND unlisted in the same
-purchase — one payment, no separate step. Without `--unlisted` the item stays listed in the
-public catalogue (drawcast.app/#browse) once it is registered.
-
-## Listing (drawcast.app/#browse)
-
-Whether an already-registered course or cast (it needs `origin.json`) shows in the public
-catalogue — takes effect at once, no `push` needed, and never touches whether it is locked
-private. Listing (again) is always free.
-
-1. `node scripts/cast.mjs listing <workdir> --listed` — turns it back on, free, done.
-2. `node scripts/cast.mjs listing <workdir> --unlisted` — free at once if it has ever paid for
-   Private or an earlier unlisted purchase; otherwise it prints what is due (the same one-time
-   fee as Private).
-3. **Only on the user's yes to that price:** `node scripts/cast.mjs listing <workdir>
-   --unlisted --price <cents>` (must equal what was printed). It opens Stripe Checkout in the
-   browser and waits (up to 9 minutes) for it to clear. "Not paid (yet)" is not a failure: run
-   it again after they pay. The item stays public throughout — only the catalogue listing changes.
-
-## Narration credit
-
-An author signed in to drawcast but with no Google TTS key of their own can still publish
-narration from the app: the server synthesizes it against prepaid credit. This skill's own
-`frames`/bake here always uses a local TTS key when one is configured — credit only matters
-for publishing narration from the app without one.
-
-1. `node scripts/cast.mjs credit` — the signed-in author's balance.
-2. **Only on the user's own yes to the exact amount** (never pick it for them): `node
-   scripts/cast.mjs credit --buy <cents>` — 500, 1000 or 2000 (5/10/20 USD), the only three
-   packs. It opens Stripe Checkout in the browser and waits (up to 9 minutes) for the balance
-   to rise, then prints the new one. "Not paid (yet)" is not a failure: run `credit` again
-   after they pay.
-
-## Revising what is published (a GitHub link)
-
-Any link to it works: the course page (owner.github.io/repo/<course>/), the
-folder or a file on github.com, a player link (drawcast.app/#gh=…), raw, or
-owner/repo/path. A link to one lecture pulls its whole course (the course
-page, READMEs and end pages hang together) and says which lecture it was.
-A drawcast.app/#<name> short link does not say where the files are — ask for
-the GitHub one.
-
-1. **Pull.** `node scripts/cast.mjs pull <link>` → a sparse clone in
-   `dev-casts/repos/` and a working copy: a course in
-   `dev-casts/courses/<slug>/` (course.md and the published lecture YAMLs,
-   the same shape as a course made here), a single drawcast in
-   `dev-casts/pulled/<slug>/`. `origin.json` records where it came from.
-2. **Unpack only what the change touches.** `unpack <course-dir> <n>` →
-   `lecture-NN/part-N.json` + `outline.json`; `unpack <cast.yaml>` →
-   `<name>.parts/`. The parts are ordinary specs: `check`, `frames` and
-   `open` take them as they are.
-3. **Read the rules.** `revise-prompt <parts-dir> "<the change>"` gives the
-   app's prompt with the document's own templates in full (first time in a
-   session, read it all, as in the loop above).
-4. **Edit, then the loop** (check → frames → look → fix) on the parts you
-   changed. Change what was asked and nothing else: every spoken line you do
-   not need to touch stays word for word — baked narration is keyed by the
-   sentence, so an edited line loses its recording. Reorder, drop or add
-   parts in `outline.json`'s `entries` (a new part is a new `part-N.json`,
-   written with `prompt` as any cast). The last part of a lecture is its
-   end page (Previous / Next / Watch again, as `link` elements): push redraws
-   it from course.md, keeping any `link` elements you add to it.
-   Course-level changes go in `course.md` directly: retitle, reorder, edit
-   questions, drop a lecture. Never change a `file:` on a status line — it is
-   the published link. A new lecture is made with the course steps above
-   (lecture-prompt … lecture-build), which give it its status line.
-5. **Repack** `repack <parts-dir>` → the YAML again, with the meta as it was
-   and the recordings of every line still said; it reports lines left with
-   no recording. Frame the repacked YAML once (answers stored in one part
-   are read in the next). Show it: `course-open <dir> --launch` or
-   `open <yaml> --launch`.
-6. **Push, after asking.** Always `push <workdir> --dry-run` first and show
-   Hans the file list. Then, with his yes:
-   - default: `push <workdir> -m "<what changed>" --body "<why, per lecture>"`
-     → a branch and a pull request. Without push rights on the repo it forks
-     first and opens the PR from the fork. Pushing the same workdir again
-     updates that PR (`--new-pr` for a separate one).
-   - `--direct` commits to the default branch — only when Hans has said so
-     for THIS push, and only on a repo he can push to. Published links read
-     raw.githubusercontent.com, which can lag a few minutes.
-   - `--no-push` commits in the clone and stops, to inspect with git.
-   Push regenerates what the app's own publish would (the course page with
-   its Join door as it was, READMEs, courses.json/casts.json, Next links and
-   cards) and refuses if those files changed on GitHub since the pull: pull
-   again into a fresh workdir and carry the edit over.
-
-Report what changed per lecture and the PR link, and say two things when
-they apply:
-- **The app's own copy is now older than GitHub.** "Load courses from
-  GitHub" keeps a local course that is newer than the manifest
-  (course/load.ts), so the app will not pick the revision up by itself — and
-  publishing the course from the app would put the old lectures back. Before
-  publishing from the app again: remove the course there, then load it from
-  GitHub.
-- Lines that lost their recording play in the browser's voice until the
-  course is published with narration from the app (after the step above);
-  unchanged lines reuse the published recordings for free.
+  is worth a line to the user: it is a fix for the app too.
