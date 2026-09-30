@@ -628,8 +628,6 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       // stops to ask).
       effort: deps.settings.effort,
       approach: deps.settings.approach,
-      // Which storyboard prompt (and per-part staging) the lectures are planned with — v1 unless the owner chose v2.
-      storyboardVersion: deps.settings.storyboardVersion,
       route: deps.route,
       mapPictures: deps.mapPictures?.(),
       templatesOnDemand: deps.settings.templatesOnDemand,

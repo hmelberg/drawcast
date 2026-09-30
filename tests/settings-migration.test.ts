@@ -22,7 +22,7 @@ vi.stubGlobal("localStorage", {
 import { DEFAULT_SETTINGS, loadSettings, migrateShareTo } from "../src/store";
 import type { Settings } from "../src/store";
 import { DEFAULT_ON_DEMAND_MAX } from "../src/llm/on-demand-run";
-import { APPROACHES, DEFAULT_APPROACH, DEFAULT_STORYBOARD_VERSION, STORYBOARD_VERSIONS } from "../src/llm/storyboard";
+import { APPROACHES, DEFAULT_APPROACH } from "../src/llm/storyboard";
 import { singleCastTreatment } from "../src/llm/treatment";
 
 const SETTINGS_KEY = "drawcast.settings.v1";
@@ -105,45 +105,24 @@ describe("the approach setting (docs/2026-09-19-storyboard-approach.md)", () => 
     }
   });
   // 2026-09-28: the same setting now decides a SINGLE drawcast too — the
-  // storyline first (treatment v3) or one call. The ids did not change, so a
+  // storyline first or one call. The ids did not change, so a
   // stored blob needs no migration: a default user gets the storyline, one
   // who chose "independent" keeps the one-shot call.
   it("governs single drawcasts: storyboard (the default) → the storyline, independent → one call", () => {
-    expect(singleCastTreatment(DEFAULT_SETTINGS)).toBe("v3");
+    expect(singleCastTreatment(DEFAULT_SETTINGS)).toBe(true);
     mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, approach: "independent" }));
-    expect(singleCastTreatment(loadSettings())).toBeUndefined();
+    expect(singleCastTreatment(loadSettings())).toBe(false);
     mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, approach: "storyboard" }));
-    expect(singleCastTreatment(loadSettings())).toBe("v3");
+    expect(singleCastTreatment(loadSettings())).toBe(true);
   });
-  it("the lab's Pipeline 'plan' still forces the v2 sheet — in developer mode only", () => {
-    expect(singleCastTreatment({ ...DEFAULT_SETTINGS, developerMode: true, pipeline: "plan" })).toBe("v2");
-    expect(singleCastTreatment({ ...DEFAULT_SETTINGS, developerMode: true, pipeline: "plan", approach: "independent" })).toBe("v2");
-    expect(singleCastTreatment({ ...DEFAULT_SETTINGS, developerMode: false, pipeline: "plan" })).toBe("v3");
-  });
-  it("the storyboard prompt defaults to v2 (the blind comparison, 2026-09-28), the storyboard module's default", () => {
-    expect(DEFAULT_SETTINGS.storyboardVersion).toBe("v2");
-    expect(DEFAULT_SETTINGS.storyboardVersion).toBe(DEFAULT_STORYBOARD_VERSION);
-    for (const { id } of STORYBOARD_VERSIONS) {
-      const pinned: Settings["storyboardVersion"] = id;
-      expect(["v1", "v2"]).toContain(pinned);
-    }
-  });
-  it("a blob without the field loads as v2; junk falls back to v2; a stored v1 moves to v2 once, then a chosen v1 stays", () => {
-    const { storyboardVersion: _drop, ...old } = DEFAULT_SETTINGS;
-    mem.set(SETTINGS_KEY, JSON.stringify(old));
-    expect(loadSettings().storyboardVersion).toBe("v2");
-    mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, storyboardVersion: "v9" }));
-    expect(loadSettings().storyboardVersion).toBe("v2");
-    // The one-time upgrade has run (its flag is set): a v1 chosen now stays.
-    mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, storyboardVersion: "v1" }));
-    expect(loadSettings().storyboardVersion).toBe("v1");
-  });
-  it("a v1 saved while v1 was the default is moved to v2 exactly once", () => {
-    mem.clear();
-    mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, storyboardVersion: "v1" }));
-    expect(loadSettings().storyboardVersion).toBe("v2");
-    mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, storyboardVersion: "v1" }));
-    expect(loadSettings().storyboardVersion).toBe("v1");
+  // Retired 2026-09-30: storyboard v1 and the lab's Pipeline select. A blob
+  // that still carries either field loads without it.
+  it("a stored storyboardVersion or pipeline is dropped on load", () => {
+    mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, storyboardVersion: "v1", pipeline: "plan" }));
+    const s = loadSettings() as unknown as Record<string, unknown>;
+    expect("storyboardVersion" in s).toBe(false);
+    expect("pipeline" in s).toBe(false);
+    expect(s.approach).toBe(DEFAULT_APPROACH);
   });
   it("the picker says what it does for a single drawcast and for parts", () => {
     const story = APPROACHES.find((a) => a.id === "storyboard")!;

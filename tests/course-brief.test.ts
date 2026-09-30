@@ -15,7 +15,7 @@ import { buildCourseMessages, normalizeCoursePlan } from "../src/course/plan";
 import { buildLectureRequest, estimateCalls, lectureTags, partsOf, runCourse, type RunHooks } from "../src/course/run";
 import { BRIEF_CONTROLS, COURSE_BRIEF_CONTROLS, courseBriefFrom, courseBriefValue } from "../src/llm/brief-controls";
 import { buildPartRequest, type Outline } from "../src/llm/outline";
-import { buildStoryboardMessagesV2 } from "../src/llm/storyboard";
+import { buildStoryboardMessages } from "../src/llm/storyboard";
 import type { GenerateConfig, PromptVariant } from "../src/llm/compile";
 
 const OLD = `# Causal Inference
@@ -176,10 +176,9 @@ describe("the brief reaches every lecture", () => {
     it("the storyboard and part requests carry the brief they are handed", async () => {
       await runCourse(text, cfg, hooks, () => "id");
       const req = vi.mocked(outlineParts).mock.calls[0][0];
-      expect(buildStoryboardMessagesV2(req.request, req.parts, { brief: req.brief }).user).toContain("Audience: nurses.");
+      expect(buildStoryboardMessages(req.request, req.parts, { brief: req.brief }).user).toContain("Audience: nurses.");
       const outline: Outline = { title: "L", parts: [{ title: "a", brief: "b" }, { title: "c", brief: "d" }] };
-      expect(buildPartRequest(req.request, outline, 0, req.brief, "v2")).toContain("Audience: nurses.");
-      expect(buildPartRequest(req.request, outline, 0, req.brief, "v1")).toContain("Audience: beginners.");
+      expect(buildPartRequest(req.request, outline, 0, req.brief)).toContain("Audience: nurses.");
     });
   });
 });

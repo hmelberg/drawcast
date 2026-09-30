@@ -59,14 +59,14 @@ describe("the look pass", () => {
     expect(out.spec?.elements?.[0]).toMatchObject({ x: 480 });
   });
 
-  test("plan first: a plain-text plan, then the spec staged from it (developer mode's Pipeline)", async () => {
+  test("story first: a plain-text storyline, then the spec staged from it", async () => {
     mockText.mockResolvedValueOnce({ text: "QUESTION: why a box?\nBEATS:\n1. A box. — draw it", ms: 7 });
     mockJson.mockResolvedValueOnce(respond(SPEC));
-    const out = await generateSpec("a box", cfg({ look: undefined, treatment: "v2" }));
+    const out = await generateSpec("a box", cfg({ look: undefined, treatment: true }));
     expect(out.treatment).toMatch(/QUESTION: why a box/);
     expect(out.treatmentMs).toBe(7);
     const staged = mockJson.mock.calls[0][3][0].content as string;
-    expect(staged).toContain("## The treatment to stage");
+    expect(staged).toContain("## The storyline to stage");
     expect(staged).toContain("QUESTION: why a box?");
   });
 

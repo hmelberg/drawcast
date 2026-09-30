@@ -48,10 +48,8 @@ and one `NN-<title>.yaml` per built lecture.
      `{"request": …, "spec": …}`, then the loop in SKILL.md: check,
      frames, look, fix (steps 5–7). The lines are written; the job is to
      STAGE them.
-   - Both use the v2 storyboard prompt by default (the app's default since
-     2026-09-28: the storyline rules, templates with "Viewer can", and a
-     per-part staging note); `--storyboard v1` gives the previous prompt. Use
-     the same version for a lecture's storyboard and its parts.
+   - Both use the app's storyboard prompt (the storyline rules, templates
+     with "Viewer can", and a per-part staging note).
    - `node scripts/cast.mjs lecture-build <dir> <n>` → the lecture's YAML,
      exactly as the course runner assembles it (titles, level, the
      "Next: …" card), and `status: done` in `course.md`. Frames the YAML

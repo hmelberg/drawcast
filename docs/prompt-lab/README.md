@@ -10,9 +10,10 @@ is what ships.
 1. **Hypothesis.** One line in `LEDGER.md`: what should get better, and how
    we will see it.
 2. **Build it as an option**, never as a replacement: a prompt variant (the
-   app's prompt editor, developer mode), a pipeline (`GenerateConfig`, and the
-   Pipeline choice in developer mode), or a model (the lab models in
-   developer mode).
+   app's prompt editor, developer mode), a pipeline (a `GenerateConfig`
+   option and an arm in `scripts/prompt-lab.mjs`), or a model (the lab
+   models in developer mode). When an option loses, retire it into
+   `archive/` (see its README) rather than keeping it selectable.
 3. **Run it free on the machine** — manual mode, agents answer the model
    calls (below). A fixed case set, both arms, frames rendered.
 4. **Blind review.** Anonymise the versions per question (W/X/Y/Z), and give

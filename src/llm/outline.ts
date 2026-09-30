@@ -22,7 +22,7 @@ export interface OutlinePart {
    */
   script?: string[];
   /**
-   * Storyboard v2 only (llm/storyboard.ts buildStoryboardMessagesV2): the
+   * The storyboard only (llm/storyboard.ts buildStoryboardMessages): the
    * ready template the storyboard planned this part's figure with. A plan
    * hint, never a force — multi.ts gives it a full catalog entry, and the
    * part's staging may draw freehand instead and say why (a template gap).
@@ -172,7 +172,7 @@ export function normalizeOutline(json: unknown, chapters?: string[], want: numbe
       const lines = script.filter((l): l is string => typeof l === "string" && l.trim().length > 0).map((l) => l.trim());
       if (lines.length > 0) part.script = lines;
     }
-    // Storyboard v2's optional plan hint; whether the id is a real template is
+    // The storyboard's optional plan hint; whether the id is a real template is
     // checked where it is used (multi.ts), not here.
     if (typeof template === "string" && /^[a-z][a-z0-9_]*$/.test(template.trim()) && template.trim() !== "none" && template.trim() !== "freehand") part.template = template.trim();
     parts.push(part);
@@ -215,25 +215,9 @@ function dropPointlessChapters(parts: OutlinePart[]): void {
 }
 
 /** The per-part request handed to the ordinary single-figure generator. */
-export function buildPartRequest(clean: string, outline: Outline, index: number, brief: string, version: "v1" | "v2" = "v1"): string {
+export function buildPartRequest(clean: string, outline: Outline, index: number, brief: string): string {
   const part = outline.parts[index];
   const n = outline.parts.length;
-  // Storyboard v2 (Settings.storyboardVersion) changes only a part WITH a
-  // script: the storyboard already wrote its opening, bridge and synthesis,
-  // so those directives are not repeated, and the hand-over is
-  // partStagingNote's instead of scriptBlock's. v1 is below, unchanged.
-  if (version === "v2" && part.script && part.script.length > 0) {
-    const v2 = [
-      clean,
-      "",
-      `This drawcast is part ${index + 1} of ${n} in the series "${outline.title}".`,
-      `This part: ${part.brief ? `${part.title} — ${part.brief}` : part.title}.`,
-      `The full series: ${outline.parts.map((p, i) => `${i + 1}. ${p.title}`).join("; ")}.`,
-    ];
-    if (brief) v2.push("", brief);
-    v2.push("", partStagingNote(part));
-    return v2.join("\n");
-  }
   const lines = [
     clean,
     "",
@@ -241,6 +225,15 @@ export function buildPartRequest(clean: string, outline: Outline, index: number,
     `This part: ${part.brief ? `${part.title} — ${part.brief}` : part.title}.`,
     `The full series: ${outline.parts.map((p, i) => `${i + 1}. ${p.title}`).join("; ")}.`,
   ];
+  // A part WITH a script: the storyboard already wrote its opening, bridge
+  // and synthesis, so those directives are not repeated, and the hand-over
+  // is partStagingNote's. A part without one (the one-go approach, or a plan
+  // stored before scripts existed) gets the directives instead.
+  if (part.script && part.script.length > 0) {
+    if (brief) lines.push("", brief);
+    lines.push("", partStagingNote(part));
+    return lines.join("\n");
+  }
   if (index === 0) {
     lines.push(
       "Open by saying in one sentence what the whole series will explain, then ground this part in a concrete example — with drawing already underway, never a teaser over a blank canvas.",
@@ -254,38 +247,19 @@ export function buildPartRequest(clean: string, outline: Outline, index: number,
     lines.push("End with a synthesis that ties the series together and restates the core insight.");
   }
   if (brief) lines.push("", brief);
-  if (part.script && part.script.length > 0) lines.push("", scriptBlock(part));
   return lines.join("\n");
-}
-
-/**
- * The storyboard's hand-over to the artist (docs/2026-09-19-storyboard-
- * approach.md): the figure paragraph and the lines, with the one rule that
- * makes the series cohere — the words are written, the job is to STAGE
- * them. Appended LAST, after the tag brief, so that a brief's "open with a
- * question" cannot read as licence to write a line the script lacks.
- */
-export function scriptBlock(part: OutlinePart): string {
-  const out: string[] = [];
-  if (part.figure) out.push(`The figure for this part: ${part.figure}`, "");
-  out.push(
-    "The narration for this part is ALREADY WRITTEN — for the whole series at once, so it bridges from the previous part, uses the series' notation and repeats nothing. Your job is to STAGE it: each line below becomes the `speak` of the draw command it belongs to, in this order, one line per beat (two short ones where the ink is a single stroke). You may tighten a line to fit its ink; do not reword its content, reorder, drop or add lines — a quiz or ask the brief calls for carries its own question text and nothing more.",
-    "",
-    ...(part.script ?? []).map((line, i) => `${i + 1}. ${line}`),
-  );
-  return out.join("\n");
 }
 
 /** The top-level reply field staging reports a template gap in — llm/treatment.ts TEMPLATE_GAPS_KEY, repeated so outline.ts stays import-free (tests/storyboard-v2.test.ts pins them equal). */
 export const PART_GAPS_KEY = "template_gaps";
 
 /**
- * Storyboard v2's hand-over to the artist: the single-cast storyline's
- * staging note (llm/treatment.ts stagingNote v3) for one part of a series —
+ * The storyboard's hand-over to the artist: the single-cast storyline's
+ * staging note (llm/treatment.ts stagingNote) for one part of a series —
  * the lines are sacred, the ink is not, the figure budget holds, temporary
  * pieces go at the line the figure paragraph names, and a planned template
  * that cannot do what the lines need is reported, not bent to. Appended
- * LAST, after the tag brief, like scriptBlock.
+ * LAST, after the tag brief.
  */
 export function partStagingNote(part: OutlinePart): string {
   const gap = (id: string) => `\`"${PART_GAPS_KEY}": [{"template": "${id}", "missing": "<what it could not do, in a short phrase>"}]\``;

@@ -4,7 +4,7 @@
 
 import { describe, expect, test, vi } from "vitest";
 import { buildStoryboardMessages, STORYBOARD_SCHEMA, APPROACHES, DEFAULT_APPROACH } from "../src/llm/storyboard";
-import { buildPartRequest, normalizeOutline, scriptBlock, type Outline } from "../src/llm/outline";
+import { buildPartRequest, normalizeOutline, type Outline } from "../src/llm/outline";
 import { structuredOutputSupported } from "../src/llm/client";
 
 const raw = {
@@ -37,7 +37,7 @@ describe("the storyboard prompt", () => {
   test("asks for the count, the figure paragraph and the lines, and names the shape", () => {
     const { system, user } = buildStoryboardMessages("Explain compound interest", 3);
     expect(system).toContain("exactly 3 parts");
-    expect(system).toContain("figure: what is drawn");
+    expect(system).toContain("figure: the part's ONE main figure");
     expect(system).toContain("script: the spoken lines in order, 8–14 per part");
     expect(system).toContain('"script":["<line 1>","<line 2>"]');
     expect(user).toBe("Explain compound interest");
@@ -64,16 +64,19 @@ describe("drawing a part to its script", () => {
 
   test("the part request hands over the figure and the numbered lines, after the brief", () => {
     const req = buildPartRequest("Explain compound interest", outline, 1, "#why brief");
-    expect(req).toContain('The previous part was "The rule"');
-    expect(req.indexOf("#why brief")).toBeLessThan(req.indexOf("The figure for this part: the same bars traced as a curve"));
-    expect(req).toContain("1. Now that we have seen the slices, watch the curve.\n2. It bends.");
-    expect(req).toContain("ALREADY WRITTEN");
+    expect(req.indexOf("#why brief")).toBeLessThan(req.indexOf("## The storyboard to stage"));
+    expect(req).toContain("FIGURE: the same bars traced as a curve");
+    expect(req).toContain("LINES:\n1. Now that we have seen the slices, watch the curve.\n2. It bends.");
+    // The storyboard already wrote the bridge; it is not asked for again.
+    expect(req).not.toContain("The previous part was");
   });
 
-  test("a part without a script gets the old request, word for word", () => {
+  test("a part without a script is asked to open, bridge and close on its own", () => {
     const plain: Outline = { title: "t", parts: [{ title: "a", brief: "b" }, { title: "c", brief: "d" }] };
-    expect(buildPartRequest("q", plain, 0, "")).not.toContain("narration");
-    expect(scriptBlock(plain.parts[0])).not.toContain("The figure");
+    expect(buildPartRequest("q", plain, 0, "")).not.toContain("## The storyboard to stage");
+    expect(buildPartRequest("q", plain, 0, "")).toContain("Open by saying in one sentence");
+    expect(buildPartRequest("q", plain, 1, "")).toContain('The previous part was "a"');
+    expect(buildPartRequest("q", plain, 1, "")).toContain("End with a synthesis");
   });
 });
 
@@ -99,7 +102,7 @@ describe("outlineParts chooses by approach", () => {
     const base = { apiKey: "k", model: "claude-opus-5", effort: "medium" as const, styleText: "Dry.", variant: { name: "v1", source: "" }, exemplars: [] };
 
     await outlineParts({ request: "q", parts: 2, brief: "B", chapters: ["c"] }, base);
-    expect(compile.generateStoryboard).toHaveBeenCalledWith("q", { apiKey: "k", model: "claude-opus-5", effort: "medium", styleText: "Dry." }, 2, undefined, { chapters: ["c"], brief: "B" });
+    expect(compile.generateStoryboard).toHaveBeenCalledWith("q", { apiKey: "k", model: "claude-opus-5", effort: "medium", styleText: "Dry." }, 2, undefined, expect.objectContaining({ chapters: ["c"], brief: "B" }));
     expect(compile.generateOutline).not.toHaveBeenCalled();
 
     await outlineParts({ request: "q", parts: 2, brief: "B" }, { ...base, approach: "independent" });
@@ -114,7 +117,7 @@ describe("outlineParts chooses by approach", () => {
     // The single-cast storyline never reaches a part: parts are staged from
     // the storyboard's script (or written on their own), whoever built cfg.
     vi.mocked(compile.generateSpec).mockClear();
-    await generateFromOutline({ request: "q", parts: 2, brief: "" }, plan, { ...base, treatment: "v3" });
+    await generateFromOutline({ request: "q", parts: 2, brief: "" }, plan, { ...base, treatment: true });
     expect(vi.mocked(compile.generateSpec).mock.calls.map((c) => c[1].treatment)).toEqual([undefined, undefined]);
   });
 });
