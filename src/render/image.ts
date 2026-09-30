@@ -174,7 +174,8 @@ export async function resolveImages(spec: Spec, deps: ImageDeps = defaultDeps())
           outcome = await embedFrom(url);
         } catch {
           // The host refuses pixel reads (no CORS header): read them through the picture proxy instead.
-          for (const endpoint of deps.pictureEndpoints ?? []) {
+          // Only an https picture: the proxy refuses anything else, so asking would be a wasted round trip per endpoint.
+          for (const endpoint of /^https:/i.test(url) ? deps.pictureEndpoints ?? [] : []) {
             try {
               outcome = await embedFrom(`${endpoint}?url=${encodeURIComponent(url)}`);
               break;

@@ -1,7 +1,7 @@
 // The picture proxy. DNS, the upstream fetch and the rate store are injected,
 // so this suite is about HTTP and the SSRF rules, not the network or Blobs.
 import { describe, expect, test } from "vitest";
-import { handlePictureRequest, type PictureDeps } from "../netlify/functions/picture.mts";
+import { defaultPictureDeps, handlePictureRequest, PROXY_USER_AGENT, type PictureDeps } from "../netlify/functions/picture.mts";
 import type { RateStore } from "../netlify/lib/rate-limit.mts";
 import type { ResolveAll } from "../netlify/lib/public-host.mts";
 
@@ -67,6 +67,29 @@ describe("refusals before any fetch", () => {
       expect(d.fetched).toEqual([]);
     }
   });
+  test("any *.netlify.app host (the site's deploys, previews, branches) is self: 403", async () => {
+    for (const t of ["https://drawcast.netlify.app/.netlify/functions/picture?url=x", "https://deploy-preview-12--drawcast.netlify.app/a.png", "https://picture-mapping--drawcast.netlify.app/a.png", "https://someone-else.netlify.app/a.png"]) {
+      const d = deps();
+      const res = await handlePictureRequest(get(t), d);
+      expect(res.status, t).toBe(403);
+      expect(d.fetched).toEqual([]);
+    }
+  });
+  test("a request carrying the proxy's own User-Agent is a loop: 403, nothing fetched", async () => {
+    for (const ua of [PROXY_USER_AGENT, "Mozilla/5.0 DRAWCAST-PICTURE-PROXY"]) {
+      const d = deps();
+      const res = await handlePictureRequest(get("https://img.example/a.png", { "user-agent": ua }), d);
+      expect(res.status).toBe(403);
+      expect(d.fetched).toEqual([]);
+    }
+  });
+  test("the proxy sends that User-Agent upstream", async () => {
+    let init: RequestInit | undefined;
+    await handlePictureRequest(get("https://img.example/a.png"), deps({
+      fetch: (async (_u: string, i: RequestInit) => ((init = i), new Response(PNG, { headers: { "content-type": "image/png" } }))) as unknown as typeof fetch,
+    }));
+    expect(new Headers(init?.headers).get("user-agent")).toBe(PROXY_USER_AGENT);
+  });
   test("not GET: 405", async () => {
     const res = await handlePictureRequest(new Request("https://drawcast.app/.netlify/functions/picture?url=https%3A%2F%2Fa.example%2Fb.png", { method: "POST" }), deps());
     expect(res.status).toBe(405);
@@ -83,8 +106,33 @@ describe("the upstream answer", () => {
     expect(res.headers.get("cache-control")).toBe("public, max-age=86400");
     expect(res.headers.get("access-control-allow-origin")).toBe("https://hmelberg.github.io");
     expect(res.headers.get("vary")).toBe("Origin");
+    expect(res.headers.get("netlify-vary")).toBe("header=Origin");
     expect(res.headers.get("x-content-type-options")).toBe("nosniff");
     expect(d.fetched).toEqual(["https://img.example/a.png"]);
+  });
+  test("the success body is streamed (Netlify's buffered cap), with the right bytes and no content-length", async () => {
+    const big = new Uint8Array(7 * 1024 * 1024); // over the ~4.5 MB a buffered answer could carry
+    for (let i = 0; i < big.length; i++) big[i] = i % 251;
+    const res = await handlePictureRequest(get("https://img.example/big.png"), deps({
+      fetch: (async () => new Response(big, { headers: { "content-type": "image/png" } })) as unknown as typeof fetch,
+    }));
+    expect(res.status).toBe(200);
+    expect(res.body).toBeInstanceOf(ReadableStream);
+    expect(res.headers.get("content-length")).toBeNull();
+    const reader = res.body!.getReader();
+    const parts: Buffer[] = [];
+    for (let r = await reader.read(); !r.done; r = await reader.read()) parts.push(Buffer.from(r.value));
+    const got = Buffer.concat(parts);
+    expect(got.length).toBe(big.length);
+    expect(Buffer.compare(got, Buffer.from(big.buffer))).toBe(0);
+  });
+  test("a redirect to a *.netlify.app host: 403", async () => {
+    const fetched: string[] = [];
+    const res = await handlePictureRequest(get("https://img.example/a.png"), deps({
+      fetch: (async (u: string) => (fetched.push(u), new Response(null, { status: 302, headers: { location: "https://drawcast.netlify.app/.netlify/functions/picture?url=https%3A%2F%2Fimg.example%2Fa.png" } }))) as unknown as typeof fetch,
+    }));
+    expect(res.status).toBe(403);
+    expect(fetched).toEqual(["https://img.example/a.png"]);
   });
   test("a foreign origin gets the picture but no CORS header", async () => {
     const res = await handlePictureRequest(get("https://img.example/a.png", { origin: "https://evil.example" }), deps());
@@ -208,5 +256,14 @@ describe("the per-IP budget", () => {
     expect((await handlePictureRequest(get("https://img.example/a.png"), a)).status).toBe(429);
     const b = deps({ rateStore: () => store, clientIp: () => "198.51.100.2" });
     expect((await handlePictureRequest(get("https://img.example/a.png"), b)).status).toBe(200);
+  });
+});
+
+describe("the default export's deps", () => {
+  test("its fetch is the pinned publicOnlyFetch, not globalThis.fetch: a private literal is refused with no network", async () => {
+    const d = defaultPictureDeps();
+    expect(d.fetch).not.toBe(globalThis.fetch);
+    await expect(d.fetch("https://127.0.0.1/a.png")).rejects.toThrow(/not public/);
+    await expect(d.fetch("https://[::1]/a.png")).rejects.toThrow(/not public/);
   });
 });

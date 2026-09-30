@@ -183,6 +183,17 @@ describe("a CORS-refusing picture goes through the picture proxy before it is li
     expect(decodePicture(el.strokes)).toMatchObject({ linked: true, href: url });
     expect(el.source).toBe(url);
   });
+  test("an http url that fails the direct read never touches the endpoints: straight to measure and lnk1", async () => {
+    const url = "http://plain.example/a.png";
+    const tried: string[] = [];
+    let measured = 0;
+    const spec = { elements: [{ id: "md", type: "image", url, look: "screen" }] };
+    const deps = { ...base, pictureEndpoints: endpoints, measure: async () => (measured++, { width: 100, height: 50 }), loadRaster: async (u: string) => { tried.push(u); throw new Error("no"); } };
+    await resolveImages(spec as never, deps as never);
+    expect(tried).toEqual([url]);
+    expect(measured).toBe(1);
+    expect((spec.elements[0] as unknown as { strokes: string }).strokes.startsWith("lnk1:")).toBe(true);
+  });
   test("a screen picture too big to embed even when read directly is linked, not retried through the proxy", async () => {
     const url = "https://huge.example/a.png";
     const tried = new Set<string>();

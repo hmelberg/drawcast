@@ -95,7 +95,9 @@ function isPublicV6(g: number[]): boolean {
   if (zeroUpTo(8)) return false; // ::
   if (zeroUpTo(7) && g[7] === 1) return false; // ::1
   if (zeroUpTo(5) && g[5] === 0xffff) return isPublicV4(v4From(g[6], g[7])); // ::ffff:a.b.c.d mapped
+  if (zeroUpTo(4) && g[4] === 0xffff && g[5] === 0) return false; // ::ffff:0:0/96 SIIT (v4-translated)
   if (zeroUpTo(6)) return false; // ::a.b.c.d, deprecated v4-compatible
+  if (g[0] === 0x64 && g[1] === 0xff9b && g[2] === 1) return false; // 64:ff9b:1::/48 local-use NAT64
   if (g[0] === 0x64 && g[1] === 0xff9b && g.slice(2, 6).every((x) => x === 0)) return isPublicV4(v4From(g[6], g[7])); // NAT64
   if (g[0] === 0x2002) return isPublicV4(v4From(g[1], g[2])); // 6to4 embeds a v4
   if (g[0] === 0x2001 && g[1] === 0) return false; // Teredo (embeds an obfuscated v4)
@@ -199,8 +201,9 @@ const NULL_BODY = new Set([101, 103, 204, 205, 304]);
  * addresses (publicOnlyLookup; an IP-literal host, which skips lookup, is
  * checked here). Never follows redirects — the caller does that, re-checking
  * each hop. `init.signal` aborts the request and the body stream.
+ * `request` is a seam for tests only; production always uses node:https.
  */
-export function publicOnlyFetch(resolve: ResolveAll = defaultResolve): typeof fetch {
+export function publicOnlyFetch(resolve: ResolveAll = defaultResolve, request: typeof httpsRequest = httpsRequest): typeof fetch {
   const lookup = publicOnlyLookup(resolve);
   return ((input: string | URL, init: RequestInit = {}) =>
     new Promise<Response>((resolvePromise, reject) => {
@@ -210,7 +213,7 @@ export function publicOnlyFetch(resolve: ResolveAll = defaultResolve): typeof fe
       if (isIP(host) && !isPublicAddress(host)) return reject(new Error(`host is not public: ${host}`));
       const headers: Record<string, string> = {};
       new Headers(init.headers).forEach((v, k) => (headers[k] = v));
-      const req = httpsRequest(
+      const req = request(
         url,
         { method: "GET", headers, lookup, agent: false, signal: init.signal ?? undefined },
         (res) => {

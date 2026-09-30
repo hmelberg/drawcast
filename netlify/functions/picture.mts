@@ -11,7 +11,8 @@
 //     every address a name resolves to must be public — checked up front
 //     (403) and again AT CONNECT TIME by the real fetch (publicOnlyFetch pins
 //     the socket to the checked addresses, closing the DNS-rebinding gap);
-//   - never itself (drawcast.app, or the host it is served from): a nested
+//   - never itself: a request carrying the proxy's own User-Agent is refused,
+//     and no hop goes to drawcast.app, *.netlify.app or the serving host — a nested
 //     ?url= chain would turn one request into many;
 //   - redirects are followed by hand, at most 3, each Location re-checked by
 //     the same rules;
@@ -23,7 +24,8 @@
 //
 // GET ?url=<https url>
 //   -> 200 the bytes, upstream content-type, Cache-Control public 1 day,
-//      CORS for the allow-list (+ Vary: Origin)
+//      CORS for the allow-list (+ Vary: Origin, Netlify-Vary: header=Origin),
+//      streamed (Netlify's buffered-response cap would refuse a large picture)
 //   -> JSON {error} with 400 bad url, 403 not public, 405 not GET,
 //      413 too big, 415 not an image, 429 (+ Retry-After), 502 upstream.
 import { checkFailureBudget, defaultStore, recordFailure, type RateStore } from "../lib/rate-limit.mts";
@@ -34,6 +36,8 @@ export const MAX_BYTES = 8 * 1024 * 1024;
 const TIMEOUT_MS = 8_000;
 const MAX_REDIRECTS = 3;
 const BUDGET = { windowMs: 60 * 60 * 1000, maxFailures: 300 };
+/** Sent upstream on every hop — and refused on the way IN, so no chain of proxies (any host, any path) can loop. */
+export const PROXY_USER_AGENT = "drawcast-picture-proxy (+https://drawcast.app)";
 const ALLOWED_ORIGINS = ["https://drawcast.app", "https://hmelberg.github.io", "http://localhost:5173", "http://localhost:8888"];
 
 export interface PictureDeps {
@@ -114,11 +118,18 @@ async function readCapped(res: Response): Promise<Uint8Array<ArrayBuffer>> {
   return out;
 }
 
-/** The proxy never fetches from itself: a nested ?url= chain would multiply one request into many. */
+/**
+ * The proxy never fetches from a host that may be itself: a nested ?url=
+ * chain (or an attacker's redirect back here) would multiply one request into
+ * many. That is drawcast.app and its subdomains, the host serving this
+ * request, and every *.netlify.app host (the site's own deploy, deploy
+ * previews and branch deploys all live there). The User-Agent check in the
+ * handler is the complete loop breaker; this keeps the hop from being made.
+ */
 function isSelf(u: URL, req: Request): boolean {
   const h = u.hostname.toLowerCase().replace(/\.+$/, "");
   const own = new URL(req.url).hostname.toLowerCase();
-  return h === own || h === "drawcast.app" || h.endsWith(".drawcast.app");
+  return h === own || h === "drawcast.app" || h.endsWith(".drawcast.app") || h === "netlify.app" || h.endsWith(".netlify.app");
 }
 
 function isImageType(type: string): boolean {
@@ -128,6 +139,8 @@ function isImageType(type: string): boolean {
 
 export async function handlePictureRequest(req: Request, deps: PictureDeps): Promise<Response> {
   if (req.method !== "GET") return json(req, { error: "method" }, 405, { Allow: "GET" });
+  // A request from a proxy — this one, on any deploy — is a loop: refuse it before it costs anything.
+  if ((req.headers.get("user-agent") ?? "").toLowerCase().includes("drawcast-picture-proxy")) return json(req, { error: "proxy loop" }, 403);
 
   // Every request counts, good or bad: the budget bounds what one address can make this server fetch.
   const id = `picture:${deps.clientIp(req)}`;
@@ -148,7 +161,7 @@ export async function handlePictureRequest(req: Request, deps: PictureDeps): Pro
       res = await deps.fetch(target.href, {
         redirect: "manual",
         signal,
-        headers: { accept: "image/*", "user-agent": "drawcast-picture-proxy (+https://drawcast.app)" },
+        headers: { accept: "image/*", "user-agent": PROXY_USER_AGENT },
       });
       if (res.status < 300 || res.status > 399) break;
       await res.body?.cancel().catch(() => {});
@@ -170,10 +183,15 @@ export async function handlePictureRequest(req: Request, deps: PictureDeps): Pro
       throw new Refusal(415, "not an image");
     }
     const bytes = await readCapped(res);
-    return new Response(bytes, {
+    // Answered as a STREAM: Netlify caps a buffered function response at ~6 MB of payload (an image is
+    // base64-encoded into it, so ~4.5 MB), while a streamed v2 response is not held to that cap.
+    // The whole body is still read first, so a picture over 8 MB is a 413, never a truncated 200.
+    return new Response(new Blob([bytes]).stream(), {
       status: 200,
       headers: {
         ...corsHeaders(req),
+        // Netlify's CDN keys its cache on Netlify-Vary, not Vary: without it one origin's CORS answer is served to all.
+        "Netlify-Vary": "header=Origin",
         "content-type": type,
         "Cache-Control": "public, max-age=86400",
         // Opened directly, the answer is inert: no script, no plugins, a unique origin.
@@ -186,16 +204,19 @@ export async function handlePictureRequest(req: Request, deps: PictureDeps): Pro
   }
 }
 
-export default async (req: Request): Promise<Response> => {
+/** The real deps. Exported so a test can see that the fetch is the pinned publicOnlyFetch, never globalThis.fetch. */
+export function defaultPictureDeps(): PictureDeps {
   const lookup: ResolveAll = (hostname, options) => dnsLookup(hostname, options);
-  return handlePictureRequest(req, {
+  return {
     fetch: publicOnlyFetch(lookup),
     lookup,
     rateStore: defaultStore,
     now: () => Date.now(),
     clientIp: defaultClientIp,
-  });
-};
+  };
+}
+
+export default async (req: Request): Promise<Response> => handlePictureRequest(req, defaultPictureDeps());
 
 /**
  * No `config` export: src/render/image.ts calls the default
