@@ -589,7 +589,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // embedded verbatim in the system prompt); the prompt gained the url/regions
 // sentence on freehand rule 7 and one clause on each of highlight, point,
 // focus and camera (+561). Measured 368486 (schema 95759).
-const BASELINE_SYSTEM_CHARS = 368486;
+// Re-pinned UP 2026-09-30 (picture regions final review, fix I7): rule 7's
+// picture sentence now says to write `regions` only with boxes the user gave
+// (the model cannot see the picture) and otherwise to aim at the whole
+// picture, its named spots or the user's fractions, and that point takes
+// {"ref": "shot:search"}. Prompt only, schema unchanged: +158. Measured 368644.
+const BASELINE_SYSTEM_CHARS = 368644;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
