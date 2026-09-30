@@ -112,7 +112,11 @@ every working file below is `dev-casts/<slug>…`.
    browser's lint per frame. VIEW EVERY TILE (`--large` gives one frame per
    row, for judging small text). Judge as a viewer, with
    `src/llm/prompts/look-v1.md` as the checklist: legibility, one large main
-   figure, sync of words and picture, emphasis that lands, calm.
+   figure, sync of words and picture, emphasis that lands, calm. Then read
+   the `pacing:` lines (running time, spoken-line count against the length
+   brief, and one line per `@N` beat where the canvas sits idle, the ink runs
+   on after the voice, or a beat is overlong) and fix the cause: erase or add
+   an action on an idle line, split an overlong beat, cue a late reveal.
 7. **Fix and repeat 5–6** until nothing important is left (usually 2–3
    rounds). Fix causes, not symptoms: a crowded page wants fewer or shorter
    things, not nudged coordinates.

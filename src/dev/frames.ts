@@ -33,6 +33,7 @@ import { setTrustPolicy } from "../security/code-trust";
 import { elementBBoxes, layoutSpec } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
 import { lintCommands } from "../lint/lint";
+import { pacingReport, type PacingProblem } from "../lint/pacing-report";
 import { itemsOf, parsePlaylistText } from "../playlist/playlist";
 import { render } from "../render";
 import { splitVarOverrides, withOverrides } from "../render/params";
@@ -88,6 +89,10 @@ interface PartReport {
   /** Exceptions thrown while stepping the whole timeline boundary by boundary. */
   playbackErrors: string[];
   frames: FrameReport[];
+  /** Timing, as the player would run it (lint/pacing-report.ts): the totals
+   *  line, then one line per idle stretch, silent ink or overlong beat —
+   *  beats numbered @N like the frames. `problems` carries the same, structured. */
+  pacing: { lines: string[]; totalMs: number; spokenLines: number; lengthBand: string; problems: PacingProblem[] };
 }
 
 interface CastReport {
@@ -208,10 +213,13 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
     commandIssues: lintCommands(expanded).map((i) => `[${i.severity}] ${i.rule}: ${i.message}`),
     playbackErrors: [],
     frames: [],
+    pacing: { lines: [], totalMs: 0, spokenLines: 0, lengthBand: "", problems: [] },
   };
   const hd = await render(spec, host, { mode: "silent" });
   try {
     report.planWarnings = hd.plan.warnings;
+    const pacing = pacingReport(hd.plan.steps, (i) => hd.timeline.stepRunMs(i));
+    report.pacing = { lines: pacing.lines, totalMs: pacing.totalMs, spokenLines: pacing.spokenLines, lengthBand: pacing.lengthBand, problems: pacing.problems };
     const frames = restingFrames(hd.plan as never, everyBeat());
     // Does it play at all? Step every boundary, not just the resting ones —
     // an exception halfway through a cast is invisible to any lint.
@@ -413,6 +421,7 @@ async function show(cast: Cast): Promise<CastReport> {
     ] as const) {
       if (lines.length > 0) section.append(h("pre", { class: "bad" }, `${label}: ${lines.join("\n")}`));
     }
+    section.append(h("pre", { class: part.pacing.problems.length > 0 ? "bad" : "ok" }, part.pacing.lines.join("\n")));
     const sheet = h("div", { class: "sheet" });
     for (const frame of part.frames) {
       const cell = h("div", { class: "cell" });
