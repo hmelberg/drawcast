@@ -594,7 +594,13 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // (the model cannot see the picture) and otherwise to aim at the whole
 // picture, its named spots or the user's fractions, and that point takes
 // {"ref": "shot:search"}. Prompt only, schema unchanged: +158. Measured 368644.
-const BASELINE_SYSTEM_CHARS = 368644;
+// Re-pinned UP 2026-09-30 (picture marks: effects light/ring, gestures
+// arrow/glow, lift): the schema's new `effect`, `lift` and gesture
+// descriptions (+538, embedded verbatim in the system prompt) and two prompt
+// clauses — the highlight bullet's soft light with stops and glides, the
+// point bullet's arrow/glow — replacing delivery 1's "box is the default on
+// a picture place" (+300). 368644 -> 369482 (schema 95759 -> 96297).
+const BASELINE_SYSTEM_CHARS = 369482;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -643,7 +649,8 @@ const BASELINE_SYSTEM_CHARS = 368644;
 // decimals, color, fixed, expr), one clause on math `tex`, and math values on `form`. Measured 94397.
 // Merged 2026-09-29 (corner list + live math together): measured 95054.
 // Re-pinned UP 2026-09-30 (picture regions, delivery 1): +705, see the system note above. Measured 95759.
-const BASELINE_SCHEMA_CHARS = 95759;
+// Re-pinned UP 2026-09-30 (picture marks): `effect`, `lift`, gesture arrow/glow. +538, see the system note. Measured 96297.
+const BASELINE_SCHEMA_CHARS = 96297;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

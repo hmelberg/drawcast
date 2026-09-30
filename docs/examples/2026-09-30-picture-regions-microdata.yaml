@@ -41,7 +41,7 @@ commands:
   - focus: {target: ["md:variables"]}
     speak: Further down, thousands more, in the registers.
   - camera: {on: ["md:filter"]}
-  - point: {at: {ref: "md:filter"}, gesture: underline}
+  - point: {at: {ref: "md:filter"}}
     speak: So you search for them by name.
   - camera: {reset: true}
   - focus: {target: ["md:results"]}
@@ -50,21 +50,11 @@ commands:
   - highlight: {target: ["md:import_command"]}
     speak: Each command, and what came out of it.
   - camera: {on: ["md:command_line"]}
-  - point: {at: {ref: "md:command_line"}, gesture: underline}
+  - point: {at: {ref: "md:command_line"}}
     speak: You type commands at the bottom.
   - camera: {reset: true}
   - hide: [md]
   - draw: [tools]
     speak: And in the corner, the tools.
-  - highlight: {target: ["tools:script_window"]}
-    speak: The script window.
-  - highlight: {target: ["tools:help"]}
-    speak: Help.
-  - highlight: {target: ["tools:support_chat"]}
-    speak: If you get stuck, the chat reaches support.
-  - highlight: {target: ["tools:export"]}
-    speak: Export your results.
-  - highlight: {target: ["tools:saved"]}
-    speak: Whether your changes are saved.
-  - highlight: {target: ["tools:settings"]}
-    speak: And settings.
+  - highlight: {target: ["tools:script_window", "tools:help", "tools:support_chat", "tools:export", "tools:saved", "tools:settings"]}
+    speak: The script window, help, the support chat, export, whether your changes are saved — and settings.

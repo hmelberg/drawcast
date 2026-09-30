@@ -29,7 +29,7 @@ commands:
   - highlight: {target: ["art:joined_hands"]}
     speak: Their other hands are joined.
   - camera: {on: ["art:chandelier"]}
-  - point: {at: {ref: "art:candle"}, gesture: circle}
+  - point: {at: {ref: "art:candle"}}
     speak: Above them, one candle burns in broad daylight.
   - camera: {on: ["art:signature"]}
   - highlight: {target: ["art:signature"]}
@@ -44,5 +44,5 @@ commands:
     speak: Oranges, expensive imports from the south.
   - highlight: {target: ["art:clogs", "art:slippers"]}
     speak: Shoes taken off, as on holy ground.
-  - highlight: {target: ["art:dog"]}
+  - point: {at: {ref: "art:dog"}, gesture: glow}
     speak: And a little dog — faithfulness, or simply a pet.
