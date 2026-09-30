@@ -4,7 +4,8 @@
 // here calls a model; that happens only while authoring.
 import Anthropic from "@anthropic-ai/sdk";
 import { callForJson } from "./client";
-import { cacheGet as defaultGet, cachePut as defaultPut } from "../render/portrait";
+import { cacheGet as defaultGet, cachePut as defaultPut, faithfulDataUri, loadRaster } from "../render/portrait";
+import { PICTURE_ENDPOINTS } from "../render/image";
 import { isAutoRegions, parsePlace, placesInCommands, type Rect4 } from "../spec/places";
 import type { Spec } from "../spec/types";
 
@@ -12,7 +13,17 @@ export type MapDetail = "few" | "some" | "many";
 export type MapKind = "areas" | "controls" | "text";
 export interface MapOptions { detail: MapDetail; kinds: MapKind[]; find: string[] }
 export interface MappedRegion { name: string; box: Rect4; kind: "area" | "control" | "text"; label?: string }
-export interface PictureMap { regions: MappedRegion[]; notFound: string[] }
+export interface PictureMap {
+  regions: MappedRegion[];
+  notFound: string[];
+  /** The host whose robots.txt refused the API's fetch: mapped from bytes the app read itself (spec §14.1). */
+  optedOut?: string;
+}
+
+/** The author's warning for a picture whose site opts out of AI use (spec §14.1). */
+export function optOutWarning(host: string): string {
+  return `${host} opts out of AI use in its robots.txt — mapped from the picture you gave; make sure you have the right to use it this way.`;
+}
 
 const DETAILS: MapDetail[] = ["few", "some", "many"];
 const KINDS: MapKind[] = ["areas", "controls", "text"];
@@ -243,6 +254,45 @@ export interface MapDeps {
   signal?: AbortSignal;
   cacheGet?: (k: string) => Promise<string | null>;
   cachePut?: (k: string, v: string) => Promise<void>;
+  /** A picture's bytes, read by the app itself, for when the API cannot fetch its URL (spec §14.1). Default: the browser's (browserPictureBytes). */
+  pictureBytes?: (url: string) => Promise<PictureBytes | null>;
+}
+
+export interface PictureBytes { mediaType: "image/jpeg" | "image/png"; data: string }
+
+/** The longest side sent as bytes: the API's own resize threshold. */
+const BYTES_MAX_DIM = 1568;
+
+/**
+ * The browser's read of a picture for mapping: ≤ 1568 px, JPEG 0.9, base64.
+ * Directly, else through the fetch helper (the host may refuse cross-origin
+ * pixel reads), as the image renderer does. https only; null when nothing
+ * could read it (or there is no DOM).
+ */
+export async function browserPictureBytes(url: string): Promise<PictureBytes | null> {
+  if (typeof document === "undefined" || !/^https:\/\//i.test(url)) return null;
+  for (const src of [url, ...PICTURE_ENDPOINTS.map((e) => `${e}?url=${encodeURIComponent(url)}`)]) {
+    try {
+      const uri = faithfulDataUri(await loadRaster(src, BYTES_MAX_DIM), { type: "jpeg", quality: 0.9 });
+      const comma = uri.indexOf(",");
+      if (uri.startsWith("data:image/jpeg;base64,") && comma > 0) return { mediaType: "image/jpeg", data: uri.slice(comma + 1) };
+    } catch {
+      // unreadable this way — try the next
+    }
+  }
+  return null;
+}
+
+/** The API refused to fetch the URL because the site's robots.txt disallows it. */
+function isRobotsRefusal(err: unknown): boolean {
+  if (!(err instanceof Error) || (err as { status?: unknown }).status !== 400) return false;
+  let body = "";
+  try {
+    body = JSON.stringify((err as { error?: unknown }).error ?? "");
+  } catch {
+    /* the message alone */
+  }
+  return /robots\.txt/i.test(err.message + " " + body);
 }
 
 type ImageBlock = Anthropic.ImageBlockParam;
@@ -267,7 +317,9 @@ export async function mapPicture(picture: string, opts: MapOptions, deps: MapDep
   try {
     const hit = await get(key);
     if (hit) {
-      const parsed = sanitizeMap(JSON.parse(hit), opts);
+      const raw = JSON.parse(hit) as { optedOut?: unknown } | null;
+      const parsed = sanitizeMap(raw, opts);
+      if (raw && typeof raw.optedOut === "string" && raw.optedOut) parsed.optedOut = raw.optedOut;
       if (parsed.regions.length > 0 || parsed.notFound.length > 0) return parsed;
     }
   } catch {
@@ -275,16 +327,32 @@ export async function mapPicture(picture: string, opts: MapOptions, deps: MapDep
   }
   const block = imageBlock(picture);
   if (!block) return null;
-  try {
+  const ask = async (b: ImageBlock) => {
     const { json } = await callForJson(
       deps.client,
       deps.model,
       [{ type: "text", text: mapSystemPrompt() }],
-      [{ role: "user", content: [block, { type: "text", text: mapUserText(opts) }] }],
+      [{ role: "user", content: [b, { type: "text", text: mapUserText(opts) }] }],
       MAP_SCHEMA,
       { maxTokens: 4000, signal: deps.signal, isolate: true },
     );
-    const map = sanitizeMap(json, opts);
+    return sanitizeMap(json, opts);
+  };
+  try {
+    let map: PictureMap;
+    try {
+      map = await ask(block);
+    } catch (err) {
+      if (isAbort(err, deps.signal) || block.source.type !== "url") throw err;
+      // The API could not fetch the URL (spec §14.1): the app reads the picture
+      // itself and sends it as data — warning the author when the site opts out.
+      const robots = isRobotsRefusal(err);
+      const bytes = await (deps.pictureBytes ?? browserPictureBytes)(picture).catch(() => null);
+      if (deps.signal?.aborted) throw err;
+      if (!bytes) return null;
+      map = await ask({ type: "image", source: { type: "base64", media_type: bytes.mediaType, data: bytes.data } });
+      if (robots) map.optedOut = new URL(picture).hostname;
+    }
     if (map.regions.length > 0 || map.notFound.length > 0) {
       try {
         await put(key, JSON.stringify(map));
@@ -402,8 +470,10 @@ async function mapShared(map: ReturnType<typeof sharedMapper>, items: { picture:
   for (const { picture, opts } of items) {
     if (maps.has(picture)) continue;
     const m = await map(picture, opts, signal);
-    if (m && (m.regions.length > 0 || m.notFound.length > 0)) maps.set(picture, m);
-    else warnings.push(`Could not map the parts of ${picture.startsWith("data:") ? "an embedded picture" : picture}; regions: auto has no boxes for it.`);
+    if (m && (m.regions.length > 0 || m.notFound.length > 0)) {
+      maps.set(picture, m);
+      if (m.optedOut) warnings.push(optOutWarning(m.optedOut));
+    } else warnings.push(`Could not map the parts of ${picture.startsWith("data:") ? "an embedded picture" : picture}; regions: auto has no boxes for it.`);
   }
   return { maps, warnings };
 }

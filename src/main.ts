@@ -22,7 +22,7 @@ import { missingPlaceholders } from "./llm/prompt";
 import { usableExemplars } from "./llm/exemplars";
 import { buildBrief, parseTags, suggestTags, TAGS, type ParsedTags } from "./llm/tags";
 import { LAB_MODELS, MODELS, callLedger, costSummary, describeApiError, formatCost, makeClient, planningModelFor, resetCallLedger } from "./llm/client";
-import { autoImages, makeMapAuto, makeMapPictures, mapOutcome, mapPicture, writeFullMaps, type PictureMap } from "./llm/picture-map";
+import { autoImages, makeMapAuto, makeMapPictures, mapOutcome, mapPicture, optOutWarning, writeFullMaps, type PictureMap } from "./llm/picture-map";
 import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/author";
 import { reviseDocument, type ReviseOutcome } from "./llm/revise";
 import { withNotes } from "./llm/hoist";
@@ -4070,6 +4070,7 @@ function mapAutoInEditor(playlist: Playlist): void {
     const maps = new Map<string, PictureMap>();
     const failed: string[] = [];
     const empty: string[] = [];
+    const optedOut: string[] = [];
     const seen = new Set<string>();
     for (const w of wanted) {
       if (seen.has(w.picture)) continue;
@@ -4079,6 +4080,8 @@ function mapAutoInEditor(playlist: Playlist): void {
       try {
         const map = await mapPicture(w.picture, w.opts, deps).catch(() => null);
         const outcome = mapOutcome(map);
+        // Mapped from bytes the app read itself: the site opts out (spec §14.1) — say so, whatever the outcome.
+        if (map?.optedOut && !optedOut.includes(map.optedOut)) optedOut.push(map.optedOut);
         if (outcome === "found") maps.set(w.picture, map!);
         else if (outcome === "none") {
           autoNoParts.add(w.picture);
@@ -4094,6 +4097,7 @@ function mapAutoInEditor(playlist: Playlist): void {
     const lines = [
       ...failed.map((id) => `Could not find the parts of ${id} — regions: auto left as it is.`),
       ...empty.map((id) => `No parts found in ${id} — regions: auto left as it is.`),
+      ...optedOut.map(optOutWarning),
     ];
     if (maps.size > 0) {
       // Fresh text, not the playlist this started from: the author may have

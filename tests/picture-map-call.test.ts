@@ -68,6 +68,61 @@ describe("mapPicture", () => {
   });
 });
 
+describe("a picture the API cannot fetch by URL (spec §14.1)", () => {
+  const ROBOTS = "This URL is disallowed by the website's robots.txt file.";
+  const bad = async (message: string) => {
+    const { default: A } = await import("@anthropic-ai/sdk");
+    return new A.BadRequestError(400, { type: "error", error: { type: "invalid_request_error", message } }, message, new Headers());
+  };
+  const WARN = "microdata.no opts out of AI use in its robots.txt — mapped from the picture you gave; make sure you have the right to use it this way.";
+  const URL1 = "https://microdata.no/manual/a.png";
+  const imageOfCall = (i: number) => (mockJson.mock.calls[i][3][0].content as unknown as { type: string; source: Record<string, string> }[])[0];
+
+  test("a robots.txt 400 → the bytes are read and sent as base64; the map says the host opted out", async () => {
+    mockJson.mockRejectedValueOnce(await bad(ROBOTS)).mockResolvedValueOnce(reply(RAW));
+    const pictureBytes = vi.fn(async () => ({ mediaType: "image/jpeg" as const, data: "QUJD" }));
+    const m = await mapPicture(URL1, OPTS, { ...deps(), pictureBytes });
+    expect(pictureBytes).toHaveBeenCalledWith(URL1);
+    expect(mockJson).toHaveBeenCalledTimes(2);
+    expect(imageOfCall(1)).toEqual({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: "QUJD" } });
+    expect(m!.regions.map((r) => r.name)).toEqual(["search_field"]);
+    expect(m!.optedOut).toBe("microdata.no");
+  });
+  test("mapPictures carries the opt-out warning, word for word", async () => {
+    mockJson.mockRejectedValueOnce(await bad(ROBOTS)).mockResolvedValueOnce(reply(RAW));
+    const r = await mapPictures([{ picture: URL1, opts: OPTS }], { ...deps(), pictureBytes: async () => ({ mediaType: "image/jpeg", data: "QUJD" }) });
+    expect([...r.maps.keys()]).toEqual([URL1]);
+    expect(r.warnings).toEqual([WARN]);
+  });
+  test("any other 400 (or failure) → the bytes too, without the warning", async () => {
+    mockJson.mockRejectedValueOnce(await bad("Unable to download the file")).mockResolvedValueOnce(reply(RAW));
+    const m = await mapPicture(URL1, OPTS, { ...deps(), pictureBytes: async () => ({ mediaType: "image/png", data: "QUJD" }) });
+    expect(imageOfCall(1).source).toMatchObject({ type: "base64", media_type: "image/png" });
+    expect(m!.regions).toHaveLength(1);
+    expect(m!.optedOut).toBeUndefined();
+    mockJson.mockRejectedValueOnce(new Error("network")).mockResolvedValueOnce(reply(RAW));
+    const r = await mapPictures([{ picture: "https://x/b.png", opts: OPTS }], { ...deps(), pictureBytes: async () => ({ mediaType: "image/png", data: "QUJD" }) });
+    expect(r.maps.size).toBe(1);
+    expect(r.warnings).toEqual([]);
+  });
+  test("bytes unavailable → null, one call only", async () => {
+    mockJson.mockRejectedValueOnce(await bad(ROBOTS));
+    expect(await mapPicture(URL1, OPTS, { ...deps(), pictureBytes: async () => null })).toBeNull();
+    expect(mockJson).toHaveBeenCalledTimes(1);
+  });
+  test("a cache hit on an opted-out map still warns", async () => {
+    const d = { ...deps(), pictureBytes: async () => ({ mediaType: "image/jpeg" as const, data: "QUJD" }) };
+    mockJson.mockRejectedValueOnce(await bad(ROBOTS)).mockResolvedValueOnce(reply(RAW));
+    await mapPicture(URL1, OPTS, d);
+    mockJson.mockReset();
+    const again = await mapPicture(URL1, OPTS, d);
+    expect(mockJson).not.toHaveBeenCalled();
+    expect(again!.optedOut).toBe("microdata.no");
+    const r = await mapPictures([{ picture: URL1, opts: OPTS }], d);
+    expect(r.warnings).toEqual([WARN]);
+  });
+});
+
 describe("mapPictures", () => {
   test("maps for the successes, a warning naming the failed url", async () => {
     mockJson.mockResolvedValueOnce(reply(RAW)).mockRejectedValueOnce(new Error("boom"));

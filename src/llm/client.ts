@@ -439,7 +439,8 @@ export async function callForJson(
       lastError = err;
       if (!(err instanceof Anthropic.BadRequestError)) throw err;
       if (opts.isolate) {
-        if (isolatedPlain || (!useSchema && !useFallbacks)) throw err;
+        // A site refusing the API's fetch of a picture (robots.txt) is no schema matter — a plain retry would 400 alike.
+        if (isolatedPlain || (!useSchema && !useFallbacks) || /robots\.txt/i.test(err.message)) throw err;
         isolatedPlain = true;
         continue;
       }

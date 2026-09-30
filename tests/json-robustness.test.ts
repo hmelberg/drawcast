@@ -117,6 +117,14 @@ describe("isolate", () => {
     expect(JSON.stringify(recorded[2].body)).toBe(JSON.stringify(recorded[0].body)); // same shape: fallbacks intact
   });
 
+  test("a robots.txt 400 (a site refusing the API's fetch) is not retried as plain JSON — the caller sends the bytes instead", async () => {
+    const message = "This URL is disallowed by the website's robots.txt file.";
+    const err = new Anthropic.BadRequestError(400, { type: "error", error: { type: "invalid_request_error", message } }, message, new Headers());
+    const { client, recorded } = queuedClient([{ error: err }, { text: '{"a":"1"}' }]);
+    await expect(callForJson(client, "claude-sonnet-5", "s", [{ role: "user", content: "u" }], CLOSED, { isolate: true })).rejects.toBe(err);
+    expect(recorded).toHaveLength(1);
+  });
+
   test("both attempts 400 → rejects, state untouched", async () => {
     const { client, recorded } = queuedClient([{ error: schemaError() }, { error: schemaError() }, { text: '{"a":"1"}' }]);
     await expect(callForJson(client, "claude-sonnet-5", "s", [{ role: "user", content: "u" }], CLOSED, { isolate: true })).rejects.toBeInstanceOf(Anthropic.BadRequestError);

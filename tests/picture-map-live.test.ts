@@ -6,10 +6,24 @@
 //   DRAWCAST_LIVE_KEY=sk-ant-… npx vitest run tests/picture-map-live.test.ts
 import { describe, expect, test } from "vitest";
 import { makeClient, planningModelFor } from "../src/llm/client";
-import { mapPicture, type MapOptions } from "../src/llm/picture-map";
+import { mapPicture, type MapOptions, type PictureBytes } from "../src/llm/picture-map";
 
 const key = process.env.DRAWCAST_LIVE_KEY;
 const noCache = { cacheGet: async () => null, cachePut: async () => undefined };
+
+/** Node's read of a picture when the API cannot fetch its URL (spec §14.1): no resize here — png/jpeg only, ≤ 4.5 MB. */
+async function nodePictureBytes(url: string): Promise<PictureBytes | null> {
+  try {
+    const res = await fetch(url, { headers: { "User-Agent": "drawcast-live-test/1.0 (picture mapping check)" } });
+    const type = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+    if (!res.ok || (type !== "image/png" && type !== "image/jpeg")) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length > 4.5 * 1024 * 1024) return null;
+    return { mediaType: type, data: buf.toString("base64") };
+  } catch {
+    return null;
+  }
+}
 
 /** Centre distance between two [x, y, w, h] boxes, in picture fractions. */
 const off = (a: number[], b: number[]) => Math.hypot(a[0] + a[2] / 2 - (b[0] + b[2] / 2), a[1] + a[3] / 2 - (b[1] + b[3] / 2));
@@ -40,9 +54,9 @@ describe.skipIf(!key)("live picture mapping", () => {
   });
   for (const c of cases) {
     test(c.name, { timeout: 120_000 }, async () => {
-      const map = await mapPicture(c.url, c.opts, { client: makeClient(key!), model: planningModelFor("claude-opus-5-5"), ...noCache });
+      const map = await mapPicture(c.url, c.opts, { client: makeClient(key!), model: planningModelFor("claude-opus-5-5"), ...noCache, pictureBytes: nodePictureBytes });
       expect(map).not.toBeNull();
-      console.log(`\n${c.name}: ${map!.regions.length} parts; not found: ${map!.notFound.join(", ") || "—"}`);
+      console.log(`\n${c.name}: ${map!.regions.length} parts; not found: ${map!.notFound.join(", ") || "—"}; optedOut: ${map!.optedOut ?? "—"}`);
       for (const r of map!.regions) console.log(`  ${r.name.padEnd(24)} ${r.kind.padEnd(8)} [${r.box.join(", ")}]${r.label ? `  "${r.label}"` : ""}`);
       // Report how close the model came to each hand-measured box (by the nearest found part).
       for (const [name, box] of Object.entries(c.hand)) {
