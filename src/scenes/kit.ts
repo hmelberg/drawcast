@@ -13,6 +13,7 @@
 //    rough stroke.
 
 import { compileExpression } from "../spec/expression";
+import { groupThousands } from "../spec/vars";
 import { parseNotation, type NoteToken } from "../spec/notation";
 import { parseABC, type AbcTune } from "../spec/abc";
 import { CANVAS, plotArea, type PlotArea } from "../layout/canvas";
@@ -41,7 +42,7 @@ import { FIGURE_GROUND, softAlpha } from "../layout/ink";
 import type { LabelRequest } from "../layout/labels";
 import type { Side } from "../spec/types";
 
-export const KIT_VERSION = 11; // v11: num() and say() — numbers and words in the cast's language (2026-09-25); v10: circle()/rect() point rings, pad() — a tappable labelled shape for widgets, MORSE table (widget bodies); v9: ball() — a shaded 2D disc (space); v8: smoothClosed() + roughness on stroke/area (anatomy); v7: GROUND (the figure's paper); v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
+export const KIT_VERSION = 12; // v12: num(v, d, true) groups thousands (2026-09-30); v11: num() and say() — numbers and words in the cast's language (2026-09-25); v10: circle()/rect() point rings, pad() — a tappable labelled shape for widgets, MORSE table (widget bodies); v9: ball() — a shaded 2D disc (space); v8: smoothClosed() + roughness on stroke/area (anatomy); v7: GROUND (the figure's paper); v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
 
 export interface StrokeOpts {
   closed?: boolean;
@@ -450,8 +451,11 @@ export interface SceneKit {
    * the number as it is, decimal mark swapped. Use it for every number a
    * template WRITES on the figure (the layout sets the locale before the
    * template runs — spec.lang, else the narration's own language).
+   * `group` true puts thousands separators in the whole part, as a
+   * `{x:0,}` token does: "98,901" in an English cast, "98 901" (a no-break
+   * space) where the decimal mark is a comma.
    */
-  num(v: number, decimals?: number): string;
+  num(v: number, decimals?: number, group?: boolean): string;
   /**
    * A word in the cast's language: `say({en: "slope", nb: "stigning"})`.
    * Falls back to English, then to the first entry.
@@ -1609,9 +1613,10 @@ export const kit: SceneKit = {
   },
   softAlpha,
   GROUND: FIGURE_GROUND,
-  num(v, decimals) {
+  num(v, decimals, group) {
     const s = decimals === undefined ? String(v) : v.toFixed(decimals);
-    return figureLocale.decimalComma ? s.replace(".", ",") : s;
+    const marked = figureLocale.decimalComma ? s.replace(".", ",") : s;
+    return group ? groupThousands(marked, figureLocale.decimalComma) : marked;
   },
   say(words) {
     return words[figureLocale.lang] ?? words.en ?? Object.values(words)[0] ?? "";

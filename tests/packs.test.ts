@@ -2944,6 +2944,39 @@ describe("stats pack", () => {
     expect(punch).toContain("9%"); // 9 / 98
   });
 
+  // 2026-09-30 test runs: a 1-in-1,000 prevalence drew its healthy branch
+  // "100%", counts had no separators, and a high PPV still said "only".
+  test("bayes_tree: shares never round to 0%/100%, counts are grouped, the punchline fits the answer", () => {
+    registerPack("stats", statsYaml);
+    const textOf = (r: SceneLayout, id: string) => (flattenDrawables(r.drawables).find((d) => d.id === id) as { text: string }).text;
+    const rare = scenes.bayes_tree.layout!({ population: 100000, prevalence: 0.001, sensitivity: 0.95, specificity: 0.99 });
+    expect(textOf(rare, "edge_sick__t")).toBe("0.1%");
+    expect(textOf(rare, "edge_healthy__t")).toBe("99.9%");
+    expect(textOf(rare, "edge_tp__t")).toBe("95% +");
+    expect(textOf(rare, "edge_tn__t")).toBe("99% −");
+    expect(textOf(rare, "root__n")).toBe("100,000");
+    expect(textOf(rare, "tn__n")).toBe("98,901");
+    expect(textOf(rare, "ppv__t1")).toBe("Of the 1,094 positives, only 95 are sick");
+    const tiny = scenes.bayes_tree.layout!({ population: 100000, prevalence: 0.0001, specificity: 0.9999 });
+    expect(textOf(tiny, "edge_sick__t")).toBe("0.01%");
+    expect(textOf(tiny, "edge_healthy__t")).toBe("99.99%");
+    expect(textOf(tiny, "edge_fp__t")).toBe("0.01% +");
+    const even = scenes.bayes_tree.layout!({ population: 1000, prevalence: 0.5, sensitivity: 0.92 });
+    expect(textOf(even, "edge_sick__t")).toBe("50%");
+    expect(textOf(even, "edge_tp__t")).toBe("92% +");
+    const common = scenes.bayes_tree.layout!({ population: 100000, prevalence: 0.1, sensitivity: 0.95, specificity: 0.99 });
+    expect(textOf(common, "ppv__t1")).toBe("Of the 10,400 positives, 9,500 are sick");
+    expect(textOf(common, "ppv__t2")).toContain("91%");
+    // Readable sizes, and no collisions at the three prevalences authors use.
+    const sizes = flattenDrawables(common.drawables).filter((d) => /__(l|t)$/.test(d.id)).map((d) => (d as { fontSize: number }).fontSize);
+    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(18);
+    for (const prevalence of [0.001, 0.01, 0.1]) {
+      const res = layoutSpec({ template: "bayes_tree", params: { population: 100000, prevalence, sensitivity: 0.95, specificity: 0.99 }, elements: [] } as never);
+      expect(res.warnings, String(prevalence)).toEqual([]);
+      expect(res.issues, String(prevalence)).toEqual([]);
+    }
+  });
+
   test("galton_board: bins are symmetric, exact binomial, tallest in the middle", () => {
     registerPack("stats", statsYaml);
     const r = scenes.galton_board.layout!({ rows: 8 });
