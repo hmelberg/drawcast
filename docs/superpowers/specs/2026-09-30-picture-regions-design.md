@@ -559,3 +559,41 @@ What this example shows that the microdata one does not:
   ink outline (matches the house style)? Try both on the microdata picture.
 - **Size cap** for embedded screen pictures, and whether publishing links
   large pictures instead of embedding them.
+
+## 13. The look and the motion (decided 2026-09-30, after trying delivery 1)
+
+Hans, after seeing the red box and the laser on the Arnolfini: they are ugly.
+A comparison of twelve marks on the painting (scratch page, 2026-09-30) chose:
+
+- **The default on a picture is a soft paper light (G).** The rest of the
+  picture fades toward the paper, a feathered pool stays clear on the part.
+  It eases in and keeps deepening a little while the sentence is spoken.
+- **Pointing is a hand-drawn arrow (J)** — drawn in from outside the part,
+  ink with a light edge so it reads on dark and light pictures. The
+  alternative is **a soft glow (K)** that settles on the spot and breathes.
+- **A hand-drawn ring (B)** stays available for when a ring fits better.
+- **Everything is animated and moves from spot to spot.** A mark is written
+  on or eased in the first time; when the next sentence aims the same kind
+  of mark at the same picture it GLIDES there instead of fading out and in;
+  several places named in one sentence are stops it travels through.
+
+So on a picture place the three verbs become one **mark** owned by the
+picture:
+
+| Written | Mark |
+|---|---|
+| `highlight: {target: md:x}` | light (default) — `effect: ring` / `box` for the others |
+| `focus: {target: md:x}` | light |
+| `point: {at: {ref: md:x}}` | arrow (default) — `gesture: glow` for the glow |
+| `highlight: {target: [md:a, md:b, md:c]}` | one mark travelling a → b → c through the sentence |
+
+A mark carries over to the next step that aims the same kind of mark at the
+same picture, unless that step says `lift: true`, the picture is hidden,
+erased or cleared in between, or a different kind of mark is put on it.
+Camera moves between the two do not break it (the usual "zoom, then look").
+Explicit old gestures on a place (`gesture: tap/circle/underline`) keep the
+laser; plain ids are unchanged everywhere.
+
+This replaces delivery 1's red box default and the hard-edged spotlight on
+pictures, and it is §6 (movement) built together with the look — `tour`
+remains for later.
