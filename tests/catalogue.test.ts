@@ -49,9 +49,18 @@ describe("catalogueQueryString — pure query building", () => {
     expect(catalogueQueryString({ kind: "" })).toBe("");
   });
 
-  test("page is sent only when it isn't the first page", () => {
-    expect(catalogueQueryString({ page: 1 })).toBe("");
+  test("pages count from 0 like the server (start = page*50): page 0 is omitted, More sends 1, 2, …", () => {
+    expect(catalogueQueryString({ page: 0 })).toBe("");
+    expect(catalogueQueryString({ page: 1 })).toBe("?page=1");
     expect(catalogueQueryString({ page: 2 })).toBe("?page=2");
+  });
+
+  test("runCatalogue's first load is page 0 and each More adds one (final review I2)", () => {
+    const fn = catalogue.slice(catalogue.indexOf("export async function runCatalogue("));
+    expect(fn).toContain("let page = 0;");
+    expect(fn).toMatch(/if \(reset\) \{\s*page = 0;/);
+    expect(fn).toContain("page += 1;");
+    expect(fn).not.toMatch(/page = 1;/);
   });
 
   test("all three together", () => {
@@ -96,17 +105,28 @@ describe("fetchCatalogue", () => {
     expect(out).toEqual({ items: [COURSE], page: 1, more: false });
   });
 
-  test("defaults: lectures 1 when absent/zero, private false, page 1, more false", async () => {
+  test("defaults: lectures 1 when absent/zero, private false, page 0, more false", async () => {
     const f = fetchReturning(200, { items: [{ kind: "cast", title: "T", name: "t", owner: "o", updated: "2026-09-01" }] });
     const out = await fetchCatalogue("https://a", {}, f);
-    expect(out).toEqual({ items: [{ kind: "cast", title: "T", name: "t", owner: "o", updated: "2026-09-01", lectures: 1, private: false }], page: 1, more: false });
+    expect(out).toEqual({ items: [{ kind: "cast", title: "T", name: "t", owner: "o", updated: "2026-09-01", lectures: 1, private: false }], page: 0, more: false });
+  });
+
+  test("a row with no `updated` (null or absent) is kept and shows no date (final review M7)", async () => {
+    const f = fetchReturning(200, { items: [{ kind: "cast", title: "T", name: "t", owner: "o", updated: null }, { kind: "course", title: "C", name: "c", owner: "o", lectures: 2 }] });
+    const out = await fetchCatalogue("https://a", {}, f);
+    expect(out).not.toBe("error");
+    if (out === "error") return;
+    expect(out.items.map((i) => i.name)).toEqual(["t", "c"]);
+    expect(out.items[0].updated).toBe("");
+    expect(catalogueMeta(out.items[0])).toBe("Drawcast");
+    expect(catalogueMeta(out.items[1])).toBe("Course · 2 lectures");
   });
 
   test("the private badge field rides through when true", async () => {
     const priv = { ...COURSE, private: true };
     const f = fetchReturning(200, { items: [priv] });
     const out = await fetchCatalogue("https://a", {}, f);
-    expect(out).toEqual({ items: [priv], page: 1, more: false });
+    expect(out).toEqual({ items: [priv], page: 0, more: false });
   });
 
   test("a body with no items array, or any non-200, is 'error' — never a throw", async () => {
@@ -182,6 +202,13 @@ describe("a link to the catalogue from the app (task 9's own requirement)", () =
     expect(help).toContain('<a href="#catalogue">Browse the catalogue</a>');
     expect(help).toContain('<h2 id="catalogue">Browse the catalogue</h2>');
     expect(help).toContain('href="./#browse"');
+  });
+
+  test("help says listing again is free and unlisting costs the Private fee unless already paid for — never 'free the first time' (final review M6)", () => {
+    const help = readFileSync(new URL("../public/help.html", import.meta.url), "utf8");
+    expect(help).not.toContain("free the first time");
+    expect(help).toMatch(/Listing it again is\s+always free/);
+    expect(help).toMatch(/costs the same one-time fee as Private,\s+unless you have already paid/);
   });
 
   test("the editor's sidebar links out to #browse, right beside Help — same target=_blank/rel=noopener pattern", () => {

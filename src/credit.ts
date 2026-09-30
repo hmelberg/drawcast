@@ -106,6 +106,7 @@ export async function startCreditPayment(
       method: "POST",
       headers: { "content-type": "text/plain" },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10_000),
     });
     if (res.ok) {
       const b = (await res.json()) as { url?: unknown };

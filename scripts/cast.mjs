@@ -107,6 +107,9 @@ import {
   deviceLogin,
   dollars,
   listingAdvice,
+  unlistStep,
+  creditBaseline,
+  registryTargetFor,
   nameAdvice,
   privatePayAdvice,
   privateItemFor,
@@ -887,10 +890,7 @@ const commands = {
       // (it never renames on push), but this is the app's shared source of
       // truth, not a re-derivation. A course has no such helper: its item IS
       // its registry target, unchanged.
-      const target =
-        origin.kind === "cast"
-          ? lib.privateCastTarget({ owner: origin.owner, repo: origin.repo }, origin.castsDir, undefined, origin.file.replace(/\.ya?ml$/i, ""), reg.title).target
-          : reg.target;
+      const target = registryTargetFor(origin, lib, reg);
       const lectures = origin.kind === "course" ? Math.max(1, reg.lectures.length) : 1;
       const body = { key: session.key, kind: origin.kind, target, lectures, private: true, listed: !unlisted };
       const quote = await quotePrivate(session.api, body, boundedFetch());
@@ -958,13 +958,17 @@ const commands = {
       const { payListedFields } = await load("/src/ui/share.ts");
       const courseText = origin.kind === "course" ? readFileSync(resolve(wd, "course.md"), "utf8") : undefined;
       const reg = registerFor(origin, lib, courseText);
-      const item = registryItemKey(origin.kind, reg.target);
+      // The same target `private` quotes and locks under (a cast's is
+      // privateCastTarget's) — one derivation, registryTargetFor.
+      const target = registryTargetFor(origin, lib, reg);
+      const item = registryItemKey(origin.kind, target);
       const lectures = origin.kind === "course" ? Math.max(1, reg.lectures.length) : 1;
-      // The quote — read-only, never a side effect — is asked first so the
-      // due (if any) can be shown to the user for their yes, exactly like
-      // `private` itself; asking about `private: false` here since listing
-      // never touches the lock, only the catalogue.
-      const body = { key: session.key, kind: origin.kind, target: reg.target, lectures, private: false, listed: wantListed };
+      // The quote — read-only — only tells an item owned by someone else
+      // apart up front; it never decides the price here (a grown course's
+      // quote can say due > 0 where the free unlist would work — final
+      // review M4). It is also what waitForListing polls after paying.
+      // `private: false`: listing never touches the lock, only the catalogue.
+      const body = { key: session.key, kind: origin.kind, target, lectures, private: false, listed: wantListed };
       const quote = await quotePrivate(session.api, body, boundedFetch());
       if (typeof quote !== "object" || quote.owner === "other") throw new Error(privateQuoteAdvice(quote, work));
 
@@ -973,27 +977,26 @@ const commands = {
         return console.log(listingAdvice(r, true, work));
       }
 
-      // --unlisted: free at once when already covered (paid_lectures > 0 —
-      // a private purchase or an earlier unlisted one); otherwise the exact
-      // same price as Private, paid once (plan ruling 8).
-      if (quote.due === 0) {
-        const r = await setListing(session.api, session.key, item, false, boundedFetch());
-        return console.log(listingAdvice(r, false, work));
-      }
-      if (!priceArg) return console.log(`Unlisted needs ${dollars(quote.due)} — run: node scripts/cast.mjs listing ${work} --unlisted --price ${quote.due}`);
-      if (Number(priceArg) !== quote.due) throw new Error(`--price must be ${quote.due} (${dollars(quote.due)}) — say the price to the user and get a yes first`);
+      // --unlisted: try the free unlist first — the server allows it at once
+      // when the item is already covered (paid_lectures > 0: a private
+      // purchase or an earlier unlisted one). Only its 402 {due} falls into
+      // the priced path — the same price as Private, paid once (plan ruling
+      // 8), and only on --price equal to that due (final review M4).
+      const r = await setListing(session.api, session.key, item, false, boundedFetch());
+      const step = unlistStep(r, priceArg, work);
+      if ("message" in step) return console.log(step.message);
 
       // The item stays public — payListedFields(false, false) — so this
       // purchase never locks it, only settles listed:false (fix round 1's
       // invariant: never omit `private` either way).
       const pay = await startPrivatePayment(
         session.api,
-        { key: session.key, kind: origin.kind, target: reg.target, title: reg.title, page: reg.page, lectures, ...payListedFields(false, false), return: "https://drawcast.app/" },
+        { key: session.key, kind: origin.kind, target, title: reg.title, page: reg.page, lectures, ...payListedFields(false, false), return: "https://drawcast.app/" },
         boundedFetch(),
       );
       if (typeof pay !== "object") throw new Error(privatePayAdvice(pay));
       spawnSync("open", [pay.url]);
-      console.log(`Opened Stripe Checkout to unlist this ${origin.kind === "course" ? "course" : "drawcast"} (${dollars(quote.due)}) in the browser:\n  ${pay.url}\nPay there — waiting…`);
+      console.log(`Opened Stripe Checkout to unlist this ${origin.kind === "course" ? "course" : "drawcast"} (${dollars(step.pay)}) in the browser:\n  ${pay.url}\nPay there — waiting…`);
 
       const outcome = await waitForListing({ api: session.api, body, quotePrivate, wantListed: false, fetchImpl: boundedFetch() });
       console.log(outcome === "done" ? `${work}: unlisted.` : "Not paid (yet) — run listing --unlisted again after paying.");
@@ -1020,8 +1023,9 @@ const commands = {
         const balance = await creditBalance(session.api, session.key, boundedFetch());
         return console.log(creditBalanceAdvice(balance));
       }
-      const before = await creditBalance(session.api, session.key, boundedFetch());
-      const startMicro = typeof before === "object" ? before.balanceMicro : 0;
+      // Never assumed 0 — a failed read is retried once, then the purchase
+      // stops here, before Checkout opens (task 10 review).
+      const startMicro = await creditBaseline({ api: session.api, key: session.key, creditBalance, fetchImpl: boundedFetch() });
       const pay = await startCreditPayment(session.api, { key: session.key, cents, return: "https://drawcast.app/" }, boundedFetch());
       if (typeof pay !== "object") throw new Error(creditPayAdvice(pay));
       spawnSync("open", [pay.url]);

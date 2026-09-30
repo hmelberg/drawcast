@@ -32,7 +32,8 @@ export interface CatalogueItem {
   owner: string;
   /** 1 for a cast; a course's lecture count. */
   lectures: number;
-  /** ISO date string, server-side. */
+  /** ISO date string, server-side; "" when the server sent none (the card
+   *  then shows no date rather than the row being dropped — final review M7). */
   updated: string;
   /** Shows the "Private — ask to join" badge (plan ruling 7: a listed item
    *  may still be private). */
@@ -52,6 +53,8 @@ export type CatalogueFilterKind = "" | "course" | "cast";
 export interface CatalogueQuery {
   q?: string;
   kind?: CatalogueFilterKind;
+  /** Counted from 0, exactly as the server's `start = page * 50` does
+   *  (final review I2): 0 is the first page and is left out of the URL. */
   page?: number;
 }
 
@@ -63,20 +66,22 @@ export function catalogueQueryString(query: CatalogueQuery): string {
   const q = (query.q ?? "").trim().slice(0, 80);
   if (q) params.set("q", q);
   if (query.kind) params.set("kind", query.kind);
-  if (typeof query.page === "number" && query.page > 1) params.set("page", String(query.page));
+  if (typeof query.page === "number" && query.page > 0) params.set("page", String(query.page));
   const s = params.toString();
   return s ? `?${s}` : "";
 }
 
 /** One raw item from the server's `items` array, narrowed and defaulted —
  *  never trusts a field's presence or type. A row missing any REQUIRED
- *  field (kind/title/name/owner/updated) is dropped rather than shown half
- *  blank; `lectures`/`private`/`page` default sensibly when absent. */
+ *  field (kind/title/name/owner) is dropped rather than shown half blank;
+ *  `lectures`/`private`/`page` default sensibly when absent, and a missing
+ *  `updated` becomes "" (no date shown) — the server has already counted
+ *  that row in its 50, so dropping it would silently shorten the page. */
 function parseCatalogueItem(raw: unknown): CatalogueItem | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   if (r.kind !== "course" && r.kind !== "cast") return null;
-  if (typeof r.title !== "string" || typeof r.name !== "string" || typeof r.owner !== "string" || typeof r.updated !== "string") return null;
+  if (typeof r.title !== "string" || typeof r.name !== "string" || typeof r.owner !== "string") return null;
   return {
     kind: r.kind,
     title: r.title,
@@ -84,7 +89,7 @@ function parseCatalogueItem(raw: unknown): CatalogueItem | null {
     page: typeof r.page === "string" ? r.page : undefined,
     owner: r.owner,
     lectures: typeof r.lectures === "number" && r.lectures > 0 ? r.lectures : 1,
-    updated: r.updated,
+    updated: typeof r.updated === "string" ? r.updated : "",
     private: r.private === true,
   };
 }
@@ -109,7 +114,7 @@ export async function fetchCatalogue(api: string, query: CatalogueQuery, fetchIm
       const item = parseCatalogueItem(raw);
       if (item) items.push(item);
     }
-    return { items, page: typeof body.page === "number" ? body.page : 1, more: body.more === true };
+    return { items, page: typeof body.page === "number" ? body.page : 0, more: body.more === true };
   } catch {
     return "error";
   }
@@ -130,7 +135,7 @@ export function catalogueHref(item: Pick<CatalogueItem, "name">): string {
 export function catalogueMeta(item: Pick<CatalogueItem, "kind" | "lectures" | "updated">): string {
   const kindLabel = item.kind === "course" ? "Course" : "Drawcast";
   const lectures = item.kind === "course" ? ` · ${item.lectures} lecture${item.lectures === 1 ? "" : "s"}` : "";
-  return `${kindLabel}${lectures} · updated ${item.updated}`;
+  return `${kindLabel}${lectures}${item.updated ? ` · updated ${item.updated}` : ""}`;
 }
 
 /** #browse&q=…&kind=course — a nice-to-have (task brief), read once at
@@ -191,7 +196,7 @@ export async function runCatalogue(hash: string): Promise<void> {
   document.body.append(root);
 
   let items: CatalogueItem[] = [];
-  let page = 1;
+  let page = 0;
   let loadToken = 0;
 
   function currentQuery(): CatalogueQuery {
@@ -210,7 +215,7 @@ export async function runCatalogue(hash: string): Promise<void> {
   async function load(reset: boolean): Promise<void> {
     const my = ++loadToken;
     if (reset) {
-      page = 1;
+      page = 0;
       items = [];
       results.replaceChildren();
     }

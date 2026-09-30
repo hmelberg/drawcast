@@ -689,7 +689,10 @@ function build(): ShareSession {
             : speaks;
         } else if (token) {
           bakeCb.disabled = false;
-          bakeCb.checked = bakeDefault;
+          // Unticked whatever the panel's default: credit is real money, and
+          // with no balance a ticked box turns a publish that used to work
+          // into a 402 — the author opts in (final review I3).
+          bakeCb.checked = false;
           const neededUsd = CREDIT_MARKUP * (doc.narrationUsd ?? 0);
           creditBuyRow.hidden = true;
           bakeHint.textContent = creditBakeHint(neededUsd, null);
@@ -960,7 +963,12 @@ function build(): ShareSession {
         return;
       }
       if (r === "owner") {
-        listedHint.textContent = "Registered to another account";
+        // The server answers 403 both for someone else's item and for one
+        // with no registration yet (a first publish). The open-time quote
+        // (probeServerPrivate) already told which, for this same target —
+        // final review M5.
+        listedHint.textContent =
+          serverOwner === "none" && probedTarget === item.target ? "Publish first, then choose listing" : "Registered to another account";
         return;
       }
       if (r === "error") {
@@ -1089,6 +1097,9 @@ function build(): ShareSession {
    * then needs the "Make public" confirm (the change listener below).
    */
   let serverPrivate = false;
+  /** Who the registry says holds probedTarget — "none" before a first
+   *  publish; null until (or unless) the open-time quote answers. */
+  let serverOwner: "you" | "other" | "none" | null = null;
   let confirmedPublic = false;
   let serverProbeToken = 0;
   /** The target the last probe asked about: a "Make public" confirmation is
@@ -1097,6 +1108,7 @@ function build(): ShareSession {
   function probeServerPrivate(): void {
     const my = ++serverProbeToken;
     serverPrivate = false;
+    serverOwner = null;
     const field = current.subject === "course" ? publishFolderInput.value : publishNameInput.value;
     const item = privateRequest(current.doc(), current.settings, current.subject, field);
     const target = item ? item.target : null;
@@ -1118,6 +1130,7 @@ function build(): ShareSession {
       });
       if (my !== serverProbeToken) return; // superseded by a newer open/field edit
       serverPrivate = typeof q === "object" && q.private === true;
+      serverOwner = typeof q === "object" ? q.owner : null;
       if (serverPrivate && !privateCb.checked && !confirmedPublic) {
         privateCb.checked = true;
         refreshPrivateLine();

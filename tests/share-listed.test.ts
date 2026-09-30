@@ -40,8 +40,15 @@ describe("listedCb's change handler — setListing IS the check (no separate quo
   test("every outcome is worded on the hint line, never a throw", () => {
     expect(fn).toContain('listedHint.textContent = "";'); // ok
     expect(fn).toContain('listedHint.textContent = "Sign in to change listing";');
-    expect(fn).toContain('listedHint.textContent = "Registered to another account";');
+    expect(fn).toContain('"Registered to another account";');
     expect(fn).toContain('listedHint.textContent = "Could not update listing — try again.";');
+  });
+
+  test("a 403 on an item with no registration yet (the open-time quote said owner: none, for THIS target) says publish first — not 'another account' (final review M5)", () => {
+    expect(fn).toMatch(/if \(r === "owner"\) \{(?:\s*\/\/.*)*\s*listedHint\.textContent =\s*serverOwner === "none" && probedTarget === item\.target \? "Publish first, then choose listing" : "Registered to another account";/);
+    const probe = share.slice(share.indexOf("function probeServerPrivate(): void {"), share.indexOf('privateCb.addEventListener("change"'));
+    expect(probe).toContain("serverOwner = null;");
+    expect(probe).toContain('serverOwner = typeof q === "object" ? q.owner : null;');
   });
 
   test("a {due} answer (unlisting never paid) shows the one-time fee and reveals the Pay row", () => {

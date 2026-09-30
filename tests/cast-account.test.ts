@@ -28,6 +28,9 @@ import {
   creditBalanceAdvice,
   creditPayAdvice,
   waitForCredit,
+  unlistStep,
+  creditBaseline,
+  registryTargetFor,
 } from "../scripts/cast-account.mjs";
 import * as coursePub from "../src/course/publish";
 import * as castPub from "../src/publish/cast";
@@ -504,7 +507,23 @@ describe("cast.mjs listing (registry deliveries 3–4, task 10): the unlist-only
   });
 
   it("quotes with listed matching the request, and private:false — listing never touches the lock", () => {
-    expect(listing).toContain("const body = { key: session.key, kind: origin.kind, target: reg.target, lectures, private: false, listed: wantListed };");
+    expect(listing).toContain("const body = { key: session.key, kind: origin.kind, target, lectures, private: false, listed: wantListed };");
+  });
+
+  it("derives a cast's target the same way `private` does — registryTargetFor, i.e. lib.privateCastTarget (task 10 review, minor)", () => {
+    const priv = src.slice(src.indexOf("  async private(args) {"), src.indexOf("  async listing(args) {"));
+    expect(listing).toContain("const target = registryTargetFor(origin, lib, reg);");
+    expect(priv).toContain("const target = registryTargetFor(origin, lib, reg);");
+    expect(listing).not.toContain("reg.target");
+  });
+
+  it("--unlisted tries the free setListing(false) FIRST and only a {due} answer falls into the priced path (final review M4)", () => {
+    const unl = listing.slice(listing.indexOf("// --unlisted:"));
+    const tryFree = unl.indexOf("await setListing(session.api, session.key, item, false, boundedFetch());");
+    expect(tryFree).toBeGreaterThan(-1);
+    expect(unl).toContain("const step = unlistStep(r, priceArg, work);");
+    expect(unl.indexOf("startPrivatePayment(")).toBeGreaterThan(tryFree);
+    expect(unl).not.toContain("quote.due");
   });
 
   it("--listed calls setListing(…, true) directly — always free, no payment path", () => {
@@ -545,6 +564,68 @@ describe("listingAdvice (cast.mjs listing)", () => {
     expect(advice).toMatch(/5 USD|500/);
     expect(advice).toContain("cast.mjs listing dev-casts/pulled/x --unlisted --price 500");
     expect(advice).not.toMatch(/[A-Za-z0-9_-]{20,}/);
+  });
+});
+
+describe("unlistStep (cast.mjs listing --unlisted, after trying the free setListing(false) first)", () => {
+  it("anything but a {due} is final — worded by listingAdvice, nothing to pay", () => {
+    expect(unlistStep("ok", undefined, "w")).toEqual({ message: "w: unlisted." });
+    expect(unlistStep("owner", "500", "w")).toEqual({ message: listingAdvice("owner", false, "w") });
+    expect(unlistStep("error", undefined, "w")).toEqual({ message: listingAdvice("error", false, "w") });
+  });
+  it("a {due} with no --price says the exact next command", () => {
+    expect(unlistStep({ due: 500 }, undefined, "w")).toEqual({ message: listingAdvice({ due: 500 }, false, "w") });
+  });
+  it("a {due} with --price equal to it: pay that", () => {
+    expect(unlistStep({ due: 500 }, "500", "w")).toEqual({ pay: 500 });
+  });
+  it("a --price that is not the due refuses — the user said yes to another number", () => {
+    expect(() => unlistStep({ due: 500 }, "1000", "w")).toThrow(/--price must be 500/);
+  });
+});
+
+describe("creditBaseline (cast.mjs credit --buy: the balance before Checkout, never assumed 0)", () => {
+  it("the first answer when it is a balance", async () => {
+    let n = 0;
+    const creditBalance = async () => (n++, { balanceMicro: 7, balanceUsd: "0.00" });
+    expect(await creditBaseline({ api: "https://x", key: "k", creditBalance })).toBe(7);
+    expect(n).toBe(1);
+  });
+  it("retries once after a failed read", async () => {
+    const answers: ("error" | { balanceMicro: number; balanceUsd: string })[] = ["error", { balanceMicro: 3_000_000, balanceUsd: "3.00" }];
+    const creditBalance = async () => answers.shift()!;
+    expect(await creditBaseline({ api: "https://x", key: "k", creditBalance })).toBe(3_000_000);
+  });
+  it("two failures abort with a clear message — before any Checkout opens", async () => {
+    let n = 0;
+    const creditBalance = async () => (n++, "error" as const);
+    await expect(creditBaseline({ api: "https://x", key: "k", creditBalance })).rejects.toThrow(/could not read your current narration credit.*Checkout/);
+    expect(n).toBe(2);
+  });
+  it("a signed-out session says: log in", async () => {
+    const creditBalance = async () => "key" as const;
+    await expect(creditBaseline({ api: "https://x", key: "k", creditBalance })).rejects.toThrow(/cast\.mjs login/);
+  });
+  it("cast.mjs credit --buy uses it before startCreditPayment, and never falls back to 0", () => {
+    const src: string = readFileSync(new URL("../scripts/cast.mjs", import.meta.url), "utf8");
+    const credit = src.slice(src.indexOf("  async credit(args) {"));
+    const base = credit.indexOf("const startMicro = await creditBaseline({ api: session.api, key: session.key, creditBalance, fetchImpl: boundedFetch() });");
+    expect(base).toBeGreaterThan(-1);
+    expect(credit.indexOf("startCreditPayment(session.api")).toBeGreaterThan(base);
+    expect(credit).not.toContain(": 0;");
+  });
+});
+
+describe("registryTargetFor (the item's registry target, one derivation for private and listing)", () => {
+  it("a cast: lib.privateCastTarget's own target", () => {
+    const calls: unknown[][] = [];
+    const lib = { privateCastTarget: (...a: unknown[]) => (calls.push(a), { target: "ann/casts/casts/q-t" }) };
+    const origin = { kind: "cast", owner: "ann", repo: "casts", castsDir: "casts", file: "q.yaml" };
+    expect(registryTargetFor(origin, lib, { target: "ann/casts/casts/q.yaml", title: "T" })).toBe("ann/casts/casts/q-t");
+    expect(calls[0]).toEqual([{ owner: "ann", repo: "casts" }, "casts", undefined, "q", "T"]);
+  });
+  it("a course: its registry target unchanged", () => {
+    expect(registryTargetFor({ kind: "course" }, {}, { target: "ann/r/micro" })).toBe("ann/r/micro");
   });
 });
 

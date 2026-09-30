@@ -56,6 +56,12 @@ describe("startCreditPayment", () => {
     expect(JSON.parse(init.body as string)).toEqual(body);
   });
 
+  test("is bounded like creditBalance — an AbortSignal timeout, never a hang (final review M13)", async () => {
+    const f = fetchReturning(200, { url: "https://checkout.stripe.com/pay/x" });
+    await startCreditPayment(API, body, f);
+    expect(calls(f)[0][1].signal).toBeInstanceOf(AbortSignal);
+  });
+
   test("409 -> pending, 401 -> key, a malformed 200 (no url) -> error, anything else -> error", async () => {
     expect(await startCreditPayment(API, body, fetchReturning(409, { error: "pending" }))).toBe("pending");
     expect(await startCreditPayment(API, body, fetchReturning(401, { error: "key" }))).toBe("key");

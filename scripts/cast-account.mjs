@@ -348,6 +348,32 @@ export function listingAdvice(outcome, listed, work) {
 }
 
 /**
+ * `cast.mjs listing --unlisted`, after it has tried the free
+ * setListing(false) first (final review M4 — the server unlists free once
+ * the item has ever paid, which a quote for a grown course can't tell).
+ * Only a 402 {due} leads to payment, and only when `--price` is exactly
+ * that due (the user's own yes to it). `{ message }` is final; `{ pay }`
+ * is the amount to open Checkout for.
+ */
+export function unlistStep(outcome, priceArg, work) {
+  if (typeof outcome !== "object" || !priceArg) return { message: listingAdvice(outcome, false, work) };
+  if (Number(priceArg) !== outcome.due) throw new Error(`--price must be ${outcome.due} (${dollars(outcome.due)}) — say the price to the user and get a yes first`);
+  return { pay: outcome.due };
+}
+
+/**
+ * A course or cast's registry target, the ONE way both `private` and
+ * `listing` derive it: a cast's is publish/cast.ts's privateCastTarget (the
+ * prediction Share itself quotes and locks under — fix round 1, #6); a
+ * course's is its registry target unchanged. `lib` is the app's own
+ * publish/cast.ts (loaded through withVite).
+ */
+export function registryTargetFor(origin, lib, reg) {
+  if (origin.kind !== "cast") return reg.target;
+  return lib.privateCastTarget({ owner: origin.owner, repo: origin.repo }, origin.castsDir, undefined, origin.file.replace(/\.ya?ml$/i, ""), reg.title).target;
+}
+
+/**
  * Poll POST /register/quote (cast.mjs listing --unlisted, after Checkout
  * opened) every 5 s up to `timeoutS` (9 min, the same budget as
  * waitForPrivate/waitForName) until the item's own `listed` state matches
@@ -382,6 +408,21 @@ export function creditPayAdvice(pay) {
   if (pay === "pending") return "a credit purchase is already open — finish that one, then try again";
   if (pay === "key") return "not signed in to drawcast (or signed out from the account page) — run: node scripts/cast.mjs login";
   return "the drawcast server did not answer — try again in a minute";
+}
+
+/**
+ * The balance before `cast.mjs credit --buy` opens Checkout — what
+ * waitForCredit waits to see rise. Never assumed 0 (task 10 review): a
+ * failed read is retried once, then the purchase stops with a clear message
+ * BEFORE any Checkout opens, since a 0 baseline would read an old balance
+ * as "paid".
+ */
+export async function creditBaseline({ api, key, creditBalance, fetchImpl = fetch }) {
+  let b = await creditBalance(api, key, fetchImpl);
+  if (typeof b !== "object") b = await creditBalance(api, key, fetchImpl);
+  if (typeof b === "object") return b.balanceMicro;
+  if (b === "key") throw new Error(creditBalanceAdvice(b));
+  throw new Error("could not read your current narration credit (the drawcast server did not answer twice) — not opening Checkout; try again in a minute");
 }
 
 /**

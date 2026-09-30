@@ -218,9 +218,9 @@ describe("the drawcast server in Share", () => {
     expect(share).not.toContain('buildEmbedChoices("server", false)');
     // Through the SAME builder the other panels use, still gated on a TTS
     // key OR (registry delivery 3) narration credit for a signed-in author —
-    // bakeDefault applies on either usable path, exactly twice (once per
-    // path) in this one shared function body, never disabled-but-checked.
-    expect(share.match(/bakeCb\.checked = bakeDefault;/g)).toHaveLength(2);
+    // bakeDefault applies only on the key path; the credit path spends money
+    // and starts unticked (final review I3); never disabled-but-checked.
+    expect(share.match(/bakeCb\.checked = bakeDefault;/g)).toHaveLength(1);
     expect(share).toContain("bakeCb.checked = false;");
     // Declaration + three instantiations — still one copy of the rows.
     expect(share.match(/buildEmbedChoices\(/g)).toHaveLength(4);

@@ -44,8 +44,10 @@ describe("the Embed-narration box — three states through buildEmbedChoices", (
     expect(fn).toMatch(/if \(tts\) \{\s*bakeCb\.disabled = false;\s*bakeCb\.checked = bakeDefault;\s*creditBuyRow\.hidden = true;/);
   });
 
-  test("no key but signed in: still enabled and checked by default — credit costs money too, just not on this account's Google bill", () => {
-    expect(fn).toMatch(/\} else if \(token\) \{\s*bakeCb\.disabled = false;\s*bakeCb\.checked = bakeDefault;/);
+  test("no key but signed in: enabled but UNTICKED — credit spends money, so the author opts in (final review I3)", () => {
+    expect(fn).toMatch(/\} else if \(token\) \{\s*bakeCb\.disabled = false;(?:\s*\/\/.*)*\s*bakeCb\.checked = false;/);
+    const creditBranch = fn.slice(fn.indexOf("} else if (token) {"), fn.indexOf("} else {\n", fn.indexOf("} else if (token) {")));
+    expect(creditBranch).not.toContain("bakeCb.checked = bakeDefault");
     expect(fn).toContain("const neededUsd = CREDIT_MARKUP * (doc.narrationUsd ?? 0);");
     expect(fn).toContain("bakeHint.textContent = creditBakeHint(neededUsd, null);");
   });
