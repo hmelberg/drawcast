@@ -38,15 +38,46 @@ describe("the box effect", () => {
 });
 
 describe("the spotlight", () => {
-  test("setSpotlight draws one even-odd wash per picture; endSpotlight removes it", async () => {
+  test("setSpotlight: a masked wash per picture; endSpotlight removes mask and wash (final fix I6)", async () => {
     const { restore, effects, overlay } = await mounted();
     try {
       effects.setSpotlight!([{ frame: { x: 100, y: 300, w: 400, h: 200 }, holes: [{ x: 100, y: 300, w: 200, h: 200 }] }], FOCUS_DIM);
-      const wash = overlay.children.find((n) => n.getAttribute("fill-rule") === "evenodd");
+      const wash = overlay.children.find((n) => (n.getAttribute("mask") ?? "").startsWith("url(#"));
       expect(wash).toBeDefined();
       expect(Number(wash!.getAttribute("fill-opacity"))).toBeCloseTo(1 - FOCUS_DIM, 3);
+      expect(overlay.children.some((n) => n.tagName === "mask")).toBe(true);
       effects.endSpotlight!();
-      expect(overlay.children.find((n) => n.getAttribute("fill-rule") === "evenodd")).toBeUndefined();
+      expect(overlay.children.find((n) => n.getAttribute("mask"))).toBeUndefined();
+      expect(overlay.children.some((n) => n.tagName === "mask")).toBe(false);
+    } finally {
+      restore();
+    }
+  });
+
+  test("nested holes both stay lit (a mask, not even-odd); a hole past the frame is clipped to it (final fix I6)", async () => {
+    const { restore, effects, overlay } = await mounted();
+    try {
+      const frame = { x: 100, y: 300, w: 400, h: 200 };
+      effects.setSpotlight!([{ frame, holes: [{ x: 100, y: 300, w: 200, h: 200 }, { x: 150, y: 350, w: 50, h: 50 }, { x: 450, y: 450, w: 200, h: 200 }] }], FOCUS_DIM);
+      const mask = overlay.children.find((n) => n.tagName === "mask")!;
+      const wash = overlay.children.find((n) => n.getAttribute("mask"))!;
+      expect(wash.getAttribute("mask")).toBe(`url(#${mask.getAttribute("id") ?? (mask as unknown as { id: string }).id})`);
+      expect(wash.getAttribute("fill-rule")).toBeNull();
+      const black = mask.children.filter((n) => n.getAttribute("fill") === "black");
+      expect(black).toHaveLength(3);
+      const white = mask.children.find((n) => n.getAttribute("fill") === "white")!;
+      // Every hole lies inside the lit frame's svg box.
+      const box = (n: FakeNode) => ["x", "y", "width", "height"].map((k) => Number(n.getAttribute(k)));
+      const [fx, fy, fw, fh] = box(white);
+      for (const h of black) {
+        const [x, y, w, hh] = box(h);
+        expect(x).toBeGreaterThanOrEqual(fx - 1e-9);
+        expect(y).toBeGreaterThanOrEqual(fy - 1e-9);
+        expect(x + w).toBeLessThanOrEqual(fx + fw + 1e-9);
+        expect(y + hh).toBeLessThanOrEqual(fy + fh + 1e-9);
+      }
+      // The overhanging hole keeps only its part inside the frame: 50 x 50.
+      expect(black.map((n) => box(n)[2] * box(n)[3])).toContain(2500);
     } finally {
       restore();
     }

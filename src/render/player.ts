@@ -11,6 +11,7 @@ import { moveFrame, morphFrame, transformFrame } from "./tween";
 import { overridesKey, type LayoutOverrides } from "../layout/posed";
 import { answersMatch, AUTO_NAMESPACE, subVars } from "../spec/answers";
 import { notationBeats } from "../spec/notation";
+import { parsePlace } from "../spec/places";
 import { ACTIVITY_QUESTIONS } from "../spec/types";
 import type { LayoutResult } from "../layout/layout";
 import { heldFrom, sceneAt } from "./plan";
@@ -1672,15 +1673,23 @@ export class Player {
       case "highlight": {
         if (!this.effects) return;
         const effects = this.effects;
-        const box = unionBoxes(
-          step.ids.flatMap((id) => {
-            const b = step.boxes[id];
-            if (!b) return [];
-            const [dx, dy] = before.offsets[id] ?? [0, 0];
-            return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
-          }),
-        );
-        const paint = (level: number, elapsedMs?: number) => effects.setHighlight(step.ids, step.effect, level, box, step.color, elapsedMs, step.part);
+        const boxFor = (ids: string[]) =>
+          unionBoxes(
+            ids.flatMap((id) => {
+              const b = step.boxes[id];
+              if (!b) return [];
+              const [dx, dy] = before.offsets[id] ?? [0, 0];
+              return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
+            }),
+          );
+        // A box on picture places is drawn per place — two places are two boxes, not one around both.
+        // Plain ids (and every other effect) paint as one, as before.
+        const places = step.effect === "box" ? step.ids.filter((id) => parsePlace(id) !== null) : [];
+        const plain = step.ids.filter((id) => !places.includes(id));
+        const groups = [...(plain.length > 0 ? [plain] : []), ...places.map((id) => [id])];
+        const boxes = groups.map(boxFor);
+        const paint = (level: number, elapsedMs?: number) =>
+          groups.forEach((ids, i) => effects.setHighlight(ids, step.effect, level, boxes[i], step.color, elapsedMs, step.part));
         // pulse throbs three times before the hold; everything else eases in once.
         const curve = step.effect === "pulse" ? "throb" : "ease";
         try {
@@ -1696,7 +1705,7 @@ export class Player {
             await this.emphasize(signal, paint, this.waitScaled(swellMs, signal), rate, curve);
           }
         } finally {
-          effects.endHighlight(step.ids);
+          for (const ids of groups) effects.endHighlight(ids);
         }
         return;
       }

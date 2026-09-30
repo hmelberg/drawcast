@@ -1522,7 +1522,7 @@ function makeEffects(
   rest: () => BBox,
 ): BackendEffects {
   const active = new Map<string, HighlightNodes>();
-  const spotlightNodes: SVGPathElement[] = [];
+  const spotlightNodes: SVGElement[] = [];
   const flows = new Map<string, SVGPathElement[]>();
   /** What a ghosted node's `transform` was before the drag picked it up — per
    *  NODE, so a geometry rebuild simply starts the ghost over on the new one
@@ -1784,20 +1784,37 @@ function makeEffects(
       const dim = Math.max(0, Math.min(1, 1 - alpha));
       for (const n of spotlightNodes) n.remove();
       spotlightNodes.length = 0;
+      const rect = (b: BBox, fill: string) => {
+        const v = svgBoxOf(b);
+        const r = document.createElementNS(SVG_NS, "rect");
+        for (const [k, val] of [["x", v.x], ["y", v.y], ["width", v.w], ["height", v.h], ["fill", fill]] as const) r.setAttribute(k, String(val));
+        return r;
+      };
       for (const s of spots) {
-        const rectD = (b: BBox) => {
-          const v = svgBoxOf(b);
-          return `M${v.x} ${v.y} H${v.x + v.w} V${v.y + v.h} H${v.x} Z`;
-        };
-        const p = document.createElementNS(SVG_NS, "path") as SVGPathElement;
-        p.setAttribute("d", [rectD(s.frame), ...s.holes.map(rectD)].join(" "));
-        p.setAttribute("fill-rule", "evenodd");
+        // Holes are cut with a mask, not even-odd: nested or overlapping
+        // holes would cancel under even-odd and wash the inner one again.
+        // Each hole is clipped to the frame, so a hole reaching past the
+        // picture never lets the wash spill outside it.
+        const mask = document.createElementNS(SVG_NS, "mask") as SVGMaskElement;
+        const maskId = `cs-spot-mask-${++frameMaskSeq}`;
+        mask.setAttribute("id", maskId);
+        mask.setAttribute("maskUnits", "userSpaceOnUse");
+        mask.appendChild(rect(s.frame, "white"));
+        for (const h of s.holes) {
+          const x0 = Math.max(h.x, s.frame.x);
+          const y0 = Math.max(h.y, s.frame.y);
+          const x1 = Math.min(h.x + h.w, s.frame.x + s.frame.w);
+          const y1 = Math.min(h.y + h.h, s.frame.y + s.frame.h);
+          if (x1 > x0 && y1 > y0) mask.appendChild(rect({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, "black"));
+        }
         // The figure's own ground (dark mode keeps figures on paper), so the dim reads as fading toward it.
-        p.setAttribute("fill", FIGURE_GROUND);
-        p.setAttribute("fill-opacity", String(dim));
-        p.style.pointerEvents = "none";
-        overlay.appendChild(p);
-        spotlightNodes.push(p);
+        const wash = rect(s.frame, FIGURE_GROUND);
+        wash.setAttribute("fill-opacity", String(dim));
+        wash.setAttribute("mask", `url(#${maskId})`);
+        (wash as SVGRectElement).style.pointerEvents = "none";
+        overlay.appendChild(mask);
+        overlay.appendChild(wash);
+        spotlightNodes.push(mask, wash);
       }
     },
 
