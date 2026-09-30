@@ -1265,8 +1265,13 @@ const FRAME_WIDTH = 24;
  * ugly red"; on bars: "Highlight just the frame of the square and not color
  * or fill all of it"). The frame is the highlighter drawn round the shape,
  * outside it only, so the fill keeps its own colour.
+ *
+ * Nothing, for a solid's face (an isometric block's side, `surface`): its
+ * outline lights it, and a tint on the overlay would paint the face over
+ * whatever stands in front of it — a slab jumping out of its stack.
  */
-export function glowKindOf(leaf: Exclude<Drawable, { kind: "group" }>, filledTarget = false, explicitColor = false): "band" | "marker" | "wash" | "tint" | "frame" {
+export function glowKindOf(leaf: Exclude<Drawable, { kind: "group" }>, filledTarget = false, explicitColor = false): "band" | "marker" | "wash" | "tint" | "frame" | "none" {
+  if (leaf.kind === "area" && leaf.surface) return "none";
   if (leaf.kind === "text" && leaf.font === "mono") return "marker";
   // Text in a colour of its own (a "hot" label in red, a curve's name in its
   // curve's blue) keeps that colour: a highlighter wash behind the words, not
@@ -2125,8 +2130,9 @@ function makeEffects(
             const hit = textHits.get(leaf.id);
             const glow = effect === "glow" ? glowKindOf(leaf, filledTarget, color !== undefined) : "tint";
             // Framed: the frame is the whole mark — the fill keeps its colour
-            // and the numbers and names inside it their ink.
-            if (glow === "frame" || (framed.length > 0 && (leaf.kind === "area" || leaf.kind === "text"))) continue;
+            // and the numbers and names inside it their ink. A solid's face
+            // (`surface`) is lit by its outline alone.
+            if (glow === "none" || glow === "frame" || (framed.length > 0 && (leaf.kind === "area" || leaf.kind === "text"))) continue;
             if (glow === "tint") {
               const clone =
                 hit && leaf.kind === "text"
