@@ -237,6 +237,12 @@ describe("I1b round 2: the repo's own locked files decide, whatever the quote sa
     expect(body.indexOf("publishPrivacy(")).toBeLessThan(body.indexOf("const text = isPrivate"));
     expect(body).toContain('say("Not published: sign in to publish privately (Settings → Publishing).", "error");');
   });
+  it("…reading the SAME folder the private target predicts — a slug-less course falls back to its title's slug, never skipped", () => {
+    const body = between(read("src/ui/course.ts"), "async function publish(", "\n  }\n");
+    const call = body.slice(body.indexOf("courseLockedInRepo("), body.indexOf("courseLockedInRepo(") + 200);
+    expect(call).toContain('joinPath(settings.coursesDir, draft.context.slug || slugify(draft.title || "course"))');
+    expect(body).not.toMatch(/draft\.context\.slug \? await courseLockedInRepo/);
+  });
 });
 
 describe("M round 2: a Make-public confirmation never carries over to another item", () => {

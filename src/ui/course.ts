@@ -1048,7 +1048,10 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       const draft = parseCourse(withFolder);
       const item = courseKeyFor(repo, joinPath(settings.coursesDir, draft.context.slug || slugify(draft.title || "course")));
       const bounded: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) });
-      const repoLocked = draft.context.slug ? await courseLockedInRepo((path) => readFile(repo, path, bounded), joinPath(settings.coursesDir, draft.context.slug)) : false;
+      // The same folder the private target (and buildPublishPlan) predicts —
+      // a slug-less course's title slug too, so a skill-published private
+      // course of the same title is read, never skipped.
+      const repoLocked = await courseLockedInRepo((path) => readFile(repo, path, bounded), joinPath(settings.coursesDir, draft.context.slug || slugify(draft.title || "course")));
       const server = getToken() ? await quotePrivate(DEFAULT_ENROLL_API, { key: getToken(), kind: "course", target: item, lectures: privateLectureCount(draft, loadLibrary()), private: true }, bounded) : null;
       if (publishPrivacy(false, server, false, repoLocked).private) {
         isPrivate = true;
