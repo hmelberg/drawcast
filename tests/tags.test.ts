@@ -221,3 +221,37 @@ describe("dialogue style tags", () => {
     expect(buildBrief(["human"])).toContain('"grave"');
   });
 });
+
+describe("brief controls — audience, level, length", () => {
+  test("audience presets form one exclusive group; the last one wins", () => {
+    expect(parseTags("Explain QALYs #students").tags).toEqual(["students"]);
+    expect(parseTags("Explain QALYs #kids").tags).toEqual(["children"]);
+    expect(parseTags("Explain QALYs #students #professionals").tags).toEqual(["professionals"]);
+  });
+
+  test("#for=<who> names any audience; dashes read as spaces; it joins the audience group", () => {
+    const r = parseTags("Explain QALYs #for=intensive-care-nurses");
+    expect(r.clean).toBe("Explain QALYs");
+    expect(r.tags).toEqual(["for=intensive-care-nurses"]);
+    expect(r.unknown).toEqual([]);
+    expect(parseTags("x #students #for=nurses").tags).toEqual(["for=nurses"]);
+    expect(parseTags("x #for=nurses #students").tags).toEqual(["students"]);
+    expect(buildBrief(["for=intensive-care-nurses"])).toContain("Audience: intensive care nurses");
+  });
+
+  test("a bare #for is not an audience", () => {
+    expect(parseTags("x #for").unknown).toEqual(["for"]);
+  });
+
+  test("audience briefs say who is watching", () => {
+    expect(buildBrief(["professionals"])).toContain("Audience: professionals");
+    expect(buildBrief(["students"])).toContain("Audience: students");
+  });
+
+  test("the length scale is realistic and ordered: veryshort < short < (standard) < long < verylong", () => {
+    expect(buildBrief(["veryshort"])).toContain("5–7 speak lines");
+    expect(buildBrief(["short"])).toContain("8–12 speak lines");
+    expect(buildBrief(["long"])).toContain("22–30 speak lines");
+    expect(buildBrief(["verylong"])).toContain("30–40 speak lines");
+  });
+});

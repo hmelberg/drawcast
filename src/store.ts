@@ -165,6 +165,12 @@ export interface Settings {
   /** The Template/Instructions/Model row under Generate, folded away by default. */
   choicesOpen: boolean;
   /**
+   * The brief controls beside Generate (llm/brief-controls.ts): a tag per
+   * group ("" = the untagged default, "for=<who>" for a named audience),
+   * appended to a request that does not type its own.
+   */
+  brief: { audience: string; level: string; length: string };
+  /**
    * Shows the authoring-loop instruments: the 1–5 rating (which only feeds the
    * improvement packet), the lint list even when clean, and the Data panel.
    * Off for normal use — "Learn from this" is the user-facing feedback.
@@ -257,6 +263,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sidebarOpen: true,
   sidebarSections: {},
   choicesOpen: false,
+  brief: { audience: "", level: "", length: "" },
   developerMode: false,
   visualRepair: false,
   lookPass: true,
@@ -328,6 +335,10 @@ export function loadSettings(): Settings {
   // Storyboard v2 (2026-09-28): a blob stored before the field gets the
   // default through the spread; anything else unknown falls back to it too.
   if (s.storyboardVersion !== "v1") s.storyboardVersion = "v2";
+  // The brief controls (2026-09-30): anything but three strings falls back.
+  const b = (s.brief ?? {}) as Partial<Settings["brief"]>;
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  s.brief = { audience: str(b.audience), level: str(b.level), length: str(b.length) };
   // v2 became the default after a blind comparison (Hans, 2026-09-28). Blobs
   // saved while v1 was the default carry "v1" without anyone choosing it, so
   // move them to v2 ONCE (a flag, like the packs upgrade below); a v1 picked

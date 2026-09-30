@@ -24,7 +24,7 @@ describe("treatment → staging (prompt-lab arm C)", () => {
   });
 
   test("the house decisions are in the sheet", () => {
-    expect(TREATMENT_PROMPT_SOURCE).toContain("12–17 sentences");
+    expect(TREATMENT_PROMPT_SOURCE).toContain("14–20 sentences");
     expect(TREATMENT_PROMPT_SOURCE).toMatch(/ride\s+the scaffolding/);
   });
 
@@ -57,7 +57,7 @@ describe("the storyline (treatment v3)", () => {
     expect(s).toMatch(/EXPLORE beat/);
     expect(s).toMatch(/transfer quiz/);
     expect(s).toMatch(/`wrong` hint/);
-    expect(s).toContain("12–17 short sentences");
+    expect(s).toContain("14–20 short sentences");
     expect(s).toMatch(/^TEMPLATE:/m);
     // v2's rule: say WHAT, never WHERE.
     expect(s).toMatch(/never WHERE/);

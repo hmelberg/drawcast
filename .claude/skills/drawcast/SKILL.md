@@ -59,9 +59,11 @@ every working file below is `dev-casts/<slug>…`.
    ```
 
    The user may set any of them — in words ("for nurses", "keep it short")
-   or with the app's own tags (`#basic`/`#advanced`; `#veryshort`,
-   `#short`, `#long`, `#verylong`; `#norwegian` …, as `src/llm/tags.ts`
-   defines them) — and the request wins. Where it says nothing, the
+   or with the app's own tags, the same ones the controls beside Generate
+   set (`#students`, `#professionals`, `#children`, `#for=<who>`;
+   `#basic`/`#advanced`; `#veryshort` 5–7, `#short` 8–12, `#long` 22–30,
+   `#verylong` 30–40 lines; `#norwegian` …, as `src/llm/tags.ts` defines
+   them) — and the request wins. Where it says nothing, the
    defaults are the app's:
    - **Audience:** curious adults of better-than-average ability with
      decent general knowledge, but no special knowledge of this topic.
@@ -69,7 +71,7 @@ every working file below is `dev-casts/<slug>…`.
      term defined) and the `#advanced` one (technical terms, prior
      knowledge assumed): define a field's own terms once, in passing.
    - **Language:** the language the request is written in.
-   - **Length:** 12–17 spoken lines; a length tag gives its own range.
+   - **Length:** 14–20 spoken lines; a length tag gives its own range.
    Name the defaults you used in your report so the user can change them.
    The spec's `level` field is set only for `basic` or `advanced`.
 
@@ -133,7 +135,7 @@ every working file below is `dev-casts/<slug>…`.
 - The first spoken line says what question the drawcast answers, while the
   first ink goes down (it may ride the axes); then why it matters.
 - One insight; mechanism, not just result; a concrete example with numbers;
-  12–17 short sentences for the ear.
+  14–20 short sentences for the ear (the brief's length).
 - **Words on the canvas are cues:** a word or three ("Survives", "Dies");
   the voice carries the sentence.
 - One main figure, drawn large; at most one supporting piece at a time.

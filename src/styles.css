@@ -310,6 +310,37 @@ html.cs-faux-fs-lock { overflow: hidden; }
 }
 .quiet-label input[type="number"]:hover,
 .quiet-label input[type="number"]:focus { border-color: var(--line); background: var(--field); }
+/* The brief controls (audience · level · length): visible, but quiet — they
+   read as three words until hovered, like the folded choices do. */
+.brief-controls {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.1rem;
+  margin-right: auto;
+}
+.brief-controls[hidden] { display: none; }
+.brief-sel {
+  font-size: var(--text-sm);
+  padding: 0.25rem 0.35rem;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  max-width: 10.5rem;
+  /* As wide as the chosen word, not the longest option (where supported). */
+  field-sizing: content;
+}
+.brief-sel:hover, .brief-sel:focus { border-color: var(--line); background: var(--field); color: var(--ink); }
+/* A tag typed in the request rules the group: the control shows it, underlined. */
+.brief-sel.brief-typed { color: var(--ink); text-decoration: underline dotted; text-underline-offset: 3px; }
+.brief-for {
+  font-size: var(--text-sm);
+  padding: 0.25rem 0.35rem;
+  width: 9rem;
+  field-sizing: content;
+  min-width: 7rem;
+  max-width: 16rem;
+}
 /* Ragged-left right-alignment reads as broken once the row wraps. */
 @media (max-width: 560px) {
   .gen-row, .gen-choices { justify-content: flex-start; }
