@@ -14,7 +14,7 @@ import { resolvePortraits, traceFromBlob } from "../render/portrait";
 import { resolveSources } from "../render/source";
 import { resolveImages } from "../render/image";
 import { isLinkedPhoto } from "../spec/trace";
-import { ASSET_MAX_BYTES, assetBytes, formatAssetSize, hoistStrokes } from "../spec/assets";
+import { ASSET_MAX_BYTES, assetBytes, formatAssetSize, hoistStrokes, inlineStrokes } from "../spec/assets";
 import { resolveIcons } from "../render/icon";
 import type { SpecElement } from "../spec/types";
 import { itemsOf, itemTitle, type Playlist, type PlaylistItem } from "../playlist/playlist";
@@ -280,10 +280,26 @@ function imageElements(playlist: Playlist): number {
  * sizes it cannot know before resolving, and the review cut it.
  */
 export function unembeddedImages(playlist: Playlist): number {
+  // The RESOLVED strokes: a hoisted "@name" holding a linked picture is still not embedded.
   return itemsOf(playlist).reduce(
-    (n, it) => n + (it.spec.elements ?? []).filter((e) => embeddable(e.type) && (!e.strokes || isLinkedPhoto(e.strokes))).length,
+    (n, it) => n + (it.spec.elements ?? []).filter((e) => embeddable(e.type) && (!e.strokes || isLinkedPhoto(inlineStrokes(it.spec, e)))).length,
     0,
   );
+}
+
+/** The pictures shown by link (lnk1) — inline or hoisted — whose host refused the pixel read an embed needs. */
+export function linkedPictures(playlist: Playlist): number {
+  return itemsOf(playlist).reduce((n, it) => n + (it.spec.elements ?? []).filter((e) => e.type === "image" && isLinkedPhoto(inlineStrokes(it.spec, e))).length, 0);
+}
+
+/** The Embed dialog's closing status: failures first; else how many embedded and — when any stayed linked — that they did. */
+export function embedStatus(failed: { error?: string }[], embedded: number, linked: number): { text: string; kind: "ok" | "error" } {
+  if (failed.length > 0) return { text: `Embedded with ${failed.length} failure${failed.length === 1 ? "" : "s"}: ${failed[0].error}`, kind: "error" };
+  if (linked > 0) {
+    const one = linked === 1;
+    return { text: `Embedded ${embedded}; ${linked} picture${one ? " stays" : "s stay"} linked — ${one ? "its" : "their"} host refuses pixel reads.`, kind: "ok" };
+  }
+  return { text: "Embedded — the spec is now fully self-contained.", kind: "ok" };
 }
 
 function buildEmbedDialog(): EmbedSession {
@@ -334,6 +350,7 @@ function buildEmbedDialog(): EmbedSession {
     const playlist = current.readPlaylist();
     if (!playlist) return; // readPlaylist already reported why
     const items = itemsOf(playlist);
+    const before = unembeddedImages(playlist);
     current.setStatus("Embedding images…", "ok");
     embedBtn.disabled = true;
     // Sources embed for the same reason portraits do, and one more: a resolved
@@ -358,12 +375,8 @@ function buildEmbedDialog(): EmbedSession {
         // its spec; the elements keep one-line references (spec/assets.ts).
         for (const it of items) hoistStrokes(it.spec);
         current.applyPlaylist(playlist);
-        current.setStatus(
-          failed.length > 0
-            ? `Embedded with ${failed.length} failure${failed.length === 1 ? "" : "s"}: ${failed[0].error}`
-            : "Embedded — the spec is now fully self-contained.",
-          failed.length > 0 ? "error" : "ok",
-        );
+        const status = embedStatus(failed, before - unembeddedImages(playlist), linkedPictures(playlist));
+        current.setStatus(status.text, status.kind);
         modal.dialog.close();
       })
       .finally(() => {

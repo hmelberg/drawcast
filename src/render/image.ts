@@ -88,9 +88,10 @@ export interface ImageResolution {
   error?: string;
 }
 
-/** Cache key for an image element, or null when it needs no resolution. */
-function imageCacheKey(el: Pick<SpecElement, "type" | "of" | "strokes" | "url" | "look">): string | null {
-  if (el.type !== "image" || (el.strokes && !isLinkedPhoto(el.strokes))) return null;
+/** Cache key for an image element, or null when it needs no resolution. `strokes`: the RESOLVED strokes
+ *  (inlineStrokes) — a hoisted "@name" that holds a linked picture must still retry. */
+function imageCacheKey(el: Pick<SpecElement, "type" | "of" | "url" | "look">, strokes: string | undefined): string | null {
+  if (el.type !== "image" || (strokes && !isLinkedPhoto(strokes))) return null;
   if (el.url) return `i${IMAGE_VERSION}|url|${el.look ?? "photo"}|${el.url.trim()}`;
   if (!el.of) return null;
   return `i${IMAGE_VERSION}|${el.of.trim().toLowerCase()}`;
@@ -140,7 +141,7 @@ export async function resolveImages(spec: Spec, deps: ImageDeps = defaultDeps())
       results.push({ id: el.id, ok: true });
       continue;
     }
-    const key = imageCacheKey(el);
+    const key = imageCacheKey(el, have);
     if (!key) {
       results.push({ id: el.id, ok: false, error: "image has no description or readable strokes" });
       continue;

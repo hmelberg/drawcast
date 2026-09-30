@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { resolveImages, SCREEN_URI_BUDGET } from "../src/render/image";
 import { decodePicture } from "../src/spec/trace";
-import { unembeddedImages } from "../src/ui/insert";
+import { embedStatus, linkedPictures, unembeddedImages } from "../src/ui/insert";
 
 const raster = (w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4), naturalWidth: w, naturalHeight: h });
 const base = {
@@ -103,5 +103,26 @@ describe("an embedded screen picture fits the asset budget (final fix C1)", () =
     const pic = decodePicture((spec.elements[0] as unknown as { strokes: string }).strokes)!;
     expect(pic).toMatchObject({ linked: true, href: url });
     expect(pic.aspect).toBeCloseTo(0.54, 2);
+  });
+});
+
+describe("a hoisted linked picture (final fix minors)", () => {
+  const lnk = "lnk1:AA:https://hoist.example/a.png";
+  test("still counts as unembedded, and as linked", () => {
+    const playlist = { entries: [{ kind: "item", spec: { assets: { shot: lnk }, elements: [{ id: "md", type: "image", url: "https://hoist.example/a.png", strokes: "@shot" }] } }] };
+    expect(unembeddedImages(playlist as never)).toBe(1);
+    expect(linkedPictures(playlist as never)).toBe(1);
+  });
+  test("still retries: a working read embeds it", async () => {
+    const spec = { assets: { shot: lnk }, elements: [{ id: "md", type: "image", url: "https://hoist.example/a.png", look: "screen", strokes: "@shot" }] };
+    const [r] = await resolveImages(spec as never, { ...base, loadRaster: async () => raster(1920, 1041) } as never);
+    expect(r.ok).toBe(true);
+    expect(decodePicture((spec.elements[0] as unknown as { strokes: string }).strokes)).toMatchObject({ linked: false, href: "data:image/png;base64,COLOUR" });
+  });
+  test("the Embed message says when pictures stay linked", () => {
+    expect(embedStatus([], 3, 0)).toEqual({ text: "Embedded — the spec is now fully self-contained.", kind: "ok" });
+    expect(embedStatus([], 2, 1)).toEqual({ text: "Embedded 2; 1 picture stays linked — its host refuses pixel reads.", kind: "ok" });
+    expect(embedStatus([], 1, 2).text).toBe("Embedded 1; 2 pictures stay linked — their host refuses pixel reads.");
+    expect(embedStatus([{ error: "boom" }], 1, 0)).toEqual({ text: "Embedded with 1 failure: boom", kind: "error" });
   });
 });
