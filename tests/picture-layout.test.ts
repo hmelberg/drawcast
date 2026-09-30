@@ -1,5 +1,7 @@
 import { describe, expect, test } from "vitest";
-import { layoutSpec } from "../src/layout/layout";
+import { elementBBoxes, layoutSpec } from "../src/layout/layout";
+import { planCommands } from "../src/render/plan";
+import { planOptionsFor } from "../src/render/index";
 import { flattenDrawables } from "../src/layout/model";
 import { encodePhoto, encodeLinkedPhoto } from "../src/spec/trace";
 import { heuristicMeasure } from "../src/layout/measure";
@@ -19,7 +21,7 @@ describe("screen picture layout", () => {
     expect(d.view).toEqual([0, 0, 1, 0.5]);
     expect(r.pictures?.md).toEqual({ view: [0, 0, 1, 0.5], regions: {} });
   });
-  test("regions are carried to the layout result; an ordinary image carries none", () => {
+  test("regions are carried to the layout result; an ordinary image carries the whole view (final fix I4)", () => {
     const regions = { top: [0, 0, 1, 0.5] };
     const r = layoutSpec({
       elements: [
@@ -29,7 +31,7 @@ describe("screen picture layout", () => {
       commands: [{ draw: ["md", "p"] }],
     } as never);
     expect(r.pictures?.md).toEqual({ view: [0, 0, 1, 1], regions });
-    expect(r.pictures?.p).toBeUndefined();
+    expect(r.pictures?.p).toEqual({ view: [0, 0, 1, 1], regions: {} });
     expect(img(r, "p").w).toBe(220);
   });
   test("a linked picture lays out like an embedded one", () => {
@@ -80,5 +82,26 @@ describe("screen picture layout", () => {
     // Plain images should still form a row with different x positions
     expect(imgC.pos[0]).not.toBe(imgD.pos[0]);
     expect(imgC.pos[0]).not.toBe(500);
+  });
+  test("a tall screen picture fits the page: default width min(900, 690 / shown aspect) (final fix I1)", () => {
+    const tall = encodePhoto(1.37, "data:image/png;base64,AAAA");
+    const d = img(layoutSpec({ elements: [{ id: "md", type: "image", url: "https://x.org/a.png", look: "screen", strokes: tall }], commands: [{ draw: ["md"] }] } as never));
+    expect(d.w).toBeCloseTo(690 / 1.37, 1);
+    expect(d.h).toBeCloseTo(690, 5);
+    const wide = img(layoutSpec({ elements: [{ id: "md", type: "image", url: "https://x.org/a.png", look: "screen", strokes: shot }], commands: [{ draw: ["md"] }] } as never));
+    expect(wide.w).toBe(900);
+    const authored = img(layoutSpec({ elements: [{ id: "md", type: "image", url: "https://x.org/a.png", look: "screen", strokes: tall, width: 800 }], commands: [{ draw: ["md"] }] } as never));
+    expect(authored.w).toBe(800);
+  });
+  test("a place on an ordinary image resolves in the planner (final fix I4)", () => {
+    const spec = { elements: [{ id: "p", type: "image", of: "Bicycle pump", strokes: shot }], commands: [{ draw: ["p"] }, { point: { at: { ref: "p@top" } } }] };
+    const layout = layoutSpec(spec as never);
+    const bboxes = elementBBoxes(layout);
+    const plan = planCommands(spec.commands as never, layout.order, { bboxOf: (id) => bboxes.get(id) ?? null, ...planOptionsFor(spec as never, layout) });
+    expect(plan.warnings).toEqual([]);
+    const s = plan.steps.find((x) => x.kind === "point") as any;
+    expect(s).toBeDefined();
+    const d = img(layout, "p");
+    expect(s.x).toBeCloseTo(d.pos[0], 5);
   });
 });

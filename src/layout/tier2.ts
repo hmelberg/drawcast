@@ -1980,9 +1980,11 @@ function imageDrawable(el: SpecElement, ctx: Ctx): GroupDrawable | null {
   }
   const screen = el.look === "screen";
   const view = isRect4(el.view) && el.view[2] > 0 && el.view[3] > 0 ? el.view : FULL_VIEW4;
-  const w = el.width ?? (screen ? 900 : 220);
   // The shown part's aspect: the whole picture's, times how much taller than wide the view is.
-  const h = w * photo.aspect * (view[3] / view[2]);
+  const shownAspect = photo.aspect * (view[3] / view[2]);
+  // A screen picture defaults to 900 wide — narrower when that would stand it taller than the page's 690.
+  const w = el.width ?? (screen ? Math.min(900, 690 / shownAspect) : 220);
+  const h = w * shownAspect;
   const [cx, cy] = originOr(el, ctx, [500, 375]);
   const children: Drawable[] = [
     {
@@ -2015,9 +2017,8 @@ function imageDrawable(el: SpecElement, ctx: Ctx): GroupDrawable | null {
   ctx.anchors[el.id] = [cx, cy];
   const box = { x: cx - w / 2, y: cy - h / 2, w, h };
   ctx.namedAnchors[el.id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(box, n)]));
-  if (screen || el.view !== undefined || el.regions !== undefined) {
-    ctx.pictures[el.id] = { view, regions: el.regions ?? {} };
-  }
+  // Every drawn image is a picture: places (p@top, p@[x, y]) work on an ordinary one too.
+  ctx.pictures[el.id] = { view, regions: el.regions ?? {} };
   return {
     id: el.id,
     kind: "group",
