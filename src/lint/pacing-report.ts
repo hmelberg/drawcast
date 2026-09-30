@@ -24,10 +24,17 @@ import { cueStartMs, lineMs } from "../render/cue";
 import type { PlanStep } from "../render/plan";
 
 // ---- thresholds (tune here) ----
+// Soft limits (Hans, 2026-09-30): a flag is a question for the author, not a
+// failure — a deliberate stillness (a pause that lets a result sink in) may
+// stand. The opening is the exception that goes the other way: talk before
+// anything is drawn loses the viewer, so it is held to a tighter limit.
 
 /** A stretch this long with nothing new on the canvas — no stroke drawn, nothing
  *  moving, no gesture — is flagged. Speech alone does not count as activity. */
-export const IDLE_MAX_MS = 6000;
+export const IDLE_MAX_MS = 5000;
+/** The same, before the first ink: the opening line should ride the first
+ *  strokes, so only a breath of talk over a blank page passes. */
+export const INTRO_IDLE_MAX_MS = 2000;
 /** A narrated action still drawing/moving this long after its sentence ends
  *  is flagged: silent ink the viewer watches with no voice. */
 export const INK_AFTER_VOICE_MAX_MS = 2000;
@@ -197,12 +204,13 @@ export function pacingReport(steps: PlanStep[], runMs: (index: number) => number
     if (hi > cursor) gaps.push([cursor, hi]);
     for (const [g0, g1] of gaps) {
       const ms = g1 - g0;
-      if (ms <= IDLE_MAX_MS) continue;
+      const opening = g0 <= 1 && s === 0;
+      if (ms <= (opening ? INTRO_IDLE_MAX_MS : IDLE_MAX_MS)) continue;
       const inGap = beats.filter((b) => b.end > g0 + 1 && b.start < g1 - 1 && b.end > b.start);
       if (inGap.length === 0) continue;
       const from = inGap[0].at;
       const to = inGap[inGap.length - 1].at;
-      const where = g1 >= totalMs - 1 && s === edges.length - 2 ? " to the end" : g0 <= 1 && s === 0 ? " before the first ink" : "";
+      const where = g1 >= totalMs - 1 && s === edges.length - 2 ? " to the end" : opening ? ` before the first ink (the opening allows ${secs(INTRO_IDLE_MAX_MS)} s)` : "";
       problems.push({
         kind: "idle",
         from,
@@ -247,8 +255,8 @@ export function pacingReport(steps: PlanStep[], runMs: (index: number) => number
   const band = lengthBand(spokenLines);
   const clock = `${Math.floor(totalMs / 60000)}:${String(Math.round((totalMs % 60000) / 1000)).padStart(2, "0")}`;
   const head =
-    `pacing: ≈ ${clock} (${Math.round(totalMs / 1000)} s at the reading estimate) · ${spokenLines} spoken line${spokenLines === 1 ? "" : "s"} — ${band}` +
+    `pacing (soft limits): ≈ ${clock} (${Math.round(totalMs / 1000)} s at the reading estimate) · ${spokenLines} spoken line${spokenLines === 1 ? "" : "s"} — ${band}` +
     (interactive.length ? ` · clock stops at ${interactive.map((a) => `@${a}`).join(", ")} (viewer's turn, not counted)` : "");
-  const lines = [head, ...(problems.length ? problems.map((p) => `  ${p.message}`) : [`  no pacing flags (idle > ${IDLE_MAX_MS / 1000} s, silent ink > ${INK_AFTER_VOICE_MAX_MS / 1000} s, beat ≥ ${OVERLONG_BEAT_MS / 1000} s)`])];
+  const lines = [head, ...(problems.length ? problems.map((p) => `  ${p.message}`) : [`  no pacing flags (idle > ${IDLE_MAX_MS / 1000} s, ${INTRO_IDLE_MAX_MS / 1000} s before the first ink, silent ink > ${INK_AFTER_VOICE_MAX_MS / 1000} s, beat ≥ ${OVERLONG_BEAT_MS / 1000} s)`])];
   return { totalMs, spokenLines, lengthBand: band, interactive, beats, problems, lines };
 }

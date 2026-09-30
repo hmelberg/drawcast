@@ -113,10 +113,14 @@ every working file below is `dev-casts/<slug>…`.
    row, for judging small text). Judge as a viewer, with
    `src/llm/prompts/look-v1.md` as the checklist: legibility, one large main
    figure, sync of words and picture, emphasis that lands, calm. Then read
-   the `pacing:` lines (running time, spoken-line count against the length
-   brief, and one line per `@N` beat where the canvas sits idle, the ink runs
-   on after the voice, or a beat is overlong) and fix the cause: erase or add
-   an action on an idle line, split an overlong beat, cue a late reveal.
+   the `pacing` lines (running time, spoken-line count against the length
+   brief, and one line per `@N` beat where the canvas sits idle — over 5 s,
+   over 2 s before the first ink — the ink runs on after the voice, or a
+   beat is overlong) and fix the cause: erase or add an action on an idle
+   line, split an overlong beat, cue a late reveal. The limits are soft: a
+   stillness you chose (a result left to sink in) may stay — say so in your
+   report. The opening is the exception: never talk over a blank page; the
+   first line rides the first strokes.
 7. **Fix and repeat 5–6** until nothing important is left (usually 2–3
    rounds). Fix causes, not symptoms: a crowded page wants fewer or shorter
    things, not nudged coordinates.

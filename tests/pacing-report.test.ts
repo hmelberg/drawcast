@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { IDLE_MAX_MS, INK_AFTER_VOICE_MAX_MS, OVERLONG_BEAT_MS, lengthBand, pacingReport, timeBeats } from "../src/lint/pacing-report";
+import { IDLE_MAX_MS, INK_AFTER_VOICE_MAX_MS, INTRO_IDLE_MAX_MS, OVERLONG_BEAT_MS, lengthBand, pacingReport, timeBeats } from "../src/lint/pacing-report";
 import { lineMs } from "../src/render/cue";
 import type { PlanStep } from "../src/render/plan";
 
@@ -51,7 +51,7 @@ describe("pacing report — the player's timing, read off the plan", () => {
   test("speech before the first ink counts, and so does a closing line over a finished figure", () => {
     const r = pacingReport([speak(words(12)), speak(words(12)), draw(words(6)), speak(words(20))], runs({ 2: 2000 }));
     expect(r.problems.map((p) => p.message)).toEqual([
-      expect.stringMatching(/^@1–@2 idle 8\.5 s before the first ink: nothing new on the canvas \(@1 speak-only; @2 speak-only\)$/),
+      expect.stringMatching(/^@1–@2 idle 8\.5 s before the first ink \(the opening allows 2\.0 s\): nothing new on the canvas \(@1 speak-only; @2 speak-only\)$/),
       expect.stringMatching(/^@3–@4 idle .* to the end/),
     ]);
   });
@@ -81,8 +81,9 @@ describe("pacing report — the player's timing, read off the plan", () => {
     const { beats } = timeBeats([cued], runs({ 0: 3500 }));
     expect(beats[0].active[0][0]).toBeCloseTo(lineMs(line, undefined) * 0.8);
     const r = pacingReport([cued], runs({ 0: 3500 }));
-    expect(r.problems.map((p) => p.kind)).toEqual(["ink-after-voice"]);
-    expect(r.problems[0].message).toMatch(/cued at 4\.8 s/);
+    // Alone, the cued draw is also the opening: 4.8 s of talk before any ink.
+    expect(r.problems.map((p) => p.kind)).toEqual(["idle", "ink-after-voice"]);
+    expect(r.problems[1].message).toMatch(/cued at 4\.8 s/);
   });
 
   test("overlong beat: a line at the estimator's cap", () => {
@@ -110,7 +111,7 @@ describe("pacing report — the player's timing, read off the plan", () => {
     const r = pacingReport(steps, () => 2000);
     expect(r.spokenLines).toBe(15);
     expect(r.lengthBand).toBe("standard (14–20)");
-    expect(r.lines[0]).toMatch(/^pacing: ≈ 1:04 \(64 s at the reading estimate\) · 15 spoken lines — standard \(14–20\)$/);
+    expect(r.lines[0]).toMatch(/^pacing \(soft limits\): ≈ 1:04 \(64 s at the reading estimate\) · 15 spoken lines — standard \(14–20\)$/);
   });
 
   test("length bands", () => {
@@ -119,5 +120,17 @@ describe("pacing report — the player's timing, read off the plan", () => {
     expect(lengthBand(21)).toBe("between standard (14–20) and long (22–30)");
     expect(lengthBand(3)).toBe("under very short (5–7)");
     expect(lengthBand(55)).toBe("over very long (30–40)");
+  });
+
+  test("soft limits: 5 s in the body; the opening is stricter — little talk before the first ink", () => {
+    expect(IDLE_MAX_MS).toBe(5000);
+    expect(INTRO_IDLE_MAX_MS).toBeLessThan(IDLE_MAX_MS);
+    // ~3.5 s of speech before anything is drawn: fine mid-cast, flagged in the opening
+    const opening = pacingReport([speak(words(10)), draw(words(6)), draw(words(6))], runs({ 1: 2000, 2: 2000 }));
+    expect(opening.problems.map((p) => p.message)).toEqual([expect.stringMatching(/^@1 idle 3\.5 s before the first ink \(the opening allows 2\.0 s\)/)]);
+    const body = pacingReport([draw(words(6)), speak(words(10)), draw(words(6))], runs({ 0: 2000, 2: 2000 }));
+    expect(body.problems).toEqual([]);
+    // the header says the limits are soft
+    expect(body.lines[0]).toMatch(/soft limits/);
   });
 });
