@@ -28,6 +28,7 @@ describe("hostToHash", () => {
     expect(hostToHash("gh-foo.drawcast.app")).toBeNull();
     expect(hostToHash("anvil.drawcast.app")).toBeNull();
     expect(hostToHash("api.drawcast.app")).toBeNull();
+    expect(hostToHash("browse.drawcast.app")).toBeNull(); // the catalogue page, never a name
     expect(hostToHash("-bad-.drawcast.app")).toBeNull();
     expect(hostToHash("under_score.drawcast.app")).toBeNull();
   });

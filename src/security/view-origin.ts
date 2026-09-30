@@ -71,6 +71,8 @@ export const JOIN_RE = /[#&]join(?:=|&|$)/;
 const TOKEN_RE = /[#&]t=/;
 const STAY_RE = /[#&]main(?:&|$)/;
 const REMIX_RE = /^#remix&/;
+/** The public catalogue (entry.ts routes it before any name): no account. */
+const BROWSE_RE = /^#browse(?:&|$)/;
 
 /** The hash with the main-origin marker added once. */
 export function withStayMarker(hash: string): string {
@@ -88,7 +90,7 @@ export function bootRoute(loc: { origin: string; hash: string }, cfg: OriginConf
   if (!cfg.view) return { go: null };
   const { hash } = loc;
   if (loc.origin === cfg.view) {
-    const playable = (PUBLIC_SOURCE_RE.test(hash) || isNameHash(hash)) && !REMIX_RE.test(hash);
+    const playable = (PUBLIC_SOURCE_RE.test(hash) || isNameHash(hash) || BROWSE_RE.test(hash)) && !REMIX_RE.test(hash);
     const needsAccount = ANVIL_RE.test(hash) || JOIN_RE.test(hash) || TOKEN_RE.test(hash) || STAY_RE.test(hash);
     if (playable && !needsAccount) return { go: null };
     // The editor, a sign-in coming back, a private cast: the main origin.

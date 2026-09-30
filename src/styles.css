@@ -2896,3 +2896,29 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 .cs-tray-toggle:hover, .cs-tray-toggle.open { color: var(--ink); }
 .cs-tray-scriptbody { display: flex; flex-direction: column; gap: 0.35rem; }
+
+/* The catalogue (#browse, registry deliveries 3–4, task 9): a standalone
+   page, styled plainly like the viewer's own status text rather than the
+   editor chrome it never loads. */
+.catalogue-body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--ui-font);
+}
+.catalogue { max-width: 46rem; margin: 0 auto; padding: 2rem 1.2rem 4rem; }
+.cat-heading { font-family: var(--sketch-font); font-weight: 400; font-size: 2rem; margin: 0 0 1.2rem; }
+.cat-search { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.4rem; }
+.cat-q { flex: 1; min-width: 12rem; padding: 0.4rem 0.6rem; border: 1px solid var(--line); border-radius: 6px; background: var(--field); color: var(--ink); font-size: var(--text); }
+.cat-kind { padding: 0.4rem 0.6rem; border: 1px solid var(--line); border-radius: 6px; background: var(--field); color: var(--ink); font-size: var(--text); }
+.cat-search-btn, .cat-more { padding: 0.4rem 1rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font-size: var(--text); cursor: pointer; }
+.cat-search-btn:hover, .cat-more:hover { border-color: var(--steel); }
+.cat-results { display: flex; flex-direction: column; gap: 0.8rem; }
+.cat-status { color: var(--muted); }
+.cat-status.error { color: var(--loss); font-weight: 600; }
+.cat-card { border: 1px solid var(--line); border-radius: 8px; padding: 0.8rem 1rem; background: var(--surface); }
+.cat-title { font-size: var(--text); font-weight: 600; color: var(--steel); text-decoration: none; }
+.cat-title:hover { text-decoration: underline; }
+.cat-meta, .cat-owner { font-size: var(--text-sm); color: var(--muted); margin-top: 0.15rem; }
+.cat-badge { display: inline-block; margin-top: 0.4rem; padding: 0.1rem 0.5rem; border-radius: 999px; background: color-mix(in srgb, var(--loss) 16%, var(--surface)); color: var(--loss); font-size: var(--text-xs); font-weight: 600; }
+.cat-more-row { margin-top: 1.2rem; text-align: center; }

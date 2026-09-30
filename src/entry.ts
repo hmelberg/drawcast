@@ -48,7 +48,17 @@ async function boot(): Promise<void> {
   // neither the viewer (whose pattern "&gh=" matches) nor a name ("remix"
   // parses as one), so it is set aside before both are tested.
   const remix = hash.startsWith("#remix&");
-  if (!remix && /[#&](gdoc|gh|gdrive|anvil)[=-]/.test(hash)) {
+  // "#browse" (registry deliveries 3–4, task 9): the public catalogue, a
+  // standalone page with no editor/AI/account — checked before both the
+  // gh/gdoc/gdrive/anvil viewer test and isNameHash, since "browse" is a
+  // reserved name prefix (names.ts RESERVED_PREFIXES) that could otherwise
+  // never resolve as a name anyway, but must land on the catalogue rather
+  // than falling through to the full app.
+  if (hash === "#browse" || hash.startsWith("#browse&")) {
+    const { runCatalogue } = await import("./catalogue");
+    doneBooting();
+    await runCatalogue(hash);
+  } else if (!remix && /[#&](gdoc|gh|gdrive|anvil)[=-]/.test(hash)) {
     const { parseViewerHash, runViewer, showUnplayable } = await import("./viewer");
     doneBooting();
     const req = parseViewerHash(hash);

@@ -2,10 +2,13 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test, vi } from "vitest";
 import {
   claimFile,
+  ensurePrivateApplied,
   privateInHash,
   quotePrivate,
   registerItem,
+  registryItemKey,
   registryNote,
+  setListing,
   startPrivatePayment,
   verifyClaim,
   type PrivateQuote,
@@ -239,6 +242,22 @@ describe("quotePrivate", () => {
   test("a network error never throws — error", async () => {
     await expect(quotePrivate("https://a", body, throwing())).resolves.toBe("error");
   });
+
+  // fix round 1: the server is being changed (in parallel) to also answer
+  // the item's actual current `listed` state on this SAME quote — Share
+  // seeds its Listed checkbox from it, the same way it already seeds
+  // Private from `q.private` (probeServerPrivate).
+  test("listed rides through when the server sends it, boolean as-is", async () => {
+    const yes = (await quotePrivate("https://a", body, fetchReturning(200, { due: 0, listed: true }))) as PrivateQuote;
+    expect(yes.listed).toBe(true);
+    const no = (await quotePrivate("https://a", body, fetchReturning(200, { due: 500, listed: false }))) as PrivateQuote;
+    expect(no.listed).toBe(false);
+  });
+
+  test("an older server that omits listed leaves it undefined — quotePrivate never invents a default; the caller decides one", async () => {
+    const out = (await quotePrivate("https://a", body, fetchReturning(200, { due: 0 }))) as PrivateQuote;
+    expect(out.listed).toBeUndefined();
+  });
 });
 
 describe("startPrivatePayment", () => {
@@ -268,6 +287,128 @@ describe("startPrivatePayment", () => {
 
   test("a network error never throws — error", async () => {
     await expect(startPrivatePayment("https://a", body, throwing())).resolves.toBe("error");
+  });
+});
+
+// A lock path's last stop before /key (fix round 2): a due-0 quote whose row
+// is still `private: false` (an earlier unlist-only purchase covered it but
+// never flipped the lock) is settled through the SAME /register/pay a Pay
+// click hits — 409 nothing-due IS success here, never an error.
+describe("ensurePrivateApplied", () => {
+  const body = { kind: "cast" as const, target: "o/r/casts/x.yaml", title: "T", lectures: 1, private: true, listed: true, return: "https://drawcast.app/" };
+
+  test("POSTs the SAME body startPrivatePayment would, key assembled in", async () => {
+    const f = fetchReturning(409, { error: "nothing-due" });
+    expect(await ensurePrivateApplied("https://a", "k", body, f)).toBe("ok");
+    const [url, init] = calls(f)[0];
+    expect(url).toBe("https://a/_/api/register/pay");
+    expect(JSON.parse(init.body as string)).toEqual({ key: "k", ...body });
+  });
+
+  test("409 nothing-due -> ok (the row is now private, free)", async () => {
+    expect(await ensurePrivateApplied("https://a", "k", body, fetchReturning(409, { error: "nothing-due" }))).toBe("ok");
+    expect(await ensurePrivateApplied("https://a", "k", body, fetchReturning(409, {}))).toBe("ok"); // an unlabeled 409 defaults to nothing-due too
+  });
+
+  test("409 pending, 402/other non-2xx, 403 owner, 401 key — every other outcome passes through unchanged, never folded into ok", async () => {
+    expect(await ensurePrivateApplied("https://a", "k", body, fetchReturning(409, { error: "pending" }))).toBe("pending");
+    expect(await ensurePrivateApplied("https://a", "k", body, fetchReturning(402, {}))).toBe("error");
+    expect(await ensurePrivateApplied("https://a", "k", body, fetchReturning(500, {}))).toBe("error");
+    expect(await ensurePrivateApplied("https://a", "k", body, fetchReturning(403, { error: "owner" }))).toBe("owner");
+    expect(await ensurePrivateApplied("https://a", "k", body, fetchReturning(401, { error: "key" }))).toBe("key");
+  });
+
+  test("a due>0 answer ({url}) is never silently treated as ok — a race the caller should refuse to walk through, not a checkout to open on its own", async () => {
+    expect(await ensurePrivateApplied("https://a", "k", body, fetchReturning(200, { url: "https://checkout.stripe.com/pay/cs_1" }))).toEqual({
+      url: "https://checkout.stripe.com/pay/cs_1",
+    });
+  });
+
+  test("a network error never throws — error", async () => {
+    await expect(ensurePrivateApplied("https://a", "k", body, throwing())).resolves.toBe("error");
+  });
+});
+
+// registry deliveries 3–4, task 9: `listed` rides in the SAME quote/pay
+// bodies as `private` — price_due depends on both (plan ruling 8), so
+// there is no separate quote for the Listed switch.
+describe("quotePrivate/startPrivatePayment carry the optional listed/private fields verbatim", () => {
+  test("quotePrivate sends listed exactly as given, including omitted (server defaults true)", async () => {
+    const withListed = { key: "k", kind: "cast" as const, target: "o/r/casts/x.yaml", lectures: 1, private: false, listed: false };
+    const f = fetchReturning(200, { due: 300, currency: "usd", paid_lectures: 0, private: false, owner: "you", name: "x" });
+    await quotePrivate("https://a", withListed, f);
+    expect(JSON.parse(calls(f)[0][1].body as string)).toEqual(withListed);
+
+    const noListed = { key: "k", kind: "cast" as const, target: "o/r/casts/x.yaml", lectures: 1, private: true };
+    const f2 = fetchReturning(200, { due: 0 });
+    await quotePrivate("https://a", noListed, f2);
+    expect(JSON.parse(calls(f2)[0][1].body as string)).toEqual(noListed);
+    expect(JSON.parse(calls(f2)[0][1].body as string)).not.toHaveProperty("listed");
+  });
+
+  test("startPrivatePayment sends private/listed exactly as given", async () => {
+    const body = {
+      key: "k",
+      kind: "course" as const,
+      target: "o/r/courses/micro-i",
+      title: "T",
+      lectures: 3,
+      private: false,
+      listed: false,
+      return: "https://drawcast.app/",
+    };
+    const f = fetchReturning(200, { url: "https://checkout.stripe.com/pay/cs_1" });
+    await startPrivatePayment("https://a", body, f);
+    expect(JSON.parse(calls(f)[0][1].body as string)).toEqual(body);
+  });
+});
+
+describe("registryItemKey — the registry's own row identifier (Anvil's registry.item_key)", () => {
+  test("a cast: the target without its .yaml/.yml extension", () => {
+    expect(registryItemKey("cast", "o/r/casts/x.yaml")).toBe("o/r/casts/x");
+    expect(registryItemKey("cast", "o/r/casts/x.yml")).toBe("o/r/casts/x");
+    expect(registryItemKey("cast", "o/r/casts/x.YAML")).toBe("o/r/casts/x");
+  });
+
+  test("a course: the target verbatim — no extension to strip", () => {
+    expect(registryItemKey("course", "o/r/courses/micro-i")).toBe("o/r/courses/micro-i");
+  });
+});
+
+describe("setListing", () => {
+  const item = "o/r/casts/x";
+
+  test("POSTs text/plain JSON to /register/listing, bounded, item as the registry key STRING", async () => {
+    const f = fetchReturning(200, { listed: true });
+    const out = await setListing("https://drawcast.anvil.app", "k", item, true, f);
+    expect(out).toBe("ok");
+    const [url, init] = calls(f)[0];
+    expect(url).toBe("https://drawcast.anvil.app/_/api/register/listing");
+    expect((init.headers as Record<string, string>)["content-type"]).toBe("text/plain");
+    expect(JSON.parse(init.body as string)).toEqual({ key: "k", item: "o/r/casts/x", listed: true });
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  test("listed:false with listed:true in the body — sent exactly as asked", async () => {
+    const f = fetchReturning(200, { listed: false });
+    await setListing("https://a", "k", item, false, f);
+    expect(JSON.parse(calls(f)[0][1].body as string).listed).toBe(false);
+  });
+
+  test("402 -> {due}, defaulting to 0 on a malformed body", async () => {
+    expect(await setListing("https://a", "k", item, false, fetchReturning(402, { error: "pay", due: 500 }))).toEqual({ due: 500 });
+    expect(await setListing("https://a", "k", item, false, fetchReturning(402, {}))).toEqual({ due: 0 });
+  });
+
+  test("403 -> owner, 401 -> key, anything else non-2xx -> error", async () => {
+    expect(await setListing("https://a", "k", item, true, fetchReturning(403, { error: "owner" }))).toBe("owner");
+    expect(await setListing("https://a", "k", item, true, fetchReturning(401, { error: "key" }))).toBe("key");
+    expect(await setListing("https://a", "k", item, true, fetchReturning(400, {}))).toBe("error");
+    expect(await setListing("https://a", "k", item, true, fetchReturning(500, {}))).toBe("error");
+  });
+
+  test("a network error never throws — error", async () => {
+    await expect(setListing("https://a", "k", item, true, throwing())).resolves.toBe("error");
   });
 });
 

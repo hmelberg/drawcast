@@ -157,6 +157,12 @@ export interface PrivateQuote {
   currency: string;
   paidLectures: number;
   private: boolean;
+  /** The item's CURRENT catalogue listing state, same informational role as
+   *  `private` above — independent of whatever `listed` the request asked
+   *  about (registry deliveries 3–4, task 9). Optional: an older server that
+   *  predates this field simply omits it, and the Share panel's Listed
+   *  checkbox defaults that absence to true (fix round 1). */
+  listed?: boolean;
   owner: "you" | "other" | "none";
   name: string | null;
 }
@@ -170,6 +176,12 @@ export interface PrivateQuoteInput {
   /** 1–200; a cast is always 1. */
   lectures: number;
   private: boolean;
+  /** Whether the item should appear in the catalogue (registry deliveries
+   *  3–4, task 9: the Share panel's Listed switch) — optional, default true
+   *  server-side. `price_due` is 0 only for public+listed; a private
+   *  purchase covers unlisting too (plan ruling 8), so this rides in the
+   *  SAME quote as `private` rather than a quote of its own. */
+  listed?: boolean;
 }
 
 /**
@@ -187,7 +199,7 @@ export async function quotePrivate(api: string, body: PrivateQuoteInput, fetchIm
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return res.status === 401 ? "key" : "error";
-    const b = (await res.json()) as Partial<{ due: unknown; currency: unknown; paid_lectures: unknown; private: unknown; owner: unknown; name: unknown }>;
+    const b = (await res.json()) as Partial<{ due: unknown; currency: unknown; paid_lectures: unknown; private: unknown; listed: unknown; owner: unknown; name: unknown }>;
     if (typeof b.due !== "number") return "error";
     const owner = b.owner === "you" || b.owner === "other" ? b.owner : "none";
     return {
@@ -195,6 +207,10 @@ export async function quotePrivate(api: string, body: PrivateQuoteInput, fetchIm
       currency: typeof b.currency === "string" ? b.currency : "usd",
       paidLectures: typeof b.paid_lectures === "number" ? b.paid_lectures : 0,
       private: b.private === true,
+      // Left undefined (never defaulted here) when the server omits it — the
+      // caller decides the default (Share's Listed checkbox: true, an older
+      // server predating this field).
+      listed: typeof b.listed === "boolean" ? b.listed : undefined,
       owner,
       name: typeof b.name === "string" ? b.name : null,
     };
@@ -211,6 +227,18 @@ export interface PrivatePayInput {
   /** A course's page — must be under https://<owner>.github.io/<repo>/. */
   page?: string;
   lectures: number;
+  /** Whether this purchase locks the item private — optional, default true
+   *  server-side (every payment before task 9 was implicitly this). Sent
+   *  explicitly `false` when the ONLY thing being paid for is unlisting
+   *  while the item stays public (plan ruling 8: unlisting costs the same
+   *  as private, bought once, and must not silently lock the files too). */
+  private?: boolean;
+  /** Whether the item should be listed after paying — optional, default
+   *  true server-side. Sent `false` from the Listed switch's own Pay
+   *  button (task 9); the Private checkbox's Pay button sends whatever
+   *  Listed currently reads, so one payment covers both when both are
+   *  requested together. */
+  listed?: boolean;
   /** The app URL Stripe sends the browser back to (an allowlisted origin). */
   return: string;
 }
@@ -253,6 +281,33 @@ export async function startPrivatePayment(api: string, body: PrivatePayInput, fe
 }
 
 /**
+ * What every lock path (main.ts's privateCastLock, ui/course.ts's publish,
+ * cast.mjs push's lockPrivate) does when a quote comes back due 0 but
+ * `private: false` — an item that once paid ONLY to unlist (paid_lectures
+ * raised, the row never flipped private) and is now being asked for by a
+ * Private tick. POST /register/pay with the SAME body a Pay click would
+ * send settles it: the server, seeing nothing due, flips the row private
+ * for free and answers 409 `{error:"nothing-due"}` — which IS success here,
+ * never an error (startPrivatePayment already tells it apart from 409
+ * `pending`). Only once this resolves "ok" is it safe to go on to fetch the
+ * item key; any other outcome is the caller's to word, using its own
+ * existing refusal text for "owner"/"key"/"error" (and the {url}/"pending"
+ * shapes, which a due-0 quote should never produce, fold into "error" too —
+ * this never opens a browser tab on its own).
+ */
+export type EnsurePrivateOutcome = "ok" | Exclude<PrivatePayOutcome, "nothing-due">;
+
+export async function ensurePrivateApplied(
+  api: string,
+  key: string,
+  body: Omit<PrivatePayInput, "key">,
+  fetchImpl: typeof fetch = fetch,
+): Promise<EnsurePrivateOutcome> {
+  const outcome = await startPrivatePayment(api, { key, ...body }, fetchImpl);
+  return outcome === "nothing-due" ? "ok" : outcome;
+}
+
+/**
  * Stripe's return for a private purchase, read from the URL fragment —
  * `paidInHash`'s sibling for `/register/pay` (names.ts's own is the pretty-
  * link purchase, a different endpoint and a different fragment shape).
@@ -261,4 +316,63 @@ export function privateInHash(hash: string): { outcome: "privpaid" | "privunpaid
   const m = /^#(privpaid|privunpaid|privorphan)=([a-z0-9-]+)$/.exec(hash);
   if (!m) return null;
   return { outcome: m[1] as "privpaid" | "privunpaid" | "privorphan", name: m[2] };
+}
+
+// ---- Listed (registry deliveries 3–4, task 9): whether an already-
+// registered item shows in the public catalogue (#browse). Unlike Private,
+// listing takes effect at once — it never waits for a republish, so the
+// Share panel's Listed switch calls this directly instead of feeding
+// refreshPrivateLine/Publish.
+
+/**
+ * The registry's own row identifier (Anvil's `registry.item_key`) — the SAME
+ * string crypto/lecture-lock.ts's envelope carries, and publish/cast.ts's
+ * `privateCastTarget` already derives inline for a cast ("item is the target
+ * without .yaml"). A course's key is its target verbatim (no extension to
+ * strip). `/register/listing` (fix round 1, checked against the server's
+ * `parse_register_listing`) identifies its row by exactly this string, never
+ * `{kind, target}` — pure, so both shapes are a real, DOM-free test.
+ */
+export function registryItemKey(kind: "cast" | "course", target: string): string {
+  return kind === "cast" ? target.replace(/\.ya?ml$/i, "") : target;
+}
+
+export type SetListingOutcome =
+  | "ok"
+  | { due: number } // 402 {error:"pay", due} — unlisting an item that has never paid (plan ruling 8)
+  | "owner" // 403 {error:"owner"} — registered to someone else
+  | "key" // 401
+  | "error";
+
+/**
+ * POST /register/listing: turns an already-registered item's catalogue
+ * listing on or off. Listing again (`listed: true`) is always free; turning
+ * it off is free only once the item has ever paid for Private (any
+ * `paid_lectures > 0`) — otherwise the server refuses with the one-time fee
+ * still owed, `{due}`, and the caller pays it through `startPrivatePayment`
+ * with `listed: false` (which settles `listed` even when `private` stays
+ * false — plan ruling 8). `item` is the registry item-key STRING
+ * (registryItemKey above) — the caller derives it from `kind`/`target`
+ * before calling, so this function never needs either. Every refusal is a
+ * word; never throws.
+ */
+export async function setListing(api: string, key: string, item: string, listed: boolean, fetchImpl: typeof fetch = fetch): Promise<SetListingOutcome> {
+  try {
+    const res = await fetchImpl(`${apiBase(api)}/_/api/register/listing`, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: JSON.stringify({ key, item, listed }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (res.ok) return "ok";
+    if (res.status === 401) return "key";
+    if (res.status === 403) return "owner";
+    if (res.status === 402) {
+      const b = (await res.json().catch(() => ({}))) as { due?: unknown };
+      return { due: typeof b.due === "number" ? b.due : 0 };
+    }
+    return "error";
+  } catch {
+    return "error";
+  }
 }

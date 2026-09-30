@@ -7,16 +7,21 @@ function fetchReturning(status: number, body: unknown): typeof fetch {
 const calls = (f: typeof fetch) => (f as unknown as ReturnType<typeof vi.fn>).mock.calls as [string, RequestInit][];
 
 describe("the rule is the server's rule", () => {
+  // "browse" reserved ahead of the server (registry deliveries 3-4, task 6):
+  // this pin is a hardcoded literal, not a file read, so it is updated to
+  // match the plan (docs/superpowers/plans/2026-09-30-registry-deliveries-3-4.md
+  // step 9) even though drawcast-anvil's own server_code/names.py — edited by
+  // another agent on this same branch — may not have "browse" in it yet.
   test("regex source and reserved prefixes are pinned to server_code/names.py", () => {
     expect(NAME_RE.source).toBe("^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?(?:\\/[a-z0-9-]{1,20})?$");
-    expect([...RESERVED_PREFIXES]).toEqual(["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner", "me", "www"]);
+    expect([...RESERVED_PREFIXES]).toEqual(["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner", "me", "browse", "www"]);
   });
   test("accepts and normalises", () => {
     expect(normalizeName(" Learn-Russian ")).toBe("learn-russian");
     expect(normalizeName("learn-russian/3")).toBe("learn-russian/3");
   });
   test("rejects reserved prefixes with or without a dash, and malformed names", () => {
-    for (const bad of ["gh", "gh-x", "GDRIVE-abc", "url/1", "anvil-x", "api", "name-x", "course", "learner-1", "-x", "x-", "a b", "a=b", "", null]) expect(normalizeName(bad)).toBeNull();
+    for (const bad of ["gh", "gh-x", "GDRIVE-abc", "url/1", "anvil-x", "api", "name-x", "course", "learner-1", "browse", "browse-stars", "-x", "x-", "a b", "a=b", "", null]) expect(normalizeName(bad)).toBeNull();
   });
 });
 
@@ -165,9 +170,13 @@ describe("registerName", () => {
 
 describe("the registration floor", () => {
   test("reserved prefixes still match the server, now including me", () => {
-    expect([...RESERVED_PREFIXES]).toEqual(["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner", "me", "www"]);
+    expect([...RESERVED_PREFIXES]).toEqual(["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner", "me", "browse", "www"]);
     expect(normalizeName("me")).toBeNull();
     expect(normalizeName("me-too")).toBeNull();
+  });
+  test("browse is reserved too — drawcast.app/#browse is the catalogue, never a name", () => {
+    expect(normalizeName("browse")).toBeNull();
+    expect(normalizeName("browse-anything")).toBeNull();
   });
 });
 

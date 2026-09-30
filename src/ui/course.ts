@@ -26,12 +26,13 @@ import { applyViewsFlag } from "../views";
 import type { SpeakLine } from "../render/delivery";
 import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "../export/bake";
 import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "../export/bake-cache";
-import { addCosts, bakeCost, costLabel, courseNarrationProjection, type BakeCost } from "../export/tts-cost";
+import { addCosts, bakeCost, costLabel, courseNarrationProjection, creditBakeCost, type BakeCost } from "../export/tts-cost";
 import { runLang, stampedVoice, synthesizeBase64 } from "../export/tts";
 import { joinPath } from "../course/publish";
 import { claimCourse, claimNote, courseClaim, formatPrice, isPayable, nameNote, normalizeName, registerName, startNamePayment } from "../names";
 import { apiBase, DEFAULT_ENROLL_API } from "../learn";
-import { claimFile, quotePrivate, registerItem, registryNote, verifyClaim } from "../registry";
+import { claimFile, ensurePrivateApplied, quotePrivate, registerItem, registryNote, verifyClaim } from "../registry";
+import { CreditError, serverSynthesize } from "../credit";
 import { getToken } from "../account";
 import { courseLockedInRepo, hasBuiltLecture, privateLectureCount, publishPrivacy } from "../private-doc";
 import { fetchItemKey, liveKeyStorage, unlockForAuthor } from "../item-key";
@@ -66,7 +67,7 @@ import { appendLog, getGithubToken, markDrawingsPrivate, getTtsKey, loadCourses,
 import { SPEC_VERSION } from "../spec/schema";
 import { h } from "./dom";
 import { createModal } from "./modal";
-import { openShare, type ShareDeps } from "./share";
+import { openShare, payListedFields, type ShareDeps } from "./share";
 
 export function lectureRowLabel(lecture: CourseLecture): string {
   const status = lecture.status;
@@ -277,6 +278,36 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       if (text === null) continue;
       try {
         costs.push(bakeCost(playlistSpeakLines(parsePlaylistText(text)), settings.cloudVoices));
+      } catch {
+        /* an unparsable lecture prices as nothing rather than blocking */
+      }
+    }
+    return costs;
+  }
+
+  /**
+   * What narration CREDIT would actually be charged for each done lecture
+   * (registry delivery 3, fix round 1) — same basis as doneLectureCosts
+   * (used for the "own key" hint and the Generate projection, both left
+   * untouched), but priced by creditBakeCost per lecture, with THAT
+   * lecture's own declared language (bakeLectures' own decision — never a
+   * per-line sniff), so an unnamed voice prices at the server's own unnamed
+   * tier and the estimate can never under-price what /tts will charge.
+   */
+  function doneLectureCreditCosts(course: Course): BakeCost[] {
+    const settings = loadSettings();
+    const library = loadLibrary();
+    const costs: BakeCost[] = [];
+    for (const lecture of course.lectures) {
+      if (lecture.status?.state !== "done" || !lecture.status.id) continue;
+      const saved = library.find((d) => d.id === lecture.status!.id);
+      const text = saved?.playlist ?? (saved ? formatPlaylist(singlePlaylist(saved.spec), "yaml") : null);
+      if (text === null) continue;
+      try {
+        const playlist = parsePlaylistText(text);
+        // Undefined when nothing declares one — the same decision bakeLectures makes per lecture.
+        const declaredLang = playlist.entries.flatMap((e) => (e.kind === "item" && e.spec.lang ? [e.spec.lang] : []))[0];
+        costs.push(creditBakeCost(playlistSpeakLines(playlist), settings.cloudVoices, declaredLang));
       } catch {
         /* an unparsable lecture prices as nothing rather than blocking */
       }
@@ -894,8 +925,12 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
     bakeReused = 0;
     bakeRevoiced.clear();
     const settings = loadSettings();
+    // Narration credit (registry delivery 3, ruling 1): own/vended key first
+    // (getTtsKey() answers either — store.ts conflates the two storage-wise),
+    // else, signed in, the server synthesizes against prepaid credit.
     const apiKey = getTtsKey();
-    if (!apiKey) throw new Error("Publishing with narration needs a Google TTS key — add one in Settings.");
+    const accountToken = getToken();
+    if (!apiKey && !accountToken) throw new Error("Publishing with narration needs a Google TTS key — add one in Settings.");
     const repo = parseRepo(settings.githubRepo);
     const out = new Map<number, string>();
     const numbered = course.lectures.map((_, i) => i).filter((i) => yamlFor(i) !== null);
@@ -926,6 +961,9 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
           if ("text" in unlocked) existing = parsePlaylistText(unlocked.text).audio?.lines ?? {};
         }
       }
+      const synthesizeLine = apiKey
+        ? (line: SpeakLine) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices, lang: declaredLang }, line.text, line)
+        : (line: SpeakLine) => serverSynthesize(DEFAULT_ENROLL_API, accountToken, { rate: settings.rate, voices: settings.cloudVoices, lang: declaredLang }, line.text, line);
       const track = await bakeNarration(
         lines,
         {
@@ -933,10 +971,12 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
           existing,
           // B15: see export/bake-cache.ts — a 20-lecture bake that dies at
           // lecture 14 resumes from the local clip cache, not from Google.
+          // Credit-synthesized clips are cached the same way, so a retry
+          // after buying more credit never re-pays for an already-baked lecture.
           synthesize: cachingSynthesizer(
             bakeClipStore,
             (line) => clipCacheKey(settings.rate, settings.cloudVoices, line, declaredLang),
-            (line) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices, lang: declaredLang }, line.text, line),
+            synthesizeLine,
             bakeStats,
           ),
           voiceOf,
@@ -1112,7 +1152,8 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       if (isPrivate) {
         // Predicted exactly as buildPublishPlan mints it (a recorded slug,
         // else the title's) — checked against the plan after preparePublish.
-        const item = courseKeyFor(repo, joinPath(settings.coursesDir, course.context.slug || slugify(course.title || "course")));
+        const dir = joinPath(settings.coursesDir, course.context.slug || slugify(course.title || "course"));
+        const item = courseKeyFor(repo, dir);
         privateItem = item;
         if (!accountToken) {
           say("Not published: sign in to publish privately (Settings → Publishing).", "error");
@@ -1133,6 +1174,30 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         if (quote.due > 0) {
           say(`Not published: this private course now has ${lectures} lecture(s) — pay the difference (${formatPrice(quote.due, quote.currency)}) under Share → Private first.`, "error");
           return;
+        }
+        // Covered but never flipped private (an earlier unlist-only
+        // purchase): settle it through the same endpoint the Pay button
+        // uses before asking for the key — a due-0 quote answers 409
+        // nothing-due, which is success here.
+        if (!quote.private) {
+          const applied = await ensurePrivateApplied(
+            DEFAULT_ENROLL_API,
+            accountToken,
+            { kind: "course", target: item, title: course.title, page: `https://${repo.owner}.github.io/${repo.repo}/${dir}/`, lectures, ...payListedFields(true, quote.listed ?? true), return: "https://drawcast.app/" },
+            bounded,
+          );
+          if (applied === "key") {
+            say("Not published: sign in again to publish privately (Settings → Publishing).", "error");
+            return;
+          }
+          if (applied === "owner") {
+            say("Not published: this course is registered to another account, so it can't be made private.", "error");
+            return;
+          }
+          if (applied !== "ok") {
+            say("Not published: could not check the private course just now — try again in a moment.", "error");
+            return;
+          }
         }
         const got = await fetchItemKey(DEFAULT_ENROLL_API, accountToken, item, bounded, liveKeyStorage());
         if (!("key" in got)) {
@@ -1324,7 +1389,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       console.error("drawcast: publish failed", err);
       const e = err as Error;
       // A lock refusal is already the whole sentence ("Not published: …").
-      say(e instanceof LockError ? e.message : `Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
+      say(e instanceof LockError || e instanceof CreditError ? e.message : `Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
     } finally {
       end(controller);
     }
@@ -1435,6 +1500,11 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
             return repo && slug ? [{ label: "the course page", target: courseKeyFor(repo, joinPath(deps.settings.coursesDir, slug)) }] : [];
           })(),
           narrationCost: costLabel(addCosts(doneLectureCosts(course))),
+          // narrationUsd (registry delivery 3, fix round 1): what /tts will
+          // ACTUALLY charge against credit — doneLectureCreditCosts, not
+          // doneLectureCosts, so the estimate can't under-price an unnamed
+          // voice (see the same note in main.ts and tts-cost.ts).
+          narrationUsd: addCosts(doneLectureCreditCosts(course)).usd,
           publishedViews,
           // Whether the page carries its Join door, straight from the document (spec §5).
           joinDoor: course.enroll !== undefined,

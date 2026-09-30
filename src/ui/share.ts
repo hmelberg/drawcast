@@ -34,7 +34,8 @@ import { parseRepo, slugify } from "../publish/github";
 import { castRegistration, privateCastTarget } from "../publish/cast";
 import { courseKeyFor, joinPath } from "../course/publish";
 import type { ServerAccess } from "../publish/server";
-import { quotePrivate, startPrivatePayment, type PrivateQuoteOutcome } from "../registry";
+import { quotePrivate, registryItemKey, setListing, startPrivatePayment, type PrivateQuoteOutcome } from "../registry";
+import { creditBalance, startCreditPayment } from "../credit";
 import { h } from "./dom";
 import { unembeddedImages } from "./insert";
 import { createModal, type Modal } from "./modal";
@@ -87,6 +88,14 @@ export interface ShareDoc {
    *  the caller with the live voice picks (export/tts-cost.ts). Upper bound:
    *  a republish pays only for lines not already published. */
   narrationCost?: string;
+  /**
+   * narrationCost's own $ number, undiscounted by anything already published
+   * (registry delivery 3): the credit hint needs the raw amount to multiply
+   * by the server's 3x markup, and narrationCost is already a formatted
+   * label ("12k characters ≈ $1.83") there is nothing to parse back out of.
+   * Absent or 0 reads as "nothing to narrate yet" — the hint then shows $0.00.
+   */
+  narrationUsd?: number;
   /**
    * The folder name this drawcast published under before, if it has. Read
    * once to prefill Link's name field (`publishedAs ?? slugify(title)`) —
@@ -214,6 +223,22 @@ export function privateRequest(
     lectures: Math.max(1, doc.privateLectures ?? doc.lectureCount ?? 0),
     page: `https://${repo.owner}.github.io/${repo.repo}/${dir}/`,
   };
+}
+
+/**
+ * What a Pay click's `/register/pay` body sends for `private`/`listed`
+ * (registry deliveries 3–4, task 9) — pure and REQUIRED-boolean-typed on
+ * purpose: the server defaults an absent `private` to true for backward
+ * compatibility with the app deployed before this delivery, so an
+ * unlist-only purchase (Private off, only paying to unlist) that omitted
+ * `private` would silently lock the item private (a minted key, joins
+ * turned approval-only) — exactly the bug a controller review caught here.
+ * Routing both Pay buttons through this one function makes "always send
+ * both, explicitly" a compiled invariant rather than a habit to remember at
+ * each call site.
+ */
+export function payListedFields(wantPrivate: boolean, wantListed: boolean): { private: boolean; listed: boolean } {
+  return { private: wantPrivate, listed: wantListed };
 }
 
 export interface ShareDeps {
@@ -459,6 +484,29 @@ export function fileSafe(name: string, fallback = "drawcast"): string {
   return safe || fallback;
 }
 
+/** The server's own markup on a credit-synthesized line (registry delivery
+ *  3, plan ruling 3) — the app never applies it, only estimates against it so
+ *  the Share hint is not silently 3x cheaper than what /tts will actually charge. */
+export const CREDIT_MARKUP = 3;
+
+/**
+ * The Embed-narration hint text once no TTS key is set but the author is
+ * signed in — narration will be synthesized on the server against credit.
+ * `balanceUsd` is null while /credit/balance is still in flight, or the
+ * failure ("key" | "error") once it answered without a number: the estimate
+ * is shown at once, the balance follows. Exported and pure so
+ * its wording is a real test rather than a source-text match alone.
+ */
+export function creditBakeHint(neededUsd: number, balanceUsd: number | null | "key" | "error"): string {
+  const needed = `$${neededUsd.toFixed(2)}`;
+  const tail =
+    balanceUsd === null ? "checking balance…"
+    : balanceUsd === "key" ? "sign in again to see your balance"
+    : balanceUsd === "error" ? "balance unavailable"
+    : `you have $${balanceUsd.toFixed(2)}`;
+  return `uses narration credit — about ${needed} (${tail})`;
+}
+
 function titleOf(playlist: Playlist, fallback: string): string {
   return playlist.meta.title ?? itemsOf(playlist)[0]?.spec.title ?? fallback;
 }
@@ -572,8 +620,46 @@ function build(): ShareSession {
       h("span", {}, "Embed narration"),
       bakeHint,
     );
+    // Narration credit (registry delivery 3): a signed-in author with no TTS
+    // key can still tick Embed narration — the server synthesizes each line
+    // against prepaid credit (CREDIT_MARKUP over Google's own list price).
+    // Short on balance, three fixed packs (plan ruling 5) open the same
+    // Checkout door Private's Pay button does.
+    const creditBuy5 = h("button", { class: "small", type: "button" }, "Buy $5") as HTMLButtonElement;
+    const creditBuy10 = h("button", { class: "small", type: "button" }, "Buy $10") as HTMLButtonElement;
+    const creditBuy20 = h("button", { class: "small", type: "button" }, "Buy $20") as HTMLButtonElement;
+    const creditBuyRow = h("div", { class: "hint" }, "Buy credit: ", creditBuy5, creditBuy10, creditBuy20);
+    creditBuyRow.hidden = true;
+    async function buyCredit(cents: 500 | 1000 | 2000): Promise<void> {
+      const token = getToken();
+      if (!token) return;
+      creditBuy5.disabled = creditBuy10.disabled = creditBuy20.disabled = true;
+      try {
+        const started = await startCreditPayment(DEFAULT_ENROLL_API, { key: token, cents, return: location.href.split("#")[0] });
+        if (typeof started === "object") {
+          location.href = started.url;
+          return;
+        }
+        bakeHint.textContent =
+          started === "pending"
+            ? "A credit purchase is already open — finish it, or wait an hour and try again."
+            : started === "key"
+              ? "Sign in to buy narration credit"
+              : "Could not start the purchase — try again in a moment.";
+      } finally {
+        creditBuy5.disabled = creditBuy10.disabled = creditBuy20.disabled = false;
+      }
+    }
+    creditBuy5.addEventListener("click", () => void buyCredit(500));
+    creditBuy10.addEventListener("click", () => void buyCredit(1000));
+    creditBuy20.addEventListener("click", () => void buyCredit(2000));
+    // A fresh balance fetch supersedes an older one still in flight — same
+    // token guard as refreshPrivateLine's privateQuoteToken, so switching
+    // panels (or documents) mid-fetch never lets a stale answer land on a
+    // hint that has already moved on.
+    let creditToken = 0;
     return {
-      rows: [embedImagesLabel, bakeLabel],
+      rows: [embedImagesLabel, bakeLabel, creditBuyRow],
       refresh(doc, subject) {
         // A course has no playlist of its own to count (its lectures live in
         // the library — see course.ts's doc()), so it gets the choice without
@@ -586,20 +672,47 @@ function build(): ShareSession {
           embedCount === 0
             ? "all images are already in the file"
             : "the published file carries them; your document is unchanged";
-        // Narration is the one choice that can't default on for everyone:
-        // baking needs a Google TTS key, and publishTextFor throws without
-        // one — an on-by-default box would make every publish fail for an
-        // author who has no key. Same third state the rail uses: offered,
-        // disabled, with the route that fixes it.
+        // Narration used to have exactly two states — a key, or disabled —
+        // and now has three: an own/vended key (free chain, as before), no
+        // key but signed in (credit — costs money too, just not this
+        // account's Google bill), or neither (the route that fixes it).
+        const my = ++creditToken; // invalidates any in-flight balance fetch from a previous refresh
         const tts = Boolean(getTtsKey());
-        bakeCb.disabled = !tts;
-        bakeCb.checked = tts && bakeDefault;
+        const token = getToken();
         const speaks = "the published file speaks; viewers need no key";
-        bakeHint.textContent = tts
-          ? doc.narrationCost
+        if (tts) {
+          bakeCb.disabled = false;
+          bakeCb.checked = bakeDefault;
+          creditBuyRow.hidden = true;
+          bakeHint.textContent = doc.narrationCost
             ? `${speaks} — up to ${doc.narrationCost} of TTS (lines already published are free again)`
-            : speaks
-          : "add a Google TTS key in Settings to publish the narration";
+            : speaks;
+        } else if (token) {
+          bakeCb.disabled = false;
+          // Unticked whatever the panel's default: credit is real money, and
+          // with no balance a ticked box turns a publish that used to work
+          // into a 402 — the author opts in (final review I3).
+          bakeCb.checked = false;
+          const neededUsd = CREDIT_MARKUP * (doc.narrationUsd ?? 0);
+          creditBuyRow.hidden = true;
+          bakeHint.textContent = creditBakeHint(neededUsd, null);
+          void (async () => {
+            const bal = await creditBalance(DEFAULT_ENROLL_API, token);
+            if (my !== creditToken) return; // superseded — a newer refresh already answered
+            if (typeof bal !== "object") {
+              bakeHint.textContent = creditBakeHint(neededUsd, bal);
+              return;
+            }
+            const haveUsd = bal.balanceMicro / 1_000_000;
+            bakeHint.textContent = creditBakeHint(neededUsd, haveUsd);
+            creditBuyRow.hidden = haveUsd >= neededUsd;
+          })();
+        } else {
+          bakeCb.disabled = true;
+          bakeCb.checked = false;
+          creditBuyRow.hidden = true;
+          bakeHint.textContent = "add a Google TTS key in Settings to publish the narration";
+        }
       },
       choices: () => ({
         bake: bakeCb.checked,
@@ -797,6 +910,117 @@ function build(): ShareSession {
     "Earlier versions stay readable in the repo's history. To keep them private too, publish under a new folder.",
   );
 
+  // "Listed in the catalogue" (registry deliveries 3–4, task 9): whether the
+  // item shows at drawcast.app/#browse — independent of Private (plan
+  // ruling 7: an item can be private AND listed, showing a "Private — ask
+  // to join" badge there). Unlike Private, listing takes effect at once —
+  // it never waits for Publish — so this box drives its own small
+  // quote-free flow (setListing/startPrivatePayment below) rather than
+  // feeding refreshPrivateLine or gating publishGo. Default ticked, reset
+  // on every open (prepPanels) since nothing here persists it locally — the
+  // registry row is the only place "listed" lives.
+  const listedCb = h("input", { type: "checkbox", id: "share-listed" }) as HTMLInputElement;
+  const listedHint = h("div", { class: "hint" });
+  const listedLabel = h("label", { class: "publish-choice", for: "share-listed" }, listedCb, h("span", {}, "Listed in the catalogue"), listedHint);
+  const listedPayBtn = h("button", { class: "small", type: "button" }) as HTMLButtonElement;
+  const listedPayRow = h("div", {}, listedPayBtn);
+  listedPayRow.hidden = true;
+
+  /** Same item privatePayBtn/refreshPrivateLine already predict (privateRequest,
+   *  reading the Name/Folder field), read fresh on every Listed action. */
+  function listedItem(): { kind: "cast" | "course"; target: string; lectures: number; page?: string } | null {
+    const field = current.subject === "course" ? publishFolderInput.value : publishNameInput.value;
+    return privateRequest(current.doc(), current.settings, current.subject, field);
+  }
+
+  let listedToken = 0;
+  listedCb.addEventListener("change", () => {
+    const my = ++listedToken;
+    listedPayRow.hidden = true;
+    const item = listedItem();
+    if (!item) {
+      listedHint.textContent = "";
+      return;
+    }
+    const token = getToken();
+    if (!token) {
+      listedHint.textContent = "Sign in to change listing";
+      return;
+    }
+    listedHint.textContent = listedCb.checked ? "Listing…" : "Checking…";
+    void (async () => {
+      // setListing itself is the check: `listed: false` on an item that has
+      // never paid answers 402 with the fee owed (plan ruling 8), so there
+      // is no separate quote to ask first.
+      const r = await setListing(DEFAULT_ENROLL_API, token, registryItemKey(item.kind, item.target), listedCb.checked);
+      if (my !== listedToken) return;
+      if (r === "ok") {
+        listedHint.textContent = "";
+        return;
+      }
+      if (r === "key") {
+        listedHint.textContent = "Sign in to change listing";
+        return;
+      }
+      if (r === "owner") {
+        // The server answers 403 both for someone else's item and for one
+        // with no registration yet (a first publish). The open-time quote
+        // (probeServerPrivate) already told which, for this same target —
+        // final review M5.
+        listedHint.textContent =
+          serverOwner === "none" && probedTarget === item.target ? "Publish first, then choose listing" : "Registered to another account";
+        return;
+      }
+      if (r === "error") {
+        listedHint.textContent = "Could not update listing — try again.";
+        return;
+      }
+      // {due}: unlisting a never-paid item costs the same one-time fee as
+      // Private (plan ruling 8) — pay through the SAME endpoint Private's
+      // own Pay button uses, with listed:false.
+      listedHint.textContent = `Unlisted costs ${formatPrice(r.due, "usd")} — one-time`;
+      listedPayBtn.textContent = `Pay ${formatPrice(r.due, "usd")}`;
+      listedPayRow.hidden = false;
+    })();
+  });
+  listedPayBtn.addEventListener("click", () => {
+    void (async () => {
+      const doc = current.doc();
+      const token = getToken();
+      const item = listedItem();
+      if (!token || !item) return;
+      listedPayBtn.disabled = true;
+      try {
+        const started = await startPrivatePayment(DEFAULT_ENROLL_API, {
+          key: token,
+          kind: item.kind,
+          target: item.target,
+          title: doc.title,
+          page: item.page,
+          lectures: item.lectures,
+          ...payListedFields(privateCb.checked, false),
+          return: location.href.split("#")[0],
+        });
+        if (typeof started === "object") {
+          location.href = started.url;
+          return;
+        }
+        listedHint.textContent =
+          started === "nothing-due"
+            ? "Nothing is due — listing already updated."
+            : started === "pending"
+              ? "A payment for this item is already open — finish it, or wait an hour and try again."
+              : started === "owner"
+                ? "Registered to another account"
+                : started === "key"
+                  ? "Sign in to change listing"
+                  : "Could not start the payment — try again in a moment.";
+      } finally {
+        listedPayBtn.disabled = false;
+      }
+    })();
+  });
+
   /** A fresh async quote supersedes an older one still in flight — bumped on
    *  every call, checked before an in-flight answer is allowed to touch the
    *  DOM, so unticking (or reticking) mid-request never lets a stale answer
@@ -830,7 +1054,14 @@ function build(): ShareSession {
     privateHint.textContent = "Checking…";
     publishGo.disabled = true; // pending — Publish stays off until due 0 comes back
     void (async () => {
-      const q: PrivateQuoteOutcome = await quotePrivate(DEFAULT_ENROLL_API, { key: token, kind: item.kind, target: item.target, lectures: item.lectures, private: true });
+      const q: PrivateQuoteOutcome = await quotePrivate(DEFAULT_ENROLL_API, {
+        key: token,
+        kind: item.kind,
+        target: item.target,
+        lectures: item.lectures,
+        private: true,
+        listed: listedCb.checked,
+      });
       if (my !== privateQuoteToken) return; // superseded — a newer tick/open/field edit already answered
       if (q === "key") {
         privateHint.textContent = "Sign in to publish privately";
@@ -866,6 +1097,9 @@ function build(): ShareSession {
    * then needs the "Make public" confirm (the change listener below).
    */
   let serverPrivate = false;
+  /** Who the registry says holds probedTarget — "none" before a first
+   *  publish; null until (or unless) the open-time quote answers. */
+  let serverOwner: "you" | "other" | "none" | null = null;
   let confirmedPublic = false;
   let serverProbeToken = 0;
   /** The target the last probe asked about: a "Make public" confirmation is
@@ -874,6 +1108,7 @@ function build(): ShareSession {
   function probeServerPrivate(): void {
     const my = ++serverProbeToken;
     serverPrivate = false;
+    serverOwner = null;
     const field = current.subject === "course" ? publishFolderInput.value : publishNameInput.value;
     const item = privateRequest(current.doc(), current.settings, current.subject, field);
     const target = item ? item.target : null;
@@ -885,12 +1120,33 @@ function build(): ShareSession {
     if (!token) return;
     if (!item) return;
     void (async () => {
-      const q = await quotePrivate(DEFAULT_ENROLL_API, { key: token, kind: item.kind, target: item.target, lectures: item.lectures, private: true });
+      const q = await quotePrivate(DEFAULT_ENROLL_API, {
+        key: token,
+        kind: item.kind,
+        target: item.target,
+        lectures: item.lectures,
+        private: true,
+        listed: listedCb.checked,
+      });
       if (my !== serverProbeToken) return; // superseded by a newer open/field edit
       serverPrivate = typeof q === "object" && q.private === true;
+      serverOwner = typeof q === "object" ? q.owner : null;
       if (serverPrivate && !privateCb.checked && !confirmedPublic) {
         privateCb.checked = true;
         refreshPrivateLine();
+      }
+      // Listed (fix round 1): the SAME quote also answers the item's actual
+      // current listing state — absent on an older server, which defaults
+      // to true (nothing to migrate: every item was listed before this
+      // switch existed). Seeds the box on open, same as Private's own line
+      // above, but never gates Publish — Listed has no confirm dance.
+      if (typeof q === "object") {
+        const serverListed = q.listed ?? true;
+        if (serverListed !== listedCb.checked) {
+          listedCb.checked = serverListed;
+          listedHint.textContent = "";
+          listedPayRow.hidden = true;
+        }
       }
     })();
   }
@@ -920,6 +1176,7 @@ function build(): ShareSession {
           title: doc.title,
           page: item.page,
           lectures: item.lectures,
+          ...payListedFields(true, listedCb.checked),
           return: location.href.split("#")[0],
         });
         if (typeof started === "object") {
@@ -955,6 +1212,8 @@ function build(): ShareSession {
     privateLabel,
     privatePayRow,
     privateWarning,
+    listedLabel,
+    listedPayRow,
   );
   const publishGo = h("button", { class: "primary" }, "Publish") as HTMLButtonElement;
   publishGo.addEventListener("click", () => {
@@ -1810,6 +2069,12 @@ function build(): ShareSession {
     // over from whatever was last checked in a previous open.
     privateCb.checked = doc.private === true;
     confirmedPublic = false;
+    // Listed (task 9): always opens ticked — the registry row is the only
+    // place this lives, and there is nothing here yet to probe it from
+    // (unlike Private, which the document itself remembers).
+    listedCb.checked = true;
+    listedHint.textContent = "";
+    listedPayRow.hidden = true;
     refreshPrivateLine();
     probeServerPrivate();
     // The server panel: same prefill as Link (one name across both targets),

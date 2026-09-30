@@ -218,6 +218,67 @@ describe("the private publish paths fetch the key and re-quote before committing
   });
 });
 
+// Fix round 2: a quote can be due 0 while the row is still `private: false`
+// (an earlier unlist-only purchase covered it, but never flipped the lock).
+// Every lock path must settle that through ensurePrivateApplied BEFORE it
+// ever asks for the key — never skip straight from a due-0 quote to /key.
+describe("a due-0, not-yet-private quote is settled through ensurePrivateApplied before the key is asked for", () => {
+  const between = (src: string, start: string, end: string) => src.slice(src.indexOf(start), src.indexOf(end, src.indexOf(start)));
+
+  it("main.ts privateCastLock: ensurePrivateApplied runs after the due check, guarded by !quote.private, before fetchItemKey", () => {
+    const helper = between(readFileSync("src/main.ts", "utf8"), "async function privateCastLock(", "\n}\n");
+    const dueAt = helper.indexOf("quote.due > 0");
+    const guardAt = helper.indexOf("if (!quote.private)");
+    const appliedAt = helper.indexOf("await ensurePrivateApplied(");
+    const keyAt = helper.indexOf("fetchItemKey(");
+    expect(dueAt).toBeGreaterThan(0);
+    expect(guardAt).toBeGreaterThan(dueAt);
+    expect(appliedAt).toBeGreaterThan(guardAt);
+    expect(keyAt).toBeGreaterThan(appliedAt);
+    // Same body a Pay click sends: both booleans explicit via payListedFields.
+    expect(helper).toMatch(/\.\.\.payListedFields\(true, quote\.listed \?\? true\)/);
+  });
+
+  it("ui/course.ts publish: same shape, inside the isPrivate branch", () => {
+    const body = between(readFileSync("src/ui/course.ts", "utf8"), "async function publish(", "\n  }\n");
+    const dueAt = body.indexOf("quote.due > 0");
+    const guardAt = body.indexOf("if (!quote.private)");
+    const appliedAt = body.indexOf("await ensurePrivateApplied(");
+    const keyAt = body.indexOf("fetchItemKey(");
+    expect(dueAt).toBeGreaterThan(0);
+    expect(guardAt).toBeGreaterThan(dueAt);
+    expect(appliedAt).toBeGreaterThan(guardAt);
+    expect(keyAt).toBeGreaterThan(appliedAt);
+    expect(body).toMatch(/\.\.\.payListedFields\(true, quote\.listed \?\? true\)/);
+  });
+
+  it("scripts/cast.mjs push's lockPrivate: same shape, loaded through withVite like the app's other registry helpers", () => {
+    const push = between(readFileSync("scripts/cast.mjs", "utf8"), "  async push(args) {", "  async template(");
+    const dueAt = push.indexOf("quote.due > 0");
+    const guardAt = push.indexOf("if (!quote.private)");
+    const appliedAt = push.indexOf("await ensurePrivateApplied(");
+    const keyAt = push.indexOf("fetchItemKey(");
+    expect(dueAt).toBeGreaterThan(0);
+    expect(guardAt).toBeGreaterThan(dueAt);
+    expect(appliedAt).toBeGreaterThan(guardAt);
+    expect(keyAt).toBeGreaterThan(appliedAt);
+    expect(push).toContain('await load("/src/registry.ts")');
+    expect(push).toMatch(/\.\.\.payListedFields\(true, quote\.listed \?\? true\)/);
+    expect(push).toContain("throw new Error(privatePayAdvice(applied))");
+  });
+
+  it("none of the three sites duplicate ensurePrivateApplied's own nothing-due/pending logic — they only branch on its 'ok' outcome", () => {
+    for (const [path, fn, end] of [
+      ["src/main.ts", "async function privateCastLock(", "\n}\n"],
+      ["src/ui/course.ts", "async function publish(", "\n  }\n"],
+      ["scripts/cast.mjs", "  async push(args) {", "  async template("],
+    ] as const) {
+      const body = between(readFileSync(path, "utf8"), fn, end);
+      expect(body).not.toContain('"nothing-due"');
+    }
+  });
+});
+
 describe("a private publish removes posters an earlier public publish left", () => {
   it("course: a lecture's .png in the repo is deleted; one that is not there is not asked for", async () => {
     const { seen, fetchImpl } = fakeGithub(["courses/causal-inference/did.png", "courses/causal-inference/other.png"]);

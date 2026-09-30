@@ -61,6 +61,16 @@ describe("bootRoute", () => {
   });
 });
 
+describe("the catalogue", () => {
+  test("#browse boots on the view origin — it needs no account", () => {
+    expect(on(VIEW, "#browse")).toBeNull();
+    expect(on(VIEW, "#browse&q=heart&kind=course")).toBeNull();
+  });
+  test("a name that only starts with browse is not the catalogue", () => {
+    expect(on(VIEW, "#browser-wars")).toBeNull(); // an ordinary name, still playable
+  });
+});
+
 describe("after a name resolves", () => {
   test("a public cast goes to the view origin; a course or a server cast stays on main", () => {
     expect(namedRoute({ kind: "cast", target: "o/r/c.yaml" }, "#micro-i", MAIN, cfg)).toBe(`${VIEW}/#micro-i`);
