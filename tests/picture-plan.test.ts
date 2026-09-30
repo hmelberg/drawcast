@@ -108,4 +108,10 @@ describe("places in the planner", () => {
     expect(s.spots[0].frame.w).toBeCloseTo(800, 5);
     expect(s.spots[0].frame.h).toBeCloseTo(400, 5);
   });
+  test("camera centred on a region centres on the region's box (final fix T6-triage b)", () => {
+    // zoom 4: the framed box stays clear of the canvas edge, which would otherwise clamp it.
+    const s = stepOf(plan([{ draw: ["md"] }, { camera: { center: { ref: "md:left" }, zoom: 4 } }]), "camera");
+    expect(s.box.x + s.box.w / 2).toBeCloseTo(200, 5);
+    expect(s.box.y + s.box.h / 2).toBeCloseTo(400, 5);
+  });
 });

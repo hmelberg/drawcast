@@ -104,4 +104,14 @@ describe("screen picture layout", () => {
     const d = img(layout, "p");
     expect(s.x).toBeCloseTo(d.pos[0], 5);
   });
+  test("planOptionsFor's pictureOf: the __img drawable's centre becomes its rect, with the view (final fix T6-triage a)", () => {
+    const spec = { elements: [{ id: "md", type: "image", url: "https://x.org/a.png", look: "screen", strokes: shot, view: [0, 0, 1, 0.5], regions: { top: [0, 0, 1, 0.25] } }], commands: [{ draw: ["md"] }] };
+    const layout = layoutSpec(spec as never);
+    const d = img(layout);
+    const pic = planOptionsFor(spec as never, layout).pictureOf!("md");
+    expect(pic).toEqual({ frame: { rect: { x: d.pos[0] - d.w / 2, y: d.pos[1] - d.h / 2, w: d.w, h: d.h }, view: [0, 0, 1, 0.5] }, regions: { top: [0, 0, 1, 0.25] } });
+    expect(pic!.frame.rect.w).toBe(900);
+    expect(pic!.frame.rect.h).toBeCloseTo(225, 5);
+    expect(planOptionsFor(spec as never, layout).pictureOf!("nope")).toBeNull();
+  });
 });
