@@ -129,6 +129,6 @@ describe("course-load wiring (main.ts)", () => {
     expect(main).toMatch(/loadCoursesRow\.addEventListener\("click", \(\) => void loadCoursesFromGithub\(\)\)/);
     expect(main).toMatch(/if \(settings\.githubRepo\) void loadCoursesFromGithub\(\{ quiet: true \}\);/);
     expect(main).toMatch(/planCourseLoad\(parseManifest\(/);
-    expect(main).toMatch(/importCourse\(\{ text, yamlByFile, courseId: t\.localId \?\? crypto\.randomUUID\(\), updated: t\.updated \}\)/);
+    expect(main).toMatch(/importCourse\(\{ text, yamlByFile, courseId: t\.localId \?\? crypto\.randomUUID\(\), updated: t\.updated, locked: anyLocked \}\)/);
   });
 });

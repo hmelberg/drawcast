@@ -144,3 +144,121 @@ export function registryNote(out: RegistryOutcome, signIn = "sign in again (Sett
   if (out.owner === "other") return " · registered to another account — republish while signed in to prove the repo is yours";
   return out.name ? ` · drawcast.app/#${out.name}` : "";
 }
+
+// ---- Private (registry delivery 2, task 9): quote, pay, and the return trip
+// from Stripe. A cast or a course is priced by the SAME registry row every
+// publish already registers with (registerItem above) — quoting and paying
+// never commit anything; the actual lock (Task 10) is a separate step that
+// only runs once the quote says nothing is due.
+
+export interface PrivateQuote {
+  /** Cents owed right now. */
+  due: number;
+  currency: string;
+  paidLectures: number;
+  private: boolean;
+  owner: "you" | "other" | "none";
+  name: string | null;
+}
+
+export type PrivateQuoteOutcome = PrivateQuote | "key" | "error";
+
+export interface PrivateQuoteInput {
+  key: string;
+  kind: "cast" | "course";
+  target: string;
+  /** 1–200; a cast is always 1. */
+  lectures: number;
+  private: boolean;
+}
+
+/**
+ * POST /register/quote: what ticking Private costs right now, for an item
+ * that need not exist yet (a first private publish). Signed in only — a 401
+ * is `"key"`, anything else that is not a 200 (a 400, a 5xx, a network
+ * failure) is `"error"`. Never throws.
+ */
+export async function quotePrivate(api: string, body: PrivateQuoteInput, fetchImpl: typeof fetch = fetch): Promise<PrivateQuoteOutcome> {
+  try {
+    const res = await fetchImpl(`${apiBase(api)}/_/api/register/quote`, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return res.status === 401 ? "key" : "error";
+    const b = (await res.json()) as Partial<{ due: unknown; currency: unknown; paid_lectures: unknown; private: unknown; owner: unknown; name: unknown }>;
+    if (typeof b.due !== "number") return "error";
+    const owner = b.owner === "you" || b.owner === "other" ? b.owner : "none";
+    return {
+      due: b.due,
+      currency: typeof b.currency === "string" ? b.currency : "usd",
+      paidLectures: typeof b.paid_lectures === "number" ? b.paid_lectures : 0,
+      private: b.private === true,
+      owner,
+      name: typeof b.name === "string" ? b.name : null,
+    };
+  } catch {
+    return "error";
+  }
+}
+
+export interface PrivatePayInput {
+  key: string;
+  kind: "cast" | "course";
+  target: string;
+  title: string;
+  /** A course's page — must be under https://<owner>.github.io/<repo>/. */
+  page?: string;
+  lectures: number;
+  /** The app URL Stripe sends the browser back to (an allowlisted origin). */
+  return: string;
+}
+
+export type PrivatePayOutcome =
+  | { url: string }
+  | "nothing-due" // 409 {error:"nothing-due"} — the quote is already 0
+  | "pending" // 409 {error:"pending"} — a checkout for this item is already open
+  | "owner" // 403 — registered to someone else
+  | "key" // 401
+  | "error";
+
+/**
+ * POST /register/pay: opens a Stripe Checkout session for the SAME quote
+ * `quotePrivate` priced — `{url}` is where the browser goes next; Stripe
+ * returns it to `<return origin>/#privpaid=<name>`, `#privunpaid=<name>` or
+ * `#privorphan=<name>` (privateInHash below). Every refusal is a word; never throws.
+ */
+export async function startPrivatePayment(api: string, body: PrivatePayInput, fetchImpl: typeof fetch = fetch): Promise<PrivatePayOutcome> {
+  try {
+    const res = await fetchImpl(`${apiBase(api)}/_/api/register/pay`, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      const b = (await res.json()) as { url?: unknown };
+      return typeof b.url === "string" ? { url: b.url } : "error";
+    }
+    if (res.status === 409) {
+      const b = (await res.json().catch(() => ({}))) as { error?: unknown };
+      return b.error === "pending" ? "pending" : "nothing-due";
+    }
+    if (res.status === 403) return "owner";
+    if (res.status === 401) return "key";
+    return "error";
+  } catch {
+    return "error";
+  }
+}
+
+/**
+ * Stripe's return for a private purchase, read from the URL fragment —
+ * `paidInHash`'s sibling for `/register/pay` (names.ts's own is the pretty-
+ * link purchase, a different endpoint and a different fragment shape).
+ */
+export function privateInHash(hash: string): { outcome: "privpaid" | "privunpaid" | "privorphan"; name: string } | null {
+  const m = /^#(privpaid|privunpaid|privorphan)=([a-z0-9-]+)$/.exec(hash);
+  if (!m) return null;
+  return { outcome: m[1] as "privpaid" | "privunpaid" | "privorphan", name: m[2] };
+}

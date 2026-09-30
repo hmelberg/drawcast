@@ -44,6 +44,14 @@ export interface Course {
   enroll?: string;
   /** Name override for drawcast.app/#<name> (spec §7); defaults to the slug. */
   name?: string;
+  /**
+   * Published encrypted, enrolled learners only (registry delivery 2): a
+   * course option (`private: true`), not a lecture one — every lecture of a
+   * private course locks. Absent (never `false`) means public, exactly like
+   * `enroll` being absent means no Join door — writing the line is Task 10's
+   * job, alongside the actual lock; this module only has to round-trip it.
+   */
+  private?: boolean;
   intro?: string;
   lectures: CourseLecture[];
   warnings: string[];
@@ -168,6 +176,7 @@ export function parseCourse(text: string): Course {
         if (current) current.options[key] = value;
         else if (key === "enroll") course.enroll = value;
         else if (key === "name") course.name = value;
+        else if (key === "private") course.private = value === "true";
         else course.context[key] = value;
       }
       continue;
@@ -188,6 +197,7 @@ export function formatCourse(course: Course): string {
   for (const [key, value] of Object.entries(course.context)) out.push(`${key}: ${value}`);
   if (course.enroll) out.push(`enroll: ${course.enroll}`);
   if (course.name) out.push(`name: ${course.name}`);
+  if (course.private) out.push("private: true");
   if (course.intro) out.push("", course.intro);
   for (const lecture of course.lectures) {
     out.push("", "---", `## ${lecture.title}`);

@@ -81,6 +81,17 @@ describe("parseCourse", () => {
     expect(c.warnings).toEqual([]);
   });
 
+  it("reads private: true as a reserved course option, not context (registry delivery 2)", () => {
+    const c = parseCourse("# T\nprivate: true\n---\n## L\nQ?\n");
+    expect(c.private).toBe(true);
+    expect(c.context.private).toBeUndefined();
+  });
+
+  it("private: anything but true is false; absent is undefined, never false", () => {
+    expect(parseCourse("# T\nprivate: false\n---\n## L\nQ?\n").private).toBe(false);
+    expect(parseCourse("# T\n---\n## L\nQ?\n").private).toBeUndefined();
+  });
+
   it("does not mistake a capitalised question for an option", () => {
     const c = parseCourse("# T\n---\n## L\nWhy: does it matter?\n");
     expect(c.lectures[0].questions).toEqual(["Why: does it matter?"]);
@@ -102,6 +113,14 @@ describe("formatCourse", () => {
     expect(twice.lectures).toEqual(once.lectures);
     expect(twice.title).toBe(once.title);
     expect(twice.context).toEqual(once.context);
+  });
+
+  it("writes private: true when set, and nothing at all when it is not", () => {
+    const priv = parseCourse("# T\nprivate: true\n---\n## L\nQ?\n");
+    expect(formatCourse(priv)).toContain("private: true");
+    expect(parseCourse(formatCourse(priv)).private).toBe(true);
+    const pub = parseCourse(DOC);
+    expect(formatCourse(pub)).not.toContain("private:");
   });
 });
 

@@ -61,3 +61,37 @@ export function checkName(
 export function nameBlocker(origin: { published?: string; pr?: { url?: string } }, prState: string | null): string | null;
 export function shouldClaim(args: { kind: string; direct: boolean; canPush: boolean }): boolean;
 export function registrable(origin: Record<string, unknown> | null | undefined): boolean;
+
+// ---- Private (registry delivery 2, task 11) --------------------------------
+
+export function dollars(cents: number): string;
+
+export function privateCourseText(
+  text: string,
+  lib: { setCourseOption: (text: string, key: string, value: string) => string; applyJoinDoor: (text: string, on: boolean) => string },
+): string;
+
+export function privateItemFor(origin: Record<string, unknown>, reg: { target: string }): string;
+
+export interface PrivateQuoteLike {
+  due: number;
+  currency: string;
+  paidLectures: number;
+  private: boolean;
+  owner: "you" | "other" | "none";
+  name: string | null;
+}
+export type PrivateQuoteOutcomeLike = PrivateQuoteLike | "key" | "error";
+
+export function privateDueMessage(quote: PrivateQuoteLike, work: string): string | null;
+export function privateQuoteAdvice(quote: PrivateQuoteOutcomeLike, work: string): string;
+export function privatePayAdvice(pay: "nothing-due" | "pending" | "owner" | "key" | "error"): string;
+
+export function waitForPrivate(args: {
+  api: string;
+  body: unknown;
+  quotePrivate: (api: string, body: unknown, fetchImpl?: typeof fetch) => Promise<PrivateQuoteOutcomeLike>;
+  timeoutS?: number;
+  fetchImpl?: typeof fetch;
+  sleep?: (ms: number) => Promise<void>;
+}): Promise<"paid" | "timeout">;

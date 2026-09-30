@@ -1,6 +1,17 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test, vi } from "vitest";
-import { claimFile, registerItem, registryNote, verifyClaim, type RegistryOutcome, type RegisterResult } from "../src/registry";
+import {
+  claimFile,
+  privateInHash,
+  quotePrivate,
+  registerItem,
+  registryNote,
+  startPrivatePayment,
+  verifyClaim,
+  type PrivateQuote,
+  type RegisterResult,
+  type RegistryOutcome,
+} from "../src/registry";
 
 function fetchReturning(status: number, body: unknown): typeof fetch {
   return vi.fn(async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
@@ -194,6 +205,81 @@ describe("both publish flows claim the repo before the commit and register after
     expect(iCommit).toBeLessThan(iCheckpoint);
     expect(iCheckpoint).toBeLessThan(iVerifyClaim);
     expect(iPersist).toBeLessThan(iVerifyClaim);
+  });
+});
+
+describe("quotePrivate", () => {
+  const body = { key: "k", kind: "cast" as const, target: "o/r/casts/x.yaml", lectures: 1, private: true };
+
+  test("POSTs text/plain JSON, bounded, and maps the 200 shape (snake_case paid_lectures)", async () => {
+    const f = fetchReturning(200, { due: 300, currency: "usd", paid_lectures: 0, private: true, owner: "you", name: "x" });
+    const out = await quotePrivate("https://drawcast.anvil.app", body, f);
+    expect(out).toEqual({ due: 300, currency: "usd", paidLectures: 0, private: true, owner: "you", name: "x" });
+    const [url, init] = calls(f)[0];
+    expect(url).toBe("https://drawcast.anvil.app/_/api/register/quote");
+    expect((init.headers as Record<string, string>)["content-type"]).toBe("text/plain");
+    expect(JSON.parse(init.body as string)).toEqual(body);
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  test("due 0, owner other/none, missing name — every field is normalised", async () => {
+    const out = (await quotePrivate("https://a", body, fetchReturning(200, { due: 0, paid_lectures: 3, owner: "??" }))) as PrivateQuote;
+    expect(out).toEqual({ due: 0, currency: "usd", paidLectures: 3, private: false, owner: "none", name: null });
+    const other = (await quotePrivate("https://a", body, fetchReturning(200, { due: 100, owner: "other" }))) as PrivateQuote;
+    expect(other.owner).toBe("other");
+  });
+
+  test("401 -> key, a malformed 200 (no due) -> error, anything else non-2xx -> error", async () => {
+    expect(await quotePrivate("https://a", body, fetchReturning(401, { error: "key" }))).toBe("key");
+    expect(await quotePrivate("https://a", body, fetchReturning(200, {}))).toBe("error");
+    expect(await quotePrivate("https://a", body, fetchReturning(400, {}))).toBe("error");
+    expect(await quotePrivate("https://a", body, fetchReturning(500, {}))).toBe("error");
+  });
+
+  test("a network error never throws — error", async () => {
+    await expect(quotePrivate("https://a", body, throwing())).resolves.toBe("error");
+  });
+});
+
+describe("startPrivatePayment", () => {
+  const body = { key: "k", kind: "cast" as const, target: "o/r/casts/x.yaml", title: "T", lectures: 1, return: "https://drawcast.app/" };
+
+  test("POSTs text/plain JSON and returns the Checkout url", async () => {
+    const f = fetchReturning(200, { url: "https://checkout.stripe.com/pay/cs_test_1" });
+    const out = await startPrivatePayment("https://drawcast.anvil.app", body, f);
+    expect(out).toEqual({ url: "https://checkout.stripe.com/pay/cs_test_1" });
+    const [url, init] = calls(f)[0];
+    expect(url).toBe("https://drawcast.anvil.app/_/api/register/pay");
+    expect(JSON.parse(init.body as string)).toEqual(body);
+  });
+
+  test("409 nothing-due vs. 409 pending are told apart by the body", async () => {
+    expect(await startPrivatePayment("https://a", body, fetchReturning(409, { error: "nothing-due" }))).toBe("nothing-due");
+    expect(await startPrivatePayment("https://a", body, fetchReturning(409, { error: "pending" }))).toBe("pending");
+    expect(await startPrivatePayment("https://a", body, fetchReturning(409, {}))).toBe("nothing-due");
+  });
+
+  test("403 -> owner, 401 -> key, a malformed 200 (no url) -> error, anything else -> error", async () => {
+    expect(await startPrivatePayment("https://a", body, fetchReturning(403, { error: "owner" }))).toBe("owner");
+    expect(await startPrivatePayment("https://a", body, fetchReturning(401, { error: "key" }))).toBe("key");
+    expect(await startPrivatePayment("https://a", body, fetchReturning(200, {}))).toBe("error");
+    expect(await startPrivatePayment("https://a", body, fetchReturning(400, {}))).toBe("error");
+  });
+
+  test("a network error never throws — error", async () => {
+    await expect(startPrivatePayment("https://a", body, throwing())).resolves.toBe("error");
+  });
+});
+
+describe("privateInHash — Stripe's return for a private purchase", () => {
+  test("reads privpaid/privunpaid/privorphan and the name, and nothing else", () => {
+    expect(privateInHash("#privpaid=learn-russian")).toEqual({ outcome: "privpaid", name: "learn-russian" });
+    expect(privateInHash("#privunpaid=learn-russian")).toEqual({ outcome: "privunpaid", name: "learn-russian" });
+    expect(privateInHash("#privorphan=learn-russian")).toEqual({ outcome: "privorphan", name: "learn-russian" });
+    expect(privateInHash("#learn-russian")).toBeNull();
+    expect(privateInHash("#paid=learn-russian")).toBeNull();
+    expect(privateInHash("#privpaid=Not A Name")).toBeNull();
+    expect(privateInHash("")).toBeNull();
   });
 });
 

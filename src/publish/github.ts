@@ -345,6 +345,12 @@ export async function commitFiles(
   /** Upload progress — a narration-baked course is many megabytes of blobs,
    *  and a silent minute reads as a hang. */
   onUpload?: (done: number, total: number) => void,
+  /** Paths to remove ONLY if the repository has them now — a private
+   *  publish's stale posters (registry delivery 2, task 10). Read from the
+   *  same tree read as the unchanged-file skip; if that read fails they are
+   *  simply not removed (a null sha for a path that isn't there is not a
+   *  request worth risking). */
+  staleIfPresent: string[] = [],
 ): Promise<{ commitSha: string }> {
   if (files.length === 0 && deletions.length === 0) {
     throw new PublishError("There is nothing to publish.");
@@ -417,7 +423,8 @@ export async function commitFiles(
   // the repository was empty a moment ago, so testing the raw list here could
   // let an empty-repo publish through to POST an empty tree. One name, used
   // by both, so the two cannot disagree about what is being removed.
-  const removing = wasEmpty ? [] : deletions;
+  const stale = staleIfPresent.filter((p) => remote.has(p) && !deletions.includes(p) && !files.some((f) => f.path === p));
+  const removing = wasEmpty ? [] : [...deletions, ...stale];
   if (sending.length === 0 && removing.length === 0) return { commitSha: state.head };
 
   const tree = [

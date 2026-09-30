@@ -3,7 +3,7 @@
 // boots, the hand-backs that need the account, "Edit a copy", the secret
 // getters answering empty on the view origin, and the edge function's part.
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { bootRoute, coursePageRedirect, enrollRoute, namedRoute, ORIGINS, onViewOrigin, remixSource, remixUrl, withStayMarker, type OriginConfig } from "../src/security/view-origin";
+import { bootRoute, coursePageRedirect, enrollRoute, lockedRoute, namedRoute, ORIGINS, onViewOrigin, remixSource, remixUrl, withStayMarker, type OriginConfig } from "../src/security/view-origin";
 import { hostToHash, viewFramePolicy, viewHostOf } from "../netlify/lib/name-host.mts";
 
 const MAIN = "https://drawcast.app";
@@ -80,6 +80,15 @@ describe("after a name resolves", () => {
     expect(enrollRoute("https://elsewhere.example", "https://drawcast.anvil.app", "#gh=o/r/c.yaml", VIEW, cfg)).toBeNull();
     expect(enrollRoute(undefined, "https://drawcast.anvil.app", "#gh=o/r/c.yaml", VIEW, cfg)).toBeNull();
     expect(enrollRoute("https://drawcast.anvil.app", "https://drawcast.anvil.app", "#gh=o/r/c.yaml", MAIN, cfg)).toBeNull();
+  });
+
+  test("a locked lecture needs the account too — mirrors enrollRoute's shape", () => {
+    expect(lockedRoute(VIEW, "#anvil=slug/c.yaml", cfg)).toBe(`${MAIN}/#anvil=slug/c.yaml&main`);
+    expect(lockedRoute(VIEW, "#gh=o/r/c.yaml", cfg)).toBe(`${MAIN}/#gh=o/r/c.yaml&main`);
+    expect(lockedRoute(VIEW, "#gh=o/r/c.yaml&main", cfg)).toBe(`${MAIN}/#gh=o/r/c.yaml&main`); // the marker is added once
+    expect(lockedRoute(MAIN, "#anvil=slug/c.yaml", cfg)).toBeNull();
+    expect(lockedRoute(MAIN, "", cfg)).toBeNull();
+    expect(lockedRoute(VIEW, "#anvil=slug/c.yaml", { view: "", main: MAIN })).toBeNull(); // the feature off
   });
 });
 

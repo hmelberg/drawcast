@@ -25,7 +25,9 @@
 //
 // Revising what is published (any GitHub link to a course folder, a lecture, a cast or a saved source):
 //   node scripts/cast.mjs pull <github-url> [workdir] [--force]   sparse clone in dev-casts/repos/ + a working copy
-//        (a course → dev-casts/courses/<slug>/, a cast → dev-casts/pulled/<slug>/) with origin.json
+//        (a course → dev-casts/courses/<slug>/, a cast → dev-casts/pulled/<slug>/) with origin.json. A PRIVATE
+//        course or cast is unlocked here with the owner's own key (signed in as the owner — else it stops before
+//        writing anything) and origin.private is recorded true, so later steps see plain YAML like any other pull.
 //   node scripts/cast.mjs unpack <course-dir> <n>  |  unpack <cast.yaml> [outdir]   → part-N.json + outline.json
 //   node scripts/cast.mjs revise-prompt <parts-dir | cast.json> "<change>" [out.md]   the app's rules, the document's templates in full
 //   node scripts/cast.mjs repack <parts-dir>             parts → the YAML again; narration kept for every unchanged line
@@ -34,7 +36,10 @@
 //        a branch + PR by default (from a fork without push rights; later pushes update the same PR), --direct to
 //        the default branch. Refuses if the files changed on GitHub since the pull. Signed in (see below), the
 //        commit also carries a claim file (only on a repo you can push to — never from a fork), and a --direct push registers with Anvil and prints its free link
-//        (drawcast.app/#<name>) — a PR push prints when to run register instead, once it is merged.
+//        (drawcast.app/#<name>) — a PR push prints when to run register instead, once it is merged. With
+//        origin.private true: quotes first (refusing, with the price and the exact `private` command, if more is
+//        due), fetches the item key and locks every lecture file of the plan before anything is written — no
+//        poster rides along, and a lock failure leaves nothing committed.
 //   node scripts/cast.mjs register <workdir>   after a PR-published first publish merges: verifies the claim
 //        and registers the item (a --direct push already does this on its own, right after the commit)
 //
@@ -52,6 +57,15 @@
 //   node scripts/cast.mjs name-wait <workdir> [--timeout 540]         until the name resolves here; records it (a course:
 //                                             `name:` in course.md, and the next push puts it on the page's door)
 //
+// Private (registry delivery 2, task 11) — locked on GitHub, only for enrolled learners:
+//   node scripts/cast.mjs private <workdir>                    the quote (what is due, in USD) and the exact next
+//                                             command; already paid says so instead
+//   node scripts/cast.mjs private <workdir> --price <cents>    --price must equal the quote's due; opens Stripe
+//                                             Checkout in the browser, waits (up to 9 minutes) for it to clear, then
+//                                             sets origin.private = true. The next `push` locks the plan and
+//                                             commits it locked; `pull` on a private course/cast needs the owner's
+//                                             own login to read it back at all.
+//
 // A cast file is a spec, a {request, spec}, or playlist YAML — anything the
 // app opens. Files live under dev-casts/ (gitignored). The dev server:
 //   npm run dev -- --port 5199 --strictPort      (DRAWCAST_URL overrides http://localhost:5199)
@@ -62,7 +76,29 @@ import { basename, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { homedir, hostname } from "node:os";
 import { pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin, takenSlugs } from "./cast-github.mjs";
-import { apiUrl, boundedFetch, checkName, clearSession, nameBlocker, deviceLogin, nameAdvice, readSession, registerFor, registerNow, registrable, registrationFor, shouldClaim, waitForName, writeSession } from "./cast-account.mjs";
+import {
+  apiUrl,
+  boundedFetch,
+  checkName,
+  clearSession,
+  nameBlocker,
+  deviceLogin,
+  dollars,
+  nameAdvice,
+  privatePayAdvice,
+  privateItemFor,
+  privateCourseText,
+  privateQuoteAdvice,
+  readSession,
+  registerFor,
+  registerNow,
+  registrable,
+  registrationFor,
+  shouldClaim,
+  waitForName,
+  waitForPrivate,
+  writeSession,
+} from "./cast-account.mjs";
 
 const [cmd, ...rest] = process.argv.slice(2);
 const ROOT = process.cwd();
@@ -496,26 +532,53 @@ const commands = {
     const viewerBase = findViewerBase(clone, folder);
     const common = { owner: t.owner, repo: t.repo, branch, base, clone: relative(ROOT, clone), viewerBase, pulled: new Date().toISOString() };
 
+    const session = readSession(homedir());
+
     if (courseDir) {
       const slug = courseDir.split("/").at(-1);
       const work = resolve(ROOT, out ?? `dev-casts/courses/${slug}`);
       guardWorkdir(work, force);
-      mkdirSync(work, { recursive: true });
       const text = readFileSync(at(joinRepo(courseDir, "course.md")), "utf8");
+      // Every published lecture's text is read — and, if locked, unlocked with
+      // the OWNER's own key — before anything is written to the workdir: a
+      // private course whose key cannot be had must leave no half-written
+      // workdir (only dev-casts/repos/'s clone, never the workdir, is touched).
+      const { course, files, plain, anyPrivate } = await withVite(async (load) => {
+        const course = await courseLectures(load, text);
+        const { isLocked } = await load("/src/crypto/lecture-lock.ts");
+        const files = course.lectures.map((l) => l.status?.file ?? null);
+        const raw = files.map((f) => (f && existsSync(at(joinRepo(courseDir, f))) ? readFileSync(at(joinRepo(courseDir, f)), "utf8") : null));
+        let anyPrivate = false, unlockForAuthor;
+        const plain = [];
+        for (const t of raw) {
+          if (t === null || !isLocked(t)) {
+            plain.push(t);
+            continue;
+          }
+          anyPrivate = true;
+          if (!session) throw new Error("This course is private — sign in (cast.mjs login) as its owner to pull it.");
+          unlockForAuthor ??= (await load("/src/item-key.ts")).unlockForAuthor;
+          const r = await unlockForAuthor(t, { api: session.api, token: () => session.key, fetchImpl: boundedFetch(), storage: null });
+          if ("locked" in r) throw new Error(`This course is private — sign in (cast.mjs login) as its owner to pull it. (${r.locked})`);
+          plain.push(r.text);
+        }
+        return { course, files, plain, anyPrivate };
+      });
+      mkdirSync(work, { recursive: true });
       writeFileSync(resolve(work, "course.md"), text);
-      const course = await withVite((load) => courseLectures(load, text));
-      const files = course.lectures.map((l) => l.status?.file ?? null);
       const copied = [];
-      for (const f of files) {
-        if (!f || !existsSync(at(joinRepo(courseDir, f)))) continue;
-        writeFileSync(resolve(work, f), readFileSync(at(joinRepo(courseDir, f))));
+      files.forEach((f, i) => {
+        if (!f || plain[i] === null) return;
+        writeFileSync(resolve(work, f), plain[i]);
         copied.push(f);
-      }
+      });
       const coursesDir = courseDir.split("/").slice(0, -1).join("/");
       const lecture = isFile ? files.indexOf(t.path.split("/").at(-1)) + 1 || null : null;
-      writeFileSync(resolve(work, "origin.json"), JSON.stringify({ kind: "course", ...common, path: courseDir, coursesDir, lecture }, null, 1) + "\n");
+      const origin = { kind: "course", ...common, path: courseDir, coursesDir, lecture };
+      if (anyPrivate) origin.private = true;
+      writeFileSync(resolve(work, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
       const lines = course.lectures.map((l, i) => `  ${String(i + 1).padStart(2)}. ${l.title}${files[i] && copied.includes(files[i]) ? "" : "   (not published — nothing to revise)"}${lecture === i + 1 ? "   ← the link pointed here" : ""}`);
-      console.log(`${relative(ROOT, work)}: course "${text.match(/^# (.*)$/m)?.[1] ?? slug}" from ${t.owner}/${t.repo}@${branch}, ${copied.length} of ${files.length} lecture(s) published:\n${lines.join("\n")}\nNext: cast.mjs unpack ${relative(ROOT, work)} <n>  (a lecture → lecture-NN/part-*.json)`);
+      console.log(`${relative(ROOT, work)}: course "${text.match(/^# (.*)$/m)?.[1] ?? slug}" from ${t.owner}/${t.repo}@${branch}, ${copied.length} of ${files.length} lecture(s) published${anyPrivate ? " (private — unlocked with your key)" : ""}:\n${lines.join("\n")}\nNext: cast.mjs unpack ${relative(ROOT, work)} <n>  (a lecture → lecture-NN/part-*.json)`);
       return;
     }
 
@@ -524,10 +587,24 @@ const commands = {
     const kind = folder.split("/").at(-1) === "sources" ? "source" : "cast";
     const work = resolve(ROOT, out ?? `dev-casts/pulled/${slug}`);
     guardWorkdir(work, force);
+    const raw = readFileSync(at(t.path), "utf8");
+    // Read and, if locked, unlocked before the workdir exists at all (see the
+    // course branch above for why).
+    const { text, isPrivate } = await withVite(async (load) => {
+      const { isLocked } = await load("/src/crypto/lecture-lock.ts");
+      if (!isLocked(raw)) return { text: raw, isPrivate: false };
+      if (!session) throw new Error(`This ${kind} is private — sign in (cast.mjs login) as its owner to pull it.`);
+      const { unlockForAuthor } = await load("/src/item-key.ts");
+      const r = await unlockForAuthor(raw, { api: session.api, token: () => session.key, fetchImpl: boundedFetch(), storage: null });
+      if ("locked" in r) throw new Error(`This ${kind} is private — sign in (cast.mjs login) as its owner to pull it. (${r.locked})`);
+      return { text: r.text, isPrivate: true };
+    });
     mkdirSync(work, { recursive: true });
-    writeFileSync(resolve(work, file), readFileSync(at(t.path)));
-    writeFileSync(resolve(work, "origin.json"), JSON.stringify({ kind, ...common, path: t.path, castsDir: folder, file }, null, 1) + "\n");
-    console.log(`${relative(ROOT, work)}/${file}: ${kind === "source" ? "a saved source" : "a published drawcast"} from ${t.owner}/${t.repo}@${branch}.\nNext: cast.mjs unpack ${relative(ROOT, work)}/${file}`);
+    writeFileSync(resolve(work, file), text);
+    const origin = { kind, ...common, path: t.path, castsDir: folder, file };
+    if (isPrivate) origin.private = true;
+    writeFileSync(resolve(work, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
+    console.log(`${relative(ROOT, work)}/${file}: ${kind === "source" ? "a saved source" : "a published drawcast"} from ${t.owner}/${t.repo}@${branch}${isPrivate ? " (private — unlocked with your key)" : ""}.\nNext: cast.mjs unpack ${relative(ROOT, work)}/${file}`);
   },
 
   async unpack(args) {
@@ -743,6 +820,73 @@ const commands = {
     console.log(`https://drawcast.app/#${p.name} is yours and plays the course. Push once more (cast.mjs push ${work} --direct) so the course page carries the name.`);
   },
 
+  /**
+   * Registry delivery 2, task 11: what makes a pushed course/cast lock
+   * instead of publishing plain — quotes what is due right now, and, on the
+   * user's own yes to that price (`--price` must equal the quote's `due`,
+   * exactly like `name --buy`), opens Stripe Checkout and waits for it to
+   * clear. Never prints the key; `push` (not this command) is what actually
+   * locks and commits, once origin.private is true.
+   */
+  async private(args) {
+    const flag = (n) => (args.includes(n) ? args[args.indexOf(n) + 1] : undefined);
+    const [work] = args.filter((a, i) => !a.startsWith("-") && args[i - 1] !== "--price");
+    if (!work) throw new Error("usage: cast.mjs private <workdir> [--price <cents>]");
+    const wd = resolve(ROOT, work);
+    if (!existsSync(resolve(wd, "origin.json"))) throw new Error(`${work} is not published (no origin.json) — publish-target and push it first`);
+    const origin = JSON.parse(readFileSync(resolve(wd, "origin.json"), "utf8"));
+    if (!registrable(origin)) throw new Error(`a ${origin.kind} cannot be made private — only a cast or a course`);
+    const session = readSession(homedir());
+    if (!session) throw new Error("not signed in to drawcast — run: node scripts/cast.mjs login");
+    const priceArg = flag("--price");
+
+    await withVite(async (load) => {
+      const lib = { ...(await load("/src/course/publish.ts")), ...(await load("/src/publish/cast.ts")), ...(await load("/src/course/document.ts")) };
+      const { quotePrivate, startPrivatePayment } = await load("/src/registry.ts");
+      const courseText = origin.kind === "course" ? readFileSync(resolve(wd, "course.md"), "utf8") : undefined;
+      const reg = registerFor(origin, lib, courseText);
+      // A cast's target/item is the ONE prediction publish/cast.ts's own
+      // privateCastTarget makes (fix round 1, #6) — the same function Share
+      // itself quotes and locks under — rather than a second copy of it;
+      // `registerFor`'s own target agrees with it for cast.mjs's own casts
+      // (it never renames on push), but this is the app's shared source of
+      // truth, not a re-derivation. A course has no such helper: its item IS
+      // its registry target, unchanged.
+      const target =
+        origin.kind === "cast"
+          ? lib.privateCastTarget({ owner: origin.owner, repo: origin.repo }, origin.castsDir, undefined, origin.file.replace(/\.ya?ml$/i, ""), reg.title).target
+          : reg.target;
+      const lectures = origin.kind === "course" ? Math.max(1, reg.lectures.length) : 1;
+      const body = { key: session.key, kind: origin.kind, target, lectures, private: true };
+      const quote = await quotePrivate(session.api, body, boundedFetch());
+
+      if (!priceArg) {
+        // Already fully settled server-side (paid some other way — e.g. a
+        // retry after a poll that never got to finish): worth recording
+        // locally too, so a plain `push` after this locks it without
+        // re-running `private` first.
+        if (typeof quote === "object" && quote.due === 0 && quote.private === true && !origin.private) {
+          origin.private = true;
+          writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
+        }
+        return console.log(privateQuoteAdvice(quote, work));
+      }
+      if (typeof quote !== "object" || quote.owner === "other") throw new Error(privateQuoteAdvice(quote, work));
+      if (Number(priceArg) !== quote.due) throw new Error(`--price must be ${quote.due} (${dollars(quote.due)}) — say the price to the user and get a yes first`);
+
+      const pay = await startPrivatePayment(session.api, { key: session.key, kind: origin.kind, target, title: reg.title, page: reg.page, lectures, return: "https://drawcast.app/" }, boundedFetch());
+      if (typeof pay !== "object") throw new Error(privatePayAdvice(pay));
+      spawnSync("open", [pay.url]);
+      console.log(`Opened Stripe Checkout for ${origin.kind === "course" ? "this private course" : "this private drawcast"} (${dollars(quote.due)}) in the browser:\n  ${pay.url}\nPay there — waiting…`);
+
+      const outcome = await waitForPrivate({ api: session.api, body, quotePrivate, fetchImpl: boundedFetch() });
+      if (outcome !== "paid") return console.log("Not paid (yet) — run private again after paying.");
+      origin.private = true;
+      writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
+      console.log("Private is paid — push to publish locked.");
+    });
+  },
+
   /** For a first publish that went out as a PR (push without --direct): the
    *  claim file rode along in that commit, but registering it — and minting
    *  its free name — has to wait until the PR is merged and the claim file
@@ -773,6 +917,7 @@ const commands = {
     if (!work) throw new Error('usage: cast.mjs push <workdir> [--dry-run | --no-push] [--direct] [-m "<commit message>"] [--body "<PR description>"] [--new-pr]');
     const wd = resolve(ROOT, work);
     const origin = JSON.parse(readFileSync(resolve(wd, "origin.json"), "utf8"));
+    if (origin.kind === "source" && origin.private) throw new Error("a private source can't be pushed");
     const clone = resolve(ROOT, origin.clone);
     const repo = { owner: origin.owner, repo: origin.repo };
     const git = (...a) => sh("git", ["-C", clone, ...a]);
@@ -785,6 +930,7 @@ const commands = {
     if (moved) throw new Error(`changed on GitHub since the pull, not pushed:\n  ${moved.split("\n").join("\n  ")}\nPull again into a fresh workdir and carry the revision over.`);
 
     const session = readSession(homedir());
+    if (origin.private && !session) throw new Error("This is private — sign in (cast.mjs login) as its owner to push it.");
     // Registry delivery 1: signed in, the claim file rides in the SAME
     // commit as the revision — proof Anvil reads back from GitHub once the
     // commit lands (registerPublished's verifyClaim, after a --direct
@@ -796,11 +942,65 @@ const commands = {
     // source revision never asks for one (M4).
     let claim = null;
     const files = await withVite(async (load) => {
+      // Registry delivery 2 (fix round 1, #5): signed in and registrable, the
+      // server itself is asked (once — `lockPrivate` below reuses this SAME
+      // quote/reg/item rather than asking again) whether this is ACTUALLY
+      // private. A local origin.private that never got set — a `private`
+      // poll that timed out AFTER the payment cleared — must not let an
+      // already-paid course/cast publish in plaintext: the server's own
+      // `private` wins over the local flag, and a positive answer is
+      // recorded here so the next push does not have to ask again.
+      let quote = null, reg = null, item = null;
       if (session && registrable(origin)) {
         const { claimFile } = await load("/src/registry.ts");
         claim = await claimFile(session.api, session.key, joinRepo(origin.owner, origin.repo), boundedFetch());
+
+        const lib = { ...(await load("/src/course/publish.ts")), ...(await load("/src/publish/cast.ts")), ...(await load("/src/course/document.ts")) };
+        const courseText = origin.kind === "course" ? readFileSync(resolve(wd, "course.md"), "utf8") : undefined;
+        reg = registerFor(origin, lib, courseText);
+        item = privateItemFor(origin, reg);
+        const lectures = origin.kind === "course" ? Math.max(1, reg.lectures.length) : 1;
+        const { quotePrivate } = await load("/src/registry.ts");
+        quote = await quotePrivate(session.api, { key: session.key, kind: origin.kind, target: reg.target, lectures, private: true }, boundedFetch());
+        if (typeof quote === "object" && quote.private === true && !origin.private) {
+          origin.private = true;
+          writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
+        }
       }
       if (origin.kind === "source") return { files: [{ path: origin.path, content: readFileSync(resolve(wd, origin.file), "utf8") }], deletions: [] };
+
+      // A PRIVATE push (registry delivery 2, task 11): refuses — with the
+      // price and the exact `private` command if more is due, exactly the
+      // wording `private` itself prints — then fetches the item key as the
+      // owner and locks every lecture file of the plan with the APP'S OWN
+      // publish/lock.ts lockLectureFiles (not a second copy of it: it checks
+      // every locked result starts with the envelope header, drops any
+      // stray `bytes`, and refuses a missing lecture path or a `.png`).
+      // A private push also removes any poster an earlier PUBLIC publish
+      // left for these same lecture paths, exactly as the app's own
+      // commitPublish/publishCast do (fix round 1, #1) — a thumbnail would
+      // show a frame of what is now locked; only paths that actually exist
+      // upstream are scheduled for deletion (readAtCommit), never a phantom
+      // one. All before anything is written: a throw here (a refused quote,
+      // a missing key, an unregistered name, a lock failure) leaves no git
+      // write behind.
+      const lockPrivate = async (planFiles, lecturePaths) => {
+        if (typeof quote !== "object" || quote.owner === "other" || quote.due > 0) throw new Error(privateQuoteAdvice(quote, work));
+        const { fetchItemKey } = await load("/src/item-key.ts");
+        const got = await fetchItemKey(session.api, session.key, item, boundedFetch(), null);
+        if (!("key" in got)) throw new Error("Not pushed: the private key isn't available — is private paid for, and are you signed in as the owner?");
+        // Known here, before anything is locked: a private course with no
+        // registered name would ship a page nobody can join (ui/course.ts's
+        // own check, fix round 1, #3).
+        if (origin.kind === "course" && !quote.name) throw new Error("Not pushed: the course's link isn't registered yet — try again in a minute.");
+        const { lockText } = await load("/src/crypto/lecture-lock.ts");
+        const { lockLectureFiles } = await load("/src/publish/lock.ts");
+        const locked = await lockLectureFiles(planFiles, lecturePaths, (_path, text) => lockText(text, got.key, item));
+        const { posterPathFor } = await load("/src/publish/cast.ts");
+        const posters = lecturePaths.map((p) => posterPathFor(p)).filter((p) => readAtCommit(clone, upstream, p) !== null);
+        return { files: locked, deletions: posters };
+      };
+
       if (origin.kind === "cast") {
         const { buildCastPlan, parseCastIndex, emptyCastIndex } = await load("/src/publish/cast.ts");
         const { parsePlaylistText, itemsOf } = await load("/src/playlist/playlist.ts");
@@ -810,7 +1010,10 @@ const commands = {
         const indexText = readAtCommit(clone, upstream, joinRepo(origin.castsDir, "casts.json"));
         const slug = origin.file.replace(/\.ya?ml$/i, "");
         const plan = buildCastPlan({ title, text, slug, previousSlug: slug, repo, castsDir: origin.castsDir, viewerBase: origin.viewerBase, index: indexText ? parseCastIndex(indexText) : emptyCastIndex() });
-        return { files: plan.files, deletions: [] };
+        if (!origin.private) return { files: plan.files, deletions: [] };
+        const castPath = joinRepo(origin.castsDir, `${plan.slug}.yaml`);
+        const locked = await lockPrivate(plan.files, [castPath]);
+        return { files: locked.files, deletions: locked.deletions };
       }
       const { buildPublishPlan } = await load("/src/course/publish.ts");
       const { parseCourse } = await load("/src/course/document.ts");
@@ -818,7 +1021,17 @@ const commands = {
       const { doorlessNote } = await load("/src/course/page.ts");
       const { parsePlaylistText, formatPublished, isEndPage } = await load("/src/playlist/playlist.ts");
       const { endPageFor } = await load("/src/course/run.ts");
-      const text = readFileSync(resolve(wd, "course.md"), "utf8");
+      let text = readFileSync(resolve(wd, "course.md"), "utf8");
+      // A private course publishes `private: true` and its Join door in
+      // course.md itself (final review I1a) — so an app that loads it back
+      // from GitHub knows it is private — written into the workdir first, so
+      // the published course.md and the workdir agree.
+      if (origin.private) {
+        const { setCourseOption } = await load("/src/course/document.ts");
+        const { applyJoinDoor } = await load("/src/course/publish.ts");
+        text = privateCourseText(text, { setCourseOption, applyJoinDoor });
+        writeFileSync(resolve(wd, "course.md"), text);
+      }
       const course = parseCourse(text);
       const manifestText = readAtCommit(clone, upstream, joinRepo(origin.coursesDir, "courses.json"));
       const plan = buildPublishPlan({
@@ -857,7 +1070,11 @@ const commands = {
           ? { name: origin.registered, app: "https://drawcast.app/" }
           : pageDoor(readAtCommit(clone, upstream, joinRepo(origin.path, "index.html")), doorlessNote),
       });
-      return { files: plan.files, deletions: plan.deletions };
+      if (!origin.private) return { files: plan.files, deletions: plan.deletions };
+      const courseDir = joinRepo(origin.coursesDir, plan.slug);
+      const lecturePaths = [...plan.fileOf.values()].map((name) => joinRepo(courseDir, name));
+      const locked = await lockPrivate(plan.files, lecturePaths);
+      return { files: locked.files, deletions: [...plan.deletions, ...locked.deletions] };
     });
 
     // What would change, against the repo as it is now.
