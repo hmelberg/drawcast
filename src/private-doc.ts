@@ -59,3 +59,44 @@ export function isPrivateDrawing(
   if (row?.private) return true;
   return inPrivateCourse(doc.id, library, courses);
 }
+
+/**
+ * What a GitHub publish actually does about privacy (final review I1b). The
+ * server's own word wins over local state that never learned it — a course
+ * made private with the skill, then loaded into the app; a quote that timed
+ * out after the payment cleared: `server` saying `private: true` while the
+ * local state is public publishes LOCKED (`upgraded`), unless the author
+ * explicitly confirmed making it public (Share's "Make public" confirm).
+ * No answer (signed out, "key", "error") leaves the local state as it is.
+ */
+export function publishPrivacy(
+  local: boolean,
+  server: { private: boolean } | string | null,
+  confirmedPublic: boolean,
+): { private: boolean; upgraded: boolean } {
+  if (local) return { private: true, upgraded: false };
+  const serverPrivate = typeof server === "object" && server !== null && server.private === true;
+  if (serverPrivate && !confirmedPublic) return { private: true, upgraded: true };
+  return { private: false, upgraded: false };
+}
+
+/** Whether a course lecture has a generated file a publish would commit —
+ *  done, with an id, and a library row behind it (ui/course.ts savedYaml). */
+export function hasBuiltLecture(
+  lecture: { status?: { state?: string; id?: string } },
+  library: readonly { id: string }[],
+): boolean {
+  const s = lecture.status;
+  return s?.state === "done" && !!s.id && library.some((d) => d.id === s.id);
+}
+
+/** The lectures a private course is priced for (final review M2): the ones
+ *  the publish commits, counted the SAME way for Share's quote/pay and for
+ *  the publish's own re-quote — never an unbuilt lecture of the outline.
+ *  At least 1: the registry wants 1–200. */
+export function privateLectureCount(
+  course: { lectures: readonly { status?: { state?: string; id?: string } }[] },
+  library: readonly { id: string }[],
+): number {
+  return Math.max(1, course.lectures.filter((l) => hasBuiltLecture(l, library)).length);
+}

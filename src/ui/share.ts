@@ -71,6 +71,14 @@ export interface ShareDoc {
    * Left undefined for `subject: "drawcast"`, which has no lectures to count.
    */
   lectureCount?: number;
+  /**
+   * How many lectures a private course's quote/pay prices (final review M2):
+   * the ones a publish would commit (a generated, saved file) — counted by
+   * private-doc.ts privateLectureCount, the same helper the publish's own
+   * re-quote uses, so nobody prepays for unbuilt lectures. Falls back to
+   * lectureCount when absent.
+   */
+  privateLectures?: number;
   /** Whether the last GitHub publish carried comments (C1) — seeds the checkbox. */
   publishedComments?: boolean;
   /** Whether the last GitHub publish counted views — seeds the checkbox. */
@@ -185,7 +193,7 @@ export function prettyCopies(
  *  (course/publish.ts), never minting or committing anything — the real,
  *  collision-checked slug is what the publish itself mints at commit time. */
 export function privateRequest(
-  doc: Pick<ShareDoc, "title" | "publishedAs" | "folder" | "lectureCount">,
+  doc: Pick<ShareDoc, "title" | "publishedAs" | "folder" | "lectureCount" | "privateLectures">,
   settings: Pick<Settings, "githubRepo" | "coursesDir">,
   subject: "drawcast" | "course",
   fieldSlug: string,
@@ -203,7 +211,7 @@ export function privateRequest(
     // 1–200 is the registry's own bound (parse_register_pay) — a course
     // with nothing generated yet still asks about ONE lecture's worth
     // rather than sending 0, which the server would refuse outright.
-    lectures: Math.max(1, doc.lectureCount ?? 0),
+    lectures: Math.max(1, doc.privateLectures ?? doc.lectureCount ?? 0),
     page: `https://${repo.owner}.github.io/${repo.repo}/${dir}/`,
   };
 }
@@ -254,6 +262,10 @@ export interface ShareDeps {
     /** The Private checkbox (registry delivery 2, task 9): a private publish
      *  locks every lecture file before the commit (task 10). */
     private?: boolean;
+    /** The author unticked Private on an item the SERVER says is private
+     *  and confirmed "Make public" (final review I1b). Without it, a
+     *  server-private item publishes locked whatever the box says. */
+    confirmPublic?: boolean;
   }) => Promise<void>;
   /**
    * The four resolvers (portrait, source, image, icon) a bake runs, read
@@ -660,6 +672,10 @@ function build(): ShareSession {
   const publishNameInput = h("input", { type: "text", class: "yt-field", "aria-label": "Publish as" }) as HTMLInputElement;
   publishNameInput.addEventListener("blur", () => {
     publishNameInput.value = slugify(publishNameInput.value);
+    // The Private quote prices the name the field now reads (final review
+    // M1) — on blur, never per keystroke (Share keeps one input listener).
+    refreshPrivateLine();
+    probeServerPrivate();
   });
   const publishNameHint = h("div", { class: "hint" }, "Changing the name publishes a new copy; the old link keeps working.");
   const publishNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", publishNameInput), publishNameHint);
@@ -676,6 +692,9 @@ function build(): ShareSession {
   });
   publishFolderInput.addEventListener("blur", () => {
     publishFolderInput.value = slugify(publishFolderInput.value);
+    // …and the folder a course's quote prices (final review M1).
+    refreshPrivateLine();
+    probeServerPrivate();
   });
   const publishFolderHint = h("div", { class: "hint" }, "The folder this course publishes into. Fixed after the first publish — every lecture link and learner record points here.");
   const publishFolderRow = h("div", {}, h("label", { class: "quiet-label" }, "Folder ", publishFolderInput), publishFolderHint);
@@ -839,7 +858,44 @@ function build(): ShareSession {
       publishGo.disabled = false;
     })();
   }
-  privateCb.addEventListener("change", () => refreshPrivateLine());
+  /**
+   * The server's own word on whether this item is private (final review
+   * I1b), asked whatever the box says: an item made private elsewhere (the
+   * skill, another browser) whose local state never learned it ticks the box
+   * here, so Share shows what the publish will do — lock it. Unticking it
+   * then needs the "Make public" confirm (the change listener below).
+   */
+  let serverPrivate = false;
+  let confirmedPublic = false;
+  let serverProbeToken = 0;
+  function probeServerPrivate(): void {
+    const my = ++serverProbeToken;
+    serverPrivate = false;
+    const token = getToken();
+    if (!token) return;
+    const field = current.subject === "course" ? publishFolderInput.value : publishNameInput.value;
+    const item = privateRequest(current.doc(), current.settings, current.subject, field);
+    if (!item) return;
+    void (async () => {
+      const q = await quotePrivate(DEFAULT_ENROLL_API, { key: token, kind: item.kind, target: item.target, lectures: item.lectures, private: true });
+      if (my !== serverProbeToken) return; // superseded by a newer open/field edit
+      serverPrivate = typeof q === "object" && q.private === true;
+      if (serverPrivate && !privateCb.checked && !confirmedPublic) {
+        privateCb.checked = true;
+        refreshPrivateLine();
+      }
+    })();
+  }
+  privateCb.addEventListener("change", () => {
+    if (privateCb.checked) confirmedPublic = false;
+    else if (serverPrivate) {
+      // An item the server holds private: publishing it plain is a choice
+      // the author makes explicitly, or not at all (final review I1b).
+      if (confirm("Make public: the next publish will be readable by anyone")) confirmedPublic = true;
+      else privateCb.checked = true;
+    }
+    refreshPrivateLine();
+  });
   privatePayBtn.addEventListener("click", () => {
     void (async () => {
       const doc = current.doc();
@@ -903,6 +959,7 @@ function build(): ShareSession {
       countViews: countViewsCb.checked,
       allowSignup: deps.subject === "course" ? signupCb.checked : undefined,
       private: privateCb.checked,
+      confirmPublic: !privateCb.checked && confirmedPublic,
     };
     modal.dialog.close();
     void deps.publish(choices);
@@ -1744,7 +1801,9 @@ function build(): ShareSession {
     // opens already ticked — a republish must not show a stale price left
     // over from whatever was last checked in a previous open.
     privateCb.checked = doc.private === true;
+    confirmedPublic = false;
     refreshPrivateLine();
+    probeServerPrivate();
     // The server panel: same prefill as Link (one name across both targets),
     // access back to "as before" — this is the course's door, not a decision
     // this one publish gets to make by default — and the sign-in state as of

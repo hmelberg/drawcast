@@ -92,7 +92,7 @@ import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from
 import { bakeCost, costLabel } from "./export/tts-cost";
 import { privateCastTarget, publishCast } from "./publish/cast";
 import { LockError, type LectureLock } from "./publish/lock";
-import { lockText } from "./crypto/lecture-lock";
+import { isLocked, lockText } from "./crypto/lecture-lock";
 import { publishToServer, serverCastKey, type ServerAccess } from "./publish/server";
 import { formatPrice, isPayable, normalizeName, paidInHash, registerName, startNamePayment } from "./names";
 import { DEFAULT_ENROLL_API } from "./learn";
@@ -100,7 +100,7 @@ import { claimFile, privateInHash, quotePrivate, registerItem, registryNote, ver
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
 import { fetchItemKey, liveKeyStorage, unlockForAuthor } from "./item-key";
-import { inPrivateCourse, isPrivateDrawing, keptRowFields } from "./private-doc";
+import { inPrivateCourse, isPrivateDrawing, keptRowFields, publishPrivacy } from "./private-doc";
 import { embeddedPlaylist, withAuthoredTemplates, type EmbedDeps } from "./publish/embed";
 import { resolvePortraits } from "./render/portrait";
 import { resolveIcons } from "./render/icon";
@@ -4260,6 +4260,8 @@ async function loadCoursesFromGithub(opts: { quiet?: boolean } = {}): Promise<vo
         continue;
       }
       const yamlByFile: Record<string, string> = {};
+      // Any locked lecture makes the course private locally (final review I1b).
+      let anyLocked = false;
       await Promise.all(
         lectureFilesOf(text).map(async (f) => {
           const yaml = await readFile(repo, joinPath(t.dir, f));
@@ -4269,12 +4271,13 @@ async function loadCoursesFromGithub(opts: { quiet?: boolean } = {}): Promise<vo
           // this account cannot unlock (signed out, revoked, a rotated key)
           // is reported separately below, never silently skipped and never
           // stored still-encrypted.
+          if (isLocked(yaml)) anyLocked = true;
           const unlocked = await unlockForAuthor(yaml);
           if ("text" in unlocked) yamlByFile[f] = unlocked.text;
           else locked.push(`${t.slug}/${f}`);
         }),
       );
-      const out = importCourse({ text, yamlByFile, courseId: t.localId ?? crypto.randomUUID(), updated: t.updated });
+      const out = importCourse({ text, yamlByFile, courseId: t.localId ?? crypto.randomUUID(), updated: t.updated, locked: anyLocked });
       // Your own repository (Settings → Publishing): its lectures are yours.
       trustSpecs(out.drawings.flatMap((d) => specsOfText(d.playlist, d.spec)));
       out.drawings.forEach(saveDrawing);
@@ -4998,6 +5001,7 @@ async function publishDrawcast({
   allowComments,
   countViews,
   private: makePrivate,
+  confirmPublic,
 }: {
   bake: boolean;
   embedImages: boolean;
@@ -5007,6 +5011,9 @@ async function publishDrawcast({
   /** Share's Private checkbox (registry delivery 2, task 9). Private
    *  publishes the cast file locked (task 10) — see privateCastLock. */
   private?: boolean;
+  /** Share's "Make public" confirm (final review I1b): the author unticked
+   *  Private on an item the SERVER says is private, and said yes. */
+  confirmPublic?: boolean;
 }): Promise<void> {
   const token = getGithubToken();
   const repo = parseRepo(settings.githubRepo);
@@ -5035,7 +5042,19 @@ async function publishDrawcast({
   const bounded: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) });
   // Share always sends the box's state; a caller that sends nothing keeps
   // what the document already is — a private cast never silently goes public.
-  const isPrivate = makePrivate ?? isPrivateDoc();
+  let isPrivate = makePrivate ?? isPrivateDoc();
+  // The server's word wins over local state that never learned it (final
+  // review I1b): a cast made private elsewhere (the skill, another browser)
+  // publishes LOCKED unless the author confirmed making it public in Share.
+  // No answer (signed out, Anvil down) leaves the local state as it is.
+  if (!isPrivate && accountToken) {
+    const { target } = privateCastTarget(repo, castsDir, slug, doc.publishedAs, doc.title);
+    const server = await quotePrivate(DEFAULT_ENROLL_API, { key: accountToken, kind: "cast", target, lectures: 1, private: true }, bounded);
+    if (publishPrivacy(false, server, confirmPublic === true).private) {
+      isPrivate = true;
+      setStatus("This drawcast is private on drawcast.app — publishing it locked.");
+    }
+  }
   // A lecture of a private course never goes to GitHub unlocked, whatever
   // the box says: its course keeps it private (task 10 fix round 2).
   if (!isPrivate && inPrivateCourse(doc.id, loadLibrary(), loadCourses())) {
