@@ -21,7 +21,7 @@
 // carries no `widget` flag.
 import type { BBox } from "../../layout/geometry";
 import type { Pt } from "../../layout/model";
-import { clamp, niceStep, rescaleShares, roundToStep, scrubbed, STEP_UNITS } from "../number-scrub";
+import { clamp, niceStep, rescaleShares, roundToStep, scrubbed } from "../number-scrub";
 import { SURFACE_PART, type EditField, type WidgetBody, type WidgetEvent, type WidgetScene } from "../widget-types";
 import { geometry, runOf, timeOf } from "./layout";
 import { MAX_SERVERS, MAX_VARIABILITY, nodeSpecs, readModel, routeEntries, scaleDist, type DesParams, type NodeSpec } from "./model";
@@ -366,9 +366,6 @@ export function desWidget(): WidgetBody {
     },
   };
 }
-
-/** Logical units of sideways travel per step (re-exported for tests). */
-export const SCRUB_UNITS = STEP_UNITS;
 
 /** Warm the run for the params (the host's first frame is then a read). */
 export const warm = (P: DesParams): void => void runOf(P);

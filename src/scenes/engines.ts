@@ -120,9 +120,6 @@ let currentMathHand = true;
 export function setMathHand(on: boolean): void {
   currentMathHand = on;
 }
-export function currentMathHandOn(): boolean {
-  return currentMathHand;
-}
 export function currentMathFontName(): MathFont {
   return currentMathFont;
 }

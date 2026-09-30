@@ -229,13 +229,6 @@ export function areaTo(s: StepSeries, t: number): number {
   return s.area[i] + s.values[i] * (t - s.times[i]);
 }
 
-/** Its largest value over [0, t]. */
-export function maxTo(s: StepSeries, t: number): number {
-  let m = 0;
-  for (let i = 0; i < s.times.length && s.times[i] <= t; i++) if (s.values[i] > m) m = s.values[i];
-  return m;
-}
-
 /** Simulate the model to its horizon. Pure and deterministic per seed. */
 export function simulate(m: Model, o: { maxEntities?: number } = {}): Run {
   const cap = o.maxEntities ?? MAX_ENTITIES;

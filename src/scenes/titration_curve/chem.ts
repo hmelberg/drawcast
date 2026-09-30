@@ -19,7 +19,6 @@ export const KINDS = ["strong_acid", "weak_acid", "strong_base", "weak_base"] as
 export type Kind = (typeof KINDS)[number];
 
 export const KW = 1e-14;
-export const PKW = 14;
 
 export interface Titration {
   kind: Kind;
@@ -140,7 +139,6 @@ export const INDICATORS: Record<string, Indicator> = {
   bromothymol_blue: { name: "bromothymol_blue", label: "bromothymol blue", lo: 6.0, hi: 7.6, acid: "#d9c22e", base: "#2f6bb3" },
   phenolphthalein: { name: "phenolphthalein", label: "phenolphthalein", lo: 8.2, hi: 10.0, acid: "#eef2f3", base: "#d9468f" },
 };
-export const INDICATOR_NAMES = Object.keys(INDICATORS);
 
 const hex = (c: string): [number, number, number] => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
 

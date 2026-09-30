@@ -85,9 +85,6 @@ export function screenChar(code: number): string {
   return " ";
 }
 
-/** The screen's shape: 40 × 25 characters of 8 × 8 pixels — 320 × 200. */
-export const C64_SCREEN_ASPECT = 320 / 200;
-
 /** What a C64 shows the moment it is switched on, row by row (the blank rows
  *  between are the machine's own spacing). Row 5 is where the cursor waits. */
 export const C64_BOOT_LINES: readonly (readonly [row: number, text: string])[] = [
