@@ -51,8 +51,10 @@ export const MARK_GLIDE_MS = 550;
 /** A mark that does not continue fades out over this long. */
 export const MARK_RELEASE_MS = 280;
 
-const DEPTH_FROM = 0.35;
-const DEPTH_TO = 0.62;
+/** The light's wash deepens through the step — gently: on a dark painting a
+ *  strong wash makes the clear pool read as a shadow, not as light. */
+const DEPTH_FROM = 0.28;
+const DEPTH_TO = 0.5;
 const BREATHE_MS = 1600;
 const BREATHE_AMP = 0.08;
 
@@ -139,15 +141,43 @@ export const ARROW_RUN: Pt = [70, 55];
 /** How far outside the box the tip stops. */
 const ARROW_GAP = 4;
 
+/** A box this many times wider than tall (or taller than wide) is reached from above (or the side). */
+const ARROW_LONG = 2.5;
+/** A wide box whose top is this close to the frame's top is reached from below instead. */
+const ARROW_TOP_ROOM = 90;
+
 /**
- * Where an arrow's tip and tail go for a target box: tip just outside the box
- * (the side facing the tail, at the box's middle height), tail 70 across and
- * 55 up or down toward the side of the frame with more room — up and right
- * unless the other side has more.
+ * Where an arrow's tip and tail go for a target box (canvas, y-up), both kept
+ * inside the frame.
+ * - Most boxes: tip just outside the box (the side facing the tail, at the
+ *   box's middle height), tail 70 across and 55 up or down toward the side of
+ *   the frame with more room — up and right unless the other side has more.
+ * - A wide box (a line of text as wide as the picture): from above — or below,
+ *   when its top is within 90 of the frame's — tip near its left end, tail 70
+ *   up (down) and 40 right. From the side it would start off the picture.
+ * - A tall box: the same turned on its side — from the side with more room,
+ *   tip near its upper end, tail 70 out and 40 up.
  */
 export function arrowGeometry(box: BBox, frame: BBox): { tip: Pt; tail: Pt } {
   const right = frame.x + frame.w - (box.x + box.w) >= box.x - frame.x ? 1 : -1;
-  const up = frame.y + frame.h - (box.y + box.h) >= box.y - frame.y ? 1 : -1;
-  const tip: Pt = [right > 0 ? box.x + box.w + ARROW_GAP : box.x - ARROW_GAP, box.y + box.h / 2];
-  return { tip, tail: [tip[0] + right * ARROW_RUN[0], tip[1] + up * ARROW_RUN[1]] };
+  const top = box.y + box.h;
+  let tip: Pt;
+  let tail: Pt;
+  if (box.w > ARROW_LONG * box.h) {
+    const s = frame.y + frame.h - top < ARROW_TOP_ROOM ? -1 : 1;
+    tip = [box.x + Math.min(box.w * 0.2, 80), s > 0 ? top + ARROW_GAP : box.y - ARROW_GAP];
+    tail = [tip[0] + 40, tip[1] + s * 70];
+  } else if (box.h > ARROW_LONG * box.w) {
+    tip = [right > 0 ? box.x + box.w + ARROW_GAP : box.x - ARROW_GAP, top - Math.min(box.h * 0.2, 80)];
+    tail = [tip[0] + right * 70, tip[1] + 40];
+  } else {
+    const up = frame.y + frame.h - top >= box.y - frame.y ? 1 : -1;
+    tip = [right > 0 ? box.x + box.w + ARROW_GAP : box.x - ARROW_GAP, box.y + box.h / 2];
+    tail = [tip[0] + right * ARROW_RUN[0], tip[1] + up * ARROW_RUN[1]];
+  }
+  const clampIn = ([x, y]: Pt): Pt => [
+    Math.min(Math.max(x, frame.x), frame.x + frame.w),
+    Math.min(Math.max(y, frame.y), frame.y + frame.h),
+  ];
+  return { tip: clampIn(tip), tail: clampIn(tail) };
 }

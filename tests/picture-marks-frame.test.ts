@@ -55,11 +55,11 @@ describe("markFrameAt", () => {
     expect(markFrameAt(step, 600, 1000).box).toEqual(B);
   });
 
-  test("depth deepens from 0.35 to 0.62 over the step; glow breathes", () => {
+  test("depth deepens from 0.28 to 0.5 over the step; glow breathes", () => {
     const step = { mark: "glow" as const, frame: FRAME, stops: [{ box: A, at: 0 }] };
-    expect(markFrameAt(step, 0, 2000).depth).toBeCloseTo(0.35, 6);
-    expect(markFrameAt(step, 2000, 2000).depth).toBeCloseTo(0.62, 6);
-    expect(markFrameAt(step, 5000, 2000).depth).toBeCloseTo(0.62, 6);
+    expect(markFrameAt(step, 0, 2000).depth).toBeCloseTo(0.28, 6);
+    expect(markFrameAt(step, 2000, 2000).depth).toBeCloseTo(0.5, 6);
+    expect(markFrameAt(step, 5000, 2000).depth).toBeCloseTo(0.5, 6);
     expect(markFrameAt(step, 0, 2000).breathe).toBeCloseTo(1, 6);
     expect(markFrameAt(step, 400, 2000).breathe).toBeCloseTo(1.08, 6);
     expect(markFrameAt(step, 1200, 2000).breathe).toBeCloseTo(0.92, 6);
@@ -153,3 +153,44 @@ describe("the glow keeps breathing through its release (fix round 1)", () => {
     }
   });
 });
+
+describe("arrows reach wide and tall parts from inside the picture (tuning)", () => {
+  const inside = (p: [number, number], f: BBox) => p[0] >= f.x && p[0] <= f.x + f.w && p[1] >= f.y && p[1] <= f.y + f.h;
+
+  test("a full-width thin bar at the bottom: from above, near its left fifth, all inside the frame", () => {
+    const bar = { x: FRAME.x, y: FRAME.y + 10, w: FRAME.w, h: 30 };
+    const { tip, tail } = arrowGeometry(bar, FRAME);
+    expect(inside(tip, FRAME)).toBe(true);
+    expect(inside(tail, FRAME)).toBe(true);
+    expect(tip[0]).toBeGreaterThanOrEqual(bar.x);
+    expect(tip[0]).toBeLessThanOrEqual(bar.x + bar.w / 5);
+    expect(tip[1]).toBeGreaterThan(bar.y + bar.h);
+    expect(tail[1]).toBeGreaterThan(tip[1]);
+  });
+
+  test("a wide bar near the frame's top is reached from below", () => {
+    const bar = { x: 200, y: FRAME.y + FRAME.h - 60, w: 500, h: 30 };
+    const { tip, tail } = arrowGeometry(bar, FRAME);
+    expect(tip[1]).toBeLessThan(bar.y);
+    expect(tail[1]).toBeLessThan(tip[1]);
+    expect(inside(tail, FRAME)).toBe(true);
+  });
+
+  test("a tall thin box: the tail goes out to the side, the tip near its upper end", () => {
+    const post = { x: 200, y: 150, w: 30, h: 400 };
+    const { tip, tail } = arrowGeometry(post, FRAME);
+    expect(tip[0]).toBeGreaterThan(post.x + post.w);
+    expect(tail[0] - tip[0]).toBeGreaterThanOrEqual(60);
+    expect(Math.abs(tail[1] - tip[1])).toBeLessThan(Math.abs(tail[0] - tip[0]));
+    expect(tip[1]).toBeGreaterThan(post.y + post.h / 2);
+    expect(inside(tail, FRAME)).toBe(true);
+  });
+
+  test("tip and tail are always clamped into the frame", () => {
+    const corner = { x: FRAME.x + FRAME.w - 20, y: FRAME.y + FRAME.h - 400, w: 20, h: 400 };
+    const { tip, tail } = arrowGeometry(corner, FRAME);
+    expect(inside(tip, FRAME)).toBe(true);
+    expect(inside(tail, FRAME)).toBe(true);
+  });
+});
+

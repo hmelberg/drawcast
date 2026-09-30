@@ -1516,6 +1516,11 @@ const ARROW_ANGLE = Math.atan2(-ARROW_RUN[1], ARROW_RUN[0]);
 const ARROW_LENGTH = Math.hypot(ARROW_RUN[0], ARROW_RUN[1]);
 /** How much of an arrow's write-on the shaft takes; the head is the rest. */
 const ARROW_SHAFT_SHARE = 0.8;
+/** The light's pool is at least this wide on each axis (logical units). */
+const LIGHT_MIN_R = 55;
+/** The warm lift inside the pool, and its strength at full level. */
+const LIGHT_LIFT = "#fff8e6";
+const LIGHT_LIFT_ALPHA = 0.1;
 /** Room between a ring or box and the place it marks. */
 const MARK_PAD = 8;
 
@@ -1581,6 +1586,9 @@ function lightMark(g: SVGGElement, id: string): (f: MarkFrame) => void {
   const lit = svgEl("rect", { fill: "white" }, mask);
   const hole = svgEl("ellipse", { fill: "black", filter: `url(#${id}-blur)` }, mask);
   const wash = svgEl("rect", { fill: FIGURE_GROUND, mask: `url(#${id}-mask)` }, g);
+  // A faint warm lift in the pool, so dark paint inside it reads as lit
+  // rather than as a hole in the wash.
+  const lift = svgEl("ellipse", { fill: LIGHT_LIFT, filter: `url(#${id}-blur)`, style: "mix-blend-mode: screen" }, g);
   return (f) => {
     const fr = svgBoxOf(f.frame);
     const b = svgBoxOf(f.box);
@@ -1590,11 +1598,17 @@ function lightMark(g: SVGGElement, id: string): (f: MarkFrame) => void {
       n.setAttribute("width", fr.w.toFixed(1));
       n.setAttribute("height", fr.h.toFixed(1));
     }
-    gauss.setAttribute("stdDeviation", Math.max(8, 0.18 * Math.min(b.w, b.h)).toFixed(1));
-    hole.setAttribute("cx", (b.x + b.w / 2).toFixed(1));
-    hole.setAttribute("cy", (b.y + b.h / 2).toFixed(1));
-    hole.setAttribute("rx", ((b.w / 2) * 1.25 + 10).toFixed(1));
-    hole.setAttribute("ry", ((b.h / 2) * 1.25 + 10).toFixed(1));
+    // Never a pinhole: a small part still gets a pool of light round it.
+    const rx = Math.max((b.w / 2) * 1.25 + 10, LIGHT_MIN_R);
+    const ry = Math.max((b.h / 2) * 1.25 + 10, LIGHT_MIN_R);
+    gauss.setAttribute("stdDeviation", Math.max(10, 0.22 * Math.min(rx, ry)).toFixed(1));
+    for (const e of [hole, lift]) {
+      e.setAttribute("cx", (b.x + b.w / 2).toFixed(1));
+      e.setAttribute("cy", (b.y + b.h / 2).toFixed(1));
+      e.setAttribute("rx", rx.toFixed(1));
+      e.setAttribute("ry", ry.toFixed(1));
+    }
+    lift.setAttribute("fill-opacity", (LIGHT_LIFT_ALPHA * Math.max(0, Math.min(1, f.level))).toFixed(3));
     wash.setAttribute("fill-opacity", (Math.max(0, Math.min(1, f.depth * f.level))).toFixed(3));
   };
 }

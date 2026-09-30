@@ -111,6 +111,32 @@ describe("setMark / endMark", () => {
     }
   });
 
+  test("light (tuning): a small part still gets a pool of at least 55, and a warm lift that follows the hole and the level", async () => {
+    const { restore, effects, overlay } = await mounted();
+    try {
+      effects.setMark!("md", frameOf("light", { x: 300, y: 300, w: 2, h: 2 }, { level: 0.5 }));
+      const g = overlay.children.find((n) => n.getAttribute("data-mark") === "md")!;
+      const hole = find(find(g, "mask")[0], "ellipse")[0];
+      expect(Number(hole.getAttribute("rx"))).toBeGreaterThanOrEqual(55);
+      expect(Number(hole.getAttribute("ry"))).toBeGreaterThanOrEqual(55);
+      const lift = g.children.find((n) => n.tagName === "ellipse")!;
+      expect(lift).toBeDefined();
+      expect(lift.getAttribute("fill")).toBe("#fff8e6");
+      expect(lift.getAttribute("style")).toContain("mix-blend-mode: screen");
+      expect(lift.getAttribute("filter")).toBe(hole.getAttribute("filter"));
+      expect(Number(lift.getAttribute("fill-opacity"))).toBeCloseTo(0.05, 3);
+      expect([lift.getAttribute("cx"), lift.getAttribute("cy")]).toEqual([hole.getAttribute("cx"), hole.getAttribute("cy")]);
+      effects.setMark!("md", frameOf("light", { x: 600, y: 200, w: 200, h: 100 }, { level: 1 }));
+      expect(g.children.find((n) => n.tagName === "ellipse")).toBe(lift);
+      expect([lift.getAttribute("cx"), lift.getAttribute("cy")]).toEqual([hole.getAttribute("cx"), hole.getAttribute("cy")]);
+      expect(lift.getAttribute("cx")).toBe("700.0");
+      expect(Number(lift.getAttribute("fill-opacity"))).toBeCloseTo(0.1, 3);
+      expect(Number(hole.getAttribute("rx"))).toBeCloseTo(135, 1);
+    } finally {
+      restore();
+    }
+  });
+
   test("glow: the circle's radius scales with breathe", async () => {
     const { restore, effects, overlay } = await mounted();
     try {
