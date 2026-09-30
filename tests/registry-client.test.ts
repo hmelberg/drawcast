@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test, vi } from "vitest";
 import {
   claimFile,
+  ensurePrivateApplied,
   privateInHash,
   quotePrivate,
   registerItem,
@@ -286,6 +287,45 @@ describe("startPrivatePayment", () => {
 
   test("a network error never throws — error", async () => {
     await expect(startPrivatePayment("https://a", body, throwing())).resolves.toBe("error");
+  });
+});
+
+// A lock path's last stop before /key (fix round 2): a due-0 quote whose row
+// is still `private: false` (an earlier unlist-only purchase covered it but
+// never flipped the lock) is settled through the SAME /register/pay a Pay
+// click hits — 409 nothing-due IS success here, never an error.
+describe("ensurePrivateApplied", () => {
+  const body = { kind: "cast" as const, target: "o/r/casts/x.yaml", title: "T", lectures: 1, private: true, listed: true, return: "https://drawcast.app/" };
+
+  test("POSTs the SAME body startPrivatePayment would, key assembled in", async () => {
+    const f = fetchReturning(409, { error: "nothing-due" });
+    expect(await ensurePrivateApplied("https://a", "k", body, f)).toBe("ok");
+    const [url, init] = calls(f)[0];
+    expect(url).toBe("https://a/_/api/register/pay");
+    expect(JSON.parse(init.body as string)).toEqual({ key: "k", ...body });
+  });
+
+  test("409 nothing-due -> ok (the row is now private, free)", async () => {
+    expect(await ensurePrivateApplied("https://a", "k", body, fetchReturning(409, { error: "nothing-due" }))).toBe("ok");
+    expect(await ensurePrivateApplied("https://a", "k", body, fetchReturning(409, {}))).toBe("ok"); // an unlabeled 409 defaults to nothing-due too
+  });
+
+  test("409 pending, 402/other non-2xx, 403 owner, 401 key — every other outcome passes through unchanged, never folded into ok", async () => {
+    expect(await ensurePrivateApplied("https://a", "k", body, fetchReturning(409, { error: "pending" }))).toBe("pending");
+    expect(await ensurePrivateApplied("https://a", "k", body, fetchReturning(402, {}))).toBe("error");
+    expect(await ensurePrivateApplied("https://a", "k", body, fetchReturning(500, {}))).toBe("error");
+    expect(await ensurePrivateApplied("https://a", "k", body, fetchReturning(403, { error: "owner" }))).toBe("owner");
+    expect(await ensurePrivateApplied("https://a", "k", body, fetchReturning(401, { error: "key" }))).toBe("key");
+  });
+
+  test("a due>0 answer ({url}) is never silently treated as ok — a race the caller should refuse to walk through, not a checkout to open on its own", async () => {
+    expect(await ensurePrivateApplied("https://a", "k", body, fetchReturning(200, { url: "https://checkout.stripe.com/pay/cs_1" }))).toEqual({
+      url: "https://checkout.stripe.com/pay/cs_1",
+    });
+  });
+
+  test("a network error never throws — error", async () => {
+    await expect(ensurePrivateApplied("https://a", "k", body, throwing())).resolves.toBe("error");
   });
 });
 

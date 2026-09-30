@@ -31,7 +31,7 @@ import { runLang, stampedVoice, synthesizeBase64 } from "../export/tts";
 import { joinPath } from "../course/publish";
 import { claimCourse, claimNote, courseClaim, formatPrice, isPayable, nameNote, normalizeName, registerName, startNamePayment } from "../names";
 import { apiBase, DEFAULT_ENROLL_API } from "../learn";
-import { claimFile, quotePrivate, registerItem, registryNote, verifyClaim } from "../registry";
+import { claimFile, ensurePrivateApplied, quotePrivate, registerItem, registryNote, verifyClaim } from "../registry";
 import { CreditError, serverSynthesize } from "../credit";
 import { getToken } from "../account";
 import { courseLockedInRepo, hasBuiltLecture, privateLectureCount, publishPrivacy } from "../private-doc";
@@ -67,7 +67,7 @@ import { appendLog, getGithubToken, markDrawingsPrivate, getTtsKey, loadCourses,
 import { SPEC_VERSION } from "../spec/schema";
 import { h } from "./dom";
 import { createModal } from "./modal";
-import { openShare, type ShareDeps } from "./share";
+import { openShare, payListedFields, type ShareDeps } from "./share";
 
 export function lectureRowLabel(lecture: CourseLecture): string {
   const status = lecture.status;
@@ -1146,7 +1146,8 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       if (isPrivate) {
         // Predicted exactly as buildPublishPlan mints it (a recorded slug,
         // else the title's) — checked against the plan after preparePublish.
-        const item = courseKeyFor(repo, joinPath(settings.coursesDir, course.context.slug || slugify(course.title || "course")));
+        const dir = joinPath(settings.coursesDir, course.context.slug || slugify(course.title || "course"));
+        const item = courseKeyFor(repo, dir);
         privateItem = item;
         if (!accountToken) {
           say("Not published: sign in to publish privately (Settings → Publishing).", "error");
@@ -1167,6 +1168,30 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         if (quote.due > 0) {
           say(`Not published: this private course now has ${lectures} lecture(s) — pay the difference (${formatPrice(quote.due, quote.currency)}) under Share → Private first.`, "error");
           return;
+        }
+        // Covered but never flipped private (an earlier unlist-only
+        // purchase): settle it through the same endpoint the Pay button
+        // uses before asking for the key — a due-0 quote answers 409
+        // nothing-due, which is success here.
+        if (!quote.private) {
+          const applied = await ensurePrivateApplied(
+            DEFAULT_ENROLL_API,
+            accountToken,
+            { kind: "course", target: item, title: course.title, page: `https://${repo.owner}.github.io/${repo.repo}/${dir}/`, lectures, ...payListedFields(true, quote.listed ?? true), return: "https://drawcast.app/" },
+            bounded,
+          );
+          if (applied === "key") {
+            say("Not published: sign in again to publish privately (Settings → Publishing).", "error");
+            return;
+          }
+          if (applied === "owner") {
+            say("Not published: this course is registered to another account, so it can't be made private.", "error");
+            return;
+          }
+          if (applied !== "ok") {
+            say("Not published: could not check the private course just now — try again in a moment.", "error");
+            return;
+          }
         }
         const got = await fetchItemKey(DEFAULT_ENROLL_API, accountToken, item, bounded, liveKeyStorage());
         if (!("key" in got)) {

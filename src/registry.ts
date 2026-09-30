@@ -281,6 +281,33 @@ export async function startPrivatePayment(api: string, body: PrivatePayInput, fe
 }
 
 /**
+ * What every lock path (main.ts's privateCastLock, ui/course.ts's publish,
+ * cast.mjs push's lockPrivate) does when a quote comes back due 0 but
+ * `private: false` — an item that once paid ONLY to unlist (paid_lectures
+ * raised, the row never flipped private) and is now being asked for by a
+ * Private tick. POST /register/pay with the SAME body a Pay click would
+ * send settles it: the server, seeing nothing due, flips the row private
+ * for free and answers 409 `{error:"nothing-due"}` — which IS success here,
+ * never an error (startPrivatePayment already tells it apart from 409
+ * `pending`). Only once this resolves "ok" is it safe to go on to fetch the
+ * item key; any other outcome is the caller's to word, using its own
+ * existing refusal text for "owner"/"key"/"error" (and the {url}/"pending"
+ * shapes, which a due-0 quote should never produce, fold into "error" too —
+ * this never opens a browser tab on its own).
+ */
+export type EnsurePrivateOutcome = "ok" | Exclude<PrivatePayOutcome, "nothing-due">;
+
+export async function ensurePrivateApplied(
+  api: string,
+  key: string,
+  body: Omit<PrivatePayInput, "key">,
+  fetchImpl: typeof fetch = fetch,
+): Promise<EnsurePrivateOutcome> {
+  const outcome = await startPrivatePayment(api, { key, ...body }, fetchImpl);
+  return outcome === "nothing-due" ? "ok" : outcome;
+}
+
+/**
  * Stripe's return for a private purchase, read from the URL fragment —
  * `paidInHash`'s sibling for `/register/pay` (names.ts's own is the pretty-
  * link purchase, a different endpoint and a different fragment shape).

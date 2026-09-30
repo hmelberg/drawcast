@@ -53,7 +53,7 @@ import { h } from "./ui/dom";
 import { playerMeta } from "./ui/player-meta";
 import { openCoursePanel } from "./ui/course";
 import { parseCourse, referencedLectureIds } from "./course/document";
-import { fileSafe, openShare } from "./ui/share";
+import { fileSafe, openShare, payListedFields } from "./ui/share";
 import { checkSaveable } from "./ui/save-gate";
 import { authorButtonLabel, authoringMode, promptPlaceholder } from "./ui/author-mode";
 import { openEmbedDialog, openInsertData, openInsertPortrait, unembeddedImages } from "./ui/insert";
@@ -96,7 +96,7 @@ import { isLocked, lockText } from "./crypto/lecture-lock";
 import { publishToServer, serverCastKey, type ServerAccess } from "./publish/server";
 import { formatPrice, isPayable, normalizeName, paidInHash, registerName, startNamePayment } from "./names";
 import { DEFAULT_ENROLL_API } from "./learn";
-import { claimFile, privateInHash, quotePrivate, registerItem, registryNote, verifyClaim } from "./registry";
+import { claimFile, ensurePrivateApplied, privateInHash, quotePrivate, registerItem, registryNote, verifyClaim } from "./registry";
 import { CreditError, creditInHash, serverSynthesize } from "./credit";
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
@@ -5233,6 +5233,21 @@ async function privateCastLock(
   if (quote === "error") return "Not published: could not check the private drawcast just now — try again in a moment.";
   if (quote.owner === "other") return "Not published: this drawcast is registered to another account, so it can't be made private.";
   if (quote.due > 0) return `Not published: private isn't paid for yet — pay ${formatPrice(quote.due, quote.currency)} under Share → Private first.`;
+  // Covered but never flipped private (an earlier unlist-only purchase):
+  // nothing is due, yet the row itself is still public. Settle it through
+  // the same endpoint the Pay button uses before asking for the key — a
+  // due-0 quote answers 409 nothing-due, which is success here.
+  if (!quote.private) {
+    const applied = await ensurePrivateApplied(
+      DEFAULT_ENROLL_API,
+      accountToken,
+      { kind: "cast", target, title: doc.title, lectures: 1, ...payListedFields(true, quote.listed ?? true), return: "https://drawcast.app/" },
+      bounded,
+    );
+    if (applied === "key") return "Not published: sign in again to publish privately (Settings → Publishing).";
+    if (applied === "owner") return "Not published: this drawcast is registered to another account, so it can't be made private.";
+    if (applied !== "ok") return "Not published: could not check the private drawcast just now — try again in a moment.";
+  }
   const got = await fetchItemKey(DEFAULT_ENROLL_API, accountToken, item, bounded, liveKeyStorage());
   if (!("key" in got)) return PRIVATE_KEY_MISSING;
   const key = got.key;

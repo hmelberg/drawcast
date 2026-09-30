@@ -1100,7 +1100,7 @@ const commands = {
       // already-paid course/cast publish in plaintext: the server's own
       // `private` wins over the local flag, and a positive answer is
       // recorded here so the next push does not have to ask again.
-      let quote = null, reg = null, item = null;
+      let quote = null, reg = null, item = null, lectures = 1;
       if (session && registrable(origin)) {
         const { claimFile } = await load("/src/registry.ts");
         claim = await claimFile(session.api, session.key, joinRepo(origin.owner, origin.repo), boundedFetch());
@@ -1109,7 +1109,7 @@ const commands = {
         const courseText = origin.kind === "course" ? readFileSync(resolve(wd, "course.md"), "utf8") : undefined;
         reg = registerFor(origin, lib, courseText);
         item = privateItemFor(origin, reg);
-        const lectures = origin.kind === "course" ? Math.max(1, reg.lectures.length) : 1;
+        lectures = origin.kind === "course" ? Math.max(1, reg.lectures.length) : 1;
         const { quotePrivate } = await load("/src/registry.ts");
         quote = await quotePrivate(session.api, { key: session.key, kind: origin.kind, target: reg.target, lectures, private: true }, boundedFetch());
         if (typeof quote === "object" && quote.private === true && !origin.private) {
@@ -1136,6 +1136,21 @@ const commands = {
       // write behind.
       const lockPrivate = async (planFiles, lecturePaths) => {
         if (typeof quote !== "object" || quote.owner === "other" || quote.due > 0) throw new Error(privateQuoteAdvice(quote, work));
+        // Covered but never flipped private (an earlier unlist-only
+        // purchase): settle it through the same endpoint the Pay button
+        // uses before asking for the key — a due-0 quote answers 409
+        // nothing-due, which is success here.
+        if (!quote.private) {
+          const { ensurePrivateApplied } = await load("/src/registry.ts");
+          const { payListedFields } = await load("/src/ui/share.ts");
+          const applied = await ensurePrivateApplied(
+            session.api,
+            session.key,
+            { kind: origin.kind, target: reg.target, title: reg.title, page: reg.page, lectures, ...payListedFields(true, quote.listed ?? true), return: "https://drawcast.app/" },
+            boundedFetch(),
+          );
+          if (applied !== "ok") throw new Error(privatePayAdvice(applied));
+        }
         const { fetchItemKey } = await load("/src/item-key.ts");
         const got = await fetchItemKey(session.api, session.key, item, boundedFetch(), null);
         if (!("key" in got)) throw new Error("Not pushed: the private key isn't available — is private paid for, and are you signed in as the owner?");
