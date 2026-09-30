@@ -604,7 +604,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // bullet says "the next mark of the same kind" glides, not "the next
 // gesture" — a different kind on the same picture starts fresh. Prompt only:
 // +14. 369482 -> 369496.
-const BASELINE_SYSTEM_CHARS = 369496;
+// Re-pinned UP 2026-09-30 (picture mapping, delivery 3): the schema's
+// `regions` grew the auto forms ("auto" / {auto: {detail, kinds, find}}),
+// +558 on the schema and so on the prompt; and rule 7 now says the app maps a
+// picture URL in the request and the compiler uses the listed part names
+// (regions: "auto", boxes filled in), +131. 369496 -> 370185.
+const BASELINE_SYSTEM_CHARS = 370185;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -654,7 +659,8 @@ const BASELINE_SYSTEM_CHARS = 369496;
 // Merged 2026-09-29 (corner list + live math together): measured 95054.
 // Re-pinned UP 2026-09-30 (picture regions, delivery 1): +705, see the system note above. Measured 95759.
 // Re-pinned UP 2026-09-30 (picture marks): `effect`, `lift`, gesture arrow/glow. +538, see the system note. Measured 96297.
-const BASELINE_SCHEMA_CHARS = 96297;
+// Re-pinned UP 2026-09-30 (picture mapping, delivery 3): regions accepts "auto" and {auto: {detail, kinds, find}}. +558. Measured 96855.
+const BASELINE_SCHEMA_CHARS = 96855;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in
