@@ -463,6 +463,12 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
       const b = elementBBoxes(layoutFor(params, true, undefined, overrides), measure);
       return (id) => b.get(id) ?? null;
     },
+    // `{data: [x, y]}` after an animate: the axes as they then stand (the
+    // same cached boundary layout bboxesFor just made).
+    dataToLogicalFor: (params, overrides) => {
+      const l = layoutFor(params, true, undefined, overrides);
+      return l.frame ? domainMapping(l.frame, l.fit).toLogical : null;
+    },
     // trail on animate samples 61 of these per sweep: uncached, or the
     // boundary cache would hoard them.
     anchorsAt: (params, overrides) => {

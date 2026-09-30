@@ -102,6 +102,40 @@ describe("a verb's point in data units", () => {
   });
 });
 
+// 2026-09-30 test runs: after `animate {y_max: 1.5 → 2.9}` on pk_curve, a
+// `point` at {data: [48, 0.67]} still mapped y through the STARTING y_max,
+// and an author hand-shifted the point to 0.35 to land on 0.67.
+describe("{data} follows a template's animated axes", () => {
+  test("pk_curve: point.at and camera after animate y_max", async () => {
+    await ensureEnabledPacks(["medicine"] as never);
+    const base = { template: "pk_curve", params: { route: "iv", half_life: 6, t_max: 48, y_max: 1.5 }, elements: [] };
+    const spec = {
+      ...base,
+      commands: [
+        { point: { at: { data: [24, 0.5] } } },
+        { animate: { y_max: 3 }, duration: 1 },
+        { point: { at: { data: [24, 0.5] } } },
+        { camera: { center: { data: [24, 0.5] }, zoom: 2 } },
+      ],
+    } as unknown as Spec;
+    const l = layoutSpec(spec, heuristicMeasure);
+    const at = (params: Record<string, number>) => layoutSpec({ ...spec, params: { ...base.params, ...params } } as Spec, heuristicMeasure);
+    const p = planCommands(spec.commands as never, l.order, {
+      animateBase: base.params,
+      bboxesFor: (params) => { const b = elementBBoxes(at(params), heuristicMeasure); return (id) => b.get(id) ?? null; },
+      dataToLogicalFor: (params) => { const f = at(params); return f.frame ? domainMapping(f.frame, f.fit).toLogical : null; },
+      ...planOptionsFor(spec, l),
+    });
+    const points = p.steps.filter((s) => s.kind === "point") as { x: number; y: number }[];
+    // pk_curve's plot: x 110–920 over 0–48 h, y 130–630 over 0–y_max.
+    expect(points[0].x).toBeCloseTo(110 + 0.5 * 810, 0);
+    expect(points[0].y).toBeCloseTo(130 + (0.5 / 1.5) * 500, 0);
+    expect(points[1].y).toBeCloseTo(130 + (0.5 / 3) * 500, 0);
+    const cam = p.states[p.states.length - 1].camera!;
+    expect(cam.y + cam.h / 2).toBeCloseTo(130 + (0.5 / 3) * 500, 0);
+  });
+});
+
 describe("a template without data axes", () => {
   test("{data} there is warned about", async () => {
     await ensureEnabledPacks(["biology"] as never);
