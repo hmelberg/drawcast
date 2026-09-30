@@ -24,6 +24,7 @@ import { apiSchema, CODE_PROMPT_SOURCE, SOUND_PROMPT_SOURCE, fewshotsText, needs
 import { catalogParts } from "../scenes/catalog";
 import { ensureEnginesForSpecs, ensureEnginesForTemplate } from "../scenes/engines";
 import { makeBrowserMeasure } from "../render/svg-backend";
+import { autoImages, fillMappedRegions, mapNote, type MapOptions, type PictureMap } from "./picture-map";
 
 /**
  * The notation card: how to read and write a drawcast document, and the
@@ -111,6 +112,18 @@ export interface ReviseConfig {
   signal?: AbortSignal;
   /** Called as the model rewrites the document, once per streamed delta. */
   onProgress?: (progress: { label: ReviseRound["label"]; round: number; text: string }) => void;
+  /**
+   * Picture mapping (spec 2026-09-30-picture-regions §14), injected by the
+   * app (picture-map.ts mapPictures with its deps bound): the pictures whose
+   * image says `regions: auto` are mapped before the call, their part names
+   * ride the revise message, and the boxes of the names the reply uses are
+   * filled in before validation. Absent means no call; a document with no
+   * `regions: auto` never calls it.
+   */
+  mapAuto?: (
+    pictures: { picture: string; opts: MapOptions }[],
+    signal?: AbortSignal,
+  ) => Promise<{ maps: Map<string, PictureMap>; warnings: string[] }>;
 }
 
 export interface ReviseRound {
@@ -234,7 +247,27 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
   // suffix as just the newline after {{EXEMPLARS}}, which the API rejects.
   const system: Anthropic.TextBlockParam[] = systemBlocks(blocks.prefix, suffixText);
 
-  const messages: Anthropic.MessageParam[] = [{ role: "user", content: buildReviseUser(docText, instruction) }];
+  // ---- picture mapping (§14): regions: auto in the document ----
+  const mapWarnings: string[] = [];
+  let maps: Map<string, PictureMap> | null = null;
+  const wanted = cfg.mapAuto ? specs.flatMap((s) => (Array.isArray(s.elements) ? autoImages(s) : [])) : [];
+  if (cfg.mapAuto && wanted.length > 0) {
+    try {
+      const out = await cfg.mapAuto(wanted.map(({ picture, opts }) => ({ picture, opts })), cfg.signal);
+      mapWarnings.push(...out.warnings);
+      if (out.maps.size > 0) maps = out.maps;
+    } catch (err) {
+      if (cfg.signal?.aborted) throw err;
+      mapWarnings.push(`Could not map the pictures (${describeApiError(err)}); regions: auto is left as it is.`);
+    }
+  }
+  const mapNoteText = maps
+    ? "These pictures have been mapped — use these part names; write regions: auto as it is, the app fills the boxes.\n" +
+      mapNote([...maps].map(([url, map]) => ({ url: url.startsWith("data:") ? "(embedded picture)" : url, map })))
+    : "";
+  // ---- end picture mapping ----
+
+  const messages: Anthropic.MessageParam[] = [{ role: "user", content: buildReviseUser(docText, instruction) + (mapNoteText ? "\n\n" + mapNoteText : "") }];
   const rounds: ReviseRound[] = [];
   const maxRepairs = cfg.maxRepairs ?? 2;
   let repairsUsed = 0;
@@ -267,6 +300,14 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
       if (!parsed.playlist) {
         errors = [parsed.error!];
       } else {
+        // The mapped boxes of the names this reply uses, before it is judged.
+        if (maps) {
+          const items = itemsOf(parsed.playlist);
+          for (const item of items) {
+            const where = items.length > 1 ? `item ${item.index + 1}: ` : "";
+            errors.push(...fillMappedRegions(item.spec, maps).map((e) => where + e));
+          }
+        }
         // Engines must be loaded before layout — layoutSpec reads them synchronously.
         for (const id of templatesIn(parsed.playlist)) {
           await ensureEnginesForTemplate(id).catch((err) => {
@@ -310,12 +351,13 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
     // round, since hoisting happens once up front) and, separately, flagged
     // by the restore if its stash went missing — no reason to say either
     // thing twice (design §5.1).
-    const notes = [...new Set([...noteForDescribed(hoisted.described), ...(best?.playlist.warnings ?? [])])];
+    if (best && maps) best = { playlist: best.playlist, text: formatPlaylist(best.playlist, "script") };
+    const notes = [...new Set([...noteForDescribed(hoisted.described), ...mapWarnings, ...(best?.playlist.warnings ?? [])])];
     return { playlist: best?.playlist ?? null, text: best?.text ?? null, rounds, error: describeApiError(err), notes };
   }
 
   const promptFilled = best ? preserveFoundingPrompt(best.playlist, parsedNow.playlist) : false;
-  if (best && (hoisted.blobs.size > 0 || promptFilled)) {
+  if (best && (hoisted.blobs.size > 0 || promptFilled || maps)) {
     // The winner's `text` is the model's raw reply, which still shows
     // placeholders and descriptors; the playlist has been restored in the loop
     // above, so the document is re-printed from it.
@@ -329,7 +371,7 @@ export async function reviseDocument(docText: string, instruction: string, cfg: 
   // playlist.ts that were equally silent until now. Showing those too is the
   // point, not a side effect — though it does mean a revise can print a line
   // it never printed before.
-  const notes = [...new Set([...noteForDescribed(hoisted.described), ...(best?.playlist.warnings ?? [])])];
+  const notes = [...new Set([...noteForDescribed(hoisted.described), ...mapWarnings, ...(best?.playlist.warnings ?? [])])];
   return {
     playlist: best?.playlist ?? null,
     text: best?.text ?? null,

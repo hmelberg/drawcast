@@ -16,7 +16,7 @@ import type { GenerateConfig, PromptVariant } from "../llm/compile";
 import { callLedger, costSummary, formatCost, MODELS, resetCallLedger } from "../llm/client";
 import { estimateCourseUsd, formatCourseEstimate, learnRate, rateKey } from "../llm/cost-estimate";
 import type { Exemplar } from "../llm/prompt";
-import { reviseDocument } from "../llm/revise";
+import { reviseDocument, type ReviseConfig } from "../llm/revise";
 import { withNotes } from "../llm/hoist";
 import { generationGate } from "../llm/limit";
 import { createOnDemandRun, onDemandSummary } from "../llm/on-demand-run";
@@ -106,6 +106,10 @@ export interface CoursePanelDeps extends CourseShareDeps {
   bundledExemplars: () => Exemplar[];
   /** The template router (llm/router.ts), as the editor wires it. */
   route?: GenerateConfig["route"];
+  /** Picture mapping (llm/picture-map.ts), one mapper per run so lectures share a picture's call. */
+  mapPictures?: () => GenerateConfig["mapPictures"];
+  /** Picture mapping for a lecture's revise (regions: auto in the document). */
+  mapAuto?: () => ReviseConfig["mapAuto"];
   /** Keeps a template authored on demand during a course (My templates + panels). */
   onTemplateAuthored?: GenerateConfig["onTemplateAuthored"];
   /** The look pass's eyes (export/beat-sheet.ts); used when Settings.lookPass is on, as for a single figure. */
@@ -465,6 +469,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
           model: deps.model(),
           variant: deps.variant(),
           styleText: deps.styleText(),
+          mapAuto: deps.mapAuto?.(),
           signal: controller.signal,
         }),
       );
@@ -516,6 +521,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       // Which storyboard prompt (and per-part staging) the lectures are planned with — v1 unless the owner chose v2.
       storyboardVersion: deps.settings.storyboardVersion,
       route: deps.route,
+      mapPictures: deps.mapPictures?.(),
       templatesOnDemand: deps.settings.templatesOnDemand,
       onTemplateAuthored: deps.onTemplateAuthored,
       // The look pass, under the same setting as a single figure (Hans

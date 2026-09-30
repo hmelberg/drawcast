@@ -21,7 +21,8 @@ import { createOnDemandRun, onDemandSummary } from "./llm/on-demand-run";
 import { missingPlaceholders } from "./llm/prompt";
 import { usableExemplars } from "./llm/exemplars";
 import { buildBrief, parseTags, suggestTags, TAGS, type ParsedTags } from "./llm/tags";
-import { LAB_MODELS, MODELS, callLedger, costSummary, describeApiError, formatCost, resetCallLedger } from "./llm/client";
+import { LAB_MODELS, MODELS, callLedger, costSummary, describeApiError, formatCost, makeClient, planningModelFor, resetCallLedger } from "./llm/client";
+import { autoImages, makeMapAuto, makeMapPictures, mapPicture, writeFullMaps, type PictureMap } from "./llm/picture-map";
 import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/author";
 import { reviseDocument, type ReviseOutcome } from "./llm/revise";
 import { withNotes } from "./llm/hoist";
@@ -3512,6 +3513,7 @@ async function generate(): Promise<void> {
       priorityIds,
       route: (req, signal) => routeTemplates(req, { apiKey, signal }),
       fetchSeed,
+      mapPictures: makeMapPictures(pictureDeps(apiKey)),
       signal: controller.signal,
       onPhase: (phase) => {
         aiPhase = phase;
@@ -3558,10 +3560,13 @@ async function generate(): Promise<void> {
     const seedSuffix = outcome.seeded ? ` · seeded from ${seededSet ?? "icon"}` : "";
     setDoc(
       { id: null, driveFileId: null, sourcePath: null, title: outcome.spec.title ?? parsed.clean, prompt: rawRequest, playlist },
-      (outcome.error ? `Partial: ${outcome.error}` : `Generated in ${outcome.rounds.length} round${outcome.rounds.length === 1 ? "" : "s"}.`) +
-        routeText(outcome.spec.template, outcome.route) +
-        seedSuffix +
-        costText(),
+      withNotes(
+        (outcome.error ? `Partial: ${outcome.error}` : `Generated in ${outcome.rounds.length} round${outcome.rounds.length === 1 ? "" : "s"}.`) +
+          routeText(outcome.spec.template, outcome.route) +
+          seedSuffix +
+          costText(),
+        outcome.warnings ?? [],
+      ),
       { label: rawRequest, kind: "generate" },
     );
     autosave();
@@ -3632,6 +3637,7 @@ async function authorTemplateAndRedraw(rawRequest: string, request: string, free
           brief,
           forcedTemplate,
           priorityIds,
+          mapPictures: makeMapPictures(pictureDeps(apiKey)),
           signal: controller.signal,
           onProgress: ({ label, round, text }) => {
             aiChars = text.length;
@@ -3675,6 +3681,11 @@ async function authorTemplateAndRedraw(rawRequest: string, request: string, free
   }
 }
 
+/** Picture mapping (llm/picture-map.ts, spec 2026-09-30-picture-regions §14): the planning model's eye, on the author's key — authoring only. */
+function pictureDeps(apiKey: string) {
+  return { client: makeClient(apiKey), model: planningModelFor(settings.model) };
+}
+
 async function revise(): Promise<void> {
   const instruction = promptEl.value.trim();
   if (!instruction) {
@@ -3701,6 +3712,7 @@ async function revise(): Promise<void> {
       variant: currentVariant(),
       styleText: activeStyleText(),
       priorityIds: settings.priorityPacks.flatMap((p) => packTemplateIds(p)),
+      mapAuto: makeMapAuto(pictureDeps(apiKey)),
       signal: controller.signal,
       onProgress: ({ label, round, text }) => {
         aiChars = text.length;
@@ -3801,6 +3813,7 @@ async function generateMulti(
       forcedTemplate,
       priorityIds,
       route: (req, sig) => routeTemplates(req, { apiKey, signal: sig }),
+      mapPictures: makeMapPictures(pictureDeps(apiKey)),
       templatesOnDemand: settings.templatesOnDemand,
       onDemandRun,
       onTemplateAuthored: keepAuthoredTemplate,
@@ -4020,8 +4033,69 @@ function ensureRendered(andPlay = false): boolean {
   void present(andPlay);
   autosave();
   markRendered(specArea.value);
+  mapAutoInEditor(playlist);
   return true;
 }
+
+// ---- regions: auto written by hand (spec 2026-09-30-picture-regions §14,
+// trigger 3). The drawing goes ahead with the picture unmapped; the parts are
+// found in the background on the author's key, and the WHOLE map (sorted by
+// name) is written into the document, which then draws again. Only the
+// current document's items; nothing without a key (said once); a picture
+// whose mapping failed is not retried this session.
+let autoNoKeySaid = false;
+const autoInFlight = new Set<string>();
+const autoFailed = new Set<string>();
+function mapAutoInEditor(playlist: Playlist): void {
+  const wanted = itemsOf(playlist)
+    .flatMap((it) => (Array.isArray(it.spec.elements) ? autoImages(it.spec) : []))
+    .filter((w) => !autoInFlight.has(w.picture) && !autoFailed.has(w.picture));
+  if (wanted.length === 0) return;
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    if (!autoNoKeySaid) setStatus("Parts are found while authoring with a key — regions: auto left as it is.", "info");
+    autoNoKeySaid = true;
+    return;
+  }
+  void (async () => {
+    const deps = pictureDeps(apiKey);
+    const maps = new Map<string, PictureMap>();
+    const failed: string[] = [];
+    const seen = new Set<string>();
+    for (const w of wanted) {
+      if (seen.has(w.picture)) continue;
+      seen.add(w.picture);
+      autoInFlight.add(w.picture);
+      setStatus(`Finding the parts of ${w.id}…`, "info");
+      try {
+        const map = await mapPicture(w.picture, w.opts, deps).catch(() => null);
+        if (map && map.regions.length > 0) maps.set(w.picture, map);
+        else {
+          autoFailed.add(w.picture);
+          failed.push(w.id);
+        }
+      } finally {
+        autoInFlight.delete(w.picture);
+      }
+    }
+    const lines = failed.map((id) => `Could not find the parts of ${id} — regions: auto left as it is.`);
+    if (maps.size > 0) {
+      // Fresh text, not the playlist this started from: the author may have
+      // typed meanwhile. Never over an AI call's stream or an older version.
+      const now = canRender(!atNewest(stack), aiBusy) ? readPlaylistText(specArea.value) : null;
+      const written = now ? itemsOf(now).flatMap((it) => writeFullMaps(it.spec, maps)) : [];
+      if (now && written.length > 0) {
+        applyPlaylist(now);
+        for (const x of written) {
+          lines.unshift(`Found ${x.count} part${x.count === 1 ? "" : "s"} of ${x.id} — written into its regions.`);
+          if (x.notFound.length) lines.push(`not found in ${x.id}: ${x.notFound.join("; ")}`);
+        }
+      } else if (!now) lines.push("The parts were found, but the document is busy — draw again to write them in.");
+    }
+    if (lines.length) setStatus(lines.join(" "), failed.length ? "error" : "ok");
+  })();
+}
+// ---- end regions: auto ----
 
 /**
  * The shared refusal path for every Save destination (disk / Drive /
@@ -4199,6 +4273,8 @@ function openCourse(id?: string, opts: { fresh?: boolean } = {}): void {
     exemplars: () => usableExemplars(loadExemplars(), isReadyTemplate),
     bundledExemplars: () => bundledExemplarPool(),
     route: (req, sig) => routeTemplates(req, { apiKey: getApiKey(), signal: sig }),
+    mapPictures: () => makeMapPictures(pictureDeps(getApiKey())),
+    mapAuto: () => makeMapAuto(pictureDeps(getApiKey())),
     onTemplateAuthored: keepAuthoredTemplate,
     look: beatSheets,
     setStatus,
