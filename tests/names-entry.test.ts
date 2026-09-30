@@ -6,7 +6,7 @@ const viewer = readFileSync(new URL("../src/viewer.ts", import.meta.url), "utf8"
 
 describe("entry routes names", () => {
   test("gh/gdoc/gdrive/anvil first, then names, then the app", () => {
-    const gh = entry.indexOf("(gdoc|gh|gdrive|anvil)[=-]");
+    const gh = entry.indexOf("(gdoc|gh|gdrive|anvil|cast)[=-]");
     const named = entry.indexOf("isNameHash(hash)");
     const app = entry.indexOf('import("./main")');
     expect(gh).toBeGreaterThan(0);
@@ -20,7 +20,7 @@ describe("entry routes names", () => {
     // the name resolver has never seen.
     const redeem = entry.indexOf("await redeemFromAddress(location.hash, location.href,");
     const read = entry.indexOf("const hash = location.hash");
-    const route = entry.indexOf("(gdoc|gh|gdrive|anvil)[=-]");
+    const route = entry.indexOf("(gdoc|gh|gdrive|anvil|cast)[=-]");
     expect(redeem).toBeGreaterThan(0);
     expect(read).toBeGreaterThan(redeem);
     expect(route).toBeGreaterThan(read);

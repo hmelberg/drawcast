@@ -12,13 +12,9 @@ import type Anthropic from "@anthropic-ai/sdk";
 import reviseMd from "./prompts/revise-v1.md?raw";
 import { itemsOf, parsePlaylistText, type Playlist, formatPlaylist } from "../playlist/playlist";
 import { buildSystemBlocks, stripFence, styleBlock, systemBlocks, wantsCode, wantsSound } from "./prompt";
-import { validateSpec } from "../spec/schema";
 import { hoistPortraitStrokes, noteForDescribed, restorePortraitStrokes } from "./hoist";
-import { layoutSpec } from "../layout/layout";
-import { expandSpec } from "../spec/expand";
-import { heuristicMeasure, type MeasureFn } from "../layout/measure";
-import { lintCommands, questionNames, lintReportText, type LintIssue } from "../lint/lint";
-import { questionCount } from "../playlist/carry";
+import { lintReportText, type LintIssue } from "../lint/lint";
+import { checkPlaylist } from "../lint/check-playlist";
 import { callForText, describeApiError, makeClient, type Effort } from "./client";
 import { apiSchema, CODE_PROMPT_SOURCE, SOUND_PROMPT_SOURCE, fewshotsText, needsRepair, repairModelFor, type PromptVariant } from "./compile";
 import { catalogParts } from "../scenes/catalog";
@@ -62,39 +58,9 @@ export function parseReviseReply(text: string): { playlist: Playlist | null; err
   }
 }
 
-/**
- * Validate and lint EVERY item. Errors are prefixed with the item number only
- * when there is more than one — a single-spec document should not be told about
- * "item 1".
- */
-export function checkPlaylist(playlist: Playlist, measure: MeasureFn = heuristicMeasure): { errors: string[]; lintIssues: LintIssue[] } {
-  const items = itemsOf(playlist);
-  if (items.length === 0) return { errors: ["the document has no drawable items"], lintIssues: [] };
-  const errors: string[] = [];
-  const lintIssues: LintIssue[] = [];
-  // Stored answers survive the cut between items (playlist/carry.ts), so a
-  // {name} in item 3 that item 1 stored is not "used before stored".
-  const known = new Set<string>();
-  let offset = 0;
-  for (const item of items) {
-    const where = items.length > 1 ? `item ${item.index + 1}: ` : "";
-    const v = validateSpec(item.spec);
-    if (!v.ok) {
-      errors.push(...v.errors.map((e) => `${where}${e}`));
-      continue;
-    }
-    try {
-      const expanded = expandSpec(item.spec);
-      lintIssues.push(...layoutSpec(expanded, measure).issues);
-      lintIssues.push(...lintCommands(expanded, { knownVars: known, questionOffset: offset }));
-      for (const q of questionNames(item.spec)) if (q.store) known.add(q.store.toLowerCase());
-      offset += questionCount(item.spec);
-    } catch (err) {
-      errors.push(`${where}layout failed: ${(err as Error).message}`);
-    }
-  }
-  return { errors, lintIssues };
-}
+// checkPlaylist moved to src/lint/check-playlist.ts (the viewer's Problems box
+// uses it too, without this module's SDK imports); re-exported for callers.
+export { checkPlaylist };
 
 export interface ReviseConfig {
   apiKey: string;

@@ -6,8 +6,9 @@
 // link played there puts a stranger's cast one "Run it" away from all of
 // them. With VITE_VIEW_ORIGIN set at build time, the same build serves a
 // second origin that plays public casts and holds none of that:
-//   - on the main origin, a public share link (#gh=, #gdoc=, #gdrive=, and a
-//     #name that resolves to one) goes to the view origin;
+//   - on the main origin, a public share link (#gh=, #gdoc=, #gdrive=, a
+//     #cast= that carries the cast in the link itself, and a #name that
+//     resolves to one) goes to the view origin;
 //   - on the view origin, anything else — the editor, a sign-in coming back,
 //     a private server cast (#anvil=), a course door, a join link, a cast
 //     that reports learner progress — goes back to the main origin, since
@@ -63,7 +64,10 @@ export function onViewOrigin(origin: string = here(), cfg: OriginConfig = ORIGIN
   return cfg.view !== "" && origin === cfg.view;
 }
 
-const PUBLIC_SOURCE_RE = /[#&](gdoc|gh|gdrive)[=-]/;
+/** A stranger's public cast. `cast` carries the cast inside the link
+ *  (links/inline-cast.ts) — anyone can write one, so it is treated exactly
+ *  like the fetched sources. */
+const PUBLIC_SOURCE_RE = /[#&](gdoc|gh|gdrive|cast)[=-]/;
 const ANVIL_RE = /[#&]anvil[=-]/;
 /** Exported: viewer.ts's runNamed tests the same hash for the same reason
  *  (the course page's own Join link, or a copied one) — one pattern. */
@@ -73,6 +77,8 @@ const STAY_RE = /[#&]main(?:&|$)/;
 const REMIX_RE = /^#remix&/;
 /** The public catalogue (entry.ts routes it before any name): no account. */
 const BROWSE_RE = /^#browse(?:&|$)/;
+/** The paste page (paste.ts): a textarea that opens a #cast= link. No account. */
+const PASTE_RE = /^#paste(?:&|$)/;
 
 /** The hash with the main-origin marker added once. */
 export function withStayMarker(hash: string): string {
@@ -90,7 +96,7 @@ export function bootRoute(loc: { origin: string; hash: string }, cfg: OriginConf
   if (!cfg.view) return { go: null };
   const { hash } = loc;
   if (loc.origin === cfg.view) {
-    const playable = (PUBLIC_SOURCE_RE.test(hash) || isNameHash(hash) || BROWSE_RE.test(hash)) && !REMIX_RE.test(hash);
+    const playable = (PUBLIC_SOURCE_RE.test(hash) || isNameHash(hash) || BROWSE_RE.test(hash) || PASTE_RE.test(hash)) && !REMIX_RE.test(hash);
     const needsAccount = ANVIL_RE.test(hash) || JOIN_RE.test(hash) || TOKEN_RE.test(hash) || STAY_RE.test(hash);
     if (playable && !needsAccount) return { go: null };
     // The editor, a sign-in coming back, a private cast: the main origin.

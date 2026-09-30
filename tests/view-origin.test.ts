@@ -71,6 +71,38 @@ describe("the catalogue", () => {
   });
 });
 
+describe("a cast inside its link (#cast=) is a stranger's public cast", () => {
+  const DATA = "K8ksyUm1UvDPyH3UMLNYISexXOFRwxSF";
+  test("the main origin sends it to the view origin, dash alias and viewer params included", () => {
+    expect(on(MAIN, `#cast=${DATA}`)).toBe(`${VIEW}/#cast=${DATA}`);
+    expect(on(MAIN, `#cast-${DATA}&mode=silent`)).toBe(`${VIEW}/#cast-${DATA}&mode=silent`);
+  });
+  test("the view origin plays it", () => {
+    expect(on(VIEW, `#cast=${DATA}`)).toBeNull();
+    expect(on(VIEW, `#cast=${DATA}&speed=1.5`)).toBeNull();
+  });
+  test("the same markers keep it on main, or hand it back, as for #gh=", () => {
+    expect(on(MAIN, `#cast=${DATA}&main`)).toBeNull();
+    expect(on(MAIN, `#remix&cast=${DATA}`)).toBeNull();
+    expect(on(VIEW, `#remix&cast=${DATA}`)).toBe(`${MAIN}/#remix&cast=${DATA}`);
+    expect(on(VIEW, `#cast=${DATA}&t=once`)).toBe(`${MAIN}/#cast=${DATA}&t=once`);
+  });
+  test("Edit a copy carries the data itself to the editor", () => {
+    expect(remixUrl(`#cast=${DATA}&main&mode=silent`, cfg)).toBe(`${MAIN}/#remix&cast=${DATA}&mode=silent`);
+    expect(remixSource(`#remix&cast=${DATA}`)).toBe(`#cast=${DATA}`);
+  });
+  test("off (no view origin): it boots where it is", () => {
+    expect(bootRoute({ origin: MAIN, hash: `#cast=${DATA}` }, { view: "", main: MAIN }).go).toBeNull();
+  });
+});
+
+describe("the paste page", () => {
+  test("#paste needs no account: it stays on either origin", () => {
+    expect(on(VIEW, "#paste")).toBeNull();
+    expect(on(MAIN, "#paste")).toBeNull();
+  });
+});
+
 describe("after a name resolves", () => {
   test("a public cast goes to the view origin; a course or a server cast stays on main", () => {
     expect(namedRoute({ kind: "cast", target: "o/r/c.yaml" }, "#micro-i", MAIN, cfg)).toBe(`${VIEW}/#micro-i`);

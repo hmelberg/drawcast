@@ -1,6 +1,6 @@
 // Entry router: #gdoc=<google-doc-id>, #gdrive=<google-drive-file-id>,
-// #gh=<owner>/<repo>/<path> or #anvil=<slug> boots the standalone share
-// viewer (a single player, no editor/AI); a bare #<name> (spec §7) resolves
+// #gh=<owner>/<repo>/<path>, #anvil=<slug> or #cast=<data> (the cast inside
+// the link, links/inline-cast.ts) boots the standalone share viewer (a single player, no editor/AI); a bare #<name> (spec §7) resolves
 // the name first and then boots the same viewer; anything else loads the
 // two-mode app. Code-split so shared-link viewers never download the editor
 // or the Anthropic SDK.
@@ -58,7 +58,13 @@ async function boot(): Promise<void> {
     const { runCatalogue } = await import("./catalogue");
     doneBooting();
     await runCatalogue(hash);
-  } else if (!remix && /[#&](gdoc|gh|gdrive|anvil)[=-]/.test(hash)) {
+  } else if (hash === "#paste" || hash.startsWith("#paste&")) {
+    // The paste page (paste.ts): a textarea for a cast an AI wrote, which
+    // opens it as a #cast= link. Like #browse: no editor, AI or account.
+    const { runPaste } = await import("./paste");
+    doneBooting();
+    runPaste();
+  } else if (!remix && /[#&](gdoc|gh|gdrive|anvil|cast)[=-]/.test(hash)) {
     const { parseViewerHash, runViewer, showUnplayable } = await import("./viewer");
     doneBooting();
     const req = parseViewerHash(hash);

@@ -8,6 +8,7 @@
 //   https://…/drawcast/#gdrive=1AbC…xyz
 //   https://…/drawcast/#gh=hmelberg/kurs/courses/causal/did.yaml
 //   https://…/drawcast/#anvil=spanish1/01-intro.yaml
+//   https://…/drawcast/#cast=<raw deflate, base64url> (links/inline-cast.ts)
 
 import { setLinkBase } from "./links/base";
 import { withCourse } from "./links/course";
@@ -34,6 +35,12 @@ import { mountPlaylist, playlistSpeakLines } from "./playlist/session";
 import { appendRecord, localRecordStorage, markSent, readHandIn, writeHandIn, type AnswerRecord } from "./render/record";
 import { bakedAudioFor } from "./playlist/audio";
 import { validateSpec } from "./spec/schema";
+import { decodeCast } from "./links/inline-cast";
+import { unwrapCastText } from "./playlist/cast-file";
+import { checkPlaylistItems } from "./lint/check-playlist";
+import { makeBrowserMeasure } from "./render/svg-backend";
+import { ensureEnginesForSpecs } from "./scenes/engines";
+import { emptyProblems, problemsBox, type CastProblems } from "./ui/problems-box";
 import { getTtsKey, loadSettings, saveSettings } from "./store";
 import { ensurePacksParallel, packsForSpecs, PACK_DEFS } from "./scenes/packs";
 import { isBlockedCastTemplate, registerCastTemplates } from "./scenes/cast-templates";
@@ -64,6 +71,13 @@ export interface ViewerRequest {
    * view counting, learner events and the dashboard take it unchanged.
    */
   anvil?: { cast: string; api: string };
+  /**
+   * The cast carried inside the link itself (#cast=<data>, links/inline-cast.ts):
+   * raw DEFLATE, base64url. A stranger's cast — anyone can write one — so it
+   * gets exactly what a #gh= cast gets: the view origin, the code trust gate;
+   * and never a view count (there is no server identity to count under).
+   */
+  inline?: string;
   style: RenderStyle;
   mode: "narrated" | "silent" | "instant";
   speed: number;
@@ -134,6 +148,8 @@ export function rawUrlFor(gh: GhRef): string {
 const GH_RE = /[#&]gh[=-]([\w.-]+)\/([\w.-]+)\/([^&\s]+)/;
 const GDRIVE_RE = /[#&]gdrive[=-]([A-Za-z0-9_-]{10,})/;
 const ANVIL_RE = /[#&]anvil[=-]([\w.-]+)\/([^&\s]+)/;
+/** base64url, padding tolerated: anything else is a damaged link, reported by decodeCast. */
+const CAST_RE = /[#&]cast[=-]([^&\s]*)/;
 /** Documents only, and never a path that climbs out of the repo. */
 const DOC_PATH_RE = /^(?!.*\.\.)[\w./-]+\.(ya?ml|json|txt)$/;
 /** One plain segment for the server slug — dots inside are fine, `.` and `..`
@@ -161,7 +177,8 @@ export function parseViewerHash(hash: string): ViewerRequest | null {
   const doc = /[#&]gdoc[=-]([A-Za-z0-9_-]{10,})/.exec(hash);
   const drive = GDRIVE_RE.exec(hash);
   const anv = ANVIL_RE.exec(hash);
-  if (!gh && !doc && !drive && !anv) return null;
+  const inline = CAST_RE.exec(hash);
+  if (!gh && !doc && !drive && !anv && !inline) return null;
 
   const params = new URLSearchParams(
     hash
@@ -172,7 +189,8 @@ export function parseViewerHash(hash: string): ViewerRequest | null {
       // Anchored to the segment start: a FILE called anvil-intro.yaml must
       // not be rewritten (the path itself comes from ANVIL_RE, not from here,
       // but the parameters after it should still parse cleanly).
-      .replace(/(^|&)anvil-/, "$1anvil="),
+      .replace(/(^|&)anvil-/, "$1anvil=")
+      .replace(/(^|&)cast-/, "$1cast="),
   );
   const mode = params.get("mode");
   // Legacy draw links used &backend=custom-svg / clean-svg; map them.
@@ -186,6 +204,10 @@ export function parseViewerHash(hash: string): ViewerRequest | null {
     ...(params.has("join") ? { join: params.get("join") ?? "" } : {}),
   };
 
+  // The link's own data wins: it is the cast, whatever else the hash holds.
+  // Left as written — decodeCast says what is wrong with a damaged one, on
+  // the page, rather than this parser refusing it with no reason given.
+  if (inline) return { inline: inline[1], ...common };
   if (anv) {
     const path = decodePath(anv[2]);
     if (path === null || !ANVIL_SLUG_RE.test(anv[1]) || !DOC_PATH_RE.test(path)) return null;
@@ -657,6 +679,7 @@ function shareButton(): HTMLButtonElement {
  * server cast is private to an account and has no public copy: null.
  */
 export async function fetchPublicCastText(req: ViewerRequest): Promise<string | null> {
+  if (req.inline !== undefined) return unwrapCastText(await decodeCast(req.inline)).text;
   if (req.gh) return fetchGhText(req.gh);
   if (req.driveId) return fetchGdriveText(req.driveId);
   if (req.docId) return fetchGdocText(req.docId);
@@ -673,7 +696,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     {
       class: "viewer-status",
       role: "status",
-      title: req.anvil ? "From the drawcast server" : req.gh ? "From GitHub" : req.driveId ? "From Google Drive" : "From a Google Doc",
+      title: req.anvil ? "From the drawcast server" : req.inline !== undefined ? "From the link itself" : req.gh ? "From GitHub" : req.driveId ? "From Google Drive" : "From a Google Doc",
     },
     loaderSvg(),
     "Loading…",
@@ -709,10 +732,20 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   const made = h("a", { class: "viewer-made", href: onViewOrigin() ? mainAppUrl() : location.pathname, title: "Open the drawcast app" }, "Made with drawcast");
   const remix = onViewOrigin() && !req.anvil ? h("a", { class: "viewer-made viewer-remix", href: remixUrl(location.hash), title: "Open a copy of this drawcast in the drawcast editor" }, "Edit a copy") : null;
   const meta = playerMeta(viewsEl, noteEl, remix ? h("span", { class: "viewer-made" }, remix, " · ", made) : made);
-  app.append(h("div", { class: "viewer-wrap" }, figureHost, meta.root));
+  // Problems (a cast inside its link only): the person holding the link
+  // usually did not write the cast — an AI did — so what is wrong with it is
+  // shown quietly, ready to hand back (ui/problems-box.ts). Other sources
+  // were published by someone with the editor's own checks.
+  const problems = req.inline !== undefined ? problemsBox() : null;
+  const found: CastProblems = emptyProblems();
+  app.append(h("div", { class: "viewer-wrap" }, figureHost, meta.root, ...(problems ? [problems.root] : [])));
 
   try {
     let audioNote = "";
+    // A cast inside its link may come wrapped the way the local author writes
+    // files ({request, spec}, examples.json's shape): unwrapped the way
+    // ?open= and the frames harness do, its title kept as a fallback.
+    const inline = req.inline !== undefined ? unwrapCastText(await decodeCast(req.inline)) : null;
     let text = req.anvil
       ? await fetchAnvilText(req.anvil, fetch, (why) => {
           audioNote = `Recorded narration unavailable (${why}); narration falls back to a synthesised voice.`;
@@ -721,7 +754,9 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
         ? await fetchGhText(req.gh)
         : req.driveId
           ? await fetchGdriveText(req.driveId)
-          : await fetchGdocText(req.docId!);
+          : inline
+            ? inline.text
+            : await fetchGdocText(req.docId!);
     if (isLocked(text)) {
       // Unlocking needs the account, which lives on the main origin only —
       // hand a locked lecture over there before ever trying, rather than
@@ -749,7 +784,10 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     await setViewerLinkBase(req.gh, text);
     // On the view origin, a cast that reports learner progress needs the
     // account, which lives on the main origin only: hand it over there.
-    const forAccount = enrollRoute(playlist.meta.enroll, DEFAULT_ENROLL_API, location.hash);
+    // Never for a cast inside its link: it has no cast key to report under,
+    // so the hand-back would only move a stranger's cast onto the origin
+    // that holds the account, for nothing.
+    const forAccount = inline ? null : enrollRoute(playlist.meta.enroll, DEFAULT_ENROLL_API, location.hash);
     if (forAccount) {
       location.replace(forAccount);
       return;
@@ -775,6 +813,32 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     for (const item of items) registerCastTemplates(item.spec);
     const needPacks = packsForSpecs(items.map((i) => i.spec), (id) => scenes[id] !== undefined);
     await ensurePacksParallel(needPacks ?? Object.keys(PACK_DEFS));
+    if (problems) {
+      found.warnings = [...playlist.warnings];
+      found.items = items.length;
+      // Every validation error at once, for the AI — the page itself still
+      // stops at the first one, below.
+      const invalid = items.flatMap((item) => {
+        const v = validateSpec(item.spec);
+        return v.ok ? [] : v.errors.map((e) => (items.length > 1 ? `item ${item.index + 1}: ${e}` : e));
+      });
+      if (invalid.length) {
+        found.errors = invalid;
+        problems.show(found);
+      } else {
+        // Lint needs the engines (layout reads them synchronously), which the
+        // first mount loads anyway: never awaited, so it never delays a line.
+        void ensureEnginesForSpecs(items.map((i) => i.spec))
+          .catch(() => undefined)
+          .then(() => {
+            const checked = checkPlaylistItems(playlist, makeBrowserMeasure());
+            found.errors = checked.errors;
+            found.lint = checked.lintIssues;
+            problems.show(found);
+          })
+          .catch(() => undefined);
+      }
+    }
     for (const item of items) {
       const validation = validateSpec(item.spec);
       if (!validation.ok) {
@@ -792,7 +856,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     // An author's own poster: the picture for a cast with no poster file
     // beside it (a server cast, one published before posters).
     if (playlist.meta.poster && !poster.classList.contains("ready")) poster.src = playlist.meta.poster;
-    const title = playlist.meta.title ?? items[0].spec.title;
+    const title = playlist.meta.title ?? items[0].spec.title ?? inline?.title;
     if (title) {
       meta.setTitle(title);
       document.title = `${title} — drawcast`;
@@ -971,7 +1035,9 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
         // published cast is keyed by its path, anything else by its hash.
         // It is also the outbox: the entry is written first, and stamped
         // sent only when the server answers ok (course-progress §3).
-        const recordKey = castKey ?? `hash:${location.hash}`;
+        // A cast inside its link is keyed by a digest of its data, not by a
+        // hash that can run to tens of kilobytes.
+        const recordKey = castKey ?? (req.inline !== undefined ? `cast:${shortDigest(req.inline)}` : `hash:${location.hash}`);
         const entry: AnswerRecord = { item: index, step: a.index, id: a.id, question: a.question, given: a.given, expected: a.expected, correct: a.correct, ...secs, at: new Date().toISOString() };
         const kept = item.spec.record !== false && appendRecord(localRecordStorage(), recordKey, entry);
         if (reporter)
@@ -1028,7 +1094,26 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     poster.remove();
     status.textContent = (err as Error).message;
     status.classList.add("error");
+    if (problems) {
+      // A validation failure has already listed every error; anything else
+      // (a damaged link, text that does not parse, an unknown template) is
+      // the one thing to report.
+      if (found.errors.length === 0) found.fatal = (err as Error).message;
+      problems.show(found);
+      // The whole list is right below; the figure only needs to say so.
+      status.textContent = "This drawcast cannot play yet — see Problems below.";
+    }
   }
+}
+
+/** A short stable digest (FNV-1a, 32 bit) — a storage key, not a security measure. */
+function shortDigest(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36) + text.length.toString(36);
 }
 
 /** The pen-stroke loader — the same markup as index.html's, which shows

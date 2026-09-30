@@ -31,13 +31,14 @@ before any storage is read (`src/entry.ts`):
 
 | Arriving at | Link | Goes to |
 |---|---|---|
-| main | `#gh=`, `#gdoc=`, `#gdrive=` | **view** (same hash) |
+| main | `#gh=`, `#gdoc=`, `#gdrive=`, `#cast=` (the cast inside the link, added 2026-09-30) | **view** (same hash) |
 | main | `#name` → public cast | resolves, then **view** (`namedRoute`) |
 | main | `#name` → course door, `#anvil=` (private server cast), `…&join`, `…&t=` (sign-in), `#remix&…`, anything else | stays |
 | view | public source or `#name` → public cast | stays, plays |
 | view | the editor (no hash), `#remix&…`, `#anvil=`, `…&join`, a course door | **main** |
 | view | a sign-in coming back (`t=`) | **main**, token intact, redeemed there |
-| view | a cast whose `enroll:` reports to drawcast's server | **main** (`enrollRoute`) — learner progress needs the account |
+| view | a cast whose `enroll:` reports to drawcast's server | **main** (`enrollRoute`) — learner progress needs the account; never for `#cast=`, which has no cast key to report under |
+| either | `#paste` (a textarea that opens a `#cast=` link) | stays — it runs nothing and needs no account |
 | any other host (localhost, deploy previews, `*.netlify.app`) | — | untouched |
 
 Every hand-back to the main origin carries `&main`, which the main origin

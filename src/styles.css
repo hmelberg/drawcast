@@ -1457,10 +1457,28 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 .viewer-made:hover { color: var(--ink); }
 .viewer-status { color: var(--muted); margin-bottom: 0.8rem; }
-.viewer-status.error { color: var(--loss); font-weight: 600; }
+.viewer-status.error { color: var(--loss); font-weight: 600; overflow-wrap: anywhere; max-width: 100%; padding: 0 1rem; box-sizing: border-box; }
 /* Comments under the meta row (C1): giscus renders its own iframe; the box
    just gives it the page's measure and some air. */
 .viewer-comments { width: 100%; max-width: 900px; margin: 1.2rem auto 0; }
+/* Problems under a cast that arrived inside its link (#cast=, ui/problems-box.ts):
+   quiet and collapsed — a note to hand back to the AI that wrote it. */
+.cast-problems { margin: 0.6rem 0 0; padding: 0 0.1rem; font-size: var(--text-sm); color: var(--muted); }
+.cast-problems-summary { cursor: pointer; }
+.cast-problems[open] .cast-problems-summary { color: var(--ink); }
+.cast-problems-body { margin-top: 0.4rem; padding: 0.6rem 0.8rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.cast-problems-hint { margin: 0 0 0.4rem; }
+.cast-problems-list { margin: 0 0 0.6rem; padding-left: 1.2rem; color: var(--ink); overflow-wrap: anywhere; }
+.cast-problems-list li { margin: 0.15rem 0; }
+.cast-problems-more { list-style: none; color: var(--muted); }
+.cast-problems-copy { padding: 0.3rem 0.8rem; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); font-size: var(--text-sm); cursor: pointer; }
+.cast-problems-copy:hover { border-color: var(--steel); }
+/* The paste page (#paste, paste.ts): the catalogue's plain page, one textarea. */
+.paste-lead { color: var(--muted); margin: 0 0 1rem; }
+.paste-form { display: flex; flex-direction: column; gap: 0.8rem; }
+.paste-text { width: 100%; box-sizing: border-box; min-height: 22rem; padding: 0.6rem 0.7rem; border: 1px solid var(--line); border-radius: 6px; background: var(--field); color: var(--ink); font-family: var(--mono-font, monospace); font-size: var(--text-sm); resize: vertical; }
+.paste-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.paste-row .cat-status { margin: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
