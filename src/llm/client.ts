@@ -219,9 +219,9 @@ export interface CallOpts {
   jsonReply?: boolean;
   /**
    * callForJson only: a 400 is about THIS request (a picture the API cannot
-   * fetch, say), not the schema or the fallbacks — rethrow it at once and
-   * leave the session's degradation state (brokenSchemas, fallbacksBroken)
-   * alone.
+   * fetch, say), not the schema or the fallbacks — retry once as plain JSON
+   * (no schema, no fallbacks beta), rethrow if that 400s too, and leave the
+   * session's degradation state (brokenSchemas, fallbacksBroken) alone.
    */
   isolate?: boolean;
 }
@@ -425,16 +425,24 @@ export async function callForJson(
   const schemaKey = JSON.stringify(outputSchema);
   const schemaUsable = structuredOutputSupported(outputSchema);
 
+  // An isolated call keeps its own degradation: after one 400 it retries once
+  // as plain JSON (no schema, no fallbacks beta), never touching the session's.
+  let isolatedPlain = false;
   for (let attempt = 0; attempt < 3 && !response; attempt++) {
-    const useSchema = schemaUsable && !brokenSchemas.has(schemaKey) ? outputSchema : null;
-    const useFallbacks = !fallbacksBroken;
+    const useSchema = !isolatedPlain && schemaUsable && !brokenSchemas.has(schemaKey) ? outputSchema : null;
+    const useFallbacks = !isolatedPlain && !fallbacksBroken;
     try {
       response = await createMessage(client, model, system, messages, useSchema, useFallbacks, { ...opts, jsonReply: true });
       // A manual reply was written by hand, not under the grammar — parse it leniently.
       structured = useSchema !== null && !manualTransport;
     } catch (err) {
       lastError = err;
-      if (!(err instanceof Anthropic.BadRequestError) || opts.isolate) throw err;
+      if (!(err instanceof Anthropic.BadRequestError)) throw err;
+      if (opts.isolate) {
+        if (isolatedPlain || (!useSchema && !useFallbacks)) throw err;
+        isolatedPlain = true;
+        continue;
+      }
       const msg = err.message;
       if (useSchema && /output_config|format\.schema|json_schema/i.test(msg)) {
         brokenSchemas.add(schemaKey);
