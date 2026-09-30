@@ -616,8 +616,8 @@ remains for later.
 - **The picture reaches the model by URL when it has one** (the API fetches
   it — so a host that refuses browsers' pixel reads, like microdata.no, can
   still be mapped); an embedded picture goes as base64.
-- **Model:** the planning model (Sonnet on an Opus or Sonnet setting; Haiku is
-  raised to Sonnet) — boxes need a capable eye; one call per picture.
+- **Model:** the planning model (the user's own model; Haiku is raised to
+  Sonnet) — boxes need a capable eye; one cached call per picture.
 - **Cache:** the full map, per picture and options, in the browser's picture
   cache; revising or regenerating the same picture costs nothing.
 - **`find` in delivery 3 is model-found only**; quoted text is matched by the

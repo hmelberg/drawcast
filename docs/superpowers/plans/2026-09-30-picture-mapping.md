@@ -17,7 +17,7 @@
 - Detail caps: few ≤ 8, some ≤ 25, many ≤ 80 regions.
 - Region names: English, `^[a-z][a-z0-9_]*$` (snake_case), ≤ 32 chars, unique (dedupe with `_2`, `_3`).
 - Boxes: fractions of the whole picture, top-left origin, clamped to 0..1 with x+w ≤ 1, y+h ≤ 1, rounded to 3 decimals; a box with w or h < 0.004 is dropped.
-- Model for mapping: `planningModelFor(settings.model)` (Sonnet on Opus/Sonnet; Haiku raised to Sonnet). `maxTokens` 4000. No `effort` on Haiku (not used anyway).
+- Model for mapping: `planningModelFor(settings.model)` (the user's own model; Haiku raised to Sonnet) — one cached call per picture. `maxTokens` 4000. No `effort` on Haiku (not used anyway).
 - Cache key: `m1|<picture key>|<detail>|<sorted kinds>|<sorted find>` where picture key = the https URL, or for a data URI the fingerprint `data:<length>:<first 64>:<last 64>`.
 - The fetch helper: https only; reject hosts that are IP literals in private/loopback/link-local/CGNAT/unique-local ranges and names resolving to them; content-type must start with `image/`; ≤ 8 MB (stream-count and abort); 8 s timeout; per-IP limit 300/hour via `netlify/lib/rate-limit.mts`; CORS allow-list `https://drawcast.app`, `https://hmelberg.github.io`, `http://localhost:5173`, `http://localhost:8888` (+ `Vary: Origin`); `Cache-Control: public, max-age=86400`.
 - Plain behaviour unchanged: a request without a picture URL and a document without `regions: auto` make no new calls.
