@@ -5,6 +5,7 @@ import {
   privateInHash,
   quotePrivate,
   registerItem,
+  registryItemKey,
   registryNote,
   setListing,
   startPrivatePayment,
@@ -240,6 +241,22 @@ describe("quotePrivate", () => {
   test("a network error never throws — error", async () => {
     await expect(quotePrivate("https://a", body, throwing())).resolves.toBe("error");
   });
+
+  // fix round 1: the server is being changed (in parallel) to also answer
+  // the item's actual current `listed` state on this SAME quote — Share
+  // seeds its Listed checkbox from it, the same way it already seeds
+  // Private from `q.private` (probeServerPrivate).
+  test("listed rides through when the server sends it, boolean as-is", async () => {
+    const yes = (await quotePrivate("https://a", body, fetchReturning(200, { due: 0, listed: true }))) as PrivateQuote;
+    expect(yes.listed).toBe(true);
+    const no = (await quotePrivate("https://a", body, fetchReturning(200, { due: 500, listed: false }))) as PrivateQuote;
+    expect(no.listed).toBe(false);
+  });
+
+  test("an older server that omits listed leaves it undefined — quotePrivate never invents a default; the caller decides one", async () => {
+    const out = (await quotePrivate("https://a", body, fetchReturning(200, { due: 0 }))) as PrivateQuote;
+    expect(out.listed).toBeUndefined();
+  });
 });
 
 describe("startPrivatePayment", () => {
@@ -306,17 +323,29 @@ describe("quotePrivate/startPrivatePayment carry the optional listed/private fie
   });
 });
 
-describe("setListing", () => {
-  const item = { kind: "cast" as const, target: "o/r/casts/x.yaml" };
+describe("registryItemKey — the registry's own row identifier (Anvil's registry.item_key)", () => {
+  test("a cast: the target without its .yaml/.yml extension", () => {
+    expect(registryItemKey("cast", "o/r/casts/x.yaml")).toBe("o/r/casts/x");
+    expect(registryItemKey("cast", "o/r/casts/x.yml")).toBe("o/r/casts/x");
+    expect(registryItemKey("cast", "o/r/casts/x.YAML")).toBe("o/r/casts/x");
+  });
 
-  test("POSTs text/plain JSON to /register/listing, bounded, item as {kind, target}", async () => {
+  test("a course: the target verbatim — no extension to strip", () => {
+    expect(registryItemKey("course", "o/r/courses/micro-i")).toBe("o/r/courses/micro-i");
+  });
+});
+
+describe("setListing", () => {
+  const item = "o/r/casts/x";
+
+  test("POSTs text/plain JSON to /register/listing, bounded, item as the registry key STRING", async () => {
     const f = fetchReturning(200, { listed: true });
     const out = await setListing("https://drawcast.anvil.app", "k", item, true, f);
     expect(out).toBe("ok");
     const [url, init] = calls(f)[0];
     expect(url).toBe("https://drawcast.anvil.app/_/api/register/listing");
     expect((init.headers as Record<string, string>)["content-type"]).toBe("text/plain");
-    expect(JSON.parse(init.body as string)).toEqual({ key: "k", item: { kind: "cast", target: "o/r/casts/x.yaml" }, listed: true });
+    expect(JSON.parse(init.body as string)).toEqual({ key: "k", item: "o/r/casts/x", listed: true });
     expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 

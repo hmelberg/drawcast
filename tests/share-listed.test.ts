@@ -34,7 +34,7 @@ describe("listedCb's change handler — setListing IS the check (no separate quo
   });
 
   test("calls setListing with the checkbox's own state — ticking true, unticking false", () => {
-    expect(fn).toContain("const r = await setListing(DEFAULT_ENROLL_API, token, item, listedCb.checked);");
+    expect(fn).toContain("const r = await setListing(DEFAULT_ENROLL_API, token, registryItemKey(item.kind, item.target), listedCb.checked);");
   });
 
   test("every outcome is worded on the hint line, never a throw", () => {
@@ -134,10 +134,32 @@ describe("Private's own quote/pay now carry the current Listed intent too", () =
   });
 });
 
+// fix round 1: the server is being changed (in parallel) to answer `listed`
+// on the SAME quote probeServerPrivate already sends — Listed is seeded
+// from it on open, the same way Private is (serverPrivate above).
+describe("probeServerPrivate seeds Listed from the server's own quote (fix round 1)", () => {
+  const fn = share.slice(share.indexOf("function probeServerPrivate(): void {"), share.indexOf('privateCb.addEventListener("change"'));
+
+  test("reads q.listed, defaulting to true for an older server that omits it", () => {
+    expect(fn).toContain("const serverListed = q.listed ?? true;");
+  });
+
+  test("only touches the checkbox/hint/pay-row when the server disagrees with what's currently shown", () => {
+    expect(fn).toMatch(/if \(serverListed !== listedCb\.checked\) \{\s*listedCb\.checked = serverListed;\s*listedHint\.textContent = "";\s*listedPayRow\.hidden = true;\s*\}/);
+  });
+
+  test("guarded by the same superseded token as Private's own seeding, and never fires a second network call", () => {
+    const afterGuard = fn.slice(fn.indexOf("if (my !== serverProbeToken) return;"));
+    expect(afterGuard).toContain("serverListed");
+    expect(afterGuard).not.toContain("quotePrivate(");
+    expect(afterGuard).not.toContain("setListing(");
+  });
+});
+
 describe("a payment never re-lists on the server — ticking Listed back on is always /register/listing, never a payment", () => {
   test("listedCb's change handler calls setListing for BOTH directions and never calls startPrivatePayment directly — Pay only happens from listedPayBtn's own click, after a 402", () => {
     const change = share.slice(share.indexOf('listedCb.addEventListener("change"'), share.indexOf('listedPayBtn.addEventListener("click"'));
-    expect(change).toContain("setListing(DEFAULT_ENROLL_API, token, item, listedCb.checked)");
+    expect(change).toContain("setListing(DEFAULT_ENROLL_API, token, registryItemKey(item.kind, item.target), listedCb.checked)");
     expect(change).not.toContain("startPrivatePayment");
   });
 

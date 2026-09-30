@@ -34,7 +34,7 @@ import { parseRepo, slugify } from "../publish/github";
 import { castRegistration, privateCastTarget } from "../publish/cast";
 import { courseKeyFor, joinPath } from "../course/publish";
 import type { ServerAccess } from "../publish/server";
-import { quotePrivate, setListing, startPrivatePayment, type PrivateQuoteOutcome } from "../registry";
+import { quotePrivate, registryItemKey, setListing, startPrivatePayment, type PrivateQuoteOutcome } from "../registry";
 import { creditBalance, startCreditPayment } from "../credit";
 import { h } from "./dom";
 import { unembeddedImages } from "./insert";
@@ -942,7 +942,7 @@ function build(): ShareSession {
       // setListing itself is the check: `listed: false` on an item that has
       // never paid answers 402 with the fee owed (plan ruling 8), so there
       // is no separate quote to ask first.
-      const r = await setListing(DEFAULT_ENROLL_API, token, item, listedCb.checked);
+      const r = await setListing(DEFAULT_ENROLL_API, token, registryItemKey(item.kind, item.target), listedCb.checked);
       if (my !== listedToken) return;
       if (r === "ok") {
         listedHint.textContent = "";
@@ -1114,6 +1114,19 @@ function build(): ShareSession {
       if (serverPrivate && !privateCb.checked && !confirmedPublic) {
         privateCb.checked = true;
         refreshPrivateLine();
+      }
+      // Listed (fix round 1): the SAME quote also answers the item's actual
+      // current listing state — absent on an older server, which defaults
+      // to true (nothing to migrate: every item was listed before this
+      // switch existed). Seeds the box on open, same as Private's own line
+      // above, but never gates Publish — Listed has no confirm dance.
+      if (typeof q === "object") {
+        const serverListed = q.listed ?? true;
+        if (serverListed !== listedCb.checked) {
+          listedCb.checked = serverListed;
+          listedHint.textContent = "";
+          listedPayRow.hidden = true;
+        }
       }
     })();
   }

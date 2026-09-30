@@ -157,6 +157,12 @@ export interface PrivateQuote {
   currency: string;
   paidLectures: number;
   private: boolean;
+  /** The item's CURRENT catalogue listing state, same informational role as
+   *  `private` above — independent of whatever `listed` the request asked
+   *  about (registry deliveries 3–4, task 9). Optional: an older server that
+   *  predates this field simply omits it, and the Share panel's Listed
+   *  checkbox defaults that absence to true (fix round 1). */
+  listed?: boolean;
   owner: "you" | "other" | "none";
   name: string | null;
 }
@@ -193,7 +199,7 @@ export async function quotePrivate(api: string, body: PrivateQuoteInput, fetchIm
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return res.status === 401 ? "key" : "error";
-    const b = (await res.json()) as Partial<{ due: unknown; currency: unknown; paid_lectures: unknown; private: unknown; owner: unknown; name: unknown }>;
+    const b = (await res.json()) as Partial<{ due: unknown; currency: unknown; paid_lectures: unknown; private: unknown; listed: unknown; owner: unknown; name: unknown }>;
     if (typeof b.due !== "number") return "error";
     const owner = b.owner === "you" || b.owner === "other" ? b.owner : "none";
     return {
@@ -201,6 +207,10 @@ export async function quotePrivate(api: string, body: PrivateQuoteInput, fetchIm
       currency: typeof b.currency === "string" ? b.currency : "usd",
       paidLectures: typeof b.paid_lectures === "number" ? b.paid_lectures : 0,
       private: b.private === true,
+      // Left undefined (never defaulted here) when the server omits it — the
+      // caller decides the default (Share's Listed checkbox: true, an older
+      // server predating this field).
+      listed: typeof b.listed === "boolean" ? b.listed : undefined,
       owner,
       name: typeof b.name === "string" ? b.name : null,
     };
@@ -287,6 +297,19 @@ export function privateInHash(hash: string): { outcome: "privpaid" | "privunpaid
 // Share panel's Listed switch calls this directly instead of feeding
 // refreshPrivateLine/Publish.
 
+/**
+ * The registry's own row identifier (Anvil's `registry.item_key`) — the SAME
+ * string crypto/lecture-lock.ts's envelope carries, and publish/cast.ts's
+ * `privateCastTarget` already derives inline for a cast ("item is the target
+ * without .yaml"). A course's key is its target verbatim (no extension to
+ * strip). `/register/listing` (fix round 1, checked against the server's
+ * `parse_register_listing`) identifies its row by exactly this string, never
+ * `{kind, target}` — pure, so both shapes are a real, DOM-free test.
+ */
+export function registryItemKey(kind: "cast" | "course", target: string): string {
+  return kind === "cast" ? target.replace(/\.ya?ml$/i, "") : target;
+}
+
 export type SetListingOutcome =
   | "ok"
   | { due: number } // 402 {error:"pay", due} — unlisting an item that has never paid (plan ruling 8)
@@ -301,23 +324,17 @@ export type SetListingOutcome =
  * `paid_lectures > 0`) — otherwise the server refuses with the one-time fee
  * still owed, `{due}`, and the caller pays it through `startPrivatePayment`
  * with `listed: false` (which settles `listed` even when `private` stays
- * false — plan ruling 8). `item` identifies the SAME row `quotePrivate`/
- * `startPrivatePayment` price — `{kind, target}` — never the free name or
- * the encryption item-key (crypto/lecture-lock.ts's own, unrelated `item`
- * string). Every refusal is a word; never throws.
+ * false — plan ruling 8). `item` is the registry item-key STRING
+ * (registryItemKey above) — the caller derives it from `kind`/`target`
+ * before calling, so this function never needs either. Every refusal is a
+ * word; never throws.
  */
-export async function setListing(
-  api: string,
-  key: string,
-  item: { kind: "cast" | "course"; target: string },
-  listed: boolean,
-  fetchImpl: typeof fetch = fetch,
-): Promise<SetListingOutcome> {
+export async function setListing(api: string, key: string, item: string, listed: boolean, fetchImpl: typeof fetch = fetch): Promise<SetListingOutcome> {
   try {
     const res = await fetchImpl(`${apiBase(api)}/_/api/register/listing`, {
       method: "POST",
       headers: { "content-type": "text/plain" },
-      body: JSON.stringify({ key, item: { kind: item.kind, target: item.target }, listed }),
+      body: JSON.stringify({ key, item, listed }),
       signal: AbortSignal.timeout(10_000),
     });
     if (res.ok) return "ok";
