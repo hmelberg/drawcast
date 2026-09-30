@@ -161,6 +161,7 @@ const FIG_Y = 10;
 const FPS = 30;
 const PAPER = "#f5f1e6";
 import { C64_FONT_URLS } from "../render/figure-style";
+import { placeholdLinkedPictures } from "./linked-pictures";
 
 const INK = "#3d3833";
 
@@ -289,7 +290,8 @@ export async function paintFrame(
   demo?: { state: DemoState; elapsed: number },
 ): Promise<void> {
   // Explicit dimensions: some browsers refuse to draw an SVG image without them.
-  let src = svgText.replace("<svg ", `<svg width="${FIG_W}" height="${FIG_H}" `);
+  // A linked picture cannot load inside an SVG drawn as an image: a labelled box stands in (linked-pictures.ts).
+  let src = placeholdLinkedPictures(svgText).replace("<svg ", `<svg width="${FIG_W}" height="${FIG_H}" `);
   if (fontStyle) src = src.replace(/(<svg[^>]*>)/, `$1${fontStyle}`);
   const url = URL.createObjectURL(new Blob([src], { type: "image/svg+xml" }));
   try {

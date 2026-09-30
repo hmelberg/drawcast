@@ -8,6 +8,7 @@ import { render } from "../render";
 import type { Spec } from "../spec/types";
 import type { LookImage } from "../llm/look";
 import { sketchFontStyle } from "./video";
+import { placeholdLinkedPictures } from "./linked-pictures";
 
 const COLS = 2;
 const ROWS = 4;
@@ -36,7 +37,7 @@ function wrapLines(ctx: CanvasRenderingContext2D, text: string, width: number, m
 }
 
 async function svgImage(svgText: string, fontStyle: string): Promise<HTMLImageElement> {
-  let src = svgText.replace("<svg ", `<svg width="${CELL_W}" height="${FIG_H}" `);
+  let src = placeholdLinkedPictures(svgText).replace("<svg ", `<svg width="${CELL_W}" height="${FIG_H}" `);
   if (fontStyle) src = src.replace(/(<svg[^>]*>)/, `$1${fontStyle}`);
   const url = URL.createObjectURL(new Blob([src], { type: "image/svg+xml" }));
   try {

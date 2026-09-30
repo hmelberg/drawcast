@@ -9,6 +9,7 @@ import { render } from "../render";
 import type { Spec } from "../spec/types";
 import { parsePlaylistText, posterItemOf } from "../playlist/playlist";
 import { paintFrame, sketchFontStyle } from "./video";
+import { placeholdLinkedPictures } from "./linked-pictures";
 
 export async function snapshotPng(spec: Spec): Promise<string | null> {
   if (typeof document === "undefined") return null;
@@ -57,7 +58,7 @@ export async function posterPng(spec: Spec): Promise<Uint8Array | null> {
       hd.timeline.showPoster();
       const svg = host.querySelector<SVGSVGElement>("svg.cs-svg");
       if (!svg) return null;
-      let src = new XMLSerializer().serializeToString(svg).replace("<svg ", `<svg width="${POSTER_W}" height="${POSTER_H}" `);
+      let src = placeholdLinkedPictures(new XMLSerializer().serializeToString(svg)).replace("<svg ", `<svg width="${POSTER_W}" height="${POSTER_H}" `);
       const fontStyle = await sketchFontStyle();
       if (fontStyle) src = src.replace(/(<svg[^>]*>)/, `$1${fontStyle}`);
       return await rasterize(src, "image/svg+xml");

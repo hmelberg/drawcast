@@ -30,6 +30,8 @@ import { connectKey } from "../render/widgets";
 import { CONNECT_MAX_EDGES } from "../ui/connect-model";
 import { moreModel } from "../ui/more-model";
 import { COLOR_WORDS, FLAGS, PLACE_WORDS, SIDE_WORDS } from "../spec/script/sugar";
+import { inlineStrokes } from "../spec/assets";
+import { decodePicture } from "../spec/trace";
 
 /**
  * The shared traversal behind `lintableLeaves` and `flattenLintable`: a
@@ -148,7 +150,9 @@ export interface LintIssue {
     /** a link's href names no drawcast (links/resolve.ts parseTarget) — warns */
     | "link-target"
     /** the corner list (spec `more`) shows nothing, or leaves a source nowhere but the tray */
-    | "more-list";
+    | "more-list"
+    /** an image shown by link (lnk1): blank in a movie or poster until embedded — warns */
+    | "linked-picture";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -1077,6 +1081,22 @@ export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIs
     if (el.type === "link" && typeof el.href === "string" && parseTarget(el.href) === null) {
       issues.push({ rule: "link-target", ids: [el.id], message: `link "${el.id}": href "${el.href}" is not a drawcast link — use a player/GitHub/Drive link, owner/repo/path.yaml, ./file.yaml or lecture:N`, severity: "warn" });
     }
+  }
+
+  // A linked picture (lnk1) shows in the player, but a movie or a poster
+  // draws the SVG on a canvas that cannot load it (export/linked-pictures.ts).
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "image") continue;
+    const strokes = inlineStrokes(spec, el);
+    const pic = strokes ? decodePicture(strokes) : null;
+    if (!pic?.linked) continue;
+    let host = pic.href;
+    try {
+      host = new URL(pic.href).host;
+    } catch {
+      /* keep the whole href */
+    }
+    issues.push({ rule: "linked-picture", ids: [el.id], message: `${el.id} is shown by link from ${host}: it will be blank in a movie or poster until embedded (the host refuses pixel reads)`, severity: "warn" });
   }
 
   // Keys of a positioned element's `at` ("gap 12") read as fields too: an
