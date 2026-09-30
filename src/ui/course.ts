@@ -26,7 +26,7 @@ import { applyViewsFlag } from "../views";
 import type { SpeakLine } from "../render/delivery";
 import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "../export/bake";
 import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "../export/bake-cache";
-import { addCosts, bakeCost, costLabel, courseNarrationProjection, type BakeCost } from "../export/tts-cost";
+import { addCosts, bakeCost, costLabel, courseNarrationProjection, creditBakeCost, type BakeCost } from "../export/tts-cost";
 import { runLang, stampedVoice, synthesizeBase64 } from "../export/tts";
 import { joinPath } from "../course/publish";
 import { claimCourse, claimNote, courseClaim, formatPrice, isPayable, nameNote, normalizeName, registerName, startNamePayment } from "../names";
@@ -274,6 +274,36 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       if (text === null) continue;
       try {
         costs.push(bakeCost(playlistSpeakLines(parsePlaylistText(text)), settings.cloudVoices));
+      } catch {
+        /* an unparsable lecture prices as nothing rather than blocking */
+      }
+    }
+    return costs;
+  }
+
+  /**
+   * What narration CREDIT would actually be charged for each done lecture
+   * (registry delivery 3, fix round 1) — same basis as doneLectureCosts
+   * (used for the "own key" hint and the Generate projection, both left
+   * untouched), but priced by creditBakeCost per lecture, with THAT
+   * lecture's own declared language (bakeLectures' own decision — never a
+   * per-line sniff), so an unnamed voice prices at the server's own unnamed
+   * tier and the estimate can never under-price what /tts will charge.
+   */
+  function doneLectureCreditCosts(course: Course): BakeCost[] {
+    const settings = loadSettings();
+    const library = loadLibrary();
+    const costs: BakeCost[] = [];
+    for (const lecture of course.lectures) {
+      if (lecture.status?.state !== "done" || !lecture.status.id) continue;
+      const saved = library.find((d) => d.id === lecture.status!.id);
+      const text = saved?.playlist ?? (saved ? formatPlaylist(singlePlaylist(saved.spec), "yaml") : null);
+      if (text === null) continue;
+      try {
+        const playlist = parsePlaylistText(text);
+        // Undefined when nothing declares one — the same decision bakeLectures makes per lecture.
+        const declaredLang = playlist.entries.flatMap((e) => (e.kind === "item" && e.spec.lang ? [e.spec.lang] : []))[0];
+        costs.push(creditBakeCost(playlistSpeakLines(playlist), settings.cloudVoices, declaredLang));
       } catch {
         /* an unparsable lecture prices as nothing rather than blocking */
       }
@@ -1439,9 +1469,11 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
             return repo && slug ? [{ label: "the course page", target: courseKeyFor(repo, joinPath(deps.settings.coursesDir, slug)) }] : [];
           })(),
           narrationCost: costLabel(addCosts(doneLectureCosts(course))),
-          // narrationUsd (registry delivery 3): the raw $ estimate for the
-          // credit hint's 3x markup — see the same field's note in main.ts.
-          narrationUsd: addCosts(doneLectureCosts(course)).usd,
+          // narrationUsd (registry delivery 3, fix round 1): what /tts will
+          // ACTUALLY charge against credit — doneLectureCreditCosts, not
+          // doneLectureCosts, so the estimate can't under-price an unnamed
+          // voice (see the same note in main.ts and tts-cost.ts).
+          narrationUsd: addCosts(doneLectureCreditCosts(course)).usd,
           publishedViews,
           // Whether the page carries its Join door, straight from the document (spec §5).
           joinDoor: course.enroll !== undefined,

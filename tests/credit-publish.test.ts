@@ -97,6 +97,32 @@ describe("CreditError is special-cased everywhere a bake can throw it, exactly l
   });
 });
 
+describe("fix round 1: doc().narrationUsd is priced by creditBakeCost, not bakeCost — bakeCost stays the OWN-key label's basis", () => {
+  test("main.ts's Share doc() builder", () => {
+    expect(main).toContain('import { bakeCost, costLabel, creditBakeCost } from "./export/tts-cost";');
+    const fn = main.slice(main.indexOf("doc: () => {"), main.indexOf("private: isPrivateDoc() || undefined };"));
+    expect(fn).toContain("const cost = bakeCost(lines, settings.cloudVoices);");
+    expect(fn).toContain("const creditCost = creditBakeCost(lines, settings.cloudVoices, declaredLang);");
+    expect(fn).toContain("narrationCost: costLabel(cost)");
+    expect(fn).toContain("narrationUsd: creditCost.usd");
+    // The SAME declared-language decision publishTextFor's own bake makes
+    // (never a per-line sniff) — not detectLang, not omitted.
+    expect(fn).toContain("const declaredLang = itemsOf(playlist).find((i) => i.spec.lang)?.spec.lang;");
+  });
+
+  test("ui/course.ts's Share doc() builder — a parallel doneLectureCreditCosts, not doneLectureCosts, for narrationUsd", () => {
+    expect(course).toContain('import { addCosts, bakeCost, costLabel, courseNarrationProjection, creditBakeCost, type BakeCost } from "../export/tts-cost";');
+    expect(course).toContain("narrationCost: costLabel(addCosts(doneLectureCosts(course)))");
+    expect(course).toContain("narrationUsd: addCosts(doneLectureCreditCosts(course)).usd");
+    const fn = course.slice(course.indexOf("function doneLectureCreditCosts("), course.indexOf("function syncBusy("));
+    expect(fn).toContain("creditBakeCost(playlistSpeakLines(playlist), settings.cloudVoices, declaredLang)");
+    // doneLectureCosts itself (the own-key basis, and the Generate
+    // projection's) is untouched — still bakeCost, still no declaredLang.
+    const untouched = course.slice(course.indexOf("function doneLectureCosts("), course.indexOf("function doneLectureCreditCosts("));
+    expect(untouched).toContain("bakeCost(playlistSpeakLines(parsePlaylistText(text)), settings.cloudVoices)");
+  });
+});
+
 describe("the Stripe return for a credit purchase (registry delivery 3) — creditInHash's sibling to privReturn", () => {
   const fn = main.slice(main.indexOf("const creditReturn = creditInHash(location.hash);"), main.indexOf("// ---------- my templates ----------"));
 

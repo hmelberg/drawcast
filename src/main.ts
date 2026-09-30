@@ -89,7 +89,7 @@ import { bakedAudioFor, type BakedAudio } from "./playlist/audio";
 import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "./export/bake";
 import { listCloudVoices, runLang, stampedVoice, synthesizeBase64 } from "./export/tts";
 import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "./export/bake-cache";
-import { bakeCost, costLabel } from "./export/tts-cost";
+import { bakeCost, costLabel, creditBakeCost } from "./export/tts-cost";
 import { privateCastTarget, publishCast } from "./publish/cast";
 import { LockError, type LectureLock } from "./publish/lock";
 import { isLocked, lockText } from "./crypto/lecture-lock";
@@ -5836,12 +5836,19 @@ shareBtn.addEventListener("click", () => {
       const playlist = readPlaylistText(specArea.value) ?? doc.playlist;
       // `private` derived (task 10 fix round 2): a lecture of a private
       // course opens with Share's Private box already ticked.
-      const cost = bakeCost(playlistSpeakLines(playlist), settings.cloudVoices);
-      // narrationUsd (registry delivery 3): the raw $ estimate, for the
-      // credit hint's 3x markup — narrationCost is the same number, already
-      // formatted for the "own key" hint and not something 3x can parse back
-      // out of ("12k characters ≈ $1.83").
-      return { ...doc, playlist, narrationCost: costLabel(cost), narrationUsd: cost.usd, private: isPrivateDoc() || undefined };
+      const lines = playlistSpeakLines(playlist);
+      // narrationCost (the "own key" hint) keeps bakeCost's own estimate —
+      // an own key is billed by Google directly, at whatever it actually
+      // picks for an unnamed voice (neural-class in practice).
+      const cost = bakeCost(lines, settings.cloudVoices);
+      // narrationUsd (registry delivery 3, fix round 1): what /tts will
+      // ACTUALLY charge against credit — creditBakeCost, not bakeCost, so an
+      // unnamed voice prices at the server's own unnamed tier (chirp) rather
+      // than under-estimating at neural2, and the same declared-language
+      // decision publishTextFor's own bake makes (never a per-line sniff).
+      const declaredLang = itemsOf(playlist).find((i) => i.spec.lang)?.spec.lang;
+      const creditCost = creditBakeCost(lines, settings.cloudVoices, declaredLang);
+      return { ...doc, playlist, narrationCost: costLabel(cost), narrationUsd: creditCost.usd, private: isPrivateDoc() || undefined };
     },
     settings,
     persist,

@@ -28,12 +28,24 @@ function usd(micro: number): string {
  * Its message is already the whole sentence a status line shows — mirrors
  * LockError (publish/lock.ts) and how main.ts/course.ts already special-case
  * that: `e instanceof CreditError ? e.message : "Publish failed — …"`.
+ *
+ * `null` (fix round 1) is a MALFORMED 402 — the server answered 402 but its
+ * body carried no numbers at all (an unreadable body, a future response
+ * shape this client doesn't know) — never "the server said $0". Only when
+ * BOTH are null does the message fall back to a plain sentence with no
+ * dollar figures; one real number is still worth showing (the other reads
+ * as $0.00, which is at least an honest "we don't know" for that half, not a
+ * fabricated total).
  */
 export class CreditError extends Error {
-  neededMicro: number;
-  balanceMicro: number;
-  constructor(neededMicro: number, balanceMicro: number) {
-    super(`Not enough narration credit — about ${usd(neededMicro)} needed, ${usd(balanceMicro)} left. Buy credit in the Share panel.`);
+  neededMicro: number | null;
+  balanceMicro: number | null;
+  constructor(neededMicro: number | null, balanceMicro: number | null) {
+    super(
+      neededMicro === null && balanceMicro === null
+        ? "Not enough narration credit. Buy credit in the Share panel."
+        : `Not enough narration credit — about ${usd(neededMicro ?? 0)} needed, ${usd(balanceMicro ?? 0)} left. Buy credit in the Share panel.`,
+    );
     this.name = "CreditError";
     this.neededMicro = neededMicro;
     this.balanceMicro = balanceMicro;
@@ -148,7 +160,7 @@ export async function serverSynthesize(
   });
   if (res.status === 402) {
     const b = (await res.json().catch(() => ({}))) as Partial<{ needed_micro: unknown; balance_micro: unknown }>;
-    throw new CreditError(typeof b.needed_micro === "number" ? b.needed_micro : 0, typeof b.balance_micro === "number" ? b.balance_micro : 0);
+    throw new CreditError(typeof b.needed_micro === "number" ? b.needed_micro : null, typeof b.balance_micro === "number" ? b.balance_micro : null);
   }
   if (res.status === 401) throw new Error("Sign in again to publish with narration credit (Settings → Publishing).");
   if (!res.ok) throw new Error("Narration credit synthesis failed — try again in a moment.");

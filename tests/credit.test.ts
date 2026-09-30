@@ -90,6 +90,17 @@ describe("CreditError", () => {
   test("a zero balance still formats as $0.00", () => {
     expect(new CreditError(120_000, 0).message).toContain("$0.00 left");
   });
+
+  test("fix round 1: a malformed 402 (no numbers at all) is a plain sentence, never a fabricated $0.00 needed/left", () => {
+    const e = new CreditError(null, null);
+    expect(e.message).toBe("Not enough narration credit. Buy credit in the Share panel.");
+    expect(e.neededMicro).toBeNull();
+    expect(e.balanceMicro).toBeNull();
+  });
+
+  test("one real number and one missing still uses the precise sentence (only BOTH missing falls back)", () => {
+    expect(new CreditError(3_450_000, null).message).toBe("Not enough narration credit — about $3.45 needed, $0.00 left. Buy credit in the Share panel.");
+  });
 });
 
 describe("serverSynthesize", () => {
@@ -121,6 +132,24 @@ describe("serverSynthesize", () => {
       expect((err as CreditError).neededMicro).toBe(300);
       expect((err as CreditError).balanceMicro).toBe(100);
       expect((err as CreditError).message).toContain("Buy credit in the Share panel.");
+    }
+  });
+
+  test("fix round 1: a malformed 402 body (no numbers — an unparseable JSON body, say) is the plain fallback sentence, not a fabricated $0.00 needed/left", async () => {
+    for (const body of [{}, { error: "credit" }, "not json"]) {
+      const f =
+        typeof body === "string"
+          ? (vi.fn(async () => new Response(body, { status: 402 })) as unknown as typeof fetch)
+          : fetchReturning(402, body);
+      try {
+        await serverSynthesize(API, "tok", cfg, "Hello.", undefined, f);
+        expect.unreachable();
+      } catch (err) {
+        expect(err).toBeInstanceOf(CreditError);
+        expect((err as CreditError).neededMicro).toBeNull();
+        expect((err as CreditError).balanceMicro).toBeNull();
+        expect((err as CreditError).message).toBe("Not enough narration credit. Buy credit in the Share panel.");
+      }
     }
   });
 

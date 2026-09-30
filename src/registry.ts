@@ -170,6 +170,12 @@ export interface PrivateQuoteInput {
   /** 1–200; a cast is always 1. */
   lectures: number;
   private: boolean;
+  /** Whether the item should appear in the catalogue (registry deliveries
+   *  3–4, task 9: the Share panel's Listed switch) — optional, default true
+   *  server-side. `price_due` is 0 only for public+listed; a private
+   *  purchase covers unlisting too (plan ruling 8), so this rides in the
+   *  SAME quote as `private` rather than a quote of its own. */
+  listed?: boolean;
 }
 
 /**
@@ -211,6 +217,18 @@ export interface PrivatePayInput {
   /** A course's page — must be under https://<owner>.github.io/<repo>/. */
   page?: string;
   lectures: number;
+  /** Whether this purchase locks the item private — optional, default true
+   *  server-side (every payment before task 9 was implicitly this). Sent
+   *  explicitly `false` when the ONLY thing being paid for is unlisting
+   *  while the item stays public (plan ruling 8: unlisting costs the same
+   *  as private, bought once, and must not silently lock the files too). */
+  private?: boolean;
+  /** Whether the item should be listed after paying — optional, default
+   *  true server-side. Sent `false` from the Listed switch's own Pay
+   *  button (task 9); the Private checkbox's Pay button sends whatever
+   *  Listed currently reads, so one payment covers both when both are
+   *  requested together. */
+  listed?: boolean;
   /** The app URL Stripe sends the browser back to (an allowlisted origin). */
   return: string;
 }

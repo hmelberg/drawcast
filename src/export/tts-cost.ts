@@ -5,8 +5,9 @@
 // voices a bake would buy. Estimates only: prices are Google's listed rates
 // as of 2026-09, and a republish pays only for lines not already baked.
 
-import { narrationVoice } from "./tts";
+import { narrationVoice, runLang } from "./tts";
 import { detectLang } from "../render/speech";
+import { sayable } from "../render/pronounce";
 import type { SpeakLine } from "../render/delivery";
 
 /** Google's listed $ per 1M characters, by voice family. */
@@ -43,6 +44,42 @@ export function bakeCost(lines: SpeakLine[], voices: Record<string, string> | un
     const tier = voiceTier(narrationVoice(voices, detectLang(line.text), line).name);
     chars += line.text.length;
     usd += (line.text.length * (TTS_PRICE_PER_MILLION[tier] ?? TTS_PRICE_PER_MILLION.neural2)) / 1_000_000;
+  }
+  return { chars, usd };
+}
+
+/**
+ * What POST /tts will actually charge against narration credit (registry
+ * delivery 3, fix round 1) — priced to MATCH the server rather than to
+ * describe an own key's own Google bill (bakeCost, used for the "own key"
+ * hint, is deliberately unchanged by any of this):
+ *
+ * - the SAYABLE text: a respelling (sayable(), render/pronounce.ts) can
+ *   change the character count, and the server bills exactly what it sends
+ *   Google, not the author's raw spelling;
+ * - the bake's OWN language decision, runLang(line, declaredLang), rather
+ *   than a per-line sniff — passing `declaredLang` even as `undefined`
+ *   still matches (runLang falls back to the very same sniff), so the
+ *   estimator and the actual synthesizer can never pick a different voice
+ *   for the same line;
+ * - an UNNAMED voice (no VOICES entry for this language/gender, so
+ *   narrationVoice returns bare `{languageCode}`) priced at CHIRP, the
+ *   server's own defensive default (server_code/credit.py's UNNAMED_TIER —
+ *   the pricier of neural2 and chirp). Pricing it at neural2 here, as
+ *   bakeCost does, under-estimates by about 1.9x — enough to hide the
+ *   Buy-credit row and let a bake die mid-way on a CreditError the hint
+ *   never warned about.
+ */
+export function creditBakeCost(lines: SpeakLine[], voices: Record<string, string> | undefined, declaredLang?: string): BakeCost {
+  let chars = 0;
+  let usd = 0;
+  for (const line of lines) {
+    if (line.text.trim().length === 0) continue;
+    const voice = narrationVoice(voices, runLang(line, declaredLang), line);
+    const tier = voice.name ? voiceTier(voice.name) : "chirp";
+    const text = sayable(line.text);
+    chars += text.length;
+    usd += (text.length * (TTS_PRICE_PER_MILLION[tier] ?? TTS_PRICE_PER_MILLION.neural2)) / 1_000_000;
   }
   return { chars, usd };
 }
