@@ -9,6 +9,7 @@ import type { LayoutResult } from "../layout/layout";
 import type { Pt } from "../layout/model";
 import type { HighlightEffect, Spec } from "../spec/types";
 import type { Turn } from "./pose";
+import type { MarkFrame } from "./marks";
 
 /** The turn-over tween's squash: y ↦ at + Par(y − at) + k·Perp(y − at) about the
  *  line through `at` at `angle` degrees (y-up, counter-clockwise from +x). A
@@ -95,6 +96,15 @@ export interface BackendEffects {
   setSpotlight?(spots: { frame: BBox; holes: BBox[] }[], alpha: number): void;
   /** Remove the spotlight (abort/scrub safety). */
   endSpotlight?(): void;
+  /**
+   * ONE FRAME of the mark on a picture (spec §13): `owner` is the picture's
+   * id, `f` what render/marks.ts markFrameAt says the mark looks like now.
+   * The nodes are made on the first call and updated in place after; a
+   * different kind on the same owner replaces them. Optional, like setFocus.
+   */
+  setMark?(owner: string, f: MarkFrame): void;
+  /** Remove the owner's mark (release done, abort/scrub safety). */
+  endMark?(owner: string): void;
   /**
    * Marks streaming along the ids' strokes: `travelled` is the distance
    * covered so far (logical units), `alpha` the ramp (0–1). Stateless per

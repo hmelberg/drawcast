@@ -32,6 +32,7 @@ import type { BBox } from "../layout/geometry";
 import type { HighlightEffect } from "../spec/types";
 import type { BackendEffects, BackendModule, FlowOpts, MountResult, RenderedElement, Squash } from "./backend";
 import type { Turn } from "./pose";
+import { arrowGeometry, ARROW_RUN, type MarkFrame, type MarkKind } from "./marks";
 import { computeTypeFrame, type TypeRun } from "./type-reveal";
 
 export const SKETCH_FONT = "'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive";
@@ -1498,6 +1499,212 @@ function rangeClone(g: SVGGElement, color: string, start: number, end: number): 
   return c;
 }
 
+// ---- marks on picture places (spec §13): one live mark per picture ----
+//
+// Each owner's mark is built ONCE and then only its attributes move, every
+// frame (render/marks.ts markFrameAt says where and how present): the light's
+// hole and wash, the ring's and box's placing transform, the arrow's pose,
+// the glow's radius. Nothing is rebuilt per frame — this runs at 60 fps.
+
+/** The arrow's ink, under a pale core (the reference sheet's panel J). */
+const ARROW_INK = "#2b2622";
+const ARROW_CORE = "#fff3c4";
+/** The drawn arrow in its own coordinates (SVG, y down): tip at 0,0, tail up and right. */
+const ARROW_SHAFT: [number, number][] = [[ARROW_RUN[0], -ARROW_RUN[1]], [37, -30], [2, -2]];
+const ARROW_HEAD: [number, number][] = [[12, -4], [0, 0], [5, -13]];
+const ARROW_ANGLE = Math.atan2(-ARROW_RUN[1], ARROW_RUN[0]);
+/** How much of an arrow's write-on the shaft takes; the head is the rest. */
+const ARROW_SHAFT_SHARE = 0.8;
+/** Room between a ring or box and the place it marks. */
+const MARK_PAD = 8;
+
+interface MarkNodes {
+  kind: MarkKind;
+  g: SVGGElement;
+  update(f: MarkFrame): void;
+}
+
+interface WritePath {
+  el: SVGPathElement;
+  len: number;
+  width: number;
+}
+
+function svgEl(tag: string, attrs: Record<string, string | number>, parent?: Element): SVGElement {
+  const e = document.createElementNS(SVG_NS, tag) as SVGElement;
+  for (const k in attrs) e.setAttribute(k, String(attrs[k]));
+  parent?.appendChild(e);
+  return e;
+}
+
+/** The stroked paths under `root`, dashed so a write level can draw them on. */
+function writePaths(root: Element): WritePath[] {
+  return Array.from(root.querySelectorAll("path"))
+    .filter((p) => (p.getAttribute("stroke") ?? "none") !== "none")
+    .map((p) => {
+      const el = p as SVGPathElement;
+      const len = el.getTotalLength();
+      if (len > 0) {
+        el.style.strokeDasharray = `${len}`;
+        el.style.strokeDashoffset = `${len}`;
+      }
+      el.setAttribute("stroke-linecap", "round");
+      return { el, len, width: parseFloat(el.getAttribute("stroke-width") ?? "3") || 3 };
+    });
+}
+
+function writeTo(paths: WritePath[], w: number): void {
+  const k = Math.max(0, Math.min(1, w));
+  for (const { el, len } of paths) {
+    if (len > 0) el.style.strokeDashoffset = `${len * (1 - k)}`;
+    el.style.visibility = k > 0 ? "" : "hidden";
+  }
+}
+
+/** A mark's box grown by `pad` on every side, as an SVG box. */
+const paddedSvgBox = (b: BBox, pad: number): SvgBox => {
+  const v = svgBoxOf(b);
+  return { x: v.x - pad, y: v.y - pad, w: v.w + 2 * pad, h: v.h + 2 * pad };
+};
+
+/**
+ * The soft paper light (panel G): a wash of the figure's ground over the
+ * picture's frame, with a feathered hole where the place is. Its depth
+ * deepens through the step; only attributes change per frame.
+ */
+function lightMark(g: SVGGElement, id: string): (f: MarkFrame) => void {
+  const defs = svgEl("defs", {}, g);
+  const blur = svgEl("filter", { id: `${id}-blur`, filterUnits: "userSpaceOnUse" }, defs);
+  const gauss = svgEl("feGaussianBlur", {}, blur);
+  const mask = svgEl("mask", { id: `${id}-mask`, maskUnits: "userSpaceOnUse" }, defs);
+  const lit = svgEl("rect", { fill: "white" }, mask);
+  const hole = svgEl("ellipse", { fill: "black", filter: `url(#${id}-blur)` }, mask);
+  const wash = svgEl("rect", { fill: FIGURE_GROUND, mask: `url(#${id}-mask)` }, g);
+  return (f) => {
+    const fr = svgBoxOf(f.frame);
+    const b = svgBoxOf(f.box);
+    for (const n of [blur, mask, lit, wash]) {
+      n.setAttribute("x", fr.x.toFixed(1));
+      n.setAttribute("y", fr.y.toFixed(1));
+      n.setAttribute("width", fr.w.toFixed(1));
+      n.setAttribute("height", fr.h.toFixed(1));
+    }
+    gauss.setAttribute("stdDeviation", Math.max(8, 0.18 * Math.min(b.w, b.h)).toFixed(1));
+    hole.setAttribute("cx", (b.x + b.w / 2).toFixed(1));
+    hole.setAttribute("cy", (b.y + b.h / 2).toFixed(1));
+    hole.setAttribute("rx", ((b.w / 2) * 1.25 + 10).toFixed(1));
+    hole.setAttribute("ry", ((b.h / 2) * 1.25 + 10).toFixed(1));
+    wash.setAttribute("fill-opacity", (Math.max(0, Math.min(1, f.depth * f.level))).toFixed(3));
+  };
+}
+
+/**
+ * A ring or box, drawn ONCE round the first box (centred on the origin) and
+ * then placed on every later box by translate + scale. The pen's width is
+ * scaled back so a glide to a bigger place does not thicken the line.
+ */
+function placedMark(g: SVGGElement, kind: "ring" | "box", first: BBox, rc: RoughSVG | null): (f: MarkFrame) => void {
+  const p0 = paddedSvgBox(first, MARK_PAD);
+  if (kind === "ring") {
+    // A loose oval round the padded box (panel B): a little wider than it,
+    // so the corners of the place stay inside the pen line.
+    const w = p0.w * 1.15;
+    const h = p0.h * 1.12;
+    if (rc) {
+      g.appendChild(rc.ellipse(0, 0, w, h, { stroke: HIGHLIGHT_COLOR, strokeWidth: 3.5, roughness: 1.4, bowing: 1.5, fill: undefined, seed: 7 }));
+    } else {
+      g.appendChild(plainPath(`M${-w / 2} 0 A${w / 2} ${h / 2} 0 1 0 ${w / 2} 0 A${w / 2} ${h / 2} 0 1 0 ${-w / 2} 0`, { color: HIGHLIGHT_COLOR, strokeWidth: 3.5 }));
+    }
+  } else {
+    // boxMarkPath pads by 6 itself: hand it the padded box shrunk by that.
+    g.appendChild(boxMarkPath({ x: -p0.w / 2 + 6, y: -p0.h / 2 + 6, w: p0.w - 12, h: p0.h - 12 }, HIGHLIGHT_COLOR, rc));
+  }
+  const paths = writePaths(g);
+  return (f) => {
+    const p = paddedSvgBox(f.box, MARK_PAD);
+    const sx = p.w / p0.w;
+    const sy = p.h / p0.h;
+    g.setAttribute("transform", `translate(${(p.x + p.w / 2).toFixed(1)} ${(p.y + p.h / 2).toFixed(1)}) scale(${sx.toFixed(4)} ${sy.toFixed(4)})`);
+    const k = 1 / Math.sqrt(Math.max(1e-6, sx * sy));
+    for (const wp of paths) wp.el.setAttribute("stroke-width", (wp.width * k).toFixed(2));
+    writeTo(paths, f.write);
+    g.style.opacity = String(Math.max(0, Math.min(1, f.level)));
+  };
+}
+
+/**
+ * The hand-drawn arrow (panel J): an ink stroke under a pale core, drawn
+ * once with its tip at the origin, then posed per frame — moved to the tip
+ * and turned toward the tail render/marks.ts arrowGeometry chooses. Written
+ * on from the tail: the shaft first, then the head.
+ */
+function arrowMark(g: SVGGElement, rc: RoughSVG | null): (f: MarkFrame) => void {
+  const shaft = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  const head = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  g.append(shaft, head);
+  for (const [stroke, strokeWidth] of [[ARROW_INK, 5], [ARROW_CORE, 2.2]] as const) {
+    if (rc) {
+      shaft.appendChild(rc.curve(ARROW_SHAFT, { stroke, strokeWidth, roughness: 0.8, seed: 2 }));
+      head.appendChild(rc.linearPath(ARROW_HEAD, { stroke, strokeWidth, roughness: 0.6, seed: 3 }));
+    } else {
+      const [a, m, b] = ARROW_SHAFT;
+      // The quadratic through the middle point.
+      const c = [2 * m[0] - (a[0] + b[0]) / 2, 2 * m[1] - (a[1] + b[1]) / 2];
+      shaft.appendChild(plainPath(`M${a[0]} ${a[1]} Q${c[0]} ${c[1]} ${b[0]} ${b[1]}`, { color: stroke, strokeWidth }));
+      head.appendChild(plainPath(ARROW_HEAD.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x} ${y}`).join(" "), { color: stroke, strokeWidth }));
+    }
+  }
+  const shaftPaths = writePaths(shaft);
+  const headPaths = writePaths(head);
+  for (const wp of [...shaftPaths, ...headPaths]) wp.el.setAttribute("stroke-linejoin", "round");
+  return (f) => {
+    const { tip, tail } = arrowGeometry(f.box, f.frame);
+    const tx = tip[0];
+    const ty = toSvgY(tip[1]);
+    const angle = Math.atan2(toSvgY(tail[1]) - ty, tail[0] - tx) - ARROW_ANGLE;
+    g.setAttribute("transform", `translate(${tx.toFixed(1)} ${ty.toFixed(1)}) rotate(${((angle * 180) / Math.PI).toFixed(2)})`);
+    writeTo(shaftPaths, f.write / ARROW_SHAFT_SHARE);
+    writeTo(headPaths, (f.write - ARROW_SHAFT_SHARE) / (1 - ARROW_SHAFT_SHARE));
+    g.style.opacity = String(Math.max(0, Math.min(1, f.level)));
+  };
+}
+
+/** The soft glow (panel K): a warm radial light on the place that breathes. */
+function glowMark(g: SVGGElement, id: string): (f: MarkFrame) => void {
+  const defs = svgEl("defs", {}, g);
+  const grad = svgEl("radialGradient", { id: `${id}-glow` }, defs);
+  svgEl("stop", { offset: "0%", "stop-color": ARROW_CORE, "stop-opacity": 0.95 }, grad);
+  svgEl("stop", { offset: "45%", "stop-color": MARKER_COLOR, "stop-opacity": 0.45 }, grad);
+  svgEl("stop", { offset: "100%", "stop-color": MARKER_COLOR, "stop-opacity": 0 }, grad);
+  const disc = svgEl("circle", { fill: `url(#${id}-glow)` }, g);
+  return (f) => {
+    const b = svgBoxOf(f.box);
+    const r = Math.max(18, Math.min(40, 0.6 * Math.min(b.w, b.h))) * f.breathe;
+    disc.setAttribute("cx", (b.x + b.w / 2).toFixed(1));
+    disc.setAttribute("cy", (b.y + b.h / 2).toFixed(1));
+    disc.setAttribute("r", r.toFixed(2));
+    g.style.opacity = String(Math.max(0, Math.min(1, f.level)));
+  };
+}
+
+/** Build an owner's mark on the overlay (it is attached first, so its paths can be measured). */
+function buildMark(owner: string, f: MarkFrame, overlay: SVGGElement, rc: RoughSVG | null): MarkNodes {
+  const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
+  g.setAttribute("data-mark", owner);
+  g.style.pointerEvents = "none";
+  overlay.appendChild(g);
+  const id = `cs-mark-${++frameMaskSeq}`;
+  const update =
+    f.kind === "light"
+      ? lightMark(g, id)
+      : f.kind === "glow"
+        ? glowMark(g, id)
+        : f.kind === "arrow"
+          ? arrowMark(g, rc)
+          : placedMark(g, f.kind, f.box, rc);
+  return { kind: f.kind, g, update };
+}
+
 interface HighlightNodes {
   /** Everything that follows the level's opacity (echoes, the ring, bands, markers). */
   nodes: (SVGGElement | SVGPathElement)[];
@@ -1523,6 +1730,7 @@ function makeEffects(
 ): BackendEffects {
   const active = new Map<string, HighlightNodes>();
   const spotlightNodes: SVGElement[] = [];
+  const marks = new Map<string, MarkNodes>();
   const flows = new Map<string, SVGPathElement[]>();
   /** What a ghosted node's `transform` was before the drag picked it up — per
    *  NODE, so a geometry rebuild simply starts the ghost over on the new one
@@ -1821,6 +2029,24 @@ function makeEffects(
     endSpotlight(): void {
       for (const n of spotlightNodes) n.remove();
       spotlightNodes.length = 0;
+    },
+
+    setMark(owner: string, f: MarkFrame): void {
+      let m = marks.get(owner);
+      if (m && m.kind !== f.kind) {
+        m.g.remove();
+        m = undefined;
+      }
+      if (!m) {
+        m = buildMark(owner, f, overlay, rc);
+        marks.set(owner, m);
+      }
+      m.update(f);
+    },
+
+    endMark(owner: string): void {
+      marks.get(owner)?.g.remove();
+      marks.delete(owner);
     },
 
     setFlow(ids: string[], o: FlowOpts, frame: { travelled: number; alpha: number }): void {

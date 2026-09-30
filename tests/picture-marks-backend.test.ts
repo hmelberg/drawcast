@@ -1,0 +1,145 @@
+import { describe, expect, test } from "vitest";
+import { rendererFor } from "../src/render/svg-backend";
+import { layoutSpec } from "../src/layout/layout";
+import { heuristicMeasure } from "../src/layout/measure";
+import { installMiniDom, FakeNode } from "./helpers/mini-dom";
+import type { MarkFrame, MarkKind } from "../src/render/marks";
+import type { BBox } from "../src/layout/geometry";
+
+const SPEC = { elements: [{ id: "t", type: "text", text: "Hi", x: 500, y: 375 }], commands: [{ draw: ["t"] }] };
+
+async function mounted(style: "clean" | "sketchy" = "clean") {
+  const { restore, doc } = installMiniDom();
+  const layout = layoutSpec(SPEC as never, heuristicMeasure);
+  const container = new FakeNode("div", doc as never);
+  const r = await rendererFor(style).mount(layout, SPEC as never, container as never);
+  for (const el of r.elements.values()) el.finish();
+  const svg = container.children[0];
+  return { restore, effects: r.effects!, overlay: svg.children[svg.children.length - 1] };
+}
+
+const FRAME: BBox = { x: 100, y: 100, w: 800, h: 500 };
+const frameOf = (kind: MarkKind, box: BBox, over: Partial<MarkFrame> = {}): MarkFrame => ({
+  kind,
+  frame: FRAME,
+  box,
+  level: 0.8,
+  write: 1,
+  depth: 0.5,
+  breathe: 1,
+  ...over,
+});
+
+const find = (root: FakeNode, tag: string) => root.querySelectorAll(tag);
+const count = (n: FakeNode): number => n.children.reduce((s, c) => s + 1 + count(c), 0);
+
+describe("setMark / endMark", () => {
+  test("light: one group with a mask, a wash at depth × level; a second frame updates the same nodes", async () => {
+    const { restore, effects, overlay } = await mounted();
+    try {
+      effects.setMark!("md", frameOf("light", { x: 200, y: 200, w: 100, h: 100 }));
+      const groups = overlay.children.filter((n) => n.getAttribute("data-mark") === "md");
+      expect(groups).toHaveLength(1);
+      const g = groups[0];
+      const mask = find(g, "mask")[0];
+      expect(mask).toBeDefined();
+      const maskId = mask.getAttribute("id");
+      const wash = find(g, "rect").find((r) => r.getAttribute("mask") === `url(#${maskId})`)!;
+      expect(wash).toBeDefined();
+      expect(Number(wash.getAttribute("fill-opacity"))).toBeCloseTo(0.5 * 0.8, 3);
+      expect(find(g, "feGaussianBlur")).toHaveLength(1);
+      const ellipse = find(g, "ellipse")[0];
+      const cx0 = ellipse.getAttribute("cx");
+      const nodes = count(g);
+
+      effects.setMark!("md", frameOf("light", { x: 500, y: 300, w: 60, h: 60 }, { level: 1, depth: 0.6 }));
+      expect(overlay.children.filter((n) => n.getAttribute("data-mark") === "md")).toHaveLength(1);
+      expect(overlay.children.find((n) => n.getAttribute("data-mark") === "md")).toBe(g);
+      expect(count(g)).toBe(nodes);
+      expect(find(g, "ellipse")[0]).toBe(ellipse);
+      expect(ellipse.getAttribute("cx")).not.toBe(cx0);
+      expect(Number(wash.getAttribute("fill-opacity"))).toBeCloseTo(0.6, 3);
+    } finally {
+      restore();
+    }
+  });
+
+  for (const style of ["clean", "sketchy"] as const) {
+    for (const kind of ["ring", "box", "arrow"] as const) {
+      test(`${kind} (${style}): a transform that follows the box, the same nodes`, async () => {
+        const { restore, effects, overlay } = await mounted(style);
+        try {
+          effects.setMark!("md", frameOf(kind, { x: 200, y: 200, w: 100, h: 100 }));
+          const g = overlay.children.find((n) => n.getAttribute("data-mark") === "md")!;
+          const placed = () => [g, ...find(g, "g")].map((n) => n.getAttribute("transform")).filter(Boolean).join("|");
+          const t0 = placed();
+          expect(t0).not.toBe("");
+          const nodes = count(g);
+          effects.setMark!("md", frameOf(kind, { x: 400, y: 300, w: 200, h: 80 }));
+          expect(placed()).not.toBe(t0);
+          expect(count(g)).toBe(nodes);
+          expect(Number(g.style.opacity)).toBeCloseTo(0.8, 3);
+        } finally {
+          restore();
+        }
+      });
+    }
+  }
+
+  test("a half-written ring has its dash offset part way", async () => {
+    const { restore, effects, overlay } = await mounted("sketchy");
+    try {
+      effects.setMark!("md", frameOf("ring", { x: 200, y: 200, w: 100, h: 100 }, { write: 0.5 }));
+      const g = overlay.children.find((n) => n.getAttribute("data-mark") === "md")!;
+      const p = find(g, "path")[0];
+      expect(Number(p.style.strokeDashoffset)).toBeCloseTo(50, 3); // mini-dom length 100
+    } finally {
+      restore();
+    }
+  });
+
+  test("glow: the circle's radius scales with breathe", async () => {
+    const { restore, effects, overlay } = await mounted();
+    try {
+      effects.setMark!("md", frameOf("glow", { x: 200, y: 200, w: 50, h: 50 }, { breathe: 1 }));
+      const g = overlay.children.find((n) => n.getAttribute("data-mark") === "md")!;
+      const c = find(g, "circle")[0];
+      expect(Number(c.getAttribute("r"))).toBeCloseTo(30, 3);
+      expect(find(g, "radialGradient")).toHaveLength(1);
+      effects.setMark!("md", frameOf("glow", { x: 200, y: 200, w: 50, h: 50 }, { breathe: 1.08 }));
+      expect(find(g, "circle")[0]).toBe(c);
+      expect(Number(c.getAttribute("r"))).toBeCloseTo(32.4, 3);
+    } finally {
+      restore();
+    }
+  });
+
+  test("endMark removes the group and its mask", async () => {
+    const { restore, effects, overlay } = await mounted();
+    try {
+      effects.setMark!("md", frameOf("light", { x: 200, y: 200, w: 100, h: 100 }));
+      effects.setMark!("other", frameOf("glow", { x: 200, y: 200, w: 100, h: 100 }));
+      effects.endMark!("md");
+      expect(overlay.children.some((n) => n.getAttribute("data-mark") === "md")).toBe(false);
+      expect(find(overlay, "mask")).toHaveLength(0);
+      expect(overlay.children.some((n) => n.getAttribute("data-mark") === "other")).toBe(true);
+      effects.endMark!("md"); // idempotent
+    } finally {
+      restore();
+    }
+  });
+
+  test("a different kind on the same owner replaces the mark", async () => {
+    const { restore, effects, overlay } = await mounted();
+    try {
+      effects.setMark!("md", frameOf("light", { x: 200, y: 200, w: 100, h: 100 }));
+      effects.setMark!("md", frameOf("glow", { x: 200, y: 200, w: 100, h: 100 }));
+      const gs = overlay.children.filter((n) => n.getAttribute("data-mark") === "md");
+      expect(gs).toHaveLength(1);
+      expect(find(gs[0], "mask")).toHaveLength(0);
+      expect(find(gs[0], "circle")).toHaveLength(1);
+    } finally {
+      restore();
+    }
+  });
+});
