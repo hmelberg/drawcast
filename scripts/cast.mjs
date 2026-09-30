@@ -84,7 +84,6 @@ import {
   nameBlocker,
   deviceLogin,
   dollars,
-  lockPlanFiles,
   nameAdvice,
   privatePayAdvice,
   privateItemFor,
@@ -845,8 +844,19 @@ const commands = {
       const { quotePrivate, startPrivatePayment } = await load("/src/registry.ts");
       const courseText = origin.kind === "course" ? readFileSync(resolve(wd, "course.md"), "utf8") : undefined;
       const reg = registerFor(origin, lib, courseText);
+      // A cast's target/item is the ONE prediction publish/cast.ts's own
+      // privateCastTarget makes (fix round 1, #6) — the same function Share
+      // itself quotes and locks under — rather than a second copy of it;
+      // `registerFor`'s own target agrees with it for cast.mjs's own casts
+      // (it never renames on push), but this is the app's shared source of
+      // truth, not a re-derivation. A course has no such helper: its item IS
+      // its registry target, unchanged.
+      const target =
+        origin.kind === "cast"
+          ? lib.privateCastTarget({ owner: origin.owner, repo: origin.repo }, origin.castsDir, undefined, origin.file.replace(/\.ya?ml$/i, ""), reg.title).target
+          : reg.target;
       const lectures = origin.kind === "course" ? Math.max(1, reg.lectures.length) : 1;
-      const body = { key: session.key, kind: origin.kind, target: reg.target, lectures, private: true };
+      const body = { key: session.key, kind: origin.kind, target, lectures, private: true };
       const quote = await quotePrivate(session.api, body, boundedFetch());
 
       if (!priceArg) {
@@ -863,7 +873,7 @@ const commands = {
       if (typeof quote !== "object" || quote.owner === "other") throw new Error(privateQuoteAdvice(quote, work));
       if (Number(priceArg) !== quote.due) throw new Error(`--price must be ${quote.due} (${dollars(quote.due)}) — say the price to the user and get a yes first`);
 
-      const pay = await startPrivatePayment(session.api, { key: session.key, kind: origin.kind, target: reg.target, title: reg.title, page: reg.page, lectures, return: "https://drawcast.app/" }, boundedFetch());
+      const pay = await startPrivatePayment(session.api, { key: session.key, kind: origin.kind, target, title: reg.title, page: reg.page, lectures, return: "https://drawcast.app/" }, boundedFetch());
       if (typeof pay !== "object") throw new Error(privatePayAdvice(pay));
       spawnSync("open", [pay.url]);
       console.log(`Opened Stripe Checkout for ${origin.kind === "course" ? "this private course" : "this private drawcast"} (${dollars(quote.due)}) in the browser:\n  ${pay.url}\nPay there — waiting…`);
@@ -906,6 +916,7 @@ const commands = {
     if (!work) throw new Error('usage: cast.mjs push <workdir> [--dry-run | --no-push] [--direct] [-m "<commit message>"] [--body "<PR description>"] [--new-pr]');
     const wd = resolve(ROOT, work);
     const origin = JSON.parse(readFileSync(resolve(wd, "origin.json"), "utf8"));
+    if (origin.kind === "source" && origin.private) throw new Error("a private source can't be pushed");
     const clone = resolve(ROOT, origin.clone);
     const repo = { owner: origin.owner, repo: origin.repo };
     const git = (...a) => sh("git", ["-C", clone, ...a]);
@@ -930,36 +941,63 @@ const commands = {
     // source revision never asks for one (M4).
     let claim = null;
     const files = await withVite(async (load) => {
+      // Registry delivery 2 (fix round 1, #5): signed in and registrable, the
+      // server itself is asked (once — `lockPrivate` below reuses this SAME
+      // quote/reg/item rather than asking again) whether this is ACTUALLY
+      // private. A local origin.private that never got set — a `private`
+      // poll that timed out AFTER the payment cleared — must not let an
+      // already-paid course/cast publish in plaintext: the server's own
+      // `private` wins over the local flag, and a positive answer is
+      // recorded here so the next push does not have to ask again.
+      let quote = null, reg = null, item = null;
       if (session && registrable(origin)) {
         const { claimFile } = await load("/src/registry.ts");
         claim = await claimFile(session.api, session.key, joinRepo(origin.owner, origin.repo), boundedFetch());
+
+        const lib = { ...(await load("/src/course/publish.ts")), ...(await load("/src/publish/cast.ts")), ...(await load("/src/course/document.ts")) };
+        const courseText = origin.kind === "course" ? readFileSync(resolve(wd, "course.md"), "utf8") : undefined;
+        reg = registerFor(origin, lib, courseText);
+        item = privateItemFor(origin, reg);
+        const lectures = origin.kind === "course" ? Math.max(1, reg.lectures.length) : 1;
+        const { quotePrivate } = await load("/src/registry.ts");
+        quote = await quotePrivate(session.api, { key: session.key, kind: origin.kind, target: reg.target, lectures, private: true }, boundedFetch());
+        if (typeof quote === "object" && quote.private === true && !origin.private) {
+          origin.private = true;
+          writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
+        }
       }
       if (origin.kind === "source") return { files: [{ path: origin.path, content: readFileSync(resolve(wd, origin.file), "utf8") }], deletions: [] };
 
-      // A PRIVATE push (registry delivery 2, task 11): quotes first — refuses
-      // with the price and the exact `private` command if more is due, exactly
-      // the wording `private` itself prints — then fetches the item key as
-      // the owner and locks every lecture file of the plan `isLecturePath`
-      // picks out. Same identification the app itself uses: a cast's own
-      // registry target without `.yaml` (publish/cast.ts's privateCastTarget),
-      // a course's registry target applied to every lecture (ui/course.ts's
-      // own publish) — built from `registerFor`'s own output, so it can never
-      // drift from what gets registered. All before anything is written: a
-      // throw here (a refused quote, a missing key, a lock failure) leaves no
-      // git write behind.
-      const lockPrivate = async (planFiles, isLecturePath, courseText) => {
-        const lib = { ...(await load("/src/course/publish.ts")), ...(await load("/src/publish/cast.ts")), ...(await load("/src/course/document.ts")) };
-        const reg = registerFor(origin, lib, courseText);
-        const item = privateItemFor(origin, reg);
-        const lectures = origin.kind === "course" ? Math.max(1, reg.lectures.length) : 1;
-        const { quotePrivate } = await load("/src/registry.ts");
-        const quote = await quotePrivate(session.api, { key: session.key, kind: origin.kind, target: reg.target, lectures, private: true }, boundedFetch());
+      // A PRIVATE push (registry delivery 2, task 11): refuses — with the
+      // price and the exact `private` command if more is due, exactly the
+      // wording `private` itself prints — then fetches the item key as the
+      // owner and locks every lecture file of the plan with the APP'S OWN
+      // publish/lock.ts lockLectureFiles (not a second copy of it: it checks
+      // every locked result starts with the envelope header, drops any
+      // stray `bytes`, and refuses a missing lecture path or a `.png`).
+      // A private push also removes any poster an earlier PUBLIC publish
+      // left for these same lecture paths, exactly as the app's own
+      // commitPublish/publishCast do (fix round 1, #1) — a thumbnail would
+      // show a frame of what is now locked; only paths that actually exist
+      // upstream are scheduled for deletion (readAtCommit), never a phantom
+      // one. All before anything is written: a throw here (a refused quote,
+      // a missing key, an unregistered name, a lock failure) leaves no git
+      // write behind.
+      const lockPrivate = async (planFiles, lecturePaths) => {
         if (typeof quote !== "object" || quote.owner === "other" || quote.due > 0) throw new Error(privateQuoteAdvice(quote, work));
         const { fetchItemKey } = await load("/src/item-key.ts");
         const got = await fetchItemKey(session.api, session.key, item, boundedFetch(), null);
         if (!("key" in got)) throw new Error("Not pushed: the private key isn't available — is private paid for, and are you signed in as the owner?");
+        // Known here, before anything is locked: a private course with no
+        // registered name would ship a page nobody can join (ui/course.ts's
+        // own check, fix round 1, #3).
+        if (origin.kind === "course" && !quote.name) throw new Error("Not pushed: the course's link isn't registered yet — try again in a minute.");
         const { lockText } = await load("/src/crypto/lecture-lock.ts");
-        return lockPlanFiles(planFiles, isLecturePath, (_path, text) => lockText(text, got.key, item));
+        const { lockLectureFiles } = await load("/src/publish/lock.ts");
+        const locked = await lockLectureFiles(planFiles, lecturePaths, (_path, text) => lockText(text, got.key, item));
+        const { posterPathFor } = await load("/src/publish/cast.ts");
+        const posters = lecturePaths.map((p) => posterPathFor(p)).filter((p) => readAtCommit(clone, upstream, p) !== null);
+        return { files: locked, deletions: posters };
       };
 
       if (origin.kind === "cast") {
@@ -971,9 +1009,10 @@ const commands = {
         const indexText = readAtCommit(clone, upstream, joinRepo(origin.castsDir, "casts.json"));
         const slug = origin.file.replace(/\.ya?ml$/i, "");
         const plan = buildCastPlan({ title, text, slug, previousSlug: slug, repo, castsDir: origin.castsDir, viewerBase: origin.viewerBase, index: indexText ? parseCastIndex(indexText) : emptyCastIndex() });
+        if (!origin.private) return { files: plan.files, deletions: [] };
         const castPath = joinRepo(origin.castsDir, `${plan.slug}.yaml`);
-        const planFiles = origin.private ? await lockPrivate(plan.files, (p) => p === castPath) : plan.files;
-        return { files: planFiles, deletions: [] };
+        const locked = await lockPrivate(plan.files, [castPath]);
+        return { files: locked.files, deletions: locked.deletions };
       }
       const { buildPublishPlan } = await load("/src/course/publish.ts");
       const { parseCourse } = await load("/src/course/document.ts");
@@ -1020,10 +1059,11 @@ const commands = {
           ? { name: origin.registered, app: "https://drawcast.app/" }
           : pageDoor(readAtCommit(clone, upstream, joinRepo(origin.path, "index.html")), doorlessNote),
       });
+      if (!origin.private) return { files: plan.files, deletions: plan.deletions };
       const courseDir = joinRepo(origin.coursesDir, plan.slug);
-      const lecturePaths = new Set([...plan.fileOf.values()].map((name) => joinRepo(courseDir, name)));
-      const planFiles = origin.private ? await lockPrivate(plan.files, (p) => lecturePaths.has(p), text) : plan.files;
-      return { files: planFiles, deletions: plan.deletions };
+      const lecturePaths = [...plan.fileOf.values()].map((name) => joinRepo(courseDir, name));
+      const locked = await lockPrivate(plan.files, lecturePaths);
+      return { files: locked.files, deletions: [...plan.deletions, ...locked.deletions] };
     });
 
     // What would change, against the repo as it is now.

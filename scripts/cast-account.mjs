@@ -237,30 +237,11 @@ export function nameBlocker(origin, prState) {
 // src/registry.ts) are the app's own, loaded by cast.mjs through withVite and
 // handed in here, exactly like registerNow above takes `registry`/`names` —
 // so this file still imports nothing from src/ and stays testable with
-// fakes.
-
-/**
- * Applies `lock` — a path and its text in, the locked envelope text out,
- * the same shape as publish/lock.ts's LectureLock — to exactly the plan's
- * lecture files (the ones `isLecturePath` picks out), and drops every
- * `.png`: a private push here never builds a poster to begin with, but a
- * path is never trusted to have stayed that way (publish/lock.ts's own
- * defence, reused in spirit). A path `lock` throws for aborts the whole
- * call before anything is returned — no half-locked plan reaches the
- * caller, so `push` never writes a plaintext lecture beside a locked one.
- */
-export async function lockPlanFiles(files, isLecturePath, lock) {
-  const kept = files.filter((f) => !/\.png$/i.test(f.path));
-  const out = [];
-  for (const f of kept) {
-    if (!isLecturePath(f.path)) {
-      out.push(f);
-      continue;
-    }
-    out.push({ ...f, content: await lock(f.path, f.content) });
-  }
-  return out;
-}
+// fakes. The actual lock STEP (fix round 1, #2) is the app's own
+// publish/lock.ts lockLectureFiles, loaded and called directly by cast.mjs —
+// not reimplemented here, so its envelope-header check, its `.png` refusal
+// and its dropping of a stray `bytes` field can never drift from what a
+// browser publish enforces.
 
 /**
  * The item key lockText/fetchItemKey bind an envelope to (crypto/lecture-

@@ -66,18 +66,6 @@ export function registrable(origin: Record<string, unknown> | null | undefined):
 
 export function dollars(cents: number): string;
 
-export interface PublishFileLike {
-  path: string;
-  content: string;
-  bytes?: Uint8Array;
-}
-
-export function lockPlanFiles(
-  files: PublishFileLike[],
-  isLecturePath: (path: string) => boolean,
-  lock: (path: string, text: string) => Promise<string>,
-): Promise<PublishFileLike[]>;
-
 export function privateItemFor(origin: Record<string, unknown>, reg: { target: string }): string;
 
 export interface PrivateQuoteLike {

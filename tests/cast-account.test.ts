@@ -17,7 +17,6 @@ import {
   registrationFor,
   waitForName,
   writeSession,
-  lockPlanFiles,
   privateItemFor,
   privateDueMessage,
   privateQuoteAdvice,
@@ -320,51 +319,6 @@ describe("registerNow's sign-in hint (final review M5)", () => {
 });
 
 
-describe("lockPlanFiles (push: lock every lecture file of a private plan — task 11)", () => {
-  it("locks exactly the lecture paths, drops .png paths, leaves everything else untouched", async () => {
-    const files = [
-      { path: "qalys/01-one.yaml", content: "one" },
-      { path: "qalys/02-two.yaml", content: "two" },
-      { path: "qalys/course.md", content: "# QALYs" },
-      { path: "qalys/index.html", content: "<html>" },
-      { path: "qalys/01-one.png", content: "", bytes: new Uint8Array([1]) },
-    ];
-    const lecturePaths = new Set(["qalys/01-one.yaml", "qalys/02-two.yaml"]);
-    const locked: string[] = [];
-    const lock = async (path: string, text: string) => {
-      locked.push(path);
-      return `LOCKED:${text}`;
-    };
-    const out = await lockPlanFiles(files, (p) => lecturePaths.has(p), lock);
-    expect(out.map((f) => f.path)).toEqual(["qalys/01-one.yaml", "qalys/02-two.yaml", "qalys/course.md", "qalys/index.html"]);
-    expect(out.find((f) => f.path === "qalys/01-one.yaml")?.content).toBe("LOCKED:one");
-    expect(out.find((f) => f.path === "qalys/02-two.yaml")?.content).toBe("LOCKED:two");
-    expect(out.find((f) => f.path === "qalys/course.md")?.content).toBe("# QALYs");
-    expect(locked).toEqual(["qalys/01-one.yaml", "qalys/02-two.yaml"]);
-  });
-
-  it("a cast: exactly its one file locked, nothing else in the plan touched", async () => {
-    const files = [
-      { path: "casts/qaly.yaml", content: "spec" },
-      { path: "casts/casts.json", content: "{}" },
-    ];
-    const lock = async (_path: string, text: string) => `LOCKED:${text}`;
-    const out = await lockPlanFiles(files, (p) => p === "casts/qaly.yaml", lock);
-    expect(out).toEqual([
-      { path: "casts/qaly.yaml", content: "LOCKED:spec" },
-      { path: "casts/casts.json", content: "{}" },
-    ]);
-  });
-
-  it("a lock failure throws before anything is returned", async () => {
-    const files = [{ path: "a.yaml", content: "x" }];
-    const lock = async () => {
-      throw new Error("boom");
-    };
-    await expect(lockPlanFiles(files, () => true, lock)).rejects.toThrow(/boom/);
-  });
-});
-
 describe("privateItemFor (the item lockText/fetchItemKey bind an envelope to, matching the app's own prediction)", () => {
   it("a cast: the target without .yaml (publish/cast.ts's privateCastTarget)", () => {
     expect(privateItemFor({ kind: "cast" }, { target: "ann/casts/casts/qaly.yaml" })).toBe("ann/casts/casts/qaly");
@@ -455,5 +409,34 @@ describe("cast.mjs push wiring (C2, M4)", () => {
     expect(push.split("files.files = [...files.files, claim]").length).toBe(2);
     expect(push).toContain("if (session && registrable(origin)) {");
     expect(push).toContain("if (registrable(origin)) note = await registerPublished(");
+  });
+});
+
+describe("cast.mjs push wiring (fix round 1, #2/#7): the lock runs before any git write, the claim joins after", () => {
+  it("lockLectureFiles is called inside the plan-building withVite, before the first git write (checkout) — and the claim only joins files.files after that", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../scripts/cast.mjs", import.meta.url), "utf8");
+    const push = src.slice(src.indexOf("  async push(args) {"), src.indexOf("  async template("));
+    const withViteAt = push.indexOf("const files = await withVite(async (load) => {");
+    const lockAt = push.indexOf("await lockLectureFiles(planFiles, lecturePaths");
+    const claimJoinAt = push.indexOf("if (claim) files.files = [...files.files, claim];");
+    const checkoutAt = push.indexOf('git("checkout", "--quiet", "--force", "-B", branch, upstream);');
+    expect(withViteAt).toBeGreaterThan(0);
+    expect(lockAt).toBeGreaterThan(withViteAt);
+    expect(checkoutAt).toBeGreaterThan(lockAt);
+    expect(claimJoinAt).toBeGreaterThan(lockAt);
+    // The real app lock (publish/lock.ts), never a second copy of its checks.
+    expect(push).toContain('await load("/src/publish/lock.ts")');
+    expect(push).not.toMatch(/\blockPlanFiles\b/);
+  });
+
+  it("a private source refuses before any git write at all (not merely before the lock)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../scripts/cast.mjs", import.meta.url), "utf8");
+    const push = src.slice(src.indexOf("  async push(args) {"), src.indexOf("  async template("));
+    const refuseAt = push.indexOf('if (origin.kind === "source" && origin.private) throw new Error("a private source can\'t be pushed");');
+    const firstFetchAt = push.indexOf('git("fetch", "--quiet", "--depth", "1", "origin", origin.branch);');
+    expect(refuseAt).toBeGreaterThan(0);
+    expect(refuseAt).toBeLessThan(firstFetchAt);
   });
 });
