@@ -94,6 +94,50 @@ describe("the natural size of a node", () => {
   test("only nodes have one", () => {
     expect(naturalNodeSize({ id: "t", type: "text", text: "hi" })).toBeNull();
   });
+
+  // 2026-09-30: a node's font_size was ignored (text fixed at 24), here and
+  // in the box a group sized to that text.
+  test("a node's font_size sizes its text and its box", () => {
+    const plain = naturalNodeSize({ id: "a", type: "node", shape: "rect", text: "Produksjon" })!;
+    const big = naturalNodeSize({ id: "a", type: "node", shape: "rect", text: "Produksjon", font_size: 40 })!;
+    expect(big.w).toBeGreaterThan(plain.w * 1.4);
+    expect(big.h).toBeGreaterThan(plain.h);
+    expect(naturalNodeSize({ id: "a", type: "node", shape: "rect", text: "Hi", font_size: 18 })!.h).toBe(62);
+  });
+});
+
+describe("node font_size in a layout", () => {
+  const textOf = (spec: Spec, id: string) => {
+    const find = (ds: import("../src/layout/model").Drawable[]): import("../src/layout/model").Drawable | undefined => {
+      for (const d of ds) {
+        if (d.id === id) return d;
+        if (d.kind === "group") { const f = find(d.children); if (f) return f; }
+      }
+      return undefined;
+    };
+    return find(layoutSpec(spec).drawables) as { fontSize: number } | undefined;
+  };
+  test("a lone node draws its text at its font_size (24 when unset)", () => {
+    const spec = (fs?: number): Spec => ({ elements: [{ id: "n", type: "node", shape: "rect", text: "Cause", x: 500, y: 400, ...(fs ? { font_size: fs } : {}) }], commands: [] });
+    expect(textOf(spec(36), "n_text")!.fontSize).toBe(36);
+    expect(textOf(spec(), "n_text")!.fontSize).toBe(24);
+    const b36 = elementBBoxes(layoutSpec(spec(36))).get("n")!, b24 = elementBBoxes(layoutSpec(spec())).get("n")!;
+    expect(b36.h).toBeGreaterThan(b24.h);
+    const circ = { elements: [{ id: "c", type: "node", text: "Heterogeneity", x: 500, y: 400, font_size: 36 }], commands: [] } as Spec;
+    const circ24 = { elements: [{ id: "c", type: "node", text: "Heterogeneity", x: 500, y: 400 }], commands: [] } as Spec;
+    expect(elementBBoxes(layoutSpec(circ)).get("c")!.w).toBeGreaterThan(elementBBoxes(layoutSpec(circ24)).get("c")!.w);
+  });
+  test("a group row sizes (and equalizes) its boxes to the text as drawn", () => {
+    const big = JSON.parse(JSON.stringify(ROW)) as Spec;
+    big.elements![0].font_size = 36;
+    big.elements![1].font_size = 36;
+    const bBig = elementBBoxes(layoutSpec(big)), bRow = elementBBoxes(layoutSpec(ROW));
+    expect(textOf(big, "b_text")!.fontSize).toBe(36);
+    expect(bBig.get("b")!.w).toBeGreaterThan(bRow.get("b")!.w * 1.3);
+    expect(bBig.get("b")!.h).toBeGreaterThan(bRow.get("b")!.h);
+    // Still one size for the row.
+    expect(bBig.get("a")!.w).toBeCloseTo(bBig.get("b")!.w, 0);
+  });
 });
 
 import { elementBBoxes, layoutSpec } from "../src/layout/layout";

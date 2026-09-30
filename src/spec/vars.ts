@@ -194,7 +194,12 @@ export function formatVar(value: number, decimals?: number, decimalComma = false
   // The figure writes a number the way the voice reads it: 2,3 in a
   // Norwegian cast, as `measure` does (2026-09-25).
   const marked = decimalComma ? s.replace(".", ",") : s;
-  return group ? marked.replace(/^-?\d+/, (whole) => whole.replace(/\B(?=(\d{3})+$)/g, decimalComma ? "\u00a0" : ",")) : marked;
+  return group ? groupThousands(marked, decimalComma) : marked;
+}
+
+/** Thousands separators in the whole part of an already written number: "," in an English cast, a no-break space where the decimal mark is a comma. */
+export function groupThousands(written: string, decimalComma = false): string {
+  return written.replace(/^-?\d+/, (whole) => whole.replace(/\B(?=(\d{3})+$)/g, decimalComma ? "\u00a0" : ","));
 }
 
 // One optional dotted part: `{market.dwl}` reads a template's computed value

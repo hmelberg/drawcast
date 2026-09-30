@@ -129,7 +129,23 @@ export function bestColumns(sizes: Size[], region: Size, gap = DEFAULT_GAP): num
   return best.c;
 }
 
-const NODE_FONT = 24;
+/** A node's text size when it declares none. */
+export const NODE_FONT = 24;
+
+/**
+ * A node's text size: its own `font_size` when it gives one, else NODE_FONT.
+ * It used to be NODE_FONT always — a node's font_size was silently dropped,
+ * and a group that sized its boxes to their text sized them to 24 whatever
+ * the text was drawn at (2026-09-30).
+ */
+export function nodeFontSize(el: SpecElement): number {
+  return typeof el.font_size === "number" && el.font_size > 0 ? el.font_size : NODE_FONT;
+}
+
+/** A text-fitted rect node's height: 62 at the default size, taller for a larger font. */
+export function nodeRectHeight(fontSize: number): number {
+  return Math.max(62, Math.round(fontSize * 1.25 + 32));
+}
 
 /**
  * The size a node takes when it declares none — the same arithmetic
@@ -141,9 +157,10 @@ export function naturalNodeSize(el: SpecElement): Size | null {
   if (el.type !== "node") return null;
   const shape = el.shape ?? "circle";
   if (shape !== "rect" && shape !== "decision") return null;
-  const textW = el.text ? heuristicMeasure(el.text, NODE_FONT).w : 0;
+  const fs = nodeFontSize(el);
+  const textW = el.text ? heuristicMeasure(el.text, fs).w : 0;
   return {
     w: el.width ?? (shape === "decision" ? 56 : Math.max(130, textW + 36)),
-    h: el.height ?? (shape === "decision" ? 56 : 62),
+    h: el.height ?? (shape === "decision" ? 56 : nodeRectHeight(fs)),
   };
 }

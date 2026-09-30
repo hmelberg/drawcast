@@ -11,7 +11,7 @@
 import { boxAnchor } from "../layout/anchors";
 import { unionBoxes } from "../layout/boxes";
 import type { InsetError, InsetPicture } from "../layout/inset";
-import { elementBBoxes, layoutSpec, type LayoutResult } from "../layout/layout";
+import { domainMapping, elementBBoxes, layoutSpec, type LayoutResult } from "../layout/layout";
 import type { MeasureFn } from "../layout/measure";
 import type { LayoutOverrides } from "../layout/posed";
 import { applyTextStyle, effectiveTextStyle, type TextStyle } from "../layout/text-style";
@@ -46,6 +46,10 @@ export function pictureOf(source: Spec, measure: MeasureFn, planOpts: PlanOptsFo
     bboxesFor: (params, overrides) => {
       const b = boxesOf(layoutAt(params, overrides));
       return (id) => b.get(id) ?? null;
+    },
+    dataToLogicalFor: (params, overrides) => {
+      const l = layoutAt(params, overrides);
+      return l.frame ? domainMapping(l.frame, l.fit).toLogical : null;
     },
     anchorsAt: (params, overrides) => {
       const l = layoutAt(params, overrides);

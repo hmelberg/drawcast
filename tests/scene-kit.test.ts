@@ -163,8 +163,8 @@ describe("shadeColor", () => {
   });
 });
 
-test("KIT_VERSION is 11 and constants ride on the kit", () => {
-  expect(KIT_VERSION).toBe(11);
+test("KIT_VERSION is 12 and constants ride on the kit", () => {
+  expect(KIT_VERSION).toBe(12);
   expect(kit.COLORS.series).toHaveLength(6);
   for (const c of kit.COLORS.series) expect(Object.values(kit.COLORS)).toContain(c);
   expect(Object.isFrozen(kit.COLORS.series)).toBe(true);
@@ -548,4 +548,16 @@ test("kit.num and kit.say write in the cast's language (v11, 2026-09-25)", async
   expect(kit.say({ en: "slope", nb: "stigning" })).toBe("slope");
   setFigureLocale({ lang: "en", decimalComma: false });
   expect(kit.num(8.72, 1)).toBe("8.7");
+});
+
+test("kit.num groups thousands on request, as {x:0,} does (v12, 2026-09-30)", async () => {
+  const { setFigureLocale } = await import("../src/scenes/kit");
+  expect(kit.num(98901, 0, true)).toBe("98,901");
+  expect(kit.num(100000, 0, true)).toBe("100,000");
+  expect(kit.num(999, 0, true)).toBe("999");
+  expect(kit.num(-12345.67, 1, true)).toBe("-12,345.7");
+  expect(kit.num(98901, 0)).toBe("98901");
+  setFigureLocale({ lang: "nb", decimalComma: true });
+  expect(kit.num(12345.67, 1, true)).toBe("12 345,7");
+  setFigureLocale({ lang: "en", decimalComma: false });
 });

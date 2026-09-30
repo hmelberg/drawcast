@@ -2512,6 +2512,28 @@ describe("medicine pack", () => {
     expect(singleIds).toContain("half_guides");
   });
 
+  // 2026-09-30 test runs: no tick numbers, so "eighteen hours" or "8 days"
+  // could not be read off the figure.
+  test("pk_curve: tick numbers on the time axis (hours, then days) and the concentration axis", () => {
+    registerPack("medicine", medicineYaml);
+    const texts = (r: SceneLayout, prefix: string) =>
+      flattenDrawables(r.drawables).filter((d) => d.id.startsWith(prefix) && d.kind === "text").map((d) => (d as { text: string }).text);
+    const hours = scenes.pk_curve.layout!({ route: "oral", half_life: 6, t_max: 48, y_max: 1.5 });
+    expect(texts(hours, "axes__xt")).toEqual(["0", "6", "12", "18", "24", "30", "36", "42"]); // 48 sits under "Hours"
+    expect(texts(hours, "axes__x_label")).toEqual(["Hours"]);
+    expect(texts(hours, "axes__yt")).toEqual(["0.5", "1.0", "1.5"]);
+    const long = scenes.pk_curve.layout!({ half_life: 40, doses: 12, dose_interval: 24, t_max: 240 });
+    expect(texts(long, "axes__x_label")).toEqual(["Days"]);
+    expect(texts(long, "axes__xt")).toEqual(["0", "2", "4", "6", "8"]);
+    // Tick numbers stay clear of the caption and each other: no lint.
+    for (const params of [{ t_max: 48 }, { t_max: 240, doses: 12, dose_interval: 24, half_life: 40, show_window: true, show_average: true }, { route: "iv" }]) {
+      const res = layoutSpec({ template: "pk_curve", params, elements: [] } as never);
+      expect(res.issues, JSON.stringify(params)).toEqual([]);
+    }
+    // The half-life staircase keeps the y axis to its own ½ ¼ ⅛.
+    expect(texts(scenes.pk_curve.layout!({ route: "iv" }), "axes__yt")).toEqual([]);
+  });
+
   test("pv_loop: lower contractility raises ESV — the loop (and stroke volume) narrows from the left", () => {
     registerPack("medicine", medicineYaml);
     const strong = scenes.pv_loop.layout!({ contractility: 2.5, show_sv: true });
@@ -2942,6 +2964,39 @@ describe("stats pack", () => {
     expect(numOf("fp") + numOf("tn")).toBe(numOf("healthy"));
     const punch = (flat.find((d) => d.id === "ppv__t2") as { text: string }).text;
     expect(punch).toContain("9%"); // 9 / 98
+  });
+
+  // 2026-09-30 test runs: a 1-in-1,000 prevalence drew its healthy branch
+  // "100%", counts had no separators, and a high PPV still said "only".
+  test("bayes_tree: shares never round to 0%/100%, counts are grouped, the punchline fits the answer", () => {
+    registerPack("stats", statsYaml);
+    const textOf = (r: SceneLayout, id: string) => (flattenDrawables(r.drawables).find((d) => d.id === id) as { text: string }).text;
+    const rare = scenes.bayes_tree.layout!({ population: 100000, prevalence: 0.001, sensitivity: 0.95, specificity: 0.99 });
+    expect(textOf(rare, "edge_sick__t")).toBe("0.1%");
+    expect(textOf(rare, "edge_healthy__t")).toBe("99.9%");
+    expect(textOf(rare, "edge_tp__t")).toBe("95% +");
+    expect(textOf(rare, "edge_tn__t")).toBe("99% −");
+    expect(textOf(rare, "root__n")).toBe("100,000");
+    expect(textOf(rare, "tn__n")).toBe("98,901");
+    expect(textOf(rare, "ppv__t1")).toBe("Of the 1,094 positives, only 95 are sick");
+    const tiny = scenes.bayes_tree.layout!({ population: 100000, prevalence: 0.0001, specificity: 0.9999 });
+    expect(textOf(tiny, "edge_sick__t")).toBe("0.01%");
+    expect(textOf(tiny, "edge_healthy__t")).toBe("99.99%");
+    expect(textOf(tiny, "edge_fp__t")).toBe("0.01% +");
+    const even = scenes.bayes_tree.layout!({ population: 1000, prevalence: 0.5, sensitivity: 0.92 });
+    expect(textOf(even, "edge_sick__t")).toBe("50%");
+    expect(textOf(even, "edge_tp__t")).toBe("92% +");
+    const common = scenes.bayes_tree.layout!({ population: 100000, prevalence: 0.1, sensitivity: 0.95, specificity: 0.99 });
+    expect(textOf(common, "ppv__t1")).toBe("Of the 10,400 positives, 9,500 are sick");
+    expect(textOf(common, "ppv__t2")).toContain("91%");
+    // Readable sizes, and no collisions at the three prevalences authors use.
+    const sizes = flattenDrawables(common.drawables).filter((d) => /__(l|t)$/.test(d.id)).map((d) => (d as { fontSize: number }).fontSize);
+    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(18);
+    for (const prevalence of [0.001, 0.01, 0.1]) {
+      const res = layoutSpec({ template: "bayes_tree", params: { population: 100000, prevalence, sensitivity: 0.95, specificity: 0.99 }, elements: [] } as never);
+      expect(res.warnings, String(prevalence)).toEqual([]);
+      expect(res.issues, String(prevalence)).toEqual([]);
+    }
   });
 
   test("galton_board: bins are symmetric, exact binomial, tallest in the middle", () => {

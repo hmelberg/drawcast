@@ -226,6 +226,44 @@ describe("the emphasis colour steps aside when it would read as the target's own
     expect(glowKindOf(outline as never, true)).toBe("frame"); // the target also holds the bar's fill
     expect(glowKindOf(outline as never, false)).toBe("band"); // an empty box keeps the band along its line
   });
+
+  // 2026-09-30 test runs: the default glow turned a coloured label red ("red
+  // ink elsewhere") — wrong where red already meant something (hot).
+  test("glow washes coloured text behind it instead of recolouring it; plain ink and an asked colour still tint", () => {
+    const draw = { mode: "sketch", duration: 500 } as never;
+    const text = (color: string) => ({ id: "c", kind: "text", pos: [0, 0], text: "hot", fontSize: 26, anchor: "middle", z: 2, style: { color, strokeWidth: 2, opacity: 1, roughness: 1 }, drawOpts: draw }) as never;
+    expect(glowKindOf(text(COLORS.demand))).toBe("wash");
+    expect(glowKindOf(text("#2e7d4f"))).toBe("wash"); // a dark green is a colour of its own, though near ink
+    expect(glowKindOf(text(COLORS.ink))).toBe("tint");
+    expect(glowKindOf(text(COLORS.demand), false, true)).toBe("tint"); // highlight.color given: as asked
+  });
+
+  test("the wash is a marker-yellow pen under the words; the words keep their colour", async () => {
+    const spec = {
+      elements: [
+        { id: "hot_lbl", type: "text", text: "hot", x: 300, y: 400, style: { color: COLORS.demand } },
+        { id: "plain_lbl", type: "text", text: "plain", x: 700, y: 400 },
+      ],
+      commands: [{ draw: ["hot_lbl", "plain_lbl"] }],
+    };
+    const { restore, doc } = installMiniDom();
+    try {
+      const layout = layoutSpec(spec as never, heuristicMeasure);
+      const container = new FakeNode("div", doc as never);
+      const r = await rendererFor("clean").mount(layout, spec as never, container as never);
+      for (const el of r.elements.values()) el.finish();
+      r.effects!.setHighlight(["hot_lbl"], "glow", 1, null, undefined, EMPHASIS_WRITE_MS);
+      expect(echoes(container)).toHaveLength(0); // no recoloured echo over the words
+      const pen = pens(container).filter((p) => p.tagName === "path");
+      expect(pen).toHaveLength(1);
+      expect(pen[0].getAttribute("stroke")).toBe(COLORS.region1);
+      r.effects!.endHighlight(["hot_lbl"]);
+      r.effects!.setHighlight(["plain_lbl"], "glow", 1, null, undefined, EMPHASIS_WRITE_MS);
+      expect(echoes(container)).toHaveLength(1); // plain ink: the red echo, as before
+    } finally {
+      restore();
+    }
+  });
 });
 
 describe("glow on a line of code", () => {

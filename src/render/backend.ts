@@ -69,7 +69,9 @@ export interface BackendEffects {
    * elements — 0 is the normal appearance, 1 is full strength. The shape over
    * time (render/emphasis.ts: three throbs, then a hold for the length of the
    * sentence, then a release) belongs to the Player, which samples it per
-   * frame. box is the logical-units union box of the targets (circle effect).
+   * frame. box is the targets' logical-units boxes, one per target, or their
+   * union (circle / box / underline: one mark per target, shared only by
+   * targets close enough to be one visual unit).
    * elapsedMs is the time since the emphasis began, for what is WRITTEN on
    * rather than faded in (glow's band and marker); absent during the release,
    * which only fades what has been written. part narrows the emphasis to one
@@ -77,7 +79,7 @@ export interface BackendEffects {
    * phrase of a label or a code row; one that names nothing is ignored.
    * Nothing here ends the emphasis: endHighlight does.
    */
-  setHighlight(ids: string[], effect: HighlightEffect, level: number, box: BBox | null, color?: string, elapsedMs?: number, part?: string): void;
+  setHighlight(ids: string[], effect: HighlightEffect, level: number, box: BBox | readonly BBox[] | null, color?: string, elapsedMs?: number, part?: string): void;
   /** Remove any leftover emphasis for these ids (abort/scrub safety). */
   endHighlight(ids: string[]): void;
   /**

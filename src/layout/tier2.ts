@@ -12,7 +12,7 @@ import { UNIVERSAL_ANCHORS, boxAnchor, isUniversalAnchor, polygonAnchors, polyli
 import { boxOfId, unionBoxes } from "./boxes";
 import { fitTransform, ownBBox, pickSide, placementOrder, refBBox, relAt, relativeDelta, scaleDrawables, shiftDrawables, shiftPoints } from "./place";
 import { autoRow, placeDelta } from "./places";
-import { arrangementScale, bestColumns, DEFAULT_GAP, naturalNodeSize, slotCentres, type GroupLayout } from "./group-layout";
+import { arrangementScale, bestColumns, DEFAULT_GAP, naturalNodeSize, nodeFontSize, nodeRectHeight, slotCentres, type GroupLayout } from "./group-layout";
 import { columnSlots, fitPicture, isDefaultColumn, INSET_MAX, INSET_W } from "./inset";
 import { fitRegion, isFitName } from "./regions";
 import {
@@ -1454,8 +1454,6 @@ function regionDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
   ];
 }
 
-const NODE_FONT = 24;
-
 function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   const c = ctx.anchors[el.id] ?? [CANVAS.w / 2, CANVAS.h / 2];
   const shape = el.shape ?? "circle";
@@ -1463,7 +1461,8 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   const style = resolveStyle(el.style, { strokeWidth: 3 });
   const drawOpts = resolveDrawOpts(el.draw, { duration: SKETCH_MS.node });
   const out: Drawable[] = [];
-  const textW = text ? heuristicMeasure(text, NODE_FONT).w : 0;
+  const fontSize = nodeFontSize(el);
+  const textW = text ? heuristicMeasure(text, fontSize).w : 0;
   // A declared width/height is honoured, centred on x/y; without one the
   // conventional size (text-fitted rect, fixed decision/chance/terminal/person).
   // A round shape reads the larger of the two as its diameter.
@@ -1502,7 +1501,7 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     out.push(group);
   } else if (shape === "rect" || shape === "decision") {
     const w = el.width ?? (shape === "decision" ? 56 : Math.max(130, textW + 36));
-    const h = el.height ?? (shape === "decision" ? 56 : 62);
+    const h = el.height ?? (shape === "decision" ? 56 : nodeRectHeight(fontSize));
     ctx.nodeRadius.set(el.id, Math.hypot(w, h) / 2);
     ctx.nodeBox.set(el.id, [w / 2, h / 2]);
     out.push({
@@ -1547,21 +1546,21 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   }
 
   if (text && shape !== "person" && shape !== "terminal" && shape !== "triangle") {
-    out.push(nodeText(el.id, c, text, drawOpts));
+    out.push(nodeText(el.id, c, text, fontSize, drawOpts));
   } else if (text) {
     // text below persons/triangles
-    out.push(nodeText(el.id, [c[0], c[1] - (ctx.nodeRadius.get(el.id) ?? 40) - 20], text, drawOpts));
+    out.push(nodeText(el.id, [c[0], c[1] - (ctx.nodeRadius.get(el.id) ?? 40) - 20], text, fontSize, drawOpts));
   }
   return out;
 }
 
-function nodeText(id: string, pos: Pt, text: string, drawOpts: ReturnType<typeof resolveDrawOpts>): TextDrawable {
+function nodeText(id: string, pos: Pt, text: string, fontSize: number, drawOpts: ReturnType<typeof resolveDrawOpts>): TextDrawable {
   return {
     id: `${id}_text`,
     kind: "text",
     pos,
     text,
-    fontSize: NODE_FONT,
+    fontSize,
     anchor: "middle",
     z: Z_TEXT,
     style: defaultStyle(),

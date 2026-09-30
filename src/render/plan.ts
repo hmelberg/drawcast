@@ -309,6 +309,11 @@ export interface PlanOptions {
   deltaToLogical?: (d: Pt) => Pt;
   /** `{data: [x, y]}` → logical: the page's data frame (its domain, or a template's axes). */
   dataToLogical?: (p: Pt) => Pt;
+  /** The data mapping of a layout at a param set: after an animate (or any
+   *  relayout) a template's axes may have moved — y_max animated 1.5 → 2.9 —
+   *  and a later `{data: [x, y]}` must land on the axes as they then stand,
+   *  not on the spec's starting ones (2026-09-30). null keeps the mapping. */
+  dataToLogicalFor?: (params: Record<string, number>, overrides?: LayoutOverrides) => ((p: Pt) => Pt) | null;
   /** Whether a move of this id is in domain units (a point, curve, arrow on a page with a domain). Default: every id, when a domain mapping is given. */
   inDataUnits?: (id: string) => boolean;
   /** Ids that ride along with an element's translation: its attached labels and their leaders. */
@@ -399,7 +404,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   let bboxOf = opts.bboxOf ?? (() => null);
   const toLogical = opts.toLogical ?? ((p: Pt) => p);
   const deltaToLogical = opts.deltaToLogical ?? ((d: Pt) => d);
-  const dataToLogical = opts.dataToLogical ?? toLogical;
+  let dataToLogical = opts.dataToLogical ?? toLogical;
   /** `{data: [x, y]}` anywhere a verb takes a point: the page's data frame. */
   const dataOf = (p: unknown): Pt | null => {
     const d = (p as { data?: unknown } | null | undefined)?.data;
@@ -489,6 +494,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   /** After a step that changed a source: later steps aim at recomputed geometry. */
   const relayoutBoxes = () => {
     if (opts.bboxesFor) bboxOf = opts.bboxesFor(params, currentOverrides());
+    // The data frame follows too: a template's axes rescale with its params.
+    const mapped = opts.dataToLogicalFor?.(params, currentOverrides());
+    if (mapped) dataToLogical = mapped;
   };
   /** Step index at which each id was last drawn/shown — the forgotten-keep check. */
   const lastRevealed = new Map<string, number>();

@@ -23,7 +23,7 @@ import {
   type ShapeHint,
   type StrokeDrawable,
 } from "../layout/model";
-import { FIGURE_GROUND, readsAsSame } from "../layout/ink";
+import { colorDistance, FIGURE_GROUND, readsAsSame } from "../layout/ink";
 import { writtenAt } from "./emphasis";
 import { findPart, rowOffset, textRows, type PartHit } from "../layout/highlight-part";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
@@ -1247,12 +1247,16 @@ export function emphasisColorForAll(want: string, owns: (string | undefined)[], 
   return [want, ...EMPHASIS_FALLBACKS.filter((c) => !readsAsSame(c, INK))].reduce((best, c) => (clashes(c) < clashes(best) ? c : best));
 }
 
+/** Nearer the ink than this (colorDistance), a text's colour is the ink itself, not one of its own. */
+const OWN_COLOUR_MIN = 60;
+
 /** Glow's frame round a filled shape: half of it is masked by the shape, so this is twice what shows outside. */
 const FRAME_WIDTH = 24;
 
 /**
  * What glow does to one leaf: a band under a line, a marker behind a code row,
- * a frame round a filled shape, or the ink recoloured.
+ * a highlighter wash behind coloured text, a frame round a filled shape, or
+ * the ink recoloured.
  *
  * A frame is for the OUTLINE of something filled — a ball, a bar, a box with
  * a fill (`filledTarget`: the target also holds an area, as a bar's hatched
@@ -1262,8 +1266,16 @@ const FRAME_WIDTH = 24;
  * or fill all of it"). The frame is the highlighter drawn round the shape,
  * outside it only, so the fill keeps its own colour.
  */
-export function glowKindOf(leaf: Exclude<Drawable, { kind: "group" }>, filledTarget = false): "band" | "marker" | "tint" | "frame" {
+export function glowKindOf(leaf: Exclude<Drawable, { kind: "group" }>, filledTarget = false, explicitColor = false): "band" | "marker" | "wash" | "tint" | "frame" {
   if (leaf.kind === "text" && leaf.font === "mono") return "marker";
+  // Text in a colour of its own (a "hot" label in red, a curve's name in its
+  // curve's blue) keeps that colour: a highlighter wash behind the words, not
+  // the default red echo over them, which recoloured it — and where red
+  // already meant something (hot) said the wrong thing (2026-09-30). A
+  // colour the spec asked for still tints, as asked. "A colour of its own" is
+  // any the author chose — a dark green is one, though SAME_INK would call
+  // it ink — so the test is only that it is not (nearly) the ink itself.
+  if (leaf.kind === "text" && !explicitColor && leaf.style.color !== undefined && colorDistance(leaf.style.color, INK) > OWN_COLOUR_MIN) return "wash";
   if (leaf.kind === "stroke" && outlineD(leaf) !== null && (leaf.style.fill !== undefined || filledTarget)) return "frame";
   if (leaf.kind === "stroke" && leaf.pts.length >= 2 && !leaf.precise) return "band";
   return "tint";
@@ -1319,6 +1331,30 @@ function markerRowsPath(leaf: Extract<Drawable, { kind: "text" }>, piece?: { row
   return segs.length > 0 ? { d: segs.join(" "), width } : null;
 }
 
+/**
+ * The highlighter wash behind a proportional text: one round-capped band per
+ * row (or under the phrase `piece` names), as tall as the letters, measured
+ * on the drawn glyphs where the browser can (textPieceBox), else estimated.
+ */
+function washRowsPath(g: SVGGElement, leaf: Extract<Drawable, { kind: "text" }>, piece?: { row: number; col: number; len: number }): { d: string; width: number } | null {
+  const rows = textRows(leaf);
+  const width = leaf.fontSize * 1.05;
+  const cap = width / 2;
+  const segs: string[] = [];
+  rows.forEach((row, i) => {
+    if (piece && piece.row !== i) return;
+    const col = piece ? piece.col : 0;
+    const len = piece ? piece.len : row.length;
+    if (len <= 0 || row.trim() === "") return;
+    const b = textPieceBox(g, leaf, i, col, len);
+    const y = b.y + b.h / 2;
+    const x0 = b.x + cap * 0.6;
+    const x1 = Math.max(x0 + 0.5, b.x + b.w - cap * 0.6);
+    segs.push(`M${x0.toFixed(1)} ${y.toFixed(1)} L${x1.toFixed(1)} ${y.toFixed(1)}`);
+  });
+  return segs.length > 0 ? { d: segs.join(" "), width } : null;
+}
+
 /** A box in SVG coordinates (y down, y = the top edge) — what ring and underline are drawn around. */
 interface SvgBox {
   x: number;
@@ -1328,6 +1364,37 @@ interface SvgBox {
 }
 
 const svgBoxOf = (b: BBox): SvgBox => ({ x: b.x, y: toSvgY(b.y + b.h), w: b.w, h: b.h });
+
+const isBoxList = (b: BBox | readonly BBox[]): b is readonly BBox[] => Array.isArray(b);
+
+/** How close two targets' boxes may come and still take separate marks: a
+ *  ring stands this far out from its box, so nearer than twice that the two
+ *  rings would cross and read as one scribble. */
+const MARK_APART = 24;
+
+/**
+ * Targets that are one visual unit share a mark: boxes closer than
+ * MARK_APART (a label on its line, two words of a row) merge, transitively;
+ * everything else keeps its own. The first box's pose rides with a merge.
+ */
+export function markClusters<T extends { box: SvgBox }>(items: T[]): T[] {
+  const out = items.map((it) => ({ ...it }));
+  const near = (a: SvgBox, b: SvgBox) =>
+    a.x - MARK_APART < b.x + b.w && b.x - MARK_APART < a.x + a.w && a.y - MARK_APART < b.y + b.h && b.y - MARK_APART < a.y + a.h;
+  for (let merged = true; merged; ) {
+    merged = false;
+    for (let i = 0; i < out.length && !merged; i++) {
+      for (let j = i + 1; j < out.length; j++) {
+        if (!near(out[i].box, out[j].box)) continue;
+        out[i].box = unionSvgBoxes([out[i].box, out[j].box])!;
+        out.splice(j, 1);
+        merged = true;
+        break;
+      }
+    }
+  }
+  return out;
+}
 
 function unionSvgBoxes(boxes: SvgBox[]): SvgBox | null {
   if (boxes.length === 0) return null;
@@ -1937,7 +2004,7 @@ function makeEffects(
      * the player release exactly when the voice stops rather than at the end
      * of whatever cycle it happened to be in.
      */
-    setHighlight(ids: string[], effect: HighlightEffect, level: number, box: BBox | null, color?: string, elapsedMs?: number, part?: string): void {
+    setHighlight(ids: string[], effect: HighlightEffect, level: number, box: BBox | readonly BBox[] | null, color?: string, elapsedMs?: number, part?: string): void {
       const key = keyOf(ids);
       let st = active.get(key);
       if (!st) {
@@ -1960,19 +2027,27 @@ function makeEffects(
 
         if (effect === "circle" || effect === "underline" || effect === "box") {
           // Around (or under) the piece when there is one — measured on the
-          // leaves and posed like them — else the targets' own layout box.
-          let around: SvgBox | null = null;
-          let pose: string | null = null;
+          // leaves and posed like them — else each target's own layout box.
+          // ONE MARK PER TARGET (2026-09-30): two labels at opposite sides
+          // of a figure got one ring round the whole figure between them.
+          // Targets whose marks would touch are one visual unit (a label on
+          // its line, two words of a row) and share one (markClusters).
+          let arounds: { box: SvgBox; pose: string | null }[] = [];
           if (narrowed) {
-            around = unionSvgBoxes(lit.flatMap((e) => pieceBox(e.g, e.leaf, textHits.get(e.leaf.id)) ?? []));
-            pose = lit[0]?.g.getAttribute("transform") ?? null;
+            const around = unionSvgBoxes(lit.flatMap((e) => pieceBox(e.g, e.leaf, textHits.get(e.leaf.id)) ?? []));
+            if (around) arounds = [{ box: around, pose: lit[0]?.g.getAttribute("transform") ?? null }];
           } else if (box) {
-            around = svgBoxOf(box);
+            arounds = markClusters((isBoxList(box) ? box : [box]).map((b) => ({ box: svgBoxOf(b), pose: null })));
           } else {
-            around = unionSvgBoxes(entries.flatMap((e) => pieceBox(e.g, e.leaf) ?? []));
-            pose = entries[0]?.g.getAttribute("transform") ?? null;
+            arounds = markClusters(
+              ids.flatMap((id) => {
+                const own = leafNodes.get(id) ?? [];
+                const around = unionSvgBoxes(own.flatMap((e) => pieceBox(e.g, e.leaf) ?? []));
+                return around ? [{ box: around, pose: own[0]?.g.getAttribute("transform") ?? null }] : [];
+              }),
+            );
           }
-          if (around) {
+          for (const { box: around, pose } of arounds) {
             const pen = color ?? HIGHLIGHT_COLOR;
             const mark =
               effect === "circle" ? ellipseRingPath(around, pen, rc, narrowed) : effect === "box" ? boxMarkPath(around, pen, rc) : underlinePath(around, pen, rc);
@@ -2042,13 +2117,13 @@ function makeEffects(
           // One tint for every leaf this gesture recolours (see emphasisColorForAll).
           const tint = emphasisColorForAll(
             color ?? HIGHLIGHT_COLOR,
-            lit.filter((e) => e.leaf.kind !== "image" && (effect !== "glow" || glowKindOf(e.leaf, filledTarget) === "tint")).map((e) => (e.leaf.kind === "image" ? undefined : e.leaf.style.color)),
+            lit.filter((e) => e.leaf.kind !== "image" && (effect !== "glow" || glowKindOf(e.leaf, filledTarget, color !== undefined) === "tint")).map((e) => (e.leaf.kind === "image" ? undefined : e.leaf.style.color)),
             color !== undefined,
           );
           for (const { g, leaf, fadeNode } of lit) {
             const own = leaf.kind === "image" ? undefined : leaf.style.color;
             const hit = textHits.get(leaf.id);
-            const glow = effect === "glow" ? glowKindOf(leaf, filledTarget) : "tint";
+            const glow = effect === "glow" ? glowKindOf(leaf, filledTarget, color !== undefined) : "tint";
             // Framed: the frame is the whole mark — the fill keeps its colour
             // and the numbers and names inside it their ink.
             if (glow === "frame" || (framed.length > 0 && (leaf.kind === "area" || leaf.kind === "text"))) continue;
@@ -2070,6 +2145,10 @@ function makeEffects(
             let path: SVGPathElement | null = null;
             if (glow === "band" && leaf.kind === "stroke") {
               path = penPath(pathFromPts(leaf.pts, leaf.closed), emphasisColorFor(pen, own, color !== undefined), BAND_WIDTH, alpha, pose);
+            } else if (glow === "wash" && leaf.kind === "text") {
+              // The marker yellow, unless the words are that colour themselves.
+              const m = washRowsPath(g, leaf, hit);
+              if (m) path = penPath(m.d, emphasisColorFor(pen, own, false), m.width, alpha, pose);
             } else if (glow === "marker" && leaf.kind === "text") {
               const m = markerRowsPath(leaf, hit);
               if (m) path = penPath(m.d, pen, m.width, alpha, pose);

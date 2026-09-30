@@ -612,7 +612,14 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned UP 2026-09-30 (brief controls): the intro names the default
 // viewer when the request names no audience (+157), the length line and the
 // freehand beat cap move to 14–20 / 20 (-24). 370185 -> 370318.
-const BASELINE_SYSTEM_CHARS = 370318;
+// Re-pinned UP 2026-09-30 (node font_size): the schema's font_size names
+// node — its text size, a text-fitted box growing with it (+36 on the
+// schema, embedded in the prompt). 370318 -> 370385.
+// Re-pinned UP 2026-09-30 (glow on coloured text): the highlight bullet's
+// glow list adds "a highlighter wash behind coloured text" — a coloured
+// label keeps its colour instead of turning red. Prompt only: +41.
+// 370385 -> 370426.
+const BASELINE_SYSTEM_CHARS = 370426;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -663,7 +670,8 @@ const BASELINE_SYSTEM_CHARS = 370318;
 // Re-pinned UP 2026-09-30 (picture regions, delivery 1): +705, see the system note above. Measured 95759.
 // Re-pinned UP 2026-09-30 (picture marks): `effect`, `lift`, gesture arrow/glow. +538, see the system note. Measured 96297.
 // Re-pinned UP 2026-09-30 (picture mapping, delivery 3): regions accepts "auto" and {auto: {detail, kinds, find}}. +558. Measured 96855.
-const BASELINE_SCHEMA_CHARS = 96855;
+// Re-pinned UP 2026-09-30 (node font_size): font_size's description names node. +36. Measured 96891.
+const BASELINE_SCHEMA_CHARS = 96891;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in
