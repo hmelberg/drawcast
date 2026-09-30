@@ -1,6 +1,6 @@
 // Code execution facade: one narrow envelope between the drawcast spec and
 // whatever runtime actually runs the script. Runtime modules (pyodide.ts,
-// webr.ts, brython.ts, micropython.ts) are reached ONLY via dynamic import,
+// webr.ts, brython.ts) are reached ONLY via dynamic import,
 // so a spec without a code element never loads a byte of them; tests inject
 // a fake runner.
 //
@@ -16,7 +16,7 @@ import { STALE_CHUNK_MESSAGE, isStaleChunkError } from "../stale-chunk";
 import { cacheGet, cachePut } from "../render/portrait";
 import { defaultChartStyle, styled, type ChartStyle } from "./chart-style";
 import { CODE_VERSION, decodeCodeResult, type CodeRunResult } from "./envelope";
-import { RUNTIME_VERSION, cacheTag, isLanguage, type Language } from "./languages";
+import { RUNTIME_VERSION, cacheTag, currentLanguage, isLanguage, type Language } from "./languages";
 import { perfSpan } from "./perf";
 
 // Envelope shape lives in ./envelope (dependency-free — layout imports it
@@ -85,7 +85,6 @@ const RUNTIMES: Record<Language, () => Promise<RuntimeModule>> = {
   python: () => import("./pyodide"),
   r: () => import("./webr"),
   brython: () => import("./brython"),
-  micropython: () => import("./micropython"),
   microdata: () => import("./microdata"),
   basic: () => import("./basic"),
 };
@@ -120,6 +119,9 @@ async function defaultRunner(req: CodeRunRequest): Promise<CodeRunResult> {
 }
 
 export async function runCode(req: CodeRunRequest, deps: CodeRunDeps = {}): Promise<CodeRunResult> {
+  // The tray and the editor can hand over an element as the cast wrote it:
+  // a retired runtime runs on its successor (code/languages.ts).
+  req = { ...req, language: currentLanguage(req.language) as CodeRunRequest["language"] };
   const get = deps.cacheGet ?? cacheGet;
   const put = deps.cachePut ?? cachePut;
   const key = codeCacheKey(req);

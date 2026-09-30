@@ -2,7 +2,7 @@
 # way the browser will (module registration, then _run). Not shipped; a
 # developer check before the browser smoke:
 #   python3 scripts/pylib-sanity.py          # the Brython set
-#   python3 scripts/pylib-sanity.py --mpy    # the MicroPython set
+# (the --mpy MicroPython set was retired 2026-09-30; tag archive/micropython-2026-09-30)
 import json, os, re, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 # The snapshot version lives in one place (src/code/languages.ts); read it
@@ -10,10 +10,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 _LANG = open(os.path.join(HERE, '..', 'src', 'code', 'languages.ts')).read()
 PYLIB_VERSION = re.search(r'PYLIB_VERSION = "([^"]+)"', _LANG).group(1)
 ROOT = os.path.join(HERE, '..', 'public', 'pylib', PYLIB_VERSION)
-MPY = '--mpy' in sys.argv
-SUB = 'micropython' if MPY else 'brython'
-LIBS = ([('pandas_mpy', ['pandas']), ('plotly_express_mpy', ['plotly', 'plotly.express'])] if MPY else
-        [('pandas_brython', ['pandas']), ('plotly_express_brython', ['plotly', 'plotly.express']),
+SUB = 'brython'
+LIBS = ([('pandas_brython', ['pandas']), ('plotly_express_brython', ['plotly', 'plotly.express']),
          ('numpy_brython', ['numpy']), ('matplotlib_brython', ['matplotlib', 'matplotlib.pyplot']),
          ('scipy_stats_brython', ['scipy', 'scipy.stats']),
          ('statsmodels_brython', ['statsmodels', 'statsmodels.formula', 'statsmodels.formula.api']),
@@ -52,7 +50,7 @@ BRYTHON_ONLY = [
 
 if __name__ == '__main__':
     failed = 0
-    for title, code, paths in COMMON + ([] if MPY else BRYTHON_ONLY):
+    for title, code, paths in COMMON + BRYTHON_ONLY:
         env = run(title, code, paths)
         if env['error'] and title != 'error':
             failed += 1

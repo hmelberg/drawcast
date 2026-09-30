@@ -11,7 +11,6 @@ const LANGUAGE_NAMES: Record<string, string> = {
   python: "Python",
   r: "R",
   brython: "Python (Brython)",
-  micropython: "MicroPython",
   microdata: "microdata",
 };
 

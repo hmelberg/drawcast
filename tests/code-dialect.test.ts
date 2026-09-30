@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { RunQueue } from "../src/code/serial";
 import { PYLIB_VERSION } from "../src/code/languages";
-import { BRYTHON_LIBS, MICROPYTHON_LIBS, libsFor } from "../src/code/pylib";
+import { BRYTHON_LIBS, libsFor } from "../src/code/pylib";
 import { envelopeToResult, parseRunnerEnvelope } from "../src/code/dialect";
 import type { CodeRunResult } from "../src/code/run";
 
@@ -101,7 +101,7 @@ describe("pylib registry — which vendored modules a script needs", () => {
     expect(libsFor("import sklearn\nimport json", BRYTHON_LIBS)).toEqual([]);
   });
   test("every dependency names a registry key (a typo would throw inside libsFor)", () => {
-    for (const libs of [BRYTHON_LIBS, MICROPYTHON_LIBS]) {
+    for (const libs of [BRYTHON_LIBS]) {
       for (const [name, lib] of Object.entries(libs)) {
         for (const d of lib.deps) expect(libs[d], `${name} depends on ${d}`).toBeDefined();
       }
@@ -115,20 +115,6 @@ describe("pylib registry — which vendored modules a script needs", () => {
         expect(lib.aliases.indexOf(parent), `${a} needs ${parent} first`).toBeGreaterThanOrEqual(0);
         expect(lib.aliases.indexOf(parent)).toBeLessThan(lib.aliases.indexOf(a));
       }
-    }
-  });
-});
-
-describe("MicroPython registry — pandas and plotly.express only", () => {
-  test("import forms and the .plot token resolve to the two vendored modules", () => {
-    expect(libsFor("import pandas as pd", MICROPYTHON_LIBS)).toEqual(["pandas_mpy"]);
-    expect(libsFor("import plotly.express as px", MICROPYTHON_LIBS)).toEqual(["plotly_express_mpy"]);
-    expect(libsFor("df.plot(kind='bar')", MICROPYTHON_LIBS)).toEqual(["plotly_express_mpy"]);
-    expect(libsFor("import numpy as np", MICROPYTHON_LIBS)).toEqual([]);
-  });
-  test("every MicroPython registry file is vendored", () => {
-    for (const lib of Object.values(MICROPYTHON_LIBS)) {
-      expect(readFileSync(new URL(`../public/pylib/${PYLIB_VERSION}/${lib.file}`, import.meta.url), "utf8").length).toBeGreaterThan(1000);
     }
   });
 });

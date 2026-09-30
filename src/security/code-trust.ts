@@ -6,7 +6,7 @@
 // account token), fetch, the DOM:
 //   - a template document's `layout` / `widget` / `lint` bodies (`spec.templates`,
 //     compiled with new Function in scenes/compile.ts), and
-//   - a code element's script (python / micropython / brython / microdata run
+//   - a code element's script (python / brython / microdata run
 //     on the main thread with `import js` / `browser.window`; R runs in webR's
 //     worker, which still has fetch).
 // BASIC is the one exception: it is drawcast's own pure interpreter

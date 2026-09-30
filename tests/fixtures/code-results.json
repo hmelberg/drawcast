@@ -113,22 +113,22 @@
    "sim": "{\"ok\":true,\"stdout\":\"\",\"stderr\":\"\",\"figures\":[],\"tables\":[],\"data\":{\"rows\":[[100,100,100,100],[107,105,103,101],[114,110,106,102],[123,116,109,103],[131,122,113,104],[140,128,116,105],[150,134,119,106],[161,141,123,107],[172,148,127,108],[184,155,130,109],[197,163,134,110],[210,171,138,112],[225,180,143,113],[241,189,147,114],[258,198,151,115],[276,208,156,116],[295,218,160,117],[316,229,165,118],[338,241,170,120],[362,253,175,121],[387,265,181,122],[414,279,186,123],[443,293,192,124],[474,307,197,126],[507,323,203,127],[543,339,209,128],[581,356,216,130],[621,373,222,131],[665,392,229,132],[711,412,236,133],[761,432,243,135]]}}"
   }
  },
+ "In light Python (Brython): if interest is added more and more often, does a year's growth grow without limit?": {
+  "key": "fd25f99548094fcb",
+  "stamps": {
+   "ci": "{\"ok\":true,\"stdout\":\"1 times a year: 2.0\\n2 times a year: 2.25\\n4 times a year: 2.4414\\n12 times a year: 2.613\\n52 times a year: 2.6926\\n365 times a year: 2.7146\\n2.7183\",\"stderr\":\"\",\"figures\":[],\"tables\":[]}"
+  }
+ },
  "In light Python: why does a histogram of a hundred random draws look so lumpy, and how many draws smooth it? A hundred, then ten thousand, as two matplotlib histograms": {
   "key": "dbdb0f26a06b4b9b",
   "stamps": {
    "h": "{\"ok\":true,\"stdout\":\"\",\"stderr\":\"\",\"figures\":[{\"href\":\"data:image/png;base64,\",\"w\":1400,\"h\":900},{\"href\":\"data:image/png;base64,\",\"w\":1400,\"h\":900}],\"tables\":[]}"
   }
  },
- "In minimal Python (MicroPython): if interest is added more and more often, does a year's growth grow without limit?": {
-  "key": "d8b2120df03ad1f4",
+ "Screening arithmetic in light Python (Brython): how likely is a positive test to be right, and what does a second positive add?": {
+  "key": "01d0bfd47656c5d5",
   "stamps": {
-   "ci": "{\"ok\":true,\"stdout\":\"1 times a year: 2.0\\n2 times a year: 2.25\\n4 times a year: 2.4414\\n12 times a year: 2.613\\n52 times a year: 2.6926\\n365 times a year: 2.7146\\n2.7183\",\"stderr\":\"\",\"figures\":[],\"tables\":[]}"
-  }
- },
- "Screening arithmetic in minimal Python (MicroPython): how likely is a positive test to be right, and what does a second positive add?": {
-  "key": "3f334e9e4585ace6",
-  "stamps": {
-   "s": "{\"ok\":true,\"stdout\":\"\",\"stderr\":\"\",\"figures\":[],\"tables\":[{\"truncated\":0,\"columns\":[\"ill\",\"1 test\",\"2 tests\"],\"rows\":[[\"0.001\",\"0.018\",\"0.245\"],[\"0.01\",\"0.154\",\"0.766\"],[\"0.1\",\"0.667\",\"0.973\"]]}]}"
+   "s": "{\"ok\":true,\"stdout\":\"\",\"stderr\":\"\",\"figures\":[],\"tables\":[{\"columns\":[\"ill\",\"1 test\",\"2 tests\"],\"rows\":[[\"0.001\",\"0.018\",\"0.245\"],[\"0.01\",\"0.154\",\"0.766\"],[\"0.1\",\"0.667\",\"0.973\"]],\"truncated\":0}]}"
   }
  },
  "Twenty players, eight places on the scoreboard: when does the leaderboard start showing who is actually good?": {
@@ -213,10 +213,10 @@
    "pcount": "{\"ok\":true,\"stdout\":\"share below 50: 0.3\\nprimes below 1000: 168\",\"stderr\":\"\",\"figures\":[{\"href\":\"data:image/png;base64,\",\"w\":602,\"h\":475},{\"href\":\"data:image/png;base64,\",\"w\":602,\"h\":475},{\"href\":\"data:image/png;base64,\",\"w\":602,\"h\":475}],\"tables\":[]}"
   }
  },
- "Why do the ratios of Fibonacci numbers settle on the golden ratio? A minimal Python computes them": {
-  "key": "20769b42d9460108",
+ "Why do the ratios of Fibonacci numbers settle on the golden ratio? A light Python computes them": {
+  "key": "23c6c7585ab0642c",
   "stamps": {
-   "fib": "{\"ok\":true,\"stdout\":\"\",\"stderr\":\"\",\"figures\":[],\"tables\":[],\"data\":{\"ratios\":[2,1.5,1.6667,1.6,1.625,1.6154,1.619,1.6176,1.6182,1.618,1.6181,1.618,1.618,1.618],\"n\":[2,3,4,5,6,7,8,9,10,11,12,13,14,15]}}"
+   "fib": "{\"ok\":true,\"stdout\":\"\",\"stderr\":\"\",\"figures\":[],\"tables\":[],\"data\":{\"n\":[2,3,4,5,6,7,8,9,10,11,12,13,14,15],\"ratios\":[2,1.5,1.6667,1.6,1.625,1.6154,1.619,1.6176,1.6182,1.618,1.6181,1.618,1.618,1.618]}}"
   }
  },
  "Why does 7 percent interest end up worth eleven times more than 2 percent, not three and a half?": {

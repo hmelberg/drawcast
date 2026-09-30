@@ -28,7 +28,6 @@ describe("tokenizeLine: the concatenation invariant", () => {
     ["", "python"],
     ["   ", "python"],
     ["import numpy as np", "brython"],
-    ["for i in range(10): print(i)", "micropython"],
     ["if (x > 1) return(TRUE)", "r"],
     ["df$col <- mean(df$col, na.rm = TRUE)  # note", "r"],
     ["require no.ssb.fdb:54 as db", "microdata"],
@@ -62,7 +61,7 @@ describe("tokenizeLine: unknown/absent language", () => {
   });
 });
 
-describe("tokenizeLine: python (shared by brython/micropython)", () => {
+describe("tokenizeLine: python (shared by brython)", () => {
   test("keyword, function-call and a plain identifier", () => {
     const t = assertConcatenates("def foo(x):", "python");
     expect(kindsOf(t, "def")).toEqual(["keyword"]);
@@ -95,8 +94,8 @@ describe("tokenizeLine: python (shared by brython/micropython)", () => {
     const inside = tokenizeLine("def not_really_a_def():", "python");
     expect(kindsOf(inside, "def")).toEqual(["keyword"]);
   });
-  test("brython and micropython use the same rules as python", () => {
-    for (const language of ["brython", "micropython"]) {
+  test("brython uses the same rules as python", () => {
+    for (const language of ["brython"]) {
       const t = assertConcatenates("class Foo(object):", language);
       expect(kindsOf(t, "class")).toEqual(["keyword"]);
     }

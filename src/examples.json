@@ -26635,14 +26635,14 @@
     }
   },
   {
-    "request": "In minimal Python (MicroPython): if interest is added more and more often, does a year's growth grow without limit?",
+    "request": "In light Python (Brython): if interest is added more and more often, does a year's growth grow without limit?",
     "spec": {
       "title": "Compounding more often",
       "elements": [
         {
           "id": "ci",
           "type": "code",
-          "language": "micropython",
+          "language": "brython",
           "show": "left",
           "width": 900,
           "code": "import math\nrate = 1.0\nfor n in [1, 2, 4, 12, 52, 365]:\n    total = (1 + rate / n) ** n\n    print(n, \"times a year:\", round(total, 4))\nround(math.e, 4)",
@@ -28587,7 +28587,7 @@
     }
   },
   {
-    "request": "Why do the ratios of Fibonacci numbers settle on the golden ratio? A minimal Python computes them",
+    "request": "Why do the ratios of Fibonacci numbers settle on the golden ratio? A light Python computes them",
     "spec": {
       "title": "Fibonacci and the golden ratio",
       "template": "line_chart",
@@ -28617,7 +28617,7 @@
         {
           "id": "fib",
           "type": "code",
-          "language": "micropython",
+          "language": "brython",
           "show": "code",
           "y": 360,
           "code": "a, b = 1, 1\nn, ratios = [], []\nfor i in range(2, 16):\n    a, b = b, a + b\n    n.append(i)\n    ratios.append(round(b / a, 4))"
@@ -28643,7 +28643,7 @@
             "fib_line_2"
           ],
           "parallel": true,
-          "speak": "Why do neighbouring Fibonacci numbers settle into one odd ratio, 1.618? Two ones to start, in MicroPython, a Python small enough for a microcontroller."
+          "speak": "Why do neighbouring Fibonacci numbers settle into one odd ratio, 1.618? Two ones to start, in a light Python that runs right in the browser."
         },
         {
           "draw": [
@@ -28729,14 +28729,14 @@
     }
   },
   {
-    "request": "Screening arithmetic in minimal Python (MicroPython): how likely is a positive test to be right, and what does a second positive add?",
+    "request": "Screening arithmetic in light Python (Brython): how likely is a positive test to be right, and what does a second positive add?",
     "spec": {
       "title": "What a positive test is worth",
       "elements": [
         {
           "id": "s",
           "type": "code",
-          "language": "micropython",
+          "language": "brython",
           "show": "left",
           "width": 900,
           "code": "import pandas as pd\nsens, spec = 0.9, 0.95\ndef ppv(p):\n    tp = sens * p\n    fp = (1 - spec) * (1 - p)\n    return tp / (tp + fp)\nrows = []\nfor p in [0.001, 0.01, 0.1]:\n    once = ppv(p)\n    rows.append([p, round(once, 3), round(ppv(once), 3)])\npd.DataFrame(rows, columns=[\"ill\", \"1 test\", \"2 tests\"])",
@@ -28796,7 +28796,7 @@
           "draw": [
             "s_line_11"
           ],
-          "speak": "The rows go in as a list of lists, because MicroPython's dictionaries do not keep their order, and the columns would shuffle."
+          "speak": "The rows go in as a list of lists, one row per test, in the order the table reads."
         },
         {
           "pause": 0.3
