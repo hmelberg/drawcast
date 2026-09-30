@@ -212,8 +212,8 @@ describe("the light follows the picture's tone", () => {
       const { restore, effects, overlay } = await withPicture(encodePhoto(1.5, DATA), DATA);
       try {
         const f = frameOf("light", { x: 300, y: 300, w: 50, h: 50 }, { level: 1 });
-        effects.setMark!("md", f);
-        expect(washOf(overlay).getAttribute("fill")).toBe(FIGURE_GROUND); // not known yet
+        // Probed at mount: by the first light the tone is already known.
+        expect(probed).toEqual([DATA]);
         await tick();
         effects.setMark!("md", f);
         expect(washOf(overlay).getAttribute("fill")).toBe(color);
@@ -260,6 +260,33 @@ describe("the light follows the picture's tone", () => {
     }
   });
 
+  test("the probe starts when the picture is mounted, before any light", async () => {
+    const probed: string[] = [];
+    setLuminanceProbe(() => (probed.push("x"), new Promise<number>(() => {})));
+    const { restore, effects } = await withPicture(encodePhoto(1.5, DATA), DATA);
+    try {
+      expect(probed).toHaveLength(1);
+      effects.setMark!("md", frameOf("light", { x: 300, y: 300, w: 50, h: 50 }));
+      expect(probed).toHaveLength(1); // the first light joins the measure in flight
+    } finally {
+      restore();
+    }
+  });
+
+  test("tones are cached by a cheap key, at most 32", async () => {
+    const { primeTone, luminanceCacheSize, toneKey } = await import("../src/render/svg-backend");
+    setLuminanceProbe(async () => 0.5);
+    const long = (k: number) => `data:image/png;base64,${"A".repeat(5000)}${k.toString().padStart(3, "0")}`;
+    primeTone(long(1));
+    primeTone(long(2));
+    await tick();
+    expect(luminanceCacheSize()).toBe(2);
+    expect(toneKey(long(1)).length).toBeLessThan(200);
+    for (let k = 0; k < 40; k++) primeTone(long(100 + k));
+    await tick();
+    expect(luminanceCacheSize()).toBe(32);
+  });
+
   test("a linked https picture is never probed: paper wash", async () => {
     let calls = 0;
     setLuminanceProbe(async () => (calls++, 0.1));
@@ -277,3 +304,36 @@ describe("the light follows the picture's tone", () => {
   });
 });
 
+
+describe("the luminance probe", () => {
+  /** A fake 2D context that composites like a canvas: a fill, then an image with alpha over it. */
+  function fakeCtx() {
+    const px = new Uint8ClampedArray(4 * 4 * 4); // 4×4, transparent
+    const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+    const ctx = {
+      fillStyle: "#000000" as string,
+      fillRect: () => {
+        const [r, g, b] = hex(ctx.fillStyle);
+        for (let i = 0; i < px.length; i += 4) px.set([r, g, b, 255], i);
+      },
+      drawImage: (img: { data: Uint8ClampedArray }) => {
+        for (let i = 0; i < px.length; i += 4) {
+          const a = img.data[i + 3] / 255;
+          const under = px[i + 3] / 255;
+          for (let c = 0; c < 3; c++) px[i + c] = a * img.data[i + c] + (1 - a) * px[i + c];
+          px[i + 3] = 255 * (a + under * (1 - a));
+        }
+      },
+      getImageData: () => ({ data: px }),
+    };
+    return ctx;
+  }
+  test("a mostly transparent picture of dark lines measures as what the viewer sees: paper", async () => {
+    const { drawnLuminance } = await import("../src/render/svg-backend");
+    const data = new Uint8ClampedArray(4 * 4 * 4);
+    for (const k of [0, 5, 10]) data.set([20, 20, 20, 255], k * 4); // three dark line pixels, the rest clear
+    const v = drawnLuminance(fakeCtx() as never, { data } as never, 4);
+    expect(v).not.toBeNull();
+    expect(v!).toBeGreaterThan(0.42);
+  });
+});

@@ -1524,40 +1524,70 @@ const LIGHT_LIFT = "#fff8e6";
 /** A picture's mean luminance (0..1), or null when its pixels cannot be read. */
 export type LuminanceProbe = (href: string) => Promise<number | null>;
 
-/** The real probe: the picture drawn into a 24×24 canvas, its pixels averaged (Rec. 709 weights). */
+/** What the probe needs of a 2D canvas context. */
+export type ProbeContext = Pick<CanvasRenderingContext2D, "fillRect" | "drawImage" | "getImageData"> & { fillStyle: CanvasRenderingContext2D["fillStyle"] };
+
+/** A picture's mean luminance as drawn into a `size`×`size` canvas (Rec. 709 weights). */
+export function drawnLuminance(ctx: ProbeContext, img: CanvasImageSource, size = 24): number | null {
+  // On the figure's ground first: a transparent picture (a line drawing, a
+  // cut-out) is seen over paper, and must measure as paper — not as its
+  // lines alone.
+  ctx.fillStyle = FIGURE_GROUND;
+  ctx.fillRect(0, 0, size, size);
+  ctx.drawImage(img, 0, 0, size, size);
+  const d = ctx.getImageData(0, 0, size, size).data;
+  let sum = 0;
+  let n = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] === 0) continue; // a transparent pixel is no tone
+    sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+    n++;
+  }
+  return n > 0 ? sum / n / 255 : null;
+}
+
+/** The real probe: the picture drawn into a 24×24 canvas, its pixels averaged. */
 const canvasLuminance: LuminanceProbe = (href) =>
   new Promise((resolve) => {
     if (typeof Image === "undefined") return resolve(null);
     const img = new Image();
-    img.onload = () => {
+    const draw = () => {
       try {
         const c = document.createElement("canvas") as HTMLCanvasElement;
         c.width = c.height = 24;
         const ctx = c.getContext("2d");
-        if (!ctx) return resolve(null);
-        ctx.drawImage(img, 0, 0, 24, 24);
-        const d = ctx.getImageData(0, 0, 24, 24).data;
-        let sum = 0;
-        let n = 0;
-        for (let i = 0; i < d.length; i += 4) {
-          if (d[i + 3] === 0) continue; // a transparent pixel is no tone
-          sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
-          n++;
-        }
-        resolve(n > 0 ? sum / n / 255 : null);
+        resolve(ctx ? drawnLuminance(ctx, img) : null);
       } catch {
         resolve(null);
       }
     };
-    img.onerror = () => resolve(null);
     img.src = href;
+    // Decoded off the main thread where the browser can; onload elsewhere.
+    if (typeof img.decode === "function") img.decode().then(draw, () => resolve(null));
+    else {
+      img.onload = draw;
+      img.onerror = () => resolve(null);
+    }
   });
 
 let luminanceProbe: LuminanceProbe = canvasLuminance;
-/** Measured tones, per href — measured once however many marks a picture gets. */
+/** Measured tones, per picture (toneKey) — measured once however many marks a picture gets. */
 const luminanceCache = new Map<string, number | null>();
-/** Per href being measured, what to call when its tone is known (the lights already on it). */
+/** At most this many tones are kept; the oldest goes first. */
+const LUMINANCE_CACHE_MAX = 32;
+/** Per picture being measured, what to call when its tone is known (the lights already on it). */
 const luminancePending = new Map<string, Set<() => void>>();
+
+/** A cheap key for a picture's href: a data: URI can be megabytes, and a
+ *  Map keyed by it would keep every one of them alive. */
+export function toneKey(href: string): string {
+  return `${href.length}:${href.slice(0, 64)}:${href.slice(-64)}`;
+}
+
+/** How many tones are cached (tests). */
+export function luminanceCacheSize(): number {
+  return luminanceCache.size;
+}
 
 /** Swap the luminance probe (tests: mini-dom has no canvas); null restores the real one. Clears the cache. */
 export function setLuminanceProbe(probe: LuminanceProbe | null): void {
@@ -1573,28 +1603,36 @@ export function setLuminanceProbe(probe: LuminanceProbe | null): void {
  * `onKnown` runs once when a measure still in flight lands — so a light
  * painted once and left (a paused player, the frames sheet) takes the tone too.
  */
-function pictureTone(href: string | null, onKnown: () => void): () => number | null {
+function pictureTone(href: string | null, onKnown?: () => void): () => number | null {
   if (!href || !href.startsWith("data:")) return () => null;
-  if (!luminanceCache.has(href)) {
-    let waiters = luminancePending.get(href);
+  const key = toneKey(href);
+  if (!luminanceCache.has(key)) {
+    let waiters = luminancePending.get(key);
     if (!waiters) {
       const mine = new Set<() => void>();
       waiters = mine;
-      luminancePending.set(href, mine);
+      luminancePending.set(key, mine);
       const probe = luminanceProbe;
       probe(href)
         .catch(() => null)
         .then((v) => {
           // A probe swapped out meanwhile (setLuminanceProbe) no longer counts.
-          if (luminancePending.get(href) !== mine) return;
-          luminancePending.delete(href);
-          luminanceCache.set(href, v);
+          if (luminancePending.get(key) !== mine) return;
+          luminancePending.delete(key);
+          luminanceCache.set(key, v);
+          while (luminanceCache.size > LUMINANCE_CACHE_MAX) luminanceCache.delete(luminanceCache.keys().next().value!);
           for (const f of mine) f();
         });
     }
-    waiters.add(onKnown);
+    if (onKnown) waiters.add(onKnown);
   }
-  return () => luminanceCache.get(href) ?? null;
+  return () => luminanceCache.get(key) ?? null;
+}
+
+/** Start measuring a picture's tone now — at mount, so it is usually known
+ *  before its first light (the first setMark still starts it otherwise). */
+export function primeTone(href: string | null): void {
+  pictureTone(href);
 }
 /** Room between a ring or box and the place it marks. */
 const MARK_PAD = 8;
@@ -2262,6 +2300,8 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
                   ? { ...leaf, text, lines: undefined }
                   : leaf;
             const g = drawLeaf(rc, drawn);
+            // A picture's shown image: measure its tone now, ahead of any light on it.
+            if (leaf.kind === "image" && leaf.id === `${id}__img`) primeTone(leaf.href);
             const z = (leaf.z <= 0 ? 0 : leaf.z === 1 ? 1 : leaf.z === 2 ? 2 : 3) as 0 | 1 | 2 | 3;
             const [dx, dy] = offsets?.[id] ?? [0, 0];
             // The SAME string the element handle would write (poseTransform):
