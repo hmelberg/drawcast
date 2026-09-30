@@ -97,6 +97,7 @@ import { publishToServer, serverCastKey, type ServerAccess } from "./publish/ser
 import { formatPrice, isPayable, normalizeName, paidInHash, registerName, startNamePayment } from "./names";
 import { DEFAULT_ENROLL_API } from "./learn";
 import { claimFile, privateInHash, quotePrivate, registerItem, registryNote, verifyClaim } from "./registry";
+import { CreditError, creditInHash, serverSynthesize } from "./credit";
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
 import { fetchItemKey, liveKeyStorage, unlockForAuthor } from "./item-key";
@@ -4363,6 +4364,19 @@ if (privReturn) {
   }
 }
 
+// Stripe's return from a narration-credit purchase (registry delivery 3) —
+// creditInHash's own fragment shape (src/credit.ts), same "reopen nothing,
+// just say what happened" contract as privReturn above.
+const creditReturn = creditInHash(location.hash);
+if (creditReturn) {
+  history.replaceState(null, "", location.pathname + location.search);
+  if (creditReturn.outcome === "creditpaid") {
+    setStatus(`Narration credit added — ${creditReturn.cents / 100} USD.`, "ok");
+  } else {
+    setStatus("Credit was not bought — nothing was charged.");
+  }
+}
+
 // ---------- my templates ----------
 
 myTplImportBtn.addEventListener("click", () => myTplImportInput.click());
@@ -4945,8 +4959,13 @@ async function publishTextFor(
   source = withAuthoredTemplates(source, myTemplateDoc);
   const plain = formatPlaylist(source, "yaml");
   if (!bake) return plain;
+  // Narration credit (registry delivery 3, ruling 1): own key, then a vended
+  // one — getTtsKey() already answers either, store.ts conflates the two
+  // storage-wise — then, signed in and only then, the server synthesizes
+  // against prepaid credit. Neither key nor an account leaves the old error.
   const apiKey = getTtsKey();
-  if (!apiKey) throw new Error("Publishing with narration needs a Google TTS key — add one in Settings.");
+  const accountToken = getToken();
+  if (!apiKey && !accountToken) throw new Error("Publishing with narration needs a Google TTS key — add one in Settings.");
   const published = await previousText();
   const existing: AudioTrack["lines"] = published ? (parsePlaylistText(published).audio?.lines ?? {}) : {};
   const bakeLines = playlistSpeakLines(source);
@@ -4957,6 +4976,9 @@ async function publishTextFor(
   const declaredLang = itemsOf(source).find((i) => i.spec.lang)?.spec.lang;
   const voiceOf = (line: SpeakLine): string | undefined => stampedVoice(settings.cloudVoices, runLang(line, declaredLang), line);
   const stats: SynthStats = { cached: 0, synthesized: 0 };
+  const synthesizeLine = apiKey
+    ? (line: SpeakLine) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices, lang: declaredLang }, line.text, line)
+    : (line: SpeakLine) => serverSynthesize(DEFAULT_ENROLL_API, accountToken, { rate: settings.rate, voices: settings.cloudVoices, lang: declaredLang }, line.text, line);
   const track = await bakeNarration(
     bakeLines,
     {
@@ -4964,11 +4986,13 @@ async function publishTextFor(
       existing,
       // B15: clips land in the local cache the moment they are synthesized,
       // and the cache answers before the API — a quota failure mid-bake
-      // costs nothing to retry.
+      // costs nothing to retry. Credit-synthesized clips are cached exactly
+      // the same way, so a retry after buying more credit never re-pays for
+      // a line this attempt already bought.
       synthesize: cachingSynthesizer(
         bakeClipStore,
         (line) => clipCacheKey(settings.rate, settings.cloudVoices, line, declaredLang),
-        (line) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices, lang: declaredLang }, line.text, line),
+        synthesizeLine,
         stats,
       ),
       // Mirrors what synthesize will do (same language decision, same voice) —
@@ -5157,7 +5181,7 @@ async function publishDrawcast({
     console.error("drawcast: publish failed", err);
     const e = err as Error;
     // A lock refusal is already the whole sentence ("Not published: …").
-    setStatus(e instanceof LockError ? e.message : `Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
+    setStatus(e instanceof LockError || e instanceof CreditError ? e.message : `Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
   } finally {
     shareBtn.disabled = false;
   }
@@ -5333,7 +5357,7 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
   } catch (err) {
     console.error("drawcast: server publish failed", err);
     const e = err as Error;
-    setStatus(`Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
+    setStatus(e instanceof CreditError ? e.message : `Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
   } finally {
     shareBtn.disabled = false;
   }
@@ -5446,7 +5470,7 @@ async function publishDriveCast({ bake, embedImages, name }: { bake: boolean; em
       return;
     }
     const e = err as Error;
-    setStatus(`Drive publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
+    setStatus(e instanceof CreditError ? e.message : `Drive publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
   } finally {
     shareBtn.disabled = false;
   }
@@ -5812,7 +5836,12 @@ shareBtn.addEventListener("click", () => {
       const playlist = readPlaylistText(specArea.value) ?? doc.playlist;
       // `private` derived (task 10 fix round 2): a lecture of a private
       // course opens with Share's Private box already ticked.
-      return { ...doc, playlist, narrationCost: costLabel(bakeCost(playlistSpeakLines(playlist), settings.cloudVoices)), private: isPrivateDoc() || undefined };
+      const cost = bakeCost(playlistSpeakLines(playlist), settings.cloudVoices);
+      // narrationUsd (registry delivery 3): the raw $ estimate, for the
+      // credit hint's 3x markup — narrationCost is the same number, already
+      // formatted for the "own key" hint and not something 3x can parse back
+      // out of ("12k characters ≈ $1.83").
+      return { ...doc, playlist, narrationCost: costLabel(cost), narrationUsd: cost.usd, private: isPrivateDoc() || undefined };
     },
     settings,
     persist,

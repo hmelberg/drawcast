@@ -32,6 +32,7 @@ import { joinPath } from "../course/publish";
 import { claimCourse, claimNote, courseClaim, formatPrice, isPayable, nameNote, normalizeName, registerName, startNamePayment } from "../names";
 import { apiBase, DEFAULT_ENROLL_API } from "../learn";
 import { claimFile, quotePrivate, registerItem, registryNote, verifyClaim } from "../registry";
+import { CreditError, serverSynthesize } from "../credit";
 import { getToken } from "../account";
 import { courseLockedInRepo, hasBuiltLecture, privateLectureCount, publishPrivacy } from "../private-doc";
 import { fetchItemKey, liveKeyStorage, unlockForAuthor } from "../item-key";
@@ -888,8 +889,12 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
     bakeReused = 0;
     bakeRevoiced.clear();
     const settings = loadSettings();
+    // Narration credit (registry delivery 3, ruling 1): own/vended key first
+    // (getTtsKey() answers either — store.ts conflates the two storage-wise),
+    // else, signed in, the server synthesizes against prepaid credit.
     const apiKey = getTtsKey();
-    if (!apiKey) throw new Error("Publishing with narration needs a Google TTS key — add one in Settings.");
+    const accountToken = getToken();
+    if (!apiKey && !accountToken) throw new Error("Publishing with narration needs a Google TTS key — add one in Settings.");
     const repo = parseRepo(settings.githubRepo);
     const out = new Map<number, string>();
     const numbered = course.lectures.map((_, i) => i).filter((i) => yamlFor(i) !== null);
@@ -920,6 +925,9 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
           if ("text" in unlocked) existing = parsePlaylistText(unlocked.text).audio?.lines ?? {};
         }
       }
+      const synthesizeLine = apiKey
+        ? (line: SpeakLine) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices, lang: declaredLang }, line.text, line)
+        : (line: SpeakLine) => serverSynthesize(DEFAULT_ENROLL_API, accountToken, { rate: settings.rate, voices: settings.cloudVoices, lang: declaredLang }, line.text, line);
       const track = await bakeNarration(
         lines,
         {
@@ -927,10 +935,12 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
           existing,
           // B15: see export/bake-cache.ts — a 20-lecture bake that dies at
           // lecture 14 resumes from the local clip cache, not from Google.
+          // Credit-synthesized clips are cached the same way, so a retry
+          // after buying more credit never re-pays for an already-baked lecture.
           synthesize: cachingSynthesizer(
             bakeClipStore,
             (line) => clipCacheKey(settings.rate, settings.cloudVoices, line, declaredLang),
-            (line) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices, lang: declaredLang }, line.text, line),
+            synthesizeLine,
             bakeStats,
           ),
           voiceOf,
@@ -1318,7 +1328,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       console.error("drawcast: publish failed", err);
       const e = err as Error;
       // A lock refusal is already the whole sentence ("Not published: …").
-      say(e instanceof LockError ? e.message : `Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
+      say(e instanceof LockError || e instanceof CreditError ? e.message : `Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
     } finally {
       end(controller);
     }
@@ -1429,6 +1439,9 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
             return repo && slug ? [{ label: "the course page", target: courseKeyFor(repo, joinPath(deps.settings.coursesDir, slug)) }] : [];
           })(),
           narrationCost: costLabel(addCosts(doneLectureCosts(course))),
+          // narrationUsd (registry delivery 3): the raw $ estimate for the
+          // credit hint's 3x markup — see the same field's note in main.ts.
+          narrationUsd: addCosts(doneLectureCosts(course)).usd,
           publishedViews,
           // Whether the page carries its Join door, straight from the document (spec §5).
           joinDoor: course.enroll !== undefined,

@@ -286,6 +286,65 @@ async function ttsError(res: Response): Promise<Error> {
   return new Error(message);
 }
 
+/** The Google `text:synthesize` request body this client builds for one line —
+ *  everything ttsRequestBody below returns, named so a caller need not spell
+ *  out the shape twice (the credit synthesizer sends this same body to the
+ *  server, which forwards it to Google verbatim). */
+export interface TtsRequestBody {
+  input: { text: string };
+  voice: { languageCode: string; name: string } | { languageCode: string; ssmlGender: "MALE" | "FEMALE" };
+  audioConfig: { audioEncoding: "MP3"; speakingRate?: number; pitch?: number; volumeGainDb?: number };
+}
+
+/** synthesizeBase64 needs an API key (it goes in the URL, never the body);
+ *  ttsRequestBody builds only the body, so it takes everything else. */
+export type TtsBodyConfig = Omit<TtsConfig, "apiKey">;
+
+/**
+ * The EXACT Google `text:synthesize` request body a line would be sent with —
+ * pulled out of synthesizeBase64 so the credit synthesizer (src/credit.ts) can
+ * build the identical body and hand it to the server instead of Google
+ * directly. `withName=false` is synthesizeBase64's own 400-retry (a preferred
+ * voice's name drifted out of the catalog); the credit path never retries, so
+ * it always calls this with the default.
+ */
+export function ttsRequestBody(cfg: TtsBodyConfig, text: string, opts?: SpeakOpts, withName = true): TtsRequestBody {
+  const g = effectiveGender(opts) ?? (opts?.lang !== undefined ? undeclaredNarratorGender() : "female");
+  const lang = runLang({ text, lang: opts?.lang }, cfg.lang);
+  const voice = narrationVoice(cfg.voices, lang, opts);
+  const limits = audioLimits(voice.name);
+  const delivery = opts?.delivery ? DELIVERY[opts.delivery] : null;
+  const rate = Math.min(limits.maxRate, Math.max(0.25, cfg.rate * (delivery ? delivery.rate : 1)));
+  const pitch = limits.pitch ? (delivery?.pitchSt ?? 0) : 0;
+  const gain = limits.gain ? (delivery?.gainDb ?? 0) : 0;
+  return {
+    // The SPOKEN form: an acronym said as a word is lowercased here and
+    // nowhere else, so the caption (and the movie's burned-in text) keeps
+    // its capitals. detectLang and the cache key still see the original.
+    input: { text: sayable(text) },
+    voice:
+      withName && voice.name
+        ? { languageCode: voice.languageCode, name: voice.name }
+        : { languageCode: voice.languageCode, ssmlGender: g === "male" ? "MALE" : "FEMALE" },
+    // Only fields that DO something (Hans, 2026-09-04). Of the delivery
+    // uses in the bundled examples, 40 of 42 were `grave`, whose pitchSt
+    // and gainDb are both 0 — so the old body announced a pitch and a
+    // gain it was not applying, and that announcement is precisely what
+    // a Chirp voice 400s on. A field carrying the API's own default is
+    // not a setting; it is noise with a failure mode. The per-family
+    // limits above still apply to the fields that DO carry a value —
+    // which, since `soft` was dropped (2026-09-21), is the rate alone:
+    // grave and brisk are pace-only, so pitch and gain are now never
+    // sent by any line and the 2026-09-04 failure is out of reach.
+    audioConfig: {
+      audioEncoding: "MP3",
+      ...(rate === 1 ? {} : { speakingRate: rate }),
+      ...(pitch === 0 ? {} : { pitch }),
+      ...(gain === 0 ? {} : { volumeGainDb: gain }),
+    },
+  };
+}
+
 /**
  * One line, as the base64 MP3 the API itself returns.
  *
@@ -298,45 +357,13 @@ export async function synthesizeBase64(cfg: TtsConfig, text: string, opts?: Spea
   // Soft monthly cap — applies only when the stored key was vended (shared).
   const budget = ttsBudgetError();
   if (budget) throw new Error(budget);
-  const g = effectiveGender(opts) ?? (opts?.lang !== undefined ? undeclaredNarratorGender() : "female");
   const lang = runLang({ text, lang: opts?.lang }, cfg.lang);
   const pref = preferredVoice(cfg.voices, lang, opts?.speaker);
-  const voice = narrationVoice(cfg.voices, lang, opts);
-  const limits = audioLimits(voice.name);
-  const delivery = opts?.delivery ? DELIVERY[opts.delivery] : null;
-  const rate = Math.min(limits.maxRate, Math.max(0.25, cfg.rate * (delivery ? delivery.rate : 1)));
-  const pitch = limits.pitch ? (delivery?.pitchSt ?? 0) : 0;
-  const gain = limits.gain ? (delivery?.gainDb ?? 0) : 0;
   const call = (withName: boolean) =>
     fetch(`${ENDPOINT}?key=${encodeURIComponent(cfg.apiKey)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        // The SPOKEN form: an acronym said as a word is lowercased here and
-        // nowhere else, so the caption (and the movie's burned-in text) keeps
-        // its capitals. detectLang and the cache key still see the original.
-        input: { text: sayable(text) },
-        voice:
-          withName && voice.name
-            ? { languageCode: voice.languageCode, name: voice.name }
-            : { languageCode: voice.languageCode, ssmlGender: g === "male" ? "MALE" : "FEMALE" },
-        // Only fields that DO something (Hans, 2026-09-04). Of the delivery
-        // uses in the bundled examples, 40 of 42 were `grave`, whose pitchSt
-        // and gainDb are both 0 — so the old body announced a pitch and a
-        // gain it was not applying, and that announcement is precisely what
-        // a Chirp voice 400s on. A field carrying the API's own default is
-        // not a setting; it is noise with a failure mode. The per-family
-        // limits above still apply to the fields that DO carry a value —
-        // which, since `soft` was dropped (2026-09-21), is the rate alone:
-        // grave and brisk are pace-only, so pitch and gain are now never
-        // sent by any line and the 2026-09-04 failure is out of reach.
-        audioConfig: {
-          audioEncoding: "MP3",
-          ...(rate === 1 ? {} : { speakingRate: rate }),
-          ...(pitch === 0 ? {} : { pitch }),
-          ...(gain === 0 ? {} : { volumeGainDb: gain }),
-        },
-      }),
+      body: JSON.stringify(ttsRequestBody(cfg, text, opts, withName)),
     });
   let res = await call(true);
   // Voice-name drift on OUR defaults: silently let the API choose. But an

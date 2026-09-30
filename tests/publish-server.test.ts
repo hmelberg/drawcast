@@ -216,8 +216,12 @@ describe("the drawcast server in Share", () => {
     // per lecture; baked audio is paid once. The default follows the money.
     expect(share).toContain('buildEmbedChoices("server", true)');
     expect(share).not.toContain('buildEmbedChoices("server", false)');
-    // Through the SAME builder the other panels use, still gated on a TTS key.
-    expect(share).toContain("bakeCb.checked = tts && bakeDefault;");
+    // Through the SAME builder the other panels use, still gated on a TTS
+    // key OR (registry delivery 3) narration credit for a signed-in author —
+    // bakeDefault applies on either usable path, exactly twice (once per
+    // path) in this one shared function body, never disabled-but-checked.
+    expect(share.match(/bakeCb\.checked = bakeDefault;/g)).toHaveLength(2);
+    expect(share).toContain("bakeCb.checked = false;");
     // Declaration + three instantiations — still one copy of the rows.
     expect(share.match(/buildEmbedChoices\(/g)).toHaveLength(4);
   });

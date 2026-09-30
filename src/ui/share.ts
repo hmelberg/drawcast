@@ -35,6 +35,7 @@ import { castRegistration, privateCastTarget } from "../publish/cast";
 import { courseKeyFor, joinPath } from "../course/publish";
 import type { ServerAccess } from "../publish/server";
 import { quotePrivate, startPrivatePayment, type PrivateQuoteOutcome } from "../registry";
+import { creditBalance, startCreditPayment } from "../credit";
 import { h } from "./dom";
 import { unembeddedImages } from "./insert";
 import { createModal, type Modal } from "./modal";
@@ -87,6 +88,14 @@ export interface ShareDoc {
    *  the caller with the live voice picks (export/tts-cost.ts). Upper bound:
    *  a republish pays only for lines not already published. */
   narrationCost?: string;
+  /**
+   * narrationCost's own $ number, undiscounted by anything already published
+   * (registry delivery 3): the credit hint needs the raw amount to multiply
+   * by the server's 3x markup, and narrationCost is already a formatted
+   * label ("12k characters ≈ $1.83") there is nothing to parse back out of.
+   * Absent or 0 reads as "nothing to narrate yet" — the hint then shows $0.00.
+   */
+  narrationUsd?: number;
   /**
    * The folder name this drawcast published under before, if it has. Read
    * once to prefill Link's name field (`publishedAs ?? slugify(title)`) —
@@ -459,6 +468,25 @@ export function fileSafe(name: string, fallback = "drawcast"): string {
   return safe || fallback;
 }
 
+/** The server's own markup on a credit-synthesized line (registry delivery
+ *  3, plan ruling 3) — the app never applies it, only estimates against it so
+ *  the Share hint is not silently 3x cheaper than what /tts will actually charge. */
+export const CREDIT_MARKUP = 3;
+
+/**
+ * The Embed-narration hint text once no TTS key is set but the author is
+ * signed in — narration will be synthesized on the server against credit.
+ * `balanceUsd` is null while /credit/balance is still in flight (or failed):
+ * the estimate is shown at once, the balance follows. Exported and pure so
+ * its wording is a real test rather than a source-text match alone.
+ */
+export function creditBakeHint(neededUsd: number, balanceUsd: number | null): string {
+  const needed = `$${neededUsd.toFixed(2)}`;
+  return balanceUsd === null
+    ? `uses narration credit — about ${needed} (checking balance…)`
+    : `uses narration credit — about ${needed} (you have $${balanceUsd.toFixed(2)})`;
+}
+
 function titleOf(playlist: Playlist, fallback: string): string {
   return playlist.meta.title ?? itemsOf(playlist)[0]?.spec.title ?? fallback;
 }
@@ -572,8 +600,46 @@ function build(): ShareSession {
       h("span", {}, "Embed narration"),
       bakeHint,
     );
+    // Narration credit (registry delivery 3): a signed-in author with no TTS
+    // key can still tick Embed narration — the server synthesizes each line
+    // against prepaid credit (CREDIT_MARKUP over Google's own list price).
+    // Short on balance, three fixed packs (plan ruling 5) open the same
+    // Checkout door Private's Pay button does.
+    const creditBuy5 = h("button", { class: "small", type: "button" }, "Buy $5") as HTMLButtonElement;
+    const creditBuy10 = h("button", { class: "small", type: "button" }, "Buy $10") as HTMLButtonElement;
+    const creditBuy20 = h("button", { class: "small", type: "button" }, "Buy $20") as HTMLButtonElement;
+    const creditBuyRow = h("div", { class: "hint" }, "Buy credit: ", creditBuy5, creditBuy10, creditBuy20);
+    creditBuyRow.hidden = true;
+    async function buyCredit(cents: 500 | 1000 | 2000): Promise<void> {
+      const token = getToken();
+      if (!token) return;
+      creditBuy5.disabled = creditBuy10.disabled = creditBuy20.disabled = true;
+      try {
+        const started = await startCreditPayment(DEFAULT_ENROLL_API, { key: token, cents, return: location.href.split("#")[0] });
+        if (typeof started === "object") {
+          location.href = started.url;
+          return;
+        }
+        bakeHint.textContent =
+          started === "pending"
+            ? "A credit purchase is already open — finish it, or wait an hour and try again."
+            : started === "key"
+              ? "Sign in to buy narration credit"
+              : "Could not start the purchase — try again in a moment.";
+      } finally {
+        creditBuy5.disabled = creditBuy10.disabled = creditBuy20.disabled = false;
+      }
+    }
+    creditBuy5.addEventListener("click", () => void buyCredit(500));
+    creditBuy10.addEventListener("click", () => void buyCredit(1000));
+    creditBuy20.addEventListener("click", () => void buyCredit(2000));
+    // A fresh balance fetch supersedes an older one still in flight — same
+    // token guard as refreshPrivateLine's privateQuoteToken, so switching
+    // panels (or documents) mid-fetch never lets a stale answer land on a
+    // hint that has already moved on.
+    let creditToken = 0;
     return {
-      rows: [embedImagesLabel, bakeLabel],
+      rows: [embedImagesLabel, bakeLabel, creditBuyRow],
       refresh(doc, subject) {
         // A course has no playlist of its own to count (its lectures live in
         // the library — see course.ts's doc()), so it gets the choice without
@@ -586,20 +652,41 @@ function build(): ShareSession {
           embedCount === 0
             ? "all images are already in the file"
             : "the published file carries them; your document is unchanged";
-        // Narration is the one choice that can't default on for everyone:
-        // baking needs a Google TTS key, and publishTextFor throws without
-        // one — an on-by-default box would make every publish fail for an
-        // author who has no key. Same third state the rail uses: offered,
-        // disabled, with the route that fixes it.
+        // Narration used to have exactly two states — a key, or disabled —
+        // and now has three: an own/vended key (free chain, as before), no
+        // key but signed in (credit — costs money too, just not this
+        // account's Google bill), or neither (the route that fixes it).
+        const my = ++creditToken; // invalidates any in-flight balance fetch from a previous refresh
         const tts = Boolean(getTtsKey());
-        bakeCb.disabled = !tts;
-        bakeCb.checked = tts && bakeDefault;
+        const token = getToken();
         const speaks = "the published file speaks; viewers need no key";
-        bakeHint.textContent = tts
-          ? doc.narrationCost
+        if (tts) {
+          bakeCb.disabled = false;
+          bakeCb.checked = bakeDefault;
+          creditBuyRow.hidden = true;
+          bakeHint.textContent = doc.narrationCost
             ? `${speaks} — up to ${doc.narrationCost} of TTS (lines already published are free again)`
-            : speaks
-          : "add a Google TTS key in Settings to publish the narration";
+            : speaks;
+        } else if (token) {
+          bakeCb.disabled = false;
+          bakeCb.checked = bakeDefault;
+          const neededUsd = CREDIT_MARKUP * (doc.narrationUsd ?? 0);
+          creditBuyRow.hidden = true;
+          bakeHint.textContent = creditBakeHint(neededUsd, null);
+          void (async () => {
+            const bal = await creditBalance(DEFAULT_ENROLL_API, token);
+            if (my !== creditToken) return; // superseded — a newer refresh already answered
+            if (typeof bal !== "object") return; // stay on the estimate; no number to add
+            const haveUsd = bal.balanceMicro / 1_000_000;
+            bakeHint.textContent = creditBakeHint(neededUsd, haveUsd);
+            creditBuyRow.hidden = haveUsd >= neededUsd;
+          })();
+        } else {
+          bakeCb.disabled = true;
+          bakeCb.checked = false;
+          creditBuyRow.hidden = true;
+          bakeHint.textContent = "add a Google TTS key in Settings to publish the narration";
+        }
       },
       choices: () => ({
         bake: bakeCb.checked,
