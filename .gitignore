@@ -22,3 +22,6 @@ __pycache__/
 
 # Dev-only casts for /frames.html (never shipped, never committed)
 dev-casts/
+
+# The portable drawcast skill (npm run build:skill) — generated, never committed
+dist-skill/
