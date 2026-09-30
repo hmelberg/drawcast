@@ -15,7 +15,8 @@
 // does); the decisions themselves are pure helpers with behaviour tests.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { privateLectureCount, publishPrivacy, hasBuiltLecture } from "../src/private-doc";
+import { castLockedInRepo, courseLockedInRepo, privateLectureCount, publishPrivacy, hasBuiltLecture } from "../src/private-doc";
+import { LOCK_HEADER } from "../src/crypto/lecture-lock";
 import { importCourse } from "../src/course/load";
 import { parseCourse } from "../src/course/document";
 import { privateRequest } from "../src/ui/share";
@@ -178,5 +179,76 @@ describe("I4: SKILL.md makes it private BEFORE the first push", () => {
   it("warns that an already-public item's earlier versions stay readable, and how to avoid it", () => {
     expect(section).toMatch(/history/);
     expect(section).toMatch(/new folder/);
+  });
+});
+
+// Round 2 (approved by Hans): I1b must fail CLOSED when the quote cannot run
+// (signed out, "key", Anvil down) — the repo itself says whether the item is
+// locked, read before the private/public decision in both flows.
+describe("I1b round 2: the repo's own locked files decide, whatever the quote says", () => {
+  const locked = `${LOCK_HEADER}\nitem: a/b/c\n`;
+  const reader = (files: Record<string, string>) => async (path: string) => files[path] ?? null;
+
+  it("publishPrivacy: repo locked + no quote (signed out / key / error) → private; confirmed public → public", () => {
+    expect(publishPrivacy(false, null, false, true)).toEqual({ private: true, upgraded: true });
+    expect(publishPrivacy(false, "key", false, true)).toEqual({ private: true, upgraded: true });
+    expect(publishPrivacy(false, "error", false, true)).toEqual({ private: true, upgraded: true });
+    expect(publishPrivacy(false, null, true, true)).toEqual({ private: false, upgraded: false });
+    expect(publishPrivacy(false, null, false, false)).toEqual({ private: false, upgraded: false });
+  });
+
+  it("castLockedInRepo: a locked file at the predicted path is locked; plain, missing or unreadable is not", async () => {
+    expect(await castLockedInRepo(reader({ "courses/casts/x.yaml": locked }), "courses/casts/x.yaml")).toBe(true);
+    expect(await castLockedInRepo(reader({ "courses/casts/x.yaml": "title: x\n" }), "courses/casts/x.yaml")).toBe(false);
+    expect(await castLockedInRepo(reader({}), "courses/casts/x.yaml")).toBe(false);
+    expect(await castLockedInRepo(async () => { throw new Error("offline"); }, "courses/casts/x.yaml")).toBe(false);
+  });
+
+  it("courseLockedInRepo: the published course.md says private, or its first published lecture is locked", async () => {
+    const dir = "courses/q";
+    const md = (priv: boolean) => `# Q\n${priv ? "private: true\n" : ""}---\n## One\nstatus: done · id: a · file: one.yaml\nQ?\n`;
+    expect(await courseLockedInRepo(reader({ "courses/q/course.md": md(true) }), dir)).toBe(true);
+    expect(await courseLockedInRepo(reader({ "courses/q/course.md": md(false), "courses/q/one.yaml": locked }), dir)).toBe(true);
+    expect(await courseLockedInRepo(reader({ "courses/q/course.md": md(false), "courses/q/one.yaml": "title: one\n" }), dir)).toBe(false);
+    expect(await courseLockedInRepo(reader({}), dir)).toBe(false);
+    expect(await courseLockedInRepo(async () => { throw new Error("offline"); }, dir)).toBe(false);
+  });
+
+  it("publishDrawcast reads the PREDICTED cast path from the repo — signed in or not — before the decision and the lock/commit", () => {
+    const body = between(read("src/main.ts"), "async function publishDrawcast(", "\n}\n");
+    const readAt = body.indexOf("castLockedInRepo(");
+    const verdictAt = body.indexOf("publishPrivacy(");
+    expect(readAt).toBeGreaterThan(0);
+    expect(verdictAt).toBeGreaterThan(readAt);
+    expect(body.indexOf("await privateCastLock(")).toBeGreaterThan(verdictAt);
+    expect(body.indexOf("publishCast(")).toBeGreaterThan(verdictAt);
+    // The read is not gated on the account token: signed out still reads it.
+    expect(body.slice(Math.max(0, readAt - 400), readAt)).not.toMatch(/if \(!isPrivate && accountToken\)/);
+    expect(body).toMatch(/privateCastTarget\(repo, castsDir, slug, doc\.publishedAs, doc\.title\)/);
+    // Signed out, privateCastLock refuses — never a plaintext commit.
+    expect(between(read("src/main.ts"), "async function privateCastLock(", "\n}\n")).toContain('if (!accountToken) return "Not published: sign in to publish privately');
+  });
+
+  it("the course publish reads its published course.md (when it has a slug) before the decision", () => {
+    const body = between(read("src/ui/course.ts"), "async function publish(", "\n  }\n");
+    const readAt = body.indexOf("courseLockedInRepo(");
+    expect(readAt).toBeGreaterThan(0);
+    expect(body.indexOf("publishPrivacy(")).toBeGreaterThan(readAt);
+    expect(body.indexOf("publishPrivacy(")).toBeLessThan(body.indexOf("const text = isPrivate"));
+    expect(body).toContain('say("Not published: sign in to publish privately (Settings → Publishing).", "error");');
+  });
+});
+
+describe("M round 2: a Make-public confirmation never carries over to another item", () => {
+  const share = read("src/ui/share.ts");
+  it("probeServerPrivate resets confirmedPublic whenever the probed target changes", () => {
+    const probe = between(share, "function probeServerPrivate(): void {", "privateCb.addEventListener(");
+    expect(probe).toMatch(/if \(target !== probedTarget\) \{\s*confirmedPublic = false;\s*probedTarget = target;/);
+    expect(probe.indexOf("probedTarget = target;")).toBeLessThan(probe.indexOf("const token = getToken();"));
+  });
+  it("still exactly one input listener and two buildNameCheck( calls; no keyup/keydown", () => {
+    expect(share.match(/addEventListener\("input"/g)).toHaveLength(1);
+    expect(share.match(/buildNameCheck\(/g)).toHaveLength(2);
+    expect(share).not.toContain('addEventListener("keyup"');
   });
 });

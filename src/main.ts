@@ -100,7 +100,7 @@ import { claimFile, privateInHash, quotePrivate, registerItem, registryNote, ver
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
 import { fetchItemKey, liveKeyStorage, unlockForAuthor } from "./item-key";
-import { inPrivateCourse, isPrivateDrawing, keptRowFields, publishPrivacy } from "./private-doc";
+import { castLockedInRepo, inPrivateCourse, isPrivateDrawing, keptRowFields, publishPrivacy } from "./private-doc";
 import { embeddedPlaylist, withAuthoredTemplates, type EmbedDeps } from "./publish/embed";
 import { resolvePortraits } from "./render/portrait";
 import { resolveIcons } from "./render/icon";
@@ -5046,11 +5046,15 @@ async function publishDrawcast({
   // The server's word wins over local state that never learned it (final
   // review I1b): a cast made private elsewhere (the skill, another browser)
   // publishes LOCKED unless the author confirmed making it public in Share.
-  // No answer (signed out, Anvil down) leaves the local state as it is.
-  if (!isPrivate && accountToken) {
+  // Round 2: the repo itself is read first — the PREDICTED path, signed in
+  // or not — so a cast already locked there publishes locked (or is refused
+  // signed out, by privateCastLock) even when the quote cannot run. Only an
+  // unreadable repo stays fail-open (the commit would fail too).
+  if (!isPrivate && confirmPublic !== true) {
     const { target } = privateCastTarget(repo, castsDir, slug, doc.publishedAs, doc.title);
-    const server = await quotePrivate(DEFAULT_ENROLL_API, { key: accountToken, kind: "cast", target, lectures: 1, private: true }, bounded);
-    if (publishPrivacy(false, server, confirmPublic === true).private) {
+    const repoLocked = await castLockedInRepo((path) => readFile(repo, path, bounded), target.slice(repoStr.length + 1));
+    const server = accountToken ? await quotePrivate(DEFAULT_ENROLL_API, { key: accountToken, kind: "cast", target, lectures: 1, private: true }, bounded) : null;
+    if (publishPrivacy(false, server, false, repoLocked).private) {
       isPrivate = true;
       setStatus("This drawcast is private on drawcast.app — publishing it locked.");
     }

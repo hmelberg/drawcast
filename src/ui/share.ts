@@ -868,13 +868,21 @@ function build(): ShareSession {
   let serverPrivate = false;
   let confirmedPublic = false;
   let serverProbeToken = 0;
+  /** The target the last probe asked about: a "Make public" confirmation is
+   *  for THAT item only, and never carries over to another (round 2). */
+  let probedTarget: string | null = null;
   function probeServerPrivate(): void {
     const my = ++serverProbeToken;
     serverPrivate = false;
-    const token = getToken();
-    if (!token) return;
     const field = current.subject === "course" ? publishFolderInput.value : publishNameInput.value;
     const item = privateRequest(current.doc(), current.settings, current.subject, field);
+    const target = item ? item.target : null;
+    if (target !== probedTarget) {
+      confirmedPublic = false;
+      probedTarget = target;
+    }
+    const token = getToken();
+    if (!token) return;
     if (!item) return;
     void (async () => {
       const q = await quotePrivate(DEFAULT_ENROLL_API, { key: token, kind: item.kind, target: item.target, lectures: item.lectures, private: true });

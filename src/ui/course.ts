@@ -33,7 +33,7 @@ import { claimCourse, claimNote, courseClaim, formatPrice, isPayable, nameNote, 
 import { apiBase, DEFAULT_ENROLL_API } from "../learn";
 import { claimFile, quotePrivate, registerItem, registryNote, verifyClaim } from "../registry";
 import { getToken } from "../account";
-import { hasBuiltLecture, privateLectureCount, publishPrivacy } from "../private-doc";
+import { courseLockedInRepo, hasBuiltLecture, privateLectureCount, publishPrivacy } from "../private-doc";
 import { fetchItemKey, liveKeyStorage, unlockForAuthor } from "../item-key";
 import { lockText } from "../crypto/lecture-lock";
 import { LockError, type LectureLock } from "../publish/lock";
@@ -1040,13 +1040,17 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
     // The server's word wins over local state that never learned it (final
     // review I1b): a course made private with the skill, then loaded here,
     // publishes LOCKED unless the author confirmed making it public in
-    // Share. No answer (signed out, Anvil down) leaves the local state.
-    if (!isPrivate && getToken()) {
+    // Share. Round 2: a course already published is read back from the repo
+    // first (its course.md's `private:`, or a locked lecture) — signed in or
+    // not — so it fails CLOSED when the quote cannot run; signed out, the
+    // private path below then refuses. An unreadable repo stays fail-open.
+    if (!isPrivate && confirmPublic !== true) {
       const draft = parseCourse(withFolder);
       const item = courseKeyFor(repo, joinPath(settings.coursesDir, draft.context.slug || slugify(draft.title || "course")));
       const bounded: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) });
-      const server = await quotePrivate(DEFAULT_ENROLL_API, { key: getToken(), kind: "course", target: item, lectures: privateLectureCount(draft, loadLibrary()), private: true }, bounded);
-      if (publishPrivacy(false, server, confirmPublic === true).private) {
+      const repoLocked = draft.context.slug ? await courseLockedInRepo((path) => readFile(repo, path, bounded), joinPath(settings.coursesDir, draft.context.slug)) : false;
+      const server = getToken() ? await quotePrivate(DEFAULT_ENROLL_API, { key: getToken(), kind: "course", target: item, lectures: privateLectureCount(draft, loadLibrary()), private: true }, bounded) : null;
+      if (publishPrivacy(false, server, false, repoLocked).private) {
         isPrivate = true;
         say("This course is private on drawcast.app — publishing it locked.");
       }

@@ -7,6 +7,7 @@
 // Publish → drawcast server — asks this.
 
 import { parseCourse } from "./course/document";
+import { isLocked } from "./crypto/lecture-lock";
 
 /** Whether library drawing `id` is a lecture of a PRIVATE course — by its
  *  row's courseId, or by any private course document that names it (the
@@ -73,10 +74,13 @@ export function publishPrivacy(
   local: boolean,
   server: { private: boolean } | string | null,
   confirmedPublic: boolean,
+  repoLocked = false,
 ): { private: boolean; upgraded: boolean } {
   if (local) return { private: true, upgraded: false };
   const serverPrivate = typeof server === "object" && server !== null && server.private === true;
-  if (serverPrivate && !confirmedPublic) return { private: true, upgraded: true };
+  // `repoLocked` (round 2): the repo itself already holds it locked — fail
+  // CLOSED even when the quote could not run (signed out, "key", Anvil down).
+  if ((serverPrivate || repoLocked) && !confirmedPublic) return { private: true, upgraded: true };
   return { private: false, upgraded: false };
 }
 
@@ -99,4 +103,45 @@ export function privateLectureCount(
   library: readonly { id: string }[],
 ): number {
   return Math.max(1, course.lectures.filter((l) => hasBuiltLecture(l, library)).length);
+}
+
+/** A repo read: the file's text, or null (missing). May throw (offline). */
+export type RepoRead = (path: string) => Promise<string | null>;
+
+async function readOrNull(read: RepoRead, path: string): Promise<string | null> {
+  try {
+    return await read(path);
+  } catch {
+    return null; // an unreadable repo stays fail-open: the commit would fail too
+  }
+}
+
+/** Whether the cast file at `path` (the PREDICTED publish path, not only
+ *  the one this app published before) is already a locked envelope in the
+ *  repo (final review I1b round 2) — a cast made private with the skill or
+ *  in another browser, whatever this browser's state or the quote says. */
+export async function castLockedInRepo(read: RepoRead, path: string): Promise<boolean> {
+  const raw = await readOrNull(read, path);
+  return raw !== null && isLocked(raw);
+}
+
+/** Whether the course published at `dir` is private in the repo itself: its
+ *  course.md says `private: true`, or its first published lecture file is a
+ *  locked envelope (a course the skill made private before course.md said
+ *  so). Missing/unreadable → false. */
+export async function courseLockedInRepo(read: RepoRead, dir: string): Promise<boolean> {
+  const base = dir.replace(/\/+$/, "");
+  const md = await readOrNull(read, `${base}/course.md`);
+  if (md === null) return false;
+  let course;
+  try {
+    course = parseCourse(md);
+  } catch {
+    return false;
+  }
+  if (course.private) return true;
+  const first = course.lectures.find((l) => l.status?.file)?.status?.file;
+  if (!first) return false;
+  const raw = await readOrNull(read, `${base}/${first}`);
+  return raw !== null && isLocked(raw);
 }
