@@ -630,3 +630,16 @@ remains for later.
   private, loopback or link-local addresses after DNS resolution), images
   only, 8 MB cap, 8 s timeout, per-IP rate limit, CORS for drawcast's own
   origins.
+
+### 14.1 Sites that opt out (decided 2026-09-30, after the first live run)
+
+The API refuses to fetch a picture whose site disallows it in robots.txt
+(microdata.no states it does not permit AI use of its content without
+permission; Wikimedia's thumbnails were refused too). Hans chose: **the author
+decides per picture.** Mapping still runs only when the author asks (a picture
+URL in a request, or `regions: auto`). The picture goes by URL first; when the
+API refuses it for robots.txt, the app reads the picture itself (directly,
+else through the fetch helper), sends it as data (≤ 1568 px, JPEG), and warns:
+"<host> opts out of AI use in its robots.txt — mapped from the picture you
+gave; make sure you have the right to use it this way." Any other URL failure
+also falls back to the bytes, without the warning.
