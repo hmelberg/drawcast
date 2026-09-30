@@ -454,3 +454,42 @@ suggestions that are more intuitive or makes it significantly easier."*
   sidebar rows) refuse while `inFlight` is non-empty.
 - The author dialog narrowed 880 → 736px on adopting the size scale; one line
   to revert if it bothers.
+
+## G. Ideas probably to be rejected
+
+Kept for the record, so the reasoning is not redone. Hans's ruling
+(2026-09-30): probably rejected — the default stays open (public repo,
+prompts in the browser, a downloadable skill).
+
+### G.1 Keeping the prompts, rules and templates private (2026-09-30)
+
+*Hans, on publishing the portable skill: "Maybe those things should be kept
+private. How would I do that? (Do not do it, but describe some ideas and put
+it in the roadmap)."*
+
+**Where the text is exposed today.** (1) The repo `hmelberg/drawcast` is
+public: `src/llm/prompts/`, `src/scenes/` (templates and packs),
+`.claude/skills/drawcast/` (rule card included), `docs/prompt-lab/`. (2) The
+app is bring-your-own-key and calls Anthropic from the browser, so every
+prompt ships in the JavaScript drawcast.app serves. (3) The portable skill
+(`npm run build:skill`) hands the same text to whoever installs it. Only
+`drawcast-anvil` (the server) is private. Anything already published stays in
+clones, forks and archives — going private protects future work, not the past.
+
+**What is worth protecting?** Decide first. A prompt is easy to re-create from
+watching the output; what is hard to copy is the renderer and layout engine,
+the ~100 templates, the example library and the prompt-lab evidence. The
+answer changes which idea below is worth its cost.
+
+| # | Idea | What it protects | Cost / catch |
+|---|---|---|---|
+| G1 | **Licence, not secrecy** — keep it public, but put the prompts, templates and examples under a licence that forbids commercial reuse (e.g. CC BY-NC, or a custom one); code stays as it is | legal claim, no technical barrier | cheapest; enforcement is on you |
+| G2 | **Split the repo** — the app stays public; prompts, rule card, templates' prose and lab data move to a private repo (or private npm package) that the build pulls in | the sources on GitHub | alone it is not enough: while generation runs in the browser (BYOK), the built JS still carries the prompts |
+| G3 | **Generation on the server** — the browser sends the request; a Netlify function (or Anvil) holds the prompts and calls Anthropic, with the user's key passed through or on prepaid credit (like narration credit) | prompts out of the browser | the big one: a server call per generation (the 30 s function budget, cf. gift), the user's key transits our server or we pay; the local skill and prompt lab must call it too |
+| G4 | **Portable skill via MCP instead of a zip** (external type 3) — the skill a user installs is a thin shell; the rules, template docs and checks come from our server per request | most of the text stays server-side | a model can still be asked to repeat what a tool returned, so parts leak; needs hosting (and it is already on the list for frames) |
+| G5 | **Minify / obfuscate** the prompts in the bundle | nothing real | not recommended: trivially undone |
+
+**Sequencing if pursued:** G1 now (a licence file, an hour); G2 + G3
+together, since G2 alone changes little; G4 when external type 3 (MCP) is
+built. Whatever is chosen, the renderer can stay open — it is the prompts and
+curated content that carry the craft.
