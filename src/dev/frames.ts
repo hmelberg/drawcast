@@ -46,7 +46,8 @@ import { pointerPath, unionBoxes } from "../render/effects";
 // they carry runs without the viewer prompt (security/code-trust.ts).
 setTrustPolicy("all");
 import { sceneAt, type PlanStep } from "../render/plan";
-import { markFrameAt } from "../render/marks";
+import { gestureAt, gestureLabel } from "./gesture-beats";
+import { MARK_GLIDE_MS, MARK_IN_MS, markFrameAt } from "../render/marks";
 import type { RenderHandle } from "../render/index";
 import { toSvgY } from "../layout/canvas";
 import { resolveCode } from "../render/code";
@@ -259,14 +260,6 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
 
 // ---- mid-gesture frames ----
 
-const GESTURES = new Set(["highlight", "focus", "point", "flow"]);
-
-/** The momentary gesture this beat performs, if the frame is a narrated
- *  gesture beat — the step whose after-state would hide it. */
-function gestureAt(plan: { steps: PlanStep[] }, at: number): PlanStep | null {
-  const step = plan.steps[at - 1];
-  return step && GESTURES.has(step.kind) && step.narration ? step : null;
-}
 
 /**
  * Hold a gesture on a mount parked at its boundary, as the player paints it
@@ -299,8 +292,10 @@ function paintGesture(hd: RenderHandle, at: number, step: PlanStep, canvas: HTML
       return;
     }
     case "mark": {
-      // The end state: written, at full, at the last stop, the light at its deepest.
-      const ms = step.seconds * 1000;
+      // The end state: written, at full, at the last stop, the light at its
+      // deepest — sampled late enough that even a short step has eased in
+      // and finished its glide.
+      const ms = Math.max(step.seconds * 1000, MARK_IN_MS + MARK_GLIDE_MS);
       effects.setMark?.(step.owner, markFrameAt(step, ms, ms));
       return;
     }
@@ -425,7 +420,7 @@ async function show(cast: Cast): Promise<CastReport> {
       // Only with &beats=all: a resting frame stays the after-state it always was.
       const gesture = everyBeat() ? gestureAt(hd.plan, frame.at) : null;
       if (gesture) paintGesture(hd, frame.at, gesture, canvas);
-      cap.append(h("b", {}, `@${frame.at} ${frame.changed}${gesture ? ` (mid-gesture: ${gesture.kind})` : ""}`));
+      cap.append(h("b", {}, `@${frame.at} ${frame.changed}${gesture ? ` (mid-gesture: ${gestureLabel(gesture)})` : ""}`));
       if (frame.issues.length > 0) cap.append(h("div", { class: "bad" }, frame.issues.join("\n")));
       else cap.append(h("span", { class: "ok" }, ` — lint clean (browser metrics)${frame.hiddenIssues.length > 0 ? ` · ${frame.hiddenIssues.length} off-screen` : ""}`));
       if (frame.speak.length > 0) cap.append(h("div", {}, `“${frame.speak[frame.speak.length - 1]}”`));

@@ -397,8 +397,10 @@ export class Player {
    * playback and not yet released — a continuing mark stays up for the next
    * step to take over. A scrub ends them all; a step whose `from` finds its
    * owner missing here (a seek landed on it) eases in instead of gliding.
+   * Each painting step's own token: a stopped step's late clean-up ends the
+   * mark only while it is still ITS mark, never a new run's on the picture.
    */
-  private readonly liveMarks = new Set<string>();
+  private readonly liveMarks = new Map<string, symbol>();
   /** The language the cast is written in (spec.lang), for the words the player says itself. */
   private sourceLang: string | null = null;
   setSourceLang(lang: string | null): void {
@@ -1062,7 +1064,7 @@ export class Player {
 
   /** Take down every mark still on screen — a scrub, the poster, disposal. */
   private endMarks(): void {
-    for (const owner of this.liveMarks) this.effects?.endMark?.(owner);
+    for (const owner of this.liveMarks.keys()) this.effects?.endMark?.(owner);
     this.liveMarks.clear();
   }
 
@@ -1762,7 +1764,13 @@ export class Player {
         }
         let speaking = voice !== null;
         if (voice) void voice.then(() => (speaking = false), () => (speaking = false));
-        this.liveMarks.add(owner);
+        const token = Symbol(owner);
+        this.liveMarks.set(owner, token);
+        const release = () => {
+          if (this.liveMarks.get(owner) !== token) return;
+          this.liveMarks.delete(owner);
+          effects.endMark?.(owner);
+        };
         try {
           let at = 0;
           await this.frames(signal, (elapsed) => {
@@ -1773,10 +1781,9 @@ export class Player {
           if (signal.aborted || step.continues) return;
           await this.progress(MARK_RELEASE_MS, signal, (t) => effects.setMark!(owner, markReleaseAt(path, t * MARK_RELEASE_MS, at)));
           if (signal.aborted) return;
-          effects.endMark?.(owner);
-          this.liveMarks.delete(owner);
+          release();
         } finally {
-          if (signal.aborted && this.liveMarks.delete(owner)) effects.endMark?.(owner);
+          if (signal.aborted) release();
         }
         return;
       }

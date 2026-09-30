@@ -161,3 +161,18 @@ test("a seek onto a continuing mark eases in at its first stop instead of glidin
   expect(s.every((c) => JSON.stringify(c.f.box) === JSON.stringify(RIGHT))).toBe(true);
   expect(h.ends()).toHaveLength(1);
 });
+
+test("a stopped mark's late clean-up never ends the next run's mark on the same picture", async () => {
+  const h = harness([{ draw: ["md"] }, { highlight: { target: "md:left", duration: 5 } }]);
+  // Run A paints, then a stop — A's aborted step has not yet seen the abort (its next rAF is still queued).
+  await h.run(() => h.sets().length > 3);
+  h.player.stop();
+  h.player.renderUpTo(1); // B lands straight on the mark step
+  const endsAfterStop = h.ends().length;
+  // Run B starts at once and paints the same picture; A's queued tick runs alongside B's and A cleans up.
+  const setsBefore = h.sets().length;
+  await h.run(() => h.sets().length > setsBefore + 5);
+  expect(h.sets().length).toBeGreaterThan(setsBefore + 5);
+  // B's mark is still up: nothing ended it.
+  expect(h.ends()).toHaveLength(endsAfterStop);
+});
