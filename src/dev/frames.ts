@@ -39,7 +39,7 @@ import { splitVarOverrides, withOverrides } from "../render/params";
 import { withVarValues } from "../spec/vars";
 import { LASER_COLOR, makeBrowserMeasure } from "../render/svg-backend";
 import { FOCUS_DIM, type BackendEffects } from "../render/backend";
-import { pointerPath, unionBoxes } from "../render/effects";
+import { pointerPath } from "../render/effects";
 
 // Dev only: this harness renders the local author's own files and the
 // bundled examples (scripts/cast.mjs), never a stranger's cast — so the code
@@ -274,16 +274,14 @@ function paintGesture(hd: RenderHandle, at: number, step: PlanStep, canvas: HTML
   const before = sceneAt(hd.plan, at - 1);
   switch (step.kind) {
     case "highlight": {
-      const boxFor = (ids: string[]) =>
-        unionBoxes(
-          ids.flatMap((id) => {
-            const b = step.boxes[id];
-            if (!b) return [];
-            const [dx, dy] = before.offsets[id] ?? [0, 0];
-            return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
-          }),
-        );
-      effects.setHighlight(step.ids, step.effect, 1, boxFor(step.ids), step.color, 10_000, step.part);
+      // Each target's own box, as the player passes them.
+      const boxList = step.ids.flatMap((id) => {
+        const b = step.boxes[id];
+        if (!b) return [];
+        const [dx, dy] = before.offsets[id] ?? [0, 0];
+        return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
+      });
+      effects.setHighlight(step.ids, step.effect, 1, boxList.length > 0 ? boxList : null, step.color, 10_000, step.part);
       return;
     }
     case "focus": {

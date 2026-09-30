@@ -1329,6 +1329,37 @@ interface SvgBox {
 
 const svgBoxOf = (b: BBox): SvgBox => ({ x: b.x, y: toSvgY(b.y + b.h), w: b.w, h: b.h });
 
+const isBoxList = (b: BBox | readonly BBox[]): b is readonly BBox[] => Array.isArray(b);
+
+/** How close two targets' boxes may come and still take separate marks: a
+ *  ring stands this far out from its box, so nearer than twice that the two
+ *  rings would cross and read as one scribble. */
+const MARK_APART = 24;
+
+/**
+ * Targets that are one visual unit share a mark: boxes closer than
+ * MARK_APART (a label on its line, two words of a row) merge, transitively;
+ * everything else keeps its own. The first box's pose rides with a merge.
+ */
+export function markClusters<T extends { box: SvgBox }>(items: T[]): T[] {
+  const out = items.map((it) => ({ ...it }));
+  const near = (a: SvgBox, b: SvgBox) =>
+    a.x - MARK_APART < b.x + b.w && b.x - MARK_APART < a.x + a.w && a.y - MARK_APART < b.y + b.h && b.y - MARK_APART < a.y + a.h;
+  for (let merged = true; merged; ) {
+    merged = false;
+    for (let i = 0; i < out.length && !merged; i++) {
+      for (let j = i + 1; j < out.length; j++) {
+        if (!near(out[i].box, out[j].box)) continue;
+        out[i].box = unionSvgBoxes([out[i].box, out[j].box])!;
+        out.splice(j, 1);
+        merged = true;
+        break;
+      }
+    }
+  }
+  return out;
+}
+
 function unionSvgBoxes(boxes: SvgBox[]): SvgBox | null {
   if (boxes.length === 0) return null;
   const x0 = Math.min(...boxes.map((b) => b.x));
@@ -1937,7 +1968,7 @@ function makeEffects(
      * the player release exactly when the voice stops rather than at the end
      * of whatever cycle it happened to be in.
      */
-    setHighlight(ids: string[], effect: HighlightEffect, level: number, box: BBox | null, color?: string, elapsedMs?: number, part?: string): void {
+    setHighlight(ids: string[], effect: HighlightEffect, level: number, box: BBox | readonly BBox[] | null, color?: string, elapsedMs?: number, part?: string): void {
       const key = keyOf(ids);
       let st = active.get(key);
       if (!st) {
@@ -1960,19 +1991,27 @@ function makeEffects(
 
         if (effect === "circle" || effect === "underline" || effect === "box") {
           // Around (or under) the piece when there is one — measured on the
-          // leaves and posed like them — else the targets' own layout box.
-          let around: SvgBox | null = null;
-          let pose: string | null = null;
+          // leaves and posed like them — else each target's own layout box.
+          // ONE MARK PER TARGET (2026-09-30): two labels at opposite sides
+          // of a figure got one ring round the whole figure between them.
+          // Targets whose marks would touch are one visual unit (a label on
+          // its line, two words of a row) and share one (markClusters).
+          let arounds: { box: SvgBox; pose: string | null }[] = [];
           if (narrowed) {
-            around = unionSvgBoxes(lit.flatMap((e) => pieceBox(e.g, e.leaf, textHits.get(e.leaf.id)) ?? []));
-            pose = lit[0]?.g.getAttribute("transform") ?? null;
+            const around = unionSvgBoxes(lit.flatMap((e) => pieceBox(e.g, e.leaf, textHits.get(e.leaf.id)) ?? []));
+            if (around) arounds = [{ box: around, pose: lit[0]?.g.getAttribute("transform") ?? null }];
           } else if (box) {
-            around = svgBoxOf(box);
+            arounds = markClusters((isBoxList(box) ? box : [box]).map((b) => ({ box: svgBoxOf(b), pose: null })));
           } else {
-            around = unionSvgBoxes(entries.flatMap((e) => pieceBox(e.g, e.leaf) ?? []));
-            pose = entries[0]?.g.getAttribute("transform") ?? null;
+            arounds = markClusters(
+              ids.flatMap((id) => {
+                const own = leafNodes.get(id) ?? [];
+                const around = unionSvgBoxes(own.flatMap((e) => pieceBox(e.g, e.leaf) ?? []));
+                return around ? [{ box: around, pose: own[0]?.g.getAttribute("transform") ?? null }] : [];
+              }),
+            );
           }
-          if (around) {
+          for (const { box: around, pose } of arounds) {
             const pen = color ?? HIGHLIGHT_COLOR;
             const mark =
               effect === "circle" ? ellipseRingPath(around, pen, rc, narrowed) : effect === "box" ? boxMarkPath(around, pen, rc) : underlinePath(around, pen, rc);

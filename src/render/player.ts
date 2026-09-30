@@ -16,7 +16,7 @@ import type { LayoutResult } from "../layout/layout";
 import { heldFrom, sceneAt } from "./plan";
 import { breathAfterMs } from "./breath";
 import { FOCUS_DIM, type BackendEffects, type RenderedElement } from "./backend";
-import { EASINGS, lerpBox, pointerPath, unionBoxes } from "./effects";
+import { EASINGS, lerpBox, pointerPath } from "./effects";
 import { cameraBox, restView, restZoom } from "./camera";
 import { lengthFractionAt } from "./trails";
 import { pacedDurations } from "./pacing";
@@ -1712,14 +1712,14 @@ export class Player {
       case "highlight": {
         if (!this.effects) return;
         const effects = this.effects;
-        const box = unionBoxes(
-          step.ids.flatMap((id) => {
-            const b = step.boxes[id];
-            if (!b) return [];
-            const [dx, dy] = before.offsets[id] ?? [0, 0];
-            return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
-          }),
-        );
+        // Each target's own box (a ring or box per target, not one round them all).
+        const boxList = step.ids.flatMap((id) => {
+          const b = step.boxes[id];
+          if (!b) return [];
+          const [dx, dy] = before.offsets[id] ?? [0, 0];
+          return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
+        });
+        const box = boxList.length > 0 ? boxList : null;
         const paint = (level: number, elapsedMs?: number) => effects.setHighlight(step.ids, step.effect, level, box, step.color, elapsedMs, step.part);
         // pulse throbs three times before the hold; everything else eases in once.
         const curve = step.effect === "pulse" ? "throb" : "ease";
