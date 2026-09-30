@@ -55,3 +55,21 @@ test("plain ids are untouched", () => {
   expect(marks(p)).toEqual([]);
   expect(p.steps.find((s: any) => s.kind === "highlight")).toMatchObject({ ids: ["t"], effect: "glow" });
 });
+
+// Two pictures side by side: a at x 100..500, b at x 600..1000.
+const rectB = { x: 600, y: 300, w: 400, h: 200 };
+const opts2 = {
+  bboxOf: (id: string) => (id === "a" ? rect : id === "b" ? rectB : null),
+  pictureOf: (id: string) => (id === "a" ? { frame: { rect, view: FULL_VIEW4 }, regions } : id === "b" ? { frame: { rect: rectB, view: FULL_VIEW4 }, regions } : null),
+};
+const plan2 = (commands: object[]) => planCommands(commands as never, ["a", "b"], opts2 as never);
+
+test("one command on two pictures: one sentence — narration on the first mark only, the second runs with it", () => {
+  const p = plan2([{ draw: ["a", "b"] }, { speak: "Both left halves.", highlight: { target: ["a:left", "b:left"] } }]);
+  const [ma, mb] = marks(p);
+  expect(ma).toMatchObject({ owner: "a", narration: "Both left halves." });
+  expect(ma.parallel).toBeUndefined();
+  expect(mb.owner).toBe("b");
+  expect(mb.narration).toBeUndefined();
+  expect(mb.parallel).toBe(true);
+});

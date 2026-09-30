@@ -176,3 +176,60 @@ test("a stopped mark's late clean-up never ends the next run's mark on the same 
   // B's mark is still up: nothing ended it.
   expect(h.ends()).toHaveLength(endsAfterStop);
 });
+
+test("one sentence on two pictures: spoken once, both marks run during it", async () => {
+  const rectB = { x: 600, y: 300, w: 400, h: 200 };
+  const o2 = {
+    bboxOf: (id: string) => (id === "a" ? rect : id === "b" ? rectB : null),
+    pictureOf: (id: string) => (id === "a" ? { frame: { rect, view: FULL_VIEW4 }, regions } : id === "b" ? { frame: { rect: rectB, view: FULL_VIEW4 }, regions } : null),
+  };
+  const plan = planCommands([{ draw: ["a", "b"] }, { speak: "Both left halves.", highlight: { target: ["a:left", "b:left"], duration: 0.6 } }] as never, ["a", "b"], o2 as never);
+  const calls: Call[] = [];
+  const effects = {
+    setHighlight: () => undefined,
+    endHighlight: () => undefined,
+    setPointer: () => undefined,
+    setCamera: () => undefined,
+    setMark: (owner: string, f: MarkFrame) => calls.push({ op: "set", owner, f }),
+    endMark: (owner: string) => calls.push({ op: "end", owner }),
+  };
+  // A voice that lasts 20 frames of the hand-cranked clock.
+  let speaking = 0;
+  const spoken: string[] = [];
+  class SlowSpeech extends SpeechManager {
+    override get available(): boolean {
+      return false;
+    }
+    override cancel(): void {}
+    override speak(text: string): Promise<void> {
+      spoken.push(text);
+      speaking = 20;
+      return new Promise((r) => {
+        const tick = () => (--speaking <= 0 ? r() : setTimeout(tick, 0));
+        setTimeout(tick, 0);
+      });
+    }
+  }
+  const stub = (id: string) => ({ id, durationMs: 10, finish: () => undefined, hide: () => undefined, setProgress: () => undefined }) as never;
+  const player = new Player(plan, new Map([["a", stub("a")], ["b", stub("b")]]), new SlowSpeech(), null, { mode: "narrated", breath: false, effects: effects as never });
+  const frames: ((now: number) => void)[] = [];
+  player.raf = (cb) => frames.push(cb);
+  let clock = 1000;
+  vi.spyOn(performance, "now").mockImplementation(() => clock);
+  const done = player.play();
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+  await flush();
+  for (let guard = 0; player.state === "playing" && guard < 400; guard++) {
+    clock += 40;
+    for (const cb of frames.splice(0)) cb(clock);
+    await flush();
+  }
+  await done;
+  expect(spoken).toEqual(["Both left halves."]);
+  const firstB = calls.findIndex((c) => c.owner === "b");
+  const lastA = calls.map((c) => c.owner === "a" && c.op === "set").lastIndexOf(true);
+  expect(firstB).toBeGreaterThan(0);
+  // Interleaved: b is lit before a has finished.
+  expect(firstB).toBeLessThan(lastA);
+  expect(calls.filter((c) => c.op === "end").map((c) => c.owner).sort()).toEqual(["a", "b"]);
+});

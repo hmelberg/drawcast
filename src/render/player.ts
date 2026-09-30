@@ -545,6 +545,9 @@ export class Player {
       this.callbacks.onStep?.(this.completed, this.plan.steps.length);
       await this.runStep(this.completed, ac.signal);
       if (ac.signal.aborted) return;
+      // Steps that ran alongside this one (marks on the other pictures of
+      // the same command) are done too.
+      const alongside = this.partnersOf(this.completed).length;
       if (this.pendingJump !== null) {
         const n = this.pendingJump;
         this.pendingJump = null;
@@ -559,7 +562,7 @@ export class Player {
         await this.waitScaled(breathAfterMs(this.plan.steps, this.completed), ac.signal);
         if (ac.signal.aborted) return;
       }
-      this.completed++;
+      this.completed += 1 + alongside;
       this.callbacks.onStep?.(this.completed, this.plan.steps.length);
     }
     if (!ac.signal.aborted) {
@@ -1188,6 +1191,24 @@ export class Player {
     return ids.map((id) => this.elements.get(id)).filter((el): el is RenderedElement => el !== undefined);
   }
 
+  /** The steps that run together with step `index`: the parallel mark steps right after it. */
+  private partnersOf(index: number): number[] {
+    const out: number[] = [];
+    for (let j = index + 1; j < this.plan.steps.length; j++) {
+      const s = this.plan.steps[j];
+      if (s.kind !== "mark" || !s.parallel) break;
+      out.push(j);
+    }
+    return out;
+  }
+
+  /** Step `index`'s action and, all at once, its partners'. */
+  private runActions(index: number, signal: AbortSignal): Promise<void> {
+    const partners = this.partnersOf(index);
+    if (partners.length === 0) return this.runAction(index, signal);
+    return Promise.all([index, ...partners].map((i) => this.runAction(i, signal))).then(() => undefined);
+  }
+
   private async runStep(index: number, signal: AbortSignal): Promise<void> {
     const step = this.plan.steps[index];
     if (step.kind === "explore" && (this.skipQuestions || this.autoAnswers || !this.exploreGate)) {
@@ -1238,7 +1259,7 @@ export class Player {
           const wait = cueStartMs(step.cue, step.cueEnd, narration, step.narrationDelivery, this.actionMs(index));
           if (wait > 0) await this.waitScaled(wait, signal);
           if (signal.aborted) return;
-          return this.runAction(index, signal);
+          return this.runActions(index, signal);
         };
         await Promise.all([cued(), voice]);
       } finally {
@@ -1247,7 +1268,7 @@ export class Player {
       }
       return;
     }
-    return this.runAction(index, signal);
+    return this.runActions(index, signal);
   }
 
   private async runAction(index: number, signal: AbortSignal): Promise<void> {
@@ -1756,11 +1777,15 @@ export class Player {
         // stop holds — the light deepening, a glow breathing — until the voice
         // actually ends.
         const voice = step.untilNarrationEnd ? this.narrationVoice : null;
+        // A partner (parallel) step is timed by the sentence its lead carries.
+        let leadIndex = index;
+        while (leadIndex > 0 && this.plan.steps[leadIndex].kind === "mark" && (this.plan.steps[leadIndex] as { parallel?: true }).parallel) leadIndex--;
+        const lead = this.plan.steps[leadIndex];
         let durMs = step.seconds * 1000;
-        if (voice && this.mode === "narrated" && step.narration !== undefined) {
-          const line = this.spokenLine(step.narration);
-          const wait = cueStartMs(step.cue, step.cueEnd, line, step.narrationDelivery, this.actionMs(index));
-          durMs = Math.max(durMs, lineMs(line, step.narrationDelivery) - wait);
+        if (voice && this.mode === "narrated" && lead.narration !== undefined) {
+          const line = this.spokenLine(lead.narration);
+          const wait = cueStartMs(lead.cue, lead.cueEnd, line, lead.narrationDelivery, this.actionMs(leadIndex));
+          durMs = Math.max(durMs, lineMs(line, lead.narrationDelivery) - wait);
         }
         let speaking = voice !== null;
         if (voice) void voice.then(() => (speaking = false), () => (speaking = false));

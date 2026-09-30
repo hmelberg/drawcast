@@ -297,6 +297,12 @@ function paintGesture(hd: RenderHandle, at: number, step: PlanStep, canvas: HTML
       // and finished its glide.
       const ms = Math.max(step.seconds * 1000, MARK_IN_MS + MARK_GLIDE_MS);
       effects.setMark?.(step.owner, markFrameAt(step, ms, ms));
+      // The command's marks on other pictures run with it (parallel): lit on the same frame.
+      for (let j = at; hd.plan.steps[j]?.kind === "mark" && (hd.plan.steps[j] as { parallel?: true }).parallel; j++) {
+        const s = hd.plan.steps[j] as Extract<PlanStep, { kind: "mark" }>;
+        const sms = Math.max(s.seconds * 1000, MARK_IN_MS + MARK_GLIDE_MS);
+        effects.setMark?.(s.owner, markFrameAt(s, sms, sms));
+      }
       return;
     }
     case "flow": {

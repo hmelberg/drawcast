@@ -37,7 +37,10 @@ export function breathAfterMs(steps: readonly PlanStep[], index: number): number
   if (!step) return 0;
   const text = spokenText(step);
   if (text === null) return 0;
-  const next = steps[index + 1];
+  // Marks on the command's other pictures ran WITH this step: the next beat is after them.
+  let n = index + 1;
+  while (steps[n]?.kind === "mark" && (steps[n] as { parallel?: true }).parallel) n++;
+  const next = steps[n];
   if (next?.kind === "pause") return 0;
   if (!next || SECTION_NEXT.has(next.kind)) return BREATH_MS.section;
   if (/[?？]\s*$/.test(text)) return BREATH_MS.question;

@@ -100,3 +100,9 @@ describe("the player breathes", () => {
     await done;
   });
 });
+
+test("a mark's partners on other pictures ran with it: the breath looks past them", () => {
+  const m = { kind: "mark", owner: "a", mark: "light", frame: { x: 0, y: 0, w: 1, h: 1 }, stops: [], seconds: 1 };
+  const steps = [{ ...m, narration: "Both." }, { ...m, owner: "b", parallel: true }, { kind: "clear", ids: [] }] as never;
+  expect(breathAfterMs(steps, 0)).toBe(BREATH_MS.section);
+});

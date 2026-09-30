@@ -112,6 +112,10 @@ export type PlanStep = (
       from?: BBox;
       /** The NEXT mark step continues this one: do not release at the end. */
       continues?: boolean;
+      /** Runs together with the mark step before it — the same command named
+       *  places on several pictures: one sentence (carried by the first step
+       *  alone), every picture lit at once. */
+      parallel?: true;
       seconds: number;
       untilNarrationEnd?: boolean;
     }
@@ -840,7 +844,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   /** One mark step per picture, stops in the order the places were named. */
   const pushMarks = (places: PlaceNow[], mark: MarkKind, seconds: number, lift: boolean, untilNarrationEnd: boolean, stopBox: (pl: PlaceNow) => BBox) => {
     const owners = [...new Set(places.map((pl) => pl.owner))];
-    for (const owner of owners) {
+    owners.forEach((owner, k) => {
       const mine = places.filter((pl) => pl.owner === owner);
       const stops: MarkStop[] = mine.map((pl, i) => ({ box: stopBox(pl), at: i / mine.length }));
       const last = lastMark.get(owner);
@@ -850,7 +854,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         if (prev.kind === "mark") prev.continues = true;
       }
       const stepIndex = steps.length;
-      pushStep({
+      const step: PlanStep = {
         kind: "mark",
         owner,
         mark,
@@ -859,8 +863,22 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(glide ? { from: last.box } : {}),
         seconds,
         ...(untilNarrationEnd ? { untilNarrationEnd: true } : {}),
-      });
+      };
+      // The first picture's step carries the sentence (and its cue); every
+      // later one runs alongside it, bare — spoken once, lit together.
+      if (k === 0) pushStep(step);
+      else bare(() => pushStep({ ...step, parallel: true }));
       lastMark.set(owner, { kind: mark, box: stops[stops.length - 1].box, stepIndex });
+    });
+  };
+  /** Push with no narration or cue of the current command attached. */
+  const bare = (push: () => void) => {
+    const saved = [currentNarration, currentNarrationSpeaker, currentNarrationDelivery, currentCue, currentCueEnd] as const;
+    currentNarration = currentNarrationSpeaker = currentNarrationDelivery = currentCue = currentCueEnd = undefined;
+    try {
+      push();
+    } finally {
+      [currentNarration, currentNarrationSpeaker, currentNarrationDelivery, currentCue, currentCueEnd] = saved;
     }
   };
   /** A point or anchor place as a box a light or ring can sit on: 60 x 60 about the point. */
