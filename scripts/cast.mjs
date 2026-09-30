@@ -44,6 +44,8 @@
 //        and registers the item (a --direct push already does this on its own, right after the commit)
 //
 // Publishing something new (a course folder or a folder with one cast YAML) to a repo of the user's:
+//   node scripts/cast.mjs pack <cast.json> <workdir>   a {request, spec} (or bare spec) → <workdir>/<name>.yaml,
+//        validated — the folder with one cast YAML that publish-target takes
 //   node scripts/cast.mjs publish-target <workdir> <owner/repo> [--dir <folder>] [--create]
 //        writes <workdir>/origin.json aimed at the repo (a free slug, Pages switched on; --create makes the repo,
 //        public); then push <workdir> --direct publishes it like any revision.
@@ -91,7 +93,7 @@
 //   npm run dev -- --port 5199 --strictPort      (DRAWCAST_URL overrides http://localhost:5199)
 
 import { createServer } from "vite";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { homedir, hostname } from "node:os";
@@ -197,12 +199,18 @@ async function withVite(fn) {
 
 async function browser() {
   const { chromium } = await import("playwright-core");
-  const cache = `${process.env.HOME}/Library/Caches/ms-playwright`;
+  // Playwright's own browser cache, per platform (PLAYWRIGHT_BROWSERS_PATH overrides).
+  const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
+  const cache = process.env.PLAYWRIGHT_BROWSERS_PATH
+    ?? (process.platform === "darwin" ? `${home}/Library/Caches/ms-playwright`
+      : process.platform === "win32" ? `${process.env.LOCALAPPDATA}/ms-playwright`
+      : `${process.env.XDG_CACHE_HOME ?? `${home}/.cache`}/ms-playwright`);
   const shells = existsSync(cache) ? readdirSync(cache).filter((d) => d.startsWith("chromium_headless_shell")).sort() : [];
   if (!shells.length) throw new Error("no headless Chromium — run: npx playwright-core install chromium-headless-shell");
   const dir = `${cache}/${shells.at(-1)}`;
   const sub = readdirSync(dir).find((d) => d.startsWith("chrome-headless-shell"));
-  return chromium.launch({ executablePath: `${dir}/${sub}/chrome-headless-shell` });
+  const exe = process.platform === "win32" ? "chrome-headless-shell.exe" : "chrome-headless-shell";
+  return chromium.launch({ executablePath: `${dir}/${sub}/${exe}` });
 }
 
 /**
@@ -713,6 +721,25 @@ const commands = {
       const text = await appPromptText(load, instruction, templates);
       writeFileSync(resolve(ROOT, out), wrap(text) + `\n\n# THE CHANGE ASKED FOR\n\n${instruction}\n\nEdit the part file(s) in place; change only what this asks for. The spoken lines are the drawcast: keep every line the change does not touch word for word (its baked narration is keyed by the sentence).\n`);
       console.log(`${out}: ${text.length} characters — the app's rules and schema, with ${templates.length ? `the document's templates (${templates.join(", ")})` : "no template"} in full.`);
+    });
+  },
+
+  async pack([file, work]) {
+    if (!file || !work) throw new Error("usage: cast.mjs pack <cast.json> <workdir>");
+    const spec = readCast(file);
+    if (!spec) throw new Error(`${file} is not JSON — pack takes a {request, spec} or a spec; a YAML already is a cast file (copy it into the workdir)`);
+    await withVite(async (load) => {
+      const { validateSpec } = await load("/src/spec/schema.ts");
+      const { formatSpec } = await load("/src/spec/text.ts");
+      const v = validateSpec(spec);
+      if (!v.ok) throw new Error(`${file} is invalid:\n  ${v.errors.join("\n  ")}`);
+      const wd = resolve(ROOT, work);
+      mkdirSync(wd, { recursive: true });
+      const existing = readdirSync(wd).filter((f) => /\.ya?ml$/i.test(f));
+      if (existing.length) throw new Error(`${work} already holds ${existing.join(", ")} — a cast workdir holds exactly one .yaml`);
+      const name = basename(file).replace(/\.json$/i, "");
+      writeFileSync(resolve(wd, `${name}.yaml`), formatSpec(spec, "yaml"));
+      console.log(`${relative(ROOT, resolve(wd, `${name}.yaml`))}: ready for publish-target ${work} <owner/repo>`);
     });
   },
 
@@ -1411,6 +1438,12 @@ const commands = {
         const f = `${out}/frames-${k}.png`;
         await page.screenshot({ path: f, fullPage: true, clip: { x: 0, y, width: W, height: Math.min(1800, h - y) } });
         tiles.push(relative(ROOT, f));
+      }
+      // A shorter render than the last one leaves its extra tiles behind, and
+      // a reader then judges a frame that is no longer in the cast: drop them.
+      for (const old of readdirSync(out)) {
+        const m = /^frames-(\d+)\.png$/.exec(old);
+        if (m && Number(m[1]) > tiles.length) unlinkSync(`${out}/${old}`);
       }
       writeFileSync(`${out}/report.json`, JSON.stringify(report, null, 1));
       console.log(`${tiles.length} tile(s): ${tiles.join(", ")} — one frame per spoken line (mid-gesture where the line highlights, focuses, points or flows)`);
