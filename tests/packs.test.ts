@@ -2512,6 +2512,28 @@ describe("medicine pack", () => {
     expect(singleIds).toContain("half_guides");
   });
 
+  // 2026-09-30 test runs: no tick numbers, so "eighteen hours" or "8 days"
+  // could not be read off the figure.
+  test("pk_curve: tick numbers on the time axis (hours, then days) and the concentration axis", () => {
+    registerPack("medicine", medicineYaml);
+    const texts = (r: SceneLayout, prefix: string) =>
+      flattenDrawables(r.drawables).filter((d) => d.id.startsWith(prefix) && d.kind === "text").map((d) => (d as { text: string }).text);
+    const hours = scenes.pk_curve.layout!({ route: "oral", half_life: 6, t_max: 48, y_max: 1.5 });
+    expect(texts(hours, "axes__xt")).toEqual(["0", "6", "12", "18", "24", "30", "36", "42"]); // 48 sits under "Hours"
+    expect(texts(hours, "axes__x_label")).toEqual(["Hours"]);
+    expect(texts(hours, "axes__yt")).toEqual(["0.5", "1.0", "1.5"]);
+    const long = scenes.pk_curve.layout!({ half_life: 40, doses: 12, dose_interval: 24, t_max: 240 });
+    expect(texts(long, "axes__x_label")).toEqual(["Days"]);
+    expect(texts(long, "axes__xt")).toEqual(["0", "2", "4", "6", "8"]);
+    // Tick numbers stay clear of the caption and each other: no lint.
+    for (const params of [{ t_max: 48 }, { t_max: 240, doses: 12, dose_interval: 24, half_life: 40, show_window: true, show_average: true }, { route: "iv" }]) {
+      const res = layoutSpec({ template: "pk_curve", params, elements: [] } as never);
+      expect(res.issues, JSON.stringify(params)).toEqual([]);
+    }
+    // The half-life staircase keeps the y axis to its own ½ ¼ ⅛.
+    expect(texts(scenes.pk_curve.layout!({ route: "iv" }), "axes__yt")).toEqual([]);
+  });
+
   test("pv_loop: lower contractility raises ESV — the loop (and stroke volume) narrows from the left", () => {
     registerPack("medicine", medicineYaml);
     const strong = scenes.pv_loop.layout!({ contractility: 2.5, show_sv: true });

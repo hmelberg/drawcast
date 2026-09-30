@@ -819,7 +819,7 @@ layout: |
 template: pk_curve
 title: Drug concentration curve (pharmacokinetics)
 version: 1
-kit: 4
+kit: 11
 status: ready
 description: >-
   A pharmacokinetic plasma-concentration-versus-time curve: a single oral
@@ -877,7 +877,7 @@ params:
     title:
       type: string
 element_ids:
-  axes: the coordinate axes (a group with axis captions)
+  axes: "the coordinate axes (a group with axis captions and tick numbers: time in hours, in days once t_max passes 96)"
   curve: the concentration curve itself
   dose_<i>: small arrow on the time axis marking when dose i is taken
   window: the therapeutic window (shaded band + dashed edges, a group; its caption window__t comes with it)
@@ -983,10 +983,44 @@ layout: |
   const attached = {}, drawnWith = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
+  // Tick numbers on both axes (2026-09-30: with none, "eighteen hours" or
+  // "8 days" could not be read off the figure). Time in hours on a clock's
+  // ladder (1, 2, 3, 4, 6, 12, 24 h), in DAYS once more than four days are
+  // shown — the caption says which. They sit a row below the dose arrows
+  // (which stand on the axis at the same times), and ride with the axes.
+  const days = tmax > 96;
+  const pickStep = (span, ladder, most) => ladder.find((s) => span / s <= most) ?? ladder[ladder.length - 1];
+  const tStep = days ? 24 * pickStep(tmax / 24, [1, 2, 5, 7, 10, 14, 20, 30], 8) : pickStep(tmax, [0.5, 1, 2, 3, 4, 6, 12, 24, 48], 8);
+  const xCaption = days ? "Days" : "Hours";
+  const tickKids = [];
+  // A number that would run under the caption at the axis's end keeps its
+  // mark only (the caption says the unit; the arrow is the end).
+  const capLeft = plot.x1 + kit.AXIS_OVERHANG - kit.textWidth(xCaption, 24) - 8;
+  for (let k = 0; k * tStep <= tmax + 1e-9; k++) {
+    const t = k * tStep, x = X(t);
+    tickKids.push(kit.stroke("axes__xm" + k, [[x, plot.y0 - 6], [x, plot.y0 + 6]], { color: C.guide, strokeWidth: 2, ms: MS.dot }));
+    const s = kit.num(Number((days ? t / 24 : t).toFixed(2)));
+    if (x + kit.textWidth(s, 22) / 2 > capLeft) continue;
+    tickKids.push(kit.text("axes__xt" + k, [x, plot.y0 - 54], s, { fontSize: 22, color: C.guide }));
+  }
+  // Concentration: 1, 2 or 5 × a power of ten, about four steps up the
+  // axis. Not under the half-life staircase, whose ½ ¼ ⅛ stand there.
+  if (!(showHalf && doses === 1 && route === "iv")) {
+    const raw = yTop / 4, pow = Math.pow(10, Math.floor(Math.log10(raw)));
+    const cStep = [1, 2, 5, 10].map((m) => m * pow).find((s) => s >= raw * (1 - 1e-9));
+    const cDec = Math.max(0, -Math.floor(Math.log10(cStep) + 1e-9));
+    for (let k = 1; k * cStep <= yTop + 1e-9; k++) {
+      const y = Y(k * cStep);
+      tickKids.push(kit.stroke("axes__ym" + k, [[plot.x0 - 6, y], [plot.x0 + 6, y]], { color: C.guide, strokeWidth: 2, ms: MS.dot }));
+      tickKids.push(kit.text("axes__yt" + k, [plot.x0 - 14, y - 7], kit.num(k * cStep, cDec), { fontSize: 22, anchor: "end", color: C.guide }));
+    }
+  }
+
   push(kit.group("axes", [
     kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
     kit.stroke("axes__y", [[plot.x0, plot.y0 - 6], [plot.x0, plot.y1 + kit.AXIS_OVERHANG]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.axisLabel("axes__x_label", "x", plot, "Hours", { fontSize: 24 }),
+    ...tickKids,
+    kit.axisLabel("axes__x_label", "x", plot, xCaption, { fontSize: 24 }),
     kit.axisLabel("axes__y_label", "y", plot, "Concentration", { fontSize: 24 }),
   ]));
   anchors.axes = [plot.x0, plot.y0];
