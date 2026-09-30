@@ -1689,25 +1689,47 @@ const paddedSvgBox = (b: BBox, pad: number): SvgBox => {
 };
 
 /**
+ * The light's feather as gradient stops over an ellipse FEATHER_REACH times
+ * the pool's radius: what the old Gaussian blur of the hole (σ ≈ 0.22 of the
+ * radius) did to its edge — dark to about 0.56 r, half at r, gone by 1.44 r —
+ * sampled at σ steps. [offset, 0..1 of the way from the pool to the rest].
+ */
+const FEATHER_REACH = 1.44;
+const FEATHER: [number, number][] = [
+  [0, 0],
+  [0.39, 0.023],
+  [0.54, 0.16],
+  [0.694, 0.5],
+  [0.847, 0.84],
+  [1, 1],
+];
+
+/**
  * The soft paper light (panel G): a wash of the figure's ground over the
  * picture's frame, with a feathered hole where the place is. Its depth
- * deepens through the step; only attributes change per frame.
+ * deepens through the step; only attributes change per frame. No filter:
+ * the feather is a radial gradient, so a frame costs no blur.
  */
 function lightMark(g: SVGGElement, id: string, tone: () => number | null): (f: MarkFrame) => void {
   const defs = svgEl("defs", {}, g);
-  const blur = svgEl("filter", { id: `${id}-blur`, filterUnits: "userSpaceOnUse" }, defs);
-  const gauss = svgEl("feGaussianBlur", {}, blur);
+  const holeGrad = svgEl("radialGradient", { id: `${id}-hole` }, defs);
+  const liftGrad = svgEl("radialGradient", { id: `${id}-lift` }, defs);
+  for (const [offset, k] of FEATHER) {
+    const v = Math.round(255 * k);
+    svgEl("stop", { offset: offset.toFixed(3), "stop-color": `rgb(${v},${v},${v})` }, holeGrad);
+    svgEl("stop", { offset: offset.toFixed(3), "stop-color": LIGHT_LIFT, "stop-opacity": (1 - k).toFixed(3) }, liftGrad);
+  }
   const mask = svgEl("mask", { id: `${id}-mask`, maskUnits: "userSpaceOnUse" }, defs);
   const lit = svgEl("rect", { fill: "white" }, mask);
-  const hole = svgEl("ellipse", { fill: "black", filter: `url(#${id}-blur)` }, mask);
+  const hole = svgEl("ellipse", { fill: `url(#${id}-hole)` }, mask);
   const wash = svgEl("rect", { fill: FIGURE_GROUND, mask: `url(#${id}-mask)` }, g);
   // A faint warm lift in the pool, so dark paint inside it reads as lit
   // rather than as a hole in the wash.
-  const lift = svgEl("ellipse", { fill: LIGHT_LIFT, filter: `url(#${id}-blur)`, style: "mix-blend-mode: screen" }, g);
+  const lift = svgEl("ellipse", { fill: `url(#${id}-lift)`, style: "mix-blend-mode: screen" }, g);
   return (f) => {
     const fr = svgBoxOf(f.frame);
     const b = svgBoxOf(f.box);
-    for (const n of [blur, mask, lit, wash]) {
+    for (const n of [mask, lit, wash]) {
       n.setAttribute("x", fr.x.toFixed(1));
       n.setAttribute("y", fr.y.toFixed(1));
       n.setAttribute("width", fr.w.toFixed(1));
@@ -1716,12 +1738,11 @@ function lightMark(g: SVGGElement, id: string, tone: () => number | null): (f: M
     // Never a pinhole: a small part still gets a pool of light round it.
     const rx = Math.max((b.w / 2) * 1.25 + 10, LIGHT_MIN_R);
     const ry = Math.max((b.h / 2) * 1.25 + 10, LIGHT_MIN_R);
-    gauss.setAttribute("stdDeviation", Math.max(10, 0.22 * Math.min(rx, ry)).toFixed(1));
     for (const e of [hole, lift]) {
       e.setAttribute("cx", (b.x + b.w / 2).toFixed(1));
       e.setAttribute("cy", (b.y + b.h / 2).toFixed(1));
-      e.setAttribute("rx", rx.toFixed(1));
-      e.setAttribute("ry", ry.toFixed(1));
+      e.setAttribute("rx", (rx * FEATHER_REACH).toFixed(1));
+      e.setAttribute("ry", (ry * FEATHER_REACH).toFixed(1));
     }
     // The tone may arrive after the mark is up: the next frame picks it up.
     const w = washFor(tone());
@@ -1826,6 +1847,23 @@ function glowMark(g: SVGGElement, id: string): (f: MarkFrame) => void {
     disc.setAttribute("r", r.toFixed(2));
     g.style.opacity = String(Math.max(0, Math.min(1, f.level)));
   };
+}
+
+const sameBox = (a: BBox, b: BBox) => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
+const samePt = (a: Pt | undefined, b: Pt | undefined) => a === b || (!!a && !!b && a[0] === b[0] && a[1] === b[1]);
+/** Two mark frames that paint the same. */
+function sameMarkFrame(a: MarkFrame, b: MarkFrame): boolean {
+  return (
+    a.kind === b.kind &&
+    a.level === b.level &&
+    a.write === b.write &&
+    a.depth === b.depth &&
+    a.breathe === b.breathe &&
+    sameBox(a.box, b.box) &&
+    sameBox(a.frame, b.frame) &&
+    samePt(a.tip, b.tip) &&
+    samePt(a.tail, b.tail)
+  );
 }
 
 /** Build an owner's mark on the overlay (it is attached first, so its paths can be measured). */
@@ -2144,6 +2182,8 @@ function makeEffects(
         m = built;
         marks.set(owner, m);
       }
+      // A paused player repaints every frame: the same frame again writes nothing.
+      if (m.last && sameMarkFrame(m.last, f)) return;
       m.last = f;
       m.update(f);
     },

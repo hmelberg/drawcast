@@ -49,8 +49,13 @@ describe("setMark / endMark", () => {
       const wash = find(g, "rect").find((r) => r.getAttribute("mask") === `url(#${maskId})`)!;
       expect(wash).toBeDefined();
       expect(Number(wash.getAttribute("fill-opacity"))).toBeCloseTo(0.5 * 0.8, 3);
-      expect(find(g, "feGaussianBlur")).toHaveLength(1);
+      // No filter on the light: the feather is a gradient (cheap to repaint every frame).
+      expect(find(g, "feGaussianBlur")).toHaveLength(0);
+      expect(find(g, "filter")).toHaveLength(0);
       const ellipse = find(g, "ellipse")[0];
+      const hole = find(mask, "ellipse")[0];
+      const holeGrad = /^url\(#(.+)\)$/.exec(hole.getAttribute("fill") ?? "")?.[1];
+      expect(find(g, "radialGradient").some((r) => r.getAttribute("id") === holeGrad)).toBe(true);
       const cx0 = ellipse.getAttribute("cx");
       const nodes = count(g);
 
@@ -62,6 +67,31 @@ describe("setMark / endMark", () => {
       expect(ellipse.getAttribute("cx")).not.toBe(cx0);
       expect(Number(wash.getAttribute("fill-opacity"))).toBeCloseTo(0.6, 3);
     } finally {
+      restore();
+    }
+  });
+
+  test("an identical frame painted again writes nothing", async () => {
+    const { restore, effects } = await mounted();
+    const proto = FakeNode.prototype as unknown as { setAttribute: (k: string, v: string) => void };
+    const real = proto.setAttribute;
+    let writes = 0;
+    proto.setAttribute = function (this: FakeNode, k: string, v: string) {
+      writes++;
+      return real.call(this, k, v);
+    };
+    try {
+      for (const kind of ["light", "ring", "arrow", "glow"] as const) {
+        const f = frameOf(kind, { x: 200, y: 200, w: 100, h: 100 });
+        effects.setMark!(kind, f);
+        writes = 0;
+        effects.setMark!(kind, { ...f, box: { ...f.box } });
+        expect(writes).toBe(0);
+        effects.setMark!(kind, { ...f, level: 0.5 });
+        expect(writes).toBeGreaterThan(0);
+      }
+    } finally {
+      proto.setAttribute = real;
       restore();
     }
   });
@@ -119,13 +149,22 @@ describe("setMark / endMark", () => {
       effects.setMark!("md", frameOf("light", { x: 300, y: 300, w: 2, h: 2 }, { level: 0.5 }));
       const g = overlay.children.find((n) => n.getAttribute("data-mark") === "md")!;
       const hole = find(find(g, "mask")[0], "ellipse")[0];
-      expect(Number(hole.getAttribute("rx"))).toBeGreaterThanOrEqual(55);
-      expect(Number(hole.getAttribute("ry"))).toBeGreaterThanOrEqual(55);
+      // The gradient ellipse reaches 1.44 × the pool's radius; the feather is half-way at the pool's edge.
+      const REACH = 1.44;
+      expect(Number(hole.getAttribute("rx")) / REACH).toBeGreaterThanOrEqual(55 - 0.1);
+      expect(Number(hole.getAttribute("ry")) / REACH).toBeGreaterThanOrEqual(55 - 0.1);
       const lift = g.children.find((n) => n.tagName === "ellipse")!;
       expect(lift).toBeDefined();
-      expect(lift.getAttribute("fill")).toBe("#fff8e6");
+      const gradOf = (e: FakeNode) => find(g, "radialGradient").find((r) => `url(#${r.getAttribute("id")})` === e.getAttribute("fill"))!;
+      const liftStops = find(gradOf(lift), "stop");
+      expect(liftStops[0].getAttribute("stop-color")).toBe("#fff8e6");
+      expect(Number(liftStops[0].getAttribute("stop-opacity"))).toBe(1);
+      expect(Number(liftStops[liftStops.length - 1].getAttribute("stop-opacity"))).toBe(0);
+      const holeStops = find(gradOf(hole), "stop").map((st) => st.getAttribute("stop-color"));
+      expect([holeStops[0], holeStops[holeStops.length - 1]]).toEqual(["rgb(0,0,0)", "rgb(255,255,255)"]);
       expect(lift.getAttribute("style")).toContain("mix-blend-mode: screen");
-      expect(lift.getAttribute("filter")).toBe(hole.getAttribute("filter"));
+      expect(lift.getAttribute("filter")).toBeNull();
+      expect([lift.getAttribute("rx"), lift.getAttribute("ry")]).toEqual([hole.getAttribute("rx"), hole.getAttribute("ry")]);
       expect(Number(lift.getAttribute("fill-opacity"))).toBeCloseTo(0.05, 3);
       expect([lift.getAttribute("cx"), lift.getAttribute("cy")]).toEqual([hole.getAttribute("cx"), hole.getAttribute("cy")]);
       effects.setMark!("md", frameOf("light", { x: 600, y: 200, w: 200, h: 100 }, { level: 1 }));
@@ -133,7 +172,7 @@ describe("setMark / endMark", () => {
       expect([lift.getAttribute("cx"), lift.getAttribute("cy")]).toEqual([hole.getAttribute("cx"), hole.getAttribute("cy")]);
       expect(lift.getAttribute("cx")).toBe("700.0");
       expect(Number(lift.getAttribute("fill-opacity"))).toBeCloseTo(0.1, 3);
-      expect(Number(hole.getAttribute("rx"))).toBeCloseTo(135, 1);
+      expect(Number(hole.getAttribute("rx")) / REACH).toBeCloseTo(135, 0);
     } finally {
       restore();
     }
