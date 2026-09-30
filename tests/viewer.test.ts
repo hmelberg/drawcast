@@ -38,19 +38,43 @@ describe("parseViewerHash", () => {
   });
 });
 
+describe("parseViewerHash: the cast inside its link", () => {
+  // Data with the pieces the other routes' dash aliases rewrite (gh-, gdoc-):
+  // they must come through untouched.
+  const DATA = "K8ksyUm1Uvgh-PyH3gdoc-UMLNY_ISexXOFRwxSF";
+  test("#cast=<data> and #cast-<data>, with the viewer params", () => {
+    expect(parseViewerHash(`#cast=${DATA}`)).toMatchObject({ inline: DATA, style: "clean", mode: "narrated" });
+    expect(parseViewerHash(`#cast-${DATA}&style=sketchy&mode=silent&speed=1.5&advance=auto`)).toMatchObject({ inline: DATA, style: "sketchy", mode: "silent", speed: 1.5, advance: "auto" });
+  });
+  test("is nothing else: no gh, doc, drive or server cast is read out of the data", () => {
+    const r = parseViewerHash(`#cast=${DATA}`)!;
+    expect(r.gh).toBeUndefined();
+    expect(r.docId).toBeUndefined();
+    expect(r.driveId).toBeUndefined();
+    expect(r.anvil).toBeUndefined();
+  });
+  test("a damaged or empty data is still a request — decodeCast reports it on the page", () => {
+    expect(parseViewerHash("#cast=")).toMatchObject({ inline: "" });
+    expect(parseViewerHash("#cast=not base64!")).toMatchObject({ inline: "not" });
+  });
+  test("a name that only starts with cast is not one", () => {
+    expect(parseViewerHash("#castle")).toBeNull();
+  });
+});
+
 // Drift guard: entry.ts's dispatch regex is a separate, hand-maintained copy
 // of "which hash prefixes boot the viewer" — a real drawcast.app link with a
 // prefix parseViewerHash accepts but this regex doesn't would silently fall
 // through to the full editor bundle instead of the viewer.
 describe("entry.ts dispatch regex", () => {
-  test("names gdrive and anvil alongside gdoc and gh", () => {
+  test("names gdrive, anvil and cast alongside gdoc and gh", () => {
     // Strip line comments first: a comment mentioning "gdrive" (or even the
     // regex literal as prose) must not be enough to satisfy this — only the
     // actual dispatch regex's alternation counts.
     const entry = readFileSync(new URL("../src/entry.ts", import.meta.url), "utf8");
     const withoutComments = entry.replace(/^\s*\/\/.*$/gm, "");
     expect(withoutComments).toContain("gdrive"); // truthy guard: fails loudly if stripping ate everything
-    expect(withoutComments).toMatch(/\(gdoc\|gh\|gdrive\|anvil\)\[=-\]/);
+    expect(withoutComments).toMatch(/\(gdoc\|gh\|gdrive\|anvil\|cast\)\[=-\]/);
   });
 });
 

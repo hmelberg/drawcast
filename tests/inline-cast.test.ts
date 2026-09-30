@@ -94,6 +94,21 @@ describe("clear errors", () => {
   });
 });
 
+describe("the paths that carry it", () => {
+  test("Edit a copy: fetchPublicCastText decodes and unwraps an inline cast, no network", async () => {
+    const { fetchPublicCastText, parseViewerHash } = await import("../src/viewer");
+    const wrapped = JSON.stringify({ request: "Ohm", spec: { title: "Ohm", elements: [], commands: [] } });
+    const req = parseViewerHash(`#cast=${await encodeCast(wrapped)}&mode=silent`)!;
+    expect(JSON.parse((await fetchPublicCastText(req))!)).toEqual({ title: "Ohm", elements: [], commands: [] });
+  });
+  test("the paste page's Play goes to the #cast= hash of exactly what was pasted", async () => {
+    const { pasteHash } = await import("../src/paste");
+    const hash = await pasteHash(PY_TEXT);
+    expect(hash.startsWith("#cast=")).toBe(true);
+    expect(await decodeCast(hash.slice("#cast=".length))).toBe(PY_TEXT);
+  });
+});
+
 test("castLinkFor builds the one fixed shape", () => {
   expect(castLinkFor("abc")).toBe("https://drawcast.app/#cast=abc");
   expect(castLinkFor("abc", "http://localhost:5221/#paste")).toBe("http://localhost:5221/#cast=abc");

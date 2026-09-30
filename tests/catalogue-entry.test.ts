@@ -14,7 +14,7 @@ const entry = readFileSync(new URL("../src/entry.ts", import.meta.url), "utf8");
 describe("entry routes #browse to the catalogue", () => {
   test("checked before gh/gdoc/gdrive/anvil, before isNameHash, before the app", () => {
     const browse = entry.indexOf('hash === "#browse"');
-    const gh = entry.indexOf("(gdoc|gh|gdrive|anvil)[=-]");
+    const gh = entry.indexOf("(gdoc|gh|gdrive|anvil|cast)[=-]");
     const named = entry.indexOf("isNameHash(hash)");
     const app = entry.indexOf('import("./main")');
     expect(browse).toBeGreaterThan(0);
@@ -37,5 +37,14 @@ describe("entry routes #browse to the catalogue", () => {
   test("never reaches runNamed — #browse must not be treated as a registered name", () => {
     const fn = entry.slice(entry.indexOf('if (hash === "#browse"'), entry.indexOf("} else if (!remix && isNameHash"));
     expect(fn).not.toContain("runNamed");
+  });
+});
+
+describe("entry routes #paste to the paste page", () => {
+  test("after #browse, before the viewer test and names, code-split like the catalogue", () => {
+    const paste = entry.indexOf('hash === "#paste"');
+    expect(paste).toBeGreaterThan(entry.indexOf('hash === "#browse"'));
+    expect(paste).toBeLessThan(entry.indexOf("(gdoc|gh|gdrive|anvil|cast)[=-]"));
+    expect(entry).toContain('const { runPaste } = await import("./paste");');
   });
 });
