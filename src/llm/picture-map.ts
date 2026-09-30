@@ -351,7 +351,8 @@ export async function mapPicture(picture: string, opts: MapOptions, deps: MapDep
       if (deps.signal?.aborted) throw err;
       if (!bytes) return null;
       map = await ask({ type: "image", source: { type: "base64", media_type: bytes.mediaType, data: bytes.data } });
-      if (robots) map.optedOut = new URL(picture).hostname;
+      // The host only names the site in the warning; a URL that will not parse must not turn a good map into null.
+      if (robots) map.optedOut = URL.canParse(picture) ? new URL(picture).hostname : picture.slice(0, 80);
     }
     if (map.regions.length > 0 || map.notFound.length > 0) {
       try {
