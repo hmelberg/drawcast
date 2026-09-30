@@ -94,6 +94,15 @@ describe("fillUsedRegions / autoImages", () => {
     expect(spec.elements![1].regions).toEqual({ extra: [0, 0, 1, 1], results: [0, 0, 0.5, 0.5] });
     expect(r.missing).toEqual(["nope"]);
   });
+  test("a command naming __proto__ touches no prototype", () => {
+    const spec = { elements: [{ id: "md", type: "image", url: U, regions: "auto" }], commands: [{ highlight: { target: ["md:__proto__", "md:command_line"] } }] } as never as import("../src/spec/types").Spec;
+    const r = fillUsedRegions(spec, new Map([[U, map]]));
+    const regions = spec.elements![0].regions as Record<string, unknown>;
+    expect(Object.keys(regions)).toEqual(["command_line"]);
+    expect(Object.getPrototypeOf(regions)).toBeNull();
+    expect(({} as Record<string, unknown>).command_line).toBeUndefined();
+    expect(r.missing.length).toBeLessThanOrEqual(1);
+  });
   test("autoImages", () => {
     expect(autoImages(mk())).toEqual([
       { id: "md", picture: U, opts: all },

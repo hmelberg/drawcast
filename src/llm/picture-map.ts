@@ -2,6 +2,9 @@
 // half — the request forms, the prompt, the sanitiser, the cache key, the
 // compiler's note and the fill of the regions a spec's commands use. Nothing
 // here calls a model; that happens only while authoring.
+import Anthropic from "@anthropic-ai/sdk";
+import { callForJson } from "./client";
+import { cacheGet as defaultGet, cachePut as defaultPut } from "../render/portrait";
 import { parsePlace, placesInCommands, type Rect4 } from "../spec/places";
 import type { Spec } from "../spec/types";
 
@@ -196,9 +199,9 @@ export function fillUsedRegions(spec: Spec, maps: Map<string, PictureMap>): { mi
     const map = maps.get(el.url);
     if (!map) continue;
     const hand = el.regions && typeof el.regions === "object" && !Object.hasOwn(el.regions, "auto") ? (el.regions as Record<string, Rect4>) : {};
-    const filled: Record<string, Rect4> = { ...hand };
+    const filled: Record<string, Rect4> = Object.assign(Object.create(null) as Record<string, Rect4>, hand);
     for (const name of used.get(el.id) ?? []) {
-      if (Object.hasOwn(hand, name)) continue;
+      if (Object.hasOwn(hand, name) || !/^[a-z][a-z0-9_]{0,31}$/.test(name)) continue;
       const found = map.regions.find((r) => r.name === name);
       if (found) filled[name] = found.box;
       else missing.push(name);
@@ -206,4 +209,85 @@ export function fillUsedRegions(spec: Spec, maps: Map<string, PictureMap>): { mi
     el.regions = filled;
   }
   return { missing };
+}
+
+// ---- the call (authoring only) ---------------------------------------------
+
+export interface MapDeps {
+  client: Anthropic;
+  model: string;
+  signal?: AbortSignal;
+  cacheGet?: (k: string) => Promise<string | null>;
+  cachePut?: (k: string, v: string) => Promise<void>;
+}
+
+type ImageBlock = Anthropic.ImageBlockParam;
+type MediaType = "image/png" | "image/jpeg" | "image/webp" | "image/gif";
+
+function imageBlock(picture: string): ImageBlock | null {
+  if (picture.startsWith("https://")) return { type: "image", source: { type: "url", url: picture } };
+  const m = /^data:(image\/(?:png|jpeg|webp|gif));base64,(.+)$/s.exec(picture);
+  if (!m) return null;
+  return { type: "image", source: { type: "base64", media_type: m[1] as MediaType, data: m[2] } };
+}
+
+function isAbort(err: unknown, signal?: AbortSignal): boolean {
+  return !!signal?.aborted || err instanceof Anthropic.APIUserAbortError || (err instanceof Error && err.name === "AbortError");
+}
+
+/** Map one picture. picture = https URL or data: URI. Cached. Throws only on abort; other failures → null. */
+export async function mapPicture(picture: string, opts: MapOptions, deps: MapDeps): Promise<PictureMap | null> {
+  const get = deps.cacheGet ?? defaultGet;
+  const put = deps.cachePut ?? defaultPut;
+  const key = mapCacheKey(picture, opts);
+  try {
+    const hit = await get(key);
+    if (hit) {
+      const parsed = sanitizeMap(JSON.parse(hit), opts);
+      if (parsed.regions.length > 0 || parsed.notFound.length > 0) return parsed;
+    }
+  } catch {
+    /* a bad cache entry is a miss */
+  }
+  const block = imageBlock(picture);
+  if (!block) return null;
+  try {
+    const { json } = await callForJson(
+      deps.client,
+      deps.model,
+      [{ type: "text", text: mapSystemPrompt() }],
+      [{ role: "user", content: [block, { type: "text", text: mapUserText(opts) }] }],
+      MAP_SCHEMA,
+      { maxTokens: 4000, signal: deps.signal },
+    );
+    const map = sanitizeMap(json, opts);
+    if (map.regions.length > 0 || map.notFound.length > 0) {
+      try {
+        await put(key, JSON.stringify(map));
+      } catch {
+        /* the cache is a courtesy */
+      }
+    }
+    return map;
+  } catch (err) {
+    if (isAbort(err, deps.signal)) throw err;
+    return null;
+  }
+}
+
+/** Map several (sequentially), returning url → map for the ones that succeeded, plus warnings for the ones that failed. */
+export async function mapPictures(
+  items: { picture: string; opts: MapOptions }[],
+  deps: MapDeps,
+): Promise<{ maps: Map<string, PictureMap>; warnings: string[] }> {
+  const maps = new Map<string, PictureMap>();
+  const warnings: string[] = [];
+  for (const { picture, opts } of items) {
+    if (maps.has(picture)) continue;
+    const map = await mapPicture(picture, opts, deps);
+    const label = picture.startsWith("data:") ? "an embedded picture" : picture;
+    if (map && (map.regions.length > 0 || map.notFound.length > 0)) maps.set(picture, map);
+    else warnings.push(`Could not map the parts of ${label}; regions: auto has no boxes for it.`);
+  }
+  return { maps, warnings };
 }
