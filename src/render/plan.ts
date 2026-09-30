@@ -695,7 +695,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
 
   const currentBox = (id: string): BBox | null => {
     const box = boxOf(id);
-    if (!box) return null;
+    return box ? posedBox(id, box) : null;
+  };
+  /** A box in `id`'s original frame where it stands NOW: shifted, or — turned or scaled — the bounds of its four mapped corners. */
+  const posedBox = (id: string, box: BBox): BBox => {
     const offset: Pt = offsets[id] ?? [0, 0];
     const turn = turns[id];
     if (isIdentity(turn)) return { x: box.x + offset[0], y: box.y + offset[1], w: box.w, h: box.h };
@@ -765,7 +768,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
 
   /**
    * A picture place (`md:name`, `md@[x, y, w, h]`, `md@[x, y]`, `md@top`)
-   * where it stands NOW — the picture's rect moved by its owner's offset —
+   * where it stands NOW — the picture's rect carried by its owner's pose —
    * or null when `s` is not place syntax (a plain id: the caller carries on
    * as before). "skip" when it names a place that cannot be aimed at; the
    * warning says why. A place on a picture not yet drawn is skipped for the
@@ -784,8 +787,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       warnings.push(`${verb} target "${s}" is not visible at that point${mustShow ? " (skipped)" : ""}`);
       if (mustShow) return "skip";
     }
-    const [dx, dy] = offsets[p.owner] ?? [0, 0];
-    const shift = (b: BBox): BBox => ({ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h });
+    // Through the owner's whole pose (offset, turn, scale) — exactly as currentBox moves the picture itself.
+    const shift = (b: BBox): BBox => posedBox(p.owner, b);
+    const pose = poseOf(offsets[p.owner] ?? [0, 0], turns[p.owner]);
     const frame = shift(pic.frame.rect);
     let box: BBox;
     if (p.kind === "region") {
@@ -798,13 +802,14 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       box = shift(fractionBox(pic.frame, r));
     } else if (p.kind === "box") box = shift(fractionBox(pic.frame, p.box));
     else if (p.kind === "point") {
-      const [x, y] = fractionPoint(pic.frame, p.at);
-      box = { x: x + dx, y: y + dy, w: 0, h: 0 };
+      const [x, y] = pose(fractionPoint(pic.frame, p.at));
+      box = { x, y, w: 0, h: 0 };
     } else box = frame;
     let point: Pt = [box.x + box.w / 2, box.y + box.h / 2];
     if (p.kind === "anchor") {
       if (!isUniversalAnchor(p.anchor)) warnings.push(`${verb}: a picture has no anchor "${p.anchor}" — using center`);
-      point = boxAnchor(frame, isUniversalAnchor(p.anchor) ? p.anchor : "center");
+      // The picture's own anchor, carried by the pose (a turned picture's top turns with it).
+      point = pose(boxAnchor(pic.frame.rect, isUniversalAnchor(p.anchor) ? p.anchor : "center"));
     }
     return { owner: p.owner, kind: p.kind, box, point, frame };
   };

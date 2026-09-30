@@ -82,4 +82,30 @@ describe("places in the planner", () => {
     expect(p.steps.some((s: any) => s.kind === "highlight")).toBe(false);
     expect(p.warnings.join("\n")).toMatch(/has no region "toString"/);
   });
+  test("a scaled picture: the region scales about the picture's centre (final fix I2)", () => {
+    const p = plan([{ draw: ["md"] }, { move: { target: "md", scale: 2 } }, { highlight: { target: "md:left" } }]);
+    const b = stepOf(p, "highlight").boxes["md:left"];
+    expect(b.x).toBeCloseTo(-100, 5);
+    expect(b.y).toBeCloseTo(200, 5);
+    expect(b.w).toBeCloseTo(400, 5);
+    expect(b.h).toBeCloseTo(400, 5);
+  });
+  test("a turned picture: the region's corners turn with it (final fix I2)", () => {
+    const p = plan([{ draw: ["md"] }, { move: { target: "md", rotate: 90 } }, { highlight: { target: "md:left" } }]);
+    const b = stepOf(p, "highlight").boxes["md:left"];
+    // The left half (200 x 200, left of the centre 300, 400) turned a quarter about the centre: 200 x 200, above or below it.
+    expect(b.x).toBeCloseTo(200, 5);
+    expect(b.w).toBeCloseTo(200, 5);
+    expect(b.h).toBeCloseTo(200, 5);
+    expect([200, 400].some((y) => Math.abs(b.y - y) < 1e-6)).toBe(true);
+    // A point place turns too: the left edge's middle (100, 400) lands on the vertical through the centre.
+    const pt = stepOf(plan([{ draw: ["md"] }, { move: { target: "md", rotate: 90 } }, { point: { at: { ref: "md@[0, 0.5]" } } }]), "point");
+    expect(pt.x).toBeCloseTo(300, 5);
+    expect(Math.abs(pt.y - 400)).toBeCloseTo(200, 5);
+  });
+  test("a scaled picture: the spotlight frame scales with it (final fix I2)", () => {
+    const s = stepOf(plan([{ draw: ["md", "t"] }, { move: { target: "md", scale: 2 } }, { focus: { target: "md:left" } }]), "focus");
+    expect(s.spots[0].frame.w).toBeCloseTo(800, 5);
+    expect(s.spots[0].frame.h).toBeCloseTo(400, 5);
+  });
 });
