@@ -492,15 +492,19 @@ export const CREDIT_MARKUP = 3;
 /**
  * The Embed-narration hint text once no TTS key is set but the author is
  * signed in — narration will be synthesized on the server against credit.
- * `balanceUsd` is null while /credit/balance is still in flight (or failed):
- * the estimate is shown at once, the balance follows. Exported and pure so
+ * `balanceUsd` is null while /credit/balance is still in flight, or the
+ * failure ("key" | "error") once it answered without a number: the estimate
+ * is shown at once, the balance follows. Exported and pure so
  * its wording is a real test rather than a source-text match alone.
  */
-export function creditBakeHint(neededUsd: number, balanceUsd: number | null): string {
+export function creditBakeHint(neededUsd: number, balanceUsd: number | null | "key" | "error"): string {
   const needed = `$${neededUsd.toFixed(2)}`;
-  return balanceUsd === null
-    ? `uses narration credit — about ${needed} (checking balance…)`
-    : `uses narration credit — about ${needed} (you have $${balanceUsd.toFixed(2)})`;
+  const tail =
+    balanceUsd === null ? "checking balance…"
+    : balanceUsd === "key" ? "sign in again to see your balance"
+    : balanceUsd === "error" ? "balance unavailable"
+    : `you have $${balanceUsd.toFixed(2)}`;
+  return `uses narration credit — about ${needed} (${tail})`;
 }
 
 function titleOf(playlist: Playlist, fallback: string): string {
@@ -692,7 +696,10 @@ function build(): ShareSession {
           void (async () => {
             const bal = await creditBalance(DEFAULT_ENROLL_API, token);
             if (my !== creditToken) return; // superseded — a newer refresh already answered
-            if (typeof bal !== "object") return; // stay on the estimate; no number to add
+            if (typeof bal !== "object") {
+              bakeHint.textContent = creditBakeHint(neededUsd, bal);
+              return;
+            }
             const haveUsd = bal.balanceMicro / 1_000_000;
             bakeHint.textContent = creditBakeHint(neededUsd, haveUsd);
             creditBuyRow.hidden = haveUsd >= neededUsd;

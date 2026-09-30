@@ -13,6 +13,10 @@ import { CREDIT_MARKUP, creditBakeHint } from "../src/ui/share";
 const share = readFileSync(new URL("../src/ui/share.ts", import.meta.url), "utf8");
 
 describe("creditBakeHint — the exact wording the Embed-narration hint shows", () => {
+  test("a failed balance check says so instead of waiting forever", () => {
+    expect(creditBakeHint(3.45, "key")).toBe("uses narration credit — about $3.45 (sign in again to see your balance)");
+    expect(creditBakeHint(3.45, "error")).toBe("uses narration credit — about $3.45 (balance unavailable)");
+  });
   test("before the balance arrives: the estimate alone, marked as checking", () => {
     expect(creditBakeHint(3.45, null)).toBe("uses narration credit — about $3.45 (checking balance…)");
   });
