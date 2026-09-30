@@ -30,6 +30,14 @@ const cases: { name: string; url: string; opts: MapOptions; hand: Record<string,
 ];
 
 describe.skipIf(!key)("live picture mapping", () => {
+  // mapPicture swallows every failure into null (the app degrades quietly);
+  // here a bad key or model must say so plainly before the picture tests run.
+  test("the key and model answer", { timeout: 60_000 }, async () => {
+    expect(key!, "DRAWCAST_LIVE_KEY looks like a placeholder, not a real key").toMatch(/^sk-ant-[\x21-\x7e]+$/);
+    const client = makeClient(key!);
+    const reply = await client.messages.create({ model: planningModelFor("claude-opus-5-5"), max_tokens: 8, messages: [{ role: "user", content: "Say ok." }] });
+    expect(reply.content.length).toBeGreaterThan(0);
+  });
   for (const c of cases) {
     test(c.name, { timeout: 120_000 }, async () => {
       const map = await mapPicture(c.url, c.opts, { client: makeClient(key!), model: planningModelFor("claude-opus-5-5"), ...noCache });
