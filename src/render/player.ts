@@ -2042,6 +2042,24 @@ export class Player {
     return "seconds" in step && typeof step.seconds === "number" ? step.seconds * 1000 : 0;
   }
 
+  /**
+   * How long a step's own animation actually runs, ms — actionMs, but with an
+   * erase at ERASE_SPEED and a clear at its fade, as runAction plays them.
+   * The frames harness's pacing report (lint/pacing-report.ts) reads it, so
+   * the report times a cast by the player's numbers, not a copy of them.
+   */
+  stepRunMs(index: number): number {
+    const step = this.plan.steps[index];
+    if (!step) return 0;
+    if (step.kind === "erase") {
+      const ms = this.paced(this.els(step.ids), step, ERASE_SPEED);
+      if (ms.length === 0) return 0;
+      return step.parallel ? Math.max(...ms) : ms.reduce((a, b) => a + b, 0);
+    }
+    if (step.kind === "clear") return Math.max(0, ...this.els(step.ids).map((el) => Math.min(Math.max(el.durationMs * 0.4, CLEAR_MIN_MS), CLEAR_MS)));
+    return this.actionMs(index);
+  }
+
   private paced(els: RenderedElement[], step: { parallel?: boolean; narration?: string }, speedFactor: number): number[] {
     return pacedDurations(
       els.map((el) => el.durationMs * speedFactor),

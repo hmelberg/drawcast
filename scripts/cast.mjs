@@ -1454,6 +1454,13 @@ const commands = {
       }
       if (errors.length) console.log("page errors:\n  " + errors.join("\n  "));
       if (!(report.parts ?? []).some((p) => p.frames?.some((f) => f.issues?.length))) console.log("  no browser lint on any frame");
+      // Timing (src/lint/pacing-report.ts): the totals, then one line per idle
+      // stretch, silent ink or overlong beat, numbered @N like the tiles.
+      for (const [i, part] of (report.parts ?? []).entries()) {
+        const lines = part.pacing?.lines ?? [];
+        if (lines.length === 0) continue;
+        console.log((report.parts.length > 1 ? `part ${i + 1} ` : "") + lines.join("\n"));
+      }
     } finally {
       await b.close();
     }
