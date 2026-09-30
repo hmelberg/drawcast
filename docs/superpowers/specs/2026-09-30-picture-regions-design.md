@@ -137,7 +137,7 @@ In `point.at` and `camera.center` a place goes in `ref` — `{ref: "md:command_l
 
 Existing verbs, new targets — plus one new highlight effect:
 
-- **`point: {at: md:command_line}`** — the laser; `gesture: circle` traces
+- **`point: {at: {ref: "md:command_line"}}`** — the laser; `gesture: circle` traces
   the region's box.
 - **`highlight: {target: md:variables, effect: box}`** — **new effect
   `box`**: a rounded rectangle drawn around the region in the highlighter
@@ -374,7 +374,7 @@ script:
     focus: {target: md:variables}                 # the spotlight takes over from the box
   - camera: {on: md:filter}
   - speak: So you search for them by name.
-    point: {at: md:filter, gesture: underline}
+    point: {at: {ref: "md:filter"}, gesture: underline}
   - camera: {reset: true}
   - speak: The big area on the right is where everything you do is written down.
     focus: {target: md:results}
@@ -383,7 +383,7 @@ script:
     highlight: {target: md:import_command}
   - camera: {on: md:command_line}
   - speak: You type commands at the very bottom.
-    point: {at: md:command_line, gesture: underline}
+    point: {at: {ref: "md:command_line"}, gesture: underline}
   - camera: {reset: true}
   - hide: md
   - show: tools
@@ -463,7 +463,7 @@ script:
     highlight: {target: [art:raised_hand, art:joined_hands]}  # the box moves from one hand to the other
   - speak: Above them, one candle burns in broad daylight.
     camera: {on: art:chandelier}
-    point: {at: art:candle, gesture: circle}
+    point: {at: {ref: "art:candle"}, gesture: circle}
   - speak: Just below, on the wall, the painter wrote — Jan van Eyck was here.
     camera: {on: art:signature}                   # pans down; no lift between the two
     highlight: {target: art:signature}
