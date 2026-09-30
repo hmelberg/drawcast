@@ -11,7 +11,6 @@ import { moveFrame, morphFrame, transformFrame } from "./tween";
 import { overridesKey, type LayoutOverrides } from "../layout/posed";
 import { answersMatch, AUTO_NAMESPACE, subVars } from "../spec/answers";
 import { notationBeats } from "../spec/notation";
-import { parsePlace } from "../spec/places";
 import { ACTIVITY_QUESTIONS } from "../spec/types";
 import type { LayoutResult } from "../layout/layout";
 import { heldFrom, sceneAt } from "./plan";
@@ -25,7 +24,8 @@ import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import type { Easing, SpecElement } from "../spec/types";
 import type { ControlValue } from "../code/controls";
-import { cueStartMs } from "./cue";
+import { cueStartMs, lineMs } from "./cue";
+import { MARK_RELEASE_MS, markFrameAt, markReleaseAt } from "./marks";
 import { stripLangMarks } from "./lang-spans";
 import { SpeechManager, type SpeechLike } from "./speech";
 import { correctWord } from "./quiz-words";
@@ -392,6 +392,13 @@ export class Player {
   private pendingSpeech: Promise<void> | null = null;
   /** The current narrated step's voice, so effects can follow it (glow-while-speaking). */
   private narrationVoice: Promise<void> | null = null;
+  /**
+   * Pictures whose mark is on screen (spec §13): painted by a mark step this
+   * playback and not yet released — a continuing mark stays up for the next
+   * step to take over. A scrub ends them all; a step whose `from` finds its
+   * owner missing here (a seek landed on it) eases in instead of gliding.
+   */
+  private readonly liveMarks = new Set<string>();
   /** The language the cast is written in (spec.lang), for the words the player says itself. */
   private sourceLang: string | null = null;
   setSourceLang(lang: string | null): void {
@@ -593,6 +600,7 @@ export class Player {
     // erased: that was the author's choice. Playing moves on from here as
     // from any boundary.
     const end = this.stateAt(this.plan.steps.length);
+    this.endMarks();
     this.applyScene({ ...end, camera: null, opacities: {} });
     this.showCaption("");
   }
@@ -631,6 +639,7 @@ export class Player {
     if (!keepPlaying) this.restoreRunPatches(n);
     const scene = this.stateAt(n);
     this.applyKey(scene);
+    this.endMarks();
     this.applyScene(scene);
     this.completed = n;
     // Show the most recent narration line at this boundary.
@@ -1048,6 +1057,13 @@ export class Player {
 
   dispose(): void {
     this.abortRun();
+    this.endMarks();
+  }
+
+  /** Take down every mark still on screen — a scrub, the poster, disposal. */
+  private endMarks(): void {
+    for (const owner of this.liveMarks) this.effects?.endMark?.(owner);
+    this.liveMarks.clear();
   }
 
   private abortRun(): void {
@@ -1673,23 +1689,15 @@ export class Player {
       case "highlight": {
         if (!this.effects) return;
         const effects = this.effects;
-        const boxFor = (ids: string[]) =>
-          unionBoxes(
-            ids.flatMap((id) => {
-              const b = step.boxes[id];
-              if (!b) return [];
-              const [dx, dy] = before.offsets[id] ?? [0, 0];
-              return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
-            }),
-          );
-        // A box on picture places is drawn per place — two places are two boxes, not one around both.
-        // Plain ids (and every other effect) paint as one, as before.
-        const places = step.effect === "box" ? step.ids.filter((id) => parsePlace(id) !== null) : [];
-        const plain = step.ids.filter((id) => !places.includes(id));
-        const groups = [...(plain.length > 0 ? [plain] : []), ...places.map((id) => [id])];
-        const boxes = groups.map(boxFor);
-        const paint = (level: number, elapsedMs?: number) =>
-          groups.forEach((ids, i) => effects.setHighlight(ids, step.effect, level, boxes[i], step.color, elapsedMs, step.part));
+        const box = unionBoxes(
+          step.ids.flatMap((id) => {
+            const b = step.boxes[id];
+            if (!b) return [];
+            const [dx, dy] = before.offsets[id] ?? [0, 0];
+            return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
+          }),
+        );
+        const paint = (level: number, elapsedMs?: number) => effects.setHighlight(step.ids, step.effect, level, box, step.color, elapsedMs, step.part);
         // pulse throbs three times before the hold; everything else eases in once.
         const curve = step.effect === "pulse" ? "throb" : "ease";
         try {
@@ -1705,7 +1713,7 @@ export class Player {
             await this.emphasize(signal, paint, this.waitScaled(swellMs, signal), rate, curve);
           }
         } finally {
-          for (const ids of groups) effects.endHighlight(ids);
+          effects.endHighlight(step.ids);
         }
         return;
       }
@@ -1715,14 +1723,10 @@ export class Player {
         // The inverse spotlight: dim everything visible EXCEPT the targets.
         const keep = new Set(step.ids);
         const dimIds = before.visible.filter((id) => !keep.has(id));
-        const spots = step.spots ?? [];
-        if (dimIds.length === 0 && spots.length === 0) return;
+        if (dimIds.length === 0) return;
         const RAMP = 280;
         const alphaAt = (t: number) => 1 - (1 - FOCUS_DIM) * t;
-        const paint = (a: number) => {
-          if (dimIds.length > 0) effects.setFocus?.(dimIds, a);
-          if (spots.length > 0) effects.setSpotlight?.(spots, a);
-        };
+        const paint = (a: number) => effects.setFocus?.(dimIds, a);
         try {
           await this.progress(RAMP, signal, (t) => paint(alphaAt(t)));
           if (signal.aborted) return;
@@ -1735,7 +1739,44 @@ export class Player {
           await this.progress(RAMP, signal, (t) => paint(alphaAt(1 - t)));
         } finally {
           effects.endFocus?.(dimIds);
-          if (spots.length > 0) effects.endSpotlight?.();
+        }
+        return;
+      }
+      case "mark": {
+        const effects = this.effects;
+        if (!effects?.setMark) return;
+        const owner = step.owner;
+        // Seek-safety: a step that continues a mark glides from it only when
+        // that mark is actually up — landed on by a seek, it eases in.
+        const path = step.from && !this.liveMarks.has(owner) ? { ...step, from: undefined } : step;
+        // Held to the sentence: the stops spread over the voice's estimated
+        // remainder (never shorter than the step's own seconds), and the last
+        // stop holds — the light deepening, a glow breathing — until the voice
+        // actually ends.
+        const voice = step.untilNarrationEnd ? this.narrationVoice : null;
+        let durMs = step.seconds * 1000;
+        if (voice && this.mode === "narrated" && step.narration !== undefined) {
+          const line = this.spokenLine(step.narration);
+          const wait = cueStartMs(step.cue, step.cueEnd, line, step.narrationDelivery, this.actionMs(index));
+          durMs = Math.max(durMs, lineMs(line, step.narrationDelivery) - wait);
+        }
+        let speaking = voice !== null;
+        if (voice) void voice.then(() => (speaking = false), () => (speaking = false));
+        this.liveMarks.add(owner);
+        try {
+          let at = 0;
+          await this.frames(signal, (elapsed) => {
+            at = elapsed;
+            effects.setMark!(owner, markFrameAt(path, elapsed, durMs));
+            return elapsed < durMs || speaking;
+          });
+          if (signal.aborted || step.continues) return;
+          await this.progress(MARK_RELEASE_MS, signal, (t) => effects.setMark!(owner, markReleaseAt(path, t * MARK_RELEASE_MS, at)));
+          if (signal.aborted) return;
+          effects.endMark?.(owner);
+          this.liveMarks.delete(owner);
+        } finally {
+          if (signal.aborted && this.liveMarks.delete(owner)) effects.endMark?.(owner);
         }
         return;
       }

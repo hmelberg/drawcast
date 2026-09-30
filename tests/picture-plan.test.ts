@@ -67,7 +67,6 @@ describe("places in the planner", () => {
     const p = plan([{ draw: ["md", "t"] }, { focus: { target: ["t", "md:left"] } }]);
     const s = stepOf(p, "focus");
     expect(s.ids).toEqual(["t"]);
-    expect(s.spots).toBeUndefined();
     expect(stepOf(p, "mark")).toBeUndefined();
     expect(p.warnings.join("\n")).toContain('focus: places and ids in one focus — focus "md:left" in its own command');
   });

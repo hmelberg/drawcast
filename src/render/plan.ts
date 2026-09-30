@@ -96,8 +96,6 @@ export type PlanStep = (
       /** Targets that stay lit — the player dims the REST of the visible set. */
       ids: string[];
       seconds: number;
-      /** Delivery 1's picture spotlight — no longer planned (places are marks); the player still reads it until Task 3. */
-      spots?: { frame: BBox; holes: BBox[] }[];
       /** Narrated with no explicit duration: hold the focus until the voice ends. */
       untilNarrationEnd?: boolean;
     }

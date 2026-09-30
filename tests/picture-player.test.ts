@@ -1,9 +1,10 @@
-// Final fix I5: a box highlight on several places draws one box per place,
-// not one box around them all — the player paints each id on its own.
+// Spec §13: a box highlight on several places is ONE box mark on the picture
+// that travels from place to place — not one box around them all.
 import { expect, test } from "vitest";
 import { planCommands } from "../src/render/plan";
 import { Player } from "../src/render/player";
 import { SpeechManager } from "../src/render/speech";
+import type { MarkFrame } from "../src/render/marks";
 import { FULL_VIEW4 } from "../src/spec/places";
 
 globalThis.requestAnimationFrame ??= ((cb: FrameRequestCallback) =>
@@ -26,24 +27,24 @@ const opts = {
   pictureOf: (id: string) => (id === "md" ? { frame: { rect, view: FULL_VIEW4 }, regions } : null),
 };
 
-test("highlight on two places: each painted with its own box, each ended", async () => {
-  const plan = planCommands([{ draw: ["md"] }, { highlight: { target: ["md:left", "md:bottom"], duration: 0.3 } }] as never, ["md", "t"], opts as never);
-  const painted: { ids: string[]; box: unknown }[] = [];
-  const ended: string[][] = [];
+test("a box highlight on two places: one box mark visiting each place, no highlight painted, ended once", async () => {
+  const plan = planCommands([{ draw: ["md"] }, { highlight: { target: ["md:left", "md:bottom"], effect: "box", duration: 1.2 } }] as never, ["md", "t"], opts as never);
+  const highlighted: string[][] = [];
+  const marks: MarkFrame[] = [];
+  const ended: string[] = [];
   const effects = {
-    setHighlight: (ids: string[], _e: string, _level: number, box: unknown) => painted.push({ ids, box }),
-    endHighlight: (ids: string[]) => ended.push(ids),
+    setHighlight: (ids: string[]) => highlighted.push(ids),
+    endHighlight: () => undefined,
+    setMark: (_owner: string, f: MarkFrame) => marks.push(f),
+    endMark: (owner: string) => ended.push(owner),
     setPointer: () => undefined,
     setCamera: () => undefined,
   };
   await new Player(plan, new Map(), new SilentSpeech(), null, { mode: "narrated", breath: false, effects: effects as never }).play();
-  const left = painted.filter((p) => p.ids.join() === "md:left");
-  const bottom = painted.filter((p) => p.ids.join() === "md:bottom");
-  expect(left.length).toBeGreaterThan(0);
-  expect(bottom.length).toBeGreaterThan(0);
-  expect(painted.every((p) => p.ids.length === 1)).toBe(true);
-  expect(left[0].box).toEqual({ x: 100, y: 300, w: 200, h: 200 });
-  expect((bottom[0].box as { h: number }).h).toBeCloseTo(20, 5);
-  expect(ended).toContainEqual(["md:left"]);
-  expect(ended).toContainEqual(["md:bottom"]);
+  expect(highlighted).toEqual([]);
+  expect(marks.length).toBeGreaterThan(0);
+  expect(marks.every((f) => f.kind === "box")).toBe(true);
+  expect(marks.some((f) => JSON.stringify(f.box) === JSON.stringify({ x: 100, y: 300, w: 200, h: 200 }))).toBe(true);
+  expect(marks.some((f) => f.box.w === 400 && Math.abs(f.box.h - 20) < 1e-6)).toBe(true);
+  expect(ended).toEqual(["md"]);
 });

@@ -46,13 +46,13 @@ import { pointerPath, unionBoxes } from "../render/effects";
 // they carry runs without the viewer prompt (security/code-trust.ts).
 setTrustPolicy("all");
 import { sceneAt, type PlanStep } from "../render/plan";
+import { markFrameAt } from "../render/marks";
 import type { RenderHandle } from "../render/index";
 import { toSvgY } from "../layout/canvas";
 import { resolveCode } from "../render/code";
 import { expandSpec } from "../spec/expand";
 import { validateSpec } from "../spec/schema";
 import type { Spec } from "../spec/types";
-import { parsePlace } from "../spec/places";
 import { ensureEnginesForSpecs } from "../scenes/engines";
 import { ensureEnabledPacks, PACK_DEFS } from "../scenes/packs";
 
@@ -290,18 +290,18 @@ function paintGesture(hd: RenderHandle, at: number, step: PlanStep, canvas: HTML
             return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
           }),
         );
-      // As the player: a box on picture places is one box per place.
-      const places = step.effect === "box" ? step.ids.filter((id) => parsePlace(id) !== null) : [];
-      const plain = step.ids.filter((id) => !places.includes(id));
-      for (const ids of [...(plain.length > 0 ? [plain] : []), ...places.map((id) => [id])]) {
-        effects.setHighlight(ids, step.effect, 1, boxFor(ids), step.color, 10_000, step.part);
-      }
+      effects.setHighlight(step.ids, step.effect, 1, boxFor(step.ids), step.color, 10_000, step.part);
       return;
     }
     case "focus": {
       const keep = new Set(step.ids);
       effects.setFocus?.(before.visible.filter((id) => !keep.has(id)), FOCUS_DIM);
-      if (step.spots?.length) effects.setSpotlight?.(step.spots, FOCUS_DIM);
+      return;
+    }
+    case "mark": {
+      // The end state: written, at full, at the last stop, the light at its deepest.
+      const ms = step.seconds * 1000;
+      effects.setMark?.(step.owner, markFrameAt(step, ms, ms));
       return;
     }
     case "flow": {

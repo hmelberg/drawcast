@@ -89,14 +89,6 @@ export interface BackendEffects {
   /** Restore any leftover dim (abort/scrub safety). */
   endFocus?(dimIds: string[]): void;
   /**
-   * The spotlight inside a picture (spec 2026-09-30-picture-regions §5): a
-   * wash over each picture's frame with its holes left clear, at the focus
-   * verb's alpha (1 = none, FOCUS_DIM = full). Optional, like setFocus.
-   */
-  setSpotlight?(spots: { frame: BBox; holes: BBox[] }[], alpha: number): void;
-  /** Remove the spotlight (abort/scrub safety). */
-  endSpotlight?(): void;
-  /**
    * ONE FRAME of the mark on a picture (spec §13): `owner` is the picture's
    * id, `f` what render/marks.ts markFrameAt says the mark looks like now.
    * The nodes are made on the first call and updated in place after; a
