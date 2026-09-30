@@ -23,7 +23,7 @@ import {
   type ShapeHint,
   type StrokeDrawable,
 } from "../layout/model";
-import { FIGURE_GROUND, readsAsSame } from "../layout/ink";
+import { colorDistance, FIGURE_GROUND, readsAsSame } from "../layout/ink";
 import { writtenAt } from "./emphasis";
 import { findPart, rowOffset, textRows, type PartHit } from "../layout/highlight-part";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
@@ -1247,12 +1247,16 @@ export function emphasisColorForAll(want: string, owns: (string | undefined)[], 
   return [want, ...EMPHASIS_FALLBACKS.filter((c) => !readsAsSame(c, INK))].reduce((best, c) => (clashes(c) < clashes(best) ? c : best));
 }
 
+/** Nearer the ink than this (colorDistance), a text's colour is the ink itself, not one of its own. */
+const OWN_COLOUR_MIN = 60;
+
 /** Glow's frame round a filled shape: half of it is masked by the shape, so this is twice what shows outside. */
 const FRAME_WIDTH = 24;
 
 /**
  * What glow does to one leaf: a band under a line, a marker behind a code row,
- * a frame round a filled shape, or the ink recoloured.
+ * a highlighter wash behind coloured text, a frame round a filled shape, or
+ * the ink recoloured.
  *
  * A frame is for the OUTLINE of something filled — a ball, a bar, a box with
  * a fill (`filledTarget`: the target also holds an area, as a bar's hatched
@@ -1262,8 +1266,16 @@ const FRAME_WIDTH = 24;
  * or fill all of it"). The frame is the highlighter drawn round the shape,
  * outside it only, so the fill keeps its own colour.
  */
-export function glowKindOf(leaf: Exclude<Drawable, { kind: "group" }>, filledTarget = false): "band" | "marker" | "tint" | "frame" {
+export function glowKindOf(leaf: Exclude<Drawable, { kind: "group" }>, filledTarget = false, explicitColor = false): "band" | "marker" | "wash" | "tint" | "frame" {
   if (leaf.kind === "text" && leaf.font === "mono") return "marker";
+  // Text in a colour of its own (a "hot" label in red, a curve's name in its
+  // curve's blue) keeps that colour: a highlighter wash behind the words, not
+  // the default red echo over them, which recoloured it — and where red
+  // already meant something (hot) said the wrong thing (2026-09-30). A
+  // colour the spec asked for still tints, as asked. "A colour of its own" is
+  // any the author chose — a dark green is one, though SAME_INK would call
+  // it ink — so the test is only that it is not (nearly) the ink itself.
+  if (leaf.kind === "text" && !explicitColor && leaf.style.color !== undefined && colorDistance(leaf.style.color, INK) > OWN_COLOUR_MIN) return "wash";
   if (leaf.kind === "stroke" && outlineD(leaf) !== null && (leaf.style.fill !== undefined || filledTarget)) return "frame";
   if (leaf.kind === "stroke" && leaf.pts.length >= 2 && !leaf.precise) return "band";
   return "tint";
@@ -1314,6 +1326,30 @@ function markerRowsPath(leaf: Extract<Drawable, { kind: "text" }>, piece?: { row
     const y = toSvgY(leaf.pos[1] + ((rows.length - 1) / 2 - i) * LINE_HEIGHT * fs);
     const x0 = leaf.pos[0] + first * CHAR_W * fs - 0.25 * fs + cap;
     const x1 = Math.max(x0 + 0.5, leaf.pos[0] + last * CHAR_W * fs + 0.25 * fs - cap);
+    segs.push(`M${x0.toFixed(1)} ${y.toFixed(1)} L${x1.toFixed(1)} ${y.toFixed(1)}`);
+  });
+  return segs.length > 0 ? { d: segs.join(" "), width } : null;
+}
+
+/**
+ * The highlighter wash behind a proportional text: one round-capped band per
+ * row (or under the phrase `piece` names), as tall as the letters, measured
+ * on the drawn glyphs where the browser can (textPieceBox), else estimated.
+ */
+function washRowsPath(g: SVGGElement, leaf: Extract<Drawable, { kind: "text" }>, piece?: { row: number; col: number; len: number }): { d: string; width: number } | null {
+  const rows = textRows(leaf);
+  const width = leaf.fontSize * 1.05;
+  const cap = width / 2;
+  const segs: string[] = [];
+  rows.forEach((row, i) => {
+    if (piece && piece.row !== i) return;
+    const col = piece ? piece.col : 0;
+    const len = piece ? piece.len : row.length;
+    if (len <= 0 || row.trim() === "") return;
+    const b = textPieceBox(g, leaf, i, col, len);
+    const y = b.y + b.h / 2;
+    const x0 = b.x + cap * 0.6;
+    const x1 = Math.max(x0 + 0.5, b.x + b.w - cap * 0.6);
     segs.push(`M${x0.toFixed(1)} ${y.toFixed(1)} L${x1.toFixed(1)} ${y.toFixed(1)}`);
   });
   return segs.length > 0 ? { d: segs.join(" "), width } : null;
@@ -2081,13 +2117,13 @@ function makeEffects(
           // One tint for every leaf this gesture recolours (see emphasisColorForAll).
           const tint = emphasisColorForAll(
             color ?? HIGHLIGHT_COLOR,
-            lit.filter((e) => e.leaf.kind !== "image" && (effect !== "glow" || glowKindOf(e.leaf, filledTarget) === "tint")).map((e) => (e.leaf.kind === "image" ? undefined : e.leaf.style.color)),
+            lit.filter((e) => e.leaf.kind !== "image" && (effect !== "glow" || glowKindOf(e.leaf, filledTarget, color !== undefined) === "tint")).map((e) => (e.leaf.kind === "image" ? undefined : e.leaf.style.color)),
             color !== undefined,
           );
           for (const { g, leaf, fadeNode } of lit) {
             const own = leaf.kind === "image" ? undefined : leaf.style.color;
             const hit = textHits.get(leaf.id);
-            const glow = effect === "glow" ? glowKindOf(leaf, filledTarget) : "tint";
+            const glow = effect === "glow" ? glowKindOf(leaf, filledTarget, color !== undefined) : "tint";
             // Framed: the frame is the whole mark — the fill keeps its colour
             // and the numbers and names inside it their ink.
             if (glow === "frame" || (framed.length > 0 && (leaf.kind === "area" || leaf.kind === "text"))) continue;
@@ -2109,6 +2145,10 @@ function makeEffects(
             let path: SVGPathElement | null = null;
             if (glow === "band" && leaf.kind === "stroke") {
               path = penPath(pathFromPts(leaf.pts, leaf.closed), emphasisColorFor(pen, own, color !== undefined), BAND_WIDTH, alpha, pose);
+            } else if (glow === "wash" && leaf.kind === "text") {
+              // The marker yellow, unless the words are that colour themselves.
+              const m = washRowsPath(g, leaf, hit);
+              if (m) path = penPath(m.d, emphasisColorFor(pen, own, false), m.width, alpha, pose);
             } else if (glow === "marker" && leaf.kind === "text") {
               const m = markerRowsPath(leaf, hit);
               if (m) path = penPath(m.d, pen, m.width, alpha, pose);

@@ -615,7 +615,11 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned UP 2026-09-30 (node font_size): the schema's font_size names
 // node — its text size, a text-fitted box growing with it (+36 on the
 // schema, embedded in the prompt). 370318 -> 370385.
-const BASELINE_SYSTEM_CHARS = 370385;
+// Re-pinned UP 2026-09-30 (glow on coloured text): the highlight bullet's
+// glow list adds "a highlighter wash behind coloured text" — a coloured
+// label keeps its colour instead of turning red. Prompt only: +41.
+// 370385 -> 370426.
+const BASELINE_SYSTEM_CHARS = 370426;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

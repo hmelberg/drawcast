@@ -76,6 +76,9 @@ export class FakeNode {
     walk(this);
     return out;
   }
+  querySelector(sel: string): FakeNode | null {
+    return this.querySelectorAll(sel)[0] ?? null;
+  }
   getTotalLength(): number {
     // Real path lengths never reach the backend's decisions; a stable positive
     // number keeps the dash-offset math well-defined.
