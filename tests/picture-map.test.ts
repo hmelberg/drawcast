@@ -153,3 +153,13 @@ describe("final-review fixes", () => {
     expect(isAutoRegions({ auto: true })).toBe(true);
   });
 });
+
+describe("M-e: the editor's reading of a mapping result", () => {
+  test("parts found / none found / a failure", async () => {
+    const { mapOutcome } = await import("../src/llm/picture-map");
+    expect(mapOutcome({ regions: [{ name: "a", box: [0, 0, 1, 1], kind: "area" }], notFound: [] })).toBe("found");
+    expect(mapOutcome({ regions: [], notFound: [] })).toBe("none");
+    expect(mapOutcome({ regions: [], notFound: ["x"] })).toBe("none");
+    expect(mapOutcome(null)).toBe("failed");
+  });
+});

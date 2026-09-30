@@ -299,6 +299,11 @@ export async function mapPicture(picture: string, opts: MapOptions, deps: MapDep
   }
 }
 
+/** What a mapPicture result means to the editor: parts to write, a picture the call read but found nothing in, or a call that failed (null). */
+export function mapOutcome(map: PictureMap | null): "found" | "none" | "failed" {
+  return map === null ? "failed" : map.regions.length > 0 ? "found" : "none";
+}
+
 /** Map several (sequentially), returning url → map for the ones that succeeded, plus warnings for the ones that failed. */
 export async function mapPictures(
   items: { picture: string; opts: MapOptions }[],

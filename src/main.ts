@@ -22,7 +22,7 @@ import { missingPlaceholders } from "./llm/prompt";
 import { usableExemplars } from "./llm/exemplars";
 import { buildBrief, parseTags, suggestTags, TAGS, type ParsedTags } from "./llm/tags";
 import { LAB_MODELS, MODELS, callLedger, costSummary, describeApiError, formatCost, makeClient, planningModelFor, resetCallLedger } from "./llm/client";
-import { autoImages, makeMapAuto, makeMapPictures, mapPicture, writeFullMaps, type PictureMap } from "./llm/picture-map";
+import { autoImages, makeMapAuto, makeMapPictures, mapOutcome, mapPicture, writeFullMaps, type PictureMap } from "./llm/picture-map";
 import { generateTemplate, type AuthorImage, type AuthorOutcome } from "./llm/author";
 import { reviseDocument, type ReviseOutcome } from "./llm/revise";
 import { withNotes } from "./llm/hoist";
@@ -4042,14 +4042,17 @@ function ensureRendered(andPlay = false): boolean {
 // found in the background on the author's key, and the WHOLE map (sorted by
 // name) is written into the document, which then draws again. Only the
 // current document's items; nothing without a key (said once); a picture
-// whose mapping failed is not retried this session.
+// whose mapping failed — or that a successful call found no parts in (an
+// empty map is not cached, so a retry would pay again on every edit) — is not
+// retried this session.
 let autoNoKeySaid = false;
 const autoInFlight = new Set<string>();
 const autoFailed = new Set<string>();
+const autoNoParts = new Set<string>();
 function mapAutoInEditor(playlist: Playlist): void {
   const wanted = itemsOf(playlist)
     .flatMap((it) => (Array.isArray(it.spec.elements) ? autoImages(it.spec) : []))
-    .filter((w) => !autoInFlight.has(w.picture) && !autoFailed.has(w.picture));
+    .filter((w) => !autoInFlight.has(w.picture) && !autoFailed.has(w.picture) && !autoNoParts.has(w.picture));
   if (wanted.length === 0) return;
   const apiKey = getApiKey();
   if (!apiKey) {
@@ -4061,6 +4064,7 @@ function mapAutoInEditor(playlist: Playlist): void {
     const deps = pictureDeps(apiKey);
     const maps = new Map<string, PictureMap>();
     const failed: string[] = [];
+    const empty: string[] = [];
     const seen = new Set<string>();
     for (const w of wanted) {
       if (seen.has(w.picture)) continue;
@@ -4069,8 +4073,12 @@ function mapAutoInEditor(playlist: Playlist): void {
       setStatus(`Finding the parts of ${w.id}…`, "info");
       try {
         const map = await mapPicture(w.picture, w.opts, deps).catch(() => null);
-        if (map && map.regions.length > 0) maps.set(w.picture, map);
-        else {
+        const outcome = mapOutcome(map);
+        if (outcome === "found") maps.set(w.picture, map!);
+        else if (outcome === "none") {
+          autoNoParts.add(w.picture);
+          empty.push(w.id);
+        } else {
           autoFailed.add(w.picture);
           failed.push(w.id);
         }
@@ -4078,7 +4086,10 @@ function mapAutoInEditor(playlist: Playlist): void {
         autoInFlight.delete(w.picture);
       }
     }
-    const lines = failed.map((id) => `Could not find the parts of ${id} — regions: auto left as it is.`);
+    const lines = [
+      ...failed.map((id) => `Could not find the parts of ${id} — regions: auto left as it is.`),
+      ...empty.map((id) => `No parts found in ${id} — regions: auto left as it is.`),
+    ];
     if (maps.size > 0) {
       // Fresh text, not the playlist this started from: the author may have
       // typed meanwhile. Never over an AI call's stream or an older version.
@@ -4092,7 +4103,7 @@ function mapAutoInEditor(playlist: Playlist): void {
         }
       } else if (!now) lines.push("The parts were found, but the document is busy — draw again to write them in.");
     }
-    if (lines.length) setStatus(lines.join(" "), failed.length ? "error" : "ok");
+    if (lines.length) setStatus(lines.join(" "), failed.length ? "error" : maps.size === 0 ? "info" : "ok");
   })();
 }
 // ---- end regions: auto ----
