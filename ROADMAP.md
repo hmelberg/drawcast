@@ -3264,5 +3264,37 @@ Code size and complexity:
 6. **Loose end:** `setViewerBase` (links/base.ts) is the only writer of the
    viewer base and nothing calls it — wire it to Settings or remove it.
 
+Caching, batch calls and an Advanced group — discussed 2026-09-30, NOT acted on yet:
+
+1. **Courses and the cache.** The 5 minutes restart on every read, so a
+   course's busy preamble stays warm while parts run in parallel; what misses
+   are the rare gate variants (a few code or sound parts), slow stretches (the
+   look pass, a pause for the author) and the storyboard/storyline calls,
+   whose prompts differ per lecture anyway. Measure before changing: the call
+   ledger already logs cacheRead/cacheWrite per call and the course run
+   summary shows both — writes spread through a run mean the cache expired.
+2. **A cache choice: Auto / 5 minutes / 1 hour.** Auto = 1 hour for courses
+   and multi-part casts, 5 minutes for a single cast (a 1-hour write costs
+   ~2× input instead of ~1.25×, which a one-off cast would pay for nothing).
+3. **Batch calls as a "cheaper, slower" choice for courses only.** Half price
+   on input and output; results in minutes to hours (up to 24 h). Needs
+   revisions: the course runner restructured into ROUNDS across all parts
+   (drafts → check → repairs → look), the storyboard-then-parts order as two
+   or more rounds, and a run that survives a closed tab (store the batch ids,
+   resume). Pairs naturally with the 1-hour cache. A design round of its own.
+4. **"Advanced" under the text box.** Up front what a cast is about and how
+   it looks (Template, Style, the brief controls); under Advanced how it is
+   made (Model, Effort, Story, templates on demand + limit, the cache choice,
+   batch — shown only for a course or multi-part run — and Instructions in
+   developer mode). Keep the has-choice signal: "Advanced (2 changed)", so a
+   hidden non-default never drives generation unnoticed. Defaults good enough
+   that most authors never open it.
+5. **A course-level template block (idea).** A course's storyboards name the
+   templates its parts plan to use. Their full entries could go in one cached
+   block shared by every part of the run, instead of each part carrying its
+   own uncached copies — cheaper per call, and every part sees the same
+   entries. Only worth it if the ledger shows the uncached tail dominating a
+   course's cost.
+
 Retire the way 2026-09-30 did: a pushed `archive/…` tag, the text in
 `docs/prompt-lab/archive/`, a note here.
