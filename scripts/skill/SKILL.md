@@ -118,7 +118,9 @@ page as it will look while that line is spoken. Fix what fails:
 1. **Valid:** every field in the schema; every id referenced exists; template
    params per the template's file; quiz `correct` is 1-based and in range.
    A highlight, point or focus acts only on what is already drawn — a
-   template's part is on the page once a `draw` has named it.
+   template's part is on the page once a `draw` has named it. Every `math`,
+   `text` and `image` has a place: `x`/`y`, or `at` with `ref`, `place` or
+   `data` — a label rides its element with `attach_to`.
 2. **Opening:** a `card` heading, then the first real ink with the first
    spoken line on it, saying the question. No talking over a blank page.
 3. **Sync:** each spoken line rides a command that draws, moves or animates
@@ -159,8 +161,11 @@ character breaks it.
 Without code execution: give the YAML in one ```yaml block and tell the user
 to open **https://drawcast.app/#paste** and paste it there.
 
-When you deliver: the link (or the YAML + paste link), one line on what the
-figure shows, and the brief's defaults you chose. Keep the YAML at hand — you
+When you deliver, write exactly these, in this order:
+- the link (or the YAML + paste link);
+- **Spoken lines: N (brief: 14–20)** — N as the script printed it; if it is
+  outside the brief, go back to step 5.7 before you deliver;
+- one line on what the figure shows, and the brief's defaults you chose. Keep the YAML at hand — you
 will need it for fixes.
 
 ## 7. When the player shows Problems

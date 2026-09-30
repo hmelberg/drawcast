@@ -841,6 +841,12 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     }
     for (const item of items) {
       const validation = validateSpec(item.spec);
+      // A cast carried in the link was written by someone's AI, away from any
+      // checker: one bad element should not blank the page. It plays what the
+      // renderer can (as the frames harness does — an invalid element is
+      // skipped) while the Problems note, already open, lists every error to
+      // hand back. Every other source keeps the strict stop.
+      if (!validation.ok && req.inline !== undefined) continue;
       if (!validation.ok) {
         const where = items.length > 1 ? `item ${item.index + 1}: ` : "";
         throw new Error(`The document's spec is invalid: ${where}${validation.errors[0]}${validation.errors.length > 1 ? ` (+${validation.errors.length - 1} more)` : ""}`);

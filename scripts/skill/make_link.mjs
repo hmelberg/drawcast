@@ -24,6 +24,11 @@ export function makeLink(data, base = BASE) {
   return `${base}#cast=${raw.toString("base64url")}`;
 }
 
+/** How many `speak:` fields the drawcast has — its spoken lines, near enough. */
+export function spokenLines(text) {
+  return (text.match(/(?<![\w-])"?speak"?\s*:/g) ?? []).length;
+}
+
 function main(argv) {
   const args = [...argv];
   let base = BASE;
@@ -39,6 +44,7 @@ function main(argv) {
   }
   const link = makeLink(data, base);
   console.log(link);
+  console.error(`${spokenLines(data.toString("utf8"))} spoken lines (the default brief is 14–20; a length the user asked for wins)`);
   if (link.length > 16000) console.error(`note: the link is ${link.length} characters; if the chat cuts it, give the YAML and https://drawcast.app/#paste instead`);
 }
 
