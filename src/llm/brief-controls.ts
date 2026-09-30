@@ -87,3 +87,38 @@ export function forTag(words: string): string {
   const w = words.replace(/#/g, "").trim().replace(/\s+/g, "-");
   return w ? `for=${w}` : "";
 }
+
+// ---- a course's brief ---------------------------------------------------------
+// The course panel shows the same controls minus Length: a course's length is
+// its lectures and each lecture's #parts=N, which the planner sets per lecture
+// — a single drawcast's line budget does not map onto either (the storyboard
+// already writes 8–14 lines per part), so a course-wide #short would fight it.
+
+/** The groups a course's brief carries (course panel, cast.mjs course-*). */
+export const COURSE_BRIEF_GROUPS: BriefGroup[] = ["audience", "level"];
+
+/** BRIEF_CONTROLS for a course: the same option lists, without Length. */
+export const COURSE_BRIEF_CONTROLS: BriefControl[] = BRIEF_CONTROLS.filter((c) => COURSE_BRIEF_GROUPS.includes(c.group));
+
+/**
+ * A course request's brief: for audience and level, the tag typed in the
+ * request wins, else the control's choice. Returns the request without those
+ * typed tags (they are the brief now, not topic words) and the brief as
+ * course tags, `#` included, in group order — what Course.tags stores.
+ */
+export function courseBriefFrom(text: string, defaults: Partial<BriefDefaults> = {}): { request: string; tags: string[] } {
+  let request = text;
+  const tags: string[] = [];
+  for (const group of COURSE_BRIEF_GROUPS) {
+    const typed = briefTagInText(request, group);
+    if (typed !== null) request = clearBriefTag(request, group);
+    const tag = typed ?? defaults[group] ?? "";
+    if (tag) tags.push(`#${tag}`);
+  }
+  return { request: tags.length > 0 ? request : text, tags };
+}
+
+/** The course's current choice for a group, from its tags ("" = the untagged default). */
+export function courseBriefValue(tags: string[] | undefined, group: BriefGroup): string {
+  return briefTagInText((tags ?? []).join(" "), group) ?? "";
+}

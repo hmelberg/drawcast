@@ -96,7 +96,7 @@ export function estimateCourseUsd(course: Course, model: string, effort: Effort,
       parts += missing.length;
     } else {
       outlines += 1;
-      parts += partsOf(lecture);
+      parts += partsOf(lecture, course);
     }
   }
   const key = rateKey(model, effort, look);

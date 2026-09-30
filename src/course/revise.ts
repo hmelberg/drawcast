@@ -100,7 +100,7 @@ export async function reviseCourse(
     courseSystemPrompt(),
     "",
     "You are REVISING an existing course document, not writing a new one.",
-    "Keep its markdown shape exactly: `#` course title, `key: value` context lines, `---` between lectures, `##` per lecture, questions one per line, and a tag line such as `#why #parts=4`.",
+    "Keep its markdown shape exactly: `#` course title, `key: value` context lines, `---` between lectures, `##` per lecture, questions one per line, and a tag line such as `#why #parts=4`. A tag line in the header, under the title (e.g. `#for=nurses #basic`), is the course's brief — who watches and how deep — and applies to every lecture: keep it unchanged unless the instruction is about the audience or level.",
   ].join("\n");
 
   const statuses = statusesByTitle(docText);

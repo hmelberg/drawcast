@@ -15,7 +15,7 @@
 //
 // Courses (a folder dev-casts/courses/<slug>/, the shape of a published course):
 //   node scripts/cast.mjs course-prompt "<request>" [out.md] [--lectures N]   the app's course planner prompt
-//   node scripts/cast.mjs course-new <plan.json> <dir>                        the plan JSON → <dir>/course.md (the app's own normalizer)
+//   node scripts/cast.mjs course-new <plan.json> <dir>                        the plan JSON → <dir>/course.md (the app's own normalizer)  [--brief "#for=nurses #basic"]
 //   node scripts/cast.mjs lecture-prompt <dir> <n> [--storyboard v1]         lecture n's storyboard prompt → <dir>/lecture-NN/
 //   node scripts/cast.mjs part-prompt <dir> <n> <i> [--storyboard v1]        part i's system prompt + request (storyboard.json first)
 //        (default v2: the storyboard prompt (storyline rules, templates with "Viewer can") and its per-part
@@ -258,16 +258,16 @@ async function appPromptText(load, request, priorityIds = []) {
  */
 async function lectureContext(load, dir, n, withOutline = false) {
   const { parseCourse } = await load("/src/course/document.ts");
-  const { buildLectureRequest, partsOf } = await load("/src/course/run.ts");
+  const { buildLectureRequest, lectureTags, partsOf } = await load("/src/course/run.ts");
   const { buildBrief, parseTags } = await load("/src/llm/tags.ts");
   const text = readFileSync(resolve(ROOT, dir, "course.md"), "utf8");
   const course = parseCourse(text);
   const lecture = course.lectures[n - 1];
   if (!lecture) throw new Error(`the course has ${course.lectures.length} lectures`);
-  const parts = partsOf(lecture);
+  const parts = partsOf(lecture, course);
   const chapters = lecture.chapters.length > 0 ? lecture.chapters : undefined;
   const lectureDir = resolve(ROOT, dir, `lecture-${String(n).padStart(2, "0")}`);
-  const ctx = { course, text, lecture, request: buildLectureRequest(course, n - 1), parts, chapters, brief: buildBrief(parseTags(lecture.tags.join(" ")).tags), lectureDir };
+  const ctx = { course, text, lecture, request: buildLectureRequest(course, n - 1), parts, chapters, brief: buildBrief(parseTags(lectureTags(course, lecture).join(" ")).tags), lectureDir };
   if (!withOutline) return ctx;
   const f = resolve(lectureDir, "storyboard.json");
   if (!existsSync(f)) throw new Error(`no storyboard yet: write ${relative(ROOT, f)} (lecture-prompt shows the prompt)`);
@@ -423,20 +423,32 @@ const commands = {
     if (!request) throw new Error('usage: cast.mjs course-prompt "<request>" [out.md] [--lectures N]');
     await withVite(async (load) => {
       const { buildCourseMessages } = await load("/src/course/plan.ts");
-      const { system, user } = buildCourseMessages(request, Number.isFinite(n) ? n : null);
+      // The brief, as the app's course panel takes it: audience and level
+      // tags typed in the request (#for=nurses #basic) are the course's.
+      const { courseBriefFrom } = await load("/src/llm/brief-controls.ts");
+      const brief = courseBriefFrom(request);
+      const { system, user } = buildCourseMessages(brief.request, Number.isFinite(n) ? n : null, brief.tags);
       mkdirSync(resolve(ROOT, "dev-casts"), { recursive: true });
       writeFileSync(resolve(ROOT, out), wrap(`# SYSTEM\n\n${system}\n\n# USER\n\n${user}`) + "\n");
-      console.log(`${out}: the app's course planner prompt. Write the plan JSON it asks for to a file, then: cast.mjs course-new <plan.json> dev-casts/courses/<slug>`);
+      const briefArg = brief.tags.length ? ` --brief "${brief.tags.join(" ")}"` : "";
+      console.log(`${out}: the app's course planner prompt. Write the plan JSON it asks for to a file, then: cast.mjs course-new <plan.json> dev-casts/courses/<slug>${briefArg}`);
     });
   },
 
-  async "course-new"([planFile, dir]) {
-    if (!planFile || !dir) throw new Error("usage: cast.mjs course-new <plan.json> <dir>");
+  async "course-new"(args) {
+    const briefAt = args.indexOf("--brief");
+    const briefText = briefAt === -1 ? "" : args[briefAt + 1] ?? "";
+    const [planFile, dir] = args.filter((a, i) => a !== "--brief" && args[i - 1] !== "--brief");
+    if (!planFile || !dir) throw new Error('usage: cast.mjs course-new <plan.json> <dir> [--brief "#for=nurses #basic"]');
     await withVite(async (load) => {
       const { normalizeCoursePlan } = await load("/src/course/plan.ts");
       const { formatCourse, parseCourse, setCourseOption } = await load("/src/course/document.ts");
       const course = normalizeCoursePlan(JSON.parse(readFileSync(resolve(ROOT, planFile), "utf8")));
       if (!course) throw new Error("the plan is unusable (the app needs a title and at least two lectures)");
+      // The course's brief goes in the header's tag line, as the app stores it.
+      const { courseBriefFrom } = await load("/src/llm/brief-controls.ts");
+      const brief = courseBriefFrom(briefText).tags;
+      if (brief.length > 0) course.tags = brief;
       const slug = basename(resolve(ROOT, dir));
       const text = setCourseOption(formatCourse(course), "slug", slug);
       mkdirSync(resolve(ROOT, dir), { recursive: true });
@@ -493,13 +505,13 @@ const commands = {
     await withVite(async (load) => {
       const n = Number(nArg);
       const { course, text, lecture, lectureDir, outline } = await lectureContext(load, dir, n, true);
-      const { lecturePlaylist, stripClickGates } = await load("/src/course/run.ts");
+      const { lecturePlaylist, lectureTags, stripClickGates } = await load("/src/course/run.ts");
       const { parseTags } = await load("/src/llm/tags.ts");
       const { formatPlaylist } = await load("/src/playlist/playlist.ts");
       const { setLectureStatus } = await load("/src/course/document.ts");
       const { validateSpec } = await load("/src/spec/schema.ts");
       const { slugify } = await load("/src/publish/github.ts");
-      const tags = parseTags(lecture.tags.join(" "));
+      const tags = parseTags(lectureTags(course, lecture).join(" "));
       const specs = [], chapterOf = [], failed = [];
       outline.parts.forEach((part, i) => {
         const f = resolve(lectureDir, `part-${i + 1}.json`);

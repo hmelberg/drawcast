@@ -4,7 +4,8 @@
 // edits are never overwritten by stale state.
 
 import { posterForPlaylistText } from "../export/snapshot";
-import { type Course, type CourseLecture, formatCourse, parseCourse, removeCourseOption, setCourseOption } from "../course/document";
+import { type Course, type CourseLecture, formatCourse, parseCourse, removeCourseOption, setCourseOption, setCourseTag } from "../course/document";
+import { briefTagInText, clearBriefTag, COURSE_BRIEF_CONTROLS, courseBriefFrom, courseBriefValue, forTag, type BriefDefaults, type BriefGroup } from "../llm/brief-controls";
 import { generateCoursePlan } from "../course/plan";
 import { applyCourseFolder, applyCourseName, applyJoinDoor, commitPublish, courseDoorName, courseKeyFor, courseRegistration, preparePublish, type PublishArgs } from "../course/publish";
 import type { Door, DoorlessReason } from "../course/page";
@@ -238,6 +239,80 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
   cancelBtn.disabled = true;
   undoBtn.hidden = true;
 
+  // The course's brief (llm/brief-controls.ts): Audience and Level, the
+  // single drawcast's quiet selects beside Make plan — no Length, see
+  // COURSE_BRIEF_CONTROLS. Before a plan exists they feed Make plan (a tag
+  // typed in the description wins, as beside Generate); once it does they
+  // show, and edit, the header's tag line, which every lecture is generated
+  // with (course/run.ts lectureTags).
+  const briefSels = new Map<BriefGroup, HTMLSelectElement>();
+  const briefFor = h("input", {
+    type: "text",
+    class: "brief-for",
+    placeholder: "who? e.g. nurses",
+    "aria-label": "Audience (who the course is for)",
+    hidden: "",
+  }) as HTMLInputElement;
+  const briefRow = h("span", { class: "brief-controls course-brief" });
+  /** The choices for a course not planned yet; a planned one keeps its own in the document. */
+  const pendingBrief: Partial<BriefDefaults> = {};
+  /** "Other…" picked and not yet named: keep the field open while it is empty. */
+  let briefOtherOpen = false;
+
+  function setBrief(group: BriefGroup, value: string): void {
+    if (panelActions(parseCourse(doc.value)).plan === "revise") {
+      doc.value = setCourseTag(doc.value, group, value);
+      persist();
+      render();
+    } else {
+      pendingBrief[group] = value;
+      refreshBrief(parseCourse(doc.value));
+    }
+  }
+
+  for (const c of COURSE_BRIEF_CONTROLS) {
+    const sel = h("select", { class: "brief-sel", "aria-label": `Course ${c.label.toLowerCase()}` }) as HTMLSelectElement;
+    for (const o of c.options) sel.appendChild(h("option", { value: o.value, title: o.hint }, o.label));
+    briefSels.set(c.group, sel);
+    briefRow.append(sel);
+    if (c.group === "audience") briefRow.append(briefFor);
+    sel.addEventListener("change", () => {
+      // Touching the control takes the group back from a tag typed in the description.
+      if (panelActions(parseCourse(doc.value)).plan === "make" && briefTagInText(ask.value, c.group) !== null) {
+        ask.value = clearBriefTag(ask.value, c.group);
+      }
+      if (c.group === "audience") briefOtherOpen = sel.value === "for";
+      setBrief(c.group, c.group === "audience" && briefOtherOpen ? forTag(briefFor.value) : sel.value);
+      if (briefOtherOpen) briefFor.focus();
+    });
+  }
+  // On change, not per keystroke: a planned course's document is rewritten.
+  briefFor.addEventListener("change", () => setBrief("audience", forTag(briefFor.value)));
+
+  function refreshBrief(course: Course): void {
+    const planned = panelActions(course).plan === "revise";
+    for (const c of COURSE_BRIEF_CONTROLS) {
+      const sel = briefSels.get(c.group)!;
+      // Before a plan, a tag typed in the description rules its group.
+      const typed = planned ? null : briefTagInText(ask.value, c.group);
+      const value = typed ?? (planned ? courseBriefValue(course.tags, c.group) : pendingBrief[c.group] ?? "");
+      const isFor = value.startsWith("for=") || (c.group === "audience" && typed === null && briefOtherOpen && value === "");
+      sel.value = isFor ? "for" : c.options.some((o) => o.value === value) ? value : "";
+      sel.classList.toggle("brief-typed", typed !== null);
+      const option = c.options.find((o) => o.value === sel.value);
+      sel.title =
+        typed !== null
+          ? `${c.label}: set by #${typed} in the description — choose here to take it over`
+          : `${c.label}: ${option?.hint ?? ""}${planned ? " — every lecture of this course is made for it" : ""}`;
+      if (c.group === "audience") {
+        briefFor.hidden = !isFor;
+        briefFor.disabled = typed !== null || inFlight.size > 0;
+        if (value.startsWith("for=") && document.activeElement !== briefFor) briefFor.value = value.slice(4).replace(/-/g, " ");
+        else if (!isFor) briefFor.value = "";
+      }
+    }
+  }
+
   let courseId: string | null = null;
   /**
    * Whether the last GitHub publish counted views for THIS course — mirrors
@@ -337,6 +412,9 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
     // autosaved, then silently clobbered by the run's next write-back (which
     // derives from its start-of-run snapshot). Read-only while anything runs.
     doc.readOnly = busy;
+    // The brief controls write the same document (its header tag line).
+    for (const sel of briefSels.values()) sel.disabled = busy;
+    briefFor.disabled = busy;
   }
 
   function begin(): AbortController {
@@ -411,6 +489,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         : "Describe a change to revise the plan (e.g. “add a lecture on synthetic control, and make lecture 3 shorter”)";
     runRow.hidden = !actions.generate;
     rule.hidden = !actions.generate;
+    refreshBrief(course);
     // A lecture whose drawcast exists but whose status line was lost would be
     // generated again at full cost. Offer the repair, and only when there is
     // one to make.
@@ -647,7 +726,10 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
     const controller = begin();
     working("Planning the course…");
     try {
-      const course = await generateCoursePlan(request, { apiKey: key, model: deps.model() }, null, controller.signal);
+      // Audience and level: typed in the description, else the controls. They
+      // reach the planner and are stored in the plan's header (Course.tags).
+      const brief = courseBriefFrom(request, pendingBrief);
+      const course = await generateCoursePlan(brief.request, { apiKey: key, model: deps.model() }, null, controller.signal, brief.tags);
       if (!course) {
         say("The model could not plan that into lectures — try rephrasing.", "error");
         return;
@@ -1638,17 +1720,20 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       }
     }, 300);
   });
-  ask.addEventListener("input", () => autoGrow(ask));
+  ask.addEventListener("input", () => {
+    autoGrow(ask);
+    refreshBrief(parseCourse(doc.value));
+  });
 
   modal.body.append(
     h(
       "p",
       { class: "course-help" },
-      "One ## heading per lecture \u2014 each becomes its own drawcast. Under it, write what the lecture must cover: questions work best (especially why and how), but topics or material to present are equally fine. Tags like #why, #data or #parts=4 apply to that lecture.",
+      "One ## heading per lecture \u2014 each becomes its own drawcast. Under it, write what the lecture must cover: questions work best (especially why and how), but topics or material to present are equally fine. Tags like #why, #data or #parts=4 apply to that lecture; a tag line under the # title (Audience and Level write it) applies to every lecture.",
     ),
     // The request box and its one verb are a block; Cancel rides the same
     // row so it is present in both states, disabled when nothing runs.
-    h("div", { class: "course-ask-block" }, ask, h("div", { class: "pane-bar course-plan-row" }, planBtn, h("span", { class: "pane-spacer" }), cancelBtn)),
+    h("div", { class: "course-ask-block" }, ask, h("div", { class: "pane-bar course-plan-row" }, planBtn, briefRow, h("span", { class: "pane-spacer" }), cancelBtn)),
     rule,
     runRow,
     // Messages sit with the buttons that produce them; the document and the
