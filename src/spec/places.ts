@@ -8,6 +8,7 @@
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import type { Spec } from "./types";
+import { isUniversalAnchor, UNIVERSAL_ANCHORS } from "../layout/anchors";
 
 export type Rect4 = [number, number, number, number];
 
@@ -91,7 +92,7 @@ function placesInCommands(commands: unknown): string[] {
     for (const x of Object.values(c)) if (x && typeof x === "object") walk(x);
   };
   walk(commands);
-  return [...new Set(out)].filter((s) => parsePlace(s) !== null);
+  return [...new Set(out)].filter((s) => /[:@]/.test(s));
 }
 
 /** Picture fields and the places commands aim at (spec 2026-09-30-picture-regions §3–§4). */
@@ -117,7 +118,13 @@ export function pictureErrors(spec: Spec): string[] {
   }
   const byId = new Map(els.map((e) => [e.id, e]));
   for (const s of placesInCommands(spec.commands)) {
-    const p = parsePlace(s)!;
+    const p = parsePlace(s);
+    if (!p) {
+      // Only when the part before ":" / "@" is an element: an unrelated string is not ours to judge.
+      const head = s.trim().split(/[:@]/)[0];
+      if (byId.has(head)) errs.push(`"${s}" is not a well-formed place (${head}:name, ${head}@top, ${head}@[x, y], ${head}@[x, y, w, h])`);
+      continue;
+    }
     const owner = byId.get(p.owner);
     if (!owner || owner.type !== "image") {
       errs.push(`"${s}": ${p.owner} is not an image`);
@@ -127,6 +134,11 @@ export function pictureErrors(spec: Spec): string[] {
       const names = Object.keys(owner.regions ?? {});
       errs.push(`"${s}": ${p.owner} has no region "${p.name}" — it has: ${names.length > 0 ? names.join(", ") : "none"}`);
     }
+    if (p.kind === "anchor" && !isUniversalAnchor(p.anchor)) {
+      errs.push(`"${s}": a picture has no anchor "${p.anchor}" — use ${UNIVERSAL_ANCHORS.slice(0, -1).join(", ")} or ${UNIVERSAL_ANCHORS[UNIVERSAL_ANCHORS.length - 1]}`);
+    }
+    const fractionsOk = p.kind === "point" ? p.at.every((n) => n >= 0 && n <= 1) : p.kind === "box" ? inUnit(p.box) && p.box[2] >= 0 && p.box[3] >= 0 : true;
+    if (!fractionsOk) errs.push(`"${s}": fractions must lie in 0..1${p.kind === "box" ? " (x + w and y + h at most 1)" : ""}`);
   }
   return errs;
 }

@@ -54,4 +54,15 @@ describe("picture fields", () => {
   test("an inherited name is not a region", () => {
     expect(errorsOf({ elements: [md], commands: [{ draw: ["md"] }, { highlight: { target: "md:constructor" } }] })).toMatch(/has no region "constructor"/);
   });
+  test("places are validated strictly (final fix T3-triage)", () => {
+    const aim = (target: string) => errorsOf({ elements: [md], commands: [{ draw: ["md"] }, { highlight: { target } }] });
+    expect(aim("md@banana")).toMatch(/"md@banana": a picture has no anchor "banana" — use center, top, bottom, left, right, top_left, top_right, bottom_left or bottom_right/);
+    expect(aim("md@[0.1,0.2,0.3]")).toMatch(/"md@\[0\.1,0\.2,0\.3\]" is not a well-formed place \(md:name, md@top, md@\[x, y\], md@\[x, y, w, h\]\)/);
+    expect(aim("md@[1.2,0.5]")).toMatch(/"md@\[1\.2,0\.5\]": fractions must lie in 0\.\.1/);
+    expect(aim("md@[0.5,0.5,0.6,0.1]")).toMatch(/"md@\[0\.5,0\.5,0\.6,0\.1\]": fractions must lie in 0\.\.1/);
+    expect(aim("md@top")).toBe("");
+    expect(aim("md@[0.2, 0.9, 0.8, 0.1]")).toBe("");
+    // A string whose part before ":" / "@" names no element is left alone.
+    expect(errorsOf({ elements: [md], commands: [{ draw: ["md"] }, { highlight: { target: "nobody@[1" } }] })).not.toMatch(/well-formed/);
+  });
 });
