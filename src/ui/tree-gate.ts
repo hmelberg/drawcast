@@ -1,10 +1,13 @@
 // The tree gate (spec 2026-10-03 §4): the viewer answers on the decision
 // tree itself —
 //
-//   blanks  each "?" wears a dashed ring; a tap opens a field over it
+//   blanks  each "?" wears a dashed ring; a tap opens a field next to it
+//           (under it, else above or beside — never over the label it
+//           asks about), and the "?" shows what is typed as it is typed
 //           (Enter takes the number and moves to the next "?")
 //   pick    once the blanks are filled (at once when there are none), the
-//           decision's branches answer a tap, with a ring under the pointer
+//           decision's branches answer a tap; the branch under the pointer,
+//           and the one picked, are lit along their own line
 //
 // One blank and no pick: Enter answers. Otherwise the Answer button does
 // (a pick tap answers once every blank is filled). Typed numbers paint into
@@ -17,6 +20,7 @@ import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import { encodeTreeAnswer, parseBlankNumber } from "../tree/blanks";
 import { clientPointFor, h } from "./dom";
+import { mountGateDock, type GateDock } from "./gate-dock";
 import { mountNumberEdit } from "./number-edit";
 import type { AskGateStep } from "./controls";
 
@@ -63,11 +67,21 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
       const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, "Answer ▸");
       answer.hidden = oneShot || blanks.length === 0;
       const rings = blanks.map(() => h("div", { class: "cs-tree-blank" }));
-      const edgeRing = h("div", { class: "cs-card-focus cs-tree-edge" });
-      edgeRing.hidden = true;
-      const pickRing = h("div", { class: "cs-card-focus cs-tree-edge cs-tree-picked" });
-      pickRing.hidden = true;
-      const gate = h("div", { class: "cs-figgate cs-guessgate cs-treegate" }, hint, answer, ...rings, edgeRing, pickRing);
+      // A branch is lit along its own line (a thick translucent stroke), not
+      // boxed: the hovered one, and the one picked.
+      const SVG_NS = "http://www.w3.org/2000/svg";
+      const edgeLayer = document.createElementNS(SVG_NS, "svg");
+      edgeLayer.setAttribute("class", "cs-tree-edges");
+      edgeLayer.setAttribute("aria-hidden", "true");
+      const edgeRing = document.createElementNS(SVG_NS, "polyline");
+      edgeRing.setAttribute("class", "cs-tree-edge");
+      const pickRing = document.createElementNS(SVG_NS, "polyline");
+      pickRing.setAttribute("class", "cs-tree-edge cs-tree-picked");
+      edgeLayer.append(pickRing, edgeRing);
+      const gate = h("div", { class: "cs-figgate cs-guessgate cs-treegate" }, ...rings);
+      gate.appendChild(edgeLayer);
+      let dock: GateDock | null = null;
+      const docked: HTMLElement[] = [hint, answer];
 
       const padded = (b: BBox, pad: number): BBox => ({ x: b.x - pad, y: b.y - pad, w: b.w + 2 * pad, h: b.h + 2 * pad });
       /** Put a ring div over a logical box (y-up). */
@@ -77,9 +91,16 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
         el.hidden = !a || !z;
         if (a && z) Object.assign(el.style, { left: `${a[0]}px`, top: `${a[1]}px`, width: `${z[0] - a[0]}px`, height: `${z[1] - a[1]}px` });
       };
-      const edgeBox = (pts: Pt[]): BBox => {
-        const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
-        return padded({ x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) }, 8);
+      /** Light a branch along its line (null: none). */
+      const lightEdge = (line: SVGPolylineElement, pts: Pt[] | null): void => {
+        const client = pts ? pts.map((p) => clientPointFor(stage, p)).filter((p): p is [number, number] => p !== null) : [];
+        if (client.length < 2) {
+          line.setAttribute("points", "");
+          line.style.display = "none";
+          return;
+        }
+        line.setAttribute("points", client.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" "));
+        line.style.display = "";
       };
       const placeRings = (): void => {
         blanks.forEach((b, i) => {
@@ -88,8 +109,7 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
           rings[i].classList.toggle("filled", values[i] !== null);
           rings[i].classList.toggle("active", i === fieldAt);
         });
-        if (chosen !== null && session.edges[chosen]) placeOver(pickRing, edgeBox(session.edges[chosen]));
-        else pickRing.hidden = true;
+        lightEdge(pickRing, chosen !== null ? (session.edges[chosen] ?? null) : null);
         field?.reposition();
       };
 
@@ -100,6 +120,7 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
         signal.removeEventListener("abort", onAbort);
         document.removeEventListener("keydown", onKey, true);
         window.removeEventListener("resize", placeRings);
+        dock?.dispose();
         gate.remove();
         resolve(result);
       };
@@ -153,6 +174,14 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
           value: values[i] ?? NaN,
           label: blanks[i].label,
           text: true,
+          // Next to the "?", never over the label it asks about.
+          place: "near",
+          // The "?" shows the number as it is typed (a bad one: "?" again).
+          onInput: (text) => {
+            const live = values.slice();
+            live[i] = parseBlankNumber(text);
+            session.show(live);
+          },
           onCommit: (text) => {
             const v = parseBlankNumber(text);
             if (v === null) {
@@ -176,6 +205,8 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
           },
           onCancel: () => {
             advance = false;
+            // What was typed is not taken: the tree shows what was.
+            session.show(values);
             if (fieldAt === i) {
               fieldAt = -1;
               field = null;
@@ -206,7 +237,7 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
       };
       const choose = (id: string): void => {
         chosen = id;
-        edgeRing.hidden = true;
+        lightEdge(edgeRing, null);
         placeRings();
         if (filled()) window.setTimeout(() => !settled && submit(), 250);
       };
@@ -237,8 +268,7 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
         if (settled || !pickOpen()) return;
         const sr = stage.getBoundingClientRect();
         const id = edgeNear(e.clientX - sr.left, e.clientY - sr.top);
-        if (id === null || id === chosen || !session.edges[id]) edgeRing.hidden = true;
-        else placeOver(edgeRing, edgeBox(session.edges[id]));
+        lightEdge(edgeRing, id === null || id === chosen ? null : (session.edges[id] ?? null));
         gate.style.cursor = id !== null ? "pointer" : "";
       });
       gate.addEventListener("click", (e) => e.stopPropagation());
@@ -291,13 +321,15 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
           e.stopPropagation();
           finish(null);
         });
-        gate.appendChild(skip);
+        docked.push(skip);
       }
       signal.addEventListener("abort", onAbort);
       document.addEventListener("keydown", onKey, true);
       window.addEventListener("resize", placeRings);
       stage.appendChild(gate);
-      placeRings();
+      dock = mountGateDock(stage, gate, docked, placeRings);
+      lightEdge(edgeRing, null);
+      dock.relayout();
       // The first "?" is open at once: the question is about it.
       if (blanks.length > 0) open(0);
     });

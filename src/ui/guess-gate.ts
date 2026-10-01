@@ -9,7 +9,8 @@
 // One part (a bar, a line, a slice, a crowd, a scale): letting go of the
 // drag IS the answer, unless the ask says release: false. Several parts (on:
 // all, a whole pie) are set one by one and answered with the Answer button,
-// which stands centred at the bottom of the figure, over the caption.
+// which stands in the answer dock at the bottom (ui/gate-dock.ts) with the
+// hint and Skip — never on the title or the question.
 //
 // Keys: Tab picks the next handle, arrows change it (shift: ten steps; on a
 // sketched line or a whole pie ←/→ pick the point or divider; on a market
@@ -21,6 +22,7 @@ import type { GuessSession } from "../render/player";
 import { encodeGuess, marketAnchor, marketGrab, marketKey, nearestDivider, nudge, pickHandle, pointFor, valueAt, withBudget, type GuessHandle } from "../guess/handles";
 import { clockFraction } from "../guess/handles";
 import { clientPointFor, h, logicalPoint } from "./dom";
+import { mountGateDock, type GateDock } from "./gate-dock";
 import type { AskGateStep } from "./controls";
 
 const HINT: Record<GuessHandle["kind"], string> = {
@@ -85,7 +87,8 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       const pill = h("button", { class: "cs-guess-value", type: "button", title: "Type a number" });
       const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, "Answer ▸");
       answer.hidden = onRelease;
-      const gate = h("div", { class: "cs-figgate cs-guessgate" }, hint, pill, answer);
+      const gate = h("div", { class: "cs-figgate cs-guessgate" }, pill);
+      let dock: GateDock | null = null;
 
       // —— painting: one frame at most per animation frame ——
       let pending = false;
@@ -122,6 +125,7 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         settled = true;
         signal.removeEventListener("abort", onAbort);
         document.removeEventListener("keydown", onKey, true);
+        dock?.dispose();
         gate.remove();
         resolve(result);
       };
@@ -271,21 +275,21 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         e.stopPropagation();
         finish(encodeGuess(values));
       });
+      // The dock: the hint (and a budget's total), Answer, Skip.
+      const docked: HTMLElement[] = budget !== null ? [hint, total, answer] : [hint, answer];
       if (!step.required) {
         const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip", type: "button" }, "Skip ▸");
         skip.addEventListener("click", (e) => {
           e.stopPropagation();
           finish(null);
         });
-        gate.appendChild(skip);
+        docked.push(skip);
       }
       signal.addEventListener("abort", onAbort);
       document.addEventListener("keydown", onKey, true);
-      if (budget !== null) {
-        gate.appendChild(total);
-        showTotal();
-      }
+      if (budget !== null) showTotal();
       stage.appendChild(gate);
-      placePill();
+      dock = mountGateDock(stage, gate, docked, placePill);
+      dock.relayout();
     });
 }

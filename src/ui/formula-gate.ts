@@ -1,13 +1,16 @@
 // The formula gate (design 2026-10-03 §5.3): the viewer types into a
 // formula's blank boxes —
 //
-//   a number blank      a tap on its box opens a number field over it
-//   any other blank     a tap opens a text field under the box, read the
-//                       AsciiMath way (`pi r^2`, `2r`, `sqrt(x)`); as they
-//                       type, the answer is drawn in the box (show), so they
-//                       see it read as meant. A field that does not parse is
-//                       marked, with the reason as its title. A row of keys
-//                       above it gives ^ √ π / ( ) for phones.
+//   a number blank      a tap on its box opens a number field next to the
+//                       formula (under it, else above or beside — never
+//                       over it); the box shows the number as it is typed
+//   any other blank     a tap opens a text field next to the formula, read
+//                       the AsciiMath way (`pi r^2`, `2r`, `sqrt(x)`); as
+//                       they type, the answer is drawn in the box (show), so
+//                       they see it read as meant. A field that does not
+//                       parse is marked, with the reason said under it, and
+//                       Enter does not take it. A row of keys under it gives
+//                       ^ √ π / ( ) for phones (touch-sized).
 //
 // Enter moves to the next blank, or answers at the last (or only) one; with
 // several blanks — or one and `release: false` — the Answer button answers
@@ -22,7 +25,8 @@ import { blankIsNumber } from "../formula/blanks";
 import { parseAscii } from "../formula/expr";
 import { parseBlankNumber } from "../tree/blanks";
 import { clientPointFor, h } from "./dom";
-import { mountNumberEdit, placeOverBox } from "./number-edit";
+import { mountGateDock, type GateDock } from "./gate-dock";
+import { mountNumberEdit, placeNearBox, type StageRect } from "./number-edit";
 import type { AskGateStep } from "./controls";
 
 /** A blank's box grows by this (logical) for its ring and its tap target. */
@@ -55,7 +59,28 @@ export function formulaGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: 
       const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, "Answer ▸");
       answer.hidden = single && enterAnswers;
       const rings = blanks.map(() => h("div", { class: "cs-tree-blank" }));
-      const gate = h("div", { class: "cs-figgate cs-guessgate cs-formulagate" }, hint, answer, ...rings);
+      const gate = h("div", { class: "cs-figgate cs-guessgate cs-formulagate" }, ...rings);
+      let dock: GateDock | null = null;
+      const docked: HTMLElement[] = [hint, answer];
+
+      /** The whole formula blank k sits in, in stage px: its glyphs and its
+       *  boxes (data-leaf-id `<id>__…` and `<id>_blank_…`), so a field keeps
+       *  clear of all of it — a fraction's "dx" under the box too. */
+      const inkOf = (k: number): StageRect | null => {
+        const svg = stage.querySelector("svg.cs-svg");
+        if (!svg) return null;
+        const id = blanks[k].part.replace(/_blank_\d+$/, "");
+        const esc = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id;
+        const sr = stage.getBoundingClientRect();
+        let out: StageRect | null = null;
+        svg.querySelectorAll(`[data-leaf-id^="${esc}__"], [data-leaf-id^="${esc}_blank_"]`).forEach((el) => {
+          const r = el.getBoundingClientRect();
+          if (r.width === 0 && r.height === 0) return;
+          const q = { left: r.left - sr.left, top: r.top - sr.top, right: r.right - sr.left, bottom: r.bottom - sr.top };
+          out = out ? { left: Math.min(out.left, q.left), top: Math.min(out.top, q.top), right: Math.max(out.right, q.right), bottom: Math.max(out.bottom, q.bottom) } : q;
+        });
+        return out;
+      };
 
       const padded = (b: BBox): BBox => ({ x: b.x - BLANK_PAD, y: b.y - BLANK_PAD, w: b.w + 2 * BLANK_PAD, h: b.h + 2 * BLANK_PAD });
       const placeRings = (): void => {
@@ -85,6 +110,7 @@ export function formulaGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: 
         signal.removeEventListener("abort", onAbort);
         document.removeEventListener("keydown", onKey, true);
         window.removeEventListener("resize", placeRings);
+        dock?.dispose();
         gate.remove();
         resolve(result);
       };
@@ -116,15 +142,23 @@ export function formulaGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: 
           "aria-label": `Blank ${k + 1}`,
           value: texts[k] ?? "",
         }) as HTMLInputElement;
+        const message = h("div", { class: "cs-formula-error", role: "alert" });
+        message.hidden = true;
+        let valid = true;
         const typed = (): void => {
           texts[k] = input.value;
           const ok = session.show(texts)[k];
           const parsed = input.value.trim() === "" ? null : parseAscii(input.value);
           const error = parsed && "error" in parsed ? parsed.error : null;
-          input.classList.toggle("invalid", !ok);
-          if (!ok && error) input.title = error;
+          valid = ok || input.value.trim() === "";
+          input.classList.toggle("invalid", !valid);
+          input.setAttribute("aria-invalid", String(!valid));
+          if (!valid) input.title = error ?? "Not a formula yet";
           else input.removeAttribute("title");
+          // Said once Enter is pressed on it; typing on takes it back.
+          message.hidden = true;
           rings[k].classList.toggle("filled", input.value.trim() !== "");
+          rings[k].classList.toggle("invalid", !valid);
         };
         const keys = h(
           "div",
@@ -147,15 +181,26 @@ export function formulaGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: 
             return b;
           }),
         );
-        const wrap = h("div", { class: "cs-formula-edit" }, keys, input);
+        // The field first (nearest the box it previews in), then what is
+        // wrong with it, then the keys.
+        const wrap = h("div", { class: "cs-formula-edit" }, input, message, keys);
         const reposition = (): void => {
-          // Under the box, so the answer drawn in it stays in sight.
-          if (placeOverBox(stage, wrap, box, { minEm: 10, below: 10 })) wrap.style.height = "auto";
+          // Next to the whole formula, so the answer drawn in it stays in sight.
+          placeNearBox(stage, wrap, box, { minEm: 10, avoid: inkOf(k), measure: true });
         };
         input.addEventListener("input", typed);
         input.addEventListener("keydown", (e) => {
           if (e.key === "Enter") {
             e.preventDefault();
+            // Half a formula ("√(") is not an answer: say why, stay open.
+            if (!valid) {
+              const why = input.title || "Not a formula yet";
+              message.textContent = `${why.charAt(0).toUpperCase()}${why.slice(1)}: finish it, or press Escape`;
+              message.hidden = false;
+              reposition();
+              e.stopPropagation();
+              return;
+            }
             next(k);
           } else if (e.key === "Escape") {
             e.preventDefault();
@@ -187,6 +232,14 @@ export function formulaGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: 
             value: v ?? NaN,
             label: `Blank ${k + 1}`,
             text: true,
+            // Next to the whole formula, never over it; the box shows the number as typed.
+            place: "near",
+            avoid: () => inkOf(k),
+            onInput: (text) => {
+              const live = texts.slice();
+              live[k] = text.trim() === "" ? null : text;
+              session.show(live);
+            },
             // The full keyboard: a decimal pad has no minus key (and a pad
             // only for negative answers would give the sign away).
             inputmode: "text",
@@ -212,6 +265,7 @@ export function formulaGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: 
             },
             onCancel: () => {
               advance = false;
+              session.show(texts);
               if (fieldAt === k) {
                 fieldAt = -1;
                 field = null;
@@ -279,13 +333,14 @@ export function formulaGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: 
           e.stopPropagation();
           finish(null);
         });
-        gate.appendChild(skip);
+        docked.push(skip);
       }
       signal.addEventListener("abort", onAbort);
       document.addEventListener("keydown", onKey, true);
       window.addEventListener("resize", placeRings);
       stage.appendChild(gate);
-      placeRings();
+      dock = mountGateDock(stage, gate, docked, placeRings);
+      dock.relayout();
       // The first box is open at once: the question is about it.
       open(0);
     });

@@ -1673,12 +1673,20 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-tree-blank { position: absolute; border: 2px dashed #3f6fb5; border-radius: 8px; pointer-events: none; }
 .cs-tree-blank.filled { border-style: solid; }
 .cs-tree-blank.active { background: rgba(63, 111, 181, 0.08); }
-.cs-tree-picked { border-style: solid; }
-/* A formula's typed blank (ui/formula-gate.ts): a field under the box (the
-   answer is drawn in the box as it is typed), the keys a phone hides above it. */
+/* A branch lit along its own line: under the pointer, and once picked. */
+.cs-tree-edges { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.cs-tree-edge { fill: none; stroke: #3f6fb5; stroke-opacity: 0.22; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; }
+.cs-tree-edge.cs-tree-picked { stroke-opacity: 0.4; }
+/* A blank whose typed text does not parse (the box keeps the last good one). */
+.cs-tree-blank.invalid { border-color: #b5482e; }
+/* A formula's typed blank (ui/formula-gate.ts): a field next to the formula
+   (the answer is drawn in the box as it is typed), what is wrong with it,
+   and the keys a phone hides under it. input.… : the app's shared
+   input[type="text"] rule must not paint it in the page's theme — the
+   figure's paper does not theme. */
 .cs-formulagate { cursor: default; }
 .cs-formula-edit { position: absolute; z-index: 25; display: flex; flex-direction: column; gap: 0.2em; }
-.cs-formula-field {
+input.cs-formula-field {
   box-sizing: border-box;
   width: 100%;
   height: 1.55em;
@@ -1694,11 +1702,27 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   box-shadow: 1px 2px 0 rgba(61, 56, 51, 0.25);
   outline: none;
 }
-.cs-formula-field.invalid { border-color: #b5482e; background: #fff4ef; }
-.cs-formula-keys { display: flex; justify-content: center; gap: 0.25em; font-size: 0.9em; }
+input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; background: #fff4ef; }
+/* Why a typed blank or number was not taken: dark red on paper, readable. */
+.cs-formula-error,
+.cs-numedit-error {
+  font-family: var(--sketch-font);
+  font-size: 0.85rem;
+  line-height: 1.25;
+  text-align: center;
+  color: #8f2f17;
+  background: rgba(255, 244, 239, 0.97);
+  border: 1px solid #b5482e;
+  border-radius: 6px;
+  padding: 0.15rem 0.45rem;
+}
+.cs-formula-error { font-size: 0.7em; }
+.cs-numedit-error { position: absolute; z-index: 25; box-sizing: border-box; }
+.cs-formula-keys { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.3rem; font-size: 0.9em; }
+/* Touch-sized: 40 px at the least. */
 .cs-formula-key {
-  min-width: 1.8em;
-  min-height: 1.8em;
+  min-width: max(40px, 1.8em);
+  min-height: max(40px, 1.8em);
   padding: 0 0.3em;
   font: inherit;
   font-family: var(--sketch-font);
@@ -1746,14 +1770,68 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   z-index: 4;
   font-size: 0.95rem;
 }
-/* Answer: centred at the very bottom of the figure, filled in the guess
-   colour so it reads as THE button; the caption (the question being read)
-   steps up over it while it stands. Only when several parts are guessed,
-   or release: false. */
-.cs-stage:has(.cs-guess-answer:not([hidden])):not(.cs-caption-below):not(.cs-caption-strip) .cs-caption {
-  /* !important: the caption's placement (render/caption-place.ts) writes its
-     own bottom inline, and the button must win while it stands. */
-  bottom: 3.3rem !important;
+/* The answer dock (ui/gate-dock.ts): the guess, cards, tree and formula
+   gates say and offer everything — hint, total, Answer, Skip — in one row at
+   the bottom of the stage, so nothing lies on the title or on the question.
+   Overlay captions step up over it; a caption below the drawing (below /
+   strip) keeps its place and the drawing gives up the dock's height
+   (--cs-dock-shrink), still 4 : 3, centred. The row keeps clear of a bottom
+   corner's Sources chip (--cs-more-reserve). */
+.cs-gatedock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.3rem;
+  box-sizing: border-box;
+  padding-inline: calc(0.6rem + var(--cs-more-reserve, 0px));
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.6rem;
+  pointer-events: none;
+  z-index: 6;
+}
+.cs-gatedock > * { pointer-events: auto; flex: none; }
+.cs-gatedock > .cs-figgate-hint {
+  position: static;
+  transform: none;
+  pointer-events: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 0.95rem;
+  line-height: 1.25;
+  padding: 0.25rem 0.85rem;
+  border-radius: 1rem;
+  animation: none;
+}
+.cs-gatedock > .cs-figgate-hint.cs-figgate-next { animation: gatedock-next 0.45s ease-out; }
+@keyframes gatedock-next {
+  0% { transform: scale(1.2); opacity: 0; }
+  60% { transform: scale(0.97); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.cs-gatedock > .cs-guess-total { position: static; transform: none; }
+.cs-gatedock > .cs-guess-answer { position: static; transform: none; }
+.cs-gatedock > .cs-figgate-skip { position: static; align-self: center; }
+.cs-stage.cs-docked:not(.cs-caption-below):not(.cs-caption-strip) .cs-caption {
+  /* !important: the caption's placement writes its own bottom inline, and
+     the dock must win while it stands. */
+  bottom: var(--cs-dock-h, 3.3rem) !important;
+}
+.cs-stage.cs-docked.cs-caption-strip .cs-svg {
+  height: calc(var(--cs-fig-h) - var(--cs-dock-shrink, 0px));
+  width: calc((var(--cs-fig-h) - var(--cs-dock-shrink, 0px)) * 4 / 3);
+}
+.cs-stage.cs-docked.cs-caption-below .cs-svg {
+  width: calc(100% - var(--cs-dock-shrink, 0px) * 4 / 3);
+  margin: 0 auto;
+}
+@media (max-width: 560px) {
+  .cs-gatedock { gap: 0.4rem; padding-inline: calc(0.4rem + var(--cs-more-reserve, 0px)); }
+  .cs-gatedock > .cs-figgate-hint { font-size: 0.82rem; padding: 0.2rem 0.6rem; }
+  .cs-gatedock > .cs-guess-answer { font-size: 1.05rem; padding: 0.35rem 1rem; min-height: 40px; }
+  .cs-gatedock > .cs-figgate-skip { min-height: 40px; }
 }
 .cs-guess-answer {
   position: absolute;
@@ -2198,7 +2276,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 /* Tap to type a model's number (ui/number-edit.ts): a chip laid over the
    number, in the figure's hand, on the figure's own near-white ground (fixed
    ink, like .cs-viewfit — the figure does not theme). */
-.cs-numedit {
+input.cs-numedit {
   position: absolute;
   z-index: 25;
   box-sizing: border-box;
@@ -2216,7 +2294,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   appearance: textfield;
 }
 .cs-numedit::-webkit-outer-spin-button, .cs-numedit::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.cs-numedit[aria-invalid="true"] { border-color: #b5482e; background: #fff4ef; }
+input.cs-numedit[aria-invalid="true"] { color: #3d3833; border-color: #b5482e; background: #fff4ef; }
 .cs-ctlinput {
   position: absolute;
   z-index: 25;

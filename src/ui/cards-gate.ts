@@ -28,6 +28,7 @@ import { cardAt, cardsMarks, drop, encodeArrangement, matchLines, placePins, pos
 import { GUESS_COLOR } from "../guess/marks";
 import type { Pt } from "../layout/model";
 import { clientPointFor, h, logicalPoint } from "./dom";
+import { mountGateDock, type GateDock } from "./gate-dock";
 import type { AskGateStep } from "./controls";
 
 /** How long the other cards take to make room. */
@@ -36,6 +37,9 @@ const SETTLE_MS = 160;
 const PAIR_MS = 700;
 /** A press that moves less than this (CSS px) is a tap, not a drag. */
 const TAP_SLOP_PX = 8;
+/** fill: a held tile floats this far (logical) above the pointer, so the
+ *  finger's point — where it drops — and the box under it stay in sight. */
+const HOLD_LIFT = 14;
 
 const HINT: Record<string, string> = {
   rank: "Drag the cards into order",
@@ -79,7 +83,9 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       ring.hidden = true;
       const valuePill = h("span", { class: "cs-guess-value cs-card-value" });
       valuePill.hidden = true;
-      const gate = h("div", { class: "cs-figgate cs-guessgate cs-cardsgate" }, hint, answer, ring, valuePill);
+      const gate = h("div", { class: "cs-figgate cs-guessgate cs-cardsgate" }, ring, valuePill);
+      let dock: GateDock | null = null;
+      const docked: HTMLElement[] = [hint, answer];
 
       const put = (i: number, p: Pt): void => session.place(g.cards[i], p[0] - g.home[i][0], p[1] - g.home[i][1]);
       /** Glide every card (but `held`) from where it is shown to where `arr` puts it. */
@@ -131,6 +137,7 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         cancelAnimationFrame(anim);
         signal.removeEventListener("abort", onAbort);
         document.removeEventListener("keydown", onKey, true);
+        dock?.dispose();
         gate.remove();
         resolve(result);
       };
@@ -173,7 +180,7 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
 
       // —— pointer ——
       /** `start`: where the press began, in client px (a tap's jitter is measured on the screen). */
-      let dragging: { card: number; grab: Pt; start: Pt; moved: boolean } | null = null;
+      let dragging: { card: number; grab: Pt; start: Pt; moved: boolean; at: Pt } | null = null;
       gate.addEventListener("pointerdown", (e) => {
         if (settled || (e.target as Element).closest("button")) return;
         e.preventDefault();
@@ -210,7 +217,7 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         } catch {
           /* a synthetic pointer has no capture */
         }
-        dragging = { card, grab: [p[0] - shown[card][0], p[1] - shown[card][1]], start: [e.clientX, e.clientY], moved: false };
+        dragging = { card, grab: [p[0] - shown[card][0], p[1] - shown[card][1]], start: [e.clientX, e.clientY], moved: false, at: p };
         focus = card;
         gate.classList.add("dragging");
       });
@@ -227,7 +234,9 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
           drawLinks({ from: dragging.card, to: p });
           return;
         }
-        shown[dragging.card] = [p[0] - dragging.grab[0], p[1] - dragging.grab[1]];
+        dragging.at = p;
+        // fill: the tile rides above the pointer (y-up: +), which is the drop point.
+        shown[dragging.card] = mode === "fill" ? [p[0], p[1] + g.h / 2 + HOLD_LIFT] : [p[0] - dragging.grab[0], p[1] - dragging.grab[1]];
         put(dragging.card, shown[dragging.card]);
         placeRing();
         if (mode === "rank") {
@@ -254,7 +263,7 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       const endDrag = (e: PointerEvent): void => {
         e.stopPropagation();
         if (!dragging) return;
-        const { card, moved } = dragging;
+        const { card, moved, at } = dragging;
         dragging = null;
         gate.classList.remove("dragging");
         valuePill.hidden = true;
@@ -283,7 +292,7 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
             drawLinks();
             return;
           }
-          arr = drop(g, arr, card, shown[card]);
+          arr = drop(g, arr, card, mode === "fill" ? at : shown[card]);
           if (mode === "fill") {
             picked = -1;
             maybeAnswer();
@@ -379,11 +388,13 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
           g.cards.forEach((id) => session.place(id, 0, 0));
           finish(null);
         });
-        gate.appendChild(skip);
+        docked.push(skip);
       }
       signal.addEventListener("abort", onAbort);
       document.addEventListener("keydown", onKey, true);
       stage.appendChild(gate);
+      dock = mountGateDock(stage, gate, docked, () => placeRing());
+      dock.relayout();
       if (mode === "compare" && (g.rows ?? []).length > 0) {
         focus = g.rows![0][0];
         placeRing();
