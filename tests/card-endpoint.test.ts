@@ -143,3 +143,9 @@ test("anything but GET or HEAD is refused", async () => {
   const res = await handleCardRequest(new Request("https://drawcast.app/c/vaccines", { method: "POST" }), deps());
   expect(res.status).toBe(405);
 });
+
+test("the generic picture is served with CORS (the /card/ fallback redirects to it; the share box fetches it)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const toml = readFileSync(new URL("../netlify.toml", import.meta.url), "utf8");
+  expect(toml).toMatch(/\[\[headers\]\]\s*\n\s*for = "\/share-card\.png"\s*\n\s*\[headers\.values\]\s*\n\s*Access-Control-Allow-Origin = "\*"/);
+});

@@ -34,6 +34,14 @@
     Access-Control-Allow-Origin = "*"
     Cache-Control = "public, max-age=31536000, immutable"
 
+# The generic share card (spec 2026-10-02-share-design): /card/'s fallback
+# redirects here, and the Share box fetches it from other origins (deploy
+# previews, the dev server) for Copy image and the share sheet.
+[[headers]]
+  for = "/share-card.png"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+
 # Content-Security-Policy (security review 2026-09-28,
 # docs/security/2026-09-28-code-execution-inventory.md). Defence in depth
 # behind the code-trust gate (src/security/code-trust.ts): if code ever does
