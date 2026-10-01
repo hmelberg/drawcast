@@ -114,6 +114,24 @@ describe("the expansion", () => {
     expect(el.items).toContainEqual({ text: "d" });
   });
 
+  test("the shuffle is seeded by the content: the right tile's place varies by question, the same question always the same (final review 2026-10-03)", () => {
+    const rightAt = (id: string, blank: string, others: string[]): number => {
+      const m = { id, type: "math", tex: `y = \\blank{${blank}}`, x: 500, y: 400 };
+      const out = expandFormulaTiles({ elements: [m], commands: [{ ask: { question: "?", on: id, others } }] } as never);
+      const el = out.elements!.find((e) => e.id === `${id}_tiles`) as unknown as CardsElementLike;
+      return el.items.findIndex((it) => typeof it === "object" && it !== null && "blank" in it);
+    };
+    // Deterministic: movies and the round-trip see the same row every time.
+    expect(rightAt("f", "x^2", ["2x", "x", "1"])).toBe(rightAt("f", "x^2", ["2x", "x", "1"]));
+    // Same count, different content: the right tile is not always in the same place.
+    const places = new Set<number>();
+    for (const [id, blank, others] of [
+      ["f", "x^2", ["2x", "x", "1"]], ["g", "2x", ["x^2", "x", "2"]], ["h", "\\pi r^2", ["2\\pi r", "r", "d"]],
+      ["k", "mc^2", ["mc", "m", "c^2"]], ["eq", "b^2 - 4ac", ["b^2", "4ac", "2a"]], ["area", "r^2", ["2r", "d", "r"]],
+    ] as [string, string, string[]][]) places.add(rightAt(id, blank, others));
+    expect(places.size).toBeGreaterThan(1);
+  });
+
   test("expandSpec: the tiles expand like any cards, validate, and read back", () => {
     const out = expandSpec(spec({ others: ["2r", "d"] }));
     expect(validateSpec(out).ok).toBe(true);

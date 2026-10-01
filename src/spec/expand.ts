@@ -14,6 +14,17 @@ import { formulaBlanks, hasBlanks } from "../formula/blanks";
 import { expandEquationPreset } from "../scenes/equation_plot/presets";
 import type { Spec, SpecElement } from "./types";
 
+/** A positive seed from a string (FNV-1a, top 21 bits: shuffleOrder
+ *  multiplies it by a 32-bit constant, which must stay exact in a double). */
+function contentSeed(text: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return (h >>> 11) || 1;
+}
+
 /**
  * Formula tiles (design 2026-10-03 §5.3): an ask on a math element with
  * `\blank{…}` and `others` gets its tiles as a cards element `<id>_tiles` in
@@ -38,7 +49,10 @@ export function expandFormulaTiles(spec: Spec): Spec {
     const right: CardItem[] = formulaBlanks(math.id, tex).map((b) => ({ text: b.tex, blank: b.k }));
     // A cards element takes at most 8 items: the right ones always, then as many wrong ones as fit.
     const all: CardItem[] = [...right, ...ask.others.slice(0, Math.max(0, 8 - right.length)).map((t) => ({ text: String(t) }))];
-    const perm = shuffleOrder(all.length, 13);
+    // Seeded by the content (the math id and every tile's text), so where
+    // the right tile lands varies question to question — never just by the
+    // count — yet a movie or a round-trip always sees the same row.
+    const perm = shuffleOrder(all.length, contentSeed([math.id, ...all.map((t) => t.text)].join("\u0000")));
     // The row stands under the formula: the formula's centre less about half
     // its height, a gap, half a tile. A formula placed by `at` or auto-placed
     // has no x/y here — the row then sits under the canvas centre.
