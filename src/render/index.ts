@@ -5,6 +5,7 @@
 import { guessParts, guessSetup, patchFor } from "../guess/handles";
 import { marketParts } from "../guess/parts";
 import { cardsGeometryIn, type CardsGeometry } from "../spec/cards";
+import { authoredScales } from "../spec/scale";
 import { formulaBlanks, hasBlanks } from "../formula/blanks";
 import type { BBox } from "../layout/geometry";
 import type { DecisionTreeParams } from "../scenes/decision_tree/layout";
@@ -219,7 +220,7 @@ const DATA_KINDS = new Set<string>(["point", "curve", "region", "arrow", "edge",
 export function planOptionsFor(
   spec: Spec,
   layout: LayoutResult,
-): Pick<PlanOptions, "attachedTo" | "drawnWith" | "drawnAfter" | "partsOf" | "isPaper" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds" | "mathOf" | "isElement" | "controlsOf" | "dataToLogical" | "inDataUnits" | "pictureOf"> {
+): Pick<PlanOptions, "attachedTo" | "ownedBy" | "drawnWith" | "drawnAfter" | "partsOf" | "isPaper" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds" | "mathOf" | "isElement" | "controlsOf" | "dataToLogical" | "inDataUnits" | "pictureOf"> {
   // Definitions hold (design 2026-09-10 §2.5): what is defined in terms of
   // what. A source that is a group or a pieces cut is moved through its
   // members (the planner expands it), so its dependents are attached to every
@@ -252,7 +253,15 @@ export function planOptionsFor(
     parts.set(box, lines);
     for (const l of lines) parts.set(l, [box]);
   }
+  // A scale's answer marker (spec/scale.ts) belongs to its line: it goes
+  // when the scale is erased and moves with it.
+  const owned = new Map<string, string[]>();
+  for (const sc of authoredScales(spec)) {
+    const marker = [`${sc.id}_answer_pin`, `${sc.id}_answer_num`].filter((x) => layout.order.includes(x));
+    if (marker.length > 0) owned.set(`${sc.id}_line`, marker);
+  }
   return {
+    ownedBy: (id) => owned.get(id) ?? [],
     partsOf: (id) => parts.get(id) ?? [],
     isPaper: (id) => papers.has(id),
     dependentsOf: (id) => depsByLeaf.get(id) ?? [],
@@ -323,6 +332,7 @@ export function planOptionsFor(
       // labels the `label_<id>` guess above cannot see: `wtp_label` beside
       // `wtp_line`, `label_S` beside `supply_curve`.
       out.push(...(layout.attached[id] ?? []));
+      out.push(...(owned.get(id) ?? []));
       // A spec label id can coincide with the implicit label_<id> convention
       // (e.g. {"id": "label_req", "attach_to": "req"}) — dedupe so the same
       // follower id isn't returned twice.

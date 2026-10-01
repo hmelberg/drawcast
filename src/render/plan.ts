@@ -386,6 +386,10 @@ export interface PlanOptions {
   drawnAfter?: (id: string) => string[];
   /** The other parts of one made thing — a scratch card's box for each of its lines, its lines for the box — which a focus keeps lit together. */
   partsOf?: (id: string) => string[];
+  /** What belongs to an element and goes with it: a scale's answer marker
+   *  (`<id>_answer_*`, keyed by the scale's line). An erase or hide of the
+   *  element takes these too (a move carries them: attachedTo lists them). */
+  ownedBy?: (id: string) => string[];
   /** What other ids are written on — a scratch card's box: an erase takes it after them, so no line is left floating without its paper. */
   isPaper?: (id: string) => boolean;
   /** The spec's `params` when the spec has a template; null/undefined = no template (animate then needs a var). */
@@ -772,7 +776,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   };
   /** A formula's own parts (design 2026-10-03 §5): its blank boxes and its
    *  tiles. An erase or hide of the formula takes them with it, so no box or
-   *  tile is left floating where the formula was. */
+   *  tile is left floating where the formula was — nor a scale's answer
+   *  marker where its scale was (opts.ownedBy). */
   const formulaParts = (id: string): string[] => {
     const f = opts.formulaFor?.(id) ?? null;
     if (!f) return [];
@@ -780,7 +785,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     const tiles = [...known].filter((k) => k.startsWith(`${id}_tiles_`) && /^\d+$/.test(k.slice(id.length + 7)));
     return [...boxes, ...tiles].filter((k) => known.has(k));
   };
-  const withFormulaParts = (ids: string[]): string[] => [...new Set([...ids, ...ids.flatMap(formulaParts).filter((k) => visibleSet.has(k))])];
+  const withFormulaParts = (ids: string[]): string[] => {
+    const owned = ids.flatMap((id) => [...formulaParts(id), ...(opts.ownedBy?.(id) ?? [])]).filter((k) => known.has(k) && visibleSet.has(k));
+    return [...new Set([...ids, ...owned])];
+  };
   /** Formulas whose ask has been answered: their boxes are gone for good (the
    *  truth is written in), so drawing the formula again does not bring them. */
   const answeredFormulas = new Set<string>();

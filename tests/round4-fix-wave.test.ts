@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, test } from "vitest";
 import { elementBBoxes, layoutSpec } from "../src/layout/layout";
 import { ensureEngines } from "../src/scenes/engines";
 import { expandSpec } from "../src/spec/expand";
-import { cardsPlanFor, formulaHooksFor, planOptionsFor } from "../src/render";
+import { cardsPlanFor, formulaHooksFor, guessPartsFor, planOptionsFor } from "../src/render";
 import { planCommands } from "../src/render/plan";
 import type { Spec } from "../src/spec/types";
 
@@ -17,6 +17,8 @@ function planOf(spec: Spec) {
   return planCommands(spec.commands, l.order, {
     formulaFor: (id) => (hooks.formula(id) ? { blanks: hooks.formula(id)!.blanks.length } : null),
     cardsFor: (id) => cardsPlanFor(hooks.cardsOn(id)),
+    guessParts: guessPartsFor(spec, l),
+    bboxOf: (id) => bb.get(id) ?? null,
     ...planOptionsFor(spec, l),
   });
 }
@@ -92,5 +94,26 @@ describe("formula boxes and tiles (fix wave items 1, 2)", () => {
       expect(t.x).toBeGreaterThanOrEqual(19.5);
       expect(t.x + t.w).toBeLessThanOrEqual(980.5);
     }
+  });
+});
+
+describe("a scale's answer marker goes with its scale (fix wave item 7)", () => {
+  const scaleSpec = (after: unknown[]) =>
+    expandSpec({
+      elements: [{ id: "s", type: "scale", min: 0, max: 12, value: 5, unit: "months", x: 150, y: 300 }],
+      commands: [{ draw: ["s"] }, { ask: { question: "How long?", on: "s", store: "m" } }, ...after],
+    } as never);
+
+  test("erasing the scale erases its answer", () => {
+    const plan = planOf(scaleSpec([{ erase: ["s"] }]));
+    expect(plan.states[1].visible).toContain("s_answer_num");
+    expect(plan.states[2].visible.filter((id) => id.startsWith("s_"))).toEqual([]);
+  });
+
+  test("moving the scale carries its answer", () => {
+    const plan = planOf(scaleSpec([{ move: { target: "s", by: [0, 100] } }]));
+    expect(plan.states[2].offsets["s_line"]).toEqual([0, 100]);
+    expect(plan.states[2].offsets["s_answer_num"]).toEqual([0, 100]);
+    expect(plan.states[2].offsets["s_answer_pin"]).toEqual([0, 100]);
   });
 });
