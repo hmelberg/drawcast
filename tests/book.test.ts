@@ -149,3 +149,34 @@ describe("the pane's rules", () => {
     expect(Math.max(...cxs)).toBeGreaterThan(300 + 10);
   });
 });
+
+describe("book lint (spec §9)", async () => {
+  const { lintCommands } = await import("../src/lint/lint");
+  const rules = (spec: unknown): string[] => lintCommands(spec as Spec).map((i) => i.rule).filter((r) => r.startsWith("book-"));
+
+  test("a block that writes out the spoken sentence is flagged; a quote may run long", () => {
+    const long = "This is the whole spoken sentence written out word for word, " + "and then some more words again ".repeat(6);
+    expect(rules({ book: {}, commands: [{ write: long }] })).toEqual(["book-block-long"]);
+    expect(rules({ book: {}, commands: [{ write: `> ${long}` }] })).toEqual([]);
+  });
+
+  test("a mark aimed at an automatic id is flagged — it moves when a block is added", () => {
+    expect(rules({ book: {}, commands: [{ write: "a" }, { highlight: { target: "w1" } }] })).toEqual(["book-auto-id"]);
+    expect(rules({ book: {}, commands: [{ write: { id: "a", text: "a" } }, { highlight: { target: "a" } }] })).toEqual([]);
+  });
+
+  test("more than three marks in a part", () => {
+    const marks = [1, 2, 3, 4].map(() => ({ highlight: { target: "a" } }));
+    expect(rules({ book: {}, commands: [{ write: { id: "a", text: "a" } }, ...marks] })).toEqual(["book-marks"]);
+  });
+
+  test("not a book: no book rules", () => {
+    expect(rules({ commands: [{ write: "x ".repeat(80) }] })).toEqual([]);
+  });
+
+  test("the bundled book lints clean", () => {
+    const pl = parsePlaylistText(readFileSync("docs/examples/books/price-elasticity.yaml", "utf8"));
+    for (const it of itemsOf(pl)) expect(rules(it.spec)).toEqual([]);
+  });
+});
+

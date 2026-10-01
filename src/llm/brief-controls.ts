@@ -9,7 +9,7 @@
 
 import { parseTags, TAG_RE, tagGroupOf, type TagGroup } from "./tags";
 
-export type BriefGroup = Extract<TagGroup, "audience" | "level" | "length">;
+export type BriefGroup = Extract<TagGroup, "audience" | "level" | "length" | "book">;
 
 export interface BriefOption {
   /** The tag, "" for the untagged default, "for" for "Other…" (a #for=<who>). */
@@ -54,6 +54,17 @@ export const BRIEF_CONTROLS: BriefControl[] = [
       { value: "", label: "Standard length", hint: "14–20 spoken lines" },
       { value: "long", label: "Long", hint: "22–30 spoken lines" },
       { value: "verylong", label: "Very long", hint: "30–40 spoken lines" },
+    ],
+  },
+  {
+    // A book (spec 2026-10-01-book-layout): the "xplainer style" Hans asked
+    // for as a checkbox — written text beside the figures, part by part.
+    group: "book",
+    label: "Format",
+    options: [
+      { value: "", label: "Drawcast", hint: "The figure and the voice" },
+      { value: "book", label: "Book", hint: "Written text beside the figures, part by part (#book)" },
+      { value: "book_row", label: "Book, text under", hint: "Written text under a wide figure (#book_row)" },
     ],
   },
 ];

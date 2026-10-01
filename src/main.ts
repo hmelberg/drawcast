@@ -81,6 +81,7 @@ import {
 import { unwrapCastText } from "./playlist/cast-file";
 import { mountPlaylist, playlistSpeakLines, type SessionHandle } from "./playlist/session";
 import { isBook, mountBookPlaylist } from "./book/shell";
+import { stampBook } from "./book/stamp";
 import { appendRecord, localRecordStorage } from "./render/record";
 import { applyViewsFlag } from "./views";
 import { exportVideo, narrationLanguage, type ExportResult } from "./export/video";
@@ -3879,6 +3880,7 @@ async function generateMulti(
   }
   for (const spec of result.specs) spec.voice ??= parsed.voiceGender ?? undefined;
   for (const spec of result.specs) spec.level ??= parsed.level ?? undefined;
+  stampBook(result.specs, parsed.book);
   const title = result.outline?.title ?? parsed.clean;
   const n = result.outline?.parts.length ?? result.specs.length;
   const playlist: Playlist = {

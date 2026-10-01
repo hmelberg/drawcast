@@ -191,6 +191,7 @@ describe("bundled examples stay exemplary", () => {
     const layout = layoutSpec(spec);
     const bboxes = elementBBoxes(layout);
     const plan = planCommands(spec.commands, layout.order, {
+      book: spec.book !== undefined, // as render() passes it (a book's text verbs)
       bboxOf: (id) => bboxes.get(id) ?? null,
       windows: layout.windows ?? {},
       ...domainMapping(spec.domain, layout.fit),

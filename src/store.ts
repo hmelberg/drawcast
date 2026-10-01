@@ -163,7 +163,7 @@ export interface Settings {
    * group ("" = the untagged default, "for=<who>" for a named audience),
    * appended to a request that does not type its own.
    */
-  brief: { audience: string; level: string; length: string };
+  brief: { audience: string; level: string; length: string; book: string };
   /**
    * Shows the authoring-loop instruments: the 1–5 rating (which only feeds the
    * improvement packet), the lint list even when clean, and the Data panel.
@@ -250,7 +250,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sidebarOpen: true,
   sidebarSections: {},
   choicesOpen: false,
-  brief: { audience: "", level: "", length: "" },
+  brief: { audience: "", level: "", length: "", book: "" },
   developerMode: false,
   visualRepair: false,
   lookPass: true,
@@ -325,7 +325,7 @@ export function loadSettings(): Settings {
   // The brief controls (2026-09-30): anything but three strings falls back.
   const b = (s.brief ?? {}) as Partial<Settings["brief"]>;
   const str = (v: unknown) => (typeof v === "string" ? v : "");
-  s.brief = { audience: str(b.audience), level: str(b.level), length: str(b.length) };
+  s.brief = { audience: str(b.audience), level: str(b.level), length: str(b.length), book: str(b.book) };
   // One-time upgrade: the bundled packs moved from opt-in to baseline
   // (DEFAULT_SETTINGS.enabledPacks). A settings blob stored before that keeps
   // its own list, which `{...fallback, ...parsed}` leaves untouched — so union

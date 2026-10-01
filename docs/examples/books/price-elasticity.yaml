@@ -53,9 +53,9 @@ commands:
   - write: "- **Inelastic**, $|\\varepsilon| < 1$: insulin, petrol"
   - draw: [insulin_d, lSteep]
     speak: Insulin is the classic case. Double its price, and diabetics still need the same dose, so the curve stands almost upright.
-  - write: { text: "Steep = elastic?", temp: true }
+  - write: { id: guess, text: "Steep = elastic?", temp: true }
     speak: Such a steep line looks dramatic. Does that make it the elastic one?
-  - highlight: { target: w2, effect: strike }
+  - highlight: { target: guess, effect: strike }
     speak: No, it is the other way round. Steep means quantity hardly moves, and that is inelastic.
   - write: "- **Elastic**, $|\\varepsilon| > 1$: one brand of cola"
   - draw: [cola_d, lFlat]

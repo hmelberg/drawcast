@@ -74,7 +74,7 @@ export const MAX_LECTURES = 20;
 const HEADING_RE = /^(#{1,6})\s+(.*)$/;
 /** A tag line starts with #word and no space. */
 const TAG_LINE_RE = /^#[a-zæøå]/i;
-const TAG_RE = /#[a-zæøå]+(?:=[^\s#]+)?/gi;
+const TAG_RE = /#[a-zæøå_]+(?:=[^\s#]+)?/gi;
 /**
  * An option key is lowercase and single-token, so a capitalised question
  * ("Why: does it matter?") is never mistaken for one.

@@ -152,7 +152,10 @@ export interface LintIssue {
     /** the corner list (spec `more`) shows nothing, or leaves a source nowhere but the tray */
     | "more-list"
     /** an image shown by link (lnk1): blank in a movie or poster until embedded — warns */
-    | "linked-picture";
+    | "linked-picture"
+    | "book-block-long"
+    | "book-auto-id"
+    | "book-marks";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -1071,9 +1074,50 @@ function lintCurveExprs(spec: Spec): LintIssue[] {
   return issues;
 }
 
+/** Words a book block may hold before it is the spoken sentence written out
+ *  (spec 2026-10-01-book-layout §9): a definition or a quote may run long. */
+const BOOK_BLOCK_WORDS = 40;
+/** Marks on text in one part before the page turns into a colouring book. */
+const BOOK_MARKS = 3;
+
+/** A book's text (spec 2026-10-01-book-layout §9). */
+export function lintBook(spec: Spec): LintIssue[] {
+  if (spec.book === undefined) return [];
+  const issues: LintIssue[] = [];
+  const cmds = spec.commands ?? [];
+  const elementIds = new Set((spec.elements ?? []).map((e) => e.id));
+  let blocks = 0;
+  let marks = 0;
+  for (const c of cmds) {
+    if (c.write !== undefined) {
+      blocks++;
+      const w = typeof c.write === "string" ? { text: c.write } : c.write;
+      const prose = w.text.replace(/```[\s\S]*?```/g, "").replace(/\$\$[\s\S]*?\$\$/g, "").replace(/\|.*\|/g, "");
+      const words = prose.split(/\s+/).filter((t) => /\w/.test(t)).length;
+      const quoted = /^\s*>/.test(w.text);
+      if (words > BOOK_BLOCK_WORDS && !quoted) {
+        issues.push({ rule: "book-block-long", ids: w.id ? [w.id] : [], message: `book block ${w.id ?? `w${blocks}`} has ${words} words — a block keeps what to remember (about 12 words); the voice says the sentence`, severity: "warn" });
+      }
+    }
+    const target = c.highlight?.target ?? c.erase ?? (c.point?.at?.ref !== undefined ? [c.point.at.ref] : undefined);
+    const ids = target === undefined ? [] : typeof target === "string" ? [target] : target;
+    const text = ids.filter((id) => !elementIds.has(id));
+    if (c.highlight !== undefined && text.length > 0) marks++;
+    for (const id of text) {
+      if (/^w\d+$/.test(id)) {
+        issues.push({ rule: "book-auto-id", ids: [id], message: `"${id}" is a block's automatic id — it changes when a block is added before it; give the block an id (write: {id: …, text: …}) and use that`, severity: "warn" });
+      }
+    }
+  }
+  if (marks > BOOK_MARKS) {
+    issues.push({ rule: "book-marks", ids: [], message: `${marks} marks on the text in one part — keep to two or three, or the page reads as all emphasis`, severity: "warn" });
+  }
+  return issues;
+}
+
 export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIssue[] {
   const cmds = spec.commands ?? [];
-  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintMathSizes(spec), ...lintLiveMath(spec), ...lintCurveExprs(spec)];
+  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintMathSizes(spec), ...lintLiveMath(spec), ...lintCurveExprs(spec), ...lintBook(spec)];
 
   // A link whose href names nothing the resolver can read draws, but never
   // opens (links/resolve.ts decides the forms a target may take).
