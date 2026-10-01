@@ -1707,7 +1707,7 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
 .cs-formula-error,
 .cs-numedit-error {
   font-family: var(--sketch-font);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   line-height: 1.25;
   text-align: center;
   color: #8f2f17;
