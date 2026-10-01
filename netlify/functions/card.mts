@@ -6,16 +6,23 @@
 // crawler gets a card page: the cast's title and subtitle and the poster
 // published beside it. Every failure is the generic card, status 200 — a
 // broken preview in someone's feed is worse than a plain one.
-import { cardHtml, cardPathFor, castCardText, courseCardText, GENERIC, hashForShare, isPreviewBot, parseSharePath, sharePathFor, type ShareTarget } from "../lib/share-card.mts";
+import { cardHtml, cardPathFor, castCardText, courseCardText, GENERIC, GENERIC_SIZE, hashForShare, isPreviewBot, parseSharePath, POSTER_SIZE, sharePathFor, type ShareTarget } from "../lib/share-card.mts";
 
 const ANVIL_BASE = "https://drawcast.anvil.app";
 const RAW = "https://raw.githubusercontent.com";
-const FETCH_MS = 4000;
+/** One deadline for the whole request, shared by every fetch in it: the
+ *  lookups are sequential (name → text → lecture → picture), and a crawler
+ *  gives up long before 4 s apiece would add up. */
+const DEADLINE_MS = 6000;
 
+/** Every call gets the request's one deadline signal; the live deps pass it
+ *  to fetch, injected ones may ignore it. */
 export interface CardDeps {
-  resolve(name: string): Promise<{ kind: "cast" | "course"; target: string } | null>;
-  fetchText(url: string): Promise<string | null>;
-  fetchImage(url: string): Promise<Response | null>;
+  resolve(name: string, signal?: AbortSignal): Promise<{ kind: "cast" | "course"; target: string } | null>;
+  fetchText(url: string, signal?: AbortSignal): Promise<string | null>;
+  fetchImage(url: string, signal?: AbortSignal): Promise<Response | null>;
+  /** Whether a picture is there, without its bytes (a HEAD). Absent, fetchImage is asked. */
+  exists?(url: string, signal?: AbortSignal): Promise<boolean>;
 }
 
 /** src/publish/cast.ts posterPathFor's rule, at a raw GitHub URL (that file
@@ -34,7 +41,36 @@ function splitKey(target: string): { owner: string; repo: string; path: string }
   return m ? { owner: m[1], repo: m[2], path: m[3] } : null;
 }
 
+const LOCKED_RE = /^drawcast-encrypted:/;
+
+/** The first lecture file a course.md names: the `file:` part of a lecture's
+ *  `status:` line (src/course/document.ts parseStatus, read through
+ *  src/course/load.ts lectureFilesOf; netlify/ must not import src/). Only a
+ *  plain relative path, segment by segment — never `..` out of the course. */
+function firstLectureFile(md: string): string | null {
+  let inLecture = false;
+  for (const raw of md.split(/\r?\n/)) {
+    const line = raw.trim();
+    const heading = /^(#{1,6})\s/.exec(line);
+    if (heading) {
+      if (heading[1].length === 2) inLecture = true;
+      continue;
+    }
+    if (!inLecture) continue;
+    const status = /^status\s*:\s*(.+)$/.exec(line);
+    if (!status) continue;
+    for (const part of status[1].split("·")) {
+      const m = /^file\s*:\s*(.+)$/.exec(part.trim());
+      if (!m) continue;
+      const file = m[1].trim();
+      return file.split("/").every((s) => /^[\w.-]+$/.test(s) && s !== "." && s !== "..") ? file : null;
+    }
+  }
+  return null;
+}
+
 interface Found {
+  /** undefined: the text could not be read — maybe private, so nothing of it shows. */
   text?: { title?: string; subtitle?: string };
   /** Absolute poster URL at the source, when the cast has one. */
   poster?: string;
@@ -42,41 +78,68 @@ interface Found {
 
 /** A cast's card text from its source; "locked" for a private cast's
  *  envelope — which must leave no trace on a card, not even "A drawcast". */
-async function castText(url: string, deps: CardDeps): Promise<{ title?: string; subtitle?: string } | "locked" | undefined> {
-  const text = await deps.fetchText(url);
+async function castText(url: string, deps: CardDeps, signal: AbortSignal): Promise<{ title?: string; subtitle?: string } | "locked" | undefined> {
+  const text = await deps.fetchText(url, signal);
   if (text === null) return undefined;
-  if (text.startsWith("drawcast-encrypted:")) return "locked";
+  if (LOCKED_RE.test(text)) return "locked";
   return castCardText(text);
 }
 
-async function find(t: ShareTarget, deps: CardDeps): Promise<Found | null> {
+async function find(t: ShareTarget, deps: CardDeps, signal: AbortSignal): Promise<Found | null> {
   if (t.kind === "gh") {
-    const text = await castText(rawUrl(t.owner, t.repo, t.path), deps);
+    const text = await castText(rawUrl(t.owner, t.repo, t.path), deps, signal);
     return text === "locked" ? null : { text, poster: posterUrlFor(t.owner, t.repo, t.path) };
   }
-  const r = await deps.resolve(t.name);
+  const r = await deps.resolve(t.name, signal);
   if (!r) return null;
   if (r.kind === "course") {
     const k = splitKey(r.target);
     if (!k) return null;
-    const md = await deps.fetchText(rawUrl(k.owner, k.repo, `${k.path}/course.md`));
+    const md = await deps.fetchText(rawUrl(k.owner, k.repo, `${k.path}/course.md`), signal);
     // No title (a private course gives {}) is the generic card, not "A drawcast".
     const text = md === null ? undefined : courseCardText(md);
-    return { text: text?.title ? text : undefined };
+    if (!text?.title) return { text: undefined };
+    // A course made private before its course.md said so has locked
+    // lectures (src/course/load.ts: any locked lecture means private).
+    const file = firstLectureFile(md!);
+    if (file) {
+      const lecture = await deps.fetchText(rawUrl(k.owner, k.repo, `${k.path}/${file}`), signal);
+      if (lecture !== null && LOCKED_RE.test(lecture)) return null;
+    }
+    return { text };
   }
   if (r.target.startsWith("gdrive/")) return null;
   if (r.target.startsWith("anvil/")) {
-    const text = await castText(`${ANVIL_BASE}/_/api/cast?cast=${encodeURIComponent(r.target)}&key=`, deps);
+    const text = await castText(`${ANVIL_BASE}/_/api/cast?cast=${encodeURIComponent(r.target)}&key=`, deps, signal);
     return text === "locked" ? null : { text };
   }
   const k = splitKey(r.target);
   if (!k || !/\.ya?ml$/i.test(k.path)) return null;
-  const text = await castText(rawUrl(k.owner, k.repo, k.path), deps);
+  const text = await castText(rawUrl(k.owner, k.repo, k.path), deps, signal);
   return text === "locked" ? null : { text, poster: posterUrlFor(k.owner, k.repo, k.path) };
 }
 
+function isImage(res: Response | null): res is Response {
+  return !!res && res.ok && (res.headers.get("content-type") ?? "").startsWith("image/");
+}
+
+async function posterExists(url: string, deps: CardDeps, signal: AbortSignal): Promise<boolean> {
+  if (deps.exists) return deps.exists(url, signal);
+  const res = await deps.fetchImage(url, signal);
+  void res?.body?.cancel().catch(() => undefined);
+  return isImage(res);
+}
+
+/** Who asked decides what /c/ answers (a redirect or a card), and Netlify's
+ *  CDN does not key on User-Agent by itself — so both say they vary on it. */
+function varies(res: Response): Response {
+  res.headers.set("netlify-vary", "header=User-Agent");
+  res.headers.set("vary", "User-Agent");
+  return res;
+}
+
 function html(body: string): Response {
-  return new Response(body, { status: 200, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=600" } });
+  return varies(new Response(body, { status: 200, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=600" } }));
 }
 
 function redirect(location: string, cache = "no-store"): Response {
@@ -88,15 +151,21 @@ export async function handleCardRequest(req: Request, deps: CardDeps): Promise<R
   const url = new URL(req.url);
   const origin = url.origin;
   const genericImage = `${origin}${GENERIC.image}`;
+  const signal = AbortSignal.timeout(DEADLINE_MS);
 
   if (url.pathname.startsWith("/card/")) {
     const t = parseSharePath(url.pathname, "/card/");
     try {
-      const found = t ? await find(t, deps) : null;
-      if (found?.poster) {
-        const img = await deps.fetchImage(found.poster);
-        if (img && img.ok && (img.headers.get("content-type") ?? "").startsWith("image/")) {
-          return new Response(img.body, { status: 200, headers: { "content-type": "image/png", "cache-control": "public, max-age=3600", "access-control-allow-origin": "*" } });
+      const found = t ? await find(t, deps, signal) : null;
+      // Only a cast whose text was read (and was not locked — find() is null
+      // then) shows its poster: text that could not be read may be private.
+      if (found?.poster && found.text !== undefined) {
+        const img = await deps.fetchImage(found.poster, signal);
+        if (isImage(img)) {
+          // Read whole inside the deadline: a stream still open when the
+          // request's signal fires would be cut off mid-picture.
+          const bytes = await img.arrayBuffer();
+          return new Response(bytes, { status: 200, headers: { "content-type": "image/png", "cache-control": "public, max-age=3600", "access-control-allow-origin": "*" } });
         }
       }
     } catch {
@@ -109,13 +178,22 @@ export async function handleCardRequest(req: Request, deps: CardDeps): Promise<R
   }
 
   const t = parseSharePath(url.pathname, "/c/");
-  if (!isPreviewBot(req.headers.get("user-agent"))) return redirect(t ? `${origin}/${hashForShare(t)}` : `${origin}/`);
+  if (!isPreviewBot(req.headers.get("user-agent"))) return varies(redirect(t ? `${origin}/${hashForShare(t)}` : `${origin}/`));
 
-  const generic = cardHtml({ title: GENERIC.title, description: GENERIC.description, url: `${origin}/`, image: genericImage, playUrl: `${origin}/` });
+  // The generic card still names the /c/ link it was asked for, when that
+  // parsed; the front page only when it did not.
+  const generic = cardHtml({
+    title: GENERIC.title,
+    description: GENERIC.description,
+    url: t ? `${origin}${sharePathFor(t)}` : `${origin}/`,
+    image: genericImage,
+    imageSize: GENERIC_SIZE,
+    playUrl: t ? `${origin}/${hashForShare(t)}` : `${origin}/`,
+  });
   if (!t) return html(generic);
   let found: Found | null = null;
   try {
-    found = await find(t, deps);
+    found = await find(t, deps, signal);
   } catch {
     found = null;
   }
@@ -124,20 +202,31 @@ export async function handleCardRequest(req: Request, deps: CardDeps): Promise<R
   // cast that was read but has no title keeps its own picture as "A drawcast".
   // A locked envelope never gets here: find() returns null for it.
   if (!found.text) return html(generic);
+  // The poster is checked here, so a cast without one points straight at the
+  // generic picture (with its own size) rather than through a /card/ redirect.
+  let own = false;
+  if (found.poster) {
+    try {
+      own = await posterExists(found.poster, deps, signal);
+    } catch {
+      own = false;
+    }
+  }
   return html(
     cardHtml({
-      title: found.text?.title ?? "A drawcast",
-      description: found.text?.subtitle,
+      title: found.text.title ?? "A drawcast",
+      description: found.text.subtitle,
       url: `${origin}${sharePathFor(t)}`,
-      image: found.poster ? `${origin}${cardPathFor(t)}` : genericImage,
+      image: own ? `${origin}${cardPathFor(t)}` : genericImage,
+      imageSize: own ? POSTER_SIZE : GENERIC_SIZE,
       playUrl: `${origin}/${hashForShare(t)}`,
     }),
   );
 }
 
-async function timed(url: string): Promise<Response | null> {
+async function timed(url: string, signal?: AbortSignal, method = "GET"): Promise<Response | null> {
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_MS) });
+    const res = await fetch(url, { method, signal });
     return res.ok ? res : null;
   } catch {
     return null;
@@ -146,17 +235,18 @@ async function timed(url: string): Promise<Response | null> {
 
 const live: CardDeps = {
   // Anvil directly, not the name function: a crawler is not a visit.
-  resolve: async (name) => {
-    const res = await timed(`${ANVIL_BASE}/_/api/name?n=${encodeURIComponent(name)}`);
+  resolve: async (name, signal) => {
+    const res = await timed(`${ANVIL_BASE}/_/api/name?n=${encodeURIComponent(name)}`, signal);
     if (!res) return null;
     const b = (await res.json().catch(() => null)) as { kind?: unknown; target?: unknown } | null;
     return b && (b.kind === "cast" || b.kind === "course") && typeof b.target === "string" ? { kind: b.kind, target: b.target } : null;
   },
-  fetchText: async (url) => {
-    const res = await timed(url);
-    return res ? await res.text() : null;
+  fetchText: async (url, signal) => {
+    const res = await timed(url, signal);
+    return res ? await res.text().catch(() => null) : null;
   },
-  fetchImage: (url) => timed(url),
+  fetchImage: (url, signal) => timed(url, signal),
+  exists: async (url, signal) => isImage(await timed(url, signal, "HEAD")),
 };
 
 export default (req: Request): Promise<Response> => handleCardRequest(req, live);

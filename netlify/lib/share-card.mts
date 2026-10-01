@@ -151,11 +151,17 @@ export interface Card {
   url: string;
   /** Absolute. */
   image: string;
+  /** The picture's pixel size, [width, height] — og:image:width/height. */
+  imageSize?: readonly [number, number];
   /** The # link that plays — the refresh and the fallback link. */
   playUrl: string;
 }
 
 export const GENERIC = { title: "drawcast", description: "Drawn explanations you can watch and play with", image: "/share-card.png" } as const;
+
+/** /share-card.png's size, and a published poster's (the figure's 1000×750 canvas). */
+export const GENERIC_SIZE = [1200, 630] as const;
+export const POSTER_SIZE = [1000, 750] as const;
 
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -171,6 +177,7 @@ export function cardHtml(card: Card): string {
     ...(d ? [`<meta property="og:description" content="${d}">`, `<meta name="description" content="${d}">`] : []),
     `<meta property="og:url" content="${esc(card.url)}">`,
     `<meta property="og:image" content="${esc(card.image)}">`,
+    ...(card.imageSize ? [`<meta property="og:image:width" content="${card.imageSize[0]}">`, `<meta property="og:image:height" content="${card.imageSize[1]}">`] : []),
     `<meta name="twitter:card" content="summary_large_image">`,
     `<link rel="canonical" href="${esc(card.url)}">`,
     `<meta http-equiv="refresh" content="0; url=${esc(card.playUrl)}">`,
