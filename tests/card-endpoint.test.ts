@@ -120,12 +120,14 @@ describe("/card/ pictures", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");
     expect(res.headers.get("cache-control")).toBe("public, max-age=3600");
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
     expect(d.fetched).toContain("https://raw.githubusercontent.com/ann/casts/HEAD/casts/vaccines.png");
   });
   test("anything else is the generic picture by redirect", async () => {
     for (const p of ["/card/nobody.png", "/card/srv.png", "/card/drv.png", "/card/qaly.png", "/card/gh/ann/casts/casts/herd.png", "/card/x"]) {
       const res = await handleCardRequest(get(p, CHROME), deps());
       expect(res.status, p).toBe(302);
+      expect(res.headers.get("access-control-allow-origin"), p).toBe("*");
       expect(res.headers.get("location"), p).toBe("https://drawcast.app/share-card.png");
     }
   });

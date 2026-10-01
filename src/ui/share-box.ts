@@ -69,7 +69,9 @@ export function openShareBox(info: ShareInfo): void {
     const a = h("a", { href: platformUrl(p, state()), target: "_blank", rel: "noopener" }, LABEL[p]);
     a.addEventListener("click", () => {
       if (!TAKES_TEXT[p] && comment.value.trim()) {
-        void navigator.clipboard?.writeText(comment.value.trim()).then(() => say("Your comment is copied — paste it into the post."));
+        const failed = () => say("Copy your comment yourself — it was not copied.");
+        if (!navigator.clipboard) failed();
+        else navigator.clipboard.writeText(comment.value.trim()).then(() => say("Your comment is copied — paste it into the post."), failed);
       }
     });
     return { p, a };
@@ -105,13 +107,20 @@ export function openShareBox(info: ShareInfo): void {
   if (info.image && "ClipboardItem" in window) {
     const copyImage = h("button", { type: "button" }, "Copy image");
     copyImage.addEventListener("click", () => {
-      void fetch(info.image!)
-        .then((r) => r.blob())
-        .then((b) => navigator.clipboard.write([new ClipboardItem({ "image/png": b })]))
-        .then(
+      // clipboard.write must start inside the click (Safari, Firefox), so the
+      // item takes a promise of the blob rather than waiting for it here.
+      const blob = fetch(info.image!).then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.blob();
+      });
+      try {
+        navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(
           () => flash(copyImage, "Copied", "Copy image"),
           () => say("Could not copy the picture"),
         );
+      } catch {
+        say("Could not copy the picture");
+      }
     });
     extra.push(copyImage);
   }

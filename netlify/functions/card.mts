@@ -96,13 +96,16 @@ export async function handleCardRequest(req: Request, deps: CardDeps): Promise<R
       if (found?.poster) {
         const img = await deps.fetchImage(found.poster);
         if (img && img.ok && (img.headers.get("content-type") ?? "").startsWith("image/")) {
-          return new Response(img.body, { status: 200, headers: { "content-type": "image/png", "cache-control": "public, max-age=3600" } });
+          return new Response(img.body, { status: 200, headers: { "content-type": "image/png", "cache-control": "public, max-age=3600", "access-control-allow-origin": "*" } });
         }
       }
     } catch {
       /* the generic picture below */
     }
-    return redirect(genericImage, "public, max-age=600");
+    // Public picture: the share box fetches it from other origins (previews).
+    const generic = redirect(genericImage, "public, max-age=600");
+    generic.headers.set("access-control-allow-origin", "*");
+    return generic;
   }
 
   const t = parseSharePath(url.pathname, "/c/");
