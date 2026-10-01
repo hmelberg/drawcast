@@ -49,7 +49,9 @@ export function bookLayout(room: BookRoom, book: BookSettings | undefined, view:
   const W = Math.max(0, room.w);
   const H = Math.max(0, room.h);
   const bar = Math.max(0, room.barH);
-  const fontPx = Math.round(Math.min(26, Math.max(15, H / 40)));
+  // The text's size follows the height, and the column's width when that is
+  // narrow (an editor's preview pane): about 22 characters' worth of em.
+  const fontFor = (textW: number): number => Math.round(Math.min(26, Math.max(14, Math.min(H / 40, textW > 0 ? textW / 22 : Infinity))));
   // The stage's width for a given figure-pane height: 4:3 under the bar.
   const stageWForH = (h: number): number => Math.max(MIN_STAGE, ((h - bar) * 4) / 3);
   const figHForW = (w: number): number => (w * 3) / 4 + bar;
@@ -62,7 +64,7 @@ export function bookLayout(room: BookRoom, book: BookSettings | undefined, view:
     if (view === "text" || s >= 1) figH = 0;
     if (view === "figure" || s <= 0) figH = Math.min(H, figHForW(figW));
     const textH = Math.max(0, H - figH);
-    return { w: figW, h: H, dir: "column", text: { w: figW, h: view === "figure" ? 0 : textH }, figure: { w: figW, h: figH }, fontPx };
+    return { w: figW, h: H, dir: "column", text: { w: figW, h: view === "figure" ? 0 : textH }, figure: { w: figW, h: figH }, fontPx: fontFor(figW) };
   }
 
   let figW = stageWForH(H);
@@ -72,6 +74,8 @@ export function bookLayout(room: BookRoom, book: BookSettings | undefined, view:
     figW *= k;
     textW *= k;
   }
+  // From the shared layout, not a zoomed view: the words keep their size.
+  const fontPx = fontFor(textW);
   if (view === "figure" || s <= 0) {
     figW = Math.min(W, stageWForH(H));
     textW = 0;

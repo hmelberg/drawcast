@@ -68,19 +68,26 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
   if (settings.text === "second") row.append(host, aside);
   else row.append(aside, host);
   host.classList.add("bk-figure", "cs-caption-fixed");
-  parent?.classList.add("bk-mode");
+  // The player page (and the viewer) let the book take the window's width;
+  // anywhere else — the editor's preview panel — it fits inside its panel.
+  const page = parent?.classList.contains("player-wrap") === true || parent?.classList.contains("viewer-wrap") === true;
+  if (page) parent?.classList.add("bk-mode");
 
   let view: BookView = "both";
   let share = settings.share;
   const layoutNow = (animate: boolean): void => {
-    const container = parent?.parentElement ?? parent ?? document.body;
+    const container = (page ? parent?.parentElement : parent) ?? document.body;
+    const pad = (() => {
+      const cs = getComputedStyle(container);
+      return (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+    })();
     const top = row.getBoundingClientRect().top;
     const after = [...(parent?.children ?? [])].filter((c) => c !== row && c.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_PRECEDING);
     const furniture = after.reduce((a, c) => a + (c as HTMLElement).offsetHeight, 0);
     const stage = host.querySelector<HTMLElement>(".cs-stage");
     const barH = stage ? Math.max(40, host.offsetHeight - stage.offsetHeight) : 64;
     const room = {
-      w: Math.max(320, container.clientWidth - 32 - GAP),
+      w: Math.max(320, container.clientWidth - pad - (page ? 32 : 4) - GAP),
       h: Math.max(320, window.innerHeight - Math.max(0, top) - furniture - 24),
       barH,
     };
