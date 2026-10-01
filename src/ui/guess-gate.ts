@@ -12,12 +12,13 @@
 // which stands centred at the bottom of the figure, over the caption.
 //
 // Keys: Tab picks the next handle, arrows change it (shift: ten steps; on a
-// sketched line or a whole pie ←/→ pick the point or divider), Enter answers.
+// sketched line or a whole pie ←/→ pick the point or divider; on a market
+// curve the arrows move it and Shift+arrows turn it), Enter answers.
 // A tap on the value pill opens a field to type the number.
 
 import type { RenderHandle } from "../render";
 import type { GuessSession } from "../render/player";
-import { encodeGuess, hitDistance, nearestDivider, nudge, pointFor, valueAt, withBudget, type GuessHandle } from "../guess/handles";
+import { encodeGuess, hitDistance, marketGrab, nearestDivider, nudge, pointFor, valueAt, withBudget, type GuessHandle } from "../guess/handles";
 import { clockFraction } from "../guess/handles";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import type { AskGateStep } from "./controls";
@@ -28,10 +29,12 @@ const HINT: Record<GuessHandle["kind"], string> = {
   angle: "Drag the slice's edge",
   count: "Drag across the people",
   point: "Click where you think it is",
+  market: "Drag the middle to move it, an end to turn it",
 };
 
-/** True when ←/→ pick an entry of the handle instead of changing it. */
-const multiEntry = (g: GuessHandle): boolean => g.truth.length > 1;
+/** True when ←/→ pick an entry of the handle instead of changing it. A
+ *  market curve's two gaps are one gesture: its arrows move and turn it. */
+const multiEntry = (g: GuessHandle): boolean => g.truth.length > 1 && g.kind !== "market";
 
 export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
   return (signal, step) =>
@@ -63,7 +66,12 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         next.forEach((row, i) => (values[i] = row));
         showTotal();
       };
-      const onRelease = step.release !== false && handles.length === 1 && !(handles[0].kind === "angle" && handles[0].truth.length > 1);
+      // A market curve is moved AND turned (spec 2026-10-03 §3.2): one gesture
+      // is rarely the whole answer, so it waits for Answer unless release: true.
+      const onRelease =
+        handles[0].kind === "market"
+          ? step.release === true && handles.length === 1
+          : step.release !== false && handles.length === 1 && !(handles[0].kind === "angle" && handles[0].truth.length > 1);
       /** A beat between letting go and the reveal: the guess is seen standing. */
       const RELEASE_MS = 180;
 
@@ -101,7 +109,8 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         const name = g.entryLabels?.[entry] ?? (g.kind === "curve" ? "" : g.label);
         pill.textContent = handles.length > 1 || multiEntry(g) ? `${name ? `${name} ` : ""}${g.format(v)}` : g.format(v);
         // A scale's marker writes its own number: a pill over it says it twice.
-        if (c && g.kind !== "point") {
+        // A market curve has no one number to type: its copy is the answer.
+        if (c && g.kind !== "point" && g.kind !== "market") {
           pill.style.left = `${c[0]}px`;
           pill.style.top = `${c[1]}px`;
           pill.hidden = false;
@@ -143,7 +152,12 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         const k = pick(p);
         if (k === null) return;
         const g = handles[k];
-        const grab = g.kind === "angle" && g.centre && multiEntry(g) ? nearestDivider(values[k], clockFraction(g.centre, p) * 100) : undefined;
+        const grab =
+          g.kind === "angle" && g.centre && multiEntry(g)
+            ? nearestDivider(values[k], clockFraction(g.centre, p) * 100)
+            : g.kind === "market"
+              ? marketGrab(g, values[k], p)
+              : undefined;
         try {
           gate.setPointerCapture(e.pointerId);
         } catch {
@@ -151,7 +165,7 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         }
         dragging = { k, prev: p, ...(grab !== undefined ? { grab } : {}) };
         focus = k;
-        if (grab !== undefined) entry = grab;
+        if (grab !== undefined && g.kind !== "market") entry = grab;
         values[k] = valueAt(g, p, values[k], null, grab);
         constrain(k);
         gate.classList.add("dragging");

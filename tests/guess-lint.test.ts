@@ -61,3 +61,34 @@ describe("guess lint", () => {
     expect(bad.some((i) => /reveal: false/.test(i.message))).toBe(true);
   });
 });
+
+describe("market guess lint (spec 2026-10-03 §3)", () => {
+  const market = (commands: Spec["commands"], tax: Record<string, unknown> = { amount: 0, side: "seller", kind: "ad_valorem" }): Spec =>
+    ({ template: "supply_demand", params: { demand: { steepness: "medium" }, supply: { steepness: "medium" }, tax }, commands }) as Spec;
+  const allIssues = (spec: Spec) => lintCommands(expandSpec(spec));
+
+  test("a predict on the curve the animate moves is clean", () => {
+    const spec = market([{ draw: ["supply_curve", "demand_curve"] }, { ask: { question: "Show it", on: "supply_curve", predict: true, check: "shape" } }, { animate: { "tax.amount": 20 } }]);
+    expect(guessIssues(spec)).toEqual([]);
+    expect(allIssues(spec).filter((i) => i.rule === "widget")).toEqual([]);
+  });
+
+  test("an animate that does not move the asked curve errors (review focus 4)", () => {
+    const issues = guessIssues(market([{ draw: ["supply_curve", "demand_curve"] }, { ask: { question: "Show it", on: "demand_curve", predict: true } }, { animate: { "tax.amount": 20 } }]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].severity).toBe("error");
+    expect(issues[0].message).toMatch(/does not move demand_curve/);
+  });
+
+  test("a market guess without predict errors", () => {
+    const issues = guessIssues(market([{ ask: { question: "Show it", on: "supply_curve" } }]));
+    expect(issues.some((i) => i.severity === "error" && /predict/.test(i.message))).toBe(true);
+  });
+
+  test("check on a bar guess warns", () => {
+    const issues = guessIssues(bars([{ draw: ["axes", "bar_1"] }, { ask: { question: "B?", on: "bar_2", check: "size" } }]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].severity).toBe("warn");
+    expect(issues[0].message).toMatch(/check/);
+  });
+});

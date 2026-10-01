@@ -7,6 +7,7 @@
 import type { Pt } from "../layout/model";
 import { angleOf, pointFor, type GuessHandle } from "./handles";
 import { scaleGeometry } from "../spec/scale";
+import { along, curveOfGaps, impliedEquilibrium } from "./market";
 import { GUESS_COLOR } from "./color";
 
 export { GUESS_COLOR };
@@ -124,6 +125,33 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1): Gu
           const by = y - 58;
           lines.push({ pts: [[x, by + 6], [x, by], [x1, by], [x1, by + 6]] });
           if (t >= 1) texts.push({ at: [(x + x1) / 2, by - 16], text: sg.kind === "log" ? ratioText(h.truth[0], g[0]) : signedScale(sg.format, h.truth[0] - g[0]), anchor: "middle" });
+        }
+        break;
+      }
+      case "market": {
+        // The viewer's copy, dashed; as the truth arrives, the two gaps (at
+        // the scored points) and the equilibrium the guess implied, an open dot.
+        const m = h.market;
+        if (!m || !h.toLogical) break;
+        const v: [number, number] = [g[0] ?? 0, g[1] ?? 0];
+        const copy = curveOfGaps(m, v);
+        lines.push({ pts: copy.map(h.toLogical), dashed: true });
+        if (t <= 0) break;
+        const at = (q: number, x: number): Pt => h.toLogical!(m.axis === "price" ? [q, x] : [x, q]);
+        m.at.forEach((q, j) => {
+          const b = along(m.axis, m.base, q);
+          if (b === null) return;
+          const a = at(q, b + v[j]);
+          const e = at(q, b + v[j] + (m.truth[j] - v[j]) * t);
+          if (Math.hypot(e[0] - a[0], e[1] - a[1]) > 2) lines.push({ pts: [a, e] });
+        });
+        const eq = impliedEquilibrium(copy, m.other);
+        if (eq) {
+          const c = h.toLogical(eq);
+          const r = 7;
+          const ring: Pt[] = [];
+          for (let s = 0; s < 16; s++) ring.push([c[0] + r * Math.cos((s / 16) * 2 * Math.PI), c[1] + r * Math.sin((s / 16) * 2 * Math.PI)]);
+          lines.push({ pts: ring, closed: true });
         }
         break;
       }

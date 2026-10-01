@@ -3,7 +3,8 @@
 // repair round as structured text.
 
 import { SUB_SUFFIXES } from "../layout/model";
-import { guessParts } from "../guess/parts";
+import { guessParts, marketParts } from "../guess/parts";
+import { marketMove } from "../guess/market";
 import { treeBlanks, treePick } from "../tree/blanks";
 import { blankConvertible, blankIsNumber, formulaBlanks, hasBlanks, tileRight } from "../formula/blanks";
 import { walkTree } from "../scenes/decision_tree/rollback";
@@ -1036,6 +1037,10 @@ function lintGuess(spec: Spec): LintIssue[] {
   const cardSets = new Map(authoredCards(spec).map((cs) => [cs.id, cs]));
   const keptBack = new Set<string>();
   commands.forEach((c, i) => {
+    // `check` (spec 2026-10-03 §3.3) says what right means for a market curve only.
+    if (c.ask?.check !== undefined && (c.ask.on === undefined || marketParts(spec, guessParts(spec, c.ask.on)).length === 0)) {
+      issues.push({ rule: "guess", ids: [], message: `ask check: "${c.ask.check}" only means something on a supply or demand curve guess (on: supply_curve or demand_curve) — it is ignored here`, severity: "warn" });
+    }
     if (c.ask?.on === undefined) return;
     // A tree ask (blanks / pick) is linted by lintTreeAsk, a formula ask by lintFormulaAsk.
     if (c.ask.blanks !== undefined || c.ask.pick !== undefined) return;
@@ -1076,7 +1081,23 @@ function lintGuess(spec: Spec): LintIssue[] {
       }
       return;
     }
+    const market = new Set(marketParts(spec, guessParts(spec, c.ask.on)));
     for (const part of guessParts(spec, c.ask.on)) {
+      // Move the curve (spec 2026-10-03 §3): a prediction of the animate
+      // right after, which must move this curve.
+      if (market.has(part)) {
+        if (c.ask.predict !== true) {
+          issues.push({ rule: "guess", ids: [part], message: `ask on: "${part}" — a curve is guessed as a prediction: add predict: true and put the animate that moves it (tax.amount, a shift, offset or elasticity) right after`, severity: "error" });
+          continue;
+        }
+        const next = commands.slice(i + 1).find((d) => d.animate !== undefined || d.ask !== undefined || d.quiz !== undefined || d.label !== undefined);
+        if (next?.animate === undefined) continue; // the predict error above says it
+        const move = marketMove(part, (spec.params ?? {}) as Record<string, unknown>, next.animate as Record<string, unknown>);
+        if (typeof move === "string") {
+          issues.push({ rule: "guess", ids: [part], message: `ask on: "${part}" — ${move}: animate tax.amount (a tax on ${part === "supply_curve" ? "sellers" : "buyers"}), ${part === "supply_curve" ? "supply" : "demand"}_shift.amount, or ${part === "supply_curve" ? "supply" : "demand"}.offset / .elasticity`, severity: "error" });
+        }
+        continue;
+      }
       // What must stay undrawn for this part, or null when nothing here is guessable by that name.
       let hidden: string[] | null = null;
       if (/^bar_\d+$/.test(part) && spec.template === "bar_chart") {

@@ -3,6 +3,7 @@
 // Framework-free by design. One SVG renderer, two styles (sketchy/clean).
 
 import { guessParts, guessSetup, patchFor } from "../guess/handles";
+import { marketParts } from "../guess/parts";
 import { cardsGeometryIn, type CardsGeometry } from "../spec/cards";
 import { formulaBlanks, hasBlanks } from "../formula/blanks";
 import type { BBox } from "../layout/geometry";
@@ -535,6 +536,10 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     },
     guessParts: (on, from) => {
       const parts = guessParts(spec, on);
+      // A market curve's truth needs the next animate, which the plan has not
+      // laid out yet: the curve itself is what the question shows.
+      const market = marketParts(spec, parts);
+      if (market.length > 0) return { parts: market, shows: market };
       const setup = guessSetup(spec, spec.params ?? {}, layout, parts, { from, measure });
       return { parts: setup.handles.length > 0 ? parts : [], shows: setup.handles.flatMap((h) => h.shows) };
     },
@@ -592,7 +597,12 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // in both, and a patch re-reads the painted layout anyway.)
   if (spec.template && scenes[spec.template]?.widget) player.widgetDemo = widgetDemoFor(player, spec, layout);
   player.guess = {
-    setup: (on, from, params, onScreen) => guessSetup(spec, withOverrides(spec.params ?? {}, params), onScreen ?? layout, guessParts(spec, on), { from, measure }),
+    setup: (on, from, params, onScreen, opts) =>
+      guessSetup(spec, withOverrides(spec.params ?? {}, params), onScreen ?? layout, guessParts(spec, on), {
+        from,
+        measure,
+        ...(opts?.end ? { end: { params: withOverrides(spec.params ?? {}, opts.end.params), targets: opts.end.targets } } : {}),
+      }),
     patch: (setup, values, elements) => patchFor(elements ? { ...spec, elements } : spec, setup, values),
     cards: (id) => formulas.cardsOn(id),
     formula: (id) => formulas.formula(id),

@@ -20,10 +20,12 @@ import { readParam } from "../render/params";
 import type { Spec, SpecElement } from "../spec/types";
 import { guessParts } from "./parts";
 import { authoredScales, scaleGeometry, scaleValueElements, type ScaleElementLike } from "../spec/scale";
+import { along, curveOfGaps, gapsOf, marketCurve, marketKind, marketPoint, skOf, type MarketCurve, type MarketKind } from "./market";
+import { END_ZONE, nearestAlong } from "../scenes/supply_demand/widget";
 
 export { guessParts };
 
-export type GuessKind = "height" | "curve" | "angle" | "count" | "point";
+export type GuessKind = "height" | "curve" | "angle" | "count" | "point" | "market";
 
 export interface GuessHandle {
   /** The drawable id the gesture grabs, the ghost outlines, and the plan reveals. */
@@ -76,6 +78,21 @@ export interface GuessHandle {
   box?: BBox;
   centre?: Pt;
   radius?: number;
+  /** market (spec 2026-10-03 §3): the asked curve, the old and the true one;
+   *  the two numbers are the gaps v₁, v₂ along its axis. Painted by marks,
+   *  never by params (no paths). */
+  market?: MarketCurve;
+  /** market: what the animate does to the curve, for {t.why}. */
+  marketKind?: MarketKind;
+  /** market: a price and a quantity level (domain 0–100) in the author's units. */
+  marketLevel?: { price: (v: number) => string; quantity: (v: number) => string };
+}
+
+/** The animate a predict asks about: its end params (the template's, whole)
+ *  and its targets (dot paths). A market handle's truth is read from these. */
+export interface GuessEnd {
+  params: Record<string, unknown>;
+  targets: Record<string, unknown>;
 }
 
 export interface GuessSetup {
@@ -148,7 +165,7 @@ export function guessSetup(
   params: Record<string, unknown>,
   layout: Pick<LayoutResult, "drawables" | "order" | "frame" | "fit">,
   parts: string[],
-  opts: { from?: number; measure?: MeasureFn } = {},
+  opts: { from?: number; measure?: MeasureFn; end?: GuessEnd } = {},
 ): GuessSetup {
   const handles: GuessHandle[] = [];
   const warnings: string[] = [];
@@ -192,6 +209,12 @@ export function guessSetup(
       if (pieParts.length > 1 && part !== pieParts[0]) continue; // one pie handle covers them
       const whole = part === "pie" || pieParts.length > 1;
       const h = pieHandle(params, whole ? null : Number(part.slice(6)) - 1, layout.fit);
+      if (typeof h === "string") warnings.push(h);
+      else handles.push(h);
+      continue;
+    }
+    if (spec.template === "supply_demand" && (part === "supply_curve" || part === "demand_curve")) {
+      const h = marketHandle(params, part, opts.end, toDomain, toLogical);
       if (typeof h === "string") warnings.push(h);
       else handles.push(h);
       continue;
@@ -338,6 +361,85 @@ function pieHandle(params: Record<string, unknown>, slice: number | null, fit: L
   };
 }
 
+/** A unit range from the market's `units` (the 0–100 axis maps onto it). */
+function unitRange(r: unknown): [number, number] {
+  return Array.isArray(r) && r.length === 2 && r.every(isNum) && r[1] !== r[0] ? [r[0], r[1]] : [0, 100];
+}
+
+/** Domain numbers (0–100) written in the author's units: a gap (`delta`) or a level. */
+function unitFormat(range: unknown, unit: unknown, delta: boolean): (v: number) => string {
+  const [a, b] = unitRange(range);
+  const f = formatterFor(niceStep(Math.abs(b - a)));
+  const u = typeof unit === "string" ? unit.trim() : "";
+  return (v) => {
+    const n = delta ? (v * (b - a)) / 100 : a + ((b - a) * v) / 100;
+    const s = f(n);
+    if (!u) return s;
+    // Currency signs go in front ($12), like the template's readout; every other unit after.
+    if (/^[$€£¥]$/.test(u)) return s.startsWith("-") ? `-${u}${s.slice(1)}` : `${u}${s}`;
+    return `${s} ${u}`;
+  };
+}
+
+/** A curve's copy to move or turn (spec 2026-10-03 §3): predict only — the
+ *  truth is the curve the template draws at the next animate's end. */
+function marketHandle(
+  params: Record<string, unknown>,
+  part: "supply_curve" | "demand_curve",
+  end: GuessEnd | undefined,
+  toDomain: ((p: Pt) => Pt) | undefined,
+  toLogical: ((p: Pt) => Pt) | undefined,
+): GuessHandle | string {
+  if (!end) return `guess: "${part}" — a market guess is a prediction: ask it with predict: true right before the animate that moves the curve`;
+  const m = marketCurve(params, end.params, part, end.targets);
+  if (typeof m === "string") return `guess: "${part}" — ${m}`;
+  if (!toDomain || !toLogical) return `guess: "${part}" — the market has no axes to guess against`;
+  const units = (params["units"] ?? {}) as Record<string, unknown>;
+  const price = m.axis === "price";
+  return {
+    part,
+    shows: [part],
+    kind: "market",
+    truth: [m.truth[0], m.truth[1]],
+    min: -100,
+    max: 100,
+    step: niceStep(100),
+    label: part === "supply_curve" ? "supply" : "demand",
+    format: unitFormat(price ? units["price"] : units["quantity"], price ? units["price_unit"] : units["quantity_unit"], true),
+    unit: String((price ? units["price_unit"] : units["quantity_unit"]) ?? ""),
+    market: m,
+    marketKind: marketKind(part, params, end.targets),
+    marketLevel: {
+      price: unitFormat(units["price"], units["price_unit"], false),
+      quantity: unitFormat(units["quantity"], units["quantity_unit"], false),
+    },
+    toDomain,
+    toLogical,
+  };
+}
+
+const gapsOfValues = (v: number[]): [number, number] => [v[0] ?? 0, v[1] ?? 0];
+
+/** The viewer's curve (gaps `values`) on screen, logical. */
+export function marketLine(h: GuessHandle, values: number[]): Pt[] {
+  if (!h.market || !h.toLogical) return [];
+  return curveOfGaps(h.market, gapsOfValues(values)).map(h.toLogical);
+}
+
+/** What a press at `p` takes: 0 the middle (move it), 1 an end (turn it) —
+ *  the free-play widget's END_ZONE along the copy's length. */
+export function marketGrab(h: GuessHandle, values: number[], p: Pt): 0 | 1 {
+  const line = marketLine(h, values);
+  if (line.length < 2) return 0;
+  const { t } = nearestAlong(line, p);
+  return t < END_ZONE || t > 1 - END_ZONE ? 1 : 0;
+}
+
+/** Gaps kept within the handle's bounds. */
+function boundGaps(h: GuessHandle, v: [number, number]): number[] {
+  return [clamp(v[0], h.min, h.max), clamp(v[1], h.min, h.max)];
+}
+
 function unionBox(a: BBox, b: BBox): BBox {
   const x0 = Math.min(a.x, b.x), y0 = Math.min(a.y, b.y);
   const x1 = Math.max(a.x + a.w, b.x + b.w), y1 = Math.max(a.y + a.h, b.y + b.h);
@@ -421,6 +523,9 @@ export function startValues(h: GuessHandle): number[] {
       return [0];
     case "point":
       return [h.scale ? scaleGeometry(h.scale).middle : (h.min + h.max) / 2];
+    case "market":
+      // The copy lies on the curve.
+      return [0, 0];
   }
 }
 
@@ -490,6 +595,23 @@ export function valueAt(h: GuessHandle, p: Pt, current: number[], prev?: Pt | nu
       if (!h.scale) return current;
       return [scaleGeometry(h.scale).valueAtX(p[0])];
     }
+    case "market": {
+      // grab 0: the pointer's move along the axis moves every point by it (s);
+      // grab 1: s kept, k solved so the copy passes the pointer (a turn about
+      // the pivot: price 0, or the equilibrium quantity).
+      const m = h.market;
+      if (!m || !h.toDomain) return current;
+      const i = m.axis === "price" ? 1 : 0;
+      const { s, k } = skOf(m, gapsOfValues(current));
+      const d = h.toDomain(p);
+      if (grab === 1) {
+        const x0 = along(m.axis, m.base, d[1 - i]);
+        if (x0 === null || Math.abs(x0 - m.pivot) < 1e-6) return current;
+        return boundGaps(h, gapsOf(m, s, clamp((d[i] - m.pivot - s) / (x0 - m.pivot), 0.1, 10)));
+      }
+      if (!prev) return current;
+      return boundGaps(h, gapsOf(m, s + (d[i] - h.toDomain(prev)[i]), k));
+    }
   }
 }
 
@@ -523,6 +645,11 @@ export function clockFraction(c: Pt, p: Pt): number {
 
 /** One keyboard step for this handle (shift: ten). */
 export function nudge(h: GuessHandle, values: number[], index: number, dir: 1 | -1, big = false): number[] {
+  if (h.kind === "market" && h.market) {
+    // ↑/↓ move it a step; Shift+↑/↓ turn it (k by 5 %).
+    const { s, k } = skOf(h.market, gapsOfValues(values));
+    return boundGaps(h, big ? gapsOf(h.market, s, Math.max(0.1, k + 0.05 * dir)) : gapsOf(h.market, s + h.step * dir, k));
+  }
   const out = values.slice();
   const step = h.kind === "point" && h.scale && scaleGeometry(h.scale).kind === "log" ? 0 : h.step;
   if (h.kind === "point" && step === 0 && h.scale) {
@@ -645,6 +772,16 @@ export function pointFor(h: GuessHandle, values: number[], j = 0): Pt | null {
       return h.box ? [h.box.x + (values[0] / (h.max || 1)) * h.box.w, h.box.y - 125] : null;
     case "point":
       return h.scale ? [scaleGeometry(h.scale).xAt(values[0]), scaleGeometry(h.scale).y + 18] : null;
+    case "market": {
+      // 0: the middle of the copy (the laser takes it there); 1: its far end.
+      if (!h.market || !h.toLogical) return null;
+      if (j === 1) {
+        const line = marketLine(h, values);
+        return line.length > 0 ? line[line.length - 1] : null;
+      }
+      const at = marketPoint(h.market, gapsOfValues(values), (h.market.at[0] + h.market.at[1]) / 2);
+      return at ? h.toLogical(at) : null;
+    }
   }
 }
 
@@ -694,6 +831,13 @@ export function hitDistance(h: GuessHandle, p: Pt, values: number[]): number {
       if (!h.scale) return Infinity;
       const g = scaleGeometry(h.scale);
       return p[0] >= g.x0 - 30 && p[0] <= g.x1 + 30 && Math.abs(p[1] - g.y) <= 90 ? Math.abs(p[1] - g.y) : Infinity;
+    }
+    case "market": {
+      const line = marketLine(h, values);
+      if (line.length < 2) return Infinity;
+      const { at } = nearestAlong(line, p);
+      const d = Math.hypot(p[0] - at[0], p[1] - at[1]);
+      return d <= 60 ? d : Infinity;
     }
   }
 }

@@ -36,7 +36,8 @@ import { isIdentity, type Turn } from "./pose";
 import { decodeFigures } from "./decode-figures";
 import { smoothstep } from "./sweep";
 import { chunkCaption, pageTimes } from "./caption-chunks";
-import { defaultGuess, encodeGuess, decodeGuess, pointFor, startValues, type GuessHandle, type GuessSetup } from "../guess/handles";
+import { defaultGuess, encodeGuess, decodeGuess, pointFor, startValues, type GuessEnd, type GuessHandle, type GuessSetup } from "../guess/handles";
+import { gapsOf } from "../guess/market";
 import { guessText, guessVars, scoreGuess } from "../guess/score";
 import { guessMarks } from "../guess/marks";
 import type { CardsGeometry } from "../spec/cards";
@@ -123,7 +124,7 @@ const GUESS_PREV_COLOR = "#9fb6d8";
 /** What render() gives the player for guess asks (see Player.guess). */
 export interface GuessRuntime {
   /** `layout` is what is on screen, or null before any commit (the mount-time layout stands in). */
-  setup(on: string[], from: number | undefined, params: Record<string, unknown>, layout: LayoutResult | null): GuessSetup;
+  setup(on: string[], from: number | undefined, params: Record<string, unknown>, layout: LayoutResult | null, opts?: { end?: GuessEnd }): GuessSetup;
   patch(setup: GuessSetup, values: number[][], elements: SpecElement[] | undefined): { params: Record<string, unknown>; elements?: SpecElement[] };
   /** A cards element's geometry (spec 2026-10-01-rank-and-sort), or null. */
   cards?(id: string): CardsGeometry | null;
@@ -1266,7 +1267,9 @@ export class Player {
     const sceneParams = this.withVarOverrides(before.params);
     const overrides = this.overridesOf(before.offsets, before.turns, before.shapes, before.tex, before.copies);
     const baseElements = rp.patchedElements?.();
-    const sketched = setup.handles.some((h) => h.kind === "curve");
+    // A sketched line's copy, or a market curve's (spec 2026-10-03 §3.2: the
+    // copy is a mark — the template is never painted from it).
+    const sketched = setup.handles.some((h) => h.kind === "curve" || h.kind === "market");
     return (values, marks = true) => {
       const patch = this.guess!.patch(setup, values, baseElements);
       rp.frame({ ...sceneParams, ...patch.params }, this.frameScene(before, visible), { revealNew: true, overrides, ...(patch.elements ? { elements: patch.elements } : {}) });
@@ -1279,13 +1282,18 @@ export class Player {
   }
 
   /** The handles for `on` at a boundary (the template params as they stand there). */
-  private guessSetupAt(on: string[], from: number | undefined, before: SceneState, quiet = false): GuessSetup | null {
+  private guessSetupAt(on: string[], from: number | undefined, before: SceneState, quiet = false, end?: GuessEnd): GuessSetup | null {
     if (!this.guess || !this.reprojector) return null;
-    const tplParams: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(this.withVarOverrides(before.params))) if (!k.startsWith("vars.")) tplParams[k] = v;
-    const setup = this.guess.setup(on, from, tplParams, this.paintedLayout());
+    const setup = this.guess.setup(on, from, this.tplParamsOf(before), this.paintedLayout(), end ? { end } : undefined);
     if (!quiet) for (const w of setup.warnings) console.warn(`[guess] ${w}`);
     return setup.handles.length > 0 ? setup : null;
+  }
+
+  /** The template's params at a boundary (dot-path overrides, vars left out). */
+  private tplParamsOf(state: SceneState): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(this.withVarOverrides(state.params))) if (!k.startsWith("vars.")) out[k] = v;
+    return out;
   }
 
   /** The reveal: guess → truth, the ghost staying where the viewer put it. False when aborted. */
@@ -1377,14 +1385,19 @@ export class Player {
   private async guessAsk(index: number, step: Extract<PlanStep, { kind: "ask" }>, before: SceneState, signal: AbortSignal): Promise<void> {
     await this.narrationBarrier();
     if (signal.aborted || !step.on) return;
-    const setup = this.guessSetupAt(step.on, step.from, before);
+    // PREDICT (spec 2026-10-02 §3): the truth is the figure after the next
+    // animate; that animate is the reveal, so this step only asks. A market
+    // curve's truth is read from that animate's end (spec 2026-10-03 §3).
+    const animIndex = step.predict ? this.nextAnimate(index) : -1;
+    const animStep = animIndex >= 0 ? this.plan.steps[animIndex] : null;
+    const end: GuessEnd | undefined =
+      animStep?.kind === "animate" ? { params: this.tplParamsOf(this.plan.states[animIndex]), targets: animStep.targets } : undefined;
+    const setup = this.guessSetupAt(step.on, step.from, before, false, end);
     if (!setup) return;
     this.endGuessMarks(true);
-    // PREDICT (spec 2026-10-02 §3): the truth is the figure after the next
-    // animate; that animate is the reveal, so this step only asks.
-    const animIndex = step.predict ? this.nextAnimate(index) : -1;
     const truthHandles = (() => {
-      if (animIndex < 0) return setup.handles;
+      // A market handle carries its own truth (the curve at the animate's end).
+      if (animIndex < 0 || setup.handles.some((h) => h.kind === "market")) return setup.handles;
       const later = this.guessSetupAt(step.on, step.from, this.plan.states[animIndex], true);
       return later && later.handles.length === setup.handles.length ? setup.handles.map((h, k) => ({ ...h, truth: later.handles[k].truth })) : setup.handles;
     })();
@@ -1407,7 +1420,7 @@ export class Player {
     const prev = step.revise !== undefined ? this.guessMemory.get(step.revise.toLowerCase()) : undefined;
     const fits = (v: number[][] | undefined): v is number[][] => v !== undefined && v.length === setup.handles.length && v.every((r, k) => r.length === setup.handles[k].truth.length);
     const start: number[][] = step.predict
-      ? setup.handles.map((h) => h.truth.slice())
+      ? setup.handles.map((h) => (h.kind === "market" ? startValues(h) : h.truth.slice()))
       : fits(prev)
         ? prev.map((r) => r.slice())
         : step.budget !== undefined && setup.handles.every((h) => h.truth.length === 1)
@@ -1437,13 +1450,24 @@ export class Player {
     } else {
       // The movie: the laser carries the demo guess (`default`) from the
       // start to where it lands, painting as it goes.
-      const demo = defaultGuess(step.fallback, setup.handles) ?? start;
+      // A market curve with no default: the commonest guess, an even move
+      // of the true mean size (spec 2026-10-03 §6) — the laser takes the middle.
+      // A turn about the equilibrium (gaps of opposite sign) has no even move
+      // to show: the movie turns it right instead.
+      const commonest = (h: GuessHandle, k: number): number[] => {
+        if (!h.market) return start[k];
+        if (h.truth[0] * h.truth[1] < 0) return h.truth.slice();
+        return gapsOf(h.market, (h.truth[0] + h.truth[1]) / 2, 1);
+      };
+      const demo =
+        defaultGuess(step.fallback, setup.handles) ??
+        (setup.handles.some((h) => h.kind === "market") ? setup.handles.map(commonest) : start);
       const effects = this.effects;
       await this.progress(1400, signal, (t) => {
         const e = smoothstep(t);
         const vals = start.map((row, k) => row.map((v, j) => v + ((demo[k]?.[j] ?? v) - v) * e));
         paint(vals);
-        const p = pointFor(setup.handles[0], vals[0], vals[0].length - 1);
+        const p = pointFor(setup.handles[0], vals[0], setup.handles[0].kind === "market" ? 0 : vals[0].length - 1);
         effects?.setPointer(t >= 1 || !p ? null : p);
       });
       effects?.setPointer(null);
@@ -1467,7 +1491,7 @@ export class Player {
     }
 
     const judged = step.judge !== false;
-    const score = scoreGuess(truthHandles, guess, { tolerance: step.tolerance, relative: step.relative });
+    const score = scoreGuess(truthHandles, guess, { tolerance: step.tolerance, relative: step.relative, check: step.check });
     const ok = answered && score.ok;
     this.recordAnswer(index, step.store, guessText(truthHandles, guess, score), judged ? ok : null, secs);
     if (step.store) {

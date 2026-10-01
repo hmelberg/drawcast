@@ -65,7 +65,7 @@ const swap = (pts: Pt[]): Pt[] => pts.map(([a, b]): Pt => [b, a]);
 const span = (xs: number[]): [number, number] => [Math.min(...xs), Math.max(...xs)];
 
 /** The moving coordinate of `pts` at partner coordinate `at` (P(Q) on the price axis, Q(P) on the quantity axis). */
-function along(axis: MarketAxis, pts: Pt[], at: number): number | null {
+export function along(axis: MarketAxis, pts: Pt[], at: number): number | null {
   return axis === "price" ? interpolateAtX(pts, at) : interpolateAtX(swap(pts), at);
 }
 
@@ -260,4 +260,46 @@ export function marketWhy(m: MarketCurve, v: [number, number], kind: "tax" | "su
 /** Where a curve crosses the other one: the equilibrium it implies. */
 export function impliedEquilibrium(curve: Pt[], other: Pt[]): Pt | null {
   return intersectPolylines(curve, other);
+}
+
+export type MarketKind = "tax" | "subsidy" | "shift" | "elasticity";
+
+/** What the animate does to the asked curve, for {t.why}: a negative tax is a subsidy. */
+export function marketKind(curve: string, params: Rec, targets: Rec): MarketKind {
+  const move = marketMove(curve, params, targets);
+  if (typeof move !== "string" && move.axis === "price") {
+    const t = targets["tax.amount"];
+    return typeof t === "number" && t < 0 ? "subsidy" : "tax";
+  }
+  return Object.keys(targets).some((k) => k.endsWith(".elasticity")) ? "elasticity" : "shift";
+}
+
+/** The viewer's curve for gaps v, domain units. */
+export function curveOfGaps(m: MarketCurve, v: [number, number]): Pt[] {
+  const { s, k } = skOf(m, v);
+  return transformed(m, s, k);
+}
+
+/** The point of the viewer's curve (gaps v) at partner coordinate q, domain units. */
+export function marketPoint(m: MarketCurve, v: [number, number], q: number): Pt | null {
+  const x0 = along(m.axis, m.base, q);
+  if (x0 === null) return null;
+  const { s, k } = skOf(m, v);
+  const x = m.pivot + k * (x0 - m.pivot) + s;
+  return m.axis === "price" ? [q, x] : [x, q];
+}
+
+/**
+ * The equilibrium a curve implies against the other one, as (Q, P) in domain
+ * units. A tax or subsidy on buyers moves demand: buyers pay what the OLD
+ * demand curve says at that quantity, so that is the price reported (§3.4).
+ */
+export function impliedMarket(m: MarketCurve, curve: Pt[]): Pt | null {
+  const e = impliedEquilibrium(curve, m.other);
+  if (!e) return null;
+  if (m.curve === "demand_curve" && m.axis === "price") {
+    const p = along("price", m.base, e[0]);
+    return p === null ? e : [e[0], p];
+  }
+  return e;
 }
