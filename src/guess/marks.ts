@@ -7,9 +7,9 @@
 import type { Pt } from "../layout/model";
 import { angleOf, pointFor, type GuessHandle } from "./handles";
 import { scaleGeometry } from "../spec/scale";
+import { GUESS_COLOR } from "./color";
 
-/** The viewer's colour — not the ink, not the highlight, not a series colour. */
-export const GUESS_COLOR = "#3f6fb5";
+export { GUESS_COLOR };
 
 export interface GuessMarkLine {
   pts: Pt[];

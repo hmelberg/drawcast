@@ -1,6 +1,7 @@
 // The layout orchestrator: spec → backend-independent drawables + lint.
 // Template routing failures fall through to tier-2 gracefully (never hard-fail).
 
+import { formulaBlanks, hasBlanks } from "../formula/blanks";
 import { decodeCodeResult } from "../code/envelope";
 import { scenes } from "../scenes/registry";
 import { normalizeSpec } from "../spec/schema";
@@ -335,6 +336,11 @@ export function layoutSpec(
       // would end the cast with a phantom `{draw: ["<id>"]}` painting nothing.
       if (el.type === "measure" && pieceGroups[el.id]) continue;
       if (!order.includes(el.id)) order.push(el.id);
+      // A formula's blank boxes (formula/blanks.ts) right after it: parts the
+      // plan shows and hides, and elementBBoxes measures.
+      if (el.type === "math" && typeof el.tex === "string" && hasBlanks(el.tex)) {
+        for (const b of formulaBlanks(el.id, el.tex)) if (!order.includes(b.part) && drawables.some((d) => d.id === b.part)) order.push(b.part);
+      }
     }
     // Ids tier-2 minted itself (a source element's quote highlights) come
     // AFTER their element — order is also paint order, and a highlighter

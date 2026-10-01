@@ -38,6 +38,10 @@ describe("tree blanks", () => {
     expect(parseBlankNumber("1 200")).toBe(1200);
     expect(parseBlankNumber("")).toBeNull();
     expect(parseBlankNumber("abc")).toBeNull();
+    // A leading "0," is a decimal comma, never thousands.
+    expect(parseBlankNumber("0,250")).toBe(0.25);
+    expect(parseBlankNumber("-0,250")).toBe(-0.25);
+    expect(parseBlankNumber("78,000")).toBe(78000);
   });
   test("scoring: relative tolerance; probabilities within 0.01; empty is wrong", () => {
     const { blanks } = treeBlanks(params, ["value_treat", "branchlabel_treat_not"]);

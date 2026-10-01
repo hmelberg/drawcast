@@ -98,7 +98,8 @@ export function parseBlankNumber(text: string): number | null {
   // Separators: with both marks, the last is the decimal point; a mark
   // repeated, or a lone comma before exactly three digits (as the tree
   // draws "$78,000"), groups thousands; any other lone comma is a decimal.
-  const grouped = (mark: string) => new RegExp(`^[-+]?\\d{1,3}(\\${mark}\\d{3})+$`);
+  // A group never starts with 0: "0,250" is a decimal comma (0.25).
+  const grouped = (mark: string) => new RegExp(`^[-+]?[1-9]\\d{0,2}(\\${mark}\\d{3})+$`);
   const commas = (t.match(/,/g) ?? []).length;
   const dots = (t.match(/\./g) ?? []).length;
   if (commas && dots) {
