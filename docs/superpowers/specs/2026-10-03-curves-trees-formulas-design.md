@@ -1,6 +1,6 @@
 # Curves, trees and formulas — three more ways to answer
 
-Date: 2026-10-03 · Status: proposed (round 4 of guess-and-reveal; builds on
+Date: 2026-10-03 · Status: approved 2026-10-03 (round 4 of guess-and-reveal; builds on
 `2026-10-01-guess-and-reveal-design.md` and
 `2026-10-02-more-ways-to-answer-design.md`, and answers its open question 1,
 "predict on template widgets")
@@ -68,29 +68,45 @@ lies on it. The viewer has two moves, the same two the free-play widget has:
   equilibrium otherwise. The question knows from the animate which of the
   two it is.
 
-As a formula: the viewer's curve is `P(Q) = k · P₀(Q) + s`. Moving changes
-`s`, turning changes `k`, so the shape is the viewer's own and nothing is
-offered as a hint. Both moves can be combined, so here `release` defaults to false and the
-Answer button is shown: one gesture is rarely the whole answer.
+As a formula: the viewer's curve is `X = c + k · (X₀ − c) + s`, along one
+axis:
 
-For a horizontal shift (a demand shift), the copy moves sideways:
-`Q(P) = Q₀(P) + s`. The handle uses the direction the truth moves, so the
-viewer is never offered a move that cannot reach the answer.
+- **price axis** (a tax or subsidy): `P(Q) = k · P₀(Q) + s`, turning about
+  price 0 (`c = 0`);
+- **quantity axis** (a shift, an offset, an elasticity change):
+  `Q(P) = Qe + k · (Q₀(P) − Qe) + s`, moving sideways and turning about the
+  equilibrium quantity `Qe`.
+
+Moving changes `s`, turning changes `k`, so the shape is the viewer's own and
+nothing is offered as a hint. The axis follows from the animated param, so
+the viewer is never offered a move that cannot reach the answer.
+Elasticity questions ("supply becomes more elastic — show it") are in this
+round: their truth is a turn about the equilibrium.
+
+The copy is drawn as a guess mark (`setGuessMarks`), not by the template: the
+market's own layout is untouched while the viewer works, and the following
+animate moves the real curve.
+
+Both moves can be combined, so here `release` defaults to false and the
+Answer button is shown: one gesture is rarely the whole answer. Keys: ↑/↓
+move, Shift+↑/↓ turn.
 
 ### 3.3 Scoring
 
-Compare the viewer's curve and the truth at two quantities, a quarter and
-three quarters of the way along the old curve (one point is not enough to
-tell a shift from a turn). At each quantity, take the vertical gap between
-the new curve and the OLD curve, for the viewer (`v₁`, `v₂`) and for the
-truth (`t₁`, `t₂`).
+Compare the viewer's curve and the truth at two points of the old curve, a
+quarter and three quarters of the way along it (one point is not enough to
+tell a shift from a turn). At each, take the gap along the axis (§3.2)
+between the new curve and the OLD curve, for the viewer (`v₁`, `v₂`) and for
+the truth (`t₁`, `t₂`). These two gaps ARE the handle's numbers: the gesture
+sets `v₁, v₂` (from `s` and `k`), the truth is `t₁, t₂`, so the round-1
+scoring and marks apply unchanged.
 
 - **Direction**: the sign of `v₁ + v₂` against the sign of `t₁ + t₂`.
 - **Shape**: a *shift* when the two gaps are nearly equal
   (`|v₂ − v₁| < 0.25 · max(|v₁|, |v₂|)`), otherwise a *turn*. The same
   rule classifies the truth.
 - **Size**: the mean of `|v₁ − t₁|` and `|v₂ − t₂|`, within `tolerance`
-  (default 0.08 of the price axis).
+  (default 0.08 of that axis).
 
 A new field `check` chooses what "right" means:
 
@@ -123,8 +139,8 @@ A new field `check` chooses what "right" means:
 ### 3.5 Reveal and marks
 
 The viewer's copy stays as a dashed ghost. The following animate then runs
-(as predict does) and the true curve moves into place. Two short vertical
-gap lines at the two scored quantities show "how far" in the guess colour,
+(as predict does, from the template's own start — the guess lives only in
+the marks) and the true curve moves into place. Two short gap lines at the two scored quantities show "how far" in the guess colour,
 and the implied equilibrium of the guess is shown as an open dot. The marks
 end when the market is erased.
 
@@ -154,9 +170,16 @@ handle.
   - `value_<node>`: a chance or decision node's rolled-back value (needs
     `rollback: true`; lint errors otherwise);
   - `branchlabel_<parent>_<child>`: a probability, e.g. the 1 − p that the
-    tree fills in itself.
-- Under the question each blank shows "?" in a box. The truth is the tree's
-  own rollback at the current params.
+    tree fills in itself;
+  - `effect_<node>` / `cost_<node>`: a terminal's payoff or cost (the viewer
+    computes it, e.g. cost × years). Its truth is the number the author
+    wrote; it has a working line only when the node carries `work` (a short
+    text, e.g. `"12 × £300"`).
+- Under the question each blank shows "?" in a box: the tree gains an
+  internal param `answers` (part id → text) that replaces those numbers as
+  drawn ("?" while asking, the typed number while typing, gone after the
+  reveal). Rollback is not affected. The truth is the tree's own rollback at
+  the current params (or the authored number for a terminal).
 - The viewer taps a blank and types into the tree's own tap-to-type box
   (`editable`, EditField), with label "Expected value of Treat". Enter moves
   to the next blank. One blank: Enter answers. Several: the Answer button.
@@ -205,10 +228,16 @@ A blank is written in the formula itself:
 
 ### 5.2 How a blank is drawn
 
-- `\blank{…}` is replaced before MathJax by its content, so the formula lays
-  out exactly as the answer would. The blank's glyphs are found by the
-  existing part matcher (`highlight-part.ts`), are kept back, and a rounded box
-  is drawn around their bounds, padded and at least one em wide.
+- `\blank{…}` is replaced before MathJax by its content, wrapped in a nested
+  mark as live math wraps a var (`live-math.ts` marks, `partOfChain`), so the
+  formula lays out exactly as the answer would and the blank's glyphs are
+  gathered into a part of their own. Those glyphs are kept back (drawn at
+  opacity 0) and a rounded box is drawn around their bounds, padded and at
+  least one em wide.
+- The element gains an internal field `fills` (blank k → TeX or null): a
+  blank with a fill shows it in the box (the viewer's tile or typed answer,
+  in the guess colour; after the reveal, the truth in the ink). The guess
+  path patches it like a scale's marker (`patchFor` elements).
 - Parts: `<id>_blank_<k>` (the box, k = 1, 2, … in order) and
   `<id>_blank_<k>_fill` (the hidden glyphs).
 - Drawing the formula draws the boxes, never the hidden glyphs. A blank that
@@ -217,31 +246,50 @@ A blank is written in the formula itself:
 
 ### 5.3 Answering
 
-- **Tiles** (when the blank's content is not a plain number, or `others` is
-  given):
+- **Tiles** (when `others` is given):
   - The right contents are always tiles, and `others` adds wrong ones.
   - The tiles are small cards with the TeX drawn on them, in a shuffled row
     under the formula.
   - The viewer drags a tile onto a box, or taps a tile and then a box.
   - A tile in a box can be dragged out again or swapped.
   - Keyboard: the same as the card gates.
-  - Uses the cards drag code (`src/cards/`).
+  - The tiles are expanded from the ask into elements (`<id>_tile_<k>`, a
+    rounded box with the TeX), drawn by the ask itself, and answered through
+    the cards gate in a new mode, `fill`: each box takes one tile.
 - **Typed number** (when the blank's content is a plain number and there is
   no `others`): tapping the box opens a number box; right within `tolerance`
   (default 0.02 relative).
-- **Typed symbols** are not in this round: no maths parser. Lint errors
-  for a symbolic blank without tiles.
-- One blank answers on the drop (`release`); several show the Answer button.
+- **Typed expression** (a symbolic blank and no `others`): tapping the box
+  opens a text field taking AsciiMath-style input: `pi r^2`, `2r`, `sqrt(x)`,
+  `(a+b)/2`, with implied multiplication and `·`, `×`, `π`, `√` accepted. As
+  the viewer types, the answer is drawn in the box (through `fills`), so they
+  see `πr²` and know it was read as meant. A row of keys above the field
+  gives `^ √ π / ( )` for phones.
+  - **Checked by value:** the typed answer and the truth are evaluated at
+    five random points (each letter drawn from 0.5–3), and right when they
+    agree to 1e-6 relative at every point where both are defined (at least
+    three). `r^2`, `r*r` and `r r` are all right; `2r` is not.
+  - **`form: "exact"`** (for "simplify" questions): right only when the
+    typed expression, printed back to TeX, equals the truth after removing
+    spaces and outer braces.
+  - **The truth** comes from the blank's TeX through a small converter
+    (`^{}`, `_{}` on a letter as part of its name, `\frac`, `\sqrt`,
+    `\pi`, `\cdot`, `\times`, `\left( \right)`). A blank it cannot
+    convert takes tiles only; lint errors when such a blank has no `others`.
+  - The parser is a new module beside `src/spec/expression.ts` (which stays
+    as it is: curve strings keep their stricter syntax).
+- One blank answers on the drop or on Enter (`release`); several show the
+  Answer button.
 
 ### 5.4 Scoring, reveal, stored
 
 - **Scoring:** a tile is right when its TeX equals the blank's after
-  removing spaces and outer braces.
+  removing spaces and outer braces; a typed answer as in §5.3.
 - **Reveal:** the wrong tiles slide back to the row, and each box's true
   glyphs are written in by hand in the box. A wrong box keeps a small
   struck-through copy of the viewer's tile above it.
 - **Stored:**
-  - `{f}` "1 of 2"; with one blank, the viewer's tile as text
+  - `{f}` "1 of 2"; with one blank, the viewer's answer as text
   - `{f.true}` the true content
   - `{f.<k>}`, `{f.<k>.true}` for each blank
 - **The box stays filled** after the ask. Later commands can highlight
@@ -254,7 +302,7 @@ A blank is written in the formula itself:
 | Move the curve | the laser takes the middle of the curve and moves it (the commonest guess), then the animate brings the truth |
 | Fill the tree | each "?" is written in with the true value, the working line under the first |
 | Pick | the laser taps the best branch |
-| Fill the formula | the right tiles glide into their boxes one by one |
+| Fill the formula | the right tiles glide into their boxes one by one; a typed blank has its answer typed in, character by character |
 
 Test me (self-test) uses the same paths as the live gates.
 
@@ -263,17 +311,16 @@ Test me (self-test) uses the same paths as the live gates.
 - **New ask fields:**
   - `check` (A)
   - `blanks`, `pick`, `work` (B)
-  - `others` (C)
+  - `others`, `form` (C)
 
   `tolerance`, `release`, `store` and `predict` keep their meanings.
-- **Template guess handles:** a template can now offer guess handles through
-  an optional `guess` function in its widget body. The function returns:
-  - the handle (what moves and how);
-  - the truth (computed from the end params);
-  - a scorer.
-
-  Supply/demand implements it. Decision trees use `blanks`/`pick` through
-  the same hook. Other templates can follow later.
+- **A new guess handle kind, `market`** (A): its two numbers are the gaps
+  `v₁, v₂`; built from the template's own pure layout at the ask's params
+  and at the end params of the next animate (so its truth needs no later
+  layout on screen); painted by marks, never by params.
+- **Two new gates** beside the guess and cards gates: the tree gate (B:
+  number fields over the blanks, branch taps) and the formula gate's typed
+  field (C); tiles use the cards gate.
 - **Marks:** the guess colour, ghosts and gap lines from rounds 1–3.
 
 ## 8. LLM guidance
@@ -293,22 +340,22 @@ pin moves once.
 1. **Fill the tree:** blanks via the tree's editable fields, the working
    lines, pick, lint, and two examples (treat or wait; an HE tree with a
    blank probability).
-2. **Fill the formula:** `\blank`, the boxes, the tiles (reusing the cards
-   code), number boxes, lint, and two examples (area of a circle; a missing
-   number in a sum).
+2. **Fill the formula:** `\blank`, the boxes and `fills`, the tiles (a
+   cards `fill` mode), number boxes, the expression parser (AsciiMath-style
+   input, TeX truth, check by value, `form: exact`), the typed field with its
+   preview, lint, and three examples (area of a circle with tiles; a missing
+   number in a sum; a typed derivative).
 3. **Move the curve:** the template guess hook, the copy curve with move and
    turn, the scoring and `{t.why}`, the predict carry into the animate, and
    three examples (per-unit tax, percent tax, subsidy).
 4. Prompts, rule card and `#interactive`; one generated cast as a test;
    browser checks muted; push.
 
-## 10. Open questions
+## 10. Decisions (2026-10-03)
 
-1. **Turning by elasticity in a question:** should a question whose truth is
-   an elasticity change (supply becomes more elastic) offer the turn about
-   the equilibrium (as specified), or should elasticity questions wait?
-2. **Typed symbols:** is a small parser worth adding later (for `2r`, `x^2`),
-   or do tiles cover what teaching needs?
-3. **Tree blanks for terminal payoffs:** sometimes the viewer should compute
-   a payoff (cost × years) rather than an expected value. Add
-   `effect_<id>`/`cost_<id>` blanks now, or later?
+1. **Elasticity questions are in:** the turn is about the equilibrium
+   (quantity axis); in a tax question it is about price 0 (§3.2).
+2. **Typed expressions are in,** checked by value, with `form: "exact"` for
+   simplifying; tiles stay the tool for telling likely mistakes apart (§5.3).
+3. **Terminal payoff and cost blanks are in,** with an optional `work` text
+   on the node (§4.2).
